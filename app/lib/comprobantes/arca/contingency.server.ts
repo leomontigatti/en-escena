@@ -10,8 +10,9 @@ import type { ArcaClient } from "./client.server";
  * la UI use (ADR-0012 decisión 6).
  */
 export type ArcaCallPhase =
-  // `FECompUltimoAutorizado`: sólo se consultó el correlativo. No se pidió
-  // autorizar nada, así que con certeza no se emitió ningún comprobante.
+  // Llamada de sólo lectura (`FECompUltimoAutorizado`, `FECompConsultar`): no se
+  // pidió autorizar nada, así que con certeza esa llamada no emitió ningún
+  // comprobante.
   | "lookup"
   // `FECAESolicitar`: se pidió el CAE y no sabemos si ARCA llegó a otorgarlo.
   // Reintentar a ciegas puede emitir un segundo comprobante por el mismo monto.
@@ -38,13 +39,17 @@ export async function attemptArca<T>(
   try {
     return { ok: true, value: await run() };
   } catch (thrown) {
-    return {
-      ok: false,
-      failure: {
-        phase,
-        detail: thrown instanceof Error ? thrown.message : String(thrown),
-      },
+    const failure: ArcaCallFailure = {
+      phase,
+      detail: thrown instanceof Error ? thrown.message : String(thrown),
     };
+
+    // Al operador se le dice qué quedó resuelto, no qué se rompió (ADR-0012
+    // decisión 6). El detalle sólo sobrevive acá: antes de esto la excepción
+    // llegaba al error boundary y al menos quedaba en el log del servidor.
+    console.error("[arca:unreachable]", failure);
+
+    return { ok: false, failure };
   }
 }
 
@@ -80,7 +85,9 @@ export async function recoverAuthorization(
   client: ArcaClient,
   submitted: ArcaAttemptedVoucher & { impTotal: number; cbteFch: string },
 ): Promise<ArcaRecovery> {
-  const consult = await attemptArca("authorization", () =>
+  // `FECompConsultar` es de sólo lectura: falle como falle, esta llamada no
+  // autoriza nada. La ambigüedad que se está resolviendo la dejó `FECAESolicitar`.
+  const consult = await attemptArca("lookup", () =>
     client.getVoucherInfo({
       ptoVta: submitted.ptoVta,
       cbteTipo: submitted.cbteTipo,
@@ -135,11 +142,14 @@ export function buildUnverifiedMessage(
   subject: ArcaContingencySubject,
   attempt: ArcaAttemptedVoucher,
 ): string {
+  // El texto no concuerda en género con el sujeto a propósito: la consulta
+  // posterior es el sujeto de la segunda oración, así que sirve igual para "el
+  // comprobante" y para "la nota de crédito".
   return (
     `Se cortó la comunicación con ARCA mientras se autorizaba ` +
-    `${ARTICLE[subject]} y tampoco pudimos consultarlo después, así que no ` +
-    `sabemos si llegó a emitirse (punto de venta ${attempt.ptoVta}, tipo ` +
-    `${attempt.cbteTipo}, número ${attempt.cbteNro}). Verificá ese ` +
-    `comprobante en ARCA antes de reintentar, para no emitir dos veces.`
+    `${ARTICLE[subject]} y la consulta posterior tampoco resolvió si llegó a ` +
+    `emitirse (punto de venta ${attempt.ptoVta}, tipo ${attempt.cbteTipo}, ` +
+    `número ${attempt.cbteNro}). Verificá ese comprobante en ARCA antes de ` +
+    `reintentar, para no emitir dos veces.`
   );
 }
