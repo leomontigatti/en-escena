@@ -71,6 +71,7 @@ export function readDancerIdentificationFilter(
   }
 }
 
+/** `all` se codifica por ausencia del parámetro, así que devuelve `null`. */
 export function toDancerParticipationSearchValue(
   value: DancerParticipationFilter,
 ) {
@@ -78,7 +79,7 @@ export function toDancerParticipationSearchValue(
     case "no":
       return "no";
     case "all":
-      return "todos";
+      return null;
     default:
       return "si";
   }

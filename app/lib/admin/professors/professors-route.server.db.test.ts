@@ -1099,7 +1099,7 @@ function getProfessorFilterValues(
     loaderData.filters.participation,
   );
 
-  if (loaderData.selectedEventId && participationValue !== "todos") {
+  if (loaderData.selectedEventId && participationValue !== null) {
     values.participando = participationValue;
   }
 
