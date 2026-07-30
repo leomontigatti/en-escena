@@ -1,4 +1,4 @@
-import type { ArcaClient } from "./client.server";
+import { ArcaTimeoutError, type ArcaClient } from "./client.server";
 
 /**
  * Contingencia por falta de respuesta de ARCA (ADR-0012): la llamada SOAP falló
@@ -20,6 +20,10 @@ export type ArcaCallPhase =
 
 export type ArcaCallFailure = {
   phase: ArcaCallPhase;
+  // Si se agotó NUESTRO timeout en lugar de fallar el transporte. Un timeout deja
+  // la petición en vuelo, así que la llamada puede completarse del lado de ARCA
+  // después de que dejamos de esperar; un error de transporte, no.
+  timedOut: boolean;
   detail: string;
 };
 
@@ -41,6 +45,7 @@ export async function attemptArca<T>(
   } catch (thrown) {
     const failure: ArcaCallFailure = {
       phase,
+      timedOut: thrown instanceof ArcaTimeoutError,
       detail: thrown instanceof Error ? thrown.message : String(thrown),
     };
 
@@ -60,15 +65,25 @@ export type ArcaAttemptedVoucher = {
   cbteNro: number;
 };
 
+// Por qué no se pudo afirmar nada. No llega a la UI —que sólo distingue los tres
+// estados resueltos (decisión 6)— pero elige el texto, que de otro modo mentiría
+// sobre lo que pasó.
+export type ArcaUnverifiedReason =
+  // La consulta falló, o devolvió un comprobante que no es el nuestro.
+  | "consult-inconclusive"
+  // La consulta respondió que ARCA no lo tiene, pero la autorización se cortó por
+  // timeout y sigue en vuelo: el "no lo tengo" puede ser sólo "todavía no".
+  | "authorization-in-flight";
+
 export type ArcaRecovery =
   // La consulta devolvió el comprobante y coincide con lo enviado: SÍ se
   // autorizó. Hay que persistirlo con este CAE.
   | { status: "recovered"; cae: string; caeVto: string; cbteFch: string }
-  // ARCA no tiene ese comprobante: no se autorizó nada y reintentar es seguro.
+  // ARCA no tiene ese comprobante y la petición no puede seguir en curso: no se
+  // autorizó nada y reintentar es seguro.
   | { status: "not-emitted" }
-  // La consulta falló, o el comprobante que volvió no es el nuestro: no se
-  // puede afirmar nada.
-  | { status: "unverified" };
+  // No se puede afirmar nada.
+  | { status: "unverified"; reason: ArcaUnverifiedReason };
 
 /**
  * Resuelve la ambigüedad que deja una falla en la fase de autorización
@@ -80,10 +95,17 @@ export type ArcaRecovery =
  * así que un comprobante con el número que intentamos no es necesariamente el
  * que quisimos emitir, y persistirlo a ciegas registraría un CAE ajeno que nada
  * río abajo podría detectar.
+ *
+ * Que ARCA no tenga el comprobante sólo prueba que no se emitió si la petición
+ * de autorización terminó. Si se cortó por timeout sigue en vuelo, y la consulta
+ * —emitida milisegundos después— puede estar mirando un CAE que ARCA está por
+ * otorgar: leer ese `null` como "reintentá tranquilo" es la doble emisión que
+ * todo esto existe para evitar.
  */
 export async function recoverAuthorization(
   client: ArcaClient,
   submitted: ArcaAttemptedVoucher & { impTotal: number; cbteFch: string },
+  authorizationFailure: ArcaCallFailure,
 ): Promise<ArcaRecovery> {
   // `FECompConsultar` es de sólo lectura: falle como falle, esta llamada no
   // autoriza nada. La ambigüedad que se está resolviendo la dejó `FECAESolicitar`.
@@ -96,13 +118,15 @@ export async function recoverAuthorization(
   );
 
   if (!consult.ok) {
-    return { status: "unverified" };
+    return { status: "unverified", reason: "consult-inconclusive" };
   }
 
   const voucher = consult.value;
 
   if (voucher === null) {
-    return { status: "not-emitted" };
+    return authorizationFailure.timedOut
+      ? { status: "unverified", reason: "authorization-in-flight" }
+      : { status: "not-emitted" };
   }
 
   const matches =
@@ -110,7 +134,7 @@ export async function recoverAuthorization(
     voucher.cbteFch === submitted.cbteFch;
 
   if (!matches || !voucher.cae || !voucher.caeVto || !voucher.cbteFch) {
-    return { status: "unverified" };
+    return { status: "unverified", reason: "consult-inconclusive" };
   }
 
   return {
@@ -141,14 +165,21 @@ export function buildNotEmittedMessage(
 export function buildUnverifiedMessage(
   subject: ArcaContingencySubject,
   attempt: ArcaAttemptedVoucher,
+  reason: ArcaUnverifiedReason,
 ): string {
   // El texto no concuerda en género con el sujeto a propósito: la consulta
   // posterior es el sujeto de la segunda oración, así que sirve igual para "el
   // comprobante" y para "la nota de crédito".
+  const what =
+    reason === "authorization-in-flight"
+      ? `ARCA tardó más de lo que esperamos autorizando ${ARTICLE[subject]} y ` +
+        `todavía no lo tiene registrado, pero la autorización puede seguir en curso`
+      : `Se cortó la comunicación con ARCA mientras se autorizaba ` +
+        `${ARTICLE[subject]} y la consulta posterior tampoco resolvió si llegó a ` +
+        `emitirse`;
+
   return (
-    `Se cortó la comunicación con ARCA mientras se autorizaba ` +
-    `${ARTICLE[subject]} y la consulta posterior tampoco resolvió si llegó a ` +
-    `emitirse (punto de venta ${attempt.ptoVta}, tipo ${attempt.cbteTipo}, ` +
+    `${what} (punto de venta ${attempt.ptoVta}, tipo ${attempt.cbteTipo}, ` +
     `número ${attempt.cbteNro}). Verificá ese comprobante en ARCA antes de ` +
     `reintentar, para no emitir dos veces.`
   );

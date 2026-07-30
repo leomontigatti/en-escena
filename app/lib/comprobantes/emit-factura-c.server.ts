@@ -100,8 +100,11 @@ export type FacturaCEmissionOutcome =
  * coincide con lo enviado, SÍ se había autorizado y se persiste con ese CAE —la
  * única excepción a la invariante de que una contingencia no persiste nada, y
  * existe porque la fila corresponde a un documento fiscal que demostrablemente
- * está en ARCA—; si no aparece, no se emitió nada; si la consulta falla o
- * devuelve otro comprobante, el resultado es `unverified` y no se persiste nada.
+ * está en ARCA—; si no aparece y la autorización había fallado en el transporte,
+ * no se emitió nada. Si la consulta falla, devuelve otro comprobante, o no lo
+ * encuentra pero la autorización venció por timeout —y entonces sigue en vuelo,
+ * pudiendo autorizarse después—, el resultado es `unverified` y no se persiste
+ * nada.
  */
 export async function emitChoreographyFacturaC(
   input: FacturaCEmissionInput,
@@ -211,11 +214,11 @@ export async function emitChoreographyFacturaC(
       cbteTipo: FACTURA_C_CBTE_TIPO,
       cbteNro: last.nextCbteNro,
     };
-    const recovery = await recoverAuthorization(deps.client, {
-      ...attempt,
-      impTotal: total,
-      cbteFch,
-    });
+    const recovery = await recoverAuthorization(
+      deps.client,
+      { ...attempt, impTotal: total, cbteFch },
+      authorization.failure,
+    );
 
     if (recovery.status === "not-emitted") {
       return {
@@ -229,7 +232,11 @@ export async function emitChoreographyFacturaC(
       return {
         ok: false,
         reason: "unverified",
-        message: buildUnverifiedMessage("comprobante", attempt),
+        message: buildUnverifiedMessage(
+          "comprobante",
+          attempt,
+          recovery.reason,
+        ),
         attempt,
       };
     }

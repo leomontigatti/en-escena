@@ -761,6 +761,31 @@ describe("emitChoreographyFacturaC (ARCA no responde)", () => {
     expect(await listChoreographyComprobantes(choreography.id)).toHaveLength(0);
   });
 
+  // Mismo "ARCA no lo tiene" que el test anterior, pero llegando por timeout en
+  // lugar de por caída de la conexión: la autorización sigue en vuelo, así que la
+  // respuesta puede ser sólo "todavía no". Habilitar el reintento acá es lo que
+  // emitiría un segundo comprobante por el mismo monto.
+  test("si la autorización venció por timeout, que ARCA no lo tenga no habilita el reintento", async () => {
+    const choreography = await seedCobrado("timeout-sin-comprobante");
+
+    const { outcome } = await emitWith(
+      choreography.id,
+      choreography.eventId,
+      fakeBilling({
+        createVoucher: vi.fn(neverAnswers),
+        getVoucherInfo: vi.fn(async () => null),
+      }),
+      FAST_TIMEOUTS,
+    );
+
+    expect(outcome).toMatchObject({
+      ok: false,
+      reason: "unverified",
+      attempt: { ptoVta: 1, cbteTipo: 11, cbteNro: 43 },
+    });
+    expect(await listChoreographyComprobantes(choreography.id)).toHaveLength(0);
+  });
+
   test("si la consulta también falla, el resultado es no verificado y lleva el comprobante que no pudo resolver", async () => {
     const choreography = await seedCobrado("no-verificado");
 

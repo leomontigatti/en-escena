@@ -60,15 +60,30 @@ export type ArcaTimeouts = {
 };
 
 /**
+ * Se agotó el timeout de una llamada, que es distinto de que la llamada haya
+ * fallado: la excepción es nuestra, no del transporte, y la petición sigue en
+ * vuelo. Distinguirla importa porque después de un timeout de autorización ARCA
+ * todavía puede otorgar el CAE, así que una consulta inmediata que no encuentra
+ * el comprobante no prueba que no se haya emitido (ADR-0012 decisión 3).
+ */
+export class ArcaTimeoutError extends Error {
+  constructor(operation: string, ms: number) {
+    super(`ARCA no respondió ${operation} en ${ms}ms.`);
+    this.name = "ArcaTimeoutError";
+  }
+}
+
+/**
  * Acota una llamada a ARCA con su timeout. `@arcasdk/core` no impone ninguno en
  * ninguna capa, así que un socket que abre y nunca responde deja la promesa
  * pendiente para siempre: no hay excepción que clasificar y el operador espera
  * hasta que un proxy se rinda por él.
  *
  * Ganar la carrera NO cancela la llamada en vuelo: ARCA puede autorizar el
- * comprobante igual, después de que dejamos de esperar. Eso es esperado y es
- * exactamente lo que resuelve la consulta posterior (ADR-0012 decisión 3); el
- * SDK tampoco ofrece forma de propagar un `AbortSignal`.
+ * comprobante igual, después de que dejamos de esperar. Eso es esperado, y es
+ * por lo que el error se distingue: la recuperación posterior no puede leer un
+ * "no lo tengo" como definitivo mientras la autorización pueda seguir en curso.
+ * El SDK tampoco ofrece forma de propagar un `AbortSignal`.
  */
 async function withTimeout<T>(
   ms: number,
@@ -82,7 +97,7 @@ async function withTimeout<T>(
       run(),
       new Promise<never>((_resolve, reject) => {
         timer = setTimeout(
-          () => reject(new Error(`ARCA no respondió ${operation} en ${ms}ms.`)),
+          () => reject(new ArcaTimeoutError(operation, ms)),
           ms,
         );
       }),

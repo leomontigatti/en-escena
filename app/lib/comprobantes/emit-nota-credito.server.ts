@@ -83,7 +83,8 @@ export type NotaCreditoEmissionOutcome =
  * anuló nada; cortada la autorización se consulta a ARCA por esa Nota de crédito
  * exacta y, si aparece y coincide con lo enviado, se persiste con ese CAE —la
  * única excepción a la invariante de que una contingencia no persiste nada—. Si
- * la consulta falla o devuelve otra, el resultado es `unverified` y no se
+ * la consulta falla, devuelve otra, o no la encuentra pero la autorización venció
+ * por timeout —y entonces sigue en vuelo—, el resultado es `unverified` y no se
  * persiste nada.
  */
 export async function annulComprobante(
@@ -190,11 +191,11 @@ export async function annulComprobante(
       cbteTipo: NOTA_CREDITO_C_CBTE_TIPO,
       cbteNro: last.nextCbteNro,
     };
-    const recovery = await recoverAuthorization(deps.client, {
-      ...attempt,
-      impTotal: target.impTotal,
-      cbteFch,
-    });
+    const recovery = await recoverAuthorization(
+      deps.client,
+      { ...attempt, impTotal: target.impTotal, cbteFch },
+      authorization.failure,
+    );
 
     if (recovery.status === "not-emitted") {
       return {
@@ -208,7 +209,11 @@ export async function annulComprobante(
       return {
         ok: false,
         reason: "unverified",
-        message: buildUnverifiedMessage("nota de crédito", attempt),
+        message: buildUnverifiedMessage(
+          "nota de crédito",
+          attempt,
+          recovery.reason,
+        ),
         attempt,
       };
     }
