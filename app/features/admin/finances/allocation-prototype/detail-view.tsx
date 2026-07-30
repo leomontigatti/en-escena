@@ -11,7 +11,9 @@
  *
  * - `ClientDataTable`, like the real view, instead of a hand-rolled `<Table>`.
  * - The **choreography's name as the title**, not "Detalle financiero", with the
- *   group type as a badge.
+ *   group type appended to it. The group type rides *inside* the title string
+ *   rather than beside it as a badge, so `AdminResourceLayout.title` stays
+ *   `string` and no shared component has to widen for this view.
  * - The same five `MetricCard`s as the choreography list, **bounded to this
  *   choreography**; the two owed figures re-scope to the selection exactly as
  *   they do on the list.
@@ -29,7 +31,6 @@ import { ClientDataTable } from "@/components/shared/client-data-table";
 import { MetricCard } from "@/components/shared/metric-card";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
@@ -79,7 +80,7 @@ export function AllocationDetailPrototypeView() {
 
   return (
     <AdminResourceLayout
-      title={choreography.name}
+      title={`${choreography.name} · ${choreography.groupType}`}
       description="Detalle financiero de una coreografía. Prototipo descartable del ticket #550; los datos están en memoria y no se guarda nada."
       requireSelectedEvent={false}
       headerAction={
@@ -115,10 +116,7 @@ export function AllocationDetailPrototypeView() {
           </AlertDescription>
         </Alert>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="secondary">{choreography.groupType}</Badge>
-          <ChoreographyAnomalyBadges anomalies={choreography.anomalies} />
-        </div>
+        <ChoreographyAnomalyBadges anomalies={choreography.anomalies} />
 
         <section className="grid gap-4 md:grid-cols-3 xl:grid-cols-5">
           <MetricCard

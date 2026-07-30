@@ -27,8 +27,11 @@ describe("allocation prototype", () => {
     );
 
     expect(markup).not.toContain("Elegí un evento activo");
-    // The title is the choreography, not the generic "Detalle financiero".
-    expect(markup).toContain('<h2 class="text-xl font-semibold">Reflejos</h2>');
+    // The title is the choreography and its group type, not the generic
+    // "Detalle financiero".
+    expect(markup).toContain(
+      '<h2 class="text-xl font-semibold">Reflejos · Grupo</h2>',
+    );
     for (const metric of [
       "Seña adeudada",
       "Saldo adeudado",
@@ -40,13 +43,14 @@ describe("allocation prototype", () => {
     expect(markup).toContain("Estado del prototipo");
   });
 
-  it("shows the group type of the chosen choreography as a badge", () => {
+  it("carries the group type of whichever choreography is chosen", () => {
     const markup = renderRouteView(
       <AllocationDetailPrototypeView />,
       "/administracion/finanzas/prototipo-asignacion/coreografia?coreografia=cho-2",
     );
 
-    expect(markup).toContain("Umbral");
-    expect(markup).toContain("Dúo");
+    expect(markup).toContain(
+      '<h2 class="text-xl font-semibold">Umbral · Dúo</h2>',
+    );
   });
 });
