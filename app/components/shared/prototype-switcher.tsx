@@ -1,8 +1,8 @@
 /**
- * PROTOTIPO DESCARTABLE — barra flotante para alternar variantes de una pantalla
- * en prototipos de UI (skill `/prototype`). No es parte del sistema visual: se
- * ve deliberadamente ajena a la pantalla que se está evaluando y no se renderiza
- * en producción.
+ * THROWAWAY PROTOTYPE — a floating bar for switching between variants of a screen
+ * in UI prototypes (the `/prototype` skill). It is not part of the visual system:
+ * it deliberately looks foreign to the screen being evaluated, and it does not
+ * render in production.
  */
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect } from "react";

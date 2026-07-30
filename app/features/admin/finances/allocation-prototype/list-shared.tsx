@@ -1,12 +1,12 @@
-/** PROTOTIPO DESCARTABLE — piezas compartidas por las variantes de la lista (#550). */
+/** THROWAWAY PROTOTYPE — pieces shared across the prototype's views (#550). */
 import { Badge } from "@/components/ui/badge";
 
 import { choreographyAnomalyLabels, type ChoreographyAnomaly } from "./rollup";
 
 /**
- * Las anomalías de #551 como badges. Son un array derivado y autolimpiante, así
- * que no hay nada que reconocer ni descartar: desaparecen cuando el estado deja
- * de cumplirse.
+ * #551's anomalies as badges. They are a derived, self-clearing array, so there
+ * is nothing to acknowledge or dismiss: they disappear once the condition stops
+ * holding.
  */
 export function ChoreographyAnomalyBadges({
   anomalies,

@@ -1,9 +1,9 @@
 /**
- * PROTOTIPO DESCARTABLE — ticket #550 del mapa #547.
+ * THROWAWAY PROTOTYPE — ticket #550 of map #547.
  *
- * El diálogo del preset, compartido por las dos vistas. Muestra el plan *antes*
- * de aplicarlo porque las tres decisiones abiertas se ven acá: de dónde sale la
- * plata, qué pasa con las filas sin precio, y qué pasa cuando no alcanza.
+ * The preset dialog, shared by both views. It shows the plan *before* applying it
+ * because the three open decisions are visible here: where the money comes from,
+ * what happens to rows with no price, and what happens when it does not cover.
  */
 import { useState } from "react";
 

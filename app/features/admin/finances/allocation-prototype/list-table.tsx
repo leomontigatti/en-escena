@@ -1,15 +1,14 @@
 /**
- * PROTOTIPO DESCARTABLE — columnas de la lista financiera (#550).
+ * THROWAWAY PROTOTYPE — the financial list's columns (#550).
  *
- * La lista corre sobre `ServerDataTable`, así que buscar, ordenar y filtrar
- * viajan por la URL (`q`, `orden`, `tipo`, `estado`) y el prototipo los resuelve
- * en memoria en lugar de un loader. Sólo `Nombre` ordena: el resto de las
- * columnas son figuras derivadas y ordenar por ellas no es una lectura que el
- * admin pida.
+ * The list runs on `ServerDataTable`, so search, sort and filter travel through
+ * the URL (`q`, `orden`, `tipo`, `estado`) and the prototype resolves them in
+ * memory instead of in a loader. Only `Nombre` sorts: the rest of the columns are
+ * derived figures, and sorting by them is not a reading an admin asks for.
  *
- * Una figura **tentativa** —la coreografía tiene inscripciones sin precio
- * elegido, así que el número todavía puede moverse— se marca atenuando el texto,
- * sin leyenda ni asterisco.
+ * A **tentative** figure — the choreography has inscriptions with no price
+ * chosen, so the number can still move — is marked by muting the text, with no
+ * legend and no asterisk.
  */
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -112,8 +111,8 @@ export function buildChoreographyColumns({
 }
 
 /**
- * El estado y las anomalías viven juntos: las dos cosas responden «cómo está
- * esta coreografía», y #551 las quiere autolimpiantes, sin nada que reconocer.
+ * Status and anomalies live together: both answer "how is this choreography
+ * doing", and #551 wants them self-clearing, with nothing to acknowledge.
  */
 function StatusCell({ row }: { row: ChoreographyReading }) {
   return (

@@ -1,9 +1,9 @@
 /**
- * PROTOTIPO DESCARTABLE — la salida de emergencia del ticket #550.
+ * THROWAWAY PROTOTYPE — ticket #550's escape hatch.
  *
- * Asignación a mano de un monto arbitrario de un pago a una inscripción. Es el
- * caso excepcional: lo común son los presets. Acá también vive el selector de
- * precio, porque sin precio elegido no hay figura contra la que medir nada.
+ * Allocating an arbitrary amount of one payment to one inscription by hand. This
+ * is the exceptional case: the presets are the common one. The price picker lives
+ * here too, because without a chosen price there is no figure to measure against.
  */
 import { useState } from "react";
 

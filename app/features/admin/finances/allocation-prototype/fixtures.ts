@@ -1,12 +1,11 @@
 /**
- * PROTOTIPO DESCARTABLE — ticket #550 del mapa #547. No usar como referencia de
- * implementación.
+ * THROWAWAY PROTOTYPE — ticket #550 of map #547. Not an implementation reference.
  *
- * Datos en memoria con la forma del modelo *nuevo* (monto arbitrario de cualquier
- * pago sobre cualquier inscripción), no con la del esquema actual: la forma de la
- * tabla de asignaciones todavía está abierta en #549, así que acá no se toca la
- * base. Una asignación es `(pago, inscripción, monto)`, sin `allocation_type`, y
- * la inscripción sólo guarda `selectedPriceId`.
+ * In-memory data shaped like the *new* model (an arbitrary amount of any payment
+ * against any inscription), not like the current schema: the allocation table's
+ * shape is still open in #549, so nothing here touches the database. An
+ * allocation is `(payment, inscription, amount)`, with no `allocation_type`, and
+ * the inscription only keeps `selectedPriceId`.
  */
 
 export type PrototypePriceRow = {
@@ -14,7 +13,7 @@ export type PrototypePriceRow = {
   name: string;
   amount: number;
   paymentDeadline: string;
-  /** Necesario para `groupTypeMismatch`, la anomalía que definió #551. */
+  /** Needed for `groupTypeMismatch`, the anomaly #551 defined. */
   groupType: string;
 };
 
@@ -118,8 +117,8 @@ export const initialPrototypeState: PrototypeState = {
     { id: "cho-3", name: "Vértigo", groupType: "Grupo" },
   ],
   inscriptions: [
-    // Roster deliberadamente desparejo: sin precio elegido, por debajo del
-    // umbral, cruzando el umbral, saldada, y sobreasignada.
+    // A deliberately uneven roster: no price chosen, below the threshold, over
+    // the threshold, settled, and over-allocated.
     {
       id: "ins-1",
       choreographyId: "cho-1",
@@ -176,8 +175,8 @@ export const initialPrototypeState: PrototypeState = {
       selectedPriceId: null,
       dancerDiscountAmount: 0,
     },
-    // Coreografía al día: le da a la lista una fila `Pagada` contra la que
-    // comparar, y prueba que la acción masiva la excluya sola.
+    // A choreography that is up to date: gives the list a `Pagada` row to
+    // compare against, and proves the bulk action excludes it on its own.
     {
       id: "ins-9",
       choreographyId: "cho-3",
@@ -206,7 +205,7 @@ export const initialPrototypeState: PrototypeState = {
   ],
 };
 
-/** Los tres estados que sobreviven a la escalera, con los nombres de #551. */
+/** The three statuses that survive the ladder, named as #551 decided. */
 export type InscriptionFinancialStatus =
   | "depositPending"
   | "depositMet"
@@ -222,23 +221,23 @@ export type InscriptionReading = {
   priceAmount: number | null;
   discountAmount: number;
   /**
-   * #551: el descuento se aplica **una sola vez**, acá adentro. `null` mientras
-   * no haya precio elegido, que es el caso tentativo.
+   * #551: the discount is applied **once**, in here. `null` while no price has
+   * been chosen, which is the tentative case.
    */
   totalAmount: number | null;
   /**
-   * #551: el porcentaje corre sobre el precio **sin descuento**, para que el
-   * umbral no se mueva por debajo de la academia cuando cambia el descuento.
+   * #551: the percentage runs on the **undiscounted** price, so the threshold
+   * cannot move under the academy when the discount changes.
    */
   depositAmount: number | null;
   allocatedAmount: number;
-  /** Faltante *hasta el umbral* de seña, con piso en cero. */
+  /** Shortfall *to the deposit threshold*, floored at zero. */
   owedDepositAmount: number | null;
-  /** Bruto (#551): `totalAmount - allocated`, no neto del descuento. */
+  /** Gross (#551): `totalAmount - allocated`, not net of the discount. */
   owedBalanceAmount: number | null;
-  /** Excedente tolerado (sobreasignación pasiva, decisión de #549). */
+  /** Tolerated excess (passive over-allocation, #549's decision). */
   excessAmount: number;
-  /** `null` mientras no haya precio elegido: no hay contra qué comparar. */
+  /** `null` while no price has been chosen: there is nothing to compare against. */
   status: InscriptionFinancialStatus | null;
   allocations: PrototypeAllocation[];
 };
@@ -309,8 +308,8 @@ function readStatus({
     return "paidInFull";
   }
 
-  // `Seña pendiente` es el caso que la escalera hacía imposible: plata puesta,
-  // pero todavía por debajo del umbral.
+  // `Seña pendiente` is the case the ladder made impossible: money placed, but
+  // still below the threshold.
   return allocatedAmount >= depositAmount ? "depositMet" : "depositPending";
 }
 
@@ -355,8 +354,8 @@ export function sumAmounts(allocations: { amount: number }[]) {
 }
 
 /**
- * Upsert de `(pago, inscripción)` con monto mutable, la forma que decidió #549.
- * Monto cero borra la fila.
+ * Upsert on `(payment, inscription)` with a mutable amount, the shape #549
+ * decided. A zero amount deletes the row.
  */
 export function upsertAllocation(
   state: PrototypeState,

@@ -1,10 +1,10 @@
 /**
- * PROTOTIPO DESCARTABLE — ticket #550 del mapa #547.
+ * THROWAWAY PROTOTYPE — ticket #550 of map #547.
  *
- * Rollup por coreografía y por academia con la forma que fijó #551: figuras
- * propias de cada alcance, estado como **mínimo** de las inscripciones (no
- * high-water-mark) y anomalías como **array derivado**, todas autolimpiantes —
- * nada se persiste ni se reconoce.
+ * Per-choreography and per-academy rollups in the shape #551 settled:
+ * scope-owned figures, status as the **minimum** over inscriptions (not a
+ * high-water mark), and anomalies as a **derived array**, all self-clearing —
+ * nothing is persisted and nothing is acknowledged.
  */
 import type {
   InscriptionFinancialStatus,
@@ -12,7 +12,7 @@ import type {
   PrototypeState,
 } from "./fixtures";
 
-/** Anomalías de #551. `orphanedAllocations` es plata sin precio contra el cual medirla. */
+/** #551's anomalies. `orphanedAllocations` is money with no price to measure it against. */
 export type ChoreographyAnomaly =
   | "groupTypeMismatch"
   | "overAllocated"
@@ -35,13 +35,13 @@ export type ChoreographyReading = {
   owedDepositAmount: number;
   owedBalanceAmount: number;
   /**
-   * Mínimo de los estados de las inscripciones con precio elegido. `null` sólo
-   * si ninguna lo eligió todavía.
+   * The minimum status across inscriptions that have a price. `null` only when
+   * none has chosen one yet.
    */
   status: InscriptionFinancialStatus | null;
   /**
-   * Alguna inscripción sin precio elegido: las figuras se leen como tentativas
-   * y se muestran atenuadas, porque todavía pueden moverse.
+   * Some inscription has no price chosen: the figures read as tentative and are
+   * shown muted, because they can still move.
    */
   tentative: boolean;
   anomalies: ChoreographyAnomaly[];
@@ -79,9 +79,9 @@ export function readChoreographies(
       allocatedAmount: sumBy(rows, (row) => row.allocatedAmount),
       owedDepositAmount: sumBy(rows, (row) => row.owedDepositAmount ?? 0),
       owedBalanceAmount: sumBy(rows, (row) => row.owedBalanceAmount ?? 0),
-      // El mínimo se toma sobre las inscripciones que *tienen* precio: una fila
-      // sin precio no es un estado, sólo vuelve tentativa la figura. `null`
-      // queda para la coreografía donde ninguna eligió precio todavía.
+      // The minimum is taken over inscriptions that *have* a price: a row with
+      // no price is not a status, it only makes the figure tentative. `null` is
+      // left for the choreography where none has chosen a price yet.
       status:
         statuses.length === 0
           ? null
@@ -101,8 +101,8 @@ function readAnomalies(
 ): ChoreographyAnomaly[] {
   const anomalies: ChoreographyAnomaly[] = [];
 
-  // Una coreografía tiene exactamente un `groupType`, así que basta con que una
-  // inscripción apunte a un precio de otro tipo para que haya divergencia.
+  // A choreography has exactly one `groupType`, so a single inscription
+  // pointing at a price of another type is enough for divergence to exist.
   const mismatched = rows.some((row) => {
     const price = state.prices.find(
       (candidate) => candidate.id === row.selectedPriceId,
@@ -130,7 +130,7 @@ export type AcademyReading = {
   totalAmount: number;
   owedDepositAmount: number;
   owedBalanceAmount: number;
-  /** Bruto, sin descontar lo ya asignado (decisión de #549 sobre `Saldo disponible`). */
+  /** Gross, not net of what is already allocated (#549's `Saldo disponible` decision). */
   availableBalanceAmount: number;
 };
 

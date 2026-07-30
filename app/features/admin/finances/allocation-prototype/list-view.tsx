@@ -1,18 +1,18 @@
 /**
- * PROTOTIPO DESCARTABLE — ticket #550 del mapa #547. Vista 1 de 2.
+ * THROWAWAY PROTOTYPE — ticket #550 of map #547. View 1 of 2.
  *
- * La lista financiera de coreografías de una academia
- * (`/administracion/finanzas/:academyId` en la app real). Ya no hay variantes:
- * quedó la A, con las correcciones pedidas al reaccionar al prototipo.
+ * An academy's financial choreography list (`/administracion/finanzas/:academyId`
+ * in the real app). There are no variants any more: A won, with the corrections
+ * asked for on reacting to the prototype.
  *
- * `Pagar seña` y `Pagar saldo` son **acciones de lista** (#551) y viven donde
- * viven todas las acciones del repo: el `ResourceActionsMenu` del header,
- * deshabilitadas hasta que haya al menos una coreografía elegida.
+ * `Pagar seña` and `Pagar saldo` are **list actions** (#551) and live where every
+ * action in this repo lives: the header's `ResourceActionsMenu`, disabled until
+ * at least one choreography is selected.
  *
- * Excepción declarada: no hay loader, ni `action`, ni validación de servidor.
- * `ServerDataTable` navega con `q`, `orden` y `page`, y acá se resuelven en
- * memoria porque los datos son una fixture: la forma de la tabla sigue abierta
- * en #549.
+ * Declared exception: there is no loader, no `action` and no server validation.
+ * `ServerDataTable` navigates with `q`, `orden` and `page`, and they are resolved
+ * in memory here because the data is a fixture: the table's shape is still open
+ * in #549.
  */
 import { useState } from "react";
 import { useSearchParams } from "react-router";
@@ -22,7 +22,6 @@ import { MetricCard } from "@/components/shared/metric-card";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { ServerDataTable } from "@/components/shared/server-data-table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { compareSortValues } from "@/components/shared/data-table-helpers";
 import {
@@ -57,9 +56,9 @@ export function AllocationListPrototypeView() {
     currentPage * pageSize,
   );
 
-  // Las dos figuras de deuda se reencuadran sobre lo elegido: sin selección son
-  // las de la academia, con selección son la suma de lo elegido. Es la lectura
-  // que hace falta para decidir un preset sin salir de la lista.
+  // The two owed figures re-scope to the selection: the academy's with nothing
+  // selected, the sum of the selected rows otherwise. That is the reading needed
+  // to decide on a preset without leaving the list.
   const scoped = selected.length > 0;
   const owedDepositAmount = scoped
     ? sumBy(selected, (row) => row.owedDepositAmount)
@@ -113,7 +112,6 @@ export function AllocationListPrototypeView() {
           <MetricCard
             title="Seña adeudada"
             value={formatAmount(owedDepositAmount)}
-            slot={scoped ? <ScopeBadge count={selected.length} /> : undefined}
           />
           <MetricCard
             title="Total"
@@ -122,7 +120,6 @@ export function AllocationListPrototypeView() {
           <MetricCard
             title="Saldo adeudado"
             value={formatAmount(owedBalanceAmount)}
-            slot={scoped ? <ScopeBadge count={selected.length} /> : undefined}
           />
           <MetricCard
             title="Saldo disponible"
@@ -175,10 +172,6 @@ export function AllocationListPrototypeView() {
   );
 }
 
-function ScopeBadge({ count }: { count: number }) {
-  return <Badge variant="info">{count} elegidas</Badge>;
-}
-
 const choreographyFacetedFilters: DataTableFacetedFilter[] = [
   {
     id: "tipo",
@@ -219,8 +212,8 @@ function readFilterValues(searchParams: URLSearchParams) {
 }
 
 /**
- * Buscar, filtrar y ordenar, resueltos en memoria sobre lo que `ServerDataTable`
- * puso en la URL. Sólo se ordena por nombre.
+ * Search, filter and sort, resolved in memory over what `ServerDataTable` put in
+ * the URL. Name is the only sortable column.
  */
 function readRows(
   choreographies: ChoreographyReading[],

@@ -1,10 +1,10 @@
 /**
- * PROTOTIPO DESCARTABLE — ticket #550 del mapa #547.
+ * THROWAWAY PROTOTYPE — ticket #550 of map #547.
  *
- * Store de módulo, no de servidor: el estado tiene que sobrevivir a la navegación
- * entre las dos vistas del prototipo (lista de coreografías y detalle de una), y
- * un `useState` por ruta lo perdería en cada clic. Nada de esto se guarda: al
- * recargar la página vuelve la fixture.
+ * A module store, not a server one: the state has to survive navigating between
+ * the prototype's two views (the choreography list and one choreography's
+ * detail), and a per-route `useState` would lose it on every click. None of this
+ * is saved: reloading the page brings the fixture back.
  */
 import { useSyncExternalStore } from "react";
 
@@ -43,8 +43,8 @@ export function resetPrototypeState() {
 }
 
 /**
- * Todo lo derivado en un solo lugar, así las dos vistas leen exactamente las
- * mismas figuras y ninguna se inventa una lectura propia.
+ * Everything derived in one place, so both views read exactly the same figures
+ * and neither invents a reading of its own.
  */
 export function usePrototype() {
   const state = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);

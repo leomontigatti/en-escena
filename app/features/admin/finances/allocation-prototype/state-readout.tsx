@@ -1,9 +1,9 @@
 /**
- * PROTOTIPO DESCARTABLE — el estado completo a la vista (#550).
+ * THROWAWAY PROTOTYPE — the whole state on screen (#550).
  *
- * Un prototipo tiene que dejar ver qué cambió cada acción, así que acá se
- * imprimen las figuras agregadas y el saldo de cada pago, más el botón para
- * volver a la fixture.
+ * A prototype has to show what each action changed, so this prints the aggregate
+ * figures and every payment's balance, plus the button that returns to the
+ * fixture.
  */
 import { Button } from "@/components/ui/button";
 

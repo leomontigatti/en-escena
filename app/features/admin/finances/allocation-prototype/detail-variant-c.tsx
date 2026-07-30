@@ -1,11 +1,11 @@
 /**
- * PROTOTIPO DESCARTABLE — Detalle, variante C: "dos paneles, monto a mano".
+ * THROWAWAY PROTOTYPE — Detail, variant C: "two panes, amounts by hand".
  *
- * El extremo manual del abanico: a la izquierda los pagos con su saldo
- * disponible, a la derecha el plantel con una columna de monto editable. No hay
- * diálogo ni presets con vista previa — los atajos escriben directamente sobre la
- * tabla. Es la variante que trata la asignación arbitraria como el camino común,
- * y por eso sirve de contraste con A y B, donde es la excepción.
+ * The manual end of the range: payments and their available balance on the left,
+ * the roster with an editable amount column on the right. There is no dialog and
+ * no preset preview — the shortcuts write straight onto the table. This is the
+ * variant that treats arbitrary allocation as the common path, which is what
+ * makes it a contrast with A and B, where it is the exception.
  */
 import { Eraser, Scissors, Wallet } from "lucide-react";
 

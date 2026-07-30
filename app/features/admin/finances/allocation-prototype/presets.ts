@@ -1,35 +1,35 @@
 /**
- * PROTOTIPO DESCARTABLE — ticket #550 del mapa #547.
+ * THROWAWAY PROTOTYPE — ticket #550 of map #547.
  *
- * `Pagar seña` y `Pagar saldo` como **presets sobre las figuras** (#551), no como
- * peldaños de una escalera: cada uno mira `owedDepositAmount` u
- * `owedBalanceAmount` de las filas elegidas y arma un plan de asignaciones.
+ * `Pagar seña` and `Pagar saldo` as **presets over the figures** (#551), not as
+ * rungs of a ladder: each one reads `owedDepositAmount` or `owedBalanceAmount`
+ * off the chosen rows and builds an allocation plan.
  *
- * Dos reglas que el prototipo pone a la vista porque son decisiones, no detalles:
+ * Two rules the prototype puts on screen because they are decisions, not details:
  *
- * 1. **Nada depende del orden en que el admin hizo clic** (preferencia declarada
- *    del mapa). Las filas se recorren ordenadas por nombre y los pagos por número,
- *    así que el mismo conjunto elegido produce siempre el mismo plan.
- * 2. **Una fila sin precio elegido no puede entrar en un preset**: sin precio no
- *    hay figura contra la que medir. El preset las aparta y las cuenta, en lugar
- *    de elegirles un precio por su cuenta.
+ * 1. **Nothing depends on the order the admin clicked in** (the map's standing
+ *    preference). Rows are traversed by name and payments by number, so the same
+ *    selection always produces the same plan.
+ * 2. **A row with no price chosen cannot enter a preset**: without a price there
+ *    is no figure to measure against. The preset sets those aside and counts
+ *    them, rather than choosing a price on their behalf.
  */
 import type { InscriptionReading, PaymentReading } from "./fixtures";
 
 export type PresetKind = "deposit" | "balance";
 
-/** Qué hacer cuando la plata elegida no alcanza para todas las filas. */
+/** What to do when the chosen money does not cover every row. */
 export type ShortfallPolicy = "allOrNothing" | "fillInOrder";
 
 export type PresetSkipReason = "noPrice" | "alreadyMet";
 
 export type PresetLine = {
   inscription: InscriptionReading;
-  /** Lo que el preset pide para esta fila. */
+  /** What the preset asks for on this row. */
   targetAmount: number;
-  /** Lo que efectivamente se le asigna. Menor al target si la plata no alcanzó. */
+  /** What actually gets allocated. Below the target when the money ran out. */
   amount: number;
-  /** Desglose por pago: cada tramo es un upsert `(pago, inscripción)`. */
+  /** Breakdown by payment: each slice is one `(payment, inscription)` upsert. */
   fundedBy: { paymentId: string; paymentNumber: number; amount: number }[];
 };
 
@@ -37,17 +37,17 @@ export type PresetPlan = {
   kind: PresetKind;
   lines: PresetLine[];
   skipped: { inscription: InscriptionReading; reason: PresetSkipReason }[];
-  /** Suma de los targets de las filas elegibles. */
+  /** Sum of the targets of the eligible rows. */
   requestedAmount: number;
-  /** Suma de lo que se va a asignar. */
+  /** Sum of what is about to be allocated. */
   fundedAmount: number;
-  /** `requested - funded`. Mayor a cero cuando la plata no alcanza. */
+  /** `requested - funded`. Above zero when the money does not cover it. */
   shortfallAmount: number;
-  /** Plata elegida que sobra después de aplicar el plan. */
+  /** Chosen money left over once the plan is applied. */
   leftoverAmount: number;
   /**
-   * `allOrNothing` con plata insuficiente: no se asigna nada y la acción queda
-   * bloqueada. Se expone para que la UI explique por qué el botón no hace nada.
+   * `allOrNothing` with insufficient money: nothing is allocated and the action
+   * is blocked. Exposed so the UI can explain why the button does nothing.
    */
   blockedByShortfall: boolean;
 };
@@ -76,7 +76,7 @@ export function buildPresetPlan({
   const eligible: { inscription: InscriptionReading; targetAmount: number }[] =
     [];
 
-  // Orden determinista por nombre: el plan no puede depender del orden de clic.
+  // Deterministic order by name: the plan cannot depend on click order.
   const ordered = [...inscriptions].sort((left, right) =>
     left.dancerName.localeCompare(right.dancerName, "es-AR"),
   );
@@ -108,7 +108,7 @@ export function buildPresetPlan({
   const blockedByShortfall =
     shortfallPolicy === "allOrNothing" && requestedAmount > availableAmount;
 
-  // Pagos en orden de número, no de elección, por la misma razón que las filas.
+  // Payments in number order, not selection order, for the same reason as rows.
   const purse = [...payments]
     .sort((left, right) => left.number - right.number)
     .map((payment) => ({
@@ -162,9 +162,9 @@ export function buildPresetPlan({
 }
 
 /**
- * El plan como upserts absolutos: `onAllocate` sobrescribe el monto de
- * `(pago, inscripción)`, así que hay que sumarle lo que esa fila ya tenía de ese
- * mismo pago.
+ * The plan as absolute upserts: `onAllocate` overwrites the amount on
+ * `(payment, inscription)`, so whatever that row already held from the same
+ * payment has to be added in.
  */
 export function planUpserts(plan: PresetPlan) {
   return plan.lines.flatMap((line) =>

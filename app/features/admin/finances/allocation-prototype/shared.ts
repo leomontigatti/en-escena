@@ -1,4 +1,4 @@
-/** PROTOTIPO DESCARTABLE — contratos comunes de las variantes del ticket #550. */
+/** THROWAWAY PROTOTYPE — contracts shared by ticket #550's variants. */
 import type {
   InscriptionReading,
   PaymentReading,
@@ -12,7 +12,7 @@ export type AllocationUpsert = {
   amount: number;
 };
 
-/** Vista 2: las inscripciones y asignaciones de una coreografía. */
+/** View 2: a choreography's inscriptions and allocations. */
 export type AllocationVariantProps = {
   state: PrototypeState;
   choreography: ChoreographyReading;

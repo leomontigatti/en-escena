@@ -1,13 +1,13 @@
 /**
- * PROTOTIPO DESCARTABLE — ticket #550 del mapa #547. Vista 2 de 2.
+ * THROWAWAY PROTOTYPE — ticket #550 of map #547. View 2 of 2.
  *
- * El detalle financiero de una coreografía
- * (`/administracion/finanzas/:academyId/coreografias/:choreographyId` en la app
- * real): sus inscripciones, lo asignado contra lo adeudado, y desde dónde se
- * asigna. Los presets de #551 son la acción principal en A y B; C los reemplaza
- * por montos escritos a mano para poder comparar los dos extremos.
+ * A choreography's financial detail
+ * (`/administracion/finanzas/:academyId/coreografias/:choreographyId` in the real
+ * app): its inscriptions, allocated against owed, and where the money comes from.
+ * #551's presets are the primary action in A and B; C replaces them with amounts
+ * typed by hand, so the two extremes can be compared.
  *
- * Tres variantes con `?variant=A|B|C`; la coreografía se elige con
+ * Three variants under `?variant=A|B|C`; the choreography is chosen with
  * `?coreografia=`.
  */
 import { useSearchParams } from "react-router";
@@ -54,8 +54,8 @@ export function AllocationDetailPrototypeView() {
     onApplyUpserts: prototype.onApplyUpserts,
   };
 
-  // La variante C es la única que necesita saber qué pago está elegido, así que
-  // el `?pago=` sólo se lee acá y no viaja por el contrato de las otras dos.
+  // Variant C is the only one that needs to know which payment is selected, so
+  // `?pago=` is read only here and stays out of the other two's contract.
   const selectedPaymentId =
     searchParams.get("pago") ?? prototype.payments[0]?.id ?? null;
 

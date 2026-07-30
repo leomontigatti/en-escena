@@ -1,4 +1,4 @@
-/** PROTOTIPO DESCARTABLE — ruta del ticket #550. Borrar junto con el prototipo. */
+/** THROWAWAY PROTOTYPE — ticket #550's route. Delete along with the prototype. */
 import type { AdminRouteHandle } from "@/components/admin/shell";
 import { AllocationListPrototypeView } from "@/features/admin/finances/allocation-prototype/list-view";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";

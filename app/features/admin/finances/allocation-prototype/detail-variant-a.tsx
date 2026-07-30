@@ -1,10 +1,10 @@
 /**
- * PROTOTIPO DESCARTABLE — Detalle, variante A: "los presets primero".
+ * THROWAWAY PROTOTYPE — Detail, variant A: "presets first".
  *
- * La tabla de inscripciones con selección, y los dos presets como única acción
- * visible. Asignar un monto a mano existe, pero está guardado en el menú de la
- * fila: es la excepción, no el camino. El precio se elige en el mismo lugar donde
- * se asigna, porque una fila sin precio no puede entrar en un preset.
+ * The inscriptions table with selection, and the two presets as the only visible
+ * action. Allocating an amount by hand exists, but it is tucked into the row's
+ * menu: it is the exception, not the path. The price is chosen in the same place
+ * the money is allocated, because a row with no price cannot enter a preset.
  */
 import { useState } from "react";
 

@@ -1,13 +1,13 @@
 /**
- * PROTOTIPO DESCARTABLE — Detalle, variante B: "el avance como barra".
+ * THROWAWAY PROTOTYPE — Detail, variant B: "progress as a bar".
  *
- * Misma acción que la variante A —los dos presets sobre las filas elegidas— pero
- * la lectura de adeudado contra asignado es gráfica: una barra por fila con una
- * marca en el umbral de seña. La apuesta es que un plantel con avance desparejo
- * se lee de un golpe de vista, sin comparar números columna por columna.
+ * The same action as variant A — both presets over the selected rows — but owed
+ * against allocated is read graphically: one bar per row with a mark at the
+ * deposit threshold. The bet is that a roster with uneven progress reads at a
+ * glance, without comparing numbers column by column.
  *
- * Nota de #551: no hay ningún cartel que diga «umbral de seña». La marca es la
- * frontera entre `Seña pendiente` y `Señada`, y esos badges ya la nombran.
+ * Note from #551: nothing here is labelled "umbral de seña". The mark is the
+ * border between `Seña pendiente` and `Señada`, and those badges already name it.
  */
 import { useState } from "react";
 
@@ -182,8 +182,9 @@ function AllocationBar({ inscription }: { inscription: InscriptionReading }) {
     100,
     Math.round((inscription.allocatedAmount / inscription.totalAmount) * 100),
   );
-  // La marca cae sobre el total porque el umbral se calcula sin descuento: en una
-  // fila con descuento queda deliberadamente más a la derecha de lo esperable.
+  // The mark sits against the total because the threshold is computed without
+  // the discount: on a discounted row it deliberately lands further right than
+  // one might expect.
   const depositPercentage = Math.min(
     100,
     Math.round((inscription.depositAmount / inscription.totalAmount) * 100),
