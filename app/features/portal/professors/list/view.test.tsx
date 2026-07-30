@@ -76,6 +76,23 @@ describe("PortalProfessorsListRouteView", () => {
     expect(markup).not.toContain("Archivar Profesor");
     expect(markup).not.toContain("Reactivar Profesor");
   });
+
+  test("hides the participation badge when there is no active event", () => {
+    const markup = renderProfessorsList({
+      loaderData: {
+        professors: [
+          professorListItem({
+            id: "prof_sin_evento",
+            participationStatus: "no-event",
+          }),
+        ],
+      },
+    });
+
+    expect(markup).not.toContain("No participando");
+    expect(markup).not.toContain(">Participando<");
+    expect(markup).not.toContain("Sin evento");
+  });
 });
 
 function renderProfessorsList(input: Partial<ProfessorsListViewProps> = {}) {

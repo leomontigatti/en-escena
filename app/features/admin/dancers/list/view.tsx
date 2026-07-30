@@ -11,14 +11,16 @@ import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import {
   getDancerIdentificationBadgeVariant,
-  getDancerParticipationBadgeVariant,
-  getDancerParticipationLabel,
   toDancerIdentificationSearchValue,
   toDancerParticipationSearchValue,
   toDancerStatusSearchValue,
   type DancerIdentificationStatus,
-  type DancerParticipationStatus,
 } from "@/lib/admin/dancers/dancers.shared";
+import {
+  getParticipationBadgeVariant,
+  getParticipationLabel,
+  type ShownParticipationStatus,
+} from "@/lib/participation/participation.shared";
 
 import type { loadDancersList } from "./server";
 
@@ -91,7 +93,7 @@ function DancerTable({ loaderData }: { loaderData: LoaderData }) {
       headerClassName: "w-1/4",
       cell: (dancer) => (
         <div className="flex flex-wrap gap-2">
-          {loaderData.selectedEventId ? (
+          {dancer.participationStatus !== "no-event" ? (
             <ParticipationBadge
               participationStatus={dancer.participationStatus}
             />
@@ -104,8 +106,7 @@ function DancerTable({ loaderData }: { loaderData: LoaderData }) {
           />
         </div>
       ),
-      filterValue: (dancer) =>
-        buildDancerStatusSummary(dancer, loaderData.selectedEventId),
+      filterValue: (dancer) => buildDancerStatusSummary(dancer),
     },
   ];
 
@@ -136,11 +137,11 @@ function DancerTable({ loaderData }: { loaderData: LoaderData }) {
 function ParticipationBadge({
   participationStatus,
 }: {
-  participationStatus: DancerParticipationStatus;
+  participationStatus: ShownParticipationStatus;
 }) {
   return (
-    <Badge variant={getDancerParticipationBadgeVariant(participationStatus)}>
-      {getDancerParticipationLabel(participationStatus)}
+    <Badge variant={getParticipationBadgeVariant(participationStatus)}>
+      {getParticipationLabel(participationStatus)}
     </Badge>
   );
 }
@@ -206,14 +207,11 @@ function buildDancerFacetedFilters(
   return [...groups];
 }
 
-function buildDancerStatusSummary(
-  dancer: DancerRow,
-  selectedEventId: string | null,
-) {
+function buildDancerStatusSummary(dancer: DancerRow) {
   const values: string[] = [];
 
-  if (selectedEventId !== null) {
-    values.push(getDancerParticipationLabel(dancer.participationStatus));
+  if (dancer.participationStatus !== "no-event") {
+    values.push(getParticipationLabel(dancer.participationStatus));
   }
 
   if (!dancer.active) {
