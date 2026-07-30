@@ -5,11 +5,12 @@
  * rungs of a ladder: each one reads `owedDepositAmount` or `owedBalanceAmount`
  * off the chosen rows and builds an allocation plan.
  *
- * Two rules the prototype puts on screen because they are decisions, not details:
+ * Rules the prototype puts on screen because they are decisions, not details:
  *
  * 1. **Nothing depends on the order the admin clicked in** (the map's standing
  *    preference). Rows are traversed by name and payments by number, so the same
- *    selection always produces the same plan.
+ *    selection always produces the same plan. The admin never picks the payment:
+ *    a preset draws from `Saldo disponible` and the fill rule does the rest.
  * 2. **A row with no price chosen cannot enter a preset**: without a price there
  *    is no figure to measure against. The preset sets those aside and counts
  *    them, rather than choosing a price on their behalf.
@@ -91,7 +92,8 @@ export function buildPresetPlan({
     (total, row) => total + row.targetAmount,
     0,
   );
-  // Payments in number order, not selection order, for the same reason as rows.
+  // Payments oldest first, the same fill rule `spreadFromPool` uses for a single
+  // manual allocation — never selection order, never size.
   const purse = [...payments]
     .sort((left, right) => left.number - right.number)
     .map((payment) => ({

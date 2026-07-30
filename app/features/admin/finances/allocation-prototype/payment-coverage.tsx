@@ -1,20 +1,16 @@
 /**
- * THROWAWAY PROTOTYPE — the artifact for #550's remaining question.
+ * THROWAWAY PROTOTYPE — what each payment ended up covering.
  *
- * "Does a preset draw from one payment, or from `Saldo disponible` at large?"
- * The two look nearly identical in the preset dialog — one chooser more or less
- * — so the difference cannot be judged there. It shows up **here**, months
- * later, when someone asks what a transfer actually paid for.
+ * This started as the artifact for "does a preset draw from one payment or from
+ * `Saldo disponible` at large?". That question is now **dissolved rather than
+ * answered**: the admin never picks a payment, so the fill rule decides, and
+ * this panel is a **derived audit view** rather than a record of anyone's
+ * decisions. Nobody can be asked why payment #41 covered a given dancer — the
+ * answer is always "oldest payment first".
  *
- * Drawing at large is fewer clicks and never refuses while the academy has money
- * anywhere; the cost is that one preset can slice a single inscription's target
- * across two or three payments, so every payment ends up holding a little of
- * everything. Drawing from one payment keeps each of these lists short and
- * whole, at the price of refusing more often.
- *
- * Run a preset with «Todo el saldo disponible» and then with a single payment,
- * and compare this panel before and after. Nothing else in the prototype makes
- * the difference visible.
+ * It survives because the reading is still wanted: months later somebody asks
+ * what a transfer paid for, and the answer has to exist. It just is not an
+ * input any more.
  */
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -33,9 +29,8 @@ export function PaymentCoverage({
       <div className="flex flex-col gap-1">
         <h2 className="text-sm font-medium">Qué cubrió cada pago</h2>
         <p className="text-xs text-muted-foreground">
-          La pregunta abierta del ticket se ve acá, no en el diálogo del preset:
-          cuánto se fragmenta la historia de un pago según de dónde saque la
-          plata el preset.
+          Lectura derivada: el reparto entre pagos lo resuelve el sistema, del
+          más viejo al más nuevo. Nadie elige el pago al asignar.
         </p>
       </div>
 

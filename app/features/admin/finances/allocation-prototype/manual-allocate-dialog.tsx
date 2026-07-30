@@ -1,9 +1,14 @@
 /**
  * THROWAWAY PROTOTYPE — ticket #550's escape hatch.
  *
- * Allocating an arbitrary amount of one payment to one inscription by hand. This
- * is the exceptional case: the presets are the common one. The price picker lives
- * here too, because without a chosen price there is no figure to measure against.
+ * Putting an arbitrary amount on one inscription by hand. This is the
+ * exceptional case: the presets are the common one, and they do not ask for an
+ * amount at all — `Pagar seña` already means `owedDepositAmount`.
+ *
+ * **There is no payment picker.** The admin draws from the academy's
+ * `Saldo disponible`; which payments fund it is the fill rule's business
+ * (`spreadFromPool`). The price picker does live here, because without a chosen
+ * price there is no figure to measure against.
  */
 import { useState } from "react";
 
@@ -18,29 +23,18 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 import { formatAmount } from "../formatters";
 import type { AllocationRejection } from "./allocation-rules";
-import type {
-  InscriptionReading,
-  PaymentReading,
-  PrototypeState,
-} from "./fixtures";
+import type { InscriptionReading, PrototypeState } from "./fixtures";
 import { PriceSelect } from "./price-select";
 
 export function ManualAllocateDialog({
   inscription,
   state,
   choreographyGroupType,
-  payments,
+  availableBalanceAmount,
   onClose,
   onSelectPrice,
   onAllocate,
@@ -48,16 +42,14 @@ export function ManualAllocateDialog({
   inscription: InscriptionReading | null;
   state: PrototypeState;
   choreographyGroupType: string;
-  payments: PaymentReading[];
+  availableBalanceAmount: number;
   onClose: () => void;
   onSelectPrice: (inscriptionId: string, priceId: string | null) => void;
   onAllocate: (
-    paymentId: string,
     inscriptionId: string,
     amount: number,
   ) => AllocationRejection | null;
 }) {
-  const [paymentId, setPaymentId] = useState("");
   const [amount, setAmount] = useState("");
   const [rejection, setRejection] = useState<AllocationRejection | null>(null);
 
@@ -65,20 +57,14 @@ export function ManualAllocateDialog({
     return null;
   }
 
-  const existing =
-    inscription.allocations.find(
-      (allocation) => allocation.paymentId === paymentId,
-    )?.amount ?? 0;
-
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Asignar a mano · {inscription.dancerName}</DialogTitle>
           <DialogDescription>
-            El monto reemplaza lo que esta inscripción ya tenga de ese pago.
-            Cero borra la asignación, y si era la última, el precio elegido se
-            limpia.
+            Se toma del saldo disponible de la academia. Qué pago lo cubre lo
+            resuelve el sistema, del más viejo al más nuevo.
           </DialogDescription>
         </DialogHeader>
         <FieldGroup>
@@ -93,22 +79,6 @@ export function ManualAllocateDialog({
             />
           </Field>
           <Field>
-            <FieldLabel htmlFor="pago">Pago</FieldLabel>
-            <Select value={paymentId} onValueChange={setPaymentId}>
-              <SelectTrigger id="pago" className="w-full">
-                <SelectValue placeholder="Elegí un pago" />
-              </SelectTrigger>
-              <SelectContent>
-                {payments.map((payment) => (
-                  <SelectItem key={payment.id} value={payment.id}>
-                    Pago #{payment.number} · disponible{" "}
-                    {formatAmount(payment.availableAmount)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field>
             <FieldLabel htmlFor="monto">Monto</FieldLabel>
             <Input
               id="monto"
@@ -119,14 +89,12 @@ export function ManualAllocateDialog({
                 setAmount(event.target.value.replace(/\D/g, ""))
               }
             />
-            {paymentId !== "" ? (
-              <p className="text-xs text-muted-foreground tabular-nums">
-                Hoy tiene {formatAmount(existing)} de este pago.
-                {inscription.owedBalanceAmount === null
-                  ? ""
-                  : ` Admite hasta ${formatAmount(existing + inscription.owedBalanceAmount)} sin sobreasignar.`}
-              </p>
-            ) : null}
+            <p className="text-xs text-muted-foreground tabular-nums">
+              Saldo disponible: {formatAmount(availableBalanceAmount)}.
+              {inscription.owedBalanceAmount === null
+                ? ""
+                : ` ${inscription.dancerName} admite hasta ${formatAmount(inscription.owedBalanceAmount)} más.`}
+            </p>
           </Field>
           {rejection !== null ? (
             <Alert variant="destructive">
@@ -140,17 +108,9 @@ export function ManualAllocateDialog({
           </Button>
           <Button
             type="button"
-            disabled={
-              paymentId === "" ||
-              amount === "" ||
-              inscription.selectedPriceId === null
-            }
+            disabled={amount === "" || inscription.selectedPriceId === null}
             onClick={() => {
-              const next = onAllocate(
-                paymentId,
-                inscription.id,
-                Number(amount),
-              );
+              const next = onAllocate(inscription.id, Number(amount));
               setRejection(next);
 
               // The refusal keeps the dialog open with the amount still typed:

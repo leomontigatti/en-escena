@@ -16,7 +16,11 @@ import {
   upsertAllocation,
   type PrototypeState,
 } from "./fixtures";
-import { rejectAllocation, type AllocationRejection } from "./allocation-rules";
+import {
+  rejectAllocation,
+  spreadFromPool,
+  type AllocationRejection,
+} from "./allocation-rules";
 import { readAcademy, readChoreographies } from "./rollup";
 import type { AllocationUpsert } from "./shared";
 
@@ -69,44 +73,54 @@ export function usePrototype() {
       emit();
     },
     /**
+     * Draws `amount` from the academy's `Saldo disponible` and puts it on one
+     * inscription. **No payment id**: which payments fund it is the fill rule's
+     * business, not the admin's.
+     *
      * Returns the rejection instead of throwing, so every caller has to decide
      * where to put the message — which is the point: #549 rejects active
      * over-allocation on the write path, and a surface that swallows the
      * refusal cannot be judged.
      */
     onAllocate: (
-      paymentId: string,
       inscriptionId: string,
       amount: number,
     ): AllocationRejection | null => {
-      if (paymentId === "") {
-        return null;
-      }
-
       const inscription = inscriptions.find((row) => row.id === inscriptionId);
-      const payment = payments.find((row) => row.id === paymentId);
 
-      if (inscription === undefined || payment === undefined) {
+      if (inscription === undefined) {
         return null;
       }
 
-      const rejection = rejectAllocation({ inscription, payment, amount });
+      const rejection = rejectAllocation({
+        inscription,
+        availableBalanceAmount: academy.availableBalanceAmount,
+        amount,
+      });
 
       if (rejection !== null) {
         return rejection;
       }
 
-      current = upsertAllocation(current, {
-        paymentId,
-        inscriptionId,
-        amount,
-      });
+      for (const slice of spreadFromPool(payments, amount)) {
+        const existing =
+          inscription.allocations.find(
+            (allocation) => allocation.paymentId === slice.paymentId,
+          )?.amount ?? 0;
+
+        current = upsertAllocation(current, {
+          paymentId: slice.paymentId,
+          inscriptionId,
+          amount: existing + slice.amount,
+        });
+      }
+
       emit();
       return null;
     },
     /**
-     * The presets build their plan against `availableAmount` and clamp each line
-     * to its own target, so a plan cannot violate either rule; the upserts go in
+     * The presets build their plan against the same pool and clamp each line to
+     * its own target, so a plan cannot violate either rule; the upserts go in
      * unchecked on purpose, rather than re-deriving a guard that would only ever
      * pass.
      */

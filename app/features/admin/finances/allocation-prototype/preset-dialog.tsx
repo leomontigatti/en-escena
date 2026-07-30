@@ -1,12 +1,14 @@
 /**
  * THROWAWAY PROTOTYPE — ticket #550 of map #547.
  *
- * The preset dialog, shared by both views. It shows the plan *before* applying it
- * because the three open decisions are visible here: where the money comes from,
- * what happens to rows with no price, and what happens when it does not cover.
+ * The preset dialog, shared by both views. It shows the plan *before* applying
+ * it, because a preset writes several allocations at once and the admin should
+ * see which rows it reaches and which it leaves out.
+ *
+ * There is **no money chooser**: the preset draws from the academy's
+ * `Saldo disponible`, and which payments fund it is the fill rule's business.
+ * The «De qué pago» column stays, as a readout of what the rule decided.
  */
-import { useState } from "react";
-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -56,19 +58,13 @@ export function PresetDialog({
   onClose,
   onApply,
 }: PresetDialogProps) {
-  const [sourceId, setSourceId] = useState<string>("all");
-
   if (!open) {
     return null;
   }
 
-  const sources =
-    sourceId === "all"
-      ? payments
-      : payments.filter((payment) => payment.id === sourceId);
   const plan = buildPresetPlan({
     inscriptions: targets,
-    payments: sources,
+    payments,
     kind,
   });
 
@@ -78,28 +74,14 @@ export function PresetDialog({
         <DialogHeader>
           <DialogTitle>{presetLabels[kind]}</DialogTitle>
           <DialogDescription>
-            {targets.length} inscripciones elegidas. El preset lee la figura de
-            cada una; no elige precios ni reparte de más. Si la plata no
-            alcanza, cubre las que entren y deja las demás parciales.
+            {targets.length} inscripciones elegidas. Sale del saldo disponible
+            de la academia; el preset lee la figura de cada una y no elige
+            precios. Si la plata no alcanza, cubre las que entren y deja las
+            demás parciales.
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap gap-4">
-            <ChoiceRow
-              label="Plata"
-              options={[
-                { value: "all", label: "Todo el saldo disponible" },
-                ...payments.map((payment) => ({
-                  value: payment.id,
-                  label: `Pago #${payment.number} · ${formatAmount(payment.availableAmount)}`,
-                })),
-              ]}
-              value={sourceId}
-              onChange={setSourceId}
-            />
-          </div>
-
           {plan.shortfallAmount > 0 ? (
             <Alert variant="warning">
               <AlertDescription>
@@ -199,36 +181,5 @@ export function PresetDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function ChoiceRow({
-  label,
-  options,
-  value,
-  onChange,
-}: {
-  label: string;
-  options: { value: string; label: string }[];
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      <div className="flex flex-wrap gap-1.5">
-        {options.map((option) => (
-          <Button
-            key={option.value}
-            type="button"
-            size="xs"
-            variant={option.value === value ? "default" : "outline"}
-            onClick={() => onChange(option.value)}
-          >
-            {option.label}
-          </Button>
-        ))}
-      </div>
-    </div>
   );
 }

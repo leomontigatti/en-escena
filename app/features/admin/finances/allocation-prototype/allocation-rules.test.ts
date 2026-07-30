@@ -7,13 +7,21 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { readPriceLock, rejectAllocation } from "./allocation-rules";
+import {
+  readPriceLock,
+  rejectAllocation,
+  spreadFromPool,
+} from "./allocation-rules";
 import {
   initialPrototypeState,
   readInscriptions,
   readPayments,
   upsertAllocation,
 } from "./fixtures";
+
+function readPaymentsOf(payments: typeof initialPrototypeState.payments) {
+  return readPayments({ ...initialPrototypeState, payments });
+}
 
 function read(state = initialPrototypeState) {
   const inscriptions = readInscriptions(state);
@@ -38,71 +46,71 @@ function read(state = initialPrototypeState) {
   };
 }
 
+describe("spreadFromPool", () => {
+  it("fills from the oldest payment first, never by size or click order", () => {
+    const payments = readPaymentsOf(read().state.payments);
+    const oldest = payments.find((payment) => payment.number === 41);
+    const amount = (oldest?.availableAmount ?? 0) + 1000;
+    const slices = spreadFromPool(payments, amount);
+
+    // #41 is drained before #47 is touched at all, and #52 is never reached.
+    expect(slices.map((slice) => slice.paymentNumber)).toEqual([41, 47]);
+    expect(slices[0].amount).toBe(oldest?.availableAmount);
+    expect(slices[1].amount).toBe(1000);
+  });
+
+  it("takes it all from one payment when that payment covers it", () => {
+    const slices = spreadFromPool(readPaymentsOf(read().state.payments), 1000);
+
+    expect(slices).toHaveLength(1);
+    expect(slices[0].paymentNumber).toBe(41);
+  });
+});
+
 describe("rejectAllocation", () => {
   it("refuses to push an inscription past its total and names what it owes", () => {
     const world = read();
-    // Bruno Salas: total 46 800, allocated 20 000 of payment #41.
     const inscription = world.inscription("ins-2");
 
     expect(
       rejectAllocation({
         inscription,
-        payment: world.payment("pay-1"),
-        amount: (inscription.totalAmount ?? 0) + 1,
+        availableBalanceAmount: 1000000,
+        amount: (inscription.owedBalanceAmount ?? 0) + 1,
       }),
     ).toMatchObject({ reason: "overAllocation" });
 
     expect(
       rejectAllocation({
         inscription,
-        payment: world.payment("pay-1"),
-        amount: inscription.totalAmount ?? 0,
+        availableBalanceAmount: 1000000,
+        amount: inscription.owedBalanceAmount ?? 0,
       }),
     ).toBeNull();
   });
 
-  it("lets an already over-allocated inscription come down but not up", () => {
-    // Ana Rivas is settled to the peso; drop her discount so the money already
-    // on her exceeds the total, the passive excess #549 tolerates.
-    const state = {
-      ...initialPrototypeState,
-      allocations: initialPrototypeState.allocations.map((allocation) =>
-        allocation.inscriptionId === "ins-1"
-          ? { ...allocation, amount: 60000 }
-          : allocation,
-      ),
-    };
-    const world = read(state);
-    const inscription = world.inscription("ins-1");
-
-    expect(inscription.excessAmount).toBeGreaterThan(0);
-    expect(
-      rejectAllocation({
-        inscription,
-        payment: world.payment("pay-1"),
-        amount: 55000,
-      }),
-    ).toBeNull();
-    expect(
-      rejectAllocation({
-        inscription,
-        payment: world.payment("pay-1"),
-        amount: 61000,
-      }),
-    ).toMatchObject({ reason: "overAllocation" });
-  });
-
-  it("refuses to over-draw a payment", () => {
+  it("refuses an amount the academy's available balance cannot cover", () => {
     const world = read();
-    const payment = world.payment("pay-3");
 
     expect(
       rejectAllocation({
         inscription: world.inscription("ins-8"),
-        payment,
-        amount: payment.availableAmount + 1,
+        availableBalanceAmount: 500,
+        amount: 501,
       }),
-    ).toMatchObject({ reason: "paymentOverdrawn" });
+    ).toMatchObject({ reason: "insufficientBalance" });
+  });
+
+  it("refuses a zero or negative amount", () => {
+    const world = read();
+
+    expect(
+      rejectAllocation({
+        inscription: world.inscription("ins-8"),
+        availableBalanceAmount: 500,
+        amount: 0,
+      }),
+    ).toMatchObject({ reason: "notPositive" });
   });
 });
 

@@ -208,7 +208,7 @@ export function AllocationDetailPrototypeView() {
         inscription={manualTarget}
         state={prototype.state}
         choreographyGroupType={choreography.groupType}
-        payments={prototype.payments}
+        availableBalanceAmount={prototype.academy.availableBalanceAmount}
         onClose={() => setManualTarget(null)}
         onSelectPrice={prototype.onSelectPrice}
         onAllocate={prototype.onAllocate}
