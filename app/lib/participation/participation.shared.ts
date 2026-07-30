@@ -7,6 +7,12 @@ export type ParticipationStatus =
   | "not-participating"
   | "no-event";
 
+/**
+ * Los estados que sí se muestran. Sin evento activo no hay nada que informar:
+ * las dos superficies esconden el badge en vez de nombrar `no-event`.
+ */
+export type ShownParticipationStatus = Exclude<ParticipationStatus, "no-event">;
+
 export function toParticipationStatus(
   selectedEventId: string | null,
   isParticipating: boolean,
@@ -18,17 +24,15 @@ export function toParticipationStatus(
   return isParticipating ? "participating" : "not-participating";
 }
 
-export function getParticipationLabel(status: ParticipationStatus) {
+export function getParticipationLabel(status: ShownParticipationStatus) {
   switch (status) {
     case "participating":
       return "Participando";
     case "not-participating":
       return "No participando";
-    case "no-event":
-      return "Sin evento";
   }
 }
 
-export function getParticipationBadgeVariant(status: ParticipationStatus) {
+export function getParticipationBadgeVariant(status: ShownParticipationStatus) {
   return status === "participating" ? "success" : "secondary";
 }

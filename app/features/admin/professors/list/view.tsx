@@ -16,8 +16,8 @@ import {
 import {
   getParticipationBadgeVariant,
   getParticipationLabel,
-  type ParticipationStatus,
-} from "@/lib/participation/participation";
+  type ShownParticipationStatus,
+} from "@/lib/participation/participation.shared";
 
 import type { loadProfessorsList } from "./server";
 
@@ -91,7 +91,7 @@ function ProfessorTable({ loaderData }: { loaderData: LoaderData }) {
       headerClassName: "w-1/4",
       cell: (professor) => (
         <div className="flex flex-wrap gap-2">
-          {loaderData.selectedEventId ? (
+          {professor.participationStatus !== "no-event" ? (
             <ParticipationBadge
               participationStatus={professor.participationStatus}
             />
@@ -101,8 +101,7 @@ function ProfessorTable({ loaderData }: { loaderData: LoaderData }) {
           ) : null}
         </div>
       ),
-      filterValue: (professor) =>
-        buildProfessorStatusSummary(professor, loaderData.selectedEventId),
+      filterValue: (professor) => buildProfessorStatusSummary(professor),
     },
   ];
 
@@ -133,7 +132,7 @@ function ProfessorTable({ loaderData }: { loaderData: LoaderData }) {
 function ParticipationBadge({
   participationStatus,
 }: {
-  participationStatus: ParticipationStatus;
+  participationStatus: ShownParticipationStatus;
 }) {
   return (
     <Badge variant={getParticipationBadgeVariant(participationStatus)}>
@@ -167,13 +166,10 @@ function buildProfessorFacetedFilters(
   return [...groups];
 }
 
-function buildProfessorStatusSummary(
-  professor: ProfessorRow,
-  selectedEventId: string | null,
-) {
+function buildProfessorStatusSummary(professor: ProfessorRow) {
   const values: string[] = [];
 
-  if (selectedEventId !== null) {
+  if (professor.participationStatus !== "no-event") {
     values.push(getParticipationLabel(professor.participationStatus));
   }
 

@@ -5,7 +5,7 @@ import type {
   DancerAuditAction,
   DancerListFilters,
 } from "@/lib/admin/dancers/dancers.shared";
-import type { ParticipationStatus } from "@/lib/participation/participation";
+import type { ParticipationStatus } from "@/lib/participation/participation.shared";
 import type { DancerEditableSnapshot } from "@/lib/dancers/dancer-records.server";
 
 export type DancerListItem = {

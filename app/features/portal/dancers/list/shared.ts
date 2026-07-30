@@ -1,4 +1,4 @@
-import type { ParticipationStatus } from "@/lib/participation/participation";
+import type { ParticipationStatus } from "@/lib/participation/participation.shared";
 
 export type PortalDancerListItem = {
   active: boolean;

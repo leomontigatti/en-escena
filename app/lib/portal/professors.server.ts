@@ -11,7 +11,7 @@ import { buildProfessorEventParticipationSql } from "@/lib/participation/partici
 import {
   type ParticipationStatus,
   toParticipationStatus,
-} from "@/lib/participation/participation";
+} from "@/lib/participation/participation.shared";
 
 export type ProfessorFormField = "firstName" | "lastName";
 

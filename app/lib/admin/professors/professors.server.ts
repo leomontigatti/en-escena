@@ -30,7 +30,7 @@ import {
 import {
   type ParticipationStatus,
   toParticipationStatus,
-} from "@/lib/participation/participation";
+} from "@/lib/participation/participation.shared";
 
 export type ProfessorListItem = {
   id: string;

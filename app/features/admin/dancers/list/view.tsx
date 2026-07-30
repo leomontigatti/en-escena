@@ -19,8 +19,8 @@ import {
 import {
   getParticipationBadgeVariant,
   getParticipationLabel,
-  type ParticipationStatus,
-} from "@/lib/participation/participation";
+  type ShownParticipationStatus,
+} from "@/lib/participation/participation.shared";
 
 import type { loadDancersList } from "./server";
 
@@ -93,7 +93,7 @@ function DancerTable({ loaderData }: { loaderData: LoaderData }) {
       headerClassName: "w-1/4",
       cell: (dancer) => (
         <div className="flex flex-wrap gap-2">
-          {loaderData.selectedEventId ? (
+          {dancer.participationStatus !== "no-event" ? (
             <ParticipationBadge
               participationStatus={dancer.participationStatus}
             />
@@ -106,8 +106,7 @@ function DancerTable({ loaderData }: { loaderData: LoaderData }) {
           />
         </div>
       ),
-      filterValue: (dancer) =>
-        buildDancerStatusSummary(dancer, loaderData.selectedEventId),
+      filterValue: (dancer) => buildDancerStatusSummary(dancer),
     },
   ];
 
@@ -138,7 +137,7 @@ function DancerTable({ loaderData }: { loaderData: LoaderData }) {
 function ParticipationBadge({
   participationStatus,
 }: {
-  participationStatus: ParticipationStatus;
+  participationStatus: ShownParticipationStatus;
 }) {
   return (
     <Badge variant={getParticipationBadgeVariant(participationStatus)}>
@@ -208,13 +207,10 @@ function buildDancerFacetedFilters(
   return [...groups];
 }
 
-function buildDancerStatusSummary(
-  dancer: DancerRow,
-  selectedEventId: string | null,
-) {
+function buildDancerStatusSummary(dancer: DancerRow) {
   const values: string[] = [];
 
-  if (selectedEventId !== null) {
+  if (dancer.participationStatus !== "no-event") {
     values.push(getParticipationLabel(dancer.participationStatus));
   }
 

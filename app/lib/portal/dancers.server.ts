@@ -21,7 +21,7 @@ import { buildDancerEventParticipationSql } from "@/lib/participation/participat
 import {
   type ParticipationStatus,
   toParticipationStatus,
-} from "@/lib/participation/participation";
+} from "@/lib/participation/participation.shared";
 
 export type PortalDancerListItem = {
   id: string;

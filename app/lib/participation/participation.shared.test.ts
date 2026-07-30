@@ -4,8 +4,8 @@ import {
   getParticipationBadgeVariant,
   getParticipationLabel,
   toParticipationStatus,
-  type ParticipationStatus,
-} from "@/lib/participation/participation";
+  type ShownParticipationStatus,
+} from "@/lib/participation/participation.shared";
 
 describe("toParticipationStatus", () => {
   test("reports 'no-event' when there is no selected event", () => {
@@ -20,15 +20,16 @@ describe("toParticipationStatus", () => {
 });
 
 describe("getParticipationLabel", () => {
-  test("labels every status", () => {
-    const labels: Record<ParticipationStatus, string> = {
+  test("labels every shown status", () => {
+    const labels: Record<ShownParticipationStatus, string> = {
       participating: "Participando",
       "not-participating": "No participando",
-      "no-event": "Sin evento",
     };
 
     for (const [status, label] of Object.entries(labels)) {
-      expect(getParticipationLabel(status as ParticipationStatus)).toBe(label);
+      expect(getParticipationLabel(status as ShownParticipationStatus)).toBe(
+        label,
+      );
     }
   });
 });
@@ -37,6 +38,5 @@ describe("getParticipationBadgeVariant", () => {
   test("highlights only the participating status", () => {
     expect(getParticipationBadgeVariant("participating")).toBe("success");
     expect(getParticipationBadgeVariant("not-participating")).toBe("secondary");
-    expect(getParticipationBadgeVariant("no-event")).toBe("secondary");
   });
 });
