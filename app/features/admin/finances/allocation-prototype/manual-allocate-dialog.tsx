@@ -28,21 +28,19 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 import { formatAmount } from "../formatters";
-import type { AllocationRejection, RepickPolicy } from "./allocation-rules";
+import type { AllocationRejection } from "./allocation-rules";
 import type {
   InscriptionReading,
   PaymentReading,
   PrototypeState,
 } from "./fixtures";
 import { PriceSelect } from "./price-select";
-import type { AllocationVariantProps } from "./shared";
 
 export function ManualAllocateDialog({
   inscription,
   state,
   choreographyGroupType,
   payments,
-  repickPolicy,
   onClose,
   onSelectPrice,
   onAllocate,
@@ -51,10 +49,13 @@ export function ManualAllocateDialog({
   state: PrototypeState;
   choreographyGroupType: string;
   payments: PaymentReading[];
-  repickPolicy: RepickPolicy;
   onClose: () => void;
-  onSelectPrice: AllocationVariantProps["onSelectPrice"];
-  onAllocate: AllocationVariantProps["onAllocate"];
+  onSelectPrice: (inscriptionId: string, priceId: string | null) => void;
+  onAllocate: (
+    paymentId: string,
+    inscriptionId: string,
+    amount: number,
+  ) => AllocationRejection | null;
 }) {
   const [paymentId, setPaymentId] = useState("");
   const [amount, setAmount] = useState("");
@@ -88,7 +89,6 @@ export function ManualAllocateDialog({
               inscription={inscription}
               state={state}
               choreographyGroupType={choreographyGroupType}
-              repickPolicy={repickPolicy}
               onSelectPrice={onSelectPrice}
             />
           </Field>

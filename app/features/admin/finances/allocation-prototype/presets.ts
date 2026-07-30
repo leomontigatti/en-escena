@@ -18,9 +18,6 @@ import type { InscriptionReading, PaymentReading } from "./fixtures";
 
 export type PresetKind = "deposit" | "balance";
 
-/** What to do when the chosen money does not cover every row. */
-export type ShortfallPolicy = "allOrNothing" | "fillInOrder";
-
 export type PresetSkipReason = "noPrice" | "alreadyMet";
 
 export type PresetLine = {
@@ -45,11 +42,6 @@ export type PresetPlan = {
   shortfallAmount: number;
   /** Chosen money left over once the plan is applied. */
   leftoverAmount: number;
-  /**
-   * `allOrNothing` with insufficient money: nothing is allocated and the action
-   * is blocked. Exposed so the UI can explain why the button does nothing.
-   */
-  blockedByShortfall: boolean;
 };
 
 export function presetTargetAmount(
@@ -65,12 +57,10 @@ export function buildPresetPlan({
   inscriptions,
   payments,
   kind,
-  shortfallPolicy,
 }: {
   inscriptions: InscriptionReading[];
   payments: PaymentReading[];
   kind: PresetKind;
-  shortfallPolicy: ShortfallPolicy;
 }): PresetPlan {
   const skipped: PresetPlan["skipped"] = [];
   const eligible: { inscription: InscriptionReading; targetAmount: number }[] =
@@ -101,20 +91,13 @@ export function buildPresetPlan({
     (total, row) => total + row.targetAmount,
     0,
   );
-  const availableAmount = payments.reduce(
-    (total, payment) => total + payment.availableAmount,
-    0,
-  );
-  const blockedByShortfall =
-    shortfallPolicy === "allOrNothing" && requestedAmount > availableAmount;
-
   // Payments in number order, not selection order, for the same reason as rows.
   const purse = [...payments]
     .sort((left, right) => left.number - right.number)
     .map((payment) => ({
       id: payment.id,
       number: payment.number,
-      remaining: blockedByShortfall ? 0 : payment.availableAmount,
+      remaining: payment.availableAmount,
     }));
 
   const lines = eligible.map(({ inscription, targetAmount }) => {
@@ -157,7 +140,6 @@ export function buildPresetPlan({
       (total, source) => total + source.remaining,
       0,
     ),
-    blockedByShortfall,
   };
 }
 

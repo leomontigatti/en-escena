@@ -16,21 +16,11 @@ import {
   upsertAllocation,
   type PrototypeState,
 } from "./fixtures";
-import {
-  rejectAllocation,
-  type AllocationRejection,
-  type RepickPolicy,
-} from "./allocation-rules";
+import { rejectAllocation, type AllocationRejection } from "./allocation-rules";
 import { readAcademy, readChoreographies } from "./rollup";
 import type { AllocationUpsert } from "./shared";
 
 let current: PrototypeState = initialPrototypeState;
-/**
- * Which answer to "can the price be re-picked once money has landed" the
- * prototype is currently running. Not state of the model — a prototype switch,
- * so it lives beside it rather than inside `PrototypeState`.
- */
-let currentRepickPolicy: RepickPolicy = "warn";
 const listeners = new Set<() => void>();
 
 function emit() {
@@ -44,25 +34,13 @@ function subscribe(listener: () => void) {
   return () => listeners.delete(listener);
 }
 
-// One snapshot object covering both, rebuilt on every change: the re-pick
-// policy is a switch the views render from, so flipping it has to re-render.
-let snapshot: { state: PrototypeState; repickPolicy: RepickPolicy } = {
-  state: current,
-  repickPolicy: currentRepickPolicy,
-};
-
-function commit() {
-  snapshot = { state: current, repickPolicy: currentRepickPolicy };
-  emit();
-}
-
 function getSnapshot() {
-  return snapshot;
+  return current;
 }
 
 export function resetPrototypeState() {
   current = initialPrototypeState;
-  commit();
+  emit();
 }
 
 /**
@@ -70,11 +48,7 @@ export function resetPrototypeState() {
  * and neither invents a reading of its own.
  */
 export function usePrototype() {
-  const { state, repickPolicy } = useSyncExternalStore(
-    subscribe,
-    getSnapshot,
-    getSnapshot,
-  );
+  const state = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
   const inscriptions = readInscriptions(state);
   const payments = readPayments(state);
@@ -90,14 +64,9 @@ export function usePrototype() {
     payments,
     choreographies,
     academy,
-    repickPolicy,
-    onChangeRepickPolicy: (policy: RepickPolicy) => {
-      currentRepickPolicy = policy;
-      commit();
-    },
     onSelectPrice: (inscriptionId: string, priceId: string | null) => {
       current = selectPrice(current, inscriptionId, priceId);
-      commit();
+      emit();
     },
     /**
      * Returns the rejection instead of throwing, so every caller has to decide
@@ -132,7 +101,7 @@ export function usePrototype() {
         inscriptionId,
         amount,
       });
-      commit();
+      emit();
       return null;
     },
     /**
@@ -145,7 +114,7 @@ export function usePrototype() {
       for (const upsert of upserts) {
         current = upsertAllocation(current, upsert);
       }
-      commit();
+      emit();
     },
   };
 }

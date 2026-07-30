@@ -35,7 +35,6 @@ import {
   presetLabels,
   skipReasonLabels,
   type PresetKind,
-  type ShortfallPolicy,
 } from "./presets";
 
 export type PresetDialogProps = {
@@ -58,8 +57,6 @@ export function PresetDialog({
   onApply,
 }: PresetDialogProps) {
   const [sourceId, setSourceId] = useState<string>("all");
-  const [shortfallPolicy, setShortfallPolicy] =
-    useState<ShortfallPolicy>("fillInOrder");
 
   if (!open) {
     return null;
@@ -73,7 +70,6 @@ export function PresetDialog({
     inscriptions: targets,
     payments: sources,
     kind,
-    shortfallPolicy,
   });
 
   return (
@@ -83,7 +79,8 @@ export function PresetDialog({
           <DialogTitle>{presetLabels[kind]}</DialogTitle>
           <DialogDescription>
             {targets.length} inscripciones elegidas. El preset lee la figura de
-            cada una; no elige precios ni reparte de más.
+            cada una; no elige precios ni reparte de más. Si la plata no
+            alcanza, cubre las que entren y deja las demás parciales.
           </DialogDescription>
         </DialogHeader>
 
@@ -101,23 +98,14 @@ export function PresetDialog({
               value={sourceId}
               onChange={setSourceId}
             />
-            <ChoiceRow
-              label="Si no alcanza"
-              options={[
-                { value: "fillInOrder", label: "Cubrir las que entren" },
-                { value: "allOrNothing", label: "Todo o nada" },
-              ]}
-              value={shortfallPolicy}
-              onChange={(value) => setShortfallPolicy(value as ShortfallPolicy)}
-            />
           </div>
 
-          {plan.blockedByShortfall ? (
+          {plan.shortfallAmount > 0 ? (
             <Alert variant="warning">
               <AlertDescription>
                 Faltan {formatAmount(plan.shortfallAmount)} para cubrir las{" "}
-                {plan.lines.length} inscripciones completas. Con «todo o nada»
-                no se asigna nada.
+                {plan.lines.length} inscripciones completas. Se cubren las que
+                entren, en orden; las demás quedan parciales.
               </AlertDescription>
             </Alert>
           ) : null}

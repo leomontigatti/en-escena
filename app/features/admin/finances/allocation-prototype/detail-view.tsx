@@ -2,36 +2,56 @@
  * THROWAWAY PROTOTYPE — ticket #550 of map #547. View 2 of 2.
  *
  * A choreography's financial detail
- * (`/administracion/finanzas/:academyId/coreografias/:choreographyId` in the real
- * app): its inscriptions, allocated against owed, and where the money comes from.
- * #551's presets are the primary action in A and B; C replaces them with amounts
- * typed by hand, so the two extremes can be compared.
+ * (`/administracion/finanzas/:academyId/coreografias/:choreographyId` in the
+ * real app). There are no variants any more: **A won** — presets over a
+ * selection, arbitrary amounts as the exception — rebuilt to sit beside the
+ * detail view already in use rather than beside its two rejected siblings.
  *
- * Three variants under `?variant=A|B|C`; the choreography is chosen with
- * `?coreografia=`.
+ * What that meant concretely:
+ *
+ * - `ClientDataTable`, like the real view, instead of a hand-rolled `<Table>`.
+ * - The **choreography's name as the title**, not "Detalle financiero", with the
+ *   group type as a badge.
+ * - The same five `MetricCard`s as the choreography list, **bounded to this
+ *   choreography**; the two owed figures re-scope to the selection exactly as
+ *   they do on the list.
+ * - `Pagar seña` / `Pagar saldo` in the header's `ResourceActionsMenu`, disabled
+ *   until rows are chosen — the placement every action in this repo uses.
+ *
+ * Declared exception: no loader, no `action`, no server validation. The data is
+ * a fixture, because the allocation table's shape is still open in #549.
  */
+import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
-import { PrototypeSwitcher } from "@/components/shared/prototype-switcher";
+import { ClientDataTable } from "@/components/shared/client-data-table";
 import { MetricCard } from "@/components/shared/metric-card";
+import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 import { formatAmount } from "../formatters";
-import { repickPolicyLabels, type RepickPolicy } from "./allocation-rules";
-import { DetailVariantA } from "./detail-variant-a";
-import { DetailVariantB } from "./detail-variant-b";
-import { DetailVariantC } from "./detail-variant-c";
+import { buildInscriptionColumns } from "./detail-table";
+import type { InscriptionReading } from "./fixtures";
 import { ChoreographyAnomalyBadges } from "./list-shared";
-import { allocationDetailVariants } from "./shared";
+import { ManualAllocateDialog } from "./manual-allocate-dialog";
+import { PaymentCoverage } from "./payment-coverage";
+import { PresetDialog } from "./preset-dialog";
+import { presetLabels, type PresetKind } from "./presets";
 import { StateReadout } from "./state-readout";
 import { usePrototype } from "./store";
 
 export function AllocationDetailPrototypeView() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const variantKey = searchParams.get("variant") ?? "A";
   const prototype = usePrototype();
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [preset, setPreset] = useState<PresetKind | null>(null);
+  const [manualTarget, setManualTarget] = useState<InscriptionReading | null>(
+    null,
+  );
 
   const choreographyId =
     searchParams.get("coreografia") ?? prototype.choreographies[0].id;
@@ -39,53 +59,128 @@ export function AllocationDetailPrototypeView() {
     prototype.choreographies.find((row) => row.id === choreographyId) ??
     prototype.choreographies[0];
 
-  const variantProps = {
-    state: prototype.state,
-    choreography,
-    inscriptions: choreography.inscriptions,
-    payments: prototype.payments,
-    selectedPaymentId: prototype.payments[0]?.id ?? null,
-    repickPolicy: prototype.repickPolicy,
-    onSelectPayment: (paymentId: string) => {
-      const next = new URLSearchParams(searchParams);
-      next.set("pago", paymentId);
-      setSearchParams(next, { replace: true, preventScrollReset: true });
-    },
-    onSelectPrice: prototype.onSelectPrice,
-    onAllocate: prototype.onAllocate,
-    onApplyUpserts: prototype.onApplyUpserts,
-  };
+  // Memoised for the reason the real view memoises: a fresh array every render
+  // remounts the cells, and the row's dialog closes the instant it opens.
+  const columns = useMemo(
+    () => buildInscriptionColumns({ onAllocateByHand: setManualTarget }),
+    [],
+  );
 
-  // Variant C is the only one that needs to know which payment is selected, so
-  // `?pago=` is read only here and stays out of the other two's contract.
-  const selectedPaymentId =
-    searchParams.get("pago") ?? prototype.payments[0]?.id ?? null;
+  const selected = choreography.inscriptions.filter((row) =>
+    selectedIds.includes(row.id),
+  );
+  const scoped = selected.length > 0;
+  const owedDepositAmount = scoped
+    ? sumBy(selected, (row) => row.owedDepositAmount ?? 0)
+    : choreography.owedDepositAmount;
+  const owedBalanceAmount = scoped
+    ? sumBy(selected, (row) => row.owedBalanceAmount ?? 0)
+    : choreography.owedBalanceAmount;
 
   return (
     <AdminResourceLayout
-      title={`Prototipo · ${choreography.name}`}
-      description="Detalle financiero de una coreografía. Prototipo descartable del ticket #550."
+      title={choreography.name}
+      description="Detalle financiero de una coreografía. Prototipo descartable del ticket #550; los datos están en memoria y no se guarda nada."
       requireSelectedEvent={false}
+      headerAction={
+        <ResourceActionsMenu>
+          <DropdownMenuItem
+            disabled={!scoped}
+            onSelect={(event) => {
+              event.preventDefault();
+              setPreset("deposit");
+            }}
+          >
+            {presetLabels.deposit}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={!scoped}
+            onSelect={(event) => {
+              event.preventDefault();
+              setPreset("balance");
+            }}
+          >
+            {presetLabels.balance}
+          </DropdownMenuItem>
+        </ResourceActionsMenu>
+      }
     >
       <div className="flex flex-col gap-6 pb-24">
         <Alert>
           <AlertTitle>Prototipo, no funcionalidad</AlertTitle>
           <AlertDescription>
-            Vista 2 de 2: las inscripciones de una coreografía. Alterná
-            variantes con la barra flotante o con las flechas del teclado.
+            Vista 2 de 2. Los presets están en el menú de acciones del header y
+            se habilitan al elegir inscripciones. El precio se fija con la
+            primera asignación.
           </AlertDescription>
         </Alert>
 
         <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="secondary">{choreography.groupType}</Badge>
+          <ChoreographyAnomalyBadges anomalies={choreography.anomalies} />
+        </div>
+
+        <section className="grid gap-4 md:grid-cols-3 xl:grid-cols-5">
+          <MetricCard
+            title="Seña"
+            value={formatAmount(choreography.depositAmount)}
+          />
+          <MetricCard
+            title="Seña adeudada"
+            value={formatAmount(owedDepositAmount)}
+          />
+          <MetricCard
+            title="Total"
+            value={formatAmount(choreography.totalAmount)}
+          />
+          <MetricCard
+            title="Saldo adeudado"
+            value={formatAmount(owedBalanceAmount)}
+          />
+          {/*
+            The only card that stays academy-wide: payments are not scoped to a
+            choreography, and this is the money available to spend on this one.
+          */}
+          <MetricCard
+            title="Saldo disponible"
+            value={formatAmount(prototype.academy.availableBalanceAmount)}
+          />
+        </section>
+
+        <ClientDataTable
+          rows={choreography.inscriptions}
+          columns={columns}
+          getRowKey={(row) => row.id}
+          selectableRows
+          selectedRowIds={selectedIds}
+          onSelectedRowIdsChange={setSelectedIds}
+          searchPlaceholder="Buscar inscripción por bailarín"
+          textFilterColumnId="dancer"
+          initialSort={{ columnId: "dancer", direction: "asc" }}
+          emptyMessage="No hay inscripciones para mostrar."
+          hidePagination
+        />
+
+        <PaymentCoverage
+          payments={prototype.payments}
+          inscriptions={prototype.inscriptions}
+        />
+
+        {/* Prototype-only: the real view reaches its siblings through the list. */}
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed p-3">
+          <span className="text-xs font-medium text-muted-foreground">
+            Ir a otra coreografía
+          </span>
           {prototype.choreographies.map((row) => (
             <Button
               key={row.id}
               type="button"
-              size="sm"
+              size="xs"
               variant={row.id === choreography.id ? "default" : "outline"}
               onClick={() => {
                 const next = new URLSearchParams(searchParams);
                 next.set("coreografia", row.id);
+                setSelectedIds([]);
                 setSearchParams(next, {
                   replace: true,
                   preventScrollReset: true,
@@ -97,78 +192,33 @@ export function AllocationDetailPrototypeView() {
           ))}
         </div>
 
-        <RepickPolicySwitch
-          value={prototype.repickPolicy}
-          onChange={prototype.onChangeRepickPolicy}
-        />
-
-        <ChoreographyAnomalyBadges anomalies={choreography.anomalies} />
-
-        <section className="grid gap-4 md:grid-cols-3">
-          <MetricCard
-            title="Seña"
-            value={formatAmount(choreography.depositAmount)}
-          />
-          <MetricCard
-            title="Total"
-            value={formatAmount(choreography.totalAmount)}
-          />
-          <MetricCard
-            title="Adeudado"
-            value={formatAmount(choreography.owedBalanceAmount)}
-          />
-        </section>
-
-        {variantKey === "B" ? (
-          <DetailVariantB {...variantProps} />
-        ) : variantKey === "C" ? (
-          <DetailVariantC
-            {...variantProps}
-            selectedPaymentId={selectedPaymentId}
-          />
-        ) : (
-          <DetailVariantA {...variantProps} />
-        )}
-
         <StateReadout />
       </div>
 
-      <PrototypeSwitcher
-        variants={allocationDetailVariants}
-        current={variantKey}
+      {preset !== null ? (
+        <PresetDialog
+          kind={preset}
+          targets={selected}
+          payments={prototype.payments}
+          open
+          onClose={() => setPreset(null)}
+          onApply={prototype.onApplyUpserts}
+        />
+      ) : null}
+
+      <ManualAllocateDialog
+        inscription={manualTarget}
+        state={prototype.state}
+        choreographyGroupType={choreography.groupType}
+        payments={prototype.payments}
+        onClose={() => setManualTarget(null)}
+        onSelectPrice={prototype.onSelectPrice}
+        onAllocate={prototype.onAllocate}
       />
     </AdminResourceLayout>
   );
 }
 
-/**
- * Cuts across the three variants instead of belonging to one: what a second
- * price pick does is a rule, so it has to be comparable with everything else
- * held still.
- */
-function RepickPolicySwitch({
-  value,
-  onChange,
-}: {
-  value: RepickPolicy;
-  onChange: (policy: RepickPolicy) => void;
-}) {
-  return (
-    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed p-3">
-      <span className="text-xs font-medium text-muted-foreground">
-        Recambio de precio con plata asignada
-      </span>
-      {(Object.keys(repickPolicyLabels) as RepickPolicy[]).map((policy) => (
-        <Button
-          key={policy}
-          type="button"
-          size="xs"
-          variant={policy === value ? "default" : "outline"}
-          onClick={() => onChange(policy)}
-        >
-          {repickPolicyLabels[policy]}
-        </Button>
-      ))}
-    </div>
-  );
+function sumBy<T>(rows: T[], read: (row: T) => number) {
+  return rows.reduce((total, row) => total + read(row), 0);
 }

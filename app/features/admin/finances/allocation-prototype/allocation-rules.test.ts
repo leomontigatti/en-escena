@@ -1,13 +1,13 @@
 /**
  * THROWAWAY PROTOTYPE — the one part of #550 worth testing.
  *
- * The variants are throwaway, but these three rules are the *content* of the
+ * The screens are throwaway, but these three rules are the *content* of the
  * decisions the ticket owes, so the prototype is pinned to them rather than to
  * whatever a keystroke happened to produce on screen.
  */
 import { describe, expect, it } from "vitest";
 
-import { rejectAllocation, readRepick } from "./allocation-rules";
+import { readPriceLock, rejectAllocation } from "./allocation-rules";
 import {
   initialPrototypeState,
   readInscriptions,
@@ -134,28 +134,18 @@ describe("upsertAllocation", () => {
   });
 });
 
-describe("readRepick", () => {
-  it("leaves the first pick free under every policy", () => {
-    const inscription = read().inscription("ins-4");
-
-    for (const policy of ["free", "warn", "blocked"] as const) {
-      expect(readRepick(inscription, policy)).toMatchObject({
-        isFirstPick: true,
-        canRepick: true,
-      });
-    }
+describe("readPriceLock", () => {
+  it("leaves the price free while no money has landed", () => {
+    expect(readPriceLock(read().inscription("ins-4"))).toMatchObject({
+      isFirstPick: true,
+      isLocked: false,
+    });
   });
 
-  it("blocks, warns or allows a second pick according to the policy", () => {
-    const inscription = read().inscription("ins-1");
+  it("locks the price as soon as an allocation exists", () => {
+    const lock = readPriceLock(read().inscription("ins-1"));
 
-    expect(readRepick(inscription, "free")).toMatchObject({
-      canRepick: true,
-      warning: null,
-    });
-    expect(readRepick(inscription, "warn").warning).not.toBeNull();
-    expect(readRepick(inscription, "blocked")).toMatchObject({
-      canRepick: false,
-    });
+    expect(lock.isLocked).toBe(true);
+    expect(lock.lockedReason).not.toBeNull();
   });
 });

@@ -14,9 +14,8 @@
  *    *reduced*, it just cannot be pushed further up.
  * 2. **A payment cannot be over-drawn.** Not a decision, a fact; the prototype
  *    used to let an amount exceed the payment's balance without saying so.
- * 3. **Re-picking the price once money has landed** — the one genuinely open
- *    question of the three. It is a *policy* rather than a rule, so all three
- *    candidate answers are implemented and the prototype toggles between them.
+ * 3. **The price is fixed by the first allocation.** Three candidate policies
+ *    were prototyped behind a switch; `blocked` won, so only it survives here.
  */
 import { formatAmount } from "../formatters";
 import type { InscriptionReading, PaymentReading } from "./fixtures";
@@ -75,67 +74,37 @@ export function rejectAllocation({
 }
 
 /**
- * What happens when an admin re-picks the price of an inscription that already
- * has money on it. Open question — the three candidates are all here so the
- * difference can be felt rather than argued.
+ * **The price is fixed by the first allocation.** Settled on reacting to the
+ * prototype, out of the three policies it offered (`free`, `warn`, `blocked`).
  *
- * - `free`: the picker is always editable. Cheapest, and what every variant did
- *   before this pass; the figures move under money that is already placed.
- * - `warn`: editable, but the consequence is spelled out first.
- * - `blocked`: the price is fixed by the first allocation. The escape hatch is
- *   the mirror rule #549 already settled — remove every allocation and
- *   `selectedPriceId` clears on its own.
+ * The reason `blocked` wins is that #549 already built its exit: an inscription
+ * that runs out of allocations clears `selectedPriceId` on its own, so
+ * "change this dancer's price" has a defined gesture — take the money off, pick
+ * again — instead of silently moving the seña and the total under money that is
+ * already placed. It is also the only policy under which that mirror rule is
+ * load-bearing rather than trivia.
+ *
+ * The cost, accepted: the gesture runs through deallocation, which is #553's,
+ * and does not exist yet.
  */
-export type RepickPolicy = "free" | "warn" | "blocked";
-
-export const repickPolicyLabels = {
-  free: "Se puede recambiar",
-  warn: "Recambio con aviso",
-  blocked: "Precio fijo desde la primera asignación",
-} as const satisfies Record<RepickPolicy, string>;
-
-export type RepickReading = {
-  /** No money on the inscription yet: the pick is free under every policy. */
+export type PriceLockReading = {
+  /** No money on the inscription yet: the price is still the admin's to pick. */
   isFirstPick: boolean;
-  canRepick: boolean;
-  /** Shown before the change under `warn`; null when there is nothing to warn about. */
-  warning: string | null;
-  /** Shown in place of the picker under `blocked`. */
-  blockedReason: string | null;
+  isLocked: boolean;
+  /** Why the picker is not offered. Null while the price is still free. */
+  lockedReason: string | null;
 };
 
-export function readRepick(
+export function readPriceLock(
   inscription: InscriptionReading,
-  policy: RepickPolicy,
-): RepickReading {
-  const isFirstPick = inscription.allocatedAmount === 0;
-
-  if (isFirstPick) {
-    return {
-      isFirstPick,
-      canRepick: true,
-      warning: null,
-      blockedReason: null,
-    };
-  }
-
-  if (policy === "blocked") {
-    return {
-      isFirstPick,
-      canRepick: false,
-      warning: null,
-      blockedReason:
-        "Ya tiene plata asignada. Para cambiar el precio hay que sacarle toda la plata: al quedarse sin asignaciones el precio se limpia solo.",
-    };
+): PriceLockReading {
+  if (inscription.allocatedAmount === 0) {
+    return { isFirstPick: true, isLocked: false, lockedReason: null };
   }
 
   return {
-    isFirstPick,
-    canRepick: true,
-    warning:
-      policy === "warn"
-        ? `Tiene ${formatAmount(inscription.allocatedAmount)} asignados contra el precio actual. Cambiarlo mueve la seña y el total, y puede dejarla sobreasignada.`
-        : null,
-    blockedReason: null,
+    isFirstPick: false,
+    isLocked: true,
+    lockedReason: `Tiene ${formatAmount(inscription.allocatedAmount)} asignados. Para cambiarle el precio hay que sacarle toda la plata: al quedarse sin asignaciones el precio se limpia solo.`,
   };
 }
