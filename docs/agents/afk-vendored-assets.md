@@ -45,6 +45,13 @@ are only concrete references to this repo:
   the timeout into an ordinary throw) and the `*.agent.log` upload artifact, whose tail the
   `failure()` steps read before falling back to the spec's message. Both are documented in
   [`afk-setup.md`](./afk-setup.md) → "Wall-clock guardrails".
+- **Typecheck gate on §4.6's clean-merge path.** The spec invokes the update-branch agent only
+  when `git merge` conflicts, so a textually clean merge is pushed without anything compiling
+  the result — and a semantic conflict (the base reshapes a signature, the branch adds a caller
+  in another file) slips through to CI (#567). `agent-update-branch.yml` adds a `pnpm typecheck`
+  step **after** the push and the merge comment: the merge is kept, and a failure only flips the
+  PR to `agent:blocked` with the compiler output, naming the semantic conflict instead of
+  leaving a bare CI red.
 - **`FRONTEND-TDD.md`**: the source mandates using `useEffectReducer` from `use-effect-reducer`;
   this repo does **not** use that library (nor reducers today), so the "Reducer choice" section
   was left library-neutral, preserving the principle (state logic in a pure, testable module).
