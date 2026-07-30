@@ -18,19 +18,15 @@ export type ProfessorListFilters = {
   page: number;
 };
 
-export function readProfessorParticipationFilter(input: {
-  value: string | null;
-}): ProfessorParticipationFilter {
-  if (input.value === "si") {
+export function readProfessorParticipationFilter(
+  value: string | null,
+): ProfessorParticipationFilter {
+  if (value === "si") {
     return "yes";
   }
 
-  if (input.value === "no") {
+  if (value === "no") {
     return "no";
-  }
-
-  if (input.value === "todos") {
-    return "all";
   }
 
   return "all";

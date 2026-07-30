@@ -22,6 +22,12 @@ describe("readProfessorFilters", () => {
     ).toMatchObject({ participation: "all", status: "active" });
   });
 
+  test("reads 'participando=todos' as no participation filter", () => {
+    expect(
+      readProfessorFilters(new URLSearchParams("participando=todos")),
+    ).toMatchObject({ participation: "all" });
+  });
+
   test("keeps 'estado=archivados' as an archived status filter", () => {
     expect(
       readProfessorFilters(new URLSearchParams("estado=archivados")),

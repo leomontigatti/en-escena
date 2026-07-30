@@ -102,9 +102,9 @@ export function readProfessorFilters(
 ): ProfessorListFilters {
   return {
     nameOrder: readProfessorNameOrder(searchParams.get("orden")),
-    participation: readProfessorParticipationFilter({
-      value: searchParams.get("participando"),
-    }),
+    participation: readProfessorParticipationFilter(
+      searchParams.get("participando"),
+    ),
     query: searchParams.get("busqueda")?.trim() ?? "",
     status: readProfessorStatusFilter(searchParams.get("estado")),
     page: readPage(searchParams),

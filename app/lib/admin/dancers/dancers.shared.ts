@@ -32,16 +32,14 @@ export type DancerListFilters = {
   page: number;
 };
 
-export function readDancerParticipationFilter(input: {
-  value: string | null;
-}): DancerParticipationFilter {
-  switch (input.value) {
+export function readDancerParticipationFilter(
+  value: string | null,
+): DancerParticipationFilter {
+  switch (value) {
     case "si":
       return "yes";
     case "no":
       return "no";
-    case "todos":
-      return "all";
     default:
       return "all";
   }
