@@ -106,6 +106,23 @@ describe("PortalDancersListRouteView", () => {
     );
   });
 
+  test("hides the participation badge when there is no active event", () => {
+    const markup = renderDancersList({
+      loaderData: {
+        dancers: [
+          dancerListItem({
+            id: "dancer_sin_evento",
+            participationStatus: "no-event",
+          }),
+        ],
+      },
+    });
+
+    expect(markup).not.toContain("No participando");
+    expect(markup).not.toContain(">Participando<");
+    expect(markup).not.toContain("Sin evento");
+  });
+
   test("hides archived rows by default while keeping filters visible", () => {
     const markup = renderDancersList({
       loaderData: {

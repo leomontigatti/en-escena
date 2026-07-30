@@ -5,8 +5,8 @@ import { academies, dancers, user } from "@/db/schema";
 import {
   getEditConsequence,
   toIdentificationStatus,
-  toParticipationStatus,
 } from "@/lib/admin/dancers/dancers.server.shared";
+import { toParticipationStatus } from "@/lib/participation/participation.shared";
 import type { DancerDetail } from "@/lib/admin/dancers/dancers.server.types";
 import { findDancerInscriptions } from "@/lib/admin/dancers/dancers-inscriptions.server";
 import {

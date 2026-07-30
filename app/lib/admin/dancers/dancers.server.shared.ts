@@ -6,7 +6,6 @@ import { getDancerVerificationStatus } from "@/lib/dancers/verification";
 import type {
   DancerIdentificationStatus,
   DancerNameOrder,
-  DancerParticipationStatus,
 } from "@/lib/admin/dancers/dancers.shared";
 import {
   buildDancerAnyEventParticipationSql,
@@ -50,17 +49,6 @@ export function escapeForLike(value: string) {
     .replaceAll("\\", "\\\\")
     .replaceAll("%", "\\%")
     .replaceAll("_", "\\_");
-}
-
-export function toParticipationStatus(
-  selectedEventId: string | null,
-  isParticipating: boolean,
-): DancerParticipationStatus {
-  if (selectedEventId === null) {
-    return "no-event";
-  }
-
-  return isParticipating ? "participating" : "not-participating";
 }
 
 export function toIdentificationStatus(input: {

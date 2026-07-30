@@ -4,10 +4,6 @@ export const professorNotFoundMessage = "No encontramos ese Profesor.";
 export type ProfessorParticipationFilter = "yes" | "no" | "all";
 export type ProfessorStatusFilter = "active" | "archived" | "all";
 export type ProfessorNameOrder = "asc" | "desc";
-export type ProfessorParticipationStatus =
-  | "participating"
-  | "not-participating"
-  | "no-event";
 export type ProfessorAuditAction = "update" | "archive" | "reactivate";
 
 export type ProfessorListFilters = {
@@ -18,14 +14,14 @@ export type ProfessorListFilters = {
   page: number;
 };
 
-export function readProfessorParticipationFilter(input: {
-  value: string | null;
-}): ProfessorParticipationFilter {
-  if (input.value === "si") {
+export function readProfessorParticipationFilter(
+  value: string | null,
+): ProfessorParticipationFilter {
+  if (value === "si") {
     return "yes";
   }
 
-  if (input.value === "no") {
+  if (value === "no") {
     return "no";
   }
 
@@ -72,18 +68,4 @@ export function toProfessorStatusSearchValue(value: ProfessorStatusFilter) {
   }
 
   return null;
-}
-
-export function getProfessorParticipationLabel(
-  participationStatus: ProfessorParticipationStatus,
-) {
-  if (participationStatus === "participating") {
-    return "Participando";
-  }
-
-  if (participationStatus === "not-participating") {
-    return "No participando";
-  }
-
-  return "Sin evento";
 }

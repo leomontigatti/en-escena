@@ -13,7 +13,6 @@ import {
   professorPageSize,
   type ProfessorAuditAction,
   type ProfessorNameOrder,
-  type ProfessorParticipationStatus,
   type ProfessorListFilters,
   readProfessorParticipationFilter,
   readProfessorStatusFilter,
@@ -28,6 +27,10 @@ import {
   buildProfessorAnyEventParticipationSql,
   buildProfessorEventParticipationSql,
 } from "@/lib/participation/participation.server";
+import {
+  type ParticipationStatus,
+  toParticipationStatus,
+} from "@/lib/participation/participation.shared";
 
 export type ProfessorListItem = {
   id: string;
@@ -35,7 +38,7 @@ export type ProfessorListItem = {
   lastName: string;
   active: boolean;
   academyName: string;
-  participationStatus: ProfessorParticipationStatus;
+  participationStatus: ParticipationStatus;
   identificationStatus: "complete" | "incomplete";
 };
 
@@ -64,7 +67,7 @@ export type ProfessorDetail = {
     email: string;
     phone: string;
   };
-  participationStatus: ProfessorParticipationStatus;
+  participationStatus: ParticipationStatus;
   participatedInAnyEvent: boolean;
   editConsequence: ProfessorEditConsequence;
   choreographyNames: string[];
@@ -102,9 +105,9 @@ export function readProfessorFilters(
 ): ProfessorListFilters {
   return {
     nameOrder: readProfessorNameOrder(searchParams.get("orden")),
-    participation: readProfessorParticipationFilter({
-      value: searchParams.get("participando"),
-    }),
+    participation: readProfessorParticipationFilter(
+      searchParams.get("participando"),
+    ),
     query: searchParams.get("busqueda")?.trim() ?? "",
     status: readProfessorStatusFilter(searchParams.get("estado")),
     page: readPage(searchParams),
@@ -475,17 +478,6 @@ function buildProfessorWhere(input: {
   }
 
   return conditions.length > 0 ? and(...conditions) : undefined;
-}
-
-function toParticipationStatus(
-  selectedEventId: string | null,
-  isParticipating: boolean,
-): ProfessorParticipationStatus {
-  if (selectedEventId === null) {
-    return "no-event";
-  }
-
-  return isParticipating ? "participating" : "not-participating";
 }
 
 async function findProfessorForMutation(input: {

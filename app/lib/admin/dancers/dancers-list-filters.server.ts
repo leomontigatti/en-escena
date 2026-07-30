@@ -17,9 +17,9 @@ import { buildDancerEventParticipationSql } from "@/lib/participation/participat
 function readDancerFilters(searchParams: URLSearchParams): DancerListFilters {
   return {
     nameOrder: readDancerNameOrder(searchParams.get("orden")),
-    participation: readDancerParticipationFilter({
-      value: searchParams.get("participando"),
-    }),
+    participation: readDancerParticipationFilter(
+      searchParams.get("participando"),
+    ),
     query: searchParams.get("busqueda")?.trim() ?? "",
     status: readDancerStatusFilter(searchParams.get("estado")),
     identification: readDancerIdentificationFilter(

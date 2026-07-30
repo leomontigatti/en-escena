@@ -52,3 +52,24 @@ describe("toDancerStatusSearchValue", () => {
     }
   });
 });
+
+describe("readDancerParticipationFilter", () => {
+  test("round-trips every participation through the encoder", () => {
+    const participations: DancerParticipationFilter[] = ["yes", "no", "all"];
+
+    for (const participation of participations) {
+      expect(
+        readDancerParticipationFilter(
+          toDancerParticipationSearchValue(participation),
+        ),
+      ).toBe(participation);
+    }
+  });
+
+  test("falls back to 'all' for absent and unknown values", () => {
+    expect(readDancerParticipationFilter(null)).toBe("all");
+    expect(readDancerParticipationFilter("")).toBe("all");
+    expect(readDancerParticipationFilter("todos")).toBe("all");
+    expect(readDancerParticipationFilter("SI")).toBe("all");
+  });
+});

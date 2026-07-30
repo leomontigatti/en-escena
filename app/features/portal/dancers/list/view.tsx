@@ -10,6 +10,10 @@ import {
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  getParticipationBadgeVariant,
+  getParticipationLabel,
+} from "@/lib/participation/participation.shared";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
 import { useServerActionToast } from "@/lib/shared/toasts";
 import { usePortalRecordTitleLinkTransitionStyle } from "@/lib/shared/view-transitions";
@@ -228,11 +232,12 @@ function getDancerStateBadges(dancer: DancerRow) {
     badges.push({ label: "Archivado", variant: "destructive" });
   }
 
-  badges.push({
-    label: getPortalDancerParticipationLabel(dancer.participationStatus),
-    variant:
-      dancer.participationStatus === "participating" ? "success" : "secondary",
-  });
+  if (dancer.participationStatus !== "no-event") {
+    badges.push({
+      label: getParticipationLabel(dancer.participationStatus),
+      variant: getParticipationBadgeVariant(dancer.participationStatus),
+    });
+  }
 
   badges.push({
     label: getDancerVerificationLabel(dancer.verificationStatus),
@@ -253,16 +258,6 @@ function getDancerVerificationBadgeVariant(
     case "incomplete":
       return "warning";
   }
-}
-
-function getPortalDancerParticipationLabel(
-  status: DancerRow["participationStatus"],
-) {
-  if (status === "participating") {
-    return "Participando";
-  }
-
-  return "No participando";
 }
 
 function getDancerVerificationLabel(status: DancerRow["verificationStatus"]) {
