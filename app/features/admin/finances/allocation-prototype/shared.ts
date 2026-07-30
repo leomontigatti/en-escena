@@ -12,13 +12,6 @@ export type AllocationUpsert = {
   amount: number;
 };
 
-/** Vista 1: la lista financiera de coreografías de una academia. */
-export type AllocationListVariantProps = {
-  choreographies: ChoreographyReading[];
-  payments: PaymentReading[];
-  onApplyUpserts: (upserts: AllocationUpsert[]) => void;
-};
-
 /** Vista 2: las inscripciones y asignaciones de una coreografía. */
 export type AllocationVariantProps = {
   state: PrototypeState;
@@ -35,12 +28,6 @@ export type AllocationVariantProps = {
   ) => void;
   onApplyUpserts: (upserts: AllocationUpsert[]) => void;
 };
-
-export const allocationListVariants = [
-  { key: "A", name: "Tabla de hoy + selección" },
-  { key: "B", name: "Worklist por lo que falta" },
-  { key: "C", name: "Primero la plata" },
-];
 
 export const allocationDetailVariants = [
   { key: "A", name: "Presets primero" },
