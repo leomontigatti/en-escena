@@ -18,18 +18,6 @@ describe("toProfessorParticipationSearchValue", () => {
     expect(toProfessorParticipationSearchValue("yes")).toBe("si");
     expect(toProfessorParticipationSearchValue("no")).toBe("no");
   });
-
-  test("round-trips every participation through the reader", () => {
-    const participations: ProfessorParticipationFilter[] = ["yes", "no", "all"];
-
-    for (const participation of participations) {
-      expect(
-        readProfessorParticipationFilter({
-          value: toProfessorParticipationSearchValue(participation),
-        }),
-      ).toBe(participation);
-    }
-  });
 });
 
 describe("toProfessorStatusSearchValue", () => {

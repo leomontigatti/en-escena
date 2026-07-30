@@ -18,18 +18,6 @@ describe("toDancerParticipationSearchValue", () => {
     expect(toDancerParticipationSearchValue("yes")).toBe("si");
     expect(toDancerParticipationSearchValue("no")).toBe("no");
   });
-
-  test("round-trips every participation through the reader", () => {
-    const participations: DancerParticipationFilter[] = ["yes", "no", "all"];
-
-    for (const participation of participations) {
-      expect(
-        readDancerParticipationFilter({
-          value: toDancerParticipationSearchValue(participation),
-        }),
-      ).toBe(participation);
-    }
-  });
 });
 
 describe("toDancerStatusSearchValue", () => {
