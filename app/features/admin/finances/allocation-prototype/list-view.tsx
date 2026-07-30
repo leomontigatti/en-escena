@@ -25,8 +25,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { compareSortValues } from "@/components/shared/data-table-helpers";
+import {
+  dataTableFacetedFilterColumnId,
+  type DataTableFacetedFilter,
+} from "@/components/shared/data-table.shared";
 
 import { formatAmount } from "../formatters";
+import { inscriptionStatusLabels } from "./fixtures";
 import { buildChoreographyColumns } from "./list-table";
 import { PresetDialog } from "./preset-dialog";
 import { presetLabels, type PresetKind } from "./presets";
@@ -88,20 +93,6 @@ export function AllocationListPrototypeView() {
           >
             {presetLabels.balance}
           </DropdownMenuItem>
-          <DropdownMenuItem
-            onSelect={(event) => {
-              event.preventDefault();
-              setSelectedIds(
-                selectedIds.length === prototype.choreographies.length
-                  ? []
-                  : prototype.choreographies.map((row) => row.id),
-              );
-            }}
-          >
-            {selectedIds.length === prototype.choreographies.length
-              ? "Deseleccionar todo"
-              : "Seleccionar todo"}
-          </DropdownMenuItem>
         </ResourceActionsMenu>
       }
     >
@@ -143,26 +134,29 @@ export function AllocationListPrototypeView() {
           rows={pageRows}
           columns={buildChoreographyColumns({
             selectedIds,
+            allSelected:
+              rows.length > 0 &&
+              rows.every((row) => selectedIds.includes(row.id)),
+            someSelected: rows.some((row) => selectedIds.includes(row.id)),
             onToggle: (id) =>
               setSelectedIds((current) =>
                 current.includes(id)
                   ? current.filter((value) => value !== id)
                   : [...current, id],
               ),
+            onToggleAll: (checked) =>
+              setSelectedIds(checked ? rows.map((row) => row.id) : []),
           })}
           getRowKey={(row) => row.id}
           searchPlaceholder="Buscar coreografía por nombre"
           initialSearchValue={searchParams.get("q") ?? ""}
+          facetedFilters={choreographyFacetedFilters}
+          initialFacetedFilterValues={readFilterValues(searchParams)}
           currentPage={currentPage}
           totalPages={Math.max(1, Math.ceil(rows.length / pageSize))}
           totalRows={prototype.choreographies.length}
           emptyMessage="No hay coreografías para mostrar."
         />
-
-        <p className="text-xs text-muted-foreground">
-          * Figura tentativa: la coreografía tiene inscripciones sin precio
-          elegido.
-        </p>
 
         <StateReadout />
       </div>
@@ -185,42 +179,76 @@ function ScopeBadge({ count }: { count: number }) {
   return <Badge variant="info">{count} elegidas</Badge>;
 }
 
-/** Buscar y ordenar, resueltos en memoria sobre lo que `ServerDataTable` puso en la URL. */
+const choreographyFacetedFilters: DataTableFacetedFilter[] = [
+  {
+    id: "tipo",
+    label: "Tipo de grupo",
+    options: [
+      { label: "Grupo", value: "Grupo" },
+      { label: "Dúo", value: "Dúo" },
+    ],
+  },
+  {
+    id: "estado",
+    label: "Estado",
+    options: [
+      {
+        label: inscriptionStatusLabels.depositPending,
+        value: "depositPending",
+      },
+      { label: inscriptionStatusLabels.depositMet, value: "depositMet" },
+      { label: inscriptionStatusLabels.paidInFull, value: "paidInFull" },
+    ],
+  },
+];
+
+function readFilterValues(searchParams: URLSearchParams) {
+  const values: Record<string, string> = {};
+
+  for (const group of choreographyFacetedFilters) {
+    const value = searchParams.get(group.id ?? group.label);
+
+    if (value) {
+      values[group.id ?? group.label] = value;
+    }
+  }
+
+  return Object.keys(values).length > 0
+    ? { [dataTableFacetedFilterColumnId]: values }
+    : undefined;
+}
+
+/**
+ * Buscar, filtrar y ordenar, resueltos en memoria sobre lo que `ServerDataTable`
+ * puso en la URL. Sólo se ordena por nombre.
+ */
 function readRows(
   choreographies: ChoreographyReading[],
   searchParams: URLSearchParams,
 ) {
   const query = (searchParams.get("q") ?? "").trim().toLowerCase();
-  const rows =
-    query === ""
-      ? [...choreographies]
-      : choreographies.filter((row) => row.name.toLowerCase().includes(query));
+  const groupType = searchParams.get("tipo");
+  const status = searchParams.get("estado");
 
-  const [columnId, direction] = (searchParams.get("orden") ?? "name:asc").split(
-    ":",
-  );
-  const readSortValue = sortValues[columnId] ?? sortValues.name;
+  const rows = choreographies.filter((row) => {
+    if (query !== "" && !row.name.toLowerCase().includes(query)) {
+      return false;
+    }
+
+    if (groupType !== null && row.groupType !== groupType) {
+      return false;
+    }
+
+    return status === null || row.status === status;
+  });
+
+  const direction = (searchParams.get("orden") ?? "name:asc").split(":")[1];
 
   return rows.sort((left, right) => {
-    const comparison = compareSortValues(
-      readSortValue(left),
-      readSortValue(right),
-    );
+    const comparison = compareSortValues(left.name, right.name);
     return direction === "desc" ? -comparison : comparison;
   });
 }
-
-const sortValues: Record<
-  string,
-  (row: ChoreographyReading) => string | number
-> = {
-  name: (row) => row.name,
-  groupType: (row) => row.groupType,
-  depositAmount: (row) => row.depositAmount,
-  totalAmount: (row) => row.totalAmount,
-  owedBalanceAmount: (row) => row.owedBalanceAmount,
-  status: (row) => row.status ?? "",
-};
 
 function sumBy<T>(rows: T[], read: (row: T) => number) {
   return rows.reduce((total, row) => total + read(row), 0);

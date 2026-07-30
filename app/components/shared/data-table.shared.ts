@@ -13,6 +13,12 @@ export type DataTableSortValue =
 export type DataTableColumn<TData> = {
   id: string;
   header: string;
+  /**
+   * Encabezado renderizado, para las columnas cuyo título no es texto (por
+   * ejemplo un checkbox de «seleccionar todo»). `header` sigue siendo el nombre
+   * accesible de la columna.
+   */
+  headerCell?: ReactNode;
   cell: (row: TData) => ReactNode;
   hidden?: boolean;
   className?: string;

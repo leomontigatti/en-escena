@@ -35,11 +35,14 @@ export type ChoreographyReading = {
   owedDepositAmount: number;
   owedBalanceAmount: number;
   /**
-   * Mínimo de los estados de sus inscripciones. `null` cuando alguna todavía no
-   * tiene precio elegido: ahí el rollup no es afirmable, sólo tentativo.
+   * Mínimo de los estados de las inscripciones con precio elegido. `null` sólo
+   * si ninguna lo eligió todavía.
    */
   status: InscriptionFinancialStatus | null;
-  /** Alguna inscripción sin precio elegido: las figuras se leen como tentativas. */
+  /**
+   * Alguna inscripción sin precio elegido: las figuras se leen como tentativas
+   * y se muestran atenuadas, porque todavía pueden moverse.
+   */
   tentative: boolean;
   anomalies: ChoreographyAnomaly[];
 };
@@ -76,8 +79,11 @@ export function readChoreographies(
       allocatedAmount: sumBy(rows, (row) => row.allocatedAmount),
       owedDepositAmount: sumBy(rows, (row) => row.owedDepositAmount ?? 0),
       owedBalanceAmount: sumBy(rows, (row) => row.owedBalanceAmount ?? 0),
+      // El mínimo se toma sobre las inscripciones que *tienen* precio: una fila
+      // sin precio no es un estado, sólo vuelve tentativa la figura. `null`
+      // queda para la coreografía donde ninguna eligió precio todavía.
       status:
-        tentative || statuses.length === 0
+        statuses.length === 0
           ? null
           : statuses.reduce((lowest, status) =>
               statusRank[status] < statusRank[lowest] ? status : lowest,

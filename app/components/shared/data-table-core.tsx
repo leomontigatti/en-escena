@@ -88,7 +88,8 @@ export function createDataTableColumns<TData>(
 ) {
   const tableColumns = columns.map<ColumnDef<TData>>((column) => ({
     id: column.id,
-    header: column.header,
+    header:
+      column.headerCell === undefined ? column.header : () => column.headerCell,
     cell: ({ row }) => column.cell(row.original),
     enableSorting: Boolean(column.sortValue),
     accessorFn: (row) => column.sortValue?.(row) ?? column.filterValue?.(row),
