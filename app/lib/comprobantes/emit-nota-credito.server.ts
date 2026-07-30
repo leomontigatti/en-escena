@@ -9,6 +9,13 @@ import {
   DOC_TIPO_CONSUMIDOR_FINAL,
   NOTA_CREDITO_C_CBTE_TIPO,
 } from "./arca/factura-c";
+import {
+  attemptArca,
+  buildNotEmittedMessage,
+  buildUnverifiedMessage,
+  recoverAuthorization,
+  type ArcaAttemptedVoucher,
+} from "./arca/contingency.server";
 import type { ArcaMessage } from "./arca/responses";
 import {
   buildRejectionMessage,
@@ -34,7 +41,13 @@ export type NotaCreditoEmissionInput = {
 export type NotaCreditoEmissionFailureReason =
   | "not-found"
   | "already-annulled"
-  | "rejected";
+  // ARCA respondió y no autorizó.
+  | "rejected"
+  // ARCA no respondió y quedó establecido que no se emitió nada: reintentar es
+  // seguro (ADR-0012 decisión 6).
+  | "not-emitted"
+  // ARCA no respondió y la consulta posterior tampoco resolvió qué pasó.
+  | "unverified";
 
 export type NotaCreditoEmissionOutcome =
   | { ok: true; notaCredito: ComprobanteRow }
@@ -42,12 +55,14 @@ export type NotaCreditoEmissionOutcome =
       ok: false;
       reason: NotaCreditoEmissionFailureReason;
       message: string;
-      // Presente sólo en un rechazo/contingencia de ARCA.
+      // Presente sólo en un rechazo de ARCA.
       arca?: {
         resultado: string | null;
         errors: ArcaMessage[];
         observaciones: ArcaMessage[];
       };
+      // Presente sólo en `unverified`: la nota de crédito que no se pudo resolver.
+      attempt?: ArcaAttemptedVoucher;
     };
 
 /**
@@ -60,8 +75,16 @@ export type NotaCreditoEmissionOutcome =
  *
  * El `CbteNro` de la Nota de crédito se deriva de su propio
  * `FECompUltimoAutorizado + 1` (serie tipo 13). Sólo un CAE aprobado persiste la
- * Nota de crédito; un rechazo o contingencia de ARCA no persiste nada y deja el
- * comprobante original intacto y vigente.
+ * Nota de crédito; un rechazo de ARCA no persiste nada y deja el comprobante
+ * original intacto y vigente.
+ *
+ * Si ARCA no responde, la falla se clasifica por fase igual que la emisión
+ * (ADR-0012), contra la serie tipo 13: cortada la consulta del correlativo no se
+ * anuló nada; cortada la autorización se consulta a ARCA por esa Nota de crédito
+ * exacta y, si aparece y coincide con lo enviado, se persiste con ese CAE —la
+ * única excepción a la invariante de que una contingencia no persiste nada—. Si
+ * la consulta falla o devuelve otra, el resultado es `unverified` y no se
+ * persiste nada.
  */
 export async function annulComprobante(
   input: NotaCreditoEmissionInput,
@@ -85,31 +108,122 @@ export async function annulComprobante(
     };
   }
 
-  const last = await deps.client.getLastNotaCreditoCNumber(deps.ptoVta);
+  const lookup = await attemptArca("lookup", () =>
+    deps.client.getLastNotaCreditoCNumber(deps.ptoVta),
+  );
+
+  if (!lookup.ok) {
+    return {
+      ok: false,
+      reason: "not-emitted",
+      message: buildNotEmittedMessage("nota de crédito"),
+    };
+  }
+
+  const last = lookup.value;
   const cbteFch = deps.cbteFch ?? toArcaDate(getBusinessDateOnly());
 
-  const emission = await deps.client.emitNotaCreditoC({
-    ptoVta: deps.ptoVta,
-    cbteNro: last.nextCbteNro,
-    cbteFch,
-    importe: target.impTotal,
-    condicionIvaReceptorId: deps.receptorIvaConditionId,
-    emisorCuit: deps.issuerCuit,
-    // La NC reenvía las fechas de servicio del comprobante que anula. La emisión
-    // es siempre Concepto 2 (servicios, regla de negocio), y ARCA exige
-    // `FchServ*`/`FchVtoPago` para Concepto 2: sin reenviarlas la NC salía sin
-    // fechas → rechazo 10049. Los comprobantes reales siempre las tienen; sólo un
-    // seed viejo de la base de test quedó sin fechas (Concepto 1, pre-fix).
-    fchServDesde: target.fchServDesde ?? undefined,
-    fchServHasta: target.fchServHasta ?? undefined,
-    fchVtoPago: target.fchVtoPago ?? undefined,
-    asociado: {
-      cbteTipo: target.cbteTipo,
-      ptoVta: target.ptoVta,
-      cbteNro: target.cbteNro,
-      cbteFch: target.cbteFch,
-    },
-  });
+  // Persiste la Nota de crédito autorizada. La comparten el camino feliz y la
+  // recuperación por consulta: lo único que cambia es de dónde salen el CAE, el
+  // correlativo y la fecha.
+  const persist = (authorized: {
+    cae: string;
+    caeVto: string;
+    cbteNro: number;
+    cbteFch: string;
+  }): Promise<ComprobanteRow> =>
+    recordComprobante({
+      choreographyId: target.choreographyId,
+      eventId: target.eventId,
+      cbteTipo: NOTA_CREDITO_C_CBTE_TIPO,
+      ptoVta: deps.ptoVta,
+      cbteNro: authorized.cbteNro,
+      cbteFch: authorized.cbteFch,
+      // Espejo total-only: mismo importe que el comprobante anulado.
+      impTotal: target.impTotal,
+      // La Nota de crédito espeja la porción del comprobante que anula (ADR-0011),
+      // igual que el backfill de la migración 0005.
+      porcion: target.porcion,
+      issuerCuit: deps.issuerCuit,
+      issuerIvaCondition: ISSUER_IVA_CONDITION,
+      receptorDocTipo: DOC_TIPO_CONSUMIDOR_FINAL,
+      receptorDocNro: String(DOC_NRO_CONSUMIDOR_FINAL),
+      receptorIvaConditionId: deps.receptorIvaConditionId,
+      cae: authorized.cae,
+      caeVto: authorized.caeVto,
+      associatedComprobanteId: target.id,
+      // Réplica de las líneas internas del comprobante anulado, congeladas.
+      lines: target.lines.map((line) => ({
+        inscriptionId: line.inscriptionId,
+        amount: line.amount,
+      })),
+    });
+
+  const authorization = await attemptArca("authorization", () =>
+    deps.client.emitNotaCreditoC({
+      ptoVta: deps.ptoVta,
+      cbteNro: last.nextCbteNro,
+      cbteFch,
+      importe: target.impTotal,
+      condicionIvaReceptorId: deps.receptorIvaConditionId,
+      emisorCuit: deps.issuerCuit,
+      // La NC reenvía las fechas de servicio del comprobante que anula. La emisión
+      // es siempre Concepto 2 (servicios, regla de negocio), y ARCA exige
+      // `FchServ*`/`FchVtoPago` para Concepto 2: sin reenviarlas la NC salía sin
+      // fechas → rechazo 10049. Los comprobantes reales siempre las tienen; sólo un
+      // seed viejo de la base de test quedó sin fechas (Concepto 1, pre-fix).
+      fchServDesde: target.fchServDesde ?? undefined,
+      fchServHasta: target.fchServHasta ?? undefined,
+      fchVtoPago: target.fchVtoPago ?? undefined,
+      asociado: {
+        cbteTipo: target.cbteTipo,
+        ptoVta: target.ptoVta,
+        cbteNro: target.cbteNro,
+        cbteFch: target.cbteFch,
+      },
+    }),
+  );
+
+  if (!authorization.ok) {
+    const attempt: ArcaAttemptedVoucher = {
+      ptoVta: deps.ptoVta,
+      cbteTipo: NOTA_CREDITO_C_CBTE_TIPO,
+      cbteNro: last.nextCbteNro,
+    };
+    const recovery = await recoverAuthorization(deps.client, {
+      ...attempt,
+      impTotal: target.impTotal,
+      cbteFch,
+    });
+
+    if (recovery.status === "not-emitted") {
+      return {
+        ok: false,
+        reason: "not-emitted",
+        message: buildNotEmittedMessage("nota de crédito"),
+      };
+    }
+
+    if (recovery.status === "unverified") {
+      return {
+        ok: false,
+        reason: "unverified",
+        message: buildUnverifiedMessage("nota de crédito", attempt),
+        attempt,
+      };
+    }
+
+    const recovered = await persist({
+      cae: recovery.cae,
+      caeVto: recovery.caeVto,
+      cbteNro: attempt.cbteNro,
+      cbteFch: recovery.cbteFch,
+    });
+
+    return { ok: true, notaCredito: recovered };
+  }
+
+  const emission = authorization.value;
 
   if (!emission.approved || !emission.cae || !emission.caeVto) {
     return {
@@ -124,31 +238,11 @@ export async function annulComprobante(
     };
   }
 
-  const notaCredito = await recordComprobante({
-    choreographyId: target.choreographyId,
-    eventId: target.eventId,
-    cbteTipo: NOTA_CREDITO_C_CBTE_TIPO,
-    ptoVta: deps.ptoVta,
-    cbteNro: emission.cbteNro ?? last.nextCbteNro,
-    cbteFch: emission.cbteFch ?? cbteFch,
-    // Espejo total-only: mismo importe que el comprobante anulado.
-    impTotal: target.impTotal,
-    // La Nota de crédito espeja la porción del comprobante que anula (ADR-0011),
-    // igual que el backfill de la migración 0005.
-    porcion: target.porcion,
-    issuerCuit: deps.issuerCuit,
-    issuerIvaCondition: ISSUER_IVA_CONDITION,
-    receptorDocTipo: DOC_TIPO_CONSUMIDOR_FINAL,
-    receptorDocNro: String(DOC_NRO_CONSUMIDOR_FINAL),
-    receptorIvaConditionId: deps.receptorIvaConditionId,
+  const notaCredito = await persist({
     cae: emission.cae,
     caeVto: emission.caeVto,
-    associatedComprobanteId: target.id,
-    // Réplica de las líneas internas del comprobante anulado, congeladas.
-    lines: target.lines.map((line) => ({
-      inscriptionId: line.inscriptionId,
-      amount: line.amount,
-    })),
+    cbteNro: emission.cbteNro ?? last.nextCbteNro,
+    cbteFch: emission.cbteFch ?? cbteFch,
   });
 
   return { ok: true, notaCredito };

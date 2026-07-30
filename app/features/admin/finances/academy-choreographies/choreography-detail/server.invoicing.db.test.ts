@@ -1,6 +1,7 @@
 import type {
   CreateVoucherResultDto,
   LastVoucherResultDto,
+  VoucherInfoResultDto,
 } from "@arcasdk/core";
 import { and, eq } from "drizzle-orm";
 import { describe, expect, test, vi } from "vitest";
@@ -55,6 +56,11 @@ function fakeBilling(
     ),
     createVoucher: vi.fn(
       async (): Promise<CreateVoucherResultDto> => facturaCAprobada,
+    ),
+    // Sólo se consulta cuando la autorización se cae: por defecto ARCA no tiene
+    // ese comprobante.
+    getVoucherInfo: vi.fn(
+      async (): Promise<VoucherInfoResultDto | null> => null,
     ),
     ...overrides,
   };

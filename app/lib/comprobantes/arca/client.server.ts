@@ -2,6 +2,7 @@ import {
   Arca,
   type CreateVoucherResultDto,
   type LastVoucherResultDto,
+  type VoucherInfoResultDto,
 } from "@arcasdk/core";
 
 import {
@@ -18,8 +19,10 @@ import {
 import {
   parseCreateVoucherResult,
   parseLastVoucher,
+  parseVoucherInfo,
   type FacturaCEmissionResult,
   type LastVoucherResult,
+  type VoucherInfoResult,
 } from "./responses";
 import { InMemoryTaCache } from "./ta-cache.server";
 
@@ -32,20 +35,80 @@ export type ArcaBillingPort = {
     type: number,
   ): Promise<LastVoucherResultDto>;
   createVoucher(req: ArcaVoucher): Promise<CreateVoucherResultDto>;
+  getVoucherInfo(
+    number: number,
+    salesPoint: number,
+    type: number,
+  ): Promise<VoucherInfoResultDto | null>;
 };
+
+// Timeouts por llamada, en milisegundos (ADR-0012 decisión 2). Son constantes de
+// código, no variables de entorno: una requerida rompería los deploys existentes
+// y una opcional es una perilla que nadie necesitó todavía.
+export const ARCA_TIMEOUTS = {
+  // Consulta: abandonar temprano es gratis y una falla rápida pone al operador a
+  // reintentar antes.
+  lookup: 15_000,
+  // Autorización: deliberadamente generoso. WSFEv1 tarda decenas de segundos bajo
+  // carga y cada corte prematuro fabrica la ambigüedad que hay que ir a resolver.
+  authorization: 30_000,
+} as const;
+
+export type ArcaTimeouts = {
+  lookup: number;
+  authorization: number;
+};
+
+/**
+ * Acota una llamada a ARCA con su timeout. `@arcasdk/core` no impone ninguno en
+ * ninguna capa, así que un socket que abre y nunca responde deja la promesa
+ * pendiente para siempre: no hay excepción que clasificar y el operador espera
+ * hasta que un proxy se rinda por él.
+ *
+ * Ganar la carrera NO cancela la llamada en vuelo: ARCA puede autorizar el
+ * comprobante igual, después de que dejamos de esperar. Eso es esperado y es
+ * exactamente lo que resuelve la consulta posterior (ADR-0012 decisión 3); el
+ * SDK tampoco ofrece forma de propagar un `AbortSignal`.
+ */
+async function withTimeout<T>(
+  ms: number,
+  operation: string,
+  run: () => Promise<T>,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    return await Promise.race([
+      run(),
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`ARCA no respondió ${operation} en ${ms}ms.`)),
+          ms,
+        );
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 // Cliente WSAA + WSFEv1 acotado al circuito de Factura C. No decide correlativos
 // ni deriva estado: eso es la lógica de emisión (#446). Acá sólo se arma el
 // payload, se habla con ARCA y se interpreta la respuesta.
 export class ArcaClient {
-  constructor(private readonly billing: ArcaBillingPort) {}
+  constructor(
+    private readonly billing: ArcaBillingPort,
+    // Inyectables para que los tests los achiquen a milisegundos.
+    private readonly timeouts: ArcaTimeouts = ARCA_TIMEOUTS,
+  ) {}
 
   // `FECompUltimoAutorizado` para Factura C (tipo 11): último correlativo
   // autorizado y el siguiente a solicitar.
   async getLastFacturaCNumber(ptoVta: number): Promise<LastVoucherResult> {
-    const result = await this.billing.getLastVoucher(
-      ptoVta,
-      FACTURA_C_CBTE_TIPO,
+    const result = await withTimeout(
+      this.timeouts.lookup,
+      "FECompUltimoAutorizado",
+      () => this.billing.getLastVoucher(ptoVta, FACTURA_C_CBTE_TIPO),
     );
 
     return parseLastVoucher(result);
@@ -57,7 +120,11 @@ export class ArcaClient {
     input: FacturaCVoucherInput,
   ): Promise<FacturaCEmissionResult> {
     const voucher = buildFacturaCVoucher(input);
-    const result = await this.billing.createVoucher(voucher);
+    const result = await withTimeout(
+      this.timeouts.authorization,
+      "FECAESolicitar",
+      () => this.billing.createVoucher(voucher),
+    );
 
     return parseCreateVoucherResult(result);
   }
@@ -65,9 +132,10 @@ export class ArcaClient {
   // `FECompUltimoAutorizado` para Nota de crédito C (tipo 13): su correlativo
   // corre por una serie propia, separada de la de Factura C.
   async getLastNotaCreditoCNumber(ptoVta: number): Promise<LastVoucherResult> {
-    const result = await this.billing.getLastVoucher(
-      ptoVta,
-      NOTA_CREDITO_C_CBTE_TIPO,
+    const result = await withTimeout(
+      this.timeouts.lookup,
+      "FECompUltimoAutorizado",
+      () => this.billing.getLastVoucher(ptoVta, NOTA_CREDITO_C_CBTE_TIPO),
     );
 
     return parseLastVoucher(result);
@@ -80,9 +148,38 @@ export class ArcaClient {
     input: NotaCreditoCVoucherInput,
   ): Promise<FacturaCEmissionResult> {
     const voucher = buildNotaCreditoCVoucher(input);
-    const result = await this.billing.createVoucher(voucher);
+    const result = await withTimeout(
+      this.timeouts.authorization,
+      "FECAESolicitar",
+      () => this.billing.createVoucher(voucher),
+    );
 
     return parseCreateVoucherResult(result);
+  }
+
+  /**
+   * `FECompConsultar`: trae el comprobante exacto (`PtoVta`/`CbteTipo`/`CbteNro`)
+   * tal como ARCA lo tiene registrado. Es la llamada con la que se resuelve una
+   * autorización que quedó sin respuesta. Devuelve `null` cuando ARCA no tiene
+   * ese comprobante. Corre con el timeout de consulta.
+   */
+  async getVoucherInfo(input: {
+    ptoVta: number;
+    cbteTipo: number;
+    cbteNro: number;
+  }): Promise<VoucherInfoResult | null> {
+    const result = await withTimeout(
+      this.timeouts.lookup,
+      "FECompConsultar",
+      () =>
+        this.billing.getVoucherInfo(
+          input.cbteNro,
+          input.ptoVta,
+          input.cbteTipo,
+        ),
+    );
+
+    return parseVoucherInfo(result);
   }
 }
 
