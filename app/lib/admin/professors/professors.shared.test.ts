@@ -1,9 +1,11 @@
 import { describe, expect, test } from "vitest";
 
 import {
+  readProfessorParticipationFilter,
   readProfessorStatusFilter,
   toProfessorParticipationSearchValue,
   toProfessorStatusSearchValue,
+  type ProfessorParticipationFilter,
   type ProfessorStatusFilter,
 } from "@/lib/admin/professors/professors.shared";
 
@@ -15,6 +17,18 @@ describe("toProfessorParticipationSearchValue", () => {
   test("encodes the remaining participations as search values", () => {
     expect(toProfessorParticipationSearchValue("yes")).toBe("si");
     expect(toProfessorParticipationSearchValue("no")).toBe("no");
+  });
+
+  test("round-trips every participation through the reader", () => {
+    const participations: ProfessorParticipationFilter[] = ["yes", "no", "all"];
+
+    for (const participation of participations) {
+      expect(
+        readProfessorParticipationFilter({
+          value: toProfessorParticipationSearchValue(participation),
+        }),
+      ).toBe(participation);
+    }
   });
 });
 

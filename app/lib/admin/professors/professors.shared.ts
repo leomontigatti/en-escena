@@ -29,10 +29,6 @@ export function readProfessorParticipationFilter(input: {
     return "no";
   }
 
-  if (input.value === "todos") {
-    return "all";
-  }
-
   return "all";
 }
 

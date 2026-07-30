@@ -1,9 +1,11 @@
 import { describe, expect, test } from "vitest";
 
 import {
+  readDancerParticipationFilter,
   readDancerStatusFilter,
   toDancerParticipationSearchValue,
   toDancerStatusSearchValue,
+  type DancerParticipationFilter,
   type DancerStatusFilter,
 } from "@/lib/admin/dancers/dancers.shared";
 
@@ -15,6 +17,18 @@ describe("toDancerParticipationSearchValue", () => {
   test("encodes the remaining participations as search values", () => {
     expect(toDancerParticipationSearchValue("yes")).toBe("si");
     expect(toDancerParticipationSearchValue("no")).toBe("no");
+  });
+
+  test("round-trips every participation through the reader", () => {
+    const participations: DancerParticipationFilter[] = ["yes", "no", "all"];
+
+    for (const participation of participations) {
+      expect(
+        readDancerParticipationFilter({
+          value: toDancerParticipationSearchValue(participation),
+        }),
+      ).toBe(participation);
+    }
   });
 });
 

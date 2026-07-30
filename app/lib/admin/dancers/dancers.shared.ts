@@ -40,8 +40,6 @@ export function readDancerParticipationFilter(input: {
       return "yes";
     case "no":
       return "no";
-    case "todos":
-      return "all";
     default:
       return "all";
   }
