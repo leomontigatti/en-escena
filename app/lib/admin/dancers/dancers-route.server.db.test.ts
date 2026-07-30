@@ -1627,14 +1627,12 @@ function buildListInitialEntry(
     searchParams.set("orden", "nombre:desc");
   }
 
-  if (
-    loaderData.selectedEventId &&
-    loaderData.filters.participation !== "all"
-  ) {
-    searchParams.set(
-      "participando",
-      toDancerParticipationSearchValue(loaderData.filters.participation),
-    );
+  const participationValue = toDancerParticipationSearchValue(
+    loaderData.filters.participation,
+  );
+
+  if (loaderData.selectedEventId && participationValue !== null) {
+    searchParams.set("participando", participationValue);
   }
 
   const statusValue = toDancerStatusSearchValue(loaderData.filters.status);

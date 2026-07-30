@@ -9,6 +9,17 @@ import {
   type ProfessorStatusFilter,
 } from "@/lib/admin/professors/professors.shared";
 
+describe("toProfessorParticipationSearchValue", () => {
+  test("encodes 'all' as an absent parameter", () => {
+    expect(toProfessorParticipationSearchValue("all")).toBeNull();
+  });
+
+  test("encodes the remaining participations as search values", () => {
+    expect(toProfessorParticipationSearchValue("yes")).toBe("si");
+    expect(toProfessorParticipationSearchValue("no")).toBe("no");
+  });
+});
+
 describe("toProfessorStatusSearchValue", () => {
   test("encodes 'active' as an absent parameter", () => {
     expect(toProfessorStatusSearchValue("active")).toBeNull();
