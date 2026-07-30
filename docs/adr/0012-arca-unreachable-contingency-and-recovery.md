@@ -60,9 +60,10 @@ needed to turn.
 
 Racing a timeout **does not cancel the in-flight request**. The socket stays
 open and ARCA may still authorize the voucher after we have stopped waiting.
-This is accepted rather than worked around — it is exactly the authorization
-ambiguity decision 3 resolves, and the SDK gives us no way to plumb an
-`AbortSignal` through anyway.
+This is accepted rather than worked around — the SDK gives us no way to plumb an
+`AbortSignal` through anyway — but it is the reason a timeout is tracked
+separately from a transport failure: decision 3 cannot treat "ARCA does not have
+it" as final while the request that would create it is still running.
 
 ### 3. Authorization ambiguity is resolved by consulting ARCA, not by asking the operator
 
@@ -74,8 +75,31 @@ the call. So on an authorization failure the server consults that exact
 
 - **Voucher found** → it _was_ authorized. Persist the comprobante with the
   returned CAE. What looked like a failure was a successful emission.
-- **Not found** (`null`) → nothing was authorized. Safe to retry.
+- **Not found** (`null`) **after a transport failure** → nothing was authorized.
+  Safe to retry.
+- **Not found** (`null`) **after a timeout** → still unknown. See below.
 - **Consult itself failed** → genuinely unknown. Surface it and gate the retry.
+
+`null` only proves nothing was emitted if the authorization request **finished**.
+A transport failure ends it; our own timeout does not — decision 2 says so
+explicitly, and the socket stays open. A consult issued milliseconds later can
+therefore look straight past a CAE that ARCA is about to grant, and reading that
+`null` as "retry freely" would authorize a second fiscal voucher for the same
+amount: the exact harm this ADR exists to prevent. Worse, the retry advice is to
+wait a few minutes, which is precisely long enough for the in-flight
+authorization to land.
+
+This is not a corner case. Decision 2 sets the authorization budget generously
+because WSFEv1 is slow under load, which means the timeout fires exactly when
+ARCA is slow-but-working — the condition most likely to leave a request in
+flight. So `not-emitted` is reserved for transport failures, and a timed-out
+authorization with a `null` consult falls through to unresolved. The
+discriminator is free: the timeout `Error` is ours, thrown by our own wrapper,
+so it is distinguishable by class rather than by parsing a message.
+
+The cost is a blocked retry in cases where usually nothing was emitted. That is
+the trade this ADR already made everywhere else: a duplicate fiscal voucher is
+worse than friction, and the operator has a way out — verify and acknowledge.
 
 The alternative was to report the ambiguity and tell the operator to verify in
 ARCA's portal. Rejected: the operator has no information to contribute and no

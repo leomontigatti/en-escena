@@ -1,6 +1,7 @@
 import type {
   CreateVoucherResultDto,
   LastVoucherResultDto,
+  VoucherInfoResultDto,
 } from "@arcasdk/core";
 import { eq } from "drizzle-orm";
 import { describe, expect, test, vi } from "vitest";
@@ -22,10 +23,12 @@ import { createAcademyRecord } from "@/features/portal/test-support/db";
 import {
   ArcaClient,
   type ArcaBillingPort,
+  type ArcaTimeouts,
 } from "@/lib/comprobantes/arca/client.server";
 import type { ArcaVoucher } from "@/lib/comprobantes/arca/factura-c";
 import {
   facturaCAprobada,
+  facturaCConsultada,
   facturaCRechazada,
   ultimoAutorizado,
 } from "@/lib/comprobantes/arca/fixtures";
@@ -53,6 +56,11 @@ function fakeBilling(
     createVoucher: vi.fn(
       async (): Promise<CreateVoucherResultDto> => facturaCAprobada,
     ),
+    // Sólo se consulta cuando la autorización se cae: por defecto ARCA no tiene
+    // ese comprobante.
+    getVoucherInfo: vi.fn(
+      async (): Promise<VoucherInfoResultDto | null> => null,
+    ),
     ...overrides,
   };
 }
@@ -61,15 +69,29 @@ function fakeBilling(
 // depender del reloj.
 function emissionDeps(
   billing: ArcaBillingPort,
+  timeouts?: ArcaTimeouts,
 ): FacturaCEmissionDeps & { billing: ArcaBillingPort } {
   return {
     billing,
-    client: new ArcaClient(billing),
+    client: new ArcaClient(billing, timeouts),
     ptoVta: 1,
     issuerCuit: "30717611590",
     receptorIvaConditionId: 5,
     cbteFch: "20260722",
   };
+}
+
+// Timeouts en milisegundos para ejercitar el corte real sin fake timers.
+const FAST_TIMEOUTS: ArcaTimeouts = { lookup: 20, authorization: 20 };
+
+function neverAnswers(): Promise<never> {
+  return new Promise<never>(() => {});
+}
+
+// ARCA cortó la comunicación: el SDK no declara clases ni códigos de error, así
+// que una falla de transporte llega como un `Error` cualquiera.
+function connectionLost(): Promise<never> {
+  return Promise.reject(new Error("socket hang up"));
 }
 
 async function seedChoreographyWithInscriptions(
@@ -595,6 +617,241 @@ describe("emitChoreographyFacturaC", () => {
 
     expect(outcome).toMatchObject({ ok: false, reason: "not-found" });
     expect(deps.billing.getLastVoucher).not.toHaveBeenCalled();
+  });
+});
+
+// ARCA no responde (ADR-0012): la falla se clasifica por fase y, si se cortó
+// autorizando, el servidor resuelve la ambigüedad consultando el comprobante
+// exacto que intentó emitir.
+describe("emitChoreographyFacturaC (ARCA no responde)", () => {
+  // Coreografía con 5000 cobrados y nada facturado: el correlativo a intentar es
+  // el 43 (`ultimoAutorizado` = 42).
+  async function seedCobrado(prefix: string) {
+    const { academy, choreography, inscriptions } =
+      await seedChoreographyWithInscriptions(
+        `${prefix}.${crypto.randomUUID()}@example.com`,
+        1,
+      );
+    await allocatePayment({
+      academyId: academy.id,
+      eventId: choreography.eventId,
+      inscriptionId: inscriptions[0].id,
+      amount: 5000,
+    });
+    return choreography;
+  }
+
+  // `FECompConsultar` de la Factura C 43 tal como ARCA la registró.
+  function consultada(
+    overrides: Partial<VoucherInfoResultDto> = {},
+  ): VoucherInfoResultDto {
+    return {
+      ...facturaCConsultada,
+      cbteDesde: 43,
+      cbteHasta: 43,
+      impTotal: 5000,
+      cbteFch: "20260722",
+      ...overrides,
+    };
+  }
+
+  async function emitWith(
+    choreographyId: string,
+    eventId: string,
+    billing: ArcaBillingPort,
+    timeouts?: ArcaTimeouts,
+  ) {
+    const deps = emissionDeps(billing, timeouts);
+    const outcome = await emitChoreographyFacturaC(
+      { choreographyId, eventId },
+      deps,
+    );
+    return { deps, outcome };
+  }
+
+  test("cortada la consulta del correlativo, no se emitió nada y no se consulta a ARCA", async () => {
+    const choreography = await seedCobrado("lookup");
+
+    const { deps, outcome } = await emitWith(
+      choreography.id,
+      choreography.eventId,
+      fakeBilling({ getLastVoucher: vi.fn(connectionLost) }),
+    );
+
+    expect(outcome).toMatchObject({ ok: false, reason: "not-emitted" });
+    expect(deps.billing.createVoucher).not.toHaveBeenCalled();
+    // Nada que consultar: no se pidió autorizar ningún comprobante.
+    expect(deps.billing.getVoucherInfo).not.toHaveBeenCalled();
+    expect(await listChoreographyComprobantes(choreography.id)).toHaveLength(0);
+  });
+
+  test("el timeout de la consulta del correlativo cuenta como falla de comunicación", async () => {
+    const choreography = await seedCobrado("lookup-timeout");
+
+    const { outcome } = await emitWith(
+      choreography.id,
+      choreography.eventId,
+      fakeBilling({ getLastVoucher: vi.fn(neverAnswers) }),
+      FAST_TIMEOUTS,
+    );
+
+    expect(outcome).toMatchObject({ ok: false, reason: "not-emitted" });
+  });
+
+  test("cortada la autorización, consulta el comprobante exacto y lo persiste con el CAE que ARCA devuelve", async () => {
+    const choreography = await seedCobrado("recuperado");
+
+    const { deps, outcome } = await emitWith(
+      choreography.id,
+      choreography.eventId,
+      fakeBilling({
+        createVoucher: vi.fn(connectionLost),
+        getVoucherInfo: vi.fn(async () => consultada()),
+      }),
+    );
+
+    // Se consulta el punto de venta, tipo y correlativo que se intentó emitir.
+    expect(deps.billing.getVoucherInfo).toHaveBeenCalledWith(43, 1, 11);
+    expect(outcome.ok).toBe(true);
+
+    const [persisted] = await listChoreographyComprobantes(choreography.id);
+    expect(persisted).toMatchObject({
+      cbteTipo: 11,
+      cbteNro: 43,
+      cbteFch: "20260722",
+      impTotal: 5000,
+      cae: "41124578989845",
+      caeVto: "20260801",
+      status: "vigente",
+    });
+    expect(persisted.lines).toHaveLength(1);
+  });
+
+  test("el timeout de autorización también dispara la recuperación", async () => {
+    const choreography = await seedCobrado("auth-timeout");
+
+    const { deps, outcome } = await emitWith(
+      choreography.id,
+      choreography.eventId,
+      fakeBilling({
+        createVoucher: vi.fn(neverAnswers),
+        getVoucherInfo: vi.fn(async () => consultada()),
+      }),
+      FAST_TIMEOUTS,
+    );
+
+    expect(deps.billing.getVoucherInfo).toHaveBeenCalledWith(43, 1, 11);
+    expect(outcome.ok).toBe(true);
+    expect(await listChoreographyComprobantes(choreography.id)).toHaveLength(1);
+  });
+
+  test("si ARCA no tiene ese comprobante, no se emitió nada y reintentar es seguro", async () => {
+    const choreography = await seedCobrado("sin-comprobante");
+
+    const { outcome } = await emitWith(
+      choreography.id,
+      choreography.eventId,
+      fakeBilling({
+        createVoucher: vi.fn(connectionLost),
+        getVoucherInfo: vi.fn(async () => null),
+      }),
+    );
+
+    expect(outcome).toMatchObject({ ok: false, reason: "not-emitted" });
+    expect(await listChoreographyComprobantes(choreography.id)).toHaveLength(0);
+  });
+
+  // Mismo "ARCA no lo tiene" que el test anterior, pero llegando por timeout en
+  // lugar de por caída de la conexión: la autorización sigue en vuelo, así que la
+  // respuesta puede ser sólo "todavía no". Habilitar el reintento acá es lo que
+  // emitiría un segundo comprobante por el mismo monto.
+  test("si la autorización venció por timeout, que ARCA no lo tenga no habilita el reintento", async () => {
+    const choreography = await seedCobrado("timeout-sin-comprobante");
+
+    const { outcome } = await emitWith(
+      choreography.id,
+      choreography.eventId,
+      fakeBilling({
+        createVoucher: vi.fn(neverAnswers),
+        getVoucherInfo: vi.fn(async () => null),
+      }),
+      FAST_TIMEOUTS,
+    );
+
+    expect(outcome).toMatchObject({
+      ok: false,
+      reason: "unverified",
+      attempt: { ptoVta: 1, cbteTipo: 11, cbteNro: 43 },
+    });
+    expect(await listChoreographyComprobantes(choreography.id)).toHaveLength(0);
+  });
+
+  test("si la consulta también falla, el resultado es no verificado y lleva el comprobante que no pudo resolver", async () => {
+    const choreography = await seedCobrado("no-verificado");
+
+    const { outcome } = await emitWith(
+      choreography.id,
+      choreography.eventId,
+      fakeBilling({
+        createVoucher: vi.fn(connectionLost),
+        getVoucherInfo: vi.fn(connectionLost),
+      }),
+    );
+
+    expect(outcome).toMatchObject({
+      ok: false,
+      reason: "unverified",
+      attempt: { ptoVta: 1, cbteTipo: 11, cbteNro: 43 },
+    });
+    expect(await listChoreographyComprobantes(choreography.id)).toHaveLength(0);
+  });
+
+  // Los correlativos no se reservan: un comprobante con el número que intentamos
+  // no es necesariamente el nuestro (ADR-0012 decisión 4).
+  test("un comprobante consultado con otro importe no es el nuestro: no se persiste", async () => {
+    const choreography = await seedCobrado("otro-importe");
+
+    const { outcome } = await emitWith(
+      choreography.id,
+      choreography.eventId,
+      fakeBilling({
+        createVoucher: vi.fn(connectionLost),
+        getVoucherInfo: vi.fn(async () => consultada({ impTotal: 9999 })),
+      }),
+    );
+
+    expect(outcome).toMatchObject({ ok: false, reason: "unverified" });
+    expect(await listChoreographyComprobantes(choreography.id)).toHaveLength(0);
+  });
+
+  test("un comprobante consultado con otra fecha tampoco es el nuestro", async () => {
+    const choreography = await seedCobrado("otra-fecha");
+
+    const { outcome } = await emitWith(
+      choreography.id,
+      choreography.eventId,
+      fakeBilling({
+        createVoucher: vi.fn(connectionLost),
+        getVoucherInfo: vi.fn(async () => consultada({ cbteFch: "20260101" })),
+      }),
+    );
+
+    expect(outcome).toMatchObject({ ok: false, reason: "unverified" });
+    expect(await listChoreographyComprobantes(choreography.id)).toHaveLength(0);
+  });
+
+  test("un rechazo de ARCA sigue siendo un rechazo, distinguible de una falla de comunicación", async () => {
+    const choreography = await seedCobrado("rechazo-vs-contingencia");
+
+    const { deps, outcome } = await emitWith(
+      choreography.id,
+      choreography.eventId,
+      fakeBilling({ createVoucher: vi.fn(async () => facturaCRechazada) }),
+    );
+
+    expect(outcome).toMatchObject({ ok: false, reason: "rejected" });
+    // ARCA respondió: no hay nada que consultar.
+    expect(deps.billing.getVoucherInfo).not.toHaveBeenCalled();
   });
 });
 
