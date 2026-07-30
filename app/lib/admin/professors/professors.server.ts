@@ -99,13 +99,11 @@ type ProfessorStatusMutationResult = {
 
 export function readProfessorFilters(
   searchParams: URLSearchParams,
-  options: { hasSelectedEvent: boolean },
 ): ProfessorListFilters {
   return {
     nameOrder: readProfessorNameOrder(searchParams.get("orden")),
     participation: readProfessorParticipationFilter({
       value: searchParams.get("participando"),
-      hasSelectedEvent: options.hasSelectedEvent,
     }),
     query: searchParams.get("busqueda")?.trim() ?? "",
     status: readProfessorStatusFilter(searchParams.get("estado")),

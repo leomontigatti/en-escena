@@ -1637,11 +1637,10 @@ function buildListInitialEntry(
     );
   }
 
-  if (loaderData.filters.status !== "active") {
-    searchParams.set(
-      "estado",
-      toDancerStatusSearchValue(loaderData.filters.status),
-    );
+  const statusValue = toDancerStatusSearchValue(loaderData.filters.status);
+
+  if (statusValue !== null) {
+    searchParams.set("estado", statusValue);
   }
 
   if (loaderData.filters.identification !== "all") {

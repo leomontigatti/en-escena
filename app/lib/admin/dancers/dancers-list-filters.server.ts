@@ -14,15 +14,11 @@ import {
 } from "@/lib/admin/dancers/dancers.server.shared";
 import { buildDancerEventParticipationSql } from "@/lib/participation/participation.server";
 
-function readDancerFilters(
-  searchParams: URLSearchParams,
-  options: { hasSelectedEvent: boolean },
-): DancerListFilters {
+function readDancerFilters(searchParams: URLSearchParams): DancerListFilters {
   return {
     nameOrder: readDancerNameOrder(searchParams.get("orden")),
     participation: readDancerParticipationFilter({
       value: searchParams.get("participando"),
-      hasSelectedEvent: options.hasSelectedEvent,
     }),
     query: searchParams.get("busqueda")?.trim() ?? "",
     status: readDancerStatusFilter(searchParams.get("estado")),
