@@ -20,7 +20,6 @@ export type ProfessorListFilters = {
 
 export function readProfessorParticipationFilter(input: {
   value: string | null;
-  hasSelectedEvent: boolean;
 }): ProfessorParticipationFilter {
   if (input.value === "si") {
     return "yes";
@@ -65,6 +64,7 @@ export function toProfessorParticipationSearchValue(
   return "si";
 }
 
+/** `active` se codifica por ausencia del parámetro, así que devuelve `null`. */
 export function toProfessorStatusSearchValue(value: ProfessorStatusFilter) {
   if (value === "archived") {
     return "archivados";
@@ -74,7 +74,7 @@ export function toProfessorStatusSearchValue(value: ProfessorStatusFilter) {
     return "todos";
   }
 
-  return "activos";
+  return null;
 }
 
 export function getProfessorParticipationLabel(

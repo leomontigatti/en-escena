@@ -34,7 +34,6 @@ export type DancerListFilters = {
 
 export function readDancerParticipationFilter(input: {
   value: string | null;
-  hasSelectedEvent: boolean;
 }): DancerParticipationFilter {
   switch (input.value) {
     case "si":
@@ -91,6 +90,7 @@ export function toDancerParticipationSearchValue(
   }
 }
 
+/** `active` se codifica por ausencia del parámetro, así que devuelve `null`. */
 export function toDancerStatusSearchValue(value: DancerStatusFilter) {
   switch (value) {
     case "archived":
@@ -98,7 +98,7 @@ export function toDancerStatusSearchValue(value: DancerStatusFilter) {
     case "all":
       return "todos";
     default:
-      return "activos";
+      return null;
   }
 }
 

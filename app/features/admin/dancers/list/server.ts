@@ -15,9 +15,7 @@ export async function loadDancersList(request: Request) {
     throw redirect(eventContext.redirectTo);
   }
 
-  const filters = readDancerFilters(new URL(request.url).searchParams, {
-    hasSelectedEvent: eventContext.selectedEventId !== null,
-  });
+  const filters = readDancerFilters(new URL(request.url).searchParams);
   const listResult = await listDancers({
     selectedEventId: eventContext.selectedEventId,
     filters,
