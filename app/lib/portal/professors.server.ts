@@ -8,6 +8,10 @@ import {
   normalizeProfessorNames as normalizeProfessorNamesShared,
 } from "@/lib/portal/professor-records.server";
 import { buildProfessorEventParticipationSql } from "@/lib/participation/participation.server";
+import {
+  type ParticipationStatus,
+  toParticipationStatus,
+} from "@/lib/participation/participation";
 
 export type ProfessorFormField = "firstName" | "lastName";
 
@@ -23,7 +27,7 @@ export type PortalProfessorListItem = Pick<
   "id" | "firstName" | "lastName" | "active" | "documentType" | "documentNumber"
 > & {
   isIncomplete: boolean;
-  participationStatus: PortalParticipationStatus;
+  participationStatus: ParticipationStatus;
 };
 
 export type CreateProfessorResult =
@@ -47,11 +51,6 @@ export type UpdateProfessorResult =
 
 const reviewProfessorFieldsMessage = "Revisá los campos marcados.";
 type PortalProfessorStatusFilter = "active" | "archived";
-export type PortalParticipationStatus =
-  | "participating"
-  | "not-participating"
-  | "no-event";
-
 type ProfessorIdentityRow = Pick<
   typeof professors.$inferSelect,
   "id" | "firstName" | "lastName" | "active" | "documentType" | "documentNumber"
@@ -271,17 +270,6 @@ function toProfessorListItem(
       professor.isParticipating ?? false,
     ),
   };
-}
-
-function toParticipationStatus(
-  selectedEventId: string | null,
-  isParticipating: boolean,
-): PortalParticipationStatus {
-  if (selectedEventId === null) {
-    return "no-event";
-  }
-
-  return isParticipating ? "participating" : "not-participating";
 }
 
 function normalizeProfessorNames(input: CreateProfessorInput) {

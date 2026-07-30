@@ -10,11 +10,14 @@ import {
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import {
-  getProfessorParticipationLabel,
-  type ProfessorParticipationStatus,
   toProfessorParticipationSearchValue,
   toProfessorStatusSearchValue,
 } from "@/lib/admin/professors/professors.shared";
+import {
+  getParticipationBadgeVariant,
+  getParticipationLabel,
+  type ParticipationStatus,
+} from "@/lib/participation/participation";
 
 import type { loadProfessorsList } from "./server";
 
@@ -130,14 +133,11 @@ function ProfessorTable({ loaderData }: { loaderData: LoaderData }) {
 function ParticipationBadge({
   participationStatus,
 }: {
-  participationStatus: ProfessorParticipationStatus;
+  participationStatus: ParticipationStatus;
 }) {
-  const variant =
-    participationStatus === "participating" ? "success" : "secondary";
-
   return (
-    <Badge variant={variant}>
-      {getProfessorParticipationLabel(participationStatus)}
+    <Badge variant={getParticipationBadgeVariant(participationStatus)}>
+      {getParticipationLabel(participationStatus)}
     </Badge>
   );
 }
@@ -174,7 +174,7 @@ function buildProfessorStatusSummary(
   const values: string[] = [];
 
   if (selectedEventId !== null) {
-    values.push(getProfessorParticipationLabel(professor.participationStatus));
+    values.push(getParticipationLabel(professor.participationStatus));
   }
 
   if (!professor.active) {

@@ -1,3 +1,5 @@
+import type { ParticipationStatus } from "@/lib/participation/participation";
+
 export type PortalDancerListItem = {
   active: boolean;
   birthDate: string;
@@ -6,7 +8,7 @@ export type PortalDancerListItem = {
   firstName: string;
   id: string;
   lastName: string;
-  participationStatus: "no-event" | "not-participating" | "participating";
+  participationStatus: ParticipationStatus;
   verificationStatus: "incomplete" | "unverified" | "verified";
 };
 

@@ -76,6 +76,22 @@ describe("PortalProfessorsListRouteView", () => {
     expect(markup).not.toContain("Archivar Profesor");
     expect(markup).not.toContain("Reactivar Profesor");
   });
+
+  test("says 'Sin evento' when there is no active event", () => {
+    const markup = renderProfessorsList({
+      loaderData: {
+        professors: [
+          professorListItem({
+            id: "prof_sin_evento",
+            participationStatus: "no-event",
+          }),
+        ],
+      },
+    });
+
+    expect(markup).toContain("Sin evento");
+    expect(markup).not.toContain("No participando");
+  });
 });
 
 function renderProfessorsList(input: Partial<ProfessorsListViewProps> = {}) {

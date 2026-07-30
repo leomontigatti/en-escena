@@ -25,5 +25,6 @@ Rules for event context, Bases del evento, administration and portal behavior.
 - Administración does not create coreografías, profesores or bailarines in ordinary flows; those belong to portal.
 - Admin coreografías are separated by axis: operational, financial and participation.
 - Academies, professors and dancers have `Participando` filter active by default in admin when they have inscriptions in the active event.
+- Participation badges say `Sin evento` in both admin and portal when there is no active event; the badge stays visible so the row's state is never read as `No participando`.
 - `Acción de lista` handles selected sets and can process eligible rows while reporting omitted rows.
 - `Acción de instancia` handles operations that need full instance context.

@@ -6,10 +6,8 @@ import {
   dancerPageSize,
   type DancerListFilters,
 } from "@/lib/admin/dancers/dancers.shared";
-import {
-  toIdentificationStatus,
-  toParticipationStatus,
-} from "@/lib/admin/dancers/dancers.server.shared";
+import { toIdentificationStatus } from "@/lib/admin/dancers/dancers.server.shared";
+import { toParticipationStatus } from "@/lib/participation/participation";
 import { buildDancerFilters } from "@/lib/admin/dancers/dancers-list-filters.server";
 import type { DancerListResult } from "@/lib/admin/dancers/dancers.server.types";
 import { buildDancerEventParticipationSql } from "@/lib/participation/participation.server";

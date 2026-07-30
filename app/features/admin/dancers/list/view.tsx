@@ -11,14 +11,16 @@ import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import {
   getDancerIdentificationBadgeVariant,
-  getDancerParticipationBadgeVariant,
-  getDancerParticipationLabel,
   toDancerIdentificationSearchValue,
   toDancerParticipationSearchValue,
   toDancerStatusSearchValue,
   type DancerIdentificationStatus,
-  type DancerParticipationStatus,
 } from "@/lib/admin/dancers/dancers.shared";
+import {
+  getParticipationBadgeVariant,
+  getParticipationLabel,
+  type ParticipationStatus,
+} from "@/lib/participation/participation";
 
 import type { loadDancersList } from "./server";
 
@@ -136,11 +138,11 @@ function DancerTable({ loaderData }: { loaderData: LoaderData }) {
 function ParticipationBadge({
   participationStatus,
 }: {
-  participationStatus: DancerParticipationStatus;
+  participationStatus: ParticipationStatus;
 }) {
   return (
-    <Badge variant={getDancerParticipationBadgeVariant(participationStatus)}>
-      {getDancerParticipationLabel(participationStatus)}
+    <Badge variant={getParticipationBadgeVariant(participationStatus)}>
+      {getParticipationLabel(participationStatus)}
     </Badge>
   );
 }
@@ -213,7 +215,7 @@ function buildDancerStatusSummary(
   const values: string[] = [];
 
   if (selectedEventId !== null) {
-    values.push(getDancerParticipationLabel(dancer.participationStatus));
+    values.push(getParticipationLabel(dancer.participationStatus));
   }
 
   if (!dancer.active) {

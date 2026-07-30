@@ -10,6 +10,10 @@ import {
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  getParticipationBadgeVariant,
+  getParticipationLabel,
+} from "@/lib/participation/participation";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
 import { useServerActionToast } from "@/lib/shared/toasts";
 import { usePortalRecordTitleLinkTransitionStyle } from "@/lib/shared/view-transitions";
@@ -240,13 +244,8 @@ function formatProfessorDocument(professor: ProfessorRow) {
 function getProfessorStateBadges(professor: ProfessorRow) {
   const badges: ProfessorBadge[] = [
     {
-      label: getPortalProfessorParticipationLabel(
-        professor.participationStatus,
-      ),
-      variant:
-        professor.participationStatus === "participating"
-          ? ("success" as const)
-          : ("secondary" as const),
+      label: getParticipationLabel(professor.participationStatus),
+      variant: getParticipationBadgeVariant(professor.participationStatus),
     },
   ];
 
@@ -261,14 +260,4 @@ function getProfessorStateBadges(professor: ProfessorRow) {
   );
 
   return badges;
-}
-
-function getPortalProfessorParticipationLabel(
-  status: ProfessorRow["participationStatus"],
-) {
-  if (status === "participating") {
-    return "Participando";
-  }
-
-  return "No participando";
 }

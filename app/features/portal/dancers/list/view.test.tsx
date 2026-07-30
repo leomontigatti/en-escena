@@ -106,6 +106,22 @@ describe("PortalDancersListRouteView", () => {
     );
   });
 
+  test("says 'Sin evento' when there is no active event", () => {
+    const markup = renderDancersList({
+      loaderData: {
+        dancers: [
+          dancerListItem({
+            id: "dancer_sin_evento",
+            participationStatus: "no-event",
+          }),
+        ],
+      },
+    });
+
+    expect(markup).toContain("Sin evento");
+    expect(markup).not.toContain("No participando");
+  });
+
   test("hides archived rows by default while keeping filters visible", () => {
     const markup = renderDancersList({
       loaderData: {
