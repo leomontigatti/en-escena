@@ -101,17 +101,14 @@ export function readProfessorFilters(
   searchParams: URLSearchParams,
   options: { hasSelectedEvent: boolean },
 ): ProfessorListFilters {
-  const stateValue = searchParams.get("estado");
-
   return {
     nameOrder: readProfessorNameOrder(searchParams.get("orden")),
-    participation: resolveProfessorParticipationFilter({
-      stateValue,
-      participationValue: searchParams.get("participando"),
+    participation: readProfessorParticipationFilter({
+      value: searchParams.get("participando"),
       hasSelectedEvent: options.hasSelectedEvent,
     }),
     query: searchParams.get("busqueda")?.trim() ?? "",
-    status: resolveProfessorStatusFilter(stateValue),
+    status: readProfessorStatusFilter(searchParams.get("estado")),
     page: readPage(searchParams),
   };
 }
@@ -194,39 +191,6 @@ export async function listProfessors(input: {
     totalCount,
     totalPages,
   };
-}
-
-function resolveProfessorParticipationFilter(input: {
-  stateValue: string | null;
-  participationValue: string | null;
-  hasSelectedEvent: boolean;
-}): ProfessorListFilters["participation"] {
-  if (input.stateValue === "participando") {
-    return "yes";
-  }
-
-  if (input.stateValue === "no-participando") {
-    return "no";
-  }
-
-  if (input.stateValue === "archivados") {
-    return "all";
-  }
-
-  return readProfessorParticipationFilter({
-    value: input.participationValue,
-    hasSelectedEvent: input.hasSelectedEvent,
-  });
-}
-
-function resolveProfessorStatusFilter(
-  value: string | null,
-): ProfessorListFilters["status"] {
-  if (value === "archivados") {
-    return "archived";
-  }
-
-  return readProfessorStatusFilter(value);
 }
 
 function readProfessorNameOrder(value: string | null): ProfessorNameOrder {
