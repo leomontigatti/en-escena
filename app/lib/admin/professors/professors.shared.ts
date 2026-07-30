@@ -50,6 +50,7 @@ export function readProfessorStatusFilter(
   return "active";
 }
 
+/** `all` se codifica por ausencia del parámetro, así que devuelve `null`. */
 export function toProfessorParticipationSearchValue(
   value: ProfessorParticipationFilter,
 ) {
@@ -58,7 +59,7 @@ export function toProfessorParticipationSearchValue(
   }
 
   if (value === "all") {
-    return "todos";
+    return null;
   }
 
   return "si";

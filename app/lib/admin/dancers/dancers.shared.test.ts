@@ -2,9 +2,21 @@ import { describe, expect, test } from "vitest";
 
 import {
   readDancerStatusFilter,
+  toDancerParticipationSearchValue,
   toDancerStatusSearchValue,
   type DancerStatusFilter,
 } from "@/lib/admin/dancers/dancers.shared";
+
+describe("toDancerParticipationSearchValue", () => {
+  test("encodes 'all' as an absent parameter", () => {
+    expect(toDancerParticipationSearchValue("all")).toBeNull();
+  });
+
+  test("encodes the remaining participations as search values", () => {
+    expect(toDancerParticipationSearchValue("yes")).toBe("si");
+    expect(toDancerParticipationSearchValue("no")).toBe("no");
+  });
+});
 
 describe("toDancerStatusSearchValue", () => {
   test("encodes 'active' as an absent parameter", () => {
