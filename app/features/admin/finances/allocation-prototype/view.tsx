@@ -64,6 +64,9 @@ export function AllocationPrototypeRouteView() {
     <AdminResourceLayout
       title="Prototipo · superficie de asignación"
       description="Prototipo descartable del ticket #550. Datos en memoria, nada se guarda."
+      // La fixture no cuelga de ningún evento activo, así que el layout no puede
+      // exigir uno: si no, muestra su estado vacío en lugar de las variantes.
+      requireSelectedEvent={false}
     >
       <div className="flex flex-col gap-6 pb-24">
         <Alert>
