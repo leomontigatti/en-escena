@@ -17,6 +17,11 @@
  *
  * The price is a **label**: it is fixed by the first allocation, and picking one
  * belongs to the allocation gesture rather than to a cell.
+ *
+ * **Tentative figures are muted.** A figure is tentative while the money behind
+ * it has not arrived: `Seña` reads as a demand until the threshold is met, and
+ * `Saldo adeudado` until the inscription is paid in full. Muting them says which
+ * numbers are still moving without adding a column to say it.
  */
 import { useState } from "react";
 
@@ -31,6 +36,7 @@ import {
   type InscriptionReading,
 } from "./fixtures";
 import { ManualAllocateDialog } from "./manual-allocate-dialog";
+import { inscriptionAnomalyLabels, readInscriptionAnomalies } from "./rollup";
 import { usePrototype } from "./store";
 
 /**
@@ -51,14 +57,21 @@ export const inscriptionColumns: DataTableColumn<InscriptionReading>[] = [
   {
     id: "priceName",
     header: "Precio",
-    cell: (row) => <Badge>{row.priceName}</Badge>,
+    cell: (row) => <Badge variant="secondary">{row.priceName}</Badge>,
   },
   {
     id: "depositAmount",
     header: "Seña",
     className: "text-right tabular-nums",
     headerClassName: "text-right",
-    cell: (row) => formatAmount(row.depositAmount),
+    cell: (row) => (
+      <TentativeAmount
+        amount={row.depositAmount}
+        // Tentative until the threshold is met — `Señada` and `Pagada` both
+        // clear it.
+        isTentative={row.status === "depositPending"}
+      />
+    ),
   },
   {
     id: "totalAmount",
@@ -72,19 +85,69 @@ export const inscriptionColumns: DataTableColumn<InscriptionReading>[] = [
     header: "Saldo adeudado",
     className: "text-right tabular-nums",
     headerClassName: "text-right",
-    cell: (row) => formatAmount(row.owedBalanceAmount),
+    cell: (row) => (
+      <TentativeAmount
+        amount={row.owedBalanceAmount}
+        // Stays tentative all the way to `Pagada`: a met deposit settles the
+        // threshold, not the balance.
+        isTentative={row.status !== "paidInFull"}
+      />
+    ),
   },
   {
     id: "status",
     header: "Estado",
-    cell: (row) => (
-      <Badge variant={inscriptionStatusBadgeVariants[row.status]}>
-        {inscriptionStatusLabels[row.status]}
-      </Badge>
-    ),
+    cell: (row) => <StatusCell inscription={row} />,
     filterValue: (row) => row.status,
   },
 ];
+
+function TentativeAmount({
+  amount,
+  isTentative,
+}: {
+  amount: number;
+  isTentative: boolean;
+}) {
+  return (
+    <span className={isTentative ? "text-muted-foreground" : undefined}>
+      {formatAmount(amount)}
+    </span>
+  );
+}
+
+/**
+ * An anomaly **replaces** the status badge rather than sitting beside it. Both
+ * compete for the same glance, and «Señada» next to «Sobreasignada» reads as two
+ * facts of equal weight when only one of them needs an admin. The status is
+ * still a click away in the dialog; the anomaly is the thing to surface here.
+ */
+function StatusCell({ inscription }: { inscription: InscriptionReading }) {
+  const prototype = usePrototype();
+  const groupType =
+    prototype.choreographies.find(
+      (row) => row.id === inscription.choreographyId,
+    )?.groupType ?? "";
+  const anomalies = readInscriptionAnomalies(groupType, inscription);
+
+  if (anomalies.length > 0) {
+    return (
+      <div className="flex flex-wrap items-center gap-1">
+        {anomalies.map((anomaly) => (
+          <Badge key={anomaly} variant="warning">
+            {inscriptionAnomalyLabels[anomaly]}
+          </Badge>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <Badge variant={inscriptionStatusBadgeVariants[inscription.status]}>
+      {inscriptionStatusLabels[inscription.status]}
+    </Badge>
+  );
+}
 
 function DancerNameCell({ inscription }: { inscription: InscriptionReading }) {
   const [open, setOpen] = useState(false);

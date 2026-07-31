@@ -24,6 +24,23 @@ export const choreographyAnomalyLabels = {
   overAllocated: "Inscripciones sobreasignadas",
 } as const satisfies Record<ChoreographyAnomaly, string>;
 
+/**
+ * The same two anomalies read on a **single** inscription, so the labels are
+ * singular and short enough for a cell: the list speaks about a roster, the
+ * detail speaks about one dancer.
+ */
+export const inscriptionAnomalyLabels = {
+  groupTypeMismatch: "Precio distinto",
+  overAllocated: "Sobreasignada",
+} as const satisfies Record<ChoreographyAnomaly, string>;
+
+export function readInscriptionAnomalies(
+  groupType: string,
+  row: InscriptionReading,
+): ChoreographyAnomaly[] {
+  return readAnomalies(groupType, [row]);
+}
+
 export type ChoreographyReading = {
   id: string;
   name: string;

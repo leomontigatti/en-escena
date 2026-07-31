@@ -85,6 +85,36 @@ describe("allocation prototype", () => {
     expect(markup).toContain("Precio");
   });
 
+  it("lets the inscription's anomaly badge replace its status badge", () => {
+    // «Umbral» is a Dúo whose roster has an inscription on a Grupo price.
+    const markup = renderRouteView(
+      <AllocationDetailPrototypeView />,
+      "/administracion/finanzas/prototipo-asignacion/coreografia?coreografia=cho-2",
+    );
+
+    expect(markup).toContain("Precio distinto");
+    // The anomalous row shows no status badge of its own — the two do not sit
+    // side by side. Only the untouched rows still carry one.
+    const anomalousRow = markup.slice(
+      markup.indexOf("Gala Iriarte"),
+      markup.indexOf("</tr>", markup.indexOf("Gala Iriarte")),
+    );
+    expect(anomalousRow).toContain("Precio distinto");
+    expect(anomalousRow).not.toContain("Seña pendiente");
+    expect(anomalousRow).not.toContain("Señada");
+    expect(anomalousRow).not.toContain("Pagada");
+  });
+
+  it("mutes the figures that are still tentative", () => {
+    const markup = renderRouteView(
+      <AllocationDetailPrototypeView />,
+      "/administracion/finanzas/prototipo-asignacion/coreografia?coreografia=cho-1",
+    );
+
+    // At least one row is short of its deposit, so its `Seña` reads muted.
+    expect(markup).toContain('<span class="text-muted-foreground">');
+  });
+
   it("carries the group type of whichever choreography is chosen", () => {
     const markup = renderRouteView(
       <AllocationDetailPrototypeView />,

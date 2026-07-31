@@ -76,25 +76,31 @@ export const choreographyColumns: DataTableColumn<ChoreographyReading>[] = [
  * table row cannot hold an alert, and on the list the anomaly is a compact
  * signal that sends you into the detail, which is where the fix happens.
  *
- * **The anomaly comes first**, ahead of the status. A choreography that needs
- * attention has to say so before it says how its money is doing, and a status
- * badge in front would bury the thing the admin is scanning for.
+ * **An anomaly replaces the status**, it does not precede it. A choreography
+ * that needs attention has to say so instead of saying how its money is doing:
+ * side by side the two read as facts of equal weight, and only one of them is
+ * asking for an admin. The status returns on its own once the anomaly clears.
  */
 function StatusCell({ row }: { row: ChoreographyReading }) {
+  if (row.anomalies.length > 0) {
+    return (
+      <div className="flex flex-wrap items-center gap-1">
+        {row.anomalies.map((anomaly) => (
+          <Badge key={anomaly} variant="warning">
+            {choreographyAnomalyLabels[anomaly]}
+          </Badge>
+        ))}
+      </div>
+    );
+  }
+
+  if (row.status === null) {
+    return <span className="text-sm text-muted-foreground">—</span>;
+  }
+
   return (
-    <div className="flex flex-wrap items-center gap-1">
-      {row.anomalies.map((anomaly) => (
-        <Badge key={anomaly} variant="warning">
-          {choreographyAnomalyLabels[anomaly]}
-        </Badge>
-      ))}
-      {row.status === null ? (
-        <span className="text-sm text-muted-foreground">—</span>
-      ) : (
-        <Badge variant={inscriptionStatusBadgeVariants[row.status]}>
-          {inscriptionStatusLabels[row.status]}
-        </Badge>
-      )}
-    </div>
+    <Badge variant={inscriptionStatusBadgeVariants[row.status]}>
+      {inscriptionStatusLabels[row.status]}
+    </Badge>
   );
 }
