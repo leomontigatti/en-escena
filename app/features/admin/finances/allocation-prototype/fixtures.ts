@@ -6,6 +6,11 @@
  * shape is still open in #549, so nothing here touches the database. An
  * allocation is `(payment, inscription, amount)`, with no `allocation_type`, and
  * the inscription only keeps `selectedPriceId`.
+ *
+ * **`selectedPriceId` is never null.** A choreography resolves a default price
+ * when it is created, and every inscription starts on it, so there is no such
+ * thing as an inscription with nothing to measure against. This is why there is
+ * no `Sin precio` status and no tentative-for-lack-of-price figure.
  */
 
 export type PrototypePriceRow = {
@@ -35,7 +40,7 @@ export type PrototypeInscription = {
   id: string;
   choreographyId: string;
   dancerName: string;
-  selectedPriceId: string | null;
+  selectedPriceId: string;
   dancerDiscountAmount: number;
 };
 
@@ -43,6 +48,8 @@ export type PrototypeChoreography = {
   id: string;
   name: string;
   groupType: string;
+  /** Resolved when the choreography is created; an inscription falls back here. */
+  defaultPriceId: string;
 };
 
 export type PrototypeState = {
@@ -112,13 +119,28 @@ export const initialPrototypeState: PrototypeState = {
     },
   ],
   choreographies: [
-    { id: "cho-1", name: "Reflejos", groupType: "Grupo" },
-    { id: "cho-2", name: "Umbral", groupType: "Dúo" },
-    { id: "cho-3", name: "Vértigo", groupType: "Grupo" },
+    {
+      id: "cho-1",
+      name: "Reflejos",
+      groupType: "Grupo",
+      defaultPriceId: "price-regular",
+    },
+    {
+      id: "cho-2",
+      name: "Umbral",
+      groupType: "Dúo",
+      defaultPriceId: "price-duo",
+    },
+    {
+      id: "cho-3",
+      name: "Vértigo",
+      groupType: "Grupo",
+      defaultPriceId: "price-early",
+    },
   ],
   inscriptions: [
-    // A deliberately uneven roster: no price chosen, below the threshold, over
-    // the threshold, settled, and over-allocated.
+    // A deliberately uneven roster: untouched, below the threshold, over the
+    // threshold, settled, and one price of the wrong group type.
     {
       id: "ins-1",
       choreographyId: "cho-1",
@@ -144,7 +166,7 @@ export const initialPrototypeState: PrototypeState = {
       id: "ins-4",
       choreographyId: "cho-1",
       dancerName: "Delfina Ojeda",
-      selectedPriceId: null,
+      selectedPriceId: "price-regular",
       dancerDiscountAmount: 0,
     },
     {
@@ -172,7 +194,7 @@ export const initialPrototypeState: PrototypeState = {
       id: "ins-8",
       choreographyId: "cho-2",
       dancerName: "Hernán Vidal",
-      selectedPriceId: null,
+      selectedPriceId: "price-duo",
       dancerDiscountAmount: 0,
     },
     // A choreography that is up to date: gives the list a `Pagada` row to
@@ -216,54 +238,54 @@ export type InscriptionReading = {
   choreographyId: string;
   choreographyName: string;
   dancerName: string;
-  selectedPriceId: string | null;
-  priceName: string | null;
-  priceAmount: number | null;
+  selectedPriceId: string;
+  priceName: string;
+  priceAmount: number;
   /** The chosen price's group type, for #551's `groupTypeMismatch`. */
-  priceGroupType: string | null;
+  priceGroupType: string;
   discountAmount: number;
-  /**
-   * #551: the discount is applied **once**, in here. `null` while no price has
-   * been chosen, which is the tentative case.
-   */
-  totalAmount: number | null;
+  /** #551: the discount is applied **once**, in here. */
+  totalAmount: number;
   /**
    * #551: the percentage runs on the **undiscounted** price, so the threshold
    * cannot move under the academy when the discount changes.
    */
-  depositAmount: number | null;
+  depositAmount: number;
   allocatedAmount: number;
   /** Shortfall *to the deposit threshold*, floored at zero. */
-  owedDepositAmount: number | null;
+  owedDepositAmount: number;
   /** Gross (#551): `totalAmount - allocated`, not net of the discount. */
-  owedBalanceAmount: number | null;
+  owedBalanceAmount: number;
   /** Tolerated excess (passive over-allocation, #549's decision). */
   excessAmount: number;
-  /** `null` while no price has been chosen: there is nothing to compare against. */
-  status: InscriptionFinancialStatus | null;
+  status: InscriptionFinancialStatus;
   allocations: PrototypeAllocation[];
 };
 
 export function readInscriptions(state: PrototypeState): InscriptionReading[] {
   return state.inscriptions.map((inscription) => {
-    const price =
-      state.prices.find((row) => row.id === inscription.selectedPriceId) ??
-      null;
     const choreography = state.choreographies.find(
       (row) => row.id === inscription.choreographyId,
     );
+    const price = state.prices.find(
+      (row) => row.id === inscription.selectedPriceId,
+    );
+
+    if (price === undefined) {
+      throw new Error(`inscription ${inscription.id} has no price`);
+    }
+
     const allocations = state.allocations.filter(
       (allocation) => allocation.inscriptionId === inscription.id,
     );
     const allocatedAmount = sumAmounts(allocations);
-    const totalAmount =
-      price === null
-        ? null
-        : Math.max(0, price.amount - inscription.dancerDiscountAmount);
-    const depositAmount =
-      price === null
-        ? null
-        : Math.round((price.amount * state.requiredDepositPercentage) / 100);
+    const totalAmount = Math.max(
+      0,
+      price.amount - inscription.dancerDiscountAmount,
+    );
+    const depositAmount = Math.round(
+      (price.amount * state.requiredDepositPercentage) / 100,
+    );
 
     return {
       id: inscription.id,
@@ -271,23 +293,16 @@ export function readInscriptions(state: PrototypeState): InscriptionReading[] {
       choreographyName: choreography?.name ?? "",
       dancerName: inscription.dancerName,
       selectedPriceId: inscription.selectedPriceId,
-      priceName: price?.name ?? null,
-      priceAmount: price?.amount ?? null,
-      priceGroupType: price?.groupType ?? null,
+      priceName: price.name,
+      priceAmount: price.amount,
+      priceGroupType: price.groupType,
       discountAmount: inscription.dancerDiscountAmount,
       totalAmount,
       depositAmount,
       allocatedAmount,
-      owedDepositAmount:
-        depositAmount === null
-          ? null
-          : Math.max(0, depositAmount - allocatedAmount),
-      owedBalanceAmount:
-        totalAmount === null
-          ? null
-          : Math.max(0, totalAmount - allocatedAmount),
-      excessAmount:
-        totalAmount === null ? 0 : Math.max(0, allocatedAmount - totalAmount),
+      owedDepositAmount: Math.max(0, depositAmount - allocatedAmount),
+      owedBalanceAmount: Math.max(0, totalAmount - allocatedAmount),
+      excessAmount: Math.max(0, allocatedAmount - totalAmount),
       status: readStatus({ allocatedAmount, depositAmount, totalAmount }),
       allocations,
     };
@@ -300,13 +315,9 @@ function readStatus({
   totalAmount,
 }: {
   allocatedAmount: number;
-  depositAmount: number | null;
-  totalAmount: number | null;
-}): InscriptionFinancialStatus | null {
-  if (depositAmount === null || totalAmount === null) {
-    return null;
-  }
-
+  depositAmount: number;
+  totalAmount: number;
+}): InscriptionFinancialStatus {
   if (allocatedAmount >= totalAmount) {
     return "paidInFull";
   }
@@ -386,17 +397,30 @@ export function upsertAllocation(
     inscriptions: ranOutOfAllocations
       ? state.inscriptions.map((inscription) =>
           inscription.id === next.inscriptionId
-            ? { ...inscription, selectedPriceId: null }
+            ? {
+                ...inscription,
+                selectedPriceId: defaultPriceIdOf(state, inscription),
+              }
             : inscription,
         )
       : state.inscriptions,
   };
 }
 
+function defaultPriceIdOf(
+  state: PrototypeState,
+  inscription: PrototypeInscription,
+) {
+  return (
+    state.choreographies.find((row) => row.id === inscription.choreographyId)
+      ?.defaultPriceId ?? inscription.selectedPriceId
+  );
+}
+
 export function selectPrice(
   state: PrototypeState,
   inscriptionId: string,
-  priceId: string | null,
+  priceId: string,
 ): PrototypeState {
   return {
     ...state,

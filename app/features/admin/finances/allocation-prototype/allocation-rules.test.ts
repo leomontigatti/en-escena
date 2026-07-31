@@ -115,17 +115,18 @@ describe("rejectAllocation", () => {
 });
 
 describe("upsertAllocation", () => {
-  it("clears the chosen price when the inscription runs out of allocations", () => {
-    // Emilia Ponce holds a single allocation, of payment #41.
+  it("reverts to the choreography's default price when the last allocation goes", () => {
+    // Facundo Ledesma holds a single allocation and sits on `price-late`, while
+    // his choreography's default is `price-regular`.
     const next = upsertAllocation(initialPrototypeState, {
-      paymentId: "pay-1",
-      inscriptionId: "ins-5",
+      paymentId: "pay-2",
+      inscriptionId: "ins-6",
       amount: 0,
     });
 
     expect(
-      next.inscriptions.find((row) => row.id === "ins-5")?.selectedPriceId,
-    ).toBeNull();
+      next.inscriptions.find((row) => row.id === "ins-6")?.selectedPriceId,
+    ).toBe("price-regular");
   });
 
   it("keeps the price while any allocation survives", () => {

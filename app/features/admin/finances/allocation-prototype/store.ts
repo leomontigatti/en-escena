@@ -68,7 +68,7 @@ export function usePrototype() {
     payments,
     choreographies,
     academy,
-    onSelectPrice: (inscriptionId: string, priceId: string | null) => {
+    onSelectPrice: (inscriptionId: string, priceId: string) => {
       current = selectPrice(current, inscriptionId, priceId);
       emit();
     },

@@ -12,8 +12,11 @@
  *
  * And the second pick is settled: **the price is fixed by the first
  * allocation**, so once money has landed the picker is replaced by the price it
- * is locked to, plus the way out — take every allocation off and it clears
- * itself (#549).
+ * is locked to, plus the way out — take every allocation off and it reverts to
+ * the choreography's default, which is also when it unlocks (#549, amended).
+ *
+ * There is no empty state: `selectedPriceId` is never null, so the picker always
+ * opens on a real price.
  */
 import {
   Select,
@@ -38,7 +41,7 @@ export function PriceSelect({
   inscription: InscriptionReading;
   state: PrototypeState;
   choreographyGroupType: string;
-  onSelectPrice: (inscriptionId: string, priceId: string | null) => void;
+  onSelectPrice: (inscriptionId: string, priceId: string) => void;
   size?: "sm";
   id?: string;
 }) {
@@ -49,9 +52,7 @@ export function PriceSelect({
   if (lock.isLocked) {
     return (
       <div className="flex flex-col gap-1">
-        <span className="text-sm font-medium">
-          {inscription.priceName ?? "Sin precio"}
-        </span>
+        <span className="text-sm font-medium">{inscription.priceName}</span>
         <p className="text-xs text-muted-foreground">{lock.lockedReason}</p>
       </div>
     );
@@ -60,7 +61,7 @@ export function PriceSelect({
   return (
     <div className="flex flex-col gap-1.5">
       <Select
-        value={inscription.selectedPriceId ?? ""}
+        value={inscription.selectedPriceId}
         onValueChange={(value) => onSelectPrice(inscription.id, value)}
       >
         <SelectTrigger
@@ -88,13 +89,6 @@ export function PriceSelect({
           ))}
         </SelectContent>
       </Select>
-
-      {inscription.selectedPriceId === null ? (
-        <p className="text-xs text-muted-foreground">
-          Sin precio no hay figura contra la que medir: elegir uno es parte de
-          poner la primera plata.
-        </p>
-      ) : null}
     </div>
   );
 }

@@ -52,19 +52,42 @@ describe("allocation prototype", () => {
     // No selection column, and no header actions menu to hang bulk actions on.
     expect(markup).not.toContain("Seleccionar todo");
     expect(markup).not.toContain('aria-label="Acciones"');
-    expect(markup).toContain("Asignar");
+    // The dancer's name is the action: no `Acciones` column, and no search box.
+    expect(markup).toContain("asignar=ins-1");
+    expect(markup).not.toContain("Buscar inscripción por bailarín");
   });
 
-  it("raises the group-type anomaly as an alert, not a badge", () => {
+  it("keeps the chosen choreography when opening the allocate dialog", () => {
+    const markup = renderRouteView(
+      <AllocationDetailPrototypeView />,
+      "/administracion/finanzas/prototipo-asignacion/coreografia?coreografia=cho-2",
+    );
+
+    // A bare `?asignar=` would drop `coreografia` and bounce back to the first.
+    expect(markup).toContain("coreografia=cho-2&amp;asignar=ins-7");
+  });
+
+  it("raises the group-type anomaly as a generic alert, not a badge", () => {
     // «Umbral» is a Dúo whose roster picked a Grupo price.
     const markup = renderRouteView(
       <AllocationDetailPrototypeView />,
       "/administracion/finanzas/prototipo-asignacion/coreografia?coreografia=cho-2",
     );
 
-    expect(markup).toContain("Precio de otro tipo de grupo");
+    expect(markup).toContain("Precios de otro tipo de grupo");
     expect(markup).toContain('role="alert"');
-    expect(markup).toContain("Gala Iriarte");
+    // Generic: the alert counts the rows, the table names them.
+    expect(markup).toContain("1 inscripción tiene");
+  });
+
+  it("has no Sin precio status anywhere: every inscription carries a price", () => {
+    const markup = renderRouteView(
+      <AllocationDetailPrototypeView />,
+      "/administracion/finanzas/prototipo-asignacion/coreografia?coreografia=cho-1",
+    );
+
+    expect(markup).not.toContain("Sin precio");
+    expect(markup).toContain("Precio");
   });
 
   it("carries the group type of whichever choreography is chosen", () => {

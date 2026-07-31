@@ -19,7 +19,7 @@ import type { InscriptionReading, PaymentReading } from "./fixtures";
 
 export type PresetKind = "deposit" | "balance";
 
-export type PresetSkipReason = "noPrice" | "alreadyMet";
+export type PresetSkipReason = "alreadyMet";
 
 export type PresetLine = {
   inscription: InscriptionReading;
@@ -50,8 +50,8 @@ export function presetTargetAmount(
   kind: PresetKind,
 ) {
   return kind === "deposit"
-    ? (inscription.owedDepositAmount ?? 0)
-    : (inscription.owedBalanceAmount ?? 0);
+    ? inscription.owedDepositAmount
+    : inscription.owedBalanceAmount;
 }
 
 export function buildPresetPlan({
@@ -73,11 +73,6 @@ export function buildPresetPlan({
   );
 
   for (const inscription of ordered) {
-    if (inscription.status === null) {
-      skipped.push({ inscription, reason: "noPrice" });
-      continue;
-    }
-
     const targetAmount = presetTargetAmount(inscription, kind);
 
     if (targetAmount === 0) {
@@ -173,6 +168,5 @@ export const presetLabels = {
 } as const satisfies Record<PresetKind, string>;
 
 export const skipReasonLabels = {
-  noPrice: "sin precio elegido",
   alreadyMet: "ya cubierta",
 } as const satisfies Record<PresetSkipReason, string>;

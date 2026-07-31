@@ -20,13 +20,14 @@
  *   actions on the *choreography list*, which covers the common path; here an
  *   allocation is resolved **per inscription**, from the row action. The old
  *   per-row instance actions of the same name are gone — they were ladder rungs.
- * - **Anomalies are alerts, not badges**: an over-allocation or a price of the
- *   wrong group type is a must-fix problem, not a way a row can be.
+ * - **Anomalies are alerts, not badges**, sitting above the metric cards: an
+ *   over-allocation or a price of the wrong group type is a must-fix problem,
+ *   not a way a row can be. The copy is generic — it does not enumerate rows.
+ * - **No search box**: a choreography's roster is short enough to read.
  *
  * Declared exception: no loader, no `action`, no server validation. The data is
  * a fixture, because the allocation table's shape is still open in #549.
  */
-import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
@@ -37,7 +38,7 @@ import { Button } from "@/components/ui/button";
 
 import { formatAmount } from "../formatters";
 import { ChoreographyAnomalyAlerts } from "./anomaly-alerts";
-import { buildInscriptionColumns } from "./detail-table";
+import { inscriptionColumns } from "./detail-table";
 import type { InscriptionReading } from "./fixtures";
 import { ManualAllocateDialog } from "./manual-allocate-dialog";
 import { PaymentCoverage } from "./payment-coverage";
@@ -47,9 +48,6 @@ import { usePrototype } from "./store";
 export function AllocationDetailPrototypeView() {
   const [searchParams, setSearchParams] = useSearchParams();
   const prototype = usePrototype();
-  const [manualTarget, setManualTarget] = useState<InscriptionReading | null>(
-    null,
-  );
 
   const choreographyId =
     searchParams.get("coreografia") ?? prototype.choreographies[0].id;
@@ -57,12 +55,19 @@ export function AllocationDetailPrototypeView() {
     prototype.choreographies.find((row) => row.id === choreographyId) ??
     prototype.choreographies[0];
 
-  // Memoised for the reason the real view memoises: a fresh array every render
-  // remounts the cells, and the row's dialog closes the instant it opens.
-  const columns = useMemo(
-    () => buildInscriptionColumns({ onAllocateByHand: setManualTarget }),
-    [],
-  );
+  // The allocate dialog is opened by the URL, not by row state: the name in the
+  // `Bailarín` column links to `?asignar=<id>`. No memoised column factory is
+  // needed as a result, and the dialog survives a reload.
+  const manualTarget =
+    prototype.inscriptions.find(
+      (row) => row.id === searchParams.get("asignar"),
+    ) ?? null;
+
+  function closeManual() {
+    const next = new URLSearchParams(searchParams);
+    next.delete("asignar");
+    setSearchParams(next, { replace: true, preventScrollReset: true });
+  }
 
   return (
     <AdminResourceLayout
@@ -74,12 +79,13 @@ export function AllocationDetailPrototypeView() {
         <Alert>
           <AlertTitle>Prototipo, no funcionalidad</AlertTitle>
           <AlertDescription>
-            Vista 2 de 2. Acá se asigna por inscripción; «Pagar seña» y «Pagar
-            saldo» son acciones de la lista de coreografías. El precio se fija
-            con la primera asignación.
+            Vista 2 de 2. Se asigna por inscripción: el nombre del bailarín abre
+            el diálogo. «Pagar seña» y «Pagar saldo» son acciones de la lista de
+            coreografías.
           </AlertDescription>
         </Alert>
 
+        {/* Above the metric cards, where the badges used to sit. */}
         <ChoreographyAnomalyAlerts
           groupType={choreography.groupType}
           inscriptions={choreography.inscriptions}
@@ -112,14 +118,16 @@ export function AllocationDetailPrototypeView() {
           />
         </section>
 
-        <ClientDataTable
+        <ClientDataTable<InscriptionReading>
           rows={choreography.inscriptions}
-          columns={columns}
+          columns={inscriptionColumns}
           getRowKey={(row) => row.id}
-          searchPlaceholder="Buscar inscripción por bailarín"
-          textFilterColumnId="dancer"
           initialSort={{ columnId: "dancer", direction: "asc" }}
           emptyMessage="No hay inscripciones para mostrar."
+          // Required even when hidden — the real detail view passes it the same
+          // way. Worth collapsing into `hideSearch` when this is implemented.
+          searchPlaceholder="Buscar inscripción por bailarín"
+          hideSearch
           hidePagination
         />
 
@@ -161,7 +169,7 @@ export function AllocationDetailPrototypeView() {
         state={prototype.state}
         choreographyGroupType={choreography.groupType}
         availableBalanceAmount={prototype.academy.availableBalanceAmount}
-        onClose={() => setManualTarget(null)}
+        onClose={closeManual}
         onSelectPrice={prototype.onSelectPrice}
         onAllocate={prototype.onAllocate}
       />

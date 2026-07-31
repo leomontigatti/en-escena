@@ -12,16 +12,16 @@ import type {
   PrototypeState,
 } from "./fixtures";
 
-/** #551's anomalies. `orphanedAllocations` is money with no price to measure it against. */
-export type ChoreographyAnomaly =
-  | "groupTypeMismatch"
-  | "overAllocated"
-  | "orphanedAllocations";
+/**
+ * #551's anomalies, minus `orphanedAllocations`: it meant money sitting on an
+ * inscription with no price to measure it against, and that cannot happen now
+ * that `selectedPriceId` is never null.
+ */
+export type ChoreographyAnomaly = "groupTypeMismatch" | "overAllocated";
 
 export const choreographyAnomalyLabels = {
-  groupTypeMismatch: "Precio de otro tipo de grupo",
-  overAllocated: "Sobreasignada",
-  orphanedAllocations: "Plata sin precio elegido",
+  groupTypeMismatch: "Precios de otro tipo de grupo",
+  overAllocated: "Inscripciones sobreasignadas",
 } as const satisfies Record<ChoreographyAnomaly, string>;
 
 export type ChoreographyReading = {
@@ -34,16 +34,8 @@ export type ChoreographyReading = {
   allocatedAmount: number;
   owedDepositAmount: number;
   owedBalanceAmount: number;
-  /**
-   * The minimum status across inscriptions that have a price. `null` only when
-   * none has chosen one yet.
-   */
+  /** The **minimum** across inscriptions, not a high-water mark (#551). */
   status: InscriptionFinancialStatus | null;
-  /**
-   * Some inscription has no price chosen: the figures read as tentative and are
-   * shown muted, because they can still move.
-   */
-  tentative: boolean;
   anomalies: ChoreographyAnomaly[];
 };
 
@@ -62,33 +54,25 @@ export function readChoreographies(
       (inscription) => inscription.choreographyId === choreography.id,
     );
 
-    const tentative = rows.some((row) => row.status === null);
-    const statuses = rows
-      .map((row) => row.status)
-      .filter(
-        (status): status is InscriptionFinancialStatus => status !== null,
-      );
+    const statuses = rows.map((row) => row.status);
 
     return {
       id: choreography.id,
       name: choreography.name,
       groupType: choreography.groupType,
       inscriptions: rows,
-      depositAmount: sumBy(rows, (row) => row.depositAmount ?? 0),
-      totalAmount: sumBy(rows, (row) => row.totalAmount ?? 0),
+      depositAmount: sumBy(rows, (row) => row.depositAmount),
+      totalAmount: sumBy(rows, (row) => row.totalAmount),
       allocatedAmount: sumBy(rows, (row) => row.allocatedAmount),
-      owedDepositAmount: sumBy(rows, (row) => row.owedDepositAmount ?? 0),
-      owedBalanceAmount: sumBy(rows, (row) => row.owedBalanceAmount ?? 0),
-      // The minimum is taken over inscriptions that *have* a price: a row with
-      // no price is not a status, it only makes the figure tentative. `null` is
-      // left for the choreography where none has chosen a price yet.
+      owedDepositAmount: sumBy(rows, (row) => row.owedDepositAmount),
+      owedBalanceAmount: sumBy(rows, (row) => row.owedBalanceAmount),
+      // `null` only for a choreography with no inscriptions at all.
       status:
         statuses.length === 0
           ? null
           : statuses.reduce((lowest, status) =>
               statusRank[status] < statusRank[lowest] ? status : lowest,
             ),
-      tentative,
       anomalies: readAnomalies(choreography.groupType, rows),
     };
   });
@@ -107,16 +91,8 @@ export function readAnomalyTargets(
   return {
     // A choreography has exactly one `groupType`, so a single inscription
     // pointing at a price of another type is enough for divergence to exist.
-    groupTypeMismatch: rows.filter(
-      (row) => row.priceGroupType !== null && row.priceGroupType !== groupType,
-    ),
+    groupTypeMismatch: rows.filter((row) => row.priceGroupType !== groupType),
     overAllocated: rows.filter((row) => row.excessAmount > 0),
-    // Structurally unreachable through this surface now: an allocation cannot be
-    // written without a price, and the price clears when the last one goes. Kept
-    // because data predating the rule could still show it.
-    orphanedAllocations: rows.filter(
-      (row) => row.status === null && row.allocatedAmount > 0,
-    ),
   };
 }
 

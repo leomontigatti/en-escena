@@ -101,16 +101,13 @@ export function rejectAllocation({
   // Only a *rise* past the total is rejected. An inscription whose discount
   // improved after the fact is already above its total, and blocking it here
   // would make its money impossible to move.
-  if (
-    inscription.totalAmount !== null &&
-    inscription.allocatedAmount + amount > inscription.totalAmount
-  ) {
+  if (inscription.allocatedAmount + amount > inscription.totalAmount) {
     return {
       reason: "overAllocation",
       message:
         inscription.owedBalanceAmount === 0
           ? `${inscription.dancerName} ya está saldada: no admite más plata.`
-          : `${inscription.dancerName} adeuda ${formatAmount(inscription.owedBalanceAmount ?? 0)}; no se puede asignar de más.`,
+          : `${inscription.dancerName} adeuda ${formatAmount(inscription.owedBalanceAmount)}; no se puede asignar de más.`,
     };
   }
 

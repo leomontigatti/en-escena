@@ -6,10 +6,6 @@
  * memory, so there is no loader for a server table to talk to. Only `Nombre`
  * sorts — the rest of the columns are derived figures, and sorting by them is not
  * a reading an admin asks for.
- *
- * A **tentative** figure — the choreography has inscriptions with no price
- * chosen, so the number can still move — is marked by muting the text, with no
- * legend and no asterisk.
  */
 import { Badge } from "@/components/ui/badge";
 import { DataTableLink } from "@/components/shared/data-table-link";
@@ -21,9 +17,6 @@ import {
   inscriptionStatusLabels,
 } from "./fixtures";
 import { choreographyAnomalyLabels, type ChoreographyReading } from "./rollup";
-
-const tentativeClassName = (row: ChoreographyReading) =>
-  row.tentative ? "text-muted-foreground" : undefined;
 
 export const choreographyColumns: DataTableColumn<ChoreographyReading>[] = [
   {
@@ -51,7 +44,6 @@ export const choreographyColumns: DataTableColumn<ChoreographyReading>[] = [
     header: "Seña",
     className: "text-right tabular-nums",
     headerClassName: "text-right",
-    cellClassName: tentativeClassName,
     cell: (row) => formatAmount(row.depositAmount),
   },
   {
@@ -59,7 +51,6 @@ export const choreographyColumns: DataTableColumn<ChoreographyReading>[] = [
     header: "Total",
     className: "text-right tabular-nums",
     headerClassName: "text-right",
-    cellClassName: tentativeClassName,
     cell: (row) => formatAmount(row.totalAmount),
   },
   {
@@ -67,7 +58,6 @@ export const choreographyColumns: DataTableColumn<ChoreographyReading>[] = [
     header: "Saldo adeudado",
     className: "text-right tabular-nums",
     headerClassName: "text-right",
-    cellClassName: tentativeClassName,
     cell: (row) => formatAmount(row.owedBalanceAmount),
   },
   {
@@ -82,9 +72,9 @@ export const choreographyColumns: DataTableColumn<ChoreographyReading>[] = [
  * Status and anomalies live together: both answer "how is this choreography
  * doing", and #551 wants them self-clearing, with nothing to acknowledge.
  *
- * A tentative rollup drops to the neutral `outline` variant rather than keeping
- * its semantic colour: the status is not yet affirmable, and the style guide
- * wants that said with a variant instead of an overridden colour.
+ * They stay **badges** here, where the detail view raises them as alerts: a
+ * table row cannot hold an alert, and on the list the anomaly is a compact
+ * signal that sends you into the detail, which is where the fix happens.
  */
 function StatusCell({ row }: { row: ChoreographyReading }) {
   return (
@@ -92,13 +82,7 @@ function StatusCell({ row }: { row: ChoreographyReading }) {
       {row.status === null ? (
         <span className="text-sm text-muted-foreground">—</span>
       ) : (
-        <Badge
-          variant={
-            row.tentative
-              ? "outline"
-              : inscriptionStatusBadgeVariants[row.status]
-          }
-        >
+        <Badge variant={inscriptionStatusBadgeVariants[row.status]}>
           {inscriptionStatusLabels[row.status]}
         </Badge>
       )}

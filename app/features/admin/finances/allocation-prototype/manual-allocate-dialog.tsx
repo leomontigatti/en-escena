@@ -8,7 +8,8 @@
  * **There is no payment picker.** The admin draws from the academy's
  * `Saldo disponible`; which payments fund it is the fill rule's business
  * (`spreadFromPool`). The price picker does live here, because without a chosen
- * price there is no figure to measure against.
+ * price there is no figure to measure against — and it always opens on a real
+ * price, since `selectedPriceId` is never null.
  */
 import { useState } from "react";
 
@@ -44,7 +45,7 @@ export function ManualAllocateDialog({
   choreographyGroupType: string;
   availableBalanceAmount: number;
   onClose: () => void;
-  onSelectPrice: (inscriptionId: string, priceId: string | null) => void;
+  onSelectPrice: (inscriptionId: string, priceId: string) => void;
   onAllocate: (
     inscriptionId: string,
     amount: number,
@@ -90,10 +91,9 @@ export function ManualAllocateDialog({
               }
             />
             <p className="text-xs text-muted-foreground tabular-nums">
-              Saldo disponible: {formatAmount(availableBalanceAmount)}.
-              {inscription.owedBalanceAmount === null
-                ? ""
-                : ` ${inscription.dancerName} admite hasta ${formatAmount(inscription.owedBalanceAmount)} más.`}
+              Saldo disponible: {formatAmount(availableBalanceAmount)}.{" "}
+              {inscription.dancerName} admite hasta{" "}
+              {formatAmount(inscription.owedBalanceAmount)} más.
             </p>
           </Field>
           {rejection !== null ? (
@@ -108,7 +108,7 @@ export function ManualAllocateDialog({
           </Button>
           <Button
             type="button"
-            disabled={amount === "" || inscription.selectedPriceId === null}
+            disabled={amount === ""}
             onClick={() => {
               const next = onAllocate(inscription.id, Number(amount));
               setRejection(next);
