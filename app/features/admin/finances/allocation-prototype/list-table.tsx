@@ -67,7 +67,14 @@ export const choreographyColumns: DataTableColumn<ChoreographyReading>[] = [
     header: "Saldo adeudado",
     className: "text-right tabular-nums",
     headerClassName: "text-right",
-    cell: (row) => formatAmount(row.owedBalanceAmount),
+    cell: (row) => (
+      <TentativeAmount
+        amount={row.owedBalanceAmount}
+        // Like the inscriptions table: settled only at `Pagada`. A choreography
+        // with no roster at all has nothing tentative about its zero.
+        isTentative={row.status !== null && row.status !== "paidInFull"}
+      />
+    ),
   },
   {
     id: "status",

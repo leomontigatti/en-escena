@@ -18,14 +18,14 @@ describe("allocation prototype", () => {
     expect(markup).toContain("Saldo disponible");
     expect(markup).toContain("Acciones");
     expect(markup).toContain("Estado del prototipo");
-    // A choreography whose roster is short of its deposit greys its `Seña`,
-    // the same reading as the inscriptions table. Scoped to the row, so a muted
-    // span elsewhere in the layout cannot pass this for it.
+    // A choreography short of its deposit greys **both** `Seña` and `Saldo
+    // adeudado`, the same reading as the inscriptions table. Scoped to the row,
+    // so a muted span elsewhere in the layout cannot pass this for it.
     const row = markup.slice(
       markup.indexOf("Reflejos"),
       markup.indexOf("</tr>", markup.indexOf("Reflejos")),
     );
-    expect(row).toContain('<span class="text-muted-foreground">');
+    expect(row.split('<span class="text-muted-foreground">')).toHaveLength(3);
   });
 
   it("titles the detail with the choreography and carries the five metrics", () => {
