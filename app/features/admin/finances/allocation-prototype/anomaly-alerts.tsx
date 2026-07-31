@@ -8,17 +8,17 @@
  * nothing to acknowledge and nothing to dismiss — the alert goes when the
  * problem does.
  *
- * The copy is **generic on purpose**: it names the problem and how many rows it
- * touches, not which ones. An alert that enumerates dancers turns into a second,
- * worse copy of the table right above the real one, and it grows without bound
- * on a big roster. The table underneath is where you find the rows.
+ * The copy is **generic and title-less**: it states the problem and points at
+ * the list, without counting or naming rows. An alert that enumerates dancers
+ * becomes a worse copy of the table right above the real one, and grows without
+ * bound on a big roster. The table underneath is where the rows are.
  */
 import { TriangleAlert } from "lucide-react";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 import type { InscriptionReading } from "./fixtures";
-import { choreographyAnomalyLabels, readAnomalyTargets } from "./rollup";
+import { readAnomalyTargets } from "./rollup";
 
 export function ChoreographyAnomalyAlerts({
   groupType,
@@ -34,16 +34,9 @@ export function ChoreographyAnomalyAlerts({
       {targets.groupTypeMismatch.length > 0 ? (
         <Alert variant="warning">
           <TriangleAlert />
-          <AlertTitle>{choreographyAnomalyLabels.groupTypeMismatch}</AlertTitle>
           <AlertDescription>
-            {count(
-              targets.groupTypeMismatch.length,
-              "inscripción tiene",
-              "inscripciones tienen",
-            )}{" "}
-            un precio que no es de {groupType}. Se corrige inscripción por
-            inscripción, cambiando el precio al asignar; las que ya tienen plata
-            asignada hay que vaciarlas primero para que el precio se libere.
+            Existen inscripciones con un precio diferente al tipo de grupo de la
+            coreografía. Podés corregirlo desde la lista.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -51,24 +44,12 @@ export function ChoreographyAnomalyAlerts({
       {targets.overAllocated.length > 0 ? (
         <Alert variant="warning">
           <TriangleAlert />
-          <AlertTitle>{choreographyAnomalyLabels.overAllocated}</AlertTitle>
           <AlertDescription>
-            {count(
-              targets.overAllocated.length,
-              "inscripción tiene",
-              "inscripciones tienen",
-            )}{" "}
-            más plata asignada de la que deben. No se pudo haber hecho a
-            propósito: pasa cuando mejora un descuento después de que la plata
-            ya estaba puesta. Hay que liberar el excedente para que vuelva al
-            saldo disponible.
+            Existen inscripciones con dinero sobreasignado. Podés corregirlo
+            desde la lista.
           </AlertDescription>
         </Alert>
       ) : null}
     </div>
   );
-}
-
-function count(total: number, singular: string, plural: string) {
-  return `${total} ${total === 1 ? singular : plural}`;
 }

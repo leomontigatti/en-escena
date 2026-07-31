@@ -39,7 +39,6 @@ describe("allocation prototype", () => {
     ]) {
       expect(markup).toContain(metric);
     }
-    expect(markup).toContain("Qué cubrió cada pago");
     expect(markup).toContain("Estado del prototipo");
   });
 
@@ -52,19 +51,11 @@ describe("allocation prototype", () => {
     // No selection column, and no header actions menu to hang bulk actions on.
     expect(markup).not.toContain("Seleccionar todo");
     expect(markup).not.toContain('aria-label="Acciones"');
-    // The dancer's name is the action: no `Acciones` column, and no search box.
-    expect(markup).toContain("asignar=ins-1");
+    // The dancer's name is the action, as a button holding its own dialog
+    // state — the pattern `DancerNameCell` already uses in the real view.
+    expect(markup).not.toContain("asignar=");
+    expect(markup).toContain("Ana Rivas");
     expect(markup).not.toContain("Buscar inscripción por bailarín");
-  });
-
-  it("keeps the chosen choreography when opening the allocate dialog", () => {
-    const markup = renderRouteView(
-      <AllocationDetailPrototypeView />,
-      "/administracion/finanzas/prototipo-asignacion/coreografia?coreografia=cho-2",
-    );
-
-    // A bare `?asignar=` would drop `coreografia` and bounce back to the first.
-    expect(markup).toContain("coreografia=cho-2&amp;asignar=ins-7");
   });
 
   it("raises the group-type anomaly as a generic alert, not a badge", () => {
@@ -74,10 +65,14 @@ describe("allocation prototype", () => {
       "/administracion/finanzas/prototipo-asignacion/coreografia?coreografia=cho-2",
     );
 
-    expect(markup).toContain("Precios de otro tipo de grupo");
     expect(markup).toContain('role="alert"');
-    // Generic: the alert counts the rows, the table names them.
-    expect(markup).toContain("1 inscripción tiene");
+    expect(markup).toContain(
+      "Existen inscripciones con un precio diferente al tipo de grupo",
+    );
+    // Generic and title-less: it points at the list instead of counting or
+    // naming rows, and carries no `AlertTitle`.
+    expect(markup).not.toContain("inscripción tiene");
+    expect(markup).not.toContain("Precios de otro tipo de grupo");
   });
 
   it("has no Sin precio status anywhere: every inscription carries a price", () => {

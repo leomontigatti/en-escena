@@ -24,6 +24,8 @@
  *   over-allocation or a price of the wrong group type is a must-fix problem,
  *   not a way a row can be. The copy is generic — it does not enumerate rows.
  * - **No search box**: a choreography's roster is short enough to read.
+ * - The dancer's name opens the allocate dialog from **row state**, the way
+ *   `DancerNameCell` already does it in the real view.
  *
  * Declared exception: no loader, no `action`, no server validation. The data is
  * a fixture, because the allocation table's shape is still open in #549.
@@ -40,8 +42,6 @@ import { formatAmount } from "../formatters";
 import { ChoreographyAnomalyAlerts } from "./anomaly-alerts";
 import { inscriptionColumns } from "./detail-table";
 import type { InscriptionReading } from "./fixtures";
-import { ManualAllocateDialog } from "./manual-allocate-dialog";
-import { PaymentCoverage } from "./payment-coverage";
 import { StateReadout } from "./state-readout";
 import { usePrototype } from "./store";
 
@@ -55,20 +55,6 @@ export function AllocationDetailPrototypeView() {
     prototype.choreographies.find((row) => row.id === choreographyId) ??
     prototype.choreographies[0];
 
-  // The allocate dialog is opened by the URL, not by row state: the name in the
-  // `Bailarín` column links to `?asignar=<id>`. No memoised column factory is
-  // needed as a result, and the dialog survives a reload.
-  const manualTarget =
-    prototype.inscriptions.find(
-      (row) => row.id === searchParams.get("asignar"),
-    ) ?? null;
-
-  function closeManual() {
-    const next = new URLSearchParams(searchParams);
-    next.delete("asignar");
-    setSearchParams(next, { replace: true, preventScrollReset: true });
-  }
-
   return (
     <AdminResourceLayout
       title={`${choreography.name} · ${choreography.groupType}`}
@@ -80,8 +66,8 @@ export function AllocationDetailPrototypeView() {
           <AlertTitle>Prototipo, no funcionalidad</AlertTitle>
           <AlertDescription>
             Vista 2 de 2. Se asigna por inscripción: el nombre del bailarín abre
-            el diálogo. «Pagar seña» y «Pagar saldo» son acciones de la lista de
-            coreografías.
+            el diálogo, igual que en la vista real. «Pagar seña» y «Pagar saldo»
+            son acciones de la lista de coreografías.
           </AlertDescription>
         </Alert>
 
@@ -131,11 +117,6 @@ export function AllocationDetailPrototypeView() {
           hidePagination
         />
 
-        <PaymentCoverage
-          payments={prototype.payments}
-          inscriptions={prototype.inscriptions}
-        />
-
         {/* Prototype-only: the real view reaches its siblings through the list. */}
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed p-3">
           <span className="text-xs font-medium text-muted-foreground">
@@ -163,16 +144,6 @@ export function AllocationDetailPrototypeView() {
 
         <StateReadout />
       </div>
-
-      <ManualAllocateDialog
-        inscription={manualTarget}
-        state={prototype.state}
-        choreographyGroupType={choreography.groupType}
-        availableBalanceAmount={prototype.academy.availableBalanceAmount}
-        onClose={closeManual}
-        onSelectPrice={prototype.onSelectPrice}
-        onAllocate={prototype.onAllocate}
-      />
     </AdminResourceLayout>
   );
 }

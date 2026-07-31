@@ -7,21 +7,21 @@
  *
  * **No selection column and no bulk actions.** `Pagar seña` and `Pagar saldo`
  * are list actions on the *choreography list*, which covers the common path;
- * here an allocation is resolved **per inscription**. The old per-row instance
- * actions of the same name are gone — they were rungs of the retired ladder.
+ * here an allocation is resolved **per inscription**.
  *
- * **No `Acciones` column either**: the dancer's name *is* the action. It is a
- * `DataTableLink` pointing at `?asignar=<id>`, so the allocate dialog is opened
- * by the URL rather than by row state — which means it survives a reload and can
- * be linked to, and the table keeps one column fewer.
+ * **No `Acciones` column either**: the dancer's name *is* the action, exactly as
+ * `DancerNameCell` already does it in the real view — a `variant="link"` button
+ * holding its own `open` state, with the dialog rendered beside it. Note this is
+ * a `Button` and not `DataTableLink`: that component wraps a `Link` and is for
+ * navigation, and nothing here navigates.
  *
  * The price is a **label**: it is fixed by the first allocation, and picking one
  * belongs to the allocation gesture rather than to a cell.
  */
-import { useSearchParams } from "react-router";
+import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
-import { DataTableLink } from "@/components/shared/data-table-link";
+import { Button } from "@/components/ui/button";
 import type { DataTableColumn } from "@/components/shared/data-table.shared";
 
 import { formatAmount } from "../formatters";
@@ -30,37 +30,28 @@ import {
   inscriptionStatusLabels,
   type InscriptionReading,
 } from "./fixtures";
+import { ManualAllocateDialog } from "./manual-allocate-dialog";
+import { usePrototype } from "./store";
 
 /**
- * The link has to *merge* into the current query string, not replace it: a bare
- * `to="?asignar=x"` drops `?coreografia=`, which would bounce the admin back to
- * the first choreography on every click.
+ * A module-level constant rather than a memoised factory: a stable array is what
+ * keeps React Table from remounting the cells and dropping each row's `open`
+ * state, which is the hazard the real view's `useMemo` exists to avoid. The cell
+ * reaches the store itself instead of taking handlers as props.
  */
-function AllocateLink({ inscription }: { inscription: InscriptionReading }) {
-  const [searchParams] = useSearchParams();
-  const next = new URLSearchParams(searchParams);
-  next.set("asignar", inscription.id);
-
-  return (
-    <DataTableLink to={`?${next.toString()}`} preventScrollReset replace>
-      {inscription.dancerName}
-    </DataTableLink>
-  );
-}
-
 export const inscriptionColumns: DataTableColumn<InscriptionReading>[] = [
   {
     id: "dancer",
     header: "Bailarín",
     className: "min-w-56 font-medium",
-    cell: (row) => <AllocateLink inscription={row} />,
+    cell: (row) => <DancerNameCell inscription={row} />,
     filterValue: (row) => row.dancerName,
     sortValue: (row) => row.dancerName,
   },
   {
     id: "priceName",
     header: "Precio",
-    cell: (row) => row.priceName,
+    cell: (row) => <Badge>{row.priceName}</Badge>,
   },
   {
     id: "depositAmount",
@@ -94,3 +85,36 @@ export const inscriptionColumns: DataTableColumn<InscriptionReading>[] = [
     filterValue: (row) => row.status,
   },
 ];
+
+function DancerNameCell({ inscription }: { inscription: InscriptionReading }) {
+  const [open, setOpen] = useState(false);
+  const prototype = usePrototype();
+  const groupType =
+    prototype.choreographies.find(
+      (row) => row.id === inscription.choreographyId,
+    )?.groupType ?? "";
+
+  return (
+    <>
+      <Button
+        type="button"
+        variant="link"
+        className="h-auto p-0 text-left font-medium"
+        onClick={() => setOpen(true)}
+      >
+        {inscription.dancerName}
+      </Button>
+      {open ? (
+        <ManualAllocateDialog
+          inscription={inscription}
+          state={prototype.state}
+          choreographyGroupType={groupType}
+          availableBalanceAmount={prototype.academy.availableBalanceAmount}
+          onClose={() => setOpen(false)}
+          onSelectPrice={prototype.onSelectPrice}
+          onAllocate={prototype.onAllocate}
+        />
+      ) : null}
+    </>
+  );
+}

@@ -47,8 +47,7 @@ export function StateReadout() {
       <p className="text-sm tabular-nums">
         {inscriptionStatusLabels.depositPending} {counts.depositPending} ·{" "}
         {inscriptionStatusLabels.depositMet} {counts.depositMet} ·{" "}
-        {inscriptionStatusLabels.paidInFull} {counts.paidInFull} · sin precio{" "}
-        {inscriptions.filter((row) => row.status === null).length}
+        {inscriptionStatusLabels.paidInFull} {counts.paidInFull}
       </p>
       <ul className="flex flex-col gap-1 text-xs text-muted-foreground tabular-nums">
         {payments.map((payment) => (

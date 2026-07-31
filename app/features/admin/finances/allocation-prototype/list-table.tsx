@@ -75,10 +75,19 @@ export const choreographyColumns: DataTableColumn<ChoreographyReading>[] = [
  * They stay **badges** here, where the detail view raises them as alerts: a
  * table row cannot hold an alert, and on the list the anomaly is a compact
  * signal that sends you into the detail, which is where the fix happens.
+ *
+ * **The anomaly comes first**, ahead of the status. A choreography that needs
+ * attention has to say so before it says how its money is doing, and a status
+ * badge in front would bury the thing the admin is scanning for.
  */
 function StatusCell({ row }: { row: ChoreographyReading }) {
   return (
     <div className="flex flex-wrap items-center gap-1">
+      {row.anomalies.map((anomaly) => (
+        <Badge key={anomaly} variant="warning">
+          {choreographyAnomalyLabels[anomaly]}
+        </Badge>
+      ))}
       {row.status === null ? (
         <span className="text-sm text-muted-foreground">—</span>
       ) : (
@@ -86,11 +95,6 @@ function StatusCell({ row }: { row: ChoreographyReading }) {
           {inscriptionStatusLabels[row.status]}
         </Badge>
       )}
-      {row.anomalies.map((anomaly) => (
-        <Badge key={anomaly} variant="warning">
-          {choreographyAnomalyLabels[anomaly]}
-        </Badge>
-      ))}
     </div>
   );
 }
