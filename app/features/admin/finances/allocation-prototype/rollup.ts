@@ -25,12 +25,11 @@ export const choreographyAnomalyLabels = {
 } as const satisfies Record<ChoreographyAnomaly, string>;
 
 /**
- * The same two anomalies read on a **single** inscription, so the labels are
- * singular and short enough for a cell: the list speaks about a roster, the
- * detail speaks about one dancer.
+ * The same two anomalies read on a **single** inscription: singular, and worded
+ * to echo the list's labels so the same problem is recognisable in both places.
  */
 export const inscriptionAnomalyLabels = {
-  groupTypeMismatch: "Precio distinto",
+  groupTypeMismatch: "Precio de otro tipo de grupo",
   overAllocated: "Sobreasignada",
 } as const satisfies Record<ChoreographyAnomaly, string>;
 

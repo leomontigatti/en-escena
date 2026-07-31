@@ -17,6 +17,7 @@ import {
   inscriptionStatusLabels,
 } from "./fixtures";
 import { choreographyAnomalyLabels, type ChoreographyReading } from "./rollup";
+import { TentativeAmount } from "./tentative-amount";
 
 export const choreographyColumns: DataTableColumn<ChoreographyReading>[] = [
   {
@@ -44,7 +45,15 @@ export const choreographyColumns: DataTableColumn<ChoreographyReading>[] = [
     header: "Seña",
     className: "text-right tabular-nums",
     headerClassName: "text-right",
-    cell: (row) => formatAmount(row.depositAmount),
+    cell: (row) => (
+      <TentativeAmount
+        amount={row.depositAmount}
+        // The status is the **minimum** across the roster (#551), so this greys
+        // while *any* inscription is short of its deposit — the choreography's
+        // seña is not in until the last dancer's is.
+        isTentative={row.status === "depositPending"}
+      />
+    ),
   },
   {
     id: "totalAmount",

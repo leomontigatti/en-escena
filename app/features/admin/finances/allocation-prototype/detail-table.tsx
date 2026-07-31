@@ -38,6 +38,7 @@ import {
 import { ManualAllocateDialog } from "./manual-allocate-dialog";
 import { inscriptionAnomalyLabels, readInscriptionAnomalies } from "./rollup";
 import { usePrototype } from "./store";
+import { TentativeAmount } from "./tentative-amount";
 
 /**
  * A module-level constant rather than a memoised factory: a stable array is what
@@ -101,20 +102,6 @@ export const inscriptionColumns: DataTableColumn<InscriptionReading>[] = [
     filterValue: (row) => row.status,
   },
 ];
-
-function TentativeAmount({
-  amount,
-  isTentative,
-}: {
-  amount: number;
-  isTentative: boolean;
-}) {
-  return (
-    <span className={isTentative ? "text-muted-foreground" : undefined}>
-      {formatAmount(amount)}
-    </span>
-  );
-}
 
 /**
  * An anomaly **replaces** the status badge rather than sitting beside it. Both

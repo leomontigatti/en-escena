@@ -18,6 +18,14 @@ describe("allocation prototype", () => {
     expect(markup).toContain("Saldo disponible");
     expect(markup).toContain("Acciones");
     expect(markup).toContain("Estado del prototipo");
+    // A choreography whose roster is short of its deposit greys its `Seña`,
+    // the same reading as the inscriptions table. Scoped to the row, so a muted
+    // span elsewhere in the layout cannot pass this for it.
+    const row = markup.slice(
+      markup.indexOf("Reflejos"),
+      markup.indexOf("</tr>", markup.indexOf("Reflejos")),
+    );
+    expect(row).toContain('<span class="text-muted-foreground">');
   });
 
   it("titles the detail with the choreography and carries the five metrics", () => {
@@ -92,14 +100,14 @@ describe("allocation prototype", () => {
       "/administracion/finanzas/prototipo-asignacion/coreografia?coreografia=cho-2",
     );
 
-    expect(markup).toContain("Precio distinto");
+    expect(markup).toContain("Precio de otro tipo de grupo");
     // The anomalous row shows no status badge of its own — the two do not sit
     // side by side. Only the untouched rows still carry one.
     const anomalousRow = markup.slice(
       markup.indexOf("Gala Iriarte"),
       markup.indexOf("</tr>", markup.indexOf("Gala Iriarte")),
     );
-    expect(anomalousRow).toContain("Precio distinto");
+    expect(anomalousRow).toContain("Precio de otro tipo de grupo");
     expect(anomalousRow).not.toContain("Seña pendiente");
     expect(anomalousRow).not.toContain("Señada");
     expect(anomalousRow).not.toContain("Pagada");
