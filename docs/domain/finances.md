@@ -351,6 +351,20 @@ por bailarín` only freezes when the balance is allocated, so until that moment 
   which is computed automatically and lives per inscription.
 - The `Descuento por bailarín` counts only `señada` or `pagada` active
   inscriptions of the same dancer, academy and event.
+  - **Known divergence (the code does not honour this everywhere).** The freeze
+    path scopes the qualifying set to `academyId + eventId`
+    (`app/lib/finances/choreography-cobro-support.server.ts`), as documented. The
+    estimate path groups by `dancerId` alone over rows scoped to the event and
+    the requested academies
+    (`app/lib/finances/operational-summary.server.ts`), and the admin finances
+    list requests **every academy of the event**
+    (`app/features/admin/finances/list/server.ts`). A dancer inscribed in two
+    academies of the same event is therefore pooled in that list but not at
+    freeze, so the list can display a discount the freeze will then refuse to
+    grant. The single-academy reader passes one academy id and is unaffected.
+    Estimate-versus-freeze parity is tracked in
+    [#489](https://github.com/leomontigatti/en-escena/issues/489); the rule
+    above, not the estimate path, is the intended behaviour.
 - `Descuento por bailarín` rule:
   - 1 or 2 active inscriptions of the same dancer in the same event and academy:
     no discount.
@@ -359,9 +373,23 @@ por bailarín` only freezes when the balance is allocated, so until that moment 
 - The percentage is computed on the frozen price of each discounted inscription
   and applied to the balance.
 - In discounted cases, one active inscription of the dancer is left without a
-  discount: the last one when ordering the active inscriptions by base price and
-  inscription date (normally the most expensive; on a price tie, the most
-  recent).
+  discount: the most expensive one, ordering the qualifying inscriptions by base
+  price descending. **On a price tie the winner is decided by the inscription's
+  `id`**, which is a UUID
+  (`app/lib/finances/operational-summary-calculations.server.ts`,
+  `computeDancerDiscountAmounts`), so the tie-break is arbitrary and not
+  chronological.
+  - Ties are the common case, not the exception: inscriptions in the same
+    choreography share a price row, so they share a base price.
+  - The tie-break does not move money. A tie means the prices are equal, so the
+    total discount is the same whichever inscription is exempted; what changes is
+    only **which** inscription displays and freezes the full price. The cost is
+    legibility — an admin asking "why is this one at full price?" has no answer.
+  - A date-based rule cannot be implemented as-is: `choreography_dancer` has no
+    `createdAt` column (`app/db/schema/choreographies.ts`), so it would need a
+    schema change. Whether the rule should become chronological is being decided
+    in [#552](https://github.com/leomontigatti/en-escena/issues/552); until then
+    this paragraph describes the code, not an endorsed rule.
 - While an inscription is `señada`, the dancer discount used for pending amounts
   is **estimated dynamically**.
 - When the balance is allocated, the applied dancer discount is **frozen** on the
