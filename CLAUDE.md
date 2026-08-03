@@ -21,7 +21,7 @@ Index of the repo's conventions. Every operative rule lives in its own file unde
 - **Domain docs** (single-context layout): [docs/agents/domain.md](docs/agents/domain.md).
 - **Local operation and auth** (DB, Supabase Auth, email-log): [docs/local-auth.md](docs/local-auth.md).
 - **DNS and email** (zone on Cloudflare, inbound via Email Routing, outbound via
-  Resend): [docs/operations/dns-y-correo.md](docs/operations/dns-y-correo.md).
+  Resend): [docs/operations/dns-and-email.md](docs/operations/dns-and-email.md).
 - **Fallow** (audit and investigation, not a commit gate): [docs/agents/fallow.md](docs/agents/fallow.md).
 - **AFK platform** (spec of the 8 workflows, source of truth; vendored from Matt Pocock):
   [docs/agents/afk-agent-platform-spec.md](docs/agents/afk-agent-platform-spec.md); what was
