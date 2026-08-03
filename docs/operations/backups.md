@@ -229,7 +229,7 @@ copies live under `/data/coolify/backups`:
 # on rylai, from the app checkout
 pnpm restore:db:drill
 
-# or without a checkout
+# or, without pnpm on PATH
 sh scripts/restore-drill-database.sh
 ```
 
@@ -237,35 +237,53 @@ With no arguments it picks the newest artifact under
 `/data/coolify/backups/databases`, detects the format from the extension, and
 finds the live container from the backup path. Useful overrides:
 
-| Variable            | Purpose                                                              |
-| ------------------- | -------------------------------------------------------------------- |
-| `BACKUP_FILE`       | Drill a specific artifact instead of the newest one.                 |
-| `BACKUP_DIR`        | Where to search for artifacts.                                       |
-| `LIVE_CONTAINER`    | The Coolify Postgres container, when it cannot be derived.           |
-| `SKIP_LIVE_COMPARE` | Accept a restore-only drill with no live comparison.                 |
-| `DRILL_KEEP`        | Keep the scratch container for inspection. It holds production data. |
+| Variable            | Purpose                                                                   |
+| ------------------- | ------------------------------------------------------------------------- |
+| `BACKUP_FILE`       | Drill a specific artifact instead of the newest one.                      |
+| `BACKUP_DIR`        | Where to search for artifacts.                                            |
+| `TARGET_DB`         | The database to restore and compare. Defaults to `enescena`.              |
+| `LIVE_CONTAINER`    | The Coolify Postgres container, when it cannot be derived.                |
+| `SKIP_LIVE_COMPARE` | Accept a restore-only drill with no live comparison.                      |
+| `ALLOW_DRIFT`       | Accept tables that restored fewer rows than live. See below.              |
+| `DRILL_KEEP`        | Keep the scratch container for inspection. It holds production data.      |
+| `POSTGRES_IMAGE`    | The scratch image. Defaults to `postgres:17-alpine`, matching production. |
+| `DRILL_CONTAINER`   | Name for the scratch container.                                           |
+| `WORK_DIR`          | Scratch directory for the dumped counts. Wiped on exit.                   |
 
 It handles both artifact formats (see [Format](#format)) without configuration:
-`.gz` restores through `gunzip \| psql`, `.dmp` through `pg_restore`.
+`.gz` restores through `gunzip \| psql`, `.dmp` through `pg_restore`. For
+inspecting a custom-format artifact by hand instead, `pg_restore --list` and
+`pg_restore --no-owner --no-acl` are covered in `docs/db/production-dump.md`.
 
 Reading the result:
 
-- **Row counts match exactly** — the strongest outcome, and what to expect when
-  nothing has been written since the backup ran.
-- **Counts differ** — reported, not failed. Rows written after the backup are
-  expected drift up to the backup cadence.
+- **Row counts match exactly** — the strongest outcome, and what #267 step 7
+  asks for. Expect it when nothing has been written since the backup ran.
+- **Some table restored fewer rows than live** — a failure by default. Rows
+  written after the backup are legitimate drift, but they look exactly like
+  rows a partial restore lost, so the drill will not call that a pass on its
+  own. Re-run against a quiet database, or set `ALLOW_DRIFT=1` once you have
+  read the diff and recognised the tables as ones that take writes.
+- **Some table restored _more_ rows than live** — always a failure. The backup
+  was taken before now, so this cannot be drift.
 - **A table present live is missing from the restore** — a failure. Compare the
   two journal watermarks the drill prints: if they are equal, the restore lost
   the table; if the restored watermark is older, the artifact simply predates
   the migration that added it.
 - **Unexpected errors during the restore** — a failure. `already exists` noise
   from objects the fresh image ships with is filtered out; anything else is not.
+  On the `.dmp` path a non-zero `pg_restore` exit is a failure in its own right.
 
 To drill a B2 copy rather than a local one, download it first and pass
 `BACKUP_FILE`.
 
 The scratch container holds a full copy of production PII while it runs. It
 publishes no port and is force-removed on exit unless `DRILL_KEEP` is set.
+
+If you ever restore a `pg_dumpall` artifact by hand instead, note the hazard the
+drill's throwaway container exists to avoid: the output carries its own
+`\connect` directives, so review what it targets before running it against a
+server that holds anything you care about.
 
 Run the drill monthly and before every event. A backup that has not been
 restored is unproven.

@@ -21,6 +21,14 @@ set -eu
 # dump_all flag ("Backup All Databases"):
 #   pg-dump-all-<ts>.gz    plain SQL, gzipped -> gunzip | psql
 #   pg-dump-<db>-<ts>.dmp  custom format      -> pg_restore
+#
+# PASSED means what #267 step 7 means by it: every table present live is present
+# in the restore with the same row count. Rows written after the backup ran are
+# real drift, but nothing distinguishes them from rows the restore lost, so a
+# count mismatch fails unless ALLOW_DRIFT=1 says to accept it. Run the drill
+# against a quiet database if you want an unqualified pass.
+#
+# Assumes GNU find (-printf), as on rylai.
 
 require_command() {
   command_name="$1"
@@ -34,6 +42,12 @@ require_command() {
 require_command docker
 require_command find
 require_command sort
+require_command grep
+require_command sed
+require_command cut
+require_command comm
+require_command diff
+require_command basename
 
 BACKUP_DIR="${BACKUP_DIR:-/data/coolify/backups/databases}"
 BACKUP_FILE="${BACKUP_FILE:-}"
@@ -68,7 +82,9 @@ fi
 
 if [ -z "$LIVE_CONTAINER" ]; then
   # .../databases/<team>/postgresql-database-<uuid>/pg-dump-all-<ts>.gz
-  candidate="$(basename "$(dirname "$BACKUP_FILE")" | sed "s/^.*-//")"
+  # Strip the fixed prefix rather than everything up to the last hyphen: the
+  # UUID may itself contain one, and that would silently yield a wrong name.
+  candidate="$(basename "$(dirname "$BACKUP_FILE")" | sed "s/^postgresql-database-//")"
 
   if [ -n "$candidate" ] && [ -n "$(docker ps -q -f "name=^${candidate}\$")" ]; then
     LIVE_CONTAINER="$candidate"
@@ -130,12 +146,13 @@ docker run -d --name "$DRILL_CONTAINER" \
 
 # The image's entrypoint runs initdb against a temporary server before it
 # starts the real one, and that temporary server answers pg_isready. Requiring
-# two successful queries a second apart avoids connecting to it and then having
-# the socket pulled away mid-restore.
+# three successful queries a second apart avoids connecting to it and then
+# having the socket pulled away mid-restore.
+READY_TIMEOUT_SECONDS=90
 ready=0
 streak=0
 i=0
-while [ "$i" -lt 90 ]; do
+while [ "$i" -lt "$READY_TIMEOUT_SECONDS" ]; do
   if docker exec "$DRILL_CONTAINER" psql -U postgres -d postgres -c "select 1" >/dev/null 2>&1; then
     streak=$((streak + 1))
   else
@@ -152,27 +169,33 @@ while [ "$i" -lt 90 ]; do
 done
 
 if [ "$ready" -ne 1 ]; then
-  echo "FAIL: scratch Postgres did not become ready within 60s" >&2
+  echo "FAIL: scratch Postgres did not become ready within ${READY_TIMEOUT_SECONDS}s" >&2
   exit 1
 fi
 
 RESTORE_LOG="${WORK_DIR}/restore.log"
+restore_status=0
 
 case "$BACKUP_FILE" in
 *.gz)
+  require_command gunzip
   echo "Restoring plain SQL (pg_dumpall | gzip) with psql"
   # pg_dumpall emits CREATE ROLE/CREATE DATABASE for objects the fresh image
-  # already has, so ON_ERROR_STOP would abort on noise. The proof is the count
-  # comparison below, not the exit code; the log is scanned for real errors.
+  # already has, so ON_ERROR_STOP would abort on noise and psql's exit code
+  # says nothing useful. What proves this branch is the error scan, the count
+  # comparison, and the fact that the artifact must create the database itself.
   gunzip -c "$BACKUP_FILE" |
     docker exec -i "$DRILL_CONTAINER" psql -U postgres -d postgres \
       >"$RESTORE_LOG" 2>&1 || true
   ;;
 *.dmp)
   echo "Restoring custom format (pg_dump --format=custom) with pg_restore"
+  # The artifact carries no CREATE DATABASE, so the target has to exist first.
+  # That makes the existence check below vacuous on this branch, which is why
+  # pg_restore's exit code is kept and failed on here rather than discarded.
   docker exec "$DRILL_CONTAINER" createdb -U postgres "$TARGET_DB"
   docker exec -i "$DRILL_CONTAINER" pg_restore -U postgres -d "$TARGET_DB" \
-    --no-owner --no-acl <"$BACKUP_FILE" >"$RESTORE_LOG" 2>&1 || true
+    --no-owner --no-acl <"$BACKUP_FILE" >"$RESTORE_LOG" 2>&1 || restore_status=$?
   ;;
 *)
   echo "FAIL: unrecognised artifact extension: $BACKUP_FILE" >&2
@@ -182,15 +205,25 @@ esac
 
 failures=0
 
-# Benign noise: objects the fresh image ships with, which pg_dumpall recreates.
-real_errors="$(grep -i "^ERROR" "$RESTORE_LOG" 2>/dev/null |
-  grep -viE "already exists|does not exist, skipping" |
-  wc -l | tr -d " ")"
+# Real failures, as opposed to the benign noise pg_dumpall makes recreating
+# objects the fresh image already ships with. psql tags its messages `ERROR:`
+# or `FATAL:`, bare or behind a `psql:<stdin>:12: ` prefix; pg_restore writes
+# `pg_restore: error: …`, which an anchored `^ERROR` pattern never matches.
+real_error_lines() {
+  grep -E "(^|[: ])(ERROR|FATAL|PANIC):|pg_restore: error:" "$RESTORE_LOG" 2>/dev/null |
+    grep -viE "already exists|does not exist, skipping" || true
+}
+
+real_errors="$(real_error_lines | wc -l | tr -d " ")"
 
 if [ "$real_errors" != "0" ]; then
   echo "FAIL: restore reported $real_errors unexpected error(s):" >&2
-  grep -i "^ERROR" "$RESTORE_LOG" | grep -viE "already exists|does not exist, skipping" |
-    head -n 20 >&2
+  real_error_lines | head -n 20 >&2
+  failures=$((failures + 1))
+fi
+
+if [ "$restore_status" -ne 0 ]; then
+  echo "FAIL: pg_restore exited $restore_status" >&2
   failures=$((failures + 1))
 fi
 
@@ -227,14 +260,13 @@ if [ -n "$LIVE_CONTAINER" ]; then
   if diff -u "$live_counts" "$restored_counts" >"${WORK_DIR}/counts.diff"; then
     echo "Row counts match the live database exactly."
   else
-    # Rows written after the backup ran are expected drift up to the RPO, so
-    # this is reported rather than failed on. A *missing table*, or a restored
-    # count higher than live, is not drift and is called out.
-    echo "Row counts differ from live (drift up to the backup cadence is expected):"
+    echo "Row counts differ from live:"
     sed -n "1,40p" "${WORK_DIR}/counts.diff"
 
-    cut -d= -f1 "$live_counts" >"${WORK_DIR}/live-tables.txt"
-    cut -d= -f1 "$restored_counts" >"${WORK_DIR}/restored-tables.txt"
+    # comm needs both sides in the same order, and psql sorted them under the
+    # database collation rather than the shell's. Re-sort under a fixed one.
+    cut -d= -f1 "$live_counts" | LC_ALL=C sort >"${WORK_DIR}/live-tables.txt"
+    cut -d= -f1 "$restored_counts" | LC_ALL=C sort >"${WORK_DIR}/restored-tables.txt"
     missing="$(comm -23 "${WORK_DIR}/live-tables.txt" "${WORK_DIR}/restored-tables.txt" |
       wc -l | tr -d " ")"
 
@@ -244,6 +276,49 @@ if [ -n "$LIVE_CONTAINER" ]; then
       echo "      that added them. Compare the journal watermarks above: equal" >&2
       echo "      watermarks mean the restore is at fault." >&2
       failures=$((failures + 1))
+    fi
+
+    # Split the surviving mismatches by direction. Fewer rows than live is what
+    # drift looks like — and also what a partial restore looks like, which is
+    # why it only passes when ALLOW_DRIFT says to accept it. More rows than
+    # live cannot be drift at all: the backup was taken before now.
+    short=0
+    excess=0
+
+    while IFS= read -r line; do
+      table="${line%%=*}"
+      live_rows="${line#*=}"
+      restored_line="$(grep -F -m 1 -- "${table}=" "$restored_counts" || true)"
+
+      if [ -z "$restored_line" ]; then
+        continue
+      fi
+
+      rows="${restored_line#*=}"
+
+      if [ "$rows" -lt "$live_rows" ]; then
+        short=$((short + 1))
+      elif [ "$rows" -gt "$live_rows" ]; then
+        echo "      $table: restored $rows row(s) > live $live_rows" >&2
+        excess=$((excess + 1))
+      fi
+    done <"$live_counts"
+
+    if [ "$excess" != "0" ]; then
+      echo "FAIL: $excess table(s) restored more rows than live holds, which is not drift" >&2
+      failures=$((failures + 1))
+    fi
+
+    if [ "$short" != "0" ]; then
+      if [ -n "${ALLOW_DRIFT:-}" ]; then
+        echo "$short table(s) restored fewer rows than live; accepted as drift (ALLOW_DRIFT set)."
+      else
+        echo "FAIL: $short table(s) restored fewer rows than live" >&2
+        echo "      #267 step 7 gates on matching counts. Rows written after the" >&2
+        echo "      backup ran look identical to rows the restore lost, so this" >&2
+        echo "      only passes with ALLOW_DRIFT=1, or against a quiet database." >&2
+        failures=$((failures + 1))
+      fi
     fi
   fi
 else
