@@ -290,9 +290,11 @@ directo a `72.60.59.2` con SNI y saltear el WAF.
 - **Sacar**: la regla `Accept 443 from 0.0.0.0/0`.
 - **Agregar**: una regla `Accept TCP 443` por cada rango de
   `https://www.cloudflare.com/ips-v4` (15 rangos IPv4).
-- **Mantener** `Accept 80 from 0.0.0.0/0`: con Origin Cert no hay ACME que
-  proteger, y con el `443` cerrado el `80` no da acceso a la app (todo redirige a
-  HTTPS, que sólo entra por Cloudflare). Dejarlo abierto ahorra 15 reglas.
+- **Mantener** `Accept 80 from 0.0.0.0/0`: el certificado del origen es un Let's
+  Encrypt que Traefik renueva por ACME HTTP-01 (sección 2.4), y ese desafío entra
+  por el `80`. Cerrarlo rompería la renovación. Además, con el `443` cerrado el
+  `80` no da acceso a la app —todo redirige a HTTPS, que sólo entra por
+  Cloudflare—, así que dejarlo abierto no agrega superficie y ahorra 15 reglas.
 - **Mantener** las dos reglas SSH y el `Drop` final.
 
 Cuidados:
@@ -344,7 +346,8 @@ Casi nada:
 - `.env.example` documenta el remitente y el proveedor por defecto.
 - Ningún módulo lee la IP del cliente (`X-Forwarded-For`, `CF-Connecting-IP` ni
   equivalentes), así que el proxy no obliga a tocar código.
-- No hay rate limiting en la app; vive en Traefik y Cloudflare.
+- No hay rate limiting en la app; vive sólo en Cloudflare. El middleware de
+  Traefik que proponía #238 se descartó (sección 4).
 - El cambio de Brevo a Resend no requiere cambios: `app/lib/shared/email.server.ts`
   ya soporta ambos y defaultea a Resend.
 
