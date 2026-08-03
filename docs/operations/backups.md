@@ -7,19 +7,27 @@ This runbook covers production backups to Backblaze B2:
 
 ## Scope
 
-- Database source: the production `DATABASE_URL` for Supabase Postgres.
+- Database source: the self-hosted Postgres container managed by Coolify, backed
+  up by Coolify's own Scheduled Backup on the database resource. Not Supabase —
+  the database moved in the cutover of #267.
 - Storage source: the local storage volume (`STORAGE_VOLUME_DIR`) on the São
   Paulo VPS, which is the live byte store after the cutover in #399. B2 is only a
   backup destination now, not the live store.
-- Destination: a Backblaze B2 bucket through its S3-compatible endpoint.
-- Database format: compressed custom-format `pg_dump` archive.
+- Destination: a Backblaze B2 bucket through its S3-compatible endpoint, plus a
+  local copy on the VPS for the database.
+- Database format: plain SQL from `pg_dumpall`, gzipped. See
+  [Database Backup](#database-backup-coolify-native).
 - Storage format: copied objects under a B2 prefix, keys intact (`academies/...`).
-- Frequency: database daily; storage on the cadence configured for its scheduled
-  task (base 2x/day, raised during an event window to shrink the RPO).
-- Retention: managed in B2 with lifecycle rules, not by the app script.
+- Frequency: database on the cadence configured on the Coolify database resource;
+  storage on the cadence configured for its scheduled task (base 2x/day, raised
+  during an event window to shrink the RPO).
+- Retention: the database backup keeps 30 days in B2 and 7 days locally. Coolify
+  and the B2 lifecycle rule are deliberately aligned on the same 30 days, so
+  either can expire an object without the other disagreeing. Storage retention is
+  managed by the B2 lifecycle rule alone.
 
-The backup script creates a logical dump. It is not PITR and can only restore to
-the moment when the dump started.
+Both backups are logical dumps. This is not PITR: a restore can only reach the
+moment when the dump started.
 
 The storage backup syncs the local volume into B2. In the default `copy` mode it
 does not delete B2 objects that are no longer present on the volume, so
@@ -27,12 +35,49 @@ accidental deletes on the volume do not immediately remove the backup copy. Set
 `BACKUP_SYNC_MODE=mirror` to prune deleted objects so the backup tracks the
 volume exactly.
 
+## Database Backup (Coolify native)
+
+The database backup is configured on the **Postgres resource** in Coolify, not on
+the application. There is no script and nothing in this repo to run.
+
+- Destination: the B2 bucket registered under Coolify's _S3 Storages_ as
+  `enescena-db-backups` (unhyphenated — see #588). The hyphenated
+  `en-escena-db-backups` belongs to the retired script path and goes away with
+  the Supabase decommission (#303).
+- Local copies are kept as well, under
+  `/data/coolify/backups/databases/<team>/<resource>/` on the VPS, with 7-day
+  retention. Keep "Disable Local Backup" **unchecked**: those copies are what
+  make a fast local restore possible without a B2 round-trip.
+- Cadence, retention and the S3 target are all edited in the Coolify UI on that
+  resource.
+
+### Format
+
+With **"Backup All Databases" checked** — the current setting, decided in #302 in
+exchange for Coolify's one-click restore — Coolify runs:
+
+```sh
+docker exec <container> pg_dumpall --username postgres | gzip > pg-dump-all-<timestamp>.gz
+```
+
+That is **plain SQL**, restored with `gunzip | psql`. `pg_restore` cannot read it.
+
+Unchecked, Coolify instead runs `pg_dump --format=custom --no-acl --no-owner`
+against the named database and writes `pg-dump-<database>-<timestamp>.dmp`, which
+`pg_restore` handles. Whether to switch is open in #594; it matters because
+`db:refresh:prod` consumes these backups (#595).
+
+Either way the dump covers the whole `enescena` database — every schema,
+including `public` and `drizzle`. Coolify's database selection is per _database_,
+not per schema, so the schema rename in #506 does not affect it.
+
 ## Backblaze B2 Setup
 
 Create separate B2 buckets for database and filestore backups because they have
 different lifecycle policies. A practical starting point for En Escena is:
 
-- database bucket: keep daily database backups for 30 days;
+- database bucket: keep database backups for 30 days, matching the retention
+  configured in Coolify;
 - filestore bucket: keep copied objects for 90 or 180 days, depending on cost
   and recovery needs;
 - restrict the application key to the two backup buckets only;
@@ -49,8 +94,12 @@ B2_S3_ENDPOINT="https://s3.us-east-005.backblazeb2.com"
 Configure these values in the scheduled-job environment. Do not commit real
 secrets.
 
+The database backup needs none of these — it is configured entirely in Coolify.
+The `B2_DATABASE_*` block below belongs to `scripts/backup-database-to-b2.sh`,
+which still runs in parallel and is retired in #594 once the native backup has
+passed a restore test.
+
 ```sh
-DATABASE_URL="postgresql://postgres:[PASSWORD]@db.[PROJECT_REF].supabase.co:5432/postgres"
 B2_DATABASE_BUCKET="en-escena-db-backups"
 B2_DATABASE_PREFIX="database"
 B2_S3_ENDPOINT="https://s3.us-east-005.backblazeb2.com"
@@ -64,9 +113,6 @@ BACKUP_SYNC_MODE="copy"
 B2_FILESTORE_BUCKET="en-escena-filestore-backups"
 B2_FILESTORE_PREFIX="filestore"
 ```
-
-`DATABASE_URL` should use the Supabase direct connection or session pooler.
-Avoid the transaction pooler for dumps.
 
 `B2_DATABASE_BUCKET` and `B2_FILESTORE_BUCKET` are intentionally separate. The
 database script still accepts the legacy `B2_BUCKET` and `B2_PREFIX` variables
@@ -87,8 +133,12 @@ The scheduled environment needs:
 
 The production Docker image installs PostgreSQL client 17 in the runtime stage
 so the Coolify scheduled task can run inside the application container. The
-client version must be equal to or newer than the Supabase Postgres server
-version; otherwise `pg_dump` aborts with a server version mismatch.
+client version must be equal to or newer than the Postgres server version;
+otherwise `pg_dump` aborts with a server version mismatch. The server runs
+`postgres:17-alpine`, so keep both pinned to 17.
+
+The native database backup needs none of this — it runs `docker exec` against the
+Postgres container itself, using that image's own client.
 
 If running the backup directly on a Debian/Ubuntu VPS instead, install the
 system packages with:
@@ -103,10 +153,13 @@ official PostgreSQL apt repository first.
 
 ## Manual Backup
 
-From the repo root:
+For the database, use **Backup Now** on the Coolify database resource.
+
+From the repo root, for storage — and, until #594 retires it, the legacy database
+script:
 
 ```sh
-pnpm backup:db:b2
+pnpm backup:db:b2      # legacy, retired in #594
 pnpm backup:storage:b2
 ```
 
@@ -117,12 +170,12 @@ local staging copy.
 
 ## Daily Schedule
 
-Use a daily schedule outside the request-serving runtime. In Coolify, configure
-a scheduled task on the production application:
+The **database** backup is scheduled on the Coolify Postgres resource, not here.
 
-- Command: `sh scripts/backup-database-to-b2.sh`
-- Schedule: `20 3 * * *`
-- Environment: use the production variables configured in Coolify.
+A legacy scheduled task on the production application still runs
+`sh scripts/backup-database-to-b2.sh` in parallel against the same database. It
+is redundant, not broken — the script reads `DATABASE_URL`, which the cutover
+repointed at the internal Postgres. Both it and its task are retired in #594.
 
 Add a scheduled task for Storage. Its base cadence is twice a day, raised during
 an event window to shrink the RPO:
@@ -155,27 +208,47 @@ installing it on the host.
 
 ## Restore Check
 
-Download one backup from B2 and inspect the archive list before trusting the
-setup:
+The native backup is plain SQL (see [Format](#format)), so it restores with
+`psql`, not `pg_restore`. Take the most recent local copy on the VPS:
 
 ```sh
-aws s3 cp \
-  "s3://$B2_DATABASE_BUCKET/$B2_DATABASE_PREFIX/en-escena-YYYYMMDD-HHMMSS.dump" \
-  "tmp/db-backups/restore-check.dump" \
-  --endpoint-url "$B2_S3_ENDPOINT"
-
-pg_restore --list tmp/db-backups/restore-check.dump | head -40
+# on rylai
+ls -t /data/coolify/backups/databases/*/postgresql-database-*/pg-dump-all-*.gz | head -1
 ```
 
-For a full restore into a fresh database:
+Restore it into a scratch database — never into `enescena`:
 
 ```sh
-createdb "$RESTORE_DATABASE_NAME"
-pg_restore --no-owner --no-acl --dbname "$RESTORE_DATABASE_URL" \
-  tmp/db-backups/restore-check.dump
+docker exec "$PG" createdb -U postgres restore_check
+gunzip -c pg-dump-all-<timestamp>.gz | docker exec -i "$PG" psql -U postgres -d restore_check
 ```
 
-Run a restore test monthly. A backup that has not been restored is unproven.
+`pg_dumpall` output contains its own `\connect` directives, so review what it
+targets before running it against a live server.
+
+Then verify the restore is real, not merely present — row counts against the
+tables that matter, as #267 step 7 requires:
+
+```sh
+docker exec "$PG" psql -U postgres -d restore_check -c \
+  "select 'payment' t, count(*) from en_escena_payment
+   union all select 'event', count(*) from en_escena_event
+   union all select 'inscription', count(*) from en_escena_inscription
+   union all select 'user', count(*) from en_escena_user;"
+```
+
+Check `drizzle.__drizzle_migrations` has every applied migration too — the
+migration journal lives in the `drizzle` schema and a restore that loses it
+leaves the database unable to migrate correctly.
+
+Drop `restore_check` when done.
+
+If the backup is switched to custom format (#594), this becomes
+`pg_restore --list` for inspection and `pg_restore --no-owner --no-acl` for the
+restore, as in `docs/db/production-dump.md`.
+
+Run a restore test monthly and before every event. A backup that has not been
+restored is unproven.
 
 ## Storage Restore Drill
 
