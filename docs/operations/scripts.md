@@ -46,11 +46,12 @@ use when a script has operational risk.
 
 ## Backups
 
-| Script                       | Purpose                                                                                                                             |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm backup:db:b2`          | Create a production PostgreSQL dump and upload it to Backblaze B2. See [Backups](backups.md).                                       |
-| `pnpm backup:storage:b2`     | Back up the local storage volume (the live store) to Backblaze B2. See [Backups](backups.md).                                       |
-| `pnpm restore:storage:drill` | Restore the storage backup from B2 into a throwaway dir and verify it, without touching the live volume. See [Backups](backups.md). |
+| Script                       | Purpose                                                                                                                                                        |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm backup:db:b2`          | Create a production PostgreSQL dump and upload it to Backblaze B2. See [Backups](backups.md).                                                                  |
+| `pnpm backup:storage:b2`     | Back up the local storage volume (the live store) to Backblaze B2. See [Backups](backups.md).                                                                  |
+| `pnpm restore:storage:drill` | Restore the storage backup from B2 into a throwaway dir and verify it, without touching the live volume. See [Backups](backups.md).                            |
+| `pnpm restore:db:drill`      | Restore a Coolify database backup into a throwaway Postgres container and compare it against the live database. Runs on the server. See [Backups](backups.md). |
 
 ## Git Hooks
 
