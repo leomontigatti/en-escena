@@ -13,23 +13,24 @@ use when a script has operational risk.
 
 ## Validation
 
-| Script                   | Purpose                                                                                              |
-| ------------------------ | ---------------------------------------------------------------------------------------------------- |
-| `pnpm format`            | Format the repo with Prettier. Changes files in place.                                               |
-| `pnpm format:check`      | Check Prettier formatting without changing files.                                                    |
-| `pnpm check:repo-styles` | Enforce app UI style guardrails.                                                                     |
-| `pnpm check:file-tokens` | Check staged application source file size before commit or PR handoff.                               |
-| `pnpm typecheck`         | Generate React Router route types and run TypeScript. Use this instead of `pnpm exec tsc`.           |
-| `pnpm test`              | Run the full pre-commit suite: unit/react plus the DB suite on in-process PGlite. No local Postgres. |
-| `pnpm test:unit`         | Run only the non-database (unit/react) Vitest suite.                                                 |
-| `pnpm test:watch`        | Run Vitest in watch mode.                                                                            |
+| Script                       | Purpose                                                                                                   |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `pnpm format`                | Format the repo with Prettier. Changes files in place.                                                    |
+| `pnpm format:check`          | Check Prettier formatting without changing files.                                                         |
+| `pnpm check:repo-styles`     | Enforce app UI style guardrails.                                                                          |
+| `pnpm check:file-tokens`     | Check staged application source file size before commit or PR handoff.                                    |
+| `pnpm check:migration-order` | Fail when a new migration predates the newest one on `master`. Runs in CI; needs `origin/master` fetched. |
+| `pnpm typecheck`             | Generate React Router route types and run TypeScript. Use this instead of `pnpm exec tsc`.                |
+| `pnpm test`                  | Run the full pre-commit suite: unit/react plus the DB suite on in-process PGlite. No local Postgres.      |
+| `pnpm test:unit`             | Run only the non-database (unit/react) Vitest suite.                                                      |
+| `pnpm test:watch`            | Run Vitest in watch mode.                                                                                 |
 
 ## Database
 
 | Script                 | Purpose                                                                                                                                     |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | `pnpm db:generate`     | Generate a versioned SQL migration in `app/db/migrations` from the Drizzle schema. See [Database Migrations](../db/migrations.md).          |
-| `pnpm db:migrate`      | Apply pending migrations to `DATABASE_URL` (same command in dev, test, CI, and prod).                                                       |
+| `pnpm db:migrate`      | Apply pending migrations to `DATABASE_URL`. Local and dev only — production migrates from the container entrypoint.                         |
 | `pnpm db:baseline`     | Register the baseline migration as applied on an existing database without running its DDL. See [Database Migrations](../db/migrations.md). |
 | `pnpm db:refresh:prod` | Replace local `en-escena` with a fresh production dump. See [Production Database Dump](../db/production-dump.md).                           |
 | `pnpm db:test:reset`   | Reset and migrate the schema on `TEST_DATABASE_URL` for Postgres-backed DB tests.                                                           |

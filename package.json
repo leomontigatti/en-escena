@@ -14,6 +14,7 @@
     "test:db": "vitest --config vitest.db.fast.config.ts --run",
     "test:db:postgres": "pnpm db:test:reset && vitest --config vitest.db.config.ts --run",
     "check:file-tokens": "node --import tsx scripts/check-file-tokens.ts",
+    "check:migration-order": "node scripts/check-migration-order.mjs",
     "check:repo-styles": "node --import tsx scripts/repo-style-guardrail.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

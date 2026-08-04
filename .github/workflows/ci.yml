@@ -45,6 +45,15 @@ jobs:
             git --no-pager diff -- app/db/migrations
             exit 1
           fi
+      # Migration ordering (#593). Drizzle applies migrations by high-water
+      # mark, so a branch whose new migration predates the newest one on master
+      # would merge green and then never run in production. `db-gate` cannot
+      # catch it: CI builds a fresh database where everything applies in folder
+      # order. Caught here, the fix is a rebase plus `pnpm db:generate`.
+      - name: migration-order (new migrations must postdate master)
+        run: |
+          git fetch --no-tags --depth=1 origin master
+          pnpm check:migration-order
       - run: pnpm typecheck
       - run: pnpm test:unit
       - run: pnpm build

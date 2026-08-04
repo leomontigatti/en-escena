@@ -1,9 +1,20 @@
 # Database Migrations
 
 Drizzle is the single source of truth for the schema. Migrations are versioned
-SQL files in `app/db/migrations/`, generated from `app/db/schema.ts` and applied
-with the same command in dev, test, CI, and production. There is no `drizzle-kit
-push` and no Supabase SQL migration path anymore.
+SQL files in `app/db/migrations/`, generated from `app/db/schema.ts`. There is
+no `drizzle-kit push` and no Supabase SQL migration path anymore.
+
+Two runners apply them, and the split matters:
+
+- **Dev, test and CI** use `pnpm db:migrate` (drizzle-kit) against a database
+  you can reach.
+- **Production** applies them from the container entrypoint, before the app
+  serves. The production Postgres is `is_public: false` with no published port,
+  so there is no route from a laptop. See
+  [Production migrations](#production-migrations).
+
+`scripts/migrations/journal.db.test.ts` pins that the two runners agree on what
+counts as applied.
 
 ## Everyday flow
 
@@ -17,14 +28,24 @@ push` and no Supabase SQL migration path anymore.
    This writes `NNNN_<name>.sql` plus `meta/` into `app/db/migrations/`. Review
    the SQL and commit it with the schema change.
 
-3. Apply pending migrations to the target database:
+3. Apply pending migrations to your local database:
 
    ```sh
    pnpm db:migrate
    ```
 
-   `db:migrate` reads `DATABASE_URL` (loaded from `.env` locally). The same
-   command runs in dev, test, CI, and production — only the connection differs.
+   `db:migrate` reads `DATABASE_URL` (loaded from `.env` locally). It is the
+   local and dev command; it has no route to production.
+
+4. Merge. Production applies the migration on the next deploy, from the
+   entrypoint.
+
+**Always rebase before generating.** `pnpm db:generate` timestamps a migration
+with the current clock, and Drizzle applies migrations by high-water mark: a
+migration whose timestamp predates one already applied is skipped permanently
+and silently. The `migration-order` step in the `checks` CI job fails a PR whose
+newest migration predates the newest on `master`; the fix is a rebase plus a
+regenerate.
 
 Test harnesses apply the exact same migrations: the PGlite snapshot builder and
 `pnpm db:test:reset` both run `migrate` against `app/db/migrations`. `pushSchema`
@@ -64,15 +85,59 @@ If `db:generate` produces a migration, `app/db/schema.ts` has drifted from
 production. Fix the drift **in the schema**, regenerate the baseline, and repeat
 — never hand-patch the baseline SQL.
 
-## Production cutover (once)
+## Production migrations
+
+The application container migrates itself at start, through
+`scripts/docker-entrypoint.sh` → `scripts/migrate.mjs`, before handing over to
+the server command. Nothing is applied from a laptop: the Coolify Postgres is
+`is_public: false` with no published port.
+
+`scripts/migrate.mjs` is plain `.mjs` because `tsx` and `drizzle-kit` are
+devDependencies stripped by `pnpm prune --prod`, while `drizzle-orm` and
+`postgres` are production dependencies. It:
+
+1. **Waits for the database, but only for the database.** The app and Postgres
+   are co-located containers with no start ordering, so a refused connection
+   after a host reboot is expected; it retries for ~45s. Every failure after the
+   database answers is deterministic and fatal — no retry, non-zero exit, the
+   container does not serve.
+2. **Takes a blocking advisory lock.** Drizzle reads the watermark _outside_ the
+   transaction it then migrates in, so two overlapping container starts would
+   both act on the same stale read. Blocking rather than `pg_try_*` so a second
+   starter waits and then correctly no-ops.
+3. **Pre-flights the journal.** Every journal entry at or below the applied
+   watermark must have a matching row in `drizzle.__drizzle_migrations`, on both
+   hash and timestamp. This catches the out-of-order merge (a migration Drizzle
+   will skip forever) and a `.sql` file edited after being applied, neither of
+   which Drizzle reports.
+4. Applies pending migrations and exits.
+
+A failed migration therefore shows up as a container that will not start, not as
+a half-migrated schema. Roll back to the previous image from Coolify's Rollback
+tab.
+
+### Break-glass
+
+When you need to run something against production by hand, get a shell on the
+server rather than a route to the port:
+
+```sh
+ssh rylai
+docker exec -it <app-container> node /app/scripts/migrate.mjs   # re-run migrations
+docker exec -it <postgres-container> psql -U postgres -d enescena
+```
+
+An SSH tunnel to `rylai` still works for ad-hoc `psql`, but it is no longer the
+migration path.
+
+### The cutover (historical)
 
 Applied inside Fase 0, decoupled from the hosting migration:
 
 1. Back up production.
 2. Run `pnpm db:baseline` against the real production `DATABASE_URL`
    (metadata-only; no DDL runs).
-3. From then on, schema changes ship as generated migrations applied with
-   `pnpm db:migrate`.
+3. From then on, schema changes ship as generated migrations.
 
 The old `supabase_migrations.schema_migrations` history is abandoned in place;
 nothing reads it anymore.
