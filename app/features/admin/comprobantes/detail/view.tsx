@@ -1,5 +1,5 @@
 import { AlertTriangle, Ban, Check, LoaderCircle, Printer } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, useFetcher } from "react-router";
 
 import {
@@ -22,6 +22,11 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { formatAmount } from "@/features/admin/finances/formatters";
 import {
+  ContingencyAlert,
+  contingencyCancelLabel,
+  resolveContingencySubmitState,
+} from "@/lib/comprobantes/contingency-alert";
+import {
   comprobanteTipoBadgeVariant,
   formatComprobanteArcaDate,
   formatComprobanteNumber,
@@ -35,6 +40,7 @@ import type { ComprobanteDetail, ComprobanteDetailLoaderData } from "./server";
 import {
   annulComprobanteConfirmValue,
   annulComprobanteIntent,
+  recheckNotaCreditoIntent,
   type ComprobanteDetailActionData,
 } from "./shared";
 
@@ -235,9 +241,20 @@ function AnnulDialog({
   const fetcher = useFetcher<ComprobanteDetailActionData>();
   const isSaving = fetcher.state !== "idle";
   const actionData = fetcher.data;
-  const contingency = actionData?.status === "annul-error" ? actionData : null;
+  const contingency =
+    actionData?.status === "contingency" ? actionData.contingency : null;
   const genericError =
     actionData?.status === "error" ? actionData.message : null;
+
+  // La verificación manual la declara el operador, así que no puede sobrevivir a
+  // un intento nuevo: cada respuesta del server la borra y el reintento vuelve a
+  // quedar bloqueado si sigue sin resolverse.
+  const [acknowledged, setAcknowledged] = useState(false);
+  useEffect(() => {
+    setAcknowledged(false);
+  }, [fetcher.data]);
+
+  const submitState = resolveContingencySubmitState(contingency, acknowledged);
 
   function handleOpenChange(next: boolean) {
     if (isSaving) {
@@ -270,20 +287,16 @@ function AnnulDialog({
           />
 
           {contingency ? (
-            <Alert variant="destructive">
-              <AlertTriangle aria-hidden="true" />
-              <AlertDescription>
-                <div className="flex flex-col gap-1">
-                  <span>{contingency.message}</span>
-                  {contingency.contingency.errors.map((error) => (
-                    <span key={error}>{error}</span>
-                  ))}
-                  {contingency.contingency.observaciones.map((observacion) => (
-                    <span key={observacion}>{observacion}</span>
-                  ))}
-                </div>
-              </AlertDescription>
-            </Alert>
+            <ContingencyAlert
+              acknowledged={acknowledged}
+              contingency={contingency}
+              isBusy={isSaving}
+              onAcknowledge={() => setAcknowledged(true)}
+              onRecheck={(payload) =>
+                fetcher.submit(payload, { method: "post" })
+              }
+              recheckIntent={recheckNotaCreditoIntent}
+            />
           ) : null}
 
           {genericError ? (
@@ -295,20 +308,29 @@ function AnnulDialog({
 
           <AlertDialogFooter>
             <AlertDialogCancel type="button" disabled={isSaving}>
-              Cancelar
+              {contingencyCancelLabel(submitState)}
             </AlertDialogCancel>
-            <Button type="submit" variant="destructive" disabled={isSaving}>
-              {isSaving ? (
-                <LoaderCircle
-                  aria-hidden="true"
-                  className="animate-spin"
-                  data-icon="inline-start"
-                />
-              ) : (
-                <Check aria-hidden="true" data-icon="inline-start" />
-              )}
-              Anular comprobante
-            </Button>
+            {/* Recuperada: la nota de crédito ya está autorizada y registrada,
+                así que el botón se saca. Deshabilitarlo se leería como "esperá"
+                e invitaría a un reintento que emitiría una segunda. */}
+            {submitState === "removed" ? null : (
+              <Button
+                type="submit"
+                variant="destructive"
+                disabled={isSaving || submitState === "blocked"}
+              >
+                {isSaving ? (
+                  <LoaderCircle
+                    aria-hidden="true"
+                    className="animate-spin"
+                    data-icon="inline-start"
+                  />
+                ) : (
+                  <Check aria-hidden="true" data-icon="inline-start" />
+                )}
+                Anular comprobante
+              </Button>
+            )}
           </AlertDialogFooter>
         </fetcher.Form>
       </AlertDialogContent>

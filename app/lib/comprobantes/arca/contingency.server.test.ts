@@ -309,8 +309,22 @@ describe("mensajes de contingencia", () => {
       "consult-inconclusive",
     );
 
-    expect(message).toContain("punto de venta 1, tipo 11, número 43");
+    // Identificado como en el resto de la app y en el portal de ARCA: es la
+    // cadena exacta que el operador tiene que ir a buscar (#577).
+    expect(message).toContain("Factura C 0001-00000043");
+    expect(message).not.toContain("tipo 11");
+    expect(message).not.toContain("número 43");
     expect(message).toContain("antes de reintentar");
+  });
+
+  test("no verificado nombra la nota de crédito por su tipo, no por su código", () => {
+    const message = buildUnverifiedMessage(
+      "nota de crédito",
+      { ptoVta: 1, cbteTipo: 13, cbteNro: 8 },
+      "consult-inconclusive",
+    );
+
+    expect(message).toContain("Nota de crédito C 0001-00000008");
   });
 
   test("no verificado concuerda en género con la nota de crédito", () => {
@@ -336,7 +350,7 @@ describe("mensajes de contingencia", () => {
 
     expect(message).toContain("todavía no lo tiene registrado");
     expect(message).toContain("puede seguir en curso");
-    expect(message).toContain("punto de venta 1, tipo 11, número 43");
+    expect(message).toContain("Factura C 0001-00000043");
     expect(message).toContain("antes de reintentar");
     expect(message).not.toContain("Se cortó la comunicación");
   });
