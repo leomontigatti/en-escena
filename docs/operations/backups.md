@@ -158,10 +158,15 @@ COOLIFY_BACKUP_BUCKET="enescena-db-backups"
 ```
 
 `COOLIFY_BACKUP_BUCKET` and `B2_FILESTORE_BUCKET` are intentionally separate:
-they hold different kinds of data on different lifecycles. The storage scripts
-still accept the legacy `B2_BUCKET` and `B2_PREFIX` variables as fallbacks, but
-new production configuration should use the explicit bucket and prefix
-variables.
+they hold different kinds of data on different lifecycles.
+
+The storage scripts still accept the legacy **`B2_BUCKET`** as a fallback for
+`B2_FILESTORE_BUCKET` (`backup-storage-to-b2.sh` and `restore-drill-from-b2.sh`),
+but new production configuration should set `B2_FILESTORE_BUCKET` explicitly.
+**`B2_PREFIX` is read by nothing** — it was a fallback for `B2_DATABASE_PREFIX`
+in the database script retired in #594 item 5, and `B2_FILESTORE_PREFIX` carries
+its own default of `filestore`. Both legacy variables can be deleted from the
+environment once `B2_FILESTORE_BUCKET` is set explicitly.
 
 `STORAGE_BACKUP_BUCKETS` names the on-disk bucket directories under
 `STORAGE_VOLUME_DIR` (which are also the prefixes under `B2_FILESTORE_PREFIX` in

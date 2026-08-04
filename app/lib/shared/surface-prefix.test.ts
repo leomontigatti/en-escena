@@ -33,16 +33,13 @@ const markedDeclarationPatterns = [
   /^administrative[A-Z]/,
 ];
 
-// Las tres excepciones declaradas, todas estructurales:
+// Las dos excepciones declaradas, ambas estructurales:
 // - `app/components/admin/`: el chrome nombra el shell, no un símbolo de dominio.
 // - `AdminShell*`: el mismo chrome, declarado fuera de ese directorio.
-// - `administrativeAudit*`: identificadores de base; renombrarlos cuesta una
-//   migración.
 // La capa de mutaciones (`createAdministrative*` / `updateAdministrative*`,
 // #526) queda afuera por forma: `create` y `update` no están entre los verbos.
 const chromeDirectory = path.join("app", "components", "admin");
 const chromeSymbolPrefix = "AdminShell";
-const databaseSymbolPrefix = "administrativeAudit";
 
 describe("surface prefix rule", () => {
   test("declares no admin loader, handler or hook with a surface prefix", () => {
@@ -77,10 +74,7 @@ function readDeclaredSymbols(filePath: string): string[] {
 }
 
 function isMarkedSymbol(symbol: string) {
-  if (
-    symbol.startsWith(chromeSymbolPrefix) ||
-    symbol.startsWith(databaseSymbolPrefix)
-  ) {
+  if (symbol.startsWith(chromeSymbolPrefix)) {
     return false;
   }
 

@@ -60,8 +60,9 @@ administrator adds later) the administrator picks a price row bounded by a floor
 (no lower than the lowest frozen price among the choreography's already
 señada/pagada inscriptions).
 
-Finances does not audit changes. This scoping is limited to finances; the rest
-of the system keeps its audit until the corresponding follow-up. Financial
+Finances does not audit changes. This scoping was limited to finances at the
+time of this decision; the administrative audit trail was later retired
+system-wide (#543), so no part of the system audits changes. Financial
 records carry no annulment (`annulled*`, `cancelled*`) or actor-attribution
 (`createdByUserId`) fields.
 

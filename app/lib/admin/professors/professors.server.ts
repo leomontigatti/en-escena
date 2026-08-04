@@ -3,7 +3,6 @@ import { and, asc, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import {
   academies,
-  administrativeAuditEntries,
   choreographies,
   choreographyProfessors,
   professors,
@@ -11,7 +10,6 @@ import {
 } from "@/db/schema";
 import {
   professorPageSize,
-  type ProfessorAuditAction,
   type ProfessorNameOrder,
   type ProfessorListFilters,
   readProfessorParticipationFilter,
@@ -289,7 +287,6 @@ export async function findProfessor(input: {
 }
 
 export async function updateAdministrativeProfessor(input: {
-  adminUserId: string;
   professorId: string;
   selectedEventId: string | null;
   values: ProfessorUpdateInput;
@@ -360,7 +357,6 @@ export async function updateAdministrativeProfessor(input: {
     }
   }
 
-  const beforeValues = toProfessorSnapshot(existingProfessor);
   const [updatedProfessor] = await db
     .update(professors)
     .set({
@@ -372,27 +368,16 @@ export async function updateAdministrativeProfessor(input: {
     })
     .where(eq(professors.id, existingProfessor.id))
     .returning();
-  const afterValues = toProfessorSnapshot(updatedProfessor);
-
-  await insertProfessorAuditEntry({
-    action: "update",
-    adminUserId: input.adminUserId,
-    afterValues,
-    beforeValues,
-    eventId: input.selectedEventId,
-    professorId: existingProfessor.id,
-    reason: null,
-  });
+  const savedSnapshot = toProfessorSnapshot(updatedProfessor);
 
   return {
     ok: true,
-    professor: afterValues,
+    professor: savedSnapshot,
   };
 }
 
 export async function setProfessorActiveState(input: {
   action: "archive" | "reactivate";
-  adminUserId: string;
   professorId: string;
   selectedEventId: string | null;
 }): Promise<ProfessorStatusMutationResult> {
@@ -406,7 +391,6 @@ export async function setProfessorActiveState(input: {
   }
 
   const nextActive = input.action === "reactivate";
-  const beforeValues = toProfessorSnapshot(existingProfessor);
   const [updatedProfessor] = await db
     .update(professors)
     .set({
@@ -415,20 +399,10 @@ export async function setProfessorActiveState(input: {
     })
     .where(eq(professors.id, existingProfessor.id))
     .returning();
-  const afterValues = toProfessorSnapshot(updatedProfessor);
-
-  await insertProfessorAuditEntry({
-    action: input.action,
-    adminUserId: input.adminUserId,
-    afterValues,
-    beforeValues,
-    eventId: input.selectedEventId,
-    professorId: existingProfessor.id,
-    reason: null,
-  });
+  const savedSnapshot = toProfessorSnapshot(updatedProfessor);
 
   return {
-    professor: afterValues,
+    professor: savedSnapshot,
   };
 }
 
@@ -542,27 +516,6 @@ function toProfessorSnapshot(
     documentNumber: professor.documentNumber,
     active: professor.active,
   };
-}
-
-async function insertProfessorAuditEntry(input: {
-  action: ProfessorAuditAction;
-  adminUserId: string;
-  afterValues: ProfessorEditableSnapshot;
-  beforeValues: ProfessorEditableSnapshot;
-  eventId: string | null;
-  professorId: string;
-  reason: string | null;
-}) {
-  await db.insert(administrativeAuditEntries).values({
-    entityType: "professor",
-    entityId: input.professorId,
-    eventId: input.eventId,
-    adminUserId: input.adminUserId,
-    action: input.action,
-    reason: input.reason,
-    beforeValues: input.beforeValues,
-    afterValues: input.afterValues,
-  });
 }
 
 function readPage(searchParams: URLSearchParams) {

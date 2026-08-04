@@ -4,7 +4,6 @@ export const professorNotFoundMessage = "No encontramos ese Profesor.";
 export type ProfessorParticipationFilter = "yes" | "no" | "all";
 export type ProfessorStatusFilter = "active" | "archived" | "all";
 export type ProfessorNameOrder = "asc" | "desc";
-export type ProfessorAuditAction = "update" | "archive" | "reactivate";
 
 export type ProfessorListFilters = {
   nameOrder: ProfessorNameOrder;

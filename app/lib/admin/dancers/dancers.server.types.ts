@@ -2,7 +2,6 @@ import type { dancers } from "@/db/schema";
 import type { DancerEditConsequence } from "@/lib/admin/dancers/dancers.server.shared";
 import type {
   DancerIdentificationStatus,
-  DancerAuditAction,
   DancerListFilters,
 } from "@/lib/admin/dancers/dancers.shared";
 import type { ParticipationStatus } from "@/lib/participation/participation.shared";
@@ -101,14 +100,4 @@ export type DancerMutationResult =
 
 export type DancerStatusMutationResult = {
   dancer: DancerEditableSnapshot;
-};
-
-export type DancerAuditEntryInput = {
-  action: DancerAuditAction;
-  adminUserId: string;
-  afterValues: DancerEditableSnapshot;
-  beforeValues: DancerEditableSnapshot;
-  dancerId: string;
-  eventId: string | null;
-  reason: string | null;
 };

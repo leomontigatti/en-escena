@@ -14,12 +14,8 @@ import {
   type ChoreographyRegistrationOperationResolution,
   type ResolvedRegistrationDancer,
 } from "@/lib/choreographies/registration-resolution.server";
-import type { ChoreographyBirthDateCorrectionAuditSnapshot } from "@/lib/choreographies/choreography-audit.server";
 import { getEventBases, type EventBases } from "@/lib/events/bases.server";
-import {
-  experienceLevelLabels,
-  isExperienceLevel,
-} from "@/lib/events/experience-levels";
+import { isExperienceLevel } from "@/lib/events/experience-levels";
 
 type DatabaseExecutor = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type QueryExecutor = typeof db | DatabaseExecutor;
@@ -52,18 +48,11 @@ type ChoreographyCompetitivePlacement = {
   dancerCompetitiveAge: number;
 };
 
-export type LinkedChoreographyBirthDateCorrectionChange = {
-  choreographyId: string;
-  eventId: string;
-  beforeValues: ChoreographyBirthDateCorrectionAuditSnapshot;
-  afterValues: ChoreographyBirthDateCorrectionAuditSnapshot;
-};
-
 export async function recalculateLinkedChoreographiesForDancerBirthDateCorrection(input: {
   dancerId: string;
   executor?: QueryExecutor;
   eventBasesByEventId?: Map<string, EventBases>;
-}): Promise<LinkedChoreographyBirthDateCorrectionChange[]> {
+}): Promise<void> {
   const executor = input.executor ?? db;
   const eligibleChoreographies = await listEligibleChoreographies(
     executor,
@@ -71,7 +60,7 @@ export async function recalculateLinkedChoreographiesForDancerBirthDateCorrectio
   );
 
   if (eligibleChoreographies.length === 0) {
-    return [];
+    return;
   }
 
   const choreographyIds = eligibleChoreographies.map(
@@ -91,7 +80,6 @@ export async function recalculateLinkedChoreographiesForDancerBirthDateCorrectio
 
   const linkedDancersByChoreographyId =
     groupLinkedDancersByChoreographyId(linkedDancers);
-  const auditableChanges: LinkedChoreographyBirthDateCorrectionChange[] = [];
 
   for (const choreography of eligibleChoreographies) {
     const choreographyLinkedDancers =
@@ -108,14 +96,11 @@ export async function recalculateLinkedChoreographiesForDancerBirthDateCorrectio
       modalityId: choreography.modalityId,
       dancers: resolvedDancers,
     });
-    const correctedDancer = choreographyLinkedDancers.find(
-      (dancer) => dancer.dancerId === input.dancerId,
-    );
     const correctedResolvedDancer = resolvedDancers.find(
       (dancer) => dancer.id === input.dancerId,
     );
 
-    if (!correctedDancer || !correctedResolvedDancer) {
+    if (!correctedResolvedDancer) {
       continue;
     }
 
@@ -147,32 +132,7 @@ export async function recalculateLinkedChoreographiesForDancerBirthDateCorrectio
         ),
       })
       .where(eq(choreographies.id, choreography.choreographyId));
-
-    auditableChanges.push({
-      choreographyId: choreography.choreographyId,
-      eventId: choreography.eventId,
-      beforeValues: buildAuditSnapshot({
-        categoryAgeBasis: beforePlacement.categoryAgeBasis,
-        categoryCalculationMode: beforePlacement.categoryCalculationMode,
-        categoryId: beforePlacement.categoryId,
-        competitiveAge: beforePlacement.dancerCompetitiveAge,
-        eventBases,
-        experienceLevelId: beforePlacement.experienceLevelId,
-        sourceDancer: correctedDancer,
-      }),
-      afterValues: buildAuditSnapshot({
-        categoryAgeBasis: afterPlacement.categoryAgeBasis,
-        categoryCalculationMode: afterPlacement.categoryCalculationMode,
-        categoryId: afterPlacement.categoryId,
-        competitiveAge: afterPlacement.dancerCompetitiveAge,
-        eventBases,
-        experienceLevelId: afterPlacement.experienceLevelId,
-        sourceDancer: correctedDancer,
-      }),
-    });
   }
-
-  return auditableChanges;
 }
 
 export async function loadLinkedChoreographyEventBasesForDancerBirthDateCorrection(input: {
@@ -224,29 +184,6 @@ async function listEligibleChoreographies(
     );
 }
 
-function buildAuditSnapshot(input: {
-  categoryId: string | null;
-  categoryCalculationMode: EligibleChoreographyRow["categoryCalculationMode"];
-  categoryAgeBasis: number | null;
-  experienceLevelId: string | null;
-  competitiveAge: number;
-  sourceDancer: Pick<LinkedDancerRow, "dancerId" | "firstName" | "lastName">;
-  eventBases: EventBases;
-}): ChoreographyBirthDateCorrectionAuditSnapshot {
-  return {
-    sourceDancer: {
-      id: input.sourceDancer.dancerId,
-      firstName: input.sourceDancer.firstName,
-      lastName: input.sourceDancer.lastName,
-    },
-    category: findNamedRecord(input.eventBases.categories, input.categoryId),
-    categoryCalculationMode: input.categoryCalculationMode,
-    categoryAgeBasis: input.categoryAgeBasis,
-    experienceLevel: findExperienceLevelSnapshot(input.experienceLevelId),
-    dancerCompetitiveAge: input.competitiveAge,
-  };
-}
-
 function toCompetitivePlacementFromChoreography(
   choreography: EligibleChoreographyRow,
 ): ChoreographyCompetitivePlacement {
@@ -293,29 +230,6 @@ function hasCompetitivePlacementChanged(
     before.experienceLevelId !== after.experienceLevelId ||
     before.dancerCompetitiveAge !== after.dancerCompetitiveAge
   );
-}
-
-function findNamedRecord(
-  records: Array<{ id: string; name: string }>,
-  id: string | null,
-) {
-  if (id === null) {
-    return null;
-  }
-
-  const record = records.find((item) => item.id === id);
-
-  return record ? { id: record.id, name: record.name } : null;
-}
-
-function findExperienceLevelSnapshot(value: string | null) {
-  if (value === null || !isExperienceLevel(value)) {
-    return null;
-  }
-
-  const name = experienceLevelLabels[value];
-
-  return name ? { id: value, name } : null;
 }
 
 function toExperienceLevelValue(value: string | null) {
