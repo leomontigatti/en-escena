@@ -64,8 +64,10 @@ export function ComprobanteDetailRouteView({
   loaderData,
 }: ComprobanteDetailRouteViewProps) {
   const comprobante = loaderData.comprobante;
+  // El diálogo sólo se abre sobre un comprobante anulable —el item del menú es la
+  // única afordancia—, pero una vez abierto sobrevive a que deje de serlo.
   const [isAnnulDialogOpen, setIsAnnulDialogOpen] = useState(
-    initialAnnulDialogOpen,
+    initialAnnulDialogOpen && comprobante.canAnnul,
   );
 
   const printHref = `/administracion/comprobantes/${comprobante.id}/imprimir`;
@@ -102,7 +104,11 @@ export function ComprobanteDetailRouteView({
         <ComprobanteDetailCard comprobante={comprobante} />
       </AdminResourceLayout>
 
-      {comprobante.canAnnul ? (
+      {/* Se desmonta al CERRARLO, no al perder la afordancia: una anulación
+          recuperada por "Verificar ahora" persiste la nota de crédito y revalida
+          el detalle, que deja de ser anulable. Desmontar ahí se llevaría puesto
+          el estado `recovered` que el diálogo existe para mostrar (#577). */}
+      {comprobante.canAnnul || isAnnulDialogOpen ? (
         <AnnulDialog
           comprobante={comprobante}
           open={isAnnulDialogOpen}

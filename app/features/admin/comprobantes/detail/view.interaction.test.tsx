@@ -1,6 +1,10 @@
 /** @vitest-environment jsdom */
 
-import { createMemoryRouter, RouterProvider } from "react-router";
+import {
+  createMemoryRouter,
+  RouterProvider,
+  useLoaderData,
+} from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
 import {
@@ -10,7 +14,7 @@ import {
 } from "@/lib/test-support/react-dom";
 
 import { ComprobanteDetailRouteView } from "./view";
-import type { ComprobanteDetail } from "./server";
+import type { ComprobanteDetail, ComprobanteDetailLoaderData } from "./server";
 import {
   annulComprobanteIntent,
   recheckNotaCreditoIntent,
@@ -42,6 +46,18 @@ function comprobanteFixture(
     canAnnul: true,
     ...overrides,
   };
+}
+
+// Ruta con loader real, para que la revalidación del fetcher se vea en la vista.
+function LoadedComprobanteDetail() {
+  const loaderData = useLoaderData() as ComprobanteDetailLoaderData;
+
+  return (
+    <ComprobanteDetailRouteView
+      initialAnnulDialogOpen
+      loaderData={loaderData}
+    />
+  );
 }
 
 describe("ComprobanteDetailRouteView", () => {
@@ -136,6 +152,56 @@ describe("ComprobanteDetailRouteView", () => {
     expect(document.body.textContent).toContain("quedó registrado");
     // La operación terminó: el submit se saca, no se deshabilita.
     expect(document.querySelector('button[type="submit"]')).toBeNull();
+    expect(getButton("Cerrar")).not.toBeNull();
+  });
+
+  /**
+   * Regresión: recuperar la nota de crédito la persiste, así que la
+   * revalidación que dispara el fetcher devuelve el comprobante ya anulado y
+   * `canAnnul` en `false`. Con el diálogo montado según esa bandera, el estado
+   * `recovered` desaparecía en el mismo tick en que se producía y el operador
+   * nunca lo veía. El diálogo se desmonta al cerrarlo, no al perder la
+   * afordancia (#577).
+   */
+  test("el estado recuperado sobrevive a la revalidación que deja el comprobante anulado", async () => {
+    const { action } = unverifiedThenRecovered();
+    let annulled = false;
+
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/",
+          loader: () => ({
+            comprobante: comprobanteFixture({
+              canAnnul: !annulled,
+              status: annulled ? "anulada" : "vigente",
+            }),
+          }),
+          async action(args: { request: Request }) {
+            const data = await action(args);
+
+            if (
+              data.status === "contingency" &&
+              data.contingency.status === "recovered"
+            ) {
+              annulled = true;
+            }
+
+            return data;
+          },
+          Component: LoadedComprobanteDetail,
+          HydrateFallback: () => null,
+        },
+      ],
+      { initialEntries: ["/"] },
+    );
+
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await clickReactDomButton("Anular comprobante");
+    await clickReactDomButton("Verificar ahora");
+
+    expect(document.body.textContent).toContain("quedó registrado");
     expect(getButton("Cerrar")).not.toBeNull();
   });
 

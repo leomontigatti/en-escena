@@ -9,7 +9,7 @@ import {
 } from "@/lib/auth/internal-access.server";
 import type { ComprobanteStatus } from "@/lib/comprobantes/comprobante-status.server";
 import { listChoreographyComprobantes } from "@/lib/comprobantes/comprobantes.server";
-import { toComprobanteContingency } from "@/lib/comprobantes/contingency-view";
+import { toContingencyActionData } from "@/lib/comprobantes/contingency-view";
 import type { ComprobantePorcion } from "@/lib/comprobantes/emit-factura-c.server";
 import {
   getFacturaCEmissionDeps,
@@ -18,7 +18,6 @@ import {
 import {
   annulComprobante,
   recheckComprobanteAnnulment,
-  type NotaCreditoEmissionOutcome,
 } from "@/lib/comprobantes/emit-nota-credito.server";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
 
@@ -226,14 +225,4 @@ async function handleRecheckNotaCredito(input: {
   }
 
   return toContingencyActionData(outcome);
-}
-
-function toContingencyActionData(
-  outcome: Extract<NotaCreditoEmissionOutcome, { ok: false }>,
-): ComprobanteDetailActionData {
-  const contingency = toComprobanteContingency(outcome);
-
-  return contingency
-    ? { status: "contingency", contingency }
-    : { status: "error", message: outcome.message };
 }

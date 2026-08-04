@@ -1,11 +1,10 @@
 import { redirect } from "react-router";
 
-import { toComprobanteContingency } from "@/lib/comprobantes/contingency-view";
+import { toContingencyActionData } from "@/lib/comprobantes/contingency-view";
 import {
   emitChoreographyFacturaC,
   recheckChoreographyFacturaC,
   type FacturaCEmissionDeps,
-  type FacturaCEmissionOutcome,
 } from "@/lib/comprobantes/emit-factura-c.server";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
 import type { NotificationKey } from "@/lib/shared/notification-toasts";
@@ -98,16 +97,6 @@ export async function handleRecheckComprobante(input: {
   }
 
   return toContingencyActionData(outcome);
-}
-
-function toContingencyActionData(
-  outcome: Extract<FacturaCEmissionOutcome, { ok: false }>,
-): ChoreographyFinanceActionData {
-  const contingency = toComprobanteContingency(outcome);
-
-  return contingency
-    ? { status: "contingency", contingency }
-    : { status: "error", message: outcome.message };
 }
 
 function redirectToDetail(
