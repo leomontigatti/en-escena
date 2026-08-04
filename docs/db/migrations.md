@@ -127,7 +127,11 @@ healthcheck has to allow for that:
 | `health_check_path`         | `/internal/health` | Plain 200, no database — see below               |
 | `health_check_return_code`  | `200`              | `/` always redirects, so it could never pass     |
 | `health_check_enabled`      | `true`             | Was `false`, almost certainly because of the `/` |
-| `health_check_start_period` | `~60s`             | Must cover the migration plus the ~45s retries   |
+| `health_check_start_period` | `60`               | Must cover the migration plus the ~45s retries   |
+
+Set on the application (`x1383fsxfsixpgmvd9quv7tj`) before the first deploy of
+#613 and confirmed live. For reference, the probe around them is `GET` over
+`http` to `localhost`, every 5s, 5s timeout, 10 retries.
 
 `/internal/health` must not query Postgres. Migration success already gates
 start-up, so the healthcheck's only job is "did the process come up". A
@@ -139,9 +143,30 @@ populated with the server command, byte-identical to the image's `CMD`. That is
 why migrations hang off `ENTRYPOINT`: an `ENTRYPOINT` composes with whatever
 command arrives, whereas a chained `CMD` would be silently overridden and the
 migrations would never run — with no error, because the app would start
-normally. Whether Coolify actually passes `start_command` as the container
-command is _not yet confirmed against production_ (#593); record the answer here
-after the first deploy. The design is correct either way.
+normally.
+
+Answered on the first deploy, 2026-08-04 (#593):
+
+```console
+$ docker inspect --format='{{json .Config.Entrypoint}} {{json .Config.Cmd}}' <app-container>
+["/app/scripts/docker-entrypoint.sh"] ["node","node_modules/@react-router/serve/bin.js","./build/server/index.js"]
+
+$ docker logs <app-container> 2>&1 | grep '\[migrate\]'
+[migrate] migrations up to date.
+```
+
+**Coolify does not override `ENTRYPOINT`.** It survives the compose the platform
+generates (`custom_docker_run_options` is unset), the entrypoint ran, and the
+migration exited 0 before the server was `exec`'d — the log line only exists on
+that path. That is the load-bearing answer.
+
+What the inspection _cannot_ tell you is whether `Cmd` arrived from Coolify's
+`start_command` or was inherited from the image's `CMD`: the two are
+byte-identical, which is exactly the coincidence that made a chained `CMD`
+unsafe to rely on. Settling it would mean reading the generated
+`docker-compose.yaml` for a `command:` key. It no longer matters — an
+`ENTRYPOINT` composes with either — so it is recorded as unresolved rather than
+chased.
 
 ### Break-glass
 
