@@ -22,7 +22,6 @@ import {
 } from "@/lib/dancers/dancer-records.server";
 
 export async function updateAdministrativeDancer(input: {
-  adminUserId: string;
   dancerId: string;
   selectedEventId: string | null;
   values: DancerUpdateInput;

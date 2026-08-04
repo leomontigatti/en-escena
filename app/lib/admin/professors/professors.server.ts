@@ -287,7 +287,6 @@ export async function findProfessor(input: {
 }
 
 export async function updateAdministrativeProfessor(input: {
-  adminUserId: string;
   professorId: string;
   selectedEventId: string | null;
   values: ProfessorUpdateInput;
@@ -379,7 +378,6 @@ export async function updateAdministrativeProfessor(input: {
 
 export async function setProfessorActiveState(input: {
   action: "archive" | "reactivate";
-  adminUserId: string;
   professorId: string;
   selectedEventId: string | null;
 }): Promise<ProfessorStatusMutationResult> {

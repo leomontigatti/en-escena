@@ -8,7 +8,6 @@ import {
 } from "@/lib/admin/dancers/dancers.server.shared";
 
 export async function verifyDancerIdentity(input: {
-  adminUserId: string;
   dancerId: string;
   selectedEventId: string | null;
 }) {

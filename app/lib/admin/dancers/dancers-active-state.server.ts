@@ -10,7 +10,6 @@ import type { DancerStatusMutationResult } from "@/lib/admin/dancers/dancers.ser
 
 export async function setDancerActiveState(input: {
   action: "archive" | "reactivate";
-  adminUserId: string;
   dancerId: string;
   selectedEventId: string | null;
 }): Promise<DancerStatusMutationResult> {
