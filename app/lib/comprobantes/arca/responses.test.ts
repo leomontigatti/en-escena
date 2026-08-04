@@ -7,7 +7,25 @@ import {
   ultimoAutorizado,
   ultimoAutorizadoVacio,
 } from "./fixtures";
-import { parseCreateVoucherResult, parseLastVoucher } from "./responses";
+import {
+  formatArcaMessage,
+  parseCreateVoucherResult,
+  parseLastVoucher,
+} from "./responses";
+
+describe("formatArcaMessage", () => {
+  test("agrega el código de ARCA cuando lo hay", () => {
+    expect(formatArcaMessage({ code: 10049, msg: "Faltan fechas" })).toBe(
+      "Faltan fechas (código 10049)",
+    );
+  });
+
+  test("sin código deja el mensaje solo", () => {
+    expect(formatArcaMessage({ code: 0, msg: "Faltan fechas" })).toBe(
+      "Faltan fechas",
+    );
+  });
+});
 
 describe("parseCreateVoucherResult", () => {
   test("extrae CAE, vencimiento y correlativo de un comprobante aprobado", () => {

@@ -1,3 +1,8 @@
+import {
+  formatComprobanteNumber,
+  formatComprobanteTipoLabel,
+} from "@/lib/comprobantes/format";
+
 import { ArcaTimeoutError, type ArcaClient } from "./client.server";
 
 /**
@@ -179,8 +184,19 @@ export function buildUnverifiedMessage(
         `emitirse`;
 
   return (
-    `${what} (punto de venta ${attempt.ptoVta}, tipo ${attempt.cbteTipo}, ` +
-    `número ${attempt.cbteNro}). Verificá ese comprobante en ARCA antes de ` +
-    `reintentar, para no emitir dos veces.`
+    `${what} (${formatAttemptedVoucher(attempt)}). Verificá ese comprobante ` +
+    `en ARCA antes de reintentar, para no emitir dos veces.`
   );
+}
+
+/**
+ * Cómo se nombra el comprobante que quedó sin resolver: igual que en el resto de
+ * la app y que en el portal de ARCA (`Factura C 0001-00001234`). Acá importa más
+ * que en ningún otro lado, porque esa cadena es exactamente lo que el operador
+ * tiene que tipear para hacer lo que el mensaje le está pidiendo; `tipo 11,
+ * número 1234` no le sirve para eso. Vive en el builder y no en el componente,
+ * así lo heredan la factura, la nota de crédito y el tipo que venga después.
+ */
+function formatAttemptedVoucher(attempt: ArcaAttemptedVoucher): string {
+  return `${formatComprobanteTipoLabel(attempt.cbteTipo)} ${formatComprobanteNumber(attempt)}`;
 }

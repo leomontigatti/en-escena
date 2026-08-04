@@ -12,20 +12,21 @@ import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-m
 import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
 
 import { ArcaClient, getArcaClient } from "./arca/client.server";
+import type { ArcaAttemptedVoucher } from "./arca/contingency.server";
 import {
-  attemptArca,
-  buildNotEmittedMessage,
-  buildUnverifiedMessage,
-  recoverAuthorization,
-  type ArcaAttemptedVoucher,
-} from "./arca/contingency.server";
+  emitWithContingency,
+  recheckWithContingency,
+  toArcaDate,
+  type ArcaEmissionChoreography,
+  type ArcaEmissionOutcome,
+} from "./arca/emission.server";
 import {
   DOC_NRO_CONSUMIDOR_FINAL,
   DOC_TIPO_CONSUMIDOR_FINAL,
   FACTURA_C_CBTE_TIPO,
 } from "./arca/factura-c";
 import type { ServiceDates } from "./arca/factura-c";
-import type { ArcaMessage, FacturaCEmissionResult } from "./arca/responses";
+import type { ArcaMessage } from "./arca/responses";
 import {
   listChoreographyComprobantes,
   recordComprobante,
@@ -67,7 +68,13 @@ export type FacturaCEmissionFailureReason =
   | "unverified";
 
 export type FacturaCEmissionOutcome =
-  | { ok: true; comprobante: ComprobanteRow }
+  | {
+      ok: true;
+      comprobante: ComprobanteRow;
+      // El CAE se recuperó consultando a ARCA después de una autorización sin
+      // respuesta, en lugar de venir de `FECAESolicitar` (#577).
+      recovered: boolean;
+    }
   | {
       ok: false;
       reason: FacturaCEmissionFailureReason;
@@ -110,6 +117,68 @@ export async function emitChoreographyFacturaC(
   input: FacturaCEmissionInput,
   deps: FacturaCEmissionDeps,
 ): Promise<FacturaCEmissionOutcome> {
+  const resolved = await resolveFacturaCChoreography(input, deps);
+
+  if (!resolved.ok) {
+    return resolved;
+  }
+
+  const emission = await emitWithContingency(resolved.choreography);
+
+  return toFacturaCOutcome(emission);
+}
+
+/**
+ * Re-verifica contra ARCA una emisión que quedó sin resolver (#577), para el
+ * correlativo que el diálogo trae del intento anterior. Vuelve a derivar el
+ * facturable de la coreografía —de ahí sale el importe contra el que se valida
+ * el comprobante consultado— así que si alguien tocó las asignaciones en el
+ * medio, el importe no coincide y el resultado se queda en `unverified`.
+ */
+export async function recheckChoreographyFacturaC(
+  input: FacturaCEmissionInput & { cbteNro: number },
+  deps: FacturaCEmissionDeps,
+): Promise<FacturaCEmissionOutcome> {
+  const resolved = await resolveFacturaCChoreography(input, deps);
+
+  if (!resolved.ok) {
+    return resolved;
+  }
+
+  const emission = await recheckWithContingency(
+    resolved.choreography,
+    input.cbteNro,
+  );
+
+  return toFacturaCOutcome(emission);
+}
+
+function toFacturaCOutcome(
+  emission: ArcaEmissionOutcome<ComprobanteRow>,
+): FacturaCEmissionOutcome {
+  return emission.ok
+    ? {
+        ok: true,
+        comprobante: emission.voucher,
+        recovered: emission.recovered,
+      }
+    : emission;
+}
+
+/**
+ * Arma la coreografía de emisión de la Factura C: valida el ancla, deriva el
+ * facturable y congela las fechas de servicio. La comparten la emisión y la
+ * re-verificación, que necesita exactamente los mismos insumos —el importe y la
+ * fecha con los que se valida un comprobante recuperado (ADR-0012 decisión 4)—
+ * calculados en el server y no traídos del form.
+ */
+async function resolveFacturaCChoreography(
+  input: FacturaCEmissionInput,
+  deps: FacturaCEmissionDeps,
+): Promise<
+  | { ok: true; choreography: ArcaEmissionChoreography<ComprobanteRow> }
+  | Extract<FacturaCEmissionOutcome, { ok: false }>
+> {
   const [choreography] = await db
     .select({
       id: choreographies.id,
@@ -142,138 +211,57 @@ export async function emitChoreographyFacturaC(
     };
   }
 
-  const lookup = await attemptArca("lookup", () =>
-    deps.client.getLastFacturaCNumber(deps.ptoVta),
-  );
-
-  if (!lookup.ok) {
-    return {
-      ok: false,
-      reason: "not-emitted",
-      message: buildNotEmittedMessage("comprobante"),
-    };
-  }
-
-  const last = lookup.value;
-  const cbteFch = deps.cbteFch ?? toArcaDate(getBusinessDateOnly());
-
   // Fechas de servicio (Concepto 2, ADR-0011): el período es el del evento y el
   // vencimiento de pago es la fecha del comprobante (se factura lo ya cobrado, así
   // que el pago no vence en el futuro). Congeladas junto con la porción.
-  const serviceDates: ServiceDates = {
+  const serviceDates = (cbteFch: string): ServiceDates => ({
     fchServDesde: toArcaDate(getBusinessDateOnly(choreography.eventStartsAt)),
     fchServHasta: toArcaDate(getBusinessDateOnly(choreography.eventEndsAt)),
     fchVtoPago: cbteFch,
-  };
-
-  // Persiste el comprobante autorizado. Lo comparten el camino feliz y la
-  // recuperación por consulta: lo único que cambia es de dónde salen el CAE, el
-  // correlativo y la fecha.
-  const persist = (authorized: {
-    cae: string;
-    caeVto: string;
-    cbteNro: number;
-    cbteFch: string;
-  }): Promise<ComprobanteRow> =>
-    recordComprobante({
-      choreographyId: input.choreographyId,
-      eventId: input.eventId,
-      cbteTipo: FACTURA_C_CBTE_TIPO,
-      ptoVta: deps.ptoVta,
-      cbteNro: authorized.cbteNro,
-      cbteFch: authorized.cbteFch,
-      // Porción y fechas de servicio DERIVADAS y CONGELADAS: reimputar un pago
-      // después de emitir no altera lo que dice este comprobante (ADR-0011, #479).
-      porcion,
-      ...serviceDates,
-      impTotal: total,
-      issuerCuit: deps.issuerCuit,
-      issuerIvaCondition: ISSUER_IVA_CONDITION,
-      receptorDocTipo: DOC_TIPO_CONSUMIDOR_FINAL,
-      receptorDocNro: String(DOC_NRO_CONSUMIDOR_FINAL),
-      receptorIvaConditionId: deps.receptorIvaConditionId,
-      cae: authorized.cae,
-      caeVto: authorized.caeVto,
-      lines,
-    });
-
-  const authorization = await attemptArca("authorization", () =>
-    deps.client.emitFacturaC({
-      ptoVta: deps.ptoVta,
-      cbteNro: last.nextCbteNro,
-      cbteFch,
-      importe: total,
-      condicionIvaReceptorId: deps.receptorIvaConditionId,
-      ...serviceDates,
-    }),
-  );
-
-  if (!authorization.ok) {
-    const attempt: ArcaAttemptedVoucher = {
-      ptoVta: deps.ptoVta,
-      cbteTipo: FACTURA_C_CBTE_TIPO,
-      cbteNro: last.nextCbteNro,
-    };
-    const recovery = await recoverAuthorization(
-      deps.client,
-      { ...attempt, impTotal: total, cbteFch },
-      authorization.failure,
-    );
-
-    if (recovery.status === "not-emitted") {
-      return {
-        ok: false,
-        reason: "not-emitted",
-        message: buildNotEmittedMessage("comprobante"),
-      };
-    }
-
-    if (recovery.status === "unverified") {
-      return {
-        ok: false,
-        reason: "unverified",
-        message: buildUnverifiedMessage(
-          "comprobante",
-          attempt,
-          recovery.reason,
-        ),
-        attempt,
-      };
-    }
-
-    const recovered = await persist({
-      cae: recovery.cae,
-      caeVto: recovery.caeVto,
-      cbteNro: attempt.cbteNro,
-      cbteFch: recovery.cbteFch,
-    });
-
-    return { ok: true, comprobante: recovered };
-  }
-
-  const emission = authorization.value;
-
-  if (!emission.approved || !emission.cae || !emission.caeVto) {
-    return {
-      ok: false,
-      reason: "rejected",
-      message: buildRejectionMessage(emission),
-      arca: {
-        resultado: emission.resultado,
-        errors: emission.errors,
-        observaciones: emission.observaciones,
-      },
-    };
-  }
-
-  const comprobante = await persist({
-    cae: emission.cae,
-    caeVto: emission.caeVto,
-    cbteNro: emission.cbteNro ?? last.nextCbteNro,
-    cbteFch: emission.cbteFch ?? cbteFch,
   });
 
-  return { ok: true, comprobante };
+  const choreographyCall: ArcaEmissionChoreography<ComprobanteRow> = {
+    client: deps.client,
+    subject: "comprobante",
+    ptoVta: deps.ptoVta,
+    cbteTipo: FACTURA_C_CBTE_TIPO,
+    cbteFch: deps.cbteFch,
+    impTotal: total,
+    getLastNumber: () => deps.client.getLastFacturaCNumber(deps.ptoVta),
+    emit: (request) =>
+      deps.client.emitFacturaC({
+        ptoVta: deps.ptoVta,
+        cbteNro: request.cbteNro,
+        cbteFch: request.cbteFch,
+        importe: total,
+        condicionIvaReceptorId: deps.receptorIvaConditionId,
+        ...serviceDates(request.cbteFch),
+      }),
+    persist: (authorized, request): Promise<ComprobanteRow> =>
+      recordComprobante({
+        choreographyId: input.choreographyId,
+        eventId: input.eventId,
+        cbteTipo: FACTURA_C_CBTE_TIPO,
+        ptoVta: deps.ptoVta,
+        cbteNro: authorized.cbteNro,
+        cbteFch: authorized.cbteFch,
+        // Porción y fechas de servicio DERIVADAS y CONGELADAS: reimputar un pago
+        // después de emitir no altera lo que dice este comprobante (ADR-0011, #479).
+        porcion,
+        ...serviceDates(request.cbteFch),
+        impTotal: total,
+        issuerCuit: deps.issuerCuit,
+        issuerIvaCondition: ISSUER_IVA_CONDITION,
+        receptorDocTipo: DOC_TIPO_CONSUMIDOR_FINAL,
+        receptorDocNro: String(DOC_NRO_CONSUMIDOR_FINAL),
+        receptorIvaConditionId: deps.receptorIvaConditionId,
+        cae: authorized.cae,
+        caeVto: authorized.caeVto,
+        lines,
+      }),
+  };
+
+  return { ok: true, choreography: choreographyCall };
 }
 
 export type ComprobantePorcion = (typeof comprobantePorcion.enumValues)[number];
@@ -434,23 +422,6 @@ function sumByInscription(
     );
   }
   return totals;
-}
-
-export function buildRejectionMessage(
-  emission: FacturaCEmissionResult,
-): string {
-  const detail =
-    emission.errors[0]?.msg ??
-    emission.observaciones[0]?.msg ??
-    emission.resultado ??
-    "sin detalle";
-
-  return `ARCA no autorizó el comprobante (${detail}).`;
-}
-
-// Fecha de negocio `AAAA-MM-DD` → formato ARCA `AAAAMMDD`.
-export function toArcaDate(dateOnly: string): string {
-  return dateOnly.replace(/-/g, "");
 }
 
 /**

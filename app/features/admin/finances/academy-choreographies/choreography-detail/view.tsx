@@ -273,21 +273,25 @@ function ChoreographyActions({
   const eligible = eligiblePayments(loaderData.payments);
   const canEmit = invoicing?.canEmit ?? false;
   const canCobro = stage !== null && eligible.length > 0;
-  const [emitOpen, setEmitOpen] = useState(false);
   const [cobroOpen, setCobroOpen] = useState(false);
+  // El facturable se congela al abrir y el diálogo se desmonta al CERRARLO, no
+  // al perder la afordancia: una emisión recuperada por "Verificar ahora"
+  // persiste el comprobante y revalida el detalle, que deja de ser facturable.
+  // Desmontar ahí se llevaría puesto el estado `recovered` (#577).
+  const [emission, setEmission] = useState<typeof invoicing | null>(null);
 
-  if (!canEmit && !canCobro) {
+  if (!canEmit && !canCobro && !emission) {
     return null;
   }
 
   return (
     <>
       <ResourceActionsMenu contentClassName="w-48">
-        {canEmit ? (
+        {canEmit && invoicing ? (
           <DropdownMenuItem
             onSelect={(event) => {
               event.preventDefault();
-              setEmitOpen(true);
+              setEmission(invoicing);
             }}
           >
             Emitir factura
@@ -304,12 +308,12 @@ function ChoreographyActions({
           </DropdownMenuItem>
         ) : null}
       </ResourceActionsMenu>
-      {invoicing?.canEmit ? (
+      {emission ? (
         <EmissionDialog
-          billableAmount={invoicing.billableAmount}
-          porcion={invoicing.porcion}
-          open={emitOpen}
-          onOpenChange={setEmitOpen}
+          billableAmount={emission.billableAmount}
+          porcion={emission.porcion}
+          open
+          onOpenChange={(next) => setEmission(next ? emission : null)}
         />
       ) : null}
       {stage !== null && eligible.length > 0 ? (

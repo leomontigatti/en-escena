@@ -14,6 +14,24 @@ user to explicitly ask for implementation before editing files.
 Start implementing right away only when the user clearly asks to implement, fix,
 apply changes, or make the change.
 
+## Investigate before recommending
+
+The rule above is about not editing too early. This one is upstream of it: do
+not put a recommendation to the user until the option you are ruling _out_ has
+been researched as thoroughly as the one you are arguing _for_.
+
+- **A recommendation that discards an option is a claim about that option.**
+  Searching only the favoured branch and then re-searching when the
+  recommendation is contested produces confident claims that get reversed a turn
+  later.
+- **Mark every claim as verified or inferred.** A statement about how the system
+  behaves needs a `file:line` behind it. If there is none, say so explicitly
+  instead of stating it flatly.
+- **The docs are not evidence about the code.** They can be stale or contradict
+  what is implemented; when a doc and the code disagree, the code is what the
+  system does. Check both before building an argument on either, and report the
+  divergence.
+
 ## Command Guardrail
 
 Use `pnpm typecheck` for type validation.
