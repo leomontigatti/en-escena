@@ -13,7 +13,13 @@ import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
 
 import { ArcaClient, getArcaClient } from "./arca/client.server";
 import type { ArcaAttemptedVoucher } from "./arca/contingency.server";
-import { emitWithContingency, toArcaDate } from "./arca/emission.server";
+import {
+  emitWithContingency,
+  recheckWithContingency,
+  toArcaDate,
+  type ArcaEmissionChoreography,
+  type ArcaEmissionOutcome,
+} from "./arca/emission.server";
 import {
   DOC_NRO_CONSUMIDOR_FINAL,
   DOC_TIPO_CONSUMIDOR_FINAL,
@@ -111,6 +117,68 @@ export async function emitChoreographyFacturaC(
   input: FacturaCEmissionInput,
   deps: FacturaCEmissionDeps,
 ): Promise<FacturaCEmissionOutcome> {
+  const resolved = await resolveFacturaCChoreography(input, deps);
+
+  if (!resolved.ok) {
+    return resolved;
+  }
+
+  const emission = await emitWithContingency(resolved.choreography);
+
+  return toFacturaCOutcome(emission);
+}
+
+/**
+ * Re-verifica contra ARCA una emisión que quedó sin resolver (#577), para el
+ * correlativo que el diálogo trae del intento anterior. Vuelve a derivar el
+ * facturable de la coreografía —de ahí sale el importe contra el que se valida
+ * el comprobante consultado— así que si alguien tocó las asignaciones en el
+ * medio, el importe no coincide y el resultado se queda en `unverified`.
+ */
+export async function recheckChoreographyFacturaC(
+  input: FacturaCEmissionInput & { cbteNro: number },
+  deps: FacturaCEmissionDeps,
+): Promise<FacturaCEmissionOutcome> {
+  const resolved = await resolveFacturaCChoreography(input, deps);
+
+  if (!resolved.ok) {
+    return resolved;
+  }
+
+  const emission = await recheckWithContingency(
+    resolved.choreography,
+    input.cbteNro,
+  );
+
+  return toFacturaCOutcome(emission);
+}
+
+function toFacturaCOutcome(
+  emission: ArcaEmissionOutcome<ComprobanteRow>,
+): FacturaCEmissionOutcome {
+  return emission.ok
+    ? {
+        ok: true,
+        comprobante: emission.voucher,
+        recovered: emission.recovered,
+      }
+    : emission;
+}
+
+/**
+ * Arma la coreografía de emisión de la Factura C: valida el ancla, deriva el
+ * facturable y congela las fechas de servicio. La comparten la emisión y la
+ * re-verificación, que necesita exactamente los mismos insumos —el importe y la
+ * fecha con los que se valida un comprobante recuperado (ADR-0012 decisión 4)—
+ * calculados en el server y no traídos del form.
+ */
+async function resolveFacturaCChoreography(
+  input: FacturaCEmissionInput,
+  deps: FacturaCEmissionDeps,
+): Promise<
+  | { ok: true; choreography: ArcaEmissionChoreography<ComprobanteRow> }
+  | Extract<FacturaCEmissionOutcome, { ok: false }>
+> {
   const [choreography] = await db
     .select({
       id: choreographies.id,
@@ -152,7 +220,7 @@ export async function emitChoreographyFacturaC(
     fchVtoPago: cbteFch,
   });
 
-  const emission = await emitWithContingency({
+  const choreographyCall: ArcaEmissionChoreography<ComprobanteRow> = {
     client: deps.client,
     subject: "comprobante",
     ptoVta: deps.ptoVta,
@@ -191,17 +259,9 @@ export async function emitChoreographyFacturaC(
         caeVto: authorized.caeVto,
         lines,
       }),
-  });
-
-  if (!emission.ok) {
-    return emission;
-  }
-
-  return {
-    ok: true,
-    comprobante: emission.voucher,
-    recovered: emission.recovered,
   };
+
+  return { ok: true, choreography: choreographyCall };
 }
 
 export type ComprobantePorcion = (typeof comprobantePorcion.enumValues)[number];

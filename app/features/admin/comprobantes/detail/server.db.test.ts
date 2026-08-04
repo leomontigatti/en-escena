@@ -21,6 +21,7 @@ import {
 import {
   facturaCRechazada,
   notaCreditoCAprobada,
+  notaCreditoCConsultada,
   ultimoNotaCreditoAutorizado,
 } from "@/lib/comprobantes/arca/fixtures";
 import { recordComprobante } from "@/lib/comprobantes/comprobantes.server";
@@ -34,7 +35,11 @@ import {
 } from "../../../../lib/admin/finances/finances.test-support";
 
 import { handleComprobanteDetailAction, loadComprobanteDetail } from "./server";
-import { annulComprobanteConfirmValue, annulComprobanteIntent } from "./shared";
+import {
+  annulComprobanteConfirmValue,
+  annulComprobanteIntent,
+  recheckNotaCreditoIntent,
+} from "./shared";
 
 installDatabaseTestHooks();
 
@@ -285,7 +290,7 @@ describe.sequential("handleComprobanteDetailAction — anular", () => {
     expect(billing.createVoucher).not.toHaveBeenCalled();
   });
 
-  test("surfaces an ARCA rejection as an annul-error without persisting", async () => {
+  test("surfaces an ARCA rejection as a rejected contingency without persisting", async () => {
     const seeded = await seedComprobante({
       academyName: "Academia Rechazo",
       choreographyName: "Coreografía rechazo",
@@ -309,12 +314,125 @@ describe.sequential("handleComprobanteDetailAction — anular", () => {
       resolveEmissionDeps: () => emissionDeps(billing),
     });
 
-    expect(result.status).toBe("annul-error");
+    expect(result).toMatchObject({
+      status: "contingency",
+      contingency: { status: "rejected", resultado: "R" },
+    });
 
     const notas = await db
       .select()
       .from(comprobantes)
       .where(eq(comprobantes.associatedComprobanteId, seeded.facturaId));
     expect(notas).toHaveLength(0);
+  });
+});
+
+describe("handleComprobanteDetailAction — re-verificar (#577)", () => {
+  // La Nota de crédito 8 tal como ARCA la registró: mismo importe y fecha que se
+  // enviaron, así que es la nuestra (ADR-0012 decisión 4).
+  function consultada(
+    overrides: Partial<VoucherInfoResultDto> = {},
+  ): VoucherInfoResultDto {
+    return {
+      ...notaCreditoCConsultada,
+      impTotal: 7000,
+      cbteFch: "20260722",
+      ...overrides,
+    };
+  }
+
+  async function recheck(
+    comprobanteId: string,
+    billing: ArcaBillingPort,
+    cbteNro = "8",
+  ) {
+    return await handleComprobanteDetailAction({
+      request: await annulRequest({
+        comprobanteId,
+        formData: { intent: recheckNotaCreditoIntent, cbteNro },
+      }),
+      comprobanteId,
+      resolveEmissionDeps: () => emissionDeps(billing),
+    });
+  }
+
+  test("la nota de crédito aparece en ARCA: se persiste y el alert queda recuperado", async () => {
+    const seeded = await seedComprobante({
+      academyName: "Academia Re-verificar",
+      choreographyName: "Coreografía re-verificar",
+      email: "academia.reverificar@example.com",
+    });
+    const billing = fakeBilling({
+      getVoucherInfo: vi.fn(async () => consultada()),
+    });
+
+    const result = await recheck(seeded.facturaId, billing);
+
+    expect(billing.getVoucherInfo).toHaveBeenCalledWith(8, 1, 13);
+    // No reintenta la autorización: la re-verificación es sólo `FECompConsultar`.
+    expect(billing.createVoucher).not.toHaveBeenCalled();
+    // Se queda en el diálogo: no cruza un redirect.
+    expect(result).toEqual({
+      status: "contingency",
+      contingency: { status: "recovered" },
+    });
+
+    const notas = await db
+      .select()
+      .from(comprobantes)
+      .where(eq(comprobantes.associatedComprobanteId, seeded.facturaId));
+    expect(notas).toHaveLength(1);
+    expect(notas[0]).toMatchObject({
+      cbteTipo: NOTA_CREDITO_C_CBTE_TIPO,
+      cbteNro: 8,
+      impTotal: 7000,
+    });
+  });
+
+  // El importe sale del comprobante que se está anulando, no del form.
+  test("un importe consultado que no coincide deja el estado sin verificar", async () => {
+    const seeded = await seedComprobante({
+      academyName: "Academia Re-verificar Ajena",
+      choreographyName: "Coreografía re-verificar ajena",
+      email: "academia.reverificar.ajena@example.com",
+    });
+
+    const result = await recheck(
+      seeded.facturaId,
+      fakeBilling({
+        getVoucherInfo: vi.fn(async () => consultada({ impTotal: 999999 })),
+      }),
+    );
+
+    expect(result).toMatchObject({
+      status: "contingency",
+      contingency: { status: "unverified", cbteTipo: 13, cbteNro: 8 },
+    });
+
+    const notas = await db
+      .select()
+      .from(comprobantes)
+      .where(eq(comprobantes.associatedComprobanteId, seeded.facturaId));
+    expect(notas).toHaveLength(0);
+  });
+
+  // Sólo puede probar el positivo: nadie midió cuánto puede vivir una petición
+  // del lado de ARCA (ADR-0012 decisión 2).
+  test("que ARCA siga sin tenerla nunca asciende a no emitida", async () => {
+    const seeded = await seedComprobante({
+      academyName: "Academia Sin Nota",
+      choreographyName: "Coreografía sin nota",
+      email: "academia.sin.nota@example.com",
+    });
+
+    const result = await recheck(
+      seeded.facturaId,
+      fakeBilling({ getVoucherInfo: vi.fn(async () => null) }),
+    );
+
+    expect(result).toMatchObject({
+      status: "contingency",
+      contingency: { status: "unverified" },
+    });
   });
 });

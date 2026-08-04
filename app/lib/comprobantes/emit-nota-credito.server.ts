@@ -9,7 +9,12 @@ import {
   NOTA_CREDITO_C_CBTE_TIPO,
 } from "./arca/factura-c";
 import type { ArcaAttemptedVoucher } from "./arca/contingency.server";
-import { emitWithContingency } from "./arca/emission.server";
+import {
+  emitWithContingency,
+  recheckWithContingency,
+  type ArcaEmissionChoreography,
+  type ArcaEmissionOutcome,
+} from "./arca/emission.server";
 import type { ArcaMessage } from "./arca/responses";
 import {
   ISSUER_IVA_CONDITION,
@@ -89,6 +94,56 @@ export async function annulComprobante(
   input: NotaCreditoEmissionInput,
   deps: FacturaCEmissionDeps,
 ): Promise<NotaCreditoEmissionOutcome> {
+  const resolved = await resolveNotaCreditoChoreography(input, deps);
+
+  if (!resolved.ok) {
+    return resolved;
+  }
+
+  return toNotaCreditoOutcome(await emitWithContingency(resolved.choreography));
+}
+
+/**
+ * Re-verifica contra ARCA una anulación que quedó sin resolver (#577), para el
+ * correlativo que el diálogo trae del intento anterior. El importe con el que se
+ * valida el comprobante consultado sale del comprobante que se está anulando, no
+ * del form (ADR-0012 decisión 4).
+ */
+export async function recheckComprobanteAnnulment(
+  input: NotaCreditoEmissionInput & { cbteNro: number },
+  deps: FacturaCEmissionDeps,
+): Promise<NotaCreditoEmissionOutcome> {
+  const resolved = await resolveNotaCreditoChoreography(input, deps);
+
+  if (!resolved.ok) {
+    return resolved;
+  }
+
+  return toNotaCreditoOutcome(
+    await recheckWithContingency(resolved.choreography, input.cbteNro),
+  );
+}
+
+function toNotaCreditoOutcome(
+  emission: ArcaEmissionOutcome<ComprobanteRow>,
+): NotaCreditoEmissionOutcome {
+  return emission.ok
+    ? { ok: true, notaCredito: emission.voucher, recovered: emission.recovered }
+    : emission;
+}
+
+/**
+ * Arma la coreografía de la Nota de crédito espejo: valida el comprobante
+ * objetivo y congela importe, porción, fechas y líneas. La comparten la anulación
+ * y la re-verificación, que necesita los mismos insumos calculados en el server.
+ */
+async function resolveNotaCreditoChoreography(
+  input: NotaCreditoEmissionInput,
+  deps: FacturaCEmissionDeps,
+): Promise<
+  | { ok: true; choreography: ArcaEmissionChoreography<ComprobanteRow> }
+  | Extract<NotaCreditoEmissionOutcome, { ok: false }>
+> {
   const target = await loadComprobanteWithStatus(input.comprobanteId);
 
   if (!target) {
@@ -107,7 +162,7 @@ export async function annulComprobante(
     };
   }
 
-  const emission = await emitWithContingency({
+  const choreography: ArcaEmissionChoreography<ComprobanteRow> = {
     client: deps.client,
     subject: "nota de crédito",
     ptoVta: deps.ptoVta,
@@ -165,17 +220,9 @@ export async function annulComprobante(
           amount: line.amount,
         })),
       }),
-  });
-
-  if (!emission.ok) {
-    return emission;
-  }
-
-  return {
-    ok: true,
-    notaCredito: emission.voucher,
-    recovered: emission.recovered,
   };
+
+  return { ok: true, choreography };
 }
 
 // Carga el comprobante objetivo con su estado derivado y sus líneas internas. El

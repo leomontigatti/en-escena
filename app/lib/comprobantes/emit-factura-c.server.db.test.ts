@@ -35,6 +35,7 @@ import {
 import {
   emitChoreographyFacturaC,
   readFacturaCEmissionConfig,
+  recheckChoreographyFacturaC,
   type FacturaCEmissionDeps,
 } from "@/lib/comprobantes/emit-factura-c.server";
 import {
@@ -839,6 +840,87 @@ describe("emitChoreographyFacturaC (ARCA no responde)", () => {
 
     expect(outcome).toMatchObject({ ok: false, reason: "unverified" });
     expect(await listChoreographyComprobantes(choreography.id)).toHaveLength(0);
+  });
+
+  describe("re-verificación (#577)", () => {
+    async function recheckWith(
+      choreographyId: string,
+      eventId: string,
+      billing: ArcaBillingPort,
+      cbteNro = 43,
+    ) {
+      const deps = emissionDeps(billing);
+      const outcome = await recheckChoreographyFacturaC(
+        { choreographyId, eventId, cbteNro },
+        deps,
+      );
+      return { deps, outcome };
+    }
+
+    test("el comprobante aparece en ARCA: se persiste con ese CAE y sin volver a autorizar", async () => {
+      const choreography = await seedCobrado("recheck-recuperado");
+
+      const { deps, outcome } = await recheckWith(
+        choreography.id,
+        choreography.eventId,
+        fakeBilling({ getVoucherInfo: vi.fn(async () => consultada()) }),
+      );
+
+      expect(deps.billing.getVoucherInfo).toHaveBeenCalledWith(43, 1, 11);
+      // Es la única salida que persiste un comprobante recuperado: verificar a
+      // mano en el portal deja al operador sin nada que hacer con el dato.
+      expect(outcome).toMatchObject({ ok: true, recovered: true });
+      expect(deps.billing.createVoucher).not.toHaveBeenCalled();
+
+      const [persisted] = await listChoreographyComprobantes(choreography.id);
+      expect(persisted).toMatchObject({
+        cbteNro: 43,
+        impTotal: 5000,
+        cae: "41124578989845",
+        status: "vigente",
+      });
+    });
+
+    // El importe con el que se valida sale del facturable de la coreografía, no
+    // del form: un `cbteNro` adulterado o viejo no puede forzar la persistencia
+    // de un CAE ajeno (ADR-0012 decisión 4).
+    test("el importe lo recalcula el server: si el consultado no coincide, sigue sin verificar", async () => {
+      const choreography = await seedCobrado("recheck-otro-importe");
+
+      const { outcome } = await recheckWith(
+        choreography.id,
+        choreography.eventId,
+        fakeBilling({
+          getVoucherInfo: vi.fn(async () => consultada({ impTotal: 9999 })),
+        }),
+      );
+
+      expect(outcome).toMatchObject({ ok: false, reason: "unverified" });
+      expect(await listChoreographyComprobantes(choreography.id)).toHaveLength(
+        0,
+      );
+    });
+
+    // Sólo puede probar el positivo: nadie midió cuánto puede vivir una petición
+    // del lado de ARCA, así que un `null` nunca asciende a `not-emitted`.
+    test("si ARCA sigue sin tenerlo, se queda en no verificado y nunca en no emitido", async () => {
+      const choreography = await seedCobrado("recheck-sin-comprobante");
+
+      const { outcome } = await recheckWith(
+        choreography.id,
+        choreography.eventId,
+        fakeBilling({ getVoucherInfo: vi.fn(async () => null) }),
+      );
+
+      expect(outcome).toMatchObject({
+        ok: false,
+        reason: "unverified",
+        attempt: { ptoVta: 1, cbteTipo: 11, cbteNro: 43 },
+      });
+      expect(await listChoreographyComprobantes(choreography.id)).toHaveLength(
+        0,
+      );
+    });
   });
 
   test("un rechazo de ARCA sigue siendo un rechazo, distinguible de una falla de comunicación", async () => {

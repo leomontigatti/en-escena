@@ -14,10 +14,8 @@ import {
 } from "@/lib/auth/internal-access.server";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import { FACTURA_C_CBTE_TIPO } from "@/lib/comprobantes/arca/factura-c";
-import { formatArcaMessage } from "@/lib/comprobantes/arca/responses";
 import { listChoreographyComprobantes } from "@/lib/comprobantes/comprobantes.server";
 import {
-  emitChoreographyFacturaC,
   getFacturaCEmissionDeps,
   resolveChoreographyBillable,
   type ComprobantePorcion,
@@ -41,9 +39,14 @@ import type { InscriptionFinancialState } from "@/lib/finances/operational-summa
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
 
 import {
+  handleEmitComprobante,
+  handleRecheckComprobante,
+} from "./comprobante-emission.server";
+import {
+  choreographyDetailUrl,
   deleteAllocationIntent,
-  emitComprobanteConfirmValue,
   emitComprobanteIntent,
+  recheckComprobanteIntent,
   payBalanceIntent,
   payDepositIntent,
   payInscriptionBalanceIntent,
@@ -541,57 +544,17 @@ export async function handleChoreographyFinanceAction(input: {
     });
   }
 
+  if (intent === recheckComprobanteIntent) {
+    return await handleRecheckComprobante({
+      academyId,
+      choreographyId,
+      cbteNro: String(formData.get("cbteNro") ?? ""),
+      eventId,
+      resolveEmissionDeps: input.resolveEmissionDeps ?? getFacturaCEmissionDeps,
+    });
+  }
+
   return { status: "error", message: "No pudimos procesar esa acción." };
-}
-
-/**
- * Dispara la emisión de la Factura C tras la confirmación irreversible. Un CAE
- * aprobado recarga el detalle (badge Vigente); un rechazo o contingencia de ARCA
- * vuelve como `emission-error` con el estado crudo, sin persistir nada ni dejar
- * la UI inconsistente (la recarga sólo ocurre en el camino feliz).
- */
-async function handleEmitComprobante(input: {
-  academyId: string;
-  choreographyId: string;
-  confirm: string;
-  eventId: string;
-  resolveEmissionDeps: () => FacturaCEmissionDeps;
-}): Promise<ChoreographyFinanceActionData | never> {
-  if (input.confirm !== emitComprobanteConfirmValue) {
-    return {
-      status: "error",
-      message: "Confirmá la emisión irreversible para continuar.",
-    };
-  }
-
-  const outcome = await emitChoreographyFacturaC(
-    { choreographyId: input.choreographyId, eventId: input.eventId },
-    input.resolveEmissionDeps(),
-  );
-
-  if (outcome.ok) {
-    throw redirectToDetail(
-      input.academyId,
-      input.choreographyId,
-      input.eventId,
-    );
-  }
-
-  if (outcome.reason === "rejected") {
-    return {
-      status: "emission-error",
-      message: outcome.message,
-      contingency: {
-        resultado: outcome.arca?.resultado ?? null,
-        errors: (outcome.arca?.errors ?? []).map(formatArcaMessage),
-        observaciones: (outcome.arca?.observaciones ?? []).map(
-          formatArcaMessage,
-        ),
-      },
-    };
-  }
-
-  return { status: "error", message: outcome.message };
 }
 
 function redirectToDetail(
@@ -599,9 +562,7 @@ function redirectToDetail(
   choreographyId: string,
   eventId: string,
 ) {
-  return redirect(
-    `/administracion/finanzas/${academyId}/coreografias/${choreographyId}?evento=${eventId}`,
-  );
+  return redirect(choreographyDetailUrl(academyId, choreographyId, eventId));
 }
 
 async function readAcademy(academyId: string) {

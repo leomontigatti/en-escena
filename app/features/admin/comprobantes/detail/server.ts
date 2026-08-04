@@ -7,19 +7,24 @@ import {
   requireAdminUser,
   requireInternalUser,
 } from "@/lib/auth/internal-access.server";
-import { formatArcaMessage } from "@/lib/comprobantes/arca/responses";
 import type { ComprobanteStatus } from "@/lib/comprobantes/comprobante-status.server";
 import { listChoreographyComprobantes } from "@/lib/comprobantes/comprobantes.server";
+import { toContingencyActionData } from "@/lib/comprobantes/contingency-view";
 import type { ComprobantePorcion } from "@/lib/comprobantes/emit-factura-c.server";
 import {
   getFacturaCEmissionDeps,
   type FacturaCEmissionDeps,
 } from "@/lib/comprobantes/emit-factura-c.server";
-import { annulComprobante } from "@/lib/comprobantes/emit-nota-credito.server";
+import {
+  annulComprobante,
+  recheckComprobanteAnnulment,
+} from "@/lib/comprobantes/emit-nota-credito.server";
+import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
 
 import {
   annulComprobanteConfirmValue,
   annulComprobanteIntent,
+  recheckNotaCreditoIntent,
   type ComprobanteDetailActionData,
 } from "./shared";
 
@@ -137,6 +142,14 @@ export async function handleComprobanteDetailAction(input: {
     });
   }
 
+  if (intent === recheckNotaCreditoIntent) {
+    return await handleRecheckNotaCredito({
+      comprobanteId: input.comprobanteId,
+      cbteNro: String(formData.get("cbteNro") ?? ""),
+      resolveEmissionDeps: input.resolveEmissionDeps ?? getFacturaCEmissionDeps,
+    });
+  }
+
   return { status: "error", message: "No pudimos procesar esa acción." };
 }
 
@@ -164,23 +177,52 @@ async function handleAnnulComprobante(input: {
     input.resolveEmissionDeps(),
   );
 
+  const url = `/administracion/comprobantes/${input.comprobanteId}`;
+
   if (outcome.ok) {
-    throw redirect(`/administracion/comprobantes/${input.comprobanteId}`);
+    // La anulación recuperada redirige igual que cualquier otra, así que el aviso
+    // viaja por flash session (docs/agents/form-feedback.md). Es deliberado que
+    // no se parezca al `recovered` del diálogo: así el operador puede distinguir
+    // "se recuperó sola" de "la recuperé yo".
+    throw outcome.recovered
+      ? await redirectWithFlashNotification(url, "comprobante-recuperado")
+      : redirect(url);
   }
 
-  if (outcome.reason === "rejected") {
+  return toContingencyActionData(outcome);
+}
+
+/**
+ * Re-consulta a ARCA por la Nota de crédito que quedó sin resolver, sin salir del
+ * diálogo (#577). Del form sólo se lee el correlativo: el importe y la fecha con
+ * los que se valida el comprobante consultado los recalcula
+ * `recheckComprobanteAnnulment` desde el comprobante que se está anulando
+ * (ADR-0012 decisión 4).
+ */
+async function handleRecheckNotaCredito(input: {
+  comprobanteId: string;
+  cbteNro: string;
+  resolveEmissionDeps: () => FacturaCEmissionDeps;
+}): Promise<ComprobanteDetailActionData> {
+  const cbteNro = Number(input.cbteNro);
+
+  if (!Number.isInteger(cbteNro) || cbteNro <= 0) {
     return {
-      status: "annul-error",
-      message: outcome.message,
-      contingency: {
-        resultado: outcome.arca?.resultado ?? null,
-        errors: (outcome.arca?.errors ?? []).map(formatArcaMessage),
-        observaciones: (outcome.arca?.observaciones ?? []).map(
-          formatArcaMessage,
-        ),
-      },
+      status: "error",
+      message: "No pudimos identificar el comprobante a verificar.",
     };
   }
 
-  return { status: "error", message: outcome.message };
+  const outcome = await recheckComprobanteAnnulment(
+    { comprobanteId: input.comprobanteId, cbteNro },
+    input.resolveEmissionDeps(),
+  );
+
+  // La recuperación por re-verificación se queda en el diálogo: no cruza un
+  // redirect, así que llega como estado del alert y no como toast.
+  if (outcome.ok) {
+    return { status: "contingency", contingency: { status: "recovered" } };
+  }
+
+  return toContingencyActionData(outcome);
 }

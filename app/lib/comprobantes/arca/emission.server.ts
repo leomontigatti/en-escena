@@ -208,6 +208,82 @@ export async function emitWithContingency<TVoucher>(
   return { ok: true, voucher, recovered: false };
 }
 
+/**
+ * Vuelve a consultar a ARCA por un comprobante que quedó `unverified`, sin
+ * reintentar la autorización (#577). Es la única salida que **persiste** un
+ * comprobante recuperado: si el operador verifica a mano en el portal y el
+ * comprobante está, no tiene nada que hacer con ese dato —no puede reintentar y
+ * la app no tiene dónde registrar el CAE—.
+ *
+ * Del cliente sólo viaja el `cbteNro`. El importe y la fecha —los dos campos que
+ * deciden si el comprobante que ocupa ese correlativo es el nuestro (ADR-0012
+ * decisión 4)— los recalcula el server a partir de la coreografía. Mandarlos
+ * desde el form colapsaría la decisión 4 a un solo campo efectivo: en esta app el
+ * mismo importe se repite todo el tiempo.
+ *
+ * Un `cbteNro` adulterado o viejo no fuerza nada: hace que el importe
+ * recalculado no coincida y el resultado sigue siendo `unverified`, que es la
+ * dirección segura.
+ *
+ * La re-verificación **sólo puede probar el positivo**. Se corre como si la
+ * autorización original hubiera vencido por timeout, así un `null` nunca asciende
+ * a `not-emitted` por más tiempo que haya pasado: nadie midió cuánto puede vivir
+ * una petición del lado de ARCA, y cualquier umbral sería un número inventado
+ * (ADR-0012 decisión 2). Equivocarse hacia `not-emitted` cuesta un segundo
+ * comprobante fiscal que después hay que anular; equivocarse hacia `unverified`
+ * le cuesta al operador un click.
+ */
+export async function recheckWithContingency<TVoucher>(
+  choreography: ArcaEmissionChoreography<TVoucher>,
+  cbteNro: number,
+): Promise<ArcaEmissionOutcome<TVoucher>> {
+  const attempt: ArcaAttemptedVoucher = {
+    ptoVta: choreography.ptoVta,
+    cbteTipo: choreography.cbteTipo,
+    cbteNro,
+  };
+  const cbteFch = choreography.cbteFch ?? toArcaDate(getBusinessDateOnly());
+
+  const recovery = await recoverAuthorization(
+    choreography.client,
+    { ...attempt, impTotal: choreography.impTotal, cbteFch },
+    // La autorización original ya no está: se la trata como en vuelo para que un
+    // `null` se quede en `unverified` en lugar de habilitar el reintento.
+    {
+      phase: "authorization",
+      timedOut: true,
+      detail: "re-verificación (#577)",
+    },
+  );
+
+  if (recovery.status !== "recovered") {
+    return {
+      ok: false,
+      reason: "unverified",
+      message: buildUnverifiedMessage(
+        choreography.subject,
+        attempt,
+        recovery.status === "unverified"
+          ? recovery.reason
+          : "authorization-in-flight",
+      ),
+      attempt,
+    };
+  }
+
+  const voucher = await choreography.persist(
+    {
+      cae: recovery.cae,
+      caeVto: recovery.caeVto,
+      cbteNro: attempt.cbteNro,
+      cbteFch: recovery.cbteFch,
+    },
+    { cbteNro: attempt.cbteNro, cbteFch },
+  );
+
+  return { ok: true, voucher, recovered: true };
+}
+
 // El motivo del rechazo, en el orden en que ARCA lo explica: primero el error que
 // lo impidió, después la observación, y como último recurso el `Resultado` crudo.
 function buildRejectionMessage(emission: FacturaCEmissionResult): string {
