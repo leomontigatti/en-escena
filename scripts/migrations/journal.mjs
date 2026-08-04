@@ -6,17 +6,43 @@ import { readFileSync } from "node:fs";
  * entrypoint (scripts/migrate.mjs) and the CI ordering check
  * (scripts/check-migration-order.mjs).
  *
- * Both checks exist because `drizzle-orm` tracks applied migrations with a
- * high-water mark rather than set membership: `pg-core/dialect.js` reads
- * `order by created_at desc limit 1` and then applies every migration whose
- * `when` is greater. A migration merged with an older timestamp than one
- * already applied is therefore skipped permanently, and silently.
+ * This module is the single home for the reasoning; the entrypoint, the CI
+ * check and the workflow step point here instead of restating it.
+ *
+ * `drizzle-orm` tracks applied migrations with a high-water mark rather than
+ * set membership: `pg-core/dialect.js` reads `order by created_at desc limit 1`
+ * and then applies every migration whose `when` is *strictly greater*. Three
+ * consequences, and every check below follows from one of them:
+ *
+ * 1. A migration merged with a timestamp at or below the watermark is skipped
+ *    permanently, and silently. `findOutOfOrderEntries` catches that in review,
+ *    `findJournalInconsistencies` at container start.
+ * 2. The stored `hash` is written but never read back, so a `.sql` file edited
+ *    after being applied goes unnoticed. `findJournalInconsistencies` reads it.
+ * 3. The watermark is read *outside* the transaction that then applies the
+ *    migrations, so overlapping starts act on the same stale read — which is
+ *    why `scripts/migrate.mjs` holds an advisory lock across both.
+ *
+ * The human-facing version of all this lives in docs/db/migrations.md.
  *
  * @typedef {{ idx: number; tag: string; when: number }} JournalEntry
  * @typedef {JournalEntry & { hash: string }} HashedJournalEntry
  * @typedef {{ hash: string; createdAt: number }} AppliedMigration
- * @typedef {{ tag: string; when: number; reason: "not-applied" | "hash-mismatch" }} JournalInconsistency
+ * @typedef {"not-applied" | "hash-mismatch" | "out-of-order"} JournalProblemReason
+ * @typedef {{ tag: string; when: number; reason: JournalProblemReason }} JournalProblem
  */
+
+/**
+ * The mark Drizzle compares against: the newest timestamp in a set of
+ * migrations. `undefined` for an empty set, which every caller reads as
+ * "nothing to compare against yet".
+ *
+ * @param {number[]} timestamps
+ * @returns {number | undefined}
+ */
+function watermarkOf(timestamps) {
+  return timestamps.length === 0 ? undefined : Math.max(...timestamps);
+}
 
 /**
  * @param {string} journalContents
@@ -67,32 +93,43 @@ export function readHashedJournalEntries(migrationsFolder) {
  * Entries above the watermark are simply pending, which is the normal case.
  *
  * @param {{ entries: HashedJournalEntry[]; appliedMigrations: AppliedMigration[] }} input
- * @returns {JournalInconsistency[]}
+ * @returns {JournalProblem[]}
  */
 export function findJournalInconsistencies({ entries, appliedMigrations }) {
-  if (appliedMigrations.length === 0) {
+  const watermark = watermarkOf(
+    appliedMigrations.map((migration) => migration.createdAt),
+  );
+
+  if (watermark === undefined) {
     return [];
   }
 
-  const watermark = Math.max(
-    ...appliedMigrations.map((migration) => migration.createdAt),
-  );
-  const hashByCreatedAt = new Map(
-    appliedMigrations.map((migration) => [migration.createdAt, migration.hash]),
-  );
+  // A timestamp maps to the *set* of hashes recorded at it, not to a single
+  // one: the identity of an applied migration is the (hash, created_at) pair,
+  // so two entries sharing a `when` each have to be checked against every hash
+  // at that timestamp rather than against whichever row was written last.
+  /** @type {Map<number, Set<string>>} */
+  const hashesByCreatedAt = new Map();
 
-  /** @type {JournalInconsistency[]} */
-  const inconsistencies = [];
+  for (const migration of appliedMigrations) {
+    const hashes = hashesByCreatedAt.get(migration.createdAt) ?? new Set();
+
+    hashes.add(migration.hash);
+    hashesByCreatedAt.set(migration.createdAt, hashes);
+  }
+
+  /** @type {JournalProblem[]} */
+  const problems = [];
 
   for (const entry of entries) {
     if (entry.when > watermark) {
       continue;
     }
 
-    const appliedHash = hashByCreatedAt.get(entry.when);
+    const appliedHashes = hashesByCreatedAt.get(entry.when);
 
-    if (appliedHash === undefined) {
-      inconsistencies.push({
+    if (appliedHashes === undefined) {
+      problems.push({
         tag: entry.tag,
         when: entry.when,
         reason: "not-applied",
@@ -100,8 +137,8 @@ export function findJournalInconsistencies({ entries, appliedMigrations }) {
       continue;
     }
 
-    if (appliedHash !== entry.hash) {
-      inconsistencies.push({
+    if (!appliedHashes.has(entry.hash)) {
+      problems.push({
         tag: entry.tag,
         when: entry.when,
         reason: "hash-mismatch",
@@ -109,28 +146,40 @@ export function findJournalInconsistencies({ entries, appliedMigrations }) {
     }
   }
 
-  return inconsistencies;
+  return problems;
 }
 
 /**
- * The same hazard caught one step earlier, in review: a branch whose new
- * migrations carry timestamps older than the newest migration already on the
- * base branch. Merging it would produce a migration that never applies to
- * production, while CI stays green because CI builds a fresh database where
- * everything applies in folder order.
+ * Consequence 1 again, caught one step earlier — in review, where the fix is a
+ * rebase and a regenerate. A branch whose new migrations carry timestamps at or
+ * below the newest migration already on the base branch would merge green (CI
+ * builds a fresh database where everything applies in folder order) and then
+ * never apply to production.
  *
  * @param {{ baseEntries: JournalEntry[]; headEntries: JournalEntry[] }} input
- * @returns {JournalEntry[]}
+ * @returns {JournalProblem[]}
  */
 export function findOutOfOrderEntries({ baseEntries, headEntries }) {
-  if (baseEntries.length === 0) {
+  const baseWatermark = watermarkOf(baseEntries.map((entry) => entry.when));
+
+  if (baseWatermark === undefined) {
     return [];
   }
 
-  const baseWatermark = Math.max(...baseEntries.map((entry) => entry.when));
-  const baseTimestamps = new Set(baseEntries.map((entry) => entry.when));
+  // What is "already on base" is decided by tag, not by timestamp: an entry new
+  // to this branch that happens to share a `when` with one on base is precisely
+  // the case that has to fail, since Drizzle applies only what is strictly
+  // above the watermark.
+  const baseTags = new Set(baseEntries.map((entry) => entry.tag));
 
-  return headEntries.filter(
-    (entry) => !baseTimestamps.has(entry.when) && entry.when <= baseWatermark,
-  );
+  return headEntries
+    .filter((entry) => !baseTags.has(entry.tag) && entry.when <= baseWatermark)
+    .map(
+      (entry) =>
+        /** @type {JournalProblem} */ ({
+          tag: entry.tag,
+          when: entry.when,
+          reason: "out-of-order",
+        }),
+    );
 }

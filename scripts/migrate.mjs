@@ -105,17 +105,29 @@ async function waitForDatabase(sql) {
 
 /**
  * Blocking, not `pg_try_advisory_lock`: a second starter should wait and then
- * correctly no-op, not fail to boot. The lock matters because Drizzle reads the
- * watermark outside the transaction it then applies migrations in, so two
- * overlapping container starts would both act on the same stale read and the
- * second would re-run committed DDL.
+ * correctly no-op, not fail to boot. Consequence 3 in scripts/migrations/journal.mjs
+ * is what makes the lock necessary — without it two overlapping container starts
+ * act on the same stale watermark and the second re-runs committed DDL.
+ *
+ * The timeout bounds the wait for the lock only. It is restored afterwards
+ * rather than zeroed, so whatever `statement_timeout` the role carries still
+ * governs the migrations themselves.
  *
  * @param {ReturnType<typeof postgres>} sql
  */
 async function acquireMigrationLock(sql) {
+  const [previous] = await sql`
+    select current_setting('statement_timeout') as statement_timeout
+  `;
+  const previousStatementTimeout = String(previous?.statement_timeout ?? "0");
+
   await sql`select set_config('statement_timeout', ${String(lockTimeoutMs)}, false)`;
-  await sql`select pg_advisory_lock(hashtext(${migrationLockName}))`;
-  await sql`select set_config('statement_timeout', '0', false)`;
+
+  try {
+    await sql`select pg_advisory_lock(hashtext(${migrationLockName}))`;
+  } finally {
+    await sql`select set_config('statement_timeout', ${previousStatementTimeout}, false)`;
+  }
 }
 
 /** @param {ReturnType<typeof postgres>} sql */

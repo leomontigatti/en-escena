@@ -116,6 +116,33 @@ A failed migration therefore shows up as a container that will not start, not as
 a half-migrated schema. Roll back to the previous image from Coolify's Rollback
 tab.
 
+### Coolify settings this depends on
+
+The entrypoint runs before the server command, so the container is unreachable
+for as long as the migration plus the connection-retry budget takes. The
+healthcheck has to allow for that:
+
+| Setting                     | Value              | Why                                              |
+| --------------------------- | ------------------ | ------------------------------------------------ |
+| `health_check_path`         | `/internal/health` | Plain 200, no database — see below               |
+| `health_check_return_code`  | `200`              | `/` always redirects, so it could never pass     |
+| `health_check_enabled`      | `true`             | Was `false`, almost certainly because of the `/` |
+| `health_check_start_period` | `~60s`             | Must cover the migration plus the ~45s retries   |
+
+`/internal/health` must not query Postgres. Migration success already gates
+start-up, so the healthcheck's only job is "did the process come up". A
+DB-touching check would mark a healthy container unhealthy during a blip and
+restart it, reintroducing the crash-loop the retry budget exists to prevent.
+
+**Container command precedence.** The Coolify application has `start_command`
+populated with the server command, byte-identical to the image's `CMD`. That is
+why migrations hang off `ENTRYPOINT`: an `ENTRYPOINT` composes with whatever
+command arrives, whereas a chained `CMD` would be silently overridden and the
+migrations would never run — with no error, because the app would start
+normally. Whether Coolify actually passes `start_command` as the container
+command is _not yet confirmed against production_ (#593); record the answer here
+after the first deploy. The design is correct either way.
+
 ### Break-glass
 
 When you need to run something against production by hand, get a shell on the

@@ -1,6 +1,4 @@
 import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -12,13 +10,12 @@ import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { describe, expect, it } from "vitest";
 
+import { readHashedJournalEntries } from "../../scripts/migrations/journal.mjs";
+
 import * as schema from "./schema";
 
 const migrationsFolder = fileURLToPath(
   new URL("./migrations", import.meta.url),
-);
-const journalPath = fileURLToPath(
-  new URL("./migrations/meta/_journal.json", import.meta.url),
 );
 // Oráculo `pushSchema` — corre en un subproceso tsx porque `drizzle-kit/api` no
 // sobrevive el transform de vite dentro de un worker de vitest.
@@ -96,17 +93,9 @@ describe("drizzle migrations", () => {
   });
 
   it("registers the baseline with the hash drizzle-orm would compute", async () => {
-    const journal = JSON.parse(readFileSync(journalPath, "utf8")) as {
-      entries: Array<{ tag: string; when: number }>;
-    };
-    const baseline = journal.entries[0];
-    const baselineSql = readFileSync(
-      fileURLToPath(
-        new URL(`./migrations/${baseline.tag}.sql`, import.meta.url),
-      ),
-      "utf8",
-    );
-    const expectedHash = createHash("sha256").update(baselineSql).digest("hex");
+    // Read through the same module `pnpm db:baseline` writes with, so the two
+    // cannot drift apart while both still pass.
+    const [baseline] = readHashedJournalEntries(migrationsFolder);
 
     const pglite = new PGlite();
     const db = drizzle(pglite, { schema });
@@ -118,7 +107,7 @@ describe("drizzle migrations", () => {
         sql`select hash, created_at from drizzle.__drizzle_migrations order by id asc`,
       );
 
-      expect(rows.rows[0]?.hash).toBe(expectedHash);
+      expect(rows.rows[0]?.hash).toBe(baseline.hash);
       expect(Number(rows.rows[0]?.created_at)).toBe(baseline.when);
     } finally {
       await pglite.close();

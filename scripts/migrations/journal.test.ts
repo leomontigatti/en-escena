@@ -70,6 +70,29 @@ describe("findJournalInconsistencies", () => {
       }),
     ).toEqual([{ tag: "0000_migration", when: 100, reason: "hash-mismatch" }]);
   });
+
+  it("matches on the (hash, created_at) pair when two entries share a timestamp", () => {
+    // Keying applied rows by timestamp alone would check one entry against the
+    // other's hash and report a spurious mismatch.
+    expect(
+      findJournalInconsistencies({
+        entries: [journalEntry(0, 100), journalEntry(1, 100)],
+        appliedMigrations: [
+          { hash: "hash-0", createdAt: 100 },
+          { hash: "hash-1", createdAt: 100 },
+        ],
+      }),
+    ).toEqual([]);
+  });
+
+  it("reports an entry whose hash is absent even when its timestamp is present", () => {
+    expect(
+      findJournalInconsistencies({
+        entries: [journalEntry(0, 100), journalEntry(1, 100)],
+        appliedMigrations: [{ hash: "hash-0", createdAt: 100 }],
+      }),
+    ).toEqual([{ tag: "0001_migration", when: 100, reason: "hash-mismatch" }]);
+  });
 });
 
 describe("findOutOfOrderEntries", () => {
@@ -87,14 +110,32 @@ describe("findOutOfOrderEntries", () => {
   });
 
   it("rejects a branch whose new migration predates the base branch", () => {
-    const staleEntry = journalEntry(2, 150);
-
     expect(
       findOutOfOrderEntries({
         baseEntries: [journalEntry(0, 100), journalEntry(1, 200)],
-        headEntries: [journalEntry(0, 100), journalEntry(1, 200), staleEntry],
+        headEntries: [
+          journalEntry(0, 100),
+          journalEntry(1, 200),
+          journalEntry(2, 150),
+        ],
       }),
-    ).toEqual([staleEntry]);
+    ).toEqual([{ tag: "0002_migration", when: 150, reason: "out-of-order" }]);
+  });
+
+  it("rejects a new migration whose timestamp ties the base watermark", () => {
+    // Drizzle applies only what is *strictly* above the watermark, so a tie
+    // never runs. Excluding entries by timestamp rather than by tag would let
+    // this one through.
+    expect(
+      findOutOfOrderEntries({
+        baseEntries: [journalEntry(0, 100), journalEntry(1, 200)],
+        headEntries: [
+          journalEntry(0, 100),
+          journalEntry(1, 200),
+          journalEntry(2, 200),
+        ],
+      }),
+    ).toEqual([{ tag: "0002_migration", when: 200, reason: "out-of-order" }]);
   });
 
   it("accepts any branch when the base has no migrations yet", () => {
