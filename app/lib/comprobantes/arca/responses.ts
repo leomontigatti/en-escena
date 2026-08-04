@@ -12,6 +12,13 @@ export type ArcaMessage = {
   msg: string;
 };
 
+// Un mensaje de ARCA tal como se le muestra al operador en un rechazo. El código
+// es informativo: ARCA lo publica en su tabla de validaciones, así que sirve para
+// buscarlo, pero no todos los mensajes traen uno.
+export function formatArcaMessage(message: ArcaMessage): string {
+  return message.code ? `${message.msg} (código ${message.code})` : message.msg;
+}
+
 // Los DTO del SDK usan `Code`/`Msg` (WSFEv1) en unos lugares y `code`/`msg` (los
 // errores ya mapeados de `FECompUltimoAutorizado`) en otros. Normalizamos ambos.
 type RawArcaMessage = {
