@@ -138,6 +138,12 @@ The `B2_DATABASE_*` block below belongs to `scripts/backup-database-to-b2.sh`,
 which still runs in parallel and is retired in #594 once the native backup has
 passed a restore test.
 
+`COOLIFY_BACKUP_BUCKET` is separate from `B2_DATABASE_BUCKET` and outlives it:
+it names the bucket Coolify's own backup writes to (unhyphenated, #588), which
+the scheduled restore drill reads. `B2_DATABASE_BUCKET` names the hyphenated
+bucket of the retiring script. Setting one to the other's value would point the
+drill at artifacts nothing is writing any more.
+
 ```sh
 B2_DATABASE_BUCKET="en-escena-db-backups"
 B2_DATABASE_PREFIX="database"
@@ -151,6 +157,8 @@ STORAGE_BACKUP_BUCKETS="en-escena-dancer-documents,en-escena-choreography-music"
 BACKUP_SYNC_MODE="copy"
 B2_FILESTORE_BUCKET="en-escena-filestore-backups"
 B2_FILESTORE_PREFIX="filestore"
+
+COOLIFY_BACKUP_BUCKET="enescena-db-backups"
 ```
 
 `B2_DATABASE_BUCKET` and `B2_FILESTORE_BUCKET` are intentionally separate. The
@@ -167,11 +175,13 @@ B2). The storage backup no longer reads from Supabase Storage, so no
 
 The scheduled environment needs:
 
-- `pg_dump`;
+- `pg_dump`, plus `pg_restore` and `psql` for the scheduled restore drill;
 - AWS CLI v2.
 
 The production Docker image installs PostgreSQL client 17 in the runtime stage
-so the Coolify scheduled task can run inside the application container. The
+so the Coolify scheduled task can run inside the application container. **Do not
+remove it when `backup-database-to-b2.sh` is retired in #594 item 5** — the
+scheduled restore drill needs `pg_restore` and `psql` from the same package. The
 client version must be equal to or newer than the Postgres server version;
 otherwise `pg_dump` aborts with a server version mismatch. The server runs
 `postgres:17-alpine`, so keep both pinned to 17.
@@ -315,8 +325,79 @@ drill's throwaway container exists to avoid: the output carries its own
 `\connect` directives, so review what it targets before running it against a
 server that holds anything you care about.
 
-Run the drill monthly and before every event. A backup that has not been
-restored is unproven.
+Run this drill before every event, and as the one-time strict gate for #267
+step 7. For the recurring check, see below — a drill that depends on someone
+remembering to run it is not a control.
+
+### Scheduled Database Restore Drill
+
+The drill above needs a Docker socket and the local backup directory, so it only
+runs on rylai by hand. `restore-drill-database-from-b2.sh` is the automated
+sibling that needs neither: it pulls the newest artifact from B2, restores it
+into a **scratch database on the live Postgres server**, compares per-table row
+counts and the journal against live, and drops the scratch database.
+
+```sh
+pnpm restore:db:drill:b2
+
+# in a scheduled task, without pnpm on PATH
+sh scripts/restore-drill-database-from-b2.sh
+```
+
+It runs from the **application** container, which already has `awscli` and
+`postgresql-client-17` in its image and reaches Postgres over `DATABASE_URL`.
+
+**Why the application resource and not the database resource.** Coolify's
+scheduled tasks attach only to applications and services: `scheduled_tasks` has
+`application_id` and `service_id` and no column for a standalone database,
+`ScheduledTaskJob` is typed to those two, and the database UI has no Scheduled
+Tasks tab or route. (`ScheduledTask/Add.php` contains a `standalone-postgresql`
+branch — it is dead code that writes to a column that does not exist.) So
+scheduling this on the Postgres resource is not an option, however sensible it
+sounds.
+
+**What it trades away.** The restore lands on the production Postgres server
+rather than an isolated container, so it shares that server's disk, CPU and
+connection slots. That is acceptable while the dump is around 100 KB; revisit if
+the database grows by orders of magnitude. It is also why the script refuses to
+run when `SCRATCH_DB` and the live database name match, and why the scratch
+database — which holds a full copy of production PII while the drill runs — is
+dropped on exit unless `DRILL_KEEP` is set.
+
+It requires a **custom-format** artifact. Gzipped `pg_dumpall` output is refused
+rather than restored, because its `\connect` directives repoint the session
+mid-stream and that is exactly what must not happen on a live server. Use the
+container drill on rylai for artifacts predating the format change.
+
+| Variable                | Purpose                                                                      |
+| ----------------------- | ---------------------------------------------------------------------------- |
+| `COOLIFY_BACKUP_BUCKET` | Bucket Coolify writes backups to. Defaults to `enescena-db-backups`.         |
+| `BACKUP_KEY`            | Drill a specific S3 key instead of the newest artifact.                      |
+| `BACKUP_FILE`           | Drill a local artifact and skip B2 entirely. No credentials needed.          |
+| `SCRATCH_DB`            | Scratch database name. Defaults to `enescena_restore_drill`.                 |
+| `TARGET_DB`             | The live database to compare against. Defaults to the one in `DATABASE_URL`. |
+| `DRILL_KEEP`            | Keep the scratch database for inspection. It holds production data.          |
+| `WORK_DIR`              | Scratch directory for the artifact and counts. Wiped on exit.                |
+
+Unlike the container drill, a table that restored **fewer** rows than live is
+reported and passes: on a schedule the database is never quiet, so drift is the
+normal case and failing on it would train everyone to ignore the alert. It still
+fails on a non-zero `pg_restore` exit, unexpected restore errors, zero tables, a
+table missing from the restore, and counts _higher_ than live. The container
+drill remains the strict check.
+
+Set it up as a Coolify Scheduled Task on the **application** resource:
+
+- Command: `sh scripts/restore-drill-database-from-b2.sh` (never `pnpm` — see
+  the Daily Schedule note above).
+- Frequency: `30 4 * * 1`, weekly, shortly after the 04:00 UTC backup.
+- Timeout: comfortably above a full restore; 600 is ample at this size.
+
+Coolify turns the non-zero exit into a `TaskFailed` notification, but only after
+it exhausts three attempts (30s/60s/120s backoff), so expect the alert a few
+minutes late. The per-channel `scheduled_task_failure` toggles default to on, so
+what actually has to be configured is a notification transport on the team —
+without one the task fails silently.
 
 ## Storage Restore Drill
 
