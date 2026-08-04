@@ -197,7 +197,7 @@ describe("emitChoreographyFacturaC", () => {
     expect(sent.CbteTipo).toBe(11);
     expect(sent.ImpTotal).toBe(10000);
 
-    expect(outcome.ok).toBe(true);
+    expect(outcome).toMatchObject({ ok: true, recovered: false });
     const [persisted] = await listChoreographyComprobantes(choreography.id);
     expect(persisted).toMatchObject({
       cbteTipo: 11,
@@ -712,7 +712,8 @@ describe("emitChoreographyFacturaC (ARCA no responde)", () => {
 
     // Se consulta el punto de venta, tipo y correlativo que se intentó emitir.
     expect(deps.billing.getVoucherInfo).toHaveBeenCalledWith(43, 1, 11);
-    expect(outcome.ok).toBe(true);
+    // El CAE salió de la consulta, no de la autorización.
+    expect(outcome).toMatchObject({ ok: true, recovered: true });
 
     const [persisted] = await listChoreographyComprobantes(choreography.id);
     expect(persisted).toMatchObject({
