@@ -25,6 +25,8 @@
     "backup:db:b2": "sh scripts/backup-database-to-b2.sh",
     "backup:storage:b2": "sh scripts/backup-storage-to-b2.sh",
     "restore:storage:drill": "sh scripts/restore-drill-from-b2.sh",
+    "restore:db:drill": "sh scripts/restore-drill-database.sh",
+    "restore:db:drill:b2": "sh scripts/restore-drill-database-from-b2.sh",
     "db:refresh:prod": "node scripts/refresh-local-db-from-production.mjs",
     "db:test:reset": "node --import tsx tests/db/reset-test-schema.ts",
     "db:studio": "node --env-file=.env node_modules/drizzle-kit/bin.cjs studio",
