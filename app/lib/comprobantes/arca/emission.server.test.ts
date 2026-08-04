@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { ArcaClient, type ArcaBillingPort } from "./client.server";
 import {
   emitWithContingency,
+  recheckWithContingency,
   toArcaDate,
   type ArcaEmissionChoreography,
   type ArcaEmissionRequest,
@@ -333,5 +334,131 @@ describe("emitWithContingency", () => {
 describe("toArcaDate", () => {
   test("saca los guiones de la fecha de negocio", () => {
     expect(toArcaDate("2026-07-22")).toBe("20260722");
+  });
+});
+
+describe("recheckWithContingency", () => {
+  test("consulta el correlativo pedido, con el importe y la fecha del server", async () => {
+    const getVoucherInfo = vi.fn(
+      async (): Promise<VoucherInfoResultDto | null> => facturaCConsultada,
+    );
+
+    await recheckWithContingency(
+      choreography({}, fakeBilling({ getVoucherInfo })),
+      43,
+    );
+
+    expect(getVoucherInfo).toHaveBeenCalledWith(43, 1, 11);
+  });
+
+  test("el comprobante aparece y coincide: se persiste y queda recuperado", async () => {
+    const outcome = await recheckWithContingency(
+      choreography(
+        {},
+        fakeBilling({
+          getVoucherInfo: vi.fn(async () => facturaCConsultada),
+        }),
+      ),
+      43,
+    );
+
+    expect(outcome).toEqual({
+      ok: true,
+      recovered: true,
+      voucher: {
+        cae: "41124578989845",
+        caeVto: "20260801",
+        cbteNro: 43,
+        cbteFch: "20260722",
+        requestedCbteFch: "20260722",
+      },
+    });
+  });
+
+  // No autoriza nada: la re-verificación es sólo `FECompConsultar`.
+  test("no reintenta la autorización", async () => {
+    const createVoucher = vi.fn(
+      async (): Promise<CreateVoucherResultDto> => facturaCAprobada,
+    );
+
+    await recheckWithContingency(
+      choreography(
+        {},
+        fakeBilling({
+          createVoucher,
+          getVoucherInfo: vi.fn(async () => facturaCConsultada),
+        }),
+      ),
+      43,
+    );
+
+    expect(createVoucher).not.toHaveBeenCalled();
+  });
+
+  // Un `cbteNro` adulterado o viejo hace que el importe recalculado no coincida:
+  // el resultado se queda en `unverified`, que es la dirección segura.
+  test("importe que no coincide: no persiste y sigue sin verificar", async () => {
+    const persist = vi.fn();
+    const outcome = await recheckWithContingency(
+      choreography(
+        { impTotal: 9999, persist },
+        fakeBilling({
+          getVoucherInfo: vi.fn(async () => facturaCConsultada),
+        }),
+      ),
+      43,
+    );
+
+    expect(persist).not.toHaveBeenCalled();
+    expect(outcome).toMatchObject({ ok: false, reason: "unverified" });
+  });
+
+  test("fecha que no coincide: no persiste y sigue sin verificar", async () => {
+    const outcome = await recheckWithContingency(
+      choreography(
+        { cbteFch: "20260723" },
+        fakeBilling({
+          getVoucherInfo: vi.fn(async () => facturaCConsultada),
+        }),
+      ),
+      43,
+    );
+
+    expect(outcome).toMatchObject({ ok: false, reason: "unverified" });
+  });
+
+  /**
+   * Sólo puede probar el positivo: nadie midió cuánto puede vivir una petición
+   * del lado de ARCA, así que un `null` nunca asciende a `not-emitted` por más
+   * tiempo que haya pasado desde el intento (ADR-0012 decisión 2).
+   */
+  test("ARCA sigue sin tenerlo: se queda en no verificado, nunca en no emitido", async () => {
+    const outcome = await recheckWithContingency(
+      choreography(
+        {},
+        fakeBilling({ getVoucherInfo: vi.fn(async () => null) }),
+      ),
+      43,
+    );
+
+    expect(outcome).toMatchObject({ ok: false, reason: "unverified" });
+    expect(outcome).not.toMatchObject({ reason: "not-emitted" });
+  });
+
+  test("la consulta falla: sigue sin verificar y no persiste", async () => {
+    const persist = vi.fn();
+    const outcome = await recheckWithContingency(
+      choreography(
+        { persist },
+        fakeBilling({ getVoucherInfo: vi.fn(connectionLost) }),
+      ),
+      43,
+    );
+
+    expect(persist).not.toHaveBeenCalled();
+    expect(outcome).toMatchObject({ ok: false, reason: "unverified" });
+    if (!outcome.ok) {
+      expect(outcome.attempt).toEqual({ ptoVta: 1, cbteTipo: 11, cbteNro: 43 });
+    }
   });
 });

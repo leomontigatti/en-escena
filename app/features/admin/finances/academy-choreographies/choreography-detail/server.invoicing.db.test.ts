@@ -24,6 +24,7 @@ import {
 } from "@/lib/comprobantes/arca/factura-c";
 import {
   facturaCAprobada,
+  facturaCConsultada,
   facturaCRechazada,
   ultimoAutorizado,
 } from "@/lib/comprobantes/arca/fixtures";
@@ -41,7 +42,11 @@ import {
   handleChoreographyFinanceAction,
   loadChoreographyFinanceDetail,
 } from "./server";
-import { emitComprobanteConfirmValue, emitComprobanteIntent } from "./shared";
+import {
+  emitComprobanteConfirmValue,
+  emitComprobanteIntent,
+  recheckComprobanteIntent,
+} from "./shared";
 
 installDatabaseTestHooks();
 
@@ -550,11 +555,168 @@ describe.sequential(
           ),
       });
 
-      expect(result).toMatchObject({ status: "emission-error" });
-      if (result.status === "emission-error") {
+      expect(result).toMatchObject({ status: "contingency" });
+      if (
+        result.status === "contingency" &&
+        result.contingency.status === "rejected"
+      ) {
         expect(result.contingency.resultado).toBe("R");
         expect(result.contingency.errors.length).toBeGreaterThan(0);
+      } else {
+        expect.unreachable("un rechazo de ARCA es una contingencia `rejected`");
       }
+
+      const stored = await db
+        .select()
+        .from(comprobantes)
+        .where(eq(comprobantes.choreographyId, seeded.choreographyId));
+      expect(stored).toHaveLength(0);
+    });
+
+    // Se vio fallar la emisión durante hasta 45 segundos y terminó bien: pasar a
+    // "listo" sin decir nada se lee como un glitch (ADR-0012).
+    test("una emisión recuperada redirige avisando por flash session", async () => {
+      const seeded = await seedChoreographyWithPaidInscription({
+        academyName: "Academia Recuperada",
+        choreographyName: "Coreografía recuperada",
+        email: "academia.recuperada@example.com",
+        paidAmount: 3000,
+      });
+
+      const request = await buildActionRequest({
+        ...seeded,
+        formData: {
+          intent: emitComprobanteIntent,
+          confirm: emitComprobanteConfirmValue,
+        },
+      });
+
+      const redirect = await handleChoreographyFinanceAction({
+        params: {
+          academyId: seeded.academyId,
+          choreographyId: seeded.choreographyId,
+        },
+        request,
+        resolveEmissionDeps: () =>
+          emissionDeps(
+            fakeBilling({
+              createVoucher: vi.fn(() =>
+                Promise.reject(new Error("socket hang up")),
+              ),
+              getVoucherInfo: vi.fn(
+                async (): Promise<VoucherInfoResultDto> => ({
+                  ...facturaCConsultada,
+                  impTotal: 3000,
+                  cbteFch: "20260722",
+                }),
+              ),
+            }),
+          ),
+      }).catch((thrown) => thrown);
+
+      expect(redirect).toBeInstanceOf(Response);
+      expect((redirect as Response).status).toBe(302);
+      // El aviso viaja por flash session, no por `actionData`: la ruta redirige.
+      expect((redirect as Response).headers.get("set-cookie")).toContain(
+        "ee-flash",
+      );
+
+      const stored = await db
+        .select()
+        .from(comprobantes)
+        .where(eq(comprobantes.choreographyId, seeded.choreographyId));
+      expect(stored).toHaveLength(1);
+    });
+
+    test("la re-verificación recupera el comprobante sin salir del diálogo", async () => {
+      const seeded = await seedChoreographyWithPaidInscription({
+        academyName: "Academia Re-verificada",
+        choreographyName: "Coreografía re-verificada",
+        email: "academia.reverificada@example.com",
+        paidAmount: 3000,
+      });
+
+      const billing = fakeBilling({
+        getVoucherInfo: vi.fn(
+          async (): Promise<VoucherInfoResultDto> => ({
+            ...facturaCConsultada,
+            cbteDesde: 43,
+            cbteHasta: 43,
+            impTotal: 3000,
+            cbteFch: "20260722",
+          }),
+        ),
+      });
+
+      const result = await handleChoreographyFinanceAction({
+        params: {
+          academyId: seeded.academyId,
+          choreographyId: seeded.choreographyId,
+        },
+        request: await buildActionRequest({
+          ...seeded,
+          formData: {
+            intent: recheckComprobanteIntent,
+            cbteNro: "43",
+          },
+        }),
+        resolveEmissionDeps: () => emissionDeps(billing),
+      });
+
+      // No cruza un redirect: llega como estado del alert, distinguible de la
+      // recuperación durante el submit original.
+      expect(result).toEqual({
+        status: "contingency",
+        contingency: { status: "recovered" },
+      });
+      expect(billing.createVoucher).not.toHaveBeenCalled();
+
+      const stored = await db
+        .select()
+        .from(comprobantes)
+        .where(eq(comprobantes.choreographyId, seeded.choreographyId));
+      expect(stored).toHaveLength(1);
+    });
+
+    // El importe lo recalcula el server desde el facturable: un correlativo
+    // adulterado no puede forzar la persistencia de un CAE ajeno (decisión 4).
+    test("la re-verificación de un correlativo ajeno se queda sin verificar", async () => {
+      const seeded = await seedChoreographyWithPaidInscription({
+        academyName: "Academia Ajena",
+        choreographyName: "Coreografía ajena",
+        email: "academia.ajena@example.com",
+        paidAmount: 3000,
+      });
+
+      const result = await handleChoreographyFinanceAction({
+        params: {
+          academyId: seeded.academyId,
+          choreographyId: seeded.choreographyId,
+        },
+        request: await buildActionRequest({
+          ...seeded,
+          formData: { intent: recheckComprobanteIntent, cbteNro: "999" },
+        }),
+        resolveEmissionDeps: () =>
+          emissionDeps(
+            fakeBilling({
+              getVoucherInfo: vi.fn(
+                async (): Promise<VoucherInfoResultDto> => ({
+                  ...facturaCConsultada,
+                  cbteDesde: 999,
+                  cbteHasta: 999,
+                  impTotal: 999999,
+                  cbteFch: "20260722",
+                }),
+              ),
+            }),
+          ),
+      });
+
+      expect(result).toMatchObject({
+        status: "contingency",
+        contingency: { status: "unverified", cbteNro: 999 },
+      });
 
       const stored = await db
         .select()

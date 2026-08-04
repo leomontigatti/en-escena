@@ -1,13 +1,25 @@
 /** @vitest-environment jsdom */
 
-import { createMemoryRouter, RouterProvider } from "react-router";
+import {
+  createMemoryRouter,
+  RouterProvider,
+  useLoaderData,
+} from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
-import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
+import {
+  clickReactDomButton,
+  createReactDomTestRenderer,
+  getButton,
+} from "@/lib/test-support/react-dom";
 
 import { ComprobanteDetailRouteView } from "./view";
-import type { ComprobanteDetail } from "./server";
-import { annulComprobanteIntent } from "./shared";
+import type { ComprobanteDetail, ComprobanteDetailLoaderData } from "./server";
+import {
+  annulComprobanteIntent,
+  recheckNotaCreditoIntent,
+  type ComprobanteDetailActionData,
+} from "./shared";
 
 function comprobanteFixture(
   overrides: Partial<ComprobanteDetail> = {},
@@ -36,6 +48,18 @@ function comprobanteFixture(
   };
 }
 
+// Ruta con loader real, para que la revalidación del fetcher se vea en la vista.
+function LoadedComprobanteDetail() {
+  const loaderData = useLoaderData() as ComprobanteDetailLoaderData;
+
+  return (
+    <ComprobanteDetailRouteView
+      initialAnnulDialogOpen
+      loaderData={loaderData}
+    />
+  );
+}
+
 describe("ComprobanteDetailRouteView", () => {
   const renderer = createReactDomTestRenderer();
 
@@ -44,6 +68,9 @@ describe("ComprobanteDetailRouteView", () => {
   async function mount(props: {
     comprobante?: Partial<ComprobanteDetail>;
     initialAnnulDialogOpen?: boolean;
+    action?: (args: {
+      request: Request;
+    }) => Promise<ComprobanteDetailActionData>;
   }) {
     const view = (
       <ComprobanteDetailRouteView
@@ -51,12 +78,142 @@ describe("ComprobanteDetailRouteView", () => {
         loaderData={{ comprobante: comprobanteFixture(props.comprobante) }}
       />
     );
-    const router = createMemoryRouter([{ path: "/", element: view }], {
-      initialEntries: ["/"],
-    });
+    const router = createMemoryRouter(
+      [{ path: "/", element: view, action: props.action }],
+      { initialEntries: ["/"] },
+    );
 
     await renderer.renderAsync(<RouterProvider router={router} />);
   }
+
+  // La anulación deja la nota de crédito sin resolver; la re-verificación la
+  // recupera.
+  function unverifiedThenRecovered() {
+    const recheckPayloads: Array<Record<string, string>> = [];
+
+    return {
+      recheckPayloads,
+      async action({
+        request,
+      }: {
+        request: Request;
+      }): Promise<ComprobanteDetailActionData> {
+        const entries = Object.fromEntries(await request.formData()) as Record<
+          string,
+          string
+        >;
+
+        if (entries.intent === recheckNotaCreditoIntent) {
+          recheckPayloads.push(entries);
+          return {
+            status: "contingency",
+            contingency: { status: "recovered" },
+          };
+        }
+
+        return {
+          status: "contingency",
+          contingency: {
+            status: "unverified",
+            message:
+              "Se cortó la comunicación con ARCA mientras se autorizaba la nota de crédito (Nota de crédito C 0001-00000008).",
+            ptoVta: 1,
+            cbteTipo: 13,
+            cbteNro: 8,
+          },
+        };
+      },
+    };
+  }
+
+  test("una anulación sin verificar bloquea el reintento y nombra la nota de crédito", async () => {
+    const { action } = unverifiedThenRecovered();
+    await mount({ initialAnnulDialogOpen: true, action });
+
+    await clickReactDomButton("Anular comprobante");
+
+    expect(document.body.textContent).toContain(
+      "Nota de crédito C 0001-00000008",
+    );
+    expect(getButton("Anular comprobante").disabled).toBe(true);
+  });
+
+  test("verificar ahora recupera la nota de crédito y saca el botón de anular", async () => {
+    const { action, recheckPayloads } = unverifiedThenRecovered();
+    await mount({ initialAnnulDialogOpen: true, action });
+
+    await clickReactDomButton("Anular comprobante");
+    await clickReactDomButton("Verificar ahora");
+
+    // Del cliente sólo viaja el correlativo (ADR-0012 decisión 4).
+    expect(recheckPayloads).toEqual([
+      { intent: recheckNotaCreditoIntent, cbteNro: "8" },
+    ]);
+    expect(document.body.textContent).toContain("quedó registrado");
+    // La operación terminó: el submit se saca, no se deshabilita.
+    expect(document.querySelector('button[type="submit"]')).toBeNull();
+    expect(getButton("Cerrar")).not.toBeNull();
+  });
+
+  /**
+   * Regresión: recuperar la nota de crédito la persiste, así que la
+   * revalidación que dispara el fetcher devuelve el comprobante ya anulado y
+   * `canAnnul` en `false`. Con el diálogo montado según esa bandera, el estado
+   * `recovered` desaparecía en el mismo tick en que se producía y el operador
+   * nunca lo veía. El diálogo se desmonta al cerrarlo, no al perder la
+   * afordancia (#577).
+   */
+  test("el estado recuperado sobrevive a la revalidación que deja el comprobante anulado", async () => {
+    const { action } = unverifiedThenRecovered();
+    let annulled = false;
+
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/",
+          loader: () => ({
+            comprobante: comprobanteFixture({
+              canAnnul: !annulled,
+              status: annulled ? "anulada" : "vigente",
+            }),
+          }),
+          async action(args: { request: Request }) {
+            const data = await action(args);
+
+            if (
+              data.status === "contingency" &&
+              data.contingency.status === "recovered"
+            ) {
+              annulled = true;
+            }
+
+            return data;
+          },
+          Component: LoadedComprobanteDetail,
+          HydrateFallback: () => null,
+        },
+      ],
+      { initialEntries: ["/"] },
+    );
+
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await clickReactDomButton("Anular comprobante");
+    await clickReactDomButton("Verificar ahora");
+
+    expect(document.body.textContent).toContain("quedó registrado");
+    expect(getButton("Cerrar")).not.toBeNull();
+  });
+
+  test("declarar la verificación manual vuelve a habilitar la anulación", async () => {
+    const { action } = unverifiedThenRecovered();
+    await mount({ initialAnnulDialogOpen: true, action });
+
+    await clickReactDomButton("Anular comprobante");
+    await clickReactDomButton("Ya verifiqué en ARCA");
+
+    expect(getButton("Anular comprobante").disabled).toBe(false);
+  });
 
   test("renders the comprobante data and the actions menu", async () => {
     await mount({});
