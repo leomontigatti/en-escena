@@ -67,7 +67,7 @@ function createTableMigration(schemaName: string, tableName: string) {
   return [
     `create schema if not exists "${schemaName}";`,
     "--> statement-breakpoint",
-    `create table "${schemaName}"."${tableName}" (id integer primary key);`,
+    `create table if not exists "${schemaName}"."${tableName}" (id integer primary key);`,
   ].join("\n");
 }
 
@@ -274,32 +274,31 @@ describe.skipIf(isPglite)(
     it("records the same hash and timestamp for the same migrations", async () => {
       const kitJournalSchema = "kit_journal";
       const ormJournalSchema = "orm_journal";
+      // Byte-identical SQL for both runners, so the hashes are directly
+      // comparable. `if not exists` makes the second run's DDL a no-op while
+      // still writing its own journal row.
       const migrations: SyntheticMigration[] = [
         {
           tag: "0000_first",
           when: 100,
-          sql: createTableMigration("kit_orm_kit", "a"),
+          sql: createTableMigration("kit_orm", "a"),
         },
         {
           tag: "0001_second",
           when: 200,
-          sql: createTableMigration("kit_orm_kit", "b"),
+          sql: createTableMigration("kit_orm", "b"),
         },
       ];
-      const ormMigrations = migrations.map((migration) => ({
-        ...migration,
-        sql: migration.sql.replaceAll("kit_orm_kit", "kit_orm_orm"),
-      }));
 
       await withScratchSchemas(
-        [kitJournalSchema, ormJournalSchema, "kit_orm_kit", "kit_orm_orm"],
+        [kitJournalSchema, ormJournalSchema, "kit_orm"],
         async (client) => {
           runDrizzleKitMigrate(
             writeMigrationsFolder(migrations),
             kitJournalSchema,
           );
           await migratePostgres(drizzlePostgres(client), {
-            migrationsFolder: writeMigrationsFolder(ormMigrations),
+            migrationsFolder: writeMigrationsFolder(migrations),
             migrationsSchema: ormJournalSchema,
           });
 
@@ -307,9 +306,10 @@ describe.skipIf(isPglite)(
           const ormRows = await readJournalRows(client, ormJournalSchema);
 
           expect(kitRows.map((row) => row.createdAt)).toEqual([100, 200]);
-          // Hashes differ only because the fixture SQL names a different schema;
-          // the timestamps are the identity both migrators compare on.
-          expect(kitRows).toHaveLength(ormRows.length);
+          // The pair (hash, created_at) is the identity both migrators compare
+          // on, and `scripts/baseline-migrations.ts` already bets on them
+          // agreeing.
+          expect(kitRows).toEqual(ormRows);
         },
       );
     });
