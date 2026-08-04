@@ -239,6 +239,7 @@ describe("annulComprobante", () => {
     const outcome = await annulComprobante({ comprobanteId: factura.id }, deps);
 
     expectOk(outcome);
+    expect(outcome.recovered).toBe(false);
 
     // Correlativo de la serie tipo 13 (último 7 → 8) y CbtesAsoc al original.
     expect(deps.billing.getLastVoucher).toHaveBeenCalledWith(1, 13);
@@ -650,6 +651,8 @@ describe("annulComprobante (ARCA no responde)", () => {
 
     expect(billing.getVoucherInfo).toHaveBeenCalledWith(8, 1, 13);
     expectOk(outcome);
+    // El CAE salió de la consulta, no de la autorización.
+    expect(outcome.recovered).toBe(true);
     expect(outcome.notaCredito).toMatchObject({
       cbteTipo: 13,
       cbteNro: 8,

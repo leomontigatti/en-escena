@@ -7,6 +7,7 @@ import {
   requireAdminUser,
   requireInternalUser,
 } from "@/lib/auth/internal-access.server";
+import { formatArcaMessage } from "@/lib/comprobantes/arca/emission.server";
 import type { ComprobanteStatus } from "@/lib/comprobantes/comprobante-status.server";
 import { listChoreographyComprobantes } from "@/lib/comprobantes/comprobantes.server";
 import type { ComprobantePorcion } from "@/lib/comprobantes/emit-factura-c.server";
@@ -14,7 +15,6 @@ import {
   getFacturaCEmissionDeps,
   type FacturaCEmissionDeps,
 } from "@/lib/comprobantes/emit-factura-c.server";
-import type { ArcaMessage } from "@/lib/comprobantes/arca/responses";
 import { annulComprobante } from "@/lib/comprobantes/emit-nota-credito.server";
 
 import {
@@ -183,8 +183,4 @@ async function handleAnnulComprobante(input: {
   }
 
   return { status: "error", message: outcome.message };
-}
-
-function formatArcaMessage(message: ArcaMessage): string {
-  return message.code ? `${message.msg} (código ${message.code})` : message.msg;
 }
