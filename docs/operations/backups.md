@@ -15,7 +15,8 @@ This runbook covers production backups to Backblaze B2:
   backup destination now, not the live store.
 - Destination: a Backblaze B2 bucket through its S3-compatible endpoint, plus a
   local copy on the VPS for the database.
-- Database format: plain SQL from `pg_dumpall`, gzipped. See
+- Database format: custom-format `pg_dump`, restored with `pg_restore`. Artifacts
+  predating #594 are gzipped plain SQL from `pg_dumpall`. See
   [Database Backup](#database-backup-coolify-native).
 - Storage format: copied objects under a B2 prefix, keys intact (`academies/...`).
 - Frequency: database on the cadence configured on the Coolify database resource;
@@ -53,19 +54,45 @@ the application. There is no script and nothing in this repo to run.
 
 ### Format
 
-With **"Backup All Databases" checked** — the current setting, decided in #302 in
-exchange for Coolify's one-click restore — Coolify runs:
+**Decision (#594, item 2): the artifact is custom format — "Backup All Databases"
+goes unchecked** on the Scheduled Backup of the Postgres resource. #302 had chosen
+`pg_dumpall` in exchange for Coolify's one-click restore; that trade-off turned out
+not to exist (see below), so the choice is now made on the merits. The checkbox is
+edited in the Coolify UI; nothing in this repo controls it.
+
+Unchecked, Coolify runs:
 
 ```sh
-docker exec <container> pg_dumpall --username postgres | gzip > pg-dump-all-<timestamp>.gz
+docker exec -e PGPASSWORD=… <container> \
+  pg_dump --format=custom --no-acl --no-owner --username postgres enescena \
+  > pg-dump-enescena-<timestamp>.dmp
 ```
 
-That is **plain SQL**, restored with `gunzip | psql`. `pg_restore` cannot read it.
+The redirect happens on the host, not in the container, so the file is written
+straight to `/data/coolify/backups/databases/<team>/<resource>/`. There is no
+gzip step: custom format is already compressed.
 
-Unchecked, Coolify instead runs `pg_dump --format=custom --no-acl --no-owner`
-against the named database and writes `pg-dump-<database>-<timestamp>.dmp`, which
-`pg_restore` handles. Whether to switch is open in #594; it matters because
-`db:refresh:prod` consumes these backups (#595).
+What that buys, and why it was worth switching:
+
+- `pg_restore` compatibility with the tooling that already exists —
+  `docs/db/production-dump.md` and `scripts/refresh-local-db-from-production.mjs`
+  both produce and consume `--format=custom` dumps, so `db:refresh:prod` (#595)
+  can consume a production artifact directly instead of a second dump.
+- Selective restore (`--table`, `--schema`), `--list` to inspect an artifact
+  without restoring it, and `--clean`.
+- A single-database restore can target one database, so an artifact can be
+  restored into a scratch database on a running server. Plain `pg_dumpall`
+  output carries `\connect` directives that repoint the session mid-stream,
+  which makes pointing it at a live server hazardous.
+- No wasted bytes on `postgres`/`template*`. The globals `pg_dumpall` adds are
+  worthless here: the only role is `postgres`, which is why the existing dumps
+  use `--no-owner --no-acl`.
+
+Checked — the previous setting — it ran `pg_dumpall --username postgres | gzip`
+into `pg-dump-all-<timestamp>.gz`, which is **plain SQL**, restored with
+`gunzip | psql`. `pg_restore` cannot read it. Artifacts in that format stay in
+the bucket until they age out of retention, so anything that reads backups must
+keep handling both for now.
 
 **Coolify's own restore handles both formats.** Its import form has a "Backup
 includes all databases" checkbox that selects the restore command: checked, it
@@ -75,6 +102,9 @@ command field (the UI itself suggests adding `--clean`). So the format choice
 does not cost the one-click restore path, contrary to what #302 assumed. The
 practical difference is that the `pg_dumpall` branch cleans up after itself and
 the `pg_restore` branch does not unless you add `--clean`.
+
+When restoring a `.dmp` through the import form, therefore: leave "Backup
+includes all databases" **unchecked** and add `--clean` to the command field.
 
 Either way the dump covers the whole `enescena` database — every schema,
 including `public` and `drizzle`. Coolify's database selection is per _database_,
@@ -108,6 +138,12 @@ The `B2_DATABASE_*` block below belongs to `scripts/backup-database-to-b2.sh`,
 which still runs in parallel and is retired in #594 once the native backup has
 passed a restore test.
 
+`COOLIFY_BACKUP_BUCKET` is separate from `B2_DATABASE_BUCKET` and outlives it:
+it names the bucket Coolify's own backup writes to (unhyphenated, #588), which
+the scheduled restore drill reads. `B2_DATABASE_BUCKET` names the hyphenated
+bucket of the retiring script. Setting one to the other's value would point the
+drill at artifacts nothing is writing any more.
+
 ```sh
 B2_DATABASE_BUCKET="en-escena-db-backups"
 B2_DATABASE_PREFIX="database"
@@ -121,6 +157,8 @@ STORAGE_BACKUP_BUCKETS="en-escena-dancer-documents,en-escena-choreography-music"
 BACKUP_SYNC_MODE="copy"
 B2_FILESTORE_BUCKET="en-escena-filestore-backups"
 B2_FILESTORE_PREFIX="filestore"
+
+COOLIFY_BACKUP_BUCKET="enescena-db-backups"
 ```
 
 `B2_DATABASE_BUCKET` and `B2_FILESTORE_BUCKET` are intentionally separate. The
@@ -137,11 +175,13 @@ B2). The storage backup no longer reads from Supabase Storage, so no
 
 The scheduled environment needs:
 
-- `pg_dump`;
+- `pg_dump`, plus `pg_restore` and `psql` for the scheduled restore drill;
 - AWS CLI v2.
 
 The production Docker image installs PostgreSQL client 17 in the runtime stage
-so the Coolify scheduled task can run inside the application container. The
+so the Coolify scheduled task can run inside the application container. **Do not
+remove it when `backup-database-to-b2.sh` is retired in #594 item 5** — the
+scheduled restore drill needs `pg_restore` and `psql` from the same package. The
 client version must be equal to or newer than the Postgres server version;
 otherwise `pg_dump` aborts with a server version mismatch. The server runs
 `postgres:17-alpine`, so keep both pinned to 17.
@@ -285,8 +325,79 @@ drill's throwaway container exists to avoid: the output carries its own
 `\connect` directives, so review what it targets before running it against a
 server that holds anything you care about.
 
-Run the drill monthly and before every event. A backup that has not been
-restored is unproven.
+Run this drill before every event, and as the one-time strict gate for #267
+step 7. For the recurring check, see below — a drill that depends on someone
+remembering to run it is not a control.
+
+### Scheduled Database Restore Drill
+
+The drill above needs a Docker socket and the local backup directory, so it only
+runs on rylai by hand. `restore-drill-database-from-b2.sh` is the automated
+sibling that needs neither: it pulls the newest artifact from B2, restores it
+into a **scratch database on the live Postgres server**, compares per-table row
+counts and the journal against live, and drops the scratch database.
+
+```sh
+pnpm restore:db:drill:b2
+
+# in a scheduled task, without pnpm on PATH
+sh scripts/restore-drill-database-from-b2.sh
+```
+
+It runs from the **application** container, which already has `awscli` and
+`postgresql-client-17` in its image and reaches Postgres over `DATABASE_URL`.
+
+**Why the application resource and not the database resource.** Coolify's
+scheduled tasks attach only to applications and services: `scheduled_tasks` has
+`application_id` and `service_id` and no column for a standalone database,
+`ScheduledTaskJob` is typed to those two, and the database UI has no Scheduled
+Tasks tab or route. (`ScheduledTask/Add.php` contains a `standalone-postgresql`
+branch — it is dead code that writes to a column that does not exist.) So
+scheduling this on the Postgres resource is not an option, however sensible it
+sounds.
+
+**What it trades away.** The restore lands on the production Postgres server
+rather than an isolated container, so it shares that server's disk, CPU and
+connection slots. That is acceptable while the dump is around 100 KB; revisit if
+the database grows by orders of magnitude. It is also why the script refuses to
+run when `SCRATCH_DB` and the live database name match, and why the scratch
+database — which holds a full copy of production PII while the drill runs — is
+dropped on exit unless `DRILL_KEEP` is set.
+
+It requires a **custom-format** artifact. Gzipped `pg_dumpall` output is refused
+rather than restored, because its `\connect` directives repoint the session
+mid-stream and that is exactly what must not happen on a live server. Use the
+container drill on rylai for artifacts predating the format change.
+
+| Variable                | Purpose                                                                      |
+| ----------------------- | ---------------------------------------------------------------------------- |
+| `COOLIFY_BACKUP_BUCKET` | Bucket Coolify writes backups to. Defaults to `enescena-db-backups`.         |
+| `BACKUP_KEY`            | Drill a specific S3 key instead of the newest artifact.                      |
+| `BACKUP_FILE`           | Drill a local artifact and skip B2 entirely. No credentials needed.          |
+| `SCRATCH_DB`            | Scratch database name. Defaults to `enescena_restore_drill`.                 |
+| `TARGET_DB`             | The live database to compare against. Defaults to the one in `DATABASE_URL`. |
+| `DRILL_KEEP`            | Keep the scratch database for inspection. It holds production data.          |
+| `WORK_DIR`              | Scratch directory for the artifact and counts. Wiped on exit.                |
+
+Unlike the container drill, a table that restored **fewer** rows than live is
+reported and passes: on a schedule the database is never quiet, so drift is the
+normal case and failing on it would train everyone to ignore the alert. It still
+fails on a non-zero `pg_restore` exit, unexpected restore errors, zero tables, a
+table missing from the restore, and counts _higher_ than live. The container
+drill remains the strict check.
+
+Set it up as a Coolify Scheduled Task on the **application** resource:
+
+- Command: `sh scripts/restore-drill-database-from-b2.sh` (never `pnpm` — see
+  the Daily Schedule note above).
+- Frequency: `30 4 * * 1`, weekly, shortly after the 04:00 UTC backup.
+- Timeout: comfortably above a full restore; 600 is ample at this size.
+
+Coolify turns the non-zero exit into a `TaskFailed` notification, but only after
+it exhausts three attempts (30s/60s/120s backoff), so expect the alert a few
+minutes late. The per-channel `scheduled_task_failure` toggles default to on, so
+what actually has to be configured is a notification transport on the team —
+without one the task fails silently.
 
 ## Storage Restore Drill
 
