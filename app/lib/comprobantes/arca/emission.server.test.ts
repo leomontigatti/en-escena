@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { ArcaClient, type ArcaBillingPort } from "./client.server";
 import {
   emitWithContingency,
-  formatArcaMessage,
+  toArcaDate,
   type ArcaEmissionChoreography,
   type ArcaEmissionRequest,
 } from "./emission.server";
@@ -227,18 +227,111 @@ describe("emitWithContingency", () => {
         "Reintentá en unos minutos.",
     });
   });
-});
 
-describe("formatArcaMessage", () => {
-  test("agrega el código de ARCA cuando lo hay", () => {
-    expect(formatArcaMessage({ code: 10049, msg: "Faltan fechas" })).toBe(
-      "Faltan fechas (código 10049)",
+  // Sin `cbteFch` explícito (producción: sólo los tests inyectan uno) la fecha
+  // sale del huso horario de negocio, no del huso del servidor.
+  test("sin fecha explícita, el comprobante sale con la fecha de negocio", async () => {
+    vi.useFakeTimers();
+    // 01:30 UTC del 23 → todavía 22 en Córdoba (UTC-3).
+    vi.setSystemTime(new Date("2026-07-23T01:30:00Z"));
+
+    const emit = vi.fn(
+      async (): Promise<FacturaCEmissionResult> =>
+        parseCreateVoucherResult(facturaCAprobada),
     );
+
+    const outcome = await emitWithContingency(
+      choreography({ cbteFch: undefined, emit }),
+    );
+
+    expect(emit).toHaveBeenCalledWith({ cbteNro: 43, cbteFch: "20260722" });
+    expect(outcome).toMatchObject({
+      ok: true,
+      voucher: { requestedCbteFch: "20260722" },
+    });
+
+    vi.useRealTimers();
   });
 
-  test("sin código deja el mensaje solo", () => {
-    expect(formatArcaMessage({ code: 0, msg: "Faltan fechas" })).toBe(
-      "Faltan fechas",
+  // El motivo del rechazo se lee del primer error, y si no lo hay se va cayendo
+  // a la observación y al `Resultado` crudo.
+  test.each([
+    {
+      caso: "error",
+      emission: {
+        errors: [{ code: 10016, msg: "Correlativo fuera de orden" }],
+        observaciones: [{ code: 10049, msg: "Faltan fechas" }],
+        resultado: "R",
+      },
+      esperado: "ARCA no autorizó el comprobante (Correlativo fuera de orden).",
+    },
+    {
+      caso: "observación",
+      emission: {
+        errors: [],
+        observaciones: [{ code: 10049, msg: "Faltan fechas" }],
+        resultado: "R",
+      },
+      esperado: "ARCA no autorizó el comprobante (Faltan fechas).",
+    },
+    {
+      caso: "resultado crudo",
+      emission: { errors: [], observaciones: [], resultado: "R" },
+      esperado: "ARCA no autorizó el comprobante (R).",
+    },
+    {
+      caso: "nada",
+      emission: { errors: [], observaciones: [], resultado: null },
+      esperado: "ARCA no autorizó el comprobante (sin detalle).",
+    },
+  ])(
+    "un rechazo con $caso explica el motivo",
+    async ({ emission, esperado }) => {
+      const outcome = await emitWithContingency(
+        choreography({
+          emit: async (): Promise<FacturaCEmissionResult> => ({
+            approved: false,
+            cae: null,
+            caeVto: null,
+            cbteNro: null,
+            cbteFch: null,
+            ...emission,
+          }),
+        }),
+      );
+
+      expect(outcome).toMatchObject({ ok: false, reason: "rejected" });
+      expect(outcome).toMatchObject({ message: esperado });
+    },
+  );
+
+  // Un "aprobado" sin CAE no cuenta como autorizado (ADR-0012): no se persiste.
+  test("aprobado sin CAE: no persiste nada y cuenta como rechazo", async () => {
+    const persist = vi.fn();
+
+    const outcome = await emitWithContingency(
+      choreography({
+        emit: async (): Promise<FacturaCEmissionResult> => ({
+          approved: true,
+          cae: null,
+          caeVto: null,
+          cbteNro: 43,
+          cbteFch: "20260722",
+          resultado: "A",
+          errors: [],
+          observaciones: [],
+        }),
+        persist,
+      }),
     );
+
+    expect(outcome).toMatchObject({ ok: false, reason: "rejected" });
+    expect(persist).not.toHaveBeenCalled();
+  });
+});
+
+describe("toArcaDate", () => {
+  test("saca los guiones de la fecha de negocio", () => {
+    expect(toArcaDate("2026-07-22")).toBe("20260722");
   });
 });

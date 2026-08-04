@@ -13,8 +13,8 @@ import {
   requireInternalUser,
 } from "@/lib/auth/internal-access.server";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
-import { formatArcaMessage } from "@/lib/comprobantes/arca/emission.server";
 import { FACTURA_C_CBTE_TIPO } from "@/lib/comprobantes/arca/factura-c";
+import { formatArcaMessage } from "@/lib/comprobantes/arca/responses";
 import { listChoreographyComprobantes } from "@/lib/comprobantes/comprobantes.server";
 import {
   emitChoreographyFacturaC,

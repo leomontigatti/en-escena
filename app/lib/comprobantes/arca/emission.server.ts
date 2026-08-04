@@ -113,7 +113,9 @@ export type ArcaEmissionOutcome<TVoucher> =
 export async function emitWithContingency<TVoucher>(
   choreography: ArcaEmissionChoreography<TVoucher>,
 ): Promise<ArcaEmissionOutcome<TVoucher>> {
-  const lookup = await attemptArca("lookup", choreography.getLastNumber);
+  const lookup = await attemptArca("lookup", () =>
+    choreography.getLastNumber(),
+  );
 
   if (!lookup.ok) {
     return {
@@ -206,9 +208,9 @@ export async function emitWithContingency<TVoucher>(
   return { ok: true, voucher, recovered: false };
 }
 
-export function buildRejectionMessage(
-  emission: FacturaCEmissionResult,
-): string {
+// El motivo del rechazo, en el orden en que ARCA lo explica: primero el error que
+// lo impidió, después la observación, y como último recurso el `Resultado` crudo.
+function buildRejectionMessage(emission: FacturaCEmissionResult): string {
   const detail =
     emission.errors[0]?.msg ??
     emission.observaciones[0]?.msg ??
@@ -216,11 +218,6 @@ export function buildRejectionMessage(
     "sin detalle";
 
   return `ARCA no autorizó el comprobante (${detail}).`;
-}
-
-// Un mensaje de ARCA tal como se le muestra al operador en un rechazo.
-export function formatArcaMessage(message: ArcaMessage): string {
-  return message.code ? `${message.msg} (código ${message.code})` : message.msg;
 }
 
 // Fecha de negocio `AAAA-MM-DD` → formato ARCA `AAAAMMDD`.

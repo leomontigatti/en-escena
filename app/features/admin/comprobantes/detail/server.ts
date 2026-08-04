@@ -7,7 +7,7 @@ import {
   requireAdminUser,
   requireInternalUser,
 } from "@/lib/auth/internal-access.server";
-import { formatArcaMessage } from "@/lib/comprobantes/arca/emission.server";
+import { formatArcaMessage } from "@/lib/comprobantes/arca/responses";
 import type { ComprobanteStatus } from "@/lib/comprobantes/comprobante-status.server";
 import { listChoreographyComprobantes } from "@/lib/comprobantes/comprobantes.server";
 import type { ComprobantePorcion } from "@/lib/comprobantes/emit-factura-c.server";
