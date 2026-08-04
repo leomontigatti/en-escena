@@ -14,7 +14,7 @@ import {
 } from "@/lib/auth/internal-access.server";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import { FACTURA_C_CBTE_TIPO } from "@/lib/comprobantes/arca/factura-c";
-import type { ArcaMessage } from "@/lib/comprobantes/arca/responses";
+import { formatArcaMessage } from "@/lib/comprobantes/arca/responses";
 import { listChoreographyComprobantes } from "@/lib/comprobantes/comprobantes.server";
 import {
   emitChoreographyFacturaC,
@@ -592,10 +592,6 @@ async function handleEmitComprobante(input: {
   }
 
   return { status: "error", message: outcome.message };
-}
-
-function formatArcaMessage(message: ArcaMessage): string {
-  return message.code ? `${message.msg} (código ${message.code})` : message.msg;
 }
 
 function redirectToDetail(
