@@ -1,41 +1,31 @@
-import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import postgres from "postgres";
 
-// Registra la migración baseline (idx=0) como ya aplicada en
-// `drizzle.__drizzle_migrations` SIN correr su DDL. Se usa una única vez sobre
-// una base cuyo schema ya existe (prod real, o un clon de prod), para que
-// `drizzle-kit migrate` la trate como aplicada y solo corra las migraciones
-// posteriores. Es metadata-only y reversible: dropear el schema `drizzle` lo
-// deshace. Ver docs/db/migrations.md.
+import { readHashedJournalEntries } from "./migrations/journal.mjs";
+
+// Registers the baseline migration (idx=0) as already applied in
+// `drizzle.__drizzle_migrations` WITHOUT running its DDL. Used once against a
+// database whose schema already exists (real production, or a clone of it), so
+// that `drizzle-kit migrate` treats it as applied and only runs the migrations
+// after it. Metadata-only and reversible: dropping the `drizzle` schema undoes
+// it. See docs/db/migrations.md.
 const migrationsDirectory = fileURLToPath(
   new URL("../app/db/migrations", import.meta.url),
 );
 
-const journalPath = fileURLToPath(
-  new URL("../app/db/migrations/meta/_journal.json", import.meta.url),
-);
-const journal = JSON.parse(readFileSync(journalPath, "utf8")) as {
-  entries: Array<{ idx: number; tag: string; when: number }>;
-};
-const baseline = journal.entries[0];
+// The (hash, created_at) pair written here has to be exactly the one
+// drizzle-orm computes, or `migrate()` re-runs the DDL — hence reading it from
+// the shared journal module rather than recomputing it. The invariant is
+// guarded by app/db/migrations.db.test.ts.
+const [baseline] = readHashedJournalEntries(migrationsDirectory);
 
 if (!baseline || baseline.idx !== 0) {
   console.error("No baseline (idx=0) entry found in meta/_journal.json.");
   process.exit(1);
 }
 
-const baselineSqlPath = `${migrationsDirectory}/${baseline.tag}.sql`;
-const baselineSql = readFileSync(baselineSqlPath, "utf8");
-
-// El hash debe ser sha256 del contenido crudo del .sql y `created_at` debe ser
-// exactamente `when` del journal: así es como el migrator de drizzle-orm
-// identifica una migración como aplicada. Cualquier divergencia haría que
-// `migrate()` re-ejecute el DDL. El test app/db/migrations.db.test.ts guarda
-// esta invariante.
-const hash = createHash("sha256").update(baselineSql).digest("hex");
+const hash = baseline.hash;
 
 const databaseUrl = process.env.DATABASE_URL;
 

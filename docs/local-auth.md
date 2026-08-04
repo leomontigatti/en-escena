@@ -98,9 +98,11 @@ If you use a transaction pooler, validate the app before rollout because
 transaction pooling can affect prepared statements and session-level database
 behavior.
 
-For schema changes against production, use versioned Drizzle migrations applied
-with `pnpm db:migrate`; see [docs/db/migrations.md](db/migrations.md). Do not
-point local `.env` at production.
+Schema changes against production ship as versioned Drizzle migrations, applied
+by the application container at start — not with `pnpm db:migrate` from a
+laptop, which has no route to the production Postgres. See
+[docs/db/migrations.md](db/migrations.md). Do not point local `.env` at
+production.
 Database-backed tests keep two paths:
 
 - `pnpm test:db`: default in-process `PGlite` suite backed by the cached

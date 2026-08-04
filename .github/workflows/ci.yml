@@ -1,10 +1,11 @@
-# Pipeline de CI — implementa la decisión de #305 (charter completo del workflow).
-# PR-only: issue -> rama -> PR -> merge. Dos jobs, ambos pensados para ser required:
-#   - checks : lint / typecheck / tests no-DB / build, sin base de datos (@/db es lazy, #308).
-#   - db-gate: suite `*.db.test.ts` completa contra Postgres 17 real (calca prod).
-# Branch protection (exigir estos checks + prohibir push directo a master) NO se enciende acá:
-# #305 la secuencia con el cutover a Sandcastle-en-GHA y el mapa #319 la ubica en #347
-# ("Cutover Fase 4: branch protection enforced"). Encenderla ahora rompería el runner local.
+# CI pipeline — implements the decision in #305 (full charter of the workflow).
+# PR-only: issue -> branch -> PR -> merge. Two jobs, both meant to be required:
+#   - checks : lint / typecheck / non-DB tests / build, with no database (@/db is lazy, #308).
+#   - db-gate: full `*.db.test.ts` suite against real Postgres 17 (mirrors production).
+# Branch protection (requiring these checks + forbidding direct pushes to master) is NOT
+# turned on here: #305 sequences it with the cutover to Sandcastle-on-GHA and the map in
+# #319 places it in #347 ("Cutover Fase 4: branch protection enforced"). Turning it on
+# now would break the local runner.
 name: CI
 
 on:
@@ -22,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v5 # versión desde el campo `packageManager` (pnpm 11.9.0)
+      - uses: pnpm/action-setup@v5 # version comes from the `packageManager` field (pnpm 11.9.0)
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -31,20 +32,29 @@ jobs:
       - run: pnpm format:check
       - run: pnpm check:repo-styles
       - run: pnpm check:file-tokens
-      # Drift-check (diferido desde #391): `db:generate` es offline (compara
-      # `schema.ts` contra los snapshots de `app/db/migrations/meta/`, sin DB) y
-      # debe reportar "No schema changes". Si emite una migración, `schema.ts`
-      # derivó respecto del baseline versionado y quedó sin commitear → falla.
-      # El fix va en `schema.ts` + regenerar el baseline, nunca editando el .sql.
-      - name: drift-check (db:generate sin migraciones sin commitear)
+      # Drift-check (deferred from #391): `db:generate` is offline (it diffs
+      # `schema.ts` against the snapshots in `app/db/migrations/meta/`, no DB)
+      # and must report "No schema changes". If it emits a migration, `schema.ts`
+      # drifted from the versioned baseline and was left uncommitted → fail.
+      # The fix goes in `schema.ts` plus a regenerated baseline, never by
+      # editing the .sql.
+      - name: drift-check (db:generate leaves no uncommitted migration)
         run: |
           pnpm db:generate
           if [ -n "$(git status --porcelain app/db/migrations)" ]; then
-            echo "::error::Drift de schema: db:generate produjo una migración sin commitear. Corregí schema.ts y regenerá el baseline (ver docs/db/migrations.md)."
+            echo "::error::Schema drift: db:generate produced an uncommitted migration. Fix schema.ts and regenerate the baseline (see docs/db/migrations.md)."
             git status --porcelain app/db/migrations
             git --no-pager diff -- app/db/migrations
             exit 1
           fi
+      # Migration ordering (#593). A migration that is not newer than every one
+      # already on master would merge green and then never run in production;
+      # scripts/migrations/journal.mjs explains why, and why `db-gate` cannot
+      # catch it. Caught here, the fix is a rebase plus `pnpm db:generate`.
+      - name: migration-order (new migrations must postdate master)
+        run: |
+          git fetch --no-tags --depth=1 origin master
+          pnpm check:migration-order
       - run: pnpm typecheck
       - run: pnpm test:unit
       - run: pnpm build
