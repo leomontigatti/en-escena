@@ -133,20 +133,16 @@ B2_S3_ENDPOINT="https://s3.us-east-005.backblazeb2.com"
 Configure these values in the scheduled-job environment. Do not commit real
 secrets.
 
-The database backup needs none of these — it is configured entirely in Coolify.
-The `B2_DATABASE_*` block below belongs to `scripts/backup-database-to-b2.sh`,
-which still runs in parallel and is retired in #594 once the native backup has
-passed a restore test.
+The database backup itself needs none of these — it is configured entirely in
+Coolify. What is left here belongs to the storage backup and to the scheduled
+restore drill.
 
-`COOLIFY_BACKUP_BUCKET` is separate from `B2_DATABASE_BUCKET` and outlives it:
-it names the bucket Coolify's own backup writes to (unhyphenated, #588), which
-the scheduled restore drill reads. `B2_DATABASE_BUCKET` names the hyphenated
-bucket of the retiring script. Setting one to the other's value would point the
-drill at artifacts nothing is writing any more.
+`COOLIFY_BACKUP_BUCKET` names the bucket Coolify's own backup writes to
+(unhyphenated, #588), which the scheduled restore drill reads. It replaced the
+retired `B2_DATABASE_BUCKET`, which pointed at the hyphenated bucket of the old
+app-script path (#594 item 5).
 
 ```sh
-B2_DATABASE_BUCKET="en-escena-db-backups"
-B2_DATABASE_PREFIX="database"
 B2_S3_ENDPOINT="https://s3.us-east-005.backblazeb2.com"
 AWS_ACCESS_KEY_ID="your-b2-application-key-id"
 AWS_SECRET_ACCESS_KEY="your-b2-application-key"
@@ -161,10 +157,11 @@ B2_FILESTORE_PREFIX="filestore"
 COOLIFY_BACKUP_BUCKET="enescena-db-backups"
 ```
 
-`B2_DATABASE_BUCKET` and `B2_FILESTORE_BUCKET` are intentionally separate. The
-database script still accepts the legacy `B2_BUCKET` and `B2_PREFIX` variables
-as fallbacks, but new production configuration should use the explicit bucket
-and prefix variables.
+`COOLIFY_BACKUP_BUCKET` and `B2_FILESTORE_BUCKET` are intentionally separate:
+they hold different kinds of data on different lifecycles. The storage scripts
+still accept the legacy `B2_BUCKET` and `B2_PREFIX` variables as fallbacks, but
+new production configuration should use the explicit bucket and prefix
+variables.
 
 `STORAGE_BACKUP_BUCKETS` names the on-disk bucket directories under
 `STORAGE_VOLUME_DIR` (which are also the prefixes under `B2_FILESTORE_PREFIX` in
@@ -175,16 +172,15 @@ B2). The storage backup no longer reads from Supabase Storage, so no
 
 The scheduled environment needs:
 
-- `pg_dump`, plus `pg_restore` and `psql` for the scheduled restore drill;
+- `pg_restore` and `psql`, for the scheduled restore drill;
 - AWS CLI v2.
 
-The production Docker image installs PostgreSQL client 17 in the runtime stage
-so the Coolify scheduled task can run inside the application container. **Do not
-remove it when `backup-database-to-b2.sh` is retired in #594 item 5** — the
-scheduled restore drill needs `pg_restore` and `psql` from the same package. The
-client version must be equal to or newer than the Postgres server version;
-otherwise `pg_dump` aborts with a server version mismatch. The server runs
-`postgres:17-alpine`, so keep both pinned to 17.
+The production Docker image installs PostgreSQL client 17 in the runtime stage so
+the Coolify scheduled task can run inside the application container. It was
+originally added for `backup-database-to-b2.sh`; **that script is gone (#594 item 5) and the client must stay**, because the scheduled restore drill needs
+`pg_restore` and `psql` from the same package. The client version must be equal
+to or newer than the Postgres server version, or `pg_restore` refuses the
+archive. The server runs `postgres:17-alpine`, so keep both pinned to 17.
 
 The native database backup needs none of this — it runs `docker exec` against the
 Postgres container itself, using that image's own client.
@@ -204,27 +200,21 @@ official PostgreSQL apt repository first.
 
 For the database, use **Backup Now** on the Coolify database resource.
 
-From the repo root, for storage — and, until #594 retires it, the legacy database
-script:
+For storage, from the repo root:
 
 ```sh
-pnpm backup:db:b2      # legacy, retired in #594
 pnpm backup:storage:b2
 ```
 
-The database script writes a temporary file under `tmp/db-backups/`, uploads it
-to B2, and removes the local file on exit. The storage script syncs each bucket
-directory under `STORAGE_VOLUME_DIR` straight to B2, keys intact; there is no
-local staging copy.
+The storage script syncs each bucket directory under `STORAGE_VOLUME_DIR`
+straight to B2, keys intact; there is no local staging copy.
 
 ## Daily Schedule
 
 The **database** backup is scheduled on the Coolify Postgres resource, not here.
-
-A legacy scheduled task on the production application still runs
-`sh scripts/backup-database-to-b2.sh` in parallel against the same database. It
-is redundant, not broken — the script reads `DATABASE_URL`, which the cutover
-repointed at the internal Postgres. Both it and its task are retired in #594.
+It is the only database backup: the parallel scheduled task that ran
+`sh scripts/backup-database-to-b2.sh` was deleted, and the script with it, once
+the native backup passed a restore drill (#594 items 1 and 5).
 
 Add a scheduled task for Storage. Its base cadence is twice a day, raised during
 an event window to shrink the RPO:
@@ -246,7 +236,6 @@ the backup variables directly on the scheduled task.
 For a host-level cron fallback, use:
 
 ```cron
-20 3 * * * cd /path/to/en-escena && pnpm backup:db:b2 >> /var/log/en-escena-db-backup.log 2>&1
 0 3,15 * * * cd /path/to/en-escena && pnpm backup:storage:b2 >> /var/log/en-escena-storage-backup.log 2>&1
 ```
 
