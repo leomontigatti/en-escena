@@ -67,6 +67,15 @@ against the named database and writes `pg-dump-<database>-<timestamp>.dmp`, whic
 `pg_restore` handles. Whether to switch is open in #594; it matters because
 `db:refresh:prod` consumes these backups (#595).
 
+**Coolify's own restore handles both formats.** Its import form has a "Backup
+includes all databases" checkbox that selects the restore command: checked, it
+drops every non-template database, recreates the target and pipes
+`gunzip -cf | psql`; unchecked, it runs `pg_restore -U … -d …` from an editable
+command field (the UI itself suggests adding `--clean`). So the format choice
+does not cost the one-click restore path, contrary to what #302 assumed. The
+practical difference is that the `pg_dumpall` branch cleans up after itself and
+the `pg_restore` branch does not unless you add `--clean`.
+
 Either way the dump covers the whole `enescena` database — every schema,
 including `public` and `drizzle`. Coolify's database selection is per _database_,
 not per schema, so the schema rename in #506 does not affect it.
@@ -206,48 +215,77 @@ they run does not have it — the São Paulo VPS host does not — run the AWS C
 from the `amazon/aws-cli` Docker image with the volume bind-mounted, instead of
 installing it on the host.
 
-## Restore Check
+## Database Restore Drill
 
-The native backup is plain SQL (see [Format](#format)), so it restores with
-`psql`, not `pg_restore`. Take the most recent local copy on the VPS:
+Prove the database backup restores, not just that the backup job exits 0. The
+drill restores an artifact into a **throwaway Postgres container** — never into
+`enescena` — then compares per-table row counts and the Drizzle migration
+journal against the live database. This is the check #267 step 7 requires.
 
-```sh
-# on rylai
-ls -t /data/coolify/backups/databases/*/postgresql-database-*/pg-dump-all-*.gz | head -1
-```
-
-Restore it into a scratch database — never into `enescena`:
+Run it on the server, because the database is `is_public: false` and the local
+copies live under `/data/coolify/backups`:
 
 ```sh
-docker exec "$PG" createdb -U postgres restore_check
-gunzip -c pg-dump-all-<timestamp>.gz | docker exec -i "$PG" psql -U postgres -d restore_check
+# on rylai, from the app checkout
+pnpm restore:db:drill
+
+# or, without pnpm on PATH
+sh scripts/restore-drill-database.sh
 ```
 
-`pg_dumpall` output contains its own `\connect` directives, so review what it
-targets before running it against a live server.
+With no arguments it picks the newest artifact under
+`/data/coolify/backups/databases`, detects the format from the extension, and
+finds the live container from the backup path. Useful overrides:
 
-Then verify the restore is real, not merely present — row counts against the
-tables that matter, as #267 step 7 requires:
+| Variable            | Purpose                                                                   |
+| ------------------- | ------------------------------------------------------------------------- |
+| `BACKUP_FILE`       | Drill a specific artifact instead of the newest one.                      |
+| `BACKUP_DIR`        | Where to search for artifacts.                                            |
+| `TARGET_DB`         | The database to restore and compare. Defaults to `enescena`.              |
+| `LIVE_CONTAINER`    | The Coolify Postgres container, when it cannot be derived.                |
+| `SKIP_LIVE_COMPARE` | Accept a restore-only drill with no live comparison.                      |
+| `ALLOW_DRIFT`       | Accept tables that restored fewer rows than live. See below.              |
+| `DRILL_KEEP`        | Keep the scratch container for inspection. It holds production data.      |
+| `POSTGRES_IMAGE`    | The scratch image. Defaults to `postgres:17-alpine`, matching production. |
+| `DRILL_CONTAINER`   | Name for the scratch container.                                           |
+| `WORK_DIR`          | Scratch directory for the dumped counts. Wiped on exit.                   |
 
-```sh
-docker exec "$PG" psql -U postgres -d restore_check -c \
-  "select 'payment' t, count(*) from en_escena_payment
-   union all select 'event', count(*) from en_escena_event
-   union all select 'inscription', count(*) from en_escena_inscription
-   union all select 'user', count(*) from en_escena_user;"
-```
+It handles both artifact formats (see [Format](#format)) without configuration:
+`.gz` restores through `gunzip \| psql`, `.dmp` through `pg_restore`. For
+inspecting a custom-format artifact by hand instead, `pg_restore --list` and
+`pg_restore --no-owner --no-acl` are covered in `docs/db/production-dump.md`.
 
-Check `drizzle.__drizzle_migrations` has every applied migration too — the
-migration journal lives in the `drizzle` schema and a restore that loses it
-leaves the database unable to migrate correctly.
+Reading the result:
 
-Drop `restore_check` when done.
+- **Row counts match exactly** — the strongest outcome, and what #267 step 7
+  asks for. Expect it when nothing has been written since the backup ran.
+- **Some table restored fewer rows than live** — a failure by default. Rows
+  written after the backup are legitimate drift, but they look exactly like
+  rows a partial restore lost, so the drill will not call that a pass on its
+  own. Re-run against a quiet database, or set `ALLOW_DRIFT=1` once you have
+  read the diff and recognised the tables as ones that take writes.
+- **Some table restored _more_ rows than live** — always a failure. The backup
+  was taken before now, so this cannot be drift.
+- **A table present live is missing from the restore** — a failure. Compare the
+  two journal watermarks the drill prints: if they are equal, the restore lost
+  the table; if the restored watermark is older, the artifact simply predates
+  the migration that added it.
+- **Unexpected errors during the restore** — a failure. `already exists` noise
+  from objects the fresh image ships with is filtered out; anything else is not.
+  On the `.dmp` path a non-zero `pg_restore` exit is a failure in its own right.
 
-If the backup is switched to custom format (#594), this becomes
-`pg_restore --list` for inspection and `pg_restore --no-owner --no-acl` for the
-restore, as in `docs/db/production-dump.md`.
+To drill a B2 copy rather than a local one, download it first and pass
+`BACKUP_FILE`.
 
-Run a restore test monthly and before every event. A backup that has not been
+The scratch container holds a full copy of production PII while it runs. It
+publishes no port and is force-removed on exit unless `DRILL_KEEP` is set.
+
+If you ever restore a `pg_dumpall` artifact by hand instead, note the hazard the
+drill's throwaway container exists to avoid: the output carries its own
+`\connect` directives, so review what it targets before running it against a
+server that holds anything you care about.
+
+Run the drill monthly and before every event. A backup that has not been
 restored is unproven.
 
 ## Storage Restore Drill
