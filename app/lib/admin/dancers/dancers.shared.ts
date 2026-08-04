@@ -13,11 +13,6 @@ export type DancerIdentificationStatus =
   | "incomplete"
   | "unverified"
   | "verified";
-export type DancerAuditAction =
-  | "update"
-  | "archive"
-  | "reactivate"
-  | "verify-identity";
 
 export type DancerListFilters = {
   nameOrder: DancerNameOrder;

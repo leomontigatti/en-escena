@@ -43,6 +43,13 @@
       "when": 1784830291925,
       "tag": "0005_warm_kree",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785821472744,
+      "tag": "0006_drop_administrative_audit_entry",
+      "breakpoints": true
     }
   ]
 }

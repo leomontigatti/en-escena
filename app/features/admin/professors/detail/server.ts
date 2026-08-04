@@ -62,7 +62,7 @@ export async function handleProfessorDetailAction(input: {
   request: Request;
   params: { professorId?: string };
 }) {
-  const adminUser = await requireAdminUser(input.request);
+  await requireAdminUser(input.request);
   const eventContext = await loadEventContext(input.request);
 
   if (eventContext.redirectTo) {
@@ -84,7 +84,6 @@ export async function handleProfessorDetailAction(input: {
   if (intent === "archive-professor" || intent === "reactivate-professor") {
     await setProfessorActiveState({
       action: intent === "archive-professor" ? "archive" : "reactivate",
-      adminUserId: adminUser.id,
       professorId,
       selectedEventId: eventContext.selectedEventId,
     });
@@ -108,7 +107,6 @@ export async function handleProfessorDetailAction(input: {
   }
 
   const result = await updateAdministrativeProfessor({
-    adminUserId: adminUser.id,
     professorId,
     selectedEventId: eventContext.selectedEventId,
     values: parsed.data,

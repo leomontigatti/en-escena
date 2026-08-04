@@ -147,14 +147,14 @@ Use for the operational admin list of coreografías for the active event.
 
 ## Admin Roster
 
-Use for administration and audit views over profesores, bailarines,
+Use for administration and read-only views over profesores, bailarines,
 participation filters, archive/reactivate flows and admin corrections.
 
 - Domain: `docs/domain/choreographies.md`, `docs/domain/events.md`, `docs/domain/access.md`
 - ADRs: `docs/adr/0004-organize-app-code-by-product-surface.md`
 - Routes: `app/routes/administracion.profesores.tsx`, `app/routes/administracion.profesores_.$professorId.tsx`, `app/routes/administracion.bailarines.tsx`, `app/routes/administracion.bailarines_.$dancerId.tsx`
 - Feature modules: `app/features/admin/professors/list/`, `app/features/admin/professors/detail/`, `app/features/admin/dancers/list/`, `app/features/admin/dancers/detail/`
-- Shared modules kept in `app/lib` because they encapsulate reusable query, mutation and audit behavior: `app/lib/admin/professors/professors.server.ts`, `app/lib/admin/professors/professors.shared.ts`, `app/lib/admin/dancers/dancers.server.ts`, `app/lib/admin/dancers/dancers-list.server.ts`, `app/lib/admin/dancers/dancers-detail.server.ts`, `app/lib/admin/dancers/dancers-update.server.ts`, `app/lib/admin/dancers/dancers-audit.server.ts`, `app/lib/admin/dancers/dancers-inscriptions.server.ts`, `app/lib/admin/dancers/dancers-identity.server.ts`, `app/lib/admin/dancers/dancers-active-state.server.ts`, `app/lib/participation/participation.server.ts`, `app/lib/participation/participation.shared.ts`
+- Shared modules kept in `app/lib` because they encapsulate reusable query and mutation behavior: `app/lib/admin/professors/professors.server.ts`, `app/lib/admin/professors/professors.shared.ts`, `app/lib/admin/dancers/dancers.server.ts`, `app/lib/admin/dancers/dancers-list.server.ts`, `app/lib/admin/dancers/dancers-detail.server.ts`, `app/lib/admin/dancers/dancers-update.server.ts`, `app/lib/admin/dancers/dancers-inscriptions.server.ts`, `app/lib/admin/dancers/dancers-identity.server.ts`, `app/lib/admin/dancers/dancers-active-state.server.ts`, `app/lib/participation/participation.server.ts`, `app/lib/participation/participation.shared.ts`
 - Tests: `app/features/admin/dancers/routes.adapter.test.tsx`, `app/features/admin/professors/list/view.test.tsx`, `app/features/admin/professors/detail/view.test.tsx`, `app/lib/admin/professors/professors-route.server.db.test.ts`, `app/lib/admin/dancers/dancers-route.server.db.test.ts`, `app/lib/admin/dancers/dancer-detail-dialog.test.tsx`, `app/lib/admin/dancers/inscriptions-section.render.test.tsx`
 
 ## Admin Academies

@@ -30,20 +30,3 @@ export const documentType = pgEnum("en_escena_document_type", [
   "passport",
   "other",
 ]);
-
-export const administrativeAuditEntityType = pgEnum(
-  "en_escena_administrative_audit_entity_type",
-  ["professor", "dancer", "choreography", "user"],
-);
-
-export const administrativeAuditAction = pgEnum(
-  "en_escena_administrative_audit_action",
-  [
-    "create",
-    "update",
-    "archive",
-    "reactivate",
-    "reset-password",
-    "verify-identity",
-  ],
-);

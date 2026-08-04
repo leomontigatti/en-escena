@@ -65,7 +65,7 @@ export async function handleDancerDetailAction(input: {
   request: Request;
   params: { dancerId?: string };
 }) {
-  const adminUser = await requireAdminUser(input.request);
+  await requireAdminUser(input.request);
   const eventContext = await loadEventContext(input.request);
 
   if (eventContext.redirectTo) {
@@ -87,7 +87,6 @@ export async function handleDancerDetailAction(input: {
   if (intent === "archive-dancer" || intent === "reactivate-dancer") {
     await setDancerActiveState({
       action: intent === "archive-dancer" ? "archive" : "reactivate",
-      adminUserId: adminUser.id,
       dancerId,
       selectedEventId: eventContext.selectedEventId,
     });
@@ -101,7 +100,6 @@ export async function handleDancerDetailAction(input: {
 
   if (intent === "verify-dancer-identity") {
     await verifyDancerIdentity({
-      adminUserId: adminUser.id,
       dancerId,
       selectedEventId: eventContext.selectedEventId,
     });
@@ -126,7 +124,6 @@ export async function handleDancerDetailAction(input: {
   }
 
   const result = await updateAdministrativeDancer({
-    adminUserId: adminUser.id,
     dancerId,
     selectedEventId: eventContext.selectedEventId,
     values: parsed.data,

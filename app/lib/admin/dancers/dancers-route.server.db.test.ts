@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
@@ -6,7 +6,6 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import {
-  administrativeAuditEntries,
   categories,
   categoryModalities,
   choreographyDancers,
@@ -725,7 +724,7 @@ describe.sequential("administracion/bailarines route", () => {
     expect(detailMarkup).toContain("Julia Pérez");
   });
 
-  test("updates a Bailarín in explicit edit mode and persists an administrative audit entry", async () => {
+  test("updates a Bailarín in explicit edit mode", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "admin.mutacion.bailarines.academia@example.com",
@@ -771,34 +770,6 @@ describe.sequential("administracion/bailarines route", () => {
       documentNumber: "12345678",
       active: true,
     });
-
-    await expect(db.select().from(administrativeAuditEntries)).resolves.toEqual(
-      [
-        expect.objectContaining({
-          entityType: "dancer",
-          entityId: dancer.id,
-          eventId: event.id,
-          action: "update",
-          reason: null,
-          beforeValues: expect.objectContaining({
-            firstName: "ana",
-            lastName: "perez",
-            birthDate: "2013-01-10",
-            documentType: null,
-            documentNumber: null,
-            active: true,
-          }),
-          afterValues: expect.objectContaining({
-            firstName: "María del Carmen",
-            lastName: "de la Cruz",
-            birthDate: "2012-05-06",
-            documentType: "dni",
-            documentNumber: "12345678",
-            active: true,
-          }),
-        }),
-      ],
-    );
   });
 
   test("rejects auditor, judge, and academy mutations", async () => {
@@ -845,7 +816,7 @@ describe.sequential("administracion/bailarines route", () => {
     }
   });
 
-  test("saves a participating Bailarín without a correction reason and still writes the audit entry", async () => {
+  test("saves a participating Bailarín without a correction reason", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "admin.motivo.evento.bailarines.academia@example.com",
@@ -893,20 +864,9 @@ describe.sequential("administracion/bailarines route", () => {
       firstName: "Liana",
       lastName: "Participa",
     });
-    await expect(db.select().from(administrativeAuditEntries)).resolves.toEqual(
-      [
-        expect.objectContaining({
-          entityType: "dancer",
-          entityId: dancer.id,
-          eventId: event.id,
-          action: "update",
-          reason: null,
-        }),
-      ],
-    );
   });
 
-  test("saves a Bailarín who participated in any Evento without a correction reason and still writes the audit entry", async () => {
+  test("saves a Bailarín who participated in any Evento without a correction reason", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "admin.motivo.historial.bailarines.academia@example.com",
@@ -954,16 +914,6 @@ describe.sequential("administracion/bailarines route", () => {
       firstName: "Lolita",
       lastName: "Historial",
     });
-    await expect(db.select().from(administrativeAuditEntries)).resolves.toEqual(
-      [
-        expect.objectContaining({
-          entityType: "dancer",
-          entityId: dancer.id,
-          action: "update",
-          reason: null,
-        }),
-      ],
-    );
   });
 
   test("rejects a duplicate document within the same academy", async () => {
@@ -1053,7 +1003,7 @@ describe.sequential("administracion/bailarines route", () => {
     );
   });
 
-  test("recalculates eligible linked coreografias after a birth date correction and persists the audit reason", async () => {
+  test("recalculates eligible linked coreografias after a birth date correction", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "admin.fecha.bailarines.academia@example.com",
@@ -1139,61 +1089,9 @@ describe.sequential("administracion/bailarines route", () => {
       groupType: "solo",
       scheduleCapacityId: catalog.scheduleCapacity.id,
     });
-    await expect(
-      db
-        .select()
-        .from(administrativeAuditEntries)
-        .orderBy(
-          asc(administrativeAuditEntries.createdAt),
-          asc(administrativeAuditEntries.entityType),
-        ),
-    ).resolves.toEqual([
-      expect.objectContaining({
-        action: "update",
-        entityType: "dancer",
-        entityId: dancer.id,
-        eventId: event.id,
-        reason: null,
-        beforeValues: expect.objectContaining({ birthDate: "2014-05-01" }),
-        afterValues: expect.objectContaining({ birthDate: "2011-05-01" }),
-      }),
-      expect.objectContaining({
-        action: "update",
-        entityType: "choreography",
-        entityId: choreography.id,
-        eventId: event.id,
-        reason: null,
-        beforeValues: expect.objectContaining({
-          sourceDancer: expect.objectContaining({
-            id: dancer.id,
-          }),
-          category: expect.objectContaining({
-            id: catalog.youngerCategory.id,
-          }),
-          categoryCalculationMode: "oldest",
-          categoryAgeBasis: 12,
-          experienceLevel: expect.objectContaining({
-            id: catalog.level.id,
-          }),
-          dancerCompetitiveAge: 12,
-        }),
-        afterValues: expect.objectContaining({
-          sourceDancer: expect.objectContaining({
-            id: dancer.id,
-          }),
-          category: expect.objectContaining({
-            id: catalog.olderCategory.id,
-          }),
-          categoryCalculationMode: "oldest",
-          categoryAgeBasis: 15,
-          experienceLevel: null,
-          dancerCompetitiveAge: 15,
-        }),
-      }),
-    ]);
   });
 
-  test("does not create a choreography audit when a birth date correction leaves persisted choreography data unchanged", async () => {
+  test("leaves persisted choreography data unchanged when a birth date correction does not move the competitive placement", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "admin.fecha.sin-cambios.academia@example.com",
@@ -1275,24 +1173,6 @@ describe.sequential("administracion/bailarines route", () => {
     ).resolves.toMatchObject({
       ageAtEventStart: 12,
     });
-    await expect(
-      db
-        .select()
-        .from(administrativeAuditEntries)
-        .orderBy(
-          asc(administrativeAuditEntries.createdAt),
-          asc(administrativeAuditEntries.entityType),
-        ),
-    ).resolves.toEqual([
-      expect.objectContaining({
-        action: "update",
-        entityType: "dancer",
-        entityId: dancer.id,
-        reason: null,
-        beforeValues: expect.objectContaining({ birthDate: "2014-01-10" }),
-        afterValues: expect.objectContaining({ birthDate: "2014-02-20" }),
-      }),
-    ]);
   });
 
   test("verifies an unverified Bailarín and returns it to unverified after an administrative edit", async () => {
@@ -1396,17 +1276,6 @@ describe.sequential("administracion/bailarines route", () => {
       message: "Bailarín guardado. La identidad volvió a no verificado.",
     });
 
-    await expect(db.select().from(administrativeAuditEntries)).resolves.toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          entityType: "dancer",
-          entityId: dancer.id,
-          action: "update",
-          reason: null,
-        }),
-      ]),
-    );
-
     await expectPersistedDancer(dancer.id, {
       documentFrontImageStorageKey: "dancers/paula-front.jpg",
       documentBackImageStorageKey: "dancers/paula-back.jpg",
@@ -1452,7 +1321,7 @@ describe.sequential("administracion/bailarines route", () => {
     );
   });
 
-  test("archives and reactivates a participating Bailarín without a correction reason and persists audit entries", async () => {
+  test("archives and reactivates a participating Bailarín without a correction reason", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "admin.archivo.bailarines.academia@example.com",
@@ -1525,27 +1394,6 @@ describe.sequential("administracion/bailarines route", () => {
       message: "Bailarín reactivado.",
     });
     await expectPersistedDancer(dancer.id, { active: true });
-    await expect(
-      db
-        .select()
-        .from(administrativeAuditEntries)
-        .orderBy(administrativeAuditEntries.createdAt),
-    ).resolves.toEqual([
-      expect.objectContaining({
-        action: "archive",
-        entityId: dancer.id,
-        reason: null,
-        beforeValues: expect.objectContaining({ active: true }),
-        afterValues: expect.objectContaining({ active: false }),
-      }),
-      expect.objectContaining({
-        action: "reactivate",
-        entityId: dancer.id,
-        reason: null,
-        beforeValues: expect.objectContaining({ active: false }),
-        afterValues: expect.objectContaining({ active: true }),
-      }),
-    ]);
   });
 });
 

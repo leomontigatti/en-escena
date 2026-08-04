@@ -5,11 +5,7 @@ import { MemoryRouter } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import {
-  administrativeAuditEntries,
-  choreographyProfessors,
-  professors,
-} from "@/db/schema";
+import { choreographyProfessors, professors } from "@/db/schema";
 import {
   toProfessorParticipationSearchValue,
   toProfessorStatusSearchValue,
@@ -597,7 +593,7 @@ describe("administracion/profesores route", () => {
     expect(markup).toContain('value="Dialogo"');
   });
 
-  test("updates a Profesor in explicit edit mode and persists an administrative audit entry", async () => {
+  test("updates a Profesor in explicit edit mode", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "admin.mutacion.academia@example.com",
@@ -640,32 +636,6 @@ describe("administracion/profesores route", () => {
       documentNumber: "12345678",
       active: true,
     });
-
-    await expect(db.select().from(administrativeAuditEntries)).resolves.toEqual(
-      [
-        expect.objectContaining({
-          entityType: "professor",
-          entityId: professor.id,
-          eventId: event.id,
-          action: "update",
-          reason: null,
-          beforeValues: {
-            firstName: "ana",
-            lastName: "perez",
-            documentType: null,
-            documentNumber: null,
-            active: true,
-          },
-          afterValues: {
-            firstName: "María del Carmen",
-            lastName: "de la Cruz",
-            documentType: "dni",
-            documentNumber: "12345678",
-            active: true,
-          },
-        }),
-      ],
-    );
   });
 
   test("rejects auditor, judge, and academy mutations", async () => {
@@ -710,7 +680,7 @@ describe("administracion/profesores route", () => {
     }
   });
 
-  test("saves a participating Profesor without a correction reason and still writes the audit entry", async () => {
+  test("saves a participating Profesor without a correction reason", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "admin.motivo.evento.academia@example.com",
@@ -753,19 +723,9 @@ describe("administracion/profesores route", () => {
       message: "Profesor guardado.",
     });
     await expectPersistedProfessor(professor.id, { firstName: "Lia Mariel" });
-    await expect(db.select().from(administrativeAuditEntries)).resolves.toEqual(
-      [
-        expect.objectContaining({
-          entityType: "professor",
-          entityId: professor.id,
-          action: "update",
-          reason: null,
-        }),
-      ],
-    );
   });
 
-  test("saves a Profesor who participated in any Evento without a correction reason and still writes the audit entry", async () => {
+  test("saves a Profesor who participated in any Evento without a correction reason", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "admin.motivo.historial.academia@example.com",
@@ -808,16 +768,6 @@ describe("administracion/profesores route", () => {
       message: "Profesor guardado.",
     });
     await expectPersistedProfessor(professor.id, { firstName: "Lola Beatriz" });
-    await expect(db.select().from(administrativeAuditEntries)).resolves.toEqual(
-      [
-        expect.objectContaining({
-          entityType: "professor",
-          entityId: professor.id,
-          action: "update",
-          reason: null,
-        }),
-      ],
-    );
   });
 
   test("rejects a duplicate document within the same academy", async () => {
@@ -867,7 +817,7 @@ describe("administracion/profesores route", () => {
     });
   });
 
-  test("archives and reactivates a participating Profesor without unlinking coreografias and persists audit entries", async () => {
+  test("archives and reactivates a participating Profesor without unlinking coreografias", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "admin.archivo.academia@example.com",
@@ -941,27 +891,6 @@ describe("administracion/profesores route", () => {
       message: "Profesor reactivado.",
     });
     await expectPersistedProfessor(professor.id, { active: true });
-    await expect(
-      db
-        .select()
-        .from(administrativeAuditEntries)
-        .orderBy(administrativeAuditEntries.createdAt),
-    ).resolves.toEqual([
-      expect.objectContaining({
-        action: "archive",
-        entityId: professor.id,
-        reason: null,
-        beforeValues: expect.objectContaining({ active: true }),
-        afterValues: expect.objectContaining({ active: false }),
-      }),
-      expect.objectContaining({
-        action: "reactivate",
-        entityId: professor.id,
-        reason: null,
-        beforeValues: expect.objectContaining({ active: false }),
-        afterValues: expect.objectContaining({ active: true }),
-      }),
-    ]);
   });
 });
 
