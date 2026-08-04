@@ -14,9 +14,8 @@ the screens. The architecture decision lives in
 - Invoices are outside the current operational scope; if they come back, they
   should be a derived document reading from payments, allocations and
   inscriptions, and never govern financial state.
-- Finances does not audit changes (see "No auditing in finances"). This is scoped
-  to the financial domain only; the rest of the system keeps its auditing until
-  the corresponding follow-up ([auditing.md](./auditing.md)).
+- Finances does not audit changes (see "No auditing in finances"), and neither
+  does the rest of the system: there is no administrative audit trail anywhere.
 - Outside this scope: money refunds, administrative discount and the full
   lifecycle of choreographies without active inscriptions.
 - Persisted monetary amounts are whole Argentine pesos throughout the app; the UI
@@ -164,8 +163,8 @@ receipt keeps its anchor choreography alive (there are no orphan receipts).
 
 - Finances **does not audit changes**. There are no audit entries for payments,
   allocations or inscriptions, nor for the choreography roster in its financial
-  dimension. This is scoped to finances only; auditing for the rest of the system
-  stays until the corresponding follow-up.
+  dimension. No other part of the system audits either: the administrative audit
+  trail was retired.
 - Roles: a single `Administrador` (edits) and a single `Auditor` (read-only). The
   auditor reads data; in finances there is no record of who changed what.
 - Financial records carry **no** annulment fields (`annulled*`, `cancelled*`) and

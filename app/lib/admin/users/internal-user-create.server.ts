@@ -1,7 +1,7 @@
 import { eq, or } from "drizzle-orm";
 
 import { db } from "@/db";
-import { administrativeAuditEntries, user } from "@/db/schema";
+import { user } from "@/db/schema";
 import { buildInternalCredentialEmail } from "@/lib/admin/users/internal-user-credentials.server";
 import { assertValidInternalUsername } from "@/lib/auth/internal-username.server";
 import {
@@ -34,14 +34,6 @@ type CreateInternalUserResult =
       ok: false;
       error: string;
     };
-
-type InternalUserAuditSnapshot = {
-  email: string | null;
-  internalUsername: string;
-  name: string;
-  requiresPasswordChange: true;
-  role: InternalUserRole;
-};
 
 export async function createInternalUser(
   input: CreateInternalUserInput,
@@ -84,14 +76,6 @@ export async function createInternalUser(
     : null;
   const credentialEmail =
     normalizedOptionalEmail ?? buildInternalCredentialEmail(internalUsername);
-  const auditSnapshot: InternalUserAuditSnapshot = {
-    email: normalizedOptionalEmail,
-    internalUsername,
-    name,
-    requiresPasswordChange: true,
-    role: input.role,
-  };
-
   const existingUser = await db.query.user.findFirst({
     columns: { id: true, email: true, internalUsername: true },
     where: or(
@@ -158,16 +142,6 @@ export async function createInternalUser(
       if (!savedUser) {
         throw new Error("Expected internal user to be created.");
       }
-
-      await tx.insert(administrativeAuditEntries).values({
-        entityType: "user",
-        entityId: savedUser.id,
-        adminUserId: input.createdByUserId,
-        action: "create",
-        reason: null,
-        beforeValues: {},
-        afterValues: auditSnapshot,
-      });
 
       return savedUser;
     });

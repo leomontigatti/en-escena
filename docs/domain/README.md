@@ -15,7 +15,6 @@ Read order for domain work:
 - [choreographies.md](./choreographies.md) - roster links, choreography registration, locks and Bases del evento.
 - [judging.md](./judging.md) - presentations, judging, ranking, results, scores and feedback.
 - [finances.md](./finances.md) - canonical finance model: inscriptions, payments, payment assignments, financial state, pricing and snapshots.
-- [auditing.md](./auditing.md) - traceability, audit history and state-level audit fields.
 - [rules.md](./rules.md) - index for compatibility.
 
 Implementation entry points live in
