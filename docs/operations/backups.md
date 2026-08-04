@@ -15,7 +15,8 @@ This runbook covers production backups to Backblaze B2:
   backup destination now, not the live store.
 - Destination: a Backblaze B2 bucket through its S3-compatible endpoint, plus a
   local copy on the VPS for the database.
-- Database format: plain SQL from `pg_dumpall`, gzipped. See
+- Database format: custom-format `pg_dump`, restored with `pg_restore`. Artifacts
+  predating #594 are gzipped plain SQL from `pg_dumpall`. See
   [Database Backup](#database-backup-coolify-native).
 - Storage format: copied objects under a B2 prefix, keys intact (`academies/...`).
 - Frequency: database on the cadence configured on the Coolify database resource;
@@ -53,19 +54,45 @@ the application. There is no script and nothing in this repo to run.
 
 ### Format
 
-With **"Backup All Databases" checked** — the current setting, decided in #302 in
-exchange for Coolify's one-click restore — Coolify runs:
+**Decision (#594, item 2): the artifact is custom format — "Backup All Databases"
+goes unchecked** on the Scheduled Backup of the Postgres resource. #302 had chosen
+`pg_dumpall` in exchange for Coolify's one-click restore; that trade-off turned out
+not to exist (see below), so the choice is now made on the merits. The checkbox is
+edited in the Coolify UI; nothing in this repo controls it.
+
+Unchecked, Coolify runs:
 
 ```sh
-docker exec <container> pg_dumpall --username postgres | gzip > pg-dump-all-<timestamp>.gz
+docker exec -e PGPASSWORD=… <container> \
+  pg_dump --format=custom --no-acl --no-owner --username postgres enescena \
+  > pg-dump-enescena-<timestamp>.dmp
 ```
 
-That is **plain SQL**, restored with `gunzip | psql`. `pg_restore` cannot read it.
+The redirect happens on the host, not in the container, so the file is written
+straight to `/data/coolify/backups/databases/<team>/<resource>/`. There is no
+gzip step: custom format is already compressed.
 
-Unchecked, Coolify instead runs `pg_dump --format=custom --no-acl --no-owner`
-against the named database and writes `pg-dump-<database>-<timestamp>.dmp`, which
-`pg_restore` handles. Whether to switch is open in #594; it matters because
-`db:refresh:prod` consumes these backups (#595).
+What that buys, and why it was worth switching:
+
+- `pg_restore` compatibility with the tooling that already exists —
+  `docs/db/production-dump.md` and `scripts/refresh-local-db-from-production.mjs`
+  both produce and consume `--format=custom` dumps, so `db:refresh:prod` (#595)
+  can consume a production artifact directly instead of a second dump.
+- Selective restore (`--table`, `--schema`), `--list` to inspect an artifact
+  without restoring it, and `--clean`.
+- A single-database restore can target one database, so an artifact can be
+  restored into a scratch database on a running server. Plain `pg_dumpall`
+  output carries `\connect` directives that repoint the session mid-stream,
+  which makes pointing it at a live server hazardous.
+- No wasted bytes on `postgres`/`template*`. The globals `pg_dumpall` adds are
+  worthless here: the only role is `postgres`, which is why the existing dumps
+  use `--no-owner --no-acl`.
+
+Checked — the previous setting — it ran `pg_dumpall --username postgres | gzip`
+into `pg-dump-all-<timestamp>.gz`, which is **plain SQL**, restored with
+`gunzip | psql`. `pg_restore` cannot read it. Artifacts in that format stay in
+the bucket until they age out of retention, so anything that reads backups must
+keep handling both for now.
 
 **Coolify's own restore handles both formats.** Its import form has a "Backup
 includes all databases" checkbox that selects the restore command: checked, it
@@ -75,6 +102,9 @@ command field (the UI itself suggests adding `--clean`). So the format choice
 does not cost the one-click restore path, contrary to what #302 assumed. The
 practical difference is that the `pg_dumpall` branch cleans up after itself and
 the `pg_restore` branch does not unless you add `--clean`.
+
+When restoring a `.dmp` through the import form, therefore: leave "Backup
+includes all databases" **unchecked** and add `--clean` to the command field.
 
 Either way the dump covers the whole `enescena` database — every schema,
 including `public` and `drizzle`. Coolify's database selection is per _database_,
