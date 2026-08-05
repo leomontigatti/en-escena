@@ -19,6 +19,10 @@ RUN pnpm prune --prod --ignore-scripts
 
 FROM base AS runtime
 
+# `awscli` and `postgresql-client-17` are here for the restore drill, not for the
+# retired in-repo pg_dump backup (#594): scripts/restore-drill-database-from-b2.sh
+# runs as a Coolify scheduled task from *this* container, because scheduled tasks
+# cannot attach to a standalone database resource. See docs/operations/backups.md.
 RUN apt-get update \
   && apt-get install -y --no-install-recommends awscli ca-certificates curl \
   && install -d /usr/share/postgresql-common/pgdg \
