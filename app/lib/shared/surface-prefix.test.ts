@@ -4,7 +4,8 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, test } from "vitest";
 
-const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
+const guardrailFile = fileURLToPath(import.meta.url);
+const currentDirectory = path.dirname(guardrailFile);
 const repositoryRoot = path.resolve(currentDirectory, "../../../");
 const scannedDirectories = ["app", "tests"];
 const sourceFilePattern = /\.(ts|tsx)$/;
@@ -19,17 +20,64 @@ const markedEntryPointPattern =
 
 // El resto se chequea sobre las declaraciones: tipos, componentes, helpers de
 // filtro/formato y constantes. La marca tiene que estar al principio del
-// identificador, o inmediatamente después de un verbo de lectura. Eso deja
-// afuera por forma —sin allowlist— a los símbolos donde `Admin` nombra el rol y
-// no la superficie: `requireAdminUser`, `createSignedInAdminRequest`,
-// `getMissingItemAdminPath`. Por lo mismo la forma en minúscula solo cubre
-// `administrative*`: un `admin*` suelto casi siempre es el usuario que actúa
-// (`adminUser`, `adminRequest`), no la superficie.
+// identificador, o inmediatamente después de un verbo de transformación. Eso
+// deja afuera por forma —sin allowlist— a los símbolos donde `Admin` nombra el
+// rol y no la superficie: `requireAdminUser`, `createSignedInAdminRequest`,
+// `getMissingItemAdminPath`.
 const declarationPattern =
   /\b(?:type|interface|class|enum|function|const|let)\s+([A-Za-z_$][A-Za-z0-9_$]*)/g;
+
+// La enumeración de verbos es lo que sostiene ese "sin allowlist", así que un
+// verbo entra sólo si el barrido no levanta falsos positivos y si su sujeto
+// natural es el dato de la superficie y no el usuario que actúa. Por eso quedan
+// afuera, del set evaluado en #544:
+// - `render`: levanta `renderAdminChildRoute` y `renderAdminRoute`, helpers de
+//   test que nombran la superficie que montan. Cubrirlo cuesta dos excepciones.
+// - `ensure` y `make`: sinónimos de `require` y `create`, los verbos con los que
+//   se nombran el guard (`requireAdminUser`) y el fixture del rol
+//   (`createSignedInAdminRequest`). Sumarlos rompe justo esa exclusión.
+// - `should`, `can`, `with`, `from`: predicados y preposiciones cuyo sujeto
+//   habitual es el usuario que actúa (`canAdminUserEdit`, `withAdminUser`).
+const markedSymbolVerbs = [
+  "read",
+  "build",
+  "get",
+  "to",
+  "list",
+  "find",
+  "set",
+  "is",
+  "has",
+  "resolve",
+  "default",
+  "format",
+  "map",
+  "parse",
+  "serialize",
+  "normalize",
+  "select",
+  "count",
+  "sort",
+  "filter",
+];
+
+// La forma en minúscula sólo cubre `administrative*`: un `admin*` suelto casi
+// siempre es el usuario que actúa (`adminUser`, `adminRequest`), 26 casos en el
+// barrido. Restringirlo a `const` de módulo (columna 0) baja esos 26 a 3, pero
+// no a 0, así que el agujero sigue abierto a propósito: cerrarlo pide una
+// allowlist y un rename, y este archivo prefiere cobertura menor sin
+// excepciones. Los 3 quedan anotados para decidirlos aparte:
+// - `app/routes/administracion._index.tsx: adminHomeCards` — marcado de verdad.
+// - `app/features/admin/migration.audit.test.ts: adminComponentsDirectory` y
+//   `app/lib/shared/domain-docs.test.ts: adminMigrationMapRequirements` —
+//   metadata que nombra el directorio de chrome y el doc de migración, el mismo
+//   caso estructural que la excepción `app/components/admin/` pero declarado
+//   fuera de ella.
 const markedDeclarationPatterns = [
   /^(?:Admin|Administrative)[A-Z]/,
-  /^(?:read|build|get|to|list|find|set|is|has|resolve|default)(?:Admin|Administrative)[A-Z]/,
+  new RegExp(
+    `^(?:${markedSymbolVerbs.join("|")})(?:Admin|Administrative)[A-Z]`,
+  ),
   /^administrative[A-Z]/,
 ];
 
@@ -43,12 +91,11 @@ const chromeSymbolPrefix = "AdminShell";
 
 describe("surface prefix rule", () => {
   test("declares no admin loader, handler or hook with a surface prefix", () => {
-    const offenders = getSourceFiles().flatMap((filePath) => {
-      const matches =
-        readFileSync(filePath, "utf8").match(markedEntryPointPattern) ?? [];
-
-      return matches.map((symbol) => formatOffender(filePath, symbol));
-    });
+    const offenders = getSourceFiles().flatMap((filePath) =>
+      readMarkedEntryPoints(readFileSync(filePath, "utf8")).map((symbol) =>
+        formatOffender(filePath, symbol),
+      ),
+    );
 
     expect(unique(offenders)).toEqual([]);
   });
@@ -57,20 +104,68 @@ describe("surface prefix rule", () => {
     const offenders = getSourceFiles()
       .filter((filePath) => !isChromeFile(filePath))
       .flatMap((filePath) =>
-        readDeclaredSymbols(filePath)
-          .filter(isMarkedSymbol)
-          .map((symbol) => formatOffender(filePath, symbol)),
+        readMarkedDeclarations(readFileSync(filePath, "utf8")).map((symbol) =>
+          formatOffender(filePath, symbol),
+        ),
       );
 
     expect(unique(offenders)).toEqual([]);
   });
 });
 
-function readDeclaredSymbols(filePath: string): string[] {
+// Un guardrail que atrapa por forma sólo vale lo que atrapa: los dos tests de
+// arriba pasan igual si un patrón deja de matchear. Estos inyectan un símbolo
+// por patrón para probar que cada uno agarra, y los contraejemplos fijan las
+// exclusiones de las que depende el "sin allowlist".
+describe("surface prefix guardrail", () => {
+  test.each([
+    "export async function loadAdminPayments() {}",
+    "export function handleAdministrativeDetailAction() {}",
+    "export function useAdminRosterForm() {}",
+  ])("catches the injected entry point %s", (source) => {
+    expect(readMarkedEntryPoints(source)).toHaveLength(1);
+  });
+
+  test.each([
+    "export type AdminPaymentsLoaderData = never;",
+    "export function readAdminPaymentsListFilters() {}",
+    "export function formatAdminPaymentRow() {}",
+    "export function mapAdminDancerRow() {}",
+    "export function parseAdminFilters() {}",
+    "export function serializeAdministrativeEventContext() {}",
+    "export const administrativePaymentIntent = 1;",
+  ])("catches the injected declaration %s", (source) => {
+    expect(readMarkedDeclarations(source)).toHaveLength(1);
+  });
+
+  test.each([
+    "export function requireAdminUser() {}",
+    "export function createSignedInAdminRequest() {}",
+    "export function getMissingItemAdminPath() {}",
+    "export function createAdministrativeEvent() {}",
+    "const adminUser = 1;",
+  ])("leaves the role-named symbol %s alone", (source) => {
+    expect(readMarkedDeclarations(source)).toEqual([]);
+  });
+
+  test("names the file and the symbol of an offender", () => {
+    const filePath = path.join(repositoryRoot, "app", "routes", "example.tsx");
+
+    expect(formatOffender(filePath, "AdminPaymentsLoaderData")).toBe(
+      "app/routes/example.tsx: AdminPaymentsLoaderData",
+    );
+  });
+});
+
+function readMarkedEntryPoints(source: string): string[] {
+  return source.match(markedEntryPointPattern) ?? [];
+}
+
+function readMarkedDeclarations(source: string): string[] {
   return Array.from(
-    readFileSync(filePath, "utf8").matchAll(declarationPattern),
+    source.matchAll(declarationPattern),
     ([, symbol]) => symbol,
-  );
+  ).filter(isMarkedSymbol);
 }
 
 function isMarkedSymbol(symbol: string) {
@@ -93,10 +188,15 @@ function unique(offenders: string[]) {
   return Array.from(new Set(offenders)).sort();
 }
 
+// El propio guardrail queda fuera del barrido: los símbolos que inyecta para
+// probar cada patrón son literales de este archivo y se reportarían a sí mismos.
+// No declara símbolos de dominio, así que la exclusión no tapa nada.
 function getSourceFiles(): string[] {
-  return scannedDirectories.flatMap((directory) =>
-    collectSourceFiles(path.join(repositoryRoot, directory)),
-  );
+  return scannedDirectories
+    .flatMap((directory) =>
+      collectSourceFiles(path.join(repositoryRoot, directory)),
+    )
+    .filter((filePath) => filePath !== guardrailFile);
 }
 
 function collectSourceFiles(directoryPath: string): string[] {
