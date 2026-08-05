@@ -22,7 +22,6 @@ import {
 import { Field } from "@/components/ui/field";
 import { Progress } from "@/components/ui/progress";
 
-import { prototypeCases } from "./fixtures";
 import { PrototypeSwitcher, usePrototypeSelection } from "./switcher";
 import { variantA } from "./variant-a";
 import { variantB } from "./variant-b";
@@ -122,10 +121,6 @@ function PriceRefusalPrototypeDialog({
           caseKey={caseKey}
           onSelect={onSelect}
         />
-
-        <p className="fixed bottom-1 left-1/2 -translate-x-1/2 text-center text-xs text-muted-foreground">
-          {prototypeCases[caseKey].description}
-        </p>
       </DialogContent>
     </Dialog>
   );

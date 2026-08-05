@@ -96,7 +96,9 @@ export function PrototypeSwitcher({
   });
 
   return (
-    <div className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 flex-col gap-2 rounded-lg border bg-card px-3 py-2 shadow-lg">
+    // `fixed` would resolve against `DialogContent`, which Radix transforms to
+    // centre — so the bar is anchored under the dialog card instead.
+    <div className="absolute top-full left-1/2 z-50 mt-4 flex w-max -translate-x-1/2 flex-col items-center gap-2 rounded-lg border bg-card px-3 py-2 shadow-lg">
       <div className="flex items-center gap-2">
         <Button
           type="button"
@@ -145,7 +147,11 @@ export function PrototypeSwitcher({
         </Button>
       </div>
 
-      <p className="max-w-80 text-center text-xs text-muted-foreground">
+      <p className="max-w-96 text-center text-xs text-muted-foreground">
+        {prototypeCases[caseKey].description}
+      </p>
+
+      <p className="text-center text-xs text-muted-foreground">
         ← → variante · ↑ ↓ caso
       </p>
     </div>
