@@ -127,6 +127,44 @@ const codeLanguageRequirements = [
   "`PortalChoreographyDetailRouteView`",
 ];
 
+// The exit ADR carries rationale only. These pin the motive — the part that is
+// recorded nowhere else and that an amendment chain would have lost — and not
+// what runs today, which lives in `docs/operations/infrastructure.md`. See #629.
+const supabaseExitAdrRequirements = [
+  "**Status**: accepted",
+  "**Supersedes**: ADR-0001, ADR-0005, ADR-0006, ADR-0008, ADR-0010",
+  "why Supabase was adopted was never recorded",
+  "swappable interfaces",
+  "`auth.users`",
+  "physical co-location in `sa-east`",
+  "100% of users are in Argentina",
+  "docs/operations/infrastructure.md",
+];
+
+// The five ADRs the exit supersedes. ADR-0005 and ADR-0010 had no `Status`
+// field at all before #629.
+const supersededSupabaseAdrs = [
+  "docs/adr/0001-better-auth-for-access.md",
+  "docs/adr/0005-use-supabase-postgres-before-supabase-auth.md",
+  "docs/adr/0006-use-supabase-auth-for-access.md",
+  "docs/adr/0008-use-supabase-storage-for-uploaded-assets.md",
+  "docs/adr/0010-choreography-music-storage-contract.md",
+];
+
+// Current state, not rationale: the page ADR-0013 points at, plus the live
+// choreography-music contract rehomed out of ADR-0010 (#629).
+const infrastructureRequirements = [
+  "x1383fsxfsixpgmvd9quv7tj",
+  "sistema.enescena.com.ar",
+  "postgres:17-alpine",
+  "`enescena`",
+  "`is_public: false`",
+  "STORAGE_VOLUME_DIR",
+  "en-escena-choreography-music",
+  "**50 MB**",
+  "**300** seconds",
+];
+
 const accessPermissionRequirements = [
   "## Permission Matrix",
   "| academia",
@@ -231,6 +269,72 @@ describe("domain documentation", () => {
       ...adminMigrationMapRequirements,
     ]) {
       expect(map).toContain(requirement);
+    }
+  });
+
+  test("records the Supabase exit rationale in a single ADR", async () => {
+    const adr = await readFile("docs/adr/0013-exit-supabase.md", "utf8");
+
+    for (const requirement of supabaseExitAdrRequirements) {
+      expect(adr).toContain(requirement);
+    }
+  });
+
+  test("marks every Supabase-era ADR superseded by ADR-0013", async () => {
+    for (const path of supersededSupabaseAdrs) {
+      const adr = await readFile(path, "utf8");
+
+      expect(adr, path).toContain("**Status**: superseded by ADR-0013");
+    }
+  });
+
+  test("describes production infrastructure as current state", async () => {
+    const page = await readFile("docs/operations/infrastructure.md", "utf8");
+
+    for (const requirement of infrastructureRequirements) {
+      expect(page).toContain(requirement);
+    }
+  });
+
+  // Rehoming the contract out of ADR-0010 only helps if the new home cannot go
+  // stale the way ADR-0010 did. Literal pins cannot catch that: they keep
+  // saying "50 MB" long after the constant says otherwise. So read the enforced
+  // values out of the module itself and require the page to state those, which
+  // makes changing a constant without touching the page a failing test (#629).
+  test("keeps the rehomed music contract pinned to the code that enforces it", async () => {
+    const [source, page] = await Promise.all([
+      readFile("app/lib/storage/choreography-music.server.ts", "utf8"),
+      readFile("docs/operations/infrastructure.md", "utf8"),
+    ]);
+
+    const bucket = source.match(/CHOREOGRAPHY_MUSIC_BUCKET = "([^"]+)"/)?.[1];
+    const expiresInSeconds = source.match(
+      /CHOREOGRAPHY_MUSIC_SIGNED_URL_EXPIRES_IN_SECONDS = (\d+)/,
+    )?.[1];
+    const maxFileSizeMegabytes = source.match(
+      /CHOREOGRAPHY_MUSIC_MAX_FILE_SIZE_BYTES = (\d+) \* 1024 \* 1024/,
+    )?.[1];
+    const extensions = [
+      ...new Set(
+        [...source.matchAll(/^\s+"audio\/[^"]+": "([a-z0-9]+)",$/gm)].map(
+          ([, extension]) => extension.toUpperCase(),
+        ),
+      ),
+    ];
+
+    // A regex that stopped matching would otherwise pass every assertion below
+    // by comparing `undefined` against nothing.
+    expect(bucket).toBeTruthy();
+    expect(expiresInSeconds).toBeTruthy();
+    expect(maxFileSizeMegabytes).toBeTruthy();
+    expect(extensions.length).toBeGreaterThan(3);
+
+    expect(page).toContain(`\`${bucket}\``);
+    expect(page).toContain(`**${expiresInSeconds}** seconds`);
+    expect(page).toContain(`**${maxFileSizeMegabytes} MB**`);
+
+    for (const extension of extensions) {
+      expect(page, extension).toContain(extension);
     }
   });
 

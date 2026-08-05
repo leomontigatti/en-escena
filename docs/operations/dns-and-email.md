@@ -7,6 +7,9 @@ Resend from our own sender address.
 Closes the operational dependency of #490 (own sender) and unblocks Option A of
 #238 (WAF and rate limiting in front of the app).
 
+The host and application this zone points at are described in
+[Production infrastructure](./infrastructure.md).
+
 ## Starting state
 
 Verified against `ns1.dreamhost.com` on 2026-07-24.

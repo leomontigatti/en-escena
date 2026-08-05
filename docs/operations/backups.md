@@ -5,14 +5,16 @@ This runbook covers production backups to Backblaze B2:
 - daily logical PostgreSQL dumps;
 - storage-volume object backups.
 
+What is being backed up — the Postgres resource and the storage volume — is
+described in [Production infrastructure](./infrastructure.md); this runbook does
+not restate it.
+
 ## Scope
 
-- Database source: the self-hosted Postgres container managed by Coolify, backed
-  up by Coolify's own Scheduled Backup on the database resource. Not Supabase —
-  the database moved in the cutover of #267.
-- Storage source: the local storage volume (`STORAGE_VOLUME_DIR`) on the São
-  Paulo VPS, which is the live byte store after the cutover in #399. B2 is only a
-  backup destination now, not the live store.
+- Database source: the Coolify-managed Postgres container, backed up by
+  Coolify's own Scheduled Backup on the database resource.
+- Storage source: the local storage volume (`STORAGE_VOLUME_DIR`), which is the
+  live byte store. B2 is only a backup destination, not the live store.
 - Destination: a Backblaze B2 bucket through its S3-compatible endpoint, plus a
   local copy on the VPS for the database.
 - Database format: custom-format `pg_dump`, restored with `pg_restore`. Artifacts

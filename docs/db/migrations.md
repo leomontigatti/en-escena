@@ -9,9 +9,9 @@ Two runners apply them, and the split matters:
 - **Dev, test and CI** use `pnpm db:migrate` (drizzle-kit) against a database
   you can reach.
 - **Production** applies them from the container entrypoint, before the app
-  serves. The production Postgres is `is_public: false` with no published port,
-  so there is no route from a laptop. See
-  [Production migrations](#production-migrations).
+  serves. The production Postgres is unreachable from a laptop — see
+  [Production infrastructure](../operations/infrastructure.md) for the resource
+  itself, and [Production migrations](#production-migrations) for how they run.
 
 `scripts/migrations/journal.db.test.ts` pins that the two runners agree on what
 counts as applied.
