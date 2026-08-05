@@ -20,6 +20,9 @@ Index of the repo's conventions. Every operative rule lives in its own file unde
 - **Triage labels**: [docs/agents/triage-labels.md](docs/agents/triage-labels.md).
 - **Domain docs** (single-context layout): [docs/agents/domain.md](docs/agents/domain.md).
 - **Local operation and auth** (DB, access auth, email-log): [docs/local-auth.md](docs/local-auth.md).
+- **Production infrastructure** (VPS, Coolify app, Postgres resource, storage
+  volume — current state; the rationale is ADR-0013):
+  [docs/operations/infrastructure.md](docs/operations/infrastructure.md).
 - **DNS and email** (zone on Cloudflare, inbound via Email Routing, outbound via
   Resend): [docs/operations/dns-and-email.md](docs/operations/dns-and-email.md).
 - **Fallow** (audit and investigation, not a commit gate): [docs/agents/fallow.md](docs/agents/fallow.md).

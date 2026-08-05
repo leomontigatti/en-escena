@@ -47,8 +47,11 @@ ADR-0013 records.
 
 ### Choreography music contract
 
-Enforced in `app/lib/storage/choreography-music.server.ts`; rehomed here from
-ADR-0010, which stated it against a Supabase bucket that no longer exists.
+Bucket, formats, size limit and expiry are enforced in
+`app/lib/storage/choreography-music.server.ts`; the replacement ordering is
+enforced by its caller, `app/lib/portal/choreography-music.server.ts`. Rehomed
+here from ADR-0010, which stated the contract against a Supabase bucket that no
+longer exists.
 
 - Bucket directory: `en-escena-choreography-music`, private.
 - The `Coreografia` row stores only the current storage key, never a URL.

@@ -161,8 +161,8 @@ const infrastructureRequirements = [
   "`is_public: false`",
   "STORAGE_VOLUME_DIR",
   "en-escena-choreography-music",
-  "50 MB",
-  "300",
+  "**50 MB**",
+  "**300** seconds",
 ];
 
 const accessPermissionRequirements = [
@@ -293,6 +293,48 @@ describe("domain documentation", () => {
 
     for (const requirement of infrastructureRequirements) {
       expect(page).toContain(requirement);
+    }
+  });
+
+  // Rehoming the contract out of ADR-0010 only helps if the new home cannot go
+  // stale the way ADR-0010 did. Literal pins cannot catch that: they keep
+  // saying "50 MB" long after the constant says otherwise. So read the enforced
+  // values out of the module itself and require the page to state those, which
+  // makes changing a constant without touching the page a failing test (#629).
+  test("keeps the rehomed music contract pinned to the code that enforces it", async () => {
+    const [source, page] = await Promise.all([
+      readFile("app/lib/storage/choreography-music.server.ts", "utf8"),
+      readFile("docs/operations/infrastructure.md", "utf8"),
+    ]);
+
+    const bucket = source.match(/CHOREOGRAPHY_MUSIC_BUCKET = "([^"]+)"/)?.[1];
+    const expiresInSeconds = source.match(
+      /CHOREOGRAPHY_MUSIC_SIGNED_URL_EXPIRES_IN_SECONDS = (\d+)/,
+    )?.[1];
+    const maxFileSizeMegabytes = source.match(
+      /CHOREOGRAPHY_MUSIC_MAX_FILE_SIZE_BYTES = (\d+) \* 1024 \* 1024/,
+    )?.[1];
+    const extensions = [
+      ...new Set(
+        [...source.matchAll(/^\s+"audio\/[^"]+": "([a-z0-9]+)",$/gm)].map(
+          ([, extension]) => extension.toUpperCase(),
+        ),
+      ),
+    ];
+
+    // A regex that stopped matching would otherwise pass every assertion below
+    // by comparing `undefined` against nothing.
+    expect(bucket).toBeTruthy();
+    expect(expiresInSeconds).toBeTruthy();
+    expect(maxFileSizeMegabytes).toBeTruthy();
+    expect(extensions.length).toBeGreaterThan(3);
+
+    expect(page).toContain(`\`${bucket}\``);
+    expect(page).toContain(`**${expiresInSeconds}** seconds`);
+    expect(page).toContain(`**${maxFileSizeMegabytes} MB**`);
+
+    for (const extension of extensions) {
+      expect(page, extension).toContain(extension);
     }
   });
 
