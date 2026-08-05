@@ -10,12 +10,11 @@ ticket [Vendor the AFK spec + prompts + do-work skill](https://github.com/leomon
 
 ## What was brought over
 
-| Asset                                                | Local                                                                                                                    | Source                                                       |
-| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
-| Spec of the 8 workflows                              | [`afk-agent-platform-spec.md`](./afk-agent-platform-spec.md)                                                             | `docs/agents/afk-agent-platform-spec.md`                     |
-| Base runner prompts (9)                              | [`prompts/`](./prompts/)                                                                                                 | `docs/agents/prompts/*.prompt.md`                            |
-| `do-work` skill (SKILL + DB-TDD + FRONTEND-TDD)      | [`.claude/skills/do-work/`](../../.claude/skills/do-work/)                                                               | `.claude/skills/do-work/{SKILL,DB-TDD,FRONTEND-TDD}.md`      |
-| `to-prd` / `to-issues` skills (local HITL authoring) | [`.claude/skills/to-prd/`](../../.claude/skills/to-prd/), [`.claude/skills/to-issues/`](../../.claude/skills/to-issues/) | `.claude/skills/{to-prd-project,to-issues-project}/SKILL.md` |
+| Asset                                           | Local                                                        | Source                                                  |
+| ----------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------- |
+| Spec of the 8 workflows                         | [`afk-agent-platform-spec.md`](./afk-agent-platform-spec.md) | `docs/agents/afk-agent-platform-spec.md`                |
+| Base runner prompts (9)                         | [`prompts/`](./prompts/)                                     | `docs/agents/prompts/*.prompt.md`                       |
+| `do-work` skill (SKILL + DB-TDD + FRONTEND-TDD) | [`.claude/skills/do-work/`](../../.claude/skills/do-work/)   | `.claude/skills/do-work/{SKILL,DB-TDD,FRONTEND-TDD}.md` |
 
 ## What was adapted vs. the source
 
@@ -55,18 +54,23 @@ are only concrete references to this repo:
 - **`FRONTEND-TDD.md`**: the source mandates using `useEffectReducer` from `use-effect-reducer`;
   this repo does **not** use that library (nor reducers today), so the "Reducer choice" section
   was left library-neutral, preserving the principle (state logic in a pure, testable module).
-- **`to-prd` / `to-issues`**: these are the AFK-native variants of the global HITL `to-spec` /
-  `to-tickets`. The base is the source's `to-prd-project` / `to-issues-project` (parent-PRD
-  model + ordered native sub-issues + `agent:implement`), folded together with the **most
-  recent** content of the global `to-spec`/`to-tickets`: the framing of _seams_ to test
-  (`to-spec`), the _wide refactor / expand→migrate→contract_ guidance (`to-tickets`, restated
-  for execution order rather than blocking-edges), and `disable-model-invocation: true`.
-  The **blocking-edges/frontier** model was dropped from `to-tickets` because
-  `agent-implement-prd.yml` reads **list order**, not explicit dependencies. They publish with
-  `gh issue create --parent` (the [`issue-tracker.md`](./issue-tracker.md) convention) instead
-  of the manual `sub_issues` API dance, and they apply no `agent:*` label (dispatch is human,
-  see [`afk-setup.md`](./afk-setup.md)). They produce the **same sub-issue shape** as the
-  unattended runner [`prompts/to-issues.prompt.md`](./prompts/to-issues.prompt.md).
+
+## What was **retired**
+
+- **`to-prd` / `to-issues`** (removed): they were the AFK-native variants of the global HITL
+  `to-spec` / `to-tickets`, vendored from the source's `to-prd-project` / `to-issues-project`.
+  They are gone now that Matt Pocock's set is installed as the official
+  [`mattpocock-skills` plugin](https://github.com/mattpocock/skills), which ships `to-spec` and
+  `to-tickets` as a managed, always-current bundle — the local copies could only drift from it.
+  [`afk-setup.md`](./afk-setup.md) → "With the `to-spec` / `to-tickets` skills" already describes
+  the supported HITL path under the human-gated model: let the global skills publish with
+  `ready-for-agent`, then add the matching `agent:*` label by hand to dispatch.
+- **What this costs.** The removed skills produced the AFK sub-issue shape directly — a parent
+  PRD plus ordered native sub-issues via `gh issue create --parent`, matching the unattended
+  runner [`prompts/to-issues.prompt.md`](./prompts/to-issues.prompt.md). The global `to-tickets`
+  models **blocking edges** instead of execution order, which `agent-implement-prd.yml` does not
+  read (it reads **list order**). To get the AFK shape from a PRD, prefer the unattended path:
+  label the PRD **`agent:to-issues`** and let the runner decompose it.
 
 ## What was **not** adapted (on purpose)
 
