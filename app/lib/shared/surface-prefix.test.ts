@@ -62,8 +62,8 @@ const markedSymbolVerbs = [
 ];
 
 // La forma en minúscula sólo cubre `administrative*`: un `admin*` suelto casi
-// siempre es el usuario que actúa (`adminUser`, `adminRequest`), 26 casos en el
-// barrido. Restringirlo a `const` de módulo (columna 0) baja esos 26 a 3, pero
+// siempre es el usuario que actúa (`adminUser`, `adminRequest`), 25 casos en el
+// barrido. Restringirlo a `const` de módulo (columna 0) baja esos 25 a 3, pero
 // no a 0, así que el agujero sigue abierto a propósito: cerrarlo pide una
 // allowlist y un rename, y este archivo prefiere cobertura menor sin
 // excepciones. Los 3 quedan anotados para decidirlos aparte:
@@ -119,23 +119,44 @@ describe("surface prefix rule", () => {
 // exclusiones de las que depende el "sin allowlist".
 describe("surface prefix guardrail", () => {
   test.each([
-    "export async function loadAdminPayments() {}",
-    "export function handleAdministrativeDetailAction() {}",
-    "export function useAdminRosterForm() {}",
-  ])("catches the injected entry point %s", (source) => {
-    expect(readMarkedEntryPoints(source)).toHaveLength(1);
+    ["export async function loadAdminPayments() {}", "loadAdminPayments"],
+    [
+      "export function handleAdministrativeDetailAction() {}",
+      "handleAdministrativeDetailAction",
+    ],
+    ["export function useAdminRosterForm() {}", "useAdminRosterForm"],
+  ])("catches the injected entry point %s", (source, symbol) => {
+    expect(readMarkedEntryPoints(source)).toEqual([symbol]);
   });
 
   test.each([
-    "export type AdminPaymentsLoaderData = never;",
-    "export function readAdminPaymentsListFilters() {}",
-    "export function formatAdminPaymentRow() {}",
-    "export function mapAdminDancerRow() {}",
-    "export function parseAdminFilters() {}",
-    "export function serializeAdministrativeEventContext() {}",
-    "export const administrativePaymentIntent = 1;",
-  ])("catches the injected declaration %s", (source) => {
-    expect(readMarkedDeclarations(source)).toHaveLength(1);
+    ["export type AdminPaymentsLoaderData = never;", "AdminPaymentsLoaderData"],
+    [
+      "export function readAdminPaymentsListFilters() {}",
+      "readAdminPaymentsListFilters",
+    ],
+    ["export function formatAdminPaymentRow() {}", "formatAdminPaymentRow"],
+    ["export function mapAdminDancerRow() {}", "mapAdminDancerRow"],
+    ["export function parseAdminFilters() {}", "parseAdminFilters"],
+    [
+      "export function serializeAdministrativeEventContext() {}",
+      "serializeAdministrativeEventContext",
+    ],
+    [
+      "export const administrativePaymentIntent = 1;",
+      "administrativePaymentIntent",
+    ],
+  ])("catches the injected declaration %s", (source, symbol) => {
+    expect(readMarkedDeclarations(source)).toEqual([symbol]);
+  });
+
+  // La lista de verbos se arma con un `join("|")`, así que cada verbo depende de
+  // que la alternancia lo alcance: uno mal escrito, o tapado por otro más corto,
+  // dejaría de atrapar sin que ningún ejemplo de arriba lo note.
+  test.each(markedSymbolVerbs)("catches the %s verb", (verb) => {
+    expect(
+      readMarkedDeclarations(`export function ${verb}AdminPaymentRow() {}`),
+    ).toEqual([`${verb}AdminPaymentRow`]);
   });
 
   test.each([
@@ -146,6 +167,24 @@ describe("surface prefix guardrail", () => {
     "const adminUser = 1;",
   ])("leaves the role-named symbol %s alone", (source) => {
     expect(readMarkedDeclarations(source)).toEqual([]);
+  });
+
+  // Las dos excepciones estructurales, una por mecanismo: el prefijo del chrome
+  // exime al símbolo, el directorio del chrome exime al archivo.
+  test("leaves the chrome shell symbol alone", () => {
+    expect(
+      readMarkedDeclarations("export function AdminShellSidebar() {}"),
+    ).toEqual([]);
+  });
+
+  test.each([
+    [path.join("app", "components", "admin", "shell.tsx"), true],
+    [path.join("app", "components", "administracion", "shell.tsx"), false],
+    [path.join("app", "routes", "administracion._index.tsx"), false],
+  ])("reads %s as a chrome file: %s", (relativePath, expected) => {
+    expect(isChromeFile(path.join(repositoryRoot, relativePath))).toBe(
+      expected,
+    );
   });
 
   test("names the file and the symbol of an offender", () => {
@@ -176,8 +215,12 @@ function isMarkedSymbol(symbol: string) {
   return markedDeclarationPatterns.some((pattern) => pattern.test(symbol));
 }
 
+// La excepción es el directorio, no el prefijo de su nombre: sin el separador,
+// un `app/components/administracion/` futuro quedaría exento sin haberlo pedido.
 function isChromeFile(filePath: string) {
-  return path.relative(repositoryRoot, filePath).startsWith(chromeDirectory);
+  return path
+    .relative(repositoryRoot, filePath)
+    .startsWith(chromeDirectory + path.sep);
 }
 
 function formatOffender(filePath: string, symbol: string) {
