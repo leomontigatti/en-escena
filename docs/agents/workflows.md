@@ -398,9 +398,10 @@ Prefer slim query variants when a route only needs IDs, labels, status flags, or
 
 Use this when a route, form, table, or navigation path feels slow.
 
-Measure before diagnosing latency. Do not start with "the VPS is far from
-Supabase" or "React Router is slow" until you have loader or action timing
-around the real route seam.
+Measure before diagnosing latency. Do not start with "the database is far from
+the app" or "React Router is slow" until you have loader or action timing
+around the real route seam. (Postgres has been co-located with the app since
+#267, so distance to the database is a particularly poor first guess.)
 
 Measure loader or action timing around the real route seam and separate the
 major layers that can hide inside one request:

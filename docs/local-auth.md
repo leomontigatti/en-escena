@@ -15,9 +15,6 @@ setup:
 ```sh
 DATABASE_URL="postgres://postgres:postgres@localhost:5433/en-escena"
 TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5433/en-escena-test"
-SUPABASE_URL="https://your-project-ref.supabase.co"
-SUPABASE_PUBLISHABLE_KEY="<local-or-shared-supabase-publishable-key>"
-SUPABASE_SERVICE_ROLE_KEY="<supabase-service-role-key>"
 APP_URL="http://localhost:5173"
 BETTER_AUTH_SECRET="<a-long-random-better-auth-secret>"
 BETTER_AUTH_URL="http://localhost:5173"
@@ -29,14 +26,9 @@ RESEND_API_KEY=""
 
 - `DATABASE_URL` points Drizzle and the app-owned domain/access tables at the
   application database. For local development, use the local Postgres
-  container. In production or preview, this can point at Supabase Postgres.
+  container. In production it points at the Coolify-managed Postgres over the
+  platform's internal network (#267).
 - `TEST_DATABASE_URL` points database tests at their separate local database.
-- `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` configure the server-side
-  Supabase Auth SSR client for per-request cookie handling inside the access
-  boundary. Drizzle server-side queries do not use them.
-- `SUPABASE_SERVICE_ROLE_KEY` is required for admin-side Auth operations that
-  create or delete access users and other server-side Supabase Auth operations.
-  Keep it server-only.
 - `APP_URL` is the canonical app origin, used as the fallback base URL for auth
   email links when a request URL is not available.
 - `BETTER_AUTH_SECRET` signs Better Auth sessions and the recovery-token cookie.
@@ -80,23 +72,16 @@ pnpm db:migrate
 Confirm `.env` points at the local container before running `pnpm db:migrate`.
 See [docs/db/migrations.md](db/migrations.md) for the full migration workflow.
 
-### Supabase Postgres
+### Hosted Postgres
 
-For hosted environments, configure `DATABASE_URL` with the Supabase Postgres
-connection string from the Supabase dashboard. Keep `TEST_DATABASE_URL` pointed
-at local Postgres so `pnpm test:db:postgres` stays isolated from hosted data.
-The default DB suite `pnpm test:db` (and a focused `pnpm test:db <archivo>`)
-uses an in-process PGlite harness with a cached schema snapshot instead of
-connecting to `TEST_DATABASE_URL`.
-
-Choose the connection mode for the runtime:
-
-- Use the direct connection or session pooler for persistent Node runtimes.
-- Use the transaction pooler for serverless or short-lived runtimes.
-
-If you use a transaction pooler, validate the app before rollout because
-transaction pooling can affect prepared statements and session-level database
-behavior.
+Production runs a Coolify-managed Postgres co-located with the app (#267). It is
+not publicly reachable: `DATABASE_URL` resolves over the platform's internal
+network from inside the application container, so there is no hosted connection
+string to configure from a laptop. Keep `TEST_DATABASE_URL` pointed at local
+Postgres so `pnpm test:db:postgres` stays isolated from hosted data. The default
+DB suite `pnpm test:db` (and a focused `pnpm test:db <archivo>`) uses an
+in-process PGlite harness with a cached schema snapshot instead of connecting to
+`TEST_DATABASE_URL`.
 
 Schema changes against production ship as versioned Drizzle migrations, applied
 by the application container at start — not with `pnpm db:migrate` from a
