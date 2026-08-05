@@ -59,3 +59,13 @@ use when a script has operational risk.
 | Script         | Purpose                                            |
 | -------------- | -------------------------------------------------- |
 | `pnpm prepare` | Install Husky hooks after dependency installation. |
+
+## One-off SQL
+
+Not `pnpm` scripts — `.sql` files under `scripts/`, run with `psql`. They are
+read-only checks tied to a specific migration and are deleted once it has
+shipped.
+
+| File                     | Purpose                                                                                                                                                                       |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scripts/verify-555.sql` | Re-check the counterexample classes the #547 payment-allocation migration plan assumes are empty. Run against production immediately before the destructive migration (#555). |
