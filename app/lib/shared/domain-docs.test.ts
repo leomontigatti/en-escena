@@ -127,6 +127,44 @@ const codeLanguageRequirements = [
   "`PortalChoreographyDetailRouteView`",
 ];
 
+// The exit ADR carries rationale only. These pin the motive — the part that is
+// recorded nowhere else and that an amendment chain would have lost — and not
+// what runs today, which lives in `docs/operations/infrastructure.md`. See #629.
+const supabaseExitAdrRequirements = [
+  "**Status**: accepted",
+  "**Supersedes**: ADR-0001, ADR-0005, ADR-0006, ADR-0008, ADR-0010",
+  "why Supabase was adopted was never recorded",
+  "swappable interfaces",
+  "`auth.users`",
+  "physical co-location in `sa-east`",
+  "100% of users are in Argentina",
+  "docs/operations/infrastructure.md",
+];
+
+// The five ADRs the exit supersedes. ADR-0005 and ADR-0010 had no `Status`
+// field at all before #629.
+const supersededSupabaseAdrs = [
+  "docs/adr/0001-better-auth-for-access.md",
+  "docs/adr/0005-use-supabase-postgres-before-supabase-auth.md",
+  "docs/adr/0006-use-supabase-auth-for-access.md",
+  "docs/adr/0008-use-supabase-storage-for-uploaded-assets.md",
+  "docs/adr/0010-choreography-music-storage-contract.md",
+];
+
+// Current state, not rationale: the page ADR-0013 points at, plus the live
+// choreography-music contract rehomed out of ADR-0010 (#629).
+const infrastructureRequirements = [
+  "x1383fsxfsixpgmvd9quv7tj",
+  "sistema.enescena.com.ar",
+  "postgres:17-alpine",
+  "`enescena`",
+  "`is_public: false`",
+  "STORAGE_VOLUME_DIR",
+  "en-escena-choreography-music",
+  "50 MB",
+  "300",
+];
+
 const accessPermissionRequirements = [
   "## Permission Matrix",
   "| academia",
@@ -231,6 +269,30 @@ describe("domain documentation", () => {
       ...adminMigrationMapRequirements,
     ]) {
       expect(map).toContain(requirement);
+    }
+  });
+
+  test("records the Supabase exit rationale in a single ADR", async () => {
+    const adr = await readFile("docs/adr/0013-exit-supabase.md", "utf8");
+
+    for (const requirement of supabaseExitAdrRequirements) {
+      expect(adr).toContain(requirement);
+    }
+  });
+
+  test("marks every Supabase-era ADR superseded by ADR-0013", async () => {
+    for (const path of supersededSupabaseAdrs) {
+      const adr = await readFile(path, "utf8");
+
+      expect(adr, path).toContain("**Status**: superseded by ADR-0013");
+    }
+  });
+
+  test("describes production infrastructure as current state", async () => {
+    const page = await readFile("docs/operations/infrastructure.md", "utf8");
+
+    for (const requirement of infrastructureRequirements) {
+      expect(page).toContain(requirement);
     }
   });
 

@@ -1,6 +1,6 @@
 # Use Supabase Storage for uploaded assets
 
-**Status**: proposed
+**Status**: superseded by ADR-0013
 
 **Date**: 2026-06-24
 

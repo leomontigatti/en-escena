@@ -1,5 +1,7 @@
 # Use Supabase Postgres before migrating access auth
 
+**Status**: superseded by ADR-0013
+
 We will introduce Supabase in two phases. First, use Supabase Postgres as the
 production database while keeping the existing Drizzle data access layer and
 Better Auth access stack. Later, evaluate and implement a separate migration

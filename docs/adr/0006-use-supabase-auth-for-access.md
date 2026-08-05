@@ -2,7 +2,7 @@
 
 We will replace Better Auth with Supabase Auth as the provider for access credentials, sessions, password reset tokens, and auth cookies, while keeping `Usuario` as the app-domain access profile. `Usuario` keeps roles, academy ownership, internal usernames, suspension, and mandatory password-change state; Supabase Auth owns only technical authentication state.
 
-**Status**: accepted
+**Status**: superseded by ADR-0013
 
 **Supersedes**: ADR-0001
 
