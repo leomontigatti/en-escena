@@ -7,16 +7,10 @@
  * `event-not-ready` blocker already uses (`components/portal/ui.tsx:645-660`).
  * The roster disappears behind the panel: there is nothing to adjust here.
  */
-import { CalendarClock } from "lucide-react";
+import { TriangleAlert } from "lucide-react";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
 
 import {
   CreateChoreographyDancersField,
@@ -31,36 +25,45 @@ import {
   type PrototypeWizard,
 } from "./wizard";
 
-function BlockedPanel({ wizard }: { wizard: PrototypeWizard }) {
+/**
+ * The same alert wherever the gap is hit, in the register the `event-not-ready`
+ * blocker already uses (`components/portal/ui.tsx:227-249` maps `blocked` to
+ * `warning` + `TriangleAlert`).
+ *
+ * `scope: "event"` is the wall — one schedule or several, none of them priced,
+ * so there is nothing to choose between and the copy stays generic. It still
+ * names the group type: without it the message would read as "this event is
+ * closed", when solos and duos register fine.
+ */
+function BlockedAlert({
+  wizard,
+  scope,
+}: {
+  wizard: PrototypeWizard;
+  scope: "event" | "schedule";
+}) {
   const groupTypeText = wizard.groupTypeLabel.toLowerCase();
   const option = wizard.blockedOption;
 
   return (
-    <Empty className="min-h-64 border">
-      <EmptyHeader>
-        <EmptyMedia
-          variant="icon"
-          className="size-10 [&_svg:not([class*='size-'])]:size-5"
-        >
-          <CalendarClock aria-hidden="true" />
-        </EmptyMedia>
-        <EmptyTitle>
-          El valor de inscripción para {groupTypeText} todavía no está publicado
-        </EmptyTitle>
-        <EmptyDescription>
-          {option
-            ? `La organización todavía no publicó el valor de inscripción para ${groupTypeText} en ${formatOptionLabel(option)}. Cuando lo publique vas a poder registrar la coreografía.`
-            : `La organización todavía no publicó el valor de inscripción para ${groupTypeText} en ninguno de los cronogramas de este evento. Cuando lo publique vas a poder registrar la coreografía.`}
-        </EmptyDescription>
-      </EmptyHeader>
-    </Empty>
+    <Alert variant="warning">
+      <TriangleAlert aria-hidden="true" />
+      <AlertTitle>
+        El valor de inscripción para {groupTypeText} todavía no está publicado
+      </AlertTitle>
+      <AlertDescription>
+        {scope === "schedule" && option
+          ? `La organización todavía no publicó el valor de inscripción para ${groupTypeText} en ${formatOptionLabel(option)}. Elegí otro cronograma o volvé cuando esté publicado.`
+          : `La organización todavía no publicó el valor de inscripción para ${groupTypeText} en este evento. Cuando lo publique vas a poder registrar la coreografía.`}
+      </AlertDescription>
+    </Alert>
   );
 }
 
 function VariantABody({ wizard }: { wizard: PrototypeWizard }) {
   if (wizard.currentStep === "dancers") {
     if (wizard.resolutionRefused) {
-      return <BlockedPanel wizard={wizard} />;
+      return <BlockedAlert wizard={wizard} scope="event" />;
     }
 
     return (
@@ -90,7 +93,9 @@ function VariantABody({ wizard }: { wizard: PrototypeWizard }) {
           }))}
         />
 
-        {wizard.blockedAtSchedule ? <BlockedPanel wizard={wizard} /> : null}
+        {wizard.blockedAtSchedule ? (
+          <BlockedAlert wizard={wizard} scope="schedule" />
+        ) : null}
       </section>
     );
   }
