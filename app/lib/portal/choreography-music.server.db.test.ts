@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import { choreographies } from "@/db/schema";
@@ -17,6 +17,10 @@ import {
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe.sequential("portal choreography music", () => {
   test("uploads new music, stores the key, and removes the previous object", async () => {
@@ -127,6 +131,106 @@ describe.sequential("portal choreography music", () => {
       }),
     ).resolves.toEqual({ musicStorageKey: null });
     expect(removedKeys).toEqual(["academies/music/current.mp3"]);
+  });
+
+  // Removing the previous object fails after the row already points at the new
+  // one, so the replacement cannot be undone: the old byte stays orphaned on
+  // the volume, and this log line is the only thing that makes it recoverable.
+  test("logs the orphaned key when the previous object cannot be removed", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { choreography, event, owner } = await createMusicChoreographyFixture(
+      {
+        academyName: "Academia Huérfana",
+        email: "music.orphan@example.com",
+        musicStorageKey: "academies/old/choreographies/old/music.mp3",
+        name: "Con música vieja",
+      },
+    );
+    const storage = {
+      createMusicSignedUrl: async (storageKey: string) =>
+        `signed:${storageKey}`,
+      removeMusic: async () => {
+        throw new Error("ENOENT: volume unavailable");
+      },
+      uploadMusic: async (input: {
+        academyId: string;
+        choreographyId: string;
+        file: Blob;
+      }) =>
+        `academies/${input.academyId}/choreographies/${input.choreographyId}/music.ogg`,
+    };
+
+    await expect(
+      updateChoreographyMusic({
+        academyId: owner.academyId,
+        choreographyId: choreography.id,
+        eventId: event.id,
+        file: new File(["music"], "musica.ogg", { type: "audio/ogg" }),
+        submittedStorageKey: choreography.musicStorageKey ?? "",
+        storage,
+      }),
+    ).resolves.toEqual({ ok: true });
+
+    await expect(
+      db.query.choreographies.findFirst({
+        columns: { musicStorageKey: true },
+        where: eq(choreographies.id, choreography.id),
+      }),
+    ).resolves.toEqual({
+      musicStorageKey: `academies/${owner.academyId}/choreographies/${choreography.id}/music.ogg`,
+    });
+    expect(errorSpy).toHaveBeenCalledWith("[storage:music:orphan]", {
+      choreographyId: choreography.id,
+      detail: "ENOENT: volume unavailable",
+      storageKey: "academies/old/choreographies/old/music.mp3",
+    });
+  });
+
+  // Clearing the music runs the same delete without an upload before it, so the
+  // orphan is the object the academy just detached.
+  test("logs the orphaned key when clearing the music cannot remove the object", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { choreography, event, owner } = await createMusicChoreographyFixture(
+      {
+        academyName: "Academia Huérfana al Borrar",
+        email: "music.orphan.clear@example.com",
+        musicStorageKey: "academies/music/current.mp3",
+        name: "Sin música, con huérfano",
+      },
+    );
+    const storage = {
+      createMusicSignedUrl: async (storageKey: string) =>
+        `signed:${storageKey}`,
+      removeMusic: async () => {
+        throw new Error("EACCES: volume is read-only");
+      },
+      uploadMusic: async () => {
+        throw new Error("Unexpected upload");
+      },
+    };
+
+    await expect(
+      updateChoreographyMusic({
+        academyId: owner.academyId,
+        choreographyId: choreography.id,
+        eventId: event.id,
+        file: null,
+        submittedStorageKey: "",
+        storage,
+      }),
+    ).resolves.toEqual({ ok: true });
+
+    await expect(
+      db.query.choreographies.findFirst({
+        columns: { musicStorageKey: true },
+        where: eq(choreographies.id, choreography.id),
+      }),
+    ).resolves.toEqual({ musicStorageKey: null });
+    expect(errorSpy).toHaveBeenCalledWith("[storage:music:orphan]", {
+      choreographyId: choreography.id,
+      detail: "EACCES: volume is read-only",
+      storageKey: "academies/music/current.mp3",
+    });
   });
 
   test("blocks music changes once the choreography has a presentation", async () => {

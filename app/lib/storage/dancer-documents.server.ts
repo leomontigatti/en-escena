@@ -134,6 +134,12 @@ export function createDancerDocumentStorage(
         },
       });
 
+      // Propagated on purpose, unlike choreography music: the row is written
+      // only after this returns, so aborting leaves the dancer pointing at the
+      // document it already had and the caller can say the save failed. A
+      // failed delete still orphans something — here it is the object just
+      // uploaded, not the one still in use. Choreography music cannot make that
+      // trade: its row already points at the new object by this point.
       if (keysToRemove.length > 0) {
         await adapter.remove({
           bucket: DANCER_DOCUMENTS_BUCKET,

@@ -91,8 +91,18 @@ export async function updateChoreographyMusic(input: {
   if (shouldRemovePrevious) {
     try {
       await storageClient.removeMusic(currentStorageKey);
-    } catch {
-      // The database now points at the intended file. Cleanup can be retried by maintenance.
+    } catch (thrown) {
+      // The row already points at the new object, so failing here cannot undo
+      // the replacement: propagating, as `dancer-documents.server.ts` does,
+      // would tell the academy the music was not saved when it was. The cost is
+      // that the previous object stays orphaned on the volume — no sweep
+      // reclaims it — and this line is the only thing that makes it locatable
+      // without walking the volume by hand.
+      console.error("[storage:music:orphan]", {
+        choreographyId: input.choreographyId,
+        detail: thrown instanceof Error ? thrown.message : String(thrown),
+        storageKey: currentStorageKey,
+      });
     }
   }
 
