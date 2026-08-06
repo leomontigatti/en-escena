@@ -10,7 +10,6 @@
 import { TriangleAlert } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 
 import {
   CreateChoreographyDancersField,
@@ -26,25 +25,22 @@ import {
 } from "./wizard";
 
 /**
- * The same alert wherever the gap is hit, in the register the `event-not-ready`
- * blocker already uses (`components/portal/ui.tsx:227-249` maps `blocked` to
- * `warning` + `TriangleAlert`).
+ * The wall: no schedule of this event carries a price for the resolved group
+ * type, so there is nothing to choose between.
  *
- * Description-only, no title — the shape `AccessNotice` already uses
+ * `warning` + `TriangleAlert` is the register the `event-not-ready` blocker
+ * already uses (`components/portal/ui.tsx:227-249` maps `blocked` to exactly
+ * that). Description-only, no title — the shape `AccessNotice` already uses
  * (`components/auth/access-ui.tsx:120-142`), which this cannot reuse directly
  * because it has no `warning` variant.
- *
- * `scope: "event"` is the wall: one schedule or several, none of them priced,
- * so there is nothing to choose between and the copy does not name a schedule.
  */
-function BlockedAlert({ scope }: { scope: "event" | "schedule" }) {
+function BlockedAlert() {
   return (
     <Alert variant="warning">
       <TriangleAlert aria-hidden="true" />
       <AlertDescription>
-        {scope === "schedule"
-          ? "No encontramos un precio para el cronograma seleccionado. Elegí otro o comunicate con nosotros."
-          : "No encontramos un precio para este tipo de grupo. Volvé a intentar más tarde o comunicate con nosotros."}
+        No encontramos un precio para este tipo de grupo. Por favor comunicate
+        con nosotros.
       </AlertDescription>
     </Alert>
   );
@@ -53,7 +49,7 @@ function BlockedAlert({ scope }: { scope: "event" | "schedule" }) {
 function VariantABody({ wizard }: { wizard: PrototypeWizard }) {
   if (wizard.currentStep === "dancers") {
     if (wizard.resolutionRefused) {
-      return <BlockedAlert scope="event" />;
+      return <BlockedAlert />;
     }
 
     return (
@@ -70,6 +66,13 @@ function VariantABody({ wizard }: { wizard: PrototypeWizard }) {
   if (wizard.currentStep === "schedule") {
     return (
       <section className="flex flex-col gap-5">
+        {/*
+         * Unpriced options are rendered disabled — which **overturns #621**,
+         * where unavailable options were "shown, not hidden or disabled".
+         * Decided deliberately by the dev; recorded as an amendment on #621.
+         * No alert accompanies it: the option cannot be selected, so there is
+         * no selection to explain.
+         */}
         <CreateChoreographySelectField
           control={wizard.form.control}
           fieldName="scheduleCapacityId"
@@ -77,13 +80,10 @@ function VariantABody({ wizard }: { wizard: PrototypeWizard }) {
           label="Cronograma"
           options={wizard.options.map((option) => ({
             value: option.id,
-            label: isPriced(option, wizard.groupType)
-              ? formatOptionLabel(option)
-              : `${formatOptionLabel(option)} · No disponible`,
+            label: formatOptionLabel(option),
+            disabled: !isPriced(option, wizard.groupType),
           }))}
         />
-
-        {wizard.blockedAtSchedule ? <BlockedAlert scope="schedule" /> : null}
       </section>
     );
   }
@@ -106,11 +106,5 @@ export const variantA: PrototypeVariant = {
   key: "A",
   name: "Estado del evento",
   Body: VariantABody,
-  // The flow is over: the only forward action left is leaving.
-  footer: (wizard) =>
-    wizard.resolutionRefused ? (
-      <Button type="button" variant="outline">
-        Cerrar
-      </Button>
-    ) : null,
+  // No dedicated exit: the wall leaves a disabled "Siguiente" and "Anterior".
 };
