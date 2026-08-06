@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { describe, expect, test } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import { choreographies } from "@/db/schema";
@@ -17,6 +17,14 @@ import {
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
+
+beforeEach(() => {
+  vi.spyOn(console, "error").mockImplementation(() => {});
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe.sequential("portal choreography music", () => {
   test("uploads new music, stores the key, and removes the previous object", async () => {
@@ -127,6 +135,58 @@ describe.sequential("portal choreography music", () => {
       }),
     ).resolves.toEqual({ musicStorageKey: null });
     expect(removedKeys).toEqual(["academies/music/current.mp3"]);
+  });
+
+  // Borrar el objeto anterior falla después de que la fila ya apunta al nuevo,
+  // así que el reemplazo no se puede deshacer: el byte viejo queda huérfano en
+  // el volumen. Lo único que lo hace recuperable es esta línea de log.
+  test("logs the orphaned key when the previous object cannot be removed", async () => {
+    const { choreography, event, owner } = await createMusicChoreographyFixture(
+      {
+        academyName: "Academia Huérfana",
+        email: "music.orphan@example.com",
+        musicStorageKey: "academies/old/choreographies/old/music.mp3",
+        name: "Con música vieja",
+      },
+    );
+    const storage = {
+      createMusicSignedUrl: async (storageKey: string) =>
+        `signed:${storageKey}`,
+      removeMusic: async () => {
+        throw new Error("ENOENT: volume unavailable");
+      },
+      uploadMusic: async (input: {
+        academyId: string;
+        choreographyId: string;
+        file: Blob;
+      }) =>
+        `academies/${input.academyId}/choreographies/${input.choreographyId}/music.ogg`,
+    };
+
+    await expect(
+      updateChoreographyMusic({
+        academyId: owner.academyId,
+        choreographyId: choreography.id,
+        eventId: event.id,
+        file: new File(["music"], "musica.ogg", { type: "audio/ogg" }),
+        submittedStorageKey: choreography.musicStorageKey ?? "",
+        storage,
+      }),
+    ).resolves.toEqual({ ok: true });
+
+    await expect(
+      db.query.choreographies.findFirst({
+        columns: { musicStorageKey: true },
+        where: eq(choreographies.id, choreography.id),
+      }),
+    ).resolves.toEqual({
+      musicStorageKey: `academies/${owner.academyId}/choreographies/${choreography.id}/music.ogg`,
+    });
+    expect(console.error).toHaveBeenCalledWith("[storage:music:orphan]", {
+      choreographyId: choreography.id,
+      detail: "ENOENT: volume unavailable",
+      storageKey: "academies/old/choreographies/old/music.mp3",
+    });
   });
 
   test("blocks music changes once the choreography has a presentation", async () => {

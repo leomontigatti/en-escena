@@ -134,6 +134,10 @@ export function createDancerDocumentStorage(
         },
       });
 
+      // Se propaga a propósito, al revés que en la música de la coreografía: acá
+      // la fila todavía no se escribió, así que abortar deja al bailarín como
+      // estaba. Ahí no —la fila ya apunta al objeto nuevo— y por eso el fallo se
+      // registra en vez de escalar.
       if (keysToRemove.length > 0) {
         await adapter.remove({
           bucket: DANCER_DOCUMENTS_BUCKET,

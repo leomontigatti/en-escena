@@ -60,6 +60,14 @@ longer exists.
 - Downloads go through a signed URL that expires after **300** seconds.
 - Replacement uploads the new object **before** deleting the previous one, so a
   failed upload leaves the existing music intact.
+- The row is updated **before** the previous object is deleted, so a failed
+  delete leaves that object orphaned on the volume. The replacement still
+  succeeds — the academy is not told a save failed when it did not — and the
+  orphan is logged as `[storage:music:orphan]` with the key. There is no sweep
+  that reclaims it: reconciliation is by hand, from that log line. The
+  divergence from dancer documents (`adapter.remove` there propagates) is
+  deliberate: that delete happens before the row is written, so failing it
+  costs nothing.
 
 ## Related runbooks
 
