@@ -101,19 +101,13 @@ async function main() {
       LOCAL_DATABASE,
     ]);
 
-    await run("docker", [
-      "exec",
-      LOCAL_CONTAINER,
-      "psql",
-      "-U",
-      "postgres",
-      "-d",
-      LOCAL_DATABASE,
-      "-v",
-      "ON_ERROR_STOP=1",
-      "-c",
-      "drop schema if exists public cascade;",
-    ]);
+    // The `public` schema created by `createdb` is deliberately left in place.
+    // A whole-database dump does not recreate it — only non-default schemas
+    // like `drizzle` carry a CREATE SCHEMA — so dropping it here makes every
+    // `public` object fail to restore ("schema public does not exist"), while
+    // `drizzle` restores fine and hides the damage behind a plausible journal.
+    // The drop was correct for the `pg_dump --schema=public` this script used
+    // before #595: explicit schema selection does emit CREATE SCHEMA public.
 
     await run("docker", [
       "cp",
@@ -126,6 +120,10 @@ async function main() {
         "exec",
         LOCAL_CONTAINER,
         "pg_restore",
+        // The target database is freshly created, so nothing here is expected
+        // to fail. Stopping at the first error beats scrolling hundreds of
+        // them past and reading the count at the end.
+        "--exit-on-error",
         "--no-owner",
         "--no-acl",
         "-U",

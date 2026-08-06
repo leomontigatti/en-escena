@@ -106,13 +106,17 @@ docker exec en-escena-postgres psql -U postgres -d postgres -v ON_ERROR_STOP=1 \
 
 docker exec en-escena-postgres dropdb -U postgres --if-exists en-escena
 docker exec en-escena-postgres createdb -U postgres en-escena
-docker exec en-escena-postgres psql -U postgres -d en-escena -v ON_ERROR_STOP=1 \
-  -c "drop schema if exists public cascade;"
 
 docker cp "$DUMP_PATH" en-escena-postgres:/tmp/en-escena-prod.dump
-docker exec en-escena-postgres pg_restore --no-owner --no-acl -U postgres -d en-escena /tmp/en-escena-prod.dump
+docker exec en-escena-postgres pg_restore --exit-on-error --no-owner --no-acl -U postgres -d en-escena /tmp/en-escena-prod.dump
 docker exec en-escena-postgres rm -f /tmp/en-escena-prod.dump
 ```
+
+**Do not drop the `public` schema** that `createdb` just made. A
+whole-database dump does not recreate it — only non-default schemas like
+`drizzle` carry a `CREATE SCHEMA` — so dropping it makes every `public` object
+fail with "schema public does not exist", while `drizzle` restores cleanly and
+leaves a plausible-looking journal on an otherwise empty database.
 
 **Do not run `pnpm db:baseline` afterwards.** The artifact carries the `drizzle`
 schema, so the migration journal arrives intact and complete. Baselining on top
