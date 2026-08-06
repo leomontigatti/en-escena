@@ -9,7 +9,7 @@
  */
 import { TriangleAlert } from "lucide-react";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
 import {
@@ -30,31 +30,21 @@ import {
  * blocker already uses (`components/portal/ui.tsx:227-249` maps `blocked` to
  * `warning` + `TriangleAlert`).
  *
- * `scope: "event"` is the wall — one schedule or several, none of them priced,
- * so there is nothing to choose between and the copy stays generic. It still
- * names the group type: without it the message would read as "this event is
- * closed", when solos and duos register fine.
+ * Description-only, no title — the shape `AccessNotice` already uses
+ * (`components/auth/access-ui.tsx:120-142`), which this cannot reuse directly
+ * because it has no `warning` variant.
+ *
+ * `scope: "event"` is the wall: one schedule or several, none of them priced,
+ * so there is nothing to choose between and the copy does not name a schedule.
  */
-function BlockedAlert({
-  wizard,
-  scope,
-}: {
-  wizard: PrototypeWizard;
-  scope: "event" | "schedule";
-}) {
-  const groupTypeText = wizard.groupTypeLabel.toLowerCase();
-  const option = wizard.blockedOption;
-
+function BlockedAlert({ scope }: { scope: "event" | "schedule" }) {
   return (
     <Alert variant="warning">
       <TriangleAlert aria-hidden="true" />
-      <AlertTitle>
-        El valor de inscripción para {groupTypeText} todavía no está publicado
-      </AlertTitle>
       <AlertDescription>
-        {scope === "schedule" && option
-          ? `La organización todavía no publicó el valor de inscripción para ${groupTypeText} en ${formatOptionLabel(option)}. Elegí otro cronograma o volvé cuando esté publicado.`
-          : `La organización todavía no publicó el valor de inscripción para ${groupTypeText} en este evento. Cuando lo publique vas a poder registrar la coreografía.`}
+        {scope === "schedule"
+          ? "No encontramos un precio para el cronograma seleccionado. Elegí otro o comunicate con nosotros."
+          : "No encontramos un precio para este tipo de grupo. Volvé a intentar más tarde o comunicate con nosotros."}
       </AlertDescription>
     </Alert>
   );
@@ -63,7 +53,7 @@ function BlockedAlert({
 function VariantABody({ wizard }: { wizard: PrototypeWizard }) {
   if (wizard.currentStep === "dancers") {
     if (wizard.resolutionRefused) {
-      return <BlockedAlert wizard={wizard} scope="event" />;
+      return <BlockedAlert scope="event" />;
     }
 
     return (
@@ -93,9 +83,7 @@ function VariantABody({ wizard }: { wizard: PrototypeWizard }) {
           }))}
         />
 
-        {wizard.blockedAtSchedule ? (
-          <BlockedAlert wizard={wizard} scope="schedule" />
-        ) : null}
+        {wizard.blockedAtSchedule ? <BlockedAlert scope="schedule" /> : null}
       </section>
     );
   }
