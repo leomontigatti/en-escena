@@ -96,6 +96,11 @@ describe("allocation prototype", () => {
     expect(markup).not.toContain("tipo de grupo de la coreografía");
     expect(markup).not.toContain("Precio de otro tipo de grupo");
     expect(markup).not.toContain("Precios de otro tipo de grupo");
+    // Nor can it be created: the price picker offers this choreography's group
+    // type only, so the annotation that used to warn about a foreign row has
+    // nothing left to annotate.
+    expect(markup).not.toContain(", no Dúo");
+    expect(markup).not.toContain(", no Grupo");
   });
 
   it("has no Sin precio status anywhere: every inscription carries a price", () => {

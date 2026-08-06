@@ -6,9 +6,16 @@
  *
  * What it shows is settled here — **row name, amount and deadline**, because
  * #551 blessed deadline divergence as normal, so the deadline is the only thing
- * distinguishing two otherwise identical rows; and the price's group type when
- * it differs from the choreography's, which is #551's `groupTypeMismatch`
- * anomaly caught at the moment it would be created rather than reported after.
+ * distinguishing two otherwise identical rows.
+ *
+ * **The menu is the choreography's group type and nothing else.** It used to
+ * offer every row, annotating the foreign ones — `Dúo, no Grupo` — as #551's
+ * `groupTypeMismatch` caught at the moment it would be created. #586 deleted
+ * that anomaly by making the model unable to produce it: a `groupType` change
+ * refreshes the price on the roster write. Offering the option is offering to
+ * create exactly the state that decision forbids, so the rows are filtered
+ * instead of labelled. The inscription's own row always stays in the menu — a
+ * `Select` whose value is missing from its items renders empty.
  *
  * And the second pick is settled: **the price is fixed by the first
  * allocation**, so once money has landed the picker is replaced by the price it
@@ -46,6 +53,11 @@ export function PriceSelect({
   id?: string;
 }) {
   const lock = readPriceLock(inscription);
+  const prices = state.prices.filter(
+    (price) =>
+      price.groupType === choreographyGroupType ||
+      price.id === inscription.selectedPriceId,
+  );
 
   // Locked: there is nothing to choose, so no disabled control is offered — just
   // the price it is fixed to and how to get out of it.
@@ -72,7 +84,7 @@ export function PriceSelect({
           <SelectValue placeholder="Elegí un precio" />
         </SelectTrigger>
         <SelectContent>
-          {state.prices.map((price) => (
+          {prices.map((price) => (
             <SelectItem key={price.id} value={price.id}>
               <span className="flex flex-col items-start">
                 <span>
@@ -80,9 +92,6 @@ export function PriceSelect({
                 </span>
                 <span className="text-xs text-muted-foreground">
                   Vence {formatDate(price.paymentDeadline)}
-                  {price.groupType === choreographyGroupType
-                    ? ""
-                    : ` · ${price.groupType}, no ${choreographyGroupType}`}
                 </span>
               </span>
             </SelectItem>
