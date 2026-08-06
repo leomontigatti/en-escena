@@ -26,7 +26,6 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
-import { formatAmount } from "../formatters";
 import type { AllocationRejection } from "./allocation-rules";
 import type { InscriptionReading, PrototypeState } from "./fixtures";
 import { PriceSelect } from "./price-select";
@@ -35,7 +34,6 @@ export function ManualAllocateDialog({
   inscription,
   state,
   choreographyGroupType,
-  availableBalanceAmount,
   onClose,
   onSelectPrice,
   onAllocate,
@@ -43,7 +41,6 @@ export function ManualAllocateDialog({
   inscription: InscriptionReading | null;
   state: PrototypeState;
   choreographyGroupType: string;
-  availableBalanceAmount: number;
   onClose: () => void;
   onSelectPrice: (inscriptionId: string, priceId: string) => void;
   onAllocate: (
@@ -62,15 +59,16 @@ export function ManualAllocateDialog({
     <Dialog open onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Asignar a mano · {inscription.dancerName}</DialogTitle>
+          <DialogTitle>
+            Asignación individual · {inscription.dancerName}
+          </DialogTitle>
           <DialogDescription>
-            Se toma del saldo disponible de la academia. Qué pago lo cubre lo
-            resuelve el sistema, del más viejo al más nuevo.
+            Podés elegir el precio para la inscripción y agregar pagos.
           </DialogDescription>
         </DialogHeader>
         <FieldGroup>
           <Field>
-            <FieldLabel htmlFor="precio">Precio elegido</FieldLabel>
+            <FieldLabel htmlFor="precio">Precio</FieldLabel>
             <PriceSelect
               id="precio"
               inscription={inscription}
@@ -90,11 +88,6 @@ export function ManualAllocateDialog({
                 setAmount(event.target.value.replace(/\D/g, ""))
               }
             />
-            <p className="text-xs text-muted-foreground tabular-nums">
-              Saldo disponible: {formatAmount(availableBalanceAmount)}.{" "}
-              {inscription.dancerName} admite hasta{" "}
-              {formatAmount(inscription.owedBalanceAmount)} más.
-            </p>
           </Field>
           {rejection !== null ? (
             <Alert variant="destructive">

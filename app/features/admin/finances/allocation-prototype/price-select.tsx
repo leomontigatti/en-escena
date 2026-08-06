@@ -4,9 +4,12 @@
  * The first bullet of #550: where the picker lives, what it shows, and what the
  * *second* allocation does to an inscription that already has a price.
  *
- * What it shows is settled here — **row name, amount and deadline**, because
- * #551 blessed deadline divergence as normal, so the deadline is the only thing
- * distinguishing two otherwise identical rows.
+ * What it shows is the row's **name and amount**. The deadline was there because
+ * #551 blessed deadline divergence as normal, which made it the one thing
+ * telling two otherwise identical rows apart — but the names already do that
+ * («Preventa», «General», «Tardía»), and the date it showed was the deadline of
+ * a row the admin is picking *now*, which reads like a promise about this
+ * inscription. If two rows ever share a name, this is where it will hurt.
  *
  * **The menu is the choreography's group type and nothing else.** It used to
  * offer every row, annotating the foreign ones — `Dúo, no Grupo` — as #551's
@@ -33,7 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { formatAmount, formatDate } from "../formatters";
+import { formatAmount } from "../formatters";
 import { readPriceLock } from "./allocation-rules";
 import type { InscriptionReading, PrototypeState } from "./fixtures";
 
@@ -86,13 +89,8 @@ export function PriceSelect({
         <SelectContent>
           {prices.map((price) => (
             <SelectItem key={price.id} value={price.id}>
-              <span className="flex flex-col items-start">
-                <span>
-                  {price.name} · {formatAmount(price.amount)}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  Vence {formatDate(price.paymentDeadline)}
-                </span>
+              <span>
+                {price.name} · {formatAmount(price.amount)}
               </span>
             </SelectItem>
           ))}

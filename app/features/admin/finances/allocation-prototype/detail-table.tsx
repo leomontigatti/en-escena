@@ -244,7 +244,6 @@ function DancerNameCell({ inscription }: { inscription: InscriptionReading }) {
           inscription={inscription}
           state={prototype.state}
           choreographyGroupType={groupType}
-          availableBalanceAmount={prototype.academy.availableBalanceAmount}
           onClose={() => setOpen(false)}
           onSelectPrice={prototype.onSelectPrice}
           onAllocate={prototype.onAllocate}
