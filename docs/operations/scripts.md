@@ -28,14 +28,14 @@ use when a script has operational risk.
 
 ## Database
 
-| Script                 | Purpose                                                                                                                                     |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm db:generate`     | Generate a versioned SQL migration in `app/db/migrations` from the Drizzle schema. See [Database Migrations](../db/migrations.md).          |
-| `pnpm db:migrate`      | Apply pending migrations to `DATABASE_URL`. Local and dev only — production migrates from the container entrypoint.                         |
-| `pnpm db:baseline`     | Register the baseline migration as applied on an existing database without running its DDL. See [Database Migrations](../db/migrations.md). |
-| `pnpm db:refresh:prod` | Replace local `en-escena` with a fresh production dump. See [Production Database Dump](../db/production-dump.md).                           |
-| `pnpm db:test:reset`   | Reset and migrate the schema on `TEST_DATABASE_URL` for Postgres-backed DB tests.                                                           |
-| `pnpm db:studio`       | Open Drizzle Studio using `.env`.                                                                                                           |
+| Script                 | Purpose                                                                                                                                                                                        |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm db:generate`     | Generate a versioned SQL migration in `app/db/migrations` from the Drizzle schema. See [Database Migrations](../db/migrations.md).                                                             |
+| `pnpm db:migrate`      | Apply pending migrations to `DATABASE_URL`. Local and dev only — production migrates from the container entrypoint.                                                                            |
+| `pnpm db:baseline`     | Register the baseline migration as applied on an existing database without running its DDL. See [Database Migrations](../db/migrations.md).                                                    |
+| `pnpm db:refresh:prod` | Replace local `en-escena` with the newest Coolify backup artifact, fetched from `rylai` over `scp`. Never touches the live database. See [Production Database Dump](../db/production-dump.md). |
+| `pnpm db:test:reset`   | Reset and migrate the schema on `TEST_DATABASE_URL` for Postgres-backed DB tests.                                                                                                              |
+| `pnpm db:studio`       | Open Drizzle Studio using `.env`.                                                                                                                                                              |
 
 ## Database Tests
 

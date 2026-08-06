@@ -10,15 +10,21 @@ const DUMP_DIR = resolve("tmp/db-dumps");
 const CONTAINER_DUMP_PATH = "/tmp/en-escena-prod-refresh.dump";
 const KEEP_DUMP = process.argv.includes("--keep-dump");
 
+// The production database is `is_public: false` with no published port, so
+// there is no route from a laptop to dump it. The source is the artifact
+// Coolify's own scheduled backup already wrote on the VPS (7-day local
+// retention). See docs/operations/backups.md.
+const SSH_HOST = process.env.PROD_SSH_HOST ?? "rylai";
+const REMOTE_BACKUP_DIR =
+  process.env.BACKUP_DIR ?? "/data/coolify/backups/databases";
+
 async function main() {
   console.log("This will replace the local en-escena database.");
-  console.log("Use a Supabase Postgres direct/session connection string.");
-  console.log("The URL is only passed to pg_dump and is not written to disk.");
+  console.log(
+    `Source: the newest Coolify backup artifact on ${SSH_HOST}, fetched over scp.`,
+  );
+  console.log("No production credentials and no live database access.");
   console.log("");
-
-  const productionDatabaseUrl = await readSecret("Production DATABASE_URL: ");
-
-  validateProductionDatabaseUrl(productionDatabaseUrl);
 
   const confirmed = await promptLine(
     `Type ${LOCAL_DATABASE} to recreate the local database: `,
@@ -28,33 +34,17 @@ async function main() {
     throw new Error("Confirmation did not match. Aborting.");
   }
 
+  const remotePath = await resolveRemoteArtifact();
+
+  console.log(`\nArtifact: ${SSH_HOST}:${remotePath}`);
+
   await mkdir(DUMP_DIR, { recursive: true });
 
-  const dumpPath = join(DUMP_DIR, `en-escena-prod-${timestamp()}.dump`);
-  const dumpFile = basename(dumpPath);
+  const dumpFile = basename(remotePath);
+  const dumpPath = join(DUMP_DIR, dumpFile);
 
   try {
-    await run(
-      "docker",
-      [
-        "run",
-        "--rm",
-        "-e",
-        "PROD_DATABASE_URL",
-        "-e",
-        "DUMP_FILE",
-        "-v",
-        `${DUMP_DIR}:/dumps`,
-        POSTGRES_IMAGE,
-        "sh",
-        "-lc",
-        'pg_dump --format=custom --no-owner --no-acl --schema=public "$PROD_DATABASE_URL" --file="/dumps/$DUMP_FILE"',
-      ],
-      {
-        PROD_DATABASE_URL: productionDatabaseUrl,
-        DUMP_FILE: dumpFile,
-      },
-    );
+    await run("scp", ["-q", `${SSH_HOST}:'${remotePath}'`, dumpPath]);
 
     await run("docker", [
       "run",
@@ -145,14 +135,22 @@ async function main() {
       ]);
     }
 
-    // El dump ya trae el schema `public` completo; solo falta el estado de
-    // migraciones (vive en el schema `drizzle`, fuera del dump). `db:baseline`
-    // registra el baseline como aplicado para que un futuro `db:migrate` corra
-    // únicamente las migraciones posteriores. Es también el paso previo al gate
-    // zero-diff (refresh → generate debe dar vacío). Nota: cuando existan
-    // migraciones post-baseline ya desplegadas en prod, este paso necesitará
-    // marcar como aplicadas todas las migraciones hasta HEAD, no solo el 0000.
-    await run("pnpm", ["db:baseline"]);
+    // No `db:baseline` here. Coolify dumps the whole `enescena` database with
+    // no `--schema` filter, so the `drizzle` schema — and with it the full
+    // migration journal — travels inside the artifact. Baselining on top would
+    // claim only idx=0 had run and make the next `db:migrate` re-apply every
+    // migration after it. Verified by the restore drill in #594.
+    await run("docker", [
+      "exec",
+      LOCAL_CONTAINER,
+      "psql",
+      "-U",
+      "postgres",
+      "-d",
+      LOCAL_DATABASE,
+      "-c",
+      "select count(*) as migrations, max(created_at) as watermark from drizzle.__drizzle_migrations;",
+    ]);
 
     await run("docker", [
       "exec",
@@ -196,82 +194,76 @@ async function promptLine(question) {
   }
 }
 
-async function readSecret(question) {
-  if (!process.stdin.isTTY) {
-    return promptLine(question);
+// Picks the newest custom-format artifact under REMOTE_BACKUP_DIR, unless
+// BACKUP_FILE names one. Assumes GNU find (-printf), as on rylai — the same
+// assumption scripts/restore-drill-database.sh makes.
+async function resolveRemoteArtifact() {
+  const explicit = process.env.BACKUP_FILE;
+
+  if (explicit) {
+    return assertCustomFormat(explicit);
   }
 
-  process.stdout.write(question);
+  const newest = await capture("ssh", [
+    SSH_HOST,
+    `find '${REMOTE_BACKUP_DIR}' -type f -name 'pg-dump-*.dmp' -printf '%T@ %p\\n' | sort -rn | head -1 | cut -d' ' -f2-`,
+  ]);
 
-  const stdin = process.stdin;
-  const wasRaw = stdin.isRaw;
-  stdin.setRawMode(true);
-  stdin.resume();
+  if (!newest) {
+    throw new Error(
+      `No custom-format artifact under ${SSH_HOST}:${REMOTE_BACKUP_DIR}. ` +
+        "Run Backup Now on the Coolify Postgres resource, or pass BACKUP_FILE.",
+    );
+  }
 
-  return new Promise((resolveSecret, rejectSecret) => {
-    let value = "";
+  return assertCustomFormat(newest);
+}
 
-    const cleanup = () => {
-      stdin.off("data", onData);
-      stdin.setRawMode(wasRaw);
-      stdin.pause();
-      process.stdout.write("\n");
-    };
+// Artifacts predating #594 are gzipped `pg_dumpall` output: plain SQL that
+// `pg_restore` cannot read, and whose \connect directives would repoint the
+// session mid-restore. Refuse them rather than fail halfway through.
+function assertCustomFormat(remotePath) {
+  if (!remotePath.endsWith(".dmp")) {
+    throw new Error(
+      `Not a custom-format artifact: ${remotePath}. Only .dmp is supported; ` +
+        "see the Format section of docs/operations/backups.md.",
+    );
+  }
 
-    const onData = (buffer) => {
-      const input = buffer.toString("utf8");
+  return remotePath;
+}
 
-      if (input === "\u0003") {
-        cleanup();
-        rejectSecret(new Error("Interrupted."));
+async function capture(command, args) {
+  console.log(`\n$ ${[command, ...args].join(" ")}`);
+
+  return new Promise((resolveCapture, rejectCapture) => {
+    const child = spawn(command, args, {
+      env: process.env,
+      stdio: ["inherit", "pipe", "inherit"],
+    });
+
+    let stdout = "";
+
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk.toString("utf8");
+    });
+
+    child.on("error", rejectCapture);
+    child.on("exit", (code, signal) => {
+      if (code === 0) {
+        resolveCapture(stdout.trim());
         return;
       }
 
-      const newlineIndex = input.search(/[\r\n]/);
-
-      if (newlineIndex >= 0) {
-        value += input.slice(0, newlineIndex);
-        cleanup();
-        resolveSecret(value.trim());
-        return;
-      }
-
-      if (input === "\u007f" || input === "\b") {
-        value = value.slice(0, -1);
-        return;
-      }
-
-      value += input;
-    };
-
-    stdin.on("data", onData);
+      rejectCapture(
+        new Error(
+          signal
+            ? `${command} exited with signal ${signal}`
+            : `${command} exited with code ${code}`,
+        ),
+      );
+    });
   });
-}
-
-function validateProductionDatabaseUrl(value) {
-  let url;
-
-  try {
-    url = new URL(value);
-  } catch {
-    throw new Error("Production DATABASE_URL is not a valid URL.");
-  }
-
-  if (url.protocol !== "postgres:" && url.protocol !== "postgresql:") {
-    throw new Error("Production DATABASE_URL must be a Postgres URL.");
-  }
-
-  if (!url.hostname || !url.pathname || url.pathname === "/") {
-    throw new Error("Production DATABASE_URL must include host and database.");
-  }
-
-  if (url.hostname === "localhost" || url.hostname === "127.0.0.1") {
-    throw new Error("Refusing to dump from a localhost URL.");
-  }
-}
-
-function timestamp() {
-  return new Date().toISOString().replace(/\D/g, "").slice(0, 14);
 }
 
 async function run(command, args, env = {}) {
