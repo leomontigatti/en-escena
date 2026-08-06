@@ -3,7 +3,33 @@ import { describe, expect, test } from "vitest";
 import {
   assertCustomFormat,
   newestArtifactCommand,
+  remoteScpSource,
 } from "./refresh-local-db-from-production.mjs";
+
+describe("scp source argument", () => {
+  const path =
+    "/data/coolify/backups/databases/root-team-0/postgresql-database-abc/pg-dump-enescena-1785985203.dmp";
+
+  test("does not quote the remote path", () => {
+    // scp has spoken SFTP by default since OpenSSH 9.0, so no remote shell
+    // strips quotes: any added land in the filename and the fetch fails with
+    // "No such file or directory". Observed against rylai on OpenSSH 9.6.
+    expect(remoteScpSource("rylai", path)).toBe(`rylai:${path}`);
+    expect(remoteScpSource("rylai", path)).not.toContain("'");
+  });
+
+  test("passes a spaced path through untouched", () => {
+    expect(remoteScpSource("rylai", "/backups/db one.dmp")).toBe(
+      "rylai:/backups/db one.dmp",
+    );
+  });
+
+  test("carries a user@host source unchanged", () => {
+    expect(remoteScpSource("root@72.60.59.2", path)).toBe(
+      `root@72.60.59.2:${path}`,
+    );
+  });
+});
 
 describe("artifact format guard", () => {
   test("accepts a custom-format Coolify artifact", () => {

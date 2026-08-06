@@ -53,7 +53,7 @@ async function main() {
   const dumpPath = join(DUMP_DIR, dumpFile);
 
   try {
-    await run("scp", [`${SSH_HOST}:'${remotePath}'`, dumpPath]);
+    await run("scp", [remoteScpSource(SSH_HOST, remotePath), dumpPath]);
 
     await run("docker", [
       "run",
@@ -231,6 +231,16 @@ async function resolveRemoteArtifact() {
   }
 
   return assertCustomFormat(newest);
+}
+
+// The remote path must NOT be quoted. Since OpenSSH 9.0 `scp` speaks the SFTP
+// protocol by default, so there is no remote shell to strip quotes and any
+// added would become part of the filename ("No such file or directory").
+// Spaces need no escaping for the same reason: SFTP takes the path literally.
+// `ssh` below is the opposite case — its command *is* run by a remote shell,
+// which is why the directory there is quoted.
+export function remoteScpSource(host, remotePath) {
+  return `${host}:${remotePath}`;
 }
 
 // The trailing `cut -d' ' -f2-` keeps paths containing spaces intact; only the
