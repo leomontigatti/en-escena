@@ -1,3 +1,5 @@
+import type { ComprobanteContingency } from "@/lib/comprobantes/contingency-alert";
+
 // Intención de anulación del detalle del comprobante (ADR-0011). La anulación
 // vive junto al comprobante que afecta, no en la lista global ni en el detalle
 // financiero de la coreografía.
@@ -9,19 +11,10 @@ export const annulComprobanteIntent = "annul-comprobante";
 // checkbox: la confirmación es el AlertDialog mismo.
 export const annulComprobanteConfirmValue = "nota-credito";
 
-// Estado de contingencia de ARCA superficializado para la UI: el `Resultado`
-// crudo y los mensajes de error/observación ya formateados a texto. Se presenta
-// cuando WSFEv1 no autoriza la Nota de crédito, sin dejar nada persistido.
-export type ComprobanteDetailArcaContingency = {
-  resultado: string | null;
-  errors: string[];
-  observaciones: string[];
-};
+// Re-verificación de una anulación que quedó sin resolver (#577): vuelve a
+// consultar a ARCA por esa Nota de crédito, sin reintentar la autorización.
+export const recheckNotaCreditoIntent = "recheck-nota-credito";
 
 export type ComprobanteDetailActionData =
   | { status: "error"; message: string }
-  | {
-      status: "annul-error";
-      message: string;
-      contingency: ComprobanteDetailArcaContingency;
-    };
+  | { status: "contingency"; contingency: ComprobanteContingency };

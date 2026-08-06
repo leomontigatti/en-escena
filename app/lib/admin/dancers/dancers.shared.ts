@@ -9,19 +9,10 @@ export type DancerIdentificationFilter =
   | "unverified"
   | "verified"
   | "all";
-export type DancerParticipationStatus =
-  | "participating"
-  | "not-participating"
-  | "no-event";
 export type DancerIdentificationStatus =
   | "incomplete"
   | "unverified"
   | "verified";
-export type DancerAuditAction =
-  | "update"
-  | "archive"
-  | "reactivate"
-  | "verify-identity";
 
 export type DancerListFilters = {
   nameOrder: DancerNameOrder;
@@ -32,17 +23,14 @@ export type DancerListFilters = {
   page: number;
 };
 
-export function readDancerParticipationFilter(input: {
-  value: string | null;
-  hasSelectedEvent: boolean;
-}): DancerParticipationFilter {
-  switch (input.value) {
+export function readDancerParticipationFilter(
+  value: string | null,
+): DancerParticipationFilter {
+  switch (value) {
     case "si":
       return "yes";
     case "no":
       return "no";
-    case "todos":
-      return "all";
     default:
       return "all";
   }
@@ -78,6 +66,7 @@ export function readDancerIdentificationFilter(
   }
 }
 
+/** `all` se codifica por ausencia del parámetro, así que devuelve `null`. */
 export function toDancerParticipationSearchValue(
   value: DancerParticipationFilter,
 ) {
@@ -85,12 +74,13 @@ export function toDancerParticipationSearchValue(
     case "no":
       return "no";
     case "all":
-      return "todos";
+      return null;
     default:
       return "si";
   }
 }
 
+/** `active` se codifica por ausencia del parámetro, así que devuelve `null`. */
 export function toDancerStatusSearchValue(value: DancerStatusFilter) {
   switch (value) {
     case "archived":
@@ -98,7 +88,7 @@ export function toDancerStatusSearchValue(value: DancerStatusFilter) {
     case "all":
       return "todos";
     default:
-      return "activos";
+      return null;
   }
 }
 
@@ -115,25 +105,6 @@ export function toDancerIdentificationSearchValue(
     default:
       return "incompleta";
   }
-}
-
-export function getDancerParticipationLabel(
-  participationStatus: DancerParticipationStatus,
-) {
-  switch (participationStatus) {
-    case "participating":
-      return "Participando";
-    case "not-participating":
-      return "No participando";
-    default:
-      return "Sin evento";
-  }
-}
-
-export function getDancerParticipationBadgeVariant(
-  participationStatus: DancerParticipationStatus,
-) {
-  return participationStatus === "participating" ? "success" : "secondary";
 }
 
 export function getDancerIdentificationBadgeVariant(

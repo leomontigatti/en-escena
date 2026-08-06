@@ -32,8 +32,9 @@ Use the Supabase dashboard Postgres connection string, not `SUPABASE_URL`. The
 direct connection or session pooler is the best fit for `pg_dump`. Avoid the
 transaction pooler for dumps.
 
-For production schema changes, use versioned Drizzle migrations applied with
-`pnpm db:migrate`; see [Database Migrations](migrations.md).
+For production schema changes, use versioned Drizzle migrations. Production
+applies them from the container entrypoint, not from a laptop; see
+[Database Migrations](migrations.md).
 
 ## Create a Dump
 

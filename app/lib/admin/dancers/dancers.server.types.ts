@@ -2,10 +2,9 @@ import type { dancers } from "@/db/schema";
 import type { DancerEditConsequence } from "@/lib/admin/dancers/dancers.server.shared";
 import type {
   DancerIdentificationStatus,
-  DancerParticipationStatus,
-  DancerAuditAction,
   DancerListFilters,
 } from "@/lib/admin/dancers/dancers.shared";
+import type { ParticipationStatus } from "@/lib/participation/participation.shared";
 import type { DancerEditableSnapshot } from "@/lib/dancers/dancer-records.server";
 
 export type DancerListItem = {
@@ -14,7 +13,7 @@ export type DancerListItem = {
   lastName: string;
   active: boolean;
   academyName: string;
-  participationStatus: DancerParticipationStatus;
+  participationStatus: ParticipationStatus;
   identificationStatus: DancerIdentificationStatus;
 };
 
@@ -46,7 +45,7 @@ export type DancerDetail = {
     email: string;
     phone: string;
   };
-  participationStatus: DancerParticipationStatus;
+  participationStatus: ParticipationStatus;
   identificationStatus: DancerIdentificationStatus;
   participatedInAnyEvent: boolean;
   editConsequence: DancerEditConsequence;
@@ -101,14 +100,4 @@ export type DancerMutationResult =
 
 export type DancerStatusMutationResult = {
   dancer: DancerEditableSnapshot;
-};
-
-export type DancerAuditEntryInput = {
-  action: DancerAuditAction;
-  adminUserId: string;
-  afterValues: DancerEditableSnapshot;
-  beforeValues: DancerEditableSnapshot;
-  dancerId: string;
-  eventId: string | null;
-  reason: string | null;
 };

@@ -1,10 +1,12 @@
 import type {
   CreateVoucherResultDto,
   LastVoucherResultDto,
+  VoucherInfoResultDto,
 } from "@arcasdk/core";
 import { describe, expect, test, vi } from "vitest";
 
 import {
+  ARCA_TIMEOUTS,
   ArcaClient,
   readArcaClientConfig,
   type ArcaBillingPort,
@@ -12,10 +14,18 @@ import {
 import type { ArcaVoucher } from "./factura-c";
 import {
   facturaCAprobada,
+  facturaCConsultada,
   notaCreditoCAprobada,
   ultimoAutorizado,
   ultimoNotaCreditoAutorizado,
 } from "./fixtures";
+
+// Timeouts en milisegundos: los tests ejercitan el corte real, sin fake timers.
+const FAST_TIMEOUTS = { lookup: 20, authorization: 20 };
+
+function neverAnswers(): Promise<never> {
+  return new Promise<never>(() => {});
+}
 
 const CERT_PEM = "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----";
 const KEY_PEM = "-----BEGIN PRIVATE KEY-----\nMIIE\n-----END PRIVATE KEY-----";
@@ -33,6 +43,11 @@ function fakeBilling(
     ),
     createVoucher: vi.fn(
       async (): Promise<CreateVoucherResultDto> => facturaCAprobada,
+    ),
+    // Sólo se consulta cuando la autorización se cae: por defecto ARCA no tiene
+    // ese comprobante.
+    getVoucherInfo: vi.fn(
+      async (): Promise<VoucherInfoResultDto | null> => null,
     ),
     ...overrides,
   };
@@ -124,6 +139,100 @@ describe("ArcaClient", () => {
     ]);
     expect(result.approved).toBe(true);
     expect(result.cae).toBe("41124599990011");
+  });
+
+  test("consulta un comprobante puntual (FECompConsultar) con el orden posicional del SDK", async () => {
+    const billing = fakeBilling({
+      getVoucherInfo: vi.fn(async () => facturaCConsultada),
+    });
+    const client = new ArcaClient(billing);
+
+    const voucher = await client.getVoucherInfo({
+      ptoVta: 1,
+      cbteTipo: 11,
+      cbteNro: 43,
+    });
+
+    expect(billing.getVoucherInfo).toHaveBeenCalledWith(43, 1, 11);
+    expect(voucher).toEqual({
+      cae: "41124578989845",
+      caeVto: "20260801",
+      impTotal: 1000,
+      cbteFch: "20260722",
+    });
+  });
+
+  test("un comprobante inexistente vuelve como null, no como error", async () => {
+    const client = new ArcaClient(fakeBilling());
+
+    await expect(
+      client.getVoucherInfo({ ptoVta: 1, cbteTipo: 11, cbteNro: 999 }),
+    ).resolves.toBeNull();
+  });
+});
+
+// El SDK no impone timeout en ninguna capa: sin el nuestro, una llamada que
+// nunca responde deja la promesa colgada para siempre (ADR-0012 decisión 2).
+describe("ArcaClient (timeouts)", () => {
+  test("acota FECompUltimoAutorizado con el timeout de consulta", async () => {
+    const billing = fakeBilling({ getLastVoucher: vi.fn(neverAnswers) });
+    const client = new ArcaClient(billing, FAST_TIMEOUTS);
+
+    await expect(client.getLastFacturaCNumber(1)).rejects.toThrow(
+      /FECompUltimoAutorizado/,
+    );
+  });
+
+  test("acota FECAESolicitar con el timeout de autorización", async () => {
+    const billing = fakeBilling({ createVoucher: vi.fn(neverAnswers) });
+    const client = new ArcaClient(billing, FAST_TIMEOUTS);
+
+    await expect(client.emitFacturaC(emissionInput)).rejects.toThrow(
+      /FECAESolicitar/,
+    );
+  });
+
+  test("acota también la consulta del último de la serie tipo 13 y su emisión", async () => {
+    const client = new ArcaClient(
+      fakeBilling({
+        getLastVoucher: vi.fn(neverAnswers),
+        createVoucher: vi.fn(neverAnswers),
+      }),
+      FAST_TIMEOUTS,
+    );
+
+    await expect(client.getLastNotaCreditoCNumber(1)).rejects.toThrow(
+      /FECompUltimoAutorizado/,
+    );
+    await expect(
+      client.emitNotaCreditoC({
+        ...emissionInput,
+        cbteNro: 8,
+        emisorCuit: "30717611590",
+        asociado: { cbteTipo: 11, ptoVta: 1, cbteNro: 43 },
+      }),
+    ).rejects.toThrow(/FECAESolicitar/);
+  });
+
+  test("acota FECompConsultar: la recuperación no puede quedar colgada", async () => {
+    const billing = fakeBilling({ getVoucherInfo: vi.fn(neverAnswers) });
+    const client = new ArcaClient(billing, FAST_TIMEOUTS);
+
+    await expect(
+      client.getVoucherInfo({ ptoVta: 1, cbteTipo: 11, cbteNro: 43 }),
+    ).rejects.toThrow(/FECompConsultar/);
+  });
+
+  test("una llamada que responde a tiempo no se ve afectada", async () => {
+    const client = new ArcaClient(fakeBilling(), FAST_TIMEOUTS);
+
+    await expect(client.getLastFacturaCNumber(1)).resolves.toMatchObject({
+      nextCbteNro: 43,
+    });
+  });
+
+  test("los timeouts por defecto son 15s de consulta y 30s de autorización", () => {
+    expect(ARCA_TIMEOUTS).toEqual({ lookup: 15_000, authorization: 30_000 });
   });
 });
 

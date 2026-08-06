@@ -2,7 +2,6 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { dancers } from "@/db/schema";
-import { createAdministrativeDancerAuditEntry } from "@/lib/admin/dancers/dancers-audit.server";
 import {
   findDancerForMutation,
   toDancerSnapshot,
@@ -11,7 +10,6 @@ import type { DancerStatusMutationResult } from "@/lib/admin/dancers/dancers.ser
 
 export async function setDancerActiveState(input: {
   action: "archive" | "reactivate";
-  adminUserId: string;
   dancerId: string;
   selectedEventId: string | null;
 }): Promise<DancerStatusMutationResult> {
@@ -25,7 +23,6 @@ export async function setDancerActiveState(input: {
   }
 
   const nextActive = input.action === "reactivate";
-  const beforeValues = toDancerSnapshot(existingDancer);
   const [updatedDancer] = await db
     .update(dancers)
     .set({
@@ -34,19 +31,9 @@ export async function setDancerActiveState(input: {
     })
     .where(eq(dancers.id, existingDancer.id))
     .returning();
-  const afterValues = toDancerSnapshot(updatedDancer);
-
-  await createAdministrativeDancerAuditEntry({
-    action: input.action,
-    adminUserId: input.adminUserId,
-    afterValues,
-    beforeValues,
-    dancerId: existingDancer.id,
-    eventId: input.selectedEventId,
-    reason: null,
-  });
+  const savedSnapshot = toDancerSnapshot(updatedDancer);
 
   return {
-    dancer: afterValues,
+    dancer: savedSnapshot,
   };
 }

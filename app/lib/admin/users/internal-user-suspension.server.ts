@@ -1,8 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { administrativeAuditEntries, user } from "@/db/schema";
-import { getInternalOptionalEmail } from "@/lib/admin/users/internal-user-credentials.server";
+import { user } from "@/db/schema";
 import {
   revokeInternalCredentialSessions,
   setInternalCredentialSuspendedState,
@@ -25,15 +24,6 @@ type SetInternalUserSuspendedStateResult =
       ok: false;
       error: string;
     };
-
-type InternalUserSuspensionAuditSnapshot = {
-  email: string | null;
-  internalUsername: string;
-  name: string;
-  requiresPasswordChange: boolean;
-  role: "admin" | "auditor" | "judge";
-  suspended: boolean;
-};
 
 export async function setInternalUserSuspendedState(
   input: SetInternalUserSuspendedStateInput,
@@ -101,21 +91,6 @@ export async function setInternalUserSuspendedState(
     }
   }
 
-  const beforeValues: InternalUserSuspensionAuditSnapshot = {
-    email: getInternalOptionalEmail({
-      email: existingUser.email,
-      internalUsername: existingUser.internalUsername,
-    }),
-    internalUsername: existingUser.internalUsername,
-    name: existingUser.name,
-    requiresPasswordChange: existingUser.requiresPasswordChange,
-    role: existingUser.role,
-    suspended: existingUser.suspended,
-  };
-  const afterValues: InternalUserSuspensionAuditSnapshot = {
-    ...beforeValues,
-    suspended: nextSuspended,
-  };
   const invalidatedAt = nextSuspended
     ? new Date()
     : existingUser.sessionInvalidBefore;
@@ -135,25 +110,13 @@ export async function setInternalUserSuspendedState(
     };
   }
 
-  await db.transaction(async (tx) => {
-    await tx
-      .update(user)
-      .set({
-        sessionInvalidBefore: invalidatedAt,
-        suspended: nextSuspended,
-      })
-      .where(eq(user.id, existingUser.id));
-
-    await tx.insert(administrativeAuditEntries).values({
-      entityType: "user",
-      entityId: existingUser.id,
-      adminUserId: input.updatedByUserId,
-      action: nextSuspended ? "archive" : "reactivate",
-      reason: null,
-      beforeValues,
-      afterValues,
-    });
-  });
+  await db
+    .update(user)
+    .set({
+      sessionInvalidBefore: invalidatedAt,
+      suspended: nextSuspended,
+    })
+    .where(eq(user.id, existingUser.id));
 
   if (nextSuspended) {
     await revokeInternalCredentialSessions(existingUser.id);

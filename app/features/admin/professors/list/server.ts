@@ -15,9 +15,7 @@ export async function loadProfessorsList(request: Request) {
     throw redirect(eventContext.redirectTo);
   }
 
-  const filters = readProfessorFilters(new URL(request.url).searchParams, {
-    hasSelectedEvent: eventContext.selectedEventId !== null,
-  });
+  const filters = readProfessorFilters(new URL(request.url).searchParams);
   const listResult = await listProfessors({
     selectedEventId: eventContext.selectedEventId,
     filters,

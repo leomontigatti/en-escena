@@ -3,7 +3,6 @@ import { and, asc, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import {
   academies,
-  administrativeAuditEntries,
   choreographies,
   choreographyProfessors,
   professors,
@@ -11,9 +10,7 @@ import {
 } from "@/db/schema";
 import {
   professorPageSize,
-  type ProfessorAuditAction,
   type ProfessorNameOrder,
-  type ProfessorParticipationStatus,
   type ProfessorListFilters,
   readProfessorParticipationFilter,
   readProfessorStatusFilter,
@@ -28,6 +25,10 @@ import {
   buildProfessorAnyEventParticipationSql,
   buildProfessorEventParticipationSql,
 } from "@/lib/participation/participation.server";
+import {
+  type ParticipationStatus,
+  toParticipationStatus,
+} from "@/lib/participation/participation.shared";
 
 export type ProfessorListItem = {
   id: string;
@@ -35,7 +36,7 @@ export type ProfessorListItem = {
   lastName: string;
   active: boolean;
   academyName: string;
-  participationStatus: ProfessorParticipationStatus;
+  participationStatus: ParticipationStatus;
   identificationStatus: "complete" | "incomplete";
 };
 
@@ -64,7 +65,7 @@ export type ProfessorDetail = {
     email: string;
     phone: string;
   };
-  participationStatus: ProfessorParticipationStatus;
+  participationStatus: ParticipationStatus;
   participatedInAnyEvent: boolean;
   editConsequence: ProfessorEditConsequence;
   choreographyNames: string[];
@@ -99,14 +100,12 @@ type ProfessorStatusMutationResult = {
 
 export function readProfessorFilters(
   searchParams: URLSearchParams,
-  options: { hasSelectedEvent: boolean },
 ): ProfessorListFilters {
   return {
     nameOrder: readProfessorNameOrder(searchParams.get("orden")),
-    participation: readProfessorParticipationFilter({
-      value: searchParams.get("participando"),
-      hasSelectedEvent: options.hasSelectedEvent,
-    }),
+    participation: readProfessorParticipationFilter(
+      searchParams.get("participando"),
+    ),
     query: searchParams.get("busqueda")?.trim() ?? "",
     status: readProfessorStatusFilter(searchParams.get("estado")),
     page: readPage(searchParams),
@@ -288,7 +287,6 @@ export async function findProfessor(input: {
 }
 
 export async function updateAdministrativeProfessor(input: {
-  adminUserId: string;
   professorId: string;
   selectedEventId: string | null;
   values: ProfessorUpdateInput;
@@ -359,7 +357,6 @@ export async function updateAdministrativeProfessor(input: {
     }
   }
 
-  const beforeValues = toProfessorSnapshot(existingProfessor);
   const [updatedProfessor] = await db
     .update(professors)
     .set({
@@ -371,27 +368,16 @@ export async function updateAdministrativeProfessor(input: {
     })
     .where(eq(professors.id, existingProfessor.id))
     .returning();
-  const afterValues = toProfessorSnapshot(updatedProfessor);
-
-  await insertProfessorAuditEntry({
-    action: "update",
-    adminUserId: input.adminUserId,
-    afterValues,
-    beforeValues,
-    eventId: input.selectedEventId,
-    professorId: existingProfessor.id,
-    reason: null,
-  });
+  const savedSnapshot = toProfessorSnapshot(updatedProfessor);
 
   return {
     ok: true,
-    professor: afterValues,
+    professor: savedSnapshot,
   };
 }
 
 export async function setProfessorActiveState(input: {
   action: "archive" | "reactivate";
-  adminUserId: string;
   professorId: string;
   selectedEventId: string | null;
 }): Promise<ProfessorStatusMutationResult> {
@@ -405,7 +391,6 @@ export async function setProfessorActiveState(input: {
   }
 
   const nextActive = input.action === "reactivate";
-  const beforeValues = toProfessorSnapshot(existingProfessor);
   const [updatedProfessor] = await db
     .update(professors)
     .set({
@@ -414,20 +399,10 @@ export async function setProfessorActiveState(input: {
     })
     .where(eq(professors.id, existingProfessor.id))
     .returning();
-  const afterValues = toProfessorSnapshot(updatedProfessor);
-
-  await insertProfessorAuditEntry({
-    action: input.action,
-    adminUserId: input.adminUserId,
-    afterValues,
-    beforeValues,
-    eventId: input.selectedEventId,
-    professorId: existingProfessor.id,
-    reason: null,
-  });
+  const savedSnapshot = toProfessorSnapshot(updatedProfessor);
 
   return {
-    professor: afterValues,
+    professor: savedSnapshot,
   };
 }
 
@@ -477,17 +452,6 @@ function buildProfessorWhere(input: {
   }
 
   return conditions.length > 0 ? and(...conditions) : undefined;
-}
-
-function toParticipationStatus(
-  selectedEventId: string | null,
-  isParticipating: boolean,
-): ProfessorParticipationStatus {
-  if (selectedEventId === null) {
-    return "no-event";
-  }
-
-  return isParticipating ? "participating" : "not-participating";
 }
 
 async function findProfessorForMutation(input: {
@@ -552,27 +516,6 @@ function toProfessorSnapshot(
     documentNumber: professor.documentNumber,
     active: professor.active,
   };
-}
-
-async function insertProfessorAuditEntry(input: {
-  action: ProfessorAuditAction;
-  adminUserId: string;
-  afterValues: ProfessorEditableSnapshot;
-  beforeValues: ProfessorEditableSnapshot;
-  eventId: string | null;
-  professorId: string;
-  reason: string | null;
-}) {
-  await db.insert(administrativeAuditEntries).values({
-    entityType: "professor",
-    entityId: input.professorId,
-    eventId: input.eventId,
-    adminUserId: input.adminUserId,
-    action: input.action,
-    reason: input.reason,
-    beforeValues: input.beforeValues,
-    afterValues: input.afterValues,
-  });
 }
 
 function readPage(searchParams: URLSearchParams) {

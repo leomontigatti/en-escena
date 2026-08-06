@@ -1,4 +1,5 @@
 import { AlertTriangle, Check, LoaderCircle } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useFetcher } from "react-router";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -12,6 +13,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  ContingencyAlert,
+  contingencyCancelLabel,
+  resolveContingencySubmitState,
+} from "@/lib/comprobantes/contingency-alert";
 import type { ComprobantePorcion } from "@/lib/comprobantes/emit-factura-c.server";
 import { formatComprobantePorcionLabel } from "@/lib/comprobantes/format";
 import { lowercaseFirst } from "@/lib/shared/utils";
@@ -20,7 +26,7 @@ import { formatAmount } from "../../formatters";
 import {
   emitComprobanteConfirmValue,
   emitComprobanteIntent,
-  type ArcaContingency,
+  recheckComprobanteIntent,
   type ChoreographyFinanceActionData,
 } from "./shared";
 
@@ -50,9 +56,19 @@ export function EmissionDialog({
   const fetcher = useFetcher<ChoreographyFinanceActionData>();
   const isSaving = fetcher.state !== "idle";
   const contingency =
-    fetcher.data?.status === "emission-error" ? fetcher.data : null;
+    fetcher.data?.status === "contingency" ? fetcher.data.contingency : null;
   const genericError =
     fetcher.data?.status === "error" ? fetcher.data.message : null;
+
+  // La verificación manual la declara el operador, así que no puede sobrevivir a
+  // un intento nuevo: cada respuesta del server la borra y el reintento vuelve a
+  // quedar bloqueado si sigue sin resolverse.
+  const [acknowledged, setAcknowledged] = useState(false);
+  useEffect(() => {
+    setAcknowledged(false);
+  }, [fetcher.data]);
+
+  const submitState = resolveContingencySubmitState(contingency, acknowledged);
 
   function handleOpenChange(next: boolean) {
     if (isSaving) {
@@ -85,8 +101,14 @@ export function EmissionDialog({
 
           {contingency ? (
             <ContingencyAlert
-              message={contingency.message}
-              contingency={contingency.contingency}
+              acknowledged={acknowledged}
+              contingency={contingency}
+              isBusy={isSaving}
+              onAcknowledge={() => setAcknowledged(true)}
+              onRecheck={(payload) =>
+                fetcher.submit(payload, { method: "post" })
+              }
+              recheckIntent={recheckComprobanteIntent}
             />
           ) : null}
 
@@ -99,20 +121,28 @@ export function EmissionDialog({
 
           <AlertDialogFooter>
             <AlertDialogCancel type="button" disabled={isSaving}>
-              Cancelar
+              {contingencyCancelLabel(submitState)}
             </AlertDialogCancel>
-            <Button type="submit" disabled={isSaving}>
-              {isSaving ? (
-                <LoaderCircle
-                  aria-hidden="true"
-                  className="animate-spin"
-                  data-icon="inline-start"
-                />
-              ) : (
-                <Check aria-hidden="true" data-icon="inline-start" />
-              )}
-              Confirmar emisión
-            </Button>
+            {/* Recuperado: el comprobante ya está autorizado y registrado, así
+                que el botón se saca. Deshabilitarlo se leería como "esperá" e
+                invitaría a un reintento que emitiría un segundo comprobante. */}
+            {submitState === "removed" ? null : (
+              <Button
+                type="submit"
+                disabled={isSaving || submitState === "blocked"}
+              >
+                {isSaving ? (
+                  <LoaderCircle
+                    aria-hidden="true"
+                    className="animate-spin"
+                    data-icon="inline-start"
+                  />
+                ) : (
+                  <Check aria-hidden="true" data-icon="inline-start" />
+                )}
+                Confirmar emisión
+              </Button>
+            )}
           </AlertDialogFooter>
         </fetcher.Form>
       </AlertDialogContent>
@@ -175,35 +205,5 @@ function PreviewRow({
         {value}
       </span>
     </div>
-  );
-}
-
-/**
- * Estado de contingencia de ARCA. Presenta el mensaje general y cada error u
- * observación crudos: la emisión no se completó y no se persistió nada, así que
- * la operadora puede reintentar sin que la UI quede en un estado inconsistente.
- */
-export function ContingencyAlert({
-  contingency,
-  message,
-}: {
-  contingency: ArcaContingency;
-  message: string;
-}) {
-  return (
-    <Alert variant="destructive">
-      <AlertTriangle aria-hidden="true" />
-      <AlertDescription>
-        <div className="flex flex-col gap-1">
-          <span>{message}</span>
-          {contingency.errors.map((error) => (
-            <span key={error}>{error}</span>
-          ))}
-          {contingency.observaciones.map((observacion) => (
-            <span key={observacion}>{observacion}</span>
-          ))}
-        </div>
-      </AlertDescription>
-    </Alert>
   );
 }

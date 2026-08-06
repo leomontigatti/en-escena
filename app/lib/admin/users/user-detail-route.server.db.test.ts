@@ -5,12 +5,7 @@ import { createRoutesStub } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import {
-  academies,
-  administrativeAuditEntries,
-  accessSession,
-  user,
-} from "@/db/schema";
+import { academies, accessSession, user } from "@/db/schema";
 import {
   createAccessRequestCookie,
   createAccessUser,
@@ -32,7 +27,7 @@ import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 installDatabaseTestHooks();
 
 describe("administracion/usuarios/:userId route", () => {
-  test("suspends and reactivates an internal user, revokes sessions, and records status audits", async () => {
+  test("suspends and reactivates an internal user and revokes sessions", async () => {
     const targetUser = await createSignedInRequest({
       email: "usuario.suspendible@example.com",
       role: "judge",
@@ -144,24 +139,6 @@ describe("administracion/usuarios/:userId route", () => {
         where: eq(user.id, targetUser.userId),
       }),
     ).resolves.toMatchObject({ suspended: false });
-    await expect(
-      db
-        .select()
-        .from(administrativeAuditEntries)
-        .where(eq(administrativeAuditEntries.entityId, targetUser.userId))
-        .orderBy(administrativeAuditEntries.createdAt),
-    ).resolves.toEqual([
-      expect.objectContaining({
-        action: "archive",
-        beforeValues: expect.objectContaining({ suspended: false }),
-        afterValues: expect.objectContaining({ suspended: true }),
-      }),
-      expect.objectContaining({
-        action: "reactivate",
-        beforeValues: expect.objectContaining({ suspended: true }),
-        afterValues: expect.objectContaining({ suspended: false }),
-      }),
-    ]);
   });
 
   test("prevents admins from suspending their own user", async () => {
@@ -191,7 +168,7 @@ describe("administracion/usuarios/:userId route", () => {
     });
   });
 
-  test("updates an internal user, revokes sessions on permission change, and persists sanitized audit data", async () => {
+  test("updates an internal user and revokes sessions on permission change", async () => {
     const targetUser = await createSignedInRequest({
       email: "usuario.interno.original@example.com",
       role: "judge",
@@ -251,38 +228,9 @@ describe("administracion/usuarios/:userId route", () => {
         .from(accessSession)
         .where(eq(accessSession.userId, targetUser.userId)),
     ).resolves.toEqual([]);
-    await expect(
-      db
-        .select()
-        .from(administrativeAuditEntries)
-        .where(eq(administrativeAuditEntries.entityId, targetUser.userId)),
-    ).resolves.toEqual([
-      expect.objectContaining({
-        entityType: "user",
-        entityId: targetUser.userId,
-        action: "update",
-        reason: null,
-        beforeValues: {
-          email: "usuario.interno.original@example.com",
-          internalUsername: "julia.original",
-          name: "Julia Original",
-          requiresPasswordChange: false,
-          role: "judge",
-          suspended: false,
-        },
-        afterValues: {
-          email: "julia.actualizada@example.com",
-          internalUsername: "julia.original",
-          name: "Julia Actualizada",
-          requiresPasswordChange: false,
-          role: "auditor",
-          suspended: false,
-        },
-      }),
-    ]);
   });
 
-  test("resets an internal user password with mandatory change, revokes sessions, and keeps audit payloads sanitized", async () => {
+  test("resets an internal user password with a mandatory change and revokes sessions", async () => {
     const targetUser = await createSignedInRequest({
       email: "usuario.restablecer@example.com",
       role: "judge",
@@ -338,41 +286,6 @@ describe("administracion/usuarios/:userId route", () => {
         .from(accessSession)
         .where(eq(accessSession.userId, targetUser.userId)),
     ).resolves.toEqual([]);
-
-    await expect(
-      db
-        .select()
-        .from(administrativeAuditEntries)
-        .where(eq(administrativeAuditEntries.entityId, targetUser.userId))
-        .orderBy(administrativeAuditEntries.createdAt),
-    ).resolves.toEqual([
-      expect.objectContaining({
-        action: "reset-password",
-        beforeValues: {
-          email: "usuario.restablecer@example.com",
-          internalUsername: "julia.restablecida",
-          name: "Julia Restablecida",
-          requiresPasswordChange: false,
-          role: "judge",
-          suspended: false,
-        },
-        afterValues: {
-          email: "usuario.restablecer@example.com",
-          internalUsername: "julia.restablecida",
-          name: "Julia Restablecida",
-          requiresPasswordChange: true,
-          role: "judge",
-          suspended: false,
-        },
-      }),
-    ]);
-
-    const savedAuditEntry = await db.query.administrativeAuditEntries.findFirst(
-      {
-        where: eq(administrativeAuditEntries.entityId, targetUser.userId),
-      },
-    );
-    expect(JSON.stringify(savedAuditEntry)).not.toContain("temporal-nueva");
 
     const loginResponse = await expectThrownResponse(
       submitSignInAction("julia.restablecida", "temporal-nueva"),

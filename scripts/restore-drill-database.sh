@@ -1,0 +1,339 @@
+#!/usr/bin/env sh
+set -eu
+
+# Restore drill: proves the Coolify-native database backup is actually
+# restorable, not just that the backup job exits 0. Restores an artifact into a
+# throwaway Postgres container (never the live database), then compares the
+# per-table row counts and the Drizzle migration journal against the live
+# database. This is the database sibling of restore-drill-from-b2.sh, which
+# does the same for storage, and it is the check #267 step 7 requires before
+# the pre-cutover backup path can be retired (see #594).
+#
+# Runs on the server that holds the backups (rylai), because the database is
+# is_public: false and the local backups live under /data/coolify/backups.
+#
+# Non-destructive: it reads the artifact and the live database, and writes only
+# to a container it creates and removes. The scratch container holds a full
+# copy of production PII while it runs, so it is force-removed on exit and
+# never publishes a port (set DRILL_KEEP=1 to keep it for inspection).
+#
+# Handles both artifact formats Coolify can emit, decided by DatabaseBackupJob's
+# dump_all flag ("Backup All Databases"):
+#   pg-dump-all-<ts>.gz    plain SQL, gzipped -> gunzip | psql
+#   pg-dump-<db>-<ts>.dmp  custom format      -> pg_restore
+#
+# PASSED means what #267 step 7 means by it: every table present live is present
+# in the restore with the same row count. Rows written after the backup ran are
+# real drift, but nothing distinguishes them from rows the restore lost, so a
+# count mismatch fails unless ALLOW_DRIFT=1 says to accept it. Run the drill
+# against a quiet database if you want an unqualified pass.
+#
+# Assumes GNU find (-printf), as on rylai.
+
+require_command() {
+  command_name="$1"
+
+  if ! command -v "$command_name" >/dev/null 2>&1; then
+    echo "Missing required command: $command_name" >&2
+    exit 1
+  fi
+}
+
+require_command docker
+require_command find
+require_command sort
+require_command grep
+require_command sed
+require_command cut
+require_command comm
+require_command diff
+require_command basename
+
+BACKUP_DIR="${BACKUP_DIR:-/data/coolify/backups/databases}"
+BACKUP_FILE="${BACKUP_FILE:-}"
+TARGET_DB="${TARGET_DB:-enescena}"
+POSTGRES_IMAGE="${POSTGRES_IMAGE:-postgres:17-alpine}"
+DRILL_CONTAINER="${DRILL_CONTAINER:-en-escena-restore-drill}"
+# The live Postgres container. Coolify names it after the database UUID, which
+# is also embedded in the backup path, so it is derived below when unset.
+LIVE_CONTAINER="${LIVE_CONTAINER:-}"
+WORK_DIR="${WORK_DIR:-${TMPDIR:-/tmp}/en-escena-restore-drill}"
+
+if [ -z "$BACKUP_FILE" ]; then
+  if [ ! -d "$BACKUP_DIR" ]; then
+    echo "No BACKUP_FILE given and BACKUP_DIR does not exist: $BACKUP_DIR" >&2
+    exit 1
+  fi
+
+  # Newest artifact under the backup tree, whatever the format.
+  BACKUP_FILE="$(find "$BACKUP_DIR" -type f \( -name "pg-dump-*.gz" -o -name "pg-dump-*.dmp" \) \
+    -printf "%T@ %p\n" 2>/dev/null | sort -rn | head -n 1 | cut -d" " -f2-)"
+fi
+
+if [ -z "$BACKUP_FILE" ] || [ ! -f "$BACKUP_FILE" ]; then
+  echo "No backup artifact found (BACKUP_FILE=${BACKUP_FILE:-unset}, BACKUP_DIR=$BACKUP_DIR)" >&2
+  exit 1
+fi
+
+if [ ! -s "$BACKUP_FILE" ]; then
+  echo "FAIL: backup artifact is empty: $BACKUP_FILE" >&2
+  exit 1
+fi
+
+if [ -z "$LIVE_CONTAINER" ]; then
+  # .../databases/<team>/postgresql-database-<uuid>/pg-dump-all-<ts>.gz
+  # Strip the fixed prefix rather than everything up to the last hyphen: the
+  # UUID may itself contain one, and that would silently yield a wrong name.
+  candidate="$(basename "$(dirname "$BACKUP_FILE")" | sed "s/^postgresql-database-//")"
+
+  if [ -n "$candidate" ] && [ -n "$(docker ps -q -f "name=^${candidate}\$")" ]; then
+    LIVE_CONTAINER="$candidate"
+  fi
+fi
+
+echo "Artifact:       $BACKUP_FILE"
+echo "Artifact size:  $(wc -c <"$BACKUP_FILE" | tr -d " ") bytes"
+echo "Live container: ${LIVE_CONTAINER:-<not found>}"
+
+mkdir -p "$WORK_DIR"
+
+cleanup() {
+  if [ -n "${DRILL_KEEP:-}" ]; then
+    echo "Kept scratch container $DRILL_CONTAINER (DRILL_KEEP set). It holds production data."
+  else
+    docker rm -f "$DRILL_CONTAINER" >/dev/null 2>&1 || true
+  fi
+
+  rm -rf "$WORK_DIR"
+}
+
+trap cleanup EXIT INT TERM
+
+# Exact per-table counts for every base table in the domain schemas. Counting
+# every table rather than a hand-picked list is what catches a partially
+# restored dump: a missing table shows up as a missing line, not just a
+# different number.
+COUNTS_SQL="SELECT table_schema || '.' || table_name || '=' ||
+  (xpath('/row/c/text()', query_to_xml(
+    format('SELECT count(*) AS c FROM %I.%I', table_schema, table_name),
+    false, true, '')))[1]::text
+FROM information_schema.tables
+WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
+  AND table_type = 'BASE TABLE'
+ORDER BY table_schema, table_name;"
+
+# The journal watermark. drizzle-orm's migrator compares created_at, not the
+# hash, so a restore that loses the journal would silently re-run every
+# migration on the next deploy (see #593).
+JOURNAL_SQL="SELECT count(*) || ' migrations, watermark ' || coalesce(max(created_at)::text, 'none')
+FROM drizzle.__drizzle_migrations;"
+
+run_sql() {
+  container="$1"
+  database="$2"
+  sql="$3"
+
+  printf "%s\n" "$sql" |
+    docker exec -i "$container" psql -U postgres -d "$database" -At -v ON_ERROR_STOP=1 -f -
+}
+
+docker rm -f "$DRILL_CONTAINER" >/dev/null 2>&1 || true
+
+echo "Starting scratch Postgres ($POSTGRES_IMAGE) as $DRILL_CONTAINER"
+docker run -d --name "$DRILL_CONTAINER" \
+  -e POSTGRES_PASSWORD=restore-drill \
+  "$POSTGRES_IMAGE" >/dev/null
+
+# The image's entrypoint runs initdb against a temporary server before it
+# starts the real one, and that temporary server answers pg_isready. Requiring
+# three successful queries a second apart avoids connecting to it and then
+# having the socket pulled away mid-restore.
+READY_TIMEOUT_SECONDS=90
+ready=0
+streak=0
+i=0
+while [ "$i" -lt "$READY_TIMEOUT_SECONDS" ]; do
+  if docker exec "$DRILL_CONTAINER" psql -U postgres -d postgres -c "select 1" >/dev/null 2>&1; then
+    streak=$((streak + 1))
+  else
+    streak=0
+  fi
+
+  if [ "$streak" -ge 3 ]; then
+    ready=1
+    break
+  fi
+
+  i=$((i + 1))
+  sleep 1
+done
+
+if [ "$ready" -ne 1 ]; then
+  echo "FAIL: scratch Postgres did not become ready within ${READY_TIMEOUT_SECONDS}s" >&2
+  exit 1
+fi
+
+RESTORE_LOG="${WORK_DIR}/restore.log"
+restore_status=0
+
+case "$BACKUP_FILE" in
+*.gz)
+  require_command gunzip
+  echo "Restoring plain SQL (pg_dumpall | gzip) with psql"
+  # pg_dumpall emits CREATE ROLE/CREATE DATABASE for objects the fresh image
+  # already has, so ON_ERROR_STOP would abort on noise and psql's exit code
+  # says nothing useful. What proves this branch is the error scan, the count
+  # comparison, and the fact that the artifact must create the database itself.
+  gunzip -c "$BACKUP_FILE" |
+    docker exec -i "$DRILL_CONTAINER" psql -U postgres -d postgres \
+      >"$RESTORE_LOG" 2>&1 || true
+  ;;
+*.dmp)
+  echo "Restoring custom format (pg_dump --format=custom) with pg_restore"
+  # The artifact carries no CREATE DATABASE, so the target has to exist first.
+  # That makes the existence check below vacuous on this branch, which is why
+  # pg_restore's exit code is kept and failed on here rather than discarded.
+  docker exec "$DRILL_CONTAINER" createdb -U postgres "$TARGET_DB"
+  docker exec -i "$DRILL_CONTAINER" pg_restore -U postgres -d "$TARGET_DB" \
+    --no-owner --no-acl <"$BACKUP_FILE" >"$RESTORE_LOG" 2>&1 || restore_status=$?
+  ;;
+*)
+  echo "FAIL: unrecognised artifact extension: $BACKUP_FILE" >&2
+  exit 1
+  ;;
+esac
+
+failures=0
+
+# Real failures, as opposed to the benign noise pg_dumpall makes recreating
+# objects the fresh image already ships with. psql tags its messages `ERROR:`
+# or `FATAL:`, bare or behind a `psql:<stdin>:12: ` prefix; pg_restore writes
+# `pg_restore: error: …`, which an anchored `^ERROR` pattern never matches.
+real_error_lines() {
+  grep -E "(^|[: ])(ERROR|FATAL|PANIC):|pg_restore: error:" "$RESTORE_LOG" 2>/dev/null |
+    grep -viE "already exists|does not exist, skipping" || true
+}
+
+real_errors="$(real_error_lines | wc -l | tr -d " ")"
+
+if [ "$real_errors" != "0" ]; then
+  echo "FAIL: restore reported $real_errors unexpected error(s):" >&2
+  real_error_lines | head -n 20 >&2
+  failures=$((failures + 1))
+fi
+
+if [ "$restore_status" -ne 0 ]; then
+  echo "FAIL: pg_restore exited $restore_status" >&2
+  failures=$((failures + 1))
+fi
+
+if ! docker exec "$DRILL_CONTAINER" psql -U postgres -lqt |
+  cut -d"|" -f1 | tr -d " " | grep -qx "$TARGET_DB"; then
+  echo "FAIL: database '$TARGET_DB' does not exist after the restore" >&2
+  echo "Restore drill FAILED." >&2
+  exit 1
+fi
+
+restored_counts="${WORK_DIR}/restored-counts.txt"
+run_sql "$DRILL_CONTAINER" "$TARGET_DB" "$COUNTS_SQL" >"$restored_counts"
+
+restored_tables="$(wc -l <"$restored_counts" | tr -d " ")"
+restored_rows="$(cut -d= -f2 "$restored_counts" | paste -sd+ - | bc 2>/dev/null || echo "?")"
+
+echo "Restored: $restored_tables table(s), $restored_rows row(s) total"
+
+if [ "$restored_tables" -eq 0 ]; then
+  echo "FAIL: the restore produced no tables" >&2
+  failures=$((failures + 1))
+fi
+
+echo "Journal (restored): $(run_sql "$DRILL_CONTAINER" "$TARGET_DB" "$JOURNAL_SQL" 2>/dev/null ||
+  echo "MISSING")"
+
+if [ -n "$LIVE_CONTAINER" ]; then
+  live_counts="${WORK_DIR}/live-counts.txt"
+  run_sql "$LIVE_CONTAINER" "$TARGET_DB" "$COUNTS_SQL" >"$live_counts"
+
+  echo "Journal (live):     $(run_sql "$LIVE_CONTAINER" "$TARGET_DB" "$JOURNAL_SQL" 2>/dev/null ||
+    echo "MISSING")"
+
+  if diff -u "$live_counts" "$restored_counts" >"${WORK_DIR}/counts.diff"; then
+    echo "Row counts match the live database exactly."
+  else
+    echo "Row counts differ from live:"
+    sed -n "1,40p" "${WORK_DIR}/counts.diff"
+
+    # comm needs both sides in the same order, and psql sorted them under the
+    # database collation rather than the shell's. Re-sort under a fixed one.
+    cut -d= -f1 "$live_counts" | LC_ALL=C sort >"${WORK_DIR}/live-tables.txt"
+    cut -d= -f1 "$restored_counts" | LC_ALL=C sort >"${WORK_DIR}/restored-tables.txt"
+    missing="$(comm -23 "${WORK_DIR}/live-tables.txt" "${WORK_DIR}/restored-tables.txt" |
+      wc -l | tr -d " ")"
+
+    if [ "$missing" != "0" ]; then
+      echo "FAIL: $missing table(s) present live are missing from the restore" >&2
+      echo "      Either the restore lost them, or the artifact predates a migration" >&2
+      echo "      that added them. Compare the journal watermarks above: equal" >&2
+      echo "      watermarks mean the restore is at fault." >&2
+      failures=$((failures + 1))
+    fi
+
+    # Split the surviving mismatches by direction. Fewer rows than live is what
+    # drift looks like — and also what a partial restore looks like, which is
+    # why it only passes when ALLOW_DRIFT says to accept it. More rows than
+    # live cannot be drift at all: the backup was taken before now.
+    short=0
+    excess=0
+
+    while IFS= read -r line; do
+      table="${line%%=*}"
+      live_rows="${line#*=}"
+      restored_line="$(grep -F -m 1 -- "${table}=" "$restored_counts" || true)"
+
+      if [ -z "$restored_line" ]; then
+        continue
+      fi
+
+      rows="${restored_line#*=}"
+
+      if [ "$rows" -lt "$live_rows" ]; then
+        short=$((short + 1))
+      elif [ "$rows" -gt "$live_rows" ]; then
+        echo "      $table: restored $rows row(s) > live $live_rows" >&2
+        excess=$((excess + 1))
+      fi
+    done <"$live_counts"
+
+    if [ "$excess" != "0" ]; then
+      echo "FAIL: $excess table(s) restored more rows than live holds, which is not drift" >&2
+      failures=$((failures + 1))
+    fi
+
+    if [ "$short" != "0" ]; then
+      if [ -n "${ALLOW_DRIFT:-}" ]; then
+        echo "$short table(s) restored fewer rows than live; accepted as drift (ALLOW_DRIFT set)."
+      else
+        echo "FAIL: $short table(s) restored fewer rows than live" >&2
+        echo "      #267 step 7 gates on matching counts. Rows written after the" >&2
+        echo "      backup ran look identical to rows the restore lost, so this" >&2
+        echo "      only passes with ALLOW_DRIFT=1, or against a quiet database." >&2
+        failures=$((failures + 1))
+      fi
+    fi
+  fi
+else
+  echo "WARNING: live container not found, skipping the comparison against live."
+  echo "         Set LIVE_CONTAINER to the Coolify Postgres container name."
+
+  if [ -z "${SKIP_LIVE_COMPARE:-}" ]; then
+    echo "FAIL: #267 step 7 requires matching counts; set SKIP_LIVE_COMPARE=1 to accept a restore-only drill" >&2
+    failures=$((failures + 1))
+  fi
+fi
+
+if [ "$failures" -ne 0 ]; then
+  echo "Restore drill FAILED with $failures problem(s)." >&2
+  exit 1
+fi
+
+echo "Restore drill PASSED: $restored_tables table(s) restored and verified."

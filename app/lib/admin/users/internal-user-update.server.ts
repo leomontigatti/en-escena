@@ -1,11 +1,8 @@
 import { and, eq, ne, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { accessSession, administrativeAuditEntries, user } from "@/db/schema";
-import {
-  buildInternalCredentialEmail,
-  getInternalOptionalEmail,
-} from "@/lib/admin/users/internal-user-credentials.server";
+import { accessSession, user } from "@/db/schema";
+import { buildInternalCredentialEmail } from "@/lib/admin/users/internal-user-credentials.server";
 import {
   isInternalUserRole,
   type InternalUserRole,
@@ -29,15 +26,6 @@ type UpdateInternalUserResult =
       ok: false;
       error: string;
     };
-
-type InternalUserAuditSnapshot = {
-  email: string | null;
-  internalUsername: string;
-  name: string;
-  requiresPasswordChange: boolean;
-  role: InternalUserRole;
-  suspended: boolean;
-};
 
 export async function updateInternalUser(
   input: UpdateInternalUserInput,
@@ -123,25 +111,6 @@ export async function updateInternalUser(
     }
   }
 
-  const beforeValues: InternalUserAuditSnapshot = {
-    email: getInternalOptionalEmail({
-      email: existingUser.email,
-      internalUsername,
-    }),
-    internalUsername,
-    name: existingUser.name,
-    requiresPasswordChange: existingUser.requiresPasswordChange,
-    role: existingUser.role,
-    suspended: existingUser.suspended,
-  };
-  const afterValues: InternalUserAuditSnapshot = {
-    email: normalizedOptionalEmail,
-    internalUsername,
-    name,
-    requiresPasswordChange: existingUser.requiresPasswordChange,
-    role: input.role,
-    suspended: existingUser.suspended,
-  };
   const roleChanged = existingUser.role !== input.role;
   const invalidatedAt = roleChanged
     ? new Date()
@@ -164,16 +133,6 @@ export async function updateInternalUser(
         .delete(accessSession)
         .where(eq(accessSession.userId, existingUser.id));
     }
-
-    await tx.insert(administrativeAuditEntries).values({
-      entityType: "user",
-      entityId: existingUser.id,
-      adminUserId: input.updatedByUserId,
-      action: "update",
-      reason: null,
-      beforeValues,
-      afterValues,
-    });
   });
 
   return {

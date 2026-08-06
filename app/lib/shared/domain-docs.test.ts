@@ -43,18 +43,15 @@ const fastDbIsolationAdrRequirements = [
   "pnpm test:db:postgres",
 ];
 
+// Provider-neutral on purpose: these assert the domain state and its
+// maintenance rule, not which vendor owns the credential. Pinning the provider
+// name here is what kept the docs claiming Supabase Auth long after #266 moved
+// the code to Better Auth. See #625.
 const accessDomainRequirements = [
-  "Supabase Auth owns public registration email confirmation",
   "Identidad confirmada pendiente de academia",
   "academy onboarding",
   "No hay limpieza automática",
   "mantenimiento debe listar `Usuario` academia confirmados sin `Academia`",
-];
-
-const accessAdrRequirements = [
-  "Supabase Auth owns email confirmation for the academy identity",
-  "Identidad confirmada pendiente de academia",
-  "redirect the confirmed user into academy onboarding",
 ];
 
 const codebaseMapRequirements = [
@@ -111,8 +108,6 @@ const adrIndexRequirements = [
   "Code organization",
   "Database test strategy",
   "Uploaded assets",
-  "[ADR-0006: Supabase Auth for access credentials]",
-  "[ADR-0008: Supabase Storage for uploaded assets]",
 ];
 
 const codeLanguageRequirements = [
@@ -228,17 +223,6 @@ describe("domain documentation", () => {
     }
   });
 
-  test("records Supabase confirmation ownership for public registration", async () => {
-    const adr = await readFile(
-      "docs/adr/0006-use-supabase-auth-for-access.md",
-      "utf8",
-    );
-
-    for (const requirement of accessAdrRequirements) {
-      expect(adr).toContain(requirement);
-    }
-  });
-
   test("keeps a compact implementation map for agent navigation", async () => {
     const map = await readFile("docs/agents/codebase-map.md", "utf8");
 
@@ -266,18 +250,21 @@ describe("domain documentation", () => {
     }
   });
 
-  test("keeps ADR index links pointed at existing files", async () => {
+  // Two-way sync rather than a hardcoded count: a new ADR that never reaches
+  // the index now fails, and the index can no longer link a file that does not
+  // exist. The previous `/000\d-/` regex silently skipped ADR-0010 and up, so
+  // the old count of 9 was passing against a partial set. See #625.
+  test("keeps the ADR index and the ADR files in sync", async () => {
     const index = await readFile("docs/adr/README.md", "utf8");
-    const linkedFiles = [...index.matchAll(/\]\(\.\/(000\d-[^)]+\.md)\)/g)].map(
+    const linkedFiles = [...index.matchAll(/\]\(\.\/(\d{4}-[^)]+\.md)\)/g)].map(
       ([, file]) => file,
     );
-    const adrFiles = await readdir("docs/adr");
+    const adrFiles = (await readdir("docs/adr")).filter((file) =>
+      /^\d{4}-.+\.md$/.test(file),
+    );
 
-    expect(linkedFiles).toHaveLength(9);
-
-    for (const file of linkedFiles) {
-      expect(adrFiles).toContain(file);
-    }
+    expect(adrFiles.length).toBeGreaterThan(0);
+    expect([...linkedFiles].sort()).toEqual([...adrFiles].sort());
   });
 
   test("keeps codebase map file references pointed at existing files", async () => {

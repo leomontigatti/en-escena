@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { administrativeAuditEntries, user } from "@/db/schema";
+import { user } from "@/db/schema";
 import { createInternalUser } from "@/lib/admin/users/internal-user-create.server";
 import { expectThrownResponse } from "@/lib/test-support/http";
 import { action as signInAction } from "@/routes/ingresar";
@@ -12,7 +12,7 @@ import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 installDatabaseTestHooks();
 
 describe("create internal user", () => {
-  test("creates an internal user with normalized username, mandatory password change, and sanitized audit data", async () => {
+  test("creates an internal user with a normalized username and a mandatory password change", async () => {
     const adminUser = await createAdminUser("admin.creator@example.com");
 
     const result = await createInternalUser({
@@ -55,30 +55,9 @@ describe("create internal user", () => {
       302,
     );
     expect(loginResponse.headers.get("location")).toBe("/cambiar-contrasena");
-
-    await expect(
-      db
-        .select()
-        .from(administrativeAuditEntries)
-        .where(eq(administrativeAuditEntries.entityId, createdUserId)),
-    ).resolves.toEqual([
-      expect.objectContaining({
-        entityType: "user",
-        action: "create",
-        adminUserId: adminUser.id,
-        beforeValues: {},
-        afterValues: {
-          email: null,
-          internalUsername: "jurado.principal",
-          name: "Jurado Principal",
-          requiresPasswordChange: true,
-          role: "judge",
-        },
-      }),
-    ]);
   });
 
-  test("saves optional email as unverified audit data without requiring it", async () => {
+  test("saves an optional email as unverified without requiring it", async () => {
     const adminUser = await createAdminUser("admin.optional@example.com");
 
     const result = await createInternalUser({
@@ -106,21 +85,6 @@ describe("create internal user", () => {
       internalUsername: "auditor.interno",
       role: "auditor",
     });
-
-    await expect(
-      db
-        .select()
-        .from(administrativeAuditEntries)
-        .where(eq(administrativeAuditEntries.entityId, result.userId)),
-    ).resolves.toEqual([
-      expect.objectContaining({
-        afterValues: expect.objectContaining({
-          email: "auditor.interno@example.com",
-          internalUsername: "auditor.interno",
-          role: "auditor",
-        }),
-      }),
-    ]);
   });
 });
 

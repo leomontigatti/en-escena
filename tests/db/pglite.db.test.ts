@@ -8,12 +8,7 @@ import {
   test,
 } from "vitest";
 
-import {
-  academies,
-  administrativeAuditEntries,
-  events,
-  user,
-} from "@/db/schema";
+import { academies, events, user } from "@/db/schema";
 
 import {
   createPgliteTestDatabase,
@@ -145,25 +140,30 @@ describe("PGlite pilot", () => {
 
     expect(savedEvent?.registrationReadinessMissingItems).toEqual([]);
 
-    await testDatabase.db.insert(administrativeAuditEntries).values({
-      id: "audit_1",
-      entityType: "user",
-      entityId: "academy_user",
-      adminUserId: "admin_user",
-      action: "update",
-      beforeValues: { role: "academy" },
-      afterValues: { role: "academy", note: "verified" },
+    await testDatabase.db
+      .update(events)
+      .set({
+        registrationReadinessMissingItems: [
+          {
+            code: "schedules",
+            label: "Horarios",
+            detail: "Faltan horarios publicados.",
+          },
+        ],
+      })
+      .where(eq(events.id, "event_1"));
+
+    const eventWithMissingItems = await testDatabase.db.query.events.findFirst({
+      where: eq(events.id, "event_1"),
     });
 
-    const auditEntry =
-      await testDatabase.db.query.administrativeAuditEntries.findFirst({
-        where: eq(administrativeAuditEntries.id, "audit_1"),
-      });
-
-    expect(auditEntry).toMatchObject({
-      beforeValues: { role: "academy" },
-      afterValues: { role: "academy", note: "verified" },
-    });
+    expect(eventWithMissingItems?.registrationReadinessMissingItems).toEqual([
+      {
+        code: "schedules",
+        label: "Horarios",
+        detail: "Faltan horarios publicados.",
+      },
+    ]);
 
     await expect(
       testDatabase.db.transaction(async (tx) => {

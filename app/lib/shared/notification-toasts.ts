@@ -34,6 +34,7 @@ export const notificationToastIds = {
   "precio-eliminado": "route-notification:precio-eliminado",
   "pago-registrado": "route-notification:pago-registrado",
   "pago-guardado": "route-notification:pago-guardado",
+  "comprobante-recuperado": "route-notification:comprobante-recuperado",
   "programa-visible": "route-notification:programa-visible",
   "programa-oculto": "route-notification:programa-oculto",
   "resultados-visibles": "route-notification:resultados-visibles",
@@ -185,6 +186,16 @@ export const notificationToasts = {
   "pago-guardado": {
     id: notificationToastIds["pago-guardado"],
     message: "Pago guardado.",
+    variant: "success",
+  },
+  "comprobante-recuperado": {
+    id: notificationToastIds["comprobante-recuperado"],
+    // La emisión se vio fallar durante hasta 45 segundos y terminó bien: pasar a
+    // "listo" sin decir nada se lee como un glitch (ADR-0012). No trae acción
+    // pendiente —el comprobante quedó autorizado y registrado—, así que un toast
+    // alcanza.
+    message:
+      "El comprobante ya estaba autorizado en ARCA. Lo recuperamos y quedó registrado.",
     variant: "success",
   },
   "programa-visible": {

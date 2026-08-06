@@ -1,6 +1,7 @@
 import type {
   CreateVoucherResultDto,
   LastVoucherResultDto,
+  VoucherInfoResultDto,
 } from "@arcasdk/core";
 import { describe, expect, test, vi } from "vitest";
 
@@ -16,12 +17,14 @@ import { createAcademyRecord } from "@/features/portal/test-support/db";
 import {
   ArcaClient,
   type ArcaBillingPort,
+  type ArcaTimeouts,
 } from "@/lib/comprobantes/arca/client.server";
 import type { ArcaVoucher } from "@/lib/comprobantes/arca/factura-c";
 import {
   facturaCAprobada,
   facturaCRechazada,
   notaCreditoCAprobada,
+  notaCreditoCConsultada,
   ultimoAutorizado,
   ultimoNotaCreditoAutorizado,
 } from "@/lib/comprobantes/arca/fixtures";
@@ -50,6 +53,11 @@ function fakeBilling(
     ),
     createVoucher: vi.fn(
       async (): Promise<CreateVoucherResultDto> => notaCreditoCAprobada,
+    ),
+    // Sólo se consulta cuando la autorización se cae: por defecto ARCA no tiene
+    // ese comprobante.
+    getVoucherInfo: vi.fn(
+      async (): Promise<VoucherInfoResultDto | null> => null,
     ),
     ...overrides,
   };
@@ -80,14 +88,27 @@ function approvedNotaCredito(cbteNro: number): CreateVoucherResultDto {
   };
 }
 
+// Timeouts en milisegundos para ejercitar el corte real sin fake timers.
+const FAST_TIMEOUTS: ArcaTimeouts = { lookup: 20, authorization: 20 };
+
+function neverAnswers(): Promise<never> {
+  return new Promise<never>(() => {});
+}
+
+// ARCA cortó la comunicación: el SDK no declara clases ni códigos de error, así
+// que una falla de transporte llega como un `Error` cualquiera.
+function connectionLost(): Promise<never> {
+  return Promise.reject(new Error("socket hang up"));
+}
+
 function lastNotaCredito(cbteNro: number): LastVoucherResultDto {
   return { cbteNro, cbteTipo: 13, ptoVta: 1 };
 }
 
-function annulDeps(billing: ArcaBillingPort) {
+function annulDeps(billing: ArcaBillingPort, timeouts?: ArcaTimeouts) {
   return {
     billing,
-    client: new ArcaClient(billing),
+    client: new ArcaClient(billing, timeouts),
     ptoVta: 1,
     issuerCuit: "30717611590",
     receptorIvaConditionId: 5,
@@ -218,6 +239,7 @@ describe("annulComprobante", () => {
     const outcome = await annulComprobante({ comprobanteId: factura.id }, deps);
 
     expectOk(outcome);
+    expect(outcome.recovered).toBe(false);
 
     // Correlativo de la serie tipo 13 (último 7 → 8) y CbtesAsoc al original.
     expect(deps.billing.getLastVoucher).toHaveBeenCalledWith(1, 13);
@@ -554,5 +576,186 @@ describe("annulComprobante", () => {
     expect(new Set(notas.map((row) => row.associatedComprobanteId)).size).toBe(
       2,
     );
+  });
+});
+
+// ARCA no responde durante la anulación (ADR-0012): misma clasificación por fase
+// y misma recuperación por consulta que la emisión, contra la serie tipo 13.
+describe("annulComprobante (ARCA no responde)", () => {
+  // Coreografía con una factura vigente de 4000 lista para anular. La Nota de
+  // crédito a intentar es la 8 (`ultimoNotaCreditoAutorizado` = 7).
+  async function seedFacturaVigente(prefix: string) {
+    const { academy, choreography, inscription } =
+      await seedChoreographyWithInscription(
+        `${prefix}.${crypto.randomUUID()}@example.com`,
+      );
+    await allocatePayment({
+      academyId: academy.id,
+      eventId: choreography.eventId,
+      inscriptionId: inscription.id,
+      amount: 4000,
+    });
+    const factura = await recordFactura({
+      choreographyId: choreography.id,
+      eventId: choreography.eventId,
+      inscriptionId: inscription.id,
+      amount: 4000,
+      cbteNro: 46,
+    });
+
+    return { choreography, factura };
+  }
+
+  // `FECompConsultar` de la Nota de crédito 8 tal como ARCA la registró.
+  function consultada(
+    overrides: Partial<VoucherInfoResultDto> = {},
+  ): VoucherInfoResultDto {
+    return {
+      ...notaCreditoCConsultada,
+      cbteDesde: 8,
+      cbteHasta: 8,
+      impTotal: 4000,
+      cbteFch: "20260722",
+      ...overrides,
+    };
+  }
+
+  test("cortada la consulta del correlativo, no se anuló nada y no se consulta a ARCA", async () => {
+    const { choreography, factura } = await seedFacturaVigente("lookup");
+    const billing = fakeBilling({ getLastVoucher: vi.fn(connectionLost) });
+
+    const outcome = await annulComprobante(
+      { comprobanteId: factura.id },
+      annulDeps(billing),
+    );
+
+    expect(outcome).toMatchObject({ ok: false, reason: "not-emitted" });
+    expect(billing.createVoucher).not.toHaveBeenCalled();
+    expect(billing.getVoucherInfo).not.toHaveBeenCalled();
+    const rows = await listChoreographyComprobantes(choreography.id);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].status).toBe("vigente");
+  });
+
+  test("cortada la autorización, consulta la Nota de crédito tipo 13 exacta y la persiste con el CAE devuelto", async () => {
+    const { choreography, factura } = await seedFacturaVigente("recuperada");
+    const billing = fakeBilling({
+      createVoucher: vi.fn(connectionLost),
+      getVoucherInfo: vi.fn(async () => consultada()),
+    });
+
+    const outcome = await annulComprobante(
+      { comprobanteId: factura.id },
+      annulDeps(billing),
+    );
+
+    expect(billing.getVoucherInfo).toHaveBeenCalledWith(8, 1, 13);
+    expectOk(outcome);
+    // El CAE salió de la consulta, no de la autorización.
+    expect(outcome.recovered).toBe(true);
+    expect(outcome.notaCredito).toMatchObject({
+      cbteTipo: 13,
+      cbteNro: 8,
+      impTotal: 4000,
+      cae: "41124599990011",
+      associatedComprobanteId: factura.id,
+    });
+    // El original quedó anulado, igual que en el camino feliz.
+    const rows = await listChoreographyComprobantes(choreography.id);
+    expect(rows.find((row) => row.id === factura.id)?.status).toBe("anulada");
+  });
+
+  test("el timeout de autorización también dispara la recuperación", async () => {
+    const { factura } = await seedFacturaVigente("auth-timeout");
+    const billing = fakeBilling({
+      createVoucher: vi.fn(neverAnswers),
+      getVoucherInfo: vi.fn(async () => consultada()),
+    });
+
+    const outcome = await annulComprobante(
+      { comprobanteId: factura.id },
+      annulDeps(billing, FAST_TIMEOUTS),
+    );
+
+    expectOk(outcome);
+    expect(outcome.notaCredito.cbteNro).toBe(8);
+  });
+
+  test("si ARCA no tiene esa Nota de crédito, no se anuló nada y reintentar es seguro", async () => {
+    const { choreography, factura } = await seedFacturaVigente("sin-nota");
+
+    const outcome = await annulComprobante(
+      { comprobanteId: factura.id },
+      annulDeps(
+        fakeBilling({
+          createVoucher: vi.fn(connectionLost),
+          getVoucherInfo: vi.fn(async () => null),
+        }),
+      ),
+    );
+
+    expect(outcome).toMatchObject({ ok: false, reason: "not-emitted" });
+    const rows = await listChoreographyComprobantes(choreography.id);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].status).toBe("vigente");
+  });
+
+  test("si la consulta también falla, el resultado es no verificado y lleva la Nota de crédito que no pudo resolver", async () => {
+    const { choreography, factura } = await seedFacturaVigente("no-verificada");
+
+    const outcome = await annulComprobante(
+      { comprobanteId: factura.id },
+      annulDeps(
+        fakeBilling({
+          createVoucher: vi.fn(connectionLost),
+          getVoucherInfo: vi.fn(connectionLost),
+        }),
+      ),
+    );
+
+    expect(outcome).toMatchObject({
+      ok: false,
+      reason: "unverified",
+      attempt: { ptoVta: 1, cbteTipo: 13, cbteNro: 8 },
+    });
+    const rows = await listChoreographyComprobantes(choreography.id);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].status).toBe("vigente");
+  });
+
+  test("una Nota de crédito consultada con otro importe no es la nuestra: no se persiste", async () => {
+    const { choreography, factura } = await seedFacturaVigente("otro-importe");
+
+    const outcome = await annulComprobante(
+      { comprobanteId: factura.id },
+      annulDeps(
+        fakeBilling({
+          createVoucher: vi.fn(connectionLost),
+          getVoucherInfo: vi.fn(async () => consultada({ impTotal: 9999 })),
+        }),
+      ),
+    );
+
+    expect(outcome).toMatchObject({ ok: false, reason: "unverified" });
+    expect(await listChoreographyComprobantes(choreography.id)).toHaveLength(1);
+  });
+
+  test("una Nota de crédito consultada con otra fecha tampoco es la nuestra", async () => {
+    const { choreography, factura } = await seedFacturaVigente("otra-fecha");
+
+    const outcome = await annulComprobante(
+      { comprobanteId: factura.id },
+      annulDeps(
+        fakeBilling({
+          createVoucher: vi.fn(connectionLost),
+          getVoucherInfo: vi.fn(async () =>
+            consultada({ cbteFch: "20260101" }),
+          ),
+        }),
+      ),
+    );
+
+    expect(outcome).toMatchObject({ ok: false, reason: "unverified" });
+    expect(await listChoreographyComprobantes(choreography.id)).toHaveLength(1);
   });
 });

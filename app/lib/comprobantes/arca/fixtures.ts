@@ -1,6 +1,7 @@
 import type {
   CreateVoucherResultDto,
   LastVoucherResultDto,
+  VoucherInfoResultDto,
 } from "@arcasdk/core";
 
 // Fixtures con la forma real de las respuestas de homologación de WSFEv1,
@@ -159,4 +160,35 @@ export const ultimoNotaCreditoAutorizado: LastVoucherResultDto = {
   cbteNro: 7,
   cbteTipo: 13,
   ptoVta: 1,
+};
+
+// `FECompConsultar` de la Factura C 43: la forma con la que ARCA devuelve un
+// comprobante ya autorizado, verificada contra homologación por el spike (#574).
+// Es lo que resuelve una autorización que quedó sin respuesta (ADR-0012).
+export const facturaCConsultada: VoucherInfoResultDto = {
+  codAutorizacion: "41124578989845",
+  emisionTipo: "CAE",
+  fchVto: "20260801",
+  fchProceso: "20260722100000",
+  resultado: "A",
+  concepto: 2,
+  docTipo: 99,
+  docNro: 0,
+  cbteDesde: 43,
+  cbteHasta: 43,
+  cbteFch: "20260722",
+  impTotal: 1000,
+  impNeto: 1000,
+  monId: "PES",
+  monCotiz: 1,
+};
+
+// `FECompConsultar` de la Nota de crédito C 8, con la misma forma.
+export const notaCreditoCConsultada: VoucherInfoResultDto = {
+  ...facturaCConsultada,
+  codAutorizacion: "41124599990011",
+  cbteDesde: 8,
+  cbteHasta: 8,
+  impTotal: 7000,
+  impNeto: 7000,
 };
