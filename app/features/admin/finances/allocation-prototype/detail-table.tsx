@@ -172,7 +172,12 @@ function TotalCell({ inscription }: { inscription: InscriptionReading }) {
  * still a click away in the dialog; the anomaly is the thing to surface here.
  */
 function StatusCell({ inscription }: { inscription: InscriptionReading }) {
+  const prototype = usePrototype();
   const anomalies = readInscriptionAnomalies(inscription);
+  const hasComprobante =
+    prototype.choreographies.find(
+      (row) => row.id === inscription.choreographyId,
+    )?.comprobante != null;
 
   // The anomaly outranks the withdrawal. A retired row that still holds money is
   // **not resolved**: `Sobreasignada` says somebody has to move that money,
@@ -197,6 +202,16 @@ function StatusCell({ inscription }: { inscription: InscriptionReading }) {
   // is the invoice line. With neither, the row is not here at all.
   if (inscription.withdrawnAt !== null) {
     return <Badge variant="secondary">Retirada</Badge>;
+  }
+
+  // Decision 14's **`Facturada` axis**, whose rendering the map deferred to this
+  // prototype. It renders by its **absence**, and only once a factura exists: a
+  // document covers the whole choreography at once (decision 16), so `Facturada`
+  // on every row would be a constant that says nothing. The row that says
+  // something is the one the document does **not** name — registered after
+  // emission, and owed by the next document.
+  if (hasComprobante && inscription.documentedAmount === null) {
+    return <Badge variant="outline">Sin facturar</Badge>;
   }
 
   return (

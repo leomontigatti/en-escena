@@ -254,7 +254,7 @@ describe("dancer discount — the surface", () => {
     );
   });
 
-  it("offers Emitir factura before emission and Imprimir factura after", () => {
+  it("offers Emitir factura before emission and Ver factura after", () => {
     const markup = renderRouteView(
       <AllocationDetailPrototypeView />,
       detailPath,
@@ -264,7 +264,7 @@ describe("dancer discount — the surface", () => {
     // document yet. One factura per choreography (decision 16), so the two
     // items are never offered at once.
     expect(markup).toContain('aria-label="Acciones"');
-    expect(markup).not.toContain("Imprimir factura");
+    expect(markup).not.toContain("Ver factura");
   });
 
   it("keeps the whole roster above its deposit, so emission is reachable", () => {

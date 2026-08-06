@@ -55,6 +55,17 @@ export function resetPrototypeState() {
 }
 
 /**
+ * Test-only. The screens that matter most to #585 exist **after** emission, and
+ * the alternative — driving the menu to get there — would test the dropdown
+ * rather than the document. Pair it with `resetPrototypeState` in an `afterEach`:
+ * the store is module-level, so a state left behind leaks into the next test.
+ */
+export function setPrototypeState(next: PrototypeState) {
+  current = next;
+  emit();
+}
+
+/**
  * Everything derived in one place, so both views read exactly the same figures
  * and neither invents a reading of its own.
  */

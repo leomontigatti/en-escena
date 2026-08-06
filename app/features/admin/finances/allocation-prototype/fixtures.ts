@@ -70,6 +70,7 @@ export type PrototypeInscription = {
 /** An ND or an NC, hanging off the factura: #599's star-shaped amendment chain. */
 export type PrototypeAmendment = {
   label: string;
+  emittedOn: string;
   /** Signed: positive was a débito, negative a crédito. */
   amount: number;
 };

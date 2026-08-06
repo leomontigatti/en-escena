@@ -31,7 +31,7 @@
  * Declared exception: no loader, no `action`, no server validation. The data is
  * a fixture, because the allocation table's shape is still open in #549.
  */
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import { ClientDataTable } from "@/components/shared/client-data-table";
@@ -45,7 +45,7 @@ import { formatAmount } from "../formatters";
 import { ChoreographyAnomalyAlerts } from "./anomaly-alerts";
 import { inscriptionColumns } from "./detail-table";
 import type { InscriptionReading } from "./fixtures";
-import { MovementAlert } from "./movement-alert";
+import { ComprobanteStrip, MovementAlert } from "./movement-alert";
 import type { ChoreographyReading } from "./rollup";
 import { StateReadout } from "./state-readout";
 import { usePrototype } from "./store";
@@ -81,6 +81,8 @@ export function AllocationDetailPrototypeView() {
         <ChoreographyAnomalyAlerts inscriptions={choreography.inscriptions} />
 
         <MovementAlert choreography={choreography} />
+
+        <ComprobanteStrip choreography={choreography} />
 
         <section className="grid gap-4 md:grid-cols-3 xl:grid-cols-5">
           <MetricCard
@@ -204,11 +206,16 @@ export function AllocationDetailPrototypeView() {
  * The header actions menu, where the real view already keeps `Emitir factura`
  * (`choreography-detail/view.tsx:289-310`).
  *
- * **`Imprimir factura` appears only once a comprobante exists** — it is not a
- * disabled item, because there is nothing to enable: the document either was
- * emitted or was not. The two are mutually exclusive for the same reason
- * decision 16 gives — **one factura per choreography** — so the menu never
- * offers both at once.
+ * **`Ver factura` appears only once a comprobante exists** — it is not a disabled
+ * item, because there is nothing to enable: the document either was emitted or
+ * was not. The two are mutually exclusive for the same reason decision 16 gives
+ * — **one factura per choreography** — so the menu never offers both at once.
+ *
+ * It **navigates** rather than printing. Printing is one thing you might want to
+ * do with a document, and the least informative: the emitted factura has a
+ * status, a detail, and — once anything moves — a list of the notas that
+ * adjusted it (#554), none of which fits in a menu item. Printing lives on that
+ * screen, next to the thing being printed.
  *
  * **The amendment sits below `Imprimir factura`, and only when one is owed.**
  * There is a single item, never a pair to choose between: the sign of the delta
@@ -245,13 +252,12 @@ function ChoreographyActions({
         </DropdownMenuItem>
       ) : null}
       {hasComprobante ? (
-        <DropdownMenuItem
-          onSelect={(event) => {
-            event.preventDefault();
-            window.print();
-          }}
-        >
-          Imprimir factura
+        <DropdownMenuItem asChild>
+          <Link
+            to={`/administracion/finanzas/prototipo-asignacion/comprobante?coreografia=${choreography.id}`}
+          >
+            Ver factura
+          </Link>
         </DropdownMenuItem>
       ) : null}
       {hasComprobante && choreography.delta !== 0 ? (

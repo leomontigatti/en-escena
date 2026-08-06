@@ -101,6 +101,7 @@ export function emitAmendment(
                 ...row.comprobante.amendments,
                 {
                   label: `${delta > 0 ? "Nota de débito" : "Nota de crédito"} C 0003-${String(number).padStart(8, "0")}`,
+                  emittedOn: "2026-08-06",
                   amount: delta,
                 },
               ],
