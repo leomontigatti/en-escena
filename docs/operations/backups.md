@@ -86,10 +86,10 @@ gzip step: custom format is already compressed.
 
 What that buys, and why it was worth switching:
 
-- `pg_restore` compatibility with the tooling that already exists —
-  `docs/db/production-dump.md` and `scripts/refresh-local-db-from-production.mjs`
-  both produce and consume `--format=custom` dumps, so `db:refresh:prod` (#595)
-  can consume a production artifact directly instead of a second dump.
+- `pg_restore` compatibility with the tooling that already exists.
+  `db:refresh:prod` now consumes one of these artifacts directly (#595) instead
+  of taking a second dump against the live database — see
+  [Production Database Dump](../db/production-dump.md).
 - Selective restore (`--table`, `--schema`), `--list` to inspect an artifact
   without restoring it, and `--clean`.
 - A single-database restore can target one database, so an artifact can be

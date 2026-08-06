@@ -66,18 +66,21 @@ and reversible: dropping the `drizzle` schema undoes it. It matches the hash and
 skips the baseline and applies only newer migrations.
 
 Run `db:baseline` on any database whose schema already exists but that Drizzle
-has not tracked yet:
+has not tracked yet. In practice that was the production cutover, once, on the
+real database — it has no recurring use.
 
-- The production cutover (once, on the real database).
-- After `pnpm db:refresh:prod`, which restores a prod dump (schema only, no
-  migration state) and then calls `db:baseline` automatically.
+In particular, **`pnpm db:refresh:prod` does not baseline**. It restores a
+Coolify backup artifact, which dumps the whole `enescena` database with no
+`--schema` filter, so the `drizzle` schema and the full journal arrive with it.
+Baselining on top would register only idx=0 and make the next `db:migrate`
+re-apply every migration after it.
 
 ## Zero-diff gate (baseline correctness)
 
 The baseline must reproduce production exactly. To verify against a real clone:
 
 ```sh
-pnpm db:refresh:prod   # clone prod into local; also runs db:baseline
+pnpm db:refresh:prod   # clone prod into local, journal included
 pnpm db:generate       # must report "No schema changes"
 ```
 
@@ -196,10 +199,6 @@ nothing reads it anymore.
 
 ## Notes
 
-- Once post-baseline migrations exist and are deployed to production, the
-  `db:baseline` step inside `db:refresh:prod` will need to mark every migration
-  applied through HEAD, not just the baseline — otherwise `db:migrate` would try
-  to re-apply migrations already present in the restored dump.
 - A CI drift-check (fails when `db:generate` produces an uncommitted migration)
   runs in the `checks` job of `.github/workflows/ci.yml`. `db:generate` is
   offline — it diffs `schema.ts` against `app/db/migrations/meta/` without a
