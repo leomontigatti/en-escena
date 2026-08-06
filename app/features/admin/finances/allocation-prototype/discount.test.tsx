@@ -13,6 +13,7 @@ import { readDancerDiscount } from "./discount";
 import { initialPrototypeState, readInscriptions } from "./fixtures";
 import { readChoreographies } from "./rollup";
 import {
+  emitAmendment,
   emitComprobante,
   registerSibling,
   withdrawSibling,
@@ -65,9 +66,11 @@ describe("dancer discount — the rule", () => {
     expect(bruno.reason).toBe("excludedAsMostExpensive");
   });
 
-  it("marks the exclusion decided by the id tie-break", () => {
+  it("settles a tie between identical prices without saying how", () => {
     // Camila's three inscriptions share a price, so «la más cara» describes
-    // three identical numbers and the identifier decides.
+    // three identical numbers. Exactly one is excluded, deterministically, and
+    // the amount is the same whichever one wins — so the tie-break is never
+    // stated on screen.
     const camila = readDancerDiscount(
       initialPrototypeState,
       "dan-camila",
@@ -75,14 +78,8 @@ describe("dancer discount — the rule", () => {
     );
 
     expect(camila.percentage).toBe(10);
-    expect(camila.excludedByTieBreak).toBe(true);
+    expect(camila.qualifying.filter((row) => row.isExcluded)).toHaveLength(1);
     expect(camila.reason).toBe("granted");
-
-    // Bruno's is decided by price alone, so no tie is claimed.
-    expect(
-      readDancerDiscount(initialPrototypeState, "dan-bruno", "ins-2")
-        .excludedByTieBreak,
-    ).toBe(false);
   });
 
   it("drops a withdrawn sibling from the qualifying set", () => {
@@ -128,6 +125,53 @@ describe("dancer discount — the bill moves after emission", () => {
     );
     expect(afterRegistration.delta).toBeLessThan(0);
   });
+
+  it("closes the delta with the document its sign names", () => {
+    const emitted = emitComprobante(initialPrototypeState, "cho-1");
+    const moved = withdrawSibling(emitted, "ins-11");
+    const amended = emitAmendment(moved, "cho-1");
+    const choreography = readChoreography(amended, "cho-1");
+
+    // The bill rose, so it is a débito — never a choice between the two.
+    expect(choreography.comprobante?.amendments).toHaveLength(1);
+    expect(choreography.comprobante?.amendments[0].label).toContain(
+      "Nota de débito",
+    );
+    // And the papers together now say what is derived: nothing is owed.
+    expect(choreography.delta).toBe(0);
+  });
+});
+
+describe("a withdrawn inscription", () => {
+  it("stays readable when it holds money, at zero and marked Retirada", () => {
+    // Nadia's row in «Reflejos» was given de baja with an allocation on it.
+    const row = readInscriptions(initialPrototypeState).find(
+      (inscription) => inscription.id === "ins-18",
+    );
+
+    expect(row?.withdrawnAt).not.toBe(null);
+    expect(row?.totalAmount).toBe(0);
+    expect(row?.owedBalanceAmount).toBe(0);
+    // The money is the reason the row exists (#600).
+    expect(row?.allocatedAmount).toBeGreaterThan(0);
+
+    const markup = renderRouteView(
+      <AllocationDetailPrototypeView />,
+      detailPath,
+    );
+    expect(markup).toContain("Nadia Coria");
+    expect(markup).toContain("Retirada");
+  });
+
+  it("disappears entirely when there was no money on it", () => {
+    // Ana's «Ecos» row has neither allocations nor an invoice line, so removal
+    // deletes instead of withdrawing: there is nothing to preserve.
+    const after = withdrawSibling(initialPrototypeState, "ins-11");
+
+    expect(
+      after.inscriptions.some((inscription) => inscription.id === "ins-11"),
+    ).toBe(false);
+  });
 });
 
 describe("dancer discount — the surface", () => {
@@ -143,7 +187,9 @@ describe("dancer discount — the surface", () => {
     expect(markup).toContain("Ecos");
     expect(markup).toContain("hacen falta 3 para el 10 %");
     expect(markup).toContain("por ser la más cara del bailarín");
-    expect(markup).toContain("desempata el identificador");
+    // How a tie between identical prices is settled is never said: it is true,
+    // useless, and makes a settled number look arbitrary.
+    expect(markup).not.toContain("identificador");
   });
 
   it("carries the subtraction on the total, and only where there is one", () => {
@@ -152,9 +198,13 @@ describe("dancer discount — the surface", () => {
       detailPath,
     );
 
-    // Ana's total is discounted, so her cell offers the breakdown.
+    // Ana's total is discounted, so her cell offers the breakdown — as text,
+    // not as a button: hovering the figure is the whole gesture.
     expect(markup).toContain(
       'aria-label="Cómo se compone el total de Ana Rivas"',
+    );
+    expect(markup).not.toContain(
+      '<button aria-label="Cómo se compone el total de Ana Rivas"',
     );
     // Delfina has a single inscription and no discount: nothing to explain, so
     // no affordance. An icon on every row would be noise.
@@ -174,6 +224,15 @@ describe("dancer discount — the surface", () => {
     // items are never offered at once.
     expect(markup).toContain('aria-label="Acciones"');
     expect(markup).not.toContain("Imprimir factura");
+  });
+
+  it("keeps the whole roster above its deposit, so emission is reachable", () => {
+    // Decision 15 gates emission on `Señada`, read as the **minimum** across the
+    // roster (#551): one dancer short of her deposit and the prototype can never
+    // demonstrate the document, or anything that follows it.
+    const choreography = readChoreography(initialPrototypeState, "cho-1");
+
+    expect(choreography.status).not.toBe("depositPending");
   });
 
   it("says nothing about movement until a factura exists", () => {

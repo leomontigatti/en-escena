@@ -37,11 +37,85 @@ export function emitComprobante(
                 inscriptionId: inscription.id,
                 amount: inscription.totalAmount,
               })),
+              amendments: [],
             },
           }
         : row,
     ),
   };
+}
+
+/**
+ * Emits the ND or the NC the delta owes (#599). The **sign names the document**,
+ * so there is one gesture and never a choice: positive is a nota de débito,
+ * negative a nota de crédito.
+ *
+ * Emitting it re-documents the lines at what is derived now, which is what
+ * closes the delta — the amendment chain is a star anchored at the factura, so
+ * what the papers say together is always the current reading.
+ */
+export function emitAmendment(
+  state: PrototypeState,
+  choreographyId: string,
+): PrototypeState {
+  const choreography = state.choreographies.find(
+    (row) => row.id === choreographyId,
+  );
+
+  if (choreography?.comprobante == null) {
+    return state;
+  }
+
+  const inscriptions = readInscriptions(state).filter(
+    (row) => row.choreographyId === choreographyId,
+  );
+  const derivedTotal = inscriptions.reduce(
+    (total, row) => total + row.totalAmount,
+    0,
+  );
+  const documentedTotal = choreography.comprobante.lines.reduce(
+    (total, line) => total + line.amount,
+    0,
+  );
+  const delta = derivedTotal - documentedTotal;
+
+  if (delta === 0) {
+    return state;
+  }
+
+  const number = 500 + countAmendments(state);
+
+  return {
+    ...state,
+    choreographies: state.choreographies.map((row) =>
+      row.id === choreographyId && row.comprobante !== null
+        ? {
+            ...row,
+            comprobante: {
+              ...row.comprobante,
+              lines: inscriptions.map((inscription) => ({
+                inscriptionId: inscription.id,
+                amount: inscription.totalAmount,
+              })),
+              amendments: [
+                ...row.comprobante.amendments,
+                {
+                  label: `${delta > 0 ? "Nota de débito" : "Nota de crédito"} C 0003-${String(number).padStart(8, "0")}`,
+                  amount: delta,
+                },
+              ],
+            },
+          }
+        : row,
+    ),
+  };
+}
+
+function countAmendments(state: PrototypeState) {
+  return state.choreographies.reduce(
+    (total, row) => total + (row.comprobante?.amendments.length ?? 0),
+    0,
+  );
 }
 
 /** A sibling registration elsewhere. May raise a dancer's tier — and lower a bill. */
@@ -84,11 +158,35 @@ export function registerSibling(
   };
 }
 
-/** A soft withdrawal (decision 21). May drop a dancer below their tier. */
+/**
+ * Removal from a roster. **Conditional** (decision 21 as amended by #600): with
+ * money or an invoice line on it the inscription is withdrawn and stays
+ * readable; with neither there is nothing to preserve, so it is deleted
+ * outright. Either way the dancer may drop below their tier.
+ */
 export function withdrawSibling(
   state: PrototypeState,
   inscriptionId: string,
 ): PrototypeState {
+  const hasEvidence =
+    state.allocations.some(
+      (allocation) => allocation.inscriptionId === inscriptionId,
+    ) ||
+    state.choreographies.some((choreography) =>
+      choreography.comprobante?.lines.some(
+        (line) => line.inscriptionId === inscriptionId,
+      ),
+    );
+
+  if (!hasEvidence) {
+    return {
+      ...state,
+      inscriptions: state.inscriptions.filter(
+        (row) => row.id !== inscriptionId,
+      ),
+    };
+  }
+
   return {
     ...state,
     inscriptions: state.inscriptions.map((row) =>

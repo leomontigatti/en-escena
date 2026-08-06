@@ -20,7 +20,11 @@ export type PrototypePriceRow = {
   name: string;
   amount: number;
   paymentDeadline: string;
-  /** Needed for `groupTypeMismatch`, the anomaly #551 defined. */
+  /**
+   * Only picks the menu of rows applicable to a choreography. It is no longer an
+   * anomaly source: #586 deleted `groupTypeMismatch` by refreshing the price
+   * when the `groupType` changes, so a mismatch cannot survive a roster write.
+   */
   groupType: string;
 };
 
@@ -54,8 +58,20 @@ export type PrototypeInscription = {
    */
   dancerId: string;
   selectedPriceId: string;
-  /** Soft withdrawal (decision 21): drops out of the qualifying set. */
+  /**
+   * Soft withdrawal (decision 21, as amended by #600). It drops out of the
+   * qualifying set and out of every rollup, but **it does not disappear**: the
+   * row exists precisely because it holds evidence — money or an invoice line —
+   * and a removal with neither is a hard delete instead.
+   */
   withdrawnAt: string | null;
+};
+
+/** An ND or an NC, hanging off the factura: #599's star-shaped amendment chain. */
+export type PrototypeAmendment = {
+  label: string;
+  /** Signed: positive was a débito, negative a crédito. */
+  amount: number;
 };
 
 /** One line per inscription, at the net amount — #554's printed shape. */
@@ -68,6 +84,8 @@ export type PrototypeComprobante = {
   label: string;
   emittedOn: string;
   lines: PrototypeComprobanteLine[];
+  /** Emitted amendments, newest last. Each one closes the delta of its moment. */
+  amendments: PrototypeAmendment[];
 };
 
 export type PrototypeChoreography = {
@@ -156,6 +174,7 @@ export const initialPrototypeState: PrototypeState = {
     { id: "dan-facundo", name: "Facundo Ledesma" },
     { id: "dan-gala", name: "Gala Iriarte" },
     { id: "dan-julian", name: "Julián Mora" },
+    { id: "dan-nadia", name: "Nadia Coria" },
   ],
   choreographies: [
     {
@@ -198,7 +217,7 @@ export const initialPrototypeState: PrototypeState = {
   ],
   inscriptions: [
     // A deliberately uneven roster: untouched, below the threshold, over the
-    // threshold, settled, and one price of the wrong group type.
+    // threshold, settled, and one withdrawn row that still holds money.
     //
     // #585 added the second axis — who each dancer *also* is elsewhere:
     //
@@ -206,10 +225,11 @@ export const initialPrototypeState: PrototypeState = {
     //   «Umbral», so the exclusion is held off-screen and this row keeps it.
     // - **Bruno** — 4 inscriptions, 15 %, but this one *is* his most expensive,
     //   so he reads `$ 0` on a row identical to Ana's, which reads 10 %.
-    // - **Camila** — 3 inscriptions all at the same price: the exclusion is
-    //   decided by the **id tie-break**, and she keeps her discount by luck.
-    // - **Emilia** — 3 inscriptions, one **dada de baja**, so she drops to 2 and
-    //   the discount is gone. The withdrawal is in another choreography.
+    // - **Camila** — 3 inscriptions all at the same price, so «la más cara»
+    //   picks one of three identical numbers and she keeps her discount.
+    // - **Emilia** — 3 inscriptions, one **dada de baja** with money on it, so
+    //   she drops to 2 and the discount is gone. That withdrawal is in another
+    //   choreography; **Nadia**'s is in this one, so the row is on screen.
     // - **Delfina**, **Facundo**, **Gala**, **Julián** — one each: the plain
     //   case, and the zero that needs no explanation.
     {
@@ -258,8 +278,18 @@ export const initialPrototypeState: PrototypeState = {
       id: "ins-7",
       choreographyId: "cho-2",
       dancerId: "dan-gala",
-      selectedPriceId: "price-regular",
+      selectedPriceId: "price-duo",
       withdrawnAt: null,
+    },
+    // #600: given de baja with money already on it, so it is withdrawn rather
+    // than deleted — and it stays on the roster, because that allocation is the
+    // only thing that explains where the academy's money went.
+    {
+      id: "ins-18",
+      choreographyId: "cho-1",
+      dancerId: "dan-nadia",
+      selectedPriceId: "price-regular",
+      withdrawnAt: "2026-07-30",
     },
     {
       id: "ins-8",
@@ -343,11 +373,16 @@ export const initialPrototypeState: PrototypeState = {
     { paymentId: "pay-1", inscriptionId: "ins-2", amount: 20000 },
     { paymentId: "pay-1", inscriptionId: "ins-3", amount: 12000 },
     { paymentId: "pay-2", inscriptionId: "ins-3", amount: 6000 },
+    { paymentId: "pay-1", inscriptionId: "ins-4", amount: 15600 },
     { paymentId: "pay-1", inscriptionId: "ins-5", amount: 15600 },
     { paymentId: "pay-2", inscriptionId: "ins-6", amount: 70000 },
     { paymentId: "pay-1", inscriptionId: "ins-7", amount: 4000 },
     { paymentId: "pay-1", inscriptionId: "ins-9", amount: 42000 },
     { paymentId: "pay-1", inscriptionId: "ins-10", amount: 42000 },
+    // The two withdrawn rows' money: what makes each of them a withdrawal
+    // instead of a delete (#600).
+    { paymentId: "pay-2", inscriptionId: "ins-18", amount: 15600 },
+    { paymentId: "pay-3", inscriptionId: "ins-16", amount: 19200 },
   ],
 };
 
@@ -366,7 +401,7 @@ export type InscriptionReading = {
   selectedPriceId: string;
   priceName: string;
   priceAmount: number;
-  /** The chosen price's group type, for #551's `groupTypeMismatch`. */
+  /** Only to name the row's price row; no longer an anomaly source (#586). */
   priceGroupType: string;
   discountAmount: number;
   /** #551: the discount is applied **once**, in here. */
@@ -389,18 +424,28 @@ export type InscriptionReading = {
   provenance: DancerDiscountProvenance;
   /** What the emitted factura says this inscription costs, if one exists. */
   documentedAmount: number | null;
+  /**
+   * #600: the row is `Retirada` — a **separate derived axis**, which replaces
+   * the status badge rather than becoming a fourth status.
+   */
+  withdrawnAt: string | null;
 };
 
 /**
- * Withdrawn inscriptions are **left out of every reading**: they still count for
- * nothing in the qualifying set, and the soft-withdrawal surface itself is
- * [#600](https://github.com/leomontigatti/en-escena/issues/600)'s business, not
- * this prototype's. What is visible here is only their *effect* — a discount
- * that drops when a sibling elsewhere is given de baja.
+ * A withdrawn inscription is **out of every figure and still on the screen**
+ * ([#600](https://github.com/leomontigatti/en-escena/issues/600)): it owes zero,
+ * counts for nothing in the qualifying set and adds nothing to the rollup, but
+ * it keeps the money already allocated to it — which is the only thing on any
+ * surface that explains where that money went. A removal that had neither money
+ * nor an invoice line is a hard delete instead, so a withdrawn row without
+ * evidence cannot exist and is not rendered.
  */
 export function readInscriptions(state: PrototypeState): InscriptionReading[] {
   return state.inscriptions
-    .filter((inscription) => inscription.withdrawnAt === null)
+    .filter(
+      (inscription) =>
+        inscription.withdrawnAt === null || hasEvidence(state, inscription),
+    )
     .map((inscription) => {
       const choreography = state.choreographies.find(
         (row) => row.id === inscription.choreographyId,
@@ -422,10 +467,15 @@ export function readInscriptions(state: PrototypeState): InscriptionReading[] {
         inscription.dancerId,
         inscription.id,
       );
-      const totalAmount = Math.max(0, price.amount - provenance.discountAmount);
-      const depositAmount = Math.round(
-        (price.amount * state.requiredDepositPercentage) / 100,
-      );
+      // A withdrawn row is owed nothing and demands nothing: the figures go to
+      // zero and only the money already on it survives (#600).
+      const isWithdrawn = inscription.withdrawnAt !== null;
+      const totalAmount = isWithdrawn
+        ? 0
+        : Math.max(0, price.amount - provenance.discountAmount);
+      const depositAmount = isWithdrawn
+        ? 0
+        : Math.round((price.amount * state.requiredDepositPercentage) / 100);
 
       return {
         id: inscription.id,
@@ -450,9 +500,28 @@ export function readInscriptions(state: PrototypeState): InscriptionReading[] {
         owedBalanceAmount: Math.max(0, totalAmount - allocatedAmount),
         excessAmount: Math.max(0, allocatedAmount - totalAmount),
         status: readStatus({ allocatedAmount, depositAmount, totalAmount }),
+        withdrawnAt: inscription.withdrawnAt,
         allocations,
       };
     });
+}
+
+/**
+ * #600's predicate: money or an invoice line. It is what decides whether a
+ * removal withdraws or deletes, so it is also what decides whether a withdrawn
+ * row can be read at all.
+ */
+function hasEvidence(state: PrototypeState, inscription: PrototypeInscription) {
+  return (
+    state.allocations.some(
+      (allocation) => allocation.inscriptionId === inscription.id,
+    ) ||
+    state.choreographies.some((choreography) =>
+      choreography.comprobante?.lines.some(
+        (line) => line.inscriptionId === inscription.id,
+      ),
+    )
+  );
 }
 
 function readStatus({

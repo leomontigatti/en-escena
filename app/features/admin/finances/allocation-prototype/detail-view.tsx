@@ -21,8 +21,9 @@
  *   allocation is resolved **per inscription**, from the row action. The old
  *   per-row instance actions of the same name are gone — they were ladder rungs.
  * - **Anomalies are alerts, not badges**, sitting above the metric cards: an
- *   over-allocation or a price of the wrong group type is a must-fix problem,
- *   not a way a row can be. The copy is generic — it does not enumerate rows.
+ *   over-allocation is a must-fix problem, not a way a row can be. The copy is
+ *   generic — it does not enumerate rows. (`groupTypeMismatch` was the other
+ *   one; #586 deleted it, and the slot is now empty.)
  * - **No search box**: a choreography's roster is short enough to read.
  * - The dancer's name opens the allocate dialog from **row state**, the way
  *   `DancerNameCell` already does it in the real view.
@@ -77,10 +78,7 @@ export function AllocationDetailPrototypeView() {
         </Alert>
 
         {/* Above the metric cards, where the badges used to sit. */}
-        <ChoreographyAnomalyAlerts
-          groupType={choreography.groupType}
-          inscriptions={choreography.inscriptions}
-        />
+        <ChoreographyAnomalyAlerts inscriptions={choreography.inscriptions} />
 
         <section className="grid gap-4 md:grid-cols-3 xl:grid-cols-5">
           <MetricCard
@@ -197,8 +195,14 @@ export function AllocationDetailPrototypeView() {
  * disabled item, because there is nothing to enable: the document either was
  * emitted or was not. The two are mutually exclusive for the same reason
  * decision 16 gives — **one factura per choreography** — so the menu never
- * offers both at once. Amendments (ND/NC) are a different document and are not
- * placed here yet.
+ * offers both at once.
+ *
+ * **The amendment sits below `Imprimir factura`, and only when one is owed.**
+ * There is a single item, never a pair to choose between: the sign of the delta
+ * names the document (#599), so offering both would invite the admin to pick the
+ * wrong one. Before emission the item is present and **disabled with no reason
+ * appended** — a menu label is not the place to teach the rule, and the
+ * emptiness reads plainly enough.
  */
 function ChoreographyActions({
   choreography,
@@ -237,10 +241,20 @@ function ChoreographyActions({
           Imprimir factura
         </DropdownMenuItem>
       ) : null}
-      {!canEmit && !hasComprobante ? (
-        <DropdownMenuItem disabled>
-          Emitir factura · falta que esté señada
+      {hasComprobante && choreography.delta !== 0 ? (
+        <DropdownMenuItem
+          onSelect={(event) => {
+            event.preventDefault();
+            prototype.onEmitAmendment(choreography.id);
+          }}
+        >
+          {choreography.delta > 0
+            ? "Emitir nota de débito"
+            : "Emitir nota de crédito"}
         </DropdownMenuItem>
+      ) : null}
+      {!canEmit && !hasComprobante ? (
+        <DropdownMenuItem disabled>Emitir factura</DropdownMenuItem>
       ) : null}
     </ResourceActionsMenu>
   );

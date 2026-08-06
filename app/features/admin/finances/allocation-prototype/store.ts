@@ -17,6 +17,7 @@ import {
   type PrototypeState,
 } from "./fixtures";
 import {
+  emitAmendment,
   emitComprobante,
   registerSibling,
   withdrawSibling,
@@ -80,6 +81,10 @@ export function usePrototype() {
      */
     onEmit: (choreographyId: string) => {
       current = emitComprobante(current, choreographyId);
+      emit();
+    },
+    onEmitAmendment: (choreographyId: string) => {
+      current = emitAmendment(current, choreographyId);
       emit();
     },
     onRegisterSibling: (dancerId: string, choreographyId: string) => {

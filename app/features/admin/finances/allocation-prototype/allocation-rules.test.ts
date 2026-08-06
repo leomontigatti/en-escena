@@ -145,7 +145,8 @@ describe("upsertAllocation", () => {
 
 describe("readPriceLock", () => {
   it("leaves the price free while no money has landed", () => {
-    expect(readPriceLock(read().inscription("ins-4"))).toMatchObject({
+    // «Ecos» has no money on it at all: registered, never paid.
+    expect(readPriceLock(read().inscription("ins-11"))).toMatchObject({
       isFirstPick: true,
       isLocked: false,
     });

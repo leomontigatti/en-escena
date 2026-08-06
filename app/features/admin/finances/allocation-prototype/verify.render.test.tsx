@@ -69,20 +69,32 @@ describe("allocation prototype", () => {
     expect(markup).not.toContain("Buscar inscripción por bailarín");
   });
 
-  it("raises the group-type anomaly as a generic alert, not a badge", () => {
-    // «Umbral» is a Dúo whose roster picked a Grupo price.
+  it("raises the over-allocation anomaly as a generic alert, not a badge", () => {
+    // «Reflejos» holds Nadia's withdrawn row, which owes zero and still has
+    // money on it — over-allocated by construction (#600).
+    const markup = renderRouteView(
+      <AllocationDetailPrototypeView />,
+      "/administracion/finanzas/prototipo-asignacion/coreografia?coreografia=cho-1",
+    );
+
+    expect(markup).toContain('role="alert"');
+    expect(markup).toContain("Existen inscripciones con dinero sobreasignado");
+    // Generic and title-less: it points at the list instead of counting or
+    // naming rows, and carries no `AlertTitle`.
+    expect(markup).not.toContain("inscripción tiene");
+    expect(markup).not.toContain("Inscripciones sobreasignadas");
+  });
+
+  it("has no group-type anomaly left: #586 deleted it from the model", () => {
+    // «Umbral» is a Dúo, and its roster cannot point at a Grupo price any more:
+    // a `groupType` change refreshes the price on the roster write.
     const markup = renderRouteView(
       <AllocationDetailPrototypeView />,
       "/administracion/finanzas/prototipo-asignacion/coreografia?coreografia=cho-2",
     );
 
-    expect(markup).toContain('role="alert"');
-    expect(markup).toContain(
-      "Existen inscripciones con un precio diferente al tipo de grupo",
-    );
-    // Generic and title-less: it points at the list instead of counting or
-    // naming rows, and carries no `AlertTitle`.
-    expect(markup).not.toContain("inscripción tiene");
+    expect(markup).not.toContain("tipo de grupo de la coreografía");
+    expect(markup).not.toContain("Precio de otro tipo de grupo");
     expect(markup).not.toContain("Precios de otro tipo de grupo");
   });
 
@@ -96,27 +108,25 @@ describe("allocation prototype", () => {
     expect(markup).toContain("Precio");
   });
 
-  it("lets the inscription's anomaly badge replace its status badge", () => {
-    // «Umbral» is a Dúo whose roster has an inscription on a Grupo price.
+  it("lets a row's derived axis replace its status badge", () => {
     const markup = renderRouteView(
       <AllocationDetailPrototypeView />,
-      "/administracion/finanzas/prototipo-asignacion/coreografia?coreografia=cho-2",
+      "/administracion/finanzas/prototipo-asignacion/coreografia?coreografia=cho-1",
     );
 
-    expect(markup).toContain("Precio de otro tipo de grupo");
-    // The anomalous row shows no status badge of its own — the two do not sit
-    // side by side. Only the untouched rows still carry one.
-    const anomalousRow = markup.slice(
-      markup.indexOf("Gala Iriarte"),
-      markup.indexOf("</tr>", markup.indexOf("Gala Iriarte")),
+    // Nadia's row is `Retirada`, and that badge stands **instead of** a status:
+    // the two do not sit side by side, because a withdrawn row demands nothing.
+    const withdrawnRow = markup.slice(
+      markup.indexOf("Nadia Coria"),
+      markup.indexOf("</tr>", markup.indexOf("Nadia Coria")),
     );
-    expect(anomalousRow).toContain("Precio de otro tipo de grupo");
-    expect(anomalousRow).not.toContain("Seña pendiente");
-    expect(anomalousRow).not.toContain("Señada");
-    expect(anomalousRow).not.toContain("Pagada");
+    expect(withdrawnRow).toContain("Retirada");
+    expect(withdrawnRow).not.toContain("Seña pendiente");
+    expect(withdrawnRow).not.toContain("Señada");
+    expect(withdrawnRow).not.toContain("Pagada");
   });
 
-  it("mutes no figure per row, and mutes `Precio base` for the whole column", () => {
+  it("mutes no figure per row, and mutes `Asignado` for the whole column", () => {
     const markup = renderRouteView(
       <AllocationDetailPrototypeView />,
       "/administracion/finanzas/prototipo-asignacion/coreografia?coreografia=cho-1",
@@ -124,7 +134,10 @@ describe("allocation prototype", () => {
 
     // #618 deleted the tentative marking outright: every figure shown is exact.
     // What is left is unconditional and lives in the column definition.
-    expect(markup).toContain("Precio base");
+    expect(markup).toContain("Asignado");
+    // `Precio base` is not a column any more — it lives in the total's tooltip,
+    // where it is the first line of the subtraction (#585).
+    expect(markup).not.toContain("Precio base");
     expect(markup).toContain("text-right tabular-nums text-muted-foreground");
     expect(markup).not.toContain('<span class="text-muted-foreground">$');
   });

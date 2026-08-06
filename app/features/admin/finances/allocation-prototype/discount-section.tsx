@@ -49,8 +49,14 @@ export function DiscountSection({
 
       {showsMovement ? <MovementAlert choreography={choreography} /> : null}
 
+      {/*
+        A withdrawn row earns nothing and owes nothing: there is no percentage
+        to explain, and where its money went is answered on the roster above.
+      */}
       <ClientDataTable<InscriptionReading>
-        rows={choreography.inscriptions}
+        rows={choreography.inscriptions.filter(
+          (row) => row.withdrawnAt === null,
+        )}
         columns={buildColumns(showsMovement)}
         getRowKey={(row) => row.id}
         initialSort={{ columnId: "dancer", direction: "asc" }}
@@ -78,12 +84,19 @@ function MovementAlert({
       row.documentedAmount !== null && row.documentedAmount !== row.totalAmount,
   );
 
+  const amendments = choreography.comprobante?.amendments ?? [];
+
   if (choreography.delta === 0) {
     return (
       <Alert>
-        <AlertTitle>Lo facturado sigue coincidiendo con lo derivado</AlertTitle>
+        <AlertTitle>Lo facturado coincide con lo derivado</AlertTitle>
         <AlertDescription>
-          {choreography.comprobante?.label} · no se movió nada desde la emisión.
+          {[choreography.comprobante?.label, ...amendments.map((a) => a.label)]
+            .filter(Boolean)
+            .join(" · ")}
+          {amendments.length === 0
+            ? " · no se movió nada desde la emisión."
+            : ""}
         </AlertDescription>
       </Alert>
     );
@@ -106,7 +119,8 @@ function MovementAlert({
           {formatAmount(Math.abs(choreography.delta))} de diferencia
           {moved.length > 0
             ? ` por el descuento de ${moved.map((row) => row.dancerName).join(", ")}.`
-            : " por un cambio en el elenco."}
+            : " por un cambio en el elenco."}{" "}
+          Se emite desde el menú de acciones.
         </span>
       </AlertDescription>
     </Alert>
@@ -137,13 +151,13 @@ function buildColumns(
     {
       id: "qualifying",
       header: "Inscripciones que lo habilitan",
-      className: "min-w-96",
+      className: "min-w-64",
       cell: (row) => <QualifyingCell inscription={row} />,
     },
     {
       id: "reason",
       header: "Por qué",
-      className: "min-w-72 text-muted-foreground",
+      className: "min-w-64 text-muted-foreground",
       cell: (row) => readProvenanceSummary(row),
     },
     {
@@ -184,13 +198,8 @@ function buildColumns(
 
 /** The one sentence that has to answer «¿por qué este número?». */
 function readProvenanceSummary(inscription: InscriptionReading) {
-  const {
-    qualifyingCount,
-    percentage,
-    reason,
-    excludedByTieBreak,
-    excludedChoreographyName,
-  } = inscription.provenance;
+  const { qualifyingCount, percentage, reason, excludedChoreographyName } =
+    inscription.provenance;
   const inscriptions =
     qualifyingCount === 1
       ? "1 inscripción"
@@ -200,19 +209,14 @@ function readProvenanceSummary(inscription: InscriptionReading) {
     return `${inscriptions} en el evento: hacen falta 3 para el 10 %.`;
   }
 
-  // The tie is the common case — the inscriptions of one choreography share a
-  // price row — so «la más cara» describes two identical numbers and the
-  // identifier decides. Saying it is the difference between a rule and a result
-  // that looks arbitrary.
-  const tie = excludedByTieBreak
-    ? " Empata en precio con otra del bailarín; desempata el identificador."
-    : "";
-
+  // How a tie between identical prices is settled is deliberately not said: the
+  // identifier decides, which is true and useless — the amount is the same
+  // whichever row wins, so naming it only makes a settled number look arbitrary.
   if (reason === "excludedAsMostExpensive") {
-    return `${inscriptions} en el evento, ${percentage} %. Ésta queda sin descuento por ser la más cara del bailarín.${tie}`;
+    return `${inscriptions} en el evento, ${percentage} %. Ésta queda sin descuento por ser la más cara del bailarín.`;
   }
 
-  return `${inscriptions} en el evento: ${percentage} %. Queda sin descuento «${excludedChoreographyName}», la más cara.${tie}`;
+  return `${inscriptions} en el evento: ${percentage} %. Queda sin descuento «${excludedChoreographyName}», la más cara.`;
 }
 
 function QualifyingCell({ inscription }: { inscription: InscriptionReading }) {

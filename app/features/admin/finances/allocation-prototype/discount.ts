@@ -45,12 +45,6 @@ export type DancerDiscountProvenance = {
   /** The discount on the inscription this reading is about. */
   discountAmount: number;
   reason: "belowTier" | "excludedAsMostExpensive" | "granted";
-  /**
-   * The exclusion was decided by the **id tie-break**, not by price. Ties are
-   * the common case — a choreography's inscriptions share a price row — so
-   * without saying this, «la más cara» describes two identical numbers.
-   */
-  excludedByTieBreak: boolean;
   excludedChoreographyName: string | null;
 };
 
@@ -96,8 +90,13 @@ export function readDancerDiscount(
 
   const percentage = readDiscountPercentage(qualifying.length);
 
-  // One inscription keeps its full price: the most expensive, ties broken by
-  // id. It is the part of the rule nothing on screen has ever stated.
+  // One inscription keeps its full price: the most expensive. It is the part of
+  // the rule nothing on screen has ever stated.
+  //
+  // Ties are the common case — a choreography's inscriptions share a price row —
+  // and the id settles them. That is an implementation detail and **is never
+  // shown**: it explains nothing an academy could act on, and naming it only
+  // invites an argument about a number that would be identical either way.
   const excluded =
     percentage === 0
       ? undefined
@@ -115,9 +114,6 @@ export function readDancerDiscount(
   }
 
   const thisOne = qualifying.find((row) => row.isThisInscription);
-  const tiedAtTop = qualifying.filter(
-    (row) => row.priceAmount === excluded?.priceAmount,
-  );
 
   return {
     dancerId,
@@ -133,7 +129,6 @@ export function readDancerDiscount(
         : thisOne?.isExcluded === true
           ? "excludedAsMostExpensive"
           : "granted",
-    excludedByTieBreak: excluded !== undefined && tiedAtTop.length > 1,
     excludedChoreographyName: excluded?.choreographyName ?? null,
   };
 }
