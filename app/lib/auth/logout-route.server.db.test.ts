@@ -8,6 +8,7 @@ import {
   createSessionRequestCookie,
   extractSessionCookieValue,
 } from "@/lib/auth/access-auth.test-support";
+import { getSetCookieValues } from "@/lib/auth/set-cookie-headers";
 import { expectThrownResponse } from "@/lib/test-support/http";
 import { action as logoutAction, loader as logoutLoader } from "@/routes/salir";
 import { action as signInAction } from "@/routes/ingresar";
@@ -66,6 +67,36 @@ describe("logout route", () => {
       expect.arrayContaining([
         expect.objectContaining({ token: currentSessionToken }),
       ]),
+    );
+  });
+
+  // Shim de migración (#582): el logout también expira toda cookie `sb-*` que
+  // haya quedado de la época de Supabase Auth, para no dejar sesión parcial.
+  test("POST expires legacy sb-* cookies alongside the session cookie", async () => {
+    await createVerifiedCredentialUser("salir-sb@example.com");
+    const signedInResponse = await expectThrownResponse(
+      submitSignInAction("salir-sb@example.com"),
+      302,
+    );
+
+    const response = await expectThrownResponse(
+      logoutAction({
+        url: new URL("http://localhost/salir"),
+        pattern: "/salir",
+        request: new Request("http://localhost/salir", {
+          method: "POST",
+          headers: {
+            cookie: `${createSessionRequestCookie(signedInResponse.headers)}; sb-project-auth-token=stale`,
+          },
+        }),
+        params: {},
+        context: {},
+      }),
+      302,
+    );
+
+    expect(getSetCookieValues(response.headers)).toContain(
+      "sb-project-auth-token=; Max-Age=0; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax",
     );
   });
 

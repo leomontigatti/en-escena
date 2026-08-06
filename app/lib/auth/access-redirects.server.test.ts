@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import { redirectToLoginForRequest } from "@/lib/auth/access-redirects.server";
+import { getSetCookieValues } from "@/lib/auth/set-cookie-headers";
 
 function motivoFor(cookie: string | null): string | null {
   const request = new Request("http://localhost/panel", {
@@ -42,5 +43,31 @@ describe("redirectToLoginForRequest", () => {
   test("marca `continuar` cuando no hay cookie de sesión", () => {
     expect(motivoFor(null)).toBe("continuar");
     expect(motivoFor("otra_cookie=1")).toBe("continuar");
+  });
+
+  // Shim de migración (#582): un navegador previo al cutover de auth todavía
+  // puede traer cookies `sb-*`; la redirección de sesión vencida las expira.
+  test("expira las cookies `sb-*` heredadas al redirigir una sesión vencida", () => {
+    const request = new Request("http://localhost/panel", {
+      headers: {
+        cookie: "sb-project-auth-token=stale; theme=escena",
+      },
+    });
+
+    try {
+      redirectToLoginForRequest(request);
+    } catch (thrown) {
+      if (!(thrown instanceof Response)) {
+        throw thrown;
+      }
+
+      expect(getSetCookieValues(thrown.headers)).toEqual([
+        "sb-project-auth-token=; Max-Age=0; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax",
+      ]);
+
+      return;
+    }
+
+    throw new Error("Expected redirectToLoginForRequest to throw a redirect.");
   });
 });

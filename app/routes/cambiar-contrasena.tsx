@@ -21,7 +21,6 @@ import {
   completeMandatoryPasswordChange,
   requireMandatoryPasswordChangeUser,
 } from "@/lib/auth/mandatory-password-change.server";
-import { withSupabaseSsrHeaders } from "@/lib/auth/supabase-auth-ssr.server";
 import {
   authToastIds,
   passwordField,
@@ -100,10 +99,7 @@ export async function loader({ request }: Route.LoaderArgs) {
       };
     }
 
-    throw redirect(
-      result.redirectTo,
-      withSupabaseSsrHeaders({ headers: result.headers }),
-    );
+    throw redirect(result.redirectTo, { headers: result.headers });
   }
 
   if (recoveryTokenHash && recoveryType === "recovery") {
@@ -119,10 +115,7 @@ export async function loader({ request }: Route.LoaderArgs) {
       };
     }
 
-    throw redirect(
-      result.redirectTo,
-      withSupabaseSsrHeaders({ headers: result.headers }),
-    );
+    throw redirect(result.redirectTo, { headers: result.headers });
   }
 
   if (isRecoveryFlow) {
@@ -172,10 +165,7 @@ export async function action({ request }: Route.ActionArgs) {
       };
     }
 
-    throw redirect(
-      "/ingresar?recuperacion=ok",
-      withSupabaseSsrHeaders({ headers: result.headers }),
-    );
+    throw redirect("/ingresar?recuperacion=ok", { headers: result.headers });
   }
 
   const values = emptyMandatoryChangeValues;

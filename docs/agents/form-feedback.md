@@ -75,8 +75,8 @@ route's `loader`/root **reads-and-clears** (one-time) to fire the toast. Because
 consumed on the first read, the toast appears exactly once and does not reappear on
 reload or back-navigation.
 
-This is React Router's idiomatic pattern. The project already has a session (Supabase
-Auth / cookies, see `app/lib/auth/supabase-auth-ssr.server.ts`), so the flash session
+This is React Router's idiomatic pattern. The project already has a session (Better
+Auth / cookies, see `app/lib/auth/access-auth-provider.betterauth.server.ts`), so the flash session
 helper reuses that infrastructure instead of introducing a new session. The helper is
 a single module in `app/lib/shared` (see #411); do not reinvent the mechanism per
 feature.
