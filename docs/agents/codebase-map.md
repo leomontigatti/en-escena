@@ -44,15 +44,15 @@ only list stable entry points, coordination modules and high-signal tests.
 
 ## Public Academy Registration
 
-Use for public academy signup, Supabase email confirmation and pending academy
+Use for public academy signup, email confirmation and pending academy
 onboarding.
 
 - Domain: `docs/domain/access.md`
-- ADRs: `docs/adr/0005-use-supabase-postgres-before-supabase-auth.md`, `docs/adr/0006-use-supabase-auth-for-access.md`
+- ADRs: `docs/adr/0013-exit-supabase.md`
 - Local operation: `docs/local-auth.md`
 - Routes: `app/routes/registro.tsx`, `app/routes/registro_.confirmar.tsx`, `app/routes/registro_.academia.tsx`, `app/routes/registro_.error-confirmacion.tsx`
 - Server modules: `app/lib/academies/registration.server.ts`, `app/lib/academies/registration-auth.server.ts`, `app/lib/academies/onboarding.server.ts`, `app/lib/academies/onboarding-maintenance.server.ts`
-- Auth modules: `app/lib/auth/access-auth-emails.server.ts`, `app/lib/auth/supabase-auth-ssr.server.ts`, `app/lib/auth/internal-navigation.server.ts`
+- Auth modules: `app/lib/auth/access-auth-emails.server.ts`, `app/lib/auth/legacy-session-cookies.server.ts`, `app/lib/auth/internal-navigation.server.ts`
 - Tests: `app/lib/academies/registration.server.db.test.ts`, `app/lib/academies/onboarding.server.db.test.ts`, `app/lib/academies/onboarding-maintenance.server.db.test.ts`, `app/lib/auth/registration-confirmation-route.server.test.ts`, `app/lib/auth/access-auth-emails.server.test.ts`
 
 ## Access And Internal Users
@@ -61,7 +61,7 @@ Use for login, session policy, password recovery, mandatory password changes,
 internal invitations, suspension and internal user administration.
 
 - Domain: `docs/domain/access.md`
-- ADRs: `docs/adr/0003-direct-internal-user-access.md`, `docs/adr/0006-use-supabase-auth-for-access.md`
+- ADRs: `docs/adr/0003-direct-internal-user-access.md`, `docs/adr/0013-exit-supabase.md`
 - Local operation: `docs/local-auth.md`
 - Routes: `app/routes/ingresar.tsx`, `app/routes/recuperar-acceso.tsx`, `app/routes/recuperar-acceso_.nueva.tsx`, `app/routes/cambiar-contrasena.tsx`, `app/routes/invitacion_.$token.tsx`, `app/routes/salir.tsx`, `app/routes/administracion.usuarios.tsx`, `app/routes/administracion.usuarios_.nuevo.tsx`, `app/routes/administracion.usuarios_.$userId.tsx`, `app/routes/administracion.usuarios_.invitaciones.tsx`
 - Feature modules: `app/features/admin/users/list/`, `app/features/admin/users/detail/`

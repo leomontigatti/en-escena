@@ -72,7 +72,8 @@ function getFlashSessionStorage() {
 
 /**
  * Adjunta un mensaje flash a una respuesta de `redirect` desde un `action`.
- * Preserva cualquier `header` de `init` (por ejemplo, headers de Supabase SSR).
+ * Preserva cualquier `header` de `init` (por ejemplo, los `set-cookie` de sesión
+ * que devuelve el proveedor de acceso).
  */
 export async function redirectWithFlashNotification(
   url: string,

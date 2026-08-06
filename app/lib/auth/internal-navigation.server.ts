@@ -8,7 +8,7 @@ import {
   MANDATORY_PASSWORD_CHANGE_PATH,
   PUBLIC_ACADEMY_ONBOARDING_PATH,
 } from "@/lib/auth/access-paths.shared";
-import { createSupabaseSessionClearHeaders } from "@/lib/auth/supabase-auth-ssr.server";
+import { createLegacySessionCookieClearHeaders } from "@/lib/auth/legacy-session-cookies.server";
 import {
   requireSignedInAccessState,
   requireInternalUser,
@@ -72,7 +72,7 @@ export async function redirectSignedInUserFromPublicRoute(request: Request) {
 
   if (!session) {
     return {
-      headers: createSupabaseSessionClearHeaders(request),
+      headers: createLegacySessionCookieClearHeaders(request),
     };
   }
 

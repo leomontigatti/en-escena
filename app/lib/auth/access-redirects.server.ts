@@ -1,6 +1,9 @@
 import { redirect } from "react-router";
 
-import { createSupabaseSessionClearHeaders } from "@/lib/auth/supabase-auth-ssr.server";
+import {
+  createLegacySessionCookieClearHeaders,
+  LEGACY_SESSION_COOKIE_PREFIX,
+} from "@/lib/auth/legacy-session-cookies.server";
 
 const LOGIN_PATH = "/ingresar";
 const CONTINUE_REASON = "continuar";
@@ -10,12 +13,11 @@ const EXPIRED_REASON = "expirada";
 // (`continuar`). Con un baseURL https, Better Auth activa `useSecureCookies` y
 // emite el nombre con prefijo `__Secure-`, así que hay que reconocer ambos: en
 // producción la cookie real es `__Secure-better-auth.session_token` (#501). El
-// prefijo `sb-` se conserva mientras siga el SSR de Supabase (decommission en
-// #303/#423).
+// prefijo `sb-` se conserva solo por las cookies previas al cutover de auth; se
+// retira junto con `legacy-session-cookies.server.ts` (#582).
 const BETTER_AUTH_SESSION_COOKIE_NAME = "better-auth.session_token";
 const BETTER_AUTH_SECURE_SESSION_COOKIE_NAME =
   "__Secure-better-auth.session_token";
-const SUPABASE_COOKIE_NAME_PREFIX = "sb-";
 
 export type LoginRedirectReason =
   | typeof CONTINUE_REASON
@@ -29,7 +31,7 @@ export function redirectToLoginForRequest(request: Request): never {
   throw redirect(
     buildLoginRedirectUrl(request, reason),
     reason === EXPIRED_REASON
-      ? { headers: createSupabaseSessionClearHeaders(request) }
+      ? { headers: createLegacySessionCookieClearHeaders(request) }
       : undefined,
   );
 }
@@ -78,7 +80,7 @@ function hasAccessSessionCookie(request: Request) {
       return (
         cookieName === BETTER_AUTH_SESSION_COOKIE_NAME ||
         cookieName === BETTER_AUTH_SECURE_SESSION_COOKIE_NAME ||
-        cookieName.startsWith(SUPABASE_COOKIE_NAME_PREFIX)
+        cookieName.startsWith(LEGACY_SESSION_COOKIE_PREFIX)
       );
     });
 }

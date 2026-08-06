@@ -1,11 +1,10 @@
 # Local Operation and Auth
 
 This document explains how to run the current En Escena access stack locally. It
-supports PRD #1, "Registro publico y autenticacion de usuarios", the Supabase
-adoption ADRs [0005](adr/0005-use-supabase-postgres-before-supabase-auth.md)
-and [0006](adr/0006-use-supabase-auth-for-access.md), and keeps ADR
-[0001: Better Auth for access](adr/0001-better-auth-for-access.md) only as a
-superseded historical record.
+supports PRD #1, "Registro publico y autenticacion de usuarios". Better Auth is
+the only credential provider; ADR
+[0013: Exit Supabase](adr/0013-exit-supabase.md) records why the Supabase
+adoption ADRs (0001, 0005, 0006, 0008 and 0010) are superseded.
 
 ## Environment
 
@@ -197,25 +196,22 @@ The emails link to:
 - signup confirmation: `/registro/confirmar?token_hash=...&type=signup`
 - recovery: `/cambiar-contrasena?code=...`
 
-## Supabase user reconciliation
+## Legacy `sb-*` cookies
 
-During the auth cutover, `user.id` already mirrors the Supabase `auth.users`
-UUIDs (populated lazily). To backfill any confirmed Supabase identity that never
-got a `user` row, run the one-off reconciliation against the cutover database
-(where both schemas still coexist):
+The `auth.users` → `user` reconciliation sweep (#424) was a one-off against the
+cutover database, where both schemas coexisted. That database is gone (#267,
+#598), so the module and its `pnpm auth:reconcile-supabase-users` command were
+removed in #582.
 
-```sh
-pnpm auth:reconcile-supabase-users
-```
-
-It compares `count(auth.users)` with `count(user)` and inserts a `user` row for
-each `auth.users` email missing in `user`, reusing the Supabase UUID as `user.id`.
-It does **not** reimport passwords or pre-create `account` rows — credentials
-migrate through reactive password reset (research #364). The script is idempotent.
+The only Supabase Auth residue still running is
+`app/lib/auth/legacy-session-cookies.server.ts`, which expires any `sb-*` cookie
+a pre-cutover browser still carries. It reads no Supabase package and can be
+retired once those cookies have expired everywhere; the module header states the
+retirement criterion.
 
 ## Access Auth Scope
 
-For v1, Supabase Auth owns academy and internal credentials, public academy
+For v1, Better Auth owns academy and internal credentials, public academy
 email confirmation, password recovery and sessions. The app owns domain-specific
 access flows and the local test harness:
 
@@ -239,10 +235,9 @@ When changing auth, registration, recovery or invitation behavior, keep this
 reference order:
 
 1. `CONTEXT.md`, the domain glossary and repo workflows are authoritative.
-2. ADR [0006: Supabase Auth for access credentials](adr/0006-use-supabase-auth-for-access.md)
-   is the accepted target architecture. ADR
-   [0001: Better Auth for access](adr/0001-better-auth-for-access.md) is
-   historical and superseded.
+2. ADR [0013: Exit Supabase](adr/0013-exit-supabase.md) is the accepted
+   decision record: Better Auth is the credential provider. ADRs 0001 and 0006
+   are historical and superseded.
 3. `.sandcastle/CODING_STANDARDS.md` controls test and implementation style.
 4. Vendored React/Vercel skills are supporting references when UI or route work
    is relevant: `react-best-practices`, `web-design-guidelines`,
