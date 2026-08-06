@@ -587,11 +587,13 @@ export function sumAmounts(allocations: { amount: number }[]) {
  * Upsert on `(payment, inscription)` with a mutable amount, the shape #549
  * decided. A zero amount deletes the row.
  *
- * And #549's mirror rule, which #551 handed to this surface to express:
- * **`selectedPriceId` clears when an inscription runs out of allocations.** The
- * price is chosen as part of putting money on an inscription, so an inscription
- * with no money has made no choice; it goes back to a tentative price and the
- * admin re-picks on the next allocation.
+ * **Deallocation writes nothing to the inscription** (#553 decision 6, amending
+ * #549 and #550). The prototype used to revert `selectedPriceId` to the
+ * choreography's default once the last allocation left. That is gone: the price
+ * **lock** is keyed on money, so it releases the instant the money does, and the
+ * reference simply keeps its last value. The reverted value was never used to
+ * charge anyone — the price re-resolves on the next allocation write — so
+ * writing it answered a question that needs no answer.
  */
 export function upsertAllocation(
   state: PrototypeState,
@@ -602,35 +604,11 @@ export function upsertAllocation(
       allocation.paymentId !== next.paymentId ||
       allocation.inscriptionId !== next.inscriptionId,
   );
-  const allocations = next.amount > 0 ? [...rest, next] : rest;
-  const ranOutOfAllocations = !allocations.some(
-    (allocation) => allocation.inscriptionId === next.inscriptionId,
-  );
 
   return {
     ...state,
-    allocations,
-    inscriptions: ranOutOfAllocations
-      ? state.inscriptions.map((inscription) =>
-          inscription.id === next.inscriptionId
-            ? {
-                ...inscription,
-                selectedPriceId: defaultPriceIdOf(state, inscription),
-              }
-            : inscription,
-        )
-      : state.inscriptions,
+    allocations: next.amount > 0 ? [...rest, next] : rest,
   };
-}
-
-function defaultPriceIdOf(
-  state: PrototypeState,
-  inscription: PrototypeInscription,
-) {
-  return (
-    state.choreographies.find((row) => row.id === inscription.choreographyId)
-      ?.defaultPriceId ?? inscription.selectedPriceId
-  );
 }
 
 export function selectPrice(

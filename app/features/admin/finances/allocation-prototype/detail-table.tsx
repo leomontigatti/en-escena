@@ -247,6 +247,7 @@ function DancerNameCell({ inscription }: { inscription: InscriptionReading }) {
           onClose={() => setOpen(false)}
           onSelectPrice={prototype.onSelectPrice}
           onAllocate={prototype.onAllocate}
+          onDeallocate={prototype.onDeallocate}
         />
       ) : null}
     </>

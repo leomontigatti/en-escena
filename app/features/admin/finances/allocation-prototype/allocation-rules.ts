@@ -16,7 +16,11 @@
  * 3. **The price is fixed by the first allocation.**
  */
 import { formatAmount } from "../formatters";
-import type { InscriptionReading, PaymentReading } from "./fixtures";
+import type {
+  InscriptionReading,
+  PaymentReading,
+  PrototypeAllocation,
+} from "./fixtures";
 
 export type AllocationRejection = {
   reason: "overAllocation" | "insufficientBalance" | "notPositive";
@@ -72,8 +76,41 @@ export function spreadFromPool(
 }
 
 /**
+ * `spreadFromPool`'s counterpart, in the same module because the two are the
+ * halves of one invariant: `Saldo disponible = totalPaid − Σ asignaciones`,
+ * never negative, whichever way the money moves (#553).
+ *
+ * Allocation consumes payments **oldest first**; deallocation unwinds them
+ * **newest first**, decrementing and deleting at zero. The admin names an
+ * inscription and an amount and never a payment — the accepted cost being that
+ * one specific payment can no longer be lifted off one inscription. If a payment
+ * was recorded in error, the remedy is deleting the payment, whose money leaves
+ * the pool entirely rather than returning to it.
+ */
+export function unwindToPool(
+  allocations: PrototypeAllocation[],
+  payments: PaymentReading[],
+  amount: number,
+): PrototypeAllocation[] {
+  const numberOf = (paymentId: string) =>
+    payments.find((payment) => payment.id === paymentId)?.number ?? 0;
+  const next: PrototypeAllocation[] = [];
+  let pending = amount;
+
+  for (const allocation of [...allocations].sort(
+    (left, right) => numberOf(right.paymentId) - numberOf(left.paymentId),
+  )) {
+    const taken = Math.min(pending, allocation.amount);
+    pending -= taken;
+    next.push({ ...allocation, amount: allocation.amount - taken });
+  }
+
+  return next;
+}
+
+/**
  * `amount` is what the admin wants to draw from `Saldo disponible` and put on
- * this inscription — a **delta**, not a new total. Deallocation is #553's.
+ * this inscription — a **delta**, not a new total.
  */
 export function rejectAllocation({
   inscription,
@@ -118,15 +155,15 @@ export function rejectAllocation({
  * **The price is fixed by the first allocation.** Settled on reacting to the
  * prototype, out of the three policies it offered (`free`, `warn`, `blocked`).
  *
- * The reason `blocked` wins is that #549 already built its exit: an inscription
- * that runs out of allocations clears `selectedPriceId` on its own, so
- * "change this dancer's price" has a defined gesture — take the money off, pick
- * again — instead of silently moving the seña and the total under money that is
- * already placed. It is also the only policy under which that mirror rule is
- * load-bearing rather than trivia.
+ * The reason `blocked` wins is that it has an exit: "change this dancer's price"
+ * has a defined gesture — take the money off, pick again — instead of silently
+ * moving the seña and the total under money that is already placed.
  *
- * The cost, accepted: the gesture runs through deallocation, which is #553's,
- * and does not exist yet.
+ * **The lock is keyed on money, not on the reference** (#553, amending #549):
+ * it releases the instant the last allocation leaves, and `selectedPriceId`
+ * keeps its last value rather than reverting to anything. What price the
+ * inscription *should* hold afterwards is not a deallocation question — it
+ * re-resolves on the next allocation write — and belongs to #583.
  */
 export type PriceLockReading = {
   /** No money on the inscription yet: the price is still the admin's to pick. */
@@ -146,6 +183,6 @@ export function readPriceLock(
   return {
     isFirstPick: false,
     isLocked: true,
-    lockedReason: `Tiene ${formatAmount(inscription.allocatedAmount)} asignados. Para cambiarle el precio hay que sacarle toda la plata: al quedarse sin asignaciones el precio se limpia solo.`,
+    lockedReason: `Tiene ${formatAmount(inscription.allocatedAmount)} asignados. Para cambiarle el precio hay que quitarle toda la plata.`,
   };
 }

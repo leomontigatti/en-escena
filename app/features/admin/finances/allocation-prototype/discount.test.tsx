@@ -10,15 +10,30 @@ import { renderRouteView } from "@/features/admin/test-support/render-route-view
 
 import { AllocationDetailPrototypeView } from "./detail-view";
 import { readDancerDiscount } from "./discount";
-import { initialPrototypeState, readInscriptions } from "./fixtures";
+import {
+  initialPrototypeState,
+  readInscriptions,
+  upsertAllocation,
+  type PrototypeState,
+} from "./fixtures";
 import { readChoreographies } from "./rollup";
 import {
   emitAmendment,
   emitComprobante,
   registerSibling,
-  releaseAllocations,
   withdrawSibling,
 } from "./roster-moves";
+
+/** #553's dialog A at its default: everything off the inscription at once. */
+function releaseAllocations(state: PrototypeState, inscriptionId: string) {
+  return state.allocations
+    .filter((allocation) => allocation.inscriptionId === inscriptionId)
+    .reduce(
+      (next, allocation) =>
+        upsertAllocation(next, { ...allocation, amount: 0 }),
+      state,
+    );
+}
 
 const detailPath =
   "/administracion/finanzas/prototipo-asignacion/coreografia?coreografia=cho-1";

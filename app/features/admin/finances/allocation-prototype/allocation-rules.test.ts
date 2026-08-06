@@ -11,6 +11,7 @@ import {
   readPriceLock,
   rejectAllocation,
   spreadFromPool,
+  unwindToPool,
 } from "./allocation-rules";
 import {
   initialPrototypeState,
@@ -114,19 +115,44 @@ describe("rejectAllocation", () => {
   });
 });
 
+describe("unwindToPool", () => {
+  it("takes the money off newest first, the mirror of the fill rule", () => {
+    // Camila's two allocations: pay-1 ($ 12.000) and pay-2 ($ 6.000). Removing
+    // $ 8.000 empties the newer one and dips into the older, never the reverse.
+    const camila = readInscriptions(initialPrototypeState).find(
+      (row) => row.id === "ins-3",
+    )!;
+    const next = unwindToPool(
+      camila.allocations,
+      readPayments(initialPrototypeState),
+      8000,
+    );
+
+    expect(next.find((row) => row.paymentId === "pay-2")?.amount).toBe(0);
+    expect(next.find((row) => row.paymentId === "pay-1")?.amount).toBe(10000);
+  });
+});
+
 describe("upsertAllocation", () => {
-  it("reverts to the choreography's default price when the last allocation goes", () => {
-    // Facundo Ledesma holds a single allocation and sits on `price-late`, while
-    // his choreography's default is `price-regular`.
+  it("writes nothing to the inscription when the last allocation goes", () => {
+    // #553 amended #549 and #550: the price **lock** is keyed on money, so it
+    // releases when the money leaves, but `selectedPriceId` keeps its last
+    // value instead of reverting to the choreography's default. The reverted
+    // value would never charge anyone — the price re-resolves on the next
+    // allocation write — so writing it answered a question needing no answer.
     const next = upsertAllocation(initialPrototypeState, {
       paymentId: "pay-2",
       inscriptionId: "ins-6",
       amount: 0,
     });
+    const inscription = next.inscriptions.find((row) => row.id === "ins-6");
 
+    expect(inscription?.selectedPriceId).toBe("price-late");
+    // And the lock is open again, which is the whole point of the gesture.
     expect(
-      next.inscriptions.find((row) => row.id === "ins-6")?.selectedPriceId,
-    ).toBe("price-regular");
+      readPriceLock(readInscriptions(next).find((row) => row.id === "ins-6")!)
+        .isLocked,
+    ).toBe(false);
   });
 
   it("keeps the price while any allocation survives", () => {

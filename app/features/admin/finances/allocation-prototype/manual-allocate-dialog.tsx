@@ -26,6 +26,7 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
+import { formatAmount } from "../formatters";
 import type { AllocationRejection } from "./allocation-rules";
 import type { InscriptionReading, PrototypeState } from "./fixtures";
 import { PriceSelect } from "./price-select";
@@ -37,6 +38,7 @@ export function ManualAllocateDialog({
   onClose,
   onSelectPrice,
   onAllocate,
+  onDeallocate,
 }: {
   inscription: InscriptionReading | null;
   state: PrototypeState;
@@ -47,6 +49,7 @@ export function ManualAllocateDialog({
     inscriptionId: string,
     amount: number,
   ) => AllocationRejection | null;
+  onDeallocate: (inscriptionId: string, amount: number) => void;
 }) {
   const [amount, setAmount] = useState("");
   const [rejection, setRejection] = useState<AllocationRejection | null>(null);
@@ -94,6 +97,14 @@ export function ManualAllocateDialog({
               <AlertDescription>{rejection.message}</AlertDescription>
             </Alert>
           ) : null}
+
+          <RemoveMoney
+            inscription={inscription}
+            onDeallocate={(removed) => {
+              onDeallocate(inscription.id, removed);
+              onClose();
+            }}
+          />
         </FieldGroup>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onClose}>
@@ -120,5 +131,67 @@ export function ManualAllocateDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * #553's two removal gestures, both keyed to an **inscription and an amount** —
+ * never to a payment. The rows unwind newest-first; lifting one specific payment
+ * off one inscription is the accepted cost, and a payment recorded in error is
+ * deleted instead.
+ *
+ * - **Quitar plata** opens with **everything allocated already filled in**,
+ *   because "get this off entirely" is the common case; typing less removes
+ *   less. This is also the way out of the price lock.
+ * - **Liberar el excedente** is a single button and appears only on a
+ *   `Sobreasignada` row: the amount is the excess, the rule picks the rows, and
+ *   there is nothing to type. The excess never returns on its own — `Saldo
+ *   disponible` is `totalPaid − Σ asignaciones`, so releasing it is what makes
+ *   the money spendable again, and doing that silently would let it exist twice.
+ */
+function RemoveMoney({
+  inscription,
+  onDeallocate,
+}: {
+  inscription: InscriptionReading;
+  onDeallocate: (amount: number) => void;
+}) {
+  const [amount, setAmount] = useState(String(inscription.allocatedAmount));
+
+  if (inscription.allocatedAmount === 0) {
+    return null;
+  }
+
+  return (
+    <Field>
+      <FieldLabel htmlFor="quitar">Quitar plata</FieldLabel>
+      <div className="flex items-center gap-2">
+        <Input
+          id="quitar"
+          inputMode="numeric"
+          className="tabular-nums"
+          value={amount}
+          onChange={(event) => setAmount(event.target.value.replace(/\D/g, ""))}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          disabled={amount === "" || Number(amount) === 0}
+          onClick={() => onDeallocate(Number(amount))}
+        >
+          Quitar
+        </Button>
+      </div>
+      {inscription.excessAmount > 0 ? (
+        <Button
+          type="button"
+          variant="secondary"
+          className="self-start"
+          onClick={() => onDeallocate(inscription.excessAmount)}
+        >
+          Liberar el excedente de {formatAmount(inscription.excessAmount)}
+        </Button>
+      ) : null}
+    </Field>
   );
 }

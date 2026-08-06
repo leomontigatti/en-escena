@@ -20,12 +20,12 @@ import {
   emitAmendment,
   emitComprobante,
   registerSibling,
-  releaseAllocations,
   withdrawSibling,
 } from "./roster-moves";
 import {
   rejectAllocation,
   spreadFromPool,
+  unwindToPool,
   type AllocationRejection,
 } from "./allocation-rules";
 import { readAcademy, readChoreographies } from "./rollup";
@@ -95,8 +95,26 @@ export function usePrototype() {
       current = emitComprobante(current, choreographyId);
       emit();
     },
-    onRelease: (inscriptionId: string) => {
-      current = releaseAllocations(current, inscriptionId);
+    /**
+     * #553's dialog A: an inscription and an amount, never a payment. The rows
+     * unwind newest-first and the money returns to `Saldo disponible`, which is
+     * a derivation, so nothing has to be credited anywhere.
+     */
+    onDeallocate: (inscriptionId: string, amount: number) => {
+      const inscription = inscriptions.find((row) => row.id === inscriptionId);
+
+      if (inscription === undefined || amount <= 0) {
+        return;
+      }
+
+      for (const allocation of unwindToPool(
+        inscription.allocations,
+        payments,
+        Math.min(amount, inscription.allocatedAmount),
+      )) {
+        current = upsertAllocation(current, allocation);
+      }
+
       emit();
     },
     onEmitAmendment: (choreographyId: string) => {
