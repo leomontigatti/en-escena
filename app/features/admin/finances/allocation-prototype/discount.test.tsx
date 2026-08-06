@@ -16,6 +16,7 @@ import {
   emitAmendment,
   emitComprobante,
   registerSibling,
+  releaseAllocations,
   withdrawSibling,
 } from "./roster-moves";
 
@@ -143,7 +144,49 @@ describe("dancer discount — the bill moves after emission", () => {
 });
 
 describe("a withdrawn inscription", () => {
-  it("stays readable when it holds money, at zero and marked Retirada", () => {
+  it("reads Sobreasignada while it still holds money, not Retirada", () => {
+    const markup = renderRouteView(
+      <AllocationDetailPrototypeView />,
+      detailPath,
+    );
+
+    // Nadia's row is withdrawn *and* unresolved: the money on it has to move.
+    // `Retirada` would say the matter is closed.
+    const row = markup.slice(
+      markup.indexOf("Nadia Coria"),
+      markup.indexOf("</tr>", markup.indexOf("Nadia Coria")),
+    );
+    expect(row).toContain("Sobreasignada");
+    expect(row).not.toContain("Retirada");
+  });
+
+  it("ends when the money is released and no factura names it", () => {
+    const released = releaseAllocations(initialPrototypeState, "ins-18");
+
+    // Nothing left to preserve: no money, no invoice line, no row.
+    expect(readInscriptions(released).some((row) => row.id === "ins-18")).toBe(
+      false,
+    );
+  });
+
+  it("reads Retirada once resolved, if a factura still names it", () => {
+    // Emitted first, so the inscription has a line; then the money moves away.
+    const emitted = emitComprobante(initialPrototypeState, "cho-1");
+    const resolved = releaseAllocations(
+      withdrawSibling(emitted, "ins-4"),
+      "ins-4",
+    );
+    const row = readInscriptions(resolved).find(
+      (inscription) => inscription.id === "ins-4",
+    );
+
+    expect(row?.withdrawnAt).not.toBe(null);
+    expect(row?.allocatedAmount).toBe(0);
+    // No excess left, so no anomaly: the badge that shows is the closing one.
+    expect(row?.excessAmount).toBe(0);
+  });
+
+  it("stays readable when it holds money, at zero and out of every figure", () => {
     // Nadia's row in «Reflejos» was given de baja with an allocation on it.
     const row = readInscriptions(initialPrototypeState).find(
       (inscription) => inscription.id === "ins-18",
@@ -160,7 +203,6 @@ describe("a withdrawn inscription", () => {
       detailPath,
     );
     expect(markup).toContain("Nadia Coria");
-    expect(markup).toContain("Retirada");
   });
 
   it("disappears entirely when there was no money on it", () => {

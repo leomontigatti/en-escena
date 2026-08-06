@@ -174,13 +174,10 @@ function TotalCell({ inscription }: { inscription: InscriptionReading }) {
 function StatusCell({ inscription }: { inscription: InscriptionReading }) {
   const anomalies = readInscriptionAnomalies(inscription);
 
-  // #600: `Retirada` is a separate derived axis, not a fourth status, and it
-  // **replaces** the badge — the row is out of every figure, so «Señada» would
-  // describe a demand that no longer exists.
-  if (inscription.withdrawnAt !== null) {
-    return <Badge variant="secondary">Retirada</Badge>;
-  }
-
+  // The anomaly outranks the withdrawal. A retired row that still holds money is
+  // **not resolved**: `Sobreasignada` says somebody has to move that money,
+  // `Retirada` says the matter is closed, and showing the closing word over an
+  // open problem is how the problem gets missed.
   if (anomalies.length > 0) {
     return (
       <div className="flex flex-wrap items-center gap-1">
@@ -191,6 +188,15 @@ function StatusCell({ inscription }: { inscription: InscriptionReading }) {
         ))}
       </div>
     );
+  }
+
+  // #600: `Retirada` is a separate derived axis, not a fourth status, and it
+  // **replaces** the badge — the row is out of every figure, so «Señada» would
+  // describe a demand that no longer exists. It appears only once there is
+  // nothing left to resolve: the money is gone and what keeps the row on screen
+  // is the invoice line. With neither, the row is not here at all.
+  if (inscription.withdrawnAt !== null) {
+    return <Badge variant="secondary">Retirada</Badge>;
   }
 
   return (

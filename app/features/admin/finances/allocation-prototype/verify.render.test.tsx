@@ -114,13 +114,14 @@ describe("allocation prototype", () => {
       "/administracion/finanzas/prototipo-asignacion/coreografia?coreografia=cho-1",
     );
 
-    // Nadia's row is `Retirada`, and that badge stands **instead of** a status:
-    // the two do not sit side by side, because a withdrawn row demands nothing.
+    // Nadia's row is withdrawn with money still on it, so `Sobreasignada`
+    // stands **instead of** a status: the badges do not sit side by side, and
+    // the one that shows is the one that needs an admin.
     const withdrawnRow = markup.slice(
       markup.indexOf("Nadia Coria"),
       markup.indexOf("</tr>", markup.indexOf("Nadia Coria")),
     );
-    expect(withdrawnRow).toContain("Retirada");
+    expect(withdrawnRow).toContain("Sobreasignada");
     expect(withdrawnRow).not.toContain("Seña pendiente");
     expect(withdrawnRow).not.toContain("Señada");
     expect(withdrawnRow).not.toContain("Pagada");

@@ -154,6 +154,19 @@ export function AllocationDetailPrototypeView() {
           >
             Inscribir a Delfina en «Ecos»
           </Button>
+          {/*
+            The other half of the withdrawal: Nadia's row is `Sobreasignada`
+            until her money moves, and once it does — with no factura naming
+            her — the row has nothing left to show and goes.
+          */}
+          <Button
+            type="button"
+            size="xs"
+            variant="secondary"
+            onClick={() => prototype.onRelease("ins-18")}
+          >
+            Liberar la plata de Nadia, dada de baja
+          </Button>
         </div>
 
         {/* Prototype-only: the real view reaches its siblings through the list. */}

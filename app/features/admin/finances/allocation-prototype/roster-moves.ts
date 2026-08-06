@@ -159,6 +159,28 @@ export function registerSibling(
 }
 
 /**
+ * Takes the money off an inscription and back to `Saldo disponible`, which is
+ * how a withdrawn row's over-allocation is resolved (#553: deallocation writes
+ * nothing to the inscription).
+ *
+ * On a withdrawn row it is also what **ends** the row: with the money gone and
+ * no invoice line, nothing is left to preserve, so it stops being readable
+ * altogether. `Retirada` only ever shows in the other case — a withdrawal an
+ * emitted factura still names.
+ */
+export function releaseAllocations(
+  state: PrototypeState,
+  inscriptionId: string,
+): PrototypeState {
+  return {
+    ...state,
+    allocations: state.allocations.filter(
+      (allocation) => allocation.inscriptionId !== inscriptionId,
+    ),
+  };
+}
+
+/**
  * Removal from a roster. **Conditional** (decision 21 as amended by #600): with
  * money or an invoice line on it the inscription is withdrawn and stays
  * readable; with neither there is nothing to preserve, so it is deleted

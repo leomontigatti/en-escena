@@ -20,6 +20,7 @@ import {
   emitAmendment,
   emitComprobante,
   registerSibling,
+  releaseAllocations,
   withdrawSibling,
 } from "./roster-moves";
 import {
@@ -81,6 +82,10 @@ export function usePrototype() {
      */
     onEmit: (choreographyId: string) => {
       current = emitComprobante(current, choreographyId);
+      emit();
+    },
+    onRelease: (inscriptionId: string) => {
+      current = releaseAllocations(current, inscriptionId);
       emit();
     },
     onEmitAmendment: (choreographyId: string) => {
