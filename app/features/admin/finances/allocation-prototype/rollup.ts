@@ -9,35 +9,38 @@
 import type {
   InscriptionFinancialStatus,
   InscriptionReading,
+  PrototypeComprobante,
   PrototypeState,
 } from "./fixtures";
 
 /**
- * #551's anomalies, minus `orphanedAllocations`: it meant money sitting on an
- * inscription with no price to measure it against, and that cannot happen now
- * that `selectedPriceId` is never null.
+ * **One anomaly is left, and the slot is otherwise empty.**
+ *
+ * - `orphanedAllocations` meant money on an inscription with no price to measure
+ *   it against, impossible now that `selectedPriceId` is never null (#550/#553).
+ * - `groupTypeMismatch` — #551's replacement — is **deleted by #586**: a
+ *   `groupType` change refreshes `selectedPriceId` on the roster write, so the
+ *   model cannot produce a price of the wrong group type. It is not merely
+ *   unshown here; it cannot happen.
  */
-export type ChoreographyAnomaly = "groupTypeMismatch" | "overAllocated";
+export type ChoreographyAnomaly = "overAllocated";
 
 export const choreographyAnomalyLabels = {
-  groupTypeMismatch: "Precios de otro tipo de grupo",
   overAllocated: "Inscripciones sobreasignadas",
 } as const satisfies Record<ChoreographyAnomaly, string>;
 
 /**
- * The same two anomalies read on a **single** inscription: singular, and worded
- * to echo the list's labels so the same problem is recognisable in both places.
+ * The same anomaly read on a **single** inscription: singular, and worded to
+ * echo the list's label so the same problem is recognisable in both places.
  */
 export const inscriptionAnomalyLabels = {
-  groupTypeMismatch: "Precio de otro tipo de grupo",
   overAllocated: "Sobreasignada",
 } as const satisfies Record<ChoreographyAnomaly, string>;
 
 export function readInscriptionAnomalies(
-  groupType: string,
   row: InscriptionReading,
 ): ChoreographyAnomaly[] {
-  return readAnomalies(groupType, [row]);
+  return readAnomalies([row]);
 }
 
 export type ChoreographyReading = {
@@ -53,6 +56,15 @@ export type ChoreographyReading = {
   /** The **minimum** across inscriptions, not a high-water mark (#551). */
   status: InscriptionFinancialStatus | null;
   anomalies: ChoreographyAnomaly[];
+  /** #585: the factura, and the gap it has opened since it was emitted. */
+  comprobante: PrototypeComprobante | null;
+  documentedTotal: number | null;
+  /**
+   * #599: `documented ≠ derived`, and the **sign names the document** — positive
+   * owes a nota de débito, negative a nota de crédito. Zero while nothing has
+   * moved, and zero while nothing has been emitted.
+   */
+  delta: number;
 };
 
 const statusRank = {
@@ -71,14 +83,25 @@ export function readChoreographies(
     );
 
     const statuses = rows.map((row) => row.status);
+    const totalAmount = sumBy(rows, (row) => row.totalAmount);
+    const documentedTotal =
+      choreography.comprobante === null
+        ? null
+        : choreography.comprobante.lines.reduce(
+            (total, line) => total + line.amount,
+            0,
+          );
 
     return {
       id: choreography.id,
       name: choreography.name,
       groupType: choreography.groupType,
       inscriptions: rows,
+      comprobante: choreography.comprobante,
+      documentedTotal,
+      delta: documentedTotal === null ? 0 : totalAmount - documentedTotal,
       depositAmount: sumBy(rows, (row) => row.depositAmount),
-      totalAmount: sumBy(rows, (row) => row.totalAmount),
+      totalAmount,
       allocatedAmount: sumBy(rows, (row) => row.allocatedAmount),
       owedDepositAmount: sumBy(rows, (row) => row.owedDepositAmount),
       owedBalanceAmount: sumBy(rows, (row) => row.owedBalanceAmount),
@@ -89,7 +112,7 @@ export function readChoreographies(
           : statuses.reduce((lowest, status) =>
               statusRank[status] < statusRank[lowest] ? status : lowest,
             ),
-      anomalies: readAnomalies(choreography.groupType, rows),
+      anomalies: readAnomalies(rows),
     };
   });
 }
@@ -100,23 +123,16 @@ export function readChoreographies(
  * a conflict resolver — there is no acknowledgement to persist, so the only way
  * it helps is by saying exactly what to fix.
  */
-export function readAnomalyTargets(
-  groupType: string,
-  rows: InscriptionReading[],
-) {
+export function readAnomalyTargets(rows: InscriptionReading[]) {
   return {
-    // A choreography has exactly one `groupType`, so a single inscription
-    // pointing at a price of another type is enough for divergence to exist.
-    groupTypeMismatch: rows.filter((row) => row.priceGroupType !== groupType),
+    // A withdrawn inscription owes zero and still holds money, so it **is**
+    // over-allocated (#600). That is the anomaly working, not a false positive.
     overAllocated: rows.filter((row) => row.excessAmount > 0),
   };
 }
 
-function readAnomalies(
-  groupType: string,
-  rows: InscriptionReading[],
-): ChoreographyAnomaly[] {
-  const targets = readAnomalyTargets(groupType, rows);
+function readAnomalies(rows: InscriptionReading[]): ChoreographyAnomaly[] {
+  const targets = readAnomalyTargets(rows);
 
   return (
     Object.keys(targets) as (keyof ReturnType<typeof readAnomalyTargets>)[]

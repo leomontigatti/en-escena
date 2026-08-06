@@ -10,6 +10,10 @@ import {
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  getParticipationBadgeVariant,
+  getParticipationLabel,
+} from "@/lib/participation/participation.shared";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
 import { useServerActionToast } from "@/lib/shared/toasts";
 import { usePortalRecordTitleLinkTransitionStyle } from "@/lib/shared/view-transitions";
@@ -238,20 +242,17 @@ function formatProfessorDocument(professor: ProfessorRow) {
 }
 
 function getProfessorStateBadges(professor: ProfessorRow) {
-  const badges: ProfessorBadge[] = [
-    {
-      label: getPortalProfessorParticipationLabel(
-        professor.participationStatus,
-      ),
-      variant:
-        professor.participationStatus === "participating"
-          ? ("success" as const)
-          : ("secondary" as const),
-    },
-  ];
+  const badges: ProfessorBadge[] = [];
 
   if (!professor.active) {
-    badges.unshift({ label: "Archivado", variant: "destructive" as const });
+    badges.push({ label: "Archivado", variant: "destructive" as const });
+  }
+
+  if (professor.participationStatus !== "no-event") {
+    badges.push({
+      label: getParticipationLabel(professor.participationStatus),
+      variant: getParticipationBadgeVariant(professor.participationStatus),
+    });
   }
 
   badges.push(
@@ -261,14 +262,4 @@ function getProfessorStateBadges(professor: ProfessorRow) {
   );
 
   return badges;
-}
-
-function getPortalProfessorParticipationLabel(
-  status: ProfessorRow["participationStatus"],
-) {
-  if (status === "participating") {
-    return "Participando";
-  }
-
-  return "No participando";
 }

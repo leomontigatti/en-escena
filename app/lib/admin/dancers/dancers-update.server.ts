@@ -2,8 +2,6 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { dancers } from "@/db/schema";
-import { createAdministrativeDancerAuditEntry } from "@/lib/admin/dancers/dancers-audit.server";
-import { createAdministrativeChoreographyAuditEntry } from "@/lib/choreographies/choreography-audit.server";
 import {
   findDancerForMutation,
   toDancerSnapshot,
@@ -24,7 +22,6 @@ import {
 } from "@/lib/dancers/dancer-records.server";
 
 export async function updateAdministrativeDancer(input: {
-  adminUserId: string;
   dancerId: string;
   selectedEventId: string | null;
   values: DancerUpdateInput;
@@ -85,7 +82,6 @@ export async function updateAdministrativeDancer(input: {
     }
   }
 
-  const beforeValues = toDancerSnapshot(existingDancer);
   const birthDateChanged =
     existingDancer.birthDate !== normalizedValues.birthDate;
   const linkedChoreographyEventBases = birthDateChanged
@@ -114,44 +110,20 @@ export async function updateAdministrativeDancer(input: {
       .returning();
 
     if (birthDateChanged) {
-      const choreographyChanges =
-        await recalculateLinkedChoreographiesForDancerBirthDateCorrection({
-          dancerId: existingDancer.id,
-          executor: tx,
-          eventBasesByEventId: linkedChoreographyEventBases,
-        });
-
-      for (const choreographyChange of choreographyChanges) {
-        await createAdministrativeChoreographyAuditEntry({
-          choreographyId: choreographyChange.choreographyId,
-          eventId: choreographyChange.eventId,
-          adminUserId: input.adminUserId,
-          reason: null,
-          beforeValues: choreographyChange.beforeValues,
-          afterValues: choreographyChange.afterValues,
-          executor: tx,
-        });
-      }
+      await recalculateLinkedChoreographiesForDancerBirthDateCorrection({
+        dancerId: existingDancer.id,
+        executor: tx,
+        eventBasesByEventId: linkedChoreographyEventBases,
+      });
     }
-
-    await createAdministrativeDancerAuditEntry({
-      action: "update",
-      adminUserId: input.adminUserId,
-      afterValues: toDancerSnapshot(savedDancer),
-      beforeValues,
-      dancerId: existingDancer.id,
-      eventId: input.selectedEventId,
-      executor: tx,
-      reason: null,
-    });
 
     return savedDancer;
   });
-  const afterValues = toDancerSnapshot(updatedDancer);
+  const savedSnapshot = toDancerSnapshot(updatedDancer);
 
   return {
     ok: true,
-    dancer: afterValues,
+    dancer: savedSnapshot,
     verificationInvalidated: existingDancer.identityVerifiedAt !== null,
   };
 }

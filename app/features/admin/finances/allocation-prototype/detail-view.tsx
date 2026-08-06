@@ -21,8 +21,9 @@
  *   allocation is resolved **per inscription**, from the row action. The old
  *   per-row instance actions of the same name are gone — they were ladder rungs.
  * - **Anomalies are alerts, not badges**, sitting above the metric cards: an
- *   over-allocation or a price of the wrong group type is a must-fix problem,
- *   not a way a row can be. The copy is generic — it does not enumerate rows.
+ *   over-allocation is a must-fix problem, not a way a row can be. The copy is
+ *   generic — it does not enumerate rows. (`groupTypeMismatch` was the other
+ *   one; #586 deleted it, and the slot is now empty.)
  * - **No search box**: a choreography's roster is short enough to read.
  * - The dancer's name opens the allocate dialog from **row state**, the way
  *   `DancerNameCell` already does it in the real view.
@@ -30,18 +31,22 @@
  * Declared exception: no loader, no `action`, no server validation. The data is
  * a fixture, because the allocation table's shape is still open in #549.
  */
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import { ClientDataTable } from "@/components/shared/client-data-table";
 import { MetricCard } from "@/components/shared/metric-card";
+import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 import { formatAmount } from "../formatters";
 import { ChoreographyAnomalyAlerts } from "./anomaly-alerts";
 import { inscriptionColumns } from "./detail-table";
 import type { InscriptionReading } from "./fixtures";
+import { ComprobanteStrip, MovementAlert } from "./movement-alert";
+import type { ChoreographyReading } from "./rollup";
 import { StateReadout } from "./state-readout";
 import { usePrototype } from "./store";
 
@@ -58,8 +63,9 @@ export function AllocationDetailPrototypeView() {
   return (
     <AdminResourceLayout
       title={`${choreography.name} · ${choreography.groupType}`}
-      description="Detalle financiero de una coreografía. Prototipo descartable del ticket #550; los datos están en memoria y no se guarda nada."
+      description="Detalle financiero de una coreografía. Prototipo descartable de los tickets #550 y #585; los datos están en memoria y no se guarda nada."
       requireSelectedEvent={false}
+      headerAction={<ChoreographyActions choreography={choreography} />}
     >
       <div className="flex flex-col gap-6 pb-24">
         <Alert>
@@ -72,10 +78,11 @@ export function AllocationDetailPrototypeView() {
         </Alert>
 
         {/* Above the metric cards, where the badges used to sit. */}
-        <ChoreographyAnomalyAlerts
-          groupType={choreography.groupType}
-          inscriptions={choreography.inscriptions}
-        />
+        <ChoreographyAnomalyAlerts inscriptions={choreography.inscriptions} />
+
+        <MovementAlert choreography={choreography} />
+
+        <ComprobanteStrip choreography={choreography} />
 
         <section className="grid gap-4 md:grid-cols-3 xl:grid-cols-5">
           <MetricCard
@@ -117,6 +124,40 @@ export function AllocationDetailPrototypeView() {
           hidePagination
         />
 
+        {/*
+          Prototype-only: the roster of *other* choreographies is what moves this
+          one's bill, and there is no other way to see it happen.
+        */}
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed p-3">
+          <span className="text-xs font-medium text-muted-foreground">
+            Mover el elenco en otra coreografía
+          </span>
+          <Button
+            type="button"
+            size="xs"
+            variant="secondary"
+            onClick={() => prototype.onRegisterSibling("dan-emilia", "cho-5")}
+          >
+            Reinscribir a Emilia en «Brisa»
+          </Button>
+          <Button
+            type="button"
+            size="xs"
+            variant="secondary"
+            onClick={() => prototype.onWithdrawSibling("ins-11")}
+          >
+            Dar de baja a Ana en «Ecos»
+          </Button>
+          <Button
+            type="button"
+            size="xs"
+            variant="secondary"
+            onClick={() => prototype.onRegisterSibling("dan-delfina", "cho-4")}
+          >
+            Inscribir a Delfina en «Ecos»
+          </Button>
+        </div>
+
         {/* Prototype-only: the real view reaches its siblings through the list. */}
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed p-3">
           <span className="text-xs font-medium text-muted-foreground">
@@ -145,5 +186,82 @@ export function AllocationDetailPrototypeView() {
         <StateReadout />
       </div>
     </AdminResourceLayout>
+  );
+}
+
+/**
+ * The header actions menu, where the real view already keeps `Emitir factura`
+ * (`choreography-detail/view.tsx:289-310`).
+ *
+ * **`Ver factura` appears only once a comprobante exists** — it is not a disabled
+ * item, because there is nothing to enable: the document either was emitted or
+ * was not. The two are mutually exclusive for the same reason decision 16 gives
+ * — **one factura per choreography** — so the menu never offers both at once.
+ *
+ * It **navigates** rather than printing. Printing is one thing you might want to
+ * do with a document, and the least informative: the emitted factura has a
+ * status, a detail, and — once anything moves — a list of the notas that
+ * adjusted it (#554), none of which fits in a menu item. Printing lives on that
+ * screen, next to the thing being printed.
+ *
+ * **The amendment sits below `Imprimir factura`, and only when one is owed.**
+ * There is a single item, never a pair to choose between: the sign of the delta
+ * names the document (#599), so offering both would invite the admin to pick the
+ * wrong one. Before emission the item is present and **disabled with no reason
+ * appended** — a menu label is not the place to teach the rule, and the
+ * emptiness reads plainly enough.
+ */
+function ChoreographyActions({
+  choreography,
+}: {
+  choreography: ChoreographyReading;
+}) {
+  const prototype = usePrototype();
+  const hasComprobante = choreography.comprobante !== null;
+  // Decision 15: `Señada` is the gate, and it is a **minimum** across the
+  // roster (#551), so one inscription short of its deposit blocks emission.
+  const canEmit =
+    !hasComprobante &&
+    choreography.status !== null &&
+    choreography.status !== "depositPending" &&
+    choreography.totalAmount > 0;
+
+  return (
+    <ResourceActionsMenu contentClassName="w-56">
+      {canEmit ? (
+        <DropdownMenuItem
+          onSelect={(event) => {
+            event.preventDefault();
+            prototype.onEmit(choreography.id);
+          }}
+        >
+          Emitir factura
+        </DropdownMenuItem>
+      ) : null}
+      {hasComprobante ? (
+        <DropdownMenuItem asChild>
+          <Link
+            to={`/administracion/finanzas/prototipo-asignacion/comprobante?coreografia=${choreography.id}`}
+          >
+            Ver factura
+          </Link>
+        </DropdownMenuItem>
+      ) : null}
+      {hasComprobante && choreography.delta !== 0 ? (
+        <DropdownMenuItem
+          onSelect={(event) => {
+            event.preventDefault();
+            prototype.onEmitAmendment(choreography.id);
+          }}
+        >
+          {choreography.delta > 0
+            ? "Emitir nota de débito"
+            : "Emitir nota de crédito"}
+        </DropdownMenuItem>
+      ) : null}
+      {!canEmit && !hasComprobante ? (
+        <DropdownMenuItem disabled>Emitir factura</DropdownMenuItem>
+      ) : null}
+    </ResourceActionsMenu>
   );
 }

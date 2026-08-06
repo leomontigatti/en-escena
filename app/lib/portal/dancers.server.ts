@@ -18,6 +18,10 @@ import {
   recalculateLinkedChoreographiesForDancerBirthDateCorrection,
 } from "@/lib/choreographies/dancer-birthdate-correction.server";
 import { buildDancerEventParticipationSql } from "@/lib/participation/participation.server";
+import {
+  type ParticipationStatus,
+  toParticipationStatus,
+} from "@/lib/participation/participation.shared";
 
 export type PortalDancerListItem = {
   id: string;
@@ -28,7 +32,7 @@ export type PortalDancerListItem = {
   documentType: string | null;
   documentNumber: string | null;
   verificationStatus: DancerVerificationStatus;
-  participationStatus: PortalParticipationStatus;
+  participationStatus: ParticipationStatus;
 };
 
 export type CreateDancerInput = {
@@ -66,11 +70,6 @@ export type CreateDancerResult =
 
 export type UpdateDancerField = keyof UpdateDancerInput;
 type PortalDancerStatusFilter = "active" | "archived" | "all";
-export type PortalParticipationStatus =
-  | "participating"
-  | "not-participating"
-  | "no-event";
-
 export type UpdateDancerResult =
   | { ok: true; dancer: typeof dancers.$inferSelect }
   | {
@@ -135,17 +134,6 @@ export async function countActiveDancersForAcademy(academyId: string) {
     .where(getDancerListWhere(academyId, "active"));
 
   return Number(count);
-}
-
-function toParticipationStatus(
-  selectedEventId: string | null,
-  isParticipating: boolean,
-): PortalParticipationStatus {
-  if (selectedEventId === null) {
-    return "no-event";
-  }
-
-  return isParticipating ? "participating" : "not-participating";
 }
 
 function getDancerListWhere(

@@ -13,12 +13,18 @@
  * no `Sin precio` status and no tentative-for-lack-of-price figure.
  */
 
+import { readDancerDiscount, type DancerDiscountProvenance } from "./discount";
+
 export type PrototypePriceRow = {
   id: string;
   name: string;
   amount: number;
   paymentDeadline: string;
-  /** Needed for `groupTypeMismatch`, the anomaly #551 defined. */
+  /**
+   * Only picks the menu of rows applicable to a choreography. It is no longer an
+   * anomaly source: #586 deleted `groupTypeMismatch` by refreshing the price
+   * when the `groupType` changes, so a mismatch cannot survive a roster write.
+   */
   groupType: string;
 };
 
@@ -36,12 +42,51 @@ export type PrototypeAllocation = {
   amount: number;
 };
 
+export type PrototypeDancer = {
+  id: string;
+  name: string;
+};
+
 export type PrototypeInscription = {
   id: string;
   choreographyId: string;
-  dancerName: string;
+  /**
+   * #585: the dancer has an **identity**, not just a name on this row. The
+   * discount is earned by all of this dancer's registered inscriptions in the
+   * academy and event, so the same person has to be recognisable across
+   * choreographies.
+   */
+  dancerId: string;
   selectedPriceId: string;
-  dancerDiscountAmount: number;
+  /**
+   * Soft withdrawal (decision 21, as amended by #600). It drops out of the
+   * qualifying set and out of every rollup, but **it does not disappear**: the
+   * row exists precisely because it holds evidence — money or an invoice line —
+   * and a removal with neither is a hard delete instead.
+   */
+  withdrawnAt: string | null;
+};
+
+/** An ND or an NC, hanging off the factura: #599's star-shaped amendment chain. */
+export type PrototypeAmendment = {
+  label: string;
+  emittedOn: string;
+  /** Signed: positive was a débito, negative a crédito. */
+  amount: number;
+};
+
+/** One line per inscription, at the net amount — #554's printed shape. */
+export type PrototypeComprobanteLine = {
+  inscriptionId: string;
+  amount: number;
+};
+
+export type PrototypeComprobante = {
+  label: string;
+  emittedOn: string;
+  lines: PrototypeComprobanteLine[];
+  /** Emitted amendments, newest last. Each one closes the delta of its moment. */
+  amendments: PrototypeAmendment[];
 };
 
 export type PrototypeChoreography = {
@@ -50,12 +95,15 @@ export type PrototypeChoreography = {
   groupType: string;
   /** Resolved when the choreography is created; an inscription falls back here. */
   defaultPriceId: string;
+  /** `null` until the choreography is `Señada` and billed (decision 15). */
+  comprobante: PrototypeComprobante | null;
 };
 
 export type PrototypeState = {
   requiredDepositPercentage: number;
   prices: PrototypePriceRow[];
   payments: PrototypePayment[];
+  dancers: PrototypeDancer[];
   choreographies: PrototypeChoreography[];
   inscriptions: PrototypeInscription[];
   allocations: PrototypeAllocation[];
@@ -118,100 +166,207 @@ export const initialPrototypeState: PrototypeState = {
       method: "Efectivo",
     },
   ],
+  dancers: [
+    { id: "dan-ana", name: "Ana Rivas" },
+    { id: "dan-bruno", name: "Bruno Salas" },
+    { id: "dan-camila", name: "Camila Duarte" },
+    { id: "dan-delfina", name: "Delfina Ojeda" },
+    { id: "dan-emilia", name: "Emilia Ponce" },
+    { id: "dan-facundo", name: "Facundo Ledesma" },
+    { id: "dan-gala", name: "Gala Iriarte" },
+    { id: "dan-julian", name: "Julián Mora" },
+    { id: "dan-nadia", name: "Nadia Coria" },
+  ],
   choreographies: [
     {
       id: "cho-1",
       name: "Reflejos",
       groupType: "Grupo",
       defaultPriceId: "price-regular",
+      comprobante: null,
     },
     {
       id: "cho-2",
       name: "Umbral",
       groupType: "Dúo",
       defaultPriceId: "price-duo",
+      comprobante: null,
     },
     {
       id: "cho-3",
       name: "Vértigo",
       groupType: "Grupo",
       defaultPriceId: "price-early",
+      comprobante: null,
+    },
+    // #585: two more choreographies with no money on them, purely so a dancer's
+    // qualifying set spans more than what any one screen shows.
+    {
+      id: "cho-4",
+      name: "Ecos",
+      groupType: "Grupo",
+      defaultPriceId: "price-early",
+      comprobante: null,
+    },
+    {
+      id: "cho-5",
+      name: "Brisa",
+      groupType: "Grupo",
+      defaultPriceId: "price-early",
+      comprobante: null,
     },
   ],
   inscriptions: [
     // A deliberately uneven roster: untouched, below the threshold, over the
-    // threshold, settled, and one price of the wrong group type.
+    // threshold, settled, and one withdrawn row that still holds money.
+    //
+    // #585 added the second axis — who each dancer *also* is elsewhere:
+    //
+    // - **Ana** — 3 inscriptions, 10 %, and her most expensive is the dúo in
+    //   «Umbral», so the exclusion is held off-screen and this row keeps it.
+    // - **Bruno** — 4 inscriptions, 15 %, but this one *is* his most expensive,
+    //   so he reads `$ 0` on a row identical to Ana's, which reads 10 %.
+    // - **Camila** — 3 inscriptions all at the same price, so «la más cara»
+    //   picks one of three identical numbers and she keeps her discount.
+    // - **Emilia** — 3 inscriptions, one **dada de baja** with money on it, so
+    //   she drops to 2 and the discount is gone. That withdrawal is in another
+    //   choreography; **Nadia**'s is in this one, so the row is on screen.
+    // - **Delfina**, **Facundo**, **Gala**, **Julián** — one each: the plain
+    //   case, and the zero that needs no explanation.
     {
       id: "ins-1",
       choreographyId: "cho-1",
-      dancerName: "Ana Rivas",
+      dancerId: "dan-ana",
       selectedPriceId: "price-regular",
-      dancerDiscountAmount: 0,
+      withdrawnAt: null,
     },
     {
       id: "ins-2",
       choreographyId: "cho-1",
-      dancerName: "Bruno Salas",
+      dancerId: "dan-bruno",
       selectedPriceId: "price-regular",
-      dancerDiscountAmount: 5200,
+      withdrawnAt: null,
     },
     {
       id: "ins-3",
       choreographyId: "cho-1",
-      dancerName: "Camila Duarte",
+      dancerId: "dan-camila",
       selectedPriceId: "price-early",
-      dancerDiscountAmount: 0,
+      withdrawnAt: null,
     },
     {
       id: "ins-4",
       choreographyId: "cho-1",
-      dancerName: "Delfina Ojeda",
+      dancerId: "dan-delfina",
       selectedPriceId: "price-regular",
-      dancerDiscountAmount: 0,
+      withdrawnAt: null,
     },
     {
       id: "ins-5",
       choreographyId: "cho-1",
-      dancerName: "Emilia Ponce",
+      dancerId: "dan-emilia",
       selectedPriceId: "price-regular",
-      dancerDiscountAmount: 0,
+      withdrawnAt: null,
     },
     {
       id: "ins-6",
       choreographyId: "cho-1",
-      dancerName: "Facundo Ledesma",
+      dancerId: "dan-facundo",
       selectedPriceId: "price-late",
-      dancerDiscountAmount: 0,
+      withdrawnAt: null,
     },
     {
       id: "ins-7",
       choreographyId: "cho-2",
-      dancerName: "Gala Iriarte",
+      dancerId: "dan-gala",
+      selectedPriceId: "price-duo",
+      withdrawnAt: null,
+    },
+    // #600: given de baja with money already on it, so it is withdrawn rather
+    // than deleted — and it stays on the roster, because that allocation is the
+    // only thing that explains where the academy's money went.
+    {
+      id: "ins-18",
+      choreographyId: "cho-1",
+      dancerId: "dan-nadia",
       selectedPriceId: "price-regular",
-      dancerDiscountAmount: 7800,
+      withdrawnAt: "2026-07-30",
     },
     {
       id: "ins-8",
       choreographyId: "cho-2",
-      dancerName: "Hernán Vidal",
+      dancerId: "dan-ana",
       selectedPriceId: "price-duo",
-      dancerDiscountAmount: 0,
+      withdrawnAt: null,
     },
     // A choreography that is up to date: gives the list a `Pagada` row to
     // compare against, and proves the bulk action excludes it on its own.
     {
       id: "ins-9",
       choreographyId: "cho-3",
-      dancerName: "Irina Costa",
+      dancerId: "dan-bruno",
       selectedPriceId: "price-early",
-      dancerDiscountAmount: 0,
+      withdrawnAt: null,
     },
     {
       id: "ins-10",
       choreographyId: "cho-3",
-      dancerName: "Julián Mora",
+      dancerId: "dan-julian",
       selectedPriceId: "price-early",
-      dancerDiscountAmount: 0,
+      withdrawnAt: null,
+    },
+    // No allocations on any of these: they exist to be *counted*, which is
+    // exactly the point — a tier is earned by registration, before any money.
+    {
+      id: "ins-11",
+      choreographyId: "cho-4",
+      dancerId: "dan-ana",
+      selectedPriceId: "price-early",
+      withdrawnAt: null,
+    },
+    {
+      id: "ins-12",
+      choreographyId: "cho-4",
+      dancerId: "dan-bruno",
+      selectedPriceId: "price-early",
+      withdrawnAt: null,
+    },
+    {
+      id: "ins-13",
+      choreographyId: "cho-5",
+      dancerId: "dan-bruno",
+      selectedPriceId: "price-early",
+      withdrawnAt: null,
+    },
+    {
+      id: "ins-14",
+      choreographyId: "cho-4",
+      dancerId: "dan-camila",
+      selectedPriceId: "price-early",
+      withdrawnAt: null,
+    },
+    {
+      id: "ins-15",
+      choreographyId: "cho-5",
+      dancerId: "dan-camila",
+      selectedPriceId: "price-early",
+      withdrawnAt: null,
+    },
+    {
+      id: "ins-16",
+      choreographyId: "cho-5",
+      dancerId: "dan-emilia",
+      // Her most expensive, so reviving this one gives *this* choreography the
+      // discount rather than taking the exclusion away from it.
+      selectedPriceId: "price-late",
+      withdrawnAt: "2026-07-28",
+    },
+    {
+      id: "ins-17",
+      choreographyId: "cho-4",
+      dancerId: "dan-emilia",
+      selectedPriceId: "price-early",
+      withdrawnAt: null,
     },
   ],
   allocations: [
@@ -219,11 +374,16 @@ export const initialPrototypeState: PrototypeState = {
     { paymentId: "pay-1", inscriptionId: "ins-2", amount: 20000 },
     { paymentId: "pay-1", inscriptionId: "ins-3", amount: 12000 },
     { paymentId: "pay-2", inscriptionId: "ins-3", amount: 6000 },
+    { paymentId: "pay-1", inscriptionId: "ins-4", amount: 15600 },
     { paymentId: "pay-1", inscriptionId: "ins-5", amount: 15600 },
     { paymentId: "pay-2", inscriptionId: "ins-6", amount: 70000 },
     { paymentId: "pay-1", inscriptionId: "ins-7", amount: 4000 },
     { paymentId: "pay-1", inscriptionId: "ins-9", amount: 42000 },
     { paymentId: "pay-1", inscriptionId: "ins-10", amount: 42000 },
+    // The two withdrawn rows' money: what makes each of them a withdrawal
+    // instead of a delete (#600).
+    { paymentId: "pay-2", inscriptionId: "ins-18", amount: 15600 },
+    { paymentId: "pay-3", inscriptionId: "ins-16", amount: 19200 },
   ],
 };
 
@@ -237,11 +397,12 @@ export type InscriptionReading = {
   id: string;
   choreographyId: string;
   choreographyName: string;
+  dancerId: string;
   dancerName: string;
   selectedPriceId: string;
   priceName: string;
   priceAmount: number;
-  /** The chosen price's group type, for #551's `groupTypeMismatch`. */
+  /** Only to name the row's price row; no longer an anomaly source (#586). */
   priceGroupType: string;
   discountAmount: number;
   /** #551: the discount is applied **once**, in here. */
@@ -260,53 +421,108 @@ export type InscriptionReading = {
   excessAmount: number;
   status: InscriptionFinancialStatus;
   allocations: PrototypeAllocation[];
+  /** #585: where the discount comes from, never just how much it is. */
+  provenance: DancerDiscountProvenance;
+  /** What the emitted factura says this inscription costs, if one exists. */
+  documentedAmount: number | null;
+  /**
+   * #600: the row is `Retirada` — a **separate derived axis**, which replaces
+   * the status badge rather than becoming a fourth status.
+   */
+  withdrawnAt: string | null;
 };
 
+/**
+ * A withdrawn inscription is **out of every figure and still on the screen**
+ * ([#600](https://github.com/leomontigatti/en-escena/issues/600)): it owes zero,
+ * counts for nothing in the qualifying set and adds nothing to the rollup, but
+ * it keeps the money already allocated to it — which is the only thing on any
+ * surface that explains where that money went. A removal that had neither money
+ * nor an invoice line is a hard delete instead, so a withdrawn row without
+ * evidence cannot exist and is not rendered.
+ */
 export function readInscriptions(state: PrototypeState): InscriptionReading[] {
-  return state.inscriptions.map((inscription) => {
-    const choreography = state.choreographies.find(
-      (row) => row.id === inscription.choreographyId,
-    );
-    const price = state.prices.find(
-      (row) => row.id === inscription.selectedPriceId,
-    );
+  return state.inscriptions
+    .filter(
+      (inscription) =>
+        inscription.withdrawnAt === null || hasEvidence(state, inscription),
+    )
+    .map((inscription) => {
+      const choreography = state.choreographies.find(
+        (row) => row.id === inscription.choreographyId,
+      );
+      const price = state.prices.find(
+        (row) => row.id === inscription.selectedPriceId,
+      );
 
-    if (price === undefined) {
-      throw new Error(`inscription ${inscription.id} has no price`);
-    }
+      if (price === undefined) {
+        throw new Error(`inscription ${inscription.id} has no price`);
+      }
 
-    const allocations = state.allocations.filter(
+      const allocations = state.allocations.filter(
+        (allocation) => allocation.inscriptionId === inscription.id,
+      );
+      const allocatedAmount = sumAmounts(allocations);
+      const provenance = readDancerDiscount(
+        state,
+        inscription.dancerId,
+        inscription.id,
+      );
+      // A withdrawn row is owed nothing and demands nothing: the figures go to
+      // zero and only the money already on it survives (#600).
+      const isWithdrawn = inscription.withdrawnAt !== null;
+      const totalAmount = isWithdrawn
+        ? 0
+        : Math.max(0, price.amount - provenance.discountAmount);
+      const depositAmount = isWithdrawn
+        ? 0
+        : Math.round((price.amount * state.requiredDepositPercentage) / 100);
+
+      return {
+        id: inscription.id,
+        choreographyId: inscription.choreographyId,
+        choreographyName: choreography?.name ?? "",
+        dancerId: inscription.dancerId,
+        dancerName: provenance.dancerName,
+        selectedPriceId: inscription.selectedPriceId,
+        priceName: price.name,
+        priceAmount: price.amount,
+        priceGroupType: price.groupType,
+        discountAmount: provenance.discountAmount,
+        provenance,
+        documentedAmount:
+          choreography?.comprobante?.lines.find(
+            (line) => line.inscriptionId === inscription.id,
+          )?.amount ?? null,
+        totalAmount,
+        depositAmount,
+        allocatedAmount,
+        owedDepositAmount: Math.max(0, depositAmount - allocatedAmount),
+        owedBalanceAmount: Math.max(0, totalAmount - allocatedAmount),
+        excessAmount: Math.max(0, allocatedAmount - totalAmount),
+        status: readStatus({ allocatedAmount, depositAmount, totalAmount }),
+        withdrawnAt: inscription.withdrawnAt,
+        allocations,
+      };
+    });
+}
+
+/**
+ * #600's predicate: money or an invoice line. It is what decides whether a
+ * removal withdraws or deletes, so it is also what decides whether a withdrawn
+ * row can be read at all.
+ */
+function hasEvidence(state: PrototypeState, inscription: PrototypeInscription) {
+  return (
+    state.allocations.some(
       (allocation) => allocation.inscriptionId === inscription.id,
-    );
-    const allocatedAmount = sumAmounts(allocations);
-    const totalAmount = Math.max(
-      0,
-      price.amount - inscription.dancerDiscountAmount,
-    );
-    const depositAmount = Math.round(
-      (price.amount * state.requiredDepositPercentage) / 100,
-    );
-
-    return {
-      id: inscription.id,
-      choreographyId: inscription.choreographyId,
-      choreographyName: choreography?.name ?? "",
-      dancerName: inscription.dancerName,
-      selectedPriceId: inscription.selectedPriceId,
-      priceName: price.name,
-      priceAmount: price.amount,
-      priceGroupType: price.groupType,
-      discountAmount: inscription.dancerDiscountAmount,
-      totalAmount,
-      depositAmount,
-      allocatedAmount,
-      owedDepositAmount: Math.max(0, depositAmount - allocatedAmount),
-      owedBalanceAmount: Math.max(0, totalAmount - allocatedAmount),
-      excessAmount: Math.max(0, allocatedAmount - totalAmount),
-      status: readStatus({ allocatedAmount, depositAmount, totalAmount }),
-      allocations,
-    };
-  });
+    ) ||
+    state.choreographies.some((choreography) =>
+      choreography.comprobante?.lines.some(
+        (line) => line.inscriptionId === inscription.id,
+      ),
+    )
+  );
 }
 
 function readStatus({
@@ -371,11 +587,13 @@ export function sumAmounts(allocations: { amount: number }[]) {
  * Upsert on `(payment, inscription)` with a mutable amount, the shape #549
  * decided. A zero amount deletes the row.
  *
- * And #549's mirror rule, which #551 handed to this surface to express:
- * **`selectedPriceId` clears when an inscription runs out of allocations.** The
- * price is chosen as part of putting money on an inscription, so an inscription
- * with no money has made no choice; it goes back to a tentative price and the
- * admin re-picks on the next allocation.
+ * **Deallocation writes nothing to the inscription** (#553 decision 6, amending
+ * #549 and #550). The prototype used to revert `selectedPriceId` to the
+ * choreography's default once the last allocation left. That is gone: the price
+ * **lock** is keyed on money, so it releases the instant the money does, and the
+ * reference simply keeps its last value. The reverted value was never used to
+ * charge anyone — the price re-resolves on the next allocation write — so
+ * writing it answered a question that needs no answer.
  */
 export function upsertAllocation(
   state: PrototypeState,
@@ -386,35 +604,11 @@ export function upsertAllocation(
       allocation.paymentId !== next.paymentId ||
       allocation.inscriptionId !== next.inscriptionId,
   );
-  const allocations = next.amount > 0 ? [...rest, next] : rest;
-  const ranOutOfAllocations = !allocations.some(
-    (allocation) => allocation.inscriptionId === next.inscriptionId,
-  );
 
   return {
     ...state,
-    allocations,
-    inscriptions: ranOutOfAllocations
-      ? state.inscriptions.map((inscription) =>
-          inscription.id === next.inscriptionId
-            ? {
-                ...inscription,
-                selectedPriceId: defaultPriceIdOf(state, inscription),
-              }
-            : inscription,
-        )
-      : state.inscriptions,
+    allocations: next.amount > 0 ? [...rest, next] : rest,
   };
-}
-
-function defaultPriceIdOf(
-  state: PrototypeState,
-  inscription: PrototypeInscription,
-) {
-  return (
-    state.choreographies.find((row) => row.id === inscription.choreographyId)
-      ?.defaultPriceId ?? inscription.selectedPriceId
-  );
 }
 
 export function selectPrice(

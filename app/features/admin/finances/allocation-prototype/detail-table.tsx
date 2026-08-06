@@ -18,15 +18,29 @@
  * The price is a **label**: it is fixed by the first allocation, and picking one
  * belongs to the allocation gesture rather than to a cell.
  *
- * **Tentative figures are muted.** A figure is tentative while the money behind
- * it has not arrived: `Seña` reads as a demand until the threshold is met, and
- * `Saldo adeudado` until the inscription is paid in full. Muting them says which
- * numbers are still moving without adding a column to say it.
+ * **Nothing is muted for being tentative any more** (#618). Every figure shown
+ * is exact and is exactly what must be paid, so the old per-row grey is gone.
+ * What replaces it is a **decorative, unconditional column style**: `Total`
+ * muted because it is context, `Saldo adeudado` in `font-medium` because it is
+ * the actionable number. It lives in the column definition and never varies per
+ * row — a grey that varies means something again.
+ *
+ * **`Total` carries the arithmetic behind it** (#585): the discount is derived
+ * from inscriptions in other choreographies, so the net amount is the one figure
+ * on the row that cannot be checked by reading the row. The icon opens the
+ * subtraction; the provenance is the section below.
  */
+import { Info } from "lucide-react";
 import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { DataTableColumn } from "@/components/shared/data-table.shared";
 
 import { formatAmount } from "../formatters";
@@ -38,7 +52,6 @@ import {
 import { ManualAllocateDialog } from "./manual-allocate-dialog";
 import { inscriptionAnomalyLabels, readInscriptionAnomalies } from "./rollup";
 import { usePrototype } from "./store";
-import { TentativeAmount } from "./tentative-amount";
 
 /**
  * A module-level constant rather than a memoised factory: a stable array is what
@@ -65,35 +78,24 @@ export const inscriptionColumns: DataTableColumn<InscriptionReading>[] = [
     header: "Seña",
     className: "text-right tabular-nums",
     headerClassName: "text-right",
-    cell: (row) => (
-      <TentativeAmount
-        amount={row.depositAmount}
-        // Tentative until the threshold is met — `Señada` and `Pagada` both
-        // clear it.
-        isTentative={row.status === "depositPending"}
-      />
-    ),
+    cell: (row) => formatAmount(row.depositAmount),
   },
   {
+    // Context — what the inscription costs, not what is owed. Muted for the
+    // whole column, unconditionally (#618): the actionable number is `Saldo
+    // adeudado`, and the total is what it is measured against.
     id: "totalAmount",
     header: "Total",
-    className: "text-right tabular-nums",
+    className: "text-right tabular-nums text-muted-foreground",
     headerClassName: "text-right",
-    cell: (row) => formatAmount(row.totalAmount),
+    cell: (row) => <TotalCell inscription={row} />,
   },
   {
     id: "owedBalanceAmount",
     header: "Saldo adeudado",
-    className: "text-right tabular-nums",
+    className: "text-right font-medium tabular-nums",
     headerClassName: "text-right",
-    cell: (row) => (
-      <TentativeAmount
-        amount={row.owedBalanceAmount}
-        // Stays tentative all the way to `Pagada`: a met deposit settles the
-        // threshold, not the balance.
-        isTentative={row.status !== "paidInFull"}
-      />
-    ),
+    cell: (row) => formatAmount(row.owedBalanceAmount),
   },
   {
     id: "status",
@@ -104,6 +106,66 @@ export const inscriptionColumns: DataTableColumn<InscriptionReading>[] = [
 ];
 
 /**
+ * The subtraction that produced the net amount, on hover. It is deliberately
+ * only the **arithmetic** — base price, percentage, discount, total — and not
+ * the provenance: which inscriptions earned the percentage is a list of other
+ * choreographies, which is too much for a tooltip and is what the `Descuentos`
+ * section below the roster is for. Now that the tooltip carries `Precio base`,
+ * the column that used to show it is gone: it said the same thing on every row,
+ * including the rows where it equalled the total.
+ *
+ * **The whole cell is the trigger, and it is not a button.** Nothing happens on
+ * click — there is no action here, only an explanation — so a button would
+ * promise one, and the pointer does not change either. The icon sits to the
+ * **left** of the amount so the figures stay flush right and the column still
+ * reads as a column of numbers.
+ *
+ * With no discount there is nothing to explain, so nothing appears: an
+ * affordance on every row would be noise on the rows that do not need it.
+ */
+function TotalCell({ inscription }: { inscription: InscriptionReading }) {
+  const amount = formatAmount(inscription.totalAmount);
+
+  if (inscription.discountAmount === 0) {
+    return amount;
+  }
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          {/*
+            `tabIndex` rather than a button: focusable so the explanation is
+            reachable without a pointer — which is also the only way to reach it
+            on touch — while staying a plain piece of text.
+          */}
+          <span
+            tabIndex={0}
+            aria-label={`Cómo se compone el total de ${inscription.dancerName}`}
+            className="inline-flex items-center justify-end gap-1"
+          >
+            <Info
+              aria-hidden="true"
+              data-icon
+              className="size-3.5 text-muted-foreground"
+            />
+            {amount}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent className="flex flex-col gap-0.5 tabular-nums">
+          <span>Precio base {formatAmount(inscription.priceAmount)}</span>
+          <span>
+            Descuento {inscription.provenance.percentage} %{" "}
+            {`−${formatAmount(inscription.discountAmount)}`}
+          </span>
+          <span className="font-medium">Total {amount}</span>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+/**
  * An anomaly **replaces** the status badge rather than sitting beside it. Both
  * compete for the same glance, and «Señada» next to «Sobreasignada» reads as two
  * facts of equal weight when only one of them needs an admin. The status is
@@ -111,22 +173,49 @@ export const inscriptionColumns: DataTableColumn<InscriptionReading>[] = [
  */
 function StatusCell({ inscription }: { inscription: InscriptionReading }) {
   const prototype = usePrototype();
-  const groupType =
+  const anomalies = readInscriptionAnomalies(inscription);
+  const hasComprobante =
     prototype.choreographies.find(
       (row) => row.id === inscription.choreographyId,
-    )?.groupType ?? "";
-  const anomalies = readInscriptionAnomalies(groupType, inscription);
+    )?.comprobante != null;
 
+  // The anomaly outranks the withdrawal. A retired row that still holds money is
+  // **not resolved**: `Sobreasignada` says somebody has to move that money,
+  // `Retirada` says the matter is closed, and showing the closing word over an
+  // open problem is how the problem gets missed.
   if (anomalies.length > 0) {
     return (
       <div className="flex flex-wrap items-center gap-1">
         {anomalies.map((anomaly) => (
-          <Badge key={anomaly} variant="warning">
+          // `destructive`, not `warning`: `Seña pendiente` is already a warning,
+          // and two amber badges in one column read as the same kind of fact.
+          // A pending deposit is the normal state of an unpaid inscription; an
+          // over-allocation is money in the wrong place.
+          <Badge key={anomaly} variant="destructive">
             {inscriptionAnomalyLabels[anomaly]}
           </Badge>
         ))}
       </div>
     );
+  }
+
+  // #600: `Retirada` is a separate derived axis, not a fourth status, and it
+  // **replaces** the badge — the row is out of every figure, so «Señada» would
+  // describe a demand that no longer exists. It appears only once there is
+  // nothing left to resolve: the money is gone and what keeps the row on screen
+  // is the invoice line. With neither, the row is not here at all.
+  if (inscription.withdrawnAt !== null) {
+    return <Badge variant="secondary">Retirada</Badge>;
+  }
+
+  // Decision 14's **`Facturada` axis**, whose rendering the map deferred to this
+  // prototype. It renders by its **absence**, and only once a factura exists: a
+  // document covers the whole choreography at once (decision 16), so `Facturada`
+  // on every row would be a constant that says nothing. The row that says
+  // something is the one the document does **not** name — registered after
+  // emission, and owed by the next document.
+  if (hasComprobante && inscription.documentedAmount === null) {
+    return <Badge variant="outline">Sin facturar</Badge>;
   }
 
   return (
@@ -159,10 +248,10 @@ function DancerNameCell({ inscription }: { inscription: InscriptionReading }) {
           inscription={inscription}
           state={prototype.state}
           choreographyGroupType={groupType}
-          availableBalanceAmount={prototype.academy.availableBalanceAmount}
           onClose={() => setOpen(false)}
           onSelectPrice={prototype.onSelectPrice}
           onAllocate={prototype.onAllocate}
+          onDeallocate={prototype.onDeallocate}
         />
       ) : null}
     </>

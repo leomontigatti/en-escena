@@ -20,7 +20,9 @@ export function ChoreographyAnomalyBadges({
   return (
     <div className="flex flex-wrap gap-1">
       {anomalies.map((anomaly) => (
-        <Badge key={anomaly} variant="warning">
+        // `destructive`, matching the detail: an anomaly is not the same kind of
+        // fact as a pending deposit, which already owns `warning`.
+        <Badge key={anomaly} variant="destructive">
           {choreographyAnomalyLabels[anomaly]}
         </Badge>
       ))}

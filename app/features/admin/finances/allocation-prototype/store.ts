@@ -17,8 +17,15 @@ import {
   type PrototypeState,
 } from "./fixtures";
 import {
+  emitAmendment,
+  emitComprobante,
+  registerSibling,
+  withdrawSibling,
+} from "./roster-moves";
+import {
   rejectAllocation,
   spreadFromPool,
+  unwindToPool,
   type AllocationRejection,
 } from "./allocation-rules";
 import { readAcademy, readChoreographies } from "./rollup";
@@ -48,6 +55,17 @@ export function resetPrototypeState() {
 }
 
 /**
+ * Test-only. The screens that matter most to #585 exist **after** emission, and
+ * the alternative — driving the menu to get there — would test the dropdown
+ * rather than the document. Pair it with `resetPrototypeState` in an `afterEach`:
+ * the store is module-level, so a state left behind leaks into the next test.
+ */
+export function setPrototypeState(next: PrototypeState) {
+  current = next;
+  emit();
+}
+
+/**
  * Everything derived in one place, so both views read exactly the same figures
  * and neither invents a reading of its own.
  */
@@ -68,6 +86,49 @@ export function usePrototype() {
     payments,
     choreographies,
     academy,
+    /**
+     * #585's three gestures. None of them touches *this* choreography's roster
+     * or its money: the point is that a change somewhere else moves the bill
+     * here, which is the movement no screen attributes to its cause today.
+     */
+    onEmit: (choreographyId: string) => {
+      current = emitComprobante(current, choreographyId);
+      emit();
+    },
+    /**
+     * #553's dialog A: an inscription and an amount, never a payment. The rows
+     * unwind newest-first and the money returns to `Saldo disponible`, which is
+     * a derivation, so nothing has to be credited anywhere.
+     */
+    onDeallocate: (inscriptionId: string, amount: number) => {
+      const inscription = inscriptions.find((row) => row.id === inscriptionId);
+
+      if (inscription === undefined || amount <= 0) {
+        return;
+      }
+
+      for (const allocation of unwindToPool(
+        inscription.allocations,
+        payments,
+        Math.min(amount, inscription.allocatedAmount),
+      )) {
+        current = upsertAllocation(current, allocation);
+      }
+
+      emit();
+    },
+    onEmitAmendment: (choreographyId: string) => {
+      current = emitAmendment(current, choreographyId);
+      emit();
+    },
+    onRegisterSibling: (dancerId: string, choreographyId: string) => {
+      current = registerSibling(current, dancerId, choreographyId);
+      emit();
+    },
+    onWithdrawSibling: (inscriptionId: string) => {
+      current = withdrawSibling(current, inscriptionId);
+      emit();
+    },
     onSelectPrice: (inscriptionId: string, priceId: string) => {
       current = selectPrice(current, inscriptionId, priceId);
       emit();

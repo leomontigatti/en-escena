@@ -48,6 +48,12 @@ import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
+// Offset from the moment the test runs, for the cases that need an event window
+// to be open (or closed) relative to now rather than on a fixed calendar date.
+function daysFromNow(days: number): Date {
+  return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+}
+
 describe.sequential("handlePortalChoreographiesListAction", () => {
   test("exposes when there is no active event even if there are events to consult", async () => {
     const session = await createAcademySession({
@@ -439,12 +445,16 @@ describe.sequential("handlePortalChoreographiesListAction", () => {
       email: "coreografias.create.owner@example.com",
       academyName: "Academia Creadora",
     });
+    // Registration window anchored to the run. Creating a choreography requires
+    // registration to be OPEN, so an absolute window is a time bomb: this test
+    // passed until its hardcoded `2026-07-30T12:00:00Z` elapsed mid-day, and
+    // failed on every run after it.
     const event = await createSavedEvent({
       name: "Regional 2026",
-      registrationStartsAt: date("2026-06-01T12:00:00Z"),
-      registrationEndsAt: date("2026-07-30T12:00:00Z"),
-      startsAt: date("2026-07-31T12:00:00Z"),
-      endsAt: date("2026-08-02T12:00:00Z"),
+      registrationStartsAt: daysFromNow(-1),
+      registrationEndsAt: daysFromNow(1),
+      startsAt: daysFromNow(2),
+      endsAt: daysFromNow(4),
     });
     await activateEvent(event.id);
     const modality = await expectCreated(

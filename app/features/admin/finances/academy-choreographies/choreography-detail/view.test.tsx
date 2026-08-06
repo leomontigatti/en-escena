@@ -1,11 +1,14 @@
 /** @vitest-environment jsdom */
 
-import { act } from "react";
+import { act, useState } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
-import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
+import {
+  clickReactDomButton,
+  createReactDomTestRenderer,
+} from "@/lib/test-support/react-dom";
 
 import { ChoreographyFinanceDetailView } from "./view";
 import type { loadChoreographyFinanceDetail } from "./server";
@@ -549,7 +552,74 @@ describe("ChoreographyFinanceDetailView actions menu", () => {
     ).find((candidate) => candidate.textContent?.includes("Emitir factura"));
     expect(item).not.toBeUndefined();
   });
+
+  /**
+   * Regresión: recuperar la emisión por "Verificar ahora" persiste el
+   * comprobante, así que la revalidación devuelve la coreografía ya facturada y
+   * `canEmit` en `false`. Con el diálogo montado según esa bandera, el estado
+   * `recovered` se desmontaba en el mismo tick en que se producía y el operador
+   * nunca lo veía. El facturable se congela al abrir y el diálogo se desmonta al
+   * cerrarlo, no al perder la afordancia (#577).
+   */
+  test("el diálogo de emisión sobrevive a que la coreografía deje de ser facturable", async () => {
+    function Wrapper() {
+      const [billable, setBillable] = useState(true);
+
+      return (
+        <>
+          <button
+            type="button"
+            aria-label="revalidar"
+            onClick={() => setBillable(false)}
+          >
+            revalidar
+          </button>
+          <ChoreographyFinanceDetailView
+            loaderData={loaderDataFixture({
+              invoicing: invoicingFixture({
+                billableAmount: 12000,
+                porcion: "seña",
+                canEmit: billable,
+              }),
+            })}
+          />
+        </>
+      );
+    }
+
+    const router = createMemoryRouter([{ path: "/", element: <Wrapper /> }], {
+      initialEntries: ["/"],
+    });
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await openActionsMenu();
+    await clickMenuItem("Emitir factura");
+    expect(document.body.textContent).toContain("Confirmar emisión");
+
+    await clickReactDomButton("revalidar");
+
+    // El preview sigue mostrando el importe congelado al abrir, no un $ 0.
+    expect(document.body.textContent).toContain("Confirmar emisión");
+    expect(document.body.textContent).toContain("12.000");
+  });
 });
+
+async function clickMenuItem(label: string) {
+  const item = Array.from(document.querySelectorAll('[role="menuitem"]')).find(
+    (candidate) => candidate.textContent?.includes(label),
+  );
+
+  if (!item) {
+    throw new Error(`Expected the "${label}" menu item to be rendered.`);
+  }
+
+  await act(async () => {
+    item.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true }),
+    );
+    await Promise.resolve();
+  });
+}
 
 async function openActionsMenu() {
   const button = document.querySelector('button[aria-label="Acciones"]');

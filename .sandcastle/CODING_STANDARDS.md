@@ -145,13 +145,9 @@ components (`EventPricesListView`), functions and hooks (`findDancer`,
 (`readPaymentsListFilters`, `getPaymentDisplayName`), and constants
 (`choreographyFieldNames`, `updatePaymentIntent`).
 
-Two sets of admin symbols are still marked, and neither is precedent:
-
-- The `create*` / `update*` mutations (`createAdministrativeEvent`) — naming the
-  mutation layer is a design call, not a mechanical rename; tracked in #526.
-- The database identifiers (`administrativeAuditEntries`,
-  `en_escena_administrative_audit_entry`) — renaming them would cost a migration
-  and buy no legibility.
+One set of admin symbols is still marked, and it is not precedent: the `create*`
+/ `update*` mutations (`createAdministrativeEvent`) — naming the mutation layer is
+a design call, not a mechanical rename; tracked in #526.
 
 `AdminShell`, `AdminResourceLayout` and the other `app/components/admin/` chrome
 are a separate case, and the only standing one: they name the admin shell itself,

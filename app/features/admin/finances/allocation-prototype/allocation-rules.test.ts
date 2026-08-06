@@ -8,9 +8,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  readMoneyDialogShape,
   readPriceLock,
+  readSuggestedAmount,
   rejectAllocation,
   spreadFromPool,
+  unwindToPool,
 } from "./allocation-rules";
 import {
   initialPrototypeState,
@@ -114,19 +117,102 @@ describe("rejectAllocation", () => {
   });
 });
 
+describe("readMoneyDialogShape", () => {
+  it("offers only what the row admits", () => {
+    const world = read();
+
+    // Ana is over-allocated — her discount improved after she paid in full — so
+    // the excess outranks her `Pagada` status.
+    expect(readMoneyDialogShape(world.inscription("ins-1"))).toBe(
+      "releaseExcess",
+    );
+    // Nadia is withdrawn and still funded: the same shape, for the same reason.
+    expect(readMoneyDialogShape(world.inscription("ins-18"))).toBe(
+      "releaseExcess",
+    );
+    // Bruno is short of his total, so the dialog is about adding money.
+    expect(readMoneyDialogShape(world.inscription("ins-2"))).toBe("allocate");
+  });
+
+  it("empties a row that is settled to the peso", () => {
+    // Julián owes nothing and holds no excess: nothing to add, everything to
+    // remove.
+    expect(readMoneyDialogShape(read().inscription("ins-10"))).toBe(
+      "releaseAll",
+    );
+  });
+
+  it("does not offer to remove nothing", () => {
+    // A total of zero is reached by owing zero, so the row reads `Pagada` with
+    // no money on it — and «Quitar $ 0» is not an act.
+    const settled = upsertAllocation(initialPrototypeState, {
+      paymentId: "pay-1",
+      inscriptionId: "ins-10",
+      amount: 0,
+    });
+    const priceless = {
+      ...read(settled).inscription("ins-10"),
+      totalAmount: 0,
+      status: "paidInFull" as const,
+    };
+
+    expect(readMoneyDialogShape(priceless)).toBe("allocate");
+  });
+});
+
+describe("readSuggestedAmount", () => {
+  it("hints the seña while the threshold is unmet, the rest once it is met", () => {
+    const world = read();
+    const bruno = world.inscription("ins-2");
+
+    // `Señada`: what is left to be fully paid.
+    expect(readSuggestedAmount(bruno)).toBe(bruno.owedBalanceAmount);
+
+    // `Seña pendiente` with no money: the whole seña, derived from the price
+    // currently selected, so changing the price changes the hint.
+    const ana = world.inscription("ins-11");
+    expect(readSuggestedAmount(ana)).toBe(ana.depositAmount);
+  });
+});
+
+describe("unwindToPool", () => {
+  it("takes the money off newest first, the mirror of the fill rule", () => {
+    // Camila's two allocations: pay-1 ($ 12.000) and pay-2 ($ 6.000). Removing
+    // $ 8.000 empties the newer one and dips into the older, never the reverse.
+    const camila = readInscriptions(initialPrototypeState).find(
+      (row) => row.id === "ins-3",
+    )!;
+    const next = unwindToPool(
+      camila.allocations,
+      readPayments(initialPrototypeState),
+      8000,
+    );
+
+    expect(next.find((row) => row.paymentId === "pay-2")?.amount).toBe(0);
+    expect(next.find((row) => row.paymentId === "pay-1")?.amount).toBe(10000);
+  });
+});
+
 describe("upsertAllocation", () => {
-  it("reverts to the choreography's default price when the last allocation goes", () => {
-    // Facundo Ledesma holds a single allocation and sits on `price-late`, while
-    // his choreography's default is `price-regular`.
+  it("writes nothing to the inscription when the last allocation goes", () => {
+    // #553 amended #549 and #550: the price **lock** is keyed on money, so it
+    // releases when the money leaves, but `selectedPriceId` keeps its last
+    // value instead of reverting to the choreography's default. The reverted
+    // value would never charge anyone — the price re-resolves on the next
+    // allocation write — so writing it answered a question needing no answer.
     const next = upsertAllocation(initialPrototypeState, {
       paymentId: "pay-2",
       inscriptionId: "ins-6",
       amount: 0,
     });
+    const inscription = next.inscriptions.find((row) => row.id === "ins-6");
 
+    expect(inscription?.selectedPriceId).toBe("price-late");
+    // And the lock is open again, which is the whole point of the gesture.
     expect(
-      next.inscriptions.find((row) => row.id === "ins-6")?.selectedPriceId,
-    ).toBe("price-regular");
+      readPriceLock(readInscriptions(next).find((row) => row.id === "ins-6")!)
+        .isLocked,
+    ).toBe(false);
   });
 
   it("keeps the price while any allocation survives", () => {
@@ -145,7 +231,8 @@ describe("upsertAllocation", () => {
 
 describe("readPriceLock", () => {
   it("leaves the price free while no money has landed", () => {
-    expect(readPriceLock(read().inscription("ins-4"))).toMatchObject({
+    // «Ecos» has no money on it at all: registered, never paid.
+    expect(readPriceLock(read().inscription("ins-11"))).toMatchObject({
       isFirstPick: true,
       isLocked: false,
     });

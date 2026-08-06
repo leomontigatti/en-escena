@@ -1,3 +1,5 @@
+import { URLSearchParams as nodeURLSearchParams } from "node:url";
+
 if (typeof window !== "undefined") {
   (
     globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -13,7 +15,13 @@ if (typeof window !== "undefined") {
   testWindow.$RefreshReg$ = () => {};
   testWindow.$RefreshSig$ = () => (type) => type;
   globalThis.FormData = window.FormData;
-  globalThis.URLSearchParams = window.URLSearchParams;
+  // `URLSearchParams` va el de Node, no el de jsdom: el `Request` global lo pone
+  // undici (jsdom no implementa fetch) y rechaza un body que no sea una instancia
+  // de SU `URLSearchParams`. Con el de jsdom instalado, cualquier submit de
+  // `useFetcher` en un test de interacción explota antes de llegar al action
+  // (#577).
+  globalThis.URLSearchParams =
+    nodeURLSearchParams as unknown as typeof globalThis.URLSearchParams;
 
   window.matchMedia ??= (() => ({
     addEventListener() {},

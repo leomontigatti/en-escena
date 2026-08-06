@@ -57,6 +57,30 @@ describe("ProfessorsListRouteView", () => {
     );
   });
 
+  test("hides the participation badge when there is no selected event", () => {
+    const markup = renderRoute({
+      hasAnyProfessor: true,
+      professors: [
+        {
+          academyName: "Academia Sur",
+          active: true,
+          firstName: "Bruno",
+          id: "profesor_2",
+          identificationStatus: "complete",
+          lastName: "Consulta",
+          participationStatus: "no-event",
+        },
+      ],
+      selectedEventId: null,
+      totalCount: 1,
+    });
+
+    expect(markup).toContain("Bruno Consulta");
+    expect(markup).not.toContain("No participando");
+    expect(markup).not.toContain(">Participando<");
+    expect(markup).not.toContain("Sin evento");
+  });
+
   test("keeps filtered empty results inside the table", () => {
     const markup = renderRoute({
       filters: {

@@ -4,16 +4,26 @@
  * The first bullet of #550: where the picker lives, what it shows, and what the
  * *second* allocation does to an inscription that already has a price.
  *
- * What it shows is settled here — **row name, amount and deadline**, because
- * #551 blessed deadline divergence as normal, so the deadline is the only thing
- * distinguishing two otherwise identical rows; and the price's group type when
- * it differs from the choreography's, which is #551's `groupTypeMismatch`
- * anomaly caught at the moment it would be created rather than reported after.
+ * What it shows is the row's **name and amount**. The deadline was there because
+ * #551 blessed deadline divergence as normal, which made it the one thing
+ * telling two otherwise identical rows apart — but the names already do that
+ * («Preventa», «General», «Tardía»), and the date it showed was the deadline of
+ * a row the admin is picking *now*, which reads like a promise about this
+ * inscription. If two rows ever share a name, this is where it will hurt.
+ *
+ * **The menu is the choreography's group type and nothing else.** It used to
+ * offer every row, annotating the foreign ones — `Dúo, no Grupo` — as #551's
+ * `groupTypeMismatch` caught at the moment it would be created. #586 deleted
+ * that anomaly by making the model unable to produce it: a `groupType` change
+ * refreshes the price on the roster write. Offering the option is offering to
+ * create exactly the state that decision forbids, so the rows are filtered
+ * instead of labelled. The inscription's own row always stays in the menu — a
+ * `Select` whose value is missing from its items renders empty.
  *
  * And the second pick is settled: **the price is fixed by the first
- * allocation**, so once money has landed the picker is replaced by the price it
- * is locked to, plus the way out — take every allocation off and it reverts to
- * the choreography's default, which is also when it unlocks (#549, amended).
+ * allocation**. Once money has landed this component is not rendered at all —
+ * the dialog shows a locked `ReadOnlyField` instead, and the way out is taking
+ * the money off, which is what opens the lock (#553).
  *
  * There is no empty state: `selectedPriceId` is never null, so the picker always
  * opens on a real price.
@@ -26,8 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { formatAmount, formatDate } from "../formatters";
-import { readPriceLock } from "./allocation-rules";
+import { formatAmount } from "../formatters";
 import type { InscriptionReading, PrototypeState } from "./fixtures";
 
 export function PriceSelect({
@@ -45,18 +54,11 @@ export function PriceSelect({
   size?: "sm";
   id?: string;
 }) {
-  const lock = readPriceLock(inscription);
-
-  // Locked: there is nothing to choose, so no disabled control is offered — just
-  // the price it is fixed to and how to get out of it.
-  if (lock.isLocked) {
-    return (
-      <div className="flex flex-col gap-1">
-        <span className="text-sm font-medium">{inscription.priceName}</span>
-        <p className="text-xs text-muted-foreground">{lock.lockedReason}</p>
-      </div>
-    );
-  }
+  const prices = state.prices.filter(
+    (price) =>
+      price.groupType === choreographyGroupType ||
+      price.id === inscription.selectedPriceId,
+  );
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -72,18 +74,10 @@ export function PriceSelect({
           <SelectValue placeholder="Elegí un precio" />
         </SelectTrigger>
         <SelectContent>
-          {state.prices.map((price) => (
+          {prices.map((price) => (
             <SelectItem key={price.id} value={price.id}>
-              <span className="flex flex-col items-start">
-                <span>
-                  {price.name} · {formatAmount(price.amount)}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  Vence {formatDate(price.paymentDeadline)}
-                  {price.groupType === choreographyGroupType
-                    ? ""
-                    : ` · ${price.groupType}, no ${choreographyGroupType}`}
-                </span>
+              <span>
+                {price.name} · {formatAmount(price.amount)}
               </span>
             </SelectItem>
           ))}

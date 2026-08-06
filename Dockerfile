@@ -39,7 +39,14 @@ COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/build ./build
 COPY --from=build /app/scripts ./scripts
+# The migrations the entrypoint applies. The path matches the repo layout so
+# `scripts/migrate.mjs` resolves them with one expression in both places.
+COPY --from=build /app/app/db/migrations ./app/db/migrations
+
+RUN chmod +x /app/scripts/docker-entrypoint.sh
 
 EXPOSE 3000
 
+# ENTRYPOINT, not a chained CMD — see the note in scripts/docker-entrypoint.sh.
+ENTRYPOINT ["/app/scripts/docker-entrypoint.sh"]
 CMD ["node", "node_modules/@react-router/serve/bin.js", "./build/server/index.js"]

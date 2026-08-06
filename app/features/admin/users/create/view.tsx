@@ -89,8 +89,7 @@ export function NewInternalUserRouteView({
               Compartí la contraseña temporal por un canal seguro
             </AlertTitle>
             <AlertDescription>
-              La contraseña temporal no vuelve a mostrarse después de guardar y
-              no se registra en auditoría.
+              La contraseña temporal no vuelve a mostrarse después de guardar.
             </AlertDescription>
           </Alert>
         </AlertStack>

@@ -2,8 +2,10 @@
 #
 # PR labeled `agent:update-branch` → the runner script does the deterministic
 # merge of the base into the branch itself; the agent is invoked ONLY when that
-# merge conflicts → orchestrator pushes the result (race-safe) and posts a comment
-# describing the merge. Hands back to a human — no automatic chaining.
+# merge conflicts → orchestrator pushes the result (race-safe), posts a comment
+# describing the merge, and typechecks the merged tree to catch conflicts git
+# resolved cleanly but the compiler doesn't accept. Hands back to a human — no
+# automatic chaining.
 #
 # `pull_request_target` (not `pull_request`): the labeled event must fire even
 # when the PR is out-of-date/conflicting — which is exactly when this runs (§3.3).
@@ -126,6 +128,35 @@ jobs:
           comment="$OUTPUT_DIR/comment.md"
           [ -s "$comment" ] || { echo "No comment to post."; exit 0; }
           gh pr comment "$PR_NUMBER" --body-file "$comment"
+
+      # --- Semantic-conflict gate. A textually clean merge can still be broken:
+      # the base renames or reshapes something the branch calls, git merges both
+      # sides without a conflict marker, and nothing compiles the result. That is
+      # how #567 shipped a red branch — the base flattened a reader's parameter
+      # while the branch added a caller using the old shape, in a different file.
+      # The clean-merge path never invokes the agent (update-branch.mts), so the
+      # `pnpm typecheck` its prompt asks for only ever runs on the conflict path.
+      #
+      # Runs AFTER the push and the merge comment on purpose: the merge itself is
+      # correct work and must not be lost, and CI will run on the pushed head
+      # anyway. Failing here only flips the PR to `agent:blocked` with a reason,
+      # so a human sees the semantic conflict named instead of a bare CI red.
+      - name: Typecheck the merged tree
+        run: |
+          set -euo pipefail
+          [ "$(cat "$OUTPUT_DIR/should_push.txt" 2>/dev/null || echo false)" = "true" ] || {
+            echo "Nothing was merged; nothing to typecheck."
+            exit 0
+          }
+          if ! pnpm typecheck > typecheck.log 2>&1; then
+            {
+              printf 'The merge applied cleanly but the merged tree does not typecheck — a semantic conflict between `%s` and this branch (a rename or signature change on one side, a caller on the other). The merge WAS pushed; fix the fallout on top of it.\n\n```\n' "$BASE_REF"
+              # Strip ANSI: the tail is quoted into a PR comment, not a terminal.
+              tail -40 typecheck.log | sed -E 's/\x1b\[[0-9;]*[a-zA-Z]//g'
+              printf '\n```\n'
+            } > "$OUTPUT_DIR/failure_reason.txt"
+            exit 1
+          fi
 
       - name: On failure — block + comment
         if: failure()

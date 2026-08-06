@@ -4,11 +4,6 @@ export const professorNotFoundMessage = "No encontramos ese Profesor.";
 export type ProfessorParticipationFilter = "yes" | "no" | "all";
 export type ProfessorStatusFilter = "active" | "archived" | "all";
 export type ProfessorNameOrder = "asc" | "desc";
-export type ProfessorParticipationStatus =
-  | "participating"
-  | "not-participating"
-  | "no-event";
-export type ProfessorAuditAction = "update" | "archive" | "reactivate";
 
 export type ProfessorListFilters = {
   nameOrder: ProfessorNameOrder;
@@ -18,20 +13,15 @@ export type ProfessorListFilters = {
   page: number;
 };
 
-export function readProfessorParticipationFilter(input: {
-  value: string | null;
-  hasSelectedEvent: boolean;
-}): ProfessorParticipationFilter {
-  if (input.value === "si") {
+export function readProfessorParticipationFilter(
+  value: string | null,
+): ProfessorParticipationFilter {
+  if (value === "si") {
     return "yes";
   }
 
-  if (input.value === "no") {
+  if (value === "no") {
     return "no";
-  }
-
-  if (input.value === "todos") {
-    return "all";
   }
 
   return "all";
@@ -51,6 +41,7 @@ export function readProfessorStatusFilter(
   return "active";
 }
 
+/** `all` se codifica por ausencia del parámetro, así que devuelve `null`. */
 export function toProfessorParticipationSearchValue(
   value: ProfessorParticipationFilter,
 ) {
@@ -59,12 +50,13 @@ export function toProfessorParticipationSearchValue(
   }
 
   if (value === "all") {
-    return "todos";
+    return null;
   }
 
   return "si";
 }
 
+/** `active` se codifica por ausencia del parámetro, así que devuelve `null`. */
 export function toProfessorStatusSearchValue(value: ProfessorStatusFilter) {
   if (value === "archived") {
     return "archivados";
@@ -74,19 +66,5 @@ export function toProfessorStatusSearchValue(value: ProfessorStatusFilter) {
     return "todos";
   }
 
-  return "activos";
-}
-
-export function getProfessorParticipationLabel(
-  participationStatus: ProfessorParticipationStatus,
-) {
-  if (participationStatus === "participating") {
-    return "Participando";
-  }
-
-  if (participationStatus === "not-participating") {
-    return "No participando";
-  }
-
-  return "Sin evento";
+  return null;
 }

@@ -18,14 +18,15 @@ describe("allocation prototype", () => {
     expect(markup).toContain("Saldo disponible");
     expect(markup).toContain("Acciones");
     expect(markup).toContain("Estado del prototipo");
-    // A choreography short of its deposit greys **both** `Seña` and `Saldo
-    // adeudado`, the same reading as the inscriptions table. Scoped to the row,
-    // so a muted span elsewhere in the layout cannot pass this for it.
+    // #618: no figure is muted for being tentative any more. Scoped to the row,
+    // so a muted span elsewhere in the layout cannot pass for one.
     const row = markup.slice(
       markup.indexOf("Reflejos"),
       markup.indexOf("</tr>", markup.indexOf("Reflejos")),
     );
-    expect(row.split('<span class="text-muted-foreground">')).toHaveLength(3);
+    expect(row).not.toContain('<span class="text-muted-foreground">');
+    // What replaces it is a whole-column style: the owed column is emphasised.
+    expect(markup).toContain("text-right font-medium tabular-nums");
   });
 
   it("titles the detail with the choreography and carries the five metrics", () => {
@@ -56,9 +57,11 @@ describe("allocation prototype", () => {
       "/administracion/finanzas/prototipo-asignacion/coreografia?coreografia=cho-1",
     );
 
-    // No selection column, and no header actions menu to hang bulk actions on.
+    // No selection column, and no per-row actions column: the only actions menu
+    // is the header's, which is where #585 put `Imprimir factura`.
     expect(markup).not.toContain("Seleccionar todo");
-    expect(markup).not.toContain('aria-label="Acciones"');
+    const table = markup.slice(markup.indexOf("<table"));
+    expect(table).not.toContain('aria-label="Acciones"');
     // The dancer's name is the action, as a button holding its own dialog
     // state — the pattern `DancerNameCell` already uses in the real view.
     expect(markup).not.toContain("asignar=");
@@ -66,21 +69,38 @@ describe("allocation prototype", () => {
     expect(markup).not.toContain("Buscar inscripción por bailarín");
   });
 
-  it("raises the group-type anomaly as a generic alert, not a badge", () => {
-    // «Umbral» is a Dúo whose roster picked a Grupo price.
+  it("raises the over-allocation anomaly as a generic alert, not a badge", () => {
+    // «Reflejos» holds Nadia's withdrawn row, which owes zero and still has
+    // money on it — over-allocated by construction (#600).
+    const markup = renderRouteView(
+      <AllocationDetailPrototypeView />,
+      "/administracion/finanzas/prototipo-asignacion/coreografia?coreografia=cho-1",
+    );
+
+    expect(markup).toContain('role="alert"');
+    expect(markup).toContain("Existen inscripciones con dinero sobreasignado");
+    // Generic and title-less: it points at the list instead of counting or
+    // naming rows, and carries no `AlertTitle`.
+    expect(markup).not.toContain("inscripción tiene");
+    expect(markup).not.toContain("Inscripciones sobreasignadas");
+  });
+
+  it("has no group-type anomaly left: #586 deleted it from the model", () => {
+    // «Umbral» is a Dúo, and its roster cannot point at a Grupo price any more:
+    // a `groupType` change refreshes the price on the roster write.
     const markup = renderRouteView(
       <AllocationDetailPrototypeView />,
       "/administracion/finanzas/prototipo-asignacion/coreografia?coreografia=cho-2",
     );
 
-    expect(markup).toContain('role="alert"');
-    expect(markup).toContain(
-      "Existen inscripciones con un precio diferente al tipo de grupo",
-    );
-    // Generic and title-less: it points at the list instead of counting or
-    // naming rows, and carries no `AlertTitle`.
-    expect(markup).not.toContain("inscripción tiene");
+    expect(markup).not.toContain("tipo de grupo de la coreografía");
+    expect(markup).not.toContain("Precio de otro tipo de grupo");
     expect(markup).not.toContain("Precios de otro tipo de grupo");
+    // Nor can it be created: the price picker offers this choreography's group
+    // type only, so the annotation that used to warn about a foreign row has
+    // nothing left to annotate.
+    expect(markup).not.toContain(", no Dúo");
+    expect(markup).not.toContain(", no Grupo");
   });
 
   it("has no Sin precio status anywhere: every inscription carries a price", () => {
@@ -93,34 +113,40 @@ describe("allocation prototype", () => {
     expect(markup).toContain("Precio");
   });
 
-  it("lets the inscription's anomaly badge replace its status badge", () => {
-    // «Umbral» is a Dúo whose roster has an inscription on a Grupo price.
-    const markup = renderRouteView(
-      <AllocationDetailPrototypeView />,
-      "/administracion/finanzas/prototipo-asignacion/coreografia?coreografia=cho-2",
-    );
-
-    expect(markup).toContain("Precio de otro tipo de grupo");
-    // The anomalous row shows no status badge of its own — the two do not sit
-    // side by side. Only the untouched rows still carry one.
-    const anomalousRow = markup.slice(
-      markup.indexOf("Gala Iriarte"),
-      markup.indexOf("</tr>", markup.indexOf("Gala Iriarte")),
-    );
-    expect(anomalousRow).toContain("Precio de otro tipo de grupo");
-    expect(anomalousRow).not.toContain("Seña pendiente");
-    expect(anomalousRow).not.toContain("Señada");
-    expect(anomalousRow).not.toContain("Pagada");
-  });
-
-  it("mutes the figures that are still tentative", () => {
+  it("lets a row's derived axis replace its status badge", () => {
     const markup = renderRouteView(
       <AllocationDetailPrototypeView />,
       "/administracion/finanzas/prototipo-asignacion/coreografia?coreografia=cho-1",
     );
 
-    // At least one row is short of its deposit, so its `Seña` reads muted.
-    expect(markup).toContain('<span class="text-muted-foreground">');
+    // Nadia's row is withdrawn with money still on it, so `Sobreasignada`
+    // stands **instead of** a status: the badges do not sit side by side, and
+    // the one that shows is the one that needs an admin.
+    const withdrawnRow = markup.slice(
+      markup.indexOf("Nadia Coria"),
+      markup.indexOf("</tr>", markup.indexOf("Nadia Coria")),
+    );
+    expect(withdrawnRow).toContain("Sobreasignada");
+    expect(withdrawnRow).not.toContain("Seña pendiente");
+    expect(withdrawnRow).not.toContain("Señada");
+    expect(withdrawnRow).not.toContain("Pagada");
+  });
+
+  it("mutes no figure per row, and mutes `Total` for the whole column", () => {
+    const markup = renderRouteView(
+      <AllocationDetailPrototypeView />,
+      "/administracion/finanzas/prototipo-asignacion/coreografia?coreografia=cho-1",
+    );
+
+    // #618 deleted the tentative marking outright: every figure shown is exact.
+    // What is left is unconditional and lives in the column definition.
+    // Neither `Precio base` nor `Asignado` is a column: the first lives in the
+    // total's tooltip as the first line of the subtraction (#585), the second
+    // was dropped. `Total` takes the muted context slot.
+    expect(markup).not.toContain("Precio base");
+    expect(markup).not.toContain("Asignado");
+    expect(markup).toContain("text-right tabular-nums text-muted-foreground");
+    expect(markup).not.toContain('<span class="text-muted-foreground">$');
   });
 
   it("carries the group type of whichever choreography is chosen", () => {

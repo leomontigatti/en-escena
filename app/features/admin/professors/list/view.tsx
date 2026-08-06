@@ -10,11 +10,14 @@ import {
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import {
-  getProfessorParticipationLabel,
-  type ProfessorParticipationStatus,
   toProfessorParticipationSearchValue,
   toProfessorStatusSearchValue,
 } from "@/lib/admin/professors/professors.shared";
+import {
+  getParticipationBadgeVariant,
+  getParticipationLabel,
+  type ShownParticipationStatus,
+} from "@/lib/participation/participation.shared";
 
 import type { loadProfessorsList } from "./server";
 
@@ -88,7 +91,7 @@ function ProfessorTable({ loaderData }: { loaderData: LoaderData }) {
       headerClassName: "w-1/4",
       cell: (professor) => (
         <div className="flex flex-wrap gap-2">
-          {loaderData.selectedEventId ? (
+          {professor.participationStatus !== "no-event" ? (
             <ParticipationBadge
               participationStatus={professor.participationStatus}
             />
@@ -98,8 +101,7 @@ function ProfessorTable({ loaderData }: { loaderData: LoaderData }) {
           ) : null}
         </div>
       ),
-      filterValue: (professor) =>
-        buildProfessorStatusSummary(professor, loaderData.selectedEventId),
+      filterValue: (professor) => buildProfessorStatusSummary(professor),
     },
   ];
 
@@ -130,14 +132,11 @@ function ProfessorTable({ loaderData }: { loaderData: LoaderData }) {
 function ParticipationBadge({
   participationStatus,
 }: {
-  participationStatus: ProfessorParticipationStatus;
+  participationStatus: ShownParticipationStatus;
 }) {
-  const variant =
-    participationStatus === "participating" ? "success" : "secondary";
-
   return (
-    <Badge variant={variant}>
-      {getProfessorParticipationLabel(participationStatus)}
+    <Badge variant={getParticipationBadgeVariant(participationStatus)}>
+      {getParticipationLabel(participationStatus)}
     </Badge>
   );
 }
@@ -167,14 +166,11 @@ function buildProfessorFacetedFilters(
   return [...groups];
 }
 
-function buildProfessorStatusSummary(
-  professor: ProfessorRow,
-  selectedEventId: string | null,
-) {
+function buildProfessorStatusSummary(professor: ProfessorRow) {
   const values: string[] = [];
 
-  if (selectedEventId !== null) {
-    values.push(getProfessorParticipationLabel(professor.participationStatus));
+  if (professor.participationStatus !== "no-event") {
+    values.push(getParticipationLabel(professor.participationStatus));
   }
 
   if (!professor.active) {
@@ -236,7 +232,7 @@ function getSelectedFilterValues(loaderData: LoaderData) {
     loaderData.filters.participation,
   );
 
-  if (loaderData.selectedEventId !== null && participationValue !== "todos") {
+  if (loaderData.selectedEventId !== null && participationValue !== null) {
     values.participando = participationValue;
   }
 
