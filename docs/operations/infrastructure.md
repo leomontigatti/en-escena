@@ -66,8 +66,10 @@ longer exists.
   orphan is logged as `[storage:music:orphan]` with the key. There is no sweep
   that reclaims it: reconciliation is by hand, from that log line. The
   divergence from dancer documents (`adapter.remove` there propagates) is
-  deliberate: that delete happens before the row is written, so failing it
-  costs nothing.
+  deliberate: that delete happens before the row is written, so aborting leaves
+  the dancer pointing at the document they already had and the failure can be
+  reported. A failed delete orphans an object either way — there it is the
+  just-uploaded object, here it is the one that was in use.
 
 ## Related runbooks
 

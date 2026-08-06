@@ -92,12 +92,12 @@ export async function updateChoreographyMusic(input: {
     try {
       await storageClient.removeMusic(currentStorageKey);
     } catch (thrown) {
-      // La fila ya apunta al objeto nuevo, así que fallar acá no puede cancelar
-      // el reemplazo: propagar como en `dancer-documents.server.ts` le diría a
-      // la academia que no se guardó la música cuando sí se guardó. El costo es
-      // que el objeto viejo queda huérfano en el volumen —no hay barrido que lo
-      // recoja— y esta línea es lo único que lo hace ubicable sin revisar el
-      // volumen a mano.
+      // The row already points at the new object, so failing here cannot undo
+      // the replacement: propagating, as `dancer-documents.server.ts` does,
+      // would tell the academy the music was not saved when it was. The cost is
+      // that the previous object stays orphaned on the volume — no sweep
+      // reclaims it — and this line is the only thing that makes it locatable
+      // without walking the volume by hand.
       console.error("[storage:music:orphan]", {
         choreographyId: input.choreographyId,
         detail: thrown instanceof Error ? thrown.message : String(thrown),

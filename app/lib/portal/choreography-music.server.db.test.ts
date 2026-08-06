@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import { choreographies } from "@/db/schema";
@@ -17,10 +17,6 @@ import {
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
-
-beforeEach(() => {
-  vi.spyOn(console, "error").mockImplementation(() => {});
-});
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -137,10 +133,11 @@ describe.sequential("portal choreography music", () => {
     expect(removedKeys).toEqual(["academies/music/current.mp3"]);
   });
 
-  // Borrar el objeto anterior falla después de que la fila ya apunta al nuevo,
-  // así que el reemplazo no se puede deshacer: el byte viejo queda huérfano en
-  // el volumen. Lo único que lo hace recuperable es esta línea de log.
+  // Removing the previous object fails after the row already points at the new
+  // one, so the replacement cannot be undone: the old byte stays orphaned on
+  // the volume, and this log line is the only thing that makes it recoverable.
   test("logs the orphaned key when the previous object cannot be removed", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const { choreography, event, owner } = await createMusicChoreographyFixture(
       {
         academyName: "Academia Huérfana",
@@ -182,10 +179,57 @@ describe.sequential("portal choreography music", () => {
     ).resolves.toEqual({
       musicStorageKey: `academies/${owner.academyId}/choreographies/${choreography.id}/music.ogg`,
     });
-    expect(console.error).toHaveBeenCalledWith("[storage:music:orphan]", {
+    expect(errorSpy).toHaveBeenCalledWith("[storage:music:orphan]", {
       choreographyId: choreography.id,
       detail: "ENOENT: volume unavailable",
       storageKey: "academies/old/choreographies/old/music.mp3",
+    });
+  });
+
+  // Clearing the music runs the same delete without an upload before it, so the
+  // orphan is the object the academy just detached.
+  test("logs the orphaned key when clearing the music cannot remove the object", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { choreography, event, owner } = await createMusicChoreographyFixture(
+      {
+        academyName: "Academia Huérfana al Borrar",
+        email: "music.orphan.clear@example.com",
+        musicStorageKey: "academies/music/current.mp3",
+        name: "Sin música, con huérfano",
+      },
+    );
+    const storage = {
+      createMusicSignedUrl: async (storageKey: string) =>
+        `signed:${storageKey}`,
+      removeMusic: async () => {
+        throw new Error("EACCES: volume is read-only");
+      },
+      uploadMusic: async () => {
+        throw new Error("Unexpected upload");
+      },
+    };
+
+    await expect(
+      updateChoreographyMusic({
+        academyId: owner.academyId,
+        choreographyId: choreography.id,
+        eventId: event.id,
+        file: null,
+        submittedStorageKey: "",
+        storage,
+      }),
+    ).resolves.toEqual({ ok: true });
+
+    await expect(
+      db.query.choreographies.findFirst({
+        columns: { musicStorageKey: true },
+        where: eq(choreographies.id, choreography.id),
+      }),
+    ).resolves.toEqual({ musicStorageKey: null });
+    expect(errorSpy).toHaveBeenCalledWith("[storage:music:orphan]", {
+      choreographyId: choreography.id,
+      detail: "EACCES: volume is read-only",
+      storageKey: "academies/music/current.mp3",
     });
   });
 
