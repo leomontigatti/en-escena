@@ -38,6 +38,16 @@ accidental deletes on the volume do not immediately remove the backup copy. Set
 `BACKUP_SYNC_MODE=mirror` to prune deleted objects so the backup tracks the
 volume exactly.
 
+That same non-pruning behaviour means an orphaned object — one left on the volume
+with no row pointing at it, logged as `[storage:music:orphan]` and described in
+[Production infrastructure](./infrastructure.md) — is copied to B2 on the next
+sync and stays there. Nothing in the app touches the backup bucket, so
+reconciling by hand means deleting the key in both places: on the volume under
+`STORAGE_VOLUME_DIR`, and under
+`s3://$B2_FILESTORE_BUCKET/$B2_FILESTORE_PREFIX/<bucket>/<key>`. Deleting only
+the volume copy leaves the bytes paid for in B2 until the lifecycle rule expires
+them.
+
 ## Database Backup (Coolify native)
 
 The database backup is configured on the **Postgres resource** in Coolify, not on
