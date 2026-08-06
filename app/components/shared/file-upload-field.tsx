@@ -25,7 +25,10 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/shared/utils";
 
 type FileUploadControlProps = Omit<ComponentProps<"input">, "type"> & {
-  allowedMimeTypes: string[];
+  // Optional so a download-only field can omit the whole validation set. The
+  // policy itself belongs to the asset kind, never to this generic component:
+  // see `getAssetUploadFieldProps` in `@/lib/storage/asset-kinds`.
+  allowedMimeTypes?: string[];
   downloadLabel?: string;
   downloadUrl?: string | null;
   error?: boolean;
@@ -53,7 +56,7 @@ type FileUploadInputProps = Omit<
 >;
 
 type FileUploadControlConfig = {
-  allowedMimeTypes: string[];
+  allowedMimeTypes?: string[];
   className?: string;
   disabled: boolean;
   downloadLabel: string;
@@ -216,10 +219,10 @@ function getFileUploadControlConfig(
     existingPreviewUrl,
     helperText,
     id: providedId,
-    invalidTypeMessage = "El archivo debe ser JPG, PNG o WEBP.",
+    invalidTypeMessage = "El archivo tiene un formato no admitido.",
     label,
     maxFileSizeBytes,
-    maxFileSizeMessage = "El archivo no puede superar 10 MB.",
+    maxFileSizeMessage = "El archivo supera el tamaño máximo.",
     onChange,
     onSelectedFileChange,
     onStorageKeyChange,
@@ -405,7 +408,10 @@ function useFileUploadControlState(
   }
 
   function getFileValidationError(file: File) {
-    if (!config.allowedMimeTypes.includes(file.type)) {
+    if (
+      config.allowedMimeTypes &&
+      !config.allowedMimeTypes.includes(file.type)
+    ) {
       return config.invalidTypeMessage;
     }
 

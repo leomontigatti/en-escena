@@ -42,7 +42,10 @@ import { getFieldErrors } from "@/lib/shared/form-validation";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
-import { createDefaultChoreographyMusicStorage } from "@/lib/storage/choreography-music.server";
+import {
+  createDefaultChoreographyMusicStorage,
+  loadChoreographyMusicDownloadUrl,
+} from "@/lib/storage/choreography-music.server";
 
 import {
   choreographyFieldNames,
@@ -340,7 +343,10 @@ async function findChoreographyDetail(input: {
   const [dancerRows, professorRows, musicDownloadUrl] = await Promise.all([
     listChoreographyDancers(input.choreographyId),
     listChoreographyProfessors(input.choreographyId),
-    loadChoreographyMusicDownloadUrl(row.musicStorageKey),
+    loadChoreographyMusicDownloadUrl({
+      storage: createDefaultChoreographyMusicStorage(),
+      storageKey: row.musicStorageKey,
+    }),
   ]);
 
   return {
@@ -593,20 +599,6 @@ async function getChoreographyDeleteBlockers(
 
 async function hasScoresForChoreography(_choreographyId: string) {
   return false;
-}
-
-async function loadChoreographyMusicDownloadUrl(storageKey: string | null) {
-  if (!storageKey) {
-    return null;
-  }
-
-  try {
-    return await createDefaultChoreographyMusicStorage().createMusicSignedUrl(
-      storageKey,
-    );
-  } catch {
-    return null;
-  }
 }
 
 function readChoreographyId(params: { choreographyId?: string }) {

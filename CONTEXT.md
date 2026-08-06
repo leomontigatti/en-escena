@@ -187,6 +187,26 @@ _Avoid_: `lockedChoreographyData`, financial data
 Private audio file associated with a choreography and managed as pending operational data.
 _Avoid_: evaluation audio, `feedbackAudio`, public track
 
+**`uploadedAsset`** — ui: "Archivo subido"
+Private file an academy uploads and the system stores on the volume, referenced from a row by its key.
+_Avoid_: attachment, media, public file
+
+**`assetKind`** — ui: "Tipo de archivo subido"
+The class of uploaded asset — `musicFile` or `documentImage` — that decides accepted formats, size ceiling and key layout.
+_Avoid_: mime type, file extension, bucket
+
+**`documentImage`** — ui: "Imagen del documento"
+Photograph of one side of a dancer's identity document, held as evidence for verification.
+_Avoid_: avatar, `musicFile`, public image
+
+**`storageKey`** — ui: "Clave de almacenamiento"
+The path that locates an uploaded asset on the volume; what a row stores, never a URL.
+_Avoid_: URL, path on disk, file name
+
+**`signedUrl`** — ui: "Enlace temporal"
+Short-lived authenticated link that serves an uploaded asset, expiring after the lifetime its asset kind declares.
+_Avoid_: public link, presigned URL, permalink
+
 **`choreographyDancers`** — ui: "Bailarines de coreografía"
 Dancers linked to a choreography through inscriptions.
 _Avoid_: professors, financial data

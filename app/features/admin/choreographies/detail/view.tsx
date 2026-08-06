@@ -11,6 +11,7 @@ import {
 } from "@/components/admin/resource-layout";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { FileUploadField } from "@/components/shared/file-upload-field";
+import { getAssetKindHelperText } from "@/lib/storage/asset-kinds";
 import { MultiComboboxField } from "@/components/shared/multi-combobox-field";
 import { ReadOnlyField } from "@/components/shared/read-only-field";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
@@ -68,20 +69,6 @@ const choreographyFormSchema = z.object({
   professorIds: z.array(z.string()),
   scheduleCapacityId: z.string(),
 });
-
-const choreographyMusicAccept =
-  "audio/mpeg,audio/mp4,audio/m4a,audio/x-m4a,audio/aac,audio/wav,audio/x-wav,audio/ogg";
-const choreographyMusicAllowedMimeTypes = [
-  "audio/aac",
-  "audio/m4a",
-  "audio/mp4",
-  "audio/mpeg",
-  "audio/ogg",
-  "audio/wav",
-  "audio/x-m4a",
-  "audio/x-wav",
-];
-const choreographyMusicMaxFileSizeBytes = 50 * 1024 * 1024;
 
 export function ChoreographyDetailRouteView({
   actionData,
@@ -377,20 +364,17 @@ function ChoreographyDetailForm({
               searchable
             />
 
+            {/* Download-only: the validation props a disabled input cannot act
+                on are deliberately absent (#571). */}
             <FileUploadField
-              accept={choreographyMusicAccept}
-              allowedMimeTypes={choreographyMusicAllowedMimeTypes}
               control={form.control}
               disabled
               downloadLabel="Descargar música"
               downloadUrl={choreography.musicDownloadUrl}
               fieldLabel="Archivo de música"
               fileInputName="musicFile"
-              helperText="MP3, M4A, WAV u OGG - max 50 MB"
-              invalidTypeMessage="El archivo de música debe ser MP3, M4A, WAV u OGG."
+              helperText={getAssetKindHelperText("choreographyMusic")}
               label="No hay música cargada"
-              maxFileSizeBytes={choreographyMusicMaxFileSizeBytes}
-              maxFileSizeMessage="El archivo de música no puede superar 50 MB."
               name="musicStorageKey"
               previewSelectedFile={false}
               removeLabel="Borrar música"

@@ -1,11 +1,11 @@
 import {
-  type B2PresignSignedUrl,
-  type B2S3Client,
-  b2CreateSignedUrl,
-  b2Remove,
-  b2Upload,
-  defaultB2PresignSignedUrl,
-} from "@/lib/storage/b2-client.server";
+  type AssetKind,
+  type UploadResult,
+  checkAssetAgainstPolicy,
+  getAssetExtensionForContentType,
+  getAssetKindPolicy,
+} from "@/lib/storage/asset-kinds";
+import { loadOptionalAssetDownloadUrl } from "@/lib/storage/asset-download-url";
 import {
   createFilesystemSignedUrl,
   fsRemove,
@@ -14,19 +14,7 @@ import {
   getDefaultStorageVolumeDir,
 } from "@/lib/storage/filesystem-client.server";
 
-const CHOREOGRAPHY_MUSIC_BUCKET = "en-escena-choreography-music";
-const CHOREOGRAPHY_MUSIC_SIGNED_URL_EXPIRES_IN_SECONDS = 300;
-const CHOREOGRAPHY_MUSIC_MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
-const CHOREOGRAPHY_MUSIC_EXTENSION_BY_CONTENT_TYPE = {
-  "audio/aac": "aac",
-  "audio/m4a": "m4a",
-  "audio/mp4": "m4a",
-  "audio/mpeg": "mp3",
-  "audio/ogg": "ogg",
-  "audio/wav": "wav",
-  "audio/x-m4a": "m4a",
-  "audio/x-wav": "wav",
-} as const;
+const ASSET_KIND: AssetKind = "choreographyMusic";
 
 type UploadChoreographyMusicInput = {
   academyId: string;
@@ -34,8 +22,11 @@ type UploadChoreographyMusicInput = {
   file: Blob;
 };
 
+// The seam ADR-0008 asked for, kept so a future provider is a new
+// implementation rather than a rewrite. Signing is not optional: the one live
+// store always signs, so there is no "cannot sign" branch to defend (#571).
 export type ChoreographyMusicStorageAdapter = {
-  createSignedUrl?(input: {
+  createSignedUrl(input: {
     bucket: string;
     expiresInSeconds: number;
     key: string;
@@ -52,32 +43,8 @@ export type ChoreographyMusicStorageAdapter = {
   }): Promise<void>;
 };
 
-type SupabaseStorageClient = {
-  storage: {
-    from(bucket: string): {
-      createSignedUrl(
-        key: string,
-        expiresInSeconds: number,
-      ): Promise<{
-        data: { signedUrl: string } | null;
-        error: { message: string } | null;
-      }>;
-      remove(keys: string[]): Promise<{
-        error: { message: string } | null;
-      }>;
-      upload(
-        key: string,
-        file: Blob,
-        options: { contentType: string; upsert: boolean },
-      ): Promise<{
-        error: { message: string } | null;
-      }>;
-    };
-  };
-};
-
-// Live storage is the local Coolify volume in São Paulo. B2 (`createB2*`) is
-// kept only as a backup destination; it is no longer the default live store.
+// Live storage is the local Coolify volume in São Paulo. B2 is a backup
+// destination reached by the shell scripts, never by the app.
 export function createDefaultChoreographyMusicStorage(
   env: NodeJS.ProcessEnv = process.env,
 ) {
@@ -90,33 +57,37 @@ export function createDefaultChoreographyMusicStorage(
 export function createChoreographyMusicStorage(
   adapter: ChoreographyMusicStorageAdapter,
 ) {
+  const policy = getAssetKindPolicy(ASSET_KIND);
+
   return {
     async createMusicSignedUrl(storageKey: string) {
-      if (!adapter.createSignedUrl) {
-        throw new Error("Storage adapter cannot create signed URLs.");
-      }
-
       return adapter.createSignedUrl({
-        bucket: CHOREOGRAPHY_MUSIC_BUCKET,
-        expiresInSeconds: CHOREOGRAPHY_MUSIC_SIGNED_URL_EXPIRES_IN_SECONDS,
+        bucket: policy.bucket,
+        expiresInSeconds: policy.signedUrlExpiresInSeconds,
         key: storageKey,
       });
     },
 
     async removeMusic(storageKey: string) {
       await adapter.remove({
-        bucket: CHOREOGRAPHY_MUSIC_BUCKET,
+        bucket: policy.bucket,
         keys: [storageKey],
       });
     },
 
-    async uploadMusic(input: UploadChoreographyMusicInput) {
-      validateChoreographyMusic(input.file);
+    async uploadMusic(
+      input: UploadChoreographyMusicInput,
+    ): Promise<UploadResult> {
+      const rejection = checkAssetAgainstPolicy(ASSET_KIND, input.file);
+
+      if (rejection) {
+        return { ok: false, rejection };
+      }
 
       const storageKey = buildChoreographyMusicStorageKey(input);
 
       await adapter.upload({
-        bucket: CHOREOGRAPHY_MUSIC_BUCKET,
+        bucket: policy.bucket,
         file: input.file,
         key: storageKey,
         options: {
@@ -125,48 +96,24 @@ export function createChoreographyMusicStorage(
         },
       });
 
-      return storageKey;
+      return { ok: true, storageKey };
     },
   };
 }
 
-export function createSupabaseChoreographyMusicStorage(
-  supabase: SupabaseStorageClient,
-) {
-  return createChoreographyMusicStorage({
-    createSignedUrl: async (input) => {
-      const { data, error } = await supabase.storage
-        .from(input.bucket)
-        .createSignedUrl(input.key, input.expiresInSeconds);
+export type ChoreographyMusicStorage = ReturnType<
+  typeof createChoreographyMusicStorage
+>;
 
-      if (error) {
-        throw new Error(`Could not create music URL: ${error.message}`);
-      }
-
-      if (!data) {
-        throw new Error("Could not create music URL.");
-      }
-
-      return data.signedUrl;
-    },
-    remove: async (input) => {
-      const { error } = await supabase.storage
-        .from(input.bucket)
-        .remove(input.keys);
-
-      if (error) {
-        throw new Error(`Could not remove music: ${error.message}`);
-      }
-    },
-    upload: async (input) => {
-      const { error } = await supabase.storage
-        .from(input.bucket)
-        .upload(input.key, input.file, input.options);
-
-      if (error) {
-        throw new Error(`Could not upload music: ${error.message}`);
-      }
-    },
+/** The one music read path, shared by the portal and the administration. */
+export async function loadChoreographyMusicDownloadUrl(input: {
+  storage: ChoreographyMusicStorage;
+  storageKey: string | null;
+}) {
+  return loadOptionalAssetDownloadUrl({
+    createSignedUrl: (storageKey) =>
+      input.storage.createMusicSignedUrl(storageKey),
+    storageKey: input.storageKey,
   });
 }
 
@@ -202,66 +149,11 @@ export function createFilesystemChoreographyMusicStorage(deps: {
   });
 }
 
-export function createB2ChoreographyMusicStorage(
-  client: B2S3Client,
-  deps: { presign?: B2PresignSignedUrl } = {},
-) {
-  const presign = deps.presign ?? defaultB2PresignSignedUrl;
-
-  return createChoreographyMusicStorage({
-    createSignedUrl: (input) =>
-      b2CreateSignedUrl({
-        bucket: input.bucket,
-        client,
-        expiresInSeconds: input.expiresInSeconds,
-        key: input.key,
-        presign,
-      }),
-    remove: (input) =>
-      b2Remove({ bucket: input.bucket, client, keys: input.keys }),
-    upload: (input) =>
-      b2Upload({
-        bucket: input.bucket,
-        client,
-        contentType: input.options.contentType,
-        file: input.file,
-        key: input.key,
-      }),
-  });
-}
-
 function buildChoreographyMusicStorageKey(input: UploadChoreographyMusicInput) {
-  const extension = getChoreographyMusicExtension(input.file);
+  const extension = getAssetExtensionForContentType(
+    ASSET_KIND,
+    input.file.type,
+  );
 
   return `academies/${input.academyId}/choreographies/${input.choreographyId}/music.${extension}`;
-}
-
-function validateChoreographyMusic(file: Blob) {
-  if (!isChoreographyMusicContentType(file.type)) {
-    throw new Error(
-      "Choreography music must be an MP3, M4A, WAV, or OGG file.",
-    );
-  }
-
-  if (file.size > CHOREOGRAPHY_MUSIC_MAX_FILE_SIZE_BYTES) {
-    throw new Error("Choreography music must be 50 MB or smaller.");
-  }
-}
-
-function getChoreographyMusicExtension(file: Blob) {
-  const contentType = file.type;
-
-  if (!isChoreographyMusicContentType(contentType)) {
-    throw new Error(
-      "Choreography music must be an MP3, M4A, WAV, or OGG file.",
-    );
-  }
-
-  return CHOREOGRAPHY_MUSIC_EXTENSION_BY_CONTENT_TYPE[contentType];
-}
-
-function isChoreographyMusicContentType(
-  contentType: string,
-): contentType is keyof typeof CHOREOGRAPHY_MUSIC_EXTENSION_BY_CONTENT_TYPE {
-  return contentType in CHOREOGRAPHY_MUSIC_EXTENSION_BY_CONTENT_TYPE;
 }
