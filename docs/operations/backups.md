@@ -47,9 +47,9 @@ sync and stays there. Nothing in the app touches the backup bucket, so
 reconciling by hand means deleting the key in both places: on the volume under
 `STORAGE_VOLUME_DIR`, and under
 `s3://$B2_FILESTORE_BUCKET/$B2_FILESTORE_PREFIX/<bucket>/<key>`. Deleting only
-the volume copy leaves the bytes paid for in B2 indefinitely: the filestore
-bucket has no lifecycle rule, and even the safe kind of rule would never expire a
-copy that nothing has deleted. See
+the volume copy leaves the bytes paid for in B2 indefinitely: the bucket's
+lifecycle rule only removes versions something has already deleted, so it never
+reaches a copy that is still the current version there. See
 [Bucket lifecycle rules](#bucket-lifecycle-rules).
 
 ## Database Backup (Coolify native)
@@ -154,7 +154,9 @@ As configured (verified 2026-08-06):
   rest, and the rule clears the deleted versions 30 days later. Retention for the
   database is therefore whatever the Scheduled Backup on the Postgres resource
   says, edited in the Coolify UI.
-- **`en-escena-filestore-backups`**: no lifecycle rule.
+- **`en-escena-filestore-backups`**: `daysFromHidingToDeleting = 30`,
+  `daysFromUploadingToHiding` unset — the same shape, and for the same reason.
+  It had no rule at all until #639; nothing had ever been expired from it.
 
 **The filestore bucket must not get an age-based rule.** The storage backup ends
 in `aws s3 sync` (`scripts/backup-storage-to-b2.sh`), which compares size and
@@ -168,12 +170,21 @@ and nothing would look wrong until a restore was attempted. The database bucket
 is the opposite — every run writes a brand-new object, so nothing there is both
 old and current, and age-based expiry would be safe.
 
-What the filestore bucket can safely take is `daysFromHidingToDeleting` with
-hiding left unset. That bounds the cost of versions that are already superseded
-or deleted — which is what `BACKUP_SYNC_MODE=mirror` produces, and what deleting
-an orphaned key by hand produces — without ever expiring a live copy. The bucket
-currently has no such rule, so those versions accumulate indefinitely; adding one
-is a cost question, not a data-safety one.
+What it does take, `daysFromHidingToDeleting`, bounds the cost of versions that
+are already superseded or deleted — which is what `BACKUP_SYNC_MODE=mirror`
+produces, what deleting an orphaned key by hand produces, and what any future
+retention job will produce — without ever expiring a live copy. Under the default
+`copy` mode nothing in B2 is ever hidden, so the rule is currently inert; it is
+there so that a switch to `mirror` does not silently start accumulating immortal
+versions.
+
+That inertness is the point to remember before designing any data-retention
+policy: **a lifecycle rule cannot implement one.** The condition for deleting a
+dancer document or a choreography music file lives in the database, which B2
+knows nothing about, and a rule would act on the backup while the volume kept the
+live copy. Retention has to be driven the other way — the app deletes from the
+volume and clears the column in the same operation, `mirror` mode propagates the
+deletion to B2, and only then does this rule reclaim the bytes.
 
 Use the S3 endpoint shown by Backblaze for the bucket region, for example:
 
