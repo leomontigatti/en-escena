@@ -1,9 +1,8 @@
 import {
   type AssetKind,
   type UploadResult,
-  checkAssetAgainstPolicy,
-  getAssetExtensionForContentType,
   getAssetKindPolicy,
+  resolveAssetUpload,
 } from "@/lib/storage/asset-kinds";
 import { loadOptionalAssetDownloadUrl } from "@/lib/storage/asset-download-url";
 import {
@@ -79,13 +78,16 @@ export function createDancerDocumentStorage(
     async uploadDocumentImage(
       input: UploadDocumentImageInput,
     ): Promise<UploadResult> {
-      const rejection = checkAssetAgainstPolicy(ASSET_KIND, input.file);
+      const resolution = resolveAssetUpload(ASSET_KIND, input.file);
 
-      if (rejection) {
-        return { ok: false, rejection };
+      if (!resolution.ok) {
+        return { ok: false, rejection: resolution.rejection };
       }
 
-      const storageKey = buildDocumentImageStorageKey(input);
+      const storageKey = buildDocumentImageStorageKey(
+        input,
+        resolution.extension,
+      );
       const keysToRemove = await listExistingDocumentImageSideKeys({
         adapter,
         input,
@@ -212,11 +214,13 @@ async function listExistingDocumentImageSideKeys(input: {
     .filter((key) => key !== input.storageKey);
 }
 
-function buildDocumentImageStorageKey(input: UploadDocumentImageInput) {
-  const extension = getAssetExtensionForContentType(
-    ASSET_KIND,
-    input.file.type,
-  );
+// The extension is passed in rather than looked up again: only the accepted
+// path reaches here, and taking it as an argument makes that unrepresentable
+// otherwise instead of a `document-front.null` key nobody would notice.
+function buildDocumentImageStorageKey(
+  input: UploadDocumentImageInput,
+  extension: string,
+) {
   const sideSegment = getDocumentImageSideSegment(input.side);
 
   return `${buildDancerDocumentImagesFolder(input)}/${sideSegment}.${extension}`;

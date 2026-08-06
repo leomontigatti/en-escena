@@ -7,8 +7,6 @@ export const choreographyMusicUploadErrorToastId =
 export const choreographyMusicSavedToastId = "choreography-music-saved";
 export const choreographyMusicUploadErrorMessage =
   "No pudimos subir el archivo de música. Intentá nuevamente.";
-export const choreographyMusicPresentationBlockedMessage =
-  "No podés editar la música porque la coreografía ya tiene una presentación asociada.";
 
 export type PortalChoreographyMusicActionData =
   | {

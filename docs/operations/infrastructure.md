@@ -49,7 +49,9 @@ ADR-0013 records.
   made the storage layer read as though a live provider choice existed. The
   adapter seam ADR-0008 asked for is kept, with the filesystem store as its one
   implementation, so a future provider is a new implementation rather than a
-  rewrite.
+  rewrite. The `@aws-sdk/*` packages went with those adapters: B2 is reached
+  only by the backup shell scripts, through the `aws s3` CLI, so the application
+  bundle carries no S3 client at all.
 
 ### Asset-kind policy
 

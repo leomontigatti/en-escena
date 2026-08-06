@@ -1,9 +1,8 @@
 import {
   type AssetKind,
   type UploadResult,
-  checkAssetAgainstPolicy,
-  getAssetExtensionForContentType,
   getAssetKindPolicy,
+  resolveAssetUpload,
 } from "@/lib/storage/asset-kinds";
 import { loadOptionalAssetDownloadUrl } from "@/lib/storage/asset-download-url";
 import {
@@ -78,13 +77,16 @@ export function createChoreographyMusicStorage(
     async uploadMusic(
       input: UploadChoreographyMusicInput,
     ): Promise<UploadResult> {
-      const rejection = checkAssetAgainstPolicy(ASSET_KIND, input.file);
+      const resolution = resolveAssetUpload(ASSET_KIND, input.file);
 
-      if (rejection) {
-        return { ok: false, rejection };
+      if (!resolution.ok) {
+        return { ok: false, rejection: resolution.rejection };
       }
 
-      const storageKey = buildChoreographyMusicStorageKey(input);
+      const storageKey = buildChoreographyMusicStorageKey(
+        input,
+        resolution.extension,
+      );
 
       await adapter.upload({
         bucket: policy.bucket,
@@ -149,11 +151,12 @@ export function createFilesystemChoreographyMusicStorage(deps: {
   });
 }
 
-function buildChoreographyMusicStorageKey(input: UploadChoreographyMusicInput) {
-  const extension = getAssetExtensionForContentType(
-    ASSET_KIND,
-    input.file.type,
-  );
-
+// The extension is passed in rather than looked up again: only the accepted
+// path reaches here, and taking it as an argument makes that unrepresentable
+// otherwise instead of a `music.null` key nobody would notice.
+function buildChoreographyMusicStorageKey(
+  input: UploadChoreographyMusicInput,
+  extension: string,
+) {
   return `academies/${input.academyId}/choreographies/${input.choreographyId}/music.${extension}`;
 }

@@ -9,6 +9,7 @@ import {
   getAssetKindAccept,
   getAssetKindHelperText,
   getAssetUploadFieldProps,
+  resolveAssetUpload,
 } from "@/lib/storage/asset-kinds";
 
 const assetKinds: AssetKind[] = ["choreographyMusic", "dancerDocumentImage"];
@@ -69,6 +70,57 @@ describe("asset kind policy", () => {
     expect(
       getAssetExtensionForContentType("dancerDocumentImage", "image/gif"),
     ).toBeNull();
+  });
+});
+
+describe("resolveAssetUpload", () => {
+  // The key builders consume this extension directly, so an accepted file that
+  // resolved to no extension would write `music.undefined` to the volume.
+  test("hands the key builder an extension for every accepted content type", () => {
+    for (const kind of assetKinds) {
+      for (const contentType of getAssetUploadFieldProps(kind)
+        .allowedMimeTypes) {
+        const resolution = resolveAssetUpload(kind, {
+          size: 1,
+          type: contentType,
+        });
+
+        expect(resolution).toEqual({
+          extension: getAssetExtensionForContentType(kind, contentType),
+          ok: true,
+        });
+        expect(resolution.ok && resolution.extension).toBeTruthy();
+      }
+    }
+  });
+
+  test("refuses a content type the policy has no extension for", () => {
+    expect(
+      resolveAssetUpload("choreographyMusic", { size: 1, type: "audio/mp3" }),
+    ).toEqual({
+      ok: false,
+      rejection: {
+        contentType: "audio/mp3",
+        kind: "choreographyMusic",
+        reason: "unsupported-content-type",
+      },
+    });
+  });
+
+  test("checks the format before the ceiling, so a huge PDF is named a format problem", () => {
+    expect(
+      resolveAssetUpload("dancerDocumentImage", {
+        size: assetKindPolicies.dancerDocumentImage.maxFileSizeBytes + 1,
+        type: "application/pdf",
+      }),
+    ).toEqual({
+      ok: false,
+      rejection: {
+        contentType: "application/pdf",
+        kind: "dancerDocumentImage",
+        reason: "unsupported-content-type",
+      },
+    });
   });
 });
 

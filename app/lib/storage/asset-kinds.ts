@@ -95,13 +95,6 @@ export function getAssetKindHelperText(kind: AssetKind) {
   return `${policy.formatListLabel} - max ${getAssetKindMaxFileSizeMegabytes(kind)} MB`;
 }
 
-export function isAssetContentTypeAllowed(
-  kind: AssetKind,
-  contentType: string,
-) {
-  return contentType in assetKindPolicies[kind].extensionByContentType;
-}
-
 export function getAssetExtensionForContentType(
   kind: AssetKind,
   contentType: string,
@@ -113,27 +106,56 @@ export function getAssetExtensionForContentType(
 }
 
 /**
- * Checks a file against its kind's policy. Returns the rejection rather than
+ * An accepted file together with the extension its key must carry, or the
+ * reason it was refused. Resolving both in one step is what keeps a key from
+ * ever being built for a content type the policy has no extension for.
+ */
+export type AssetUploadResolution =
+  | { extension: string; ok: true }
+  | { ok: false; rejection: UploadRejection };
+
+/**
+ * The one gate every upload passes through. Returns the rejection rather than
  * throwing, so the surface renders Spanish from a value instead of matching the
  * English text of an exception.
  */
-export function checkAssetAgainstPolicy(
+export function resolveAssetUpload(
   kind: AssetKind,
   file: { size: number; type: string },
-): UploadRejection | null {
-  if (!isAssetContentTypeAllowed(kind, file.type)) {
+): AssetUploadResolution {
+  const extension = getAssetExtensionForContentType(kind, file.type);
+
+  // An absent extension *is* the unsupported-type case: the accepted set is
+  // exactly the key set of `extensionByContentType`.
+  if (!extension) {
     return {
-      contentType: file.type,
-      kind,
-      reason: "unsupported-content-type",
+      ok: false,
+      rejection: {
+        contentType: file.type,
+        kind,
+        reason: "unsupported-content-type",
+      },
     };
   }
 
   if (file.size > assetKindPolicies[kind].maxFileSizeBytes) {
-    return { kind, reason: "file-too-large", sizeBytes: file.size };
+    return {
+      ok: false,
+      rejection: { kind, reason: "file-too-large", sizeBytes: file.size },
+    };
   }
 
-  return null;
+  return { extension, ok: true };
+}
+
+/** `resolveAssetUpload` for callers that only need the verdict. */
+export function checkAssetAgainstPolicy(
+  kind: AssetKind,
+  file: { size: number; type: string },
+): UploadRejection | null {
+  const resolution = resolveAssetUpload(kind, file);
+
+  return resolution.ok ? null : resolution.rejection;
 }
 
 /**

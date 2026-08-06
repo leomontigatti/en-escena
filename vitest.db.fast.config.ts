@@ -58,18 +58,6 @@ export default mergeConfig(
           inline: true,
         },
       },
-      deps: {
-        optimizer: {
-          ssr: {
-            enabled: true,
-            include: [
-              "@aws-sdk/client-s3",
-              "@aws-sdk/s3-request-presigner",
-              "@aws-sdk/checksums",
-            ],
-          },
-        },
-      },
       hookTimeout: 30_000,
       testTimeout: 30_000,
     },
