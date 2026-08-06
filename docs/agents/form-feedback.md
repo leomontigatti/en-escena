@@ -76,10 +76,10 @@ consumed on the first read, the toast appears exactly once and does not reappear
 reload or back-navigation.
 
 This is React Router's idiomatic pattern. The project already has a session (Better
-Auth / cookies, see `app/lib/auth/access-auth-provider.betterauth.server.ts`), so the flash session
-helper reuses that infrastructure instead of introducing a new session. The helper is
-a single module in `app/lib/shared` (see #411); do not reinvent the mechanism per
-feature.
+Auth / cookies, see `app/lib/auth/access-auth-provider.betterauth.server.ts`), so the
+flash session helper reuses that infrastructure instead of introducing a new session.
+The helper is a single module in `app/lib/shared` (see #411); do not reinvent the
+mechanism per feature.
 
 **Answer to #201:** the query param is **not** needed for edit-in-place (most cases);
 for real redirects the correct transport is the flash session, **not** a URL param.

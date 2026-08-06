@@ -22,7 +22,9 @@ describe("registro confirm loader", () => {
     vi.clearAllMocks();
   });
 
-  test("verifies the Supabase confirmation link and redirects to academy onboarding", async () => {
+  // La forma `token_hash` + `type=signup` es heredada y se conserva para no
+  // romper los correos ya emitidos (#582): el proveedor actual la acepta.
+  test("verifies the legacy confirmation link shape and redirects to academy onboarding", async () => {
     confirmEmailOtp.mockResolvedValue({
       headers: new Headers({
         "cache-control": "no-store",

@@ -1,6 +1,9 @@
 import { describe, expect, test } from "vitest";
 
-import { createLegacySessionCookieClearHeaders } from "@/lib/auth/legacy-session-cookies.server";
+import {
+  appendLegacySessionCookieClearHeaders,
+  createLegacySessionCookieClearHeaders,
+} from "@/lib/auth/legacy-session-cookies.server";
 import { getSetCookieValues } from "@/lib/auth/set-cookie-headers";
 
 // Shim de migración (#582): la única pieza del residuo de Supabase Auth que
@@ -31,5 +34,34 @@ describe("legacy session cookie shim", () => {
     expect(
       getSetCookieValues(createLegacySessionCookieClearHeaders(request)),
     ).toEqual([]);
+  });
+
+  test("emits nothing when the request carries no cookie header at all", () => {
+    expect(
+      getSetCookieValues(
+        createLegacySessionCookieClearHeaders(
+          new Request("http://localhost/registro"),
+        ),
+      ),
+    ).toEqual([]);
+  });
+
+  // El logout expira las heredadas encima de los `set-cookie` del proveedor, que
+  // son los que cierran la sesión vigente: no debe perderse ninguno de los dos.
+  test("appends the expirations without dropping the caller's set-cookie headers", () => {
+    const headers = new Headers();
+    headers.append("set-cookie", "better-auth.session_token=; Max-Age=0");
+
+    const merged = appendLegacySessionCookieClearHeaders(
+      headers,
+      new Request("http://localhost/salir", {
+        headers: { cookie: "sb-project-auth-token=stale" },
+      }),
+    );
+
+    expect(getSetCookieValues(merged)).toEqual([
+      "better-auth.session_token=; Max-Age=0",
+      "sb-project-auth-token=; Max-Age=0; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax",
+    ]);
   });
 });

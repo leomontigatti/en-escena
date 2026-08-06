@@ -3,7 +3,7 @@ import { describe, expect, test } from "vitest";
 import { redirectToLoginForRequest } from "@/lib/auth/access-redirects.server";
 import { getSetCookieValues } from "@/lib/auth/set-cookie-headers";
 
-function motivoFor(cookie: string | null): string | null {
+function redirectFor(cookie: string | null): Response {
   const request = new Request("http://localhost/panel", {
     headers: cookie ? { cookie } : undefined,
   });
@@ -15,13 +15,18 @@ function motivoFor(cookie: string | null): string | null {
       throw thrown;
     }
 
-    const location = thrown.headers.get("location");
-    return location
-      ? new URL(location, "http://localhost").searchParams.get("motivo")
-      : null;
+    return thrown;
   }
 
   throw new Error("Expected redirectToLoginForRequest to throw a redirect.");
+}
+
+function motivoFor(cookie: string | null): string | null {
+  const location = redirectFor(cookie).headers.get("location");
+
+  return location
+    ? new URL(location, "http://localhost").searchParams.get("motivo")
+    : null;
 }
 
 describe("redirectToLoginForRequest", () => {
@@ -48,26 +53,17 @@ describe("redirectToLoginForRequest", () => {
   // Shim de migración (#582): un navegador previo al cutover de auth todavía
   // puede traer cookies `sb-*`; la redirección de sesión vencida las expira.
   test("expira las cookies `sb-*` heredadas al redirigir una sesión vencida", () => {
-    const request = new Request("http://localhost/panel", {
-      headers: {
-        cookie: "sb-project-auth-token=stale; theme=escena",
-      },
-    });
+    const response = redirectFor("sb-project-auth-token=stale; theme=escena");
 
-    try {
-      redirectToLoginForRequest(request);
-    } catch (thrown) {
-      if (!(thrown instanceof Response)) {
-        throw thrown;
-      }
+    expect(motivoFor("sb-project-auth-token=stale")).toBe("expirada");
+    expect(getSetCookieValues(response.headers)).toEqual([
+      "sb-project-auth-token=; Max-Age=0; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax",
+    ]);
+  });
 
-      expect(getSetCookieValues(thrown.headers)).toEqual([
-        "sb-project-auth-token=; Max-Age=0; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax",
-      ]);
-
-      return;
-    }
-
-    throw new Error("Expected redirectToLoginForRequest to throw a redirect.");
+  // La rama `continuar` no emite headers: sin cookie de sesión no hay nada que
+  // expirar, y una cookie `sb-*` cuenta como sesión, así que nunca cae acá.
+  test("no emite `set-cookie` cuando redirige con `continuar`", () => {
+    expect(getSetCookieValues(redirectFor("theme=escena").headers)).toEqual([]);
   });
 });

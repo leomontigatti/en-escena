@@ -1,6 +1,11 @@
 import { parse, serialize } from "cookie";
 
-const LEGACY_SESSION_COOKIE_PREFIX = "sb-";
+import { getSetCookieValues } from "@/lib/auth/set-cookie-headers";
+
+// Se exporta para que la rama `sb-` de `access-redirects.server.ts` —el otro
+// punto que todavía reconoce estas cookies— dependa de esta constante y se
+// retire junto con el shim, no por separado.
+export const LEGACY_SESSION_COOKIE_PREFIX = "sb-";
 
 // Shim de migración, no integración viva (#582). Supabase Auth dejó de ser el
 // proveedor de credenciales en la consolidación forward-only sobre Better Auth
@@ -30,6 +35,23 @@ export function createLegacySessionCookieClearHeaders(request: Request) {
         sameSite: "lax",
       }),
     );
+  }
+
+  return headers;
+}
+
+// Variante para respuestas que ya traen headers propios (el logout emite los
+// del proveedor, que son los que cierran la sesión vigente). Se agrega con
+// `append` en vez de copiar los headers a un objeto nuevo porque el iterador de
+// `Headers` colapsa los `set-cookie` múltiples en un solo valor con comas.
+export function appendLegacySessionCookieClearHeaders(
+  headers: Headers,
+  request: Request,
+) {
+  for (const value of getSetCookieValues(
+    createLegacySessionCookieClearHeaders(request),
+  )) {
+    headers.append("set-cookie", value);
   }
 
   return headers;
