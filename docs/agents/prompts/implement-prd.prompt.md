@@ -43,3 +43,8 @@ Make one or more commits on `{{BRANCH}}` with conventional-commit messages. Incl
 `Part of #{{PRD_NUMBER}}` in each commit body. Do **not** include `Closes` (the workflow
 closes the sub-issue; the merged PR closes the PRD). Do **not** push or close anything — the
 workflow handles both.
+
+If you changed code mapped in `app/lib/shared/doc-map.json`, either update the document it
+maps to or add a `Doc-Change-Not-Needed: <reason>` trailer to a commit — CI's `docs-gate`
+fails the PR otherwise, and you cannot read check output. See
+`.sandcastle/CODING_STANDARDS.md`.

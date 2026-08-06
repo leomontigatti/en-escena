@@ -48,6 +48,12 @@ test files you touched, and fix anything they surface. Don't run the full `pnpm 
 Make one or more commits on `{{BRANCH}}` with conventional-commit messages
 (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`).
 
+- If you changed code mapped in `app/lib/shared/doc-map.json` (`app/lib/auth/**` →
+  `docs/domain/access.md`; `app/lib/storage/**` and
+  `app/lib/portal/choreography-music.server.ts` → `docs/operations/infrastructure.md`),
+  either update that document or add a `Doc-Change-Not-Needed: <reason>` trailer to a
+  commit. CI's `docs-gate` fails the PR otherwise, and you cannot read check output.
+  Check with `pnpm check:doc-map`; the rule is in `.sandcastle/CODING_STANDARDS.md`.
 - Do **not** push the branch — the workflow handles it.
 - Do **not** close the issue — the merged PR handles it.
 - Do **not** touch the tracker or the remote in any way; you have no GitHub write access.

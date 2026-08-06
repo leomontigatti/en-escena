@@ -26,6 +26,36 @@ Avoid tests that simply restate trivial implementation details, such as a
 one-line string concatenation or direct mapping. These tests add little
 confidence and tend to break during harmless refactors.
 
+## Documentation Gate
+
+Some code has a current-state document that must stay in step with it. The
+mapping is `app/lib/shared/doc-map.json`, and CI's `docs-gate` job fails a PR
+that changes mapped code without changing its document:
+
+| Document                           | Code that must trigger it                                                |
+| ---------------------------------- | ------------------------------------------------------------------------ |
+| `docs/domain/access.md`            | `app/lib/auth/**`                                                        |
+| `docs/operations/infrastructure.md`| `app/lib/storage/**`, `app/lib/portal/choreography-music.server.ts`      |
+
+Test files (`*.test.ts`, `*.test.tsx`, `*.test-support.ts`) never fire it.
+Deletions and renames of mapped code do.
+
+If your change touches mapped code, do one of two things **before committing**:
+
+- update the document so it describes what the code now does; or
+- add this trailer, verbatim, to a commit in the branch:
+
+  ```
+  Doc-Change-Not-Needed: <reason>
+  ```
+
+The gate asks whether the document was considered — a reasoned "no" is a
+legitimate answer, and the trailer is how you record it. Note it must be on a
+commit: a label or a PR-body line does not re-run CI, so neither can work here.
+An AFK runner cannot read check output, so a mapped change committed with
+neither of the above leaves a red PR nobody in the loop can diagnose. Verify
+locally with `pnpm check:doc-map`.
+
 ## TDD Workflow
 
 When using TDD, work in vertical slices:
