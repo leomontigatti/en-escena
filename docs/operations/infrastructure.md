@@ -64,7 +64,8 @@ longer exists.
   delete leaves that object orphaned on the volume. The replacement still
   succeeds — the academy is not told a save failed when it did not — and the
   orphan is logged as `[storage:music:orphan]` with the key. There is no sweep
-  that reclaims it: reconciliation is by hand, from that log line. The
+  that reclaims it: reconciliation is by hand, from that log line, and it has to
+  cover the B2 backup copy as well — see [Backups](./backups.md). The
   divergence from dancer documents (`adapter.remove` there propagates) is
   deliberate: that delete happens before the row is written, so aborting leaves
   the dancer pointing at the document they already had and the failure can be
