@@ -56,6 +56,12 @@ your 30 min budget and CI runs the complete suite in parallel anyway. See
 Make one or more commits on `{{BRANCH}}` with conventional-commit messages (`feat:`, `fix:`,
 `refactor:`, `test:`, `docs:`). Include `Part of #{{PRD_NUMBER}}` in each commit body.
 
+- If you changed code mapped in `app/lib/shared/doc-map.json` (`app/lib/auth/**` →
+  `docs/domain/access.md`; `app/lib/storage/**` and
+  `app/lib/portal/choreography-music.server.ts` → `docs/operations/infrastructure.md`),
+  either update that document or add a `Doc-Change-Not-Needed: <reason>` trailer to a
+  commit. CI's `docs-gate` fails the PR otherwise, and you cannot read check output.
+  Check with `pnpm check:doc-map`; the rule is in `.sandcastle/CODING_STANDARDS.md`.
 - Do **not** include `Closes` — the workflow closes the sub-issue; the merged PR closes the PRD.
 - Do **not** push the branch — the workflow handles it.
 - Do **not** close anything — the workflow handles it.

@@ -1,11 +1,12 @@
 # CI pipeline — implements the decision in #305 (full charter of the workflow).
-# PR-only: issue -> branch -> PR -> merge. Two jobs, both meant to be required:
-#   - checks : lint / typecheck / non-DB tests / build, with no database (@/db is lazy, #308).
-#   - db-gate: full `*.db.test.ts` suite against real Postgres 17 (mirrors production).
-# Branch protection (requiring these checks + forbidding direct pushes to master) is NOT
-# turned on here: #305 sequences it with the cutover to Sandcastle-on-GHA and the map in
-# #319 places it in #347 ("Cutover Fase 4: branch protection enforced"). Turning it on
-# now would break the local runner.
+# PR-only: issue -> branch -> PR -> merge. Three jobs, all meant to be required:
+#   - checks   : lint / typecheck / non-DB tests / build, with no database (@/db is lazy, #308).
+#   - db-gate  : full `*.db.test.ts` suite against real Postgres 17 (mirrors production).
+#   - docs-gate: mapped code changed => its current-state document must change too (#630).
+# Branch protection on `master` is live: direct pushes are forbidden and `checks` and
+# `db-gate` are required contexts, with `strict: true`. Required contexts are a repo
+# setting, not a file here, so adding a job does not make it binding — `docs-gate` has to
+# be added to that list by hand once its first run has created the context.
 name: CI
 
 on:
@@ -58,6 +59,23 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test:unit
       - run: pnpm build
+
+  # Its own job rather than a step inside `checks`: with this gate the *message*
+  # is the point, and inside `checks` a doc-gate failure is visually identical to
+  # a lint failure and gets buried in a long log. Checkout plus `node`, no
+  # install — the extra runner costs seconds. Full history because the check
+  # needs the merge base and the PR's commit messages (the escape-hatch trailer).
+  docs-gate:
+    name: docs-gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: docs-gate (mapped code changes must touch their current-state doc)
+        run: |
+          git fetch --no-tags origin master
+          node scripts/check-doc-map.mjs origin/master
 
   db-gate:
     name: db-gate

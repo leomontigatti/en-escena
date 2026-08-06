@@ -13,17 +13,18 @@ use when a script has operational risk.
 
 ## Validation
 
-| Script                       | Purpose                                                                                                   |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `pnpm format`                | Format the repo with Prettier. Changes files in place.                                                    |
-| `pnpm format:check`          | Check Prettier formatting without changing files.                                                         |
-| `pnpm check:repo-styles`     | Enforce app UI style guardrails.                                                                          |
-| `pnpm check:file-tokens`     | Check staged application source file size before commit or PR handoff.                                    |
-| `pnpm check:migration-order` | Fail when a new migration predates the newest one on `master`. Runs in CI; needs `origin/master` fetched. |
-| `pnpm typecheck`             | Generate React Router route types and run TypeScript. Use this instead of `pnpm exec tsc`.                |
-| `pnpm test`                  | Run the full pre-commit suite: unit/react plus the DB suite on in-process PGlite. No local Postgres.      |
-| `pnpm test:unit`             | Run only the non-database (unit/react) Vitest suite.                                                      |
-| `pnpm test:watch`            | Run Vitest in watch mode.                                                                                 |
+| Script                       | Purpose                                                                                                                                                     |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm format`                | Format the repo with Prettier. Changes files in place.                                                                                                      |
+| `pnpm format:check`          | Check Prettier formatting without changing files.                                                                                                           |
+| `pnpm check:repo-styles`     | Enforce app UI style guardrails.                                                                                                                            |
+| `pnpm check:file-tokens`     | Check staged application source file size before commit or PR handoff.                                                                                      |
+| `pnpm check:migration-order` | Fail when a new migration predates the newest one on `master`. Runs in CI; needs `origin/master` fetched.                                                   |
+| `pnpm check:doc-map`         | Fail when mapped code changed without its current-state document (`app/lib/shared/doc-map.json`). Runs in CI as `docs-gate`; needs `origin/master` fetched. |
+| `pnpm typecheck`             | Generate React Router route types and run TypeScript. Use this instead of `pnpm exec tsc`.                                                                  |
+| `pnpm test`                  | Run the full pre-commit suite: unit/react plus the DB suite on in-process PGlite. No local Postgres.                                                        |
+| `pnpm test:unit`             | Run only the non-database (unit/react) Vitest suite.                                                                                                        |
+| `pnpm test:watch`            | Run Vitest in watch mode.                                                                                                                                   |
 
 ## Database
 

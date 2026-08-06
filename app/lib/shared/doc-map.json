@@ -1,0 +1,13 @@
+[
+  {
+    "doc": "docs/domain/access.md",
+    "code": ["app/lib/auth/**"]
+  },
+  {
+    "doc": "docs/operations/infrastructure.md",
+    "code": [
+      "app/lib/storage/**",
+      "app/lib/portal/choreography-music.server.ts"
+    ]
+  }
+]

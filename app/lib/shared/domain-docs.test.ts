@@ -2,6 +2,12 @@ import { readdir, readFile, stat } from "node:fs/promises";
 
 import { describe, expect, test } from "vitest";
 
+import {
+  matchesCodePattern,
+  parseDocMap,
+  staticPrefixOf,
+} from "../../../scripts/doc-map.mjs";
+
 const glossaryRequirements = [
   "At most one active event can exist globally",
   '**`activeEvent`** — ui: "Evento activo"',
@@ -369,6 +375,49 @@ describe("domain documentation", () => {
 
     expect(adrFiles.length).toBeGreaterThan(0);
     expect([...linkedFiles].sort()).toEqual([...adrFiles].sort());
+  });
+
+  // Nobody maintains the doc gate's map by hand — this does. A map that rots
+  // fires on the wrong PRs, gets escaped reflexively and becomes decorative, so
+  // a dead glob or a renamed target document has to fail the build the day it
+  // happens rather than the day someone notices. See #630.
+  describe("doc gate map", () => {
+    test("points every entry at a document that exists", async () => {
+      const docMap = parseDocMap(
+        await readFile("app/lib/shared/doc-map.json", "utf8"),
+      );
+
+      expect(docMap.length).toBeGreaterThan(0);
+
+      for (const { doc } of docMap) {
+        await expect(stat(doc), doc).resolves.toBeTruthy();
+      }
+    });
+
+    test("keeps every mapped code pattern matching at least one file", async () => {
+      const docMap = parseDocMap(
+        await readFile("app/lib/shared/doc-map.json", "utf8"),
+      );
+      const patterns = docMap.flatMap(({ code }) => code);
+
+      expect(patterns.length).toBeGreaterThan(0);
+
+      for (const pattern of patterns) {
+        const root = staticPrefixOf(pattern);
+        const candidates = (
+          await readdir(root, { recursive: true, withFileTypes: true })
+        )
+          .filter((entry) => entry.isFile())
+          .map((entry) => `${entry.parentPath}/${entry.name}`);
+
+        expect(
+          candidates.filter((candidate) =>
+            matchesCodePattern(candidate, pattern),
+          ),
+          pattern,
+        ).not.toHaveLength(0);
+      }
+    });
   });
 
   test("keeps codebase map file references pointed at existing files", async () => {
