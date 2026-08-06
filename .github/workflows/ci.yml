@@ -33,6 +33,10 @@ jobs:
       - run: pnpm format:check
       - run: pnpm check:repo-styles
       - run: pnpm check:file-tokens
+      # Retired dependencies stay retired (#582): removing a package from the
+      # manifest does not keep it out, and typecheck has no opinion once it is
+      # re-added. The rule carries its own reason and prints it on failure.
+      - run: pnpm check:banned-imports
       # Drift-check (deferred from #391): `db:generate` is offline (it diffs
       # `schema.ts` against the snapshots in `app/db/migrations/meta/`, no DB)
       # and must report "No schema changes". If it emits a migration, `schema.ts`
