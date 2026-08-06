@@ -126,6 +126,35 @@ AGENT_PAT`, `gh secret list`.
 
 If `AGENT_PAT` is omitted: the platform keeps going, degraded. See the next section.
 
+### Fork PRs never reach the runner ([#635](https://github.com/leomontigatti/en-escena/issues/635))
+
+The token-free-agent rule above bounds _prompt injection_ — text the agent reads. It says
+nothing about code executing in the job, upstream of the agent. The three workflows-over-a-PR
+(`agent-review`, `agent-implement-pr`, `agent-update-branch`) run on `pull_request_target`,
+which evaluates the workflow from the base branch but runs with this repo's secrets, and each
+checks out `pull_request.head.sha`. On a fork PR that would put contributor-controlled code on
+disk with `AGENT_PAT` persisted into `.git/config`, then feed it to `pnpm install` lifecycle
+scripts and to the runner script itself.
+
+So each of those three jobs carries a provenance condition alongside its label check:
+
+```yaml
+if: >-
+  github.event.label.name == 'agent:review' &&
+  github.event.pull_request.head.repo.full_name == github.repository
+```
+
+It sits at job level because that is the only form that keeps the untrusted tree from ever
+being checked out; a step-level refusal would run after the checkout it is meant to prevent.
+The trade-off is a silent skip — a job-level `if:` cannot comment on the PR. Nothing working is
+lost: the runners push to `origin`, which is this repo, while a fork PR's branch lives on the
+fork, so fork PRs never worked here anyway. `tests/afk/pr-workflow-fork-guard.test.ts` asserts
+the property across the shared workflow table, so a fourth PR-level workflow cannot omit it.
+
+Do not "fix" any of this by switching to `pull_request`: `pull_request_target` is deliberate
+(spec §3.3) — the labeled event must fire even when the PR is out-of-date or conflicting, which
+is exactly when `agent:update-branch` is needed.
+
 ## Per-workflow permissions matrix
 
 **Recorded in spec §3.1** → "Per-workflow permissions matrix" (8 rows, columns `contents` /

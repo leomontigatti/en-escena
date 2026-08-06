@@ -30,7 +30,15 @@ permissions:
 
 jobs:
   review:
-    if: github.event.label.name == 'agent:review'
+    # Same-repo guard (#635). `pull_request_target` runs with this repo's secrets,
+    # and the checkout below puts `head.sha` — the PR author's tree — on disk. On a
+    # fork PR that is contributor-controlled code executing with `AGENT_PAT` in
+    # reach. The label is a permission gate, not a provenance check, so it has to
+    # be paired with one. It belongs at job level: a step-level refusal would run
+    # after the checkout it is meant to prevent.
+    if: >-
+      github.event.label.name == 'agent:review' &&
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     env:
       GH_REPO: ${{ github.repository }}

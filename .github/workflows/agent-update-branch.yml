@@ -32,7 +32,15 @@ permissions:
 
 jobs:
   update-branch:
-    if: github.event.label.name == 'agent:update-branch'
+    # Same-repo guard (#635). `pull_request_target` runs with this repo's secrets,
+    # and the checkout below puts `head.sha` — the PR author's tree — on disk. On a
+    # fork PR that is contributor-controlled code executing with `AGENT_PAT` in
+    # reach. The label is a permission gate, not a provenance check, so it has to
+    # be paired with one. Nothing working is lost: the runner pushes to `origin`,
+    # which is this repo, while a fork PR's branch lives on the fork.
+    if: >-
+      github.event.label.name == 'agent:update-branch' &&
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     env:
       GH_REPO: ${{ github.repository }}
