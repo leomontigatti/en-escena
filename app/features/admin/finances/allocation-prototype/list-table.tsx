@@ -87,7 +87,10 @@ function StatusCell({ row }: { row: ChoreographyReading }) {
     return (
       <div className="flex flex-wrap items-center gap-1">
         {row.anomalies.map((anomaly) => (
-          <Badge key={anomaly} variant="warning">
+          // `destructive`, matching the detail: an over-allocation is not the
+          // same kind of fact as a pending deposit, which already owns
+          // `warning`, and beside it two amber badges read as one.
+          <Badge key={anomaly} variant="destructive">
             {choreographyAnomalyLabels[anomaly]}
           </Badge>
         ))}
