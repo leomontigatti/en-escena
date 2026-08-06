@@ -1,6 +1,7 @@
 import { mkdir, rm } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 import { spawn } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import readline from "node:readline/promises";
 
 const LOCAL_CONTAINER = "en-escena-postgres";
@@ -19,6 +20,14 @@ const REMOTE_BACKUP_DIR =
   process.env.BACKUP_DIR ?? "/data/coolify/backups/databases";
 
 async function main() {
+  // On a closed stdin the confirmation prompt never resolves and the process
+  // would exit 0 having done nothing — a success that refreshed no database.
+  if (!process.stdin.isTTY) {
+    throw new Error(
+      "db:refresh:prod needs an interactive terminal to confirm.",
+    );
+  }
+
   console.log("This will replace the local en-escena database.");
   console.log(
     `Source: the newest Coolify backup artifact on ${SSH_HOST}, fetched over scp.`,
@@ -44,7 +53,7 @@ async function main() {
   const dumpPath = join(DUMP_DIR, dumpFile);
 
   try {
-    await run("scp", ["-q", `${SSH_HOST}:'${remotePath}'`, dumpPath]);
+    await run("scp", [`${SSH_HOST}:'${remotePath}'`, dumpPath]);
 
     await run("docker", [
       "run",
@@ -148,6 +157,11 @@ async function main() {
       "postgres",
       "-d",
       LOCAL_DATABASE,
+      // Without ON_ERROR_STOP, an artifact carrying no `drizzle` schema — a
+      // hand-taken `--schema=public` BACKUP_FILE, say — would leave the local
+      // database journal-less and still report success.
+      "-v",
+      "ON_ERROR_STOP=1",
       "-c",
       "select count(*) as migrations, max(created_at) as watermark from drizzle.__drizzle_migrations;",
     ]);
@@ -206,7 +220,7 @@ async function resolveRemoteArtifact() {
 
   const newest = await capture("ssh", [
     SSH_HOST,
-    `find '${REMOTE_BACKUP_DIR}' -type f -name 'pg-dump-*.dmp' -printf '%T@ %p\\n' | sort -rn | head -1 | cut -d' ' -f2-`,
+    newestArtifactCommand(REMOTE_BACKUP_DIR),
   ]);
 
   if (!newest) {
@@ -219,10 +233,18 @@ async function resolveRemoteArtifact() {
   return assertCustomFormat(newest);
 }
 
+// The trailing `cut -d' ' -f2-` keeps paths containing spaces intact; only the
+// `%T@` timestamp is stripped. Empty output means "no artifact", including when
+// the directory itself is missing: `find` fails, but the pipeline's status is
+// `cut`'s.
+export function newestArtifactCommand(remoteBackupDir) {
+  return `find '${remoteBackupDir}' -type f -name 'pg-dump-*.dmp' -printf '%T@ %p\\n' | sort -rn | head -1 | cut -d' ' -f2-`;
+}
+
 // Artifacts predating #594 are gzipped `pg_dumpall` output: plain SQL that
 // `pg_restore` cannot read, and whose \connect directives would repoint the
 // session mid-restore. Refuse them rather than fail halfway through.
-function assertCustomFormat(remotePath) {
+export function assertCustomFormat(remotePath) {
   if (!remotePath.endsWith(".dmp")) {
     throw new Error(
       `Not a custom-format artifact: ${remotePath}. Only .dmp is supported; ` +
@@ -293,8 +315,15 @@ async function run(command, args, env = {}) {
   });
 }
 
-main().catch((error) => {
-  console.error("");
-  console.error(error.message);
-  process.exitCode = 1;
-});
+// Only when invoked as `pnpm db:refresh:prod`; the helpers above are imported
+// by the colocated test, which must not recreate anybody's local database.
+if (
+  process.argv[1] &&
+  resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
+  main().catch((error) => {
+    console.error("");
+    console.error(error.message);
+    process.exitCode = 1;
+  });
+}

@@ -33,11 +33,11 @@ every schema, `public` and `drizzle` alike. See
 
 Overrides, when the default is not what you want:
 
-| Variable        | Purpose                                                                      |
-| --------------- | ---------------------------------------------------------------------------- |
-| `PROD_SSH_HOST` | The SSH host to fetch from. Defaults to `rylai`.                             |
-| `BACKUP_DIR`    | Where to search on that host. Defaults to `/data/coolify/backups/databases`. |
-| `BACKUP_FILE`   | Fetch a specific remote artifact instead of the newest one.                  |
+| Variable        | Purpose                                                                            |
+| --------------- | ---------------------------------------------------------------------------------- |
+| `PROD_SSH_HOST` | The SSH host to fetch from. Defaults to `rylai`.                                   |
+| `BACKUP_DIR`    | Where to search on that host. Defaults to `/data/coolify/backups/databases`.       |
+| `BACKUP_FILE`   | Fetch a specific artifact — an absolute path on that host, not under `BACKUP_DIR`. |
 
 Only custom-format (`.dmp`) artifacts are accepted. The gzipped `pg_dumpall`
 files predating #594 are refused: `pg_restore` cannot read them, and their
@@ -133,6 +133,15 @@ The journal should carry every migration, not just the baseline, and
 docker exec en-escena-postgres psql -U postgres -d en-escena -c "
 select count(*) as migrations, max(created_at) as watermark from drizzle.__drizzle_migrations;
 "
+```
+
+The count must match the number of entries in
+`app/db/migrations/meta/_journal.json`; a single row means someone baselined on
+top of the restore. Then confirm nothing is left to apply — this must report no
+applied migration:
+
+```sh
+pnpm db:migrate
 ```
 
 Then a small sanity query against the data:
