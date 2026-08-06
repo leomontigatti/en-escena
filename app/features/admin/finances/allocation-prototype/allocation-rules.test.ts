@@ -8,7 +8,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  readMoneyDialogShape,
   readPriceLock,
+  readSuggestedAmount,
   rejectAllocation,
   spreadFromPool,
   unwindToPool,
@@ -112,6 +114,64 @@ describe("rejectAllocation", () => {
         amount: 0,
       }),
     ).toMatchObject({ reason: "notPositive" });
+  });
+});
+
+describe("readMoneyDialogShape", () => {
+  it("offers only what the row admits", () => {
+    const world = read();
+
+    // Ana is over-allocated — her discount improved after she paid in full — so
+    // the excess outranks her `Pagada` status.
+    expect(readMoneyDialogShape(world.inscription("ins-1"))).toBe(
+      "releaseExcess",
+    );
+    // Nadia is withdrawn and still funded: the same shape, for the same reason.
+    expect(readMoneyDialogShape(world.inscription("ins-18"))).toBe(
+      "releaseExcess",
+    );
+    // Bruno is short of his total, so the dialog is about adding money.
+    expect(readMoneyDialogShape(world.inscription("ins-2"))).toBe("allocate");
+  });
+
+  it("empties a row that is settled to the peso", () => {
+    // Julián owes nothing and holds no excess: nothing to add, everything to
+    // remove.
+    expect(readMoneyDialogShape(read().inscription("ins-10"))).toBe(
+      "releaseAll",
+    );
+  });
+
+  it("does not offer to remove nothing", () => {
+    // A total of zero is reached by owing zero, so the row reads `Pagada` with
+    // no money on it — and «Quitar $ 0» is not an act.
+    const settled = upsertAllocation(initialPrototypeState, {
+      paymentId: "pay-1",
+      inscriptionId: "ins-10",
+      amount: 0,
+    });
+    const priceless = {
+      ...read(settled).inscription("ins-10"),
+      totalAmount: 0,
+      status: "paidInFull" as const,
+    };
+
+    expect(readMoneyDialogShape(priceless)).toBe("allocate");
+  });
+});
+
+describe("readSuggestedAmount", () => {
+  it("hints the seña while the threshold is unmet, the rest once it is met", () => {
+    const world = read();
+    const bruno = world.inscription("ins-2");
+
+    // `Señada`: what is left to be fully paid.
+    expect(readSuggestedAmount(bruno)).toBe(bruno.owedBalanceAmount);
+
+    // `Seña pendiente` with no money: the whole seña, derived from the price
+    // currently selected, so changing the price changes the hint.
+    const ana = world.inscription("ins-11");
+    expect(readSuggestedAmount(ana)).toBe(ana.depositAmount);
   });
 });
 

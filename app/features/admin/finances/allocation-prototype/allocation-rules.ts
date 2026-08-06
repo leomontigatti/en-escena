@@ -165,6 +165,44 @@ export function rejectAllocation({
  * inscription *should* hold afterwards is not a deallocation question — it
  * re-resolves on the next allocation write — and belongs to #583.
  */
+/**
+ * Which of the money dialogs an inscription opens. It lives here rather than in
+ * the component because it is a **decision about what an admin may do to a row**,
+ * not a rendering detail: on a row whose money is leaving there is no price to
+ * pick and no amount to type, and on a row still being paid there is nothing to
+ * release.
+ */
+export type MoneyDialogShape = "releaseExcess" | "releaseAll" | "allocate";
+
+export function readMoneyDialogShape(
+  inscription: InscriptionReading,
+): MoneyDialogShape {
+  // The excess outranks the status: an over-allocated row is `Pagada` too, and
+  // the only sane act on it is getting the surplus off.
+  if (inscription.excessAmount > 0) {
+    return "releaseExcess";
+  }
+
+  // `paidInFull` with nothing on it is a real row, not a contradiction: a total
+  // of zero is reached by owing zero. There is nothing to remove, so the
+  // removal dialog would offer «Quitar $ 0».
+  return inscription.status === "paidInFull" && inscription.allocatedAmount > 0
+    ? "releaseAll"
+    : "allocate";
+}
+
+/**
+ * What the amount field hints at: **the figure that finishes the next thing** —
+ * the seña while the threshold is unmet, the remaining balance once it is met.
+ * A placeholder rather than a default, because the figure moves: the discount is
+ * live, so a sibling registering elsewhere changes it while the dialog is open.
+ */
+export function readSuggestedAmount(inscription: InscriptionReading) {
+  return inscription.status === "depositMet"
+    ? inscription.owedBalanceAmount
+    : inscription.owedDepositAmount;
+}
+
 export type PriceLockReading = {
   /** No money on the inscription yet: the price is still the admin's to pick. */
   isFirstPick: boolean;

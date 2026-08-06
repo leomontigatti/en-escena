@@ -187,7 +187,11 @@ function StatusCell({ inscription }: { inscription: InscriptionReading }) {
     return (
       <div className="flex flex-wrap items-center gap-1">
         {anomalies.map((anomaly) => (
-          <Badge key={anomaly} variant="warning">
+          // `destructive`, not `warning`: `Seña pendiente` is already a warning,
+          // and two amber badges in one column read as the same kind of fact.
+          // A pending deposit is the normal state of an unpaid inscription; an
+          // over-allocation is money in the wrong place.
+          <Badge key={anomaly} variant="destructive">
             {inscriptionAnomalyLabels[anomaly]}
           </Badge>
         ))}

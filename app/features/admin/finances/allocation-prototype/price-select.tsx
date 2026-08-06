@@ -21,9 +21,9 @@
  * `Select` whose value is missing from its items renders empty.
  *
  * And the second pick is settled: **the price is fixed by the first
- * allocation**, so once money has landed the picker is replaced by the price it
- * is locked to, plus the way out — take every allocation off and it reverts to
- * the choreography's default, which is also when it unlocks (#549, amended).
+ * allocation**. Once money has landed this component is not rendered at all —
+ * the dialog shows a locked `ReadOnlyField` instead, and the way out is taking
+ * the money off, which is what opens the lock (#553).
  *
  * There is no empty state: `selectedPriceId` is never null, so the picker always
  * opens on a real price.
@@ -37,7 +37,6 @@ import {
 } from "@/components/ui/select";
 
 import { formatAmount } from "../formatters";
-import { readPriceLock } from "./allocation-rules";
 import type { InscriptionReading, PrototypeState } from "./fixtures";
 
 export function PriceSelect({
@@ -55,23 +54,11 @@ export function PriceSelect({
   size?: "sm";
   id?: string;
 }) {
-  const lock = readPriceLock(inscription);
   const prices = state.prices.filter(
     (price) =>
       price.groupType === choreographyGroupType ||
       price.id === inscription.selectedPriceId,
   );
-
-  // Locked: there is nothing to choose, so no disabled control is offered — just
-  // the price it is fixed to and how to get out of it.
-  if (lock.isLocked) {
-    return (
-      <div className="flex flex-col gap-1">
-        <span className="text-sm font-medium">{inscription.priceName}</span>
-        <p className="text-xs text-muted-foreground">{lock.lockedReason}</p>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col gap-1.5">
