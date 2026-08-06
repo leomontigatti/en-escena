@@ -54,9 +54,11 @@ The database backup is configured on the **Postgres resource** in Coolify, not o
 the application. There is no script and nothing in this repo to run.
 
 - Destination: the B2 bucket registered under Coolify's _S3 Storages_ as
-  `enescena-db-backups` (unhyphenated — see #588). The hyphenated
-  `en-escena-db-backups` belongs to the retired script path and goes away with
-  the Supabase decommission (#303).
+  `enescena-db-backups` (unhyphenated — see #588). It is the **only** database
+  backup destination. The hyphenated `en-escena-db-backups`, which belonged to
+  the retired app-script path, was deleted with the Supabase decommission
+  (#598 step 8) along with the pre-cutover dumps it held; no Supabase-era copy
+  of the database exists anywhere now.
 - Local copies are kept as well, under
   `/data/coolify/backups/databases/<team>/<resource>/` on the VPS, with 7-day
   retention. Keep "Disable Local Backup" **unchecked**: those copies are what
@@ -152,7 +154,9 @@ restore drill.
 `COOLIFY_BACKUP_BUCKET` names the bucket Coolify's own backup writes to
 (unhyphenated, #588), which the scheduled restore drill reads. It replaced the
 retired `B2_DATABASE_BUCKET`, which pointed at the hyphenated bucket of the old
-app-script path (#594 item 5).
+app-script path (#594 item 5). `B2_DATABASE_BUCKET`, `B2_DATABASE_PREFIX` and
+`B2_PREFIX` were purged from the production environment with #598 step 8; the
+bucket they named no longer exists.
 
 ```sh
 B2_S3_ENDPOINT="https://s3.us-east-005.backblazeb2.com"
