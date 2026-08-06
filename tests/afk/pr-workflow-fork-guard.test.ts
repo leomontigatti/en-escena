@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   evalGha,
+  forkExposedWorkflows,
   jobConditions,
   PR_WORKFLOWS,
 } from "./pr-workflows.test-support";
@@ -74,8 +75,18 @@ describe("PR-mutating workflows fork guard (#635)", () => {
     }
   });
 
+  it("guards every workflow that checks out PR head under pull_request_target", () => {
+    // Discovered from `.github/workflows/`, not listed: the guard is a property
+    // of a *shape* (privileged trigger + head-of-PR checkout), so a fourth
+    // workflow of that shape has to fail here rather than go uncovered because
+    // nobody remembered to extend `PR_WORKFLOWS`.
+    expect(forkExposedWorkflows()).toEqual(
+      PR_WORKFLOWS.map(({ file }) => file).sort(),
+    );
+  });
+
   it("gives every job an explicit condition, so a new job cannot omit the guard", () => {
-    for (const { file } of PR_WORKFLOWS) {
+    for (const file of forkExposedWorkflows()) {
       for (const { job, condition } of jobConditions(file)) {
         expect(condition, `${file}: job \`${job}\` has no \`if:\``).not.toBe(
           "",

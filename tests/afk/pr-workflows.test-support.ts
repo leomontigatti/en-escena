@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 // Shared reading + evaluation helpers for the three workflows-over-a-PR. Both
@@ -17,9 +17,11 @@ export interface PrWorkflow {
 }
 
 /**
- * The workflows that run over an existing PR on `pull_request_target: [labeled]`.
- * A fourth one added later belongs here, which is what makes both suites cover
- * it automatically.
+ * The workflows that run over an existing PR on `pull_request_target: [labeled]`,
+ * paired with the label each answers to — the label is the one thing that cannot
+ * be derived from the file. A fourth one added later belongs here, and
+ * `forkExposedWorkflows()` is what makes forgetting to add it a test failure
+ * rather than a silent coverage hole.
  */
 export const PR_WORKFLOWS: PrWorkflow[] = [
   { file: ".github/workflows/agent-review.yml", label: "agent:review" },
@@ -124,7 +126,14 @@ export function evalGha(
     return left;
   }
 
-  return String(parseOr());
+  const value = parseOr();
+  skipWs();
+  // The evaluator only covers a subset of the expression language. Anything it
+  // silently walked past would mean judging a *prefix* of a security condition
+  // and calling that the condition — so refuse rather than under-read.
+  if (pos < inner.length)
+    throw new Error(`Unsupported expression syntax near: ${rest()}`);
+  return String(value);
 }
 
 function resolveToken(
@@ -139,10 +148,42 @@ function workflowText(file: string): string {
   return readFileSync(`${repoRoot}${file}`, "utf8");
 }
 
+/** The top-level block under a key, i.e. every line indented beneath it. */
+function topLevelBlock(file: string, key: string): string | undefined {
+  const block = new RegExp(`^${key}:\\n((?:[ \\t]+.*\\n?|\\n)+)`, "m").exec(
+    workflowText(file),
+  );
+  return block?.[1];
+}
+
+/**
+ * Every workflow whose head-of-PR checkout is reachable with this repo's
+ * secrets: triggered by `pull_request_target` (which runs privileged) *and*
+ * checking out a ref derived from `pull_request.head` (which is the PR author's
+ * tree). This is derived from disk rather than listed, so a new workflow of that
+ * shape is covered by #635's guard test the moment it lands.
+ */
+export function forkExposedWorkflows(): string[] {
+  const dir = ".github/workflows";
+  return readdirSync(`${repoRoot}${dir}`)
+    .filter((name) => name.endsWith(".yml") || name.endsWith(".yaml"))
+    .map((name) => `${dir}/${name}`)
+    .filter((file) => {
+      // Scoped to the `on:` block: the string also appears in prose comments
+      // about workflows that merely *trigger* one of these (agent-implement.yml).
+      const on = topLevelBlock(file, "on");
+      if (!on || !/^ {2}pull_request_target:/m.test(on)) return false;
+      return /^[ \t]*ref:.*github\.event\.pull_request\.head\./m.test(
+        workflowText(file),
+      );
+    })
+    .sort();
+}
+
 function concurrencyBlock(file: string): string {
-  const block = /^concurrency:\n((?:[ \t]+.*\n?)+)/m.exec(workflowText(file));
+  const block = topLevelBlock(file, "concurrency");
   if (!block) throw new Error(`${file}: no concurrency block`);
-  return block[1];
+  return block;
 }
 
 export function concurrencyGroup(file: string): string {
@@ -172,11 +213,10 @@ export interface JobCondition {
  * silently skipped.
  */
 export function jobConditions(file: string): JobCondition[] {
-  const text = workflowText(file);
-  const jobsBlock = /^jobs:\n((?:[ \t]+.*\n?|\n)+)/m.exec(text);
+  const jobsBlock = topLevelBlock(file, "jobs");
   if (!jobsBlock) throw new Error(`${file}: no jobs block`);
 
-  const lines = jobsBlock[1].split("\n");
+  const lines = jobsBlock.split("\n");
   const conditions: JobCondition[] = [];
 
   for (let i = 0; i < lines.length; i++) {
@@ -192,12 +232,15 @@ export function jobConditions(file: string): JobCondition[] {
 
       condition = found[1].trim();
       // Folded/literal block scalar (`>-`, `>`, `|`): the value is the
-      // more-indented lines that follow, joined into one line.
+      // more-indented lines that follow, joined into one line. The continuation
+      // indent is whatever the first of those lines uses — pinning a width here
+      // would read a differently-indented guard as *absent*.
       if (/^[>|][-+]?$/.test(condition)) {
         const parts: string[] = [];
         for (let k = j + 1; k < lines.length; k++) {
-          if (!/^ {6}\S/.test(lines[k])) break;
-          parts.push(lines[k].trim());
+          const indent = /^ {5,}(\S.*)$/.exec(lines[k]);
+          if (!indent) break;
+          parts.push(indent[1].trim());
         }
         condition = parts.join(" ");
       }

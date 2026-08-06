@@ -148,8 +148,13 @@ It sits at job level because that is the only form that keeps the untrusted tree
 being checked out; a step-level refusal would run after the checkout it is meant to prevent.
 The trade-off is a silent skip — a job-level `if:` cannot comment on the PR. Nothing working is
 lost: the runners push to `origin`, which is this repo, while a fork PR's branch lives on the
-fork, so fork PRs never worked here anyway. `tests/afk/pr-workflow-fork-guard.test.ts` asserts
-the property across the shared workflow table, so a fourth PR-level workflow cannot omit it.
+fork, so fork PRs never worked here anyway.
+
+`tests/afk/pr-workflow-fork-guard.test.ts` holds the guard in place. It does not read a list of
+workflows to check — it scans `.github/workflows/` for the exposed _shape_ (a
+`pull_request_target` trigger plus a checkout of a `pull_request.head.*` ref) and requires every
+job of every match to carry the condition. A fourth PR-level workflow therefore fails the suite
+until it is guarded, rather than going uncovered because nobody extended a table.
 
 Do not "fix" any of this by switching to `pull_request`: `pull_request_target` is deliberate
 (spec §3.3) — the labeled event must fire even when the PR is out-of-date or conflicting, which
