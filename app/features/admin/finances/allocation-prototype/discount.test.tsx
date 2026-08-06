@@ -175,21 +175,20 @@ describe("a withdrawn inscription", () => {
 });
 
 describe("dancer discount — the surface", () => {
-  it("explains provenance below the roster, naming the other choreographies", () => {
+  it("carries no provenance section: the tooltip is the whole explanation", () => {
     const markup = renderRouteView(
       <AllocationDetailPrototypeView />,
       detailPath,
     );
 
-    expect(markup).toContain("Descuentos");
-    expect(markup).toContain("Inscripciones que lo habilitan");
-    expect(markup).toContain("Umbral");
-    expect(markup).toContain("Ecos");
-    expect(markup).toContain("hacen falta 3 para el 10 %");
-    expect(markup).toContain("por ser la más cara del bailarín");
-    // How a tie between identical prices is settled is never said: it is true,
-    // useless, and makes a settled number look arbitrary.
-    expect(markup).not.toContain("identificador");
+    // The `Descuentos` section was removed. What it answered — *why that
+    // percentage*, in terms of inscriptions in other choreographies — is not
+    // answered anywhere on this screen any more; the row explains only *how
+    // much*, and it explains it in full.
+    expect(markup).not.toContain("Descuentos");
+    expect(markup).not.toContain("Inscripciones que lo habilitan");
+    expect(markup).not.toContain("hacen falta 3 para el 10 %");
+    expect(markup).not.toContain("por ser la más cara del bailarín");
   });
 
   it("carries the subtraction on the total, and only where there is one", () => {

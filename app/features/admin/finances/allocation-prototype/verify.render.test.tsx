@@ -126,7 +126,7 @@ describe("allocation prototype", () => {
     expect(withdrawnRow).not.toContain("Pagada");
   });
 
-  it("mutes no figure per row, and mutes `Asignado` for the whole column", () => {
+  it("mutes no figure per row, and mutes `Total` for the whole column", () => {
     const markup = renderRouteView(
       <AllocationDetailPrototypeView />,
       "/administracion/finanzas/prototipo-asignacion/coreografia?coreografia=cho-1",
@@ -134,10 +134,11 @@ describe("allocation prototype", () => {
 
     // #618 deleted the tentative marking outright: every figure shown is exact.
     // What is left is unconditional and lives in the column definition.
-    expect(markup).toContain("Asignado");
-    // `Precio base` is not a column any more — it lives in the total's tooltip,
-    // where it is the first line of the subtraction (#585).
+    // Neither `Precio base` nor `Asignado` is a column: the first lives in the
+    // total's tooltip as the first line of the subtraction (#585), the second
+    // was dropped. `Total` takes the muted context slot.
     expect(markup).not.toContain("Precio base");
+    expect(markup).not.toContain("Asignado");
     expect(markup).toContain("text-right tabular-nums text-muted-foreground");
     expect(markup).not.toContain('<span class="text-muted-foreground">$');
   });

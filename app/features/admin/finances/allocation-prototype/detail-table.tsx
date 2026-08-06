@@ -20,7 +20,7 @@
  *
  * **Nothing is muted for being tentative any more** (#618). Every figure shown
  * is exact and is exactly what must be paid, so the old per-row grey is gone.
- * What replaces it is a **decorative, unconditional column style**: `Asignado`
+ * What replaces it is a **decorative, unconditional column style**: `Total`
  * muted because it is context, `Saldo adeudado` in `font-medium` because it is
  * the actionable number. It lives in the column definition and never varies per
  * row — a grey that varies means something again.
@@ -81,19 +81,12 @@ export const inscriptionColumns: DataTableColumn<InscriptionReading>[] = [
     cell: (row) => formatAmount(row.depositAmount),
   },
   {
-    // Context — where the money went, not what is owed. Muted for the whole
-    // column, unconditionally (#618). It is also the **only** figure a withdrawn
-    // row still carries, which is why that row can be read at all (#600).
-    id: "allocatedAmount",
-    header: "Asignado",
-    className: "text-right tabular-nums text-muted-foreground",
-    headerClassName: "text-right",
-    cell: (row) => formatAmount(row.allocatedAmount),
-  },
-  {
+    // Context — what the inscription costs, not what is owed. Muted for the
+    // whole column, unconditionally (#618): the actionable number is `Saldo
+    // adeudado`, and the total is what it is measured against.
     id: "totalAmount",
     header: "Total",
-    className: "text-right tabular-nums",
+    className: "text-right tabular-nums text-muted-foreground",
     headerClassName: "text-right",
     cell: (row) => <TotalCell inscription={row} />,
   },
@@ -123,8 +116,9 @@ export const inscriptionColumns: DataTableColumn<InscriptionReading>[] = [
  *
  * **The whole cell is the trigger, and it is not a button.** Nothing happens on
  * click — there is no action here, only an explanation — so a button would
- * promise one. The icon sits to the **left** of the amount so the figures stay
- * flush right and the column still reads as a column of numbers.
+ * promise one, and the pointer does not change either. The icon sits to the
+ * **left** of the amount so the figures stay flush right and the column still
+ * reads as a column of numbers.
  *
  * With no discount there is nothing to explain, so nothing appears: an
  * affordance on every row would be noise on the rows that do not need it.
@@ -148,7 +142,7 @@ function TotalCell({ inscription }: { inscription: InscriptionReading }) {
           <span
             tabIndex={0}
             aria-label={`Cómo se compone el total de ${inscription.dancerName}`}
-            className="inline-flex cursor-help items-center justify-end gap-1"
+            className="inline-flex items-center justify-end gap-1"
           >
             <Info
               aria-hidden="true"

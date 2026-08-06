@@ -44,8 +44,8 @@ import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { formatAmount } from "../formatters";
 import { ChoreographyAnomalyAlerts } from "./anomaly-alerts";
 import { inscriptionColumns } from "./detail-table";
-import { DiscountSection } from "./discount-section";
 import type { InscriptionReading } from "./fixtures";
+import { MovementAlert } from "./movement-alert";
 import type { ChoreographyReading } from "./rollup";
 import { StateReadout } from "./state-readout";
 import { usePrototype } from "./store";
@@ -79,6 +79,8 @@ export function AllocationDetailPrototypeView() {
 
         {/* Above the metric cards, where the badges used to sit. */}
         <ChoreographyAnomalyAlerts inscriptions={choreography.inscriptions} />
+
+        <MovementAlert choreography={choreography} />
 
         <section className="grid gap-4 md:grid-cols-3 xl:grid-cols-5">
           <MetricCard
@@ -119,8 +121,6 @@ export function AllocationDetailPrototypeView() {
           hideSearch
           hidePagination
         />
-
-        <DiscountSection choreography={choreography} />
 
         {/*
           Prototype-only: the roster of *other* choreographies is what moves this
