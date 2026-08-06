@@ -3,6 +3,8 @@ import { readdir, readFile, stat } from "node:fs/promises";
 import { describe, expect, test } from "vitest";
 
 import {
+  DOC_MAP_PATH,
+  isExcludedFromDocGate,
   matchesCodePattern,
   parseDocMap,
   staticPrefixOf,
@@ -382,10 +384,11 @@ describe("domain documentation", () => {
   // a dead glob or a renamed target document has to fail the build the day it
   // happens rather than the day someone notices. See #630.
   describe("doc gate map", () => {
+    const readDocMap = async () =>
+      parseDocMap(await readFile(DOC_MAP_PATH, "utf8"));
+
     test("points every entry at a document that exists", async () => {
-      const docMap = parseDocMap(
-        await readFile("app/lib/shared/doc-map.json", "utf8"),
-      );
+      const docMap = await readDocMap();
 
       expect(docMap.length).toBeGreaterThan(0);
 
@@ -394,10 +397,10 @@ describe("domain documentation", () => {
       }
     });
 
-    test("keeps every mapped code pattern matching at least one file", async () => {
-      const docMap = parseDocMap(
-        await readFile("app/lib/shared/doc-map.json", "utf8"),
-      );
+    // Gated files only: a pattern that matches nothing but tests is dead as far
+    // as the gate is concerned, since the gate ignores test files.
+    test("keeps every mapped code pattern matching at least one gated file", async () => {
+      const docMap = await readDocMap();
       const patterns = docMap.flatMap(({ code }) => code);
 
       expect(patterns.length).toBeGreaterThan(0);
@@ -408,7 +411,8 @@ describe("domain documentation", () => {
           await readdir(root, { recursive: true, withFileTypes: true })
         )
           .filter((entry) => entry.isFile())
-          .map((entry) => `${entry.parentPath}/${entry.name}`);
+          .map((entry) => `${entry.parentPath}/${entry.name}`)
+          .filter((candidate) => !isExcludedFromDocGate(candidate));
 
         expect(
           candidates.filter((candidate) =>
@@ -416,6 +420,29 @@ describe("domain documentation", () => {
           ),
           pattern,
         ).not.toHaveLength(0);
+      }
+    });
+
+    // The map is restated in prose for the humans and AFK runners who have to
+    // obey it, and a runner that is told a stale mapping produces exactly the
+    // red PR it cannot diagnose. The copies are cheap to keep honest; only the
+    // JSON is authoritative.
+    test("keeps every prose copy of the map naming the same docs and patterns", async () => {
+      const docMap = await readDocMap();
+      const mapped = docMap.flatMap(({ doc, code }) => [doc, ...code]);
+      const restatements = [
+        ".sandcastle/CODING_STANDARDS.md",
+        ".sandcastle/agent-implement/prompt.md",
+        ".sandcastle/agent-implement-prd/prompt.md",
+        "docs/agents/prompts/implement.prompt.md",
+      ];
+
+      for (const path of restatements) {
+        const contents = await readFile(path, "utf8");
+
+        for (const entry of mapped) {
+          expect(contents, `${path} does not name ${entry}`).toContain(entry);
+        }
       }
     });
   });

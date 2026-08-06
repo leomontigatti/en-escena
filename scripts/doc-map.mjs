@@ -41,15 +41,37 @@ export function isExcludedFromDocGate(filePath) {
 }
 
 /**
+ * @param {unknown} entry
+ * @returns {boolean}
+ */
+function isDocMapEntry(entry) {
+  return (
+    typeof entry === "object" &&
+    entry !== null &&
+    typeof (/** @type {DocMapEntry} */ (entry).doc) === "string" &&
+    Array.isArray(/** @type {DocMapEntry} */ (entry).code) &&
+    /** @type {DocMapEntry} */ (entry).code.length > 0 &&
+    /** @type {DocMapEntry} */ (entry).code.every(
+      (pattern) => typeof pattern === "string",
+    )
+  );
+}
+
+/**
+ * The shape is checked here rather than trusted, because nothing type-checks
+ * the JSON and a half-written entry would otherwise reach the gate as a
+ * `TypeError` stack trace — an unreadable verdict on the PR page, which is the
+ * one failure this mechanism cannot afford.
+ *
  * @param {string} contents
  * @returns {DocMapEntry[]}
  */
 export function parseDocMap(contents) {
   const parsed = /** @type {DocMapEntry[]} */ (JSON.parse(contents));
 
-  if (!Array.isArray(parsed)) {
+  if (!Array.isArray(parsed) || !parsed.every(isDocMapEntry)) {
     throw new Error(
-      `${DOC_MAP_PATH} must be an array of { doc, code } entries`,
+      `${DOC_MAP_PATH} must be an array of { doc: string, code: string[] } entries with at least one pattern each`,
     );
   }
 
@@ -90,15 +112,18 @@ export function matchesCodePattern(filePath, pattern) {
 
 /**
  * The directory a pattern is rooted at, for callers that need to list
- * candidates without walking the whole repo.
+ * candidates without walking the whole repo. A pattern rooted at the repo
+ * itself has no directory to strip, so it answers `.` rather than a path that
+ * would be handed to `readdir` as if it were a directory.
  *
  * @param {string} pattern
  * @returns {string}
  */
 export function staticPrefixOf(pattern) {
   const [beforeWildcard] = pattern.split("*");
+  const directory = beforeWildcard.replace(/\/[^/]*$/, "");
 
-  return beforeWildcard.replace(/\/[^/]*$/, "");
+  return directory === beforeWildcard ? "." : directory;
 }
 
 /**

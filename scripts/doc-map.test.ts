@@ -50,18 +50,53 @@ describe("doc map matching", () => {
     ).toBe(false);
   });
 
+  // Path metacharacters are literals here: `.` must not stand for any
+  // character, and a single `*` must not cross a directory boundary the way
+  // `**` does — otherwise the map fires on files nobody mapped.
+  test("treats regex metacharacters as literals and keeps `*` within a segment", () => {
+    expect(
+      matchesCodePattern(
+        "app/lib/portal/choreography-musicXserver.ts",
+        "app/lib/portal/choreography-music.server.ts",
+      ),
+    ).toBe(false);
+    expect(matchesCodePattern("app/lib/auth/x.ts", "app/lib/auth/*.ts")).toBe(
+      true,
+    );
+    expect(
+      matchesCodePattern("app/lib/auth/nested/deep.ts", "app/lib/auth/*.ts"),
+    ).toBe(false);
+  });
+
   test("reports the directory a pattern is rooted at", () => {
     expect(staticPrefixOf("app/lib/auth/**")).toBe("app/lib/auth");
     expect(staticPrefixOf("app/lib/portal/choreography-music.server.ts")).toBe(
       "app/lib/portal",
     );
+    // A repo-root pattern has no directory to strip; answering the pattern
+    // itself would hand a file path to `readdir` as if it were a directory.
+    expect(staticPrefixOf("package.json")).toBe(".");
+    expect(staticPrefixOf("*.md")).toBe(".");
   });
 
-  test("parses the shipped map format", () => {
+  // A half-written entry reaching the gate as a `TypeError` stack trace is the
+  // one failure this mechanism cannot afford: the message is the mechanism.
+  test("parses the shipped map format and rejects malformed entries", () => {
     expect(
       parseDocMap('[{ "doc": "docs/a.md", "code": ["app/b/**"] }]'),
     ).toEqual([{ doc: "docs/a.md", code: ["app/b/**"] }]);
+
     expect(() => parseDocMap('{ "docs/a.md": ["app/b/**"] }')).toThrow();
+    expect(() => parseDocMap('[{ "doc": "docs/a.md" }]')).toThrow();
+    expect(() => parseDocMap('[{ "code": ["app/b/**"] }]')).toThrow();
+    expect(() =>
+      parseDocMap('[{ "doc": "docs/a.md", "code": "app/b/**" }]'),
+    ).toThrow();
+    expect(() => parseDocMap('[{ "doc": "docs/a.md", "code": [] }]')).toThrow();
+    expect(() =>
+      parseDocMap('[{ "doc": "docs/a.md", "code": [null] }]'),
+    ).toThrow();
+    expect(() => parseDocMap("[null]")).toThrow();
   });
 });
 

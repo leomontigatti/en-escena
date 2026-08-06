@@ -32,21 +32,44 @@ function git(args) {
   return result.status === 0 ? result.stdout : undefined;
 }
 
+/**
+ * A git failure under Actions is a broken checkout, not a clean branch: the
+ * base ref was never fetched, or `fetch-depth` truncated it. Passing then would
+ * leave a required check green while comparing nothing — the decorative gate
+ * this mechanism exists to avoid. Locally the same failure is ordinary (a clone
+ * with no `origin/master`), so there it stays a skip.
+ *
+ * @param {string} message
+ * @returns {never}
+ */
+function giveUp(message) {
+  if (process.env.GITHUB_ACTIONS === "true") {
+    console.error(`${errorPrefix}${message}`);
+    process.exit(1);
+  }
+
+  console.log(message);
+  process.exit(0);
+}
+
 const mergeBase = git(["merge-base", baseRef, "HEAD"])?.trim();
 
 if (!mergeBase) {
-  console.log(`No merge base with ${baseRef}; nothing to compare against.`);
-  process.exit(0);
+  giveUp(
+    `No merge base with ${baseRef}; nothing to compare against. Fetch it first with \`git fetch --no-tags origin master\`.`,
+  );
 }
 
 // `--no-renames` on purpose: a mapped file moved out of its directory should
 // fire on its old path, because rehoming documented code is precisely when the
 // document needs to move too.
-const changedFiles = (
-  git(["diff", "--name-only", "--no-renames", mergeBase, "HEAD"]) ?? ""
-)
-  .split("\n")
-  .filter(Boolean);
+const diff = git(["diff", "--name-only", "--no-renames", mergeBase, "HEAD"]);
+
+if (diff === undefined) {
+  giveUp(`Could not diff ${mergeBase}..HEAD; nothing to compare against.`);
+}
+
+const changedFiles = diff.split("\n").filter(Boolean);
 
 const undocumentedChanges = findUndocumentedChanges({
   docMap: readDocMap(),
