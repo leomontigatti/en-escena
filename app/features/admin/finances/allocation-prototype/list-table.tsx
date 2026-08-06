@@ -17,7 +17,6 @@ import {
   inscriptionStatusLabels,
 } from "./fixtures";
 import { choreographyAnomalyLabels, type ChoreographyReading } from "./rollup";
-import { TentativeAmount } from "./tentative-amount";
 
 export const choreographyColumns: DataTableColumn<ChoreographyReading>[] = [
   {
@@ -45,15 +44,7 @@ export const choreographyColumns: DataTableColumn<ChoreographyReading>[] = [
     header: "Seña",
     className: "text-right tabular-nums",
     headerClassName: "text-right",
-    cell: (row) => (
-      <TentativeAmount
-        amount={row.depositAmount}
-        // The status is the **minimum** across the roster (#551), so this greys
-        // while *any* inscription is short of its deposit — the choreography's
-        // seña is not in until the last dancer's is.
-        isTentative={row.status === "depositPending"}
-      />
-    ),
+    cell: (row) => formatAmount(row.depositAmount),
   },
   {
     id: "totalAmount",
@@ -65,16 +56,10 @@ export const choreographyColumns: DataTableColumn<ChoreographyReading>[] = [
   {
     id: "owedBalanceAmount",
     header: "Saldo adeudado",
-    className: "text-right tabular-nums",
+    // The actionable figure, emphasised for the whole column (#618).
+    className: "text-right font-medium tabular-nums",
     headerClassName: "text-right",
-    cell: (row) => (
-      <TentativeAmount
-        amount={row.owedBalanceAmount}
-        // Like the inscriptions table: settled only at `Pagada`. A choreography
-        // with no roster at all has nothing tentative about its zero.
-        isTentative={row.status !== null && row.status !== "paidInFull"}
-      />
-    ),
+    cell: (row) => formatAmount(row.owedBalanceAmount),
   },
   {
     id: "status",

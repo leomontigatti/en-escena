@@ -35,13 +35,17 @@ import { useSearchParams } from "react-router";
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import { ClientDataTable } from "@/components/shared/client-data-table";
 import { MetricCard } from "@/components/shared/metric-card";
+import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 import { formatAmount } from "../formatters";
 import { ChoreographyAnomalyAlerts } from "./anomaly-alerts";
 import { inscriptionColumns } from "./detail-table";
+import { DiscountSection } from "./discount-section";
 import type { InscriptionReading } from "./fixtures";
+import type { ChoreographyReading } from "./rollup";
 import { StateReadout } from "./state-readout";
 import { usePrototype } from "./store";
 
@@ -58,8 +62,9 @@ export function AllocationDetailPrototypeView() {
   return (
     <AdminResourceLayout
       title={`${choreography.name} · ${choreography.groupType}`}
-      description="Detalle financiero de una coreografía. Prototipo descartable del ticket #550; los datos están en memoria y no se guarda nada."
+      description="Detalle financiero de una coreografía. Prototipo descartable de los tickets #550 y #585; los datos están en memoria y no se guarda nada."
       requireSelectedEvent={false}
+      headerAction={<ChoreographyActions choreography={choreography} />}
     >
       <div className="flex flex-col gap-6 pb-24">
         <Alert>
@@ -117,6 +122,42 @@ export function AllocationDetailPrototypeView() {
           hidePagination
         />
 
+        <DiscountSection choreography={choreography} />
+
+        {/*
+          Prototype-only: the roster of *other* choreographies is what moves this
+          one's bill, and there is no other way to see it happen.
+        */}
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed p-3">
+          <span className="text-xs font-medium text-muted-foreground">
+            Mover el elenco en otra coreografía
+          </span>
+          <Button
+            type="button"
+            size="xs"
+            variant="secondary"
+            onClick={() => prototype.onRegisterSibling("dan-emilia", "cho-5")}
+          >
+            Reinscribir a Emilia en «Brisa»
+          </Button>
+          <Button
+            type="button"
+            size="xs"
+            variant="secondary"
+            onClick={() => prototype.onWithdrawSibling("ins-11")}
+          >
+            Dar de baja a Ana en «Ecos»
+          </Button>
+          <Button
+            type="button"
+            size="xs"
+            variant="secondary"
+            onClick={() => prototype.onRegisterSibling("dan-delfina", "cho-4")}
+          >
+            Inscribir a Delfina en «Ecos»
+          </Button>
+        </div>
+
         {/* Prototype-only: the real view reaches its siblings through the list. */}
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed p-3">
           <span className="text-xs font-medium text-muted-foreground">
@@ -145,5 +186,62 @@ export function AllocationDetailPrototypeView() {
         <StateReadout />
       </div>
     </AdminResourceLayout>
+  );
+}
+
+/**
+ * The header actions menu, where the real view already keeps `Emitir factura`
+ * (`choreography-detail/view.tsx:289-310`).
+ *
+ * **`Imprimir factura` appears only once a comprobante exists** — it is not a
+ * disabled item, because there is nothing to enable: the document either was
+ * emitted or was not. The two are mutually exclusive for the same reason
+ * decision 16 gives — **one factura per choreography** — so the menu never
+ * offers both at once. Amendments (ND/NC) are a different document and are not
+ * placed here yet.
+ */
+function ChoreographyActions({
+  choreography,
+}: {
+  choreography: ChoreographyReading;
+}) {
+  const prototype = usePrototype();
+  const hasComprobante = choreography.comprobante !== null;
+  // Decision 15: `Señada` is the gate, and it is a **minimum** across the
+  // roster (#551), so one inscription short of its deposit blocks emission.
+  const canEmit =
+    !hasComprobante &&
+    choreography.status !== null &&
+    choreography.status !== "depositPending" &&
+    choreography.totalAmount > 0;
+
+  return (
+    <ResourceActionsMenu contentClassName="w-56">
+      {canEmit ? (
+        <DropdownMenuItem
+          onSelect={(event) => {
+            event.preventDefault();
+            prototype.onEmit(choreography.id);
+          }}
+        >
+          Emitir factura
+        </DropdownMenuItem>
+      ) : null}
+      {hasComprobante ? (
+        <DropdownMenuItem
+          onSelect={(event) => {
+            event.preventDefault();
+            window.print();
+          }}
+        >
+          Imprimir factura
+        </DropdownMenuItem>
+      ) : null}
+      {!canEmit && !hasComprobante ? (
+        <DropdownMenuItem disabled>
+          Emitir factura · falta que esté señada
+        </DropdownMenuItem>
+      ) : null}
+    </ResourceActionsMenu>
   );
 }

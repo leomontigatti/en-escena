@@ -17,6 +17,11 @@ import {
   type PrototypeState,
 } from "./fixtures";
 import {
+  emitComprobante,
+  registerSibling,
+  withdrawSibling,
+} from "./roster-moves";
+import {
   rejectAllocation,
   spreadFromPool,
   type AllocationRejection,
@@ -68,6 +73,23 @@ export function usePrototype() {
     payments,
     choreographies,
     academy,
+    /**
+     * #585's three gestures. None of them touches *this* choreography's roster
+     * or its money: the point is that a change somewhere else moves the bill
+     * here, which is the movement no screen attributes to its cause today.
+     */
+    onEmit: (choreographyId: string) => {
+      current = emitComprobante(current, choreographyId);
+      emit();
+    },
+    onRegisterSibling: (dancerId: string, choreographyId: string) => {
+      current = registerSibling(current, dancerId, choreographyId);
+      emit();
+    },
+    onWithdrawSibling: (inscriptionId: string) => {
+      current = withdrawSibling(current, inscriptionId);
+      emit();
+    },
     onSelectPrice: (inscriptionId: string, priceId: string) => {
       current = selectPrice(current, inscriptionId, priceId);
       emit();

@@ -9,6 +9,7 @@
 import type {
   InscriptionFinancialStatus,
   InscriptionReading,
+  PrototypeComprobante,
   PrototypeState,
 } from "./fixtures";
 
@@ -53,6 +54,15 @@ export type ChoreographyReading = {
   /** The **minimum** across inscriptions, not a high-water mark (#551). */
   status: InscriptionFinancialStatus | null;
   anomalies: ChoreographyAnomaly[];
+  /** #585: the factura, and the gap it has opened since it was emitted. */
+  comprobante: PrototypeComprobante | null;
+  documentedTotal: number | null;
+  /**
+   * #599: `documented ≠ derived`, and the **sign names the document** — positive
+   * owes a nota de débito, negative a nota de crédito. Zero while nothing has
+   * moved, and zero while nothing has been emitted.
+   */
+  delta: number;
 };
 
 const statusRank = {
@@ -71,14 +81,25 @@ export function readChoreographies(
     );
 
     const statuses = rows.map((row) => row.status);
+    const totalAmount = sumBy(rows, (row) => row.totalAmount);
+    const documentedTotal =
+      choreography.comprobante === null
+        ? null
+        : choreography.comprobante.lines.reduce(
+            (total, line) => total + line.amount,
+            0,
+          );
 
     return {
       id: choreography.id,
       name: choreography.name,
       groupType: choreography.groupType,
       inscriptions: rows,
+      comprobante: choreography.comprobante,
+      documentedTotal,
+      delta: documentedTotal === null ? 0 : totalAmount - documentedTotal,
       depositAmount: sumBy(rows, (row) => row.depositAmount),
-      totalAmount: sumBy(rows, (row) => row.totalAmount),
+      totalAmount,
       allocatedAmount: sumBy(rows, (row) => row.allocatedAmount),
       owedDepositAmount: sumBy(rows, (row) => row.owedDepositAmount),
       owedBalanceAmount: sumBy(rows, (row) => row.owedBalanceAmount),

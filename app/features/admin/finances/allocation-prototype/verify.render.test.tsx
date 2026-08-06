@@ -18,14 +18,15 @@ describe("allocation prototype", () => {
     expect(markup).toContain("Saldo disponible");
     expect(markup).toContain("Acciones");
     expect(markup).toContain("Estado del prototipo");
-    // A choreography short of its deposit greys **both** `Seña` and `Saldo
-    // adeudado`, the same reading as the inscriptions table. Scoped to the row,
-    // so a muted span elsewhere in the layout cannot pass this for it.
+    // #618: no figure is muted for being tentative any more. Scoped to the row,
+    // so a muted span elsewhere in the layout cannot pass for one.
     const row = markup.slice(
       markup.indexOf("Reflejos"),
       markup.indexOf("</tr>", markup.indexOf("Reflejos")),
     );
-    expect(row.split('<span class="text-muted-foreground">')).toHaveLength(3);
+    expect(row).not.toContain('<span class="text-muted-foreground">');
+    // What replaces it is a whole-column style: the owed column is emphasised.
+    expect(markup).toContain("text-right font-medium tabular-nums");
   });
 
   it("titles the detail with the choreography and carries the five metrics", () => {
@@ -56,9 +57,11 @@ describe("allocation prototype", () => {
       "/administracion/finanzas/prototipo-asignacion/coreografia?coreografia=cho-1",
     );
 
-    // No selection column, and no header actions menu to hang bulk actions on.
+    // No selection column, and no per-row actions column: the only actions menu
+    // is the header's, which is where #585 put `Imprimir factura`.
     expect(markup).not.toContain("Seleccionar todo");
-    expect(markup).not.toContain('aria-label="Acciones"');
+    const table = markup.slice(markup.indexOf("<table"));
+    expect(table).not.toContain('aria-label="Acciones"');
     // The dancer's name is the action, as a button holding its own dialog
     // state — the pattern `DancerNameCell` already uses in the real view.
     expect(markup).not.toContain("asignar=");
@@ -113,14 +116,17 @@ describe("allocation prototype", () => {
     expect(anomalousRow).not.toContain("Pagada");
   });
 
-  it("mutes the figures that are still tentative", () => {
+  it("mutes no figure per row, and mutes `Precio base` for the whole column", () => {
     const markup = renderRouteView(
       <AllocationDetailPrototypeView />,
       "/administracion/finanzas/prototipo-asignacion/coreografia?coreografia=cho-1",
     );
 
-    // At least one row is short of its deposit, so its `Seña` reads muted.
-    expect(markup).toContain('<span class="text-muted-foreground">');
+    // #618 deleted the tentative marking outright: every figure shown is exact.
+    // What is left is unconditional and lives in the column definition.
+    expect(markup).toContain("Precio base");
+    expect(markup).toContain("text-right tabular-nums text-muted-foreground");
+    expect(markup).not.toContain('<span class="text-muted-foreground">$');
   });
 
   it("carries the group type of whichever choreography is chosen", () => {

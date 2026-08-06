@@ -18,15 +18,29 @@
  * The price is a **label**: it is fixed by the first allocation, and picking one
  * belongs to the allocation gesture rather than to a cell.
  *
- * **Tentative figures are muted.** A figure is tentative while the money behind
- * it has not arrived: `Seña` reads as a demand until the threshold is met, and
- * `Saldo adeudado` until the inscription is paid in full. Muting them says which
- * numbers are still moving without adding a column to say it.
+ * **Nothing is muted for being tentative any more** (#618). Every figure shown
+ * is exact and is exactly what must be paid, so the old per-row grey is gone.
+ * What replaces it is a **decorative, unconditional column style**: `Precio
+ * base` muted because it is context, `Saldo adeudado` in `font-medium` because
+ * it is the actionable number. It lives in the column definition and never
+ * varies per row — a grey that varies means something again.
+ *
+ * **`Total` carries the arithmetic behind it** (#585): the discount is derived
+ * from inscriptions in other choreographies, so the net amount is the one figure
+ * on the row that cannot be checked by reading the row. The icon opens the
+ * subtraction; the provenance is the section below.
  */
+import { Info } from "lucide-react";
 import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { DataTableColumn } from "@/components/shared/data-table.shared";
 
 import { formatAmount } from "../formatters";
@@ -38,7 +52,6 @@ import {
 import { ManualAllocateDialog } from "./manual-allocate-dialog";
 import { inscriptionAnomalyLabels, readInscriptionAnomalies } from "./rollup";
 import { usePrototype } from "./store";
-import { TentativeAmount } from "./tentative-amount";
 
 /**
  * A module-level constant rather than a memoised factory: a stable array is what
@@ -61,39 +74,34 @@ export const inscriptionColumns: DataTableColumn<InscriptionReading>[] = [
     cell: (row) => <Badge variant="secondary">{row.priceName}</Badge>,
   },
   {
+    // Context — where the number comes from, not what is owed. Muted for the
+    // whole column, unconditionally (#618).
+    id: "priceAmount",
+    header: "Precio base",
+    className: "text-right tabular-nums text-muted-foreground",
+    headerClassName: "text-right",
+    cell: (row) => formatAmount(row.priceAmount),
+  },
+  {
     id: "depositAmount",
     header: "Seña",
     className: "text-right tabular-nums",
     headerClassName: "text-right",
-    cell: (row) => (
-      <TentativeAmount
-        amount={row.depositAmount}
-        // Tentative until the threshold is met — `Señada` and `Pagada` both
-        // clear it.
-        isTentative={row.status === "depositPending"}
-      />
-    ),
+    cell: (row) => formatAmount(row.depositAmount),
   },
   {
     id: "totalAmount",
     header: "Total",
     className: "text-right tabular-nums",
     headerClassName: "text-right",
-    cell: (row) => formatAmount(row.totalAmount),
+    cell: (row) => <TotalCell inscription={row} />,
   },
   {
     id: "owedBalanceAmount",
     header: "Saldo adeudado",
-    className: "text-right tabular-nums",
+    className: "text-right font-medium tabular-nums",
     headerClassName: "text-right",
-    cell: (row) => (
-      <TentativeAmount
-        amount={row.owedBalanceAmount}
-        // Stays tentative all the way to `Pagada`: a met deposit settles the
-        // threshold, not the balance.
-        isTentative={row.status !== "paidInFull"}
-      />
-    ),
+    cell: (row) => formatAmount(row.owedBalanceAmount),
   },
   {
     id: "status",
@@ -102,6 +110,52 @@ export const inscriptionColumns: DataTableColumn<InscriptionReading>[] = [
     filterValue: (row) => row.status,
   },
 ];
+
+/**
+ * The subtraction that produced the net amount, on hover. It is deliberately
+ * only the **arithmetic** — base price, percentage, discount, total — and not
+ * the provenance: which inscriptions earned the percentage is a list of other
+ * choreographies, which is too much for a tooltip and is what the `Descuentos`
+ * section below the roster is for.
+ *
+ * With no discount there is nothing to explain, so no icon appears: an
+ * affordance on every row would be noise on the rows that do not need it.
+ */
+function TotalCell({ inscription }: { inscription: InscriptionReading }) {
+  const amount = formatAmount(inscription.totalAmount);
+
+  if (inscription.discountAmount === 0) {
+    return amount;
+  }
+
+  return (
+    <span className="inline-flex items-center justify-end gap-1">
+      {amount}
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              aria-label={`Cómo se compone el total de ${inscription.dancerName}`}
+            >
+              <Info aria-hidden="true" data-icon />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent className="flex flex-col gap-0.5 tabular-nums">
+            <span>Precio base {formatAmount(inscription.priceAmount)}</span>
+            <span>
+              Descuento {inscription.provenance.percentage} %{" "}
+              {`−${formatAmount(inscription.discountAmount)}`}
+            </span>
+            <span className="font-medium">Total {amount}</span>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    </span>
+  );
+}
 
 /**
  * An anomaly **replaces** the status badge rather than sitting beside it. Both
