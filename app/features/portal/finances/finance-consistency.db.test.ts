@@ -131,14 +131,13 @@ describe.sequential(
       });
       await db.insert(paymentAllocations).values({
         academyId: owner.academyId,
-        allocationType: "deposit",
         amount: 3600,
         eventId: event.id,
         inscriptionId: pendingInscription.id,
         paymentId: payment.id,
       });
 
-      // paidSnapshot: pagada with deposit + balance allocations.
+      // paidSnapshot: pagada, con la seña y el saldo en una sola asignación.
       const paidInscription = await insertSignedInscription({
         academyId: owner.academyId,
         choreographyId: paidSnapshotChoreography.id,
@@ -146,24 +145,13 @@ describe.sequential(
         frozenBasePriceAmount: 12000,
         paid: { balanceAmount: 8400, finalTotalAmount: 12000 },
       });
-      await db.insert(paymentAllocations).values([
-        {
-          academyId: owner.academyId,
-          allocationType: "deposit",
-          amount: 3600,
-          eventId: event.id,
-          inscriptionId: paidInscription.id,
-          paymentId: payment.id,
-        },
-        {
-          academyId: owner.academyId,
-          allocationType: "balance",
-          amount: 8400,
-          eventId: event.id,
-          inscriptionId: paidInscription.id,
-          paymentId: payment.id,
-        },
-      ]);
+      await db.insert(paymentAllocations).values({
+        academyId: owner.academyId,
+        amount: 12000,
+        eventId: event.id,
+        inscriptionId: paidInscription.id,
+        paymentId: payment.id,
+      });
 
       const portalLoaderData = await loadPortalAcademyFinances(
         new Request("http://localhost/portal/finanzas", {

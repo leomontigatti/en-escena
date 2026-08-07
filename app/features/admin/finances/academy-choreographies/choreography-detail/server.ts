@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { redirect } from "react-router";
 
 import { db } from "@/db";
@@ -341,16 +341,15 @@ async function attachStageTotals(input: {
   }));
 }
 
-type UndoableAllocationStage = "deposit" | "balance";
 type InscriptionRowWithUndo = ChoreographyInscriptionRow & {
-  undoableAllocation: { id: string; stage: UndoableAllocationStage } | null;
+  undoableAllocation: { id: string } | null;
 };
 
 /**
- * Anota a cada inscripción con la asignación que su fila puede deshacer. Deshacer
- * baja una etapa: la `balance` (si existe) vuelve la inscripción a `señada`, y la
- * `deposit` la vuelve a `impaga`. Por eso se ofrece la etapa más alta —`balance`
- * antes que `deposit`—, que es la que el server permite borrar primero.
+ * Anota a cada inscripción con la asignación que su fila puede deshacer. La
+ * plata no tiene rol ni orden de reversión, así que se ofrece la última
+ * asignada: deshacer es el inverso de asignar, y el inverso empieza por lo más
+ * nuevo.
  */
 async function attachUndoableAllocations(
   inscriptions: ChoreographyInscriptionRow[],
@@ -367,50 +366,23 @@ async function attachUndoableAllocations(
     .select({
       id: paymentAllocations.id,
       inscriptionId: paymentAllocations.inscriptionId,
-      allocationType: paymentAllocations.allocationType,
+      paymentNumber: paymentTable.paymentNumber,
     })
     .from(paymentAllocations)
-    .where(inArray(paymentAllocations.inscriptionId, inscriptionIds));
+    .innerJoin(paymentTable, eq(paymentAllocations.paymentId, paymentTable.id))
+    .where(inArray(paymentAllocations.inscriptionId, inscriptionIds))
+    .orderBy(desc(paymentTable.paymentNumber));
 
-  return inscriptions.map((row) => ({
-    ...row,
-    undoableAllocation: resolveUndoableAllocation(
-      row.inscriptionId,
-      allocationRows,
-    ),
-  }));
-}
+  return inscriptions.map((row) => {
+    const newest = allocationRows.find(
+      (allocation) => allocation.inscriptionId === row.inscriptionId,
+    );
 
-function resolveUndoableAllocation(
-  inscriptionId: string | null,
-  allocationRows: {
-    id: string;
-    inscriptionId: string;
-    allocationType: UndoableAllocationStage;
-  }[],
-): { id: string; stage: UndoableAllocationStage } | null {
-  if (inscriptionId === null) {
-    return null;
-  }
-
-  const own = allocationRows.filter(
-    (allocation) => allocation.inscriptionId === inscriptionId,
-  );
-  const balance = own.find(
-    (allocation) => allocation.allocationType === "balance",
-  );
-  if (balance) {
-    return { id: balance.id, stage: "balance" };
-  }
-
-  const deposit = own.find(
-    (allocation) => allocation.allocationType === "deposit",
-  );
-  if (deposit) {
-    return { id: deposit.id, stage: "deposit" };
-  }
-
-  return null;
+    return {
+      ...row,
+      undoableAllocation: newest ? { id: newest.id } : null,
+    };
+  });
 }
 
 export async function handleChoreographyFinanceAction(input: {

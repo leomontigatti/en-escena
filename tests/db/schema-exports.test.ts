@@ -8,7 +8,6 @@ const schemaExportNames = [
   "academies",
   "categories",
   "categoryModalities",
-  "allocationType",
   "categoryCalculationMode",
   "choreographyDancers",
   "choreographyProfessors",

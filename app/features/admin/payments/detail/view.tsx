@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useSubmit } from "react-router";
-import { TriangleAlert, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 
 import {
   AdminResourceFormCard,
@@ -136,14 +136,8 @@ function AffectedChoreographiesList({
   return (
     <ul className="divide-y divide-border rounded-md border text-sm">
       {choreographies.map((choreography) => (
-        <li key={choreography.id} className="flex flex-col gap-0.5 px-3 py-2">
-          <span className="font-medium">{choreography.name}</span>
-          {choreography.blocksDeletion ? (
-            <span className="flex items-center gap-1.5 text-xs text-warning">
-              <TriangleAlert aria-hidden="true" className="size-3.5 shrink-0" />
-              Tiene el saldo pagado en otro pago; desasigná ese saldo primero.
-            </span>
-          ) : null}
+        <li key={choreography.id} className="px-3 py-2 text-sm font-medium">
+          {choreography.name}
         </li>
       ))}
     </ul>

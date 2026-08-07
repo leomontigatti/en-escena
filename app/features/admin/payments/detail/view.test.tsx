@@ -68,13 +68,13 @@ describe("PaymentDetailRouteView", () => {
     expect(document.querySelector('textarea[name="reason"]')).toBeNull();
   });
 
-  test("lists affected choreographies and flags blocking ones in the delete dialog", async () => {
+  test("lists the affected choreographies in the delete dialog", async () => {
     await renderDetailIntoDocument({
       initialDeleteDialogOpen: true,
       loaderData: buildLoaderData({
         affectedChoreographies: [
-          { blocksDeletion: false, id: "cho_1", name: "Coreografía Uno" },
-          { blocksDeletion: true, id: "cho_2", name: "Coreografía Dos" },
+          { id: "cho_1", name: "Coreografía Uno" },
+          { id: "cho_2", name: "Coreografía Dos" },
         ],
       }),
     });
@@ -84,10 +84,6 @@ describe("PaymentDetailRouteView", () => {
     );
     expect(document.body.textContent).toContain("Coreografía Uno");
     expect(document.body.textContent).toContain("Coreografía Dos");
-    // La coreografía bloqueante lleva la marca suave.
-    expect(document.body.textContent).toContain(
-      "Tiene el saldo pagado en otro pago",
-    );
   });
 });
 

@@ -258,9 +258,14 @@ disponible` in the active event.
 - An already paid stage cannot be paid again.
 - The allocation is **minimal**: it stores the payment↔inscription money link,
   not price snapshots. The snapshots live on the inscription.
-  - Fields: `paymentId`, `inscriptionId`, `academyId`, `eventId`,
-    `allocationType`, `amount`, `createdAt`, `updatedAt`.
-  - Uniqueness: `(paymentId, inscriptionId, allocationType)`.
+  - Fields: `paymentId`, `inscriptionId`, `academyId`, `eventId`, `amount`,
+    `createdAt`, `updatedAt`. The row carries **no type**: money is fungible, so
+    an allocation is an amount against an inscription and nothing else.
+  - Uniqueness: `(paymentId, inscriptionId)`. The row is written by upsert
+    (summing), a CHECK constraint keeps `amount > 0`, and a decrement to zero
+    deletes it.
+  - Deleting a payment cascades its allocations in the database; there is no
+    reversal order and no blocking case.
   - It stores no user attribution (`createdByUserId`); the system does not audit.
 
 ## Normal actions and extraordinary cases

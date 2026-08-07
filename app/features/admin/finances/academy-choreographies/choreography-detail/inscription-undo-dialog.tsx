@@ -23,21 +23,13 @@ type InscriptionRow =
   ChoreographyFinanceDetailLoaderData["inscriptions"][number];
 type UndoableAllocation = NonNullable<InscriptionRow["undoableAllocation"]>;
 
-function stageLabel(stage: UndoableAllocation["stage"]) {
-  return stage === "balance" ? "saldo" : "seña";
-}
-
-function nextState(stage: UndoableAllocation["stage"]) {
-  return stage === "balance" ? "señada" : "impaga";
-}
-
 /**
  * Diálogo por fila cuando la única acción disponible es eliminar una asignación:
  * coreografía uniforme `señada`/`pagada`, donde el cobro en bloque vive en el
- * header y la fila solo puede bajar una etapa de esa inscripción. Eliminar la
- * asignación baja una etapa (la `balance` vuelve a `señada`, la `deposit` vuelve
- * a `impaga`) y devuelve el monto liberado al saldo disponible de la academia.
- * No hay confirmación: el admin ya conoce el efecto y puede volver a crearla.
+ * header y la fila solo puede quitar plata de esa inscripción. Se elimina la
+ * última asignación y el monto liberado vuelve al saldo disponible de la
+ * academia. No hay confirmación: el admin ya conoce el efecto y puede volver a
+ * asignarla.
  */
 export function InscriptionUndoDialog({
   allocation,
@@ -50,7 +42,6 @@ export function InscriptionUndoDialog({
 }) {
   const fetcher = useFetcher<{ status: "error"; message: string }>();
   const isDeleting = fetcher.state !== "idle";
-  const label = stageLabel(allocation.stage);
 
   return (
     <Dialog
@@ -59,12 +50,10 @@ export function InscriptionUndoDialog({
     >
       <DialogContent overlayClassName="backdrop-blur-sm">
         <DialogHeader>
-          <DialogTitle>Eliminar {label}</DialogTitle>
+          <DialogTitle>Quitar plata</DialogTitle>
           <DialogDescription>
-            Eliminá el pago{" "}
-            {allocation.stage === "balance" ? "del saldo" : "de esta seña"} para
-            dejar la inscripción {nextState(allocation.stage)}. El monto
-            liberado vuelve al saldo disponible de la academia.
+            Eliminá la última asignación de esta inscripción. El monto liberado
+            vuelve al saldo disponible de la academia.
           </DialogDescription>
         </DialogHeader>
 

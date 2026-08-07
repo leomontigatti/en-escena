@@ -1,12 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import {
-  choreographyDancers,
-  events,
-  paymentAllocations,
-  prices,
-} from "@/db/schema";
+import { choreographyDancers, events, prices } from "@/db/schema";
 import { resolveChoreographyPricingScheduleId } from "@/lib/finances/choreography-pricing-schedule";
 import { todayDateOnly } from "@/lib/shared/date-only";
 import {
@@ -14,6 +9,7 @@ import {
   deriveInscriptionFinancialState,
 } from "@/lib/finances/operational-summary-calculations.server";
 
+import { applyAllocationDelta } from "./choreography-cobro-allocations.server";
 import {
   assertPaymentAvailability,
   loadCandidatePriceRow,
@@ -28,15 +24,15 @@ import {
 
 export {
   deletePaymentAllocation,
-  deletePaymentWithAllocations,
   releaseInscriptionAllocations,
+  syncInscriptionSnapshots,
 } from "./choreography-cobro-allocations.server";
 export type { CobroResult };
 
 /**
  * `Pagar seña` de una coreografía completa. Solo procede si todas las
- * inscripciones activas están `impagas`. Crea una asignación `deposit` por
- * inscripción y congela el snapshot de seña (precio base, seña y fila de precio
+ * inscripciones activas están `impagas`. Asigna la seña de cada
+ * inscripción al pago y congela el snapshot de seña (precio base, seña y fila de precio
  * derivada de `payment.date`).
  */
 export async function payChoreographyDeposit(input: {
@@ -107,10 +103,9 @@ export async function payChoreographyDeposit(input: {
         })
         .where(eq(choreographyDancers.id, inscription.id));
 
-      await tx.insert(paymentAllocations).values({
+      await applyAllocationDelta(tx, {
         academyId: input.academyId,
-        allocationType: "deposit",
-        amount: depositAmount,
+        delta: depositAmount,
         eventId: input.eventId,
         inscriptionId: inscription.id,
         paymentId: payment.id,
@@ -236,10 +231,9 @@ export async function payInscriptionDeposit(input: {
       })
       .where(eq(choreographyDancers.id, target.id));
 
-    await tx.insert(paymentAllocations).values({
+    await applyAllocationDelta(tx, {
       academyId: input.academyId,
-      allocationType: "deposit",
-      amount: depositAmount,
+      delta: depositAmount,
       eventId: input.eventId,
       inscriptionId: target.id,
       paymentId: payment.id,
@@ -418,8 +412,8 @@ export async function quoteChoreographyDepositTotals(input: {
 
 /**
  * `Pagar saldo` de una coreografía completa. Solo procede si todas las
- * inscripciones activas están `señadas`. Crea una asignación `balance` por
- * inscripción y congela el snapshot de saldo, incluyendo el `Descuento por
+ * inscripciones activas están `señadas`. Asigna el saldo de cada
+ * inscripción al pago y congela el snapshot de saldo, incluyendo el `Descuento por
  * bailarín` estimado al momento (congelamiento secuencial e irreversible).
  */
 export async function payChoreographyBalance(input: {
@@ -494,10 +488,9 @@ export async function payChoreographyBalance(input: {
         })
         .where(eq(choreographyDancers.id, entry.inscription.id));
 
-      await tx.insert(paymentAllocations).values({
+      await applyAllocationDelta(tx, {
         academyId: input.academyId,
-        allocationType: "balance",
-        amount: entry.balanceAmount,
+        delta: entry.balanceAmount,
         eventId: input.eventId,
         inscriptionId: entry.inscription.id,
         paymentId: payment.id,
@@ -597,10 +590,9 @@ export async function payInscriptionBalance(input: {
       })
       .where(eq(choreographyDancers.id, target.id));
 
-    await tx.insert(paymentAllocations).values({
+    await applyAllocationDelta(tx, {
       academyId: input.academyId,
-      allocationType: "balance",
-      amount: balanceAmount,
+      delta: balanceAmount,
       eventId: input.eventId,
       inscriptionId: target.id,
       paymentId: payment.id,

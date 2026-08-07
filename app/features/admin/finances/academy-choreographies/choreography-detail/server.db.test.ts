@@ -185,7 +185,6 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
       .insert(paymentAllocations)
       .values({
         academyId: academy.academy.id,
-        allocationType: "deposit",
         amount: 3000,
         eventId: event.id,
         inscriptionId: inscription.id,
@@ -220,8 +219,8 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
         inscriptionId: expect.any(String),
         lastName: "García",
         state: "señada",
-        // Deshacer una señada borra su asignación de seña y la vuelve a impaga.
-        undoableAllocation: { id: depositAllocation.id, stage: "deposit" },
+        // Deshacer una señada borra su asignación y la vuelve a impaga.
+        undoableAllocation: { id: depositAllocation.id },
       },
     ]);
   });
@@ -264,30 +263,18 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
       eventId: event.id,
       paymentNumber: 1,
     });
-    const insertedAllocations = await db
+    // Una sola fila por (pago, inscripción): la seña y el saldo cobrados con el
+    // mismo pago son una asignación de 10000.
+    const [allocation] = await db
       .insert(paymentAllocations)
-      .values([
-        {
-          academyId: academy.academy.id,
-          allocationType: "deposit",
-          amount: 3000,
-          eventId: event.id,
-          inscriptionId: inscription.id,
-          paymentId: payment.id,
-        },
-        {
-          academyId: academy.academy.id,
-          allocationType: "balance",
-          amount: 7000,
-          eventId: event.id,
-          inscriptionId: inscription.id,
-          paymentId: payment.id,
-        },
-      ])
+      .values({
+        academyId: academy.academy.id,
+        amount: 10000,
+        eventId: event.id,
+        inscriptionId: inscription.id,
+        paymentId: payment.id,
+      })
       .returning();
-    const balanceAllocation = insertedAllocations.find(
-      (allocation) => allocation.allocationType === "balance",
-    );
 
     const loaderData = await loadDetailAsAdmin({
       academyId: academy.academy.id,
@@ -302,10 +289,9 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
       balanceAmount: { amount: 7000, status: "complete" },
       paidAmount: 10000,
     });
-    // Deshacer una pagada borra su asignación de saldo y la vuelve a señada.
+    // Deshacer una pagada borra su asignación y le saca toda la plata.
     expect(loaderData.inscriptions[0]?.undoableAllocation).toEqual({
-      id: balanceAllocation?.id,
-      stage: "balance",
+      id: allocation?.id,
     });
   });
 

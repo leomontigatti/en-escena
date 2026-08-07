@@ -209,7 +209,7 @@ describe("ChoreographyFinanceDetailView", () => {
           inscriptionId: "inscription_orphan",
           firstName: "Bruno",
           lastName: "Benítez",
-          undoableAllocation: { id: "allocation_1", stage: "deposit" },
+          undoableAllocation: { id: "allocation_1" },
         }),
       ],
     });
@@ -226,7 +226,7 @@ describe("ChoreographyFinanceDetailView", () => {
           inscriptionId: "inscription_paid",
           firstName: "Bruno",
           lastName: "Benítez",
-          undoableAllocation: { id: "allocation_2", stage: "balance" },
+          undoableAllocation: { id: "allocation_2" },
         }),
       ],
     });

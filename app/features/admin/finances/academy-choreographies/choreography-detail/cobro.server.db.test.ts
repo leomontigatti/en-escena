@@ -240,7 +240,7 @@ describe.sequential("choreography cobro through the route action", () => {
       where: eq(paymentAllocations.paymentId, fixture.payment.id),
     });
     expect(allocations).toHaveLength(2);
-    expect(allocations.every((a) => a.allocationType === "deposit")).toBe(true);
+    expect(allocations.every((a) => a.amount === 3000)).toBe(true);
   });
 
   test("rejects Pagar saldo when an inscription has no deposit", async () => {
@@ -287,13 +287,16 @@ describe.sequential("choreography cobro through the route action", () => {
       expect(inscription.finalTotalAmount).toBe(10000);
     }
 
+    // Dos inscripciones, un pago: dos filas, cada una con la seña y el saldo
+    // sumados encima.
     const allocations = await db.query.paymentAllocations.findMany({
       where: eq(paymentAllocations.paymentId, fixture.payment.id),
     });
-    expect(allocations).toHaveLength(4);
+    expect(allocations).toHaveLength(2);
+    expect(allocations.every((a) => a.amount === 10000)).toBe(true);
   });
 
-  test("deleting the balance allocation returns the inscription to señada", async () => {
+  test("la seña y el saldo del mismo pago viven en una sola asignación", async () => {
     const fixture = await seedCobroFixture();
 
     await postDetailAction({
@@ -309,11 +312,42 @@ describe.sequential("choreography cobro through the route action", () => {
       fields: { intent: "pay-balance", paymentId: fixture.payment.id },
     });
 
-    const balanceAllocation = await db.query.paymentAllocations.findFirst({
-      where: eq(paymentAllocations.allocationType, "balance"),
+    const inscription = await db.query.choreographyDancers.findFirst({
+      where: eq(choreographyDancers.choreographyId, fixture.choreography.id),
     });
-    if (!balanceAllocation) {
-      throw new Error("Expected a balance allocation.");
+    if (!inscription) {
+      throw new Error("Expected an inscription.");
+    }
+
+    // Una sola fila por (pago, inscripción): el saldo se sumó sobre la seña.
+    const allocations = await db.query.paymentAllocations.findMany({
+      where: eq(paymentAllocations.inscriptionId, inscription.id),
+    });
+    expect(allocations).toHaveLength(1);
+    expect(allocations[0]?.amount).toBe(10000);
+  });
+
+  test("deshacer no tiene orden: la asignación se borra con la inscripción pagada", async () => {
+    const fixture = await seedCobroFixture();
+
+    await postDetailAction({
+      academyId: fixture.academy.academy.id,
+      choreographyId: fixture.choreography.id,
+      eventId: fixture.event.id,
+      fields: { intent: "pay-deposit", paymentId: fixture.payment.id },
+    });
+    await postDetailAction({
+      academyId: fixture.academy.academy.id,
+      choreographyId: fixture.choreography.id,
+      eventId: fixture.event.id,
+      fields: { intent: "pay-balance", paymentId: fixture.payment.id },
+    });
+
+    const allocation = await db.query.paymentAllocations.findFirst({
+      where: eq(paymentAllocations.paymentId, fixture.payment.id),
+    });
+    if (!allocation) {
+      throw new Error("Expected an allocation.");
     }
 
     const response = await postDetailAction({
@@ -322,67 +356,20 @@ describe.sequential("choreography cobro through the route action", () => {
       eventId: fixture.event.id,
       fields: {
         intent: "delete-allocation",
-        allocationId: balanceAllocation.id,
+        allocationId: allocation.id,
       },
     });
 
     expect(response).toMatchObject({ status: 302 });
     const inscription = await db.query.choreographyDancers.findFirst({
-      where: eq(choreographyDancers.id, balanceAllocation.inscriptionId),
+      where: eq(choreographyDancers.id, allocation.inscriptionId),
     });
     expect(inscription?.balanceReferenceDate).toBeNull();
-    expect(inscription?.balanceAmount).toBeNull();
-    expect(inscription?.depositReferenceDate).toBe("2026-04-10");
-  });
-
-  test("rejects deshacer seña while the inscription is still pagada", async () => {
-    const fixture = await seedCobroFixture();
-
-    await postDetailAction({
-      academyId: fixture.academy.academy.id,
-      choreographyId: fixture.choreography.id,
-      eventId: fixture.event.id,
-      fields: { intent: "pay-deposit", paymentId: fixture.payment.id },
-    });
-    await postDetailAction({
-      academyId: fixture.academy.academy.id,
-      choreographyId: fixture.choreography.id,
-      eventId: fixture.event.id,
-      fields: { intent: "pay-balance", paymentId: fixture.payment.id },
-    });
-
-    // El orden es balance antes que deposit: con el saldo todavía asignado, la
-    // inscripción sigue pagada y no se puede deshacer la seña.
-    const depositAllocation = await db.query.paymentAllocations.findFirst({
-      where: eq(paymentAllocations.allocationType, "deposit"),
-    });
-    if (!depositAllocation) {
-      throw new Error("Expected a deposit allocation.");
-    }
-
-    const result = await postDetailAction({
-      academyId: fixture.academy.academy.id,
-      choreographyId: fixture.choreography.id,
-      eventId: fixture.event.id,
-      fields: {
-        intent: "delete-allocation",
-        allocationId: depositAllocation.id,
-      },
-    });
-
-    expect(result).toMatchObject({ status: "error" });
-    const inscription = await db.query.choreographyDancers.findFirst({
-      where: eq(choreographyDancers.id, depositAllocation.inscriptionId),
-    });
-    expect(inscription?.depositReferenceDate).toBe("2026-04-10");
-    expect(inscription?.balanceReferenceDate).toBe("2026-04-10");
+    expect(inscription?.depositReferenceDate).toBeNull();
     const survivingAllocations = await db.query.paymentAllocations.findMany({
-      where: eq(
-        paymentAllocations.inscriptionId,
-        depositAllocation.inscriptionId,
-      ),
+      where: eq(paymentAllocations.inscriptionId, allocation.inscriptionId),
     });
-    expect(survivingAllocations).toHaveLength(2);
+    expect(survivingAllocations).toHaveLength(0);
   });
 
   test("Cobrar seña de una huérfana congela solo su snapshot y la deja señada", async () => {
@@ -421,7 +408,6 @@ describe.sequential("choreography cobro through the route action", () => {
       where: eq(paymentAllocations.inscriptionId, fixture.bruno.id),
     });
     expect(allocations).toHaveLength(1);
-    expect(allocations[0]?.allocationType).toBe("deposit");
     expect(allocations[0]?.amount).toBe(3600);
   });
 
@@ -564,7 +550,6 @@ describe.sequential("choreography cobro through the route action", () => {
       where: eq(paymentAllocations.inscriptionId, fixture.bruno.id),
     });
     expect(allocations).toHaveLength(1);
-    expect(allocations[0]?.allocationType).toBe("balance");
     expect(allocations[0]?.amount).toBe(7000);
   });
 

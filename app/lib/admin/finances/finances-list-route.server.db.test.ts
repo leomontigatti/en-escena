@@ -213,7 +213,6 @@ describe.sequential("administracion finanzas", () => {
     });
     await db.insert(paymentAllocations).values({
       academyId: academyNorth.academy.id,
-      allocationType: "deposit",
       amount: 3000,
       eventId: event.id,
       inscriptionId: northActiveInscription.id,
@@ -231,7 +230,7 @@ describe.sequential("administracion finanzas", () => {
       dancerId: northSecondDancer.id,
     });
 
-    // Norte Pagada: pagada with deposit + balance allocations.
+    // Norte Pagada: pagada, con la seña y el saldo en una sola asignación.
     const northPaidDancer = await createDancer(academyNorth.academy.id, {
       firstName: "Carla",
       lastName: "Pagada",
@@ -244,24 +243,13 @@ describe.sequential("administracion finanzas", () => {
       frozenBasePriceAmount: 10000,
       paid: { balanceAmount: 7000, finalTotalAmount: 10000 },
     });
-    await db.insert(paymentAllocations).values([
-      {
-        academyId: academyNorth.academy.id,
-        allocationType: "deposit",
-        amount: 3000,
-        eventId: event.id,
-        inscriptionId: northPaidInscription.id,
-        paymentId: northPayment.id,
-      },
-      {
-        academyId: academyNorth.academy.id,
-        allocationType: "balance",
-        amount: 7000,
-        eventId: event.id,
-        inscriptionId: northPaidInscription.id,
-        paymentId: northPayment.id,
-      },
-    ]);
+    await db.insert(paymentAllocations).values({
+      academyId: academyNorth.academy.id,
+      amount: 10000,
+      eventId: event.id,
+      inscriptionId: northPaidInscription.id,
+      paymentId: northPayment.id,
+    });
 
     // Sur Activa: impaga -> pending seña 3000, no allocations.
     const southDancer = await createDancer(academySouth.academy.id, {

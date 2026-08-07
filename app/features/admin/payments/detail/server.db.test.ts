@@ -120,7 +120,6 @@ describe.sequential("admin payment detail", () => {
     const allocatedAmount = 3000;
     await db.insert(paymentAllocations).values({
       academyId: academy.academy.id,
-      allocationType: "deposit",
       amount: allocatedAmount,
       eventId: event.id,
       inscriptionId: inscription.id,
@@ -234,7 +233,6 @@ describe.sequential("admin payment detail", () => {
 
     await db.insert(paymentAllocations).values({
       academyId: academy.academy.id,
-      allocationType: "deposit",
       amount: 3000,
       eventId: event.id,
       inscriptionId: inscription.id,
@@ -269,7 +267,7 @@ describe.sequential("admin payment detail", () => {
     });
   });
 
-  test("aborts deletion when an inscription keeps a paid balance in another payment", async () => {
+  test("deletes the payment even when the balance lives in another payment", async () => {
     const event = await createSavedEvent({
       requiredDepositPercentage: 30,
     });
@@ -331,7 +329,6 @@ describe.sequential("admin payment detail", () => {
     await db.insert(paymentAllocations).values([
       {
         academyId: academy.academy.id,
-        allocationType: "deposit",
         amount: 3000,
         eventId: event.id,
         inscriptionId: inscription.id,
@@ -339,7 +336,6 @@ describe.sequential("admin payment detail", () => {
       },
       {
         academyId: academy.academy.id,
-        allocationType: "balance",
         amount: 7000,
         eventId: event.id,
         inscriptionId: inscription.id,
@@ -357,27 +353,22 @@ describe.sequential("admin payment detail", () => {
       requestUrl: paymentDetailUrl(depositPayment.id, event.id),
     });
 
+    // No hay orden de reversión: la plata es fungible y la eliminación procede.
     await expect(
       handlePaymentDetailAction(request, depositPayment.id),
-    ).resolves.toMatchObject({
-      status: "error",
-      intent: deletePaymentIntent,
-      fieldErrors: {
-        paymentId:
-          "No se pudo eliminar el pago: hay coreografías con el saldo pagado en otro pago. Desasigná ese saldo primero.",
-      },
-    });
+    ).rejects.toMatchObject({ status: 302 });
 
-    // Rollback total: pago, asignación y snapshot intactos.
-    await expect(findPaymentById(depositPayment.id)).resolves.toMatchObject({
-      id: depositPayment.id,
-    });
+    await expect(findPaymentById(depositPayment.id)).resolves.toBeUndefined();
     await expect(
       findAllocationsByPaymentId(depositPayment.id),
+    ).resolves.toEqual([]);
+    // El saldo del otro pago sigue asignado; la inscripción ya no está pagada.
+    await expect(
+      findAllocationsByPaymentId(balancePayment.id),
     ).resolves.toHaveLength(1);
     await expect(findInscriptionById(inscription.id)).resolves.toMatchObject({
+      balanceReferenceDate: null,
       depositReferenceDate: "2026-03-20",
-      balanceReferenceDate: "2026-03-20",
     });
   });
 });

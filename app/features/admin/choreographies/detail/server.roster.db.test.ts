@@ -140,7 +140,6 @@ describe("administrative choreography roster editing", () => {
       .returning();
     await db.insert(paymentAllocations).values({
       academyId: owner.academyId,
-      allocationType: "deposit",
       amount: 3000,
       eventId: event.id,
       inscriptionId: inscriptionA.id,

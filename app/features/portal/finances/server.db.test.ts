@@ -186,7 +186,6 @@ describe.sequential("loadPortalAcademyFinances", () => {
     });
     await db.insert(paymentAllocations).values({
       academyId: owner.academyId,
-      allocationType: "deposit",
       amount: 3000,
       eventId: event.id,
       inscriptionId: signedInscription.id,
@@ -321,7 +320,6 @@ describe.sequential("loadPortalAcademyFinances", () => {
     });
     await db.insert(paymentAllocations).values({
       academyId: owner.academyId,
-      allocationType: "deposit",
       amount: 3600,
       eventId: event.id,
       inscriptionId: inscription.id,
