@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 
 // Storage lives on a Coolify volume co-located with the app in São Paulo. The
 // live byte store is this local volume; B2 is relegated to backups. Keys stay
-// intact (`academies/...`) so a re-seed from B2/Supabase is a plain copy.
+// intact (`academies/...`) so a re-seed from the B2 backup is a plain copy.
 type FilesystemStorageEnvName =
   | "STORAGE_URL_SIGNING_SECRET"
   | "STORAGE_VOLUME_DIR";

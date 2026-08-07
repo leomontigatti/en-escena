@@ -64,7 +64,7 @@ describe("academy registration start", () => {
     expect(startAcademyUserSignUpMock).not.toHaveBeenCalled();
   });
 
-  test("starts Supabase confirmation without creating domain records before onboarding", async () => {
+  test("starts the confirmation without creating domain records before onboarding", async () => {
     startAcademyUserSignUpMock.mockResolvedValueOnce({
       headers: new Headers({
         "set-cookie": "sb-registration=start; Path=/; HttpOnly",

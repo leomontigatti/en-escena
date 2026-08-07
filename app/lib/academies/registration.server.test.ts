@@ -10,7 +10,7 @@ describe("academy registration helpers", () => {
     );
   });
 
-  test("starts Supabase signup with the confirmation redirect", async () => {
+  test("starts the signup with the confirmation redirect", async () => {
     const startSignUp = vi.fn(async () => ({
       headers: new Headers(),
     }));
@@ -61,7 +61,7 @@ describe("academy registration helpers", () => {
     expect(startSignUp).not.toHaveBeenCalled();
   });
 
-  test("keeps the public response generic when Supabase reports a duplicate email", async () => {
+  test("keeps the public response generic when the auth provider reports a duplicate email", async () => {
     const startSignUp = vi.fn(async () => {
       throw new Error("user_already_exists", {
         cause: { code: "user_already_exists" },
