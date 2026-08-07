@@ -40,9 +40,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  formatChoreographyFinancialState,
-  getChoreographyFinancialStateBadgeVariant,
-} from "@/lib/finances/choreography-financial-state";
+  formatInscriptionFinancialStatus,
+  getInscriptionFinancialStatusBadgeVariant,
+} from "@/lib/finances/choreography-financial-status";
 import {
   type InscriptionAmountColumn,
   isTentativeInscriptionAmount,
@@ -53,7 +53,6 @@ import {
   formatAmount,
   formatDate,
   formatOperationalAmount,
-  formatTotalAmount,
 } from "../../formatters";
 import { EmissionDialog } from "./comprobante-emission";
 import { InscriptionBalanceDialog } from "./inscription-balance-dialog";
@@ -118,18 +117,15 @@ export function ChoreographyFinanceDetailView({
               linkLabel="Ver comprobante que cubre la seña"
             />
             <MetricCard
-              title="Saldo"
-              value={formatOperationalAmount(choreography.balanceAmount)}
+              title="Saldo adeudado"
+              value={formatOperationalAmount(choreography.owedBalanceAmount)}
               slot={portionCoverageBadge(loaderData.invoicing.saldo)}
               to={portionCoverageHref(loaderData.invoicing.saldo)}
               linkLabel="Ver comprobante que cubre el saldo"
             />
             <MetricCard
               title="Total"
-              value={formatTotalAmount(
-                choreography.depositAmount,
-                choreography.balanceAmount,
-              )}
+              value={formatOperationalAmount(choreography.totalAmount)}
             />
           </section>
 
@@ -211,7 +207,6 @@ function ChoreographyAlerts({
 }: ChoreographyFinanceDetailViewProps) {
   const stage = loaderData.stage;
   const eligible = eligiblePayments(loaderData.payments);
-  const needsAttention = loaderData.choreography?.needsAttention ?? false;
   const depositAmount = loaderData.choreography?.depositAmount;
   // Sin precio aplicable no se puede cotizar la seña: la causa es la falta de
   // precio configurado, no que los pagos no alcancen. Por eso enunciamos esa
@@ -221,20 +216,12 @@ function ChoreographyAlerts({
   const noEligiblePayments =
     stage !== null && eligible.length === 0 && !missingDepositPrice;
 
-  if (!needsAttention && !noEligiblePayments && !missingDepositPrice) {
+  if (!noEligiblePayments && !missingDepositPrice) {
     return null;
   }
 
   return (
     <AlertStack>
-      {needsAttention ? (
-        <Alert variant="warning">
-          <AlertTriangle aria-hidden="true" />
-          <AlertDescription>
-            Existen inscripciones que necesitan atención específica.
-          </AlertDescription>
-        </Alert>
-      ) : null}
       {missingDepositPrice ? (
         <Alert variant="warning">
           <AlertTriangle aria-hidden="true" />
@@ -554,12 +541,12 @@ function DancerNameCell({
   const canChargeDeposit =
     inscriptionDeposit !== null &&
     inscriptionDeposit.priceRows.length > 0 &&
-    inscription.state === "impaga" &&
+    inscription.ladderStage === "impaga" &&
     hasInscriptionId;
   const canChargeBalance =
     canPayInscriptionBalance &&
-    inscription.state === "señada" &&
-    inscription.balanceAmount !== null &&
+    inscription.ladderStage === "señada" &&
+    inscription.owedBalanceAmount !== null &&
     hasInscriptionId;
 
   if (!canChargeDeposit && !canChargeBalance && undoableAllocation === null) {
@@ -617,13 +604,15 @@ function DancerNameCell({
 
 const inscriptionAmountColumns: DataTableColumn<InscriptionRow>[] = [
   {
-    id: "state",
+    id: "financialStatus",
     header: "Estado",
     cell: (inscription) => (
       <Badge
-        variant={getChoreographyFinancialStateBadgeVariant(inscription.state)}
+        variant={getInscriptionFinancialStatusBadgeVariant(
+          inscription.financialStatus,
+        )}
       >
-        {formatChoreographyFinancialState(inscription.state)}
+        {formatInscriptionFinancialStatus(inscription.financialStatus)}
       </Badge>
     ),
   },
@@ -633,7 +622,7 @@ const inscriptionAmountColumns: DataTableColumn<InscriptionRow>[] = [
     className: "text-right tabular-nums",
     headerClassName: "text-right",
     cellClassName: (inscription) =>
-      tentativeAmountClassName(inscription.state, "basePrice"),
+      tentativeAmountClassName(inscription.financialStatus, "basePrice"),
     cell: (inscription) => formatInscriptionAmount(inscription.basePriceAmount),
   },
   {
@@ -642,25 +631,33 @@ const inscriptionAmountColumns: DataTableColumn<InscriptionRow>[] = [
     className: "text-right tabular-nums",
     headerClassName: "text-right",
     cellClassName: (inscription) =>
-      tentativeAmountClassName(inscription.state, "deposit"),
+      tentativeAmountClassName(inscription.financialStatus, "deposit"),
     cell: (inscription) => formatInscriptionAmount(inscription.depositAmount),
   },
   {
-    id: "balance",
-    header: "Saldo",
+    id: "total",
+    header: "Total",
     className: "text-right tabular-nums",
     headerClassName: "text-right",
     cellClassName: (inscription) =>
-      tentativeAmountClassName(inscription.state, "balance"),
-    cell: (inscription) => formatInscriptionAmount(inscription.balanceAmount),
+      tentativeAmountClassName(inscription.financialStatus, "total"),
+    cell: (inscription) => formatInscriptionAmount(inscription.totalAmount),
+  },
+  {
+    id: "owedBalance",
+    header: "Saldo adeudado",
+    className: "text-right tabular-nums",
+    headerClassName: "text-right",
+    cell: (inscription) =>
+      formatInscriptionAmount(inscription.owedBalanceAmount),
   },
 ];
 
 function tentativeAmountClassName(
-  state: InscriptionRow["state"],
+  status: InscriptionRow["financialStatus"],
   column: InscriptionAmountColumn,
 ) {
-  return isTentativeInscriptionAmount(state, column)
+  return isTentativeInscriptionAmount(status, column)
     ? "text-muted-foreground"
     : undefined;
 }

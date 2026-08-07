@@ -4,10 +4,8 @@ import { db } from "@/db";
 import { choreographyDancers, events, prices } from "@/db/schema";
 import { resolveChoreographyPricingScheduleId } from "@/lib/finances/choreography-pricing-schedule";
 import { todayDateOnly } from "@/lib/shared/date-only";
-import {
-  calculateDepositAmount,
-  deriveInscriptionFinancialState,
-} from "@/lib/finances/operational-summary-calculations.server";
+import { calculateDepositAmount } from "@/lib/finances/inscription-financial-status";
+import { deriveInscriptionLadderStage } from "@/lib/finances/inscription-ladder-snapshot";
 
 import { applyAllocationDelta } from "./choreography-cobro-allocations.server";
 import {
@@ -21,6 +19,8 @@ import {
   selectApplicablePriceRow,
   type CobroResult,
 } from "./choreography-cobro-support.server";
+
+export { readChoreographyLadderStages } from "./choreography-cobro-support.server";
 
 export {
   deletePaymentAllocation,
@@ -51,8 +51,7 @@ export async function payChoreographyDeposit(input: {
 
     if (
       !inscriptions.every(
-        (inscription) =>
-          deriveInscriptionFinancialState(inscription) === "impaga",
+        (inscription) => deriveInscriptionLadderStage(inscription) === "impaga",
       )
     ) {
       return {
@@ -78,8 +77,8 @@ export async function payChoreographyDeposit(input: {
     }
 
     const depositAmount = calculateDepositAmount({
-      amount: price.amount,
-      percentage: event.requiredDepositPercentage,
+      priceAmount: price.amount,
+      requiredDepositPercentage: event.requiredDepositPercentage,
     });
     const totalDeposit = depositAmount * inscriptions.length;
 
@@ -155,7 +154,7 @@ export async function payInscriptionDeposit(input: {
       return { ok: false, message: "No encontramos esa inscripción." };
     }
 
-    if (deriveInscriptionFinancialState(target) !== "impaga") {
+    if (deriveInscriptionLadderStage(target) !== "impaga") {
       return {
         ok: false,
         message: "Esta inscripción ya tiene la seña congelada.",
@@ -208,8 +207,8 @@ export async function payInscriptionDeposit(input: {
     }
 
     const depositAmount = calculateDepositAmount({
-      amount: price.amount,
-      percentage: event.requiredDepositPercentage,
+      priceAmount: price.amount,
+      requiredDepositPercentage: event.requiredDepositPercentage,
     });
 
     const availability = await assertPaymentAvailability(tx, {
@@ -290,7 +289,7 @@ export async function readInscriptionDepositOptions(input: {
 
   const floor = resolveInscriptionDepositFloor(inscriptions, null);
   const hasOrphan = inscriptions.some(
-    (inscription) => deriveInscriptionFinancialState(inscription) === "impaga",
+    (inscription) => deriveInscriptionLadderStage(inscription) === "impaga",
   );
   if (floor === null || !hasOrphan) {
     return null;
@@ -326,8 +325,8 @@ export async function readInscriptionDepositOptions(input: {
       name: price.name,
       amount: price.amount,
       depositAmount: calculateDepositAmount({
-        amount: price.amount,
-        percentage: event.requiredDepositPercentage,
+        priceAmount: price.amount,
+        requiredDepositPercentage: event.requiredDepositPercentage,
       }),
     }))
     .sort((a, b) => a.amount - b.amount);
@@ -400,8 +399,8 @@ export async function quoteChoreographyDepositTotals(input: {
     }
 
     const depositAmount = calculateDepositAmount({
-      amount: price.amount,
-      percentage: event.requiredDepositPercentage,
+      priceAmount: price.amount,
+      requiredDepositPercentage: event.requiredDepositPercentage,
     });
 
     totals.set(referenceDate, depositAmount * inscriptionRows.length);
@@ -432,8 +431,7 @@ export async function payChoreographyBalance(input: {
 
     if (
       !inscriptions.every(
-        (inscription) =>
-          deriveInscriptionFinancialState(inscription) === "señada",
+        (inscription) => deriveInscriptionLadderStage(inscription) === "señada",
       )
     ) {
       return {
@@ -539,7 +537,7 @@ export async function payInscriptionBalance(input: {
       return { ok: false, message: "No encontramos esa inscripción." };
     }
 
-    if (deriveInscriptionFinancialState(target) !== "señada") {
+    if (deriveInscriptionLadderStage(target) !== "señada") {
       return {
         ok: false,
         message: "Esta inscripción no tiene un saldo pendiente de cobro.",
@@ -548,8 +546,7 @@ export async function payInscriptionBalance(input: {
 
     if (
       inscriptions.every(
-        (inscription) =>
-          deriveInscriptionFinancialState(inscription) === "señada",
+        (inscription) => deriveInscriptionLadderStage(inscription) === "señada",
       )
     ) {
       return {

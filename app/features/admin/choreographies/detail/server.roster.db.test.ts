@@ -11,7 +11,7 @@ import {
 import { handleChoreographyDetailAction } from "@/features/admin/choreographies/detail/server";
 import { updateChoreographyRosterIntent } from "@/features/admin/choreographies/detail/shared";
 import { createChoreographyRecord } from "@/features/portal/choreographies/test-support/db";
-import { deriveInscriptionFinancialState } from "@/lib/finances/operational-summary-calculations.server";
+import { deriveInscriptionLadderStage } from "@/lib/finances/inscription-ladder-snapshot";
 import {
   createAcademySession,
   createDancer,
@@ -85,7 +85,7 @@ describe("administrative choreography roster editing", () => {
     );
     const added = inscriptions.find((row) => row.dancerId === dancerC.id);
     expect(added).toBeDefined();
-    expect(deriveInscriptionFinancialState(added!)).toBe("impaga");
+    expect(deriveInscriptionLadderStage(added!)).toBe("impaga");
   });
 
   test("removes a dancer physically and returns its allocations to the Saldo disponible", async () => {
@@ -220,10 +220,10 @@ describe("administrative choreography roster editing", () => {
     const kept = inscriptions.filter((row) => row.dancerId !== dancerC.id);
     expect(kept).toHaveLength(2);
     for (const inscription of kept) {
-      expect(deriveInscriptionFinancialState(inscription)).toBe("señada");
+      expect(deriveInscriptionLadderStage(inscription)).toBe("señada");
     }
     const added = inscriptions.find((row) => row.dancerId === dancerC.id);
-    expect(deriveInscriptionFinancialState(added!)).toBe("impaga");
+    expect(deriveInscriptionLadderStage(added!)).toBe("impaga");
   });
 
   test("hard-locks roster editing when the choreography has a presentation", async () => {

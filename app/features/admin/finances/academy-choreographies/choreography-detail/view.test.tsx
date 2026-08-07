@@ -60,7 +60,7 @@ describe("ChoreographyFinanceDetailView", () => {
     ).not.toBeNull();
   });
 
-  test("links Seña and Saldo to the same comprobante when a total factura covers both", () => {
+  test("links Seña and Saldo adeudado to the same comprobante when a total factura covers both", () => {
     const markup = renderDetail({
       invoicing: invoicingFixture({
         sena: { comprobanteId: "comprobante_total", currency: "vigente" },
@@ -69,7 +69,7 @@ describe("ChoreographyFinanceDetailView", () => {
     });
 
     const sena = portionCard(markup, "Seña");
-    const saldo = portionCard(markup, "Saldo");
+    const saldo = portionCard(markup, "Saldo adeudado");
     const target = 'a[href="/administracion/comprobantes/comprobante_total"]';
     expect(sena.closest(target)).not.toBeNull();
     expect(saldo.closest(target)).not.toBeNull();
@@ -85,7 +85,7 @@ describe("ChoreographyFinanceDetailView", () => {
       }),
     });
 
-    const card = portionCard(markup, "Saldo");
+    const card = portionCard(markup, "Saldo adeudado");
     expect(card.textContent).toContain("Desactualizada");
     expect(card.textContent).not.toContain("Vigente");
   });
@@ -139,8 +139,9 @@ describe("ChoreographyFinanceDetailView", () => {
       },
       inscriptions: [
         inscriptionFixture({
-          state: "impaga",
+          financialStatus: "depositPending",
           inscriptionId: "inscription_orphan",
+          ladderStage: "impaga",
           firstName: "Bruno",
           lastName: "Benítez",
         }),
@@ -155,8 +156,9 @@ describe("ChoreographyFinanceDetailView", () => {
       inscriptionDeposit: null,
       inscriptions: [
         inscriptionFixture({
-          state: "impaga",
+          financialStatus: "depositPending",
           inscriptionId: "inscription_orphan",
+          ladderStage: "impaga",
           firstName: "Bruno",
           lastName: "Benítez",
         }),
@@ -172,8 +174,9 @@ describe("ChoreographyFinanceDetailView", () => {
       canPayInscriptionBalance: true,
       inscriptions: [
         inscriptionFixture({
-          state: "señada",
+          financialStatus: "depositMet",
           inscriptionId: "inscription_orphan",
+          ladderStage: "señada",
           firstName: "Bruno",
           lastName: "Benítez",
         }),
@@ -188,8 +191,9 @@ describe("ChoreographyFinanceDetailView", () => {
       canPayInscriptionBalance: false,
       inscriptions: [
         inscriptionFixture({
-          state: "señada",
+          financialStatus: "depositMet",
           inscriptionId: "inscription_orphan",
+          ladderStage: "señada",
           firstName: "Bruno",
           lastName: "Benítez",
         }),
@@ -205,8 +209,9 @@ describe("ChoreographyFinanceDetailView", () => {
       canPayInscriptionBalance: false,
       inscriptions: [
         inscriptionFixture({
-          state: "señada",
+          financialStatus: "depositMet",
           inscriptionId: "inscription_orphan",
+          ladderStage: "señada",
           firstName: "Bruno",
           lastName: "Benítez",
           undoableAllocation: { id: "allocation_1" },
@@ -222,8 +227,9 @@ describe("ChoreographyFinanceDetailView", () => {
       canPayInscriptionBalance: false,
       inscriptions: [
         inscriptionFixture({
-          state: "pagada",
+          financialStatus: "paidInFull",
           inscriptionId: "inscription_paid",
+          ladderStage: "pagada",
           firstName: "Bruno",
           lastName: "Benítez",
           undoableAllocation: { id: "allocation_2" },
@@ -234,51 +240,62 @@ describe("ChoreographyFinanceDetailView", () => {
     expect(markup).toMatch(/<button[^>]*>Bruno Benítez<\/button>/);
   });
 
-  test("shows the saldo of an impaga inscription instead of zero", () => {
+  test("names the shortfall of an inscription holding part of its seña", () => {
     const markup = renderDetail({
       inscriptions: [
-        inscriptionFixture({ state: "impaga", balanceAmount: 17500 }),
+        inscriptionFixture({
+          allocatedAmount: 2700,
+          financialStatus: "depositPending",
+          ladderStage: "impaga",
+          owedBalanceAmount: 17500,
+          owedDepositAmount: 300,
+        }),
       ],
     });
 
+    // Lee `Seña pendiente` con el faltante a la vista, no como impaga.
+    expect(markup).toContain("Seña pendiente");
     expect(markup).toContain("$ 17.500");
   });
 
   test("marks every amount of an impaga inscription as tentative", () => {
     const markup = renderDetail({
-      inscriptions: [inscriptionFixture({ state: "impaga" })],
+      inscriptions: [
+        inscriptionFixture({
+          financialStatus: "depositPending",
+          ladderStage: "impaga",
+        }),
+      ],
     });
 
     expect(tentativeAmounts(markup)).toEqual({
       "Precio base": true,
       Seña: true,
-      Saldo: true,
+      Total: true,
     });
   });
 
   test("marks only the saldo of a señada inscription as tentative", () => {
     const markup = renderDetail({
-      inscriptions: [inscriptionFixture({ state: "señada" })],
+      inscriptions: [inscriptionFixture({ financialStatus: "depositMet" })],
     });
 
-    // Precio base y seña quedan fijos al pagar la seña; el saldo sigue
-    // moviéndose hasta que se congela el descuento por bailarín.
     expect(tentativeAmounts(markup)).toEqual({
       "Precio base": false,
       Seña: false,
-      Saldo: true,
+      Total: true,
     });
   });
 
   test("marks no amount of a pagada inscription as tentative", () => {
     const markup = renderDetail({
-      inscriptions: [inscriptionFixture({ state: "pagada" })],
+      inscriptions: [inscriptionFixture({ financialStatus: "paidInFull" })],
     });
 
     expect(tentativeAmounts(markup)).toEqual({
       "Precio base": false,
       Seña: false,
-      Saldo: false,
+      Total: false,
     });
   });
 
@@ -362,7 +379,7 @@ function tentativeAmounts(markup: string) {
   const cells = [...(table?.querySelectorAll("tbody tr td") ?? [])];
 
   return Object.fromEntries(
-    ["Precio base", "Seña", "Saldo"].map((column) => {
+    ["Precio base", "Seña", "Total"].map((column) => {
       const cell = cells[headers.indexOf(column)];
 
       if (!cell) {
@@ -430,7 +447,7 @@ function loaderDataFixture(
     choreography: choreographyFixture(),
     canPayInscriptionBalance: false,
     inscriptionDeposit: null,
-    inscriptions: [inscriptionFixture({ state: "señada" })],
+    inscriptions: [inscriptionFixture({ financialStatus: "depositMet" })],
     invoicing: invoicingFixture(),
     payments: [],
     stage: null,
@@ -456,15 +473,18 @@ function choreographyFixture(
   overrides: Partial<ChoreographyRow> = {},
 ): ChoreographyRow {
   return {
-    balanceAmount: { amount: 7000, status: "complete" },
+    allocatedAmount: 3000,
+    anomalies: [],
     depositAmount: { amount: 3000, status: "complete" },
     depositCompletedOn: "2026-03-21",
-    financialState: "señada",
+    financialStatus: "depositMet",
     groupType: "duo",
     id: "choreography_1",
     name: "Aire",
-    needsAttention: false,
-    paidAmount: 3000,
+    overAllocatedAmount: 0,
+    owedBalanceAmount: { amount: 7000, status: "complete" },
+    owedDepositAmount: { amount: 0, status: "complete" },
+    totalAmount: { amount: 10000, status: "complete" },
     ...overrides,
   };
 }
@@ -485,16 +505,21 @@ function inscriptionFixture(
   overrides: Partial<InscriptionRow> = {},
 ): InscriptionRow {
   return {
+    allocatedAmount: 3000,
+    anomalies: [],
     basePriceAmount: 10000,
-    balanceAmount: 7000,
     dancerId: "dancer_1",
     depositAmount: 3000,
     discountAmount: 0,
-    finalPriceAmount: 10000,
+    financialStatus: "depositMet",
     firstName: "Ana",
     inscriptionId: "inscription_1",
+    ladderStage: "señada",
     lastName: "López",
-    state: "señada",
+    overAllocatedAmount: 0,
+    owedBalanceAmount: 7000,
+    owedDepositAmount: 0,
+    totalAmount: 10000,
     undoableAllocation: null,
     ...overrides,
   };

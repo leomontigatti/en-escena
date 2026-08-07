@@ -52,7 +52,7 @@ export function InscriptionBalanceDialog({
   const isSaving = fetcher.state !== "idle";
   const isDeleting = deleteFetcher.state !== "idle";
   const isBusy = isSaving || isDeleting;
-  const balanceAmount = inscription.balanceAmount ?? 0;
+  const balanceAmount = inscription.owedBalanceAmount ?? 0;
   const payableForBalance = payments.filter(
     (payment) => payment.availableAmount >= balanceAmount,
   );

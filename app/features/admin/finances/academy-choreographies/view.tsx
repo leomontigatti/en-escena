@@ -8,17 +8,13 @@ import { DataTableLink } from "@/components/shared/data-table-link";
 import { MetricCard } from "@/components/shared/metric-card";
 import { Badge } from "@/components/ui/badge";
 import {
-  choreographyFinancialStateOptions,
-  formatChoreographyFinancialState,
-  getChoreographyFinancialStateBadgeVariant,
-} from "@/lib/finances/choreography-financial-state";
+  formatInscriptionFinancialStatus,
+  getInscriptionFinancialStatusBadgeVariant,
+  inscriptionFinancialStatusOptions,
+} from "@/lib/finances/choreography-financial-status";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 
-import {
-  formatAmount,
-  formatOperationalAmount,
-  formatTotalAmount,
-} from "../formatters";
+import { formatAmount, formatOperationalAmount } from "../formatters";
 import type { AcademyFinancesLoaderData } from "./types";
 
 type ChoreographyFinanceRow =
@@ -28,7 +24,7 @@ const choreographyFinanceFacetedFilters: DataTableFacetedFilter[] = [
   {
     id: "estado",
     label: "Estado",
-    options: [...choreographyFinancialStateOptions],
+    options: [...inscriptionFinancialStatusOptions],
   },
 ];
 
@@ -121,32 +117,32 @@ function buildChoreographyFinanceColumns(
       cell: (row) => formatOperationalAmount(row.depositAmount),
     },
     {
-      id: "balanceAmount",
-      header: "Saldo",
-      className: "text-right tabular-nums",
-      headerClassName: "text-right",
-      cell: (row) => formatOperationalAmount(row.balanceAmount),
-    },
-    {
       id: "totalAmount",
       header: "Total",
       className: "text-right tabular-nums",
       headerClassName: "text-right",
-      cell: (row) => formatTotalAmount(row.depositAmount, row.balanceAmount),
+      cell: (row) => formatOperationalAmount(row.totalAmount),
     },
     {
-      id: "financialState",
+      id: "owedBalanceAmount",
+      header: "Saldo adeudado",
+      className: "text-right tabular-nums",
+      headerClassName: "text-right",
+      cell: (row) => formatOperationalAmount(row.owedBalanceAmount),
+    },
+    {
+      id: "financialStatus",
       header: "Estado",
       cell: (row) => (
         <Badge
-          variant={getChoreographyFinancialStateBadgeVariant(
-            row.financialState,
+          variant={getInscriptionFinancialStatusBadgeVariant(
+            row.financialStatus,
           )}
         >
-          {formatChoreographyFinancialState(row.financialState)}
+          {formatInscriptionFinancialStatus(row.financialStatus)}
         </Badge>
       ),
-      filterValue: (row) => row.financialState,
+      filterValue: (row) => row.financialStatus,
     },
   ];
 }

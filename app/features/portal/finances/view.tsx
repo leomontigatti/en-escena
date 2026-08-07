@@ -15,10 +15,10 @@ import {
 } from "@/features/admin/finances/formatters";
 import type { loadPortalAcademyFinances } from "@/features/portal/finances/server";
 import {
-  choreographyFinancialStateOptions,
-  formatChoreographyFinancialState,
-  getChoreographyFinancialStateBadgeVariant,
-} from "@/lib/finances/choreography-financial-state";
+  formatInscriptionFinancialStatus,
+  getInscriptionFinancialStatusBadgeVariant,
+  inscriptionFinancialStatusOptions,
+} from "@/lib/finances/choreography-financial-status";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 
 type PortalAcademyFinancesLoaderData = Awaited<
@@ -32,7 +32,7 @@ const choreographyFinanceFacetedFilters: DataTableFacetedFilter[] = [
   {
     id: "estado",
     label: "Estado",
-    options: [...choreographyFinancialStateOptions],
+    options: [...inscriptionFinancialStatusOptions],
   },
 ];
 
@@ -64,24 +64,32 @@ const choreographyFinanceColumns: DataTableColumn<ChoreographyFinanceRow>[] = [
     cell: (row) => formatOperationalAmount(row.depositAmount),
   },
   {
-    id: "balanceAmount",
-    header: "Saldo",
+    id: "totalAmount",
+    header: "Total",
     className: "text-right tabular-nums",
     headerClassName: "text-right",
-    cell: (row) => formatOperationalAmount(row.balanceAmount),
-    sortValue: (row) => row.balanceAmount.amount,
+    cell: (row) => formatOperationalAmount(row.totalAmount),
+    sortValue: (row) => row.totalAmount.amount,
   },
   {
-    id: "financialState",
+    id: "owedBalanceAmount",
+    header: "Saldo adeudado",
+    className: "text-right tabular-nums",
+    headerClassName: "text-right",
+    cell: (row) => formatOperationalAmount(row.owedBalanceAmount),
+    sortValue: (row) => row.owedBalanceAmount.amount,
+  },
+  {
+    id: "financialStatus",
     header: "Estado",
     cell: (row) => (
       <Badge
-        variant={getChoreographyFinancialStateBadgeVariant(row.financialState)}
+        variant={getInscriptionFinancialStatusBadgeVariant(row.financialStatus)}
       >
-        {formatChoreographyFinancialState(row.financialState)}
+        {formatInscriptionFinancialStatus(row.financialStatus)}
       </Badge>
     ),
-    filterValue: (row) => row.financialState,
+    filterValue: (row) => row.financialStatus,
   },
 ];
 

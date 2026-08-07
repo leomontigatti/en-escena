@@ -5,9 +5,6 @@ import {
   buildOperationalFinanceSummaryFromChoreographyRows,
   computeDancerDiscountAmounts,
   dancerDiscountPercentage,
-  deriveChoreographyFinancialState,
-  deriveChoreographyNeedsAttention,
-  deriveInscriptionFinancialState,
   type FinanceChoreographyRow,
   type ResolvedInscription,
 } from "./operational-summary-calculations.server";
@@ -21,95 +18,32 @@ const choreography: FinanceChoreographyRow = {
   scheduleCapacityScheduleId: null,
 };
 
+/**
+ * Una inscripción de precio 10000 y seña 3000, sin dinero. Los tests mueven
+ * `allocatedAmount` y dejan que las cifras se deriven, como en producción.
+ */
 function resolvedInscription(
   overrides: Partial<ResolvedInscription> & { id: string },
 ): ResolvedInscription {
-  return {
-    balanceAmount: 7000,
+  const base: ResolvedInscription = {
+    allocatedAmount: 0,
+    anomalies: [],
     basePriceAmount: 10000,
     choreographyId: "choreography_1",
     dancerDiscountAmount: 0,
     dancerId: "dancer_1",
     depositAmount: 3000,
     depositReferenceDate: null,
-    finalPriceAmount: 10000,
-    paidAmount: 0,
-    state: "impaga",
-    ...overrides,
+    financialStatus: "depositPending",
+    id: overrides.id,
+    overAllocatedAmount: 0,
+    owedBalanceAmount: 10000,
+    owedDepositAmount: 3000,
+    totalAmount: 10000,
   };
+
+  return { ...base, ...overrides };
 }
-
-describe("deriveInscriptionFinancialState", () => {
-  test("is impaga without a seña snapshot", () => {
-    expect(
-      deriveInscriptionFinancialState({
-        depositReferenceDate: null,
-        balanceReferenceDate: null,
-      }),
-    ).toBe("impaga");
-  });
-
-  test("is señada with a seña snapshot and no saldo snapshot", () => {
-    expect(
-      deriveInscriptionFinancialState({
-        depositReferenceDate: "2026-03-21",
-        balanceReferenceDate: null,
-      }),
-    ).toBe("señada");
-  });
-
-  test("is pagada with a saldo snapshot", () => {
-    expect(
-      deriveInscriptionFinancialState({
-        depositReferenceDate: "2026-03-21",
-        balanceReferenceDate: "2026-04-21",
-      }),
-    ).toBe("pagada");
-  });
-});
-
-describe("deriveChoreographyFinancialState (marca de agua)", () => {
-  test("is impaga when there are no inscriptions", () => {
-    expect(deriveChoreographyFinancialState([])).toBe("impaga");
-  });
-
-  test("is impaga when every inscription is impaga", () => {
-    expect(deriveChoreographyFinancialState(["impaga", "impaga"])).toBe(
-      "impaga",
-    );
-  });
-
-  test("stays señada with a mix of impaga and señada", () => {
-    expect(deriveChoreographyFinancialState(["impaga", "señada"])).toBe(
-      "señada",
-    );
-  });
-
-  test("stays señada with a mix of señada and pagada", () => {
-    expect(deriveChoreographyFinancialState(["señada", "pagada"])).toBe(
-      "señada",
-    );
-  });
-
-  test("is pagada only when every inscription is pagada", () => {
-    expect(deriveChoreographyFinancialState(["pagada", "pagada"])).toBe(
-      "pagada",
-    );
-  });
-});
-
-describe("deriveChoreographyNeedsAttention", () => {
-  test("is false for a uniform roster", () => {
-    expect(deriveChoreographyNeedsAttention(["señada", "señada"])).toBe(false);
-    expect(deriveChoreographyNeedsAttention(["impaga"])).toBe(false);
-    expect(deriveChoreographyNeedsAttention([])).toBe(false);
-  });
-
-  test("is true for a mixed roster", () => {
-    expect(deriveChoreographyNeedsAttention(["señada", "impaga"])).toBe(true);
-    expect(deriveChoreographyNeedsAttention(["pagada", "señada"])).toBe(true);
-  });
-});
 
 describe("dancerDiscountPercentage", () => {
   test("gives no discount for 1 or 2 inscriptions", () => {
@@ -130,8 +64,8 @@ describe("dancerDiscountPercentage", () => {
 describe("computeDancerDiscountAmounts", () => {
   test("leaves everyone without discount below the threshold", () => {
     const discounts = computeDancerDiscountAmounts([
-      { id: "a", frozenBasePriceAmount: 10000 },
-      { id: "b", frozenBasePriceAmount: 20000 },
+      { id: "a", priceAmount: 10000 },
+      { id: "b", priceAmount: 20000 },
     ]);
 
     expect(discounts.get("a")).toEqual({ amount: 0, percentage: 0 });
@@ -140,9 +74,9 @@ describe("computeDancerDiscountAmounts", () => {
 
   test("applies 10% to all but the most expensive inscription at 3", () => {
     const discounts = computeDancerDiscountAmounts([
-      { id: "a", frozenBasePriceAmount: 10000 },
-      { id: "b", frozenBasePriceAmount: 20000 },
-      { id: "c", frozenBasePriceAmount: 15000 },
+      { id: "a", priceAmount: 10000 },
+      { id: "b", priceAmount: 20000 },
+      { id: "c", priceAmount: 15000 },
     ]);
 
     // The 20000 inscription is the "last" (most expensive) and keeps no discount.
@@ -153,10 +87,10 @@ describe("computeDancerDiscountAmounts", () => {
 
   test("applies 15% to all but the most expensive inscription at 4", () => {
     const discounts = computeDancerDiscountAmounts([
-      { id: "a", frozenBasePriceAmount: 10000 },
-      { id: "b", frozenBasePriceAmount: 20000 },
-      { id: "c", frozenBasePriceAmount: 15000 },
-      { id: "d", frozenBasePriceAmount: 12000 },
+      { id: "a", priceAmount: 10000 },
+      { id: "b", priceAmount: 20000 },
+      { id: "c", priceAmount: 15000 },
+      { id: "d", priceAmount: 12000 },
     ]);
 
     expect(discounts.get("b")).toEqual({ amount: 0, percentage: 0 });
@@ -167,125 +101,136 @@ describe("computeDancerDiscountAmounts", () => {
 });
 
 describe("buildChoreographyOperationalFinanceRow", () => {
-  test("owes both the seña and the saldo of an impaga inscription", () => {
+  test("owes both thresholds of an inscription holding nothing", () => {
     const row = buildChoreographyOperationalFinanceRow({
       choreography,
-      inscriptions: [
-        resolvedInscription({
-          id: "i1",
-          state: "impaga",
-          basePriceAmount: 10000,
-          depositAmount: 3000,
-          balanceAmount: 7000,
-        }),
-      ],
+      inscriptions: [resolvedInscription({ id: "i1" })],
     });
 
-    expect(row.financialState).toBe("impaga");
-    expect(row.needsAttention).toBe(false);
+    expect(row.financialStatus).toBe("depositPending");
     expect(row.depositAmount).toEqual({ amount: 3000, status: "complete" });
-    // La tarjeta Saldo suma el saldo de toda inscripción, tentativo o no.
-    expect(row.balanceAmount).toEqual({ amount: 7000, status: "complete" });
-    // Una coreografía registrada se adeuda completa: la impaga aporta su seña
-    // a una deuda y su saldo a la otra.
+    expect(row.totalAmount).toEqual({ amount: 10000, status: "complete" });
+    // Una coreografía registrada se adeuda completa: la inscripción aporta su
+    // faltante a cada uno de los dos cortes de la misma deuda.
     expect(row.owedDepositAmount).toEqual({ amount: 3000, status: "complete" });
-    expect(row.owedBalanceAmount).toEqual({ amount: 7000, status: "complete" });
+    expect(row.owedBalanceAmount).toEqual({
+      amount: 10000,
+      status: "complete",
+    });
     expect(row.registrationCount).toBe(1);
   });
 
-  test("owes the saldo of señada inscriptions and no seña", () => {
+  test("owes only the rest of the total once the seña is covered", () => {
     const row = buildChoreographyOperationalFinanceRow({
       choreography,
       inscriptions: [
         resolvedInscription({
-          id: "i1",
-          state: "señada",
-          basePriceAmount: 10000,
-          depositAmount: 3000,
-          balanceAmount: 7000,
+          allocatedAmount: 3000,
           depositReferenceDate: "2026-03-21",
+          financialStatus: "depositMet",
+          id: "i1",
+          owedBalanceAmount: 7000,
+          owedDepositAmount: 0,
         }),
       ],
     });
 
-    expect(row.financialState).toBe("señada");
+    expect(row.financialStatus).toBe("depositMet");
     expect(row.depositCompletedOn).toBe("2026-03-21");
-    expect(row.balanceAmount).toEqual({ amount: 7000, status: "complete" });
+    expect(row.allocatedAmount).toBe(3000);
     expect(row.owedDepositAmount).toEqual({ amount: 0, status: "complete" });
     expect(row.owedBalanceAmount).toEqual({ amount: 7000, status: "complete" });
   });
 
-  test("still reports the saldo of a pagada choreography but owes nothing", () => {
+  test("still reports the total of a paid choreography but owes nothing", () => {
     const row = buildChoreographyOperationalFinanceRow({
       choreography,
       inscriptions: [
         resolvedInscription({
-          id: "i1",
-          state: "pagada",
-          basePriceAmount: 10000,
-          depositAmount: 3000,
-          balanceAmount: 7000,
-          paidAmount: 10000,
+          allocatedAmount: 10000,
           depositReferenceDate: "2026-03-21",
+          financialStatus: "paidInFull",
+          id: "i1",
+          owedBalanceAmount: 0,
+          owedDepositAmount: 0,
         }),
       ],
     });
 
-    expect(row.financialState).toBe("pagada");
-    expect(row.balanceAmount).toEqual({ amount: 7000, status: "complete" });
+    expect(row.financialStatus).toBe("paidInFull");
+    expect(row.totalAmount).toEqual({ amount: 10000, status: "complete" });
     expect(row.owedDepositAmount).toEqual({ amount: 0, status: "complete" });
     expect(row.owedBalanceAmount).toEqual({ amount: 0, status: "complete" });
-    expect(row.paidAmount).toBe(10000);
+    expect(row.allocatedAmount).toBe(10000);
   });
 
-  test("owes the saldo of every unpaid inscription across a mixed roster", () => {
+  test("a single uncovered dancer pulls a mixed roster down to deposit pending", () => {
     const row = buildChoreographyOperationalFinanceRow({
       choreography,
       inscriptions: [
         resolvedInscription({
+          allocatedAmount: 3000,
+          depositReferenceDate: "2026-03-21",
+          financialStatus: "depositMet",
           id: "i1",
-          state: "señada",
-          balanceAmount: 7000,
+          owedBalanceAmount: 7000,
+          owedDepositAmount: 0,
+        }),
+        resolvedInscription({ id: "i2" }),
+        resolvedInscription({
+          allocatedAmount: 10000,
           depositReferenceDate: "2026-03-21",
-        }),
-        resolvedInscription({
-          id: "i2",
-          state: "impaga",
-          depositAmount: 3000,
-          balanceAmount: 7000,
-        }),
-        resolvedInscription({
+          financialStatus: "paidInFull",
           id: "i3",
-          state: "pagada",
-          depositAmount: 3000,
-          balanceAmount: 7000,
-          depositReferenceDate: "2026-03-21",
+          owedBalanceAmount: 0,
+          owedDepositAmount: 0,
         }),
       ],
     });
 
-    expect(row.financialState).toBe("señada");
-    expect(row.needsAttention).toBe(true);
-    expect(row.balanceAmount).toEqual({ amount: 21000, status: "complete" });
-    // Sólo la impaga adeuda seña.
+    // La marca de agua leía `señada` acá, es decir *puede competir*, con un
+    // bailarín sin cubrir adentro.
+    expect(row.financialStatus).toBe("depositPending");
+    expect(row.totalAmount).toEqual({ amount: 30000, status: "complete" });
     expect(row.owedDepositAmount).toEqual({ amount: 3000, status: "complete" });
-    // Señada e impaga adeudan saldo; la pagada no.
     expect(row.owedBalanceAmount).toEqual({
-      amount: 14000,
+      amount: 17000,
       status: "complete",
     });
   });
 
-  test("reports incomplete amounts when an impaga inscription has no price", () => {
+  test("sums the over-allocated excess and raises it as a choreography anomaly", () => {
     const row = buildChoreographyOperationalFinanceRow({
       choreography,
       inscriptions: [
         resolvedInscription({
+          allocatedAmount: 12000,
+          financialStatus: "paidInFull",
           id: "i1",
-          state: "impaga",
+          overAllocatedAmount: 2000,
+          owedBalanceAmount: 0,
+          owedDepositAmount: 0,
+        }),
+        resolvedInscription({ id: "i2" }),
+      ],
+    });
+
+    expect(row.overAllocatedAmount).toBe(2000);
+    expect(row.anomalies).toEqual(["overAllocated"]);
+  });
+
+  test("reports incomplete amounts when an inscription has no price", () => {
+    const row = buildChoreographyOperationalFinanceRow({
+      choreography,
+      inscriptions: [
+        resolvedInscription({
           basePriceAmount: null,
           depositAmount: null,
-          balanceAmount: null,
+          id: "i1",
+          overAllocatedAmount: null,
+          owedBalanceAmount: null,
+          owedDepositAmount: null,
+          totalAmount: null,
         }),
       ],
     });
@@ -295,7 +240,7 @@ describe("buildChoreographyOperationalFinanceRow", () => {
       missingPriceCount: 1,
       status: "incomplete",
     });
-    expect(row.balanceAmount).toEqual({
+    expect(row.totalAmount).toEqual({
       amount: 0,
       missingPriceCount: 1,
       status: "incomplete",
@@ -318,15 +263,7 @@ describe("buildOperationalFinanceSummaryFromChoreographyRows", () => {
     const rows = [
       buildChoreographyOperationalFinanceRow({
         choreography,
-        inscriptions: [
-          resolvedInscription({
-            id: "i1",
-            state: "impaga",
-            basePriceAmount: 10000,
-            depositAmount: 3000,
-            balanceAmount: 7000,
-          }),
-        ],
+        inscriptions: [resolvedInscription({ id: "i1" })],
       }),
     ];
 
@@ -341,7 +278,7 @@ describe("buildOperationalFinanceSummaryFromChoreographyRows", () => {
       status: "complete",
     });
     expect(summary.owedBalanceAmount).toEqual({
-      amount: 7000,
+      amount: 10000,
       status: "complete",
     });
     expect(summary.availableBalanceAmount).toBe(2000);
@@ -354,12 +291,11 @@ describe("buildOperationalFinanceSummaryFromChoreographyRows", () => {
         choreography,
         inscriptions: [
           resolvedInscription({
+            allocatedAmount: 3000,
+            financialStatus: "depositMet",
             id: "i1",
-            state: "señada",
-            basePriceAmount: 10000,
-            depositAmount: 3000,
-            balanceAmount: 7000,
-            depositReferenceDate: "2026-03-21",
+            owedBalanceAmount: 7000,
+            owedDepositAmount: 0,
           }),
         ],
       }),
@@ -382,30 +318,25 @@ describe("buildOperationalFinanceSummaryFromChoreographyRows", () => {
     });
   });
 
-  test("owes the saldo of every unpaid inscription and the seña of the impagas", () => {
+  test("keeps Seña adeudada contained inside Saldo adeudado across a roster", () => {
     const rows = [
       buildChoreographyOperationalFinanceRow({
         choreography,
         inscriptions: [
+          resolvedInscription({ id: "i1" }),
           resolvedInscription({
-            id: "i1",
-            state: "impaga",
-            depositAmount: 3000,
-            balanceAmount: 7000,
-          }),
-          resolvedInscription({
+            allocatedAmount: 3000,
+            financialStatus: "depositMet",
             id: "i2",
-            state: "señada",
-            depositAmount: 3000,
-            balanceAmount: 7000,
-            depositReferenceDate: "2026-03-21",
+            owedBalanceAmount: 7000,
+            owedDepositAmount: 0,
           }),
           resolvedInscription({
+            allocatedAmount: 10000,
+            financialStatus: "paidInFull",
             id: "i3",
-            state: "pagada",
-            depositAmount: 3000,
-            balanceAmount: 7000,
-            depositReferenceDate: "2026-03-21",
+            owedBalanceAmount: 0,
+            owedDepositAmount: 0,
           }),
         ],
       }),
@@ -417,15 +348,16 @@ describe("buildOperationalFinanceSummaryFromChoreographyRows", () => {
       totalPaidAmount: 0,
     });
 
-    // Seña: sólo la impaga. Saldo: la impaga y la señada, no la pagada. La
-    // impaga cuenta en las dos.
     expect(summary.owedDepositAmount).toEqual({
       amount: 3000,
       status: "complete",
     });
     expect(summary.owedBalanceAmount).toEqual({
-      amount: 14000,
+      amount: 17000,
       status: "complete",
     });
+    expect(summary.owedDepositAmount.amount).toBeLessThanOrEqual(
+      summary.owedBalanceAmount.amount,
+    );
   });
 });

@@ -13,9 +13,10 @@ import {
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import { resolveChoreographyPricingScheduleId } from "@/lib/finances/choreography-pricing-schedule";
 import {
-  computeDancerDiscountAmounts,
-  deriveInscriptionFinancialState,
-} from "@/lib/finances/operational-summary-calculations.server";
+  deriveInscriptionLadderStage,
+  type InscriptionLadderStage,
+} from "@/lib/finances/inscription-ladder-snapshot";
+import { computeDancerDiscountAmounts } from "@/lib/finances/operational-summary-calculations.server";
 import { selectApplicablePriceFromCandidates } from "@/lib/prices/repository.server";
 
 export type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -42,7 +43,7 @@ export function resolveInscriptionDepositFloor(
   const frozenAmounts = inscriptions
     .filter((inscription) => inscription.id !== excludeInscriptionId)
     .filter((inscription) => {
-      const state = deriveInscriptionFinancialState(inscription);
+      const state = deriveInscriptionLadderStage(inscription);
       return state === "señada" || state === "pagada";
     })
     .map((inscription) => inscription.frozenBasePriceAmount ?? 0);
@@ -307,10 +308,10 @@ export async function resolveDancerDiscounts(
 
   const qualifyingByDancer = new Map<
     string,
-    Array<{ id: string; frozenBasePriceAmount: number }>
+    Array<{ id: string; priceAmount: number }>
   >();
   for (const row of qualifyingRows) {
-    const state = deriveInscriptionFinancialState(row);
+    const state = deriveInscriptionLadderStage(row);
     if (
       (state !== "señada" && state !== "pagada") ||
       row.frozenBasePriceAmount === null
@@ -320,8 +321,8 @@ export async function resolveDancerDiscounts(
 
     const bucket = qualifyingByDancer.get(row.dancerId);
     const entry = {
-      frozenBasePriceAmount: row.frozenBasePriceAmount,
       id: row.id,
+      priceAmount: row.frozenBasePriceAmount,
     };
     if (bucket) {
       bucket.push(entry);
@@ -359,4 +360,26 @@ export function clearBalanceSnapshot() {
     balanceAmount: null,
     balanceCompletedAt: null,
   };
+}
+
+/**
+ * Etapas de snapshot de las inscripciones de una coreografía, para las acciones
+ * `Pagar seña` / `Pagar saldo`. Es lo único que todavía lee la escalera: el
+ * estado financiero que la aplicación muestra sale del dinero, no de acá.
+ */
+export async function readChoreographyLadderStages(
+  choreographyId: string,
+): Promise<Map<string, InscriptionLadderStage>> {
+  const rows = await db
+    .select({
+      balanceReferenceDate: choreographyDancers.balanceReferenceDate,
+      depositReferenceDate: choreographyDancers.depositReferenceDate,
+      id: choreographyDancers.id,
+    })
+    .from(choreographyDancers)
+    .where(eq(choreographyDancers.choreographyId, choreographyId));
+
+  return new Map(
+    rows.map((row) => [row.id, deriveInscriptionLadderStage(row)]),
+  );
 }

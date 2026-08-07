@@ -28,14 +28,15 @@ import {
   payInscriptionBalance,
   payInscriptionDeposit,
   quoteChoreographyDepositTotals,
+  readChoreographyLadderStages,
   readInscriptionDepositOptions,
 } from "@/lib/finances/choreography-cobro.server";
 import {
   readChoreographyInscriptionRows,
   type ChoreographyInscriptionRow,
 } from "@/lib/finances/choreography-inscriptions.server";
+import type { InscriptionLadderStage } from "@/lib/finances/inscription-ladder-snapshot";
 import type { OperationalFinanceAmount } from "@/lib/finances/operational-summary";
-import type { InscriptionFinancialState } from "@/lib/finances/operational-summary-calculations.server";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
 
 import {
@@ -102,28 +103,34 @@ export async function loadChoreographyFinanceDetail(input: {
     throw new Response(choreographyNotFoundMessage, { status: 404 });
   }
 
-  const choreographyInscriptions = financeDetail.inscriptions.filter(
-    (inscription) => inscription.choreographyId === choreographyId,
-  );
-  const inscriptions = await attachUndoableAllocations(
-    await readChoreographyInscriptionRows({
-      academyEventInscriptions: financeDetail.inscriptions,
-      choreographyId,
-    }),
-  );
+  // La escalera sobrevive sólo acá, para los cobros por fila: el estado que la
+  // pantalla muestra sale del dinero. Se va con #682.
+  const ladderStageById = await readChoreographyLadderStages(choreographyId);
+  const ladderStages = [...ladderStageById.values()];
+  const inscriptions = (
+    await attachUndoableAllocations(
+      await readChoreographyInscriptionRows({
+        academyEventInscriptions: financeDetail.inscriptions,
+        choreographyId,
+      }),
+    )
+  ).map((inscription) => ({
+    ...inscription,
+    ladderStage:
+      (inscription.inscriptionId === null
+        ? null
+        : ladderStageById.get(inscription.inscriptionId)) ?? "impaga",
+  }));
 
-  const stage = resolveCobroStage(
-    choreographyInscriptions.map((inscription) => inscription.state),
-  );
+  const stage = resolveCobroStage(ladderStages);
   const inscriptionDeposit = await readInscriptionDepositOptions({
     choreographyId,
     eventId,
   });
-  const canPayInscriptionBalance = resolveInscriptionBalanceEligibility(
-    choreographyInscriptions.map((inscription) => inscription.state),
-  );
+  const canPayInscriptionBalance =
+    resolveInscriptionBalanceEligibility(ladderStages);
   const payments = await attachStageTotals({
-    balanceTotal: choreographyFinanceRow.balanceAmount,
+    balanceTotal: choreographyFinanceRow.owedBalanceAmount,
     choreographyId,
     eventId,
     payments: await listAvailablePayments({ academyId, eventId }),
@@ -135,15 +142,18 @@ export async function loadChoreographyFinanceDetail(input: {
     academy,
     invoicing,
     choreography: {
-      balanceAmount: choreographyFinanceRow.balanceAmount,
+      allocatedAmount: choreographyFinanceRow.allocatedAmount,
+      anomalies: choreographyFinanceRow.anomalies,
       depositAmount: choreographyFinanceRow.depositAmount,
       depositCompletedOn: choreographyFinanceRow.depositCompletedOn,
-      financialState: choreographyFinanceRow.financialState,
+      financialStatus: choreographyFinanceRow.financialStatus,
       groupType: choreographyFinanceRow.groupType,
       id: choreographyFinanceRow.id,
       name: choreographyFinanceRow.name,
-      needsAttention: choreographyFinanceRow.needsAttention,
-      paidAmount: choreographyFinanceRow.paidAmount,
+      overAllocatedAmount: choreographyFinanceRow.overAllocatedAmount,
+      owedBalanceAmount: choreographyFinanceRow.owedBalanceAmount,
+      owedDepositAmount: choreographyFinanceRow.owedDepositAmount,
+      totalAmount: choreographyFinanceRow.totalAmount,
     },
     canPayInscriptionBalance,
     inscriptionDeposit,
@@ -265,7 +275,7 @@ function resolvePortionCoverage(
  * así que el flujo normal por coreografía entera (todas `señadas`) no aplica.
  */
 function resolveInscriptionBalanceEligibility(
-  states: InscriptionFinancialState[],
+  states: InscriptionLadderStage[],
 ): boolean {
   return (
     states.some((state) => state === "señada") &&
@@ -278,7 +288,7 @@ function resolveInscriptionBalanceEligibility(
  * inscripciones o están mezcladas: ahí no hay una sola acción que las resuelva.
  */
 function resolveCobroStage(
-  states: InscriptionFinancialState[],
+  states: InscriptionLadderStage[],
 ): CobroStage | null {
   if (states.length === 0) {
     return null;

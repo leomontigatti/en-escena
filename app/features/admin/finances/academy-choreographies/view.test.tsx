@@ -58,7 +58,7 @@ describe("AcademyFinancesRouteView", () => {
     expect(text).not.toContain("Movimientos");
   });
 
-  test("shows the total column between balance and state", async () => {
+  test("shows the total and the owed balance before the status", async () => {
     const router = createMemoryRouter(
       [
         {
@@ -69,18 +69,18 @@ describe("AcademyFinancesRouteView", () => {
                 choreographyFinanceRows: [
                   choreographyFinanceRowFixture({
                     depositAmount: { amount: 3000, status: "complete" },
-                    balanceAmount: { amount: 7000, status: "complete" },
                     id: "choreography_1",
                     name: "Aire",
+                    totalAmount: { amount: 10000, status: "complete" },
                   }),
                   choreographyFinanceRowFixture({
-                    balanceAmount: {
+                    id: "choreography_2",
+                    name: "Tango",
+                    totalAmount: {
                       amount: 7000,
                       missingPriceCount: 1,
                       status: "incomplete",
                     },
-                    id: "choreography_2",
-                    name: "Tango",
                   }),
                 ],
               })}
@@ -100,11 +100,12 @@ describe("AcademyFinancesRouteView", () => {
       (header.textContent ?? "").trim(),
     );
 
-    expect(headers.indexOf("Total")).toBe(headers.indexOf("Saldo") + 1);
-    expect(headers.indexOf("Estado")).toBe(headers.indexOf("Total") + 1);
-    expect(
-      headerCells[headers.indexOf("Saldo")]?.querySelector("button"),
-    ).toBeNull();
+    expect(headers.indexOf("Saldo adeudado")).toBe(
+      headers.indexOf("Total") + 1,
+    );
+    expect(headers.indexOf("Estado")).toBe(
+      headers.indexOf("Saldo adeudado") + 1,
+    );
     expect(
       headerCells[headers.indexOf("Total")]?.querySelector("button"),
     ).toBeNull();
@@ -188,19 +189,20 @@ function choreographyFinanceRowFixture(
   > = {},
 ): AcademyFinancesLoaderData["choreographyFinanceRows"][number] {
   return {
+    allocatedAmount: 0,
+    anomalies: [],
     basePriceAmount: { amount: 10000, status: "complete" },
     depositAmount: { amount: 3000, status: "complete" },
-    balanceAmount: { amount: 7000, status: "complete" },
     depositCompletedOn: null,
-    financialState: "impaga",
-    needsAttention: false,
+    financialStatus: "depositPending",
     groupType: "solo",
     id: "choreography",
     name: "Coreografía",
+    overAllocatedAmount: 0,
     owedBalanceAmount: { amount: 0, status: "complete" },
     owedDepositAmount: { amount: 3000, status: "complete" },
-    paidAmount: 0,
     registrationCount: 1,
+    totalAmount: { amount: 10000, status: "complete" },
     ...overrides,
   };
 }

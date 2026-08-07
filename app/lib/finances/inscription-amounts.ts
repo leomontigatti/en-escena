@@ -1,24 +1,29 @@
-import type { ChoreographyFinancialState } from "@/lib/finances/operational-summary";
+import type { InscriptionFinancialStatus } from "@/lib/finances/inscription-financial-status";
 
-export type InscriptionAmountColumn = "basePrice" | "deposit" | "balance";
+export type InscriptionAmountColumn = "basePrice" | "deposit" | "total";
 
 /**
- * Importes todavía sujetos a cambio, por estado. El precio base y la seña se
- * fijan al pagar la seña; el saldo recién al pagar el saldo, porque hasta ese
- * momento el `Descuento por bailarín` sigue el roster.
+ * Importes que la pantalla todavía atenúa por considerarlos provisorios.
+ *
+ * Ya no describe el modelo: desde que las cifras se derivan, todas son exactas
+ * y ninguna está congelada. Queda sólo como la señal visual que #683 borra.
  */
-const tentativeColumnsByState: Record<
-  ChoreographyFinancialState,
+const tentativeColumnsByStatus: Record<
+  InscriptionFinancialStatus,
   ReadonlySet<InscriptionAmountColumn>
 > = {
-  impaga: new Set<InscriptionAmountColumn>(["basePrice", "deposit", "balance"]),
-  señada: new Set<InscriptionAmountColumn>(["balance"]),
-  pagada: new Set<InscriptionAmountColumn>(),
+  depositPending: new Set<InscriptionAmountColumn>([
+    "basePrice",
+    "deposit",
+    "total",
+  ]),
+  depositMet: new Set<InscriptionAmountColumn>(["total"]),
+  paidInFull: new Set<InscriptionAmountColumn>(),
 };
 
 export function isTentativeInscriptionAmount(
-  state: ChoreographyFinancialState,
+  status: InscriptionFinancialStatus,
   column: InscriptionAmountColumn,
 ) {
-  return tentativeColumnsByState[state].has(column);
+  return tentativeColumnsByStatus[status].has(column);
 }

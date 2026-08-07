@@ -25,9 +25,9 @@ import {
 } from "@/features/admin/finances/formatters";
 import type { loadPortalChoreographyFinanceDetail } from "@/features/portal/finances/choreography-detail/server";
 import {
-  formatChoreographyFinancialState,
-  getChoreographyFinancialStateBadgeVariant,
-} from "@/lib/finances/choreography-financial-state";
+  formatInscriptionFinancialStatus,
+  getInscriptionFinancialStatusBadgeVariant,
+} from "@/lib/finances/choreography-financial-status";
 import { isTentativeInscriptionAmount } from "@/lib/finances/inscription-amounts";
 import { choreographyGroupTypeOptions } from "@/lib/portal/choreographies";
 import { cn } from "@/lib/shared/utils";
@@ -62,16 +62,16 @@ export function PortalChoreographyFinanceDetailRouteView({
 
       <section className="grid gap-4 md:grid-cols-3">
         <MetricCard
-          title="Seña"
-          value={formatOperationalAmount(choreography.depositAmount)}
+          title="Total"
+          value={formatOperationalAmount(choreography.totalAmount)}
         />
         <MetricCard
           title="Pagado"
-          value={formatAmount(choreography.paidAmount)}
+          value={formatAmount(choreography.allocatedAmount)}
         />
         <MetricCard
-          title="Saldo"
-          value={formatOperationalAmount(choreography.balanceAmount)}
+          title="Saldo adeudado"
+          value={formatOperationalAmount(choreography.owedBalanceAmount)}
         />
       </section>
 
@@ -94,10 +94,10 @@ export function PortalChoreographyFinanceDetailRouteView({
               value={choreography.depositCompletedOn}
             />
             <ReadOnlyField
-              id="portal-finance-choreography-state"
+              id="portal-finance-choreography-status"
               label="Estado"
-              value={formatChoreographyFinancialState(
-                choreography.financialState,
+              value={formatInscriptionFinancialStatus(
+                choreography.financialStatus,
               )}
             />
           </FieldGroup>
@@ -136,17 +136,19 @@ function InscriptionsTable({
                   </TableCell>
                   <TableCell>
                     <Badge
-                      variant={getChoreographyFinancialStateBadgeVariant(
-                        inscription.state,
+                      variant={getInscriptionFinancialStatusBadgeVariant(
+                        inscription.financialStatus,
                       )}
                     >
-                      {formatChoreographyFinancialState(inscription.state)}
+                      {formatInscriptionFinancialStatus(
+                        inscription.financialStatus,
+                      )}
                     </Badge>
                   </TableCell>
                   <TableCell
                     className={amountCellClassName(
                       isTentativeInscriptionAmount(
-                        inscription.state,
+                        inscription.financialStatus,
                         "basePrice",
                       ),
                     )}
@@ -156,7 +158,7 @@ function InscriptionsTable({
                   <TableCell
                     className={amountCellClassName(
                       isTentativeInscriptionAmount(
-                        inscription.state,
+                        inscription.financialStatus,
                         "deposit",
                       ),
                     )}
@@ -166,12 +168,12 @@ function InscriptionsTable({
                   <TableCell
                     className={amountCellClassName(
                       isTentativeInscriptionAmount(
-                        inscription.state,
-                        "balance",
+                        inscription.financialStatus,
+                        "total",
                       ),
                     )}
                   >
-                    {formatInscriptionAmount(inscription.balanceAmount)}
+                    {formatInscriptionAmount(inscription.totalAmount)}
                   </TableCell>
                 </TableRow>
               ))

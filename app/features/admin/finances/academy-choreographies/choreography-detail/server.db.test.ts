@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 
+import { and, eq } from "drizzle-orm";
+
 import { db } from "@/db";
 import {
   payments,
@@ -63,6 +65,20 @@ async function seedEarlierPrice(input: { amount: number; eventId: string }) {
 }
 
 /**
+ * Fila de precio `solo` del catálogo del evento. Las inscripciones ya cobradas
+ * la llevan en `selectedPriceId`, que es lo que el cobro escribe y de donde
+ * salen la seña y el total.
+ */
+async function readSoloPriceId(eventId: string) {
+  const [price] = await db
+    .select({ id: prices.id })
+    .from(prices)
+    .where(and(eq(prices.eventId, eventId), eq(prices.groupType, "solo")));
+
+  return price.id;
+}
+
+/**
  * Entra al detalle como admin y devuelve lo que ve el loader.
  */
 async function loadDetailAsAdmin(input: {
@@ -91,7 +107,7 @@ async function loadDetailAsAdmin(input: {
 }
 
 describe.sequential("administracion finanzas coreografia detalle", () => {
-  test("derives impaga state and tentative amounts from an inscription without snapshots", async () => {
+  test("derives deposit pending and both shortfalls from an inscription holding nothing", async () => {
     vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
       "2026-03-27",
     );
@@ -123,33 +139,38 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
     });
 
     expect(loaderData.choreography).toMatchObject({
+      allocatedAmount: 0,
       depositAmount: { amount: 3000, status: "complete" },
-      // El saldo tentativo se muestra desde impaga: no es 0, es lo que va a
-      // quedar por pagar después de la seña.
-      balanceAmount: { amount: 7000, status: "complete" },
       depositCompletedOn: null,
-      financialState: "impaga",
-      needsAttention: false,
-      paidAmount: 0,
+      financialStatus: "depositPending",
+      // Una coreografía registrada se adeuda completa desde el minuto cero.
+      owedBalanceAmount: { amount: 10000, status: "complete" },
+      owedDepositAmount: { amount: 3000, status: "complete" },
+      totalAmount: { amount: 10000, status: "complete" },
     });
     expect(loaderData.inscriptions).toEqual([
       {
+        allocatedAmount: 0,
+        anomalies: [],
         basePriceAmount: 10000,
-        balanceAmount: 7000,
         dancerId: dancer.id,
         depositAmount: 3000,
         discountAmount: 0,
-        finalPriceAmount: 10000,
+        financialStatus: "depositPending",
         firstName: "Ana",
         inscriptionId: expect.any(String),
+        ladderStage: "impaga",
         lastName: "López",
-        state: "impaga",
+        overAllocatedAmount: 0,
+        owedBalanceAmount: 10000,
+        owedDepositAmount: 3000,
+        totalAmount: 10000,
         undoableAllocation: null,
       },
     ]);
   });
 
-  test("derives señada state and pending saldo from a deposit snapshot and allocation", async () => {
+  test("derives deposit met and the remaining shortfall once the seña is covered", async () => {
     const event = await createSavedEvent({ requiredDepositPercentage: 30 });
     const { academy, choreography } =
       await createAcademyFinanceChoreographyFixture({
@@ -170,6 +191,7 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
         choreographyId: choreography.id,
         dancerId: dancer.id,
         frozenBasePriceAmount: 10000,
+        selectedPriceId: await readSoloPriceId(event.id),
         depositReferenceDate: "2026-03-21",
         depositPercentage: 30,
         depositAmount: 3000,
@@ -200,32 +222,37 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
     });
 
     expect(loaderData.choreography).toMatchObject({
+      allocatedAmount: 3000,
       depositAmount: { amount: 3000, status: "complete" },
-      balanceAmount: { amount: 7000, status: "complete" },
       depositCompletedOn: "2026-03-21",
-      financialState: "señada",
-      needsAttention: false,
-      paidAmount: 3000,
+      financialStatus: "depositMet",
+      owedBalanceAmount: { amount: 7000, status: "complete" },
+      owedDepositAmount: { amount: 0, status: "complete" },
+      totalAmount: { amount: 10000, status: "complete" },
     });
     expect(loaderData.inscriptions).toEqual([
       {
+        allocatedAmount: 3000,
+        anomalies: [],
         basePriceAmount: 10000,
-        balanceAmount: 7000,
         dancerId: dancer.id,
         depositAmount: 3000,
         discountAmount: 0,
-        finalPriceAmount: 10000,
+        financialStatus: "depositMet",
         firstName: "Luna",
         inscriptionId: expect.any(String),
+        ladderStage: "señada",
         lastName: "García",
-        state: "señada",
-        // Deshacer una señada borra su asignación y la vuelve a impaga.
+        overAllocatedAmount: 0,
+        owedBalanceAmount: 7000,
+        owedDepositAmount: 0,
+        totalAmount: 10000,
         undoableAllocation: { id: depositAllocation.id },
       },
     ]);
   });
 
-  test("derives pagada state and a frozen saldo from a balance snapshot", async () => {
+  test("derives paid in full once the allocation reaches the total", async () => {
     const event = await createSavedEvent({ requiredDepositPercentage: 30 });
     const { academy, choreography } =
       await createAcademyFinanceChoreographyFixture({
@@ -246,6 +273,7 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
         choreographyId: choreography.id,
         dancerId: dancer.id,
         frozenBasePriceAmount: 10000,
+        selectedPriceId: await readSoloPriceId(event.id),
         depositReferenceDate: "2026-03-21",
         depositPercentage: 30,
         depositAmount: 3000,
@@ -284,10 +312,11 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
     });
 
     expect(loaderData.choreography).toMatchObject({
-      financialState: "pagada",
-      // El saldo congelado se sigue mostrando aunque ya esté pagado.
-      balanceAmount: { amount: 7000, status: "complete" },
-      paidAmount: 10000,
+      allocatedAmount: 10000,
+      financialStatus: "paidInFull",
+      // El total se sigue mostrando aunque ya no se adeude nada de él.
+      owedBalanceAmount: { amount: 0, status: "complete" },
+      totalAmount: { amount: 10000, status: "complete" },
     });
     // Deshacer una pagada borra su asignación y le saca toda la plata.
     expect(loaderData.inscriptions[0]?.undoableAllocation).toEqual({
@@ -437,7 +466,12 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
         missingPriceCount: 1,
         status: "incomplete",
       },
-      balanceAmount: {
+      owedBalanceAmount: {
+        amount: 0,
+        missingPriceCount: 1,
+        status: "incomplete",
+      },
+      totalAmount: {
         amount: 0,
         missingPriceCount: 1,
         status: "incomplete",
@@ -445,16 +479,21 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
     });
     expect(loaderData.inscriptions).toEqual([
       {
+        allocatedAmount: 0,
+        anomalies: [],
         basePriceAmount: null,
-        balanceAmount: null,
         dancerId: dancer.id,
         depositAmount: null,
         discountAmount: 0,
-        finalPriceAmount: null,
+        financialStatus: "depositPending",
         firstName: "Mora",
         inscriptionId: expect.any(String),
+        ladderStage: "impaga",
         lastName: "Pérez",
-        state: "impaga",
+        overAllocatedAmount: null,
+        owedBalanceAmount: null,
+        owedDepositAmount: null,
+        totalAmount: null,
         undoableAllocation: null,
       },
     ]);
