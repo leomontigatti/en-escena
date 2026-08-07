@@ -6,7 +6,6 @@ import {
   resolveChoreographyRosterIntent,
   shouldRevalidateChoreographyDetail,
   toChoreographyDetailViewActionData,
-  toScheduleCapacitySelectOptions,
   updateChoreographyRosterIntent,
 } from "./shared";
 
@@ -121,36 +120,6 @@ describe("canReassignScheduleCapacity", () => {
       ...overrides,
     };
   }
-});
-
-describe("toScheduleCapacitySelectOptions", () => {
-  test("disables the options whose cupo is full and no others", () => {
-    expect(
-      toScheduleCapacitySelectOptions([
-        {
-          id: "schedule_capacity_1",
-          isFull: false,
-          label: "1 de mayo de 2026 - 14:00 hs. · 3/5 ocupados",
-        },
-        {
-          id: "schedule_capacity_2",
-          isFull: true,
-          label: "2 de mayo de 2026 - 10:00 hs. · 5/5 ocupados · sin cupo",
-        },
-      ]),
-    ).toEqual([
-      {
-        disabled: false,
-        label: "1 de mayo de 2026 - 14:00 hs. · 3/5 ocupados",
-        value: "schedule_capacity_1",
-      },
-      {
-        disabled: true,
-        label: "2 de mayo de 2026 - 10:00 hs. · 5/5 ocupados · sin cupo",
-        value: "schedule_capacity_2",
-      },
-    ]);
-  });
 });
 
 function buildFormData(intent: string) {

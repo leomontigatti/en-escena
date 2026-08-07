@@ -2,18 +2,13 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { choreographies } from "@/db/schema";
-import {
-  appendScheduleOccupancySuffix,
-  formatScheduleDateTime,
-} from "@/lib/choreographies/schedule-formatters";
+import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
 import {
   invalidScheduleEntryMessage,
   lockScheduleCapacityForAssignment,
 } from "@/lib/choreographies/schedule-capacity-lock.server";
-import {
-  resolveScheduleCapacityOccupancies,
-  toScheduleCapacityOccupancyKey,
-} from "@/lib/choreographies/schedule-capacity-occupancy.server";
+import type { ScheduleCapacitySelectOption } from "@/lib/choreographies/schedule-capacity-options";
+import { withScheduleCapacityOccupancy } from "@/lib/choreographies/schedule-capacity-options.server";
 import { resolveEventBasesScheduleOptions } from "@/lib/events/bases.server";
 import { hasFrozenDepositSnapshot } from "@/lib/finances/choreography-deposit-guard.server";
 
@@ -26,17 +21,7 @@ import {
   type ChoreographySuccessData,
 } from "./shared";
 
-export type ChoreographyScheduleCapacityOption = {
-  id: string;
-  /**
-   * Sin lugar disponible. La vista lo traduce a `disabled`, que queda
-   * reservado exclusivamente para esto: la cuenta corre carrera con cualquier
-   * otra asignación, así que la opción gris es una pista, no una barrera, y el
-   * rechazo del servidor sigue siendo la única garantía.
-   */
-  isFull: boolean;
-  label: string;
-};
+export type ChoreographyScheduleCapacityOption = ScheduleCapacitySelectOption;
 
 export type ChoreographyScheduleCapacityReassignment = {
   blockers: ChoreographyScheduleCapacityBlocker[];
@@ -76,6 +61,11 @@ type ResolvedScheduleCapacityOption = ChoreographyScheduleCapacityOption & {
   scheduleId: string;
 };
 
+type ScheduleCapacityOptionCandidate = Omit<
+  ResolvedScheduleCapacityOption,
+  "isFull"
+>;
+
 /**
  * Un cronograma sin cupo declarado para el tipo de grupo se ofrece igual,
  * contra su capacidad total. El id sintético distingue esa opción global del
@@ -105,10 +95,9 @@ export async function resolveChoreographyScheduleCapacityOptions(input: {
     groupType: input.choreography.groupType,
     modalityId: input.choreography.modalityId,
   });
-  const options: ResolvedScheduleCapacityOption[] = resolution.options.map(
+  const options: ScheduleCapacityOptionCandidate[] = resolution.options.map(
     (option) => ({
       id: option.id,
-      isFull: false,
       label: formatScheduleDateTime(option.schedule),
       scheduleCapacityId: option.scheduleCapacityId,
       scheduleId: option.scheduleId,
@@ -123,25 +112,13 @@ export async function resolveChoreographyScheduleCapacityOptions(input: {
     options.push(toAssignedScheduleCapacityOption(input.choreography));
   }
 
-  const occupancies = await resolveScheduleCapacityOccupancies({
-    // Misma exclusión que el lock: la coreografía que se está moviendo no
-    // cuenta contra el cupo que ya ocupa.
-    excludeChoreographyId: input.choreography.id,
-    targets: options,
-  });
-
   return {
     hasMultipleCompatibleOptions: resolution.status === "multiple",
-    options: options.map((option) => {
-      const occupancy = occupancies.get(toScheduleCapacityOccupancyKey(option));
-
-      return occupancy
-        ? {
-            ...option,
-            isFull: occupancy.isFull,
-            label: appendScheduleOccupancySuffix(option.label, occupancy),
-          }
-        : option;
+    options: await withScheduleCapacityOccupancy({
+      // Misma exclusión que el lock: la coreografía que se está moviendo no
+      // cuenta contra el cupo que ya ocupa.
+      excludeChoreographyId: input.choreography.id,
+      options,
     }),
   };
 }
@@ -228,14 +205,13 @@ export async function updateChoreographyScheduleCapacity(input: {
 
 function toAssignedScheduleCapacityOption(
   choreography: ChoreographyDetail,
-): ResolvedScheduleCapacityOption {
+): ScheduleCapacityOptionCandidate {
   const isGlobalOption =
     choreography.scheduleCapacityId ===
     getGlobalScheduleCapacityOptionId(choreography.scheduleId);
 
   return {
     id: choreography.scheduleCapacityId,
-    isFull: false,
     label: choreography.scheduleLabel,
     scheduleCapacityId: isGlobalOption ? null : choreography.scheduleCapacityId,
     scheduleId: choreography.scheduleId,

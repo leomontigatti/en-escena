@@ -36,6 +36,8 @@ describe("choreography create flow helpers", () => {
         options: [
           {
             id: "capacity_1",
+            isFull: false,
+            label: "3 de mayo de 2026 - 10:00 hs. · 2/8 ocupados",
             scheduleId: "schedule_1",
             scheduleCapacityId: "capacity_1",
             capacity: 8,

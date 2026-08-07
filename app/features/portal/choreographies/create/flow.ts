@@ -16,6 +16,9 @@ export const CREATE_CHOREOGRAPHY_INTENT = "create-choreography";
 export const CREATE_CHOREOGRAPHY_RESOLUTION_ERROR_TOAST_ID =
   "create-choreography-resolution-error";
 
+export const everyScheduleCapacityFullMessage =
+  "Los cronogramas compatibles con esta coreografía ya no tienen lugar. Probá con otra modalidad o escribinos para que veamos alternativas.";
+
 export type RegistrationResolution = Extract<
   ChoreographyRegistrationOperationResult,
   { ok: true }

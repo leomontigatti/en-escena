@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
 import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
+import { toScheduleCapacitySelectOptions } from "@/lib/choreographies/schedule-capacity-options";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
@@ -48,7 +49,6 @@ import {
   assignedScheduleCapacityFieldName,
   deleteChoreographyIntent,
   renameChoreographyIntent,
-  toScheduleCapacitySelectOptions,
   updateChoreographyRosterIntent,
   updateChoreographyScheduleCapacityIntent,
   updateChoreographySubmodalityIntent,
