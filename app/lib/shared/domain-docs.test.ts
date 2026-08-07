@@ -2,6 +2,8 @@ import { readdir, readFile, stat } from "node:fs/promises";
 
 import { describe, expect, test } from "vitest";
 
+import { assetKindPolicies } from "@/lib/storage/asset-kinds";
+
 import {
   DOC_MAP_PATH,
   isExcludedFromDocGate,
@@ -310,35 +312,25 @@ describe("domain documentation", () => {
   // values out of the module itself and require the page to state those, which
   // makes changing a constant without touching the page a failing test (#629).
   test("keeps the rehomed music contract pinned to the code that enforces it", async () => {
-    const [source, page] = await Promise.all([
-      readFile("app/lib/storage/choreography-music.server.ts", "utf8"),
-      readFile("docs/operations/infrastructure.md", "utf8"),
-    ]);
+    const page = await readFile("docs/operations/infrastructure.md", "utf8");
 
-    const bucket = source.match(/CHOREOGRAPHY_MUSIC_BUCKET = "([^"]+)"/)?.[1];
-    const expiresInSeconds = source.match(
-      /CHOREOGRAPHY_MUSIC_SIGNED_URL_EXPIRES_IN_SECONDS = (\d+)/,
-    )?.[1];
-    const maxFileSizeMegabytes = source.match(
-      /CHOREOGRAPHY_MUSIC_MAX_FILE_SIZE_BYTES = (\d+) \* 1024 \* 1024/,
-    )?.[1];
+    // Read straight from the policy registry rather than regexing its source
+    // (#571): the values are now plain data with no server imports, so the
+    // pin no longer depends on how the module happens to be formatted.
+    const policy = assetKindPolicies.choreographyMusic;
+    const maxFileSizeMegabytes = policy.maxFileSizeBytes / (1024 * 1024);
     const extensions = [
       ...new Set(
-        [...source.matchAll(/^\s+"audio\/[^"]+": "([a-z0-9]+)",$/gm)].map(
-          ([, extension]) => extension.toUpperCase(),
+        Object.values(policy.extensionByContentType).map((extension) =>
+          extension.toUpperCase(),
         ),
       ),
     ];
 
-    // A regex that stopped matching would otherwise pass every assertion below
-    // by comparing `undefined` against nothing.
-    expect(bucket).toBeTruthy();
-    expect(expiresInSeconds).toBeTruthy();
-    expect(maxFileSizeMegabytes).toBeTruthy();
     expect(extensions.length).toBeGreaterThan(3);
 
-    expect(page).toContain(`\`${bucket}\``);
-    expect(page).toContain(`**${expiresInSeconds}** seconds`);
+    expect(page).toContain(`\`${policy.bucket}\``);
+    expect(page).toContain(`**${policy.signedUrlExpiresInSeconds}** seconds`);
     expect(page).toContain(`**${maxFileSizeMegabytes} MB**`);
 
     for (const extension of extensions) {

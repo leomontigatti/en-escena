@@ -10,10 +10,9 @@ import {
   type ReactRouterFormSubmit,
 } from "@/lib/shared/forms";
 
+import { getAssetUploadFieldProps } from "@/lib/storage/asset-kinds";
+
 import {
-  dancerDocumentImageAccept,
-  dancerDocumentImageAllowedMimeTypes,
-  dancerDocumentImageMaxFileSizeBytes,
   dancerSchema,
   getPortalDancerFieldAutoComplete,
   type PortalDancerDetailLoaderData,
@@ -125,10 +124,7 @@ export function PortalDancerDocumentImageFields({
         fieldLabel="Frente del documento"
         existingPreviewUrl={imageUrls.front}
         label="Arrastrá o hacé click"
-        helperText="JPG, PNG o WEBP - max 10 MB"
-        accept={dancerDocumentImageAccept}
-        allowedMimeTypes={dancerDocumentImageAllowedMimeTypes}
-        maxFileSizeBytes={dancerDocumentImageMaxFileSizeBytes}
+        {...getAssetUploadFieldProps("dancerDocumentImage")}
       />
       <FileUploadField
         control={form.control}
@@ -137,10 +133,7 @@ export function PortalDancerDocumentImageFields({
         fieldLabel="Dorso del documento"
         existingPreviewUrl={imageUrls.back}
         label="Arrastrá o hacé click"
-        helperText="JPG, PNG o WEBP - max 10 MB"
-        accept={dancerDocumentImageAccept}
-        allowedMimeTypes={dancerDocumentImageAllowedMimeTypes}
-        maxFileSizeBytes={dancerDocumentImageMaxFileSizeBytes}
+        {...getAssetUploadFieldProps("dancerDocumentImage")}
       />
     </>
   );

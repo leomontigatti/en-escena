@@ -11,6 +11,7 @@ import {
 } from "@/components/admin/resource-layout";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { FileUploadField } from "@/components/shared/file-upload-field";
+import { getAssetKindHelperText } from "@/lib/storage/asset-kinds";
 import { MultiComboboxField } from "@/components/shared/multi-combobox-field";
 import { ReadOnlyField } from "@/components/shared/read-only-field";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
@@ -33,6 +34,8 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
+import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
+import { toScheduleCapacitySelectOptions } from "@/lib/choreographies/schedule-capacity-options";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
@@ -40,16 +43,20 @@ import { useServerActionToast } from "@/lib/shared/toasts";
 import {
   canSubmitChoreographyEdit,
   hasNoCompatibleCategory,
+  shouldRenderRosterScheduleSelect,
 } from "./roster-form-state";
 import {
+  assignedScheduleCapacityFieldName,
   deleteChoreographyIntent,
   renameChoreographyIntent,
   updateChoreographyRosterIntent,
+  updateChoreographyScheduleCapacityIntent,
   updateChoreographySubmodalityIntent,
   type ChoreographyDeleteBlocker,
   type ChoreographyViewActionData,
 } from "./shared";
 import { useRosterForm } from "./use-roster-form";
+import { useSavedValueSelectForm } from "./use-saved-value-select-form";
 import type { ChoreographyDetailLoaderData } from "./server";
 
 type ChoreographyDetailRouteViewProps = {
@@ -68,20 +75,6 @@ const choreographyFormSchema = z.object({
   professorIds: z.array(z.string()),
   scheduleCapacityId: z.string(),
 });
-
-const choreographyMusicAccept =
-  "audio/mpeg,audio/mp4,audio/m4a,audio/x-m4a,audio/aac,audio/wav,audio/x-wav,audio/ogg";
-const choreographyMusicAllowedMimeTypes = [
-  "audio/aac",
-  "audio/m4a",
-  "audio/mp4",
-  "audio/mpeg",
-  "audio/ogg",
-  "audio/wav",
-  "audio/x-m4a",
-  "audio/x-wav",
-];
-const choreographyMusicMaxFileSizeBytes = 50 * 1024 * 1024;
 
 export function ChoreographyDetailRouteView({
   actionData,
@@ -184,9 +177,10 @@ function ChoreographyDetailForm({
   const showLevelSelect =
     roster.hasResolvedRosterChange &&
     roster.derivedResolution.experienceLevelRequired;
-  const showScheduleSelect =
-    roster.hasResolvedRosterChange &&
-    roster.scheduleResolution?.status === "multiple";
+  const showScheduleSelect = shouldRenderRosterScheduleSelect({
+    hasResolvedRosterChange: roster.hasResolvedRosterChange,
+    scheduleResolution: roster.scheduleResolution,
+  });
   const noCompatibleCategory = hasNoCompatibleCategory({
     derivedResolution: roster.derivedResolution,
     hasResolvedRosterChange: roster.hasResolvedRosterChange,
@@ -264,10 +258,28 @@ function ChoreographyDetailForm({
         >
           {choreography.hasPresentation && loaderData.canEdit ? (
             <Alert>
-              <AlertTitle>El roster está bloqueado</AlertTitle>
+              <AlertTitle>La presentación bloquea esta coreografía</AlertTitle>
               <AlertDescription>
                 Esta coreografía ya tiene una presentación asociada. Podés
-                cambiar el nombre, pero no los bailarines ni los profesores.
+                cambiar el nombre, pero no los bailarines, los profesores, la
+                submodalidad ni el cupo de cronograma.
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
+          {/* La alerta financiera no se suprime para el auditor: el motivo del
+              bloqueo es información de la coreografía, no del permiso de quien
+              mira. */}
+          {loaderData.scheduleCapacity.blockers.length > 0 ? (
+            <Alert>
+              <AlertTitle>El cupo de cronograma está bloqueado</AlertTitle>
+              <AlertDescription>
+                <p>No se puede reasignar el cupo de cronograma:</p>
+                <ul className="mt-2 list-disc pl-5">
+                  {loaderData.scheduleCapacity.blockers.map((blocker) => (
+                    <li key={blocker.code}>{blocker.label}</li>
+                  ))}
+                </ul>
               </AlertDescription>
             </Alert>
           ) : null}
@@ -333,22 +345,23 @@ function ChoreographyDetailForm({
                 value={choreography.experienceLevelName ?? ""}
               />
             )}
+            {/* Un solo slot "Cronograma" con precedencia fija: mientras hay un
+                cambio de roster pendiente manda el select del roster, porque un
+                cambio de tipo de grupo limpia el cupo y el reemplazo se elige
+                junto con la confirmación. */}
             {showScheduleSelect && roster.scheduleResolution ? (
               <SelectField
                 control={form.control}
                 label="Cronograma"
                 name="scheduleCapacityId"
                 options={roster.scheduleResolution.options.map((option) => ({
-                  label: formatScheduleOptionLabel(option),
+                  label: formatScheduleDateTime(option.schedule),
                   value: option.id,
                 }))}
                 placeholder="Elegí el cronograma"
               />
             ) : (
-              <ReadOnlyField
-                label="Cronograma"
-                value={choreography.scheduleLabel}
-              />
+              <ScheduleCapacityField loaderData={loaderData} />
             )}
           </FieldGroup>
 
@@ -377,20 +390,17 @@ function ChoreographyDetailForm({
               searchable
             />
 
+            {/* Download-only: the validation props a disabled input cannot act
+                on are deliberately absent (#571). */}
             <FileUploadField
-              accept={choreographyMusicAccept}
-              allowedMimeTypes={choreographyMusicAllowedMimeTypes}
               control={form.control}
               disabled
               downloadLabel="Descargar música"
               downloadUrl={choreography.musicDownloadUrl}
               fieldLabel="Archivo de música"
               fileInputName="musicFile"
-              helperText="MP3, M4A, WAV u OGG - max 50 MB"
-              invalidTypeMessage="El archivo de música debe ser MP3, M4A, WAV u OGG."
+              helperText={getAssetKindHelperText("choreographyMusic")}
               label="No hay música cargada"
-              maxFileSizeBytes={choreographyMusicMaxFileSizeBytes}
-              maxFileSizeMessage="El archivo de música no puede superar 50 MB."
               name="musicStorageKey"
               previewSelectedFile={false}
               removeLabel="Borrar música"
@@ -429,9 +439,10 @@ function SubmodalityField({
 }) {
   const choreography = loaderData.choreography;
   const submit = useSubmit();
-  const submodalityForm = useForm<{ submodalityId: string }>({
-    defaultValues: { submodalityId: choreography.submodalityId ?? "" },
-  });
+  const submodalityForm = useSavedValueSelectForm(
+    "submodalityId",
+    choreography.submodalityId ?? "",
+  );
 
   // Editable solo para `admin`, cuando la modalidad tiene submodalidades y la
   // coreografía todavía no tiene presentación. La modalidad es inmutable.
@@ -469,6 +480,47 @@ function SubmodalityField({
         value: option.id,
       }))}
       placeholder="Elegí la submodalidad"
+    />
+  );
+}
+
+function ScheduleCapacityField({
+  loaderData,
+}: {
+  loaderData: ChoreographyDetailLoaderData;
+}) {
+  const choreography = loaderData.choreography;
+  const submit = useSubmit();
+  const scheduleCapacityForm = useSavedValueSelectForm(
+    assignedScheduleCapacityFieldName,
+    choreography.scheduleCapacityId,
+  );
+
+  if (!loaderData.scheduleCapacity.canReassign) {
+    return (
+      <ReadOnlyField label="Cronograma" value={choreography.scheduleLabel} />
+    );
+  }
+
+  return (
+    <SelectField
+      control={scheduleCapacityForm.control}
+      label="Cronograma"
+      name={assignedScheduleCapacityFieldName}
+      onValueChange={(value) => {
+        if (!value || value === choreography.scheduleCapacityId) {
+          return;
+        }
+
+        const formData = new FormData();
+        formData.set("intent", updateChoreographyScheduleCapacityIntent);
+        formData.set(assignedScheduleCapacityFieldName, value);
+        submit(formData, { method: "post" });
+      }}
+      options={toScheduleCapacitySelectOptions(
+        loaderData.scheduleCapacity.options,
+      )}
+      placeholder="Elegí el cronograma"
     />
   );
 }
@@ -527,30 +579,6 @@ function getChoreographyFormValues(
     professorIds: choreography.professors.map((professor) => professor.id),
     scheduleCapacityId: "",
   };
-}
-
-function formatScheduleOptionLabel(option: {
-  schedule: { name: string; scheduledDate?: string; startTime?: string };
-}) {
-  const { name, scheduledDate, startTime } = option.schedule;
-
-  if (!scheduledDate || !startTime) {
-    return name;
-  }
-
-  const [year, month, day] = scheduledDate.split("-").map(Number);
-
-  if (!year || !month || !day) {
-    return name;
-  }
-
-  const formattedDate = new Intl.DateTimeFormat("es-AR", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(new Date(year, month - 1, day));
-
-  return `${formattedDate} - ${startTime.slice(0, 5)} hs.`;
 }
 
 function toPersonOption(person: {

@@ -96,13 +96,15 @@ Rules for roster links, choreography registration, locks and Bases del evento.
 - Registration does not create dancers or professors inline.
 - Music file is not uploaded during initial registration; it remains pending operational data.
 - Backend revalidates the selected specific cupo when present and always revalidates cronograma total capacity on confirmation.
+- Cupo options show their occupancy and full options are offered disabled, in the portal registration and in the administrative reassignment alike. The count is a snapshot that races with any other registration: the hint does not replace the backend revalidation.
+- If every compatible option is full, the registration schedule step replaces the select with a message explaining it, instead of offering a list with nothing selectable.
 
 ## Choreography Locks
 
-- `Datos bloqueados de coreografía` include name, modalidad, submodalidad, tipo de grupo, category, level and cupo de cronograma.
+- `Datos bloqueados de coreografía` include name, modalidad, submodalidad, tipo de grupo, category and level. Cupo de cronograma is not academy-editable either, but it is not fully blocked: the administrator can reassign it under the conditions below.
 - For unpaid choreographies without presentation, expected correction path is delete and register again.
 - Administrative renaming is not a structural correction and is allowed even when structural data is otherwise blocked.
-- Admin structural correction is exceptional, instance-level, requires reason, and is allowed only without presentation.
+- Admin structural correction is exceptional, instance-level, and is allowed only without presentation.
 - Structural correction that changes modalidad, submodalidad or dancers recalculates group type, category, level and schedule.
 - If recalculation needs a level, admin must choose it in same correction.
 - Active financial document blocks academy edits, dancer changes and deletion, even without imputations.
@@ -115,6 +117,13 @@ Rules for roster links, choreography registration, locks and Bases del evento.
 - Cupo de cronograma stays when roster change does not change group type; it clears when group type changes.
 - When roster change clears cupo de cronograma, confirmation follows registration schedule semantics: no compatible option blocks confirmation, one compatible option is assigned automatically, and multiple compatible options require choosing one.
 - Roster change can recalculate price on confirmation, but the administrative roster edit flow remains operational and does not show price amounts before confirming.
+- Reassigning the cupo de cronograma of a registered choreography is a standalone administrative correction in the instance view, one choreography at a time. It is not an edit of the cupo's declared capacity and it is not a side effect of a roster change.
+- The reassignment offers only compatible cupos (same event, modalidad and calculated tipo de grupo), plus the currently assigned one, so an assignment that drifted out of compatibility stays visible instead of disappearing from the list.
+- The administrator can reassign only when all of these hold: the user is `admin` (the `auditor` sees the field read-only), the choreography has no presentación, no active inscription has a registered seña, and there is more than one compatible cupo to choose from. Otherwise the cronograma is shown read-only.
+- A registered seña blocks the whole field, never single options: cupo de cronograma is an input of price selection, so every option offered moves the price of the choreography, and there is no financially inert reassignment to exempt. The reason is reported in the page alert, also for the `auditor`.
+- The presentación lock is a hard lock for the cupo de cronograma too, like the roster and the deletion; renaming stays allowed.
+- Reassignment enforces cupo capacity on confirmation: a cupo that filled up in the meantime is rejected, and re-selecting the cupo the choreography already occupies is a no-op that is never reported as full.
+- When there is a pending roster change, the roster form's cronograma select wins over the standalone reassignment: a tipo de grupo change clears the cupo and the replacement must be chosen together with the confirmation.
 - `Datos operativos pendientes de coreografía` include music and professors. They do not change calculation, capacity or competitive placement.
 - Music and professor links can be edited while presentation is pending, even if registration is closed or the choreography has an active financial link.
 - Music/professor links stop being editable once presentation is no longer pending.

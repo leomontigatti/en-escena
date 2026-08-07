@@ -7,6 +7,7 @@ import type {
   EventRegistrationMissingItem,
   EventRegistrationReadiness,
 } from "@/lib/events/registration-readiness";
+import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
 
 type GroupType = "solo" | "duo" | "trio" | "grupal";
 
@@ -63,16 +64,26 @@ const baseMissingItemDefinitions = {
 export async function getEventRegistrationReadiness(
   eventId: string,
 ): Promise<EventRegistrationReadiness> {
+  // Derive both the reference date and the cache stamp from a single instant:
+  // a calculation that starts before business midnight and writes after it
+  // would otherwise be stamped with a day it never used, and look fresh all of
+  // it.
+  const calculatedAt = new Date();
+  const referenceDate = getBusinessDateOnly(calculatedAt);
   const cachedReadiness = await db.query.events.findFirst({
     columns: {
       registrationReady: true,
       registrationReadinessMissingItems: true,
       registrationReadinessDirty: true,
+      registrationReadinessCalculatedAt: true,
     },
     where: eq(events.id, eventId),
   });
 
-  if (cachedReadiness && !cachedReadiness.registrationReadinessDirty) {
+  if (
+    cachedReadiness &&
+    isCachedReadinessUsable(cachedReadiness, referenceDate)
+  ) {
     return {
       eventId,
       isReady: cachedReadiness.registrationReady,
@@ -81,9 +92,12 @@ export async function getEventRegistrationReadiness(
     };
   }
 
-  const readiness = await calculateEventRegistrationReadiness(eventId);
+  const readiness = await calculateEventRegistrationReadiness(
+    eventId,
+    referenceDate,
+  );
 
-  await saveEventRegistrationReadiness(readiness);
+  await saveEventRegistrationReadiness(readiness, calculatedAt);
 
   return readiness;
 }
@@ -97,12 +111,15 @@ export async function getEventRegistrationReadinessByEventId(
     return new Map();
   }
 
+  const referenceDate = getBusinessDateOnly();
+
   const cachedReadinessRows = await db.query.events.findMany({
     columns: {
       id: true,
       registrationReady: true,
       registrationReadinessMissingItems: true,
       registrationReadinessDirty: true,
+      registrationReadinessCalculatedAt: true,
     },
     where: inArray(events.id, uniqueEventIds),
   });
@@ -115,7 +132,10 @@ export async function getEventRegistrationReadinessByEventId(
   for (const eventId of uniqueEventIds) {
     const cachedReadiness = cachedReadinessByEventId.get(eventId);
 
-    if (cachedReadiness && !cachedReadiness.registrationReadinessDirty) {
+    if (
+      cachedReadiness &&
+      isCachedReadinessUsable(cachedReadiness, referenceDate)
+    ) {
       readinessByEventId.set(eventId, {
         eventId,
         isReady: cachedReadiness.registrationReady,
@@ -140,6 +160,29 @@ export async function getEventRegistrationReadinessByEventId(
   return readinessByEventId;
 }
 
+// Readiness depends on the current date (a precio expires by the mere passage
+// of time, with no write to dirty the cache), so an entry calculated on an
+// earlier day is stale even when nothing was written since. "Day" is the
+// business day here too: stamping the cache in UTC would both expire it three
+// hours early every evening and keep serving it past business midnight.
+function isCachedReadinessUsable(
+  cachedReadiness: {
+    registrationReadinessDirty: boolean;
+    registrationReadinessCalculatedAt: Date | null;
+  },
+  referenceDate: string,
+) {
+  if (cachedReadiness.registrationReadinessDirty) {
+    return false;
+  }
+
+  const calculatedAt = cachedReadiness.registrationReadinessCalculatedAt;
+
+  return (
+    calculatedAt !== null && getBusinessDateOnly(calculatedAt) === referenceDate
+  );
+}
+
 export async function markEventRegistrationReadinessDirty(eventId: string) {
   await db
     .update(events)
@@ -149,14 +192,18 @@ export async function markEventRegistrationReadinessDirty(eventId: string) {
 
 async function calculateEventRegistrationReadiness(
   eventId: string,
+  referenceDate: string,
 ): Promise<EventRegistrationReadiness> {
   const eventBases = await getEventBases(eventId);
 
-  return getEventRegistrationReadinessForBases(eventId, eventBases);
+  return getEventRegistrationReadinessForBases(eventId, eventBases, {
+    referenceDate,
+  });
 }
 
 async function saveEventRegistrationReadiness(
   readiness: EventRegistrationReadiness,
+  calculatedAt: Date,
 ) {
   await db
     .update(events)
@@ -164,7 +211,7 @@ async function saveEventRegistrationReadiness(
       registrationReady: readiness.isReady,
       registrationReadinessMissingItems: readiness.missingItems,
       registrationReadinessDirty: false,
-      registrationReadinessCalculatedAt: new Date(),
+      registrationReadinessCalculatedAt: calculatedAt,
     })
     .where(eq(events.id, readiness.eventId));
 }
@@ -172,7 +219,9 @@ async function saveEventRegistrationReadiness(
 export async function getEventRegistrationReadinessForBases(
   eventId: string,
   eventBases: EventBases,
+  options: { referenceDate?: string } = {},
 ): Promise<EventRegistrationReadiness> {
+  const referenceDate = options.referenceDate ?? getBusinessDateOnly();
   const missingItems = collectBaseMissingItems(eventBases);
 
   const modalitiesById = new Map(
@@ -221,13 +270,16 @@ export async function getEventRegistrationReadinessForBases(
           const priceResolution = resolvePriceFromBases(eventBases, {
             groupType,
             scheduleId: option.schedule.id,
+            referenceDate,
           });
 
           if (!priceResolution.ok) {
             missingItems.push({
               code: "price-coverage",
               label: "Precios aplicables",
-              detail: `Falta un precio aplicable para ${registrationPath} en el cronograma ${option.schedule.name}.`,
+              detail: priceResolution.expiredDeadline
+                ? `El precio para ${registrationPath} en el cronograma ${option.schedule.name} venció el ${formatDeadline(priceResolution.expiredDeadline)} y no hay otro vigente.`
+                : `Falta un precio aplicable para ${registrationPath} en el cronograma ${option.schedule.name}.`,
             });
           }
         }
@@ -362,42 +414,79 @@ function resolveScheduleOptionsFromBases(
 
 function resolvePriceFromBases(
   eventBases: EventBases,
-  input: { groupType: string; scheduleId: string | null },
+  input: {
+    groupType: string;
+    scheduleId: string | null;
+    referenceDate: string;
+  },
 ) {
   if (!isGroupType(input.groupType)) {
-    return { ok: false as const };
+    return { ok: false as const, expiredDeadline: null };
   }
 
-  if (input.scheduleId) {
-    const specificPrice = selectApplicablePrice(
-      eventBases.prices.filter(
+  const scheduleCandidates = input.scheduleId
+    ? eventBases.prices.filter(
         (price) =>
           price.groupType === input.groupType &&
           price.scheduleId === input.scheduleId,
-      ),
-    );
+      )
+    : [];
+  const specificPrice = selectApplicablePrice(
+    scheduleCandidates,
+    input.referenceDate,
+  );
 
-    if (specificPrice) {
-      return { ok: true as const, price: specificPrice };
-    }
+  if (specificPrice) {
+    return { ok: true as const, price: specificPrice };
   }
 
+  const generalCandidates = eventBases.prices.filter(
+    (price) => price.groupType === input.groupType && price.scheduleId === null,
+  );
   const generalPrice = selectApplicablePrice(
-    eventBases.prices.filter(
-      (price) =>
-        price.groupType === input.groupType && price.scheduleId === null,
-    ),
+    generalCandidates,
+    input.referenceDate,
   );
 
   if (generalPrice) {
     return { ok: true as const, price: generalPrice };
   }
 
-  return { ok: false as const };
+  return {
+    ok: false as const,
+    expiredDeadline: findLatestDeadline([
+      ...scheduleCandidates,
+      ...generalCandidates,
+    ]),
+  };
 }
 
-function selectApplicablePrice(candidates: EventBases["prices"]) {
-  return [...candidates].sort(compareApplicablePrices)[0] ?? null;
+// Same rule as the runtime resolver (`selectApplicablePriceFromCandidates`):
+// a row whose paymentDeadline already passed cannot be charged, and there is
+// no fallback to an expired row.
+function selectApplicablePrice(
+  candidates: EventBases["prices"],
+  referenceDate: string,
+) {
+  return (
+    candidates
+      .filter(
+        (price) =>
+          price.paymentDeadline === null ||
+          price.paymentDeadline >= referenceDate,
+      )
+      .sort(compareApplicablePrices)[0] ?? null
+  );
+}
+
+function findLatestDeadline(candidates: EventBases["prices"]) {
+  return (
+    candidates
+      .map((price) => price.paymentDeadline)
+      .filter((deadline): deadline is string => deadline !== null)
+      .sort()
+      .at(-1) ?? null
+  );
 }
 
 function compareApplicablePrices(
@@ -441,6 +530,26 @@ function describeRegistrationPath(input: RegistrationPathDescriptor) {
   }
 
   return details.join(", ");
+}
+
+// Same shape the admin precios table uses to render a paymentDeadline, so the
+// readiness message and the row it points at read the same. UTC, because a
+// paymentDeadline is a date-only value with no time zone of its own.
+const deadlineFormatter = new Intl.DateTimeFormat("es-AR", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+function formatDeadline(deadline: string) {
+  const parsed = new Date(`${deadline}T00:00:00.000Z`);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return deadline;
+  }
+
+  return deadlineFormatter.format(parsed);
 }
 
 function formatGroupType(groupType: string) {

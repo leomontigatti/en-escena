@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
+import { checkAssetAgainstPolicy } from "@/lib/storage/asset-kinds";
 import { choreographies, choreographyDancers, dancers } from "@/db/schema";
 import { createCategory } from "@/lib/categories/repository.server";
 import { createModality } from "@/lib/modalities/repository.server";
@@ -26,7 +27,12 @@ import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 const createDocumentImageSignedUrlMock = vi.hoisted(() => vi.fn());
 const uploadDocumentImageMock = vi.hoisted(() => vi.fn());
 
-vi.mock("@/lib/storage/dancer-documents.server", () => ({
+// Only the factory is replaced: the shared read path and the key layout stay
+// real, so this test cannot drift from them (#571).
+vi.mock("@/lib/storage/dancer-documents.server", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/lib/storage/dancer-documents.server")
+  >()),
   createDefaultDancerDocumentStorage: () => ({
     createDocumentImageSignedUrl: createDocumentImageSignedUrlMock,
     uploadDocumentImage: uploadDocumentImageMock,
@@ -53,17 +59,20 @@ beforeEach(() => {
       file: File;
       side: "back" | "front";
     }) => {
-      if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-        throw new Error("Document image must be a JPEG, PNG, or WebP file.");
-      }
+      // Delegated to the real policy so this fake cannot accept what the store
+      // would reject, or reject what it would accept.
+      const rejection = checkAssetAgainstPolicy("dancerDocumentImage", file);
 
-      if (file.size > 10 * 1024 * 1024) {
-        throw new Error("Document image must be 10 MB or smaller.");
+      if (rejection) {
+        return { ok: false, rejection };
       }
 
       const extension = file.type === "image/png" ? "png" : "jpg";
 
-      return `academies/${academyId}/dancers/${dancerId}/document-${side}.${extension}`;
+      return {
+        ok: true,
+        storageKey: `academies/${academyId}/dancers/${dancerId}/document-${side}.${extension}`,
+      };
     },
   );
 });

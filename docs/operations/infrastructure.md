@@ -68,10 +68,34 @@ What a deploy does, for reference:
   because the edge must not cache PII in the first place.
 - Dancer documents on this volume are plaintext PII; encryption at rest is
   accepted debt, documented in [Backups](./backups.md#encryption-at-rest-accepted-debt).
+- There is **one** storage backend in the app. The Supabase and Backblaze
+  in-app adapters were deleted in #571: they had no production caller and only
+  made the storage layer read as though a live provider choice existed. The
+  adapter seam ADR-0008 asked for is kept, with the filesystem store as its one
+  implementation, so a future provider is a new implementation rather than a
+  rewrite. The `@aws-sdk/*` packages went with those adapters: B2 is reached
+  only by the backup shell scripts, through the `aws s3` CLI, so the application
+  bundle carries no S3 client at all.
+
+### Asset-kind policy
+
+Each uploaded asset kind is declared once, in `app/lib/storage/asset-kinds.ts`:
+bucket directory, accepted content types with their extensions, size ceiling,
+signed-URL lifetime, and the Spanish labels the user copy is built from. The
+server validation, the browser `accept` attribute and the messages a user reads
+are all **derived** from that declaration, so raising a ceiling is one edit and
+cannot leave a surface stating the old number (#571).
+
+Policy violations leave the storage layer as typed rejections
+(`unsupported-content-type`, `file-too-large`), not exceptions with matchable
+English prose; a single formatter turns a rejection into Spanish. Infrastructure
+faults — an unwritable volume, a full disk — stay exceptions, because they are
+not something the academy can correct by choosing a different file.
 
 ### Choreography music contract
 
-Bucket, formats, size limit and expiry are enforced in
+Bucket, formats, size limit and expiry are declared in
+`app/lib/storage/asset-kinds.ts` and enforced by
 `app/lib/storage/choreography-music.server.ts`; the replacement ordering is
 enforced by its caller, `app/lib/portal/choreography-music.server.ts`. Rehomed
 here from ADR-0010, which stated the contract against a Supabase bucket that no

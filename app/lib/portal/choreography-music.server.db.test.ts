@@ -3,10 +3,8 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import { choreographies } from "@/db/schema";
-import {
-  updateChoreographyMusic,
-  loadPortalChoreographyMusicDownloadUrl,
-} from "@/lib/portal/choreography-music.server";
+import { updateChoreographyMusic } from "@/lib/portal/choreography-music.server";
+import { loadChoreographyMusicDownloadUrl } from "@/lib/storage/choreography-music.server";
 import {
   createAcademySession,
   createChoreographyRecord,
@@ -46,7 +44,10 @@ describe.sequential("portal choreography music", () => {
       }) => {
         calls.push({ ...input, type: "upload" });
 
-        return `academies/${input.academyId}/choreographies/${input.choreographyId}/music.ogg`;
+        return {
+          ok: true as const,
+          storageKey: `academies/${input.academyId}/choreographies/${input.choreographyId}/music.ogg`,
+        };
       },
     };
     const file = new File(["music"], "musica.ogg", { type: "audio/ogg" });
@@ -83,10 +84,10 @@ describe.sequential("portal choreography music", () => {
       },
     ]);
     await expect(
-      loadPortalChoreographyMusicDownloadUrl(
-        `academies/${owner.academyId}/choreographies/${choreography.id}/music.ogg`,
+      loadChoreographyMusicDownloadUrl({
         storage,
-      ),
+        storageKey: `academies/${owner.academyId}/choreographies/${choreography.id}/music.ogg`,
+      }),
     ).resolves.toBe(
       `signed:academies/${owner.academyId}/choreographies/${choreography.id}/music.ogg`,
     );
@@ -156,8 +157,10 @@ describe.sequential("portal choreography music", () => {
         academyId: string;
         choreographyId: string;
         file: Blob;
-      }) =>
-        `academies/${input.academyId}/choreographies/${input.choreographyId}/music.ogg`,
+      }) => ({
+        ok: true as const,
+        storageKey: `academies/${input.academyId}/choreographies/${input.choreographyId}/music.ogg`,
+      }),
     };
 
     await expect(
