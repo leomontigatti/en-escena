@@ -30,6 +30,7 @@ import {
   createEventRecord,
   createProfessor,
   date,
+  freezeInscriptionDepositForTest,
 } from "@/features/portal/choreographies/test-support/db";
 import {
   createSignedInAdminRequest,
@@ -785,6 +786,99 @@ describe("administrative choreography detail server", () => {
     expect(
       single.scheduleCapacity.options.map((option) => option.id),
     ).toContain(drifted.scheduleCapacity.id);
+  });
+
+  test("blocks the reassignment when an inscription has a frozen deposit", async () => {
+    const scenario = await createScheduleCapacityScenario({
+      academyName: "Academia Cronograma Señada",
+      slug: "cronograma.senada",
+    });
+    await freezeInscriptionDepositForTest({
+      academyId: scenario.owner.academyId,
+      choreographyId: scenario.choreography.id,
+    });
+
+    const detail = await loadDetail({
+      choreographyId: scenario.choreography.id,
+      email: "admin.coreografias.cronograma.senada.detalle@example.com",
+      role: "admin",
+    });
+    expect(detail.scheduleCapacity.canReassign).toBe(false);
+    expect(detail.scheduleCapacity.blockers).toEqual([
+      {
+        code: "frozen-deposit",
+        label: expect.stringContaining("seña registrada"),
+      },
+    ]);
+
+    const result = await scenario.reassignTo(
+      scenario.target.scheduleCapacity.id,
+    );
+
+    expect(result).toMatchObject({
+      message:
+        "No se puede cambiar el cupo de cronograma: hay inscripciones con seña registrada.",
+      status: "error",
+    });
+    await expect(scenario.readAssignment()).resolves.toEqual({
+      scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
+      scheduleId: null,
+    });
+  });
+
+  test("reassigns when the inscriptions carry no deposit snapshot", async () => {
+    const scenario = await createScheduleCapacityScenario({
+      academyName: "Academia Cronograma Impaga",
+      slug: "cronograma.impaga",
+    });
+    const dancer = await createDancer(scenario.owner.academyId, {
+      firstName: "Sol",
+      lastName: "Rivas",
+    });
+    await db.insert(choreographyDancers).values({
+      ageAtEventStart: 14,
+      choreographyId: scenario.choreography.id,
+      dancerId: dancer.id,
+    });
+
+    const detail = await loadDetail({
+      choreographyId: scenario.choreography.id,
+      email: "admin.coreografias.cronograma.impaga.detalle@example.com",
+      role: "admin",
+    });
+    expect(detail.scheduleCapacity.blockers).toEqual([]);
+    expect(detail.scheduleCapacity.canReassign).toBe(true);
+
+    const result = await scenario.reassignTo(
+      scenario.target.scheduleCapacity.id,
+    );
+
+    expect(result).toMatchObject({ status: "success" });
+    await expect(scenario.readAssignment()).resolves.toEqual({
+      scheduleCapacityId: scenario.target.scheduleCapacity.id,
+      scheduleId: scenario.target.schedule.id,
+    });
+  });
+
+  test("shows the frozen-deposit blocker to auditors as well", async () => {
+    const scenario = await createScheduleCapacityScenario({
+      academyName: "Academia Cronograma Señada Auditor",
+      slug: "cronograma.senada.auditor",
+    });
+    await freezeInscriptionDepositForTest({
+      academyId: scenario.owner.academyId,
+      choreographyId: scenario.choreography.id,
+    });
+
+    const detail = await loadDetail({
+      choreographyId: scenario.choreography.id,
+      email: "auditor.coreografias.cronograma.senada@example.com",
+      role: "auditor",
+    });
+
+    expect(
+      detail.scheduleCapacity.blockers.map((blocker) => blocker.code),
+    ).toEqual(["frozen-deposit"]);
   });
 
   test("blocks auditors from reassigning the cupo de cronograma", async () => {

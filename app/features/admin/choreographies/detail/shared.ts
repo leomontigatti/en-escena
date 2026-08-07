@@ -111,6 +111,37 @@ export function toChoreographyDetailViewActionData(
     : undefined;
 }
 
+export type ChoreographyScheduleCapacityBlockerCode = "frozen-deposit";
+
+/**
+ * Motivo por el que la reasignación del cupo de cronograma está cerrada, con la
+ * misma forma que los bloqueos de eliminación: el servidor arma el `code` y la
+ * etiqueta que se lee, y la vista solo la enumera en la alerta de la página.
+ */
+export type ChoreographyScheduleCapacityBlocker = {
+  code: ChoreographyScheduleCapacityBlockerCode;
+  label: string;
+};
+
+/**
+ * Las cuatro causas de solo lectura del cupo de cronograma: no ser `admin`,
+ * tener presentación, arrastrar un bloqueo del servidor (hoy, la seña
+ * congelada) y no tener al menos dos cupos compatibles entre los que elegir.
+ */
+export function canReassignScheduleCapacity(input: {
+  blockers: ChoreographyScheduleCapacityBlocker[];
+  canEdit: boolean;
+  hasMultipleCompatibleOptions: boolean;
+  hasPresentation: boolean;
+}) {
+  return (
+    input.canEdit &&
+    !input.hasPresentation &&
+    input.blockers.length === 0 &&
+    input.hasMultipleCompatibleOptions
+  );
+}
+
 export type ChoreographyDeleteBlockerCode =
   | "comprobantes"
   | "presentation"

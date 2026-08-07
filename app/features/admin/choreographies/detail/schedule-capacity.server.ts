@@ -8,12 +8,14 @@ import {
   lockScheduleCapacityForAssignment,
 } from "@/lib/choreographies/schedule-capacity-lock.server";
 import { resolveEventBasesScheduleOptions } from "@/lib/events/bases.server";
+import { hasFrozenDepositSnapshot } from "@/lib/finances/choreography-deposit-guard.server";
 
 import type { ChoreographyDetail } from "./server";
 import {
   assignedScheduleCapacityFieldName,
   choreographySavedSuccess,
   type ChoreographyFieldUpdateErrorData,
+  type ChoreographyScheduleCapacityBlocker,
   type ChoreographySuccessData,
 } from "./shared";
 
@@ -23,9 +25,37 @@ export type ChoreographyScheduleCapacityOption = {
 };
 
 export type ChoreographyScheduleCapacityReassignment = {
+  blockers: ChoreographyScheduleCapacityBlocker[];
   canReassign: boolean;
   options: ChoreographyScheduleCapacityOption[];
 };
+
+/**
+ * El bloqueo es de todo el campo, nunca de opciones sueltas: toda opción que el
+ * select ofrece cambia el cronograma y con él la clave de precio, así que no
+ * hay reasignación financieramente inerte que eximir.
+ */
+const frozenDepositBlocker: ChoreographyScheduleCapacityBlocker = {
+  code: "frozen-deposit",
+  label:
+    "Al menos una inscripción tiene seña registrada: su precio quedó congelado contra este cronograma.",
+};
+
+const frozenDepositMessage =
+  "No se puede cambiar el cupo de cronograma: hay inscripciones con seña registrada.";
+
+/**
+ * Motivos de bloqueo que el servidor arma para la alerta de la página. No se
+ * filtran por rol: el auditor también tiene que ver por qué el cronograma no se
+ * puede mover.
+ */
+export async function resolveScheduleCapacityBlockers(
+  choreographyId: string,
+): Promise<ChoreographyScheduleCapacityBlocker[]> {
+  return (await hasFrozenDepositSnapshot(choreographyId))
+    ? [frozenDepositBlocker]
+    : [];
+}
 
 type ResolvedScheduleCapacityOption = ChoreographyScheduleCapacityOption & {
   scheduleCapacityId: string | null;
@@ -95,6 +125,16 @@ export async function updateChoreographyScheduleCapacity(input: {
     return {
       message:
         "No se puede cambiar el cupo de cronograma: la coreografía ya tiene presentación.",
+      status: "error",
+    };
+  }
+
+  // La guarda financiera se revalida en el intent y no solo en el loader: el
+  // campo puede haber quedado abierto en una pestaña vieja o llegar un submit
+  // armado a mano.
+  if (await hasFrozenDepositSnapshot(input.choreography.id)) {
+    return {
+      message: frozenDepositMessage,
       status: "error",
     };
   }

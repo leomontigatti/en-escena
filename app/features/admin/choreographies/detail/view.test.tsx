@@ -70,15 +70,17 @@ describe("ChoreographyDetailRouteView", () => {
       }),
     });
 
-    expect(markup).toContain("El roster está bloqueado");
+    expect(markup).toContain("La presentación bloquea esta coreografía");
     expect(markup).toContain("Esta coreografía ya tiene una presentación");
+    expect(markup).toContain("los bailarines, los profesores, la submodalidad");
+    expect(markup).toContain("cupo de cronograma");
     expect(markup).toContain('aria-disabled="true"');
   });
 
-  test("does not announce the roster hard lock when there is no presentation", () => {
+  test("does not announce the presentation hard lock when there is no presentation", () => {
     const markup = renderDetail({ loaderData: buildLoaderData() });
 
-    expect(markup).not.toContain("El roster está bloqueado");
+    expect(markup).not.toContain("La presentación bloquea esta coreografía");
   });
 
   test("renders name and actions as read-only for auditors", () => {
@@ -144,6 +146,7 @@ describe("ChoreographyDetailRouteView", () => {
     const markup = renderDetail({
       loaderData: buildLoaderData({
         scheduleCapacity: {
+          blockers: [],
           canReassign: false,
           options: [
             {
@@ -158,6 +161,55 @@ describe("ChoreographyDetailRouteView", () => {
     expect(markup).toContain("Cronograma");
     expect(markup).toContain("1 de mayo de 2026 - 14:00 hs.");
     expect(markup).not.toContain('name="assignedScheduleCapacityId"');
+  });
+
+  test("reports the frozen-deposit blocker in the page alert instead of on the field", () => {
+    const markup = renderDetail({
+      loaderData: buildLoaderData({
+        scheduleCapacity: {
+          blockers: [
+            {
+              code: "frozen-deposit",
+              label:
+                "Al menos una inscripción tiene seña registrada: su precio quedó congelado contra este cronograma.",
+            },
+          ],
+          canReassign: false,
+          options: [
+            {
+              id: "schedule_capacity_1",
+              label: "1 de mayo de 2026 - 14:00 hs.",
+            },
+          ],
+        },
+      }),
+    });
+
+    expect(markup).toContain("El cupo de cronograma está bloqueado");
+    expect(markup).toContain("Al menos una inscripción tiene seña registrada");
+    expect(markup).not.toContain('name="assignedScheduleCapacityId"');
+  });
+
+  test("shows the frozen-deposit alert to auditors too", () => {
+    const markup = renderDetail({
+      loaderData: buildLoaderData({
+        canEdit: false,
+        scheduleCapacity: {
+          blockers: [{ code: "frozen-deposit", label: "Hay seña registrada." }],
+          canReassign: false,
+          options: [],
+        },
+      }),
+    });
+
+    expect(markup).toContain("El cupo de cronograma está bloqueado");
+    expect(markup).toContain("Hay seña registrada.");
+  });
+
+  test("does not announce a cupo de cronograma blocker when there is none", () => {
+    const markup = renderDetail({ loaderData: buildLoaderData() });
+
+    expect(markup).not.toContain("El cupo de cronograma está bloqueado");
   });
 
   test("opens the delete dialog from the resource actions menu", async () => {
@@ -277,6 +329,7 @@ function buildLoaderData(
       blockers: [],
     },
     scheduleCapacity: {
+      blockers: [],
       canReassign: true,
       options: [
         { id: "schedule_capacity_1", label: "1 de mayo de 2026 - 14:00 hs." },

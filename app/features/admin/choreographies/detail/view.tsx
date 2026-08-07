@@ -256,10 +256,28 @@ function ChoreographyDetailForm({
         >
           {choreography.hasPresentation && loaderData.canEdit ? (
             <Alert>
-              <AlertTitle>El roster está bloqueado</AlertTitle>
+              <AlertTitle>La presentación bloquea esta coreografía</AlertTitle>
               <AlertDescription>
                 Esta coreografía ya tiene una presentación asociada. Podés
-                cambiar el nombre, pero no los bailarines ni los profesores.
+                cambiar el nombre, pero no los bailarines, los profesores, la
+                submodalidad ni el cupo de cronograma.
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
+          {/* La alerta financiera no se suprime para el auditor: el motivo del
+              bloqueo es información de la coreografía, no del permiso de quien
+              mira. */}
+          {loaderData.scheduleCapacity.blockers.length > 0 ? (
+            <Alert>
+              <AlertTitle>El cupo de cronograma está bloqueado</AlertTitle>
+              <AlertDescription>
+                <p>No se puede reasignar el cupo de cronograma:</p>
+                <ul className="mt-2 list-disc pl-5">
+                  {loaderData.scheduleCapacity.blockers.map((blocker) => (
+                    <li key={blocker.code}>{blocker.label}</li>
+                  ))}
+                </ul>
               </AlertDescription>
             </Alert>
           ) : null}

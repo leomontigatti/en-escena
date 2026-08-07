@@ -49,10 +49,12 @@ import {
 import {
   getGlobalScheduleCapacityOptionId,
   resolveChoreographyScheduleCapacityOptions,
+  resolveScheduleCapacityBlockers,
   updateChoreographyScheduleCapacity,
   type ChoreographyScheduleCapacityReassignment,
 } from "./schedule-capacity.server";
 import {
+  canReassignScheduleCapacity,
   choreographyFieldNames,
   deleteChoreographyIntent,
   renameChoreographyIntent,
@@ -181,6 +183,7 @@ export async function loadChoreographyDetailRouteData(input: {
     availableProfessors,
     submodalityOptions,
     scheduleCapacityOptions,
+    scheduleCapacityBlockers,
   ] = await Promise.all([
     getChoreographyDeleteBlockers(choreography),
     listDancerOptionsForChoreography(
@@ -196,6 +199,7 @@ export async function loadChoreographyDetailRouteData(input: {
       choreography,
       eventId: selectedEventId,
     }),
+    resolveScheduleCapacityBlockers(choreography.id),
   ]);
 
   return {
@@ -209,14 +213,20 @@ export async function loadChoreographyDetailRouteData(input: {
       canDelete: blockers.length === 0,
     },
     scheduleCapacity: {
+      // Los motivos van a la vista aunque el campo ya esté cerrado por otra
+      // causa: la alerta de la página los enumera también para el auditor.
+      blockers: scheduleCapacityBlockers,
       // Reasignar es una corrección administrativa: solo `admin`, nunca con
-      // presentación y solo cuando hay más de un cupo compatible entre los que
-      // elegir. La coreografía ya presentada tiene el cronograma tan cerrado
-      // como el roster.
-      canReassign:
-        canEdit &&
-        !choreography.hasPresentation &&
-        scheduleCapacityOptions.hasMultipleCompatibleOptions,
+      // presentación, nunca con seña congelada y solo cuando hay más de un cupo
+      // compatible entre los que elegir. La coreografía ya presentada tiene el
+      // cronograma tan cerrado como el roster.
+      canReassign: canReassignScheduleCapacity({
+        blockers: scheduleCapacityBlockers,
+        canEdit,
+        hasMultipleCompatibleOptions:
+          scheduleCapacityOptions.hasMultipleCompatibleOptions,
+        hasPresentation: choreography.hasPresentation,
+      }),
       options: scheduleCapacityOptions.options.map((option) => ({
         id: option.id,
         label: option.label,

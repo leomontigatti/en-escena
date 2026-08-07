@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import {
+  canReassignScheduleCapacity,
   renameChoreographyIntent,
   resolveChoreographyRosterIntent,
   shouldRevalidateChoreographyDetail,
@@ -84,6 +85,41 @@ describe("toChoreographyDetailViewActionData", () => {
     expect(toChoreographyDetailViewActionData(new Response())).toBeUndefined();
     expect(toChoreographyDetailViewActionData()).toBeUndefined();
   });
+});
+
+describe("canReassignScheduleCapacity", () => {
+  const frozenDeposit = {
+    code: "frozen-deposit",
+    label: "Al menos una inscripción tiene seña registrada.",
+  } as const;
+
+  test("opens the cupo de cronograma for an admin with alternatives and no blockers", () => {
+    expect(canReassignScheduleCapacity(buildInput())).toBe(true);
+  });
+
+  test.each([
+    ["the user is not an admin", { canEdit: false }],
+    ["the choreography has a presentation", { hasPresentation: true }],
+    ["an inscription carries a frozen deposit", { blockers: [frozenDeposit] }],
+    [
+      "there are fewer than two compatible cupos",
+      { hasMultipleCompatibleOptions: false },
+    ],
+  ])("keeps it read-only when %s", (_cause, overrides) => {
+    expect(canReassignScheduleCapacity(buildInput(overrides))).toBe(false);
+  });
+
+  function buildInput(
+    overrides: Partial<Parameters<typeof canReassignScheduleCapacity>[0]> = {},
+  ) {
+    return {
+      blockers: [],
+      canEdit: true,
+      hasMultipleCompatibleOptions: true,
+      hasPresentation: false,
+      ...overrides,
+    };
+  }
 });
 
 function buildFormData(intent: string) {
