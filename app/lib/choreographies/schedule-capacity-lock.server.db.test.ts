@@ -10,6 +10,7 @@ import {
   createDancer,
   createOpenEventCatalog,
   createProfessor,
+  createScheduleForModalityFixture,
 } from "@/lib/choreographies/registration-test-fixtures.server.db";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
@@ -48,7 +49,7 @@ async function createSingleSlotRegistration(input: {
     throw new Error(`Unexpected registration failure: ${registration.error}`);
   }
 
-  return { catalog, choreography: registration.choreography };
+  return { catalog, choreography: registration.choreography, event };
 }
 
 describe.sequential("schedule capacity lock", () => {
@@ -133,6 +134,30 @@ describe.sequential("schedule capacity lock", () => {
       ok: true,
       scheduleId: catalog.schedule.id,
       scheduleCapacityId: null,
+    });
+  });
+
+  test("rejects a cupo that belongs to a different cronograma", async () => {
+    const { catalog, event } = await createSingleSlotRegistration({
+      academyName: "Academia Cupo De Otro Cronograma",
+      email: "cupo.de.otro.cronograma@example.com",
+    });
+    const otherSchedule = await createScheduleForModalityFixture({
+      eventId: event.id,
+      modalityId: catalog.modality.id,
+    });
+
+    const result = await db.transaction((tx) =>
+      lockScheduleCapacityForAssignment({
+        tx,
+        scheduleId: otherSchedule.id,
+        scheduleCapacityId: catalog.duoScheduleCapacity.id,
+      }),
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      code: "invalid-schedule-capacity",
     });
   });
 

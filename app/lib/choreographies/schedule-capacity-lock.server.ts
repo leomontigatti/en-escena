@@ -30,6 +30,9 @@ export type ScheduleCapacityLockResult =
  * cannot overshoot the capacity. `excludeChoreographyId` keeps a choreography
  * from counting against the cupo it already occupies, which is what makes
  * re-selecting the current assignment a no-op instead of a full-capacity error.
+ *
+ * `scheduleCapacityId`, when given, must belong to `scheduleId`; a pair that
+ * disagrees is rejected as an invalid selection.
  */
 export async function lockScheduleCapacityForAssignment(input: {
   tx: Transaction;
@@ -60,12 +63,20 @@ export async function lockScheduleCapacityForAssignment(input: {
       .select({
         id: scheduleCapacities.id,
         capacity: scheduleCapacities.capacity,
+        scheduleId: scheduleCapacities.scheduleId,
       })
       .from(scheduleCapacities)
       .where(eq(scheduleCapacities.id, input.scheduleCapacityId))
       .for("update");
 
     if (!lockedScheduleCapacity) {
+      return failure("invalid-schedule-capacity", invalidScheduleEntryMessage);
+    }
+
+    // A cupo from another cronograma would be counted against the wrong
+    // cronograma's total and stored as a contradictory assignment, so the pair
+    // has to belong together before anything is locked in.
+    if (lockedScheduleCapacity.scheduleId !== lockedSchedule.id) {
       return failure("invalid-schedule-capacity", invalidScheduleEntryMessage);
     }
 

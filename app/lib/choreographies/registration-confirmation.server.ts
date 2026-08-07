@@ -30,7 +30,6 @@ import {
 
 const INVALID_EXPERIENCE_LEVEL_ERROR =
   "Elegí un nivel de experiencia válido para confirmar la coreografía.";
-const INVALID_SCHEDULE_ENTRY_ERROR = invalidScheduleEntryMessage;
 const choreographyTitleCaseParticles = new Set([
   "a",
   "con",
@@ -145,14 +144,14 @@ export async function createChoreographyRegistration(
 
   try {
     choreography = await db.transaction(async (tx) => {
-      const lockedSchedule = await lockScheduleCapacityForAssignment({
+      const scheduleLock = await lockScheduleCapacityForAssignment({
         tx,
         scheduleId: scheduleSelection.value.scheduleId,
         scheduleCapacityId: scheduleSelection.value.scheduleCapacityId,
       });
 
-      if (!lockedSchedule.ok) {
-        throw createFailure(lockedSchedule.code, lockedSchedule.error);
+      if (!scheduleLock.ok) {
+        throw createFailure(scheduleLock.code, scheduleLock.error);
       }
 
       const [createdChoreography] = await tx
@@ -171,8 +170,8 @@ export async function createChoreographyRegistration(
           categoryCalculationMode: operation.resolution.categoryCalculationMode,
           categoryAgeBasis: operation.resolution.categoryAgeBasis,
           experienceLevelId: experienceLevelId.value,
-          scheduleId: lockedSchedule.scheduleId,
-          scheduleCapacityId: lockedSchedule.scheduleCapacityId,
+          scheduleId: scheduleLock.scheduleId,
+          scheduleCapacityId: scheduleLock.scheduleCapacityId,
         })
         .returning();
 
@@ -390,7 +389,7 @@ function resolveSelectedScheduleSelection(input: {
         ok: false,
         failure: createFailure(
           "invalid-schedule-capacity",
-          INVALID_SCHEDULE_ENTRY_ERROR,
+          invalidScheduleEntryMessage,
         ),
       };
     }
@@ -415,7 +414,7 @@ function resolveSelectedScheduleSelection(input: {
       ok: false,
       failure: createFailure(
         "invalid-schedule-capacity",
-        INVALID_SCHEDULE_ENTRY_ERROR,
+        invalidScheduleEntryMessage,
       ),
     };
   }
