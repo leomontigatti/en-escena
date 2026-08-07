@@ -238,11 +238,12 @@ adeudada` or `Saldo adeudado`, the affected amount is pending or incomplete,
   **derived automatically** from `payment.date` against the current price
   deadlines. Administration does not pick a row; its only lever is which payment
   it uses.
-- Extraordinary flow (an inscription the admin adds later): administration
-  **explicitly picks** a price row (current or an allowed historical one),
-  bounded by a **floor**: it cannot pick a price lower than the lowest frozen
-  price among that choreography's already `señada` or `pagada` active
-  inscriptions. `payment.date` is still stored as the snapshot's reference date.
+- Per-inscription flow (`Asignar plata`): administration **explicitly picks** a
+  price row inside the allocation dialog, filtered to the choreography's group
+  type and schedule. There is no floor and no today's-price ceiling — an
+  arbitrary amount against a threshold has no rung to stay between — and the pick
+  is only offered until the first allocation fixes it. See "The money dialogs of
+  an inscription".
 
 ## Payments
 
@@ -336,51 +337,70 @@ they live in one module (`app/lib/finances/allocation-pool.server.ts`).
   error can trust that nothing moved.
 - The price row and the reference dates they freeze are resolved against the
   **business date**, not against a payment's date.
-- Any choreography whose inscriptions are at mixed ladder stages requires
-  extraordinary handling.
-- Each inscription unresolved by the normal flow is handled as a separate
-  extraordinary case, even when several share the same resolution. An
-  extraordinary allocation targets a single inscription and, like the normal
-  actions, allocates its owed figure from the pool without naming a payment.
+- An inscription that already holds money keeps the price it holds: the preset
+  skips its snapshot and only tops it up to its own deposit, because the price is
+  fixed from the first allocation.
 
-### Extraordinary per-inscription charging
+## The money dialogs of an inscription
 
-- Extraordinary charging is **per individual inscription**, never for a subset of
-  inscriptions: the granularity is one inscription per action, even when several
-  orphans share the same resolution. There is no "homogeneous subset charge".
-- It covers an inscription's **full ladder**: `impaga` → `señada` (charging its
-  deposit) and `señada` → `pagada` (charging its balance). The mixed `pagada` +
-  `impaga` case requires walking both rungs on the orphan (deposit it first, then
-  pay its balance) to bring it up to its siblings' level.
-- Per-inscription deposit charging uses the **extraordinary flow** of explicit
-  price row selection with a floor, described in "Selecting the price row when
-  freezing". When the first orphan of a mixed choreography is deposited, its
-  frozen price joins the set defining the floor for the following orphans. The
-  price row is still chosen by the administrator; the **payment is not**.
-- Individual charging is only offered on **mixed** choreographies. On a 100%
-  `impaga` choreography, the first freeze (which sets the floor) is the one from
-  the normal whole-choreography flow; the individual row offers no charging.
+The choreography financial detail has **one entry point per inscription** — the
+dancer's name — and the dialog behind it takes its shape from what the row holds.
+Nothing is resolved from a payment in either direction: the administrator names
+an inscription and an amount, and the pool rules pick the payments.
 
-### Undoing an allocation per inscription (`delete-allocation`)
+| Row                       | What opens                                          |
+| ------------------------- | --------------------------------------------------- |
+| over-allocated            | `Liberar el excedente`: one click, nothing to type  |
+| nothing owed, money on it | `Quitar plata`, prefilled with everything allocated |
+| anything else             | `Asignar plata`: price and amount                   |
 
-- From the choreography's financial view an inscription's allocation can be
-  **undone** as a financial correction: dropping one stage (`saldo` → returns the
-  inscription to `señada`; `seña` → returns it to `impaga`) while **keeping the
-  inscription** in the roster.
+A row that still owes something but already holds money reaches `Quitar plata`
+from inside the allocation dialog, so removal is available wherever there is
+money to take off while the entry point stays single.
+
+### Allocating (`allocate-inscription`)
+
+- **Any amount is allocatable.** A partial allocation is an ordinary outcome: the
+  row reads `Seña pendiente` with its shortfall, not as unpaid.
+- The owed figure is a **placeholder, never a prefilled value**, because it moves
+  while the dialog is open — the discount is live. The hint is the figure that
+  finishes the next thing: the seña while that threshold is unmet, the saldo once
+  it is met.
+- The **price is chosen inside this dialog and never in a table cell**. The picker
+  is filtered to the choreography's group type and schedule; offering a foreign
+  row would be offering to create a forbidden state.
+- The price is **locked** — not merely warned about — from the first allocation
+  on. The dialog shows it as a readout, the write path refuses a different row,
+  and the database holds the same rule through the guard trigger on
+  `selected_price_id`. The way to change it is to take the money off first.
+- Active over-allocation is refused with **no override**, so this is the only one
+  of the three gestures that can bounce.
+
+### Removing (`remove-inscription-money`)
+
+- The amount is **prefilled with everything the inscription holds** and any
+  smaller amount is accepted. It is a real value rather than a hint, because what
+  is allocated is a fact and does not move under the administrator.
+- It unwinds **newest-first** through `unwindToPool`; the administrator never
+  chooses a payment. The released amount returns to the academy's
+  `Saldo disponible` in the active event.
+- **Removing money never blocks.** The status and the figures simply re-derive
+  from what remains, and the ladder snapshots are reconciled against it.
 - It is a different action from **removing an inscription from the roster** (see
-  "Inscriptions"): removing from the roster physically deletes the inscription;
-  undoing an allocation does not delete it, it only reverts a per-stage charge.
-  The released amount returns to the academy's `Saldo disponible` in the active
-  event.
-- It is a destructive action on money and asks for confirmation. It runs without
-  a reason and without leaving an audit entry (see "No auditing in finances"). If
-  the deposit of an inscription that also has a paid balance is undone, the order
-  is dropping `saldo` before `seña`.
-- **"Uniform row only undoes" rule:** on a **uniform** choreography (all its
-  active inscriptions in the same state), the per-row operation of an individual
-  inscription **only allows undoing**; "paying" still lives in the
-  whole-choreography flow, so the common case is not degraded into N individual
-  actions.
+  "Inscriptions"), which withdraws or deletes the row itself. It runs without a
+  reason and without leaving an audit entry (see "No auditing in finances").
+
+### Releasing the excess (`release-inscription-excess`)
+
+- One button that takes off **exactly** what the inscription holds above its
+  `Total` and nothing more, leaving the rest where it is. The excess is computed,
+  so there is nothing to pick and nothing to type.
+
+### No price control on the removal shapes
+
+Neither removal shape shows a price control, not even a locked one. Price is an
+allocation-time concern: on a row whose money is leaving the price is not the
+question, and taking the money off is precisely what opens the lock.
 
 ## The four figures
 
