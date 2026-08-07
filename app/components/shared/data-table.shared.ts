@@ -56,6 +56,14 @@ export type DataTableBaseProps<TData> = {
 export type ClientDataTableProps<TData> = DataTableBaseProps<TData> & {
   textFilterColumnId?: string;
   selectableRows?: boolean;
+  /**
+   * Row selection, lifted. Pass both to control it from outside — needed when
+   * the selection drives anything beyond the table, such as a header actions
+   * menu or figures that re-scope to what is selected. Omit both and the table
+   * keeps the selection to itself.
+   */
+  selectedRowIds?: string[];
+  onSelectedRowIdsChange?: (selectedRowIds: string[]) => void;
   hideSearch?: boolean;
   hidePagination?: boolean;
   initialSort?: {

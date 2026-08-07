@@ -15,7 +15,10 @@ import {
 } from "@/features/portal/choreographies/test-support/db";
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
 import { loader as academiesLoader } from "@/routes/administracion.academias";
-import { loader as academyFinancesLoader } from "@/routes/administracion.finanzas_.$academyId";
+import {
+  action as academyFinancesAction,
+  loader as academyFinancesLoader,
+} from "@/routes/administracion.finanzas_.$academyId";
 import { action as paymentCreateAction } from "@/routes/administracion.pagos_.nuevo";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
@@ -384,7 +387,9 @@ describe.sequential("administracion finanzas academia", () => {
     ]);
     expect(markup).toContain("Lista financiera de las coreografías");
     expect(markup).toContain("Buscar coreografía por nombre");
-    expect(markup).not.toContain('aria-label="Seleccionar todas las filas"');
+    // La lista se selecciona: los presets `Pagar seña` / `Pagar saldo` viven
+    // acá y actúan sobre las coreografías elegidas.
+    expect(markup).toContain('aria-label="Seleccionar todas las filas"');
     expect(markup).toContain("Nombre");
     expect(markup).toContain("Tipo de grupo");
     expect(markup).toMatch(
@@ -397,6 +402,75 @@ describe.sequential("administracion finanzas academia", () => {
     expect(markup).toContain("Aire");
     expect(markup).toContain("Tango");
     expect(markup).toContain("$ 3.000");
+  });
+
+  // Un diálogo sobre una lista no redirige: la vista sigue existiendo y sigue
+  // teniendo sentido, así que el resultado vuelve por `fetcher.data` y el
+  // loader revalidado reconstruye las cifras.
+  test("reports the preset in the action data instead of redirecting", async () => {
+    const event = await createSavedEvent({ requiredDepositPercentage: 30 });
+    const { academy, choreography } =
+      await createAcademyFinanceChoreographyFixture({
+        academyName: "Academia Preset Ruta",
+        choreographyName: "Preset Ruta",
+        email: "academia.preset.ruta@example.com",
+        event,
+      });
+    const [priceRow] = await db
+      .select({ id: prices.id })
+      .from(prices)
+      .where(eq(prices.eventId, event.id))
+      .limit(1);
+    const dancer = await createDancer(academy.academy.id, {
+      firstName: "Rosa",
+      lastName: "Preset",
+    });
+    const [inscription] = await db
+      .insert(choreographyDancers)
+      .values({
+        ageAtEventStart: 14,
+        choreographyId: choreography.id,
+        dancerId: dancer.id,
+      })
+      .returning();
+    await db.insert(paymentTable).values({
+      academyId: academy.academy.id,
+      amount: 50000,
+      eventId: event.id,
+      paymentDate: "2026-03-20",
+      paymentMethod: "transferencia",
+      paymentNumber: 1,
+    });
+
+    const { request: signedIn } = await createSignedInRequest({
+      email: "admin.preset.ruta@example.com",
+      role: "admin",
+      requestUrl: academyFinancesUrl(academy.academy.id, event.id),
+    });
+    const formData = new FormData();
+    formData.set("intent", "pay-deposit-preset");
+    formData.append("choreographyId", choreography.id);
+    formData.set("price-solo", priceRow.id);
+
+    const actionData = await academyFinancesAction(
+      academyFinancesRouteArgs(
+        new Request(academyFinancesUrl(academy.academy.id, event.id), {
+          method: "POST",
+          body: formData,
+          headers: { cookie: signedIn.headers.get("cookie") ?? "" },
+        }),
+        academy.academy.id,
+      ),
+    );
+
+    expect(actionData).toMatchObject({ status: "success" });
+
+    const allocations = await db
+      .select({ amount: paymentAllocations.amount })
+      .from(paymentAllocations)
+      .where(eq(paymentAllocations.inscriptionId, inscription.id));
+
+    expect(allocations.map((allocation) => allocation.amount)).toEqual([3000]);
   });
 
   test("registers event-scoped payment numbers, persists payments, and updates totals", async () => {
