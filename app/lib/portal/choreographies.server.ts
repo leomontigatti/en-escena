@@ -13,6 +13,7 @@ import {
   scheduleCapacities,
   submodalities,
 } from "@/db/schema";
+import { activeInscription } from "@/lib/choreographies/active-inscription";
 import { deriveChoreographyOperationalStatus } from "@/lib/choreographies/operational-status";
 import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
 import type { PortalChoreographyListItem } from "@/lib/portal/choreographies";
@@ -165,7 +166,14 @@ export async function findChoreographyForAcademyEvent(
       })
       .from(choreographyDancers)
       .innerJoin(dancers, eq(choreographyDancers.dancerId, dancers.id))
-      .where(eq(choreographyDancers.choreographyId, choreographyId))
+      // El roster del portal no es una de las cuatro excepciones: la academia
+      // ve acá quiénes están inscriptos, y un bailarín que quitó no lo está.
+      .where(
+        and(
+          eq(choreographyDancers.choreographyId, choreographyId),
+          activeInscription(),
+        ),
+      )
       .orderBy(asc(dancers.firstName), asc(dancers.lastName)),
     db
       .select({

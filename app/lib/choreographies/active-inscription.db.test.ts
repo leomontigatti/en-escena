@@ -1,8 +1,8 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { choreographyDancers } from "@/db/schema";
+import { choreographyDancers, dancers as dancersTable } from "@/db/schema";
 import { createChoreographyRecord } from "@/features/portal/choreographies/test-support/db";
 import {
   activeInscription,
@@ -14,6 +14,10 @@ import {
   createEventCatalog,
   createEventRecord,
 } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import {
+  buildDancerAnyEventParticipationSql,
+  buildDancerEventParticipationSql,
+} from "@/lib/participation/participation.server";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -88,5 +92,28 @@ describe("active inscription predicate", () => {
     expect(new Set(byPredicate.map((row) => row.dancerId))).toEqual(
       new Set([dancerA.id, dancerC.id]),
     );
+
+    // El `exists` de participación arma su SQL a mano y con su propio alias, así
+    // que es el consumidor real del gemelo: una retirada no participa.
+    const participation = await db
+      .select({
+        id: dancersTable.id,
+        participatesInEvent: buildDancerEventParticipationSql(event.id),
+        participatesInAnyEvent: buildDancerAnyEventParticipationSql(),
+      })
+      .from(dancersTable)
+      .where(inArray(dancersTable.id, [dancerA.id, dancerB.id, dancerC.id]));
+    const participationByDancer = new Map(
+      participation.map((row) => [row.id, row]),
+    );
+
+    expect(participationByDancer.get(dancerA.id)).toMatchObject({
+      participatesInAnyEvent: true,
+      participatesInEvent: true,
+    });
+    expect(participationByDancer.get(dancerB.id)).toMatchObject({
+      participatesInAnyEvent: false,
+      participatesInEvent: false,
+    });
   });
 });
