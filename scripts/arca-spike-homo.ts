@@ -903,7 +903,17 @@ async function main(): Promise<void> {
         resultado: ncExcede.resultado,
         carries10237: carries10237(ncExcede),
         observaciones: ncExcede.observaciones,
-        // The claim under test: non-excluding means a CAE is granted anyway.
+        // Three outcomes, not two. The issue framed 10237 as either excluding
+        // or non-excluding, but "never fired at all" is a third answer and a
+        // materially different one for #657: it means the web service does not
+        // enforce the ceiling, so nothing downstream may lean on ARCA to reject
+        // an over-credit. Collapsing it into "not non-excluding" would read as
+        // "excluding", which is the opposite of what happened.
+        verdict: !wasAccepted(ncExcede)
+          ? ("excluyente" as const)
+          : carries10237(ncExcede)
+            ? ("no-excluyente" as const)
+            : ("no-se-disparo" as const),
         nonExcluding: wasAccepted(ncExcede) && carries10237(ncExcede),
         excluding: ncExcede.resultado === "R",
       },
@@ -934,12 +944,25 @@ async function main(): Promise<void> {
       `      NC parcial con remanente:    ${ncParcial.resultado ?? "?"}, 10237: ${yesNo(carries10237(ncParcial))}\n` +
       `      NC que acumula sobre la FC:  ${ncAcumulado.resultado ?? "?"}, 10237: ${yesNo(carries10237(ncAcumulado))}\n` +
       `      NC que excede la FC sola:    ${ncExcede.resultado ?? "?"}, 10237: ${yesNo(carries10237(ncExcede))}\n` +
-      `      → no excluyente (CAE + Obs): ${yesNo(findings.validacion10237.exceedsFacturaAlone.nonExcluding)}`,
+      `      → veredicto: ${
+        {
+          excluyente: "EXCLUYENTE (rechazo)",
+          "no-excluyente": "NO excluyente (CAE + Observaciones)",
+          "no-se-disparo":
+            "NO SE DISPARÓ: CAE limpio, sin observaciones, ni siquiera " +
+            "excediendo la FC por sí sola",
+        }[findings.validacion10237.exceedsFacturaAlone.verdict]
+      }`,
   );
   console.log(
     `   2. 10197 sin comprobante asociado:\n` +
       `      NC: ${probeNcSinAsoc.resultado ?? "?"}, código 10197: ${yesNo(carries10197(probeNcSinAsoc))}\n` +
-      `      ND: ${probeNdSinAsoc.resultado ?? "?"}, código 10197: ${yesNo(carries10197(probeNdSinAsoc))}`,
+      `      ND: ${probeNdSinAsoc.resultado ?? "?"}, código 10197: ${yesNo(carries10197(probeNdSinAsoc))}\n` +
+      `      (dónde llega el código: ${
+        hasCode(probeNcSinAsoc.observaciones, ERR_CODE_10197)
+          ? "en Observaciones, NO en Errors"
+          : "en Errors"
+      })`,
   );
   console.log(
     `   3. El payload de la ND cierra: ${yesNo(findings.notaDebitoPayload.closed)}`,
