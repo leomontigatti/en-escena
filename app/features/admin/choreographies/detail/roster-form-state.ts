@@ -35,6 +35,14 @@ type CanSubmitInput = {
   resolvedSelectionKey: string;
   scheduleResolution: ScheduleResolution;
   selectionKey: string;
+  /**
+   * `getExperienceLevelSlotState().showRosterSelect`. La condición del gate es
+   * exactamente la del campo: exigir un nivel en el form del roster solo cuando
+   * ese form lo ofrece. Leer `experienceLevelRequired` a secas dejaba el
+   * guardado bloqueado sin campo con el que desbloquearlo cuando la retención
+   * del server conserva el nivel guardado.
+   */
+  showRosterExperienceLevelSelect: boolean;
   watchedDancerIds: string[];
   watchedExperienceLevelId: string;
   watchedScheduleCapacityId: string;
@@ -51,16 +59,11 @@ export function getPersistedRosterResolutionState(
   return {
     categoryId: choreography.categoryId,
     categoryName: choreography.categoryName,
-    experienceLevelOptions:
-      choreography.experienceLevelId && choreography.experienceLevelName
-        ? [
-            {
-              id: choreography.experienceLevelId,
-              name: choreography.experienceLevelName,
-            },
-          ]
-        : [],
-    experienceLevelRequired: choreography.experienceLevelId !== null,
+    // Que el nivel haga falta es una propiedad de la categoría, no del valor
+    // guardado: derivarlo de `experienceLevelId !== null` hacía que una
+    // coreografía a la que le falta el nivel afirmara que no lo necesita.
+    experienceLevelOptions: choreography.experienceLevelOptions,
+    experienceLevelRequired: choreography.requiresExperienceLevel,
     groupType: choreography.groupType,
   };
 }
@@ -187,6 +190,69 @@ export function shouldRenderRosterScheduleSelect({
   return hasResolvedRosterChange && scheduleResolution?.status === "multiple";
 }
 
+/**
+ * El slot "Nivel de experiencia" es uno solo, y la precedencia es el espejo
+ * exacto de la retención del server (`resolveSelectedExperienceLevelId`), que
+ * conserva el nivel guardado —e ignora el que mande el form— cuando la
+ * categoría se mantuvo y el valor sigue permitido.
+ *
+ * Mientras esa retención aplique, el nivel no viaja con el roster: el slot es
+ * de la reasignación autónoma, que escribe contra la categoría ya persistida.
+ * Cuando no aplica, el guardado del roster necesita un nivel nuevo —la
+ * categoría todavía no está persistida, así que elegirlo por separado lo
+ * escribiría contra una que no existe— y el campo vuelve al form del roster,
+ * requerido.
+ *
+ * Atarlas así es lo que evita que el mismo campo honre la elección en un estado
+ * y la descarte en silencio en el otro: todo select renderizado escribe.
+ *
+ * Queda de solo lectura cuando la categoría resuelta no declara niveles, porque
+ * `update-roster` lo va a nulear al guardar y ofrecer un select sobre un valor
+ * que el guardado borra invita a elegir algo que se descarta.
+ */
+export function getExperienceLevelSlotState({
+  choreography,
+  derivedResolution,
+  hasResolvedRosterChange,
+}: {
+  choreography: ChoreographyDetail;
+  derivedResolution: RosterResolutionState;
+  hasResolvedRosterChange: boolean;
+}): {
+  experienceLevelId: string;
+  requiresExperienceLevel: boolean;
+  showRosterSelect: boolean;
+} {
+  if (!hasResolvedRosterChange) {
+    return {
+      experienceLevelId: choreography.experienceLevelId ?? "",
+      requiresExperienceLevel: choreography.requiresExperienceLevel,
+      showRosterSelect: false,
+    };
+  }
+
+  const keepsStoredLevel =
+    derivedResolution.categoryId === choreography.categoryId &&
+    choreography.experienceLevelId !== null &&
+    derivedResolution.experienceLevelOptions.some(
+      (option) => option.id === choreography.experienceLevelId,
+    );
+
+  if (keepsStoredLevel) {
+    return {
+      experienceLevelId: choreography.experienceLevelId ?? "",
+      requiresExperienceLevel: derivedResolution.experienceLevelRequired,
+      showRosterSelect: false,
+    };
+  }
+
+  return {
+    experienceLevelId: "",
+    requiresExperienceLevel: derivedResolution.experienceLevelRequired,
+    showRosterSelect: derivedResolution.experienceLevelRequired,
+  };
+}
+
 export function canSubmitChoreographyEdit(input: CanSubmitInput) {
   if (
     !input.hasNameChanged &&
@@ -224,8 +290,11 @@ function canSubmitRosterChange(input: CanSubmitInput) {
   const hasSchedule =
     input.scheduleResolution?.status !== "multiple" ||
     input.watchedScheduleCapacityId.length > 0;
+  // Cuando el slot quedó en la reasignación autónoma el nivel no viaja con el
+  // roster: el server conserva el guardado y el form no tiene dónde elegirlo,
+  // así que exigirlo acá bloquearía el guardado sin salida.
   const hasExperienceLevel =
-    !input.derivedResolution.experienceLevelRequired ||
+    !input.showRosterExperienceLevelSelect ||
     input.watchedExperienceLevelId.length > 0;
 
   return hasSchedule && hasExperienceLevel;

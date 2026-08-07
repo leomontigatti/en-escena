@@ -24,7 +24,6 @@ import {
 import { choreographyHasComprobantes } from "@/lib/comprobantes/comprobantes.server";
 import { updateAdministrativeChoreographyRoster } from "@/lib/choreographies/choreography-roster-admin.server";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
-import { validateSubmodalitySelection } from "@/lib/choreographies/registration-resolution.server";
 import {
   listDancerOptionsForChoreography,
   listProfessorOptionsForChoreography,
@@ -48,17 +47,28 @@ import {
 } from "@/lib/storage/choreography-music.server";
 
 import {
+  resolveChoreographyExperienceLevelOptions,
+  updateChoreographyExperienceLevel,
+  type ChoreographyExperienceLevelOption,
+} from "./experience-level.server";
+import {
+  listSubmodalitiesForModality,
+  updateChoreographySubmodality,
+} from "./submodality.server";
+import {
   resolveChoreographyScheduleCapacityOptions,
   resolveScheduleCapacityBlockers,
   updateChoreographyScheduleCapacity,
   type ChoreographyScheduleCapacityReassignment,
 } from "./schedule-capacity.server";
 import {
+  canReassignExperienceLevel,
   canReassignScheduleCapacity,
   choreographyFieldNames,
   deleteChoreographyIntent,
   renameChoreographyIntent,
   resolveChoreographyRosterIntent,
+  updateChoreographyExperienceLevelIntent,
   updateChoreographyRosterIntent,
   updateChoreographyScheduleCapacityIntent,
   updateChoreographySubmodalityIntent,
@@ -103,6 +113,9 @@ export type ChoreographyDetailLoaderData = {
     blockers: ChoreographyDeleteBlocker[];
     canDelete: boolean;
   };
+  experienceLevel: {
+    canReassign: boolean;
+  };
   scheduleCapacity: ChoreographyScheduleCapacityReassignment;
   selectedEventId: string | null;
   submodalityOptions: Array<{ id: string; name: string }>;
@@ -122,6 +135,11 @@ export type ChoreographyDetail = {
   }>;
   experienceLevelId: string | null;
   experienceLevelName: string | null;
+  /**
+   * Los niveles que admite la categoría resuelta, más el asignado hoy. Es la
+   * lista que el select ofrece y la que el intent acepta.
+   */
+  experienceLevelOptions: ChoreographyExperienceLevelOption[];
   groupType: ChoreographyGroupType;
   hasPresentation: boolean;
   id: string;
@@ -137,6 +155,12 @@ export type ChoreographyDetail = {
     id: string;
     lastName: string;
   }>;
+  /**
+   * Que la categoría resuelta declare niveles. Distinto de tener opciones: una
+   * categoría que dejó de admitir niveles sigue arrastrando el nivel guardado
+   * como opción visible, pero ya no lo requiere.
+   */
+  requiresExperienceLevel: boolean;
   scheduleCapacityId: string;
   scheduleId: string;
   scheduleLabel: string;
@@ -211,6 +235,16 @@ export async function loadChoreographyDetailRouteData(input: {
     deletion: {
       blockers,
       canDelete: blockers.length === 0,
+    },
+    experienceLevel: {
+      // Sin bloqueos que enumerar: el nivel no es clave de precio, así que la
+      // única condición de fondo es que la categoría lo declare. El motivo por
+      // el que la presentación lo cierra va en la alerta que ya la enumera.
+      canReassign: canReassignExperienceLevel({
+        canEdit,
+        hasPresentation: choreography.hasPresentation,
+        requiresExperienceLevel: choreography.requiresExperienceLevel,
+      }),
     },
     scheduleCapacity: {
       // Los motivos van a la vista aunque el campo ya esté cerrado por otra
@@ -334,6 +368,13 @@ export async function handleChoreographyDetailAction(input: {
     });
   }
 
+  if (intent === updateChoreographyExperienceLevelIntent) {
+    return await updateChoreographyExperienceLevel({
+      choreography,
+      formData,
+    });
+  }
+
   throw new Response(unsupportedActionMessage, { status: 400 });
 }
 
@@ -401,6 +442,10 @@ async function findChoreographyDetail(input: {
     }),
   ]);
 
+  const requiresExperienceLevel =
+    row.categoryExperienceLevels !== null &&
+    row.categoryExperienceLevels.length > 0;
+
   return {
     academyId: row.academyId,
     academyName: row.academyName,
@@ -409,6 +454,10 @@ async function findChoreographyDetail(input: {
     dancers: dancerRows,
     experienceLevelId: row.experienceLevelId,
     experienceLevelName: formatExperienceLevelName(row.experienceLevelId),
+    experienceLevelOptions: resolveChoreographyExperienceLevelOptions({
+      categoryExperienceLevels: row.categoryExperienceLevels,
+      experienceLevelId: row.experienceLevelId,
+    }),
     groupType: row.groupType,
     hasPresentation: row.hasPresentation,
     id: row.id,
@@ -422,11 +471,10 @@ async function findChoreographyDetail(input: {
       experienceLevelId: row.experienceLevelId,
       hasMusic: row.musicStorageKey !== null,
       hasProfessors: professorRows.length > 0,
-      requiresExperienceLevel:
-        row.categoryExperienceLevels !== null &&
-        row.categoryExperienceLevels.length > 0,
+      requiresExperienceLevel,
     }),
     professors: professorRows,
+    requiresExperienceLevel,
     scheduleCapacityId:
       row.scheduleCapacityId ??
       getGlobalScheduleCapacityOptionId(row.scheduleId),
@@ -439,17 +487,6 @@ async function findChoreographyDetail(input: {
     submodalityId: row.submodalityId,
     submodalityName: row.submodalityName,
   };
-}
-
-async function listSubmodalitiesForModality(modalityId: string) {
-  return await db
-    .select({
-      id: submodalities.id,
-      name: submodalities.name,
-    })
-    .from(submodalities)
-    .where(eq(submodalities.modalityId, modalityId))
-    .orderBy(asc(submodalities.name));
 }
 
 async function listChoreographyDancers(choreographyId: string) {
@@ -509,47 +546,6 @@ async function renameChoreography(input: {
       updatedAt: new Date(),
     })
     .where(eq(choreographies.id, input.choreographyId));
-
-  return choreographySavedSuccess();
-}
-
-async function updateChoreographySubmodality(input: {
-  choreography: ChoreographyDetail;
-  formData: FormData;
-}): Promise<ChoreographyFieldUpdateErrorData | ChoreographySuccessData> {
-  // Una coreografía con presentación mantiene la submodalidad en solo lectura,
-  // igual que el roster: el intent la rechaza aunque el form la mande.
-  if (input.choreography.hasPresentation) {
-    return {
-      message:
-        "No se puede cambiar la submodalidad: la coreografía ya tiene presentación.",
-      status: "error",
-    };
-  }
-
-  const availableSubmodalities = await listSubmodalitiesForModality(
-    input.choreography.modalityId,
-  );
-  const submodalityId = readOptionalFormString(input.formData, "submodalityId");
-  const validation = validateSubmodalitySelection({
-    availableSubmodalities,
-    submodalityId,
-  });
-
-  if (!validation.ok) {
-    return {
-      message: validation.failure.error,
-      status: "error",
-    };
-  }
-
-  await db
-    .update(choreographies)
-    .set({
-      submodalityId,
-      updatedAt: new Date(),
-    })
-    .where(eq(choreographies.id, input.choreography.id));
 
   return choreographySavedSuccess();
 }

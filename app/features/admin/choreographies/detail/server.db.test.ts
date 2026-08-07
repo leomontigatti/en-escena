@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import {
+  categories,
   choreographies,
   choreographyDancers,
   choreographyProfessors,
@@ -16,9 +17,11 @@ import {
   loadChoreographyDetailRouteData,
 } from "@/features/admin/choreographies/detail/server";
 import {
+  assignedExperienceLevelFieldName,
   assignedScheduleCapacityFieldName,
   deleteChoreographyIntent,
   renameChoreographyIntent,
+  updateChoreographyExperienceLevelIntent,
   updateChoreographyScheduleCapacityIntent,
   updateChoreographySubmodalityIntent,
 } from "@/features/admin/choreographies/detail/shared";
@@ -37,6 +40,7 @@ import {
   expectThrownResponse,
 } from "@/lib/admin/test-support/db";
 import { createScheduleForModalityFixture } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import type { ExperienceLevel } from "@/lib/events/experience-levels";
 import {
   recordComprobante,
   type RecordComprobanteInput,
@@ -1071,6 +1075,226 @@ describe("administrative choreography detail server", () => {
     });
   });
 
+  test("reassigns the nivel de experiencia without touching the roster and bumps updatedAt", async () => {
+    const staleUpdatedAt = date("2026-01-01T12:00:00Z");
+    const scenario = await createExperienceLevelScenario({
+      academyName: "Academia Nivel",
+      slug: "nivel",
+      updatedAt: staleUpdatedAt,
+    });
+
+    const response = await submitDetailAction({
+      body: experienceLevelFormData("profesional"),
+      choreographyId: scenario.choreography.id,
+      email: "admin.coreografias.nivel@example.com",
+      role: "admin",
+    });
+
+    expect(response).not.toBeInstanceOf(Response);
+    expect(response).toMatchObject({
+      message: "Coreografía guardada.",
+      status: "success",
+    });
+    await expect(scenario.readExperienceLevel()).resolves.toBe("profesional");
+
+    const stored = await db.query.choreographies.findFirst({
+      columns: { categoryId: true, updatedAt: true },
+      where: eq(choreographies.id, scenario.choreography.id),
+    });
+    expect(stored?.categoryId).toBe(scenario.category.id);
+    expect(stored?.updatedAt.getTime()).toBeGreaterThan(
+      staleUpdatedAt.getTime(),
+    );
+  });
+
+  test("resolves a missing nivel de experiencia that left the choreography incomplete", async () => {
+    const scenario = await createExperienceLevelScenario({
+      academyName: "Academia Nivel Faltante",
+      experienceLevelId: null,
+      slug: "nivel.faltante",
+    });
+
+    const before = await loadDetail({
+      choreographyId: scenario.choreography.id,
+      email: "admin.coreografias.nivel.faltante.antes@example.com",
+      role: "admin",
+    });
+    expect(before.choreography.operationalStatus.pendingItems).toContain(
+      "experienceLevel",
+    );
+    expect(before.experienceLevel.canReassign).toBe(true);
+
+    await submitDetailAction({
+      body: experienceLevelFormData("amateur"),
+      choreographyId: scenario.choreography.id,
+      email: "admin.coreografias.nivel.faltante@example.com",
+      role: "admin",
+    });
+
+    const after = await loadDetail({
+      choreographyId: scenario.choreography.id,
+      email: "admin.coreografias.nivel.faltante.despues@example.com",
+      role: "admin",
+    });
+    expect(after.choreography.operationalStatus.pendingItems).not.toContain(
+      "experienceLevel",
+    );
+  });
+
+  test("rejects a nivel de experiencia the resolved category does not admit", async () => {
+    const scenario = await createExperienceLevelScenario({
+      academyName: "Academia Nivel Ajeno",
+      slug: "nivel.ajeno",
+    });
+
+    const response = await submitDetailAction({
+      body: experienceLevelFormData("elite"),
+      choreographyId: scenario.choreography.id,
+      email: "admin.coreografias.nivel.ajeno@example.com",
+      role: "admin",
+    });
+
+    expect(response).toMatchObject({
+      message: "Elegí un nivel de experiencia válido para esta coreografía.",
+      status: "error",
+    });
+    await expect(scenario.readExperienceLevel()).resolves.toBe("amateur");
+  });
+
+  test("rejects a blank nivel de experiencia when the category requires one", async () => {
+    const scenario = await createExperienceLevelScenario({
+      academyName: "Academia Nivel Vacío",
+      slug: "nivel.vacio",
+    });
+
+    const response = await submitDetailAction({
+      body: experienceLevelFormData(""),
+      choreographyId: scenario.choreography.id,
+      email: "admin.coreografias.nivel.vacio@example.com",
+      role: "admin",
+    });
+
+    expect(response).toMatchObject({
+      message: "Elegí un nivel de experiencia válido para esta coreografía.",
+      status: "error",
+    });
+    await expect(scenario.readExperienceLevel()).resolves.toBe("amateur");
+  });
+
+  test("blocks the reassignment when the choreography has a presentation", async () => {
+    const scenario = await createExperienceLevelScenario({
+      academyName: "Academia Nivel Presentación",
+      hasPresentation: true,
+      slug: "nivel.presentacion",
+    });
+
+    const response = await submitDetailAction({
+      body: experienceLevelFormData("profesional"),
+      choreographyId: scenario.choreography.id,
+      email: "admin.coreografias.nivel.presentacion@example.com",
+      role: "admin",
+    });
+
+    expect(response).toMatchObject({
+      message:
+        "No se puede cambiar el nivel de experiencia: la coreografía ya tiene presentación.",
+      status: "error",
+    });
+    await expect(scenario.readExperienceLevel()).resolves.toBe("amateur");
+  });
+
+  // La misma condición que cierra el campo en el loader: un POST armado a mano
+  // no puede escribir una columna que el resto del dominio da por nula.
+  test("rejects a reassignment the read-only field never offers, with a category without levels", async () => {
+    const scenario = await createExperienceLevelScenario({
+      academyName: "Academia Nivel Sin Niveles",
+      categoryExperienceLevels: [],
+      experienceLevelId: null,
+      slug: "nivel.sinniveles",
+    });
+
+    const detail = await loadDetail({
+      choreographyId: scenario.choreography.id,
+      email: "admin.coreografias.nivel.sinniveles.loader@example.com",
+      role: "admin",
+    });
+    expect(detail.experienceLevel.canReassign).toBe(false);
+
+    const response = await submitDetailAction({
+      body: experienceLevelFormData("amateur"),
+      choreographyId: scenario.choreography.id,
+      email: "admin.coreografias.nivel.sinniveles@example.com",
+      role: "admin",
+    });
+
+    expect(response).toMatchObject({
+      message:
+        "No se puede cambiar el nivel de experiencia: la categoría de esta coreografía no lo requiere.",
+      status: "error",
+    });
+    await expect(scenario.readExperienceLevel()).resolves.toBeNull();
+  });
+
+  test("keeps the field open with a single admitted level", async () => {
+    const scenario = await createExperienceLevelScenario({
+      academyName: "Academia Nivel Único",
+      categoryExperienceLevels: ["amateur"],
+      experienceLevelId: null,
+      slug: "nivel.unico",
+    });
+
+    const detail = await loadDetail({
+      choreographyId: scenario.choreography.id,
+      email: "admin.coreografias.nivel.unico@example.com",
+      role: "admin",
+    });
+
+    expect(detail.experienceLevel.canReassign).toBe(true);
+    expect(detail.choreography.experienceLevelOptions).toEqual([
+      { id: "amateur", name: "Amateur" },
+    ]);
+  });
+
+  // Si la categoría dejó de admitir el nivel guardado, sigue a la vista en vez
+  // de desaparecer del select sin explicación.
+  test("keeps a drifted assigned level in the options", async () => {
+    const scenario = await createExperienceLevelScenario({
+      academyName: "Academia Nivel Derivado",
+      categoryExperienceLevels: ["profesional"],
+      experienceLevelId: "amateur",
+      slug: "nivel.derivado",
+    });
+
+    const detail = await loadDetail({
+      choreographyId: scenario.choreography.id,
+      email: "admin.coreografias.nivel.derivado@example.com",
+      role: "admin",
+    });
+
+    expect(detail.choreography.experienceLevelOptions).toEqual([
+      { id: "profesional", name: "Profesional" },
+      { id: "amateur", name: "Amateur" },
+    ]);
+  });
+
+  test("blocks auditors from reassigning the nivel de experiencia", async () => {
+    const scenario = await createExperienceLevelScenario({
+      academyName: "Academia Nivel Auditor",
+      slug: "nivel.auditor",
+    });
+
+    await expectThrownResponse(
+      submitDetailAction({
+        body: experienceLevelFormData("profesional"),
+        choreographyId: scenario.choreography.id,
+        email: "auditor.coreografias.nivel@example.com",
+        role: "auditor",
+      }),
+      403,
+    );
+    await expect(scenario.readExperienceLevel()).resolves.toBe("amateur");
+  });
+
   test("blocks auditors from updating the submodality", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Submodalidad Auditor",
@@ -1114,6 +1338,96 @@ describe("administrative choreography detail server", () => {
     ).resolves.toEqual({ submodalityId: catalog.submodality.id });
   });
 });
+
+function experienceLevelFormData(experienceLevelId: string) {
+  const formData = new FormData();
+  formData.set("intent", updateChoreographyExperienceLevelIntent);
+  formData.set(assignedExperienceLevelFieldName, experienceLevelId);
+  return formData;
+}
+
+/**
+ * El catálogo compartido trae una categoría con un solo nivel; acá hace falta
+ * una que admita más de uno para poder mover el valor de verdad.
+ */
+async function createCategoryWithLevels(input: {
+  eventId: string;
+  experienceLevels: ExperienceLevel[];
+  name: string;
+}) {
+  const [category] = await db
+    .insert(categories)
+    .values({
+      eventId: input.eventId,
+      name: input.name,
+      minAge: 13,
+      maxAge: 17,
+      groupTypes: ["solo"],
+      groupTypeKey: "solo",
+      experienceLevels: input.experienceLevels,
+      experienceLevelKey: input.experienceLevels.join("|"),
+    })
+    .returning();
+
+  return category;
+}
+
+async function createExperienceLevelScenario(input: {
+  academyName: string;
+  categoryExperienceLevels?: ExperienceLevel[];
+  experienceLevelId?: ExperienceLevel | null;
+  hasPresentation?: boolean;
+  slug: string;
+  updatedAt?: Date;
+}) {
+  const owner = await createAcademySession({
+    academyName: input.academyName,
+    email: `admin.coreografias.${input.slug}.academia@example.com`,
+  });
+  const event = await createEventRecord({
+    active: true,
+    name: "Regional 2026",
+  });
+  const catalog = await createEventCatalog(event.id);
+  const category = await createCategoryWithLevels({
+    eventId: event.id,
+    experienceLevels: input.categoryExperienceLevels ?? [
+      "amateur",
+      "profesional",
+    ],
+    name: `Niveles ${input.slug}`,
+  });
+  const choreography = await createChoreographyRecord({
+    academyId: owner.academyId,
+    categoryId: category.id,
+    eventId: event.id,
+    experienceLevelId:
+      input.experienceLevelId === undefined
+        ? "amateur"
+        : input.experienceLevelId,
+    hasPresentation: input.hasPresentation ?? false,
+    modalityId: catalog.modality.id,
+    name: `Nivel ${input.slug}`,
+    scheduleCapacityId: catalog.scheduleCapacity.id,
+    submodalityId: catalog.submodality.id,
+    updatedAt: input.updatedAt,
+  });
+
+  return {
+    catalog,
+    category,
+    choreography,
+    event,
+    owner,
+    readExperienceLevel: async () =>
+      (
+        await db.query.choreographies.findFirst({
+          columns: { experienceLevelId: true },
+          where: eq(choreographies.id, choreography.id),
+        })
+      )?.experienceLevelId ?? null,
+  };
+}
 
 async function createModalityRecord(input: { eventId: string; name: string }) {
   const [modality] = await db

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import {
+  canReassignExperienceLevel,
   canReassignScheduleCapacity,
   renameChoreographyIntent,
   resolveChoreographyRosterIntent,
@@ -117,6 +118,42 @@ describe("canReassignScheduleCapacity", () => {
       canEdit: true,
       hasMultipleCompatibleOptions: true,
       hasPresentation: false,
+      ...overrides,
+    };
+  }
+});
+
+describe("canReassignExperienceLevel", () => {
+  test("opens the nivel de experiencia for an admin whose category declares levels", () => {
+    expect(canReassignExperienceLevel(buildInput())).toBe(true);
+  });
+
+  test.each([
+    ["the user is not an admin", { canEdit: false }],
+    ["the choreography has a presentation", { hasPresentation: true }],
+    [
+      "the resolved category declares no levels",
+      { requiresExperienceLevel: false },
+    ],
+  ])("keeps it read-only when %s", (_cause, overrides) => {
+    expect(canReassignExperienceLevel(buildInput(overrides))).toBe(false);
+  });
+
+  // A diferencia del cupo, una sola opción no cierra el campo: es el único modo
+  // de resolver un nivel faltante que deja la coreografía incompleta.
+  test("stays open with a single available level", () => {
+    expect(
+      canReassignExperienceLevel(buildInput({ requiresExperienceLevel: true })),
+    ).toBe(true);
+  });
+
+  function buildInput(
+    overrides: Partial<Parameters<typeof canReassignExperienceLevel>[0]> = {},
+  ) {
+    return {
+      canEdit: true,
+      hasPresentation: false,
+      requiresExperienceLevel: true,
       ...overrides,
     };
   }

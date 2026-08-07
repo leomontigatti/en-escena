@@ -101,7 +101,7 @@ Rules for roster links, choreography registration, locks and Bases del evento.
 
 ## Choreography Locks
 
-- `Datos bloqueados de coreografía` include name, modalidad, submodalidad, tipo de grupo, category and level. Cupo de cronograma is not academy-editable either, but it is not fully blocked: the administrator can reassign it under the conditions below.
+- `Datos bloqueados de coreografía` include name, modalidad, submodalidad, tipo de grupo and category. Cupo de cronograma and nivel de experiencia are not academy-editable either, but they are not fully blocked: the administrator can reassign each of them under the conditions below.
 - For unpaid choreographies without presentation, expected correction path is delete and register again.
 - Administrative renaming is not a structural correction and is allowed even when structural data is otherwise blocked.
 - Admin structural correction is exceptional, instance-level, and is allowed only without presentation.
@@ -112,7 +112,9 @@ Rules for roster links, choreography registration, locks and Bases del evento.
 - Academy cannot change choreography dancers after registration. The roster is chosen once, at creation, and from then on only the administrator can change it. This is a permanent, role-based restriction, not an inscription-window rule (see `docs/domain/finances.md` → "Choreography editing and deletion").
 - Even the administrator cannot change the roster while the choreography has a presentation (hard lock, like the deletion lock).
 - A choreography roster change must keep at least one dancer before confirmation.
-- Level clears when recalculation changes category; it becomes editable when new category requires level.
+- Level clears when recalculation changes category. It is editable whenever the resolved category declares levels, not only after a recalculation: with no pending roster change the administrator reassigns it standalone, and a single available level still leaves the field open, because that is the only way to resolve a missing level that leaves the choreography incomplete.
+- Reassigning the nivel de experiencia of a registered choreography is a standalone administrative correction in the instance view, like the cupo de cronograma. It carries no financial guard: the level is not a price key, so changing it cannot move an amount.
+- A field with no value reads `No aplica` when the category declares no levels and `Sin asignar` when it declares them and the level is missing. The second is the state that makes the choreography incomplete.
 - A roster change that recalculates to a category requiring level must choose the new level before confirmation.
 - Cupo de cronograma stays when roster change does not change group type; it clears when group type changes.
 - When roster change clears cupo de cronograma, confirmation follows registration schedule semantics: no compatible option blocks confirmation, one compatible option is assigned automatically, and multiple compatible options require choosing one.

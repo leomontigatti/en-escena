@@ -145,9 +145,17 @@ export function ChoreographyMusicEditorForm({
               options={choreographyGroupTypeOptions}
               value={choreography.groupType}
             />
+            {/* Dos vacíos distintos: la categoría no pide nivel, o lo pide y
+                falta. El segundo es lo que deja la coreografía Incompleta, así
+                que no puede leerse igual que el primero. */}
             <ReadOnlyField
               label="Nivel de experiencia"
-              value={choreography.experienceLevelName ?? "Sin asignar"}
+              value={
+                choreography.experienceLevelName ??
+                (choreography.requiresExperienceLevel
+                  ? "Sin asignar"
+                  : "No aplica")
+              }
             />
             <ReadOnlyField
               label="Cronograma"

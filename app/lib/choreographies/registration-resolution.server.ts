@@ -3,6 +3,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { dancers, events } from "@/db/schema";
 import { BUSINESS_TIME_ZONE } from "@/lib/shared/business-time-zone";
+import { invalidExperienceLevelMessage } from "@/lib/choreographies/choreography-messages";
 import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
 import { withScheduleCapacityOccupancy } from "@/lib/choreographies/schedule-capacity-options.server";
 import {
@@ -148,6 +149,8 @@ export type ChoreographyRegistrationOperationFailureCode =
   | "invalid-modality"
   | "submodality-required"
   | "invalid-submodality"
+  | "experience-level-required"
+  | "invalid-experience-level"
   | "invalid-dancers";
 
 export type OperationFailure = {
@@ -423,6 +426,55 @@ export function validateSubmodalitySelection(input: {
       failure: failure(
         "invalid-submodality",
         "Elegí una submodalidad válida para la modalidad seleccionada.",
+      ),
+    };
+  }
+
+  return { ok: true };
+}
+
+/**
+ * Gemelo de `validateSubmodalitySelection` para el nivel de experiencia: recibe
+ * los niveles que la categoría resuelta permite y el valor enviado, sin
+ * depender de una `ChoreographyRegistrationOperationResolution` entera. Es la
+ * pieza que comparten el alta desde el portal, el guardado del roster y la
+ * reasignación autónoma del detalle.
+ *
+ * Los niveles no son una tabla: son un enum global (`experienceLevelValues`) y
+ * la categoría declara cuáles admite, así que "válido" es pertenecer a esa
+ * lista y nada más.
+ */
+export function validateExperienceLevelSelection(input: {
+  availableExperienceLevels: Array<{ id: string }>;
+  experienceLevelId: string | null;
+}): { ok: true } | { ok: false; failure: OperationFailure } {
+  if (
+    input.availableExperienceLevels.length > 0 &&
+    input.experienceLevelId === null
+  ) {
+    return {
+      ok: false,
+      failure: failure(
+        "experience-level-required",
+        invalidExperienceLevelMessage,
+      ),
+    };
+  }
+
+  if (input.experienceLevelId === null) {
+    return { ok: true };
+  }
+
+  const hasMatchingExperienceLevel = input.availableExperienceLevels.some(
+    (record) => record.id === input.experienceLevelId,
+  );
+
+  if (!hasMatchingExperienceLevel) {
+    return {
+      ok: false,
+      failure: failure(
+        "invalid-experience-level",
+        invalidExperienceLevelMessage,
       ),
     };
   }

@@ -11,14 +11,16 @@ import {
   assertPortalChoreographyFound,
   portalOwnedChoreographyWhere,
 } from "@/lib/choreographies/choreography-access.server";
-import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
+import {
+  choreographyNotFoundMessage,
+  invalidExperienceLevelMessage,
+} from "@/lib/choreographies/choreography-messages";
 import {
   compatibleScheduleSelectionRequiredMessage,
   getDancerEditingEligibility,
   getGlobalScheduleCapacityOptionId,
   getResolvedChoreographyCategory,
   invalidDancerSelectionMessage,
-  invalidExperienceLevelMessage,
   type ChoreographyDancerScheduleResolution,
   type ResolveChoreographyDancersResult,
   type ResolvedChoreographyDancerUpdateContext,
