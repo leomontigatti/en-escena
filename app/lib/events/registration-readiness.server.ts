@@ -7,6 +7,7 @@ import type {
   EventRegistrationMissingItem,
   EventRegistrationReadiness,
 } from "@/lib/events/registration-readiness";
+import { todayDateOnly } from "@/lib/shared/date-only";
 
 type GroupType = "solo" | "duo" | "trio" | "grupal";
 
@@ -68,11 +69,12 @@ export async function getEventRegistrationReadiness(
       registrationReady: true,
       registrationReadinessMissingItems: true,
       registrationReadinessDirty: true,
+      registrationReadinessCalculatedAt: true,
     },
     where: eq(events.id, eventId),
   });
 
-  if (cachedReadiness && !cachedReadiness.registrationReadinessDirty) {
+  if (cachedReadiness && isCachedReadinessUsable(cachedReadiness)) {
     return {
       eventId,
       isReady: cachedReadiness.registrationReady,
@@ -103,6 +105,7 @@ export async function getEventRegistrationReadinessByEventId(
       registrationReady: true,
       registrationReadinessMissingItems: true,
       registrationReadinessDirty: true,
+      registrationReadinessCalculatedAt: true,
     },
     where: inArray(events.id, uniqueEventIds),
   });
@@ -115,7 +118,7 @@ export async function getEventRegistrationReadinessByEventId(
   for (const eventId of uniqueEventIds) {
     const cachedReadiness = cachedReadinessByEventId.get(eventId);
 
-    if (cachedReadiness && !cachedReadiness.registrationReadinessDirty) {
+    if (cachedReadiness && isCachedReadinessUsable(cachedReadiness)) {
       readinessByEventId.set(eventId, {
         eventId,
         isReady: cachedReadiness.registrationReady,
@@ -138,6 +141,25 @@ export async function getEventRegistrationReadinessByEventId(
   );
 
   return readinessByEventId;
+}
+
+// Readiness depends on the current date (a precio expires by the mere passage
+// of time, with no write to dirty the cache), so an entry calculated on an
+// earlier day is stale even when nothing was written since.
+function isCachedReadinessUsable(cachedReadiness: {
+  registrationReadinessDirty: boolean;
+  registrationReadinessCalculatedAt: Date | null;
+}) {
+  if (cachedReadiness.registrationReadinessDirty) {
+    return false;
+  }
+
+  const calculatedAt = cachedReadiness.registrationReadinessCalculatedAt;
+
+  return (
+    calculatedAt !== null &&
+    calculatedAt.toISOString().slice(0, 10) === todayDateOnly()
+  );
 }
 
 export async function markEventRegistrationReadinessDirty(eventId: string) {
@@ -172,7 +194,9 @@ async function saveEventRegistrationReadiness(
 export async function getEventRegistrationReadinessForBases(
   eventId: string,
   eventBases: EventBases,
+  options: { referenceDate?: string } = {},
 ): Promise<EventRegistrationReadiness> {
+  const referenceDate = options.referenceDate ?? todayDateOnly();
   const missingItems = collectBaseMissingItems(eventBases);
 
   const modalitiesById = new Map(
@@ -221,13 +245,16 @@ export async function getEventRegistrationReadinessForBases(
           const priceResolution = resolvePriceFromBases(eventBases, {
             groupType,
             scheduleId: option.schedule.id,
+            referenceDate,
           });
 
           if (!priceResolution.ok) {
             missingItems.push({
               code: "price-coverage",
               label: "Precios aplicables",
-              detail: `Falta un precio aplicable para ${registrationPath} en el cronograma ${option.schedule.name}.`,
+              detail: priceResolution.expiredDeadline
+                ? `El precio para ${registrationPath} en el cronograma ${option.schedule.name} venció el ${formatDeadline(priceResolution.expiredDeadline)} y no hay otro vigente.`
+                : `Falta un precio aplicable para ${registrationPath} en el cronograma ${option.schedule.name}.`,
             });
           }
         }
@@ -362,42 +389,79 @@ function resolveScheduleOptionsFromBases(
 
 function resolvePriceFromBases(
   eventBases: EventBases,
-  input: { groupType: string; scheduleId: string | null },
+  input: {
+    groupType: string;
+    scheduleId: string | null;
+    referenceDate: string;
+  },
 ) {
   if (!isGroupType(input.groupType)) {
-    return { ok: false as const };
+    return { ok: false as const, expiredDeadline: null };
   }
 
-  if (input.scheduleId) {
-    const specificPrice = selectApplicablePrice(
-      eventBases.prices.filter(
+  const scheduleCandidates = input.scheduleId
+    ? eventBases.prices.filter(
         (price) =>
           price.groupType === input.groupType &&
           price.scheduleId === input.scheduleId,
-      ),
-    );
+      )
+    : [];
+  const specificPrice = selectApplicablePrice(
+    scheduleCandidates,
+    input.referenceDate,
+  );
 
-    if (specificPrice) {
-      return { ok: true as const, price: specificPrice };
-    }
+  if (specificPrice) {
+    return { ok: true as const, price: specificPrice };
   }
 
+  const generalCandidates = eventBases.prices.filter(
+    (price) => price.groupType === input.groupType && price.scheduleId === null,
+  );
   const generalPrice = selectApplicablePrice(
-    eventBases.prices.filter(
-      (price) =>
-        price.groupType === input.groupType && price.scheduleId === null,
-    ),
+    generalCandidates,
+    input.referenceDate,
   );
 
   if (generalPrice) {
     return { ok: true as const, price: generalPrice };
   }
 
-  return { ok: false as const };
+  return {
+    ok: false as const,
+    expiredDeadline: findLatestDeadline([
+      ...scheduleCandidates,
+      ...generalCandidates,
+    ]),
+  };
 }
 
-function selectApplicablePrice(candidates: EventBases["prices"]) {
-  return [...candidates].sort(compareApplicablePrices)[0] ?? null;
+// Same rule as the runtime resolver (`selectApplicablePriceFromCandidates`):
+// a row whose paymentDeadline already passed cannot be charged, and there is
+// no fallback to an expired row.
+function selectApplicablePrice(
+  candidates: EventBases["prices"],
+  referenceDate: string,
+) {
+  return (
+    candidates
+      .filter(
+        (price) =>
+          price.paymentDeadline === null ||
+          price.paymentDeadline >= referenceDate,
+      )
+      .sort(compareApplicablePrices)[0] ?? null
+  );
+}
+
+function findLatestDeadline(candidates: EventBases["prices"]) {
+  return (
+    candidates
+      .map((price) => price.paymentDeadline)
+      .filter((deadline): deadline is string => deadline !== null)
+      .sort()
+      .at(-1) ?? null
+  );
 }
 
 function compareApplicablePrices(
@@ -441,6 +505,31 @@ function describeRegistrationPath(input: RegistrationPathDescriptor) {
   }
 
   return details.join(", ");
+}
+
+const monthNames = [
+  "enero",
+  "febrero",
+  "marzo",
+  "abril",
+  "mayo",
+  "junio",
+  "julio",
+  "agosto",
+  "septiembre",
+  "octubre",
+  "noviembre",
+  "diciembre",
+];
+
+function formatDeadline(deadline: string) {
+  const [year, month, day] = deadline.split("-").map(Number);
+
+  if (!year || !month || !day) {
+    return deadline;
+  }
+
+  return `${day} de ${monthNames[month - 1]} de ${year}`;
 }
 
 function formatGroupType(groupType: string) {

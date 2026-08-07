@@ -153,7 +153,7 @@ describe("event registration readiness", () => {
       createPrice(event.id, {
         groupType: "solo",
         amount: 14000,
-        paymentDeadline: "2026-05-31",
+        paymentDeadline: "2099-12-31",
         scheduleId: null,
       }),
     );
@@ -161,7 +161,7 @@ describe("event registration readiness", () => {
       createPrice(event.id, {
         groupType: "duo",
         amount: 22000,
-        paymentDeadline: "2026-05-31",
+        paymentDeadline: "2099-12-31",
         scheduleId: null,
       }),
     );
@@ -182,7 +182,7 @@ describe("event registration readiness", () => {
         registrationReady: true,
         registrationReadinessMissingItems: [],
         registrationReadinessDirty: false,
-        registrationReadinessCalculatedAt: new Date("2026-01-01T12:00:00Z"),
+        registrationReadinessCalculatedAt: new Date(),
       })
       .where(eq(events.id, event.id));
 
@@ -220,6 +220,81 @@ describe("event registration readiness", () => {
     });
   });
 
+  test("recalculates readiness cached on an earlier day even when it is not dirty", async () => {
+    const event = await createSavedEvent("Vencido por fecha 2026");
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    await db
+      .update(events)
+      .set({
+        registrationReady: true,
+        registrationReadinessMissingItems: [],
+        registrationReadinessDirty: false,
+        registrationReadinessCalculatedAt: yesterday,
+      })
+      .where(eq(events.id, event.id));
+
+    await expect(
+      getEventRegistrationReadiness(event.id),
+    ).resolves.toMatchObject({
+      eventId: event.id,
+      isReady: false,
+      missingItems: expect.arrayContaining([
+        expect.objectContaining({ code: "modalities" }),
+      ]),
+    });
+  });
+
+  test("reports an expired precio as expired instead of missing", async () => {
+    const event = await createSavedEvent("Precios vencidos 2026");
+    const jazz = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
+
+    await expectCreated(
+      createCategory(event.id, {
+        name: "Juvenil",
+        minAge: 13,
+        maxAge: 17,
+        groupTypes: ["solo"],
+        modalityIds: [jazz.id],
+        experienceLevels: [],
+      }),
+    );
+    const block = await expectCreated(
+      createSchedule(event.id, {
+        name: "Domingo mañana",
+        scheduledDate: "2026-06-07",
+        startTime: "10:00",
+        totalCapacity: 20,
+        modalityIds: [jazz.id],
+      }),
+    );
+    await expectCreated(
+      createScheduleCapacity(block.id, { groupType: "solo", capacity: 6 }),
+    );
+    await expectCreated(
+      createPrice(event.id, {
+        groupType: "solo",
+        amount: 14000,
+        paymentDeadline: "2020-01-31",
+        scheduleId: null,
+      }),
+    );
+
+    await expect(
+      getEventRegistrationReadiness(event.id),
+    ).resolves.toMatchObject({
+      isReady: false,
+      missingItems: [
+        expect.objectContaining({
+          code: "price-coverage",
+          detail: expect.stringContaining("venció el 31 de enero de 2020"),
+        }),
+      ],
+    });
+  });
+
   test("loads readiness for multiple eventos while recalculating dirty entries", async () => {
     const cachedReadyEvent = await createSavedEvent("Cache listo 2026");
     const dirtyEvent = await createSavedEvent("Dirty 2026");
@@ -231,7 +306,7 @@ describe("event registration readiness", () => {
         registrationReady: true,
         registrationReadinessMissingItems: [],
         registrationReadinessDirty: false,
-        registrationReadinessCalculatedAt: new Date("2026-01-01T12:00:00Z"),
+        registrationReadinessCalculatedAt: new Date(),
       })
       .where(eq(events.id, cachedReadyEvent.id));
 

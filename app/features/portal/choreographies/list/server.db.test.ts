@@ -496,7 +496,7 @@ describe.sequential("handlePortalChoreographiesListAction", () => {
       createPrice(event.id, {
         groupType: "solo",
         amount: 15000,
-        paymentDeadline: "2026-05-31",
+        paymentDeadline: "2099-12-31",
         scheduleId: block.id,
       }),
     );
