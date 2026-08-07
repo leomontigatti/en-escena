@@ -21,7 +21,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatAmount } from "../../formatters";
-import { PaymentField } from "./payment-select-items";
 import type { loadChoreographyFinanceDetail } from "./server";
 import { payInscriptionDepositIntent } from "./shared";
 
@@ -30,7 +29,6 @@ type ChoreographyFinanceDetailLoaderData = Awaited<
 >;
 type InscriptionRow =
   ChoreographyFinanceDetailLoaderData["inscriptions"][number];
-type PaymentRow = ChoreographyFinanceDetailLoaderData["payments"][number];
 type InscriptionDepositOptions = NonNullable<
   ChoreographyFinanceDetailLoaderData["inscriptionDeposit"]
 >;
@@ -45,36 +43,24 @@ export function formatDancerName(input: {
 
 /**
  * Diálogo por fila del cobro extraordinario de seña de una huérfana: elegir una
- * fila de precio (acotada por el piso, ya filtrada en el loader) y un pago con
- * disponible suficiente para la seña de esa fila. El server vuelve a validar el
- * piso y la disponibilidad.
+ * fila de precio (acotada por el piso, ya filtrada en el loader). El pago no se
+ * elige: la seña se financia desde el `Saldo disponible` de la academia, del
+ * pago más viejo al más nuevo. El server vuelve a validar el piso y el pool.
  */
 export function InscriptionCobroDialog({
   inscription,
   open,
   onOpenChange,
   priceRows,
-  payments,
 }: {
   inscription: InscriptionRow;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   priceRows: InscriptionPriceRow[];
-  payments: PaymentRow[];
 }) {
   const fetcher = useFetcher<{ status: "error"; message: string }>();
   const [selectedPriceId, setSelectedPriceId] = useState<string | null>(null);
-  const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(
-    null,
-  );
   const isSaving = fetcher.state !== "idle";
-  const selectedPrice =
-    priceRows.find((price) => price.id === selectedPriceId) ?? null;
-  const payableForSelectedPrice = payments.filter(
-    (payment) =>
-      selectedPrice !== null &&
-      payment.availableAmount >= selectedPrice.depositAmount,
-  );
 
   return (
     <Dialog
@@ -85,7 +71,7 @@ export function InscriptionCobroDialog({
         <DialogHeader>
           <DialogTitle>Asignar seña</DialogTitle>
           <DialogDescription>
-            Elegí el precio y el pago para señar la inscripción.
+            Elegí el precio; se asigna desde el saldo disponible de la academia.
           </DialogDescription>
         </DialogHeader>
 
@@ -106,10 +92,7 @@ export function InscriptionCobroDialog({
             <Select
               name="priceId"
               value={selectedPriceId ?? ""}
-              onValueChange={(value) => {
-                setSelectedPriceId(value);
-                setSelectedPaymentId(null);
-              }}
+              onValueChange={setSelectedPriceId}
               disabled={isSaving}
             >
               <SelectTrigger className="w-full">
@@ -126,16 +109,6 @@ export function InscriptionCobroDialog({
             </Select>
           </div>
 
-          {selectedPrice !== null ? (
-            <PaymentField
-              payments={payableForSelectedPrice}
-              value={selectedPaymentId}
-              onValueChange={setSelectedPaymentId}
-              disabled={isSaving}
-              emptyMessage="No hay pagos con saldo suficiente para el precio elegido."
-            />
-          ) : null}
-
           {fetcher.data?.status === "error" ? (
             <Alert variant="destructive">
               <AlertTriangle aria-hidden="true" />
@@ -149,10 +122,7 @@ export function InscriptionCobroDialog({
                 Cancelar
               </Button>
             </DialogClose>
-            <Button
-              type="submit"
-              disabled={!selectedPriceId || !selectedPaymentId || isSaving}
-            >
+            <Button type="submit" disabled={!selectedPriceId || isSaving}>
               {isSaving ? (
                 <LoaderCircle
                   aria-hidden="true"

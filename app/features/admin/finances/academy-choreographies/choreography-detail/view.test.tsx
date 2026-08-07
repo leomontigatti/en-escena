@@ -21,7 +21,6 @@ type ChoreographyFinanceDetailLoaderData = Extract<
 >;
 type InscriptionRow =
   ChoreographyFinanceDetailLoaderData["inscriptions"][number];
-type PaymentRow = ChoreographyFinanceDetailLoaderData["payments"][number];
 type ChoreographyRow = NonNullable<
   ChoreographyFinanceDetailLoaderData["choreography"]
 >;
@@ -299,54 +298,53 @@ describe("ChoreographyFinanceDetailView", () => {
     });
   });
 
-  test("does not warn when a payment covers the stage total of its own date", () => {
-    // El total viene cotizado a la fecha del pago, así que un pago fechado antes
-    // de un aumento alcanza aunque el precio que se muestra hoy sea mayor.
+  test("does not warn when the available balance covers the stage total", () => {
     const markup = renderDetail({
+      availableBalanceAmount: 2400,
       stage: "deposit",
-      payments: [
-        paymentFixture({ availableAmount: 2400, stageTotalAmount: 2400 }),
-      ],
+      stageTotalAmount: { amount: 2400, status: "complete" },
     });
 
-    expect(markup).not.toContain(
-      "saldo suficiente para cubrir la seña completa",
-    );
+    expect(markup).not.toContain("no alcanza para cubrir la seña completa");
   });
 
-  test("warns when no payment covers the stage total of its own date", () => {
+  test("warns when the available balance falls short of the stage total", () => {
     const markup = renderDetail({
+      availableBalanceAmount: 2400,
       stage: "deposit",
-      payments: [
-        paymentFixture({ availableAmount: 2400, stageTotalAmount: 3000 }),
-      ],
+      stageTotalAmount: { amount: 3000, status: "complete" },
     });
 
-    expect(markup).toContain("saldo suficiente para cubrir la seña completa");
+    expect(markup).toContain("no alcanza para cubrir la seña completa");
   });
 
-  test("warns about the saldo when no payment covers the balance stage", () => {
+  test("warns about the saldo when the available balance falls short of the balance stage", () => {
     const markup = renderDetail({
+      availableBalanceAmount: 2400,
       stage: "balance",
-      payments: [
-        paymentFixture({ availableAmount: 2400, stageTotalAmount: 3000 }),
-      ],
+      stageTotalAmount: { amount: 3000, status: "complete" },
     });
 
-    expect(markup).toContain("saldo suficiente para cubrir el saldo completo");
+    expect(markup).toContain("no alcanza para cubrir el saldo completo");
   });
 
-  test("warns when the stage total is unknown because that date has no price", () => {
+  test("warns when the stage total is unknown because an inscription has no price", () => {
     const markup = renderDetail({
+      availableBalanceAmount: 100000,
       stage: "deposit",
-      payments: [paymentFixture({ stageTotalAmount: null })],
+      stageTotalAmount: {
+        amount: 2400,
+        missingPriceCount: 1,
+        status: "incomplete",
+      },
     });
 
-    expect(markup).toContain("saldo suficiente para cubrir la seña completa");
+    expect(markup).toContain("no alcanza para cubrir la seña completa");
   });
 
-  test("blames the missing price instead of the payments when the deposit has no configured price", () => {
+  test("blames the missing price instead of the balance when the deposit has no configured price", () => {
     const markup = renderDetail({
+      availableBalanceAmount: 0,
       stage: "deposit",
       choreography: choreographyFixture({
         depositAmount: {
@@ -355,13 +353,15 @@ describe("ChoreographyFinanceDetailView", () => {
           status: "incomplete",
         },
       }),
-      payments: [paymentFixture({ stageTotalAmount: null })],
+      stageTotalAmount: {
+        amount: 0,
+        missingPriceCount: 1,
+        status: "incomplete",
+      },
     });
 
     expect(markup).toContain("no tiene un precio configurado");
-    expect(markup).not.toContain(
-      "saldo suficiente para cubrir la seña completa",
-    );
+    expect(markup).not.toContain("no alcanza para cubrir la seña completa");
   });
 });
 
@@ -449,8 +449,9 @@ function loaderDataFixture(
     inscriptionDeposit: null,
     inscriptions: [inscriptionFixture({ financialStatus: "depositMet" })],
     invoicing: invoicingFixture(),
-    payments: [],
+    availableBalanceAmount: 0,
     stage: null,
+    stageTotalAmount: null,
     selectedEventId: "event_1",
     ...overrides,
   };
@@ -485,18 +486,6 @@ function choreographyFixture(
     owedBalanceAmount: { amount: 7000, status: "complete" },
     owedDepositAmount: { amount: 0, status: "complete" },
     totalAmount: { amount: 10000, status: "complete" },
-    ...overrides,
-  };
-}
-
-function paymentFixture(overrides: Partial<PaymentRow> = {}): PaymentRow {
-  return {
-    availableAmount: 3000,
-    id: "payment_1",
-    paymentDate: "2026-03-21",
-    paymentMethod: "transferencia",
-    paymentNumber: 1,
-    stageTotalAmount: 3000,
     ...overrides,
   };
 }

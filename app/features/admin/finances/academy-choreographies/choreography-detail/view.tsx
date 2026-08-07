@@ -34,12 +34,6 @@ import {
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
 import {
-  Select,
-  SelectContent,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   formatInscriptionFinancialStatus,
   getInscriptionFinancialStatusBadgeVariant,
 } from "@/lib/finances/choreography-financial-status";
@@ -49,11 +43,7 @@ import {
 } from "@/lib/finances/inscription-amounts";
 import { choreographyGroupTypeOptions } from "@/lib/portal/choreographies";
 
-import {
-  formatAmount,
-  formatDate,
-  formatOperationalAmount,
-} from "../../formatters";
+import { formatAmount, formatOperationalAmount } from "../../formatters";
 import { EmissionDialog } from "./comprobante-emission";
 import { InscriptionBalanceDialog } from "./inscription-balance-dialog";
 import {
@@ -61,7 +51,6 @@ import {
   InscriptionCobroDialog,
 } from "./inscription-cobro-dialog";
 import { InscriptionUndoDialog } from "./inscription-undo-dialog";
-import { PaymentSelectItems } from "./payment-select-items";
 import type { loadChoreographyFinanceDetail, PortionCoverage } from "./server";
 import { payBalanceIntent, payDepositIntent } from "./shared";
 
@@ -71,9 +60,28 @@ type ChoreographyFinanceDetailLoaderData = Awaited<
 
 type InscriptionRow =
   ChoreographyFinanceDetailLoaderData["inscriptions"][number];
-type PaymentRow = ChoreographyFinanceDetailLoaderData["payments"][number];
-type EligiblePayment = PaymentRow & { stageTotalAmount: number };
+type StageTotal = NonNullable<
+  ChoreographyFinanceDetailLoaderData["stageTotalAmount"]
+>;
 type CobroStage = NonNullable<ChoreographyFinanceDetailLoaderData["stage"]>;
+
+/**
+ * Si la preset de la etapa se puede disparar: hace falta una cifra adeudada
+ * completa (todas las inscripciones con precio) y `Saldo disponible` que la
+ * cubra. El server vuelve a chequearlo; esto sólo evita ofrecer un cobro que
+ * va a rebotar.
+ */
+function canFundStage(input: {
+  availableBalanceAmount: number;
+  stageTotalAmount: StageTotal | null;
+}): boolean {
+  return (
+    input.stageTotalAmount !== null &&
+    input.stageTotalAmount.status === "complete" &&
+    input.stageTotalAmount.amount > 0 &&
+    input.availableBalanceAmount >= input.stageTotalAmount.amount
+  );
+}
 
 type ChoreographyFinanceDetailViewProps = {
   loaderData: ChoreographyFinanceDetailLoaderData;
@@ -160,7 +168,6 @@ export function ChoreographyFinanceDetailView({
             canPayInscriptionBalance={loaderData.canPayInscriptionBalance}
             inscriptions={loaderData.inscriptions}
             inscriptionDeposit={loaderData.inscriptionDeposit}
-            payments={loaderData.payments}
           />
         </div>
       ) : (
@@ -206,17 +213,21 @@ function ChoreographyAlerts({
   loaderData,
 }: ChoreographyFinanceDetailViewProps) {
   const stage = loaderData.stage;
-  const eligible = eligiblePayments(loaderData.payments);
   const depositAmount = loaderData.choreography?.depositAmount;
   // Sin precio aplicable no se puede cotizar la seña: la causa es la falta de
-  // precio configurado, no que los pagos no alcancen. Por eso enunciamos esa
-  // causa y suprimimos la alerta que culpa a los pagos.
+  // precio configurado, no que el saldo disponible no alcance. Por eso
+  // enunciamos esa causa y suprimimos la alerta que culpa a la plata.
   const missingDepositPrice =
     stage === "deposit" && depositAmount?.status === "incomplete";
-  const noEligiblePayments =
-    stage !== null && eligible.length === 0 && !missingDepositPrice;
+  const notEnoughBalance =
+    stage !== null &&
+    !missingDepositPrice &&
+    !canFundStage({
+      availableBalanceAmount: loaderData.availableBalanceAmount,
+      stageTotalAmount: loaderData.stageTotalAmount,
+    });
 
-  if (!noEligiblePayments && !missingDepositPrice) {
+  if (!notEnoughBalance && !missingDepositPrice) {
     return null;
   }
 
@@ -230,11 +241,11 @@ function ChoreographyAlerts({
           </AlertDescription>
         </Alert>
       ) : null}
-      {noEligiblePayments ? (
+      {notEnoughBalance ? (
         <Alert variant="warning">
           <AlertTriangle aria-hidden="true" />
           <AlertDescription>
-            No existe un pago registrado con saldo suficiente para{" "}
+            El saldo disponible de la academia no alcanza para{" "}
             {stage === "deposit"
               ? "cubrir la seña completa de la coreografía."
               : "cubrir el saldo completo de la coreografía."}
@@ -257,9 +268,13 @@ function ChoreographyActions({
 }: ChoreographyFinanceDetailViewProps) {
   const invoicing = loaderData.invoicing;
   const stage = loaderData.stage;
-  const eligible = eligiblePayments(loaderData.payments);
   const canEmit = invoicing?.canEmit ?? false;
-  const canCobro = stage !== null && eligible.length > 0;
+  const canCobro =
+    stage !== null &&
+    canFundStage({
+      availableBalanceAmount: loaderData.availableBalanceAmount,
+      stageTotalAmount: loaderData.stageTotalAmount,
+    });
   const [cobroOpen, setCobroOpen] = useState(false);
   // El facturable se congela al abrir y el diálogo se desmonta al CERRARLO, no
   // al perder la afordancia: una emisión recuperada por "Verificar ahora"
@@ -303,37 +318,39 @@ function ChoreographyActions({
           onOpenChange={(next) => setEmission(next ? emission : null)}
         />
       ) : null}
-      {stage !== null && eligible.length > 0 ? (
+      {canCobro && stage !== null && loaderData.stageTotalAmount !== null ? (
         <CobroDialog
-          eligiblePayments={eligible}
+          availableBalanceAmount={loaderData.availableBalanceAmount}
           open={cobroOpen}
           onOpenChange={setCobroOpen}
           stage={stage}
+          stageTotalAmount={loaderData.stageTotalAmount}
         />
       ) : null}
     </>
   );
 }
 
+/**
+ * Preset de cobro de la etapa. Ya no elige un pago: nombra el monto adeudado y
+ * el sistema lo financia desde el `Saldo disponible` de la academia, del pago
+ * más viejo al más nuevo. Por eso el diálogo sólo confirma.
+ */
 function CobroDialog({
-  eligiblePayments,
+  availableBalanceAmount,
   open,
   onOpenChange,
   stage,
+  stageTotalAmount,
 }: {
-  eligiblePayments: EligiblePayment[];
+  availableBalanceAmount: number;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   stage: CobroStage;
+  stageTotalAmount: StageTotal;
 }) {
   const fetcher = useFetcher<{ status: "error"; message: string }>();
-  const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(
-    null,
-  );
   const isSaving = fetcher.state !== "idle";
-  const selectedPayment =
-    eligiblePayments.find((payment) => payment.id === selectedPaymentId) ??
-    null;
 
   return (
     <Dialog
@@ -346,7 +363,8 @@ function CobroDialog({
             {stage === "deposit" ? "Pagar seña" : "Pagar saldo"}
           </DialogTitle>
           <DialogDescription className="sr-only">
-            Elegí el pago que cubre la etapa completa de la coreografía.
+            Confirmá la asignación de la etapa completa de la coreografía desde
+            el saldo disponible de la academia.
           </DialogDescription>
         </DialogHeader>
 
@@ -356,26 +374,12 @@ function CobroDialog({
             name="intent"
             value={stage === "deposit" ? payDepositIntent : payBalanceIntent}
           />
-          <div className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium">Pago a asignar</span>
-            <Select
-              name="paymentId"
-              value={selectedPaymentId ?? ""}
-              onValueChange={setSelectedPaymentId}
-              disabled={isSaving}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Elegí un pago" />
-              </SelectTrigger>
-              <SelectContent>
-                <PaymentSelectItems payments={eligiblePayments} />
-              </SelectContent>
-            </Select>
-          </div>
 
-          {selectedPayment ? (
-            <StageTotalSummary payment={selectedPayment} stage={stage} />
-          ) : null}
+          <StageTotalSummary
+            availableBalanceAmount={availableBalanceAmount}
+            stage={stage}
+            stageTotalAmount={stageTotalAmount}
+          />
 
           {fetcher.data?.status === "error" ? (
             <Alert variant="destructive">
@@ -390,7 +394,7 @@ function CobroDialog({
                 Cancelar
               </Button>
             </DialogClose>
-            <Button type="submit" disabled={!selectedPaymentId || isSaving}>
+            <Button type="submit" disabled={isSaving}>
               {isSaving ? (
                 <LoaderCircle
                   aria-hidden="true"
@@ -410,16 +414,18 @@ function CobroDialog({
 }
 
 /**
- * Lo que se va a cobrar con el pago elegido. La seña se aclara contra la fecha
- * del pago, que es la que fija el precio: sin eso, el importe parece no
- * coincidir con el que muestra la coreografía cuando el precio ya cambió.
+ * Lo que la preset va a asignar y de dónde sale: el adeudado de la etapa contra
+ * el `Saldo disponible` de la academia. El administrador ya no elige un pago, así
+ * que lo que tiene que poder ver es que la plata alcanza.
  */
 function StageTotalSummary({
-  payment,
+  availableBalanceAmount,
   stage,
+  stageTotalAmount,
 }: {
-  payment: EligiblePayment;
+  availableBalanceAmount: number;
   stage: CobroStage;
+  stageTotalAmount: StageTotal;
 }) {
   return (
     <div className="flex flex-col gap-1 rounded-md border bg-muted/50 px-3 py-2">
@@ -428,14 +434,15 @@ function StageTotalSummary({
           {stage === "deposit" ? "Seña a cobrar" : "Saldo a cobrar"}
         </span>
         <span className="text-sm font-medium tabular-nums">
-          {formatAmount(payment.stageTotalAmount)}
+          {formatAmount(stageTotalAmount.amount)}
         </span>
       </div>
-      {stage === "deposit" ? (
-        <span className="text-xs text-muted-foreground">
-          Al precio vigente al {formatDate(payment.paymentDate)}.
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="text-xs text-muted-foreground">Saldo disponible</span>
+        <span className="text-xs tabular-nums text-muted-foreground">
+          {formatAmount(availableBalanceAmount)}
         </span>
-      ) : null}
+      </div>
     </div>
   );
 }
@@ -444,12 +451,10 @@ function InscriptionsTable({
   canPayInscriptionBalance,
   inscriptions,
   inscriptionDeposit,
-  payments,
 }: {
   canPayInscriptionBalance: boolean;
   inscriptions: InscriptionRow[];
   inscriptionDeposit: ChoreographyFinanceDetailLoaderData["inscriptionDeposit"];
-  payments: PaymentRow[];
 }) {
   // Las columnas se memoizan para conservar una referencia estable entre
   // renders: sin esto, cada render recrea el array y React Table remonta las
@@ -460,9 +465,8 @@ function InscriptionsTable({
       buildInscriptionColumns({
         canPayInscriptionBalance,
         inscriptionDeposit,
-        payments,
       }),
-    [canPayInscriptionBalance, inscriptionDeposit, payments],
+    [canPayInscriptionBalance, inscriptionDeposit],
   );
 
   return (
@@ -479,23 +483,9 @@ function InscriptionsTable({
   );
 }
 
-/**
- * Pagos que cubren la etapa completa. Cada uno trae el total que el cobro le va
- * a exigir según su propia fecha, así que la comparación es contra ese total y
- * no contra uno único calculado a hoy.
- */
-function eligiblePayments(payments: PaymentRow[]): EligiblePayment[] {
-  return payments.filter(
-    (payment): payment is EligiblePayment =>
-      payment.stageTotalAmount !== null &&
-      payment.availableAmount >= payment.stageTotalAmount,
-  );
-}
-
 function buildInscriptionColumns(cobro: {
   canPayInscriptionBalance: boolean;
   inscriptionDeposit: ChoreographyFinanceDetailLoaderData["inscriptionDeposit"];
-  payments: PaymentRow[];
 }): DataTableColumn<InscriptionRow>[] {
   return [
     {
@@ -507,7 +497,6 @@ function buildInscriptionColumns(cobro: {
           canPayInscriptionBalance={cobro.canPayInscriptionBalance}
           inscription={inscription}
           inscriptionDeposit={cobro.inscriptionDeposit}
-          payments={cobro.payments}
         />
       ),
       filterValue: (inscription) => formatDancerName(inscription),
@@ -528,12 +517,10 @@ function DancerNameCell({
   canPayInscriptionBalance,
   inscription,
   inscriptionDeposit,
-  payments,
 }: {
   canPayInscriptionBalance: boolean;
   inscription: InscriptionRow;
   inscriptionDeposit: ChoreographyFinanceDetailLoaderData["inscriptionDeposit"];
-  payments: PaymentRow[];
 }) {
   const [open, setOpen] = useState(false);
   const hasInscriptionId = inscription.inscriptionId !== null;
@@ -561,7 +548,6 @@ function DancerNameCell({
           open={open}
           onOpenChange={setOpen}
           priceRows={inscriptionDeposit.priceRows}
-          payments={payments}
         />
       );
     }
@@ -571,7 +557,6 @@ function DancerNameCell({
           inscription={inscription}
           open={open}
           onOpenChange={setOpen}
-          payments={payments}
         />
       );
     }

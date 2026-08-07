@@ -1,5 +1,4 @@
 import { AlertTriangle, Check, LoaderCircle, Trash2 } from "lucide-react";
-import { useState } from "react";
 import { useFetcher } from "react-router";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -14,7 +13,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { formatAmount } from "../../formatters";
-import { PaymentField } from "./payment-select-items";
 import type { loadChoreographyFinanceDetail } from "./server";
 import { deleteAllocationIntent, payInscriptionBalanceIntent } from "./shared";
 
@@ -23,39 +21,29 @@ type ChoreographyFinanceDetailLoaderData = Awaited<
 >;
 type InscriptionRow =
   ChoreographyFinanceDetailLoaderData["inscriptions"][number];
-type PaymentRow = ChoreographyFinanceDetailLoaderData["payments"][number];
 
 /**
  * Diálogo por fila del cobro extraordinario de saldo de una huérfana `señada` en
- * una coreografía mixta: elegir un pago con disponible suficiente para el saldo
- * de esa inscripción. El saldo mostrado es tentativo (descuento estimado contra
- * el roster vigente); el server recalcula el descuento y congela el snapshot. La
- * `señada` ya tiene su seña asignada, así que el diálogo también ofrece
+ * una coreografía mixta. Ya no se elige un pago: el saldo adeudado se financia
+ * desde el `Saldo disponible` de la academia, del pago más viejo al más nuevo.
+ * La `señada` ya tiene su seña asignada, así que el diálogo también ofrece
  * deshacerla y devolver la inscripción a `impaga`.
  */
 export function InscriptionBalanceDialog({
   inscription,
   open,
   onOpenChange,
-  payments,
 }: {
   inscription: InscriptionRow;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  payments: PaymentRow[];
 }) {
   const fetcher = useFetcher<{ status: "error"; message: string }>();
   const deleteFetcher = useFetcher<{ status: "error"; message: string }>();
-  const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(
-    null,
-  );
   const isSaving = fetcher.state !== "idle";
   const isDeleting = deleteFetcher.state !== "idle";
   const isBusy = isSaving || isDeleting;
   const balanceAmount = inscription.owedBalanceAmount ?? 0;
-  const payableForBalance = payments.filter(
-    (payment) => payment.availableAmount >= balanceAmount,
-  );
   const undoableAllocation = inscription.undoableAllocation;
   const formId = `assign-balance-${inscription.inscriptionId ?? "row"}`;
 
@@ -65,7 +53,7 @@ export function InscriptionBalanceDialog({
         <DialogHeader>
           <DialogTitle>Asignar saldo</DialogTitle>
           <DialogDescription>
-            Elegí el pago para saldar la inscripción.
+            Se asigna desde el saldo disponible de la academia.
           </DialogDescription>
         </DialogHeader>
 
@@ -91,14 +79,6 @@ export function InscriptionBalanceDialog({
               </span>
             </div>
           </div>
-
-          <PaymentField
-            payments={payableForBalance}
-            value={selectedPaymentId}
-            onValueChange={setSelectedPaymentId}
-            disabled={isBusy}
-            emptyMessage="No hay pagos con saldo suficiente para el saldo de la inscripción."
-          />
 
           {fetcher.data?.status === "error" ? (
             <Alert variant="destructive">
@@ -151,11 +131,7 @@ export function InscriptionBalanceDialog({
                 Cancelar
               </Button>
             </DialogClose>
-            <Button
-              type="submit"
-              form={formId}
-              disabled={!selectedPaymentId || isBusy}
-            >
+            <Button type="submit" form={formId} disabled={isBusy}>
               {isSaving ? (
                 <LoaderCircle
                   aria-hidden="true"

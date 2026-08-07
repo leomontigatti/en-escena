@@ -1,12 +1,10 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
-  payments,
   choreographies,
   choreographyDancers,
   events,
-  paymentAllocations,
   prices,
   scheduleCapacities,
 } from "@/db/schema";
@@ -16,7 +14,6 @@ import {
   deriveInscriptionLadderStage,
   type InscriptionLadderStage,
 } from "@/lib/finances/inscription-ladder-snapshot";
-import { computeDancerDiscountAmounts } from "@/lib/finances/operational-summary-calculations.server";
 import { selectApplicablePriceFromCandidates } from "@/lib/prices/repository.server";
 
 export type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -123,7 +120,6 @@ export type CobroContext =
       };
       event: { requiredDepositPercentage: number };
       inscriptions: InscriptionRow[];
-      payment: typeof payments.$inferSelect;
     };
 
 export async function loadCobroContext(
@@ -132,7 +128,6 @@ export async function loadCobroContext(
     academyId: string;
     choreographyId: string;
     eventId: string;
-    paymentId: string;
   },
 ): Promise<CobroContext> {
   const choreographyRow = await loadChoreographyScheduleRow(
@@ -168,18 +163,6 @@ export async function loadCobroContext(
     };
   }
 
-  const payment = await tx.query.payments.findFirst({
-    where: and(
-      eq(payments.id, input.paymentId),
-      eq(payments.academyId, input.academyId),
-      eq(payments.eventId, input.eventId),
-    ),
-  });
-
-  if (!payment) {
-    return { ok: false, message: "No encontramos ese pago." };
-  }
-
   return {
     ok: true,
     choreography: {
@@ -188,13 +171,12 @@ export async function loadCobroContext(
     },
     event,
     inscriptions,
-    payment,
   };
 }
 
 /**
  * Selecciona la fila de precio vigente para un tipo de grupo y cronograma contra
- * `paymentDate`, priorizando el precio específico del cronograma sobre el
+ * `referenceDate`, priorizando el precio específico del cronograma sobre el
  * general. Consulta con la transacción activa para no abrir una conexión nueva.
  */
 export async function resolveApplicablePriceRow(
@@ -202,7 +184,7 @@ export async function resolveApplicablePriceRow(
   input: {
     eventId: string;
     groupType: string;
-    paymentDate: string;
+    referenceDate: string;
     scheduleId: string | null;
   },
 ) {
@@ -214,7 +196,7 @@ export async function resolveApplicablePriceRow(
 
   return selectApplicablePriceRow({
     priceRows,
-    referenceDate: input.paymentDate,
+    referenceDate: input.referenceDate,
     scheduleId: input.scheduleId,
   });
 }
@@ -244,101 +226,6 @@ export function selectApplicablePriceRow(input: {
     input.priceRows.filter((price) => price.scheduleId === null),
     input.referenceDate,
   );
-}
-
-export async function assertPaymentAvailability(
-  tx: Transaction,
-  input: {
-    payment: typeof payments.$inferSelect;
-    requiredAmount: number;
-  },
-): Promise<CobroResult> {
-  const allocations = await tx.query.paymentAllocations.findMany({
-    columns: { amount: true },
-    where: eq(paymentAllocations.paymentId, input.payment.id),
-  });
-  const allocatedAmount = allocations.reduce(
-    (sum, allocation) => sum + allocation.amount,
-    0,
-  );
-  const availableAmount = input.payment.amount - allocatedAmount;
-
-  if (availableAmount < input.requiredAmount) {
-    return {
-      ok: false,
-      message: "El pago no tiene saldo disponible suficiente.",
-    };
-  }
-
-  return { ok: true };
-}
-
-export async function resolveDancerDiscounts(
-  tx: Transaction,
-  input: {
-    academyId: string;
-    eventId: string;
-    inscriptions: InscriptionRow[];
-  },
-) {
-  const dancerIds = [
-    ...new Set(input.inscriptions.map((inscription) => inscription.dancerId)),
-  ];
-
-  const qualifyingRows = await tx
-    .select({
-      id: choreographyDancers.id,
-      dancerId: choreographyDancers.dancerId,
-      frozenBasePriceAmount: choreographyDancers.frozenBasePriceAmount,
-      depositReferenceDate: choreographyDancers.depositReferenceDate,
-      balanceReferenceDate: choreographyDancers.balanceReferenceDate,
-    })
-    .from(choreographyDancers)
-    .innerJoin(
-      choreographies,
-      eq(choreographyDancers.choreographyId, choreographies.id),
-    )
-    .where(
-      and(
-        eq(choreographies.academyId, input.academyId),
-        eq(choreographies.eventId, input.eventId),
-        inArray(choreographyDancers.dancerId, dancerIds),
-      ),
-    );
-
-  const qualifyingByDancer = new Map<
-    string,
-    Array<{ id: string; priceAmount: number }>
-  >();
-  for (const row of qualifyingRows) {
-    const state = deriveInscriptionLadderStage(row);
-    if (
-      (state !== "señada" && state !== "pagada") ||
-      row.frozenBasePriceAmount === null
-    ) {
-      continue;
-    }
-
-    const bucket = qualifyingByDancer.get(row.dancerId);
-    const entry = {
-      id: row.id,
-      priceAmount: row.frozenBasePriceAmount,
-    };
-    if (bucket) {
-      bucket.push(entry);
-    } else {
-      qualifyingByDancer.set(row.dancerId, [entry]);
-    }
-  }
-
-  const discounts = new Map<string, { amount: number; percentage: number }>();
-  for (const group of qualifyingByDancer.values()) {
-    for (const [id, discount] of computeDancerDiscountAmounts(group)) {
-      discounts.set(id, discount);
-    }
-  }
-
-  return discounts;
 }
 
 export function clearDepositSnapshot() {

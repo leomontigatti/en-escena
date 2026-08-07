@@ -265,16 +265,14 @@ disponible` in the active event.
 
 ## Payment allocations
 
-- An `Asignación de pago` applies a payment's balance to one inscription and one
-  stage. It is **mutable, deletable current state**, not an append-only ledger
-  and not an imputación with reversals.
-- The inscription stages are `seña` (`deposit`) and `saldo` (`balance`).
-- Each allocation pays one complete stage of one inscription.
-- The same stage of an inscription cannot be split across several payments.
+- An `Asignación de pago` applies a payment's balance to one inscription. It is
+  **mutable, deletable current state**, not an append-only ledger and not an
+  imputación with reversals.
+- An allocation is **an amount against an inscription**, with no stage and no
+  role. Any amount can be recorded, and one inscription's money can come from
+  several payments.
 - The same payment can be used in several allocations, even at different times,
   as long as it has enough `Saldo disponible`.
-- Balance cannot be allocated to an inscription that has no deposit.
-- An already paid stage cannot be paid again.
 - The allocation is **minimal**: it stores the payment↔inscription money link,
   not price snapshots. The snapshots live on the inscription.
   - Fields: `paymentId`, `inscriptionId`, `academyId`, `eventId`, `amount`,
@@ -287,20 +285,59 @@ disponible` in the active event.
     reversal order and no blocking case.
   - It stores no user attribution (`createdByUserId`); the system does not audit.
 
+## The pool rules
+
+Funding an inscription and unfunding it are the two halves of one invariant, and
+they live in one module (`app/lib/finances/allocation-pool.server.ts`).
+
+- **The invariant**: `Saldo disponible = Σ payments − Σ allocations − Σ refunds`,
+  and it can never go below zero. The floor is **structural, not a clamp**: every
+  allocation is capped against what is still free in the payments, and a
+  payment's `amount` is write-once. There is no subtraction that could overshoot.
+  - The refunds term is part of the rule but **is not implemented yet**: there is
+    no refunds table or column, so until [#536](https://github.com/leomontigatti/en-escena/issues/536)
+    lands, `Saldo disponible` reads as `Σ payments − Σ allocations`.
+- **Funding (`spreadFromPool`)**: the administrator names an inscription and an
+  amount, never a payment. The system consumes the academy's payments
+  **oldest-first by payment number**, creating or incrementing the
+  `(payment, inscription)` row until the amount is covered.
+- **Unfunding (`unwindToPool`)** is the exact inverse: it consumes that
+  inscription's allocations **newest-first by payment number**, decrementing and
+  deleting the row at zero. Funding an amount and immediately unfunding it
+  returns the rows to their prior state.
+  - The round trip is exact as long as what is unwound is the last thing funded.
+    If money is freed on a payment older than one where the inscription already
+    held an allocation, the total comes back the same but may be split
+    differently across payments: money is fungible and no provenance is stored,
+    which is precisely what keeps a reversal order from coming back.
+- **Over-allocation**: **active** over-allocation is refused on the write path,
+  with **no override** — a write that would push an inscription above its
+  `Total` is rejected, which is why owed is computed on the write path and not
+  only on read. **Passive** over-allocation already recorded is tolerated: it
+  stays where it sits, stays readable, and only an administrator moves it.
+- **Accepted cost, stated plainly**: a specific payment can no longer be lifted
+  off a specific inscription. The remedy for a payment recorded in error is
+  **deleting the payment**, which cascades its allocations.
+
 ## Normal actions and extraordinary cases
 
 - `Pagar seña` is a normal whole-choreography action. It only appears if every
-  active inscription of that choreography is `impaga`. It creates a deposit
-  allocation for each active inscription.
+  active inscription of that choreography is `impaga`. It allocates each active
+  inscription's `Seña adeudada` from the pool.
 - `Pagar saldo` is a normal whole-choreography action. It only appears if every
-  active inscription is `señada`. It creates a balance allocation for each active
-  inscription.
+  active inscription is `señada`. It allocates each active inscription's
+  `Saldo adeudado` from the pool.
+- Neither names a payment: they are **presets over the figures**. The amount is
+  the owed figure, computed on the write path from the same derivation the
+  screens read, and the pool decides which payments it comes from.
+- The price row and the reference dates they freeze are resolved against the
+  **business date**, not against a payment's date.
 - Any choreography whose inscriptions are at mixed ladder stages requires
   extraordinary handling.
 - Each inscription unresolved by the normal flow is handled as a separate
   extraordinary case, even when several share the same resolution. An
-  extraordinary manual allocation targets a single inscription and a single
-  complete stage.
+  extraordinary allocation targets a single inscription and, like the normal
+  actions, allocates its owed figure from the pool without naming a payment.
 
 ### Extraordinary per-inscription charging
 
@@ -314,7 +351,8 @@ disponible` in the active event.
 - Per-inscription deposit charging uses the **extraordinary flow** of explicit
   price row selection with a floor, described in "Selecting the price row when
   freezing". When the first orphan of a mixed choreography is deposited, its
-  frozen price joins the set defining the floor for the following orphans.
+  frozen price joins the set defining the floor for the following orphans. The
+  price row is still chosen by the administrator; the **payment is not**.
 - Individual charging is only offered on **mixed** choreographies. On a 100%
   `impaga` choreography, the first freeze (which sets the floor) is the one from
   the normal whole-choreography flow; the individual row offers no charging.

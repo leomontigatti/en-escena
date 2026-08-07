@@ -50,21 +50,6 @@ async function seedPayment(input: {
 }
 
 /**
- * Precio anterior al que trae el catálogo (10000, vence el 31/05), para modelar
- * un aumento: hasta el 31/03 rige éste y desde el 01/04 el del catálogo.
- */
-async function seedEarlierPrice(input: { amount: number; eventId: string }) {
-  await db.insert(prices).values({
-    eventId: input.eventId,
-    name: "Precio Solo anterior",
-    groupType: "solo",
-    amount: input.amount,
-    paymentDeadline: "2026-03-31",
-    scheduleId: null,
-  });
-}
-
-/**
  * Fila de precio `solo` del catálogo del evento. Las inscripciones ya cobradas
  * la llevan en `selectedPriceId`, que es lo que el cobro escribe y de donde
  * salen la seña y el total.
@@ -322,107 +307,6 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
     expect(loaderData.inscriptions[0]?.undoableAllocation).toEqual({
       id: allocation?.id,
     });
-  });
-
-  test("quotes the deposit against the payment date, not against today", async () => {
-    // El precio ya aumentó: hoy la seña sale 3000, pero al 21/03 salía 2400.
-    vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
-      "2026-04-15",
-    );
-
-    const event = await createSavedEvent({ requiredDepositPercentage: 30 });
-    const { academy, choreography } =
-      await createAcademyFinanceChoreographyFixture({
-        academyName: "Academia Precio Histórico",
-        email: "academia.precio.historico@example.com",
-        choreographyName: "Detalle precio histórico",
-        event,
-      });
-    await seedEarlierPrice({ amount: 8000, eventId: event.id });
-
-    const dancer = await createDancer(academy.academy.id, {
-      firstName: "Sol",
-      lastName: "Ramos",
-    });
-    await db.insert(choreographyDancers).values({
-      ageAtEventStart: 14,
-      choreographyId: choreography.id,
-      dancerId: dancer.id,
-    });
-
-    // Registrado hoy con fecha anterior, por el precio que se le mantuvo a la
-    // academia. Cubre la seña del 21/03 (2400) pero no la de hoy (3000).
-    const payment = await seedPayment({
-      academyId: academy.academy.id,
-      amount: 2400,
-      eventId: event.id,
-      paymentDate: "2026-03-21",
-      paymentNumber: 1,
-    });
-
-    const loaderData = await loadDetailAsAdmin({
-      academyId: academy.academy.id,
-      choreographyId: choreography.id,
-      email: "admin.precio.historico@example.com",
-      eventId: event.id,
-    });
-
-    expect(loaderData.stage).toBe("deposit");
-    // La coreografía sigue mostrando el precio vigente hoy...
-    expect(loaderData.choreography).toMatchObject({
-      depositAmount: { amount: 3000, status: "complete" },
-    });
-    // ...pero el pago se cotiza contra su propia fecha, así que alcanza.
-    expect(loaderData.payments).toEqual([
-      expect.objectContaining({ id: payment.id, stageTotalAmount: 2400 }),
-    ]);
-  });
-
-  test("quotes the deposit above today's when the payment date resolves to a dearer price", async () => {
-    // Espejo del caso anterior: al 21/03 la seña salía 3600 y hoy sale 3000. El
-    // pago no alcanza, y ofrecerlo terminaría en un rechazo del cobro.
-    vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
-      "2026-04-15",
-    );
-
-    const event = await createSavedEvent({ requiredDepositPercentage: 30 });
-    const { academy, choreography } =
-      await createAcademyFinanceChoreographyFixture({
-        academyName: "Academia Precio Bajado",
-        email: "academia.precio.bajado@example.com",
-        choreographyName: "Detalle precio bajado",
-        event,
-      });
-    await seedEarlierPrice({ amount: 12000, eventId: event.id });
-
-    const dancer = await createDancer(academy.academy.id, {
-      firstName: "Nina",
-      lastName: "Soto",
-    });
-    await db.insert(choreographyDancers).values({
-      ageAtEventStart: 14,
-      choreographyId: choreography.id,
-      dancerId: dancer.id,
-    });
-
-    const payment = await seedPayment({
-      academyId: academy.academy.id,
-      amount: 3000,
-      eventId: event.id,
-      paymentDate: "2026-03-21",
-      paymentNumber: 1,
-    });
-
-    const loaderData = await loadDetailAsAdmin({
-      academyId: academy.academy.id,
-      choreographyId: choreography.id,
-      email: "admin.precio.bajado@example.com",
-      eventId: event.id,
-    });
-
-    expect(loaderData.payments).toEqual([
-      expect.objectContaining({ id: payment.id, stageTotalAmount: 3600 }),
-    ]);
   });
 
   test("shows incomplete amounts and Sin precio when no applicable price exists", async () => {

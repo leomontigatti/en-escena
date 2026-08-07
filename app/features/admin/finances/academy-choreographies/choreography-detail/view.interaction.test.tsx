@@ -132,8 +132,9 @@ function loaderDataFixture(): ChoreographyFinanceDetailLoaderData {
       sena: null,
       saldo: null,
     },
-    payments: [],
+    availableBalanceAmount: 0,
     stage: null,
+    stageTotalAmount: null,
     selectedEventId: "event_1",
   };
 }

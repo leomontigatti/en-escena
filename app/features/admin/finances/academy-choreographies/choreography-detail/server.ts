@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { redirect } from "react-router";
 
 import { db } from "@/db";
@@ -27,7 +27,6 @@ import {
   payChoreographyDeposit,
   payInscriptionBalance,
   payInscriptionDeposit,
-  quoteChoreographyDepositTotals,
   readChoreographyLadderStages,
   readInscriptionDepositOptions,
 } from "@/lib/finances/choreography-cobro.server";
@@ -59,10 +58,6 @@ type CobroStage = "deposit" | "balance";
 type InscriptionDepositOptions = Awaited<
   ReturnType<typeof readInscriptionDepositOptions>
 >;
-type AvailablePayment = Awaited<
-  ReturnType<typeof listAvailablePayments>
->[number];
-type StagePayment = AvailablePayment & { stageTotalAmount: number | null };
 
 export async function loadChoreographyFinanceDetail(input: {
   params: { academyId?: string; choreographyId?: string };
@@ -80,12 +75,13 @@ export async function loadChoreographyFinanceDetail(input: {
   if (eventContext.selectedEventId === null) {
     return {
       academy,
+      availableBalanceAmount: 0,
       choreography: null,
       canPayInscriptionBalance: false,
       inscriptionDeposit: null as InscriptionDepositOptions,
       inscriptions: [],
-      payments: [] as StagePayment[],
       stage: null,
+      stageTotalAmount: null as OperationalFinanceAmount | null,
       selectedEventId: null,
     };
   }
@@ -129,17 +125,11 @@ export async function loadChoreographyFinanceDetail(input: {
   });
   const canPayInscriptionBalance =
     resolveInscriptionBalanceEligibility(ladderStages);
-  const payments = await attachStageTotals({
-    balanceTotal: choreographyFinanceRow.owedBalanceAmount,
-    choreographyId,
-    eventId,
-    payments: await listAvailablePayments({ academyId, eventId }),
-    stage,
-  });
   const invoicing = await readChoreographyInvoicing(choreographyId);
 
   return {
     academy,
+    availableBalanceAmount: financeDetail.summary.availableBalanceAmount,
     invoicing,
     choreography: {
       allocatedAmount: choreographyFinanceRow.allocatedAmount,
@@ -158,10 +148,34 @@ export async function loadChoreographyFinanceDetail(input: {
     canPayInscriptionBalance,
     inscriptionDeposit,
     inscriptions,
-    payments,
     stage,
+    stageTotalAmount: resolveStageTotalAmount({
+      choreography: choreographyFinanceRow,
+      stage,
+    }),
     selectedEventId: eventId,
   };
+}
+
+/**
+ * Lo que la preset de la etapa va a asignar: la cifra adeudada de la
+ * coreografía, la misma que muestra la pantalla. No depende de ningún pago
+ * porque la preset no elige uno: nombra un monto y el pool lo financia.
+ */
+function resolveStageTotalAmount(input: {
+  choreography: {
+    owedBalanceAmount: OperationalFinanceAmount;
+    owedDepositAmount: OperationalFinanceAmount;
+  };
+  stage: CobroStage | null;
+}): OperationalFinanceAmount | null {
+  if (input.stage === null) {
+    return null;
+  }
+
+  return input.stage === "deposit"
+    ? input.choreography.owedDepositAmount
+    : input.choreography.owedBalanceAmount;
 }
 
 export type ComprobanteCurrency = "vigente" | "desactualizada";
@@ -305,52 +319,6 @@ function resolveCobroStage(
   return null;
 }
 
-/**
- * Agrega a cada pago el total que tendría que cubrir para saldar la etapa. La
- * seña se cotiza contra la fecha de cada pago, que es la que el cobro usa para
- * elegir la fila de precio: un pago fechado antes de un aumento paga el precio
- * de esa fecha, no el vigente hoy. El saldo no depende de la fecha porque sus
- * insumos ya están congelados. `null` cuando no hay etapa cobrable, cuando falta
- * el precio de esa fecha o cuando alguna inscripción no tiene precio vigente.
- */
-async function attachStageTotals(input: {
-  balanceTotal: OperationalFinanceAmount;
-  choreographyId: string;
-  eventId: string;
-  payments: AvailablePayment[];
-  stage: CobroStage | null;
-}): Promise<StagePayment[]> {
-  if (input.stage === null) {
-    return input.payments.map((payment) => ({
-      ...payment,
-      stageTotalAmount: null,
-    }));
-  }
-
-  if (input.stage === "balance") {
-    const stageTotalAmount =
-      input.balanceTotal.status === "complete"
-        ? input.balanceTotal.amount
-        : null;
-
-    return input.payments.map((payment) => ({
-      ...payment,
-      stageTotalAmount,
-    }));
-  }
-
-  const depositTotals = await quoteChoreographyDepositTotals({
-    choreographyId: input.choreographyId,
-    eventId: input.eventId,
-    referenceDates: input.payments.map((payment) => payment.paymentDate),
-  });
-
-  return input.payments.map((payment) => ({
-    ...payment,
-    stageTotalAmount: depositTotals.get(payment.paymentDate) ?? null,
-  }));
-}
-
 type InscriptionRowWithUndo = ChoreographyInscriptionRow & {
   undoableAllocation: { id: string } | null;
 };
@@ -420,24 +388,17 @@ export async function handleChoreographyFinanceAction(input: {
   const intent = String(formData.get("intent") ?? "");
 
   if (intent === payDepositIntent || intent === payBalanceIntent) {
-    const paymentId = String(formData.get("paymentId") ?? "").trim();
-    if (!paymentId) {
-      return { status: "error", message: "Elegí un pago para asignar." };
-    }
-
     const result =
       intent === payDepositIntent
         ? await payChoreographyDeposit({
             academyId,
             choreographyId,
             eventId,
-            paymentId,
           })
         : await payChoreographyBalance({
             academyId,
             choreographyId,
             eventId,
-            paymentId,
           });
 
     if (!result.ok) {
@@ -450,15 +411,11 @@ export async function handleChoreographyFinanceAction(input: {
   if (intent === payInscriptionDepositIntent) {
     const inscriptionId = String(formData.get("inscriptionId") ?? "").trim();
     const priceId = String(formData.get("priceId") ?? "").trim();
-    const paymentId = String(formData.get("paymentId") ?? "").trim();
     if (!inscriptionId) {
       return { status: "error", message: "Elegí una inscripción para cobrar." };
     }
     if (!priceId) {
       return { status: "error", message: "Elegí una fila de precio." };
-    }
-    if (!paymentId) {
-      return { status: "error", message: "Elegí un pago para asignar." };
     }
 
     const result = await payInscriptionDeposit({
@@ -466,7 +423,6 @@ export async function handleChoreographyFinanceAction(input: {
       choreographyId,
       eventId,
       inscriptionId,
-      paymentId,
       priceId,
     });
 
@@ -479,12 +435,8 @@ export async function handleChoreographyFinanceAction(input: {
 
   if (intent === payInscriptionBalanceIntent) {
     const inscriptionId = String(formData.get("inscriptionId") ?? "").trim();
-    const paymentId = String(formData.get("paymentId") ?? "").trim();
     if (!inscriptionId) {
       return { status: "error", message: "Elegí una inscripción para cobrar." };
-    }
-    if (!paymentId) {
-      return { status: "error", message: "Elegí un pago para asignar." };
     }
 
     const result = await payInscriptionBalance({
@@ -492,7 +444,6 @@ export async function handleChoreographyFinanceAction(input: {
       choreographyId,
       eventId,
       inscriptionId,
-      paymentId,
     });
 
     if (!result.ok) {
@@ -563,58 +514,6 @@ async function readAcademy(academyId: string) {
   }
 
   return academy;
-}
-
-async function listAvailablePayments(input: {
-  academyId: string;
-  eventId: string;
-}) {
-  const [paymentRows, allocationRows] = await Promise.all([
-    db
-      .select({
-        id: paymentTable.id,
-        amount: paymentTable.amount,
-        paymentDate: paymentTable.paymentDate,
-        paymentMethod: paymentTable.paymentMethod,
-        paymentNumber: paymentTable.paymentNumber,
-      })
-      .from(paymentTable)
-      .where(
-        and(
-          eq(paymentTable.academyId, input.academyId),
-          eq(paymentTable.eventId, input.eventId),
-        ),
-      )
-      .orderBy(asc(paymentTable.paymentDate)),
-    db
-      .select({
-        paymentId: paymentAllocations.paymentId,
-        amount: paymentAllocations.amount,
-      })
-      .from(paymentAllocations)
-      .where(
-        and(
-          eq(paymentAllocations.academyId, input.academyId),
-          eq(paymentAllocations.eventId, input.eventId),
-        ),
-      ),
-  ]);
-
-  const allocatedByPayment = new Map<string, number>();
-  for (const allocation of allocationRows) {
-    allocatedByPayment.set(
-      allocation.paymentId,
-      (allocatedByPayment.get(allocation.paymentId) ?? 0) + allocation.amount,
-    );
-  }
-
-  return paymentRows.map((payment) => ({
-    id: payment.id,
-    paymentNumber: payment.paymentNumber,
-    paymentDate: payment.paymentDate,
-    paymentMethod: payment.paymentMethod,
-    availableAmount: payment.amount - (allocatedByPayment.get(payment.id) ?? 0),
-  }));
 }
 
 function readAcademyId(params: { academyId?: string }) {

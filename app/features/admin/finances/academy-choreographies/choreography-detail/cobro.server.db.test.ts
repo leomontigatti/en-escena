@@ -1,5 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm";
-import { describe, expect, test } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import {
@@ -13,6 +13,7 @@ import {
   readInscriptionDepositOptions,
   releaseInscriptionAllocations,
 } from "@/lib/finances/choreography-cobro.server";
+import * as businessTimeZone from "@/lib/shared/business-time-zone";
 import { action as choreographyDetailAction } from "@/routes/administracion.finanzas_.$academyId_.coreografias_.$choreographyId";
 
 import { installDatabaseTestHooks } from "../../../../../../tests/db/harness";
@@ -24,6 +25,15 @@ import {
 } from "../../../../../lib/admin/finances/finances.test-support";
 
 installDatabaseTestHooks();
+
+// El cobro ya no se fecha contra un pago: congela contra el día del negocio y
+// resuelve el precio vigente ese día. Fijarlo dentro de la vigencia del catálogo
+// mantiene el fixture legible y hace determinista la fila de precio elegida.
+beforeEach(() => {
+  vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
+    "2026-04-10",
+  );
+});
 
 async function seedCobroFixture() {
   const event = await createSavedEvent({ requiredDepositPercentage: 30 });
@@ -166,6 +176,26 @@ async function seedMixedBalanceFixture() {
     })
     .where(eq(choreographyDancers.id, ana.id));
 
+  // El dinero que esos snapshots dicen tener: Ana con su total y Bruno con su
+  // seña. Sin esto el cobro derivaría un adeudado que no se corresponde con lo
+  // que la escalera declara, porque lo adeudado sale de las asignaciones.
+  await db.insert(paymentAllocations).values([
+    {
+      academyId: fixture.academy.academy.id,
+      amount: 10000,
+      eventId: fixture.event.id,
+      inscriptionId: ana.id,
+      paymentId: fixture.payment.id,
+    },
+    {
+      academyId: fixture.academy.academy.id,
+      amount: 3000,
+      eventId: fixture.event.id,
+      inscriptionId: bruno.id,
+      paymentId: fixture.payment.id,
+    },
+  ]);
+
   return { ...fixture, ana, bruno };
 }
 
@@ -220,7 +250,7 @@ describe.sequential("choreography cobro through the route action", () => {
       academyId: fixture.academy.academy.id,
       choreographyId: fixture.choreography.id,
       eventId: fixture.event.id,
-      fields: { intent: "pay-deposit", paymentId: fixture.payment.id },
+      fields: { intent: "pay-deposit" },
     });
 
     expect(response).toMatchObject({ status: 302 });
@@ -250,7 +280,7 @@ describe.sequential("choreography cobro through the route action", () => {
       academyId: fixture.academy.academy.id,
       choreographyId: fixture.choreography.id,
       eventId: fixture.event.id,
-      fields: { intent: "pay-balance", paymentId: fixture.payment.id },
+      fields: { intent: "pay-balance" },
     });
 
     expect(result).toMatchObject({ status: "error" });
@@ -267,13 +297,13 @@ describe.sequential("choreography cobro through the route action", () => {
       academyId: fixture.academy.academy.id,
       choreographyId: fixture.choreography.id,
       eventId: fixture.event.id,
-      fields: { intent: "pay-deposit", paymentId: fixture.payment.id },
+      fields: { intent: "pay-deposit" },
     });
     const balanceResponse = await postDetailAction({
       academyId: fixture.academy.academy.id,
       choreographyId: fixture.choreography.id,
       eventId: fixture.event.id,
-      fields: { intent: "pay-balance", paymentId: fixture.payment.id },
+      fields: { intent: "pay-balance" },
     });
 
     expect(balanceResponse).toMatchObject({ status: 302 });
@@ -303,13 +333,13 @@ describe.sequential("choreography cobro through the route action", () => {
       academyId: fixture.academy.academy.id,
       choreographyId: fixture.choreography.id,
       eventId: fixture.event.id,
-      fields: { intent: "pay-deposit", paymentId: fixture.payment.id },
+      fields: { intent: "pay-deposit" },
     });
     await postDetailAction({
       academyId: fixture.academy.academy.id,
       choreographyId: fixture.choreography.id,
       eventId: fixture.event.id,
-      fields: { intent: "pay-balance", paymentId: fixture.payment.id },
+      fields: { intent: "pay-balance" },
     });
 
     const inscription = await db.query.choreographyDancers.findFirst({
@@ -334,13 +364,13 @@ describe.sequential("choreography cobro through the route action", () => {
       academyId: fixture.academy.academy.id,
       choreographyId: fixture.choreography.id,
       eventId: fixture.event.id,
-      fields: { intent: "pay-deposit", paymentId: fixture.payment.id },
+      fields: { intent: "pay-deposit" },
     });
     await postDetailAction({
       academyId: fixture.academy.academy.id,
       choreographyId: fixture.choreography.id,
       eventId: fixture.event.id,
-      fields: { intent: "pay-balance", paymentId: fixture.payment.id },
+      fields: { intent: "pay-balance" },
     });
 
     const allocation = await db.query.paymentAllocations.findFirst({
@@ -383,7 +413,6 @@ describe.sequential("choreography cobro through the route action", () => {
         intent: "pay-inscription-deposit",
         inscriptionId: fixture.bruno.id,
         priceId: fixture.priceAbove.id,
-        paymentId: fixture.payment.id,
       },
     });
 
@@ -422,7 +451,6 @@ describe.sequential("choreography cobro through the route action", () => {
         intent: "pay-inscription-deposit",
         inscriptionId: fixture.bruno.id,
         priceId: fixture.priceBelow.id,
-        paymentId: fixture.payment.id,
       },
     });
 
@@ -446,7 +474,11 @@ describe.sequential("choreography cobro through the route action", () => {
 
     // Techo: único precio con vencimiento aún no pasado, así queda como el
     // "precio vigente hoy" (11000). priceAbove (12000) está sobre el piso pero
-    // por encima de este techo.
+    // por encima de este techo. Requiere correr el día del negocio más allá de
+    // los vencimientos de 2026 del fixture.
+    vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
+      "2026-06-01",
+    );
     await db.insert(prices).values({
       eventId: fixture.event.id,
       name: "Solo vigente",
@@ -464,7 +496,6 @@ describe.sequential("choreography cobro through the route action", () => {
         intent: "pay-inscription-deposit",
         inscriptionId: fixture.bruno.id,
         priceId: fixture.priceAbove.id,
-        paymentId: fixture.payment.id,
       },
     });
 
@@ -485,6 +516,11 @@ describe.sequential("choreography cobro through the route action", () => {
 
     // Precio vigente hoy (techo) por debajo del piso (10000): igualar el piso
     // debe seguir siendo válido, así que las opciones no pueden quedar vacías.
+    // El día del negocio corre más allá de los vencimientos de 2026 del fixture
+    // para que el techo sea uno de los dos precios que se agregan acá.
+    vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
+      "2026-06-01",
+    );
     await db.insert(prices).values([
       {
         eventId: fixture.event.id,
@@ -526,7 +562,6 @@ describe.sequential("choreography cobro through the route action", () => {
       fields: {
         intent: "pay-inscription-balance",
         inscriptionId: fixture.bruno.id,
-        paymentId: fixture.payment.id,
       },
     });
 
@@ -546,11 +581,13 @@ describe.sequential("choreography cobro through the route action", () => {
     });
     expect(ana?.balanceAmount).toBe(7000);
 
+    // Una sola fila por (pago, inscripción): el saldo (7000) se sumó sobre la
+    // seña que Bruno ya tenía asignada (3000).
     const allocations = await db.query.paymentAllocations.findMany({
       where: eq(paymentAllocations.inscriptionId, fixture.bruno.id),
     });
     expect(allocations).toHaveLength(1);
-    expect(allocations[0]?.amount).toBe(7000);
+    expect(allocations[0]?.amount).toBe(10000);
   });
 
   test("El server rechaza cobrar saldo por inscripción cuando no está señada", async () => {
@@ -564,7 +601,6 @@ describe.sequential("choreography cobro through the route action", () => {
       fields: {
         intent: "pay-inscription-balance",
         inscriptionId: fixture.ana.id,
-        paymentId: fixture.payment.id,
       },
     });
 
@@ -578,7 +614,7 @@ describe.sequential("choreography cobro through the route action", () => {
       academyId: fixture.academy.academy.id,
       choreographyId: fixture.choreography.id,
       eventId: fixture.event.id,
-      fields: { intent: "pay-deposit", paymentId: fixture.payment.id },
+      fields: { intent: "pay-deposit" },
     });
 
     const inscription = await db.query.choreographyDancers.findFirst({

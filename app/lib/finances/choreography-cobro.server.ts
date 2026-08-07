@@ -3,21 +3,27 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { choreographyDancers, events, prices } from "@/db/schema";
 import { resolveChoreographyPricingScheduleId } from "@/lib/finances/choreography-pricing-schedule";
-import { todayDateOnly } from "@/lib/shared/date-only";
-import { calculateDepositAmount } from "@/lib/finances/inscription-financial-status";
-import { deriveInscriptionLadderStage } from "@/lib/finances/inscription-ladder-snapshot";
-
-import { applyAllocationDelta } from "./choreography-cobro-allocations.server";
+import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
 import {
-  assertPaymentAvailability,
+  calculateDepositAmount,
+  deriveInscriptionFinancialFigures,
+} from "@/lib/finances/inscription-financial-status";
+import { deriveInscriptionLadderStage } from "@/lib/finances/inscription-ladder-snapshot";
+import { readInscriptionThresholds } from "@/lib/finances/inscription-thresholds.server";
+
+import {
+  readInscriptionAllocatedAmount,
+  spreadFromPool,
+} from "./allocation-pool.server";
+import {
   loadCandidatePriceRow,
   loadChoreographyScheduleRow,
   loadCobroContext,
   resolveApplicablePriceRow,
-  resolveDancerDiscounts,
   resolveInscriptionDepositFloor,
   selectApplicablePriceRow,
   type CobroResult,
+  type Transaction,
 } from "./choreography-cobro-support.server";
 
 export { readChoreographyLadderStages } from "./choreography-cobro-support.server";
@@ -30,16 +36,24 @@ export {
 export type { CobroResult };
 
 /**
+ * Los dos umbrales contra los que una preset de cobro puede saldar. `deposit`
+ * asigna hasta la `Seña`; `total` asigna hasta el `Total`.
+ */
+type CobroThreshold = "deposit" | "total";
+
+/**
  * `Pagar seña` de una coreografía completa. Solo procede si todas las
- * inscripciones activas están `impagas`. Asigna la seña de cada
- * inscripción al pago y congela el snapshot de seña (precio base, seña y fila de precio
- * derivada de `payment.date`).
+ * inscripciones activas están `impagas`. Congela el snapshot de seña (precio
+ * base, seña y fila de precio vigente hoy) y asigna a cada inscripción lo que
+ * adeuda contra su seña, tomándolo del `Saldo disponible` de la academia.
+ *
+ * Ya no se nombra un pago: la preset resuelve un monto y el pool decide de qué
+ * pagos sale.
  */
 export async function payChoreographyDeposit(input: {
   academyId: string;
   choreographyId: string;
   eventId: string;
-  paymentId: string;
 }): Promise<CobroResult> {
   return await db.transaction(async (tx) => {
     const context = await loadCobroContext(tx, input);
@@ -47,7 +61,7 @@ export async function payChoreographyDeposit(input: {
       return context;
     }
 
-    const { choreography, event, inscriptions, payment } = context;
+    const { choreography, event, inscriptions } = context;
 
     if (
       !inscriptions.every(
@@ -61,10 +75,11 @@ export async function payChoreographyDeposit(input: {
       };
     }
 
+    const referenceDate = getBusinessDateOnly();
     const price = await resolveApplicablePriceRow(tx, {
       eventId: input.eventId,
       groupType: choreography.groupType,
-      paymentDate: payment.paymentDate,
+      referenceDate,
       scheduleId: choreography.scheduleId,
     });
 
@@ -80,15 +95,6 @@ export async function payChoreographyDeposit(input: {
       priceAmount: price.amount,
       requiredDepositPercentage: event.requiredDepositPercentage,
     });
-    const totalDeposit = depositAmount * inscriptions.length;
-
-    const availability = await assertPaymentAvailability(tx, {
-      payment,
-      requiredAmount: totalDeposit,
-    });
-    if (!availability.ok) {
-      return availability;
-    }
 
     for (const inscription of inscriptions) {
       await tx
@@ -96,22 +102,19 @@ export async function payChoreographyDeposit(input: {
         .set({
           frozenBasePriceAmount: price.amount,
           selectedPriceId: price.id,
-          depositReferenceDate: payment.paymentDate,
+          depositReferenceDate: referenceDate,
           depositPercentage: event.requiredDepositPercentage,
           depositAmount,
         })
         .where(eq(choreographyDancers.id, inscription.id));
-
-      await applyAllocationDelta(tx, {
-        academyId: input.academyId,
-        delta: depositAmount,
-        eventId: input.eventId,
-        inscriptionId: inscription.id,
-        paymentId: payment.id,
-      });
     }
 
-    return { ok: true };
+    return await fundOwedThreshold(tx, {
+      academyId: input.academyId,
+      eventId: input.eventId,
+      inscriptionIds: inscriptions.map((inscription) => inscription.id),
+      threshold: "deposit",
+    });
   });
 }
 
@@ -119,8 +122,7 @@ export async function payChoreographyDeposit(input: {
  * Cobro extraordinario de seña de **una sola inscripción** huérfana en una
  * coreografía mixta. A diferencia del flujo por coreografía entera, la fila de
  * precio la elige el administrador (no se deriva de la fecha) y solo se congela
- * el snapshot de esa inscripción; sus hermanas quedan intactas. `payment.date`
- * se guarda como fecha de referencia del snapshot.
+ * el snapshot de esa inscripción; sus hermanas quedan intactas.
  *
  * Reglas que se aplican en el server:
  * - La inscripción objetivo debe estar `impaga`.
@@ -136,7 +138,6 @@ export async function payInscriptionDeposit(input: {
   choreographyId: string;
   eventId: string;
   inscriptionId: string;
-  paymentId: string;
   priceId: string;
 }): Promise<CobroResult> {
   return await db.transaction(async (tx) => {
@@ -145,7 +146,7 @@ export async function payInscriptionDeposit(input: {
       return context;
     }
 
-    const { choreography, event, inscriptions, payment } = context;
+    const { choreography, event, inscriptions } = context;
 
     const target = inscriptions.find(
       (inscription) => inscription.id === input.inscriptionId,
@@ -188,13 +189,15 @@ export async function payInscriptionDeposit(input: {
       };
     }
 
+    const referenceDate = getBusinessDateOnly();
+
     // Techo: el precio vigente hoy, nunca por debajo del piso (igualar lo que
     // pagó la primera hermana señada siempre es válido). No se puede señar por
     // encima de ese techo.
     const ceilingPrice = await resolveApplicablePriceRow(tx, {
       eventId: input.eventId,
       groupType: choreography.groupType,
-      paymentDate: todayDateOnly(),
+      referenceDate,
       scheduleId: choreography.scheduleId,
     });
 
@@ -211,34 +214,23 @@ export async function payInscriptionDeposit(input: {
       requiredDepositPercentage: event.requiredDepositPercentage,
     });
 
-    const availability = await assertPaymentAvailability(tx, {
-      payment,
-      requiredAmount: depositAmount,
-    });
-    if (!availability.ok) {
-      return availability;
-    }
-
     await tx
       .update(choreographyDancers)
       .set({
         frozenBasePriceAmount: price.amount,
         selectedPriceId: price.id,
-        depositReferenceDate: payment.paymentDate,
+        depositReferenceDate: referenceDate,
         depositPercentage: event.requiredDepositPercentage,
         depositAmount,
       })
       .where(eq(choreographyDancers.id, target.id));
 
-    await applyAllocationDelta(tx, {
+    return await fundOwedThreshold(tx, {
       academyId: input.academyId,
-      delta: depositAmount,
       eventId: input.eventId,
-      inscriptionId: target.id,
-      paymentId: payment.id,
+      inscriptionIds: [target.id],
+      threshold: "deposit",
     });
-
-    return { ok: true };
   });
 }
 
@@ -307,7 +299,7 @@ export async function readInscriptionDepositOptions(input: {
   // impone techo para no ocultar todas las filas.
   const ceilingPrice = selectApplicablePriceRow({
     priceRows: groupTypePrices,
-    referenceDate: todayDateOnly(),
+    referenceDate: getBusinessDateOnly(),
     scheduleId,
   });
   const ceiling =
@@ -335,91 +327,15 @@ export async function readInscriptionDepositOptions(input: {
 }
 
 /**
- * Cotiza cuánto costaría la seña completa de una coreografía por cada fecha
- * candidata, resolviendo el precio igual que `payChoreographyDeposit`: contra la
- * fecha del pago, no contra hoy. Mientras la coreografía sigue `impaga` su
- * precio no está congelado, así que un pago fechado antes de un aumento paga el
- * precio de su fecha. Cotizar con la misma regla que cobra evita ofrecer pagos
- * que el cobro rechazaría, y esconder los que sí acepta.
- *
- * Devuelve el total por fecha; omite las fechas sin precio aplicable.
- */
-export async function quoteChoreographyDepositTotals(input: {
-  choreographyId: string;
-  eventId: string;
-  referenceDates: string[];
-}): Promise<Map<string, number>> {
-  const totals = new Map<string, number>();
-  const uniqueDates = [...new Set(input.referenceDates)];
-
-  if (uniqueDates.length === 0) {
-    return totals;
-  }
-
-  const choreographyRow = await loadChoreographyScheduleRow(
-    db,
-    input.choreographyId,
-  );
-
-  if (!choreographyRow) {
-    return totals;
-  }
-
-  const scheduleId = resolveChoreographyPricingScheduleId(choreographyRow);
-
-  const [event, inscriptionRows, priceRows] = await Promise.all([
-    db.query.events.findFirst({
-      columns: { requiredDepositPercentage: true },
-      where: eq(events.id, input.eventId),
-    }),
-    db
-      .select({ id: choreographyDancers.id })
-      .from(choreographyDancers)
-      .where(eq(choreographyDancers.choreographyId, input.choreographyId)),
-    db.query.prices.findMany({ where: eq(prices.eventId, input.eventId) }),
-  ]);
-
-  if (!event || inscriptionRows.length === 0) {
-    return totals;
-  }
-
-  const candidatePriceRows = priceRows.filter(
-    (price) => price.groupType === choreographyRow.groupType,
-  );
-
-  for (const referenceDate of uniqueDates) {
-    const price = selectApplicablePriceRow({
-      priceRows: candidatePriceRows,
-      referenceDate,
-      scheduleId,
-    });
-
-    if (!price) {
-      continue;
-    }
-
-    const depositAmount = calculateDepositAmount({
-      priceAmount: price.amount,
-      requiredDepositPercentage: event.requiredDepositPercentage,
-    });
-
-    totals.set(referenceDate, depositAmount * inscriptionRows.length);
-  }
-
-  return totals;
-}
-
-/**
  * `Pagar saldo` de una coreografía completa. Solo procede si todas las
- * inscripciones activas están `señadas`. Asigna el saldo de cada
- * inscripción al pago y congela el snapshot de saldo, incluyendo el `Descuento por
- * bailarín` estimado al momento (congelamiento secuencial e irreversible).
+ * inscripciones activas están `señadas`. Congela el snapshot de saldo —
+ * incluyendo el `Descuento por bailarín` vivo — y asigna a cada inscripción lo
+ * que adeuda contra su total, tomándolo del `Saldo disponible` de la academia.
  */
 export async function payChoreographyBalance(input: {
   academyId: string;
   choreographyId: string;
   eventId: string;
-  paymentId: string;
 }): Promise<CobroResult> {
   return await db.transaction(async (tx) => {
     const context = await loadCobroContext(tx, input);
@@ -427,7 +343,7 @@ export async function payChoreographyBalance(input: {
       return context;
     }
 
-    const { inscriptions, payment } = context;
+    const { inscriptions } = context;
 
     if (
       !inscriptions.every(
@@ -441,61 +357,21 @@ export async function payChoreographyBalance(input: {
       };
     }
 
-    const discounts = await resolveDancerDiscounts(tx, {
+    const frozen = await freezeBalanceSnapshots(tx, {
       academyId: input.academyId,
       eventId: input.eventId,
       inscriptions,
     });
-
-    const balances = inscriptions.map((inscription) => {
-      const frozenBasePriceAmount = inscription.frozenBasePriceAmount ?? 0;
-      const depositAmount = inscription.depositAmount ?? 0;
-      const discount = discounts.get(inscription.id) ?? {
-        amount: 0,
-        percentage: 0,
-      };
-      const finalTotalAmount = frozenBasePriceAmount - discount.amount;
-      const balanceAmount = Math.max(0, finalTotalAmount - depositAmount);
-
-      return { balanceAmount, discount, finalTotalAmount, inscription };
-    });
-
-    const totalBalance = balances.reduce(
-      (sum, entry) => sum + entry.balanceAmount,
-      0,
-    );
-
-    const availability = await assertPaymentAvailability(tx, {
-      payment,
-      requiredAmount: totalBalance,
-    });
-    if (!availability.ok) {
-      return availability;
+    if (!frozen.ok) {
+      return frozen;
     }
 
-    for (const entry of balances) {
-      await tx
-        .update(choreographyDancers)
-        .set({
-          balanceReferenceDate: payment.paymentDate,
-          appliedDancerDiscountPercentage: entry.discount.percentage,
-          appliedDancerDiscountAmount: entry.discount.amount,
-          finalTotalAmount: entry.finalTotalAmount,
-          balanceAmount: entry.balanceAmount,
-          balanceCompletedAt: payment.paymentDate,
-        })
-        .where(eq(choreographyDancers.id, entry.inscription.id));
-
-      await applyAllocationDelta(tx, {
-        academyId: input.academyId,
-        delta: entry.balanceAmount,
-        eventId: input.eventId,
-        inscriptionId: entry.inscription.id,
-        paymentId: payment.id,
-      });
-    }
-
-    return { ok: true };
+    return await fundOwedThreshold(tx, {
+      academyId: input.academyId,
+      eventId: input.eventId,
+      inscriptionIds: inscriptions.map((inscription) => inscription.id),
+      threshold: "total",
+    });
   });
 }
 
@@ -503,7 +379,6 @@ export async function payChoreographyBalance(input: {
  * Cobro extraordinario de saldo de **una sola inscripción** `señada` huérfana en
  * una coreografía mixta. A diferencia del flujo por coreografía entera, solo
  * congela el snapshot de saldo de esa inscripción; sus hermanas quedan intactas.
- * `payment.date` se guarda como fecha de referencia y de completado.
  *
  * Reglas que se aplican en el server:
  * - La inscripción objetivo debe estar `señada` (seña congelada, saldo
@@ -511,16 +386,14 @@ export async function payChoreographyBalance(input: {
  * - Solo procede en coreografías **mixtas** (alguna hermana en otro estado); en
  *   una coreografía 100% `señada` el primer congelamiento de saldo es el del
  *   flujo normal por coreografía entera.
- * - El `Descuento por bailarín` se calcula contra el roster `señada`/`pagada`
- *   vigente de esa inscripción, con la asimetría aceptada respecto de las
- *   hermanas ya `pagada` (congelamiento secuencial e irreversible).
+ * - El `Descuento por bailarín` se calcula contra el roster vivo del bailarín,
+ *   igual que la lectura.
  */
 export async function payInscriptionBalance(input: {
   academyId: string;
   choreographyId: string;
   eventId: string;
   inscriptionId: string;
-  paymentId: string;
 }): Promise<CobroResult> {
   return await db.transaction(async (tx) => {
     const context = await loadCobroContext(tx, input);
@@ -528,7 +401,7 @@ export async function payInscriptionBalance(input: {
       return context;
     }
 
-    const { inscriptions, payment } = context;
+    const { inscriptions } = context;
 
     const target = inscriptions.find(
       (inscription) => inscription.id === input.inscriptionId,
@@ -556,45 +429,136 @@ export async function payInscriptionBalance(input: {
       };
     }
 
-    const discounts = await resolveDancerDiscounts(tx, {
+    const frozen = await freezeBalanceSnapshots(tx, {
       academyId: input.academyId,
       eventId: input.eventId,
-      inscriptions,
+      inscriptions: [target],
     });
-    const discount = discounts.get(target.id) ?? { amount: 0, percentage: 0 };
-    const frozenBasePriceAmount = target.frozenBasePriceAmount ?? 0;
-    const depositAmount = target.depositAmount ?? 0;
-    const finalTotalAmount = frozenBasePriceAmount - discount.amount;
-    const balanceAmount = Math.max(0, finalTotalAmount - depositAmount);
-
-    const availability = await assertPaymentAvailability(tx, {
-      payment,
-      requiredAmount: balanceAmount,
-    });
-    if (!availability.ok) {
-      return availability;
+    if (!frozen.ok) {
+      return frozen;
     }
+
+    return await fundOwedThreshold(tx, {
+      academyId: input.academyId,
+      eventId: input.eventId,
+      inscriptionIds: [target.id],
+      threshold: "total",
+    });
+  });
+}
+
+/**
+ * Congela el snapshot de saldo de las inscripciones dadas contra los mismos
+ * umbrales que lee la pantalla: el total sale de `readInscriptionThresholds`, no
+ * de una cuenta propia. Las columnas congeladas siguen escribiéndose porque el
+ * cobro por fila todavía las lee; mueren con la escalera.
+ */
+async function freezeBalanceSnapshots(
+  tx: Transaction,
+  input: {
+    academyId: string;
+    eventId: string;
+    inscriptions: Array<{ id: string; depositAmount: number | null }>;
+  },
+): Promise<CobroResult> {
+  const referenceDate = getBusinessDateOnly();
+  const thresholds = await readInscriptionThresholds(tx, {
+    academyId: input.academyId,
+    eventId: input.eventId,
+    inscriptionIds: input.inscriptions.map((inscription) => inscription.id),
+  });
+
+  for (const inscription of input.inscriptions) {
+    const resolution = thresholds.get(inscription.id);
+
+    if (!resolution || resolution.totalAmount === null) {
+      return {
+        ok: false,
+        message:
+          "No hay un precio configurado para este tipo de grupo y cronograma.",
+      };
+    }
+
+    const depositAmount =
+      inscription.depositAmount ?? resolution.depositAmount ?? 0;
 
     await tx
       .update(choreographyDancers)
       .set({
-        balanceReferenceDate: payment.paymentDate,
-        appliedDancerDiscountPercentage: discount.percentage,
-        appliedDancerDiscountAmount: discount.amount,
-        finalTotalAmount,
-        balanceAmount,
-        balanceCompletedAt: payment.paymentDate,
+        balanceReferenceDate: referenceDate,
+        appliedDancerDiscountPercentage: resolution.dancerDiscountPercentage,
+        appliedDancerDiscountAmount: resolution.dancerDiscountAmount,
+        finalTotalAmount: resolution.totalAmount,
+        balanceAmount: Math.max(0, resolution.totalAmount - depositAmount),
+        balanceCompletedAt: referenceDate,
       })
-      .where(eq(choreographyDancers.id, target.id));
+      .where(eq(choreographyDancers.id, inscription.id));
+  }
 
-    await applyAllocationDelta(tx, {
+  return { ok: true };
+}
+
+/**
+ * Corazón de las presets de cobro: asigna a cada inscripción **exactamente lo
+ * que adeuda** contra el umbral pedido, sacándolo del pool de la academia. Lo
+ * adeudado se computa acá, en la escritura, con el mismo dueño que la lectura,
+ * así que una preset no puede sobreasignar. Una inscripción que ya cubrió el
+ * umbral se saltea en vez de fallar: la preset es idempotente.
+ */
+async function fundOwedThreshold(
+  tx: Transaction,
+  input: {
+    academyId: string;
+    eventId: string;
+    inscriptionIds: string[];
+    threshold: CobroThreshold;
+  },
+): Promise<CobroResult> {
+  const thresholds = await readInscriptionThresholds(tx, {
+    academyId: input.academyId,
+    eventId: input.eventId,
+    inscriptionIds: input.inscriptionIds,
+  });
+
+  for (const inscriptionId of input.inscriptionIds) {
+    const resolution = thresholds.get(inscriptionId);
+
+    if (!resolution) {
+      return { ok: false, message: "No encontramos esa inscripción." };
+    }
+
+    const figures = deriveInscriptionFinancialFigures({
+      allocatedAmount: await readInscriptionAllocatedAmount(tx, inscriptionId),
+      thresholds: resolution,
+    });
+    const owedAmount =
+      input.threshold === "deposit"
+        ? figures.owedDepositAmount
+        : figures.owedBalanceAmount;
+
+    if (owedAmount === null) {
+      return {
+        ok: false,
+        message:
+          "No hay un precio configurado para este tipo de grupo y cronograma.",
+      };
+    }
+
+    if (owedAmount === 0) {
+      continue;
+    }
+
+    const result = await spreadFromPool(tx, {
       academyId: input.academyId,
-      delta: balanceAmount,
+      amount: owedAmount,
       eventId: input.eventId,
-      inscriptionId: target.id,
-      paymentId: payment.id,
+      inscriptionId,
     });
 
-    return { ok: true };
-  });
+    if (!result.ok) {
+      return result;
+    }
+  }
+
+  return { ok: true };
 }
