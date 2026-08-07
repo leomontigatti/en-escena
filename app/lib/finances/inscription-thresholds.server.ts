@@ -1,6 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm";
 
-import { db } from "@/db";
 import {
   choreographies,
   choreographyDancers,
@@ -20,9 +19,7 @@ import {
   resolveEstimatedBasePriceAmount,
 } from "@/lib/finances/operational-summary-calculations.server";
 
-import type { Transaction } from "./choreography-cobro-support.server";
-
-type Executor = Transaction | typeof db;
+import type { Executor } from "./choreography-cobro-support.server";
 
 type RosterRow = {
   id: string;
@@ -34,10 +31,10 @@ type RosterRow = {
 };
 
 /**
- * Los umbrales de una inscripción más los insumos con los que se calcularon. El
- * precio y el descuento salen acompañando a los umbrales porque el cobro todavía
- * los persiste en las columnas congeladas, y tomarlos de otra cuenta sería
- * derivar lo mismo dos veces.
+ * An inscription's thresholds plus the inputs they were computed from. The
+ * price and the discount travel alongside because the cobro still persists them
+ * in the frozen columns, and taking them from a second count would derive the
+ * same thing twice.
  */
 export type InscriptionThresholdResolution = InscriptionThresholds & {
   dancerDiscountAmount: number;
@@ -46,16 +43,16 @@ export type InscriptionThresholdResolution = InscriptionThresholds & {
 };
 
 /**
- * Los dos umbrales de un conjunto de inscripciones, resueltos con **la misma
- * regla que la lectura**: el precio manda (la fila seleccionada, y si no hay, la
- * vigente para el cronograma) y el `Descuento por bailarín` califica sobre el
- * roster vivo. Existe para que la escritura pueda computar lo adeudado sin
- * derivar un umbral por su cuenta: los dos caminos llaman a
- * `calculateDepositAmount` / `calculateTotalAmount`, que siguen siendo el único
- * dueño de la fórmula.
+ * The two thresholds of a set of inscriptions, resolved with **the same rule as
+ * the read path**: the price rules (the selected row, and failing that the one
+ * applicable to the schedule) and the `Descuento por bailarín` qualifies over
+ * the live roster. It exists so the write path can compute owed without
+ * deriving a threshold of its own: both paths call `calculateDepositAmount` /
+ * `calculateTotalAmount`, which remain the single owner of the formula.
  *
- * Una inscripción sin precio resoluble sale con los dos umbrales en `null`, que
- * es lo que la lectura muestra como incompleto y lo que la escritura rechaza.
+ * An inscription with no resolvable price comes out with both thresholds
+ * `null`, which is what the read path shows as incomplete and what the write
+ * path refuses.
  */
 export async function readInscriptionThresholds(
   executor: Executor,
@@ -95,9 +92,9 @@ export async function readInscriptionThresholds(
     executor.query.prices.findMany({
       where: eq(prices.eventId, input.eventId),
     }),
-    // El roster vivo del bailarín dentro del evento y la academia: es el
-    // conjunto que decide cuántas inscripciones califican para el descuento, y
-    // por eso no alcanza con las inscripciones pedidas.
+    // The dancer's live roster within the event and academy: it is the set
+    // that decides how many inscriptions qualify for the discount, which is why
+    // the requested inscriptions alone are not enough.
     executor
       .select({
         id: choreographyDancers.id,
@@ -198,8 +195,8 @@ export async function readInscriptionThresholds(
 }
 
 /**
- * Precio de una inscripción: la fila seleccionada si la tiene, y si no la
- * vigente para su tipo de grupo y cronograma. Mismo orden que la lectura.
+ * An inscription's price: the selected row when it has one, otherwise the one
+ * applicable to its group type and schedule. Same order as the read path.
  */
 function resolveRosterPriceAmount(input: {
   priceRows: (typeof prices.$inferSelect)[];

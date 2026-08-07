@@ -42,10 +42,10 @@ export function formatDancerName(input: {
 }
 
 /**
- * Diálogo por fila del cobro extraordinario de seña de una huérfana: elegir una
- * fila de precio (acotada por el piso, ya filtrada en el loader). El pago no se
- * elige: la seña se financia desde el `Saldo disponible` de la academia, del
- * pago más viejo al más nuevo. El server vuelve a validar el piso y el pool.
+ * Per-row dialog for the extraordinary deposit charge of an orphan: pick a
+ * price row (bounded by the floor, already filtered in the loader). The payment
+ * is not picked: the deposit is funded from the academy's `Saldo disponible`,
+ * oldest payment first. The server re-validates the floor and the pool.
  */
 export function InscriptionCobroDialog({
   inscription,

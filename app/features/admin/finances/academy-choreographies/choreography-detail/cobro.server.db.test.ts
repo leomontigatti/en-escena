@@ -26,16 +26,17 @@ import {
 
 installDatabaseTestHooks();
 
-// El cobro ya no se fecha contra un pago: congela contra el día del negocio y
-// resuelve el precio vigente ese día. Fijarlo dentro de la vigencia del catálogo
-// mantiene el fixture legible y hace determinista la fila de precio elegida.
+// A charge is no longer dated against a payment: it freezes against the
+// business day and resolves the price applicable that day. Pinning it inside
+// the catalogue's validity keeps the fixture readable and makes the chosen
+// price row deterministic.
 beforeEach(() => {
   vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
     "2026-04-10",
   );
 });
 
-async function seedCobroFixture() {
+async function seedCobroFixture(paymentAmount = 50000) {
   const event = await createSavedEvent({ requiredDepositPercentage: 30 });
   const { academy, choreography } =
     await createAcademyFinanceChoreographyFixture({
@@ -68,7 +69,7 @@ async function seedCobroFixture() {
 
   await registerPaymentForTest({
     academyId: academy.academy.id,
-    amount: "50000",
+    amount: String(paymentAmount),
     eventId: event.id,
     paymentDate: "2026-04-10",
   });
@@ -83,9 +84,9 @@ async function seedCobroFixture() {
 }
 
 /**
- * Coreografía mixta: `Ana` queda `señada` a mano (piso = su precio congelado) y
- * `Bruno` sigue `impaga` como huérfana. Agrega dos filas de precio generales
- * para el mismo tipo de grupo: una por encima del piso y otra por debajo.
+ * Mixed choreography: `Ana` is made `señada` by hand (the floor = her frozen
+ * price) and `Bruno` stays `impaga` as the orphan. Adds two general price rows
+ * for the same group type: one above the floor and one below.
  */
 async function seedMixedCobroFixture() {
   const fixture = await seedCobroFixture();
@@ -136,9 +137,9 @@ async function seedMixedCobroFixture() {
 }
 
 /**
- * Coreografía mixta con saldo pendiente: `Ana` queda `pagada` (saldo congelado)
- * y `Bruno` sigue `señada` como huérfana. Distintos bailarines, así que no hay
- * `Descuento por bailarín` en juego (queda en 0).
+ * Mixed choreography with a pending balance: `Ana` ends up `pagada` (balance
+ * frozen) and `Bruno` stays `señada` as the orphan. Different dancers, so no
+ * `Descuento por bailarín` is in play (it stays 0).
  */
 async function seedMixedBalanceFixture() {
   const fixture = await seedCobroFixture();
@@ -152,7 +153,7 @@ async function seedMixedBalanceFixture() {
     throw new Error("Expected two inscriptions.");
   }
 
-  // Ambas señadas al mismo precio congelado.
+  // Both deposited at the same frozen price.
   await db
     .update(choreographyDancers)
     .set({
@@ -163,7 +164,7 @@ async function seedMixedBalanceFixture() {
     })
     .where(inArray(choreographyDancers.id, [ana.id, bruno.id]));
 
-  // Ana ya pagada (saldo congelado); Bruno sigue señada como huérfana.
+  // Ana already paid (balance frozen); Bruno stays señada as the orphan.
   await db
     .update(choreographyDancers)
     .set({
@@ -176,9 +177,9 @@ async function seedMixedBalanceFixture() {
     })
     .where(eq(choreographyDancers.id, ana.id));
 
-  // El dinero que esos snapshots dicen tener: Ana con su total y Bruno con su
-  // seña. Sin esto el cobro derivaría un adeudado que no se corresponde con lo
-  // que la escalera declara, porque lo adeudado sale de las asignaciones.
+  // The money those snapshots claim to hold: Ana with her total and Bruno with
+  // his deposit. Without it the charge would derive an owed figure that does not
+  // match what the ladder declares, because owed comes from the allocations.
   await db.insert(paymentAllocations).values([
     {
       academyId: fixture.academy.academy.id,
@@ -234,7 +235,7 @@ async function postDetailAction(input: {
       context: {},
     } as never);
   } catch (thrown) {
-    // Los redirects se lanzan como `Response` (convención de React Router).
+    // Redirects are thrown as a `Response` (React Router's convention).
     if (thrown instanceof Response) {
       return thrown;
     }
@@ -271,6 +272,36 @@ describe.sequential("choreography cobro through the route action", () => {
     });
     expect(allocations).toHaveLength(2);
     expect(allocations.every((a) => a.amount === 3000)).toBe(true);
+  });
+
+  test("rolls the whole preset back when the pool covers only some inscriptions", async () => {
+    // Two inscriptions owing 3000 each, and a pool of 4000: the first is
+    // fundable and the second is not. A refusal has to leave nothing behind —
+    // neither a partial allocation nor a frozen snapshot.
+    const fixture = await seedCobroFixture(4000);
+
+    const result = await postDetailAction({
+      academyId: fixture.academy.academy.id,
+      choreographyId: fixture.choreography.id,
+      eventId: fixture.event.id,
+      fields: { intent: "pay-deposit" },
+    });
+
+    expect(result).toMatchObject({ status: "error" });
+
+    const allocations = await db.query.paymentAllocations.findMany({
+      where: eq(paymentAllocations.paymentId, fixture.payment.id),
+    });
+    expect(allocations).toHaveLength(0);
+
+    const inscriptions = await db.query.choreographyDancers.findMany({
+      where: eq(choreographyDancers.choreographyId, fixture.choreography.id),
+    });
+    for (const inscription of inscriptions) {
+      expect(inscription.depositReferenceDate).toBeNull();
+      expect(inscription.selectedPriceId).toBeNull();
+      expect(inscription.frozenBasePriceAmount).toBeNull();
+    }
   });
 
   test("rejects Pagar saldo when an inscription has no deposit", async () => {
@@ -317,8 +348,8 @@ describe.sequential("choreography cobro through the route action", () => {
       expect(inscription.finalTotalAmount).toBe(10000);
     }
 
-    // Dos inscripciones, un pago: dos filas, cada una con la seña y el saldo
-    // sumados encima.
+    // Two inscriptions, one payment: two rows, each with the deposit and the
+    // balance summed onto it.
     const allocations = await db.query.paymentAllocations.findMany({
       where: eq(paymentAllocations.paymentId, fixture.payment.id),
     });
@@ -349,7 +380,7 @@ describe.sequential("choreography cobro through the route action", () => {
       throw new Error("Expected an inscription.");
     }
 
-    // Una sola fila por (pago, inscripción): el saldo se sumó sobre la seña.
+    // One row per (payment, inscription): the balance summed onto the deposit.
     const allocations = await db.query.paymentAllocations.findMany({
       where: eq(paymentAllocations.inscriptionId, inscription.id),
     });
@@ -426,7 +457,7 @@ describe.sequential("choreography cobro through the route action", () => {
     expect(bruno?.depositAmount).toBe(3600);
     expect(bruno?.selectedPriceId).toBe(fixture.priceAbove.id);
 
-    // La hermana ya señada no se toca.
+    // The already-deposited sibling is untouched.
     const ana = await db.query.choreographyDancers.findFirst({
       where: eq(choreographyDancers.id, fixture.ana.id),
     });
@@ -472,10 +503,10 @@ describe.sequential("choreography cobro through the route action", () => {
   test("El server rechaza una fila de precio por encima del precio vigente hoy", async () => {
     const fixture = await seedMixedCobroFixture();
 
-    // Techo: único precio con vencimiento aún no pasado, así queda como el
-    // "precio vigente hoy" (11000). priceAbove (12000) está sobre el piso pero
-    // por encima de este techo. Requiere correr el día del negocio más allá de
-    // los vencimientos de 2026 del fixture.
+    // Ceiling: the only price whose deadline has not passed, so it becomes
+    // "today's price" (11000). priceAbove (12000) is above the floor but above
+    // this ceiling too. Needs the business day moved past the fixture's 2026
+    // deadlines.
     vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
       "2026-06-01",
     );
@@ -514,10 +545,10 @@ describe.sequential("choreography cobro through the route action", () => {
   test("Ofrece el precio del piso cuando el precio vigente hoy quedó por debajo", async () => {
     const fixture = await seedMixedCobroFixture();
 
-    // Precio vigente hoy (techo) por debajo del piso (10000): igualar el piso
-    // debe seguir siendo válido, así que las opciones no pueden quedar vacías.
-    // El día del negocio corre más allá de los vencimientos de 2026 del fixture
-    // para que el techo sea uno de los dos precios que se agregan acá.
+    // Today's price (the ceiling) below the floor (10000): matching the floor
+    // must stay valid, so the options cannot come back empty. The business day
+    // moves past the fixture's 2026 deadlines so the ceiling is one of the two
+    // prices added here.
     vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
       "2026-06-01",
     );
@@ -546,8 +577,8 @@ describe.sequential("choreography cobro through the route action", () => {
     });
 
     expect(options?.floor).toBe(10000);
-    // No queda vacío: el techo efectivo no baja del piso, así que se sigue
-    // ofreciendo el precio del piso (10000) y nada por debajo ni por encima.
+    // Not empty: the effective ceiling never drops below the floor, so the floor
+    // price (10000) is still offered and nothing below or above it.
     expect(options?.priceRows.length).toBeGreaterThan(0);
     expect(options?.priceRows.every((row) => row.amount === 10000)).toBe(true);
   });
@@ -575,14 +606,14 @@ describe.sequential("choreography cobro through the route action", () => {
     expect(bruno?.finalTotalAmount).toBe(10000);
     expect(bruno?.balanceCompletedAt).toBe("2026-04-10");
 
-    // La hermana ya pagada no se toca.
+    // The already-paid sibling is untouched.
     const ana = await db.query.choreographyDancers.findFirst({
       where: eq(choreographyDancers.id, fixture.ana.id),
     });
     expect(ana?.balanceAmount).toBe(7000);
 
-    // Una sola fila por (pago, inscripción): el saldo (7000) se sumó sobre la
-    // seña que Bruno ya tenía asignada (3000).
+    // One row per (payment, inscription): the balance (7000) summed onto the
+    // deposit Bruno already had allocated (3000).
     const allocations = await db.query.paymentAllocations.findMany({
       where: eq(paymentAllocations.inscriptionId, fixture.bruno.id),
     });
@@ -593,7 +624,7 @@ describe.sequential("choreography cobro through the route action", () => {
   test("El server rechaza cobrar saldo por inscripción cuando no está señada", async () => {
     const fixture = await seedMixedBalanceFixture();
 
-    // Ana ya está pagada: intentar cobrar su saldo de nuevo debe fallar.
+    // Ana is already paid: charging her balance again must fail.
     const result = await postDetailAction({
       academyId: fixture.academy.academy.id,
       choreographyId: fixture.choreography.id,

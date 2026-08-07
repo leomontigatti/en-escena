@@ -36,26 +36,68 @@ export {
 export type { CobroResult };
 
 /**
- * Los dos umbrales contra los que una preset de cobro puede saldar. `deposit`
- * asigna hasta la `Seña`; `total` asigna hasta el `Total`.
+ * The threshold a cobro preset settles against: `deposit` allocates up to the
+ * `Seña`, `balance` up to the `Total`. It is the same scale the detail screen
+ * names its stage with, so both sides share one type.
  */
-type CobroThreshold = "deposit" | "total";
+export type CobroStage = "deposit" | "balance";
 
 /**
- * `Pagar seña` de una coreografía completa. Solo procede si todas las
- * inscripciones activas están `impagas`. Congela el snapshot de seña (precio
- * base, seña y fila de precio vigente hoy) y asigna a cada inscripción lo que
- * adeuda contra su seña, tomándolo del `Saldo disponible` de la academia.
+ * A refusal raised from inside a cobro transaction. Returning `{ ok: false }`
+ * from a Drizzle transaction callback **commits**, so a preset that refuses
+ * halfway — the pool running dry on the third inscription — would leave the
+ * earlier inscriptions funded and every snapshot frozen. Throwing rolls back;
+ * `runCobro` turns it back into the `CobroResult` the caller expects.
+ */
+class CobroRefusal extends Error {
+  constructor(readonly reason: string) {
+    super(reason);
+    this.name = "CobroRefusal";
+  }
+}
+
+/**
+ * Runs a cobro inside a transaction where **any** refusal rolls back. Every
+ * cobro is all-or-nothing: an administrator who sees an error has to be able to
+ * trust that nothing moved.
+ */
+async function runCobro(
+  run: (tx: Transaction) => Promise<CobroResult>,
+): Promise<CobroResult> {
+  try {
+    return await db.transaction(async (tx) => {
+      const result = await run(tx);
+
+      if (!result.ok) {
+        throw new CobroRefusal(result.message);
+      }
+
+      return result;
+    });
+  } catch (thrown) {
+    if (thrown instanceof CobroRefusal) {
+      return { ok: false, message: thrown.reason };
+    }
+
+    throw thrown;
+  }
+}
+
+/**
+ * `Pagar seña` for a whole choreography. Only proceeds when every active
+ * inscription is `impaga`. Freezes the deposit snapshot (base price, deposit
+ * and the price row applicable today) and allocates each inscription what it
+ * owes against its deposit, taken from the academy's `Saldo disponible`.
  *
- * Ya no se nombra un pago: la preset resuelve un monto y el pool decide de qué
- * pagos sale.
+ * No payment is named any more: the preset resolves an amount and the pool
+ * decides which payments it comes from.
  */
 export async function payChoreographyDeposit(input: {
   academyId: string;
   choreographyId: string;
   eventId: string;
 }): Promise<CobroResult> {
-  return await db.transaction(async (tx) => {
+  return await runCobro(async (tx) => {
     const context = await loadCobroContext(tx, input);
     if (!context.ok) {
       return context;
@@ -113,25 +155,25 @@ export async function payChoreographyDeposit(input: {
       academyId: input.academyId,
       eventId: input.eventId,
       inscriptionIds: inscriptions.map((inscription) => inscription.id),
-      threshold: "deposit",
+      stage: "deposit",
     });
   });
 }
 
 /**
- * Cobro extraordinario de seña de **una sola inscripción** huérfana en una
- * coreografía mixta. A diferencia del flujo por coreografía entera, la fila de
- * precio la elige el administrador (no se deriva de la fecha) y solo se congela
- * el snapshot de esa inscripción; sus hermanas quedan intactas.
+ * Extraordinary deposit charge for **a single orphan inscription** in a mixed
+ * choreography. Unlike the whole-choreography flow, the administrator picks the
+ * price row (it is not derived from a date) and only that inscription's
+ * snapshot is frozen; its siblings are untouched.
  *
- * Reglas que se aplican en el server:
- * - La inscripción objetivo debe estar `impaga`.
- * - Solo procede en coreografías **mixtas** (alguna hermana ya `señada` o
- *   `pagada`); en una coreografía 100% `impaga` el primer congelamiento es el
- *   del flujo normal por coreografía entera.
- * - La fila elegida debe pertenecer al conjunto candidato (mismo `groupType` y
- *   cronograma) y quedar entre el piso (`min(frozenBasePriceAmount)` sobre las
- *   hermanas activas ya `señada`/`pagada`) y el techo (precio vigente hoy).
+ * Rules enforced on the server:
+ * - The target inscription must be `impaga`.
+ * - Only proceeds on **mixed** choreographies (some sibling already `señada` or
+ *   `pagada`); on a 100% `impaga` choreography the first freeze is the one from
+ *   the normal whole-choreography flow.
+ * - The chosen row must belong to the candidate set (same `groupType` and
+ *   schedule) and sit between the floor (`min(frozenBasePriceAmount)` over the
+ *   active siblings already `señada`/`pagada`) and the ceiling (today's price).
  */
 export async function payInscriptionDeposit(input: {
   academyId: string;
@@ -140,7 +182,7 @@ export async function payInscriptionDeposit(input: {
   inscriptionId: string;
   priceId: string;
 }): Promise<CobroResult> {
-  return await db.transaction(async (tx) => {
+  return await runCobro(async (tx) => {
     const context = await loadCobroContext(tx, input);
     if (!context.ok) {
       return context;
@@ -191,9 +233,9 @@ export async function payInscriptionDeposit(input: {
 
     const referenceDate = getBusinessDateOnly();
 
-    // Techo: el precio vigente hoy, nunca por debajo del piso (igualar lo que
-    // pagó la primera hermana señada siempre es válido). No se puede señar por
-    // encima de ese techo.
+    // Ceiling: today's price, never below the floor (matching what the first
+    // deposited sibling paid is always valid). No deposit may be charged above
+    // that ceiling.
     const ceilingPrice = await resolveApplicablePriceRow(tx, {
       eventId: input.eventId,
       groupType: choreography.groupType,
@@ -229,20 +271,20 @@ export async function payInscriptionDeposit(input: {
       academyId: input.academyId,
       eventId: input.eventId,
       inscriptionIds: [target.id],
-      threshold: "deposit",
+      stage: "deposit",
     });
   });
 }
 
 /**
- * Opciones para el cobro de seña por inscripción de una coreografía. Devuelve
- * `null` cuando la coreografía **no** es mixta (no hay huérfana `impaga` con al
- * menos una hermana ya `señada`/`pagada`), que es cuando este flujo no se
- * ofrece. El conjunto de filas de precio candidatas es el de mismo `groupType` y
- * cronograma, acotado entre el **piso** (`min(frozenBasePriceAmount)` de las
- * hermanas ya congeladas) y el **techo**: el precio vigente al día de hoy (día
- * de la consulta). No se ofrece un precio menor al que pagó la primera hermana
- * señada ni mayor al vigente hoy.
+ * Options for the per-inscription deposit charge of a choreography. Returns
+ * `null` when the choreography is **not** mixed (no `impaga` orphan with at
+ * least one `señada`/`pagada` sibling), which is when this flow is not offered.
+ * The candidate price rows are those of the same `groupType` and schedule,
+ * bounded between the **floor** (`min(frozenBasePriceAmount)` of the already
+ * frozen siblings) and the **ceiling**: today's applicable price. No price
+ * below what the first deposited sibling paid, and none above today's, is
+ * offered.
  */
 export async function readInscriptionDepositOptions(input: {
   choreographyId: string;
@@ -292,11 +334,11 @@ export async function readInscriptionDepositOptions(input: {
     await db.query.prices.findMany({ where: eq(prices.eventId, input.eventId) })
   ).filter((price) => price.groupType === choreographyRow.groupType);
 
-  // Techo: el precio vigente hoy, resuelto con la misma regla que el cobro
-  // (específico del cronograma por sobre el general). Nunca por debajo del piso:
-  // igualar el precio que pagó la primera hermana señada siempre es válido, aun
-  // si hoy rige un vencimiento más barato. Si hoy no hay precio aplicable, no se
-  // impone techo para no ocultar todas las filas.
+  // Ceiling: today's price, resolved with the same rule as the charge itself
+  // (schedule-specific over general). Never below the floor: matching the price
+  // the first deposited sibling paid is always valid, even when a cheaper
+  // deadline rules today. With no applicable price today no ceiling is imposed,
+  // so the rows are not all hidden.
   const ceilingPrice = selectApplicablePriceRow({
     priceRows: groupTypePrices,
     referenceDate: getBusinessDateOnly(),
@@ -327,17 +369,17 @@ export async function readInscriptionDepositOptions(input: {
 }
 
 /**
- * `Pagar saldo` de una coreografía completa. Solo procede si todas las
- * inscripciones activas están `señadas`. Congela el snapshot de saldo —
- * incluyendo el `Descuento por bailarín` vivo — y asigna a cada inscripción lo
- * que adeuda contra su total, tomándolo del `Saldo disponible` de la academia.
+ * `Pagar saldo` for a whole choreography. Only proceeds when every active
+ * inscription is `señada`. Freezes the balance snapshot — including the live
+ * `Descuento por bailarín` — and allocates each inscription what it owes
+ * against its total, taken from the academy's `Saldo disponible`.
  */
 export async function payChoreographyBalance(input: {
   academyId: string;
   choreographyId: string;
   eventId: string;
 }): Promise<CobroResult> {
-  return await db.transaction(async (tx) => {
+  return await runCobro(async (tx) => {
     const context = await loadCobroContext(tx, input);
     if (!context.ok) {
       return context;
@@ -370,24 +412,23 @@ export async function payChoreographyBalance(input: {
       academyId: input.academyId,
       eventId: input.eventId,
       inscriptionIds: inscriptions.map((inscription) => inscription.id),
-      threshold: "total",
+      stage: "balance",
     });
   });
 }
 
 /**
- * Cobro extraordinario de saldo de **una sola inscripción** `señada` huérfana en
- * una coreografía mixta. A diferencia del flujo por coreografía entera, solo
- * congela el snapshot de saldo de esa inscripción; sus hermanas quedan intactas.
+ * Extraordinary balance charge for **a single orphan `señada` inscription** in
+ * a mixed choreography. Unlike the whole-choreography flow, only that
+ * inscription's balance snapshot is frozen; its siblings are untouched.
  *
- * Reglas que se aplican en el server:
- * - La inscripción objetivo debe estar `señada` (seña congelada, saldo
- *   pendiente).
- * - Solo procede en coreografías **mixtas** (alguna hermana en otro estado); en
- *   una coreografía 100% `señada` el primer congelamiento de saldo es el del
- *   flujo normal por coreografía entera.
- * - El `Descuento por bailarín` se calcula contra el roster vivo del bailarín,
- *   igual que la lectura.
+ * Rules enforced on the server:
+ * - The target inscription must be `señada` (deposit frozen, balance pending).
+ * - Only proceeds on **mixed** choreographies (some sibling in another state);
+ *   on a 100% `señada` choreography the first balance freeze is the one from
+ *   the normal whole-choreography flow.
+ * - The `Descuento por bailarín` is computed against the dancer's live roster,
+ *   the same as the read path.
  */
 export async function payInscriptionBalance(input: {
   academyId: string;
@@ -395,7 +436,7 @@ export async function payInscriptionBalance(input: {
   eventId: string;
   inscriptionId: string;
 }): Promise<CobroResult> {
-  return await db.transaction(async (tx) => {
+  return await runCobro(async (tx) => {
     const context = await loadCobroContext(tx, input);
     if (!context.ok) {
       return context;
@@ -442,16 +483,16 @@ export async function payInscriptionBalance(input: {
       academyId: input.academyId,
       eventId: input.eventId,
       inscriptionIds: [target.id],
-      threshold: "total",
+      stage: "balance",
     });
   });
 }
 
 /**
- * Congela el snapshot de saldo de las inscripciones dadas contra los mismos
- * umbrales que lee la pantalla: el total sale de `readInscriptionThresholds`, no
- * de una cuenta propia. Las columnas congeladas siguen escribiéndose porque el
- * cobro por fila todavía las lee; mueren con la escalera.
+ * Freezes the balance snapshot of the given inscriptions against the same
+ * thresholds the screen reads: the total comes from `readInscriptionThresholds`,
+ * not from a count of its own. The frozen columns are still written because the
+ * per-row charge still reads them; they die with the ladder.
  */
 async function freezeBalanceSnapshots(
   tx: Transaction,
@@ -499,11 +540,11 @@ async function freezeBalanceSnapshots(
 }
 
 /**
- * Corazón de las presets de cobro: asigna a cada inscripción **exactamente lo
- * que adeuda** contra el umbral pedido, sacándolo del pool de la academia. Lo
- * adeudado se computa acá, en la escritura, con el mismo dueño que la lectura,
- * así que una preset no puede sobreasignar. Una inscripción que ya cubrió el
- * umbral se saltea en vez de fallar: la preset es idempotente.
+ * The heart of the cobro presets: allocates each inscription **exactly what it
+ * owes** against the requested stage, out of the academy's pool. Owed is
+ * computed here, on the write path, through the same owner the read path uses,
+ * so a preset cannot over-allocate. An inscription that already covered the
+ * threshold is skipped rather than failing: the preset is idempotent.
  */
 async function fundOwedThreshold(
   tx: Transaction,
@@ -511,7 +552,7 @@ async function fundOwedThreshold(
     academyId: string;
     eventId: string;
     inscriptionIds: string[];
-    threshold: CobroThreshold;
+    stage: CobroStage;
   },
 ): Promise<CobroResult> {
   const thresholds = await readInscriptionThresholds(tx, {
@@ -532,7 +573,7 @@ async function fundOwedThreshold(
       thresholds: resolution,
     });
     const owedAmount =
-      input.threshold === "deposit"
+      input.stage === "deposit"
         ? figures.owedDepositAmount
         : figures.owedBalanceAmount;
 

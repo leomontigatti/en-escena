@@ -23,11 +23,11 @@ type InscriptionRow =
   ChoreographyFinanceDetailLoaderData["inscriptions"][number];
 
 /**
- * Diálogo por fila del cobro extraordinario de saldo de una huérfana `señada` en
- * una coreografía mixta. Ya no se elige un pago: el saldo adeudado se financia
- * desde el `Saldo disponible` de la academia, del pago más viejo al más nuevo.
- * La `señada` ya tiene su seña asignada, así que el diálogo también ofrece
- * deshacerla y devolver la inscripción a `impaga`.
+ * Per-row dialog for the extraordinary balance charge of a `señada` orphan in
+ * a mixed choreography. No payment is picked any more: the owed balance is
+ * funded from the academy's `Saldo disponible`, oldest payment first. A
+ * `señada` already has its deposit allocated, so the dialog also offers undoing
+ * it and returning the inscription to `impaga`.
  */
 export function InscriptionBalanceDialog({
   inscription,

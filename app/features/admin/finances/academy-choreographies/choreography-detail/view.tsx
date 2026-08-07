@@ -66,10 +66,9 @@ type StageTotal = NonNullable<
 type CobroStage = NonNullable<ChoreographyFinanceDetailLoaderData["stage"]>;
 
 /**
- * Si la preset de la etapa se puede disparar: hace falta una cifra adeudada
- * completa (todas las inscripciones con precio) y `Saldo disponible` que la
- * cubra. El server vuelve a chequearlo; esto sólo evita ofrecer un cobro que
- * va a rebotar.
+ * Whether the stage preset can be fired: it needs a complete owed figure (every
+ * inscription priced) and a `Saldo disponible` that covers it. The server
+ * checks again; this only avoids offering a charge that would bounce.
  */
 function canFundStage(input: {
   availableBalanceAmount: number;
@@ -214,9 +213,9 @@ function ChoreographyAlerts({
 }: ChoreographyFinanceDetailViewProps) {
   const stage = loaderData.stage;
   const depositAmount = loaderData.choreography?.depositAmount;
-  // Sin precio aplicable no se puede cotizar la seña: la causa es la falta de
-  // precio configurado, no que el saldo disponible no alcance. Por eso
-  // enunciamos esa causa y suprimimos la alerta que culpa a la plata.
+  // With no applicable price the deposit cannot be quoted: the cause is the
+  // missing price, not the available balance falling short. So we state that
+  // cause and suppress the alert that blames the money.
   const missingDepositPrice =
     stage === "deposit" && depositAmount?.status === "incomplete";
   const notEnoughBalance =
@@ -332,9 +331,9 @@ function ChoreographyActions({
 }
 
 /**
- * Preset de cobro de la etapa. Ya no elige un pago: nombra el monto adeudado y
- * el sistema lo financia desde el `Saldo disponible` de la academia, del pago
- * más viejo al más nuevo. Por eso el diálogo sólo confirma.
+ * The stage's cobro preset. It no longer picks a payment: it names the owed
+ * amount and the system funds it from the academy's `Saldo disponible`, oldest
+ * payment first. That is why the dialog only confirms.
  */
 function CobroDialog({
   availableBalanceAmount,
@@ -414,9 +413,9 @@ function CobroDialog({
 }
 
 /**
- * Lo que la preset va a asignar y de dónde sale: el adeudado de la etapa contra
- * el `Saldo disponible` de la academia. El administrador ya no elige un pago, así
- * que lo que tiene que poder ver es que la plata alcanza.
+ * What the preset will allocate and where it comes from: the stage's owed
+ * figure against the academy's `Saldo disponible`. The administrator no longer
+ * picks a payment, so what they need to see is that the money suffices.
  */
 function StageTotalSummary({
   availableBalanceAmount,

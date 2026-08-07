@@ -330,6 +330,10 @@ they live in one module (`app/lib/finances/allocation-pool.server.ts`).
 - Neither names a payment: they are **presets over the figures**. The amount is
   the owed figure, computed on the write path from the same derivation the
   screens read, and the pool decides which payments it comes from.
+- A preset is **all or nothing**. If the pool runs dry partway through a
+  choreography, or any inscription is refused, the whole charge rolls back:
+  nothing is allocated and no snapshot is frozen. An administrator who sees an
+  error can trust that nothing moved.
 - The price row and the reference dates they freeze are resolved against the
   **business date**, not against a payment's date.
 - Any choreography whose inscriptions are at mixed ladder stages requires
