@@ -128,6 +128,15 @@ export const choreographyDancers = createTable(
     finalTotalAmount: integer("final_total_amount"),
     balanceAmount: integer("balance_amount"),
     balanceCompletedAt: text("balance_completed_at"),
+    // Retiro blando. Se escribe una sola vez, al quitar la inscripción del
+    // roster, y solo cuando hay evidencia que preservar: plata asignada o una
+    // línea de comprobante. Sin evidencia la fila se borra físicamente, así que
+    // `choreography_dancer_unique` sigue valiendo y volver a agregar al mismo
+    // bailarín revive esta fila en lugar de insertar otra.
+    withdrawnAt: timestamp("withdrawn_at", {
+      mode: "date",
+      withTimezone: true,
+    }),
   },
   (table) => [
     foreignKey({

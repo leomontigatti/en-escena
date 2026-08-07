@@ -148,11 +148,11 @@ Person associated with an academy and loaded by that academy as part of its data
 _Avoid_: `user`, `admin`
 
 **`inscription`** — ui: "Inscripción"
-Link with economic identity and stable identity (its own `id`) between a choreography and a dancer within a concrete event. It can be unpaid, deposited or paid. Removing an inscription is a physical delete; there is no inactive state.
+Link with economic identity and stable identity (its own `id`) between a choreography and a dancer within a concrete event. Removing it from the roster chooses once between a physical delete —when it holds neither allocations nor a `comprobante` line— and a withdrawal (`withdrawnAt`), which keeps the row and the money on it. Adding the same dancer again revives that row.
 _Avoid_: academy participation, account, `payment`, invoice, inactive inscription
 
 **`activeInscription`** — ui: "Inscripción activa"
-Inscription that takes part in a choreography's current calculations, its pending amounts and its automatic discounts.
+Inscription that takes part in a choreography's current calculations, its pending amounts and its automatic discounts: every one that has not been withdrawn. The shared `activeInscription()` predicate and its raw-SQL twin exist so that no reader has to restate the rule; the roster write path applies them today, and extending them to the remaining reads is #685.
 _Avoid_: paid inscription, competitive participation
 
 **`choreography`** — ui: "Coreografía"
