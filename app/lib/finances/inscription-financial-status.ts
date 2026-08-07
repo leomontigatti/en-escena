@@ -22,6 +22,16 @@ export type ChoreographyFinancialStatus = InscriptionFinancialStatus;
 export type InscriptionAnomaly = "overAllocated";
 
 /**
+ * Explicit badge precedence, most urgent first. The array `anomalies` is built
+ * by whoever derives it and its order is an implementation detail; which badge
+ * wins is decided here and nowhere else, so adding an anomaly means adding it to
+ * this list rather than hoping it got pushed in the right place.
+ */
+const inscriptionAnomalyPrecedence = [
+  "overAllocated",
+] as const satisfies readonly InscriptionAnomaly[];
+
+/**
  * Orden de la escala. `depositPending < depositMet < paidInFull`, que es lo que
  * hace del rollup un mínimo y no una marca de agua.
  */
@@ -114,7 +124,12 @@ export function deriveInscriptionFinancialStatus(input: {
 export function deriveInscriptionFinancialFigures(input: {
   allocatedAmount: number;
   thresholds: InscriptionThresholds;
+  withdrawn?: boolean;
 }): InscriptionFinancialFigures {
+  if (input.withdrawn) {
+    return deriveWithdrawnInscriptionFigures(input);
+  }
+
   const { depositAmount, totalAmount } = input.thresholds;
   const financialStatus = deriveInscriptionFinancialStatus({
     allocatedAmount: input.allocatedAmount,
@@ -142,6 +157,78 @@ export function deriveInscriptionFinancialFigures(input: {
         : Math.max(0, depositAmount - input.allocatedAmount),
     totalAmount,
   };
+}
+
+/**
+ * A withdrawn inscription's total is **what remains allocated to it, not zero**:
+ * the seña may be forfeited, and the allocation that stays is the record of that
+ * retention. Money and obligation become one statement, and three consequences
+ * fall out of that single rule rather than being enforced one by one:
+ *
+ * - `Sobreasignada` **cannot fire** — the excess is `allocated − total`, and here
+ *   they are the same number by construction.
+ * - **Nothing is owed.** The row is off the roster; there is no threshold left to
+ *   reach.
+ * - The retained money **re-enters the choreography's rollup**, because
+ *   `totalAmount` and `allocatedAmount` are both real.
+ *
+ * The deposit figure survives untouched: the preset that takes the saldo off a
+ * withdrawn row needs it, and it is the price's figure, not a claim.
+ *
+ * The status reads `paidInFull` because nothing is owed, but no surface shows it
+ * — the `Retirada` badge replaces the status badge, and the rollup skips the row.
+ * `paidInFull` is the harmless value to carry: it is the maximum of a minimum
+ * rollup, so a leak could not drag a choreography down.
+ */
+function deriveWithdrawnInscriptionFigures(input: {
+  allocatedAmount: number;
+  thresholds: InscriptionThresholds;
+}): InscriptionFinancialFigures {
+  return {
+    allocatedAmount: input.allocatedAmount,
+    anomalies: [],
+    depositAmount: input.thresholds.depositAmount,
+    financialStatus: "paidInFull",
+    overAllocatedAmount: 0,
+    owedBalanceAmount: 0,
+    owedDepositAmount: 0,
+    totalAmount: input.allocatedAmount,
+  };
+}
+
+/**
+ * Which badge a row wears in the `Estado` column. The three axes do not sit side
+ * by side: they **replace** each other, because two badges competing for the same
+ * glance read as two facts of equal weight when only one asks for something.
+ *
+ * `Retirada` outranks everything: it is roster state, and the money axes describe
+ * a row that is still on the roster. `Sobreasignada` cannot even co-occur with it
+ * — see `deriveWithdrawnInscriptionFigures` — so the order is a statement, not a
+ * tie-break.
+ */
+export type InscriptionStatusBadge =
+  | { kind: "withdrawn" }
+  | { kind: "anomaly"; anomaly: InscriptionAnomaly }
+  | { kind: "status"; status: InscriptionFinancialStatus };
+
+export function resolveInscriptionStatusBadge(input: {
+  anomalies: InscriptionAnomaly[];
+  financialStatus: InscriptionFinancialStatus;
+  withdrawn?: boolean;
+}): InscriptionStatusBadge {
+  if (input.withdrawn) {
+    return { kind: "withdrawn" };
+  }
+
+  const anomaly = inscriptionAnomalyPrecedence.find((candidate) =>
+    input.anomalies.includes(candidate),
+  );
+
+  if (anomaly) {
+    return { kind: "anomaly", anomaly };
+  }
+
+  return { kind: "status", status: input.financialStatus };
 }
 
 /**

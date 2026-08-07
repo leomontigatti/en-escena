@@ -24,12 +24,18 @@ export type ChoreographyInscriptionRow = {
   owedBalanceAmount: number | null;
   owedDepositAmount: number | null;
   totalAmount: number | null;
+  withdrawn: boolean;
 };
 
 /**
  * Una fila por bailarín del roster, aunque todavía no tenga inscripción: el
  * roster es la lista que la academia ve, y un bailarín sin inscripción lee como
  * `Seña pendiente` sin importes.
+ *
+ * Las retiradas se leen a propósito —el detalle financiero es una de las cuatro
+ * superficies que muestran evidencia—, y por eso esta consulta no lleva
+ * `activeInscription()`: la fila retirada es lo que documenta que su plata quedó
+ * retenida.
  */
 export async function readChoreographyInscriptionRows(input: {
   academyEventInscriptions: AcademyEventFinanceInscriptions;
@@ -79,6 +85,7 @@ function toInscriptionRow(
       owedBalanceAmount: null,
       owedDepositAmount: null,
       totalAmount: null,
+      withdrawn: false,
     };
   }
 
@@ -95,5 +102,6 @@ function toInscriptionRow(
     owedBalanceAmount: inscription.owedBalanceAmount,
     owedDepositAmount: inscription.owedDepositAmount,
     totalAmount: inscription.totalAmount,
+    withdrawn: inscription.withdrawn,
   };
 }

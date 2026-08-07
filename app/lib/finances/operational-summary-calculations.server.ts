@@ -52,6 +52,9 @@ export type ResolvedInscription = {
   owedDepositAmount: number | null;
   overAllocatedAmount: number | null;
   depositReferenceDate: string | null;
+  // Baja del roster, no estado de dinero. Decide en qué rollup entra la fila y
+  // qué badge lleva; sus cifras ya vienen derivadas en consecuencia.
+  withdrawn: boolean;
 };
 
 export type FinanceChoreographyRow = {
@@ -66,6 +69,12 @@ export type FinanceChoreographyRow = {
 /**
  * Las mismas cifras que una inscripción, sumadas sobre las suyas. El estado no
  * se suma: es el mínimo (ver `deriveChoreographyFinancialStatus`).
+ *
+ * Los dos rollups se separan en las retiradas: una inscripción retirada entra en
+ * el de plata —su total es lo que quedó retenido, y eso es plata de esta
+ * coreografía— y queda fuera del de estado, porque el badge de la coreografía
+ * responde *¿puede presentarse como está coreografiada?* y una fila retirada ya
+ * no forma parte de esa respuesta.
  */
 export type ChoreographyOperationalFinanceRow = {
   allocatedAmount: number;
@@ -189,7 +198,9 @@ export function buildChoreographyOperationalFinanceRow(input: {
     depositAmount: depositAmount.build(),
     depositCompletedOn,
     financialStatus: deriveChoreographyFinancialStatus(
-      input.inscriptions.map((inscription) => inscription.financialStatus),
+      input.inscriptions
+        .filter((inscription) => !inscription.withdrawn)
+        .map((inscription) => inscription.financialStatus),
     ),
     groupType: input.choreography.groupType,
     id: input.choreography.id,
@@ -197,7 +208,9 @@ export function buildChoreographyOperationalFinanceRow(input: {
     overAllocatedAmount,
     owedBalanceAmount: owedBalanceAmount.build(),
     owedDepositAmount: owedDepositAmount.build(),
-    registrationCount: input.inscriptions.length,
+    registrationCount: input.inscriptions.filter(
+      (inscription) => !inscription.withdrawn,
+    ).length,
     totalAmount: totalAmount.build(),
   };
 }

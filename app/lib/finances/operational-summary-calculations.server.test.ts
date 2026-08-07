@@ -40,6 +40,7 @@ function resolvedInscription(
     owedBalanceAmount: 10000,
     owedDepositAmount: 3000,
     totalAmount: 10000,
+    withdrawn: false,
   };
 
   return { ...base, ...overrides };
@@ -217,6 +218,69 @@ describe("buildChoreographyOperationalFinanceRow", () => {
 
     expect(row.overAllocatedAmount).toBe(2000);
     expect(row.anomalies).toEqual(["overAllocated"]);
+  });
+
+  test("keeps a withdrawn inscription in the money rollup and out of the status one", () => {
+    const row = buildChoreographyOperationalFinanceRow({
+      choreography,
+      inscriptions: [
+        resolvedInscription({
+          allocatedAmount: 10000,
+          financialStatus: "paidInFull",
+          id: "i1",
+          owedBalanceAmount: 0,
+          owedDepositAmount: 0,
+        }),
+        // Retirada con la seña retenida: su total es lo que quedó asignado.
+        resolvedInscription({
+          allocatedAmount: 3000,
+          financialStatus: "paidInFull",
+          id: "i2",
+          overAllocatedAmount: 0,
+          owedBalanceAmount: 0,
+          owedDepositAmount: 0,
+          totalAmount: 3000,
+          withdrawn: true,
+        }),
+      ],
+    });
+
+    // La plata retenida sigue siendo de esta coreografía.
+    expect(row.allocatedAmount).toBe(13000);
+    expect(row.totalAmount).toEqual({ amount: 13000, status: "complete" });
+    expect(row.owedBalanceAmount).toEqual({ amount: 0, status: "complete" });
+    // El estado responde *¿puede presentarse?*, y la fila retirada ya no es
+    // parte de esa respuesta; tampoco cuenta como inscripción.
+    expect(row.financialStatus).toBe("paidInFull");
+    expect(row.registrationCount).toBe(1);
+  });
+
+  test("does not let a withdrawn inscription drag the status rollup down", () => {
+    const row = buildChoreographyOperationalFinanceRow({
+      choreography,
+      inscriptions: [
+        resolvedInscription({
+          allocatedAmount: 10000,
+          financialStatus: "paidInFull",
+          id: "i1",
+          owedBalanceAmount: 0,
+          owedDepositAmount: 0,
+        }),
+        // El estado de una retirada no se muestra en ningún lado; el rollup
+        // tiene que ignorarlo aunque valga `depositPending`.
+        resolvedInscription({
+          financialStatus: "depositPending",
+          id: "i2",
+          overAllocatedAmount: 0,
+          owedBalanceAmount: 0,
+          owedDepositAmount: 0,
+          totalAmount: 0,
+          withdrawn: true,
+        }),
+      ],
+    });
+
+    expect(row.financialStatus).toBe("paidInFull");
   });
 
   test("reports incomplete amounts when an inscription has no price", () => {

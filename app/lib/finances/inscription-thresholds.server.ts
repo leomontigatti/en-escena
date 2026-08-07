@@ -28,6 +28,7 @@ type RosterRow = {
   groupType: string;
   choreographyScheduleId: string | null;
   scheduleCapacityScheduleId: string | null;
+  withdrawnAt: Date | null;
 };
 
 /**
@@ -103,6 +104,7 @@ export async function readInscriptionThresholds(
         groupType: choreographies.groupType,
         choreographyScheduleId: choreographies.scheduleId,
         scheduleCapacityScheduleId: scheduleCapacities.scheduleId,
+        withdrawnAt: choreographyDancers.withdrawnAt,
       })
       .from(choreographyDancers)
       .innerJoin(
@@ -134,10 +136,17 @@ export async function readInscriptionThresholds(
     string,
     Array<{ id: string; priceAmount: number }>
   >();
+  // The withdrawn rows keep their price — the deposit figure has to stay
+  // readable on them — but they leave the qualifying set: a row that is off the
+  // roster cannot go on discounting its siblings. Same rule as the read path.
   for (const row of rosterRows) {
     const priceAmount = priceAmountByInscription.get(row.id);
 
-    if (priceAmount === null || priceAmount === undefined) {
+    if (
+      row.withdrawnAt !== null ||
+      priceAmount === null ||
+      priceAmount === undefined
+    ) {
       continue;
     }
 

@@ -150,6 +150,7 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
         owedDepositAmount: 3000,
         selectedPrice: null,
         totalAmount: 10000,
+        withdrawn: false,
       },
     ]);
   });
@@ -232,6 +233,7 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
           name: "Precio Solo",
         },
         totalAmount: 10000,
+        withdrawn: false,
       },
     ]);
   });
@@ -306,6 +308,94 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
     });
   });
 
+  test("keeps a withdrawn inscription visible, with its retained allocation as its total", async () => {
+    const event = await createSavedEvent({ requiredDepositPercentage: 30 });
+    const { academy, choreography } =
+      await createAcademyFinanceChoreographyFixture({
+        academyName: "Academia Retirada",
+        email: "academia.retirada.detalle@example.com",
+        choreographyName: "Detalle retirada",
+        event,
+      });
+    const priceId = await readSoloPriceId(event.id);
+    const [staying, withdrawn] = await Promise.all([
+      createDancer(academy.academy.id, { firstName: "Sol", lastName: "Queda" }),
+      createDancer(academy.academy.id, {
+        firstName: "Ivo",
+        lastName: "Retirado",
+      }),
+    ]);
+    const inscriptions = await db
+      .insert(choreographyDancers)
+      .values([
+        {
+          ageAtEventStart: 14,
+          choreographyId: choreography.id,
+          dancerId: staying.id,
+          selectedPriceId: priceId,
+        },
+        {
+          ageAtEventStart: 14,
+          choreographyId: choreography.id,
+          dancerId: withdrawn.id,
+          selectedPriceId: priceId,
+          withdrawnAt: new Date("2026-04-01T12:00:00Z"),
+        },
+      ])
+      .returning();
+    const withdrawnInscription = inscriptions.find(
+      (row) => row.dancerId === withdrawn.id,
+    )!;
+    const payment = await seedPayment({
+      academyId: academy.academy.id,
+      amount: 3000,
+      eventId: event.id,
+      paymentNumber: 1,
+    });
+    // Se retiró con la seña encima: esa plata se retuvo y la fila la documenta.
+    await db.insert(paymentAllocations).values({
+      academyId: academy.academy.id,
+      amount: 3000,
+      eventId: event.id,
+      inscriptionId: withdrawnInscription.id,
+      paymentId: payment.id,
+    });
+
+    const loaderData = await loadDetailAsAdmin({
+      academyId: academy.academy.id,
+      choreographyId: choreography.id,
+      email: "admin.retirada.detalle@example.com",
+      eventId: event.id,
+    });
+
+    const withdrawnRow = loaderData.inscriptions.find(
+      (row) => row.dancerId === withdrawn.id,
+    );
+
+    expect(withdrawnRow).toMatchObject({
+      allocatedAmount: 3000,
+      // Su total es lo que quedó asignado, no cero ni el precio.
+      totalAmount: 3000,
+      // Sin obligación pendiente, y `Sobreasignada` no puede dispararse.
+      anomalies: [],
+      overAllocatedAmount: 0,
+      owedBalanceAmount: 0,
+      owedDepositAmount: 0,
+      // La seña sigue expuesta: es lo que el preset que quita el saldo mira.
+      depositAmount: 3000,
+      withdrawn: true,
+    });
+    expect(loaderData.choreography).toMatchObject({
+      // La plata retenida vuelve al rollup de dinero de la coreografía…
+      allocatedAmount: 3000,
+      totalAmount: { amount: 13000, status: "complete" },
+      // …y el estado lo decide sólo la inscripción que sigue en el roster.
+      financialStatus: "depositPending",
+      owedBalanceAmount: { amount: 10000, status: "complete" },
+      owedDepositAmount: { amount: 3000, status: "complete" },
+    });
+  });
+
   test("shows incomplete amounts and Sin precio when no applicable price exists", async () => {
     vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
       "2026-06-01",
@@ -375,6 +465,7 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
         owedDepositAmount: null,
         selectedPrice: null,
         totalAmount: null,
+        withdrawn: false,
       },
     ]);
   });

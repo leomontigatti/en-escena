@@ -6,6 +6,7 @@ import {
   deriveChoreographyFinancialStatus,
   deriveInscriptionFinancialFigures,
   deriveInscriptionFinancialStatus,
+  resolveInscriptionStatusBadge,
 } from "./inscription-financial-status";
 
 // Seña 3000, total 10000: los dos umbrales de todos los casos de borde.
@@ -169,6 +170,88 @@ describe("deriveInscriptionFinancialFigures", () => {
     expect(figures.owedBalanceAmount).toBeNull();
     expect(figures.overAllocatedAmount).toBeNull();
     expect(figures.anomalies).toEqual([]);
+  });
+});
+
+describe("deriveInscriptionFinancialFigures on a withdrawn inscription", () => {
+  test("keeps what remains allocated as the total, not zero", () => {
+    const figures = deriveInscriptionFinancialFigures({
+      allocatedAmount: 3000,
+      thresholds,
+      withdrawn: true,
+    });
+
+    // La seña puede haberse perdido: la plata que quedó es el registro de esa
+    // retención, así que dinero y obligación son el mismo número.
+    expect(figures.totalAmount).toBe(3000);
+    expect(figures.allocatedAmount).toBe(3000);
+    expect(figures.owedBalanceAmount).toBe(0);
+    expect(figures.owedDepositAmount).toBe(0);
+  });
+
+  test("cannot be over-allocated, whatever it holds", () => {
+    const figures = deriveInscriptionFinancialFigures({
+      allocatedAmount: 12000,
+      thresholds,
+      withdrawn: true,
+    });
+
+    expect(figures.overAllocatedAmount).toBe(0);
+    expect(figures.anomalies).toEqual([]);
+    expect(figures.totalAmount).toBe(12000);
+  });
+
+  test("keeps exposing its deposit figure so the saldo can still be taken off", () => {
+    expect(
+      deriveInscriptionFinancialFigures({
+        allocatedAmount: 10000,
+        thresholds,
+        withdrawn: true,
+      }).depositAmount,
+    ).toBe(3000);
+  });
+
+  test("holds nothing and owes nothing", () => {
+    const figures = deriveInscriptionFinancialFigures({
+      allocatedAmount: 0,
+      thresholds,
+      withdrawn: true,
+    });
+
+    expect(figures.totalAmount).toBe(0);
+    expect(figures.owedBalanceAmount).toBe(0);
+    expect(figures.anomalies).toEqual([]);
+  });
+});
+
+describe("resolveInscriptionStatusBadge", () => {
+  test("puts Retirada above the over-allocation anomaly", () => {
+    expect(
+      resolveInscriptionStatusBadge({
+        anomalies: ["overAllocated"],
+        financialStatus: "paidInFull",
+        withdrawn: true,
+      }),
+    ).toEqual({ kind: "withdrawn" });
+  });
+
+  test("lets an anomaly replace the status badge", () => {
+    expect(
+      resolveInscriptionStatusBadge({
+        anomalies: ["overAllocated"],
+        financialStatus: "depositMet",
+      }),
+    ).toEqual({ anomaly: "overAllocated", kind: "anomaly" });
+  });
+
+  test("falls back to the status when there is no other axis", () => {
+    expect(
+      resolveInscriptionStatusBadge({
+        anomalies: [],
+        financialStatus: "depositPending",
+        withdrawn: false,
+      }),
+    ).toEqual({ kind: "status", status: "depositPending" });
   });
 });
 

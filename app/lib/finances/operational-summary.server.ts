@@ -39,6 +39,7 @@ type InscriptionRow = {
   dancerId: string;
   selectedPriceId: string | null;
   depositReferenceDate: string | null;
+  withdrawnAt: Date | null;
 };
 
 export type AcademyEventOperationalFinanceDetail = {
@@ -191,7 +192,13 @@ async function readAcademyEventFinance(input: {
             dancerId: choreographyDancers.dancerId,
             selectedPriceId: choreographyDancers.selectedPriceId,
             depositReferenceDate: choreographyDancers.depositReferenceDate,
+            withdrawnAt: choreographyDancers.withdrawnAt,
           })
+          // Una de las cuatro excepciones: la lista financiera de la academia
+          // muestra las retiradas a propósito, porque la plata retenida es de
+          // ella y tiene que estar a la vista. Por eso acá no va
+          // `activeInscription()`; lo que la retirada cambia es cómo se derivan
+          // sus cifras, no si se lee.
           .from(choreographyDancers)
           .where(
             inArray(
@@ -269,8 +276,10 @@ async function readAcademyEventFinance(input: {
       const priceAmount = priceAmountByInscription.get(inscription.id) ?? null;
       const dancerDiscountAmount =
         dancerDiscounts.get(inscription.id)?.amount ?? 0;
+      const withdrawn = inscription.withdrawnAt !== null;
       const figures = deriveInscriptionFinancialFigures({
         allocatedAmount: allocationByInscription.get(inscription.id) ?? 0,
+        withdrawn,
         thresholds: {
           depositAmount:
             priceAmount === null
@@ -294,6 +303,7 @@ async function readAcademyEventFinance(input: {
         dancerId: inscription.dancerId,
         depositReferenceDate: inscription.depositReferenceDate,
         id: inscription.id,
+        withdrawn,
       };
     },
   );
@@ -368,6 +378,9 @@ function resolveInscriptionPriceAmount(input: {
  * El `Descuento por bailarín` califica sobre el **roster vivo**: toda
  * inscripción del bailarín con precio resoluble cuenta. No puede depender del
  * estado financiero, que se deriva del total, que ya contiene este descuento.
+ *
+ * Roster vivo quiere decir sin las retiradas: una inscripción dada de baja no
+ * puede seguir abaratando a sus hermanas.
  */
 function buildDancerDiscounts(input: {
   inscriptionRows: InscriptionRow[];
@@ -381,7 +394,11 @@ function buildDancerDiscounts(input: {
   for (const inscription of input.inscriptionRows) {
     const priceAmount = input.priceAmountByInscription.get(inscription.id);
 
-    if (priceAmount === null || priceAmount === undefined) {
+    if (
+      inscription.withdrawnAt !== null ||
+      priceAmount === null ||
+      priceAmount === undefined
+    ) {
       continue;
     }
 
