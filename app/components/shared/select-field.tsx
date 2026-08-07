@@ -54,7 +54,9 @@ type SelectFieldProps<
   orientation?: SharedFieldOrientation;
   placeholder?: string;
   emptyLabel?: string;
-  options: readonly { value: string; label: string }[];
+  // `disabled` is reserved for a full cupo de cronograma, so the greyed-out
+  // option keeps exactly one meaning across every surface.
+  options: readonly { value: string; label: string; disabled?: boolean }[];
 };
 
 const emptySelectValue = "__empty-select-field-value__";
@@ -147,7 +149,11 @@ function SelectField<
                     <SelectContent {...contentProps}>
                       <SelectGroup>
                         {displayedOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
+                          <SelectItem
+                            key={option.value}
+                            disabled={option.disabled}
+                            value={option.value}
+                          >
                             {option.label}
                           </SelectItem>
                         ))}

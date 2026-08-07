@@ -13,12 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { FieldGroup } from "@/components/ui/field";
 import { choreographyGroupTypeOptions } from "@/lib/portal/choreographies";
+import { getAssetUploadFieldProps } from "@/lib/storage/asset-kinds";
 import {
-  choreographyMusicAccept,
-  choreographyMusicAllowedMimeTypes,
-  choreographyMusicInvalidTypeMessage,
-  choreographyMusicMaxFileSizeBytes,
-  choreographyMusicMaxFileSizeMessage,
   choreographyMusicSavedToastId,
   choreographyMusicUploadErrorToastId,
   updateChoreographyIntent,
@@ -170,14 +166,9 @@ export function ChoreographyMusicEditorForm({
               fieldLabel="Archivo de música"
               label="Arrastrá o hacé click para cargar la música"
               uploadedLabel="Archivo de música cargado"
-              helperText="MP3, M4A, WAV u OGG - max 50 MB"
               downloadLabel="Descargar música"
               downloadUrl={choreography.musicDownloadUrl}
-              accept={choreographyMusicAccept}
-              allowedMimeTypes={choreographyMusicAllowedMimeTypes}
-              invalidTypeMessage={choreographyMusicInvalidTypeMessage}
-              maxFileSizeBytes={choreographyMusicMaxFileSizeBytes}
-              maxFileSizeMessage={choreographyMusicMaxFileSizeMessage}
+              {...getAssetUploadFieldProps("choreographyMusic")}
               previewSelectedFile={false}
               removeLabel="Borrar música"
               onSelectedFileChange={handleSelectedMusicFileChange}

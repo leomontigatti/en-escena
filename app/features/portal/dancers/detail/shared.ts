@@ -12,14 +12,6 @@ import { requiredFieldMessage } from "@/lib/shared/forms";
 
 export const portalDancerNotFoundMessage = "No encontramos ese Bailarín.";
 export const portalDancerFormId = "portal-bailarin-form";
-export const dancerDocumentImageAccept = "image/jpeg,image/png,image/webp";
-export const dancerDocumentImageAllowedMimeTypes = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-];
-export const dancerDocumentImageMaxFileSizeBytes = 10 * 1024 * 1024;
-
 export const dancerSchema = z
   .object({
     firstName: z.string().trim().min(1, requiredFieldMessage),

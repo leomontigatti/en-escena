@@ -56,7 +56,12 @@ import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
 const createDocumentImageSignedUrlMock = vi.hoisted(() => vi.fn());
 
-vi.mock("@/lib/storage/dancer-documents.server", () => ({
+// Only the factory is replaced: the shared read path stays real, so the admin
+// surface is exercised through the same loader the portal uses (#571).
+vi.mock("@/lib/storage/dancer-documents.server", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/lib/storage/dancer-documents.server")
+  >()),
   createDefaultDancerDocumentStorage: () => ({
     createDocumentImageSignedUrl: createDocumentImageSignedUrlMock,
   }),

@@ -1,10 +1,7 @@
 import { z } from "zod";
 
-import {
-  isDateOnly,
-  isFutureDateOnly,
-  todayDateOnly,
-} from "@/lib/shared/date-only";
+import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
+import { isDateOnly, isFutureDateOnly } from "@/lib/shared/date-only";
 import { paymentMethodValues } from "@/lib/finances/payment-methods";
 
 export { paymentMethodOptions } from "@/lib/finances/payment-methods";
@@ -70,7 +67,7 @@ export type RegisterPaymentFormValues = z.input<typeof registerPaymentSchema>;
 
 export function defaultRegisterPaymentValues(): RegisterPaymentFormValues {
   return {
-    paymentDate: todayDateOnly(),
+    paymentDate: getBusinessDateOnly(),
     amount: "",
     paymentMethod: "transferencia",
     reference: "",

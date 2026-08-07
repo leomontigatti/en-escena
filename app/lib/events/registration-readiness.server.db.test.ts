@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import { events } from "@/db/schema";
@@ -153,7 +153,7 @@ describe("event registration readiness", () => {
       createPrice(event.id, {
         groupType: "solo",
         amount: 14000,
-        paymentDeadline: "2026-05-31",
+        paymentDeadline: "2099-12-31",
         scheduleId: null,
       }),
     );
@@ -161,7 +161,7 @@ describe("event registration readiness", () => {
       createPrice(event.id, {
         groupType: "duo",
         amount: 22000,
-        paymentDeadline: "2026-05-31",
+        paymentDeadline: "2099-12-31",
         scheduleId: null,
       }),
     );
@@ -182,7 +182,7 @@ describe("event registration readiness", () => {
         registrationReady: true,
         registrationReadinessMissingItems: [],
         registrationReadinessDirty: false,
-        registrationReadinessCalculatedAt: new Date("2026-01-01T12:00:00Z"),
+        registrationReadinessCalculatedAt: new Date(),
       })
       .where(eq(events.id, event.id));
 
@@ -220,6 +220,173 @@ describe("event registration readiness", () => {
     });
   });
 
+  test("recalculates readiness cached on an earlier day even when it is not dirty", async () => {
+    const event = await createSavedEvent("Vencido por fecha 2026");
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    await db
+      .update(events)
+      .set({
+        registrationReady: true,
+        registrationReadinessMissingItems: [],
+        registrationReadinessDirty: false,
+        registrationReadinessCalculatedAt: yesterday,
+      })
+      .where(eq(events.id, event.id));
+
+    await expect(
+      getEventRegistrationReadiness(event.id),
+    ).resolves.toMatchObject({
+      eventId: event.id,
+      isReady: false,
+      missingItems: expect.arrayContaining([
+        expect.objectContaining({ code: "modalities" }),
+      ]),
+    });
+  });
+
+  // A las 23:30 del 31 en Córdoba (02:30 UTC del 1) el precio que vence el 31
+  // todavía rige: la readiness no puede anunciar el vencimiento tres horas
+  // antes de que ocurra para la academia.
+  test("no vence el precio del día a las 23:30 de Córdoba", async () => {
+    const event = await createSavedEvent("Vence hoy 2026");
+    const jazz = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
+    const inicial = fixedExperienceLevel(event.id);
+
+    await expectCreated(
+      createCategory(event.id, {
+        name: "Juvenil",
+        minAge: 13,
+        maxAge: 17,
+        groupTypes: ["solo"],
+        modalityIds: [jazz.id],
+        experienceLevels: [inicial.id],
+      }),
+    );
+    const block = await expectCreated(
+      createSchedule(event.id, {
+        name: "Domingo mañana",
+        scheduledDate: "2026-06-07",
+        startTime: "10:00",
+        totalCapacity: 20,
+        modalityIds: [jazz.id],
+      }),
+    );
+    await expectCreated(
+      createScheduleCapacity(block.id, { groupType: "solo", capacity: 6 }),
+    );
+    await expectCreated(
+      createPrice(event.id, {
+        groupType: "solo",
+        amount: 14000,
+        paymentDeadline: "2026-05-31",
+        scheduleId: null,
+      }),
+    );
+
+    // Sólo `Date` queda congelado: el pool de la base sigue usando timers reales.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-06-01T02:30:00Z"));
+
+    try {
+      await expect(getEventRegistrationReadiness(event.id)).resolves.toEqual({
+        eventId: event.id,
+        isReady: true,
+        missingItems: [],
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // El sello del caché se compara contra el día del negocio: una readiness
+  // calculada a las 23:00 del 31 en Córdoba ya está vencida a las 00:30 del 1,
+  // aunque ambos instantes caigan en el mismo día UTC.
+  test("recalcula la readiness sellada el día de negocio anterior", async () => {
+    const event = await createSavedEvent("Sello de ayer 2026");
+
+    await db
+      .update(events)
+      .set({
+        registrationReady: true,
+        registrationReadinessMissingItems: [],
+        registrationReadinessDirty: false,
+        // 31/05 23:00 de Córdoba.
+        registrationReadinessCalculatedAt: new Date("2026-06-01T02:00:00Z"),
+      })
+      .where(eq(events.id, event.id));
+
+    vi.useFakeTimers({ toFake: ["Date"] });
+    // 01/06 00:30 de Córdoba: mismo día UTC que el sello, día de negocio nuevo.
+    vi.setSystemTime(new Date("2026-06-01T03:30:00Z"));
+
+    try {
+      await expect(
+        getEventRegistrationReadiness(event.id),
+      ).resolves.toMatchObject({
+        eventId: event.id,
+        isReady: false,
+        missingItems: expect.arrayContaining([
+          expect.objectContaining({ code: "modalities" }),
+        ]),
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("reports an expired precio as expired instead of missing", async () => {
+    const event = await createSavedEvent("Precios vencidos 2026");
+    const jazz = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
+
+    await expectCreated(
+      createCategory(event.id, {
+        name: "Juvenil",
+        minAge: 13,
+        maxAge: 17,
+        groupTypes: ["solo"],
+        modalityIds: [jazz.id],
+        experienceLevels: [],
+      }),
+    );
+    const block = await expectCreated(
+      createSchedule(event.id, {
+        name: "Domingo mañana",
+        scheduledDate: "2026-06-07",
+        startTime: "10:00",
+        totalCapacity: 20,
+        modalityIds: [jazz.id],
+      }),
+    );
+    await expectCreated(
+      createScheduleCapacity(block.id, { groupType: "solo", capacity: 6 }),
+    );
+    await expectCreated(
+      createPrice(event.id, {
+        groupType: "solo",
+        amount: 14000,
+        paymentDeadline: "2020-01-31",
+        scheduleId: null,
+      }),
+    );
+
+    await expect(
+      getEventRegistrationReadiness(event.id),
+    ).resolves.toMatchObject({
+      isReady: false,
+      missingItems: [
+        expect.objectContaining({
+          code: "price-coverage",
+          detail: expect.stringContaining("venció el 31 de enero de 2020"),
+        }),
+      ],
+    });
+  });
+
   test("loads readiness for multiple eventos while recalculating dirty entries", async () => {
     const cachedReadyEvent = await createSavedEvent("Cache listo 2026");
     const dirtyEvent = await createSavedEvent("Dirty 2026");
@@ -231,7 +398,7 @@ describe("event registration readiness", () => {
         registrationReady: true,
         registrationReadinessMissingItems: [],
         registrationReadinessDirty: false,
-        registrationReadinessCalculatedAt: new Date("2026-01-01T12:00:00Z"),
+        registrationReadinessCalculatedAt: new Date(),
       })
       .where(eq(events.id, cachedReadyEvent.id));
 

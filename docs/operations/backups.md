@@ -24,10 +24,12 @@ not restate it.
 - Frequency: database on the cadence configured on the Coolify database resource;
   storage on the cadence configured for its scheduled task (base 2x/day, raised
   during an event window to shrink the RPO).
-- Retention: the database backup keeps 30 days in B2 and 7 days locally. Coolify
-  and the B2 lifecycle rule are deliberately aligned on the same 30 days, so
-  either can expire an object without the other disagreeing. Storage retention is
-  managed by the B2 lifecycle rule alone.
+- Retention: Coolify prunes the database dumps it wrote, both in B2 and in the
+  local copies on the VPS. The B2 lifecycle rules do not expire anything by age
+  on their own — neither bucket hides current versions — so what is retained is
+  decided by Coolify for the database and by nothing at all for storage. See
+  [Bucket lifecycle rules](#bucket-lifecycle-rules) for the rules as configured
+  and why the two buckets cannot share a policy.
 
 Both backups are logical dumps. This is not PITR: a restore can only reach the
 moment when the dump started.
@@ -45,8 +47,10 @@ sync and stays there. Nothing in the app touches the backup bucket, so
 reconciling by hand means deleting the key in both places: on the volume under
 `STORAGE_VOLUME_DIR`, and under
 `s3://$B2_FILESTORE_BUCKET/$B2_FILESTORE_PREFIX/<bucket>/<key>`. Deleting only
-the volume copy leaves the bytes paid for in B2 until the lifecycle rule expires
-them.
+the volume copy leaves the bytes paid for in B2 indefinitely: the bucket's
+lifecycle rule only removes versions something has already deleted, so it never
+reaches a copy that is still the current version there. See
+[Bucket lifecycle rules](#bucket-lifecycle-rules).
 
 ## Database Backup (Coolify native)
 
@@ -54,9 +58,11 @@ The database backup is configured on the **Postgres resource** in Coolify, not o
 the application. There is no script and nothing in this repo to run.
 
 - Destination: the B2 bucket registered under Coolify's _S3 Storages_ as
-  `enescena-db-backups` (unhyphenated — see #588). The hyphenated
-  `en-escena-db-backups` belongs to the retired script path and goes away with
-  the Supabase decommission (#303).
+  `enescena-db-backups` (unhyphenated — see #588). It is the **only** database
+  backup destination. The hyphenated `en-escena-db-backups`, which belonged to
+  the retired app-script path, was deleted with the Supabase decommission
+  (#598 step 8) along with the pre-cutover dumps it held; no Supabase-era copy
+  of the database exists anywhere now.
 - Local copies are kept as well, under
   `/data/coolify/backups/databases/<team>/<resource>/` on the VPS, with 7-day
   retention. Keep "Disable Local Backup" **unchecked**: those copies are what
@@ -125,14 +131,62 @@ not per schema, so the schema rename in #506 does not affect it.
 ## Backblaze B2 Setup
 
 Create separate B2 buckets for database and filestore backups because they have
-different lifecycle policies. A practical starting point for En Escena is:
+different lifecycle policies — see [Bucket lifecycle rules](#bucket-lifecycle-rules)
+below. For the application key:
 
-- database bucket: keep database backups for 30 days, matching the retention
-  configured in Coolify;
-- filestore bucket: keep copied objects for 90 or 180 days, depending on cost
-  and recovery needs;
 - restrict the application key to the two backup buckets only;
 - use a key that can write and list the backup prefixes.
+
+### Bucket lifecycle rules
+
+B2 lifecycle rules have two independent knobs, and the difference between them
+matters more than the number of days:
+
+- `daysFromUploadingToHiding` — hides the **current** version N days after it was
+  uploaded. This expires live objects.
+- `daysFromHidingToDeleting` — removes a version N days after it was hidden, that
+  is, only after something else superseded or deleted it. This never touches a
+  current version.
+
+As configured (verified 2026-08-06):
+
+- **`enescena-db-backups`**: `daysFromHidingToDeleting = 30`,
+  `daysFromUploadingToHiding` unset. The rule is a cleanup pass behind Coolify,
+  not a retention policy: Coolify decides how many dumps to keep and deletes the
+  rest, and the rule clears the deleted versions 30 days later. Retention for the
+  database is therefore whatever the Scheduled Backup on the Postgres resource
+  says, edited in the Coolify UI.
+- **`en-escena-filestore-backups`**: `daysFromHidingToDeleting = 30`,
+  `daysFromUploadingToHiding` unset — the same shape, and for the same reason.
+  It had no rule at all until #639; nothing had ever been expired from it.
+
+**The filestore bucket must not get an age-based rule.** The storage backup ends
+in `aws s3 sync` (`scripts/backup-storage-to-b2.sh`), which compares size and
+mtime and skips what matches, so an object uploaded once and never modified is
+written to B2 exactly once no matter how often the cron runs. Its age in B2 then
+grows without bound while it is still live on the volume and still referenced by
+its row. Dancer documents and choreography music are write-once in practice, so
+that is the normal case, not the edge case: a `daysFromUploadingToHiding` rule
+here would silently delete the backup copies of precisely the most stable files,
+and nothing would look wrong until a restore was attempted. The database bucket
+is the opposite — every run writes a brand-new object, so nothing there is both
+old and current, and age-based expiry would be safe.
+
+What it does take, `daysFromHidingToDeleting`, bounds the cost of versions that
+are already superseded or deleted — which is what `BACKUP_SYNC_MODE=mirror`
+produces, what deleting an orphaned key by hand produces, and what any future
+retention job will produce — without ever expiring a live copy. Under the default
+`copy` mode nothing in B2 is ever hidden, so the rule is currently inert; it is
+there so that a switch to `mirror` does not silently start accumulating immortal
+versions.
+
+That inertness is the point to remember before designing any data-retention
+policy: **a lifecycle rule cannot implement one.** The condition for deleting a
+dancer document or a choreography music file lives in the database, which B2
+knows nothing about, and a rule would act on the backup while the volume kept the
+live copy. Retention has to be driven the other way — the app deletes from the
+volume and clears the column in the same operation, `mirror` mode propagates the
+deletion to B2, and only then does this rule reclaim the bytes.
 
 Use the S3 endpoint shown by Backblaze for the bucket region, for example:
 
@@ -152,7 +206,9 @@ restore drill.
 `COOLIFY_BACKUP_BUCKET` names the bucket Coolify's own backup writes to
 (unhyphenated, #588), which the scheduled restore drill reads. It replaced the
 retired `B2_DATABASE_BUCKET`, which pointed at the hyphenated bucket of the old
-app-script path (#594 item 5).
+app-script path (#594 item 5). `B2_DATABASE_BUCKET`, `B2_DATABASE_PREFIX` and
+`B2_PREFIX` were purged from the production environment with #598 step 8; the
+bucket they named no longer exists.
 
 ```sh
 B2_S3_ENDPOINT="https://s3.us-east-005.backblazeb2.com"

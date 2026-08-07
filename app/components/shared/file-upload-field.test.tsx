@@ -6,6 +6,8 @@ import { createRoot } from "react-dom/client";
 import { useForm } from "react-hook-form";
 import { describe, expect, test, vi } from "vitest";
 
+import { getAssetUploadFieldProps } from "@/lib/storage/asset-kinds";
+
 import { FileUploadField } from "./file-upload-field";
 
 type TestFormValues = {
@@ -47,10 +49,8 @@ function TestFileUploadField({
       downloadLabel={downloadLabel}
       downloadUrl={downloadUrl}
       label="Arrastrá o hacé click"
-      accept="image/jpeg,image/png,image/webp"
-      allowedMimeTypes={["image/jpeg", "image/png", "image/webp"]}
+      {...getAssetUploadFieldProps("dancerDocumentImage")}
       existingPreviewUrl={existingPreviewUrl}
-      helperText="JPG, PNG o WEBP - max 10 MB"
       onStorageKeyChange={onStorageKeyChange}
       onValidationErrorChange={onValidationErrorChange}
       variant={variant}

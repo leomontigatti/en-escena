@@ -6,40 +6,20 @@ import {
   assertPortalChoreographyFound,
   portalOwnedChoreographyWhere,
 } from "@/lib/choreographies/choreography-access.server";
-import { createDefaultChoreographyMusicStorage } from "@/lib/storage/choreography-music.server";
-
-type PortalChoreographyMusicStorage = ReturnType<
-  typeof createDefaultChoreographyMusicStorage
->;
+import { formatUploadRejection } from "@/lib/storage/asset-kinds";
+import type { ChoreographyMusicStorage } from "@/lib/storage/choreography-music.server";
 
 export type UpdateChoreographyMusicResult =
   | { ok: true }
   | { ok: false; message: string };
-
-export async function loadPortalChoreographyMusicDownloadUrl(
-  storageKey: string | null,
-  storage?: PortalChoreographyMusicStorage,
-) {
-  if (!storageKey) {
-    return null;
-  }
-
-  try {
-    const storageClient = storage ?? createDefaultChoreographyMusicStorage();
-
-    return await storageClient.createMusicSignedUrl(storageKey);
-  } catch {
-    return null;
-  }
-}
 
 export async function updateChoreographyMusic(input: {
   academyId: string;
   choreographyId: string;
   eventId: string;
   file: File | null;
+  storage: ChoreographyMusicStorage;
   submittedStorageKey: string;
-  storage?: PortalChoreographyMusicStorage;
 }): Promise<UpdateChoreographyMusicResult> {
   const choreography = assertPortalChoreographyFound(
     await db.query.choreographies.findFirst({
@@ -67,15 +47,24 @@ export async function updateChoreographyMusic(input: {
     };
   }
 
-  const storageClient =
-    input.storage ?? createDefaultChoreographyMusicStorage();
-  const nextStorageKey = input.file
-    ? await storageClient.uploadMusic({
-        academyId: input.academyId,
-        choreographyId: input.choreographyId,
-        file: input.file,
-      })
-    : input.submittedStorageKey;
+  let nextStorageKey = input.submittedStorageKey;
+
+  if (input.file) {
+    const uploaded = await input.storage.uploadMusic({
+      academyId: input.academyId,
+      choreographyId: input.choreographyId,
+      file: input.file,
+    });
+
+    // A policy rejection is the academy's to fix, so it becomes the same
+    // `ok: false` the presentation lock already returns. Nothing is written:
+    // the record still points at the file they had.
+    if (!uploaded.ok) {
+      return { ok: false, message: formatUploadRejection(uploaded.rejection) };
+    }
+
+    nextStorageKey = uploaded.storageKey;
+  }
 
   await db
     .update(choreographies)
@@ -90,7 +79,7 @@ export async function updateChoreographyMusic(input: {
 
   if (shouldRemovePrevious) {
     try {
-      await storageClient.removeMusic(currentStorageKey);
+      await input.storage.removeMusic(currentStorageKey);
     } catch (thrown) {
       // The row already points at the new object, so failing here cannot undo
       // the replacement: propagating, as `dancer-documents.server.ts` does,

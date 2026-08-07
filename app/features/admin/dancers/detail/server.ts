@@ -13,7 +13,10 @@ import {
   requireAdminUser,
   requireInternalUser,
 } from "@/lib/auth/internal-access.server";
-import { createDefaultDancerDocumentStorage } from "@/lib/storage/dancer-documents.server";
+import {
+  createDefaultDancerDocumentStorage,
+  loadDancerDocumentImageUrls,
+} from "@/lib/storage/dancer-documents.server";
 
 import {
   buildBackToListHref,
@@ -52,7 +55,11 @@ export async function loadDancerDetail(input: {
     canEdit: user.role === "admin",
     selectedEventId: eventContext.selectedEventId,
     dancer,
-    documentImageUrls: await loadDancerDocumentImageUrls(dancer),
+    documentImageUrls: await loadDancerDocumentImageUrls({
+      documentBackImageStorageKey: dancer.documentBackImageStorageKey,
+      documentFrontImageStorageKey: dancer.documentFrontImageStorageKey,
+      storage: createDefaultDancerDocumentStorage(),
+    }),
     backToList: buildBackToListHref(input.request.url),
     editHref: buildModeHref(url, dancerId, "editar"),
     cancelHref: buildModeHref(url, dancerId, null),
@@ -142,55 +149,6 @@ export async function handleDancerDetailAction(input: {
       ? "bailarin-guardado-requiere-verificacion"
       : "bailarin-guardado",
   );
-}
-
-async function loadDancerDocumentImageUrls(
-  dancer: NonNullable<Awaited<ReturnType<typeof findDancer>>>,
-) {
-  if (
-    !dancer.documentFrontImageStorageKey &&
-    !dancer.documentBackImageStorageKey
-  ) {
-    return {
-      back: null,
-      front: null,
-    };
-  }
-
-  try {
-    const storage = createDefaultDancerDocumentStorage();
-
-    return {
-      back: await createOptionalDocumentImageSignedUrl(
-        storage,
-        dancer.documentBackImageStorageKey,
-      ),
-      front: await createOptionalDocumentImageSignedUrl(
-        storage,
-        dancer.documentFrontImageStorageKey,
-      ),
-    };
-  } catch {
-    return {
-      back: null,
-      front: null,
-    };
-  }
-}
-
-async function createOptionalDocumentImageSignedUrl(
-  storage: ReturnType<typeof createDefaultDancerDocumentStorage>,
-  storageKey: string | null,
-) {
-  if (!storageKey) {
-    return null;
-  }
-
-  try {
-    return await storage.createDocumentImageSignedUrl(storageKey);
-  } catch {
-    return null;
-  }
 }
 
 function readDancerId(params: { dancerId?: string }) {

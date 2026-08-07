@@ -11,6 +11,7 @@ import {
   schedules,
   scheduleCapacities,
 } from "@/db/schema";
+import { createChoreographyRegistration } from "@/lib/choreographies/registration-confirmation.server";
 import {
   deriveGroupType,
   resolveChoreographyRegistrationOperation,
@@ -21,6 +22,7 @@ import {
   createEventCatalog,
   createEventRecord,
   createOpenEventCatalog,
+  createProfessor,
   date,
   OPEN_REGISTRATION_ENDS_AT,
 } from "@/lib/choreographies/registration-test-fixtures.server.db";
@@ -583,6 +585,91 @@ describe.sequential("choreography registration resolution", () => {
               usesGlobalCapacity: true,
             }),
           ],
+        },
+      },
+    });
+  });
+  test("labels the compatible cupos with their ocupación and marks the full ones", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Ocupación Portal",
+      email: "registro.coreografia.ocupacion@example.com",
+    });
+    const { event, catalog } = await createOpenEventCatalog();
+    const [scheduleTwo] = await db
+      .insert(schedules)
+      .values({
+        eventId: event.id,
+        name: `Bloque libre ${event.id}`,
+        scheduledDate: "2026-05-02",
+        startTime: "18:00",
+        totalCapacity: 10,
+      })
+      .returning();
+    await db.insert(scheduleModalities).values({
+      scheduleId: scheduleTwo.id,
+      modalityId: catalog.modality.id,
+    });
+    const [freeSoloEntry] = await db
+      .insert(scheduleCapacities)
+      .values({
+        scheduleId: scheduleTwo.id,
+        groupType: "solo",
+        capacity: 5,
+      })
+      .returning();
+    const registeredDancer = await createDancer(owner.academyId, {
+      birthDate: "2014-01-01",
+    });
+    const professor = await createProfessor(owner.academyId);
+    const registration = await createChoreographyRegistration({
+      academyId: owner.academyId,
+      dancerIds: [registeredDancer.id],
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      name: "Pieza ocupante",
+      professorIds: [professor.id],
+      scheduleCapacityId: catalog.soloScheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+
+    if (!registration.ok) {
+      throw new Error(`Unexpected registration failure: ${registration.error}`);
+    }
+
+    await db
+      .update(scheduleCapacities)
+      .set({ capacity: 1 })
+      .where(eq(scheduleCapacities.id, catalog.soloScheduleCapacity.id));
+
+    const newDancer = await createDancer(owner.academyId, {
+      birthDate: "2014-02-02",
+    });
+    const result = await resolveChoreographyRegistrationOperation({
+      academyId: owner.academyId,
+      eventId: event.id,
+      modalityId: catalog.modality.id,
+      submodalityId: catalog.submodality.id,
+      dancerIds: [newDancer.id],
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      resolution: {
+        schedule: {
+          status: "multiple",
+          options: expect.arrayContaining([
+            expect.objectContaining({
+              id: catalog.soloScheduleCapacity.id,
+              isFull: true,
+              label: expect.stringContaining("1/1 ocupados · sin cupo"),
+            }),
+            expect.objectContaining({
+              id: freeSoloEntry.id,
+              isFull: false,
+              label: "2 de mayo de 2026 - 18:00 hs. · 0/5 ocupados",
+            }),
+          ]),
         },
       },
     });

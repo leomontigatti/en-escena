@@ -1,4 +1,5 @@
 import { Check, ChevronLeft, ChevronRight, LoaderCircle } from "lucide-react";
+import type { Control } from "react-hook-form";
 
 import { AccessNotice } from "@/components/auth/access-ui";
 import {
@@ -7,8 +8,16 @@ import {
   CreateChoreographySelectField,
   CreateChoreographyTextField,
 } from "@/features/portal/choreographies/create/fields";
-import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
+import {
+  isEveryScheduleCapacityOptionFull,
+  toScheduleCapacitySelectOptions,
+} from "@/lib/choreographies/schedule-capacity-options";
 import { ChoreographyCreationSummary } from "@/features/portal/choreographies/create/summary";
+import {
+  everyScheduleCapacityFullMessage,
+  type CreateChoreographyFormValues,
+  type RegistrationResolution,
+} from "@/features/portal/choreographies/create/flow";
 import type {
   ActiveDancer,
   ActiveProfessor,
@@ -207,22 +216,11 @@ function CreateChoreographyStepContent({
       </section>
     ) : null,
     schedule: resolution ? (
-      <section className="flex flex-col gap-5">
-        <CreateChoreographySelectField
-          control={form.control}
-          fieldName="scheduleCapacityId"
-          id={fieldIds.scheduleCapacity}
-          label="Cronograma"
-          options={
-            resolution.schedule.status === "multiple"
-              ? resolution.schedule.options.map((option) => ({
-                  value: option.id,
-                  label: formatScheduleDateTime(option.schedule),
-                }))
-              : []
-          }
-        />
-      </section>
+      <CreateChoreographyScheduleStep
+        control={form.control}
+        id={fieldIds.scheduleCapacity}
+        resolution={resolution}
+      />
     ) : null,
     professors: (
       <section className="flex flex-col gap-6">
@@ -247,6 +245,50 @@ function CreateChoreographyStepContent({
   };
 
   return stepContent[currentStep];
+}
+
+/**
+ * El registro crea, no corrige: si ningún cupo compatible tiene lugar, un
+ * select con todo deshabilitado es un callejón sin salida sin explicación, así
+ * que en su lugar se dice por qué. El rechazo del servidor al confirmar sigue
+ * siendo la garantía: la ocupación es una foto que corre carrera con cualquier
+ * otro registro.
+ */
+export function CreateChoreographyScheduleStep({
+  control,
+  id,
+  resolution,
+}: {
+  control: Control<CreateChoreographyFormValues>;
+  id: string;
+  resolution: RegistrationResolution;
+}) {
+  const options =
+    resolution.schedule.status === "multiple"
+      ? resolution.schedule.options
+      : [];
+
+  if (isEveryScheduleCapacityOptionFull(options)) {
+    return (
+      <section className="flex flex-col gap-5">
+        <AccessNotice variant="info">
+          {everyScheduleCapacityFullMessage}
+        </AccessNotice>
+      </section>
+    );
+  }
+
+  return (
+    <section className="flex flex-col gap-5">
+      <CreateChoreographySelectField
+        control={control}
+        fieldName="scheduleCapacityId"
+        id={id}
+        label="Cronograma"
+        options={toScheduleCapacitySelectOptions(options)}
+      />
+    </section>
+  );
 }
 
 function CreateChoreographyFooterAction({
