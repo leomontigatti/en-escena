@@ -8,7 +8,9 @@ import { DataTableLink } from "@/components/shared/data-table-link";
 import { MetricCard } from "@/components/shared/metric-card";
 import { Badge } from "@/components/ui/badge";
 import {
+  formatInscriptionAnomaly,
   formatInscriptionFinancialStatus,
+  getInscriptionAnomalyBadgeVariant,
   getInscriptionFinancialStatusBadgeVariant,
   inscriptionFinancialStatusOptions,
 } from "@/lib/finances/choreography-financial-status";
@@ -119,30 +121,54 @@ function buildChoreographyFinanceColumns(
     {
       id: "totalAmount",
       header: "Total",
-      className: "text-right tabular-nums",
+      // Decorativo y sin condición: `Total` es la columna de contexto —contra qué
+      // se mide lo adeudado—, así que va atenuada entera. Nunca por fila: un gris
+      // que varía vuelve a significar algo.
+      className: "text-right tabular-nums text-muted-foreground",
       headerClassName: "text-right",
       cell: (row) => formatOperationalAmount(row.totalAmount),
     },
     {
       id: "owedBalanceAmount",
       header: "Saldo adeudado",
-      className: "text-right tabular-nums",
+      // La única cifra accionable de la fila, destacada por columna.
+      className: "text-right font-medium tabular-nums",
       headerClassName: "text-right",
       cell: (row) => formatOperationalAmount(row.owedBalanceAmount),
     },
     {
       id: "financialStatus",
       header: "Estado",
-      cell: (row) => (
-        <Badge
-          variant={getInscriptionFinancialStatusBadgeVariant(
-            row.financialStatus,
-          )}
-        >
-          {formatInscriptionFinancialStatus(row.financialStatus)}
-        </Badge>
-      ),
+      cell: (row) => <ChoreographyStatusCell row={row} />,
       filterValue: (row) => row.financialStatus,
     },
   ];
+}
+
+/**
+ * Una anomalía **reemplaza** al badge de estado, no lo acompaña: los dos compiten
+ * por la misma mirada, y `Señada` al lado de `Sobreasignada` se lee como dos
+ * hechos del mismo peso cuando sólo uno pide que alguien haga algo.
+ *
+ * La precedencia se resuelve acá, en un único lugar, para que un eje derivado
+ * nuevo se apile arriba sin volver a repartir la decisión por la celda.
+ */
+function ChoreographyStatusCell({ row }: { row: ChoreographyFinanceRow }) {
+  const [anomaly] = row.anomalies;
+
+  if (anomaly) {
+    return (
+      <Badge variant={getInscriptionAnomalyBadgeVariant(anomaly)}>
+        {formatInscriptionAnomaly(anomaly)}
+      </Badge>
+    );
+  }
+
+  return (
+    <Badge
+      variant={getInscriptionFinancialStatusBadgeVariant(row.financialStatus)}
+    >
+      {formatInscriptionFinancialStatus(row.financialStatus)}
+    </Badge>
+  );
 }

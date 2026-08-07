@@ -1,6 +1,5 @@
-import { AlertTriangle, Check, LoaderCircle } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { useMemo, useState } from "react";
-import { useFetcher } from "react-router";
 
 import {
   AdminEmptyState,
@@ -22,25 +21,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
 import {
   formatInscriptionFinancialStatus,
   getInscriptionFinancialStatusBadgeVariant,
 } from "@/lib/finances/choreography-financial-status";
-import {
-  type InscriptionAmountColumn,
-  isTentativeInscriptionAmount,
-} from "@/lib/finances/inscription-amounts";
 import { choreographyGroupTypeOptions } from "@/lib/portal/choreographies";
 
 import { formatAmount, formatOperationalAmount } from "../../formatters";
@@ -51,8 +37,8 @@ import {
   InscriptionCobroDialog,
 } from "./inscription-cobro-dialog";
 import { InscriptionUndoDialog } from "./inscription-undo-dialog";
+import { type StageTotal, StageCobroDialog } from "./stage-cobro-dialog";
 import type { loadChoreographyFinanceDetail, PortionCoverage } from "./server";
-import { payBalanceIntent, payDepositIntent } from "./shared";
 
 type ChoreographyFinanceDetailLoaderData = Awaited<
   ReturnType<typeof loadChoreographyFinanceDetail>
@@ -60,10 +46,6 @@ type ChoreographyFinanceDetailLoaderData = Awaited<
 
 type InscriptionRow =
   ChoreographyFinanceDetailLoaderData["inscriptions"][number];
-type StageTotal = NonNullable<
-  ChoreographyFinanceDetailLoaderData["stageTotalAmount"]
->;
-type CobroStage = NonNullable<ChoreographyFinanceDetailLoaderData["stage"]>;
 
 /**
  * Whether the stage preset can be fired: it needs a complete owed figure (every
@@ -225,13 +207,16 @@ function ChoreographyAlerts({
       availableBalanceAmount: loaderData.availableBalanceAmount,
       stageTotalAmount: loaderData.stageTotalAmount,
     });
+  const overAllocated =
+    loaderData.choreography?.anomalies.includes("overAllocated") ?? false;
 
-  if (!notEnoughBalance && !missingDepositPrice) {
+  if (!notEnoughBalance && !missingDepositPrice && !overAllocated) {
     return null;
   }
 
   return (
     <AlertStack>
+      {overAllocated ? <OverAllocatedAlert /> : null}
       {missingDepositPrice ? (
         <Alert variant="warning">
           <AlertTriangle aria-hidden="true" />
@@ -252,6 +237,33 @@ function ChoreographyAlerts({
         </Alert>
       ) : null}
     </AlertStack>
+  );
+}
+
+/**
+ * La anomalía `Sobreasignada` en el detalle, como alerta y no como badge: en la
+ * lista es cómo se lee esa coreografía, acá es algo que alguien tiene que
+ * resolver.
+ *
+ * **Genérica y sin título, y no enumera bailarines.** Una alerta que los lista se
+ * vuelve una copia peor de la tabla que está justo abajo y crece sin límite con
+ * el roster. La tabla es donde están las filas. Es auto-resolutiva —se deriva del
+ * dinero de hoy—, así que no hay nada que descartar: se va cuando se va el
+ * problema.
+ *
+ * `destructive` y no ámbar, como el badge: `Seña pendiente` ya es una advertencia,
+ * y una seña pendiente es el estado normal de una inscripción impaga; dinero de
+ * más es dinero en el lugar equivocado.
+ */
+function OverAllocatedAlert() {
+  return (
+    <Alert variant="destructive">
+      <AlertTriangle aria-hidden="true" />
+      <AlertDescription>
+        Hay inscripciones con más dinero asignado que su total. Podés corregirlo
+        desde la lista de inscripciones.
+      </AlertDescription>
+    </Alert>
   );
 }
 
@@ -318,7 +330,7 @@ function ChoreographyActions({
         />
       ) : null}
       {canCobro && stage !== null && loaderData.stageTotalAmount !== null ? (
-        <CobroDialog
+        <StageCobroDialog
           availableBalanceAmount={loaderData.availableBalanceAmount}
           open={cobroOpen}
           onOpenChange={setCobroOpen}
@@ -327,122 +339,6 @@ function ChoreographyActions({
         />
       ) : null}
     </>
-  );
-}
-
-/**
- * The stage's cobro preset. It no longer picks a payment: it names the owed
- * amount and the system funds it from the academy's `Saldo disponible`, oldest
- * payment first. That is why the dialog only confirms.
- */
-function CobroDialog({
-  availableBalanceAmount,
-  open,
-  onOpenChange,
-  stage,
-  stageTotalAmount,
-}: {
-  availableBalanceAmount: number;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  stage: CobroStage;
-  stageTotalAmount: StageTotal;
-}) {
-  const fetcher = useFetcher<{ status: "error"; message: string }>();
-  const isSaving = fetcher.state !== "idle";
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => !isSaving && onOpenChange(next)}
-    >
-      <DialogContent overlayClassName="backdrop-blur-sm">
-        <DialogHeader>
-          <DialogTitle>
-            {stage === "deposit" ? "Pagar seña" : "Pagar saldo"}
-          </DialogTitle>
-          <DialogDescription className="sr-only">
-            Confirmá la asignación de la etapa completa de la coreografía desde
-            el saldo disponible de la academia.
-          </DialogDescription>
-        </DialogHeader>
-
-        <fetcher.Form method="post" className="flex flex-col gap-4">
-          <input
-            type="hidden"
-            name="intent"
-            value={stage === "deposit" ? payDepositIntent : payBalanceIntent}
-          />
-
-          <StageTotalSummary
-            availableBalanceAmount={availableBalanceAmount}
-            stage={stage}
-            stageTotalAmount={stageTotalAmount}
-          />
-
-          {fetcher.data?.status === "error" ? (
-            <Alert variant="destructive">
-              <AlertTriangle aria-hidden="true" />
-              <AlertDescription>{fetcher.data.message}</AlertDescription>
-            </Alert>
-          ) : null}
-
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="outline" disabled={isSaving}>
-                Cancelar
-              </Button>
-            </DialogClose>
-            <Button type="submit" disabled={isSaving}>
-              {isSaving ? (
-                <LoaderCircle
-                  aria-hidden="true"
-                  className="animate-spin"
-                  data-icon="inline-start"
-                />
-              ) : (
-                <Check aria-hidden="true" data-icon="inline-start" />
-              )}
-              Guardar
-            </Button>
-          </DialogFooter>
-        </fetcher.Form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-/**
- * What the preset will allocate and where it comes from: the stage's owed
- * figure against the academy's `Saldo disponible`. The administrator no longer
- * picks a payment, so what they need to see is that the money suffices.
- */
-function StageTotalSummary({
-  availableBalanceAmount,
-  stage,
-  stageTotalAmount,
-}: {
-  availableBalanceAmount: number;
-  stage: CobroStage;
-  stageTotalAmount: StageTotal;
-}) {
-  return (
-    <div className="flex flex-col gap-1 rounded-md border bg-muted/50 px-3 py-2">
-      <div className="flex items-baseline justify-between gap-3">
-        <span className="text-sm text-muted-foreground">
-          {stage === "deposit" ? "Seña a cobrar" : "Saldo a cobrar"}
-        </span>
-        <span className="text-sm font-medium tabular-nums">
-          {formatAmount(stageTotalAmount.amount)}
-        </span>
-      </div>
-      <div className="flex items-baseline justify-between gap-3">
-        <span className="text-xs text-muted-foreground">Saldo disponible</span>
-        <span className="text-xs tabular-nums text-muted-foreground">
-          {formatAmount(availableBalanceAmount)}
-        </span>
-      </div>
-    </div>
   );
 }
 
@@ -605,8 +501,6 @@ const inscriptionAmountColumns: DataTableColumn<InscriptionRow>[] = [
     header: "Precio base",
     className: "text-right tabular-nums",
     headerClassName: "text-right",
-    cellClassName: (inscription) =>
-      tentativeAmountClassName(inscription.financialStatus, "basePrice"),
     cell: (inscription) => formatInscriptionAmount(inscription.basePriceAmount),
   },
   {
@@ -614,37 +508,28 @@ const inscriptionAmountColumns: DataTableColumn<InscriptionRow>[] = [
     header: "Seña",
     className: "text-right tabular-nums",
     headerClassName: "text-right",
-    cellClassName: (inscription) =>
-      tentativeAmountClassName(inscription.financialStatus, "deposit"),
     cell: (inscription) => formatInscriptionAmount(inscription.depositAmount),
   },
   {
+    // Decorativo y sin condición: `Total` es la columna de contexto —contra qué
+    // se mide lo adeudado—, así que va atenuada entera. Nunca por fila: ninguna
+    // cifra es provisoria, y un gris que varía vuelve a significar algo.
     id: "total",
     header: "Total",
-    className: "text-right tabular-nums",
+    className: "text-right tabular-nums text-muted-foreground",
     headerClassName: "text-right",
-    cellClassName: (inscription) =>
-      tentativeAmountClassName(inscription.financialStatus, "total"),
     cell: (inscription) => formatInscriptionAmount(inscription.totalAmount),
   },
   {
+    // La única cifra accionable de la fila, destacada por columna.
     id: "owedBalance",
     header: "Saldo adeudado",
-    className: "text-right tabular-nums",
+    className: "text-right font-medium tabular-nums",
     headerClassName: "text-right",
     cell: (inscription) =>
       formatInscriptionAmount(inscription.owedBalanceAmount),
   },
 ];
-
-function tentativeAmountClassName(
-  status: InscriptionRow["financialStatus"],
-  column: InscriptionAmountColumn,
-) {
-  return isTentativeInscriptionAmount(status, column)
-    ? "text-muted-foreground"
-    : undefined;
-}
 
 function formatInscriptionAmount(amount: number | null) {
   return amount === null ? "Sin precio" : formatAmount(amount);
