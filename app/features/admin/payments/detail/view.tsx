@@ -130,13 +130,13 @@ export function PaymentDetailRouteView({
 }
 
 /**
- * Cada coreografía que el pago toca, con lo que se lleva de ella y cuántas
- * inscripciones dejan de cumplir un umbral que ya habían cruzado. Nada de esto
- * bloquea: la eliminación siempre procede, así que la lista informa, no advierte.
+ * Every choreography the payment reaches, with what it takes out of it and how
+ * many inscriptions stop meeting a threshold they had crossed. None of it
+ * blocks: the deletion always proceeds, so the list informs rather than warns.
  *
- * El estado resultante se nombra sólo cuando algo efectivamente se descruza. Sin
- * descruce no hay estado nuevo que anunciar, y nombrar el que ya tenía se leería
- * como una consecuencia de eliminar el pago.
+ * The resulting status is named only when something actually un-crosses. With
+ * nothing un-crossing there is no new state to announce, and naming the one it
+ * already had would read as a consequence of deleting the payment.
  */
 function AffectedChoreographiesList({
   choreographies,

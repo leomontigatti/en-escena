@@ -198,10 +198,14 @@ describe("AcademyFinancesRouteView", () => {
     expect(dialogText).toContain("Seña adeudada");
     expect(dialogText).toContain("$ 3.000");
     expect(dialogText).toContain("Precio");
+    expect(dialogText).toContain("Mantener el precio actual");
 
+    // Confirmar sin tocar el selector no puede repreciar nada: la cifra de
+    // arriba se calculó con los precios que ya rigen, así que el pick por
+    // defecto es *ninguno* y el monto escrito coincide con el mostrado.
     const priceInput = document.querySelector('input[name="price-solo"]');
     expect(priceInput).not.toBeNull();
-    expect((priceInput as HTMLInputElement).value).toBe("price_1");
+    expect((priceInput as HTMLInputElement).value).toBe("");
 
     expect(
       [...document.querySelectorAll('input[name="choreographyId"]')].map(
@@ -210,8 +214,57 @@ describe("AcademyFinancesRouteView", () => {
     ).toEqual(["choreography_1"]);
   });
 
+  // El escritor rechaza toda fila de precio atada a un cronograma que no sea el
+  // de la coreografía, así que ofrecerla es ofrecer un rechazo garantizado. Con
+  // la selección repartida entre dos cronogramas, lo único satisfacible para
+  // todas es el precio general.
+  test("offers only the price rows the writer would accept for the selection", async () => {
+    await renderListIntoDocument({
+      initialPresetStage: "deposit",
+      loaderData: academyFinancesLoaderDataFixture({
+        priceOptionsByGroupType: {
+          solo: [
+            {
+              amount: 8000,
+              id: "price_schedule_1",
+              name: "Solo cronograma 1",
+              paymentDeadline: null,
+              scheduleId: "schedule_1",
+            },
+            {
+              amount: 12000,
+              id: "price_schedule_2",
+              name: "Solo cronograma 2",
+              paymentDeadline: null,
+              scheduleId: "schedule_2",
+            },
+          ],
+        },
+        pricingScheduleIdByChoreography: {
+          choreography_1: "schedule_1",
+          choreography_2: "schedule_2",
+        },
+      }),
+    });
+
+    await clickCheckbox(getRenderedCheckboxes()[0]);
+
+    const dialogText =
+      document.querySelector('[role="dialog"]')?.textContent ?? "";
+
+    // Ninguna de las dos filas sirve para las dos coreografías, así que no hay
+    // selector: no se ofrece un precio que el escritor va a rechazar.
+    expect(document.querySelector('input[name="price-solo"]')).toBeNull();
+    expect(dialogText).toContain("cronogramas distintos");
+    expect(dialogText).not.toContain("Solo cronograma 1");
+    expect(dialogText).not.toContain("Solo cronograma 2");
+  });
+
   async function renderListIntoDocument(
-    props: { initialPresetStage?: "deposit" | "balance" } = {},
+    props: {
+      initialPresetStage?: "deposit" | "balance";
+      loaderData?: AcademyFinancesLoaderData;
+    } = {},
   ) {
     const router = createMemoryRouter(
       [
@@ -221,7 +274,9 @@ describe("AcademyFinancesRouteView", () => {
           element: (
             <AcademyFinancesRouteView
               initialPresetStage={props.initialPresetStage ?? null}
-              loaderData={academyFinancesLoaderDataFixture()}
+              loaderData={
+                props.loaderData ?? academyFinancesLoaderDataFixture()
+              }
             />
           ),
         },
@@ -275,8 +330,13 @@ function academyFinancesLoaderDataFixture(
           id: "price_1",
           name: "Primera fecha",
           paymentDeadline: "2026-03-01",
+          scheduleId: null,
         },
       ],
+    },
+    pricingScheduleIdByChoreography: {
+      choreography_1: "schedule_1",
+      choreography_2: "schedule_1",
     },
     selectedEventId: "event_1",
     summary: {

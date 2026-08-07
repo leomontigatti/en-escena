@@ -200,6 +200,69 @@ describe("payChoreographiesPreset", () => {
 
     expect(result.ok).toBe(false);
     expect(await readAllocations(fixture.inscriptionIds)).toEqual([]);
+
+    // El precio es la otra mitad de la transacción: si sobreviviera al
+    // rechazo, la coreografía quedaría con un precio fijado por un preset que
+    // no movió un peso.
+    const inscriptionRows = await db
+      .select({ selectedPriceId: choreographyDancers.selectedPriceId })
+      .from(choreographyDancers)
+      .where(inArray(choreographyDancers.id, fixture.inscriptionIds));
+
+    for (const row of inscriptionRows) {
+      expect(row.selectedPriceId).toBeNull();
+    }
+  });
+
+  // Sin pick, el escritor no toca ningún precio: cada inscripción se financia
+  // contra el precio que ya le resuelve, que es exactamente el que la lista le
+  // mostró al administrador. Es el camino por defecto del diálogo.
+  test("leaves every price alone when no row is picked", async () => {
+    const fixture = await seedPresetFixture([20000]);
+    const [cheaper] = await db
+      .insert(prices)
+      .values({
+        amount: 4000,
+        eventId: fixture.eventId,
+        groupType: "solo",
+        name: "Precio Solo barato",
+        paymentDeadline: "2026-12-31",
+        scheduleId: null,
+      })
+      .returning();
+
+    await db
+      .update(choreographyDancers)
+      .set({ selectedPriceId: fixture.priceId })
+      .where(inArray(choreographyDancers.id, fixture.inscriptionIds));
+
+    const result = await payChoreographiesPreset({
+      academyId: fixture.academyId,
+      choreographyIds: fixture.choreographyIds,
+      eventId: fixture.eventId,
+      priceIdByGroupType: {},
+      stage: "deposit",
+    });
+
+    expect(result).toEqual({ ok: true });
+
+    const inscriptionRows = await db
+      .select({ selectedPriceId: choreographyDancers.selectedPriceId })
+      .from(choreographyDancers)
+      .where(inArray(choreographyDancers.id, fixture.inscriptionIds));
+
+    for (const row of inscriptionRows) {
+      expect(row.selectedPriceId).toBe(fixture.priceId);
+      expect(row.selectedPriceId).not.toBe(cheaper.id);
+    }
+
+    // 30 % de $10.000, no de los $4.000 de la fila más barata.
+    const totals = sumByInscription(
+      await readAllocations(fixture.inscriptionIds),
+    );
+
+    expect(totals.get(fixture.inscriptionIds[0])).toBe(3000);
+    expect(totals.get(fixture.inscriptionIds[1])).toBe(3000);
   });
 
   test("refuses a price that does not belong to the choreography", async () => {

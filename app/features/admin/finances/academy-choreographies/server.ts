@@ -1,9 +1,14 @@
-import { asc, eq } from "drizzle-orm";
-import { redirect } from "react-router";
+import { asc, and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { academies, prices } from "@/db/schema";
+import {
+  academies,
+  choreographies,
+  prices,
+  scheduleCapacities,
+} from "@/db/schema";
 import { loadEventContext } from "@/lib/admin/event-context.server";
+import { resolveChoreographyPricingScheduleId } from "@/lib/finances/choreography-pricing-schedule";
 import { emptyOperationalFinanceSummary } from "@/lib/finances/operational-summary";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
 import { payChoreographiesPreset } from "@/lib/finances/choreography-cobro-presets.server";
@@ -11,21 +16,19 @@ import {
   requireAdminUser,
   requireInternalUser,
 } from "@/lib/auth/internal-access.server";
-import { choreographyIdFieldName, financePresetStage } from "./presets";
+import {
+  choreographyIdFieldName,
+  financePresetLabels,
+  financePresetStage,
+  type PresetPriceOption,
+} from "./presets";
 
-export type AcademyFinancesActionData = { status: "error"; message: string };
-
-/**
- * The price rows a preset may fix on an inscription, grouped by group type: the
- * picker filters to the choreography's group type, because offering a foreign
- * row is offering to create a forbidden state.
- */
-export type PresetPriceOption = {
-  amount: number;
-  id: string;
-  name: string;
-  paymentDeadline: string | null;
+export type AcademyFinancesActionData = {
+  status: "error" | "success";
+  message: string;
 };
+
+export type { PresetPriceOption };
 
 export async function loadAcademyFinances(input: {
   params: { academyId?: string };
@@ -35,7 +38,11 @@ export async function loadAcademyFinances(input: {
   const eventContext = await loadEventContext(input.request);
   const academy = await readAcademy(readAcademyId(input.params));
 
-  const [financeDetail, priceOptionsByGroupType] =
+  const [
+    financeDetail,
+    priceOptionsByGroupType,
+    pricingScheduleIdByChoreography,
+  ] =
     eventContext.selectedEventId === null
       ? [
           {
@@ -43,6 +50,7 @@ export async function loadAcademyFinances(input: {
             summary: emptyOperationalFinanceSummary(),
           },
           {} as Record<string, PresetPriceOption[]>,
+          {} as Record<string, string | null>,
         ]
       : await Promise.all([
           readAcademyEventOperationalFinanceDetail({
@@ -50,21 +58,27 @@ export async function loadAcademyFinances(input: {
             eventId: eventContext.selectedEventId,
           }),
           readPresetPriceOptions(eventContext.selectedEventId),
+          readPricingScheduleIdByChoreography({
+            academyId: academy.id,
+            eventId: eventContext.selectedEventId,
+          }),
         ]);
 
   return {
     academy,
     choreographyFinanceRows: financeDetail.choreographyFinanceRows,
     priceOptionsByGroupType,
+    pricingScheduleIdByChoreography,
     selectedEventId: eventContext.selectedEventId,
     summary: financeDetail.summary,
   };
 }
 
 /**
- * The two presets. Both are list actions over the selected choreographies and
- * both redirect back to the list on success: the figures they moved are the
- * list's own, so the loader re-reading them is the feedback.
+ * The two presets. Both are list actions fired from a dialog over the list, so
+ * neither redirects: the view they were fired from still exists and still makes
+ * sense, the loader revalidates the figures they moved, and the outcome travels
+ * back in `fetcher.data` as a toast.
  */
 export async function handleAcademyFinancesAction(input: {
   params: { academyId?: string };
@@ -103,9 +117,10 @@ export async function handleAcademyFinancesAction(input: {
     return { status: "error", message: result.message };
   }
 
-  throw redirect(
-    `/administracion/finanzas/${academyId}?evento=${eventContext.selectedEventId}`,
-  );
+  return {
+    status: "success",
+    message: `${financePresetLabels[stage]}: asignamos lo que adeudaban las coreografías elegidas.`,
+  };
 }
 
 /**
@@ -132,6 +147,13 @@ function readPriceSelection(formData: FormData): Record<string, string> {
   return selection;
 }
 
+/**
+ * Every price row of the event, bucketed by group type and carrying its
+ * schedule. The group type is the only bucket the loader can build, because
+ * which schedules matter depends on what the administrator selects; the picker
+ * narrows the bucket to the rows the writer would accept for that selection
+ * (`selectPresetPriceOptions`).
+ */
 async function readPresetPriceOptions(
   eventId: string,
 ): Promise<Record<string, PresetPriceOption[]>> {
@@ -142,6 +164,7 @@ async function readPresetPriceOptions(
       id: prices.id,
       name: prices.name,
       paymentDeadline: prices.paymentDeadline,
+      scheduleId: prices.scheduleId,
     })
     .from(prices)
     .where(eq(prices.eventId, eventId))
@@ -157,10 +180,48 @@ async function readPresetPriceOptions(
       id: row.id,
       name: row.name,
       paymentDeadline: row.paymentDeadline,
+      scheduleId: row.scheduleId,
     });
   }
 
   return optionsByGroupType;
+}
+
+/**
+ * The schedule each choreography prices against, resolved with the same rule
+ * the writer uses. The picker needs it to drop the price rows bound to another
+ * schedule, which the writer would refuse.
+ */
+async function readPricingScheduleIdByChoreography(input: {
+  academyId: string;
+  eventId: string;
+}): Promise<Record<string, string | null>> {
+  const rows = await db
+    .select({
+      choreographyScheduleId: choreographies.scheduleId,
+      id: choreographies.id,
+      scheduleCapacityScheduleId: scheduleCapacities.scheduleId,
+    })
+    .from(choreographies)
+    .leftJoin(
+      scheduleCapacities,
+      eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
+    )
+    .where(
+      and(
+        eq(choreographies.academyId, input.academyId),
+        eq(choreographies.eventId, input.eventId),
+      ),
+    );
+
+  const scheduleIdByChoreography: Record<string, string | null> = {};
+
+  for (const row of rows) {
+    scheduleIdByChoreography[row.id] =
+      resolveChoreographyPricingScheduleId(row);
+  }
+
+  return scheduleIdByChoreography;
 }
 
 async function readAcademy(academyId: string) {

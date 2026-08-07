@@ -1,5 +1,5 @@
 import { AlertTriangle, Check, LoaderCircle } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useFetcher } from "react-router";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import {
   Select,
   SelectContent,
@@ -25,16 +25,21 @@ import {
   formatGroupTypeLabel,
   type ChoreographyGroupType,
 } from "@/lib/portal/choreographies";
+import { useServerActionToast } from "@/lib/shared/toasts";
 
 import { formatAmount, formatOperationalAmount } from "../formatters";
 import {
   choreographyIdFieldName,
   financePresetIntent,
   financePresetLabels,
+  keepCurrentPriceLabel,
+  keepCurrentPriceValue,
   presetPriceFieldName,
+  selectPresetPriceOptions,
   type FinancePresetStage,
+  type PresetPriceOption,
 } from "./presets";
-import type { PresetPriceOption } from "./server";
+import type { AcademyFinancesActionData } from "./server";
 import type { AcademyFinancesLoaderData } from "./types";
 
 type ChoreographyFinanceRow =
@@ -48,12 +53,17 @@ type ChoreographyFinanceRow =
  * There is no payment picker: the money comes out of the academy's
  * `Saldo disponible`, and which payments fund it is the pool rule's business.
  * What it writes is indistinguishable from a hand-typed allocation.
+ *
+ * It is a dialog over a list, so the write does not redirect: the outcome comes
+ * back in `fetcher.data` and is announced with a toast, and a success closes the
+ * dialog over the list the loader has just revalidated.
  */
 export function FinancePresetDialog({
   availableBalanceAmount,
   onOpenChange,
   open,
   priceOptionsByGroupType,
+  pricingScheduleIdByChoreography,
   selectedRows,
   stage,
 }: {
@@ -61,15 +71,27 @@ export function FinancePresetDialog({
   onOpenChange: (open: boolean) => void;
   open: boolean;
   priceOptionsByGroupType: Record<string, PresetPriceOption[]>;
+  pricingScheduleIdByChoreography: Record<string, string | null>;
   selectedRows: ChoreographyFinanceRow[];
   stage: FinancePresetStage;
 }) {
-  const fetcher = useFetcher<{ status: "error"; message: string }>();
+  const fetcher = useFetcher<AcademyFinancesActionData>();
   const isSaving = fetcher.state !== "idle";
   const owed = sumOwedAmount(selectedRows, stage);
-  const groupTypes = [
-    ...new Set(selectedRows.map((row) => row.groupType)),
-  ].sort();
+  const priceFields = buildPresetPriceFields({
+    priceOptionsByGroupType,
+    pricingScheduleIdByChoreography,
+    selectedRows,
+  });
+
+  useServerActionToast(fetcher.data);
+
+  const isDone = fetcher.data?.status === "success";
+  useEffect(() => {
+    if (isDone) {
+      onOpenChange(false);
+    }
+  }, [isDone, onOpenChange]);
 
   return (
     <Dialog
@@ -103,12 +125,13 @@ export function FinancePresetDialog({
             />
           ))}
 
-          {groupTypes.map((groupType) => (
+          {priceFields.map((field) => (
             <PresetPriceField
-              key={groupType}
-              groupType={groupType}
-              options={priceOptionsByGroupType[groupType] ?? []}
-              showGroupType={groupTypes.length > 1}
+              key={field.groupType}
+              groupType={field.groupType}
+              options={field.options}
+              showGroupType={priceFields.length > 1}
+              spansSeveralSchedules={field.spansSeveralSchedules}
             />
           ))}
 
@@ -125,13 +148,6 @@ export function FinancePresetDialog({
                 Alguna inscripción todavía no tiene precio, así que la cifra que
                 ves no es toda la deuda. Elegí un precio abajo para completarla.
               </AlertDescription>
-            </Alert>
-          ) : null}
-
-          {fetcher.data?.status === "error" ? (
-            <Alert variant="destructive">
-              <AlertTriangle aria-hidden="true" />
-              <AlertDescription>{fetcher.data.message}</AlertDescription>
             </Alert>
           ) : null}
 
@@ -160,32 +176,76 @@ export function FinancePresetDialog({
   );
 }
 
+type PresetPriceFieldSpec = {
+  groupType: ChoreographyGroupType;
+  options: PresetPriceOption[];
+  spansSeveralSchedules: boolean;
+};
+
+/**
+ * One price prompt per group type in the selection, each already narrowed to
+ * the rows the writer would accept for the choreographies of that group type.
+ */
+function buildPresetPriceFields(input: {
+  priceOptionsByGroupType: Record<string, PresetPriceOption[]>;
+  pricingScheduleIdByChoreography: Record<string, string | null>;
+  selectedRows: ChoreographyFinanceRow[];
+}): PresetPriceFieldSpec[] {
+  const groupTypes = [
+    ...new Set(input.selectedRows.map((row) => row.groupType)),
+  ].sort();
+
+  return groupTypes.map((groupType) => {
+    const scheduleIds = input.selectedRows
+      .filter((row) => row.groupType === groupType)
+      .map((row) => input.pricingScheduleIdByChoreography[row.id] ?? null);
+
+    return {
+      groupType,
+      options: selectPresetPriceOptions({
+        options: input.priceOptionsByGroupType[groupType] ?? [],
+        scheduleIds,
+      }),
+      spansSeveralSchedules: new Set(scheduleIds).size > 1,
+    };
+  });
+}
+
 /**
  * The price prompt, one per group type in the selection. It is named by its
  * group type only when the selection spans more than one, since otherwise the
  * qualifier says nothing.
+ *
+ * It defaults to keeping the price that already resolves for each inscription,
+ * which is the price the figure above was computed from. Picking a row is the
+ * deliberate act of re-pricing the inscriptions that hold no money yet, and the
+ * description says so, because it moves the figure.
  */
 function PresetPriceField({
   groupType,
   options,
   showGroupType,
+  spansSeveralSchedules,
 }: {
   groupType: ChoreographyGroupType;
   options: PresetPriceOption[];
   showGroupType: boolean;
+  spansSeveralSchedules: boolean;
 }) {
   const fieldName = presetPriceFieldName(groupType);
   const label = showGroupType
     ? `Precio · ${formatGroupTypeLabel(groupType)}`
     : "Precio";
-  const [priceId, setPriceId] = useState(options[0]?.id ?? "");
+  const [priceId, setPriceId] = useState<string>(keepCurrentPriceValue);
 
   if (options.length === 0) {
     return (
       <Alert variant="warning">
         <AlertTriangle aria-hidden="true" />
         <AlertDescription>
-          No hay precios cargados para {formatGroupTypeLabel(groupType)}.
+          {spansSeveralSchedules
+            ? `Las coreografías de ${formatGroupTypeLabel(groupType)} que elegiste están en cronogramas distintos y no comparten ninguna fila de precio. Cada inscripción queda con el precio que ya le rige.`
+            : `No hay precios cargados para ${formatGroupTypeLabel(groupType)}. Cada inscripción queda con el precio que ya le rige.`}
         </AlertDescription>
       </Alert>
     );
@@ -195,13 +255,21 @@ function PresetPriceField({
     <Field>
       <FieldLabel htmlFor={fieldName}>{label}</FieldLabel>
       {/* Radix's `Select` is not a form control, so the picked row travels in a
-          hidden input, the same way `SelectField` does it. */}
-      <input type="hidden" name={fieldName} value={priceId} />
+          hidden input, the same way `SelectField` does it. Keeping the current
+          price travels as no pick at all. */}
+      <input
+        type="hidden"
+        name={fieldName}
+        value={priceId === keepCurrentPriceValue ? "" : priceId}
+      />
       <Select value={priceId} onValueChange={setPriceId}>
         <SelectTrigger id={fieldName} className="w-full">
           <SelectValue placeholder="Elegí un precio" />
         </SelectTrigger>
         <SelectContent>
+          <SelectItem value={keepCurrentPriceValue}>
+            {keepCurrentPriceLabel}
+          </SelectItem>
           {options.map((option) => (
             <SelectItem key={option.id} value={option.id}>
               {option.name} · {formatAmount(option.amount)}
@@ -209,6 +277,18 @@ function PresetPriceField({
           ))}
         </SelectContent>
       </Select>
+      {priceId === keepCurrentPriceValue ? null : (
+        <FieldDescription>
+          Se fija en las inscripciones elegidas que todavía no tienen plata
+          asignada, así que la cifra de arriba se recalcula al confirmar.
+        </FieldDescription>
+      )}
+      {spansSeveralSchedules ? (
+        <FieldDescription>
+          Las coreografías elegidas están en cronogramas distintos, así que sólo
+          ves los precios generales.
+        </FieldDescription>
+      ) : null}
     </Field>
   );
 }

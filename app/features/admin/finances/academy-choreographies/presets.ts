@@ -45,3 +45,53 @@ export function financePresetStage(intent: string): FinancePresetStage | null {
 export function presetPriceFieldName(groupType: ChoreographyGroupType): string {
   return `price-${groupType}`;
 }
+
+/**
+ * A price row a preset may fix on an inscription. `scheduleId` travels because
+ * the writer refuses a row bound to a schedule other than the choreography's,
+ * so the picker has to apply the very same rule.
+ */
+export type PresetPriceOption = {
+  amount: number;
+  id: string;
+  name: string;
+  paymentDeadline: string | null;
+  scheduleId: string | null;
+};
+
+/**
+ * The picker's default: leave every inscription on the price that already
+ * resolves for it. It is a value rather than an empty option because Radix's
+ * `Select` cannot hold one, and it travels to the server as no pick at all.
+ *
+ * It is the default because the figure the dialog shows was computed from the
+ * prices that already resolve. Defaulting to a row of the catalogue would make
+ * an administrator who only reads the figure and confirms re-price every
+ * money-free inscription, and allocate against a number they never saw.
+ */
+export const keepCurrentPriceValue = "keep-current";
+
+export const keepCurrentPriceLabel = "Mantener el precio actual";
+
+/**
+ * The rows offered for one group type of the selection. The writer refuses any
+ * price tied to a schedule other than the choreography's, so a schedule-bound
+ * row of another schedule is a guaranteed refusal and is never offered.
+ *
+ * When the selection spans more than one schedule, the rows common to all of
+ * them are the general ones, and those are the only ones offered: a pick has to
+ * be satisfiable for every choreography the preset is about to write.
+ */
+export function selectPresetPriceOptions(input: {
+  options: PresetPriceOption[];
+  scheduleIds: Array<string | null>;
+}): PresetPriceOption[] {
+  const scheduleIds = new Set(input.scheduleIds);
+  const commonScheduleId =
+    scheduleIds.size === 1 ? ([...scheduleIds][0] ?? null) : null;
+
+  return input.options.filter(
+    (option) =>
+      option.scheduleId === null || option.scheduleId === commonScheduleId,
+  );
+}

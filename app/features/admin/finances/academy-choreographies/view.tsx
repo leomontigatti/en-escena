@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import {
@@ -37,7 +37,7 @@ const choreographyFinanceFacetedFilters: DataTableFacetedFilter[] = [
 ];
 
 type AcademyFinancesRouteViewProps = {
-  /** Preset abierto al montar. Sólo lo usan los tests, como en el detalle de pago. */
+  /** Preset open on mount. Only the tests use it, as in the payment detail. */
   initialPresetStage?: FinancePresetStage | null;
   loaderData: AcademyFinancesLoaderData;
 };
@@ -60,6 +60,11 @@ export function AcademyFinancesRouteView({
   const selectedRows = loaderData.choreographyFinanceRows.filter((row) =>
     selectedRowIds.includes(row.id),
   );
+  // Stable so the dialog can close itself from an effect when the write
+  // succeeds without the effect re-running on every render of the list.
+  const handlePresetOpenChange = useCallback((next: boolean) => {
+    setPresetStage((current) => (next ? current : null));
+  }, []);
 
   return (
     <AdminResourceLayout
@@ -136,8 +141,11 @@ export function AcademyFinancesRouteView({
         <FinancePresetDialog
           availableBalanceAmount={loaderData.summary.availableBalanceAmount}
           open
-          onOpenChange={(next) => setPresetStage(next ? presetStage : null)}
+          onOpenChange={handlePresetOpenChange}
           priceOptionsByGroupType={loaderData.priceOptionsByGroupType}
+          pricingScheduleIdByChoreography={
+            loaderData.pricingScheduleIdByChoreography
+          }
           selectedRows={selectedRows}
           stage={presetStage}
         />
