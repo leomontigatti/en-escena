@@ -8,6 +8,8 @@ import type {
 
 import {
   canSubmitChoreographyEdit,
+  getExperienceLevelSlotState,
+  getPersistedRosterResolutionState,
   getResolvedRosterFieldState,
   getSelectionKey,
   hasNoCompatibleCategory,
@@ -15,6 +17,7 @@ import {
   shouldResolveRosterSelection,
   type RosterResolutionState,
 } from "./roster-form-state";
+import type { ChoreographyDetail } from "./server";
 
 describe("getSelectionKey", () => {
   test("ignores order so reordering the same roster is not a change", () => {
@@ -341,6 +344,167 @@ describe("shouldRenderRosterScheduleSelect", () => {
     ).toBe(false);
   });
 });
+
+describe("getPersistedRosterResolutionState", () => {
+  // La derivación anterior leía `experienceLevelId !== null`, así que una
+  // coreografía a la que le falta el nivel afirmaba no necesitarlo.
+  test("reads requiredness off the category, not off the stored level", () => {
+    const state = getPersistedRosterResolutionState(
+      buildChoreography({
+        experienceLevelId: null,
+        experienceLevelName: null,
+        requiresExperienceLevel: true,
+      }),
+    );
+
+    expect(state.experienceLevelRequired).toBe(true);
+  });
+
+  test("does not require a level when the category declares none", () => {
+    const state = getPersistedRosterResolutionState(
+      buildChoreography({
+        experienceLevelOptions: [],
+        requiresExperienceLevel: false,
+      }),
+    );
+
+    expect(state.experienceLevelRequired).toBe(false);
+  });
+
+  test("offers every level the category admits, not only the assigned one", () => {
+    const state = getPersistedRosterResolutionState(buildChoreography());
+
+    expect(state.experienceLevelOptions).toEqual([
+      { id: "amateur", name: "Amateur" },
+      { id: "profesional", name: "Profesional" },
+    ]);
+  });
+});
+
+describe("getExperienceLevelSlotState", () => {
+  test("leaves the slot to the standalone reassignment without a pending roster change", () => {
+    expect(
+      getExperienceLevelSlotState({
+        choreography: buildChoreography(),
+        derivedResolution: buildDerived(),
+        hasResolvedRosterChange: false,
+      }),
+    ).toEqual({
+      experienceLevelId: "amateur",
+      requiresExperienceLevel: true,
+      showRosterSelect: false,
+    });
+  });
+
+  // La retención del server conserva el nivel guardado cuando la categoría se
+  // mantiene, así que el select del roster no tiene nada que ofrecer ahí.
+  test("keeps the standalone field when the pending change holds the category", () => {
+    expect(
+      getExperienceLevelSlotState({
+        choreography: buildChoreography(),
+        derivedResolution: buildDerived({
+          categoryId: "category_1",
+          experienceLevelOptions: [
+            { id: "amateur", name: "Amateur" },
+            { id: "profesional", name: "Profesional" },
+          ],
+        }),
+        hasResolvedRosterChange: true,
+      }),
+    ).toEqual({
+      experienceLevelId: "amateur",
+      requiresExperienceLevel: true,
+      showRosterSelect: false,
+    });
+  });
+
+  // La retención exige un valor guardado válido. Sin él, el guardado del roster
+  // necesita uno nuevo, y `canSubmitRosterChange` lo va a exigir: el campo tiene
+  // que estar en el form del roster o el admin no puede guardar.
+  test("hands the slot to the roster form when the category holds but the stored level is missing", () => {
+    expect(
+      getExperienceLevelSlotState({
+        choreography: buildChoreography({
+          experienceLevelId: null,
+          experienceLevelName: null,
+        }),
+        derivedResolution: buildDerived({ categoryId: "category_1" }),
+        hasResolvedRosterChange: true,
+      }),
+    ).toEqual({
+      experienceLevelId: "",
+      requiresExperienceLevel: true,
+      showRosterSelect: true,
+    });
+  });
+
+  test("hands the slot to the roster form when the category holds but no longer admits the stored level", () => {
+    expect(
+      getExperienceLevelSlotState({
+        choreography: buildChoreography(),
+        derivedResolution: buildDerived({
+          categoryId: "category_1",
+          experienceLevelOptions: [{ id: "profesional", name: "Profesional" }],
+        }),
+        hasResolvedRosterChange: true,
+      }),
+    ).toEqual({
+      experienceLevelId: "",
+      requiresExperienceLevel: true,
+      showRosterSelect: true,
+    });
+  });
+
+  test("hands the slot to the roster form when the pending change moves to a category with levels", () => {
+    expect(
+      getExperienceLevelSlotState({
+        choreography: buildChoreography(),
+        derivedResolution: buildDerived({ categoryId: "category_2" }),
+        hasResolvedRosterChange: true,
+      }),
+    ).toEqual({
+      experienceLevelId: "",
+      requiresExperienceLevel: true,
+      showRosterSelect: true,
+    });
+  });
+
+  // `update-roster` nulea el nivel cuando la categoría nueva no lo pide, así que
+  // el campo muestra el estado resuelto y no el que el guardado va a borrar.
+  test("shows the resolved emptiness when the pending change moves to a category without levels", () => {
+    expect(
+      getExperienceLevelSlotState({
+        choreography: buildChoreography(),
+        derivedResolution: buildDerived({
+          categoryId: "category_2",
+          experienceLevelRequired: false,
+        }),
+        hasResolvedRosterChange: true,
+      }),
+    ).toEqual({
+      experienceLevelId: "",
+      requiresExperienceLevel: false,
+      showRosterSelect: false,
+    });
+  });
+});
+
+function buildChoreography(
+  overrides: Partial<ChoreographyDetail> = {},
+): ChoreographyDetail {
+  return {
+    categoryId: "category_1",
+    experienceLevelId: "amateur",
+    experienceLevelName: "Amateur",
+    experienceLevelOptions: [
+      { id: "amateur", name: "Amateur" },
+      { id: "profesional", name: "Profesional" },
+    ],
+    groupType: "duo",
+    requiresExperienceLevel: true,
+    ...overrides,
+  } as ChoreographyDetail;
+}
 
 function buildScheduleOption(id: string): ChoreographyDancerScheduleOption {
   return {

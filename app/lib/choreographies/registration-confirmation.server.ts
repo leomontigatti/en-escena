@@ -19,6 +19,7 @@ import {
   type ChoreographyRegistrationOperationInput,
   type ChoreographyRegistrationOperationResolution,
 } from "@/lib/choreographies/registration-resolution.server";
+import { invalidExperienceLevelMessage } from "@/lib/choreographies/choreography-messages";
 import {
   invalidScheduleEntryMessage,
   lockScheduleCapacityForAssignment,
@@ -28,8 +29,6 @@ import {
   isExperienceLevel,
 } from "@/lib/events/experience-levels";
 
-const INVALID_EXPERIENCE_LEVEL_ERROR =
-  "Elegí un nivel de experiencia válido para confirmar la coreografía.";
 const choreographyTitleCaseParticles = new Set([
   "a",
   "con",
@@ -327,7 +326,7 @@ function resolveSelectedExperienceLevelId(input: {
       ok: false,
       failure: createFailure(
         "invalid-experience-level",
-        INVALID_EXPERIENCE_LEVEL_ERROR,
+        invalidExperienceLevelMessage,
       ),
     };
   }
@@ -337,7 +336,7 @@ function resolveSelectedExperienceLevelId(input: {
       ok: false,
       failure: createFailure(
         "invalid-experience-level",
-        INVALID_EXPERIENCE_LEVEL_ERROR,
+        invalidExperienceLevelMessage,
       ),
     };
   }
@@ -351,7 +350,7 @@ function resolveSelectedExperienceLevelId(input: {
       ok: false,
       failure: createFailure(
         "invalid-experience-level",
-        INVALID_EXPERIENCE_LEVEL_ERROR,
+        invalidExperienceLevelMessage,
       ),
     };
   }
