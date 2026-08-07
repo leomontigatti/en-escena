@@ -30,6 +30,7 @@ import {
   PaymentAcademyField,
   PaymentFields,
 } from "@/features/admin/payments/form-fields";
+import { formatInscriptionFinancialStatus } from "@/lib/finances/choreography-financial-status";
 import { paymentMethodOptions } from "@/lib/finances/payment-methods";
 import { formatPaymentNumber } from "@/lib/finances/payment-number";
 import {
@@ -107,8 +108,8 @@ export function PaymentDetailRouteView({
         <DeleteDialog
           description={
             loaderData.affectedChoreographies.length > 0
-              ? "El pago va a quedar fuera del saldo disponible. También se van a eliminar sus asignaciones a estas coreografías y esos montos van a volver al saldo disponible:"
-              : "El pago va a quedar fuera del saldo disponible."
+              ? "El pago y sus asignaciones se eliminan juntos. Esa plata sale del pool: no vuelve al saldo disponible de la academia."
+              : "El pago sale del pool: el saldo disponible de la academia baja por su monto."
           }
           details={
             loaderData.affectedChoreographies.length > 0 ? (
@@ -128,6 +129,15 @@ export function PaymentDetailRouteView({
   );
 }
 
+/**
+ * Cada coreografía que el pago toca, con lo que se lleva de ella y cuántas
+ * inscripciones dejan de cumplir un umbral que ya habían cruzado. Nada de esto
+ * bloquea: la eliminación siempre procede, así que la lista informa, no advierte.
+ *
+ * El estado resultante se nombra sólo cuando algo efectivamente se descruza. Sin
+ * descruce no hay estado nuevo que anunciar, y nombrar el que ya tenía se leería
+ * como una consecuencia de eliminar el pago.
+ */
 function AffectedChoreographiesList({
   choreographies,
 }: {
@@ -136,8 +146,23 @@ function AffectedChoreographiesList({
   return (
     <ul className="divide-y divide-border rounded-md border text-sm">
       {choreographies.map((choreography) => (
-        <li key={choreography.id} className="px-3 py-2 text-sm font-medium">
-          {choreography.name}
+        <li key={choreography.id} className="flex flex-col gap-0.5 px-3 py-2">
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="font-medium">{choreography.name}</span>
+            <span className="tabular-nums">
+              {formatAmount(choreography.allocatedAmount)}
+            </span>
+          </div>
+          {choreography.uncrossingInscriptionCount > 0 &&
+          choreography.resultingStatus !== null ? (
+            <span className="text-xs text-muted-foreground">
+              {choreography.uncrossingInscriptionCount === 1
+                ? "1 inscripción deja de cumplir un umbral"
+                : `${choreography.uncrossingInscriptionCount} inscripciones dejan de cumplir un umbral`}
+              {" · queda "}
+              {formatInscriptionFinancialStatus(choreography.resultingStatus)}
+            </span>
+          ) : null}
         </li>
       ))}
     </ul>
