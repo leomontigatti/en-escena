@@ -1,18 +1,16 @@
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import {
-  choreographyMusicInvalidTypeMessage,
-  choreographyMusicMaxFileSizeMessage,
-  choreographyMusicPresentationBlockedMessage,
   choreographyMusicUploadErrorMessage,
   updateChoreographyIntent,
   type PortalChoreographyMusicActionData,
 } from "@/features/portal/choreographies/detail/music-editor.shared";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import { findChoreographyForAcademyEvent } from "@/lib/portal/choreographies.server";
+import { updateChoreographyMusic } from "@/lib/portal/choreography-music.server";
 import {
-  loadPortalChoreographyMusicDownloadUrl,
-  updateChoreographyMusic,
-} from "@/lib/portal/choreography-music.server";
+  createDefaultChoreographyMusicStorage,
+  loadChoreographyMusicDownloadUrl,
+} from "@/lib/storage/choreography-music.server";
 import { getPortalActiveEventReadinessContext } from "@/lib/portal/event-context.server";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
 
@@ -57,9 +55,10 @@ export async function loadPortalChoreographyDetail({
     throw new Response(choreographyNotFoundMessage, { status: 404 });
   }
 
-  const musicDownloadUrl = await loadPortalChoreographyMusicDownloadUrl(
-    choreography.musicStorageKey,
-  );
+  const musicDownloadUrl = await loadChoreographyMusicDownloadUrl({
+    storage: createDefaultChoreographyMusicStorage(),
+    storageKey: choreography.musicStorageKey,
+  });
 
   return {
     choreography: {
@@ -143,14 +142,18 @@ async function executeMusicUpdateAction(
       choreographyId: action.choreographyId,
       eventId: action.eventId,
       file: action.musicFile,
+      storage: createDefaultChoreographyMusicStorage(),
       submittedStorageKey: action.musicStorageKey,
     });
 
     if (!musicResult.ok) {
       return buildUpdateError(action, musicResult.message);
     }
-  } catch (error) {
-    return buildUpdateError(action, getMusicUploadErrorMessage(error));
+  } catch {
+    // Everything the academy can act on now arrives as `ok: false` with its own
+    // Spanish copy. What is left here is infrastructure failing, which no
+    // rewording of theirs can fix.
+    return buildUpdateError(action, choreographyMusicUploadErrorMessage);
   }
 
   return {
@@ -184,32 +187,6 @@ function readOptionalFormFile(formData: FormData, key: string) {
   }
 
   return value;
-}
-
-function getMusicUploadErrorMessage(error: unknown) {
-  if (
-    error instanceof Error &&
-    error.message === "Choreography music must be 50 MB or smaller."
-  ) {
-    return choreographyMusicMaxFileSizeMessage;
-  }
-
-  if (
-    error instanceof Error &&
-    error.message ===
-      "Choreography music must be an MP3, M4A, WAV, or OGG file."
-  ) {
-    return choreographyMusicInvalidTypeMessage;
-  }
-
-  if (
-    error instanceof Error &&
-    error.message === choreographyMusicPresentationBlockedMessage
-  ) {
-    return choreographyMusicPresentationBlockedMessage;
-  }
-
-  return choreographyMusicUploadErrorMessage;
 }
 
 function readChoreographyId(params: { choreographyId?: string }) {

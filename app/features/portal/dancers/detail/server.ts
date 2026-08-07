@@ -1,4 +1,10 @@
-import { createDefaultDancerDocumentStorage } from "@/lib/storage/dancer-documents.server";
+import { formatUploadRejection } from "@/lib/storage/asset-kinds";
+import {
+  type DancerDocumentSide,
+  type DancerDocumentStorage,
+  createDefaultDancerDocumentStorage,
+  loadDancerDocumentImageUrls,
+} from "@/lib/storage/dancer-documents.server";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
 import {
@@ -14,12 +20,7 @@ import {
   readPortalDancerFormValues,
   readPortalDancerId,
   readFormString,
-  type PortalDancerDocumentImageUrls,
 } from "./shared";
-
-type PortalDancerDocumentStorage = ReturnType<
-  typeof createDefaultDancerDocumentStorage
->;
 
 export async function loadPortalDancerDetail(input: {
   request: Request;
@@ -31,7 +32,11 @@ export async function loadPortalDancerDetail(input: {
 
   return {
     dancer,
-    documentImageUrls: await loadPortalDancerDocumentImageUrls(dancer),
+    documentImageUrls: await loadDancerDocumentImageUrls({
+      documentBackImageStorageKey: dancer.documentBackImageStorageKey,
+      documentFrontImageStorageKey: dancer.documentFrontImageStorageKey,
+      storage: createDefaultDancerDocumentStorage(),
+    }),
   };
 }
 
@@ -82,6 +87,7 @@ export async function handlePortalDancerDetailAction(input: {
       academyId: academy.id,
       dancerId,
       formData,
+      storage: createDefaultDancerDocumentStorage(),
     });
 
   if (!documentImageStorageKeys.ok) {
@@ -124,58 +130,17 @@ async function requirePortalDancer(academyId: string, dancerId: string) {
   return dancer;
 }
 
-export async function loadPortalDancerDocumentImageUrls(
-  dancer: {
-    documentBackImageStorageKey: string | null;
-    documentFrontImageStorageKey: string | null;
-  },
-  storage?: PortalDancerDocumentStorage,
-): Promise<PortalDancerDocumentImageUrls> {
-  if (
-    !dancer.documentFrontImageStorageKey &&
-    !dancer.documentBackImageStorageKey
-  ) {
-    return {
-      back: null,
-      front: null,
-    };
-  }
-
-  try {
-    const storageClient = storage ?? createDefaultDancerDocumentStorage();
-
-    return {
-      back: await createOptionalDocumentImageSignedUrl(
-        storageClient,
-        dancer.documentBackImageStorageKey,
-      ),
-      front: await createOptionalDocumentImageSignedUrl(
-        storageClient,
-        dancer.documentFrontImageStorageKey,
-      ),
-    };
-  } catch {
-    return {
-      back: null,
-      front: null,
-    };
-  }
-}
-
-export async function resolvePortalDancerDocumentImageStorageKeys(
-  input: {
-    academyId: string;
-    dancerId: string;
-    formData: FormData;
-  },
-  storage?: PortalDancerDocumentStorage,
-): Promise<
+export async function resolvePortalDancerDocumentImageStorageKeys(input: {
+  academyId: string;
+  dancerId: string;
+  formData: FormData;
+  storage: DancerDocumentStorage;
+}): Promise<
   | { ok: true; keys: { back: string; front: string } }
   | { ok: false; message: string }
 > {
   const frontImage = readOptionalFormFile(input.formData, "documentFrontImage");
   const backImage = readOptionalFormFile(input.formData, "documentBackImage");
-  const getStorageClient = createPortalDancerDocumentStorageResolver(storage);
   const frontStorageKey = await uploadOptionalDancerDocumentImage({
     academyId: input.academyId,
     dancerId: input.dancerId,
@@ -185,7 +150,7 @@ export async function resolvePortalDancerDocumentImageStorageKeys(
     ),
     file: frontImage,
     side: "front",
-    getStorage: getStorageClient,
+    storage: input.storage,
   });
 
   if (!frontStorageKey.ok) {
@@ -201,7 +166,7 @@ export async function resolvePortalDancerDocumentImageStorageKeys(
     ),
     file: backImage,
     side: "back",
-    getStorage: getStorageClient,
+    storage: input.storage,
   });
 
   if (!backStorageKey.ok) {
@@ -217,60 +182,45 @@ export async function resolvePortalDancerDocumentImageStorageKeys(
   };
 }
 
-async function createOptionalDocumentImageSignedUrl(
-  storage: PortalDancerDocumentStorage,
-  storageKey: string | null,
-) {
-  if (!storageKey) {
-    return null;
-  }
-
-  try {
-    return await storage.createDocumentImageSignedUrl(storageKey);
-  } catch {
-    return null;
-  }
-}
-
 async function uploadOptionalDancerDocumentImage(input: {
   academyId: string;
   dancerId: string;
   fallbackStorageKey: string;
   file: File | null;
-  getStorage: () => PortalDancerDocumentStorage;
-  side: "back" | "front";
+  side: DancerDocumentSide;
+  storage: DancerDocumentStorage;
 }): Promise<{ ok: true; storageKey: string } | { ok: false; message: string }> {
   if (!input.file) {
     return { ok: true, storageKey: input.fallbackStorageKey };
   }
 
+  const fieldLabel = input.side === "front" ? "frente" : "dorso";
+
   try {
-    return {
-      ok: true,
-      storageKey: await input.getStorage().uploadDocumentImage({
-        academyId: input.academyId,
-        dancerId: input.dancerId,
-        file: input.file,
-        side: input.side,
-      }),
-    };
-  } catch (error) {
+    const uploaded = await input.storage.uploadDocumentImage({
+      academyId: input.academyId,
+      dancerId: input.dancerId,
+      file: input.file,
+      side: input.side,
+    });
+
+    if (!uploaded.ok) {
+      return {
+        ok: false,
+        message: formatUploadRejection(uploaded.rejection, { fieldLabel }),
+      };
+    }
+
+    return { ok: true, storageKey: uploaded.storageKey };
+  } catch {
+    // Only infrastructure reaches here now: every policy rejection arrives as a
+    // value above, so rewording a message cannot silently degrade this to the
+    // generic sentence.
     return {
       ok: false,
-      message: getDocumentImageUploadErrorMessage(error, input.side),
+      message: `No pudimos subir el archivo del ${fieldLabel}. Intentá nuevamente.`,
     };
   }
-}
-
-function createPortalDancerDocumentStorageResolver(
-  storage: PortalDancerDocumentStorage | undefined,
-) {
-  let resolvedStorage = storage;
-
-  return () => {
-    resolvedStorage ??= createDefaultDancerDocumentStorage();
-    return resolvedStorage;
-  };
 }
 
 function readOptionalFormFile(formData: FormData, key: string) {
@@ -281,27 +231,4 @@ function readOptionalFormFile(formData: FormData, key: string) {
   }
 
   return value;
-}
-
-function getDocumentImageUploadErrorMessage(
-  error: unknown,
-  side: "back" | "front",
-) {
-  const fieldLabel = side === "front" ? "frente" : "dorso";
-
-  if (
-    error instanceof Error &&
-    error.message === "Document image must be 10 MB or smaller."
-  ) {
-    return `El archivo del ${fieldLabel} no puede superar 10 MB.`;
-  }
-
-  if (
-    error instanceof Error &&
-    error.message === "Document image must be a JPEG, PNG, or WebP file."
-  ) {
-    return `El archivo del ${fieldLabel} debe ser JPG, PNG o WEBP.`;
-  }
-
-  return `No pudimos subir el archivo del ${fieldLabel}. Intentá nuevamente.`;
 }

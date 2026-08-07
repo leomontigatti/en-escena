@@ -9,19 +9,33 @@ import {
   type DancerDocumentStorageAdapter,
   createDancerDocumentStorage,
   createFilesystemDancerDocumentStorage,
-  createSupabaseDancerDocumentStorage,
-  getRequiredSupabaseStorageEnv,
+  loadDancerDocumentImageUrls,
 } from "./dancer-documents.server";
 
 function createStorageAdapter(
   overrides: Partial<DancerDocumentStorageAdapter>,
 ): DancerDocumentStorageAdapter {
   return {
+    createSignedUrl: async () => "https://example.test/signed",
     list: async () => [],
     remove: async () => {},
     upload: async () => {},
     ...overrides,
   };
+}
+
+function expectUploaded(
+  result: Awaited<
+    ReturnType<
+      ReturnType<typeof createDancerDocumentStorage>["uploadDocumentImage"]
+    >
+  >,
+) {
+  if (!result.ok) {
+    throw new Error(`Expected an upload, got ${result.rejection.reason}`);
+  }
+
+  return result.storageKey;
 }
 
 describe("dancer document storage", () => {
@@ -43,12 +57,14 @@ describe("dancer document storage", () => {
 
     const file = new Blob(["front"], { type: "image/jpeg" });
 
-    const storageKey = await storage.uploadDocumentImage({
-      academyId: "academy-1",
-      dancerId: "dancer-1",
-      file,
-      side: "front",
-    });
+    const storageKey = expectUploaded(
+      await storage.uploadDocumentImage({
+        academyId: "academy-1",
+        dancerId: "dancer-1",
+        file,
+        side: "front",
+      }),
+    );
 
     expect(storageKey).toBe(
       "academies/academy-1/dancers/dancer-1/document-front.jpg",
@@ -84,12 +100,14 @@ describe("dancer document storage", () => {
 
     const file = new Blob(["back"], { type: "image/webp" });
 
-    const storageKey = await storage.uploadDocumentImage({
-      academyId: "academy-2",
-      dancerId: "dancer-2",
-      file,
-      side: "back",
-    });
+    const storageKey = expectUploaded(
+      await storage.uploadDocumentImage({
+        academyId: "academy-2",
+        dancerId: "dancer-2",
+        file,
+        side: "back",
+      }),
+    );
 
     expect(storageKey).toBe(
       "academies/academy-2/dancers/dancer-2/document-back.webp",
@@ -117,15 +135,21 @@ describe("dancer document storage", () => {
       }),
     );
 
-    await expect(
-      storage.uploadDocumentImage({
-        academyId: "academy-1",
-        dancerId: "dancer-1",
-        file: new Blob(["pdf"], { type: "application/pdf" }),
-        side: "front",
-      }),
-    ).rejects.toThrow("Document image must be a JPEG, PNG, or WebP file.");
+    const result = await storage.uploadDocumentImage({
+      academyId: "academy-1",
+      dancerId: "dancer-1",
+      file: new Blob(["pdf"], { type: "application/pdf" }),
+      side: "front",
+    });
 
+    expect(result).toEqual({
+      ok: false,
+      rejection: {
+        contentType: "application/pdf",
+        kind: "dancerDocumentImage",
+        reason: "unsupported-content-type",
+      },
+    });
     expect(uploads).toEqual([]);
   });
 
@@ -139,17 +163,22 @@ describe("dancer document storage", () => {
       }),
     );
 
-    await expect(
-      storage.uploadDocumentImage({
-        academyId: "academy-1",
-        dancerId: "dancer-1",
-        file: new Blob([new Uint8Array(10 * 1024 * 1024 + 1)], {
-          type: "image/png",
-        }),
-        side: "front",
-      }),
-    ).rejects.toThrow("Document image must be 10 MB or smaller.");
+    const sizeBytes = 10 * 1024 * 1024 + 1;
+    const result = await storage.uploadDocumentImage({
+      academyId: "academy-1",
+      dancerId: "dancer-1",
+      file: new Blob([new Uint8Array(sizeBytes)], { type: "image/png" }),
+      side: "front",
+    });
 
+    expect(result).toEqual({
+      ok: false,
+      rejection: {
+        kind: "dancerDocumentImage",
+        reason: "file-too-large",
+        sizeBytes,
+      },
+    });
     expect(uploads).toEqual([]);
   });
 
@@ -177,14 +206,16 @@ describe("dancer document storage", () => {
       }),
     );
 
-    await expect(
-      storage.uploadDocumentImage({
-        academyId: "academy-1",
-        dancerId: "dancer-1",
-        file,
-        side: "front",
-      }),
-    ).resolves.toBe("academies/academy-1/dancers/dancer-1/document-front.png");
+    expect(
+      expectUploaded(
+        await storage.uploadDocumentImage({
+          academyId: "academy-1",
+          dancerId: "dancer-1",
+          file,
+          side: "front",
+        }),
+      ),
+    ).toBe("academies/academy-1/dancers/dancer-1/document-front.png");
 
     expect(calls).toEqual([
       {
@@ -224,7 +255,7 @@ describe("dancer document storage", () => {
         createSignedUrl: async (input) => {
           signedUrlRequests.push(input);
 
-          return "https://example.supabase.co/signed/document-front";
+          return "https://example.test/signed/document-front";
         },
       }),
     );
@@ -233,101 +264,12 @@ describe("dancer document storage", () => {
       "academies/academy-1/dancers/dancer-1/document-front.jpg",
     );
 
-    expect(signedUrl).toBe("https://example.supabase.co/signed/document-front");
+    expect(signedUrl).toBe("https://example.test/signed/document-front");
     expect(signedUrlRequests).toEqual([
       {
         bucket: "en-escena-dancer-documents",
         expiresInSeconds: 300,
         key: "academies/academy-1/dancers/dancer-1/document-front.jpg",
-      },
-    ]);
-  });
-
-  test("uses Supabase Storage for document uploads and signed URLs", async () => {
-    const uploadedFile = new Blob(["front"], { type: "image/png" });
-    const calls: Array<unknown> = [];
-
-    const storage = createSupabaseDancerDocumentStorage({
-      storage: {
-        from: (bucket: string) => ({
-          createSignedUrl: async (key: string, expiresInSeconds: number) => {
-            calls.push({ bucket, expiresInSeconds, key, type: "signed-url" });
-
-            return {
-              data: { signedUrl: "https://example.supabase.co/signed/front" },
-              error: null,
-            };
-          },
-          upload: async (
-            key: string,
-            file: Blob,
-            options: { contentType: string; upsert: boolean },
-          ) => {
-            calls.push({ bucket, file, key, options, type: "upload" });
-
-            return { data: { path: key }, error: null };
-          },
-          list: async (prefix: string, options: { limit: number }) => {
-            calls.push({ bucket, options, prefix, type: "list" });
-
-            return {
-              data: [
-                { name: "document-front.jpg" },
-                { name: "document-back.jpg" },
-              ],
-              error: null,
-            };
-          },
-          remove: async (keys: string[]) => {
-            calls.push({ bucket, keys, type: "remove" });
-
-            return { data: [], error: null };
-          },
-        }),
-      },
-    });
-
-    await expect(
-      storage.uploadDocumentImage({
-        academyId: "academy-1",
-        dancerId: "dancer-1",
-        file: uploadedFile,
-        side: "front",
-      }),
-    ).resolves.toBe("academies/academy-1/dancers/dancer-1/document-front.png");
-    await expect(
-      storage.createDocumentImageSignedUrl(
-        "academies/academy-1/dancers/dancer-1/document-front.png",
-      ),
-    ).resolves.toBe("https://example.supabase.co/signed/front");
-
-    expect(calls).toEqual([
-      {
-        bucket: "en-escena-dancer-documents",
-        options: { limit: 100 },
-        prefix: "academies/academy-1/dancers/dancer-1",
-        type: "list",
-      },
-      {
-        bucket: "en-escena-dancer-documents",
-        file: uploadedFile,
-        key: "academies/academy-1/dancers/dancer-1/document-front.png",
-        options: {
-          contentType: "image/png",
-          upsert: true,
-        },
-        type: "upload",
-      },
-      {
-        bucket: "en-escena-dancer-documents",
-        keys: ["academies/academy-1/dancers/dancer-1/document-front.jpg"],
-        type: "remove",
-      },
-      {
-        bucket: "en-escena-dancer-documents",
-        expiresInSeconds: 300,
-        key: "academies/academy-1/dancers/dancer-1/document-front.png",
-        type: "signed-url",
       },
     ]);
   });
@@ -343,12 +285,14 @@ describe("dancer document storage", () => {
         secret,
       });
 
-      const storageKey = await storage.uploadDocumentImage({
-        academyId: "academy-1",
-        dancerId: "dancer-1",
-        file: new Blob(["front"], { type: "image/jpeg" }),
-        side: "front",
-      });
+      const storageKey = expectUploaded(
+        await storage.uploadDocumentImage({
+          academyId: "academy-1",
+          dancerId: "dancer-1",
+          file: new Blob(["front"], { type: "image/jpeg" }),
+          side: "front",
+        }),
+      );
 
       expect(storageKey).toBe(
         "academies/academy-1/dancers/dancer-1/document-front.jpg",
@@ -418,15 +362,66 @@ describe("dancer document storage", () => {
       await rm(baseDir, { force: true, recursive: true });
     }
   });
+});
 
-  test("requires Supabase project settings for the default storage client", () => {
-    expect(() =>
-      getRequiredSupabaseStorageEnv("SUPABASE_SERVICE_ROLE_KEY", {}),
-    ).toThrow("SUPABASE_SERVICE_ROLE_KEY is required.");
-    expect(
-      getRequiredSupabaseStorageEnv("SUPABASE_SERVICE_ROLE_KEY", {
-        SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+describe("loadDancerDocumentImageUrls", () => {
+  test("signs both sides through one store", async () => {
+    const storage = createDancerDocumentStorage(
+      createStorageAdapter({
+        createSignedUrl: async (input) => `signed:${input.key}`,
       }),
-    ).toBe("service-role-key");
+    );
+
+    await expect(
+      loadDancerDocumentImageUrls({
+        documentBackImageStorageKey: "academies/a/dancers/d/document-back.jpg",
+        documentFrontImageStorageKey:
+          "academies/a/dancers/d/document-front.jpg",
+        storage,
+      }),
+    ).resolves.toEqual({
+      back: "signed:academies/a/dancers/d/document-back.jpg",
+      front: "signed:academies/a/dancers/d/document-front.jpg",
+    });
+  });
+
+  // A dancer with only one side uploaded still shows the side that exists.
+  test("yields no link for the absent side only", async () => {
+    const storage = createDancerDocumentStorage(
+      createStorageAdapter({
+        createSignedUrl: async (input) => `signed:${input.key}`,
+      }),
+    );
+
+    await expect(
+      loadDancerDocumentImageUrls({
+        documentBackImageStorageKey: null,
+        documentFrontImageStorageKey:
+          "academies/a/dancers/d/document-front.jpg",
+        storage,
+      }),
+    ).resolves.toEqual({
+      back: null,
+      front: "signed:academies/a/dancers/d/document-front.jpg",
+    });
+  });
+
+  test("yields no link when an object is unreachable rather than throwing", async () => {
+    const storage = createDancerDocumentStorage(
+      createStorageAdapter({
+        createSignedUrl: async () => {
+          throw new Error("volume unavailable");
+        },
+      }),
+    );
+
+    await expect(
+      loadDancerDocumentImageUrls({
+        documentBackImageStorageKey: "academies/a/dancers/d/document-back.jpg",
+        documentFrontImageStorageKey:
+          "academies/a/dancers/d/document-front.jpg",
+        storage,
+      }),
+    ).resolves.toEqual({ back: null, front: null });
   });
 });
