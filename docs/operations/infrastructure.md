@@ -19,6 +19,30 @@ ADR-0013 records.
   failed migration is a container that will not start. See
   [Database migrations](../db/migrations.md).
 
+## Deployment
+
+**Deployment is manual.** Coolify tracks `master`, but nothing deploys on its
+own: merging a PR does not release it. A deploy is triggered by hand from the
+Coolify dashboard, and it builds whatever `master` points at _at that moment_.
+
+Two consequences worth stating, because both are easy to assume the other way:
+
+- **Merge order and release order are independent.** Work that must not ship
+  without a companion change can merge in any order; the gate is the deploy, not
+  the merge.
+- **`master` being green is not the same as production being current.** The
+  running version is whichever commit was last deployed by hand, which may sit
+  arbitrarily far behind `master`.
+
+What a deploy does, for reference:
+
+- Builds from `/Dockerfile` (build pack: Dockerfile), then runs
+  `node node_modules/@react-router/serve/bin.js ./build/server/index.js` on port
+  `3000`.
+- Runs migrations from the entrypoint before serving (above).
+- Gates on the healthcheck at `/internal/health`: HTTP `200`, 60s start period,
+  5s interval, 10 retries.
+
 ## Database
 
 - Coolify-managed Postgres, image `postgres:17-alpine`, co-located with the app
