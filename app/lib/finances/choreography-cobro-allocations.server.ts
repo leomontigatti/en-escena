@@ -6,7 +6,6 @@ import { choreographyDancers, paymentAllocations } from "@/db/schema";
 import {
   clearBalanceSnapshot,
   clearDepositSnapshot,
-  type CobroResult,
   type Transaction,
 } from "./choreography-cobro-support.server";
 
@@ -86,35 +85,6 @@ export async function applyAllocationDelta(
 }
 
 /**
- * Borra una asignación de pago y devuelve su monto al `Saldo disponible` de la
- * academia (derivado de pagos − asignaciones). La plata es fungible: no hay
- * orden de reversión, así que cualquier asignación se puede borrar en cualquier
- * momento. Los snapshots de la inscripción se reconcilian después contra lo que
- * le quedó asignado.
- */
-export async function deletePaymentAllocation(input: {
-  allocationId: string;
-}): Promise<CobroResult> {
-  return await db.transaction(async (tx) => {
-    const allocation = await tx.query.paymentAllocations.findFirst({
-      where: eq(paymentAllocations.id, input.allocationId),
-    });
-
-    if (!allocation) {
-      return { ok: false, message: "No encontramos esa asignación." };
-    }
-
-    await tx
-      .delete(paymentAllocations)
-      .where(eq(paymentAllocations.id, allocation.id));
-
-    await syncInscriptionSnapshots(tx, [allocation.inscriptionId]);
-
-    return { ok: true };
-  });
-}
-
-/**
  * Reconcilia los snapshots de una inscripción contra lo que le quedó asignado:
  * sin plata vuelve a `impaga`, y con menos de lo que cubría el total vuelve a
  * `señada`. Es el puente mientras el estado siga viviendo en columnas
@@ -162,6 +132,15 @@ export async function syncInscriptionSnapshots(
         : {}),
       ...(inscription.depositReferenceDate !== null && allocated < depositAmount
         ? clearDepositSnapshot()
+        : {}),
+      // The selected price is fixed by the first allocation and only reverts
+      // once nothing is allocated, so a row that still holds money keeps it.
+      // Clearing it here would also break the write: the database guard raises
+      // whenever `selected_price_id` changes while allocations exist, which
+      // turned a partial removal from a preset-frozen row into a 500 instead of
+      // the refusal-free removal the surface promises.
+      ...(allocated > 0
+        ? { selectedPriceId: inscription.selectedPriceId }
         : {}),
     };
 

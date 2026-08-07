@@ -35,27 +35,44 @@ export type InscriptionRow = typeof choreographyDancers.$inferSelect;
 export type CobroResult = { ok: true } | { ok: false; message: string };
 
 /**
- * Piso del cobro por inscripción: `min(frozenBasePriceAmount)` sobre las
- * inscripciones activas ya `señada`/`pagada`, excluyendo la huérfana objetivo.
- * `null` cuando ninguna hermana está congelada (la coreografía no es mixta).
+ * A refusal raised from inside a cobro transaction. Returning `{ ok: false }`
+ * from a Drizzle transaction callback **commits**, so a write that refuses
+ * halfway — the pool running dry on the third inscription — would leave the
+ * earlier ones funded. Throwing rolls back; `runCobro` turns it back into the
+ * `CobroResult` the caller expects.
  */
-export function resolveInscriptionDepositFloor(
-  inscriptions: InscriptionRow[],
-  excludeInscriptionId: string | null,
-): number | null {
-  const frozenAmounts = inscriptions
-    .filter((inscription) => inscription.id !== excludeInscriptionId)
-    .filter((inscription) => {
-      const state = deriveInscriptionLadderStage(inscription);
-      return state === "señada" || state === "pagada";
-    })
-    .map((inscription) => inscription.frozenBasePriceAmount ?? 0);
-
-  if (frozenAmounts.length === 0) {
-    return null;
+class CobroRefusal extends Error {
+  constructor(readonly reason: string) {
+    super(reason);
+    this.name = "CobroRefusal";
   }
+}
 
-  return Math.min(...frozenAmounts);
+/**
+ * Runs a money change inside a transaction where **any** refusal rolls back.
+ * Every one of them is all-or-nothing: an administrator who sees an error has
+ * to be able to trust that nothing moved.
+ */
+export async function runCobro(
+  run: (tx: Transaction) => Promise<CobroResult>,
+): Promise<CobroResult> {
+  try {
+    return await db.transaction(async (tx) => {
+      const result = await run(tx);
+
+      if (!result.ok) {
+        throw new CobroRefusal(result.message);
+      }
+
+      return result;
+    });
+  } catch (thrown) {
+    if (thrown instanceof CobroRefusal) {
+      return { ok: false, message: thrown.reason };
+    }
+
+    throw thrown;
+  }
 }
 
 /**
