@@ -1,0 +1,39 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": { "correctness": "off" },
+  "plugins": ["react", "import"],
+  "ignorePatterns": [
+    "build/**",
+    ".react-router/**",
+    "coverage/**",
+    "app/db/migrations/**"
+  ],
+  "rules": {
+    "react-hooks/rules-of-hooks": "error",
+    "react-hooks/exhaustive-deps": "error",
+    "import/no-cycle": "error"
+  },
+  "overrides": [
+    {
+      "files": [
+        "app/components/admin/events/form.tsx",
+        "app/components/auth/access-form.tsx",
+        "app/components/shared/client-data-table.tsx",
+        "app/components/shared/file-upload-field.tsx",
+        "app/components/shared/server-data-table.tsx",
+        "app/features/admin/academies/detail/view.tsx",
+        "app/features/admin/dancers/detail/form.tsx",
+        "app/features/admin/professors/detail/form.tsx",
+        "app/features/admin/users/create/view.tsx",
+        "app/features/portal/dancers/detail/form.tsx",
+        "app/features/portal/professors/detail/view.tsx",
+        "app/features/portal/profile/view.tsx",
+        "app/lib/admin/users/user-detail-edit-form.tsx",
+        "app/lib/admin/users/user-detail-password-reset-form.tsx"
+      ],
+      "rules": {
+        "react-hooks/exhaustive-deps": "off"
+      }
+    }
+  ]
+}

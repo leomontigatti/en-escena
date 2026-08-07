@@ -31,6 +31,9 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm format:check
+      # Hook mistakes and import cycles — the two bug classes `tsc` and Prettier
+      # cannot see. Deliberately narrow; everything else is owned elsewhere.
+      - run: pnpm lint
       - run: pnpm check:repo-styles
       - run: pnpm check:file-tokens
       # Retired dependencies stay retired (#582): removing a package from the

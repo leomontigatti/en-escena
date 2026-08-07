@@ -47,8 +47,9 @@ leave context, questions, and asides. Unresolved ≠ must-action.
 # PROCESS
 
 1. **Classify each item**: code change needed / reply needed / neither.
-2. **Make the code changes.** Before committing, run `pnpm typecheck`, `pnpm test:unit`, and
-   `pnpm test:db <path>` for the DB test files you touched; don't run the full `pnpm test` (see
+2. **Make the code changes.** Before committing, run `pnpm typecheck`, `pnpm lint`,
+   `pnpm test:unit`, and `pnpm test:db <path>` for the DB test files you touched; don't run the
+   full `pnpm test`, and don't invent commands that aren't on that list (see
    `.sandcastle/VALIDATION.md`). Don't leave the branch broken. Conventional-commit messages,
    **no `RALPH:` prefix**. Making no change is fine — only commit when there's a real diff.
 3. **Reply only where a reply adds value** (confirm what you changed, explain a decline, answer

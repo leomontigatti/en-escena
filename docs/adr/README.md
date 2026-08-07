@@ -12,7 +12,7 @@ explicit supersedes or conflict notes inside the ADR.
 - Uploaded assets: `0013-exit-supabase.md`, `0008-use-supabase-storage-for-uploaded-assets.md`
 - Choreography music storage: `0010-choreography-music-storage-contract.md` (live contract in `docs/operations/infrastructure.md`)
 - Infrastructure and hosting: `0013-exit-supabase.md`
-- Finances: `0009-inscription-based-finances.md`, `0011-invoicing-concept-portion-and-surfaces.md`, `0012-arca-unreachable-contingency-and-recovery.md`
+- Finances: `0014-arbitrary-amount-allocation-and-comprobante-amendments.md`, `0009-inscription-based-finances.md`, `0011-invoicing-concept-portion-and-surfaces.md`, `0012-arca-unreachable-contingency-and-recovery.md`
 
 ## Decisions
 
@@ -24,8 +24,9 @@ explicit supersedes or conflict notes inside the ADR.
 - [ADR-0006: Supabase Auth for access credentials](./0006-use-supabase-auth-for-access.md) - superseded by ADR-0013; Supabase Auth is no longer the provider.
 - [ADR-0007: DB test isolation model](./0007-db-test-isolation-model.md) - keeps focused DB tests on PGlite snapshots and final DB confidence on Postgres.
 - [ADR-0008: Supabase Storage for uploaded assets](./0008-use-supabase-storage-for-uploaded-assets.md) - superseded by ADR-0013; uploaded assets live on a local volume now.
-- [ADR-0009: Inscription-based finances](./0009-inscription-based-finances.md) - models finances around inscriptions and payment assignments as the single operational source of truth.
+- [ADR-0009: Inscription-based finances](./0009-inscription-based-finances.md) - models finances around inscriptions and payment assignments as the single operational source of truth (ratified, not superseded, by ADR-0014).
 - [ADR-0010: Choreography music storage contract](./0010-choreography-music-storage-contract.md) - superseded by ADR-0013; the live contract moved to `docs/operations/infrastructure.md`.
-- [ADR-0011: Invoicing concept, derived portion, and comprobante surfaces](./0011-invoicing-concept-portion-and-surfaces.md) - fixes Concepto to services, derives portion from collection, and lays out the comprobante list/detail/print surfaces (supersedes the granularity of #323, refines #326).
-- [ADR-0012: ARCA unreachable contingency and recovery](./0012-arca-unreachable-contingency-and-recovery.md) - classifies a lost ARCA connection by phase, bounds each call with its own timeout, and resolves authorization ambiguity by consulting ARCA rather than asking the operator (extends ADR-0011).
+- [ADR-0011: Invoicing concept, derived portion, and comprobante surfaces](./0011-invoicing-concept-portion-and-surfaces.md) - superseded by ADR-0014; `porción` is deleted and the portion, print and vigencia contracts it rests on were all replaced.
+- [ADR-0012: ARCA unreachable contingency and recovery](./0012-arca-unreachable-contingency-and-recovery.md) - superseded by ADR-0014; its recovery matcher was repaired by correlative reservation and its no-persistence rule reversed. Decisions 1, 2, 3 and 6 are restated in ADR-0014.
 - [ADR-0013: Exit Supabase](./0013-exit-supabase.md) - records the rationale for leaving Supabase across auth, storage and database, and points at `docs/operations/infrastructure.md` for what runs today (supersedes ADR-0001, ADR-0005, ADR-0006, ADR-0008, ADR-0010).
+- [ADR-0014: Arbitrary-amount allocation, the live discount, and the comprobante amendment star](./0014-arbitrary-amount-allocation-and-comprobante-amendments.md) - records the rationale of finance map #547 and points at `docs/domain/finances.md` for the model itself (supersedes ADR-0011, ADR-0012; ratifies ADR-0009).

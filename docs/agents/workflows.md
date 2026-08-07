@@ -60,13 +60,51 @@ Recommended final validation after code changes:
    `pnpm format`
 2. `pnpm check:repo-styles` when the change adds or edits app UI code
 3. `pnpm typecheck`
-4. `pnpm test` when the change affects runtime behavior, shared modules,
+4. `pnpm lint`
+5. `pnpm test` when the change affects runtime behavior, shared modules,
    route behavior, UI behavior with meaningful regression risk, database
    schema, repositories, loaders/actions that persist data, or
    persistence-backed business rules. `pnpm test` runs the unit/react suite
    and the DB suite on in-process PGlite, so it needs no local Postgres.
-5. `pnpm build` when the change touches routing, server rendering, bundling,
+6. `pnpm build` when the change touches routing, server rendering, bundling,
    CSS, or deployment behavior
+
+## Linting
+
+`pnpm lint` is [oxlint](https://oxc.rs), configured in `.oxlintrc.json`. It runs
+over the whole repo in about a second and enables exactly three rules:
+
+- `react-hooks/rules-of-hooks`
+- `react-hooks/exhaustive-deps`
+- `import/no-cycle`
+
+**It is deliberately not a style checker**, and rules must not be added to it
+casually. The scope rule is that every concern already has exactly one owner:
+
+| Concern                         | Owner                                            |
+| ------------------------------- | ------------------------------------------------ |
+| Formatting                      | Prettier (`pnpm format`)                         |
+| Types, unused locals/parameters | `tsc` (`pnpm typecheck`, `strict` + `noUnused*`) |
+| Repo conventions                | the `check:*` scripts                            |
+| Hook mistakes, import cycles    | `pnpm lint`                                      |
+
+A rule that duplicates another owner turns the linter into a chore and gets
+ignored, so it does not go in. What justifies these three is that nothing else
+can see them: a stale closure in `useEffect` type-checks perfectly and misbehaves
+at runtime, and TypeScript tolerates import cycles until a module reads
+`undefined` during initialisation.
+
+Fourteen files are exempt from `exhaustive-deps` via `overrides` in
+`.oxlintrc.json`. They use a deliberate `resetKey = JSON.stringify(values)` idiom
+to sync a prop into state, which the rule cannot see through; depending on the
+object itself would re-run the effect on every render. The list is a **shrinking
+allowlist** — do not add to it to make a change pass.
+
+ESLint is not an option here: `typescript-eslint` refuses to run against this
+repo's TypeScript 7 and throws on startup
+([typescript-eslint#10940](https://github.com/typescript-eslint/typescript-eslint/issues/10940)).
+oxlint has no dependency on the TypeScript compiler API, and resolves the `@/`
+alias from `tsconfig.json` natively.
 
 If a command fails, fix that failure and rerun the same command before moving to
 the next one. Do not start a later validation command while an earlier command is
