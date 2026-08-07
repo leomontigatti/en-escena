@@ -18,6 +18,12 @@ import { selectApplicablePriceFromCandidates } from "@/lib/prices/repository.ser
 
 export type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
+/**
+ * Anything that can run a query: the connection or an open transaction. Reads
+ * that participate in a cobro take this so they never open a second connection.
+ */
+export type Executor = Transaction | typeof db;
+
 export type FinancePriceRow = typeof prices.$inferSelect;
 
 export type InscriptionRow = typeof choreographyDancers.$inferSelect;

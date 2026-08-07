@@ -59,6 +59,7 @@ function buildLoaderData(
       categoryName: "Juvenil",
       groupType: "solo",
       experienceLevelId: "level_1",
+      requiresExperienceLevel: true,
       experienceLevelName: "Inicial",
       operationalStatus: {
         code: "complete",

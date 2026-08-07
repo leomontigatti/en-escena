@@ -1,47 +1,45 @@
 /**
- * Las dos mitades de un mismo invariante: `spreadFromPool` financia una
- * inscripción desde el `Saldo disponible` de la academia y `unwindToPool` la
- * desfinancia. Viven juntas porque una no se puede cambiar sin la otra.
+ * The two halves of one invariant: `spreadFromPool` funds an inscription from
+ * the academy's `Saldo disponible` and `unwindToPool` unfunds it. They live
+ * together because neither can change without the other.
  *
- * ## El invariante
+ * ## The invariant
  *
  * ```
- * Saldo disponible = Σ pagos − Σ asignaciones − Σ reintegros ≥ 0
+ * Saldo disponible = Σ payments − Σ allocations − Σ refunds ≥ 0
  * ```
  *
- * El piso en cero es **estructural, no un clamp**: toda asignación se acota
- * contra lo que queda libre en los pagos, y el `amount` de un pago se escribe
- * una sola vez. No hay ninguna resta que pueda pasarse: si no hay pool, la
- * escritura se rechaza antes de tocar una fila.
+ * The floor at zero is **structural, not a clamp**: every allocation is capped
+ * against what is still free in the payments, and a payment's `amount` is
+ * write-once. There is no subtraction that could overshoot — with no pool, the
+ * write is refused before a single row is touched.
  *
- * El término de reintegros está en el invariante porque es parte de la regla,
- * pero **todavía no existe**: no hay tabla ni columna de reintegros, y hasta que
- * #536 la agregue el `Saldo disponible` se lee como `Σ pagos − Σ asignaciones`.
+ * The refunds term is in the invariant because it is part of the rule, but it
+ * **does not exist yet**: there is no refunds table or column, so until #536
+ * adds one, `Saldo disponible` reads as `Σ payments − Σ allocations`.
  *
- * ## Las dos direcciones
+ * ## The two directions
  *
- * Financiar consume los pagos de la academia **del más viejo al más nuevo por
- * número de pago**; desfinanciar consume las asignaciones de la inscripción **de
- * la más nueva a la más vieja por número de pago**, decrementando y borrando la
- * fila en cero. Financiar un monto y deshacerlo enseguida devuelve las filas a
- * su estado anterior.
+ * Funding consumes the academy's payments **oldest-first by payment number**;
+ * unfunding consumes the inscription's allocations **newest-first by payment
+ * number**, decrementing and deleting the row at zero. Funding an amount and
+ * immediately unfunding it returns the rows to their prior state.
  *
- * El ida y vuelta es exacto mientras lo que se deshace sea lo último que se
- * financió. Si entre medio se libera plata en un pago más viejo que uno donde la
- * inscripción ya tenía asignado, el total vuelve igual pero puede repartirse
- * distinto entre pagos: la plata es fungible y no se guarda de dónde vino, que
- * es justamente lo que evita reintroducir un orden de reversión.
+ * The round trip is exact as long as what is unwound is the last thing funded.
+ * If money is freed in the meantime on a payment older than one where the
+ * inscription already held an allocation, the total comes back the same but may
+ * be split differently across payments: money is fungible and no provenance is
+ * stored, which is precisely what keeps a reversal order from coming back.
  *
- * ## El costo aceptado
+ * ## The accepted cost
  *
- * El administrador ya no puede levantar **un pago concreto** de **una
- * inscripción concreta**: nombra una inscripción y un monto, nunca un pago. Si
- * un pago se registró por error, el remedio es borrar el pago.
+ * An administrator can no longer lift **one specific payment** off **one
+ * specific inscription**: they name an inscription and an amount, never a
+ * payment. If a payment was recorded in error, the remedy is deleting it.
  */
 
 import { and, asc, desc, eq } from "drizzle-orm";
 
-import { db } from "@/db";
 import { paymentAllocations, payments } from "@/db/schema";
 import { deriveInscriptionFinancialFigures } from "@/lib/finances/inscription-financial-status";
 import { readInscriptionThresholds } from "@/lib/finances/inscription-thresholds.server";
@@ -49,34 +47,39 @@ import { readInscriptionThresholds } from "@/lib/finances/inscription-thresholds
 import { applyAllocationDelta } from "./choreography-cobro-allocations.server";
 import type {
   CobroResult,
-  Transaction,
+  Executor,
 } from "./choreography-cobro-support.server";
 
-type Executor = Transaction | typeof db;
+/**
+ * Money moving in one direction between an inscription and the academy's pool.
+ * Both halves of the invariant take exactly this, which is what makes them
+ * mirror images at the call site too.
+ */
+export type PoolMovement = {
+  academyId: string;
+  amount: number;
+  eventId: string;
+  inscriptionId: string;
+};
 
 /**
- * Financia una inscripción con plata del `Saldo disponible` de la academia.
+ * Funds an inscription with money from the academy's `Saldo disponible`.
  *
- * Consume los pagos del más viejo al más nuevo por número de pago, creando o
- * incrementando la fila `(pago, inscripción)` hasta cubrir el monto. Rechaza dos
- * cosas, ninguna con override:
+ * Consumes the payments oldest-first by payment number, creating or
+ * incrementing the `(payment, inscription)` row until the amount is covered.
+ * Refuses two things, neither with an override:
  *
- * - **Sobreasignación activa**: lo que quedaría asignado no puede superar el
- *   `Total` de la inscripción. Por eso lo adeudado se computa acá, en la
- *   escritura, y no sólo al leer.
- * - **Pool insuficiente**: no se asigna plata que la academia no pagó.
+ * - **Active over-allocation**: what would end up allocated cannot exceed the
+ *   inscription's `Total`. That is why owed is computed here, on the write
+ *   path, and not only on read.
+ * - **Insufficient pool**: money the academy never paid is never allocated.
  *
- * La sobreasignación **pasiva** —la que ya estaba registrada— no se toca: esta
- * función no la corrige ni la borra, sólo se niega a agrandarla.
+ * **Passive** over-allocation — the kind already recorded — is left alone: this
+ * function neither corrects nor deletes it, it only refuses to grow it.
  */
 export async function spreadFromPool(
   tx: Executor,
-  input: {
-    academyId: string;
-    amount: number;
-    eventId: string;
-    inscriptionId: string;
-  },
+  input: PoolMovement,
 ): Promise<CobroResult> {
   if (input.amount <= 0) {
     return {
@@ -134,22 +137,16 @@ export async function spreadFromPool(
 }
 
 /**
- * Devuelve plata de una inscripción al `Saldo disponible` de la academia: el
- * inverso exacto de `spreadFromPool`.
+ * Returns money from an inscription to the academy's `Saldo disponible`: the
+ * exact inverse of `spreadFromPool`.
  *
- * Consume las asignaciones de la inscripción de la más nueva a la más vieja por
- * número de pago, decrementando y borrando la fila cuando llega a cero. No se
- * puede sacar más de lo que la inscripción tiene asignado; sacar todo la deja
- * sin ninguna fila.
+ * Consumes the inscription's allocations newest-first by payment number,
+ * decrementing and deleting the row when it reaches zero. More than the
+ * inscription has allocated cannot be taken; taking it all leaves no rows.
  */
 export async function unwindToPool(
   tx: Executor,
-  input: {
-    academyId: string;
-    amount: number;
-    eventId: string;
-    inscriptionId: string;
-  },
+  input: PoolMovement,
 ): Promise<CobroResult> {
   if (input.amount <= 0) {
     return { ok: false, message: "El monto a quitar tiene que ser mayor a 0." };
@@ -192,8 +189,9 @@ export async function unwindToPool(
 }
 
 /**
- * Lo que la inscripción tiene asignado hoy. Lo consumen la comprobación de
- * sobreasignación y las presets de cobro, que asignan exactamente lo adeudado.
+ * What the inscription has allocated right now. Consumed by the
+ * over-allocation check and by the cobro presets, which allocate exactly what
+ * is owed.
  */
 export async function readInscriptionAllocatedAmount(
   tx: Executor,
@@ -205,19 +203,28 @@ export async function readInscriptionAllocatedAmount(
 }
 
 /**
- * Rechazo de la sobreasignación activa. Computa lo adeudado en la escritura con
- * el mismo dueño que la lectura (`deriveInscriptionFinancialFigures` sobre los
- * umbrales resueltos), para que la escritura no pueda discrepar de lo que la
- * pantalla muestra.
+ * The academy's `Saldo disponible` for an event: what is left free across its
+ * payments. The presets read it before writing anything, so a shortfall is
+ * refused whole instead of halfway through a choreography.
+ */
+export async function readAcademyAvailableBalance(
+  tx: Executor,
+  input: { academyId: string; eventId: string },
+): Promise<number> {
+  const pool = await readPoolAvailability(tx, input);
+
+  return pool.reduce((sum, entry) => sum + entry.availableAmount, 0);
+}
+
+/**
+ * Refusal of active over-allocation. Computes owed on the write path through
+ * the same owner the read path uses (`deriveInscriptionFinancialFigures` over
+ * the resolved thresholds), so a write cannot disagree with what the screen
+ * shows.
  */
 async function assertNoActiveOverAllocation(
   tx: Executor,
-  input: {
-    academyId: string;
-    amount: number;
-    eventId: string;
-    inscriptionId: string;
-  },
+  input: PoolMovement,
 ): Promise<CobroResult> {
   const thresholds = await readInscriptionThresholds(tx, {
     academyId: input.academyId,
@@ -249,7 +256,7 @@ async function assertNoActiveOverAllocation(
   if (input.amount > figures.owedBalanceAmount) {
     return {
       ok: false,
-      message: `No se puede asignar más de lo que la inscripción adeuda (${figures.owedBalanceAmount}).`,
+      message: "No se puede asignar más de lo que la inscripción adeuda.",
     };
   }
 
@@ -257,9 +264,9 @@ async function assertNoActiveOverAllocation(
 }
 
 /**
- * Los pagos de la academia en el evento con lo que les queda libre, del más
- * viejo al más nuevo por número de pago. Es el pool: la suma de estos
- * disponibles es el `Saldo disponible` de la academia.
+ * The academy's payments in the event with what is still free on each, oldest
+ * first by payment number. This is the pool: the sum of these is the academy's
+ * `Saldo disponible`, and the per-payment split is what funding walks.
  */
 async function readPoolAvailability(
   tx: Executor,
@@ -310,8 +317,8 @@ async function readPoolAvailability(
 }
 
 /**
- * Las asignaciones de una inscripción, de la más nueva a la más vieja por número
- * de pago: el orden en que se deshacen.
+ * An inscription's allocations, newest first by payment number: the order in
+ * which they are undone.
  */
 async function readInscriptionAllocations(
   tx: Executor,

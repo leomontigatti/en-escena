@@ -8,6 +8,8 @@ export const updateChoreographyRosterIntent = "update-roster";
 export const updateChoreographySubmodalityIntent = "update-submodality";
 export const updateChoreographyScheduleCapacityIntent =
   "update-schedule-capacity";
+export const updateChoreographyExperienceLevelIntent =
+  "update-experience-level";
 
 /**
  * El select autónomo de cronograma vive dentro del `form` del roster, que ya
@@ -15,6 +17,13 @@ export const updateChoreographyScheduleCapacityIntent =
  * pisen en el DOM y deja claro cuál de los dos está renderizado.
  */
 export const assignedScheduleCapacityFieldName = "assignedScheduleCapacityId";
+
+/**
+ * Mismo motivo que el cupo: el `form` del roster ya registra
+ * `experienceLevelId`, así que el select autónomo usa un nombre propio para no
+ * pisarlo en el DOM.
+ */
+export const assignedExperienceLevelFieldName = "assignedExperienceLevelId";
 
 /**
  * `resolve-roster` solo consulta cómo quedaría la coreografía con un roster
@@ -139,6 +148,25 @@ export function canReassignScheduleCapacity(input: {
     !input.hasPresentation &&
     input.blockers.length === 0 &&
     input.hasMultipleCompatibleOptions
+  );
+}
+
+/**
+ * El nivel de experiencia no es clave de precio, así que no arrastra bloqueos
+ * del servidor como el cupo: alcanza con las tres causas de solo lectura. La
+ * condición de fondo es una sola —que la categoría resuelta declare niveles—,
+ * más los dos candados transversales de la coreografía. No hay umbral de
+ * cantidad de opciones: con una sola opción el campo sigue abierto, porque es
+ * el único modo de resolver un nivel faltante que deja la coreografía
+ * incompleta.
+ */
+export function canReassignExperienceLevel(input: {
+  canEdit: boolean;
+  hasPresentation: boolean;
+  requiresExperienceLevel: boolean;
+}) {
+  return (
+    input.canEdit && !input.hasPresentation && input.requiresExperienceLevel
   );
 }
 

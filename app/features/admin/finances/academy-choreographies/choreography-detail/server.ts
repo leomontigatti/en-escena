@@ -22,6 +22,7 @@ import {
   type FacturaCEmissionDeps,
 } from "@/lib/comprobantes/emit-factura-c.server";
 import {
+  type CobroStage,
   deletePaymentAllocation,
   payChoreographyBalance,
   payChoreographyDeposit,
@@ -54,7 +55,6 @@ import {
   type ChoreographyFinanceActionData,
 } from "./shared";
 
-type CobroStage = "deposit" | "balance";
 type InscriptionDepositOptions = Awaited<
   ReturnType<typeof readInscriptionDepositOptions>
 >;
@@ -99,8 +99,8 @@ export async function loadChoreographyFinanceDetail(input: {
     throw new Response(choreographyNotFoundMessage, { status: 404 });
   }
 
-  // La escalera sobrevive sólo acá, para los cobros por fila: el estado que la
-  // pantalla muestra sale del dinero. Se va con #682.
+  // The ladder survives only here, for the per-row charges: the status the
+  // screen shows comes from the money. It goes with #682.
   const ladderStageById = await readChoreographyLadderStages(choreographyId);
   const ladderStages = [...ladderStageById.values()];
   const inscriptions = (
@@ -158,9 +158,9 @@ export async function loadChoreographyFinanceDetail(input: {
 }
 
 /**
- * Lo que la preset de la etapa va a asignar: la cifra adeudada de la
- * coreografía, la misma que muestra la pantalla. No depende de ningún pago
- * porque la preset no elige uno: nombra un monto y el pool lo financia.
+ * What the stage preset will allocate: the choreography's owed figure, the same
+ * one the screen shows. It depends on no payment because the preset picks none:
+ * it names an amount and the pool funds it.
  */
 function resolveStageTotalAmount(input: {
   choreography: {
@@ -324,10 +324,9 @@ type InscriptionRowWithUndo = ChoreographyInscriptionRow & {
 };
 
 /**
- * Anota a cada inscripción con la asignación que su fila puede deshacer. La
- * plata no tiene rol ni orden de reversión, así que se ofrece la última
- * asignada: deshacer es el inverso de asignar, y el inverso empieza por lo más
- * nuevo.
+ * Annotates each inscription with the allocation its row can undo. Money has no
+ * role and no reversal order, so the newest allocated is the one offered:
+ * undoing is the inverse of allocating, and the inverse starts from the newest.
  */
 async function attachUndoableAllocations(
   inscriptions: ChoreographyInscriptionRow[],

@@ -26,8 +26,8 @@ beforeEach(() => {
 });
 
 /**
- * Una inscripción `solo` con precio del catálogo (10000) y tres pagos de la
- * academia, numerados 1, 2 y 3. El pool arranca entero: nada asignado.
+ * A `solo` inscription at the catalogue price (10000) plus the academy's
+ * payments, numbered from 1. The pool starts whole: nothing allocated.
  */
 async function seedPoolFixture(paymentAmounts: number[] = [1000, 2000, 3000]) {
   const event = await createSavedEvent({ requiredDepositPercentage: 30 });
@@ -80,8 +80,8 @@ async function seedPoolFixture(paymentAmounts: number[] = [1000, 2000, 3000]) {
 }
 
 /**
- * Las asignaciones de una inscripción por número de pago, que es la forma en la
- * que se comparan dos estados de las filas.
+ * An inscription's allocations by payment number: the shape used to assert
+ * which payment each amount landed on.
  */
 async function readAllocationsByPaymentNumber(inscriptionId: string) {
   const rows = await db
@@ -97,6 +97,27 @@ async function readAllocationsByPaymentNumber(inscriptionId: string) {
   return rows;
 }
 
+/**
+ * The same allocations carrying their identity. The round trip is specified as
+ * returning the rows to a byte-identical prior state, so `id` and `createdAt`
+ * are what proves a row was decremented rather than deleted and re-inserted.
+ * `updatedAt` is deliberately left out: `applyAllocationDelta` bumps it on every
+ * touch, so no row that moved and came back can match on it.
+ */
+async function readAllocationIdentities(inscriptionId: string) {
+  return await db
+    .select({
+      amount: paymentAllocations.amount,
+      createdAt: paymentAllocations.createdAt,
+      id: paymentAllocations.id,
+      paymentNumber: payments.paymentNumber,
+    })
+    .from(paymentAllocations)
+    .innerJoin(payments, eq(paymentAllocations.paymentId, payments.id))
+    .where(eq(paymentAllocations.inscriptionId, inscriptionId))
+    .orderBy(asc(payments.paymentNumber));
+}
+
 describe.sequential("the pool funding rule and its inverse", () => {
   test("funds oldest-first by payment number, filling each payment before the next", async () => {
     const fixture = await seedPoolFixture([1000, 2000, 3000]);
@@ -109,7 +130,7 @@ describe.sequential("the pool funding rule and its inverse", () => {
     });
 
     expect(result).toEqual({ ok: true });
-    // 1000 del pago 1 (entero) y 1500 del pago 2; el pago 3 no se toca.
+    // 1000 from payment 1 (whole) and 1500 from payment 2; payment 3 untouched.
     expect(await readAllocationsByPaymentNumber(fixture.inscriptionId)).toEqual(
       [
         { amount: 1000, paymentNumber: 1 },
@@ -135,8 +156,8 @@ describe.sequential("the pool funding rule and its inverse", () => {
     });
 
     expect(result).toEqual({ ok: true });
-    // Se consume primero el pago 2 (1500, la fila desaparece) y el resto sale
-    // del pago 1.
+    // Payment 2 is consumed first (1500, its row disappears) and the rest comes
+    // out of payment 1.
     expect(await readAllocationsByPaymentNumber(fixture.inscriptionId)).toEqual(
       [{ amount: 500, paymentNumber: 1 }],
     );
@@ -151,7 +172,7 @@ describe.sequential("the pool funding rule and its inverse", () => {
       eventId: fixture.eventId,
       inscriptionId: fixture.inscriptionId,
     });
-    const before = await readAllocationsByPaymentNumber(fixture.inscriptionId);
+    const before = await readAllocationIdentities(fixture.inscriptionId);
 
     await spreadFromPool(db, {
       academyId: fixture.academyId,
@@ -166,7 +187,7 @@ describe.sequential("the pool funding rule and its inverse", () => {
       inscriptionId: fixture.inscriptionId,
     });
 
-    expect(await readAllocationsByPaymentNumber(fixture.inscriptionId)).toEqual(
+    expect(await readAllocationIdentities(fixture.inscriptionId)).toEqual(
       before,
     );
   });
@@ -232,8 +253,8 @@ describe.sequential("the pool funding rule and its inverse", () => {
       throw new Error("Expected a payment.");
     }
 
-    // Sobreasignación pasiva: 12000 contra un total de 10000, escrita sin pasar
-    // por el pool (es lo que ya hay en producción).
+    // Passive over-allocation: 12000 against a total of 10000, written without
+    // going through the pool (which is what production already holds).
     await db.insert(paymentAllocations).values({
       academyId: fixture.academyId,
       amount: 12000,
@@ -250,7 +271,7 @@ describe.sequential("the pool funding rule and its inverse", () => {
     });
 
     expect(result).toMatchObject({ ok: false });
-    // El excedente sigue donde estaba: nadie lo corrigió ni lo borró.
+    // The excess stays where it was: nobody corrected or deleted it.
     expect(await readAllocationsByPaymentNumber(fixture.inscriptionId)).toEqual(
       [{ amount: 12000, paymentNumber: 1 }],
     );

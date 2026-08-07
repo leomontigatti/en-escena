@@ -1,6 +1,17 @@
 # ADR-0011: Invoicing concept, derived portion, and comprobante surfaces
 
-**Status**: accepted
+**Status**: superseded by ADR-0014
+
+Superseded whole rather than amended, because `porción` — the concept in this
+ADR's own title — no longer exists: the column, the pgEnum, `derivePorcion`,
+`formatComprobantePorcionLabel` and every reader were deleted (#554). Decision 4's
+one-synthesized-line print contract is replaced by one line per inscription, and
+decision 5's binary `vigente` / `desactualizada` currency by a three-valued
+status derived from amounts.
+[ADR-0014](./0014-arbitrary-amount-allocation-and-comprobante-amendments.md)
+records why, and restates in its §8 what is still live here — `Concepto: 2`, the
+service-date mapping, one factura per choreography and the `AlertDialog`
+convention — so none of it has to be retrieved from this file.
 
 Date: 2026-07-23
 

@@ -214,6 +214,163 @@ describe("ChoreographyDetailRouteView", () => {
     expect(markup).not.toContain("El cupo de cronograma está bloqueado");
   });
 
+  test("renders a standalone nivel de experiencia select for admins whose category declares levels", () => {
+    const markup = renderDetail({ loaderData: buildLoaderData() });
+
+    expect(markup).toContain("Nivel de experiencia");
+    expect(markup).toContain('name="assignedExperienceLevelId"');
+    // El select del roster no coexiste con el autónomo: comparten el slot.
+    expect(markup).not.toContain('name="experienceLevelId"');
+  });
+
+  test.each([
+    ["the user is not an admin", { canEdit: false }],
+    [
+      "the choreography has a presentation",
+      { choreography: buildChoreography({ hasPresentation: true }) },
+    ],
+    [
+      "the resolved category declares no levels",
+      {
+        choreography: buildChoreography({
+          experienceLevelId: null,
+          experienceLevelName: null,
+          experienceLevelOptions: [],
+          requiresExperienceLevel: false,
+        }),
+      },
+    ],
+  ])(
+    "keeps the nivel de experiencia read-only when %s",
+    (_cause, overrides: Partial<ChoreographyDetailLoaderData>) => {
+      const markup = renderDetail({
+        loaderData: buildLoaderData({
+          experienceLevel: { canReassign: false },
+          ...overrides,
+        }),
+      });
+
+      expect(markup).toContain("Nivel de experiencia");
+      expect(markup).not.toContain('name="assignedExperienceLevelId"');
+    },
+  );
+
+  test("reads a category without levels as No aplica, not as a missing value", () => {
+    const markup = renderDetail({
+      loaderData: buildLoaderData({
+        choreography: buildChoreography({
+          experienceLevelId: null,
+          experienceLevelName: null,
+          experienceLevelOptions: [],
+          requiresExperienceLevel: false,
+        }),
+        experienceLevel: { canReassign: false },
+      }),
+    });
+
+    expect(markup).toContain("No aplica");
+    expect(markup).not.toContain("Sin asignar");
+  });
+
+  test("reads a required level that is missing as Sin asignar when nobody can set it", () => {
+    const markup = renderDetail({
+      loaderData: buildLoaderData({
+        choreography: buildChoreography({
+          experienceLevelId: null,
+          experienceLevelName: null,
+          hasPresentation: true,
+          operationalStatus: {
+            code: "incomplete",
+            pendingItems: ["experienceLevel"],
+          },
+        }),
+        experienceLevel: { canReassign: false },
+      }),
+    });
+
+    expect(markup).toContain("Sin asignar");
+    expect(markup).not.toContain("No aplica");
+  });
+
+  test("announces the missing level in the page alert, without a CTA when the field is blocked", () => {
+    const markup = renderDetail({
+      loaderData: buildLoaderData({
+        choreography: buildChoreography({
+          experienceLevelId: null,
+          experienceLevelName: null,
+          hasPresentation: true,
+          operationalStatus: {
+            code: "incomplete",
+            pendingItems: ["experienceLevel"],
+          },
+        }),
+        experienceLevel: { canReassign: false },
+      }),
+    });
+
+    expect(markup).toContain("Falta el nivel de experiencia");
+    expect(markup).toContain("su categoría lo requiere");
+    expect(markup).not.toContain("Elegí uno para completarla");
+  });
+
+  test("invites the admin to fix the missing level when the field is open", () => {
+    const markup = renderDetail({
+      loaderData: buildLoaderData({
+        choreography: buildChoreography({
+          experienceLevelId: null,
+          experienceLevelName: null,
+          operationalStatus: {
+            code: "incomplete",
+            pendingItems: ["experienceLevel"],
+          },
+        }),
+      }),
+    });
+
+    expect(markup).toContain("Falta el nivel de experiencia");
+    expect(markup).toContain("Elegí uno para completarla");
+  });
+
+  // Misma regla que la alerta financiera de #619: informa un estado de los
+  // datos, no una acción, así que no se suprime para el auditor.
+  test("shows the missing-level alert to auditors too", () => {
+    const markup = renderDetail({
+      loaderData: buildLoaderData({
+        canEdit: false,
+        choreography: buildChoreography({
+          experienceLevelId: null,
+          experienceLevelName: null,
+          operationalStatus: {
+            code: "incomplete",
+            pendingItems: ["experienceLevel"],
+          },
+        }),
+        experienceLevel: { canReassign: false },
+      }),
+    });
+
+    expect(markup).toContain("Falta el nivel de experiencia");
+  });
+
+  test("does not announce a missing level when the choreography has one", () => {
+    const markup = renderDetail({ loaderData: buildLoaderData() });
+
+    expect(markup).not.toContain("Falta el nivel de experiencia");
+  });
+
+  test("reports the rejection of a nivel de experiencia to the view", () => {
+    const markup = renderDetail({
+      actionData: {
+        message:
+          "No se puede cambiar el nivel de experiencia: la coreografía ya tiene presentación.",
+        status: "error",
+      },
+      loaderData: buildLoaderData(),
+    });
+
+    expect(markup).toContain("Nivel de experiencia");
+  });
+
   test("opens the delete dialog from the resource actions menu", async () => {
     await renderDetailIntoDocument();
 
@@ -330,6 +487,9 @@ function buildLoaderData(
       canDelete: true,
       blockers: [],
     },
+    experienceLevel: {
+      canReassign: true,
+    },
     scheduleCapacity: {
       blockers: [],
       canReassign: true,
@@ -372,6 +532,10 @@ function buildChoreography(
     ],
     experienceLevelId: "amateur",
     experienceLevelName: "Amateur",
+    experienceLevelOptions: [
+      { id: "amateur", name: "Amateur" },
+      { id: "profesional", name: "Profesional" },
+    ],
     groupType: "solo",
     hasPresentation: false,
     id: "choreo_1",
@@ -392,6 +556,7 @@ function buildChoreography(
         lastName: "Suárez",
       },
     ],
+    requiresExperienceLevel: true,
     scheduleCapacityId: "schedule_capacity_1",
     scheduleId: "schedule_1",
     scheduleLabel: "1 de mayo de 2026 - 14:00 hs.",
