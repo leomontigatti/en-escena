@@ -8,7 +8,7 @@ import {
   prices,
 } from "@/db/schema";
 import { resolveChoreographyPricingScheduleId } from "@/lib/finances/choreography-pricing-schedule";
-import { todayDateOnly } from "@/lib/shared/date-only";
+import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
 import {
   calculateDepositAmount,
   deriveInscriptionFinancialState,
@@ -200,7 +200,7 @@ export async function payInscriptionDeposit(input: {
     const ceilingPrice = await resolveApplicablePriceRow(tx, {
       eventId: input.eventId,
       groupType: choreography.groupType,
-      paymentDate: todayDateOnly(),
+      paymentDate: getBusinessDateOnly(),
       scheduleId: choreography.scheduleId,
     });
 
@@ -314,7 +314,7 @@ export async function readInscriptionDepositOptions(input: {
   // impone techo para no ocultar todas las filas.
   const ceilingPrice = selectApplicablePriceRow({
     priceRows: groupTypePrices,
-    referenceDate: todayDateOnly(),
+    referenceDate: getBusinessDateOnly(),
     scheduleId,
   });
   const ceiling =
