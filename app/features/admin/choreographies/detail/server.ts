@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { and, asc, eq, or } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";
 import { redirect } from "react-router";
 
 import { db } from "@/db";
@@ -7,17 +7,12 @@ import {
   academies,
   categories,
   choreographies,
-  choreographyDancers,
-  choreographyProfessors,
-  dancers,
   modalities,
-  professors,
   schedules,
   scheduleCapacities,
   submodalities,
 } from "@/db/schema";
 import { loadEventContext } from "@/lib/admin/event-context.server";
-import { activeInscription } from "@/lib/choreographies/active-inscription";
 import {
   requireAdminUser,
   requireInternalUser,
@@ -30,7 +25,6 @@ import {
   listProfessorOptionsForChoreography,
 } from "@/lib/choreographies/choreography-roster-options.server";
 import { resolveChoreographyDancers } from "@/lib/choreographies/choreography-roster.server";
-import { findInscriptionsWithEvidence } from "@/lib/choreographies/inscription-withdrawal.server";
 import { getGlobalScheduleCapacityOptionId } from "@/lib/choreographies/choreography-roster.shared";
 import type {
   ChoreographyDancerOption,
@@ -53,6 +47,10 @@ import {
   updateChoreographyExperienceLevel,
   type ChoreographyExperienceLevelOption,
 } from "./experience-level.server";
+import {
+  listChoreographyDancers,
+  listChoreographyProfessors,
+} from "./roster-queries.server";
 import {
   listSubmodalitiesForModality,
   updateChoreographySubmodality,
@@ -490,58 +488,6 @@ async function findChoreographyDetail(input: {
     submodalityId: row.submodalityId,
     submodalityName: row.submodalityName,
   };
-}
-
-/**
- * El roster que edita el admin son las inscripciones activas. `hasEvidence` es
- * la única cosa que el formulario necesita saber de la plata: con evidencia,
- * quitar al bailarín retira la inscripción en lugar de borrarla, y el diálogo de
- * confirmación lo enumera antes de que el admin confirme.
- */
-async function listChoreographyDancers(choreographyId: string) {
-  const rows = await db
-    .select({
-      active: dancers.active,
-      ageAtEventStart: choreographyDancers.ageAtEventStart,
-      firstName: dancers.firstName,
-      id: dancers.id,
-      inscriptionId: choreographyDancers.id,
-      lastName: dancers.lastName,
-    })
-    .from(choreographyDancers)
-    .innerJoin(dancers, eq(choreographyDancers.dancerId, dancers.id))
-    .where(
-      and(
-        eq(choreographyDancers.choreographyId, choreographyId),
-        activeInscription(),
-      ),
-    )
-    .orderBy(asc(dancers.firstName), asc(dancers.lastName));
-  const inscriptionsWithEvidence = await findInscriptionsWithEvidence(
-    rows.map((row) => row.inscriptionId),
-  );
-
-  return rows.map(({ inscriptionId, ...row }) => ({
-    ...row,
-    hasEvidence: inscriptionsWithEvidence.has(inscriptionId),
-  }));
-}
-
-async function listChoreographyProfessors(choreographyId: string) {
-  return await db
-    .select({
-      active: professors.active,
-      firstName: professors.firstName,
-      id: professors.id,
-      lastName: professors.lastName,
-    })
-    .from(choreographyProfessors)
-    .innerJoin(
-      professors,
-      eq(choreographyProfessors.professorId, professors.id),
-    )
-    .where(eq(choreographyProfessors.choreographyId, choreographyId))
-    .orderBy(asc(professors.firstName), asc(professors.lastName));
 }
 
 async function renameChoreography(input: {
