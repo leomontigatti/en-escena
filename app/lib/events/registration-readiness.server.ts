@@ -65,10 +65,11 @@ export async function getEventRegistrationReadiness(
   eventId: string,
 ): Promise<EventRegistrationReadiness> {
   // Derive both the reference date and the cache stamp from a single instant:
-  // a calculation that starts before UTC midnight and writes after it would
-  // otherwise be stamped with a day it never used, and look fresh all of it.
+  // a calculation that starts before business midnight and writes after it
+  // would otherwise be stamped with a day it never used, and look fresh all of
+  // it.
   const calculatedAt = new Date();
-  const referenceDate = toDateOnly(calculatedAt);
+  const referenceDate = getBusinessDateOnly(calculatedAt);
   const cachedReadiness = await db.query.events.findFirst({
     columns: {
       registrationReady: true,
@@ -161,7 +162,9 @@ export async function getEventRegistrationReadinessByEventId(
 
 // Readiness depends on the current date (a precio expires by the mere passage
 // of time, with no write to dirty the cache), so an entry calculated on an
-// earlier day is stale even when nothing was written since.
+// earlier day is stale even when nothing was written since. "Day" is the
+// business day here too: stamping the cache in UTC would both expire it three
+// hours early every evening and keep serving it past business midnight.
 function isCachedReadinessUsable(
   cachedReadiness: {
     registrationReadinessDirty: boolean;
@@ -175,11 +178,9 @@ function isCachedReadinessUsable(
 
   const calculatedAt = cachedReadiness.registrationReadinessCalculatedAt;
 
-  return calculatedAt !== null && toDateOnly(calculatedAt) === referenceDate;
-}
-
-function toDateOnly(value: Date) {
-  return value.toISOString().slice(0, 10);
+  return (
+    calculatedAt !== null && getBusinessDateOnly(calculatedAt) === referenceDate
+  );
 }
 
 export async function markEventRegistrationReadinessDirty(eventId: string) {
