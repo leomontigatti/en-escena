@@ -203,6 +203,7 @@ function ChoreographyDetailForm({
       resolvedSelectionKey: roster.resolvedSelectionKey,
       scheduleResolution: roster.scheduleResolution,
       selectionKey: roster.selectionKey,
+      showRosterExperienceLevelSelect: experienceLevelSlot.showRosterSelect,
       watchedDancerIds: roster.watchedDancerIds,
       watchedExperienceLevelId: roster.watchedExperienceLevelId,
       watchedScheduleCapacityId: roster.watchedScheduleCapacityId,

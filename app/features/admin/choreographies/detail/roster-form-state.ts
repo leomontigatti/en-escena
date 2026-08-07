@@ -35,6 +35,14 @@ type CanSubmitInput = {
   resolvedSelectionKey: string;
   scheduleResolution: ScheduleResolution;
   selectionKey: string;
+  /**
+   * `getExperienceLevelSlotState().showRosterSelect`. La condición del gate es
+   * exactamente la del campo: exigir un nivel en el form del roster solo cuando
+   * ese form lo ofrece. Leer `experienceLevelRequired` a secas dejaba el
+   * guardado bloqueado sin campo con el que desbloquearlo cuando la retención
+   * del server conserva el nivel guardado.
+   */
+  showRosterExperienceLevelSelect: boolean;
   watchedDancerIds: string[];
   watchedExperienceLevelId: string;
   watchedScheduleCapacityId: string;
@@ -282,8 +290,11 @@ function canSubmitRosterChange(input: CanSubmitInput) {
   const hasSchedule =
     input.scheduleResolution?.status !== "multiple" ||
     input.watchedScheduleCapacityId.length > 0;
+  // Cuando el slot quedó en la reasignación autónoma el nivel no viaja con el
+  // roster: el server conserva el guardado y el form no tiene dónde elegirlo,
+  // así que exigirlo acá bloquearía el guardado sin salida.
   const hasExperienceLevel =
-    !input.derivedResolution.experienceLevelRequired ||
+    !input.showRosterExperienceLevelSelect ||
     input.watchedExperienceLevelId.length > 0;
 
   return hasSchedule && hasExperienceLevel;

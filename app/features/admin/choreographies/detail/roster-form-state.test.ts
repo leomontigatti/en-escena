@@ -174,6 +174,7 @@ describe("canSubmitChoreographyEdit", () => {
     resolvedSelectionKey: "a|b",
     scheduleResolution: buildKeepCurrentSchedule(),
     selectionKey: "a|b",
+    showRosterExperienceLevelSelect: true,
     watchedDancerIds: ["a", "b"],
     watchedExperienceLevelId: "amateur",
     watchedScheduleCapacityId: "capacity_1",
@@ -235,6 +236,21 @@ describe("canSubmitChoreographyEdit", () => {
         watchedExperienceLevelId: "",
       }),
     ).toBe(false);
+  });
+
+  // Reproduce el ida y vuelta de categoría: una resolución intermedia limpia el
+  // nivel del form del roster y la siguiente vuelve a la categoría persistida,
+  // donde la retención del server conserva el nivel guardado y el slot pasa a la
+  // reasignación autónoma. Exigirlo igual dejaba "Guardar" deshabilitado sin
+  // ningún campo con el que llenarlo.
+  test("submits with an empty level when the slot went to the standalone field", () => {
+    expect(
+      canSubmitChoreographyEdit({
+        ...base,
+        showRosterExperienceLevelSelect: false,
+        watchedExperienceLevelId: "",
+      }),
+    ).toBe(true);
   });
 
   test("does not submit when a schedule must be picked and was not", () => {
