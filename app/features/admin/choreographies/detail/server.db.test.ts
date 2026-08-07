@@ -788,6 +788,45 @@ describe("administrative choreography detail server", () => {
     ).toContain(drifted.scheduleCapacity.id);
   });
 
+  test("shows the occupancy in the cupo options and marks the full ones", async () => {
+    const scenario = await createScheduleCapacityScenario({
+      academyName: "Academia Cronograma Ocupación",
+      slug: "cronograma.ocupacion",
+      targetCapacity: 1,
+    });
+    await createChoreographyRecord({
+      academyId: scenario.owner.academyId,
+      categoryId: scenario.catalog.categoryWithLevel.id,
+      eventId: scenario.event.id,
+      experienceLevelId: scenario.catalog.level.id,
+      modalityId: scenario.catalog.modality.id,
+      name: "Ocupante",
+      scheduleCapacityId: scenario.target.scheduleCapacity.id,
+      submodalityId: scenario.catalog.submodality.id,
+    });
+
+    const detail = await loadDetail({
+      choreographyId: scenario.choreography.id,
+      email: "admin.coreografias.cronograma.ocupacion.detalle@example.com",
+      role: "admin",
+    });
+    const assigned = detail.scheduleCapacity.options.find(
+      (option) => option.id === scenario.catalog.scheduleCapacity.id,
+    );
+    const target = detail.scheduleCapacity.options.find(
+      (option) => option.id === scenario.target.scheduleCapacity.id,
+    );
+
+    // La coreografía que se está moviendo no cuenta contra el cupo que ya
+    // ocupa: su propia opción no puede verse llena.
+    expect(assigned?.isFull).toBe(false);
+    expect(assigned?.label).toContain("0/5 ocupados");
+    expect(target?.isFull).toBe(true);
+    expect(target?.label).toContain("1/1 ocupados · sin cupo");
+    // La etiqueta del cronograma asignado sigue sin ocupación.
+    expect(detail.choreography.scheduleLabel).not.toContain("ocupados");
+  });
+
   test("blocks the reassignment when an inscription has a frozen deposit", async () => {
     const scenario = await createScheduleCapacityScenario({
       academyName: "Academia Cronograma Señada",

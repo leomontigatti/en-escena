@@ -229,6 +229,7 @@ export async function loadChoreographyDetailRouteData(input: {
       }),
       options: scheduleCapacityOptions.options.map((option) => ({
         id: option.id,
+        isFull: option.isFull,
         label: option.label,
       })),
     },

@@ -48,6 +48,7 @@ import {
   assignedScheduleCapacityFieldName,
   deleteChoreographyIntent,
   renameChoreographyIntent,
+  toScheduleCapacitySelectOptions,
   updateChoreographyRosterIntent,
   updateChoreographyScheduleCapacityIntent,
   updateChoreographySubmodalityIntent,
@@ -517,10 +518,9 @@ function ScheduleCapacityField({
         formData.set(assignedScheduleCapacityFieldName, value);
         submit(formData, { method: "post" });
       }}
-      options={loaderData.scheduleCapacity.options.map((option) => ({
-        label: option.label,
-        value: option.id,
-      }))}
+      options={toScheduleCapacitySelectOptions(
+        loaderData.scheduleCapacity.options,
+      )}
       placeholder="Elegí el cronograma"
     />
   );

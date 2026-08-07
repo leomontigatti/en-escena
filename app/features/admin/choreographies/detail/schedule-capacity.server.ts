@@ -2,11 +2,18 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { choreographies } from "@/db/schema";
-import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
+import {
+  appendScheduleOccupancySuffix,
+  formatScheduleDateTime,
+} from "@/lib/choreographies/schedule-formatters";
 import {
   invalidScheduleEntryMessage,
   lockScheduleCapacityForAssignment,
 } from "@/lib/choreographies/schedule-capacity-lock.server";
+import {
+  resolveScheduleCapacityOccupancies,
+  toScheduleCapacityOccupancyKey,
+} from "@/lib/choreographies/schedule-capacity-occupancy.server";
 import { resolveEventBasesScheduleOptions } from "@/lib/events/bases.server";
 import { hasFrozenDepositSnapshot } from "@/lib/finances/choreography-deposit-guard.server";
 
@@ -21,6 +28,13 @@ import {
 
 export type ChoreographyScheduleCapacityOption = {
   id: string;
+  /**
+   * Sin lugar disponible. La vista lo traduce a `disabled`, que queda
+   * reservado exclusivamente para esto: la cuenta corre carrera con cualquier
+   * otra asignación, así que la opción gris es una pista, no una barrera, y el
+   * rechazo del servidor sigue siendo la única garantía.
+   */
+  isFull: boolean;
   label: string;
 };
 
@@ -94,6 +108,7 @@ export async function resolveChoreographyScheduleCapacityOptions(input: {
   const options: ResolvedScheduleCapacityOption[] = resolution.options.map(
     (option) => ({
       id: option.id,
+      isFull: false,
       label: formatScheduleDateTime(option.schedule),
       scheduleCapacityId: option.scheduleCapacityId,
       scheduleId: option.scheduleId,
@@ -108,9 +123,26 @@ export async function resolveChoreographyScheduleCapacityOptions(input: {
     options.push(toAssignedScheduleCapacityOption(input.choreography));
   }
 
+  const occupancies = await resolveScheduleCapacityOccupancies({
+    // Misma exclusión que el lock: la coreografía que se está moviendo no
+    // cuenta contra el cupo que ya ocupa.
+    excludeChoreographyId: input.choreography.id,
+    targets: options,
+  });
+
   return {
     hasMultipleCompatibleOptions: resolution.status === "multiple",
-    options,
+    options: options.map((option) => {
+      const occupancy = occupancies.get(toScheduleCapacityOccupancyKey(option));
+
+      return occupancy
+        ? {
+            ...option,
+            isFull: occupancy.isFull,
+            label: appendScheduleOccupancySuffix(option.label, occupancy),
+          }
+        : option;
+    }),
   };
 }
 
@@ -203,6 +235,7 @@ function toAssignedScheduleCapacityOption(
 
   return {
     id: choreography.scheduleCapacityId,
+    isFull: false,
     label: choreography.scheduleLabel,
     scheduleCapacityId: isGlobalOption ? null : choreography.scheduleCapacityId,
     scheduleId: choreography.scheduleId,

@@ -151,6 +151,7 @@ describe("ChoreographyDetailRouteView", () => {
           options: [
             {
               id: "schedule_capacity_1",
+              isFull: false,
               label: "1 de mayo de 2026 - 14:00 hs.",
             },
           ],
@@ -178,6 +179,7 @@ describe("ChoreographyDetailRouteView", () => {
           options: [
             {
               id: "schedule_capacity_1",
+              isFull: false,
               label: "1 de mayo de 2026 - 14:00 hs.",
             },
           ],
@@ -332,8 +334,16 @@ function buildLoaderData(
       blockers: [],
       canReassign: true,
       options: [
-        { id: "schedule_capacity_1", label: "1 de mayo de 2026 - 14:00 hs." },
-        { id: "schedule_capacity_2", label: "2 de mayo de 2026 - 10:00 hs." },
+        {
+          id: "schedule_capacity_1",
+          isFull: false,
+          label: "1 de mayo de 2026 - 14:00 hs. · 1/5 ocupados",
+        },
+        {
+          id: "schedule_capacity_2",
+          isFull: false,
+          label: "2 de mayo de 2026 - 10:00 hs. · 0/5 ocupados",
+        },
       ],
     },
     selectedEventId: "event_1",

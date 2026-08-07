@@ -142,6 +142,23 @@ export function canReassignScheduleCapacity(input: {
   );
 }
 
+/**
+ * `disabled` está reservado exclusivamente para el cupo lleno: ninguna otra
+ * causa apaga una opción suelta —el bloqueo financiero, por ejemplo, cierra el
+ * campo entero— así que la opción gris tiene un único significado. Y como la
+ * ocupación es una foto que corre carrera con otras asignaciones, es una pista:
+ * el rechazo del servidor sigue siendo la garantía.
+ */
+export function toScheduleCapacitySelectOptions(
+  options: readonly { id: string; isFull: boolean; label: string }[],
+) {
+  return options.map((option) => ({
+    disabled: option.isFull,
+    label: option.label,
+    value: option.id,
+  }));
+}
+
 export type ChoreographyDeleteBlockerCode =
   | "comprobantes"
   | "presentation"
