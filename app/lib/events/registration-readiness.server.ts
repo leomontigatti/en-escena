@@ -7,7 +7,7 @@ import type {
   EventRegistrationMissingItem,
   EventRegistrationReadiness,
 } from "@/lib/events/registration-readiness";
-import { todayDateOnly } from "@/lib/shared/date-only";
+import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
 
 type GroupType = "solo" | "duo" | "trio" | "grupal";
 
@@ -110,7 +110,7 @@ export async function getEventRegistrationReadinessByEventId(
     return new Map();
   }
 
-  const referenceDate = todayDateOnly();
+  const referenceDate = getBusinessDateOnly();
 
   const cachedReadinessRows = await db.query.events.findMany({
     columns: {
@@ -220,7 +220,7 @@ export async function getEventRegistrationReadinessForBases(
   eventBases: EventBases,
   options: { referenceDate?: string } = {},
 ): Promise<EventRegistrationReadiness> {
-  const referenceDate = options.referenceDate ?? todayDateOnly();
+  const referenceDate = options.referenceDate ?? getBusinessDateOnly();
   const missingItems = collectBaseMissingItems(eventBases);
 
   const modalitiesById = new Map(
