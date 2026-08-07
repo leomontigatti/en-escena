@@ -144,13 +144,12 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
         financialStatus: "depositPending",
         firstName: "Ana",
         inscriptionId: expect.any(String),
-        ladderStage: "impaga",
         lastName: "López",
         overAllocatedAmount: 0,
         owedBalanceAmount: 10000,
         owedDepositAmount: 3000,
+        selectedPrice: null,
         totalAmount: 10000,
-        undoableAllocation: null,
       },
     ]);
   });
@@ -188,16 +187,13 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
       eventId: event.id,
       paymentNumber: 1,
     });
-    const [depositAllocation] = await db
-      .insert(paymentAllocations)
-      .values({
-        academyId: academy.academy.id,
-        amount: 3000,
-        eventId: event.id,
-        inscriptionId: inscription.id,
-        paymentId: payment.id,
-      })
-      .returning();
+    await db.insert(paymentAllocations).values({
+      academyId: academy.academy.id,
+      amount: 3000,
+      eventId: event.id,
+      inscriptionId: inscription.id,
+      paymentId: payment.id,
+    });
 
     const loaderData = await loadDetailAsAdmin({
       academyId: academy.academy.id,
@@ -226,13 +222,16 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
         financialStatus: "depositMet",
         firstName: "Luna",
         inscriptionId: expect.any(String),
-        ladderStage: "señada",
         lastName: "García",
         overAllocatedAmount: 0,
         owedBalanceAmount: 7000,
         owedDepositAmount: 0,
+        selectedPrice: {
+          amount: 10000,
+          id: expect.any(String),
+          name: "Precio Solo",
+        },
         totalAmount: 10000,
-        undoableAllocation: { id: depositAllocation.id },
       },
     ]);
   });
@@ -278,16 +277,13 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
     });
     // Una sola fila por (pago, inscripción): la seña y el saldo cobrados con el
     // mismo pago son una asignación de 10000.
-    const [allocation] = await db
-      .insert(paymentAllocations)
-      .values({
-        academyId: academy.academy.id,
-        amount: 10000,
-        eventId: event.id,
-        inscriptionId: inscription.id,
-        paymentId: payment.id,
-      })
-      .returning();
+    await db.insert(paymentAllocations).values({
+      academyId: academy.academy.id,
+      amount: 10000,
+      eventId: event.id,
+      inscriptionId: inscription.id,
+      paymentId: payment.id,
+    });
 
     const loaderData = await loadDetailAsAdmin({
       academyId: academy.academy.id,
@@ -303,9 +299,10 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
       owedBalanceAmount: { amount: 0, status: "complete" },
       totalAmount: { amount: 10000, status: "complete" },
     });
-    // Deshacer una pagada borra su asignación y le saca toda la plata.
-    expect(loaderData.inscriptions[0]?.undoableAllocation).toEqual({
-      id: allocation?.id,
+    // The price the row already holds travels with it: the dialog shows it
+    // locked, because the money has already fixed it.
+    expect(loaderData.inscriptions[0]?.selectedPrice).toMatchObject({
+      amount: 10000,
     });
   });
 
@@ -372,13 +369,12 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
         financialStatus: "depositPending",
         firstName: "Mora",
         inscriptionId: expect.any(String),
-        ladderStage: "impaga",
         lastName: "Pérez",
         overAllocatedAmount: null,
         owedBalanceAmount: null,
         owedDepositAmount: null,
+        selectedPrice: null,
         totalAmount: null,
-        undoableAllocation: null,
       },
     ]);
   });

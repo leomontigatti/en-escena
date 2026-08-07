@@ -31,12 +31,8 @@ import { choreographyGroupTypeOptions } from "@/lib/portal/choreographies";
 
 import { formatAmount, formatOperationalAmount } from "../../formatters";
 import { EmissionDialog } from "./comprobante-emission";
-import { InscriptionBalanceDialog } from "./inscription-balance-dialog";
-import {
-  formatDancerName,
-  InscriptionCobroDialog,
-} from "./inscription-cobro-dialog";
-import { InscriptionUndoDialog } from "./inscription-undo-dialog";
+import { InscriptionMoneyDialog } from "./inscription-money-dialog";
+import { formatDancerName } from "./shared";
 import { type StageTotal, StageCobroDialog } from "./stage-cobro-dialog";
 import type { loadChoreographyFinanceDetail, PortionCoverage } from "./server";
 
@@ -46,6 +42,8 @@ type ChoreographyFinanceDetailLoaderData = Awaited<
 
 type InscriptionRow =
   ChoreographyFinanceDetailLoaderData["inscriptions"][number];
+
+type PriceOption = ChoreographyFinanceDetailLoaderData["priceOptions"][number];
 
 /**
  * Whether the stage preset can be fired: it needs a complete owed figure (every
@@ -146,9 +144,8 @@ export function ChoreographyFinanceDetailView({
           </Card>
 
           <InscriptionsTable
-            canPayInscriptionBalance={loaderData.canPayInscriptionBalance}
             inscriptions={loaderData.inscriptions}
-            inscriptionDeposit={loaderData.inscriptionDeposit}
+            priceOptions={loaderData.priceOptions}
           />
         </div>
       ) : (
@@ -343,25 +340,19 @@ function ChoreographyActions({
 }
 
 function InscriptionsTable({
-  canPayInscriptionBalance,
   inscriptions,
-  inscriptionDeposit,
+  priceOptions,
 }: {
-  canPayInscriptionBalance: boolean;
   inscriptions: InscriptionRow[];
-  inscriptionDeposit: ChoreographyFinanceDetailLoaderData["inscriptionDeposit"];
+  priceOptions: PriceOption[];
 }) {
   // Las columnas se memoizan para conservar una referencia estable entre
   // renders: sin esto, cada render recrea el array y React Table remonta las
   // celdas, perdiendo el estado `open` del diálogo por fila (se abría y se
   // cerraba de inmediato al re-renderizar la página).
   const columns = useMemo(
-    () =>
-      buildInscriptionColumns({
-        canPayInscriptionBalance,
-        inscriptionDeposit,
-      }),
-    [canPayInscriptionBalance, inscriptionDeposit],
+    () => buildInscriptionColumns(priceOptions),
+    [priceOptions],
   );
 
   return (
@@ -378,21 +369,16 @@ function InscriptionsTable({
   );
 }
 
-function buildInscriptionColumns(cobro: {
-  canPayInscriptionBalance: boolean;
-  inscriptionDeposit: ChoreographyFinanceDetailLoaderData["inscriptionDeposit"];
-}): DataTableColumn<InscriptionRow>[] {
+function buildInscriptionColumns(
+  priceOptions: PriceOption[],
+): DataTableColumn<InscriptionRow>[] {
   return [
     {
       id: "dancer",
       header: "Bailarín",
       className: "font-medium",
       cell: (inscription) => (
-        <DancerNameCell
-          canPayInscriptionBalance={cobro.canPayInscriptionBalance}
-          inscription={inscription}
-          inscriptionDeposit={cobro.inscriptionDeposit}
-        />
+        <DancerNameCell inscription={inscription} priceOptions={priceOptions} />
       ),
       filterValue: (inscription) => formatDancerName(inscription),
       sortValue: (inscription) => formatDancerName(inscription),
@@ -402,69 +388,23 @@ function buildInscriptionColumns(cobro: {
 }
 
 /**
- * Nombre del bailarín. Lo muestra como botón que abre el diálogo por fila cuando
- * hay algo para hacer con esa inscripción: cobrar seña de una `impaga` huérfana o
- * saldo de una `señada` huérfana (coreografía mixta), o deshacer una asignación
- * ya existente. Una `señada` mixta ofrece cobro y deshacer a la vez; una fila sin
- * cobro ni asignación (por ejemplo una `impaga` sin inscripción) es solo texto.
+ * The dancer's name is **the** entry point for money on that inscription: one
+ * button per row, and the dialog behind it decides its own shape from what the
+ * row holds. There is no price control in this cell and no second affordance —
+ * a row without an inscription yet is the only one that stays plain text,
+ * because there is nothing to put money on.
  */
 function DancerNameCell({
-  canPayInscriptionBalance,
   inscription,
-  inscriptionDeposit,
+  priceOptions,
 }: {
-  canPayInscriptionBalance: boolean;
   inscription: InscriptionRow;
-  inscriptionDeposit: ChoreographyFinanceDetailLoaderData["inscriptionDeposit"];
+  priceOptions: PriceOption[];
 }) {
   const [open, setOpen] = useState(false);
-  const hasInscriptionId = inscription.inscriptionId !== null;
-  const undoableAllocation = inscription.undoableAllocation;
-  const canChargeDeposit =
-    inscriptionDeposit !== null &&
-    inscriptionDeposit.priceRows.length > 0 &&
-    inscription.ladderStage === "impaga" &&
-    hasInscriptionId;
-  const canChargeBalance =
-    canPayInscriptionBalance &&
-    inscription.ladderStage === "señada" &&
-    inscription.owedBalanceAmount !== null &&
-    hasInscriptionId;
 
-  if (!canChargeDeposit && !canChargeBalance && undoableAllocation === null) {
+  if (inscription.inscriptionId === null) {
     return <>{formatDancerName(inscription)}</>;
-  }
-
-  function renderRowDialog() {
-    if (canChargeDeposit && inscriptionDeposit !== null) {
-      return (
-        <InscriptionCobroDialog
-          inscription={inscription}
-          open={open}
-          onOpenChange={setOpen}
-          priceRows={inscriptionDeposit.priceRows}
-        />
-      );
-    }
-    if (canChargeBalance) {
-      return (
-        <InscriptionBalanceDialog
-          inscription={inscription}
-          open={open}
-          onOpenChange={setOpen}
-        />
-      );
-    }
-    if (undoableAllocation !== null) {
-      return (
-        <InscriptionUndoDialog
-          allocation={undoableAllocation}
-          open={open}
-          onOpenChange={setOpen}
-        />
-      );
-    }
-    return null;
   }
 
   return (
@@ -477,7 +417,13 @@ function DancerNameCell({
       >
         {formatDancerName(inscription)}
       </Button>
-      {renderRowDialog()}
+      {open ? (
+        <InscriptionMoneyDialog
+          inscription={inscription}
+          onOpenChange={setOpen}
+          priceOptions={priceOptions}
+        />
+      ) : null}
     </>
   );
 }

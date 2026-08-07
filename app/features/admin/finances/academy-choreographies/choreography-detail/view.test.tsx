@@ -123,24 +123,10 @@ describe("ChoreographyFinanceDetailView", () => {
     expect(card.textContent).toContain("10.000");
   });
 
-  test("renders a clickable name for an orphan impaga in a mixed choreography", () => {
+  test("turns every inscription's name into the entry point for its money", () => {
     const markup = renderDetail({
-      inscriptionDeposit: {
-        floor: 10000,
-        priceRows: [
-          {
-            id: "price_1",
-            name: "Solo tardío",
-            amount: 12000,
-            depositAmount: 3600,
-          },
-        ],
-      },
       inscriptions: [
         inscriptionFixture({
-          financialStatus: "depositPending",
-          inscriptionId: "inscription_orphan",
-          ladderStage: "impaga",
           firstName: "Bruno",
           lastName: "Benítez",
         }),
@@ -150,16 +136,14 @@ describe("ChoreographyFinanceDetailView", () => {
     expect(markup).toMatch(/<button[^>]*>Bruno Benítez<\/button>/);
   });
 
-  test("does not link an impaga inscription in a fully impaga choreography", () => {
+  test("leaves a dancer without an inscription as plain text", () => {
     const markup = renderDetail({
-      inscriptionDeposit: null,
       inscriptions: [
         inscriptionFixture({
-          financialStatus: "depositPending",
-          inscriptionId: "inscription_orphan",
-          ladderStage: "impaga",
           firstName: "Bruno",
+          inscriptionId: null,
           lastName: "Benítez",
+          selectedPrice: null,
         }),
       ],
     });
@@ -168,75 +152,14 @@ describe("ChoreographyFinanceDetailView", () => {
     expect(markup).toContain("Bruno Benítez");
   });
 
-  test("renders a clickable name for an orphan señada in a mixed choreography", () => {
-    const markup = renderDetail({
-      canPayInscriptionBalance: true,
-      inscriptions: [
-        inscriptionFixture({
-          financialStatus: "depositMet",
-          inscriptionId: "inscription_orphan",
-          ladderStage: "señada",
-          firstName: "Bruno",
-          lastName: "Benítez",
-        }),
-      ],
-    });
+  test("keeps every price control out of the table", () => {
+    const markup = renderDetail();
 
-    expect(markup).toMatch(/<button[^>]*>Bruno Benítez<\/button>/);
-  });
-
-  test("does not link a señada inscription in a uniform choreography", () => {
-    const markup = renderDetail({
-      canPayInscriptionBalance: false,
-      inscriptions: [
-        inscriptionFixture({
-          financialStatus: "depositMet",
-          inscriptionId: "inscription_orphan",
-          ladderStage: "señada",
-          firstName: "Bruno",
-          lastName: "Benítez",
-        }),
-      ],
-    });
-
-    expect(markup).not.toMatch(/<button[^>]*>Bruno Benítez<\/button>/);
-    expect(markup).toContain("Bruno Benítez");
-  });
-
-  test("links a señada inscription in a uniform choreography when it can be undone", () => {
-    const markup = renderDetail({
-      canPayInscriptionBalance: false,
-      inscriptions: [
-        inscriptionFixture({
-          financialStatus: "depositMet",
-          inscriptionId: "inscription_orphan",
-          ladderStage: "señada",
-          firstName: "Bruno",
-          lastName: "Benítez",
-          undoableAllocation: { id: "allocation_1" },
-        }),
-      ],
-    });
-
-    expect(markup).toMatch(/<button[^>]*>Bruno Benítez<\/button>/);
-  });
-
-  test("links a pagada inscription that has an allocation to undo", () => {
-    const markup = renderDetail({
-      canPayInscriptionBalance: false,
-      inscriptions: [
-        inscriptionFixture({
-          financialStatus: "paidInFull",
-          inscriptionId: "inscription_paid",
-          ladderStage: "pagada",
-          firstName: "Bruno",
-          lastName: "Benítez",
-          undoableAllocation: { id: "allocation_2" },
-        }),
-      ],
-    });
-
-    expect(markup).toMatch(/<button[^>]*>Bruno Benítez<\/button>/);
+    const table = new DOMParser()
+      .parseFromString(markup, "text/html")
+      .querySelector('[aria-label="Inscripciones"] table');
+    expect(table?.querySelector('[data-slot="select-trigger"]')).toBeNull();
+    expect(table?.textContent).not.toContain("Precio base · ");
   });
 
   test("names the shortfall of an inscription holding part of its seña", () => {
@@ -245,7 +168,6 @@ describe("ChoreographyFinanceDetailView", () => {
         inscriptionFixture({
           allocatedAmount: 2700,
           financialStatus: "depositPending",
-          ladderStage: "impaga",
           owedBalanceAmount: 17500,
           owedDepositAmount: 300,
         }),
@@ -261,10 +183,7 @@ describe("ChoreographyFinanceDetailView", () => {
     const pending = amountColumnStyles(
       renderDetail({
         inscriptions: [
-          inscriptionFixture({
-            financialStatus: "depositPending",
-            ladderStage: "impaga",
-          }),
+          inscriptionFixture({ financialStatus: "depositPending" }),
         ],
       }),
     );
@@ -289,12 +208,7 @@ describe("ChoreographyFinanceDetailView", () => {
 
   test("does not label any amount as provisional", () => {
     const markup = renderDetail({
-      inscriptions: [
-        inscriptionFixture({
-          financialStatus: "depositPending",
-          ladderStage: "impaga",
-        }),
-      ],
+      inscriptions: [inscriptionFixture({ financialStatus: "depositPending" })],
     });
 
     expect(markup).not.toContain("provisori");
@@ -494,10 +408,16 @@ function loaderDataFixture(
       phone: "11-5555-5555",
     },
     choreography: choreographyFixture(),
-    canPayInscriptionBalance: false,
-    inscriptionDeposit: null,
     inscriptions: [inscriptionFixture({ financialStatus: "depositMet" })],
     invoicing: invoicingFixture(),
+    priceOptions: [
+      {
+        amount: 10000,
+        depositAmount: 3000,
+        id: "price_1",
+        name: "Dúo general",
+      },
+    ],
     availableBalanceAmount: 0,
     stage: null,
     stageTotalAmount: null,
@@ -552,13 +472,12 @@ function inscriptionFixture(
     financialStatus: "depositMet",
     firstName: "Ana",
     inscriptionId: "inscription_1",
-    ladderStage: "señada",
     lastName: "López",
     overAllocatedAmount: 0,
     owedBalanceAmount: 7000,
     owedDepositAmount: 0,
+    selectedPrice: { amount: 10000, id: "price_1", name: "Dúo general" },
     totalAmount: 10000,
-    undoableAllocation: null,
     ...overrides,
   };
 }
