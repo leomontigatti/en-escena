@@ -389,3 +389,7 @@ _Avoid_: `modality`, `groupType`
 **`experienceLevel`** — ui: "Nivel de experiencia"
 Classification related to a category and chosen by the academy where applicable.
 _Avoid_: `category`
+
+**`notApplicableValue`** — ui: "No aplica"
+Empty value of a field that cannot hold one in this context, as opposed to one that has none yet. Reserved for the second case is "Sin asignar": the field admits a value and it is missing, which is what leaves a choreography `incomplete`. Rendering both the same way hides an incomplete record behind a correct-looking one.
+_Avoid_: "Sin asignar", "Sin datos", blank

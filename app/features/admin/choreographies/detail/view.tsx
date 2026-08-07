@@ -35,28 +35,29 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
 import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
-import { toScheduleCapacitySelectOptions } from "@/lib/choreographies/schedule-capacity-options";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import {
   canSubmitChoreographyEdit,
+  getExperienceLevelSlotState,
   hasNoCompatibleCategory,
   shouldRenderRosterScheduleSelect,
 } from "./roster-form-state";
 import {
-  assignedScheduleCapacityFieldName,
   deleteChoreographyIntent,
   renameChoreographyIntent,
   updateChoreographyRosterIntent,
-  updateChoreographyScheduleCapacityIntent,
-  updateChoreographySubmodalityIntent,
   type ChoreographyDeleteBlocker,
   type ChoreographyViewActionData,
 } from "./shared";
+import {
+  ExperienceLevelField,
+  ScheduleCapacityField,
+  SubmodalityField,
+} from "./reassignment-fields";
 import { useRosterForm } from "./use-roster-form";
-import { useSavedValueSelectForm } from "./use-saved-value-select-form";
 import type { ChoreographyDetailLoaderData } from "./server";
 
 type ChoreographyDetailRouteViewProps = {
@@ -174,9 +175,11 @@ function ChoreographyDetailForm({
     reset(defaultValues);
   }, [defaultValues, reset]);
 
-  const showLevelSelect =
-    roster.hasResolvedRosterChange &&
-    roster.derivedResolution.experienceLevelRequired;
+  const experienceLevelSlot = getExperienceLevelSlotState({
+    choreography,
+    derivedResolution: roster.derivedResolution,
+    hasResolvedRosterChange: roster.hasResolvedRosterChange,
+  });
   const showScheduleSelect = shouldRenderRosterScheduleSelect({
     hasResolvedRosterChange: roster.hasResolvedRosterChange,
     scheduleResolution: roster.scheduleResolution,
@@ -200,6 +203,7 @@ function ChoreographyDetailForm({
       resolvedSelectionKey: roster.resolvedSelectionKey,
       scheduleResolution: roster.scheduleResolution,
       selectionKey: roster.selectionKey,
+      showRosterExperienceLevelSelect: experienceLevelSlot.showRosterSelect,
       watchedDancerIds: roster.watchedDancerIds,
       watchedExperienceLevelId: roster.watchedExperienceLevelId,
       watchedScheduleCapacityId: roster.watchedScheduleCapacityId,
@@ -262,7 +266,27 @@ function ChoreographyDetailForm({
               <AlertDescription>
                 Esta coreografía ya tiene una presentación asociada. Podés
                 cambiar el nombre, pero no los bailarines, los profesores, la
-                submodalidad ni el cupo de cronograma.
+                submodalidad, el cupo de cronograma ni el nivel de experiencia.
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
+          {/* Tampoco se suprime para el auditor: informa un estado de los datos.
+              La coreografía quedó sin un nivel que su categoría exige —por una
+              corrección de fecha de nacimiento, por una categoría a la que le
+              agregaron niveles después, o por una fila vieja—, y el motivo no
+              está guardado en ningún lado, así que la alerta no lo nombra. */}
+          {choreography.operationalStatus.pendingItems.includes(
+            "experienceLevel",
+          ) ? (
+            <Alert>
+              <AlertTitle>Falta el nivel de experiencia</AlertTitle>
+              <AlertDescription>
+                Esta coreografía no tiene nivel de experiencia y su categoría lo
+                requiere.
+                {loaderData.experienceLevel.canReassign
+                  ? " Elegí uno para completarla."
+                  : ""}
               </AlertDescription>
             </Alert>
           ) : null}
@@ -329,7 +353,11 @@ function ChoreographyDetailForm({
               label="Tipo de grupo"
               value={formatGroupTypeLabel(roster.derivedResolution.groupType)}
             />
-            {showLevelSelect ? (
+            {/* Un solo slot "Nivel de experiencia": el select del roster manda
+                cuando el cambio pendiente mueve la categoría, porque el nivel
+                nuevo se elige junto con la confirmación. Ver
+                `getExperienceLevelSlotState`. */}
+            {experienceLevelSlot.showRosterSelect ? (
               <SelectField
                 control={form.control}
                 label="Nivel de experiencia"
@@ -340,9 +368,12 @@ function ChoreographyDetailForm({
                 placeholder="Elegí el nivel"
               />
             ) : (
-              <ReadOnlyField
-                label="Nivel de experiencia"
-                value={choreography.experienceLevelName ?? ""}
+              <ExperienceLevelField
+                experienceLevelId={experienceLevelSlot.experienceLevelId}
+                loaderData={loaderData}
+                requiresExperienceLevel={
+                  experienceLevelSlot.requiresExperienceLevel
+                }
               />
             )}
             {/* Un solo slot "Cronograma" con precedencia fija: mientras hay un
@@ -429,99 +460,6 @@ function ChoreographyDetailForm({
         </AlertDialogContent>
       </AlertDialog>
     </>
-  );
-}
-
-function SubmodalityField({
-  loaderData,
-}: {
-  loaderData: ChoreographyDetailLoaderData;
-}) {
-  const choreography = loaderData.choreography;
-  const submit = useSubmit();
-  const submodalityForm = useSavedValueSelectForm(
-    "submodalityId",
-    choreography.submodalityId ?? "",
-  );
-
-  // Editable solo para `admin`, cuando la modalidad tiene submodalidades y la
-  // coreografía todavía no tiene presentación. La modalidad es inmutable.
-  const isEditable =
-    loaderData.canEdit &&
-    !choreography.hasPresentation &&
-    loaderData.submodalityOptions.length > 0;
-
-  if (!isEditable) {
-    return (
-      <ReadOnlyField
-        label="Submodalidad"
-        value={choreography.submodalityName ?? ""}
-      />
-    );
-  }
-
-  return (
-    <SelectField
-      control={submodalityForm.control}
-      label="Submodalidad"
-      name="submodalityId"
-      onValueChange={(value) => {
-        if (!value || value === (choreography.submodalityId ?? "")) {
-          return;
-        }
-
-        const formData = new FormData();
-        formData.set("intent", updateChoreographySubmodalityIntent);
-        formData.set("submodalityId", value);
-        submit(formData, { method: "post" });
-      }}
-      options={loaderData.submodalityOptions.map((option) => ({
-        label: option.name,
-        value: option.id,
-      }))}
-      placeholder="Elegí la submodalidad"
-    />
-  );
-}
-
-function ScheduleCapacityField({
-  loaderData,
-}: {
-  loaderData: ChoreographyDetailLoaderData;
-}) {
-  const choreography = loaderData.choreography;
-  const submit = useSubmit();
-  const scheduleCapacityForm = useSavedValueSelectForm(
-    assignedScheduleCapacityFieldName,
-    choreography.scheduleCapacityId,
-  );
-
-  if (!loaderData.scheduleCapacity.canReassign) {
-    return (
-      <ReadOnlyField label="Cronograma" value={choreography.scheduleLabel} />
-    );
-  }
-
-  return (
-    <SelectField
-      control={scheduleCapacityForm.control}
-      label="Cronograma"
-      name={assignedScheduleCapacityFieldName}
-      onValueChange={(value) => {
-        if (!value || value === choreography.scheduleCapacityId) {
-          return;
-        }
-
-        const formData = new FormData();
-        formData.set("intent", updateChoreographyScheduleCapacityIntent);
-        formData.set(assignedScheduleCapacityFieldName, value);
-        submit(formData, { method: "post" });
-      }}
-      options={toScheduleCapacitySelectOptions(
-        loaderData.scheduleCapacity.options,
-      )}
-      placeholder="Elegí el cronograma"
-    />
   );
 }
 

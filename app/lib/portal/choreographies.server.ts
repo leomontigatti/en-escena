@@ -22,6 +22,12 @@ export type PortalChoreographyDetail = PortalChoreographyListItem & {
   categoryId: string | null;
   experienceLevelId: string | null;
   hasPresentation?: boolean;
+  /**
+   * Que la categoría resuelta declare niveles. La academia no edita el nivel,
+   * pero sí necesita distinguir "no corresponde" de "falta": son dos vacíos con
+   * significados opuestos.
+   */
+  requiresExperienceLevel: boolean;
   musicStorageKey: string | null;
   scheduleCapacityId: string;
   scheduleName: string;
@@ -183,6 +189,9 @@ export async function findChoreographyForAcademyEvent(
     experienceLevelId: row.experienceLevelId,
     hasPresentation: row.hasPresentation,
     musicStorageKey: row.musicStorageKey,
+    requiresExperienceLevel:
+      row.categoryExperienceLevels !== null &&
+      row.categoryExperienceLevels.length > 0,
     scheduleCapacityId:
       row.scheduleCapacityId ??
       getGlobalScheduleCapacityOptionId(row.scheduleId),

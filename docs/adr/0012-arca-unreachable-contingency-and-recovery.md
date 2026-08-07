@@ -1,6 +1,16 @@
 # ADR-0012: ARCA unreachable contingency, phase classification, and consult-based recovery
 
-**Status**: accepted
+**Status**: superseded by ADR-0014
+
+Superseded whole rather than amended, because two of its six decisions are
+contradicted (#578): decision 4's `(impTotal, cbteFch)` recovery matcher was
+repaired by reserving the correlative before the ARCA round-trip — both premises
+of its defence were removed by the new finance model — and decision 5's rule that
+unresolved attempts persist nothing was reversed. Decisions 1, 2, 3 and 6 stand
+and are **restated in
+[ADR-0014](./0014-arbitrary-amount-allocation-and-comprobante-amendments.md) §8**,
+so a live ADR carrying two contradicted decisions does not stay in retrieval
+range beside them.
 
 Date: 2026-07-30
 

@@ -583,6 +583,51 @@ describe.sequential("choreography cobro through the route action", () => {
     expect(options?.priceRows.every((row) => row.amount === 10000)).toBe(true);
   });
 
+  // El precio vigente "hoy" se resuelve en la zona horaria del negocio: a las
+  // 23:30 del 31 en Córdoba (02:30 UTC del 1) el precio que vence el 31 sigue
+  // siendo el techo, y no puede desaparecer de las opciones tres horas antes.
+  test("El techo sigue siendo el precio que vence hoy a las 23:30 de Córdoba", async () => {
+    const fixture = await seedMixedCobroFixture();
+
+    // Este es el único test que mide la zona horaria de verdad: se retira el
+    // espía del `beforeEach` para que `getBusinessDateOnly()` vuelva a derivar
+    // el día del negocio a partir del reloj.
+    vi.restoreAllMocks();
+
+    // Sólo `Date` queda congelado: el pool de la base sigue usando timers reales.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-06-01T02:30:00Z"));
+
+    try {
+      // El precio del catálogo (10000, vence el 31/05) es el vigente, así que
+      // el techo es 10000 y la fila de 12000 no se ofrece.
+      const options = await readInscriptionDepositOptions({
+        choreographyId: fixture.choreography.id,
+        eventId: fixture.event.id,
+      });
+
+      expect(options?.priceRows.length).toBeGreaterThan(0);
+      expect(options?.priceRows.every((row) => row.amount === 10000)).toBe(
+        true,
+      );
+
+      const result = await postDetailAction({
+        academyId: fixture.academy.academy.id,
+        choreographyId: fixture.choreography.id,
+        eventId: fixture.event.id,
+        fields: {
+          intent: "pay-inscription-deposit",
+          inscriptionId: fixture.bruno.id,
+          priceId: fixture.priceAbove.id,
+        },
+      });
+
+      expect(result).toMatchObject({ status: "error" });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   test("Cobrar saldo de una huérfana señada congela su snapshot y la deja pagada", async () => {
     const fixture = await seedMixedBalanceFixture();
 

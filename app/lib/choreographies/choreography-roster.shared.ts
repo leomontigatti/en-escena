@@ -154,8 +154,6 @@ export const invalidProfessorSelectionMessage =
   "Seleccioná solo profesores activos o ya vinculados a esta coreografía.";
 export const invalidDancerSelectionMessage =
   "Seleccioná solo bailarines activos o ya vinculados a esta coreografía.";
-export const invalidExperienceLevelMessage =
-  "Elegí un nivel de experiencia válido para esta coreografía.";
 export const compatibleScheduleSelectionRequiredMessage =
   "Elegí un cupo de cronograma compatible para guardar los bailarines.";
 
