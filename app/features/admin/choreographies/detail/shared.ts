@@ -1,10 +1,20 @@
 import type { FieldErrors } from "@/lib/shared/form-validation";
+import { notificationToasts } from "@/lib/shared/notification-toasts";
 
 export const renameChoreographyIntent = "rename-choreography";
 export const deleteChoreographyIntent = "delete-choreography";
 export const resolveChoreographyRosterIntent = "resolve-roster";
 export const updateChoreographyRosterIntent = "update-roster";
 export const updateChoreographySubmodalityIntent = "update-submodality";
+export const updateChoreographyScheduleCapacityIntent =
+  "update-schedule-capacity";
+
+/**
+ * El select autónomo de cronograma vive dentro del `form` del roster, que ya
+ * registra `scheduleCapacityId`. Un nombre propio evita que los dos campos se
+ * pisen en el DOM y deja claro cuál de los dos está renderizado.
+ */
+export const assignedScheduleCapacityFieldName = "assignedScheduleCapacityId";
 
 /**
  * `resolve-roster` solo consulta cómo quedaría la coreografía con un roster
@@ -35,7 +45,12 @@ export type ChoreographyActionData = {
   };
 };
 
-export type ChoreographySubmodalityErrorData = {
+/**
+ * Los intents de campo suelto (submodalidad, cupo de cronograma) informan sin
+ * errores por campo: el select vuelve a su valor guardado y el motivo llega
+ * por toast.
+ */
+export type ChoreographyFieldUpdateErrorData = {
   message: string;
   status: "error";
 };
@@ -45,9 +60,19 @@ export type ChoreographySuccessData = {
   status: "success";
 };
 
+// La edición en el lugar del detalle no redirige: retorna
+// `{ status: "success" }`, el loader revalida y la vista dispara el toast
+// directo. Ver docs/agents/form-feedback.md.
+export function choreographySavedSuccess(): ChoreographySuccessData {
+  return {
+    message: notificationToasts["coreografia-guardada"].message,
+    status: "success",
+  };
+}
+
 export type ChoreographyViewActionData =
   | ChoreographyActionData
-  | ChoreographySubmodalityErrorData
+  | ChoreographyFieldUpdateErrorData
   | ChoreographySuccessData;
 
 export type ChoreographyRosterErrorData = {
@@ -59,6 +84,32 @@ export type ChoreographyRosterErrorData = {
   section: "dancers" | "professors";
   status: "roster-error";
 };
+
+/**
+ * La ruta solo reenvía a la vista los resultados con status `error` o
+ * `success`. Un status a medida —como el `roster-error` que la sección de
+ * roster lee aparte— se descarta en silencio, así que un intent nuevo que
+ * quiera que su rechazo se vea tiene que devolver `error`.
+ */
+export function toChoreographyDetailViewActionData(
+  actionData?:
+    | ChoreographyRosterErrorData
+    | ChoreographyViewActionData
+    | Response
+    | { intent: string },
+): ChoreographyViewActionData | undefined {
+  if (!actionData || actionData instanceof Response) {
+    return undefined;
+  }
+
+  if (!("status" in actionData)) {
+    return undefined;
+  }
+
+  return actionData.status === "error" || actionData.status === "success"
+    ? actionData
+    : undefined;
+}
 
 export type ChoreographyDeleteBlockerCode =
   | "comprobantes"

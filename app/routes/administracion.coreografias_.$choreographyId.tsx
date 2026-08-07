@@ -7,7 +7,10 @@ import {
   type ChoreographyDetailActionData,
   type ChoreographyDetailLoaderData,
 } from "@/features/admin/choreographies/detail/server";
-import { shouldRevalidateChoreographyDetail } from "@/features/admin/choreographies/detail/shared";
+import {
+  shouldRevalidateChoreographyDetail,
+  toChoreographyDetailViewActionData,
+} from "@/features/admin/choreographies/detail/shared";
 import { ChoreographyDetailRouteView as ChoreographyDetailView } from "@/features/admin/choreographies/detail/view";
 
 import type { Route } from "./+types/administracion.coreografias_.$choreographyId";
@@ -64,13 +67,7 @@ function ChoreographyDetailRouteView({
   actionData: actionDataOverride,
   loaderData,
 }: ChoreographyDetailRouteProps) {
-  const actionData =
-    actionDataOverride &&
-    "status" in actionDataOverride &&
-    (actionDataOverride.status === "error" ||
-      actionDataOverride.status === "success")
-      ? actionDataOverride
-      : undefined;
+  const actionData = toChoreographyDetailViewActionData(actionDataOverride);
 
   return (
     <ChoreographyDetailView actionData={actionData} loaderData={loaderData} />

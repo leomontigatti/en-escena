@@ -41,23 +41,30 @@ import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import { getFieldErrors } from "@/lib/shared/form-validation";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
-import { notificationToasts } from "@/lib/shared/notification-toasts";
 import {
   createDefaultChoreographyMusicStorage,
   loadChoreographyMusicDownloadUrl,
 } from "@/lib/storage/choreography-music.server";
 
 import {
+  getGlobalScheduleCapacityOptionId,
+  resolveChoreographyScheduleCapacityOptions,
+  updateChoreographyScheduleCapacity,
+  type ChoreographyScheduleCapacityReassignment,
+} from "./schedule-capacity.server";
+import {
   choreographyFieldNames,
   deleteChoreographyIntent,
   renameChoreographyIntent,
   resolveChoreographyRosterIntent,
   updateChoreographyRosterIntent,
+  updateChoreographyScheduleCapacityIntent,
   updateChoreographySubmodalityIntent,
   type ChoreographyActionData,
+  choreographySavedSuccess,
   type ChoreographyDeleteBlocker,
+  type ChoreographyFieldUpdateErrorData,
   type ChoreographyRosterErrorData,
-  type ChoreographySubmodalityErrorData,
   type ChoreographySuccessData,
 } from "./shared";
 
@@ -94,6 +101,7 @@ export type ChoreographyDetailLoaderData = {
     blockers: ChoreographyDeleteBlocker[];
     canDelete: boolean;
   };
+  scheduleCapacity: ChoreographyScheduleCapacityReassignment;
   selectedEventId: string | null;
   submodalityOptions: Array<{ id: string; name: string }>;
 };
@@ -128,6 +136,7 @@ export type ChoreographyDetail = {
     lastName: string;
   }>;
   scheduleCapacityId: string;
+  scheduleId: string;
   scheduleLabel: string;
   submodalityId: string | null;
   submodalityName: string | null;
@@ -159,35 +168,59 @@ export async function loadChoreographyDetailRouteData(input: {
       })
     : null;
 
-  if (!choreography) {
+  if (!selectedEventId || !choreography) {
     throw new Response(choreographyNotFoundMessage, {
       status: 404,
     });
   }
 
-  const [blockers, availableDancers, availableProfessors, submodalityOptions] =
-    await Promise.all([
-      getChoreographyDeleteBlockers(choreography),
-      listDancerOptionsForChoreography(
-        choreography.academyId,
-        choreography.dancers.map((dancer) => dancer.id),
-      ),
-      listProfessorOptionsForChoreography(
-        choreography.academyId,
-        choreography.professors.map((professor) => professor.id),
-      ),
-      listSubmodalitiesForModality(choreography.modalityId),
-    ]);
+  const canEdit = user.role === "admin";
+  const [
+    blockers,
+    availableDancers,
+    availableProfessors,
+    submodalityOptions,
+    scheduleCapacityOptions,
+  ] = await Promise.all([
+    getChoreographyDeleteBlockers(choreography),
+    listDancerOptionsForChoreography(
+      choreography.academyId,
+      choreography.dancers.map((dancer) => dancer.id),
+    ),
+    listProfessorOptionsForChoreography(
+      choreography.academyId,
+      choreography.professors.map((professor) => professor.id),
+    ),
+    listSubmodalitiesForModality(choreography.modalityId),
+    resolveChoreographyScheduleCapacityOptions({
+      choreography,
+      eventId: selectedEventId,
+    }),
+  ]);
 
   return {
     availableDancers,
     availableProfessors,
     backToList: "/administracion/coreografias",
-    canEdit: user.role === "admin",
+    canEdit,
     choreography,
     deletion: {
       blockers,
       canDelete: blockers.length === 0,
+    },
+    scheduleCapacity: {
+      // Reasignar es una corrección administrativa: solo `admin`, nunca con
+      // presentación y solo cuando hay más de un cupo compatible entre los que
+      // elegir. La coreografía ya presentada tiene el cronograma tan cerrado
+      // como el roster.
+      canReassign:
+        canEdit &&
+        !choreography.hasPresentation &&
+        scheduleCapacityOptions.hasMultipleCompatibleOptions,
+      options: scheduleCapacityOptions.options.map((option) => ({
+        id: option.id,
+        label: option.label,
+      })),
     },
     selectedEventId,
     submodalityOptions,
@@ -203,7 +236,7 @@ export type ChoreographyDetailActionData =
   | ChoreographyActionData
   | ChoreographyRosterErrorData
   | ChoreographyRosterResolutionData
-  | ChoreographySubmodalityErrorData
+  | ChoreographyFieldUpdateErrorData
   | ChoreographySuccessData;
 
 export async function handleChoreographyDetailAction(input: {
@@ -278,6 +311,14 @@ export async function handleChoreographyDetailAction(input: {
   if (intent === updateChoreographySubmodalityIntent) {
     return await updateChoreographySubmodality({
       choreography,
+      formData,
+    });
+  }
+
+  if (intent === updateChoreographyScheduleCapacityIntent) {
+    return await updateChoreographyScheduleCapacity({
+      choreography,
+      eventId: selectedEventId,
       formData,
     });
   }
@@ -378,6 +419,7 @@ async function findChoreographyDetail(input: {
     scheduleCapacityId:
       row.scheduleCapacityId ??
       getGlobalScheduleCapacityOptionId(row.scheduleId),
+    scheduleId: row.scheduleId,
     scheduleLabel: formatScheduleDateTime({
       name: row.scheduleName,
       scheduledDate: row.scheduleDate,
@@ -463,7 +505,7 @@ async function renameChoreography(input: {
 async function updateChoreographySubmodality(input: {
   choreography: ChoreographyDetail;
   formData: FormData;
-}): Promise<ChoreographySubmodalityErrorData | ChoreographySuccessData> {
+}): Promise<ChoreographyFieldUpdateErrorData | ChoreographySuccessData> {
   // Una coreografía con presentación mantiene la submodalidad en solo lectura,
   // igual que el roster: el intent la rechaza aunque el form la mande.
   if (input.choreography.hasPresentation) {
@@ -629,24 +671,10 @@ function readOptionalFormString(formData: FormData, key: string) {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
-// La edición en el lugar del detalle no redirige: retorna
-// `{ status: "success" }`, el loader revalida y la vista dispara el toast
-// directo. Ver docs/agents/form-feedback.md.
-function choreographySavedSuccess(): ChoreographySuccessData {
-  return {
-    message: notificationToasts["coreografia-guardada"].message,
-    status: "success",
-  };
-}
-
 function formatExperienceLevelName(experienceLevelId: string | null) {
   if (experienceLevelId === null) {
     return null;
   }
 
   return experienceLevelLabels[experienceLevelId] ?? experienceLevelId;
-}
-
-function getGlobalScheduleCapacityOptionId(scheduleId: string) {
-  return `schedule:${scheduleId}:global`;
 }

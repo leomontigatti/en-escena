@@ -7,6 +7,8 @@ import {
   choreographyDancers,
   choreographyProfessors,
   modalities,
+  scheduleCapacities,
+  schedules,
   submodalities,
 } from "@/db/schema";
 import {
@@ -14,8 +16,10 @@ import {
   loadChoreographyDetailRouteData,
 } from "@/features/admin/choreographies/detail/server";
 import {
+  assignedScheduleCapacityFieldName,
   deleteChoreographyIntent,
   renameChoreographyIntent,
+  updateChoreographyScheduleCapacityIntent,
   updateChoreographySubmodalityIntent,
 } from "@/features/admin/choreographies/detail/shared";
 import {
@@ -31,6 +35,7 @@ import {
   createSignedInAdminRequest,
   expectThrownResponse,
 } from "@/lib/admin/test-support/db";
+import { createScheduleForModalityFixture } from "@/lib/choreographies/registration-test-fixtures.server.db";
 import {
   recordComprobante,
   type RecordComprobanteInput,
@@ -548,6 +553,261 @@ describe("administrative choreography detail server", () => {
     ).resolves.toEqual({ submodalityId: catalog.submodality.id });
   });
 
+  test("reassigns the cupo de cronograma to another compatible cronograma", async () => {
+    const scenario = await createScheduleCapacityScenario({
+      academyName: "Academia Cronograma",
+      slug: "cronograma",
+    });
+    const staleUpdatedAt = date("2026-01-01T12:00:00Z");
+    await db
+      .update(choreographies)
+      .set({ updatedAt: staleUpdatedAt })
+      .where(eq(choreographies.id, scenario.choreography.id));
+
+    const result = await scenario.reassignTo(
+      scenario.target.scheduleCapacity.id,
+    );
+
+    expect(result).not.toBeInstanceOf(Response);
+    expect(result).toMatchObject({
+      message: "Coreografía guardada.",
+      status: "success",
+    });
+
+    const stored = await db.query.choreographies.findFirst({
+      columns: {
+        scheduleCapacityId: true,
+        scheduleId: true,
+        updatedAt: true,
+      },
+      where: eq(choreographies.id, scenario.choreography.id),
+    });
+    expect(stored?.scheduleCapacityId).toBe(
+      scenario.target.scheduleCapacity.id,
+    );
+    expect(stored?.scheduleId).toBe(scenario.target.schedule.id);
+    expect(stored?.updatedAt.getTime()).toBeGreaterThan(
+      staleUpdatedAt.getTime(),
+    );
+  });
+
+  test("rejects a cupo de cronograma that is not compatible, whatever the form sent", async () => {
+    const scenario = await createScheduleCapacityScenario({
+      academyName: "Academia Cronograma Incompatible",
+      slug: "cronograma.incompatible",
+    });
+    const foreignModality = await createModalityRecord({
+      eventId: scenario.event.id,
+      name: "Urbano",
+    });
+    const foreign = await createScheduleWithSoloCapacity({
+      eventId: scenario.event.id,
+      modalityId: foreignModality.id,
+    });
+
+    const result = await scenario.reassignTo(foreign.scheduleCapacity.id);
+
+    expect(result).toMatchObject({ status: "error" });
+    await expect(scenario.readAssignment()).resolves.toEqual({
+      scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
+      scheduleId: null,
+    });
+  });
+
+  test("blocks the reassignment when the choreography has a presentation", async () => {
+    const scenario = await createScheduleCapacityScenario({
+      academyName: "Academia Cronograma Presentada",
+      hasPresentation: true,
+      slug: "cronograma.presentada",
+    });
+
+    const result = await scenario.reassignTo(
+      scenario.target.scheduleCapacity.id,
+    );
+
+    expect(result).toMatchObject({ status: "error" });
+    await expect(scenario.readAssignment()).resolves.toEqual({
+      scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
+      scheduleId: null,
+    });
+  });
+
+  test("rejects a target cupo de cronograma that is already full", async () => {
+    const scenario = await createScheduleCapacityScenario({
+      academyName: "Academia Cronograma Lleno",
+      slug: "cronograma.lleno",
+      targetCapacity: 1,
+    });
+    await createChoreographyRecord({
+      academyId: scenario.owner.academyId,
+      categoryId: scenario.catalog.categoryWithLevel.id,
+      eventId: scenario.event.id,
+      experienceLevelId: scenario.catalog.level.id,
+      modalityId: scenario.catalog.modality.id,
+      name: "Ocupante",
+      scheduleCapacityId: scenario.target.scheduleCapacity.id,
+      submodalityId: scenario.catalog.submodality.id,
+    });
+
+    const result = await scenario.reassignTo(
+      scenario.target.scheduleCapacity.id,
+    );
+
+    expect(result).toMatchObject({
+      message:
+        "El cupo de cronograma seleccionado ya no tiene cupo disponible.",
+      status: "error",
+    });
+    await expect(scenario.readAssignment()).resolves.toEqual({
+      scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
+      scheduleId: null,
+    });
+  });
+
+  test("re-selecting the cupo the choreography already occupies succeeds even at capacity", async () => {
+    const scenario = await createScheduleCapacityScenario({
+      academyName: "Academia Cronograma Sin Cambios",
+      slug: "cronograma.sin.cambios",
+    });
+    // El cupo queda lleno con la propia coreografía: sin la exclusión, elegir
+    // el cupo ya asignado se rechazaría por falta de lugar.
+    await db
+      .update(scheduleCapacities)
+      .set({ capacity: 1 })
+      .where(eq(scheduleCapacities.id, scenario.catalog.scheduleCapacity.id));
+
+    const result = await scenario.reassignTo(
+      scenario.catalog.scheduleCapacity.id,
+    );
+
+    expect(result).toMatchObject({ status: "success" });
+    await expect(scenario.readAssignment()).resolves.toEqual({
+      scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
+      scheduleId: scenario.catalog.schedule.id,
+    });
+  });
+
+  test("lets a single choreography into a cupo with one slot when two are reassigned at once", async () => {
+    const scenario = await createScheduleCapacityScenario({
+      academyName: "Academia Cronograma Concurrente",
+      slug: "cronograma.concurrente",
+      targetCapacity: 1,
+    });
+    const rival = await createChoreographyRecord({
+      academyId: scenario.owner.academyId,
+      categoryId: scenario.catalog.categoryWithLevel.id,
+      eventId: scenario.event.id,
+      experienceLevelId: scenario.catalog.level.id,
+      modalityId: scenario.catalog.modality.id,
+      name: "Rival",
+      scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
+      submodalityId: scenario.catalog.submodality.id,
+    });
+
+    const results = await Promise.all([
+      scenario.reassignTo(scenario.target.scheduleCapacity.id, {
+        sessionKey: "primera",
+      }),
+      scenario.reassignTo(scenario.target.scheduleCapacity.id, {
+        choreographyId: rival.id,
+        sessionKey: "segunda",
+      }),
+    ]);
+
+    const statuses = results.map((result) =>
+      result instanceof Response || !("status" in result)
+        ? "unexpected"
+        : result.status,
+    );
+    expect(statuses.filter((status) => status === "success")).toHaveLength(1);
+    expect(statuses.filter((status) => status === "error")).toHaveLength(1);
+
+    const occupants = await db
+      .select({ id: choreographies.id })
+      .from(choreographies)
+      .where(
+        eq(
+          choreographies.scheduleCapacityId,
+          scenario.target.scheduleCapacity.id,
+        ),
+      );
+    expect(occupants).toHaveLength(1);
+  });
+
+  test("keeps the assigned cupo in the options and locks the field with a single compatible one", async () => {
+    const scenario = await createScheduleCapacityScenario({
+      academyName: "Academia Cronograma Opciones",
+      slug: "cronograma.opciones",
+    });
+
+    const multiple = await loadDetail({
+      choreographyId: scenario.choreography.id,
+      email: "admin.coreografias.cronograma.opciones.multiple@example.com",
+      role: "admin",
+    });
+    expect(multiple.scheduleCapacity.canReassign).toBe(true);
+    expect(
+      multiple.scheduleCapacity.options.map((option) => option.id),
+    ).toEqual(
+      expect.arrayContaining([
+        scenario.catalog.scheduleCapacity.id,
+        scenario.target.scheduleCapacity.id,
+      ]),
+    );
+
+    // Con el cupo asignado fuera de la compatibilidad, la opción vigente sigue
+    // en la lista aunque el campo quede bloqueado por falta de alternativas.
+    const foreignModality = await createModalityRecord({
+      eventId: scenario.event.id,
+      name: "Urbano",
+    });
+    const drifted = await createScheduleWithSoloCapacity({
+      eventId: scenario.event.id,
+      modalityId: foreignModality.id,
+    });
+    await db
+      .delete(schedules)
+      .where(eq(schedules.id, scenario.target.schedule.id));
+    await db
+      .update(choreographies)
+      .set({
+        scheduleCapacityId: drifted.scheduleCapacity.id,
+        scheduleId: null,
+      })
+      .where(eq(choreographies.id, scenario.choreography.id));
+
+    const single = await loadDetail({
+      choreographyId: scenario.choreography.id,
+      email: "admin.coreografias.cronograma.opciones.single@example.com",
+      role: "admin",
+    });
+    expect(single.scheduleCapacity.canReassign).toBe(false);
+    expect(
+      single.scheduleCapacity.options.map((option) => option.id),
+    ).toContain(drifted.scheduleCapacity.id);
+  });
+
+  test("blocks auditors from reassigning the cupo de cronograma", async () => {
+    const scenario = await createScheduleCapacityScenario({
+      academyName: "Academia Cronograma Auditor",
+      slug: "cronograma.auditor",
+    });
+
+    await expectThrownResponse(
+      submitDetailAction({
+        body: scheduleCapacityFormData(scenario.target.scheduleCapacity.id),
+        choreographyId: scenario.choreography.id,
+        email: "auditor.coreografias.cronograma@example.com",
+        role: "auditor",
+      }),
+      403,
+    );
+    await expect(scenario.readAssignment()).resolves.toEqual({
+      scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
+      scheduleId: null,
+    });
+  });
+
   test("blocks auditors from updating the submodality", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Submodalidad Auditor",
@@ -616,6 +876,99 @@ async function createSubmodalityRecord(input: {
     .returning();
 
   return submodality;
+}
+
+async function createScheduleWithSoloCapacity(input: {
+  capacity?: number;
+  eventId: string;
+  modalityId: string;
+}) {
+  const schedule = await createScheduleForModalityFixture({
+    eventId: input.eventId,
+    modalityId: input.modalityId,
+  });
+  const [scheduleCapacity] = await db
+    .insert(scheduleCapacities)
+    .values({
+      scheduleId: schedule.id,
+      groupType: "solo",
+      capacity: input.capacity ?? 5,
+    })
+    .returning();
+
+  return { schedule, scheduleCapacity };
+}
+
+/**
+ * Una coreografía registrada en el cupo del catálogo y un segundo cronograma
+ * compatible al que reasignarla: el mínimo para que la resolución sea
+ * `multiple` y el campo esté habilitado.
+ */
+async function createScheduleCapacityScenario(input: {
+  academyName: string;
+  hasPresentation?: boolean;
+  slug: string;
+  targetCapacity?: number;
+}) {
+  const owner = await createAcademySession({
+    academyName: input.academyName,
+    email: `admin.coreografias.${input.slug}.academia@example.com`,
+  });
+  const event = await createEventRecord({
+    active: true,
+    name: "Regional 2026",
+  });
+  const catalog = await createEventCatalog(event.id);
+  const target = await createScheduleWithSoloCapacity({
+    capacity: input.targetCapacity,
+    eventId: event.id,
+    modalityId: catalog.modality.id,
+  });
+  const choreography = await createChoreographyRecord({
+    academyId: owner.academyId,
+    categoryId: catalog.categoryWithLevel.id,
+    eventId: event.id,
+    experienceLevelId: catalog.level.id,
+    hasPresentation: input.hasPresentation ?? false,
+    modalityId: catalog.modality.id,
+    name: "Con cronograma",
+    scheduleCapacityId: catalog.scheduleCapacity.id,
+    submodalityId: catalog.submodality.id,
+  });
+
+  return {
+    catalog,
+    choreography,
+    event,
+    owner,
+    async readAssignment(choreographyId = choreography.id) {
+      return await db.query.choreographies.findFirst({
+        columns: { scheduleCapacityId: true, scheduleId: true },
+        where: eq(choreographies.id, choreographyId),
+      });
+    },
+    async reassignTo(
+      optionId: string,
+      options: { choreographyId?: string; sessionKey?: string } = {},
+    ) {
+      const sessionKey = options.sessionKey ? `.${options.sessionKey}` : "";
+
+      return await submitDetailAction({
+        body: scheduleCapacityFormData(optionId),
+        choreographyId: options.choreographyId ?? choreography.id,
+        email: `admin.coreografias.${input.slug}${sessionKey}@example.com`,
+        role: "admin",
+      });
+    },
+    target,
+  };
+}
+
+function scheduleCapacityFormData(optionId: string) {
+  const formData = new FormData();
+  formData.set("intent", updateChoreographyScheduleCapacityIntent);
+  formData.set(assignedScheduleCapacityFieldName, optionId);
+  return formData;
 }
 
 function submodalityFormData(submodalityId: string) {

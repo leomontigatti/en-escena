@@ -42,7 +42,6 @@ describe("ChoreographyDetailRouteView", () => {
     expect(markup).toContain("Luz Suárez");
     expect(markup).toContain("Archivo de música");
     expect(markup).toContain("Cronograma");
-    expect(markup).toContain("1 de mayo de 2026 - 14:00 hs.");
     expect(markup).toContain("https://storage.example/music.mp3");
     expect(markup).toContain("Descargar música");
     expect(markup).toContain("Guardar");
@@ -130,6 +129,35 @@ describe("ChoreographyDetailRouteView", () => {
 
     expect(markup).toContain("Submodalidad");
     expect(markup).not.toContain('name="submodalityId"');
+  });
+
+  test("renders a standalone cronograma select for admins with more than one compatible cupo", () => {
+    const markup = renderDetail({ loaderData: buildLoaderData() });
+
+    expect(markup).toContain("Cronograma");
+    expect(markup).toContain('name="assignedScheduleCapacityId"');
+    expect(markup).toContain('value="schedule_capacity_1"');
+    expect(markup).not.toContain('name="scheduleCapacityId"');
+  });
+
+  test("keeps the cronograma read-only when it cannot be reassigned", () => {
+    const markup = renderDetail({
+      loaderData: buildLoaderData({
+        scheduleCapacity: {
+          canReassign: false,
+          options: [
+            {
+              id: "schedule_capacity_1",
+              label: "1 de mayo de 2026 - 14:00 hs.",
+            },
+          ],
+        },
+      }),
+    });
+
+    expect(markup).toContain("Cronograma");
+    expect(markup).toContain("1 de mayo de 2026 - 14:00 hs.");
+    expect(markup).not.toContain('name="assignedScheduleCapacityId"');
   });
 
   test("opens the delete dialog from the resource actions menu", async () => {
@@ -248,6 +276,13 @@ function buildLoaderData(
       canDelete: true,
       blockers: [],
     },
+    scheduleCapacity: {
+      canReassign: true,
+      options: [
+        { id: "schedule_capacity_1", label: "1 de mayo de 2026 - 14:00 hs." },
+        { id: "schedule_capacity_2", label: "2 de mayo de 2026 - 10:00 hs." },
+      ],
+    },
     selectedEventId: "event_1",
     submodalityOptions: [{ id: "submodality_1", name: "Lyrical" }],
     ...overrides,
@@ -294,6 +329,7 @@ function buildChoreography(
       },
     ],
     scheduleCapacityId: "schedule_capacity_1",
+    scheduleId: "schedule_1",
     scheduleLabel: "1 de mayo de 2026 - 14:00 hs.",
     submodalityId: "submodality_1",
     submodalityName: "Lyrical",

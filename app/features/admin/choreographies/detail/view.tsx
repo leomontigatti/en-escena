@@ -42,11 +42,14 @@ import { useServerActionToast } from "@/lib/shared/toasts";
 import {
   canSubmitChoreographyEdit,
   hasNoCompatibleCategory,
+  shouldRenderRosterScheduleSelect,
 } from "./roster-form-state";
 import {
+  assignedScheduleCapacityFieldName,
   deleteChoreographyIntent,
   renameChoreographyIntent,
   updateChoreographyRosterIntent,
+  updateChoreographyScheduleCapacityIntent,
   updateChoreographySubmodalityIntent,
   type ChoreographyDeleteBlocker,
   type ChoreographyViewActionData,
@@ -172,9 +175,10 @@ function ChoreographyDetailForm({
   const showLevelSelect =
     roster.hasResolvedRosterChange &&
     roster.derivedResolution.experienceLevelRequired;
-  const showScheduleSelect =
-    roster.hasResolvedRosterChange &&
-    roster.scheduleResolution?.status === "multiple";
+  const showScheduleSelect = shouldRenderRosterScheduleSelect({
+    hasResolvedRosterChange: roster.hasResolvedRosterChange,
+    scheduleResolution: roster.scheduleResolution,
+  });
   const noCompatibleCategory = hasNoCompatibleCategory({
     derivedResolution: roster.derivedResolution,
     hasResolvedRosterChange: roster.hasResolvedRosterChange,
@@ -321,6 +325,10 @@ function ChoreographyDetailForm({
                 value={choreography.experienceLevelName ?? ""}
               />
             )}
+            {/* Un solo slot "Cronograma" con precedencia fija: mientras hay un
+                cambio de roster pendiente manda el select del roster, porque un
+                cambio de tipo de grupo limpia el cupo y el reemplazo se elige
+                junto con la confirmación. */}
             {showScheduleSelect && roster.scheduleResolution ? (
               <SelectField
                 control={form.control}
@@ -333,10 +341,7 @@ function ChoreographyDetailForm({
                 placeholder="Elegí el cronograma"
               />
             ) : (
-              <ReadOnlyField
-                label="Cronograma"
-                value={choreography.scheduleLabel}
-              />
+              <ScheduleCapacityField loaderData={loaderData} />
             )}
           </FieldGroup>
 
@@ -454,6 +459,51 @@ function SubmodalityField({
         value: option.id,
       }))}
       placeholder="Elegí la submodalidad"
+    />
+  );
+}
+
+function ScheduleCapacityField({
+  loaderData,
+}: {
+  loaderData: ChoreographyDetailLoaderData;
+}) {
+  const choreography = loaderData.choreography;
+  const submit = useSubmit();
+  const scheduleCapacityForm = useForm<{
+    [assignedScheduleCapacityFieldName]: string;
+  }>({
+    defaultValues: {
+      [assignedScheduleCapacityFieldName]: choreography.scheduleCapacityId,
+    },
+  });
+
+  if (!loaderData.scheduleCapacity.canReassign) {
+    return (
+      <ReadOnlyField label="Cronograma" value={choreography.scheduleLabel} />
+    );
+  }
+
+  return (
+    <SelectField
+      control={scheduleCapacityForm.control}
+      label="Cronograma"
+      name={assignedScheduleCapacityFieldName}
+      onValueChange={(value) => {
+        if (!value || value === choreography.scheduleCapacityId) {
+          return;
+        }
+
+        const formData = new FormData();
+        formData.set("intent", updateChoreographyScheduleCapacityIntent);
+        formData.set(assignedScheduleCapacityFieldName, value);
+        submit(formData, { method: "post" });
+      }}
+      options={loaderData.scheduleCapacity.options.map((option) => ({
+        label: option.label,
+        value: option.id,
+      }))}
+      placeholder="Elegí el cronograma"
     />
   );
 }
