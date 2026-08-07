@@ -49,8 +49,9 @@ Always resolve. Do **not** abort the merge or leave a half-finished state. For e
 3. **Do not invent new behaviour.** This is reconciliation, not feature work. If a sensible
    resolution would need new logic on neither side, flag the uncertainty rather than improvise.
 
-After resolving, run whatever checks you judge warranted (`pnpm typecheck` is fast and catches
-most mistakes). If something's broken and you can't fix it, finish the merge anyway and flag it
+After resolving, run whatever checks you judge warranted (`pnpm typecheck` and `pnpm lint` are
+both fast and catch most mistakes; see `.sandcastle/VALIDATION.md` for the full list, which is
+exhaustive). If something's broken and you can't fix it, finish the merge anyway and flag it
 clearly in the comment.
 
 # COMMIT

@@ -8,11 +8,58 @@ mistakes cheaply, not to reproduce CI.
 
 ```sh
 pnpm typecheck
+pnpm lint                # ~1 s over the whole repo
 pnpm test:unit
 pnpm test:db <path>...   # only the DB test files your change touches
 ```
 
 Run this **once, after your edits**. Do not run `pnpm test`.
+
+## This list is exhaustive
+
+These four are the whole validation surface. **Do not invent commands.** If a
+command you are about to run is not on this list, it either does not exist or is
+not yours to run — check `package.json` before running it, never after it fails.
+
+A concrete failure this rule exists to prevent: on run 31192040488 an agent
+finished its work green, then spent its remaining budget running the full
+`pnpm test:db` twice (this policy says not to) and finally chained a `pnpm lint`
+that **did not exist at the time**. The step timeout killed it mid-chain, before
+it had committed, and the entire slice was lost.
+
+The scripts that exist and what owns what:
+
+| Command                     | Owns                                                      |
+| --------------------------- | --------------------------------------------------------- |
+| `pnpm typecheck`            | Types, unused locals and parameters                        |
+| `pnpm lint`                 | React hook mistakes and import cycles — **only** these     |
+| `pnpm format` / `:check`    | All formatting                                             |
+| `pnpm test:unit`            | Unit and React suites                                      |
+| `pnpm test:db <path>`       | DB suite on in-process PGlite                              |
+| `pnpm check:doc-map`        | Mapped code changed in step with its doc                   |
+| `pnpm check:repo-styles`    | Hardcoded colour scales, `space-x/y-*`                     |
+| `pnpm check:banned-imports` | Retired dependencies stay retired                          |
+| `pnpm check:file-tokens`    | Staged `app` modules under the token ceiling               |
+| `pnpm check:migration-order`| New migrations postdate `master`                           |
+
+CI runs the `check:*` scripts and `pnpm build` for you. You do not need to.
+
+## About `pnpm lint`
+
+`oxlint`, configured in `.oxlintrc.json`, with exactly three rules:
+`react-hooks/rules-of-hooks`, `react-hooks/exhaustive-deps` and
+`import/no-cycle`.
+
+It is **not** a style checker. It has no opinion on formatting (Prettier's), on
+unused code (`tsc`'s) or on this repo's conventions (the `check:*` scripts').
+If it reports nothing, that is the expected result, not a reason to look for
+another linter.
+
+Fourteen files carry a **temporary exemption** from `exhaustive-deps`, listed
+under `overrides` in `.oxlintrc.json`. They use a deliberate
+`resetKey = JSON.stringify(values)` idiom the rule cannot see through. Do not add
+to that list to make your change pass — if your new code trips the rule, the rule
+is probably right.
 
 ## Why not `pnpm test`
 

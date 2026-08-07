@@ -5,7 +5,11 @@ Index of the repo's conventions. Every operative rule lives in its own file unde
 
 - **Commands and validation**: [docs/agents/workflows.md](docs/agents/workflows.md).
   Use `pnpm typecheck` (not `pnpm exec tsc`); a hook enforces it. Do not run
-  `pnpm typecheck` in parallel with `pnpm build`.
+  `pnpm typecheck` in parallel with `pnpm build`. **The commands listed there are
+  the whole surface — check `package.json` before running one that is not, rather
+  than after it fails.** `pnpm lint` is oxlint with three rules (hook mistakes and
+  import cycles) and is not a style checker; formatting is Prettier's, unused code
+  is `tsc`'s, and repo conventions belong to the `check:*` scripts.
 - **Investigate before implementing**: see the section of the same name in
   [docs/agents/workflows.md](docs/agents/workflows.md).
 - **Coding standards**: [.sandcastle/CODING_STANDARDS.md](.sandcastle/CODING_STANDARDS.md)
