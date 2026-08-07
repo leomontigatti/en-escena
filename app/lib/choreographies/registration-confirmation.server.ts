@@ -1,4 +1,4 @@
-import { and, eq, inArray, or, sql } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -6,8 +6,6 @@ import {
   choreographyDancers,
   choreographyProfessors,
   professors,
-  schedules,
-  scheduleCapacities,
 } from "@/db/schema";
 import {
   choreographyNameMaxLength,
@@ -22,14 +20,17 @@ import {
   type ChoreographyRegistrationOperationResolution,
 } from "@/lib/choreographies/registration-resolution.server";
 import {
+  invalidScheduleEntryMessage,
+  lockScheduleCapacityForAssignment,
+} from "@/lib/choreographies/schedule-capacity-lock.server";
+import {
   type ExperienceLevel,
   isExperienceLevel,
 } from "@/lib/events/experience-levels";
 
 const INVALID_EXPERIENCE_LEVEL_ERROR =
   "Elegí un nivel de experiencia válido para confirmar la coreografía.";
-const INVALID_SCHEDULE_ENTRY_ERROR =
-  "Elegí un cupo de cronograma compatible para confirmar la coreografía.";
+const INVALID_SCHEDULE_ENTRY_ERROR = invalidScheduleEntryMessage;
 const choreographyTitleCaseParticles = new Set([
   "a",
   "con",
@@ -144,90 +145,14 @@ export async function createChoreographyRegistration(
 
   try {
     choreography = await db.transaction(async (tx) => {
-      const [lockedSchedule] = await tx
-        .select({
-          id: schedules.id,
-          totalCapacity: schedules.totalCapacity,
-        })
-        .from(schedules)
-        .where(eq(schedules.id, scheduleSelection.value.scheduleId))
-        .for("update");
+      const lockedSchedule = await lockScheduleCapacityForAssignment({
+        tx,
+        scheduleId: scheduleSelection.value.scheduleId,
+        scheduleCapacityId: scheduleSelection.value.scheduleCapacityId,
+      });
 
-      if (!lockedSchedule) {
-        throw createFailure(
-          "invalid-schedule-capacity",
-          INVALID_SCHEDULE_ENTRY_ERROR,
-        );
-      }
-
-      if (scheduleSelection.value.scheduleCapacityId) {
-        const [lockedScheduleCapacity] = await tx
-          .select({
-            id: scheduleCapacities.id,
-            capacity: scheduleCapacities.capacity,
-          })
-          .from(scheduleCapacities)
-          .where(
-            eq(
-              scheduleCapacities.id,
-              scheduleSelection.value.scheduleCapacityId,
-            ),
-          )
-          .for("update");
-
-        if (!lockedScheduleCapacity) {
-          throw createFailure(
-            "invalid-schedule-capacity",
-            INVALID_SCHEDULE_ENTRY_ERROR,
-          );
-        }
-
-        const [specificOccupancyRow] = await tx
-          .select({
-            occupiedCount: sql<number>`count(*)`,
-          })
-          .from(choreographies)
-          .where(
-            eq(choreographies.scheduleCapacityId, lockedScheduleCapacity.id),
-          );
-
-        const specificOccupiedCount = Number(
-          specificOccupancyRow?.occupiedCount ?? 0,
-        );
-
-        if (specificOccupiedCount >= lockedScheduleCapacity.capacity) {
-          throw createFailure(
-            "schedule-capacity-full",
-            "El cupo de cronograma seleccionado ya no tiene cupo disponible.",
-          );
-        }
-      }
-
-      const [scheduleOccupancyRow] = await tx
-        .select({
-          occupiedCount: sql<number>`count(*)`,
-        })
-        .from(choreographies)
-        .leftJoin(
-          scheduleCapacities,
-          eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
-        )
-        .where(
-          or(
-            eq(choreographies.scheduleId, lockedSchedule.id),
-            eq(scheduleCapacities.scheduleId, lockedSchedule.id),
-          ),
-        );
-
-      const scheduleOccupiedCount = Number(
-        scheduleOccupancyRow?.occupiedCount ?? 0,
-      );
-
-      if (scheduleOccupiedCount >= lockedSchedule.totalCapacity) {
-        throw createFailure(
-          "schedule-capacity-full",
-          "El cronograma seleccionado ya no tiene cupo disponible.",
-        );
+      if (!lockedSchedule.ok) {
+        throw createFailure(lockedSchedule.code, lockedSchedule.error);
       }
 
       const [createdChoreography] = await tx
@@ -246,8 +171,8 @@ export async function createChoreographyRegistration(
           categoryCalculationMode: operation.resolution.categoryCalculationMode,
           categoryAgeBasis: operation.resolution.categoryAgeBasis,
           experienceLevelId: experienceLevelId.value,
-          scheduleId: lockedSchedule.id,
-          scheduleCapacityId: scheduleSelection.value.scheduleCapacityId,
+          scheduleId: lockedSchedule.scheduleId,
+          scheduleCapacityId: lockedSchedule.scheduleCapacityId,
         })
         .returning();
 
