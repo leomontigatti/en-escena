@@ -1,12 +1,8 @@
-import { desc, eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { redirect } from "react-router";
 
 import { db } from "@/db";
-import {
-  academies,
-  payments as paymentTable,
-  paymentAllocations,
-} from "@/db/schema";
+import { academies } from "@/db/schema";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import {
   requireAdminUser,
@@ -23,18 +19,18 @@ import {
 } from "@/lib/comprobantes/emit-factura-c.server";
 import {
   type CobroStage,
-  deletePaymentAllocation,
   payChoreographyBalance,
   payChoreographyDeposit,
-  payInscriptionBalance,
-  payInscriptionDeposit,
   readChoreographyLadderStages,
-  readInscriptionDepositOptions,
 } from "@/lib/finances/choreography-cobro.server";
+import { readChoreographyInscriptionRows } from "@/lib/finances/choreography-inscriptions.server";
 import {
-  readChoreographyInscriptionRows,
-  type ChoreographyInscriptionRow,
-} from "@/lib/finances/choreography-inscriptions.server";
+  allocateToInscription,
+  readInscriptionPriceOptions,
+  readInscriptionSelectedPrices,
+  releaseInscriptionExcess,
+  removeFromInscription,
+} from "@/lib/finances/inscription-allocation.server";
 import type { InscriptionLadderStage } from "@/lib/finances/inscription-ladder-snapshot";
 import type { OperationalFinanceAmount } from "@/lib/finances/operational-summary";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
@@ -44,20 +40,16 @@ import {
   handleRecheckComprobante,
 } from "./comprobante-emission.server";
 import {
+  allocateInscriptionIntent,
   choreographyDetailUrl,
-  deleteAllocationIntent,
   emitComprobanteIntent,
   recheckComprobanteIntent,
   payBalanceIntent,
   payDepositIntent,
-  payInscriptionBalanceIntent,
-  payInscriptionDepositIntent,
+  releaseInscriptionExcessIntent,
+  removeInscriptionMoneyIntent,
   type ChoreographyFinanceActionData,
 } from "./shared";
-
-type InscriptionDepositOptions = Awaited<
-  ReturnType<typeof readInscriptionDepositOptions>
->;
 
 export async function loadChoreographyFinanceDetail(input: {
   params: { academyId?: string; choreographyId?: string };
@@ -77,9 +69,8 @@ export async function loadChoreographyFinanceDetail(input: {
       academy,
       availableBalanceAmount: 0,
       choreography: null,
-      canPayInscriptionBalance: false,
-      inscriptionDeposit: null as InscriptionDepositOptions,
       inscriptions: [],
+      priceOptions: [],
       stage: null,
       stageTotalAmount: null as OperationalFinanceAmount | null,
       selectedEventId: null,
@@ -99,33 +90,31 @@ export async function loadChoreographyFinanceDetail(input: {
     throw new Response(choreographyNotFoundMessage, { status: 404 });
   }
 
-  // The ladder survives only here, for the per-row charges: the status the
-  // screen shows comes from the money. It goes with #682.
+  // The ladder survives only here, for the choreography-wide presets: the
+  // status the screen shows comes from the money. It goes with #682.
   const ladderStageById = await readChoreographyLadderStages(choreographyId);
-  const ladderStages = [...ladderStageById.values()];
-  const inscriptions = (
-    await attachUndoableAllocations(
-      await readChoreographyInscriptionRows({
+  const stage = resolveCobroStage([...ladderStageById.values()]);
+
+  const [inscriptionRows, selectedPrices, priceOptions, invoicing] =
+    await Promise.all([
+      readChoreographyInscriptionRows({
         academyEventInscriptions: financeDetail.inscriptions,
         choreographyId,
       }),
-    )
-  ).map((inscription) => ({
+      readInscriptionSelectedPrices({ choreographyId }),
+      readInscriptionPriceOptions({ choreographyId, eventId }),
+      readChoreographyInvoicing(choreographyId),
+    ]);
+  // The price the row already holds travels with the row because the allocation
+  // dialog shows it locked once money has landed, and the locked one may no
+  // longer be among the offered options.
+  const inscriptions = inscriptionRows.map((inscription) => ({
     ...inscription,
-    ladderStage:
-      (inscription.inscriptionId === null
+    selectedPrice:
+      inscription.inscriptionId === null
         ? null
-        : ladderStageById.get(inscription.inscriptionId)) ?? "impaga",
+        : (selectedPrices.get(inscription.inscriptionId) ?? null),
   }));
-
-  const stage = resolveCobroStage(ladderStages);
-  const inscriptionDeposit = await readInscriptionDepositOptions({
-    choreographyId,
-    eventId,
-  });
-  const canPayInscriptionBalance =
-    resolveInscriptionBalanceEligibility(ladderStages);
-  const invoicing = await readChoreographyInvoicing(choreographyId);
 
   return {
     academy,
@@ -145,9 +134,8 @@ export async function loadChoreographyFinanceDetail(input: {
       owedDepositAmount: choreographyFinanceRow.owedDepositAmount,
       totalAmount: choreographyFinanceRow.totalAmount,
     },
-    canPayInscriptionBalance,
-    inscriptionDeposit,
     inscriptions,
+    priceOptions,
     stage,
     stageTotalAmount: resolveStageTotalAmount({
       choreography: choreographyFinanceRow,
@@ -284,20 +272,6 @@ function resolvePortionCoverage(
 }
 
 /**
- * Si una inscripción `señada` huérfana puede cobrarse el saldo por fila. Solo en
- * coreografías mixtas: hay al menos una `señada` y alguna hermana en otro estado,
- * así que el flujo normal por coreografía entera (todas `señadas`) no aplica.
- */
-function resolveInscriptionBalanceEligibility(
-  states: InscriptionLadderStage[],
-): boolean {
-  return (
-    states.some((state) => state === "señada") &&
-    states.some((state) => state !== "señada")
-  );
-}
-
-/**
  * Etapa que se puede cobrar de una coreografía entera. `null` cuando no hay
  * inscripciones o están mezcladas: ahí no hay una sola acción que las resuelva.
  */
@@ -317,49 +291,6 @@ function resolveCobroStage(
   }
 
   return null;
-}
-
-type InscriptionRowWithUndo = ChoreographyInscriptionRow & {
-  undoableAllocation: { id: string } | null;
-};
-
-/**
- * Annotates each inscription with the allocation its row can undo. Money has no
- * role and no reversal order, so the newest allocated is the one offered:
- * undoing is the inverse of allocating, and the inverse starts from the newest.
- */
-async function attachUndoableAllocations(
-  inscriptions: ChoreographyInscriptionRow[],
-): Promise<InscriptionRowWithUndo[]> {
-  const inscriptionIds = inscriptions
-    .map((row) => row.inscriptionId)
-    .filter((id): id is string => id !== null);
-
-  if (inscriptionIds.length === 0) {
-    return inscriptions.map((row) => ({ ...row, undoableAllocation: null }));
-  }
-
-  const allocationRows = await db
-    .select({
-      id: paymentAllocations.id,
-      inscriptionId: paymentAllocations.inscriptionId,
-      paymentNumber: paymentTable.paymentNumber,
-    })
-    .from(paymentAllocations)
-    .innerJoin(paymentTable, eq(paymentAllocations.paymentId, paymentTable.id))
-    .where(inArray(paymentAllocations.inscriptionId, inscriptionIds))
-    .orderBy(desc(paymentTable.paymentNumber));
-
-  return inscriptions.map((row) => {
-    const newest = allocationRows.find(
-      (allocation) => allocation.inscriptionId === row.inscriptionId,
-    );
-
-    return {
-      ...row,
-      undoableAllocation: newest ? { id: newest.id } : null,
-    };
-  });
 }
 
 export async function handleChoreographyFinanceAction(input: {
@@ -407,60 +338,21 @@ export async function handleChoreographyFinanceAction(input: {
     throw redirectToDetail(academyId, choreographyId, eventId);
   }
 
-  if (intent === payInscriptionDepositIntent) {
-    const inscriptionId = String(formData.get("inscriptionId") ?? "").trim();
-    const priceId = String(formData.get("priceId") ?? "").trim();
-    if (!inscriptionId) {
-      return { status: "error", message: "Elegí una inscripción para cobrar." };
-    }
-    if (!priceId) {
-      return { status: "error", message: "Elegí una fila de precio." };
-    }
-
-    const result = await payInscriptionDeposit({
+  if (
+    intent === allocateInscriptionIntent ||
+    intent === removeInscriptionMoneyIntent ||
+    intent === releaseInscriptionExcessIntent
+  ) {
+    const result = await runInscriptionMoneyIntent({
       academyId,
       choreographyId,
       eventId,
-      inscriptionId,
-      priceId,
+      formData,
+      intent,
     });
 
-    if (!result.ok) {
-      return { status: "error", message: result.message };
-    }
-
-    throw redirectToDetail(academyId, choreographyId, eventId);
-  }
-
-  if (intent === payInscriptionBalanceIntent) {
-    const inscriptionId = String(formData.get("inscriptionId") ?? "").trim();
-    if (!inscriptionId) {
-      return { status: "error", message: "Elegí una inscripción para cobrar." };
-    }
-
-    const result = await payInscriptionBalance({
-      academyId,
-      choreographyId,
-      eventId,
-      inscriptionId,
-    });
-
-    if (!result.ok) {
-      return { status: "error", message: result.message };
-    }
-
-    throw redirectToDetail(academyId, choreographyId, eventId);
-  }
-
-  if (intent === deleteAllocationIntent) {
-    const allocationId = String(formData.get("allocationId") ?? "").trim();
-    if (!allocationId) {
-      return { status: "error", message: "No encontramos esa asignación." };
-    }
-
-    const result = await deletePaymentAllocation({ allocationId });
-    if (!result.ok) {
-      return { status: "error", message: result.message };
+    if (result !== null) {
+      return result;
     }
 
     throw redirectToDetail(academyId, choreographyId, eventId);
@@ -487,6 +379,77 @@ export async function handleChoreographyFinanceAction(input: {
   }
 
   return { status: "error", message: "No pudimos procesar esa acción." };
+}
+
+/**
+ * The three money gestures of an inscription, which differ only in what they
+ * read off the form: an amount for two of them and nothing at all for the
+ * release, whose figure is computed. Returns `null` when the write succeeded,
+ * so the caller redirects; an error otherwise, which keeps the dialog open with
+ * what the administrator typed.
+ */
+async function runInscriptionMoneyIntent(input: {
+  academyId: string;
+  choreographyId: string;
+  eventId: string;
+  formData: FormData;
+  intent: string;
+}): Promise<ChoreographyFinanceActionData | null> {
+  const inscriptionId = String(
+    input.formData.get("inscriptionId") ?? "",
+  ).trim();
+
+  if (!inscriptionId) {
+    return { status: "error", message: "No encontramos esa inscripción." };
+  }
+
+  const target = {
+    academyId: input.academyId,
+    choreographyId: input.choreographyId,
+    eventId: input.eventId,
+    inscriptionId,
+  };
+
+  if (input.intent === releaseInscriptionExcessIntent) {
+    const result = await releaseInscriptionExcess(target);
+
+    return result.ok ? null : { status: "error", message: result.message };
+  }
+
+  const amount = readAmount(input.formData);
+
+  if (amount === null) {
+    return { status: "error", message: "Ingresá un monto mayor a 0." };
+  }
+
+  const result =
+    input.intent === allocateInscriptionIntent
+      ? await allocateToInscription({
+          ...target,
+          amount,
+          priceId: readPriceId(input.formData),
+        })
+      : await removeFromInscription({ ...target, amount });
+
+  return result.ok ? null : { status: "error", message: result.message };
+}
+
+/** The typed amount, or `null` when it is not a positive whole number. */
+function readAmount(formData: FormData): number | null {
+  const amount = Number(String(formData.get("amount") ?? "").trim());
+
+  return Number.isSafeInteger(amount) && amount > 0 ? amount : null;
+}
+
+/**
+ * The price chosen inside the dialog. `null` when the field is absent, which is
+ * how a locked price arrives: the dialog shows it as a readout and submits
+ * nothing, so the inscription keeps the row it already holds.
+ */
+function readPriceId(formData: FormData): string | null {
+  const priceId = String(formData.get("priceId") ?? "").trim();
+
+  return priceId === "" ? null : priceId;
 }
 
 function redirectToDetail(

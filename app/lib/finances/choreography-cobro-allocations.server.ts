@@ -6,7 +6,6 @@ import { choreographyDancers, paymentAllocations } from "@/db/schema";
 import {
   clearBalanceSnapshot,
   clearDepositSnapshot,
-  type CobroResult,
   type Transaction,
 } from "./choreography-cobro-support.server";
 
@@ -83,35 +82,6 @@ export async function applyAllocationDelta(
     .update(paymentAllocations)
     .set({ amount: nextAmount, updatedAt: new Date() })
     .where(eq(paymentAllocations.id, existing.id));
-}
-
-/**
- * Borra una asignación de pago y devuelve su monto al `Saldo disponible` de la
- * academia (derivado de pagos − asignaciones). La plata es fungible: no hay
- * orden de reversión, así que cualquier asignación se puede borrar en cualquier
- * momento. Los snapshots de la inscripción se reconcilian después contra lo que
- * le quedó asignado.
- */
-export async function deletePaymentAllocation(input: {
-  allocationId: string;
-}): Promise<CobroResult> {
-  return await db.transaction(async (tx) => {
-    const allocation = await tx.query.paymentAllocations.findFirst({
-      where: eq(paymentAllocations.id, input.allocationId),
-    });
-
-    if (!allocation) {
-      return { ok: false, message: "No encontramos esa asignación." };
-    }
-
-    await tx
-      .delete(paymentAllocations)
-      .where(eq(paymentAllocations.id, allocation.id));
-
-    await syncInscriptionSnapshots(tx, [allocation.inscriptionId]);
-
-    return { ok: true };
-  });
 }
 
 /**
