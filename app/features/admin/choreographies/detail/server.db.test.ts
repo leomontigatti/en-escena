@@ -633,6 +633,91 @@ describe("administrative choreography detail server", () => {
     });
   });
 
+  // El cupo puntual con lugar no alcanza: la capacidad total del cronograma
+  // que lo contiene es una segunda barrera, y la reasignación tiene que
+  // chocarla igual que el registro.
+  test("rejects a target cupo with room when its cronograma is already full", async () => {
+    const scenario = await createScheduleCapacityScenario({
+      academyName: "Academia Cronograma Total Lleno",
+      slug: "cronograma.total.lleno",
+    });
+    await createChoreographyRecord({
+      academyId: scenario.owner.academyId,
+      categoryId: scenario.catalog.categoryWithLevel.id,
+      eventId: scenario.event.id,
+      experienceLevelId: scenario.catalog.level.id,
+      modalityId: scenario.catalog.modality.id,
+      name: "Ocupante",
+      scheduleCapacityId: scenario.target.scheduleCapacity.id,
+      submodalityId: scenario.catalog.submodality.id,
+    });
+    await db
+      .update(schedules)
+      .set({ totalCapacity: 1 })
+      .where(eq(schedules.id, scenario.target.schedule.id));
+
+    const detail = await loadDetail({
+      choreographyId: scenario.choreography.id,
+      email: "admin.coreografias.cronograma.total.lleno.detalle@example.com",
+      role: "admin",
+    });
+    const target = detail.scheduleCapacity.options.find(
+      (option) => option.id === scenario.target.scheduleCapacity.id,
+    );
+    // El cupo puntual dice 1/5 y aun así se ofrece deshabilitado: la vista no
+    // puede prometer lugar donde el intent va a rechazar.
+    expect(target?.label).toContain("1/5 ocupados · sin cupo");
+    expect(target?.isFull).toBe(true);
+
+    const result = await scenario.reassignTo(
+      scenario.target.scheduleCapacity.id,
+    );
+
+    expect(result).toMatchObject({
+      message: "El cronograma seleccionado ya no tiene cupo disponible.",
+      status: "error",
+    });
+    await expect(scenario.readAssignment()).resolves.toEqual({
+      scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
+      scheduleId: null,
+    });
+  });
+
+  // La seña puede aparecer entre que el loader abrió el campo y que el intent
+  // corre: la guarda se revalida dentro de la transacción, no antes de ella.
+  test("blocks a reassignment whose seña was registered after the field was open", async () => {
+    const scenario = await createScheduleCapacityScenario({
+      academyName: "Academia Cronograma Seña Tardía",
+      slug: "cronograma.senia.tardia",
+    });
+
+    const detail = await loadDetail({
+      choreographyId: scenario.choreography.id,
+      email: "admin.coreografias.cronograma.senia.tardia.detalle@example.com",
+      role: "admin",
+    });
+    expect(detail.scheduleCapacity.canReassign).toBe(true);
+
+    await freezeInscriptionDepositForTest({
+      academyId: scenario.owner.academyId,
+      choreographyId: scenario.choreography.id,
+    });
+
+    const result = await scenario.reassignTo(
+      scenario.target.scheduleCapacity.id,
+    );
+
+    expect(result).toMatchObject({
+      message:
+        "No se puede cambiar el cupo de cronograma: hay inscripciones con seña registrada.",
+      status: "error",
+    });
+    await expect(scenario.readAssignment()).resolves.toEqual({
+      scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
+      scheduleId: null,
+    });
+  });
+
   test("rejects a target cupo de cronograma that is already full", async () => {
     const scenario = await createScheduleCapacityScenario({
       academyName: "Academia Cronograma Lleno",

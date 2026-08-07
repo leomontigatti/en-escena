@@ -30,6 +30,7 @@ import {
   listProfessorOptionsForChoreography,
 } from "@/lib/choreographies/choreography-roster-options.server";
 import { resolveChoreographyDancers } from "@/lib/choreographies/choreography-roster.server";
+import { getGlobalScheduleCapacityOptionId } from "@/lib/choreographies/choreography-roster.shared";
 import type {
   ChoreographyDancerOption,
   ChoreographyProfessorOption,
@@ -47,7 +48,6 @@ import {
 } from "@/lib/storage/choreography-music.server";
 
 import {
-  getGlobalScheduleCapacityOptionId,
   resolveChoreographyScheduleCapacityOptions,
   resolveScheduleCapacityBlockers,
   updateChoreographyScheduleCapacity,

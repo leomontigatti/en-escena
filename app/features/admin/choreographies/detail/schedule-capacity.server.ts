@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { choreographies } from "@/db/schema";
+import { getGlobalScheduleCapacityOptionId } from "@/lib/choreographies/choreography-roster.shared";
 import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
 import {
   invalidScheduleEntryMessage,
@@ -67,28 +68,23 @@ type ScheduleCapacityOptionCandidate = Omit<
 >;
 
 /**
- * Un cronograma sin cupo declarado para el tipo de grupo se ofrece igual,
- * contra su capacidad total. El id sintético distingue esa opción global del
- * id de un cupo concreto.
- */
-export function getGlobalScheduleCapacityOptionId(scheduleId: string) {
-  return `schedule:${scheduleId}:global`;
-}
-
-/**
  * Las opciones que la vista ofrece son exactamente las que el intent acepta:
  * los cupos compatibles con el evento, la modalidad y el tipo de grupo de la
  * coreografía, más el cupo asignado hoy. Ese agregado es solo de visibilidad:
  * si la asignación quedó fuera de la compatibilidad (cambió la modalidad del
  * cronograma, se borró el cupo), tiene que seguir a la vista en lugar de
  * desaparecer del select sin explicación.
+ *
+ * Sin ocupación: el intent solo necesita saber qué ids acepta, y contar
+ * ocupantes para rotular opciones que nadie va a leer es trabajo tirado. La
+ * vista pasa por `resolveChoreographyScheduleCapacityOptions`.
  */
-export async function resolveChoreographyScheduleCapacityOptions(input: {
+async function resolveScheduleCapacityCandidates(input: {
   choreography: ChoreographyDetail;
   eventId: string;
 }): Promise<{
   hasMultipleCompatibleOptions: boolean;
-  options: ResolvedScheduleCapacityOption[];
+  options: ScheduleCapacityOptionCandidate[];
 }> {
   const resolution = await resolveEventBasesScheduleOptions({
     eventId: input.eventId,
@@ -114,11 +110,30 @@ export async function resolveChoreographyScheduleCapacityOptions(input: {
 
   return {
     hasMultipleCompatibleOptions: resolution.status === "multiple",
+    options,
+  };
+}
+
+/**
+ * Las mismas opciones que acepta el intent, rotuladas con la ocupación y con
+ * las llenas marcadas, para el select del detalle.
+ */
+export async function resolveChoreographyScheduleCapacityOptions(input: {
+  choreography: ChoreographyDetail;
+  eventId: string;
+}): Promise<{
+  hasMultipleCompatibleOptions: boolean;
+  options: ResolvedScheduleCapacityOption[];
+}> {
+  const candidates = await resolveScheduleCapacityCandidates(input);
+
+  return {
+    hasMultipleCompatibleOptions: candidates.hasMultipleCompatibleOptions,
     options: await withScheduleCapacityOccupancy({
       // Misma exclusión que el lock: la coreografía que se está moviendo no
       // cuenta contra el cupo que ya ocupa.
       excludeChoreographyId: input.choreography.id,
-      options,
+      options: candidates.options,
     }),
   };
 }
@@ -138,17 +153,7 @@ export async function updateChoreographyScheduleCapacity(input: {
     };
   }
 
-  // La guarda financiera se revalida en el intent y no solo en el loader: el
-  // campo puede haber quedado abierto en una pestaña vieja o llegar un submit
-  // armado a mano.
-  if (await hasFrozenDepositSnapshot(input.choreography.id)) {
-    return {
-      message: frozenDepositMessage,
-      status: "error",
-    };
-  }
-
-  const { options } = await resolveChoreographyScheduleCapacityOptions({
+  const { options } = await resolveScheduleCapacityCandidates({
     choreography: input.choreography,
     eventId: input.eventId,
   });
@@ -168,6 +173,18 @@ export async function updateChoreographyScheduleCapacity(input: {
   }
 
   const result = await db.transaction(async (tx) => {
+    // La guarda financiera se revalida en el intent y no solo en el loader (el
+    // campo puede haber quedado abierto en una pestaña vieja o llegar un submit
+    // armado a mano), y se revalida *dentro* de la transacción: leerla antes de
+    // abrirla dejaba una ventana en la que una seña registrada en el medio se
+    // perdía y el cronograma se movía igual.
+    if (await hasFrozenDepositSnapshot(input.choreography.id, tx)) {
+      return {
+        ok: false as const,
+        error: frozenDepositMessage,
+      };
+    }
+
     const lock = await lockScheduleCapacityForAssignment({
       // Sin esta exclusión, reelegir el cupo que la coreografía ya ocupa la
       // contaría contra su propio cupo y lo reportaría como lleno.
