@@ -152,7 +152,7 @@ Link with economic identity and stable identity (its own `id`) between a choreog
 _Avoid_: academy participation, account, `payment`, invoice, inactive inscription
 
 **`activeInscription`** — ui: "Inscripción activa"
-Inscription that takes part in a choreography's current calculations, its pending amounts and its automatic discounts: every one that has not been withdrawn. Reads filter withdrawn rows behind the shared `activeInscription()` predicate and its raw-SQL twin, so no reader can forget.
+Inscription that takes part in a choreography's current calculations, its pending amounts and its automatic discounts: every one that has not been withdrawn. The shared `activeInscription()` predicate and its raw-SQL twin exist so that no reader has to restate the rule; the roster write path applies them today, and extending them to the remaining reads is #685.
 _Avoid_: paid inscription, competitive participation
 
 **`choreography`** — ui: "Coreografía"

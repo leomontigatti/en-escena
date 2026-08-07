@@ -42,7 +42,7 @@ import { useServerActionToast } from "@/lib/shared/toasts";
 import {
   canSubmitChoreographyEdit,
   getExperienceLevelSlotState,
-  getWithdrawnDancerNames,
+  getWithdrawnDancers,
   hasNoCompatibleCategory,
   shouldRenderRosterScheduleSelect,
 } from "./roster-form-state";
@@ -217,7 +217,7 @@ function ChoreographyDetailForm({
       ? updateChoreographyRosterIntent
       : renameChoreographyIntent;
 
-  const withdrawnDancerNames = getWithdrawnDancerNames({
+  const withdrawnDancers = getWithdrawnDancers({
     dancers: choreography.dancers,
     watchedDancerIds: roster.watchedDancerIds,
   });
@@ -457,8 +457,8 @@ function ChoreographyDetailForm({
               roster sea correcto antes de confirmar.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          {withdrawnDancerNames.length > 0 ? (
-            <WithdrawalConsequences dancerNames={withdrawnDancerNames} />
+          {withdrawnDancers.length > 0 ? (
+            <WithdrawalConsequences dancers={withdrawnDancers} />
           ) : null}
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
@@ -478,17 +478,21 @@ function ChoreographyDetailForm({
  * cuando hay evidencia; sin ella la baja es un borrado y no hay nada que
  * advertir.
  */
-function WithdrawalConsequences({ dancerNames }: { dancerNames: string[] }) {
+function WithdrawalConsequences({
+  dancers,
+}: {
+  dancers: Array<{ id: string; name: string }>;
+}) {
   return (
     <div className="text-sm text-muted-foreground">
       <p>
-        {dancerNames.length === 1
+        {dancers.length === 1
           ? "Esta inscripción tiene plata asignada o un comprobante emitido, así que no se borra: queda retirada."
           : "Estas inscripciones tienen plata asignada o un comprobante emitido, así que no se borran: quedan retiradas."}
       </p>
       <ul className="mt-2 list-disc pl-5">
-        {dancerNames.map((dancerName) => (
-          <li key={dancerName}>{dancerName}</li>
+        {dancers.map((dancer) => (
+          <li key={dancer.id}>{dancer.name}</li>
         ))}
       </ul>
       <p className="mt-2">

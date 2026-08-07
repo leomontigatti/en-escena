@@ -12,7 +12,7 @@ import {
   getPersistedRosterResolutionState,
   getResolvedRosterFieldState,
   getSelectionKey,
-  getWithdrawnDancerNames,
+  getWithdrawnDancers,
   hasNoCompatibleCategory,
   shouldRenderRosterScheduleSelect,
   shouldResolveRosterSelection,
@@ -564,7 +564,7 @@ function buildResolution(
   };
 }
 
-describe("getWithdrawnDancerNames", () => {
+describe("getWithdrawnDancers", () => {
   const dancers = [
     {
       active: true,
@@ -585,23 +585,37 @@ describe("getWithdrawnDancerNames", () => {
   ];
 
   test("names the removed dancers whose inscription has evidence", () => {
-    expect(getWithdrawnDancerNames({ dancers, watchedDancerIds: [] })).toEqual([
-      "Ana Uno",
+    expect(getWithdrawnDancers({ dancers, watchedDancerIds: [] })).toEqual([
+      { id: "dancer_1", name: "Ana Uno" },
     ]);
   });
 
   test("says nothing when the removed inscription has no evidence to preserve", () => {
     expect(
-      getWithdrawnDancerNames({ dancers, watchedDancerIds: ["dancer_1"] }),
+      getWithdrawnDancers({ dancers, watchedDancerIds: ["dancer_1"] }),
     ).toEqual([]);
   });
 
   test("says nothing when nobody leaves the roster", () => {
     expect(
-      getWithdrawnDancerNames({
+      getWithdrawnDancers({
         dancers,
         watchedDancerIds: ["dancer_1", "dancer_2"],
       }),
     ).toEqual([]);
+  });
+
+  test("keeps homonyms apart, since the name alone does not identify the row", () => {
+    const homonyms = [
+      { ...dancers[0], id: "dancer_1" },
+      { ...dancers[0], hasEvidence: true, id: "dancer_3" },
+    ];
+
+    expect(
+      getWithdrawnDancers({ dancers: homonyms, watchedDancerIds: [] }),
+    ).toEqual([
+      { id: "dancer_1", name: "Ana Uno" },
+      { id: "dancer_3", name: "Ana Uno" },
+    ]);
   });
 });
