@@ -41,6 +41,35 @@ describe("choreography creation summary", () => {
       "Revisá los datos ya que una vez guardados no vas a poder modificarlos.",
     );
   });
+
+  // La ocupación es solo para elegir entre opciones: en el eco del cronograma
+  // ya elegido decir cuántos lugares quedan no significa nada.
+  test("echoes the chosen cronograma without its ocupación", () => {
+    renderer.render(
+      <ChoreographyCreationSummary
+        baseOptions={{
+          modalities: [{ id: "modality_1", name: "Jazz" }],
+          submodalities: [
+            { id: "submodality_1", name: "Lyrical", modalityId: "modality_1" },
+          ],
+        }}
+        name="Danza de la Luna"
+        resolution={buildResolution()}
+        selectedExperienceLevelId="amateur"
+        selectedModalityId="modality_1"
+        selectedProfessors={[
+          { id: "professor_1", firstName: "Luz", lastName: "Suárez" },
+        ]}
+        selectedScheduleCapacityId="capacity_1"
+        selectedSubmodalityId="submodality_1"
+      />,
+    );
+
+    const markup = renderer.getContainer().innerHTML;
+
+    expect(markup).toContain("3 de mayo de 2026 - 10:00 hs.");
+    expect(markup).not.toContain("ocupados");
+  });
 });
 
 function buildResolution(): RegistrationResolution {
@@ -71,6 +100,8 @@ function buildResolution(): RegistrationResolution {
       options: [
         {
           id: "capacity_1",
+          isFull: false,
+          label: "3 de mayo de 2026 - 10:00 hs. · 2/8 ocupados",
           scheduleId: "schedule_1",
           scheduleCapacityId: "capacity_1",
           capacity: 8,

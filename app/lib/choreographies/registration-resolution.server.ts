@@ -3,6 +3,8 @@ import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { dancers, events } from "@/db/schema";
 import { BUSINESS_TIME_ZONE } from "@/lib/shared/business-time-zone";
+import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
+import { withScheduleCapacityOccupancy } from "@/lib/choreographies/schedule-capacity-options.server";
 import {
   getEventBases,
   resolveEventBasesScheduleOptions,
@@ -99,6 +101,16 @@ type ExperienceLevelResolution =
       options: ExperienceLevelOption[];
     };
 
+/**
+ * Solo las opciones que el portal ofrece como lista llevan ocupación: con un
+ * único cupo compatible no hay select donde elegir, y el rótulo del cronograma
+ * ya asignado no dice cuántos lugares quedan.
+ */
+type ScheduleCapacityChoice = ScheduleOptionSummary & {
+  isFull: boolean;
+  label: string;
+};
+
 type ScheduleResolution =
   | {
       status: "none";
@@ -115,7 +127,7 @@ type ScheduleResolution =
   | {
       status: "multiple";
       canConfirm: true;
-      options: ScheduleOptionSummary[];
+      options: ScheduleCapacityChoice[];
     };
 
 export type ChoreographyRegistrationOperationResolution = {
@@ -351,7 +363,7 @@ async function resolveRegistrationFromResolvedDancers(input: {
     modalityId: modality.id,
     groupType: classification.groupType,
   });
-  const schedule = mapScheduleResolution(compatibleScheduleCapacities);
+  const schedule = await mapScheduleResolution(compatibleScheduleCapacities);
 
   return {
     ok: true,
@@ -583,9 +595,9 @@ function isAgeWithinCategory(
   return category.minAge <= age && age <= category.maxAge;
 }
 
-function mapScheduleResolution(
+async function mapScheduleResolution(
   scheduleResolution: CompatibleScheduleCapacityResolution,
-): ScheduleResolution {
+): Promise<ScheduleResolution> {
   if (scheduleResolution.status === "none") {
     return {
       status: "none",
@@ -607,7 +619,14 @@ function mapScheduleResolution(
   return {
     status: "multiple",
     canConfirm: true,
-    options: scheduleResolution.options.map(toScheduleOptionSummary),
+    // Las mismas opciones con ocupación que ve administración: el rótulo lo
+    // arma el constructor compartido para que las dos superficies no diverjan.
+    options: await withScheduleCapacityOccupancy({
+      options: scheduleResolution.options.map((option) => ({
+        ...toScheduleOptionSummary(option),
+        label: formatScheduleDateTime(option.schedule),
+      })),
+    }),
   };
 }
 
