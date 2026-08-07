@@ -1,3 +1,5 @@
+import { useCallback, useMemo, useState } from "react";
+
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import {
   ClientDataTable,
@@ -6,7 +8,9 @@ import {
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { MetricCard } from "@/components/shared/metric-card";
+import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Badge } from "@/components/ui/badge";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import {
   choreographyStatusFilterOptions,
   formatInscriptionStatusBadge,
@@ -15,6 +19,8 @@ import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financ
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 
 import { formatAmount, formatOperationalAmount } from "../formatters";
+import { FinancePresetDialog } from "./preset-dialog";
+import { financePresetLabels, type FinancePresetStage } from "./presets";
 import type { AcademyFinancesLoaderData } from "./types";
 
 type ChoreographyFinanceRow =
@@ -29,12 +35,35 @@ const choreographyFinanceFacetedFilters: DataTableFacetedFilter[] = [
 ];
 
 type AcademyFinancesRouteViewProps = {
+  /** Preset open on mount. Only the tests use it, as in the payment detail. */
+  initialPresetStage?: FinancePresetStage | null;
   loaderData: AcademyFinancesLoaderData;
 };
 
 export function AcademyFinancesRouteView({
+  initialPresetStage = null,
   loaderData,
 }: AcademyFinancesRouteViewProps) {
+  // The selection is lifted out of the table because it drives more than the
+  // table: the two presets read it, and only it decides whether they are
+  // offered at all.
+  const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
+  const [presetStage, setPresetStage] = useState<FinancePresetStage | null>(
+    initialPresetStage,
+  );
+  const columns = useMemo(
+    () => buildChoreographyFinanceColumns(loaderData.academy.id),
+    [loaderData.academy.id],
+  );
+  const selectedRows = loaderData.choreographyFinanceRows.filter((row) =>
+    selectedRowIds.includes(row.id),
+  );
+  // Stable so the dialog can close itself from an effect when the write
+  // succeeds without the effect re-running on every render of the list.
+  const handlePresetOpenChange = useCallback((next: boolean) => {
+    setPresetStage((current) => (next ? current : null));
+  }, []);
+
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
@@ -45,6 +74,28 @@ export function AcademyFinancesRouteView({
         description:
           "Activá un evento para consultar la lista financiera de las coreografías de la academia.",
       }}
+      headerAction={
+        selectedRows.length > 0 ? (
+          <ResourceActionsMenu contentClassName="w-48">
+            <DropdownMenuItem
+              onSelect={(event) => {
+                event.preventDefault();
+                setPresetStage("deposit");
+              }}
+            >
+              {financePresetLabels.deposit}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={(event) => {
+                event.preventDefault();
+                setPresetStage("balance");
+              }}
+            >
+              {financePresetLabels.balance}
+            </DropdownMenuItem>
+          </ResourceActionsMenu>
+        ) : undefined
+      }
     >
       <div className="flex flex-col gap-6">
         <section className="grid gap-4 md:grid-cols-3">
@@ -68,11 +119,14 @@ export function AcademyFinancesRouteView({
 
         <ClientDataTable
           rows={loaderData.choreographyFinanceRows}
-          columns={buildChoreographyFinanceColumns(loaderData.academy.id)}
+          columns={columns}
           facetedFilters={choreographyFinanceFacetedFilters}
           getRowKey={(row) => row.id}
           searchPlaceholder="Buscar coreografía por nombre"
           textFilterColumnId="name"
+          selectableRows
+          selectedRowIds={selectedRowIds}
+          onSelectedRowIdsChange={setSelectedRowIds}
           initialSort={{
             columnId: "name",
             direction: "asc",
@@ -80,6 +134,20 @@ export function AcademyFinancesRouteView({
           emptyMessage="No hay coreografías para mostrar."
         />
       </div>
+
+      {presetStage !== null && selectedRows.length > 0 ? (
+        <FinancePresetDialog
+          availableBalanceAmount={loaderData.summary.availableBalanceAmount}
+          open
+          onOpenChange={handlePresetOpenChange}
+          priceOptionsByGroupType={loaderData.priceOptionsByGroupType}
+          pricingScheduleIdByChoreography={
+            loaderData.pricingScheduleIdByChoreography
+          }
+          selectedRows={selectedRows}
+          stage={presetStage}
+        />
+      ) : null}
     </AdminResourceLayout>
   );
 }

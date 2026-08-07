@@ -114,6 +114,18 @@ export function deriveInscriptionFinancialStatus(input: {
 }
 
 /**
+ * Whether money leaving an inscription drops it **below** a threshold it had
+ * crossed. It is the one reading the payment-deletion dialog counts: an
+ * un-crossing never blocks anything, so all there is to do with it is state it.
+ */
+export function hasUncrossedThreshold(input: {
+  after: InscriptionFinancialStatus;
+  before: InscriptionFinancialStatus;
+}): boolean {
+  return statusOrder[input.after] < statusOrder[input.before];
+}
+
+/**
  * Las cuatro cifras, el estado y las anomalías de una inscripción.
  *
  * `Seña adeudada` y `Saldo adeudado` son faltantes contra cada umbral, con piso

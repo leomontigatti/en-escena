@@ -2,13 +2,7 @@ import { eq } from "drizzle-orm";
 import { redirect } from "react-router";
 
 import { db } from "@/db";
-import {
-  academies,
-  choreographies,
-  choreographyDancers,
-  paymentAllocations,
-  payments,
-} from "@/db/schema";
+import { academies, paymentAllocations, payments } from "@/db/schema";
 import {
   createPaymentFieldNames,
   createPaymentSchema,
@@ -24,6 +18,7 @@ import { getFieldErrors } from "@/lib/shared/form-validation";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
 
 import { listPaymentAcademyOptions } from "../academy-options.server";
+import { readPaymentDeletionImpact } from "./deletion-impact.server";
 import { deletePaymentIntent, updatePaymentIntent } from "./shared";
 
 type DeletePaymentActionData = {
@@ -84,7 +79,11 @@ export async function loadPaymentDetail(request: Request, paymentId: string) {
     await Promise.all([
       listPaymentAcademyOptions(),
       sumPaymentAllocatedAmount(paymentDetail.id),
-      listPaymentAffectedChoreographies(paymentDetail.id),
+      readPaymentDeletionImpact({
+        academyId: paymentDetail.academyId,
+        eventId: paymentDetail.eventId,
+        paymentId: paymentDetail.id,
+      }),
     ]);
 
   return {
@@ -97,39 +96,6 @@ export async function loadPaymentDetail(request: Request, paymentId: string) {
     selectedEventId: eventContext.selectedEventId ?? paymentDetail.eventId,
     values: getPaymentFormValues(paymentDetail),
   };
-}
-
-export type PaymentAffectedChoreography = {
-  id: string;
-  name: string;
-};
-
-/**
- * Coreografías cuyas inscripciones tienen asignaciones a este pago, sin duplicar
- * (una coreografía aparece una sola vez). Ninguna bloquea la eliminación: la
- * plata es fungible y el pago se borra siempre, arrastrando sus asignaciones en
- * cascada.
- */
-async function listPaymentAffectedChoreographies(
-  paymentId: string,
-): Promise<PaymentAffectedChoreography[]> {
-  const rows = await db
-    .selectDistinct({
-      id: choreographies.id,
-      name: choreographies.name,
-    })
-    .from(paymentAllocations)
-    .innerJoin(
-      choreographyDancers,
-      eq(paymentAllocations.inscriptionId, choreographyDancers.id),
-    )
-    .innerJoin(
-      choreographies,
-      eq(choreographyDancers.choreographyId, choreographies.id),
-    )
-    .where(eq(paymentAllocations.paymentId, paymentId));
-
-  return rows.sort((a, b) => a.name.localeCompare(b.name, "es"));
 }
 
 export async function handlePaymentDetailAction(

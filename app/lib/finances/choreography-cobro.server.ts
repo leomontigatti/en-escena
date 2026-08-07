@@ -227,7 +227,7 @@ async function freezeBalanceSnapshots(
  * so a preset cannot over-allocate. An inscription that already covered the
  * threshold is skipped rather than failing: the preset is idempotent.
  */
-async function fundOwedThreshold(
+export async function fundOwedThreshold(
   tx: Transaction,
   input: {
     academyId: string;
