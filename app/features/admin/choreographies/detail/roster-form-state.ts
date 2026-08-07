@@ -187,6 +187,27 @@ export function shouldRenderRosterScheduleSelect({
   return hasResolvedRosterChange && scheduleResolution?.status === "multiple";
 }
 
+/**
+ * Nombres de los bailarines que este submit saca del roster y cuya inscripción
+ * tiene evidencia: plata asignada o una línea de comprobante. Esas no se borran,
+ * quedan retiradas, y el diálogo enumera esa consecuencia solo cuando la lista
+ * no está vacía. Sin evidencia no hay nada que contar: la baja es un borrado y
+ * el diálogo queda como estaba.
+ */
+export function getWithdrawnDancerNames({
+  dancers,
+  watchedDancerIds,
+}: {
+  dancers: ChoreographyDetail["dancers"];
+  watchedDancerIds: string[];
+}) {
+  const keptDancerIds = new Set(watchedDancerIds);
+
+  return dancers
+    .filter((dancer) => dancer.hasEvidence && !keptDancerIds.has(dancer.id))
+    .map((dancer) => `${dancer.firstName} ${dancer.lastName}`);
+}
+
 export function canSubmitChoreographyEdit(input: CanSubmitInput) {
   if (
     !input.hasNameChanged &&

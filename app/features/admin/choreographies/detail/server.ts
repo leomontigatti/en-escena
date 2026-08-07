@@ -17,6 +17,7 @@ import {
   submodalities,
 } from "@/db/schema";
 import { loadEventContext } from "@/lib/admin/event-context.server";
+import { activeInscription } from "@/lib/choreographies/active-inscription";
 import {
   requireAdminUser,
   requireInternalUser,
@@ -30,6 +31,7 @@ import {
   listProfessorOptionsForChoreography,
 } from "@/lib/choreographies/choreography-roster-options.server";
 import { resolveChoreographyDancers } from "@/lib/choreographies/choreography-roster.server";
+import { findInscriptionsWithEvidence } from "@/lib/choreographies/inscription-withdrawal.server";
 import { getGlobalScheduleCapacityOptionId } from "@/lib/choreographies/choreography-roster.shared";
 import type {
   ChoreographyDancerOption,
@@ -117,6 +119,7 @@ export type ChoreographyDetail = {
     active: boolean;
     ageAtEventStart: number;
     firstName: string;
+    hasEvidence: boolean;
     id: string;
     lastName: string;
   }>;
@@ -452,19 +455,39 @@ async function listSubmodalitiesForModality(modalityId: string) {
     .orderBy(asc(submodalities.name));
 }
 
+/**
+ * El roster que edita el admin son las inscripciones activas. `hasEvidence` es
+ * la única cosa que el formulario necesita saber de la plata: con evidencia,
+ * quitar al bailarín retira la inscripción en lugar de borrarla, y el diálogo de
+ * confirmación lo enumera antes de que el admin confirme.
+ */
 async function listChoreographyDancers(choreographyId: string) {
-  return await db
+  const rows = await db
     .select({
       active: dancers.active,
       ageAtEventStart: choreographyDancers.ageAtEventStart,
       firstName: dancers.firstName,
       id: dancers.id,
+      inscriptionId: choreographyDancers.id,
       lastName: dancers.lastName,
     })
     .from(choreographyDancers)
     .innerJoin(dancers, eq(choreographyDancers.dancerId, dancers.id))
-    .where(eq(choreographyDancers.choreographyId, choreographyId))
+    .where(
+      and(
+        eq(choreographyDancers.choreographyId, choreographyId),
+        activeInscription(),
+      ),
+    )
     .orderBy(asc(dancers.firstName), asc(dancers.lastName));
+  const inscriptionsWithEvidence = await findInscriptionsWithEvidence(
+    rows.map((row) => row.inscriptionId),
+  );
+
+  return rows.map(({ inscriptionId, ...row }) => ({
+    ...row,
+    hasEvidence: inscriptionsWithEvidence.has(inscriptionId),
+  }));
 }
 
 async function listChoreographyProfessors(choreographyId: string) {

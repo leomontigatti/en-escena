@@ -42,6 +42,7 @@ import { useServerActionToast } from "@/lib/shared/toasts";
 
 import {
   canSubmitChoreographyEdit,
+  getWithdrawnDancerNames,
   hasNoCompatibleCategory,
   shouldRenderRosterScheduleSelect,
 } from "./roster-form-state";
@@ -211,6 +212,11 @@ function ChoreographyDetailForm({
     roster.hasRosterChanged || roster.hasProfessorsChanged
       ? updateChoreographyRosterIntent
       : renameChoreographyIntent;
+
+  const withdrawnDancerNames = getWithdrawnDancerNames({
+    dancers: choreography.dancers,
+    watchedDancerIds: roster.watchedDancerIds,
+  });
 
   const handleConfirm = form.handleSubmit((values) => {
     setIsConfirmOpen(false);
@@ -420,6 +426,9 @@ function ChoreographyDetailForm({
               roster sea correcto antes de confirmar.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {withdrawnDancerNames.length > 0 ? (
+            <WithdrawalConsequences dancerNames={withdrawnDancerNames} />
+          ) : null}
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirm}>
@@ -429,6 +438,33 @@ function ChoreographyDetailForm({
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+}
+
+/**
+ * La baja de un bailarín con plata asignada o con una línea de comprobante no
+ * borra la inscripción: la retira. El diálogo enumera esa consecuencia solo
+ * cuando hay evidencia; sin ella la baja es un borrado y no hay nada que
+ * advertir.
+ */
+function WithdrawalConsequences({ dancerNames }: { dancerNames: string[] }) {
+  return (
+    <div className="text-sm text-muted-foreground">
+      <p>
+        {dancerNames.length === 1
+          ? "Esta inscripción tiene plata asignada o un comprobante emitido, así que no se borra: queda retirada."
+          : "Estas inscripciones tienen plata asignada o un comprobante emitido, así que no se borran: quedan retiradas."}
+      </p>
+      <ul className="mt-2 list-disc pl-5">
+        {dancerNames.map((dancerName) => (
+          <li key={dancerName}>{dancerName}</li>
+        ))}
+      </ul>
+      <p className="mt-2">
+        Conservan la plata que tienen asignada y siguen en el comprobante.
+        Volver a agregar al bailarín las reactiva.
+      </p>
+    </div>
   );
 }
 

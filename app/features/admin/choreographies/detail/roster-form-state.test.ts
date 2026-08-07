@@ -10,6 +10,7 @@ import {
   canSubmitChoreographyEdit,
   getResolvedRosterFieldState,
   getSelectionKey,
+  getWithdrawnDancerNames,
   hasNoCompatibleCategory,
   shouldRenderRosterScheduleSelect,
   shouldResolveRosterSelection,
@@ -382,3 +383,45 @@ function buildResolution(
     },
   };
 }
+
+describe("getWithdrawnDancerNames", () => {
+  const dancers = [
+    {
+      active: true,
+      ageAtEventStart: 14,
+      firstName: "Ana",
+      hasEvidence: true,
+      id: "dancer_1",
+      lastName: "Uno",
+    },
+    {
+      active: true,
+      ageAtEventStart: 15,
+      firstName: "Bea",
+      hasEvidence: false,
+      id: "dancer_2",
+      lastName: "Dos",
+    },
+  ];
+
+  test("names the removed dancers whose inscription has evidence", () => {
+    expect(getWithdrawnDancerNames({ dancers, watchedDancerIds: [] })).toEqual([
+      "Ana Uno",
+    ]);
+  });
+
+  test("says nothing when the removed inscription has no evidence to preserve", () => {
+    expect(
+      getWithdrawnDancerNames({ dancers, watchedDancerIds: ["dancer_1"] }),
+    ).toEqual([]);
+  });
+
+  test("says nothing when nobody leaves the roster", () => {
+    expect(
+      getWithdrawnDancerNames({
+        dancers,
+        watchedDancerIds: ["dancer_1", "dancer_2"],
+      }),
+    ).toEqual([]);
+  });
+});
