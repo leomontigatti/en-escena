@@ -64,6 +64,11 @@ const baseMissingItemDefinitions = {
 export async function getEventRegistrationReadiness(
   eventId: string,
 ): Promise<EventRegistrationReadiness> {
+  // Derive both the reference date and the cache stamp from a single instant:
+  // a calculation that starts before UTC midnight and writes after it would
+  // otherwise be stamped with a day it never used, and look fresh all of it.
+  const calculatedAt = new Date();
+  const referenceDate = toDateOnly(calculatedAt);
   const cachedReadiness = await db.query.events.findFirst({
     columns: {
       registrationReady: true,
@@ -74,7 +79,10 @@ export async function getEventRegistrationReadiness(
     where: eq(events.id, eventId),
   });
 
-  if (cachedReadiness && isCachedReadinessUsable(cachedReadiness)) {
+  if (
+    cachedReadiness &&
+    isCachedReadinessUsable(cachedReadiness, referenceDate)
+  ) {
     return {
       eventId,
       isReady: cachedReadiness.registrationReady,
@@ -83,9 +91,12 @@ export async function getEventRegistrationReadiness(
     };
   }
 
-  const readiness = await calculateEventRegistrationReadiness(eventId);
+  const readiness = await calculateEventRegistrationReadiness(
+    eventId,
+    referenceDate,
+  );
 
-  await saveEventRegistrationReadiness(readiness);
+  await saveEventRegistrationReadiness(readiness, calculatedAt);
 
   return readiness;
 }
@@ -98,6 +109,8 @@ export async function getEventRegistrationReadinessByEventId(
   if (uniqueEventIds.length === 0) {
     return new Map();
   }
+
+  const referenceDate = todayDateOnly();
 
   const cachedReadinessRows = await db.query.events.findMany({
     columns: {
@@ -118,7 +131,10 @@ export async function getEventRegistrationReadinessByEventId(
   for (const eventId of uniqueEventIds) {
     const cachedReadiness = cachedReadinessByEventId.get(eventId);
 
-    if (cachedReadiness && isCachedReadinessUsable(cachedReadiness)) {
+    if (
+      cachedReadiness &&
+      isCachedReadinessUsable(cachedReadiness, referenceDate)
+    ) {
       readinessByEventId.set(eventId, {
         eventId,
         isReady: cachedReadiness.registrationReady,
@@ -146,20 +162,24 @@ export async function getEventRegistrationReadinessByEventId(
 // Readiness depends on the current date (a precio expires by the mere passage
 // of time, with no write to dirty the cache), so an entry calculated on an
 // earlier day is stale even when nothing was written since.
-function isCachedReadinessUsable(cachedReadiness: {
-  registrationReadinessDirty: boolean;
-  registrationReadinessCalculatedAt: Date | null;
-}) {
+function isCachedReadinessUsable(
+  cachedReadiness: {
+    registrationReadinessDirty: boolean;
+    registrationReadinessCalculatedAt: Date | null;
+  },
+  referenceDate: string,
+) {
   if (cachedReadiness.registrationReadinessDirty) {
     return false;
   }
 
   const calculatedAt = cachedReadiness.registrationReadinessCalculatedAt;
 
-  return (
-    calculatedAt !== null &&
-    calculatedAt.toISOString().slice(0, 10) === todayDateOnly()
-  );
+  return calculatedAt !== null && toDateOnly(calculatedAt) === referenceDate;
+}
+
+function toDateOnly(value: Date) {
+  return value.toISOString().slice(0, 10);
 }
 
 export async function markEventRegistrationReadinessDirty(eventId: string) {
@@ -171,14 +191,18 @@ export async function markEventRegistrationReadinessDirty(eventId: string) {
 
 async function calculateEventRegistrationReadiness(
   eventId: string,
+  referenceDate: string,
 ): Promise<EventRegistrationReadiness> {
   const eventBases = await getEventBases(eventId);
 
-  return getEventRegistrationReadinessForBases(eventId, eventBases);
+  return getEventRegistrationReadinessForBases(eventId, eventBases, {
+    referenceDate,
+  });
 }
 
 async function saveEventRegistrationReadiness(
   readiness: EventRegistrationReadiness,
+  calculatedAt: Date,
 ) {
   await db
     .update(events)
@@ -186,7 +210,7 @@ async function saveEventRegistrationReadiness(
       registrationReady: readiness.isReady,
       registrationReadinessMissingItems: readiness.missingItems,
       registrationReadinessDirty: false,
-      registrationReadinessCalculatedAt: new Date(),
+      registrationReadinessCalculatedAt: calculatedAt,
     })
     .where(eq(events.id, readiness.eventId));
 }
@@ -507,29 +531,24 @@ function describeRegistrationPath(input: RegistrationPathDescriptor) {
   return details.join(", ");
 }
 
-const monthNames = [
-  "enero",
-  "febrero",
-  "marzo",
-  "abril",
-  "mayo",
-  "junio",
-  "julio",
-  "agosto",
-  "septiembre",
-  "octubre",
-  "noviembre",
-  "diciembre",
-];
+// Same shape the admin precios table uses to render a paymentDeadline, so the
+// readiness message and the row it points at read the same. UTC, because a
+// paymentDeadline is a date-only value with no time zone of its own.
+const deadlineFormatter = new Intl.DateTimeFormat("es-AR", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: "UTC",
+});
 
 function formatDeadline(deadline: string) {
-  const [year, month, day] = deadline.split("-").map(Number);
+  const parsed = new Date(`${deadline}T00:00:00.000Z`);
 
-  if (!year || !month || !day) {
+  if (Number.isNaN(parsed.getTime())) {
     return deadline;
   }
 
-  return `${day} de ${monthNames[month - 1]} de ${year}`;
+  return deadlineFormatter.format(parsed);
 }
 
 function formatGroupType(groupType: string) {

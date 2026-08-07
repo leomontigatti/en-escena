@@ -251,6 +251,71 @@ describe("event registration readiness from loaded bases", () => {
       ]),
     });
   });
+
+  test("keeps the evento ready on the precio's last day, and drops it the next", async () => {
+    const lastDayPrice = {
+      id: "price_solo",
+      eventId: "event_2026",
+      groupType: "solo",
+      amount: 14000,
+      paymentDeadline: "2026-05-31",
+      scheduleId: null,
+      schedule: null,
+    };
+
+    await expect(
+      getEventRegistrationReadinessForBases(
+        "event_2026",
+        buildSoloEventBases([lastDayPrice]),
+        { referenceDate: "2026-05-31" },
+      ),
+    ).resolves.toMatchObject({ isReady: true, missingItems: [] });
+
+    await expect(
+      getEventRegistrationReadinessForBases(
+        "event_2026",
+        buildSoloEventBases([lastDayPrice]),
+        { referenceDate: "2026-06-01" },
+      ),
+    ).resolves.toMatchObject({ isReady: false });
+  });
+
+  test("does not fall back to an expired precio general when the específico expired too", async () => {
+    const eventBases = buildSoloEventBases([
+      {
+        id: "price_solo_schedule",
+        eventId: "event_2026",
+        groupType: "solo",
+        amount: 12000,
+        paymentDeadline: "2026-05-31",
+        scheduleId: "schedule_sabado",
+        schedule: null,
+      },
+      {
+        id: "price_solo_general",
+        eventId: "event_2026",
+        groupType: "solo",
+        amount: 18000,
+        paymentDeadline: "2026-12-05",
+        scheduleId: null,
+        schedule: null,
+      },
+    ]);
+
+    await expect(
+      getEventRegistrationReadinessForBases("event_2026", eventBases, {
+        referenceDate: "2026-12-06",
+      }),
+    ).resolves.toMatchObject({
+      isReady: false,
+      missingItems: [
+        expect.objectContaining({
+          code: "price-coverage",
+          detail: expect.stringContaining("venció el 5 de diciembre de 2026"),
+        }),
+      ],
+    });
+  });
 });
 
 function buildSoloEventBases(prices: unknown[]) {
