@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 
+import { act } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
@@ -162,36 +163,90 @@ describe("AcademyFinancesRouteView", () => {
     expect(badges[1]).toEqual([{ text: "Señada", destructive: false }]);
   });
 
-  test("never renders a choreography selection column", async () => {
+  // Los presets sobreviven **sólo** como acciones de lista, y una acción de
+  // lista sin selección no tiene sobre qué actuar: el menú aparece recién
+  // cuando hay filas elegidas.
+  test("offers the presets only once choreographies are selected", async () => {
+    await renderListIntoDocument();
+
+    expect(document.querySelector('button[aria-label="Acciones"]')).toBeNull();
+
+    const checkboxes = getRenderedCheckboxes();
+    expect(checkboxes.length).toBe(3);
+
+    await clickCheckbox(checkboxes[1]);
+
+    expect(
+      document.querySelector('button[aria-label="Acciones"]'),
+    ).not.toBeNull();
+  });
+
+  test("pre-fills the owed deposit of the selected rows and prompts for a price", async () => {
+    await renderListIntoDocument({ initialPresetStage: "deposit" });
+
+    // El diálogo no se monta sin selección: un preset sin filas elegidas no
+    // tiene cifra que precargar.
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+
+    await clickCheckbox(getRenderedCheckboxes()[1]);
+
+    const dialogText =
+      document.querySelector('[role="dialog"]')?.textContent ?? "";
+
+    expect(dialogText).toContain("Pagar seña");
+    expect(dialogText).toContain("1 coreografía elegida");
+    expect(dialogText).toContain("Seña adeudada");
+    expect(dialogText).toContain("$ 3.000");
+    expect(dialogText).toContain("Precio");
+
+    const priceInput = document.querySelector('input[name="price-solo"]');
+    expect(priceInput).not.toBeNull();
+    expect((priceInput as HTMLInputElement).value).toBe("price_1");
+
+    expect(
+      [...document.querySelectorAll('input[name="choreographyId"]')].map(
+        (input) => (input as HTMLInputElement).value,
+      ),
+    ).toEqual(["choreography_1"]);
+  });
+
+  async function renderListIntoDocument(
+    props: { initialPresetStage?: "deposit" | "balance" } = {},
+  ) {
     const router = createMemoryRouter(
       [
         {
           path: "/administracion/finanzas/:academyId",
+          action: async () => null,
           element: (
             <AcademyFinancesRouteView
+              initialPresetStage={props.initialPresetStage ?? null}
               loaderData={academyFinancesLoaderDataFixture()}
             />
           ),
         },
       ],
-      {
-        initialEntries: ["/administracion/finanzas/academy_1"],
-      },
+      { initialEntries: ["/administracion/finanzas/academy_1"] },
     );
 
     await renderer.renderAsync(<RouterProvider router={router} />);
-
-    expect(document.body.textContent).toContain("Aire");
-    expect(
-      document.querySelector(
-        'button[aria-label="Seleccionar todas las filas"]',
-      ),
-    ).toBeNull();
-    expect(
-      document.querySelector('button[aria-label="Seleccionar fila"]'),
-    ).toBeNull();
-  });
+  }
 });
+
+function getRenderedCheckboxes() {
+  return [...document.querySelectorAll('[role="checkbox"]')].filter(
+    (element): element is HTMLElement => element instanceof HTMLElement,
+  );
+}
+
+async function clickCheckbox(checkbox: HTMLElement) {
+  await act(async () => {
+    checkbox.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true }),
+    );
+    await Promise.resolve();
+  });
+}
 
 function academyFinancesLoaderDataFixture(
   overrides: Partial<AcademyFinancesLoaderData> = {},
@@ -213,6 +268,16 @@ function academyFinancesLoaderDataFixture(
         name: "Tango",
       }),
     ],
+    priceOptionsByGroupType: {
+      solo: [
+        {
+          amount: 10000,
+          id: "price_1",
+          name: "Primera fecha",
+          paymentDeadline: "2026-03-01",
+        },
+      ],
+    },
     selectedEventId: "event_1",
     summary: {
       availableBalanceAmount: 0,

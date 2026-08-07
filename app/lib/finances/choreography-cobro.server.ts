@@ -61,7 +61,7 @@ class CobroRefusal extends Error {
  * cobro is all-or-nothing: an administrator who sees an error has to be able to
  * trust that nothing moved.
  */
-async function runCobro(
+export async function runCobro(
   run: (tx: Transaction) => Promise<CobroResult>,
 ): Promise<CobroResult> {
   try {
@@ -546,7 +546,7 @@ async function freezeBalanceSnapshots(
  * so a preset cannot over-allocate. An inscription that already covered the
  * threshold is skipped rather than failing: the preset is idempotent.
  */
-async function fundOwedThreshold(
+export async function fundOwedThreshold(
   tx: Transaction,
   input: {
     academyId: string;

@@ -384,7 +384,9 @@ describe.sequential("administracion finanzas academia", () => {
     ]);
     expect(markup).toContain("Lista financiera de las coreografías");
     expect(markup).toContain("Buscar coreografía por nombre");
-    expect(markup).not.toContain('aria-label="Seleccionar todas las filas"');
+    // La lista se selecciona: los presets `Pagar seña` / `Pagar saldo` viven
+    // acá y actúan sobre las coreografías elegidas.
+    expect(markup).toContain('aria-label="Seleccionar todas las filas"');
     expect(markup).toContain("Nombre");
     expect(markup).toContain("Tipo de grupo");
     expect(markup).toMatch(
