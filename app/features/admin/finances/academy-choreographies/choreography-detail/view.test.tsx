@@ -43,6 +43,25 @@ describe("ChoreographyFinanceDetailView", () => {
     expect(markup).toContain("Ana López");
   });
 
+  test("replaces the status badge with Retirada and the retained amount", () => {
+    const markup = renderDetail({
+      inscriptions: [
+        inscriptionFixture({
+          allocatedAmount: 3000,
+          financialStatus: "paidInFull",
+          owedBalanceAmount: 0,
+          owedDepositAmount: 0,
+          totalAmount: 3000,
+          withdrawn: true,
+        }),
+      ],
+    });
+
+    // Reemplaza al estado, no lo acompaña, y lleva encima la plata retenida.
+    expect(markup).toContain("Retirada · $ 3.000");
+    expect(markup).not.toContain("Pagada");
+  });
+
   test("shows a Vigente badge and a link to the covering comprobante on the Seña card", () => {
     const markup = renderDetail({
       invoicing: invoicingFixture({
@@ -478,6 +497,7 @@ function inscriptionFixture(
     owedDepositAmount: 0,
     selectedPrice: { amount: 10000, id: "price_1", name: "Dúo general" },
     totalAmount: 10000,
+    withdrawn: false,
     ...overrides,
   };
 }

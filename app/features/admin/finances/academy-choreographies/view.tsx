@@ -8,12 +8,10 @@ import { DataTableLink } from "@/components/shared/data-table-link";
 import { MetricCard } from "@/components/shared/metric-card";
 import { Badge } from "@/components/ui/badge";
 import {
-  formatInscriptionAnomaly,
-  formatInscriptionFinancialStatus,
-  getInscriptionAnomalyBadgeVariant,
-  getInscriptionFinancialStatusBadgeVariant,
-  inscriptionFinancialStatusOptions,
+  choreographyStatusFilterOptions,
+  formatInscriptionStatusBadge,
 } from "@/lib/finances/choreography-financial-status";
+import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 
 import { formatAmount, formatOperationalAmount } from "../formatters";
@@ -26,7 +24,7 @@ const choreographyFinanceFacetedFilters: DataTableFacetedFilter[] = [
   {
     id: "estado",
     label: "Estado",
-    options: [...inscriptionFinancialStatusOptions],
+    options: [...choreographyStatusFilterOptions],
   },
 ];
 
@@ -140,7 +138,10 @@ function buildChoreographyFinanceColumns(
       id: "financialStatus",
       header: "Estado",
       cell: (row) => <ChoreographyStatusCell row={row} />,
-      filterValue: (row) => row.financialStatus,
+      // El filtro sale del mismo badge que la celda muestra, no de
+      // `financialStatus`: una fila badgeada `Sobreasignada` que apareciera al
+      // filtrar por `Señada` se contradiría en pantalla.
+      filterValue: (row) => formatChoreographyStatusBadge(row).value,
     },
   ];
 }
@@ -150,25 +151,21 @@ function buildChoreographyFinanceColumns(
  * por la misma mirada, y `Señada` al lado de `Sobreasignada` se lee como dos
  * hechos del mismo peso cuando sólo uno pide que alguien haga algo.
  *
- * La precedencia se resuelve acá, en un único lugar, para que un eje derivado
- * nuevo se apile arriba sin volver a repartir la decisión por la celda.
+ * La precedencia entre ejes vive en `resolveInscriptionStatusBadge` y es
+ * explícita, no posicional: un eje derivado nuevo se apila declarándose ahí, sin
+ * depender del orden en que alguien empujó su anomalía al arreglo.
  */
-function ChoreographyStatusCell({ row }: { row: ChoreographyFinanceRow }) {
-  const [anomaly] = row.anomalies;
-
-  if (anomaly) {
-    return (
-      <Badge variant={getInscriptionAnomalyBadgeVariant(anomaly)}>
-        {formatInscriptionAnomaly(anomaly)}
-      </Badge>
-    );
-  }
-
-  return (
-    <Badge
-      variant={getInscriptionFinancialStatusBadgeVariant(row.financialStatus)}
-    >
-      {formatInscriptionFinancialStatus(row.financialStatus)}
-    </Badge>
+function formatChoreographyStatusBadge(row: ChoreographyFinanceRow) {
+  return formatInscriptionStatusBadge(
+    resolveInscriptionStatusBadge({
+      anomalies: row.anomalies,
+      financialStatus: row.financialStatus,
+    }),
   );
+}
+
+function ChoreographyStatusCell({ row }: { row: ChoreographyFinanceRow }) {
+  const badge = formatChoreographyStatusBadge(row);
+
+  return <Badge variant={badge.variant}>{badge.label}</Badge>;
 }

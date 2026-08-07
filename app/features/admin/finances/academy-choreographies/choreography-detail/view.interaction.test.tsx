@@ -275,6 +275,7 @@ function inscriptionFixture(
     owedDepositAmount: 0,
     selectedPrice: { amount: 10000, id: "price_1", name: "Dúo general" },
     totalAmount: 10000,
+    withdrawn: false,
     ...overrides,
   };
 }
