@@ -171,6 +171,22 @@ export function hasNoCompatibleCategory({
   return hasResolvedRosterChange && derivedResolution.categoryId === null;
 }
 
+/**
+ * El slot "Cronograma" es uno solo y el select del roster tiene prioridad: un
+ * cambio de tipo de grupo limpia el cupo, y el reemplazo se elige junto con la
+ * confirmación del roster, no por separado. Recién cuando no hay cambio de
+ * roster pendiente entra la reasignación autónoma.
+ */
+export function shouldRenderRosterScheduleSelect({
+  hasResolvedRosterChange,
+  scheduleResolution,
+}: {
+  hasResolvedRosterChange: boolean;
+  scheduleResolution: ScheduleResolution;
+}) {
+  return hasResolvedRosterChange && scheduleResolution?.status === "multiple";
+}
+
 export function canSubmitChoreographyEdit(input: CanSubmitInput) {
   if (
     !input.hasNameChanged &&

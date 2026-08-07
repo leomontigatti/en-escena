@@ -11,6 +11,7 @@ import {
   getResolvedRosterFieldState,
   getSelectionKey,
   hasNoCompatibleCategory,
+  shouldRenderRosterScheduleSelect,
   shouldResolveRosterSelection,
   type RosterResolutionState,
 } from "./roster-form-state";
@@ -304,6 +305,42 @@ function buildKeepCurrentSchedule(): ChoreographyDancerScheduleResolution {
     selectedScheduleCapacityId: "capacity_1",
   };
 }
+
+describe("shouldRenderRosterScheduleSelect", () => {
+  const multipleResolution: ChoreographyDancerScheduleResolution = {
+    status: "multiple",
+    canSave: true,
+    options: [
+      buildScheduleOption("capacity_1"),
+      buildScheduleOption("capacity_2"),
+    ],
+    selectedScheduleCapacityId: null,
+  };
+
+  test("renders the roster select while a roster change is pending", () => {
+    expect(
+      shouldRenderRosterScheduleSelect({
+        hasResolvedRosterChange: true,
+        scheduleResolution: multipleResolution,
+      }),
+    ).toBe(true);
+  });
+
+  test("leaves the slot to the standalone reassignment without a pending roster change", () => {
+    expect(
+      shouldRenderRosterScheduleSelect({
+        hasResolvedRosterChange: false,
+        scheduleResolution: multipleResolution,
+      }),
+    ).toBe(false);
+    expect(
+      shouldRenderRosterScheduleSelect({
+        hasResolvedRosterChange: true,
+        scheduleResolution: null,
+      }),
+    ).toBe(false);
+  });
+});
 
 function buildScheduleOption(id: string): ChoreographyDancerScheduleOption {
   return {
