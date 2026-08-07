@@ -133,6 +133,15 @@ export async function syncInscriptionSnapshots(
       ...(inscription.depositReferenceDate !== null && allocated < depositAmount
         ? clearDepositSnapshot()
         : {}),
+      // The selected price is fixed by the first allocation and only reverts
+      // once nothing is allocated, so a row that still holds money keeps it.
+      // Clearing it here would also break the write: the database guard raises
+      // whenever `selected_price_id` changes while allocations exist, which
+      // turned a partial removal from a preset-frozen row into a 500 instead of
+      // the refusal-free removal the surface promises.
+      ...(allocated > 0
+        ? { selectedPriceId: inscription.selectedPriceId }
+        : {}),
     };
 
     if (Object.keys(patch).length === 0) {

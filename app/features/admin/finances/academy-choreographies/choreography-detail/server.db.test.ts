@@ -299,8 +299,8 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
       owedBalanceAmount: { amount: 0, status: "complete" },
       totalAmount: { amount: 10000, status: "complete" },
     });
-    // El precio que la fila tiene encima viaja con ella: el diálogo lo muestra
-    // bloqueado, porque la plata ya lo fijó.
+    // The price the row already holds travels with it: the dialog shows it
+    // locked, because the money has already fixed it.
     expect(loaderData.inscriptions[0]?.selectedPrice).toMatchObject({
       amount: 10000,
     });

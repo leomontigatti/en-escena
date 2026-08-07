@@ -182,8 +182,8 @@ describe.sequential("money on an inscription through the route action", () => {
     ]);
 
     const detail = await loadDetail(fixture);
-    // Una asignación parcial es un resultado corriente: la fila lee
-    // `Seña pendiente` con su faltante, no como impaga.
+    // A partial allocation is an ordinary outcome: the row reads
+    // `Seña pendiente` with its shortfall, not as unpaid.
     expect(detail.inscriptions[0]).toMatchObject({
       allocatedAmount: 2000,
       financialStatus: "depositPending",
@@ -308,11 +308,66 @@ describe.sequential("money on an inscription through the route action", () => {
     });
 
     expect(response).toMatchObject({ status: 302 });
-    // Se llenó del pago más viejo primero (4000 + 2000) y se deshizo desde el
-    // más nuevo: el que queda vacío es el segundo, sin que nadie lo eligiera.
+    // Funded oldest-first (4000 + 2000) and unwound newest-first: the one left
+    // empty is the second, without anyone having picked it.
     expect(await readAllocations(fixture.inscriptionId)).toEqual([
       { amount: 4000, paymentId: fixture.payments[0].id },
     ]);
+  });
+
+  test("removes part of a preset-frozen row instead of tripping the price guard", async () => {
+    const fixture = await seedInscription();
+
+    await postDetailAction({
+      academyId: fixture.academyId,
+      choreographyId: fixture.choreographyId,
+      eventId: fixture.eventId,
+      fields: {
+        intent: "allocate-inscription",
+        inscriptionId: fixture.inscriptionId,
+        priceId: fixture.priceId,
+        amount: "3000",
+      },
+    });
+
+    // The seña preset freezes the ladder snapshot on the row it charges.
+    // Reproducing that state is what makes the removal below cross back under
+    // the deposit while money is still on the row: the case that used to null
+    // `selected_price_id` under live allocations and raise from the database
+    // guard, turning a removal into a 500.
+    await db
+      .update(choreographyDancers)
+      .set({ depositAmount: 3000, depositReferenceDate: "2026-04-10" })
+      .where(eq(choreographyDancers.id, fixture.inscriptionId));
+
+    const response = await postDetailAction({
+      academyId: fixture.academyId,
+      choreographyId: fixture.choreographyId,
+      eventId: fixture.eventId,
+      fields: {
+        intent: "remove-inscription-money",
+        inscriptionId: fixture.inscriptionId,
+        amount: "1000",
+      },
+    });
+
+    expect(response).toMatchObject({ status: 302 });
+    expect(await readAllocations(fixture.inscriptionId)).toEqual([
+      { amount: 2000, paymentId: fixture.payments[0].id },
+    ]);
+
+    const [row] = await db
+      .select({
+        depositReferenceDate: choreographyDancers.depositReferenceDate,
+        selectedPriceId: choreographyDancers.selectedPriceId,
+      })
+      .from(choreographyDancers)
+      .where(eq(choreographyDancers.id, fixture.inscriptionId));
+
+    // The ladder snapshot goes, the price stays: it is fixed by the first
+    // allocation and only reverts once nothing is allocated.
+    expect(row.depositReferenceDate).toBeNull();
+    expect(row.selectedPriceId).toBe(fixture.priceId);
   });
 
   test("removing money never blocks and the figures re-derive from what remains", async () => {

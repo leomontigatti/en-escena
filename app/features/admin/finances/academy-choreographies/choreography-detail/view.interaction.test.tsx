@@ -61,7 +61,7 @@ describe("DancerNameCell interaction", () => {
     await clickReactDomButton("Bruno Benítez");
 
     const amount = amountInput();
-    // La seña ya está cubierta, así que lo que falta para terminar es el saldo.
+    // The seña is already covered, so what is left to finish is the saldo.
     expect(amount.placeholder).toBe("$ 7.000");
     expect(amount.value).toBe("");
   });
@@ -88,7 +88,7 @@ describe("DancerNameCell interaction", () => {
 
     await clickReactDomButton("Bruno Benítez");
 
-    // Bloqueado, no advertido: el precio es una lectura y no hay selector.
+    // Locked, not warned about: the price is a reading and there is no picker.
     expect(document.querySelector('[data-slot="select-trigger"]')).toBeNull();
     expect(document.body.textContent).toContain(
       "Para cambiarle el precio hay que quitarle toda la plata",
@@ -132,7 +132,7 @@ describe("DancerNameCell interaction", () => {
     expect(dialogText()).toContain("Quitar plata");
     expect(dialogText()).not.toContain("Precio");
     expect(document.querySelector('[data-slot="select-trigger"]')).toBeNull();
-    // Prefilled con todo lo asignado, y admite cualquier monto menor.
+    // Prefilled with everything allocated, and it accepts any smaller amount.
     expect(amountInput("inscription-removed-amount").value).toBe("10000");
   });
 
@@ -165,7 +165,7 @@ describe("DancerNameCell interaction", () => {
 
     expect(dialogText()).toContain("Liberar $ 2.000");
     expect(dialogText()).not.toContain("Precio");
-    // Ni monto ni precio: la cifra está computada.
+    // Neither amount nor price: the figure is computed.
     expect(document.querySelector("input#inscription-amount")).toBeNull();
     expect(
       document.querySelector("input#inscription-removed-amount"),
