@@ -873,6 +873,51 @@ describe("administrative choreography detail server", () => {
     ).toContain(drifted.scheduleCapacity.id);
   });
 
+  test("rejects a reassignment to the only compatible cupo, which the read-only field never offers", async () => {
+    const scenario = await createScheduleCapacityScenario({
+      academyName: "Academia Cronograma Único",
+      slug: "cronograma.unico",
+    });
+
+    // La asignación deriva a un cupo de otra modalidad y queda un solo
+    // cronograma compatible: el campo se cierra, así que el intent tampoco
+    // puede aceptar el movimiento que la vista se niega a ofrecer.
+    const foreignModality = await createModalityRecord({
+      eventId: scenario.event.id,
+      name: "Urbano",
+    });
+    const drifted = await createScheduleWithSoloCapacity({
+      eventId: scenario.event.id,
+      modalityId: foreignModality.id,
+    });
+    await db
+      .delete(schedules)
+      .where(eq(schedules.id, scenario.target.schedule.id));
+    await db
+      .update(choreographies)
+      .set({
+        scheduleCapacityId: drifted.scheduleCapacity.id,
+        scheduleId: null,
+      })
+      .where(eq(choreographies.id, scenario.choreography.id));
+
+    const detail = await loadDetail({
+      choreographyId: scenario.choreography.id,
+      email: "admin.coreografias.cronograma.unico.detalle@example.com",
+      role: "admin",
+    });
+    expect(detail.scheduleCapacity.canReassign).toBe(false);
+
+    const result = await scenario.reassignTo(
+      scenario.catalog.scheduleCapacity.id,
+    );
+
+    expect(result).toMatchObject({ status: "error" });
+    expect(await scenario.readAssignment()).toMatchObject({
+      scheduleCapacityId: drifted.scheduleCapacity.id,
+    });
+  });
+
   test("shows the occupancy in the cupo options and marks the full ones", async () => {
     const scenario = await createScheduleCapacityScenario({
       academyName: "Academia Cronograma Ocupación",

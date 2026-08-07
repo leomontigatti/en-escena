@@ -153,10 +153,24 @@ export async function updateChoreographyScheduleCapacity(input: {
     };
   }
 
-  const { options } = await resolveScheduleCapacityCandidates({
-    choreography: input.choreography,
-    eventId: input.eventId,
-  });
+  const { hasMultipleCompatibleOptions, options } =
+    await resolveScheduleCapacityCandidates({
+      choreography: input.choreography,
+      eventId: input.eventId,
+    });
+
+  // La misma condición que cierra el campo en el loader. Sin ella el intent
+  // acepta un movimiento que la vista se niega a ofrecer: con un solo cupo
+  // compatible el select queda de solo lectura, pero un POST armado a mano que
+  // nombre ese cupo movería la clave de precio igual.
+  if (!hasMultipleCompatibleOptions) {
+    return {
+      message:
+        "No se puede cambiar el cupo de cronograma: no hay otro cronograma compatible con esta coreografía.",
+      status: "error",
+    };
+  }
+
   const requestedOptionId = readRequestedScheduleCapacityOptionId(
     input.formData,
   );

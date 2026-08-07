@@ -134,6 +134,15 @@ export function toScheduleCapacityOccupancyKey(
 /**
  * Una coreografía ocupa el cronograma tanto si lo tiene asignado directo como
  * si llegó a él por su cupo, igual que en el conteo del lock.
+ *
+ * La atribución acá es de a uno: el `or` alcanza la fila por cualquiera de los
+ * dos caminos, pero el `group by coalesce(...)` la suma a un solo cronograma.
+ * El lock usa el mismo `or` sin agrupar, así que suma la fila a los dos. Los
+ * dos conteos coinciden solo porque `scheduleId` y el `scheduleId` del cupo son
+ * siempre el mismo cronograma — invariante que hoy sostienen el registro, el
+ * camino de elenco y la reasignación del detalle, que escriben el par junto.
+ * Quien rompa esa invariante rompe este contador antes que el lock: este
+ * mostraría lugar donde el lock rechaza.
  */
 async function countChoreographiesBySchedule(input: {
   excludedChoreographyFilter: ReturnType<typeof ne> | undefined;

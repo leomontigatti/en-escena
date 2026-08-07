@@ -56,6 +56,7 @@ import {
   type ChoreographyViewActionData,
 } from "./shared";
 import { useRosterForm } from "./use-roster-form";
+import { useSavedValueSelectForm } from "./use-saved-value-select-form";
 import type { ChoreographyDetailLoaderData } from "./server";
 
 type ChoreographyDetailRouteViewProps = {
@@ -438,9 +439,10 @@ function SubmodalityField({
 }) {
   const choreography = loaderData.choreography;
   const submit = useSubmit();
-  const submodalityForm = useForm<{ submodalityId: string }>({
-    defaultValues: { submodalityId: choreography.submodalityId ?? "" },
-  });
+  const submodalityForm = useSavedValueSelectForm(
+    "submodalityId",
+    choreography.submodalityId ?? "",
+  );
 
   // Editable solo para `admin`, cuando la modalidad tiene submodalidades y la
   // coreografía todavía no tiene presentación. La modalidad es inmutable.
@@ -489,13 +491,10 @@ function ScheduleCapacityField({
 }) {
   const choreography = loaderData.choreography;
   const submit = useSubmit();
-  const scheduleCapacityForm = useForm<{
-    [assignedScheduleCapacityFieldName]: string;
-  }>({
-    defaultValues: {
-      [assignedScheduleCapacityFieldName]: choreography.scheduleCapacityId,
-    },
-  });
+  const scheduleCapacityForm = useSavedValueSelectForm(
+    assignedScheduleCapacityFieldName,
+    choreography.scheduleCapacityId,
+  );
 
   if (!loaderData.scheduleCapacity.canReassign) {
     return (
