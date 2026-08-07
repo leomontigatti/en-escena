@@ -257,7 +257,37 @@ describe("ChoreographyFinanceDetailView", () => {
     expect(markup).toContain("$ 17.500");
   });
 
-  test("marks every amount of an impaga inscription as tentative", () => {
+  test("styles the amount columns by column and never by row", () => {
+    const pending = amountColumnStyles(
+      renderDetail({
+        inscriptions: [
+          inscriptionFixture({
+            financialStatus: "depositPending",
+            ladderStage: "impaga",
+          }),
+        ],
+      }),
+    );
+    const paid = amountColumnStyles(
+      renderDetail({
+        inscriptions: [inscriptionFixture({ financialStatus: "paidInFull" })],
+      }),
+    );
+
+    // Ninguna cifra es provisoria, así que el estilo no puede variar con el
+    // estado: si variara, el gris volvería a significar algo.
+    expect(pending).toEqual(paid);
+    // Lo que queda es decoración fija: `Total` es contexto, `Saldo adeudado` es
+    // la única cifra accionable.
+    expect(pending).toEqual({
+      "Precio base": { emphasised: false, muted: false },
+      Seña: { emphasised: false, muted: false },
+      Total: { emphasised: false, muted: true },
+      "Saldo adeudado": { emphasised: true, muted: false },
+    });
+  });
+
+  test("does not label any amount as provisional", () => {
     const markup = renderDetail({
       inscriptions: [
         inscriptionFixture({
@@ -267,35 +297,34 @@ describe("ChoreographyFinanceDetailView", () => {
       ],
     });
 
-    expect(tentativeAmounts(markup)).toEqual({
-      "Precio base": true,
-      Seña: true,
-      Total: true,
-    });
+    expect(markup).not.toContain("provisori");
+    expect(markup).not.toContain("estimad");
+    expect(markup).not.toContain("tentativ");
   });
 
-  test("marks only the saldo of a señada inscription as tentative", () => {
-    const markup = renderDetail({
-      inscriptions: [inscriptionFixture({ financialStatus: "depositMet" })],
-    });
+  test("alerts about the over-allocation without a title and without naming dancers", () => {
+    const alert = anomalyAlert(
+      renderDetail({
+        choreography: choreographyFixture({
+          anomalies: ["overAllocated"],
+          overAllocatedAmount: 2000,
+        }),
+      }),
+    );
 
-    expect(tentativeAmounts(markup)).toEqual({
-      "Precio base": false,
-      Seña: false,
-      Total: true,
-    });
+    expect(alert.textContent).toContain(
+      "Hay inscripciones con más dinero asignado que su total",
+    );
+    // Genérica: sin título, y sin enumerar bailarines ni contarlos.
+    expect(alert.querySelector('[data-slot="alert-title"]')).toBeNull();
+    expect(alert.textContent).not.toContain("Ana López");
+    expect(alert.textContent).not.toContain("$");
   });
 
-  test("marks no amount of a pagada inscription as tentative", () => {
-    const markup = renderDetail({
-      inscriptions: [inscriptionFixture({ financialStatus: "paidInFull" })],
-    });
+  test("shows no anomaly alert when nothing is over-allocated", () => {
+    const markup = renderDetail();
 
-    expect(tentativeAmounts(markup)).toEqual({
-      "Precio base": false,
-      Seña: false,
-      Total: false,
-    });
+    expect(markup).not.toContain("más dinero asignado que su total");
   });
 
   test("does not warn when the available balance covers the stage total", () => {
@@ -366,11 +395,11 @@ describe("ChoreographyFinanceDetailView", () => {
 });
 
 /**
- * Mapea cada columna de importe de la fila de inscripción a si se muestra como
- * tentativa. Se ancla en el encabezado de la columna, no en su posición, para
- * que el test hable de "Saldo" y no de "la celda 5".
+ * Mapea cada columna de importe de la fila de inscripción a su decoración. Se
+ * ancla en el encabezado de la columna, no en su posición, para que el test
+ * hable de "Saldo adeudado" y no de "la celda 5".
  */
-function tentativeAmounts(markup: string) {
+function amountColumnStyles(markup: string) {
   const document = new DOMParser().parseFromString(markup, "text/html");
   const table = document.querySelector('[aria-label="Inscripciones"] table');
   const headers = [...(table?.querySelectorAll("thead th") ?? [])].map(
@@ -379,16 +408,36 @@ function tentativeAmounts(markup: string) {
   const cells = [...(table?.querySelectorAll("tbody tr td") ?? [])];
 
   return Object.fromEntries(
-    ["Precio base", "Seña", "Total"].map((column) => {
+    ["Precio base", "Seña", "Total", "Saldo adeudado"].map((column) => {
       const cell = cells[headers.indexOf(column)];
 
       if (!cell) {
         throw new Error(`No se encontró la columna "${column}".`);
       }
 
-      return [column, cell.classList.contains("text-muted-foreground")];
+      return [
+        column,
+        {
+          emphasised: cell.classList.contains("font-medium"),
+          muted: cell.classList.contains("text-muted-foreground"),
+        },
+      ];
     }),
   );
+}
+
+/** La alerta de anomalía del detalle, ubicada por su variante `destructive`. */
+function anomalyAlert(markup: string): Element {
+  const document = new DOMParser().parseFromString(markup, "text/html");
+  const alert = [...document.querySelectorAll('[data-slot="alert"]')].find(
+    (candidate) => candidate.className.split(" ").includes("text-destructive"),
+  );
+
+  if (!alert) {
+    throw new Error("No se encontró la alerta de anomalía.");
+  }
+
+  return alert;
 }
 
 /**

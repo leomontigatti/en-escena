@@ -121,6 +121,47 @@ describe("AcademyFinancesRouteView", () => {
     expect(rowCells[1]?.[totalColumnIndex]).toBe("Pendiente");
   });
 
+  test("replaces the status badge with the anomaly badge when a choreography is over-allocated", async () => {
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/administracion/finanzas/:academyId",
+          element: (
+            <AcademyFinancesRouteView
+              loaderData={academyFinancesLoaderDataFixture({
+                choreographyFinanceRows: [
+                  choreographyFinanceRowFixture({
+                    anomalies: ["overAllocated"],
+                    financialStatus: "depositMet",
+                    id: "choreography_1",
+                    name: "Aire",
+                    overAllocatedAmount: 2000,
+                  }),
+                  choreographyFinanceRowFixture({
+                    financialStatus: "depositMet",
+                    id: "choreography_2",
+                    name: "Tango",
+                  }),
+                ],
+              })}
+            />
+          ),
+        },
+      ],
+      {
+        initialEntries: ["/administracion/finanzas/academy_1"],
+      },
+    );
+
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    const badges = statusBadges();
+
+    // Reemplaza, no acompaña: la fila sobreasignada muestra un solo badge.
+    expect(badges[0]).toEqual([{ text: "Sobreasignada", destructive: true }]);
+    expect(badges[1]).toEqual([{ text: "Señada", destructive: false }]);
+  });
+
   test("never renders a choreography selection column", async () => {
     const router = createMemoryRouter(
       [
@@ -205,4 +246,28 @@ function choreographyFinanceRowFixture(
     totalAmount: { amount: 10000, status: "complete" },
     ...overrides,
   };
+}
+
+/**
+ * Badges de la columna `Estado`, por fila. El test se ancla en el encabezado y
+ * no en la posición de la celda.
+ */
+function statusBadges() {
+  const headers = [...document.querySelectorAll("thead th")].map((header) =>
+    (header.textContent ?? "").trim(),
+  );
+  const statusIndex = headers.indexOf("Estado");
+
+  return [...document.querySelectorAll("tbody tr")].map((row) => {
+    const cell = [...row.querySelectorAll("td")][statusIndex];
+
+    return [...(cell?.querySelectorAll('[data-slot="badge"]') ?? [])].map(
+      (badge) => ({
+        text: (badge.textContent ?? "").trim(),
+        // Token exacto: la clase base del badge menciona `destructive` en sus
+        // estados `aria-invalid`, así que un `includes` daría siempre verdadero.
+        destructive: badge.className.split(" ").includes("text-destructive"),
+      }),
+    );
+  });
 }

@@ -28,9 +28,7 @@ import {
   formatInscriptionFinancialStatus,
   getInscriptionFinancialStatusBadgeVariant,
 } from "@/lib/finances/choreography-financial-status";
-import { isTentativeInscriptionAmount } from "@/lib/finances/inscription-amounts";
 import { choreographyGroupTypeOptions } from "@/lib/portal/choreographies";
-import { cn } from "@/lib/shared/utils";
 
 type PortalChoreographyFinanceDetailLoaderData = Awaited<
   ReturnType<typeof loadPortalChoreographyFinanceDetail>
@@ -109,6 +107,16 @@ export function PortalChoreographyFinanceDetailRouteView({
   );
 }
 
+/**
+ * Estilo de columna, decorativo y sin condición. Ninguna cifra es provisoria, así
+ * que no queda nada que atenuar por fila: `Total` va atenuada entera por ser la
+ * columna de contexto —contra qué se mide lo adeudado, que la academia lee en su
+ * propia métrica arriba—, y un gris que variara por fila volvería a significar
+ * algo.
+ */
+const amountColumnClassName = "text-right tabular-nums";
+const totalColumnClassName = "text-right tabular-nums text-muted-foreground";
+
 function InscriptionsTable({
   inscriptions,
 }: {
@@ -124,7 +132,7 @@ function InscriptionsTable({
               <TableHead>Estado</TableHead>
               <TableHead className="text-right">Precio base</TableHead>
               <TableHead className="text-right">Seña</TableHead>
-              <TableHead className="text-right">Saldo</TableHead>
+              <TableHead className="text-right">Total</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -145,34 +153,13 @@ function InscriptionsTable({
                       )}
                     </Badge>
                   </TableCell>
-                  <TableCell
-                    className={amountCellClassName(
-                      isTentativeInscriptionAmount(
-                        inscription.financialStatus,
-                        "basePrice",
-                      ),
-                    )}
-                  >
+                  <TableCell className={amountColumnClassName}>
                     {formatInscriptionAmount(inscription.basePriceAmount)}
                   </TableCell>
-                  <TableCell
-                    className={amountCellClassName(
-                      isTentativeInscriptionAmount(
-                        inscription.financialStatus,
-                        "deposit",
-                      ),
-                    )}
-                  >
+                  <TableCell className={amountColumnClassName}>
                     {formatInscriptionAmount(inscription.depositAmount)}
                   </TableCell>
-                  <TableCell
-                    className={amountCellClassName(
-                      isTentativeInscriptionAmount(
-                        inscription.financialStatus,
-                        "total",
-                      ),
-                    )}
-                  >
+                  <TableCell className={totalColumnClassName}>
                     {formatInscriptionAmount(inscription.totalAmount)}
                   </TableCell>
                 </TableRow>
@@ -200,10 +187,6 @@ function InscriptionsTable({
       </CardFooter>
     </Card>
   );
-}
-
-function amountCellClassName(isTentative: boolean) {
-  return cn("text-right tabular-nums", isTentative && "text-muted-foreground");
 }
 
 function formatInscriptionAmount(amount: number | null) {
