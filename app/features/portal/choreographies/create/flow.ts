@@ -8,6 +8,7 @@ import {
   invalidChoreographyNameMessage,
 } from "@/lib/choreographies/choreography-name";
 import type { ChoreographyRegistrationOperationResult } from "@/lib/choreographies/registration-resolution.server";
+import { isEveryScheduleCapacityOptionFull } from "@/lib/choreographies/schedule-capacity-options";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 
 export const RESOLVE_CHOREOGRAPHY_REGISTRATION_INTENT =
@@ -117,6 +118,36 @@ export function getFirstPostResolutionStepIndex(input: {
       step === "schedule" ||
       step === "professors",
   );
+}
+
+/**
+ * Sin ningún cupo con lugar el paso reemplaza el select por el aviso, así que no
+ * queda nada para elegir: la acción del pie queda deshabilitada en lugar de
+ * seguir habilitada sin efecto.
+ */
+export function canAdvanceFromScheduleStep(input: {
+  resolution: RegistrationResolution | null;
+  selectedScheduleCapacityId: string;
+}) {
+  const { resolution, selectedScheduleCapacityId } = input;
+
+  if (!resolution) {
+    return false;
+  }
+
+  if (resolution.schedule.status === "auto") {
+    return true;
+  }
+
+  if (resolution.schedule.status !== "multiple") {
+    return false;
+  }
+
+  if (isEveryScheduleCapacityOptionFull(resolution.schedule.options)) {
+    return false;
+  }
+
+  return selectedScheduleCapacityId.length > 0;
 }
 
 export function setRequiredFieldError(
