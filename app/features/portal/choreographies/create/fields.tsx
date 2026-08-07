@@ -19,6 +19,7 @@ type CreateChoreographyFieldName =
 type SelectOption = {
   value: string;
   label: string;
+  disabled?: boolean;
 };
 
 export function CreateChoreographyTextField({

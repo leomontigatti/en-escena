@@ -34,6 +34,7 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
+import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
@@ -326,7 +327,7 @@ function ChoreographyDetailForm({
                 label="Cronograma"
                 name="scheduleCapacityId"
                 options={roster.scheduleResolution.options.map((option) => ({
-                  label: formatScheduleOptionLabel(option),
+                  label: formatScheduleDateTime(option.schedule),
                   value: option.id,
                 }))}
                 placeholder="Elegí el cronograma"
@@ -511,30 +512,6 @@ function getChoreographyFormValues(
     professorIds: choreography.professors.map((professor) => professor.id),
     scheduleCapacityId: "",
   };
-}
-
-function formatScheduleOptionLabel(option: {
-  schedule: { name: string; scheduledDate?: string; startTime?: string };
-}) {
-  const { name, scheduledDate, startTime } = option.schedule;
-
-  if (!scheduledDate || !startTime) {
-    return name;
-  }
-
-  const [year, month, day] = scheduledDate.split("-").map(Number);
-
-  if (!year || !month || !day) {
-    return name;
-  }
-
-  const formattedDate = new Intl.DateTimeFormat("es-AR", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(new Date(year, month - 1, day));
-
-  return `${formattedDate} - ${startTime.slice(0, 5)} hs.`;
 }
 
 function toPersonOption(person: {
