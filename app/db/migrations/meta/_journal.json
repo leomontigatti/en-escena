@@ -64,6 +64,13 @@
       "when": 1786125909570,
       "tag": "0008_cloudy_living_lightning",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1786217173265,
+      "tag": "0009_drop_inscription_snapshot_columns",
+      "breakpoints": true
     }
   ]
 }

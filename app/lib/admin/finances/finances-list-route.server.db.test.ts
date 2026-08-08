@@ -70,9 +70,6 @@ async function seedSignedInscription(input: {
   academyId: string;
   choreographyId: string;
   dancerId: string;
-  depositAmount: number;
-  frozenBasePriceAmount: number;
-  paid?: { finalTotalAmount: number; balanceAmount: number };
 }) {
   const [inscription] = await db
     .insert(choreographyDancers)
@@ -80,20 +77,6 @@ async function seedSignedInscription(input: {
       ageAtEventStart: 14,
       choreographyId: input.choreographyId,
       dancerId: input.dancerId,
-      frozenBasePriceAmount: input.frozenBasePriceAmount,
-      depositReferenceDate: "2026-03-20",
-      depositPercentage: 30,
-      depositAmount: input.depositAmount,
-      ...(input.paid
-        ? {
-            balanceReferenceDate: "2026-03-23",
-            appliedDancerDiscountPercentage: 0,
-            appliedDancerDiscountAmount: 0,
-            finalTotalAmount: input.paid.finalTotalAmount,
-            balanceAmount: input.paid.balanceAmount,
-            balanceCompletedAt: "2026-03-23",
-          }
-        : {}),
     })
     .returning();
 
@@ -208,8 +191,6 @@ describe.sequential("administracion finanzas", () => {
       academyId: academyNorth.academy.id,
       choreographyId: northActive.id,
       dancerId: northActiveDancer.id,
-      depositAmount: 3000,
-      frozenBasePriceAmount: 10000,
     });
     await db.insert(paymentAllocations).values({
       academyId: academyNorth.academy.id,
@@ -239,9 +220,6 @@ describe.sequential("administracion finanzas", () => {
       academyId: academyNorth.academy.id,
       choreographyId: northPaid.id,
       dancerId: northPaidDancer.id,
-      depositAmount: 3000,
-      frozenBasePriceAmount: 10000,
-      paid: { balanceAmount: 7000, finalTotalAmount: 10000 },
     });
     await db.insert(paymentAllocations).values({
       academyId: academyNorth.academy.id,

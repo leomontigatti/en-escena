@@ -174,11 +174,7 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
         ageAtEventStart: 14,
         choreographyId: choreography.id,
         dancerId: dancer.id,
-        frozenBasePriceAmount: 10000,
         selectedPriceId: await readSoloPriceId(event.id),
-        depositReferenceDate: "2026-03-21",
-        depositPercentage: 30,
-        depositAmount: 3000,
       })
       .returning();
     const payment = await seedPayment({
@@ -256,17 +252,7 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
         ageAtEventStart: 14,
         choreographyId: choreography.id,
         dancerId: dancer.id,
-        frozenBasePriceAmount: 10000,
         selectedPriceId: await readSoloPriceId(event.id),
-        depositReferenceDate: "2026-03-21",
-        depositPercentage: 30,
-        depositAmount: 3000,
-        balanceReferenceDate: "2026-04-21",
-        appliedDancerDiscountPercentage: 0,
-        appliedDancerDiscountAmount: 0,
-        finalTotalAmount: 10000,
-        balanceAmount: 7000,
-        balanceCompletedAt: "2026-04-21",
       })
       .returning();
     const payment = await seedPayment({
