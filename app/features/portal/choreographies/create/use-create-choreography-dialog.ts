@@ -9,6 +9,7 @@ import { hasChoreographyNameContent } from "@/lib/choreographies/choreography-na
 import {
   buildCreateChoreographyFormData,
   buildResolveChoreographyFormData,
+  canAdvanceFromScheduleStep,
   CREATE_CHOREOGRAPHY_RESOLUTION_ERROR_TOAST_ID,
   createChoreographySchema,
   emptyCreateChoreographyValues,
@@ -297,11 +298,10 @@ export function useCreateChoreographyDialog({
     resolution !== null &&
     (!resolution.experienceLevel.required ||
       selectedExperienceLevelId.length > 0);
-  const hasRequiredSchedule =
-    resolution !== null &&
-    (resolution.schedule.status === "auto" ||
-      (resolution.schedule.status === "multiple" &&
-        selectedScheduleCapacityId.length > 0));
+  const canAdvanceFromSchedule = canAdvanceFromScheduleStep({
+    resolution,
+    selectedScheduleCapacityId,
+  });
 
   return {
     canAdvanceFromExperienceLevel:
@@ -309,7 +309,7 @@ export function useCreateChoreographyDialog({
     canAdvanceFromModality,
     canAdvanceFromName,
     canAdvanceFromProfessors,
-    canAdvanceFromSchedule: resolution !== null && hasRequiredSchedule,
+    canAdvanceFromSchedule,
     canAdvanceFromSubmodality,
     canChooseSubmodality,
     canResolve,
