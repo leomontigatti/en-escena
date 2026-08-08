@@ -54,7 +54,7 @@ describe("access recovery", () => {
     });
   });
 
-  test("exchanges the recovery code through Supabase Auth", async () => {
+  test("opens the recovery session from a recovery code", async () => {
     exchangePasswordRecoveryCode.mockResolvedValue({
       headers: new Headers(),
       redirectTo: "/cambiar-contrasena?recuperacion=1",
@@ -78,7 +78,7 @@ describe("access recovery", () => {
     });
   });
 
-  test("verifies a recovery token hash from the Supabase email hook", async () => {
+  test("opens the recovery session from a recovery email link", async () => {
     verifyPasswordRecoveryOtp.mockResolvedValue({
       headers: new Headers(),
       redirectTo: "/cambiar-contrasena?recuperacion=1",
@@ -104,7 +104,7 @@ describe("access recovery", () => {
     });
   });
 
-  test("updates the password through Supabase Auth recovery session", async () => {
+  test("updates the password through the recovery session", async () => {
     updatePasswordForRecovery.mockResolvedValue({ headers: new Headers() });
     signOutCurrentSession.mockResolvedValue({ headers: new Headers() });
     const request = new Request("http://localhost:3000/cambiar-contrasena");
