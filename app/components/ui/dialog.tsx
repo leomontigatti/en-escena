@@ -45,10 +45,26 @@ function DialogOverlay({
   );
 }
 
+/**
+ * A pointer-down that landed on nothing: while a popover layer (a `Select`, a
+ * combobox) is open it blocks pointer events on the `body`, so a click meant for
+ * the dialog behind it hits the document instead of any element. Radix defers
+ * the dialog's outside-pointer-down to the `click` that follows, and by then the
+ * popover layer is gone, so the dialog reads that swallowed press as an
+ * interaction outside itself and closes (#708).
+ *
+ * A press that really is outside lands on the overlay, never here, so refusing
+ * exactly this one leaves the dismiss affordance untouched.
+ */
+function isSwallowedPointerDown(target: EventTarget | null) {
+  return target === document.documentElement || target === document.body;
+}
+
 function DialogContent({
   className,
   children,
   forceMount,
+  onPointerDownOutside,
   overlayClassName,
   showCloseButton = true,
   ...props
@@ -69,6 +85,13 @@ function DialogContent({
           "fixed top-1/2 left-1/2 z-50 grid w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 rounded-lg border bg-background p-6 text-foreground shadow-lg duration-100 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className,
         )}
+        onPointerDownOutside={(event) => {
+          onPointerDownOutside?.(event);
+
+          if (isSwallowedPointerDown(event.detail.originalEvent.target)) {
+            event.preventDefault();
+          }
+        }}
         {...props}
       >
         <div

@@ -1,5 +1,5 @@
 import { AlertTriangle } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import {
   AdminEmptyState,
@@ -265,6 +265,15 @@ function ChoreographyActions({
   );
 }
 
+/**
+ * The money dialog lives **next to** the table and not inside the row that
+ * opened it. A cell is a place a dialog cannot survive in: any revalidation
+ * hands the view a fresh `loaderData`, the columns are rebuilt from it, and
+ * React Table remounts every cell — which used to take the open dialog with it
+ * the instant a refused write came back, hiding the reason (#708). Out here the
+ * row is looked up by its dancer on each render, so the dialog also reads the
+ * figures the revalidation has just brought in.
+ */
 function InscriptionsTable({
   inscriptions,
   priceOptions,
@@ -272,14 +281,27 @@ function InscriptionsTable({
   inscriptions: InscriptionRow[];
   priceOptions: PriceOption[];
 }) {
-  // Las columnas se memoizan para conservar una referencia estable entre
-  // renders: sin esto, cada render recrea el array y React Table remonta las
-  // celdas, perdiendo el estado `open` del diálogo por fila (se abría y se
-  // cerraba de inmediato al re-renderizar la página).
+  const [openDancerId, setOpenDancerId] = useState<string | null>(null);
+  // Stable, so the columns are not rebuilt — and the rows not remounted — by a
+  // re-render of the view.
+  const openMoneyDialog = useCallback((dancerId: string) => {
+    setOpenDancerId(dancerId);
+  }, []);
+  const closeMoneyDialog = useCallback((open: boolean) => {
+    if (!open) {
+      setOpenDancerId(null);
+    }
+  }, []);
   const columns = useMemo(
-    () => buildInscriptionColumns(priceOptions),
-    [priceOptions],
+    () => buildInscriptionColumns(openMoneyDialog),
+    [openMoneyDialog],
   );
+  const openInscription =
+    inscriptions.find(
+      (inscription) =>
+        inscription.dancerId === openDancerId &&
+        inscription.inscriptionId !== null,
+    ) ?? null;
 
   return (
     <section aria-label="Inscripciones">
@@ -291,12 +313,19 @@ function InscriptionsTable({
         emptyMessage="No hay inscripciones para mostrar."
         hideSearch
       />
+      {openInscription ? (
+        <InscriptionMoneyDialog
+          inscription={openInscription}
+          onOpenChange={closeMoneyDialog}
+          priceOptions={priceOptions}
+        />
+      ) : null}
     </section>
   );
 }
 
 function buildInscriptionColumns(
-  priceOptions: PriceOption[],
+  onOpenMoneyDialog: (dancerId: string) => void,
 ): DataTableColumn<InscriptionRow>[] {
   return [
     {
@@ -304,7 +333,10 @@ function buildInscriptionColumns(
       header: "Bailarín",
       className: "font-medium",
       cell: (inscription) => (
-        <DancerNameCell inscription={inscription} priceOptions={priceOptions} />
+        <DancerNameCell
+          inscription={inscription}
+          onOpenMoneyDialog={onOpenMoneyDialog}
+        />
       ),
       filterValue: (inscription) => formatDancerName(inscription),
       sortValue: (inscription) => formatDancerName(inscription),
@@ -322,35 +354,24 @@ function buildInscriptionColumns(
  */
 function DancerNameCell({
   inscription,
-  priceOptions,
+  onOpenMoneyDialog,
 }: {
   inscription: InscriptionRow;
-  priceOptions: PriceOption[];
+  onOpenMoneyDialog: (dancerId: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
-
   if (inscription.inscriptionId === null) {
     return <>{formatDancerName(inscription)}</>;
   }
 
   return (
-    <>
-      <Button
-        type="button"
-        variant="link"
-        className="h-auto p-0 text-left font-medium"
-        onClick={() => setOpen(true)}
-      >
-        {formatDancerName(inscription)}
-      </Button>
-      {open ? (
-        <InscriptionMoneyDialog
-          inscription={inscription}
-          onOpenChange={setOpen}
-          priceOptions={priceOptions}
-        />
-      ) : null}
-    </>
+    <Button
+      type="button"
+      variant="link"
+      className="h-auto p-0 text-left font-medium"
+      onClick={() => onOpenMoneyDialog(inscription.dancerId)}
+    >
+      {formatDancerName(inscription)}
+    </Button>
   );
 }
 
