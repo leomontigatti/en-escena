@@ -113,6 +113,67 @@ describe.sequential("portal choreographies reads", () => {
       status: 404,
     });
   });
+
+  test("leaves a withdrawn inscription out of the roster", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Retiro",
+      email: "coreografias.detail.retiro@example.com",
+    });
+    const event = await createEventRecord({
+      active: true,
+      name: "Regional Retiro",
+    });
+    const catalog = await createEventCatalog(event.id);
+    const [staying, withdrawn] = await Promise.all([
+      createDancer(owner.academyId, {
+        firstName: "Sol",
+        lastName: "Queda",
+        birthDate: "2010-02-03",
+      }),
+      createDancer(owner.academyId, {
+        firstName: "Ivo",
+        lastName: "Retirado",
+        birthDate: "2010-02-03",
+      }),
+    ]);
+    const choreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      name: "Retiro",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+    await db.insert(choreographyDancers).values([
+      {
+        ageAtEventStart: 16,
+        choreographyId: choreography.id,
+        dancerId: staying.id,
+      },
+      {
+        ageAtEventStart: 16,
+        choreographyId: choreography.id,
+        dancerId: withdrawn.id,
+        withdrawnAt: new Date("2026-04-01T12:00:00Z"),
+      },
+    ]);
+
+    const detail = await choreographyDetailLoader({
+      params: { choreographyId: choreography.id },
+      request: new Request(
+        `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
+        { headers: { cookie: owner.cookie } },
+      ),
+    });
+
+    // The portal roster is not one of the four surfaces that show evidence:
+    // the academy sees who is enrolled.
+    expect(detail.choreography?.dancers).toMatchObject([
+      { firstName: "Sol", lastName: "Queda" },
+    ]);
+  });
 });
 
 describe.sequential("portal choreographies music-only editing", () => {

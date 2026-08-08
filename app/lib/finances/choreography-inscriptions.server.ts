@@ -9,23 +9,33 @@ type AcademyEventFinanceInscriptions = Awaited<
 >["inscriptions"];
 
 export type ChoreographyInscriptionRow = {
-  balanceAmount: number | null;
+  allocatedAmount: number;
+  anomalies: AcademyEventFinanceInscriptions[number]["anomalies"];
   basePriceAmount: number | null;
   dancerId: string;
   depositAmount: number | null;
   discountAmount: number;
-  finalPriceAmount: number | null;
+  financialStatus: AcademyEventFinanceInscriptions[number]["financialStatus"];
   firstName: string;
   /** `null` para un bailarín del roster que todavía no tiene inscripción. */
   inscriptionId: string | null;
   lastName: string;
-  state: AcademyEventFinanceInscriptions[number]["state"];
+  overAllocatedAmount: number | null;
+  owedBalanceAmount: number | null;
+  owedDepositAmount: number | null;
+  totalAmount: number | null;
+  withdrawn: boolean;
 };
 
 /**
  * Una fila por bailarín del roster, aunque todavía no tenga inscripción: el
  * roster es la lista que la academia ve, y un bailarín sin inscripción lee como
- * `impaga` sin importes.
+ * `Seña pendiente` sin importes.
+ *
+ * Withdrawn rows are read on purpose —the financial detail is one of the four
+ * surfaces that show evidence—, which is why this query carries no
+ * `activeInscription()`: the withdrawn row is what documents that its money was
+ * retained.
  */
 export async function readChoreographyInscriptionRows(input: {
   academyEventInscriptions: AcademyEventFinanceInscriptions;
@@ -64,24 +74,34 @@ function toInscriptionRow(
   if (!inscription) {
     return {
       ...participation,
-      inscriptionId: null,
-      state: "impaga",
+      allocatedAmount: 0,
+      anomalies: [],
       basePriceAmount: null,
       depositAmount: null,
-      balanceAmount: null,
       discountAmount: 0,
-      finalPriceAmount: null,
+      financialStatus: "depositPending",
+      inscriptionId: null,
+      overAllocatedAmount: null,
+      owedBalanceAmount: null,
+      owedDepositAmount: null,
+      totalAmount: null,
+      withdrawn: false,
     };
   }
 
   return {
     ...participation,
-    inscriptionId: inscription.id,
-    state: inscription.state,
+    allocatedAmount: inscription.allocatedAmount,
+    anomalies: inscription.anomalies,
     basePriceAmount: inscription.basePriceAmount,
     depositAmount: inscription.depositAmount,
-    balanceAmount: inscription.balanceAmount,
     discountAmount: inscription.dancerDiscountAmount,
-    finalPriceAmount: inscription.finalPriceAmount,
+    financialStatus: inscription.financialStatus,
+    inscriptionId: inscription.id,
+    overAllocatedAmount: inscription.overAllocatedAmount,
+    owedBalanceAmount: inscription.owedBalanceAmount,
+    owedDepositAmount: inscription.owedDepositAmount,
+    totalAmount: inscription.totalAmount,
+    withdrawn: inscription.withdrawn,
   };
 }

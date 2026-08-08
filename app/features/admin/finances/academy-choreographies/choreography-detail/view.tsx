@@ -1,6 +1,5 @@
-import { AlertTriangle, Check, LoaderCircle } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { useMemo, useState } from "react";
-import { useFetcher } from "react-router";
 
 import {
   AdminEmptyState,
@@ -9,7 +8,6 @@ import {
 import { AlertStack } from "@/components/shared/alert-stack";
 import { MetricCard } from "@/components/shared/metric-card";
 import {
-  ReadOnlyDateField,
   ReadOnlyField,
   ReadOnlySelectField,
 } from "@/components/shared/read-only-field";
@@ -22,49 +20,17 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
-import {
-  Select,
-  SelectContent,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  formatChoreographyFinancialState,
-  getChoreographyFinancialStateBadgeVariant,
-} from "@/lib/finances/choreography-financial-state";
-import {
-  type InscriptionAmountColumn,
-  isTentativeInscriptionAmount,
-} from "@/lib/finances/inscription-amounts";
+import { formatInscriptionStatusBadge } from "@/lib/finances/choreography-financial-status";
+import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
 import { choreographyGroupTypeOptions } from "@/lib/portal/choreographies";
 
-import {
-  formatAmount,
-  formatDate,
-  formatOperationalAmount,
-  formatTotalAmount,
-} from "../../formatters";
+import { formatAmount, formatOperationalAmount } from "../../formatters";
 import { EmissionDialog } from "./comprobante-emission";
-import { InscriptionBalanceDialog } from "./inscription-balance-dialog";
-import {
-  formatDancerName,
-  InscriptionCobroDialog,
-} from "./inscription-cobro-dialog";
-import { InscriptionUndoDialog } from "./inscription-undo-dialog";
-import { PaymentSelectItems } from "./payment-select-items";
+import { InscriptionMoneyDialog } from "./inscription-money-dialog";
+import { formatDancerName } from "./shared";
 import type { loadChoreographyFinanceDetail, PortionCoverage } from "./server";
-import { payBalanceIntent, payDepositIntent } from "./shared";
 
 type ChoreographyFinanceDetailLoaderData = Awaited<
   ReturnType<typeof loadChoreographyFinanceDetail>
@@ -72,9 +38,8 @@ type ChoreographyFinanceDetailLoaderData = Awaited<
 
 type InscriptionRow =
   ChoreographyFinanceDetailLoaderData["inscriptions"][number];
-type PaymentRow = ChoreographyFinanceDetailLoaderData["payments"][number];
-type EligiblePayment = PaymentRow & { stageTotalAmount: number };
-type CobroStage = NonNullable<ChoreographyFinanceDetailLoaderData["stage"]>;
+
+type PriceOption = ChoreographyFinanceDetailLoaderData["priceOptions"][number];
 
 type ChoreographyFinanceDetailViewProps = {
   loaderData: ChoreographyFinanceDetailLoaderData;
@@ -118,18 +83,15 @@ export function ChoreographyFinanceDetailView({
               linkLabel="Ver comprobante que cubre la seña"
             />
             <MetricCard
-              title="Saldo"
-              value={formatOperationalAmount(choreography.balanceAmount)}
+              title="Saldo adeudado"
+              value={formatOperationalAmount(choreography.owedBalanceAmount)}
               slot={portionCoverageBadge(loaderData.invoicing.saldo)}
               to={portionCoverageHref(loaderData.invoicing.saldo)}
               linkLabel="Ver comprobante que cubre el saldo"
             />
             <MetricCard
               title="Total"
-              value={formatTotalAmount(
-                choreography.depositAmount,
-                choreography.balanceAmount,
-              )}
+              value={formatOperationalAmount(choreography.totalAmount)}
             />
           </section>
 
@@ -151,20 +113,13 @@ export function ChoreographyFinanceDetailView({
                   options={choreographyGroupTypeOptions}
                   value={choreography.groupType}
                 />
-                <ReadOnlyDateField
-                  emptyLabel="Sin pago completo"
-                  label="Fecha de pago de la seña"
-                  value={choreography.depositCompletedOn}
-                />
               </FieldGroup>
             </CardContent>
           </Card>
 
           <InscriptionsTable
-            canPayInscriptionBalance={loaderData.canPayInscriptionBalance}
             inscriptions={loaderData.inscriptions}
-            inscriptionDeposit={loaderData.inscriptionDeposit}
-            payments={loaderData.payments}
+            priceOptions={loaderData.priceOptions}
           />
         </div>
       ) : (
@@ -209,48 +164,24 @@ function portionCoverageHref(coverage: PortionCoverage | null) {
 function ChoreographyAlerts({
   loaderData,
 }: ChoreographyFinanceDetailViewProps) {
-  const stage = loaderData.stage;
-  const eligible = eligiblePayments(loaderData.payments);
-  const needsAttention = loaderData.choreography?.needsAttention ?? false;
-  const depositAmount = loaderData.choreography?.depositAmount;
-  // Sin precio aplicable no se puede cotizar la seña: la causa es la falta de
-  // precio configurado, no que los pagos no alcancen. Por eso enunciamos esa
-  // causa y suprimimos la alerta que culpa a los pagos.
-  const missingDepositPrice =
-    stage === "deposit" && depositAmount?.status === "incomplete";
-  const noEligiblePayments =
-    stage !== null && eligible.length === 0 && !missingDepositPrice;
+  const missingPrice =
+    loaderData.choreography?.depositAmount.status === "incomplete";
+  const overAllocated =
+    loaderData.choreography?.anomalies.includes("overAllocated") ?? false;
 
-  if (!needsAttention && !noEligiblePayments && !missingDepositPrice) {
+  if (!missingPrice && !overAllocated) {
     return null;
   }
 
   return (
     <AlertStack>
-      {needsAttention ? (
+      {overAllocated ? <OverAllocatedAlert /> : null}
+      {missingPrice ? (
         <Alert variant="warning">
           <AlertTriangle aria-hidden="true" />
           <AlertDescription>
-            Existen inscripciones que necesitan atención específica.
-          </AlertDescription>
-        </Alert>
-      ) : null}
-      {missingDepositPrice ? (
-        <Alert variant="warning">
-          <AlertTriangle aria-hidden="true" />
-          <AlertDescription>
-            Esta coreografía no tiene un precio configurado para cobrar la seña.
-          </AlertDescription>
-        </Alert>
-      ) : null}
-      {noEligiblePayments ? (
-        <Alert variant="warning">
-          <AlertTriangle aria-hidden="true" />
-          <AlertDescription>
-            No existe un pago registrado con saldo suficiente para{" "}
-            {stage === "deposit"
-              ? "cubrir la seña completa de la coreografía."
-              : "cubrir el saldo completo de la coreografía."}
+            Esta coreografía no tiene un precio configurado: no se puede
+            calcular lo que adeuda ni cobrarla.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -259,28 +190,52 @@ function ChoreographyAlerts({
 }
 
 /**
- * Menú único de acciones del header (`...`, ADR-0011): reúne `Emitir factura` y el
- * cobro de la etapa vigente en un solo `ResourceActionsMenu`, en lugar de botones
- * sueltos. Cada item abre su propio diálogo, montado como hermano del menú para que
- * no se desmonte al cerrarse el dropdown. Si no hay ninguna acción disponible el
- * menú no se muestra.
+ * La anomalía `Sobreasignada` en el detalle, como alerta y no como badge: en la
+ * lista es cómo se lee esa coreografía, acá es algo que alguien tiene que
+ * resolver.
+ *
+ * **Genérica y sin título, y no enumera bailarines.** Una alerta que los lista se
+ * vuelve una copia peor de la tabla que está justo abajo y crece sin límite con
+ * el roster. La tabla es donde están las filas. Es auto-resolutiva —se deriva del
+ * dinero de hoy—, así que no hay nada que descartar: se va cuando se va el
+ * problema.
+ *
+ * `destructive` y no ámbar, como el badge: `Seña pendiente` ya es una advertencia,
+ * y una seña pendiente es el estado normal de una inscripción impaga; dinero de
+ * más es dinero en el lugar equivocado.
+ */
+function OverAllocatedAlert() {
+  return (
+    <Alert variant="destructive">
+      <AlertTriangle aria-hidden="true" />
+      <AlertDescription>
+        Hay inscripciones con más dinero asignado que su total. Podés corregirlo
+        desde la lista de inscripciones.
+      </AlertDescription>
+    </Alert>
+  );
+}
+
+/**
+ * The header's single actions menu (`...`, ADR-0011): `Emitir factura` inside a
+ * `ResourceActionsMenu` rather than a loose button. The item opens its own
+ * dialog, mounted as a sibling of the menu so it is not unmounted when the
+ * dropdown closes. The menu is not rendered at all when no action is available.
+ * The `Pagar seña` / `Pagar saldo` presets do not live here: they are list
+ * actions over the selected choreographies.
  */
 function ChoreographyActions({
   loaderData,
 }: ChoreographyFinanceDetailViewProps) {
   const invoicing = loaderData.invoicing;
-  const stage = loaderData.stage;
-  const eligible = eligiblePayments(loaderData.payments);
   const canEmit = invoicing?.canEmit ?? false;
-  const canCobro = stage !== null && eligible.length > 0;
-  const [cobroOpen, setCobroOpen] = useState(false);
   // El facturable se congela al abrir y el diálogo se desmonta al CERRARLO, no
   // al perder la afordancia: una emisión recuperada por "Verificar ahora"
   // persiste el comprobante y revalida el detalle, que deja de ser facturable.
   // Desmontar ahí se llevaría puesto el estado `recovered` (#577).
   const [emission, setEmission] = useState<typeof invoicing | null>(null);
 
-  if (!canEmit && !canCobro && !emission) {
+  if (!canEmit && !emission) {
     return null;
   }
 
@@ -297,16 +252,6 @@ function ChoreographyActions({
             Emitir factura
           </DropdownMenuItem>
         ) : null}
-        {canCobro ? (
-          <DropdownMenuItem
-            onSelect={(event) => {
-              event.preventDefault();
-              setCobroOpen(true);
-            }}
-          >
-            {stage === "deposit" ? "Pagar seña" : "Pagar saldo"}
-          </DropdownMenuItem>
-        ) : null}
       </ResourceActionsMenu>
       {emission ? (
         <EmissionDialog
@@ -316,166 +261,24 @@ function ChoreographyActions({
           onOpenChange={(next) => setEmission(next ? emission : null)}
         />
       ) : null}
-      {stage !== null && eligible.length > 0 ? (
-        <CobroDialog
-          eligiblePayments={eligible}
-          open={cobroOpen}
-          onOpenChange={setCobroOpen}
-          stage={stage}
-        />
-      ) : null}
     </>
   );
 }
 
-function CobroDialog({
-  eligiblePayments,
-  open,
-  onOpenChange,
-  stage,
-}: {
-  eligiblePayments: EligiblePayment[];
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  stage: CobroStage;
-}) {
-  const fetcher = useFetcher<{ status: "error"; message: string }>();
-  const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(
-    null,
-  );
-  const isSaving = fetcher.state !== "idle";
-  const selectedPayment =
-    eligiblePayments.find((payment) => payment.id === selectedPaymentId) ??
-    null;
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => !isSaving && onOpenChange(next)}
-    >
-      <DialogContent overlayClassName="backdrop-blur-sm">
-        <DialogHeader>
-          <DialogTitle>
-            {stage === "deposit" ? "Pagar seña" : "Pagar saldo"}
-          </DialogTitle>
-          <DialogDescription className="sr-only">
-            Elegí el pago que cubre la etapa completa de la coreografía.
-          </DialogDescription>
-        </DialogHeader>
-
-        <fetcher.Form method="post" className="flex flex-col gap-4">
-          <input
-            type="hidden"
-            name="intent"
-            value={stage === "deposit" ? payDepositIntent : payBalanceIntent}
-          />
-          <div className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium">Pago a asignar</span>
-            <Select
-              name="paymentId"
-              value={selectedPaymentId ?? ""}
-              onValueChange={setSelectedPaymentId}
-              disabled={isSaving}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Elegí un pago" />
-              </SelectTrigger>
-              <SelectContent>
-                <PaymentSelectItems payments={eligiblePayments} />
-              </SelectContent>
-            </Select>
-          </div>
-
-          {selectedPayment ? (
-            <StageTotalSummary payment={selectedPayment} stage={stage} />
-          ) : null}
-
-          {fetcher.data?.status === "error" ? (
-            <Alert variant="destructive">
-              <AlertTriangle aria-hidden="true" />
-              <AlertDescription>{fetcher.data.message}</AlertDescription>
-            </Alert>
-          ) : null}
-
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="outline" disabled={isSaving}>
-                Cancelar
-              </Button>
-            </DialogClose>
-            <Button type="submit" disabled={!selectedPaymentId || isSaving}>
-              {isSaving ? (
-                <LoaderCircle
-                  aria-hidden="true"
-                  className="animate-spin"
-                  data-icon="inline-start"
-                />
-              ) : (
-                <Check aria-hidden="true" data-icon="inline-start" />
-              )}
-              Guardar
-            </Button>
-          </DialogFooter>
-        </fetcher.Form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-/**
- * Lo que se va a cobrar con el pago elegido. La seña se aclara contra la fecha
- * del pago, que es la que fija el precio: sin eso, el importe parece no
- * coincidir con el que muestra la coreografía cuando el precio ya cambió.
- */
-function StageTotalSummary({
-  payment,
-  stage,
-}: {
-  payment: EligiblePayment;
-  stage: CobroStage;
-}) {
-  return (
-    <div className="flex flex-col gap-1 rounded-md border bg-muted/50 px-3 py-2">
-      <div className="flex items-baseline justify-between gap-3">
-        <span className="text-sm text-muted-foreground">
-          {stage === "deposit" ? "Seña a cobrar" : "Saldo a cobrar"}
-        </span>
-        <span className="text-sm font-medium tabular-nums">
-          {formatAmount(payment.stageTotalAmount)}
-        </span>
-      </div>
-      {stage === "deposit" ? (
-        <span className="text-xs text-muted-foreground">
-          Al precio vigente al {formatDate(payment.paymentDate)}.
-        </span>
-      ) : null}
-    </div>
-  );
-}
-
 function InscriptionsTable({
-  canPayInscriptionBalance,
   inscriptions,
-  inscriptionDeposit,
-  payments,
+  priceOptions,
 }: {
-  canPayInscriptionBalance: boolean;
   inscriptions: InscriptionRow[];
-  inscriptionDeposit: ChoreographyFinanceDetailLoaderData["inscriptionDeposit"];
-  payments: PaymentRow[];
+  priceOptions: PriceOption[];
 }) {
   // Las columnas se memoizan para conservar una referencia estable entre
   // renders: sin esto, cada render recrea el array y React Table remonta las
   // celdas, perdiendo el estado `open` del diálogo por fila (se abría y se
   // cerraba de inmediato al re-renderizar la página).
   const columns = useMemo(
-    () =>
-      buildInscriptionColumns({
-        canPayInscriptionBalance,
-        inscriptionDeposit,
-        payments,
-      }),
-    [canPayInscriptionBalance, inscriptionDeposit, payments],
+    () => buildInscriptionColumns(priceOptions),
+    [priceOptions],
   );
 
   return (
@@ -492,36 +295,16 @@ function InscriptionsTable({
   );
 }
 
-/**
- * Pagos que cubren la etapa completa. Cada uno trae el total que el cobro le va
- * a exigir según su propia fecha, así que la comparación es contra ese total y
- * no contra uno único calculado a hoy.
- */
-function eligiblePayments(payments: PaymentRow[]): EligiblePayment[] {
-  return payments.filter(
-    (payment): payment is EligiblePayment =>
-      payment.stageTotalAmount !== null &&
-      payment.availableAmount >= payment.stageTotalAmount,
-  );
-}
-
-function buildInscriptionColumns(cobro: {
-  canPayInscriptionBalance: boolean;
-  inscriptionDeposit: ChoreographyFinanceDetailLoaderData["inscriptionDeposit"];
-  payments: PaymentRow[];
-}): DataTableColumn<InscriptionRow>[] {
+function buildInscriptionColumns(
+  priceOptions: PriceOption[],
+): DataTableColumn<InscriptionRow>[] {
   return [
     {
       id: "dancer",
       header: "Bailarín",
       className: "font-medium",
       cell: (inscription) => (
-        <DancerNameCell
-          canPayInscriptionBalance={cobro.canPayInscriptionBalance}
-          inscription={inscription}
-          inscriptionDeposit={cobro.inscriptionDeposit}
-          payments={cobro.payments}
-        />
+        <DancerNameCell inscription={inscription} priceOptions={priceOptions} />
       ),
       filterValue: (inscription) => formatDancerName(inscription),
       sortValue: (inscription) => formatDancerName(inscription),
@@ -531,73 +314,23 @@ function buildInscriptionColumns(cobro: {
 }
 
 /**
- * Nombre del bailarín. Lo muestra como botón que abre el diálogo por fila cuando
- * hay algo para hacer con esa inscripción: cobrar seña de una `impaga` huérfana o
- * saldo de una `señada` huérfana (coreografía mixta), o deshacer una asignación
- * ya existente. Una `señada` mixta ofrece cobro y deshacer a la vez; una fila sin
- * cobro ni asignación (por ejemplo una `impaga` sin inscripción) es solo texto.
+ * The dancer's name is **the** entry point for money on that inscription: one
+ * button per row, and the dialog behind it decides its own shape from what the
+ * row holds. There is no price control in this cell and no second affordance —
+ * a row without an inscription yet is the only one that stays plain text,
+ * because there is nothing to put money on.
  */
 function DancerNameCell({
-  canPayInscriptionBalance,
   inscription,
-  inscriptionDeposit,
-  payments,
+  priceOptions,
 }: {
-  canPayInscriptionBalance: boolean;
   inscription: InscriptionRow;
-  inscriptionDeposit: ChoreographyFinanceDetailLoaderData["inscriptionDeposit"];
-  payments: PaymentRow[];
+  priceOptions: PriceOption[];
 }) {
   const [open, setOpen] = useState(false);
-  const hasInscriptionId = inscription.inscriptionId !== null;
-  const undoableAllocation = inscription.undoableAllocation;
-  const canChargeDeposit =
-    inscriptionDeposit !== null &&
-    inscriptionDeposit.priceRows.length > 0 &&
-    inscription.state === "impaga" &&
-    hasInscriptionId;
-  const canChargeBalance =
-    canPayInscriptionBalance &&
-    inscription.state === "señada" &&
-    inscription.balanceAmount !== null &&
-    hasInscriptionId;
 
-  if (!canChargeDeposit && !canChargeBalance && undoableAllocation === null) {
+  if (inscription.inscriptionId === null) {
     return <>{formatDancerName(inscription)}</>;
-  }
-
-  function renderRowDialog() {
-    if (canChargeDeposit && inscriptionDeposit !== null) {
-      return (
-        <InscriptionCobroDialog
-          inscription={inscription}
-          open={open}
-          onOpenChange={setOpen}
-          priceRows={inscriptionDeposit.priceRows}
-          payments={payments}
-        />
-      );
-    }
-    if (canChargeBalance) {
-      return (
-        <InscriptionBalanceDialog
-          inscription={inscription}
-          open={open}
-          onOpenChange={setOpen}
-          payments={payments}
-        />
-      );
-    }
-    if (undoableAllocation !== null) {
-      return (
-        <InscriptionUndoDialog
-          allocation={undoableAllocation}
-          open={open}
-          onOpenChange={setOpen}
-        />
-      );
-    }
-    return null;
   }
 
   return (
@@ -610,30 +343,28 @@ function DancerNameCell({
       >
         {formatDancerName(inscription)}
       </Button>
-      {renderRowDialog()}
+      {open ? (
+        <InscriptionMoneyDialog
+          inscription={inscription}
+          onOpenChange={setOpen}
+          priceOptions={priceOptions}
+        />
+      ) : null}
     </>
   );
 }
 
 const inscriptionAmountColumns: DataTableColumn<InscriptionRow>[] = [
   {
-    id: "state",
+    id: "financialStatus",
     header: "Estado",
-    cell: (inscription) => (
-      <Badge
-        variant={getChoreographyFinancialStateBadgeVariant(inscription.state)}
-      >
-        {formatChoreographyFinancialState(inscription.state)}
-      </Badge>
-    ),
+    cell: (inscription) => <InscriptionStatusCell inscription={inscription} />,
   },
   {
     id: "basePrice",
     header: "Precio base",
     className: "text-right tabular-nums",
     headerClassName: "text-right",
-    cellClassName: (inscription) =>
-      tentativeAmountClassName(inscription.state, "basePrice"),
     cell: (inscription) => formatInscriptionAmount(inscription.basePriceAmount),
   },
   {
@@ -641,28 +372,60 @@ const inscriptionAmountColumns: DataTableColumn<InscriptionRow>[] = [
     header: "Seña",
     className: "text-right tabular-nums",
     headerClassName: "text-right",
-    cellClassName: (inscription) =>
-      tentativeAmountClassName(inscription.state, "deposit"),
     cell: (inscription) => formatInscriptionAmount(inscription.depositAmount),
   },
   {
-    id: "balance",
-    header: "Saldo",
-    className: "text-right tabular-nums",
+    // Decorativo y sin condición: `Total` es la columna de contexto —contra qué
+    // se mide lo adeudado—, así que va atenuada entera. Nunca por fila: ninguna
+    // cifra es provisoria, y un gris que varía vuelve a significar algo.
+    id: "total",
+    header: "Total",
+    className: "text-right tabular-nums text-muted-foreground",
     headerClassName: "text-right",
-    cellClassName: (inscription) =>
-      tentativeAmountClassName(inscription.state, "balance"),
-    cell: (inscription) => formatInscriptionAmount(inscription.balanceAmount),
+    cell: (inscription) => formatInscriptionAmount(inscription.totalAmount),
+  },
+  {
+    // La única cifra accionable de la fila, destacada por columna.
+    id: "owedBalance",
+    header: "Saldo adeudado",
+    className: "text-right font-medium tabular-nums",
+    headerClassName: "text-right",
+    cell: (inscription) =>
+      formatInscriptionAmount(inscription.owedBalanceAmount),
   },
 ];
 
-function tentativeAmountClassName(
-  state: InscriptionRow["state"],
-  column: InscriptionAmountColumn,
-) {
-  return isTentativeInscriptionAmount(state, column)
-    ? "text-muted-foreground"
-    : undefined;
+/**
+ * The badge of the `Estado` column. `Retirada` **replaces** the status, just as
+ * an anomaly does: the roster-withdrawal axis and the money axis do not share a
+ * cell.
+ *
+ * It carries the retained amount inside because that is half of the fact: the
+ * row is still there *because* money was left on it, and a bare `Retirada`
+ * would not say how much. It is the same number as the `Total` column —for a
+ * withdrawn row the total **is** what is allocated— and repeating it here is
+ * what makes the cell readable on its own.
+ */
+function InscriptionStatusCell({
+  inscription,
+}: {
+  inscription: InscriptionRow;
+}) {
+  const badge = formatInscriptionStatusBadge(
+    resolveInscriptionStatusBadge({
+      anomalies: inscription.anomalies,
+      financialStatus: inscription.financialStatus,
+      withdrawn: inscription.withdrawn,
+    }),
+  );
+
+  return (
+    <Badge variant={badge.variant}>
+      {badge.kind === "withdrawn"
+        ? `${badge.label} · ${formatAmount(inscription.allocatedAmount)}`
+        : badge.label}
+    </Badge>
+  );
 }
 
 function formatInscriptionAmount(amount: number | null) {

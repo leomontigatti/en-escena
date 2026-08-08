@@ -27,13 +27,13 @@ describe("PortalAcademyFinancesRouteView", () => {
     expect(link?.textContent).toContain("Aire");
   });
 
-  test("filters choreographies by financial state", async () => {
+  test("filters choreographies by financial status", async () => {
     await renderPortalFinances(portalFinancesLoaderDataFixture());
 
     const text = document.body.textContent ?? "";
 
     expect(text).toContain("Estado");
-    expect(text).toContain("Impaga");
+    expect(text).toContain("Seña pendiente");
     expect(text).toContain("Pagada");
     expect(
       document.querySelector(
@@ -97,12 +97,12 @@ function portalFinancesLoaderDataFixture(
       choreographyFinanceRowFixture({
         id: "choreography_1",
         name: "Aire",
-        financialState: "impaga",
+        financialStatus: "depositPending",
       }),
       choreographyFinanceRowFixture({
         id: "choreography_2",
         name: "Tango",
-        financialState: "pagada",
+        financialStatus: "paidInFull",
       }),
     ],
     summary: {
@@ -119,19 +119,19 @@ function choreographyFinanceRowFixture(
   overrides: Partial<LoaderData["choreographyFinanceRows"][number]> = {},
 ): LoaderData["choreographyFinanceRows"][number] {
   return {
+    allocatedAmount: 0,
+    anomalies: [],
     basePriceAmount: { amount: 10000, status: "complete" },
     depositAmount: { amount: 3000, status: "complete" },
-    balanceAmount: { amount: 7000, status: "complete" },
-    depositCompletedOn: null,
-    financialState: "impaga",
-    needsAttention: false,
+    financialStatus: "depositPending",
     groupType: "solo",
     id: "choreography",
     name: "Coreografía",
+    overAllocatedAmount: 0,
     owedBalanceAmount: { amount: 0, status: "complete" },
     owedDepositAmount: { amount: 3000, status: "complete" },
-    paidAmount: 0,
     registrationCount: 1,
+    totalAmount: { amount: 10000, status: "complete" },
     ...overrides,
   };
 }

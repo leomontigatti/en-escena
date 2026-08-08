@@ -11,7 +11,7 @@ import {
 import type { ScheduleCapacitySelectOption } from "@/lib/choreographies/schedule-capacity-options";
 import { withScheduleCapacityOccupancy } from "@/lib/choreographies/schedule-capacity-options.server";
 import { resolveEventBasesScheduleOptions } from "@/lib/events/bases.server";
-import { hasFrozenDepositSnapshot } from "@/lib/finances/choreography-deposit-guard.server";
+import { hasFrozenPriceInscription } from "@/lib/finances/choreography-frozen-price-guard.server";
 
 import type { ChoreographyDetail } from "./server";
 import {
@@ -35,14 +35,14 @@ export type ChoreographyScheduleCapacityReassignment = {
  * select ofrece cambia el cronograma y con él la clave de precio, así que no
  * hay reasignación financieramente inerte que eximir.
  */
-const frozenDepositBlocker: ChoreographyScheduleCapacityBlocker = {
-  code: "frozen-deposit",
+const frozenPriceBlocker: ChoreographyScheduleCapacityBlocker = {
+  code: "frozen-price",
   label:
-    "Al menos una inscripción tiene seña registrada: su precio quedó congelado contra este cronograma.",
+    "Al menos una inscripción tiene dinero asignado: su precio quedó congelado contra este cronograma.",
 };
 
-const frozenDepositMessage =
-  "No se puede cambiar el cupo de cronograma: hay inscripciones con seña registrada.";
+const frozenPriceMessage =
+  "No se puede cambiar el cupo de cronograma: hay inscripciones con dinero asignado.";
 
 /**
  * Motivos de bloqueo que el servidor arma para la alerta de la página. No se
@@ -52,8 +52,8 @@ const frozenDepositMessage =
 export async function resolveScheduleCapacityBlockers(
   choreographyId: string,
 ): Promise<ChoreographyScheduleCapacityBlocker[]> {
-  return (await hasFrozenDepositSnapshot(choreographyId))
-    ? [frozenDepositBlocker]
+  return (await hasFrozenPriceInscription(choreographyId))
+    ? [frozenPriceBlocker]
     : [];
 }
 
@@ -187,15 +187,15 @@ export async function updateChoreographyScheduleCapacity(input: {
   }
 
   const result = await db.transaction(async (tx) => {
-    // La guarda financiera se revalida en el intent y no solo en el loader (el
-    // campo puede haber quedado abierto en una pestaña vieja o llegar un submit
-    // armado a mano), y se revalida *dentro* de la transacción: leerla antes de
-    // abrirla dejaba una ventana en la que una seña registrada en el medio se
-    // perdía y el cronograma se movía igual.
-    if (await hasFrozenDepositSnapshot(input.choreography.id, tx)) {
+    // The financial guard is re-checked on the intent and not only in the
+    // loader (the field may have been left open in a stale tab, or the submit
+    // may be hand-crafted), and it is re-checked *inside* the transaction:
+    // reading it before opening one left a window in which an allocation
+    // landing in between went unnoticed and the schedule moved anyway.
+    if (await hasFrozenPriceInscription(input.choreography.id, tx)) {
       return {
         ok: false as const,
-        error: frozenDepositMessage,
+        error: frozenPriceMessage,
       };
     }
 

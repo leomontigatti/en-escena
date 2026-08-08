@@ -1,12 +1,8 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { redirect } from "react-router";
 
 import { db } from "@/db";
-import {
-  academies,
-  payments as paymentTable,
-  paymentAllocations,
-} from "@/db/schema";
+import { academies } from "@/db/schema";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import {
   requireAdminUser,
@@ -21,21 +17,14 @@ import {
   type ComprobantePorcion,
   type FacturaCEmissionDeps,
 } from "@/lib/comprobantes/emit-factura-c.server";
+import { readChoreographyInscriptionRows } from "@/lib/finances/choreography-inscriptions.server";
 import {
-  deletePaymentAllocation,
-  payChoreographyBalance,
-  payChoreographyDeposit,
-  payInscriptionBalance,
-  payInscriptionDeposit,
-  quoteChoreographyDepositTotals,
-  readInscriptionDepositOptions,
-} from "@/lib/finances/choreography-cobro.server";
-import {
-  readChoreographyInscriptionRows,
-  type ChoreographyInscriptionRow,
-} from "@/lib/finances/choreography-inscriptions.server";
-import type { OperationalFinanceAmount } from "@/lib/finances/operational-summary";
-import type { InscriptionFinancialState } from "@/lib/finances/operational-summary-calculations.server";
+  allocateToInscription,
+  readInscriptionPriceOptions,
+  readInscriptionSelectedPrices,
+  releaseInscriptionExcess,
+  removeFromInscription,
+} from "@/lib/finances/inscription-allocation.server";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
 
 import {
@@ -43,25 +32,14 @@ import {
   handleRecheckComprobante,
 } from "./comprobante-emission.server";
 import {
+  allocateInscriptionIntent,
   choreographyDetailUrl,
-  deleteAllocationIntent,
   emitComprobanteIntent,
   recheckComprobanteIntent,
-  payBalanceIntent,
-  payDepositIntent,
-  payInscriptionBalanceIntent,
-  payInscriptionDepositIntent,
+  releaseInscriptionExcessIntent,
+  removeInscriptionMoneyIntent,
   type ChoreographyFinanceActionData,
 } from "./shared";
-
-type CobroStage = "deposit" | "balance";
-type InscriptionDepositOptions = Awaited<
-  ReturnType<typeof readInscriptionDepositOptions>
->;
-type AvailablePayment = Awaited<
-  ReturnType<typeof listAvailablePayments>
->[number];
-type StagePayment = AvailablePayment & { stageTotalAmount: number | null };
 
 export async function loadChoreographyFinanceDetail(input: {
   params: { academyId?: string; choreographyId?: string };
@@ -80,11 +58,8 @@ export async function loadChoreographyFinanceDetail(input: {
     return {
       academy,
       choreography: null,
-      canPayInscriptionBalance: false,
-      inscriptionDeposit: null as InscriptionDepositOptions,
       inscriptions: [],
-      payments: [] as StagePayment[],
-      stage: null,
+      priceOptions: [],
       selectedEventId: null,
     };
   }
@@ -102,54 +77,45 @@ export async function loadChoreographyFinanceDetail(input: {
     throw new Response(choreographyNotFoundMessage, { status: 404 });
   }
 
-  const choreographyInscriptions = financeDetail.inscriptions.filter(
-    (inscription) => inscription.choreographyId === choreographyId,
-  );
-  const inscriptions = await attachUndoableAllocations(
-    await readChoreographyInscriptionRows({
-      academyEventInscriptions: financeDetail.inscriptions,
-      choreographyId,
-    }),
-  );
-
-  const stage = resolveCobroStage(
-    choreographyInscriptions.map((inscription) => inscription.state),
-  );
-  const inscriptionDeposit = await readInscriptionDepositOptions({
-    choreographyId,
-    eventId,
-  });
-  const canPayInscriptionBalance = resolveInscriptionBalanceEligibility(
-    choreographyInscriptions.map((inscription) => inscription.state),
-  );
-  const payments = await attachStageTotals({
-    balanceTotal: choreographyFinanceRow.balanceAmount,
-    choreographyId,
-    eventId,
-    payments: await listAvailablePayments({ academyId, eventId }),
-    stage,
-  });
-  const invoicing = await readChoreographyInvoicing(choreographyId);
+  const [inscriptionRows, selectedPrices, priceOptions, invoicing] =
+    await Promise.all([
+      readChoreographyInscriptionRows({
+        academyEventInscriptions: financeDetail.inscriptions,
+        choreographyId,
+      }),
+      readInscriptionSelectedPrices({ choreographyId }),
+      readInscriptionPriceOptions({ choreographyId, eventId }),
+      readChoreographyInvoicing(choreographyId),
+    ]);
+  // The price the row already holds travels with the row because the allocation
+  // dialog shows it locked once money has landed, and the locked one may no
+  // longer be among the offered options.
+  const inscriptions = inscriptionRows.map((inscription) => ({
+    ...inscription,
+    selectedPrice:
+      inscription.inscriptionId === null
+        ? null
+        : (selectedPrices.get(inscription.inscriptionId) ?? null),
+  }));
 
   return {
     academy,
     invoicing,
     choreography: {
-      balanceAmount: choreographyFinanceRow.balanceAmount,
+      allocatedAmount: choreographyFinanceRow.allocatedAmount,
+      anomalies: choreographyFinanceRow.anomalies,
       depositAmount: choreographyFinanceRow.depositAmount,
-      depositCompletedOn: choreographyFinanceRow.depositCompletedOn,
-      financialState: choreographyFinanceRow.financialState,
+      financialStatus: choreographyFinanceRow.financialStatus,
       groupType: choreographyFinanceRow.groupType,
       id: choreographyFinanceRow.id,
       name: choreographyFinanceRow.name,
-      needsAttention: choreographyFinanceRow.needsAttention,
-      paidAmount: choreographyFinanceRow.paidAmount,
+      overAllocatedAmount: choreographyFinanceRow.overAllocatedAmount,
+      owedBalanceAmount: choreographyFinanceRow.owedBalanceAmount,
+      owedDepositAmount: choreographyFinanceRow.owedDepositAmount,
+      totalAmount: choreographyFinanceRow.totalAmount,
     },
-    canPayInscriptionBalance,
-    inscriptionDeposit,
     inscriptions,
-    payments,
-    stage,
+    priceOptions,
     selectedEventId: eventId,
   };
 }
@@ -259,160 +225,6 @@ function resolvePortionCoverage(
   };
 }
 
-/**
- * Si una inscripción `señada` huérfana puede cobrarse el saldo por fila. Solo en
- * coreografías mixtas: hay al menos una `señada` y alguna hermana en otro estado,
- * así que el flujo normal por coreografía entera (todas `señadas`) no aplica.
- */
-function resolveInscriptionBalanceEligibility(
-  states: InscriptionFinancialState[],
-): boolean {
-  return (
-    states.some((state) => state === "señada") &&
-    states.some((state) => state !== "señada")
-  );
-}
-
-/**
- * Etapa que se puede cobrar de una coreografía entera. `null` cuando no hay
- * inscripciones o están mezcladas: ahí no hay una sola acción que las resuelva.
- */
-function resolveCobroStage(
-  states: InscriptionFinancialState[],
-): CobroStage | null {
-  if (states.length === 0) {
-    return null;
-  }
-
-  if (states.every((state) => state === "impaga")) {
-    return "deposit";
-  }
-
-  if (states.every((state) => state === "señada")) {
-    return "balance";
-  }
-
-  return null;
-}
-
-/**
- * Agrega a cada pago el total que tendría que cubrir para saldar la etapa. La
- * seña se cotiza contra la fecha de cada pago, que es la que el cobro usa para
- * elegir la fila de precio: un pago fechado antes de un aumento paga el precio
- * de esa fecha, no el vigente hoy. El saldo no depende de la fecha porque sus
- * insumos ya están congelados. `null` cuando no hay etapa cobrable, cuando falta
- * el precio de esa fecha o cuando alguna inscripción no tiene precio vigente.
- */
-async function attachStageTotals(input: {
-  balanceTotal: OperationalFinanceAmount;
-  choreographyId: string;
-  eventId: string;
-  payments: AvailablePayment[];
-  stage: CobroStage | null;
-}): Promise<StagePayment[]> {
-  if (input.stage === null) {
-    return input.payments.map((payment) => ({
-      ...payment,
-      stageTotalAmount: null,
-    }));
-  }
-
-  if (input.stage === "balance") {
-    const stageTotalAmount =
-      input.balanceTotal.status === "complete"
-        ? input.balanceTotal.amount
-        : null;
-
-    return input.payments.map((payment) => ({
-      ...payment,
-      stageTotalAmount,
-    }));
-  }
-
-  const depositTotals = await quoteChoreographyDepositTotals({
-    choreographyId: input.choreographyId,
-    eventId: input.eventId,
-    referenceDates: input.payments.map((payment) => payment.paymentDate),
-  });
-
-  return input.payments.map((payment) => ({
-    ...payment,
-    stageTotalAmount: depositTotals.get(payment.paymentDate) ?? null,
-  }));
-}
-
-type UndoableAllocationStage = "deposit" | "balance";
-type InscriptionRowWithUndo = ChoreographyInscriptionRow & {
-  undoableAllocation: { id: string; stage: UndoableAllocationStage } | null;
-};
-
-/**
- * Anota a cada inscripción con la asignación que su fila puede deshacer. Deshacer
- * baja una etapa: la `balance` (si existe) vuelve la inscripción a `señada`, y la
- * `deposit` la vuelve a `impaga`. Por eso se ofrece la etapa más alta —`balance`
- * antes que `deposit`—, que es la que el server permite borrar primero.
- */
-async function attachUndoableAllocations(
-  inscriptions: ChoreographyInscriptionRow[],
-): Promise<InscriptionRowWithUndo[]> {
-  const inscriptionIds = inscriptions
-    .map((row) => row.inscriptionId)
-    .filter((id): id is string => id !== null);
-
-  if (inscriptionIds.length === 0) {
-    return inscriptions.map((row) => ({ ...row, undoableAllocation: null }));
-  }
-
-  const allocationRows = await db
-    .select({
-      id: paymentAllocations.id,
-      inscriptionId: paymentAllocations.inscriptionId,
-      allocationType: paymentAllocations.allocationType,
-    })
-    .from(paymentAllocations)
-    .where(inArray(paymentAllocations.inscriptionId, inscriptionIds));
-
-  return inscriptions.map((row) => ({
-    ...row,
-    undoableAllocation: resolveUndoableAllocation(
-      row.inscriptionId,
-      allocationRows,
-    ),
-  }));
-}
-
-function resolveUndoableAllocation(
-  inscriptionId: string | null,
-  allocationRows: {
-    id: string;
-    inscriptionId: string;
-    allocationType: UndoableAllocationStage;
-  }[],
-): { id: string; stage: UndoableAllocationStage } | null {
-  if (inscriptionId === null) {
-    return null;
-  }
-
-  const own = allocationRows.filter(
-    (allocation) => allocation.inscriptionId === inscriptionId,
-  );
-  const balance = own.find(
-    (allocation) => allocation.allocationType === "balance",
-  );
-  if (balance) {
-    return { id: balance.id, stage: "balance" };
-  }
-
-  const deposit = own.find(
-    (allocation) => allocation.allocationType === "deposit",
-  );
-  if (deposit) {
-    return { id: deposit.id, stage: "deposit" };
-  }
-
-  return null;
-}
-
 export async function handleChoreographyFinanceAction(input: {
   params: { academyId?: string; choreographyId?: string };
   request: Request;
@@ -437,98 +249,21 @@ export async function handleChoreographyFinanceAction(input: {
   const formData = await input.request.formData();
   const intent = String(formData.get("intent") ?? "");
 
-  if (intent === payDepositIntent || intent === payBalanceIntent) {
-    const paymentId = String(formData.get("paymentId") ?? "").trim();
-    if (!paymentId) {
-      return { status: "error", message: "Elegí un pago para asignar." };
-    }
-
-    const result =
-      intent === payDepositIntent
-        ? await payChoreographyDeposit({
-            academyId,
-            choreographyId,
-            eventId,
-            paymentId,
-          })
-        : await payChoreographyBalance({
-            academyId,
-            choreographyId,
-            eventId,
-            paymentId,
-          });
-
-    if (!result.ok) {
-      return { status: "error", message: result.message };
-    }
-
-    throw redirectToDetail(academyId, choreographyId, eventId);
-  }
-
-  if (intent === payInscriptionDepositIntent) {
-    const inscriptionId = String(formData.get("inscriptionId") ?? "").trim();
-    const priceId = String(formData.get("priceId") ?? "").trim();
-    const paymentId = String(formData.get("paymentId") ?? "").trim();
-    if (!inscriptionId) {
-      return { status: "error", message: "Elegí una inscripción para cobrar." };
-    }
-    if (!priceId) {
-      return { status: "error", message: "Elegí una fila de precio." };
-    }
-    if (!paymentId) {
-      return { status: "error", message: "Elegí un pago para asignar." };
-    }
-
-    const result = await payInscriptionDeposit({
+  if (
+    intent === allocateInscriptionIntent ||
+    intent === removeInscriptionMoneyIntent ||
+    intent === releaseInscriptionExcessIntent
+  ) {
+    const result = await runInscriptionMoneyIntent({
       academyId,
       choreographyId,
       eventId,
-      inscriptionId,
-      paymentId,
-      priceId,
+      formData,
+      intent,
     });
 
-    if (!result.ok) {
-      return { status: "error", message: result.message };
-    }
-
-    throw redirectToDetail(academyId, choreographyId, eventId);
-  }
-
-  if (intent === payInscriptionBalanceIntent) {
-    const inscriptionId = String(formData.get("inscriptionId") ?? "").trim();
-    const paymentId = String(formData.get("paymentId") ?? "").trim();
-    if (!inscriptionId) {
-      return { status: "error", message: "Elegí una inscripción para cobrar." };
-    }
-    if (!paymentId) {
-      return { status: "error", message: "Elegí un pago para asignar." };
-    }
-
-    const result = await payInscriptionBalance({
-      academyId,
-      choreographyId,
-      eventId,
-      inscriptionId,
-      paymentId,
-    });
-
-    if (!result.ok) {
-      return { status: "error", message: result.message };
-    }
-
-    throw redirectToDetail(academyId, choreographyId, eventId);
-  }
-
-  if (intent === deleteAllocationIntent) {
-    const allocationId = String(formData.get("allocationId") ?? "").trim();
-    if (!allocationId) {
-      return { status: "error", message: "No encontramos esa asignación." };
-    }
-
-    const result = await deletePaymentAllocation({ allocationId });
-    if (!result.ok) {
-      return { status: "error", message: result.message };
+    if (result !== null) {
+      return result;
     }
 
     throw redirectToDetail(academyId, choreographyId, eventId);
@@ -557,6 +292,77 @@ export async function handleChoreographyFinanceAction(input: {
   return { status: "error", message: "No pudimos procesar esa acción." };
 }
 
+/**
+ * The three money gestures of an inscription, which differ only in what they
+ * read off the form: an amount for two of them and nothing at all for the
+ * release, whose figure is computed. Returns `null` when the write succeeded,
+ * so the caller redirects; an error otherwise, which keeps the dialog open with
+ * what the administrator typed.
+ */
+async function runInscriptionMoneyIntent(input: {
+  academyId: string;
+  choreographyId: string;
+  eventId: string;
+  formData: FormData;
+  intent: string;
+}): Promise<ChoreographyFinanceActionData | null> {
+  const inscriptionId = String(
+    input.formData.get("inscriptionId") ?? "",
+  ).trim();
+
+  if (!inscriptionId) {
+    return { status: "error", message: "No encontramos esa inscripción." };
+  }
+
+  const target = {
+    academyId: input.academyId,
+    choreographyId: input.choreographyId,
+    eventId: input.eventId,
+    inscriptionId,
+  };
+
+  if (input.intent === releaseInscriptionExcessIntent) {
+    const result = await releaseInscriptionExcess(target);
+
+    return result.ok ? null : { status: "error", message: result.message };
+  }
+
+  const amount = readAmount(input.formData);
+
+  if (amount === null) {
+    return { status: "error", message: "Ingresá un monto mayor a 0." };
+  }
+
+  const result =
+    input.intent === allocateInscriptionIntent
+      ? await allocateToInscription({
+          ...target,
+          amount,
+          priceId: readPriceId(input.formData),
+        })
+      : await removeFromInscription({ ...target, amount });
+
+  return result.ok ? null : { status: "error", message: result.message };
+}
+
+/** The typed amount, or `null` when it is not a positive whole number. */
+function readAmount(formData: FormData): number | null {
+  const amount = Number(String(formData.get("amount") ?? "").trim());
+
+  return Number.isSafeInteger(amount) && amount > 0 ? amount : null;
+}
+
+/**
+ * The price chosen inside the dialog. `null` when the field is absent, which is
+ * how a locked price arrives: the dialog shows it as a readout and submits
+ * nothing, so the inscription keeps the row it already holds.
+ */
+function readPriceId(formData: FormData): string | null {
+  const priceId = String(formData.get("priceId") ?? "").trim();
+
+  return priceId === "" ? null : priceId;
+}
+
 function redirectToDetail(
   academyId: string,
   choreographyId: string,
@@ -581,58 +387,6 @@ async function readAcademy(academyId: string) {
   }
 
   return academy;
-}
-
-async function listAvailablePayments(input: {
-  academyId: string;
-  eventId: string;
-}) {
-  const [paymentRows, allocationRows] = await Promise.all([
-    db
-      .select({
-        id: paymentTable.id,
-        amount: paymentTable.amount,
-        paymentDate: paymentTable.paymentDate,
-        paymentMethod: paymentTable.paymentMethod,
-        paymentNumber: paymentTable.paymentNumber,
-      })
-      .from(paymentTable)
-      .where(
-        and(
-          eq(paymentTable.academyId, input.academyId),
-          eq(paymentTable.eventId, input.eventId),
-        ),
-      )
-      .orderBy(asc(paymentTable.paymentDate)),
-    db
-      .select({
-        paymentId: paymentAllocations.paymentId,
-        amount: paymentAllocations.amount,
-      })
-      .from(paymentAllocations)
-      .where(
-        and(
-          eq(paymentAllocations.academyId, input.academyId),
-          eq(paymentAllocations.eventId, input.eventId),
-        ),
-      ),
-  ]);
-
-  const allocatedByPayment = new Map<string, number>();
-  for (const allocation of allocationRows) {
-    allocatedByPayment.set(
-      allocation.paymentId,
-      (allocatedByPayment.get(allocation.paymentId) ?? 0) + allocation.amount,
-    );
-  }
-
-  return paymentRows.map((payment) => ({
-    id: payment.id,
-    paymentNumber: payment.paymentNumber,
-    paymentDate: payment.paymentDate,
-    paymentMethod: payment.paymentMethod,
-    availableAmount: payment.amount - (allocatedByPayment.get(payment.id) ?? 0),
-  }));
 }
 
 function readAcademyId(params: { academyId?: string }) {

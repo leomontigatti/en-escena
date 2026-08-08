@@ -3,7 +3,6 @@ import { Link } from "react-router";
 
 import { MetricCard } from "@/components/shared/metric-card";
 import {
-  ReadOnlyDateField,
   ReadOnlyField,
   ReadOnlySelectField,
 } from "@/components/shared/read-only-field";
@@ -25,12 +24,11 @@ import {
 } from "@/features/admin/finances/formatters";
 import type { loadPortalChoreographyFinanceDetail } from "@/features/portal/finances/choreography-detail/server";
 import {
-  formatChoreographyFinancialState,
-  getChoreographyFinancialStateBadgeVariant,
-} from "@/lib/finances/choreography-financial-state";
-import { isTentativeInscriptionAmount } from "@/lib/finances/inscription-amounts";
+  formatInscriptionFinancialStatus,
+  formatInscriptionStatusBadge,
+} from "@/lib/finances/choreography-financial-status";
+import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
 import { choreographyGroupTypeOptions } from "@/lib/portal/choreographies";
-import { cn } from "@/lib/shared/utils";
 
 type PortalChoreographyFinanceDetailLoaderData = Awaited<
   ReturnType<typeof loadPortalChoreographyFinanceDetail>
@@ -62,16 +60,16 @@ export function PortalChoreographyFinanceDetailRouteView({
 
       <section className="grid gap-4 md:grid-cols-3">
         <MetricCard
-          title="Seña"
-          value={formatOperationalAmount(choreography.depositAmount)}
+          title="Total"
+          value={formatOperationalAmount(choreography.totalAmount)}
         />
         <MetricCard
           title="Pagado"
-          value={formatAmount(choreography.paidAmount)}
+          value={formatAmount(choreography.allocatedAmount)}
         />
         <MetricCard
-          title="Saldo"
-          value={formatOperationalAmount(choreography.balanceAmount)}
+          title="Saldo adeudado"
+          value={formatOperationalAmount(choreography.owedBalanceAmount)}
         />
       </section>
 
@@ -88,16 +86,11 @@ export function PortalChoreographyFinanceDetailRouteView({
               options={choreographyGroupTypeOptions}
               value={choreography.groupType}
             />
-            <ReadOnlyDateField
-              emptyLabel="Sin pago completo"
-              label="Fecha de pago de la seña"
-              value={choreography.depositCompletedOn}
-            />
             <ReadOnlyField
-              id="portal-finance-choreography-state"
+              id="portal-finance-choreography-status"
               label="Estado"
-              value={formatChoreographyFinancialState(
-                choreography.financialState,
+              value={formatInscriptionFinancialStatus(
+                choreography.financialStatus,
               )}
             />
           </FieldGroup>
@@ -108,6 +101,16 @@ export function PortalChoreographyFinanceDetailRouteView({
     </section>
   );
 }
+
+/**
+ * Estilo de columna, decorativo y sin condición. Ninguna cifra es provisoria, así
+ * que no queda nada que atenuar por fila: `Total` va atenuada entera por ser la
+ * columna de contexto —contra qué se mide lo adeudado, que la academia lee en su
+ * propia métrica arriba—, y un gris que variara por fila volvería a significar
+ * algo.
+ */
+const amountColumnClassName = "text-right tabular-nums";
+const totalColumnClassName = "text-right tabular-nums text-muted-foreground";
 
 function InscriptionsTable({
   inscriptions,
@@ -124,7 +127,7 @@ function InscriptionsTable({
               <TableHead>Estado</TableHead>
               <TableHead className="text-right">Precio base</TableHead>
               <TableHead className="text-right">Seña</TableHead>
-              <TableHead className="text-right">Saldo</TableHead>
+              <TableHead className="text-right">Total</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -135,43 +138,16 @@ function InscriptionsTable({
                     {inscription.firstName} {inscription.lastName}
                   </TableCell>
                   <TableCell>
-                    <Badge
-                      variant={getChoreographyFinancialStateBadgeVariant(
-                        inscription.state,
-                      )}
-                    >
-                      {formatChoreographyFinancialState(inscription.state)}
-                    </Badge>
+                    <InscriptionStatusBadge inscription={inscription} />
                   </TableCell>
-                  <TableCell
-                    className={amountCellClassName(
-                      isTentativeInscriptionAmount(
-                        inscription.state,
-                        "basePrice",
-                      ),
-                    )}
-                  >
+                  <TableCell className={amountColumnClassName}>
                     {formatInscriptionAmount(inscription.basePriceAmount)}
                   </TableCell>
-                  <TableCell
-                    className={amountCellClassName(
-                      isTentativeInscriptionAmount(
-                        inscription.state,
-                        "deposit",
-                      ),
-                    )}
-                  >
+                  <TableCell className={amountColumnClassName}>
                     {formatInscriptionAmount(inscription.depositAmount)}
                   </TableCell>
-                  <TableCell
-                    className={amountCellClassName(
-                      isTentativeInscriptionAmount(
-                        inscription.state,
-                        "balance",
-                      ),
-                    )}
-                  >
-                    {formatInscriptionAmount(inscription.balanceAmount)}
+                  <TableCell className={totalColumnClassName}>
+                    {formatInscriptionAmount(inscription.totalAmount)}
                   </TableCell>
                 </TableRow>
               ))
@@ -200,8 +176,32 @@ function InscriptionsTable({
   );
 }
 
-function amountCellClassName(isTentative: boolean) {
-  return cn("text-right tabular-nums", isTentative && "text-muted-foreground");
+/**
+ * The academy reads the same badge as the admin, through the same resolver: a
+ * withdrawn inscription reads `Retirada` with what was retained on it, not the
+ * status of a roster it is no longer part of. The money is theirs and they have
+ * to be able to see it.
+ */
+function InscriptionStatusBadge({
+  inscription,
+}: {
+  inscription: InscriptionRow;
+}) {
+  const badge = formatInscriptionStatusBadge(
+    resolveInscriptionStatusBadge({
+      anomalies: [],
+      financialStatus: inscription.financialStatus,
+      withdrawn: inscription.withdrawn,
+    }),
+  );
+
+  return (
+    <Badge variant={badge.variant}>
+      {badge.kind === "withdrawn"
+        ? `${badge.label} · ${formatAmount(inscription.allocatedAmount)}`
+        : badge.label}
+    </Badge>
+  );
 }
 
 function formatInscriptionAmount(amount: number | null) {

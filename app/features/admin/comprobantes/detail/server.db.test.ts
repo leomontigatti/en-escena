@@ -119,7 +119,6 @@ async function seedComprobante(input: {
     .returning();
   await db.insert(paymentAllocations).values({
     academyId: academy.academy.id,
-    allocationType: "deposit",
     amount: 7000,
     eventId: event.id,
     inscriptionId: inscription.id,

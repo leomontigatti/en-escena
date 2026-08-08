@@ -11,7 +11,6 @@ import {
 import { handleChoreographyDetailAction } from "@/features/admin/choreographies/detail/server";
 import { updateChoreographyRosterIntent } from "@/features/admin/choreographies/detail/shared";
 import { createChoreographyRecord } from "@/features/portal/choreographies/test-support/db";
-import { deriveInscriptionFinancialState } from "@/lib/finances/operational-summary-calculations.server";
 import {
   createAcademySession,
   createDancer,
@@ -19,6 +18,7 @@ import {
   createEventRecord,
 } from "@/lib/choreographies/registration-test-fixtures.server.db";
 import { createSignedInAdminRequest } from "@/lib/admin/test-support/db";
+import { recordComprobante } from "@/lib/comprobantes/comprobantes.server";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -85,146 +85,167 @@ describe("administrative choreography roster editing", () => {
     );
     const added = inscriptions.find((row) => row.dancerId === dancerC.id);
     expect(added).toBeDefined();
-    expect(deriveInscriptionFinancialState(added!)).toBe("impaga");
+    expect(added?.selectedPriceId).toBeNull();
   });
 
-  test("removes a dancer physically and returns its allocations to the Saldo disponible", async () => {
-    const owner = await createAcademySession({
+  test("hard-deletes a removed dancer whose inscription has no allocations and no comprobante line", async () => {
+    const scenario = await createRemovalScenario({
       academyName: "Academia Roster Baja",
       email: "roster.baja.academia@example.com",
     });
-    const event = await createEventRecord({ active: true, name: "Regional" });
-    const catalog = await createEventCatalog(event.id);
-    const [dancerA, dancerB] = await Promise.all([
-      createDancer(owner.academyId, { firstName: "Ana", lastName: "Uno" }),
-      createDancer(owner.academyId, { firstName: "Bea", lastName: "Dos" }),
+
+    const response = await submitRoster({
+      choreographyId: scenario.choreography.id,
+      dancerIds: [scenario.dancerB.id],
+    });
+
+    expect(response).toMatchObject({ status: "success" });
+
+    const inscriptions = await db.query.choreographyDancers.findMany({
+      where: eq(choreographyDancers.choreographyId, scenario.choreography.id),
+    });
+    expect(inscriptions.map((row) => row.dancerId)).toEqual([
+      scenario.dancerB.id,
     ]);
-    const choreography = await createChoreographyRecord({
-      academyId: owner.academyId,
-      categoryId: catalog.teenCategory.id,
-      eventId: event.id,
-      groupType: "duo",
-      modalityId: catalog.modality.id,
-      name: "Duo",
-      scheduleCapacityId: catalog.duoScheduleCapacity.id,
-      submodalityId: catalog.submodality.id,
+  });
+
+  test("withdraws a removed dancer whose inscription holds money, and keeps the allocation on it", async () => {
+    const scenario = await createRemovalScenario({
+      academyName: "Academia Roster Retiro",
+      email: "roster.retiro.academia@example.com",
     });
-    const [inscriptionA] = await db
-      .insert(choreographyDancers)
-      .values([
-        {
-          ageAtEventStart: 14,
-          choreographyId: choreography.id,
-          dancerId: dancerA.id,
-          depositReferenceDate: "2026-03-20",
-          depositAmount: 3000,
-          frozenBasePriceAmount: 15000,
-        },
-      ])
-      .returning();
-    await db.insert(choreographyDancers).values({
-      ageAtEventStart: 14,
-      choreographyId: choreography.id,
-      dancerId: dancerB.id,
-    });
-    const [payment] = await db
-      .insert(payments)
-      .values({
-        academyId: owner.academyId,
-        amount: 3000,
-        eventId: event.id,
-        paymentDate: "2026-03-20",
-        paymentMethod: "transferencia",
-        paymentNumber: 1,
-      })
-      .returning();
+    const payment = await createPayment(scenario);
     await db.insert(paymentAllocations).values({
-      academyId: owner.academyId,
-      allocationType: "deposit",
+      academyId: scenario.academyId,
       amount: 3000,
-      eventId: event.id,
-      inscriptionId: inscriptionA.id,
+      eventId: scenario.event.id,
+      inscriptionId: scenario.inscriptionA.id,
       paymentId: payment.id,
     });
 
     const response = await submitRoster({
-      choreographyId: choreography.id,
-      dancerIds: [dancerB.id],
+      choreographyId: scenario.choreography.id,
+      dancerIds: [scenario.dancerB.id],
     });
 
-    expect(response).not.toBeInstanceOf(Response);
     expect(response).toMatchObject({ status: "success" });
 
-    const inscriptions = await db.query.choreographyDancers.findMany({
-      where: eq(choreographyDancers.choreographyId, choreography.id),
+    const withdrawn = await db.query.choreographyDancers.findFirst({
+      where: eq(choreographyDancers.id, scenario.inscriptionA.id),
     });
-    expect(inscriptions.map((row) => row.dancerId)).toEqual([dancerB.id]);
+    expect(withdrawn?.withdrawnAt).toBeInstanceOf(Date);
 
-    const remainingAllocations = await db.query.paymentAllocations.findMany({
-      where: eq(paymentAllocations.paymentId, payment.id),
+    const allocations = await db.query.paymentAllocations.findMany({
+      where: eq(paymentAllocations.inscriptionId, scenario.inscriptionA.id),
     });
-    expect(remainingAllocations).toEqual([]);
+    expect(allocations.map((row) => row.amount)).toEqual([3000]);
   });
 
-  test("keeps señada inscriptions when the roster changes (marca de agua)", async () => {
-    const owner = await createAcademySession({
-      academyName: "Academia Roster Marca",
-      email: "roster.marca.academia@example.com",
+  test("withdraws a removed dancer whose inscription has a comprobante line", async () => {
+    const scenario = await createRemovalScenario({
+      academyName: "Academia Roster Facturada",
+      email: "roster.facturada.academia@example.com",
     });
-    const event = await createEventRecord({ active: true, name: "Regional" });
-    const catalog = await createEventCatalog(event.id);
-    const [dancerA, dancerB, dancerC] = await Promise.all([
-      createDancer(owner.academyId, { firstName: "Ana", lastName: "Uno" }),
-      createDancer(owner.academyId, { firstName: "Bea", lastName: "Dos" }),
-      createDancer(owner.academyId, { firstName: "Cami", lastName: "Tres" }),
-    ]);
-    const choreography = await createChoreographyRecord({
-      academyId: owner.academyId,
-      categoryId: catalog.teenCategory.id,
-      eventId: event.id,
-      groupType: "duo",
-      modalityId: catalog.modality.id,
-      name: "Duo",
-      scheduleCapacityId: catalog.duoScheduleCapacity.id,
-      submodalityId: catalog.submodality.id,
+    await recordComprobante({
+      cae: "75123456789012",
+      caeVto: "20260801",
+      cbteFch: "20260722",
+      cbteNro: 1,
+      cbteTipo: 11,
+      choreographyId: scenario.choreography.id,
+      eventId: scenario.event.id,
+      impTotal: 10000,
+      issuerCuit: "30717611590",
+      issuerIvaCondition: "exento",
+      lines: [{ amount: 10000, inscriptionId: scenario.inscriptionA.id }],
+      ptoVta: 1,
+      receptorDocNro: "0",
+      receptorDocTipo: 99,
+      receptorIvaConditionId: 5,
     });
-    await db.insert(choreographyDancers).values([
-      {
-        ageAtEventStart: 14,
-        choreographyId: choreography.id,
-        dancerId: dancerA.id,
-        depositReferenceDate: "2026-03-20",
-        depositAmount: 3000,
-        frozenBasePriceAmount: 15000,
-      },
-      {
-        ageAtEventStart: 14,
-        choreographyId: choreography.id,
-        dancerId: dancerB.id,
-        depositReferenceDate: "2026-03-20",
-        depositAmount: 3000,
-        frozenBasePriceAmount: 15000,
-      },
-    ]);
 
     const response = await submitRoster({
-      choreographyId: choreography.id,
-      dancerIds: [dancerA.id, dancerB.id, dancerC.id],
+      choreographyId: scenario.choreography.id,
+      dancerIds: [scenario.dancerB.id],
     });
 
-    expect(response).not.toBeInstanceOf(Response);
+    expect(response).toMatchObject({ status: "success" });
+
+    const withdrawn = await db.query.choreographyDancers.findFirst({
+      where: eq(choreographyDancers.id, scenario.inscriptionA.id),
+    });
+    expect(withdrawn?.withdrawnAt).toBeInstanceOf(Date);
+  });
+
+  test("revives the same inscription id when the withdrawn dancer is added again", async () => {
+    const scenario = await createRemovalScenario({
+      academyName: "Academia Roster Revive",
+      email: "roster.revive.academia@example.com",
+    });
+    const payment = await createPayment(scenario);
+    await db.insert(paymentAllocations).values({
+      academyId: scenario.academyId,
+      amount: 3000,
+      eventId: scenario.event.id,
+      inscriptionId: scenario.inscriptionA.id,
+      paymentId: payment.id,
+    });
+
+    await submitRoster({
+      choreographyId: scenario.choreography.id,
+      dancerIds: [scenario.dancerB.id],
+    });
+    const response = await submitRoster({
+      choreographyId: scenario.choreography.id,
+      dancerIds: [scenario.dancerA.id, scenario.dancerB.id],
+    });
+
     expect(response).toMatchObject({ status: "success" });
 
     const inscriptions = await db.query.choreographyDancers.findMany({
-      where: eq(choreographyDancers.choreographyId, choreography.id),
+      where: eq(choreographyDancers.choreographyId, scenario.choreography.id),
     });
-    const kept = inscriptions.filter((row) => row.dancerId !== dancerC.id);
-    expect(kept).toHaveLength(2);
-    for (const inscription of kept) {
-      expect(deriveInscriptionFinancialState(inscription)).toBe("señada");
-    }
-    const added = inscriptions.find((row) => row.dancerId === dancerC.id);
-    expect(deriveInscriptionFinancialState(added!)).toBe("impaga");
+    const revived = inscriptions.find(
+      (row) => row.dancerId === scenario.dancerA.id,
+    );
+    expect(inscriptions).toHaveLength(2);
+    expect(revived?.id).toBe(scenario.inscriptionA.id);
+    expect(revived?.withdrawnAt).toBeNull();
+  });
+
+  test("leaves the withdrawn row untouched when its allocations are removed afterwards", async () => {
+    const scenario = await createRemovalScenario({
+      academyName: "Academia Roster Desasigna",
+      email: "roster.desasigna.academia@example.com",
+    });
+    const payment = await createPayment(scenario);
+    const [allocation] = await db
+      .insert(paymentAllocations)
+      .values({
+        academyId: scenario.academyId,
+        amount: 3000,
+        eventId: scenario.event.id,
+        inscriptionId: scenario.inscriptionA.id,
+        paymentId: payment.id,
+      })
+      .returning();
+
+    await submitRoster({
+      choreographyId: scenario.choreography.id,
+      dancerIds: [scenario.dancerB.id],
+    });
+    const withdrawn = await db.query.choreographyDancers.findFirst({
+      where: eq(choreographyDancers.id, scenario.inscriptionA.id),
+    });
+
+    await db
+      .delete(paymentAllocations)
+      .where(eq(paymentAllocations.id, allocation.id));
+
+    const afterDeallocation = await db.query.choreographyDancers.findFirst({
+      where: eq(choreographyDancers.id, scenario.inscriptionA.id),
+    });
+    expect(afterDeallocation?.withdrawnAt).toEqual(withdrawn?.withdrawnAt);
   });
 
   test("hard-locks roster editing when the choreography has a presentation", async () => {
@@ -402,6 +423,83 @@ describe("administrative choreography roster editing", () => {
   });
 });
 
+/**
+ * Duo con dos inscripciones, la de `dancerA` lista para que el test le cuelgue
+ * la evidencia que quiera probar. Quitarla del roster deja un solo bailarín, que
+ * es la baja más simple que ejercita la decisión entre borrar y retirar.
+ */
+async function createRemovalScenario(input: {
+  academyName: string;
+  email: string;
+}) {
+  const owner = await createAcademySession({
+    academyName: input.academyName,
+    email: input.email,
+  });
+  const event = await createEventRecord({ active: true, name: "Regional" });
+  const catalog = await createEventCatalog(event.id);
+  const [dancerA, dancerB] = await Promise.all([
+    createDancer(owner.academyId, { firstName: "Ana", lastName: "Uno" }),
+    createDancer(owner.academyId, { firstName: "Bea", lastName: "Dos" }),
+  ]);
+  const choreography = await createChoreographyRecord({
+    academyId: owner.academyId,
+    categoryId: catalog.teenCategory.id,
+    eventId: event.id,
+    groupType: "duo",
+    modalityId: catalog.modality.id,
+    name: "Duo",
+    scheduleCapacityId: catalog.duoScheduleCapacity.id,
+    submodalityId: catalog.submodality.id,
+  });
+  const [inscriptionA] = await db
+    .insert(choreographyDancers)
+    .values({
+      ageAtEventStart: 14,
+      choreographyId: choreography.id,
+      dancerId: dancerA.id,
+    })
+    .returning();
+  await db.insert(choreographyDancers).values({
+    ageAtEventStart: 14,
+    choreographyId: choreography.id,
+    dancerId: dancerB.id,
+  });
+
+  return {
+    academyId: owner.academyId,
+    choreography,
+    dancerA,
+    dancerB,
+    event,
+    inscriptionA,
+  };
+}
+
+async function createPayment(scenario: {
+  academyId: string;
+  event: { id: string };
+}) {
+  const [payment] = await db
+    .insert(payments)
+    .values({
+      academyId: scenario.academyId,
+      amount: 3000,
+      eventId: scenario.event.id,
+      paymentDate: "2026-03-20",
+      paymentMethod: "transferencia",
+      paymentNumber: 1,
+    })
+    .returning();
+
+  return payment;
+}
+
+// El admin firmante se crea de cero en cada submit, así que el mail tiene que
+// ser único también entre dos submits sobre la misma coreografía (retirar y
+// volver a agregar es exactamente ese caso).
+let submitCount = 0;
+
 async function submitRoster(input: {
   choreographyId: string;
   dancerIds: string[];
@@ -430,7 +528,7 @@ async function submitRoster(input: {
 
   const { request } = await createSignedInAdminRequest({
     body,
-    email: `admin.roster.${input.choreographyId}@example.com`,
+    email: `admin.roster.${(submitCount += 1)}.${input.choreographyId}@example.com`,
     requestUrl: `http://localhost/administracion/coreografias/${input.choreographyId}`,
     role: "admin",
   });

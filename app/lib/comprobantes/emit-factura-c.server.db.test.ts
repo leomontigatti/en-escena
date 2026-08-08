@@ -12,6 +12,7 @@ import {
   comprobantes,
   paymentAllocations,
   payments,
+  prices,
 } from "@/db/schema";
 import {
   createChoreographyRecord,
@@ -95,6 +96,11 @@ function connectionLost(): Promise<never> {
   return Promise.reject(new Error("socket hang up"));
 }
 
+// Every inscription ends up with a 3000 `Seña` and a 10000 total — the `solo`
+// priced at 10000 and the 30% the event requires — the two thresholds the
+// billable remainder's porción is derived against. The price is repeated with a
+// far-off deadline because the threshold comes from the price applicable TODAY,
+// and the catalogue's one expires in 2026.
 async function seedChoreographyWithInscriptions(
   email: string,
   inscriptionCount: number,
@@ -105,6 +111,14 @@ async function seedChoreographyWithInscriptions(
     email,
   });
   const catalog = await createEventCatalog(event.id);
+  await db.insert(prices).values({
+    eventId: event.id,
+    name: "Precio Solo vigente",
+    groupType: "solo",
+    amount: 10000,
+    paymentDeadline: "2099-12-31",
+    scheduleId: null,
+  });
   const choreography = await createChoreographyRecord({
     academyId: academy.id,
     eventId: event.id,
@@ -139,7 +153,6 @@ async function allocatePayment(input: {
   eventId: string;
   inscriptionId: string;
   amount: number;
-  allocationType?: "deposit" | "balance";
 }) {
   paymentNumber += 1;
   const [payment] = await db
@@ -159,7 +172,6 @@ async function allocatePayment(input: {
     inscriptionId: input.inscriptionId,
     academyId: input.academyId,
     eventId: input.eventId,
-    allocationType: input.allocationType ?? "deposit",
     amount: input.amount,
   });
 }
@@ -436,7 +448,6 @@ describe("emitChoreographyFacturaC", () => {
       eventId: choreography.eventId,
       inscriptionId: inscriptions[0].id,
       amount: 3000,
-      allocationType: "deposit",
     });
 
     const deps = emissionDeps(fakeBilling());
@@ -475,14 +486,12 @@ describe("emitChoreographyFacturaC", () => {
       eventId: choreography.eventId,
       inscriptionId: inscriptions[0].id,
       amount: 3000,
-      allocationType: "deposit",
     });
     await allocatePayment({
       academyId: academy.id,
       eventId: choreography.eventId,
       inscriptionId: inscriptions[0].id,
       amount: 7000,
-      allocationType: "balance",
     });
 
     const deps = emissionDeps(fakeBilling());
@@ -512,7 +521,6 @@ describe("emitChoreographyFacturaC", () => {
       eventId: choreography.eventId,
       inscriptionId: inscription.id,
       amount: 3000,
-      allocationType: "deposit",
     });
     // La seña ya fue facturada por una Factura C vigente que cubrió el depósito.
     await recordComprobante({
@@ -539,7 +547,6 @@ describe("emitChoreographyFacturaC", () => {
       eventId: choreography.eventId,
       inscriptionId: inscription.id,
       amount: 7000,
-      allocationType: "balance",
     });
 
     const deps = emissionDeps(fakeBilling());
@@ -566,7 +573,6 @@ describe("emitChoreographyFacturaC", () => {
       eventId: choreography.eventId,
       inscriptionId: inscriptions[0].id,
       amount: 3000,
-      allocationType: "deposit",
     });
 
     const deps = emissionDeps(fakeBilling());
@@ -584,7 +590,6 @@ describe("emitChoreographyFacturaC", () => {
       eventId: choreography.eventId,
       inscriptionId: inscriptions[0].id,
       amount: 7000,
-      allocationType: "balance",
     });
 
     const [reloaded] = await db

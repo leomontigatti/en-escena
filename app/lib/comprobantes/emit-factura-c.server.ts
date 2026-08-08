@@ -9,6 +9,7 @@ import {
   paymentAllocations,
 } from "@/db/schema";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
+import { readInscriptionThresholds } from "@/lib/finances/inscription-thresholds.server";
 import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
 
 import { ArcaClient, getArcaClient } from "./arca/client.server";
@@ -284,14 +285,11 @@ export type ChoreographyBillable = {
 export async function resolveChoreographyBillable(
   choreographyId: string,
 ): Promise<ChoreographyBillable> {
-  const inscriptionRows = await db
-    .select({ id: choreographyDancers.id })
-    .from(choreographyDancers)
-    .where(eq(choreographyDancers.choreographyId, choreographyId));
+  const inscriptionRows = await readInscriptionDeposits(choreographyId);
 
   const { lines, depositPaid, balancePaid, billed } = await resolveBillable(
     choreographyId,
-    inscriptionRows.map((row) => row.id),
+    inscriptionRows,
   );
   const total = lines.reduce((sum, line) => sum + line.amount, 0);
   const porcion = derivePorcion({ depositPaid, balancePaid, billed });
@@ -300,11 +298,49 @@ export async function resolveChoreographyBillable(
 }
 
 /**
- * Deriva la porción del remanente facturable a partir de lo cobrado por tipo de
- * asignación y lo ya facturado. El cobro es atómico a nivel coreografía (para
- * señar, todas las inscripciones impagas; para saldar, todas señadas) y la seña
- * se factura antes que el saldo, así que lo facturado cubre primero el depósito:
- * el remanente nunca es mixto y `{seña, saldo, total}` cubre el espacio real.
+ * The `Seña` threshold of every inscription of the choreography, derived by the
+ * same owner the rest of the application uses: it comes from the price and the
+ * event's percentage, never from a column. It is `null` when no price applies,
+ * and then everything charged is imputed to the `Seña`.
+ */
+async function readInscriptionDeposits(
+  choreographyId: string,
+): Promise<Array<{ depositAmount: number | null; id: string }>> {
+  const [choreography] = await db
+    .select({
+      academyId: choreographies.academyId,
+      eventId: choreographies.eventId,
+    })
+    .from(choreographies)
+    .where(eq(choreographies.id, choreographyId));
+  const inscriptionRows = await db
+    .select({ id: choreographyDancers.id })
+    .from(choreographyDancers)
+    .where(eq(choreographyDancers.choreographyId, choreographyId));
+
+  if (!choreography || inscriptionRows.length === 0) {
+    return inscriptionRows.map((row) => ({ depositAmount: null, id: row.id }));
+  }
+
+  const thresholds = await readInscriptionThresholds(db, {
+    academyId: choreography.academyId,
+    eventId: choreography.eventId,
+    inscriptionIds: inscriptionRows.map((row) => row.id),
+  });
+
+  return inscriptionRows.map((row) => ({
+    depositAmount: thresholds.get(row.id)?.depositAmount ?? null,
+    id: row.id,
+  }));
+}
+
+/**
+ * Deriva la porción del remanente facturable a partir de lo cobrado contra el
+ * umbral de seña y lo ya facturado. La asignación no tiene rol: lo cobrado cubre
+ * primero la seña de cada inscripción y el excedente es saldo. El cobro es
+ * atómico a nivel coreografía y la seña se factura antes que el saldo, así que
+ * lo facturado cubre primero el depósito: el remanente nunca es mixto y
+ * `{seña, saldo, total}` cubre el espacio real.
  */
 function derivePorcion(input: {
   depositPaid: number;
@@ -332,8 +368,8 @@ function derivePorcion(input: {
 
 type BillableResolution = {
   lines: ComprobanteLineInput[];
-  // Cobrado por tipo de asignación, agregado a nivel coreografía: insumos de la
-  // derivación de porción.
+  // Cobrado contra la seña y por encima de ella, agregado a nivel coreografía:
+  // insumos de la derivación de porción.
   depositPaid: number;
   balancePaid: number;
   // Total ya facturado por facturas tipo 11 vigentes.
@@ -345,35 +381,38 @@ type BillableResolution = {
  * lo ya cubierto por facturas tipo 11 VIGENTES de la coreografía. Sólo entran las
  * inscripciones con remanente positivo. Una factura anulada deja de contar como
  * facturada (su estado deriva de la Nota de crédito), así que su monto vuelve a
- * ser facturable. Además agrega lo cobrado por tipo (`deposit`/`balance`) y el
- * total facturado, insumos de los que se deriva la porción del remanente.
+ * ser facturable. Además agrega lo cobrado contra la seña y por encima de ella,
+ * más el total facturado: insumos de los que se deriva la porción del remanente.
  */
 async function resolveBillable(
   choreographyId: string,
-  inscriptionIds: string[],
+  inscriptions: Array<{ depositAmount: number | null; id: string }>,
 ): Promise<BillableResolution> {
-  if (inscriptionIds.length === 0) {
+  if (inscriptions.length === 0) {
     return { lines: [], depositPaid: 0, balancePaid: 0, billed: 0 };
   }
 
   const allocations = await db
     .select({
       inscriptionId: paymentAllocations.inscriptionId,
-      allocationType: paymentAllocations.allocationType,
       amount: paymentAllocations.amount,
     })
     .from(paymentAllocations)
-    .where(inArray(paymentAllocations.inscriptionId, inscriptionIds));
+    .where(
+      inArray(
+        paymentAllocations.inscriptionId,
+        inscriptions.map((inscription) => inscription.id),
+      ),
+    );
 
   const paidByInscription = sumByInscription(allocations);
   let depositPaid = 0;
   let balancePaid = 0;
-  for (const allocation of allocations) {
-    if (allocation.allocationType === "deposit") {
-      depositPaid += allocation.amount;
-    } else {
-      balancePaid += allocation.amount;
-    }
+  for (const inscription of inscriptions) {
+    const paid = paidByInscription.get(inscription.id) ?? 0;
+    const coveredDeposit = Math.min(paid, inscription.depositAmount ?? paid);
+    depositPaid += coveredDeposit;
+    balancePaid += paid - coveredDeposit;
   }
 
   const existing = await listChoreographyComprobantes(choreographyId);
@@ -398,13 +437,13 @@ async function resolveBillable(
 
   const lines: ComprobanteLineInput[] = [];
   let billed = 0;
-  for (const inscriptionId of inscriptionIds) {
-    const paid = paidByInscription.get(inscriptionId) ?? 0;
-    const inscriptionBilled = billedByInscription.get(inscriptionId) ?? 0;
+  for (const inscription of inscriptions) {
+    const paid = paidByInscription.get(inscription.id) ?? 0;
+    const inscriptionBilled = billedByInscription.get(inscription.id) ?? 0;
     billed += inscriptionBilled;
     const billable = paid - inscriptionBilled;
     if (billable > 0) {
-      lines.push({ inscriptionId, amount: billable });
+      lines.push({ inscriptionId: inscription.id, amount: billable });
     }
   }
 

@@ -1,7 +1,8 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNotNull } from "drizzle-orm";
 
 import { db } from "@/db";
 import { choreographies, choreographyDancers } from "@/db/schema";
+import { activeInscription } from "@/lib/choreographies/active-inscription";
 import {
   resolveChoreographyDancerUpdateContext,
   resolveSelectedExperienceLevelId,
@@ -18,7 +19,10 @@ import {
   type UpdateChoreographyDancersResult,
   type UpdateChoreographyResult,
 } from "@/lib/choreographies/choreography-roster.shared";
-import { releaseInscriptionAllocations } from "@/lib/finances/choreography-cobro.server";
+import {
+  removeInscriptionsFromRoster,
+  reviveWithdrawnInscriptions,
+} from "@/lib/choreographies/inscription-withdrawal.server";
 
 /**
  * Administración edita el roster (bailarines y profesores) de una coreografía ya
@@ -27,8 +31,9 @@ import { releaseInscriptionAllocations } from "@/lib/finances/choreography-cobro
  *
  * A diferencia del reemplazo total del portal, las inscripciones que se
  * mantienen no se tocan (marca de agua: una `señada` no vuelve a `impaga`). Alta
- * de bailarín → nueva inscripción `impaga` a precio tentativo; baja → borrado
- * físico + devolución de todo lo asignado al `Saldo disponible`.
+ * de bailarín → inscripción nueva, o la revivida si ya estaba retirada; baja →
+ * borrado físico sin evidencia, retiro con ella (`removeInscriptionsFromRoster`).
+ * La plata no se mueve en ninguno de los dos casos.
  *
  * `name` es opcional y viaja acá para que el detalle admin pueda guardar nombre y
  * roster en un solo submit. Cuando cambian los bailarines se persiste dentro de la
@@ -55,7 +60,12 @@ export async function updateAdministrativeChoreographyRoster(input: {
     db
       .select({ dancerId: choreographyDancers.dancerId })
       .from(choreographyDancers)
-      .where(eq(choreographyDancers.choreographyId, input.choreographyId)),
+      .where(
+        and(
+          eq(choreographyDancers.choreographyId, input.choreographyId),
+          activeInscription(),
+        ),
+      ),
     db.query.choreographyProfessors
       .findMany({
         columns: { professorId: true },
@@ -200,33 +210,68 @@ async function updateChoreographyDancers(input: {
   );
 
   await db.transaction(async (tx) => {
-    const currentLinks = await tx
-      .select({
-        id: choreographyDancers.id,
-        dancerId: choreographyDancers.dancerId,
-      })
-      .from(choreographyDancers)
-      .where(eq(choreographyDancers.choreographyId, input.choreographyId));
+    const [currentLinks, withdrawnLinks] = await Promise.all([
+      tx
+        .select({
+          id: choreographyDancers.id,
+          dancerId: choreographyDancers.dancerId,
+        })
+        .from(choreographyDancers)
+        .where(
+          and(
+            eq(choreographyDancers.choreographyId, input.choreographyId),
+            activeInscription(),
+          ),
+        ),
+      // Las retiradas se leen a propósito: son las candidatas a revivir, y
+      // hasta que se revivan no participan de nada más.
+      tx
+        .select({
+          id: choreographyDancers.id,
+          dancerId: choreographyDancers.dancerId,
+        })
+        .from(choreographyDancers)
+        .where(
+          and(
+            eq(choreographyDancers.choreographyId, input.choreographyId),
+            isNotNull(choreographyDancers.withdrawnAt),
+          ),
+        ),
+    ]);
     const currentDancerIds = new Set(currentLinks.map((row) => row.dancerId));
+    const withdrawnInscriptionIdByDancerId = new Map(
+      withdrawnLinks.map((row) => [row.dancerId, row.id]),
+    );
 
-    for (const link of currentLinks) {
-      if (requestedDancerIds.has(link.dancerId)) {
-        continue;
-      }
-
-      await releaseInscriptionAllocations({ inscriptionId: link.id }, tx);
-      await tx
-        .delete(choreographyDancers)
-        .where(eq(choreographyDancers.id, link.id));
-    }
+    await removeInscriptionsFromRoster(
+      tx,
+      currentLinks
+        .filter((link) => !requestedDancerIds.has(link.dancerId))
+        .map((link) => link.id),
+    );
 
     const addedDancers = resolvedDancers.filter(
       (dancer) => !currentDancerIds.has(dancer.id),
     );
 
-    if (addedDancers.length > 0) {
+    await reviveWithdrawnInscriptions(
+      tx,
+      addedDancers.flatMap((dancer) => {
+        const inscriptionId = withdrawnInscriptionIdByDancerId.get(dancer.id);
+
+        return inscriptionId
+          ? [{ ageAtEventStart: dancer.ageAtEventStart, id: inscriptionId }]
+          : [];
+      }),
+    );
+
+    const insertedDancers = addedDancers.filter(
+      (dancer) => !withdrawnInscriptionIdByDancerId.has(dancer.id),
+    );
+
+    if (insertedDancers.length > 0) {
       await tx.insert(choreographyDancers).values(
-        addedDancers.map((dancer) => ({
+        insertedDancers.map((dancer) => ({
           choreographyId: input.choreographyId,
           dancerId: dancer.id,
           ageAtEventStart: dancer.ageAtEventStart,

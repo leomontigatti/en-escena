@@ -7,7 +7,7 @@ import { registerAcademyEventPayment } from "@/features/admin/finances/academy-c
 import {
   createChoreographyRecord,
   createEventCatalog,
-  freezeInscriptionDepositForTest,
+  createSelectedPriceInscriptionForTest,
 } from "@/features/portal/choreographies/test-support/db";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
@@ -120,7 +120,6 @@ describe.sequential("admin payment detail", () => {
     const allocatedAmount = 3000;
     await db.insert(paymentAllocations).values({
       academyId: academy.academy.id,
-      allocationType: "deposit",
       amount: allocatedAmount,
       eventId: event.id,
       inscriptionId: inscription.id,
@@ -234,7 +233,6 @@ describe.sequential("admin payment detail", () => {
 
     await db.insert(paymentAllocations).values({
       academyId: academy.academy.id,
-      allocationType: "deposit",
       amount: 3000,
       eventId: event.id,
       inscriptionId: inscription.id,
@@ -261,15 +259,11 @@ describe.sequential("admin payment detail", () => {
     await expect(findPaymentById(payment.id)).resolves.toBeUndefined();
     await expect(findAllocationsByPaymentId(payment.id)).resolves.toEqual([]);
 
-    // La inscripción vuelve a `impaga`: el snapshot de seña quedó limpio.
-    await expect(findInscriptionById(inscription.id)).resolves.toMatchObject({
-      depositReferenceDate: null,
-      depositAmount: null,
-      frozenBasePriceAmount: null,
-    });
+    // The inscription outlives the payment: it only loses the money on it.
+    await expect(findInscriptionById(inscription.id)).resolves.toBeDefined();
   });
 
-  test("aborts deletion when an inscription keeps a paid balance in another payment", async () => {
+  test("deletes the payment even when the balance lives in another payment", async () => {
     const event = await createSavedEvent({
       requiredDepositPercentage: 30,
     });
@@ -317,21 +311,9 @@ describe.sequential("admin payment detail", () => {
       eventId: event.id,
     });
 
-    // La inscripción quedó `pagada`: el saldo está congelado y asignado al pago B.
-    await db
-      .update(choreographyDancers)
-      .set({
-        balanceReferenceDate: "2026-03-20",
-        finalTotalAmount: 10000,
-        balanceAmount: 7000,
-        balanceCompletedAt: "2026-03-20",
-      })
-      .where(eq(choreographyDancers.id, inscription.id));
-
     await db.insert(paymentAllocations).values([
       {
         academyId: academy.academy.id,
-        allocationType: "deposit",
         amount: 3000,
         eventId: event.id,
         inscriptionId: inscription.id,
@@ -339,7 +321,6 @@ describe.sequential("admin payment detail", () => {
       },
       {
         academyId: academy.academy.id,
-        allocationType: "balance",
         amount: 7000,
         eventId: event.id,
         inscriptionId: inscription.id,
@@ -357,28 +338,19 @@ describe.sequential("admin payment detail", () => {
       requestUrl: paymentDetailUrl(depositPayment.id, event.id),
     });
 
+    // No hay orden de reversión: la plata es fungible y la eliminación procede.
     await expect(
       handlePaymentDetailAction(request, depositPayment.id),
-    ).resolves.toMatchObject({
-      status: "error",
-      intent: deletePaymentIntent,
-      fieldErrors: {
-        paymentId:
-          "No se pudo eliminar el pago: hay coreografías con el saldo pagado en otro pago. Desasigná ese saldo primero.",
-      },
-    });
+    ).rejects.toMatchObject({ status: 302 });
 
-    // Rollback total: pago, asignación y snapshot intactos.
-    await expect(findPaymentById(depositPayment.id)).resolves.toMatchObject({
-      id: depositPayment.id,
-    });
+    await expect(findPaymentById(depositPayment.id)).resolves.toBeUndefined();
     await expect(
       findAllocationsByPaymentId(depositPayment.id),
+    ).resolves.toEqual([]);
+    // El saldo del otro pago sigue asignado; la inscripción ya no está pagada.
+    await expect(
+      findAllocationsByPaymentId(balancePayment.id),
     ).resolves.toHaveLength(1);
-    await expect(findInscriptionById(inscription.id)).resolves.toMatchObject({
-      depositReferenceDate: "2026-03-20",
-      balanceReferenceDate: "2026-03-20",
-    });
   });
 });
 
@@ -398,7 +370,7 @@ async function createFrozenInscription(input: {
     submodalityId: catalog.submodality.id,
   });
 
-  return await freezeInscriptionDepositForTest({
+  return await createSelectedPriceInscriptionForTest({
     academyId: input.academyId,
     choreographyId: choreography.id,
   });

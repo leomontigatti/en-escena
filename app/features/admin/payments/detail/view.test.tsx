@@ -68,26 +68,45 @@ describe("PaymentDetailRouteView", () => {
     expect(document.querySelector('textarea[name="reason"]')).toBeNull();
   });
 
-  test("lists affected choreographies and flags blocking ones in the delete dialog", async () => {
+  test("names each affected choreography with its amount and its un-crossings", async () => {
     await renderDetailIntoDocument({
       initialDeleteDialogOpen: true,
       loaderData: buildLoaderData({
         affectedChoreographies: [
-          { blocksDeletion: false, id: "cho_1", name: "Coreografía Uno" },
-          { blocksDeletion: true, id: "cho_2", name: "Coreografía Dos" },
+          {
+            allocatedAmount: 4000,
+            id: "cho_1",
+            name: "Coreografía Uno",
+            resultingStatus: "depositPending",
+            uncrossingInscriptionCount: 2,
+          },
+          {
+            allocatedAmount: 1500,
+            id: "cho_2",
+            name: "Coreografía Dos",
+            resultingStatus: null,
+            uncrossingInscriptionCount: 0,
+          },
         ],
       }),
     });
 
-    expect(document.body.textContent).toContain(
-      "También se van a eliminar sus asignaciones a estas coreografías",
-    );
-    expect(document.body.textContent).toContain("Coreografía Uno");
-    expect(document.body.textContent).toContain("Coreografía Dos");
-    // La coreografía bloqueante lleva la marca suave.
-    expect(document.body.textContent).toContain(
-      "Tiene el saldo pagado en otro pago",
-    );
+    const text = document.body.textContent ?? "";
+
+    // La plata sale del pool: el copy no puede prometer que vuelve al saldo
+    // disponible, porque el pago que la respaldaba se va con ella.
+    expect(text).toContain("Esa plata sale del pool");
+    expect(text).not.toContain("volver al saldo disponible");
+
+    expect(text).toContain("Coreografía Uno");
+    expect(text).toContain("$ 4.000");
+    expect(text).toContain("2 inscripciones dejan de cumplir un umbral");
+    expect(text).toContain("queda Seña pendiente");
+
+    // Sin descruce no se nombra ningún estado resultante.
+    expect(text).toContain("Coreografía Dos");
+    expect(text).toContain("$ 1.500");
+    expect(text).not.toContain("0 inscripciones");
   });
 });
 

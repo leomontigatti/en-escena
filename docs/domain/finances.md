@@ -30,13 +30,14 @@ the screens. The architecture decision lives in
 - An `Inscripción` links a choreography with a dancer, has its own economic
   identity and a **stable identity** (its own `id`, not the composite
   choreography+dancer key).
-- Economic states of an inscription: `impaga`, `señada` and `pagada`. There is no
-  `inactiva` state.
-- The economic state is **derived**, not persisted: it is inferred from which
-  snapshots are present.
-  - No deposit snapshot: `impaga`.
-  - Deposit snapshot and no balance snapshot: `señada`.
-  - Balance snapshot present: `pagada`.
+- Financial statuses of an inscription: `depositPending`, `depositMet` and
+  `paidInFull` (see "Inscription financial status"). There is no `inactiva` state.
+- The status is **derived**, not persisted: it is read from `Σ allocations`
+  against the deposit and total thresholds, and nothing is written when one is
+  crossed.
+- The `impaga`/`señada`/`pagada` **ladder stage** still exists, but only inside
+  the write path of `Pagar seña` / `Pagar saldo`, derived from snapshot presence.
+  It is not what any screen shows, and it dies with the `frozen_*` columns.
 - Removing an inscription from a choreography (an admin-only action; see
   "Choreography editing and deletion") **physically deletes** it, regardless of
   its economic state. There is no "inactiva" state and no soft delete.
@@ -44,39 +45,56 @@ the screens. The architecture decision lives in
   - **All** the amount it had allocated (deposit and, if it existed, balance)
     returns to the academy's `Saldo disponible` in the active event.
 - Adding the same dancer again creates a **new inscription** with a new `id`,
-  born `impaga` at the current tentative price.
+  born `depositPending` at the current price.
 
-## Choreography financial state
+## Inscription financial status
 
-- A choreography's financial state is derived from its active inscriptions with a
-  **watermark** rule, not a minimum:
-  - `impaga`: no active inscription is `señada` or `pagada`.
-  - `señada`: at least one active inscription is `señada` or `pagada` and not all
-    are `pagada`.
-  - `pagada`: every active inscription is `pagada`.
-- The financial state is not persisted on the choreography record; it is derived
-  from its active inscriptions.
-- A `señada` choreography **does not go back to `impaga`** when the admin changes
-  the roster. Adding an `impaga` inscription to an already signed choreography
-  leaves it in a mixed state, but it stays `señada`.
-- A `señada` choreography can only drop state through an administrative financial
-  correction (for example, deleting the `deposit` allocation of the only
-  deposited inscription), not through roster changes.
-- The domain state (`impaga`/`señada`/`pagada`) governs ordering, competition and
-  the aggregate amounts.
-- Only deposited or paid choreographies count for ordering and competition. If a
-  choreography loses its deposited or paid state through a financial correction,
-  it immediately stops counting for ordering and competition.
+An inscription's status is read from `Σ allocations` against its two thresholds,
+recomputed on read. **Nothing is written when a threshold is crossed.**
+
+| UI               | Value            | Definition                                    |
+| ---------------- | ---------------- | --------------------------------------------- |
+| `Seña pendiente` | `depositPending` | `Σ allocations < depositAmount`               |
+| `Señada`         | `depositMet`     | `depositAmount ≤ Σ allocations < totalAmount` |
+| `Pagada`         | `paidInFull`     | `Σ allocations ≥ totalAmount`                 |
+
+`paidInFull` rather than `paid` deliberately: the boundary is `≥`, not `=`,
+because passive over-allocation is tolerated.
+
+An inscription whose price cannot be resolved reads `Seña pendiente`: a threshold
+that cannot be computed cannot have been crossed.
+
+## Choreography financial status
+
+- A choreography's status is the **minimum** over its inscriptions on the scale
+  `depositPending < depositMet < paidInFull`. One uncovered dancer pulls the whole
+  choreography down, because the badge answers _can this be performed as
+  choreographed_.
+- It is a minimum and **not a watermark**. The watermark it replaces let a
+  choreography with a straggler inside read `Señada`, i.e. _can compete_, when it
+  could not — and `deriveChoreographyNeedsAttention` existed only to compensate
+  for that. Both are gone; the minimum says what to do rather than that something
+  is irregular, and it still sorts and filters.
+- A choreography with no inscriptions reads `Seña pendiente`: it cannot compete
+  either.
+- The status is not persisted on the choreography record.
+- `Pagada` **may un-stick** when a sibling changes a dancer's discount tier. That
+  is accepted; the anomaly makes it visible and no mechanism prevents it.
+- Only choreographies that have crossed count for ordering and competition. If one
+  drops status through a financial correction, it immediately stops counting.
 - Being paid does not make an operationally incomplete choreography presentable.
 
-### "Needs attention" display
+## Anomalies
 
-- The admin panel's financial choreography list shows a **"needs attention"**
-  display status when the active inscriptions are **mixed** (the normal flow
-  cannot resolve them in a single action).
-- "Needs attention" is **display-only, derived and not persisted**; it is not a
-  fourth domain state and does not affect ordering, competition or aggregates.
-  Underneath, a mixed choreography is still `señada`.
+A derived **array**, all self-clearing comparisons of current state, persisted
+nowhere.
+
+| Anomaly         | UI              | Predicate                     |
+| --------------- | --------------- | ----------------------------- |
+| `overAllocated` | `Sobreasignada` | `Σ allocations > totalAmount` |
+
+`Sobreasignada` is `destructive`, not amber: beside `Seña pendiente` two amber
+badges would read as one kind of fact.
 
 ## Choreography editing and deletion
 
@@ -147,10 +165,11 @@ receipt keeps its anchor choreography alive (there are no orphan receipts).
   saved.
 - **Professors** have no financial or resolution dimension: adding or removing
   them cascades into nothing else.
-- The **financial consequence** of adding (an `impaga` inscription) or removing
-  (physical delete + return to `Saldo disponible`) **is not resolved in this
-  form**: the form only produces the membership change. The impact (including the
-  "needs attention" display) is reflected and managed in the **financial views** —
+- The **financial consequence** of adding (a `depositPending` inscription) or
+  removing (physical delete + return to `Saldo disponible`) **is not resolved in
+  this form**: the form only produces the membership change. The impact — which a
+  minimum rollup surfaces directly, by pulling the choreography's status down — is
+  reflected and managed in the **financial views** —
   the academy's financial list and the choreography's financial detail. The save
   confirmation is a **generic notice** that the edit may need attention in the
   financial state, with no amounts and no price selection.
@@ -219,11 +238,12 @@ adeudada` or `Saldo adeudado`, the affected amount is pending or incomplete,
   **derived automatically** from `payment.date` against the current price
   deadlines. Administration does not pick a row; its only lever is which payment
   it uses.
-- Extraordinary flow (an inscription the admin adds later): administration
-  **explicitly picks** a price row (current or an allowed historical one),
-  bounded by a **floor**: it cannot pick a price lower than the lowest frozen
-  price among that choreography's already `señada` or `pagada` active
-  inscriptions. `payment.date` is still stored as the snapshot's reference date.
+- Per-inscription flow (`Asignar plata`): administration **explicitly picks** a
+  price row inside the allocation dialog, filtered to the choreography's group
+  type and schedule. There is no floor and no today's-price ceiling — an
+  arbitrary amount against a threshold has no rung to stay between — and the pick
+  is only offered until the first allocation fixes it. See "The money dialogs of
+  an inscription".
 
 ## Payments
 
@@ -246,123 +266,185 @@ disponible` in the active event.
 
 ## Payment allocations
 
-- An `Asignación de pago` applies a payment's balance to one inscription and one
-  stage. It is **mutable, deletable current state**, not an append-only ledger
-  and not an imputación with reversals.
-- The inscription stages are `seña` (`deposit`) and `saldo` (`balance`).
-- Each allocation pays one complete stage of one inscription.
-- The same stage of an inscription cannot be split across several payments.
+- An `Asignación de pago` applies a payment's balance to one inscription. It is
+  **mutable, deletable current state**, not an append-only ledger and not an
+  imputación with reversals.
+- An allocation is **an amount against an inscription**, with no stage and no
+  role. Any amount can be recorded, and one inscription's money can come from
+  several payments.
 - The same payment can be used in several allocations, even at different times,
   as long as it has enough `Saldo disponible`.
-- Balance cannot be allocated to an inscription that has no deposit.
-- An already paid stage cannot be paid again.
 - The allocation is **minimal**: it stores the payment↔inscription money link,
   not price snapshots. The snapshots live on the inscription.
-  - Fields: `paymentId`, `inscriptionId`, `academyId`, `eventId`,
-    `allocationType`, `amount`, `createdAt`, `updatedAt`.
-  - Uniqueness: `(paymentId, inscriptionId, allocationType)`.
+  - Fields: `paymentId`, `inscriptionId`, `academyId`, `eventId`, `amount`,
+    `createdAt`, `updatedAt`. The row carries **no type**: money is fungible, so
+    an allocation is an amount against an inscription and nothing else.
+  - Uniqueness: `(paymentId, inscriptionId)`. The row is written by upsert
+    (summing), a CHECK constraint keeps `amount > 0`, and a decrement to zero
+    deletes it.
+  - Deleting a payment cascades its allocations in the database; there is no
+    reversal order and no blocking case.
   - It stores no user attribution (`createdByUserId`); the system does not audit.
+
+## The pool rules
+
+Funding an inscription and unfunding it are the two halves of one invariant, and
+they live in one module (`app/lib/finances/allocation-pool.server.ts`).
+
+- **The invariant**: `Saldo disponible = Σ payments − Σ allocations − Σ refunds`,
+  and it can never go below zero. The floor is **structural, not a clamp**: every
+  allocation is capped against what is still free in the payments, and a
+  payment's `amount` is write-once. There is no subtraction that could overshoot.
+  - The refunds term is part of the rule but **is not implemented yet**: there is
+    no refunds table or column, so until [#536](https://github.com/leomontigatti/en-escena/issues/536)
+    lands, `Saldo disponible` reads as `Σ payments − Σ allocations`.
+- **Funding (`spreadFromPool`)**: the administrator names an inscription and an
+  amount, never a payment. The system consumes the academy's payments
+  **oldest-first by payment number**, creating or incrementing the
+  `(payment, inscription)` row until the amount is covered.
+- **Unfunding (`unwindToPool`)** is the exact inverse: it consumes that
+  inscription's allocations **newest-first by payment number**, decrementing and
+  deleting the row at zero. Funding an amount and immediately unfunding it
+  returns the rows to their prior state.
+  - The round trip is exact as long as what is unwound is the last thing funded.
+    If money is freed on a payment older than one where the inscription already
+    held an allocation, the total comes back the same but may be split
+    differently across payments: money is fungible and no provenance is stored,
+    which is precisely what keeps a reversal order from coming back.
+- **Over-allocation**: **active** over-allocation is refused on the write path,
+  with **no override** — a write that would push an inscription above its
+  `Total` is rejected, which is why owed is computed on the write path and not
+  only on read. **Passive** over-allocation already recorded is tolerated: it
+  stays where it sits, stays readable, and only an administrator moves it.
+- **Accepted cost, stated plainly**: a specific payment can no longer be lifted
+  off a specific inscription. The remedy for a payment recorded in error is
+  **deleting the payment**, which cascades its allocations.
 
 ## Normal actions and extraordinary cases
 
 - `Pagar seña` is a normal whole-choreography action. It only appears if every
-  active inscription of that choreography is `impaga`. It creates a deposit
-  allocation for each active inscription.
+  active inscription of that choreography is `impaga`. It allocates each active
+  inscription's `Seña adeudada` from the pool.
 - `Pagar saldo` is a normal whole-choreography action. It only appears if every
-  active inscription is `señada`. It creates a balance allocation for each active
-  inscription.
-- Any choreography with mixed states ("needs attention") requires extraordinary
-  handling.
-- Each inscription unresolved by the normal flow is handled as a separate
-  extraordinary case, even when several share the same resolution. An
-  extraordinary manual allocation targets a single inscription and a single
-  complete stage.
+  active inscription is `señada`. It allocates each active inscription's
+  `Saldo adeudado` from the pool.
+- Neither names a payment: they are **presets over the figures**. The amount is
+  the owed figure, computed on the write path from the same derivation the
+  screens read, and the pool decides which payments it comes from.
+- A preset is **all or nothing**. If the pool runs dry partway through a
+  choreography, or any inscription is refused, the whole charge rolls back:
+  nothing is allocated and no snapshot is frozen. An administrator who sees an
+  error can trust that nothing moved.
+- The price row and the reference dates they freeze are resolved against the
+  **business date**, not against a payment's date.
+- An inscription that already holds money keeps the price it holds: the preset
+  skips its snapshot and only tops it up to its own deposit, because the price is
+  fixed from the first allocation.
 
-### Extraordinary per-inscription charging
+## The money dialogs of an inscription
 
-- Extraordinary charging is **per individual inscription**, never for a subset of
-  inscriptions: the granularity is one inscription per action, even when several
-  orphans share the same resolution. There is no "homogeneous subset charge".
-- It covers an inscription's **full ladder**: `impaga` → `señada` (charging its
-  deposit) and `señada` → `pagada` (charging its balance). The mixed `pagada` +
-  `impaga` case requires walking both rungs on the orphan (deposit it first, then
-  pay its balance) to bring it up to its siblings' level.
-- Per-inscription deposit charging uses the **extraordinary flow** of explicit
-  price row selection with a floor, described in "Selecting the price row when
-  freezing". When the first orphan of a mixed choreography is deposited, its
-  frozen price joins the set defining the floor for the following orphans.
-- Individual charging is only offered on **mixed** choreographies. On a 100%
-  `impaga` choreography, the first freeze (which sets the floor) is the one from
-  the normal whole-choreography flow; the individual row offers no charging.
+The choreography financial detail has **one entry point per inscription** — the
+dancer's name — and the dialog behind it takes its shape from what the row holds.
+Nothing is resolved from a payment in either direction: the administrator names
+an inscription and an amount, and the pool rules pick the payments.
 
-### Undoing an allocation per inscription (`delete-allocation`)
+| Row                       | What opens                                          |
+| ------------------------- | --------------------------------------------------- |
+| over-allocated            | `Liberar el excedente`: one click, nothing to type  |
+| nothing owed, money on it | `Quitar plata`, prefilled with everything allocated |
+| anything else             | `Asignar plata`: price and amount                   |
 
-- From the choreography's financial view an inscription's allocation can be
-  **undone** as a financial correction: dropping one stage (`saldo` → returns the
-  inscription to `señada`; `seña` → returns it to `impaga`) while **keeping the
-  inscription** in the roster.
+A row that still owes something but already holds money reaches `Quitar plata`
+from inside the allocation dialog, so removal is available wherever there is
+money to take off while the entry point stays single.
+
+### Allocating (`allocate-inscription`)
+
+- **Any amount is allocatable.** A partial allocation is an ordinary outcome: the
+  row reads `Seña pendiente` with its shortfall, not as unpaid.
+- The owed figure is a **placeholder, never a prefilled value**, because it moves
+  while the dialog is open — the discount is live. The hint is the figure that
+  finishes the next thing: the seña while that threshold is unmet, the saldo once
+  it is met.
+- The **price is chosen inside this dialog and never in a table cell**. The picker
+  is filtered to the choreography's group type and schedule; offering a foreign
+  row would be offering to create a forbidden state.
+- The price is **locked** — not merely warned about — from the first allocation
+  on. The dialog shows it as a readout, the write path refuses a different row,
+  and the database holds the same rule through the guard trigger on
+  `selected_price_id`. The way to change it is to take the money off first.
+- Active over-allocation is refused with **no override**, so this is the only one
+  of the three gestures that can bounce.
+
+### Removing (`remove-inscription-money`)
+
+- The amount is **prefilled with everything the inscription holds** and any
+  smaller amount is accepted. It is a real value rather than a hint, because what
+  is allocated is a fact and does not move under the administrator.
+- It unwinds **newest-first** through `unwindToPool`; the administrator never
+  chooses a payment. The released amount returns to the academy's
+  `Saldo disponible` in the active event.
+- **Removing money never blocks.** The status and the figures simply re-derive
+  from what remains, and the ladder snapshots are reconciled against it.
 - It is a different action from **removing an inscription from the roster** (see
-  "Inscriptions"): removing from the roster physically deletes the inscription;
-  undoing an allocation does not delete it, it only reverts a per-stage charge.
-  The released amount returns to the academy's `Saldo disponible` in the active
-  event.
-- It is a destructive action on money and asks for confirmation. It runs without
-  a reason and without leaving an audit entry (see "No auditing in finances"). If
-  the deposit of an inscription that also has a paid balance is undone, the order
-  is dropping `saldo` before `seña`.
-- **"Uniform row only undoes" rule:** on a **uniform** choreography (all its
-  active inscriptions in the same state), the per-row operation of an individual
-  inscription **only allows undoing**; "paying" still lives in the
-  whole-choreography flow, so the common case is not degraded into N individual
-  actions.
+  "Inscriptions"), which withdraws or deletes the row itself. It runs without a
+  reason and without leaving an audit entry (see "No auditing in finances").
 
-## Deposit and balance
+### Releasing the excess (`release-inscription-excess`)
 
-- The deposit is computed per inscription: a percentage of its frozen price,
-  rounded to whole pesos. A choreography's total deposit is the sum of the
-  deposits of its active inscriptions.
-- The deposit percentage is an event-level `Bases del evento` setting and
-  defaults to 30%. Changing it is not retroactive: each inscription freezes the
-  percentage in force when the deposit is allocated.
-- The balance is computed per inscription. Base formula:
-  `inscription balance = base price - deposit - discounts applicable to that
-inscription`. A choreography's total balance is the sum of the balances of its
-  active inscriptions.
+- One button that takes off **exactly** what the inscription holds above its
+  `Total` and nothing more, leaving the rest where it is. The excess is computed,
+  so there is nothing to pick and nothing to type.
 
-### Tentative and fixed amounts
+### No price control on the removal shapes
 
-An inscription's three amounts — base price, deposit and balance — **always have
-a value and are always shown**. What changes with the state is whether that value
-can still move. A tentative amount is not a missing amount: it serves as a
-reference for administration and for the academy from day one.
+Neither removal shape shows a price control, not even a locked one. Price is an
+allocation-time concern: on a row whose money is leaving the price is not the
+question, and taking the money off is precisely what opens the lock.
 
-They are fixed in **stages**, not all at once:
+## The four figures
 
-| State    | Base price | Deposit   | Balance   |
-| -------- | ---------- | --------- | --------- |
-| `impaga` | tentative  | tentative | tentative |
-| `señada` | fixed      | fixed     | tentative |
-| `pagada` | fixed      | fixed     | fixed     |
+Every figure is derived on read; none is persisted.
 
-- While the inscription is `impaga`, all three follow the current tentative
-  price: if the applicable price row changes, all three change.
-- Paying the deposit freezes the base price and the deposit (see "Snapshots").
-- The balance of a `señada` inscription **is still tentative**: the `Descuento
-por bailarín` only freezes when the balance is allocated, so until that moment a
-  roster change can move it (see "Discounts"). This is the only state where the
-  amounts of a single inscription are mixed.
-- An `impaga` inscription does not count toward the `Descuento por bailarín`, so
-  its tentative balance is the plain subtraction `base price − deposit`.
-- The UI shows tentative amounts in dimmed text, **per cell and not per row**,
-  precisely because `señada` mixes them.
+```
+inscription.depositAmount       = round(selectedPrice.amount × event.requiredDepositPercentage / 100)
+inscription.totalAmount         = selectedPrice.amount − liveDancerDiscountAmount
+inscription.owedDepositAmount   = max(0, depositAmount − Σ allocations)
+inscription.owedBalanceAmount   = max(0, totalAmount  − Σ allocations)
+inscription.overAllocatedAmount = max(0, Σ allocations − totalAmount)
+```
+
+- **Scope-owned**: inscription, choreography and academy each carry them.
+  `choreography.*` sum over its inscriptions, `academy.*` over its choreographies.
+- **`depositAmount` is computed from the undiscounted price**, so the threshold
+  cannot move under the academy when the roster changes a discount tier.
+- **The discount is applied once, inside `totalAmount`**, with no coalesce and no
+  third subtrahend — it is always live, so every consumer inherits it and none can
+  forget it.
+- `owedDepositAmount` (`Seña adeudada`) is the shortfall to the deposit threshold
+  and stands in strict containment: `Seña adeudada ≤ Saldo adeudado`, always.
+- The deposit percentage is an event-level `Bases del evento` setting and defaults
+  to 30%.
+- The superseded per-inscription `Saldo de inscripción` (`base − deposit −
+discount`) is **gone, not renamed**: both of its subtrahends moved.
+
+Every figure an academy reads is **exact and is exactly what it must pay**. There
+are no tentative amounts in the model: the earlier staged freeze — base price and
+deposit fixed at deposit time, balance at balance time — is gone with the ladder.
 
 ## Discounts
 
 - Within this scope, discounts apply only to the balance, never to the deposit.
 - The only automatic discount within this scope is the `Descuento por bailarín`,
   which is computed automatically and lives per inscription.
-- The `Descuento por bailarín` counts only `señada` or `pagada` active
-  inscriptions of the same dancer, academy and event.
+- On the **read side** the `Descuento por bailarín` is always live: the qualifying
+  set is the dancer's active roster in the same academy and event — every
+  inscription with a resolvable price, whatever its status. It **cannot** be gated
+  on the financial status, because the discount enters `totalAmount`, and
+  `totalAmount` is what decides the status: gating it would be circular.
+- The **freeze path** (`Pagar saldo`) still counts only `señada` or `pagada`
+  inscriptions of the same dancer, academy and event. That is the ladder's own
+  rule, and it dies with the snapshots.
   - **Known divergence (the code does not honour this everywhere).** The freeze
     path scopes the qualifying set to `academyId + eventId`
     (`app/lib/finances/choreography-cobro-support.server.ts`), as documented. The
@@ -448,40 +530,20 @@ divergence is information, not a calculation error.
 ### Per academy
 
 **A registered choreography is owed in full.** There is no "not yet due" debt:
-from the moment the inscription exists, its balance is owed, even if its deposit
-is unpaid. This is what makes the owed amounts comparable with the tables'
-reference amounts.
+from the moment the inscription exists, its total is owed, even if nothing has
+been allocated to it.
 
 - `Saldo disponible` is the total of active payments minus the total of active
-  payment allocations.
-- `Seña adeudada` is the sum of the deposits of the `impaga` active inscriptions,
-  at the current tentative price.
-- `Saldo adeudado` is the sum of the balances of the active inscriptions that are
-  **not `pagada`** — that is, `impaga` and `señada`.
-
-Three rules govern both:
-
-- **They aggregate per inscription, never per choreography.** A choreography's
-  state is a derived watermark (see "Choreography financial state"): aggregating
-  over it would lose the `impaga` inscriptions living inside an already `señada`
-  choreography because of a roster change.
-- **They are gross**: neither subtracts `Saldo disponible`, which is shown
-  alongside as its own metric.
-- **They are not disjoint.** An `impaga` inscription contributes to both: its
-  deposit to `Seña adeudada` and its balance to `Saldo adeudado`. They are not
-  added together; they are two different cuts of the same debt, not two parts of
-  a total.
-
-| State    | Contributes its deposit to | Contributes its balance to |
-| -------- | -------------------------- | -------------------------- |
-| `impaga` | `Seña adeudada`            | `Saldo adeudado`           |
-| `señada` | —                          | `Saldo adeudado`           |
-| `pagada` | —                          | —                          |
-
-That is why an academy's `Saldo adeudado` **need not match** the sum of the
-`Saldo` column of its choreography table: that column also includes the already
-`pagada` inscriptions, which are not owed. The difference is exactly what has
-already been collected.
+  payment allocations. It **cannot go below zero structurally** — no clamp is
+  involved — because every allocation is capped against the pool and a payment's
+  amount is write-once.
+- `Seña adeudada` and `Saldo adeudado` are **gross**: neither subtracts `Saldo
+disponible`, which is shown alongside as its own metric.
+- They aggregate **per inscription, never per choreography status**.
+- They are **not disjoint**: an inscription with no money contributes its deposit
+  shortfall to one and its total shortfall to the other. They are two different
+  cuts of the same debt, not two parts of a total, and `Seña adeudada` is
+  contained in `Saldo adeudado`.
 
 The Portal de academias and the Panel de administración use the same calculation,
 and the primary amounts in both are `Seña adeudada`, `Saldo disponible` and

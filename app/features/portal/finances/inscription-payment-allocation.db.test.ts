@@ -2,7 +2,12 @@ import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { payments, choreographyDancers, paymentAllocations } from "@/db/schema";
+import {
+  payments,
+  choreographyDancers,
+  paymentAllocations,
+  prices,
+} from "@/db/schema";
 import {
   createChoreographyRecord,
   createDancer,
@@ -126,25 +131,25 @@ describe.sequential("inscription identity and payment allocations", () => {
     });
   });
 
-  test("persists payment allocations and enforces stage uniqueness per payment", async () => {
+  test("persists one allocation per payment and inscription", async () => {
     const { owner, event, inscription, payment } =
       await createInscriptionFixture();
 
     await db.insert(paymentAllocations).values({
       academyId: owner.academyId,
-      allocationType: "deposit",
       amount: 3000,
       eventId: event.id,
       inscriptionId: inscription.id,
       paymentId: payment.id,
     });
 
+    // Sin tipo, el par (pago, inscripción) es único: una segunda fila del mismo
+    // par no entra, por más que traiga otro monto.
     const duplicateAllocationError = await db
       .insert(paymentAllocations)
       .values({
         academyId: owner.academyId,
-        allocationType: "deposit",
-        amount: 3000,
+        amount: 6000,
         eventId: event.id,
         inscriptionId: inscription.id,
         paymentId: payment.id,
@@ -153,13 +158,26 @@ describe.sequential("inscription identity and payment allocations", () => {
 
     expect(duplicateAllocationError).toBeInstanceOf(Error);
 
+    // Otro pago sobre la misma inscripción sí: varios pagos pueden cubrirla.
+    await registerPaymentForTest({
+      academyId: owner.academyId,
+      amount: "6000",
+      eventId: event.id,
+      paymentDate: "2026-03-22",
+    });
+    const secondPayment = await db.query.payments.findFirst({
+      where: eq(payments.paymentNumber, 2),
+    });
+    if (!secondPayment) {
+      throw new Error("Expected a second registered payment.");
+    }
+
     await db.insert(paymentAllocations).values({
       academyId: owner.academyId,
-      allocationType: "balance",
       amount: 6000,
       eventId: event.id,
       inscriptionId: inscription.id,
-      paymentId: payment.id,
+      paymentId: secondPayment.id,
     });
 
     const allocations = await db.query.paymentAllocations.findMany({
@@ -167,5 +185,82 @@ describe.sequential("inscription identity and payment allocations", () => {
     });
 
     expect(allocations).toHaveLength(2);
+  });
+
+  test("rejects an allocation of zero or less", async () => {
+    const { owner, event, inscription, payment } =
+      await createInscriptionFixture();
+
+    const error = await db
+      .insert(paymentAllocations)
+      .values({
+        academyId: owner.academyId,
+        amount: 0,
+        eventId: event.id,
+        inscriptionId: inscription.id,
+        paymentId: payment.id,
+      })
+      .catch((caught) => caught);
+
+    expect(error).toBeInstanceOf(Error);
+    await expect(
+      db.query.paymentAllocations.findMany({
+        where: eq(paymentAllocations.inscriptionId, inscription.id),
+      }),
+    ).resolves.toEqual([]);
+  });
+
+  test("deleting a payment cascades its allocations", async () => {
+    const { owner, event, inscription, payment } =
+      await createInscriptionFixture();
+
+    await db.insert(paymentAllocations).values({
+      academyId: owner.academyId,
+      amount: 3000,
+      eventId: event.id,
+      inscriptionId: inscription.id,
+      paymentId: payment.id,
+    });
+
+    await db.delete(payments).where(eq(payments.id, payment.id));
+
+    await expect(
+      db.query.paymentAllocations.findMany({
+        where: eq(paymentAllocations.inscriptionId, inscription.id),
+      }),
+    ).resolves.toEqual([]);
+  });
+
+  test("refuses to move the selected price of an inscription that holds money", async () => {
+    const { owner, event, inscription, payment } =
+      await createInscriptionFixture();
+
+    await db.insert(paymentAllocations).values({
+      academyId: owner.academyId,
+      amount: 3000,
+      eventId: event.id,
+      inscriptionId: inscription.id,
+      paymentId: payment.id,
+    });
+
+    const price = await db.query.prices.findFirst({
+      where: eq(prices.eventId, event.id),
+    });
+    if (!price) {
+      throw new Error("Expected a price row.");
+    }
+
+    const error = await db
+      .update(choreographyDancers)
+      .set({ selectedPriceId: price.id })
+      .where(eq(choreographyDancers.id, inscription.id))
+      .catch((caught) => caught);
+
+    expect(error).toBeInstanceOf(Error);
+    await expect(
+      db.query.choreographyDancers.findFirst({
+        where: eq(choreographyDancers.id, inscription.id),
+      }),
+    ).resolves.toMatchObject({ selectedPriceId: null });
   });
 });
