@@ -57,7 +57,6 @@ export async function loadChoreographyFinanceDetail(input: {
   if (eventContext.selectedEventId === null) {
     return {
       academy,
-      availableBalanceAmount: 0,
       choreography: null,
       inscriptions: [],
       priceOptions: [],
@@ -101,7 +100,6 @@ export async function loadChoreographyFinanceDetail(input: {
 
   return {
     academy,
-    availableBalanceAmount: financeDetail.summary.availableBalanceAmount,
     invoicing,
     choreography: {
       allocatedAmount: choreographyFinanceRow.allocatedAmount,

@@ -298,10 +298,10 @@ export async function resolveChoreographyBillable(
 }
 
 /**
- * Umbral de seña de cada inscripción de la coreografía, derivado por el mismo
- * dueño que usa el resto de la aplicación: sale del precio y del porcentaje del
- * evento, nunca de una columna. `null` cuando no hay precio aplicable, y ahí lo
- * cobrado se imputa entero a la seña.
+ * The `Seña` threshold of every inscription of the choreography, derived by the
+ * same owner the rest of the application uses: it comes from the price and the
+ * event's percentage, never from a column. It is `null` when no price applies,
+ * and then everything charged is imputed to the `Seña`.
  */
 async function readInscriptionDeposits(
   choreographyId: string,

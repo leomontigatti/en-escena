@@ -259,7 +259,7 @@ describe.sequential("admin payment detail", () => {
     await expect(findPaymentById(payment.id)).resolves.toBeUndefined();
     await expect(findAllocationsByPaymentId(payment.id)).resolves.toEqual([]);
 
-    // La inscripción sobrevive al pago: sólo pierde la plata que tenía encima.
+    // The inscription outlives the payment: it only loses the money on it.
     await expect(findInscriptionById(inscription.id)).resolves.toBeDefined();
   });
 

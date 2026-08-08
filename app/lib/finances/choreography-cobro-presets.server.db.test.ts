@@ -142,9 +142,9 @@ describe("payChoreographiesPreset", () => {
     expect(totals.get(fixture.inscriptionIds[0])).toBe(3000);
     expect(totals.get(fixture.inscriptionIds[1])).toBe(3000);
 
-    // Indistinguible de una asignación tipeada a mano: la fila es sólo
-    // `(pago, inscripción, monto)`, y lo único que el preset escribe sobre la
-    // inscripción es el precio elegido.
+    // Indistinguishable from a hand-typed allocation: the row is only
+    // `(payment, inscription, amount)`, and the only thing the preset writes on
+    // the inscription is the chosen price.
     const inscriptionRows = await db
       .select({ selectedPriceId: choreographyDancers.selectedPriceId })
       .from(choreographyDancers)

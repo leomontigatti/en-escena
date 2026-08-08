@@ -96,10 +96,11 @@ function connectionLost(): Promise<never> {
   return Promise.reject(new Error("socket hang up"));
 }
 
-// Cada inscripción queda con seña 3000 y total 10000 —el `solo` a 10000 y el
-// 30% que pide el evento—, los dos umbrales contra los que se deriva la porción
-// del remanente facturable. El precio se repite con vencimiento lejano porque el
-// umbral sale del precio aplicable HOY, y el del catálogo vence en 2026.
+// Every inscription ends up with a 3000 `Seña` and a 10000 total — the `solo`
+// priced at 10000 and the 30% the event requires — the two thresholds the
+// billable remainder's porción is derived against. The price is repeated with a
+// far-off deadline because the threshold comes from the price applicable TODAY,
+// and the catalogue's one expires in 2026.
 async function seedChoreographyWithInscriptions(
   email: string,
   inscriptionCount: number,

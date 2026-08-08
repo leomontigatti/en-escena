@@ -385,7 +385,6 @@ function loaderDataFixture(
         name: "Dúo general",
       },
     ],
-    availableBalanceAmount: 0,
     selectedEventId: "event_1",
     ...overrides,
   };

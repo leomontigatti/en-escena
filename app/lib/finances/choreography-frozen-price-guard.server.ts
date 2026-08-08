@@ -6,15 +6,15 @@ import { choreographyDancers, paymentAllocations } from "@/db/schema";
 import type { Transaction } from "./choreography-cobro-support.server";
 
 /**
- * ¿Alguna inscripción de la coreografía tiene el precio trabado por dinero?
+ * Does any inscription of the choreography have a frozen price?
  *
- * La prueba es tener asignaciones de pago encima, que es exactamente lo que
- * traba el precio: el guard de la base rechaza mover `selected_price_id` de una
- * inscripción con plata asignada. El cupo de cronograma es una clave de precio, y
- * moverlo con el precio trabado dejaría la inscripción cobrada contra un
- * cronograma que la coreografía ya no tiene.
+ * The evidence is holding payment allocations, which is exactly what freezes
+ * the price: the database guard refuses to move `selected_price_id` on an
+ * inscription that has money allocated to it. The schedule capacity is part of
+ * the price key, so moving it while the price is frozen would leave the
+ * inscription charged against a schedule the choreography no longer has.
  */
-export async function hasPriceLockedInscription(
+export async function hasFrozenPriceInscription(
   choreographyId: string,
   executor: Transaction | typeof db = db,
 ) {

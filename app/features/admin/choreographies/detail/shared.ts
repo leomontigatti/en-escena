@@ -120,7 +120,7 @@ export function toChoreographyDetailViewActionData(
     : undefined;
 }
 
-export type ChoreographyScheduleCapacityBlockerCode = "frozen-deposit";
+export type ChoreographyScheduleCapacityBlockerCode = "frozen-price";
 
 /**
  * Motivo por el que la reasignación del cupo de cronograma está cerrada, con la

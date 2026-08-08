@@ -180,7 +180,8 @@ function ChoreographyAlerts({
         <Alert variant="warning">
           <AlertTriangle aria-hidden="true" />
           <AlertDescription>
-            Esta coreografía no tiene un precio configurado para cobrar la seña.
+            Esta coreografía no tiene un precio configurado: no se puede
+            calcular lo que adeuda ni cobrarla.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -216,12 +217,12 @@ function OverAllocatedAlert() {
 }
 
 /**
- * Menú único de acciones del header (`...`, ADR-0011): `Emitir factura` en un
- * `ResourceActionsMenu`, en lugar de un botón suelto. El item abre su propio
- * diálogo, montado como hermano del menú para que no se desmonte al cerrarse el
- * dropdown. Si no hay ninguna acción disponible el menú no se muestra. Los
- * presets de `Pagar seña` / `Pagar saldo` no viven acá: son acciones de lista
- * sobre las coreografías elegidas.
+ * The header's single actions menu (`...`, ADR-0011): `Emitir factura` inside a
+ * `ResourceActionsMenu` rather than a loose button. The item opens its own
+ * dialog, mounted as a sibling of the menu so it is not unmounted when the
+ * dropdown closes. The menu is not rendered at all when no action is available.
+ * The `Pagar seña` / `Pagar saldo` presets do not live here: they are list
+ * actions over the selected choreographies.
  */
 function ChoreographyActions({
   loaderData,

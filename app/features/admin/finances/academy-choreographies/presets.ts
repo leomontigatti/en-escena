@@ -1,5 +1,3 @@
-import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
-
 /**
  * The two cobro presets, as **list actions** over the choreographies selected in
  * the academy's financial list. They are the only surviving `Pagar seña` /
@@ -7,9 +5,13 @@ import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
  * for the price, and writes plain allocations.
  *
  * Shared by the view and the route action so both name the same intents and the
- * same field names.
+ * same field names. The stage itself is not defined here: which threshold a
+ * cobro settles against is owned by the write path in `lib`, and this surface
+ * only labels it.
  */
-export type FinancePresetStage = "deposit" | "balance";
+
+import type { CobroStage } from "@/lib/finances/choreography-cobro-presets.server";
+import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 
 export const payDepositPresetIntent = "pay-deposit-preset";
 export const payBalancePresetIntent = "pay-balance-preset";
@@ -17,15 +19,15 @@ export const payBalancePresetIntent = "pay-balance-preset";
 export const financePresetLabels = {
   deposit: "Pagar seña",
   balance: "Pagar saldo",
-} as const satisfies Record<FinancePresetStage, string>;
+} as const satisfies Record<CobroStage, string>;
 
 export const choreographyIdFieldName = "choreographyId";
 
-export function financePresetIntent(stage: FinancePresetStage): string {
+export function financePresetIntent(stage: CobroStage): string {
   return stage === "deposit" ? payDepositPresetIntent : payBalancePresetIntent;
 }
 
-export function financePresetStage(intent: string): FinancePresetStage | null {
+export function financePresetStage(intent: string): CobroStage | null {
   if (intent === payDepositPresetIntent) {
     return "deposit";
   }

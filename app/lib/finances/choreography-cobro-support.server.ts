@@ -11,7 +11,7 @@ export type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
  */
 export type Executor = Transaction | typeof db;
 
-export type FinancePriceRow = typeof prices.$inferSelect;
+type FinancePriceRow = typeof prices.$inferSelect;
 
 /**
  * Resultado de una operación de cobro. Cuando `ok` es `false`, `message` es un

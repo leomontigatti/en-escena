@@ -231,9 +231,9 @@ export async function createChoreographyRecord(
   return choreography;
 }
 
-// Una inscripción con un precio elegido: es la que hace que ese precio tenga
-// dependencias operativas. `allocatedAmount` le pone plata encima, que es lo que
-// traba el precio contra el cronograma de la coreografía.
+// An inscription with a chosen price: it is what gives that price operational
+// dependencies. `allocatedAmount` puts money on it, which is what freezes the
+// price against the choreography's schedule.
 export async function createSelectedPriceInscriptionForTest(input: {
   academyId: string;
   choreographyId: string;
