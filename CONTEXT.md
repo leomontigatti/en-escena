@@ -141,19 +141,23 @@ _Avoid_: `eventStatus`, program visibility
 
 **`financialDocument`** — ui: "Documento financiero"
 Financial record managed by an administrator, such as an invoice or a credit note.
-_Avoid_: `payment`, imputación, `choreographyFinancialState`
+_Avoid_: `payment`, imputación, `choreographyFinancialStatus`
 
 **`professor`** — ui: "Profesor"
 Person associated with an academy and loaded by that academy as part of its data.
 _Avoid_: `user`, `admin`
 
 **`inscription`** — ui: "Inscripción"
-Link with economic identity and stable identity (its own `id`) between a choreography and a dancer within a concrete event. It can be unpaid, deposited or paid. Removing an inscription is a physical delete; there is no inactive state.
+Link with economic identity and stable identity (its own `id`) between a choreography and a dancer within a concrete event. Removing it from the roster chooses once between a physical delete —when it holds neither allocations nor a `comprobante` line— and a withdrawal (`withdrawnAt`), which keeps the row and the money on it. Adding the same dancer again revives that row.
 _Avoid_: academy participation, account, `payment`, invoice, inactive inscription
 
 **`activeInscription`** — ui: "Inscripción activa"
-Inscription that takes part in a choreography's current calculations, its pending amounts and its automatic discounts.
+Inscription that takes part in a choreography's current calculations, its pending amounts and its automatic discounts: every one that has not been withdrawn. The shared `activeInscription()` predicate and its raw-SQL twin exist so that no reader has to restate the rule, and every read applies them except the four that show a withdrawn row as evidence: the admin financial roster, the comprobante detail, the academy financial list and the printed document.
 _Avoid_: paid inscription, competitive participation
+
+**`withdrawnInscription`** — ui: "Retirada"
+Inscription taken off the roster whose row survives because it holds money or a `comprobante` line. Its total is **what remains allocated to it, not zero**: the seña may be forfeited and the retained allocation is the record of that retention, so it owes nothing, it cannot be over-allocated, and it keeps exposing its deposit figure. It stays in its choreography's money rollup and out of its status rollup, its price resolution and its discount qualifying set. `Retirada` is a derived axis of its own, like `Facturada`, and replaces the status badge rather than joining it.
+_Avoid_: fourth financial status, deleted inscription, cancelled inscription
 
 **`choreography`** — ui: "Coreografía"
 Choreography registered by an academy for a concrete event.
@@ -217,27 +221,27 @@ _Avoid_: `professor`, `user`
 
 **`dancerVerificationStatus`** — ui: "Estado de verificación de bailarín"
 Documentary validation situation of a dancer.
-_Avoid_: `choreographyOperationalStatus`, `choreographyFinancialState`
+_Avoid_: `choreographyOperationalStatus`, `choreographyFinancialStatus`
 
 **`administrativeInconsistency`** — ui: "Inconsistencia administrativa"
 Internal administration alert for data requiring review or traceability without belonging to the operational, financial or competitive state.
-_Avoid_: `choreographyOperationalStatus`, `choreographyFinancialState`, disqualification
+_Avoid_: `choreographyOperationalStatus`, `choreographyFinancialStatus`, disqualification
 
 **`choreographyOperationalStatus`** — ui: "Estado operativo de coreografía"
 Completeness of the data needed to present a choreography.
-_Avoid_: `choreographyFinancialState`, `eventStatus`
+_Avoid_: `choreographyFinancialStatus`, `eventStatus`
 
-**`choreographyFinancialState`** — ui: "Estado financiero de coreografía"
-Financial situation derived from the economic states of a choreography's active inscriptions.
-_Avoid_: `choreographyOperationalStatus`, `eventStatus`
+**`choreographyFinancialStatus`** — ui: "Estado financiero de coreografía"
+Financial situation of a choreography: the **minimum** `inscriptionFinancialStatus` over its active inscriptions, so one uncovered dancer pulls the whole choreography down. Supersedes the retired `choreographyFinancialState`, a watermark that hid stragglers, and the "needs attention" display that compensated for it.
+_Avoid_: `choreographyOperationalStatus`, `eventStatus`, watermark, needs attention
 
 **`presentation`** — ui: "Presentación"
 Ordered instance of a choreography for the event day.
-_Avoid_: `choreography`, `choreographyOperationalStatus`, `choreographyFinancialState`
+_Avoid_: `choreography`, `choreographyOperationalStatus`, `choreographyFinancialStatus`
 
 **`participationStatus`** — ui: "Estado de participación"
 State derived from a choreography's presentation at the event.
-_Avoid_: `choreographyOperationalStatus`, `choreographyFinancialState`
+_Avoid_: `choreographyOperationalStatus`, `choreographyFinancialStatus`
 
 **`judgeAssignment`** — ui: "Asignación de juez"
 Relation between a judge and the presentations they must evaluate.
@@ -289,7 +293,7 @@ _Avoid_: numeric score, `presentation`
 
 **`payment`** — ui: "Pago"
 Money received and recorded for an academy in an event, which may stay available or be applied through payment allocations.
-_Avoid_: invoice, `paymentAllocation`, `choreographyFinancialState`
+_Avoid_: invoice, `paymentAllocation`, `choreographyFinancialStatus`
 
 **`comprobante`** — ui: "Factura (comprobante fiscal ARCA)"
 Electronic tax receipt —Factura C for monotributo, issued against ARCA/WSFEv1— as a document derived from payments, allocations and inscriptions that never governs financial state. Model under definition (map #320). The term "factura"/"comprobante" is reserved for this fiscal use.
@@ -312,31 +316,35 @@ _Avoid_: installment, partial payment, invoice
 
 **`academyAccountBalance`** — ui: "Cuenta corriente de academia"
 Financial balance of an academy in an event, composed of payments, payment allocations and the derived available balance.
-_Avoid_: `choreographyFinancialState`, `payment`, operational balance
+_Avoid_: `choreographyFinancialStatus`, `payment`, operational balance
 
 **`availableBalanceAmount`** — ui: "Saldo disponible"
 Amount of an academy's active payments not yet applied through payment allocations.
 _Avoid_: `owedBalanceAmount`, total paid
 
 **`owedBalanceAmount`** — ui: "Saldo adeudado"
-Net operational amount pending to collect or pay for an academy in the active event, computed from the deposits and pending balances of active inscriptions minus the available balance. Never less than zero.
+Gross operational amount pending for an academy in the active event: the sum, per active inscription, of the shortfall of its allocations against its total. Does not subtract the available balance.
 _Avoid_: `availableBalanceAmount`, total paid, estimated total
 
 **`owedDepositAmount`** — ui: "Seña adeudada"
-Gross operational deposit amount pending for unpaid active inscriptions. Does not subtract the available balance.
+Gross operational deposit amount pending: the sum, per active inscription, of the shortfall of its allocations against its deposit. Does not subtract the available balance, and is always contained in `owedBalanceAmount`.
 _Avoid_: choreography invoice, `availableBalanceAmount`, `owedBalanceAmount`
 
 **`inscriptionDepositAmount`** — ui: "Seña de inscripción"
-Deposit amount computed for an inscription from its frozen price.
+Lower threshold of an inscription: a percentage of its selected price, computed on the **undiscounted** price so the threshold cannot move when a discount tier changes.
 _Avoid_: choreography deposit, deposit invoice
 
-**`inscriptionBalanceAmount`** — ui: "Saldo de inscripción"
-Remaining amount of an inscription after subtracting its assigned deposit and its applicable discounts.
-_Avoid_: choreography balance, `availableBalanceAmount`
+**`inscriptionTotalAmount`** — ui: "Total de inscripción"
+Upper threshold of an inscription: its selected price minus the live `Descuento por bailarín`, applied exactly once. Supersedes the retired `inscriptionBalanceAmount` (`base − deposit − discount`), whose two subtrahends both moved.
+_Avoid_: `inscriptionBalanceAmount` (retired), choreography balance, `availableBalanceAmount`
+
+**`inscriptionFinancialStatus`** — ui: "Estado"
+Status of an inscription derived on read from `Σ allocations` against its two thresholds: `depositPending` ("Seña pendiente"), `depositMet` ("Señada") and `paidInFull` ("Pagada"). Nothing is written when a threshold is crossed. A choreography carries the **minimum** over its inscriptions.
+_Avoid_: `choreographyFinancialState` (retired), watermark, needs attention
 
 **`choreographyPrice`** — ui: "Precio de coreografía"
 Amount derived for a choreography from the prices of its active inscriptions.
-_Avoid_: `payment`, `choreographyFinancialState`, `frozenInscriptionPrice`
+_Avoid_: `payment`, `choreographyFinancialStatus`, `frozenInscriptionPrice`
 
 **`tentativeInscriptionPrice`** — ui: "Precio tentativo de inscripción"
 Indicative price of an unpaid inscription, computed with the current rules to display or decide a future allocation.

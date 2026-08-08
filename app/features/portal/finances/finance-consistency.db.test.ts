@@ -59,6 +59,19 @@ describe.sequential(
         paymentDeadline: "2026-12-31",
         scheduleId: catalog.schedule.id,
       });
+      // Fila anterior, más cara: las inscripciones ya cobradas la tienen
+      // seleccionada, así que sus cifras salen de ella y no de la vigente.
+      const [earlierPrice] = await db
+        .insert(prices)
+        .values({
+          amount: 12000,
+          eventId: event.id,
+          groupType: "solo",
+          name: "Precio solo anterior",
+          paymentDeadline: "2026-02-28",
+          scheduleId: catalog.schedule.id,
+        })
+        .returning();
 
       async function createSoloChoreography(name: string, createdAt: string) {
         return await createChoreographyRecord({
@@ -128,42 +141,32 @@ describe.sequential(
         choreographyId: pendingSnapshotChoreography.id,
         depositAmount: 3600,
         frozenBasePriceAmount: 12000,
+        selectedPriceId: earlierPrice.id,
       });
       await db.insert(paymentAllocations).values({
         academyId: owner.academyId,
-        allocationType: "deposit",
         amount: 3600,
         eventId: event.id,
         inscriptionId: pendingInscription.id,
         paymentId: payment.id,
       });
 
-      // paidSnapshot: pagada with deposit + balance allocations.
+      // paidSnapshot: pagada, con la seña y el saldo en una sola asignación.
       const paidInscription = await insertSignedInscription({
         academyId: owner.academyId,
         choreographyId: paidSnapshotChoreography.id,
         depositAmount: 3600,
         frozenBasePriceAmount: 12000,
         paid: { balanceAmount: 8400, finalTotalAmount: 12000 },
+        selectedPriceId: earlierPrice.id,
       });
-      await db.insert(paymentAllocations).values([
-        {
-          academyId: owner.academyId,
-          allocationType: "deposit",
-          amount: 3600,
-          eventId: event.id,
-          inscriptionId: paidInscription.id,
-          paymentId: payment.id,
-        },
-        {
-          academyId: owner.academyId,
-          allocationType: "balance",
-          amount: 8400,
-          eventId: event.id,
-          inscriptionId: paidInscription.id,
-          paymentId: payment.id,
-        },
-      ]);
+      await db.insert(paymentAllocations).values({
+        academyId: owner.academyId,
+        amount: 12000,
+        eventId: event.id,
+        inscriptionId: paidInscription.id,
+        paymentId: payment.id,
+      });
 
       const portalLoaderData = await loadPortalAcademyFinances(
         new Request("http://localhost/portal/finanzas", {
@@ -182,10 +185,11 @@ describe.sequential(
       expect(portalLoaderData.summary).toEqual({
         // 16600 pagos - 15600 asignaciones = 1000 disponible.
         availableBalanceAmount: 1000,
-        // 8400 de la señada + 7000 de la impaga a precio vigente; la impaga sin
-        // precio suma 1 al incompleto. Bruto: no descuenta el disponible.
+        // 8400 de faltante en la que cubrió su seña + 10000 de la que no tiene
+        // nada, a precio vigente; la que no tiene precio suma 1 al incompleto.
+        // Bruto: no descuenta el disponible.
         owedBalanceAmount: {
-          amount: 15400,
+          amount: 18400,
           missingPriceCount: 1,
           status: "incomplete",
         },
@@ -201,8 +205,8 @@ describe.sequential(
       expect(adminLoaderData.choreographyFinanceRows).toMatchObject([
         {
           id: missingPriceChoreography.id,
-          financialState: "impaga",
-          balanceAmount: {
+          financialStatus: "depositPending",
+          totalAmount: {
             amount: 0,
             missingPriceCount: 1,
             status: "incomplete",
@@ -221,27 +225,27 @@ describe.sequential(
         {
           id: currentPriceChoreography.id,
           basePriceAmount: { amount: 10000, status: "complete" },
-          financialState: "impaga",
-          // Saldo tentativo: 10000 - 3000. La impaga adeuda seña y saldo.
-          balanceAmount: { amount: 7000, status: "complete" },
-          owedBalanceAmount: { amount: 7000, status: "complete" },
+          financialStatus: "depositPending",
+          // Sin dinero adeuda su seña y su total: los dos cortes de la misma deuda.
+          owedBalanceAmount: { amount: 10000, status: "complete" },
           owedDepositAmount: { amount: 3000, status: "complete" },
+          totalAmount: { amount: 10000, status: "complete" },
         },
         {
           id: paidSnapshotChoreography.id,
           basePriceAmount: { amount: 12000, status: "complete" },
-          financialState: "pagada",
-          balanceAmount: { amount: 8400, status: "complete" },
+          financialStatus: "paidInFull",
           owedBalanceAmount: { amount: 0, status: "complete" },
           owedDepositAmount: { amount: 0, status: "complete" },
+          totalAmount: { amount: 12000, status: "complete" },
         },
         {
           id: pendingSnapshotChoreography.id,
           basePriceAmount: { amount: 12000, status: "complete" },
-          financialState: "señada",
-          balanceAmount: { amount: 8400, status: "complete" },
+          financialStatus: "depositMet",
           owedBalanceAmount: { amount: 8400, status: "complete" },
           owedDepositAmount: { amount: 0, status: "complete" },
+          totalAmount: { amount: 12000, status: "complete" },
         },
       ]);
 
@@ -271,57 +275,60 @@ describe.sequential(
       });
 
       expect(currentPriceDetail.choreography).toMatchObject({
+        allocatedAmount: 0,
         depositAmount: { amount: 3000, status: "complete" },
-        balanceAmount: { amount: 7000, status: "complete" },
-        paidAmount: 0,
+        owedBalanceAmount: { amount: 10000, status: "complete" },
+        totalAmount: { amount: 10000, status: "complete" },
       });
       expect(currentPriceDetail.inscriptions).toEqual([
         expect.objectContaining({
           basePriceAmount: 10000,
-          finalPriceAmount: 10000,
+          totalAmount: 10000,
         }),
       ]);
       expect(pendingSnapshotDetail.choreography).toMatchObject({
+        allocatedAmount: 3600,
         depositAmount: { amount: 3600, status: "complete" },
-        balanceAmount: { amount: 8400, status: "complete" },
         depositCompletedOn: "2026-03-20",
-        paidAmount: 3600,
+        owedBalanceAmount: { amount: 8400, status: "complete" },
+        totalAmount: { amount: 12000, status: "complete" },
       });
       expect(pendingSnapshotDetail.inscriptions).toEqual([
         expect.objectContaining({
           basePriceAmount: 12000,
-          finalPriceAmount: 12000,
+          totalAmount: 12000,
         }),
       ]);
       expect(paidSnapshotDetail.choreography).toMatchObject({
+        allocatedAmount: 12000,
         depositAmount: { amount: 3600, status: "complete" },
-        balanceAmount: { amount: 8400, status: "complete" },
         depositCompletedOn: "2026-03-20",
-        paidAmount: 12000,
+        owedBalanceAmount: { amount: 0, status: "complete" },
+        totalAmount: { amount: 12000, status: "complete" },
       });
       expect(paidSnapshotDetail.inscriptions).toEqual([
         expect.objectContaining({
           basePriceAmount: 12000,
-          finalPriceAmount: 12000,
+          totalAmount: 12000,
         }),
       ]);
       expect(missingPriceDetail.choreography).toMatchObject({
+        allocatedAmount: 0,
         depositAmount: {
           amount: 0,
           missingPriceCount: 1,
           status: "incomplete",
         },
-        balanceAmount: {
+        totalAmount: {
           amount: 0,
           missingPriceCount: 1,
           status: "incomplete",
         },
-        paidAmount: 0,
       });
       expect(missingPriceDetail.inscriptions).toEqual([
         expect.objectContaining({
           basePriceAmount: null,
-          finalPriceAmount: null,
+          totalAmount: null,
         }),
       ]);
     });
@@ -350,6 +357,7 @@ async function insertSignedInscription(input: {
   depositAmount: number;
   frozenBasePriceAmount: number;
   paid?: { finalTotalAmount: number; balanceAmount: number };
+  selectedPriceId?: string;
 }) {
   const dancer = await createDancer(input.academyId, {
     firstName: "Luna",
@@ -363,6 +371,7 @@ async function insertSignedInscription(input: {
       choreographyId: input.choreographyId,
       dancerId: dancer.id,
       frozenBasePriceAmount: input.frozenBasePriceAmount,
+      selectedPriceId: input.selectedPriceId ?? null,
       depositReferenceDate: "2026-03-20",
       depositPercentage: 30,
       depositAmount: input.depositAmount,

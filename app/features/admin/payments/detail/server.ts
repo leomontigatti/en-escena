@@ -2,13 +2,7 @@ import { eq } from "drizzle-orm";
 import { redirect } from "react-router";
 
 import { db } from "@/db";
-import {
-  academies,
-  choreographies,
-  choreographyDancers,
-  paymentAllocations,
-  payments,
-} from "@/db/schema";
+import { academies, paymentAllocations, payments } from "@/db/schema";
 import {
   createPaymentFieldNames,
   createPaymentSchema,
@@ -19,12 +13,12 @@ import {
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminUser } from "@/lib/auth/internal-access.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
-import { deletePaymentWithAllocations } from "@/lib/finances/choreography-cobro.server";
-import { deriveInscriptionFinancialState } from "@/lib/finances/operational-summary-calculations.server";
+import { syncInscriptionSnapshots } from "@/lib/finances/choreography-cobro.server";
 import { getFieldErrors } from "@/lib/shared/form-validation";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
 
 import { listPaymentAcademyOptions } from "../academy-options.server";
+import { readPaymentDeletionImpact } from "./deletion-impact.server";
 import { deletePaymentIntent, updatePaymentIntent } from "./shared";
 
 type DeletePaymentActionData = {
@@ -85,7 +79,11 @@ export async function loadPaymentDetail(request: Request, paymentId: string) {
     await Promise.all([
       listPaymentAcademyOptions(),
       sumPaymentAllocatedAmount(paymentDetail.id),
-      listPaymentAffectedChoreographies(paymentDetail.id),
+      readPaymentDeletionImpact({
+        academyId: paymentDetail.academyId,
+        eventId: paymentDetail.eventId,
+        paymentId: paymentDetail.id,
+      }),
     ]);
 
   return {
@@ -98,89 +96,6 @@ export async function loadPaymentDetail(request: Request, paymentId: string) {
     selectedEventId: eventContext.selectedEventId ?? paymentDetail.eventId,
     values: getPaymentFormValues(paymentDetail),
   };
-}
-
-export type PaymentAffectedChoreography = {
-  blocksDeletion: boolean;
-  id: string;
-  name: string;
-};
-
-/**
- * Coreografías cuyas inscripciones tienen asignaciones a este pago, sin
- * duplicar (una coreografía aparece una sola vez). `blocksDeletion` marca las
- * que impedirían la cascada: una inscripción `pagada` cuya `deposit` está en
- * este pago pero cuyo `balance` vive en otro pago (borrar la seña la dejaría
- * pagada sin seña). Es una marca suave para la UI; el server es la fuente de
- * verdad al confirmar.
- */
-async function listPaymentAffectedChoreographies(
-  paymentId: string,
-): Promise<PaymentAffectedChoreography[]> {
-  const rows = await db
-    .select({
-      allocationType: paymentAllocations.allocationType,
-      balanceReferenceDate: choreographyDancers.balanceReferenceDate,
-      choreographyId: choreographies.id,
-      choreographyName: choreographies.name,
-      depositReferenceDate: choreographyDancers.depositReferenceDate,
-      inscriptionId: paymentAllocations.inscriptionId,
-    })
-    .from(paymentAllocations)
-    .innerJoin(
-      choreographyDancers,
-      eq(paymentAllocations.inscriptionId, choreographyDancers.id),
-    )
-    .innerJoin(
-      choreographies,
-      eq(choreographyDancers.choreographyId, choreographies.id),
-    )
-    .where(eq(paymentAllocations.paymentId, paymentId));
-
-  // Por inscripción: si acá está la seña, si acá está el saldo y su estado.
-  const inscriptions = new Map<
-    string,
-    { hasBalanceHere: boolean; hasDepositHere: boolean; isPaid: boolean }
-  >();
-  for (const row of rows) {
-    const entry = inscriptions.get(row.inscriptionId) ?? {
-      hasBalanceHere: false,
-      hasDepositHere: false,
-      isPaid:
-        deriveInscriptionFinancialState({
-          balanceReferenceDate: row.balanceReferenceDate,
-          depositReferenceDate: row.depositReferenceDate,
-        }) === "pagada",
-    };
-    if (row.allocationType === "deposit") {
-      entry.hasDepositHere = true;
-    } else {
-      entry.hasBalanceHere = true;
-    }
-    inscriptions.set(row.inscriptionId, entry);
-  }
-
-  // Dedup por coreografía; bloquea si alguna de sus inscripciones bloquea.
-  const choreographyList = new Map<string, PaymentAffectedChoreography>();
-  for (const row of rows) {
-    const inscription = inscriptions.get(row.inscriptionId);
-    const blocks = Boolean(
-      inscription &&
-      inscription.isPaid &&
-      inscription.hasDepositHere &&
-      !inscription.hasBalanceHere,
-    );
-    const existing = choreographyList.get(row.choreographyId);
-    choreographyList.set(row.choreographyId, {
-      blocksDeletion: (existing?.blocksDeletion ?? false) || blocks,
-      id: row.choreographyId,
-      name: row.choreographyName,
-    });
-  }
-
-  return [...choreographyList.values()].sort((a, b) =>
-    a.name.localeCompare(b.name, "es"),
-  );
 }
 
 export async function handlePaymentDetailAction(
@@ -324,22 +239,30 @@ async function deletePayment(input: {
     throw new Response("No encontramos ese pago.", { status: 404 });
   }
 
-  const result = await deletePaymentWithAllocations({
-    paymentId: input.paymentId,
-  });
-
-  if (!result.ok) {
-    return {
-      status: "error",
-      intent: deletePaymentIntent,
-      message: "No se pudo eliminar el pago.",
-      fieldErrors: {
-        paymentId: result.message,
-      },
-    };
-  }
+  await deletePaymentCascading(input.paymentId);
 
   throw redirect(`/administracion/pagos?evento=${payment.eventId}`);
+}
+
+/**
+ * Elimina el pago. Sus asignaciones caen por la cascada de la foreign key —la
+ * base es la que cascadea, no este módulo—, así que sólo queda reconciliar los
+ * snapshots de las inscripciones que quedaron sin esa plata. No hay caso que
+ * bloquee: la eliminación siempre procede.
+ */
+async function deletePaymentCascading(paymentId: string) {
+  await db.transaction(async (tx) => {
+    const affected = await tx
+      .select({ inscriptionId: paymentAllocations.inscriptionId })
+      .from(paymentAllocations)
+      .where(eq(paymentAllocations.paymentId, paymentId));
+
+    await tx.delete(payments).where(eq(payments.id, paymentId));
+
+    await syncInscriptionSnapshots(tx, [
+      ...new Set(affected.map((row) => row.inscriptionId)),
+    ]);
+  });
 }
 
 function getPaymentFormValues(payment: {

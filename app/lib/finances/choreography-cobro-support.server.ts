@@ -1,24 +1,29 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
-  payments,
   choreographies,
   choreographyDancers,
   events,
-  paymentAllocations,
   prices,
   scheduleCapacities,
 } from "@/db/schema";
+import { activeInscription } from "@/lib/choreographies/active-inscription";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import { resolveChoreographyPricingScheduleId } from "@/lib/finances/choreography-pricing-schedule";
 import {
-  computeDancerDiscountAmounts,
-  deriveInscriptionFinancialState,
-} from "@/lib/finances/operational-summary-calculations.server";
+  deriveInscriptionLadderStage,
+  type InscriptionLadderStage,
+} from "@/lib/finances/inscription-ladder-snapshot";
 import { selectApplicablePriceFromCandidates } from "@/lib/prices/repository.server";
 
 export type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
+ * Anything that can run a query: the connection or an open transaction. Reads
+ * that participate in a cobro take this so they never open a second connection.
+ */
+export type Executor = Transaction | typeof db;
 
 export type FinancePriceRow = typeof prices.$inferSelect;
 
@@ -31,27 +36,44 @@ export type InscriptionRow = typeof choreographyDancers.$inferSelect;
 export type CobroResult = { ok: true } | { ok: false; message: string };
 
 /**
- * Piso del cobro por inscripción: `min(frozenBasePriceAmount)` sobre las
- * inscripciones activas ya `señada`/`pagada`, excluyendo la huérfana objetivo.
- * `null` cuando ninguna hermana está congelada (la coreografía no es mixta).
+ * A refusal raised from inside a cobro transaction. Returning `{ ok: false }`
+ * from a Drizzle transaction callback **commits**, so a write that refuses
+ * halfway — the pool running dry on the third inscription — would leave the
+ * earlier ones funded. Throwing rolls back; `runCobro` turns it back into the
+ * `CobroResult` the caller expects.
  */
-export function resolveInscriptionDepositFloor(
-  inscriptions: InscriptionRow[],
-  excludeInscriptionId: string | null,
-): number | null {
-  const frozenAmounts = inscriptions
-    .filter((inscription) => inscription.id !== excludeInscriptionId)
-    .filter((inscription) => {
-      const state = deriveInscriptionFinancialState(inscription);
-      return state === "señada" || state === "pagada";
-    })
-    .map((inscription) => inscription.frozenBasePriceAmount ?? 0);
-
-  if (frozenAmounts.length === 0) {
-    return null;
+class CobroRefusal extends Error {
+  constructor(readonly reason: string) {
+    super(reason);
+    this.name = "CobroRefusal";
   }
+}
 
-  return Math.min(...frozenAmounts);
+/**
+ * Runs a money change inside a transaction where **any** refusal rolls back.
+ * Every one of them is all-or-nothing: an administrator who sees an error has
+ * to be able to trust that nothing moved.
+ */
+export async function runCobro(
+  run: (tx: Transaction) => Promise<CobroResult>,
+): Promise<CobroResult> {
+  try {
+    return await db.transaction(async (tx) => {
+      const result = await run(tx);
+
+      if (!result.ok) {
+        throw new CobroRefusal(result.message);
+      }
+
+      return result;
+    });
+  } catch (thrown) {
+    if (thrown instanceof CobroRefusal) {
+      return { ok: false, message: thrown.reason };
+    }
+
+    throw thrown;
+  }
 }
 
 /**
@@ -122,7 +144,6 @@ export type CobroContext =
       };
       event: { requiredDepositPercentage: number };
       inscriptions: InscriptionRow[];
-      payment: typeof payments.$inferSelect;
     };
 
 export async function loadCobroContext(
@@ -131,7 +152,6 @@ export async function loadCobroContext(
     academyId: string;
     choreographyId: string;
     eventId: string;
-    paymentId: string;
   },
 ): Promise<CobroContext> {
   const choreographyRow = await loadChoreographyScheduleRow(
@@ -156,8 +176,13 @@ export async function loadCobroContext(
     return { ok: false, message: "No encontramos el evento." };
   }
 
+  // A charge over the choreography only reaches its active inscriptions: a
+  // withdrawn one owes nothing, so there is no stage to charge it for.
   const inscriptions = await tx.query.choreographyDancers.findMany({
-    where: eq(choreographyDancers.choreographyId, input.choreographyId),
+    where: and(
+      eq(choreographyDancers.choreographyId, input.choreographyId),
+      activeInscription(),
+    ),
   });
 
   if (inscriptions.length === 0) {
@@ -165,18 +190,6 @@ export async function loadCobroContext(
       ok: false,
       message: "La coreografía no tiene inscripciones activas.",
     };
-  }
-
-  const payment = await tx.query.payments.findFirst({
-    where: and(
-      eq(payments.id, input.paymentId),
-      eq(payments.academyId, input.academyId),
-      eq(payments.eventId, input.eventId),
-    ),
-  });
-
-  if (!payment) {
-    return { ok: false, message: "No encontramos ese pago." };
   }
 
   return {
@@ -187,13 +200,12 @@ export async function loadCobroContext(
     },
     event,
     inscriptions,
-    payment,
   };
 }
 
 /**
  * Selecciona la fila de precio vigente para un tipo de grupo y cronograma contra
- * `paymentDate`, priorizando el precio específico del cronograma sobre el
+ * `referenceDate`, priorizando el precio específico del cronograma sobre el
  * general. Consulta con la transacción activa para no abrir una conexión nueva.
  */
 export async function resolveApplicablePriceRow(
@@ -201,7 +213,7 @@ export async function resolveApplicablePriceRow(
   input: {
     eventId: string;
     groupType: string;
-    paymentDate: string;
+    referenceDate: string;
     scheduleId: string | null;
   },
 ) {
@@ -213,7 +225,7 @@ export async function resolveApplicablePriceRow(
 
   return selectApplicablePriceRow({
     priceRows,
-    referenceDate: input.paymentDate,
+    referenceDate: input.referenceDate,
     scheduleId: input.scheduleId,
   });
 }
@@ -245,101 +257,6 @@ export function selectApplicablePriceRow(input: {
   );
 }
 
-export async function assertPaymentAvailability(
-  tx: Transaction,
-  input: {
-    payment: typeof payments.$inferSelect;
-    requiredAmount: number;
-  },
-): Promise<CobroResult> {
-  const allocations = await tx.query.paymentAllocations.findMany({
-    columns: { amount: true },
-    where: eq(paymentAllocations.paymentId, input.payment.id),
-  });
-  const allocatedAmount = allocations.reduce(
-    (sum, allocation) => sum + allocation.amount,
-    0,
-  );
-  const availableAmount = input.payment.amount - allocatedAmount;
-
-  if (availableAmount < input.requiredAmount) {
-    return {
-      ok: false,
-      message: "El pago no tiene saldo disponible suficiente.",
-    };
-  }
-
-  return { ok: true };
-}
-
-export async function resolveDancerDiscounts(
-  tx: Transaction,
-  input: {
-    academyId: string;
-    eventId: string;
-    inscriptions: InscriptionRow[];
-  },
-) {
-  const dancerIds = [
-    ...new Set(input.inscriptions.map((inscription) => inscription.dancerId)),
-  ];
-
-  const qualifyingRows = await tx
-    .select({
-      id: choreographyDancers.id,
-      dancerId: choreographyDancers.dancerId,
-      frozenBasePriceAmount: choreographyDancers.frozenBasePriceAmount,
-      depositReferenceDate: choreographyDancers.depositReferenceDate,
-      balanceReferenceDate: choreographyDancers.balanceReferenceDate,
-    })
-    .from(choreographyDancers)
-    .innerJoin(
-      choreographies,
-      eq(choreographyDancers.choreographyId, choreographies.id),
-    )
-    .where(
-      and(
-        eq(choreographies.academyId, input.academyId),
-        eq(choreographies.eventId, input.eventId),
-        inArray(choreographyDancers.dancerId, dancerIds),
-      ),
-    );
-
-  const qualifyingByDancer = new Map<
-    string,
-    Array<{ id: string; frozenBasePriceAmount: number }>
-  >();
-  for (const row of qualifyingRows) {
-    const state = deriveInscriptionFinancialState(row);
-    if (
-      (state !== "señada" && state !== "pagada") ||
-      row.frozenBasePriceAmount === null
-    ) {
-      continue;
-    }
-
-    const bucket = qualifyingByDancer.get(row.dancerId);
-    const entry = {
-      frozenBasePriceAmount: row.frozenBasePriceAmount,
-      id: row.id,
-    };
-    if (bucket) {
-      bucket.push(entry);
-    } else {
-      qualifyingByDancer.set(row.dancerId, [entry]);
-    }
-  }
-
-  const discounts = new Map<string, { amount: number; percentage: number }>();
-  for (const group of qualifyingByDancer.values()) {
-    for (const [id, discount] of computeDancerDiscountAmounts(group)) {
-      discounts.set(id, discount);
-    }
-  }
-
-  return discounts;
-}
-
 export function clearDepositSnapshot() {
   return {
     frozenBasePriceAmount: null,
@@ -359,4 +276,26 @@ export function clearBalanceSnapshot() {
     balanceAmount: null,
     balanceCompletedAt: null,
   };
+}
+
+/**
+ * Etapas de snapshot de las inscripciones de una coreografía, para las acciones
+ * `Pagar seña` / `Pagar saldo`. Es lo único que todavía lee la escalera: el
+ * estado financiero que la aplicación muestra sale del dinero, no de acá.
+ */
+export async function readChoreographyLadderStages(
+  choreographyId: string,
+): Promise<Map<string, InscriptionLadderStage>> {
+  const rows = await db
+    .select({
+      balanceReferenceDate: choreographyDancers.balanceReferenceDate,
+      depositReferenceDate: choreographyDancers.depositReferenceDate,
+      id: choreographyDancers.id,
+    })
+    .from(choreographyDancers)
+    .where(eq(choreographyDancers.choreographyId, choreographyId));
+
+  return new Map(
+    rows.map((row) => [row.id, deriveInscriptionLadderStage(row)]),
+  );
 }

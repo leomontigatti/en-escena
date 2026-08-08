@@ -5,6 +5,7 @@ import { db } from "@/db";
 import {
   payments as paymentTable,
   choreographyDancers,
+  paymentAllocations,
   prices,
 } from "@/db/schema";
 import {
@@ -14,7 +15,10 @@ import {
 } from "@/features/portal/choreographies/test-support/db";
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
 import { loader as academiesLoader } from "@/routes/administracion.academias";
-import { loader as academyFinancesLoader } from "@/routes/administracion.finanzas_.$academyId";
+import {
+  action as academyFinancesAction,
+  loader as academyFinancesLoader,
+} from "@/routes/administracion.finanzas_.$academyId";
 import { action as paymentCreateAction } from "@/routes/administracion.pagos_.nuevo";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
@@ -36,6 +40,37 @@ import {
 } from "./finances.test-support";
 
 installDatabaseTestHooks();
+
+/**
+ * Un pago que cubre exactamente lo que se asigna a una inscripción: el estado y
+ * las cifras salen de esta asignación, no de los snapshots.
+ */
+async function seedInscriptionAllocation(input: {
+  academyId: string;
+  amount: number;
+  eventId: string;
+  inscriptionId: string;
+}) {
+  const [payment] = await db
+    .insert(paymentTable)
+    .values({
+      academyId: input.academyId,
+      amount: input.amount,
+      eventId: input.eventId,
+      paymentDate: "2026-03-20",
+      paymentMethod: "transferencia",
+      paymentNumber: 1,
+    })
+    .returning();
+
+  await db.insert(paymentAllocations).values({
+    academyId: input.academyId,
+    amount: input.amount,
+    eventId: input.eventId,
+    inscriptionId: input.inscriptionId,
+    paymentId: payment.id,
+  });
+}
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -142,7 +177,7 @@ describe.sequential("administracion finanzas academia", () => {
     );
   });
 
-  test("uses the frozen seña snapshot for a señada choreography's operational amounts", async () => {
+  test("derives the figures from the selected price row, not from today's catalog", async () => {
     vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
       "2026-06-01",
     );
@@ -162,14 +197,39 @@ describe.sequential("administracion finanzas academia", () => {
       lastName: "López",
     });
 
-    await db.insert(choreographyDancers).values({
-      ageAtEventStart: 14,
-      choreographyId: choreography.id,
-      dancerId: dancer.id,
-      frozenBasePriceAmount: 12000,
-      depositReferenceDate: "2026-03-20",
-      depositPercentage: 30,
-      depositAmount: 3600,
+    // Fila de precio ya vencida al 01/06: sigue mandando porque la inscripción
+    // la tiene seleccionada.
+    const [selectedPrice] = await db
+      .insert(prices)
+      .values({
+        amount: 12000,
+        eventId: event.id,
+        groupType: "solo",
+        name: "Precio Solo seleccionado",
+        paymentDeadline: "2026-03-31",
+        scheduleId: null,
+      })
+      .returning();
+
+    const [inscription] = await db
+      .insert(choreographyDancers)
+      .values({
+        ageAtEventStart: 14,
+        choreographyId: choreography.id,
+        dancerId: dancer.id,
+        frozenBasePriceAmount: 12000,
+        selectedPriceId: selectedPrice.id,
+        depositReferenceDate: "2026-03-20",
+        depositPercentage: 30,
+        depositAmount: 3600,
+      })
+      .returning();
+
+    await seedInscriptionAllocation({
+      academyId: academy.academy.id,
+      amount: 3600,
+      eventId: event.id,
+      inscriptionId: inscription.id,
     });
 
     const { request } = await createSignedInRequest({
@@ -188,17 +248,17 @@ describe.sequential("administracion finanzas academia", () => {
         id: choreography.id,
         basePriceAmount: { amount: 12000, status: "complete" },
         depositAmount: { amount: 3600, status: "complete" },
-        balanceAmount: { amount: 8400, status: "complete" },
-        financialState: "señada",
+        financialStatus: "depositMet",
         owedBalanceAmount: { amount: 8400, status: "complete" },
         owedDepositAmount: { amount: 0, status: "complete" },
+        totalAmount: { amount: 12000, status: "complete" },
       },
     ]);
     expect(loaderData.summary).toEqual({
       availableBalanceAmount: 0,
       owedBalanceAmount: { amount: 8400, status: "complete" },
       owedDepositAmount: { amount: 0, status: "complete" },
-      totalPaidAmount: 0,
+      totalPaidAmount: 3600,
     });
     expect(markup).toContain("$ 3.600");
     expect(markup).toContain("$ 8.400");
@@ -309,25 +369,27 @@ describe.sequential("administracion finanzas academia", () => {
       loaderData,
     });
 
-    // Cada inscripción impaga adeuda su seña (30% de $10.000) y también su
-    // saldo: una coreografía registrada se adeuda completa.
+    // Cada inscripción sin dinero adeuda su seña (30% de $10.000) y también su
+    // total: una coreografía registrada se adeuda completa.
     expect(loaderData.choreographyFinanceRows).toMatchObject([
       {
         name: "Aire",
-        balanceAmount: { status: "complete", amount: 7000 },
-        owedBalanceAmount: { status: "complete", amount: 7000 },
+        owedBalanceAmount: { status: "complete", amount: 10000 },
         owedDepositAmount: { status: "complete", amount: 3000 },
+        totalAmount: { status: "complete", amount: 10000 },
       },
       {
         name: "Tango",
-        balanceAmount: { status: "complete", amount: 7000 },
-        owedBalanceAmount: { status: "complete", amount: 7000 },
+        owedBalanceAmount: { status: "complete", amount: 10000 },
         owedDepositAmount: { status: "complete", amount: 3000 },
+        totalAmount: { status: "complete", amount: 10000 },
       },
     ]);
     expect(markup).toContain("Lista financiera de las coreografías");
     expect(markup).toContain("Buscar coreografía por nombre");
-    expect(markup).not.toContain('aria-label="Seleccionar todas las filas"');
+    // La lista se selecciona: los presets `Pagar seña` / `Pagar saldo` viven
+    // acá y actúan sobre las coreografías elegidas.
+    expect(markup).toContain('aria-label="Seleccionar todas las filas"');
     expect(markup).toContain("Nombre");
     expect(markup).toContain("Tipo de grupo");
     expect(markup).toMatch(
@@ -335,11 +397,80 @@ describe.sequential("administracion finanzas academia", () => {
     );
     expect(markup).toContain("Seña");
     expect(markup).not.toContain("Pagado");
-    expect(markup).toContain("Saldo");
+    expect(markup).toContain("Saldo adeudado");
     expect(markup).toContain("Estado");
     expect(markup).toContain("Aire");
     expect(markup).toContain("Tango");
     expect(markup).toContain("$ 3.000");
+  });
+
+  // Un diálogo sobre una lista no redirige: la vista sigue existiendo y sigue
+  // teniendo sentido, así que el resultado vuelve por `fetcher.data` y el
+  // loader revalidado reconstruye las cifras.
+  test("reports the preset in the action data instead of redirecting", async () => {
+    const event = await createSavedEvent({ requiredDepositPercentage: 30 });
+    const { academy, choreography } =
+      await createAcademyFinanceChoreographyFixture({
+        academyName: "Academia Preset Ruta",
+        choreographyName: "Preset Ruta",
+        email: "academia.preset.ruta@example.com",
+        event,
+      });
+    const [priceRow] = await db
+      .select({ id: prices.id })
+      .from(prices)
+      .where(eq(prices.eventId, event.id))
+      .limit(1);
+    const dancer = await createDancer(academy.academy.id, {
+      firstName: "Rosa",
+      lastName: "Preset",
+    });
+    const [inscription] = await db
+      .insert(choreographyDancers)
+      .values({
+        ageAtEventStart: 14,
+        choreographyId: choreography.id,
+        dancerId: dancer.id,
+      })
+      .returning();
+    await db.insert(paymentTable).values({
+      academyId: academy.academy.id,
+      amount: 50000,
+      eventId: event.id,
+      paymentDate: "2026-03-20",
+      paymentMethod: "transferencia",
+      paymentNumber: 1,
+    });
+
+    const { request: signedIn } = await createSignedInRequest({
+      email: "admin.preset.ruta@example.com",
+      role: "admin",
+      requestUrl: academyFinancesUrl(academy.academy.id, event.id),
+    });
+    const formData = new FormData();
+    formData.set("intent", "pay-deposit-preset");
+    formData.append("choreographyId", choreography.id);
+    formData.set("price-solo", priceRow.id);
+
+    const actionData = await academyFinancesAction(
+      academyFinancesRouteArgs(
+        new Request(academyFinancesUrl(academy.academy.id, event.id), {
+          method: "POST",
+          body: formData,
+          headers: { cookie: signedIn.headers.get("cookie") ?? "" },
+        }),
+        academy.academy.id,
+      ),
+    );
+
+    expect(actionData).toMatchObject({ status: "success" });
+
+    const allocations = await db
+      .select({ amount: paymentAllocations.amount })
+      .from(paymentAllocations)
+      .where(eq(paymentAllocations.inscriptionId, inscription.id));
+
+    expect(allocations.map((allocation) => allocation.amount)).toEqual([3000]);
   });
 
   test("registers event-scoped payment numbers, persists payments, and updates totals", async () => {

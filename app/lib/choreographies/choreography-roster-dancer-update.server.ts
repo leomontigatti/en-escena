@@ -2,6 +2,7 @@ import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
 import { choreographyDancers, dancers, events } from "@/db/schema";
+import { activeInscription } from "@/lib/choreographies/active-inscription";
 import {
   resolveChoreographyRegistrationOperationForResolvedDancers,
   type ChoreographyRegistrationOperationResolution,
@@ -93,12 +94,20 @@ export async function resolveChoreographyDancerUpdateContext(input: {
   }
 
   const requestedDancerIds = [...new Set(input.dancerIds)];
+  // Solo las activas cuentan como "ya está en el roster": esa excepción existe
+  // para no bloquear a un bailarín inactivo que ya figura, y una inscripción
+  // retirada no figura.
   const currentLinks = await db
     .select({
       dancerId: choreographyDancers.dancerId,
     })
     .from(choreographyDancers)
-    .where(eq(choreographyDancers.choreographyId, input.choreographyId));
+    .where(
+      and(
+        eq(choreographyDancers.choreographyId, input.choreographyId),
+        activeInscription(),
+      ),
+    );
   const linkedDancerIds = new Set(currentLinks.map((row) => row.dancerId));
 
   const selectedDancers =

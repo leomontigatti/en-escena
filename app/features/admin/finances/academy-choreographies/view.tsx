@@ -1,3 +1,5 @@
+import { useCallback, useMemo, useState } from "react";
+
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import {
   ClientDataTable,
@@ -6,19 +8,19 @@ import {
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { MetricCard } from "@/components/shared/metric-card";
+import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Badge } from "@/components/ui/badge";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import {
-  choreographyFinancialStateOptions,
-  formatChoreographyFinancialState,
-  getChoreographyFinancialStateBadgeVariant,
-} from "@/lib/finances/choreography-financial-state";
+  choreographyStatusFilterOptions,
+  formatInscriptionStatusBadge,
+} from "@/lib/finances/choreography-financial-status";
+import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 
-import {
-  formatAmount,
-  formatOperationalAmount,
-  formatTotalAmount,
-} from "../formatters";
+import { formatAmount, formatOperationalAmount } from "../formatters";
+import { FinancePresetDialog } from "./preset-dialog";
+import { financePresetLabels, type FinancePresetStage } from "./presets";
 import type { AcademyFinancesLoaderData } from "./types";
 
 type ChoreographyFinanceRow =
@@ -28,17 +30,40 @@ const choreographyFinanceFacetedFilters: DataTableFacetedFilter[] = [
   {
     id: "estado",
     label: "Estado",
-    options: [...choreographyFinancialStateOptions],
+    options: [...choreographyStatusFilterOptions],
   },
 ];
 
 type AcademyFinancesRouteViewProps = {
+  /** Preset open on mount. Only the tests use it, as in the payment detail. */
+  initialPresetStage?: FinancePresetStage | null;
   loaderData: AcademyFinancesLoaderData;
 };
 
 export function AcademyFinancesRouteView({
+  initialPresetStage = null,
   loaderData,
 }: AcademyFinancesRouteViewProps) {
+  // The selection is lifted out of the table because it drives more than the
+  // table: the two presets read it, and only it decides whether they are
+  // offered at all.
+  const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
+  const [presetStage, setPresetStage] = useState<FinancePresetStage | null>(
+    initialPresetStage,
+  );
+  const columns = useMemo(
+    () => buildChoreographyFinanceColumns(loaderData.academy.id),
+    [loaderData.academy.id],
+  );
+  const selectedRows = loaderData.choreographyFinanceRows.filter((row) =>
+    selectedRowIds.includes(row.id),
+  );
+  // Stable so the dialog can close itself from an effect when the write
+  // succeeds without the effect re-running on every render of the list.
+  const handlePresetOpenChange = useCallback((next: boolean) => {
+    setPresetStage((current) => (next ? current : null));
+  }, []);
+
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
@@ -49,6 +74,28 @@ export function AcademyFinancesRouteView({
         description:
           "Activá un evento para consultar la lista financiera de las coreografías de la academia.",
       }}
+      headerAction={
+        selectedRows.length > 0 ? (
+          <ResourceActionsMenu contentClassName="w-48">
+            <DropdownMenuItem
+              onSelect={(event) => {
+                event.preventDefault();
+                setPresetStage("deposit");
+              }}
+            >
+              {financePresetLabels.deposit}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={(event) => {
+                event.preventDefault();
+                setPresetStage("balance");
+              }}
+            >
+              {financePresetLabels.balance}
+            </DropdownMenuItem>
+          </ResourceActionsMenu>
+        ) : undefined
+      }
     >
       <div className="flex flex-col gap-6">
         <section className="grid gap-4 md:grid-cols-3">
@@ -72,11 +119,14 @@ export function AcademyFinancesRouteView({
 
         <ClientDataTable
           rows={loaderData.choreographyFinanceRows}
-          columns={buildChoreographyFinanceColumns(loaderData.academy.id)}
+          columns={columns}
           facetedFilters={choreographyFinanceFacetedFilters}
           getRowKey={(row) => row.id}
           searchPlaceholder="Buscar coreografía por nombre"
           textFilterColumnId="name"
+          selectableRows
+          selectedRowIds={selectedRowIds}
+          onSelectedRowIdsChange={setSelectedRowIds}
           initialSort={{
             columnId: "name",
             direction: "asc",
@@ -84,6 +134,20 @@ export function AcademyFinancesRouteView({
           emptyMessage="No hay coreografías para mostrar."
         />
       </div>
+
+      {presetStage !== null && selectedRows.length > 0 ? (
+        <FinancePresetDialog
+          availableBalanceAmount={loaderData.summary.availableBalanceAmount}
+          open
+          onOpenChange={handlePresetOpenChange}
+          priceOptionsByGroupType={loaderData.priceOptionsByGroupType}
+          pricingScheduleIdByChoreography={
+            loaderData.pricingScheduleIdByChoreography
+          }
+          selectedRows={selectedRows}
+          stage={presetStage}
+        />
+      ) : null}
     </AdminResourceLayout>
   );
 }
@@ -121,32 +185,56 @@ function buildChoreographyFinanceColumns(
       cell: (row) => formatOperationalAmount(row.depositAmount),
     },
     {
-      id: "balanceAmount",
-      header: "Saldo",
-      className: "text-right tabular-nums",
-      headerClassName: "text-right",
-      cell: (row) => formatOperationalAmount(row.balanceAmount),
-    },
-    {
       id: "totalAmount",
       header: "Total",
-      className: "text-right tabular-nums",
+      // Decorativo y sin condición: `Total` es la columna de contexto —contra qué
+      // se mide lo adeudado—, así que va atenuada entera. Nunca por fila: un gris
+      // que varía vuelve a significar algo.
+      className: "text-right tabular-nums text-muted-foreground",
       headerClassName: "text-right",
-      cell: (row) => formatTotalAmount(row.depositAmount, row.balanceAmount),
+      cell: (row) => formatOperationalAmount(row.totalAmount),
     },
     {
-      id: "financialState",
+      id: "owedBalanceAmount",
+      header: "Saldo adeudado",
+      // La única cifra accionable de la fila, destacada por columna.
+      className: "text-right font-medium tabular-nums",
+      headerClassName: "text-right",
+      cell: (row) => formatOperationalAmount(row.owedBalanceAmount),
+    },
+    {
+      id: "financialStatus",
       header: "Estado",
-      cell: (row) => (
-        <Badge
-          variant={getChoreographyFinancialStateBadgeVariant(
-            row.financialState,
-          )}
-        >
-          {formatChoreographyFinancialState(row.financialState)}
-        </Badge>
-      ),
-      filterValue: (row) => row.financialState,
+      cell: (row) => <ChoreographyStatusCell row={row} />,
+      // The filter comes from the same badge the cell shows, not from
+      // `financialStatus`: a row badged `Sobreasignada` that turned up while
+      // filtering by `Señada` would contradict itself on screen.
+      filterValue: (row) => formatChoreographyStatusBadge(row).value,
     },
   ];
+}
+
+/**
+ * Una anomalía **reemplaza** al badge de estado, no lo acompaña: los dos compiten
+ * por la misma mirada, y `Señada` al lado de `Sobreasignada` se lee como dos
+ * hechos del mismo peso cuando sólo uno pide que alguien haga algo.
+ *
+ * The precedence between axes lives in `resolveInscriptionStatusBadge` and is
+ * explicit, not positional: a new derived axis stacks on top by declaring
+ * itself there, without depending on the order in which someone pushed its
+ * anomaly into the array.
+ */
+function formatChoreographyStatusBadge(row: ChoreographyFinanceRow) {
+  return formatInscriptionStatusBadge(
+    resolveInscriptionStatusBadge({
+      anomalies: row.anomalies,
+      financialStatus: row.financialStatus,
+    }),
+  );
+}
+
+function ChoreographyStatusCell({ row }: { row: ChoreographyFinanceRow }) {
+  const badge = formatChoreographyStatusBadge(row);
+
+  return <Badge variant={badge.variant}>{badge.label}</Badge>;
 }

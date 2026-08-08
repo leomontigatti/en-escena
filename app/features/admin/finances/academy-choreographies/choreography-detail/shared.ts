@@ -2,10 +2,22 @@ import type { ComprobanteContingency } from "@/lib/comprobantes/contingency-aler
 
 export const payDepositIntent = "pay-deposit";
 export const payBalanceIntent = "pay-balance";
-export const payInscriptionDepositIntent = "pay-inscription-deposit";
-export const payInscriptionBalanceIntent = "pay-inscription-balance";
-export const deleteAllocationIntent = "delete-allocation";
 export const emitComprobanteIntent = "emit-comprobante";
+
+// The three money gestures of an inscription. All of them name an inscription
+// and an amount and never a payment: which payment the money comes from or goes
+// back to is the pool rules' answer.
+export const allocateInscriptionIntent = "allocate-inscription";
+export const removeInscriptionMoneyIntent = "remove-inscription-money";
+export const releaseInscriptionExcessIntent = "release-inscription-excess";
+
+/** How a dancer is named everywhere on the financial detail. */
+export function formatDancerName(input: {
+  firstName: string;
+  lastName: string;
+}) {
+  return `${input.firstName} ${input.lastName}`;
+}
 
 // Re-verificación de una emisión que quedó sin resolver (#577): vuelve a
 // consultar a ARCA por ese correlativo, sin reintentar la autorización.

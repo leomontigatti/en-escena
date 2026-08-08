@@ -525,6 +525,7 @@ function buildChoreography(
         active: true,
         ageAtEventStart: 14,
         firstName: "Ana",
+        hasEvidence: false,
         id: "dancer_1",
         lastName: "Paz",
       },

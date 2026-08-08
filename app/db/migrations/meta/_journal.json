@@ -50,6 +50,20 @@
       "when": 1785821472744,
       "tag": "0006_drop_administrative_audit_entry",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1786115064731,
+      "tag": "0007_strange_mantis",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1786125909570,
+      "tag": "0008_cloudy_living_lightning",
+      "breakpoints": true
     }
   ]
 }

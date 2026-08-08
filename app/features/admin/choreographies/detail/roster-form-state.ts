@@ -191,6 +191,33 @@ export function shouldRenderRosterScheduleSelect({
 }
 
 /**
+ * Los bailarines que este submit saca del roster y cuya inscripción tiene
+ * evidencia: plata asignada o una línea de comprobante. Esas no se borran,
+ * quedan retiradas, y el diálogo enumera esa consecuencia solo cuando la lista
+ * no está vacía. Sin evidencia no hay nada que contar: la baja es un borrado y
+ * el diálogo queda como estaba.
+ *
+ * Devuelve el id junto al nombre porque dos bailarines homónimos en la misma
+ * coreografía son posibles y el nombre no alcanza para identificar la fila.
+ */
+export function getWithdrawnDancers({
+  dancers,
+  watchedDancerIds,
+}: {
+  dancers: ChoreographyDetail["dancers"];
+  watchedDancerIds: string[];
+}) {
+  const keptDancerIds = new Set(watchedDancerIds);
+
+  return dancers
+    .filter((dancer) => dancer.hasEvidence && !keptDancerIds.has(dancer.id))
+    .map((dancer) => ({
+      id: dancer.id,
+      name: `${dancer.firstName} ${dancer.lastName}`,
+    }));
+}
+
+/**
  * El slot "Nivel de experiencia" es uno solo, y la precedencia es el espejo
  * exacto de la retención del server (`resolveSelectedExperienceLevelId`), que
  * conserva el nivel guardado —e ignora el que mande el form— cuando la

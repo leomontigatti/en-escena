@@ -213,7 +213,6 @@ describe.sequential("administracion finanzas", () => {
     });
     await db.insert(paymentAllocations).values({
       academyId: academyNorth.academy.id,
-      allocationType: "deposit",
       amount: 3000,
       eventId: event.id,
       inscriptionId: northActiveInscription.id,
@@ -231,7 +230,7 @@ describe.sequential("administracion finanzas", () => {
       dancerId: northSecondDancer.id,
     });
 
-    // Norte Pagada: pagada with deposit + balance allocations.
+    // Norte Pagada: pagada, con la seña y el saldo en una sola asignación.
     const northPaidDancer = await createDancer(academyNorth.academy.id, {
       firstName: "Carla",
       lastName: "Pagada",
@@ -244,24 +243,13 @@ describe.sequential("administracion finanzas", () => {
       frozenBasePriceAmount: 10000,
       paid: { balanceAmount: 7000, finalTotalAmount: 10000 },
     });
-    await db.insert(paymentAllocations).values([
-      {
-        academyId: academyNorth.academy.id,
-        allocationType: "deposit",
-        amount: 3000,
-        eventId: event.id,
-        inscriptionId: northPaidInscription.id,
-        paymentId: northPayment.id,
-      },
-      {
-        academyId: academyNorth.academy.id,
-        allocationType: "balance",
-        amount: 7000,
-        eventId: event.id,
-        inscriptionId: northPaidInscription.id,
-        paymentId: northPayment.id,
-      },
-    ]);
+    await db.insert(paymentAllocations).values({
+      academyId: academyNorth.academy.id,
+      amount: 10000,
+      eventId: event.id,
+      inscriptionId: northPaidInscription.id,
+      paymentId: northPayment.id,
+    });
 
     // Sur Activa: impaga -> pending seña 3000, no allocations.
     const southDancer = await createDancer(academySouth.academy.id, {
@@ -303,23 +291,23 @@ describe.sequential("administracion finanzas", () => {
 
     expect(loaderData.selectedEventId).toBe(event.id);
     // Norte: pagos 20000 - asignaciones 13000 = disponible 7000; seña adeudada
-    // 3000 (la impaga); saldo adeudado 14000 = 7000 de la señada + 7000 de la
-    // impaga, que adeuda las dos cosas.
+    // 3000 (la que no llegó al umbral); saldo adeudado 17000 = 7000 de la que
+    // cubrió la seña + 10000 de la que no tiene nada, que adeuda las dos cosas.
     // Sur: pagos 3000 - asignaciones 0 = disponible 3000; seña adeudada 3000;
-    // saldo adeudado 7000, el de su única inscripción impaga.
+    // saldo adeudado 10000, el total de su única inscripción sin dinero.
     expect(loaderData.rows).toEqual([
       {
         academyId: academyNorth.academy.id,
         academyName: "Academia Norte",
         availableBalanceAmount: 7000,
-        owedBalanceAmount: { status: "complete", amount: 14000 },
+        owedBalanceAmount: { status: "complete", amount: 17000 },
         owedDepositAmount: { status: "complete", amount: 3000 },
       },
       {
         academyId: academySouth.academy.id,
         academyName: "Academia Sur",
         availableBalanceAmount: 3000,
-        owedBalanceAmount: { status: "complete", amount: 7000 },
+        owedBalanceAmount: { status: "complete", amount: 10000 },
         owedDepositAmount: { status: "complete", amount: 3000 },
       },
     ]);

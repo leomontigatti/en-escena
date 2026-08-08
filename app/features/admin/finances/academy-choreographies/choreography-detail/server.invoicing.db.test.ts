@@ -148,7 +148,6 @@ async function seedAllocation(input: {
 
   await db.insert(paymentAllocations).values({
     academyId: input.academyId,
-    allocationType: "deposit",
     amount: input.amount,
     eventId: input.eventId,
     inscriptionId: input.inscriptionId,

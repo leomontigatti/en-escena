@@ -34,14 +34,15 @@ export async function loadPortalChoreographyFinanceDetail(input: {
 
   return {
     choreography: {
-      balanceAmount: choreographyFinanceRow.balanceAmount,
+      allocatedAmount: choreographyFinanceRow.allocatedAmount,
       depositAmount: choreographyFinanceRow.depositAmount,
       depositCompletedOn: choreographyFinanceRow.depositCompletedOn,
-      financialState: choreographyFinanceRow.financialState,
+      financialStatus: choreographyFinanceRow.financialStatus,
       groupType: choreographyFinanceRow.groupType,
       id: choreographyFinanceRow.id,
       name: choreographyFinanceRow.name,
-      paidAmount: choreographyFinanceRow.paidAmount,
+      owedBalanceAmount: choreographyFinanceRow.owedBalanceAmount,
+      totalAmount: choreographyFinanceRow.totalAmount,
     },
     inscriptions: await readChoreographyInscriptionRows({
       academyEventInscriptions: financeDetail.inscriptions,

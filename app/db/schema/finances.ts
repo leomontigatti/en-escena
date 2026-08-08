@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  check,
   foreignKey,
   index,
   integer,
@@ -14,11 +15,6 @@ import { academies } from "./academies";
 import { choreographyDancers } from "./choreographies";
 import { createTable } from "./core";
 import { events } from "./events";
-
-export const allocationType = pgEnum("en_escena_payment_allocation_type", [
-  "deposit",
-  "balance",
-]);
 
 export const paymentMethod = pgEnum("en_escena_finance_payment_method", [
   "transferencia",
@@ -109,7 +105,9 @@ export const paymentAllocations = createTable(
     inscriptionId: varchar("inscription_id", { length: 255 }).notNull(),
     academyId: varchar("academy_id", { length: 255 }).notNull(),
     eventId: varchar("event_id", { length: 255 }).notNull(),
-    allocationType: allocationType("allocation_type").notNull(),
+    // Plata contra una inscripción, sin rol. Hay a lo sumo una fila por
+    // (pago, inscripción): se escribe por upsert sumando, y se borra cuando un
+    // decremento la deja en cero.
     amount: integer("amount").notNull(),
     createdAt: timestamp("created_at", {
       mode: "date",
@@ -133,7 +131,7 @@ export const paymentAllocations = createTable(
       columns: [table.paymentId],
       foreignColumns: [payments.id],
       name: "payment_allocation_payment_fk",
-    }),
+    }).onDelete("cascade"),
     foreignKey({
       columns: [table.inscriptionId],
       foreignColumns: [choreographyDancers.id],
@@ -149,11 +147,11 @@ export const paymentAllocations = createTable(
       foreignColumns: [events.id],
       name: "payment_allocation_event_fk",
     }).onDelete("cascade"),
-    uniqueIndex("payment_allocation_payment_inscription_type_unique").on(
+    uniqueIndex("payment_allocation_payment_inscription_unique").on(
       table.paymentId,
       table.inscriptionId,
-      table.allocationType,
     ),
+    check("payment_allocation_amount_positive", sql`${table.amount} > 0`),
     index("payment_allocation_inscription_idx").on(
       table.inscriptionId,
       table.createdAt,

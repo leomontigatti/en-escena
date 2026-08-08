@@ -1,18 +1,11 @@
-import { and, eq, inArray } from "drizzle-orm";
-import { describe, expect, test, vi } from "vitest";
+import { eq } from "drizzle-orm";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
-import {
-  payments,
-  choreographyDancers,
-  paymentAllocations,
-  prices,
-} from "@/db/schema";
+import { payments, choreographyDancers, paymentAllocations } from "@/db/schema";
 import { createDancer } from "@/features/portal/choreographies/test-support/db";
-import {
-  readInscriptionDepositOptions,
-  releaseInscriptionAllocations,
-} from "@/lib/finances/choreography-cobro.server";
+import { releaseInscriptionAllocations } from "@/lib/finances/choreography-cobro.server";
+import * as businessTimeZone from "@/lib/shared/business-time-zone";
 import { action as choreographyDetailAction } from "@/routes/administracion.finanzas_.$academyId_.coreografias_.$choreographyId";
 
 import { installDatabaseTestHooks } from "../../../../../../tests/db/harness";
@@ -25,7 +18,17 @@ import {
 
 installDatabaseTestHooks();
 
-async function seedCobroFixture() {
+// A charge is no longer dated against a payment: it freezes against the
+// business day and resolves the price applicable that day. Pinning it inside
+// the catalogue's validity keeps the fixture readable and makes the chosen
+// price row deterministic.
+beforeEach(() => {
+  vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
+    "2026-04-10",
+  );
+});
+
+async function seedCobroFixture(paymentAmount = 50000) {
   const event = await createSavedEvent({ requiredDepositPercentage: 30 });
   const { academy, choreography } =
     await createAcademyFinanceChoreographyFixture({
@@ -58,7 +61,7 @@ async function seedCobroFixture() {
 
   await registerPaymentForTest({
     academyId: academy.academy.id,
-    amount: "50000",
+    amount: String(paymentAmount),
     eventId: event.id,
     paymentDate: "2026-04-10",
   });
@@ -70,103 +73,6 @@ async function seedCobroFixture() {
   }
 
   return { academy, choreography, event, payment };
-}
-
-/**
- * Coreografía mixta: `Ana` queda `señada` a mano (piso = su precio congelado) y
- * `Bruno` sigue `impaga` como huérfana. Agrega dos filas de precio generales
- * para el mismo tipo de grupo: una por encima del piso y otra por debajo.
- */
-async function seedMixedCobroFixture() {
-  const fixture = await seedCobroFixture();
-
-  const inscriptions = await db.query.choreographyDancers.findMany({
-    where: eq(choreographyDancers.choreographyId, fixture.choreography.id),
-    orderBy: (row, { asc }) => asc(row.ageAtEventStart),
-  });
-  const [ana, bruno] = inscriptions;
-  if (!ana || !bruno) {
-    throw new Error("Expected two inscriptions.");
-  }
-
-  await db
-    .update(choreographyDancers)
-    .set({
-      frozenBasePriceAmount: 10000,
-      depositReferenceDate: "2026-04-10",
-      depositPercentage: 30,
-      depositAmount: 3000,
-    })
-    .where(eq(choreographyDancers.id, ana.id));
-
-  const [priceAbove] = await db
-    .insert(prices)
-    .values({
-      eventId: fixture.event.id,
-      name: "Solo tardío",
-      groupType: "solo",
-      amount: 12000,
-      paymentDeadline: "2026-04-30",
-      scheduleId: null,
-    })
-    .returning();
-  const [priceBelow] = await db
-    .insert(prices)
-    .values({
-      eventId: fixture.event.id,
-      name: "Solo temprano",
-      groupType: "solo",
-      amount: 8000,
-      paymentDeadline: "2026-03-31",
-      scheduleId: null,
-    })
-    .returning();
-
-  return { ...fixture, ana, bruno, priceAbove, priceBelow };
-}
-
-/**
- * Coreografía mixta con saldo pendiente: `Ana` queda `pagada` (saldo congelado)
- * y `Bruno` sigue `señada` como huérfana. Distintos bailarines, así que no hay
- * `Descuento por bailarín` en juego (queda en 0).
- */
-async function seedMixedBalanceFixture() {
-  const fixture = await seedCobroFixture();
-
-  const inscriptions = await db.query.choreographyDancers.findMany({
-    where: eq(choreographyDancers.choreographyId, fixture.choreography.id),
-    orderBy: (row, { asc }) => asc(row.ageAtEventStart),
-  });
-  const [ana, bruno] = inscriptions;
-  if (!ana || !bruno) {
-    throw new Error("Expected two inscriptions.");
-  }
-
-  // Ambas señadas al mismo precio congelado.
-  await db
-    .update(choreographyDancers)
-    .set({
-      frozenBasePriceAmount: 10000,
-      depositReferenceDate: "2026-04-10",
-      depositPercentage: 30,
-      depositAmount: 3000,
-    })
-    .where(inArray(choreographyDancers.id, [ana.id, bruno.id]));
-
-  // Ana ya pagada (saldo congelado); Bruno sigue señada como huérfana.
-  await db
-    .update(choreographyDancers)
-    .set({
-      balanceReferenceDate: "2026-04-10",
-      appliedDancerDiscountPercentage: 0,
-      appliedDancerDiscountAmount: 0,
-      finalTotalAmount: 10000,
-      balanceAmount: 7000,
-      balanceCompletedAt: "2026-04-10",
-    })
-    .where(eq(choreographyDancers.id, ana.id));
-
-  return { ...fixture, ana, bruno };
 }
 
 async function postDetailAction(input: {
@@ -204,7 +110,7 @@ async function postDetailAction(input: {
       context: {},
     } as never);
   } catch (thrown) {
-    // Los redirects se lanzan como `Response` (convención de React Router).
+    // Redirects are thrown as a `Response` (React Router's convention).
     if (thrown instanceof Response) {
       return thrown;
     }
@@ -220,7 +126,7 @@ describe.sequential("choreography cobro through the route action", () => {
       academyId: fixture.academy.academy.id,
       choreographyId: fixture.choreography.id,
       eventId: fixture.event.id,
-      fields: { intent: "pay-deposit", paymentId: fixture.payment.id },
+      fields: { intent: "pay-deposit" },
     });
 
     expect(response).toMatchObject({ status: 302 });
@@ -240,7 +146,37 @@ describe.sequential("choreography cobro through the route action", () => {
       where: eq(paymentAllocations.paymentId, fixture.payment.id),
     });
     expect(allocations).toHaveLength(2);
-    expect(allocations.every((a) => a.allocationType === "deposit")).toBe(true);
+    expect(allocations.every((a) => a.amount === 3000)).toBe(true);
+  });
+
+  test("rolls the whole preset back when the pool covers only some inscriptions", async () => {
+    // Two inscriptions owing 3000 each, and a pool of 4000: the first is
+    // fundable and the second is not. A refusal has to leave nothing behind —
+    // neither a partial allocation nor a frozen snapshot.
+    const fixture = await seedCobroFixture(4000);
+
+    const result = await postDetailAction({
+      academyId: fixture.academy.academy.id,
+      choreographyId: fixture.choreography.id,
+      eventId: fixture.event.id,
+      fields: { intent: "pay-deposit" },
+    });
+
+    expect(result).toMatchObject({ status: "error" });
+
+    const allocations = await db.query.paymentAllocations.findMany({
+      where: eq(paymentAllocations.paymentId, fixture.payment.id),
+    });
+    expect(allocations).toHaveLength(0);
+
+    const inscriptions = await db.query.choreographyDancers.findMany({
+      where: eq(choreographyDancers.choreographyId, fixture.choreography.id),
+    });
+    for (const inscription of inscriptions) {
+      expect(inscription.depositReferenceDate).toBeNull();
+      expect(inscription.selectedPriceId).toBeNull();
+      expect(inscription.frozenBasePriceAmount).toBeNull();
+    }
   });
 
   test("rejects Pagar saldo when an inscription has no deposit", async () => {
@@ -250,7 +186,7 @@ describe.sequential("choreography cobro through the route action", () => {
       academyId: fixture.academy.academy.id,
       choreographyId: fixture.choreography.id,
       eventId: fixture.event.id,
-      fields: { intent: "pay-balance", paymentId: fixture.payment.id },
+      fields: { intent: "pay-balance" },
     });
 
     expect(result).toMatchObject({ status: "error" });
@@ -267,13 +203,13 @@ describe.sequential("choreography cobro through the route action", () => {
       academyId: fixture.academy.academy.id,
       choreographyId: fixture.choreography.id,
       eventId: fixture.event.id,
-      fields: { intent: "pay-deposit", paymentId: fixture.payment.id },
+      fields: { intent: "pay-deposit" },
     });
     const balanceResponse = await postDetailAction({
       academyId: fixture.academy.academy.id,
       choreographyId: fixture.choreography.id,
       eventId: fixture.event.id,
-      fields: { intent: "pay-balance", paymentId: fixture.payment.id },
+      fields: { intent: "pay-balance" },
     });
 
     expect(balanceResponse).toMatchObject({ status: 302 });
@@ -287,344 +223,44 @@ describe.sequential("choreography cobro through the route action", () => {
       expect(inscription.finalTotalAmount).toBe(10000);
     }
 
+    // Two inscriptions, one payment: two rows, each with the deposit and the
+    // balance summed onto it.
     const allocations = await db.query.paymentAllocations.findMany({
       where: eq(paymentAllocations.paymentId, fixture.payment.id),
     });
-    expect(allocations).toHaveLength(4);
+    expect(allocations).toHaveLength(2);
+    expect(allocations.every((a) => a.amount === 10000)).toBe(true);
   });
 
-  test("deleting the balance allocation returns the inscription to señada", async () => {
+  test("la seña y el saldo del mismo pago viven en una sola asignación", async () => {
     const fixture = await seedCobroFixture();
 
     await postDetailAction({
       academyId: fixture.academy.academy.id,
       choreographyId: fixture.choreography.id,
       eventId: fixture.event.id,
-      fields: { intent: "pay-deposit", paymentId: fixture.payment.id },
+      fields: { intent: "pay-deposit" },
     });
     await postDetailAction({
       academyId: fixture.academy.academy.id,
       choreographyId: fixture.choreography.id,
       eventId: fixture.event.id,
-      fields: { intent: "pay-balance", paymentId: fixture.payment.id },
+      fields: { intent: "pay-balance" },
     });
 
-    const balanceAllocation = await db.query.paymentAllocations.findFirst({
-      where: eq(paymentAllocations.allocationType, "balance"),
+    const inscription = await db.query.choreographyDancers.findFirst({
+      where: eq(choreographyDancers.choreographyId, fixture.choreography.id),
     });
-    if (!balanceAllocation) {
-      throw new Error("Expected a balance allocation.");
+    if (!inscription) {
+      throw new Error("Expected an inscription.");
     }
 
-    const response = await postDetailAction({
-      academyId: fixture.academy.academy.id,
-      choreographyId: fixture.choreography.id,
-      eventId: fixture.event.id,
-      fields: {
-        intent: "delete-allocation",
-        allocationId: balanceAllocation.id,
-      },
-    });
-
-    expect(response).toMatchObject({ status: 302 });
-    const inscription = await db.query.choreographyDancers.findFirst({
-      where: eq(choreographyDancers.id, balanceAllocation.inscriptionId),
-    });
-    expect(inscription?.balanceReferenceDate).toBeNull();
-    expect(inscription?.balanceAmount).toBeNull();
-    expect(inscription?.depositReferenceDate).toBe("2026-04-10");
-  });
-
-  test("rejects deshacer seña while the inscription is still pagada", async () => {
-    const fixture = await seedCobroFixture();
-
-    await postDetailAction({
-      academyId: fixture.academy.academy.id,
-      choreographyId: fixture.choreography.id,
-      eventId: fixture.event.id,
-      fields: { intent: "pay-deposit", paymentId: fixture.payment.id },
-    });
-    await postDetailAction({
-      academyId: fixture.academy.academy.id,
-      choreographyId: fixture.choreography.id,
-      eventId: fixture.event.id,
-      fields: { intent: "pay-balance", paymentId: fixture.payment.id },
-    });
-
-    // El orden es balance antes que deposit: con el saldo todavía asignado, la
-    // inscripción sigue pagada y no se puede deshacer la seña.
-    const depositAllocation = await db.query.paymentAllocations.findFirst({
-      where: eq(paymentAllocations.allocationType, "deposit"),
-    });
-    if (!depositAllocation) {
-      throw new Error("Expected a deposit allocation.");
-    }
-
-    const result = await postDetailAction({
-      academyId: fixture.academy.academy.id,
-      choreographyId: fixture.choreography.id,
-      eventId: fixture.event.id,
-      fields: {
-        intent: "delete-allocation",
-        allocationId: depositAllocation.id,
-      },
-    });
-
-    expect(result).toMatchObject({ status: "error" });
-    const inscription = await db.query.choreographyDancers.findFirst({
-      where: eq(choreographyDancers.id, depositAllocation.inscriptionId),
-    });
-    expect(inscription?.depositReferenceDate).toBe("2026-04-10");
-    expect(inscription?.balanceReferenceDate).toBe("2026-04-10");
-    const survivingAllocations = await db.query.paymentAllocations.findMany({
-      where: eq(
-        paymentAllocations.inscriptionId,
-        depositAllocation.inscriptionId,
-      ),
-    });
-    expect(survivingAllocations).toHaveLength(2);
-  });
-
-  test("Cobrar seña de una huérfana congela solo su snapshot y la deja señada", async () => {
-    const fixture = await seedMixedCobroFixture();
-
-    const response = await postDetailAction({
-      academyId: fixture.academy.academy.id,
-      choreographyId: fixture.choreography.id,
-      eventId: fixture.event.id,
-      fields: {
-        intent: "pay-inscription-deposit",
-        inscriptionId: fixture.bruno.id,
-        priceId: fixture.priceAbove.id,
-        paymentId: fixture.payment.id,
-      },
-    });
-
-    expect(response).toMatchObject({ status: 302 });
-
-    const bruno = await db.query.choreographyDancers.findFirst({
-      where: eq(choreographyDancers.id, fixture.bruno.id),
-    });
-    expect(bruno?.frozenBasePriceAmount).toBe(12000);
-    expect(bruno?.depositReferenceDate).toBe("2026-04-10");
-    expect(bruno?.depositAmount).toBe(3600);
-    expect(bruno?.selectedPriceId).toBe(fixture.priceAbove.id);
-
-    // La hermana ya señada no se toca.
-    const ana = await db.query.choreographyDancers.findFirst({
-      where: eq(choreographyDancers.id, fixture.ana.id),
-    });
-    expect(ana?.frozenBasePriceAmount).toBe(10000);
-    expect(ana?.depositAmount).toBe(3000);
-
+    // One row per (payment, inscription): the balance summed onto the deposit.
     const allocations = await db.query.paymentAllocations.findMany({
-      where: eq(paymentAllocations.inscriptionId, fixture.bruno.id),
+      where: eq(paymentAllocations.inscriptionId, inscription.id),
     });
     expect(allocations).toHaveLength(1);
-    expect(allocations[0]?.allocationType).toBe("deposit");
-    expect(allocations[0]?.amount).toBe(3600);
-  });
-
-  test("El server rechaza una fila de precio por debajo del piso", async () => {
-    const fixture = await seedMixedCobroFixture();
-
-    const result = await postDetailAction({
-      academyId: fixture.academy.academy.id,
-      choreographyId: fixture.choreography.id,
-      eventId: fixture.event.id,
-      fields: {
-        intent: "pay-inscription-deposit",
-        inscriptionId: fixture.bruno.id,
-        priceId: fixture.priceBelow.id,
-        paymentId: fixture.payment.id,
-      },
-    });
-
-    expect(result).toMatchObject({ status: "error" });
-
-    const bruno = await db.query.choreographyDancers.findFirst({
-      where: eq(choreographyDancers.id, fixture.bruno.id),
-    });
-    expect(bruno?.depositReferenceDate).toBeNull();
-    const allocations = await db.query.paymentAllocations.findMany({
-      where: and(
-        eq(paymentAllocations.inscriptionId, fixture.bruno.id),
-        eq(paymentAllocations.paymentId, fixture.payment.id),
-      ),
-    });
-    expect(allocations).toHaveLength(0);
-  });
-
-  test("El server rechaza una fila de precio por encima del precio vigente hoy", async () => {
-    const fixture = await seedMixedCobroFixture();
-
-    // Techo: único precio con vencimiento aún no pasado, así queda como el
-    // "precio vigente hoy" (11000). priceAbove (12000) está sobre el piso pero
-    // por encima de este techo.
-    await db.insert(prices).values({
-      eventId: fixture.event.id,
-      name: "Solo vigente",
-      groupType: "solo",
-      amount: 11000,
-      paymentDeadline: "2999-12-31",
-      scheduleId: null,
-    });
-
-    const result = await postDetailAction({
-      academyId: fixture.academy.academy.id,
-      choreographyId: fixture.choreography.id,
-      eventId: fixture.event.id,
-      fields: {
-        intent: "pay-inscription-deposit",
-        inscriptionId: fixture.bruno.id,
-        priceId: fixture.priceAbove.id,
-        paymentId: fixture.payment.id,
-      },
-    });
-
-    expect(result).toMatchObject({ status: "error" });
-
-    const bruno = await db.query.choreographyDancers.findFirst({
-      where: eq(choreographyDancers.id, fixture.bruno.id),
-    });
-    expect(bruno?.depositReferenceDate).toBeNull();
-    const allocations = await db.query.paymentAllocations.findMany({
-      where: eq(paymentAllocations.inscriptionId, fixture.bruno.id),
-    });
-    expect(allocations).toHaveLength(0);
-  });
-
-  test("Ofrece el precio del piso cuando el precio vigente hoy quedó por debajo", async () => {
-    const fixture = await seedMixedCobroFixture();
-
-    // Precio vigente hoy (techo) por debajo del piso (10000): igualar el piso
-    // debe seguir siendo válido, así que las opciones no pueden quedar vacías.
-    await db.insert(prices).values([
-      {
-        eventId: fixture.event.id,
-        name: "Solo barato vigente",
-        groupType: "solo",
-        amount: 8000,
-        paymentDeadline: "2999-01-01",
-        scheduleId: null,
-      },
-      {
-        eventId: fixture.event.id,
-        name: "Solo piso vigente",
-        groupType: "solo",
-        amount: 10000,
-        paymentDeadline: "2999-12-31",
-        scheduleId: null,
-      },
-    ]);
-
-    const options = await readInscriptionDepositOptions({
-      choreographyId: fixture.choreography.id,
-      eventId: fixture.event.id,
-    });
-
-    expect(options?.floor).toBe(10000);
-    // No queda vacío: el techo efectivo no baja del piso, así que se sigue
-    // ofreciendo el precio del piso (10000) y nada por debajo ni por encima.
-    expect(options?.priceRows.length).toBeGreaterThan(0);
-    expect(options?.priceRows.every((row) => row.amount === 10000)).toBe(true);
-  });
-
-  // El precio vigente "hoy" se resuelve en la zona horaria del negocio: a las
-  // 23:30 del 31 en Córdoba (02:30 UTC del 1) el precio que vence el 31 sigue
-  // siendo el techo, y no puede desaparecer de las opciones tres horas antes.
-  test("El techo sigue siendo el precio que vence hoy a las 23:30 de Córdoba", async () => {
-    const fixture = await seedMixedCobroFixture();
-
-    // Sólo `Date` queda congelado: el pool de la base sigue usando timers reales.
-    vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(new Date("2026-06-01T02:30:00Z"));
-
-    try {
-      // El precio del catálogo (10000, vence el 31/05) es el vigente, así que
-      // el techo es 10000 y la fila de 12000 no se ofrece.
-      const options = await readInscriptionDepositOptions({
-        choreographyId: fixture.choreography.id,
-        eventId: fixture.event.id,
-      });
-
-      expect(options?.priceRows.length).toBeGreaterThan(0);
-      expect(options?.priceRows.every((row) => row.amount === 10000)).toBe(
-        true,
-      );
-
-      const result = await postDetailAction({
-        academyId: fixture.academy.academy.id,
-        choreographyId: fixture.choreography.id,
-        eventId: fixture.event.id,
-        fields: {
-          intent: "pay-inscription-deposit",
-          inscriptionId: fixture.bruno.id,
-          priceId: fixture.priceAbove.id,
-          paymentId: fixture.payment.id,
-        },
-      });
-
-      expect(result).toMatchObject({ status: "error" });
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  test("Cobrar saldo de una huérfana señada congela su snapshot y la deja pagada", async () => {
-    const fixture = await seedMixedBalanceFixture();
-
-    const response = await postDetailAction({
-      academyId: fixture.academy.academy.id,
-      choreographyId: fixture.choreography.id,
-      eventId: fixture.event.id,
-      fields: {
-        intent: "pay-inscription-balance",
-        inscriptionId: fixture.bruno.id,
-        paymentId: fixture.payment.id,
-      },
-    });
-
-    expect(response).toMatchObject({ status: 302 });
-
-    const bruno = await db.query.choreographyDancers.findFirst({
-      where: eq(choreographyDancers.id, fixture.bruno.id),
-    });
-    expect(bruno?.balanceReferenceDate).toBe("2026-04-10");
-    expect(bruno?.balanceAmount).toBe(7000);
-    expect(bruno?.finalTotalAmount).toBe(10000);
-    expect(bruno?.balanceCompletedAt).toBe("2026-04-10");
-
-    // La hermana ya pagada no se toca.
-    const ana = await db.query.choreographyDancers.findFirst({
-      where: eq(choreographyDancers.id, fixture.ana.id),
-    });
-    expect(ana?.balanceAmount).toBe(7000);
-
-    const allocations = await db.query.paymentAllocations.findMany({
-      where: eq(paymentAllocations.inscriptionId, fixture.bruno.id),
-    });
-    expect(allocations).toHaveLength(1);
-    expect(allocations[0]?.allocationType).toBe("balance");
-    expect(allocations[0]?.amount).toBe(7000);
-  });
-
-  test("El server rechaza cobrar saldo por inscripción cuando no está señada", async () => {
-    const fixture = await seedMixedBalanceFixture();
-
-    // Ana ya está pagada: intentar cobrar su saldo de nuevo debe fallar.
-    const result = await postDetailAction({
-      academyId: fixture.academy.academy.id,
-      choreographyId: fixture.choreography.id,
-      eventId: fixture.event.id,
-      fields: {
-        intent: "pay-inscription-balance",
-        inscriptionId: fixture.ana.id,
-        paymentId: fixture.payment.id,
-      },
-    });
-
-    expect(result).toMatchObject({ status: "error" });
+    expect(allocations[0]?.amount).toBe(10000);
   });
 
   test("releaseInscriptionAllocations returns everything allocated to the available balance", async () => {
@@ -634,7 +270,7 @@ describe.sequential("choreography cobro through the route action", () => {
       academyId: fixture.academy.academy.id,
       choreographyId: fixture.choreography.id,
       eventId: fixture.event.id,
-      fields: { intent: "pay-deposit", paymentId: fixture.payment.id },
+      fields: { intent: "pay-deposit" },
     });
 
     const inscription = await db.query.choreographyDancers.findFirst({

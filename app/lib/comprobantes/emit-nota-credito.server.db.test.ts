@@ -169,7 +169,6 @@ async function allocatePayment(input: {
     inscriptionId: input.inscriptionId,
     academyId: input.academyId,
     eventId: input.eventId,
-    allocationType: "deposit",
     amount: input.amount,
   });
 }

@@ -1,8 +1,13 @@
 import { prices } from "@/db/schema";
 import { resolveChoreographyPricingScheduleId } from "@/lib/finances/choreography-pricing-schedule";
 import {
+  type ChoreographyFinancialStatus,
+  deriveChoreographyFinancialStatus,
+  type InscriptionAnomaly,
+  type InscriptionFinancialStatus,
+} from "@/lib/finances/inscription-financial-status";
+import {
   completeOperationalFinanceAmount,
-  type ChoreographyFinancialState,
   incompleteOperationalFinanceAmount,
   type OperationalFinanceAmount,
   type OperationalFinanceSummary,
@@ -22,44 +27,35 @@ type FinanceAmountResolution =
 
 export type ChoreographyGroupType = "solo" | "duo" | "trio" | "grupal";
 
-export type InscriptionFinancialState = ChoreographyFinancialState;
-
 /**
- * Snapshot presence markers of an inscription (`choreography_dancer`). The
- * economic state is derived, never persisted: sin seña => `impaga`; con seña y
- * sin saldo => `señada`; con saldo => `pagada`.
- */
-export type InscriptionSnapshot = {
-  depositReferenceDate: string | null;
-  balanceReferenceDate: string | null;
-};
-
-/**
- * Una inscripción con sus importes ya resueltos por el reader. Los tres se
- * fijan de forma escalonada: precio base y seña al pagar la seña; saldo recién
- * al pagar el saldo, porque el `Descuento por bailarín` depende del roster
- * hasta ese momento. Antes de fijarse son tentativos, no ausentes: se calculan
- * y se muestran igual.
+ * Una inscripción con sus cifras ya derivadas por el reader. Ninguna es un
+ * snapshot: todas salen del precio seleccionado, del `Descuento por bailarín`
+ * vivo y de lo que la inscripción tiene asignado en este momento.
  */
 export type ResolvedInscription = {
   id: string;
   choreographyId: string;
   dancerId: string;
-  state: InscriptionFinancialState;
-  // Precio base. Tentativo para `impaga`; `null` sólo si no hay precio vigente.
+  financialStatus: InscriptionFinancialStatus;
+  anomalies: InscriptionAnomaly[];
+  // Total asignado a esta inscripción (`Σ asignaciones`).
+  allocatedAmount: number;
+  // Precio seleccionado, **sin** descontar. `null` sólo si no hay precio aplicable.
   basePriceAmount: number | null;
-  // Seña. Tentativa para `impaga`; `null` sólo si no hay precio vigente.
-  depositAmount: number | null;
-  // Saldo (`precio base − seña − descuento`). Tentativo para `impaga` y
-  // `señada`; `null` sólo si no hay precio vigente.
-  balanceAmount: number | null;
-  // `Descuento por bailarín` (estimado para `señada`, congelado para `pagada`).
+  // `Descuento por bailarín`, siempre vivo.
   dancerDiscountAmount: number;
-  // Precio final de la inscripción. `null` sólo para `impaga` sin precio.
-  finalPriceAmount: number | null;
-  // Total asignado a esta inscripción (pagos↔inscripción).
-  paidAmount: number;
+  // `precio − descuento`, el umbral alto. Aplica el descuento una sola vez.
+  totalAmount: number | null;
+  // `precio × porcentaje`, el umbral bajo, computado sobre el precio sin descontar.
+  depositAmount: number | null;
+  owedBalanceAmount: number | null;
+  owedDepositAmount: number | null;
+  overAllocatedAmount: number | null;
   depositReferenceDate: string | null;
+  // Roster withdrawal, not a money status. It decides which rollup the row
+  // enters and which badge it carries; its figures already come derived
+  // accordingly.
+  withdrawn: boolean;
 };
 
 export type FinanceChoreographyRow = {
@@ -71,86 +67,39 @@ export type FinanceChoreographyRow = {
   scheduleCapacityScheduleId: string | null;
 };
 
+/**
+ * Las mismas cifras que una inscripción, sumadas sobre las suyas. El estado no
+ * se suma: es el mínimo (ver `deriveChoreographyFinancialStatus`).
+ *
+ * The two rollups part ways on withdrawn rows: a withdrawn inscription enters
+ * the money one —its total is what was retained, and that money belongs to this
+ * choreography— and stays out of the status one, because the choreography's
+ * badge answers *can this be performed as choreographed?* and a withdrawn row is
+ * no longer part of that answer.
+ */
 export type ChoreographyOperationalFinanceRow = {
-  // Sumatorias sobre todas las inscripciones, tentativas o fijas.
+  allocatedAmount: number;
+  anomalies: InscriptionAnomaly[];
   basePriceAmount: OperationalFinanceAmount;
   depositAmount: OperationalFinanceAmount;
-  balanceAmount: OperationalFinanceAmount;
+  totalAmount: OperationalFinanceAmount;
   depositCompletedOn: string | null;
-  financialState: ChoreographyFinancialState;
-  needsAttention: boolean;
+  financialStatus: ChoreographyFinancialStatus;
   groupType: ChoreographyGroupType;
   id: string;
   name: string;
-  // Deuda exigible. Una coreografía registrada se adeuda completa, así que
-  // toda inscripción no `pagada` adeuda su saldo y toda `impaga` adeuda además
-  // su seña. No son disjuntas: una `impaga` aporta a las dos.
+  overAllocatedAmount: number;
+  // Deuda exigible. Una coreografía registrada se adeuda completa: toda
+  // inscripción adeuda el faltante contra cada uno de sus dos umbrales. No son
+  // disjuntas — son dos cortes de la misma deuda, y `Seña ≤ Saldo` siempre.
   owedBalanceAmount: OperationalFinanceAmount;
   owedDepositAmount: OperationalFinanceAmount;
-  paidAmount: number;
   registrationCount: number;
 };
 
 /**
- * Deriva el estado económico de una inscripción por presencia de snapshots.
- */
-export function deriveInscriptionFinancialState(
-  snapshot: InscriptionSnapshot,
-): InscriptionFinancialState {
-  if (snapshot.balanceReferenceDate !== null) {
-    return "pagada";
-  }
-
-  if (snapshot.depositReferenceDate !== null) {
-    return "señada";
-  }
-
-  return "impaga";
-}
-
-/**
- * Marca de agua del estado financiero de una coreografía a partir de sus
- * inscripciones activas. No es un mínimo: una coreografía `señada` no vuelve a
- * `impaga` por sumar una inscripción `impaga`.
- */
-export function deriveChoreographyFinancialState(
-  states: InscriptionFinancialState[],
-): ChoreographyFinancialState {
-  if (states.length === 0) {
-    return "impaga";
-  }
-
-  if (states.every((state) => state === "pagada")) {
-    return "pagada";
-  }
-
-  if (states.some((state) => state === "pagada" || state === "señada")) {
-    return "señada";
-  }
-
-  return "impaga";
-}
-
-/**
- * Display "necesita atención": las inscripciones activas están mezcladas y el
- * flujo normal no puede resolverlas en una sola acción. Derivado, no
- * persistido; no es un cuarto estado de dominio.
- */
-export function deriveChoreographyNeedsAttention(
-  states: InscriptionFinancialState[],
-): boolean {
-  if (states.length === 0) {
-    return false;
-  }
-
-  const firstState = states[0];
-
-  return states.some((state) => state !== firstState);
-}
-
-/**
  * Porcentaje de `Descuento por bailarín` según cuántas inscripciones activas
- * `señadas`/`pagadas` tiene el mismo bailarín en el mismo evento y academia.
+ * tiene el mismo bailarín en el mismo evento y academia.
  */
 export function dancerDiscountPercentage(qualifyingCount: number): number {
   if (qualifyingCount >= 4) {
@@ -170,14 +119,16 @@ export type DancerDiscount = {
 };
 
 /**
- * `Descuento por bailarín` por inscripción. Cuenta sólo inscripciones activas
- * `señadas`/`pagadas` del mismo bailarín. Una inscripción queda sin descuento:
- * la última al ordenar por precio base y (desempate) por id.
+ * `Descuento por bailarín` por inscripción. El conjunto que califica es el
+ * roster vivo del bailarín, no su dinero: el descuento entra en el total, y el
+ * total decide el estado, así que hacerlo depender del estado sería circular.
+ * Una inscripción queda sin descuento: la primera al ordenar por precio y
+ * (desempate) por id.
  */
 export function computeDancerDiscountAmounts(
   qualifyingInscriptions: Array<{
     id: string;
-    frozenBasePriceAmount: number;
+    priceAmount: number;
   }>,
 ): Map<string, DancerDiscount> {
   const discounts = new Map<string, DancerDiscount>();
@@ -192,9 +143,7 @@ export function computeDancerDiscountAmounts(
   }
 
   const ordered = [...qualifyingInscriptions].sort(
-    (a, b) =>
-      b.frozenBasePriceAmount - a.frozenBasePriceAmount ||
-      a.id.localeCompare(b.id),
+    (a, b) => b.priceAmount - a.priceAmount || a.id.localeCompare(b.id),
   );
 
   ordered.forEach((inscription, index) => {
@@ -204,9 +153,7 @@ export function computeDancerDiscountAmounts(
     }
 
     discounts.set(inscription.id, {
-      amount: Math.round(
-        (inscription.frozenBasePriceAmount * percentage) / 100,
-      ),
+      amount: Math.round((inscription.priceAmount * percentage) / 100),
       percentage,
     });
   });
@@ -218,98 +165,54 @@ export function buildChoreographyOperationalFinanceRow(input: {
   choreography: FinanceChoreographyRow;
   inscriptions: ResolvedInscription[];
 }): ChoreographyOperationalFinanceRow {
-  const states = input.inscriptions.map((inscription) => inscription.state);
-
-  let totalBase = 0;
-  let baseMissingPriceCount = 0;
-  let totalDeposit = 0;
-  let depositMissingPriceCount = 0;
-  let totalBalance = 0;
-  let balanceMissingPriceCount = 0;
-  let paidAmount = 0;
-  let owedBalanceAmount = 0;
-  let owedBalanceMissingPriceCount = 0;
-  let owedDepositAmount = 0;
-  let owedDepositMissingPriceCount = 0;
+  let allocatedAmount = 0;
+  let overAllocatedAmount = 0;
   let depositCompletedOn: string | null = null;
+  const basePriceAmount = createAmountAccumulator();
+  const depositAmount = createAmountAccumulator();
+  const totalAmount = createAmountAccumulator();
+  const owedBalanceAmount = createAmountAccumulator();
+  const owedDepositAmount = createAmountAccumulator();
 
   for (const inscription of input.inscriptions) {
-    paidAmount += inscription.paidAmount;
+    allocatedAmount += inscription.allocatedAmount;
+    overAllocatedAmount += inscription.overAllocatedAmount ?? 0;
 
-    if (inscription.basePriceAmount === null) {
-      baseMissingPriceCount++;
-    } else {
-      totalBase += inscription.basePriceAmount;
-    }
+    basePriceAmount.add(inscription.basePriceAmount);
+    depositAmount.add(inscription.depositAmount);
+    totalAmount.add(inscription.totalAmount);
+    owedBalanceAmount.add(inscription.owedBalanceAmount);
+    owedDepositAmount.add(inscription.owedDepositAmount);
 
-    if (inscription.depositAmount === null) {
-      depositMissingPriceCount++;
-    } else {
-      totalDeposit += inscription.depositAmount;
-    }
-
-    if (inscription.balanceAmount === null) {
-      balanceMissingPriceCount++;
-    } else {
-      totalBalance += inscription.balanceAmount;
-    }
-
-    if (inscription.state !== "impaga" && inscription.depositReferenceDate) {
+    if (inscription.depositReferenceDate) {
       depositCompletedOn = laterDate(
         depositCompletedOn,
         inscription.depositReferenceDate,
       );
     }
-
-    if (inscription.state === "impaga") {
-      if (inscription.depositAmount === null) {
-        owedDepositMissingPriceCount++;
-      } else {
-        owedDepositAmount += inscription.depositAmount;
-      }
-    }
-
-    // Toda inscripción no `pagada` adeuda su saldo, esté señada o no: una
-    // coreografía registrada es exigible completa. Una `impaga` aporta a las
-    // dos deudas — su seña a una, su saldo a la otra.
-    if (inscription.state !== "pagada") {
-      if (inscription.balanceAmount === null) {
-        owedBalanceMissingPriceCount++;
-      } else {
-        owedBalanceAmount += inscription.balanceAmount;
-      }
-    }
   }
 
   return {
-    basePriceAmount: buildOperationalFinanceAmount({
-      amount: totalBase,
-      missingPriceCount: baseMissingPriceCount,
-    }),
-    depositAmount: buildOperationalFinanceAmount({
-      amount: totalDeposit,
-      missingPriceCount: depositMissingPriceCount,
-    }),
-    balanceAmount: buildOperationalFinanceAmount({
-      amount: totalBalance,
-      missingPriceCount: balanceMissingPriceCount,
-    }),
+    allocatedAmount,
+    anomalies: overAllocatedAmount > 0 ? ["overAllocated"] : [],
+    basePriceAmount: basePriceAmount.build(),
+    depositAmount: depositAmount.build(),
     depositCompletedOn,
-    financialState: deriveChoreographyFinancialState(states),
-    needsAttention: deriveChoreographyNeedsAttention(states),
+    financialStatus: deriveChoreographyFinancialStatus(
+      input.inscriptions
+        .filter((inscription) => !inscription.withdrawn)
+        .map((inscription) => inscription.financialStatus),
+    ),
     groupType: input.choreography.groupType,
     id: input.choreography.id,
     name: input.choreography.name,
-    owedBalanceAmount: buildOperationalFinanceAmount({
-      amount: owedBalanceAmount,
-      missingPriceCount: owedBalanceMissingPriceCount,
-    }),
-    owedDepositAmount: buildOperationalFinanceAmount({
-      amount: owedDepositAmount,
-      missingPriceCount: owedDepositMissingPriceCount,
-    }),
-    paidAmount,
-    registrationCount: input.inscriptions.length,
+    overAllocatedAmount,
+    owedBalanceAmount: owedBalanceAmount.build(),
+    owedDepositAmount: owedDepositAmount.build(),
+    registrationCount: input.inscriptions.filter(
+      (inscription) => !inscription.withdrawn,
+    ).length,
+    totalAmount: totalAmount.build(),
   };
 }
 
@@ -338,8 +241,8 @@ export function buildOperationalFinanceSummaryFromChoreographyRows(input: {
 }
 
 /**
- * Precio tentativo vigente para una inscripción `impaga`, contra la fecha de
- * negocio de Córdoba. `missing-price` cuando no hay fila de precio aplicable.
+ * Precio vigente para una inscripción sin precio seleccionado, contra la fecha
+ * de negocio de Córdoba. `missing-price` cuando no hay fila de precio aplicable.
  */
 export function resolveEstimatedBasePriceAmount(input: {
   choreography: Pick<
@@ -389,26 +292,27 @@ export function resolveEstimatedBasePriceAmount(input: {
   };
 }
 
-export function calculateDepositAmount(input: {
-  amount: number;
-  percentage: number;
-}) {
-  return Math.round((input.amount * input.percentage) / 100);
-}
-
 /**
- * `saldo = precio base − seña − descuentos`. Los insumos cambian con el estado
- * (tentativos para `impaga`, congelados para `pagada`); la fórmula no.
+ * Acumula una cifra que puede faltar por no haber precio aplicable, contando
+ * cuántas inscripciones la dejaron incompleta.
  */
-export function calculateBalanceAmount(input: {
-  baseAmount: number;
-  depositAmount: number;
-  discountAmount: number;
-}) {
-  return Math.max(
-    0,
-    input.baseAmount - input.depositAmount - input.discountAmount,
-  );
+function createAmountAccumulator() {
+  let amount = 0;
+  let missingPriceCount = 0;
+
+  return {
+    add(value: number | null) {
+      if (value === null) {
+        missingPriceCount++;
+        return;
+      }
+
+      amount += value;
+    },
+    build(): OperationalFinanceAmount {
+      return buildOperationalFinanceAmount({ amount, missingPriceCount });
+    },
+  };
 }
 
 function buildOperationalFinanceAmount(input: {

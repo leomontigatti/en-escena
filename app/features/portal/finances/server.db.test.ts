@@ -4,7 +4,12 @@ import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
-import { payments, choreographyDancers, paymentAllocations } from "@/db/schema";
+import {
+  payments,
+  choreographyDancers,
+  paymentAllocations,
+  prices,
+} from "@/db/schema";
 import {
   createChoreographyRecord,
   createDancer,
@@ -84,6 +89,7 @@ async function seedSignedInscription(input: {
   depositAmount: number;
   depositReferenceDate?: string;
   frozenBasePriceAmount: number;
+  selectedPriceId?: string;
 }) {
   const dancer = await createDancer(input.academyId, {
     firstName: "Luna",
@@ -97,6 +103,7 @@ async function seedSignedInscription(input: {
       choreographyId: input.choreographyId,
       dancerId: dancer.id,
       frozenBasePriceAmount: input.frozenBasePriceAmount,
+      selectedPriceId: input.selectedPriceId ?? null,
       depositReferenceDate: input.depositReferenceDate ?? "2026-03-20",
       depositPercentage: 30,
       depositAmount: input.depositAmount,
@@ -186,7 +193,6 @@ describe.sequential("loadPortalAcademyFinances", () => {
     });
     await db.insert(paymentAllocations).values({
       academyId: owner.academyId,
-      allocationType: "deposit",
       amount: 3000,
       eventId: event.id,
       inscriptionId: signedInscription.id,
@@ -204,9 +210,10 @@ describe.sequential("loadPortalAcademyFinances", () => {
 
     expect(loaderData.summary).toEqual({
       availableBalanceAmount: 12000,
-      // 7000 de la señada + 7000 de la impaga. Bruto: los 12000 disponibles no
-      // se descuentan acá, se muestran en su propia métrica.
-      owedBalanceAmount: { status: "complete", amount: 14000 },
+      // 7000 de faltante en la que cubrió su seña + 10000 de la que no tiene
+      // nada. Bruto: los 12000 disponibles no se descuentan acá, se muestran en
+      // su propia métrica.
+      owedBalanceAmount: { status: "complete", amount: 17000 },
       owedDepositAmount: { status: "complete", amount: 3000 },
       totalPaidAmount: 15000,
     });
@@ -279,7 +286,7 @@ describe.sequential("loadPortalAcademyFinances", () => {
     expect(markup).toContain("Pendiente");
   });
 
-  test("matches admin operational summaries for a paid seña snapshot", async () => {
+  test("matches admin operational summaries once the seña is covered", async () => {
     vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
       "2026-06-01",
     );
@@ -312,16 +319,29 @@ describe.sequential("loadPortalAcademyFinances", () => {
       paymentDate: "2026-03-21",
       paymentNumber: 1,
     });
+    // Fila de precio vencida al 01/06: la inscripción la tiene seleccionada, y
+    // de ahí salen su seña y su total.
+    const [selectedPrice] = await db
+      .insert(prices)
+      .values({
+        amount: 12000,
+        eventId: event.id,
+        groupType: "solo",
+        name: "Precio Solo seleccionado",
+        paymentDeadline: "2026-03-31",
+        scheduleId: null,
+      })
+      .returning();
     const inscription = await seedSignedInscription({
       academyId: owner.academyId,
       choreographyId: choreography.id,
       depositAmount: 3600,
       depositReferenceDate: "2026-03-21",
       frozenBasePriceAmount: 12000,
+      selectedPriceId: selectedPrice.id,
     });
     await db.insert(paymentAllocations).values({
       academyId: owner.academyId,
-      allocationType: "deposit",
       amount: 3600,
       eventId: event.id,
       inscriptionId: inscription.id,
@@ -354,11 +374,11 @@ describe.sequential("loadPortalAcademyFinances", () => {
         id: choreography.id,
         basePriceAmount: { amount: 12000, status: "complete" },
         depositAmount: { amount: 3600, status: "complete" },
-        balanceAmount: { amount: 8400, status: "complete" },
         depositCompletedOn: "2026-03-21",
-        financialState: "señada",
+        financialStatus: "depositMet",
         owedBalanceAmount: { amount: 8400, status: "complete" },
         owedDepositAmount: { amount: 0, status: "complete" },
+        totalAmount: { amount: 12000, status: "complete" },
       },
     ]);
   });

@@ -13,6 +13,7 @@ import {
   scheduleCapacities,
   submodalities,
 } from "@/db/schema";
+import { activeInscription } from "@/lib/choreographies/active-inscription";
 import { deriveChoreographyOperationalStatus } from "@/lib/choreographies/operational-status";
 import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
 import type { PortalChoreographyListItem } from "@/lib/portal/choreographies";
@@ -165,7 +166,14 @@ export async function findChoreographyForAcademyEvent(
       })
       .from(choreographyDancers)
       .innerJoin(dancers, eq(choreographyDancers.dancerId, dancers.id))
-      .where(eq(choreographyDancers.choreographyId, choreographyId))
+      // The portal roster is not one of the four exceptions: here the academy
+      // sees who is enrolled, and a dancer it removed is not.
+      .where(
+        and(
+          eq(choreographyDancers.choreographyId, choreographyId),
+          activeInscription(),
+        ),
+      )
       .orderBy(asc(dancers.firstName), asc(dancers.lastName)),
     db
       .select({

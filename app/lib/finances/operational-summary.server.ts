@@ -15,15 +15,17 @@ import {
   type OperationalFinanceSummary,
 } from "@/lib/finances/operational-summary";
 import {
+  calculateDepositAmount,
+  calculateTotalAmount,
+  deriveInscriptionFinancialFigures,
+} from "@/lib/finances/inscription-financial-status";
+import {
   buildChoreographyOperationalFinanceRow,
   buildOperationalFinanceSummaryFromChoreographyRows,
-  calculateBalanceAmount,
-  calculateDepositAmount,
   type ChoreographyGroupType,
   type ChoreographyOperationalFinanceRow,
   computeDancerDiscountAmounts,
   type DancerDiscount,
-  deriveInscriptionFinancialState,
   type FinanceChoreographyRow,
   type ResolvedInscription,
   resolveEstimatedBasePriceAmount,
@@ -35,13 +37,9 @@ type InscriptionRow = {
   id: string;
   choreographyId: string;
   dancerId: string;
-  frozenBasePriceAmount: number | null;
-  depositAmount: number | null;
+  selectedPriceId: string | null;
   depositReferenceDate: string | null;
-  balanceReferenceDate: string | null;
-  appliedDancerDiscountAmount: number | null;
-  finalTotalAmount: number | null;
-  balanceAmount: number | null;
+  withdrawnAt: Date | null;
 };
 
 export type AcademyEventOperationalFinanceDetail = {
@@ -192,15 +190,18 @@ async function readAcademyEventFinance(input: {
             id: choreographyDancers.id,
             choreographyId: choreographyDancers.choreographyId,
             dancerId: choreographyDancers.dancerId,
-            frozenBasePriceAmount: choreographyDancers.frozenBasePriceAmount,
-            depositAmount: choreographyDancers.depositAmount,
+            selectedPriceId: choreographyDancers.selectedPriceId,
             depositReferenceDate: choreographyDancers.depositReferenceDate,
-            balanceReferenceDate: choreographyDancers.balanceReferenceDate,
-            appliedDancerDiscountAmount:
-              choreographyDancers.appliedDancerDiscountAmount,
-            finalTotalAmount: choreographyDancers.finalTotalAmount,
-            balanceAmount: choreographyDancers.balanceAmount,
+            withdrawnAt: choreographyDancers.withdrawnAt,
           })
+          // No `activeInscription()` here, and not because of a display
+          // exception: this is the shared money rollup, read by four route
+          // servers — the two admin finance surfaces and the two portal ones —
+          // and a withdrawn row's retained money is still the choreography's.
+          // Dropping it here would take that money out of every rollup built on
+          // top. What withdrawal changes is how the row's figures are derived
+          // and which rollups it feeds, not whether it is read; each surface
+          // decides on its own whether to display it.
           .from(choreographyDancers)
           .where(
             inArray(
@@ -254,36 +255,59 @@ async function readAcademyEventFinance(input: {
     );
   }
 
-  const inscriptionState = new Map<
-    string,
-    ReturnType<typeof deriveInscriptionFinancialState>
-  >();
+  // El precio manda: la seña sale de él sin descontar, el descuento vivo sale
+  // de él, y el total es su resta. Ninguna de las tres mira un snapshot.
+  const priceAmountByInscription = new Map<string, number | null>();
   for (const inscription of inscriptionRows) {
-    inscriptionState.set(
+    priceAmountByInscription.set(
       inscription.id,
-      deriveInscriptionFinancialState(inscription),
+      resolveInscriptionPriceAmount({
+        choreography: choreographyById.get(inscription.choreographyId),
+        inscription,
+        priceRows,
+      }),
     );
   }
 
   const dancerDiscounts = buildDancerDiscounts({
     inscriptionRows,
-    inscriptionState,
+    priceAmountByInscription,
   });
 
   const inscriptions: ResolvedInscription[] = inscriptionRows.map(
     (inscription) => {
-      const state = inscriptionState.get(inscription.id) ?? "impaga";
-      const choreography = choreographyById.get(inscription.choreographyId);
-
-      return resolveInscription({
+      const priceAmount = priceAmountByInscription.get(inscription.id) ?? null;
+      const dancerDiscountAmount =
+        dancerDiscounts.get(inscription.id)?.amount ?? 0;
+      const withdrawn = inscription.withdrawnAt !== null;
+      const figures = deriveInscriptionFinancialFigures({
         allocatedAmount: allocationByInscription.get(inscription.id) ?? 0,
-        choreography,
-        dancerDiscounts,
-        inscription,
-        priceRows,
-        requiredDepositPercentage: event.requiredDepositPercentage,
-        state,
+        withdrawn,
+        thresholds: {
+          depositAmount:
+            priceAmount === null
+              ? null
+              : calculateDepositAmount({
+                  priceAmount,
+                  requiredDepositPercentage: event.requiredDepositPercentage,
+                }),
+          totalAmount:
+            priceAmount === null
+              ? null
+              : calculateTotalAmount({ dancerDiscountAmount, priceAmount }),
+        },
       });
+
+      return {
+        ...figures,
+        basePriceAmount: priceAmount,
+        choreographyId: inscription.choreographyId,
+        dancerDiscountAmount,
+        dancerId: inscription.dancerId,
+        depositReferenceDate: inscription.depositReferenceDate,
+        id: inscription.id,
+        withdrawn,
+      };
     },
   );
 
@@ -321,33 +345,68 @@ async function readAcademyEventFinance(input: {
   };
 }
 
+/**
+ * El precio de una inscripción es el que tiene seleccionado; sin selección
+ * todavía, el vigente para su tipo y cronograma. Resolverlo o arreglarlo es de
+ * #403 — acá sólo se consume.
+ */
+function resolveInscriptionPriceAmount(input: {
+  choreography: FinanceChoreographyRow | undefined;
+  inscription: InscriptionRow;
+  priceRows: FinancePriceRow[];
+}): number | null {
+  if (input.inscription.selectedPriceId !== null) {
+    const selected = input.priceRows.find(
+      (price) => price.id === input.inscription.selectedPriceId,
+    );
+
+    if (selected) {
+      return selected.amount;
+    }
+  }
+
+  if (!input.choreography) {
+    return null;
+  }
+
+  const estimated = resolveEstimatedBasePriceAmount({
+    choreography: input.choreography,
+    priceRows: input.priceRows,
+  });
+
+  return estimated.status === "missing-price" ? null : estimated.amount;
+}
+
+/**
+ * El `Descuento por bailarín` califica sobre el **roster vivo**: toda
+ * inscripción del bailarín con precio resoluble cuenta. No puede depender del
+ * estado financiero, que se deriva del total, que ya contiene este descuento.
+ *
+ * Live roster means without the withdrawn ones: an inscription that was taken
+ * off the roster cannot keep making its siblings cheaper.
+ */
 function buildDancerDiscounts(input: {
   inscriptionRows: InscriptionRow[];
-  inscriptionState: Map<
-    string,
-    ReturnType<typeof deriveInscriptionFinancialState>
-  >;
+  priceAmountByInscription: Map<string, number | null>;
 }): Map<string, DancerDiscount> {
   const qualifyingByDancer = new Map<
     string,
-    Array<{ id: string; frozenBasePriceAmount: number }>
+    Array<{ id: string; priceAmount: number }>
   >();
 
   for (const inscription of input.inscriptionRows) {
-    const state = input.inscriptionState.get(inscription.id);
+    const priceAmount = input.priceAmountByInscription.get(inscription.id);
 
     if (
-      (state !== "señada" && state !== "pagada") ||
-      inscription.frozenBasePriceAmount === null
+      inscription.withdrawnAt !== null ||
+      priceAmount === null ||
+      priceAmount === undefined
     ) {
       continue;
     }
 
     const bucket = qualifyingByDancer.get(inscription.dancerId);
-    const entry = {
-      frozenBasePriceAmount: inscription.frozenBasePriceAmount,
-      id: inscription.id,
-    };
+    const entry = { id: inscription.id, priceAmount };
 
     if (bucket) {
       bucket.push(entry);
@@ -364,105 +423,4 @@ function buildDancerDiscounts(input: {
   }
 
   return discounts;
-}
-
-function resolveInscription(input: {
-  allocatedAmount: number;
-  choreography: FinanceChoreographyRow | undefined;
-  dancerDiscounts: Map<string, DancerDiscount>;
-  inscription: InscriptionRow;
-  priceRows: FinancePriceRow[];
-  requiredDepositPercentage: number;
-  state: ReturnType<typeof deriveInscriptionFinancialState>;
-}): ResolvedInscription {
-  const base = {
-    id: input.inscription.id,
-    choreographyId: input.inscription.choreographyId,
-    dancerId: input.inscription.dancerId,
-    state: input.state,
-    paidAmount: input.allocatedAmount,
-    depositReferenceDate: input.inscription.depositReferenceDate,
-  } as const;
-
-  if (input.state === "impaga") {
-    const estimated = input.choreography
-      ? resolveEstimatedBasePriceAmount({
-          choreography: input.choreography,
-          priceRows: input.priceRows,
-        })
-      : ({ status: "missing-price" } as const);
-
-    if (estimated.status === "missing-price") {
-      return {
-        ...base,
-        basePriceAmount: null,
-        depositAmount: null,
-        balanceAmount: null,
-        dancerDiscountAmount: 0,
-        finalPriceAmount: null,
-      };
-    }
-
-    // Una inscripción `impaga` no computa para el `Descuento por bailarín`, así
-    // que su saldo tentativo es la resta simple contra el precio vigente.
-    const depositAmount = calculateDepositAmount({
-      amount: estimated.amount,
-      percentage: input.requiredDepositPercentage,
-    });
-
-    return {
-      ...base,
-      basePriceAmount: estimated.amount,
-      depositAmount,
-      balanceAmount: calculateBalanceAmount({
-        baseAmount: estimated.amount,
-        depositAmount,
-        discountAmount: 0,
-      }),
-      dancerDiscountAmount: 0,
-      finalPriceAmount: estimated.amount,
-    };
-  }
-
-  const frozenBasePriceAmount = input.inscription.frozenBasePriceAmount ?? 0;
-  const depositAmount = input.inscription.depositAmount ?? 0;
-
-  if (input.state === "señada") {
-    const discount =
-      input.dancerDiscounts.get(input.inscription.id)?.amount ?? 0;
-
-    return {
-      ...base,
-      basePriceAmount: frozenBasePriceAmount,
-      depositAmount,
-      balanceAmount: calculateBalanceAmount({
-        baseAmount: frozenBasePriceAmount,
-        depositAmount,
-        discountAmount: discount,
-      }),
-      dancerDiscountAmount: discount,
-      finalPriceAmount: frozenBasePriceAmount - discount,
-    };
-  }
-
-  const frozenDiscount = input.inscription.appliedDancerDiscountAmount ?? 0;
-  const finalTotalAmount =
-    input.inscription.finalTotalAmount ??
-    frozenBasePriceAmount - frozenDiscount;
-
-  return {
-    ...base,
-    basePriceAmount: frozenBasePriceAmount,
-    depositAmount,
-    // El descuento ya está descontado dentro de `finalTotalAmount`.
-    balanceAmount:
-      input.inscription.balanceAmount ??
-      calculateBalanceAmount({
-        baseAmount: finalTotalAmount,
-        depositAmount,
-        discountAmount: 0,
-      }),
-    dancerDiscountAmount: frozenDiscount,
-    finalPriceAmount: finalTotalAmount,
-  };
 }

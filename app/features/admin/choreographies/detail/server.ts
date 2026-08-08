@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { and, asc, eq, or } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";
 import { redirect } from "react-router";
 
 import { db } from "@/db";
@@ -7,11 +7,7 @@ import {
   academies,
   categories,
   choreographies,
-  choreographyDancers,
-  choreographyProfessors,
-  dancers,
   modalities,
-  professors,
   schedules,
   scheduleCapacities,
   submodalities,
@@ -51,6 +47,10 @@ import {
   updateChoreographyExperienceLevel,
   type ChoreographyExperienceLevelOption,
 } from "./experience-level.server";
+import {
+  listChoreographyDancers,
+  listChoreographyProfessors,
+} from "./roster-queries.server";
 import {
   listSubmodalitiesForModality,
   updateChoreographySubmodality,
@@ -130,6 +130,7 @@ export type ChoreographyDetail = {
     active: boolean;
     ageAtEventStart: number;
     firstName: string;
+    hasEvidence: boolean;
     id: string;
     lastName: string;
   }>;
@@ -487,38 +488,6 @@ async function findChoreographyDetail(input: {
     submodalityId: row.submodalityId,
     submodalityName: row.submodalityName,
   };
-}
-
-async function listChoreographyDancers(choreographyId: string) {
-  return await db
-    .select({
-      active: dancers.active,
-      ageAtEventStart: choreographyDancers.ageAtEventStart,
-      firstName: dancers.firstName,
-      id: dancers.id,
-      lastName: dancers.lastName,
-    })
-    .from(choreographyDancers)
-    .innerJoin(dancers, eq(choreographyDancers.dancerId, dancers.id))
-    .where(eq(choreographyDancers.choreographyId, choreographyId))
-    .orderBy(asc(dancers.firstName), asc(dancers.lastName));
-}
-
-async function listChoreographyProfessors(choreographyId: string) {
-  return await db
-    .select({
-      active: professors.active,
-      firstName: professors.firstName,
-      id: professors.id,
-      lastName: professors.lastName,
-    })
-    .from(choreographyProfessors)
-    .innerJoin(
-      professors,
-      eq(choreographyProfessors.professorId, professors.id),
-    )
-    .where(eq(choreographyProfessors.choreographyId, choreographyId))
-    .orderBy(asc(professors.firstName), asc(professors.lastName));
 }
 
 async function renameChoreography(input: {

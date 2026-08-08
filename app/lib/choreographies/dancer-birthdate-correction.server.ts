@@ -7,6 +7,7 @@ import {
   dancers,
   events,
 } from "@/db/schema";
+import { activeInscription } from "@/lib/choreographies/active-inscription";
 import {
   getAgeAtDate,
   getEventLocalDateParts,
@@ -76,7 +77,14 @@ export async function recalculateLinkedChoreographiesForDancerBirthDateCorrectio
     })
     .from(choreographyDancers)
     .innerJoin(dancers, eq(choreographyDancers.dancerId, dancers.id))
-    .where(inArray(choreographyDancers.choreographyId, choreographyIds));
+    // The classification is recomputed over the live roster: a withdrawn
+    // inscription contributes no age and does not count towards the group type.
+    .where(
+      and(
+        inArray(choreographyDancers.choreographyId, choreographyIds),
+        activeInscription(),
+      ),
+    );
 
   const linkedDancersByChoreographyId =
     groupLinkedDancersByChoreographyId(linkedDancers);
@@ -180,6 +188,7 @@ async function listEligibleChoreographies(
       and(
         eq(choreographyDancers.dancerId, dancerId),
         eq(choreographies.hasPresentation, false),
+        activeInscription(),
       ),
     );
 }
