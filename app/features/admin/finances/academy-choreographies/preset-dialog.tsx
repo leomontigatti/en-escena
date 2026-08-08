@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { CobroStage } from "@/lib/finances/choreography-cobro-presets.server";
 import {
   formatGroupTypeLabel,
   type ChoreographyGroupType,
@@ -36,7 +37,6 @@ import {
   keepCurrentPriceValue,
   presetPriceFieldName,
   selectPresetPriceOptions,
-  type FinancePresetStage,
   type PresetPriceOption,
 } from "./presets";
 import type { AcademyFinancesActionData } from "./server";
@@ -73,7 +73,7 @@ export function FinancePresetDialog({
   priceOptionsByGroupType: Record<string, PresetPriceOption[]>;
   pricingScheduleIdByChoreography: Record<string, string | null>;
   selectedRows: ChoreographyFinanceRow[];
-  stage: FinancePresetStage;
+  stage: CobroStage;
 }) {
   const fetcher = useFetcher<AcademyFinancesActionData>();
   const isSaving = fetcher.state !== "idle";
@@ -305,7 +305,7 @@ function PresetTotals({
 }: {
   availableBalanceAmount: number;
   owedAmount: OwedAmount;
-  stage: FinancePresetStage;
+  stage: CobroStage;
 }) {
   return (
     <div className="flex flex-col gap-1 rounded-md border bg-muted/50 px-3 py-2">
@@ -336,7 +336,7 @@ type OwedAmount = ChoreographyFinanceRow["owedDepositAmount"];
  */
 function sumOwedAmount(
   rows: ChoreographyFinanceRow[],
-  stage: FinancePresetStage,
+  stage: CobroStage,
 ): OwedAmount {
   let amount = 0;
   let missingPriceCount = 0;

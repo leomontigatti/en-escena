@@ -12,6 +12,7 @@ import {
   comprobantes,
   paymentAllocations,
   payments,
+  prices,
 } from "@/db/schema";
 import {
   createChoreographyRecord,
@@ -95,12 +96,14 @@ function connectionLost(): Promise<never> {
   return Promise.reject(new Error("socket hang up"));
 }
 
+// Every inscription ends up with a 3000 `Seña` and a 10000 total — the `solo`
+// priced at 10000 and the 30% the event requires — the two thresholds the
+// billable remainder's porción is derived against. The price is repeated with a
+// far-off deadline because the threshold comes from the price applicable TODAY,
+// and the catalogue's one expires in 2026.
 async function seedChoreographyWithInscriptions(
   email: string,
   inscriptionCount: number,
-  // Umbral de seña de cada inscripción: la porción del remanente se deriva de
-  // lo cobrado contra él, no de un tipo guardado en la asignación.
-  depositAmount?: number,
 ) {
   const event = await createEventRecord({ active: true });
   const academy = await createAcademyRecord({
@@ -108,6 +111,14 @@ async function seedChoreographyWithInscriptions(
     email,
   });
   const catalog = await createEventCatalog(event.id);
+  await db.insert(prices).values({
+    eventId: event.id,
+    name: "Precio Solo vigente",
+    groupType: "solo",
+    amount: 10000,
+    paymentDeadline: "2099-12-31",
+    scheduleId: null,
+  });
   const choreography = await createChoreographyRecord({
     academyId: academy.id,
     eventId: event.id,
@@ -125,7 +136,6 @@ async function seedChoreographyWithInscriptions(
         choreographyId: choreography.id,
         dancerId: dancer.id,
         ageAtEventStart: 14,
-        depositAmount,
       })
       .returning();
     inscriptions.push(inscription);
@@ -432,7 +442,6 @@ describe("emitChoreographyFacturaC", () => {
       await seedChoreographyWithInscriptions(
         `sena.${crypto.randomUUID()}@example.com`,
         1,
-        3000,
       );
     await allocatePayment({
       academyId: academy.id,
@@ -471,7 +480,6 @@ describe("emitChoreographyFacturaC", () => {
       await seedChoreographyWithInscriptions(
         `total.${crypto.randomUUID()}@example.com`,
         1,
-        3000,
       );
     await allocatePayment({
       academyId: academy.id,
@@ -506,7 +514,6 @@ describe("emitChoreographyFacturaC", () => {
       await seedChoreographyWithInscriptions(
         `saldo.${crypto.randomUUID()}@example.com`,
         1,
-        3000,
       );
     const inscription = inscriptions[0];
     await allocatePayment({
@@ -560,7 +567,6 @@ describe("emitChoreographyFacturaC", () => {
       await seedChoreographyWithInscriptions(
         `congela.${crypto.randomUUID()}@example.com`,
         1,
-        3000,
       );
     await allocatePayment({
       academyId: academy.id,

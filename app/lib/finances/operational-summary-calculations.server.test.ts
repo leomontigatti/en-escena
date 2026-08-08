@@ -33,7 +33,6 @@ function resolvedInscription(
     dancerDiscountAmount: 0,
     dancerId: "dancer_1",
     depositAmount: 3000,
-    depositReferenceDate: null,
     financialStatus: "depositPending",
     id: overrides.id,
     overAllocatedAmount: 0,
@@ -127,7 +126,6 @@ describe("buildChoreographyOperationalFinanceRow", () => {
       inscriptions: [
         resolvedInscription({
           allocatedAmount: 3000,
-          depositReferenceDate: "2026-03-21",
           financialStatus: "depositMet",
           id: "i1",
           owedBalanceAmount: 7000,
@@ -137,7 +135,6 @@ describe("buildChoreographyOperationalFinanceRow", () => {
     });
 
     expect(row.financialStatus).toBe("depositMet");
-    expect(row.depositCompletedOn).toBe("2026-03-21");
     expect(row.allocatedAmount).toBe(3000);
     expect(row.owedDepositAmount).toEqual({ amount: 0, status: "complete" });
     expect(row.owedBalanceAmount).toEqual({ amount: 7000, status: "complete" });
@@ -149,7 +146,6 @@ describe("buildChoreographyOperationalFinanceRow", () => {
       inscriptions: [
         resolvedInscription({
           allocatedAmount: 10000,
-          depositReferenceDate: "2026-03-21",
           financialStatus: "paidInFull",
           id: "i1",
           owedBalanceAmount: 0,
@@ -171,7 +167,6 @@ describe("buildChoreographyOperationalFinanceRow", () => {
       inscriptions: [
         resolvedInscription({
           allocatedAmount: 3000,
-          depositReferenceDate: "2026-03-21",
           financialStatus: "depositMet",
           id: "i1",
           owedBalanceAmount: 7000,
@@ -180,7 +175,6 @@ describe("buildChoreographyOperationalFinanceRow", () => {
         resolvedInscription({ id: "i2" }),
         resolvedInscription({
           allocatedAmount: 10000,
-          depositReferenceDate: "2026-03-21",
           financialStatus: "paidInFull",
           id: "i3",
           owedBalanceAmount: 0,

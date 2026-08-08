@@ -126,7 +126,6 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
     expect(loaderData.choreography).toMatchObject({
       allocatedAmount: 0,
       depositAmount: { amount: 3000, status: "complete" },
-      depositCompletedOn: null,
       financialStatus: "depositPending",
       // Una coreografía registrada se adeuda completa desde el minuto cero.
       owedBalanceAmount: { amount: 10000, status: "complete" },
@@ -206,7 +205,6 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
     expect(loaderData.choreography).toMatchObject({
       allocatedAmount: 3000,
       depositAmount: { amount: 3000, status: "complete" },
-      depositCompletedOn: "2026-03-21",
       financialStatus: "depositMet",
       owedBalanceAmount: { amount: 7000, status: "complete" },
       owedDepositAmount: { amount: 0, status: "complete" },
@@ -429,10 +427,8 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
       eventId: event.id,
     });
 
-    // La etapa cobrable es la seña: junto con el importe incompleto es la
-    // condición "sin precio" que la vista usa para culpar a la falta de precio
-    // en vez de a los pagos.
-    expect(loaderData.stage).toBe("deposit");
+    // An incomplete deposit figure is the "no price" condition the view blames
+    // the missing price for.
     expect(loaderData.choreography).toMatchObject({
       depositAmount: {
         amount: 0,

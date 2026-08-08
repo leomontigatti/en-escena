@@ -315,7 +315,7 @@ describe.sequential("money on an inscription through the route action", () => {
     ]);
   });
 
-  test("removes part of a preset-frozen row instead of tripping the price guard", async () => {
+  test("keeps the fixed price when only part of the money is removed", async () => {
     const fixture = await seedInscription();
 
     await postDetailAction({
@@ -329,16 +329,6 @@ describe.sequential("money on an inscription through the route action", () => {
         amount: "3000",
       },
     });
-
-    // The seña preset freezes the ladder snapshot on the row it charges.
-    // Reproducing that state is what makes the removal below cross back under
-    // the deposit while money is still on the row: the case that used to null
-    // `selected_price_id` under live allocations and raise from the database
-    // guard, turning a removal into a 500.
-    await db
-      .update(choreographyDancers)
-      .set({ depositAmount: 3000, depositReferenceDate: "2026-04-10" })
-      .where(eq(choreographyDancers.id, fixture.inscriptionId));
 
     const response = await postDetailAction({
       academyId: fixture.academyId,
@@ -357,16 +347,12 @@ describe.sequential("money on an inscription through the route action", () => {
     ]);
 
     const [row] = await db
-      .select({
-        depositReferenceDate: choreographyDancers.depositReferenceDate,
-        selectedPriceId: choreographyDancers.selectedPriceId,
-      })
+      .select({ selectedPriceId: choreographyDancers.selectedPriceId })
       .from(choreographyDancers)
       .where(eq(choreographyDancers.id, fixture.inscriptionId));
 
-    // The ladder snapshot goes, the price stays: it is fixed by the first
-    // allocation and only reverts once nothing is allocated.
-    expect(row.depositReferenceDate).toBeNull();
+    // The price stays: it is fixed by the first allocation and a partial
+    // removal leaves money on the row, so nothing may move it.
     expect(row.selectedPriceId).toBe(fixture.priceId);
   });
 

@@ -164,15 +164,15 @@ describe("ChoreographyDetailRouteView", () => {
     expect(markup).not.toContain('name="assignedScheduleCapacityId"');
   });
 
-  test("reports the frozen-deposit blocker in the page alert instead of on the field", () => {
+  test("reports the frozen-price blocker in the page alert instead of on the field", () => {
     const markup = renderDetail({
       loaderData: buildLoaderData({
         scheduleCapacity: {
           blockers: [
             {
-              code: "frozen-deposit",
+              code: "frozen-price",
               label:
-                "Al menos una inscripción tiene seña registrada: su precio quedó congelado contra este cronograma.",
+                "Al menos una inscripción tiene dinero asignado: su precio quedó congelado contra este cronograma.",
             },
           ],
           canReassign: false,
@@ -188,16 +188,16 @@ describe("ChoreographyDetailRouteView", () => {
     });
 
     expect(markup).toContain("El cupo de cronograma está bloqueado");
-    expect(markup).toContain("Al menos una inscripción tiene seña registrada");
+    expect(markup).toContain("Al menos una inscripción tiene dinero asignado");
     expect(markup).not.toContain('name="assignedScheduleCapacityId"');
   });
 
-  test("shows the frozen-deposit alert to auditors too", () => {
+  test("shows the frozen-price alert to auditors too", () => {
     const markup = renderDetail({
       loaderData: buildLoaderData({
         canEdit: false,
         scheduleCapacity: {
-          blockers: [{ code: "frozen-deposit", label: "Hay seña registrada." }],
+          blockers: [{ code: "frozen-price", label: "Hay dinero asignado." }],
           canReassign: false,
           options: [],
         },
@@ -205,7 +205,7 @@ describe("ChoreographyDetailRouteView", () => {
     });
 
     expect(markup).toContain("El cupo de cronograma está bloqueado");
-    expect(markup).toContain("Hay seña registrada.");
+    expect(markup).toContain("Hay dinero asignado.");
   });
 
   test("does not announce a cupo de cronograma blocker when there is none", () => {
