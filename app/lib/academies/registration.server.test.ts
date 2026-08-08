@@ -10,7 +10,7 @@ describe("academy registration helpers", () => {
     );
   });
 
-  test("starts the signup with the confirmation redirect", async () => {
+  test("starts the sign-up with the confirmation redirect", async () => {
     const startSignUp = vi.fn(async () => ({
       headers: new Headers(),
     }));

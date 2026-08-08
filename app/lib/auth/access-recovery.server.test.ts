@@ -54,7 +54,7 @@ describe("access recovery", () => {
     });
   });
 
-  test("exchanges the recovery code through the auth provider", async () => {
+  test("opens the recovery session from a recovery code", async () => {
     exchangePasswordRecoveryCode.mockResolvedValue({
       headers: new Headers(),
       redirectTo: "/cambiar-contrasena?recuperacion=1",
@@ -78,7 +78,7 @@ describe("access recovery", () => {
     });
   });
 
-  test("verifies a recovery token hash from the recovery email link", async () => {
+  test("opens the recovery session from a recovery email link", async () => {
     verifyPasswordRecoveryOtp.mockResolvedValue({
       headers: new Headers(),
       redirectTo: "/cambiar-contrasena?recuperacion=1",
