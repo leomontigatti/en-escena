@@ -45,7 +45,7 @@ describe("access recovery", () => {
     sentEmails.length = 0;
   });
 
-  test("requests a Supabase reset only for eligible academy users", async () => {
+  test("requests a password reset only for eligible academy users", async () => {
     const signUpResult = await createAccessUser({
       email: "usuario@example.com",
       name: "Usuario",
