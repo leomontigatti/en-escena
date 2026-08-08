@@ -1,7 +1,5 @@
 import type { ComprobanteContingency } from "@/lib/comprobantes/contingency-alert";
 
-export const payDepositIntent = "pay-deposit";
-export const payBalanceIntent = "pay-balance";
 export const emitComprobanteIntent = "emit-comprobante";
 
 // The three money gestures of an inscription. All of them name an inscription

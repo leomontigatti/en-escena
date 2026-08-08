@@ -15,12 +15,13 @@ import {
   choreographyStatusFilterOptions,
   formatInscriptionStatusBadge,
 } from "@/lib/finances/choreography-financial-status";
+import type { CobroStage } from "@/lib/finances/choreography-cobro-presets.server";
 import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 
 import { formatAmount, formatOperationalAmount } from "../formatters";
 import { FinancePresetDialog } from "./preset-dialog";
-import { financePresetLabels, type FinancePresetStage } from "./presets";
+import { financePresetLabels } from "./presets";
 import type { AcademyFinancesLoaderData } from "./types";
 
 type ChoreographyFinanceRow =
@@ -36,7 +37,7 @@ const choreographyFinanceFacetedFilters: DataTableFacetedFilter[] = [
 
 type AcademyFinancesRouteViewProps = {
   /** Preset open on mount. Only the tests use it, as in the payment detail. */
-  initialPresetStage?: FinancePresetStage | null;
+  initialPresetStage?: CobroStage | null;
   loaderData: AcademyFinancesLoaderData;
 };
 
@@ -48,7 +49,7 @@ export function AcademyFinancesRouteView({
   // table: the two presets read it, and only it decides whether they are
   // offered at all.
   const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
-  const [presetStage, setPresetStage] = useState<FinancePresetStage | null>(
+  const [presetStage, setPresetStage] = useState<CobroStage | null>(
     initialPresetStage,
   );
   const columns = useMemo(

@@ -28,18 +28,25 @@ import {
 import { activeInscription } from "@/lib/choreographies/active-inscription";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import { resolveChoreographyPricingScheduleId } from "@/lib/finances/choreography-pricing-schedule";
+import { deriveInscriptionFinancialFigures } from "@/lib/finances/inscription-financial-status";
+import { readInscriptionThresholds } from "@/lib/finances/inscription-thresholds.server";
 
-import { readInscriptionAllocatedAmount } from "./allocation-pool.server";
 import {
-  fundOwedThreshold,
-  type CobroStage,
-} from "./choreography-cobro.server";
+  readInscriptionAllocatedAmount,
+  spreadFromPool,
+} from "./allocation-pool.server";
 import {
   loadCandidatePriceRow,
   runCobro,
   type CobroResult,
   type Transaction,
 } from "./choreography-cobro-support.server";
+
+/**
+ * The threshold a cobro preset settles against: `deposit` allocates up to the
+ * `Seña`, `balance` up to the `Total`.
+ */
+export type CobroStage = "deposit" | "balance";
 
 /**
  * The price the administrator picked, keyed by group type. One entry per group
@@ -117,6 +124,71 @@ export async function payChoreographiesPreset(input: {
       stage: input.stage,
     });
   });
+}
+
+/**
+ * The heart of the cobro presets: allocates each inscription **exactly what it
+ * owes** against the requested stage, out of the academy's pool. Owed is
+ * computed here, on the write path, through the same owner the read path uses,
+ * so a preset cannot over-allocate. An inscription that already covered the
+ * threshold is skipped rather than failing: the preset is idempotent.
+ */
+async function fundOwedThreshold(
+  tx: Transaction,
+  input: {
+    academyId: string;
+    eventId: string;
+    inscriptionIds: string[];
+    stage: CobroStage;
+  },
+): Promise<CobroResult> {
+  const thresholds = await readInscriptionThresholds(tx, {
+    academyId: input.academyId,
+    eventId: input.eventId,
+    inscriptionIds: input.inscriptionIds,
+  });
+
+  for (const inscriptionId of input.inscriptionIds) {
+    const resolution = thresholds.get(inscriptionId);
+
+    if (!resolution) {
+      return { ok: false, message: "No encontramos esa inscripción." };
+    }
+
+    const figures = deriveInscriptionFinancialFigures({
+      allocatedAmount: await readInscriptionAllocatedAmount(tx, inscriptionId),
+      thresholds: resolution,
+    });
+    const owedAmount =
+      input.stage === "deposit"
+        ? figures.owedDepositAmount
+        : figures.owedBalanceAmount;
+
+    if (owedAmount === null) {
+      return {
+        ok: false,
+        message:
+          "No hay un precio configurado para este tipo de grupo y cronograma.",
+      };
+    }
+
+    if (owedAmount === 0) {
+      continue;
+    }
+
+    const result = await spreadFromPool(tx, {
+      academyId: input.academyId,
+      amount: owedAmount,
+      eventId: input.eventId,
+      inscriptionId,
+    });
+
+    if (!result.ok) {
+      return result;
+    }
+  }
+
+  return { ok: true };
 }
 
 /**

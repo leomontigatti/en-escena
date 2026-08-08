@@ -33,9 +33,8 @@ type RosterRow = {
 
 /**
  * An inscription's thresholds plus the inputs they were computed from. The
- * price and the discount travel alongside because the cobro still persists them
- * in the frozen columns, and taking them from a second count would derive the
- * same thing twice.
+ * price and the discount travel alongside so a caller that has to show them
+ * does not derive the same thing twice.
  */
 export type InscriptionThresholdResolution = InscriptionThresholds & {
   dancerDiscountAmount: number;

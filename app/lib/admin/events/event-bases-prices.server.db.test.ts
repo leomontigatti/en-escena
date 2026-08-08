@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { freezeInscriptionDepositForTest } from "@/features/portal/choreographies/test-support/db";
+import { createSelectedPriceInscriptionForTest } from "@/features/portal/choreographies/test-support/db";
 import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
 import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
@@ -224,7 +224,7 @@ describe.sequential("administracion Bases del evento routes", () => {
       throw new Error("Expected seeded price fixture.");
     }
 
-    await freezeInscriptionDepositForTest({
+    await createSelectedPriceInscriptionForTest({
       academyId: academy.academy.id,
       choreographyId: choreography.id,
       selectedPriceId: price.id,

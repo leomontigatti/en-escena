@@ -374,7 +374,6 @@ describe.sequential("loadPortalAcademyFinances", () => {
         id: choreography.id,
         basePriceAmount: { amount: 12000, status: "complete" },
         depositAmount: { amount: 3600, status: "complete" },
-        depositCompletedOn: "2026-03-21",
         financialStatus: "depositMet",
         owedBalanceAmount: { amount: 8400, status: "complete" },
         owedDepositAmount: { amount: 0, status: "complete" },

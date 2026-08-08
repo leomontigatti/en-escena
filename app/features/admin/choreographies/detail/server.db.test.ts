@@ -33,7 +33,7 @@ import {
   createEventRecord,
   createProfessor,
   date,
-  freezeInscriptionDepositForTest,
+  createSelectedPriceInscriptionForTest,
 } from "@/features/portal/choreographies/test-support/db";
 import {
   createSignedInAdminRequest,
@@ -702,9 +702,11 @@ describe("administrative choreography detail server", () => {
     });
     expect(detail.scheduleCapacity.canReassign).toBe(true);
 
-    await freezeInscriptionDepositForTest({
+    await createSelectedPriceInscriptionForTest({
       academyId: scenario.owner.academyId,
+      allocatedAmount: 3000,
       choreographyId: scenario.choreography.id,
+      eventId: scenario.event.id,
     });
 
     const result = await scenario.reassignTo(
@@ -713,7 +715,7 @@ describe("administrative choreography detail server", () => {
 
     expect(result).toMatchObject({
       message:
-        "No se puede cambiar el cupo de cronograma: hay inscripciones con seña registrada.",
+        "No se puede cambiar el cupo de cronograma: hay inscripciones con dinero asignado.",
       status: "error",
     });
     await expect(scenario.readAssignment()).resolves.toEqual({
@@ -966,9 +968,11 @@ describe("administrative choreography detail server", () => {
       academyName: "Academia Cronograma Señada",
       slug: "cronograma.senada",
     });
-    await freezeInscriptionDepositForTest({
+    await createSelectedPriceInscriptionForTest({
       academyId: scenario.owner.academyId,
+      allocatedAmount: 3000,
       choreographyId: scenario.choreography.id,
+      eventId: scenario.event.id,
     });
 
     const detail = await loadDetail({
@@ -979,8 +983,8 @@ describe("administrative choreography detail server", () => {
     expect(detail.scheduleCapacity.canReassign).toBe(false);
     expect(detail.scheduleCapacity.blockers).toEqual([
       {
-        code: "frozen-deposit",
-        label: expect.stringContaining("seña registrada"),
+        code: "frozen-price",
+        label: expect.stringContaining("dinero asignado"),
       },
     ]);
 
@@ -990,7 +994,7 @@ describe("administrative choreography detail server", () => {
 
     expect(result).toMatchObject({
       message:
-        "No se puede cambiar el cupo de cronograma: hay inscripciones con seña registrada.",
+        "No se puede cambiar el cupo de cronograma: hay inscripciones con dinero asignado.",
       status: "error",
     });
     await expect(scenario.readAssignment()).resolves.toEqual({
@@ -1033,14 +1037,16 @@ describe("administrative choreography detail server", () => {
     });
   });
 
-  test("shows the frozen-deposit blocker to auditors as well", async () => {
+  test("shows the frozen-price blocker to auditors as well", async () => {
     const scenario = await createScheduleCapacityScenario({
       academyName: "Academia Cronograma Señada Auditor",
       slug: "cronograma.senada.auditor",
     });
-    await freezeInscriptionDepositForTest({
+    await createSelectedPriceInscriptionForTest({
       academyId: scenario.owner.academyId,
+      allocatedAmount: 3000,
       choreographyId: scenario.choreography.id,
+      eventId: scenario.event.id,
     });
 
     const detail = await loadDetail({
@@ -1051,7 +1057,7 @@ describe("administrative choreography detail server", () => {
 
     expect(
       detail.scheduleCapacity.blockers.map((blocker) => blocker.code),
-    ).toEqual(["frozen-deposit"]);
+    ).toEqual(["frozen-price"]);
   });
 
   test("blocks auditors from reassigning the cupo de cronograma", async () => {

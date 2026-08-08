@@ -38,7 +38,6 @@ type InscriptionRow = {
   choreographyId: string;
   dancerId: string;
   selectedPriceId: string | null;
-  depositReferenceDate: string | null;
   withdrawnAt: Date | null;
 };
 
@@ -191,7 +190,6 @@ async function readAcademyEventFinance(input: {
             choreographyId: choreographyDancers.choreographyId,
             dancerId: choreographyDancers.dancerId,
             selectedPriceId: choreographyDancers.selectedPriceId,
-            depositReferenceDate: choreographyDancers.depositReferenceDate,
             withdrawnAt: choreographyDancers.withdrawnAt,
           })
           // No `activeInscription()` here, and not because of a display
@@ -304,7 +302,6 @@ async function readAcademyEventFinance(input: {
         choreographyId: inscription.choreographyId,
         dancerDiscountAmount,
         dancerId: inscription.dancerId,
-        depositReferenceDate: inscription.depositReferenceDate,
         id: inscription.id,
         withdrawn,
       };
