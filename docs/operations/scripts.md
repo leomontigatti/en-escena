@@ -65,8 +65,5 @@ use when a script has operational risk.
 
 Not `pnpm` scripts — `.sql` files under `scripts/`, run with `psql`. They are
 read-only checks tied to a specific migration and are deleted once it has
-shipped.
-
-| File                     | Purpose                                                                                                                                                                       |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `scripts/verify-555.sql` | Re-check the counterexample classes the #547 payment-allocation migration plan assumes are empty. Run against production immediately before the destructive migration (#555). |
+shipped. There are none right now: `scripts/verify-555.sql` shipped with #632
+and was deleted with the migration it guarded (#689).

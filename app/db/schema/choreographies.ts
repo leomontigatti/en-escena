@@ -111,23 +111,10 @@ export const choreographyDancers = createTable(
     choreographyId: varchar("choreography_id", { length: 255 }).notNull(),
     dancerId: varchar("dancer_id", { length: 255 }).notNull(),
     ageAtEventStart: integer("age_at_event_start").notNull(),
-    // Snapshot de seña: se fija al crear la asignación `deposit` y se limpia al
-    // borrarla. Sin snapshot de seña, la inscripción es `impaga`.
-    frozenBasePriceAmount: integer("frozen_base_price_amount"),
+    // The last surviving snapshot column. It fixes which price row prices the
+    // inscription; every amount and every financial state is derived from that
+    // row and from `Σ allocations`.
     selectedPriceId: varchar("selected_price_id", { length: 255 }),
-    depositReferenceDate: text("deposit_reference_date"),
-    depositPercentage: integer("deposit_percentage"),
-    depositAmount: integer("deposit_amount"),
-    // Snapshot de saldo: se fija al crear la asignación `balance` y se limpia al
-    // borrarla, devolviendo la inscripción a `señada`.
-    balanceReferenceDate: text("balance_reference_date"),
-    appliedDancerDiscountPercentage: integer(
-      "applied_dancer_discount_percentage",
-    ),
-    appliedDancerDiscountAmount: integer("applied_dancer_discount_amount"),
-    finalTotalAmount: integer("final_total_amount"),
-    balanceAmount: integer("balance_amount"),
-    balanceCompletedAt: text("balance_completed_at"),
     // Retiro blando. Se escribe una sola vez, al quitar la inscripción del
     // roster, y solo cuando hay evidencia que preservar: plata asignada o una
     // línea de comprobante. Sin evidencia la fila se borra físicamente, así que
