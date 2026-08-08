@@ -11,7 +11,6 @@ import {
 import { handleChoreographyDetailAction } from "@/features/admin/choreographies/detail/server";
 import { updateChoreographyRosterIntent } from "@/features/admin/choreographies/detail/shared";
 import { createChoreographyRecord } from "@/features/portal/choreographies/test-support/db";
-import { deriveInscriptionLadderStage } from "@/lib/finances/inscription-ladder-snapshot";
 import {
   createAcademySession,
   createDancer,
@@ -86,7 +85,7 @@ describe("administrative choreography roster editing", () => {
     );
     const added = inscriptions.find((row) => row.dancerId === dancerC.id);
     expect(added).toBeDefined();
-    expect(deriveInscriptionLadderStage(added!)).toBe("impaga");
+    expect(added?.selectedPriceId).toBeNull();
   });
 
   test("hard-deletes a removed dancer whose inscription has no allocations and no comprobante line", async () => {
@@ -247,67 +246,6 @@ describe("administrative choreography roster editing", () => {
       where: eq(choreographyDancers.id, scenario.inscriptionA.id),
     });
     expect(afterDeallocation?.withdrawnAt).toEqual(withdrawn?.withdrawnAt);
-  });
-
-  test("keeps señada inscriptions when the roster changes (marca de agua)", async () => {
-    const owner = await createAcademySession({
-      academyName: "Academia Roster Marca",
-      email: "roster.marca.academia@example.com",
-    });
-    const event = await createEventRecord({ active: true, name: "Regional" });
-    const catalog = await createEventCatalog(event.id);
-    const [dancerA, dancerB, dancerC] = await Promise.all([
-      createDancer(owner.academyId, { firstName: "Ana", lastName: "Uno" }),
-      createDancer(owner.academyId, { firstName: "Bea", lastName: "Dos" }),
-      createDancer(owner.academyId, { firstName: "Cami", lastName: "Tres" }),
-    ]);
-    const choreography = await createChoreographyRecord({
-      academyId: owner.academyId,
-      categoryId: catalog.teenCategory.id,
-      eventId: event.id,
-      groupType: "duo",
-      modalityId: catalog.modality.id,
-      name: "Duo",
-      scheduleCapacityId: catalog.duoScheduleCapacity.id,
-      submodalityId: catalog.submodality.id,
-    });
-    await db.insert(choreographyDancers).values([
-      {
-        ageAtEventStart: 14,
-        choreographyId: choreography.id,
-        dancerId: dancerA.id,
-        depositReferenceDate: "2026-03-20",
-        depositAmount: 3000,
-        frozenBasePriceAmount: 15000,
-      },
-      {
-        ageAtEventStart: 14,
-        choreographyId: choreography.id,
-        dancerId: dancerB.id,
-        depositReferenceDate: "2026-03-20",
-        depositAmount: 3000,
-        frozenBasePriceAmount: 15000,
-      },
-    ]);
-
-    const response = await submitRoster({
-      choreographyId: choreography.id,
-      dancerIds: [dancerA.id, dancerB.id, dancerC.id],
-    });
-
-    expect(response).not.toBeInstanceOf(Response);
-    expect(response).toMatchObject({ status: "success" });
-
-    const inscriptions = await db.query.choreographyDancers.findMany({
-      where: eq(choreographyDancers.choreographyId, choreography.id),
-    });
-    const kept = inscriptions.filter((row) => row.dancerId !== dancerC.id);
-    expect(kept).toHaveLength(2);
-    for (const inscription of kept) {
-      expect(deriveInscriptionLadderStage(inscription)).toBe("señada");
-    }
-    const added = inscriptions.find((row) => row.dancerId === dancerC.id);
-    expect(deriveInscriptionLadderStage(added!)).toBe("impaga");
   });
 
   test("hard-locks roster editing when the choreography has a presentation", async () => {

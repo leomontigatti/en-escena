@@ -289,7 +289,6 @@ describe.sequential(
       expect(pendingSnapshotDetail.choreography).toMatchObject({
         allocatedAmount: 3600,
         depositAmount: { amount: 3600, status: "complete" },
-        depositCompletedOn: "2026-03-20",
         owedBalanceAmount: { amount: 8400, status: "complete" },
         totalAmount: { amount: 12000, status: "complete" },
       });
@@ -302,7 +301,6 @@ describe.sequential(
       expect(paidSnapshotDetail.choreography).toMatchObject({
         allocatedAmount: 12000,
         depositAmount: { amount: 3600, status: "complete" },
-        depositCompletedOn: "2026-03-20",
         owedBalanceAmount: { amount: 0, status: "complete" },
         totalAmount: { amount: 12000, status: "complete" },
       });

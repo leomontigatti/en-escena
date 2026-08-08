@@ -33,7 +33,7 @@ import {
   createEventRecord,
   createProfessor,
   date,
-  freezeInscriptionDepositForTest,
+  createSelectedPriceInscriptionForTest,
 } from "@/features/portal/choreographies/test-support/db";
 import {
   createSignedInAdminRequest,
@@ -702,9 +702,11 @@ describe("administrative choreography detail server", () => {
     });
     expect(detail.scheduleCapacity.canReassign).toBe(true);
 
-    await freezeInscriptionDepositForTest({
+    await createSelectedPriceInscriptionForTest({
       academyId: scenario.owner.academyId,
+      allocatedAmount: 3000,
       choreographyId: scenario.choreography.id,
+      eventId: scenario.event.id,
     });
 
     const result = await scenario.reassignTo(
@@ -966,9 +968,11 @@ describe("administrative choreography detail server", () => {
       academyName: "Academia Cronograma Señada",
       slug: "cronograma.senada",
     });
-    await freezeInscriptionDepositForTest({
+    await createSelectedPriceInscriptionForTest({
       academyId: scenario.owner.academyId,
+      allocatedAmount: 3000,
       choreographyId: scenario.choreography.id,
+      eventId: scenario.event.id,
     });
 
     const detail = await loadDetail({
@@ -1038,9 +1042,11 @@ describe("administrative choreography detail server", () => {
       academyName: "Academia Cronograma Señada Auditor",
       slug: "cronograma.senada.auditor",
     });
-    await freezeInscriptionDepositForTest({
+    await createSelectedPriceInscriptionForTest({
       academyId: scenario.owner.academyId,
+      allocatedAmount: 3000,
       choreographyId: scenario.choreography.id,
+      eventId: scenario.event.id,
     });
 
     const detail = await loadDetail({

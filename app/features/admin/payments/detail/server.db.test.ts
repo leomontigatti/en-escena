@@ -7,7 +7,7 @@ import { registerAcademyEventPayment } from "@/features/admin/finances/academy-c
 import {
   createChoreographyRecord,
   createEventCatalog,
-  freezeInscriptionDepositForTest,
+  createSelectedPriceInscriptionForTest,
 } from "@/features/portal/choreographies/test-support/db";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
@@ -259,12 +259,8 @@ describe.sequential("admin payment detail", () => {
     await expect(findPaymentById(payment.id)).resolves.toBeUndefined();
     await expect(findAllocationsByPaymentId(payment.id)).resolves.toEqual([]);
 
-    // La inscripción vuelve a `impaga`: el snapshot de seña quedó limpio.
-    await expect(findInscriptionById(inscription.id)).resolves.toMatchObject({
-      depositReferenceDate: null,
-      depositAmount: null,
-      frozenBasePriceAmount: null,
-    });
+    // La inscripción sobrevive al pago: sólo pierde la plata que tenía encima.
+    await expect(findInscriptionById(inscription.id)).resolves.toBeDefined();
   });
 
   test("deletes the payment even when the balance lives in another payment", async () => {
@@ -315,17 +311,6 @@ describe.sequential("admin payment detail", () => {
       eventId: event.id,
     });
 
-    // La inscripción quedó `pagada`: el saldo está congelado y asignado al pago B.
-    await db
-      .update(choreographyDancers)
-      .set({
-        balanceReferenceDate: "2026-03-20",
-        finalTotalAmount: 10000,
-        balanceAmount: 7000,
-        balanceCompletedAt: "2026-03-20",
-      })
-      .where(eq(choreographyDancers.id, inscription.id));
-
     await db.insert(paymentAllocations).values([
       {
         academyId: academy.academy.id,
@@ -366,10 +351,6 @@ describe.sequential("admin payment detail", () => {
     await expect(
       findAllocationsByPaymentId(balancePayment.id),
     ).resolves.toHaveLength(1);
-    await expect(findInscriptionById(inscription.id)).resolves.toMatchObject({
-      balanceReferenceDate: null,
-      depositReferenceDate: "2026-03-20",
-    });
   });
 });
 
@@ -389,7 +370,7 @@ async function createFrozenInscription(input: {
     submodalityId: catalog.submodality.id,
   });
 
-  return await freezeInscriptionDepositForTest({
+  return await createSelectedPriceInscriptionForTest({
     academyId: input.academyId,
     choreographyId: choreography.id,
   });

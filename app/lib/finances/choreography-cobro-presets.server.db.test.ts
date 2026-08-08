@@ -143,18 +143,15 @@ describe("payChoreographiesPreset", () => {
     expect(totals.get(fixture.inscriptionIds[1])).toBe(3000);
 
     // Indistinguible de una asignación tipeada a mano: la fila es sólo
-    // `(pago, inscripción, monto)`, y el preset no congela ningún snapshot.
+    // `(pago, inscripción, monto)`, y lo único que el preset escribe sobre la
+    // inscripción es el precio elegido.
     const inscriptionRows = await db
-      .select({
-        depositReferenceDate: choreographyDancers.depositReferenceDate,
-        selectedPriceId: choreographyDancers.selectedPriceId,
-      })
+      .select({ selectedPriceId: choreographyDancers.selectedPriceId })
       .from(choreographyDancers)
       .where(inArray(choreographyDancers.id, fixture.inscriptionIds));
 
     for (const row of inscriptionRows) {
       expect(row.selectedPriceId).toBe(fixture.priceId);
-      expect(row.depositReferenceDate).toBeNull();
     }
   });
 

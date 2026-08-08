@@ -35,7 +35,6 @@ describe("ChoreographyFinanceDetailView", () => {
     expect(markup).toContain('value="Academia Centro"');
     expect(markup).toContain('value="Aire"');
     expect(markup).toContain('value="Dúo"');
-    expect(markup).toContain("21 de marzo de 2026");
     expect(markup).toContain("Bailarín");
     expect(markup).toContain("Precio base");
     expect(markup).toContain("Seña");
@@ -261,54 +260,8 @@ describe("ChoreographyFinanceDetailView", () => {
     expect(markup).not.toContain("más dinero asignado que su total");
   });
 
-  test("does not warn when the available balance covers the stage total", () => {
+  test("warns when the deposit has no configured price", () => {
     const markup = renderDetail({
-      availableBalanceAmount: 2400,
-      stage: "deposit",
-      stageTotalAmount: { amount: 2400, status: "complete" },
-    });
-
-    expect(markup).not.toContain("no alcanza para cubrir la seña completa");
-  });
-
-  test("warns when the available balance falls short of the stage total", () => {
-    const markup = renderDetail({
-      availableBalanceAmount: 2400,
-      stage: "deposit",
-      stageTotalAmount: { amount: 3000, status: "complete" },
-    });
-
-    expect(markup).toContain("no alcanza para cubrir la seña completa");
-  });
-
-  test("warns about the saldo when the available balance falls short of the balance stage", () => {
-    const markup = renderDetail({
-      availableBalanceAmount: 2400,
-      stage: "balance",
-      stageTotalAmount: { amount: 3000, status: "complete" },
-    });
-
-    expect(markup).toContain("no alcanza para cubrir el saldo completo");
-  });
-
-  test("warns when the stage total is unknown because an inscription has no price", () => {
-    const markup = renderDetail({
-      availableBalanceAmount: 100000,
-      stage: "deposit",
-      stageTotalAmount: {
-        amount: 2400,
-        missingPriceCount: 1,
-        status: "incomplete",
-      },
-    });
-
-    expect(markup).toContain("no alcanza para cubrir la seña completa");
-  });
-
-  test("blames the missing price instead of the balance when the deposit has no configured price", () => {
-    const markup = renderDetail({
-      availableBalanceAmount: 0,
-      stage: "deposit",
       choreography: choreographyFixture({
         depositAmount: {
           amount: 0,
@@ -316,15 +269,9 @@ describe("ChoreographyFinanceDetailView", () => {
           status: "incomplete",
         },
       }),
-      stageTotalAmount: {
-        amount: 0,
-        missingPriceCount: 1,
-        status: "incomplete",
-      },
     });
 
     expect(markup).toContain("no tiene un precio configurado");
-    expect(markup).not.toContain("no alcanza para cubrir la seña completa");
   });
 });
 
@@ -439,8 +386,6 @@ function loaderDataFixture(
       },
     ],
     availableBalanceAmount: 0,
-    stage: null,
-    stageTotalAmount: null,
     selectedEventId: "event_1",
     ...overrides,
   };
@@ -466,7 +411,6 @@ function choreographyFixture(
     allocatedAmount: 3000,
     anomalies: [],
     depositAmount: { amount: 3000, status: "complete" },
-    depositCompletedOn: "2026-03-21",
     financialStatus: "depositMet",
     groupType: "duo",
     id: "choreography_1",

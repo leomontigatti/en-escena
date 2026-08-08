@@ -294,7 +294,6 @@ function loaderDataFixture(
       allocatedAmount: 3000,
       anomalies: [],
       depositAmount: { amount: 3000, status: "complete" },
-      depositCompletedOn: "2026-03-21",
       financialStatus: "depositMet",
       groupType: "duo",
       id: "choreography_1",
@@ -321,8 +320,6 @@ function loaderDataFixture(
       },
     ],
     availableBalanceAmount: 0,
-    stage: null,
-    stageTotalAmount: null,
     selectedEventId: "event_1",
     ...overrides,
   };

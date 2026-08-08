@@ -13,7 +13,6 @@ import {
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminUser } from "@/lib/auth/internal-access.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
-import { syncInscriptionSnapshots } from "@/lib/finances/choreography-cobro.server";
 import { getFieldErrors } from "@/lib/shared/form-validation";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
 
@@ -239,30 +238,13 @@ async function deletePayment(input: {
     throw new Response("No encontramos ese pago.", { status: 404 });
   }
 
-  await deletePaymentCascading(input.paymentId);
+  // Its allocations fall with the foreign key cascade — the database is what
+  // cascades, not this module — and nothing else has to be reconciled: every
+  // figure an inscription shows is derived from what is allocated to it right
+  // now. There is no blocking case: the deletion always proceeds.
+  await db.delete(payments).where(eq(payments.id, input.paymentId));
 
   throw redirect(`/administracion/pagos?evento=${payment.eventId}`);
-}
-
-/**
- * Elimina el pago. Sus asignaciones caen por la cascada de la foreign key —la
- * base es la que cascadea, no este módulo—, así que sólo queda reconciliar los
- * snapshots de las inscripciones que quedaron sin esa plata. No hay caso que
- * bloquee: la eliminación siempre procede.
- */
-async function deletePaymentCascading(paymentId: string) {
-  await db.transaction(async (tx) => {
-    const affected = await tx
-      .select({ inscriptionId: paymentAllocations.inscriptionId })
-      .from(paymentAllocations)
-      .where(eq(paymentAllocations.paymentId, paymentId));
-
-    await tx.delete(payments).where(eq(payments.id, paymentId));
-
-    await syncInscriptionSnapshots(tx, [
-      ...new Set(affected.map((row) => row.inscriptionId)),
-    ]);
-  });
 }
 
 function getPaymentFormValues(payment: {

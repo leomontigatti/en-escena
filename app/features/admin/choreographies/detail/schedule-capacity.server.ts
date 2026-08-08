@@ -11,7 +11,7 @@ import {
 import type { ScheduleCapacitySelectOption } from "@/lib/choreographies/schedule-capacity-options";
 import { withScheduleCapacityOccupancy } from "@/lib/choreographies/schedule-capacity-options.server";
 import { resolveEventBasesScheduleOptions } from "@/lib/events/bases.server";
-import { hasFrozenDepositSnapshot } from "@/lib/finances/choreography-deposit-guard.server";
+import { hasPriceLockedInscription } from "@/lib/finances/choreography-price-lock-guard.server";
 
 import type { ChoreographyDetail } from "./server";
 import {
@@ -52,7 +52,7 @@ const frozenDepositMessage =
 export async function resolveScheduleCapacityBlockers(
   choreographyId: string,
 ): Promise<ChoreographyScheduleCapacityBlocker[]> {
-  return (await hasFrozenDepositSnapshot(choreographyId))
+  return (await hasPriceLockedInscription(choreographyId))
     ? [frozenDepositBlocker]
     : [];
 }
@@ -192,7 +192,7 @@ export async function updateChoreographyScheduleCapacity(input: {
     // armado a mano), y se revalida *dentro* de la transacción: leerla antes de
     // abrirla dejaba una ventana en la que una seña registrada en el medio se
     // perdía y el cronograma se movía igual.
-    if (await hasFrozenDepositSnapshot(input.choreography.id, tx)) {
+    if (await hasPriceLockedInscription(input.choreography.id, tx)) {
       return {
         ok: false as const,
         error: frozenDepositMessage,

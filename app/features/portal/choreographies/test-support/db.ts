@@ -7,11 +7,13 @@ import {
   dancers,
   events,
   modalities,
+  paymentAllocations,
   prices,
   professors,
   scheduleCapacities,
   submodalities,
 } from "@/db/schema";
+import { registerAcademyEventPayment } from "@/features/admin/finances/academy-choreographies/payments.server";
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
 import { createScheduleForModalityFixture } from "@/lib/choreographies/registration-test-fixtures.server.db";
 import {
@@ -229,17 +231,15 @@ export async function createChoreographyRecord(
   return choreography;
 }
 
-// Congela el snapshot de seña de una inscripción (choreography_dancer). Una
-// inscripción con `selectedPriceId` establecido es la que hace que un precio
-// tenga dependencias operativas.
-export async function freezeInscriptionDepositForTest(input: {
+// Una inscripción con un precio elegido: es la que hace que ese precio tenga
+// dependencias operativas. `allocatedAmount` le pone plata encima, que es lo que
+// traba el precio contra el cronograma de la coreografía.
+export async function createSelectedPriceInscriptionForTest(input: {
   academyId: string;
   choreographyId: string;
-  basePriceAmount?: number;
+  allocatedAmount?: number;
   dancerId?: string;
-  depositAmount?: number;
-  depositPercentage?: number;
-  depositReferenceDate?: string;
+  eventId?: string;
   selectedPriceId?: string | null;
 }) {
   const dancerId = input.dancerId ?? (await createDancer(input.academyId)).id;
@@ -250,13 +250,31 @@ export async function freezeInscriptionDepositForTest(input: {
       choreographyId: input.choreographyId,
       dancerId,
       ageAtEventStart: 14,
-      frozenBasePriceAmount: input.basePriceAmount ?? 10000,
       selectedPriceId: input.selectedPriceId ?? null,
-      depositReferenceDate: input.depositReferenceDate ?? "2026-03-20",
-      depositPercentage: input.depositPercentage ?? 30,
-      depositAmount: input.depositAmount ?? 3000,
     })
     .returning();
+
+  const { allocatedAmount, eventId } = input;
+
+  if (allocatedAmount && eventId && inscription) {
+    const { paymentId } = await registerAcademyEventPayment({
+      academyId: input.academyId,
+      amount: allocatedAmount,
+      eventId,
+      internalNote: null,
+      paymentDate: "2026-03-20",
+      paymentMethod: "transferencia",
+      reference: null,
+    });
+
+    await db.insert(paymentAllocations).values({
+      academyId: input.academyId,
+      amount: allocatedAmount,
+      eventId,
+      inscriptionId: inscription.id,
+      paymentId,
+    });
+  }
 
   return inscription;
 }

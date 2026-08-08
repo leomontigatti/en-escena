@@ -9,6 +9,7 @@ import {
   paymentAllocations,
 } from "@/db/schema";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
+import { readInscriptionThresholds } from "@/lib/finances/inscription-thresholds.server";
 import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
 
 import { ArcaClient, getArcaClient } from "./arca/client.server";
@@ -284,13 +285,7 @@ export type ChoreographyBillable = {
 export async function resolveChoreographyBillable(
   choreographyId: string,
 ): Promise<ChoreographyBillable> {
-  const inscriptionRows = await db
-    .select({
-      depositAmount: choreographyDancers.depositAmount,
-      id: choreographyDancers.id,
-    })
-    .from(choreographyDancers)
-    .where(eq(choreographyDancers.choreographyId, choreographyId));
+  const inscriptionRows = await readInscriptionDeposits(choreographyId);
 
   const { lines, depositPaid, balancePaid, billed } = await resolveBillable(
     choreographyId,
@@ -300,6 +295,43 @@ export async function resolveChoreographyBillable(
   const porcion = derivePorcion({ depositPaid, balancePaid, billed });
 
   return { lines, total, porcion };
+}
+
+/**
+ * Umbral de seña de cada inscripción de la coreografía, derivado por el mismo
+ * dueño que usa el resto de la aplicación: sale del precio y del porcentaje del
+ * evento, nunca de una columna. `null` cuando no hay precio aplicable, y ahí lo
+ * cobrado se imputa entero a la seña.
+ */
+async function readInscriptionDeposits(
+  choreographyId: string,
+): Promise<Array<{ depositAmount: number | null; id: string }>> {
+  const [choreography] = await db
+    .select({
+      academyId: choreographies.academyId,
+      eventId: choreographies.eventId,
+    })
+    .from(choreographies)
+    .where(eq(choreographies.id, choreographyId));
+  const inscriptionRows = await db
+    .select({ id: choreographyDancers.id })
+    .from(choreographyDancers)
+    .where(eq(choreographyDancers.choreographyId, choreographyId));
+
+  if (!choreography || inscriptionRows.length === 0) {
+    return inscriptionRows.map((row) => ({ depositAmount: null, id: row.id }));
+  }
+
+  const thresholds = await readInscriptionThresholds(db, {
+    academyId: choreography.academyId,
+    eventId: choreography.eventId,
+    inscriptionIds: inscriptionRows.map((row) => row.id),
+  });
+
+  return inscriptionRows.map((row) => ({
+    depositAmount: thresholds.get(row.id)?.depositAmount ?? null,
+    id: row.id,
+  }));
 }
 
 /**

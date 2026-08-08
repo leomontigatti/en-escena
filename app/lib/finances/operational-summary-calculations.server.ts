@@ -51,7 +51,6 @@ export type ResolvedInscription = {
   owedBalanceAmount: number | null;
   owedDepositAmount: number | null;
   overAllocatedAmount: number | null;
-  depositReferenceDate: string | null;
   // Roster withdrawal, not a money status. It decides which rollup the row
   // enters and which badge it carries; its figures already come derived
   // accordingly.
@@ -83,7 +82,6 @@ export type ChoreographyOperationalFinanceRow = {
   basePriceAmount: OperationalFinanceAmount;
   depositAmount: OperationalFinanceAmount;
   totalAmount: OperationalFinanceAmount;
-  depositCompletedOn: string | null;
   financialStatus: ChoreographyFinancialStatus;
   groupType: ChoreographyGroupType;
   id: string;
@@ -167,7 +165,6 @@ export function buildChoreographyOperationalFinanceRow(input: {
 }): ChoreographyOperationalFinanceRow {
   let allocatedAmount = 0;
   let overAllocatedAmount = 0;
-  let depositCompletedOn: string | null = null;
   const basePriceAmount = createAmountAccumulator();
   const depositAmount = createAmountAccumulator();
   const totalAmount = createAmountAccumulator();
@@ -183,13 +180,6 @@ export function buildChoreographyOperationalFinanceRow(input: {
     totalAmount.add(inscription.totalAmount);
     owedBalanceAmount.add(inscription.owedBalanceAmount);
     owedDepositAmount.add(inscription.owedDepositAmount);
-
-    if (inscription.depositReferenceDate) {
-      depositCompletedOn = laterDate(
-        depositCompletedOn,
-        inscription.depositReferenceDate,
-      );
-    }
   }
 
   return {
@@ -197,7 +187,6 @@ export function buildChoreographyOperationalFinanceRow(input: {
     anomalies: overAllocatedAmount > 0 ? ["overAllocated"] : [],
     basePriceAmount: basePriceAmount.build(),
     depositAmount: depositAmount.build(),
-    depositCompletedOn,
     financialStatus: deriveChoreographyFinancialStatus(
       input.inscriptions
         .filter((inscription) => !inscription.withdrawn)
@@ -339,12 +328,4 @@ function sumOperationalFinanceAmounts(amounts: OperationalFinanceAmount[]) {
       missingPriceCount: 0,
     },
   );
-}
-
-function laterDate(current: string | null, candidate: string): string {
-  if (current === null) {
-    return candidate;
-  }
-
-  return candidate.localeCompare(current) > 0 ? candidate : current;
 }

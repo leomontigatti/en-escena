@@ -17,12 +17,6 @@ import {
   type ComprobantePorcion,
   type FacturaCEmissionDeps,
 } from "@/lib/comprobantes/emit-factura-c.server";
-import {
-  type CobroStage,
-  payChoreographyBalance,
-  payChoreographyDeposit,
-  readChoreographyLadderStages,
-} from "@/lib/finances/choreography-cobro.server";
 import { readChoreographyInscriptionRows } from "@/lib/finances/choreography-inscriptions.server";
 import {
   allocateToInscription,
@@ -31,8 +25,6 @@ import {
   releaseInscriptionExcess,
   removeFromInscription,
 } from "@/lib/finances/inscription-allocation.server";
-import type { InscriptionLadderStage } from "@/lib/finances/inscription-ladder-snapshot";
-import type { OperationalFinanceAmount } from "@/lib/finances/operational-summary";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
 
 import {
@@ -44,8 +36,6 @@ import {
   choreographyDetailUrl,
   emitComprobanteIntent,
   recheckComprobanteIntent,
-  payBalanceIntent,
-  payDepositIntent,
   releaseInscriptionExcessIntent,
   removeInscriptionMoneyIntent,
   type ChoreographyFinanceActionData,
@@ -71,8 +61,6 @@ export async function loadChoreographyFinanceDetail(input: {
       choreography: null,
       inscriptions: [],
       priceOptions: [],
-      stage: null,
-      stageTotalAmount: null as OperationalFinanceAmount | null,
       selectedEventId: null,
     };
   }
@@ -89,11 +77,6 @@ export async function loadChoreographyFinanceDetail(input: {
   if (!choreographyFinanceRow) {
     throw new Response(choreographyNotFoundMessage, { status: 404 });
   }
-
-  // The ladder survives only here, for the choreography-wide presets: the
-  // status the screen shows comes from the money. It goes with #682.
-  const ladderStageById = await readChoreographyLadderStages(choreographyId);
-  const stage = resolveCobroStage([...ladderStageById.values()]);
 
   const [inscriptionRows, selectedPrices, priceOptions, invoicing] =
     await Promise.all([
@@ -124,7 +107,6 @@ export async function loadChoreographyFinanceDetail(input: {
       allocatedAmount: choreographyFinanceRow.allocatedAmount,
       anomalies: choreographyFinanceRow.anomalies,
       depositAmount: choreographyFinanceRow.depositAmount,
-      depositCompletedOn: choreographyFinanceRow.depositCompletedOn,
       financialStatus: choreographyFinanceRow.financialStatus,
       groupType: choreographyFinanceRow.groupType,
       id: choreographyFinanceRow.id,
@@ -136,34 +118,8 @@ export async function loadChoreographyFinanceDetail(input: {
     },
     inscriptions,
     priceOptions,
-    stage,
-    stageTotalAmount: resolveStageTotalAmount({
-      choreography: choreographyFinanceRow,
-      stage,
-    }),
     selectedEventId: eventId,
   };
-}
-
-/**
- * What the stage preset will allocate: the choreography's owed figure, the same
- * one the screen shows. It depends on no payment because the preset picks none:
- * it names an amount and the pool funds it.
- */
-function resolveStageTotalAmount(input: {
-  choreography: {
-    owedBalanceAmount: OperationalFinanceAmount;
-    owedDepositAmount: OperationalFinanceAmount;
-  };
-  stage: CobroStage | null;
-}): OperationalFinanceAmount | null {
-  if (input.stage === null) {
-    return null;
-  }
-
-  return input.stage === "deposit"
-    ? input.choreography.owedDepositAmount
-    : input.choreography.owedBalanceAmount;
 }
 
 export type ComprobanteCurrency = "vigente" | "desactualizada";
@@ -271,28 +227,6 @@ function resolvePortionCoverage(
   };
 }
 
-/**
- * Etapa que se puede cobrar de una coreografía entera. `null` cuando no hay
- * inscripciones o están mezcladas: ahí no hay una sola acción que las resuelva.
- */
-function resolveCobroStage(
-  states: InscriptionLadderStage[],
-): CobroStage | null {
-  if (states.length === 0) {
-    return null;
-  }
-
-  if (states.every((state) => state === "impaga")) {
-    return "deposit";
-  }
-
-  if (states.every((state) => state === "señada")) {
-    return "balance";
-  }
-
-  return null;
-}
-
 export async function handleChoreographyFinanceAction(input: {
   params: { academyId?: string; choreographyId?: string };
   request: Request;
@@ -316,27 +250,6 @@ export async function handleChoreographyFinanceAction(input: {
   const eventId = eventContext.selectedEventId;
   const formData = await input.request.formData();
   const intent = String(formData.get("intent") ?? "");
-
-  if (intent === payDepositIntent || intent === payBalanceIntent) {
-    const result =
-      intent === payDepositIntent
-        ? await payChoreographyDeposit({
-            academyId,
-            choreographyId,
-            eventId,
-          })
-        : await payChoreographyBalance({
-            academyId,
-            choreographyId,
-            eventId,
-          });
-
-    if (!result.ok) {
-      return { status: "error", message: result.message };
-    }
-
-    throw redirectToDetail(academyId, choreographyId, eventId);
-  }
 
   if (
     intent === allocateInscriptionIntent ||

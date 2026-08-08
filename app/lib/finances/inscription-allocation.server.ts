@@ -38,7 +38,6 @@ import {
   spreadFromPool,
   unwindToPool,
 } from "./allocation-pool.server";
-import { syncInscriptionSnapshots } from "./choreography-cobro-allocations.server";
 import {
   loadCandidatePriceRow,
   loadChoreographyScheduleRow,
@@ -261,30 +260,20 @@ export async function releaseInscriptionExcess(
 }
 
 /**
- * The removal both gestures share: unwind through the pool rule, then
- * reconcile the ladder snapshots against what is left. The reconciliation runs
- * after the unwind because clearing the deposit snapshot moves
- * `selected_price_id`, which the database's price guard rejects while the
- * inscription still holds money.
+ * The removal both gestures share: unwind through the pool rule and stop
+ * there. Nothing is reconciled afterwards, because nothing is stored: the
+ * figures and the status of what is left re-derive from the allocations.
  */
 async function unwindInscription(
   tx: Transaction,
   input: InscriptionMoneyInput & { amount: number },
 ): Promise<CobroResult> {
-  const result = await unwindToPool(tx, {
+  return await unwindToPool(tx, {
     academyId: input.academyId,
     amount: input.amount,
     eventId: input.eventId,
     inscriptionId: input.inscriptionId,
   });
-
-  if (!result.ok) {
-    return result;
-  }
-
-  await syncInscriptionSnapshots(tx, [input.inscriptionId]);
-
-  return { ok: true };
 }
 
 /**

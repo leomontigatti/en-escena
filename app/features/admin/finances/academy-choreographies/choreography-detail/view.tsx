@@ -8,7 +8,6 @@ import {
 import { AlertStack } from "@/components/shared/alert-stack";
 import { MetricCard } from "@/components/shared/metric-card";
 import {
-  ReadOnlyDateField,
   ReadOnlyField,
   ReadOnlySelectField,
 } from "@/components/shared/read-only-field";
@@ -31,7 +30,6 @@ import { formatAmount, formatOperationalAmount } from "../../formatters";
 import { EmissionDialog } from "./comprobante-emission";
 import { InscriptionMoneyDialog } from "./inscription-money-dialog";
 import { formatDancerName } from "./shared";
-import { type StageTotal, StageCobroDialog } from "./stage-cobro-dialog";
 import type { loadChoreographyFinanceDetail, PortionCoverage } from "./server";
 
 type ChoreographyFinanceDetailLoaderData = Awaited<
@@ -42,23 +40,6 @@ type InscriptionRow =
   ChoreographyFinanceDetailLoaderData["inscriptions"][number];
 
 type PriceOption = ChoreographyFinanceDetailLoaderData["priceOptions"][number];
-
-/**
- * Whether the stage preset can be fired: it needs a complete owed figure (every
- * inscription priced) and a `Saldo disponible` that covers it. The server
- * checks again; this only avoids offering a charge that would bounce.
- */
-function canFundStage(input: {
-  availableBalanceAmount: number;
-  stageTotalAmount: StageTotal | null;
-}): boolean {
-  return (
-    input.stageTotalAmount !== null &&
-    input.stageTotalAmount.status === "complete" &&
-    input.stageTotalAmount.amount > 0 &&
-    input.availableBalanceAmount >= input.stageTotalAmount.amount
-  );
-}
 
 type ChoreographyFinanceDetailViewProps = {
   loaderData: ChoreographyFinanceDetailLoaderData;
@@ -132,11 +113,6 @@ export function ChoreographyFinanceDetailView({
                   options={choreographyGroupTypeOptions}
                   value={choreography.groupType}
                 />
-                <ReadOnlyDateField
-                  emptyLabel="Sin pago completo"
-                  label="Fecha de pago de la seña"
-                  value={choreography.depositCompletedOn}
-                />
               </FieldGroup>
             </CardContent>
           </Card>
@@ -188,46 +164,23 @@ function portionCoverageHref(coverage: PortionCoverage | null) {
 function ChoreographyAlerts({
   loaderData,
 }: ChoreographyFinanceDetailViewProps) {
-  const stage = loaderData.stage;
-  const depositAmount = loaderData.choreography?.depositAmount;
-  // With no applicable price the deposit cannot be quoted: the cause is the
-  // missing price, not the available balance falling short. So we state that
-  // cause and suppress the alert that blames the money.
-  const missingDepositPrice =
-    stage === "deposit" && depositAmount?.status === "incomplete";
-  const notEnoughBalance =
-    stage !== null &&
-    !missingDepositPrice &&
-    !canFundStage({
-      availableBalanceAmount: loaderData.availableBalanceAmount,
-      stageTotalAmount: loaderData.stageTotalAmount,
-    });
+  const missingPrice =
+    loaderData.choreography?.depositAmount.status === "incomplete";
   const overAllocated =
     loaderData.choreography?.anomalies.includes("overAllocated") ?? false;
 
-  if (!notEnoughBalance && !missingDepositPrice && !overAllocated) {
+  if (!missingPrice && !overAllocated) {
     return null;
   }
 
   return (
     <AlertStack>
       {overAllocated ? <OverAllocatedAlert /> : null}
-      {missingDepositPrice ? (
+      {missingPrice ? (
         <Alert variant="warning">
           <AlertTriangle aria-hidden="true" />
           <AlertDescription>
             Esta coreografía no tiene un precio configurado para cobrar la seña.
-          </AlertDescription>
-        </Alert>
-      ) : null}
-      {notEnoughBalance ? (
-        <Alert variant="warning">
-          <AlertTriangle aria-hidden="true" />
-          <AlertDescription>
-            El saldo disponible de la academia no alcanza para{" "}
-            {stage === "deposit"
-              ? "cubrir la seña completa de la coreografía."
-              : "cubrir el saldo completo de la coreografía."}
           </AlertDescription>
         </Alert>
       ) : null}
@@ -263,32 +216,25 @@ function OverAllocatedAlert() {
 }
 
 /**
- * Menú único de acciones del header (`...`, ADR-0011): reúne `Emitir factura` y el
- * cobro de la etapa vigente en un solo `ResourceActionsMenu`, en lugar de botones
- * sueltos. Cada item abre su propio diálogo, montado como hermano del menú para que
- * no se desmonte al cerrarse el dropdown. Si no hay ninguna acción disponible el
- * menú no se muestra.
+ * Menú único de acciones del header (`...`, ADR-0011): `Emitir factura` en un
+ * `ResourceActionsMenu`, en lugar de un botón suelto. El item abre su propio
+ * diálogo, montado como hermano del menú para que no se desmonte al cerrarse el
+ * dropdown. Si no hay ninguna acción disponible el menú no se muestra. Los
+ * presets de `Pagar seña` / `Pagar saldo` no viven acá: son acciones de lista
+ * sobre las coreografías elegidas.
  */
 function ChoreographyActions({
   loaderData,
 }: ChoreographyFinanceDetailViewProps) {
   const invoicing = loaderData.invoicing;
-  const stage = loaderData.stage;
   const canEmit = invoicing?.canEmit ?? false;
-  const canCobro =
-    stage !== null &&
-    canFundStage({
-      availableBalanceAmount: loaderData.availableBalanceAmount,
-      stageTotalAmount: loaderData.stageTotalAmount,
-    });
-  const [cobroOpen, setCobroOpen] = useState(false);
   // El facturable se congela al abrir y el diálogo se desmonta al CERRARLO, no
   // al perder la afordancia: una emisión recuperada por "Verificar ahora"
   // persiste el comprobante y revalida el detalle, que deja de ser facturable.
   // Desmontar ahí se llevaría puesto el estado `recovered` (#577).
   const [emission, setEmission] = useState<typeof invoicing | null>(null);
 
-  if (!canEmit && !canCobro && !emission) {
+  if (!canEmit && !emission) {
     return null;
   }
 
@@ -305,16 +251,6 @@ function ChoreographyActions({
             Emitir factura
           </DropdownMenuItem>
         ) : null}
-        {canCobro ? (
-          <DropdownMenuItem
-            onSelect={(event) => {
-              event.preventDefault();
-              setCobroOpen(true);
-            }}
-          >
-            {stage === "deposit" ? "Pagar seña" : "Pagar saldo"}
-          </DropdownMenuItem>
-        ) : null}
       </ResourceActionsMenu>
       {emission ? (
         <EmissionDialog
@@ -322,15 +258,6 @@ function ChoreographyActions({
           porcion={emission.porcion}
           open
           onOpenChange={(next) => setEmission(next ? emission : null)}
-        />
-      ) : null}
-      {canCobro && stage !== null && loaderData.stageTotalAmount !== null ? (
-        <StageCobroDialog
-          availableBalanceAmount={loaderData.availableBalanceAmount}
-          open={cobroOpen}
-          onOpenChange={setCobroOpen}
-          stage={stage}
-          stageTotalAmount={loaderData.stageTotalAmount}
         />
       ) : null}
     </>
