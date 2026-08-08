@@ -40,8 +40,8 @@ async function readChoreographyDancerColumns(db: Database) {
 }
 
 /**
- * Production-shaped rows, following the 2026-08-05 baseline #555 recorded
- * against production: 340 inscriptions carrying a `selected_price_id`, 24
+ * Production-shaped rows, following the 2026-08-08 baseline #555 recorded
+ * against production: 341 inscriptions carrying a `selected_price_id`, 30
  * carrying none, and the pre-#676 ones still holding real frozen values. Foreign
  * keys are off so that three inscriptions do not require seeding half the
  * database.

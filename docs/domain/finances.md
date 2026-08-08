@@ -558,7 +558,7 @@ initiate payments and do not upload receipts.
 **There is one snapshot column left**, `selectedPriceId`, and it lives on the
 **Inscripción**. It fixes which price row prices the inscription; every amount
 (deposit threshold, total, balance) and every financial state is **derived** from
-that row and from `Σ paymentAllocation`. The other ten — the two reference dates,
+that row and from `Σ allocations`. The other ten — the two reference dates,
 `depositPercentage`, `depositAmount`, `frozenBasePriceAmount`, `finalTotalAmount`,
 `balanceAmount`, `balanceCompletedAt` and the applied-discount pair — were dropped
 in #689.
@@ -566,7 +566,7 @@ in #689.
 Two consequences worth stating rather than discovering:
 
 - **No first-crossing date is recorded.** The system does not persist when
-  `Σ asignaciones` first crossed the deposit threshold or the total. The dates
+  `Σ allocations` first crossed the deposit threshold or the total. The dates
   that used to answer that question were `depositReferenceDate` and
   `balanceCompletedAt`, and they are gone. `withdrawnAt` is the only movement
   date the model persists.

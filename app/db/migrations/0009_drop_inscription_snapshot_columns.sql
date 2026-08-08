@@ -1,3 +1,19 @@
+-- Bounds the wait for the lock, not the work. Each `DROP COLUMN` below is
+-- metadata-only and instant once it runs; what has no bound is getting there.
+-- The first `ALTER TABLE` needs an `ACCESS EXCLUSIVE` lock on
+-- `en_escena_choreography_dancer`, so any transaction still holding `ACCESS
+-- SHARE` on that table — a forgotten `psql` session, a long report — makes the
+-- `ALTER` queue, and every query arriving afterwards queues behind it. With no
+-- `lock_timeout` that stall is unbounded: `scripts/migrate.mjs` sets
+-- `statement_timeout` only while acquiring its advisory lock and restores it
+-- (to `0`, in production) before migrating. Five seconds turns the stall into a
+-- fast `55P03`, which aborts the transaction, fails the entrypoint and leaves
+-- the schema untouched for a retry.
+--
+-- `SET LOCAL` is what makes that scoped: Drizzle applies every pending
+-- migration inside one transaction, so this holds for the rest of the run and
+-- reverts on commit rather than leaking into the session.
+SET LOCAL lock_timeout = '5s';--> statement-breakpoint
 -- Drop of the ten inscription snapshot columns (#555, step 5; issue #689).
 -- Irreversible on purpose: there is no `down`, and the only net is the manual
 -- Coolify backup taken immediately before the deploy.
