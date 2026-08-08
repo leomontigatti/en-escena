@@ -21,13 +21,14 @@ not restate it.
   predating #594 are gzipped plain SQL from `pg_dumpall`. See
   [Database Backup](#database-backup-coolify-native).
 - Storage format: copied objects under a B2 prefix, keys intact (`academies/...`).
-- Frequency: database on the cadence configured on the Coolify database resource;
-  storage on the cadence configured for its scheduled task (base 2x/day, raised
-  during an event window to shrink the RPO).
-- Retention: Coolify prunes the database dumps it wrote, both in B2 and in the
-  local copies on the VPS. The B2 lifecycle rules do not expire anything by age
-  on their own — neither bucket hides current versions — so what is retained is
-  decided by Coolify for the database and by nothing at all for storage. See
+- Frequency: database at `0 3,15 * * *` UTC (2x/day), configured on the Coolify
+  database resource; storage on the cadence configured for its scheduled task
+  (base 2x/day, raised during an event window to shrink the RPO).
+- Retention: Coolify prunes the database dumps it wrote — 30 days in B2, 7 days
+  in the local copies on the VPS ([Retention](#retention)). The B2 lifecycle
+  rules do not expire anything by age on their own — neither bucket hides current
+  versions — so what is retained is decided by Coolify for the database and by
+  nothing at all for storage. See
   [Bucket lifecycle rules](#bucket-lifecycle-rules) for the rules as configured
   and why the two buckets cannot share a policy.
 
@@ -64,11 +65,40 @@ the application. There is no script and nothing in this repo to run.
   (#598 step 8) along with the pre-cutover dumps it held; no Supabase-era copy
   of the database exists anywhere now.
 - Local copies are kept as well, under
-  `/data/coolify/backups/databases/<team>/<resource>/` on the VPS, with 7-day
-  retention. Keep "Disable Local Backup" **unchecked**: those copies are what
-  make a fast local restore possible without a B2 round-trip.
+  `/data/coolify/backups/databases/<team>/<resource>/` on the VPS. Keep "Disable
+  Local Backup" **unchecked**: those copies are what make a fast local restore
+  possible without a B2 round-trip.
 - Cadence, retention and the S3 target are all edited in the Coolify UI on that
   resource.
+
+### Retention
+
+Set on the Scheduled Backup of the Postgres resource; verified in the UI on
+2026-08-08. Coolify applies three limits per destination, independently —
+whichever is reached first triggers the cleanup, and `0` means unlimited.
+
+| Destination                         | Backups to keep | Days to keep | Max storage   |
+| ----------------------------------- | --------------- | ------------ | ------------- |
+| Local (`/data/coolify/backups/...`) | 0 (unlimited)   | 7            | 5 GB          |
+| B2 (`enescena-db-backups`)          | 0 (unlimited)   | 30           | 0 (unlimited) |
+
+The counts are `0` on purpose, so that the day limits are what govern. That is
+the trap in this screen: because the limits are independent, a count of 7 at two
+dumps a day caps history at 3.5 days no matter what the day field says, and the
+two fields both reading `7` look consistent while meaning different things
+(#653). Set a count here only as a number of _dumps_, after multiplying out the
+cadence.
+
+The 5 GB local cap is a backstop, not a policy: at ~180 KB a dump, seven days of
+history is about 2.5 MB.
+
+B2 history starts on **2026-08-04**, when this backup first ran — the hyphenated
+predecessor bucket and the dumps it held were deleted with the Supabase
+decommission (#598 step 8). A listing that shows only a few days is therefore
+expected until the window fills, and is not evidence of misconfigured retention;
+reading it as such is what #653 got wrong. The first age-based prune falls around
+**2026-09-03**. Until it happens, the 30 days above is the configured retention,
+not the observed one.
 
 ### Format
 
@@ -154,8 +184,8 @@ As configured (verified 2026-08-06):
   `daysFromUploadingToHiding` unset. The rule is a cleanup pass behind Coolify,
   not a retention policy: Coolify decides how many dumps to keep and deletes the
   rest, and the rule clears the deleted versions 30 days later. Retention for the
-  database is therefore whatever the Scheduled Backup on the Postgres resource
-  says, edited in the Coolify UI.
+  database is therefore what the Scheduled Backup says ([Retention](#retention)),
+  not this rule — the two 30s are unrelated.
 - **`en-escena-filestore-backups`**: `daysFromHidingToDeleting = 30`,
   `daysFromUploadingToHiding` unset — the same shape, and for the same reason.
   It had no rule at all until #639; nothing had ever been expired from it.
