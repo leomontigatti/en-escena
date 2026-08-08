@@ -12,12 +12,10 @@ import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import {
-  formatInscriptionAnomaly,
-  formatInscriptionFinancialStatus,
-  getInscriptionAnomalyBadgeVariant,
-  getInscriptionFinancialStatusBadgeVariant,
-  inscriptionFinancialStatusOptions,
+  choreographyStatusFilterOptions,
+  formatInscriptionStatusBadge,
 } from "@/lib/finances/choreography-financial-status";
+import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 
 import { formatAmount, formatOperationalAmount } from "../formatters";
@@ -32,7 +30,7 @@ const choreographyFinanceFacetedFilters: DataTableFacetedFilter[] = [
   {
     id: "estado",
     label: "Estado",
-    options: [...inscriptionFinancialStatusOptions],
+    options: [...choreographyStatusFilterOptions],
   },
 ];
 
@@ -208,7 +206,10 @@ function buildChoreographyFinanceColumns(
       id: "financialStatus",
       header: "Estado",
       cell: (row) => <ChoreographyStatusCell row={row} />,
-      filterValue: (row) => row.financialStatus,
+      // The filter comes from the same badge the cell shows, not from
+      // `financialStatus`: a row badged `Sobreasignada` that turned up while
+      // filtering by `Señada` would contradict itself on screen.
+      filterValue: (row) => formatChoreographyStatusBadge(row).value,
     },
   ];
 }
@@ -218,25 +219,22 @@ function buildChoreographyFinanceColumns(
  * por la misma mirada, y `Señada` al lado de `Sobreasignada` se lee como dos
  * hechos del mismo peso cuando sólo uno pide que alguien haga algo.
  *
- * La precedencia se resuelve acá, en un único lugar, para que un eje derivado
- * nuevo se apile arriba sin volver a repartir la decisión por la celda.
+ * The precedence between axes lives in `resolveInscriptionStatusBadge` and is
+ * explicit, not positional: a new derived axis stacks on top by declaring
+ * itself there, without depending on the order in which someone pushed its
+ * anomaly into the array.
  */
-function ChoreographyStatusCell({ row }: { row: ChoreographyFinanceRow }) {
-  const [anomaly] = row.anomalies;
-
-  if (anomaly) {
-    return (
-      <Badge variant={getInscriptionAnomalyBadgeVariant(anomaly)}>
-        {formatInscriptionAnomaly(anomaly)}
-      </Badge>
-    );
-  }
-
-  return (
-    <Badge
-      variant={getInscriptionFinancialStatusBadgeVariant(row.financialStatus)}
-    >
-      {formatInscriptionFinancialStatus(row.financialStatus)}
-    </Badge>
+function formatChoreographyStatusBadge(row: ChoreographyFinanceRow) {
+  return formatInscriptionStatusBadge(
+    resolveInscriptionStatusBadge({
+      anomalies: row.anomalies,
+      financialStatus: row.financialStatus,
+    }),
   );
+}
+
+function ChoreographyStatusCell({ row }: { row: ChoreographyFinanceRow }) {
+  const badge = formatChoreographyStatusBadge(row);
+
+  return <Badge variant={badge.variant}>{badge.label}</Badge>;
 }

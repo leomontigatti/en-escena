@@ -152,8 +152,12 @@ Link with economic identity and stable identity (its own `id`) between a choreog
 _Avoid_: academy participation, account, `payment`, invoice, inactive inscription
 
 **`activeInscription`** — ui: "Inscripción activa"
-Inscription that takes part in a choreography's current calculations, its pending amounts and its automatic discounts: every one that has not been withdrawn. The shared `activeInscription()` predicate and its raw-SQL twin exist so that no reader has to restate the rule; the roster write path applies them today, and extending them to the remaining reads is #685.
+Inscription that takes part in a choreography's current calculations, its pending amounts and its automatic discounts: every one that has not been withdrawn. The shared `activeInscription()` predicate and its raw-SQL twin exist so that no reader has to restate the rule, and every read applies them except the four that show a withdrawn row as evidence: the admin financial roster, the comprobante detail, the academy financial list and the printed document.
 _Avoid_: paid inscription, competitive participation
+
+**`withdrawnInscription`** — ui: "Retirada"
+Inscription taken off the roster whose row survives because it holds money or a `comprobante` line. Its total is **what remains allocated to it, not zero**: the seña may be forfeited and the retained allocation is the record of that retention, so it owes nothing, it cannot be over-allocated, and it keeps exposing its deposit figure. It stays in its choreography's money rollup and out of its status rollup, its price resolution and its discount qualifying set. `Retirada` is a derived axis of its own, like `Facturada`, and replaces the status badge rather than joining it.
+_Avoid_: fourth financial status, deleted inscription, cancelled inscription
 
 **`choreography`** — ui: "Coreografía"
 Choreography registered by an academy for a concrete event.

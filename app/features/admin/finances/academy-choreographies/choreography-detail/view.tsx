@@ -23,10 +23,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
-import {
-  formatInscriptionFinancialStatus,
-  getInscriptionFinancialStatusBadgeVariant,
-} from "@/lib/finances/choreography-financial-status";
+import { formatInscriptionStatusBadge } from "@/lib/finances/choreography-financial-status";
+import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
 import { choreographyGroupTypeOptions } from "@/lib/portal/choreographies";
 
 import { formatAmount, formatOperationalAmount } from "../../formatters";
@@ -432,15 +430,7 @@ const inscriptionAmountColumns: DataTableColumn<InscriptionRow>[] = [
   {
     id: "financialStatus",
     header: "Estado",
-    cell: (inscription) => (
-      <Badge
-        variant={getInscriptionFinancialStatusBadgeVariant(
-          inscription.financialStatus,
-        )}
-      >
-        {formatInscriptionFinancialStatus(inscription.financialStatus)}
-      </Badge>
-    ),
+    cell: (inscription) => <InscriptionStatusCell inscription={inscription} />,
   },
   {
     id: "basePrice",
@@ -476,6 +466,39 @@ const inscriptionAmountColumns: DataTableColumn<InscriptionRow>[] = [
       formatInscriptionAmount(inscription.owedBalanceAmount),
   },
 ];
+
+/**
+ * The badge of the `Estado` column. `Retirada` **replaces** the status, just as
+ * an anomaly does: the roster-withdrawal axis and the money axis do not share a
+ * cell.
+ *
+ * It carries the retained amount inside because that is half of the fact: the
+ * row is still there *because* money was left on it, and a bare `Retirada`
+ * would not say how much. It is the same number as the `Total` column —for a
+ * withdrawn row the total **is** what is allocated— and repeating it here is
+ * what makes the cell readable on its own.
+ */
+function InscriptionStatusCell({
+  inscription,
+}: {
+  inscription: InscriptionRow;
+}) {
+  const badge = formatInscriptionStatusBadge(
+    resolveInscriptionStatusBadge({
+      anomalies: inscription.anomalies,
+      financialStatus: inscription.financialStatus,
+      withdrawn: inscription.withdrawn,
+    }),
+  );
+
+  return (
+    <Badge variant={badge.variant}>
+      {badge.kind === "withdrawn"
+        ? `${badge.label} · ${formatAmount(inscription.allocatedAmount)}`
+        : badge.label}
+    </Badge>
+  );
+}
 
 function formatInscriptionAmount(amount: number | null) {
   return amount === null ? "Sin precio" : formatAmount(amount);

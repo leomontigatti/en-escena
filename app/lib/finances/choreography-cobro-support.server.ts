@@ -8,6 +8,7 @@ import {
   prices,
   scheduleCapacities,
 } from "@/db/schema";
+import { activeInscription } from "@/lib/choreographies/active-inscription";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import { resolveChoreographyPricingScheduleId } from "@/lib/finances/choreography-pricing-schedule";
 import {
@@ -175,8 +176,13 @@ export async function loadCobroContext(
     return { ok: false, message: "No encontramos el evento." };
   }
 
+  // A charge over the choreography only reaches its active inscriptions: a
+  // withdrawn one owes nothing, so there is no stage to charge it for.
   const inscriptions = await tx.query.choreographyDancers.findMany({
-    where: eq(choreographyDancers.choreographyId, input.choreographyId),
+    where: and(
+      eq(choreographyDancers.choreographyId, input.choreographyId),
+      activeInscription(),
+    ),
   });
 
   if (inscriptions.length === 0) {

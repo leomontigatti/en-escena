@@ -8,6 +8,7 @@ import {
   schedules,
 } from "@/db/schema";
 import type { DancerInscription } from "@/lib/admin/dancers/dancers.server.types";
+import { activeInscription } from "@/lib/choreographies/active-inscription";
 import { resolveApplicablePrice } from "@/lib/prices/repository.server";
 
 export async function findDancerInscriptions(input: {
@@ -49,6 +50,7 @@ export async function findDancerInscriptions(input: {
       and(
         eq(choreographyDancers.dancerId, input.dancerId),
         eq(choreographies.eventId, selectedEventId),
+        activeInscription(),
       ),
     )
     .orderBy(asc(sql`lower(${choreographies.name})`));

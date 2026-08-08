@@ -39,6 +39,7 @@ type InscriptionRow = {
   dancerId: string;
   selectedPriceId: string | null;
   depositReferenceDate: string | null;
+  withdrawnAt: Date | null;
 };
 
 export type AcademyEventOperationalFinanceDetail = {
@@ -191,7 +192,16 @@ async function readAcademyEventFinance(input: {
             dancerId: choreographyDancers.dancerId,
             selectedPriceId: choreographyDancers.selectedPriceId,
             depositReferenceDate: choreographyDancers.depositReferenceDate,
+            withdrawnAt: choreographyDancers.withdrawnAt,
           })
+          // No `activeInscription()` here, and not because of a display
+          // exception: this is the shared money rollup, read by four route
+          // servers — the two admin finance surfaces and the two portal ones —
+          // and a withdrawn row's retained money is still the choreography's.
+          // Dropping it here would take that money out of every rollup built on
+          // top. What withdrawal changes is how the row's figures are derived
+          // and which rollups it feeds, not whether it is read; each surface
+          // decides on its own whether to display it.
           .from(choreographyDancers)
           .where(
             inArray(
@@ -269,8 +279,10 @@ async function readAcademyEventFinance(input: {
       const priceAmount = priceAmountByInscription.get(inscription.id) ?? null;
       const dancerDiscountAmount =
         dancerDiscounts.get(inscription.id)?.amount ?? 0;
+      const withdrawn = inscription.withdrawnAt !== null;
       const figures = deriveInscriptionFinancialFigures({
         allocatedAmount: allocationByInscription.get(inscription.id) ?? 0,
+        withdrawn,
         thresholds: {
           depositAmount:
             priceAmount === null
@@ -294,6 +306,7 @@ async function readAcademyEventFinance(input: {
         dancerId: inscription.dancerId,
         depositReferenceDate: inscription.depositReferenceDate,
         id: inscription.id,
+        withdrawn,
       };
     },
   );
@@ -368,6 +381,9 @@ function resolveInscriptionPriceAmount(input: {
  * El `Descuento por bailarín` califica sobre el **roster vivo**: toda
  * inscripción del bailarín con precio resoluble cuenta. No puede depender del
  * estado financiero, que se deriva del total, que ya contiene este descuento.
+ *
+ * Live roster means without the withdrawn ones: an inscription that was taken
+ * off the roster cannot keep making its siblings cheaper.
  */
 function buildDancerDiscounts(input: {
   inscriptionRows: InscriptionRow[];
@@ -381,7 +397,11 @@ function buildDancerDiscounts(input: {
   for (const inscription of input.inscriptionRows) {
     const priceAmount = input.priceAmountByInscription.get(inscription.id);
 
-    if (priceAmount === null || priceAmount === undefined) {
+    if (
+      inscription.withdrawnAt !== null ||
+      priceAmount === null ||
+      priceAmount === undefined
+    ) {
       continue;
     }
 

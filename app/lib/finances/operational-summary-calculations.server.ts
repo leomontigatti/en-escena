@@ -52,6 +52,10 @@ export type ResolvedInscription = {
   owedDepositAmount: number | null;
   overAllocatedAmount: number | null;
   depositReferenceDate: string | null;
+  // Roster withdrawal, not a money status. It decides which rollup the row
+  // enters and which badge it carries; its figures already come derived
+  // accordingly.
+  withdrawn: boolean;
 };
 
 export type FinanceChoreographyRow = {
@@ -66,6 +70,12 @@ export type FinanceChoreographyRow = {
 /**
  * Las mismas cifras que una inscripción, sumadas sobre las suyas. El estado no
  * se suma: es el mínimo (ver `deriveChoreographyFinancialStatus`).
+ *
+ * The two rollups part ways on withdrawn rows: a withdrawn inscription enters
+ * the money one —its total is what was retained, and that money belongs to this
+ * choreography— and stays out of the status one, because the choreography's
+ * badge answers *can this be performed as choreographed?* and a withdrawn row is
+ * no longer part of that answer.
  */
 export type ChoreographyOperationalFinanceRow = {
   allocatedAmount: number;
@@ -189,7 +199,9 @@ export function buildChoreographyOperationalFinanceRow(input: {
     depositAmount: depositAmount.build(),
     depositCompletedOn,
     financialStatus: deriveChoreographyFinancialStatus(
-      input.inscriptions.map((inscription) => inscription.financialStatus),
+      input.inscriptions
+        .filter((inscription) => !inscription.withdrawn)
+        .map((inscription) => inscription.financialStatus),
     ),
     groupType: input.choreography.groupType,
     id: input.choreography.id,
@@ -197,7 +209,9 @@ export function buildChoreographyOperationalFinanceRow(input: {
     overAllocatedAmount,
     owedBalanceAmount: owedBalanceAmount.build(),
     owedDepositAmount: owedDepositAmount.build(),
-    registrationCount: input.inscriptions.length,
+    registrationCount: input.inscriptions.filter(
+      (inscription) => !inscription.withdrawn,
+    ).length,
     totalAmount: totalAmount.build(),
   };
 }

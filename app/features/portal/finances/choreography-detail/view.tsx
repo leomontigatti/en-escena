@@ -26,8 +26,9 @@ import {
 import type { loadPortalChoreographyFinanceDetail } from "@/features/portal/finances/choreography-detail/server";
 import {
   formatInscriptionFinancialStatus,
-  getInscriptionFinancialStatusBadgeVariant,
+  formatInscriptionStatusBadge,
 } from "@/lib/finances/choreography-financial-status";
+import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
 import { choreographyGroupTypeOptions } from "@/lib/portal/choreographies";
 
 type PortalChoreographyFinanceDetailLoaderData = Awaited<
@@ -143,15 +144,7 @@ function InscriptionsTable({
                     {inscription.firstName} {inscription.lastName}
                   </TableCell>
                   <TableCell>
-                    <Badge
-                      variant={getInscriptionFinancialStatusBadgeVariant(
-                        inscription.financialStatus,
-                      )}
-                    >
-                      {formatInscriptionFinancialStatus(
-                        inscription.financialStatus,
-                      )}
-                    </Badge>
+                    <InscriptionStatusBadge inscription={inscription} />
                   </TableCell>
                   <TableCell className={amountColumnClassName}>
                     {formatInscriptionAmount(inscription.basePriceAmount)}
@@ -186,6 +179,34 @@ function InscriptionsTable({
         </Button>
       </CardFooter>
     </Card>
+  );
+}
+
+/**
+ * The academy reads the same badge as the admin, through the same resolver: a
+ * withdrawn inscription reads `Retirada` with what was retained on it, not the
+ * status of a roster it is no longer part of. The money is theirs and they have
+ * to be able to see it.
+ */
+function InscriptionStatusBadge({
+  inscription,
+}: {
+  inscription: InscriptionRow;
+}) {
+  const badge = formatInscriptionStatusBadge(
+    resolveInscriptionStatusBadge({
+      anomalies: [],
+      financialStatus: inscription.financialStatus,
+      withdrawn: inscription.withdrawn,
+    }),
+  );
+
+  return (
+    <Badge variant={badge.variant}>
+      {badge.kind === "withdrawn"
+        ? `${badge.label} · ${formatAmount(inscription.allocatedAmount)}`
+        : badge.label}
+    </Badge>
   );
 }
 

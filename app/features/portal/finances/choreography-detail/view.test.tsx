@@ -101,6 +101,7 @@ function inscriptionFixture(
     owedBalanceAmount: 7000,
     owedDepositAmount: 0,
     totalAmount: 10000,
+    withdrawn: false,
     ...overrides,
   };
 }
