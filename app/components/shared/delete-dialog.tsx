@@ -70,7 +70,19 @@ function DeleteDialog({
               : "Esta acción es irreversible."}
           </AlertDescription>
         </Alert>
-        {details}
+        {/* The details are the only part that grows with the record — a payment
+            can reach dozens of choreographies — so they are the part that
+            scrolls. Everything else, and the footer above all, stays in view:
+            a confirmation whose `Cancelar` and `Eliminar` are out of reach is
+            not a confirmation (#708). */}
+        {details ? (
+          <div
+            data-slot="delete-dialog-details"
+            className="max-h-[45vh] overflow-y-auto overscroll-contain"
+          >
+            {details}
+          </div>
+        ) : null}
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isPending}>
             {isBlocked ? "Cerrar" : "Cancelar"}

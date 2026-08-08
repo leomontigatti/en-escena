@@ -111,4 +111,32 @@ describe("DeleteDialog", () => {
 
     expect(document.body.textContent).toContain("Coreografía afectada: Vals");
   });
+
+  // Regression (#708): a payment reaching eleven choreographies pushed the
+  // footer off the screen, so the confirmation could not be cancelled or
+  // confirmed. The details are bounded and scroll; the rest does not.
+  test("bounds the details slot so the footer stays reachable", async () => {
+    useNavigationMock.mockReturnValue({ state: "idle" });
+
+    await renderDialog({
+      details: <p>Coreografía afectada: Vals</p>,
+    });
+
+    const details = document.querySelector(
+      '[data-slot="delete-dialog-details"]',
+    );
+
+    expect(details?.className).toContain("overflow-y-auto");
+    expect(details?.className).toContain("max-h-");
+  });
+
+  test("leaves no details wrapper behind when there are no details", async () => {
+    useNavigationMock.mockReturnValue({ state: "idle" });
+
+    await renderDialog();
+
+    expect(
+      document.querySelector('[data-slot="delete-dialog-details"]'),
+    ).toBeNull();
+  });
 });
