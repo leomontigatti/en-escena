@@ -53,9 +53,9 @@ describe("formatInscriptionStatusBadge", () => {
 
 describe("choreographyStatusFilterOptions", () => {
   test("offers every badge the choreography column can show", () => {
-    // El filtro de la columna `Estado` y el badge que la celda muestra salen del
-    // mismo par de funciones: si un eje derivado nuevo pudiera badgear una
-    // coreografía sin estar acá, la fila se volvería infiltrable.
+    // The `Estado` column filter and the badge the cell shows come from the
+    // same pair of functions: if a new derived axis could badge a choreography
+    // without being here, the row would become unfilterable.
     const reachable = [
       ...everyStatus.map((status) =>
         resolveInscriptionStatusBadge({

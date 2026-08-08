@@ -57,7 +57,8 @@ describe("ChoreographyFinanceDetailView", () => {
       ],
     });
 
-    // Reemplaza al estado, no lo acompaña, y lleva encima la plata retenida.
+    // It replaces the status rather than accompanying it, and it carries the
+    // retained money with it.
     expect(markup).toContain("Retirada · $ 3.000");
     expect(markup).not.toContain("Pagada");
   });

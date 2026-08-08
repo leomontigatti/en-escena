@@ -168,8 +168,8 @@ describe.sequential("portal choreographies reads", () => {
       ),
     });
 
-    // El roster del portal no es una de las cuatro superficies que muestran
-    // evidencia: la academia ve quiénes están inscriptos.
+    // The portal roster is not one of the four surfaces that show evidence:
+    // the academy sees who is enrolled.
     expect(detail.choreography?.dancers).toMatchObject([
       { firstName: "Sol", lastName: "Queda" },
     ]);

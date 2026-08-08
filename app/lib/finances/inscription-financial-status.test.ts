@@ -181,8 +181,8 @@ describe("deriveInscriptionFinancialFigures on a withdrawn inscription", () => {
       withdrawn: true,
     });
 
-    // La seña puede haberse perdido: la plata que quedó es el registro de esa
-    // retención, así que dinero y obligación son el mismo número.
+    // The deposit may have been forfeited: the money left on the row is the
+    // record of that retention, so money and obligation are the same number.
     expect(figures.totalAmount).toBe(3000);
     expect(figures.allocatedAmount).toBe(3000);
     expect(figures.owedBalanceAmount).toBe(0);

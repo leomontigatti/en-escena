@@ -352,7 +352,8 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
       eventId: event.id,
       paymentNumber: 1,
     });
-    // Se retiró con la seña encima: esa plata se retuvo y la fila la documenta.
+    // It was withdrawn with the deposit on it: that money was retained, and the
+    // row is what documents it.
     await db.insert(paymentAllocations).values({
       academyId: academy.academy.id,
       amount: 3000,
@@ -374,22 +375,23 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
 
     expect(withdrawnRow).toMatchObject({
       allocatedAmount: 3000,
-      // Su total es lo que quedó asignado, no cero ni el precio.
+      // Its total is what remains allocated, neither zero nor the price.
       totalAmount: 3000,
-      // Sin obligación pendiente, y `Sobreasignada` no puede dispararse.
+      // No obligation left outstanding, and `Sobreasignada` cannot fire.
       anomalies: [],
       overAllocatedAmount: 0,
       owedBalanceAmount: 0,
       owedDepositAmount: 0,
-      // La seña sigue expuesta: es lo que el preset que quita el saldo mira.
+      // The deposit stays exposed: it is what the remove-the-balance preset
+      // looks at.
       depositAmount: 3000,
       withdrawn: true,
     });
     expect(loaderData.choreography).toMatchObject({
-      // La plata retenida vuelve al rollup de dinero de la coreografía…
+      // The retained money re-enters the choreography's money rollup…
       allocatedAmount: 3000,
       totalAmount: { amount: 13000, status: "complete" },
-      // …y el estado lo decide sólo la inscripción que sigue en el roster.
+      // …and the status is decided by the inscription still on the roster alone.
       financialStatus: "depositPending",
       owedBalanceAmount: { amount: 10000, status: "complete" },
       owedDepositAmount: { amount: 3000, status: "complete" },

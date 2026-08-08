@@ -166,8 +166,8 @@ export async function findChoreographyForAcademyEvent(
       })
       .from(choreographyDancers)
       .innerJoin(dancers, eq(choreographyDancers.dancerId, dancers.id))
-      // El roster del portal no es una de las cuatro excepciones: la academia
-      // ve acá quiénes están inscriptos, y un bailarín que quitó no lo está.
+      // The portal roster is not one of the four exceptions: here the academy
+      // sees who is enrolled, and a dancer it removed is not.
       .where(
         and(
           eq(choreographyDancers.choreographyId, choreographyId),

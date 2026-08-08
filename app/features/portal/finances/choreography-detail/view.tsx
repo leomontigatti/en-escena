@@ -183,9 +183,10 @@ function InscriptionsTable({
 }
 
 /**
- * La academia lee el mismo badge que el admin, por el mismo resolvedor: una
- * inscripción retirada lee `Retirada` con lo que quedó retenido, no el estado de
- * un roster del que ya no forma parte. Es plata suya y tiene que poder verla.
+ * The academy reads the same badge as the admin, through the same resolver: a
+ * withdrawn inscription reads `Retirada` with what was retained on it, not the
+ * status of a roster it is no longer part of. The money is theirs and they have
+ * to be able to see it.
  */
 function InscriptionStatusBadge({
   inscription,

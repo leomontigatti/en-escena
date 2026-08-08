@@ -32,10 +32,10 @@ export type ChoreographyInscriptionRow = {
  * roster es la lista que la academia ve, y un bailarín sin inscripción lee como
  * `Seña pendiente` sin importes.
  *
- * Las retiradas se leen a propósito —el detalle financiero es una de las cuatro
- * superficies que muestran evidencia—, y por eso esta consulta no lleva
- * `activeInscription()`: la fila retirada es lo que documenta que su plata quedó
- * retenida.
+ * Withdrawn rows are read on purpose —the financial detail is one of the four
+ * surfaces that show evidence—, which is why this query carries no
+ * `activeInscription()`: the withdrawn row is what documents that its money was
+ * retained.
  */
 export async function readChoreographyInscriptionRows(input: {
   academyEventInscriptions: AcademyEventFinanceInscriptions;

@@ -206,9 +206,9 @@ function buildChoreographyFinanceColumns(
       id: "financialStatus",
       header: "Estado",
       cell: (row) => <ChoreographyStatusCell row={row} />,
-      // El filtro sale del mismo badge que la celda muestra, no de
-      // `financialStatus`: una fila badgeada `Sobreasignada` que apareciera al
-      // filtrar por `Señada` se contradiría en pantalla.
+      // The filter comes from the same badge the cell shows, not from
+      // `financialStatus`: a row badged `Sobreasignada` that turned up while
+      // filtering by `Señada` would contradict itself on screen.
       filterValue: (row) => formatChoreographyStatusBadge(row).value,
     },
   ];
@@ -219,9 +219,10 @@ function buildChoreographyFinanceColumns(
  * por la misma mirada, y `Señada` al lado de `Sobreasignada` se lee como dos
  * hechos del mismo peso cuando sólo uno pide que alguien haga algo.
  *
- * La precedencia entre ejes vive en `resolveInscriptionStatusBadge` y es
- * explícita, no posicional: un eje derivado nuevo se apila declarándose ahí, sin
- * depender del orden en que alguien empujó su anomalía al arreglo.
+ * The precedence between axes lives in `resolveInscriptionStatusBadge` and is
+ * explicit, not positional: a new derived axis stacks on top by declaring
+ * itself there, without depending on the order in which someone pushed its
+ * anomaly into the array.
  */
 function formatChoreographyStatusBadge(row: ChoreographyFinanceRow) {
   return formatInscriptionStatusBadge(

@@ -176,8 +176,8 @@ export async function loadCobroContext(
     return { ok: false, message: "No encontramos el evento." };
   }
 
-  // Un cobro sobre la coreografía sólo alcanza a sus inscripciones activas: una
-  // retirada no adeuda nada, así que no hay etapa que cobrarle.
+  // A charge over the choreography only reaches its active inscriptions: a
+  // withdrawn one owes nothing, so there is no stage to charge it for.
   const inscriptions = await tx.query.choreographyDancers.findMany({
     where: and(
       eq(choreographyDancers.choreographyId, input.choreographyId),

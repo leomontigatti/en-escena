@@ -93,8 +93,9 @@ describe("active inscription predicate", () => {
       new Set([dancerA.id, dancerC.id]),
     );
 
-    // El `exists` de participación arma su SQL a mano y con su propio alias, así
-    // que es el consumidor real del gemelo: una retirada no participa.
+    // The participation `exists` builds its SQL by hand and with its own alias,
+    // so it is the real consumer of the twin: a withdrawn row does not
+    // participate.
     const participation = await db
       .select({
         id: dancersTable.id,

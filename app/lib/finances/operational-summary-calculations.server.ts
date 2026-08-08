@@ -52,8 +52,9 @@ export type ResolvedInscription = {
   owedDepositAmount: number | null;
   overAllocatedAmount: number | null;
   depositReferenceDate: string | null;
-  // Baja del roster, no estado de dinero. Decide en qué rollup entra la fila y
-  // qué badge lleva; sus cifras ya vienen derivadas en consecuencia.
+  // Roster withdrawal, not a money status. It decides which rollup the row
+  // enters and which badge it carries; its figures already come derived
+  // accordingly.
   withdrawn: boolean;
 };
 
@@ -70,11 +71,11 @@ export type FinanceChoreographyRow = {
  * Las mismas cifras que una inscripción, sumadas sobre las suyas. El estado no
  * se suma: es el mínimo (ver `deriveChoreographyFinancialStatus`).
  *
- * Los dos rollups se separan en las retiradas: una inscripción retirada entra en
- * el de plata —su total es lo que quedó retenido, y eso es plata de esta
- * coreografía— y queda fuera del de estado, porque el badge de la coreografía
- * responde *¿puede presentarse como está coreografiada?* y una fila retirada ya
- * no forma parte de esa respuesta.
+ * The two rollups part ways on withdrawn rows: a withdrawn inscription enters
+ * the money one —its total is what was retained, and that money belongs to this
+ * choreography— and stays out of the status one, because the choreography's
+ * badge answers *can this be performed as choreographed?* and a withdrawn row is
+ * no longer part of that answer.
  */
 export type ChoreographyOperationalFinanceRow = {
   allocatedAmount: number;

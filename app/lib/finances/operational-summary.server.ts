@@ -194,11 +194,14 @@ async function readAcademyEventFinance(input: {
             depositReferenceDate: choreographyDancers.depositReferenceDate,
             withdrawnAt: choreographyDancers.withdrawnAt,
           })
-          // Una de las cuatro excepciones: la lista financiera de la academia
-          // muestra las retiradas a propósito, porque la plata retenida es de
-          // ella y tiene que estar a la vista. Por eso acá no va
-          // `activeInscription()`; lo que la retirada cambia es cómo se derivan
-          // sus cifras, no si se lee.
+          // No `activeInscription()` here, and not because of a display
+          // exception: this is the shared money rollup, read by four route
+          // servers — the two admin finance surfaces and the two portal ones —
+          // and a withdrawn row's retained money is still the choreography's.
+          // Dropping it here would take that money out of every rollup built on
+          // top. What withdrawal changes is how the row's figures are derived
+          // and which rollups it feeds, not whether it is read; each surface
+          // decides on its own whether to display it.
           .from(choreographyDancers)
           .where(
             inArray(
@@ -379,8 +382,8 @@ function resolveInscriptionPriceAmount(input: {
  * inscripción del bailarín con precio resoluble cuenta. No puede depender del
  * estado financiero, que se deriva del total, que ya contiene este descuento.
  *
- * Roster vivo quiere decir sin las retiradas: una inscripción dada de baja no
- * puede seguir abaratando a sus hermanas.
+ * Live roster means without the withdrawn ones: an inscription that was taken
+ * off the roster cannot keep making its siblings cheaper.
  */
 function buildDancerDiscounts(input: {
   inscriptionRows: InscriptionRow[];

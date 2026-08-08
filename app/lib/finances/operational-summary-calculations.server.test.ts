@@ -231,7 +231,7 @@ describe("buildChoreographyOperationalFinanceRow", () => {
           owedBalanceAmount: 0,
           owedDepositAmount: 0,
         }),
-        // Retirada con la seña retenida: su total es lo que quedó asignado.
+        // Withdrawn with the deposit retained: its total is what remains allocated.
         resolvedInscription({
           allocatedAmount: 3000,
           financialStatus: "paidInFull",
@@ -245,12 +245,12 @@ describe("buildChoreographyOperationalFinanceRow", () => {
       ],
     });
 
-    // La plata retenida sigue siendo de esta coreografía.
+    // The retained money still belongs to this choreography.
     expect(row.allocatedAmount).toBe(13000);
     expect(row.totalAmount).toEqual({ amount: 13000, status: "complete" });
     expect(row.owedBalanceAmount).toEqual({ amount: 0, status: "complete" });
-    // El estado responde *¿puede presentarse?*, y la fila retirada ya no es
-    // parte de esa respuesta; tampoco cuenta como inscripción.
+    // The status answers *can it be performed?*, and the withdrawn row is no
+    // longer part of that answer; nor does it count as an inscription.
     expect(row.financialStatus).toBe("paidInFull");
     expect(row.registrationCount).toBe(1);
   });
@@ -266,8 +266,8 @@ describe("buildChoreographyOperationalFinanceRow", () => {
           owedBalanceAmount: 0,
           owedDepositAmount: 0,
         }),
-        // El estado de una retirada no se muestra en ningún lado; el rollup
-        // tiene que ignorarlo aunque valga `depositPending`.
+        // A withdrawn row's status is shown nowhere; the rollup has to ignore
+        // it even when it reads `depositPending`.
         resolvedInscription({
           financialStatus: "depositPending",
           id: "i2",

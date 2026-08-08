@@ -468,14 +468,15 @@ const inscriptionAmountColumns: DataTableColumn<InscriptionRow>[] = [
 ];
 
 /**
- * El badge de la columna `Estado`. `Retirada` **reemplaza** al estado, igual que
- * una anomalía: el eje de baja del roster y el de dinero no conviven en la misma
- * celda.
+ * The badge of the `Estado` column. `Retirada` **replaces** the status, just as
+ * an anomaly does: the roster-withdrawal axis and the money axis do not share a
+ * cell.
  *
- * Lleva el monto retenido adentro porque es la mitad del hecho: la fila sigue
- * ahí *porque* quedó plata encima, y una `Retirada` sola no diría cuánta. Es el
- * mismo número que la columna `Total` —para una retirada el total **es** lo
- * asignado— y repetirlo acá es lo que hace que la celda se lea sola.
+ * It carries the retained amount inside because that is half of the fact: the
+ * row is still there *because* money was left on it, and a bare `Retirada`
+ * would not say how much. It is the same number as the `Total` column —for a
+ * withdrawn row the total **is** what is allocated— and repeating it here is
+ * what makes the cell readable on its own.
  */
 function InscriptionStatusCell({
   inscription,

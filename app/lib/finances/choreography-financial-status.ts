@@ -50,20 +50,20 @@ export function getInscriptionFinancialStatusBadgeVariant(
 }
 
 /**
- * `Retirada` es un eje derivado aparte —como `Facturada`—, no un cuarto valor del
- * enum de estado, así que tiene su propia etiqueta y su propia variante. Neutra
- * a propósito: una inscripción retirada no pide que nadie haga nada, sólo dice
- * que la plata que tiene encima quedó retenida.
+ * `Retirada` is a separate derived axis —like `Facturada`—, not a fourth value
+ * of the status enum, so it has its own label and its own variant. Neutral on
+ * purpose: a withdrawn inscription is not asking anyone to do anything, it only
+ * says that the money sitting on it was retained.
  */
 const withdrawnInscriptionLabel = "Retirada";
 const withdrawnInscriptionBadgeVariant = "secondary";
 
 /**
- * El único traductor del badge de la columna `Estado`: la precedencia entre ejes
- * la decide `resolveInscriptionStatusBadge`, y acá se le pone etiqueta, variante
- * y la clave con la que filtra. `value` es la misma cadena para las tres formas
- * porque los tres espacios de valores son disjuntos, y es lo que hace que el
- * filtro de la columna no pueda divergir de lo que la celda muestra.
+ * The only translator of the `Estado` column badge: the precedence between axes
+ * is decided by `resolveInscriptionStatusBadge`, and here it is given a label, a
+ * variant and the key it filters by. `value` is the same string for all three
+ * shapes because the three value spaces are disjoint, and that is what keeps the
+ * column filter from diverging from what the cell shows.
  */
 type FormattedInscriptionStatusBadge = {
   kind: InscriptionStatusBadge["kind"];
@@ -105,13 +105,13 @@ export function formatInscriptionStatusBadge(
 }
 
 /**
- * Las opciones del filtro `Estado` de la lista financiera: exactamente los badges
- * que esa columna puede mostrar. Filtrar por lo que se ve es la única lectura
- * posible de un filtro sobre una columna, y una fila badgeada `Sobreasignada` que
- * apareciera bajo `Señada` sería una contradicción en pantalla.
+ * The options of the financial list's `Estado` filter: exactly the badges that
+ * column can show. Filtering by what is visible is the only possible reading of
+ * a filter over a column, and a row badged `Sobreasignada` that turned up under
+ * `Señada` would be a contradiction on screen.
  *
- * `Retirada` no está: una coreografía no se retira —se retiran inscripciones—, y
- * ofrecer una opción que nunca puede coincidir es ofrecer una lista vacía.
+ * `Retirada` is not there: a choreography is not withdrawn —inscriptions are—,
+ * and offering an option that can never match is offering an empty list.
  */
 export const choreographyStatusFilterOptions = [
   ...inscriptionFinancialStatusOptions,

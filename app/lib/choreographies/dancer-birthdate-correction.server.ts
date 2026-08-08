@@ -77,8 +77,8 @@ export async function recalculateLinkedChoreographiesForDancerBirthDateCorrectio
     })
     .from(choreographyDancers)
     .innerJoin(dancers, eq(choreographyDancers.dancerId, dancers.id))
-    // La clasificación se recalcula sobre el roster vivo: una inscripción
-    // retirada no aporta edad ni cuenta para el tipo de grupo.
+    // The classification is recomputed over the live roster: a withdrawn
+    // inscription contributes no age and does not count towards the group type.
     .where(
       and(
         inArray(choreographyDancers.choreographyId, choreographyIds),
