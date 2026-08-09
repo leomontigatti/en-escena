@@ -46,18 +46,40 @@ function DialogOverlay({
 }
 
 /**
- * A pointer-down that landed on nothing: while a popover layer (a `Select`, a
- * combobox) is open it blocks pointer events on the `body`, so a click meant for
- * the dialog behind it hits the document instead of any element. Radix defers
- * the dialog's outside-pointer-down to the `click` that follows, and by then the
- * popover layer is gone, so the dialog reads that swallowed press as an
- * interaction outside itself and closes (#708).
+ * Refuses the press that only dismissed a layer above the dialog.
  *
- * A press that really is outside lands on the overlay, never here, so refusing
- * exactly this one leaves the dismiss affordance untouched.
+ * While a `Select` (or any layer that disables outside pointer events) is open
+ * over the dialog, Radix marks every element below it — the dialog content
+ * included — with an inline `pointer-events: none`, so the press that dismisses
+ * that layer lands on the overlay, exactly where a genuine outside press lands.
+ * Radix's own guard against acting on such a press is `isPointerEventsEnabled`,
+ * but the dialog defers its outside-pointer-down to the `click` that follows,
+ * and by then the layer above is gone and the guard reads as enabled: the
+ * dialog closes on a press the user meant for the select (#708).
+ *
+ * So the state has to be captured when the press happens, not when the dialog
+ * decides. The content's own inline `pointer-events` is Radix's signal for "a
+ * layer above me is capturing pointer events"; reading it during the capture
+ * phase of `pointerdown` — before any layer reacts — restores the guard at the
+ * only moment it is still true.
  */
-function isSwallowedPointerDown(target: EventTarget | null) {
-  return target === document.documentElement || target === document.body;
+function useLayerAbovePress(contentRef: React.RefObject<HTMLElement | null>) {
+  const wasLayerAboveOpenRef = React.useRef(false);
+
+  React.useEffect(() => {
+    function captureLayerState() {
+      wasLayerAboveOpenRef.current =
+        contentRef.current?.style.pointerEvents === "none";
+    }
+
+    document.addEventListener("pointerdown", captureLayerState, true);
+
+    return () => {
+      document.removeEventListener("pointerdown", captureLayerState, true);
+    };
+  }, [contentRef]);
+
+  return wasLayerAboveOpenRef;
 }
 
 function DialogContent({
@@ -66,6 +88,7 @@ function DialogContent({
   forceMount,
   onPointerDownOutside,
   overlayClassName,
+  ref,
   showCloseButton = true,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
@@ -74,12 +97,31 @@ function DialogContent({
   showCloseButton?: boolean;
 }) {
   const forceMountProps = forceMount ? { forceMount: true as const } : {};
+  const contentRef = React.useRef<HTMLDivElement | null>(null);
+  const wasLayerAboveOpenRef = useLayerAbovePress(contentRef);
+
+  const assignContentRef = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      contentRef.current = node;
+
+      if (typeof ref === "function") {
+        ref(node);
+        return;
+      }
+
+      if (ref) {
+        ref.current = node;
+      }
+    },
+    [ref],
+  );
 
   return (
     <DialogPortal {...forceMountProps}>
       <DialogOverlay {...forceMountProps} className={overlayClassName} />
       <DialogPrimitive.Content
         {...forceMountProps}
+        ref={assignContentRef}
         data-slot="dialog-content"
         className={cn(
           "fixed top-1/2 left-1/2 z-50 grid w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 rounded-lg border bg-background p-6 text-foreground shadow-lg duration-100 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
@@ -88,7 +130,7 @@ function DialogContent({
         onPointerDownOutside={(event) => {
           onPointerDownOutside?.(event);
 
-          if (isSwallowedPointerDown(event.detail.originalEvent.target)) {
+          if (wasLayerAboveOpenRef.current) {
             event.preventDefault();
           }
         }}

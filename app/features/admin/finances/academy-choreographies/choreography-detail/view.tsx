@@ -315,6 +315,7 @@ function InscriptionsTable({
       />
       {openInscription ? (
         <InscriptionMoneyDialog
+          key={openDancerId}
           inscription={openInscription}
           onOpenChange={closeMoneyDialog}
           priceOptions={priceOptions}

@@ -114,20 +114,27 @@ describe("DeleteDialog", () => {
 
   // Regression (#708): a payment reaching eleven choreographies pushed the
   // footer off the screen, so the confirmation could not be cancelled or
-  // confirmed. The details are bounded and scroll; the rest does not.
-  test("bounds the details slot so the footer stays reachable", async () => {
+  // confirmed. Bounding the dialog to the viewport is what keeps the footer
+  // reachable at any height; the details are the row that gives way and
+  // scrolls.
+  test("bounds the dialog to the viewport and scrolls the details", async () => {
     useNavigationMock.mockReturnValue({ state: "idle" });
 
     await renderDialog({
       details: <p>Coreografía afectada: Vals</p>,
     });
 
+    const content = document.querySelector(
+      '[data-slot="alert-dialog-content"]',
+    );
     const details = document.querySelector(
       '[data-slot="delete-dialog-details"]',
     );
 
+    expect(content?.className).toContain("max-h-[calc(100dvh-2rem)]");
+    expect(content?.className).toContain("grid-rows-[auto_auto_1fr_auto]");
     expect(details?.className).toContain("overflow-y-auto");
-    expect(details?.className).toContain("max-h-");
+    expect(details?.className).toContain("min-h-0");
   });
 
   test("leaves no details wrapper behind when there are no details", async () => {

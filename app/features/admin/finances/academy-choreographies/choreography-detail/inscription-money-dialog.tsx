@@ -412,15 +412,19 @@ function ReleaseExcessDialog({
  * The fetcher the three shapes write with, and the one rule about when the
  * dialog goes away: **only a write that went through closes it.** A refusal
  * comes back as a message in `fetcher.data` and has to stay readable, which it
- * is not if the dialog closes on top of it — the rule for a dialog write over a
- * list in `docs/agents/form-feedback.md`. The action redirects once it has
- * written, so a finished submission that brought nothing back is what a write
- * that went through looks like from here.
+ * is not if the dialog closes on top of it (#708).
+ *
+ * The refusal is read off `data.status`, not off the mere presence of `data`.
+ * Today the action redirects once it has written and so brings nothing back,
+ * which makes the two tests equivalent — but that is a deviation from the
+ * dialog-write row of `docs/agents/form-feedback.md`, which expects the result
+ * to come back from `fetcher.data`. Keying off presence would make the dialog
+ * silently stop closing the day the action is aligned to the matrix.
  */
 function useMoneyWriteFetcher(onOpenChange: (open: boolean) => void) {
   const fetcher = useFetcher<{ status: "error"; message: string }>();
   const isSaving = fetcher.state !== "idle";
-  const isRefused = fetcher.data !== undefined;
+  const isRefused = fetcher.data?.status === "error";
   const hasSubmittedRef = useRef(false);
 
   useEffect(() => {
