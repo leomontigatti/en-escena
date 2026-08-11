@@ -24,6 +24,8 @@ describe("AcademyFinancesRouteView", () => {
               loaderData={academyFinancesLoaderDataFixture({
                 summary: {
                   availableBalanceAmount: 5000,
+                  depositAmount: { amount: 9000, status: "complete" },
+                  totalAmount: { amount: 30000, status: "complete" },
                   owedBalanceAmount: { amount: 10000, status: "complete" },
                   owedDepositAmount: { amount: 3000, status: "complete" },
                   totalPaidAmount: 5000,
@@ -341,6 +343,8 @@ function academyFinancesLoaderDataFixture(
     selectedEventId: "event_1",
     summary: {
       availableBalanceAmount: 0,
+      depositAmount: { amount: 18000, status: "complete" },
+      totalAmount: { amount: 60000, status: "complete" },
       owedBalanceAmount: { amount: 20000, status: "complete" },
       owedDepositAmount: { amount: 6000, status: "complete" },
       totalPaidAmount: 0,

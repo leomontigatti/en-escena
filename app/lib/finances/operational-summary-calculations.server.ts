@@ -220,9 +220,17 @@ export function buildOperationalFinanceSummaryFromChoreographyRows(input: {
   const owedBalanceAmount = sumOperationalFinanceAmounts(
     input.choreographyFinanceRows.map((row) => row.owedBalanceAmount),
   );
+  const depositAmount = sumOperationalFinanceAmounts(
+    input.choreographyFinanceRows.map((row) => row.depositAmount),
+  );
+  const totalAmount = sumOperationalFinanceAmounts(
+    input.choreographyFinanceRows.map((row) => row.totalAmount),
+  );
 
   return {
     availableBalanceAmount: input.availableBalanceAmount,
+    depositAmount: buildOperationalFinanceAmount(depositAmount),
+    totalAmount: buildOperationalFinanceAmount(totalAmount),
     owedBalanceAmount: buildOperationalFinanceAmount(owedBalanceAmount),
     owedDepositAmount: buildOperationalFinanceAmount(owedDepositAmount),
     totalPaidAmount: input.totalPaidAmount,

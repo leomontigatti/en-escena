@@ -252,6 +252,8 @@ describe.sequential("administracion finanzas academia", () => {
     ]);
     expect(loaderData.summary).toEqual({
       availableBalanceAmount: 0,
+      depositAmount: { amount: 3600, status: "complete" },
+      totalAmount: { amount: 12000, status: "complete" },
       owedBalanceAmount: { amount: 8400, status: "complete" },
       owedDepositAmount: { amount: 0, status: "complete" },
       totalPaidAmount: 3600,
@@ -547,6 +549,8 @@ describe.sequential("administracion finanzas academia", () => {
     ).toEqual([25000, 8000]);
     expect(loaderData.summary).toEqual({
       availableBalanceAmount: 33000,
+      depositAmount: { status: "complete", amount: 0 },
+      totalAmount: { status: "complete", amount: 0 },
       owedBalanceAmount: { status: "complete", amount: 0 },
       owedDepositAmount: { status: "complete", amount: 0 },
       totalPaidAmount: 33000,

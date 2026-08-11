@@ -11,6 +11,10 @@ export type OperationalFinanceAmount =
 
 export type OperationalFinanceSummary = {
   availableBalanceAmount: number;
+  // `Seña` y `Total`: los dos umbrales de la academia, sumados sobre sus
+  // coreografías. Son contexto —contra qué se mide lo adeudado—, no deuda.
+  depositAmount: OperationalFinanceAmount;
+  totalAmount: OperationalFinanceAmount;
   // `Saldo adeudado`: bruto, suma del faltante de cada inscripción contra su
   // total. No descuenta `Saldo disponible`.
   owedBalanceAmount: OperationalFinanceAmount;
@@ -43,6 +47,8 @@ export function incompleteOperationalFinanceAmount(input: {
 export function emptyOperationalFinanceSummary(): OperationalFinanceSummary {
   return {
     availableBalanceAmount: 0,
+    depositAmount: completeOperationalFinanceAmount(0),
+    totalAmount: completeOperationalFinanceAmount(0),
     owedBalanceAmount: completeOperationalFinanceAmount(0),
     owedDepositAmount: completeOperationalFinanceAmount(0),
     totalPaidAmount: 0,

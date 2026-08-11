@@ -268,37 +268,40 @@ describe.sequential("administracion finanzas", () => {
     });
 
     expect(loaderData.selectedEventId).toBe(event.id);
-    // Norte: pagos 20000 - asignaciones 13000 = disponible 7000; seña adeudada
-    // 3000 (la que no llegó al umbral); saldo adeudado 17000 = 7000 de la que
-    // cubrió la seña + 10000 de la que no tiene nada, que adeuda las dos cosas.
-    // Sur: pagos 3000 - asignaciones 0 = disponible 3000; seña adeudada 3000;
-    // saldo adeudado 10000, el total de su única inscripción sin dinero.
+    // Norte: tres inscripciones de 10000 con seña 3000 cada una → seña 9000 y
+    // total 30000, la pagada incluida: los umbrales son contexto, no deuda.
+    // Pagos 20000 - asignaciones 13000 = disponible 7000; saldo adeudado 17000
+    // = 7000 de la que cubrió la seña + 10000 de la que no tiene nada.
+    // Sur: una sola inscripción → seña 3000 y total 10000; pagos 3000 -
+    // asignaciones 0 = disponible 3000; saldo adeudado 10000.
     expect(loaderData.rows).toEqual([
       {
         academyId: academyNorth.academy.id,
         academyName: "Academia Norte",
         availableBalanceAmount: 7000,
+        depositAmount: { status: "complete", amount: 9000 },
+        totalAmount: { status: "complete", amount: 30000 },
         owedBalanceAmount: { status: "complete", amount: 17000 },
-        owedDepositAmount: { status: "complete", amount: 3000 },
       },
       {
         academyId: academySouth.academy.id,
         academyName: "Academia Sur",
         availableBalanceAmount: 3000,
+        depositAmount: { status: "complete", amount: 3000 },
+        totalAmount: { status: "complete", amount: 10000 },
         owedBalanceAmount: { status: "complete", amount: 10000 },
-        owedDepositAmount: { status: "complete", amount: 3000 },
       },
     ]);
     expect(markup).toContain("Finanzas");
     expect(markup).toContain(
       `/administracion/finanzas/${academyNorth.academy.id}`,
     );
-    expect(markup).toContain("Seña adeudada");
-    expect(markup).toContain("Saldo disponible");
+    expect(markup).toContain("Seña");
+    expect(markup).toContain("Total");
     expect(markup).toContain("Saldo adeudado");
+    expect(markup).toContain("Saldo disponible");
     expect(markup).toContain("$ 7.000");
     expect(markup).toContain("$ 3.000");
-    expect(markup).not.toContain("$ 20.000");
     expect(markup).not.toContain("Academia Fantasma");
     expect(markup).not.toContain("$ 3.333");
   });
@@ -353,21 +356,26 @@ describe.sequential("administracion finanzas", () => {
         academyId: academy.academy.id,
         academyName: "Academia Sin Precio",
         availableBalanceAmount: 0,
-        // La impaga sin precio adeuda seña y saldo, y no se puede cuantificar
-        // ninguno de los dos.
-        owedBalanceAmount: {
+        // Sin precio aplicable no hay umbral: ni la seña ni el total ni el
+        // saldo adeudado de la impaga se pueden cuantificar.
+        depositAmount: {
           status: "incomplete",
           amount: 0,
           missingPriceCount: 1,
         },
-        owedDepositAmount: {
+        totalAmount: {
+          status: "incomplete",
+          amount: 0,
+          missingPriceCount: 1,
+        },
+        owedBalanceAmount: {
           status: "incomplete",
           amount: 0,
           missingPriceCount: 1,
         },
       },
     ]);
-    expect(markup.match(/Pendiente/g)).toHaveLength(2);
+    expect(markup.match(/Pendiente/g)).toHaveLength(3);
   });
 
   test("lets admin create a payment from the payments form", async () => {

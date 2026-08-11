@@ -180,6 +180,18 @@ describe.sequential(
       expect(portalLoaderData.summary).toEqual({
         // 16600 pagos - 15600 asignaciones = 1000 disponible.
         availableBalanceAmount: 1000,
+        // Umbrales de las tres con precio (3000 + 3600 + 3600 de seña, 10000 +
+        // 12000 + 12000 de total); la que no tiene precio suma 1 al incompleto.
+        depositAmount: {
+          amount: 10200,
+          missingPriceCount: 1,
+          status: "incomplete",
+        },
+        totalAmount: {
+          amount: 34000,
+          missingPriceCount: 1,
+          status: "incomplete",
+        },
         // 8400 de faltante en la que cubrió su seña + 10000 de la que no tiene
         // nada, a precio vigente; la que no tiene precio suma 1 al incompleto.
         // Bruto: no descuenta el disponible.

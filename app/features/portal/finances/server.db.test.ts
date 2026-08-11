@@ -201,6 +201,9 @@ describe.sequential("loadPortalAcademyFinances", () => {
 
     expect(loaderData.summary).toEqual({
       availableBalanceAmount: 12000,
+      // Dos inscripciones de 10000 con seña 3000 cada una.
+      depositAmount: { status: "complete", amount: 6000 },
+      totalAmount: { status: "complete", amount: 20000 },
       // 7000 de faltante en la que cubrió su seña + 10000 de la que no tiene
       // nada. Bruto: los 12000 disponibles no se descuentan acá, se muestran en
       // su propia métrica.
@@ -352,6 +355,8 @@ describe.sequential("loadPortalAcademyFinances", () => {
 
     expect(portalLoaderData.summary).toEqual({
       availableBalanceAmount: 0,
+      depositAmount: { amount: 3600, status: "complete" },
+      totalAmount: { amount: 12000, status: "complete" },
       owedBalanceAmount: { amount: 8400, status: "complete" },
       owedDepositAmount: { amount: 0, status: "complete" },
       totalPaidAmount: 3600,

@@ -13,7 +13,6 @@ import {
   formatAmount,
   formatOperationalAmount,
 } from "@/features/admin/finances/formatters";
-import { cn } from "@/lib/shared/utils";
 
 import type { FinanceAccountRow, loadFinancesList } from "./server";
 
@@ -37,28 +36,22 @@ const accountColumns: DataTableColumn<FinanceAccountRow>[] = [
     sortValue: (row) => row.academyName,
   },
   {
-    id: "owedDepositAmount",
-    header: "Seña adeudada",
+    id: "depositAmount",
+    header: "Seña",
     className: "text-right tabular-nums",
     headerClassName: "text-right",
-    cell: (row) => formatOperationalAmount(row.owedDepositAmount),
+    cell: (row) => formatOperationalAmount(row.depositAmount),
   },
   {
-    id: "availableBalanceAmount",
-    header: "Saldo disponible",
-    className: "text-right tabular-nums",
+    id: "totalAmount",
+    header: "Total",
+    // Decorativo y sin condición, igual que en la tabla de coreografías:
+    // `Total` es la columna de contexto —contra qué se mide lo adeudado—, así
+    // que va atenuada entera. Nunca por fila: un gris que varía vuelve a
+    // significar algo.
+    className: "text-right tabular-nums text-muted-foreground",
     headerClassName: "text-right",
-    // Una academia sin saldo a favor es el caso normal: atenuarlo deja que las
-    // que sí tienen plata disponible salten a la vista.
-    cell: (row) => (
-      <span
-        className={cn(
-          row.availableBalanceAmount === 0 && "text-muted-foreground",
-        )}
-      >
-        {formatAmount(row.availableBalanceAmount)}
-      </span>
-    ),
+    cell: (row) => formatOperationalAmount(row.totalAmount),
   },
   {
     id: "owedBalanceAmount",
@@ -66,6 +59,13 @@ const accountColumns: DataTableColumn<FinanceAccountRow>[] = [
     className: "text-right tabular-nums",
     headerClassName: "text-right",
     cell: (row) => formatOperationalAmount(row.owedBalanceAmount),
+  },
+  {
+    id: "availableBalanceAmount",
+    header: "Saldo disponible",
+    className: "text-right tabular-nums",
+    headerClassName: "text-right",
+    cell: (row) => formatAmount(row.availableBalanceAmount),
   },
 ];
 
@@ -76,7 +76,7 @@ export function FinancesListRouteView({
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
       title="Finanzas"
-      description="Saldo de cada academia en el evento activo: seña adeudada, saldo disponible y saldo adeudado."
+      description="Saldo de cada academia en el evento activo: seña, total, saldo adeudado y saldo disponible."
       eventRequiredEmptyState={{
         title: "No hay un evento activo para operar finanzas",
         description:
