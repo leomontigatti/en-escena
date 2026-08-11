@@ -42,6 +42,23 @@ require_env() {
   fi
 }
 
+# A schemeless endpoint is rejected by the awscli, but only once it is already
+# running and talking about its own --endpoint-url flag. Failing here instead
+# names the variable that drifted, which is what an operator has to go fix.
+require_url_env() {
+  name="$1"
+  require_env "$name"
+  eval "value=\${$name:-}"
+
+  case "$value" in
+    http://* | https://*) ;;
+    *)
+      echo "Invalid $name: must start with http:// or https:// (got: $value)" >&2
+      exit 1
+      ;;
+  esac
+}
+
 require_command() {
   command_name="$1"
 
@@ -57,7 +74,7 @@ require_env DATABASE_URL
 # the break-glass path when you are on rylai with a local copy, and what makes
 # the script exercisable without credentials.
 if [ -z "${BACKUP_FILE:-}" ]; then
-  require_env B2_S3_ENDPOINT
+  require_url_env B2_S3_ENDPOINT
   require_env AWS_ACCESS_KEY_ID
   require_env AWS_SECRET_ACCESS_KEY
 
