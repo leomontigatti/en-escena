@@ -12,17 +12,17 @@ for _why_; read this for _what_. The identifier → UI term mapping is in
 
 Map #547 settled a model larger than what is built. Half of it shipped (#676,
 #710, #689); the invoicing half and the refund are specified and not implemented.
-Every statement here is therefore one of two things, and they are never mixed
+Every statement here is therefore one of three things, and they are never mixed
 silently:
 
 - **Unmarked prose describes the code as it runs.**
 - **A `> **Specified, not built.**` callout describes the settled target**, with
   the issue that owns it. Do not read those as behaviour.
+- **A `Known divergence` paragraph** records a place where the code disagrees
+  with the model on purpose or by defect, with the issue tracking it.
 
-A third marker, **Known divergence**, records a place where the code disagrees
-with the model on purpose or by defect, with the issue tracking it. When this
-document and the code disagree anywhere else, the code is right and this document
-is a bug — file it, do not fix one side silently.
+When this document and the code disagree anywhere else, the code is right and
+this document is a bug — file it, do not fix one side silently.
 
 ## Scope
 
@@ -37,7 +37,7 @@ is a bug — file it, do not fix one side silently.
 - Finances does not audit changes, and neither does the rest of the system.
 - Persisted monetary amounts are whole Argentine pesos; the UI shows no cents.
   Percentages are integers on the event row; amounts are rounded to the nearest
-  peso with `Math.round` (half away from zero) at the point they are derived.
+  peso with `Math.round` (half up, toward `+∞`) at the point they are derived.
 - `Administrador` mutates financial records; `Auditor` reads them.
 - Out of scope and deliberately undefined: `Descuento administrativo` (see
   "Descuento administrativo") and the lifecycle of a choreography with no active
@@ -94,8 +94,8 @@ move under an academy when a sibling roster changes a discount tier.
   choreography with a straggler read `Señada`, and `deriveChoreographyNeedsAttention`
   existed only to compensate for that; both are gone.
 - A choreography with no active inscriptions reads `Seña pendiente`.
-- Withdrawn inscriptions are excluded from this rollup, and only from this one:
-  they stay in the money rollup.
+- Withdrawn inscriptions are excluded from this rollup and from the
+  choreography's `registrationCount`. They stay in the money rollup.
 - It is not persisted, and it sorts and filters like any derived column.
 - It **may drop back**: a roster change or a de-allocation can un-stick `Pagada`.
   That is accepted; nothing prevents it and nothing records that it happened.
@@ -112,10 +112,15 @@ owedBalanceAmount   = max(0, totalAmount   − Σ allocations)
 overAllocatedAmount = max(0, Σ allocations − totalAmount)
 ```
 
-- **Scope-owned.** `inscription`, `choreography` and `academy` each carry
-  `depositAmount`, `totalAmount`, `owedDepositAmount` and `owedBalanceAmount`.
-  The wider scopes are plain sums of the narrower ones; there is no separate
-  per-scope rule and no per-status aggregation.
+- **Scope-owned, and the academy scope is the narrow one.** `inscription`
+  (`InscriptionFinancialFigures`) and `choreography`
+  (`ChoreographyOperationalFinanceRow`) each carry all four —
+  `depositAmount`, `totalAmount`, `owedDepositAmount`, `owedBalanceAmount`. The
+  academy scope (`OperationalFinanceSummary`) carries only the two owed ones,
+  alongside `availableBalanceAmount` and `totalPaidAmount`: there is **no
+  academy-level `depositAmount` and no academy-level `totalAmount`**. Where a
+  wider scope does carry a figure it is a plain sum of the narrower ones; there
+  is no separate per-scope rule and no per-status aggregation.
 - **The discount is applied once, inside `totalAmount`**, with no coalesce and no
   third subtrahend, so every consumer inherits it and none can forget it.
 - **`Seña adeudada` and `Saldo adeudado` are gross.** Neither subtracts
@@ -131,9 +136,15 @@ overAllocatedAmount = max(0, Σ allocations − totalAmount)
   amounts it contributes are **pending or incomplete, not zero**. The UI shows
   `Sin precio` for that cell.
 
-Every figure an academy reads is **exact and is exactly what must be paid**.
-There are no tentative amounts and no provisional-figure cue anywhere: a marking
-true of every figure distinguishes nothing.
+Every figure an academy reads on a **finance surface** is **exact and is exactly
+what must be paid**. Those surfaces carry no tentative amounts and no
+provisional-figure cue: a marking true of every figure distinguishes nothing.
+
+The one provisional cue in the panel is outside them. The admin dancer detail —
+not a finance surface — heads its column `Subtotal estimado` and disclaims that
+"Los importes son estimados y no reemplazan comprobantes financieros.", and it
+earns the disclaimer honestly, because it prices without the finance rules (see
+"Prices").
 
 The superseded per-inscription `Saldo de inscripción` (`base − deposit −
 discount`) is **gone, not renamed**: both of its subtrahends moved.
@@ -201,19 +212,29 @@ decision rather than an oversight.
 - The **effective price** is the stored row when it still resolves, and otherwise
   the currently applicable row; when neither resolves there is no price and the
   inscription's figures are incomplete.
-- The applicable row is chosen against the **business date** — today in the
-  business time zone, never a payment's date — preferring the row specific to the
-  choreography's schedule and group type, then the general row for that group
-  type.
+- **The stored row is the one the administrator picked**, never one the system
+  chose by date. An allocation write stores the row named in the dialog, and a
+  preset stores its per-group-type choice. The only validation is membership of
+  the choreography's candidate set — same event, same group type, and either the
+  choreography's own schedule row or the general one — **with no date filter at
+  all**, so a row whose `paymentDeadline` has passed can be selected and stored.
+- **The business date** — today in the business time zone, never a payment's date
+  — appears only on the **read** path, in `resolveEstimatedBasePriceAmount`. It
+  resolves the currently applicable row for an inscription that stores none,
+  preferring the row specific to the choreography's schedule and group type, then
+  the general row for that group type.
 - **The price is fixed by the first allocation, not by the calendar.** While an
-  inscription holds no money, each allocation write re-selects the applicable row
-  and stores it. From the first allocation on, the stored row is fixed: the write
-  path refuses a different row with "El precio queda fijo desde la primera
-  asignación...", and a database trigger on `choreography_dancer` refuses the
-  same update while any allocation row exists. **Taking the money off is what
-  releases the lock.**
-- The picker is filtered to the choreography's group type and schedule; offering
-  a foreign row would be offering to create a forbidden state.
+  inscription holds no money an allocation write may store a different row, and a
+  write that names no row leaves whatever is stored untouched — **nothing
+  refreshes the stored row on its own, at any point.** From the first allocation
+  on, the stored row is fixed: the write path refuses a different row with "El
+  precio queda fijo desde la primera asignación...", and a database trigger on
+  `choreography_dancer` refuses the same update while any allocation row exists.
+  **Taking the money off is what releases the lock.**
+- The picker is filtered to the choreography's group type and schedule and to
+  nothing else — no floor, no ceiling and no `paymentDeadline` — because offering
+  a foreign row would be offering to create a forbidden state, whereas offering
+  an expired one would not.
 - A price row that any inscription references **cannot be deleted**.
 
 > **Specified, not built.**
@@ -232,11 +253,11 @@ the schedule leaves a funded inscription holding a row that no longer belongs to
 what is being sold. Tracked in
 [#709](https://github.com/leomontigatti/en-escena/issues/709) and
 [#660](https://github.com/leomontigatti/en-escena/issues/660). The only guard in
-place is the schedule-capacity one, which refuses to move the cupo while any
-inscription holds money.
+place is the schedule-capacity one, which refuses to move a choreography's
+schedule capacity while any inscription holds money.
 
 **Known divergence — the admin dancer detail prices without the finance rules.**
-`readDancerInscriptions` resolves prices with no date and hardcodes a zero
+`findDancerInscriptions` resolves prices with no date and hardcodes a zero
 discount, so that view can show an expired row as `Subtotal estimado` and never
 shows the `Descuento por bailarín`. It contradicts the finance read model for the
 same inscription. Tracked in
@@ -246,8 +267,23 @@ same inscription. Tracked in
 
 - Administration registers a payment before or after allocating it.
 - A payment requires an academy, the active event, a date, a positive amount and
-  a payment method. Corrections are made by deleting the wrong payment, never by
-  registering a negative or zero one. The amount is **write-once**.
+  a payment method. Corrections are made by editing or deleting the payment,
+  never by registering a negative or zero one.
+- **A payment is editable after the fact.** The admin payment detail carries a
+  full edit form — academy, amount, date, method, reference and internal note —
+  and it writes all of them. **Exactly two accounting guards stand in its way**,
+  and nothing else:
+  - the **academy is frozen once the payment carries allocations** ("No se puede
+    cambiar la academia de un pago con asignaciones activas."), so a payment
+    registered against the wrong academy is re-pointed by editing while it is
+    still unallocated;
+  - the **amount cannot drop below what is already allocated** ("El monto no
+    puede ser menor al total ya asignado."). It rises freely, and it falls freely
+    down to that floor.
+
+  Editing a payment moves no allocation: the existing rows keep their amounts and
+  the difference lands in `Saldo disponible`.
+
 - The payment date cannot be in the future.
 - Payment methods: transferencia, efectivo, mercado_pago and otro.
 - A payment has a visible internal number, sequential within the event. It is not
@@ -257,7 +293,8 @@ same inscription. Tracked in
 - A registered payment stays in the academy's `Saldo disponible` until it is
   allocated.
 - Payments and allocations do not cross academies. A payment registered against
-  the wrong academy is deleted and registered again.
+  the wrong academy is corrected by editing it while it holds no allocations, and
+  once it does, by taking its money off or deleting it.
 - **Deleting a payment cascades its allocations** at the database level. There is
   no reversal order, no blocking case, and no automatic refill of what the
   deletion freed.
@@ -268,9 +305,10 @@ An `Asignación de pago` is **an amount against an inscription** — the triple
 `(payment, inscription, amount)` — and mutable, deletable current state rather
 than an append-only ledger.
 
-- Stored fields: `paymentId`, `inscriptionId`, `academyId`, `eventId`, `amount`,
-  `createdAt`, `updatedAt`. **The row carries no type and no role**: money is
-  fungible, so an allocation is an amount and nothing else. There is no
+- Stored fields, besides its own `id`: `paymentId`, `inscriptionId`, `academyId`,
+  `eventId`, `amount`, `createdAt`, `updatedAt`. **The row carries no type and no
+  role**: money is fungible, so an allocation is an amount and nothing else.
+  There is no
   `allocation_type` and no deletion rank.
 - **Unique on `(paymentId, inscriptionId)`.** At most one row per pair; a
   positive delta is an upsert that sums.
@@ -289,8 +327,9 @@ they live in one module.
 
 - **The invariant**: `Saldo disponible = Σ payments − Σ allocations − Σ refunds`,
   and it can never go below zero. The floor is **structural, not a clamp**: every
-  allocation is capped against what is still free, and a payment's amount is
-  write-once. There is no subtraction that could overshoot.
+  allocation is capped against what is still free, and the one way to shrink the
+  other side — editing a payment down — is floored at what that payment already
+  funds. There is no subtraction that could overshoot.
 - **Funding** — the administrator names an inscription and an amount, **never a
   payment**. The system consumes the academy's payments **oldest-first by payment
   number**, creating or incrementing the `(payment, inscription)` row until the
@@ -355,8 +394,13 @@ money to take off while the entry point stays single.
 - **Removing.** The amount is **prefilled with everything the inscription holds**
   and any smaller amount is accepted: what is allocated is a fact and does not
   move under the administrator. It unwinds newest-first and the released amount
-  returns to `Saldo disponible`. **Removing money never blocks.** It is a
-  different action from removing the inscription from the roster.
+  returns to `Saldo disponible`. **Removing money never blocks for a financial
+  reason**: no threshold, no anomaly and no state of the pool can refuse it. It
+  still refuses the two nonsensical inputs — an amount of zero or less ("El monto
+  a quitar tiene que ser mayor a 0.") and an amount larger than the inscription
+  holds ("La inscripción no tiene esa plata asignada.") — so a caller must still
+  defend those. It is a different action from removing the inscription from the
+  roster.
 - **Releasing the excess.** One button that takes off exactly what the
   inscription holds above its `Total` and nothing more. The excess is computed,
   so there is nothing to pick and nothing to type.
@@ -397,7 +441,7 @@ badges would read as one kind of fact. It **warns and never blocks**.
 > **Specified, not built.**
 > ADR-0014 §5 adds the **documented-versus-derived delta** — `derived total −
 (FC + ΣND − ΣNC)` — as the second anomaly, split into two members by sign, with
-> a 15-día countdown on withdrawal-driven deltas. Nothing computes it today.
+> a 15-day countdown on withdrawal-driven deltas. Nothing computes it today.
 > Owner: [#657](https://github.com/leomontigatti/en-escena/issues/657).
 
 ## Withdrawal from the roster
@@ -421,7 +465,7 @@ its own, like an anomaly, and it **replaces** the status badge rather than
 joining it.
 
 **A withdrawn inscription's total is what remains allocated to it, not zero.**
-The seña may be forfeited, and the retained allocation is the record of that
+The deposit may be forfeited, and the retained allocation is the record of that
 retention. The consequences follow from that one rule:
 
 - It owes nothing and cannot be over-allocated: `Saldo adeudado`, `Seña adeudada`
@@ -430,16 +474,37 @@ retention. The consequences follow from that one rule:
   exactly what it holds.
 - **It keeps exposing its deposit figure**, so the row stays readable.
 - It **stays in** its choreography's and its academy's money rollup.
-- It **stays out of** the `financialStatus` rollup, the discount qualifying set
-  and the write path's price resolution.
+- It **stays out of** the `financialStatus` rollup, its choreography's
+  `registrationCount`, and the discount qualifying set.
+- **Price resolution does not know it is withdrawn.** The threshold read resolves
+  a withdrawn row's price exactly like an active one — that is what keeps its
+  deposit figure readable — and so does the allocation write path. What
+  withdrawal removes is the discount's qualifying set, not the price.
 
 **Reads filter withdrawn rows by default**, behind a shared `activeInscription()`
 predicate and its raw-SQL twin, so no reader restates the rule and none writes
-`isNull(withdrawnAt)` by hand. The deliberate exceptions are the finance reads
-that must show the evidence: the money rollup consumed by the **four finance
-surfaces** (the two admin ones and the two portal ones), the choreography roster
-the two financial details render with the `Retirada` badge, the threshold read
-that keeps a withdrawn row's deposit figure alive, and the comprobante emitter.
+`isNull(withdrawnAt)` by hand. The exceptions come in two kinds.
+
+The first is the finance reads that must **show the evidence**: the money rollup
+consumed by the **four finance surfaces** (`operational-summary.server.ts`), the
+choreography roster the two financial details render with the `Retirada` badge
+(`choreography-inscriptions.server.ts`), the threshold read that keeps a
+withdrawn row's deposit figure alive (`inscription-thresholds.server.ts`), and
+the comprobante emitter (`emit-factura-c.server.ts`).
+
+The second is queries that are not about display at all and simply do not need
+the predicate, because a withdrawn row answers their question as well as an
+active one: `readInscriptionSelectedPrices` (the price readout behind the money
+dialog) and the allocation write path's own inscription lookup
+(`inscription-allocation.server.ts`), the frozen-price guard that asks whether
+any inscription of a choreography holds money
+(`choreography-frozen-price-guard.server.ts`), the check that refuses to delete a
+price row some inscription references (`prices.server.ts`), and the roster
+editor's deliberate read of the withdrawn rows themselves, which are the revival
+candidates (`choreography-roster-admin.server.ts`). **Only the first kind is
+four.** Do not read "four exceptions" as "four queries without the predicate" —
+the second kind is at least as large, and a query touching `choreography_dancer`
+without `activeInscription()` is not by itself evidence of a bug.
 
 **Known divergence — the write path does not know a row is withdrawn.** Only the
 read path derives the withdrawn figures; an allocation write against a withdrawn
@@ -450,11 +515,13 @@ over-allocation guard measures against a `Total` the read side does not show.
 > ADR-0014 §6 makes the withdrawal's fiscal consequence `NC = línea facturada −
 retenido`, with the administrator choosing the retained amount in the
 > de-allocation dialog, a full forfeit producing **no nota de crédito at all**,
-> and the 15-día clock running from `withdrawnAt`. None of it is computed today.
+> and the 15-day clock running from `withdrawnAt`. None of it is computed today.
 > Historical withdrawals from before the soft withdrawal **cannot be
 > reconstructed and are not backfillable**: the old path hard-deleted the row and
 > cascaded its allocations, destroying the evidence by the very act that required
-> it. In practice this is moot — production holds zero comprobantes.
+> it. How much that costs depends on how many comprobantes were emitted before
+> the soft withdrawal landed, which is a question about the production database
+> and cannot be answered from this repository.
 
 ## Invoicing
 
@@ -483,9 +550,14 @@ one:
 - Status is derived, never stored, and has **two** values: `vigente` and
   `anulada`. It is derived by **existence** — a comprobante is `anulada` when
   some other comprobante of the same choreography points at it.
-- The financial detail also shows a binary coverage badge, `Vigente` or
-  `Desactualizada`, saying whether the billed `porción` still matches what the
-  roster owes.
+- The financial detail also shows a coverage badge on **each** of its two
+  `porción` metric cards, `Seña` and `Saldo` — so **two** badges, not one, and
+  each is nullable: when no `vigente` factura covers a card's `porción`, that
+  card shows no badge at all rather than a dead `Anulado` state. The badge does
+  **not** compare
+  the billed amount to what the roster owes. It reads `Desactualizada` when there
+  is money **collected and not yet billed** falling in that `porción`, and
+  `Vigente` when the covering factura already bills all of it.
 - **`Anular comprobante` exists** as an action on the comprobante detail. It
   emits a mirror **nota de crédito** for the target's full amount, replicating
   its lines and its `porcion`, and pointing at it. A unique index caps a
@@ -536,7 +608,7 @@ one:
 >
 > Owner: [#657](https://github.com/leomontigatti/en-escena/issues/657);
 > [#686](https://github.com/leomontigatti/en-escena/issues/686) already proved
-> Nota de Crédito C and Nota de Débito C against homologación.
+> Nota de Crédito C and Nota de Débito C against ARCA's homologation environment.
 
 ## Roster editing and deletion
 
@@ -583,9 +655,13 @@ and no request actions. The restriction is **permanent and role-based**.
 
 - Finance surfaces are the admin academy financial list and choreography
   financial detail, the admin payments list and detail, and the two mirrors in
-  the `Portal de academias`.
-- Both surfaces read the **same derivation**, so the portal cannot disagree with
-  the panel. The primary amounts on both are `Seña adeudada`, `Saldo disponible`
+  the `Portal de academias`. **"The four finance surfaces" elsewhere in this
+  document names a subset of these six**: the four that consume the shared money
+  rollup — the two admin financial ones and the two portal ones. The payments
+  list and detail are finance surfaces too; they just read payments, not the
+  rollup.
+- Panel and portal read the **same derivation**, so the portal cannot disagree
+  with the panel. The primary amounts on both are `Seña adeudada`, `Saldo disponible`
   and `Saldo adeudado`.
 - **The `Portal de academias` is read-only**: academies do not initiate payments
   and do not upload receipts.
@@ -604,18 +680,33 @@ had entries.
 | --------------------------------------------- | --------------------------------------------------- |
 | `Etapa de inscripción`, `inscriptionStage`    | the two thresholds and the three statuses           |
 | `Precio tentativo` / `Precio congelado`       | one `selectedPrice` per inscription                 |
-| `Fecha de referencia financiera`              | the business date, at the write path only           |
+| `Fecha de referencia financiera`              | the business date, on the read path only            |
 | `frozenBasePriceAmount` and the nine siblings | derivation from `selectedPrice` and `Σ allocations` |
 | `allocation_type`, `allocationDeletionRank`   | nothing — money is fungible                         |
 | `Saldo de inscripción`                        | `Total de inscripción`                              |
-| `Cuenta corriente de academia`                | nothing — it never named a symbol                   |
+| `Cuenta corriente de academia`                | nothing — it never named a symbol (see below)       |
 | `choreographyFinancialState` (watermark)      | the minimum rollup                                  |
 | `deriveChoreographyNeedsAttention`            | the minimum rollup                                  |
 | `groupTypeMismatch`, `orphanedAllocations`    | nothing                                             |
 | `Imputación`, choreography invoice            | `paymentAllocation`, `comprobante`                  |
 
+Two of those rows retire a **concept**, not every string that spells it, and the
+difference matters to anyone about to delete something:
+
+- **`Cuenta corriente de academia`** retires the _entity_ — there is no
+  account-balance record, and no `academyAccountBalance` identifier. But
+  **"Cuenta corriente" is the live page title of the portal's finance page**
+  (`app/features/portal/finances/view.tsx`, linked from `app/routes/portal._index.tsx`).
+  That string is UI copy an academy reads and is not covered by this table.
+- **`Fecha de referencia financiera`** retires the _per-inscription column_; both
+  reference-date columns were dropped in #689. The words survive as a local
+  variable, `financialReferenceDate` in `resolveEstimatedBasePriceAmount`, which
+  holds the shared business date on the read path. It names no column, no type
+  and no exported symbol, and it is not a financial concept — but it is a real
+  identifier, and grep will find it.
+
 Two names the settled model retires that are **still live in code**, and are
 therefore described above rather than tombstoned: **`Porción`** (a not-null
 column, its enum, its derivation and its printed label) and **`Desactualizada`**
-(the binary currency badge on the financial detail). Both go with the amendment
-star.
+(the currency badge carried by each of the financial detail's two `porción`
+cards). Both go with the amendment star.

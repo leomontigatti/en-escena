@@ -152,11 +152,11 @@ Link with economic identity and stable identity (its own `id`) between a choreog
 _Avoid_: academy participation, account, `payment`, invoice, inactive inscription
 
 **`activeInscription`** — ui: "Inscripción activa"
-Inscription that takes part in a choreography's current calculations, its pending amounts and its automatic discounts: every one that has not been withdrawn. The shared `activeInscription()` predicate and its raw-SQL twin exist so that no reader has to restate the rule, and no reader writes `isNull(withdrawnAt)` by hand. Every read applies them except the finance reads, which show a withdrawn row as evidence — the money rollup behind the four finance surfaces, the roster the two financial details render, the threshold read that keeps the withdrawn row's deposit figure, and the comprobante emitter.
+Inscription that takes part in a choreography's current calculations, its pending amounts and its automatic discounts: every one that has not been withdrawn. The shared `activeInscription()` predicate and its raw-SQL twin exist so that no reader has to restate the rule, and no reader writes `isNull(withdrawnAt)` by hand. Four reads drop the predicate to show a withdrawn row as evidence: the money rollup behind the four finance surfaces, the roster the two financial details render, the threshold read that keeps the withdrawn row's deposit figure, and the comprobante emitter. Those four are not the whole list of queries without the predicate — several write-path and guard queries have no display to make and need no filter (see `docs/domain/finances.md`, "Withdrawal from the roster").
 _Avoid_: paid inscription, competitive participation
 
 **`withdrawnInscription`** — ui: "Retirada"
-Inscription taken off the roster whose row survives because it holds money or a `comprobante` line. Its total is **what remains allocated to it, not zero**: the seña may be forfeited and the retained allocation is the record of that retention, so it owes nothing, it cannot be over-allocated, and it keeps exposing its deposit figure. It stays in its choreography's money rollup and out of its status rollup, its price resolution and its discount qualifying set. `Retirada` is a derived axis of its own, like `Facturada`, and replaces the status badge rather than joining it.
+Inscription taken off the roster whose row survives because it holds money or a `comprobante` line. Its total is **what remains allocated to it, not zero**: the deposit may be forfeited and the retained allocation is the record of that retention, so it owes nothing, it cannot be over-allocated, and it keeps exposing its deposit figure. It stays in its choreography's money rollup, and out of its status rollup, its `registrationCount` and its discount qualifying set. Its price still resolves exactly as an active row's does — that is what keeps the deposit figure readable — so price resolution is not one of the things withdrawal changes. `Retirada` is a derived axis of its own, like `Facturada`, and replaces the status badge rather than joining it.
 _Avoid_: fourth financial status, deleted inscription, cancelled inscription
 
 **`choreography`** — ui: "Coreografía"
@@ -288,15 +288,15 @@ Explicit administrative action on a confirmed score that excludes it from the co
 _Avoid_: `scoreCorrection`, assignment deletion
 
 **`feedbackAudio`** — ui: "Devolución"
-Optional audio file associated with the evaluation or disqualification made by a judge. **"Devolución" is reserved for this**: a returned amount of money is a **`refund`** ("Reembolso"), never a devolución.
+Optional audio file associated with the evaluation or disqualification made by a judge. **Specified, not built**: nothing in `app/` carries this identifier — judging owns the concept in `docs/domain/judging.md`, and the column, the upload and the reader are all still to come. **"Devolución" is reserved for it regardless**: a returned amount of money is a **`refund`** ("Reembolso"), never a devolución. The reservation is what keeps the name free for the surface that will need it.
 _Avoid_: numeric score, `presentation`, refund, money returned
 
 **`payment`** — ui: "Pago"
-Money received and recorded for an academy in an event, which may stay available or be applied through payment allocations. Its amount is write-once; a payment recorded in error is deleted, cascading its allocations.
+Money received and recorded for an academy in an event, which may stay available or be applied through payment allocations. It is editable after the fact — academy, amount, date, method, reference and note — under exactly two accounting guards: the academy is frozen once the payment carries allocations, and the amount can never be edited below what is already allocated. A payment recorded in error can also be deleted, cascading its allocations.
 _Avoid_: invoice, `paymentAllocation`, `refund`, `choreographyFinancialStatus`
 
 **`refund`** — ui: "Reembolso"
-Money handed back to an academy in an event: an explicit mirror of **`payment`** — amount, date, `refundMethod` over the same method enum, `refundNumber` — that **never carries allocations** and is capped at `availableBalanceAmount`. It moves money, where a nota de crédito moves what is owed; either can happen without the other. **Specified, not built** (ADR-0014 §6, #536). Never call it "Devolución": that term is taken by **`feedbackAudio`**.
+Money handed back to an academy in an event: an explicit mirror of **`payment`** — amount, date, `refundMethod` over the same method enum, `refundNumber` — that **never carries allocations** and is capped at `availableBalanceAmount`. It moves money, where a nota de crédito moves what is owed; either can happen without the other. **Specified, not built** (ADR-0014 §6, #536). Never call it "Devolución": that term is reserved for **`feedbackAudio`**, itself specified and not built.
 _Avoid_: Devolución, negative `payment`, `paymentAllocation`, nota de crédito
 
 **`comprobante`** — ui: "Factura (comprobante fiscal ARCA)"
@@ -319,11 +319,11 @@ The deposit-or-balance rung of the two-rung ladder retired by map #547 and ADR-0
 _Avoid_: installment, partial payment, rung
 
 **Cuenta corriente de academia** _(retired term)_ — no code identifier
-Named no symbol in code before map #547 and names none after it. An academy's money is **`payment`**, **`paymentAllocation`**, **`refund`** and the derived **`availableBalanceAmount`**; there is no account-balance entity holding them together. Do not use.
+Named no symbol in code before map #547 and names none after it. An academy's money is **`payment`**, **`paymentAllocation`**, **`refund`** and the derived **`availableBalanceAmount`**; there is no account-balance entity holding them together. Do not use it for an entity. It is retired as a _concept_, not as a string: "Cuenta corriente" is the live page title of the portal's finance page (`app/features/portal/finances/view.tsx`), which is UI copy an academy reads and is not covered by this tombstone.
 _Avoid_: `availableBalanceAmount`, `choreographyFinancialStatus`, operational balance
 
 **`availableBalanceAmount`** — ui: "Saldo disponible"
-Money an academy has handed over in an event and that is not committed: `paid − allocated − refunded`. Structurally never negative, because every allocation is capped against it and a payment's amount is write-once. The refunds term is specified and not yet built (#536), so today the figure reads `paid − allocated`.
+Money an academy has handed over in an event and that is not committed: `paid − allocated − refunded`. Structurally never negative, because every allocation is capped against it and a payment's amount can never be edited below what it already funds. The refunds term is specified and not yet built (#536), so today the figure reads `paid − allocated`.
 _Avoid_: `owedBalanceAmount`, total paid, `academyAccountBalance` (retired)
 
 **`owedBalanceAmount`** — ui: "Saldo adeudado"
@@ -367,7 +367,7 @@ Economic data fixed by a payment allocation so that an inscription's financial s
 _Avoid_: `inscriptionSnapshot` (retired), invoice, frozen amount, `financialReferenceDate` (retired)
 
 **Fecha de referencia financiera** _(retired term)_ — no code identifier
-Per-inscription date that used to decide which price row applied. Map #547 replaced date-driven price resolution with the price fixed by the first allocation, and the two reference-date columns were dropped in #689. What survives is the shared business date `getBusinessDateOnly()`, which is not a financial concept and needs no glossary term. Do not use.
+Per-inscription date that used to decide which price row applied. Map #547 replaced date-driven price resolution with the price fixed by the first allocation, and the two reference-date columns were dropped in #689. What survives is the shared business date `getBusinessDateOnly()`, which is not a financial concept and needs no glossary term — it is held in a local named `financialReferenceDate` inside `resolveEstimatedBasePriceAmount`, on the **read** path, so the words do still appear in code even though they name no column, no type and no exported symbol. Do not use.
 _Avoid_: `selectedPrice`, UTC date, deposit date
 
 **`paymentDeadline`** — ui: "Fecha límite de pago"
