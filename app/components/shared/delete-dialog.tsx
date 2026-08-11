@@ -13,6 +13,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { isRouteFormPending, useOptionalNavigation } from "@/lib/shared/forms";
+import { cn } from "@/lib/shared/utils";
 
 function DeleteDialog({
   blockedDescription,
@@ -33,6 +34,13 @@ function DeleteDialog({
   confirmFieldName?: string;
   confirmFieldValue?: string;
   description: ReactNode;
+  /**
+   * Extra context about the record, such as the list of choreographies a
+   * payment touches. It is the only region that scrolls, which makes it a clip:
+   * anything inside it that has to escape its box — a popover, a tooltip, a
+   * sticky heading — will be cut off, and there is no way to opt out from the
+   * outside.
+   */
   details?: ReactNode;
   intentValue: string;
   isBlocked?: boolean;
@@ -51,6 +59,15 @@ function DeleteDialog({
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent
+        // The dialog itself is bounded to the viewport, so the footer can never
+        // be pushed off screen — not even on a phone in landscape, where the
+        // chrome alone eats most of the height. Within that bound the details
+        // are the flexible row, because they are the only part that grows with
+        // the record: a payment can reach dozens of choreographies (#708).
+        className={cn(
+          "max-h-[calc(100dvh-2rem)]",
+          details ? "grid-rows-[auto_auto_1fr_auto]" : undefined,
+        )}
         onEscapeKeyDown={(event) => {
           event.preventDefault();
         }}
@@ -70,7 +87,14 @@ function DeleteDialog({
               : "Esta acción es irreversible."}
           </AlertDescription>
         </Alert>
-        {details}
+        {details ? (
+          <div
+            data-slot="delete-dialog-details"
+            className="min-h-0 overflow-y-auto overscroll-contain"
+          >
+            {details}
+          </div>
+        ) : null}
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isPending}>
             {isBlocked ? "Cerrar" : "Cancelar"}

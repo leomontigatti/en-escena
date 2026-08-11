@@ -21,7 +21,7 @@
  */
 
 import { AlertTriangle, Check, LoaderCircle, Undo2 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useFetcher } from "react-router";
 
 import { ReadOnlyField } from "@/components/shared/read-only-field";
@@ -150,7 +150,7 @@ function AllocateMoneyDialog({
   onRemoveMoney: (() => void) | null;
   priceOptions: PriceOption[];
 }) {
-  const fetcher = useFetcher<{ status: "error"; message: string }>();
+  const fetcher = useMoneyWriteFetcher(onOpenChange);
   const [amount, setAmount] = useState("");
   const [priceId, setPriceId] = useState(inscription.selectedPrice?.id ?? "");
   const isSaving = fetcher.state !== "idle";
@@ -287,7 +287,7 @@ function RemoveMoneyDialog({
   inscription: InscriptionRow;
   onOpenChange: (open: boolean) => void;
 }) {
-  const fetcher = useFetcher<{ status: "error"; message: string }>();
+  const fetcher = useMoneyWriteFetcher(onOpenChange);
   const [amount, setAmount] = useState(String(inscription.allocatedAmount));
   const isSaving = fetcher.state !== "idle";
 
@@ -367,7 +367,7 @@ function ReleaseExcessDialog({
   inscription: InscriptionRow;
   onOpenChange: (open: boolean) => void;
 }) {
-  const fetcher = useFetcher<{ status: "error"; message: string }>();
+  const fetcher = useMoneyWriteFetcher(onOpenChange);
   const isSaving = fetcher.state !== "idle";
   const excessAmount = inscription.overAllocatedAmount ?? 0;
 
@@ -406,6 +406,45 @@ function ReleaseExcessDialog({
       </fetcher.Form>
     </MoneyDialog>
   );
+}
+
+/**
+ * The fetcher the three shapes write with, and the one rule about when the
+ * dialog goes away: **only a write that went through closes it.** A refusal
+ * comes back as a message in `fetcher.data` and has to stay readable, which it
+ * is not if the dialog closes on top of it (#708).
+ *
+ * The refusal is read off `data.status`, not off the mere presence of `data`.
+ * Today the action redirects once it has written and so brings nothing back,
+ * which makes the two tests equivalent — but that is a deviation from the
+ * dialog-write row of `docs/agents/form-feedback.md`, which expects the result
+ * to come back from `fetcher.data`. Keying off presence would make the dialog
+ * silently stop closing the day the action is aligned to the matrix.
+ */
+function useMoneyWriteFetcher(onOpenChange: (open: boolean) => void) {
+  const fetcher = useFetcher<{ status: "error"; message: string }>();
+  const isSaving = fetcher.state !== "idle";
+  const isRefused = fetcher.data?.status === "error";
+  const hasSubmittedRef = useRef(false);
+
+  useEffect(() => {
+    if (isSaving) {
+      hasSubmittedRef.current = true;
+      return;
+    }
+
+    if (!hasSubmittedRef.current) {
+      return;
+    }
+
+    hasSubmittedRef.current = false;
+
+    if (!isRefused) {
+      onOpenChange(false);
+    }
+  }, [isRefused, isSaving, onOpenChange]);
+
+  return fetcher;
 }
 
 /** The chrome the three shapes share, so only their contents differ. */

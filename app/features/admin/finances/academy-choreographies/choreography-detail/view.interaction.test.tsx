@@ -1,12 +1,19 @@
 /** @vitest-environment jsdom */
 
 import { useState } from "react";
-import { createMemoryRouter, RouterProvider } from "react-router";
+import {
+  createMemoryRouter,
+  redirect,
+  RouterProvider,
+  useLoaderData,
+} from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
 import {
   clickReactDomButton,
   createReactDomTestRenderer,
+  setInputValue,
+  updateReactDomForm,
 } from "@/lib/test-support/react-dom";
 
 import { ChoreographyFinanceDetailView } from "./view";
@@ -233,6 +240,100 @@ describe("DancerNameCell interaction", () => {
     await clickReactDomButton("re-render");
     expect(document.body.textContent).toContain("Asignar plata");
   });
+
+  // Regression (#708): a refused write left its reason on screen for an instant
+  // and then took the dialog with it. The dialog lived in a table cell, so the
+  // revalidation that follows the write rebuilt the columns off the fresh
+  // `loaderData` and remounted the row.
+  test("keeps the dialog open, with the reason, when the write is refused", async () => {
+    await mountAgainst(() => ({
+      status: "error",
+      message: "El saldo disponible de la academia no alcanza.",
+    }));
+
+    await clickReactDomButton("Bruno Benítez");
+    await typeAmount("5000");
+    await clickReactDomButton("Guardar");
+
+    expect(dialogText()).toContain(
+      "El saldo disponible de la academia no alcanza.",
+    );
+    expect(dialogText()).toContain("Asignar plata");
+  });
+
+  test("closes the dialog when the write goes through", async () => {
+    await mountAgainst(() => redirect("/"));
+
+    await clickReactDomButton("Bruno Benítez");
+    await typeAmount("5000");
+    await clickReactDomButton("Guardar");
+
+    expect(document.querySelector('[data-slot="dialog-content"]')).toBeNull();
+  });
+
+  // The same remount, reached without a write: every revalidation hands the
+  // view a `loaderData` of its own, and the dialog has to outlive that.
+  test("keeps the dialog open across a fresh loaderData", async () => {
+    function Wrapper() {
+      const [, setRevalidations] = useState(0);
+
+      return (
+        <>
+          <button
+            type="button"
+            aria-label="revalidar"
+            onClick={() => setRevalidations((count) => count + 1)}
+          >
+            revalidar
+          </button>
+          {/* Built inline, so each render passes a `loaderData` of its own. */}
+          <ChoreographyFinanceDetailView loaderData={loaderDataFixture()} />
+        </>
+      );
+    }
+
+    const router = createMemoryRouter([{ path: "/", element: <Wrapper /> }], {
+      initialEntries: ["/"],
+    });
+
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await clickReactDomButton("Bruno Benítez");
+    expect(document.body.textContent).toContain("Asignar plata");
+
+    await clickReactDomButton("revalidar");
+    expect(document.body.textContent).toContain("Asignar plata");
+  });
+
+  /** Mounts the view behind a real loader, so a write revalidates it. */
+  async function mountAgainst(action: () => unknown) {
+    function ChoreographyFinanceDetailRoute() {
+      const loaderData = useLoaderData() as ChoreographyFinanceDetailLoaderData;
+
+      return <ChoreographyFinanceDetailView loaderData={loaderData} />;
+    }
+
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/",
+          action,
+          // A fresh object on every call, the way a revalidation hands it over.
+          loader: () => loaderDataFixture(),
+          Component: ChoreographyFinanceDetailRoute,
+        },
+      ],
+      { initialEntries: ["/"] },
+    );
+
+    await renderer.renderAsync(<RouterProvider router={router} />);
+  }
+
+  async function typeAmount(value: string) {
+    await updateReactDomForm(() => {
+      setInputValue(amountInput(), value);
+    });
+  }
 });
 
 function amountInput(id = "inscription-amount"): HTMLInputElement {
