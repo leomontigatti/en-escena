@@ -86,9 +86,6 @@ async function seedImpagaInscription(
 async function seedSignedInscription(input: {
   academyId: string;
   choreographyId: string;
-  depositAmount: number;
-  depositReferenceDate?: string;
-  frozenBasePriceAmount: number;
   selectedPriceId?: string;
 }) {
   const dancer = await createDancer(input.academyId, {
@@ -102,11 +99,7 @@ async function seedSignedInscription(input: {
       ageAtEventStart: 14,
       choreographyId: input.choreographyId,
       dancerId: dancer.id,
-      frozenBasePriceAmount: input.frozenBasePriceAmount,
       selectedPriceId: input.selectedPriceId ?? null,
-      depositReferenceDate: input.depositReferenceDate ?? "2026-03-20",
-      depositPercentage: 30,
-      depositAmount: input.depositAmount,
     })
     .returning();
 
@@ -188,8 +181,6 @@ describe.sequential("loadPortalAcademyFinances", () => {
     const signedInscription = await seedSignedInscription({
       academyId: owner.academyId,
       choreographyId: signedChoreography.id,
-      depositAmount: 3000,
-      frozenBasePriceAmount: 10000,
     });
     await db.insert(paymentAllocations).values({
       academyId: owner.academyId,
@@ -335,9 +326,6 @@ describe.sequential("loadPortalAcademyFinances", () => {
     const inscription = await seedSignedInscription({
       academyId: owner.academyId,
       choreographyId: choreography.id,
-      depositAmount: 3600,
-      depositReferenceDate: "2026-03-21",
-      frozenBasePriceAmount: 12000,
       selectedPriceId: selectedPrice.id,
     });
     await db.insert(paymentAllocations).values({

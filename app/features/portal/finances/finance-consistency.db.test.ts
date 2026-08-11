@@ -139,8 +139,6 @@ describe.sequential(
       const pendingInscription = await insertSignedInscription({
         academyId: owner.academyId,
         choreographyId: pendingSnapshotChoreography.id,
-        depositAmount: 3600,
-        frozenBasePriceAmount: 12000,
         selectedPriceId: earlierPrice.id,
       });
       await db.insert(paymentAllocations).values({
@@ -155,9 +153,6 @@ describe.sequential(
       const paidInscription = await insertSignedInscription({
         academyId: owner.academyId,
         choreographyId: paidSnapshotChoreography.id,
-        depositAmount: 3600,
-        frozenBasePriceAmount: 12000,
-        paid: { balanceAmount: 8400, finalTotalAmount: 12000 },
         selectedPriceId: earlierPrice.id,
       });
       await db.insert(paymentAllocations).values({
@@ -352,9 +347,6 @@ async function insertImpagaInscription(
 async function insertSignedInscription(input: {
   academyId: string;
   choreographyId: string;
-  depositAmount: number;
-  frozenBasePriceAmount: number;
-  paid?: { finalTotalAmount: number; balanceAmount: number };
   selectedPriceId?: string;
 }) {
   const dancer = await createDancer(input.academyId, {
@@ -368,21 +360,7 @@ async function insertSignedInscription(input: {
       ageAtEventStart: 14,
       choreographyId: input.choreographyId,
       dancerId: dancer.id,
-      frozenBasePriceAmount: input.frozenBasePriceAmount,
       selectedPriceId: input.selectedPriceId ?? null,
-      depositReferenceDate: "2026-03-20",
-      depositPercentage: 30,
-      depositAmount: input.depositAmount,
-      ...(input.paid
-        ? {
-            balanceReferenceDate: "2026-03-23",
-            appliedDancerDiscountPercentage: 0,
-            appliedDancerDiscountAmount: 0,
-            finalTotalAmount: input.paid.finalTotalAmount,
-            balanceAmount: input.paid.balanceAmount,
-            balanceCompletedAt: "2026-03-23",
-          }
-        : {}),
     })
     .returning();
 

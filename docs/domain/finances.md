@@ -552,24 +552,32 @@ initiate payments and do not upload receipts.
 
 ## Snapshots
 
-Snapshots live on the **Inscripción**, not on the allocation. The minimal
-allocation contributes the payment's traceability.
+> The rest of this document still describes the two-rung ladder that #676
+> replaced; rewriting it is #666's job. This section is current.
 
-- Deposit snapshot (set when the `deposit` allocation is created; cleared if that
-  allocation is deleted, returning the inscription to `impaga`):
-  - `frozenBasePriceAmount` — frozen base price.
-  - `selectedPriceId` — the price row used, for historical dependencies.
-  - `depositReferenceDate` — the `payment.date` used.
-  - `depositPercentage` — the deposit percentage in force when freezing.
-  - `depositAmount` — deposit = round(`frozenBasePriceAmount` × `depositPercentage`).
-- Balance snapshot (set when the `balance` allocation is created; cleared if that
-  allocation is deleted, returning the inscription to `señada`):
-  - `balanceReferenceDate` — `payment.date` of the balance payment.
-  - `appliedDancerDiscountPercentage` — frozen dancer discount percentage.
-  - `appliedDancerDiscountAmount` — frozen dancer discount amount.
-  - `finalTotalAmount` — the inscription's frozen final total.
-  - `balanceAmount` — = `finalTotalAmount − depositAmount`.
-  - `balanceCompletedAt` — = `payment.date` of the balance payment.
+**There is one snapshot column left**, `selectedPriceId`, and it lives on the
+**Inscripción**. It fixes which price row prices the inscription; every amount
+(deposit threshold, total, balance) and every financial state is **derived** from
+that row and from `Σ allocations`. The other ten — the two reference dates,
+`depositPercentage`, `depositAmount`, `frozenBasePriceAmount`, `finalTotalAmount`,
+`balanceAmount`, `balanceCompletedAt` and the applied-discount pair — were dropped
+in #689.
+
+Two consequences worth stating rather than discovering:
+
+- **No first-crossing date is recorded.** The system does not persist when
+  `Σ allocations` first crossed the deposit threshold or the total. The dates
+  that used to answer that question were `depositReferenceDate` and
+  `balanceCompletedAt`, and they are gone. `withdrawnAt` is the only movement
+  date the model persists.
+- **Historical withdrawals cannot be reconstructed, and this is not backfillable.**
+  Before the conditional soft withdrawal of ADR-0014 §6, removing a dancer from a
+  roster **hard-deleted** the inscription row and cascaded its allocations. The
+  evidence a reconstruction would need was destroyed by the very act that
+  required it, so any divergence between a fiscal document and the roster that
+  predates the soft withdrawal is **permanent**. In practice this is moot:
+  production holds **zero comprobantes**, so there is no fiscal document for a
+  roster to diverge from.
 
 ## Transition from invoices and imputaciones
 

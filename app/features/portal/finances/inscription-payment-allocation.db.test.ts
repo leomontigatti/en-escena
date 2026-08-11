@@ -91,46 +91,6 @@ describe.sequential("inscription identity and payment allocations", () => {
     expect(duplicatePairError).toBeInstanceOf(Error);
   });
 
-  test("stores nullable deposit and balance snapshot columns", async () => {
-    const { inscription } = await createInscriptionFixture();
-
-    expect(inscription.frozenBasePriceAmount).toBeNull();
-    expect(inscription.depositAmount).toBeNull();
-    expect(inscription.balanceAmount).toBeNull();
-    expect(inscription.balanceCompletedAt).toBeNull();
-
-    await db
-      .update(choreographyDancers)
-      .set({
-        frozenBasePriceAmount: 10000,
-        selectedPriceId: null,
-        depositReferenceDate: "2026-03-21",
-        depositPercentage: 30,
-        depositAmount: 3000,
-        balanceReferenceDate: "2026-04-21",
-        appliedDancerDiscountPercentage: 10,
-        appliedDancerDiscountAmount: 1000,
-        finalTotalAmount: 9000,
-        balanceAmount: 6000,
-        balanceCompletedAt: "2026-04-21",
-      })
-      .where(eq(choreographyDancers.id, inscription.id));
-
-    const reloaded = await db.query.choreographyDancers.findFirst({
-      where: eq(choreographyDancers.id, inscription.id),
-    });
-
-    expect(reloaded).toMatchObject({
-      frozenBasePriceAmount: 10000,
-      depositPercentage: 30,
-      depositAmount: 3000,
-      appliedDancerDiscountPercentage: 10,
-      finalTotalAmount: 9000,
-      balanceAmount: 6000,
-      balanceCompletedAt: "2026-04-21",
-    });
-  });
-
   test("persists one allocation per payment and inscription", async () => {
     const { owner, event, inscription, payment } =
       await createInscriptionFixture();

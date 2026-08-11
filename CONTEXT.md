@@ -354,9 +354,9 @@ _Avoid_: `frozenInscriptionPrice`, invoice
 Price fixed for an inscription when it receives a payment allocation.
 _Avoid_: `tentativeInscriptionPrice`, invoice
 
-**`inscriptionSnapshot`** — ui: "Snapshot financiero de inscripción"
-Economic data fixed by a payment allocation so that an inscription's financial state does not depend on later price or discount changes.
-_Avoid_: invoice, `tentativeInscriptionPrice`
+**Snapshot financiero de inscripción** _(retired term)_ — no code identifier
+Economic data fixed by a payment allocation so that an inscription's financial state did not depend on later price or discount changes. The ten columns that held it were dropped in #689: amounts, thresholds and financial state are now derived from the selected price and `Σ paymentAllocation`. The one fixed thing left is the price row, and that is **`frozenInscriptionPrice`**.
+_Avoid_: `inscriptionSnapshot` (retired), invoice, `tentativeInscriptionPrice`
 
 **`financialReferenceDate`** — ui: "Fecha de referencia financiera"
 Business date used to resolve the tentative or frozen price of an inscription.

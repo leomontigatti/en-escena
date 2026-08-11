@@ -1,8 +1,6 @@
-import { cp, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { rm } from "node:fs/promises";
 import { readFileSync } from "node:fs";
-import { tmpdir } from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
 import { PGlite } from "@electric-sql/pglite";
 import { sql } from "drizzle-orm";
@@ -10,9 +8,11 @@ import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { describe, expect, it } from "vitest";
 
-const migrationsFolder = fileURLToPath(
-  new URL("./migrations", import.meta.url),
-);
+import {
+  createMigrationsFolderBefore,
+  migrationsFolder,
+} from "./migrations.test-support";
+
 const allocationMigrationTag = "0007_strange_mantis";
 
 /**
@@ -35,38 +35,6 @@ function withoutComments(statement: string) {
     .filter((line) => !line.trim().startsWith("--"))
     .join("\n")
     .trim();
-}
-
-/**
- * Carpeta de migraciones recortada hasta —sin incluir— `tag`: el journal manda,
- * así que basta con filtrar sus entradas y copiar los `.sql` que quedan.
- */
-async function createMigrationsFolderBefore(tag: string) {
-  const folder = await mkdtemp(path.join(tmpdir(), "en-escena-migrations-"));
-  const journal = JSON.parse(
-    readFileSync(path.join(migrationsFolder, "meta", "_journal.json"), "utf8"),
-  ) as { entries: Array<{ tag: string }> };
-
-  const entries = journal.entries.slice(
-    0,
-    journal.entries.findIndex((entry) => entry.tag === tag),
-  );
-
-  await cp(path.join(migrationsFolder, "meta"), path.join(folder, "meta"), {
-    recursive: true,
-  });
-  await writeFile(
-    path.join(folder, "meta", "_journal.json"),
-    JSON.stringify({ ...journal, entries }),
-  );
-  for (const entry of entries) {
-    await cp(
-      path.join(migrationsFolder, `${entry.tag}.sql`),
-      path.join(folder, `${entry.tag}.sql`),
-    );
-  }
-
-  return folder;
 }
 
 const pairPaymentId = "payment_pair";
