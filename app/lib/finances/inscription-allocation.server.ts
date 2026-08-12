@@ -70,6 +70,14 @@ export type InscriptionSelectedPrice = {
  * Unlike the ladder's old candidate set there is no floor and no today's-price
  * ceiling: an arbitrary amount against an arbitrary threshold has no rung to
  * stay between.
+ *
+ * `paymentDeadline` is deliberately not a filter, here or on the write path
+ * (`loadCandidatePriceRow` does not look at it either), so an expired row is
+ * both offerable and storable. The deadline decides which price an inscription
+ * *would* be charged when nobody has said — that is the read-side estimate in
+ * `resolveEstimatedBasePriceAmount`. Here somebody is saying it: an
+ * administrator naming the price a late payment settles at is making the call
+ * the deadline exists to make in their absence.
  */
 export async function readInscriptionPriceOptions(input: {
   choreographyId: string;

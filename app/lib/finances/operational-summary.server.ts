@@ -193,9 +193,9 @@ async function readAcademyEventFinance(input: {
             withdrawnAt: choreographyDancers.withdrawnAt,
           })
           // No `activeInscription()` here, and not because of a display
-          // exception: this is the shared money rollup, read by four route
-          // servers — the two admin finance surfaces and the two portal ones —
-          // and a withdrawn row's retained money is still the choreography's.
+          // exception: this is the shared money rollup behind every finance
+          // surface, admin and portal, list and detail alike, and a withdrawn
+          // row's retained money is still the choreography's.
           // Dropping it here would take that money out of every rollup built on
           // top. What withdrawal changes is how the row's figures are derived
           // and which rollups it feeds, not whether it is read; each surface
