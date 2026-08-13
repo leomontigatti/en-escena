@@ -114,6 +114,40 @@ export function deriveInscriptionFinancialStatus(input: {
 }
 
 /**
+ * Whether an inscription has crossed its deposit threshold — the moment its
+ * price stops moving.
+ *
+ * The caller must pass the deposit derived from the **stored** price row and
+ * never from an incoming or currently applicable one. The threshold is derived
+ * *from* the price, so asking "has it crossed?" about an arbitrary price makes
+ * the answer depend on which price is asked about: 1000 allocated is crossed
+ * against a price of 3000 (deposit 900) and un-crossed against one of 10000
+ * (deposit 3000). Testing against what is stored is what stops the rule being
+ * circular.
+ *
+ * `null` is not crossed: a threshold that cannot be computed cannot have been
+ * crossed, which is the same reading `deriveInscriptionFinancialStatus` takes.
+ *
+ * Money is required on top of the comparison, and only a zero deposit can tell
+ * the difference. An event with `requiredDepositPercentage` at 0 would otherwise
+ * lock every price at zero pesos, and the escape hatch out of a locked price is
+ * taking money off — a lock that closes with no money on the row could never be
+ * opened again.
+ */
+export function hasCrossedDepositThreshold(input: {
+  allocatedAmount: number;
+  depositAmount: number | null;
+}): boolean {
+  if (input.depositAmount === null) {
+    return false;
+  }
+
+  return (
+    input.allocatedAmount > 0 && input.allocatedAmount >= input.depositAmount
+  );
+}
+
+/**
  * Whether money leaving an inscription drops it **below** a threshold it had
  * crossed. It is the one reading the payment-deletion dialog counts: an
  * un-crossing never blocks anything, so all there is to do with it is state it.

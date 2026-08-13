@@ -1,8 +1,10 @@
 import { prices } from "@/db/schema";
 import { resolveChoreographyPricingScheduleId } from "@/lib/finances/choreography-pricing-schedule";
 import {
+  calculateDepositAmount,
   type ChoreographyFinancialStatus,
   deriveChoreographyFinancialStatus,
+  hasCrossedDepositThreshold,
   type InscriptionAnomaly,
   type InscriptionFinancialStatus,
 } from "@/lib/finances/inscription-financial-status";
@@ -227,6 +229,69 @@ export function buildOperationalFinanceSummaryFromChoreographyRows(input: {
     owedDepositAmount: buildOperationalFinanceAmount(owedDepositAmount),
     totalPaidAmount: input.totalPaidAmount,
   };
+}
+
+/**
+ * The price an inscription is charged at: `crossed ? stored : (current ?? stored)`.
+ *
+ * **The price stops moving when the inscription crosses its deposit threshold**,
+ * which is what a seña buys. Below that threshold the stored row is not
+ * authoritative: the read re-derives from the row that applies today, so a page
+ * refresh moves the figures and so does the passage of time. That is deliberate
+ * — locking at the first allocated peso would let an academy freeze the whole
+ * price list for one peso per inscription ahead of a price rollover.
+ *
+ * `crossed` is tested against the **stored** row and never against the current
+ * one; `hasCrossedDepositThreshold` says why.
+ *
+ * The `?? stored` fallback carries the case where no row applies at all — every
+ * candidate's `paymentDeadline` has passed, or none was ever configured — and it
+ * is why the stored row is still worth writing below the threshold.
+ *
+ * This is the single owner of the rule: both read paths call it, so they cannot
+ * disagree.
+ */
+export function resolveEffectiveBasePriceAmount(input: {
+  allocatedAmount: number;
+  choreography:
+    | Pick<
+        FinanceChoreographyRow,
+        "groupType" | "choreographyScheduleId" | "scheduleCapacityScheduleId"
+      >
+    | undefined;
+  priceRows: FinancePriceRow[];
+  requiredDepositPercentage: number;
+  selectedPriceId: string | null;
+}): number | null {
+  const storedAmount =
+    input.selectedPriceId === null
+      ? null
+      : (input.priceRows.find((price) => price.id === input.selectedPriceId)
+          ?.amount ?? null);
+
+  if (
+    storedAmount !== null &&
+    hasCrossedDepositThreshold({
+      allocatedAmount: input.allocatedAmount,
+      depositAmount: calculateDepositAmount({
+        priceAmount: storedAmount,
+        requiredDepositPercentage: input.requiredDepositPercentage,
+      }),
+    })
+  ) {
+    return storedAmount;
+  }
+
+  if (!input.choreography) {
+    return storedAmount;
+  }
+
+  const current = resolveEstimatedBasePriceAmount({
+    choreography: input.choreography,
+    priceRows: input.priceRows,
+  });
+
+  return current.status === "missing-price" ? storedAmount : current.amount;
 }
 
 /**
