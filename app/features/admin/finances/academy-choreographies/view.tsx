@@ -99,7 +99,14 @@ export function AcademyFinancesRouteView({
       }
     >
       <div className="flex flex-col gap-6">
-        <section className="grid gap-4 md:grid-cols-3">
+        {/* Cada umbral con su deuda al lado —`Seña total` con `Seña adeudada`,
+            `Total` con `Saldo adeudado`— y el disponible al final, que no es de
+            ninguno de los dos pares: es plata de la academia sin asignar. */}
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          <MetricCard
+            title="Seña total"
+            value={formatOperationalAmount(loaderData.summary.depositAmount)}
+          />
           <MetricCard
             title="Seña adeudada"
             value={formatOperationalAmount(
@@ -107,14 +114,18 @@ export function AcademyFinancesRouteView({
             )}
           />
           <MetricCard
-            title="Saldo disponible"
-            value={formatAmount(loaderData.summary.availableBalanceAmount)}
+            title="Total"
+            value={formatOperationalAmount(loaderData.summary.totalAmount)}
           />
           <MetricCard
             title="Saldo adeudado"
             value={formatOperationalAmount(
               loaderData.summary.owedBalanceAmount,
             )}
+          />
+          <MetricCard
+            title="Saldo disponible"
+            value={formatAmount(loaderData.summary.availableBalanceAmount)}
           />
         </section>
 

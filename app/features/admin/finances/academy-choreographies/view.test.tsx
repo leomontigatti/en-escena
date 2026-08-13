@@ -46,9 +46,15 @@ describe("AcademyFinancesRouteView", () => {
 
     expect(text).toContain("Academia Centro");
     expect(text).toContain("Lista financiera de las coreografías");
+    // Las cinco métricas: cada umbral con su deuda al lado y el disponible al
+    // final.
+    expect(text).toContain("Seña total");
     expect(text).toContain("Seña adeudada");
-    expect(text).toContain("Saldo disponible");
+    expect(text).toContain("Total");
     expect(text).toContain("Saldo adeudado");
+    expect(text).toContain("Saldo disponible");
+    expect(text).toContain("$ 9.000");
+    expect(text).toContain("$ 30.000");
     expect(text).toContain("Aire");
     expect(document.querySelector('button[aria-label="Acciones"]')).toBeNull();
     expect(text).not.toContain("Facturas de seña activas");
