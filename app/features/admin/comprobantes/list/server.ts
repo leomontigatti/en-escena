@@ -22,7 +22,6 @@ import {
 } from "@/lib/comprobantes/arca/factura-c";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import type { ComprobanteStatus } from "@/lib/comprobantes/comprobante-status.server";
-import type { ComprobantePorcion } from "@/lib/comprobantes/emit-factura-c.server";
 
 // Fila de la lista global de comprobantes (#339 variante A, #483). Es de sólo
 // lectura: expone el snapshot fiscal ya emitido (numeración, CAE, importe, fecha)
@@ -36,7 +35,6 @@ export type ComprobantesListRow = {
   cbteFch: string;
   impTotal: number;
   cae: string;
-  porcion: ComprobantePorcion;
   status: ComprobanteStatus;
   choreographyId: string;
   choreographyName: string;
@@ -133,7 +131,6 @@ export async function loadComprobantesList(
       cbteFch: comprobantes.cbteFch,
       impTotal: comprobantes.impTotal,
       cae: comprobantes.cae,
-      porcion: comprobantes.porcion,
       status: sql<ComprobanteStatus>`case when ${isAnnulled} then 'anulada' else 'vigente' end`,
       choreographyId: comprobantes.choreographyId,
       choreographyName: choreographies.name,

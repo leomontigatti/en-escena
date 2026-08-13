@@ -30,7 +30,7 @@ import { formatAmount, formatOperationalAmount } from "../../formatters";
 import { EmissionDialog } from "./comprobante-emission";
 import { InscriptionMoneyDialog } from "./inscription-money-dialog";
 import { formatDancerName } from "./shared";
-import type { loadChoreographyFinanceDetail, PortionCoverage } from "./server";
+import type { loadChoreographyFinanceDetail } from "./server";
 
 type ChoreographyFinanceDetailLoaderData = Awaited<
   ReturnType<typeof loadChoreographyFinanceDetail>
@@ -78,16 +78,10 @@ export function ChoreographyFinanceDetailView({
             <MetricCard
               title="Seña"
               value={formatOperationalAmount(choreography.depositAmount)}
-              slot={portionCoverageBadge(loaderData.invoicing.sena)}
-              to={portionCoverageHref(loaderData.invoicing.sena)}
-              linkLabel="Ver comprobante que cubre la seña"
             />
             <MetricCard
               title="Saldo adeudado"
               value={formatOperationalAmount(choreography.owedBalanceAmount)}
-              slot={portionCoverageBadge(loaderData.invoicing.saldo)}
-              to={portionCoverageHref(loaderData.invoicing.saldo)}
-              linkLabel="Ver comprobante que cubre el saldo"
             />
             <MetricCard
               title="Total"
@@ -130,35 +124,6 @@ export function ChoreographyFinanceDetailView({
       )}
     </AdminResourceLayout>
   );
-}
-
-/**
- * Badge de vigencia de la porción (Seña/Saldo): `Vigente` o `Desactualizada`
- * (ADR-0011). Devuelve `undefined` cuando ninguna factura vigente cubre la porción
- * —incluido el caso en que la única que la cubría fue anulada—, así la MetricCard
- * cae en su ícono por defecto y no queda un estado `Anulado` muerto. El link al
- * comprobante ya no es un botón aparte: lo lleva la card entera vía `to`.
- */
-function portionCoverageBadge(coverage: PortionCoverage | null) {
-  if (coverage === null) {
-    return undefined;
-  }
-
-  return (
-    <Badge variant={coverage.currency === "vigente" ? "success" : "warning"}>
-      {coverage.currency === "vigente" ? "Vigente" : "Desactualizada"}
-    </Badge>
-  );
-}
-
-/**
- * Destino de la card de una porción: el comprobante vigente que la cubre. `null`
- * cuando no hay cobertura, y entonces la card no es un link.
- */
-function portionCoverageHref(coverage: PortionCoverage | null) {
-  return coverage === null
-    ? undefined
-    : `/administracion/comprobantes/${coverage.comprobanteId}`;
 }
 
 function ChoreographyAlerts({
@@ -256,7 +221,6 @@ function ChoreographyActions({
       {emission ? (
         <EmissionDialog
           billableAmount={emission.billableAmount}
-          porcion={emission.porcion}
           open
           onOpenChange={(next) => setEmission(next ? emission : null)}
         />

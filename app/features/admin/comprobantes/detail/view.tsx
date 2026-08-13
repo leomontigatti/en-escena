@@ -30,7 +30,6 @@ import {
   comprobanteTipoBadgeVariant,
   formatComprobanteArcaDate,
   formatComprobanteNumber,
-  formatComprobantePorcionLabel,
   formatComprobanteStatusLabel,
   formatComprobanteTipoLabel,
 } from "@/lib/comprobantes/format";
@@ -55,7 +54,7 @@ type ComprobanteDetailRouteViewProps = {
 /**
  * Vista de detalle de un comprobante (ADR-0011): aloja los datos del snapshot
  * fiscal y el menú de acciones (imprimir, anular). Es el destino del número de la
- * lista global y de los botones de porción del detalle financiero. La anulación
+ * lista global y de las cards de importe del detalle financiero. La anulación
  * vive acá, junto al comprobante que afecta, y se confirma con un `AlertDialog`
  * cuyo copy dice la verdad: la salida real es una Nota de crédito.
  */
@@ -153,10 +152,6 @@ function ComprobanteDetailCard({
               {formatComprobanteStatusLabel(comprobante.status)}
             </Badge>
           }
-        />
-        <DetailRow
-          label="Porción"
-          value={formatComprobantePorcionLabel(comprobante.porcion)}
         />
         <DetailRow label="Academia" value={comprobante.academyName} />
         <DetailRow
@@ -278,9 +273,8 @@ function AnnulDialog({
             Vas a anular la{" "}
             {lowercaseFirst(formatComprobanteTipoLabel(comprobante.cbteTipo))}{" "}
             {formatComprobanteNumber(comprobante)} por{" "}
-            {formatAmount(comprobante.impTotal)} (
-            {lowercaseFirst(formatComprobantePorcionLabel(comprobante.porcion))}
-            ). La anulación se materializa emitiendo una nota de crédito espejo.
+            {formatAmount(comprobante.impTotal)}. La anulación se materializa
+            emitiendo una nota de crédito espejo.
           </AlertDialogDescription>
         </AlertDialogHeader>
 

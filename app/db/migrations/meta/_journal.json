@@ -71,6 +71,13 @@
       "when": 1786217173265,
       "tag": "0009_drop_inscription_snapshot_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1786627902698,
+      "tag": "0010_drop_comprobante_porcion",
+      "breakpoints": true
     }
   ]
 }

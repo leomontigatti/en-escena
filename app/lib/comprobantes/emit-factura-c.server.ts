@@ -4,12 +4,10 @@ import { db } from "@/db";
 import {
   choreographies,
   choreographyDancers,
-  comprobantePorcion,
   events,
   paymentAllocations,
 } from "@/db/schema";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
-import { readInscriptionThresholds } from "@/lib/finances/inscription-thresholds.server";
 import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
 
 import { ArcaClient, getArcaClient } from "./arca/client.server";
@@ -96,7 +94,7 @@ export type FacturaCEmissionOutcome =
  * La factura es un documento DERIVADO (#320): nunca gobierna el estado
  * financiero. Se factura lo efectivamente cobrado (asignaciones de pago) que
  * todavía no cubre ninguna factura tipo 11 vigente de la coreografía, aplicando
- * las derivaciones anti-doble-cobro y de porciones ya facturadas (#323/#326).
+ * la derivación anti-doble-cobro por inscripción (#323/#326).
  *
  * El `CbteNro` se deriva de `FECompUltimoAutorizado + 1`. Sólo un CAE aprobado
  * persiste el `Comprobante` con su snapshot; un rechazo de ARCA no persiste nada
@@ -199,11 +197,11 @@ async function resolveFacturaCChoreography(
     };
   }
 
-  const { lines, total, porcion } = await resolveChoreographyBillable(
+  const { lines, total } = await resolveChoreographyBillable(
     input.choreographyId,
   );
 
-  if (total <= 0 || porcion === null) {
+  if (total <= 0) {
     return {
       ok: false,
       reason: "nothing-to-bill",
@@ -214,7 +212,7 @@ async function resolveFacturaCChoreography(
 
   // Fechas de servicio (Concepto 2, ADR-0011): el período es el del evento y el
   // vencimiento de pago es la fecha del comprobante (se factura lo ya cobrado, así
-  // que el pago no vence en el futuro). Congeladas junto con la porción.
+  // que el pago no vence en el futuro). Congeladas al emitir.
   const serviceDates = (cbteFch: string): ServiceDates => ({
     fchServDesde: toArcaDate(getBusinessDateOnly(choreography.eventStartsAt)),
     fchServHasta: toArcaDate(getBusinessDateOnly(choreography.eventEndsAt)),
@@ -246,9 +244,8 @@ async function resolveFacturaCChoreography(
         ptoVta: deps.ptoVta,
         cbteNro: authorized.cbteNro,
         cbteFch: authorized.cbteFch,
-        // Porción y fechas de servicio DERIVADAS y CONGELADAS: reimputar un pago
-        // después de emitir no altera lo que dice este comprobante (ADR-0011, #479).
-        porcion,
+        // Fechas de servicio DERIVADAS y CONGELADAS: reimputar un pago después
+        // de emitir no altera lo que dice este comprobante (ADR-0011, #479).
         ...serviceDates(request.cbteFch),
         impTotal: total,
         issuerCuit: deps.issuerCuit,
@@ -265,131 +262,50 @@ async function resolveFacturaCChoreography(
   return { ok: true, choreography: choreographyCall };
 }
 
-export type ComprobantePorcion = (typeof comprobantePorcion.enumValues)[number];
-
 export type ChoreographyBillable = {
   lines: ComprobanteLineInput[];
   total: number;
-  // Porción que cubre el remanente facturable, DERIVADA de los tipos de
-  // asignación (#479, ADR-0011). `null` cuando no hay nada por facturar.
-  porcion: ComprobantePorcion | null;
 };
 
 /**
  * Monto facturable de una coreografía: sus líneas internas por inscripción con
- * remanente positivo, el total y la PORCIÓN que ese remanente cubre. Es lo que la
- * UX de emisión (#447) previsualiza antes de confirmar y lo que
- * `emitChoreographyFacturaC` factura. No llama a ARCA: sólo cruza cobros contra
- * facturas vigentes.
+ * remanente positivo, y el total. Es lo que la UX de emisión (#447) previsualiza
+ * antes de confirmar y lo que `emitChoreographyFacturaC` factura. No llama a
+ * ARCA: sólo cruza cobros contra facturas vigentes.
  */
 export async function resolveChoreographyBillable(
   choreographyId: string,
 ): Promise<ChoreographyBillable> {
-  const inscriptionRows = await readInscriptionDeposits(choreographyId);
-
-  const { lines, depositPaid, balancePaid, billed } = await resolveBillable(
-    choreographyId,
-    inscriptionRows,
-  );
+  const inscriptionIds = await readInscriptionIds(choreographyId);
+  const lines = await resolveBillableLines(choreographyId, inscriptionIds);
   const total = lines.reduce((sum, line) => sum + line.amount, 0);
-  const porcion = derivePorcion({ depositPaid, balancePaid, billed });
 
-  return { lines, total, porcion };
+  return { lines, total };
 }
 
-/**
- * The `Seña` threshold of every inscription of the choreography, derived by the
- * same owner the rest of the application uses: it comes from the price and the
- * event's percentage, never from a column. It is `null` when no price applies,
- * and then everything charged is imputed to the `Seña`.
- */
-async function readInscriptionDeposits(
-  choreographyId: string,
-): Promise<Array<{ depositAmount: number | null; id: string }>> {
-  const [choreography] = await db
-    .select({
-      academyId: choreographies.academyId,
-      eventId: choreographies.eventId,
-    })
-    .from(choreographies)
-    .where(eq(choreographies.id, choreographyId));
-  const inscriptionRows = await db
+/** The ids of every inscription of the choreography, withdrawn ones included. */
+async function readInscriptionIds(choreographyId: string): Promise<string[]> {
+  const rows = await db
     .select({ id: choreographyDancers.id })
     .from(choreographyDancers)
     .where(eq(choreographyDancers.choreographyId, choreographyId));
 
-  if (!choreography || inscriptionRows.length === 0) {
-    return inscriptionRows.map((row) => ({ depositAmount: null, id: row.id }));
-  }
-
-  const thresholds = await readInscriptionThresholds(db, {
-    academyId: choreography.academyId,
-    eventId: choreography.eventId,
-    inscriptionIds: inscriptionRows.map((row) => row.id),
-  });
-
-  return inscriptionRows.map((row) => ({
-    depositAmount: thresholds.get(row.id)?.depositAmount ?? null,
-    id: row.id,
-  }));
+  return rows.map((row) => row.id);
 }
 
 /**
- * Deriva la porción del remanente facturable a partir de lo cobrado contra el
- * umbral de seña y lo ya facturado. La asignación no tiene rol: lo cobrado cubre
- * primero la seña de cada inscripción y el excedente es saldo. El cobro es
- * atómico a nivel coreografía y la seña se factura antes que el saldo, así que
- * lo facturado cubre primero el depósito: el remanente nunca es mixto y
- * `{seña, saldo, total}` cubre el espacio real.
- */
-function derivePorcion(input: {
-  depositPaid: number;
-  balancePaid: number;
-  billed: number;
-}): ComprobantePorcion | null {
-  const { depositPaid, balancePaid, billed } = input;
-  const uncoveredDeposit = Math.max(0, depositPaid - billed);
-  const uncoveredBalance = Math.max(
-    0,
-    balancePaid - Math.max(0, billed - depositPaid),
-  );
-
-  if (uncoveredDeposit > 0 && uncoveredBalance > 0) {
-    return "total";
-  }
-  if (uncoveredDeposit > 0) {
-    return "seña";
-  }
-  if (uncoveredBalance > 0) {
-    return "saldo";
-  }
-  return null;
-}
-
-type BillableResolution = {
-  lines: ComprobanteLineInput[];
-  // Cobrado contra la seña y por encima de ella, agregado a nivel coreografía:
-  // insumos de la derivación de porción.
-  depositPaid: number;
-  balancePaid: number;
-  // Total ya facturado por facturas tipo 11 vigentes.
-  billed: number;
-};
-
-/**
- * Porción facturable de cada inscripción: lo cobrado (asignaciones de pago) menos
+ * Monto facturable de cada inscripción: lo cobrado (asignaciones de pago) menos
  * lo ya cubierto por facturas tipo 11 VIGENTES de la coreografía. Sólo entran las
  * inscripciones con remanente positivo. Una factura anulada deja de contar como
  * facturada (su estado deriva de la Nota de crédito), así que su monto vuelve a
- * ser facturable. Además agrega lo cobrado contra la seña y por encima de ella,
- * más el total facturado: insumos de los que se deriva la porción del remanente.
+ * ser facturable.
  */
-async function resolveBillable(
+async function resolveBillableLines(
   choreographyId: string,
-  inscriptions: Array<{ depositAmount: number | null; id: string }>,
-): Promise<BillableResolution> {
-  if (inscriptions.length === 0) {
-    return { lines: [], depositPaid: 0, balancePaid: 0, billed: 0 };
+  inscriptionIds: string[],
+): Promise<ComprobanteLineInput[]> {
+  if (inscriptionIds.length === 0) {
+    return [];
   }
 
   const allocations = await db
@@ -398,23 +314,9 @@ async function resolveBillable(
       amount: paymentAllocations.amount,
     })
     .from(paymentAllocations)
-    .where(
-      inArray(
-        paymentAllocations.inscriptionId,
-        inscriptions.map((inscription) => inscription.id),
-      ),
-    );
+    .where(inArray(paymentAllocations.inscriptionId, inscriptionIds));
 
   const paidByInscription = sumByInscription(allocations);
-  let depositPaid = 0;
-  let balancePaid = 0;
-  for (const inscription of inscriptions) {
-    const paid = paidByInscription.get(inscription.id) ?? 0;
-    const coveredDeposit = Math.min(paid, inscription.depositAmount ?? paid);
-    depositPaid += coveredDeposit;
-    balancePaid += paid - coveredDeposit;
-  }
-
   const existing = await listChoreographyComprobantes(choreographyId);
   const billedByInscription = new Map<string, number>();
   for (const comprobante of existing) {
@@ -436,18 +338,15 @@ async function resolveBillable(
   }
 
   const lines: ComprobanteLineInput[] = [];
-  let billed = 0;
-  for (const inscription of inscriptions) {
-    const paid = paidByInscription.get(inscription.id) ?? 0;
-    const inscriptionBilled = billedByInscription.get(inscription.id) ?? 0;
-    billed += inscriptionBilled;
-    const billable = paid - inscriptionBilled;
+  for (const inscriptionId of inscriptionIds) {
+    const paid = paidByInscription.get(inscriptionId) ?? 0;
+    const billable = paid - (billedByInscription.get(inscriptionId) ?? 0);
     if (billable > 0) {
-      lines.push({ inscriptionId: inscription.id, amount: billable });
+      lines.push({ inscriptionId, amount: billable });
     }
   }
 
-  return { lines, depositPaid, balancePaid, billed };
+  return lines;
 }
 
 function sumByInscription(

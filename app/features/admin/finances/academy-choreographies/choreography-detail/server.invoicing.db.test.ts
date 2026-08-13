@@ -161,7 +161,6 @@ async function recordVigenteFactura(input: {
   inscriptionId: string;
   amount: number;
   cbteNro: number;
-  porcion?: "seña" | "saldo" | "total";
 }) {
   return await recordComprobante({
     choreographyId: input.choreographyId,
@@ -170,7 +169,6 @@ async function recordVigenteFactura(input: {
     ptoVta: 1,
     cbteNro: input.cbteNro,
     cbteFch: "20260722",
-    porcion: input.porcion,
     impTotal: input.amount,
     issuerCuit: "30717611590",
     issuerIvaCondition: "exento",
@@ -273,7 +271,7 @@ function detailUrl(input: {
 describe.sequential(
   "detalle financiero — eje de emisión de comprobantes",
   () => {
-    test("covers no portion when there is billed money and no comprobante", async () => {
+    test("has the whole cobro billable when no comprobante covers it yet", async () => {
       const seeded = await seedChoreographyWithPaidInscription({
         academyName: "Academia Sin Factura",
         choreographyName: "Coreografía sin factura",
@@ -283,71 +281,17 @@ describe.sequential(
 
       const loaderData = await loadDetail(seeded);
 
-      expect(loaderData.invoicing).toMatchObject({
+      expect(loaderData.invoicing).toEqual({
         billableAmount: 3000,
         canEmit: true,
-        sena: null,
-        saldo: null,
       });
     });
 
-    test("marks the seña portion Vigente once its factura covers the whole cobro", async () => {
+    test("leaves nothing billable once a vigente factura covers the whole cobro", async () => {
       const seeded = await seedChoreographyWithPaidInscription({
         academyName: "Academia Vigente",
         choreographyName: "Coreografía vigente",
         email: "academia.vigente@example.com",
-        paidAmount: 3000,
-      });
-      const factura = await recordVigenteFactura({
-        choreographyId: seeded.choreographyId,
-        eventId: seeded.eventId,
-        inscriptionId: seeded.inscriptionId,
-        amount: 3000,
-        cbteNro: 7,
-        porcion: "seña",
-      });
-
-      const loaderData = await loadDetail(seeded);
-
-      expect(loaderData.invoicing).toMatchObject({
-        billableAmount: 0,
-        canEmit: false,
-        sena: { comprobanteId: factura.id, currency: "vigente" },
-        saldo: null,
-      });
-    });
-
-    test("points both portions to a total factura that covers seña and saldo", async () => {
-      const seeded = await seedChoreographyWithPaidInscription({
-        academyName: "Academia Total",
-        choreographyName: "Coreografía total",
-        email: "academia.total@example.com",
-        paidAmount: 3000,
-      });
-      const factura = await recordVigenteFactura({
-        choreographyId: seeded.choreographyId,
-        eventId: seeded.eventId,
-        inscriptionId: seeded.inscriptionId,
-        amount: 3000,
-        cbteNro: 7,
-        porcion: "total",
-      });
-
-      const loaderData = await loadDetail(seeded);
-
-      expect(loaderData.invoicing.sena).toMatchObject({
-        comprobanteId: factura.id,
-      });
-      expect(loaderData.invoicing.saldo).toMatchObject({
-        comprobanteId: factura.id,
-      });
-    });
-
-    test("marks the seña portion Desactualizada when new money is billed after it", async () => {
-      const seeded = await seedChoreographyWithPaidInscription({
-        academyName: "Academia Desactualizada",
-        choreographyName: "Coreografía desactualizada",
-        email: "academia.desactualizada@example.com",
         paidAmount: 3000,
       });
       await recordVigenteFactura({
@@ -356,7 +300,29 @@ describe.sequential(
         inscriptionId: seeded.inscriptionId,
         amount: 3000,
         cbteNro: 7,
-        porcion: "seña",
+      });
+
+      const loaderData = await loadDetail(seeded);
+
+      expect(loaderData.invoicing).toEqual({
+        billableAmount: 0,
+        canEmit: false,
+      });
+    });
+
+    test("makes money collected after a factura billable again", async () => {
+      const seeded = await seedChoreographyWithPaidInscription({
+        academyName: "Academia Remanente",
+        choreographyName: "Coreografía remanente",
+        email: "academia.remanente@example.com",
+        paidAmount: 3000,
+      });
+      await recordVigenteFactura({
+        choreographyId: seeded.choreographyId,
+        eventId: seeded.eventId,
+        inscriptionId: seeded.inscriptionId,
+        amount: 3000,
+        cbteNro: 7,
       });
       await seedAllocation({
         academyId: seeded.academyId,
@@ -367,14 +333,13 @@ describe.sequential(
 
       const loaderData = await loadDetail(seeded);
 
-      expect(loaderData.invoicing).toMatchObject({
+      expect(loaderData.invoicing).toEqual({
         billableAmount: 2000,
         canEmit: true,
-        sena: { currency: "desactualizada" },
       });
     });
 
-    test("drops the portion coverage when the covering factura is annulled", async () => {
+    test("makes the annulled factura's amount billable again", async () => {
       const seeded = await seedChoreographyWithPaidInscription({
         academyName: "Academia Anulada",
         choreographyName: "Coreografía anulada",
@@ -387,7 +352,6 @@ describe.sequential(
         inscriptionId: seeded.inscriptionId,
         amount: 3000,
         cbteNro: 7,
-        porcion: "seña",
       });
       await recordNotaCredito({
         choreographyId: seeded.choreographyId,
@@ -400,18 +364,19 @@ describe.sequential(
 
       const loaderData = await loadDetail(seeded);
 
-      // Anulada la única factura que cubría la seña, la porción deja de estar
-      // cubierta: badge y botón desaparecen y su monto vuelve a ser facturable.
-      expect(loaderData.invoicing.sena).toBeNull();
-      expect(loaderData.invoicing.saldo).toBeNull();
-      expect(loaderData.invoicing.canEmit).toBe(true);
+      expect(loaderData.invoicing).toEqual({
+        billableAmount: 3000,
+        canEmit: true,
+      });
     });
 
-    test("keeps canEmit aligned with the server gate: a positive remainder with no derivable porción stays non-emitible", async () => {
-      // Una línea facturada huérfana (su asignación se borró después de emitir)
-      // puede dejar `billed >= cobrado` agregado mientras otra inscripción sigue
-      // con remanente: ahí `billableAmount > 0` pero `porcion === null`. El botón
-      // no debe habilitarse, porque el server rechazaría la emisión.
+    test("keeps canEmit aligned with the server gate when a billed line is orphaned", async () => {
+      // An orphaned billed line — its allocation was deleted after emission —
+      // leaves the aggregate billed above the aggregate collected while another
+      // inscription still has a remainder. The remainder is resolved per
+      // inscription, so B's is still billable and the button enables: the server
+      // accepts exactly that emission. Under `porcion` this case was blocked,
+      // because the aggregate portion was not derivable.
       const event = await createSavedEvent({ requiredDepositPercentage: 30 });
       const { academy, choreography } =
         await createAcademyFinanceChoreographyFixture({
@@ -460,7 +425,6 @@ describe.sequential(
         inscriptionId: inscriptionA.id,
         amount: 3000,
         cbteNro: 7,
-        porcion: "seña",
       });
       // B cobra sólo 1000 (menos que la línea facturada de A).
       await seedAllocation({
@@ -481,11 +445,10 @@ describe.sequential(
         eventId: event.id,
       });
 
-      // El remanente de B es positivo pero no hay porción derivable.
-      expect(loaderData.invoicing.billableAmount).toBe(1000);
-      expect(loaderData.invoicing.porcion).toBeNull();
-      // El botón espeja la precondición del server: sin porción, no se habilita.
-      expect(loaderData.invoicing.canEmit).toBe(false);
+      expect(loaderData.invoicing).toEqual({
+        billableAmount: 1000,
+        canEmit: true,
+      });
     });
 
     test("emits and redirects back to the detail on an approved CAE", async () => {
