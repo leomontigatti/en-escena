@@ -359,7 +359,7 @@ Amount derived for a choreography from the prices of its active inscriptions: th
 _Avoid_: `payment`, `choreographyFinancialStatus`, applicable price × dancers
 
 **`selectedPrice`** — ui: "Precio base"
-The one price row that prices an inscription, held as `selectedPriceId` — the single surviving snapshot column. Every amount and every financial status derives from its `amount` and from `Σ paymentAllocation`. It is rewritten on each allocation write while the inscription holds no money and fixed from the first allocation on, enforced by the write path and by a database trigger. The existing `hasFrozenPriceInscription` / `frozen-price` symbols name this and are pending rename.
+The one price row that prices an inscription, held as `selectedPriceId` — the single surviving snapshot column. Every amount and every financial status derives from its `amount` and from `Σ paymentAllocation`. It is rewritten on each allocation write while the inscription is **below its deposit threshold** and fixed from the crossing on, enforced by the write path and by a database trigger; below the threshold the read does not treat it as authoritative either, and re-derives from the row that applies today. The existing `hasFrozenPriceInscription` / `frozen-price` symbols name a broader guard — any money at all, not the price lock — and are pending rename.
 _Avoid_: `tentativeInscriptionPrice` (retired), `frozenInscriptionPrice` (retired), invoice
 
 **Precio tentativo de inscripción** _(retired term)_ — no code identifier
@@ -367,7 +367,7 @@ Indicative price of an unpaid inscription, retired with the estimate marking map
 _Avoid_: `selectedPrice`, estimated price
 
 **Precio congelado de inscripción** _(retired term)_ — no code identifier
-The other half of the retired tentative/frozen pair. Fixing survives as behaviour — see **`selectedPrice`** — but not as a second term, because there is only ever one price on an inscription. Do not use.
+The other half of the retired tentative/frozen pair. Fixing survives as behaviour — see **`selectedPrice`**, where it happens at the deposit threshold — but not as a second term, because there is only ever one price on an inscription. Do not use.
 _Avoid_: `selectedPrice`, snapshot price
 
 **Snapshot financiero de inscripción** _(retired term)_ — no code identifier
@@ -375,7 +375,7 @@ Economic data fixed by a payment allocation so that an inscription's financial s
 _Avoid_: `inscriptionSnapshot` (retired), invoice, frozen amount, `financialReferenceDate` (retired)
 
 **Fecha de referencia financiera** _(retired term)_ — no code identifier
-Per-inscription date that used to decide which price row applied. Map #547 replaced date-driven price resolution with the price fixed by the first allocation, and the two reference-date columns were dropped in #689. What survives is the shared business date `getBusinessDateOnly()`, which is not a financial concept and needs no glossary term — it is held in a local named `financialReferenceDate` inside `resolveEstimatedBasePriceAmount`, on the **read** path, so the words do still appear in code even though they name no column, no type and no exported symbol. Do not use.
+Per-inscription date that used to decide which price row applied. Map #547 replaced date-driven price resolution with the price fixed at the deposit threshold crossing, and the two reference-date columns were dropped in #689. What survives is the shared business date `getBusinessDateOnly()`, which is not a financial concept and needs no glossary term — it is held in a local named `financialReferenceDate` inside `resolveEstimatedBasePriceAmount`, on the **read** path, so the words do still appear in code even though they name no column, no type and no exported symbol. Do not use.
 _Avoid_: `selectedPrice`, UTC date, deposit date
 
 **`paymentDeadline`** — ui: "Fecha límite de pago"

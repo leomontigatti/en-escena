@@ -1,7 +1,16 @@
 import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { choreographies, prices, scheduleCapacities } from "@/db/schema";
+import {
+  choreographies,
+  events,
+  prices,
+  scheduleCapacities,
+} from "@/db/schema";
+import {
+  calculateDepositAmount,
+  hasCrossedDepositThreshold,
+} from "@/lib/finances/inscription-financial-status";
 
 export type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -87,6 +96,45 @@ export async function loadCandidatePriceRow(
   }
 
   return price;
+}
+
+/**
+ * Whether an inscription has crossed the deposit threshold of the price row it
+ * **stores** — the one question the price lock turns on, and the single owner of
+ * it on the write side.
+ *
+ * Reading the stored row here rather than through `readInscriptionThresholds`
+ * is deliberate: that reader resolves the *effective* price, which below the
+ * threshold is the row that applies today, and asking whether today's row's
+ * threshold was crossed is the circularity this rule exists to avoid. With no
+ * stored row there is no threshold, so nothing is locked.
+ */
+export async function hasCrossedStoredDepositThreshold(
+  executor: Executor,
+  input: { allocatedAmount: number; selectedPriceId: string | null },
+): Promise<boolean> {
+  if (input.selectedPriceId === null) {
+    return false;
+  }
+
+  const [stored] = await executor
+    .select({
+      priceAmount: prices.amount,
+      requiredDepositPercentage: events.requiredDepositPercentage,
+    })
+    .from(prices)
+    .innerJoin(events, eq(prices.eventId, events.id))
+    .where(eq(prices.id, input.selectedPriceId))
+    .limit(1);
+
+  if (!stored) {
+    return false;
+  }
+
+  return hasCrossedDepositThreshold({
+    allocatedAmount: input.allocatedAmount,
+    depositAmount: calculateDepositAmount(stored),
+  });
 }
 
 /**

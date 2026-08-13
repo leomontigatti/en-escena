@@ -15,10 +15,11 @@
  *   direction that can bounce. A removal has nothing to refuse: the figures and
  *   the status re-derive from whatever is left.
  * - **Only adding money has a price.** The price fixes the two thresholds, so it
- *   belongs to the moment money lands and is locked from the first allocation
- *   onwards — a rule the database also holds, through the guard trigger on
- *   `selected_price_id`. The removal shapes carry no price control at all, and
- *   taking the money off is precisely what opens the lock again.
+ *   belongs to the moment money lands, and it is locked once the inscription
+ *   covers its seña — a rule the database also holds, through the guard trigger
+ *   on `selected_price_id`. The removal shapes carry no price control at all,
+ *   and taking money off until the row falls back below its seña is precisely
+ *   what opens the lock again.
  */
 
 import { and, eq } from "drizzle-orm";
@@ -39,6 +40,7 @@ import {
   unwindToPool,
 } from "./allocation-pool.server";
 import {
+  hasCrossedStoredDepositThreshold,
   loadCandidatePriceRow,
   loadChoreographyScheduleRow,
   runCobro,
@@ -163,7 +165,7 @@ type InscriptionMoneyInput = {
  * `Saldo disponible`.
  *
  * `priceId` is the price chosen inside the dialog, and it is only honoured
- * while the inscription holds no money: from the first allocation on, a
+ * while the inscription has not covered its seña: from that crossing on, a
  * different row is refused rather than warned about. Any amount is allocatable
  * — a partial one leaves the row reading `Seña pendiente` with its shortfall,
  * which is an ordinary outcome and not an error.
@@ -285,9 +287,13 @@ async function unwindInscription(
 }
 
 /**
- * The price the money lands against. While the inscription holds nothing the
- * chosen row is written; once it holds something the price is **locked**, and a
- * different row is refused with the way out named — take the money off first.
+ * The price the money lands against. While the inscription is **below its
+ * deposit threshold** the chosen row is written, whatever it already holds;
+ * from the crossing on the price is **locked**, and a different row is refused
+ * with the way out named — take enough money off to drop back below the seña.
+ *
+ * The threshold is the stored row's, never the incoming one's: see
+ * `hasCrossedDepositThreshold`.
  */
 async function applySelectedPrice(
   tx: Transaction,
@@ -299,7 +305,12 @@ async function applySelectedPrice(
     priceId: string | null;
   },
 ): Promise<CobroResult> {
-  if (input.allocatedAmount > 0) {
+  const crossed = await hasCrossedStoredDepositThreshold(tx, {
+    allocatedAmount: input.allocatedAmount,
+    selectedPriceId: input.inscription.selectedPriceId,
+  });
+
+  if (crossed) {
     if (
       input.priceId !== null &&
       input.priceId !== input.inscription.selectedPriceId
@@ -307,7 +318,7 @@ async function applySelectedPrice(
       return {
         ok: false,
         message:
-          "El precio queda fijo desde la primera asignación. Para cambiarlo hay que quitarle toda la plata a la inscripción.",
+          "El precio queda fijo desde que la inscripción cubre su seña. Para cambiarlo hay que quitarle plata hasta dejarla por debajo de la seña.",
       };
     }
 
@@ -315,7 +326,11 @@ async function applySelectedPrice(
   }
 
   if (input.priceId === null) {
-    return input.inscription.selectedPriceId === null
+    // Naming no price changes none. The one row that has to be told to pick one
+    // is the row that holds nothing and stores nothing: there, neither the
+    // administrator nor a previous charge has said anything yet.
+    return input.inscription.selectedPriceId === null &&
+      input.allocatedAmount === 0
       ? { ok: false, message: "Elegí un precio para la inscripción." }
       : { ok: true };
   }
