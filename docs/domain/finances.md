@@ -530,12 +530,9 @@ a comprobante that carries a CAE is **immutable and undeletable by fiscal
 obligation**. It is emitted from the choreography's financial detail in the admin
 panel.
 
-What is implemented today is the **`porción` model**, and it is not the settled
-one:
+What is implemented today is **collection-driven emission**, and it is not the
+settled model:
 
-- A comprobante carries a `porcion` — `seña`, `saldo` or `total` — derived at
-  emission and stored not-null. `Porción` is also what the printed document
-  shows.
 - **Emission bills what was collected**, not the price. The only gate is that
   there is a positive amount collected and not yet billed; there is no `Señada`
   gate. Per inscription it bills `collected − already billed` where that is
@@ -544,23 +541,24 @@ one:
 - Internal lines are one row per inscription (`comprobante_inscription`), holding
   an amount and no text. If the inscription is later hard-deleted the line's
   `inscriptionId` goes null and the line survives.
-- **The printed document carries exactly one line**, reading `{Porción} —
+- **The printed document carries exactly one line**, reading `Inscripción —
 {choreography}`, at the comprobante's total. There is no per-dancer line and no
-  discount line.
+  discount line. The left-hand side is a constant: it names the service sold,
+  because with `porción` gone a comprobante covers an arbitrary amount and is
+  neither a seña nor a saldo.
 - Status is derived, never stored, and has **two** values: `vigente` and
   `anulada`. It is derived by **existence** — a comprobante is `anulada` when
   some other comprobante of the same choreography points at it.
-- The financial detail also shows a coverage badge on **each** of its two
-  `porción` metric cards, `Seña` and `Saldo` — so **two** badges, not one, and
-  each is nullable: when no `vigente` factura covers a card's `porción`, that
-  card shows no badge at all rather than a dead `Anulado` state. The badge does
-  **not** compare
-  the billed amount to what the roster owes. It reads `Desactualizada` when there
-  is money **collected and not yet billed** falling in that `porción`, and
-  `Vigente` when the covering factura already bills all of it.
+- **`Vigente` / `Anulada` is the only comprobante badge**, and it is the derived
+  status above, shown on the global comprobante list and detail. The financial
+  detail's `Seña` and `Saldo` metric cards carry **no** badge and **no** link to
+  a comprobante: the `Vigente` / `Desactualizada` pair they used to carry read a
+  `porción` — which vigente factura covered it and whether new money had landed
+  inside it — and went with the field. A choreography's comprobantes are reached
+  from the global list, which searches by choreography name.
 - **`Anular comprobante` exists** as an action on the comprobante detail. It
   emits a mirror **nota de crédito** for the target's full amount, replicating
-  its lines and its `porcion`, and pointing at it. A unique index caps a
+  its lines and pointing at it. A unique index caps a
   comprobante at **one** amendment ever, and annulling an already-annulled
   comprobante is refused.
 - There is **no nota de débito**: only Factura C (`CbteTipo` 11) and Nota de
@@ -578,9 +576,11 @@ one:
   only, not roster editing.
 
 > **Specified, not built.** This is the largest gap in the document, and it is
-> the whole of ADR-0014 §5, §6 and §7. The settled model:
+> the whole of ADR-0014 §5, §6 and §7 **minus the one piece already built**: the
+> deletion of `porcion` — column, enum, derivation and every reader — landed
+> ahead of the rest, because the field asserted something untrue the moment #676
+> replaced the ladder with two thresholds. What is still specified only:
 >
-> - `porcion` is **deleted** — column, enum, derivation and every reader.
 > - A factura is emitted once the choreography is **`Señada` and `total > 0`**,
 >   per choreography, **all-or-nothing**, and it bills the **full price** rather
 >   than what was collected. Collection unlocks emission; it is never the amount.
@@ -676,19 +676,21 @@ and no request actions. The restriction is **permanent and role-based**.
 These name nothing and must not come back. The glossary tombstones the ones that
 had entries.
 
-| Retired                                       | What replaced it                                    |
-| --------------------------------------------- | --------------------------------------------------- |
-| `Etapa de inscripción`, `inscriptionStage`    | the two thresholds and the three statuses           |
-| `Precio tentativo` / `Precio congelado`       | one `selectedPrice` per inscription                 |
-| `Fecha de referencia financiera`              | the business date, on the read path only            |
-| `frozenBasePriceAmount` and the nine siblings | derivation from `selectedPrice` and `Σ allocations` |
-| `allocation_type`, `allocationDeletionRank`   | nothing — money is fungible                         |
-| `Saldo de inscripción`                        | `Total de inscripción`                              |
-| `Cuenta corriente de academia`                | nothing — it never named a symbol (see below)       |
-| `choreographyFinancialState` (watermark)      | the minimum rollup                                  |
-| `deriveChoreographyNeedsAttention`            | the minimum rollup                                  |
-| `groupTypeMismatch`, `orphanedAllocations`    | nothing                                             |
-| `Imputación`, choreography invoice            | `paymentAllocation`, `comprobante`                  |
+| Retired                                         | What replaced it                                    |
+| ----------------------------------------------- | --------------------------------------------------- |
+| `Etapa de inscripción`, `inscriptionStage`      | the two thresholds and the three statuses           |
+| `Precio tentativo` / `Precio congelado`         | one `selectedPrice` per inscription                 |
+| `Fecha de referencia financiera`                | the business date, on the read path only            |
+| `frozenBasePriceAmount` and the nine siblings   | derivation from `selectedPrice` and `Σ allocations` |
+| `allocation_type`, `allocationDeletionRank`     | nothing — money is fungible                         |
+| `Saldo de inscripción`                          | `Total de inscripción`                              |
+| `Cuenta corriente de academia`                  | nothing — it never named a symbol (see below)       |
+| `choreographyFinancialState` (watermark)        | the minimum rollup                                  |
+| `deriveChoreographyNeedsAttention`              | the minimum rollup                                  |
+| `groupTypeMismatch`, `orphanedAllocations`      | nothing                                             |
+| `Imputación`, choreography invoice              | `paymentAllocation`, `comprobante`                  |
+| `Porción`, `comprobantePorcion`                 | nothing — a comprobante covers an amount            |
+| `Desactualizada` (the `porción` currency badge) | nothing — the cards carry no badge                  |
 
 Two of those rows retire a **concept**, not every string that spells it, and the
 difference matters to anyone about to delete something:
@@ -705,8 +707,9 @@ difference matters to anyone about to delete something:
   and no exported symbol, and it is not a financial concept — but it is a real
   identifier, and grep will find it.
 
-Two names the settled model retires that are **still live in code**, and are
-therefore described above rather than tombstoned: **`Porción`** (a not-null
-column, its enum, its derivation and its printed label) and **`Desactualizada`**
-(the currency badge carried by each of the financial detail's two `porción`
-cards). Both go with the amendment star.
+**`Porción`** is retired as a _concept_, not as every string that spells it. The
+column, its pgEnum, its derivation and its printed label are gone, and no
+identifier spells it. But `readComprobantesListFilters` still calls
+`searchParams.delete("porcion")`, alongside the same call for `academia`, so an
+old bookmarked list URL is canonicalised rather than kept alive; that is a query
+parameter being scrubbed, not a concept being read.

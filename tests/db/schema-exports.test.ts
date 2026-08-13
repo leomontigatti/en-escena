@@ -14,7 +14,6 @@ const schemaExportNames = [
   "choreographies",
   "comprobanteInscriptions",
   "comprobanteIssuerIvaCondition",
-  "comprobantePorcion",
   "comprobantes",
   "createTable",
   "dancers",

@@ -62,83 +62,30 @@ describe("ChoreographyFinanceDetailView", () => {
     expect(markup).not.toContain("Pagada");
   });
 
-  test("shows a Vigente badge and a link to the covering comprobante on the Seña card", () => {
-    const markup = renderDetail({
-      invoicing: invoicingFixture({
-        sena: { comprobanteId: "comprobante_sena", currency: "vigente" },
-      }),
-    });
+  test("carries no comprobante badge or link on the amount cards", () => {
+    // `porcion` is deleted, and with it the two `Vigente`/`Desactualizada`
+    // badges the Seña and Saldo cards carried: each read *a portion* — which
+    // vigente factura covered it, and whether new money had landed inside it —
+    // and with no portion there is nothing to cover. The surviving
+    // `Vigente`/`Anulada` badge is the comprobante's own status, and it lives on
+    // the global comprobante list and detail.
+    const markup = renderDetail();
 
-    const card = portionCard(markup, "Seña");
-    expect(card.textContent).toContain("Vigente");
-    // La card entera es el link al comprobante (no un botón interno): el `<a>`
-    // es ancestro de la card.
-    expect(
-      card.closest('a[href="/administracion/comprobantes/comprobante_sena"]'),
-    ).not.toBeNull();
-  });
+    for (const title of ["Seña", "Saldo adeudado", "Total"]) {
+      const card = amountCard(markup, title);
+      expect(card.textContent).not.toContain("Vigente");
+      expect(card.textContent).not.toContain("Desactualizada");
+      expect(card.querySelector("a")).toBeNull();
+    }
 
-  test("links Seña and Saldo adeudado to the same comprobante when a total factura covers both", () => {
-    const markup = renderDetail({
-      invoicing: invoicingFixture({
-        sena: { comprobanteId: "comprobante_total", currency: "vigente" },
-        saldo: { comprobanteId: "comprobante_total", currency: "vigente" },
-      }),
-    });
-
-    const sena = portionCard(markup, "Seña");
-    const saldo = portionCard(markup, "Saldo adeudado");
-    const target = 'a[href="/administracion/comprobantes/comprobante_total"]';
-    expect(sena.closest(target)).not.toBeNull();
-    expect(saldo.closest(target)).not.toBeNull();
-  });
-
-  test("marks a portion card Desactualizada when new money is unbilled", () => {
-    const markup = renderDetail({
-      invoicing: invoicingFixture({
-        saldo: {
-          comprobanteId: "comprobante_saldo",
-          currency: "desactualizada",
-        },
-      }),
-    });
-
-    const card = portionCard(markup, "Saldo adeudado");
-    expect(card.textContent).toContain("Desactualizada");
-    expect(card.textContent).not.toContain("Vigente");
-  });
-
-  test("drops the badge and link from a portion card whose comprobante was annulled", () => {
-    // El loader ya filtra las facturas anuladas: la vista sólo recibe cobertura
-    // `null`, así que la MetricCard no muestra badge ni botón (sin estado Anulado).
-    const markup = renderDetail({
-      invoicing: invoicingFixture({ sena: null, saldo: null }),
-    });
-
-    const card = portionCard(markup, "Seña");
-    expect(card.textContent).not.toContain("Vigente");
-    expect(card.textContent).not.toContain("Desactualizada");
     expect(markup).not.toContain("/administracion/comprobantes/");
   });
 
-  test("carries no badge or link on the Total card", () => {
-    const markup = renderDetail({
-      invoicing: invoicingFixture({
-        sena: { comprobanteId: "comprobante_sena", currency: "vigente" },
-        saldo: { comprobanteId: "comprobante_saldo", currency: "vigente" },
-      }),
-    });
-
-    const card = portionCard(markup, "Total");
-    expect(card.textContent).not.toContain("Vigente");
-    expect(card.querySelector("a")).toBeNull();
-  });
-
   test("sums the deposit and balance into the Total card", () => {
-    // depositAmount 3000 + balanceAmount 7000 = 10.000 (ambas porciones completas).
+    // depositAmount 3000 + balanceAmount 7000 = 10.000.
     const markup = renderDetail();
 
-    const card = portionCard(markup, "Total");
+    const card = amountCard(markup, "Total");
     expect(card.textContent).toContain("10.000");
   });
 
@@ -322,10 +269,10 @@ function anomalyAlert(markup: string): Element {
 }
 
 /**
- * MetricCard de una porción, ubicada por su título. Se ancla en el texto del
- * título y no en la posición para que el test hable de "Seña"/"Saldo"/"Total".
+ * An amount MetricCard, located by its title rather than its position so the
+ * test can talk about "Seña" / "Saldo" / "Total".
  */
-function portionCard(markup: string, title: string): Element {
+function amountCard(markup: string, title: string): Element {
   const document = new DOMParser().parseFromString(markup, "text/html");
   const card = [...document.querySelectorAll('[data-slot="card"]')].find(
     (element) =>
@@ -395,10 +342,7 @@ function invoicingFixture(
 ): ChoreographyFinanceDetailLoaderData["invoicing"] {
   return {
     billableAmount: 0,
-    porcion: null,
     canEmit: false,
-    sena: null,
-    saldo: null,
     ...overrides,
   };
 }
@@ -481,7 +425,6 @@ describe("ChoreographyFinanceDetailView actions menu", () => {
     await mount({
       invoicing: invoicingFixture({
         billableAmount: 12000,
-        porcion: "seña",
         canEmit: true,
       }),
     });
@@ -524,7 +467,6 @@ describe("ChoreographyFinanceDetailView actions menu", () => {
             loaderData={loaderDataFixture({
               invoicing: invoicingFixture({
                 billableAmount: 12000,
-                porcion: "seña",
                 canEmit: billable,
               }),
             })}

@@ -18,9 +18,6 @@ import {
   contingencyCancelLabel,
   resolveContingencySubmitState,
 } from "@/lib/comprobantes/contingency-alert";
-import type { ComprobantePorcion } from "@/lib/comprobantes/emit-factura-c.server";
-import { formatComprobantePorcionLabel } from "@/lib/comprobantes/format";
-import { lowercaseFirst } from "@/lib/shared/utils";
 
 import { formatAmount } from "../../formatters";
 import {
@@ -33,9 +30,9 @@ import {
 /**
  * Confirmación de emisión como `AlertDialog` (#480, ADR-0011): foco atrapado, no
  * se cierra al clickear afuera y expone `role="alertdialog"`. Sin checkbox: la
- * confirmación es el diálogo mismo. La porción y el importe llegan derivados de
- * lo cobrado, así que la operadora no puede emitir por otro monto ni elegir otra
- * porción; sólo previsualiza y confirma o cancela. El `confirm` viaja como campo
+ * confirmación es el diálogo mismo. El importe llega derivado de lo cobrado, así
+ * que la operadora no puede emitir por otro monto; sólo previsualiza y confirma
+ * o cancela. El `confirm` viaja como campo
  * oculto —palabra clave de submit deliberado que el server exige— no como tilde.
  *
  * Controlado desde el menú de acciones del header (ADR-0011): la afordancia
@@ -44,12 +41,10 @@ import {
  */
 export function EmissionDialog({
   billableAmount,
-  porcion,
   open,
   onOpenChange,
 }: {
   billableAmount: number;
-  porcion: ComprobantePorcion | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -83,9 +78,8 @@ export function EmissionDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Emitir Factura C</AlertDialogTitle>
           <AlertDialogDescription>
-            Vas a emitir una factura C por {formatAmount(billableAmount)} (
-            {lowercaseFirst(porcionLabel(porcion))}). Una vez emitida, sólo
-            puede revertirse con una nota de crédito.
+            Vas a emitir una factura C por {formatAmount(billableAmount)}. Una
+            vez emitida, sólo puede revertirse con una nota de crédito.
           </AlertDialogDescription>
         </AlertDialogHeader>
 
@@ -97,7 +91,7 @@ export function EmissionDialog({
             value={emitComprobanteConfirmValue}
           />
 
-          <EmissionPreview billableAmount={billableAmount} porcion={porcion} />
+          <EmissionPreview billableAmount={billableAmount} />
 
           {contingency ? (
             <ContingencyAlert
@@ -151,21 +145,14 @@ export function EmissionDialog({
 }
 
 /**
- * Detalle a facturar. Enuncia la porción derivada y el importe, más las reglas de
- * dominio congeladas del comprobante (#320): receptor consumidor final anónimo y
- * emisor exento frente al IVA.
+ * Detalle a facturar. Enuncia el importe derivado, más las reglas de dominio
+ * congeladas del comprobante (#320): receptor consumidor final anónimo y emisor
+ * exento frente al IVA.
  */
-function EmissionPreview({
-  billableAmount,
-  porcion,
-}: {
-  billableAmount: number;
-  porcion: ComprobantePorcion | null;
-}) {
+function EmissionPreview({ billableAmount }: { billableAmount: number }) {
   return (
     <div className="flex flex-col gap-2 rounded-md border bg-muted/50 px-3 py-2">
       <PreviewRow label="Comprobante" value="Factura C" />
-      <PreviewRow label="Porción" value={porcionLabel(porcion)} />
       <PreviewRow label="Receptor" value="Consumidor final" />
       <PreviewRow label="Emisor" value="Exento de IVA" />
       <PreviewRow
@@ -175,14 +162,6 @@ function EmissionPreview({
       />
     </div>
   );
-}
-
-/**
- * Etiqueta legible de la porción derivada. `null` no debería llegar acá (el
- * diálogo sólo se monta con remanente por facturar), pero se rotula defensivo.
- */
-function porcionLabel(porcion: ComprobantePorcion | null): string {
-  return porcion ? formatComprobantePorcionLabel(porcion) : "—";
 }
 
 function PreviewRow({

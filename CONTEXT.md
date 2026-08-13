@@ -303,6 +303,14 @@ _Avoid_: Devolución, negative `payment`, `paymentAllocation`, nota de crédito
 Electronic tax receipt —Factura C, issued against ARCA/WSFEv1— derived from inscriptions, payments and allocations, and never governing financial state. One per choreography, immutable once it carries a CAE, and amended only by another comprobante. The term "factura"/"comprobante" is **the only reserved Spanish term inside code**; adding another requires an ADR. What the emission and amendment rules are today, and where they are still the ADR-0014 target rather than the code, is in [docs/domain/finances.md](docs/domain/finances.md).
 _Avoid_: `payment`, `paymentAllocation`, choreography invoice (retired), voucher
 
+**Porción** _(retired term)_ — no code identifier
+Label that classified a **`comprobante`** as covering the seña, the saldo or both. It only made sense under the two-rung ladder map #547 retired: money is now allocated in arbitrary amounts against two thresholds, so a comprobante covers an amount and is neither rung. The column, its pgEnum, its derivation and its printed label are gone; the printed line names the service sold instead. It is retired as a _concept_, not as a string: the comprobante list still scrubs a stale `porcion` query parameter out of old URLs, which canonicalises a bookmark rather than reading anything. Do not use.
+_Avoid_: `comprobante`, `inscriptionStage` (retired), seña invoice, balance invoice
+
+**Desactualizada** _(retired term)_ — no code identifier
+Currency badge each of the choreography financial detail's two `porción` metric cards carried, paired with a `Vigente` that meant "the covering factura bills every peso collected in this portion". It read a portion and died with **Porción**; those cards now carry no badge and no comprobante link. The surviving `Vigente` is the unrelated one — the derived `vigente` / `anulada` status of a **`comprobante`**, shown on the global comprobante list and detail. Do not use.
+_Avoid_: `comprobanteStatus`, `Vigente` (comprobante status), stale, outdated
+
 **Choreography invoice** _(retired term)_ — no code identifier
 Document of the old financial model (tables `academy_event_choreography_invoice` and `academy_event_invoice_imputation`), removed in V1 (see ADR-0009). Do not use; for the tax receipt see **`comprobante`**.
 

@@ -134,7 +134,7 @@ function toNotaCreditoOutcome(
 
 /**
  * Arma la coreografía de la Nota de crédito espejo: valida el comprobante
- * objetivo y congela importe, porción, fechas y líneas. La comparten la anulación
+ * objetivo y congela importe, fechas y líneas. La comparten la anulación
  * y la re-verificación, que necesita los mismos insumos calculados en el server.
  */
 async function resolveNotaCreditoChoreography(
@@ -203,9 +203,6 @@ async function resolveNotaCreditoChoreography(
         cbteNro: authorized.cbteNro,
         cbteFch: authorized.cbteFch,
         impTotal: target.impTotal,
-        // La Nota de crédito espeja la porción del comprobante que anula (ADR-0011),
-        // igual que el backfill de la migración 0005.
-        porcion: target.porcion,
         issuerCuit: deps.issuerCuit,
         issuerIvaCondition: ISSUER_IVA_CONDITION,
         receptorDocTipo: DOC_TIPO_CONSUMIDOR_FINAL,
