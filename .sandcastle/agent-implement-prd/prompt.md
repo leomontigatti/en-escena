@@ -66,9 +66,10 @@ Make one or more commits on `{{BRANCH}}` with conventional-commit messages (`fea
   either update that document or add a `Doc-Change-Not-Needed: <reason>` trailer to a
   commit. CI's `docs-gate` fails the PR otherwise, and you cannot read check output.
   Check with `pnpm check:doc-map`; the rule is in `.sandcastle/CODING_STANDARDS.md`.
-- Do **not** include `Closes` — the workflow closes the sub-issue; the merged PR closes the PRD.
+- Do **not** include `Closes` in a commit message — the PR body carries `Closes` for the PRD and
+  for every sub-issue, and merging it is what closes them.
 - Do **not** push the branch — the workflow handles it.
-- Do **not** close anything — the workflow handles it.
+- Do **not** close or comment on anything — the workflow owns every tracker mutation.
 - Do **not** touch the tracker or the remote in any way; you have no GitHub write access.
 
 # WHEN YOU ARE DONE
