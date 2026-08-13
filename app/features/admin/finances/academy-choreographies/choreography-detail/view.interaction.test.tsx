@@ -407,10 +407,7 @@ function loaderDataFixture(
     inscriptions: [inscriptionFixture()],
     invoicing: {
       billableAmount: 0,
-      porcion: null,
       canEmit: false,
-      sena: null,
-      saldo: null,
     },
     priceOptions: [
       {

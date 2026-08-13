@@ -10,7 +10,6 @@ import {
 import type { ComprobanteStatus } from "@/lib/comprobantes/comprobante-status.server";
 import { listChoreographyComprobantes } from "@/lib/comprobantes/comprobantes.server";
 import { toContingencyActionData } from "@/lib/comprobantes/contingency-view";
-import type { ComprobantePorcion } from "@/lib/comprobantes/emit-factura-c.server";
 import {
   getFacturaCEmissionDeps,
   type FacturaCEmissionDeps,
@@ -41,7 +40,6 @@ export type ComprobanteDetail = {
   impTotal: number;
   cae: string;
   caeVto: string;
-  porcion: ComprobantePorcion;
   fchServDesde: string | null;
   fchServHasta: string | null;
   fchVtoPago: string | null;
@@ -107,7 +105,6 @@ export async function loadComprobanteDetail(
       impTotal: comprobante.impTotal,
       cae: comprobante.cae,
       caeVto: comprobante.caeVto,
-      porcion: comprobante.porcion,
       fchServDesde: comprobante.fchServDesde,
       fchServHasta: comprobante.fchServHasta,
       fchVtoPago: comprobante.fchVtoPago,

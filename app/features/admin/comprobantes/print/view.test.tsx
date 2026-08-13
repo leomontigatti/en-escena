@@ -22,7 +22,6 @@ function printRecord(
     cbteTipo: 11,
     ptoVta: 3,
     cbteNro: 7,
-    porcion: "total",
     cbteFch: "20260722",
     fchServDesde: null,
     fchServHasta: null,
@@ -73,13 +72,15 @@ describe("buildComprobantePrintViewModel", () => {
     expect(model.estadoLabel).toBe("Vigente");
   });
 
-  test("proyecta una sola línea `{Porción} — {Coreografía}` con el total (ADR-0011)", () => {
+  test("proyecta una sola línea `Inscripción — {Coreografía}` con el total", () => {
     const model = buildComprobantePrintViewModel(
-      printRecord({ porcion: "seña", impTotal: 25000 }),
+      printRecord({ impTotal: 25000 }),
     );
 
     expect(model.lines).toHaveLength(1);
-    expect(model.lines[0].descripcion).toBe("Seña — Coreografía Alfa");
+    // The description names the service sold, not a rung of the retired ladder:
+    // `porcion` is deleted, so a comprobante is neither seña nor saldo.
+    expect(model.lines[0].descripcion).toBe("Inscripción — Coreografía Alfa");
     expect(model.lines[0].importe).toBe(model.importeTotal);
     // La línea única no repite un renglón por bailarín ni el nombre del evento.
     expect(model.lines[0].descripcion).not.toContain("Certamen 2026");

@@ -586,3 +586,42 @@ delta with sign and amount because the admin emits the document.
   withdrawal-driven deltas, because the clock's start is not derivable in general
   and `withdrawnAt` is the only movement date the system persists. There is no
   worklist and no notification.
+
+## Correction (2026-08-13): `porcion` was still live when this was written
+
+Appended, not edited in place: `docs/adr/` is append-only, so the claim below
+stays where it was made and this is the record that it was wrong.
+
+The supersession section above — "Why both ADR-0011 and ADR-0012 are superseded,
+and ADR-0009 is not" — argues that ADR-0011 does not survive as a document and
+gives as its ground that **"#554 deleted `porcion` outright — column, pgEnum,
+`derivePorcion`, `formatComprobantePorcionLabel` and every reader."**
+
+**That was never true.** #554 closed as a map decision, not as an implementation:
+no code changed under it. Every symbol the sentence names was live on `master`
+the day this ADR was accepted and stayed live for six days after it — the
+`en_escena_comprobante_porcion` pgEnum, a `NOT NULL DEFAULT 'total'` column,
+`derivePorcion`, `formatComprobantePorcionLabel`, the `Porción` field on the
+comprobante detail, the printed `{Porción} — {Coreografía}` line, and the
+`Vigente` / `Desactualizada` badges on the financial detail's two portion cards.
+#712 was still repairing the derivation in `emit-factura-c.server.ts` afterwards,
+which a deleted field cannot have.
+
+The conclusion the sentence supports is unaffected: ADR-0011's organising concept
+is `porción` and it is superseded either way. What was wrong is the tense.
+
+The deletion is real as of the PR that appends this paragraph, and it is the
+whole of it — column, pgEnum, derivation, label, filter, printed label and the
+two portion badges. Two decisions it forced, neither settled here:
+
+- The printed line reads `Inscripción — {coreografía}` rather than the
+  choreography name alone. A bare proper noun would repeat the receptor block and
+  describe no service; the noun is the one §5 gives the settled per-dancer line,
+  so only its right-hand side moves when #657 lands.
+- The `Vigente` / `Desactualizada` badges were read and removed. They derived
+  from `porcion` outright, which the two-badge shape gives away: there was one
+  per portion. The identically-labelled `Vigente` on the comprobante list and
+  detail is a different badge — the derived `vigente` / `anulada` status — and it
+  survives untouched.
+
+The rest of §5, §6 and §7 remains specified and not built. Owner: #657.
