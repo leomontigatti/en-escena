@@ -6,13 +6,17 @@ import { choreographyDancers, paymentAllocations } from "@/db/schema";
 import type { Transaction } from "./choreography-cobro-support.server";
 
 /**
- * Does any inscription of the choreography have a frozen price?
+ * Does any inscription of the choreography hold money?
  *
- * The evidence is holding payment allocations, which is exactly what freezes
- * the price: the database guard refuses to move `selected_price_id` on an
- * inscription that has money allocated to it. The schedule capacity is part of
- * the price key, so moving it while the price is frozen would leave the
- * inscription charged against a schedule the choreography no longer has.
+ * The schedule capacity is part of the price key, so moving it under an
+ * inscription that already has money on it would leave that money charged
+ * against a schedule the choreography no longer has.
+ *
+ * The test is **deliberately broader than the price lock**, which closes at the
+ * deposit threshold and not at the first peso: an inscription below its seña has
+ * a price that still moves with the price list, but the money already allocated
+ * to it is no less real, and this guard is about that money rather than about
+ * which row prices it.
  */
 export async function hasFrozenPriceInscription(
   choreographyId: string,

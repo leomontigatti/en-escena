@@ -114,31 +114,40 @@ describe("drizzle migrations", () => {
     }
   });
 
-  it("migrate produces the same public tables as pushSchema", async () => {
-    const migratePglite = new PGlite();
-    const migrateDb = drizzle(migratePglite, { schema });
-    const pushDataDir = await mkdtemp(
-      path.join(tmpdir(), "en-escena-pglite-oracle-"),
-    );
-
-    try {
-      await migrate(migrateDb, { migrationsFolder });
-      const migrateTables = await getPublicTables(migrateDb);
-
-      pushSchemaToDataDir(pushDataDir);
-      const pushPglite = new PGlite(pushDataDir);
-      const pushDb = drizzle(pushPglite, { schema });
+  // The one test in the suite that builds two whole databases: it replays every
+  // migration on one and pushes the schema onto the other through a `tsx`
+  // subprocess. It sits close to the shared 30 s budget on its own and goes over
+  // it under the parallel load of a full `pnpm test`, so this one is measured
+  // against a budget of its own rather than the suite's.
+  it(
+    "migrate produces the same public tables as pushSchema",
+    { timeout: 90_000 },
+    async () => {
+      const migratePglite = new PGlite();
+      const migrateDb = drizzle(migratePglite, { schema });
+      const pushDataDir = await mkdtemp(
+        path.join(tmpdir(), "en-escena-pglite-oracle-"),
+      );
 
       try {
-        const pushTables = await getPublicTables(pushDb);
+        await migrate(migrateDb, { migrationsFolder });
+        const migrateTables = await getPublicTables(migrateDb);
 
-        expect(migrateTables).toEqual(pushTables);
+        pushSchemaToDataDir(pushDataDir);
+        const pushPglite = new PGlite(pushDataDir);
+        const pushDb = drizzle(pushPglite, { schema });
+
+        try {
+          const pushTables = await getPublicTables(pushDb);
+
+          expect(migrateTables).toEqual(pushTables);
+        } finally {
+          await pushPglite.close();
+        }
       } finally {
-        await pushPglite.close();
+        await migratePglite.close();
+        await rm(pushDataDir, { force: true, recursive: true });
       }
-    } finally {
-      await migratePglite.close();
-      await rm(pushDataDir, { force: true, recursive: true });
-    }
-  });
+    },
+  );
 });

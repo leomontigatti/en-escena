@@ -140,6 +140,13 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
         dancerId: dancer.id,
         depositAmount: 3000,
         discountAmount: 0,
+        // No row is stored yet, and the effective price is the one that applies
+        // today: it is what the figures come from and what the dialog reads out.
+        effectivePrice: {
+          amount: 10000,
+          id: expect.any(String),
+          name: "Precio Solo",
+        },
         financialStatus: "depositPending",
         firstName: "Ana",
         inscriptionId: expect.any(String),
@@ -214,6 +221,11 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
         dancerId: dancer.id,
         depositAmount: 3000,
         discountAmount: 0,
+        effectivePrice: {
+          amount: 10000,
+          id: expect.any(String),
+          name: "Precio Solo",
+        },
         financialStatus: "depositMet",
         firstName: "Luna",
         inscriptionId: expect.any(String),
@@ -286,10 +298,90 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
       totalAmount: { amount: 10000, status: "complete" },
     });
     // The price the row already holds travels with it: the dialog shows it
-    // locked, because the money has already fixed it.
+    // locked, because the money has already fixed it. Above the threshold the
+    // effective price is that same stored row.
     expect(loaderData.inscriptions[0]?.selectedPrice).toMatchObject({
       amount: 10000,
     });
+    expect(loaderData.inscriptions[0]?.effectivePrice).toMatchObject({
+      amount: 10000,
+    });
+  });
+
+  test("reads the dialog out at the effective price below the seña, not at the stored one", async () => {
+    vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
+      "2026-04-10",
+    );
+
+    const event = await createSavedEvent({ requiredDepositPercentage: 30 });
+    const { academy, choreography } =
+      await createAcademyFinanceChoreographyFixture({
+        academyName: "Academia Bajo Seña",
+        email: "academia.bajo.senia.detalle@example.com",
+        choreographyName: "Detalle bajo seña",
+        event,
+      });
+    const dancer = await createDancer(academy.academy.id, {
+      firstName: "Nina",
+      lastName: "Costa",
+    });
+    // A dearer row with a later deadline: stored without ever being the one
+    // that applies today, so the two prices are told apart by their amount.
+    const [storedPrice] = await db
+      .insert(prices)
+      .values({
+        amount: 12000,
+        eventId: event.id,
+        groupType: "solo",
+        name: "Precio Solo posterior",
+        paymentDeadline: "2026-06-30",
+        scheduleId: null,
+      })
+      .returning();
+    const [inscription] = await db
+      .insert(choreographyDancers)
+      .values({
+        ageAtEventStart: 14,
+        choreographyId: choreography.id,
+        dancerId: dancer.id,
+        selectedPriceId: storedPrice.id,
+      })
+      .returning();
+    const payment = await seedPayment({
+      academyId: academy.academy.id,
+      amount: 3000,
+      eventId: event.id,
+      paymentNumber: 1,
+    });
+    // 3000 is 600 short of the stored row's 3600 seña, so the price is still
+    // loose and the read follows the list.
+    await db.insert(paymentAllocations).values({
+      academyId: academy.academy.id,
+      amount: 3000,
+      eventId: event.id,
+      inscriptionId: inscription.id,
+      paymentId: payment.id,
+    });
+
+    const loaderData = await loadDetailAsAdmin({
+      academyId: academy.academy.id,
+      choreographyId: choreography.id,
+      email: "admin.bajo.senia.detalle@example.com",
+      eventId: event.id,
+    });
+
+    // The figure the dialog reads out is the one the row behind it shows.
+    // Showing the stored row here would put 12000 inside the dialog and 10000
+    // on the row, on the same inscription and the same screen.
+    const row = loaderData.inscriptions[0];
+    expect(row?.effectivePrice).toMatchObject({
+      amount: 10000,
+      name: "Precio Solo",
+    });
+    expect(row?.basePriceAmount).toBe(10000);
+    // The stored row travels too, and it is the picker's default — the one
+    // thing that still reads what the administrator last said.
+    expect(row?.selectedPrice).toMatchObject({ amount: 12000 });
   });
 
   test("keeps a withdrawn inscription visible, with its retained allocation as its total", async () => {
@@ -440,6 +532,7 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
         dancerId: dancer.id,
         depositAmount: null,
         discountAmount: 0,
+        effectivePrice: null,
         financialStatus: "depositPending",
         firstName: "Mora",
         inscriptionId: expect.any(String),

@@ -209,9 +209,11 @@ decision rather than an oversight.
 ## Prices
 
 - An inscription is priced by **one price row**, held as `selectedPriceId`.
-- The **effective price** is the stored row when it still resolves, and otherwise
-  the currently applicable row; when neither resolves there is no price and the
-  inscription's figures are incomplete.
+- The **effective price** is `crossed ? stored : (current ?? stored)`: the stored
+  row once the inscription has crossed its deposit threshold, and otherwise the
+  currently applicable row, falling back to the stored one when no row applies at
+  all. When neither resolves there is no price and the inscription's figures are
+  incomplete.
 - **The stored row is the one the administrator picked**, never one the system
   chose by date. An allocation write stores the row named in the dialog, and a
   preset stores its per-group-type choice. The only validation is membership of
@@ -220,17 +222,43 @@ decision rather than an oversight.
   all**, so a row whose `paymentDeadline` has passed can be selected and stored.
 - **The business date** — today in the business time zone, never a payment's date
   — appears only on the **read** path, in `resolveEstimatedBasePriceAmount`. It
-  resolves the currently applicable row for an inscription that stores none,
-  preferring the row specific to the choreography's schedule and group type, then
-  the general row for that group type.
-- **The price is fixed by the first allocation, not by the calendar.** While an
-  inscription holds no money an allocation write may store a different row, and a
-  write that names no row leaves whatever is stored untouched — **nothing
-  refreshes the stored row on its own, at any point.** From the first allocation
-  on, the stored row is fixed: the write path refuses a different row with "El
-  precio queda fijo desde la primera asignación...", and a database trigger on
-  `choreography_dancer` refuses the same update while any allocation row exists.
-  **Taking the money off is what releases the lock.**
+  resolves the currently applicable row, preferring the row specific to the
+  choreography's schedule and group type, then the general row for that group
+  type.
+- **The price is fixed by the deposit threshold crossing, not by the first peso
+  and not by the calendar.** Below the threshold nothing is fixed: an allocation
+  write may store a different row whatever the inscription already holds, and the
+  read does not treat the stored row as authoritative — it re-derives from the row
+  that applies today, so a page refresh moves the effective price and so does the
+  passage of time. Once `Σ allocations` reaches the seña of the row the
+  inscription **stores**, that row governs: the write path refuses a different one
+  with "El precio queda fijo desde que la inscripción cubre su seña…", and a
+  database trigger on `choreography_dancer` refuses the same update. **Taking
+  money off until the row falls back below its seña is what releases the lock** —
+  not taking every peso off.
+- **`crossed` is always tested against the stored row**, never against the
+  incoming or the currently applicable one. The threshold is derived _from_ the
+  price, so the answer would otherwise depend on which price is asked about: 1000
+  allocated is crossed against a price of 3000 and un-crossed against one of 10000. Testing against what is stored is what stops the rule being circular.
+- **A write that names no row leaves whatever is stored untouched, and nothing
+  refreshes the stored row on its own.** Below the threshold the stored row is
+  still worth writing, because it is what the read falls back to when no row
+  applies at all.
+- **The price list can roll down under a partly funded inscription.** Below its
+  threshold an inscription follows the list, so a drop can leave it holding more
+  than its `Total` and reading `Sobreasignada`. That is passive over-allocation
+  and it is tolerated: it warns, it blocks nothing and nothing throws.
+- **`Señada` and the price lock read the same `≥` against two different señas.**
+  The badge is derived from the **effective** price, and the lock is measured
+  against the **stored** one, so when the stored row is dearer than the one that
+  applies today there is a band where the row reads `Señada` and its price is
+  still loose: stored 12000 (seña 3600), current 10000 (seña 3000), 3000
+  allocated — the badge crosses at 3000 and the lock does not close until 3600.
+  The asymmetry is one-sided, because the lock is never the earlier of the two:
+  a locked price is the stored one, and it is the stored one the badge is then
+  computed from. So `Seña pendiente` next to a fixed price cannot happen, and
+  `Señada` is a claim about the money against today's price rather than a claim
+  that the price has stopped moving.
 - The picker is filtered to the choreography's group type and schedule and to
   nothing else — no floor, no ceiling and no `paymentDeadline` — because offering
   a foreign row would be offering to create a forbidden state, whereas offering
@@ -238,14 +266,43 @@ decision rather than an oversight.
 - A price row that any inscription references **cannot be deleted**.
 
 > **Specified, not built.**
-> ADR-0014 §3 fixes the price at the **deposit threshold crossing** rather than at
-> the first allocation, reads `effective = crossed ? stored : (current ?? stored)`
-> with `crossed` always tested against `stored`, makes `selected_price_id`
-> `NOT NULL` and written at **creation**, and refreshes it on a `groupType`
-> change regardless of the threshold, refusing the roster write when no row
-> applies to the new group type. None of that is implemented: today the column is
-> nullable, the lock is at the first allocation, and the stored row is never
-> revisited. Owner: [#403](https://github.com/leomontigatti/en-escena/issues/403).
+> Beyond the threshold rule above, ADR-0014 §3 makes `selected_price_id`
+> `NOT NULL` and written at
+> **creation**, and refreshes it on a `groupType` change regardless of the
+> threshold, refusing the roster write when no row applies to the new group type.
+> Today the column is nullable, no creation path writes it, and the stored row is
+> never refreshed on its own. Owner:
+> [#403](https://github.com/leomontigatti/en-escena/issues/403), with the
+> `groupType` refresh in
+> [#709](https://github.com/leomontigatti/en-escena/issues/709).
+
+**Known divergence — the price is derived at read time, and ADR-0014 §3 says it
+must not be.** The threshold at which the price stops moving is §3's, and
+so is `effective = crossed ? stored : (current ?? stored)` with `crossed` always
+tested against `stored`. **The mechanism is not.** §3 keeps `selectedPriceId`
+refreshed to the currently applicable row **on every allocation write** below the
+threshold and explicitly rejects "a read-time derivation"; what is built derives
+at read time and never refreshes the stored row. The two are not the same rule
+written twice:
+
+- §3's property "the displayed figure equals what the next write will use" is
+  bought by the write-path refresh, so it does **not** hold here. What holds
+  instead is that every figure on every surface comes from the same derivation
+  — `resolveEffectiveBasePriceRow` is its single owner — so no two surfaces can
+  disagree, and the answer moves with a page refresh and with the passage of
+  time. That movement is the point: an academy's price should follow the list
+  until its seña is in, without anyone writing anything.
+- Below the threshold the **stored row and the effective row can differ**, so
+  what reads which matters. The stored row is read by the write path's `crossed`
+  test, by the price picker's default, by the `?? stored` fallback when nothing
+  applies today, and by the guard that refuses to delete a referenced price row.
+  Every displayed **figure** — `Precio`, `Seña`, `Total`, the badge and the
+  allocation dialog's readout — comes from the effective row.
+
+Amending §3 to match, or building the write-path refresh, is the owner's call.
+The circularity §3 breaks is broken here too, and by the same clause: `crossed`
+is tested against `stored`, which is the one side that does not depend on the
+answer.
 
 **Known divergence — a roster change can leave the price impossible.** Because
 nothing refreshes `selectedPriceId`, a roster change that moves the group type or
@@ -405,8 +462,26 @@ money to take off while the entry point stays single.
   inscription holds above its `Total` and nothing more. The excess is computed,
   so there is nothing to pick and nothing to type.
 - **Neither removal shape shows a price control**, not even a locked one. Price
-  is an allocation-time concern, and taking the money off is precisely what opens
-  the lock.
+  is an allocation-time concern, and taking money off until the row falls back
+  below its seña is precisely what opens the lock.
+
+**Known divergence — the dialog still locks the picker at the first peso.** The
+rule locks the price at the deposit threshold, and both the write path and the
+database guard hold it there, but `inscription-money-dialog.tsx` swaps the picker
+for a readout as soon as `allocatedAmount > 0` and tells the administrator "Para
+cambiarle el precio hay que quitarle toda la plata.". A below-threshold price
+change is therefore accepted by every write path and unreachable from that
+dialog, and the hint under the readout describes the retired rule.
+
+**The readout names the effective price, and the picker opens on the stored
+one.** They are the same row above the threshold and can differ below it, so the
+two controls are fed separately: `readInscriptionEffectivePrices` for the
+readout, which is the figure the row behind the dialog also shows, and
+`readInscriptionSelectedPrices` for the picker's default, which is what the
+administrator last said. The one place the stored row is still shown as such is
+that default, on a row holding no money whose list has moved since — a
+confirmable default rather than a figure, and changing it to the effective row
+would make "Elegí un precio para la inscripción." unreachable.
 
 ### Per choreography
 
@@ -417,8 +492,8 @@ from the pool, skipping the ones that owe nothing, and the pool decides which
 payments it comes from. A preset is **all or nothing** — if the pool runs dry
 partway through, or any inscription is refused, the whole charge rolls back and
 the administrator who sees an error can trust that nothing moved. A preset
-selects and stores a price row only for inscriptions that hold no money yet;
-anything already funded keeps the price it holds.
+selects and stores a price row only for inscriptions that have not covered their
+seña yet; anything already past that threshold keeps the price it holds.
 
 ## Anomalies
 

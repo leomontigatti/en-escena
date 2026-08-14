@@ -78,6 +78,13 @@
       "when": 1786627902698,
       "tag": "0010_drop_comprobante_porcion",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1786628054657,
+      "tag": "0011_price_lock_at_deposit_threshold",
+      "breakpoints": true
     }
   ]
 }
