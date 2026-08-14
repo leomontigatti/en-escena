@@ -133,9 +133,9 @@ function toNotaCreditoOutcome(
 }
 
 /**
- * Arma la coreografía de la Nota de crédito espejo: valida el comprobante
- * objetivo y congela importe, fechas y líneas. La comparten la anulación
- * y la re-verificación, que necesita los mismos insumos calculados en el server.
+ * Builds the choreography of the mirror Nota de crédito: it validates the target
+ * comprobante and freezes amount, dates and lines. Annulment and re-verification
+ * share it, the latter needing the same inputs computed on the server.
  */
 async function resolveNotaCreditoChoreography(
   input: NotaCreditoEmissionInput,

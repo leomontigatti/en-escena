@@ -135,3 +135,45 @@ credit note exists. Copy states what happens and the real escape hatch instead.
 
 Supersedes the granularity portion of #323 (three actions → one derived action)
 and refines the portion axis of #326 (derived and frozen, not chosen).
+
+## Correction (2026-08-13): the status note's premise was false when it was written
+
+Appended, not edited in place: `docs/adr/` is append-only, so the status note
+stays where it was made and this is the record that its ground was wrong. The
+matching correction on the other side is in
+[ADR-0014](./0014-arbitrary-amount-allocation-and-comprobante-amendments.md).
+
+The status note at the top of this file gives, as the reason for superseding it
+whole, that `porción` "no longer exists: the column, the pgEnum, `derivePorcion`,
+`formatComprobantePorcionLabel` and every reader were deleted (#554)."
+
+**None of that had happened when the sentence was written.** #554 closed on
+2026-08-05 as a resolution — nine decisions, one of which specified the deletion
+— and no code changed under it. The sentence was written two days later, on
+2026-08-07 (commit `8e142cb`), and every symbol it names was still live on
+`master` that day; they stayed live for six more, until #723 merged on
+2026-08-13: the `en_escena_comprobante_porcion` pgEnum, the
+`NOT NULL DEFAULT 'total'` column, `derivePorcion`,
+`formatComprobantePorcionLabel`, the `Porción` field on the comprobante detail,
+the `{Porción} — {Coreografía}` printed line and the two `Vigente` /
+`Desactualizada` badges on the choreography financial detail.
+
+The twist is worth stating plainly rather than filing as a typo: **this ADR was
+superseded whole on the strength of a premise that was not true at the time.**
+Nothing was verified against the write path, and nothing had to be — the sentence
+read like a fact about the code.
+
+The conclusion survives anyway, for two independent reasons. First, the argument
+never needed the deletion: this ADR's organising concept is `porción`, and map
+#547's move to arbitrary amounts against two thresholds (#676) is what left the
+concept with nothing to classify. Second, the deletion is now real —
+[#723](https://github.com/leomontigatti/en-escena/pull/723) did it, column,
+pgEnum, derivation, label, detail field, printed label and both currency badges —
+so the sentence is true today. What was wrong was the tense and the attribution,
+and the habit that produced them, which is the part worth not repeating.
+
+One decision of this ADR was reopened by that PR's review and settled by the
+owner: decision 4's one-synthesized-line print contract survives as a shape for
+now, but the line's description is the bare word `Inscripción`, with no
+right-hand side, until #657 renders one line per inscription. ADR-0014's second
+correction records it.

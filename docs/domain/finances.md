@@ -616,11 +616,13 @@ settled model:
 - Internal lines are one row per inscription (`comprobante_inscription`), holding
   an amount and no text. If the inscription is later hard-deleted the line's
   `inscriptionId` goes null and the line survives.
-- **The printed document carries exactly one line**, reading `Inscripción —
-{choreography}`, at the comprobante's total. There is no per-dancer line and no
-  discount line. The left-hand side is a constant: it names the service sold,
-  because with `porción` gone a comprobante covers an arbitrary amount and is
-  neither a seña nor a saldo.
+- **The printed document carries exactly one line**, whose description reads
+  `Inscripción` and nothing else, at the comprobante's total. There is no
+  per-dancer line and no discount line. The description is a constant: it names
+  the service sold, because with `porción` gone a comprobante covers an arbitrary
+  amount and is neither a seña nor a saldo. It carries no right-hand side because
+  the receptor block already prints `{academy} — {choreography}` and there is no
+  dancer to name until #657 renders one line per inscription.
 - Status is derived, never stored, and has **two** values: `vigente` and
   `anulada`. It is derived by **existence** — a comprobante is `anulada` when
   some other comprobante of the same choreography points at it.
@@ -767,8 +769,8 @@ had entries.
 | `Porción`, `comprobantePorcion`                 | nothing — a comprobante covers an amount            |
 | `Desactualizada` (the `porción` currency badge) | nothing — the cards carry no badge                  |
 
-Two of those rows retire a **concept**, not every string that spells it, and the
-difference matters to anyone about to delete something:
+Three of those rows retire a **concept**, not every string that spells it, and
+the difference matters to anyone about to delete something:
 
 - **`Cuenta corriente de academia`** retires the _entity_ — there is no
   account-balance record, and no `academyAccountBalance` identifier. But
@@ -781,10 +783,9 @@ difference matters to anyone about to delete something:
   holds the shared business date on the read path. It names no column, no type
   and no exported symbol, and it is not a financial concept — but it is a real
   identifier, and grep will find it.
-
-**`Porción`** is retired as a _concept_, not as every string that spells it. The
-column, its pgEnum, its derivation and its printed label are gone, and no
-identifier spells it. But `readComprobantesListFilters` still calls
-`searchParams.delete("porcion")`, alongside the same call for `academia`, so an
-old bookmarked list URL is canonicalised rather than kept alive; that is a query
-parameter being scrubbed, not a concept being read.
+- **`Porción`** retires the _classification_: the column, its pgEnum, its
+  derivation and its printed label are gone, and no identifier spells it. But
+  `readComprobantesListFilters` still calls `searchParams.delete("porcion")`,
+  alongside the same call for `academia`, so an old bookmarked list URL is
+  canonicalised rather than kept alive. That is a query parameter being scrubbed,
+  not a concept being read.

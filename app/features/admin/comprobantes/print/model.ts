@@ -30,8 +30,9 @@ export type ComprobantePrintRecord = ComprobanteWithLines &
 
 // Detail line of the printed document. It carries ONE line per comprobante — no
 // quantity column and no row per dancer — so the academy gets a readable
-// document. Its description names the service sold; the choreography it was
-// sold for is the right-hand side. See `buildComprobantePrintViewModel`.
+// document. Its description names the service sold and nothing else; what the
+// service was sold for is already in the receptor block. See
+// `buildComprobantePrintViewModel`.
 export type ComprobantePrintLine = {
   descripcion: string;
   importe: string;
@@ -67,22 +68,27 @@ export type ComprobantePrintViewModel = {
 };
 
 /**
- * Left-hand side of the single printed line, replacing the `porción` label the
- * line used to open with. It names **what was sold** rather than which rung of a
- * ladder the money paid, which is the whole reason `porción` had to go: a
- * comprobante now covers an arbitrary amount and can be honestly labelled as
- * neither seña nor saldo.
+ * The whole description of the single printed line, replacing the `porción`
+ * label the line used to open with. It names **what was sold** rather than which
+ * rung of a ladder the money paid, which is the whole reason `porción` had to
+ * go: a comprobante now covers an arbitrary amount and can be honestly labelled
+ * as neither seña nor saldo. It is what RG 1415 asks that column for — a
+ * description identifying the service.
  *
- * The choreography name alone was the cheaper option and was declined: the
- * receptor block two lines above already prints `{academia} — {coreografía}`, so
- * a bare proper noun under `Descripción` would repeat it and describe no
- * service, which is what RG 1415 asks that column for. It is singular because it
- * names the concept, not a count of dancers, so it reads correctly for a solo
- * and for a group; it is also the noun ADR-0014 §5 gives the settled per-dancer
- * line (`Inscripción — {bailarín}`), so only the right-hand side moves when #657
- * lands.
+ * It carries no right-hand side, per #554 decision 3 and the owner's ruling on
+ * the #723 review. The choreography name was tried there and declined for the
+ * reason the decision gives: the receptor block a few lines above already prints
+ * `{academia} — {coreografía}` (`view.tsx`), so repeating it under `Descripción`
+ * describes no additional service. The noun is singular because it names the
+ * concept, not a count of dancers, so it reads correctly for a solo and for a
+ * group.
+ *
+ * It is also the noun ADR-0014 §5 gives the settled per-dancer line,
+ * `Inscripción — {bailarín}`. That line is #657's, and needs one line per
+ * inscription to have a dancer to name; until then the description stops at the
+ * concept, so #657 appends its right-hand side and nothing else churns.
  */
-const PRINT_LINE_CONCEPT = "Inscripción";
+const PRINT_LINE_DESCRIPTION = "Inscripción";
 
 // Arma el modelo de la vista imprimible desde el snapshot inmutable del
 // comprobante. Es una proyección pura de sólo lectura: NO llama a ARCA ni muta
@@ -103,7 +109,7 @@ export function buildComprobantePrintViewModel(
     eventName: record.eventName,
     lines: [
       {
-        descripcion: `${PRINT_LINE_CONCEPT} — ${record.choreographyName}`,
+        descripcion: PRINT_LINE_DESCRIPTION,
         importe: formatAmount(record.impTotal),
       },
     ],

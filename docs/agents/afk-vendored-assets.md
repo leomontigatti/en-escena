@@ -51,6 +51,28 @@ are only concrete references to this repo:
   step **after** the push and the merge comment: the merge is kept, and a failure only flips the
   PR to `agent:blocked` with the compiler output, naming the semantic conflict instead of
   leaving a bare CI red.
+- **Sub-issues are not closed at implementation time (§4.3).** The spec's step 7 runs
+  `gh issue close $SUB --comment "Implemented in <sha>. Part of #$PRD."` right before the draft
+  PR is opened — a `COMPLETED` close asserting the work is built while it sits on a shared
+  branch that may never merge. That is exactly the false `COMPLETED` that
+  [`issue-tracker.md`](./issue-tracker.md) → "Closing an issue" exists to prevent, produced by
+  machine on every sub-issue. Locally `agent-implement-prd.yml` **comments** instead
+  (`Implemented in <sha> on <branch>` plus an `<!-- afk:implemented -->` marker), keeps the
+  sub-issue open, and lets the PR close it on merge — when `COMPLETED` is true because it is on
+  `master`. Three consequences follow, all local: the draft PR body carries one `Closes #<sub>`
+  per sub-issue (appended by the orchestrator, since nothing else closes them now), and both the
+  preflight target and the chain's "remaining" count read the marker instead of the issue state
+  (counting open sub-issues would never reach zero and the chain would loop). The spec's
+  refusal row "all sub-issues already closed" becomes "every sub-issue already implemented", and
+  the runtime implement-prd prompt drops the skeleton's "the workflow closes the sub-issue"
+  ([`prompts/implement-prd.prompt.md`](./prompts/implement-prd.prompt.md) line 44 keeps the
+  source's wording). The rule this serves is in
+  [`issue-tracker.md`](./issue-tracker.md#closing-an-issue).
+- **Promote Queued says what it does not promote (§4.7).** The gate stays exactly as specified
+  (`state_reason != 'not_planned'` — a deferred or rejected decision genuinely unblocks nothing),
+  but a `not planned` close is now the documented way to close a _deferred_ issue, so the local
+  `agent-promote-queued.yml` adds a step ahead of it that comments on each `agent:queued`
+  dependent it declines to promote. Behaviour unchanged, silence removed.
 - **`FRONTEND-TDD.md`**: the source mandates using `useEffectReducer` from `use-effect-reducer`;
   this repo does **not** use that library (nor reducers today), so the "Reducer choice" section
   was left library-neutral, preserving the principle (state logic in a pure, testable module).
