@@ -147,10 +147,12 @@ The status note at the top of this file gives, as the reason for superseding it
 whole, that `porción` "no longer exists: the column, the pgEnum, `derivePorcion`,
 `formatComprobantePorcionLabel` and every reader were deleted (#554)."
 
-**None of that had happened when the sentence was written.** #554 closed as a
-resolution — nine decisions, one of which specified the deletion — and no code
-changed under it. Every symbol the sentence names was live on `master` that day
-and stayed live for six more: the `en_escena_comprobante_porcion` pgEnum, the
+**None of that had happened when the sentence was written.** #554 closed on
+2026-08-05 as a resolution — nine decisions, one of which specified the deletion
+— and no code changed under it. The sentence was written two days later, on
+2026-08-07 (commit `8e142cb`), and every symbol it names was still live on
+`master` that day; they stayed live for six more, until #723 merged on
+2026-08-13: the `en_escena_comprobante_porcion` pgEnum, the
 `NOT NULL DEFAULT 'total'` column, `derivePorcion`,
 `formatComprobantePorcionLabel`, the `Porción` field on the comprobante detail,
 the `{Porción} — {Coreografía}` printed line and the two `Vigente` /
