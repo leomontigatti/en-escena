@@ -403,7 +403,7 @@ jobs:
             echo "$remaining sub-issue(s) remaining — re-firing the chain."
             add_label issue "$ISSUE_NUMBER" "agent:implement"
           else
-            echo "All sub-issues closed — handing off to Review."
+            echo "All sub-issues implemented — handing off to Review. They close when the PR merges."
             add_label pr "$PR_NUMBER" "agent:review"
           fi
 

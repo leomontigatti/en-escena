@@ -96,15 +96,21 @@ and `docs/adr/0014-arbitrary-amount-allocation-and-comprobante-amendments.md:32-
 both state that
 [#554](https://github.com/leomontigatti/en-escena/issues/554) deleted `porcion`
 "outright — column, pgEnum, `derivePorcion`, `formatComprobantePorcionLabel` and
-every reader". All of those still exist; `porcion` is a `NOT NULL` enum column
-that is derived at emission and printed on the invoice. The issue was closed
-`COMPLETED` and read as done.
+every reader". It did not. Every symbol that sentence names was still live when
+each ADR was written: `porcion` was a `NOT NULL` enum column, derived at emission
+and printed on the invoice. The issue was closed `COMPLETED` and read as done.
+`porcion` has since been removed — by
+[#723](https://github.com/leomontigatti/en-escena/pull/723), eight days after
+#554 closed — which does not weaken the example. The ADRs were wrong when
+written; that reality later caught up, by a separate deliberate act, is not a
+defence for having claimed it early.
 [#621](https://github.com/leomontigatti/en-escena/issues/621) ("what holds the
 `NOT NULL` `selectedPriceId`") closed the same way, and `selectedPriceId` is
 nullable, written only by later updates and never by a creation path.
 [#650](https://github.com/leomontigatti/en-escena/issues/650) ("Refunds") closed
-the same way, and there is no refund table. ADRs are append-only, so the error in
-them is permanent until someone appends a correction.
+the same way, and there is no refund table. ADRs are append-only, so an error in
+one is permanent until someone appends a correction: ADR-0014's landed in #723,
+and ADR-0011's is still pending.
 
 ## When a skill says "publish to the issue tracker"
 
