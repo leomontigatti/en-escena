@@ -22,7 +22,6 @@ function printRecord(
     cbteTipo: 11,
     ptoVta: 3,
     cbteNro: 7,
-    porcion: "total",
     cbteFch: "20260722",
     fchServDesde: null,
     fchServHasta: null,
@@ -73,15 +72,20 @@ describe("buildComprobantePrintViewModel", () => {
     expect(model.estadoLabel).toBe("Vigente");
   });
 
-  test("proyecta una sola línea `{Porción} — {Coreografía}` con el total (ADR-0011)", () => {
+  test("proyecta una sola línea `Inscripción` con el total", () => {
     const model = buildComprobantePrintViewModel(
-      printRecord({ porcion: "seña", impTotal: 25000 }),
+      printRecord({ impTotal: 25000 }),
     );
 
     expect(model.lines).toHaveLength(1);
-    expect(model.lines[0].descripcion).toBe("Seña — Coreografía Alfa");
+    // The description names the service sold, not a rung of the retired ladder:
+    // `porcion` is deleted, so a comprobante is neither seña nor saldo.
+    expect(model.lines[0].descripcion).toBe("Inscripción");
     expect(model.lines[0].importe).toBe(model.importeTotal);
-    // La línea única no repite un renglón por bailarín ni el nombre del evento.
+    // It carries no right-hand side: the receptor block already names the
+    // academy and the choreography, and there is no dancer to name until #657
+    // renders one line per inscription.
+    expect(model.lines[0].descripcion).not.toContain("Coreografía Alfa");
     expect(model.lines[0].descripcion).not.toContain("Certamen 2026");
   });
 
@@ -144,6 +148,19 @@ describe("renderComprobantePrintDocument", () => {
     expect(html).toContain("11112222333344");
     expect(html).toContain(QR_SVG_STUB);
     expect(html).toContain("Comprobante Autorizado");
+  });
+
+  test("imprime `Inscripción` sola en Descripción y deja el contexto en Receptor", () => {
+    const html = renderComprobantePrintDocument({
+      model: buildComprobantePrintViewModel(printRecord()),
+      qrCodeSvg: QR_SVG_STUB,
+    });
+
+    // The detail cell is the description column RG 1415 asks to identify the
+    // service; the receptor block above is where the academy and choreography
+    // are already named, which is why the cell does not repeat them.
+    expect(html).toContain("<td>Inscripción</td>");
+    expect(html).toContain("<p>Academia Alfa — Coreografía Alfa</p>");
   });
 
   test("muestra el período facturado y el vencimiento de pago cuando existen", () => {

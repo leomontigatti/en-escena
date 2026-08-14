@@ -15,16 +15,22 @@
  *   direction that can bounce. A removal has nothing to refuse: the figures and
  *   the status re-derive from whatever is left.
  * - **Only adding money has a price.** The price fixes the two thresholds, so it
- *   belongs to the moment money lands and is locked from the first allocation
- *   onwards — a rule the database also holds, through the guard trigger on
- *   `selected_price_id`. The removal shapes carry no price control at all, and
- *   taking the money off is precisely what opens the lock again.
+ *   belongs to the moment money lands, and it is locked once the inscription
+ *   covers its seña — a rule the database also holds, through the guard trigger
+ *   on `selected_price_id`. The removal shapes carry no price control at all,
+ *   and taking money off until the row falls back below its seña is precisely
+ *   what opens the lock again.
  */
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
-import { choreographyDancers, events, prices } from "@/db/schema";
+import {
+  choreographyDancers,
+  events,
+  paymentAllocations,
+  prices,
+} from "@/db/schema";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import { resolveChoreographyPricingScheduleId } from "@/lib/finances/choreography-pricing-schedule";
 import {
@@ -32,14 +38,18 @@ import {
   deriveInscriptionFinancialFigures,
 } from "@/lib/finances/inscription-financial-status";
 import { readInscriptionThresholds } from "@/lib/finances/inscription-thresholds.server";
+import {
+  type ChoreographyGroupType,
+  resolveEffectiveBasePriceRow,
+} from "@/lib/finances/operational-summary-calculations.server";
 
 import {
   readInscriptionAllocatedAmount,
   spreadFromPool,
   unwindToPool,
 } from "./allocation-pool.server";
-import { syncInscriptionSnapshots } from "./choreography-cobro-allocations.server";
 import {
+  hasCrossedStoredDepositThreshold,
   loadCandidatePriceRow,
   loadChoreographyScheduleRow,
   runCobro,
@@ -55,8 +65,8 @@ export type InscriptionPriceOption = {
   name: string;
 };
 
-/** The price an inscription currently holds, for the locked readout. */
-export type InscriptionSelectedPrice = {
+/** A price row the allocation dialog names: the stored one or the effective one. */
+export type InscriptionDialogPrice = {
   amount: number;
   id: string;
   name: string;
@@ -71,6 +81,14 @@ export type InscriptionSelectedPrice = {
  * Unlike the ladder's old candidate set there is no floor and no today's-price
  * ceiling: an arbitrary amount against an arbitrary threshold has no rung to
  * stay between.
+ *
+ * `paymentDeadline` is deliberately not a filter, here or on the write path
+ * (`loadCandidatePriceRow` does not look at it either), so an expired row is
+ * both offerable and storable. The deadline decides which price an inscription
+ * *would* be charged when nobody has said — that is the read-side estimate in
+ * `resolveEstimatedBasePriceAmount`. Here somebody is saying it: an
+ * administrator naming the price a late payment settles at is making the call
+ * the deadline exists to make in their absence.
  */
 export async function readInscriptionPriceOptions(input: {
   choreographyId: string;
@@ -118,13 +136,109 @@ export async function readInscriptionPriceOptions(input: {
 }
 
 /**
- * The price row each inscription of a choreography has selected. Read
- * separately from the options because a locked inscription must show the price
- * it holds even when that row is no longer among the ones on offer.
+ * The price row each inscription of a choreography is **charged at**, which is
+ * the one the allocation dialog reads out: the stored row once the inscription
+ * has crossed its deposit threshold, and the row that applies today while it has
+ * not.
+ *
+ * It is the stored row that is read separately from the options, because a
+ * locked inscription must show the price it holds even when that row is no
+ * longer among the ones on offer. The effective row is resolved on top with
+ * `resolveEffectiveBasePriceRow` — the same call the finance readers make — so
+ * the dialog and the row behind it cannot name different prices for the same
+ * inscription.
+ */
+export async function readInscriptionEffectivePrices(input: {
+  choreographyId: string;
+  eventId: string;
+}): Promise<Map<string, InscriptionDialogPrice>> {
+  const choreographyRow = await loadChoreographyScheduleRow(
+    db,
+    input.choreographyId,
+  );
+
+  if (!choreographyRow) {
+    return new Map();
+  }
+
+  const [event, priceRows, inscriptionRows] = await Promise.all([
+    db.query.events.findFirst({
+      columns: { requiredDepositPercentage: true },
+      where: eq(events.id, input.eventId),
+    }),
+    db.query.prices.findMany({ where: eq(prices.eventId, input.eventId) }),
+    db
+      .select({
+        id: choreographyDancers.id,
+        selectedPriceId: choreographyDancers.selectedPriceId,
+      })
+      .from(choreographyDancers)
+      .where(eq(choreographyDancers.choreographyId, input.choreographyId)),
+  ]);
+
+  if (!event) {
+    return new Map();
+  }
+
+  const allocationRows =
+    inscriptionRows.length === 0
+      ? []
+      : await db
+          .select({
+            amount: paymentAllocations.amount,
+            inscriptionId: paymentAllocations.inscriptionId,
+          })
+          .from(paymentAllocations)
+          .where(
+            inArray(
+              paymentAllocations.inscriptionId,
+              inscriptionRows.map((row) => row.id),
+            ),
+          );
+  const allocatedByInscription = new Map<string, number>();
+  for (const allocation of allocationRows) {
+    allocatedByInscription.set(
+      allocation.inscriptionId,
+      (allocatedByInscription.get(allocation.inscriptionId) ?? 0) +
+        allocation.amount,
+    );
+  }
+
+  const effectivePrices = new Map<string, InscriptionDialogPrice>();
+  for (const inscription of inscriptionRows) {
+    const price = resolveEffectiveBasePriceRow({
+      allocatedAmount: allocatedByInscription.get(inscription.id) ?? 0,
+      choreography: {
+        choreographyScheduleId: choreographyRow.choreographyScheduleId,
+        groupType: choreographyRow.groupType as ChoreographyGroupType,
+        scheduleCapacityScheduleId: choreographyRow.scheduleCapacityScheduleId,
+      },
+      priceRows,
+      requiredDepositPercentage: event.requiredDepositPercentage,
+      selectedPriceId: inscription.selectedPriceId,
+    });
+
+    if (price) {
+      effectivePrices.set(inscription.id, {
+        amount: price.amount,
+        id: price.id,
+        name: price.name,
+      });
+    }
+  }
+
+  return effectivePrices;
+}
+
+/**
+ * The price row each inscription of a choreography has selected — what is
+ * **stored**, which is what the picker opens on. What the inscription is charged
+ * at is `readInscriptionEffectivePrices`, and below the deposit threshold the
+ * two differ.
  */
 export async function readInscriptionSelectedPrices(input: {
   choreographyId: string;
-}): Promise<Map<string, InscriptionSelectedPrice>> {
+}): Promise<Map<string, InscriptionDialogPrice>> {
   const rows = await db
     .select({
       amount: prices.amount,
@@ -156,7 +270,7 @@ type InscriptionMoneyInput = {
  * `Saldo disponible`.
  *
  * `priceId` is the price chosen inside the dialog, and it is only honoured
- * while the inscription holds no money: from the first allocation on, a
+ * while the inscription has not covered its seña: from that crossing on, a
  * different row is refused rather than warned about. Any amount is allocatable
  * — a partial one leaves the row reading `Seña pendiente` with its shortfall,
  * which is an ordinary outcome and not an error.
@@ -261,36 +375,30 @@ export async function releaseInscriptionExcess(
 }
 
 /**
- * The removal both gestures share: unwind through the pool rule, then
- * reconcile the ladder snapshots against what is left. The reconciliation runs
- * after the unwind because clearing the deposit snapshot moves
- * `selected_price_id`, which the database's price guard rejects while the
- * inscription still holds money.
+ * The removal both gestures share: unwind through the pool rule and stop
+ * there. Nothing is reconciled afterwards, because nothing is stored: the
+ * figures and the status of what is left re-derive from the allocations.
  */
 async function unwindInscription(
   tx: Transaction,
   input: InscriptionMoneyInput & { amount: number },
 ): Promise<CobroResult> {
-  const result = await unwindToPool(tx, {
+  return await unwindToPool(tx, {
     academyId: input.academyId,
     amount: input.amount,
     eventId: input.eventId,
     inscriptionId: input.inscriptionId,
   });
-
-  if (!result.ok) {
-    return result;
-  }
-
-  await syncInscriptionSnapshots(tx, [input.inscriptionId]);
-
-  return { ok: true };
 }
 
 /**
- * The price the money lands against. While the inscription holds nothing the
- * chosen row is written; once it holds something the price is **locked**, and a
- * different row is refused with the way out named — take the money off first.
+ * The price the money lands against. While the inscription is **below its
+ * deposit threshold** the chosen row is written, whatever it already holds;
+ * from the crossing on the price is **locked**, and a different row is refused
+ * with the way out named — take enough money off to drop back below the seña.
+ *
+ * The threshold is the stored row's, never the incoming one's: see
+ * `hasCrossedDepositThreshold`.
  */
 async function applySelectedPrice(
   tx: Transaction,
@@ -302,7 +410,12 @@ async function applySelectedPrice(
     priceId: string | null;
   },
 ): Promise<CobroResult> {
-  if (input.allocatedAmount > 0) {
+  const crossed = await hasCrossedStoredDepositThreshold(tx, {
+    allocatedAmount: input.allocatedAmount,
+    selectedPriceId: input.inscription.selectedPriceId,
+  });
+
+  if (crossed) {
     if (
       input.priceId !== null &&
       input.priceId !== input.inscription.selectedPriceId
@@ -310,7 +423,7 @@ async function applySelectedPrice(
       return {
         ok: false,
         message:
-          "El precio queda fijo desde la primera asignación. Para cambiarlo hay que quitarle toda la plata a la inscripción.",
+          "El precio queda fijo desde que la inscripción cubre su seña. Para cambiarlo hay que quitarle plata hasta dejarla por debajo de la seña.",
       };
     }
 
@@ -318,7 +431,17 @@ async function applySelectedPrice(
   }
 
   if (input.priceId === null) {
-    return input.inscription.selectedPriceId === null
+    // Naming no price changes none. The one row that has to be told to pick one
+    // is the row that holds nothing and stores nothing: there, neither the
+    // administrator nor a previous charge has said anything yet.
+    //
+    // `allocatedAmount === 0` **preserves the previous behaviour** rather than
+    // adding a rule. Until now `allocatedAmount > 0` short-circuited above, so
+    // this branch was only ever reached with an empty row; without the added
+    // test, an inscription holding money and storing no price — a state the
+    // presets can produce — would start failing with "Elegí un precio".
+    return input.inscription.selectedPriceId === null &&
+      input.allocatedAmount === 0
       ? { ok: false, message: "Elegí un precio para la inscripción." }
       : { ok: true };
   }

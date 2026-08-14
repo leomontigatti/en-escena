@@ -28,17 +28,14 @@ import {
   type DancerDiscount,
   type FinanceChoreographyRow,
   type ResolvedInscription,
-  resolveEstimatedBasePriceAmount,
+  resolveEffectiveBasePriceAmount,
 } from "@/lib/finances/operational-summary-calculations.server";
-
-type FinancePriceRow = typeof prices.$inferSelect;
 
 type InscriptionRow = {
   id: string;
   choreographyId: string;
   dancerId: string;
   selectedPriceId: string | null;
-  depositReferenceDate: string | null;
   withdrawnAt: Date | null;
 };
 
@@ -191,13 +188,12 @@ async function readAcademyEventFinance(input: {
             choreographyId: choreographyDancers.choreographyId,
             dancerId: choreographyDancers.dancerId,
             selectedPriceId: choreographyDancers.selectedPriceId,
-            depositReferenceDate: choreographyDancers.depositReferenceDate,
             withdrawnAt: choreographyDancers.withdrawnAt,
           })
           // No `activeInscription()` here, and not because of a display
-          // exception: this is the shared money rollup, read by four route
-          // servers — the two admin finance surfaces and the two portal ones —
-          // and a withdrawn row's retained money is still the choreography's.
+          // exception: this is the shared money rollup behind every finance
+          // surface, admin and portal, list and detail alike, and a withdrawn
+          // row's retained money is still the choreography's.
           // Dropping it here would take that money out of every rollup built on
           // top. What withdrawal changes is how the row's figures are derived
           // and which rollups it feeds, not whether it is read; each surface
@@ -257,14 +253,20 @@ async function readAcademyEventFinance(input: {
 
   // El precio manda: la seña sale de él sin descontar, el descuento vivo sale
   // de él, y el total es su resta. Ninguna de las tres mira un snapshot.
+  //
+  // Which price that is depends on the money already on the row, so this has to
+  // run after the allocations are summed: the stored row governs only once the
+  // inscription has crossed its deposit threshold.
   const priceAmountByInscription = new Map<string, number | null>();
   for (const inscription of inscriptionRows) {
     priceAmountByInscription.set(
       inscription.id,
-      resolveInscriptionPriceAmount({
+      resolveEffectiveBasePriceAmount({
+        allocatedAmount: allocationByInscription.get(inscription.id) ?? 0,
         choreography: choreographyById.get(inscription.choreographyId),
-        inscription,
         priceRows,
+        requiredDepositPercentage: event.requiredDepositPercentage,
+        selectedPriceId: inscription.selectedPriceId,
       }),
     );
   }
@@ -304,7 +306,6 @@ async function readAcademyEventFinance(input: {
         choreographyId: inscription.choreographyId,
         dancerDiscountAmount,
         dancerId: inscription.dancerId,
-        depositReferenceDate: inscription.depositReferenceDate,
         id: inscription.id,
         withdrawn,
       };
@@ -343,38 +344,6 @@ async function readAcademyEventFinance(input: {
     inscriptions,
     paidByAcademy,
   };
-}
-
-/**
- * El precio de una inscripción es el que tiene seleccionado; sin selección
- * todavía, el vigente para su tipo y cronograma. Resolverlo o arreglarlo es de
- * #403 — acá sólo se consume.
- */
-function resolveInscriptionPriceAmount(input: {
-  choreography: FinanceChoreographyRow | undefined;
-  inscription: InscriptionRow;
-  priceRows: FinancePriceRow[];
-}): number | null {
-  if (input.inscription.selectedPriceId !== null) {
-    const selected = input.priceRows.find(
-      (price) => price.id === input.inscription.selectedPriceId,
-    );
-
-    if (selected) {
-      return selected.amount;
-    }
-  }
-
-  if (!input.choreography) {
-    return null;
-  }
-
-  const estimated = resolveEstimatedBasePriceAmount({
-    choreography: input.choreography,
-    priceRows: input.priceRows,
-  });
-
-  return estimated.status === "missing-price" ? null : estimated.amount;
 }
 
 /**

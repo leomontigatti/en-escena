@@ -3,7 +3,6 @@ import { Link } from "react-router";
 
 import { MetricCard } from "@/components/shared/metric-card";
 import {
-  ReadOnlyDateField,
   ReadOnlyField,
   ReadOnlySelectField,
 } from "@/components/shared/read-only-field";
@@ -86,11 +85,6 @@ export function PortalChoreographyFinanceDetailRouteView({
               label="Tipo de grupo"
               options={choreographyGroupTypeOptions}
               value={choreography.groupType}
-            />
-            <ReadOnlyDateField
-              emptyLabel="Sin pago completo"
-              label="Fecha de pago de la seña"
-              value={choreography.depositCompletedOn}
             />
             <ReadOnlyField
               id="portal-finance-choreography-status"

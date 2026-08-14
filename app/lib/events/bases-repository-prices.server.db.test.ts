@@ -3,7 +3,7 @@ import { describe, expect, test } from "vitest";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { prices } from "@/db/schema";
-import { freezeInscriptionDepositForTest } from "@/features/portal/choreographies/test-support/db";
+import { createSelectedPriceInscriptionForTest } from "@/features/portal/choreographies/test-support/db";
 import { createModality } from "@/lib/modalities/repository.server";
 import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
 import {
@@ -239,7 +239,7 @@ describe("Bases del evento repository", () => {
       throw new Error("Expected seeded price fixture.");
     }
 
-    await freezeInscriptionDepositForTest({
+    await createSelectedPriceInscriptionForTest({
       academyId: academy.academy.id,
       choreographyId: choreography.id,
       selectedPriceId: price.id,
@@ -281,7 +281,7 @@ describe("Bases del evento repository", () => {
       throw new Error("Expected seeded price fixture.");
     }
 
-    await freezeInscriptionDepositForTest({
+    await createSelectedPriceInscriptionForTest({
       academyId: academy.academy.id,
       choreographyId: choreography.id,
       selectedPriceId: null,

@@ -12,6 +12,7 @@ import {
   comprobantes,
   paymentAllocations,
   payments,
+  prices,
 } from "@/db/schema";
 import {
   createChoreographyRecord,
@@ -95,12 +96,13 @@ function connectionLost(): Promise<never> {
   return Promise.reject(new Error("socket hang up"));
 }
 
+// Every inscription ends up with a 3000 `Seña` and a 10000 total — the `solo`
+// priced at 10000 and the 30% the event requires. The price is repeated with a
+// far-off deadline because the threshold comes from the price applicable TODAY,
+// and the catalogue's one expires in 2026.
 async function seedChoreographyWithInscriptions(
   email: string,
   inscriptionCount: number,
-  // Umbral de seña de cada inscripción: la porción del remanente se deriva de
-  // lo cobrado contra él, no de un tipo guardado en la asignación.
-  depositAmount?: number,
 ) {
   const event = await createEventRecord({ active: true });
   const academy = await createAcademyRecord({
@@ -108,6 +110,14 @@ async function seedChoreographyWithInscriptions(
     email,
   });
   const catalog = await createEventCatalog(event.id);
+  await db.insert(prices).values({
+    eventId: event.id,
+    name: "Precio Solo vigente",
+    groupType: "solo",
+    amount: 10000,
+    paymentDeadline: "2099-12-31",
+    scheduleId: null,
+  });
   const choreography = await createChoreographyRecord({
     academyId: academy.id,
     eventId: event.id,
@@ -125,7 +135,6 @@ async function seedChoreographyWithInscriptions(
         choreographyId: choreography.id,
         dancerId: dancer.id,
         ageAtEventStart: 14,
-        depositAmount,
       })
       .returning();
     inscriptions.push(inscription);
@@ -218,7 +227,7 @@ describe("emitChoreographyFacturaC", () => {
     ).toEqual([4000, 6000]);
   });
 
-  test("no re-factura porciones ya cubiertas por una factura tipo 11 vigente", async () => {
+  test("no re-factura montos ya cubiertos por una factura tipo 11 vigente", async () => {
     const { academy, choreography, inscriptions } =
       await seedChoreographyWithInscriptions(
         `parcial.${crypto.randomUUID()}@example.com`,
@@ -427,12 +436,11 @@ describe("emitChoreographyFacturaC", () => {
     expect(sent.ImpTotal).toBe(7000);
   });
 
-  test("deriva porción `seña` y congela las fechas de servicio del evento", async () => {
+  test("congela las fechas de servicio del evento", async () => {
     const { academy, choreography, inscriptions } =
       await seedChoreographyWithInscriptions(
         `sena.${crypto.randomUUID()}@example.com`,
         1,
-        3000,
       );
     await allocatePayment({
       academyId: academy.id,
@@ -459,19 +467,17 @@ describe("emitChoreographyFacturaC", () => {
 
     const [persisted] = await listChoreographyComprobantes(choreography.id);
     expect(persisted).toMatchObject({
-      porcion: "seña",
       fchServDesde: "20260501",
       fchServHasta: "20260503",
       fchVtoPago: "20260722",
     });
   });
 
-  test("una coreografía cobrada completa y nunca facturada emite un solo comprobante con porción `total`", async () => {
+  test("una coreografía cobrada completa y nunca facturada emite un solo comprobante", async () => {
     const { academy, choreography, inscriptions } =
       await seedChoreographyWithInscriptions(
         `total.${crypto.randomUUID()}@example.com`,
         1,
-        3000,
       );
     await allocatePayment({
       academyId: academy.id,
@@ -495,18 +501,14 @@ describe("emitChoreographyFacturaC", () => {
     expect(outcome.ok).toBe(true);
     const comprobantes = await listChoreographyComprobantes(choreography.id);
     expect(comprobantes).toHaveLength(1);
-    expect(comprobantes[0]).toMatchObject({
-      porcion: "total",
-      impTotal: 10000,
-    });
+    expect(comprobantes[0]).toMatchObject({ impTotal: 10000 });
   });
 
-  test("cuando la seña ya está facturada, el remanente de saldo deriva porción `saldo`", async () => {
+  test("cuando el primer cobro ya está facturado, sólo se factura el remanente", async () => {
     const { academy, choreography, inscriptions } =
       await seedChoreographyWithInscriptions(
         `saldo.${crypto.randomUUID()}@example.com`,
         1,
-        3000,
       );
     const inscription = inscriptions[0];
     await allocatePayment({
@@ -523,7 +525,6 @@ describe("emitChoreographyFacturaC", () => {
       ptoVta: 1,
       cbteNro: 40,
       cbteFch: "20260701",
-      porcion: "seña",
       impTotal: 3000,
       issuerCuit: "30717611590",
       issuerIvaCondition: "exento",
@@ -552,15 +553,81 @@ describe("emitChoreographyFacturaC", () => {
     const nuevo = (await listChoreographyComprobantes(choreography.id)).find(
       (row) => row.cbteNro === 43,
     );
-    expect(nuevo).toMatchObject({ porcion: "saldo", impTotal: 7000 });
+    expect(nuevo).toMatchObject({ impTotal: 7000 });
   });
 
-  test("reimputar un pago después de emitir no altera la porción ni las fechas congeladas", async () => {
+  test("emite el remanente de una inscripción aunque otra tenga su línea facturada huérfana", async () => {
+    // The state `porcion` used to block: A's allocation is deleted after its
+    // line was billed, so the aggregate billed (3000) exceeds the aggregate
+    // collected (1000) while B still has a remainder. The remainder is resolved
+    // PER INSCRIPTION, so B's 1000 is billable and this emission is legitimate —
+    // there is money collected that no vigente factura covers. The loader's
+    // `canEmit` asserts the same state in
+    // `choreography-detail/server.invoicing.db.test.ts`; this is the server side
+    // of that pair, and what makes the two agree an assertion rather than a
+    // coincidence.
+    const { academy, choreography, inscriptions } =
+      await seedChoreographyWithInscriptions(
+        `huerfana.${crypto.randomUUID()}@example.com`,
+        2,
+      );
+    const [inscriptionA, inscriptionB] = inscriptions;
+    await allocatePayment({
+      academyId: academy.id,
+      eventId: choreography.eventId,
+      inscriptionId: inscriptionA.id,
+      amount: 3000,
+    });
+    await recordComprobante({
+      choreographyId: choreography.id,
+      eventId: choreography.eventId,
+      cbteTipo: 11,
+      ptoVta: 1,
+      cbteNro: 40,
+      cbteFch: "20260701",
+      impTotal: 3000,
+      issuerCuit: "30717611590",
+      issuerIvaCondition: "exento",
+      receptorDocTipo: 99,
+      receptorDocNro: "0",
+      receptorIvaConditionId: 5,
+      cae: "40000000000000",
+      caeVto: "20260710",
+      lines: [{ inscriptionId: inscriptionA.id, amount: 3000 }],
+    });
+    await allocatePayment({
+      academyId: academy.id,
+      eventId: choreography.eventId,
+      inscriptionId: inscriptionB.id,
+      amount: 1000,
+    });
+    await db
+      .delete(paymentAllocations)
+      .where(eq(paymentAllocations.inscriptionId, inscriptionA.id));
+
+    const deps = emissionDeps(fakeBilling());
+    const outcome = await emitChoreographyFacturaC(
+      { choreographyId: choreography.id, eventId: choreography.eventId },
+      deps,
+    );
+
+    expect(outcome.ok).toBe(true);
+    const sent = vi.mocked(deps.billing.createVoucher).mock
+      .calls[0][0] as ArcaVoucher;
+    expect(sent.ImpTotal).toBe(1000);
+    const nuevo = (await listChoreographyComprobantes(choreography.id)).find(
+      (row) => row.cbteNro === 43,
+    );
+    expect(nuevo).toMatchObject({ impTotal: 1000 });
+    // Only B's remainder is billed: A's orphaned line is not re-billed.
+    expect(nuevo?.lines.map((line) => line.amount)).toEqual([1000]);
+  });
+
+  test("reimputar un pago después de emitir no altera las fechas congeladas", async () => {
     const { academy, choreography, inscriptions } =
       await seedChoreographyWithInscriptions(
         `congela.${crypto.randomUUID()}@example.com`,
         1,
-        3000,
       );
     await allocatePayment({
       academyId: academy.id,
@@ -577,8 +644,8 @@ describe("emitChoreographyFacturaC", () => {
     expect(outcome.ok).toBe(true);
     const emitted = outcome.ok ? outcome.comprobante : null;
 
-    // Meses después entra un cobro de saldo (una reimputación posible): el
-    // comprobante ya emitido no debe cambiar su porción ni sus fechas.
+    // Months later a further collection lands (a reallocation is one way to get
+    // there): the already emitted comprobante must not change its dates.
     await allocatePayment({
       academyId: academy.id,
       eventId: choreography.eventId,
@@ -588,7 +655,6 @@ describe("emitChoreographyFacturaC", () => {
 
     const [reloaded] = await db
       .select({
-        porcion: comprobantes.porcion,
         fchServDesde: comprobantes.fchServDesde,
         fchServHasta: comprobantes.fchServHasta,
         fchVtoPago: comprobantes.fchVtoPago,
@@ -596,7 +662,6 @@ describe("emitChoreographyFacturaC", () => {
       .from(comprobantes)
       .where(eq(comprobantes.id, emitted!.id));
     expect(reloaded).toEqual({
-      porcion: "seña",
       fchServDesde: "20260501",
       fchServHasta: "20260503",
       fchVtoPago: "20260722",

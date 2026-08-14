@@ -9,30 +9,20 @@ import {
   requireInternalUser,
 } from "@/lib/auth/internal-access.server";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
-import { FACTURA_C_CBTE_TIPO } from "@/lib/comprobantes/arca/factura-c";
-import { listChoreographyComprobantes } from "@/lib/comprobantes/comprobantes.server";
 import {
   getFacturaCEmissionDeps,
   resolveChoreographyBillable,
-  type ComprobantePorcion,
   type FacturaCEmissionDeps,
 } from "@/lib/comprobantes/emit-factura-c.server";
-import {
-  type CobroStage,
-  payChoreographyBalance,
-  payChoreographyDeposit,
-  readChoreographyLadderStages,
-} from "@/lib/finances/choreography-cobro.server";
 import { readChoreographyInscriptionRows } from "@/lib/finances/choreography-inscriptions.server";
 import {
   allocateToInscription,
+  readInscriptionEffectivePrices,
   readInscriptionPriceOptions,
   readInscriptionSelectedPrices,
   releaseInscriptionExcess,
   removeFromInscription,
 } from "@/lib/finances/inscription-allocation.server";
-import type { InscriptionLadderStage } from "@/lib/finances/inscription-ladder-snapshot";
-import type { OperationalFinanceAmount } from "@/lib/finances/operational-summary";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
 
 import {
@@ -44,8 +34,6 @@ import {
   choreographyDetailUrl,
   emitComprobanteIntent,
   recheckComprobanteIntent,
-  payBalanceIntent,
-  payDepositIntent,
   releaseInscriptionExcessIntent,
   removeInscriptionMoneyIntent,
   type ChoreographyFinanceActionData,
@@ -67,12 +55,9 @@ export async function loadChoreographyFinanceDetail(input: {
   if (eventContext.selectedEventId === null) {
     return {
       academy,
-      availableBalanceAmount: 0,
       choreography: null,
       inscriptions: [],
       priceOptions: [],
-      stage: null,
-      stageTotalAmount: null as OperationalFinanceAmount | null,
       selectedEventId: null,
     };
   }
@@ -90,26 +75,34 @@ export async function loadChoreographyFinanceDetail(input: {
     throw new Response(choreographyNotFoundMessage, { status: 404 });
   }
 
-  // The ladder survives only here, for the choreography-wide presets: the
-  // status the screen shows comes from the money. It goes with #682.
-  const ladderStageById = await readChoreographyLadderStages(choreographyId);
-  const stage = resolveCobroStage([...ladderStageById.values()]);
-
-  const [inscriptionRows, selectedPrices, priceOptions, invoicing] =
-    await Promise.all([
-      readChoreographyInscriptionRows({
-        academyEventInscriptions: financeDetail.inscriptions,
-        choreographyId,
-      }),
-      readInscriptionSelectedPrices({ choreographyId }),
-      readInscriptionPriceOptions({ choreographyId, eventId }),
-      readChoreographyInvoicing(choreographyId),
-    ]);
-  // The price the row already holds travels with the row because the allocation
-  // dialog shows it locked once money has landed, and the locked one may no
-  // longer be among the offered options.
+  const [
+    inscriptionRows,
+    selectedPrices,
+    effectivePrices,
+    priceOptions,
+    invoicing,
+  ] = await Promise.all([
+    readChoreographyInscriptionRows({
+      academyEventInscriptions: financeDetail.inscriptions,
+      choreographyId,
+    }),
+    readInscriptionSelectedPrices({ choreographyId }),
+    readInscriptionEffectivePrices({ choreographyId, eventId }),
+    readInscriptionPriceOptions({ choreographyId, eventId }),
+    readChoreographyInvoicing(choreographyId),
+  ]);
+  // Two prices travel with the row because the allocation dialog needs both, and
+  // below the deposit threshold they differ. The **stored** one is what the
+  // picker opens on: it is what the administrator last said, and it may no
+  // longer be among the offered options. The **effective** one is what the row
+  // is charged at, which is the figure the dialog reads out — the same one
+  // `basePriceAmount` carries, so the dialog and the row behind it agree.
   const inscriptions = inscriptionRows.map((inscription) => ({
     ...inscription,
+    effectivePrice:
+      inscription.inscriptionId === null
+        ? null
+        : (effectivePrices.get(inscription.inscriptionId) ?? null),
     selectedPrice:
       inscription.inscriptionId === null
         ? null
@@ -118,13 +111,11 @@ export async function loadChoreographyFinanceDetail(input: {
 
   return {
     academy,
-    availableBalanceAmount: financeDetail.summary.availableBalanceAmount,
     invoicing,
     choreography: {
       allocatedAmount: choreographyFinanceRow.allocatedAmount,
       anomalies: choreographyFinanceRow.anomalies,
       depositAmount: choreographyFinanceRow.depositAmount,
-      depositCompletedOn: choreographyFinanceRow.depositCompletedOn,
       financialStatus: choreographyFinanceRow.financialStatus,
       groupType: choreographyFinanceRow.groupType,
       id: choreographyFinanceRow.id,
@@ -136,161 +127,34 @@ export async function loadChoreographyFinanceDetail(input: {
     },
     inscriptions,
     priceOptions,
-    stage,
-    stageTotalAmount: resolveStageTotalAmount({
-      choreography: choreographyFinanceRow,
-      stage,
-    }),
     selectedEventId: eventId,
   };
 }
-
-/**
- * What the stage preset will allocate: the choreography's owed figure, the same
- * one the screen shows. It depends on no payment because the preset picks none:
- * it names an amount and the pool funds it.
- */
-function resolveStageTotalAmount(input: {
-  choreography: {
-    owedBalanceAmount: OperationalFinanceAmount;
-    owedDepositAmount: OperationalFinanceAmount;
-  };
-  stage: CobroStage | null;
-}): OperationalFinanceAmount | null {
-  if (input.stage === null) {
-    return null;
-  }
-
-  return input.stage === "deposit"
-    ? input.choreography.owedDepositAmount
-    : input.choreography.owedBalanceAmount;
-}
-
-export type ComprobanteCurrency = "vigente" | "desactualizada";
-
-// Comprobante VIGENTE que cubre una porción (seña o saldo) de la coreografía:
-// su id (destino del botón de la MetricCard) y su badge frente al cobro actual.
-// `null` cuando ninguna factura vigente cubre esa porción —incluido el caso en
-// que la única que la cubría fue anulada: ahí badge y botón desaparecen, no hay
-// estado `Anulado` (ADR-0011).
-export type PortionCoverage = {
-  comprobanteId: string;
-  currency: ComprobanteCurrency;
-};
 
 export type ChoreographyInvoicing = {
   // Remanente cobrado todavía no cubierto por una factura vigente. La emisión
   // factura exactamente esto (#446); la UX lo previsualiza.
   billableAmount: number;
-  // Porción que cubriría la emisión, DERIVADA de lo cobrado (#480, ADR-0011): la
-  // UX la previsualiza junto con el importe para que la operadora vea qué va a
-  // emitir sin poder elegirla. `null` cuando no hay remanente por facturar.
-  porcion: ComprobantePorcion | null;
   // Hay algo para facturar: la afordancia de emisión sólo se habilita con
   // remanente.
   canEmit: boolean;
-  // Comprobante vigente que cubre cada porción, para las MetricCards de Seña y
-  // Saldo del detalle (ADR-0011). Una factura `total` cubre ambas, así que las
-  // dos apuntan al mismo comprobante.
-  sena: PortionCoverage | null;
-  saldo: PortionCoverage | null;
 };
 
 /**
- * Cruza los comprobantes de la coreografía con su monto facturable para armar el
- * eje de emisión del detalle: la porción facturable derivada, si queda algo por
- * facturar, y el comprobante vigente que cubre cada porción (Seña/Saldo). El badge
- * de cada porción deriva del remanente, no de una columna: es `vigente` cuando la
- * factura vigente ya cubre todo el cobro de esa porción y `desactualizada` cuando
- * entró cobro nuevo sin facturar en ella.
+ * The detail's emission axis: what is left to bill. Mirrors the server's own
+ * emission precondition (`emitChoreographyFacturaC`), which is now the single
+ * test `total > 0` — with `porcion` gone there is no second derivable input the
+ * button could disagree with.
  */
 async function readChoreographyInvoicing(
   choreographyId: string,
 ): Promise<ChoreographyInvoicing> {
-  const [comprobantes, billable] = await Promise.all([
-    listChoreographyComprobantes(choreographyId),
-    resolveChoreographyBillable(choreographyId),
-  ]);
-
-  const vigentesFacturas = comprobantes.filter(
-    (comprobante) =>
-      comprobante.cbteTipo === FACTURA_C_CBTE_TIPO &&
-      comprobante.status === "vigente",
-  );
-
-  const billableCovers = (porcion: "seña" | "saldo") =>
-    billable.porcion === porcion || billable.porcion === "total";
+  const billable = await resolveChoreographyBillable(choreographyId);
 
   return {
     billableAmount: billable.total,
-    porcion: billable.porcion,
-    // Espeja la precondición de emisión del server (`emitChoreographyFacturaC`):
-    // exige remanente Y porción derivable. Pueden divergir si una asignación de
-    // pago se borra después de emitir y deja una línea facturada huérfana que
-    // hace `billed >= cobrado` agregado mientras otra inscripción todavía tiene
-    // remanente: ahí `total > 0` pero `porcion === null`. Sin este `&&`, el botón
-    // quedaría habilitado y la confirmación fallaría con un error genérico.
-    canEmit: billable.total > 0 && billable.porcion !== null,
-    sena: resolvePortionCoverage(
-      vigentesFacturas,
-      "seña",
-      billableCovers("seña"),
-    ),
-    saldo: resolvePortionCoverage(
-      vigentesFacturas,
-      "saldo",
-      billableCovers("saldo"),
-    ),
+    canEmit: billable.total > 0,
   };
-}
-
-/**
- * Comprobante vigente que cubre una porción: el más reciente cuya `porcion`
- * coincide o es `total` (una factura total cubre seña y saldo). El badge es
- * `desactualizada` cuando el remanente facturable incluye esa porción —entró
- * cobro nuevo sin facturar— y `vigente` cuando la factura ya la cubre entera.
- */
-function resolvePortionCoverage(
-  vigentesFacturas: { id: string; porcion: ComprobantePorcion }[],
-  porcion: "seña" | "saldo",
-  billableCoversPortion: boolean,
-): PortionCoverage | null {
-  const covering = vigentesFacturas
-    .filter(
-      (factura) => factura.porcion === porcion || factura.porcion === "total",
-    )
-    .at(-1);
-
-  if (!covering) {
-    return null;
-  }
-
-  return {
-    comprobanteId: covering.id,
-    currency: billableCoversPortion ? "desactualizada" : "vigente",
-  };
-}
-
-/**
- * Etapa que se puede cobrar de una coreografía entera. `null` cuando no hay
- * inscripciones o están mezcladas: ahí no hay una sola acción que las resuelva.
- */
-function resolveCobroStage(
-  states: InscriptionLadderStage[],
-): CobroStage | null {
-  if (states.length === 0) {
-    return null;
-  }
-
-  if (states.every((state) => state === "impaga")) {
-    return "deposit";
-  }
-
-  if (states.every((state) => state === "señada")) {
-    return "balance";
-  }
-
-  return null;
 }
 
 export async function handleChoreographyFinanceAction(input: {
@@ -316,27 +180,6 @@ export async function handleChoreographyFinanceAction(input: {
   const eventId = eventContext.selectedEventId;
   const formData = await input.request.formData();
   const intent = String(formData.get("intent") ?? "");
-
-  if (intent === payDepositIntent || intent === payBalanceIntent) {
-    const result =
-      intent === payDepositIntent
-        ? await payChoreographyDeposit({
-            academyId,
-            choreographyId,
-            eventId,
-          })
-        : await payChoreographyBalance({
-            academyId,
-            choreographyId,
-            eventId,
-          });
-
-    if (!result.ok) {
-      return { status: "error", message: result.message };
-    }
-
-    throw redirectToDetail(academyId, choreographyId, eventId);
-  }
 
   if (
     intent === allocateInscriptionIntent ||

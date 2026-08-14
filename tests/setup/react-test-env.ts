@@ -36,6 +36,11 @@ if (typeof window !== "undefined") {
     removeListener() {},
   })) as typeof window.matchMedia;
 
+  // jsdom implements no layout, so it ships no `scrollIntoView`. Radix's
+  // `Select` calls it while positioning an open list, which would otherwise
+  // throw in any test that opens one.
+  Element.prototype.scrollIntoView ??= () => {};
+
   class ResizeObserverMock {
     disconnect() {}
     observe() {}

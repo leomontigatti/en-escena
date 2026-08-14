@@ -1,8 +1,10 @@
 import { prices } from "@/db/schema";
 import { resolveChoreographyPricingScheduleId } from "@/lib/finances/choreography-pricing-schedule";
 import {
+  calculateDepositAmount,
   type ChoreographyFinancialStatus,
   deriveChoreographyFinancialStatus,
+  hasCrossedDepositThreshold,
   type InscriptionAnomaly,
   type InscriptionFinancialStatus,
 } from "@/lib/finances/inscription-financial-status";
@@ -15,7 +17,7 @@ import {
 import { selectApplicablePriceFromCandidates } from "@/lib/prices/repository.server";
 import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
 
-type FinancePriceRow = typeof prices.$inferSelect;
+export type FinancePriceRow = typeof prices.$inferSelect;
 type FinanceAmountResolution =
   | {
       amount: number;
@@ -51,7 +53,6 @@ export type ResolvedInscription = {
   owedBalanceAmount: number | null;
   owedDepositAmount: number | null;
   overAllocatedAmount: number | null;
-  depositReferenceDate: string | null;
   // Roster withdrawal, not a money status. It decides which rollup the row
   // enters and which badge it carries; its figures already come derived
   // accordingly.
@@ -83,7 +84,6 @@ export type ChoreographyOperationalFinanceRow = {
   basePriceAmount: OperationalFinanceAmount;
   depositAmount: OperationalFinanceAmount;
   totalAmount: OperationalFinanceAmount;
-  depositCompletedOn: string | null;
   financialStatus: ChoreographyFinancialStatus;
   groupType: ChoreographyGroupType;
   id: string;
@@ -167,7 +167,6 @@ export function buildChoreographyOperationalFinanceRow(input: {
 }): ChoreographyOperationalFinanceRow {
   let allocatedAmount = 0;
   let overAllocatedAmount = 0;
-  let depositCompletedOn: string | null = null;
   const basePriceAmount = createAmountAccumulator();
   const depositAmount = createAmountAccumulator();
   const totalAmount = createAmountAccumulator();
@@ -183,13 +182,6 @@ export function buildChoreographyOperationalFinanceRow(input: {
     totalAmount.add(inscription.totalAmount);
     owedBalanceAmount.add(inscription.owedBalanceAmount);
     owedDepositAmount.add(inscription.owedDepositAmount);
-
-    if (inscription.depositReferenceDate) {
-      depositCompletedOn = laterDate(
-        depositCompletedOn,
-        inscription.depositReferenceDate,
-      );
-    }
   }
 
   return {
@@ -197,7 +189,6 @@ export function buildChoreographyOperationalFinanceRow(input: {
     anomalies: overAllocatedAmount > 0 ? ["overAllocated"] : [],
     basePriceAmount: basePriceAmount.build(),
     depositAmount: depositAmount.build(),
-    depositCompletedOn,
     financialStatus: deriveChoreographyFinancialStatus(
       input.inscriptions
         .filter((inscription) => !inscription.withdrawn)
@@ -240,9 +231,90 @@ export function buildOperationalFinanceSummaryFromChoreographyRows(input: {
   };
 }
 
+type EffectiveBasePriceInput = {
+  allocatedAmount: number;
+  choreography:
+    | Pick<
+        FinanceChoreographyRow,
+        "groupType" | "choreographyScheduleId" | "scheduleCapacityScheduleId"
+      >
+    | undefined;
+  priceRows: FinancePriceRow[];
+  requiredDepositPercentage: number;
+  selectedPriceId: string | null;
+};
+
 /**
- * Precio vigente para una inscripción sin precio seleccionado, contra la fecha
- * de negocio de Córdoba. `missing-price` cuando no hay fila de precio aplicable.
+ * The price row an inscription is charged at: `crossed ? stored : (current ?? stored)`.
+ *
+ * **The price stops moving when the inscription crosses its deposit threshold**,
+ * which is what a seña buys. Below that threshold the stored row is not
+ * authoritative: the read re-derives from the row that applies today, so a page
+ * refresh moves the figures and so does the passage of time. That is deliberate
+ * — locking at the first allocated peso would let an academy freeze the whole
+ * price list for one peso per inscription ahead of a price rollover.
+ *
+ * `crossed` is tested against the **stored** row and never against the current
+ * one; `hasCrossedDepositThreshold` says why.
+ *
+ * The `?? stored` fallback carries the case where no row applies at all — every
+ * candidate's `paymentDeadline` has passed, or none was ever configured — and it
+ * is why the stored row is still worth writing below the threshold.
+ *
+ * This is the single owner of the rule. Every surface that shows a price goes
+ * through it — the two readers through `resolveEffectiveBasePriceAmount` and the
+ * allocation dialog's readout through the row itself — so no two of them can
+ * name different prices for the same inscription.
+ */
+export function resolveEffectiveBasePriceRow(
+  input: EffectiveBasePriceInput,
+): FinancePriceRow | null {
+  const stored =
+    input.selectedPriceId === null
+      ? null
+      : (input.priceRows.find((price) => price.id === input.selectedPriceId) ??
+        null);
+
+  if (
+    stored !== null &&
+    hasCrossedDepositThreshold({
+      allocatedAmount: input.allocatedAmount,
+      depositAmount: calculateDepositAmount({
+        priceAmount: stored.amount,
+        requiredDepositPercentage: input.requiredDepositPercentage,
+      }),
+    })
+  ) {
+    return stored;
+  }
+
+  if (!input.choreography) {
+    return stored;
+  }
+
+  return (
+    resolveApplicablePriceRow({
+      choreography: input.choreography,
+      priceRows: input.priceRows,
+    }) ?? stored
+  );
+}
+
+/** `resolveEffectiveBasePriceRow` for the callers that only need the figure. */
+export function resolveEffectiveBasePriceAmount(
+  input: EffectiveBasePriceInput,
+): number | null {
+  return resolveEffectiveBasePriceRow(input)?.amount ?? null;
+}
+
+/**
+ * The amount of the row that applies today, against the Córdoba business date.
+ * `missing-price` when no price row applies.
+ *
+ * It is asked about an inscription that stores no row **and** about one that
+ * stores a row it has not yet paid the seña of: below that threshold the stored
+ * row is not authoritative, so this is the `current` half of
+ * `resolveEffectiveBasePriceRow`.
  */
 export function resolveEstimatedBasePriceAmount(input: {
   choreography: Pick<
@@ -251,6 +323,25 @@ export function resolveEstimatedBasePriceAmount(input: {
   >;
   priceRows: FinancePriceRow[];
 }): FinanceAmountResolution {
+  const applicable = resolveApplicablePriceRow(input);
+
+  return applicable === null
+    ? { status: "missing-price" }
+    : { amount: applicable.amount, status: "complete" };
+}
+
+/**
+ * The row that applies today: the one specific to the choreography's schedule
+ * and group type first, then the general row for that group type. `null` when
+ * neither is on offer.
+ */
+function resolveApplicablePriceRow(input: {
+  choreography: Pick<
+    FinanceChoreographyRow,
+    "groupType" | "choreographyScheduleId" | "scheduleCapacityScheduleId"
+  >;
+  priceRows: FinancePriceRow[];
+}): FinancePriceRow | null {
   const financialReferenceDate = getBusinessDateOnly();
   const scheduleId = resolveChoreographyPricingScheduleId(input.choreography);
   const schedulePrice = scheduleId
@@ -265,13 +356,10 @@ export function resolveEstimatedBasePriceAmount(input: {
     : null;
 
   if (schedulePrice) {
-    return {
-      amount: schedulePrice.amount,
-      status: "complete",
-    };
+    return schedulePrice;
   }
 
-  const generalPrice = selectApplicablePriceFromCandidates(
+  return selectApplicablePriceFromCandidates(
     input.priceRows.filter(
       (price) =>
         price.groupType === input.choreography.groupType &&
@@ -279,17 +367,6 @@ export function resolveEstimatedBasePriceAmount(input: {
     ),
     financialReferenceDate,
   );
-
-  if (!generalPrice) {
-    return {
-      status: "missing-price",
-    };
-  }
-
-  return {
-    amount: generalPrice.amount,
-    status: "complete",
-  };
 }
 
 /**
@@ -339,12 +416,4 @@ function sumOperationalFinanceAmounts(amounts: OperationalFinanceAmount[]) {
       missingPriceCount: 0,
     },
   );
-}
-
-function laterDate(current: string | null, candidate: string): string {
-  if (current === null) {
-    return candidate;
-  }
-
-  return candidate.localeCompare(current) > 0 ? candidate : current;
 }

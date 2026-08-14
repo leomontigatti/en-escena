@@ -586,3 +586,80 @@ delta with sign and amount because the admin emits the document.
   withdrawal-driven deltas, because the clock's start is not derivable in general
   and `withdrawnAt` is the only movement date the system persists. There is no
   worklist and no notification.
+
+## Correction (2026-08-13): `porcion` was still live when this was written
+
+Appended, not edited in place: `docs/adr/` is append-only, so the claim below
+stays where it was made and this is the record that it was wrong.
+
+The supersession section above — "Why both ADR-0011 and ADR-0012 are superseded,
+and ADR-0009 is not" — argues that ADR-0011 does not survive as a document and
+gives as its ground that **"#554 deleted `porcion` outright — column, pgEnum,
+`derivePorcion`, `formatComprobantePorcionLabel` and every reader."**
+
+**That was never true.** #554 closed as a map decision, not as an implementation:
+no code changed under it. Every symbol the sentence names was live on `master`
+the day this ADR was accepted and stayed live for six days after it — the
+`en_escena_comprobante_porcion` pgEnum, a `NOT NULL DEFAULT 'total'` column,
+`derivePorcion`, `formatComprobantePorcionLabel`, the `Porción` field on the
+comprobante detail, the printed `{Porción} — {Coreografía}` line, and the
+`Vigente` / `Desactualizada` badges on the financial detail's two portion cards.
+#712 was still repairing the derivation in `emit-factura-c.server.ts` afterwards,
+which a deleted field cannot have.
+
+The conclusion the sentence supports is unaffected: ADR-0011's organising concept
+is `porción` and it is superseded either way. What was wrong is the tense.
+
+The deletion is real as of the PR that appends this paragraph, and it is the
+whole of it — column, pgEnum, derivation, label, filter, printed label and the
+two portion badges. Two decisions it forced, neither settled here:
+
+- The printed line reads `Inscripción — {coreografía}` rather than the
+  choreography name alone. A bare proper noun would repeat the receptor block and
+  describe no service; the noun is the one §5 gives the settled per-dancer line,
+  so only its right-hand side moves when #657 lands.
+- The `Vigente` / `Desactualizada` badges were read and removed. They derived
+  from `porcion` outright, which the two-badge shape gives away: there was one
+  per portion. The identically-labelled `Vigente` on the comprobante list and
+  detail is a different badge — the derived `vigente` / `anulada` status — and it
+  survives untouched.
+
+The rest of §5, §6 and §7 remains specified and not built. Owner: #657.
+
+## Correction (2026-08-13, second): the printed line carries no right-hand side
+
+Appended, not edited in place. The correction above stands as written; this
+paragraph supersedes one bullet of it.
+
+That bullet records the printed line as reading `Inscripción — {coreografía}`.
+The owner has since ruled otherwise, on the review of the PR that appended it:
+**the printed description is the bare word `Inscripción`**, with no separator and
+no right-hand side.
+
+The bullet's own reasoning is what decides it. It rejects the choreography name
+alone because the receptor block already prints `{academia} — {coreografía}` —
+and then prints the choreography name anyway, on the right. #554 decision 3 had
+already reached that conclusion and said so in as many words: _"No choreography
+prefix: the document already names it in the Receptor block."_ The word
+`Inscripción` is the whole of what RG 1415 asks that column for, a description
+identifying the **service**; the rest of the identification is elsewhere on the
+page.
+
+The right-hand side decision 3 does specify is `— {dancer}`, and it is not
+deferrable text: it presupposes **one line per inscription**, which is §5's
+`record.lines` and is #657's, not built. With one synthesized line per
+comprobante there is no dancer the line could name. So the description stops at
+the concept, and #657 appends `— {bailarín}` to a line that already carries the
+right noun. Nothing else churns.
+
+The first correction is also owed one nuance it did not give #554. It calls #554
+"a map decision"; #554 is a **resolution that specified this implementation**,
+line-by-line, including this printed line and the deletion the correction is
+about. The gap it records is therefore narrower and worse than a stale document:
+the ticket was right, was written down, and was not read.
+
+One divergence from #554 is deliberate and is recorded on the ticket rather than
+only in a PR paragraph: decision 5 lists `list/server.ts:319` among the `porcion`
+readers to drop. That line is `searchParams.delete("porcion")`, which
+canonicalises stale bookmarked URLs exactly as the `delete("academia")` beside it
+does. It reads no concept, so it stays.

@@ -26,10 +26,6 @@ export type RecordComprobanteInput = {
   ptoVta: number;
   cbteNro: number;
   cbteFch: string;
-  // Porción cubierta, DERIVADA de lo cobrado y CONGELADA en el snapshot (#479,
-  // ADR-0011). Opcional: si se omite, la columna cae en su default not-null
-  // `total`; la emisión real la deriva y la pasa explícita.
-  porcion?: ComprobanteRow["porcion"];
   // Período de servicio y vencimiento de pago (Concepto 2, RG 1415) en formato
   // ARCA `AAAAMMDD`, congelados al emitir. Nullable: los comprobantes previos a
   // ADR-0011 no los llevan.
@@ -66,9 +62,6 @@ export async function recordComprobante(
         ptoVta: input.ptoVta,
         cbteNro: input.cbteNro,
         cbteFch: input.cbteFch,
-        // Sólo se pasa `porcion` si viene: `undefined` deja actuar el default
-        // not-null de la columna, así los callers previos a #479 siguen válidos.
-        ...(input.porcion ? { porcion: input.porcion } : {}),
         fchServDesde: input.fchServDesde ?? null,
         fchServHasta: input.fchServHasta ?? null,
         fchVtoPago: input.fchVtoPago ?? null,

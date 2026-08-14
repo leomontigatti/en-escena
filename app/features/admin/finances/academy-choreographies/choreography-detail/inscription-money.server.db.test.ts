@@ -150,6 +150,32 @@ async function loadDetail(input: {
   });
 }
 
+/**
+ * A second `solo` row at 12000 (seña 3600) whose deadline falls before the
+ * catalogue one's, so it is also the row that applies on the mocked business
+ * date. Two rows on either side of a threshold is what makes "which price is
+ * the crossing measured against?" an observable question.
+ */
+async function insertLatePrice(eventId: string) {
+  const [price] = await db
+    .insert(prices)
+    .values({
+      amount: 12000,
+      eventId,
+      groupType: "solo",
+      name: "Solo tardío",
+      paymentDeadline: "2026-04-30",
+      scheduleId: null,
+    })
+    .returning();
+
+  if (!price) {
+    throw new Error("Expected a price row.");
+  }
+
+  return price;
+}
+
 async function readAllocations(inscriptionId: string) {
   return await db
     .select({
@@ -213,19 +239,9 @@ describe.sequential("money on an inscription through the route action", () => {
     expect(inscription?.selectedPriceId).toBe(fixture.priceId);
   });
 
-  test("locks the price once the inscription holds money instead of warning about it", async () => {
+  test("lets the price move while the inscription is below its seña", async () => {
     const fixture = await seedInscription();
-    const [otherPrice] = await db
-      .insert(prices)
-      .values({
-        eventId: fixture.eventId,
-        name: "Solo tardío",
-        groupType: "solo",
-        amount: 12000,
-        paymentDeadline: "2026-04-30",
-        scheduleId: null,
-      })
-      .returning();
+    const otherPrice = await insertLatePrice(fixture.eventId);
 
     await postDetailAction({
       academyId: fixture.academyId,
@@ -236,6 +252,52 @@ describe.sequential("money on an inscription through the route action", () => {
         inscriptionId: fixture.inscriptionId,
         priceId: fixture.priceId,
         amount: "1000",
+      },
+    });
+
+    // 1000 against a stored price of 10000 is one third of the way to its 3000
+    // seña: nothing is fixed yet, so the administrator may still say which row
+    // prices this inscription.
+    const result = await postDetailAction({
+      academyId: fixture.academyId,
+      choreographyId: fixture.choreographyId,
+      eventId: fixture.eventId,
+      fields: {
+        intent: "allocate-inscription",
+        inscriptionId: fixture.inscriptionId,
+        priceId: otherPrice.id,
+        amount: "1000",
+      },
+    });
+
+    expect(result).toMatchObject({ status: 302 });
+    const inscription = await db.query.choreographyDancers.findFirst({
+      where: eq(choreographyDancers.id, fixture.inscriptionId),
+    });
+    expect(inscription?.selectedPriceId).toBe(otherPrice.id);
+    expect(await readAllocations(fixture.inscriptionId)).toEqual([
+      { amount: 2000, paymentId: fixture.payments[0].id },
+    ]);
+  });
+
+  test("locks the price once the inscription covers its seña", async () => {
+    const fixture = await seedInscription();
+    const otherPrice = await insertLatePrice(fixture.eventId);
+
+    // Exactly the seña of the stored 10000 row, and the boundary is `≥`. The
+    // badge reads on the same `≥` but against the seña of the **effective**
+    // price, so the two coincide only once the lock has closed — above the
+    // threshold the effective row is the stored one. Below it they can part
+    // ways; `docs/domain/finances.md` documents that band.
+    await postDetailAction({
+      academyId: fixture.academyId,
+      choreographyId: fixture.choreographyId,
+      eventId: fixture.eventId,
+      fields: {
+        intent: "allocate-inscription",
+        inscriptionId: fixture.inscriptionId,
+        priceId: fixture.priceId,
+        amount: "3000",
       },
     });
 
@@ -258,8 +320,96 @@ describe.sequential("money on an inscription through the route action", () => {
     expect(inscription?.selectedPriceId).toBe(fixture.priceId);
     // Refused whole: the amount did not land either.
     expect(await readAllocations(fixture.inscriptionId)).toEqual([
-      { amount: 1000, paymentId: fixture.payments[0].id },
+      { amount: 3000, paymentId: fixture.payments[0].id },
     ]);
+  });
+
+  test("measures the crossing against the stored price and not the incoming one", async () => {
+    const fixture = await seedInscription();
+    const otherPrice = await insertLatePrice(fixture.eventId);
+
+    // Stored at 12000, whose seña is 3600, holding 3000.
+    await postDetailAction({
+      academyId: fixture.academyId,
+      choreographyId: fixture.choreographyId,
+      eventId: fixture.eventId,
+      fields: {
+        intent: "allocate-inscription",
+        inscriptionId: fixture.inscriptionId,
+        priceId: otherPrice.id,
+        amount: "3000",
+      },
+    });
+
+    // 3000 would be a crossing of the **incoming** 10000 row, whose seña is
+    // exactly 3000. Were the rule tested against the incoming price it would
+    // refuse here, and whether the inscription had "crossed" would depend on
+    // which price it was asked about.
+    const result = await postDetailAction({
+      academyId: fixture.academyId,
+      choreographyId: fixture.choreographyId,
+      eventId: fixture.eventId,
+      fields: {
+        intent: "allocate-inscription",
+        inscriptionId: fixture.inscriptionId,
+        priceId: fixture.priceId,
+        amount: "500",
+      },
+    });
+
+    expect(result).toMatchObject({ status: 302 });
+    const inscription = await db.query.choreographyDancers.findFirst({
+      where: eq(choreographyDancers.id, fixture.inscriptionId),
+    });
+    expect(inscription?.selectedPriceId).toBe(fixture.priceId);
+  });
+
+  test("reopens the price when money drops the inscription back below its seña", async () => {
+    const fixture = await seedInscription();
+    const otherPrice = await insertLatePrice(fixture.eventId);
+
+    await postDetailAction({
+      academyId: fixture.academyId,
+      choreographyId: fixture.choreographyId,
+      eventId: fixture.eventId,
+      fields: {
+        intent: "allocate-inscription",
+        inscriptionId: fixture.inscriptionId,
+        priceId: fixture.priceId,
+        amount: "3000",
+      },
+    });
+
+    // The escape hatch is no longer "take every peso off": dropping back below
+    // the seña is enough, and the money that stays keeps its row.
+    await postDetailAction({
+      academyId: fixture.academyId,
+      choreographyId: fixture.choreographyId,
+      eventId: fixture.eventId,
+      fields: {
+        intent: "remove-inscription-money",
+        inscriptionId: fixture.inscriptionId,
+        amount: "1",
+      },
+    });
+
+    const result = await postDetailAction({
+      academyId: fixture.academyId,
+      choreographyId: fixture.choreographyId,
+      eventId: fixture.eventId,
+      fields: {
+        intent: "allocate-inscription",
+        inscriptionId: fixture.inscriptionId,
+        priceId: otherPrice.id,
+        amount: "1",
+      },
+    });
+
+    expect(result).toMatchObject({ status: 302 });
+    const inscription = await db.query.choreographyDancers.findFirst({
+      where: eq(choreographyDancers.id, fixture.inscriptionId),
+    });
+    expect(inscription?.selectedPriceId).toBe(otherPrice.id);
   });
 
   test("refuses active over-allocation with no override", async () => {
@@ -315,7 +465,7 @@ describe.sequential("money on an inscription through the route action", () => {
     ]);
   });
 
-  test("removes part of a preset-frozen row instead of tripping the price guard", async () => {
+  test("keeps the fixed price when only part of the money is removed", async () => {
     const fixture = await seedInscription();
 
     await postDetailAction({
@@ -329,16 +479,6 @@ describe.sequential("money on an inscription through the route action", () => {
         amount: "3000",
       },
     });
-
-    // The seña preset freezes the ladder snapshot on the row it charges.
-    // Reproducing that state is what makes the removal below cross back under
-    // the deposit while money is still on the row: the case that used to null
-    // `selected_price_id` under live allocations and raise from the database
-    // guard, turning a removal into a 500.
-    await db
-      .update(choreographyDancers)
-      .set({ depositAmount: 3000, depositReferenceDate: "2026-04-10" })
-      .where(eq(choreographyDancers.id, fixture.inscriptionId));
 
     const response = await postDetailAction({
       academyId: fixture.academyId,
@@ -357,16 +497,13 @@ describe.sequential("money on an inscription through the route action", () => {
     ]);
 
     const [row] = await db
-      .select({
-        depositReferenceDate: choreographyDancers.depositReferenceDate,
-        selectedPriceId: choreographyDancers.selectedPriceId,
-      })
+      .select({ selectedPriceId: choreographyDancers.selectedPriceId })
       .from(choreographyDancers)
       .where(eq(choreographyDancers.id, fixture.inscriptionId));
 
-    // The ladder snapshot goes, the price stays: it is fixed by the first
-    // allocation and only reverts once nothing is allocated.
-    expect(row.depositReferenceDate).toBeNull();
+    // The price stays. The removal shapes carry no price control at all, so
+    // nothing here could have moved it — dropping back below the seña reopens
+    // the lock, it does not clear the stored row.
     expect(row.selectedPriceId).toBe(fixture.priceId);
   });
 

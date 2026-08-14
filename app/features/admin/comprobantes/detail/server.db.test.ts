@@ -82,7 +82,6 @@ async function seedComprobante(input: {
   academyName: string;
   choreographyName: string;
   email: string;
-  porcion?: "seña" | "saldo" | "total";
 }) {
   const event = await createSavedEvent({ requiredDepositPercentage: 30 });
   const { academy, choreography } =
@@ -132,7 +131,6 @@ async function seedComprobante(input: {
     ptoVta: 1,
     cbteNro: 41,
     cbteFch: "20260722",
-    porcion: input.porcion ?? "seña",
     fchServDesde: "20260801",
     fchServHasta: "20260803",
     fchVtoPago: "20260722",
@@ -196,7 +194,6 @@ describe.sequential("loadComprobanteDetail", () => {
       academyName: "Academia Detalle",
       choreographyName: "Coreografía detalle",
       email: "academia.detalle@example.com",
-      porcion: "seña",
     });
 
     const { comprobante } = await loadComprobanteDetail(
@@ -207,7 +204,6 @@ describe.sequential("loadComprobanteDetail", () => {
     expect(comprobante.id).toBe(seeded.facturaId);
     expect(comprobante.cbteTipo).toBe(FACTURA_C_CBTE_TIPO);
     expect(comprobante.cbteNro).toBe(41);
-    expect(comprobante.porcion).toBe("seña");
     expect(comprobante.impTotal).toBe(7000);
     expect(comprobante.academyName).toBe("Academia Detalle");
     expect(comprobante.choreographyName).toBe("Coreografía detalle");

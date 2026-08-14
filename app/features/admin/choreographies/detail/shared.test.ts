@@ -90,8 +90,8 @@ describe("toChoreographyDetailViewActionData", () => {
 
 describe("canReassignScheduleCapacity", () => {
   const frozenDeposit = {
-    code: "frozen-deposit",
-    label: "Al menos una inscripción tiene seña registrada.",
+    code: "frozen-price",
+    label: "Al menos una inscripción tiene dinero asignado.",
   } as const;
 
   test("opens the cupo de cronograma for an admin with alternatives and no blockers", () => {

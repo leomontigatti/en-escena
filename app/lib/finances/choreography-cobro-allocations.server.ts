@@ -1,13 +1,9 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { choreographyDancers, paymentAllocations } from "@/db/schema";
+import { paymentAllocations } from "@/db/schema";
 
-import {
-  clearBalanceSnapshot,
-  clearDepositSnapshot,
-  type Transaction,
-} from "./choreography-cobro-support.server";
+import type { Transaction } from "./choreography-cobro-support.server";
 
 type Executor = Transaction | typeof db;
 
@@ -82,106 +78,4 @@ export async function applyAllocationDelta(
     .update(paymentAllocations)
     .set({ amount: nextAmount, updatedAt: new Date() })
     .where(eq(paymentAllocations.id, existing.id));
-}
-
-/**
- * Reconcilia los snapshots de una inscripción contra lo que le quedó asignado:
- * sin plata vuelve a `impaga`, y con menos de lo que cubría el total vuelve a
- * `señada`. Es el puente mientras el estado siga viviendo en columnas
- * congeladas; cuando el estado se derive de `Σ asignaciones` no queda nada que
- * reconciliar. Corre siempre DESPUÉS de borrar las asignaciones: limpiar la seña
- * mueve `selected_price_id`, y el guard de precio de la base lo rechaza mientras
- * la inscripción tenga plata encima.
- */
-export async function syncInscriptionSnapshots(
-  tx: Executor,
-  inscriptionIds: string[],
-): Promise<void> {
-  if (inscriptionIds.length === 0) {
-    return;
-  }
-
-  const inscriptions = await tx.query.choreographyDancers.findMany({
-    where: inArray(choreographyDancers.id, inscriptionIds),
-  });
-  const allocations = await tx
-    .select({
-      amount: paymentAllocations.amount,
-      inscriptionId: paymentAllocations.inscriptionId,
-    })
-    .from(paymentAllocations)
-    .where(inArray(paymentAllocations.inscriptionId, inscriptionIds));
-
-  const allocatedByInscription = new Map<string, number>();
-  for (const allocation of allocations) {
-    allocatedByInscription.set(
-      allocation.inscriptionId,
-      (allocatedByInscription.get(allocation.inscriptionId) ?? 0) +
-        allocation.amount,
-    );
-  }
-
-  for (const inscription of inscriptions) {
-    const allocated = allocatedByInscription.get(inscription.id) ?? 0;
-    const depositAmount = inscription.depositAmount ?? 0;
-    const coveredTotal = depositAmount + (inscription.balanceAmount ?? 0);
-
-    const patch = {
-      ...(inscription.balanceReferenceDate !== null && allocated < coveredTotal
-        ? clearBalanceSnapshot()
-        : {}),
-      ...(inscription.depositReferenceDate !== null && allocated < depositAmount
-        ? clearDepositSnapshot()
-        : {}),
-      // The selected price is fixed by the first allocation and only reverts
-      // once nothing is allocated, so a row that still holds money keeps it.
-      // Clearing it here would also break the write: the database guard raises
-      // whenever `selected_price_id` changes while allocations exist, which
-      // turned a partial removal from a preset-frozen row into a 500 instead of
-      // the refusal-free removal the surface promises.
-      ...(allocated > 0
-        ? { selectedPriceId: inscription.selectedPriceId }
-        : {}),
-    };
-
-    if (Object.keys(patch).length === 0) {
-      continue;
-    }
-
-    await tx
-      .update(choreographyDancers)
-      .set(patch)
-      .where(eq(choreographyDancers.id, inscription.id));
-  }
-}
-
-/**
- * Devuelve al `Saldo disponible` de la academia todo lo asignado a una
- * inscripción: borra sus asignaciones de pago y limpia sus snapshots. Helper
- * consumido al quitar una inscripción del roster. Acepta una transacción externa
- * para participar del borrado del roster.
- */
-export async function releaseInscriptionAllocations(
-  input: { inscriptionId: string },
-  tx: Executor = db,
-): Promise<{ releasedAmount: number }> {
-  const allocations = await tx.query.paymentAllocations.findMany({
-    where: eq(paymentAllocations.inscriptionId, input.inscriptionId),
-  });
-
-  const releasedAmount = allocations.reduce(
-    (sum, allocation) => sum + allocation.amount,
-    0,
-  );
-
-  await tx
-    .delete(paymentAllocations)
-    .where(eq(paymentAllocations.inscriptionId, input.inscriptionId));
-
-  await tx
-    .update(choreographyDancers)
-    .set({ ...clearDepositSnapshot(), ...clearBalanceSnapshot() })
-    .where(eq(choreographyDancers.id, input.inscriptionId));
-
-  return { releasedAmount };
 }

@@ -70,7 +70,6 @@ function loaderDataFixture(overrides: Partial<LoaderData> = {}): LoaderData {
     choreography: {
       allocatedAmount: 3000,
       depositAmount: { amount: 3000, status: "complete" },
-      depositCompletedOn: "2026-03-21",
       financialStatus: "depositMet",
       groupType: "duo",
       id: "choreography_1",

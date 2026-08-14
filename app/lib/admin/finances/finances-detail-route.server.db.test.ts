@@ -217,11 +217,7 @@ describe.sequential("administracion finanzas academia", () => {
         ageAtEventStart: 14,
         choreographyId: choreography.id,
         dancerId: dancer.id,
-        frozenBasePriceAmount: 12000,
         selectedPriceId: selectedPrice.id,
-        depositReferenceDate: "2026-03-20",
-        depositPercentage: 30,
-        depositAmount: 3600,
       })
       .returning();
 

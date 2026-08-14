@@ -22,7 +22,6 @@ function comprobanteRow(
     cbteFch: "20260722",
     impTotal: 25000,
     cae: "11112222333344",
-    porcion: "seña",
     status: "vigente",
     choreographyId: "choreo_1",
     choreographyName: "Coreografía Alfa",

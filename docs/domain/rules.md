@@ -6,6 +6,6 @@
 - [access.md](./access.md) - registration, users, sessions and invitations.
 - [choreographies.md](./choreographies.md) - roster links, choreography registration, locks and Bases del evento.
 - [judging.md](./judging.md) - presentations, judging, ranking, results, scores and feedback.
-- [finances.md](./finances.md) - canonical finance model: inscriptions, payments, payment assignments, financial state, pricing and snapshots.
+- [finances.md](./finances.md) - canonical finance model: inscriptions, payments, allocations, the two thresholds and the three statuses, pricing, withdrawal and invoicing.
 
 Implementation entry points live in [docs/agents/codebase-map.md](../agents/codebase-map.md).
