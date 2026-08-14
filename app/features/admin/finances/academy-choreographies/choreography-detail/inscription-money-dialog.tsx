@@ -16,8 +16,14 @@
  * money would be refused anyway.
  *
  * **No removal shape carries a price control**, not even a locked one. Price is
- * an allocation-time concern, and the way to change it is to take the money off
- * first — which is what opens the lock.
+ * an allocation-time concern, and taking money off is how the picker comes back.
+ *
+ * That last part is **stricter than the rule**: the price is fixed at the
+ * deposit threshold, so a below-threshold change is accepted by every write path
+ * and by the database guard, yet this dialog swaps the picker for a readout at
+ * the first peso and says so in its hint. The divergence is deliberate for now
+ * and recorded in `docs/domain/finances.md`; the readout at least names the
+ * **effective** price, so no figure on this screen contradicts another.
  */
 
 import { AlertTriangle, Check, LoaderCircle, Undo2 } from "lucide-react";
@@ -180,7 +186,7 @@ function AllocateMoneyDialog({
             <div className="flex flex-col gap-1.5">
               <ReadOnlyField
                 label="Precio"
-                value={formatSelectedPrice(inscription.selectedPrice)}
+                value={formatEffectivePrice(inscription.effectivePrice)}
               />
               <p className="text-xs text-muted-foreground">
                 Tiene {formatAmount(inscription.allocatedAmount)} asignados.
@@ -532,7 +538,15 @@ function formatOwedAmount(amount: number | null) {
   return amount === null ? "Sin precio" : formatAmount(amount);
 }
 
-function formatSelectedPrice(price: InscriptionRow["selectedPrice"]) {
+/**
+ * The readout names the **effective** price — what the inscription is charged at
+ * — and not the stored row, so it cannot show a figure the detail row behind it
+ * contradicts. Below the deposit threshold the two can be different rows: the
+ * stored one is only what was last said, while every figure on this screen —
+ * `Seña adeudada`, `Saldo adeudado` and the row's own `Total` — is derived from
+ * the effective one.
+ */
+function formatEffectivePrice(price: InscriptionRow["effectivePrice"]) {
   return price === null
     ? "Sin precio"
     : `${price.name} · ${formatAmount(price.amount)}`;

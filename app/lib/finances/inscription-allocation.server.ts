@@ -22,10 +22,15 @@
  *   what opens the lock again.
  */
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
-import { choreographyDancers, events, prices } from "@/db/schema";
+import {
+  choreographyDancers,
+  events,
+  paymentAllocations,
+  prices,
+} from "@/db/schema";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import { resolveChoreographyPricingScheduleId } from "@/lib/finances/choreography-pricing-schedule";
 import {
@@ -33,6 +38,10 @@ import {
   deriveInscriptionFinancialFigures,
 } from "@/lib/finances/inscription-financial-status";
 import { readInscriptionThresholds } from "@/lib/finances/inscription-thresholds.server";
+import {
+  type ChoreographyGroupType,
+  resolveEffectiveBasePriceRow,
+} from "@/lib/finances/operational-summary-calculations.server";
 
 import {
   readInscriptionAllocatedAmount,
@@ -56,8 +65,8 @@ export type InscriptionPriceOption = {
   name: string;
 };
 
-/** The price an inscription currently holds, for the locked readout. */
-export type InscriptionSelectedPrice = {
+/** A price row the allocation dialog names: the stored one or the effective one. */
+export type InscriptionDialogPrice = {
   amount: number;
   id: string;
   name: string;
@@ -127,13 +136,109 @@ export async function readInscriptionPriceOptions(input: {
 }
 
 /**
- * The price row each inscription of a choreography has selected. Read
- * separately from the options because a locked inscription must show the price
- * it holds even when that row is no longer among the ones on offer.
+ * The price row each inscription of a choreography is **charged at**, which is
+ * the one the allocation dialog reads out: the stored row once the inscription
+ * has crossed its deposit threshold, and the row that applies today while it has
+ * not.
+ *
+ * It is the stored row that is read separately from the options, because a
+ * locked inscription must show the price it holds even when that row is no
+ * longer among the ones on offer. The effective row is resolved on top with
+ * `resolveEffectiveBasePriceRow` — the same call the finance readers make — so
+ * the dialog and the row behind it cannot name different prices for the same
+ * inscription.
+ */
+export async function readInscriptionEffectivePrices(input: {
+  choreographyId: string;
+  eventId: string;
+}): Promise<Map<string, InscriptionDialogPrice>> {
+  const choreographyRow = await loadChoreographyScheduleRow(
+    db,
+    input.choreographyId,
+  );
+
+  if (!choreographyRow) {
+    return new Map();
+  }
+
+  const [event, priceRows, inscriptionRows] = await Promise.all([
+    db.query.events.findFirst({
+      columns: { requiredDepositPercentage: true },
+      where: eq(events.id, input.eventId),
+    }),
+    db.query.prices.findMany({ where: eq(prices.eventId, input.eventId) }),
+    db
+      .select({
+        id: choreographyDancers.id,
+        selectedPriceId: choreographyDancers.selectedPriceId,
+      })
+      .from(choreographyDancers)
+      .where(eq(choreographyDancers.choreographyId, input.choreographyId)),
+  ]);
+
+  if (!event) {
+    return new Map();
+  }
+
+  const allocationRows =
+    inscriptionRows.length === 0
+      ? []
+      : await db
+          .select({
+            amount: paymentAllocations.amount,
+            inscriptionId: paymentAllocations.inscriptionId,
+          })
+          .from(paymentAllocations)
+          .where(
+            inArray(
+              paymentAllocations.inscriptionId,
+              inscriptionRows.map((row) => row.id),
+            ),
+          );
+  const allocatedByInscription = new Map<string, number>();
+  for (const allocation of allocationRows) {
+    allocatedByInscription.set(
+      allocation.inscriptionId,
+      (allocatedByInscription.get(allocation.inscriptionId) ?? 0) +
+        allocation.amount,
+    );
+  }
+
+  const effectivePrices = new Map<string, InscriptionDialogPrice>();
+  for (const inscription of inscriptionRows) {
+    const price = resolveEffectiveBasePriceRow({
+      allocatedAmount: allocatedByInscription.get(inscription.id) ?? 0,
+      choreography: {
+        choreographyScheduleId: choreographyRow.choreographyScheduleId,
+        groupType: choreographyRow.groupType as ChoreographyGroupType,
+        scheduleCapacityScheduleId: choreographyRow.scheduleCapacityScheduleId,
+      },
+      priceRows,
+      requiredDepositPercentage: event.requiredDepositPercentage,
+      selectedPriceId: inscription.selectedPriceId,
+    });
+
+    if (price) {
+      effectivePrices.set(inscription.id, {
+        amount: price.amount,
+        id: price.id,
+        name: price.name,
+      });
+    }
+  }
+
+  return effectivePrices;
+}
+
+/**
+ * The price row each inscription of a choreography has selected — what is
+ * **stored**, which is what the picker opens on. What the inscription is charged
+ * at is `readInscriptionEffectivePrices`, and below the deposit threshold the
+ * two differ.
  */
 export async function readInscriptionSelectedPrices(input: {
   choreographyId: string;
-}): Promise<Map<string, InscriptionSelectedPrice>> {
+}): Promise<Map<string, InscriptionDialogPrice>> {
   const rows = await db
     .select({
       amount: prices.amount,
@@ -329,6 +434,12 @@ async function applySelectedPrice(
     // Naming no price changes none. The one row that has to be told to pick one
     // is the row that holds nothing and stores nothing: there, neither the
     // administrator nor a previous charge has said anything yet.
+    //
+    // `allocatedAmount === 0` **preserves the previous behaviour** rather than
+    // adding a rule. Until now `allocatedAmount > 0` short-circuited above, so
+    // this branch was only ever reached with an empty row; without the added
+    // test, an inscription holding money and storing no price — a state the
+    // presets can produce — would start failing with "Elegí un precio".
     return input.inscription.selectedPriceId === null &&
       input.allocatedAmount === 0
       ? { ok: false, message: "Elegí un precio para la inscripción." }

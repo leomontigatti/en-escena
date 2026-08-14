@@ -21,10 +21,30 @@
 -- JavaScript's `Math.round` rounding half toward `+∞` agree on every input this
 -- can see.
 --
--- Money is required on top of the comparison. A zero deposit — an event with
--- `required_deposit_percentage` at 0 — would otherwise lock the price of a row
--- holding nothing, and the way out of a locked price is taking money off, so
--- that lock could never be opened.
+-- Money is required on top of the comparison, and the branch is live rather
+-- than defensive. A deposit of zero is not reached through a zero percentage —
+-- `MIN_REQUIRED_DEPOSIT_PERCENTAGE` is 1 and a price amount must be a positive
+-- integer — but through one that **rounds** to zero: `ROUND(1 * 1 / 100)` is 0,
+-- and so is `ROUND(4 * 10 / 100)`. Without `allocated_amount = 0` such a row
+-- would lock its price while holding nothing, and since the only way out of a
+-- locked price is taking money off, that lock could never be opened again.
+--
+-- The application evaluates the same rule before this runs, and the two agree
+-- because of **the order the writers write in**: `allocateToInscription` and
+-- `payChoreographiesPreset` both write the price *before* moving money, inside
+-- one transaction. So the `SUM(pa.amount)` read here is exactly the
+-- `allocatedAmount` the application evaluated. Inverting that order in either
+-- writer would make the two disagree on the exact boundary of the threshold —
+-- the application would judge on the money after the write and this trigger on
+-- the money before it.
+--
+-- There is no down migration, here or anywhere in this repo, so the rollback
+-- order is worth stating: **application first, function second.** The old
+-- application is stricter than this function and refuses before reaching the
+-- database, so reverting only the application is safe. Reverting only the
+-- function is not: the new application accepts below-threshold price changes
+-- that the old function rejects, and the administrator gets a raw
+-- `check_violation`.
 --
 -- The text is for whoever reads a log, not for an academy: the dialog refuses
 -- first, in Spanish.

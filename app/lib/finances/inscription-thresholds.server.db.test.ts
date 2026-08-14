@@ -374,6 +374,19 @@ describe.sequential("the price lock at the deposit threshold", () => {
 
     expect(read.thresholds.priceAmount).toBe(10000);
     expect(read.summary.priceAmount).toBe(10000);
+
+    // The band where the two `≥` disagree. The badge is derived from the
+    // **effective** price, whose seña is 3000, so it already reads `Señada`;
+    // the lock is measured against the **stored** price, whose seña is 3600, so
+    // the price is still loose. Documented in `docs/domain/finances.md`, and
+    // one-sided: `Seña pendiente` next to a fixed price cannot happen.
+    const detail = await readAcademyEventOperationalFinanceDetail({
+      academyId: fixture.academyId,
+      eventId: fixture.eventId,
+    });
+    expect(
+      detail.inscriptions.find((row) => row.id === fixture.inscriptionId),
+    ).toMatchObject({ depositAmount: 3000, financialStatus: "depositMet" });
   });
 
   test("falls back to the stored price when no row applies at all", async () => {

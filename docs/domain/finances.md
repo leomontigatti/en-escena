@@ -248,6 +248,17 @@ decision rather than an oversight.
   threshold an inscription follows the list, so a drop can leave it holding more
   than its `Total` and reading `Sobreasignada`. That is passive over-allocation
   and it is tolerated: it warns, it blocks nothing and nothing throws.
+- **`Señada` and the price lock read the same `≥` against two different señas.**
+  The badge is derived from the **effective** price, and the lock is measured
+  against the **stored** one, so when the stored row is dearer than the one that
+  applies today there is a band where the row reads `Señada` and its price is
+  still loose: stored 12000 (seña 3600), current 10000 (seña 3000), 3000
+  allocated — the badge crosses at 3000 and the lock does not close until 3600.
+  The asymmetry is one-sided, because the lock is never the earlier of the two:
+  a locked price is the stored one, and it is the stored one the badge is then
+  computed from. So `Seña pendiente` next to a fixed price cannot happen, and
+  `Señada` is a claim about the money against today's price rather than a claim
+  that the price has stopped moving.
 - The picker is filtered to the choreography's group type and schedule and to
   nothing else — no floor, no ceiling and no `paymentDeadline` — because offering
   a foreign row would be offering to create a forbidden state, whereas offering
@@ -255,9 +266,8 @@ decision rather than an oversight.
 - A price row that any inscription references **cannot be deleted**.
 
 > **Specified, not built.**
-> The lock at the deposit threshold and the `crossed ? stored : (current ?? stored)`
-> read described above are ADR-0014 §3 and are implemented. The rest of that
-> section is not: it also makes `selected_price_id` `NOT NULL` and written at
+> Beyond the threshold rule above, ADR-0014 §3 makes `selected_price_id`
+> `NOT NULL` and written at
 > **creation**, and refreshes it on a `groupType` change regardless of the
 > threshold, refusing the roster write when no row applies to the new group type.
 > Today the column is nullable, no creation path writes it, and the stored row is
@@ -265,6 +275,34 @@ decision rather than an oversight.
 > [#403](https://github.com/leomontigatti/en-escena/issues/403), with the
 > `groupType` refresh in
 > [#709](https://github.com/leomontigatti/en-escena/issues/709).
+
+**Known divergence — the price is derived at read time, and ADR-0014 §3 says it
+must not be.** The threshold at which the price stops moving is §3's, and
+so is `effective = crossed ? stored : (current ?? stored)` with `crossed` always
+tested against `stored`. **The mechanism is not.** §3 keeps `selectedPriceId`
+refreshed to the currently applicable row **on every allocation write** below the
+threshold and explicitly rejects "a read-time derivation"; what is built derives
+at read time and never refreshes the stored row. The two are not the same rule
+written twice:
+
+- §3's property "the displayed figure equals what the next write will use" is
+  bought by the write-path refresh, so it does **not** hold here. What holds
+  instead is that every figure on every surface comes from the same derivation
+  — `resolveEffectiveBasePriceRow` is its single owner — so no two surfaces can
+  disagree, and the answer moves with a page refresh and with the passage of
+  time. That movement is the point: an academy's price should follow the list
+  until its seña is in, without anyone writing anything.
+- Below the threshold the **stored row and the effective row can differ**, so
+  what reads which matters. The stored row is read by the write path's `crossed`
+  test, by the price picker's default, by the `?? stored` fallback when nothing
+  applies today, and by the guard that refuses to delete a referenced price row.
+  Every displayed **figure** — `Precio`, `Seña`, `Total`, the badge and the
+  allocation dialog's readout — comes from the effective row.
+
+Amending §3 to match, or building the write-path refresh, is the owner's call.
+The circularity §3 breaks is broken here too, and by the same clause: `crossed`
+is tested against `stored`, which is the one side that does not depend on the
+answer.
 
 **Known divergence — a roster change can leave the price impossible.** Because
 nothing refreshes `selectedPriceId`, a roster change that moves the group type or
@@ -434,6 +472,16 @@ for a readout as soon as `allocatedAmount > 0` and tells the administrator "Para
 cambiarle el precio hay que quitarle toda la plata.". A below-threshold price
 change is therefore accepted by every write path and unreachable from that
 dialog, and the hint under the readout describes the retired rule.
+
+**The readout names the effective price, and the picker opens on the stored
+one.** They are the same row above the threshold and can differ below it, so the
+two controls are fed separately: `readInscriptionEffectivePrices` for the
+readout, which is the figure the row behind the dialog also shows, and
+`readInscriptionSelectedPrices` for the picker's default, which is what the
+administrator last said. The one place the stored row is still shown as such is
+that default, on a row holding no money whose list has moved since — a
+confirmable default rather than a figure, and changing it to the effective row
+would make "Elegí un precio para la inscripción." unreachable.
 
 ### Per choreography
 

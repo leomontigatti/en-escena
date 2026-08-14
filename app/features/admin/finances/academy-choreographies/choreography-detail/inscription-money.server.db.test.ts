@@ -284,8 +284,11 @@ describe.sequential("money on an inscription through the route action", () => {
     const fixture = await seedInscription();
     const otherPrice = await insertLatePrice(fixture.eventId);
 
-    // Exactly the seña of the stored 10000 row: the boundary is `≥`, the same
-    // one `Señada` reads on.
+    // Exactly the seña of the stored 10000 row, and the boundary is `≥`. The
+    // badge reads on the same `≥` but against the seña of the **effective**
+    // price, so the two coincide only once the lock has closed — above the
+    // threshold the effective row is the stored one. Below it they can part
+    // ways; `docs/domain/finances.md` documents that band.
     await postDetailAction({
       academyId: fixture.academyId,
       choreographyId: fixture.choreographyId,

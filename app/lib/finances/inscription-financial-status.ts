@@ -128,11 +128,14 @@ export function deriveInscriptionFinancialStatus(input: {
  * `null` is not crossed: a threshold that cannot be computed cannot have been
  * crossed, which is the same reading `deriveInscriptionFinancialStatus` takes.
  *
- * Money is required on top of the comparison, and only a zero deposit can tell
- * the difference. An event with `requiredDepositPercentage` at 0 would otherwise
- * lock every price at zero pesos, and the escape hatch out of a locked price is
- * taking money off — a lock that closes with no money on the row could never be
- * opened again.
+ * Money is required on top of the comparison, and only a deposit of zero can
+ * tell the two apart. Zero is not reached through a zero percentage —
+ * `MIN_REQUIRED_DEPOSIT_PERCENTAGE` is 1, and a price amount must be a positive
+ * integer — but through a deposit that **rounds** to it: `calculateDepositAmount`
+ * of a price of 1 at 1% is `Math.round(0.01)`, which is 0, and so is a price of
+ * 4 at 10%. Without `allocatedAmount > 0` such a row would lock its price while
+ * holding nothing, and the escape hatch out of a locked price is taking money
+ * off — a lock that closes with no money on the row could never be opened again.
  */
 export function hasCrossedDepositThreshold(input: {
   allocatedAmount: number;
