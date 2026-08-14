@@ -1,9 +1,18 @@
 # AFK — Implement PRD (chain of sub-issues). Spec §4.3.
 #
 # PRD issue labeled `agent:implement` **with** sub-issues → implement the first
-# still-open sub-issue on one shared branch → push (plain, never force) → close
-# that sub-issue → open/reuse one draft PR → re-label the PRD to run the next
-# sub-issue (the chain), or hand off to Review once all are closed.
+# not-yet-implemented sub-issue on one shared branch → push (plain, never force)
+# → mark that sub-issue implemented (a comment, not a close) → open/reuse one
+# draft PR that carries `Closes #<sub>` for every sub-issue → re-label the PRD to
+# run the next sub-issue (the chain), or hand off to Review once all are marked.
+#
+# Sub-issues are NOT closed here (divergence from spec §4.3 step 7, recorded in
+# docs/agents/afk-vendored-assets.md). At this point the work sits on a shared
+# branch that may never merge, so closing would assert `COMPLETED` — "built" —
+# about something that is not on `master`; see docs/agents/issue-tracker.md →
+# "Closing an issue". The PR's `Closes #<sub>` closes them when it merges, which
+# is when the claim becomes true. Chain progress therefore reads the
+# `IMPLEMENTED_MARKER` comment instead of the issue's state.
 #
 # Shares the `agent:implement` trigger with Implement (single); each preflight
 # decides ownership by shape — single silent-skips PRDs, this silent-skips
@@ -33,6 +42,9 @@ jobs:
       GH_REPO: ${{ github.repository }}
       ISSUE_NUMBER: ${{ github.event.issue.number }}
       ISSUE_TITLE: ${{ github.event.issue.title }}
+      # Written by this workflow onto a sub-issue once its run pushed. It is what
+      # "already done" means now that the run no longer closes the sub-issue.
+      IMPLEMENTED_MARKER: "<!-- afk:implemented -->"
     steps:
       # --- Preflight: richer shape (sub-issues + parent + per-child shape), §4.3. ---
       - name: Preflight (shape + refusals)
@@ -74,17 +86,32 @@ jobs:
             exit 0
           fi
 
-          open_count=$(echo "$subs" | jq '[.[] | select(.state == "open")] | length')
-          if [ "$open_count" -eq 0 ]; then
+          # Pending = still-open sub-issues that no earlier run has implemented.
+          # "Open" alone no longer means "not done": the run marks a sub-issue with
+          # a comment and leaves it open for the PR to close on merge (see the
+          # header). The marker is what advances the chain.
+          # (`case`, not a `grep` pipeline: with `pipefail` a `grep -q` that exits
+          # on the first match SIGPIPEs `gh` and the pipeline reports 141 — a hit
+          # would read as a miss.)
+          pending=$(echo "$subs" | jq -r '.[] | select(.state == "open") | .number' \
+            | while read -r n; do
+                bodies=$(gh issue view "$n" --json comments --jq '.comments[].body')
+                case "$bodies" in
+                  *"$IMPLEMENTED_MARKER"*) continue ;;
+                esac
+                echo "$n"
+              done)
+
+          if [ -z "$pending" ]; then
             gh issue edit "$ISSUE_NUMBER" --remove-label "agent:implement" --add-label "agent:blocked"
-            gh issue comment "$ISSUE_NUMBER" --body "All sub-issues are already closed; nothing to implement."
+            gh issue comment "$ISSUE_NUMBER" --body "Every sub-issue is already implemented (or closed); nothing to implement. They close when the PR merges."
             echo "proceed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          # target = first still-open sub-issue, in sub-issue API (position) order.
-          target=$(echo "$subs" | jq '[.[] | select(.state == "open")] | .[0]')
-          sub_number=$(echo "$target" | jq -r '.number')
+          # target = first pending sub-issue, in sub-issue API (position) order.
+          sub_number=$(echo "$pending" | head -1)
+          target=$(echo "$subs" | jq --argjson n "$sub_number" '.[] | select(.number == $n)')
           sub_title=$(echo "$target" | jq -r '.title')
           echo "sub_number=$sub_number" >> "$GITHUB_OUTPUT"
           echo "SUB_ISSUE_NUMBER=$sub_number" >> "$GITHUB_ENV"
@@ -233,15 +260,21 @@ jobs:
           BRANCH: ${{ steps.branch.outputs.branch }}
         run: git push origin "$BRANCH"
 
-      - name: Close the completed sub-issue
+      # Mark, do not close: the commit is on the shared branch, not on `master`.
+      # The comment keeps the sub-issue → commit trail and is what the next run
+      # (and the chain check below) reads to know this one is done.
+      - name: Mark the sub-issue implemented
         if: steps.preflight.outputs.proceed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           SUB_NUMBER: ${{ steps.preflight.outputs.sub_number }}
+          BRANCH: ${{ steps.branch.outputs.branch }}
         run: |
           set -euo pipefail
           sha=$(git rev-parse HEAD)
-          gh issue close "$SUB_NUMBER" --comment "Implemented in $sha. Part of #$ISSUE_NUMBER."
+          body=$(printf 'Implemented in %s on `%s`. Part of #%s.\n\nLeft open on purpose: the PR closes it on merge, so `COMPLETED` only ever means it is on `master`.\n\n%s' \
+            "$sha" "$BRANCH" "$ISSUE_NUMBER" "$IMPLEMENTED_MARKER")
+          gh issue comment "$SUB_NUMBER" --body "$body"
 
       - name: Look up existing PR for the branch
         id: existing_pr
@@ -266,6 +299,17 @@ jobs:
             echo "SUB_ISSUES<<SUB_ISSUES_EOF"
             echo "$subs"
             echo "SUB_ISSUES_EOF"
+          } >> "$GITHUB_ENV"
+          # One `Closes` per sub-issue, appended to the description by the
+          # orchestrator rather than left to the agent: this is the only thing
+          # that closes the sub-issues now that the run does not, so it cannot
+          # depend on a model remembering it. The PRD's own `Closes` comes from
+          # the runner's output schema.
+          closes=$(gh api "repos/$GH_REPO/issues/$ISSUE_NUMBER/sub_issues" --jq '.[] | "Closes #\(.number)"')
+          {
+            echo "SUB_CLOSES<<SUB_CLOSES_EOF"
+            echo "$closes"
+            echo "SUB_CLOSES_EOF"
           } >> "$GITHUB_ENV"
 
       - name: Run write-prd-pr runner
@@ -305,6 +349,9 @@ jobs:
         run: |
           set -euo pipefail
           title=$(head -c 256 "$OUTPUT_DIR/pr_title.txt")
+          # Sub-issues stay open through the chain; merging this PR is what closes
+          # them, so every one of them needs its own `Closes` here.
+          printf '\n\n%s\n' "${SUB_CLOSES:-}" >> "$OUTPUT_DIR/pr_description.txt"
           url=$(gh pr create --draft --base master --head "$BRANCH" \
             --title "$title" --body-file "$OUTPUT_DIR/pr_description.txt")
           echo "number=$(basename "$url")" >> "$GITHUB_OUTPUT"
@@ -318,8 +365,18 @@ jobs:
           PR_NUMBER: ${{ steps.existing_pr.outputs.number || steps.new_pr.outputs.number }}
         run: |
           set -euo pipefail
-          remaining=$(gh api "repos/$GH_REPO/issues/$ISSUE_NUMBER/sub_issues" \
-            --jq '[.[] | select(.state == "open")] | length')
+          # Remaining = open sub-issues without the implemented marker (same rule
+          # as the preflight; the run just marked the one it did). Counting open
+          # sub-issues alone would loop forever: nothing closes them until merge.
+          remaining=$(GH_TOKEN="$GITHUB_TOKEN" gh api "repos/$GH_REPO/issues/$ISSUE_NUMBER/sub_issues" \
+            --jq '.[] | select(.state == "open") | .number' \
+            | while read -r n; do
+                bodies=$(GH_TOKEN="$GITHUB_TOKEN" gh issue view "$n" --json comments --jq '.comments[].body')
+                case "$bodies" in
+                  *"$IMPLEMENTED_MARKER"*) continue ;;
+                esac
+                echo "$n"
+              done | wc -l)
 
           # Use the REST labels endpoint, not `gh {issue,pr} edit`: the latter
           # issues a GraphQL query touching org fields (needs `read:org`), which
@@ -346,7 +403,7 @@ jobs:
             echo "$remaining sub-issue(s) remaining — re-firing the chain."
             add_label issue "$ISSUE_NUMBER" "agent:implement"
           else
-            echo "All sub-issues closed — handing off to Review."
+            echo "All sub-issues implemented — handing off to Review. They close when the PR merges."
             add_label pr "$PR_NUMBER" "agent:review"
           fi
 
@@ -379,7 +436,7 @@ jobs:
           if [ -n "${BANKED_BRANCH:-}" ]; then
             banked=$(printf '\n\n**Partial work preserved** on the shared branch `%s`: green commits the agent added before the failure. A retry resumes this branch and continues the sub-issue from here.' "$BANKED_BRANCH")
           fi
-          body=$(printf '`agent:implement` (PRD) run failed on sub-issue #%s.\n\n**Reason:** %s\n\n**Workflow run:** %s/%s/actions/runs/%s%s\n\nRemove `agent:blocked` and re-add `agent:implement` to the PRD to retry; the run recomputes the first open sub-issue.' "$SUB_NUMBER" "$reason" "$GITHUB_SERVER_URL" "$GH_REPO" "$GITHUB_RUN_ID" "$banked")
+          body=$(printf '`agent:implement` (PRD) run failed on sub-issue #%s.\n\n**Reason:** %s\n\n**Workflow run:** %s/%s/actions/runs/%s%s\n\nRemove `agent:blocked` and re-add `agent:implement` to the PRD to retry; the run recomputes the first sub-issue that is still open and unmarked.' "$SUB_NUMBER" "$reason" "$GITHUB_SERVER_URL" "$GH_REPO" "$GITHUB_RUN_ID" "$banked")
           gh issue edit "$ISSUE_NUMBER" --add-label "agent:blocked"
           gh issue comment "$ISSUE_NUMBER" --body "$body"
           gh issue comment "$SUB_NUMBER" --body "$body" || true
