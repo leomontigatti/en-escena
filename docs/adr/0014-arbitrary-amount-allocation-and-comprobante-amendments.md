@@ -625,3 +625,41 @@ two portion badges. Two decisions it forced, neither settled here:
   survives untouched.
 
 The rest of §5, §6 and §7 remains specified and not built. Owner: #657.
+
+## Correction (2026-08-13, second): the printed line carries no right-hand side
+
+Appended, not edited in place. The correction above stands as written; this
+paragraph supersedes one bullet of it.
+
+That bullet records the printed line as reading `Inscripción — {coreografía}`.
+The owner has since ruled otherwise, on the review of the PR that appended it:
+**the printed description is the bare word `Inscripción`**, with no separator and
+no right-hand side.
+
+The bullet's own reasoning is what decides it. It rejects the choreography name
+alone because the receptor block already prints `{academia} — {coreografía}` —
+and then prints the choreography name anyway, on the right. #554 decision 3 had
+already reached that conclusion and said so in as many words: _"No choreography
+prefix: the document already names it in the Receptor block."_ The word
+`Inscripción` is the whole of what RG 1415 asks that column for, a description
+identifying the **service**; the rest of the identification is elsewhere on the
+page.
+
+The right-hand side decision 3 does specify is `— {dancer}`, and it is not
+deferrable text: it presupposes **one line per inscription**, which is §5's
+`record.lines` and is #657's, not built. With one synthesized line per
+comprobante there is no dancer the line could name. So the description stops at
+the concept, and #657 appends `— {bailarín}` to a line that already carries the
+right noun. Nothing else churns.
+
+The first correction is also owed one nuance it did not give #554. It calls #554
+"a map decision"; #554 is a **resolution that specified this implementation**,
+line-by-line, including this printed line and the deletion the correction is
+about. The gap it records is therefore narrower and worse than a stale document:
+the ticket was right, was written down, and was not read.
+
+One divergence from #554 is deliberate and is recorded on the ticket rather than
+only in a PR paragraph: decision 5 lists `list/server.ts:319` among the `porcion`
+readers to drop. That line is `searchParams.delete("porcion")`, which
+canonicalises stale bookmarked URLs exactly as the `delete("academia")` beside it
+does. It reads no concept, so it stays.

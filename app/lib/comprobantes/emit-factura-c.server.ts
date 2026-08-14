@@ -89,28 +89,28 @@ export type FacturaCEmissionOutcome =
     };
 
 /**
- * Emite una Factura C (`CbteTipo` 11) para una coreografía contra WSFEv1.
+ * Emits a Factura C (`CbteTipo` 11) for a choreography against WSFEv1.
  *
- * La factura es un documento DERIVADO (#320): nunca gobierna el estado
- * financiero. Se factura lo efectivamente cobrado (asignaciones de pago) que
- * todavía no cubre ninguna factura tipo 11 vigente de la coreografía, aplicando
- * la derivación anti-doble-cobro por inscripción (#323/#326).
+ * The factura is a DERIVED document (#320): it never governs financial state.
+ * What is billed is the money actually collected (payment allocations) that no
+ * vigente type-11 factura of the choreography covers yet, through the
+ * per-inscription anti-double-billing derivation (#323/#326).
  *
- * El `CbteNro` se deriva de `FECompUltimoAutorizado + 1`. Sólo un CAE aprobado
- * persiste el `Comprobante` con su snapshot; un rechazo de ARCA no persiste nada
- * ni toca pagos, asignaciones o inscripciones.
+ * The `CbteNro` is derived from `FECompUltimoAutorizado + 1`. Only an approved
+ * CAE persists the `Comprobante` with its snapshot; a rejection from ARCA
+ * persists nothing and touches no payment, allocation or inscription.
  *
- * Si ARCA no responde, la falla se clasifica por fase (ADR-0012). Cortada la
- * consulta del correlativo no se autorizó nada. Cortada la autorización se
- * consulta a ARCA por el comprobante exacto que se intentó: si aparece y
- * coincide con lo enviado, SÍ se había autorizado y se persiste con ese CAE —la
- * única excepción a la invariante de que una contingencia no persiste nada, y
- * existe porque la fila corresponde a un documento fiscal que demostrablemente
- * está en ARCA—; si no aparece y la autorización había fallado en el transporte,
- * no se emitió nada. Si la consulta falla, devuelve otro comprobante, o no lo
- * encuentra pero la autorización venció por timeout —y entonces sigue en vuelo,
- * pudiendo autorizarse después—, el resultado es `unverified` y no se persiste
- * nada.
+ * When ARCA does not answer, the failure is classified by phase (ADR-0012). If
+ * the correlative query was cut, nothing was authorized. If the authorization
+ * was cut, ARCA is queried for the exact comprobante that was attempted: when it
+ * comes back and matches what was sent, it HAD been authorized and is persisted
+ * with that CAE — the one exception to the invariant that a contingency persists
+ * nothing, and it exists because the row corresponds to a fiscal document
+ * demonstrably held by ARCA; when it does not come back and the authorization
+ * had failed in transport, nothing was emitted. When the query fails, returns a
+ * different comprobante, or does not find it but the authorization timed out —
+ * so it is still in flight and may be authorized later — the result is
+ * `unverified` and nothing is persisted.
  */
 export async function emitChoreographyFacturaC(
   input: FacturaCEmissionInput,
@@ -210,9 +210,10 @@ async function resolveFacturaCChoreography(
     };
   }
 
-  // Fechas de servicio (Concepto 2, ADR-0011): el período es el del evento y el
-  // vencimiento de pago es la fecha del comprobante (se factura lo ya cobrado, así
-  // que el pago no vence en el futuro). Congeladas al emitir.
+  // Service dates (Concepto 2, ADR-0011): the period is the event's, and the
+  // payment due date is the comprobante's own date, because what is billed was
+  // already collected and so nothing falls due in the future. Frozen at
+  // emission.
   const serviceDates = (cbteFch: string): ServiceDates => ({
     fchServDesde: toArcaDate(getBusinessDateOnly(choreography.eventStartsAt)),
     fchServHasta: toArcaDate(getBusinessDateOnly(choreography.eventEndsAt)),
@@ -244,8 +245,8 @@ async function resolveFacturaCChoreography(
         ptoVta: deps.ptoVta,
         cbteNro: authorized.cbteNro,
         cbteFch: authorized.cbteFch,
-        // Fechas de servicio DERIVADAS y CONGELADAS: reimputar un pago después
-        // de emitir no altera lo que dice este comprobante (ADR-0011, #479).
+        // Service dates DERIVED and FROZEN: reallocating a payment after
+        // emission does not alter what this comprobante says (ADR-0011, #479).
         ...serviceDates(request.cbteFch),
         impTotal: total,
         issuerCuit: deps.issuerCuit,
@@ -268,10 +269,10 @@ export type ChoreographyBillable = {
 };
 
 /**
- * Monto facturable de una coreografía: sus líneas internas por inscripción con
- * remanente positivo, y el total. Es lo que la UX de emisión (#447) previsualiza
- * antes de confirmar y lo que `emitChoreographyFacturaC` factura. No llama a
- * ARCA: sólo cruza cobros contra facturas vigentes.
+ * Billable amount of a choreography: its internal lines, one per inscription
+ * with a positive remainder, plus the total. It is what the emission UX (#447)
+ * previews before confirming and what `emitChoreographyFacturaC` bills. It does
+ * not call ARCA: it only crosses collections against vigente facturas.
  */
 export async function resolveChoreographyBillable(
   choreographyId: string,
@@ -294,11 +295,11 @@ async function readInscriptionIds(choreographyId: string): Promise<string[]> {
 }
 
 /**
- * Monto facturable de cada inscripción: lo cobrado (asignaciones de pago) menos
- * lo ya cubierto por facturas tipo 11 VIGENTES de la coreografía. Sólo entran las
- * inscripciones con remanente positivo. Una factura anulada deja de contar como
- * facturada (su estado deriva de la Nota de crédito), así que su monto vuelve a
- * ser facturable.
+ * Billable amount of each inscription: what was collected (payment allocations)
+ * minus what the choreography's VIGENTE type-11 facturas already cover. Only
+ * inscriptions with a positive remainder are included. An annulled factura stops
+ * counting as billed — its status derives from the Nota de crédito — so its
+ * amount becomes billable again.
  */
 async function resolveBillableLines(
   choreographyId: string,

@@ -556,6 +556,73 @@ describe("emitChoreographyFacturaC", () => {
     expect(nuevo).toMatchObject({ impTotal: 7000 });
   });
 
+  test("emite el remanente de una inscripción aunque otra tenga su línea facturada huérfana", async () => {
+    // The state `porcion` used to block: A's allocation is deleted after its
+    // line was billed, so the aggregate billed (3000) exceeds the aggregate
+    // collected (1000) while B still has a remainder. The remainder is resolved
+    // PER INSCRIPTION, so B's 1000 is billable and this emission is legitimate —
+    // there is money collected that no vigente factura covers. The loader's
+    // `canEmit` asserts the same state in
+    // `choreography-detail/server.invoicing.db.test.ts`; this is the server side
+    // of that pair, and what makes the two agree an assertion rather than a
+    // coincidence.
+    const { academy, choreography, inscriptions } =
+      await seedChoreographyWithInscriptions(
+        `huerfana.${crypto.randomUUID()}@example.com`,
+        2,
+      );
+    const [inscriptionA, inscriptionB] = inscriptions;
+    await allocatePayment({
+      academyId: academy.id,
+      eventId: choreography.eventId,
+      inscriptionId: inscriptionA.id,
+      amount: 3000,
+    });
+    await recordComprobante({
+      choreographyId: choreography.id,
+      eventId: choreography.eventId,
+      cbteTipo: 11,
+      ptoVta: 1,
+      cbteNro: 40,
+      cbteFch: "20260701",
+      impTotal: 3000,
+      issuerCuit: "30717611590",
+      issuerIvaCondition: "exento",
+      receptorDocTipo: 99,
+      receptorDocNro: "0",
+      receptorIvaConditionId: 5,
+      cae: "40000000000000",
+      caeVto: "20260710",
+      lines: [{ inscriptionId: inscriptionA.id, amount: 3000 }],
+    });
+    await allocatePayment({
+      academyId: academy.id,
+      eventId: choreography.eventId,
+      inscriptionId: inscriptionB.id,
+      amount: 1000,
+    });
+    await db
+      .delete(paymentAllocations)
+      .where(eq(paymentAllocations.inscriptionId, inscriptionA.id));
+
+    const deps = emissionDeps(fakeBilling());
+    const outcome = await emitChoreographyFacturaC(
+      { choreographyId: choreography.id, eventId: choreography.eventId },
+      deps,
+    );
+
+    expect(outcome.ok).toBe(true);
+    const sent = vi.mocked(deps.billing.createVoucher).mock
+      .calls[0][0] as ArcaVoucher;
+    expect(sent.ImpTotal).toBe(1000);
+    const nuevo = (await listChoreographyComprobantes(choreography.id)).find(
+      (row) => row.cbteNro === 43,
+    );
+    expect(nuevo).toMatchObject({ impTotal: 1000 });
+    // Only B's remainder is billed: A's orphaned line is not re-billed.
+    expect(nuevo?.lines.map((line) => line.amount)).toEqual([1000]);
+  });
+
   test("reimputar un pago después de emitir no altera las fechas congeladas", async () => {
     const { academy, choreography, inscriptions } =
       await seedChoreographyWithInscriptions(
@@ -577,8 +644,8 @@ describe("emitChoreographyFacturaC", () => {
     expect(outcome.ok).toBe(true);
     const emitted = outcome.ok ? outcome.comprobante : null;
 
-    // Meses después entra un cobro de saldo (una reimputación posible): el
-    // comprobante ya emitido no debe cambiar sus fechas.
+    // Months later a further collection lands (a reallocation is one way to get
+    // there): the already emitted comprobante must not change its dates.
     await allocatePayment({
       academyId: academy.id,
       eventId: choreography.eventId,

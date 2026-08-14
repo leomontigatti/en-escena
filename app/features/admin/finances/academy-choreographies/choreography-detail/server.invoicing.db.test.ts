@@ -374,9 +374,12 @@ describe.sequential(
       // An orphaned billed line — its allocation was deleted after emission —
       // leaves the aggregate billed above the aggregate collected while another
       // inscription still has a remainder. The remainder is resolved per
-      // inscription, so B's is still billable and the button enables: the server
-      // accepts exactly that emission. Under `porcion` this case was blocked,
-      // because the aggregate portion was not derivable.
+      // inscription, so B's is still billable and the button enables. That the
+      // server accepts exactly that emission is asserted in
+      // `emit-factura-c.server.db.test.ts`, which emits from this same state and
+      // checks the `ImpTotal`; without it this test would only be restating the
+      // loader. Under `porcion` the case was blocked on both sides, because the
+      // aggregate portion was not derivable.
       const event = await createSavedEvent({ requiredDepositPercentage: 30 });
       const { academy, choreography } =
         await createAcademyFinanceChoreographyFixture({

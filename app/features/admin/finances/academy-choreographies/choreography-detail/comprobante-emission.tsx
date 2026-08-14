@@ -28,16 +28,17 @@ import {
 } from "./shared";
 
 /**
- * Confirmación de emisión como `AlertDialog` (#480, ADR-0011): foco atrapado, no
- * se cierra al clickear afuera y expone `role="alertdialog"`. Sin checkbox: la
- * confirmación es el diálogo mismo. El importe llega derivado de lo cobrado, así
- * que la operadora no puede emitir por otro monto; sólo previsualiza y confirma
- * o cancela. El `confirm` viaja como campo
- * oculto —palabra clave de submit deliberado que el server exige— no como tilde.
+ * Emission confirmation as an `AlertDialog` (#480, ADR-0011): focus is trapped,
+ * it does not close on an outside click and it exposes `role="alertdialog"`. No
+ * checkbox: the dialog itself is the confirmation. The amount arrives derived
+ * from what was collected, so the operator cannot emit for a different figure:
+ * the dialog only previews, and is then confirmed or cancelled. The `confirm`
+ * travels as a hidden field — the deliberate-submit keyword the server requires
+ * — not as a tick.
  *
- * Controlado desde el menú de acciones del header (ADR-0011): la afordancia
- * `Emitir factura` es un item del `ResourceActionsMenu`, no un botón aparte, y sólo
- * se monta con remanente por facturar.
+ * Driven from the header's actions menu (ADR-0011): the `Emitir factura`
+ * affordance is an item of the `ResourceActionsMenu`, not a separate button, and
+ * it only mounts when there is a remainder left to bill.
  */
 export function EmissionDialog({
   billableAmount,
@@ -145,9 +146,9 @@ export function EmissionDialog({
 }
 
 /**
- * Detalle a facturar. Enuncia el importe derivado, más las reglas de dominio
- * congeladas del comprobante (#320): receptor consumidor final anónimo y emisor
- * exento frente al IVA.
+ * What is about to be billed. It states the derived amount plus the
+ * comprobante's frozen domain rules (#320): an anonymous final-consumer receptor
+ * and an issuer exempt from IVA.
  */
 function EmissionPreview({ billableAmount }: { billableAmount: number }) {
   return (
