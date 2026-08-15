@@ -313,7 +313,15 @@ function resolveDancerUpdateScheduleSelection(
     return {
       status: "keep-current",
       canSave: true,
-      options: [currentOption],
+      // Mismo camino que la reasignación autónoma
+      // (`resolveScheduleCapacityCandidates`): el select ofrece el conjunto
+      // compatible completo, no solo el cupo asignado, aunque este siga siendo
+      // compatible. Cuando la resolución es "auto" no hay otro cupo entre el
+      // que elegir, así que el único queda igual que antes.
+      options:
+        resolution.schedule.status === "multiple"
+          ? resolution.schedule.options
+          : [currentOption],
       selectedScheduleCapacityId: currentOption.id,
     };
   }
@@ -367,7 +375,18 @@ export function resolveSelectedScheduleCapacityIdForDancerUpdate(input: {
     input.schedule.status === "keep-current" ||
     input.schedule.status === "auto"
   ) {
-    const [option] = input.schedule.options;
+    // `options` ya no es un singleton para "keep-current" (puede traer todo el
+    // conjunto compatible): hay que buscar el asignado por id en vez de asumir
+    // que es el primero.
+    const option = input.schedule.options.find(
+      (candidate) => candidate.id === input.schedule.selectedScheduleCapacityId,
+    );
+
+    if (!option) {
+      throw new Error(
+        "Expected the keep-current/auto schedule resolution to include its selected option.",
+      );
+    }
 
     return {
       ok: true,

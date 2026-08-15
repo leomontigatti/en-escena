@@ -8,6 +8,8 @@ import {
   paymentAllocations,
   payments,
   scheduleCapacities,
+  scheduleModalities,
+  schedules,
 } from "@/db/schema";
 import { handleChoreographyDetailAction } from "@/features/admin/choreographies/detail/server";
 import {
@@ -432,6 +434,84 @@ describe("administrative choreography roster editing", () => {
       .where(eq(choreographyDancers.choreographyId, choreography.id));
 
     expect(inscriptions.map((row) => row.dancerId)).toEqual([dancerA.id]);
+  });
+
+  // #709: cuando el cupo asignado sigue siendo compatible con el roster
+  // resuelto, el guardado tiene que conservarlo tal cual, aunque haya otros
+  // cupos compatibles: `resolveSelectedScheduleCapacityIdForDancerUpdate`
+  // solía tomar el primero de la lista, que dejó de ser el asignado el día en
+  // que "keep-current" pasó a traer el conjunto completo.
+  test("keeps the currently assigned cupo when it stays compatible after a roster change, even with another compatible cupo available", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Roster Cupo Compatible",
+      email: "roster.cupo.compatible.academia@example.com",
+    });
+    const event = await createEventRecord({ active: true, name: "Regional" });
+    const catalog = await createEventCatalog(event.id);
+    // Anterior en el calendario al bloque de `catalog`: si el guardado elige
+    // "el primero de la lista" en vez de buscar el asignado, este cupo gana.
+    const [earlySchedule] = await db
+      .insert(schedules)
+      .values({
+        eventId: event.id,
+        name: `Bloque temprano ${event.id}`,
+        scheduledDate: "2026-04-01",
+        startTime: "10:00",
+        totalCapacity: 10,
+      })
+      .returning();
+    await db.insert(scheduleModalities).values({
+      scheduleId: earlySchedule.id,
+      modalityId: catalog.modality.id,
+    });
+    await db.insert(scheduleCapacities).values({
+      scheduleId: earlySchedule.id,
+      groupType: "duo",
+      capacity: 5,
+    });
+    const [dancerA, dancerB, dancerC] = await Promise.all([
+      createDancer(owner.academyId, { firstName: "Ana", lastName: "Uno" }),
+      createDancer(owner.academyId, { firstName: "Bea", lastName: "Dos" }),
+      createDancer(owner.academyId, { firstName: "Cami", lastName: "Tres" }),
+    ]);
+    const choreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.teenCategory.id,
+      eventId: event.id,
+      groupType: "duo",
+      modalityId: catalog.modality.id,
+      name: "Duo",
+      scheduleCapacityId: catalog.duoScheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+    await db.insert(choreographyDancers).values([
+      {
+        ageAtEventStart: 14,
+        choreographyId: choreography.id,
+        dancerId: dancerA.id,
+      },
+      {
+        ageAtEventStart: 14,
+        choreographyId: choreography.id,
+        dancerId: dancerB.id,
+      },
+    ]);
+
+    // Cambia el roster (swap de bailarín) sin tocar el tipo de grupo, así que
+    // el cupo asignado sigue siendo compatible ("keep-current") y no viaja un
+    // `scheduleCapacityId` explícito en el submit.
+    const response = await submitRoster({
+      choreographyId: choreography.id,
+      dancerIds: [dancerA.id, dancerC.id],
+    });
+
+    expect(response).toMatchObject({ status: "success" });
+
+    const saved = await db.query.choreographies.findFirst({
+      columns: { scheduleCapacityId: true },
+      where: eq(choreographies.id, choreography.id),
+    });
+    expect(saved?.scheduleCapacityId).toBe(catalog.duoScheduleCapacity.id);
   });
 });
 
