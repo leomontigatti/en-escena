@@ -75,15 +75,6 @@ export function AcademyFinancesRouteView({
         selectedRows.map((row) => row.owedBalanceAmount),
       )
     : loaderData.summary.owedBalanceAmount;
-  // Sin el badge las dos cifras cambian sin decir por qué, y se leen como si la
-  // academia hubiese pagado algo entre un click y el otro.
-  const selectionBadge = hasSelection ? (
-    <Badge variant="secondary">
-      {selectedRows.length === 1
-        ? "1 seleccionada"
-        : `${selectedRows.length} seleccionadas`}
-    </Badge>
-  ) : undefined;
   // Stable so the dialog can close itself from an effect when the write
   // succeeds without the effect re-running on every render of the list.
   const handlePresetOpenChange = useCallback((next: boolean) => {
@@ -139,7 +130,6 @@ export function AcademyFinancesRouteView({
           <MetricCard
             title="Seña adeudada"
             value={formatOperationalAmount(owedDepositAmount)}
-            slot={selectionBadge}
           />
           <MetricCard
             title="Total"
@@ -148,7 +138,6 @@ export function AcademyFinancesRouteView({
           <MetricCard
             title="Saldo adeudado"
             value={formatOperationalAmount(owedBalanceAmount)}
-            slot={selectionBadge}
           />
           <MetricCard
             title="Saldo disponible"

@@ -238,22 +238,18 @@ describe("AcademyFinancesRouteView", () => {
 
     expect(metricCardText("Seña adeudada")).toContain("$ 7.000");
     expect(metricCardText("Saldo adeudado")).toContain("$ 21.000");
-    expect(metricCardText("Seña adeudada")).not.toContain("seleccionada");
 
     await clickCheckbox(getRenderedCheckboxes()[1]);
 
     expect(metricCardText("Seña adeudada")).toContain("$ 3.000");
     expect(metricCardText("Saldo adeudado")).toContain("$ 12.000");
-    // La cifra cambió de alcance, y el badge lo dice: sin él se lee como si la
-    // academia hubiese pagado entre un click y el otro.
-    expect(metricCardText("Seña adeudada")).toContain("1 seleccionada");
-    expect(metricCardText("Saldo adeudado")).toContain("1 seleccionada");
 
     await clickCheckbox(getRenderedCheckboxes()[2]);
 
+    // Las dos elegidas suman lo mismo que la academia entera, que es justo lo
+    // que corresponde: la selección completa no es un caso aparte.
     expect(metricCardText("Seña adeudada")).toContain("$ 7.000");
     expect(metricCardText("Saldo adeudado")).toContain("$ 21.000");
-    expect(metricCardText("Seña adeudada")).toContain("2 seleccionadas");
 
     // Los umbrales y el disponible son de la academia entera y no se mueven.
     expect(metricCardText("Seña total")).toContain("$ 18.000");
@@ -265,7 +261,6 @@ describe("AcademyFinancesRouteView", () => {
 
     expect(metricCardText("Seña adeudada")).toContain("$ 7.000");
     expect(metricCardText("Saldo adeudado")).toContain("$ 21.000");
-    expect(metricCardText("Saldo adeudado")).not.toContain("seleccionada");
   });
 
   test("pre-fills the owed deposit of the selected rows and prompts for a price", async () => {
