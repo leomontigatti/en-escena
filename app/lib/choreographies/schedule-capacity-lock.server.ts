@@ -2,11 +2,15 @@ import { and, eq, ne, or, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { choreographies, schedules, scheduleCapacities } from "@/db/schema";
+import { hasFrozenPriceInscription } from "@/lib/finances/choreography-frozen-price-guard.server";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export const invalidScheduleEntryMessage =
   "Elegí un cupo de cronograma compatible para confirmar la coreografía.";
+
+export const frozenPriceScheduleCapacityMessage =
+  "No se puede cambiar el cupo de cronograma: hay inscripciones con dinero asignado.";
 
 export type ScheduleCapacityLockFailureCode =
   | "invalid-schedule-capacity"
@@ -23,6 +27,51 @@ export type ScheduleCapacityLockResult =
       code: ScheduleCapacityLockFailureCode;
       error: string;
     };
+
+export type ScheduleCapacityMoveFailureCode =
+  | ScheduleCapacityLockFailureCode
+  | "frozen-price";
+
+export type ScheduleCapacityMoveResult =
+  | {
+      ok: true;
+      scheduleId: string;
+      scheduleCapacityId: string | null;
+    }
+  | {
+      ok: false;
+      code: ScheduleCapacityMoveFailureCode;
+      error: string;
+    };
+
+/**
+ * The guard-then-lock pair every cupo move must run, whatever entry point
+ * triggers it (the standalone reassignment, the roster path). Kept as one
+ * function so the two callers can't drift on order or on which move counts as
+ * frozen: re-checking the guard outside a transaction, or after the lock,
+ * would leave a window where a concurrent allocation lands unnoticed.
+ */
+export async function guardAndLockScheduleCapacityMove(input: {
+  tx: Transaction;
+  choreographyId: string;
+  scheduleId: string;
+  scheduleCapacityId: string | null;
+}): Promise<ScheduleCapacityMoveResult> {
+  if (await hasFrozenPriceInscription(input.choreographyId, input.tx)) {
+    return {
+      ok: false,
+      code: "frozen-price",
+      error: frozenPriceScheduleCapacityMessage,
+    };
+  }
+
+  return lockScheduleCapacityForAssignment({
+    tx: input.tx,
+    scheduleId: input.scheduleId,
+    scheduleCapacityId: input.scheduleCapacityId,
+    excludeChoreographyId: input.choreographyId,
+  });
+}
 
 /**
  * Locks the cronograma (and its cupo, when the selection targets one) and

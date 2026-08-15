@@ -5,8 +5,8 @@ import { choreographies } from "@/db/schema";
 import { getGlobalScheduleCapacityOptionId } from "@/lib/choreographies/choreography-roster.shared";
 import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
 import {
+  guardAndLockScheduleCapacityMove,
   invalidScheduleEntryMessage,
-  lockScheduleCapacityForAssignment,
 } from "@/lib/choreographies/schedule-capacity-lock.server";
 import type { ScheduleCapacitySelectOption } from "@/lib/choreographies/schedule-capacity-options";
 import { withScheduleCapacityOccupancy } from "@/lib/choreographies/schedule-capacity-options.server";
@@ -40,9 +40,6 @@ const frozenPriceBlocker: ChoreographyScheduleCapacityBlocker = {
   label:
     "Al menos una inscripción tiene dinero asignado: su precio quedó congelado contra este cronograma.",
 };
-
-const frozenPriceMessage =
-  "No se puede cambiar el cupo de cronograma: hay inscripciones con dinero asignado.";
 
 /**
  * Motivos de bloqueo que el servidor arma para la alerta de la página. No se
@@ -187,41 +184,34 @@ export async function updateChoreographyScheduleCapacity(input: {
   }
 
   const result = await db.transaction(async (tx) => {
-    // The financial guard is re-checked on the intent and not only in the
-    // loader (the field may have been left open in a stale tab, or the submit
-    // may be hand-crafted), and it is re-checked *inside* the transaction:
-    // reading it before opening one left a window in which an allocation
-    // landing in between went unnoticed and the schedule moved anyway.
-    if (await hasFrozenPriceInscription(input.choreography.id, tx)) {
-      return {
-        ok: false as const,
-        error: frozenPriceMessage,
-      };
-    }
-
-    const lock = await lockScheduleCapacityForAssignment({
-      // Sin esta exclusión, reelegir el cupo que la coreografía ya ocupa la
-      // contaría contra su propio cupo y lo reportaría como lleno.
-      excludeChoreographyId: input.choreography.id,
+    // The guard is re-checked on the intent and not only in the loader (the
+    // field may have been left open in a stale tab, or the submit may be
+    // hand-crafted), and re-checked *inside* the transaction together with
+    // the lock: reading it outside, or before opening one, left a window in
+    // which an allocation landing in between went unnoticed and the schedule
+    // moved anyway. Same guard-then-lock pair as the roster path, so the two
+    // entry points can't drift on order or on which move counts as frozen.
+    const move = await guardAndLockScheduleCapacityMove({
+      choreographyId: input.choreography.id,
       scheduleCapacityId: selectedOption.scheduleCapacityId,
       scheduleId: selectedOption.scheduleId,
       tx,
     });
 
-    if (!lock.ok) {
-      return lock;
+    if (!move.ok) {
+      return move;
     }
 
     await tx
       .update(choreographies)
       .set({
-        scheduleCapacityId: lock.scheduleCapacityId,
-        scheduleId: lock.scheduleId,
+        scheduleCapacityId: move.scheduleCapacityId,
+        scheduleId: move.scheduleId,
         updatedAt: new Date(),
       })
       .where(eq(choreographies.id, input.choreography.id));
 
-    return lock;
+    return move;
   });
 
   if (!result.ok) {

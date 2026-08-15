@@ -23,6 +23,7 @@ import {
   removeInscriptionsFromRoster,
   reviveWithdrawnInscriptions,
 } from "@/lib/choreographies/inscription-withdrawal.server";
+import { guardAndLockScheduleCapacityMove } from "@/lib/choreographies/schedule-capacity-lock.server";
 
 /**
  * Administración edita el roster (bailarines y profesores) de una coreografía ya
@@ -114,6 +115,7 @@ export async function updateAdministrativeChoreographyRoster(input: {
         ok: false,
         section: "dancers",
         message: dancerResult.message,
+        code: dancerResult.code,
         fieldErrors: dancerResult.fieldErrors,
       };
     }
@@ -208,8 +210,47 @@ async function updateChoreographyDancers(input: {
   const requestedDancerIds = new Set(
     resolvedDancers.map((dancer) => dancer.id),
   );
+  // The resolution always recomputes scheduleId/scheduleCapacityId, even when
+  // the roster edit lands on the same cupo it already occupies (e.g. a name-
+  // only save, or a dancer swap that keeps the same group type). The guard and
+  // the lock below must fire only on an actual move, or every unrelated save
+  // would pay their cost — and a save that changes nothing on this axis would
+  // wrongly report the cupo it already holds as full.
+  // A choreography row stores exactly one of the pair populated: a specific
+  // cupo (`scheduleCapacityId`) or the whole cronograma (`scheduleId`, with
+  // `scheduleCapacityId` left null). `scheduleId` on its own is therefore not
+  // a reliable diff target when a cupo is assigned — the cupo's own id already
+  // determines its cronograma, and comparing raw `scheduleId` in that case
+  // would read every save that keeps the same cupo as a move. `scheduleId`
+  // only carries the comparison when the destination selection has no cupo
+  // of its own (the whole-cronograma case).
+  const scheduleCapacityChanged =
+    choreography.scheduleCapacityId !== selectedSchedule.scheduleCapacityId ||
+    (selectedSchedule.scheduleCapacityId === null &&
+      choreography.scheduleId !== selectedSchedule.scheduleId);
 
-  await db.transaction(async (tx) => {
+  const transactionResult = await db.transaction(async (tx) => {
+    if (scheduleCapacityChanged) {
+      // Checked first and inside the transaction, before any roster write:
+      // on rejection nothing about this save should be persisted. Same
+      // guard-then-lock pair as the standalone reassignment, so the two
+      // entry points can't drift on order or on which move counts as frozen.
+      const move = await guardAndLockScheduleCapacityMove({
+        choreographyId: input.choreographyId,
+        scheduleCapacityId: selectedSchedule.scheduleCapacityId,
+        scheduleId: selectedSchedule.scheduleId,
+        tx,
+      });
+
+      if (!move.ok) {
+        return {
+          ok: false as const,
+          code: "schedule-capacity" as const,
+          message: move.error,
+        };
+      }
+    }
+
     const [currentLinks, withdrawnLinks] = await Promise.all([
       tx
         .select({
@@ -293,7 +334,17 @@ async function updateChoreographyDancers(input: {
         updatedAt: new Date(),
       })
       .where(eq(choreographies.id, input.choreographyId));
+
+    return { ok: true as const };
   });
+
+  if (!transactionResult.ok) {
+    return {
+      ok: false,
+      code: transactionResult.code,
+      message: transactionResult.message,
+    };
+  }
 
   return { ok: true };
 }
