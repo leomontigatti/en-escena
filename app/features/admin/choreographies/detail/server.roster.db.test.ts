@@ -436,11 +436,11 @@ describe("administrative choreography roster editing", () => {
     expect(inscriptions.map((row) => row.dancerId)).toEqual([dancerA.id]);
   });
 
-  // #709: cuando el cupo asignado sigue siendo compatible con el roster
-  // resuelto, el guardado tiene que conservarlo tal cual, aunque haya otros
-  // cupos compatibles: `resolveSelectedScheduleCapacityIdForDancerUpdate`
-  // solía tomar el primero de la lista, que dejó de ser el asignado el día en
-  // que "keep-current" pasó a traer el conjunto completo.
+  // #709: when the assigned cupo is still compatible with the resolved
+  // roster, the save must keep it as-is, even with other compatible cupos
+  // available: `resolveSelectedScheduleCapacityIdForDancerUpdate` used to take
+  // the first item of the list, which stopped being the assigned one the day
+  // "keep-current" started carrying the full set.
   test("keeps the currently assigned cupo when it stays compatible after a roster change, even with another compatible cupo available", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Roster Cupo Compatible",
@@ -448,8 +448,8 @@ describe("administrative choreography roster editing", () => {
     });
     const event = await createEventRecord({ active: true, name: "Regional" });
     const catalog = await createEventCatalog(event.id);
-    // Anterior en el calendario al bloque de `catalog`: si el guardado elige
-    // "el primero de la lista" en vez de buscar el asignado, este cupo gana.
+    // Scheduled earlier than `catalog`'s block: if the save picks "the first
+    // in the list" instead of looking up the assigned one, this cupo wins.
     const [earlySchedule] = await db
       .insert(schedules)
       .values({
@@ -497,9 +497,9 @@ describe("administrative choreography roster editing", () => {
       },
     ]);
 
-    // Cambia el roster (swap de bailarín) sin tocar el tipo de grupo, así que
-    // el cupo asignado sigue siendo compatible ("keep-current") y no viaja un
-    // `scheduleCapacityId` explícito en el submit.
+    // Changes the roster (dancer swap) without touching the group type, so
+    // the assigned cupo stays compatible ("keep-current") and no explicit
+    // `scheduleCapacityId` travels in the submit.
     const response = await submitRoster({
       choreographyId: choreography.id,
       dancerIds: [dancerA.id, dancerC.id],
