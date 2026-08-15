@@ -109,7 +109,7 @@ Rules for roster links, choreography registration, locks and Bases del evento.
 - If recalculation needs a level, admin must choose it in same correction.
 - Active financial document blocks academy edits, dancer changes and deletion, even without imputations.
 - If financial docs are canceled/accredited, coreografía can become editable/deletable again.
-- Academy cannot change choreography dancers after registration. The roster is chosen once, at creation, and from then on only the administrator can change it. This is a permanent, role-based restriction, not an inscription-window rule (see `docs/domain/finances.md` → "Choreography editing and deletion").
+- Academy cannot change choreography dancers after registration. The roster is chosen once, at creation, and from then on only the administrator can change it. This is a permanent, role-based restriction, not an inscription-window rule (see `docs/domain/finances.md` → "Roster editing and deletion").
 - Even the administrator cannot change the roster while the choreography has a presentation (hard lock, like the deletion lock).
 - A choreography roster change must keep at least one dancer before confirmation.
 - Level clears when recalculation changes category. It is editable whenever the resolved category declares levels, not only after a recalculation: with no pending roster change the administrator reassigns it standalone, and a single available level still leaves the field open, because that is the only way to resolve a missing level that leaves the choreography incomplete.

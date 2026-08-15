@@ -191,10 +191,18 @@ describe.sequential("inscription identity and payment allocations", () => {
     ).resolves.toEqual([]);
   });
 
-  test("refuses to move the selected price of an inscription that holds money", async () => {
+  // The catalogue price is 10000 and the event asks for 30 %, so the deposit
+  // threshold of the stored row is exactly 3000. These three cases sit on either
+  // side of it and on the case where there is no stored row to derive it from.
+  test("refuses to move the selected price of an inscription that covers its seña", async () => {
     const { owner, event, inscription, payment } =
       await createInscriptionFixture();
+    const { catalogPrice, otherPrice } = await readPricePair(event.id);
 
+    await db
+      .update(choreographyDancers)
+      .set({ selectedPriceId: catalogPrice.id })
+      .where(eq(choreographyDancers.id, inscription.id));
     await db.insert(paymentAllocations).values({
       academyId: owner.academyId,
       amount: 3000,
@@ -203,16 +211,9 @@ describe.sequential("inscription identity and payment allocations", () => {
       paymentId: payment.id,
     });
 
-    const price = await db.query.prices.findFirst({
-      where: eq(prices.eventId, event.id),
-    });
-    if (!price) {
-      throw new Error("Expected a price row.");
-    }
-
     const error = await db
       .update(choreographyDancers)
-      .set({ selectedPriceId: price.id })
+      .set({ selectedPriceId: otherPrice.id })
       .where(eq(choreographyDancers.id, inscription.id))
       .catch((caught) => caught);
 
@@ -221,6 +222,95 @@ describe.sequential("inscription identity and payment allocations", () => {
       db.query.choreographyDancers.findFirst({
         where: eq(choreographyDancers.id, inscription.id),
       }),
-    ).resolves.toMatchObject({ selectedPriceId: null });
+    ).resolves.toMatchObject({ selectedPriceId: catalogPrice.id });
+  });
+
+  test("lets the selected price move while the inscription is below its seña", async () => {
+    const { owner, event, inscription, payment } =
+      await createInscriptionFixture();
+    const { catalogPrice, otherPrice } = await readPricePair(event.id);
+
+    await db
+      .update(choreographyDancers)
+      .set({ selectedPriceId: catalogPrice.id })
+      .where(eq(choreographyDancers.id, inscription.id));
+    // One peso short of the 3000 threshold: money on the row, nothing locked.
+    await db.insert(paymentAllocations).values({
+      academyId: owner.academyId,
+      amount: 2999,
+      eventId: event.id,
+      inscriptionId: inscription.id,
+      paymentId: payment.id,
+    });
+
+    await db
+      .update(choreographyDancers)
+      .set({ selectedPriceId: otherPrice.id })
+      .where(eq(choreographyDancers.id, inscription.id));
+
+    await expect(
+      db.query.choreographyDancers.findFirst({
+        where: eq(choreographyDancers.id, inscription.id),
+      }),
+    ).resolves.toMatchObject({ selectedPriceId: otherPrice.id });
+  });
+
+  test("locks nothing on an inscription that stores no price", async () => {
+    const { owner, event, inscription, payment } =
+      await createInscriptionFixture();
+    const { catalogPrice } = await readPricePair(event.id);
+
+    await db.insert(paymentAllocations).values({
+      academyId: owner.academyId,
+      amount: 9000,
+      eventId: event.id,
+      inscriptionId: inscription.id,
+      paymentId: payment.id,
+    });
+
+    // No stored row is no threshold, and a threshold that cannot be computed
+    // cannot have been crossed.
+    await db
+      .update(choreographyDancers)
+      .set({ selectedPriceId: catalogPrice.id })
+      .where(eq(choreographyDancers.id, inscription.id));
+
+    await expect(
+      db.query.choreographyDancers.findFirst({
+        where: eq(choreographyDancers.id, inscription.id),
+      }),
+    ).resolves.toMatchObject({ selectedPriceId: catalogPrice.id });
   });
 });
+
+/**
+ * The event's catalogue row plus a second, more expensive one to move to. Both
+ * are `solo` and general, so either is a candidate for the fixture's inscription.
+ */
+async function readPricePair(eventId: string) {
+  const catalogPrice = await db.query.prices.findFirst({
+    where: eq(prices.eventId, eventId),
+  });
+
+  if (!catalogPrice) {
+    throw new Error("Expected a price row.");
+  }
+
+  const [otherPrice] = await db
+    .insert(prices)
+    .values({
+      amount: 20000,
+      eventId,
+      groupType: "solo",
+      name: "Precio Solo tardío",
+      paymentDeadline: null,
+      scheduleId: null,
+    })
+    .returning();
+
+  if (!otherPrice) {
+    throw new Error("Expected a second price row.");
+  }
+
+  return { catalogPrice, otherPrice };
+}

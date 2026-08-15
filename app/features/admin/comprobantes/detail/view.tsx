@@ -30,7 +30,6 @@ import {
   comprobanteTipoBadgeVariant,
   formatComprobanteArcaDate,
   formatComprobanteNumber,
-  formatComprobantePorcionLabel,
   formatComprobanteStatusLabel,
   formatComprobanteTipoLabel,
 } from "@/lib/comprobantes/format";
@@ -53,11 +52,13 @@ type ComprobanteDetailRouteViewProps = {
 };
 
 /**
- * Vista de detalle de un comprobante (ADR-0011): aloja los datos del snapshot
- * fiscal y el menú de acciones (imprimir, anular). Es el destino del número de la
- * lista global y de los botones de porción del detalle financiero. La anulación
- * vive acá, junto al comprobante que afecta, y se confirma con un `AlertDialog`
- * cuyo copy dice la verdad: la salida real es una Nota de crédito.
+ * Detail view of a comprobante (ADR-0011): it hosts the fiscal snapshot's data
+ * and the actions menu (print, annul). The number on the global list is now its
+ * ONLY entry point — the choreography financial detail's amount cards used to
+ * link here through the `porción` badges, and both went with the field, which is
+ * the navigation cost #723 took knowingly. Annulment lives here, next to the
+ * comprobante it affects, and is confirmed with an `AlertDialog` whose copy
+ * tells the truth: the real way out is a Nota de crédito.
  */
 export function ComprobanteDetailRouteView({
   initialAnnulDialogOpen = false,
@@ -153,10 +154,6 @@ function ComprobanteDetailCard({
               {formatComprobanteStatusLabel(comprobante.status)}
             </Badge>
           }
-        />
-        <DetailRow
-          label="Porción"
-          value={formatComprobantePorcionLabel(comprobante.porcion)}
         />
         <DetailRow label="Academia" value={comprobante.academyName} />
         <DetailRow
@@ -278,9 +275,8 @@ function AnnulDialog({
             Vas a anular la{" "}
             {lowercaseFirst(formatComprobanteTipoLabel(comprobante.cbteTipo))}{" "}
             {formatComprobanteNumber(comprobante)} por{" "}
-            {formatAmount(comprobante.impTotal)} (
-            {lowercaseFirst(formatComprobantePorcionLabel(comprobante.porcion))}
-            ). La anulación se materializa emitiendo una nota de crédito espejo.
+            {formatAmount(comprobante.impTotal)}. La anulación se materializa
+            emitiendo una nota de crédito espejo.
           </AlertDialogDescription>
         </AlertDialogHeader>
 

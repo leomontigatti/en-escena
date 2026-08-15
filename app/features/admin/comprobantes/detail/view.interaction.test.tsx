@@ -33,7 +33,6 @@ function comprobanteFixture(
     impTotal: 7000,
     cae: "74123456789012",
     caeVto: "20260801",
-    porcion: "seña",
     fchServDesde: "20260801",
     fchServHasta: "20260803",
     fchVtoPago: "20260722",
@@ -221,9 +220,10 @@ describe("ComprobanteDetailRouteView", () => {
     // Datos del snapshot fiscal.
     expect(document.body.textContent).toContain("0001-00000041");
     expect(document.body.textContent).toContain("Factura C");
-    expect(document.body.textContent).toContain("Seña");
     expect(document.body.textContent).toContain("Academia Centro");
     expect(document.body.textContent).toContain("Aire");
+    // `porcion` is deleted, so the detail no longer carries a `Porción` field.
+    expect(document.body.textContent).not.toContain("Porción");
 
     // Menú de acciones (imprimir/anular) alojado en el header.
     expect(

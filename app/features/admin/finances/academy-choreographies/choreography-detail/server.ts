@@ -9,17 +9,15 @@ import {
   requireInternalUser,
 } from "@/lib/auth/internal-access.server";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
-import { FACTURA_C_CBTE_TIPO } from "@/lib/comprobantes/arca/factura-c";
-import { listChoreographyComprobantes } from "@/lib/comprobantes/comprobantes.server";
 import {
   getFacturaCEmissionDeps,
   resolveChoreographyBillable,
-  type ComprobantePorcion,
   type FacturaCEmissionDeps,
 } from "@/lib/comprobantes/emit-factura-c.server";
 import { readChoreographyInscriptionRows } from "@/lib/finances/choreography-inscriptions.server";
 import {
   allocateToInscription,
+  readInscriptionEffectivePrices,
   readInscriptionPriceOptions,
   readInscriptionSelectedPrices,
   releaseInscriptionExcess,
@@ -77,21 +75,34 @@ export async function loadChoreographyFinanceDetail(input: {
     throw new Response(choreographyNotFoundMessage, { status: 404 });
   }
 
-  const [inscriptionRows, selectedPrices, priceOptions, invoicing] =
-    await Promise.all([
-      readChoreographyInscriptionRows({
-        academyEventInscriptions: financeDetail.inscriptions,
-        choreographyId,
-      }),
-      readInscriptionSelectedPrices({ choreographyId }),
-      readInscriptionPriceOptions({ choreographyId, eventId }),
-      readChoreographyInvoicing(choreographyId),
-    ]);
-  // The price the row already holds travels with the row because the allocation
-  // dialog shows it locked once money has landed, and the locked one may no
-  // longer be among the offered options.
+  const [
+    inscriptionRows,
+    selectedPrices,
+    effectivePrices,
+    priceOptions,
+    invoicing,
+  ] = await Promise.all([
+    readChoreographyInscriptionRows({
+      academyEventInscriptions: financeDetail.inscriptions,
+      choreographyId,
+    }),
+    readInscriptionSelectedPrices({ choreographyId }),
+    readInscriptionEffectivePrices({ choreographyId, eventId }),
+    readInscriptionPriceOptions({ choreographyId, eventId }),
+    readChoreographyInvoicing(choreographyId),
+  ]);
+  // Two prices travel with the row because the allocation dialog needs both, and
+  // below the deposit threshold they differ. The **stored** one is what the
+  // picker opens on: it is what the administrator last said, and it may no
+  // longer be among the offered options. The **effective** one is what the row
+  // is charged at, which is the figure the dialog reads out — the same one
+  // `basePriceAmount` carries, so the dialog and the row behind it agree.
   const inscriptions = inscriptionRows.map((inscription) => ({
     ...inscription,
+    effectivePrice:
+      inscription.inscriptionId === null
+        ? null
+        : (effectivePrices.get(inscription.inscriptionId) ?? null),
     selectedPrice:
       inscription.inscriptionId === null
         ? null
@@ -120,108 +131,29 @@ export async function loadChoreographyFinanceDetail(input: {
   };
 }
 
-export type ComprobanteCurrency = "vigente" | "desactualizada";
-
-// Comprobante VIGENTE que cubre una porción (seña o saldo) de la coreografía:
-// su id (destino del botón de la MetricCard) y su badge frente al cobro actual.
-// `null` cuando ninguna factura vigente cubre esa porción —incluido el caso en
-// que la única que la cubría fue anulada: ahí badge y botón desaparecen, no hay
-// estado `Anulado` (ADR-0011).
-export type PortionCoverage = {
-  comprobanteId: string;
-  currency: ComprobanteCurrency;
-};
-
 export type ChoreographyInvoicing = {
   // Remanente cobrado todavía no cubierto por una factura vigente. La emisión
   // factura exactamente esto (#446); la UX lo previsualiza.
   billableAmount: number;
-  // Porción que cubriría la emisión, DERIVADA de lo cobrado (#480, ADR-0011): la
-  // UX la previsualiza junto con el importe para que la operadora vea qué va a
-  // emitir sin poder elegirla. `null` cuando no hay remanente por facturar.
-  porcion: ComprobantePorcion | null;
   // Hay algo para facturar: la afordancia de emisión sólo se habilita con
   // remanente.
   canEmit: boolean;
-  // Comprobante vigente que cubre cada porción, para las MetricCards de Seña y
-  // Saldo del detalle (ADR-0011). Una factura `total` cubre ambas, así que las
-  // dos apuntan al mismo comprobante.
-  sena: PortionCoverage | null;
-  saldo: PortionCoverage | null;
 };
 
 /**
- * Cruza los comprobantes de la coreografía con su monto facturable para armar el
- * eje de emisión del detalle: la porción facturable derivada, si queda algo por
- * facturar, y el comprobante vigente que cubre cada porción (Seña/Saldo). El badge
- * de cada porción deriva del remanente, no de una columna: es `vigente` cuando la
- * factura vigente ya cubre todo el cobro de esa porción y `desactualizada` cuando
- * entró cobro nuevo sin facturar en ella.
+ * The detail's emission axis: what is left to bill. Mirrors the server's own
+ * emission precondition (`emitChoreographyFacturaC`), which is now the single
+ * test `total > 0` — with `porcion` gone there is no second derivable input the
+ * button could disagree with.
  */
 async function readChoreographyInvoicing(
   choreographyId: string,
 ): Promise<ChoreographyInvoicing> {
-  const [comprobantes, billable] = await Promise.all([
-    listChoreographyComprobantes(choreographyId),
-    resolveChoreographyBillable(choreographyId),
-  ]);
-
-  const vigentesFacturas = comprobantes.filter(
-    (comprobante) =>
-      comprobante.cbteTipo === FACTURA_C_CBTE_TIPO &&
-      comprobante.status === "vigente",
-  );
-
-  const billableCovers = (porcion: "seña" | "saldo") =>
-    billable.porcion === porcion || billable.porcion === "total";
+  const billable = await resolveChoreographyBillable(choreographyId);
 
   return {
     billableAmount: billable.total,
-    porcion: billable.porcion,
-    // Espeja la precondición de emisión del server (`emitChoreographyFacturaC`):
-    // exige remanente Y porción derivable. Pueden divergir si una asignación de
-    // pago se borra después de emitir y deja una línea facturada huérfana que
-    // hace `billed >= cobrado` agregado mientras otra inscripción todavía tiene
-    // remanente: ahí `total > 0` pero `porcion === null`. Sin este `&&`, el botón
-    // quedaría habilitado y la confirmación fallaría con un error genérico.
-    canEmit: billable.total > 0 && billable.porcion !== null,
-    sena: resolvePortionCoverage(
-      vigentesFacturas,
-      "seña",
-      billableCovers("seña"),
-    ),
-    saldo: resolvePortionCoverage(
-      vigentesFacturas,
-      "saldo",
-      billableCovers("saldo"),
-    ),
-  };
-}
-
-/**
- * Comprobante vigente que cubre una porción: el más reciente cuya `porcion`
- * coincide o es `total` (una factura total cubre seña y saldo). El badge es
- * `desactualizada` cuando el remanente facturable incluye esa porción —entró
- * cobro nuevo sin facturar— y `vigente` cuando la factura ya la cubre entera.
- */
-function resolvePortionCoverage(
-  vigentesFacturas: { id: string; porcion: ComprobantePorcion }[],
-  porcion: "seña" | "saldo",
-  billableCoversPortion: boolean,
-): PortionCoverage | null {
-  const covering = vigentesFacturas
-    .filter(
-      (factura) => factura.porcion === porcion || factura.porcion === "total",
-    )
-    .at(-1);
-
-  if (!covering) {
-    return null;
-  }
-
-  return {
-    comprobanteId: covering.id,
-    currency: billableCoversPortion ? "desactualizada" : "vigente",
+    canEmit: billable.total > 0,
   };
 }
 

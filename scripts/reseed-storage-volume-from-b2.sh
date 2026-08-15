@@ -22,6 +22,23 @@ require_env() {
   fi
 }
 
+# A schemeless endpoint is rejected by the awscli, but only once it is already
+# running and talking about its own --endpoint-url flag. Failing here instead
+# names the variable that drifted, which is what an operator has to go fix.
+require_url_env() {
+  name="$1"
+  require_env "$name"
+  eval "value=\${$name:-}"
+
+  case "$value" in
+    http://* | https://*) ;;
+    *)
+      echo "Invalid $name: must start with http:// or https:// (got: $value)" >&2
+      exit 1
+      ;;
+  esac
+}
+
 require_command() {
   command_name="$1"
 
@@ -44,10 +61,7 @@ AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-005}"
 
 export AWS_DEFAULT_REGION
 
-if [ -z "$STORAGE_SOURCE_ENDPOINT" ]; then
-  echo "Missing required environment variable: STORAGE_SOURCE_ENDPOINT" >&2
-  exit 1
-fi
+require_url_env STORAGE_SOURCE_ENDPOINT
 
 mkdir -p "$STORAGE_VOLUME_DIR"
 

@@ -9,9 +9,9 @@
  * `payment_allocation` is a plain `(payment, inscription, amount)` row: nothing
  * in the data says a preset wrote it, and nothing downstream may branch on it.
  *
- * The chosen price is applied **only to inscriptions with no money on them
- * yet**, because the price is fixed by the first allocation. A preset never
- * moves the price out from under money that is already allocated.
+ * The chosen price is applied **only to inscriptions that have not covered their
+ * seña yet**, because that crossing is what fixes the price. A preset never
+ * moves the price out from under an inscription whose seña is already paid.
  *
  * The whole run is one transaction: a pool that dries up on the last
  * choreography rolls the first one back, so an administrator who sees a refusal
@@ -36,6 +36,7 @@ import {
   spreadFromPool,
 } from "./allocation-pool.server";
 import {
+  hasCrossedStoredDepositThreshold,
   loadCandidatePriceRow,
   runCobro,
   type CobroResult,
@@ -90,6 +91,7 @@ export async function payChoreographiesPreset(input: {
       .select({
         choreographyId: choreographyDancers.choreographyId,
         id: choreographyDancers.id,
+        selectedPriceId: choreographyDancers.selectedPriceId,
       })
       .from(choreographyDancers)
       .where(
@@ -230,8 +232,10 @@ async function readSelectedChoreographies(
 
 /**
  * Fixes the picked price on the inscriptions that can still take one. An
- * inscription that already holds money keeps its price: that is the lock the
- * first allocation puts on it, enforced here rather than only in the dialog.
+ * inscription that already **covers its seña** keeps its price: that is the lock
+ * the crossing puts on it, enforced here rather than only in the dialog. One
+ * that holds money but has not covered it yet still takes the picked row — below
+ * the threshold nothing is fixed, which is exactly what the seña buys.
  *
  * A price that does not belong to the choreography's candidate set — wrong
  * group type, or a row tied to another schedule — refuses the whole preset. The
@@ -243,7 +247,11 @@ async function applySelectedPrices(
   input: {
     choreographies: PresetChoreography[];
     eventId: string;
-    inscriptions: Array<{ choreographyId: string; id: string }>;
+    inscriptions: Array<{
+      choreographyId: string;
+      id: string;
+      selectedPriceId: string | null;
+    }>;
     priceIdByGroupType: PresetPriceSelection;
   },
 ): Promise<CobroResult> {
@@ -261,7 +269,12 @@ async function applySelectedPrices(
       continue;
     }
 
-    if ((await readInscriptionAllocatedAmount(tx, inscription.id)) > 0) {
+    const crossed = await hasCrossedStoredDepositThreshold(tx, {
+      allocatedAmount: await readInscriptionAllocatedAmount(tx, inscription.id),
+      selectedPriceId: inscription.selectedPriceId,
+    });
+
+    if (crossed) {
       continue;
     }
 

@@ -2,7 +2,12 @@ import { asc, eq, inArray } from "drizzle-orm";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
-import { choreographyDancers, paymentAllocations, prices } from "@/db/schema";
+import {
+  choreographyDancers,
+  paymentAllocations,
+  payments,
+  prices,
+} from "@/db/schema";
 import {
   createChoreographyRecord,
   createDancer,
@@ -288,7 +293,56 @@ describe("payChoreographiesPreset", () => {
     expect(await readAllocations(fixture.inscriptionIds)).toEqual([]);
   });
 
-  test("keeps the price of an inscription that already holds money", async () => {
+  test("applies the picked price to an inscription still below its seña", async () => {
+    const fixture = await seedPresetFixture([20000]);
+    const [cheaper] = await db
+      .insert(prices)
+      .values({
+        amount: 8000,
+        eventId: fixture.eventId,
+        groupType: "solo",
+        name: "Precio Solo temprano",
+        paymentDeadline: "2026-02-28",
+        scheduleId: null,
+      })
+      .returning();
+
+    // 1000 against the catalogue row's 3000 seña: money on the inscription, and
+    // nothing fixed by it. A preset may still say which row prices it.
+    const [inscriptionId] = fixture.inscriptionIds;
+    await db
+      .update(choreographyDancers)
+      .set({ selectedPriceId: fixture.priceId })
+      .where(eq(choreographyDancers.id, inscriptionId));
+    const [payment] = await db
+      .select({ id: payments.id })
+      .from(payments)
+      .where(eq(payments.academyId, fixture.academyId));
+    await db.insert(paymentAllocations).values({
+      academyId: fixture.academyId,
+      amount: 1000,
+      eventId: fixture.eventId,
+      inscriptionId,
+      paymentId: payment.id,
+    });
+
+    const result = await payChoreographiesPreset({
+      academyId: fixture.academyId,
+      choreographyIds: fixture.choreographyIds,
+      eventId: fixture.eventId,
+      priceIdByGroupType: { solo: cheaper.id },
+      stage: "deposit",
+    });
+
+    expect(result.ok).toBe(true);
+    const [row] = await db
+      .select({ selectedPriceId: choreographyDancers.selectedPriceId })
+      .from(choreographyDancers)
+      .where(eq(choreographyDancers.id, inscriptionId));
+    expect(row.selectedPriceId).toBe(cheaper.id);
+  });
+
+  test("keeps the price of an inscription that already covers its seña", async () => {
     const fixture = await seedPresetFixture([20000]);
     const [cheaper] = await db
       .insert(prices)

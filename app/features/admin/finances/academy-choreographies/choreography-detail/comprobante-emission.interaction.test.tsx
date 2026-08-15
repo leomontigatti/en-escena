@@ -22,7 +22,6 @@ describe("EmissionDialog", () => {
 
   async function mount(props: {
     billableAmount: number;
-    porcion: "seña" | "saldo" | "total" | null;
     open: boolean;
     action?: (args: {
       request: Request;
@@ -36,7 +35,6 @@ describe("EmissionDialog", () => {
           element: (
             <EmissionDialog
               billableAmount={props.billableAmount}
-              porcion={props.porcion}
               open={props.open}
               onOpenChange={() => {}}
             />
@@ -97,7 +95,6 @@ describe("EmissionDialog", () => {
     const { action } = contingencyAction(unverified);
     await mount({
       billableAmount: 12000,
-      porcion: "seña",
       open: true,
       action,
     });
@@ -115,7 +112,6 @@ describe("EmissionDialog", () => {
     const { action } = contingencyAction(unverified);
     await mount({
       billableAmount: 12000,
-      porcion: "seña",
       open: true,
       action,
     });
@@ -130,7 +126,6 @@ describe("EmissionDialog", () => {
     const { action, recheckPayloads } = contingencyAction(unverified);
     await mount({
       billableAmount: 12000,
-      porcion: "seña",
       open: true,
       action,
     });
@@ -158,7 +153,6 @@ describe("EmissionDialog", () => {
     });
     await mount({
       billableAmount: 12000,
-      porcion: "seña",
       open: true,
       action,
     });
@@ -172,22 +166,23 @@ describe("EmissionDialog", () => {
   });
 
   test("renders nothing while closed", async () => {
-    await mount({ billableAmount: 12000, porcion: "seña", open: false });
+    await mount({ billableAmount: 12000, open: false });
 
     expect(document.querySelector('[role="alertdialog"]')).toBeNull();
     expect(document.body.textContent).not.toContain("Total a facturar");
   });
 
-  test("previews the computed portion and amount without letting the operator pick either", async () => {
-    await mount({ billableAmount: 12000, porcion: "seña", open: true });
+  test("previews the computed amount without letting the operator pick it", async () => {
+    await mount({ billableAmount: 12000, open: true });
 
     // La confirmación es un AlertDialog: foco atrapado y anunciable por lectores.
     expect(document.querySelector('[role="alertdialog"]')).not.toBeNull();
 
-    // Previsualiza la porción derivada y el importe, sin dejar elegir ninguno.
-    expect(document.body.textContent).toContain("Seña");
+    // It previews the derived amount and offers no control over it. `Porción` is
+    // deleted, so there is no second derived field left to preview.
     expect(document.body.textContent).toContain("Total a facturar");
     expect(document.body.textContent).toContain("12.000");
+    expect(document.body.textContent).not.toContain("Porción");
 
     // El copy nombra la salida real (nota de crédito, en minúscula dentro de la
     // frase por ser término de dominio).

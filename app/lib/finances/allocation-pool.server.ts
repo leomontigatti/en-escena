@@ -11,8 +11,12 @@
  *
  * The floor at zero is **structural, not a clamp**: every allocation is capped
  * against what is still free in the payments, and a payment's `amount` is
- * write-once. There is no subtraction that could overshoot — with no pool, the
- * write is refused before a single row is touched.
+ * editable only downwards to what it already has allocated — the payment edit
+ * form refuses a smaller `amount`, and refuses to move the payment to another
+ * academy at all while it holds any allocation
+ * (`app/features/admin/payments/detail/server.ts`). There is no subtraction that
+ * could overshoot — with no pool, the write is refused before a single row is
+ * touched.
  *
  * The refunds term is in the invariant because it is part of the rule, but it
  * **does not exist yet**: there is no refunds table or column, so until #536
@@ -35,7 +39,10 @@
  *
  * An administrator can no longer lift **one specific payment** off **one
  * specific inscription**: they name an inscription and an amount, never a
- * payment. If a payment was recorded in error, the remedy is deleting it.
+ * payment. Editing the payment is no way around it: an edit moves no
+ * allocation, so a changed `amount` lands in `Saldo disponible` and leaves
+ * every allocation where it was. Undoing what a payment funded means deleting
+ * the payment, which cascades its allocations away.
  */
 
 import { and, asc, desc, eq } from "drizzle-orm";

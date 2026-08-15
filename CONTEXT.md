@@ -152,11 +152,11 @@ Link with economic identity and stable identity (its own `id`) between a choreog
 _Avoid_: academy participation, account, `payment`, invoice, inactive inscription
 
 **`activeInscription`** — ui: "Inscripción activa"
-Inscription that takes part in a choreography's current calculations, its pending amounts and its automatic discounts: every one that has not been withdrawn. The shared `activeInscription()` predicate and its raw-SQL twin exist so that no reader has to restate the rule, and every read applies them except the four that show a withdrawn row as evidence: the admin financial roster, the comprobante detail, the academy financial list and the printed document.
+Inscription that takes part in a choreography's current calculations, its pending amounts and its automatic discounts: every one that has not been withdrawn. The shared `activeInscription()` predicate and its raw-SQL twin exist so that no reader has to restate the rule, and no reader writes `isNull(withdrawnAt)` by hand. Four reads drop the predicate to show a withdrawn row as evidence: the money rollup behind the four finance surfaces, the roster the two financial details render, the threshold read that keeps the withdrawn row's deposit figure, and the comprobante emitter. Those four are not the whole list of queries without the predicate — several write-path and guard queries have no display to make and need no filter (see `docs/domain/finances.md`, "Withdrawal from the roster").
 _Avoid_: paid inscription, competitive participation
 
 **`withdrawnInscription`** — ui: "Retirada"
-Inscription taken off the roster whose row survives because it holds money or a `comprobante` line. Its total is **what remains allocated to it, not zero**: the seña may be forfeited and the retained allocation is the record of that retention, so it owes nothing, it cannot be over-allocated, and it keeps exposing its deposit figure. It stays in its choreography's money rollup and out of its status rollup, its price resolution and its discount qualifying set. `Retirada` is a derived axis of its own, like `Facturada`, and replaces the status badge rather than joining it.
+Inscription taken off the roster whose row survives because it holds money or a `comprobante` line. Its total is **what remains allocated to it, not zero**: the deposit may be forfeited and the retained allocation is the record of that retention, so it owes nothing, it cannot be over-allocated, and it keeps exposing its deposit figure. It stays in its choreography's money rollup, and out of its status rollup, its `registrationCount` and its discount qualifying set. Its price still resolves exactly as an active row's does — that is what keeps the deposit figure readable — so price resolution is not one of the things withdrawal changes. `Retirada` is a derived axis of its own, like `Facturada`, and replaces the status badge rather than joining it.
 _Avoid_: fourth financial status, deleted inscription, cancelled inscription
 
 **`choreography`** — ui: "Coreografía"
@@ -288,16 +288,28 @@ Explicit administrative action on a confirmed score that excludes it from the co
 _Avoid_: `scoreCorrection`, assignment deletion
 
 **`feedbackAudio`** — ui: "Devolución"
-Optional audio file associated with the evaluation or disqualification made by a judge.
-_Avoid_: numeric score, `presentation`
+Optional audio file associated with the evaluation or disqualification made by a judge. **Specified, not built**: nothing in `app/` carries this identifier — judging owns the concept in `docs/domain/judging.md`, and the column, the upload and the reader are all still to come. **"Devolución" is reserved for it regardless**: a returned amount of money is a **`refund`** ("Reembolso"), never a devolución. The reservation is what keeps the name free for the surface that will need it.
+_Avoid_: numeric score, `presentation`, refund, money returned
 
 **`payment`** — ui: "Pago"
-Money received and recorded for an academy in an event, which may stay available or be applied through payment allocations.
-_Avoid_: invoice, `paymentAllocation`, `choreographyFinancialStatus`
+Money received and recorded for an academy in an event, which may stay available or be applied through payment allocations. It is editable after the fact — academy, amount, date, method, reference and note — under exactly two accounting guards: the academy is frozen once the payment carries allocations, and the amount can never be edited below what is already allocated. A payment recorded in error can also be deleted, cascading its allocations.
+_Avoid_: invoice, `paymentAllocation`, `refund`, `choreographyFinancialStatus`
+
+**`refund`** — ui: "Reembolso"
+Money handed back to an academy in an event: an explicit mirror of **`payment`** — amount, date, `refundMethod` over the same method enum, `refundNumber` — that **never carries allocations** and is capped at `availableBalanceAmount`. It moves money, where a nota de crédito moves what is owed; either can happen without the other. **Specified, not built** (ADR-0014 §6, #536). Never call it "Devolución": that term is reserved for **`feedbackAudio`**, itself specified and not built.
+_Avoid_: Devolución, negative `payment`, `paymentAllocation`, nota de crédito
 
 **`comprobante`** — ui: "Factura (comprobante fiscal ARCA)"
-Electronic tax receipt —Factura C for monotributo, issued against ARCA/WSFEv1— as a document derived from payments, allocations and inscriptions that never governs financial state. Model under definition (map #320). The term "factura"/"comprobante" is reserved for this fiscal use.
-_Avoid_: `payment`, `paymentAllocation`, choreography invoice (retired)
+Electronic tax receipt —Factura C, issued against ARCA/WSFEv1— derived from inscriptions, payments and allocations, and never governing financial state. One per choreography, immutable once it carries a CAE, and amended only by another comprobante. The term "factura"/"comprobante" is **the only reserved Spanish term inside code**; adding another requires an ADR. What the emission and amendment rules are today, and where they are still the ADR-0014 target rather than the code, is in [docs/domain/finances.md](docs/domain/finances.md).
+_Avoid_: `payment`, `paymentAllocation`, choreography invoice (retired), voucher
+
+**Porción** _(retired term)_ — no code identifier
+Label that classified a **`comprobante`** as covering the seña, the saldo or both. It only made sense under the two-rung ladder map #547 retired: money is now allocated in arbitrary amounts against two thresholds, so a comprobante covers an amount and is neither rung. The column, its pgEnum, its derivation and its printed label are gone; the printed line names the service sold instead. It is retired as a _concept_, not as a string: the comprobante list still scrubs a stale `porcion` query parameter out of old URLs, which canonicalises a bookmark rather than reading anything. Do not use.
+_Avoid_: `comprobante`, `inscriptionStage` (retired), seña invoice, balance invoice
+
+**Desactualizada** _(retired term)_ — no code identifier
+Currency badge each of the choreography financial detail's two `porción` metric cards carried, paired with a `Vigente` that meant "the covering factura bills every peso collected in this portion". It read a portion and died with **Porción**; those cards now carry no badge and no comprobante link. The surviving `Vigente` is the unrelated one — the derived `vigente` / `anulada` status of a **`comprobante`**, shown on the global comprobante list and detail. Do not use.
+_Avoid_: `comprobanteStatus`, `Vigente` (comprobante status), stale, outdated
 
 **Choreography invoice** _(retired term)_ — no code identifier
 Document of the old financial model (tables `academy_event_choreography_invoice` and `academy_event_invoice_imputation`), removed in V1 (see ADR-0009). Do not use; for the tax receipt see **`comprobante`**.
@@ -307,35 +319,35 @@ Financial concept of the old model, retired from the payments and inscriptions m
 _Avoid_: `paymentAllocation`, `payment`, invoice
 
 **`paymentAllocation`** — ui: "Asignación de pago"
-Application of a payment's balance to one or more inscriptions of an academy in an event.
-_Avoid_: `payment`, invoice, imputación
+An amount of one payment committed to one inscription: the triple `(payment, inscription, amount)`, with no role and no type, unique on the pair, positive by CHECK and deleted rather than kept at zero. Mutable, deletable current state, not an append-only ledger. The administrator never names a payment: allocating draws from `availableBalanceAmount` oldest-first by payment number and de-allocating unwinds newest-first.
+_Avoid_: `payment`, invoice, imputación, `inscriptionStage` (retired), ledger entry
 
-**`inscriptionStage`** — ui: "Etapa de inscripción"
-Complete financial part of an inscription that can receive a payment allocation: deposit or balance.
-_Avoid_: installment, partial payment, invoice
+**Etapa de inscripción** _(retired term)_ — no code identifier
+The deposit-or-balance rung of the two-rung ladder retired by map #547 and ADR-0014 §1. An allocation no longer pays a rung: it is an amount against an inscription, and what replaced the ladder is a threshold reading, **`inscriptionFinancialStatus`**. Do not use.
+_Avoid_: installment, partial payment, rung
 
-**`academyAccountBalance`** — ui: "Cuenta corriente de academia"
-Financial balance of an academy in an event, composed of payments, payment allocations and the derived available balance.
-_Avoid_: `choreographyFinancialStatus`, `payment`, operational balance
+**Cuenta corriente de academia** _(retired term)_ — no code identifier
+Named no symbol in code before map #547 and names none after it. An academy's money is **`payment`**, **`paymentAllocation`**, **`refund`** and the derived **`availableBalanceAmount`**; there is no account-balance entity holding them together. Do not use it for an entity. It is retired as a _concept_, not as a string: "Cuenta corriente" is the live page title of the portal's finance page (`app/features/portal/finances/view.tsx`), which is UI copy an academy reads and is not covered by this tombstone.
+_Avoid_: `availableBalanceAmount`, `choreographyFinancialStatus`, operational balance
 
 **`availableBalanceAmount`** — ui: "Saldo disponible"
-Amount of an academy's active payments not yet applied through payment allocations.
-_Avoid_: `owedBalanceAmount`, total paid
+Money an academy has handed over in an event and that is not committed: `paid − allocated − refunded`. Structurally never negative, because every allocation is capped against it and a payment's amount can never be edited below what it already funds. The refunds term is specified and not yet built (#536), so today the figure reads `paid − allocated`.
+_Avoid_: `owedBalanceAmount`, total paid, `academyAccountBalance` (retired)
 
 **`owedBalanceAmount`** — ui: "Saldo adeudado"
-Gross operational amount pending for an academy in the active event: the sum, per active inscription, of the shortfall of its allocations against its total. Does not subtract the available balance.
-_Avoid_: `availableBalanceAmount`, total paid, estimated total
+Shortfall of an inscription's allocations against its `inscriptionTotalAmount`, floored at zero. **Gross**: it never subtracts `availableBalanceAmount`, which is shown alongside as its own figure. Scope-owned — inscription, choreography and academy each carry it, the wider scopes by summing the narrower.
+_Avoid_: `availableBalanceAmount`, net debt, total paid, estimated total
 
 **`owedDepositAmount`** — ui: "Seña adeudada"
-Gross operational deposit amount pending: the sum, per active inscription, of the shortfall of its allocations against its deposit. Does not subtract the available balance, and is always contained in `owedBalanceAmount`.
-_Avoid_: choreography invoice, `availableBalanceAmount`, `owedBalanceAmount`
+Shortfall of an inscription's allocations against its `inscriptionDepositAmount`, floored at zero. Also **gross**, also scope-owned, and always contained in `owedBalanceAmount`. The two are two cuts of the same debt, not two parts of a total.
+_Avoid_: choreography invoice, `availableBalanceAmount`, `owedBalanceAmount`, net debt
 
 **`inscriptionDepositAmount`** — ui: "Seña de inscripción"
-Lower threshold of an inscription: a percentage of its selected price, computed on the **undiscounted** price so the threshold cannot move when a discount tier changes.
-_Avoid_: choreography deposit, deposit invoice
+Lower threshold of an inscription: `requiredDepositPercentage` of its `selectedPrice`, computed on the **undiscounted** price so the threshold cannot move under an academy when a discount tier changes.
+_Avoid_: choreography deposit, deposit invoice, `inscriptionStage` (retired)
 
 **`inscriptionTotalAmount`** — ui: "Total de inscripción"
-Upper threshold of an inscription: its selected price minus the live `Descuento por bailarín`, applied exactly once. Supersedes the retired `inscriptionBalanceAmount` (`base − deposit − discount`), whose two subtrahends both moved.
+Upper threshold of an inscription: its `selectedPrice` minus the live `dancerDiscount`, applied exactly once, with no coalesce and no third subtrahend. On a **withdrawn** inscription it is instead what remains allocated to it — not zero. Supersedes the retired `inscriptionBalanceAmount` (`base − deposit − discount`), whose two subtrahends both moved.
 _Avoid_: `inscriptionBalanceAmount` (retired), choreography balance, `availableBalanceAmount`
 
 **`inscriptionFinancialStatus`** — ui: "Estado"
@@ -343,36 +355,40 @@ Status of an inscription derived on read from `Σ allocations` against its two t
 _Avoid_: `choreographyFinancialState` (retired), watermark, needs attention
 
 **`choreographyPrice`** — ui: "Precio de coreografía"
-Amount derived for a choreography from the prices of its active inscriptions.
-_Avoid_: `payment`, `choreographyFinancialStatus`, `frozenInscriptionPrice`
+Amount derived for a choreography from the prices of its active inscriptions: the sum of their selected prices, one by one.
+_Avoid_: `payment`, `choreographyFinancialStatus`, applicable price × dancers
 
-**`tentativeInscriptionPrice`** — ui: "Precio tentativo de inscripción"
-Indicative price of an unpaid inscription, computed with the current rules to display or decide a future allocation.
-_Avoid_: `frozenInscriptionPrice`, invoice
+**`selectedPrice`** — ui: "Precio base"
+The one price row that prices an inscription, held as `selectedPriceId` — the single surviving snapshot column. Every amount and every financial status derives from its `amount` and from `Σ paymentAllocation`. It is rewritten on each allocation write while the inscription is **below its deposit threshold** and fixed from the crossing on, enforced by the write path and by a database trigger; below the threshold the read does not treat it as authoritative either, and re-derives from the row that applies today. The existing `hasFrozenPriceInscription` / `frozen-price` symbols name a broader guard — any money at all, not the price lock — and are pending rename.
+_Avoid_: `tentativeInscriptionPrice` (retired), `frozenInscriptionPrice` (retired), invoice
 
-**`frozenInscriptionPrice`** — ui: "Precio congelado de inscripción"
-Price fixed for an inscription when it receives a payment allocation.
-_Avoid_: `tentativeInscriptionPrice`, invoice
+**Precio tentativo de inscripción** _(retired term)_ — no code identifier
+Indicative price of an unpaid inscription, retired with the estimate marking map #547 deleted: every figure an academy reads is exact and is exactly what must be paid, so there is no tentative price to contrast a fixed one with. Do not use; the price of an inscription is **`selectedPrice`**.
+_Avoid_: `selectedPrice`, estimated price
+
+**Precio congelado de inscripción** _(retired term)_ — no code identifier
+The other half of the retired tentative/frozen pair. Fixing survives as behaviour — see **`selectedPrice`**, where it happens at the deposit threshold — but not as a second term, because there is only ever one price on an inscription. Do not use.
+_Avoid_: `selectedPrice`, snapshot price
 
 **Snapshot financiero de inscripción** _(retired term)_ — no code identifier
-Economic data fixed by a payment allocation so that an inscription's financial state did not depend on later price or discount changes. The ten columns that held it were dropped in #689: amounts, thresholds and financial state are now derived from the selected price and `Σ paymentAllocation`. The one fixed thing left is the price row, and that is **`frozenInscriptionPrice`**.
-_Avoid_: `inscriptionSnapshot` (retired), invoice, `tentativeInscriptionPrice`
+Economic data fixed by a payment allocation so that an inscription's financial state did not depend on later price or discount changes. The ten columns that held it were dropped in #689: amounts, thresholds and financial status are now derived from the selected price and `Σ paymentAllocation`. The one fixed thing left is the price row, and that is **`selectedPrice`**.
+_Avoid_: `inscriptionSnapshot` (retired), invoice, frozen amount, `financialReferenceDate` (retired)
 
-**`financialReferenceDate`** — ui: "Fecha de referencia financiera"
-Business date used to resolve the tentative or frozen price of an inscription.
-_Avoid_: UTC date
+**Fecha de referencia financiera** _(retired term)_ — no code identifier
+Per-inscription date that used to decide which price row applied. Map #547 replaced date-driven price resolution with the price fixed at the deposit threshold crossing, and the two reference-date columns were dropped in #689. What survives is the shared business date `getBusinessDateOnly()`, which is not a financial concept and needs no glossary term — it is held in a local named `financialReferenceDate` inside `resolveEstimatedBasePriceAmount`, on the **read** path, so the words do still appear in code even though they name no column, no type and no exported symbol. Do not use.
+_Avoid_: `selectedPrice`, UTC date, deposit date
 
 **`paymentDeadline`** — ui: "Fecha límite de pago"
 Date until which a configured price can be applied to an inscription.
 _Avoid_: deposit date, invoice due date
 
 **`dancerDiscount`** — ui: "Descuento por bailarín"
-Automatic discount applied to an inscription's balance according to the event rules and the active inscriptions of the same dancer.
-_Avoid_: `administrativeDiscount`, manual discount
+Automatic discount that enters an inscription's `inscriptionTotalAmount` and nowhere else. It is **always live**: recomputed on every read, never frozen and never carried forward. Its qualifying set is the dancer's registered active inscriptions in the same **academy and event**, whatever their financial status, and the most expensive one of the set is left at full price.
+_Avoid_: `administrativeDiscount`, manual discount, granted discount, frozen discount
 
 **`administrativeDiscount`** — ui: "Descuento administrativo"
-Exceptional reduction applied by administration whose exact place in the financial model is pending definition.
-_Avoid_: individual discount, base price
+Exceptional obligation-side reduction granted by administration. **Reserved and deliberately undefined**: map #547 ruled it out of scope rather than answering it (ADR-0014 §9), because no map decision depends on it and the 80% case is already served by picking the price row explicitly. It is not tombstoned and the name stays taken. Whoever defines it has to argue the exception ADR-0009 forbids — it is the one figure in the model with no derivation behind it, so it must be persisted.
+_Avoid_: individual discount, base price, `dancerDiscount`, refund
 
 **`modality`** — ui: "Modalidad"
 Artistic classification chosen when registering a choreography.

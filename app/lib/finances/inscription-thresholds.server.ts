@@ -4,6 +4,7 @@ import {
   choreographies,
   choreographyDancers,
   events,
+  paymentAllocations,
   prices,
   scheduleCapacities,
 } from "@/db/schema";
@@ -16,20 +17,10 @@ import {
   type ChoreographyGroupType,
   computeDancerDiscountAmounts,
   type DancerDiscount,
-  resolveEstimatedBasePriceAmount,
+  resolveEffectiveBasePriceAmount,
 } from "@/lib/finances/operational-summary-calculations.server";
 
 import type { Executor } from "./choreography-cobro-support.server";
-
-type RosterRow = {
-  id: string;
-  dancerId: string;
-  selectedPriceId: string | null;
-  groupType: string;
-  choreographyScheduleId: string | null;
-  scheduleCapacityScheduleId: string | null;
-  withdrawnAt: Date | null;
-};
 
 /**
  * An inscription's thresholds plus the inputs they were computed from. The
@@ -44,11 +35,13 @@ export type InscriptionThresholdResolution = InscriptionThresholds & {
 
 /**
  * The two thresholds of a set of inscriptions, resolved with **the same rule as
- * the read path**: the price rules (the selected row, and failing that the one
- * applicable to the schedule) and the `Descuento por bailarín` qualifies over
- * the live roster. It exists so the write path can compute owed without
- * deriving a threshold of its own: both paths call `calculateDepositAmount` /
- * `calculateTotalAmount`, which remain the single owner of the formula.
+ * the read path**: the price comes from `resolveEffectiveBasePriceAmount` — the
+ * stored row once the inscription has crossed its deposit threshold, the row
+ * that applies today while it has not — and the `Descuento por bailarín`
+ * qualifies over the live roster. It exists so the write path can compute owed
+ * without deriving a threshold of its own: both paths call
+ * `calculateDepositAmount` / `calculateTotalAmount`, which remain the single
+ * owner of the formula.
  *
  * An inscription with no resolvable price comes out with both thresholds
  * `null`, which is what the read path shows as incomplete and what the write
@@ -123,11 +116,50 @@ export async function readInscriptionThresholds(
       ),
   ]);
 
+  // The effective price depends on what each row already holds, so the
+  // allocations of the whole qualifying roster are summed before any price is
+  // resolved — not only the requested inscriptions', because a sibling's price
+  // is what decides the `Descuento por bailarín` tier.
+  const allocationRows =
+    rosterRows.length === 0
+      ? []
+      : await executor
+          .select({
+            amount: paymentAllocations.amount,
+            inscriptionId: paymentAllocations.inscriptionId,
+          })
+          .from(paymentAllocations)
+          .where(
+            inArray(
+              paymentAllocations.inscriptionId,
+              rosterRows.map((row) => row.id),
+            ),
+          );
+
+  const allocatedByInscription = new Map<string, number>();
+  for (const allocation of allocationRows) {
+    allocatedByInscription.set(
+      allocation.inscriptionId,
+      (allocatedByInscription.get(allocation.inscriptionId) ?? 0) +
+        allocation.amount,
+    );
+  }
+
   const priceAmountByInscription = new Map<string, number | null>();
   for (const row of rosterRows) {
     priceAmountByInscription.set(
       row.id,
-      resolveRosterPriceAmount({ priceRows, row }),
+      resolveEffectiveBasePriceAmount({
+        allocatedAmount: allocatedByInscription.get(row.id) ?? 0,
+        choreography: {
+          choreographyScheduleId: row.choreographyScheduleId,
+          groupType: row.groupType as ChoreographyGroupType,
+          scheduleCapacityScheduleId: row.scheduleCapacityScheduleId,
+        },
+        priceRows,
+        requiredDepositPercentage: event.requiredDepositPercentage,
+        selectedPriceId: row.selectedPriceId,
+      }),
     );
   }
 
@@ -200,34 +232,4 @@ export async function readInscriptionThresholds(
   }
 
   return thresholds;
-}
-
-/**
- * An inscription's price: the selected row when it has one, otherwise the one
- * applicable to its group type and schedule. Same order as the read path.
- */
-function resolveRosterPriceAmount(input: {
-  priceRows: (typeof prices.$inferSelect)[];
-  row: RosterRow;
-}): number | null {
-  if (input.row.selectedPriceId !== null) {
-    const selected = input.priceRows.find(
-      (price) => price.id === input.row.selectedPriceId,
-    );
-
-    if (selected) {
-      return selected.amount;
-    }
-  }
-
-  const estimated = resolveEstimatedBasePriceAmount({
-    choreography: {
-      choreographyScheduleId: input.row.choreographyScheduleId,
-      groupType: input.row.groupType as ChoreographyGroupType,
-      scheduleCapacityScheduleId: input.row.scheduleCapacityScheduleId,
-    },
-    priceRows: input.priceRows,
-  });
-
-  return estimated.status === "missing-price" ? null : estimated.amount;
 }

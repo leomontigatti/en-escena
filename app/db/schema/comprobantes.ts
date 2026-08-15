@@ -24,16 +24,6 @@ export const comprobanteIssuerIvaCondition = pgEnum(
   ["exento"],
 );
 
-// Porción de la coreografía que cubre el comprobante (#323/#326, ADR-0011).
-// DERIVADA de lo cobrado y CONGELADA en el snapshot al emitir: `seña` cubre el
-// remanente de asignaciones tipo depósito, `saldo` el de tipo saldo, y `total`
-// ambos en un mismo comprobante. Reimputar un pago después de emitir no la altera.
-export const comprobantePorcion = pgEnum("en_escena_comprobante_porcion", [
-  "seña",
-  "saldo",
-  "total",
-]);
-
 // `Comprobante` — comprobante fiscal electrónico ARCA (Factura C, `CbteTipo` 11;
 // Nota de crédito C, tipo 13). Es un documento DERIVADO e INMUTABLE (#320/#326):
 // nunca gobierna el estado financiero y, una vez emitido con CAE, no se edita ni
@@ -56,13 +46,6 @@ export const comprobantes = createTable(
     cbteTipo: integer("cbte_tipo").notNull(),
     ptoVta: integer("pto_vta").notNull(),
     cbteNro: integer("cbte_nro").notNull(),
-    // Porción cubierta, congelada al emitir (ADR-0011). Not-null: todo
-    // comprobante clasifica en `seña`/`saldo`/`total`. La única fila preexistente
-    // se backfillea derivándola de sus asignaciones de pago (ver migración). El
-    // default `total` (superset de lo cobrado) es una red transitoria para que la
-    // emisión previa a #479 —que todavía no calcula la porción— inserte filas
-    // válidas; la emisión real la deriva y la sobrescribe, no la deja al default.
-    porcion: comprobantePorcion("porcion").notNull().default("total"),
     // Fecha del comprobante en formato ARCA `AAAAMMDD`.
     cbteFch: text("cbte_fch").notNull(),
     // Período de servicio y vencimiento de pago (Concepto 2, RG 1415) en formato
@@ -145,12 +128,12 @@ export const comprobantes = createTable(
   ],
 ).enableRLS();
 
-// Líneas internas del comprobante, una por inscripción facturada (#323/#326).
-// Son un snapshot: guardan la porción facturada de cada inscripción al momento
-// de emitir. La edición de roster (agregar/quitar inscripciones) sigue permitida
-// aún con comprobantes (#340), así que el vínculo a la inscripción se anula al
-// borrarla (`onDelete set null`) sin perder el monto congelado; el importe fiscal
-// vive en `imp_total` de la fila raíz, que es inmutable.
+// Internal lines of a comprobante, one per billed inscription (#323/#326). They
+// are a snapshot: each row holds the amount billed for one inscription at
+// emission time. Roster editing (adding or removing inscriptions) stays allowed
+// even with comprobantes on the choreography (#340), so deleting an inscription
+// nulls the link (`onDelete set null`) without losing the frozen amount; the
+// fiscal figure lives in `imp_total` on the root row, which is immutable.
 export const comprobanteInscriptions = createTable(
   "comprobante_inscription",
   {

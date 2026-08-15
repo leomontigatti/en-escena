@@ -187,6 +187,7 @@ describe("DancerNameCell interaction", () => {
           allocatedAmount: 0,
           basePriceAmount: null,
           depositAmount: null,
+          effectivePrice: null,
           financialStatus: "depositPending",
           inscriptionId: null,
           overAllocatedAmount: null,
@@ -367,6 +368,7 @@ function inscriptionFixture(
     dancerId: "dancer_1",
     depositAmount: 3000,
     discountAmount: 0,
+    effectivePrice: { amount: 10000, id: "price_1", name: "Dúo general" },
     financialStatus: "depositMet",
     firstName: "Bruno",
     inscriptionId: "inscription_orphan",
@@ -407,10 +409,7 @@ function loaderDataFixture(
     inscriptions: [inscriptionFixture()],
     invoicing: {
       billableAmount: 0,
-      porcion: null,
       canEmit: false,
-      sena: null,
-      saldo: null,
     },
     priceOptions: [
       {
