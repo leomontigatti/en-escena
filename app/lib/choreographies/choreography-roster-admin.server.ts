@@ -23,6 +23,14 @@ import {
   removeInscriptionsFromRoster,
   reviveWithdrawnInscriptions,
 } from "@/lib/choreographies/inscription-withdrawal.server";
+import { lockScheduleCapacityForAssignment } from "@/lib/choreographies/schedule-capacity-lock.server";
+import { hasFrozenPriceInscription } from "@/lib/finances/choreography-frozen-price-guard.server";
+
+// Same wording as the standalone reassignment's own guard
+// (`app/features/admin/choreographies/detail/schedule-capacity.server.ts`):
+// both reject the same underlying move, just from a different entry point.
+const frozenPriceOnRosterMoveMessage =
+  "No se puede cambiar el cupo de cronograma: hay inscripciones con dinero asignado.";
 
 /**
  * Administración edita el roster (bailarines y profesores) de una coreografía ya
@@ -114,6 +122,7 @@ export async function updateAdministrativeChoreographyRoster(input: {
         ok: false,
         section: "dancers",
         message: dancerResult.message,
+        code: dancerResult.code,
         fieldErrors: dancerResult.fieldErrors,
       };
     }
@@ -208,8 +217,59 @@ async function updateChoreographyDancers(input: {
   const requestedDancerIds = new Set(
     resolvedDancers.map((dancer) => dancer.id),
   );
+  // The resolution always recomputes scheduleId/scheduleCapacityId, even when
+  // the roster edit lands on the same cupo it already occupies (e.g. a name-
+  // only save, or a dancer swap that keeps the same group type). The guard and
+  // the lock below must fire only on an actual move, or every unrelated save
+  // would pay their cost — and a save that changes nothing on this axis would
+  // wrongly report the cupo it already holds as full.
+  // A choreography row stores exactly one of the pair populated: a specific
+  // cupo (`scheduleCapacityId`) or the whole cronograma (`scheduleId`, with
+  // `scheduleCapacityId` left null). `scheduleId` on its own is therefore not
+  // a reliable diff target when a cupo is assigned — the cupo's own id already
+  // determines its cronograma, and comparing raw `scheduleId` in that case
+  // would read every save that keeps the same cupo as a move. `scheduleId`
+  // only carries the comparison when the destination selection has no cupo
+  // of its own (the whole-cronograma case).
+  const scheduleCapacityChanged =
+    choreography.scheduleCapacityId !== selectedSchedule.scheduleCapacityId ||
+    (selectedSchedule.scheduleCapacityId === null &&
+      choreography.scheduleId !== selectedSchedule.scheduleId);
 
-  await db.transaction(async (tx) => {
+  const transactionResult = await db.transaction(async (tx) => {
+    if (scheduleCapacityChanged) {
+      // Checked first and inside the transaction, before any roster write:
+      // on rejection nothing about this save should be persisted, and
+      // checking outside the transaction would leave a window where a
+      // concurrent allocation or assignment lands unnoticed.
+      if (await hasFrozenPriceInscription(input.choreographyId, tx)) {
+        return {
+          ok: false as const,
+          code: "schedule-capacity" as const,
+          message: frozenPriceOnRosterMoveMessage,
+        };
+      }
+
+      const lock = await lockScheduleCapacityForAssignment({
+        // Same exclusion as the standalone reassignment: a roster change can
+        // recalculate group type and land the choreography on a different
+        // cupo of the *same* cronograma, and without this it would count
+        // against its own cupo and report it as full.
+        excludeChoreographyId: input.choreographyId,
+        scheduleCapacityId: selectedSchedule.scheduleCapacityId,
+        scheduleId: selectedSchedule.scheduleId,
+        tx,
+      });
+
+      if (!lock.ok) {
+        return {
+          ok: false as const,
+          code: "schedule-capacity" as const,
+          message: lock.error,
+        };
+      }
+    }
+
     const [currentLinks, withdrawnLinks] = await Promise.all([
       tx
         .select({
@@ -293,7 +353,17 @@ async function updateChoreographyDancers(input: {
         updatedAt: new Date(),
       })
       .where(eq(choreographies.id, input.choreographyId));
+
+    return { ok: true as const };
   });
+
+  if (!transactionResult.ok) {
+    return {
+      ok: false,
+      code: transactionResult.code,
+      message: transactionResult.message,
+    };
+  }
 
   return { ok: true };
 }

@@ -524,7 +524,10 @@ async function updateChoreographyRosterAction(input: {
   eventId: string;
   formData: FormData;
 }): Promise<
-  ChoreographyActionData | ChoreographyRosterErrorData | ChoreographySuccessData
+  | ChoreographyActionData
+  | ChoreographyFieldUpdateErrorData
+  | ChoreographyRosterErrorData
+  | ChoreographySuccessData
 > {
   // `name` es opcional: un submit que solo toca el roster no lo manda y deja el
   // nombre intacto. Cuando viene, se valida igual que en `rename-choreography`.
@@ -565,6 +568,18 @@ async function updateChoreographyRosterAction(input: {
   });
 
   if (!result.ok) {
+    // The two cupo-de-cronograma guards (#659) reject a save that the roster
+    // section's own error channel would otherwise swallow (see
+    // `toChoreographyDetailViewActionData` in `shared.ts`): they surface as a
+    // plain `status: "error"` instead of `"roster-error"` so the rejection
+    // actually reaches the rendered page.
+    if (result.code === "schedule-capacity") {
+      return {
+        message: result.message,
+        status: "error",
+      };
+    }
+
     return {
       fieldErrors: result.fieldErrors,
       message: result.message,
