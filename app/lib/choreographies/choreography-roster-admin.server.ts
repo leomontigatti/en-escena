@@ -23,14 +23,7 @@ import {
   removeInscriptionsFromRoster,
   reviveWithdrawnInscriptions,
 } from "@/lib/choreographies/inscription-withdrawal.server";
-import { lockScheduleCapacityForAssignment } from "@/lib/choreographies/schedule-capacity-lock.server";
-import { hasFrozenPriceInscription } from "@/lib/finances/choreography-frozen-price-guard.server";
-
-// Same wording as the standalone reassignment's own guard
-// (`app/features/admin/choreographies/detail/schedule-capacity.server.ts`):
-// both reject the same underlying move, just from a different entry point.
-const frozenPriceOnRosterMoveMessage =
-  "No se puede cambiar el cupo de cronograma: hay inscripciones con dinero asignado.";
+import { guardAndLockScheduleCapacityMove } from "@/lib/choreographies/schedule-capacity-lock.server";
 
 /**
  * Administración edita el roster (bailarines y profesores) de una coreografía ya
@@ -239,33 +232,21 @@ async function updateChoreographyDancers(input: {
   const transactionResult = await db.transaction(async (tx) => {
     if (scheduleCapacityChanged) {
       // Checked first and inside the transaction, before any roster write:
-      // on rejection nothing about this save should be persisted, and
-      // checking outside the transaction would leave a window where a
-      // concurrent allocation or assignment lands unnoticed.
-      if (await hasFrozenPriceInscription(input.choreographyId, tx)) {
-        return {
-          ok: false as const,
-          code: "schedule-capacity" as const,
-          message: frozenPriceOnRosterMoveMessage,
-        };
-      }
-
-      const lock = await lockScheduleCapacityForAssignment({
-        // Same exclusion as the standalone reassignment: a roster change can
-        // recalculate group type and land the choreography on a different
-        // cupo of the *same* cronograma, and without this it would count
-        // against its own cupo and report it as full.
-        excludeChoreographyId: input.choreographyId,
+      // on rejection nothing about this save should be persisted. Same
+      // guard-then-lock pair as the standalone reassignment, so the two
+      // entry points can't drift on order or on which move counts as frozen.
+      const move = await guardAndLockScheduleCapacityMove({
+        choreographyId: input.choreographyId,
         scheduleCapacityId: selectedSchedule.scheduleCapacityId,
         scheduleId: selectedSchedule.scheduleId,
         tx,
       });
 
-      if (!lock.ok) {
+      if (!move.ok) {
         return {
           ok: false as const,
           code: "schedule-capacity" as const,
-          message: lock.error,
+          message: move.error,
         };
       }
     }

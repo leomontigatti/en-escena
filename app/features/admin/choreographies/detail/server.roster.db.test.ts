@@ -671,11 +671,11 @@ describe("cupo de cronograma guard on the roster path", () => {
 });
 
 /**
- * Solo con una inscripción, `dancerA`, más `dancerB` reservado para expandir
- * el roster a duo en los tests de guardas del cupo de cronograma. Cada llamada
- * arma su propio evento y catálogo, así que dos coreografías nunca compiten
- * por el mismo cupo salvo que se pida explícitamente lo contrario (ver
- * `createSoloScenarioInCatalog`, usado por el test de concurrencia).
+ * Solo with one inscription, `dancerA`, plus `dancerB` reserved to expand the
+ * roster to duo in the schedule-capacity guard tests. Each call builds its own
+ * event and catalog, so two choreographies never compete for the same cupo
+ * unless explicitly asked to (see `createSoloScenarioInCatalog`, used by the
+ * concurrency test).
  */
 async function createSoloScenario(input: {
   academyName: string;
@@ -789,11 +789,11 @@ async function createRemovalScenario(input: {
 }
 
 /**
- * Grupal con cinco inscripciones, la de `dancerA` lista para colgarle
- * evidencia financiera. Quitar una de las otras cuatro deja cuatro bailarines,
- * que sigue siendo "grupal" (`deriveGroupType` recién baja a trío en tres): el
- * tipo de grupo, y con él el cupo, no se mueve, así que este escenario prueba
- * el mecanismo de retiro con dinero sin cruzarse con la guarda del cupo.
+ * Grupal with five inscriptions, `dancerA`'s ready to hang financial evidence
+ * on. Removing one of the other four leaves four dancers, still "grupal"
+ * (`deriveGroupType` only drops to trío at three): the group type, and with it
+ * the cupo, doesn't move, so this scenario exercises the withdrawal-with-money
+ * mechanism without crossing the cupo guard.
  */
 async function createGrupalRemovalScenario(input: {
   academyName: string;
