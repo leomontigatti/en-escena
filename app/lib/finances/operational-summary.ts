@@ -44,6 +44,42 @@ export function incompleteOperationalFinanceAmount(input: {
   };
 }
 
+export function buildOperationalFinanceAmount(input: {
+  amount: number;
+  missingPriceCount: number;
+}): OperationalFinanceAmount {
+  if (input.missingPriceCount > 0) {
+    return incompleteOperationalFinanceAmount(input);
+  }
+
+  return completeOperationalFinanceAmount(input.amount);
+}
+
+/**
+ * Suma cifras operativas propagando la incompletitud: si a alguna le falta el
+ * precio, a la suma también. Vive acá y no en las calculations del servidor
+ * porque la vista de la academia rehace la misma suma sobre la selección, y dos
+ * sumas distintas para la misma cifra terminan discrepando.
+ */
+export function sumOperationalFinanceAmounts(
+  amounts: OperationalFinanceAmount[],
+): OperationalFinanceAmount {
+  return buildOperationalFinanceAmount(
+    amounts.reduce(
+      (total, amount) => ({
+        amount: total.amount + amount.amount,
+        missingPriceCount:
+          total.missingPriceCount +
+          (amount.status === "incomplete" ? amount.missingPriceCount : 0),
+      }),
+      {
+        amount: 0,
+        missingPriceCount: 0,
+      },
+    ),
+  );
+}
+
 export function emptyOperationalFinanceSummary(): OperationalFinanceSummary {
   return {
     availableBalanceAmount: 0,

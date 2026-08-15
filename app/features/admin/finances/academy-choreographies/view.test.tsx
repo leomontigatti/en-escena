@@ -6,6 +6,7 @@ import { afterEach, describe, expect, test } from "vitest";
 
 import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 
+import { financePresetLabels } from "./presets";
 import { AcademyFinancesRouteView } from "./view";
 import type { AcademyFinancesLoaderData } from "./types";
 
@@ -56,7 +57,6 @@ describe("AcademyFinancesRouteView", () => {
     expect(text).toContain("$ 9.000");
     expect(text).toContain("$ 30.000");
     expect(text).toContain("Aire");
-    expect(document.querySelector('button[aria-label="Acciones"]')).toBeNull();
     expect(text).not.toContain("Facturas de seña activas");
     expect(text).not.toContain("Facturas de saldo activas");
     expect(text).not.toContain("Correcciones administrativas");
@@ -172,21 +172,100 @@ describe("AcademyFinancesRouteView", () => {
   });
 
   // Los presets sobreviven **sólo** como acciones de lista, y una acción de
-  // lista sin selección no tiene sobre qué actuar: el menú aparece recién
-  // cuando hay filas elegidas.
-  test("offers the presets only once choreographies are selected", async () => {
+  // lista sin selección no tiene sobre qué actuar. Pero el menú no se esconde
+  // por eso: un botón que aparece y desaparece no enseña qué se puede hacer
+  // acá, así que queda a la vista con los dos cobros deshabilitados.
+  test("keeps the actions menu visible and disables both presets without a selection", async () => {
     await renderListIntoDocument();
 
-    expect(document.querySelector('button[aria-label="Acciones"]')).toBeNull();
+    expect(
+      document.querySelector('button[aria-label="Acciones"]'),
+    ).not.toBeNull();
+
+    await openActionsMenu();
+
+    expect(menuItemDisabledState()).toEqual([
+      { label: financePresetLabels.deposit, disabled: true },
+      { label: financePresetLabels.balance, disabled: true },
+    ]);
+  });
+
+  test("enables both presets once choreographies are selected", async () => {
+    await renderListIntoDocument();
 
     const checkboxes = getRenderedCheckboxes();
     expect(checkboxes.length).toBe(3);
 
     await clickCheckbox(checkboxes[1]);
+    await openActionsMenu();
 
-    expect(
-      document.querySelector('button[aria-label="Acciones"]'),
-    ).not.toBeNull();
+    expect(menuItemDisabledState()).toEqual([
+      { label: financePresetLabels.deposit, disabled: false },
+      { label: financePresetLabels.balance, disabled: false },
+    ]);
+  });
+
+  // Las dos deudas son contra qué se cobra, y el cobro opera sobre lo
+  // seleccionado: mostrar el total de la academia mientras se cobran dos
+  // coreografías obliga a sumar de memoria.
+  test("scopes the owed metrics to the selection and restores them when it is cleared", async () => {
+    await renderListIntoDocument({
+      loaderData: academyFinancesLoaderDataFixture({
+        choreographyFinanceRows: [
+          choreographyFinanceRowFixture({
+            id: "choreography_1",
+            name: "Aire",
+            owedBalanceAmount: { amount: 12000, status: "complete" },
+            owedDepositAmount: { amount: 3000, status: "complete" },
+          }),
+          choreographyFinanceRowFixture({
+            id: "choreography_2",
+            name: "Tango",
+            owedBalanceAmount: { amount: 9000, status: "complete" },
+            owedDepositAmount: { amount: 4000, status: "complete" },
+          }),
+        ],
+        summary: {
+          availableBalanceAmount: 5000,
+          depositAmount: { amount: 18000, status: "complete" },
+          totalAmount: { amount: 60000, status: "complete" },
+          owedBalanceAmount: { amount: 21000, status: "complete" },
+          owedDepositAmount: { amount: 7000, status: "complete" },
+          totalPaidAmount: 0,
+        },
+      }),
+    });
+
+    expect(metricCardText("Seña adeudada")).toContain("$ 7.000");
+    expect(metricCardText("Saldo adeudado")).toContain("$ 21.000");
+    expect(metricCardText("Seña adeudada")).not.toContain("seleccionada");
+
+    await clickCheckbox(getRenderedCheckboxes()[1]);
+
+    expect(metricCardText("Seña adeudada")).toContain("$ 3.000");
+    expect(metricCardText("Saldo adeudado")).toContain("$ 12.000");
+    // La cifra cambió de alcance, y el badge lo dice: sin él se lee como si la
+    // academia hubiese pagado entre un click y el otro.
+    expect(metricCardText("Seña adeudada")).toContain("1 seleccionada");
+    expect(metricCardText("Saldo adeudado")).toContain("1 seleccionada");
+
+    await clickCheckbox(getRenderedCheckboxes()[2]);
+
+    expect(metricCardText("Seña adeudada")).toContain("$ 7.000");
+    expect(metricCardText("Saldo adeudado")).toContain("$ 21.000");
+    expect(metricCardText("Seña adeudada")).toContain("2 seleccionadas");
+
+    // Los umbrales y el disponible son de la academia entera y no se mueven.
+    expect(metricCardText("Seña total")).toContain("$ 18.000");
+    expect(metricCardText("Total")).toContain("$ 60.000");
+    expect(metricCardText("Saldo disponible")).toContain("$ 5.000");
+
+    await clickCheckbox(getRenderedCheckboxes()[1]);
+    await clickCheckbox(getRenderedCheckboxes()[2]);
+
+    expect(metricCardText("Seña adeudada")).toContain("$ 7.000");
+    expect(metricCardText("Saldo adeudado")).toContain("$ 21.000");
+    expect(metricCardText("Saldo adeudado")).not.toContain("seleccionada");
   });
 
   test("pre-fills the owed deposit of the selected rows and prompts for a price", async () => {
@@ -300,6 +379,59 @@ function getRenderedCheckboxes() {
   return [...document.querySelectorAll('[role="checkbox"]')].filter(
     (element): element is HTMLElement => element instanceof HTMLElement,
   );
+}
+
+function metricCardText(title: string) {
+  const card = [...document.querySelectorAll('[data-slot="card"]')].find(
+    (candidate) =>
+      candidate
+        .querySelector('[data-slot="card-title"]')
+        ?.textContent?.trim() === title,
+  );
+
+  if (!card) {
+    throw new Error(`Expected the "${title}" metric card to be rendered.`);
+  }
+
+  return card.textContent ?? "";
+}
+
+function menuItemDisabledState() {
+  return [...document.querySelectorAll('[role="menuitem"]')].map((item) => ({
+    label: (item.textContent ?? "").trim(),
+    disabled: item.getAttribute("aria-disabled") === "true",
+  }));
+}
+
+async function openActionsMenu() {
+  const button = document.querySelector('button[aria-label="Acciones"]');
+
+  if (!button) {
+    throw new Error("Expected the actions menu button to be rendered.");
+  }
+
+  const pointerDown = new MouseEvent("pointerdown", {
+    bubbles: true,
+    button: 0,
+    cancelable: true,
+    ctrlKey: false,
+  });
+  Object.defineProperty(pointerDown, "pointerType", { value: "mouse" });
+
+  await act(async () => {
+    button.dispatchEvent(pointerDown);
+    button.dispatchEvent(
+      new MouseEvent("pointerup", {
+        bubbles: true,
+        button: 0,
+        cancelable: true,
+      }),
+    );
+    button.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true }),
+    );
+    await Promise.resolve();
+  });
 }
 
 async function clickCheckbox(checkbox: HTMLElement) {

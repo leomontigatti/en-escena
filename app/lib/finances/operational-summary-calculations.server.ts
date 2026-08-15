@@ -9,10 +9,10 @@ import {
   type InscriptionFinancialStatus,
 } from "@/lib/finances/inscription-financial-status";
 import {
-  completeOperationalFinanceAmount,
-  incompleteOperationalFinanceAmount,
+  buildOperationalFinanceAmount,
   type OperationalFinanceAmount,
   type OperationalFinanceSummary,
+  sumOperationalFinanceAmounts,
 } from "@/lib/finances/operational-summary";
 import { selectApplicablePriceFromCandidates } from "@/lib/prices/repository.server";
 import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
@@ -231,10 +231,10 @@ export function buildOperationalFinanceSummaryFromChoreographyRows(input: {
 
   return {
     availableBalanceAmount: input.availableBalanceAmount,
-    depositAmount: buildOperationalFinanceAmount(depositAmount),
-    totalAmount: buildOperationalFinanceAmount(totalAmount),
-    owedBalanceAmount: buildOperationalFinanceAmount(owedBalanceAmount),
-    owedDepositAmount: buildOperationalFinanceAmount(owedDepositAmount),
+    depositAmount,
+    totalAmount,
+    owedBalanceAmount,
+    owedDepositAmount,
     totalPaidAmount: input.totalPaidAmount,
   };
 }
@@ -398,30 +398,4 @@ function createAmountAccumulator() {
       return buildOperationalFinanceAmount({ amount, missingPriceCount });
     },
   };
-}
-
-function buildOperationalFinanceAmount(input: {
-  amount: number;
-  missingPriceCount: number;
-}): OperationalFinanceAmount {
-  if (input.missingPriceCount > 0) {
-    return incompleteOperationalFinanceAmount(input);
-  }
-
-  return completeOperationalFinanceAmount(input.amount);
-}
-
-function sumOperationalFinanceAmounts(amounts: OperationalFinanceAmount[]) {
-  return amounts.reduce(
-    (total, amount) => ({
-      amount: total.amount + amount.amount,
-      missingPriceCount:
-        total.missingPriceCount +
-        (amount.status === "incomplete" ? amount.missingPriceCount : 0),
-    }),
-    {
-      amount: 0,
-      missingPriceCount: 0,
-    },
-  );
 }

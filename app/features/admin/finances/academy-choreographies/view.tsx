@@ -17,6 +17,7 @@ import {
 } from "@/lib/finances/choreography-financial-status";
 import type { CobroStage } from "@/lib/finances/choreography-cobro-presets.server";
 import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
+import { sumOperationalFinanceAmounts } from "@/lib/finances/operational-summary";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 
 import { formatAmount, formatOperationalAmount } from "../formatters";
@@ -59,6 +60,30 @@ export function AcademyFinancesRouteView({
   const selectedRows = loaderData.choreographyFinanceRows.filter((row) =>
     selectedRowIds.includes(row.id),
   );
+  const hasSelection = selectedRows.length > 0;
+  // Las dos deudas se acotan a la selección; los umbrales y el disponible no.
+  // `Seña adeudada` y `Saldo adeudado` son contra qué se cobra, y el cobro ya
+  // opera sobre lo seleccionado: dejarlas en el total de la academia obliga a
+  // sumar de memoria cuánto se está por cobrar.
+  const owedDepositAmount = hasSelection
+    ? sumOperationalFinanceAmounts(
+        selectedRows.map((row) => row.owedDepositAmount),
+      )
+    : loaderData.summary.owedDepositAmount;
+  const owedBalanceAmount = hasSelection
+    ? sumOperationalFinanceAmounts(
+        selectedRows.map((row) => row.owedBalanceAmount),
+      )
+    : loaderData.summary.owedBalanceAmount;
+  // Sin el badge las dos cifras cambian sin decir por qué, y se leen como si la
+  // academia hubiese pagado algo entre un click y el otro.
+  const selectionBadge = hasSelection ? (
+    <Badge variant="secondary">
+      {selectedRows.length === 1
+        ? "1 seleccionada"
+        : `${selectedRows.length} seleccionadas`}
+    </Badge>
+  ) : undefined;
   // Stable so the dialog can close itself from an effect when the write
   // succeeds without the effect re-running on every render of the list.
   const handlePresetOpenChange = useCallback((next: boolean) => {
@@ -76,26 +101,30 @@ export function AcademyFinancesRouteView({
           "Activá un evento para consultar la lista financiera de las coreografías de la academia.",
       }}
       headerAction={
-        selectedRows.length > 0 ? (
-          <ResourceActionsMenu contentClassName="w-48">
-            <DropdownMenuItem
-              onSelect={(event) => {
-                event.preventDefault();
-                setPresetStage("deposit");
-              }}
-            >
-              {financePresetLabels.deposit}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={(event) => {
-                event.preventDefault();
-                setPresetStage("balance");
-              }}
-            >
-              {financePresetLabels.balance}
-            </DropdownMenuItem>
-          </ResourceActionsMenu>
-        ) : undefined
+        // El menú está siempre: que el botón aparezca y desaparezca según la
+        // selección esconde qué se puede hacer acá. Sin filas seleccionadas los
+        // dos cobros quedan deshabilitados —no hay sobre qué cobrar—, pero
+        // siguen a la vista.
+        <ResourceActionsMenu contentClassName="w-48">
+          <DropdownMenuItem
+            disabled={!hasSelection}
+            onSelect={(event) => {
+              event.preventDefault();
+              setPresetStage("deposit");
+            }}
+          >
+            {financePresetLabels.deposit}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={!hasSelection}
+            onSelect={(event) => {
+              event.preventDefault();
+              setPresetStage("balance");
+            }}
+          >
+            {financePresetLabels.balance}
+          </DropdownMenuItem>
+        </ResourceActionsMenu>
       }
     >
       <div className="flex flex-col gap-6">
@@ -109,9 +138,8 @@ export function AcademyFinancesRouteView({
           />
           <MetricCard
             title="Seña adeudada"
-            value={formatOperationalAmount(
-              loaderData.summary.owedDepositAmount,
-            )}
+            value={formatOperationalAmount(owedDepositAmount)}
+            slot={selectionBadge}
           />
           <MetricCard
             title="Total"
@@ -119,9 +147,8 @@ export function AcademyFinancesRouteView({
           />
           <MetricCard
             title="Saldo adeudado"
-            value={formatOperationalAmount(
-              loaderData.summary.owedBalanceAmount,
-            )}
+            value={formatOperationalAmount(owedBalanceAmount)}
+            slot={selectionBadge}
           />
           <MetricCard
             title="Saldo disponible"
