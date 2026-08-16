@@ -91,7 +91,10 @@ export type ChoreographyDancerScheduleResolution =
   | {
       status: "keep-current";
       canSave: true;
-      options: [ChoreographyDancerScheduleOption];
+      // Same criterion as the standalone path (`resolveScheduleCapacityCandidates`):
+      // the assigned cupo is still compatible, but the select offers the full
+      // compatible set, not just the assigned one.
+      options: ChoreographyDancerScheduleOption[];
       selectedScheduleCapacityId: string;
     }
   | {
