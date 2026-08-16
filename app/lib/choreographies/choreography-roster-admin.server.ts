@@ -4,6 +4,8 @@ import { db } from "@/db";
 import { choreographies, choreographyDancers } from "@/db/schema";
 import { activeInscription } from "@/lib/choreographies/active-inscription";
 import {
+  getScheduleSelectionId,
+  isCompatibleScheduleCapacity,
   resolveChoreographyDancerUpdateContext,
   resolveSelectedExperienceLevelId,
   resolveSelectedScheduleCapacityIdForDancerUpdate,
@@ -13,6 +15,7 @@ import {
   validateChoreographyProfessorSelection,
 } from "@/lib/choreographies/choreography-roster-professor-update.server";
 import {
+  compatibleScheduleSelectionRequiredMessage,
   getDancerEditingEligibility,
   getResolvedChoreographyCategory,
   haveSameIds,
@@ -207,6 +210,32 @@ async function updateChoreographyDancers(input: {
   }
 
   const selectedSchedule = resolvedScheduleCapacityId.value;
+
+  // #730: final, explicit revalidation that the cupo about to be persisted is
+  // still compatible with the groupType resolved in *this same submit*,
+  // independent of `scheduleCapacityChanged` below. Every branch that builds
+  // `selectedSchedule` already draws it from `resolution`'s own compatible
+  // set (see `resolveDancerUpdateScheduleSelection` /
+  // `resolveSelectedScheduleCapacityIdForDancerUpdate`), so this should never
+  // actually reject anything today — it's a defense-in-depth gate against a
+  // future change to those branches silently breaking that guarantee, not a
+  // currently reachable rejection. Cheap and needs no transaction/lock, so it
+  // runs before entering one: a different, unconditional concern from the
+  // capacity-lock/frozen-price guard (#659) right below, which only fires
+  // when the cupo axis actually moves.
+  if (
+    !isCompatibleScheduleCapacity(
+      getScheduleSelectionId(selectedSchedule),
+      resolution,
+    )
+  ) {
+    return {
+      ok: false,
+      code: "schedule-capacity",
+      message: compatibleScheduleSelectionRequiredMessage,
+    };
+  }
+
   const requestedDancerIds = new Set(
     resolvedDancers.map((dancer) => dancer.id),
   );
