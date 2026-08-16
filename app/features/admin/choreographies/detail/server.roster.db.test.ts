@@ -841,15 +841,13 @@ describe("cupo de cronograma guard on the roster path", () => {
       firstName: "Bea",
       lastName: "Dos",
     });
-    await db
-      .insert(choreographyDancers)
-      .values([
-        {
-          ageAtEventStart: 14,
-          choreographyId: choreography.id,
-          dancerId: dancerB.id,
-        },
-      ]);
+    await db.insert(choreographyDancers).values([
+      {
+        ageAtEventStart: 14,
+        choreographyId: choreography.id,
+        dancerId: dancerB.id,
+      },
+    ]);
 
     // Duo -> Solo, resolving "multiple" for solo (two solo-compatible cupos
     // exist), explicitly picking the second schedule's cupo rather than the
@@ -867,6 +865,93 @@ describe("cupo de cronograma guard on the roster path", () => {
     });
     expect(saved?.groupType).toBe("solo");
     expect(saved?.scheduleCapacityId).toBe(secondSoloScheduleCapacity.id);
+  });
+
+  // #730's other sub-case: the submitted `scheduleCapacityId` is not stale —
+  // it's the one already persisted, never touched by this submit — but the
+  // *dancer* change in the same submit shifts the resolved groupType out from
+  // under it. Needs a second solo-compatible cupo so solo resolves
+  // "multiple" (a single option would resolve "auto" and self-heal past the
+  // stale duo id without ever consulting it).
+  test("rejects a roster save whose persisted cupo is unchanged but incompatible with the groupType the same submit resolves to", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Roster Cupo Sin Cambiar",
+      email: "roster.cupo.sin.cambiar@example.com",
+    });
+    const event = await createEventRecord({ active: true, name: "Regional" });
+    const catalog = await createEventCatalog(event.id);
+    const [secondSchedule] = await db
+      .insert(schedules)
+      .values({
+        eventId: event.id,
+        name: `Segundo bloque ${event.id}`,
+        scheduledDate: "2026-04-01",
+        startTime: "10:00",
+        totalCapacity: 10,
+      })
+      .returning();
+    await db.insert(scheduleModalities).values({
+      scheduleId: secondSchedule.id,
+      modalityId: catalog.modality.id,
+    });
+    await db
+      .insert(scheduleCapacities)
+      .values({
+        scheduleId: secondSchedule.id,
+        groupType: "solo",
+        capacity: 5,
+      });
+    const [dancerA, dancerB] = await Promise.all([
+      createDancer(owner.academyId, { firstName: "Ana", lastName: "Uno" }),
+      createDancer(owner.academyId, { firstName: "Bea", lastName: "Dos" }),
+    ]);
+    const choreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.teenCategory.id,
+      eventId: event.id,
+      groupType: "duo",
+      modalityId: catalog.modality.id,
+      name: "Duo",
+      scheduleCapacityId: catalog.duoScheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+    await db.insert(choreographyDancers).values([
+      {
+        ageAtEventStart: 14,
+        choreographyId: choreography.id,
+        dancerId: dancerA.id,
+      },
+      {
+        ageAtEventStart: 14,
+        choreographyId: choreography.id,
+        dancerId: dancerB.id,
+      },
+    ]);
+
+    // Drop dancerB (Duo -> Solo), re-submitting the same Duo-exclusive cupo
+    // that is already persisted — the field never changed in this submit.
+    const result = await submitRoster({
+      choreographyId: choreography.id,
+      dancerIds: [dancerA.id],
+      scheduleCapacityId: catalog.duoScheduleCapacity.id,
+    });
+
+    expect(result).not.toMatchObject({ status: "success" });
+
+    const saved = await db.query.choreographies.findFirst({
+      where: eq(choreographies.id, choreography.id),
+    });
+    // Neither the groupType nor the roster moved: the already-persisted,
+    // now-incompatible cupo was never left paired with a Solo choreography.
+    expect(saved?.groupType).toBe("duo");
+    expect(saved?.scheduleCapacityId).toBe(catalog.duoScheduleCapacity.id);
+
+    const inscriptions = await db.query.choreographyDancers.findMany({
+      where: eq(choreographyDancers.choreographyId, choreography.id),
+    });
+    expect(inscriptions.map((row) => row.dancerId).sort()).toEqual(
+      [dancerA.id, dancerB.id].sort(),
+    );
   });
 
   test("locks the destination cupo across two concurrent roster saves competing for the last slot", async () => {
