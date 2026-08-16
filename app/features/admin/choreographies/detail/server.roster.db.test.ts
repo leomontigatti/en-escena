@@ -894,13 +894,11 @@ describe("cupo de cronograma guard on the roster path", () => {
       scheduleId: secondSchedule.id,
       modalityId: catalog.modality.id,
     });
-    await db
-      .insert(scheduleCapacities)
-      .values({
-        scheduleId: secondSchedule.id,
-        groupType: "solo",
-        capacity: 5,
-      });
+    await db.insert(scheduleCapacities).values({
+      scheduleId: secondSchedule.id,
+      groupType: "solo",
+      capacity: 5,
+    });
     const [dancerA, dancerB] = await Promise.all([
       createDancer(owner.academyId, { firstName: "Ana", lastName: "Uno" }),
       createDancer(owner.academyId, { firstName: "Bea", lastName: "Dos" }),
