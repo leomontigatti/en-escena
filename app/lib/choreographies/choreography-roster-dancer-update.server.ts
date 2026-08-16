@@ -192,7 +192,7 @@ export async function resolveChoreographyDancerUpdateContext(input: {
     resolvedDancers,
     resolution: resolution.resolution,
     scheduleResolution: resolveDancerUpdateScheduleSelection(
-      getCurrentScheduleSelectionId(choreography),
+      getScheduleSelectionId(choreography),
       resolution.resolution,
     ),
   };
@@ -269,7 +269,14 @@ export function resolveSelectedExperienceLevelId(input: {
   return { ok: true, value: input.experienceLevelId };
 }
 
-function isCompatibleScheduleCapacity(
+/**
+ * Compatibility rule shared by the select UIs (#709) and, since #730, by the
+ * roster save path's own final revalidation: `currentScheduleCapacityId` is a
+ * "selection id" (see `getScheduleSelectionId`) — a real `scheduleCapacityId`,
+ * or the encoded global/whole-cronograma id for the no-specific-cupo case —
+ * not necessarily the id of an actual `scheduleCapacities` row.
+ */
+export function isCompatibleScheduleCapacity(
   currentScheduleCapacityId: string,
   resolution: ChoreographyRegistrationOperationResolution,
 ) {
@@ -430,7 +437,14 @@ export function resolveSelectedScheduleCapacityIdForDancerUpdate(input: {
   };
 }
 
-function getCurrentScheduleSelectionId(input: {
+/**
+ * Encodes a `{ scheduleId, scheduleCapacityId }` pair (a choreography row's
+ * current assignment, or a resolved-but-not-yet-persisted selection) into the
+ * "selection id" `isCompatibleScheduleCapacity` compares against a
+ * resolution's compatible set: a real `scheduleCapacityId` when a specific
+ * cupo is assigned, or the encoded global/whole-cronograma id otherwise.
+ */
+export function getScheduleSelectionId(input: {
   scheduleId: string | null;
   scheduleCapacityId: string | null;
 }) {

@@ -691,6 +691,267 @@ describe("cupo de cronograma guard on the roster path", () => {
     expect(result).toMatchObject({ status: "success" });
   });
 
+  // #730 repro (undo): a roster edit moves Solo -> Duo picking a Duo-exclusive
+  // cupo, then a second submit undoes it back to Solo while the stale
+  // Duo-exclusive `scheduleCapacityId` is still the one traveling in the
+  // form. Needs a *second* schedule compatible with both group types so both
+  // resolve to "multiple" (only one cupo per group type would resolve
+  // "auto" and self-heal without ever consulting the submitted id at all).
+  // Empirically (verified by running this test before adding the #730 guard)
+  // the second submit was already rejected without corrupting the roster:
+  // `resolveDancerUpdateScheduleSelection`'s "multiple" branch only accepts a
+  // submitted `scheduleCapacityId` that is inside the *freshly resolved*
+  // group type's own compatible set — a `scheduleCapacityId` filtered by
+  // `groupType` at the query layer (`schedule-capacities.server.ts`) — so a
+  // stale Duo id can never pass validation for a Solo resolution. This test
+  // documents that outcome as a regression guard and doubles as a check that
+  // the new #730 gate does not change it.
+  test("does not persist a stale duo-exclusive cupo when a roster save undoes duo back to solo", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Roster Cupo Deshacer",
+      email: "roster.cupo.deshacer@example.com",
+    });
+    const event = await createEventRecord({ active: true, name: "Regional" });
+    const catalog = await createEventCatalog(event.id);
+    const [secondSchedule] = await db
+      .insert(schedules)
+      .values({
+        eventId: event.id,
+        name: `Segundo bloque ${event.id}`,
+        scheduledDate: "2026-04-01",
+        startTime: "10:00",
+        totalCapacity: 10,
+      })
+      .returning();
+    await db.insert(scheduleModalities).values({
+      scheduleId: secondSchedule.id,
+      modalityId: catalog.modality.id,
+    });
+    await db.insert(scheduleCapacities).values([
+      { scheduleId: secondSchedule.id, groupType: "solo", capacity: 5 },
+      { scheduleId: secondSchedule.id, groupType: "duo", capacity: 5 },
+    ]);
+    const [dancerA, dancerB] = await Promise.all([
+      createDancer(owner.academyId, { firstName: "Ana", lastName: "Uno" }),
+      createDancer(owner.academyId, { firstName: "Bea", lastName: "Dos" }),
+    ]);
+    const choreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.teenCategory.id,
+      eventId: event.id,
+      groupType: "solo",
+      modalityId: catalog.modality.id,
+      name: "Solo",
+      scheduleCapacityId: catalog.soloScheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+    await db.insert(choreographyDancers).values({
+      ageAtEventStart: 14,
+      choreographyId: choreography.id,
+      dancerId: dancerA.id,
+    });
+
+    // Solo -> Duo, picking the Duo-exclusive cupo explicitly (both group
+    // types resolve "multiple" here, so the pick is not self-healed).
+    const grow = await submitRoster({
+      choreographyId: choreography.id,
+      dancerIds: [dancerA.id, dancerB.id],
+      scheduleCapacityId: catalog.duoScheduleCapacity.id,
+    });
+    expect(grow).toMatchObject({ status: "success" });
+
+    const afterGrow = await db.query.choreographies.findFirst({
+      where: eq(choreographies.id, choreography.id),
+    });
+    expect(afterGrow?.groupType).toBe("duo");
+    expect(afterGrow?.scheduleCapacityId).toBe(catalog.duoScheduleCapacity.id);
+
+    // Undo Duo -> Solo, but the stale Duo-exclusive `scheduleCapacityId`
+    // still travels in this submit (e.g. a form field that has not caught up
+    // with the dancer-selection change yet).
+    const undo = await submitRoster({
+      choreographyId: choreography.id,
+      dancerIds: [dancerA.id],
+      scheduleCapacityId: catalog.duoScheduleCapacity.id,
+    });
+
+    expect(undo).not.toMatchObject({ status: "success" });
+
+    const afterUndo = await db.query.choreographies.findFirst({
+      where: eq(choreographies.id, choreography.id),
+    });
+    // Nothing about the second submit was persisted: still the Duo state the
+    // first submit produced, not a Solo choreography sitting on the
+    // Duo-exclusive cupo.
+    expect(afterUndo?.groupType).toBe("duo");
+    expect(afterUndo?.scheduleCapacityId).toBe(catalog.duoScheduleCapacity.id);
+
+    const inscriptions = await db.query.choreographyDancers.findMany({
+      where: eq(choreographyDancers.choreographyId, choreography.id),
+    });
+    expect(inscriptions.map((row) => row.dancerId).sort()).toEqual(
+      [dancerA.id, dancerB.id].sort(),
+    );
+  });
+
+  // Protects the #730 final compatibility gate itself: it must not reject a
+  // legitimate save. `getScheduleSelectionId`/`isCompatibleScheduleCapacity`
+  // are new call sites on the roster save path, so a wiring mistake there
+  // (wrong argument order, wrong encoding for the specific-cupo case) would
+  // show up as this test failing instead of as a silent false rejection.
+  test("still saves a compatible cupo picked from a multiple-status resolution after the #730 final gate", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Roster Cupo Compatible Final",
+      email: "roster.cupo.compatible.final@example.com",
+    });
+    const event = await createEventRecord({ active: true, name: "Regional" });
+    const catalog = await createEventCatalog(event.id);
+    const [secondSchedule] = await db
+      .insert(schedules)
+      .values({
+        eventId: event.id,
+        name: `Segundo bloque ${event.id}`,
+        scheduledDate: "2026-04-01",
+        startTime: "10:00",
+        totalCapacity: 10,
+      })
+      .returning();
+    await db.insert(scheduleModalities).values({
+      scheduleId: secondSchedule.id,
+      modalityId: catalog.modality.id,
+    });
+    const [secondSoloScheduleCapacity] = await db
+      .insert(scheduleCapacities)
+      .values({ scheduleId: secondSchedule.id, groupType: "solo", capacity: 5 })
+      .returning();
+    const [dancerA] = await Promise.all([
+      createDancer(owner.academyId, { firstName: "Ana", lastName: "Uno" }),
+    ]);
+    const choreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.teenCategory.id,
+      eventId: event.id,
+      groupType: "duo",
+      modalityId: catalog.modality.id,
+      name: "Duo",
+      scheduleCapacityId: catalog.duoScheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+    const dancerB = await createDancer(owner.academyId, {
+      firstName: "Bea",
+      lastName: "Dos",
+    });
+    await db.insert(choreographyDancers).values([
+      {
+        ageAtEventStart: 14,
+        choreographyId: choreography.id,
+        dancerId: dancerB.id,
+      },
+    ]);
+
+    // Duo -> Solo, resolving "multiple" for solo (two solo-compatible cupos
+    // exist), explicitly picking the second schedule's cupo rather than the
+    // catalog's default one.
+    const result = await submitRoster({
+      choreographyId: choreography.id,
+      dancerIds: [dancerA.id],
+      scheduleCapacityId: secondSoloScheduleCapacity.id,
+    });
+
+    expect(result).toMatchObject({ status: "success" });
+
+    const saved = await db.query.choreographies.findFirst({
+      where: eq(choreographies.id, choreography.id),
+    });
+    expect(saved?.groupType).toBe("solo");
+    expect(saved?.scheduleCapacityId).toBe(secondSoloScheduleCapacity.id);
+  });
+
+  // #730's other sub-case: the submitted `scheduleCapacityId` is not stale —
+  // it's the one already persisted, never touched by this submit — but the
+  // *dancer* change in the same submit shifts the resolved groupType out from
+  // under it. Needs a second solo-compatible cupo so solo resolves
+  // "multiple" (a single option would resolve "auto" and self-heal past the
+  // stale duo id without ever consulting it).
+  test("rejects a roster save whose persisted cupo is unchanged but incompatible with the groupType the same submit resolves to", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Roster Cupo Sin Cambiar",
+      email: "roster.cupo.sin.cambiar@example.com",
+    });
+    const event = await createEventRecord({ active: true, name: "Regional" });
+    const catalog = await createEventCatalog(event.id);
+    const [secondSchedule] = await db
+      .insert(schedules)
+      .values({
+        eventId: event.id,
+        name: `Segundo bloque ${event.id}`,
+        scheduledDate: "2026-04-01",
+        startTime: "10:00",
+        totalCapacity: 10,
+      })
+      .returning();
+    await db.insert(scheduleModalities).values({
+      scheduleId: secondSchedule.id,
+      modalityId: catalog.modality.id,
+    });
+    await db.insert(scheduleCapacities).values({
+      scheduleId: secondSchedule.id,
+      groupType: "solo",
+      capacity: 5,
+    });
+    const [dancerA, dancerB] = await Promise.all([
+      createDancer(owner.academyId, { firstName: "Ana", lastName: "Uno" }),
+      createDancer(owner.academyId, { firstName: "Bea", lastName: "Dos" }),
+    ]);
+    const choreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.teenCategory.id,
+      eventId: event.id,
+      groupType: "duo",
+      modalityId: catalog.modality.id,
+      name: "Duo",
+      scheduleCapacityId: catalog.duoScheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+    await db.insert(choreographyDancers).values([
+      {
+        ageAtEventStart: 14,
+        choreographyId: choreography.id,
+        dancerId: dancerA.id,
+      },
+      {
+        ageAtEventStart: 14,
+        choreographyId: choreography.id,
+        dancerId: dancerB.id,
+      },
+    ]);
+
+    // Drop dancerB (Duo -> Solo), re-submitting the same Duo-exclusive cupo
+    // that is already persisted — the field never changed in this submit.
+    const result = await submitRoster({
+      choreographyId: choreography.id,
+      dancerIds: [dancerA.id],
+      scheduleCapacityId: catalog.duoScheduleCapacity.id,
+    });
+
+    expect(result).not.toMatchObject({ status: "success" });
+
+    const saved = await db.query.choreographies.findFirst({
+      where: eq(choreographies.id, choreography.id),
+    });
+    // Neither the groupType nor the roster moved: the already-persisted,
+    // now-incompatible cupo was never left paired with a Solo choreography.
+    expect(saved?.groupType).toBe("duo");
+    expect(saved?.scheduleCapacityId).toBe(catalog.duoScheduleCapacity.id);
+
+    const inscriptions = await db.query.choreographyDancers.findMany({
+      where: eq(choreographyDancers.choreographyId, choreography.id),
+    });
+    expect(inscriptions.map((row) => row.dancerId).sort()).toEqual(
+      [dancerA.id, dancerB.id].sort(),
+    );
+  });
+
   test("locks the destination cupo across two concurrent roster saves competing for the last slot", async () => {
     const event = await createEventRecord({ active: true, name: "Regional" });
     const catalog = await createEventCatalog(event.id);
