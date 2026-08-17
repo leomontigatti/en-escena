@@ -25,8 +25,8 @@ RESEND_API_KEY=""
 
 - `DATABASE_URL` points Drizzle and the app-owned domain/access tables at the
   application database. For local development, use the local Postgres
-  container. In production it points at the Coolify-managed Postgres over the
-  platform's internal network (#267).
+  container. In production it points at the Coolify-managed Postgres described
+  in [Production infrastructure](operations/infrastructure.md#database).
 - `TEST_DATABASE_URL` points database tests at their separate local database.
 - `APP_URL` is the canonical app origin, used as the fallback base URL for auth
   email links when a request URL is not available.
@@ -73,14 +73,13 @@ See [docs/db/migrations.md](db/migrations.md) for the full migration workflow.
 
 ### Hosted Postgres
 
-Production runs a Coolify-managed Postgres co-located with the app (#267). It is
-not publicly reachable: `DATABASE_URL` resolves over the platform's internal
-network from inside the application container, so there is no hosted connection
-string to configure from a laptop. Keep `TEST_DATABASE_URL` pointed at local
-Postgres so `pnpm test:db:postgres` stays isolated from hosted data. The default
-DB suite `pnpm test:db` (and a focused `pnpm test:db <archivo>`) uses an
-in-process PGlite harness with a cached schema snapshot instead of connecting to
-`TEST_DATABASE_URL`.
+Production's Postgres shape — image, co-location, `is_public: false` — is
+documented in [Production infrastructure](operations/infrastructure.md#database);
+there is no hosted connection string to configure from a laptop. Keep
+`TEST_DATABASE_URL` pointed at local Postgres so `pnpm test:db:postgres` stays
+isolated from hosted data. The default DB suite `pnpm test:db` (and a focused
+`pnpm test:db <archivo>`) uses an in-process PGlite harness with a cached schema
+snapshot instead of connecting to `TEST_DATABASE_URL`.
 
 Schema changes against production ship as versioned Drizzle migrations, applied
 by the application container at start — not with `pnpm db:migrate` from a
