@@ -121,9 +121,9 @@ otherwise ADRs would qualify too.
 
 ### The surrounding file does not decide the language
 
-Much of the tree still carries Spanish comments —
-[#592](https://github.com/leomontigatti/en-escena/issues/592) counts roughly 666
-prose lines across 95 files. **That is debt, not precedent.** A comment you write
+Much of the tree still carries Spanish comments;
+[#592](https://github.com/leomontigatti/en-escena/issues/592) owns the count and
+the sweep. **That is debt, not precedent.** A comment you write
 or modify is English even when every comment around it is Spanish, and
 "consistent with the file" is not a reason to add another Spanish line. This is
 the rule the debt kept quietly suspending: reviews of
