@@ -69,7 +69,7 @@ export function ChoreographyFinanceDetailView({
       }
       description={
         choreography
-          ? `Detalle financiero de la coreografía en ${loaderData.academy.name}.`
+          ? "Revisá y/o modificá las asignaciones de cada inscripción desde la lista."
           : "No encontramos esa coreografía dentro de la lista financiera de la academia."
       }
       eventRequiredEmptyState={{
@@ -189,9 +189,12 @@ function OverAllocatedAlert() {
  * The header's single actions menu (`...`, ADR-0011): `Emitir factura` inside a
  * `ResourceActionsMenu` rather than a loose button. The item opens its own
  * dialog, mounted as a sibling of the menu so it is not unmounted when the
- * dropdown closes. The menu is not rendered at all when no action is available.
- * The `Pagar seña` / `Pagar saldo` presets do not live here: they are list
- * actions over the selected choreographies.
+ * dropdown closes. The `Pagar seña` / `Pagar saldo` presets do not live here:
+ * they are list actions over the selected choreographies.
+ *
+ * El menú está siempre, y sin remanente lo que se deshabilita es la opción: un
+ * botón que aparece y desaparece no enseña qué se puede hacer en la vista, y
+ * "está pero no se puede" dice más que "no está".
  */
 function ChoreographyActions({
   loaderData,
@@ -204,23 +207,21 @@ function ChoreographyActions({
   // Desmontar ahí se llevaría puesto el estado `recovered` (#577).
   const [emission, setEmission] = useState<typeof invoicing | null>(null);
 
-  if (!canEmit && !emission) {
-    return null;
-  }
-
   return (
     <>
       <ResourceActionsMenu contentClassName="w-48">
-        {canEmit && invoicing ? (
-          <DropdownMenuItem
-            onSelect={(event) => {
-              event.preventDefault();
+        <DropdownMenuItem
+          disabled={!canEmit || !invoicing}
+          onSelect={(event) => {
+            event.preventDefault();
+
+            if (invoicing) {
               setEmission(invoicing);
-            }}
-          >
-            Emitir factura
-          </DropdownMenuItem>
-        ) : null}
+            }
+          }}
+        >
+          Emitir factura
+        </DropdownMenuItem>
       </ResourceActionsMenu>
       {emission ? (
         <EmissionDialog

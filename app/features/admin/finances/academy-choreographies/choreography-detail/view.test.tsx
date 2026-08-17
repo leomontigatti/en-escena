@@ -29,10 +29,13 @@ describe("ChoreographyFinanceDetailView", () => {
   test("identifies the choreography in the title and drops the readonly data card", () => {
     const markup = renderDetail();
 
-    // Nombre y tipo de grupo en el título, y la academia en la descripción: las
-    // tres cosas que decía la card de datos, sin la card.
+    // Nombre y tipo de grupo en el título, que es lo que identifica la
+    // coreografía. La descripción es genérica: dice qué se hace en la vista, no
+    // de quién es la coreografía.
     expect(markup).toContain("Aire - Dúo");
-    expect(markup).toContain("Academia Centro");
+    expect(markup).toContain(
+      "Revisá y/o modificá las asignaciones de cada inscripción",
+    );
     expect(markup).not.toContain('value="Aire"');
     expect(markup).not.toContain('value="Academia Centro"');
     expect(markup).not.toContain("Tipo de grupo");
@@ -491,10 +494,21 @@ describe("ChoreographyFinanceDetailView actions menu", () => {
     await renderer.renderAsync(<RouterProvider router={router} />);
   }
 
-  test("omits the actions menu when there is nothing to emit or charge", async () => {
+  // Sin remanente por facturar el menú sigue estando: lo que se deshabilita es
+  // la opción. Un botón que aparece y desaparece no enseña qué se puede hacer.
+  test("keeps the actions menu visible and disables Emitir factura with nothing to bill", async () => {
     await mount();
 
-    expect(document.querySelector('button[aria-label="Acciones"]')).toBeNull();
+    expect(
+      document.querySelector('button[aria-label="Acciones"]'),
+    ).not.toBeNull();
+
+    await openActionsMenu();
+
+    const item = [...document.querySelectorAll('[role="menuitem"]')].find(
+      (candidate) => candidate.textContent?.includes("Emitir factura"),
+    );
+    expect(item?.getAttribute("aria-disabled")).toBe("true");
   });
 
   test("offers Emitir factura inside the actions menu, not as a standalone button", async () => {
