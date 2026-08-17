@@ -55,6 +55,7 @@ export async function loadChoreographyFinanceDetail(input: {
   if (eventContext.selectedEventId === null) {
     return {
       academy,
+      availableBalanceAmount: 0,
       choreography: null,
       inscriptions: [],
       priceOptions: [],
@@ -111,6 +112,10 @@ export async function loadChoreographyFinanceDetail(input: {
 
   return {
     academy,
+    // De la academia y no de la coreografía: la plata cobrada sin imputar no es
+    // de ninguna. Viaja hasta acá porque es el pozo del que sale toda imputación
+    // que se haga en este detalle.
+    availableBalanceAmount: financeDetail.summary.availableBalanceAmount,
     invoicing,
     choreography: {
       allocatedAmount: choreographyFinanceRow.allocatedAmount,

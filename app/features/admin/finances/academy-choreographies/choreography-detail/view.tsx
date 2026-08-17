@@ -7,24 +7,22 @@ import {
 } from "@/components/admin/resource-layout";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { MetricCard } from "@/components/shared/metric-card";
-import {
-  ReadOnlyField,
-  ReadOnlySelectField,
-} from "@/components/shared/read-only-field";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import {
   ClientDataTable,
   type DataTableColumn,
+  type DataTableFacetedFilter,
 } from "@/components/shared/data-table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { FieldGroup } from "@/components/ui/field";
-import { formatInscriptionStatusBadge } from "@/lib/finances/choreography-financial-status";
+import {
+  formatInscriptionStatusBadge,
+  inscriptionStatusFilterOptions,
+} from "@/lib/finances/choreography-financial-status";
 import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
-import { choreographyGroupTypeOptions } from "@/lib/portal/choreographies";
+import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 
 import { formatAmount, formatOperationalAmount } from "../../formatters";
 import { EmissionDialog } from "./comprobante-emission";
@@ -41,6 +39,14 @@ type InscriptionRow =
 
 type PriceOption = ChoreographyFinanceDetailLoaderData["priceOptions"][number];
 
+const inscriptionFacetedFilters: DataTableFacetedFilter[] = [
+  {
+    id: "estado",
+    label: "Estado",
+    options: [...inscriptionStatusFilterOptions],
+  },
+];
+
 type ChoreographyFinanceDetailViewProps = {
   loaderData: ChoreographyFinanceDetailLoaderData;
 };
@@ -53,10 +59,17 @@ export function ChoreographyFinanceDetailView({
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
-      title={choreography ? "Detalle financiero" : "Coreografía no encontrada"}
+      // El título identifica la coreografía —nombre y tipo de grupo—, que es lo
+      // que antes repetía la card de datos. La academia se mudó a la
+      // descripción: sin ella el detalle no dice de quién es la plata.
+      title={
+        choreography
+          ? `${choreography.name} - ${formatGroupTypeLabel(choreography.groupType)}`
+          : "Coreografía no encontrada"
+      }
       description={
         choreography
-          ? "Revisá los importes, datos y participaciones vinculadas a esta coreografía."
+          ? `Detalle financiero de la coreografía en ${loaderData.academy.name}.`
           : "No encontramos esa coreografía dentro de la lista financiera de la academia."
       }
       eventRequiredEmptyState={{
@@ -74,42 +87,33 @@ export function ChoreographyFinanceDetailView({
         <div className="flex flex-col gap-6">
           <ChoreographyAlerts loaderData={loaderData} />
 
-          <section className="grid gap-4 md:grid-cols-3">
+          {/* Las mismas cinco métricas que la academia, acotadas a esta
+              coreografía: cada umbral con su deuda al lado. `Saldo disponible`
+              es la excepción y sigue siendo de la academia —la plata sin asignar
+              no es de ninguna coreografía—, y es justo el pozo del que sale lo
+              que se imputa acá abajo. */}
+          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             <MetricCard
-              title="Seña"
+              title="Seña total"
               value={formatOperationalAmount(choreography.depositAmount)}
+            />
+            <MetricCard
+              title="Seña adeudada"
+              value={formatOperationalAmount(choreography.owedDepositAmount)}
+            />
+            <MetricCard
+              title="Total"
+              value={formatOperationalAmount(choreography.totalAmount)}
             />
             <MetricCard
               title="Saldo adeudado"
               value={formatOperationalAmount(choreography.owedBalanceAmount)}
             />
             <MetricCard
-              title="Total"
-              value={formatOperationalAmount(choreography.totalAmount)}
+              title="Saldo disponible"
+              value={formatAmount(loaderData.availableBalanceAmount)}
             />
           </section>
-
-          <Card aria-label="Información financiera">
-            <CardContent>
-              <FieldGroup className="grid gap-4 md:grid-cols-2">
-                <ReadOnlyField
-                  id="finance-choreography-academy"
-                  label="Academia"
-                  value={loaderData.academy.name}
-                />
-                <ReadOnlyField
-                  id="finance-choreography-name"
-                  label="Nombre"
-                  value={choreography.name}
-                />
-                <ReadOnlySelectField
-                  label="Tipo de grupo"
-                  options={choreographyGroupTypeOptions}
-                  value={choreography.groupType}
-                />
-              </FieldGroup>
-            </CardContent>
-          </Card>
 
           <InscriptionsTable
             inscriptions={loaderData.inscriptions}
@@ -272,10 +276,11 @@ function InscriptionsTable({
       <ClientDataTable
         rows={inscriptions}
         columns={columns}
+        facetedFilters={inscriptionFacetedFilters}
         getRowKey={(inscription) => inscription.dancerId}
         searchPlaceholder="Buscar inscripción por bailarín"
+        textFilterColumnId="dancer"
         emptyMessage="No hay inscripciones para mostrar."
-        hideSearch
       />
       {openInscription ? (
         <InscriptionMoneyDialog
@@ -342,16 +347,21 @@ function DancerNameCell({
 
 const inscriptionAmountColumns: DataTableColumn<InscriptionRow>[] = [
   {
-    id: "financialStatus",
-    header: "Estado",
-    cell: (inscription) => <InscriptionStatusCell inscription={inscription} />,
-  },
-  {
-    id: "basePrice",
-    header: "Precio base",
-    className: "text-right tabular-nums",
-    headerClassName: "text-right",
-    cell: (inscription) => formatInscriptionAmount(inscription.basePriceAmount),
+    // El nombre de la fila de precio y no su importe: el importe ya está en
+    // `Total`, y lo que no se podía leer en ningún lado era *cuál* de los
+    // precios del evento rige esta inscripción. Es el precio efectivo, el mismo
+    // con el que se calculan las cifras de la fila.
+    id: "price",
+    header: "Precio",
+    cell: (inscription) =>
+      inscription.effectivePrice === null ? (
+        "Sin precio"
+      ) : (
+        <Badge variant="secondary">{inscription.effectivePrice.name}</Badge>
+      ),
+    // Sin `filterValue`: el nombre del precio no es una opción del filtro de
+    // `Estado`, y las facetas juntan los valores de todas las columnas.
+    sortValue: (inscription) => inscription.effectivePrice?.name ?? "",
   },
   {
     id: "deposit",
@@ -379,6 +389,17 @@ const inscriptionAmountColumns: DataTableColumn<InscriptionRow>[] = [
     cell: (inscription) =>
       formatInscriptionAmount(inscription.owedBalanceAmount),
   },
+  {
+    // Última, después del dinero: el estado se deriva de las cifras de la fila,
+    // así que se lee como su conclusión y no como su encabezado.
+    id: "financialStatus",
+    header: "Estado",
+    cell: (inscription) => <InscriptionStatusCell inscription={inscription} />,
+    // El filtro sale del mismo badge que muestra la celda, no de
+    // `financialStatus`: una fila badgeada `Retirada` que apareciera filtrando
+    // por `Pagada` se contradiría en pantalla.
+    filterValue: (inscription) => resolveStatusBadge(inscription).value,
+  },
 ];
 
 /**
@@ -392,18 +413,22 @@ const inscriptionAmountColumns: DataTableColumn<InscriptionRow>[] = [
  * withdrawn row the total **is** what is allocated— and repeating it here is
  * what makes the cell readable on its own.
  */
-function InscriptionStatusCell({
-  inscription,
-}: {
-  inscription: InscriptionRow;
-}) {
-  const badge = formatInscriptionStatusBadge(
+function resolveStatusBadge(inscription: InscriptionRow) {
+  return formatInscriptionStatusBadge(
     resolveInscriptionStatusBadge({
       anomalies: inscription.anomalies,
       financialStatus: inscription.financialStatus,
       withdrawn: inscription.withdrawn,
     }),
   );
+}
+
+function InscriptionStatusCell({
+  inscription,
+}: {
+  inscription: InscriptionRow;
+}) {
+  const badge = resolveStatusBadge(inscription);
 
   return (
     <Badge variant={badge.variant}>

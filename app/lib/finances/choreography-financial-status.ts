@@ -117,3 +117,13 @@ export const choreographyStatusFilterOptions = [
   ...inscriptionFinancialStatusOptions,
   { label: inscriptionAnomalyLabels.overAllocated, value: "overAllocated" },
 ] as const satisfies ReadonlyArray<{ label: string; value: string }>;
+
+/**
+ * Las mismas opciones para la columna `Estado` de una lista de inscripciones,
+ * más `Retirada`: el eje de retiro es de la inscripción, y ahí sí hay filas que
+ * la opción puede encontrar.
+ */
+export const inscriptionStatusFilterOptions = [
+  ...choreographyStatusFilterOptions,
+  { label: withdrawnInscriptionLabel, value: "withdrawn" },
+] as const satisfies ReadonlyArray<{ label: string; value: string }>;

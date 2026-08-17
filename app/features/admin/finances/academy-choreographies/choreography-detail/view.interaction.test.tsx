@@ -337,6 +337,144 @@ describe("DancerNameCell interaction", () => {
   }
 });
 
+describe("inscriptions table filters", () => {
+  const renderer = createReactDomTestRenderer();
+
+  afterEach(renderer.cleanup);
+
+  const roster = [
+    inscriptionFixture({
+      dancerId: "dancer_1",
+      firstName: "Bruno",
+      inscriptionId: "inscription_1",
+      lastName: "Benítez",
+    }),
+    inscriptionFixture({
+      dancerId: "dancer_2",
+      financialStatus: "paidInFull",
+      firstName: "Ana",
+      inscriptionId: "inscription_2",
+      lastName: "López",
+      owedBalanceAmount: 0,
+    }),
+    inscriptionFixture({
+      dancerId: "dancer_3",
+      financialStatus: "paidInFull",
+      firstName: "Carla",
+      inscriptionId: "inscription_3",
+      lastName: "Díaz",
+      owedBalanceAmount: 0,
+      withdrawn: true,
+    }),
+  ];
+
+  async function mount() {
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/",
+          element: (
+            <ChoreographyFinanceDetailView
+              loaderData={loaderDataFixture({ inscriptions: roster })}
+            />
+          ),
+        },
+      ],
+      { initialEntries: ["/"] },
+    );
+
+    await renderer.renderAsync(<RouterProvider router={router} />);
+  }
+
+  test("searches the inscriptions by the dancer's name", async () => {
+    await mount();
+
+    expect(renderedDancerNames()).toEqual([
+      "Bruno Benítez",
+      "Ana López",
+      "Carla Díaz",
+    ]);
+
+    await updateReactDomForm(() => {
+      setInputValue(searchInput(), "lóp");
+    });
+
+    expect(renderedDancerNames()).toEqual(["Ana López"]);
+  });
+
+  test("filters by the badge the Estado column shows, Retirada included", async () => {
+    await mount();
+
+    // `Retirada` reemplaza al estado de dinero, así que filtrar por `Pagada` no
+    // trae a la retirada aunque su plata esté completa.
+    await selectStatusOption("Pagada");
+    expect(renderedDancerNames()).toEqual(["Ana López"]);
+
+    await selectStatusOption("Pagada");
+    await selectStatusOption("Retirada");
+    expect(renderedDancerNames()).toEqual(["Carla Díaz"]);
+  });
+});
+
+function searchInput(): HTMLInputElement {
+  const input = document.querySelector(
+    'input[placeholder="Buscar inscripción por bailarín"]',
+  );
+
+  if (!(input instanceof HTMLInputElement)) {
+    throw new Error("Expected the inscriptions search field to be rendered.");
+  }
+
+  return input;
+}
+
+/** Los nombres visibles de la tabla, en orden. */
+function renderedDancerNames() {
+  return [
+    ...document.querySelectorAll('[aria-label="Inscripciones"] tbody tr'),
+  ].map((row) => row.querySelector("td")?.textContent?.trim() ?? "");
+}
+
+/** Abre el menú de filtros y togglea una opción de `Estado` por su etiqueta. */
+async function selectStatusOption(label: string) {
+  const trigger = document.querySelector('button[aria-label^="Filtros"]');
+
+  if (!trigger) {
+    throw new Error("Expected the filters trigger to be rendered.");
+  }
+
+  const pointerDown = new MouseEvent("pointerdown", {
+    bubbles: true,
+    button: 0,
+    cancelable: true,
+  });
+  Object.defineProperty(pointerDown, "pointerType", { value: "mouse" });
+
+  await updateReactDomForm(() => {
+    trigger.dispatchEvent(pointerDown);
+    trigger.dispatchEvent(
+      new MouseEvent("pointerup", { bubbles: true, button: 0 }),
+    );
+    trigger.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true }),
+    );
+  });
+
+  const option = [...document.querySelectorAll('[role="menuitemradio"]')].find(
+    (candidate) => candidate.textContent?.trim() === label,
+  );
+
+  if (!option) {
+    throw new Error(`Expected the "${label}" status option to be offered.`);
+  }
+
+  await updateReactDomForm(() => {
+    option.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true }),
+    );
+  });
+}
+
 function amountInput(id = "inscription-amount"): HTMLInputElement {
   const input = document.querySelector(`input#${id}`);
 
@@ -393,6 +531,7 @@ function loaderDataFixture(
       name: "Academia Centro",
       phone: "11-5555-5555",
     },
+    availableBalanceAmount: 5000,
     choreography: {
       allocatedAmount: 3000,
       anomalies: [],
