@@ -74,7 +74,7 @@ Use for the academy roster: academy-owned professors, dancers, dancer
 verification and document image storage.
 
 - Domain: `docs/domain/choreographies.md`
-- ADRs: `docs/adr/0004-organize-app-code-by-product-surface.md`, `docs/adr/0008-use-supabase-storage-for-uploaded-assets.md`
+- ADRs: `docs/adr/0004-organize-app-code-by-product-surface.md`, `docs/adr/superseded/0008-use-supabase-storage-for-uploaded-assets.md`
 - Routes: `app/routes/portal.profesores.tsx`, `app/routes/portal.profesores_.$professorId.tsx`, `app/routes/portal.bailarines.tsx`, `app/routes/portal.bailarines_.$dancerId.tsx`, `app/routes/portal.perfil.tsx`
 - Feature modules: `app/features/portal/professors/list/`, `app/features/portal/professors/create/`, `app/features/portal/professors/detail/`, `app/features/portal/dancers/list/`, `app/features/portal/dancers/create/`, `app/features/portal/dancers/detail/`, `app/features/portal/profile/`
 - Server modules: `app/lib/portal/professors.server.ts`, `app/lib/portal/professor-records.server.ts`, `app/features/portal/professors/list/server.ts`, `app/features/portal/professors/create/server.ts`, `app/features/portal/professors/detail/server.ts`, `app/features/portal/dancers/list/server.ts`, `app/features/portal/dancers/create/server.ts`, `app/features/portal/dancers/detail/server.ts`, `app/features/portal/profile/server.ts`, `app/lib/academies/academy-profile.server.ts`, `app/lib/portal/dancers.server.ts`, `app/lib/dancers/dancer-records.server.ts`, `app/lib/dancers/verification.ts`, `app/lib/storage/dancer-documents.server.ts`

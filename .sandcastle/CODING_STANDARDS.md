@@ -152,7 +152,7 @@ glossary `ui:` value is data, not prose, and stays Spanish.
 Some domain nouns stay Spanish inside identifiers. The full list:
 
 - **`comprobante`** — a term of art defined by ARCA regulation (RG 1415, cited in
-  [ADR-0011](../docs/adr/0011-invoicing-concept-portion-and-surfaces.md)). Every
+  [ADR-0011](../docs/adr/superseded/0011-invoicing-concept-portion-and-surfaces.md)). Every
   English candidate is worse: `voucher` collides with discount vouchers in an app
   that has discounts, and `fiscalDocument` is verbose for a term this frequent.
   The URL stays Spanish regardless, so keeping the Spanish noun carries zero

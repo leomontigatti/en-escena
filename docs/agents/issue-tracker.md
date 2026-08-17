@@ -91,7 +91,7 @@ shared branch and leaves it open, marking it with an `Implemented in <sha>`
 comment; the PR closes the whole chain on merge. Open therefore means "not on
 `master` yet", which is the honest reading.
 
-This is not hypothetical. `docs/adr/0011-invoicing-concept-portion-and-surfaces.md:5-7`
+This is not hypothetical. `docs/adr/superseded/0011-invoicing-concept-portion-and-surfaces.md:5-7`
 and `docs/adr/0014-arbitrary-amount-allocation-and-comprobante-amendments.md:32-34`
 both state that
 [#554](https://github.com/leomontigatti/en-escena/issues/554) deleted `porcion`
