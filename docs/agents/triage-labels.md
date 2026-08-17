@@ -14,8 +14,8 @@ When a skill mentions a role (e.g. "apply the AFK-ready triage label"), use the 
 
 Edit the right-hand column to match whatever vocabulary you actually use.
 
-> **`ready-for-agent` no dispara los workflows AFK.** Es un estado de triage
-> ("especificado y agarrable"). Los agentes disparan por los labels `agent:*`, que
-> un humano agrega a mano para despachar (PRD → `agent:to-issues`, issue single →
-> `agent:implement`). Detalle en
-> [afk-setup.md → Despacho](afk-setup.md#despacho-de-ready-for-agent-triage-al-trigger-agent).
+> **`ready-for-agent` does not trigger the AFK workflows.** It is a triage state
+> ("specified and grabbable"). Agents trigger on the `agent:*` labels, which a
+> human adds by hand to dispatch (PRD → `agent:to-issues`, single issue →
+> `agent:implement`). Detail in
+> [afk-setup.md → Dispatch](afk-setup.md#dispatch-from-ready-for-agent-triage-to-the-agent-trigger).

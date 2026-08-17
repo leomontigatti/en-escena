@@ -6,8 +6,8 @@
 > Ley 25.920, Ley 16.656, Ley 24.800, manual WSFEv1 v4.5 y padrón público de ARCA) sobre el
 > encuadre fiscal del emisor real de En Escena.
 >
-> Complementa [ADR-0011](../adr/0011-invoicing-concept-portion-and-surfaces.md) (concepto, porción
-> y superficies), [ADR-0012](../adr/0012-arca-unreachable-contingency-and-recovery.md)
+> Complementa [ADR-0011](../adr/superseded/0011-invoicing-concept-portion-and-surfaces.md) (concepto, porción
+> y superficies), [ADR-0012](../adr/superseded/0012-arca-unreachable-contingency-and-recovery.md)
 > (contingencia) y los dos research previos, que ya no están en el árbol de trabajo:
 > `git show 6ab0610:docs/research/arca-nota-credito-posterior.md` y
 > `git show e252d96:docs/research/repr-impresa-factura-c-monotributo.md`.

@@ -14,7 +14,7 @@ Reading rules:
 - The identifier is the root, not the exact signature: decline it as needed
   (`event` → `eventId`, `events`, `loadAdminEvent`, `EventStatusBadge`).
 - `comprobante` is the only reserved Spanish term inside code; adding another
-  requires an ADR. See [ADR-0011](docs/adr/0011-invoicing-concept-portion-and-surfaces.md).
+  requires an ADR. See [ADR-0011](docs/adr/superseded/0011-invoicing-concept-portion-and-surfaces.md).
 - External-system adapters are the exception: `app/lib/comprobantes/arca` speaks
   WSFEv1 (`ArcaVoucher`, `createVoucher`), not the glossary.
 - Where an existing symbol disagrees with the identifier here, the glossary wins
