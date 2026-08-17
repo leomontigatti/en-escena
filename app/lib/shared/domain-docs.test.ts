@@ -154,11 +154,11 @@ const supabaseExitAdrRequirements = [
 // The five ADRs the exit supersedes. ADR-0005 and ADR-0010 had no `Status`
 // field at all before #629.
 const supersededSupabaseAdrs = [
-  "docs/adr/0001-better-auth-for-access.md",
-  "docs/adr/0005-use-supabase-postgres-before-supabase-auth.md",
-  "docs/adr/0006-use-supabase-auth-for-access.md",
-  "docs/adr/0008-use-supabase-storage-for-uploaded-assets.md",
-  "docs/adr/0010-choreography-music-storage-contract.md",
+  "docs/adr/superseded/0001-better-auth-for-access.md",
+  "docs/adr/superseded/0005-use-supabase-postgres-before-supabase-auth.md",
+  "docs/adr/superseded/0006-use-supabase-auth-for-access.md",
+  "docs/adr/superseded/0008-use-supabase-storage-for-uploaded-assets.md",
+  "docs/adr/superseded/0010-choreography-music-storage-contract.md",
 ];
 
 // Current state, not rationale: the page ADR-0013 points at, plus the live
@@ -358,14 +358,25 @@ describe("domain documentation", () => {
   // the index now fails, and the index can no longer link a file that does not
   // exist. The previous `/000\d-/` regex silently skipped ADR-0010 and up, so
   // the old count of 9 was passing against a partial set. See #625.
+  //
+  // Recursive on both sides (README link path and `readdir`) so that moving a
+  // file into `docs/adr/superseded/` cannot make it vanish from both lists at
+  // once and leave the `toEqual` green over a partial set — the trap #625
+  // called out for whoever split this directory.
   test("keeps the ADR index and the ADR files in sync", async () => {
     const index = await readFile("docs/adr/README.md", "utf8");
-    const linkedFiles = [...index.matchAll(/\]\(\.\/(\d{4}-[^)]+\.md)\)/g)].map(
-      ([, file]) => file,
-    );
-    const adrFiles = (await readdir("docs/adr")).filter((file) =>
-      /^\d{4}-.+\.md$/.test(file),
-    );
+    const linkedFiles = [
+      ...index.matchAll(/\]\(\.\/((?:superseded\/)?\d{4}-[^)]+\.md)\)/g),
+    ].map(([, file]) => file);
+    const adrFiles = (
+      await readdir("docs/adr", { recursive: true, withFileTypes: true })
+    )
+      .filter((entry) => entry.isFile() && /^\d{4}-.+\.md$/.test(entry.name))
+      .map((entry) =>
+        entry.parentPath.endsWith("superseded")
+          ? `superseded/${entry.name}`
+          : entry.name,
+      );
 
     expect(adrFiles.length).toBeGreaterThan(0);
     expect([...linkedFiles].sort()).toEqual([...adrFiles].sort());
