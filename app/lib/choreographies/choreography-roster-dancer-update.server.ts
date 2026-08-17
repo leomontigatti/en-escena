@@ -192,7 +192,7 @@ export async function resolveChoreographyDancerUpdateContext(input: {
     resolvedDancers,
     resolution: resolution.resolution,
     scheduleResolution: resolveDancerUpdateScheduleSelection(
-      getCurrentScheduleSelectionId(choreography),
+      getScheduleSelectionId(choreography),
       resolution.resolution,
     ),
   };
@@ -269,7 +269,14 @@ export function resolveSelectedExperienceLevelId(input: {
   return { ok: true, value: input.experienceLevelId };
 }
 
-function isCompatibleScheduleCapacity(
+/**
+ * Compatibility rule shared by the select UIs (#709) and, since #730, by the
+ * roster save path's own final revalidation: `currentScheduleCapacityId` is a
+ * "selection id" (see `getScheduleSelectionId`) — a real `scheduleCapacityId`,
+ * or the encoded global/whole-cronograma id for the no-specific-cupo case —
+ * not necessarily the id of an actual `scheduleCapacities` row.
+ */
+export function isCompatibleScheduleCapacity(
   currentScheduleCapacityId: string,
   resolution: ChoreographyRegistrationOperationResolution,
 ) {
@@ -313,7 +320,15 @@ function resolveDancerUpdateScheduleSelection(
     return {
       status: "keep-current",
       canSave: true,
-      options: [currentOption],
+      // Same path as the standalone reassignment
+      // (`resolveScheduleCapacityCandidates`): the select offers the full
+      // compatible set, not just the assigned cupo, even though it's still
+      // compatible. When the resolution is "auto" there's no other cupo to
+      // choose from, so the single option stays as before.
+      options:
+        resolution.schedule.status === "multiple"
+          ? resolution.schedule.options
+          : [currentOption],
       selectedScheduleCapacityId: currentOption.id,
     };
   }
@@ -367,7 +382,18 @@ export function resolveSelectedScheduleCapacityIdForDancerUpdate(input: {
     input.schedule.status === "keep-current" ||
     input.schedule.status === "auto"
   ) {
-    const [option] = input.schedule.options;
+    // `options` is no longer a singleton for "keep-current" (it can carry the
+    // full compatible set): look up the assigned one by id instead of
+    // assuming it's the first.
+    const option = input.schedule.options.find(
+      (candidate) => candidate.id === input.schedule.selectedScheduleCapacityId,
+    );
+
+    if (!option) {
+      throw new Error(
+        "Expected the keep-current/auto schedule resolution to include its selected option.",
+      );
+    }
 
     return {
       ok: true,
@@ -411,7 +437,14 @@ export function resolveSelectedScheduleCapacityIdForDancerUpdate(input: {
   };
 }
 
-function getCurrentScheduleSelectionId(input: {
+/**
+ * Encodes a `{ scheduleId, scheduleCapacityId }` pair (a choreography row's
+ * current assignment, or a resolved-but-not-yet-persisted selection) into the
+ * "selection id" `isCompatibleScheduleCapacity` compares against a
+ * resolution's compatible set: a real `scheduleCapacityId` when a specific
+ * cupo is assigned, or the encoded global/whole-cronograma id otherwise.
+ */
+export function getScheduleSelectionId(input: {
   scheduleId: string | null;
   scheduleCapacityId: string | null;
 }) {
