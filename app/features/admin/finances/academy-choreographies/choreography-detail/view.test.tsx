@@ -29,10 +29,11 @@ describe("ChoreographyFinanceDetailView", () => {
   test("identifies the choreography in the title and drops the readonly data card", () => {
     const markup = renderDetail();
 
-    // Nombre y tipo de grupo en el título, que es lo que identifica la
-    // coreografía. La descripción es genérica: dice qué se hace en la vista, no
-    // de quién es la coreografía.
-    expect(markup).toContain("Aire - Dúo");
+    // Sólo el nombre en el título: es lo que identifica la coreografía. La
+    // descripción es genérica: dice qué se hace en la vista, no de quién es la
+    // coreografía.
+    expect(markup).toContain("Aire");
+    expect(markup).not.toContain("Aire - Dúo");
     expect(markup).toContain(
       "Revisá y/o modificá las asignaciones de cada inscripción",
     );
@@ -162,7 +163,6 @@ describe("ChoreographyFinanceDetailView", () => {
           firstName: "Bruno",
           inscriptionId: null,
           lastName: "Benítez",
-          selectedPrice: null,
         }),
       ],
     });
@@ -462,7 +462,6 @@ function inscriptionFixture(
     overAllocatedAmount: 0,
     owedBalanceAmount: 7000,
     owedDepositAmount: 0,
-    selectedPrice: { amount: 10000, id: "price_1", name: "Dúo general" },
     totalAmount: 10000,
     withdrawn: false,
     ...overrides,

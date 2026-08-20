@@ -294,10 +294,11 @@ written twice:
   until its seña is in, without anyone writing anything.
 - Below the threshold the **stored row and the effective row can differ**, so
   what reads which matters. The stored row is read by the write path's `crossed`
-  test, by the price picker's default, by the `?? stored` fallback when nothing
-  applies today, and by the guard that refuses to delete a referenced price row.
-  Every displayed **figure** — `Precio`, `Seña`, `Total`, the badge and the
-  allocation dialog's readout — comes from the effective row.
+  test, by the `?? stored` fallback when nothing applies today, and by the guard
+  that refuses to delete a referenced price row — all of them server-side. It is
+  no longer read by anything the administrator sees: every displayed **figure**
+  and every control — `Precio`, `Seña`, `Total`, the badge, and both the
+  allocation dialog's readout and its picker — comes from the effective row.
 
 Amending §3 to match, or building the write-path refresh, is the owner's call.
 The circularity §3 breaks is broken here too, and by the same clause: `crossed`
@@ -473,15 +474,23 @@ cambiarle el precio hay que quitarle toda la plata.". A below-threshold price
 change is therefore accepted by every write path and unreachable from that
 dialog, and the hint under the readout describes the retired rule.
 
-**The readout names the effective price, and the picker opens on the stored
-one.** They are the same row above the threshold and can differ below it, so the
-two controls are fed separately: `readInscriptionEffectivePrices` for the
-readout, which is the figure the row behind the dialog also shows, and
-`readInscriptionSelectedPrices` for the picker's default, which is what the
-administrator last said. The one place the stored row is still shown as such is
-that default, on a row holding no money whose list has moved since — a
-confirmable default rather than a figure, and changing it to the effective row
-would make "Elegí un precio para la inscripción." unreachable.
+**The readout and the picker both name the effective price.** They are the same
+row above the threshold and can differ below it, and both are fed by
+`readInscriptionEffectivePrices` — the same figure the row behind the dialog
+shows. The stored row does not travel to the client at all.
+
+The picker used to open on the stored row instead, which is what the
+administrator last said. That was wrong in a way that cost money rather than
+merely reading oddly: on a row holding nothing whose list had moved since, the
+picker named the old row while the amount placeholder and both owed figures
+named the current one, and confirming without touching it wrote the old row and
+then locked there as soon as the allocation covered the seña — a seña quoted at
+the current price, charged at it, and fixed at the old one.
+
+Its one cost is that "Elegí un precio para la inscripción." is now unreachable
+from this dialog: the picker arrives filled whenever any row applies, and when
+none does the option list is empty and `Guardar` is disabled. The refusal stays
+as a server-side guard for every other caller of `allocateToInscription`.
 
 ### Per choreography
 

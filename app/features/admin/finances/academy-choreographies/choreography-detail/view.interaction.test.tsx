@@ -111,7 +111,6 @@ describe("DancerNameCell interaction", () => {
           financialStatus: "depositPending",
           owedBalanceAmount: 10000,
           owedDepositAmount: 3000,
-          selectedPrice: null,
         }),
       ],
     });
@@ -121,6 +120,49 @@ describe("DancerNameCell interaction", () => {
     expect(
       document.querySelector('[data-slot="select-trigger"]'),
     ).not.toBeNull();
+  });
+
+  // El selector abre en el precio **efectivo**, no en el guardado. Abrirlo en el
+  // guardado dejaba el diálogo diciendo dos precios a la vez —el selector, uno;
+  // el placeholder del monto y las dos deudas, otro— y confirmar sin tocarlo
+  // fijaba el viejo en cuanto la imputación cubría la seña.
+  test("opens the price picker on the effective price", async () => {
+    await mount({
+      inscriptions: [
+        inscriptionFixture({
+          allocatedAmount: 0,
+          effectivePrice: {
+            amount: 14000,
+            id: "price_3",
+            name: "Tercer vencimiento",
+          },
+          financialStatus: "depositPending",
+          owedBalanceAmount: 14000,
+          owedDepositAmount: 4200,
+        }),
+      ],
+      priceOptions: [
+        {
+          amount: 10000,
+          depositAmount: 3000,
+          id: "price_1",
+          name: "Primer vencimiento",
+        },
+        {
+          amount: 14000,
+          depositAmount: 4200,
+          id: "price_3",
+          name: "Tercer vencimiento",
+        },
+      ],
+    });
+
+    await clickReactDomButton("Bruno Benítez");
+
+    const trigger = document.querySelector('[data-slot="select-trigger"]');
+
+    expect(trigger?.textContent).toContain("Tercer vencimiento");
+    expect(trigger?.textContent).not.toContain("Primer vencimiento");
   });
 
   test("opens the removal dialog with no price control on a fully paid row", async () => {
@@ -194,7 +236,6 @@ describe("DancerNameCell interaction", () => {
           overAllocatedAmount: null,
           owedBalanceAmount: null,
           owedDepositAmount: null,
-          selectedPrice: null,
           totalAmount: null,
         }),
       ],
@@ -524,7 +565,6 @@ function inscriptionFixture(
     overAllocatedAmount: 0,
     owedBalanceAmount: 7000,
     owedDepositAmount: 0,
-    selectedPrice: { amount: 10000, id: "price_1", name: "Dúo general" },
     totalAmount: 10000,
     withdrawn: false,
     ...overrides,

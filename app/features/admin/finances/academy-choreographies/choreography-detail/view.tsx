@@ -22,7 +22,6 @@ import {
   inscriptionStatusFilterOptions,
 } from "@/lib/finances/choreography-financial-status";
 import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
-import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 
 import { formatAmount, formatOperationalAmount } from "../../formatters";
 import { EmissionDialog } from "./comprobante-emission";
@@ -59,14 +58,10 @@ export function ChoreographyFinanceDetailView({
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
-      // El título identifica la coreografía —nombre y tipo de grupo—, que es lo
-      // que antes repetía la card de datos. La academia se mudó a la
-      // descripción: sin ella el detalle no dice de quién es la plata.
-      title={
-        choreography
-          ? `${choreography.name} - ${formatGroupTypeLabel(choreography.groupType)}`
-          : "Coreografía no encontrada"
-      }
+      // El título es el nombre de la coreografía y nada más: es lo que la
+      // identifica dentro de la academia, y el tipo de grupo ya está en cada
+      // precio de la lista.
+      title={choreography ? choreography.name : "Coreografía no encontrada"}
       description={
         choreography
           ? "Revisá y/o modificá las asignaciones de cada inscripción desde la lista."

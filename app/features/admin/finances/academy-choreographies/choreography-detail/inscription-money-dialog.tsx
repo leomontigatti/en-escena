@@ -163,7 +163,12 @@ function AllocateMoneyDialog({
 }) {
   const fetcher = useMoneyWriteFetcher(onOpenChange);
   const [amount, setAmount] = useState("");
-  const [priceId, setPriceId] = useState(inscription.selectedPrice?.id ?? "");
+  // Arranca en el precio **efectivo**: es el que produce todas las cifras de
+  // este diálogo —el placeholder del monto, las dos deudas— y el que muestra la
+  // fila de atrás. Abrirlo en el precio guardado dejaba el selector diciendo una
+  // cosa y todo lo demás otra, y confirmar sin tocarlo fijaba ese precio viejo
+  // apenas la imputación cubría la seña.
+  const [priceId, setPriceId] = useState(inscription.effectivePrice?.id ?? "");
   const isSaving = fetcher.state !== "idle";
   const isPriceLocked = inscription.allocatedAmount > 0;
   const hintedAmount =

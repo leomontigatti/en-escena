@@ -19,7 +19,6 @@ import {
   allocateToInscription,
   readInscriptionEffectivePrices,
   readInscriptionPriceOptions,
-  readInscriptionSelectedPrices,
   releaseInscriptionExcess,
   removeFromInscription,
 } from "@/lib/finances/inscription-allocation.server";
@@ -76,38 +75,28 @@ export async function loadChoreographyFinanceDetail(input: {
     throw new Response(choreographyNotFoundMessage, { status: 404 });
   }
 
-  const [
-    inscriptionRows,
-    selectedPrices,
-    effectivePrices,
-    priceOptions,
-    invoicing,
-  ] = await Promise.all([
-    readChoreographyInscriptionRows({
-      academyEventInscriptions: financeDetail.inscriptions,
-      choreographyId,
-    }),
-    readInscriptionSelectedPrices({ choreographyId }),
-    readInscriptionEffectivePrices({ choreographyId, eventId }),
-    readInscriptionPriceOptions({ choreographyId, eventId }),
-    readChoreographyInvoicing(choreographyId),
-  ]);
-  // Two prices travel with the row because the allocation dialog needs both, and
-  // below the deposit threshold they differ. The **stored** one is what the
-  // picker opens on: it is what the administrator last said, and it may no
-  // longer be among the offered options. The **effective** one is what the row
-  // is charged at, which is the figure the dialog reads out — the same one
-  // `basePriceAmount` carries, so the dialog and the row behind it agree.
+  const [inscriptionRows, effectivePrices, priceOptions, invoicing] =
+    await Promise.all([
+      readChoreographyInscriptionRows({
+        academyEventInscriptions: financeDetail.inscriptions,
+        choreographyId,
+      }),
+      readInscriptionEffectivePrices({ choreographyId, eventId }),
+      readInscriptionPriceOptions({ choreographyId, eventId }),
+      readChoreographyInvoicing(choreographyId),
+    ]);
+  // One price travels with the row: the **effective** one, what the inscription
+  // is charged at. It is the figure the dialog reads out, the row the picker
+  // opens on and the same one `basePriceAmount` carries, so nothing on this
+  // screen can name a price another part of it contradicts. The stored row is a
+  // write-path concern —the `crossed` test reads it from the database— and no
+  // longer travels to the client.
   const inscriptions = inscriptionRows.map((inscription) => ({
     ...inscription,
     effectivePrice:
       inscription.inscriptionId === null
         ? null
         : (effectivePrices.get(inscription.inscriptionId) ?? null),
-    selectedPrice:
-      inscription.inscriptionId === null
-        ? null
-        : (selectedPrices.get(inscription.inscriptionId) ?? null),
   }));
 
   return {

@@ -230,34 +230,6 @@ export async function readInscriptionEffectivePrices(input: {
   return effectivePrices;
 }
 
-/**
- * The price row each inscription of a choreography has selected — what is
- * **stored**, which is what the picker opens on. What the inscription is charged
- * at is `readInscriptionEffectivePrices`, and below the deposit threshold the
- * two differ.
- */
-export async function readInscriptionSelectedPrices(input: {
-  choreographyId: string;
-}): Promise<Map<string, InscriptionDialogPrice>> {
-  const rows = await db
-    .select({
-      amount: prices.amount,
-      id: prices.id,
-      inscriptionId: choreographyDancers.id,
-      name: prices.name,
-    })
-    .from(choreographyDancers)
-    .innerJoin(prices, eq(choreographyDancers.selectedPriceId, prices.id))
-    .where(eq(choreographyDancers.choreographyId, input.choreographyId));
-
-  return new Map(
-    rows.map((row) => [
-      row.inscriptionId,
-      { amount: row.amount, id: row.id, name: row.name },
-    ]),
-  );
-}
-
 type InscriptionMoneyInput = {
   academyId: string;
   choreographyId: string;
