@@ -54,12 +54,13 @@ describe("DancerNameCell interaction", () => {
   test("clicking a name opens the allocation dialog for that inscription", async () => {
     await mount();
 
-    expect(document.body.textContent).not.toContain("Asignar plata");
+    expect(document.querySelector('[data-slot="dialog-content"]')).toBeNull();
 
     await clickReactDomButton("Bruno Benítez");
 
-    expect(document.body.textContent).toContain("Asignar plata");
-    expect(document.body.textContent).toContain("Bruno Benítez");
+    expect(dialogText()).toContain(allocateDescription);
+    // El título es el nombre de la bailarina: es el que dice de quién se habla.
+    expect(dialogText()).toContain("Bruno Benítez");
   });
 
   test("hints the owed figure as a placeholder and never as a value", async () => {
@@ -136,7 +137,7 @@ describe("DancerNameCell interaction", () => {
 
     await clickReactDomButton("Bruno Benítez");
 
-    expect(dialogText()).toContain("Quitar plata");
+    expect(dialogText()).toContain(removeDescription);
     expect(dialogText()).not.toContain("Precio");
     expect(document.querySelector('[data-slot="select-trigger"]')).toBeNull();
     // Prefilled with everything allocated, and it accepts any smaller amount.
@@ -236,10 +237,10 @@ describe("DancerNameCell interaction", () => {
     await renderer.renderAsync(<RouterProvider router={router} />);
 
     await clickReactDomButton("Bruno Benítez");
-    expect(document.body.textContent).toContain("Asignar plata");
+    expect(dialogText()).toContain(allocateDescription);
 
     await clickReactDomButton("re-render");
-    expect(document.body.textContent).toContain("Asignar plata");
+    expect(dialogText()).toContain(allocateDescription);
   });
 
   // Regression (#708): a refused write left its reason on screen for an instant
@@ -259,7 +260,7 @@ describe("DancerNameCell interaction", () => {
     expect(dialogText()).toContain(
       "El saldo disponible de la academia no alcanza.",
     );
-    expect(dialogText()).toContain("Asignar plata");
+    expect(dialogText()).toContain(allocateDescription);
   });
 
   test("closes the dialog when the write goes through", async () => {
@@ -300,10 +301,10 @@ describe("DancerNameCell interaction", () => {
     await renderer.renderAsync(<RouterProvider router={router} />);
 
     await clickReactDomButton("Bruno Benítez");
-    expect(document.body.textContent).toContain("Asignar plata");
+    expect(dialogText()).toContain(allocateDescription);
 
     await clickReactDomButton("revalidar");
-    expect(document.body.textContent).toContain("Asignar plata");
+    expect(dialogText()).toContain(allocateDescription);
   });
 
   /** Mounts the view behind a real loader, so a write revalidates it. */
@@ -484,6 +485,15 @@ function amountInput(id = "inscription-amount"): HTMLInputElement {
 
   return input;
 }
+
+/**
+ * Las descripciones que distinguen una forma del diálogo de otra: el título es el
+ * nombre de la bailarina en las tres, así que la cabecera ya no dice cuál es.
+ */
+const allocateDescription =
+  "El dinero se asigna desde el saldo disponible de la academia.";
+const removeDescription =
+  "El dinero que se quita vuelve al saldo disponible de la academia.";
 
 /** Texto del diálogo abierto, para no confundirlo con el de la tabla de atrás. */
 function dialogText(): string {

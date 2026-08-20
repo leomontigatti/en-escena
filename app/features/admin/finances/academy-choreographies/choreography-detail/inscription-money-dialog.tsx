@@ -9,6 +9,11 @@
  * | nothing owed, money on it      | Remove money, prefilled with everything        |
  * | anything else                  | Price + amount, hinting the seña then the saldo |
  *
+ * The three shapes share a header: the title is the dancer's name — who the
+ * money is about, which is the one thing an administrator cannot re-read off the
+ * table behind the dialog — and the description says where the money comes from
+ * or goes back to. The action itself is named by the submit button.
+ *
  * A row that still owes something but already holds money reaches the removal
  * shape from inside the allocation one, which keeps the entry point single
  * while leaving `Quitar plata` reachable wherever there is money to take off.
@@ -168,10 +173,10 @@ function AllocateMoneyDialog({
 
   return (
     <MoneyDialog
-      description={`Se asigna a ${formatDancerName(inscription)} desde el saldo disponible de la academia.`}
+      description="El dinero se asigna desde el saldo disponible de la academia."
       isSaving={isSaving}
       onOpenChange={onOpenChange}
-      title="Asignar plata"
+      title={formatDancerName(inscription)}
     >
       <fetcher.Form method="post" className="flex flex-col gap-4">
         <input type="hidden" name="intent" value={allocateInscriptionIntent} />
@@ -299,10 +304,10 @@ function RemoveMoneyDialog({
 
   return (
     <MoneyDialog
-      description={`Se le quitan a ${formatDancerName(inscription)} y vuelven al saldo disponible de la academia.`}
+      description="El dinero que se quita vuelve al saldo disponible de la academia."
       isSaving={isSaving}
       onOpenChange={onOpenChange}
-      title="Quitar plata"
+      title={formatDancerName(inscription)}
     >
       <fetcher.Form method="post" className="flex flex-col gap-4">
         <input
@@ -379,10 +384,10 @@ function ReleaseExcessDialog({
 
   return (
     <MoneyDialog
-      description={`${formatDancerName(inscription)} tiene ${formatAmount(excessAmount)} de más. Vuelven al saldo disponible de la academia y el resto queda como está.`}
+      description={`Tiene ${formatAmount(excessAmount)} de más. Vuelven al saldo disponible de la academia y el resto queda como está.`}
       isSaving={isSaving}
       onOpenChange={onOpenChange}
-      title="Liberar el excedente"
+      title={formatDancerName(inscription)}
     >
       <fetcher.Form method="post" className="flex flex-col gap-4">
         <input
