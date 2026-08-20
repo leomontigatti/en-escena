@@ -449,16 +449,21 @@ money to take off while the entry point stays single.
   figure finishes the next thing. The **price is chosen inside this dialog and
   never in a table cell**, and it is a readout rather than a picker once the row
   holds money. This is the only one of the three gestures that can bounce.
-- **Removing.** The amount is **prefilled with everything the inscription holds**
-  and any smaller amount is accepted: what is allocated is a fact and does not
-  move under the administrator. It unwinds newest-first and the released amount
-  returns to `Saldo disponible`. **Removing money never blocks for a financial
-  reason**: no threshold, no anomaly and no state of the pool can refuse it. It
-  still refuses the two nonsensical inputs — an amount of zero or less ("El monto
-  a quitar tiene que ser mayor a 0.") and an amount larger than the inscription
-  holds ("La inscripción no tiene esa plata asignada.") — so a caller must still
-  defend those. It is a different action from removing the inscription from the
-  roster.
+- **Removing.** The amount is **hinted with everything the inscription holds**,
+  as a placeholder and not as a prefilled value, and any smaller amount is
+  accepted. The hint can be a real figure — what is allocated is a fact and does
+  not move under the administrator — but it is typed like the allocation one, so
+  the two gestures behave the same. It unwinds newest-first and the released
+  amount returns to `Saldo disponible`. **Removing money never blocks for a
+  financial reason**: no threshold, no anomaly and no state of the pool can
+  refuse it. It still refuses the two nonsensical inputs — an amount of zero or
+  less ("El monto a quitar tiene que ser mayor a 0.") and an amount larger than
+  the inscription holds ("La inscripción no tiene esa plata asignada.") — so a
+  caller must still defend those. Because the bound is known on the client, the
+  dialog says the range **under the field** ("Ingresá un monto entre $ 1 y
+  $ X.") rather than round-tripping to those two refusals, which stay as guards
+  and still surface if the figure moved while the dialog was open. It is a
+  different action from removing the inscription from the roster.
 - **Releasing the excess.** One button that takes off exactly what the
   inscription holds above its `Total` and nothing more. The excess is computed,
   so there is nothing to pick and nothing to type.
@@ -487,10 +492,15 @@ named the current one, and confirming without touching it wrote the old row and
 then locked there as soon as the allocation covered the seña — a seña quoted at
 the current price, charged at it, and fixed at the old one.
 
-Its one cost is that "Elegí un precio para la inscripción." is now unreachable
-from this dialog: the picker arrives filled whenever any row applies, and when
-none does the option list is empty and `Guardar` is disabled. The refusal stays
-as a server-side guard for every other caller of `allocateToInscription`.
+"Elegí un precio para la inscripción." stays reachable, and it is worth being
+precise about when: the picker arrives filled whenever a row **applies today**,
+but the option list is not filtered by `paymentDeadline` while
+`resolveApplicablePriceRow` is. An event whose every row for that group type has
+an expired deadline therefore offers options, applies none, and leaves the picker
+on its placeholder — so a row storing nothing can still be submitted without a
+price, and the refusal is what catches it. It is the only path there:
+`applySelectedPrice` is reached from `allocateToInscription` alone, which this
+dialog is the only caller of. The presets have their own `applySelectedPrices`.
 
 ### Per choreography
 

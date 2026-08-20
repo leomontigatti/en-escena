@@ -182,8 +182,61 @@ describe("DancerNameCell interaction", () => {
     expect(dialogText()).toContain(removeDescription);
     expect(dialogText()).not.toContain("Precio");
     expect(document.querySelector('[data-slot="select-trigger"]')).toBeNull();
-    // Prefilled with everything allocated, and it accepts any smaller amount.
-    expect(amountInput("inscription-removed-amount").value).toBe("10000");
+    // Todo lo asignado se sugiere como placeholder, igual que al imputar, y
+    // acepta cualquier monto menor.
+    const removed = amountInput("inscription-removed-amount");
+
+    expect(removed.value).toBe("");
+    expect(removed.placeholder).toBe("$ 10.000");
+    // El total asignado lo dice el placeholder, así que la línea `Asignado` que
+    // lo repetía debajo del campo se fue.
+    expect(dialogText()).not.toContain("Asignado");
+  });
+
+  // El rango se dice bajo el campo y no como alerta: es sobre lo que se tipeó, y
+  // el borde se conoce acá sin ir al servidor.
+  test("says the range under the field when the amount is out of it", async () => {
+    await mount({
+      inscriptions: [
+        inscriptionFixture({
+          allocatedAmount: 10000,
+          financialStatus: "paidInFull",
+          owedBalanceAmount: 0,
+          owedDepositAmount: 0,
+        }),
+      ],
+    });
+
+    await clickReactDomButton("Bruno Benítez");
+    await typeRemovedAmount("250000");
+
+    const error = document.querySelector('[data-slot="field-error"]');
+
+    expect(error?.textContent).toBe("Ingresá un monto entre $ 1 y $ 10.000.");
+    expect(
+      amountInput("inscription-removed-amount").getAttribute("aria-invalid"),
+    ).toBe("true");
+    expect(quitarButton()?.disabled).toBe(true);
+  });
+
+  test("clears the range error and re-enables Quitar once the amount fits", async () => {
+    await mount({
+      inscriptions: [
+        inscriptionFixture({
+          allocatedAmount: 10000,
+          financialStatus: "paidInFull",
+          owedBalanceAmount: 0,
+          owedDepositAmount: 0,
+        }),
+      ],
+    });
+
+    await clickReactDomButton("Bruno Benítez");
+    await typeRemovedAmount("250000");
+    await typeRemovedAmount("2500");
+
+    expect(document.querySelector('[data-slot="field-error"]')).toBeNull();
+    expect(quitarButton()?.disabled).toBe(false);
   });
 
   test("reaches the removal dialog from a row that still owes something", async () => {
@@ -194,7 +247,10 @@ describe("DancerNameCell interaction", () => {
 
     expect(dialogText()).not.toContain("Precio");
     expect(document.querySelector('[data-slot="select-trigger"]')).toBeNull();
-    expect(amountInput("inscription-removed-amount").value).toBe("3000");
+    expect(amountInput("inscription-removed-amount").value).toBe("");
+    expect(amountInput("inscription-removed-amount").placeholder).toBe(
+      "$ 3.000",
+    );
   });
 
   test("offers one click that releases exactly the excess", async () => {
@@ -525,6 +581,21 @@ function amountInput(id = "inscription-amount"): HTMLInputElement {
   }
 
   return input;
+}
+
+async function typeRemovedAmount(value: string) {
+  await updateReactDomForm(() => {
+    setInputValue(amountInput("inscription-removed-amount"), value);
+  });
+}
+
+/** El botón que confirma la quita, para leerle el estado deshabilitado. */
+function quitarButton(): HTMLButtonElement | null {
+  return (
+    [...document.querySelectorAll("button")].find(
+      (candidate) => candidate.textContent?.trim() === "Quitar",
+    ) ?? null
+  );
 }
 
 /**

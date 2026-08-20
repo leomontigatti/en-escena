@@ -35,6 +35,7 @@ import { AlertTriangle, Check, LoaderCircle, Undo2 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useFetcher } from "react-router";
 
+import { SharedFieldLayout } from "@/components/shared/field-layout";
 import { ReadOnlyField } from "@/components/shared/read-only-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -288,10 +289,19 @@ function AllocateMoneyDialog({
 }
 
 /**
- * The removal dialog: an amount **prefilled** with everything the inscription
- * holds, which is the common case, and any smaller amount is accepted. Unlike
- * the allocation hint this is a real value, because it does not move under the
- * administrator — what is allocated is a fact, not a projection.
+ * The removal dialog: an amount **hinted** with everything the inscription holds,
+ * which is the common case, and any smaller amount is accepted. The hint is a
+ * placeholder rather than a prefilled value, like the allocation one — the two
+ * gestures are typed the same way, and a figure that has to be cleared before it
+ * can be replaced is worse than an empty box.
+ *
+ * What is out of range is said **under the field and not as an alert**: it is
+ * about what was typed, and the bound is known here — what is allocated is a
+ * fact, not a projection, so the dialog can name the range instead of waiting
+ * for the server to refuse it. The two server refusals it stands in for
+ * ("El monto a quitar tiene que ser mayor a 0." and "La inscripción no tiene esa
+ * plata asignada.") survive as guards, and still surface in the alert if the
+ * figure moved under the administrator while the dialog was open.
  *
  * There is no payment to pick: the amount unwinds newest-first through the pool
  * rule. And there is no price control, because nothing here depends on a price.
@@ -304,8 +314,11 @@ function RemoveMoneyDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const fetcher = useMoneyWriteFetcher(onOpenChange);
-  const [amount, setAmount] = useState(String(inscription.allocatedAmount));
+  const [amount, setAmount] = useState("");
   const isSaving = fetcher.state !== "idle";
+  const isOutOfRange =
+    amount !== "" &&
+    (Number(amount) < 1 || Number(amount) > inscription.allocatedAmount);
 
   return (
     <MoneyDialog
@@ -327,27 +340,34 @@ function RemoveMoneyDialog({
         />
 
         <FieldGroup>
-          <Field>
-            <FieldLabel htmlFor="inscription-removed-amount">Monto</FieldLabel>
-            <Input
-              id="inscription-removed-amount"
-              name="amount"
-              inputMode="numeric"
-              autoComplete="off"
-              className="tabular-nums"
-              disabled={isSaving}
-              value={amount}
-              onChange={(event) =>
-                setAmount(event.target.value.replace(/\D/g, ""))
-              }
-            />
-          </Field>
+          <SharedFieldLayout
+            error={
+              isOutOfRange
+                ? `Ingresá un monto entre ${formatAmount(1)} y ${formatAmount(inscription.allocatedAmount)}.`
+                : undefined
+            }
+            id="inscription-removed-amount"
+            label="Monto"
+          >
+            {({ describedBy, isInvalid }) => (
+              <Input
+                id="inscription-removed-amount"
+                name="amount"
+                inputMode="numeric"
+                autoComplete="off"
+                aria-describedby={describedBy}
+                aria-invalid={isInvalid}
+                className="tabular-nums"
+                disabled={isSaving}
+                placeholder={formatAmount(inscription.allocatedAmount)}
+                value={amount}
+                onChange={(event) =>
+                  setAmount(event.target.value.replace(/\D/g, ""))
+                }
+              />
+            )}
+          </SharedFieldLayout>
         </FieldGroup>
-
-        <SummaryRow
-          label="Asignado"
-          value={formatAmount(inscription.allocatedAmount)}
-        />
 
         <FetcherError data={fetcher.data} />
 
@@ -360,7 +380,7 @@ function RemoveMoneyDialog({
           <Button
             type="submit"
             variant="destructive"
-            disabled={isSaving || amount === ""}
+            disabled={isSaving || amount === "" || isOutOfRange}
           >
             <SubmitIcon isSaving={isSaving} />
             Quitar
