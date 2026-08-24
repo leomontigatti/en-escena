@@ -227,6 +227,75 @@ describe("administrative choreography roster editing", () => {
     expect(revived?.withdrawnAt).toBeNull();
   });
 
+  test("stamps a dancer added later with its own registration date, not the choreography's", async () => {
+    const scenario = await createRemovalScenario({
+      academyName: "Academia Roster Fecha",
+      email: "roster.fecha.academia@example.com",
+    });
+    // The choreography is backdated so the two dates cannot coincide by
+    // accident: this is exactly the gap the column exists to expose.
+    const choreographyCreatedAt = new Date("2026-07-20T12:00:00.000Z");
+    await db
+      .update(choreographies)
+      .set({ createdAt: choreographyCreatedAt })
+      .where(eq(choreographies.id, scenario.choreography.id));
+    const dancerC = await createDancer(scenario.academyId, {
+      firstName: "Cami",
+      lastName: "Tres",
+    });
+
+    const response = await submitRoster({
+      choreographyId: scenario.choreography.id,
+      dancerIds: [scenario.dancerA.id, scenario.dancerB.id, dancerC.id],
+    });
+
+    expect(response).toMatchObject({ status: "success" });
+
+    const added = await db.query.choreographyDancers.findFirst({
+      where: eq(choreographyDancers.dancerId, dancerC.id),
+    });
+    expect(added?.createdAt.getTime()).toBeGreaterThan(
+      choreographyCreatedAt.getTime(),
+    );
+  });
+
+  test("keeps the original registration date when a withdrawn inscription is revived", async () => {
+    const scenario = await createRemovalScenario({
+      academyName: "Academia Roster Revive Fecha",
+      email: "roster.revive.fecha.academia@example.com",
+    });
+    const registeredAt = new Date("2026-07-20T12:00:00.000Z");
+    await db
+      .update(choreographyDancers)
+      .set({ createdAt: registeredAt })
+      .where(eq(choreographyDancers.id, scenario.inscriptionA.id));
+    const payment = await createPayment(scenario);
+    await db.insert(paymentAllocations).values({
+      academyId: scenario.academyId,
+      amount: 3000,
+      eventId: scenario.event.id,
+      inscriptionId: scenario.inscriptionA.id,
+      paymentId: payment.id,
+    });
+
+    await submitRoster({
+      choreographyId: scenario.choreography.id,
+      dancerIds: [scenario.dancerB.id],
+    });
+    const response = await submitRoster({
+      choreographyId: scenario.choreography.id,
+      dancerIds: [scenario.dancerA.id, scenario.dancerB.id],
+    });
+
+    expect(response).toMatchObject({ status: "success" });
+
+    const revived = await db.query.choreographyDancers.findFirst({
+      where: eq(choreographyDancers.id, scenario.inscriptionA.id),
+    });
+    expect(revived?.withdrawnAt).toBeNull();
+    expect(revived?.createdAt).toEqual(registeredAt);
+  });
+
   test("leaves the withdrawn row untouched when its allocations are removed afterwards", async () => {
     const scenario = await createRemovalScenario({
       academyName: "Academia Roster Desasigna",

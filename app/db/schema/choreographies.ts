@@ -111,6 +111,20 @@ export const choreographyDancers = createTable(
     choreographyId: varchar("choreography_id", { length: 255 }).notNull(),
     dancerId: varchar("dancer_id", { length: 255 }).notNull(),
     ageAtEventStart: integer("age_at_event_start").notNull(),
+    // When this inscription was registered. Its own date, not the
+    // choreography's: a dancer added to the roster a week later was registered
+    // that week, and counting by the parent choreography's date credited every
+    // such row to the original registration.
+    //
+    // Reviving a withdrawn inscription keeps it. Revival undoes the withdrawal
+    // rather than registering again — same row, same `id`, same money and same
+    // comprobante line — so the registration date stays the original one.
+    createdAt: timestamp("created_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
     // The last surviving snapshot column. It fixes which price row prices the
     // inscription; every amount and every financial state is derived from that
     // row and from `Σ allocations`.
