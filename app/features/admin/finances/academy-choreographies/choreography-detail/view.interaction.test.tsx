@@ -91,16 +91,82 @@ describe("DancerNameCell interaction", () => {
     expect(amountInput().placeholder).toBe("$ 3.000");
   });
 
-  test("locks the price of an inscription that already holds money", async () => {
+  // Se traba al cubrir la seña —3000 de 3000—, que es donde la traba la regla.
+  test("locks the price of an inscription that covers its seña", async () => {
     await mount();
 
     await clickReactDomButton("Bruno Benítez");
 
-    // Locked, not warned about: the price is a reading and there is no picker.
+    // Trabado y sin aviso: el precio es una lectura y no hay selector.
     expect(document.querySelector('[data-slot="select-trigger"]')).toBeNull();
-    expect(document.body.textContent).toContain(
-      "Para cambiarle el precio hay que quitarle toda la plata",
+    expect(dialogText()).not.toContain("Para cambiarle el precio");
+    // Y dice lo mismo que decía el selector que reemplaza, seña incluida.
+    const readout = [...document.querySelectorAll("input")].find((candidate) =>
+      candidate.value.includes("Dúo general"),
     );
+
+    expect(readout?.value).toBe("Dúo general · $ 10.000 · seña $ 3.000");
+  });
+
+  // Debajo de la seña el precio se sigue re-derivando solo, así que el selector
+  // sigue estando: el primer peso no traba nada.
+  test("keeps the picker on a row that holds money but has not covered its seña", async () => {
+    await mount({
+      inscriptions: [
+        inscriptionFixture({
+          allocatedAmount: 200,
+          financialStatus: "depositPending",
+          owedBalanceAmount: 9800,
+          owedDepositAmount: 2800,
+        }),
+      ],
+    });
+
+    await clickReactDomButton("Bruno Benítez");
+
+    expect(
+      document.querySelector('[data-slot="select-trigger"]'),
+    ).not.toBeNull();
+  });
+
+  // Las dos deudas repiten el precio de arriba mientras no haya plata puesta.
+  test("shows the owed figures only once the inscription holds money", async () => {
+    await mount({
+      inscriptions: [
+        inscriptionFixture({
+          allocatedAmount: 0,
+          financialStatus: "depositPending",
+          owedBalanceAmount: 10000,
+          owedDepositAmount: 3000,
+        }),
+      ],
+    });
+
+    await clickReactDomButton("Bruno Benítez");
+
+    expect(dialogText()).not.toContain("Seña adeudada");
+
+    await clickReactDomButton("Cancelar");
+    await mount();
+    await clickReactDomButton("Bruno Benítez");
+
+    expect(dialogText()).toContain("Seña adeudada");
+  });
+
+  // El techo es lo que se adeuda, y se dice bajo el campo en vez de volver del
+  // servidor como alerta.
+  test("says the range under the field when the allocated amount exceeds what is owed", async () => {
+    await mount();
+
+    await clickReactDomButton("Bruno Benítez");
+    await updateReactDomForm(() => {
+      setInputValue(amountInput(), "99999");
+    });
+
+    expect(
+      document.querySelector('[data-slot="field-error"]')?.textContent,
+    ).toBe("Ingresá un monto entre $ 1 y $ 7.000.");
+    expect(guardarButton()?.disabled).toBe(true);
   });
 
   test("offers the price picker while no money has landed", async () => {
@@ -133,6 +199,7 @@ describe("DancerNameCell interaction", () => {
           allocatedAmount: 0,
           effectivePrice: {
             amount: 14000,
+            depositAmount: 4200,
             id: "price_3",
             name: "Tercer vencimiento",
           },
@@ -243,7 +310,7 @@ describe("DancerNameCell interaction", () => {
     await mount();
 
     await clickReactDomButton("Bruno Benítez");
-    await clickReactDomButton("Quitar plata");
+    await clickReactDomButton("Quitar dinero");
 
     expect(dialogText()).not.toContain("Precio");
     expect(document.querySelector('[data-slot="select-trigger"]')).toBeNull();
@@ -589,6 +656,15 @@ async function typeRemovedAmount(value: string) {
   });
 }
 
+/** El botón que confirma la imputación, para leerle el estado deshabilitado. */
+function guardarButton(): HTMLButtonElement | null {
+  return (
+    [...document.querySelectorAll("button")].find(
+      (candidate) => candidate.textContent?.trim() === "Guardar",
+    ) ?? null
+  );
+}
+
 /** El botón que confirma la quita, para leerle el estado deshabilitado. */
 function quitarButton(): HTMLButtonElement | null {
   return (
@@ -628,7 +704,12 @@ function inscriptionFixture(
     dancerId: "dancer_1",
     depositAmount: 3000,
     discountAmount: 0,
-    effectivePrice: { amount: 10000, id: "price_1", name: "Dúo general" },
+    effectivePrice: {
+      amount: 10000,
+      depositAmount: 3000,
+      id: "price_1",
+      name: "Dúo general",
+    },
     financialStatus: "depositMet",
     firstName: "Bruno",
     inscriptionId: "inscription_orphan",

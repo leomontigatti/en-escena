@@ -16,22 +16,28 @@
  *
  * A row that still owes something but already holds money reaches the removal
  * shape from inside the allocation one, which keeps the entry point single
- * while leaving `Quitar plata` reachable wherever there is money to take off.
+ * while leaving `Quitar dinero` reachable wherever there is money to take off.
  * The switch only goes that way: a row opens on removal exactly when adding
  * money would be refused anyway.
  *
  * **No removal shape carries a price control**, not even a locked one. Price is
  * an allocation-time concern, and taking money off is how the picker comes back.
  *
- * That last part is **stricter than the rule**: the price is fixed at the
- * deposit threshold, so a below-threshold change is accepted by every write path
- * and by the database guard, yet this dialog swaps the picker for a readout at
- * the first peso and says so in its hint. The divergence is deliberate for now
- * and recorded in `docs/domain/finances.md`; the readout at least names the
- * **effective** price, so no figure on this screen contradicts another.
+ * **The picker locks where the rule locks it**: at the deposit threshold, which
+ * is what a seña buys, and not at the first peso. Below it the price still moves
+ * on its own —the effective row is re-derived against today— so offering the
+ * picker there is offering to confirm a row that is going to be re-read anyway,
+ * which is exactly what the rule intends.
+ *
+ * The threshold is read here off the row's **effective** deposit, while the
+ * write path tests the **stored** one. They agree wherever it matters: once the
+ * stored row is crossed the effective row *is* the stored row. They can differ
+ * only when the list moved *down* under a row holding money, and there this
+ * dialog is the stricter of the two — the same direction the old first-peso lock
+ * erred in, and far rarer.
  */
 
-import { AlertTriangle, Check, LoaderCircle, Undo2 } from "lucide-react";
+import { AlertTriangle, Check, LoaderCircle } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useFetcher } from "react-router";
 
@@ -57,6 +63,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+import { hasCrossedDepositThreshold } from "@/lib/finances/inscription-financial-status";
 
 import { formatAmount } from "../../formatters";
 import type { loadChoreographyFinanceDetail } from "./server";
@@ -171,11 +179,23 @@ function AllocateMoneyDialog({
   // apenas la imputación cubría la seña.
   const [priceId, setPriceId] = useState(inscription.effectivePrice?.id ?? "");
   const isSaving = fetcher.state !== "idle";
-  const isPriceLocked = inscription.allocatedAmount > 0;
+  // Se traba donde la traba la regla: al cubrir la seña, no al primer peso.
+  const isPriceLocked = hasCrossedDepositThreshold({
+    allocatedAmount: inscription.allocatedAmount,
+    depositAmount: inscription.depositAmount,
+  });
   const hintedAmount =
     inscription.owedDepositAmount === null || inscription.owedDepositAmount > 0
       ? inscription.owedDepositAmount
       : inscription.owedBalanceAmount;
+  // El techo es lo que la inscripción adeuda, que es lo que refuta el servidor.
+  // El pozo de la academia es otro techo, y ése no se conoce acá: sigue siendo
+  // una alerta.
+  const owedBalanceAmount = inscription.owedBalanceAmount;
+  const isOutOfRange =
+    amount !== "" &&
+    owedBalanceAmount !== null &&
+    (Number(amount) < 1 || Number(amount) > owedBalanceAmount);
 
   return (
     <MoneyDialog
@@ -194,16 +214,10 @@ function AllocateMoneyDialog({
 
         <FieldGroup>
           {isPriceLocked ? (
-            <div className="flex flex-col gap-1.5">
-              <ReadOnlyField
-                label="Precio"
-                value={formatEffectivePrice(inscription.effectivePrice)}
-              />
-              <p className="text-xs text-muted-foreground">
-                Tiene {formatAmount(inscription.allocatedAmount)} asignados.
-                Para cambiarle el precio hay que quitarle toda la plata.
-              </p>
-            </div>
+            <ReadOnlyField
+              label="Precio"
+              value={formatDialogPrice(inscription.effectivePrice)}
+            />
           ) : (
             <Field>
               <FieldLabel htmlFor="inscription-price">Precio</FieldLabel>
@@ -219,8 +233,7 @@ function AllocateMoneyDialog({
                 <SelectContent>
                   {priceOptions.map((price) => (
                     <SelectItem key={price.id} value={price.id}>
-                      {price.name} · {formatAmount(price.amount)} · seña{" "}
-                      {formatAmount(price.depositAmount)}
+                      {formatDialogPrice(price)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -228,27 +241,43 @@ function AllocateMoneyDialog({
             </Field>
           )}
 
-          <Field>
-            <FieldLabel htmlFor="inscription-amount">Monto</FieldLabel>
-            <Input
-              id="inscription-amount"
-              name="amount"
-              inputMode="numeric"
-              autoComplete="off"
-              className="tabular-nums"
-              disabled={isSaving}
-              placeholder={
-                hintedAmount === null ? undefined : formatAmount(hintedAmount)
-              }
-              value={amount}
-              onChange={(event) =>
-                setAmount(event.target.value.replace(/\D/g, ""))
-              }
-            />
-          </Field>
+          <SharedFieldLayout
+            error={
+              isOutOfRange && owedBalanceAmount !== null
+                ? `Ingresá un monto entre ${formatAmount(1)} y ${formatAmount(owedBalanceAmount)}.`
+                : undefined
+            }
+            id="inscription-amount"
+            label="Monto"
+          >
+            {({ describedBy, isInvalid }) => (
+              <Input
+                id="inscription-amount"
+                name="amount"
+                inputMode="numeric"
+                autoComplete="off"
+                aria-describedby={describedBy}
+                aria-invalid={isInvalid}
+                autoFocus
+                className="tabular-nums"
+                disabled={isSaving}
+                placeholder={
+                  hintedAmount === null ? undefined : formatAmount(hintedAmount)
+                }
+                value={amount}
+                onChange={(event) =>
+                  setAmount(event.target.value.replace(/\D/g, ""))
+                }
+              />
+            )}
+          </SharedFieldLayout>
         </FieldGroup>
 
-        <OwedSummary inscription={inscription} />
+        {/* Las dos deudas sólo cuando ya hay plata puesta: en una inscripción
+            vacía repiten el precio que está justo arriba. */}
+        {inscription.allocatedAmount > 0 ? (
+          <OwedSummary inscription={inscription} />
+        ) : null}
 
         <FetcherError data={fetcher.data} />
 
@@ -256,12 +285,11 @@ function AllocateMoneyDialog({
           {onRemoveMoney ? (
             <Button
               type="button"
-              variant="ghost"
+              variant="destructive"
               disabled={isSaving}
               onClick={onRemoveMoney}
             >
-              <Undo2 aria-hidden="true" data-icon="inline-start" />
-              Quitar plata
+              Quitar dinero
             </Button>
           ) : null}
           <div className="flex gap-2">
@@ -275,6 +303,7 @@ function AllocateMoneyDialog({
               disabled={
                 isSaving ||
                 amount === "" ||
+                isOutOfRange ||
                 (!isPriceLocked && priceOptions.length === 0)
               }
             >
@@ -357,6 +386,7 @@ function RemoveMoneyDialog({
                 autoComplete="off"
                 aria-describedby={describedBy}
                 aria-invalid={isInvalid}
+                autoFocus
                 className="tabular-nums"
                 disabled={isSaving}
                 placeholder={formatAmount(inscription.allocatedAmount)}
@@ -569,15 +599,16 @@ function formatOwedAmount(amount: number | null) {
 }
 
 /**
- * The readout names the **effective** price — what the inscription is charged at
- * — and not the stored row, so it cannot show a figure the detail row behind it
- * contradicts. Below the deposit threshold the two can be different rows: the
- * stored one is only what was last said, while every figure on this screen —
- * `Seña adeudada`, `Saldo adeudado` and the row's own `Total` — is derived from
- * the effective one.
+ * How a price row reads in this dialog, picker and readout alike: name, amount
+ * and the `Seña` it implies. One formatter for both, so locking a row cannot
+ * quietly drop a figure the administrator was choosing by.
+ *
+ * The row it is given is the **effective** one — what the inscription is charged
+ * at — and never the stored one, so it cannot show a figure the detail row
+ * behind it contradicts.
  */
-function formatEffectivePrice(price: InscriptionRow["effectivePrice"]) {
+function formatDialogPrice(price: PriceOption | null) {
   return price === null
     ? "Sin precio"
-    : `${price.name} · ${formatAmount(price.amount)}`;
+    : `${price.name} · ${formatAmount(price.amount)} · seña ${formatAmount(price.depositAmount)}`;
 }

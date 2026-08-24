@@ -65,9 +65,14 @@ export type InscriptionPriceOption = {
   name: string;
 };
 
-/** A price row the allocation dialog names: the stored one or the effective one. */
+/**
+ * The price row the allocation dialog names. It carries its `Seña` for the same
+ * reason the options do: locked or not, the control reads the same three figures,
+ * so the readout cannot say less than the picker it replaces.
+ */
 export type InscriptionDialogPrice = {
   amount: number;
+  depositAmount: number;
   id: string;
   name: string;
 };
@@ -221,6 +226,10 @@ export async function readInscriptionEffectivePrices(input: {
     if (price) {
       effectivePrices.set(inscription.id, {
         amount: price.amount,
+        depositAmount: calculateDepositAmount({
+          priceAmount: price.amount,
+          requiredDepositPercentage: event.requiredDepositPercentage,
+        }),
         id: price.id,
         name: price.name,
       });

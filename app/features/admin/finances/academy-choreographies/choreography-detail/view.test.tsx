@@ -454,7 +454,12 @@ function inscriptionFixture(
     dancerId: "dancer_1",
     depositAmount: 3000,
     discountAmount: 0,
-    effectivePrice: { amount: 10000, id: "price_1", name: "Dúo general" },
+    effectivePrice: {
+      amount: 10000,
+      depositAmount: 3000,
+      id: "price_1",
+      name: "Dúo general",
+    },
     financialStatus: "depositMet",
     firstName: "Ana",
     inscriptionId: "inscription_1",

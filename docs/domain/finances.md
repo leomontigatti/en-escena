@@ -432,13 +432,13 @@ from. Neither is available on the academy portal, which is read-only.
 The choreography financial detail has **one entry point per inscription** — the
 dancer's name — and the dialog behind it takes its shape from what the row holds.
 
-| Row                       | What opens                                          |
-| ------------------------- | --------------------------------------------------- |
-| over-allocated            | `Liberar el excedente`: one click, nothing to type  |
-| nothing owed, money on it | `Quitar plata`, prefilled with everything allocated |
-| anything else             | `Asignar plata`: price and amount                   |
+| Row                       | What opens                                         |
+| ------------------------- | -------------------------------------------------- |
+| over-allocated            | `Liberar el excedente`: one click, nothing to type |
+| nothing owed, money on it | `Quitar dinero`, hinting everything allocated      |
+| anything else             | `Asignar plata`: price and amount                  |
 
-A row that still owes something but already holds money reaches `Quitar plata`
+A row that still owes something but already holds money reaches `Quitar dinero`
 from inside the allocation dialog, so removal is available wherever there is
 money to take off while the entry point stays single.
 
@@ -446,9 +446,15 @@ money to take off while the entry point stays single.
   outcome and the row reads `Seña pendiente` with its shortfall, not as unpaid.
   The owed figure is a **placeholder, never a prefilled value**, because the
   discount is live and it moves while the dialog is open; the hint is whichever
-  figure finishes the next thing. The **price is chosen inside this dialog and
-  never in a table cell**, and it is a readout rather than a picker once the row
-  holds money. This is the only one of the three gestures that can bounce.
+  figure finishes the next thing. The two owed figures are shown **only once the
+  inscription holds money**: on an empty row they restate the price named right
+  above them. Because the bound is known on the client, an amount above what the
+  row owes is said **under the field** ("Ingresá un monto entre $ 1 y $ X.")
+  instead of round-tripping to "No se puede asignar más de lo que la inscripción
+  adeuda."; the pool's own ceiling is not known here and stays an alert. The
+  **price is chosen inside this dialog and never in a table cell**, and it is a
+  readout rather than a picker once the row has **covered its seña**. This is the
+  only one of the three gestures that can bounce.
 - **Removing.** The amount is **hinted with everything the inscription holds**,
   as a placeholder and not as a prefilled value, and any smaller amount is
   accepted. The hint can be a real figure — what is allocated is a fact and does
@@ -471,13 +477,23 @@ money to take off while the entry point stays single.
   is an allocation-time concern, and taking money off until the row falls back
   below its seña is precisely what opens the lock.
 
-**Known divergence — the dialog still locks the picker at the first peso.** The
-rule locks the price at the deposit threshold, and both the write path and the
-database guard hold it there, but `inscription-money-dialog.tsx` swaps the picker
-for a readout as soon as `allocatedAmount > 0` and tells the administrator "Para
-cambiarle el precio hay que quitarle toda la plata.". A below-threshold price
-change is therefore accepted by every write path and unreachable from that
-dialog, and the hint under the readout describes the retired rule.
+**The dialog locks the picker where the rule locks it**: at the deposit
+threshold. It used to swap the picker for a readout as soon as
+`allocatedAmount > 0` and to explain itself with "Para cambiarle el precio hay
+que quitarle toda la plata." — a retired rule, and a below-threshold price change
+was therefore accepted by every write path while being unreachable from the one
+screen that offers prices. Both the swap and that hint are gone.
+
+The dialog reads the threshold off the row's **effective** deposit while the
+write path tests the **stored** one, and the two agree wherever it matters: once
+the stored row is crossed, the effective row _is_ the stored row. They can differ
+only when the list moved _down_ under a row already holding money, where the
+dialog is the stricter of the two — the same direction the old first-peso lock
+erred in, and far rarer.
+
+The readout says exactly what the picker it replaces said — name, amount and
+`Seña` — through one formatter, so locking a row cannot quietly drop a figure the
+administrator was choosing by.
 
 **The readout and the picker both name the effective price.** They are the same
 row above the threshold and can differ below it, and both are fed by

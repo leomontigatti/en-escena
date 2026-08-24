@@ -144,6 +144,7 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
         // today: it is what the figures come from and what the dialog reads out.
         effectivePrice: {
           amount: 10000,
+          depositAmount: 3000,
           id: expect.any(String),
           name: "Precio Solo",
         },
@@ -222,6 +223,7 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
         discountAmount: 0,
         effectivePrice: {
           amount: 10000,
+          depositAmount: 3000,
           id: expect.any(String),
           name: "Precio Solo",
         },
