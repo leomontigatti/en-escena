@@ -1,8 +1,6 @@
--- The inscription gains a registration date of its own. Until now the closest
--- date available was `en_escena_choreography."created_at"`, and counting
--- inscriptions by it credits the choreography's own creation with every dancer
--- added to the roster afterwards: a choreography created on the 20th and
--- completed on the 31st counts all ten of its inscriptions on the 20th.
+-- The inscription gains a registration date of its own; what the column means
+-- and why it is not the choreography's date is on `choreographyDancers` in
+-- `app/db/schema/choreographies.ts`. What follows is local to this migration.
 --
 -- `DEFAULT CURRENT_TIMESTAMP NOT NULL` leaves the existing rows at the moment
 -- of the migration, which is wrong for every one of them, so the `UPDATE` puts

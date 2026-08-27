@@ -239,6 +239,9 @@ describe("administrative choreography roster editing", () => {
       .update(choreographies)
       .set({ createdAt: choreographyCreatedAt })
       .where(eq(choreographies.id, scenario.choreography.id));
+    // `dancer` carries the same `CURRENT_TIMESTAMP` default as the column under
+    // test, so these two bracket the roster save on the database's own clock —
+    // no assumption that the test runner's agrees with it.
     const dancerC = await createDancer(scenario.academyId, {
       firstName: "Cami",
       lastName: "Tres",
@@ -251,9 +254,22 @@ describe("administrative choreography roster editing", () => {
 
     expect(response).toMatchObject({ status: "success" });
 
+    const afterSubmit = await createDancer(scenario.academyId, {
+      firstName: "Nadia",
+      lastName: "Testigo",
+    });
     const added = await db.query.choreographyDancers.findFirst({
       where: eq(choreographyDancers.dancerId, dancerC.id),
     });
+    // Bounded on both sides by this roster save, which is the claim: the row is
+    // stamped when the dancer is added. `toBeGreaterThan(choreographyCreatedAt)`
+    // alone would pass on any date after the backdated one, copied or not.
+    expect(added?.createdAt.getTime()).toBeGreaterThanOrEqual(
+      dancerC.createdAt.getTime(),
+    );
+    expect(added?.createdAt.getTime()).toBeLessThanOrEqual(
+      afterSubmit.createdAt.getTime(),
+    );
     expect(added?.createdAt.getTime()).toBeGreaterThan(
       choreographyCreatedAt.getTime(),
     );
