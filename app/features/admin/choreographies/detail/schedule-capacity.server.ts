@@ -11,7 +11,6 @@ import {
 import type { ScheduleCapacitySelectOption } from "@/lib/choreographies/schedule-capacity-options";
 import { withScheduleCapacityOccupancy } from "@/lib/choreographies/schedule-capacity-options.server";
 import { resolveEventBasesScheduleOptions } from "@/lib/events/bases.server";
-import { hasFrozenPriceInscription } from "@/lib/finances/choreography-frozen-price-guard.server";
 
 import type { ChoreographyDetail } from "./server";
 import {
@@ -45,13 +44,14 @@ const frozenPriceBlocker: ChoreographyScheduleCapacityBlocker = {
  * Motivos de bloqueo que el servidor arma para la alerta de la página. No se
  * filtran por rol: el auditor también tiene que ver por qué el cronograma no se
  * puede mover.
+ *
+ * The caller reads the money once and derives both this list and the modality
+ * one from it: the two alerts describe the same inscriptions.
  */
-export async function resolveScheduleCapacityBlockers(
-  choreographyId: string,
-): Promise<ChoreographyScheduleCapacityBlocker[]> {
-  return (await hasFrozenPriceInscription(choreographyId))
-    ? [frozenPriceBlocker]
-    : [];
+export function toScheduleCapacityBlockers(
+  hasFrozenPrice: boolean,
+): ChoreographyScheduleCapacityBlocker[] {
+  return hasFrozenPrice ? [frozenPriceBlocker] : [];
 }
 
 type ResolvedScheduleCapacityOption = ChoreographyScheduleCapacityOption & {

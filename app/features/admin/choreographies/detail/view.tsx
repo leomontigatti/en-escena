@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Check, ChevronLeft, LoaderCircle, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSubmit } from "react-router";
-import { useForm } from "react-hook-form";
+import { useForm, type Control } from "react-hook-form";
 import { z } from "zod";
 
 import {
@@ -17,7 +17,6 @@ import { ReadOnlyField } from "@/components/shared/read-only-field";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { SelectField } from "@/components/shared/select-field";
 import { TextInputField } from "@/components/shared/text-input-field";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,6 +38,14 @@ import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
+import { ChoreographyDetailAlerts } from "./detail-alerts";
+import {
+  ModalityCorrectionActions,
+  ModalityExperienceLevelField,
+  ModalityField,
+  ModalityScheduleCapacityField,
+  ModalitySubmodalityField,
+} from "./modality-fields";
 import {
   canSubmitChoreographyEdit,
   getExperienceLevelSlotState,
@@ -58,6 +65,7 @@ import {
   ScheduleCapacityField,
   SubmodalityField,
 } from "./reassignment-fields";
+import { useModalityForm } from "./use-modality-form";
 import { useRosterForm } from "./use-roster-form";
 import type { ChoreographyDetailLoaderData } from "./server";
 
@@ -171,6 +179,14 @@ function ChoreographyDetailForm({
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
   const roster = useRosterForm({ form, loaderData });
+  // Los dos forms se excluyen en pantalla: mientras uno tiene cambios sin
+  // guardar el otro queda de solo lectura, porque la misma resolución
+  // reescribiría los mismos campos derivados desde dos lados.
+  const isRosterFormDirty =
+    roster.hasNameChanged ||
+    roster.hasRosterChanged ||
+    roster.hasProfessorsChanged;
+  const modality = useModalityForm({ isRosterFormDirty, loaderData });
 
   useEffect(() => {
     reset(defaultValues);
@@ -192,6 +208,7 @@ function ChoreographyDetailForm({
 
   const canSubmit =
     loaderData.canEdit &&
+    !modality.isDirty &&
     canSubmitChoreographyEdit({
       canEditRoster: roster.canEditRoster,
       derivedResolution: roster.derivedResolution,
@@ -266,65 +283,11 @@ function ChoreographyDetailForm({
             />
           }
         >
-          {choreography.hasPresentation && loaderData.canEdit ? (
-            <Alert>
-              <AlertTitle>La presentación bloquea esta coreografía</AlertTitle>
-              <AlertDescription>
-                Esta coreografía ya tiene una presentación asociada. Podés
-                cambiar el nombre, pero no los bailarines, los profesores, la
-                submodalidad, el cupo de cronograma ni el nivel de experiencia.
-              </AlertDescription>
-            </Alert>
-          ) : null}
-
-          {/* Tampoco se suprime para el auditor: informa un estado de los datos.
-              La coreografía quedó sin un nivel que su categoría exige —por una
-              corrección de fecha de nacimiento, por una categoría a la que le
-              agregaron niveles después, o por una fila vieja—, y el motivo no
-              está guardado en ningún lado, así que la alerta no lo nombra. */}
-          {choreography.operationalStatus.pendingItems.includes(
-            "experienceLevel",
-          ) ? (
-            <Alert>
-              <AlertTitle>Falta el nivel de experiencia</AlertTitle>
-              <AlertDescription>
-                Esta coreografía no tiene nivel de experiencia y su categoría lo
-                requiere.
-                {loaderData.experienceLevel.canReassign
-                  ? " Elegí uno para completarla."
-                  : ""}
-              </AlertDescription>
-            </Alert>
-          ) : null}
-
-          {/* La alerta financiera no se suprime para el auditor: el motivo del
-              bloqueo es información de la coreografía, no del permiso de quien
-              mira. */}
-          {loaderData.scheduleCapacity.blockers.length > 0 ? (
-            <Alert>
-              <AlertTitle>El cupo de cronograma está bloqueado</AlertTitle>
-              <AlertDescription>
-                <p>No se puede reasignar el cupo de cronograma:</p>
-                <ul className="mt-2 list-disc pl-5">
-                  {loaderData.scheduleCapacity.blockers.map((blocker) => (
-                    <li key={blocker.code}>{blocker.label}</li>
-                  ))}
-                </ul>
-              </AlertDescription>
-            </Alert>
-          ) : null}
-
-          {noCompatibleCategory ? (
-            <Alert variant="destructive">
-              <AlertTitle>No hay categoría compatible</AlertTitle>
-              <AlertDescription>
-                Con este roster (
-                {formatGroupTypeLabel(roster.derivedResolution.groupType)}) no
-                existe una categoría válida. Ajustá los bailarines para poder
-                guardar.
-              </AlertDescription>
-            </Alert>
-          ) : null}
+          <ChoreographyDetailAlerts
+            groupType={roster.derivedResolution.groupType}
+            loaderData={loaderData}
+            noCompatibleCategory={noCompatibleCategory}
+          />
 
           <FieldGroup className="grid gap-5 md:grid-cols-2">
             <ReadOnlyField
@@ -336,6 +299,7 @@ function ChoreographyDetailForm({
               <TextInputField
                 className="md:col-span-2"
                 control={form.control}
+                disabled={modality.isDirty}
                 label="Nombre"
                 name="name"
               />
@@ -346,66 +310,75 @@ function ChoreographyDetailForm({
                 value={choreography.name}
               />
             )}
-            <ReadOnlyField
-              label="Modalidad"
-              value={choreography.modalityName}
-            />
-            <SubmodalityField loaderData={loaderData} />
+            <ModalityField loaderData={loaderData} modality={modality} />
+            {/* Un solo slot por campo dependiente y una precedencia fija: la
+                corrección de modalidad manda mientras está pendiente, porque su
+                resolución reescribe los tres a la vez. El form del roster y el
+                bloque de modalidad se excluyen entre sí, así que nunca hay dos
+                candidatos para el mismo slot. */}
+            {modality.isDirty ? (
+              <ModalitySubmodalityField
+                loaderData={loaderData}
+                modality={modality}
+              />
+            ) : (
+              <SubmodalityField loaderData={loaderData} />
+            )}
             <ReadOnlyField
               label="Categoría"
-              value={roster.derivedResolution.categoryName ?? "Sin asignar"}
+              value={
+                modality.categoryLabel ??
+                roster.derivedResolution.categoryName ??
+                "Sin asignar"
+              }
             />
             <ReadOnlyField
               label="Tipo de grupo"
               value={formatGroupTypeLabel(roster.derivedResolution.groupType)}
             />
-            {/* Un solo slot "Nivel de experiencia": el select del roster manda
+            {/* Un solo slot "Nivel de experiencia": la corrección de modalidad
+                manda mientras está pendiente; después, el select del roster
                 cuando el cambio pendiente mueve la categoría, porque el nivel
                 nuevo se elige junto con la confirmación. Ver
                 `getExperienceLevelSlotState`. */}
-            {experienceLevelSlot.showRosterSelect ? (
-              <SelectField
-                control={form.control}
-                label="Nivel de experiencia"
-                name="experienceLevelId"
-                options={roster.derivedResolution.experienceLevelOptions.map(
-                  (option) => ({ label: option.name, value: option.id }),
-                )}
-                placeholder="Elegí el nivel"
+            {modality.isDirty ? (
+              <ModalityExperienceLevelField
+                loaderData={loaderData}
+                modality={modality}
               />
             ) : (
-              <ExperienceLevelField
-                experienceLevelId={experienceLevelSlot.experienceLevelId}
+              <RosterExperienceLevelSlot
+                control={form.control}
+                experienceLevelSlot={experienceLevelSlot}
                 loaderData={loaderData}
-                requiresExperienceLevel={
-                  experienceLevelSlot.requiresExperienceLevel
+                options={roster.derivedResolution.experienceLevelOptions}
+              />
+            )}
+            {/* Un solo slot "Cronograma" con precedencia fija: manda la
+                corrección de modalidad mientras está pendiente; después, el
+                select del roster, porque un cambio de tipo de grupo limpia el
+                cupo y el reemplazo se elige junto con la confirmación. */}
+            {modality.isDirty ? (
+              <ModalityScheduleCapacityField
+                loaderData={loaderData}
+                modality={modality}
+              />
+            ) : (
+              <RosterScheduleSlot
+                control={form.control}
+                loaderData={loaderData}
+                scheduleResolution={
+                  showScheduleSelect ? roster.scheduleResolution : null
                 }
               />
             )}
-            {/* Un solo slot "Cronograma" con precedencia fija: mientras hay un
-                cambio de roster pendiente manda el select del roster, porque un
-                cambio de tipo de grupo limpia el cupo y el reemplazo se elige
-                junto con la confirmación. */}
-            {showScheduleSelect && roster.scheduleResolution ? (
-              <SelectField
-                control={form.control}
-                label="Cronograma"
-                name="scheduleCapacityId"
-                options={roster.scheduleResolution.options.map((option) => ({
-                  label: formatScheduleDateTime(option.schedule),
-                  value: option.id,
-                }))}
-                placeholder="Elegí el cronograma"
-              />
-            ) : (
-              <ScheduleCapacityField loaderData={loaderData} />
-            )}
+            <ModalityCorrectionActions modality={modality} />
           </FieldGroup>
 
           <FieldGroup>
             <MultiComboboxField
               control={form.control}
-              disabled={!roster.canEditRoster}
+              disabled={!roster.canEditRoster || modality.isDirty}
               emptyMessage="Sin bailarines disponibles"
               inputName="dancerIds"
               label="Bailarines"
@@ -417,7 +390,7 @@ function ChoreographyDetailForm({
 
             <MultiComboboxField
               control={form.control}
-              disabled={!roster.canEditRoster}
+              disabled={!roster.canEditRoster || modality.isDirty}
               emptyMessage="Sin profesores disponibles"
               inputName="professorIds"
               label="Profesores"
@@ -469,6 +442,76 @@ function ChoreographyDetailForm({
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+}
+
+/**
+ * El slot del nivel cuando la corrección de modalidad no lo reclama: el select
+ * del roster si el cambio pendiente mueve la categoría, y si no la reasignación
+ * autónoma.
+ */
+function RosterExperienceLevelSlot({
+  control,
+  experienceLevelSlot,
+  loaderData,
+  options,
+}: {
+  control: Control<ChoreographyFormValues>;
+  experienceLevelSlot: ReturnType<typeof getExperienceLevelSlotState>;
+  loaderData: ChoreographyDetailLoaderData;
+  options: Array<{ id: string; name: string }>;
+}) {
+  if (experienceLevelSlot.showRosterSelect) {
+    return (
+      <SelectField
+        control={control}
+        label="Nivel de experiencia"
+        name="experienceLevelId"
+        options={options.map((option) => ({
+          label: option.name,
+          value: option.id,
+        }))}
+        placeholder="Elegí el nivel"
+      />
+    );
+  }
+
+  return (
+    <ExperienceLevelField
+      experienceLevelId={experienceLevelSlot.experienceLevelId}
+      loaderData={loaderData}
+      requiresExperienceLevel={experienceLevelSlot.requiresExperienceLevel}
+    />
+  );
+}
+
+/**
+ * El slot del cronograma cuando la corrección de modalidad no lo reclama.
+ */
+function RosterScheduleSlot({
+  control,
+  loaderData,
+  scheduleResolution,
+}: {
+  control: Control<ChoreographyFormValues>;
+  loaderData: ChoreographyDetailLoaderData;
+  scheduleResolution: ReturnType<typeof useRosterForm>["scheduleResolution"];
+}) {
+  if (!scheduleResolution || scheduleResolution.status !== "multiple") {
+    return <ScheduleCapacityField loaderData={loaderData} />;
+  }
+
+  return (
+    <SelectField
+      control={control}
+      label="Cronograma"
+      name="scheduleCapacityId"
+      options={scheduleResolution.options.map((option) => ({
+        label: formatScheduleDateTime(option.schedule),
+        value: option.id,
+      }))}
+      placeholder="Elegí el cronograma"
+    />
   );
 }
 
