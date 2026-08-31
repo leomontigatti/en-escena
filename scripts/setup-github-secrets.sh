@@ -2,72 +2,73 @@
 set -eo pipefail
 
 # ============================================================
-# AFK — carga de secrets de GitHub Actions
+# AFK — loading the GitHub Actions secrets
 # ============================================================
 #
-# Carga los dos secrets que consumen los workflows AFK (spec §3.1).
-# Idempotente: si un secret ya existe, pregunta antes de sobreescribir.
-# El runbook completo (qué es cada secret, por qué, degradación sin
-# PAT) vive en docs/agents/afk-setup.md.
+# Loads the two secrets the AFK workflows consume (spec §3.1).
+# Idempotent: if a secret already exists, it asks before overwriting.
+# The full runbook (what each secret is, why, how the platform degrades
+# without the PAT) lives in docs/agents/afk-setup.md.
 #
-# Nuestro modelo es orquestador↔runner (spec §3.9): el runner NO tiene
-# token de GitHub. Por eso NO hay un PAT read-only para leer issues
-# adentro del runner (el orquestador prefetcha y pasa el contexto por
-# env/archivos). Los dos secrets son:
+# Our model is orchestrator↔runner (spec §3.9): the runner holds NO
+# GitHub token. That is why there is NO read-only PAT for reading issues
+# inside the runner (the orchestrator prefetches and passes the context
+# through env/files). The two secrets are:
 #
 # 1. CLAUDE_CODE_OAUTH_TOKEN
-#    Token OAuth de Claude Code; con él el runner autentica contra la
-#    API de Anthropic. Obtenelo con:  claude setup-token
+#    Claude Code OAuth token; the runner authenticates against the
+#    Anthropic API with it. Get it with:  claude setup-token
 #
 # 2. AGENT_PAT
-#    PAT (classic) con scopes `repo` + `workflow`. El ORQUESTADOR lo usa
-#    para (a) encadenar workflows agregando labels-trigger — GITHUB_TOKEN
-#    no dispara downstream por el anti-loop de GitHub — y (b) pushear
-#    cambios a .github/workflows/** (requiere el scope `workflow`).
-#    Crealo en https://github.com/settings/tokens (classic: repo + workflow).
-#    Es fuertemente recomendado: sin él la plataforma funciona pero se
-#    degrada (los labels aterrizan, el downstream no arranca solo).
+#    A classic PAT with `repo` + `workflow` scopes. The ORCHESTRATOR uses
+#    it to (a) chain workflows by adding trigger labels — GITHUB_TOKEN
+#    does not fire downstream runs, because of GitHub's anti-loop rule —
+#    and (b) push changes to .github/workflows/** (which needs the
+#    `workflow` scope).
+#    Create it at https://github.com/settings/tokens (classic: repo + workflow).
+#    It is strongly recommended: without it the platform still works but
+#    degrades (labels land, downstream does not start on its own).
 #
-# Nota: GITHUB_TOKEN es built-in (GitHub lo inyecta por-run); no se carga.
+# Note: GITHUB_TOKEN is built-in (GitHub injects it per run); it is not loaded.
 #
 # ============================================================
 
 if ! command -v gh >/dev/null 2>&1; then
-  echo "Error: no encontré el comando 'gh'. Instalá GitHub CLI: https://cli.github.com"
+  echo "Error: could not find the 'gh' command. Install GitHub CLI: https://cli.github.com"
   exit 1
 fi
 
-# `gh repo view` falla por dos motivos distintos: no hay remote de GitHub, o
-# las credenciales no sirven. Descartar stderr los vuelve indistinguibles y un
-# 401 termina reportado como "no pude determinar el repo", que manda a revisar
-# el remote equivocado. Conservamos la salida para separar los casos.
+# `gh repo view` fails for two distinct reasons: there is no GitHub remote, or
+# the credentials are rejected. Discarding stderr makes them indistinguishable
+# and reports a 401 as "could not determine the repo", which sends you to check
+# the wrong thing. Keep the output so the cases stay separable.
 if ! REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner 2>&1); then
   if printf '%s' "$REPO" | grep -qiE 'bad credentials|HTTP 401|401 Unauthorized'; then
-    echo "Error: gh no pudo autenticar contra GitHub."
+    echo "Error: gh could not authenticate against GitHub."
     echo "  $REPO"
     echo ""
     if [ -n "${GH_TOKEN:-}" ]; then
-      echo "GH_TOKEN está seteado y tiene prioridad sobre el login guardado de gh."
-      echo "Si venció o fue revocado, corré:  unset GH_TOKEN && pnpm setup:secrets"
+      echo "GH_TOKEN is set and takes precedence over the login gh has stored."
+      echo "If it expired or was revoked, run:  unset GH_TOKEN && pnpm setup:secrets"
     else
-      echo "Autenticá con:  gh auth login"
+      echo "Authenticate with:  gh auth login"
     fi
   else
-    echo "Error: no pude determinar el repo. Corré esto dentro de un repo git con remote de GitHub."
+    echo "Error: could not determine the repo. Run this inside a git repo with a GitHub remote."
     echo "  $REPO"
   fi
   exit 1
 fi
 
 if [ -z "$REPO" ]; then
-  echo "Error: no pude determinar el repo. Corré esto dentro de un repo git con remote de GitHub."
+  echo "Error: could not determine the repo. Run this inside a git repo with a GitHub remote."
   exit 1
 fi
 
-echo "Cargando secrets para: $REPO"
+echo "Loading secrets for: $REPO"
 echo ""
 
-# set_secret <NOMBRE> <línea-de-ayuda>
+# set_secret <NAME> <help-line>
 set_secret() {
   local name="$1"
   local hint="$2"
@@ -77,32 +78,32 @@ set_secret() {
   echo ""
 
   if gh secret list --repo "$REPO" 2>/dev/null | grep -q "^$name\b"; then
-    echo "  [ya existe] ¿Sobreescribir? (y/N)"
+    echo "  [already exists] Overwrite? (y/N)"
     read -r overwrite
     if [[ "$overwrite" != "y" && "$overwrite" != "Y" ]]; then
-      echo "  Se deja como está."
+      echo "  Left as is."
       echo ""
       return 0
     fi
   fi
 
-  echo "  Pegá el valor de $name (input oculto):"
+  echo "  Paste the value for $name (hidden input):"
   read -rs token
   if [ -z "$token" ]; then
-    echo "  Vacío; se omite."
+    echo "  Empty; skipped."
     echo ""
     return 0
   fi
   printf '%s' "$token" | gh secret set "$name" --repo "$REPO"
-  echo "  Cargado."
+  echo "  Loaded."
   echo ""
 }
 
-set_secret "CLAUDE_CODE_OAUTH_TOKEN" "Token OAuth de Claude Code. Obtenelo con: claude setup-token"
-set_secret "AGENT_PAT" "PAT classic con scopes repo + workflow. https://github.com/settings/tokens"
+set_secret "CLAUDE_CODE_OAUTH_TOKEN" "Claude Code OAuth token. Get it with: claude setup-token"
+set_secret "AGENT_PAT" "Classic PAT with repo + workflow scopes. https://github.com/settings/tokens"
 
 echo "============================================================"
-echo "Secrets en $REPO (solo nombres, nunca valores):"
+echo "Secrets in $REPO (names only, never values):"
 echo ""
 gh secret list --repo "$REPO"
 echo ""
