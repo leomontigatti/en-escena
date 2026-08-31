@@ -36,6 +36,7 @@ import { useServerActionToast } from "@/lib/shared/toasts";
 
 import { ChoreographyDetailAlerts } from "./detail-alerts";
 import {
+  DependentFieldSlot,
   ModalityExperienceLevelField,
   ModalityField,
   ModalityScheduleCapacityField,
@@ -313,25 +314,18 @@ function ChoreographyDetailForm({
               />
             )}
             <ModalityField loaderData={loaderData} modality={modality} />
-            {/* One slot per dependent field, with a fixed precedence: the
-                modality correction wins once its resolution answered, because
-                it rewrites all three at once. While the answer is in flight
-                the saved-value field stays on screen, disabled: swapping it
-                for a read-only one and back flashes a control next to the
-                modalidad select twice in one round-trip. The roster form and
-                the modality block exclude each other, so there are never two
-                candidates for the same slot. */}
-            {modality.resolution ? (
-              <ModalitySubmodalityField
-                modality={modality}
-                resolution={modality.resolution}
-              />
-            ) : (
-              <SubmodalityField
-                disabled={modality.isDirty}
-                loaderData={loaderData}
-              />
-            )}
+            <DependentFieldSlot
+              modality={modality}
+              resolved={(resolution) => (
+                <ModalitySubmodalityField
+                  modality={modality}
+                  resolution={resolution}
+                />
+              )}
+              saved={(disabled) => (
+                <SubmodalityField disabled={disabled} loaderData={loaderData} />
+              )}
+            />
             <ReadOnlyField
               label="Categoría"
               value={
@@ -344,44 +338,48 @@ function ChoreographyDetailForm({
               label="Tipo de grupo"
               value={formatGroupTypeLabel(roster.derivedResolution.groupType)}
             />
-            {/* One "Nivel de experiencia" slot: the modality correction wins
-                while it is pending; after that, the roster select when the
-                pending change moves the categoría, because the new level is
-                chosen together with the confirmation. See
-                `getExperienceLevelSlotState`. */}
-            {modality.resolution ? (
-              <ModalityExperienceLevelField
-                modality={modality}
-                resolution={modality.resolution}
-              />
-            ) : (
-              <RosterExperienceLevelSlot
-                control={form.control}
-                disabled={modality.isDirty}
-                experienceLevelSlot={experienceLevelSlot}
-                loaderData={loaderData}
-                options={roster.derivedResolution.experienceLevelOptions}
-              />
-            )}
-            {/* One "Cronograma" slot with a fixed precedence: the modality
-                correction wins while it is pending; after that, the roster
-                select, because a group type change clears the cupo and the
-                replacement is chosen together with the confirmation. */}
-            {modality.resolution ? (
-              <ModalityScheduleCapacityField
-                modality={modality}
-                resolution={modality.resolution}
-              />
-            ) : (
-              <RosterScheduleSlot
-                control={form.control}
-                disabled={modality.isDirty}
-                loaderData={loaderData}
-                scheduleResolution={
-                  showScheduleSelect ? roster.scheduleResolution : null
-                }
-              />
-            )}
+            {/* Which roster control fills this slot when the correction is
+                not pending is its own rule: see `getExperienceLevelSlotState`. */}
+            <DependentFieldSlot
+              modality={modality}
+              resolved={(resolution) => (
+                <ModalityExperienceLevelField
+                  modality={modality}
+                  resolution={resolution}
+                />
+              )}
+              saved={(disabled) => (
+                <RosterExperienceLevelSlot
+                  control={form.control}
+                  disabled={disabled}
+                  experienceLevelSlot={experienceLevelSlot}
+                  loaderData={loaderData}
+                  options={roster.derivedResolution.experienceLevelOptions}
+                />
+              )}
+            />
+            {/* Without a pending correction the roster select takes over: a
+                tipo de grupo change clears the cupo and the replacement is
+                chosen together with the confirmation. */}
+            <DependentFieldSlot
+              modality={modality}
+              resolved={(resolution) => (
+                <ModalityScheduleCapacityField
+                  modality={modality}
+                  resolution={resolution}
+                />
+              )}
+              saved={(disabled) => (
+                <RosterScheduleSlot
+                  control={form.control}
+                  disabled={disabled}
+                  loaderData={loaderData}
+                  scheduleResolution={
+                    showScheduleSelect ? roster.scheduleResolution : null
+                  }
+                />
+              )}
+            />
           </FieldGroup>
 
           <FieldGroup>
@@ -430,27 +428,52 @@ function ChoreographyDetailForm({
         </AdminResourceFormCard>
       </form>
 
-      <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar edición</AlertDialogTitle>
-            <AlertDialogDescription>
-              Vas a guardar los cambios de esta coreografía. Revisá que el
-              roster sea correcto antes de confirmar.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          {withdrawnDancers.length > 0 ? (
-            <WithdrawalConsequences dancers={withdrawnDancers} />
-          ) : null}
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirm}>
-              Confirmar edición
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmEditDialog
+        onConfirm={handleConfirm}
+        onOpenChange={setIsConfirmOpen}
+        open={isConfirmOpen}
+        withdrawnDancers={withdrawnDancers}
+      />
     </>
+  );
+}
+
+/**
+ * The roster save confirms first: unlike the modality correction, it can retire
+ * inscriptions, and the dialog is where that consequence is enumerated.
+ */
+function ConfirmEditDialog({
+  onConfirm,
+  onOpenChange,
+  open,
+  withdrawnDancers,
+}: {
+  onConfirm: () => void;
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
+  withdrawnDancers: Array<{ id: string; name: string }>;
+}) {
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Confirmar edición</AlertDialogTitle>
+          <AlertDialogDescription>
+            Vas a guardar los cambios de esta coreografía. Revisá que el roster
+            sea correcto antes de confirmar.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        {withdrawnDancers.length > 0 ? (
+          <WithdrawalConsequences dancers={withdrawnDancers} />
+        ) : null}
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm}>
+            Confirmar edición
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 

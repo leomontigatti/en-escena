@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import {
   ReadOnlyField,
   ReadOnlySelectField,
@@ -32,6 +34,33 @@ type ResolvedModalityFieldProps = {
   modality: ReturnType<typeof useModalityForm>;
   resolution: ChoreographyModalityResolution;
 };
+
+/**
+ * One slot per field the modality correction rewrites — submodalidad, nivel de
+ * experiencia and cupo de cronograma — with the precedence written once instead
+ * of at each of the three.
+ *
+ * The correction wins as soon as its resolution answered, because it rewrites
+ * all three at once. Until then the field keeps showing the saved value in the
+ * same control, only disabled: swapping it for a read-only one and back flashes
+ * a control next to the modalidad select twice in a single round-trip, and
+ * disabling it is already enough to stop anyone picking a value the resolution
+ * is about to discard. The roster form and the modality block exclude each
+ * other on screen, so a slot never has two candidates.
+ */
+export function DependentFieldSlot({
+  modality,
+  resolved,
+  saved,
+}: {
+  modality: ReturnType<typeof useModalityForm>;
+  resolved: (resolution: ChoreographyModalityResolution) => ReactNode;
+  saved: (disabled: boolean) => ReactNode;
+}) {
+  return modality.resolution
+    ? resolved(modality.resolution)
+    : saved(modality.isDirty);
+}
 
 const noCompatibleCategoryDescription =
   "Con esta modalidad no hay categoría compatible. Se puede guardar igual y la coreografía queda incompleta.";
