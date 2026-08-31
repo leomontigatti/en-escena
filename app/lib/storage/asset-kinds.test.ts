@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 
+import { getEventDocumentSubjectOptions } from "@/lib/events/event-documents";
 import {
   type AssetKind,
   assetKindPolicies,
@@ -12,7 +13,11 @@ import {
   resolveAssetUpload,
 } from "@/lib/storage/asset-kinds";
 
-const assetKinds: AssetKind[] = ["choreographyMusic", "dancerDocumentImage"];
+const assetKinds: AssetKind[] = [
+  "choreographyMusic",
+  "dancerDocumentImage",
+  "eventDocument",
+];
 
 describe("asset kind policy", () => {
   // The volume layout and the B2 backup prefix are built from these names, so
@@ -23,6 +28,9 @@ describe("asset kind policy", () => {
     );
     expect(assetKindPolicies.dancerDocumentImage.bucket).toBe(
       "en-escena-dancer-documents",
+    );
+    expect(assetKindPolicies.eventDocument.bucket).toBe(
+      "en-escena-event-documents",
     );
   });
 
@@ -56,6 +64,7 @@ describe("asset kind policy", () => {
     expect(getAssetKindHelperText("dancerDocumentImage")).toBe(
       "JPG, PNG o WEBP - max 10 MB",
     );
+    expect(getAssetKindHelperText("eventDocument")).toBe("PDF - max 10 MB");
   });
 
   test("maps every accepted content type to an extension", () => {
@@ -217,5 +226,79 @@ describe("formatUploadRejection", () => {
         sizeBytes: 1,
       }),
     ).toContain(`${megabytes} MB`);
+  });
+
+  // "El archivo del autorización para menores" is what the single masculine
+  // contraction produced, which is why the subject carries a gender now.
+  test("contracts with the gender of the field label", () => {
+    expect(
+      formatUploadRejection(
+        {
+          contentType: "image/png",
+          kind: "eventDocument",
+          reason: "unsupported-content-type",
+        },
+        getEventDocumentSubjectOptions("minor_authorization"),
+      ),
+    ).toBe("El archivo de la autorización para menores debe ser PDF.");
+
+    expect(
+      formatUploadRejection(
+        { kind: "eventDocument", reason: "file-too-large", sizeBytes: 1 },
+        getEventDocumentSubjectOptions("professor_contract"),
+      ),
+    ).toBe("El archivo del contrato para profesores no puede superar 10 MB.");
+  });
+});
+
+describe("event document policy", () => {
+  test("accepts a PDF and refuses anything else", () => {
+    expect(
+      checkAssetAgainstPolicy("eventDocument", {
+        size: 1,
+        type: "application/pdf",
+      }),
+    ).toBeNull();
+
+    expect(
+      checkAssetAgainstPolicy("eventDocument", {
+        size: 1,
+        type: "image/png",
+      }),
+    ).toEqual({
+      contentType: "image/png",
+      kind: "eventDocument",
+      reason: "unsupported-content-type",
+    });
+  });
+
+  test("enforces the ceiling on an accepted format", () => {
+    const sizeBytes = assetKindPolicies.eventDocument.maxFileSizeBytes + 1;
+
+    expect(
+      checkAssetAgainstPolicy("eventDocument", {
+        size: sizeBytes,
+        type: "application/pdf",
+      }),
+    ).toEqual({
+      kind: "eventDocument",
+      reason: "file-too-large",
+      sizeBytes,
+    });
+  });
+
+  test("wires the per-document copy into the upload field", () => {
+    expect(
+      getAssetUploadFieldProps(
+        "eventDocument",
+        getEventDocumentSubjectOptions("minor_authorization"),
+      ),
+    ).toMatchObject({
+      accept: "application/pdf",
+      invalidTypeMessage:
+        "El archivo de la autorización para menores debe ser PDF.",
+      maxFileSizeMessage:
+        "El archivo de la autorización para menores no puede superar 10 MB.",
+    });
   });
 });

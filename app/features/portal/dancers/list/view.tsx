@@ -2,6 +2,7 @@ import { Plus } from "lucide-react";
 import { useEffect, useRef, useState, type ComponentProps } from "react";
 import { useFetcher } from "react-router";
 
+import { EventDocumentsMenu } from "@/components/portal/event-documents-menu";
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import {
   ClientDataTable,
@@ -24,6 +25,8 @@ import { type PortalDancersListLoaderData } from "@/features/portal/dancers/list
 type LoaderData = PortalDancersListLoaderData;
 type ActionData = CreateDancerActionData;
 type DancerRow = LoaderData["dancers"][number];
+
+const dancerDocumentKinds = ["minor_authorization", "adult_contract"] as const;
 
 const baseDancerFilters = {
   filters: {
@@ -95,16 +98,22 @@ export function PortalDancersListRouteView({
         title="Bailarines"
         description="Gestioná los bailarines de tu academia y priorizá los registros que todavía necesitan documento o imágenes."
         action={
-          <Button
-            type="button"
-            onClick={() => {
-              setDismissServerState(true);
-              setIsCreateDialogOpen(true);
-            }}
-          >
-            <Plus aria-hidden="true" data-icon />
-            Nuevo bailarín
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              onClick={() => {
+                setDismissServerState(true);
+                setIsCreateDialogOpen(true);
+              }}
+            >
+              <Plus aria-hidden="true" data-icon />
+              Nuevo bailarín
+            </Button>
+            <EventDocumentsMenu
+              documentDownloadUrls={loaderData.documentDownloadUrls}
+              kinds={dancerDocumentKinds}
+            />
+          </div>
         }
       >
         {loaderData.dancers.length > 0 ? (

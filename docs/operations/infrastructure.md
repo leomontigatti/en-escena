@@ -120,6 +120,36 @@ longer exists.
   reported. A failed delete orphans an object either way — there it is the
   just-uploaded object, here it is the one that was in use.
 
+### Event documents contract
+
+Bucket, format, size limit and expiry are declared in
+`app/lib/storage/asset-kinds.ts` and enforced by
+`app/lib/storage/event-documents.server.ts`; the row that points at the object
+is written by `app/lib/events/event-documents.server.ts`.
+
+- Bucket directory: `en-escena-event-documents`, private.
+- Three documents per event — professors contract, minor authorization and adult
+  contract — declared once in `app/lib/events/event-documents.ts`. They share a
+  single asset kind because they share a single policy.
+- Accepted format: PDF only, up to **10 MB**. Downloads go through a signed URL
+  that expires after **300** seconds.
+- The key is stable per `(eventId, kind)`:
+  `events/{eventId}/documents/{kind}.pdf`, uploaded with `upsert: true`. A
+  replace overwrites the bytes rather than orphaning them, and the 300s expiry
+  makes the "signed link opened before the swap" window negligible.
+- These bytes are **not** PII: the same file goes to every academy, so signing
+  buys no secrecy. The signed read path is reused because it already exists —
+  an unsigned read would mean a second serve route with its own auth decision.
+- The signed URL may carry a `filename`, which
+  `serveFilesystemObject` echoes as `Content-Disposition: inline; filename=…`.
+  The filename is part of the **HMAC payload**: reading it off the query string
+  would be a response-header-injection surface. A URL minted without a filename
+  keeps its original payload, so existing callers are unaffected.
+- A delete removes the row first and the object second. A failed object delete
+  leaves an orphan on the volume, logged as `[storage:event-document:orphan]`,
+  rather than telling the administration a delete failed after the document
+  stopped being offered anywhere.
+
 ## Related runbooks
 
 - [Backups](./backups.md) — database and storage backups, restore drills.

@@ -37,12 +37,23 @@ vi.mock("react-router", async () => {
         {children}
       </a>
     ),
+    // The Evento detail page also carries the documents card, which posts with
+    // its own fetcher. This suite renders the view outside a data router on
+    // purpose, so the fetcher is stubbed down to the plain form it renders.
+    useFetcher: () => ({
+      Form: ({ children, ...props }: { children: React.ReactNode }) => (
+        <form {...props}>{children}</form>
+      ),
+      data: undefined,
+      state: "idle" as const,
+    }),
     useFormAction: reactRouterMocks.useFormAction,
     useNavigation: reactRouterMocks.useNavigation,
     useSubmit: reactRouterMocks.useSubmit,
   };
 });
 
+import { eventDocumentSummaries } from "@/lib/events/event-documents.test-support";
 import { EventDetailRouteView } from "@/routes/administracion.eventos_.$eventId";
 import { NewEventRouteView } from "@/routes/administracion.eventos_.nuevo";
 
@@ -181,6 +192,7 @@ function buildDetailLoaderData(): Parameters<
   typeof EventDetailRouteView
 >[0]["loaderData"] {
   return {
+    documents: eventDocumentSummaries(),
     event: {
       id: "evento_1",
       name: "Evento 2026",

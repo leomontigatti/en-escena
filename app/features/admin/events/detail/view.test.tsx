@@ -6,6 +6,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { EventDetailView } from "@/features/admin/events/detail/view";
 import type { EventDetailLoaderData } from "@/features/admin/events/detail/shared";
+import { eventDocumentSummaries } from "@/lib/events/event-documents.test-support";
 import {
   createReactDomTestRenderer,
   getButton,
@@ -82,6 +83,7 @@ describe("EventDetailView delete", () => {
 
 function buildLoaderData(): EventDetailLoaderData {
   return {
+    documents: eventDocumentSummaries(),
     event: {
       id: "event_1",
       name: "Festival 2026",

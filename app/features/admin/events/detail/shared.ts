@@ -3,6 +3,7 @@ import type {
   EventFormValues,
   FieldErrors,
 } from "@/lib/admin/events/form-values";
+import type { EventDocumentSummaries } from "@/lib/events/event-documents.server";
 import type {
   EventRegistrationMissingCode,
   EventRegistrationReadiness,
@@ -10,7 +11,11 @@ import type {
 
 type EventRow = typeof eventsTable.$inferSelect;
 
+export const uploadEventDocumentIntent = "upload-document";
+export const deleteEventDocumentIntent = "delete-document";
+
 export type EventDetailLoaderData = {
+  documents: EventDocumentSummaries;
   event: EventRow;
   registrationReadiness: EventRegistrationReadiness;
 };

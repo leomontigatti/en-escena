@@ -7,7 +7,10 @@
 // This module is deliberately client-safe: it has no imports and reads no
 // environment, so the forms can import the same declaration the server enforces.
 
-export type AssetKind = "choreographyMusic" | "dancerDocumentImage";
+export type AssetKind =
+  | "choreographyMusic"
+  | "dancerDocumentImage"
+  | "eventDocument";
 
 export type AssetKindPolicy = {
   /**
@@ -55,6 +58,19 @@ export const assetKindPolicies = {
     maxFileSizeBytes: 10 * BYTES_PER_MEGABYTE,
     signedUrlExpiresInSeconds: 300,
     subjectLabel: "El archivo",
+  },
+  // One kind for the three event documents: they share a single policy, so
+  // there is nothing to differentiate. Which document a message is about comes
+  // from the `fieldLabel` option, the way `frente`/`dorso` already do.
+  eventDocument: {
+    bucket: "en-escena-event-documents",
+    extensionByContentType: {
+      "application/pdf": "pdf",
+    },
+    formatListLabel: "PDF",
+    maxFileSizeBytes: 10 * BYTES_PER_MEGABYTE,
+    signedUrlExpiresInSeconds: 300,
+    subjectLabel: "El documento",
   },
 } as const satisfies Record<AssetKind, AssetKindPolicy>;
 
@@ -159,13 +175,24 @@ export function checkAssetAgainstPolicy(
 }
 
 /**
+ * How a `fieldLabel` is named in a sentence. The gender is carried because the
+ * contraction depends on it: "el archivo **del** contrato" but "el archivo
+ * **de la** autorización". Masculine is the default, which is what every caller
+ * that predates the third asset kind needs.
+ */
+export type UploadSubjectOptions = {
+  fieldLabel?: string;
+  gender?: "feminine" | "masculine";
+};
+
+/**
  * The single place a rejection becomes Spanish. `fieldLabel` names the specific
  * input when one asset kind has several ("frente", "dorso"); without it the
  * kind's own subject is used.
  */
 export function formatUploadRejection(
   rejection: UploadRejection,
-  options: { fieldLabel?: string } = {},
+  options: UploadSubjectOptions = {},
 ) {
   switch (rejection.reason) {
     case "file-too-large":
@@ -177,35 +204,42 @@ export function formatUploadRejection(
 
 export function getAssetKindInvalidTypeMessage(
   kind: AssetKind,
-  options: { fieldLabel?: string } = {},
+  options: UploadSubjectOptions = {},
 ) {
-  return `${getSubject(kind, options.fieldLabel)} debe ser ${assetKindPolicies[kind].formatListLabel}.`;
+  return `${getSubject(kind, options)} debe ser ${assetKindPolicies[kind].formatListLabel}.`;
 }
 
 export function getAssetKindMaxFileSizeMessage(
   kind: AssetKind,
-  options: { fieldLabel?: string } = {},
+  options: UploadSubjectOptions = {},
 ) {
-  return `${getSubject(kind, options.fieldLabel)} no puede superar ${getAssetKindMaxFileSizeMegabytes(kind)} MB.`;
+  return `${getSubject(kind, options)} no puede superar ${getAssetKindMaxFileSizeMegabytes(kind)} MB.`;
 }
 
 /**
  * The props a file input needs to enforce the same policy the server does.
  * Spread at the call site so no surface restates a format list or a ceiling.
  */
-export function getAssetUploadFieldProps(kind: AssetKind) {
+export function getAssetUploadFieldProps(
+  kind: AssetKind,
+  options: UploadSubjectOptions = {},
+) {
   return {
     accept: getAssetKindAccept(kind),
     allowedMimeTypes: getAssetKindAllowedContentTypes(kind),
     helperText: getAssetKindHelperText(kind),
-    invalidTypeMessage: getAssetKindInvalidTypeMessage(kind),
+    invalidTypeMessage: getAssetKindInvalidTypeMessage(kind, options),
     maxFileSizeBytes: assetKindPolicies[kind].maxFileSizeBytes,
-    maxFileSizeMessage: getAssetKindMaxFileSizeMessage(kind),
+    maxFileSizeMessage: getAssetKindMaxFileSizeMessage(kind, options),
   };
 }
 
-function getSubject(kind: AssetKind, fieldLabel?: string) {
-  return fieldLabel
-    ? `El archivo del ${fieldLabel}`
-    : assetKindPolicies[kind].subjectLabel;
+function getSubject(kind: AssetKind, options: UploadSubjectOptions) {
+  if (!options.fieldLabel) {
+    return assetKindPolicies[kind].subjectLabel;
+  }
+
+  const contraction = options.gender === "feminine" ? "de la" : "del";
+
+  return `El archivo ${contraction} ${options.fieldLabel}`;
 }

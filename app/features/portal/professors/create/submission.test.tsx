@@ -14,6 +14,7 @@ import {
 } from "@/features/portal/test-support/submission";
 import { getButton, setInputValue } from "@/lib/test-support/react-dom";
 import { PortalProfessorsListRouteView } from "@/features/portal/professors/list/view";
+import { eventDocumentDownloadUrls } from "@/lib/events/event-documents.test-support";
 
 installPortalSubmissionTestHooks();
 
@@ -147,5 +148,6 @@ function buildProfessorLoaderData(): Parameters<
 >[0]["loaderData"] {
   return {
     professors: [],
+    documentDownloadUrls: eventDocumentDownloadUrls(),
   };
 }

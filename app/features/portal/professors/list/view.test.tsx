@@ -3,10 +3,16 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { PortalProfessorsListRouteView } from "@/features/portal/professors/list/view";
+import { eventDocumentDownloadUrls } from "@/lib/events/event-documents.test-support";
 
 type ProfessorsListViewProps = Parameters<
   typeof PortalProfessorsListRouteView
 >[0];
+
+type ProfessorsListViewInput = {
+  actionData?: ProfessorsListViewProps["actionData"];
+  loaderData?: Partial<ProfessorsListViewProps["loaderData"]>;
+};
 
 describe("PortalProfessorsListRouteView", () => {
   test("shows the empty list surface", () => {
@@ -95,7 +101,28 @@ describe("PortalProfessorsListRouteView", () => {
   });
 });
 
-function renderProfessorsList(input: Partial<ProfessorsListViewProps> = {}) {
+describe("PortalProfessorsListRouteView event documents", () => {
+  test("offers the professors contract beside the primary action", () => {
+    const markup = renderProfessorsList({
+      loaderData: {
+        documentDownloadUrls: eventDocumentDownloadUrls({
+          professor_contract: "/almacenamiento?key=contrato",
+        }),
+      },
+    });
+
+    expect(markup).toContain("Nuevo profesor");
+    expect(markup).toContain('aria-label="Documentos del evento"');
+  });
+
+  test("keeps the menu when the event has no document", () => {
+    const markup = renderProfessorsList();
+
+    expect(markup).toContain('aria-label="Documentos del evento"');
+  });
+});
+
+function renderProfessorsList(input: ProfessorsListViewInput = {}) {
   const router = createMemoryRouter(
     [
       {
@@ -103,7 +130,11 @@ function renderProfessorsList(input: Partial<ProfessorsListViewProps> = {}) {
         action: async () => null,
         element: (
           <PortalProfessorsListRouteView
-            loaderData={input.loaderData ?? { professors: [] }}
+            loaderData={{
+              documentDownloadUrls: eventDocumentDownloadUrls(),
+              professors: [],
+              ...input.loaderData,
+            }}
             actionData={input.actionData}
           />
         ),

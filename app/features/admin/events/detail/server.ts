@@ -8,6 +8,13 @@ import {
   parseEventFormValues,
   readEventFormValues,
 } from "@/lib/admin/events/form-values";
+import { parseEventDocumentKind } from "@/lib/events/event-documents";
+import {
+  deleteEventDocument,
+  loadEventDocumentSummaries,
+  saveEventDocument,
+} from "@/lib/events/event-documents.server";
+import { createDefaultEventDocumentStorage } from "@/lib/storage/event-documents.server";
 import {
   activateEvent,
   deactivateEvent,
@@ -23,12 +30,16 @@ import {
   type NotificationKey,
 } from "@/lib/shared/notification-toasts";
 import {
+  deleteEventDocumentIntent,
+  uploadEventDocumentIntent,
   type EventDetailActionData,
   type EventDetailLoaderData,
 } from "./shared";
 
 type EventRouteNotification = Extract<
   NotificationKey,
+  | "documento-evento-cargado"
+  | "documento-evento-eliminado"
   | "evento-activado"
   | "evento-desactivado"
   | "evento-guardado"
@@ -37,6 +48,9 @@ type EventRouteNotification = Extract<
   | "resultados-visibles"
   | "resultados-ocultos"
 >;
+
+const unknownDocumentMessage = "No pudimos reconocer ese documento.";
+const missingDocumentFileMessage = "Elegí un archivo para cargar.";
 
 export async function loadEventDetail(
   request: Request,
@@ -48,12 +62,17 @@ export async function loadEventDetail(
     throw new Response("No encontramos ese evento.", { status: 404 });
   }
 
-  const [event, registrationReadiness] = await Promise.all([
+  const [event, registrationReadiness, documents] = await Promise.all([
     loadEvent(eventId),
     getEventRegistrationReadiness(eventId),
+    loadEventDocumentSummaries({
+      eventId,
+      storage: createDefaultEventDocumentStorage(),
+    }),
   ]);
 
   return {
+    documents,
     event,
     registrationReadiness,
   } satisfies EventDetailLoaderData;
@@ -117,9 +136,65 @@ export async function updateAdministrativeEvent(
       );
     }
 
+    case uploadEventDocumentIntent:
+      return uploadDocumentAction(eventId, formData);
+
+    case deleteEventDocumentIntent:
+      return deleteDocumentAction(eventId, formData);
+
     default:
       return actionError("No pudimos procesar esa acción.");
   }
+}
+
+// The card posts `multipart/form-data` to this same action: `request.formData()`
+// parses a multipart body transparently, so the main event form keeps posting
+// url-encoded and a second route does not have to restate the admin gate.
+async function uploadDocumentAction(eventId: string, formData: FormData) {
+  const kind = parseEventDocumentKind(formData.get("kind"));
+
+  if (!kind) {
+    return actionError(unknownDocumentMessage);
+  }
+
+  const file = formData.get("documentFile");
+
+  if (!(file instanceof File) || file.size === 0) {
+    return actionError(missingDocumentFileMessage);
+  }
+
+  const result = await saveEventDocument({
+    eventId,
+    file,
+    kind,
+    storage: createDefaultEventDocumentStorage(),
+  });
+
+  if (!result.ok) {
+    return actionError(result.message);
+  }
+
+  return actionSuccess("documento-evento-cargado");
+}
+
+async function deleteDocumentAction(eventId: string, formData: FormData) {
+  const kind = parseEventDocumentKind(formData.get("kind"));
+
+  if (!kind) {
+    return actionError(unknownDocumentMessage);
+  }
+
+  const result = await deleteEventDocument({
+    eventId,
+    kind,
+    storage: createDefaultEventDocumentStorage(),
+  });
+
+  if (!result.ok) {
+    return actionError(result.message);
+  }
+
+  return actionSuccess("documento-evento-eliminado");
 }
 
 async function updateEventAction(eventId: string, formData: FormData) {

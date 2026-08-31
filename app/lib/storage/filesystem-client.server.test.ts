@@ -187,6 +187,48 @@ describe("short-lived storage access tokens", () => {
         secret: SECRET,
       }),
     );
+    expect(parsed.searchParams.get("filename")).toBeNull();
+  });
+
+  test("signs the download filename when one is asked for", () => {
+    const url = createFilesystemSignedUrl({
+      bucket: "en-escena-event-documents",
+      expiresInSeconds: 300,
+      filename: "autorizacion-para-menores.pdf",
+      key: "events/event-1/documents/minor_authorization.pdf",
+      now: 1_000_000,
+      secret: SECRET,
+    });
+
+    const parsed = new URL(url, "https://sistema.enescena.com.ar");
+
+    expect(parsed.searchParams.get("filename")).toBe(
+      "autorizacion-para-menores.pdf",
+    );
+    expect(parsed.searchParams.get("token")).toBe(
+      mintStorageAccessToken({
+        bucket: "en-escena-event-documents",
+        expiresAt: 1300,
+        filename: "autorizacion-para-menores.pdf",
+        key: "events/event-1/documents/minor_authorization.pdf",
+        secret: SECRET,
+      }),
+    );
+  });
+
+  // The filename is echoed into a response header, so a name that could carry a
+  // header break must never be signable in the first place.
+  test("refuses to sign a filename that could break out of the header", () => {
+    expect(() =>
+      createFilesystemSignedUrl({
+        bucket: "en-escena-event-documents",
+        expiresInSeconds: 300,
+        filename: 'x.pdf"\r\nSet-Cookie: a=b',
+        key: "events/event-1/documents/adult_contract.pdf",
+        now: 1_000_000,
+        secret: SECRET,
+      }),
+    ).toThrow("Invalid storage filename");
   });
 });
 
@@ -213,14 +255,21 @@ describe("serving objects from the volume", () => {
   function signedParams(input: {
     bucket: string;
     expiresAt: number;
+    filename?: string;
     key: string;
   }) {
-    return new URLSearchParams({
+    const params = new URLSearchParams({
       bucket: input.bucket,
       expires: String(input.expiresAt),
       key: input.key,
       token: mintStorageAccessToken({ ...input, secret: SECRET }),
     });
+
+    if (input.filename) {
+      params.set("filename", input.filename);
+    }
+
+    return params;
   }
 
   test("streams the bytes with a private cache policy for a valid token", async () => {
@@ -264,6 +313,97 @@ describe("serving objects from the volume", () => {
 
     const params = signedParams({ bucket, expiresAt: 1300, key });
     params.set("key", "academies/academy-1/dancers/dancer-1/document-back.jpg");
+
+    const response = await serveFilesystemObject({
+      baseDir,
+      now: 1_290_000,
+      params,
+      secret: SECRET,
+    });
+
+    expect(response.status).toBe(403);
+  });
+
+  test("omits Content-Disposition when no filename was signed", async () => {
+    const bucket = "en-escena-dancer-documents";
+    const key = "academies/academy-1/dancers/dancer-1/document-front.jpg";
+    await seed(bucket, key, "front-bytes");
+
+    const response = await serveFilesystemObject({
+      baseDir,
+      now: 1_290_000,
+      params: signedParams({ bucket, expiresAt: 1300, key }),
+      secret: SECRET,
+    });
+
+    expect(response.headers.get("Content-Disposition")).toBeNull();
+  });
+
+  test("serves each event document inline under its own filename", async () => {
+    const bucket = "en-escena-event-documents";
+    const cases = [
+      {
+        filename: "contrato-para-profesores.pdf",
+        key: "events/event-1/documents/professor_contract.pdf",
+      },
+      {
+        filename: "autorizacion-para-menores.pdf",
+        key: "events/event-1/documents/minor_authorization.pdf",
+      },
+      {
+        filename: "contrato-para-mayores.pdf",
+        key: "events/event-1/documents/adult_contract.pdf",
+      },
+    ];
+
+    for (const { filename, key } of cases) {
+      await seed(bucket, key, "pdf-bytes");
+
+      const response = await serveFilesystemObject({
+        baseDir,
+        now: 1_290_000,
+        params: signedParams({ bucket, expiresAt: 1300, filename, key }),
+        secret: SECRET,
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("Content-Type")).toBe("application/pdf");
+      expect(response.headers.get("Content-Disposition")).toBe(
+        `inline; filename="${filename}"`,
+      );
+    }
+  });
+
+  test("rejects a filename the signature does not cover", async () => {
+    const bucket = "en-escena-event-documents";
+    const key = "events/event-1/documents/adult_contract.pdf";
+    await seed(bucket, key, "pdf-bytes");
+
+    const params = signedParams({
+      bucket,
+      expiresAt: 1300,
+      filename: "contrato-para-mayores.pdf",
+      key,
+    });
+    params.set("filename", 'otro.pdf"; attachment');
+
+    const response = await serveFilesystemObject({
+      baseDir,
+      now: 1_290_000,
+      params,
+      secret: SECRET,
+    });
+
+    expect(response.status).toBe(403);
+  });
+
+  test("rejects a filename added to a URL that was signed without one", async () => {
+    const bucket = "en-escena-event-documents";
+    const key = "events/event-1/documents/adult_contract.pdf";
+    await seed(bucket, key, "pdf-bytes");
+
+    const params = signedParams({ bucket, expiresAt: 1300, key });
+    params.set("filename", "cualquier-cosa.pdf");
 
     const response = await serveFilesystemObject({
       baseDir,

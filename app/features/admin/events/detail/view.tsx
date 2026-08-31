@@ -23,6 +23,7 @@ import { isRouteFormPending, useOptionalNavigation } from "@/lib/shared/forms";
 import { notificationToastIds } from "@/lib/shared/notification-toasts";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
+import { EventDocumentsCard } from "./documents-card";
 import {
   eventActionPath,
   getMissingItemAdminPath,
@@ -73,6 +74,7 @@ export function EventDetailView({
         ) : null}
       </AlertStack>
       <EditEventPanel event={loaderData.event} actionData={errorData} />
+      <EventDocumentsCard documents={loaderData.documents} />
     </AdminResourceLayout>
   );
 }

@@ -2,6 +2,7 @@ import { Plus } from "lucide-react";
 import { useEffect, useRef, useState, type ComponentProps } from "react";
 import { useFetcher } from "react-router";
 
+import { EventDocumentsMenu } from "@/components/portal/event-documents-menu";
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import {
   ClientDataTable,
@@ -28,6 +29,8 @@ type ProfessorBadge = {
   label: string;
   variant: ComponentProps<typeof Badge>["variant"];
 };
+
+const professorDocumentKinds = ["professor_contract"] as const;
 
 const baseProfessorFilters = {
   filters: {
@@ -96,16 +99,22 @@ export function PortalProfessorsListRouteView({
         title="Profesores"
         description="Gestioná los profesores de tu academia y completá su identificación cuando tengas los datos."
         action={
-          <Button
-            type="button"
-            onClick={() => {
-              setDismissServerState(true);
-              setIsCreateDialogOpen(true);
-            }}
-          >
-            <Plus aria-hidden="true" data-icon />
-            Nuevo profesor
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              onClick={() => {
+                setDismissServerState(true);
+                setIsCreateDialogOpen(true);
+              }}
+            >
+              <Plus aria-hidden="true" data-icon />
+              Nuevo profesor
+            </Button>
+            <EventDocumentsMenu
+              documentDownloadUrls={loaderData.documentDownloadUrls}
+              kinds={professorDocumentKinds}
+            />
+          </div>
         }
       >
         {loaderData.professors.length > 0 ? (

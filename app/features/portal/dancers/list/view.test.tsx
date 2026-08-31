@@ -3,8 +3,14 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { PortalDancersListRouteView } from "@/features/portal/dancers/list/view";
+import { eventDocumentDownloadUrls } from "@/lib/events/event-documents.test-support";
 
 type DancersListViewProps = Parameters<typeof PortalDancersListRouteView>[0];
+
+type DancersListViewInput = {
+  actionData?: DancersListViewProps["actionData"];
+  loaderData?: Partial<DancersListViewProps["loaderData"]>;
+};
 
 describe("PortalDancersListRouteView", () => {
   test("shows the empty list surface", () => {
@@ -172,7 +178,29 @@ describe("PortalDancersListRouteView", () => {
   });
 });
 
-function renderDancersList(input: Partial<DancersListViewProps> = {}) {
+describe("PortalDancersListRouteView event documents", () => {
+  test("offers the dancer documents beside the primary action", () => {
+    const markup = renderDancersList({
+      loaderData: {
+        documentDownloadUrls: eventDocumentDownloadUrls({
+          adult_contract: "/almacenamiento?key=mayores",
+          minor_authorization: "/almacenamiento?key=menores",
+        }),
+      },
+    });
+
+    expect(markup).toContain("Nuevo bailarín");
+    expect(markup).toContain('aria-label="Documentos del evento"');
+  });
+
+  test("keeps the menu when the event has no document", () => {
+    const markup = renderDancersList();
+
+    expect(markup).toContain('aria-label="Documentos del evento"');
+  });
+});
+
+function renderDancersList(input: DancersListViewInput = {}) {
   const router = createMemoryRouter(
     [
       {
@@ -180,7 +208,11 @@ function renderDancersList(input: Partial<DancersListViewProps> = {}) {
         action: async () => null,
         element: (
           <PortalDancersListRouteView
-            loaderData={input.loaderData ?? { dancers: [] }}
+            loaderData={{
+              dancers: [],
+              documentDownloadUrls: eventDocumentDownloadUrls(),
+              ...input.loaderData,
+            }}
             actionData={input.actionData}
           />
         ),

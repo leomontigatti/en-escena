@@ -18,6 +18,7 @@ const CONTENT_TYPE_BY_EXTENSION: Record<string, string> = {
   m4a: "audio/mp4",
   mp3: "audio/mpeg",
   ogg: "audio/ogg",
+  pdf: "application/pdf",
   png: "image/png",
   wav: "audio/wav",
   webp: "image/webp",
@@ -131,12 +132,19 @@ export async function fsReadObject(input: {
 export function mintStorageAccessToken(input: {
   bucket: string;
   expiresAt: number;
+  filename?: string;
   key: string;
   secret: string;
 }) {
-  return createHmac("sha256", input.secret)
-    .update(`${input.bucket}\n${input.key}\n${input.expiresAt}`)
-    .digest("hex");
+  // The filename is part of the signed payload, never read straight off the
+  // query string: it is echoed into a response header, so an unsigned one is a
+  // response-header-injection surface. A URL minted without a filename keeps
+  // its original payload, so links already in flight stay valid.
+  const payload = input.filename
+    ? `${input.bucket}\n${input.key}\n${input.expiresAt}\n${input.filename}`
+    : `${input.bucket}\n${input.key}\n${input.expiresAt}`;
+
+  return createHmac("sha256", input.secret).update(payload).digest("hex");
 }
 
 // The old presigned S3 URL is replaced by a same-origin route guarded by a
@@ -145,12 +153,23 @@ export function mintStorageAccessToken(input: {
 export function createFilesystemSignedUrl(input: {
   bucket: string;
   expiresInSeconds: number;
+  /**
+   * The name the browser saves the object under. Optional: without it the
+   * response carries no `Content-Disposition` and the browser derives a name
+   * from the route, which is all an image preview or an audio player needs.
+   */
+  filename?: string;
   key: string;
   now: number;
   routePath?: string;
   secret: string;
 }) {
   const expiresAt = Math.floor(input.now / 1000) + input.expiresInSeconds;
+
+  if (input.filename !== undefined) {
+    assertSafeFilename(input.filename);
+  }
+
   const params = new URLSearchParams({
     bucket: input.bucket,
     expires: String(expiresAt),
@@ -158,10 +177,15 @@ export function createFilesystemSignedUrl(input: {
     token: mintStorageAccessToken({
       bucket: input.bucket,
       expiresAt,
+      filename: input.filename,
       key: input.key,
       secret: input.secret,
     }),
   });
+
+  if (input.filename) {
+    params.set("filename", input.filename);
+  }
 
   return `${input.routePath ?? STORAGE_SERVE_ROUTE_PATH}?${params.toString()}`;
 }
@@ -176,6 +200,7 @@ export async function serveFilesystemObject(input: {
   const key = input.params.get("key");
   const expiresAt = Number(input.params.get("expires"));
   const token = input.params.get("token");
+  const filename = input.params.get("filename") ?? undefined;
 
   if (!bucket || !key || !token || !Number.isFinite(expiresAt)) {
     return new Response("Forbidden", { status: 403 });
@@ -185,9 +210,12 @@ export async function serveFilesystemObject(input: {
     return new Response("Forbidden", { status: 403 });
   }
 
+  // A filename that was not part of the signed payload fails here, so a
+  // tampered one never reaches the response headers.
   const expected = mintStorageAccessToken({
     bucket,
     expiresAt,
+    filename,
     key,
     secret: input.secret,
   });
@@ -212,14 +240,30 @@ export async function serveFilesystemObject(input: {
   // from B2/Supabase, a separate origin). The stored Content-Type is derived
   // from the client-declared upload type, so `nosniff` keeps a browser from
   // reinterpreting an object as active content inside the app origin.
-  return new Response(bytes, {
-    headers: {
-      "Cache-Control": "private, no-store",
-      "Content-Type": getContentType(key),
-      "X-Content-Type-Options": "nosniff",
-    },
-    status: 200,
-  });
+  const headers: Record<string, string> = {
+    "Cache-Control": "private, no-store",
+    "Content-Type": getContentType(key),
+    "X-Content-Type-Options": "nosniff",
+  };
+
+  // `inline` rather than `attachment`: a PDF should open in the browser, and
+  // the name only decides what a save-as writes.
+  if (filename) {
+    headers["Content-Disposition"] = `inline; filename="${filename}"`;
+  }
+
+  return new Response(bytes, { headers, status: 200 });
+}
+
+/**
+ * ASCII, no quotes and no control characters, so the name survives a
+ * `filename=` parameter without the RFC 5987 `filename*` encoding. Enforced at
+ * minting time, where a bad name is a programming error rather than input.
+ */
+function assertSafeFilename(filename: string) {
+  if (!/^[\w .()-]+$/.test(filename)) {
+    throw new Error(`Invalid storage filename: ${filename}`);
+  }
 }
 
 function getContentType(key: string) {
