@@ -38,8 +38,10 @@ type ModalityFormValues = z.input<typeof modalityFormSchema>;
 /**
  * The compound modality correction, shaped like the roster form: choosing a
  * candidate modalidad asks the server for the resolution over a fetcher, the
- * three dependent fields are filled or cleared from what comes back, and a
- * single `Guardar` writes it all in one transaction.
+ * three dependent fields are filled or cleared from what comes back, and the
+ * page's own `Guardar` writes it all in one transaction. Undoing it is
+ * re-selecting the saved modalidad, which the select always offers, so the
+ * block adds no buttons of its own.
  *
  * It is a sibling of the roster form, not a field on it: the guards differ —the
  * modalidad needs the seña guard over the cupo move, which the roster save
@@ -200,7 +202,6 @@ export function useModalityForm({
 
   return {
     canCorrectModality,
-    cancel: () => reset(defaultValues),
     /**
      * The categoría the slot shows while the correction is pending. `null`
      * leaves the persisted value in place.

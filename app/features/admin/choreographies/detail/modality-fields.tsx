@@ -1,19 +1,15 @@
-import { Check, LoaderCircle } from "lucide-react";
-
 import {
   ReadOnlyField,
   ReadOnlySelectField,
 } from "@/components/shared/read-only-field";
 import { SelectField } from "@/components/shared/select-field";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import {
   isEveryScheduleCapacityOptionFull,
   toScheduleCapacitySelectOptions,
 } from "@/lib/choreographies/schedule-capacity-options";
 
 import {
-  canSubmitModalityCorrection,
   everyModalityScheduleCapacityFullMessage,
   getModalitySelectOptions,
   isModalityScheduleCapacityLocked,
@@ -187,42 +183,5 @@ export function ModalityScheduleCapacityField({
       options={toScheduleCapacitySelectOptions(options)}
       placeholder="Elegí el cronograma"
     />
-  );
-}
-
-/**
- * A single `Guardar` for the whole correction: modalidad, submodalidad,
- * categoría, nivel and cupo are written together or nothing is written.
- */
-export function ModalityCorrectionActions({
-  modality,
-}: {
-  modality: ReturnType<typeof useModalityForm>;
-}) {
-  if (!modality.isDirty) {
-    return null;
-  }
-
-  const canSubmit = canSubmitModalityCorrection(modality);
-  const isPending = modality.isResolving || modality.isSubmitting;
-
-  return (
-    <div className="flex flex-wrap justify-end gap-3 md:col-span-2">
-      <Button onClick={modality.cancel} type="button" variant="outline">
-        Cancelar
-      </Button>
-      <Button disabled={!canSubmit} onClick={modality.save} type="button">
-        {isPending ? (
-          <LoaderCircle
-            aria-hidden="true"
-            className="animate-spin"
-            data-icon="inline-start"
-          />
-        ) : (
-          <Check aria-hidden="true" data-icon="inline-start" />
-        )}
-        Guardar modalidad
-      </Button>
-    </div>
   );
 }

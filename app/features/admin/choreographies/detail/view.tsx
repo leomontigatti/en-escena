@@ -40,12 +40,12 @@ import { useServerActionToast } from "@/lib/shared/toasts";
 
 import { ChoreographyDetailAlerts } from "./detail-alerts";
 import {
-  ModalityCorrectionActions,
   ModalityExperienceLevelField,
   ModalityField,
   ModalityScheduleCapacityField,
   ModalitySubmodalityField,
 } from "./modality-fields";
+import { canSubmitModalityCorrection } from "./modality-form-state";
 import {
   canSubmitChoreographyEdit,
   getExperienceLevelSlotState,
@@ -206,7 +206,11 @@ function ChoreographyDetailForm({
     hasResolvedRosterChange: roster.hasResolvedRosterChange,
   });
 
-  const canSubmit =
+  // One `Guardar` in the footer for both forms. They exclude each other on
+  // screen, so the pending correction decides what the button submits: the
+  // modality one writes on its own, the roster one still confirms first.
+  const canSubmitModality = canSubmitModalityCorrection(modality);
+  const canSubmitRoster =
     loaderData.canEdit &&
     !modality.isDirty &&
     canSubmitChoreographyEdit({
@@ -268,7 +272,14 @@ function ChoreographyDetailForm({
         onSubmit={(event) => {
           event.preventDefault();
 
-          if (canSubmit) {
+          // The modality correction writes on its own: the confirmation
+          // dialog enumerates roster consequences it does not have.
+          if (modality.isDirty) {
+            modality.save();
+            return;
+          }
+
+          if (canSubmitRoster) {
             setIsConfirmOpen(true);
           }
         }}
@@ -278,8 +289,12 @@ function ChoreographyDetailForm({
             <FormActions
               backToList={loaderData.backToList}
               canEdit={loaderData.canEdit}
-              canSubmit={canSubmit}
-              isPending={roster.isResolving || roster.isSubmitting}
+              canSubmit={modality.isDirty ? canSubmitModality : canSubmitRoster}
+              isPending={
+                modality.isDirty
+                  ? modality.isResolving || modality.isSubmitting
+                  : roster.isResolving || roster.isSubmitting
+              }
             />
           }
         >
@@ -372,7 +387,6 @@ function ChoreographyDetailForm({
                 }
               />
             )}
-            <ModalityCorrectionActions modality={modality} />
           </FieldGroup>
 
           <FieldGroup>
