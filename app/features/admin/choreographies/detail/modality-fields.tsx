@@ -14,6 +14,7 @@ import {
   getModalitySelectOptions,
   isModalityScheduleCapacityLocked,
 } from "./modality-form-state";
+import type { ChoreographyModalityResolution } from "./modality.server";
 import type { ChoreographyDetailLoaderData } from "./server";
 import type { useModalityForm } from "./use-modality-form";
 
@@ -22,14 +23,19 @@ type ModalityFieldProps = {
   modality: ReturnType<typeof useModalityForm>;
 };
 
+/**
+ * The three dependent fields only exist once the resolution answered. Until
+ * then the page keeps the saved-value fields on screen, disabled, so no
+ * control next to the modalidad select changes shape mid-round-trip.
+ */
+type ResolvedModalityFieldProps = {
+  modality: ReturnType<typeof useModalityForm>;
+  resolution: ChoreographyModalityResolution;
+};
+
 const noCompatibleCategoryDescription =
   "Con esta modalidad no hay categoría compatible. Se puede guardar igual y la coreografía queda incompleta.";
 
-/**
- * While the resolution is in flight the three dependent fields show what is
- * saved: offering options the resolution may change invites picking something
- * the save discards.
- */
 export function ModalityField({ loaderData, modality }: ModalityFieldProps) {
   const choreography = loaderData.choreography;
 
@@ -56,20 +62,9 @@ export function ModalityField({ loaderData, modality }: ModalityFieldProps) {
 }
 
 export function ModalitySubmodalityField({
-  loaderData,
   modality,
-}: ModalityFieldProps) {
-  const resolution = modality.resolution;
-
-  if (!resolution) {
-    return (
-      <ReadOnlyField
-        label="Submodalidad"
-        value={loaderData.choreography.submodalityName ?? ""}
-      />
-    );
-  }
-
+  resolution,
+}: ResolvedModalityFieldProps) {
   if (resolution.submodality.options.length === 0) {
     return (
       <ReadOnlySelectField
@@ -96,20 +91,9 @@ export function ModalitySubmodalityField({
 }
 
 export function ModalityExperienceLevelField({
-  loaderData,
   modality,
-}: ModalityFieldProps) {
-  const resolution = modality.resolution;
-
-  if (!resolution) {
-    return (
-      <ReadOnlyField
-        label="Nivel de experiencia"
-        value={loaderData.choreography.experienceLevelName ?? ""}
-      />
-    );
-  }
-
+  resolution,
+}: ResolvedModalityFieldProps) {
   if (!resolution.experienceLevel.required) {
     return (
       <ReadOnlySelectField
@@ -136,20 +120,9 @@ export function ModalityExperienceLevelField({
 }
 
 export function ModalityScheduleCapacityField({
-  loaderData,
   modality,
-}: ModalityFieldProps) {
-  const resolution = modality.resolution;
-
-  if (!resolution) {
-    return (
-      <ReadOnlyField
-        label="Cronograma"
-        value={loaderData.choreography.scheduleLabel}
-      />
-    );
-  }
-
+  resolution,
+}: ResolvedModalityFieldProps) {
   const options = resolution.scheduleCapacity.options;
 
   if (isEveryScheduleCapacityOptionFull(options)) {

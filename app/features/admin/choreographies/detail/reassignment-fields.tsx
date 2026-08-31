@@ -22,10 +22,17 @@ import type { ChoreographyDetailLoaderData } from "./server";
  * aislado del form del roster, auto-submitea al elegir y postea su intent, así
  * que se quedan en la página y responden por toast. Ninguno participa del
  * guardado del roster ni de su diálogo de confirmación.
+ *
+ * `disabled` is what a pending modality correction uses to hold them while its
+ * resolution is in flight: they keep showing the saved value in the same
+ * control instead of collapsing into a read-only field, so nothing next to the
+ * modalidad select changes shape between the click and the answer.
  */
 export function SubmodalityField({
+  disabled = false,
   loaderData,
 }: {
+  disabled?: boolean;
   loaderData: ChoreographyDetailLoaderData;
 }) {
   const choreography = loaderData.choreography;
@@ -55,6 +62,7 @@ export function SubmodalityField({
   return (
     <SelectField
       control={submodalityForm.control}
+      disabled={disabled}
       label="Submodalidad"
       name="submodalityId"
       onValueChange={(value) => {
@@ -77,10 +85,12 @@ export function SubmodalityField({
 }
 
 export function ExperienceLevelField({
+  disabled = false,
   experienceLevelId,
   loaderData,
   requiresExperienceLevel,
 }: {
+  disabled?: boolean;
   experienceLevelId: string;
   loaderData: ChoreographyDetailLoaderData;
   requiresExperienceLevel: boolean;
@@ -115,6 +125,7 @@ export function ExperienceLevelField({
   return (
     <SelectField
       control={experienceLevelForm.control}
+      disabled={disabled}
       label="Nivel de experiencia"
       name={assignedExperienceLevelFieldName}
       onValueChange={(value) => {
@@ -134,8 +145,10 @@ export function ExperienceLevelField({
 }
 
 export function ScheduleCapacityField({
+  disabled = false,
   loaderData,
 }: {
+  disabled?: boolean;
   loaderData: ChoreographyDetailLoaderData;
 }) {
   const choreography = loaderData.choreography;
@@ -154,6 +167,7 @@ export function ScheduleCapacityField({
   return (
     <SelectField
       control={scheduleCapacityForm.control}
+      disabled={disabled}
       label="Cronograma"
       name={assignedScheduleCapacityFieldName}
       onValueChange={(value) => {

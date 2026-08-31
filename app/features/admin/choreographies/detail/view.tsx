@@ -2,8 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Check, ChevronLeft, LoaderCircle, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSubmit } from "react-router";
-import { useForm, type Control } from "react-hook-form";
-import { z } from "zod";
+import { useForm } from "react-hook-form";
 
 import {
   AdminResourceFormCard,
@@ -15,7 +14,6 @@ import { getAssetKindHelperText } from "@/lib/storage/asset-kinds";
 import { MultiComboboxField } from "@/components/shared/multi-combobox-field";
 import { ReadOnlyField } from "@/components/shared/read-only-field";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
-import { SelectField } from "@/components/shared/select-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import {
   AlertDialog,
@@ -33,9 +31,7 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
-import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
-import { requiredFieldMessage } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import { ChoreographyDetailAlerts } from "./detail-alerts";
@@ -46,6 +42,12 @@ import {
   ModalitySubmodalityField,
 } from "./modality-fields";
 import { canSubmitModalityCorrection } from "./modality-form-state";
+import {
+  choreographyFormSchema,
+  RosterExperienceLevelSlot,
+  RosterScheduleSlot,
+  type ChoreographyFormValues,
+} from "./roster-fields";
 import {
   canSubmitChoreographyEdit,
   getExperienceLevelSlotState,
@@ -60,11 +62,7 @@ import {
   type ChoreographyDeleteBlocker,
   type ChoreographyViewActionData,
 } from "./shared";
-import {
-  ExperienceLevelField,
-  ScheduleCapacityField,
-  SubmodalityField,
-} from "./reassignment-fields";
+import { SubmodalityField } from "./reassignment-fields";
 import { useModalityForm } from "./use-modality-form";
 import { useRosterForm } from "./use-roster-form";
 import type { ChoreographyDetailLoaderData } from "./server";
@@ -74,17 +72,6 @@ type ChoreographyDetailRouteViewProps = {
   initialDeleteDialogOpen?: boolean;
   loaderData: ChoreographyDetailLoaderData;
 };
-
-type ChoreographyFormValues = z.input<typeof choreographyFormSchema>;
-
-const choreographyFormSchema = z.object({
-  dancerIds: z.array(z.string()).min(1, requiredFieldMessage),
-  experienceLevelId: z.string(),
-  musicStorageKey: z.string(),
-  name: z.string().trim().min(1, requiredFieldMessage),
-  professorIds: z.array(z.string()),
-  scheduleCapacityId: z.string(),
-});
 
 export function ChoreographyDetailRouteView({
   actionData,
@@ -327,17 +314,23 @@ function ChoreographyDetailForm({
             )}
             <ModalityField loaderData={loaderData} modality={modality} />
             {/* One slot per dependent field, with a fixed precedence: the
-                modality correction wins while it is pending, because its
-                resolution rewrites all three at once. The roster form and the
-                modality block exclude each other, so there are never two
+                modality correction wins once its resolution answered, because
+                it rewrites all three at once. While the answer is in flight
+                the saved-value field stays on screen, disabled: swapping it
+                for a read-only one and back flashes a control next to the
+                modalidad select twice in one round-trip. The roster form and
+                the modality block exclude each other, so there are never two
                 candidates for the same slot. */}
-            {modality.isDirty ? (
+            {modality.resolution ? (
               <ModalitySubmodalityField
-                loaderData={loaderData}
                 modality={modality}
+                resolution={modality.resolution}
               />
             ) : (
-              <SubmodalityField loaderData={loaderData} />
+              <SubmodalityField
+                disabled={modality.isDirty}
+                loaderData={loaderData}
+              />
             )}
             <ReadOnlyField
               label="Categoría"
@@ -356,14 +349,15 @@ function ChoreographyDetailForm({
                 pending change moves the categoría, because the new level is
                 chosen together with the confirmation. See
                 `getExperienceLevelSlotState`. */}
-            {modality.isDirty ? (
+            {modality.resolution ? (
               <ModalityExperienceLevelField
-                loaderData={loaderData}
                 modality={modality}
+                resolution={modality.resolution}
               />
             ) : (
               <RosterExperienceLevelSlot
                 control={form.control}
+                disabled={modality.isDirty}
                 experienceLevelSlot={experienceLevelSlot}
                 loaderData={loaderData}
                 options={roster.derivedResolution.experienceLevelOptions}
@@ -373,14 +367,15 @@ function ChoreographyDetailForm({
                 correction wins while it is pending; after that, the roster
                 select, because a group type change clears the cupo and the
                 replacement is chosen together with the confirmation. */}
-            {modality.isDirty ? (
+            {modality.resolution ? (
               <ModalityScheduleCapacityField
-                loaderData={loaderData}
                 modality={modality}
+                resolution={modality.resolution}
               />
             ) : (
               <RosterScheduleSlot
                 control={form.control}
+                disabled={modality.isDirty}
                 loaderData={loaderData}
                 scheduleResolution={
                   showScheduleSelect ? roster.scheduleResolution : null
@@ -456,76 +451,6 @@ function ChoreographyDetailForm({
         </AlertDialogContent>
       </AlertDialog>
     </>
-  );
-}
-
-/**
- * The level slot when the modality correction does not claim it: the roster
- * select if the pending change moves the categoría, and otherwise the
- * standalone reassignment.
- */
-function RosterExperienceLevelSlot({
-  control,
-  experienceLevelSlot,
-  loaderData,
-  options,
-}: {
-  control: Control<ChoreographyFormValues>;
-  experienceLevelSlot: ReturnType<typeof getExperienceLevelSlotState>;
-  loaderData: ChoreographyDetailLoaderData;
-  options: Array<{ id: string; name: string }>;
-}) {
-  if (experienceLevelSlot.showRosterSelect) {
-    return (
-      <SelectField
-        control={control}
-        label="Nivel de experiencia"
-        name="experienceLevelId"
-        options={options.map((option) => ({
-          label: option.name,
-          value: option.id,
-        }))}
-        placeholder="Elegí el nivel"
-      />
-    );
-  }
-
-  return (
-    <ExperienceLevelField
-      experienceLevelId={experienceLevelSlot.experienceLevelId}
-      loaderData={loaderData}
-      requiresExperienceLevel={experienceLevelSlot.requiresExperienceLevel}
-    />
-  );
-}
-
-/**
- * The cronograma slot when the modality correction does not claim it.
- */
-function RosterScheduleSlot({
-  control,
-  loaderData,
-  scheduleResolution,
-}: {
-  control: Control<ChoreographyFormValues>;
-  loaderData: ChoreographyDetailLoaderData;
-  scheduleResolution: ReturnType<typeof useRosterForm>["scheduleResolution"];
-}) {
-  if (!scheduleResolution || scheduleResolution.status !== "multiple") {
-    return <ScheduleCapacityField loaderData={loaderData} />;
-  }
-
-  return (
-    <SelectField
-      control={control}
-      label="Cronograma"
-      name="scheduleCapacityId"
-      options={scheduleResolution.options.map((option) => ({
-        label: formatScheduleDateTime(option.schedule),
-        value: option.id,
-      }))}
-      placeholder="Elegí el cronograma"
-    />
   );
 }
 
