@@ -92,6 +92,7 @@ function EventDocumentRow({
             )}
             previewSelectedFile={false}
             removeLabel="Quitar el archivo elegido"
+            variant="compact"
             onSelectedFileChange={(file) => setHasSelectedFile(file !== null)}
             onValidationErrorChange={setHasValidationError}
           />
