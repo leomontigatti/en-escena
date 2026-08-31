@@ -208,15 +208,15 @@ Static PDF the administration uploads for an event and every academy downloads u
 _Avoid_: `documentImage`, `comprobante`, attachment, bases
 
 **`professorContract`** — ui: "Contrato para profesores"
-The event document an academy downloads from the professors list; `professor_contract` as an `eventDocumentKind` value.
+The event document an academy downloads from the professors list; `professor_contract` as an `EventDocumentKind` value.
 _Avoid_: `adultContract`, teacher agreement
 
 **`minorAuthorization`** — ui: "Autorización para menores"
-The event document authorizing a minor's participation, downloaded from the dancers list; `minor_authorization` as an `eventDocumentKind` value. Always offered, whether or not the academy has minors on its roster.
+The event document authorizing a minor's participation, downloaded from the dancers list; `minor_authorization` as an `EventDocumentKind` value. Always offered, whether or not the academy has minors on its roster.
 _Avoid_: parental consent, `adultContract`
 
 **`adultContract`** — ui: "Contrato para mayores"
-The event document an adult dancer signs, downloaded from the dancers list; `adult_contract` as an `eventDocumentKind` value.
+The event document an adult dancer signs, downloaded from the dancers list; `adult_contract` as an `EventDocumentKind` value.
 _Avoid_: `professorContract`, `minorAuthorization`
 
 **`documentImage`** — ui: "Imagen del documento"

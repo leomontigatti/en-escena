@@ -9,12 +9,12 @@ import { FileUploadField } from "@/components/shared/file-upload-field";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import {
+  eventDocumentDeclarations,
   eventDocumentKinds,
-  getEventDocumentDeclaration,
   getEventDocumentSubjectOptions,
   type EventDocumentKind,
 } from "@/lib/events/event-documents";
-import { BUSINESS_TIME_ZONE } from "@/lib/shared/business-time-zone";
+import { formatBusinessDate } from "@/lib/shared/business-time-zone";
 import { getAssetUploadFieldProps } from "@/lib/storage/asset-kinds";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
@@ -25,13 +25,10 @@ import {
   type EventDetailLoaderData,
 } from "./shared";
 
-type EventDocumentSummary =
+// The loader's serialized shape, not the read path's `EventDocumentSummary`:
+// `uploadedAt` has crossed the wire and arrives as a string.
+type SerializedEventDocumentSummary =
   EventDetailLoaderData["documents"][EventDocumentKind];
-
-const uploadedAtFormatter = new Intl.DateTimeFormat("es-AR", {
-  dateStyle: "short",
-  timeZone: BUSINESS_TIME_ZONE,
-});
 
 export function EventDocumentsCard({
   documents,
@@ -51,10 +48,10 @@ function EventDocumentRow({
   document,
   kind,
 }: {
-  document: EventDocumentSummary;
+  document: SerializedEventDocumentSummary;
   kind: EventDocumentKind;
 }) {
-  const declaration = getEventDocumentDeclaration(kind);
+  const declaration = eventDocumentDeclarations[kind];
   const fetcher = useFetcher<EventDetailActionData>();
   const form = useForm<{ documentStorageKey: string }>({
     values: { documentStorageKey: "" },
@@ -141,7 +138,11 @@ function EventDocumentRow({
   );
 }
 
-function EventDocumentStatus({ document }: { document: EventDocumentSummary }) {
+function EventDocumentStatus({
+  document,
+}: {
+  document: SerializedEventDocumentSummary;
+}) {
   if (!document) {
     return (
       <p className="text-sm text-muted-foreground">Todavía no está cargado.</p>
@@ -150,9 +151,7 @@ function EventDocumentStatus({ document }: { document: EventDocumentSummary }) {
 
   return (
     <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-      <span>
-        Cargado el {uploadedAtFormatter.format(new Date(document.uploadedAt))}
-      </span>
+      <span>Cargado el {formatBusinessDate(document.uploadedAt)}</span>
       {document.downloadUrl ? (
         <a href={document.downloadUrl} target="_blank" rel="noreferrer">
           <ExternalLink aria-hidden="true" className="inline size-3.5" /> Ver el

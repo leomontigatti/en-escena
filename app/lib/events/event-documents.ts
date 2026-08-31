@@ -12,6 +12,16 @@ export const eventDocumentKinds = [
 
 export type EventDocumentKind = (typeof eventDocumentKinds)[number];
 
+/**
+ * One entry per kind, `null` where the event has no document. Lives here rather
+ * than beside the read path so the portal menu can type its props without
+ * importing a `.server` module.
+ */
+export type EventDocumentDownloadUrls = Record<
+  EventDocumentKind,
+  string | null
+>;
+
 export type EventDocumentDeclaration = {
   /**
    * The name the browser saves the file under. ASCII on purpose: a non-ASCII
@@ -50,10 +60,6 @@ export const eventDocumentDeclarations: Readonly<
     subjectLabel: "contrato para profesores",
   },
 };
-
-export function getEventDocumentDeclaration(kind: EventDocumentKind) {
-  return eventDocumentDeclarations[kind];
-}
 
 /** The gate every submitted `kind` passes through: a form field is not a kind. */
 export function parseEventDocumentKind(

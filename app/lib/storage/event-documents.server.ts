@@ -1,5 +1,5 @@
 import {
-  getEventDocumentDeclaration,
+  eventDocumentDeclarations,
   type EventDocumentKind,
 } from "@/lib/events/event-documents";
 import {
@@ -74,7 +74,7 @@ export function createEventDocumentStorage(
       return adapter.createSignedUrl({
         bucket: policy.bucket,
         expiresInSeconds: policy.signedUrlExpiresInSeconds,
-        filename: getEventDocumentDeclaration(input.kind).downloadFileName,
+        filename: eventDocumentDeclarations[input.kind].downloadFileName,
         key: input.storageKey,
       });
     },

@@ -131,6 +131,26 @@ describe.sequential("event documents on the event detail action", () => {
     ]);
   });
 
+  test("a storage failure leaves the document offered instead of half-deleted", async () => {
+    const event = await createAdminSavedEvent();
+    await postDocument(event.id, {
+      intent: uploadEventDocumentIntent,
+      kind: "adult_contract",
+    });
+    removeDocumentMock.mockRejectedValueOnce(new Error("volume unavailable"));
+
+    await expect(
+      postDocument(event.id, {
+        intent: deleteEventDocumentIntent,
+        kind: "adult_contract",
+      }),
+    ).rejects.toThrow("volume unavailable");
+
+    // The row survives, so the pair stays consistent and the administration can
+    // retry — the alternative reports success over bytes that are still there.
+    expect(await readDocumentRows(event.id)).toHaveLength(1);
+  });
+
   test("a kind that is not a document is refused rather than trusted", async () => {
     const event = await createAdminSavedEvent();
 

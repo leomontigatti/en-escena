@@ -3,13 +3,13 @@
 import { act } from "react";
 import { afterEach, describe, expect, test } from "vitest";
 
-import { EventDocumentsMenu } from "@/components/portal/event-documents-menu";
+import { PortalEventDocumentsMenu } from "@/components/portal/event-documents-menu";
 import { eventDocumentDownloadUrls } from "@/lib/events/event-documents.test-support";
 import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 
 const dancerKinds = ["minor_authorization", "adult_contract"] as const;
 
-describe("EventDocumentsMenu", () => {
+describe("PortalEventDocumentsMenu", () => {
   const renderer = createReactDomTestRenderer();
 
   afterEach(() => {
@@ -72,7 +72,7 @@ describe("EventDocumentsMenu", () => {
     documentDownloadUrls: ReturnType<typeof eventDocumentDownloadUrls>,
   ) {
     await renderer.renderAsync(
-      <EventDocumentsMenu
+      <PortalEventDocumentsMenu
         documentDownloadUrls={documentDownloadUrls}
         kinds={dancerKinds}
       />,

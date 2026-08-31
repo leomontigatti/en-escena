@@ -2,7 +2,7 @@ import { Plus } from "lucide-react";
 import { useEffect, useRef, useState, type ComponentProps } from "react";
 import { useFetcher } from "react-router";
 
-import { EventDocumentsMenu } from "@/components/portal/event-documents-menu";
+import { PortalEventDocumentsMenu } from "@/components/portal/event-documents-menu";
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import {
   ClientDataTable,
@@ -109,7 +109,7 @@ export function PortalDancersListRouteView({
               <Plus aria-hidden="true" data-icon />
               Nuevo bailarín
             </Button>
-            <EventDocumentsMenu
+            <PortalEventDocumentsMenu
               documentDownloadUrls={loaderData.documentDownloadUrls}
               kinds={dancerDocumentKinds}
             />

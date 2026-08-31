@@ -1,4 +1,4 @@
-import type { EventDocumentDownloadUrls } from "@/lib/events/event-documents.server";
+import type { EventDocumentDownloadUrls } from "@/lib/events/event-documents";
 import type { ParticipationStatus } from "@/lib/participation/participation.shared";
 
 export type PortalDancerListItem = {

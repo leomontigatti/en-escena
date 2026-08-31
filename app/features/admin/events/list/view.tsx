@@ -8,18 +8,13 @@ import {
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
-import { BUSINESS_TIME_ZONE } from "@/lib/shared/business-time-zone";
+import { formatBusinessDate } from "@/lib/shared/business-time-zone";
 
 import type { EventsListLoaderData, EventListRow } from "./shared";
 
 export type EventsListViewProps = {
   loaderData: EventsListLoaderData;
 };
-
-const dateFormatter = new Intl.DateTimeFormat("es-AR", {
-  dateStyle: "short",
-  timeZone: BUSINESS_TIME_ZONE,
-});
 
 export function EventsListView({ loaderData }: EventsListViewProps) {
   return (
@@ -152,5 +147,5 @@ function getTemporalStateBadgeVariant(
 }
 
 function formatDate(date: Date) {
-  return dateFormatter.format(date);
+  return formatBusinessDate(date);
 }

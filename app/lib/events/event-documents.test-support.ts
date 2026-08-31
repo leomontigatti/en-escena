@@ -1,9 +1,9 @@
 import {
   eventDocumentKinds,
+  type EventDocumentDownloadUrls,
   type EventDocumentKind,
 } from "@/lib/events/event-documents";
 import type {
-  EventDocumentDownloadUrls,
   EventDocumentSummaries,
   EventDocumentSummary,
 } from "@/lib/events/event-documents.server";

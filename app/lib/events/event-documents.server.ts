@@ -5,10 +5,12 @@ import { eventDocuments } from "@/db/schema";
 import {
   eventDocumentKinds,
   getEventDocumentSubjectOptions,
+  type EventDocumentDownloadUrls,
   type EventDocumentKind,
 } from "@/lib/events/event-documents";
 import { formatUploadRejection } from "@/lib/storage/asset-kinds";
 import {
+  createDefaultEventDocumentStorage,
   loadEventDocumentDownloadUrl,
   type EventDocumentStorage,
 } from "@/lib/storage/event-documents.server";
@@ -22,11 +24,6 @@ export type EventDocumentSummary = {
 export type EventDocumentSummaries = Record<
   EventDocumentKind,
   EventDocumentSummary | null
->;
-
-export type EventDocumentDownloadUrls = Record<
-  EventDocumentKind,
-  string | null
 >;
 
 export type EventDocumentMutationResult =
@@ -89,6 +86,24 @@ export async function loadEventDocumentDownloadUrls(input: {
 }
 
 /**
+ * The download links for the event a portal list is showing. Both list loaders
+ * want exactly this — the active event's links, from the default store — so it
+ * lives here once rather than as the same four lines on each surface.
+ *
+ * Offered to any authenticated academy user, with no further gate: these are
+ * blank forms an academy needs *before* registering, so gating them behind a
+ * registration would invert the real order of operations.
+ */
+export async function loadPortalEventDocumentDownloadUrls(
+  eventId: string | null,
+): Promise<EventDocumentDownloadUrls> {
+  return await loadEventDocumentDownloadUrls({
+    eventId,
+    storage: createDefaultEventDocumentStorage(),
+  });
+}
+
+/**
  * Uploads the bytes and then points the event at them. The key is stable per
  * `(eventId, kind)`, so a replace overwrites the object and updates the one
  * row instead of adding a second one.
@@ -138,34 +153,33 @@ export async function deleteEventDocument(input: {
   kind: EventDocumentKind;
   storage: EventDocumentStorage;
 }): Promise<EventDocumentMutationResult> {
-  const [deleted] = await db
+  const existing = await db.query.eventDocuments.findFirst({
+    columns: { storageKey: true },
+    where: and(
+      eq(eventDocuments.eventId, input.eventId),
+      eq(eventDocuments.kind, input.kind),
+    ),
+  });
+
+  if (!existing) {
+    return { ok: false, message: "Ese documento ya no está cargado." };
+  }
+
+  // The bytes go first, and the row only once they are gone. The other order
+  // reports success while the object survives, which is the one outcome
+  // "eliminar" must not mean; this way a storage failure leaves the pair intact
+  // and the administration can retry. `removeDocument` tolerates an object that
+  // is already absent, so the retry converges.
+  await input.storage.removeDocument(existing.storageKey);
+
+  await db
     .delete(eventDocuments)
     .where(
       and(
         eq(eventDocuments.eventId, input.eventId),
         eq(eventDocuments.kind, input.kind),
       ),
-    )
-    .returning({ storageKey: eventDocuments.storageKey });
-
-  if (!deleted) {
-    return { ok: false, message: "Ese documento ya no está cargado." };
-  }
-
-  try {
-    await input.storage.removeDocument(deleted.storageKey);
-  } catch (thrown) {
-    // The row is already gone, so propagating would tell the administration the
-    // delete failed when the document is no longer offered anywhere. The cost
-    // is an object left on the volume, and this line is the only thing that
-    // makes it locatable without walking the volume by hand.
-    console.error("[storage:event-document:orphan]", {
-      detail: thrown instanceof Error ? thrown.message : String(thrown),
-      eventId: input.eventId,
-      kind: input.kind,
-      storageKey: deleted.storageKey,
-    });
-  }
+    );
 
   return { ok: true };
 }

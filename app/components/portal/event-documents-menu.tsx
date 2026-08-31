@@ -5,9 +5,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   getEventDocumentDownloadLabel,
+  type EventDocumentDownloadUrls,
   type EventDocumentKind,
 } from "@/lib/events/event-documents";
-import type { EventDocumentDownloadUrls } from "@/lib/events/event-documents.server";
 
 /**
  * The event documents an academy can download from a list view. Downloads are
@@ -19,7 +19,7 @@ import type { EventDocumentDownloadUrls } from "@/lib/events/event-documents.ser
  * is a disabled item, so an academy can see the document exists and is not yet
  * published instead of wondering where the menu went.
  */
-export function EventDocumentsMenu({
+export function PortalEventDocumentsMenu({
   documentDownloadUrls,
   kinds,
 }: {
@@ -30,7 +30,7 @@ export function EventDocumentsMenu({
     <ResourceActionsMenu contentClassName="w-64" label="Documentos del evento">
       <DropdownMenuGroup>
         {kinds.map((kind) => (
-          <EventDocumentMenuItem
+          <PortalEventDocumentMenuItem
             key={kind}
             downloadUrl={documentDownloadUrls[kind]}
             kind={kind}
@@ -41,7 +41,7 @@ export function EventDocumentsMenu({
   );
 }
 
-function EventDocumentMenuItem({
+function PortalEventDocumentMenuItem({
   downloadUrl,
   kind,
 }: {

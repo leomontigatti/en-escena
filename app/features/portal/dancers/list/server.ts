@@ -1,8 +1,7 @@
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
-import { loadEventDocumentDownloadUrls } from "@/lib/events/event-documents.server";
+import { loadPortalEventDocumentDownloadUrls } from "@/lib/events/event-documents.server";
 import { listDancersForAcademy } from "@/lib/portal/dancers.server";
 import { getPortalActiveEventSummaryContext } from "@/lib/portal/event-context.server";
-import { createDefaultEventDocumentStorage } from "@/lib/storage/event-documents.server";
 import { handleCreateDancerAction } from "@/features/portal/dancers/create/server";
 import { createDancerIntent } from "@/features/portal/dancers/create/shared";
 
@@ -17,10 +16,7 @@ export async function loadPortalDancersList(request: Request) {
     // The minor authorization is always offered, never conditioned on whether
     // the academy already has minors: an academy about to enroll its first
     // minor must be able to find the form.
-    loadEventDocumentDownloadUrls({
-      eventId: eventContext.activeEvent?.id ?? null,
-      storage: createDefaultEventDocumentStorage(),
-    }),
+    loadPortalEventDocumentDownloadUrls(eventContext.activeEvent?.id ?? null),
   ]);
 
   return {
