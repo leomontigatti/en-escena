@@ -74,46 +74,30 @@ export function useEventForm({
 }
 
 /**
- * The event's own attributes. Split from the registration window so the detail
- * view can keep these visible while the inscription dates live behind a tab;
- * the create view still renders both groups together through
- * `EventFormFields`.
+ * The event's name, which stays above the detail view's tabs. Kept to a single
+ * grid cell so its width matches the fields inside the tabs.
  */
-export function EventIdentityFields({ controller }: EventFormFieldsProps) {
+export function EventNameField({ controller }: EventFormFieldsProps) {
   const { form } = controller;
 
   return (
     <FieldGroup className="grid gap-5 md:grid-cols-2">
       <TextInputField control={form.control} label="Nombre" name="name" />
-      <IntegerInputField
-        control={form.control}
-        label="Seña (%)"
-        name="requiredDepositPercentage"
-        min={MIN_REQUIRED_DEPOSIT_PERCENTAGE}
-        max={MAX_REQUIRED_DEPOSIT_PERCENTAGE}
-        step="1"
-      />
-      <DateOnlyField
-        control={form.control}
-        label="Inicio del evento"
-        name="startsAt"
-      />
-      <DateOnlyField
-        control={form.control}
-        label="Cierre del evento"
-        name="endsAt"
-      />
+      <div aria-hidden="true" className="hidden md:block" />
     </FieldGroup>
   );
 }
 
 /**
- * The inscription window. `formId` associates the hidden date inputs with a
- * `<form>` they are not nested in — the detail view renders this inside a tab
- * that sits outside the form element, because the sibling documents tab has
- * upload forms of its own and forms cannot nest.
+ * Everything about the event that is not its name or its documents: the
+ * deposit, the event window and the inscription window.
+ *
+ * `formId` associates the inputs with a `<form>` they are not nested in — the
+ * detail view renders this inside a tab that sits outside the form element,
+ * because the sibling documents tab has upload forms of its own and forms
+ * cannot nest. The create view passes nothing and nests normally.
  */
-export function EventRegistrationFields({
+export function EventInformationFields({
   controller,
   formId,
 }: EventFormFieldsProps & { formId?: string }) {
@@ -133,6 +117,30 @@ export function EventRegistrationFields({
 
   return (
     <FieldGroup className="grid gap-5 md:grid-cols-2">
+      <IntegerInputField
+        control={form.control}
+        form={formId}
+        label="Seña (%)"
+        name="requiredDepositPercentage"
+        min={MIN_REQUIRED_DEPOSIT_PERCENTAGE}
+        max={MAX_REQUIRED_DEPOSIT_PERCENTAGE}
+        step="1"
+      />
+      {/* Keeps the deposit alone on its row without stretching it across both
+          cells, so it lines up with the date fields underneath. */}
+      <div aria-hidden="true" className="hidden md:block" />
+      <DateOnlyField
+        control={form.control}
+        form={formId}
+        label="Inicio del evento"
+        name="startsAt"
+      />
+      <DateOnlyField
+        control={form.control}
+        form={formId}
+        label="Cierre del evento"
+        name="endsAt"
+      />
       <DateOnlyField
         control={form.control}
         form={formId}
@@ -164,8 +172,8 @@ export function EventRegistrationFields({
 export function EventFormFields({ controller }: EventFormFieldsProps) {
   return (
     <div className="flex flex-col gap-5">
-      <EventIdentityFields controller={controller} />
-      <EventRegistrationFields controller={controller} />
+      <EventNameField controller={controller} />
+      <EventInformationFields controller={controller} />
     </div>
   );
 }

@@ -3,8 +3,8 @@ import { useState } from "react";
 import { Link } from "react-router";
 
 import {
-  EventIdentityFields,
-  EventRegistrationFields,
+  EventInformationFields,
+  EventNameField,
   useEventForm,
 } from "@/components/admin/events/form";
 import {
@@ -176,17 +176,24 @@ function EditEventPanel({
         onSubmit={eventForm.handleSubmit}
       >
         <input type="hidden" name="intent" value="update" />
-        <EventIdentityFields controller={eventForm} />
+        <EventNameField controller={eventForm} />
       </form>
-      <Tabs defaultValue="inscripciones">
+      <Tabs defaultValue="informacion">
         <TabsList variant="line">
-          <TabsTrigger value="inscripciones">Inscripciones</TabsTrigger>
+          <TabsTrigger value="informacion">Información</TabsTrigger>
           <TabsTrigger value="documentos">Documentos</TabsTrigger>
         </TabsList>
-        {/* forceMount keeps the inscription dates in the document while the
-            documents tab is open, so saving from there cannot blank them. */}
-        <TabsContent forceMount value="inscripciones" className="pt-2">
-          <EventRegistrationFields
+        {/* forceMount keeps these fields in the document while the documents
+            tab is open, so saving from there cannot blank them. It also stops
+            Radix from setting `hidden` (`present` is always true), so the panel
+            has to be hidden by CSS or the fields show up under Documentos too.
+            `display: none` still submits; only `disabled` would not. */}
+        <TabsContent
+          forceMount
+          value="informacion"
+          className="pt-2 data-[state=inactive]:hidden"
+        >
+          <EventInformationFields
             controller={eventForm}
             formId={editEventFormId}
           />

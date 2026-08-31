@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 
-import type { ComponentProps } from "react";
+import { act, type ComponentProps } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
@@ -89,14 +89,14 @@ describe("EventDetailView tabs", () => {
     useNavigationMock.mockReset();
   });
 
-  test("splits inscriptions and documents into tabs", async () => {
+  test("splits information and documents into tabs", async () => {
     await renderTabs();
 
     const triggers = Array.from(
       document.querySelectorAll('[data-slot="tabs-trigger"]'),
     ).map((trigger) => trigger.textContent);
 
-    expect(triggers).toEqual(["Inscripciones", "Documentos"]);
+    expect(triggers).toEqual(["Información", "Documentos"]);
   });
 
   // The documents tab renders an upload form per document, so the event form
@@ -122,6 +122,37 @@ describe("EventDetailView tabs", () => {
     expect(Array.from(new FormData(form!).keys())).toContain(
       "registrationStartsAt",
     );
+  });
+
+  // forceMount keeps these inputs submittable from either tab; it must not also
+  // leave them on screen under Documentos.
+  test("hides the information fields while the documents tab is open", async () => {
+    await renderTabs();
+
+    const informationPanel = document.querySelector<HTMLElement>(
+      '[data-slot="tabs-content"]',
+    );
+
+    expect(informationPanel?.dataset.state).toBe("active");
+
+    await act(async () => {
+      const trigger = getButton("Documentos");
+      trigger.dispatchEvent(
+        new MouseEvent("mousedown", { bubbles: true, button: 0 }),
+      );
+      trigger.focus();
+      trigger.click();
+    });
+
+    // forceMount stops Radix from setting `hidden`, so the class is what
+    // actually hides the panel. Asserting it keeps the two in step.
+    expect(informationPanel?.dataset.state).toBe("inactive");
+    expect(informationPanel?.className).toContain(
+      "data-[state=inactive]:hidden",
+    );
+    expect(
+      document.querySelector('input[name="registrationStartsAt"]'),
+    ).not.toBeNull();
   });
 
   test("keeps the upload forms out of the event form", async () => {
