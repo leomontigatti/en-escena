@@ -70,8 +70,9 @@ export function ChoreographyDetailAlerts({
         </Alert>
       ) : null}
 
-      {/* La seña no cierra la modalidad: solo rechaza la corrección que movería
-          el cronograma, así que se enumera como bloqueo en potencia. */}
+      {/* A seña does not close the modalidad: it only rejects the correction
+          that would move the cronograma, so it is listed as a
+          blocker-in-waiting. */}
       {loaderData.modality.blockers.length > 0 ? (
         <Alert>
           <AlertTitle>La modalidad tiene un bloqueo en potencia</AlertTitle>

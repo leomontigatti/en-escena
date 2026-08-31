@@ -342,11 +342,11 @@ describe("administrative choreography modality correction", () => {
 });
 
 /**
- * Una coreografía registrada en la modalidad del catálogo, una modalidad
- * destino completa —con su propio cronograma compatible, su submodalidad y su
- * categoría— y una tercera sin cronograma: el mínimo para ejercer las cuatro
- * cosas que la modalidad determina y el callejón sin salida que el select
- * ofrece deshabilitado.
+ * A choreography registered in the catalogue modalidad, a complete destination
+ * modalidad —with its own compatible cronograma, its submodalidad and its
+ * categoría— and a third one with no cronograma: the minimum needed to exercise
+ * the four things the modalidad determines, plus the dead end the select offers
+ * disabled.
  */
 async function createModalityScenario(input: {
   allocatedAmount?: number;
@@ -358,8 +358,8 @@ async function createModalityScenario(input: {
   targetHasSubmodality?: boolean;
   targetSharesSchedule?: boolean;
 }) {
-  // Cada request firmada crea su propio usuario, así que cada una necesita un
-  // correo distinto.
+  // Every signed request creates its own user, so each one needs a distinct
+  // email.
   let requestCount = 0;
   const nextEmail = (role: "admin" | "auditor") =>
     `${role}.coreografias.modalidad.${input.slug}.${(requestCount += 1)}@example.com`;
@@ -449,9 +449,8 @@ async function createModalityScenario(input: {
     },
     resolveModality,
     /**
-     * Guarda la corrección con los campos que la vista habría completado desde
-     * la resolución del fetcher, para que cada prueba sobreescriba solo el que
-     * está ejerciendo.
+     * Saves the correction with the fields the view would have filled from the
+     * fetcher's resolution, so each test overrides only the one it exercises.
      */
     async saveModality(
       modalityId: string,

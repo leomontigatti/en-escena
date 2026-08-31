@@ -215,7 +215,7 @@ export async function updateChoreographyModality(input: {
     return { message: presentationLockMessage, status: "error" };
   }
 
-  const requestedModalityId = readFormValue(
+  const requestedModalityId = readNonEmptyFormValue(
     input.formData,
     modalityFieldNames.modalityId,
   );
@@ -264,12 +264,15 @@ export async function updateChoreographyModality(input: {
 
   if (
     resolvedCategoryId !==
-    readFormValue(input.formData, modalityFieldNames.previewedCategoryId)
+    readNonEmptyFormValue(
+      input.formData,
+      modalityFieldNames.previewedCategoryId,
+    )
   ) {
     return { message: divergedResolutionMessage, status: "error" };
   }
 
-  const submodalityId = readFormValue(
+  const submodalityId = readNonEmptyFormValue(
     input.formData,
     modalityFieldNames.submodalityId,
   );
@@ -290,7 +293,10 @@ export async function updateChoreographyModality(input: {
   // admits it.
   const experienceLevelId =
     experienceLevelOptions.length > 0
-      ? readFormValue(input.formData, modalityFieldNames.experienceLevelId)
+      ? readNonEmptyFormValue(
+          input.formData,
+          modalityFieldNames.experienceLevelId,
+        )
       : null;
   const experienceLevelValidation = validateExperienceLevelSelection({
     availableExperienceLevels: experienceLevelOptions,
@@ -307,7 +313,10 @@ export async function updateChoreographyModality(input: {
   const selectedSchedule = context.scheduleOptions.find(
     (option) =>
       option.id ===
-      readFormValue(input.formData, modalityFieldNames.scheduleCapacityId),
+      readNonEmptyFormValue(
+        input.formData,
+        modalityFieldNames.scheduleCapacityId,
+      ),
   );
 
   if (!selectedSchedule) {
@@ -412,7 +421,13 @@ async function resolveModalityCorrectionContext(input: {
   };
 }
 
-function readFormValue(formData: FormData, key: string) {
+/**
+ * `null` for both an absent field and an empty one: every id this correction
+ * reads is either a real choice or nothing, and the empty string is how an
+ * unanswered select arrives. Distinct from the `readFormString` of the sibling
+ * actions, which keeps `""` because their fields are optional text.
+ */
+function readNonEmptyFormValue(formData: FormData, key: string) {
   const value = formData.get(key);
 
   return typeof value === "string" && value.length > 0 ? value : null;
