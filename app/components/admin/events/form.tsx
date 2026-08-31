@@ -73,10 +73,9 @@ export function useEventForm({
 }
 
 /**
- * Everything the administration edits about the event itself. One two-column
- * grid throughout: the name and the deposit sit alone on a row at a single
- * cell's width so they line up with the date fields underneath, which pair off
- * as the event window and then the inscription window.
+ * Everything the administration edits about the event itself, in a two-column
+ * grid: the name and the deposit share the first row, then the dates pair off
+ * as the event window and the inscription window.
  */
 export function EventFormFields({ controller }: EventFormFieldsProps) {
   const { form } = controller;
@@ -84,7 +83,6 @@ export function EventFormFields({ controller }: EventFormFieldsProps) {
   return (
     <FieldGroup className="grid gap-5 md:grid-cols-2">
       <TextInputField control={form.control} label="Nombre" name="name" />
-      <FieldGridSpacer />
       <IntegerInputField
         control={form.control}
         label="Seña (%)"
@@ -93,7 +91,6 @@ export function EventFormFields({ controller }: EventFormFieldsProps) {
         max={MAX_REQUIRED_DEPOSIT_PERCENTAGE}
         step="1"
       />
-      <FieldGridSpacer />
       <DateOnlyField
         control={form.control}
         label="Inicio del evento"
@@ -116,11 +113,6 @@ export function EventFormFields({ controller }: EventFormFieldsProps) {
       />
     </FieldGroup>
   );
-}
-
-/** Holds a field to one cell instead of letting it span the row. */
-function FieldGridSpacer() {
-  return <div aria-hidden="true" className="hidden md:block" />;
 }
 
 /**

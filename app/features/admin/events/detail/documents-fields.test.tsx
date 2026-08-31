@@ -30,7 +30,6 @@ describe("EventDocumentsFields", () => {
     expect(document.body.textContent).toContain("Contrato para profesores");
     expect(document.body.textContent).toContain("Autorización para menores");
     expect(document.body.textContent).toContain("Contrato para mayores");
-    expect(document.body.textContent).toContain("Todavía no está cargado.");
   });
 
   // The whole point of folding the uploads into the event form: a document is a
@@ -63,22 +62,34 @@ describe("EventDocumentsFields", () => {
     expect(fileInput?.accept).toBe("application/pdf");
   });
 
-  // An administration re-uploading three PDFs per event cannot tell which ones
-  // are already done without the date and the link.
-  test("shows when a document was uploaded and how to open it", async () => {
-    await renderFields(
-      eventDocumentSummaries({
-        professor_contract: {
-          downloadUrl: "/almacenamiento?key=contrato",
-          uploadedAt: new Date("2026-05-04T15:00:00Z"),
-        },
-      }),
+  // The field is the whole status: an uploaded document reads as the link that
+  // opens it, so an administration can tell which of the three are done.
+  test("turns an uploaded document into a link that opens it", async () => {
+    await renderFields(uploadedProfessorContract());
+
+    const link = document.querySelector<HTMLAnchorElement>(
+      'a[href="/almacenamiento?key=contrato"]',
     );
 
-    expect(document.body.textContent).toContain("Cargado el 4/5/26");
-    expect(
-      document.querySelector('a[href="/almacenamiento?key=contrato"]'),
-    ).not.toBeNull();
+    expect(link).not.toBeNull();
+    expect(link?.textContent).toContain("Ver el documento cargado");
+  });
+
+  // Replacing takes two deliberate steps. While the document is there the box
+  // is a link and opens nothing else, so there is no picker to reach past it.
+  test("offers no picker until the uploaded document is removed", async () => {
+    await renderFields(uploadedProfessorContract());
+
+    expect(getUploadBox("professor_contract")).toBeNull();
+    expect(getRemoveButton("contrato para profesores")).not.toBeUndefined();
+  });
+
+  // Nothing to remove yet, so nothing to press: the button is the affordance
+  // for a value the field does not have.
+  test("offers no remove button while the document is missing", async () => {
+    await renderFields(eventDocumentSummaries());
+
+    expect(getRemoveButton("contrato para profesores")).toBeUndefined();
   });
 
   // The "kept" field is what the action reads to tell "leave it alone" from
@@ -98,12 +109,44 @@ describe("EventDocumentsFields", () => {
   });
 
   // The compact variant renders no `helperText`, so the format and the ceiling
-  // have to be stated by the row or they are stated nowhere.
-  test("states the accepted format and the size ceiling", async () => {
+  // stand in for the empty value or they are stated nowhere.
+  test("places the accepted format and the ceiling in the empty field", async () => {
     await renderFields(eventDocumentSummaries());
 
-    expect(document.body.textContent).toContain("PDF - max 10 MB");
+    expect(getUploadBox("professor_contract")?.textContent).toBe(
+      "PDF - max 10 MB",
+    );
   });
+
+  function uploadedProfessorContract() {
+    return eventDocumentSummaries({
+      professor_contract: {
+        downloadUrl: "/almacenamiento?key=contrato",
+        uploadedAt: new Date("2026-05-04T15:00:00Z"),
+      },
+    });
+  }
+
+  /**
+   * The clickable box, which is a `<label>` for the file input. Told apart from
+   * the field's own caption, which carries the same `for` and is what makes a
+   * bare `label[for]` lookup useless here.
+   */
+  function getUploadBox(kind: "adult_contract" | "professor_contract") {
+    const fileInput = document.querySelector<HTMLInputElement>(
+      `input[name="${eventDocumentFileField(kind)}"]`,
+    );
+
+    return document.querySelector(
+      `label[for="${fileInput?.id}"]:not([data-slot="field-label"])`,
+    );
+  }
+
+  function getRemoveButton(subjectLabel: string) {
+    return Array.from(document.querySelectorAll("button")).find((button) =>
+      button.textContent?.includes(`Quitar ${subjectLabel}`),
+    );
+  }
 
   function readKept(kind: "adult_contract" | "professor_contract") {
     return document.querySelector<HTMLInputElement>(

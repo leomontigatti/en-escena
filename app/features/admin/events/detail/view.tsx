@@ -41,7 +41,6 @@ import { useServerActionToast } from "@/lib/shared/toasts";
 import {
   EventDocumentsFields,
   useEventDocumentsForm,
-  type EventDocumentsController,
 } from "./documents-fields";
 import {
   eventDocumentDeclarations,
@@ -215,7 +214,7 @@ function EditEventPanel({
           }
         >
           <EventFormFields controller={eventForm} />
-          <EventDocumentsSection
+          <EventDocumentsFields
             controller={documentsForm}
             documents={documents}
           />
@@ -228,21 +227,6 @@ function EditEventPanel({
         removedKinds={documentsForm.removedKinds}
       />
     </>
-  );
-}
-
-function EventDocumentsSection({
-  controller,
-  documents,
-}: {
-  controller: EventDocumentsController;
-  documents: EventDetailLoaderData["documents"];
-}) {
-  return (
-    <div className="flex flex-col gap-5 border-t border-border pt-5">
-      <h3 className="text-sm font-medium">Documentos</h3>
-      <EventDocumentsFields controller={controller} documents={documents} />
-    </div>
   );
 }
 

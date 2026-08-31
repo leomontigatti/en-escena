@@ -1,4 +1,3 @@
-import { ExternalLink } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm, useWatch, type UseFormReturn } from "react-hook-form";
 
@@ -10,7 +9,6 @@ import {
   getEventDocumentSubjectOptions,
   type EventDocumentKind,
 } from "@/lib/events/event-documents";
-import { formatBusinessDate } from "@/lib/shared/business-time-zone";
 import {
   getAssetKindHelperText,
   getAssetUploadFieldProps,
@@ -155,43 +153,34 @@ function EventDocumentField({
   kind: EventDocumentKind;
 }) {
   const declaration = eventDocumentDeclarations[kind];
-  const { form } = controller;
-  const isSelected = controller.selectedKinds.includes(kind);
-  const isRemoved = controller.removedKinds.includes(kind);
-  const { setSelectedKind } = controller;
+  const { form, setSelectedKind } = controller;
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <FileUploadField
-        control={form.control}
-        name={eventDocumentKeptField(kind)}
-        fileInputName={eventDocumentFileField(kind)}
-        fieldLabel={declaration.label}
-        label="Elegí el PDF o arrastralo acá"
-        uploadedLabel="Cambiá el PDF cargado"
-        {...getAssetUploadFieldProps(
-          "eventDocument",
-          getEventDocumentSubjectOptions(kind),
-        )}
-        previewSelectedFile={false}
-        removeLabel={`Quitar ${declaration.subjectLabel}`}
-        variant="compact"
-        onSelectedFileChange={(file) => setSelectedKind(kind, file !== null)}
-      />
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm text-muted-foreground">
-        {/* Without the date and the link an administration re-uploading three
-            PDFs per event cannot tell which ones are already done. */}
-        <EventDocumentStatus
-          document={document}
-          isRemoved={isRemoved}
-          isSelected={isSelected}
-        />
-        {/* The compact variant has nowhere to put `helperText`, and the format
-            and the ceiling are the two things worth knowing before choosing a
-            file rather than after the server refuses it. */}
-        <span>{getAssetKindHelperText("eventDocument")}</span>
-      </div>
-    </div>
+    <FileUploadField
+      control={form.control}
+      name={eventDocumentKeptField(kind)}
+      fileInputName={eventDocumentFileField(kind)}
+      fieldLabel={declaration.label}
+      // An uploaded document reads as a link that opens it, and has to be
+      // removed before another can take its place: the field is the whole
+      // status, so there is no line under it restating what it already shows.
+      downloadLabel="Ver el documento cargado"
+      downloadUrl={document?.downloadUrl}
+      uploadedLabel="Documento cargado"
+      label="Elegí el PDF o arrastralo acá"
+      // The compact variant renders no helper text, so the accepted format and
+      // the ceiling stand in for the empty value instead.
+      placeholder={getAssetKindHelperText("eventDocument")}
+      {...getAssetUploadFieldProps(
+        "eventDocument",
+        getEventDocumentSubjectOptions(kind),
+      )}
+      previewSelectedFile={false}
+      removeLabel={`Quitar ${declaration.subjectLabel}`}
+      replaceRequiresRemoval
+      variant="compact"
+      onSelectedFileChange={(file) => setSelectedKind(kind, file !== null)}
+    />
   );
 }
 
@@ -199,42 +188,4 @@ function getSavedDocumentsKey(documents: EventDetailLoaderData["documents"]) {
   return eventDocumentKinds
     .map((kind) => documents[kind]?.uploadedAt ?? "")
     .join("|");
-}
-
-function EventDocumentStatus({
-  document,
-  isRemoved,
-  isSelected,
-}: {
-  document: SerializedEventDocumentSummary;
-  isRemoved: boolean;
-  isSelected: boolean;
-}) {
-  if (isRemoved) {
-    return <span>Se elimina al guardar.</span>;
-  }
-
-  if (isSelected) {
-    return (
-      <span>
-        {document ? "Se reemplaza al guardar." : "Se carga al guardar."}
-      </span>
-    );
-  }
-
-  if (!document) {
-    return <span>Todavía no está cargado.</span>;
-  }
-
-  return (
-    <span className="flex flex-wrap items-center gap-2">
-      <span>Cargado el {formatBusinessDate(document.uploadedAt)}</span>
-      {document.downloadUrl ? (
-        <a href={document.downloadUrl} target="_blank" rel="noreferrer">
-          <ExternalLink aria-hidden="true" className="inline size-3.5" /> Ver el
-          documento actual
-        </a>
-      ) : null}
-    </span>
-  );
 }

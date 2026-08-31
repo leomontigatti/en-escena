@@ -154,7 +154,9 @@ describe("EventDetailView form", () => {
     });
 
     expect(getButton("Guardar").disabled).toBe(true);
-    expect(document.body.textContent).not.toContain("Se elimina al guardar.");
+    expect(
+      document.querySelector('a[href="/almacenamiento?key=contrato"]'),
+    ).not.toBeNull();
   });
 
   // An alert about the whole event is not a field: it belongs above the card,
