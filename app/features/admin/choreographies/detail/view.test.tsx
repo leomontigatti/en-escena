@@ -6,7 +6,12 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
 import { ChoreographyDetailRouteView } from "@/features/admin/choreographies/detail/view";
-import type { ChoreographyDetailLoaderData } from "@/features/admin/choreographies/detail/server";
+import type {
+  ChoreographyDetailLoaderData,
+  ChoreographyRosterResolutionData,
+} from "@/features/admin/choreographies/detail/server";
+import { resolveChoreographyRosterIntent } from "@/features/admin/choreographies/detail/shared";
+import type { ChoreographyDancerScheduleChoice } from "@/lib/choreographies/choreography-roster.shared";
 import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 
 type DetailViewProps = Parameters<typeof ChoreographyDetailRouteView>[0];
@@ -417,9 +422,45 @@ describe("ChoreographyDetailRouteView", () => {
     ).toBe(false);
   });
 
+  /**
+   * El select del roster reemplaza a la reasignación autónoma mientras hay un
+   * cambio de bailarines pendiente, y recién aparece cuando el server resuelve
+   * ese cambio. Se llega hasta él por la UI para fijar que rotula con el
+   * constructor compartido —ocupación incluida, cupo lleno deshabilitado— en
+   * lugar de rearmar la etiqueta por su cuenta, que es lo que lo hacía divergir
+   * del portal y de la reasignación autónoma.
+   */
+  test("labels the roster cronograma select with the shared occupancy format", async () => {
+    await renderDetailIntoDocument({
+      loaderData: buildLoaderData({
+        availableDancers: [
+          { active: true, firstName: "Ana", id: "dancer_1", lastName: "Paz" },
+          { active: true, firstName: "Eva", id: "dancer_2", lastName: "Ruiz" },
+        ],
+      }),
+      rosterResolution: buildRosterResolution(),
+    });
+
+    await addDancerToRoster("Eva Ruiz");
+
+    expect(readScheduleCapacityOptions()).toEqual([
+      {
+        disabled: false,
+        label: "1 de mayo de 2026 - 14:00 hs. · 1/5 ocupados",
+        value: "schedule_capacity_1",
+      },
+      {
+        disabled: true,
+        label: "2 de mayo de 2026 - 10:00 hs. · 5/5 ocupados · sin cupo",
+        value: "schedule_capacity_2",
+      },
+    ]);
+  });
+
   async function renderDetailIntoDocument(
     input: Partial<DetailViewProps> & {
       initialDeleteDialogOpen?: boolean;
+      rosterResolution?: ChoreographyRosterResolutionData;
     } = {},
   ) {
     const loaderData = input.loaderData ?? buildLoaderData();
@@ -427,7 +468,7 @@ describe("ChoreographyDetailRouteView", () => {
       [
         {
           path: "/administracion/coreografias/choreo_1",
-          action: async () => null,
+          action: async () => input.rosterResolution ?? null,
           element: (
             <ChoreographyDetailRouteView
               actionData={input.actionData}
@@ -509,6 +550,61 @@ function buildLoaderData(
     selectedEventId: "event_1",
     submodalityOptions: [{ id: "submodality_1", name: "Lyrical" }],
     ...overrides,
+  };
+}
+
+function buildRosterResolution(): ChoreographyRosterResolutionData {
+  return {
+    intent: resolveChoreographyRosterIntent,
+    result: {
+      ok: true,
+      resolution: {
+        groupType: "duo",
+        categoryId: "category_1",
+        categoryName: "Juvenil",
+        experienceLevel: { required: false, options: [] },
+        schedule: {
+          status: "multiple",
+          canSave: true,
+          selectedScheduleCapacityId: null,
+          options: [
+            buildRosterScheduleChoice({
+              id: "schedule_capacity_1",
+              isFull: false,
+              label: "1 de mayo de 2026 - 14:00 hs. · 1/5 ocupados",
+            }),
+            buildRosterScheduleChoice({
+              id: "schedule_capacity_2",
+              isFull: true,
+              label: "2 de mayo de 2026 - 10:00 hs. · 5/5 ocupados · sin cupo",
+            }),
+          ],
+        },
+      },
+    },
+  };
+}
+
+function buildRosterScheduleChoice(input: {
+  id: string;
+  isFull: boolean;
+  label: string;
+}): ChoreographyDancerScheduleChoice {
+  return {
+    id: input.id,
+    isFull: input.isFull,
+    label: input.label,
+    scheduleId: "schedule_1",
+    scheduleCapacityId: input.id,
+    groupType: "duo",
+    capacity: 5,
+    usesGlobalCapacity: false,
+    schedule: {
+      id: "schedule_1",
+      name: "Jornada 1",
+      scheduledDate: "2026-05-01",
+      startTime: "14:00:00",
+    },
   };
 }
 
@@ -614,4 +710,85 @@ async function clickMenuItem(label: string) {
     );
     await Promise.resolve();
   });
+}
+
+/**
+ * Suma un bailarín por el combobox y espera a que vuelva la resolución del
+ * server: el select de cronograma del roster no existe hasta entonces.
+ */
+async function addDancerToRoster(label: string) {
+  const trigger = Array.from(
+    document.querySelectorAll('button[role="combobox"]'),
+  ).find((candidate) => candidate.getAttribute("aria-haspopup") === "dialog");
+
+  if (!trigger) {
+    throw new Error("Expected the dancers combobox trigger to be rendered.");
+  }
+
+  await dispatchClick(trigger);
+
+  const option = Array.from(document.querySelectorAll('[role="option"]')).find(
+    (candidate) => candidate.textContent?.includes(label),
+  );
+
+  if (!option) {
+    throw new Error(`Expected dancer option "${label}" to be rendered.`);
+  }
+
+  await dispatchClick(option);
+  await waitForScheduleCapacitySelect();
+}
+
+async function dispatchClick(element: Element) {
+  await act(async () => {
+    element.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true }),
+    );
+    await Promise.resolve();
+  });
+}
+
+async function waitForScheduleCapacitySelect() {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    if (findScheduleCapacitySelect()) {
+      return;
+    }
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    });
+  }
+
+  throw new Error(
+    "Expected the roster cronograma select to render after the resolution.",
+  );
+}
+
+/**
+ * El select arma un `<select>` nativo oculto con una `<option>` por opción: ahí
+ * están el rótulo y el `disabled` que de verdad llegan al DOM, sin depender de
+ * abrir el popover.
+ */
+function findScheduleCapacitySelect() {
+  return Array.from(document.querySelectorAll("select")).find((candidate) =>
+    Array.from(candidate.options).some(
+      (option) => option.value === "schedule_capacity_1",
+    ),
+  );
+}
+
+function readScheduleCapacityOptions() {
+  const select = findScheduleCapacitySelect();
+
+  if (!select) {
+    throw new Error("Expected the roster cronograma select to be rendered.");
+  }
+
+  return Array.from(select.options)
+    .filter((option) => option.value.length > 0)
+    .map((option) => ({
+      disabled: option.disabled,
+      label: option.textContent ?? "",
+      value: option.value,
+    }));
 }
