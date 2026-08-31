@@ -12,6 +12,7 @@ import {
 } from "@/db/schema";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
+import { formatChoreographyNumber } from "@/lib/choreographies/choreography-number";
 import {
   deriveChoreographyOperationalStatus,
   type ChoreographyOperationalStatus,
@@ -22,6 +23,7 @@ import { normalizeSearchValue } from "@/components/shared/data-table-helpers";
 type ChoreographyRow = {
   academyName: string;
   categoryId: string | null;
+  choreographyNumber: number;
   categoryName: string | null;
   experienceLevelId: string | null;
   categoryExperienceLevels: string[] | null;
@@ -61,6 +63,7 @@ type ChoreographyOrder = {
 export type ChoreographyListItem = {
   academyName: string;
   categoryName: string | null;
+  choreographyNumber: number;
   groupType: ChoreographyGroupType;
   id: string;
   modalityName: string;
@@ -133,6 +136,7 @@ export async function loadChoreographies(input: {
     .select({
       academyName: academies.name,
       categoryId: choreographies.categoryId,
+      choreographyNumber: choreographies.choreographyNumber,
       categoryName: categories.name,
       experienceLevelId: choreographies.experienceLevelId,
       categoryExperienceLevels: categories.experienceLevels,
@@ -318,6 +322,7 @@ async function hydrateChoreographies(
     academyName: row.academyName,
     categoryId: row.categoryId,
     categoryName: row.categoryName,
+    choreographyNumber: row.choreographyNumber,
     groupType: row.groupType,
     id: row.id,
     modalityId: row.modalityId,
@@ -440,9 +445,14 @@ function matchesChoreographyFilters(
 
   const normalizedQuery = normalizeSearchValue(filters.query);
 
+  // El número se compara ya rellenado con ceros, así que `42`, `042` y `00042`
+  // encuentran la misma coreografía. Sigue siendo un `includes` como el resto
+  // de la búsqueda: el administrador que solo recuerda el final del número lo
+  // escribe y llega igual.
   return (
     normalizeSearchValue(row.name).includes(normalizedQuery) ||
-    normalizeSearchValue(row.academyName).includes(normalizedQuery)
+    normalizeSearchValue(row.academyName).includes(normalizedQuery) ||
+    formatChoreographyNumber(row.choreographyNumber).includes(normalizedQuery)
   );
 }
 

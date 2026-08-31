@@ -34,6 +34,7 @@ import {
 } from "@/routes/administracion.coreografias";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
+import { allocateChoreographyNumber } from "@/lib/choreographies/choreography-number.server";
 
 installDatabaseTestHooks();
 
@@ -628,9 +629,13 @@ async function createChoreographyRecord(input: {
   scheduleCapacityId: string;
   submodalityId?: string;
 }) {
+  const choreographyNumber = await db.transaction(async (tx) =>
+    allocateChoreographyNumber({ tx, eventId: input.eventId }),
+  );
   const [choreography] = await db
     .insert(choreographies)
     .values({
+      choreographyNumber,
       academyId: input.academyId,
       categoryCalculationMode: "oldest",
       categoryId: input.categoryId ?? null,

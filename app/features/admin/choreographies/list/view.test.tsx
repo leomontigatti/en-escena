@@ -36,6 +36,7 @@ describe("ChoreographiesListRouteView", () => {
         {
           academyName: "Academia Norte",
           categoryName: "Juvenil",
+          choreographyNumber: 1,
           groupType: "duo",
           id: "choreo_1",
           modalityName: "Jazz",
@@ -49,6 +50,7 @@ describe("ChoreographiesListRouteView", () => {
         {
           academyName: "Academia Sur",
           categoryName: null,
+          choreographyNumber: 2,
           groupType: "solo",
           id: "choreo_2",
           modalityName: "Contemporáneo",
@@ -63,6 +65,7 @@ describe("ChoreographiesListRouteView", () => {
     });
 
     for (const column of [
+      "#",
       "Nombre",
       "Academia",
       "Modalidad / Submodalidad",
@@ -72,6 +75,10 @@ describe("ChoreographiesListRouteView", () => {
       expect(markup).toContain(column);
     }
 
+    // El número se muestra relleno con ceros y enlaza al detalle igual que el
+    // nombre: es el otro camino por el que el administrador entra a la ficha.
+    expect(markup).toContain("00001");
+    expect(markup).toContain("00002");
     expect(markup).toContain("Pieza Visible");
     expect(markup).toContain("Borrador");
     expect(markup).toContain('href="/administracion/coreografias/choreo_1"');
@@ -103,7 +110,9 @@ describe("ChoreographiesListRouteView", () => {
       hasAnyChoreography: true,
     });
 
-    expect(markup).toContain("Buscar coreografía por nombre o academia");
+    expect(markup).toContain(
+      "Buscar coreografía por número, nombre o academia",
+    );
     expect(markup).toContain('value="Sin resultados"');
     expect(markup).toContain(
       "No hay coreografías que coincidan con la búsqueda o los filtros.",

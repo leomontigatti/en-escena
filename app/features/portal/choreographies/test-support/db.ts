@@ -14,6 +14,7 @@ import {
   submodalities,
 } from "@/db/schema";
 import { registerAcademyEventPayment } from "@/features/admin/finances/academy-choreographies/payments.server";
+import { allocateChoreographyNumber } from "@/lib/choreographies/choreography-number.server";
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
 import { createScheduleForModalityFixture } from "@/lib/choreographies/registration-test-fixtures.server.db";
 import {
@@ -207,26 +208,37 @@ export async function createChoreographyRecord(
     name: string;
   },
 ) {
-  const [choreography] = await db
-    .insert(choreographies)
-    .values({
-      academyId: overrides.academyId,
-      eventId: overrides.eventId,
-      name: overrides.name,
-      modalityId: overrides.modalityId,
-      submodalityId: overrides.submodalityId ?? null,
-      groupType: overrides.groupType ?? "solo",
-      categoryId: overrides.categoryId ?? null,
-      categoryAgeBasis: overrides.categoryAgeBasis ?? 13,
-      categoryCalculationMode: overrides.categoryCalculationMode ?? "oldest",
-      experienceLevelId: overrides.experienceLevelId ?? null,
-      scheduleCapacityId: overrides.scheduleCapacityId,
-      musicStorageKey: overrides.musicStorageKey ?? null,
-      hasPresentation: overrides.hasPresentation ?? false,
-      createdAt: overrides.createdAt,
-      updatedAt: overrides.updatedAt,
-    })
-    .returning();
+  // Numera por el mismo camino que la aplicación en vez de fijar un número: así
+  // dos coreografías del mismo evento en un test no chocan contra
+  // `choreography_event_number_unique`.
+  const [choreography] = await db.transaction(async (tx) =>
+    tx
+      .insert(choreographies)
+      .values({
+        academyId: overrides.academyId,
+        eventId: overrides.eventId,
+        choreographyNumber:
+          overrides.choreographyNumber ??
+          (await allocateChoreographyNumber({
+            tx,
+            eventId: overrides.eventId,
+          })),
+        name: overrides.name,
+        modalityId: overrides.modalityId,
+        submodalityId: overrides.submodalityId ?? null,
+        groupType: overrides.groupType ?? "solo",
+        categoryId: overrides.categoryId ?? null,
+        categoryAgeBasis: overrides.categoryAgeBasis ?? 13,
+        categoryCalculationMode: overrides.categoryCalculationMode ?? "oldest",
+        experienceLevelId: overrides.experienceLevelId ?? null,
+        scheduleCapacityId: overrides.scheduleCapacityId,
+        musicStorageKey: overrides.musicStorageKey ?? null,
+        hasPresentation: overrides.hasPresentation ?? false,
+        createdAt: overrides.createdAt,
+        updatedAt: overrides.updatedAt,
+      })
+      .returning(),
+  );
 
   return choreography;
 }

@@ -13,6 +13,7 @@ import {
   formatChoreographyOperationalStatusLabel,
   getChoreographyOperationalStatusBadgeVariant,
 } from "@/lib/choreographies/operational-status";
+import { formatChoreographyNumber } from "@/lib/choreographies/choreography-number";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 
 import type { loadChoreographies } from "./server";
@@ -37,6 +38,20 @@ const choreographyGroupTypeFilterOptions = [
 ];
 
 const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
+  {
+    id: "numero",
+    header: "#",
+    className: "w-[8%] font-medium tabular-nums",
+    headerClassName: "w-[8%]",
+    cell: (choreography) => (
+      <DataTableLink to={`/administracion/coreografias/${choreography.id}`}>
+        {formatChoreographyNumber(choreography.choreographyNumber)}
+      </DataTableLink>
+    ),
+    filterValue: (choreography) =>
+      formatChoreographyNumber(choreography.choreographyNumber),
+    sortValue: (choreography) => choreography.choreographyNumber,
+  },
   {
     id: "nombre",
     header: "Nombre",
@@ -135,7 +150,7 @@ function ChoreographyTable({ loaderData }: { loaderData: LoaderData }) {
       pageParamName="pagina"
       searchParamName="busqueda"
       sortParamName="orden"
-      searchPlaceholder="Buscar coreografía por nombre o academia"
+      searchPlaceholder="Buscar coreografía por número, nombre o academia"
       initialSearchValue={loaderData.filters.query}
       facetedFilters={buildChoreographyFacetedFilters(loaderData)}
       initialFacetedFilterValues={buildChoreographyInitialFilters(loaderData)}

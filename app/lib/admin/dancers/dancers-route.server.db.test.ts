@@ -53,6 +53,7 @@ import {
 } from "@/routes/administracion.bailarines_.$dancerId";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
+import { allocateChoreographyNumber } from "@/lib/choreographies/choreography-number.server";
 
 const createDocumentImageSignedUrlMock = vi.hoisted(() => vi.fn());
 
@@ -1693,9 +1694,13 @@ async function createAdministrativeLinkedChoreography(input: {
   experienceLevelId: string | null;
   scheduleCapacityId: string;
 }) {
+  const choreographyNumber = await db.transaction(async (tx) =>
+    allocateChoreographyNumber({ tx, eventId: input.eventId }),
+  );
   const [choreography] = await db
     .insert(choreographies)
     .values({
+      choreographyNumber,
       eventId: input.eventId,
       academyId: input.academyId,
       name: input.choreographyName,

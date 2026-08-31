@@ -19,7 +19,7 @@ const schemaExportNames = [
   "dancers",
   "documentType",
   "events",
-  "eventFinancialSequences",
+  "eventSequences",
   "experienceLevel",
   "paymentMethod",
   "groupType",

@@ -321,3 +321,36 @@ export const scheduleCapacities = createTable(
     ),
   ],
 ).enableRLS();
+
+// Un contador por evento, una fila por evento. Alimenta los números legibles
+// que el usuario lee y busca: el del pago y el de la coreografía. Cada número
+// se entrega tomando esta fila con `FOR UPDATE` dentro de la misma transacción
+// que inserta, así que dos altas simultáneas se serializan en vez de repetir el
+// número. La numeración deja huecos —borrar una coreografía no devuelve el
+// suyo— y así debe ser: estos números identifican, no cuentan.
+export const eventSequences = createTable(
+  "event_sequence",
+  {
+    eventId: varchar("event_id", { length: 255 })
+      .primaryKey()
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    nextPaymentNumber: integer("next_payment_number").notNull().default(1),
+    nextChoreographyNumber: integer("next_choreography_number")
+      .notNull()
+      .default(1),
+    createdAt: timestamp("created_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: timestamp("updated_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [index("event_sequence_updated_idx").on(table.updatedAt)],
+).enableRLS();

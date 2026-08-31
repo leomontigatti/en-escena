@@ -34,6 +34,7 @@ describe("PortalChoreographiesListRouteView", () => {
           }),
           choreographyListItem({
             id: "choreo_2",
+            choreographyNumber: 2,
             name: "Otra Pieza",
             modalityName: "Folklore",
             groupType: "duo",
@@ -53,6 +54,7 @@ describe("PortalChoreographiesListRouteView", () => {
     });
 
     for (const columnLabel of [
+      "#",
       "Nombre",
       "Modalidad / Submodalidad",
       "Categoría / Tipo de grupo",
@@ -62,6 +64,10 @@ describe("PortalChoreographiesListRouteView", () => {
     }
 
     expect(markup).not.toContain("Evento consultado");
+    // La academia ve el mismo número que el administrador: es el que va a citar
+    // cuando pregunte por una coreografía.
+    expect(markup).toContain("00001");
+    expect(markup).toContain("00002");
     expect(markup).toContain("Mi Pieza");
     expect(markup).toContain(
       "Buscar coreografía por nombre, modalidad o categoría",
@@ -227,6 +233,7 @@ function choreographyListItem(
 ) {
   return {
     id: "choreo_1",
+    choreographyNumber: 1,
     name: "Coreografía",
     modalityName: "Jazz",
     submodalityName: null,

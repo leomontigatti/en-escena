@@ -4,6 +4,7 @@ import {
   choreographyProfessors,
   choreographies,
 } from "@/db/schema";
+import { allocateChoreographyNumber } from "@/lib/choreographies/choreography-number.server";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import {
   experienceLevelLabels,
@@ -183,18 +184,21 @@ export async function createEventChoreographyFixture({
       capacity: 10,
     }),
   );
-  const [choreography] = await db
-    .insert(choreographies)
-    .values({
-      eventId,
-      academyId,
-      name,
-      modalityId: modality.id,
-      groupType,
-      categoryCalculationMode: "oldest",
-      scheduleCapacityId: entry.id,
-    })
-    .returning();
+  const [choreography] = await db.transaction(async (tx) =>
+    tx
+      .insert(choreographies)
+      .values({
+        eventId,
+        academyId,
+        choreographyNumber: await allocateChoreographyNumber({ tx, eventId }),
+        name,
+        modalityId: modality.id,
+        groupType,
+        categoryCalculationMode: "oldest",
+        scheduleCapacityId: entry.id,
+      })
+      .returning(),
+  );
 
   if (dancerIds.length > 0) {
     await db.insert(choreographyDancers).values(

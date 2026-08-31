@@ -23,6 +23,7 @@ import { expectPersistedDancer } from "@/lib/test-support/person-detail-db-asser
 import { createFormData } from "@/lib/test-support/form-data";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
+import { allocateChoreographyNumber } from "@/lib/choreographies/choreography-number.server";
 
 const createDocumentImageSignedUrlMock = vi.hoisted(() => vi.fn());
 const uploadDocumentImageMock = vi.hoisted(() => vi.fn());
@@ -164,9 +165,13 @@ describe.sequential("handlePortalDancerDetailAction", () => {
         birthDate: "2014-05-01",
       })
       .returning();
+    const choreographyNumber = await db.transaction(async (tx) =>
+      allocateChoreographyNumber({ tx, eventId: event.id }),
+    );
     const [choreography] = await db
       .insert(choreographies)
       .values({
+        choreographyNumber,
         academyId: session.academyId,
         eventId: event.id,
         name: "Solo con recálculo",

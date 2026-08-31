@@ -18,6 +18,7 @@ import {
 } from "@/features/portal/test-support/db";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
+import { allocateChoreographyNumber } from "@/lib/choreographies/choreography-number.server";
 
 installDatabaseTestHooks();
 
@@ -171,9 +172,13 @@ describe.sequential("loadPortalDancersList", () => {
         birthDate: "2014-02-01",
       })
       .returning();
+    const choreographyNumber = await db.transaction(async (tx) =>
+      allocateChoreographyNumber({ tx, eventId: event.id }),
+    );
     const [choreography] = await db
       .insert(choreographies)
       .values({
+        choreographyNumber,
         academyId: session.academyId,
         eventId: event.id,
         name: "Solo activo",

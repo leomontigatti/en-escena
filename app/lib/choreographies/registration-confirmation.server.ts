@@ -7,6 +7,7 @@ import {
   choreographyProfessors,
   professors,
 } from "@/db/schema";
+import { allocateChoreographyNumber } from "@/lib/choreographies/choreography-number.server";
 import {
   choreographyNameMaxLength,
   collapseChoreographyNameWhitespace,
@@ -153,11 +154,19 @@ export async function createChoreographyRegistration(
         throw createFailure(scheduleLock.code, scheduleLock.error);
       }
 
+      // Después del lock de cupo, nunca antes: las dos transacciones que tocan
+      // ambas filas las toman en este orden y por eso no se traban entre sí.
+      const choreographyNumber = await allocateChoreographyNumber({
+        tx,
+        eventId: input.eventId,
+      });
+
       const [createdChoreography] = await tx
         .insert(choreographies)
         .values({
           eventId: input.eventId,
           academyId: input.academyId,
+          choreographyNumber,
           name: normalizedName.value,
           modalityId: input.modalityId,
           submodalityId: input.submodalityId,

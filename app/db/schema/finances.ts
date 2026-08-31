@@ -23,32 +23,6 @@ export const paymentMethod = pgEnum("en_escena_finance_payment_method", [
   "otro",
 ]);
 
-export const eventFinancialSequences = createTable(
-  "event_financial_sequence",
-  {
-    eventId: varchar("event_id", { length: 255 })
-      .primaryKey()
-      .notNull()
-      .references(() => events.id, { onDelete: "cascade" }),
-    nextPaymentNumber: integer("next_payment_number").notNull().default(1),
-    createdAt: timestamp("created_at", {
-      mode: "date",
-      withTimezone: true,
-    })
-      .notNull()
-      .default(sql`CURRENT_TIMESTAMP`),
-    updatedAt: timestamp("updated_at", {
-      mode: "date",
-      withTimezone: true,
-    })
-      .notNull()
-      .default(sql`CURRENT_TIMESTAMP`),
-  },
-  (table) => [
-    index("event_financial_sequence_updated_idx").on(table.updatedAt),
-  ],
-).enableRLS();
-
 export const payments = createTable(
   "payment",
   {
