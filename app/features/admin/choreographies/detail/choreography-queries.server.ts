@@ -41,7 +41,7 @@ export type ChoreographyExperienceLevelOption = {
  * No hay tabla de niveles: son un enum global y la categoría declara cuáles
  * admite, así que la lista se arma acá y no se consulta.
  */
-export function resolveChoreographyExperienceLevelOptions(input: {
+function resolveChoreographyExperienceLevelOptions(input: {
   categoryExperienceLevels: string[] | null;
   experienceLevelId: string | null;
 }): ChoreographyExperienceLevelOption[] {
