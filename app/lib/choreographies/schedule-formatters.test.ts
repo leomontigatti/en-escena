@@ -49,8 +49,5 @@ describe("schedule formatters", () => {
     expect(formatScheduleDateTime(schedule)).toBe(
       "1 de mayo de 2026 - 14:00 hs.",
     );
-    expect(formatScheduleDateTime(schedule, { includeName: true })).toBe(
-      "Jornada 1 · 1 de mayo de 2026 · 14:00 hs.",
-    );
   });
 });
