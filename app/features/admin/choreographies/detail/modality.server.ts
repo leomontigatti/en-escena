@@ -145,8 +145,8 @@ export async function listChoreographyModalityOptions(
  * What the choreography would look like under a candidate modalidad, without
  * writing anything: the resolved categoría, whether a submodalidad and a nivel
  * are now required, and the compatible cupos. The `Guardar` re-resolves the
- * same way inside its transaction, because this answer is older than the write
- * by construction.
+ * same way before opening its transaction and rejects on divergence, because
+ * this answer is older than the write by construction.
  */
 export async function resolveChoreographyModalityCorrection(input: {
   choreography: ChoreographyDetail;

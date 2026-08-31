@@ -22,9 +22,9 @@ import {
 } from "./shared";
 
 /**
- * El cupo es el único campo obligatorio del bloque en el cliente: la
- * submodalidad y el nivel solo hacen falta cuando la resolución los pide, así
- * que los gobierna `canSubmitModalityCorrection` en lugar del esquema.
+ * The cupo is the block's only required field on the client: the submodalidad
+ * and the nivel are only needed when the resolution asks for them, so
+ * `canSubmitModalityCorrection` governs those instead of the schema.
  */
 const modalityFormSchema = z.object({
   modalityExperienceLevelId: z.string(),
@@ -36,15 +36,15 @@ const modalityFormSchema = z.object({
 type ModalityFormValues = z.input<typeof modalityFormSchema>;
 
 /**
- * La corrección compuesta de modalidad, con la misma forma que el form del
- * roster: al elegir una modalidad candidata se le pide la resolución al server
- * por fetcher, los tres campos dependientes se rellenan o se limpian con lo que
- * vuelve, y un solo `Guardar` lo escribe todo en una transacción.
+ * The compound modality correction, shaped like the roster form: choosing a
+ * candidate modalidad asks the server for the resolution over a fetcher, the
+ * three dependent fields are filled or cleared from what comes back, and a
+ * single `Guardar` writes it all in one transaction.
  *
- * Es un form hermano del roster, no un campo suyo: las guardas difieren —la
- * modalidad necesita la guarda de la seña sobre el movimiento de cupo, que el
- * guardado del roster deliberadamente no aplica al tipo de grupo— y por eso los
- * dos se excluyen mutuamente en pantalla en lugar de fusionarse.
+ * It is a sibling of the roster form, not a field on it: the guards differ —the
+ * modalidad needs the seña guard over the cupo move, which the roster save
+ * deliberately does not apply to the group type— which is why the two exclude
+ * each other on screen instead of merging.
  */
 export function useModalityForm({
   isRosterFormDirty,
@@ -85,9 +85,9 @@ export function useModalityForm({
 
   const persistedModalityId = choreography.modalityId;
   const isDirty = selectedModalityId !== persistedModalityId;
-  // La exclusión mutua es solo de pantalla: el server no puede ver que un form
-  // del cliente está sucio, y la red de seguridad real es que cada intent
-  // re-resuelve dentro de su propia transacción.
+  // The mutual exclusion is screen-level only: the server cannot see that a
+  // client form is dirty, and the real safety net is that each intent
+  // re-resolves on its own before writing.
   const canCorrectModality =
     loaderData.modality.canCorrect && !isRosterFormDirty;
   const isResolving = resolutionFetcher.state !== "idle";
@@ -169,8 +169,8 @@ export function useModalityForm({
     setValue("modalitySubmodalityId", fieldState.nextSubmodalityId);
     setValue("modalityExperienceLevelId", fieldState.nextExperienceLevelId);
     setValue("modalityScheduleCapacityId", fieldState.nextScheduleCapacityId);
-    // `watchedScheduleCapacityId` se lee para decidir el próximo estado;
-    // incluirlo re-dispararía el efecto sobre su propio output.
+    // `watchedScheduleCapacityId` is read to decide the next state; including
+    // it would re-fire the effect on its own output.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [choreography, clearErrors, resolutionFetcher.data, setError, setValue]);
 
@@ -202,8 +202,8 @@ export function useModalityForm({
     canCorrectModality,
     cancel: () => reset(defaultValues),
     /**
-     * La categoría que muestra el slot mientras la corrección está pendiente.
-     * `null` deja el valor persistido en su lugar.
+     * The categoría the slot shows while the correction is pending. `null`
+     * leaves the persisted value in place.
      */
     categoryLabel:
       isDirty && resolution

@@ -222,14 +222,13 @@ describe("ChoreographyDetailRouteView", () => {
     expect(markup).toContain('value="modality_1"');
   });
 
-  test.each([
-    ["the user is not an admin", { canEdit: false }],
-    ["the choreography has a presentation", { canCorrect: false }],
-  ])("keeps the modalidad read-only when %s", (_cause, overrides) => {
-    const canEdit = "canEdit" in overrides ? overrides.canEdit : true;
+  // Which condition closed the field is decided by
+  // `canCorrectChoreographyModality` and covered in `shared.test.ts`; the view
+  // only ever reads the resolved `canCorrect`, so one case covers it here.
+  test("keeps the modalidad read-only when the correction is closed", () => {
     const markup = renderDetail({
       loaderData: buildLoaderData({
-        canEdit,
+        canEdit: true,
         modality: {
           blockers: [],
           canCorrect: false,

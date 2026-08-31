@@ -35,8 +35,9 @@ export function SubmodalityField({
     choreography.submodalityId ?? "",
   );
 
-  // Editable solo para `admin`, cuando la modalidad tiene submodalidades y la
-  // coreografía todavía no tiene presentación. La modalidad es inmutable.
+  // Editable only for `admin`, when the modalidad has submodalidades and the
+  // choreography has no presentación yet. Changing the modalidad itself is a
+  // separate compound correction, which owns this field while it is pending.
   const isEditable =
     loaderData.canEdit &&
     !choreography.hasPresentation &&

@@ -30,9 +30,9 @@ const noCompatibleCategoryDescription =
   "Con esta modalidad no hay categoría compatible. Se puede guardar igual y la coreografía queda incompleta.";
 
 /**
- * Mientras la resolución está en vuelo los tres campos dependientes muestran lo
- * guardado: ofrecer opciones que la resolución puede cambiar invita a elegir
- * algo que el guardado descarta.
+ * While the resolution is in flight the three dependent fields show what is
+ * saved: offering options the resolution may change invites picking something
+ * the save discards.
  */
 export function ModalityField({ loaderData, modality }: ModalityFieldProps) {
   const choreography = loaderData.choreography;
@@ -167,8 +167,8 @@ export function ModalityScheduleCapacityField({
     );
   }
 
-  // Un solo cupo compatible no se elige: queda preseleccionado y de solo
-  // lectura, igual que el estado `auto` del alta.
+  // A single compatible cupo is not chosen: it stays preselected and
+  // read-only, like the `auto` status of registration.
   if (isModalityScheduleCapacityLocked(resolution)) {
     return (
       <ReadOnlySelectField
@@ -191,8 +191,8 @@ export function ModalityScheduleCapacityField({
 }
 
 /**
- * Un solo `Guardar` para toda la corrección: modalidad, submodalidad,
- * categoría, nivel y cupo se escriben juntos o no se escribe nada.
+ * A single `Guardar` for the whole correction: modalidad, submodalidad,
+ * categoría, nivel and cupo are written together or nothing is written.
  */
 export function ModalityCorrectionActions({
   modality,
@@ -203,18 +203,7 @@ export function ModalityCorrectionActions({
     return null;
   }
 
-  const canSubmit = canSubmitModalityCorrection({
-    canCorrectModality: modality.canCorrectModality,
-    isResolving: modality.isResolving,
-    isSubmitting: modality.isSubmitting,
-    persistedModalityId: modality.persistedModalityId,
-    resolution: modality.resolution,
-    resolvedModalityId: modality.resolvedModalityId,
-    selectedModalityId: modality.selectedModalityId,
-    watchedExperienceLevelId: modality.watchedExperienceLevelId,
-    watchedScheduleCapacityId: modality.watchedScheduleCapacityId,
-    watchedSubmodalityId: modality.watchedSubmodalityId,
-  });
+  const canSubmit = canSubmitModalityCorrection(modality);
   const isPending = modality.isResolving || modality.isSubmitting;
 
   return (

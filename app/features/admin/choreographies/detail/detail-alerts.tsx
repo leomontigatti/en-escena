@@ -5,9 +5,9 @@ import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import type { ChoreographyDetailLoaderData } from "./server";
 
 /**
- * Las condiciones de la coreografía que la página enumera antes de los campos.
- * Ninguna se suprime para el auditor: son estados de los datos, no del permiso
- * de quien mira.
+ * The choreography conditions the page enumerates before the fields. None is
+ * suppressed for the auditor: they are states of the data, not of the viewer's
+ * permission.
  */
 export function ChoreographyDetailAlerts({
   groupType,

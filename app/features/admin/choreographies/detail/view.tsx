@@ -179,9 +179,9 @@ function ChoreographyDetailForm({
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
   const roster = useRosterForm({ form, loaderData });
-  // Los dos forms se excluyen en pantalla: mientras uno tiene cambios sin
-  // guardar el otro queda de solo lectura, porque la misma resolución
-  // reescribiría los mismos campos derivados desde dos lados.
+  // The two forms exclude each other on screen: while one has unsaved changes
+  // the other goes read-only, because the same resolution would rewrite the
+  // same derived fields from two sides.
   const isRosterFormDirty =
     roster.hasNameChanged ||
     roster.hasRosterChanged ||
@@ -311,11 +311,11 @@ function ChoreographyDetailForm({
               />
             )}
             <ModalityField loaderData={loaderData} modality={modality} />
-            {/* Un solo slot por campo dependiente y una precedencia fija: la
-                corrección de modalidad manda mientras está pendiente, porque su
-                resolución reescribe los tres a la vez. El form del roster y el
-                bloque de modalidad se excluyen entre sí, así que nunca hay dos
-                candidatos para el mismo slot. */}
+            {/* One slot per dependent field, with a fixed precedence: the
+                modality correction wins while it is pending, because its
+                resolution rewrites all three at once. The roster form and the
+                modality block exclude each other, so there are never two
+                candidates for the same slot. */}
             {modality.isDirty ? (
               <ModalitySubmodalityField
                 loaderData={loaderData}
@@ -336,10 +336,10 @@ function ChoreographyDetailForm({
               label="Tipo de grupo"
               value={formatGroupTypeLabel(roster.derivedResolution.groupType)}
             />
-            {/* Un solo slot "Nivel de experiencia": la corrección de modalidad
-                manda mientras está pendiente; después, el select del roster
-                cuando el cambio pendiente mueve la categoría, porque el nivel
-                nuevo se elige junto con la confirmación. Ver
+            {/* One "Nivel de experiencia" slot: the modality correction wins
+                while it is pending; after that, the roster select when the
+                pending change moves the categoría, because the new level is
+                chosen together with the confirmation. See
                 `getExperienceLevelSlotState`. */}
             {modality.isDirty ? (
               <ModalityExperienceLevelField
@@ -354,10 +354,10 @@ function ChoreographyDetailForm({
                 options={roster.derivedResolution.experienceLevelOptions}
               />
             )}
-            {/* Un solo slot "Cronograma" con precedencia fija: manda la
-                corrección de modalidad mientras está pendiente; después, el
-                select del roster, porque un cambio de tipo de grupo limpia el
-                cupo y el reemplazo se elige junto con la confirmación. */}
+            {/* One "Cronograma" slot with a fixed precedence: the modality
+                correction wins while it is pending; after that, the roster
+                select, because a group type change clears the cupo and the
+                replacement is chosen together with the confirmation. */}
             {modality.isDirty ? (
               <ModalityScheduleCapacityField
                 loaderData={loaderData}
@@ -446,9 +446,9 @@ function ChoreographyDetailForm({
 }
 
 /**
- * El slot del nivel cuando la corrección de modalidad no lo reclama: el select
- * del roster si el cambio pendiente mueve la categoría, y si no la reasignación
- * autónoma.
+ * The level slot when the modality correction does not claim it: the roster
+ * select if the pending change moves the categoría, and otherwise the
+ * standalone reassignment.
  */
 function RosterExperienceLevelSlot({
   control,
@@ -486,7 +486,7 @@ function RosterExperienceLevelSlot({
 }
 
 /**
- * El slot del cronograma cuando la corrección de modalidad no lo reclama.
+ * The cronograma slot when the modality correction does not claim it.
  */
 function RosterScheduleSlot({
   control,

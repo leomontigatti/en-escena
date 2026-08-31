@@ -73,8 +73,8 @@ import {
   type ChoreographySuccessData,
 } from "./shared";
 
-// Los módulos del detalle importan `ChoreographyDetail` desde acá: es el tipo
-// del registro con el que trabaja toda la vista, y su consulta vive aparte.
+// The detail modules import `ChoreographyDetail` from here: it is the type of
+// the record the whole view works with, and its query lives apart.
 export type { ChoreographyDetail };
 
 export type ChoreographyDetailLoaderData = {
@@ -159,6 +159,7 @@ export async function loadChoreographyDetailRouteData(input: {
     hasFrozenPriceInscription(choreography.id),
     listChoreographyModalityOptions(selectedEventId),
   ]);
+  const scheduleCapacityBlockers = toScheduleCapacityBlockers(hasFrozenPrice);
 
   return {
     availableDancers,
@@ -181,8 +182,9 @@ export async function loadChoreographyDetailRouteData(input: {
       }),
     },
     modality: {
-      // La seña no cierra el campo: se enumera como bloqueo en potencia, porque
-      // solo rechaza el guardado cuando la corrección movería el cronograma.
+      // The seña does not close the field: it is listed as a blocker-in-waiting,
+      // because it only rejects the save when the correction would move the
+      // cronograma.
       blockers: toChoreographyModalityBlockers(hasFrozenPrice),
       canCorrect: canCorrectChoreographyModality({
         canEdit,
@@ -193,13 +195,13 @@ export async function loadChoreographyDetailRouteData(input: {
     scheduleCapacity: {
       // Los motivos van a la vista aunque el campo ya esté cerrado por otra
       // causa: la alerta de la página los enumera también para el auditor.
-      blockers: toScheduleCapacityBlockers(hasFrozenPrice),
+      blockers: scheduleCapacityBlockers,
       // Reasignar es una corrección administrativa: solo `admin`, nunca con
       // presentación, nunca con seña congelada y solo cuando hay más de un cupo
       // compatible entre los que elegir. La coreografía ya presentada tiene el
       // cronograma tan cerrado como el roster.
       canReassign: canReassignScheduleCapacity({
-        blockers: toScheduleCapacityBlockers(hasFrozenPrice),
+        blockers: scheduleCapacityBlockers,
         canEdit,
         hasMultipleCompatibleOptions:
           scheduleCapacityOptions.hasMultipleCompatibleOptions,

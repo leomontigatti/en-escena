@@ -25,27 +25,27 @@ export type ResolvedModalityFieldState = {
 };
 
 /**
- * El motivo viaja en la opción, no en un mensaje aparte: una modalidad que
- * ningún cronograma acepta es un callejón sin salida estructural, y quien la ve
- * gris tiene que saber por qué sin tener que buscarlo.
+ * The reason travels on the option, not in a separate message: a modalidad no
+ * cronograma accepts is a structural dead end, and whoever sees it greyed out
+ * has to know why without going looking for it.
  */
 const noCompatibleScheduleOptionSuffix = " (sin cronograma compatible)";
 
 /**
- * Un select donde ningún cupo compatible tiene lugar es un callejón sin salida
- * silencioso, igual que en el alta del portal: se reemplaza por el motivo.
+ * A select where no compatible cupo has room is a silent dead end, exactly as
+ * in the portal registration: it is replaced by the reason.
  */
 export const everyModalityScheduleCapacityFullMessage =
   "Los cronogramas compatibles con esta modalidad ya no tienen lugar. Elegí otra modalidad para corregirla.";
 
 /**
- * Todas las modalidades del evento, con la asignada incluida en lugar de
- * excluida: reelegirla es un no-op exitoso, y una modalidad que perdió su
- * cronograma tiene que seguir viéndose seleccionada en vez de desaparecer.
+ * Every modalidad of the event, with the assigned one included rather than
+ * excluded: re-selecting it is a successful no-op, and a modalidad that lost
+ * its cronograma has to stay visibly selected instead of disappearing.
  *
- * `disabled` marca únicamente el callejón sin salida estructural —ningún
- * cronograma del evento acepta esa modalidad—, nunca un cupo lleno: la ocupación
- * es una foto que corre carrera y se resuelve en el paso del cupo.
+ * `disabled` marks only the structural dead end —no cronograma of the event
+ * accepts that modalidad—, never a full cupo: occupancy is a snapshot that
+ * races and is resolved at the cupo step.
  */
 export function getModalitySelectOptions(
   options: readonly ChoreographyModalityOption[],
@@ -60,8 +60,8 @@ export function getModalitySelectOptions(
 }
 
 /**
- * Cada modalidad candidata se consulta una sola vez, y volver a la asignada no
- * dispara pedido: su resolución es la que ya está persistida.
+ * Each candidate modalidad is queried once, and going back to the assigned one
+ * fires no request: its resolution is the one already persisted.
  */
 export function shouldResolveModalitySelection({
   canCorrectModality,
@@ -91,12 +91,12 @@ export function shouldResolveModalitySelection({
 }
 
 /**
- * Los tres campos dependientes, rellenados o limpiados desde la resolución.
+ * The three dependent fields, filled or cleared from the resolution.
  *
- * La submodalidad nunca se arrastra: `choreography.submodality_id` tiene una FK
- * suelta a `submodality` y ninguna restricción la ata a la modalidad, así que
- * conservarla dejaría a la coreografía apuntando a una submodalidad de otra
- * modalidad sin que nada lo note.
+ * The submodalidad is never carried over: `choreography.submodality_id` has a
+ * plain FK to `submodality` and no constraint ties it to the modalidad, so
+ * keeping it would leave the choreography pointing at a submodalidad of another
+ * modalidad with nothing noticing.
  */
 export function getResolvedModalityFieldState({
   categoryId,
@@ -128,8 +128,8 @@ export function getResolvedModalityFieldState({
 }
 
 /**
- * Con un solo cupo compatible no hay nada que elegir: queda preseleccionado y de
- * solo lectura, igual que el estado `auto` del alta.
+ * With a single compatible cupo there is nothing to choose: it stays
+ * preselected and read-only, like the `auto` status of registration.
  */
 export function isModalityScheduleCapacityLocked(
   resolution: ChoreographyModalityResolution,
@@ -138,9 +138,9 @@ export function isModalityScheduleCapacityLocked(
 }
 
 /**
- * El cupo vacío no entra acá: el submit lo levanta como error de campo
- * obligatorio sobre el select, que es donde el admin lo resuelve. Apagar el
- * botón dejaría un formulario que no explica qué le falta.
+ * The empty cupo does not belong here: the submit raises it as a required-field
+ * error on the select, which is where the admin resolves it. Disabling the
+ * button would leave a form that does not explain what it is missing.
  */
 export function canSubmitModalityCorrection(input: CanSubmitModalityInput) {
   if (
@@ -158,8 +158,9 @@ export function canSubmitModalityCorrection(input: CanSubmitModalityInput) {
     return false;
   }
 
-  // Sin cupo elegible no hay corrección posible: el select ya fue reemplazado
-  // por el motivo, así que dejar el botón vivo pediría un campo que no está.
+  // With no eligible cupo there is no possible correction: the select has
+  // already been replaced by the reason, so leaving the button live would ask
+  // for a field that is not there.
   if (
     resolution.scheduleCapacity.status === "none" ||
     isEveryScheduleCapacityOptionFull(resolution.scheduleCapacity.options)
