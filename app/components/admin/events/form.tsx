@@ -73,7 +73,50 @@ export function useEventForm({
   };
 }
 
-export function EventFormFields({ controller }: EventFormFieldsProps) {
+/**
+ * The event's own attributes. Split from the registration window so the detail
+ * view can keep these visible while the inscription dates live behind a tab;
+ * the create view still renders both groups together through
+ * `EventFormFields`.
+ */
+export function EventIdentityFields({ controller }: EventFormFieldsProps) {
+  const { form } = controller;
+
+  return (
+    <FieldGroup className="grid gap-5 md:grid-cols-2">
+      <TextInputField control={form.control} label="Nombre" name="name" />
+      <IntegerInputField
+        control={form.control}
+        label="Seña (%)"
+        name="requiredDepositPercentage"
+        min={MIN_REQUIRED_DEPOSIT_PERCENTAGE}
+        max={MAX_REQUIRED_DEPOSIT_PERCENTAGE}
+        step="1"
+      />
+      <DateOnlyField
+        control={form.control}
+        label="Inicio del evento"
+        name="startsAt"
+      />
+      <DateOnlyField
+        control={form.control}
+        label="Cierre del evento"
+        name="endsAt"
+      />
+    </FieldGroup>
+  );
+}
+
+/**
+ * The inscription window. `formId` associates the hidden date inputs with a
+ * `<form>` they are not nested in — the detail view renders this inside a tab
+ * that sits outside the form element, because the sibling documents tab has
+ * upload forms of its own and forms cannot nest.
+ */
+export function EventRegistrationFields({
+  controller,
+  formId,
+}: EventFormFieldsProps & { formId?: string }) {
   const { form } = controller;
   const registrationStartsAt = useWatch({
     control: form.control,
@@ -90,34 +133,17 @@ export function EventFormFields({ controller }: EventFormFieldsProps) {
 
   return (
     <FieldGroup className="grid gap-5 md:grid-cols-2">
-      <TextInputField control={form.control} label="Nombre" name="name" />
-      <IntegerInputField
-        control={form.control}
-        label="Seña (%)"
-        name="requiredDepositPercentage"
-        min={MIN_REQUIRED_DEPOSIT_PERCENTAGE}
-        max={MAX_REQUIRED_DEPOSIT_PERCENTAGE}
-        step="1"
-      />
       <DateOnlyField
         control={form.control}
+        form={formId}
         label="Inicio de inscripciones"
         name="registrationStartsAt"
       />
       <DateOnlyField
         control={form.control}
+        form={formId}
         label="Cierre de inscripciones"
         name="registrationEndsAt"
-      />
-      <DateOnlyField
-        control={form.control}
-        label="Inicio del evento"
-        name="startsAt"
-      />
-      <DateOnlyField
-        control={form.control}
-        label="Cierre del evento"
-        name="endsAt"
       />
 
       <AlertStack className="md:col-span-2">
@@ -132,5 +158,14 @@ export function EventFormFields({ controller }: EventFormFieldsProps) {
         ) : null}
       </AlertStack>
     </FieldGroup>
+  );
+}
+
+export function EventFormFields({ controller }: EventFormFieldsProps) {
+  return (
+    <div className="flex flex-col gap-5">
+      <EventIdentityFields controller={controller} />
+      <EventRegistrationFields controller={controller} />
+    </div>
   );
 }

@@ -3,7 +3,6 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useFetcher } from "react-router";
 
-import { AdminResourceFormCard } from "@/components/admin/resource-layout";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { FileUploadField } from "@/components/shared/file-upload-field";
 import { Button } from "@/components/ui/button";
@@ -30,17 +29,22 @@ import {
 type SerializedEventDocumentSummary =
   EventDetailLoaderData["documents"][EventDocumentKind];
 
-export function EventDocumentsCard({
+/**
+ * Rendered inside the detail card's "Documentos" tab, so it carries no card or
+ * heading of its own — the tab trigger is the heading. Each row owns an upload
+ * form, which is why the tabs sit outside the event form rather than inside it.
+ */
+export function EventDocumentsSection({
   documents,
 }: {
   documents: EventDetailLoaderData["documents"];
 }) {
   return (
-    <AdminResourceFormCard title="Documentos del evento">
+    <div className="flex flex-col gap-6">
       {eventDocumentKinds.map((kind) => (
         <EventDocumentRow key={kind} document={documents[kind]} kind={kind} />
       ))}
-    </AdminResourceFormCard>
+    </div>
   );
 }
 

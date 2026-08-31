@@ -3,12 +3,12 @@
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
-import { EventDocumentsCard } from "@/features/admin/events/detail/documents-card";
+import { EventDocumentsSection } from "@/features/admin/events/detail/documents-card";
 import type { EventDetailLoaderData } from "@/features/admin/events/detail/shared";
 import { eventDocumentSummaries } from "@/lib/events/event-documents.test-support";
 import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 
-describe("EventDocumentsCard", () => {
+describe("EventDocumentsSection", () => {
   const renderer = createReactDomTestRenderer();
 
   afterEach(() => {
@@ -18,7 +18,6 @@ describe("EventDocumentsCard", () => {
   test("asks for the three documents of the event", async () => {
     await renderCard(eventDocumentSummaries());
 
-    expect(document.body.textContent).toContain("Documentos del evento");
     expect(document.body.textContent).toContain("Contrato para profesores");
     expect(document.body.textContent).toContain("Autorización para menores");
     expect(document.body.textContent).toContain("Contrato para mayores");
@@ -75,7 +74,7 @@ describe("EventDocumentsCard", () => {
         {
           path: "/administracion/eventos/event_1",
           action: async () => null,
-          element: <EventDocumentsCard documents={documents} />,
+          element: <EventDocumentsSection documents={documents} />,
         },
       ],
       { initialEntries: ["/administracion/eventos/event_1"] },

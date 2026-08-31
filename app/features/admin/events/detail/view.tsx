@@ -2,7 +2,11 @@ import { LoaderCircle, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
 
-import { EventFormFields, useEventForm } from "@/components/admin/events/form";
+import {
+  EventIdentityFields,
+  EventRegistrationFields,
+  useEventForm,
+} from "@/components/admin/events/form";
 import {
   AdminResourceFormCard,
   AdminResourceLayout,
@@ -12,6 +16,7 @@ import { AlertStack } from "@/components/shared/alert-stack";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenuGroup,
@@ -23,7 +28,7 @@ import { isRouteFormPending, useOptionalNavigation } from "@/lib/shared/forms";
 import { notificationToastIds } from "@/lib/shared/notification-toasts";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
-import { EventDocumentsCard } from "./documents-card";
+import { EventDocumentsSection } from "./documents-card";
 import {
   eventActionPath,
   getMissingItemAdminPath,
@@ -73,8 +78,11 @@ export function EventDetailView({
           />
         ) : null}
       </AlertStack>
-      <EditEventPanel event={loaderData.event} actionData={errorData} />
-      <EventDocumentsCard documents={loaderData.documents} />
+      <EditEventPanel
+        event={loaderData.event}
+        actionData={errorData}
+        documents={loaderData.documents}
+      />
     </AdminResourceLayout>
   );
 }
@@ -126,12 +134,16 @@ function summarizeMissingItems(
   }));
 }
 
+const editEventFormId = "admin-evento-detail-form";
+
 function EditEventPanel({
   event,
   actionData,
+  documents,
 }: {
   event: EventDetailLoaderData["event"];
   actionData?: Extract<EventDetailActionData, { status: "error" }>;
+  documents: EventDetailLoaderData["documents"];
 }) {
   const defaultValues = actionData?.values ?? eventFormValues(event);
   const eventForm = useEventForm({
@@ -140,26 +152,50 @@ function EditEventPanel({
   });
 
   return (
-    <form
-      method="post"
-      action={eventActionPath(event.id)}
-      noValidate
-      onSubmit={eventForm.handleSubmit}
+    <AdminResourceFormCard
+      footer={
+        <>
+          <Button asChild variant="outline">
+            <Link to="/administracion/eventos">Volver</Link>
+          </Button>
+          <SubmitButton
+            form={editEventFormId}
+            isPending={eventForm.isPending}
+          />
+        </>
+      }
     >
-      <AdminResourceFormCard
-        footer={
-          <>
-            <Button asChild variant="outline">
-              <Link to="/administracion/eventos">Volver</Link>
-            </Button>
-            <SubmitButton isPending={eventForm.isPending} />
-          </>
-        }
+      {/* The form element stops here instead of wrapping the tabs: the
+          documents tab renders an upload form per document, and forms cannot
+          nest. The inscription dates below are tied back to it by id. */}
+      <form
+        id={editEventFormId}
+        method="post"
+        action={eventActionPath(event.id)}
+        noValidate
+        onSubmit={eventForm.handleSubmit}
       >
         <input type="hidden" name="intent" value="update" />
-        <EventFormFields controller={eventForm} />
-      </AdminResourceFormCard>
-    </form>
+        <EventIdentityFields controller={eventForm} />
+      </form>
+      <Tabs defaultValue="inscripciones">
+        <TabsList variant="line">
+          <TabsTrigger value="inscripciones">Inscripciones</TabsTrigger>
+          <TabsTrigger value="documentos">Documentos</TabsTrigger>
+        </TabsList>
+        {/* forceMount keeps the inscription dates in the document while the
+            documents tab is open, so saving from there cannot blank them. */}
+        <TabsContent forceMount value="inscripciones" className="pt-2">
+          <EventRegistrationFields
+            controller={eventForm}
+            formId={editEventFormId}
+          />
+        </TabsContent>
+        <TabsContent value="documentos" className="pt-2">
+          <EventDocumentsSection documents={documents} />
+        </TabsContent>
+      </Tabs>
+    </AdminResourceFormCard>
   );
 }
 

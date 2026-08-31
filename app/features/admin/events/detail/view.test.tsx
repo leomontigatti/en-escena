@@ -81,6 +81,77 @@ describe("EventDetailView delete", () => {
   }
 });
 
+describe("EventDetailView tabs", () => {
+  const renderer = createReactDomTestRenderer();
+
+  afterEach(() => {
+    renderer.cleanup();
+    useNavigationMock.mockReset();
+  });
+
+  test("splits inscriptions and documents into tabs", async () => {
+    await renderTabs();
+
+    const triggers = Array.from(
+      document.querySelectorAll('[data-slot="tabs-trigger"]'),
+    ).map((trigger) => trigger.textContent);
+
+    expect(triggers).toEqual(["Inscripciones", "Documentos"]);
+  });
+
+  // The documents tab renders an upload form per document, so the event form
+  // cannot wrap the tabs. The inscription dates therefore live outside it and
+  // are tied back by id — if that association breaks, saving from the documents
+  // tab would blank the inscription window instead of leaving it alone.
+  test("keeps the inscription dates submitting with the event form", async () => {
+    await renderTabs();
+
+    const form = document.querySelector<HTMLFormElement>(
+      "#admin-evento-detail-form",
+    );
+    const registrationStart = document.querySelector<HTMLInputElement>(
+      'input[name="registrationStartsAt"]',
+    );
+
+    expect(form).not.toBeNull();
+    expect(registrationStart).not.toBeNull();
+    expect(form?.contains(registrationStart!)).toBe(false);
+    expect(registrationStart?.getAttribute("form")).toBe(
+      "admin-evento-detail-form",
+    );
+    expect(Array.from(new FormData(form!).keys())).toContain(
+      "registrationStartsAt",
+    );
+  });
+
+  test("keeps the upload forms out of the event form", async () => {
+    await renderTabs();
+
+    const form = document.querySelector<HTMLFormElement>(
+      "#admin-evento-detail-form",
+    );
+
+    expect(form?.querySelector("form")).toBeNull();
+  });
+
+  async function renderTabs() {
+    useNavigationMock.mockReturnValue({ state: "idle" });
+
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/administracion/eventos/event_1",
+          action: async () => null,
+          element: <EventDetailView loaderData={buildLoaderData()} />,
+        },
+      ],
+      { initialEntries: ["/administracion/eventos/event_1"] },
+    );
+
+    await renderer.renderAsync(<RouterProvider router={router} />);
+  }
+});
+
 function buildLoaderData(): EventDetailLoaderData {
   return {
     documents: eventDocumentSummaries(),
