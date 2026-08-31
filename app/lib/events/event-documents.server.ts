@@ -69,9 +69,10 @@ export async function loadEventDocumentSummaries(input: {
 /**
  * The download links alone, for the surfaces that only offer the documents. A
  * `null` is "not available", which the portal menus render as a disabled item
- * rather than by hiding it.
+ * rather than by hiding it. Module-private: every caller so far wants the
+ * active event from the default store, which is `loadPortalEventDocumentDownloadUrls`.
  */
-export async function loadEventDocumentDownloadUrls(input: {
+async function loadEventDocumentDownloadUrls(input: {
   eventId: string | null;
   storage: EventDocumentStorage;
 }): Promise<EventDocumentDownloadUrls> {
