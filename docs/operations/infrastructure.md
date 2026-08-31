@@ -145,10 +145,11 @@ is written by `app/lib/events/event-documents.server.ts`.
   The filename is part of the **HMAC payload**: reading it off the query string
   would be a response-header-injection surface. A URL minted without a filename
   keeps its original payload, so existing callers are unaffected.
-- A delete removes the row first and the object second. A failed object delete
-  leaves an orphan on the volume, logged as `[storage:event-document:orphan]`,
-  rather than telling the administration a delete failed after the document
-  stopped being offered anywhere.
+- A delete removes the object first and the row second. A failed object delete
+  aborts before the row is touched, so the document stays offered and the
+  administration can retry; `removeDocument` tolerates an object that is already
+  absent, so the retry converges. The other order reports success over bytes
+  that survived, which is the one outcome "eliminar" must not mean.
 
 ## Related runbooks
 
