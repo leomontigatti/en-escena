@@ -81,10 +81,10 @@ export type ChoreographyDancerScheduleOption =
     : never;
 
 /**
- * La opción rotulada: solo la resolución "multiple" arma etiquetas con la
- * ocupación, así que es la única que puede alimentar el select compartido.
- * `ChoreographyDancerScheduleOption` aplana todas las variantes y pierde
- * `label`/`isFull`; esta las conserva.
+ * The labelled option: only the "multiple" resolution builds labels carrying the
+ * occupancy, so it is the only one that can feed the shared select builder.
+ * `ChoreographyDancerScheduleOption` flattens every variant and loses
+ * `label`/`isFull`; this one keeps them.
  */
 export type ChoreographyDancerScheduleChoice = Extract<
   ChoreographyRegistrationOperationResolution["schedule"],

@@ -423,14 +423,14 @@ describe("ChoreographyDetailRouteView", () => {
   });
 
   /**
-   * El select del roster reemplaza a la reasignación autónoma mientras hay un
-   * cambio de bailarines pendiente, y recién aparece cuando el server resuelve
-   * ese cambio. Se llega hasta él por la UI para fijar que rotula con el
-   * constructor compartido —ocupación incluida, cupo lleno deshabilitado— en
-   * lugar de rearmar la etiqueta por su cuenta, que es lo que lo hacía divergir
-   * del portal y de la reasignación autónoma.
+   * The roster select replaces the standalone reassignment while a dancer change
+   * is pending, and only appears once the server resolves that change. The test
+   * reaches it through the UI to pin that it labels through the shared builder —
+   * occupancy included, full cupo disabled — instead of rebuilding the label on
+   * its own, which is what made it diverge from the portal and from the
+   * standalone reassignment.
    */
-  test("labels the roster cronograma select with the shared occupancy format", async () => {
+  test("labels the roster schedule select with the shared occupancy format", async () => {
     await renderDetailIntoDocument({
       loaderData: buildLoaderData({
         availableDancers: [
@@ -572,11 +572,17 @@ function buildRosterResolution(): ChoreographyRosterResolutionData {
               id: "schedule_capacity_1",
               isFull: false,
               label: "1 de mayo de 2026 - 14:00 hs. · 1/5 ocupados",
+              scheduleId: "schedule_1",
+              scheduledDate: "2026-05-01",
+              startTime: "14:00:00",
             }),
             buildRosterScheduleChoice({
               id: "schedule_capacity_2",
               isFull: true,
               label: "2 de mayo de 2026 - 10:00 hs. · 5/5 ocupados · sin cupo",
+              scheduleId: "schedule_2",
+              scheduledDate: "2026-05-02",
+              startTime: "10:00:00",
             }),
           ],
         },
@@ -585,25 +591,33 @@ function buildRosterResolution(): ChoreographyRosterResolutionData {
   };
 }
 
+/**
+ * `label` carries the occupancy suffix the shared builder composes, so it never
+ * matches what re-formatting `schedule` would produce. The two still describe
+ * the same slot: a fixture that disagreed with itself would read as a slip.
+ */
 function buildRosterScheduleChoice(input: {
   id: string;
   isFull: boolean;
   label: string;
+  scheduleId: string;
+  scheduledDate: string;
+  startTime: string;
 }): ChoreographyDancerScheduleChoice {
   return {
     id: input.id,
     isFull: input.isFull,
     label: input.label,
-    scheduleId: "schedule_1",
+    scheduleId: input.scheduleId,
     scheduleCapacityId: input.id,
     groupType: "duo",
     capacity: 5,
     usesGlobalCapacity: false,
     schedule: {
-      id: "schedule_1",
+      id: input.scheduleId,
       name: "Jornada 1",
-      scheduledDate: "2026-05-01",
-      startTime: "14:00:00",
+      scheduledDate: input.scheduledDate,
+      startTime: input.startTime,
     },
   };
 }
@@ -713,8 +727,8 @@ async function clickMenuItem(label: string) {
 }
 
 /**
- * Suma un bailarín por el combobox y espera a que vuelva la resolución del
- * server: el select de cronograma del roster no existe hasta entonces.
+ * Adds a dancer through the combobox and waits for the server resolution to come
+ * back: the roster schedule select does not exist until then.
  */
 async function addDancerToRoster(label: string) {
   const trigger = Array.from(
@@ -760,14 +774,14 @@ async function waitForScheduleCapacitySelect() {
   }
 
   throw new Error(
-    "Expected the roster cronograma select to render after the resolution.",
+    "Expected the roster schedule select to render after the resolution.",
   );
 }
 
 /**
- * El select arma un `<select>` nativo oculto con una `<option>` por opción: ahí
- * están el rótulo y el `disabled` que de verdad llegan al DOM, sin depender de
- * abrir el popover.
+ * The select renders a hidden native `<select>` with one `<option>` per entry:
+ * that is where the label and the `disabled` that actually reach the DOM live,
+ * without depending on opening the popover.
  */
 function findScheduleCapacitySelect() {
   return Array.from(document.querySelectorAll("select")).find((candidate) =>
@@ -781,7 +795,7 @@ function readScheduleCapacityOptions() {
   const select = findScheduleCapacitySelect();
 
   if (!select) {
-    throw new Error("Expected the roster cronograma select to be rendered.");
+    throw new Error("Expected the roster schedule select to be rendered.");
   }
 
   return Array.from(select.options)

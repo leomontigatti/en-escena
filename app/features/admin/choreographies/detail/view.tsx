@@ -42,9 +42,9 @@ import { useServerActionToast } from "@/lib/shared/toasts";
 import {
   canSubmitChoreographyEdit,
   getExperienceLevelSlotState,
+  getRosterScheduleSelectOptions,
   getWithdrawnDancers,
   hasNoCompatibleCategory,
-  shouldRenderRosterScheduleSelect,
 } from "./roster-form-state";
 import {
   deleteChoreographyIntent,
@@ -181,7 +181,7 @@ function ChoreographyDetailForm({
     derivedResolution: roster.derivedResolution,
     hasResolvedRosterChange: roster.hasResolvedRosterChange,
   });
-  const showScheduleSelect = shouldRenderRosterScheduleSelect({
+  const rosterScheduleOptions = getRosterScheduleSelectOptions({
     hasResolvedRosterChange: roster.hasResolvedRosterChange,
     scheduleResolution: roster.scheduleResolution,
   });
@@ -382,19 +382,12 @@ function ChoreographyDetailForm({
                 }
               />
             )}
-            {/* Un solo slot "Cronograma" con precedencia fija: mientras hay un
-                cambio de roster pendiente manda el select del roster, porque un
-                cambio de tipo de grupo limpia el cupo y el reemplazo se elige
-                junto con la confirmación. */}
-            {showScheduleSelect &&
-            roster.scheduleResolution?.status === "multiple" ? (
+            {rosterScheduleOptions ? (
               <SelectField
                 control={form.control}
                 label="Cronograma"
                 name="scheduleCapacityId"
-                options={toScheduleCapacitySelectOptions(
-                  roster.scheduleResolution.options,
-                )}
+                options={toScheduleCapacitySelectOptions(rosterScheduleOptions)}
                 placeholder="Elegí el cronograma"
               />
             ) : (

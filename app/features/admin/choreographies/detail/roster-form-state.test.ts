@@ -14,7 +14,7 @@ import {
   getSelectionKey,
   getWithdrawnDancers,
   hasNoCompatibleCategory,
-  shouldRenderRosterScheduleSelect,
+  getRosterScheduleSelectOptions,
   shouldResolveRosterSelection,
   type RosterResolutionState,
 } from "./roster-form-state";
@@ -326,7 +326,7 @@ function buildKeepCurrentSchedule(): ChoreographyDancerScheduleResolution {
   };
 }
 
-describe("shouldRenderRosterScheduleSelect", () => {
+describe("getRosterScheduleSelectOptions", () => {
   const multipleResolution: ChoreographyDancerScheduleResolution = {
     status: "multiple",
     canSave: true,
@@ -337,28 +337,28 @@ describe("shouldRenderRosterScheduleSelect", () => {
     selectedScheduleCapacityId: null,
   };
 
-  test("renders the roster select while a roster change is pending", () => {
+  test("hands over the labelled options while a roster change is pending", () => {
     expect(
-      shouldRenderRosterScheduleSelect({
+      getRosterScheduleSelectOptions({
         hasResolvedRosterChange: true,
         scheduleResolution: multipleResolution,
       }),
-    ).toBe(true);
+    ).toEqual(multipleResolution.options);
   });
 
   test("leaves the slot to the standalone reassignment without a pending roster change", () => {
     expect(
-      shouldRenderRosterScheduleSelect({
+      getRosterScheduleSelectOptions({
         hasResolvedRosterChange: false,
         scheduleResolution: multipleResolution,
       }),
-    ).toBe(false);
+    ).toBeNull();
     expect(
-      shouldRenderRosterScheduleSelect({
+      getRosterScheduleSelectOptions({
         hasResolvedRosterChange: true,
         scheduleResolution: null,
       }),
-    ).toBe(false);
+    ).toBeNull();
   });
 });
 
@@ -523,8 +523,8 @@ function buildChoreography(
   } as ChoreographyDetail;
 }
 
-// Devuelve la variante rotulada, que es la que exige la resolución "multiple"
-// y sirve igual donde alcanza con `ChoreographyDancerScheduleOption`.
+// Returns the labelled variant, which is what the "multiple" resolution demands
+// and still serves wherever `ChoreographyDancerScheduleOption` is enough.
 function buildScheduleOption(id: string): ChoreographyDancerScheduleChoice {
   return {
     id,
