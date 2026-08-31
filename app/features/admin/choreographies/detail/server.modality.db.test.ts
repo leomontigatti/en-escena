@@ -451,7 +451,12 @@ async function createModalityScenario(input: {
     /**
      * Saves the correction with the fields the view would have filled from the
      * fetcher's resolution, so each test overrides only the one it exercises.
+     *
+     * The five `?? ""` fallbacks are the whole cyclomatic count, and the CRAP
+     * score on top of them penalises coverage a fixture cannot have: every test
+     * in this file runs it, and nothing tests the test.
      */
+    // fallow-ignore-next-line complexity
     async saveModality(
       modalityId: string,
       overrides: Record<string, string> = {},
