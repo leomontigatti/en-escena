@@ -32,7 +32,32 @@ set -eo pipefail
 #
 # ============================================================
 
-REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || true)
+if ! command -v gh >/dev/null 2>&1; then
+  echo "Error: no encontré el comando 'gh'. Instalá GitHub CLI: https://cli.github.com"
+  exit 1
+fi
+
+# `gh repo view` falla por dos motivos distintos: no hay remote de GitHub, o
+# las credenciales no sirven. Descartar stderr los vuelve indistinguibles y un
+# 401 termina reportado como "no pude determinar el repo", que manda a revisar
+# el remote equivocado. Conservamos la salida para separar los casos.
+if ! REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner 2>&1); then
+  if printf '%s' "$REPO" | grep -qiE 'bad credentials|HTTP 401|401 Unauthorized'; then
+    echo "Error: gh no pudo autenticar contra GitHub."
+    echo "  $REPO"
+    echo ""
+    if [ -n "${GH_TOKEN:-}" ]; then
+      echo "GH_TOKEN está seteado y tiene prioridad sobre el login guardado de gh."
+      echo "Si venció o fue revocado, corré:  unset GH_TOKEN && pnpm setup:secrets"
+    else
+      echo "Autenticá con:  gh auth login"
+    fi
+  else
+    echo "Error: no pude determinar el repo. Corré esto dentro de un repo git con remote de GitHub."
+    echo "  $REPO"
+  fi
+  exit 1
+fi
 
 if [ -z "$REPO" ]; then
   echo "Error: no pude determinar el repo. Corré esto dentro de un repo git con remote de GitHub."
