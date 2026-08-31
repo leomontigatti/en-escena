@@ -1,23 +1,16 @@
 import { z } from "zod";
-import { and, eq, or } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { redirect } from "react-router";
 
 import { db } from "@/db";
-import {
-  academies,
-  categories,
-  choreographies,
-  modalities,
-  schedules,
-  scheduleCapacities,
-  submodalities,
-} from "@/db/schema";
+import { choreographies } from "@/db/schema";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import {
   requireAdminUser,
   requireInternalUser,
 } from "@/lib/auth/internal-access.server";
 import { choreographyHasComprobantes } from "@/lib/comprobantes/comprobantes.server";
+import { hasFrozenPriceInscription } from "@/lib/finances/choreography-frozen-price-guard.server";
 import { updateAdministrativeChoreographyRoster } from "@/lib/choreographies/choreography-roster-admin.server";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import {
@@ -25,50 +18,49 @@ import {
   listProfessorOptionsForChoreography,
 } from "@/lib/choreographies/choreography-roster-options.server";
 import { resolveChoreographyDancers } from "@/lib/choreographies/choreography-roster.server";
-import { getGlobalScheduleCapacityOptionId } from "@/lib/choreographies/choreography-roster.shared";
 import type {
   ChoreographyDancerOption,
   ChoreographyProfessorOption,
 } from "@/lib/choreographies/choreography-roster.shared";
-import { deriveChoreographyOperationalStatus } from "@/lib/choreographies/operational-status";
-import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
-import { experienceLevelLabels } from "@/lib/events/experience-levels";
-import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import { getFieldErrors } from "@/lib/shared/form-validation";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
-import {
-  createDefaultChoreographyMusicStorage,
-  loadChoreographyMusicDownloadUrl,
-} from "@/lib/storage/choreography-music.server";
 
 import {
-  resolveChoreographyExperienceLevelOptions,
-  updateChoreographyExperienceLevel,
-  type ChoreographyExperienceLevelOption,
-} from "./experience-level.server";
+  findChoreographyDetail,
+  type ChoreographyDetail,
+} from "./choreography-queries.server";
+import { updateChoreographyExperienceLevel } from "./experience-level.server";
 import {
-  listChoreographyDancers,
-  listChoreographyProfessors,
-} from "./roster-queries.server";
+  listChoreographyModalityOptions,
+  resolveChoreographyModalityCorrection,
+  toChoreographyModalityBlockers,
+  updateChoreographyModality,
+  type ChoreographyModalityOption,
+  type ChoreographyModalityResolutionResult,
+} from "./modality.server";
 import {
   listSubmodalitiesForModality,
   updateChoreographySubmodality,
 } from "./submodality.server";
 import {
   resolveChoreographyScheduleCapacityOptions,
-  resolveScheduleCapacityBlockers,
+  toScheduleCapacityBlockers,
   updateChoreographyScheduleCapacity,
   type ChoreographyScheduleCapacityReassignment,
 } from "./schedule-capacity.server";
 import {
+  canCorrectChoreographyModality,
   canReassignExperienceLevel,
   canReassignScheduleCapacity,
   choreographyFieldNames,
   deleteChoreographyIntent,
+  modalityFieldNames,
   renameChoreographyIntent,
+  resolveChoreographyModalityIntent,
   resolveChoreographyRosterIntent,
   updateChoreographyExperienceLevelIntent,
+  updateChoreographyModalityIntent,
   updateChoreographyRosterIntent,
   updateChoreographyScheduleCapacityIntent,
   updateChoreographySubmodalityIntent,
@@ -76,32 +68,14 @@ import {
   choreographySavedSuccess,
   type ChoreographyDeleteBlocker,
   type ChoreographyFieldUpdateErrorData,
+  type ChoreographyModalityBlocker,
   type ChoreographyRosterErrorData,
   type ChoreographySuccessData,
 } from "./shared";
 
-type ChoreographyDetailRow = {
-  academyId: string;
-  academyName: string;
-  categoryExperienceLevels: string[] | null;
-  categoryId: string | null;
-  categoryName: string | null;
-  experienceLevelId: string | null;
-  groupType: ChoreographyGroupType;
-  hasPresentation: boolean;
-  id: string;
-  modalityId: string;
-  modalityName: string;
-  musicStorageKey: string | null;
-  name: string;
-  scheduleCapacityId: string | null;
-  scheduleDate: string;
-  scheduleId: string;
-  scheduleName: string;
-  scheduleTime: string;
-  submodalityId: string | null;
-  submodalityName: string | null;
-};
+// The detail modules import `ChoreographyDetail` from here: it is the type of
+// the record the whole view works with, and its query lives apart.
+export type { ChoreographyDetail };
 
 export type ChoreographyDetailLoaderData = {
   availableDancers: ChoreographyDancerOption[];
@@ -116,57 +90,14 @@ export type ChoreographyDetailLoaderData = {
   experienceLevel: {
     canReassign: boolean;
   };
+  modality: {
+    blockers: ChoreographyModalityBlocker[];
+    canCorrect: boolean;
+    options: ChoreographyModalityOption[];
+  };
   scheduleCapacity: ChoreographyScheduleCapacityReassignment;
   selectedEventId: string | null;
   submodalityOptions: Array<{ id: string; name: string }>;
-};
-
-export type ChoreographyDetail = {
-  academyId: string;
-  academyName: string;
-  categoryId: string | null;
-  categoryName: string | null;
-  dancers: Array<{
-    active: boolean;
-    ageAtEventStart: number;
-    firstName: string;
-    hasEvidence: boolean;
-    id: string;
-    lastName: string;
-  }>;
-  experienceLevelId: string | null;
-  experienceLevelName: string | null;
-  /**
-   * Los niveles que admite la categoría resuelta, más el asignado hoy. Es la
-   * lista que el select ofrece y la que el intent acepta.
-   */
-  experienceLevelOptions: ChoreographyExperienceLevelOption[];
-  groupType: ChoreographyGroupType;
-  hasPresentation: boolean;
-  id: string;
-  modalityId: string;
-  modalityName: string;
-  musicDownloadUrl: string | null;
-  musicStorageKey: string | null;
-  name: string;
-  operationalStatus: ReturnType<typeof deriveChoreographyOperationalStatus>;
-  professors: Array<{
-    active: boolean;
-    firstName: string;
-    id: string;
-    lastName: string;
-  }>;
-  /**
-   * Que la categoría resuelta declare niveles. Distinto de tener opciones: una
-   * categoría que dejó de admitir niveles sigue arrastrando el nivel guardado
-   * como opción visible, pero ya no lo requiere.
-   */
-  requiresExperienceLevel: boolean;
-  scheduleCapacityId: string;
-  scheduleId: string;
-  scheduleLabel: string;
-  submodalityId: string | null;
-  submodalityName: string | null;
 };
 
 const renameChoreographySchema = z.object({
@@ -208,7 +139,8 @@ export async function loadChoreographyDetailRouteData(input: {
     availableProfessors,
     submodalityOptions,
     scheduleCapacityOptions,
-    scheduleCapacityBlockers,
+    hasFrozenPrice,
+    modalityOptions,
   ] = await Promise.all([
     getChoreographyDeleteBlockers(choreography),
     listDancerOptionsForChoreography(
@@ -224,8 +156,10 @@ export async function loadChoreographyDetailRouteData(input: {
       choreography,
       eventId: selectedEventId,
     }),
-    resolveScheduleCapacityBlockers(choreography.id),
+    hasFrozenPriceInscription(choreography.id),
+    listChoreographyModalityOptions(selectedEventId),
   ]);
+  const scheduleCapacityBlockers = toScheduleCapacityBlockers(hasFrozenPrice);
 
   return {
     availableDancers,
@@ -246,6 +180,17 @@ export async function loadChoreographyDetailRouteData(input: {
         hasPresentation: choreography.hasPresentation,
         requiresExperienceLevel: choreography.requiresExperienceLevel,
       }),
+    },
+    modality: {
+      // The seña does not close the field: it is listed as a blocker-in-waiting,
+      // because it only rejects the save when the correction would move the
+      // cronograma.
+      blockers: toChoreographyModalityBlockers(hasFrozenPrice),
+      canCorrect: canCorrectChoreographyModality({
+        canEdit,
+        hasPresentation: choreography.hasPresentation,
+      }),
+      options: modalityOptions,
     },
     scheduleCapacity: {
       // Los motivos van a la vista aunque el campo ya esté cerrado por otra
@@ -278,8 +223,14 @@ export type ChoreographyRosterResolutionData = {
   result: Awaited<ReturnType<typeof resolveChoreographyDancers>>;
 };
 
+export type ChoreographyModalityResolutionData = {
+  intent: typeof resolveChoreographyModalityIntent;
+  result: ChoreographyModalityResolutionResult;
+};
+
 export type ChoreographyDetailActionData =
   | ChoreographyActionData
+  | ChoreographyModalityResolutionData
   | ChoreographyRosterErrorData
   | ChoreographyRosterResolutionData
   | ChoreographyFieldUpdateErrorData
@@ -354,6 +305,25 @@ export async function handleChoreographyDetailAction(input: {
     });
   }
 
+  if (intent === resolveChoreographyModalityIntent) {
+    return {
+      intent: resolveChoreographyModalityIntent,
+      result: await resolveChoreographyModalityCorrection({
+        choreography,
+        eventId: selectedEventId,
+        modalityId: readFormString(formData, modalityFieldNames.modalityId),
+      }),
+    };
+  }
+
+  if (intent === updateChoreographyModalityIntent) {
+    return await updateChoreographyModality({
+      choreography,
+      eventId: selectedEventId,
+      formData,
+    });
+  }
+
   if (intent === updateChoreographySubmodalityIntent) {
     return await updateChoreographySubmodality({
       choreography,
@@ -377,117 +347,6 @@ export async function handleChoreographyDetailAction(input: {
   }
 
   throw new Response(unsupportedActionMessage, { status: 400 });
-}
-
-async function findChoreographyDetail(input: {
-  choreographyId: string;
-  selectedEventId: string;
-}): Promise<ChoreographyDetail | null> {
-  const rows: ChoreographyDetailRow[] = await db
-    .select({
-      academyId: choreographies.academyId,
-      academyName: academies.name,
-      categoryExperienceLevels: categories.experienceLevels,
-      categoryId: choreographies.categoryId,
-      categoryName: categories.name,
-      experienceLevelId: choreographies.experienceLevelId,
-      groupType: choreographies.groupType,
-      hasPresentation: choreographies.hasPresentation,
-      id: choreographies.id,
-      modalityId: choreographies.modalityId,
-      modalityName: modalities.name,
-      musicStorageKey: choreographies.musicStorageKey,
-      name: choreographies.name,
-      scheduleCapacityId: scheduleCapacities.id,
-      scheduleDate: schedules.scheduledDate,
-      scheduleId: schedules.id,
-      scheduleName: schedules.name,
-      scheduleTime: schedules.startTime,
-      submodalityId: choreographies.submodalityId,
-      submodalityName: submodalities.name,
-    })
-    .from(choreographies)
-    .innerJoin(academies, eq(choreographies.academyId, academies.id))
-    .innerJoin(modalities, eq(choreographies.modalityId, modalities.id))
-    .leftJoin(submodalities, eq(choreographies.submodalityId, submodalities.id))
-    .leftJoin(categories, eq(choreographies.categoryId, categories.id))
-    .leftJoin(
-      scheduleCapacities,
-      eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
-    )
-    .innerJoin(
-      schedules,
-      or(
-        eq(choreographies.scheduleId, schedules.id),
-        eq(scheduleCapacities.scheduleId, schedules.id),
-      ),
-    )
-    .where(
-      and(
-        eq(choreographies.id, input.choreographyId),
-        eq(choreographies.eventId, input.selectedEventId),
-      ),
-    );
-  const [row] = rows;
-
-  if (!row) {
-    return null;
-  }
-
-  const [dancerRows, professorRows, musicDownloadUrl] = await Promise.all([
-    listChoreographyDancers(input.choreographyId),
-    listChoreographyProfessors(input.choreographyId),
-    loadChoreographyMusicDownloadUrl({
-      storage: createDefaultChoreographyMusicStorage(),
-      storageKey: row.musicStorageKey,
-    }),
-  ]);
-
-  const requiresExperienceLevel =
-    row.categoryExperienceLevels !== null &&
-    row.categoryExperienceLevels.length > 0;
-
-  return {
-    academyId: row.academyId,
-    academyName: row.academyName,
-    categoryId: row.categoryId,
-    categoryName: row.categoryName,
-    dancers: dancerRows,
-    experienceLevelId: row.experienceLevelId,
-    experienceLevelName: formatExperienceLevelName(row.experienceLevelId),
-    experienceLevelOptions: resolveChoreographyExperienceLevelOptions({
-      categoryExperienceLevels: row.categoryExperienceLevels,
-      experienceLevelId: row.experienceLevelId,
-    }),
-    groupType: row.groupType,
-    hasPresentation: row.hasPresentation,
-    id: row.id,
-    modalityId: row.modalityId,
-    modalityName: row.modalityName,
-    musicDownloadUrl,
-    musicStorageKey: row.musicStorageKey,
-    name: row.name,
-    operationalStatus: deriveChoreographyOperationalStatus({
-      categoryId: row.categoryId,
-      experienceLevelId: row.experienceLevelId,
-      hasMusic: row.musicStorageKey !== null,
-      hasProfessors: professorRows.length > 0,
-      requiresExperienceLevel,
-    }),
-    professors: professorRows,
-    requiresExperienceLevel,
-    scheduleCapacityId:
-      row.scheduleCapacityId ??
-      getGlobalScheduleCapacityOptionId(row.scheduleId),
-    scheduleId: row.scheduleId,
-    scheduleLabel: formatScheduleDateTime({
-      name: row.scheduleName,
-      scheduledDate: row.scheduleDate,
-      startTime: row.scheduleTime,
-    }),
-    submodalityId: row.submodalityId,
-    submodalityName: row.submodalityName,
-  };
 }
 
 async function renameChoreography(input: {
@@ -660,12 +519,4 @@ function readOptionalFormString(formData: FormData, key: string) {
   const value = formData.get(key);
 
   return typeof value === "string" && value.length > 0 ? value : null;
-}
-
-function formatExperienceLevelName(experienceLevelId: string | null) {
-  if (experienceLevelId === null) {
-    return null;
-  }
-
-  return experienceLevelLabels[experienceLevelId] ?? experienceLevelId;
 }

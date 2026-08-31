@@ -178,6 +178,30 @@ export async function resolveCompatibleScheduleCapacities(input: {
   };
 }
 
+/**
+ * The modalidades of the event that at least one cronograma accepts, in one
+ * query grouped by `schedule_modality.modality_id` instead of one resolution
+ * pass per modalidad.
+ *
+ * It is `findCompatibleScheduleCapacities`' predicate with the modalidad filter
+ * dropped, and it needs no tipo de grupo: a cronograma without a specific cupo
+ * for a tipo de grupo falls back to its own total capacity, so every cronograma
+ * that accepts the modalidad yields exactly one compatible option for any tipo
+ * de grupo. A modalidad missing from this list is a structural dead end — no
+ * cronograma of the event can take it.
+ */
+export async function findModalityIdsWithCompatibleSchedules(
+  eventId: string,
+): Promise<string[]> {
+  const rows = await db
+    .selectDistinct({ modalityId: scheduleModalities.modalityId })
+    .from(scheduleModalities)
+    .innerJoin(schedules, eq(scheduleModalities.scheduleId, schedules.id))
+    .where(eq(schedules.eventId, eventId));
+
+  return rows.map((row) => row.modalityId);
+}
+
 export async function validateInlineScheduleCapacitiesInput({
   existingEntries = [],
   scheduleCapacities: inputEntries,

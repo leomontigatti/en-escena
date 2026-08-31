@@ -77,7 +77,7 @@ describe("ChoreographyDetailRouteView", () => {
 
     expect(markup).toContain("La presentación bloquea esta coreografía");
     expect(markup).toContain("Esta coreografía ya tiene una presentación");
-    expect(markup).toContain("los bailarines, los profesores, la submodalidad");
+    expect(markup).toContain("no la modalidad, los bailarines, los profesores");
     expect(markup).toContain("cupo de cronograma");
     expect(markup).toContain('aria-disabled="true"');
   });
@@ -217,6 +217,64 @@ describe("ChoreographyDetailRouteView", () => {
     const markup = renderDetail({ loaderData: buildLoaderData() });
 
     expect(markup).not.toContain("El cupo de cronograma está bloqueado");
+  });
+
+  test("renders an editable modalidad select for admins", () => {
+    const markup = renderDetail({ loaderData: buildLoaderData() });
+
+    expect(markup).toContain("Modalidad");
+    expect(markup).toContain('name="modalityId"');
+    expect(markup).toContain('value="modality_1"');
+  });
+
+  // Which condition closed the field is decided by
+  // `canCorrectChoreographyModality` and covered in `shared.test.ts`; the view
+  // only ever reads the resolved `canCorrect`, so one case covers it here.
+  test("keeps the modalidad read-only when the correction is closed", () => {
+    const markup = renderDetail({
+      loaderData: buildLoaderData({
+        canEdit: true,
+        modality: {
+          blockers: [],
+          canCorrect: false,
+          options: [],
+        },
+      }),
+    });
+
+    expect(markup).toContain("Modalidad");
+    expect(markup).toContain("Jazz");
+    expect(markup).not.toContain('name="modalityId"');
+  });
+
+  test("announces the seña as a blocker-in-waiting for the modalidad, auditors included", () => {
+    const markup = renderDetail({
+      loaderData: buildLoaderData({
+        canEdit: false,
+        modality: {
+          blockers: [
+            {
+              code: "frozen-price",
+              label:
+                "Al menos una inscripción tiene dinero asignado: solo se puede corregir la modalidad si el cronograma no se mueve.",
+            },
+          ],
+          canCorrect: false,
+          options: [],
+        },
+      }),
+    });
+
+    expect(markup).toContain("La modalidad tiene un bloqueo en potencia");
+    expect(markup).toContain(
+      "solo se puede corregir la modalidad si el cronograma no se mueve",
+    );
+  });
+
+  test("does not announce a modalidad blocker when there is no money on it", () => {
+    const markup = renderDetail({ loaderData: buildLoaderData() });
+
+    expect(markup).not.toContain("La modalidad tiene un bloqueo en potencia");
   });
 
   test("renders a standalone nivel de experiencia select for admins whose category declares levels", () => {
@@ -530,6 +588,23 @@ function buildLoaderData(
     },
     experienceLevel: {
       canReassign: true,
+    },
+    modality: {
+      blockers: [],
+      canCorrect: true,
+      options: [
+        { hasCompatibleScheduleCapacity: true, id: "modality_1", name: "Jazz" },
+        {
+          hasCompatibleScheduleCapacity: true,
+          id: "modality_2",
+          name: "Urbano",
+        },
+        {
+          hasCompatibleScheduleCapacity: false,
+          id: "modality_3",
+          name: "Folclore",
+        },
+      ],
     },
     scheduleCapacity: {
       blockers: [],

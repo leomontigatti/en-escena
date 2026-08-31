@@ -1,12 +1,15 @@
 import { describe, expect, test } from "vitest";
 
 import {
+  canCorrectChoreographyModality,
   canReassignExperienceLevel,
   canReassignScheduleCapacity,
   renameChoreographyIntent,
+  resolveChoreographyModalityIntent,
   resolveChoreographyRosterIntent,
   shouldRevalidateChoreographyDetail,
   toChoreographyDetailViewActionData,
+  updateChoreographyModalityIntent,
   updateChoreographyRosterIntent,
 } from "./shared";
 
@@ -25,6 +28,24 @@ describe("shouldRevalidateChoreographyDetail", () => {
       shouldRevalidateChoreographyDetail({
         defaultShouldRevalidate: true,
         formData: buildFormData(updateChoreographyRosterIntent),
+      }),
+    ).toBe(true);
+  });
+
+  test("does not revalidate after previewing a candidate modality", () => {
+    expect(
+      shouldRevalidateChoreographyDetail({
+        defaultShouldRevalidate: true,
+        formData: buildFormData(resolveChoreographyModalityIntent),
+      }),
+    ).toBe(false);
+  });
+
+  test("revalidates after the modality correction is saved", () => {
+    expect(
+      shouldRevalidateChoreographyDetail({
+        defaultShouldRevalidate: true,
+        formData: buildFormData(updateChoreographyModalityIntent),
       }),
     ).toBe(true);
   });
@@ -154,6 +175,31 @@ describe("canReassignExperienceLevel", () => {
       canEdit: true,
       hasPresentation: false,
       requiresExperienceLevel: true,
+      ...overrides,
+    };
+  }
+});
+
+describe("canCorrectChoreographyModality", () => {
+  test("opens the modalidad for an admin on a choreography without presentation", () => {
+    expect(canCorrectChoreographyModality(buildInput())).toBe(true);
+  });
+
+  test.each([
+    ["the user is not an admin", { canEdit: false }],
+    ["the choreography has a presentation", { hasPresentation: true }],
+  ])("keeps it read-only when %s", (_cause, overrides) => {
+    expect(canCorrectChoreographyModality(buildInput(overrides))).toBe(false);
+  });
+
+  function buildInput(
+    overrides: Partial<
+      Parameters<typeof canCorrectChoreographyModality>[0]
+    > = {},
+  ) {
+    return {
+      canEdit: true,
+      hasPresentation: false,
       ...overrides,
     };
   }
