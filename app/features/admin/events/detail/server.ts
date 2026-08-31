@@ -8,11 +8,15 @@ import {
   parseEventFormValues,
   readEventFormValues,
 } from "@/lib/admin/events/form-values";
-import { parseEventDocumentKind } from "@/lib/events/event-documents";
+import {
+  eventDocumentKinds,
+  type EventDocumentKind,
+} from "@/lib/events/event-documents";
 import {
   deleteEventDocument,
   loadEventDocumentSummaries,
   saveEventDocument,
+  type EventDocumentMutationResult,
 } from "@/lib/events/event-documents.server";
 import { createDefaultEventDocumentStorage } from "@/lib/storage/event-documents.server";
 import {
@@ -30,16 +34,16 @@ import {
   type NotificationKey,
 } from "@/lib/shared/notification-toasts";
 import {
-  deleteEventDocumentIntent,
-  uploadEventDocumentIntent,
+  eventDocumentFileField,
+  eventDocumentKeptField,
+  eventDocumentsPresentField,
+  keptEventDocumentValue,
   type EventDetailActionData,
   type EventDetailLoaderData,
 } from "./shared";
 
 type EventRouteNotification = Extract<
   NotificationKey,
-  | "documento-evento-cargado"
-  | "documento-evento-eliminado"
   | "evento-activado"
   | "evento-desactivado"
   | "evento-guardado"
@@ -48,9 +52,6 @@ type EventRouteNotification = Extract<
   | "resultados-visibles"
   | "resultados-ocultos"
 >;
-
-const unknownDocumentMessage = "No pudimos reconocer ese documento.";
-const missingDocumentFileMessage = "Elegí un archivo para cargar.";
 
 export async function loadEventDetail(
   request: Request,
@@ -136,65 +137,9 @@ export async function updateAdministrativeEvent(
       );
     }
 
-    case uploadEventDocumentIntent:
-      return uploadDocumentAction(eventId, formData);
-
-    case deleteEventDocumentIntent:
-      return deleteDocumentAction(eventId, formData);
-
     default:
       return actionError("No pudimos procesar esa acción.");
   }
-}
-
-// The card posts `multipart/form-data` to this same action: `request.formData()`
-// parses a multipart body transparently, so the main event form keeps posting
-// url-encoded and a second route does not have to restate the admin gate.
-async function uploadDocumentAction(eventId: string, formData: FormData) {
-  const kind = parseEventDocumentKind(formData.get("kind"));
-
-  if (!kind) {
-    return actionError(unknownDocumentMessage);
-  }
-
-  const file = formData.get("documentFile");
-
-  if (!(file instanceof File) || file.size === 0) {
-    return actionError(missingDocumentFileMessage);
-  }
-
-  const result = await saveEventDocument({
-    eventId,
-    file,
-    kind,
-    storage: createDefaultEventDocumentStorage(),
-  });
-
-  if (!result.ok) {
-    return actionError(result.message);
-  }
-
-  return actionSuccess("documento-evento-cargado");
-}
-
-async function deleteDocumentAction(eventId: string, formData: FormData) {
-  const kind = parseEventDocumentKind(formData.get("kind"));
-
-  if (!kind) {
-    return actionError(unknownDocumentMessage);
-  }
-
-  const result = await deleteEventDocument({
-    eventId,
-    kind,
-    storage: createDefaultEventDocumentStorage(),
-  });
-
-  if (!result.ok) {
-    return actionError(result.message);
-  }
-
-  return actionSuccess("documento-evento-eliminado");
 }
 
 async function updateEventAction(eventId: string, formData: FormData) {
@@ -223,7 +168,82 @@ async function updateEventAction(eventId: string, formData: FormData) {
     };
   }
 
+  const documentsResult = await applyEventDocumentChanges(eventId, formData);
+
+  if (!documentsResult.ok) {
+    return actionError(documentsResult.message);
+  }
+
   return actionSuccess("evento-guardado");
+}
+
+/**
+ * The event form carries the three PDFs, so one "Guardar" uploads, replaces and
+ * removes them along with the dates. The body always posts
+ * `multipart/form-data`: `request.formData()` parses it transparently, which is
+ * what lets the files ride on the same submission the rest of the form uses.
+ *
+ * A body without the marker is left alone. Three absent file inputs and three
+ * absent "kept" fields look exactly like "remove all three", and the costly way
+ * to be wrong about that is the one that deletes them.
+ */
+async function applyEventDocumentChanges(
+  eventId: string,
+  formData: FormData,
+): Promise<EventDocumentMutationResult> {
+  if (formData.get(eventDocumentsPresentField) !== keptEventDocumentValue) {
+    return { ok: true };
+  }
+
+  const storage = createDefaultEventDocumentStorage();
+  const summaries = await loadEventDocumentSummaries({ eventId, storage });
+
+  for (const kind of eventDocumentKinds) {
+    const result = await applyEventDocumentChange({
+      eventId,
+      formData,
+      isUploaded: summaries[kind] !== null,
+      kind,
+      storage,
+    });
+
+    if (!result.ok) {
+      return result;
+    }
+  }
+
+  return { ok: true };
+}
+
+async function applyEventDocumentChange({
+  eventId,
+  formData,
+  isUploaded,
+  kind,
+  storage,
+}: {
+  eventId: string;
+  formData: FormData;
+  isUploaded: boolean;
+  kind: EventDocumentKind;
+  storage: ReturnType<typeof createDefaultEventDocumentStorage>;
+}): Promise<EventDocumentMutationResult> {
+  const file = formData.get(eventDocumentFileField(kind));
+
+  // A file always wins: choosing one after clearing the field is a replacement,
+  // not a removal followed by an upload.
+  if (file instanceof File && file.size > 0) {
+    return await saveEventDocument({ eventId, file, kind, storage });
+  }
+
+  const isKept =
+    formData.get(eventDocumentKeptField(kind)) === keptEventDocumentValue;
+
+  if (isUploaded && !isKept) {
+    return await deleteEventDocument({ eventId, kind, storage });
+  }
+
+  return { ok: true };
 }
 
 function updateVisibility(

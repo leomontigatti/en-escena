@@ -3,7 +3,6 @@ import { useEffect } from "react";
 import { TriangleAlert } from "lucide-react";
 import { useForm, useWatch, type UseFormReturn } from "react-hook-form";
 
-import { AlertStack } from "@/components/shared/alert-stack";
 import { DateOnlyField } from "@/components/shared/date-only-field";
 import { IntegerInputField } from "@/components/shared/integer-input-field";
 import { TextInputField } from "@/components/shared/text-input-field";
@@ -74,106 +73,88 @@ export function useEventForm({
 }
 
 /**
- * The event's name, which stays above the detail view's tabs. Kept to a single
- * grid cell so its width matches the fields inside the tabs.
+ * Everything the administration edits about the event itself. One two-column
+ * grid throughout: the name and the deposit sit alone on a row at a single
+ * cell's width so they line up with the date fields underneath, which pair off
+ * as the event window and then the inscription window.
  */
-export function EventNameField({ controller }: EventFormFieldsProps) {
+export function EventFormFields({ controller }: EventFormFieldsProps) {
   const { form } = controller;
 
   return (
     <FieldGroup className="grid gap-5 md:grid-cols-2">
       <TextInputField control={form.control} label="Nombre" name="name" />
-      <div aria-hidden="true" className="hidden md:block" />
-    </FieldGroup>
-  );
-}
-
-/**
- * Everything about the event that is not its name or its documents: the
- * deposit, the event window and the inscription window.
- *
- * `formId` associates the inputs with a `<form>` they are not nested in — the
- * detail view renders this inside a tab that sits outside the form element,
- * because the sibling documents tab has upload forms of its own and forms
- * cannot nest. The create view passes nothing and nests normally.
- */
-export function EventInformationFields({
-  controller,
-  formId,
-}: EventFormFieldsProps & { formId?: string }) {
-  const { form } = controller;
-  const registrationStartsAt = useWatch({
-    control: form.control,
-    name: "registrationStartsAt",
-  });
-  const startsAt = useWatch({
-    control: form.control,
-    name: "startsAt",
-  });
-  const showRegistrationStartWarning =
-    registrationStartsAt !== "" &&
-    startsAt !== "" &&
-    registrationStartsAt > startsAt;
-
-  return (
-    <FieldGroup className="grid gap-5 md:grid-cols-2">
+      <FieldGridSpacer />
       <IntegerInputField
         control={form.control}
-        form={formId}
         label="Seña (%)"
         name="requiredDepositPercentage"
         min={MIN_REQUIRED_DEPOSIT_PERCENTAGE}
         max={MAX_REQUIRED_DEPOSIT_PERCENTAGE}
         step="1"
       />
-      {/* Keeps the deposit alone on its row without stretching it across both
-          cells, so it lines up with the date fields underneath. */}
-      <div aria-hidden="true" className="hidden md:block" />
+      <FieldGridSpacer />
       <DateOnlyField
         control={form.control}
-        form={formId}
         label="Inicio del evento"
         name="startsAt"
       />
       <DateOnlyField
         control={form.control}
-        form={formId}
         label="Cierre del evento"
         name="endsAt"
       />
       <DateOnlyField
         control={form.control}
-        form={formId}
         label="Inicio de inscripciones"
         name="registrationStartsAt"
       />
       <DateOnlyField
         control={form.control}
-        form={formId}
         label="Cierre de inscripciones"
         name="registrationEndsAt"
       />
-
-      <AlertStack className="md:col-span-2">
-        {showRegistrationStartWarning ? (
-          <Alert variant="warning">
-            <TriangleAlert aria-hidden="true" />
-            <AlertDescription>
-              La inscripción empieza después del inicio del evento. Podés
-              guardar esta configuración si es intencional.
-            </AlertDescription>
-          </Alert>
-        ) : null}
-      </AlertStack>
     </FieldGroup>
   );
 }
 
-export function EventFormFields({ controller }: EventFormFieldsProps) {
+/** Holds a field to one cell instead of letting it span the row. */
+function FieldGridSpacer() {
+  return <div aria-hidden="true" className="hidden md:block" />;
+}
+
+/**
+ * Inscriptions opening after the event starts is legal but almost always a
+ * typo, so it warns instead of blocking. Returned as a boolean rather than as
+ * an element: the alert belongs to the `AlertStack` above the card, and an
+ * `AlertStack` given a component that renders `null` still renders its own
+ * wrapper and its own gap.
+ */
+export function useEventRegistrationWindowWarning({
+  controller,
+}: EventFormFieldsProps) {
+  const { form } = controller;
+  const registrationStartsAt = useWatch({
+    control: form.control,
+    name: "registrationStartsAt",
+  });
+  const startsAt = useWatch({ control: form.control, name: "startsAt" });
+
   return (
-    <div className="flex flex-col gap-5">
-      <EventNameField controller={controller} />
-      <EventInformationFields controller={controller} />
-    </div>
+    registrationStartsAt !== "" &&
+    startsAt !== "" &&
+    registrationStartsAt > startsAt
+  );
+}
+
+export function EventRegistrationWindowAlert() {
+  return (
+    <Alert variant="warning">
+      <TriangleAlert aria-hidden="true" />
+      <AlertDescription>
+        La inscripción empieza después del inicio del evento. Podés guardar esta
+        configuración si es intencional.
+      </AlertDescription>
+    </Alert>
   );
 }

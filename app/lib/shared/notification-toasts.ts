@@ -26,8 +26,6 @@ export const notificationToastIds = {
   "evento-desactivado": "route-notification:evento-desactivado",
   "evento-guardado": "route-notification:evento-guardado",
   "evento-eliminado": "route-notification:evento-eliminado",
-  "documento-evento-cargado": "route-notification:documento-evento-cargado",
-  "documento-evento-eliminado": "route-notification:documento-evento-eliminado",
   "cronograma-guardado": "route-notification:cronograma-guardado",
   "cronograma-eliminado": "route-notification:cronograma-eliminado",
   "cupo-cronograma-guardado": "route-notification:cupo-cronograma-guardado",
@@ -148,16 +146,6 @@ export const notificationToasts = {
   "evento-eliminado": {
     id: notificationToastIds["evento-eliminado"],
     message: "Evento eliminado.",
-    variant: "success",
-  },
-  "documento-evento-cargado": {
-    id: notificationToastIds["documento-evento-cargado"],
-    message: "Documento cargado.",
-    variant: "success",
-  },
-  "documento-evento-eliminado": {
-    id: notificationToastIds["documento-evento-eliminado"],
-    message: "Documento eliminado.",
     variant: "success",
   },
   "cronograma-guardado": {

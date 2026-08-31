@@ -29,11 +29,6 @@ type DateOnlyFieldBaseProps = {
   disabled?: boolean;
   error?: string;
   errorClassName?: string;
-  /**
-   * Associates the hidden input with a `<form>` elsewhere in the document, for
-   * the surfaces that render a field outside the form it belongs to.
-   */
-  form?: string;
   id?: string;
   label: string;
   labelClassName?: string;
@@ -85,7 +80,6 @@ function DateOnlyFieldControl({
   disabled = false,
   error,
   errorClassName,
-  form,
   id: providedId,
   label,
   labelClassName,
@@ -118,7 +112,7 @@ function DateOnlyFieldControl({
     >
       {({ describedBy, isInvalid }) => (
         <>
-          <input type="hidden" form={form} name={name} value={dateValue} />
+          <input type="hidden" name={name} value={dateValue} />
           <div className="relative">
             <Popover
               open={disabled ? false : open}
