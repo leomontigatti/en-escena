@@ -22,9 +22,10 @@ import {
 } from "./shared";
 
 /**
- * The cupo is the block's only required field on the client: the submodalidad
- * and the nivel are only needed when the resolution asks for them, so
- * `canSubmitModalityCorrection` governs those instead of the schema.
+ * What is required depends on the resolution, so the button is governed by
+ * `canSubmitModalityCorrection` rather than by this schema. The cupo keeps its
+ * rule anyway: the footer `Guardar` sits in the roster form, and a stray submit
+ * from it must not write a correction with no cupo.
  */
 const modalityFormSchema = z.object({
   modalityExperienceLevelId: z.string(),

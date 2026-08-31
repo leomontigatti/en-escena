@@ -138,9 +138,10 @@ export function isModalityScheduleCapacityLocked(
 }
 
 /**
- * The empty cupo does not belong here: the submit raises it as a required-field
- * error on the select, which is where the admin resolves it. Disabling the
- * button would leave a form that does not explain what it is missing.
+ * Every field the resolution leaves to be chosen holds the save until it is
+ * answered, the cupo included: the roster form next door already does that, and
+ * both now share one `Guardar`, so a required field that disables the button in
+ * one form and not in the other would make the same button mean two things.
  */
 export function canSubmitModalityCorrection(input: CanSubmitModalityInput) {
   if (
@@ -164,6 +165,15 @@ export function canSubmitModalityCorrection(input: CanSubmitModalityInput) {
   if (
     resolution.scheduleCapacity.status === "none" ||
     isEveryScheduleCapacityOptionFull(resolution.scheduleCapacity.options)
+  ) {
+    return false;
+  }
+
+  // Only `multiple` leaves a cupo to choose: `auto` arrives preselected and
+  // `none` was already turned away above.
+  if (
+    resolution.scheduleCapacity.status === "multiple" &&
+    input.watchedScheduleCapacityId === ""
   ) {
     return false;
   }

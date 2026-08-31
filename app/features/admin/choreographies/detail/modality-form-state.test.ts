@@ -228,8 +228,8 @@ describe("canSubmitModalityCorrection", () => {
     ).toBe(false);
   });
 
-  // Una modalidad destino sin categoría compatible se guarda igual: la
-  // coreografía queda operativamente incompleta, como en el alta.
+  // A destination modalidad with no compatible categoría saves all the same:
+  // the choreography stays operationally incomplete, as it does on creation.
   test("saves when no category resolves for the destination modality", () => {
     expect(
       canSubmitModalityCorrection(
@@ -238,14 +238,25 @@ describe("canSubmitModalityCorrection", () => {
     ).toBe(true);
   });
 
-  // El cupo vacío no apaga el botón: el submit levanta el error de campo
-  // obligatorio sobre el select, que es donde se resuelve.
-  test("leaves the save enabled with an empty cupo so the field can report it", () => {
+  // Only `multiple` leaves a cupo to choose; the default resolution is `auto`,
+  // which arrives preselected and never waits for an answer.
+  test("blocks the save while a cupo is still to be chosen", () => {
     expect(
       canSubmitModalityCorrection(
-        buildInput({ watchedScheduleCapacityId: "" }),
+        buildInput({
+          resolution: buildResolution({
+            scheduleCapacity: {
+              options: [
+                { id: "cupo_1", isFull: false, label: "1 de mayo" },
+                { id: "cupo_2", isFull: false, label: "2 de mayo" },
+              ],
+              status: "multiple",
+            },
+          }),
+          watchedScheduleCapacityId: "",
+        }),
       ),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   test("blocks the save when every compatible cupo is full", () => {
