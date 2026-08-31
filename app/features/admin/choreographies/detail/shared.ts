@@ -10,6 +10,22 @@ export const updateChoreographyScheduleCapacityIntent =
   "update-schedule-capacity";
 export const updateChoreographyExperienceLevelIntent =
   "update-experience-level";
+export const resolveChoreographyModalityIntent = "resolve-modality";
+export const updateChoreographyModalityIntent = "update-modality";
+
+/**
+ * The modality correction is a sibling form of the roster one, so its four
+ * fields carry their own names: the roster form already registers
+ * `experienceLevelId` and `scheduleCapacityId`, and two controls writing the
+ * same DOM name would overwrite each other.
+ */
+export const modalityFieldNames = {
+  experienceLevelId: "modalityExperienceLevelId",
+  modalityId: "modalityId",
+  previewedCategoryId: "modalityPreviewedCategoryId",
+  scheduleCapacityId: "modalityScheduleCapacityId",
+  submodalityId: "modalitySubmodalityId",
+} as const;
 
 /**
  * El select autónomo de cronograma vive dentro del `form` del roster, que ya
@@ -29,12 +45,20 @@ export const assignedExperienceLevelFieldName = "assignedExperienceLevelId";
  * `resolve-roster` solo consulta cómo quedaría la coreografía con un roster
  * tentativo: no persiste nada. Revalidar tras esa consulta recarga el loader y
  * reinicia el formulario con el roster guardado, pisando la edición en curso.
+ *
+ * `resolve-modality` previews a candidate modalidad the same way, and is
+ * excluded for the same reason.
  */
 export function shouldRevalidateChoreographyDetail(input: {
   defaultShouldRevalidate: boolean;
   formData?: FormData;
 }) {
-  if (input.formData?.get("intent") === resolveChoreographyRosterIntent) {
+  const intent = input.formData?.get("intent");
+
+  if (
+    intent === resolveChoreographyRosterIntent ||
+    intent === resolveChoreographyModalityIntent
+  ) {
     return false;
   }
 
@@ -168,6 +192,32 @@ export function canReassignExperienceLevel(input: {
   return (
     input.canEdit && !input.hasPresentation && input.requiresExperienceLevel
   );
+}
+
+export type ChoreographyModalityBlockerCode = "frozen-price";
+
+/**
+ * Same shape as the cupo and deletion blockers: the server writes the code and
+ * the label, and the view only enumerates it in the page alert.
+ */
+export type ChoreographyModalityBlocker = {
+  code: ChoreographyModalityBlockerCode;
+  label: string;
+};
+
+/**
+ * Only two causes of read-only for the modalidad: not being `admin` and having
+ * a presentación. A registered seña deliberately does not close the field: a
+ * destination modalidad that keeps the current cronograma is financially inert,
+ * so the money guard rejects at save and only when the correction would
+ * actually move the cupo. It is reported as a blocker-in-waiting in the page
+ * alert instead.
+ */
+export function canCorrectChoreographyModality(input: {
+  canEdit: boolean;
+  hasPresentation: boolean;
+}) {
+  return input.canEdit && !input.hasPresentation;
 }
 
 export type ChoreographyDeleteBlockerCode =

@@ -1,0 +1,206 @@
+import { isEveryScheduleCapacityOptionFull } from "@/lib/choreographies/schedule-capacity-options";
+
+import type {
+  ChoreographyModalityOption,
+  ChoreographyModalityResolution,
+} from "./modality.server";
+
+type CanSubmitModalityInput = {
+  canCorrectModality: boolean;
+  isResolving: boolean;
+  isSubmitting: boolean;
+  persistedModalityId: string;
+  resolution: ChoreographyModalityResolution | null;
+  resolvedModalityId: string;
+  selectedModalityId: string;
+  watchedExperienceLevelId: string;
+  watchedScheduleCapacityId: string;
+  watchedSubmodalityId: string;
+};
+
+export type ResolvedModalityFieldState = {
+  nextExperienceLevelId: string;
+  nextScheduleCapacityId: string;
+  nextSubmodalityId: string;
+};
+
+/**
+ * The reason travels on the option, not in a separate message: a modalidad no
+ * cronograma accepts is a structural dead end, and whoever sees it greyed out
+ * has to know why without going looking for it.
+ */
+const noCompatibleScheduleOptionSuffix = " (sin cronograma compatible)";
+
+/**
+ * A select where no compatible cupo has room is a silent dead end, exactly as
+ * in the portal registration: it is replaced by the reason.
+ */
+export const everyModalityScheduleCapacityFullMessage =
+  "Los cronogramas compatibles con esta modalidad ya no tienen lugar. Elegí otra modalidad para corregirla.";
+
+/**
+ * Every modalidad of the event, with the assigned one included rather than
+ * excluded: re-selecting it is a successful no-op, and a modalidad that lost
+ * its cronograma has to stay visibly selected instead of disappearing.
+ *
+ * `disabled` marks only the structural dead end —no cronograma of the event
+ * accepts that modalidad—, never a full cupo: occupancy is a snapshot that
+ * races and is resolved at the cupo step.
+ */
+export function getModalitySelectOptions(
+  options: readonly ChoreographyModalityOption[],
+) {
+  return options.map((option) => ({
+    disabled: !option.hasCompatibleScheduleCapacity,
+    label: option.hasCompatibleScheduleCapacity
+      ? option.name
+      : `${option.name}${noCompatibleScheduleOptionSuffix}`,
+    value: option.id,
+  }));
+}
+
+/**
+ * Each candidate modalidad is queried once, and going back to the assigned one
+ * fires no request: its resolution is the one already persisted.
+ */
+export function shouldResolveModalitySelection({
+  canCorrectModality,
+  persistedModalityId,
+  resolvedModalityId,
+  selectedModalityId,
+  submittedModalityId,
+}: {
+  canCorrectModality: boolean;
+  persistedModalityId: string;
+  resolvedModalityId: string;
+  selectedModalityId: string;
+  submittedModalityId: string | null;
+}) {
+  if (
+    !canCorrectModality ||
+    selectedModalityId.length === 0 ||
+    selectedModalityId === persistedModalityId
+  ) {
+    return false;
+  }
+
+  return (
+    selectedModalityId !== resolvedModalityId &&
+    selectedModalityId !== submittedModalityId
+  );
+}
+
+/**
+ * The three dependent fields, filled or cleared from the resolution.
+ *
+ * The submodalidad is never carried over: `choreography.submodality_id` has a
+ * plain FK to `submodality` and no constraint ties it to the modalidad, so
+ * keeping it would leave the choreography pointing at a submodalidad of another
+ * modalidad with nothing noticing.
+ */
+export function getResolvedModalityFieldState({
+  categoryId,
+  experienceLevelId,
+  resolution,
+  watchedScheduleCapacityId,
+}: {
+  categoryId: string | null;
+  experienceLevelId: string | null;
+  resolution: ChoreographyModalityResolution;
+  watchedScheduleCapacityId: string;
+}): ResolvedModalityFieldState {
+  const keepsStoredLevel =
+    resolution.experienceLevel.required &&
+    experienceLevelId !== null &&
+    resolution.category?.id === categoryId &&
+    resolution.experienceLevel.options.some(
+      (option) => option.id === experienceLevelId,
+    );
+
+  return {
+    nextExperienceLevelId: keepsStoredLevel ? (experienceLevelId ?? "") : "",
+    nextScheduleCapacityId: getNextScheduleCapacityId({
+      resolution,
+      watchedScheduleCapacityId,
+    }),
+    nextSubmodalityId: "",
+  };
+}
+
+/**
+ * With a single compatible cupo there is nothing to choose: it stays
+ * preselected and read-only, like the `auto` status of registration.
+ */
+export function isModalityScheduleCapacityLocked(
+  resolution: ChoreographyModalityResolution,
+) {
+  return resolution.scheduleCapacity.status === "auto";
+}
+
+/**
+ * Every field the resolution leaves to be chosen holds the save until it is
+ * answered, the cupo included: the roster form next door already does that, and
+ * both now share one `Guardar`, so a required field that disables the button in
+ * one form and not in the other would make the same button mean two things.
+ */
+export function canSubmitModalityCorrection(input: CanSubmitModalityInput) {
+  if (
+    !input.canCorrectModality ||
+    input.isResolving ||
+    input.isSubmitting ||
+    input.selectedModalityId === input.persistedModalityId
+  ) {
+    return false;
+  }
+
+  const resolution = input.resolution;
+
+  if (!resolution || input.resolvedModalityId !== input.selectedModalityId) {
+    return false;
+  }
+
+  // With no eligible cupo there is no possible correction: the select has
+  // already been replaced by the reason, so leaving the button live would ask
+  // for a field that is not there.
+  if (
+    resolution.scheduleCapacity.status === "none" ||
+    isEveryScheduleCapacityOptionFull(resolution.scheduleCapacity.options)
+  ) {
+    return false;
+  }
+
+  // Only `multiple` leaves a cupo to choose: `auto` arrives preselected and
+  // `none` was already turned away above.
+  if (
+    resolution.scheduleCapacity.status === "multiple" &&
+    input.watchedScheduleCapacityId === ""
+  ) {
+    return false;
+  }
+
+  if (resolution.submodality.required && input.watchedSubmodalityId === "") {
+    return false;
+  }
+
+  return !(
+    resolution.experienceLevel.required && input.watchedExperienceLevelId === ""
+  );
+}
+
+function getNextScheduleCapacityId({
+  resolution,
+  watchedScheduleCapacityId,
+}: {
+  resolution: ChoreographyModalityResolution;
+  watchedScheduleCapacityId: string;
+}) {
+  const options = resolution.scheduleCapacity.options;
+
+  if (resolution.scheduleCapacity.status === "auto") {
+    return options[0]?.id ?? "";
+  }
+
+  return options.some((option) => option.id === watchedScheduleCapacityId)
+    ? watchedScheduleCapacityId
+    : "";
+}
