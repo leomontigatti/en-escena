@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import type {
-  ChoreographyDancerScheduleOption,
+  ChoreographyDancerScheduleChoice,
   ChoreographyDancerScheduleResolution,
   ResolveChoreographyDancersResult,
 } from "@/lib/choreographies/choreography-roster.shared";
@@ -523,7 +523,9 @@ function buildChoreography(
   } as ChoreographyDetail;
 }
 
-function buildScheduleOption(id: string): ChoreographyDancerScheduleOption {
+// Devuelve la variante rotulada, que es la que exige la resolución "multiple"
+// y sirve igual donde alcanza con `ChoreographyDancerScheduleOption`.
+function buildScheduleOption(id: string): ChoreographyDancerScheduleChoice {
   return {
     id,
     scheduleId: "schedule_1",
@@ -531,6 +533,8 @@ function buildScheduleOption(id: string): ChoreographyDancerScheduleOption {
     groupType: "duo",
     capacity: 10,
     usesGlobalCapacity: false,
+    isFull: false,
+    label: "1 de mayo de 2026 - 14:00 hs. · 0/10 ocupados",
     schedule: {
       id: "schedule_1",
       name: "Jornada 1",

@@ -34,7 +34,7 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
-import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
+import { toScheduleCapacitySelectOptions } from "@/lib/choreographies/schedule-capacity-options";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
@@ -386,15 +386,15 @@ function ChoreographyDetailForm({
                 cambio de roster pendiente manda el select del roster, porque un
                 cambio de tipo de grupo limpia el cupo y el reemplazo se elige
                 junto con la confirmación. */}
-            {showScheduleSelect && roster.scheduleResolution ? (
+            {showScheduleSelect &&
+            roster.scheduleResolution?.status === "multiple" ? (
               <SelectField
                 control={form.control}
                 label="Cronograma"
                 name="scheduleCapacityId"
-                options={roster.scheduleResolution.options.map((option) => ({
-                  label: formatScheduleDateTime(option.schedule),
-                  value: option.id,
-                }))}
+                options={toScheduleCapacitySelectOptions(
+                  roster.scheduleResolution.options,
+                )}
                 placeholder="Elegí el cronograma"
               />
             ) : (
