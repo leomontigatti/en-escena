@@ -2,12 +2,7 @@ import { LoaderCircle, TriangleAlert } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link } from "react-router";
 
-import {
-  EventFormFields,
-  EventRegistrationWindowAlert,
-  useEventForm,
-  useEventRegistrationWindowWarning,
-} from "@/components/admin/events/form";
+import { EventFormFields, useEventForm } from "@/components/admin/events/form";
 import {
   AdminResourceFormCard,
   AdminResourceLayout,
@@ -168,9 +163,6 @@ function EditEventPanel({
     pendingScope: { intent: "update" },
   });
   const documentsForm = useEventDocumentsForm(documents);
-  const showRegistrationWindowWarning = useEventRegistrationWindowWarning({
-    controller: eventForm,
-  });
   const removal = useDocumentRemovalConfirmation({
     handleSubmit: eventForm.handleSubmit,
     removedKinds: documentsForm.removedKinds,
@@ -186,9 +178,6 @@ function EditEventPanel({
       <AlertStack>
         {!registrationReadiness.isReady ? (
           <EventRegistrationReadinessAlert readiness={registrationReadiness} />
-        ) : null}
-        {showRegistrationWindowWarning ? (
-          <EventRegistrationWindowAlert />
         ) : null}
       </AlertStack>
       <form
@@ -221,6 +210,7 @@ function EditEventPanel({
         </AdminResourceFormCard>
       </form>
       <RemoveDocumentsDialog
+        isPending={eventForm.isPending}
         onConfirm={removal.confirm}
         onOpenChange={removal.setIsConfirmOpen}
         open={removal.isConfirmOpen}
@@ -273,11 +263,13 @@ function useDocumentRemovalConfirmation({
 }
 
 function RemoveDocumentsDialog({
+  isPending,
   onConfirm,
   onOpenChange,
   open,
   removedKinds,
 }: {
+  isPending: boolean;
   onConfirm: () => void;
   onOpenChange: (open: boolean) => void;
   open: boolean;
@@ -299,9 +291,23 @@ function RemoveDocumentsDialog({
           ))}
         </ul>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm}>
-            Guardar los cambios
+          <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
+          {/* Destructive, not the default: pressing this deletes the PDFs the
+              academies download, even though the submission it triggers is the
+              same "Guardar" the rest of the form uses. */}
+          <AlertDialogAction
+            disabled={isPending}
+            variant="destructive"
+            onClick={onConfirm}
+          >
+            {isPending ? (
+              <LoaderCircle
+                aria-hidden="true"
+                className="animate-spin"
+                data-icon
+              />
+            ) : null}
+            Eliminar y guardar
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

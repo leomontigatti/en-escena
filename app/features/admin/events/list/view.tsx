@@ -60,7 +60,7 @@ function EventTable({ events }: { events: EventListRow[] }) {
         />
       ),
       filterValue: (event) =>
-        `${formatDate(event.registrationStartsAt)} ${formatDate(
+        `${formatBusinessDate(event.registrationStartsAt)} ${formatBusinessDate(
           event.registrationEndsAt,
         )}`,
     },
@@ -71,7 +71,7 @@ function EventTable({ events }: { events: EventListRow[] }) {
         <DateRange startsAt={event.startsAt} endsAt={event.endsAt} />
       ),
       filterValue: (event) =>
-        `${formatDate(event.startsAt)} ${formatDate(event.endsAt)}`,
+        `${formatBusinessDate(event.startsAt)} ${formatBusinessDate(event.endsAt)}`,
       sortValue: (event) => event.startsAt,
     },
     {
@@ -125,9 +125,9 @@ function EventTable({ events }: { events: EventListRow[] }) {
 function DateRange({ startsAt, endsAt }: { startsAt: Date; endsAt: Date }) {
   return (
     <span>
-      {formatDate(startsAt)}
+      {formatBusinessDate(startsAt)}
       <span className="block text-xs text-muted-foreground">
-        hasta {formatDate(endsAt)}
+        hasta {formatBusinessDate(endsAt)}
       </span>
     </span>
   );
@@ -144,8 +144,4 @@ function getTemporalStateBadgeVariant(
     case "finished":
       return "secondary";
   }
-}
-
-function formatDate(date: Date) {
-  return formatBusinessDate(date);
 }

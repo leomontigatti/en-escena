@@ -1,12 +1,10 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
-import { TriangleAlert } from "lucide-react";
-import { useForm, useWatch, type UseFormReturn } from "react-hook-form";
+import { useForm, type UseFormReturn } from "react-hook-form";
 
 import { DateOnlyField } from "@/components/shared/date-only-field";
 import { IntegerInputField } from "@/components/shared/integer-input-field";
 import { TextInputField } from "@/components/shared/text-input-field";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { FieldGroup } from "@/components/ui/field";
 import {
   MAX_REQUIRED_DEPOSIT_PERCENTAGE,
@@ -112,41 +110,5 @@ export function EventFormFields({ controller }: EventFormFieldsProps) {
         name="registrationEndsAt"
       />
     </FieldGroup>
-  );
-}
-
-/**
- * Inscriptions opening after the event starts is legal but almost always a
- * typo, so it warns instead of blocking. Returned as a boolean rather than as
- * an element: the alert belongs to the `AlertStack` above the card, and an
- * `AlertStack` given a component that renders `null` still renders its own
- * wrapper and its own gap.
- */
-export function useEventRegistrationWindowWarning({
-  controller,
-}: EventFormFieldsProps) {
-  const { form } = controller;
-  const registrationStartsAt = useWatch({
-    control: form.control,
-    name: "registrationStartsAt",
-  });
-  const startsAt = useWatch({ control: form.control, name: "startsAt" });
-
-  return (
-    registrationStartsAt !== "" &&
-    startsAt !== "" &&
-    registrationStartsAt > startsAt
-  );
-}
-
-export function EventRegistrationWindowAlert() {
-  return (
-    <Alert variant="warning">
-      <TriangleAlert aria-hidden="true" />
-      <AlertDescription>
-        La inscripción empieza después del inicio del evento. Podés guardar esta
-        configuración si es intencional.
-      </AlertDescription>
-    </Alert>
   );
 }

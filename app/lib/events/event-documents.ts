@@ -61,13 +61,6 @@ export const eventDocumentDeclarations: Readonly<
   },
 };
 
-/** The gate every submitted `kind` passes through: a form field is not a kind. */
-export function parseEventDocumentKind(
-  value: unknown,
-): EventDocumentKind | null {
-  return eventDocumentKinds.find((kind) => kind === value) ?? null;
-}
-
 /** The label of the menu item an academy clicks to get the document. */
 export function getEventDocumentDownloadLabel(kind: EventDocumentKind) {
   return `Descargar ${eventDocumentDeclarations[kind].subjectLabel}`;

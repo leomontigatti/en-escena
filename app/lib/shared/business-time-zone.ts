@@ -6,14 +6,9 @@ const businessDateFormatter = new Intl.DateTimeFormat("es-AR", {
   timeZone: BUSINESS_TIME_ZONE,
 });
 
-/**
- * A date as the administration reads it, always in business time. Takes what a
- * loader hands a view, which is a string once the value has crossed the wire.
- */
-export function formatBusinessDate(value: Date | string) {
-  return businessDateFormatter.format(
-    value instanceof Date ? value : new Date(value),
-  );
+/** A date as the administration reads it, always in business time. */
+export function formatBusinessDate(date: Date) {
+  return businessDateFormatter.format(date);
 }
 
 export function getBusinessDateOnly(now: Date = new Date()) {

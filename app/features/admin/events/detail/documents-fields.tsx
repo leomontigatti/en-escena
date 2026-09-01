@@ -1,3 +1,4 @@
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm, useWatch, type UseFormReturn } from "react-hook-form";
 
@@ -17,17 +18,16 @@ import {
 import {
   eventDocumentFileField,
   eventDocumentKeptField,
+  eventDocumentsFormSchema,
   eventDocumentsPresentField,
   keptEventDocumentValue,
   type EventDetailLoaderData,
+  type EventDocumentsFormValues,
 } from "./shared";
 
-// The loader's serialized shape, not the read path's `EventDocumentSummary`:
-// `uploadedAt` has crossed the wire and arrives as a string.
-type SerializedEventDocumentSummary =
+/** What the loader offers about one document, or `null` when none is stored. */
+type EventDocumentSummary =
   EventDetailLoaderData["documents"][EventDocumentKind];
-
-type EventDocumentsFormValues = Record<string, string>;
 
 export type EventDocumentsController = {
   form: UseFormReturn<EventDocumentsFormValues>;
@@ -60,10 +60,13 @@ export function useEventDocumentsForm(
           eventDocumentKeptField(kind),
           documents[kind] ? keptEventDocumentValue : "",
         ]),
-      ),
+      ) as EventDocumentsFormValues,
     [documents],
   );
-  const form = useForm<EventDocumentsFormValues>({ values });
+  const form = useForm<EventDocumentsFormValues>({
+    resolver: zodResolver(eventDocumentsFormSchema),
+    values,
+  });
   const [selectedKinds, setSelectedKinds] = useState<EventDocumentKind[]>([]);
   const keptValues = useWatch({ control: form.control });
   const setSelectedKind = useCallback(
@@ -149,7 +152,7 @@ function EventDocumentField({
   kind,
 }: {
   controller: EventDocumentsController;
-  document: SerializedEventDocumentSummary;
+  document: EventDocumentSummary;
   kind: EventDocumentKind;
 }) {
   const declaration = eventDocumentDeclarations[kind];

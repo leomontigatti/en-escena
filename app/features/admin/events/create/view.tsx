@@ -1,17 +1,11 @@
 import { Link } from "react-router";
 
-import {
-  EventFormFields,
-  EventRegistrationWindowAlert,
-  useEventForm,
-  useEventRegistrationWindowWarning,
-} from "@/components/admin/events/form";
+import { EventFormFields, useEventForm } from "@/components/admin/events/form";
 import {
   AdminResourceFormCard,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
 import { SubmitButton } from "@/components/shared/action-buttons";
-import { AlertStack } from "@/components/shared/alert-stack";
 import { Button } from "@/components/ui/button";
 import { defaultEventFormValues } from "@/lib/admin/events/form-values";
 import { notificationToastIds } from "@/lib/shared/notification-toasts";
@@ -30,10 +24,6 @@ export function EventCreateView({ actionData }: EventCreateViewProps) {
     pendingScope: { intent: "create" },
   });
 
-  const showRegistrationWindowWarning = useEventRegistrationWindowWarning({
-    controller: eventForm,
-  });
-
   useServerActionToast(actionData, {
     toastId: notificationToastIds["event-form-error"],
   });
@@ -44,13 +34,6 @@ export function EventCreateView({ actionData }: EventCreateViewProps) {
       description="Definí fechas, seña requerida y visibilidad inicial del evento."
       requireSelectedEvent={false}
     >
-      {/* Above the card, not among the fields: the warning is about the event,
-          and the stack owns the spacing. */}
-      <AlertStack>
-        {showRegistrationWindowWarning ? (
-          <EventRegistrationWindowAlert />
-        ) : null}
-      </AlertStack>
       <form method="post" noValidate onSubmit={eventForm.handleSubmit}>
         <input type="hidden" name="intent" value="create" />
         <AdminResourceFormCard

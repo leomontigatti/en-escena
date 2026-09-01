@@ -1,8 +1,7 @@
-import { Plus } from "lucide-react";
 import { useEffect, useRef, useState, type ComponentProps } from "react";
 import { useFetcher } from "react-router";
 
-import { PortalEventDocumentsMenu } from "@/components/portal/event-documents-menu";
+import { PortalListPageActions } from "@/components/portal/list-page-actions";
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import {
   ClientDataTable,
@@ -10,7 +9,6 @@ import {
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   getParticipationBadgeVariant,
   getParticipationLabel,
@@ -99,22 +97,15 @@ export function PortalProfessorsListRouteView({
         title="Profesores"
         description="Gestioná los profesores de tu academia y completá su identificación cuando tengas los datos."
         action={
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              onClick={() => {
-                setDismissServerState(true);
-                setIsCreateDialogOpen(true);
-              }}
-            >
-              <Plus aria-hidden="true" data-icon />
-              Nuevo profesor
-            </Button>
-            <PortalEventDocumentsMenu
-              documentDownloadUrls={loaderData.documentDownloadUrls}
-              kinds={professorDocumentKinds}
-            />
-          </div>
+          <PortalListPageActions
+            createLabel="Nuevo profesor"
+            documentDownloadUrls={loaderData.documentDownloadUrls}
+            kinds={professorDocumentKinds}
+            onCreate={() => {
+              setDismissServerState(true);
+              setIsCreateDialogOpen(true);
+            }}
+          />
         }
       >
         {loaderData.professors.length > 0 ? (
