@@ -154,8 +154,11 @@ export async function createChoreographyRegistration(
         throw createFailure(scheduleLock.code, scheduleLock.error);
       }
 
-      // After the capacity lock, never before: the two transactions that touch
-      // both rows take them in this order, which is why they do not deadlock.
+      // After the capacity lock, never before. The counter is a single row per
+      // event that every registration goes through, so it is held for the
+      // shortest window possible. No other transaction takes both rows today;
+      // keeping this one order is what stops a future one from meeting this
+      // one head on.
       const choreographyNumber = await allocateChoreographyNumber({
         tx,
         eventId: input.eventId,
