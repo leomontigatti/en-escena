@@ -84,6 +84,22 @@ describe("EventScheduleDetailView", () => {
     ).toBe("Cupo total. Quedan 4 de 10 lugares.");
   });
 
+  test("leads the footer with Volver and its chevron, opposite Guardar", async () => {
+    useNavigationMock.mockReturnValue({ state: "idle" });
+
+    await renderDetail({ initialDeleteDialogOpen: false });
+
+    const volver = document.querySelector(
+      'a[href*="/administracion/cronogramas"]',
+    );
+    const actions = volver?.closest("div");
+
+    expect(volver?.textContent).toContain("Volver");
+    expect(volver?.querySelector("svg")).not.toBeNull();
+    expect(actions?.className).toContain("justify-between");
+    expect(actions?.firstElementChild?.textContent).toContain("Volver");
+  });
+
   async function renderDetail(
     props: Partial<ComponentProps<typeof EventScheduleDetailView>> = {},
   ) {

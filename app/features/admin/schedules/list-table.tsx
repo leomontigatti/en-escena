@@ -72,7 +72,6 @@ export function ScheduleList({
         />
       ),
       className: "font-medium whitespace-nowrap",
-      sortValue: (schedule) => schedule.totalCapacity,
     },
   ];
 

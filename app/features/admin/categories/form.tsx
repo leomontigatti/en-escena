@@ -200,7 +200,6 @@ function CategoryFormActions({
   return (
     <EventBasesFormActions
       basePath={basePath}
-      className="flex items-center justify-end gap-2"
       formId={formId}
       pendingScope={pendingScope}
     />
