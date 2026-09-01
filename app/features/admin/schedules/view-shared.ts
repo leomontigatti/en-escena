@@ -137,8 +137,46 @@ export function getAvailableScheduleCapacityGroupTypeOptions(
   );
 }
 
-export function formatScheduleOccupancy(schedule: ScheduleListItem) {
-  return `${schedule.occupiedCapacity}/${schedule.totalCapacity}`;
+function formatAvailablePlaces({
+  availablePlaces,
+  capacity,
+}: {
+  availablePlaces: number;
+  capacity: number;
+}) {
+  return `${availablePlaces} de ${capacity}`;
+}
+
+/**
+ * Read-only text shown right after the capacity, both in the list and inside
+ * the field being edited: the capacity is already there, so the suffix only
+ * adds what is left of it. One source, so the two surfaces cannot word the
+ * same count differently.
+ */
+export function formatAvailablePlacesSuffix(availablePlaces: number) {
+  if (availablePlaces === 0) {
+    return " / sin lugares";
+  }
+
+  return ` / ${availablePlaces} disponibles`;
+}
+
+/**
+ * The suffix is decoration that a screen reader never reaches, so the field
+ * label spells the same count out in full.
+ */
+export function describeAvailablePlaces({
+  availablePlaces,
+  capacity,
+}: {
+  availablePlaces: number;
+  capacity: number;
+}) {
+  if (availablePlaces === 0) {
+    return "Sin lugares disponibles.";
+  }
+
+  return `Quedan ${formatAvailablePlaces({ availablePlaces, capacity })} lugares.`;
 }
 
 export function formatDate(value: string) {

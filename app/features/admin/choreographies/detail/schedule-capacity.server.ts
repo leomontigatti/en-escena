@@ -37,7 +37,7 @@ export type ChoreographyScheduleCapacityReassignment = {
 const frozenPriceBlocker: ChoreographyScheduleCapacityBlocker = {
   code: "frozen-price",
   label:
-    "Al menos una inscripción tiene dinero asignado: su precio quedó congelado contra este cronograma.",
+    "No se puede reasignar el cupo de cronograma: hay inscripciones con dinero asignado y su precio quedó congelado contra este cronograma.",
 };
 
 /**

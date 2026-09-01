@@ -302,7 +302,7 @@ describe("administrative choreography modality correction", () => {
       {
         code: "frozen-price",
         label:
-          "Al menos una inscripción tiene dinero asignado: solo se puede corregir la modalidad si el cronograma no se mueve.",
+          "Solo se puede corregir la modalidad si el cronograma no se mueve: hay inscripciones con dinero asignado.",
       },
     ]);
     expect(

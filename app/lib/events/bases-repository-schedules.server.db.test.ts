@@ -15,6 +15,13 @@ import {
   createSavedSchedule,
   expectCreated,
 } from "@/lib/events/bases-test-fixtures.server.db";
+import { createChoreographyRegistration } from "@/lib/choreographies/registration-confirmation.server";
+import {
+  createAcademySession,
+  createDancer,
+  createOpenEventCatalog,
+  createProfessor,
+} from "@/lib/choreographies/registration-test-fixtures.server.db";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -174,10 +181,21 @@ describe("Bases del evento repository", () => {
       {
         id: schedule.id,
         modalityIds: expect.arrayContaining([jazz.id, urbanas.id]),
-        occupiedCapacity: 14,
+        availablePlaces: 20,
+        occupiedCount: 0,
         scheduleCapacities: expect.arrayContaining([
-          expect.objectContaining({ groupType: "solo", capacity: 6 }),
-          expect.objectContaining({ groupType: "duo", capacity: 8 }),
+          expect.objectContaining({
+            groupType: "solo",
+            capacity: 6,
+            availablePlaces: 6,
+            occupiedCount: 0,
+          }),
+          expect.objectContaining({
+            groupType: "duo",
+            capacity: 8,
+            availablePlaces: 8,
+            occupiedCount: 0,
+          }),
         ]),
       },
     ]);
@@ -222,12 +240,72 @@ describe("Bases del evento repository", () => {
       {
         id: schedule.id,
         modalityIds: [jazz.id],
-        occupiedCapacity: 14,
+        availablePlaces: 24,
+        occupiedCount: 0,
         scheduleCapacities: [
-          expect.objectContaining({ groupType: "solo", capacity: 10 }),
-          expect.objectContaining({ groupType: "trio", capacity: 4 }),
+          expect.objectContaining({
+            groupType: "solo",
+            capacity: 10,
+            availablePlaces: 10,
+          }),
+          expect.objectContaining({
+            groupType: "trio",
+            capacity: 4,
+            availablePlaces: 4,
+          }),
         ],
       },
     ]);
+  });
+
+  // The Administración list plans against what is left, so occupancy has to be
+  // the real one — assigned choreographies — and not the sum of the split
+  // capacities, which only shares out the total capacity.
+  test("reports the lugares disponibles left by the coreografías already assigned", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Lugares Disponibles",
+      email: "lugares.disponibles@example.com",
+    });
+    const { event, catalog } = await createOpenEventCatalog();
+    const dancer = await createDancer(owner.academyId, {
+      birthDate: "2014-05-01",
+    });
+    const professor = await createProfessor(owner.academyId);
+    const registration = await createChoreographyRegistration({
+      academyId: owner.academyId,
+      dancerIds: [dancer.id],
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      name: "Pieza ocupante",
+      professorIds: [professor.id],
+      scheduleCapacityId: catalog.soloScheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+
+    if (!registration.ok) {
+      throw new Error(`Unexpected registration failure: ${registration.error}`);
+    }
+
+    const eventSchedules = await listSchedules(event.id);
+    const schedule = eventSchedules.find(
+      (candidate) => candidate.id === catalog.schedule.id,
+    );
+
+    expect(schedule).toMatchObject({
+      totalCapacity: 10,
+      occupiedCount: 1,
+      availablePlaces: 9,
+    });
+    expect(
+      schedule?.scheduleCapacities.find(
+        (scheduleCapacity) =>
+          scheduleCapacity.id === catalog.soloScheduleCapacity.id,
+      ),
+    ).toMatchObject({
+      capacity: 5,
+      occupiedCount: 1,
+      availablePlaces: 4,
+    });
   });
 });

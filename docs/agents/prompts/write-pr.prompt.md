@@ -45,5 +45,6 @@ Emit a single `<output>` block as the **last thing** in your response:
 </output>
 ```
 
-- `prTitle`: single line, < 70 chars, conventional-commit style.
+- `prTitle`: single line, < 70 chars, conventional-commit style, in English
+  (`CODING_STANDARDS.md` § Code Language).
 - `prDescription`: must include `Closes #{{ISSUE_NUMBER}}` so the PR closes the issue on merge.

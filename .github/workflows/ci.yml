@@ -55,14 +55,19 @@ jobs:
             git --no-pager diff -- app/db/migrations
             exit 1
           fi
-      # Migration ordering (#593). A migration that is not newer than every one
-      # already on master would merge green and then never run in production;
-      # scripts/migrations/journal.mjs explains why, and why `db-gate` cannot
-      # catch it. Caught here, the fix is a rebase plus `pnpm db:generate`.
-      - name: migration-order (new migrations must postdate master)
+      # Two rules about migrations, both invisible to `db-gate` because a fresh
+      # database applies anything in folder order; scripts/migrations/journal.mjs
+      # explains both. Ordering (#593): a migration not newer than every one
+      # already on master merges green and then never runs in production, and the
+      # fix is a rebase plus `pnpm db:generate`. Immutability (the deploy #762
+      # broke, restored in #774): Drizzle hashes the whole .sql file, so editing
+      # even a comment in an applied migration makes the container refuse to
+      # start. One step, because both need the same fetch.
+      - name: migration-order and immutability (vs. master)
         run: |
           git fetch --no-tags --depth=1 origin master
           pnpm check:migration-order
+          pnpm check:migration-immutability
       - run: pnpm typecheck
       - run: pnpm test:unit
       - run: pnpm build

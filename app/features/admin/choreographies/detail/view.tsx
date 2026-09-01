@@ -257,6 +257,12 @@ function ChoreographyDetailForm({
 
   return (
     <>
+      <ChoreographyDetailAlerts
+        groupType={roster.derivedResolution.groupType}
+        loaderData={loaderData}
+        noCompatibleCategory={noCompatibleCategory}
+      />
+
       <form
         method="post"
         noValidate
@@ -289,12 +295,6 @@ function ChoreographyDetailForm({
             />
           }
         >
-          <ChoreographyDetailAlerts
-            groupType={roster.derivedResolution.groupType}
-            loaderData={loaderData}
-            noCompatibleCategory={noCompatibleCategory}
-          />
-
           <FieldGroup className="grid gap-5 md:grid-cols-2">
             <ReadOnlyField
               className="md:col-span-2"
