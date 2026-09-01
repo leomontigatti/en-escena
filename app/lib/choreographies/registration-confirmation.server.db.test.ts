@@ -264,6 +264,73 @@ describe.sequential("choreography registration confirmation", () => {
     });
   });
 
+  test("names the archived Profesor it rejects, and says nothing about an ajeno Profesor's existence", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Alta Profesores",
+      email: "registro.coreografia.profesor.alta@example.com",
+    });
+    const other = await createAcademySession({
+      academyName: "Academia Alta Profesores Ajena",
+      email: "registro.coreografia.profesor.alta.ajena@example.com",
+    });
+    const { event, catalog } = await createOpenEventCatalog();
+    const dancer = await createDancer(owner.academyId, {
+      birthDate: "2014-05-01",
+    });
+    const archivedProfessor = await createProfessor(owner.academyId, {
+      firstName: "Nadia",
+      lastName: "Roldán",
+      active: false,
+    });
+    const otherProfessor = await createProfessor(other.academyId, {
+      firstName: "Bruno",
+      lastName: "Ajeno",
+    });
+
+    await expect(
+      createChoreographyRegistration({
+        academyId: owner.academyId,
+        eventId: event.id,
+        name: "Pieza con profesor archivado",
+        modalityId: catalog.modality.id,
+        submodalityId: catalog.submodality.id,
+        dancerIds: [dancer.id],
+        professorIds: [archivedProfessor.id],
+        experienceLevelId: catalog.level.id,
+        scheduleCapacityId: catalog.soloScheduleCapacity.id,
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      code: "invalid-professors",
+      error:
+        "Nadia Roldán está archivado. Reactivalo para poder agregarlo a la coreografía.",
+    });
+
+    const ajenoResult = await createChoreographyRegistration({
+      academyId: owner.academyId,
+      eventId: event.id,
+      name: "Pieza con profesor ajeno",
+      modalityId: catalog.modality.id,
+      submodalityId: catalog.submodality.id,
+      dancerIds: [dancer.id],
+      professorIds: [otherProfessor.id],
+      experienceLevelId: catalog.level.id,
+      scheduleCapacityId: catalog.soloScheduleCapacity.id,
+    });
+
+    expect(ajenoResult).toMatchObject({
+      ok: false,
+      code: "invalid-professors",
+      error: "Elegí profesores que pertenezcan a tu academia.",
+    });
+    expect(ajenoResult.ok ? "" : ajenoResult.error).not.toContain("Bruno");
+
+    const storedChoreographies = await db.query.choreographies.findMany({
+      where: eq(choreographies.academyId, owner.academyId),
+    });
+    expect(storedChoreographies).toHaveLength(0);
+  });
+
   test("returns a clear cupo error and leaves no partial inserts when the selected Cupo de cronograma is already full", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Cupo",

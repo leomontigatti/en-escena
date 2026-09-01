@@ -22,6 +22,11 @@ import {
 } from "@/lib/choreographies/registration-resolution.server";
 import { invalidExperienceLevelMessage } from "@/lib/choreographies/choreography-messages";
 import {
+  classifyRosterPersonSelection,
+  getRosterPersonRejectionMessage,
+  noLinkedRosterPeople,
+} from "@/lib/roster/roster-person-rejection";
+import {
   invalidScheduleEntryMessage,
   lockScheduleCapacityForAssignment,
 } from "@/lib/choreographies/schedule-capacity-lock.server";
@@ -302,25 +307,39 @@ async function resolveProfessorIds(input: {
   const professorRows = await db.query.professors.findMany({
     where: and(
       eq(professors.academyId, input.academyId),
-      eq(professors.active, true),
       inArray(professors.id, input.professorIds),
     ),
     columns: {
       id: true,
+      active: true,
+      firstName: true,
+      lastName: true,
     },
   });
 
-  if (professorRows.length !== input.professorIds.length) {
+  const selection = classifyRosterPersonSelection({
+    selectedIds: input.professorIds,
+    rows: professorRows,
+    linkedPersonIds: noLinkedRosterPeople,
+  });
+
+  if (selection.rejections.length > 0) {
     return {
       ok: false,
       failure: createFailure(
         "invalid-professors",
-        "Elegí profesores activos que pertenezcan a tu academia.",
+        getRosterPersonRejectionMessage({
+          kind: "professor",
+          rejections: selection.rejections,
+        }),
       ),
     };
   }
 
-  return { ok: true, professorIds: input.professorIds };
+  return {
+    ok: true,
+    professorIds: selection.people.map((professor) => professor.id),
+  };
 }
 
 function resolveSelectedExperienceLevelId(input: {
