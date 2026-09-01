@@ -4,23 +4,24 @@ import type {
   VoucherInfoResultDto,
 } from "@arcasdk/core";
 
-// Mensaje `{Code, Msg}` de ARCA, normalizado a minúsculas. Cubre los tres
-// canales que devuelve WSFEv1 con la misma forma: `Errors`, `Observaciones` y
-// `Events` (§4.3 de la research #321).
+// ARCA's `{Code, Msg}` message, normalized to lowercase. It covers the three
+// channels WSFEv1 returns with the same shape: `Errors`, `Observaciones` and
+// `Events` (§4.3 of research #321).
 export type ArcaMessage = {
   code: number;
   msg: string;
 };
 
-// Un mensaje de ARCA tal como se le muestra al operador en un rechazo. El código
-// es informativo: ARCA lo publica en su tabla de validaciones, así que sirve para
-// buscarlo, pero no todos los mensajes traen uno.
+// A message from ARCA as it is shown to the operator on a rejection. The code is
+// informational: ARCA publishes it in its validation table, so it is useful to
+// search for, but not every message carries one.
 export function formatArcaMessage(message: ArcaMessage): string {
   return message.code ? `${message.msg} (código ${message.code})` : message.msg;
 }
 
-// Los DTO del SDK usan `Code`/`Msg` (WSFEv1) en unos lugares y `code`/`msg` (los
-// errores ya mapeados de `FECompUltimoAutorizado`) en otros. Normalizamos ambos.
+// The SDK's DTOs use `Code`/`Msg` (WSFEv1) in some places and `code`/`msg` (the
+// already-mapped errors of `FECompUltimoAutorizado`) in others. We normalize
+// both.
 type RawArcaMessage = {
   Code?: number;
   Msg?: string;
@@ -40,8 +41,9 @@ function normalizeMessages(raw: RawArcaMessage[] | undefined): ArcaMessage[] {
 }
 
 export type FacturaCEmissionResult = {
-  // ARCA aprobó el comprobante y devolvió un CAE. Es la única señal de que la
-  // Factura C quedó autorizada; un `Resultado` "A" sin CAE no cuenta.
+  // ARCA approved the comprobante and returned a CAE. It is the only signal that
+  // the Factura C was authorized; a `Resultado` of "A" without a CAE does not
+  // count.
   approved: boolean;
   cae: string | null;
   caeVto: string | null;
@@ -49,15 +51,15 @@ export type FacturaCEmissionResult = {
   cbteFch: string | null;
   // Resultado de ARCA: "A" aprobado, "R" rechazado, "P" parcial.
   resultado: string | null;
-  // No impiden la autorización; el comprobante puede quedar aprobado con ellas.
+  // They do not prevent authorization; the comprobante can be approved with them.
   observaciones: ArcaMessage[];
-  // Impiden la autorización (rechazo).
+  // They prevent authorization (a rejection).
   errors: ArcaMessage[];
 };
 
-// Interpreta la respuesta de `FECAESolicitar`. Superficializa CAE/vencimiento,
-// el correlativo autorizado y los errores/observaciones para que la lógica de
-// emisión (#446) decida qué persistir sin volver a hurgar el DTO crudo.
+// Interprets the `FECAESolicitar` response. It surfaces CAE/expiry, the
+// authorized sequence number and the errors/observations so the emission logic
+// (#446) can decide what to persist without digging through the raw DTO again.
 export function parseCreateVoucherResult(
   result: CreateVoucherResultDto,
 ): FacturaCEmissionResult {
@@ -81,16 +83,16 @@ export function parseCreateVoucherResult(
 }
 
 export type LastVoucherResult = {
-  // Último comprobante autorizado para el (PtoVta, CbteTipo) consultado. 0 cuando
-  // el punto de venta todavía no emitió ninguno.
+  // The last comprobante authorized for the (PtoVta, CbteTipo) queried. 0 when
+  // the sales point has not emitted any yet.
   lastCbteNro: number;
-  // Correlativo siguiente a solicitar (validación 10016: último + 1).
+  // The next sequence number to request (validation 10016: last + 1).
   nextCbteNro: number;
   errors: ArcaMessage[];
 };
 
-// Interpreta la respuesta de `FECompUltimoAutorizado`: el último número
-// autorizado y el siguiente a pedir.
+// Interprets the `FECompUltimoAutorizado` response: the last authorized number
+// and the next one to ask for.
 export function parseLastVoucher(
   result: LastVoucherResultDto,
 ): LastVoucherResult {
@@ -104,21 +106,20 @@ export function parseLastVoucher(
 }
 
 export type VoucherInfoResult = {
-  // CAE del comprobante consultado (`codAutorizacion`) y su vencimiento.
+  // CAE of the queried comprobante (`codAutorizacion`) and its expiry.
   cae: string | null;
   caeVto: string | null;
-  // Importe y fecha con los que ARCA lo tiene registrado: es contra estos que
-  // se valida que el comprobante consultado sea el que intentamos emitir
-  // (ADR-0012 decisión 4).
+  // The amount and date ARCA has on record for it: these are what validate that
+  // the queried comprobante is the one we tried to emit (ADR-0012 decision 4).
   impTotal: number | null;
   cbteFch: string | null;
 };
 
 /**
- * Interpreta la respuesta de `FECompConsultar`. El SDK devuelve `null` tanto
- * cuando el comprobante no existe como cuando ARCA responde con el código 602
- * ("no existe"), así que ese `null` se propaga tal cual: es la señal de que no
- * se autorizó nada.
+ * Interprets the `FECompConsultar` response. The SDK returns `null` both when
+ * the comprobante does not exist and when ARCA answers with code 602 ("does not
+ * exist"), so that `null` is propagated as is: it is the signal that nothing was
+ * authorized.
  */
 export function parseVoucherInfo(
   result: VoucherInfoResultDto | null,

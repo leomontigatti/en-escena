@@ -60,8 +60,8 @@ const fastDbIsolationAdrRequirements = [
 const accessDomainRequirements = [
   "Identidad confirmada pendiente de academia",
   "academy onboarding",
-  "No hay limpieza automática",
-  "mantenimiento debe listar `Usuario` academia confirmados sin `Academia`",
+  "There is no automatic cleanup",
+  "maintenance must list confirmed academy `Usuario` records with no `Academia`",
 ];
 
 const codebaseMapRequirements = [

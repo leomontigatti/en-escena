@@ -56,9 +56,9 @@ export function EmissionDialog({
   const genericError =
     fetcher.data?.status === "error" ? fetcher.data.message : null;
 
-  // La verificación manual la declara el operador, así que no puede sobrevivir a
-  // un intento nuevo: cada respuesta del server la borra y el reintento vuelve a
-  // quedar bloqueado si sigue sin resolverse.
+  // Manual verification is declared by the operator, so it cannot survive a new
+  // attempt: every response from the server clears it and the retry goes back to
+  // being blocked if it is still unresolved.
   const [acknowledged, setAcknowledged] = useState(false);
   useEffect(() => {
     setAcknowledged(false);
@@ -118,9 +118,9 @@ export function EmissionDialog({
             <AlertDialogCancel type="button" disabled={isSaving}>
               {contingencyCancelLabel(submitState)}
             </AlertDialogCancel>
-            {/* Recuperado: el comprobante ya está autorizado y registrado, así
-                que el botón se saca. Deshabilitarlo se leería como "esperá" e
-                invitaría a un reintento que emitiría un segundo comprobante. */}
+            {/* Recovered: the comprobante is already authorized and on record, so
+                the button is removed. Disabling it would read as "hold on" and
+                would invite a retry that would emit a second comprobante. */}
             {submitState === "removed" ? null : (
               <Button
                 type="submit"

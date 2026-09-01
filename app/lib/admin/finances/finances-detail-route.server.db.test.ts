@@ -42,8 +42,8 @@ import {
 installDatabaseTestHooks();
 
 /**
- * Un pago que cubre exactamente lo que se asigna a una inscripción: el estado y
- * las cifras salen de esta asignación, no de los snapshots.
+ * A payment covering exactly what is allocated to an inscription: the state and
+ * the figures come from this allocation, not from the snapshots.
  */
 async function seedInscriptionAllocation(input: {
   academyId: string;
@@ -197,8 +197,8 @@ describe.sequential("administracion finanzas academia", () => {
       lastName: "López",
     });
 
-    // Fila de precio ya vencida al 01/06: sigue mandando porque la inscripción
-    // la tiene seleccionada.
+    // A price row already expired as of 01/06: it still rules because the
+    // inscription has it selected.
     const [selectedPrice] = await db
       .insert(prices)
       .values({
@@ -286,8 +286,8 @@ describe.sequential("administracion finanzas academia", () => {
     expect(markup).not.toContain("Monto total pagado");
     expect(markup).not.toContain("Registrar pago");
 
-    // Los pagos se registran desde `/administracion/pagos`, y solo un admin
-    // puede hacerlo.
+    // Payments are recorded from `/administracion/pagos`, and only an admin can
+    // do it.
     const { request: auditorPaymentRequest } = await buildGlobalPaymentRequest({
       academyId: academy.academy.id,
       amount: "25000",
@@ -365,8 +365,8 @@ describe.sequential("administracion finanzas academia", () => {
       loaderData,
     });
 
-    // Cada inscripción sin dinero adeuda su seña (30% de $10.000) y también su
-    // total: una coreografía registrada se adeuda completa.
+    // Every inscription with no money owes its `Seña` (30% of $10,000) and its
+    // total as well: a registered choreography is owed in full.
     expect(loaderData.choreographyFinanceRows).toMatchObject([
       {
         name: "Aire",
@@ -383,8 +383,8 @@ describe.sequential("administracion finanzas academia", () => {
     ]);
     expect(markup).toContain("Lista financiera de las coreografías");
     expect(markup).toContain("Buscar coreografía por nombre");
-    // La lista se selecciona: los presets `Pagar seña` / `Pagar saldo` viven
-    // acá y actúan sobre las coreografías elegidas.
+    // The list is selectable: the `Pagar seña` / `Pagar saldo` presets live here
+    // and act on the chosen choreographies.
     expect(markup).toContain('aria-label="Seleccionar todas las filas"');
     expect(markup).toContain("Nombre");
     expect(markup).toContain("Tipo de grupo");
@@ -400,9 +400,9 @@ describe.sequential("administracion finanzas academia", () => {
     expect(markup).toContain("$ 3.000");
   });
 
-  // Un diálogo sobre una lista no redirige: la vista sigue existiendo y sigue
-  // teniendo sentido, así que el resultado vuelve por `fetcher.data` y el
-  // loader revalidado reconstruye las cifras.
+  // A dialog over a list does not redirect: the view still exists and still makes
+  // sense, so the result comes back via `fetcher.data` and the revalidated loader
+  // rebuilds the figures.
   test("reports the preset in the action data instead of redirecting", async () => {
     const event = await createSavedEvent({ requiredDepositPercentage: 30 });
     const { academy, choreography } =

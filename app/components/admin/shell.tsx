@@ -56,9 +56,9 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 
-// El `Admin` de este archivo no es un prefijo de superficie: nombra al shell de
-// administración, no a un símbolo de dominio sobre esa superficie. Es la
-// excepción declarada de la regla Unmarked = admin, no deuda pendiente. Ver
+// The `Admin` in this file is not a surface prefix: it names the administration
+// shell, not a domain symbol on that surface. It is the declared exception to the
+// Unmarked = admin rule, not outstanding debt. See
 // .sandcastle/CODING_STANDARDS.md § Surface Prefix Rule.
 type AdminShellProps = {
   email: string;
@@ -175,9 +175,9 @@ const financeNavigationItems = [
   },
 ] satisfies SidebarNavigationItem[];
 
-// Cada grupo es un trabajo del administrador, y sus items son los objetos de ese
-// trabajo. Por eso "Academias" aparece dos veces: en Finanzas se mira su saldo,
-// en Accesos se administra la entidad. El grupo desambigua.
+// Each group is one of the administrator's jobs, and its items are that job's
+// objects. That is why "Academias" appears twice: under Finanzas you look at
+// their balance, under Accesos you administer the entity. The group disambiguates.
 const navigationGroups = [
   {
     items: contextNavigationItems,

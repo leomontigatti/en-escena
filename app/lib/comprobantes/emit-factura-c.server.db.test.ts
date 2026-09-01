@@ -58,8 +58,8 @@ function fakeBilling(
     createVoucher: vi.fn(
       async (): Promise<CreateVoucherResultDto> => facturaCAprobada,
     ),
-    // Sólo se consulta cuando la autorización se cae: por defecto ARCA no tiene
-    // ese comprobante.
+    // Only queried when the authorization falls over: by default ARCA does not
+    // have that comprobante.
     getVoucherInfo: vi.fn(
       async (): Promise<VoucherInfoResultDto | null> => null,
     ),
@@ -67,8 +67,8 @@ function fakeBilling(
   };
 }
 
-// Deps de emisión con cliente ARCA mockeado (cero red) y `cbteFch` fija para no
-// depender del reloj.
+// Emission deps with a mocked ARCA client (zero network) and a fixed `cbteFch`,
+// so as not to depend on the clock.
 function emissionDeps(
   billing: ArcaBillingPort,
   timeouts?: ArcaTimeouts,
@@ -83,15 +83,15 @@ function emissionDeps(
   };
 }
 
-// Timeouts en milisegundos para ejercitar el corte real sin fake timers.
+// Timeouts in milliseconds, to exercise the real cut-off without fake timers.
 const FAST_TIMEOUTS: ArcaTimeouts = { lookup: 20, authorization: 20 };
 
 function neverAnswers(): Promise<never> {
   return new Promise<never>(() => {});
 }
 
-// ARCA cortó la comunicación: el SDK no declara clases ni códigos de error, así
-// que una falla de transporte llega como un `Error` cualquiera.
+// ARCA dropped the connection: the SDK declares no error classes or codes, so a
+// transport failure arrives as an ordinary `Error`.
 function connectionLost(): Promise<never> {
   return Promise.reject(new Error("socket hang up"));
 }
@@ -145,8 +145,8 @@ async function seedChoreographyWithInscriptions(
 
 let paymentNumber = 0;
 
-// Registra un cobro efectivo: un `Pago` y su `Asignación de pago` sobre la
-// inscripción. Es la fuente de verdad financiera de la que deriva la factura.
+// Records an actual collection: a `Pago` and its `Asignación de pago` on the
+// inscription. It is the financial source of truth the factura derives from.
 async function allocatePayment(input: {
   academyId: string;
   eventId: string;
@@ -176,7 +176,7 @@ async function allocatePayment(input: {
 }
 
 describe("emitChoreographyFacturaC", () => {
-  test("deriva CbteNro de FECompUltimoAutorizado + 1 y factura lo cobrado", async () => {
+  test("derives CbteNro from FECompUltimoAutorizado + 1 and invoices what was collected", async () => {
     const { academy, choreography, inscriptions } =
       await seedChoreographyWithInscriptions(
         `emision.${crypto.randomUUID()}@example.com`,
@@ -227,7 +227,7 @@ describe("emitChoreographyFacturaC", () => {
     ).toEqual([4000, 6000]);
   });
 
-  test("no re-factura montos ya cubiertos por una factura tipo 11 vigente", async () => {
+  test("does not re-invoice amounts already covered by a live type 11 factura", async () => {
     const { academy, choreography, inscriptions } =
       await seedChoreographyWithInscriptions(
         `parcial.${crypto.randomUUID()}@example.com`,
@@ -240,7 +240,7 @@ describe("emitChoreographyFacturaC", () => {
       inscriptionId: inscription.id,
       amount: 10000,
     });
-    // Ya hay una Factura C vigente que cubrió 6000 de la inscripción.
+    // There is already a Factura C in force covering 6000 of the inscription.
     await recordComprobante({
       choreographyId: choreography.id,
       eventId: choreography.eventId,
@@ -268,7 +268,7 @@ describe("emitChoreographyFacturaC", () => {
     expect(outcome.ok).toBe(true);
     const sent = vi.mocked(deps.billing.createVoucher).mock
       .calls[0][0] as ArcaVoucher;
-    // Sólo el remanente no facturado: 10000 − 6000.
+    // Only the unbilled remainder: 10000 − 6000.
     expect(sent.ImpTotal).toBe(4000);
 
     const comprobantes = await listChoreographyComprobantes(choreography.id);
@@ -277,7 +277,7 @@ describe("emitChoreographyFacturaC", () => {
     expect(nuevo?.lines[0]?.amount).toBe(4000);
   });
 
-  test("no hay nada que facturar cuando lo cobrado ya está cubierto", async () => {
+  test("there is nothing to invoice when what was collected is already covered", async () => {
     const { academy, choreography, inscriptions } =
       await seedChoreographyWithInscriptions(
         `cubierto.${crypto.randomUUID()}@example.com`,
@@ -318,7 +318,7 @@ describe("emitChoreographyFacturaC", () => {
     expect(deps.billing.createVoucher).not.toHaveBeenCalled();
   });
 
-  test("no hay nada que facturar sin cobros", async () => {
+  test("there is nothing to invoice with no payments", async () => {
     const { choreography } = await seedChoreographyWithInscriptions(
       `sincobro.${crypto.randomUUID()}@example.com`,
       1,
@@ -334,7 +334,7 @@ describe("emitChoreographyFacturaC", () => {
     expect(deps.billing.createVoucher).not.toHaveBeenCalled();
   });
 
-  test("un rechazo de ARCA no persiste comprobante ni altera el estado financiero", async () => {
+  test("an ARCA rejection persists no comprobante and does not alter the financial status", async () => {
     const { academy, choreography, inscriptions } =
       await seedChoreographyWithInscriptions(
         `rechazo.${crypto.randomUUID()}@example.com`,
@@ -363,9 +363,9 @@ describe("emitChoreographyFacturaC", () => {
       expect(outcome.arca?.errors[0]?.code).toBe(10016);
     }
 
-    // No se persistió ningún comprobante.
+    // No comprobante was persisted.
     expect(await listChoreographyComprobantes(choreography.id)).toHaveLength(0);
-    // El estado financiero (asignaciones de pago) queda intacto.
+    // The financial state (payment allocations) is left intact.
     const allocations = await db
       .select()
       .from(paymentAllocations)
@@ -374,7 +374,7 @@ describe("emitChoreographyFacturaC", () => {
     expect(allocations[0].amount).toBe(5000);
   });
 
-  test("una factura anulada no cuenta como facturada: su monto vuelve a ser facturable", async () => {
+  test("an annulled factura does not count as invoiced: its amount becomes invoiceable again", async () => {
     const { academy, choreography, inscriptions } =
       await seedChoreographyWithInscriptions(
         `anulada.${crypto.randomUUID()}@example.com`,
@@ -404,7 +404,7 @@ describe("emitChoreographyFacturaC", () => {
       caeVto: "20260710",
       lines: [{ inscriptionId: inscription.id, amount: 7000 }],
     });
-    // Nota de crédito espejo que anula la factura anterior.
+    // Mirror Nota de crédito annulling the previous factura.
     await recordComprobante({
       choreographyId: choreography.id,
       eventId: choreography.eventId,
@@ -436,7 +436,7 @@ describe("emitChoreographyFacturaC", () => {
     expect(sent.ImpTotal).toBe(7000);
   });
 
-  test("congela las fechas de servicio del evento", async () => {
+  test("freezes the event's service dates", async () => {
     const { academy, choreography, inscriptions } =
       await seedChoreographyWithInscriptions(
         `sena.${crypto.randomUUID()}@example.com`,
@@ -456,8 +456,8 @@ describe("emitChoreographyFacturaC", () => {
     );
 
     expect(outcome.ok).toBe(true);
-    // El builder recibe Concepto 2 con el período del evento y el vencimiento en
-    // la fecha del comprobante.
+    // The builder receives Concepto 2 with the event's period and the due date on
+    // the comprobante's date.
     const sent = vi.mocked(deps.billing.createVoucher).mock
       .calls[0][0] as ArcaVoucher;
     expect(sent.Concepto).toBe(2);
@@ -473,7 +473,7 @@ describe("emitChoreographyFacturaC", () => {
     });
   });
 
-  test("una coreografía cobrada completa y nunca facturada emite un solo comprobante", async () => {
+  test("a fully collected, never invoiced choreography emits a single comprobante", async () => {
     const { academy, choreography, inscriptions } =
       await seedChoreographyWithInscriptions(
         `total.${crypto.randomUUID()}@example.com`,
@@ -504,7 +504,7 @@ describe("emitChoreographyFacturaC", () => {
     expect(comprobantes[0]).toMatchObject({ impTotal: 10000 });
   });
 
-  test("cuando el primer cobro ya está facturado, sólo se factura el remanente", async () => {
+  test("when the first payment is already invoiced, only the remainder is invoiced", async () => {
     const { academy, choreography, inscriptions } =
       await seedChoreographyWithInscriptions(
         `saldo.${crypto.randomUUID()}@example.com`,
@@ -517,7 +517,8 @@ describe("emitChoreographyFacturaC", () => {
       inscriptionId: inscription.id,
       amount: 3000,
     });
-    // La seña ya fue facturada por una Factura C vigente que cubrió el depósito.
+    // The `Seña` was already billed by a Factura C in force that covered the
+    // deposit.
     await recordComprobante({
       choreographyId: choreography.id,
       eventId: choreography.eventId,
@@ -535,7 +536,7 @@ describe("emitChoreographyFacturaC", () => {
       caeVto: "20260710",
       lines: [{ inscriptionId: inscription.id, amount: 3000 }],
     });
-    // Entra el cobro del saldo.
+    // The balance payment comes in.
     await allocatePayment({
       academyId: academy.id,
       eventId: choreography.eventId,
@@ -556,7 +557,7 @@ describe("emitChoreographyFacturaC", () => {
     expect(nuevo).toMatchObject({ impTotal: 7000 });
   });
 
-  test("emite el remanente de una inscripción aunque otra tenga su línea facturada huérfana", async () => {
+  test("emits one inscription's remainder even when another has an orphaned invoiced line", async () => {
     // The state `porcion` used to block: A's allocation is deleted after its
     // line was billed, so the aggregate billed (3000) exceeds the aggregate
     // collected (1000) while B still has a remainder. The remainder is resolved
@@ -623,7 +624,7 @@ describe("emitChoreographyFacturaC", () => {
     expect(nuevo?.lines.map((line) => line.amount)).toEqual([1000]);
   });
 
-  test("reimputar un pago después de emitir no altera las fechas congeladas", async () => {
+  test("reallocating a payment after emission does not alter the frozen dates", async () => {
     const { academy, choreography, inscriptions } =
       await seedChoreographyWithInscriptions(
         `congela.${crypto.randomUUID()}@example.com`,
@@ -668,7 +669,7 @@ describe("emitChoreographyFacturaC", () => {
     });
   });
 
-  test("rechaza una coreografía inexistente o de otro evento", async () => {
+  test("rejects a choreography that does not exist or belongs to another event", async () => {
     const { choreography } = await seedChoreographyWithInscriptions(
       `evento.${crypto.randomUUID()}@example.com`,
       1,
@@ -685,12 +686,12 @@ describe("emitChoreographyFacturaC", () => {
   });
 });
 
-// ARCA no responde (ADR-0012): la falla se clasifica por fase y, si se cortó
-// autorizando, el servidor resuelve la ambigüedad consultando el comprobante
-// exacto que intentó emitir.
-describe("emitChoreographyFacturaC (ARCA no responde)", () => {
-  // Coreografía con 5000 cobrados y nada facturado: el correlativo a intentar es
-  // el 43 (`ultimoAutorizado` = 42).
+// ARCA does not respond (ADR-0012): the failure is classified by phase and, if
+// it was cut off while authorizing, the server resolves the ambiguity by
+// querying the exact comprobante it tried to emit.
+describe("emitChoreographyFacturaC (ARCA does not respond)", () => {
+  // A choreography with 5000 collected and nothing billed: the sequence number
+  // to attempt is 43 (`ultimoAutorizado` = 42).
   async function seedCobrado(prefix: string) {
     const { academy, choreography, inscriptions } =
       await seedChoreographyWithInscriptions(
@@ -706,7 +707,7 @@ describe("emitChoreographyFacturaC (ARCA no responde)", () => {
     return choreography;
   }
 
-  // `FECompConsultar` de la Factura C 43 tal como ARCA la registró.
+  // `FECompConsultar` for Factura C 43 as ARCA recorded it.
   function consultada(
     overrides: Partial<VoucherInfoResultDto> = {},
   ): VoucherInfoResultDto {
@@ -734,7 +735,7 @@ describe("emitChoreographyFacturaC (ARCA no responde)", () => {
     return { deps, outcome };
   }
 
-  test("cortada la consulta del correlativo, no se emitió nada y no se consulta a ARCA", async () => {
+  test("with the sequence lookup cut off, nothing was emitted and ARCA is not queried", async () => {
     const choreography = await seedCobrado("lookup");
 
     const { deps, outcome } = await emitWith(
@@ -745,12 +746,12 @@ describe("emitChoreographyFacturaC (ARCA no responde)", () => {
 
     expect(outcome).toMatchObject({ ok: false, reason: "not-emitted" });
     expect(deps.billing.createVoucher).not.toHaveBeenCalled();
-    // Nada que consultar: no se pidió autorizar ningún comprobante.
+    // Nothing to query: no comprobante was asked to be authorized.
     expect(deps.billing.getVoucherInfo).not.toHaveBeenCalled();
     expect(await listChoreographyComprobantes(choreography.id)).toHaveLength(0);
   });
 
-  test("el timeout de la consulta del correlativo cuenta como falla de comunicación", async () => {
+  test("a sequence lookup timeout counts as a communication failure", async () => {
     const choreography = await seedCobrado("lookup-timeout");
 
     const { outcome } = await emitWith(
@@ -763,7 +764,7 @@ describe("emitChoreographyFacturaC (ARCA no responde)", () => {
     expect(outcome).toMatchObject({ ok: false, reason: "not-emitted" });
   });
 
-  test("cortada la autorización, consulta el comprobante exacto y lo persiste con el CAE que ARCA devuelve", async () => {
+  test("with authorization cut off, it queries the exact comprobante and persists it with the CAE ARCA returns", async () => {
     const choreography = await seedCobrado("recuperado");
 
     const { deps, outcome } = await emitWith(
@@ -775,9 +776,9 @@ describe("emitChoreographyFacturaC (ARCA no responde)", () => {
       }),
     );
 
-    // Se consulta el punto de venta, tipo y correlativo que se intentó emitir.
+    // The sales point, type and sequence number that were attempted get queried.
     expect(deps.billing.getVoucherInfo).toHaveBeenCalledWith(43, 1, 11);
-    // El CAE salió de la consulta, no de la autorización.
+    // The CAE came from the lookup, not from the authorization.
     expect(outcome).toMatchObject({ ok: true, recovered: true });
 
     const [persisted] = await listChoreographyComprobantes(choreography.id);
@@ -793,7 +794,7 @@ describe("emitChoreographyFacturaC (ARCA no responde)", () => {
     expect(persisted.lines).toHaveLength(1);
   });
 
-  test("el timeout de autorización también dispara la recuperación", async () => {
+  test("an authorization timeout also triggers recovery", async () => {
     const choreography = await seedCobrado("auth-timeout");
 
     const { deps, outcome } = await emitWith(
@@ -811,7 +812,7 @@ describe("emitChoreographyFacturaC (ARCA no responde)", () => {
     expect(await listChoreographyComprobantes(choreography.id)).toHaveLength(1);
   });
 
-  test("si ARCA no tiene ese comprobante, no se emitió nada y reintentar es seguro", async () => {
+  test("if ARCA does not have that comprobante, nothing was emitted and retrying is safe", async () => {
     const choreography = await seedCobrado("sin-comprobante");
 
     const { outcome } = await emitWith(
@@ -827,11 +828,11 @@ describe("emitChoreographyFacturaC (ARCA no responde)", () => {
     expect(await listChoreographyComprobantes(choreography.id)).toHaveLength(0);
   });
 
-  // Mismo "ARCA no lo tiene" que el test anterior, pero llegando por timeout en
-  // lugar de por caída de la conexión: la autorización sigue en vuelo, así que la
-  // respuesta puede ser sólo "todavía no". Habilitar el reintento acá es lo que
-  // emitiría un segundo comprobante por el mismo monto.
-  test("si la autorización venció por timeout, que ARCA no lo tenga no habilita el reintento", async () => {
+  // The same "ARCA does not have it" as the previous test, but arriving by
+  // timeout instead of by a dropped connection: the authorization is still in
+  // flight, so the answer may be just "not yet". Enabling the retry here is what
+  // would emit a second comprobante for the same amount.
+  test("if authorization timed out, ARCA not having it does not enable a retry", async () => {
     const choreography = await seedCobrado("timeout-sin-comprobante");
 
     const { outcome } = await emitWith(
@@ -852,7 +853,7 @@ describe("emitChoreographyFacturaC (ARCA no responde)", () => {
     expect(await listChoreographyComprobantes(choreography.id)).toHaveLength(0);
   });
 
-  test("si la consulta también falla, el resultado es no verificado y lleva el comprobante que no pudo resolver", async () => {
+  test("if the lookup fails too, the result is unverified and carries the comprobante it could not resolve", async () => {
     const choreography = await seedCobrado("no-verificado");
 
     const { outcome } = await emitWith(
@@ -872,9 +873,9 @@ describe("emitChoreographyFacturaC (ARCA no responde)", () => {
     expect(await listChoreographyComprobantes(choreography.id)).toHaveLength(0);
   });
 
-  // Los correlativos no se reservan: un comprobante con el número que intentamos
-  // no es necesariamente el nuestro (ADR-0012 decisión 4).
-  test("un comprobante consultado con otro importe no es el nuestro: no se persiste", async () => {
+  // Sequence numbers are not reserved: a comprobante carrying the number we
+  // attempted is not necessarily ours (ADR-0012 decision 4).
+  test("a queried comprobante with a different amount is not ours: it is not persisted", async () => {
     const choreography = await seedCobrado("otro-importe");
 
     const { outcome } = await emitWith(
@@ -890,7 +891,7 @@ describe("emitChoreographyFacturaC (ARCA no responde)", () => {
     expect(await listChoreographyComprobantes(choreography.id)).toHaveLength(0);
   });
 
-  test("un comprobante consultado con otra fecha tampoco es el nuestro", async () => {
+  test("a queried comprobante with a different date is not ours either", async () => {
     const choreography = await seedCobrado("otra-fecha");
 
     const { outcome } = await emitWith(
@@ -921,7 +922,7 @@ describe("emitChoreographyFacturaC (ARCA no responde)", () => {
       return { deps, outcome };
     }
 
-    test("el comprobante aparece en ARCA: se persiste con ese CAE y sin volver a autorizar", async () => {
+    test("the comprobante shows up in ARCA: it is persisted with that CAE and without authorizing again", async () => {
       const choreography = await seedCobrado("recheck-recuperado");
 
       const { deps, outcome } = await recheckWith(
@@ -931,8 +932,8 @@ describe("emitChoreographyFacturaC (ARCA no responde)", () => {
       );
 
       expect(deps.billing.getVoucherInfo).toHaveBeenCalledWith(43, 1, 11);
-      // Es la única salida que persiste un comprobante recuperado: verificar a
-      // mano en el portal deja al operador sin nada que hacer con el dato.
+      // It is the only exit that persists a recovered comprobante: checking by
+      // hand in the portal leaves the operator with nothing to do with the fact.
       expect(outcome).toMatchObject({ ok: true, recovered: true });
       expect(deps.billing.createVoucher).not.toHaveBeenCalled();
 
@@ -945,10 +946,10 @@ describe("emitChoreographyFacturaC (ARCA no responde)", () => {
       });
     });
 
-    // El importe con el que se valida sale del facturable de la coreografía, no
-    // del form: un `cbteNro` adulterado o viejo no puede forzar la persistencia
-    // de un CAE ajeno (ADR-0012 decisión 4).
-    test("el importe lo recalcula el server: si el consultado no coincide, sigue sin verificar", async () => {
+    // The amount it is validated against comes from the choreography's billable,
+    // not from the form: a tampered or stale `cbteNro` cannot force somebody
+    // else's CAE to be persisted (ADR-0012 decision 4).
+    test("the server recomputes the amount: if the queried one does not match, it stays unverified", async () => {
       const choreography = await seedCobrado("recheck-otro-importe");
 
       const { outcome } = await recheckWith(
@@ -965,9 +966,9 @@ describe("emitChoreographyFacturaC (ARCA no responde)", () => {
       );
     });
 
-    // Sólo puede probar el positivo: nadie midió cuánto puede vivir una petición
-    // del lado de ARCA, así que un `null` nunca asciende a `not-emitted`.
-    test("si ARCA sigue sin tenerlo, se queda en no verificado y nunca en no emitido", async () => {
+    // It can only prove the positive: nobody has measured how long a request can
+    // live on ARCA's side, so a `null` never gets promoted to `not-emitted`.
+    test("if ARCA still does not have it, it stays unverified and never becomes not emitted", async () => {
       const choreography = await seedCobrado("recheck-sin-comprobante");
 
       const { outcome } = await recheckWith(
@@ -987,7 +988,7 @@ describe("emitChoreographyFacturaC (ARCA no responde)", () => {
     });
   });
 
-  test("un rechazo de ARCA sigue siendo un rechazo, distinguible de una falla de comunicación", async () => {
+  test("an ARCA rejection is still a rejection, distinguishable from a communication failure", async () => {
     const choreography = await seedCobrado("rechazo-vs-contingencia");
 
     const { deps, outcome } = await emitWith(
@@ -997,13 +998,13 @@ describe("emitChoreographyFacturaC (ARCA no responde)", () => {
     );
 
     expect(outcome).toMatchObject({ ok: false, reason: "rejected" });
-    // ARCA respondió: no hay nada que consultar.
+    // ARCA responded: there is nothing to query.
     expect(deps.billing.getVoucherInfo).not.toHaveBeenCalled();
   });
 });
 
 describe("readFacturaCEmissionConfig", () => {
-  test("lee el punto de venta, el CUIT emisor y la condición IVA del receptor", () => {
+  test("reads the point of sale, the issuer CUIT and the recipient's VAT condition", () => {
     const config = readFacturaCEmissionConfig({
       ARCA_PTOVTA: "1",
       ARCA_CUIT: "30717611590",
@@ -1017,7 +1018,7 @@ describe("readFacturaCEmissionConfig", () => {
     });
   });
 
-  test("rechaza un punto de venta no entero positivo", () => {
+  test("rejects a point of sale that is not a positive integer", () => {
     expect(() =>
       readFacturaCEmissionConfig({
         ARCA_PTOVTA: "0",
@@ -1027,7 +1028,7 @@ describe("readFacturaCEmissionConfig", () => {
     ).toThrow(/ARCA_PTOVTA/);
   });
 
-  test("exige el CUIT del emisor", () => {
+  test("requires the issuer's CUIT", () => {
     expect(() =>
       readFacturaCEmissionConfig({
         ARCA_PTOVTA: "1",

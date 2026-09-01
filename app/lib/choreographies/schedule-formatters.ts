@@ -23,13 +23,13 @@ export function formatScheduleDateTime(input: ScheduleDateTimeInput) {
 }
 
 /**
- * La ocupación se compone como sufijo y solo donde se arman *opciones*: el
- * mismo `formatScheduleDateTime` rotula el cronograma ya asignado, donde
- * decir cuántos lugares quedan no significa nada.
+ * Occupancy is composed as a suffix and only where *options* are built: the same
+ * `formatScheduleDateTime` labels the already assigned schedule, where saying how
+ * many places are left means nothing.
  *
- * Un cupo puede verse con lugar y estar lleno igual porque el cronograma que
- * lo contiene se agotó, así que "sin cupo" se agrega aparte de la cuenta en
- * lugar de deducirse de ella.
+ * A capacity can look like it has room and be full anyway because the schedule
+ * containing it is exhausted, so "sin cupo" is appended separately from the count
+ * rather than deduced from it.
  */
 export function appendScheduleOccupancySuffix(
   label: string,

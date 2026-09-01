@@ -103,11 +103,11 @@ export function PortalChoreographyFinanceDetailRouteView({
 }
 
 /**
- * Estilo de columna, decorativo y sin condición. Ninguna cifra es provisoria, así
- * que no queda nada que atenuar por fila: `Total` va atenuada entera por ser la
- * columna de contexto —contra qué se mide lo adeudado, que la academia lee en su
- * propia métrica arriba—, y un gris que variara por fila volvería a significar
- * algo.
+ * Column styling, decorative and unconditional. No figure is provisional, so
+ * there is nothing left to mute per row: the whole of `Total` is muted because it
+ * is the context column — what the debt is measured against, which the academy
+ * reads in its own metric above — and a grey that varied per row would go back to
+ * meaning something.
  */
 const amountColumnClassName = "text-right tabular-nums";
 const totalColumnClassName = "text-right tabular-nums text-muted-foreground";

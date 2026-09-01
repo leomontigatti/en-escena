@@ -37,19 +37,19 @@ export const loginNotices = {
 } satisfies Record<LoginRedirectReason, LoginNotice>;
 
 /**
- * Aviso para quien existe como usuario pero todavía no tiene una credencial con
- * la que ingresar (#491). Pasa con las cuentas que venían de Supabase Auth: la
- * migración no trajo las contraseñas, así que hay que elegir una nueva. El
- * mensaje evita hablar de la migración a propósito — envejece mal y al usuario
- * le sirve más saber qué hacer que por qué pasó.
+ * A notice for someone who exists as a user but does not yet have a credential to
+ * sign in with (#491). It happens with the accounts that came from Supabase Auth:
+ * the migration did not bring the passwords across, so a new one has to be
+ * chosen. The message deliberately avoids mentioning the migration — it ages
+ * badly, and the user is better served knowing what to do than why it happened.
  */
 export const passwordResetRequiredMessage =
   "Necesitás crear una contraseña nueva para ingresar. Usá «Recuperala» acá abajo.";
 
 /**
- * Los usuarios internos no tienen recuperación self-service: el gate de
- * `isEligibleAcademyRecoveryEmail` sólo deja pasar academias, así que mandarlos
- * a «Recuperala» los deja golpeando una puerta cerrada.
+ * Internal users have no self-service recovery: the `isEligibleAcademyRecoveryEmail`
+ * gate only lets academies through, so sending them to «Recuperala» leaves them
+ * knocking on a closed door.
  */
 export const internalPasswordResetRequiredMessage =
   "Necesitás una contraseña nueva para ingresar. Pedile a un administrador que te la restablezca.";

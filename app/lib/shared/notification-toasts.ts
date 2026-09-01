@@ -190,10 +190,10 @@ export const notificationToasts = {
   },
   "comprobante-recuperado": {
     id: notificationToastIds["comprobante-recuperado"],
-    // La emisión se vio fallar durante hasta 45 segundos y terminó bien: pasar a
-    // "listo" sin decir nada se lee como un glitch (ADR-0012). No trae acción
-    // pendiente —el comprobante quedó autorizado y registrado—, así que un toast
-    // alcanza.
+    // The emission was seen failing for up to 45 seconds and then finished fine:
+    // switching to "done" without saying anything reads as a glitch (ADR-0012). It
+    // carries no pending action — the comprobante ended up authorized and on
+    // record — so a toast is enough.
     message:
       "El comprobante ya estaba autorizado en ARCA. Lo recuperamos y quedó registrado.",
     variant: "success",

@@ -7,12 +7,12 @@ import { cn } from "@/lib/shared/utils";
 type MetricCardProps = {
   title: string;
   value: string;
-  // Slot opcional (badge) que se muestra junto al título (ADR-0011). Sin slot, la
-  // card muestra sólo título y valor.
+  // An optional slot (a badge) shown next to the title (ADR-0011). Without a
+  // slot, the card shows only the title and the value.
   slot?: ReactNode;
-  // Si se provee, la card entera es un link a ese destino, con el mismo hover y
-  // foco que las tarjetas del panel (HomeAccessCard). `linkLabel` nombra el link
-  // para lectores de pantalla.
+  // When provided, the whole card is a link to that destination, with the same
+  // hover and focus as the panel's cards (HomeAccessCard). `linkLabel` names the
+  // link for screen readers.
   to?: string;
   linkLabel?: string;
 };

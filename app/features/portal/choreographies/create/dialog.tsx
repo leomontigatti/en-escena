@@ -248,11 +248,10 @@ function CreateChoreographyStepContent({
 }
 
 /**
- * El registro crea, no corrige: si ningún cupo compatible tiene lugar, un
- * select con todo deshabilitado es un callejón sin salida sin explicación, así
- * que en su lugar se dice por qué. El rechazo del servidor al confirmar sigue
- * siendo la garantía: la ocupación es una foto que corre carrera con cualquier
- * otro registro.
+ * Registration creates, it does not correct: if no compatible capacity has room,
+ * a select with everything disabled is a dead end without an explanation, so it
+ * says why instead. The server's rejection on confirmation remains the guarantee:
+ * occupancy is a snapshot that races with any other registration.
  */
 export function CreateChoreographyScheduleStep({
   control,

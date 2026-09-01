@@ -30,14 +30,14 @@ describe("AdminShell", () => {
     expect(markup).not.toContain("Facturas");
     expect(markup).not.toContain('href="/administracion/facturas"');
 
-    // Cada grupo es un trabajo del administrador.
+    // Each group is one of the administrator's jobs.
     expect(markup).toContain("Operación");
     expect(markup).toContain("Finanzas");
     expect(markup).toContain("Bases");
     expect(markup).toContain("Accesos");
 
-    // El orden se verifica por href porque el label no es único: "Academias"
-    // aparece en Finanzas (su saldo) y en Accesos (la entidad).
+    // The order is verified by href because the label is not unique: "Academias"
+    // appears under Finanzas (their balance) and under Accesos (the entity).
     const orderedHrefs = [
       "/administracion/eventos",
       "/administracion/coreografias",

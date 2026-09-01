@@ -28,9 +28,9 @@ import {
 
 type ComprobanteRow = Awaited<ReturnType<typeof recordComprobante>>;
 
-// La anulación reutiliza los mismos insumos de emisión que la Factura C: el
-// cliente ARCA (mockeable), el punto de venta, el CUIT emisor y la condición IVA
-// del receptor. La Nota de crédito corre por su propia serie de correlativos.
+// Annulment reuses the same emission inputs as the Factura C: the ARCA client
+// (mockable), the sales point, the issuer CUIT and the recipient's VAT
+// condition. The Nota de crédito runs on its own sequence series.
 export type NotaCreditoEmissionInput = {
   comprobanteId: string;
 };
@@ -40,55 +40,56 @@ export type NotaCreditoEmissionFailureReason =
   | "already-annulled"
   // ARCA respondió y no autorizó.
   | "rejected"
-  // ARCA no respondió y quedó establecido que no se emitió nada: reintentar es
-  // seguro (ADR-0012 decisión 6).
+  // ARCA did not respond and it was established that nothing was emitted:
+  // retrying is safe (ADR-0012 decision 6).
   | "not-emitted"
-  // ARCA no respondió y la consulta posterior tampoco resolvió qué pasó.
+  // ARCA did not respond and the follow-up lookup did not resolve what happened.
   | "unverified";
 
 export type NotaCreditoEmissionOutcome =
   | {
       ok: true;
       notaCredito: ComprobanteRow;
-      // El CAE se recuperó consultando a ARCA después de una autorización sin
-      // respuesta, en lugar de venir de `FECAESolicitar` (#577).
+      // The CAE was recovered by querying ARCA after an authorization with no
+      // response, instead of coming from `FECAESolicitar` (#577).
       recovered: boolean;
     }
   | {
       ok: false;
       reason: NotaCreditoEmissionFailureReason;
       message: string;
-      // Presente sólo en un rechazo de ARCA.
+      // Present only on a rejection from ARCA.
       arca?: {
         resultado: string | null;
         errors: ArcaMessage[];
         observaciones: ArcaMessage[];
       };
-      // Presente sólo en `unverified`: la nota de crédito que no se pudo resolver.
+      // Present only on `unverified`: the nota de crédito that could not be
+      // resolved.
       attempt?: ArcaAttemptedVoucher;
     };
 
 /**
- * Anula un comprobante emitiendo su Nota de crédito C espejo (`CbteTipo` 13,
- * #328). La Nota de crédito es total-only: replica el importe y las líneas
- * internas del comprobante que anula y lo referencia vía `CbtesAsoc`
- * (`associatedComprobanteId`). Se admiten cadenas ilimitadas de asociación: la
- * fila anulada nunca se borra ni se muta, así que su remanente cobrado vuelve a
- * ser facturable y puede re-facturarse y re-anularse indefinidamente.
+ * Annuls a comprobante by emitting its mirror Nota de crédito C (`CbteTipo` 13,
+ * #328). The Nota de crédito is total-only: it replicates the amount and the
+ * internal lines of the comprobante it annuls and references it via `CbtesAsoc`
+ * (`associatedComprobanteId`). Unlimited association chains are allowed: the
+ * annulled row is never deleted or mutated, so its collected remainder becomes
+ * billable again and can be re-billed and re-annulled indefinitely.
  *
- * El `CbteNro` de la Nota de crédito se deriva de su propio
- * `FECompUltimoAutorizado + 1` (serie tipo 13). Sólo un CAE aprobado persiste la
- * Nota de crédito; un rechazo de ARCA no persiste nada y deja el comprobante
- * original intacto y vigente.
+ * The Nota de crédito's `CbteNro` is derived from its own
+ * `FECompUltimoAutorizado + 1` (the type 13 series). Only an approved CAE
+ * persists the Nota de crédito; a rejection from ARCA persists nothing and
+ * leaves the original comprobante intact and in force.
  *
- * Si ARCA no responde, la falla se clasifica por fase igual que la emisión
- * (ADR-0012), contra la serie tipo 13: cortada la consulta del correlativo no se
- * anuló nada; cortada la autorización se consulta a ARCA por esa Nota de crédito
- * exacta y, si aparece y coincide con lo enviado, se persiste con ese CAE —la
- * única excepción a la invariante de que una contingencia no persiste nada—. Si
- * la consulta falla, devuelve otra, o no la encuentra pero la autorización venció
- * por timeout —y entonces sigue en vuelo—, el resultado es `unverified` y no se
- * persiste nada.
+ * If ARCA does not respond, the failure is classified by phase exactly as
+ * emission is (ADR-0012), against the type 13 series: if the sequence-number
+ * lookup was cut off, nothing was annulled; if the authorization was cut off,
+ * ARCA is queried for that exact Nota de crédito and, if it shows up and matches
+ * what was sent, it is persisted with that CAE — the one exception to the
+ * invariant that a contingency persists nothing. If the lookup fails, returns a
+ * different one, or does not find it but the authorization timed out — and so is
+ * still in flight — the result is `unverified` and nothing is persisted.
  */
 export async function annulComprobante(
   input: NotaCreditoEmissionInput,
@@ -104,10 +105,10 @@ export async function annulComprobante(
 }
 
 /**
- * Re-verifica contra ARCA una anulación que quedó sin resolver (#577), para el
- * correlativo que el diálogo trae del intento anterior. El importe con el que se
- * valida el comprobante consultado sale del comprobante que se está anulando, no
- * del form (ADR-0012 decisión 4).
+ * Re-verifies against ARCA an annulment left unresolved (#577), for the sequence
+ * number the dialog carries over from the previous attempt. The amount the
+ * queried comprobante is validated against comes from the comprobante being
+ * annulled, not from the form (ADR-0012 decision 4).
  */
 export async function recheckComprobanteAnnulment(
   input: NotaCreditoEmissionInput & { cbteNro: number },
@@ -168,7 +169,7 @@ async function resolveNotaCreditoChoreography(
     ptoVta: deps.ptoVta,
     cbteTipo: NOTA_CREDITO_C_CBTE_TIPO,
     cbteFch: deps.cbteFch,
-    // Espejo total-only: mismo importe que el comprobante anulado.
+    // Total-only mirror: the same amount as the annulled comprobante.
     impTotal: target.impTotal,
     getLastNumber: () => deps.client.getLastNotaCreditoCNumber(deps.ptoVta),
     emit: (request) =>
@@ -179,11 +180,12 @@ async function resolveNotaCreditoChoreography(
         importe: target.impTotal,
         condicionIvaReceptorId: deps.receptorIvaConditionId,
         emisorCuit: deps.issuerCuit,
-        // La NC reenvía las fechas de servicio del comprobante que anula. La emisión
-        // es siempre Concepto 2 (servicios, regla de negocio), y ARCA exige
-        // `FchServ*`/`FchVtoPago` para Concepto 2: sin reenviarlas la NC salía sin
-        // fechas → rechazo 10049. Los comprobantes reales siempre las tienen; sólo un
-        // seed viejo de la base de test quedó sin fechas (Concepto 1, pre-fix).
+        // The NC forwards the service dates of the comprobante it annuls.
+        // Emission is always Concepto 2 (services, a business rule), and ARCA
+        // requires `FchServ*`/`FchVtoPago` for Concepto 2: without forwarding them
+        // the NC went out with no dates → rejection 10049. Real comprobantes
+        // always have them; only an old seed in the test database was left
+        // without dates (Concepto 1, pre-fix).
         fchServDesde: target.fchServDesde ?? undefined,
         fchServHasta: target.fchServHasta ?? undefined,
         fchVtoPago: target.fchVtoPago ?? undefined,
@@ -211,7 +213,7 @@ async function resolveNotaCreditoChoreography(
         cae: authorized.cae,
         caeVto: authorized.caeVto,
         associatedComprobanteId: target.id,
-        // Réplica de las líneas internas del comprobante anulado, congeladas.
+        // Replica of the annulled comprobante's internal lines, frozen.
         lines: target.lines.map((line) => ({
           inscriptionId: line.inscriptionId,
           amount: line.amount,
@@ -222,9 +224,9 @@ async function resolveNotaCreditoChoreography(
   return { ok: true, choreography };
 }
 
-// Carga el comprobante objetivo con su estado derivado y sus líneas internas. El
-// estado se deriva sobre el conjunto de su coreografía ancla, que es
-// autocontenido (la Nota de crédito espejo se ancla a la misma coreografía).
+// Loads the target comprobante with its derived state and its internal lines.
+// The state is derived over the set of its anchor choreography, which is
+// self-contained (the mirror Nota de crédito anchors to the same choreography).
 async function loadComprobanteWithStatus(
   comprobanteId: string,
 ): Promise<ComprobanteWithLines | null> {

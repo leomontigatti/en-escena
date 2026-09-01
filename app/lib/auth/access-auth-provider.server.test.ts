@@ -28,9 +28,9 @@ describe("accessAuthProvider", () => {
     createBetterAuthAccessAuthProvider.mockReset();
   });
 
-  // Forward-only, sin flag (#266/#422): el selector resuelve a Better Auth
-  // siempre, sin ramificar por modo de test. Las ramas Supabase de los internos
-  // se retiran en #423.
+  // Forward-only, with no flag (#266/#422): the selector resolves to Better Auth
+  // always, without branching on test mode. The internal users' Supabase branches
+  // are retired in #423.
   test("uses the Better Auth adapter once, without branching on test mode", async () => {
     createBetterAuthAccessAuthProvider.mockReturnValue(betterAuthAdapter);
 

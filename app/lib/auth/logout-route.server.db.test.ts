@@ -70,8 +70,8 @@ describe("logout route", () => {
     );
   });
 
-  // Shim de migración (#582): el logout también expira toda cookie `sb-*` que
-  // haya quedado de la época de Supabase Auth, para no dejar sesión parcial.
+  // A migration shim (#582): logout also expires any `sb-*` cookie left over from
+  // the Supabase Auth era, so no partial session is left behind.
   test("POST expires legacy sb-* cookies alongside the session cookie", async () => {
     await createVerifiedCredentialUser("salir-sb@example.com");
     const signedInResponse = await expectThrownResponse(

@@ -68,8 +68,8 @@ export async function loader({ request }: Route.LoaderArgs) {
     return data({ flashToast: null });
   }
 
-  // Consumir la cookie flash (one-time): el `Set-Cookie` que devuelve el lector
-  // la limpia, así el toast aparece una sola vez y no reaparece al recargar.
+  // Consume the flash cookie (one-time): the `Set-Cookie` the reader returns
+  // clears it, so the toast appears once and does not come back on a reload.
   return data(
     { flashToast: flash.toast },
     { headers: { "set-cookie": flash.setCookieHeader } },
@@ -97,8 +97,8 @@ function FlashToast({ toast }: { toast: ToastMessage | null }) {
     window.setTimeout(() => {
       showToastMessage(toast);
     }, 0);
-    // Se dispara una sola vez por mensaje flash: la cookie ya se consumió en el
-    // loader, así que una revalidación posterior devuelve `flashToast: null`.
+    // It fires exactly once per flash message: the cookie was already consumed in
+    // the loader, so a later revalidation returns `flashToast: null`.
   }, [toast, toastId]);
 
   return null;

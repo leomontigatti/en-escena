@@ -16,11 +16,11 @@ installDatabaseTestHooks();
 
 const CREDENTIAL_PROVIDER_ID = "credential";
 
-// La cobertura del handler HTTP va en el test real contra PGlite (no bajo
-// `app/routes/`, que flatRoutes tomaría como ruta y rompería el build). Estos
-// tests golpean `auth.api` / `auth.handler` con la tabla real.
+// Coverage of the HTTP handler goes in the real test against PGlite (not under
+// `app/routes/`, which flatRoutes would take as a route and break the build).
+// These tests hit `auth.api` / `auth.handler` with the real table.
 describe("provider Better Auth", () => {
-  test("registra credencial con hash scrypt y abre sesión de 8 h", async () => {
+  test("registers a credential with a scrypt hash and opens an 8 h session", async () => {
     const { headers } = await signUp({
       email: "alta@example.com",
       password: "password-segura",
@@ -38,7 +38,7 @@ describe("provider Better Auth", () => {
       ),
     });
     expect(credential?.password).toBeTruthy();
-    // Hash scrypt nativo de Better Auth: nunca la contraseña en claro.
+    // Better Auth's native scrypt hash: never the password in the clear.
     expect(credential?.password).not.toContain("password-segura");
 
     const session = await getBetterAuthAccessSession(
@@ -53,11 +53,11 @@ describe("provider Better Auth", () => {
     });
     const ttlMs =
       savedSession!.expiresAt.getTime() - savedSession!.createdAt.getTime();
-    // 8 h de vida, con margen por el redondeo del reloj.
+    // An 8 h lifetime, with margin for clock rounding.
     expect(Math.round(ttlMs / 1000)).toBe(8 * 60 * 60);
   });
 
-  test("inicia sesión con la contraseña correcta y rechaza la incorrecta", async () => {
+  test("signs in with the correct password and rejects the wrong one", async () => {
     await signUp({ email: "login@example.com", password: "password-segura" });
 
     const { headers, response } = await auth.api.signInEmail({
@@ -96,7 +96,7 @@ describe("provider Better Auth", () => {
     expect(afterSignOut).toBeNull();
   });
 
-  test("expone el token de reset por la tabla verification y lo aplica", async () => {
+  test("exposes the reset token through the verification table and applies it", async () => {
     const { response } = await signUp({
       email: "reset@example.com",
       password: "password-vieja",
@@ -141,9 +141,9 @@ async function signUp(input: { email: string; password: string }) {
   });
 }
 
-// Reconstruye un Request con las cookies que Better Auth setea en `headers`.
-// Fusiona opcionalmente con las cookies de un request previo para simular el
-// navegador (p. ej. la cookie de sesión ya presente al cerrar sesión).
+// Rebuilds a Request with the cookies Better Auth sets in `headers`. It
+// optionally merges them with a previous request's cookies to simulate the
+// browser (e.g. the session cookie already present at sign-out).
 function requestWithCookies(headers: Headers, previous?: Request) {
   const cookies = new Map<string, string>();
 

@@ -4,13 +4,13 @@ import type {
   VoucherInfoResultDto,
 } from "@arcasdk/core";
 
-// Fixtures con la forma real de las respuestas de homologación de WSFEv1,
-// tomadas del circuito validado por el spike #428 y de los ejemplos oficiales
-// del manual WSFEv1 documentados en la research #321. Ningún test toca la red:
-// se ejercita el wrapper contra estas respuestas ya deserializadas por el SDK.
+// Fixtures with the real shape of WSFEv1's homologación responses, taken from
+// the circuit validated by spike #428 and from the official examples in the
+// WSFEv1 manual documented in research #321. No test touches the network: the
+// wrapper is exercised against these responses, already deserialized by the SDK.
 
-// `FECAESolicitar` aprobado: ARCA devuelve CAE + vencimiento. CAE/CbteFch del
-// ejemplo oficial del manual (§4.2 de la research #321).
+// `FECAESolicitar` approved: ARCA returns CAE + expiry. CAE/CbteFch from the
+// official example in the manual (§4.2 of research #321).
 export const facturaCAprobada: CreateVoucherResultDto = {
   cae: "41124578989845",
   caeFchVto: "20260801",
@@ -42,8 +42,8 @@ export const facturaCAprobada: CreateVoucherResultDto = {
   },
 };
 
-// Aprobado *con* observaciones: el comprobante queda autorizado (hay CAE) pero
-// ARCA adjunta un `Obs {Code, Msg}` que conviene auditar (§4.3).
+// Approved *with* observations: the comprobante ends up authorized (there is a
+// CAE) but ARCA attaches an `Obs {Code, Msg}` worth auditing (§4.3).
 export const facturaCAprobadaConObservaciones: CreateVoucherResultDto = {
   cae: "71234567890123",
   caeFchVto: "20260801",
@@ -72,8 +72,8 @@ export const facturaCAprobadaConObservaciones: CreateVoucherResultDto = {
   },
 };
 
-// `FECAESolicitar` rechazado: sin CAE, `Resultado` "R" y un `Err {Code, Msg}` que
-// explica el motivo del rechazo.
+// `FECAESolicitar` rejected: no CAE, `Resultado` "R" and an `Err {Code, Msg}`
+// explaining the reason for the rejection.
 export const facturaCRechazada: CreateVoucherResultDto = {
   cae: "",
   caeFchVto: "",
@@ -107,22 +107,22 @@ export const facturaCRechazada: CreateVoucherResultDto = {
   },
 };
 
-// `FECompUltimoAutorizado` con historia: el punto de venta ya emitió hasta el 42.
+// `FECompUltimoAutorizado` with history: the sales point has emitted up to 42.
 export const ultimoAutorizado: LastVoucherResultDto = {
   cbteNro: 42,
   cbteTipo: 11,
   ptoVta: 1,
 };
 
-// `FECompUltimoAutorizado` de un punto de venta sin comprobantes: ARCA devuelve 0.
+// `FECompUltimoAutorizado` for a sales point with no comprobantes: ARCA returns 0.
 export const ultimoAutorizadoVacio: LastVoucherResultDto = {
   cbteNro: 0,
   cbteTipo: 11,
   ptoVta: 1,
 };
 
-// `FECAESolicitar` aprobado de una Nota de crédito C (tipo 13, #449): ARCA
-// devuelve CAE + vencimiento igual que una factura; sólo cambia `CbteTipo`.
+// `FECAESolicitar` approved for a Nota de crédito C (type 13, #449): ARCA
+// returns CAE + expiry just as for a factura; only `CbteTipo` changes.
 export const notaCreditoCAprobada: CreateVoucherResultDto = {
   cae: "41124599990011",
   caeFchVto: "20260801",
@@ -154,17 +154,17 @@ export const notaCreditoCAprobada: CreateVoucherResultDto = {
   },
 };
 
-// `FECompUltimoAutorizado` de la serie de Notas de crédito (tipo 13): corre por
-// un correlativo propio, separado del de las facturas. Acá ya emitió hasta el 7.
+// `FECompUltimoAutorizado` for the Nota de crédito series (type 13): it runs on
+// a sequence of its own, separate from the facturas'. Here it has emitted up to 7.
 export const ultimoNotaCreditoAutorizado: LastVoucherResultDto = {
   cbteNro: 7,
   cbteTipo: 13,
   ptoVta: 1,
 };
 
-// `FECompConsultar` de la Factura C 43: la forma con la que ARCA devuelve un
-// comprobante ya autorizado, verificada contra homologación por el spike (#574).
-// Es lo que resuelve una autorización que quedó sin respuesta (ADR-0012).
+// `FECompConsultar` for Factura C 43: the shape in which ARCA returns an already
+// authorized comprobante, verified against homologación by the spike (#574). It
+// is what resolves an authorization left without a response (ADR-0012).
 export const facturaCConsultada: VoucherInfoResultDto = {
   codAutorizacion: "41124578989845",
   emisionTipo: "CAE",
@@ -183,7 +183,7 @@ export const facturaCConsultada: VoucherInfoResultDto = {
   monCotiz: 1,
 };
 
-// `FECompConsultar` de la Nota de crédito C 8, con la misma forma.
+// `FECompConsultar` for Nota de crédito C 8, with the same shape.
 export const notaCreditoCConsultada: VoucherInfoResultDto = {
   ...facturaCConsultada,
   codAutorizacion: "41124599990011",

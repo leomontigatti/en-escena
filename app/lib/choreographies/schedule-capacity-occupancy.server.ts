@@ -15,15 +15,15 @@ export type ScheduleCapacityOccupancyTarget = {
 };
 
 /**
- * Cuenta las coreografías ya asignadas a cada cupo candidato para que la vista
- * pueda mostrar la ocupación real y deshabilitar los llenos. Es una foto, no
- * una reserva: el número corre carrera con cualquier otra asignación, así que
- * `lockScheduleCapacityForAssignment` sigue siendo la única garantía. Por eso
- * acá no se toma ningún lock.
+ * Counts the choreographies already assigned to each candidate capacity so the
+ * view can show real occupancy and disable the full ones. It is a snapshot, not
+ * a reservation: the number races with any other assignment, so
+ * `lockScheduleCapacityForAssignment` remains the only guarantee. That is why no
+ * lock is taken here.
  *
- * `excludeChoreographyId` refleja la exclusión del lock: la coreografía que se
- * está moviendo no cuenta contra el cupo que ya ocupa, o su propia opción se
- * vería llena y deshabilitada mientras el servidor la acepta.
+ * `excludeChoreographyId` mirrors the lock's exclusion: the choreography being
+ * moved does not count against the capacity it already occupies, or its own
+ * option would look full and disabled while the server accepts it.
  */
 export async function resolveScheduleCapacityOccupancies(input: {
   excludeChoreographyId?: string;
@@ -115,8 +115,8 @@ export async function resolveScheduleCapacityOccupancies(input: {
 
     occupancies.set(toScheduleCapacityOccupancyKey(target), {
       capacity,
-      // El cupo puntual puede tener lugar y el cronograma no: el servidor
-      // rechaza en los dos casos, así que la opción se ve llena en los dos.
+      // The specific capacity may have room while the schedule does not: the
+      // server rejects in both cases, so the option looks full in both.
       isFull: occupiedCount >= capacity || isScheduleFull,
       occupiedCount,
     });
@@ -132,17 +132,17 @@ export function toScheduleCapacityOccupancyKey(
 }
 
 /**
- * Una coreografía ocupa el cronograma tanto si lo tiene asignado directo como
- * si llegó a él por su cupo, igual que en el conteo del lock.
+ * A choreography occupies the schedule whether it is assigned to it directly or
+ * reached it through its capacity, exactly as in the lock's count.
  *
- * La atribución acá es de a uno: el `or` alcanza la fila por cualquiera de los
- * dos caminos, pero el `group by coalesce(...)` la suma a un solo cronograma.
- * El lock usa el mismo `or` sin agrupar, así que suma la fila a los dos. Los
- * dos conteos coinciden solo porque `scheduleId` y el `scheduleId` del cupo son
- * siempre el mismo cronograma — invariante que hoy sostienen el registro, el
- * camino de elenco y la reasignación del detalle, que escriben el par junto.
- * Quien rompa esa invariante rompe este contador antes que el lock: este
- * mostraría lugar donde el lock rechaza.
+ * Attribution here is one-to-one: the `or` reaches the row by either of the two
+ * paths, but the `group by coalesce(...)` adds it to a single schedule. The lock
+ * uses the same `or` without grouping, so it adds the row to both. The two
+ * counts agree only because `scheduleId` and the capacity's `scheduleId` are
+ * always the same schedule — an invariant currently upheld by registration, the
+ * roster path and the detail's reassignment, which write the pair together.
+ * Whoever breaks that invariant breaks this counter before the lock: this one
+ * would show room where the lock rejects.
  */
 async function countChoreographiesBySchedule(input: {
   excludedChoreographyFilter: ReturnType<typeof ne> | undefined;

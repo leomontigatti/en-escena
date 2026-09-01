@@ -294,8 +294,8 @@ async function updateChoreographyDancers(input: {
             activeInscription(),
           ),
         ),
-      // Las retiradas se leen a propósito: son las candidatas a revivir, y
-      // hasta que se revivan no participan de nada más.
+      // The withdrawn ones are read on purpose: they are the candidates for
+      // revival, and until they are revived they take part in nothing else.
       tx
         .select({
           id: choreographyDancers.id,

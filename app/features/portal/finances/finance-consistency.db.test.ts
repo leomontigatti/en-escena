@@ -59,8 +59,8 @@ describe.sequential(
         paymentDeadline: "2026-12-31",
         scheduleId: catalog.schedule.id,
       });
-      // Fila anterior, más cara: las inscripciones ya cobradas la tienen
-      // seleccionada, así que sus cifras salen de ella y no de la vigente.
+      // The earlier, more expensive row: the already collected inscriptions have
+      // it selected, so their figures come from it and not from the current one.
       const [earlierPrice] = await db
         .insert(prices)
         .values({
@@ -149,7 +149,8 @@ describe.sequential(
         paymentId: payment.id,
       });
 
-      // paidSnapshot: pagada, con la seña y el saldo en una sola asignación.
+      // paidSnapshot: paid, with the deposit and the balance in a single
+      // allocation.
       const paidInscription = await insertSignedInscription({
         academyId: owner.academyId,
         choreographyId: paidSnapshotChoreography.id,
@@ -180,9 +181,9 @@ describe.sequential(
       expect(portalLoaderData.summary).toEqual({
         // 16600 pagos - 15600 asignaciones = 1000 disponible.
         availableBalanceAmount: 1000,
-        // 8400 de faltante en la que cubrió su seña + 10000 de la que no tiene
-        // nada, a precio vigente; la que no tiene precio suma 1 al incompleto.
-        // Bruto: no descuenta el disponible.
+        // 8400 of shortfall on the one that covered its deposit + 10000 from the
+        // one with nothing, at the current price; the one with no price adds 1 to
+        // the incomplete count. Gross: it does not subtract the available balance.
         owedBalanceAmount: {
           amount: 18400,
           missingPriceCount: 1,
@@ -221,7 +222,8 @@ describe.sequential(
           id: currentPriceChoreography.id,
           basePriceAmount: { amount: 10000, status: "complete" },
           financialStatus: "depositPending",
-          // Sin dinero adeuda su seña y su total: los dos cortes de la misma deuda.
+          // With no money it owes its deposit and its total: the two cuts of the
+          // same debt.
           owedBalanceAmount: { amount: 10000, status: "complete" },
           owedDepositAmount: { amount: 3000, status: "complete" },
           totalAmount: { amount: 10000, status: "complete" },

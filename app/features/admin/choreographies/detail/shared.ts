@@ -28,25 +28,26 @@ export const modalityFieldNames = {
 } as const;
 
 /**
- * El select autónomo de cronograma vive dentro del `form` del roster, que ya
- * registra `scheduleCapacityId`. Un nombre propio evita que los dos campos se
- * pisen en el DOM y deja claro cuál de los dos está renderizado.
+ * The standalone schedule select lives inside the roster's `form`, which
+ * already registers `scheduleCapacityId`. A name of its own keeps the two
+ * fields from colliding in the DOM and makes it clear which of the two is
+ * rendered.
  */
 export const assignedScheduleCapacityFieldName = "assignedScheduleCapacityId";
 
 /**
- * Mismo motivo que el cupo: el `form` del roster ya registra
- * `experienceLevelId`, así que el select autónomo usa un nombre propio para no
- * pisarlo en el DOM.
+ * Same reason as the capacity: the roster's `form` already registers
+ * `experienceLevelId`, so the standalone select uses a name of its own to avoid
+ * colliding with it in the DOM.
  */
 export const assignedExperienceLevelFieldName = "assignedExperienceLevelId";
 
 /**
- * `resolve-roster` solo consulta cómo quedaría la coreografía con un roster
- * tentativo: no persiste nada. Revalidar tras esa consulta recarga el loader y
- * reinicia el formulario con el roster guardado, pisando la edición en curso.
+ * `resolve-roster` only asks how the choreography would look with a tentative
+ * roster: it persists nothing. Revalidating after that query reloads the loader
+ * and resets the form to the saved roster, clobbering the edit in progress.
  *
- * `resolve-modality` previews a candidate modalidad the same way, and is
+ * `resolve-modality` previews a candidate modality the same way, and is
  * excluded for the same reason.
  */
 export function shouldRevalidateChoreographyDetail(input: {
@@ -79,9 +80,9 @@ export type ChoreographyActionData = {
 };
 
 /**
- * Los intents de campo suelto (submodalidad, cupo de cronograma) informan sin
- * errores por campo: el select vuelve a su valor guardado y el motivo llega
- * por toast.
+ * The single-field intents (submodality, schedule capacity) report back without
+ * per-field errors: the select returns to its saved value and the reason
+ * arrives by toast.
  */
 export type ChoreographyFieldUpdateErrorData = {
   message: string;
@@ -93,9 +94,9 @@ export type ChoreographySuccessData = {
   status: "success";
 };
 
-// La edición en el lugar del detalle no redirige: retorna
-// `{ status: "success" }`, el loader revalida y la vista dispara el toast
-// directo. Ver docs/agents/form-feedback.md.
+// In-place editing on the detail does not redirect: it returns
+// `{ status: "success" }`, the loader revalidates and the view fires the toast
+// directly. See docs/agents/form-feedback.md.
 export function choreographySavedSuccess(): ChoreographySuccessData {
   return {
     message: notificationToasts["coreografia-guardada"].message,
@@ -119,10 +120,10 @@ export type ChoreographyRosterErrorData = {
 };
 
 /**
- * La ruta solo reenvía a la vista los resultados con status `error` o
- * `success`. Un status a medida —como el `roster-error` que la sección de
- * roster lee aparte— se descarta en silencio, así que un intent nuevo que
- * quiera que su rechazo se vea tiene que devolver `error`.
+ * The route only forwards results with status `error` or `success` to the view.
+ * A bespoke status — such as the `roster-error` the roster section reads
+ * separately — is dropped silently, so a new intent that wants its rejection to
+ * be seen has to return `error`.
  */
 export function toChoreographyDetailViewActionData(
   actionData?:
@@ -147,9 +148,9 @@ export function toChoreographyDetailViewActionData(
 export type ChoreographyScheduleCapacityBlockerCode = "frozen-price";
 
 /**
- * Motivo por el que la reasignación del cupo de cronograma está cerrada, con la
- * misma forma que los bloqueos de eliminación: el servidor arma el `code` y la
- * etiqueta que se lee, y la vista solo la enumera en la alerta de la página.
+ * Why schedule-capacity reassignment is closed, with the same shape as the
+ * deletion blockers: the server builds the `code` and the label that gets read,
+ * and the view only lists it in the page's alert.
  */
 export type ChoreographyScheduleCapacityBlocker = {
   code: ChoreographyScheduleCapacityBlockerCode;
@@ -157,9 +158,9 @@ export type ChoreographyScheduleCapacityBlocker = {
 };
 
 /**
- * Las cuatro causas de solo lectura del cupo de cronograma: no ser `admin`,
- * tener presentación, arrastrar un bloqueo del servidor (hoy, la seña
- * congelada) y no tener al menos dos cupos compatibles entre los que elegir.
+ * The four read-only causes for the schedule capacity: not being `admin`,
+ * having a presentation, carrying a blocker from the server (today, the frozen
+ * `Seña`) and not having at least two compatible capacities to choose between.
  */
 export function canReassignScheduleCapacity(input: {
   blockers: ChoreographyScheduleCapacityBlocker[];
@@ -176,13 +177,13 @@ export function canReassignScheduleCapacity(input: {
 }
 
 /**
- * El nivel de experiencia no es clave de precio, así que no arrastra bloqueos
- * del servidor como el cupo: alcanza con las tres causas de solo lectura. La
- * condición de fondo es una sola —que la categoría resuelta declare niveles—,
- * más los dos candados transversales de la coreografía. No hay umbral de
- * cantidad de opciones: con una sola opción el campo sigue abierto, porque es
- * el único modo de resolver un nivel faltante que deja la coreografía
- * incompleta.
+ * The experience level is not a price key, so it does not carry blockers from
+ * the server the way the capacity does: the three read-only causes are enough.
+ * The underlying condition is a single one — that the resolved category declares
+ * levels — plus the choreography's two cross-cutting locks. There is no
+ * threshold on the number of options: with a single option the field stays open,
+ * because that is the only way to resolve a missing level that leaves the
+ * choreography incomplete.
  */
 export function canReassignExperienceLevel(input: {
   canEdit: boolean;

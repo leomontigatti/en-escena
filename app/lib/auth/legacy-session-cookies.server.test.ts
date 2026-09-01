@@ -6,9 +6,9 @@ import {
 } from "@/lib/auth/legacy-session-cookies.server";
 import { getSetCookieValues } from "@/lib/auth/set-cookie-headers";
 
-// Shim de migración (#582): la única pieza del residuo de Supabase Auth que
-// sigue corriendo en producción. Su retiro debe ser una decisión consciente, no
-// un descuido, así que se prueba explícitamente.
+// A migration shim (#582): the only piece of the Supabase Auth residue still
+// running in production. Retiring it must be a conscious decision, not an
+// oversight, so it is tested explicitly.
 describe("legacy session cookie shim", () => {
   test("expires pre-cutover sb-* cookies without touching app cookies", () => {
     const request = new Request("http://localhost/registro", {
@@ -46,8 +46,8 @@ describe("legacy session cookie shim", () => {
     ).toEqual([]);
   });
 
-  // El logout expira las heredadas encima de los `set-cookie` del proveedor, que
-  // son los que cierran la sesión vigente: no debe perderse ninguno de los dos.
+  // Logout expires the inherited ones on top of the provider's `set-cookie`s,
+  // which are the ones that close the current session: neither may be lost.
   test("appends the expirations without dropping the caller's set-cookie headers", () => {
     const headers = new Headers();
     headers.append("set-cookie", "better-auth.session_token=; Max-Age=0");

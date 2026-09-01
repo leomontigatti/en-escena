@@ -12,8 +12,8 @@ import {
 } from "./model";
 import { renderComprobantePrintDocument } from "./view";
 
-// Carga el comprobante con su estado derivado, sus líneas y el contexto que
-// ancla (coreografía/academia/evento). Devuelve null si no existe.
+// Loads the comprobante with its derived state, its lines and the anchoring
+// context (choreography/academy/event). Returns null if it does not exist.
 async function getComprobantePrintRecord(
   comprobanteId: string,
 ): Promise<ComprobantePrintRecord | null> {
@@ -52,10 +52,10 @@ async function getComprobantePrintRecord(
   };
 }
 
-// Loader del impreso on-demand: gate de acceso interno, carga del snapshot,
-// generación del QR (RG 4291) y render del HTML autocontenido. Devuelve el HTML
-// como respuesta directa; no dispara ninguna emisión. 404 si el comprobante no
-// existe.
+// Loader for the on-demand printout: internal access gate, snapshot load, QR
+// generation (RG 4291) and rendering of the self-contained HTML. It returns the
+// HTML as a direct response; it triggers no emission. 404 if the comprobante does
+// not exist.
 export async function loadComprobantePrint(
   request: Request,
   comprobanteId: string,

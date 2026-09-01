@@ -6,8 +6,8 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Baja la inicial de un texto para insertar un concepto del dominio dentro de una
- * oración (p. ej. "Factura C" → "factura C"), preservando el resto tal cual.
+ * Lowercases the first letter of a text so a domain concept can be inserted
+ * inside a sentence (e.g. "Factura C" → "factura C"), leaving the rest as is.
  */
 export function lowercaseFirst(text: string): string {
   return text.charAt(0).toLowerCase() + text.slice(1);
