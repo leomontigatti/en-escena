@@ -29,11 +29,7 @@ export function PortalEventDocumentsMenu({
   return (
     // The tooltip goes below: both list headers put the "Nuevo …" button
     // immediately to the left of this trigger, and the default side covers it.
-    <ResourceActionsMenu
-      contentClassName="w-64"
-      label="Documentos del evento"
-      tooltipSide="bottom"
-    >
+    <ResourceActionsMenu contentClassName="w-64" tooltipSide="bottom">
       <DropdownMenuGroup>
         {kinds.map((kind) => (
           <PortalEventDocumentMenuItem

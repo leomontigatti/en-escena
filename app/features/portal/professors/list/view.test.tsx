@@ -112,13 +112,13 @@ describe("PortalProfessorsListRouteView event documents", () => {
     });
 
     expect(markup).toContain("Nuevo profesor");
-    expect(markup).toContain('aria-label="Documentos del evento"');
+    expect(markup).toContain('aria-label="Acciones"');
   });
 
   test("keeps the menu when the event has no document", () => {
     const markup = renderProfessorsList();
 
-    expect(markup).toContain('aria-label="Documentos del evento"');
+    expect(markup).toContain('aria-label="Acciones"');
   });
 });
 

@@ -190,13 +190,13 @@ describe("PortalDancersListRouteView event documents", () => {
     });
 
     expect(markup).toContain("Nuevo bailarín");
-    expect(markup).toContain('aria-label="Documentos del evento"');
+    expect(markup).toContain('aria-label="Acciones"');
   });
 
   test("keeps the menu when the event has no document", () => {
     const markup = renderDancersList();
 
-    expect(markup).toContain('aria-label="Documentos del evento"');
+    expect(markup).toContain('aria-label="Acciones"');
   });
 });
 

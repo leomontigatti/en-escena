@@ -92,7 +92,7 @@ describe("PortalEventDocumentsMenu", () => {
 
   function getTrigger() {
     const trigger = document.querySelector<HTMLButtonElement>(
-      '[aria-label="Documentos del evento"]',
+      '[aria-label="Acciones"]',
     );
 
     if (!trigger) {
