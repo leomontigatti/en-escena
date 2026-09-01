@@ -72,7 +72,7 @@ describe("EventDocumentsFields", () => {
     );
 
     expect(link).not.toBeNull();
-    expect(link?.textContent).toContain("Ver el documento cargado");
+    expect(link?.textContent).toContain("Abrir documento");
   });
 
   // Replacing takes two deliberate steps. While the document is there the box

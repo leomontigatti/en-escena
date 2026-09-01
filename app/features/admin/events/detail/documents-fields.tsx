@@ -167,7 +167,7 @@ function EventDocumentField({
       // An uploaded document reads as a link that opens it, and has to be
       // removed before another can take its place: the field is the whole
       // status, so there is no line under it restating what it already shows.
-      downloadLabel="Ver el documento cargado"
+      downloadLabel="Abrir documento"
       downloadUrl={document?.downloadUrl}
       uploadedLabel="Documento cargado"
       label="Elegí el PDF o arrastralo acá"

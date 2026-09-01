@@ -76,16 +76,21 @@ function FileUploadCompactValue({
   state: FileUploadControlState;
 }) {
   if (showDownloadLink) {
+    // The box is inert and the anchor inside it reads as a link, the way the
+    // dancer's document image already does: the field is not clickable, the
+    // one thing that opens something is.
     return (
-      <a
-        href={state.downloadHref ?? undefined}
-        target="_blank"
-        rel="noreferrer"
-        className={getFileUploadCompactClassName(config, state, true)}
-      >
-        <ExternalLink aria-hidden="true" className="size-3.5" />
-        <span className="truncate">{config.downloadLabel}</span>
-      </a>
+      <div className={getFileUploadCompactClassName(config, state, false)}>
+        <a
+          href={state.downloadHref ?? undefined}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex min-w-0 items-center gap-1.5 text-primary underline-offset-4 hover:underline"
+        >
+          <ExternalLink aria-hidden="true" className="size-3.5" />
+          <span className="truncate">{config.downloadLabel}</span>
+        </a>
+      </div>
     );
   }
 
