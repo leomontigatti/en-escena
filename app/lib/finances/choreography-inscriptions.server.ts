@@ -17,7 +17,7 @@ export type ChoreographyInscriptionRow = {
   discountAmount: number;
   financialStatus: AcademyEventFinanceInscriptions[number]["financialStatus"];
   firstName: string;
-  /** `null` para un bailarín del roster que todavía no tiene inscripción. */
+  /** `null` for a roster dancer who does not have an inscription yet. */
   inscriptionId: string | null;
   lastName: string;
   overAllocatedAmount: number | null;
@@ -28,9 +28,9 @@ export type ChoreographyInscriptionRow = {
 };
 
 /**
- * Una fila por bailarín del roster, aunque todavía no tenga inscripción: el
- * roster es la lista que la academia ve, y un bailarín sin inscripción lee como
- * `Seña pendiente` sin importes.
+ * One row per roster dancer, even when they do not have an inscription yet: the
+ * roster is the list the academy sees, and a dancer with no inscription reads as
+ * `Seña pendiente` with no amounts.
  *
  * Withdrawn rows are read on purpose —the financial detail is one of the four
  * surfaces that show evidence—, which is why this query carries no

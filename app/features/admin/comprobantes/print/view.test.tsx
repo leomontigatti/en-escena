@@ -8,8 +8,8 @@ import {
 } from "./model";
 import { renderComprobantePrintDocument } from "./view";
 
-// Snapshot de QR estable: el impreso inyecta el SVG tal cual, así el snapshot del
-// HTML no queda atado a la matriz del QR (validada aparte en arca/qr.test).
+// A stable QR snapshot: the printout injects the SVG as is, so the HTML snapshot
+// is not tied to the QR's matrix (validated separately in arca/qr.test).
 const QR_SVG_STUB = '<svg data-testid="qr-stub"></svg>';
 
 function printRecord(

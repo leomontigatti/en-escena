@@ -219,8 +219,8 @@ function ChoreographyDetailForm({
       watchedScheduleCapacityId: roster.watchedScheduleCapacityId,
     });
 
-  // Un rename aislado no toca el roster, así que evita el hard lock por
-  // presentación que sí aplica a `update-roster`.
+  // An isolated rename does not touch the roster, so it avoids the hard lock from
+  // a presentation that does apply to `update-roster`.
   const intent =
     roster.hasRosterChanged || roster.hasProfessorsChanged
       ? updateChoreographyRosterIntent

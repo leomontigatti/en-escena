@@ -2,26 +2,26 @@ import { parse, serialize } from "cookie";
 
 import { getSetCookieValues } from "@/lib/auth/set-cookie-headers";
 
-// Se exporta para que la rama `sb-` de `access-redirects.server.ts` —el otro
-// punto que todavía reconoce estas cookies— dependa de esta constante y se
-// retire junto con el shim, no por separado.
+// Exported so that the `sb-` branch of `access-redirects.server.ts` — the other
+// place that still recognizes these cookies — depends on this constant and is
+// retired together with the shim, rather than separately.
 export const LEGACY_SESSION_COOKIE_PREFIX = "sb-";
 
-// Shim de migración, no integración viva (#582). Supabase Auth dejó de ser el
-// proveedor de credenciales en la consolidación forward-only sobre Better Auth
-// (#266) y la salida completa de Supabase quedó registrada en ADR-0013; lo
-// único que sobrevive de aquella etapa son las cookies `sb-*` que quedaron en
-// el navegador de quien ingresó antes del cutover. Esta función las expira para
-// que no convivan con la cookie de sesión actual.
+// A migration shim, not a live integration (#582). Supabase Auth stopped being
+// the credential provider in the forward-only consolidation onto Better Auth
+// (#266) and the full exit from Supabase was recorded in ADR-0013; all that
+// survives from that stage are the `sb-*` cookies left in the browser of anyone
+// who signed in before the cutover. This function expires them so they do not
+// coexist with the current session cookie.
 //
-// Solo afecta a navegadores con cookies previas al cutover: una instalación
-// nueva nunca recibe una cookie `sb-*`. Se puede retirar —junto con la rama
-// `sb-` de `access-redirects.server.ts`— una vez transcurrida la vida máxima de
-// aquellas cookies, o antes si la telemetría de acceso deja de registrar
-// presencia de `sb-*` en las requests.
+// It only affects browsers with cookies predating the cutover: a fresh install
+// never receives an `sb-*` cookie. It can be retired — together with the `sb-`
+// branch of `access-redirects.server.ts` — once the maximum lifetime of those
+// cookies has elapsed, or earlier if access telemetry stops recording any `sb-*`
+// presence in requests.
 //
-// No depende de `@supabase/ssr`: parsea la cookie de la request y serializa con
-// la librería `cookie` genérica.
+// It does not depend on `@supabase/ssr`: it parses the request's cookie and
+// serializes with the generic `cookie` library.
 export function createLegacySessionCookieClearHeaders(request: Request) {
   const headers = new Headers();
 
@@ -40,10 +40,11 @@ export function createLegacySessionCookieClearHeaders(request: Request) {
   return headers;
 }
 
-// Variante para respuestas que ya traen headers propios (el logout emite los
-// del proveedor, que son los que cierran la sesión vigente). Se agrega con
-// `append` en vez de copiar los headers a un objeto nuevo porque el iterador de
-// `Headers` colapsa los `set-cookie` múltiples en un solo valor con comas.
+// A variant for responses that already carry headers of their own (logout emits
+// the provider's, which are the ones that close the current session). They are
+// added with `append` instead of copying the headers into a new object because
+// the `Headers` iterator collapses multiple `set-cookie`s into a single
+// comma-separated value.
 export function appendLegacySessionCookieClearHeaders(
   headers: Headers,
   request: Request,

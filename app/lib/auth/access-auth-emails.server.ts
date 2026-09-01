@@ -1,13 +1,15 @@
 import { sendEmail } from "@/lib/shared/email.server";
 
-// Emails de acceso en español enviados por el flujo built-in de Better Auth
-// (#424). Reemplazan al webhook `Send Email` de Supabase (`handleSupabaseSendEmailHook`,
-// retirado): el contenido y el envío ahora son app-owned vía `sendEmail` (Resend),
-// y los links apuntan a las páginas del front que consumen los tokens de Better
-// Auth (`/registro/confirmar` con `token_hash`, `/cambiar-contrasena` con `code`).
+// Access emails in Spanish, sent by Better Auth's built-in flow (#424). They
+// replace Supabase's `Send Email` webhook (`handleSupabaseSendEmailHook`,
+// retired): the content and the delivery are now app-owned via `sendEmail`
+// (Resend), and the links point at the front-end pages that consume Better
+// Auth's tokens (`/registro/confirmar` with `token_hash`, `/cambiar-contrasena`
+// with `code`).
 
-// Link de confirmación de alta pública de academia. Apunta a `/registro/confirmar`
-// con el `token_hash` app-owned (alta pendiente de `startEmailSignUp`) y `type=signup`.
+// The confirmation link for public academy sign-up. It points at
+// `/registro/confirmar` with the app-owned `token_hash` (the pending sign-up
+// from `startEmailSignUp`) and `type=signup`.
 export function buildAcademySignUpConfirmationLink(input: {
   redirectTo: string;
   tokenHash: string;
@@ -18,10 +20,10 @@ export function buildAcademySignUpConfirmationLink(input: {
   return url.toString();
 }
 
-// Link de recuperación de acceso. `resetUrl` es la URL que Better Auth arma para
+// The access recovery link. `resetUrl` is the URL Better Auth builds for
 // `sendResetPassword` (`.../api/auth/reset-password/<token>?callbackURL=<redirectTo>`);
-// tomamos el `callbackURL` (la página del front) y le colgamos el `code=<token>`
-// que consume el loader de `/cambiar-contrasena`.
+// we take the `callbackURL` (the front-end page) and hang the `code=<token>` the
+// `/cambiar-contrasena` loader consumes off it.
 export function buildAccessRecoveryLink(input: {
   resetUrl: string;
   fallbackBaseUrl: string;

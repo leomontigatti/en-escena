@@ -172,9 +172,9 @@ export async function loadChoreographyDetailRouteData(input: {
       canDelete: blockers.length === 0,
     },
     experienceLevel: {
-      // Sin bloqueos que enumerar: el nivel no es clave de precio, así que la
-      // única condición de fondo es que la categoría lo declare. El motivo por
-      // el que la presentación lo cierra va en la alerta que ya la enumera.
+      // No blockers to list: the level is not a price key, so the only underlying
+      // condition is that the category declares it. The reason a presentation
+      // closes it goes in the alert that already lists it.
       canReassign: canReassignExperienceLevel({
         canEdit,
         hasPresentation: choreography.hasPresentation,
@@ -193,13 +193,13 @@ export async function loadChoreographyDetailRouteData(input: {
       options: modalityOptions,
     },
     scheduleCapacity: {
-      // Los motivos van a la vista aunque el campo ya esté cerrado por otra
-      // causa: la alerta de la página los enumera también para el auditor.
+      // The reasons go to the view even when the field is already closed by
+      // another cause: the page's alert lists them for the auditor too.
       blockers: scheduleCapacityBlockers,
-      // Reasignar es una corrección administrativa: solo `admin`, nunca con
-      // presentación, nunca con seña congelada y solo cuando hay más de un cupo
-      // compatible entre los que elegir. La coreografía ya presentada tiene el
-      // cronograma tan cerrado como el roster.
+      // Reassigning is an administrative correction: `admin` only, never with a
+      // presentation, never with a frozen `Seña`, and only when there is more
+      // than one compatible capacity to choose between. A choreography already
+      // presented has its schedule as closed as its roster.
       canReassign: canReassignScheduleCapacity({
         blockers: scheduleCapacityBlockers,
         canEdit,
@@ -388,8 +388,9 @@ async function updateChoreographyRosterAction(input: {
   | ChoreographyRosterErrorData
   | ChoreographySuccessData
 > {
-  // `name` es opcional: un submit que solo toca el roster no lo manda y deja el
-  // nombre intacto. Cuando viene, se valida igual que en `rename-choreography`.
+  // `name` is optional: a submit that only touches the roster does not send it
+  // and leaves the name intact. When it does arrive, it is validated exactly as
+  // in `rename-choreography`.
   let name: string | undefined;
 
   if (input.formData.has("name")) {
@@ -479,9 +480,10 @@ async function getChoreographyDeleteBlockers(
     blockers.push({ code: "scores", label: "puntajes" });
   }
 
-  // Historia fiscal: cualquier comprobante ARCA (vigente, anulado o NC) ancla la
-  // coreografía de forma irreversible. Guarda server-side de #340, evaluada acá
-  // recién antes del borrado por si se emitió entre el render y el click.
+  // Fiscal history: any ARCA comprobante (in force, annulled or an NC) anchors
+  // the choreography irreversibly. It is #340's server-side guard, evaluated here
+  // just before the delete in case one was emitted between the render and the
+  // click.
   if (hasComprobantes) {
     blockers.push({ code: "comprobantes", label: "comprobantes" });
   }

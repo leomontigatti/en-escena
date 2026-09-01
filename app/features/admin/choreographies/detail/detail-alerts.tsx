@@ -33,11 +33,11 @@ export function ChoreographyDetailAlerts({
         </Alert>
       ) : null}
 
-      {/* Tampoco se suprime para el auditor: informa un estado de los datos.
-          La coreografía quedó sin un nivel que su categoría exige —por una
-          corrección de fecha de nacimiento, por una categoría a la que le
-          agregaron niveles después, o por una fila vieja—, y el motivo no
-          está guardado en ningún lado, así que la alerta no lo nombra. */}
+      {/* This is not suppressed for the auditor either: it reports a state of the
+          data. The choreography ended up without a level its category requires —
+          because of a date-of-birth correction, a category that had levels added
+          later, or an old row — and the reason is not stored anywhere, so the
+          alert does not name it. */}
       {choreography.operationalStatus.pendingItems.includes(
         "experienceLevel",
       ) ? (
@@ -53,9 +53,9 @@ export function ChoreographyDetailAlerts({
         </Alert>
       ) : null}
 
-      {/* La alerta financiera no se suprime para el auditor: el motivo del
-          bloqueo es información de la coreografía, no del permiso de quien
-          mira. */}
+      {/* The financial alert is not suppressed for the auditor: the reason for
+          the block is information about the choreography, not about the
+          permissions of whoever is looking. */}
       {loaderData.scheduleCapacity.blockers.length > 0 ? (
         <Alert>
           <AlertTitle>El cupo de cronograma está bloqueado</AlertTitle>

@@ -4,16 +4,16 @@ import type {
   ITicketStoragePort,
 } from "@arcasdk/core";
 
-// Cache in-process del Ticket de Acceso (TA) de WSAA. ARCA rechaza logins
-// repetidos y el TA vive ~12h, así que hay que reusarlo entre llamadas en vez de
-// re-autenticar en cada request. El SDK consulta este puerto antes de firmar un
-// nuevo TRA: si devolvemos un TA vigente, saltea el `loginCms`.
+// In-process cache of WSAA's Access Ticket (TA). ARCA rejects repeated logins
+// and the TA lives ~12 h, so it has to be reused across calls instead of
+// re-authenticating on every request. The SDK consults this port before signing
+// a new TRA: if we return a TA still in force, it skips the `loginCms`.
 //
-// A diferencia del `MemoryTicketStorage` del SDK (un Map estático global,
-// compartido entre CUITs y difícil de aislar en tests), este cache es de
-// instancia y decide la vigencia acá: `get` devuelve `null` cuando el TA venció,
-// forzando la re-autenticación. Esa decisión de vigencia es lo que los tests
-// ejercitan sin tocar la red.
+// Unlike the SDK's `MemoryTicketStorage` (a global static Map, shared across
+// CUITs and hard to isolate in tests), this cache is per instance and decides
+// validity here: `get` returns `null` once the TA has expired, forcing
+// re-authentication. That validity decision is what the tests exercise without
+// touching the network.
 export class InMemoryTaCache implements ITicketStoragePort {
   private readonly tickets = new Map<ArcaServiceName, AccessTicket>();
 

@@ -11,17 +11,17 @@ type LabeledScheduleCapacityOption = {
 };
 
 /**
- * Agrega la ocupación al rótulo de cada opción y marca las llenas. Es el único
- * lugar donde se arman opciones de cupo con ocupación: administración y el
- * registro del portal pasan por acá para que las dos superficies muestren lo
- * mismo.
+ * Adds occupancy to each option's label and marks the full ones. It is the only
+ * place where capacity options with occupancy are built: administration and
+ * portal registration both go through here so the two surfaces show the same
+ * thing.
  *
- * El sufijo se compone acá y no dentro de `formatScheduleDateTime` porque el
- * mismo formateador rotula el cronograma ya asignado, donde decir cuántos
- * lugares quedan no significa nada.
+ * The suffix is composed here and not inside `formatScheduleDateTime` because
+ * the same formatter labels the already assigned schedule, where saying how many
+ * places are left means nothing.
  *
- * `excludeChoreographyId` refleja la exclusión del lock: la coreografía que se
- * está moviendo no cuenta contra el cupo que ya ocupa.
+ * `excludeChoreographyId` mirrors the lock's exclusion: the choreography being
+ * moved does not count against the capacity it already occupies.
  */
 export async function withScheduleCapacityOccupancy<
   TOption extends LabeledScheduleCapacityOption,

@@ -12,8 +12,8 @@ export function runPgliteSchemaMigrate(dataDir: string) {
   runPgliteSchemaScript(migratePgliteSchemaScriptPath, dataDir);
 }
 
-// Oráculo del test de equivalencia: aplica el schema con `pushSchema`. Vive en
-// un subproceso para no cargar `drizzle-kit/api` en un worker de vitest.
+// The oracle of the equivalence test: it applies the schema with `pushSchema`. It
+// lives in a subprocess so `drizzle-kit/api` is not loaded into a vitest worker.
 export function runPgliteSchemaPush(dataDir: string) {
   runPgliteSchemaScript(pushPgliteSchemaScriptPath, dataDir);
 }

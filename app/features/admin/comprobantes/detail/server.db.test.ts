@@ -45,8 +45,8 @@ installDatabaseTestHooks();
 
 const ADMIN_EMAIL = "admin.comprobante.detalle@example.com";
 
-// WSFEv1 mockeado: la consulta del último devuelve la serie tipo 13 y la emisión
-// aprueba la Nota de crédito. Cada test sobrescribe lo que necesita.
+// Mocked WSFEv1: the last-number lookup returns the type 13 series and emission
+// approves the Nota de crédito. Each test overrides what it needs.
 function fakeBilling(
   overrides: Partial<ArcaBillingPort> = {},
 ): ArcaBillingPort {
@@ -57,8 +57,8 @@ function fakeBilling(
     createVoucher: vi.fn(
       async (): Promise<CreateVoucherResultDto> => notaCreditoCAprobada,
     ),
-    // Sólo se consulta cuando la autorización se cae: por defecto ARCA no tiene
-    // ese comprobante.
+    // Only queried when the authorization falls over: by default ARCA does not
+    // have that comprobante.
     getVoucherInfo: vi.fn(
       async (): Promise<VoucherInfoResultDto | null> => null,
     ),
@@ -323,8 +323,8 @@ describe.sequential("handleComprobanteDetailAction — anular", () => {
 });
 
 describe("handleComprobanteDetailAction — re-verificar (#577)", () => {
-  // La Nota de crédito 8 tal como ARCA la registró: mismo importe y fecha que se
-  // enviaron, así que es la nuestra (ADR-0012 decisión 4).
+  // Nota de crédito 8 as ARCA recorded it: the same amount and date that were
+  // sent, so it is ours (ADR-0012 decision 4).
   function consultada(
     overrides: Partial<VoucherInfoResultDto> = {},
   ): VoucherInfoResultDto {
@@ -364,9 +364,10 @@ describe("handleComprobanteDetailAction — re-verificar (#577)", () => {
     const result = await recheck(seeded.facturaId, billing);
 
     expect(billing.getVoucherInfo).toHaveBeenCalledWith(8, 1, 13);
-    // No reintenta la autorización: la re-verificación es sólo `FECompConsultar`.
+    // It does not retry the authorization: re-verification is only
+    // `FECompConsultar`.
     expect(billing.createVoucher).not.toHaveBeenCalled();
-    // Se queda en el diálogo: no cruza un redirect.
+    // It stays in the dialog: it does not cross a redirect.
     expect(result).toEqual({
       status: "contingency",
       contingency: { status: "recovered" },
@@ -384,7 +385,7 @@ describe("handleComprobanteDetailAction — re-verificar (#577)", () => {
     });
   });
 
-  // El importe sale del comprobante que se está anulando, no del form.
+  // The amount comes from the comprobante being annulled, not from the form.
   test("un importe consultado que no coincide deja el estado sin verificar", async () => {
     const seeded = await seedComprobante({
       academyName: "Academia Re-verificar Ajena",
@@ -411,8 +412,8 @@ describe("handleComprobanteDetailAction — re-verificar (#577)", () => {
     expect(notas).toHaveLength(0);
   });
 
-  // Sólo puede probar el positivo: nadie midió cuánto puede vivir una petición
-  // del lado de ARCA (ADR-0012 decisión 2).
+  // It can only prove the positive: nobody has measured how long a request can
+  // live on ARCA's side (ADR-0012 decision 2).
   test("que ARCA siga sin tenerla nunca asciende a no emitida", async () => {
     const seeded = await seedComprobante({
       academyName: "Academia Sin Nota",

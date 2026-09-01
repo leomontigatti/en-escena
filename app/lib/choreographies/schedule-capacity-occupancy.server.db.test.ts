@@ -56,8 +56,8 @@ describe.sequential("schedule capacity occupancy", () => {
     });
   });
 
-  // El cupo puntual con lugar no alcanza: el servidor rechaza igual cuando el
-  // cronograma que lo contiene se agotó, así que la opción se ve llena.
+  // A specific capacity with room is not enough: the server rejects all the same
+  // when the schedule containing it is exhausted, so the option looks full.
   test("marks a cupo with room as full when its cronograma is full", async () => {
     const scenario = await createOccupiedCupo({
       academyName: "Academia Cronograma Agotado",

@@ -28,8 +28,8 @@ export async function loadPortalAcademyPayments(request: Request) {
 }
 
 /**
- * Pagos de una academia dentro de un evento. Nunca expone la nota interna del
- * pago: es de uso administrativo y esta lectura alimenta el portal.
+ * An academy's payments within an event. It never exposes the payment's internal
+ * note: that is for administrative use and this read feeds the portal.
  */
 async function readAcademyEventPayments(input: {
   academyId: string;

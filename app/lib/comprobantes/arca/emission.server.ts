@@ -15,17 +15,18 @@ import type {
   LastVoucherResult,
 } from "./responses";
 
-// El comprobante tal como se le pidió a ARCA: correlativo derivado del último
-// autorizado y fecha resuelta. Lo reciben tanto la emisión como la persistencia,
-// porque hay datos congelados (las fechas de servicio) que dependen de él.
+// The comprobante exactly as it was requested from ARCA: sequence number
+// derived from the last authorized one, and the resolved date. Both emission
+// and persistence receive it, because there is frozen data (the service dates)
+// that depends on it.
 export type ArcaEmissionRequest = {
   cbteNro: number;
   cbteFch: string;
 };
 
-// El comprobante ya autorizado. El camino feliz y la recuperación por consulta
-// llegan acá con la misma forma: lo único que cambia es de dónde salen el CAE, el
-// correlativo y la fecha.
+// The comprobante once authorized. The happy path and the recovery-by-lookup
+// path both arrive here with the same shape: the only thing that changes is
+// where the CAE, the sequence number and the date come from.
 export type ArcaAuthorizedVoucher = {
   cae: string;
   caeVto: string;
@@ -34,21 +35,21 @@ export type ArcaAuthorizedVoucher = {
 };
 
 /**
- * Las partes que cambian entre un tipo de comprobante y otro: qué serie de
- * correlativos se consulta, qué se autoriza, cómo se nombra el documento en los
- * mensajes al operador, y cómo se persiste lo autorizado. Todo lo demás —el
- * orden de las llamadas y la clasificación de las fallas— lo decide
- * `emitWithContingency`.
+ * The parts that change from one comprobante type to another: which sequence
+ * series is queried, what gets authorized, how the document is named in the
+ * messages shown to the operator, and how the authorized result is persisted.
+ * Everything else — the order of the calls and the classification of failures —
+ * is decided by `emitWithContingency`.
  */
 export type ArcaEmissionChoreography<TVoucher> = {
   client: ArcaClient;
   subject: ArcaContingencySubject;
   ptoVta: number;
   cbteTipo: number;
-  // Fecha del comprobante en formato ARCA. Por defecto, la fecha de negocio.
+  // Comprobante date in ARCA format. Defaults to the business date.
   cbteFch?: string;
-  // Importe enviado a ARCA: es contra este que se valida un comprobante
-  // recuperado por consulta (ADR-0012 decisión 4).
+  // Amount sent to ARCA: a comprobante recovered by lookup is validated against
+  // this one (ADR-0012 decision 4).
   impTotal: number;
   getLastNumber: () => Promise<LastVoucherResult>;
   emit: (request: ArcaEmissionRequest) => Promise<FacturaCEmissionResult>;
@@ -59,25 +60,25 @@ export type ArcaEmissionChoreography<TVoucher> = {
 };
 
 export type ArcaEmissionFailureReason =
-  // ARCA respondió y no autorizó.
+  // ARCA responded and did not authorize.
   | "rejected"
-  // ARCA no respondió y quedó establecido que no se emitió nada: reintentar es
-  // seguro (ADR-0012 decisión 6).
+  // ARCA did not respond and it was established that nothing was emitted:
+  // retrying is safe (ADR-0012 decision 6).
   | "not-emitted"
-  // ARCA no respondió y la consulta posterior tampoco resolvió qué pasó.
+  // ARCA did not respond and the follow-up lookup did not resolve what happened.
   | "unverified";
 
 export type ArcaEmissionFailure = {
   ok: false;
   reason: ArcaEmissionFailureReason;
   message: string;
-  // Presente sólo en un rechazo de ARCA.
+  // Present only on a rejection from ARCA.
   arca?: {
     resultado: string | null;
     errors: ArcaMessage[];
     observaciones: ArcaMessage[];
   };
-  // Presente sólo en `unverified`: el comprobante que no se pudo resolver.
+  // Present only on `unverified`: the comprobante that could not be resolved.
   attempt?: ArcaAttemptedVoucher;
 };
 
@@ -85,30 +86,32 @@ export type ArcaEmissionOutcome<TVoucher> =
   | {
       ok: true;
       voucher: TVoucher;
-      // El CAE salió de la consulta posterior a una autorización sin respuesta,
-      // no de `FECAESolicitar`. La emisión es igual de válida, pero el operador
-      // pidió algo que no sabemos si llegó a ARCA y conviene decírselo (#577).
+      // The CAE came from the lookup that followed an authorization with no
+      // response, not from `FECAESolicitar`. The emission is just as valid, but
+      // the operator asked for something we do not know reached ARCA, and it is
+      // worth telling them (#577).
       recovered: boolean;
     }
   | ArcaEmissionFailure;
 
 /**
- * Corre la coreografía de emisión contra WSFEv1: consulta el correlativo,
- * autoriza, y persiste sólo si ARCA otorgó un CAE.
+ * Runs the emission choreography against WSFEv1: it looks up the sequence
+ * number, authorizes, and persists only if ARCA granted a CAE.
  *
- * El `CbteNro` se deriva de `FECompUltimoAutorizado + 1`. Un rechazo de ARCA no
- * persiste nada.
+ * The `CbteNro` is derived from `FECompUltimoAutorizado + 1`. A rejection from
+ * ARCA persists nothing.
  *
- * Si ARCA no responde, la falla se clasifica por fase (ADR-0012). Cortada la
- * consulta del correlativo no se autorizó nada. Cortada la autorización se
- * consulta a ARCA por el comprobante exacto que se intentó: si aparece y coincide
- * con lo enviado, SÍ se había autorizado y se persiste con ese CAE —la única
- * excepción a la invariante de que una contingencia no persiste nada, y existe
- * porque la fila corresponde a un documento fiscal que demostrablemente está en
- * ARCA—; si no aparece y la autorización había fallado en el transporte, no se
- * emitió nada. Si la consulta falla, devuelve otro comprobante, o no lo encuentra
- * pero la autorización venció por timeout —y entonces sigue en vuelo, pudiendo
- * autorizarse después—, el resultado es `unverified` y no se persiste nada.
+ * If ARCA does not respond, the failure is classified by phase (ADR-0012). If
+ * the sequence-number lookup was cut off, nothing was authorized. If the
+ * authorization was cut off, ARCA is queried for the exact comprobante that was
+ * attempted: if it shows up and matches what was sent, it HAD been authorized
+ * and is persisted with that CAE — the one exception to the invariant that a
+ * contingency persists nothing, and it exists because the row corresponds to a
+ * fiscal document that is demonstrably in ARCA. If it does not show up and the
+ * authorization had failed at the transport level, nothing was emitted. If the
+ * lookup fails, returns a different comprobante, or does not find it but the
+ * authorization timed out — and so is still in flight, and could still be
+ * authorized later — the result is `unverified` and nothing is persisted.
  */
 export async function emitWithContingency<TVoucher>(
   choreography: ArcaEmissionChoreography<TVoucher>,
@@ -209,29 +212,28 @@ export async function emitWithContingency<TVoucher>(
 }
 
 /**
- * Vuelve a consultar a ARCA por un comprobante que quedó `unverified`, sin
- * reintentar la autorización (#577). Es la única salida que **persiste** un
- * comprobante recuperado: si el operador verifica a mano en el portal y el
- * comprobante está, no tiene nada que hacer con ese dato —no puede reintentar y
- * la app no tiene dónde registrar el CAE—.
+ * Queries ARCA again for a comprobante left `unverified`, without retrying the
+ * authorization (#577). It is the only exit that **persists** a recovered
+ * comprobante: if the operator checks by hand in the portal and the comprobante
+ * is there, there is nothing they can do with that fact — they cannot retry and
+ * the app has nowhere to record the CAE.
  *
- * Del cliente sólo viaja el `cbteNro`. El importe y la fecha —los dos campos que
- * deciden si el comprobante que ocupa ese correlativo es el nuestro (ADR-0012
- * decisión 4)— los recalcula el server a partir de la coreografía. Mandarlos
- * desde el form colapsaría la decisión 4 a un solo campo efectivo: en esta app el
- * mismo importe se repite todo el tiempo.
+ * Only the `cbteNro` travels from the client. The amount and the date — the two
+ * fields that decide whether the comprobante occupying that sequence number is
+ * ours (ADR-0012 decision 4) — are recomputed on the server from the
+ * choreography. Sending them from the form would collapse decision 4 to a
+ * single effective field: in this app the same amount repeats all the time.
  *
- * Un `cbteNro` adulterado o viejo no fuerza nada: hace que el importe
- * recalculado no coincida y el resultado sigue siendo `unverified`, que es la
- * dirección segura.
+ * A tampered or stale `cbteNro` forces nothing: it makes the recomputed amount
+ * fail to match, and the result stays `unverified`, which is the safe direction.
  *
- * La re-verificación **sólo puede probar el positivo**. Se corre como si la
- * autorización original hubiera vencido por timeout, así un `null` nunca asciende
- * a `not-emitted` por más tiempo que haya pasado: nadie midió cuánto puede vivir
- * una petición del lado de ARCA, y cualquier umbral sería un número inventado
- * (ADR-0012 decisión 2). Equivocarse hacia `not-emitted` cuesta un segundo
- * comprobante fiscal que después hay que anular; equivocarse hacia `unverified`
- * le cuesta al operador un click.
+ * Re-verification **can only prove the positive**. It runs as if the original
+ * authorization had timed out, so a `null` never gets promoted to `not-emitted`
+ * no matter how much time has passed: nobody has measured how long a request
+ * can live on ARCA's side, and any threshold would be an invented number
+ * (ADR-0012 decision 2). Erring towards `not-emitted` costs a second fiscal
+ * comprobante that then has to be voided; erring towards `unverified` costs the
+ * operator one click.
  */
 export async function recheckWithContingency<TVoucher>(
   choreography: ArcaEmissionChoreography<TVoucher>,
@@ -247,8 +249,8 @@ export async function recheckWithContingency<TVoucher>(
   const recovery = await recoverAuthorization(
     choreography.client,
     { ...attempt, impTotal: choreography.impTotal, cbteFch },
-    // La autorización original ya no está: se la trata como en vuelo para que un
-    // `null` se quede en `unverified` en lugar de habilitar el reintento.
+    // The original authorization is gone: it is treated as in flight so that a
+    // `null` stays `unverified` instead of enabling the retry.
     {
       phase: "authorization",
       timedOut: true,
@@ -284,8 +286,9 @@ export async function recheckWithContingency<TVoucher>(
   return { ok: true, voucher, recovered: true };
 }
 
-// El motivo del rechazo, en el orden en que ARCA lo explica: primero el error que
-// lo impidió, después la observación, y como último recurso el `Resultado` crudo.
+// The reason for the rejection, in the order ARCA explains it: first the error
+// that prevented it, then the observation, and as a last resort the raw
+// `Resultado`.
 function buildRejectionMessage(emission: FacturaCEmissionResult): string {
   const detail =
     emission.errors[0]?.msg ??

@@ -44,9 +44,9 @@ import {
 } from "./shared";
 
 type ComprobanteDetailRouteViewProps = {
-  // Permite a los tests montar el diálogo de anulación abierto sin depender de
-  // abrir el menú de acciones (que vive en un portal), igual que el detalle de
-  // pago con su diálogo de borrado.
+  // Lets the tests mount the annulment dialog already open without depending on
+  // opening the actions menu (which lives in a portal), just like the payment
+  // detail with its delete dialog.
   initialAnnulDialogOpen?: boolean;
   loaderData: ComprobanteDetailLoaderData;
 };
@@ -65,8 +65,8 @@ export function ComprobanteDetailRouteView({
   loaderData,
 }: ComprobanteDetailRouteViewProps) {
   const comprobante = loaderData.comprobante;
-  // El diálogo sólo se abre sobre un comprobante anulable —el item del menú es la
-  // única afordancia—, pero una vez abierto sobrevive a que deje de serlo.
+  // The dialog only opens over an annullable comprobante — the menu item is the
+  // only affordance — but once open it survives it ceasing to be one.
   const [isAnnulDialogOpen, setIsAnnulDialogOpen] = useState(
     initialAnnulDialogOpen && comprobante.canAnnul,
   );
@@ -105,10 +105,11 @@ export function ComprobanteDetailRouteView({
         <ComprobanteDetailCard comprobante={comprobante} />
       </AdminResourceLayout>
 
-      {/* Se desmonta al CERRARLO, no al perder la afordancia: una anulación
-          recuperada por "Verificar ahora" persiste la nota de crédito y revalida
-          el detalle, que deja de ser anulable. Desmontar ahí se llevaría puesto
-          el estado `recovered` que el diálogo existe para mostrar (#577). */}
+      {/* It unmounts when it is CLOSED, not when it loses the affordance: an
+          annulment recovered via "Verificar ahora" persists the nota de crédito
+          and revalidates the detail, which stops being annullable. Unmounting
+          there would take the `recovered` state the dialog exists to show with
+          it (#577). */}
       {comprobante.canAnnul || isAnnulDialogOpen ? (
         <AnnulDialog
           comprobante={comprobante}
@@ -223,10 +224,11 @@ function DetailRow({
 }
 
 /**
- * Confirmación de anulación como `AlertDialog` (ADR-0011): foco atrapado, no se
- * cierra al clickear afuera y expone `role="alertdialog"`. Sin checkbox: la
- * confirmación es el diálogo mismo. El copy dice qué se anula, por cuánto, y que
- * la anulación se materializa emitiendo una Nota de crédito espejo.
+ * Annulment confirmation as an `AlertDialog` (ADR-0011): focus trapped, it does
+ * not close on an outside click and it exposes `role="alertdialog"`. No
+ * checkbox: the confirmation is the dialog itself. The copy says what is being
+ * annulled, for how much, and that the annulment materializes by emitting a
+ * mirror Nota de crédito.
  */
 function AnnulDialog({
   comprobante,
@@ -237,10 +239,11 @@ function AnnulDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  // El feedback del action viaja por `fetcher.data`, no por `useActionData`: el
-  // form se envía con el fetcher, así que la respuesta (rechazo/contingencia de
-  // ARCA) vuelve acá y no al `actionData` de la ruta. El camino feliz redirige y
-  // el fetcher lo sigue, revalidando el detalle (que deja de ser anulable).
+  // The action's feedback travels via `fetcher.data`, not via `useActionData`:
+  // the form is submitted with the fetcher, so the response (ARCA's
+  // rejection/contingency) comes back here and not to the route's `actionData`.
+  // The happy path redirects and the fetcher follows it, revalidating the detail
+  // (which stops being annullable).
   const fetcher = useFetcher<ComprobanteDetailActionData>();
   const isSaving = fetcher.state !== "idle";
   const actionData = fetcher.data;
@@ -249,9 +252,9 @@ function AnnulDialog({
   const genericError =
     actionData?.status === "error" ? actionData.message : null;
 
-  // La verificación manual la declara el operador, así que no puede sobrevivir a
-  // un intento nuevo: cada respuesta del server la borra y el reintento vuelve a
-  // quedar bloqueado si sigue sin resolverse.
+  // Manual verification is declared by the operator, so it cannot survive a new
+  // attempt: every response from the server clears it and the retry goes back to
+  // being blocked if it is still unresolved.
   const [acknowledged, setAcknowledged] = useState(false);
   useEffect(() => {
     setAcknowledged(false);
@@ -312,9 +315,9 @@ function AnnulDialog({
             <AlertDialogCancel type="button" disabled={isSaving}>
               {contingencyCancelLabel(submitState)}
             </AlertDialogCancel>
-            {/* Recuperada: la nota de crédito ya está autorizada y registrada,
-                así que el botón se saca. Deshabilitarlo se leería como "esperá"
-                e invitaría a un reintento que emitiría una segunda. */}
+            {/* Recovered: the nota de crédito is already authorized and on
+                record, so the button is removed. Disabling it would read as
+                "hold on" and would invite a retry that would emit a second one. */}
             {submitState === "removed" ? null : (
               <Button
                 type="submit"

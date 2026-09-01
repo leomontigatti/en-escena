@@ -14,21 +14,22 @@ import { choreographies, choreographyDancers } from "./choreographies";
 import { createTable } from "./core";
 import { events } from "./events";
 
-// Condición IVA del emisor, congelada en el snapshot. El emisor es Proyecciones
-// Artísticas Asociación Civil (CUIT 30717611590), EXENTA frente al IVA → emite
-// clase C igual que un monotributista (corrección registrada en #426). El valor
-// es único hoy; el enum documenta que la columna es un snapshot congelado, no un
-// campo libre.
+// The issuer's VAT condition, frozen in the snapshot. The issuer is
+// Proyecciones Artísticas Asociación Civil (CUIT 30717611590), EXEMPT from VAT
+// → it issues class C just like a monotributista (correction recorded in #426).
+// The value is unique today; the enum documents that the column is a frozen
+// snapshot, not a free-form field.
 export const comprobanteIssuerIvaCondition = pgEnum(
   "en_escena_comprobante_issuer_iva_condition",
   ["exento"],
 );
 
-// `Comprobante` — comprobante fiscal electrónico ARCA (Factura C, `CbteTipo` 11;
-// Nota de crédito C, tipo 13). Es un documento DERIVADO e INMUTABLE (#320/#326):
-// nunca gobierna el estado financiero y, una vez emitido con CAE, no se edita ni
-// se borra. El estado `vigente`/`anulada` NO se persiste: se deriva de la
-// existencia de una Nota de crédito asociada (ver comprobante-status.server).
+// `Comprobante` — ARCA electronic fiscal comprobante (Factura C, `CbteTipo` 11;
+// Nota de crédito C, type 13). It is a DERIVED and IMMUTABLE document
+// (#320/#326): it never governs financial state and, once emitted with a CAE,
+// it is neither edited nor deleted. The `vigente`/`anulada` state is NOT
+// persisted: it is derived from the existence of an associated Nota de crédito
+// (see comprobante-status.server).
 export const comprobantes = createTable(
   "comprobante",
   {
@@ -36,45 +37,44 @@ export const comprobantes = createTable(
       .primaryKey()
       .notNull()
       .$defaultFn(() => crypto.randomUUID()),
-    // Coreografía ancla. Sin `onDelete cascade`: una coreografía con historia
-    // fiscal no puede borrarse físicamente (invariante duro de #340), así que la
-    // fila raíz siempre conserva su ancla viva y no existen comprobantes
-    // huérfanos.
+    // Anchor choreography. No `onDelete cascade`: a choreography with fiscal
+    // history cannot be physically deleted (hard invariant of #340), so the root
+    // row always keeps its anchor alive and there are no orphan comprobantes.
     choreographyId: varchar("choreography_id", { length: 255 }).notNull(),
     eventId: varchar("event_id", { length: 255 }).notNull(),
-    // Tipo de comprobante ARCA: 11 = Factura C, 13 = Nota de crédito C.
+    // ARCA comprobante type: 11 = Factura C, 13 = Nota de crédito C.
     cbteTipo: integer("cbte_tipo").notNull(),
     ptoVta: integer("pto_vta").notNull(),
     cbteNro: integer("cbte_nro").notNull(),
-    // Fecha del comprobante en formato ARCA `AAAAMMDD`.
+    // Comprobante date in ARCA's `AAAAMMDD` format.
     cbteFch: text("cbte_fch").notNull(),
-    // Período de servicio y vencimiento de pago (Concepto 2, RG 1415) en formato
-    // ARCA `AAAAMMDD`. Nullable: sólo los comprobantes emitidos a partir de
-    // ADR-0011 los llevan; la fila preexistente se emitió como Concepto 1 (venta
-    // de producto) y nunca cargó fechas de servicio (justificación en ADR §3).
+    // Service period and payment due date (Concepto 2, RG 1415) in ARCA's
+    // `AAAAMMDD` format. Nullable: only the comprobantes emitted from ADR-0011
+    // onwards carry them; the pre-existing row was emitted as Concepto 1 (sale
+    // of goods) and never carried service dates (rationale in ADR §3).
     fchServDesde: text("fch_serv_desde"),
     fchServHasta: text("fch_serv_hasta"),
     fchVtoPago: text("fch_vto_pago"),
-    // Importe total en pesos argentinos enteros (sin centavos, ver finances.md).
+    // Total amount in whole Argentine pesos (no cents, see finances.md).
     impTotal: integer("imp_total").notNull(),
-    // Snapshot del emisor. El CUIT se guarda como texto: 30717611590 excede el
-    // rango de un integer de 32 bits.
+    // Issuer snapshot. The CUIT is stored as text: 30717611590 exceeds the range
+    // of a 32-bit integer.
     issuerCuit: text("issuer_cuit").notNull(),
     issuerIvaCondition: comprobanteIssuerIvaCondition(
       "issuer_iva_condition",
     ).notNull(),
-    // Snapshot del receptor consumidor final anónimo (#324): DocTipo 99 /
-    // DocNro 0, con la condición IVA del receptor resuelta contra ARCA
-    // (Consumidor Final). `doc_nro` es texto por si un receptor futuro trae CUIT.
+    // Snapshot of the anonymous final-consumer recipient (#324): DocTipo 99 /
+    // DocNro 0, with the recipient's VAT condition resolved against ARCA
+    // (Consumidor Final). `doc_nro` is text in case a future recipient has a CUIT.
     receptorDocTipo: integer("receptor_doc_tipo").notNull(),
     receptorDocNro: text("receptor_doc_nro").notNull(),
     receptorIvaConditionId: integer("receptor_iva_condition_id").notNull(),
     cae: text("cae").notNull(),
-    // Vencimiento del CAE en formato ARCA `AAAAMMDD`.
+    // CAE expiry in ARCA's `AAAAMMDD` format.
     caeVto: text("cae_vto").notNull(),
-    // Comprobante asociado: una Nota de crédito (tipo 13) apunta acá a la factura
-    // que anula (`CbtesAsoc`). Null en una factura. Del lado de la factura, la
-    // existencia de una fila que la referencia es lo que la deriva a `anulada`.
+    // Associated comprobante: a Nota de crédito (type 13) points here at the
+    // factura it annuls (`CbtesAsoc`). Null on a factura. From the factura's
+    // side, the existence of a row referencing it is what derives it to `anulada`.
     associatedComprobanteId: varchar("associated_comprobante_id", {
       length: 255,
     }),
@@ -85,9 +85,9 @@ export const comprobantes = createTable(
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),
   },
-  // Foreign keys nombradas: el nombre que deriva Drizzle supera los 63
-  // caracteres de un identificador de Postgres y se truncaría. Los nombres deben
-  // coincidir con los de la migración.
+  // Named foreign keys: the name Drizzle derives exceeds Postgres's 63-character
+  // identifier limit and would be truncated. The names must match those in the
+  // migration.
   (table) => [
     foreignKey({
       columns: [table.choreographyId],
@@ -114,14 +114,14 @@ export const comprobantes = createTable(
       table.createdAt,
     ),
     index("comprobante_event_idx").on(table.eventId, table.createdAt),
-    // Único, no un índice común: garantiza a nivel de base que un comprobante
-    // tenga como máximo UNA Nota de crédito asociada. La columna es nullable y
-    // Postgres trata los NULL como distintos, así que las facturas vigentes
-    // (todas NULL) no colisionan entre sí. Cierra la carrera de dos anulaciones
-    // concurrentes del mismo comprobante: sin esto, el chequeo `already-annulled`
-    // de `annulComprobante` lee estado derivado y hace un round-trip a ARCA no
-    // transaccional antes de persistir, así que ambas podrían insertar su Nota de
-    // crédito espejo y dejar el estado derivado ambiguo.
+    // Unique, not a plain index: it guarantees at the database level that a
+    // comprobante has at most ONE associated Nota de crédito. The column is
+    // nullable and Postgres treats NULLs as distinct, so the comprobantes in
+    // force (all NULL) do not collide with each other. It closes the race
+    // between two concurrent annulments of the same comprobante: without it,
+    // `annulComprobante`'s `already-annulled` check reads derived state and makes
+    // a non-transactional round trip to ARCA before persisting, so both could
+    // insert their mirror Nota de crédito and leave the derived state ambiguous.
     uniqueIndex("comprobante_associated_unique").on(
       table.associatedComprobanteId,
     ),

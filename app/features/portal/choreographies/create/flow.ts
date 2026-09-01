@@ -121,9 +121,9 @@ export function getFirstPostResolutionStepIndex(input: {
 }
 
 /**
- * Sin ningún cupo con lugar el paso reemplaza el select por el aviso, así que no
- * queda nada para elegir: la acción del pie queda deshabilitada en lugar de
- * seguir habilitada sin efecto.
+ * With no capacity having room, the step replaces the select with the notice, so
+ * there is nothing left to choose: the footer's action is disabled instead of
+ * staying enabled with no effect.
  */
 export function canAdvanceFromScheduleStep(input: {
   resolution: RegistrationResolution | null;

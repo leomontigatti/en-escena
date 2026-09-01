@@ -331,13 +331,13 @@ function readScheduleActionValues(formData: FormData): ScheduleActionValues {
 }
 
 /**
- * Re-valida en el servidor las filas anidadas del cronograma con el **mismo**
- * esquema Zod que usa el cliente (`scheduleFormSchema`), incluyendo el
- * `superRefine` de tipo de grupo duplicado, cerrando la asimetría
- * cliente/servidor de los formularios de bases (PRD #465). Ante fallo devuelve
- * el error por el canal de `EventBasesActionResult`, que el runner convierte en
- * el round-trip de `submittedValues`/`ActionData` que repuebla el formulario y
- * sus cupos.
+ * Revalidates the schedule's nested rows on the server with the **same** Zod
+ * schema the client uses (`scheduleFormSchema`), including the duplicate
+ * group-type `superRefine`, closing the client/server asymmetry of the bases
+ * forms (PRD #465). On failure it returns the error through the
+ * `EventBasesActionResult` channel, which the runner turns into the
+ * `submittedValues`/`ActionData` round trip that repopulates the form and its
+ * capacities.
  */
 function revalidateScheduleForm(
   input: ScheduleActionInput,

@@ -48,9 +48,9 @@ export async function completeMandatoryPasswordChange(input: {
     };
   }
 
-  // Cambio de contraseña propio (no es una operación de admin): actualiza la
-  // credencial directamente con el hasher de Better Auth, sin pasar por el admin
-  // plugin (que exige una sesión de admin).
+  // The user's own password change (not an admin operation): it updates the
+  // credential directly with Better Auth's hasher, without going through the
+  // admin plugin (which requires an admin session).
   await upsertBetterAuthCredentialPassword({
     password: input.newPassword,
     userId: appUser.id,

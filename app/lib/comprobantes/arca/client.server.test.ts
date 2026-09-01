@@ -20,7 +20,8 @@ import {
   ultimoNotaCreditoAutorizado,
 } from "./fixtures";
 
-// Timeouts en milisegundos: los tests ejercitan el corte real, sin fake timers.
+// Timeouts in milliseconds: the tests exercise the real cut-off, with no fake
+// timers.
 const FAST_TIMEOUTS = { lookup: 20, authorization: 20 };
 
 function neverAnswers(): Promise<never> {
@@ -44,8 +45,8 @@ function fakeBilling(
     createVoucher: vi.fn(
       async (): Promise<CreateVoucherResultDto> => facturaCAprobada,
     ),
-    // Sólo se consulta cuando la autorización se cae: por defecto ARCA no tiene
-    // ese comprobante.
+    // Only queried when the authorization falls over: by default ARCA does not
+    // have that comprobante.
     getVoucherInfo: vi.fn(
       async (): Promise<VoucherInfoResultDto | null> => null,
     ),
@@ -171,8 +172,8 @@ describe("ArcaClient", () => {
   });
 });
 
-// El SDK no impone timeout en ninguna capa: sin el nuestro, una llamada que
-// nunca responde deja la promesa colgada para siempre (ADR-0012 decisión 2).
+// The SDK imposes no timeout at any layer: without ours, a call that never
+// answers leaves the promise hanging forever (ADR-0012 decision 2).
 describe("ArcaClient (timeouts)", () => {
   test("acota FECompUltimoAutorizado con el timeout de consulta", async () => {
     const billing = fakeBilling({ getLastVoucher: vi.fn(neverAnswers) });

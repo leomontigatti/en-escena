@@ -25,9 +25,9 @@ export const user = createTable("user", {
     .notNull()
     .default(false),
   suspended: boolean("suspended").notNull().default(false),
-  // Metadata del baneo del admin plugin de Better Auth (#423). El estado
-  // `banned` se mapea a la columna `suspended` (misma noción de dominio); acá
-  // solo viven la razón y el vencimiento que `banUser`/`unbanUser` escriben.
+  // Ban metadata from Better Auth's admin plugin (#423). The `banned` state maps
+  // onto the `suspended` column (the same domain notion); only the reason and the
+  // expiry that `banUser`/`unbanUser` write live here.
   banReason: text("ban_reason"),
   banExpires: timestamp("ban_expires", {
     mode: "date",
@@ -84,10 +84,11 @@ export const accessSession = createTable(
   (table) => [index("access_session_user_id_idx").on(table.userId)],
 ).enableRLS();
 
-// Tabla `account` con la forma canónica de Better Auth. Reemplaza a
-// `access_credential`: para credenciales locales, `provider_id = 'credential'`,
-// `account_id = user_id` y `password` guarda el hash. Las columnas OAuth se
-// incluyen de una para no re-migrar cuando lleguen providers externos (#297).
+// The `account` table in Better Auth's canonical shape. It replaces
+// `access_credential`: for local credentials, `provider_id = 'credential'`,
+// `account_id = user_id` and `password` holds the hash. The OAuth columns are
+// included up front so there is no re-migration when external providers arrive
+// (#297).
 export const account = createTable(
   "account",
   {
@@ -129,8 +130,8 @@ export const account = createTable(
   (table) => [index("account_user_id_idx").on(table.userId)],
 ).enableRLS();
 
-// Tabla `verification` de Better Auth: tokens de verificación de email y de
-// reset de contraseña (`identifier` → `value`, con expiración).
+// Better Auth's `verification` table: email-verification and password-reset
+// tokens (`identifier` → `value`, with an expiry).
 export const verification = createTable(
   "verification",
   {

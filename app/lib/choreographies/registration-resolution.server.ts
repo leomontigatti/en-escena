@@ -103,9 +103,9 @@ type ExperienceLevelResolution =
     };
 
 /**
- * Solo las opciones que el portal ofrece como lista llevan ocupación: con un
- * único cupo compatible no hay select donde elegir, y el rótulo del cronograma
- * ya asignado no dice cuántos lugares quedan.
+ * Only the options the portal offers as a list carry occupancy: with a single
+ * compatible capacity there is no select to choose from, and the label of the
+ * already assigned schedule does not say how many places are left.
  */
 type ScheduleCapacityChoice = ScheduleOptionSummary & {
   isFull: boolean;
@@ -434,15 +434,15 @@ export function validateSubmodalitySelection(input: {
 }
 
 /**
- * Gemelo de `validateSubmodalitySelection` para el nivel de experiencia: recibe
- * los niveles que la categoría resuelta permite y el valor enviado, sin
- * depender de una `ChoreographyRegistrationOperationResolution` entera. Es la
- * pieza que comparten el alta desde el portal, el guardado del roster y la
- * reasignación autónoma del detalle.
+ * The twin of `validateSubmodalitySelection` for the experience level: it takes
+ * the levels the resolved category allows and the submitted value, without
+ * depending on a whole `ChoreographyRegistrationOperationResolution`. It is the
+ * piece shared by portal sign-up, roster saving and the detail's standalone
+ * reassignment.
  *
- * Los niveles no son una tabla: son un enum global (`experienceLevelValues`) y
- * la categoría declara cuáles admite, así que "válido" es pertenecer a esa
- * lista y nada más.
+ * The levels are not a table: they are a global enum (`experienceLevelValues`)
+ * and the category declares which ones it admits, so "valid" means belonging to
+ * that list and nothing more.
  */
 export function validateExperienceLevelSelection(input: {
   availableExperienceLevels: Array<{ id: string }>;
@@ -671,8 +671,8 @@ async function mapScheduleResolution(
   return {
     status: "multiple",
     canConfirm: true,
-    // Las mismas opciones con ocupación que ve administración: el rótulo lo
-    // arma el constructor compartido para que las dos superficies no diverjan.
+    // The same options with occupancy that administration sees: the label is built
+    // by the shared builder so the two surfaces do not diverge.
     options: await withScheduleCapacityOccupancy({
       options: scheduleResolution.options.map((option) => ({
         ...toScheduleOptionSummary(option),

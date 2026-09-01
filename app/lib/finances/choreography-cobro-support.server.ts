@@ -23,8 +23,8 @@ export type Executor = Transaction | typeof db;
 type FinancePriceRow = typeof prices.$inferSelect;
 
 /**
- * Resultado de una operación de cobro. Cuando `ok` es `false`, `message` es un
- * texto listo para mostrar en la UI administrativa.
+ * The result of a collection operation. When `ok` is `false`, `message` is text
+ * ready to be shown in the administrative UI.
  */
 export type CobroResult = { ok: true } | { ok: false; message: string };
 
@@ -70,9 +70,9 @@ export async function runCobro(
 }
 
 /**
- * Carga la fila de precio elegida validando que pertenezca al conjunto candidato
- * de la coreografía: mismo evento, mismo `groupType` y cronograma (una fila
- * específica del cronograma o una general), sin filtrar por fecha.
+ * Loads the chosen price row, validating that it belongs to the choreography's
+ * candidate set: same event, same `groupType` and schedule (either a
+ * schedule-specific row or a general one), without filtering by date.
  */
 export async function loadCandidatePriceRow(
   tx: Transaction,
@@ -138,11 +138,12 @@ export async function hasCrossedStoredDepositThreshold(
 }
 
 /**
- * Cabecera común de la carga de una coreografía para pricing: trae el `groupType`
- * y los dos orígenes posibles del cronograma (la fila directa o la de la capacidad
- * asociada), más la identidad para validar pertenencia. El cronograma efectivo se
- * resuelve con `resolveChoreographyPricingScheduleId`. Acepta la conexión o una
- * transacción; devuelve `null` si la coreografía no existe.
+ * The common header for loading a choreography for pricing: it brings the
+ * `groupType` and the two possible sources of the schedule (the direct row or the
+ * associated capacity's), plus the identity needed to validate membership. The
+ * effective schedule is resolved with `resolveChoreographyPricingScheduleId`. It
+ * accepts the connection or a transaction; it returns `null` if the choreography
+ * does not exist.
  */
 export async function loadChoreographyScheduleRow(
   executor: Transaction | typeof db,

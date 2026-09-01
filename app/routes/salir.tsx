@@ -16,8 +16,8 @@ export async function action({ request }: Route.ActionArgs) {
 
   const result = await accessAuthProvider.signOutCurrentSession(request);
 
-  // Al cerrar sesión también se expira toda cookie `sb-*` previa al cutover,
-  // para no dejar una sesión parcial en el navegador (#582).
+  // On sign-out, every `sb-*` cookie predating the cutover is expired too, so no
+  // partial session is left in the browser (#582).
   throw redirect("/ingresar?sesion=cerrada", {
     headers: appendLegacySessionCookieClearHeaders(result.headers, request),
   });

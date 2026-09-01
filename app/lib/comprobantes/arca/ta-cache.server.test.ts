@@ -3,8 +3,8 @@ import { describe, expect, test } from "vitest";
 
 import { InMemoryTaCache } from "./ta-cache.server";
 
-// Construye un TA con el vencimiento indicado. La forma sigue el
-// `ILoginCredentials` que devuelve el `loginCms` de WSAA.
+// Builds a TA with the given expiry. The shape follows the `ILoginCredentials`
+// that WSAA's `loginCms` returns.
 function makeTicket(expirationtime: string): AccessTicket {
   return AccessTicket.create({
     header: [

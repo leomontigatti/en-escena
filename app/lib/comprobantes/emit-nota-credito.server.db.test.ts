@@ -42,8 +42,8 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-// WSFEv1 mockeado: por defecto la consulta del último devuelve la serie tipo 13
-// y la emisión aprueba una Nota de crédito. Cada test sobrescribe lo que necesite.
+// Mocked WSFEv1: by default the last-number lookup returns the type 13 series
+// and emission approves a Nota de crédito. Each test overrides what it needs.
 function fakeBilling(
   overrides: Partial<ArcaBillingPort> = {},
 ): ArcaBillingPort {
@@ -54,8 +54,8 @@ function fakeBilling(
     createVoucher: vi.fn(
       async (): Promise<CreateVoucherResultDto> => notaCreditoCAprobada,
     ),
-    // Sólo se consulta cuando la autorización se cae: por defecto ARCA no tiene
-    // ese comprobante.
+    // Only queried when the authorization falls over: by default ARCA does not
+    // have that comprobante.
     getVoucherInfo: vi.fn(
       async (): Promise<VoucherInfoResultDto | null> => null,
     ),
@@ -63,8 +63,8 @@ function fakeBilling(
   };
 }
 
-// Respuesta aprobada de una Nota de crédito con el correlativo dado, para
-// distinguir eslabones de una cadena sin colisionar en (ptoVta, tipo, número).
+// An approved Nota de crédito response with the given sequence number, to tell
+// links of a chain apart without colliding on (ptoVta, type, number).
 function approvedNotaCredito(cbteNro: number): CreateVoucherResultDto {
   const cae = `4112459999${String(cbteNro).padStart(4, "0")}`;
   return {
@@ -88,15 +88,15 @@ function approvedNotaCredito(cbteNro: number): CreateVoucherResultDto {
   };
 }
 
-// Timeouts en milisegundos para ejercitar el corte real sin fake timers.
+// Timeouts in milliseconds, to exercise the real cut-off without fake timers.
 const FAST_TIMEOUTS: ArcaTimeouts = { lookup: 20, authorization: 20 };
 
 function neverAnswers(): Promise<never> {
   return new Promise<never>(() => {});
 }
 
-// ARCA cortó la comunicación: el SDK no declara clases ni códigos de error, así
-// que una falla de transporte llega como un `Error` cualquiera.
+// ARCA dropped the connection: the SDK declares no error classes or codes, so a
+// transport failure arrives as an ordinary `Error`.
 function connectionLost(): Promise<never> {
   return Promise.reject(new Error("socket hang up"));
 }
@@ -179,9 +179,9 @@ async function recordFactura(input: {
   inscriptionId: string;
   amount: number;
   cbteNro: number;
-  // Fechas de servicio opcionales: los comprobantes emitidos post-ADR-0011 las
-  // llevan (Concepto 2); el seed viejo no (Concepto 1). La Nota de crédito espeja
-  // lo que el original tenga.
+  // Optional service dates: comprobantes emitted after ADR-0011 carry them
+  // (Concepto 2); the old seed does not (Concepto 1). The Nota de crédito
+  // mirrors whatever the original has.
   fchServDesde?: string;
   fchServHasta?: string;
   fchVtoPago?: string;
@@ -240,7 +240,7 @@ describe("annulComprobante", () => {
     expectOk(outcome);
     expect(outcome.recovered).toBe(false);
 
-    // Correlativo de la serie tipo 13 (último 7 → 8) y CbtesAsoc al original.
+    // Type 13 series sequence number (last 7 → 8) and CbtesAsoc to the original.
     expect(deps.billing.getLastVoucher).toHaveBeenCalledWith(1, 13);
     const sent = vi.mocked(deps.billing.createVoucher).mock
       .calls[0][0] as ArcaVoucher;
@@ -260,7 +260,7 @@ describe("annulComprobante", () => {
     const rows = await listChoreographyComprobantes(choreography.id);
     const facturaRow = rows.find((row) => row.id === factura.id);
     const notaCredito = rows.find((row) => row.cbteTipo === 13);
-    // El original queda anulado; la Nota de crédito, vigente y asociada.
+    // The original ends up annulled; the Nota de crédito, in force and associated.
     expect(facturaRow?.status).toBe("anulada");
     expect(notaCredito).toMatchObject({
       cbteTipo: 13,
@@ -273,9 +273,9 @@ describe("annulComprobante", () => {
   });
 
   test("la Nota de crédito reenvía las fechas de servicio del comprobante que anula", async () => {
-    // Regresión (10049): la emisión es siempre Concepto 2, así que la NC debe
-    // reenviar las tres fechas del comprobante que anula. Antes salía Concepto 2
-    // sin fechas y ARCA la rechazaba.
+    // Regression (10049): emission is always Concepto 2, so the NC must forward
+    // the three dates of the comprobante it annuls. It used to go out as Concepto
+    // 2 with no dates and ARCA rejected it.
     const { academy, choreography, inscription } =
       await seedChoreographyWithInscription(
         `concepto2.${crypto.randomUUID()}@example.com`,
@@ -374,18 +374,18 @@ describe("annulComprobante", () => {
     );
 
     expect(second).toMatchObject({ ok: false, reason: "already-annulled" });
-    // No se emitió una segunda Nota de crédito.
+    // No second Nota de crédito was emitted.
     expect(billing.createVoucher).not.toHaveBeenCalled();
     const rows = await listChoreographyComprobantes(choreography.id);
     expect(rows.filter((row) => row.cbteTipo === 13)).toHaveLength(1);
   });
 
-  // La guarda `already-annulled` del test anterior es a nivel aplicación: lee
-  // estado derivado y recién después hace el round-trip a ARCA, que no es
-  // transaccional. Dos anulaciones concurrentes podrían pasar ambas la guarda.
-  // El índice único sobre `associated_comprobante_id` es la red de contención:
-  // la segunda escritura falla en vez de dejar dos Notas de crédito espejo
-  // válidas y el estado derivado ambiguo.
+  // The previous test's `already-annulled` guard is application-level: it reads
+  // derived state and only then makes the round trip to ARCA, which is not
+  // transactional. Two concurrent annulments could both get past the guard. The
+  // unique index on `associated_comprobante_id` is the safety net: the second
+  // write fails instead of leaving two valid mirror Notas de crédito and an
+  // ambiguous derived state.
   test("la base rechaza una segunda Nota de crédito contra el mismo comprobante", async () => {
     const { academy, choreography, inscription } =
       await seedChoreographyWithInscription(
@@ -412,9 +412,10 @@ describe("annulComprobante", () => {
       ),
     );
 
-    // Escritura directa, saltando la guarda de aplicación: simula el perdedor de
-    // la carrera, que ya emitió su Nota de crédito en ARCA (correlativo distinto,
-    // así que no choca con el índice de numeración) y llega a persistirla.
+    // A direct write, skipping the application guard: it simulates the loser of
+    // the race, which already emitted its Nota de crédito in ARCA (a different
+    // sequence number, so it does not clash with the numbering index) and gets as
+    // far as persisting it.
     await expect(
       recordComprobante({
         choreographyId: choreography.id,
@@ -440,9 +441,9 @@ describe("annulComprobante", () => {
     expect(rows.filter((row) => row.cbteTipo === 13)).toHaveLength(1);
   });
 
-  // Contracara del test anterior: el índice es único pero la columna es
-  // nullable, y Postgres trata los NULL como distintos. Varias facturas vigentes
-  // (todas con `associatedComprobanteId` null) conviven sin colisionar.
+  // The flip side of the previous test: the index is unique but the column is
+  // nullable, and Postgres treats NULLs as distinct. Several comprobantes in
+  // force (all with a null `associatedComprobanteId`) coexist without colliding.
   test("varias facturas vigentes conviven bajo el índice único", async () => {
     const { choreography, inscription } = await seedChoreographyWithInscription(
       `vigentes.${crypto.randomUUID()}@example.com`,
@@ -536,7 +537,7 @@ describe("annulComprobante", () => {
     );
     expectOk(firstAnnul);
 
-    // 2) El remanente vuelve a ser facturable → emitir una segunda factura.
+    // 2) The remainder becomes billable again → emit a second factura.
     const reemit = await emitChoreographyFacturaC(
       { choreographyId: choreography.id, eventId: choreography.eventId },
       annulDeps(
@@ -549,8 +550,8 @@ describe("annulComprobante", () => {
     expect(reemit.ok).toBe(true);
     if (!reemit.ok) return;
 
-    // 3) Anular también la segunda factura: la cadena crece sin límite. La
-    // segunda Nota de crédito corre al siguiente correlativo de su serie.
+    // 3) Annul the second factura too: the chain grows without limit. The second
+    // Nota de crédito runs at the next sequence number of its series.
     const secondAnnul = await annulComprobante(
       { comprobanteId: reemit.comprobante.id },
       annulDeps(
@@ -563,26 +564,27 @@ describe("annulComprobante", () => {
     expectOk(secondAnnul);
 
     const rows = await listChoreographyComprobantes(choreography.id);
-    // Cuatro filas: 2 facturas + 2 notas de crédito, todas imborrables.
+    // Four rows: 2 facturas + 2 notas de crédito, all undeletable.
     expect(rows).toHaveLength(4);
     const facturas = rows.filter((row) => row.cbteTipo === 11);
     const notas = rows.filter((row) => row.cbteTipo === 13);
     expect(facturas).toHaveLength(2);
     expect(notas).toHaveLength(2);
-    // Ambas facturas quedaron anuladas por su Nota de crédito respectiva.
+    // Both facturas ended up annulled by their respective Nota de crédito.
     expect(facturas.every((row) => row.status === "anulada")).toBe(true);
-    // Cada Nota de crédito referencia a una factura distinta.
+    // Each Nota de crédito references a different factura.
     expect(new Set(notas.map((row) => row.associatedComprobanteId)).size).toBe(
       2,
     );
   });
 });
 
-// ARCA no responde durante la anulación (ADR-0012): misma clasificación por fase
-// y misma recuperación por consulta que la emisión, contra la serie tipo 13.
+// ARCA does not respond during the annulment (ADR-0012): the same classification
+// by phase and the same recovery by lookup as emission, against the type 13
+// series.
 describe("annulComprobante (ARCA no responde)", () => {
-  // Coreografía con una factura vigente de 4000 lista para anular. La Nota de
-  // crédito a intentar es la 8 (`ultimoNotaCreditoAutorizado` = 7).
+  // A choreography with a comprobante of 4000 in force, ready to annul. The Nota
+  // de crédito to attempt is number 8 (`ultimoNotaCreditoAutorizado` = 7).
   async function seedFacturaVigente(prefix: string) {
     const { academy, choreography, inscription } =
       await seedChoreographyWithInscription(
@@ -605,7 +607,7 @@ describe("annulComprobante (ARCA no responde)", () => {
     return { choreography, factura };
   }
 
-  // `FECompConsultar` de la Nota de crédito 8 tal como ARCA la registró.
+  // `FECompConsultar` for Nota de crédito 8 as ARCA recorded it.
   function consultada(
     overrides: Partial<VoucherInfoResultDto> = {},
   ): VoucherInfoResultDto {
@@ -650,7 +652,7 @@ describe("annulComprobante (ARCA no responde)", () => {
 
     expect(billing.getVoucherInfo).toHaveBeenCalledWith(8, 1, 13);
     expectOk(outcome);
-    // El CAE salió de la consulta, no de la autorización.
+    // The CAE came from the lookup, not from the authorization.
     expect(outcome.recovered).toBe(true);
     expect(outcome.notaCredito).toMatchObject({
       cbteTipo: 13,
@@ -659,7 +661,7 @@ describe("annulComprobante (ARCA no responde)", () => {
       cae: "41124599990011",
       associatedComprobanteId: factura.id,
     });
-    // El original quedó anulado, igual que en el camino feliz.
+    // The original ended up annulled, just as on the happy path.
     const rows = await listChoreographyComprobantes(choreography.id);
     expect(rows.find((row) => row.id === factura.id)?.status).toBe("anulada");
   });

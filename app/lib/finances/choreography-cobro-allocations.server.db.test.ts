@@ -85,7 +85,7 @@ describe.sequential("applyAllocationDelta", () => {
 
     await applyAllocationDelta(db, { ...fixture, delta: -2000 });
 
-    // Ninguna fila sobrevive en cero: el CHECK de monto positivo no dejaría.
+    // No row survives at zero: the positive-amount CHECK would not allow it.
     expect(await readAllocations(fixture.inscriptionId)).toEqual([]);
   });
 });

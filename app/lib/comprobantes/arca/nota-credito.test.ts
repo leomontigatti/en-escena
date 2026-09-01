@@ -12,9 +12,9 @@ const baseInput: NotaCreditoCVoucherInput = {
   cbteFch: "20260722",
   importe: 7000,
   condicionIvaReceptorId: 5,
-  // La Nota de crédito espeja las tres fechas del comprobante que anula: la
-  // lógica de anulación las copia del comprobante original al input. El builder
-  // sigue exigiendo `FchVtoPago >= CbteFch` (WSFEv1) sobre la fecha de la NC.
+  // The Nota de crédito mirrors the three dates of the comprobante it annuls: the
+  // annulment logic copies them from the original comprobante into the input. The
+  // builder still requires `FchVtoPago >= CbteFch` (WSFEv1) on the NC's date.
   fchServDesde: "20260801",
   fchServHasta: "20260803",
   fchVtoPago: "20260722",
