@@ -56,11 +56,9 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
     header: "Nombre",
     className: "w-[20%] font-medium",
     headerClassName: "w-[20%]",
-    cell: (choreography) => (
-      <DataTableLink to={`/administracion/coreografias/${choreography.id}`}>
-        {choreography.name}
-      </DataTableLink>
-    ),
+    // The number is the row's only way into the detail. Linking the name too
+    // gave one destination two targets, which reads as a choice and is not.
+    cell: (choreography) => choreography.name,
     filterValue: (choreography) => choreography.name,
     sortValue: (choreography) => choreography.name,
   },
