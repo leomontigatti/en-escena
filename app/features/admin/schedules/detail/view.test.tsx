@@ -56,8 +56,8 @@ describe("EventScheduleDetailView", () => {
     expect(getButton("Eliminar").disabled).toBe(true);
   });
 
-  // El formulario planifica sobre lo que queda: el cupo total y cada cupo
-  // dividido dicen cuántos lugares siguen libres, no solo cuánto se repartió.
+  // The form plans against what is left: the total capacity and each split
+  // capacity say how many places are still free, not just how much was shared out.
   test("shows how many lugares are left for the cronograma and for each cupo", async () => {
     useNavigationMock.mockReturnValue({ state: "idle" });
 

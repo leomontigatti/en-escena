@@ -258,10 +258,10 @@ describe("Bases del evento repository", () => {
     ]);
   });
 
-  // La lista de Administración planifica sobre lo que queda, así que la
-  // ocupación tiene que ser la real —coreografías asignadas— y no la suma de
-  // los cupos divididos, que solo reparte el cupo total.
-  test("reports the lugares disponibles left by the coreografias already assigned", async () => {
+  // The Administración list plans against what is left, so occupancy has to be
+  // the real one — assigned choreographies — and not the sum of the split
+  // capacities, which only shares out the total capacity.
+  test("reports the lugares disponibles left by the coreografías already assigned", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Lugares Disponibles",
       email: "lugares.disponibles@example.com",

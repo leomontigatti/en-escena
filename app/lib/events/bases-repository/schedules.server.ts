@@ -125,8 +125,8 @@ export async function listSchedules(
 }
 
 /**
- * Los lugares no bajan de cero: si alguien subió una coreografía de más o
- * recortó el cupo después, la vista muestra "sin lugares", no un negativo.
+ * Places never go below zero: if someone squeezed in an extra choreography or
+ * shrank the capacity afterwards, the view reads "sin lugares", not a negative.
  */
 function toScheduleOccupancy(
   occupancy: ScheduleCapacityOccupancy | undefined,

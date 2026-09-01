@@ -138,9 +138,9 @@ export function getAvailableScheduleCapacityGroupTypeOptions(
 }
 
 /**
- * Administración planifica sobre lo que queda, no sobre lo que se llenó: la
- * columna dice cuántos lugares hay libres y contra qué cupo, en vez del par
- * `ocupados/total` que se leía como "lleno" cuando no lo estaba.
+ * Administración plans against what is left, not against what filled up: the
+ * column says how many places are free and against which capacity, instead of
+ * the `taken/total` pair that read as "full" when it was not.
  */
 export function formatAvailablePlaces({
   availablePlaces,
@@ -153,8 +153,8 @@ export function formatAvailablePlaces({
 }
 
 /**
- * La misma cuenta que la lista, redactada para la descripción de un campo del
- * formulario, donde el cupo ya está a la vista en el input de al lado.
+ * The same count as the list, worded for a form field description, where the
+ * capacity is already visible in the input next to it.
  */
 export function describeAvailablePlaces({
   availablePlaces,

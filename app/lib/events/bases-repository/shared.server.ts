@@ -155,9 +155,9 @@ export type ScheduleCapacityDependencies = {
 };
 
 /**
- * Ocupación real: cuántas coreografías hay asignadas y cuántos lugares quedan.
- * No confundir con la suma de los cupos divididos, que es un reparto del cupo
- * total y no dice nada sobre lo que ya está ocupado.
+ * Real occupancy: how many choreographies are assigned and how many places are
+ * left. Not to be confused with the sum of the split capacities, which only
+ * shares out the total capacity and says nothing about what is already taken.
  */
 export type ScheduleOccupancy = {
   availablePlaces: number;
