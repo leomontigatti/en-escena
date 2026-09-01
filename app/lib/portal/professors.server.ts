@@ -50,7 +50,6 @@ export type UpdateProfessorResult =
     };
 
 const reviewProfessorFieldsMessage = "Revisá los campos marcados.";
-type PortalProfessorStatusFilter = "active" | "archived";
 type ProfessorIdentityRow = Pick<
   typeof professors.$inferSelect,
   "id" | "firstName" | "lastName" | "active" | "documentType" | "documentNumber"
@@ -60,16 +59,9 @@ export async function listAcademyProfessors(
   academyId: string,
   options: {
     selectedEventId?: string | null;
-    status?: PortalProfessorStatusFilter;
   } = {},
 ): Promise<PortalProfessorListItem[]> {
-  const status = options.status;
   const selectedEventId = options.selectedEventId ?? null;
-  const statusFilter =
-    status === undefined
-      ? undefined
-      : eq(professors.active, status === "active");
-
   const rows = await db
     .select({
       id: professors.id,
@@ -81,7 +73,7 @@ export async function listAcademyProfessors(
       isParticipating: buildProfessorEventParticipationSql(selectedEventId),
     })
     .from(professors)
-    .where(and(eq(professors.academyId, academyId), statusFilter))
+    .where(eq(professors.academyId, academyId))
     .orderBy(
       asc(sql`lower(${professors.firstName})`),
       asc(sql`lower(${professors.lastName})`),

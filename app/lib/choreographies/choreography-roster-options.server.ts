@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { dancers, professors } from "@/db/schema";
@@ -25,7 +25,10 @@ export async function listProfessorOptionsForChoreography(
     })
     .from(professors)
     .where(eq(professors.academyId, academyId))
-    .orderBy(asc(professors.firstName), asc(professors.lastName));
+    .orderBy(
+      asc(sql`lower(${professors.firstName})`),
+      asc(sql`lower(${professors.lastName})`),
+    );
 
   return rows.filter((professor) =>
     isSelectableForRoster({
@@ -49,7 +52,10 @@ export async function listDancerOptionsForChoreography(
     })
     .from(dancers)
     .where(eq(dancers.academyId, academyId))
-    .orderBy(asc(dancers.firstName), asc(dancers.lastName));
+    .orderBy(
+      asc(sql`lower(${dancers.firstName})`),
+      asc(sql`lower(${dancers.lastName})`),
+    );
 
   return rows.filter((dancer) =>
     isSelectableForRoster({

@@ -1,8 +1,10 @@
 import { getChoreographyRegistrationInitialOptions } from "@/lib/events/bases.server";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
-import { listDancersForAcademy } from "@/lib/portal/dancers.server";
+import {
+  listDancerOptionsForChoreography,
+  listProfessorOptionsForChoreography,
+} from "@/lib/choreographies/choreography-roster-options.server";
 import { getPortalActiveEventReadinessContext } from "@/lib/portal/event-context.server";
-import { listAcademyProfessors } from "@/lib/portal/professors.server";
 
 export async function loadCreateChoreographyRouteData(request: Request) {
   const { academy } = await requireAcademyUser(request);
@@ -25,10 +27,13 @@ async function loadCreateChoreographyDialogData(input: {
   academyId: string;
   eventId: string;
 }) {
+  // A coreografía being created has no roster yet, so the pickers get an empty
+  // linked set: the shared eligibility rule then offers exactly the academy's
+  // active people, which is what creation has always shown.
   const [activeDancers, activeProfessors, registrationBaseOptions] =
     await Promise.all([
-      listDancersForAcademy(input.academyId, { status: "active" }),
-      listAcademyProfessors(input.academyId, { status: "active" }),
+      listDancerOptionsForChoreography(input.academyId, []),
+      listProfessorOptionsForChoreography(input.academyId, []),
       getChoreographyRegistrationInitialOptions(input.eventId),
     ]);
 

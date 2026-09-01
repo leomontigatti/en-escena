@@ -14,6 +14,12 @@ import {
   getParticipationLabel,
 } from "@/lib/participation/participation.shared";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
+import {
+  defaultRosterPersonStatusFilter,
+  getRosterPersonStatusBadgeVariant,
+  getRosterPersonStatusLabel,
+  toRosterPersonStatus,
+} from "@/lib/roster/roster-person-status.shared";
 import { useServerActionToast } from "@/lib/shared/toasts";
 import { usePortalRecordTitleLinkTransitionStyle } from "@/lib/shared/view-transitions";
 import { CreateProfessorDialog } from "@/features/portal/professors/create/dialog";
@@ -32,7 +38,7 @@ const professorDocumentKinds = ["professor_contract"] as const;
 
 const baseProfessorFilters = {
   filters: {
-    archivo: "active",
+    archivo: defaultRosterPersonStatusFilter,
   },
 };
 
@@ -172,7 +178,7 @@ function ProfessorsTable({ professors }: { professors: ProfessorRow[] }) {
         </div>
       ),
       filterValues: (professor) => [
-        professor.active ? "active" : "archived",
+        toRosterPersonStatus(professor.active),
         professor.participationStatus,
         professor.isIncomplete ? "incomplete" : "complete",
       ],
@@ -203,8 +209,13 @@ function ProfessorsTable({ professors }: { professors: ProfessorRow[] }) {
         },
         {
           id: "archivo",
-          label: "Archivo",
-          options: [{ label: "Archivado", value: "archived" }],
+          label: "Estado de alta",
+          options: [
+            {
+              label: getRosterPersonStatusLabel("archived"),
+              value: "archived",
+            },
+          ],
         },
       ]}
       baseFacetedFilterValues={baseProfessorFilters}
@@ -245,7 +256,10 @@ function getProfessorStateBadges(professor: ProfessorRow) {
   const badges: ProfessorBadge[] = [];
 
   if (!professor.active) {
-    badges.push({ label: "Archivado", variant: "destructive" as const });
+    badges.push({
+      label: getRosterPersonStatusLabel("archived"),
+      variant: getRosterPersonStatusBadgeVariant("archived"),
+    });
   }
 
   if (professor.participationStatus !== "no-event") {

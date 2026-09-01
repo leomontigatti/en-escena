@@ -18,6 +18,7 @@ import {
   recalculateLinkedChoreographiesForDancerBirthDateCorrection,
 } from "@/lib/choreographies/dancer-birthdate-correction.server";
 import { buildDancerEventParticipationSql } from "@/lib/participation/participation.server";
+import { activeRosterPerson } from "@/lib/roster/roster-person-status.server";
 import {
   type ParticipationStatus,
   toParticipationStatus,
@@ -69,7 +70,6 @@ export type CreateDancerResult =
     };
 
 export type UpdateDancerField = keyof UpdateDancerInput;
-type PortalDancerStatusFilter = "active" | "archived" | "all";
 export type UpdateDancerResult =
   | { ok: true; dancer: typeof dancers.$inferSelect }
   | {
@@ -83,10 +83,8 @@ export async function listDancersForAcademy(
   academyId: string,
   options: {
     selectedEventId?: string | null;
-    status?: PortalDancerStatusFilter;
   } = {},
 ): Promise<PortalDancerListItem[]> {
-  const status = options.status ?? "active";
   const selectedEventId = options.selectedEventId ?? null;
   const rows = await db
     .select({
@@ -103,7 +101,7 @@ export async function listDancersForAcademy(
       isParticipating: buildDancerEventParticipationSql(selectedEventId),
     })
     .from(dancers)
-    .where(getDancerListWhere(academyId, status))
+    .where(eq(dancers.academyId, academyId))
     .orderBy(
       asc(sql`lower(${dancers.firstName})`),
       asc(sql`lower(${dancers.lastName})`),
@@ -131,23 +129,9 @@ export async function countActiveDancersForAcademy(academyId: string) {
       count: sql<number>`count(*)`,
     })
     .from(dancers)
-    .where(getDancerListWhere(academyId, "active"));
+    .where(and(eq(dancers.academyId, academyId), activeRosterPerson(dancers)));
 
   return Number(count);
-}
-
-function getDancerListWhere(
-  academyId: string,
-  status: PortalDancerStatusFilter,
-) {
-  if (status === "all") {
-    return eq(dancers.academyId, academyId);
-  }
-
-  return and(
-    eq(dancers.academyId, academyId),
-    eq(dancers.active, status === "active"),
-  );
 }
 
 export async function createDancerForAcademy(
