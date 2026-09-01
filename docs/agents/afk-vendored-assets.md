@@ -73,18 +73,30 @@ are only concrete references to this repo:
   which audits the diff along a **Standards** and a **Spec** axis in parallel sub-agents, and at
   the same time stopped embedding the full patch in favour of a `git diff --stat` summary the
   agent drills into per file. Both are adopted here. Two local differences follow from the
-  runner contract: the agent holds **no GitHub token** (§3.8), so the skill is told the spec is
-  already embedded and the tracker is off-limits — upstream's "pull the sub-issues with
-  `gh api`" branch for PRDs is replaced by "review against the embedded body and say so";
-  and `.sandcastle/agent-review/context.mts` keeps fetching the **full** patch even though the
-  prompt only shows `--stat`, because `diff-anchors.mts` validates the agent's inline anchors
-  against it. The skill is installed per run at `latest`, globally (outside the work tree, so
+  runner contract: the agent holds **no GitHub token** (§3.9), so where upstream tells the skill
+  to pull a PRD's sub-issues with `gh api`, the **runner** prefetches them and embeds them as a
+  `<sub-issues>` list (state included, so an open sub-issue's code still reads as a scope
+  violation); and `.sandcastle/agent-review/context.mts` keeps fetching the **full** patch even
+  though the prompt only shows `--stat`, because `diff-anchors.mts` validates the agent's inline
+  anchors against it. The skill is installed per run at `latest`, globally (outside the work tree, so
   the commit step cannot sweep it into the PR branch), exactly as upstream does.
 - **The linked issue's body is embedded, not just its title.** Adopting the skill's Spec axis
   exposed a local gap that predated it: the review context fetched the issue with
   `--json title` only, so `<linked-issue>` expanded to a single line while the prompt asked the
   agent to verify coverage, scope, and interpretation against "the spec". It now fetches
   `--json title,body` and embeds the body.
+- **The token-less runner is enforced, not just asserted (§3.9).** The spec's hard invariant is
+  that the agent never mutates the tracker or the remote, and `agent-implement` /
+  `agent-implement-prd` honour it by simply omitting `GH_TOKEN` from the runner step. The three
+  runners that **prefetch** context (review, implement-pr, update-branch) cannot: they need the
+  token for their own read-only `gh` calls. That was enough to break the invariant in practice —
+  sandcastle's `noSandbox()` builds the agent's environment as `{ ...process.env }`, so the
+  step-level `GH_TOKEN` reached the agent, whose `gh` calls would have **succeeded** with the
+  job's write permissions. Only the prompt's "do not run `gh`" stood in the way, and a
+  succeeding call leaves no trace in the logs. `revokeGitHubToken()`
+  ([`lib/runner.mts`](../../.sandcastle/lib/runner.mts)) now drops `GH_TOKEN` / `GITHUB_TOKEN` /
+  `GH_ENTERPRISE_TOKEN` after the prefetch and before `createAgent()`, in all three runners;
+  `tests/afk/runner-token-revocation.test.ts` keeps the call ordered ahead of the agent.
 - **`agent-review` gets a bigger wall-clock budget** (45 / 40 instead of the usual 30 / 25),
   because the skill's sub-agents and the agent's own per-file diff reading both cost time. The
   table and the reasoning are in [`afk-setup.md`](./afk-setup.md) → "Wall-clock guardrails"; the

@@ -24,11 +24,34 @@ export function createAgent() {
 /**
  * The sandbox provider for GHA. `noSandbox()` runs the agent directly on the
  * runner host, operating on the worktree the workflow already checked out on
- * the correct branch — no Docker, no container copy. The runner injects only
- * the agent credential; it deliberately does **not** pass any `GH_TOKEN`.
+ * the correct branch — no Docker, no container copy. It injects only the agent
+ * credential — but note it also spreads `process.env` into the agent, so a
+ * runner that prefetches with a token must call {@link revokeGitHubToken}
+ * first; passing no `GH_TOKEN` here is not by itself enough.
  */
 export function createSandboxProvider() {
   return noSandbox();
+}
+
+/**
+ * Drop every GitHub credential from this process's environment.
+ *
+ * §3.9's hard invariant is that the agent never mutates the tracker or the
+ * remote, and the runners honour it by holding no token — `agent-implement` and
+ * `agent-implement-prd` simply omit `GH_TOKEN` from the workflow step. A runner
+ * that prefetches context (review, implement-pr, update-branch) cannot: it needs
+ * the token for its own read-only `gh` calls, and `noSandbox()` hands the agent
+ * `{ ...process.env }`, so a step-level `GH_TOKEN` reaches the agent and its
+ * `gh` calls *succeed* — silently, with the job's write permissions.
+ *
+ * Call this once the prefetch is done and before `createAgent()`, so the
+ * invariant is enforced by the environment rather than by the prompt asking the
+ * model nicely.
+ */
+export function revokeGitHubToken(): void {
+  delete process.env.GH_TOKEN;
+  delete process.env.GITHUB_TOKEN;
+  delete process.env.GH_ENTERPRISE_TOKEN;
 }
 
 /** The directory the orchestrator reads runner outputs from (GHA `runner.temp`). */

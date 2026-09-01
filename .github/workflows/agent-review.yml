@@ -106,8 +106,10 @@ jobs:
         # before that, with a ~20 min tail already brushing the old budget.
         timeout-minutes: 45 # guardrail: an agent hang must not burn the whole run
         env:
-          # Read-only prefetch (diff, linked issue, PR_COMMENTS_JSON) uses this;
-          # the agent is instructed not to mutate anything.
+          # Read-only prefetch (`gh`) uses this. The runner calls
+          # `revokeGitHubToken()` once the prefetch is done, so the agent itself
+          # never sees it — `noSandbox()` would otherwise spread it into the
+          # agent's environment (§3.9: the agent never mutates the tracker).
           GH_TOKEN: ${{ github.token }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # Internal deadline, below the step's `timeout-minutes`: the runner aborts

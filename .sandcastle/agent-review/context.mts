@@ -5,6 +5,9 @@
 //   - the linked issue (parsed from the PR body): its title AND its body — the
 //     body is the spec the review's Spec axis is checked against, and the agent
 //     holds no token to fetch it itself;
+//   - the linked issue's sub-issues, when it is a PRD: the Spec axis needs them
+//     to tell "implements a sibling sub-issue" (scope violation) from
+//     "implements this one";
 //   - the diff, in two shapes: the full patch (used locally to validate inline
 //     anchors) and `--stat` (the only shape embedded in the prompt);
 //   - PR_COMMENTS_JSON: issue_comments, review_summaries, unresolved review_threads.
@@ -22,6 +25,8 @@ export interface ReviewContext {
   readonly diff: string;
   /** `git diff master...HEAD --stat` — the diff shape the prompt embeds. */
   readonly diffStat: string;
+  /** `#n [state] title` per sub-issue; empty when the issue is not a PRD. */
+  readonly subIssues: string;
   /** Serialised bundle embedded verbatim into the prompt. */
   readonly prCommentsJson: string;
   /** GraphQL commentIds shown to the agent — replies to any other id are dropped. */
@@ -43,6 +48,31 @@ function parseLinkedIssue(prBody: string): string {
   return match[1];
 }
 
+/**
+ * The linked issue's sub-issues, one `#n [state] title` per line. Empty when the
+ * issue has none (the ordinary single-issue PR): the endpoint answers `[]` for a
+ * leaf issue. A failure to read them must not sink a review, so anything thrown
+ * here degrades to "no sub-issues" instead of propagating.
+ */
+function fetchSubIssues(repo: string, issueNumber: string): string {
+  try {
+    const raw = gh([
+      "api",
+      `repos/${repo}/issues/${issueNumber}/sub_issues`,
+      "--jq",
+      "[.[]|{number,state,title}]",
+    ]);
+    const subs = JSON.parse(raw || "[]") as Array<{
+      number: number;
+      state: string;
+      title: string;
+    }>;
+    return subs.map((sub) => `#${sub.number} [${sub.state}] ${sub.title}`).join("\n");
+  } catch {
+    return "";
+  }
+}
+
 export function buildReviewContext(repo: string, prNumber: string): ReviewContext {
   const [owner, name] = repo.split("/");
 
@@ -53,6 +83,8 @@ export function buildReviewContext(repo: string, prNumber: string): ReviewContex
   ) as { title: string; body: string | null };
   const issueTitle = issue.title.trim();
   const issueBody = (issue.body ?? "").trim();
+
+  const subIssues = fetchSubIssues(repo, issueNumber);
 
   const diff = git(["diff", "master...HEAD"]);
   const diffStat = git(["diff", "master...HEAD", "--stat"]);
@@ -128,6 +160,7 @@ export function buildReviewContext(repo: string, prNumber: string): ReviewContex
     issueBody,
     diff,
     diffStat,
+    subIssues,
     prCommentsJson,
     knownCommentIds,
   };

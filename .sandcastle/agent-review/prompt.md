@@ -2,8 +2,8 @@
   Runtime prompt for the **review** runner (spec §4.4). Derived from the vendored
   skeleton docs/agents/prompts/review.prompt.md. Two-pass: the produce pass
   improves the code + commits; a separate extract pass emits the <output> block.
-  The runner embeds the linked issue (title AND body — the spec), a --stat summary
-  of the diff, and PR_COMMENTS_JSON below. The full patch is deliberately not
+  The runner embeds the linked issue (title AND body — the spec), its sub-issues
+  when it is a PRD, a --stat summary of the diff, and PR_COMMENTS_JSON below. The full patch is deliberately not
   embedded: the agent reads it per-file with git, and the runner keeps the full
   patch only to validate inline anchors.
 -->
@@ -22,12 +22,20 @@ Read the repo's domain/architecture docs and coding standards before starting: `
 `docs/adr/`, `docs/agents/domain.md`, `.sandcastle/CODING_STANDARDS.md`, and
 `docs/agents/style-guide.md`.
 
-The spec (linked issue), embedded in full. Treat it as the **whole** spec: do not run `gh` to
-fetch or re-verify it.
+The spec (linked issue), embedded in full. Treat it as the **whole** spec — you hold no
+GitHub token, so you cannot fetch or re-verify it.
 
 <linked-issue number="{{ISSUE_NUMBER}}" title="{{ISSUE_TITLE}}">
 {{ISSUE_BODY}}
 </linked-issue>
+
+If the linked issue is a PRD, its sub-issues are listed here with their state. The branch is
+shared across the PRD's runs, so the diff may legitimately span several of them — but code for
+a sub-issue that is still **open** is a scope violation worth flagging.
+
+<sub-issues>
+{{SUB_ISSUES}}
+</sub-issues>
 
 The diff under review, as a **summary** — changed files with added/removed line counts, not the
 full patch:
@@ -63,10 +71,11 @@ Invoke it with everything it needs, so that it does **not** run its own discover
 - **Fixed point:** `master`. The diff to review is `git diff master...HEAD`. Do not ask for a
   fixed point — it is `master`.
 - **Spec:** issue #{{ISSUE_NUMBER}}, embedded above in `<linked-issue>`. Pass that text as the
-  spec. Do **not** look for `docs/agents/issue-tracker.md`, do **not** run
-  `/setup-matt-pocock-skills`, and do **not** run `gh` to fetch the issue — the spec is already
-  here and the tracker is off-limits to you. If the issue is a PRD whose sub-issues are not in
-  the embedded body, review against the body you were given and say so in the summary.
+  spec, together with the `<sub-issues>` list when it is non-empty: for a PRD, treat each
+  **closed** sub-issue as a sub-requirement, and code belonging to an **open** one as a scope
+  violation. Do **not** look for `docs/agents/issue-tracker.md`, do **not** run
+  `/setup-matt-pocock-skills`, and do **not** run `gh` — you hold no GitHub token, so those
+  calls fail; everything the skill needs is already embedded above.
 - **Standards:** `.sandcastle/CODING_STANDARDS.md` is this repo's documented standard — feed it
   as the standards source, with `docs/agents/style-guide.md` for frontend/UI. The skill's
   built-in smell baseline applies on top, but a documented repo standard always wins.
