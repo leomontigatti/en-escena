@@ -73,6 +73,19 @@ are only concrete references to this repo:
   but a `not planned` close is now the documented way to close a _deferred_ issue, so the local
   `agent-promote-queued.yml` adds a step ahead of it that comments on each `agent:queued`
   dependent it declines to promote. Behaviour unchanged, silence removed.
+- **Architecture Review runs weekly, not per weekday (§4.8).** The spec's reference trigger is
+  `0 9 * * 1-5` and its stated purpose is "one architectural-improvement PRD per weekday";
+  locally `architecture-review.yml` uses `0 9 * * 1` (Mondays). The cadence assumes proposals
+  are consumed at roughly the rate they are produced, and here they were not: between
+  2026-07-20 and 2026-09-01 the workflow proposed 33 PRDs, of which 5 were resolved (3 built,
+  2 decided against) and 28 were still open and untriaged — four of those five closures
+  happening in a single window, with none in the three weeks that followed. Nothing was wrong
+  with the proposals; the queue simply grew about five times faster than it drained, and a
+  backlog of un-triaged architectural PRDs is itself the kind of debt the workflow exists to
+  find. Weekly keeps the pass and lets the queue drain. The agent's own duplicate-avoidance
+  rule makes the cadence load-bearing in a second way: each run must find a target "not already
+  proposed", so a faster cadence pushes it toward ever more marginal candidates. Nothing else
+  about §4.8 changes — same runner contract, same read-only agent, same single publisher.
 - **`FRONTEND-TDD.md`**: the source mandates using `useEffectReducer` from `use-effect-reducer`;
   this repo does **not** use that library (nor reducers today), so the "Reducer choice" section
   was left library-neutral, preserving the principle (state logic in a pure, testable module).
