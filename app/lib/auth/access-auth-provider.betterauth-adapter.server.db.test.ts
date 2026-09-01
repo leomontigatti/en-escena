@@ -109,11 +109,12 @@ describe("Better Auth AccessAuthProvider adapter", () => {
     expect(pendingRows[0]?.identifier).toBe(
       `academy-signup:${debugConfirmationTokenHash}`,
     );
-    // El password no queda en claro en reposo (cifrado con el secret de la app).
+    // The password is not left in the clear at rest (encrypted with the app's
+    // secret).
     expect(pendingRows[0]?.value).not.toContain("password-en-claro");
     expect(pendingRows[0]?.expiresAt.getTime()).toBeGreaterThan(Date.now());
 
-    // Confirmar consume la fila y materializa el usuario.
+    // Confirming consumes the row and materializes the user.
     await provider.confirmEmailOtp({
       request: new Request("http://localhost/registro/confirmar"),
       tokenHash: debugConfirmationTokenHash!,
@@ -133,8 +134,8 @@ describe("Better Auth AccessAuthProvider adapter", () => {
       password: "irrelevante-se-sobrescribe",
     });
 
-    // Simula una credencial migrada por 0002: hash en el formato legacy de
-    // `createLocalAccessPasswordHash` (scryptSync por defecto, keylen 64, salt hex).
+    // Simulates a credential migrated by 0002: a hash in the legacy format of
+    // `createLocalAccessPasswordHash` (default scryptSync, keylen 64, hex salt).
     const salt = randomBytes(16).toString("hex");
     const legacyHash = `scrypt:${salt}:${scryptSync("password-legacy", salt, 64).toString("hex")}`;
     await db

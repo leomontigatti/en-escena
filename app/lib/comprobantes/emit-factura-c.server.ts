@@ -34,18 +34,18 @@ import {
 
 type ComprobanteRow = Awaited<ReturnType<typeof recordComprobante>>;
 
-// El emisor es Proyecciones Artísticas Asociación Civil, EXENTA frente al IVA
-// (#426): siempre emite clase C. El enum del snapshot sólo admite este valor.
+// The issuer is Proyecciones Artísticas Asociación Civil, EXEMPT from VAT
+// (#426): it always issues class C. The snapshot enum admits only this value.
 export const ISSUER_IVA_CONDITION = "exento" as const;
 
-// Insumos de emisión inyectables: el cliente ARCA (mockeable en tests) y la
-// config del punto de venta y receptor. `cbteFch` es opcional; por defecto se
-// usa la fecha de negocio de Córdoba en formato ARCA.
+// Injectable emission inputs: the ARCA client (mockable in tests) and the sales
+// point and recipient config. `cbteFch` is optional; it defaults to Córdoba's
+// business date in ARCA format.
 export type FacturaCEmissionDeps = {
   client: ArcaClient;
   ptoVta: number;
   issuerCuit: string;
-  // Condición IVA del receptor consumidor final, resuelta contra ARCA (#324).
+  // The final consumer recipient's VAT condition, resolved against ARCA (#324).
   receptorIvaConditionId: number;
   cbteFch?: string;
 };
@@ -60,31 +60,31 @@ export type FacturaCEmissionFailureReason =
   | "nothing-to-bill"
   // ARCA respondió y no autorizó.
   | "rejected"
-  // ARCA no respondió y quedó establecido que no se emitió nada: reintentar es
-  // seguro (ADR-0012 decisión 6).
+  // ARCA did not respond and it was established that nothing was emitted:
+  // retrying is safe (ADR-0012 decision 6).
   | "not-emitted"
-  // ARCA no respondió y la consulta posterior tampoco resolvió qué pasó.
+  // ARCA did not respond and the follow-up lookup did not resolve what happened.
   | "unverified";
 
 export type FacturaCEmissionOutcome =
   | {
       ok: true;
       comprobante: ComprobanteRow;
-      // El CAE se recuperó consultando a ARCA después de una autorización sin
-      // respuesta, en lugar de venir de `FECAESolicitar` (#577).
+      // The CAE was recovered by querying ARCA after an authorization with no
+      // response, instead of coming from `FECAESolicitar` (#577).
       recovered: boolean;
     }
   | {
       ok: false;
       reason: FacturaCEmissionFailureReason;
       message: string;
-      // Presente sólo en un rechazo de ARCA.
+      // Present only on a rejection from ARCA.
       arca?: {
         resultado: string | null;
         errors: ArcaMessage[];
         observaciones: ArcaMessage[];
       };
-      // Presente sólo en `unverified`: el comprobante que no se pudo resolver.
+      // Present only on `unverified`: the comprobante that could not be resolved.
       attempt?: ArcaAttemptedVoucher;
     };
 
@@ -128,11 +128,11 @@ export async function emitChoreographyFacturaC(
 }
 
 /**
- * Re-verifica contra ARCA una emisión que quedó sin resolver (#577), para el
- * correlativo que el diálogo trae del intento anterior. Vuelve a derivar el
- * facturable de la coreografía —de ahí sale el importe contra el que se valida
- * el comprobante consultado— así que si alguien tocó las asignaciones en el
- * medio, el importe no coincide y el resultado se queda en `unverified`.
+ * Re-verifies against ARCA an emission left unresolved (#577), for the sequence
+ * number the dialog carries over from the previous attempt. It re-derives the
+ * choreography's billable — which is where the amount the queried comprobante is
+ * validated against comes from — so if somebody touched the allocations in the
+ * meantime, the amount does not match and the result stays `unverified`.
  */
 export async function recheckChoreographyFacturaC(
   input: FacturaCEmissionInput & { cbteNro: number },
@@ -165,11 +165,12 @@ function toFacturaCOutcome(
 }
 
 /**
- * Arma la coreografía de emisión de la Factura C: valida el ancla, deriva el
- * facturable y congela las fechas de servicio. La comparten la emisión y la
- * re-verificación, que necesita exactamente los mismos insumos —el importe y la
- * fecha con los que se valida un comprobante recuperado (ADR-0012 decisión 4)—
- * calculados en el server y no traídos del form.
+ * Assembles the Factura C emission choreography: it validates the anchor,
+ * derives the billable and freezes the service dates. Emission and
+ * re-verification share it, since re-verification needs exactly the same inputs
+ * — the amount and the date a recovered comprobante is validated against
+ * (ADR-0012 decision 4) — computed on the server rather than taken from the
+ * form.
  */
 async function resolveFacturaCChoreography(
   input: FacturaCEmissionInput,
@@ -364,10 +365,10 @@ function sumByInscription(
 }
 
 /**
- * Resuelve los insumos de emisión de producción desde el entorno: el cliente
- * ARCA compartido (con su cache de TA) más el punto de venta y la condición IVA
- * del receptor. La UX de emisión (#447) consume esto; los tests inyectan un
- * cliente mockeado y no pasan por acá.
+ * Resolves the production emission inputs from the environment: the shared ARCA
+ * client (with its TA cache) plus the sales point and the recipient's VAT
+ * condition. The emission UX (#447) consumes this; the tests inject a mocked
+ * client and do not come through here.
  */
 export function getFacturaCEmissionDeps(
   env: NodeJS.ProcessEnv = process.env,

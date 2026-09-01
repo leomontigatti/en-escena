@@ -154,19 +154,19 @@ function ChoreographyAlerts({
 }
 
 /**
- * La anomalía `Sobreasignada` en el detalle, como alerta y no como badge: en la
- * lista es cómo se lee esa coreografía, acá es algo que alguien tiene que
- * resolver.
+ * The `Sobreasignada` anomaly on the detail, as an alert and not as a badge: in
+ * the list it is how that choreography reads, here it is something somebody has
+ * to resolve.
  *
- * **Genérica y sin título, y no enumera bailarines.** Una alerta que los lista se
- * vuelve una copia peor de la tabla que está justo abajo y crece sin límite con
- * el roster. La tabla es donde están las filas. Es auto-resolutiva —se deriva del
- * dinero de hoy—, así que no hay nada que descartar: se va cuando se va el
- * problema.
+ * **Generic and untitled, and it does not list dancers.** An alert that lists
+ * them becomes a worse copy of the table right below it and grows without limit
+ * with the roster. The table is where the rows are. It is self-resolving — it is
+ * derived from today's money — so there is nothing to dismiss: it goes when the
+ * problem goes.
  *
- * `destructive` y no ámbar, como el badge: `Seña pendiente` ya es una advertencia,
- * y una seña pendiente es el estado normal de una inscripción impaga; dinero de
- * más es dinero en el lugar equivocado.
+ * `destructive` and not amber, like the badge: `Seña pendiente` is already a
+ * warning, and a pending deposit is the normal state of an unpaid inscription;
+ * money in excess is money in the wrong place.
  */
 function OverAllocatedAlert() {
   return (
@@ -196,10 +196,10 @@ function ChoreographyActions({
 }: ChoreographyFinanceDetailViewProps) {
   const invoicing = loaderData.invoicing;
   const canEmit = invoicing?.canEmit ?? false;
-  // El facturable se congela al abrir y el diálogo se desmonta al CERRARLO, no
-  // al perder la afordancia: una emisión recuperada por "Verificar ahora"
-  // persiste el comprobante y revalida el detalle, que deja de ser facturable.
-  // Desmontar ahí se llevaría puesto el estado `recovered` (#577).
+  // The billable is frozen on open and the dialog unmounts when it is CLOSED, not
+  // when it loses the affordance: an emission recovered via "Verificar ahora"
+  // persists the comprobante and revalidates the detail, which stops being
+  // billable. Unmounting there would take the `recovered` state with it (#577).
   const [emission, setEmission] = useState<typeof invoicing | null>(null);
 
   return (
@@ -367,9 +367,9 @@ const inscriptionAmountColumns: DataTableColumn<InscriptionRow>[] = [
     cell: (inscription) => formatInscriptionAmount(inscription.depositAmount),
   },
   {
-    // Decorativo y sin condición: `Total` es la columna de contexto —contra qué
-    // se mide lo adeudado—, así que va atenuada entera. Nunca por fila: ninguna
-    // cifra es provisoria, y un gris que varía vuelve a significar algo.
+    // Decorative and unconditional: `Total` is the context column — what the debt
+    // is measured against — so the whole of it is muted. Never per row: no figure
+    // is provisional, and a grey that varies goes back to meaning something.
     id: "total",
     header: "Total",
     className: "text-right tabular-nums text-muted-foreground",
@@ -377,7 +377,7 @@ const inscriptionAmountColumns: DataTableColumn<InscriptionRow>[] = [
     cell: (inscription) => formatInscriptionAmount(inscription.totalAmount),
   },
   {
-    // La única cifra accionable de la fila, destacada por columna.
+    // The row's only actionable figure, highlighted by column.
     id: "owedBalance",
     header: "Saldo adeudado",
     className: "text-right font-medium tabular-nums",

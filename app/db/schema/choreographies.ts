@@ -42,6 +42,12 @@ export const choreographies = createTable(
     academyId: varchar("academy_id", { length: 255 })
       .notNull()
       .references(() => academies.id),
+    // The short number a choreography is searched by. It is unique within the
+    // event, not globally: every screen that lists choreographies already works
+    // against a chosen event, and a choreography's event never changes, so the
+    // number stays fixed for life. `eventSequences` hands it out;
+    // `formatEventSequenceNumber` displays it.
+    choreographyNumber: integer("choreography_number").notNull(),
     name: text("name").notNull(),
     modalityId: varchar("modality_id", { length: 255 })
       .notNull()
@@ -81,6 +87,10 @@ export const choreographies = createTable(
       table.academyId,
       table.createdAt,
     ),
+    uniqueIndex("choreography_event_number_unique").on(
+      table.eventId,
+      table.choreographyNumber,
+    ),
     foreignKey({
       columns: [table.submodalityId],
       foreignColumns: [submodalities.id],
@@ -111,15 +121,29 @@ export const choreographyDancers = createTable(
     choreographyId: varchar("choreography_id", { length: 255 }).notNull(),
     dancerId: varchar("dancer_id", { length: 255 }).notNull(),
     ageAtEventStart: integer("age_at_event_start").notNull(),
+    // When this inscription was registered. Its own date, not the
+    // choreography's: a dancer added to the roster a week later was registered
+    // that week, and counting by the parent choreography's date credited every
+    // such row to the original registration.
+    //
+    // Reviving a withdrawn inscription keeps it. Revival undoes the withdrawal
+    // rather than registering again — same row, same `id`, same money and same
+    // comprobante line — so the registration date stays the original one.
+    createdAt: timestamp("created_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
     // The last surviving snapshot column. It fixes which price row prices the
     // inscription; every amount and every financial state is derived from that
     // row and from `Σ allocations`.
     selectedPriceId: varchar("selected_price_id", { length: 255 }),
-    // Retiro blando. Se escribe una sola vez, al quitar la inscripción del
-    // roster, y solo cuando hay evidencia que preservar: plata asignada o una
-    // línea de comprobante. Sin evidencia la fila se borra físicamente, así que
-    // `choreography_dancer_unique` sigue valiendo y volver a agregar al mismo
-    // bailarín revive esta fila en lugar de insertar otra.
+    // Soft withdrawal. Written once, when the inscription is taken off the
+    // roster, and only when there is evidence to preserve: allocated money or
+    // a comprobante line. Without evidence the row is deleted physically, so
+    // `choreography_dancer_unique` still holds and re-adding the same dancer
+    // revives this row instead of inserting another.
     withdrawnAt: timestamp("withdrawn_at", {
       mode: "date",
       withTimezone: true,

@@ -30,6 +30,11 @@ are only concrete references to this repo:
   [`domain.md`](./domain.md), instead of the source's generic `CONTEXT.md`/ADRs.
 - **Coding standards** pointing at `.sandcastle/CODING_STANDARDS.md` (canonical) and
   [`style-guide.md`](./style-guide.md) for frontend/UI.
+- **English PR titles.** The source leaves the language of the prose it asks for implicit,
+  which is safe in a monolingual repo and ambiguous here: this product is Spanish and the
+  history the agent reads for precedent is mostly Spanish commits. The `write-pr` and
+  `write-prd-pr` prompts name the language and point at
+  `.sandcastle/CODING_STANDARDS.md` § Code Language, which is what actually decides it.
 - **`gh` tracker** (GitHub Issues): the prompts use `gh issue view … --comments` instead of the
   source's "project-specific" placeholders.
 - **Appendix C** of the spec: `backlog.md` → [`issue-tracker.md`](./issue-tracker.md) (our
@@ -68,11 +73,58 @@ are only concrete references to this repo:
   ([`prompts/implement-prd.prompt.md`](./prompts/implement-prd.prompt.md) line 44 keeps the
   source's wording). The rule this serves is in
   [`issue-tracker.md`](./issue-tracker.md#closing-an-issue).
+- **Review delegates its analysis to the `code-review` skill (§4.4), and reads the diff itself.**
+  Upstream moved the review agent off an ad-hoc pass and onto Matt Pocock's `code-review` skill,
+  which audits the diff along a **Standards** and a **Spec** axis in parallel sub-agents, and at
+  the same time stopped embedding the full patch in favour of a `git diff --stat` summary the
+  agent drills into per file. Both are adopted here. Two local differences follow from the
+  runner contract: the agent holds **no GitHub token** (§3.9), so where upstream tells the skill
+  to pull a PRD's sub-issues with `gh api`, the **runner** prefetches them and embeds them as a
+  `<sub-issues>` list (state included, so an open sub-issue's code still reads as a scope
+  violation); and `.sandcastle/agent-review/context.mts` keeps fetching the **full** patch even
+  though the prompt only shows `--stat`, because `diff-anchors.mts` validates the agent's inline
+  anchors against it. The skill is installed per run at `latest`, globally (outside the work tree, so
+  the commit step cannot sweep it into the PR branch), exactly as upstream does.
+- **The linked issue's body is embedded, not just its title.** Adopting the skill's Spec axis
+  exposed a local gap that predated it: the review context fetched the issue with
+  `--json title` only, so `<linked-issue>` expanded to a single line while the prompt asked the
+  agent to verify coverage, scope, and interpretation against "the spec". It now fetches
+  `--json title,body` and embeds the body.
+- **The token-less runner is enforced, not just asserted (§3.9).** The spec's hard invariant is
+  that the agent never mutates the tracker or the remote, and `agent-implement` /
+  `agent-implement-prd` honour it by simply omitting `GH_TOKEN` from the runner step. The three
+  runners that **prefetch** context (review, implement-pr, update-branch) cannot: they need the
+  token for their own read-only `gh` calls. That was enough to break the invariant in practice —
+  sandcastle's `noSandbox()` builds the agent's environment as `{ ...process.env }`, so the
+  step-level `GH_TOKEN` reached the agent, whose `gh` calls would have **succeeded** with the
+  job's write permissions. Only the prompt's "do not run `gh`" stood in the way, and a
+  succeeding call leaves no trace in the logs. `revokeGitHubToken()`
+  ([`lib/runner.mts`](../../.sandcastle/lib/runner.mts)) now drops `GH_TOKEN` / `GITHUB_TOKEN` /
+  `GH_ENTERPRISE_TOKEN` after the prefetch and before `createAgent()`, in all three runners;
+  `tests/afk/runner-token-revocation.test.ts` keeps the call ordered ahead of the agent.
+- **`agent-review` gets a bigger wall-clock budget** (45 / 40 instead of the usual 30 / 25),
+  because the skill's sub-agents and the agent's own per-file diff reading both cost time. The
+  table and the reasoning are in [`afk-setup.md`](./afk-setup.md) → "Wall-clock guardrails"; the
+  budget-below-timeout invariant is unchanged and still enforced by
+  `tests/afk/failure-reason-fallback.test.ts`.
 - **Promote Queued says what it does not promote (§4.7).** The gate stays exactly as specified
   (`state_reason != 'not_planned'` — a deferred or rejected decision genuinely unblocks nothing),
   but a `not planned` close is now the documented way to close a _deferred_ issue, so the local
   `agent-promote-queued.yml` adds a step ahead of it that comments on each `agent:queued`
   dependent it declines to promote. Behaviour unchanged, silence removed.
+- **Architecture Review runs weekly, not per weekday (§4.8).** The spec's reference trigger is
+  `0 9 * * 1-5` and its stated purpose is "one architectural-improvement PRD per weekday";
+  locally `architecture-review.yml` uses `0 9 * * 1` (Mondays). The cadence assumes proposals
+  are consumed at roughly the rate they are produced, and here they were not: between
+  2026-07-20 and 2026-09-01 the workflow proposed 33 PRDs, of which 5 were resolved (3 built,
+  2 decided against) and 28 were still open and untriaged — four of those five closures
+  happening in a single window, with none in the three weeks that followed. Nothing was wrong
+  with the proposals; the queue simply grew about five times faster than it drained, and a
+  backlog of un-triaged architectural PRDs is itself the kind of debt the workflow exists to
+  find. Weekly keeps the pass and lets the queue drain. The agent's own duplicate-avoidance
+  rule makes the cadence load-bearing in a second way: each run must find a target "not already
+  proposed", so a faster cadence pushes it toward ever more marginal candidates. Nothing else
+  about §4.8 changes — same runner contract, same read-only agent, same single publisher.
 - **`FRONTEND-TDD.md`**: the source mandates using `useEffectReducer` from `use-effect-reducer`;
   this repo does **not** use that library (nor reducers today), so the "Reducer choice" section
   was left library-neutral, preserving the principle (state logic in a pure, testable module).

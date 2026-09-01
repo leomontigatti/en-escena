@@ -168,7 +168,7 @@ export async function unwindToPool(
   if (allocatedAmount < input.amount) {
     return {
       ok: false,
-      message: "La inscripción no tiene esa plata asignada.",
+      message: "La inscripción no tiene ese dinero asignado.",
     };
   }
 

@@ -21,10 +21,10 @@ const snapshotCacheDirectory = path.join(
   tmpdir(),
   "en-escena-pglite-snapshots",
 );
-// El schema se aplica ahora vía `migrate` sobre app/db/migrations, así que la
-// cache-key del snapshot cuelga de la carpeta de migraciones (todos sus
-// archivos) más los scripts que la aplican. Regenerar/agregar una migración
-// invalida el snapshot; editar solo el schema TS sin generar migración, no.
+// The schema is now applied via `migrate` over app/db/migrations, so the
+// snapshot's cache key hangs off the migrations folder (all of its files) plus
+// the scripts that apply it. Regenerating or adding a migration invalidates the
+// snapshot; editing only the TS schema without generating a migration does not.
 const migrationsDirectory = fileURLToPath(
   new URL("../../app/db/migrations", import.meta.url),
 );

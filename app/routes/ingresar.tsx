@@ -140,14 +140,14 @@ export async function action({ request }: Route.ActionArgs) {
 }
 
 /**
- * Reemplaza el error genérico cuando el login falló porque el usuario todavía
- * no tiene credencial, no porque se haya equivocado la contraseña (#491).
+ * Replaces the generic error when the sign-in failed because the user does not
+ * have a credential yet, not because they got the password wrong (#491).
  *
- * Concede que el correo existe, a diferencia del resto de los rechazos de este
- * action, que son deliberadamente indistinguibles (no verificado, suspendido,
- * inexistente). Es un caso acotado y de una sola vez, y sin este aviso el
- * usuario no tiene forma de enterarse de que su camino es «Recuperala» y no
- * reintentar la contraseña de siempre. Decidido en #303.
+ * It concedes that the email exists, unlike the rest of this action's rejections,
+ * which are deliberately indistinguishable (unverified, suspended,
+ * non-existent). It is a narrow, one-off case, and without this notice the user
+ * has no way of finding out that their path is «Recuperala» and not retrying
+ * their usual password. Decided in #303.
  */
 async function getPasswordResetRequiredMessage(
   credentialUser: CredentialUser | null,
@@ -161,8 +161,8 @@ async function getPasswordResetRequiredMessage(
       return null;
     }
   } catch {
-    // Si la consulta falla, cae al error genérico: mejor un mensaje impreciso
-    // que un 500 en el login.
+    // If the query fails, it falls back to the generic error: an imprecise message
+    // beats a 500 on sign-in.
     return null;
   }
 

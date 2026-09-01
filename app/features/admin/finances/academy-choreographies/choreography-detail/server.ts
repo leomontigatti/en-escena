@@ -126,11 +126,11 @@ export async function loadChoreographyFinanceDetail(input: {
 }
 
 export type ChoreographyInvoicing = {
-  // Remanente cobrado todavía no cubierto por una factura vigente. La emisión
-  // factura exactamente esto (#446); la UX lo previsualiza.
+  // The collected remainder not yet covered by a comprobante in force. Emission
+  // bills exactly this (#446); the UX previews it.
   billableAmount: number;
-  // Hay algo para facturar: la afordancia de emisión sólo se habilita con
-  // remanente.
+  // There is something to bill: the emission affordance is only enabled with a
+  // remainder.
   canEmit: boolean;
 };
 
@@ -154,8 +154,8 @@ async function readChoreographyInvoicing(
 export async function handleChoreographyFinanceAction(input: {
   params: { academyId?: string; choreographyId?: string };
   request: Request;
-  // Insumos de emisión inyectables: los tests pasan un cliente ARCA mockeado;
-  // en producción se resuelven desde el entorno (cert+key, punto de venta).
+  // Injectable emission inputs: the tests pass a mocked ARCA client; in
+  // production they are resolved from the environment (cert+key, sales point).
   resolveEmissionDeps?: () => FacturaCEmissionDeps;
 }): Promise<ChoreographyFinanceActionData | never> {
   await requireAdminUser(input.request);

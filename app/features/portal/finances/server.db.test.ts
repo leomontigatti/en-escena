@@ -201,12 +201,12 @@ describe.sequential("loadPortalAcademyFinances", () => {
 
     expect(loaderData.summary).toEqual({
       availableBalanceAmount: 12000,
-      // Dos inscripciones de 10000 con seña 3000 cada una.
+      // Two inscriptions of 10000 with a deposit of 3000 each.
       depositAmount: { status: "complete", amount: 6000 },
       totalAmount: { status: "complete", amount: 20000 },
-      // 7000 de faltante en la que cubrió su seña + 10000 de la que no tiene
-      // nada. Bruto: los 12000 disponibles no se descuentan acá, se muestran en
-      // su propia métrica.
+      // 7000 of shortfall on the one that covered its deposit + 10000 from the
+      // one with nothing. Gross: the 12000 available is not subtracted here, it
+      // is shown in its own metric.
       owedBalanceAmount: { status: "complete", amount: 17000 },
       owedDepositAmount: { status: "complete", amount: 3000 },
       totalPaidAmount: 15000,
@@ -215,7 +215,7 @@ describe.sequential("loadPortalAcademyFinances", () => {
     expect(markup).toContain("Saldo adeudado");
     expect(markup).toContain("Seña adeudada");
     expect(markup).not.toContain("Monto total pagado");
-    // Los pagos viven en `/portal/pagos`, no en el resumen.
+    // Payments live in `/portal/pagos`, not in the summary.
     expect(markup).not.toContain("Pagos activos");
     expect(markup).not.toContain("TRX-PORTAL-001");
     expect(markup).toContain("Solo Señada");
@@ -264,8 +264,8 @@ describe.sequential("loadPortalAcademyFinances", () => {
     );
 
     expect(loaderData.summary).toMatchObject({
-      // La impaga sin precio adeuda seña y saldo, y no se puede cuantificar
-      // ninguno de los dos.
+      // The unpaid one with no price owes both deposit and balance, and neither of
+      // them can be quantified.
       owedBalanceAmount: {
         amount: 0,
         missingPriceCount: 1,
@@ -313,8 +313,8 @@ describe.sequential("loadPortalAcademyFinances", () => {
       paymentDate: "2026-03-21",
       paymentNumber: 1,
     });
-    // Fila de precio vencida al 01/06: la inscripción la tiene seleccionada, y
-    // de ahí salen su seña y su total.
+    // A price row expired as of 01/06: the inscription has it selected, and its
+    // deposit and total come from there.
     const [selectedPrice] = await db
       .insert(prices)
       .values({

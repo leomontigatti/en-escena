@@ -28,11 +28,11 @@ type RevokeOtherAccessSessionsInput = {
   currentSessionId: string;
 };
 
-// Alta server-side de un interno vía el admin plugin de Better Auth (#423). Sin
-// sesión: `createUser` corre en el servidor con el email ya confirmado
-// (`data.emailVerified`, parity con el `email_confirm: true` de Supabase). El
-// rol real lo asigna el alta de internos (`internal-user-create.server.ts`); acá
-// queda el `defaultRole` del plugin.
+// Server-side creation of an internal user via Better Auth's admin plugin
+// (#423). Without a session: `createUser` runs on the server with the email
+// already confirmed (`data.emailVerified`, parity with Supabase's
+// `email_confirm: true`). The real role is assigned by internal-user creation
+// (`internal-user-create.server.ts`); here the plugin's `defaultRole` remains.
 export async function createInternalCredentialUser(
   input: InternalCredentialUserInput,
 ) {
@@ -48,18 +48,19 @@ export async function createInternalCredentialUser(
   return { userId: user.id };
 }
 
-// Rollback del alta de internos: borra el usuario (y sus sesiones/cuentas por
-// cascada de FK) usando el `internalAdapter` del contexto de Better Auth. No hay
-// sesión de admin en el camino de rollback, así que no pasa por `removeUser`.
+// Rollback of internal-user creation: deletes the user (and their
+// sessions/accounts by FK cascade) using the Better Auth context's
+// `internalAdapter`. There is no admin session on the rollback path, so it does
+// not go through `removeUser`.
 export async function deleteInternalCredentialUser(userId: string) {
   const ctx = await auth.$context;
   await ctx.internalAdapter.deleteUser(userId);
 }
 
-// Reset de contraseña desde el panel: `setUserPassword` del admin plugin con los
-// `headers` de la sesión del admin, que Better Auth exige para autorizar la
-// operación (research #369). El cambio de contraseña propio (obligatorio) no
-// pasa por acá: usa `upsertBetterAuthCredentialPassword` directo.
+// Password reset from the panel: the admin plugin's `setUserPassword` with the
+// admin session's `headers`, which Better Auth requires to authorize the
+// operation (research #369). The user's own (mandatory) password change does not
+// come through here: it uses `upsertBetterAuthCredentialPassword` directly.
 export async function setInternalCredentialPassword(
   input: InternalCredentialPasswordInput,
   adminHeaders: Headers,
@@ -96,9 +97,10 @@ export async function revokeOtherAccessSessions(
     );
 }
 
-// Suspensión (= `banned` de Better Auth) desde el panel: `banUser`/`unbanUser`
-// del admin plugin con los `headers` de la sesión del admin. `banUser` marca la
-// columna `suspended` y revoca las sesiones del interno; `unbanUser` la limpia.
+// Suspension (= Better Auth's `banned`) from the panel: the admin plugin's
+// `banUser`/`unbanUser` with the admin session's `headers`. `banUser` marks the
+// `suspended` column and revokes the internal user's sessions; `unbanUser`
+// clears it.
 export async function setInternalCredentialSuspendedState(
   input: {
     suspended: boolean;

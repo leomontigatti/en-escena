@@ -436,7 +436,7 @@ dancer's name — and the dialog behind it takes its shape from what the row hol
 | ------------------------- | -------------------------------------------------- |
 | over-allocated            | `Liberar el excedente`: one click, nothing to type |
 | nothing owed, money on it | `Quitar dinero`, hinting everything allocated      |
-| anything else             | `Asignar plata`: price and amount                  |
+| anything else             | `Asignar dinero`: price and amount                 |
 
 A row that still owes something but already holds money reaches `Quitar dinero`
 from inside the allocation dialog, so removal is available wherever there is
@@ -464,7 +464,7 @@ money to take off while the entry point stays single.
   financial reason**: no threshold, no anomaly and no state of the pool can
   refuse it. It still refuses the two nonsensical inputs — an amount of zero or
   less ("El monto a quitar tiene que ser mayor a 0.") and an amount larger than
-  the inscription holds ("La inscripción no tiene esa plata asignada.") — so a
+  the inscription holds ("La inscripción no tiene ese dinero asignado.") — so a
   caller must still defend those. Because the bound is known on the client, the
   dialog says the range **under the field** ("Ingresá un monto entre $ 1 y
   $ X.") rather than round-tripping to those two refusals, which stay as guards
@@ -480,9 +480,9 @@ money to take off while the entry point stays single.
 **The dialog locks the picker where the rule locks it**: at the deposit
 threshold. It used to swap the picker for a readout as soon as
 `allocatedAmount > 0` and to explain itself with "Para cambiarle el precio hay
-que quitarle toda la plata." — a retired rule, and a below-threshold price change
-was therefore accepted by every write path while being unreachable from the one
-screen that offers prices. Both the swap and that hint are gone.
+que quitarle todo el dinero." — a retired rule, and a below-threshold price
+change was therefore accepted by every write path while being unreachable from
+the one screen that offers prices. Both the swap and that hint are gone.
 
 The dialog reads the threshold off the row's **effective** deposit while the
 write path tests the **stored** one, and the two agree wherever it matters: once

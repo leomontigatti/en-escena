@@ -32,8 +32,8 @@ describe("useSavedValueSelectForm", () => {
   });
 
   test("restores the saved value once a rejected submission settles", async () => {
-    // El rechazo no escribió nada, así que el loader sigue trayendo el cupo
-    // viejo: el campo no puede quedarse mostrando el que el servidor negó.
+    // The rejection wrote nothing, so the loader still brings the old capacity:
+    // the field cannot be left showing the one the server refused.
     await renderHarness();
 
     await clickReactDomButton("Elegir otro");
@@ -43,8 +43,9 @@ describe("useSavedValueSelectForm", () => {
   });
 
   test("follows the loader, not the local pick, once the submission settles", async () => {
-    // El loader manda: si vuelve con un cupo distinto del elegido (lo reasignó
-    // otro camino, o el servidor normalizó el destino), el campo lo adopta.
+    // The loader rules: if it comes back with a capacity other than the chosen one
+    // (another path reassigned it, or the server normalized the destination), the
+    // field adopts it.
     await renderHarness();
 
     await clickReactDomButton("Elegir otro");
@@ -73,9 +74,9 @@ describe("useSavedValueSelectForm", () => {
 });
 
 /**
- * `savedValue` vive en estado para poder mover el loader sin desmontar: un
- * remount recuperaría el valor guardado por `defaultValues` y taparía
- * justamente lo que se está probando.
+ * `savedValue` lives in state so the loader can be moved without unmounting: a
+ * remount would restore the saved value through `defaultValues` and cover up
+ * exactly what is being tested.
  */
 function Harness() {
   const [savedValue, setSavedValue] = useState("schedule_capacity_1");

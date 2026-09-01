@@ -1,60 +1,60 @@
-# PGlite POC para tests DB
+# PGlite POC for DB tests
 
-Este piloto prueba `PGlite` contra el schema actual de En Escena usando el
-mismo source de schema que hoy usan los tests DB (`app/db/schema.ts`).
+This pilot exercises `PGlite` against the current En Escena schema using the
+same schema source the DB tests use today (`app/db/schema.ts`).
 
-## Alcance del piloto
+## Pilot scope
 
-- Archivo piloto: `tests/db/pglite.db.test.ts`
-- Helper in-process: `tests/db/pglite.ts`
-- Bootstrap del schema: `tests/db/migrate-pglite-schema.ts` (aplica
-  `app/db/migrations` vía `migrate`; `tests/db/push-pglite-schema.ts` sobrevive
-  como oráculo de `pushSchema` para el test de equivalencia)
-- Workflow Postgres preservado: `pnpm test:db` y
-  `pnpm test:db:file:postgres <archivo>`
+- Pilot file: `tests/db/pglite.db.test.ts`
+- In-process helper: `tests/db/pglite.ts`
+- Schema bootstrap: `tests/db/migrate-pglite-schema.ts` (applies
+  `app/db/migrations` through `migrate`; `tests/db/push-pglite-schema.ts`
+  survives as the `pushSchema` oracle for the equivalence test)
+- Preserved Postgres workflow: `pnpm test:db` and
+  `pnpm test:db:file:postgres <file>`
 
-El piloto valida estas capacidades contra una base in-process y aislada en un
-directorio temporal:
+The pilot validates these capabilities against an in-process database isolated
+in a temporary directory:
 
-- reset tipo harness con `truncate ... restart identity cascade`
+- harness-style reset with `truncate ... restart identity cascade`
 - enums
 - foreign keys
-- constraints parciales/unique
-- transacciones con rollback
-- defaults `jsonb`
-- patrones SQL que ya usa el repo (`ilike`, `lower`, `coalesce`)
+- partial/unique constraints
+- transactions with rollback
+- `jsonb` defaults
+- SQL patterns the repo already uses (`ilike`, `lower`, `coalesce`)
 
-## Resultado
+## Result
 
-No se encontraron incompatibilidades funcionales en el piloto para las
-capacidades listadas arriba. El schema aplica y los queries ejercitados se
-comportan como espera la app.
+The pilot found no functional incompatibilities for the capabilities listed
+above. The schema applies and the queries exercised behave the way the app
+expects.
 
-## Incompatibilidades y diferencias encontradas
+## Incompatibilities and differences found
 
-1. `drizzle-kit/api` no carga de forma estable dentro del pipeline de
-   transformacion de Vitest para este repo.
-   Impacto: `pushSchema` se ejecuta desde un script Node separado
-   (`tests/db/push-pglite-schema.ts`, hoy solo el oráculo de equivalencia) en
-   lugar de importarlo directamente desde el test o un `globalSetup` Vitest sin
-   ajustes extra.
+1. `drizzle-kit/api` does not load reliably inside Vitest's transformation
+   pipeline for this repo.
+   Impact: `pushSchema` runs from a separate Node script
+   (`tests/db/push-pglite-schema.ts`, today only the equivalence oracle)
+   instead of being imported directly from the test or from a Vitest
+   `globalSetup` without extra tweaking.
 
-2. Los errores del driver PGlite no tienen la misma forma que los errores del
-   harness actual con `postgres`.
-   Impacto: los metadatos de constraint quedan en `error.cause.code` y
-   `error.cause.constraint`, no en propiedades top-level como
-   `constraint_name`. Cualquier logica de app o tests que dependa de la forma
-   exacta del error Postgres.js necesita una capa de adaptacion antes de usar
-   PGlite como reemplazo directo.
+2. PGlite driver errors do not have the same shape as the errors the current
+   `postgres` harness produces.
+   Impact: constraint metadata ends up in `error.cause.code` and
+   `error.cause.constraint`, not in top-level properties such as
+   `constraint_name`. Any app or test logic that depends on the exact shape of
+   a Postgres.js error needs an adaptation layer before PGlite can be a drop-in
+   replacement.
 
-## Lectura operativa
+## Operational reading
 
-- Como POC, PGlite es suficientemente fiel para seguir evaluando un harness mas
-  rapido con schema in-process.
-- En el workflow actual, PGlite es la ruta default de la suite DB completa con
-  `pnpm test:db` (parte de `pnpm test`), y para corridas enfocadas con
-  `pnpm test:db <archivo>`. Postgres real queda como ruta de alta fidelidad en
-  `pnpm test:db:postgres`, reservada al gate de CI (#305).
-- Todavia no es un reemplazo transparente del stack actual porque faltaria
-  resolver el bootstrap del schema, la compatibilidad de shape de errores y la
-  estabilidad de inicializacion en modo paralelo.
+- As a POC, PGlite is faithful enough to keep evaluating a faster harness with
+  an in-process schema.
+- In the current workflow, PGlite is the default route for the full DB suite
+  with `pnpm test:db` (part of `pnpm test`), and for focused runs with
+  `pnpm test:db <file>`. Real Postgres remains the high-fidelity route in
+  `pnpm test:db:postgres`, reserved for the CI gate (#305).
+- It is still not a transparent replacement for the current stack, because the
+  schema bootstrap, the error shape compatibility and initialization stability
+  in parallel mode would all still need to be resolved.

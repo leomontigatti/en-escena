@@ -30,9 +30,9 @@ type FinanceAmountResolution =
 export type ChoreographyGroupType = "solo" | "duo" | "trio" | "grupal";
 
 /**
- * Una inscripción con sus cifras ya derivadas por el reader. Ninguna es un
- * snapshot: todas salen del precio seleccionado, del `Descuento por bailarín`
- * vivo y de lo que la inscripción tiene asignado en este momento.
+ * An inscription with its figures already derived by the reader. None of them is
+ * a snapshot: they all come from the selected price, the live
+ * `Descuento por bailarín` and what the inscription has allocated right now.
  */
 export type ResolvedInscription = {
   id: string;
@@ -40,15 +40,15 @@ export type ResolvedInscription = {
   dancerId: string;
   financialStatus: InscriptionFinancialStatus;
   anomalies: InscriptionAnomaly[];
-  // Total asignado a esta inscripción (`Σ asignaciones`).
+  // Total allocated to this inscription (`Σ asignaciones`).
   allocatedAmount: number;
-  // Precio seleccionado, **sin** descontar. `null` sólo si no hay precio aplicable.
+  // Selected price, **before** any discount. `null` only if no price applies.
   basePriceAmount: number | null;
-  // `Descuento por bailarín`, siempre vivo.
+  // `Descuento por bailarín`, always live.
   dancerDiscountAmount: number;
-  // `precio − descuento`, el umbral alto. Aplica el descuento una sola vez.
+  // `price − discount`, the high threshold. Applies the discount exactly once.
   totalAmount: number | null;
-  // `precio × porcentaje`, el umbral bajo, computado sobre el precio sin descontar.
+  // `price × percentage`, the low threshold, computed on the undiscounted price.
   depositAmount: number | null;
   owedBalanceAmount: number | null;
   owedDepositAmount: number | null;
@@ -69,8 +69,8 @@ export type FinanceChoreographyRow = {
 };
 
 /**
- * Las mismas cifras que una inscripción, sumadas sobre las suyas. El estado no
- * se suma: es el mínimo (ver `deriveChoreographyFinancialStatus`).
+ * The same figures as an inscription, summed over its own. The state is not
+ * summed: it is the minimum (see `deriveChoreographyFinancialStatus`).
  *
  * The two rollups part ways on withdrawn rows: a withdrawn inscription enters
  * the money one —its total is what was retained, and that money belongs to this
@@ -89,17 +89,17 @@ export type ChoreographyOperationalFinanceRow = {
   id: string;
   name: string;
   overAllocatedAmount: number;
-  // Deuda exigible. Una coreografía registrada se adeuda completa: toda
-  // inscripción adeuda el faltante contra cada uno de sus dos umbrales. No son
-  // disjuntas — son dos cortes de la misma deuda, y `Seña ≤ Saldo` siempre.
+  // Collectable debt. A registered choreography is owed in full: every
+  // inscription owes the shortfall against each of its two thresholds. They are
+  // not disjoint — they are two cuts of the same debt, and `Seña ≤ Saldo` always.
   owedBalanceAmount: OperationalFinanceAmount;
   owedDepositAmount: OperationalFinanceAmount;
   registrationCount: number;
 };
 
 /**
- * Porcentaje de `Descuento por bailarín` según cuántas inscripciones activas
- * tiene el mismo bailarín en el mismo evento y academia.
+ * `Descuento por bailarín` percentage, by how many active inscriptions the same
+ * dancer has in the same event and academy.
  */
 export function dancerDiscountPercentage(qualifyingCount: number): number {
   if (qualifyingCount >= 4) {
@@ -119,11 +119,11 @@ export type DancerDiscount = {
 };
 
 /**
- * `Descuento por bailarín` por inscripción. El conjunto que califica es el
- * roster vivo del bailarín, no su dinero: el descuento entra en el total, y el
- * total decide el estado, así que hacerlo depender del estado sería circular.
- * Una inscripción queda sin descuento: la primera al ordenar por precio y
- * (desempate) por id.
+ * `Descuento por bailarín` per inscription. The qualifying set is the dancer's
+ * live roster, not their money: the discount goes into the total, and the total
+ * decides the state, so making it depend on the state would be circular. One
+ * inscription is left without a discount: the first when ordered by price and
+ * (as a tie-break) by id.
  */
 export function computeDancerDiscountAmounts(
   qualifyingInscriptions: Array<{
@@ -208,8 +208,8 @@ export function buildChoreographyOperationalFinanceRow(input: {
 }
 
 /**
- * `Seña adeudada` y `Saldo adeudado` de una academia. Ambas son brutas: no
- * descuentan `Saldo disponible`, que se muestra al lado como su propia métrica.
+ * An academy's `Seña adeudada` and `Saldo adeudado`. Both are gross: they do not
+ * subtract `Saldo disponible`, which is shown alongside as a metric of its own.
  */
 export function buildOperationalFinanceSummaryFromChoreographyRows(input: {
   availableBalanceAmount: number;
@@ -378,8 +378,8 @@ function resolveApplicablePriceRow(input: {
 }
 
 /**
- * Acumula una cifra que puede faltar por no haber precio aplicable, contando
- * cuántas inscripciones la dejaron incompleta.
+ * Accumulates a figure that may be missing because no price applies, counting
+ * how many inscriptions left it incomplete.
  */
 function createAmountAccumulator() {
   let amount = 0;

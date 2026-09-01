@@ -14,7 +14,7 @@ Reading rules:
 - The identifier is the root, not the exact signature: decline it as needed
   (`event` → `eventId`, `events`, `loadAdminEvent`, `EventStatusBadge`).
 - `comprobante` is the only reserved Spanish term inside code; adding another
-  requires an ADR. See [ADR-0011](docs/adr/0011-invoicing-concept-portion-and-surfaces.md).
+  requires an ADR. See [ADR-0011](docs/adr/superseded/0011-invoicing-concept-portion-and-surfaces.md).
 - External-system adapters are the exception: `app/lib/comprobantes/arca` speaks
   WSFEv1 (`ArcaVoucher`, `createVoucher`), not the glossary.
 - Where an existing symbol disagrees with the identifier here, the glossary wins
@@ -159,9 +159,17 @@ _Avoid_: paid inscription, competitive participation
 Inscription taken off the roster whose row survives because it holds money or a `comprobante` line. Its total is **what remains allocated to it, not zero**: the deposit may be forfeited and the retained allocation is the record of that retention, so it owes nothing, it cannot be over-allocated, and it keeps exposing its deposit figure. It stays in its choreography's money rollup, and out of its status rollup, its `registrationCount` and its discount qualifying set. Its price still resolves exactly as an active row's does — that is what keeps the deposit figure readable — so price resolution is not one of the things withdrawal changes. `Retirada` is a derived axis of its own, like `Facturada`, and replaces the status badge rather than joining it.
 _Avoid_: fourth financial status, deleted inscription, cancelled inscription
 
+**`registeredAt`** — ui: "Fecha de inscripción"
+The date an inscription was registered, held on the inscription's own row and not on its choreography's: a dancer added to the roster a week after the choreography was created was registered that week, and counting by the parent choreography's date credited every such row to the original registration. Reviving a withdrawn inscription keeps the original date, because revival undoes the withdrawal rather than registering again; an inscription hard-deleted and then re-added to the roster is a new row and gets a new date. No surface renders it yet — it exists so inscriptions can be counted by day. It ships as `choreographyDancers.createdAt` (`en_escena_choreography_dancer."created_at"`), chosen for symmetry with every other table's timestamp; creation is not the concept — what it dates is the registration — so the symbol is pending rename.
+_Avoid_: `choreography.createdAt`, `financialReferenceDate` (retired), payment date
+
 **`choreography`** — ui: "Coreografía"
 Choreography registered by an academy for a concrete event.
 _Avoid_: reusable work, `inscription`, number
+
+**`choreographyNumber`** — ui: "#"
+The short number a choreography is searched and quoted by, unique within its event rather than globally: every screen that lists choreographies already works against a chosen event, and a choreography's event never changes, so the number stays fixed for life. It identifies, it does not count — deleting a choreography does not give its number back, so the sequence has gaps by design and `#00042` does not mean "the event's forty-second choreography". The per-event counter behind it — the same one that numbers `paymentNumber`, and named `eventFinancialSequence` while it only counted money — hands it out inside the transaction that inserts, and `formatEventSequenceNumber` renders it zero-padded at the shared width. It does not replace the `id`, which stays the UUID every route and foreign key uses.
+_Avoid_: choreography id, position, order, correlative
 
 **`choreographyWithoutActiveInscriptions`** — ui: "Coreografía sin inscripciones activas"
 Exceptional case, pending definition, for a choreography that keeps its history but no longer has active inscriptions.
@@ -196,8 +204,24 @@ Private file an academy uploads and the system stores on the volume, referenced 
 _Avoid_: attachment, media, public file
 
 **`assetKind`** — ui: "Tipo de archivo subido"
-The class of uploaded asset — `musicFile` or `documentImage` — that decides accepted formats, size ceiling and key layout.
+The class of uploaded asset — `musicFile`, `documentImage` or `eventDocument` — that decides accepted formats, size ceiling and key layout.
 _Avoid_: mime type, file extension, bucket
+
+**`eventDocument`** — ui: "Documento del evento"
+Static PDF the administration uploads for an event and every academy downloads unchanged. A new event starts with none, and a missing one never blocks registration.
+_Avoid_: `documentImage`, `comprobante`, attachment, bases
+
+**`professorContract`** — ui: "Contrato para profesores"
+The event document an academy downloads from the professors list; `professor_contract` as an `EventDocumentKind` value.
+_Avoid_: `adultContract`, teacher agreement
+
+**`minorAuthorization`** — ui: "Autorización para menores"
+The event document authorizing a minor's participation, downloaded from the dancers list; `minor_authorization` as an `EventDocumentKind` value. Always offered, whether or not the academy has minors on its roster.
+_Avoid_: parental consent, `adultContract`
+
+**`adultContract`** — ui: "Contrato para mayores"
+The event document an adult dancer signs, downloaded from the dancers list; `adult_contract` as an `EventDocumentKind` value.
+_Avoid_: `professorContract`, `minorAuthorization`
 
 **`documentImage`** — ui: "Imagen del documento"
 Photograph of one side of a dancer's identity document, held as evidence for verification.
@@ -214,6 +238,10 @@ _Avoid_: public link, presigned URL, permalink
 **`choreographyDancers`** — ui: "Bailarines de coreografía"
 Dancers linked to a choreography through inscriptions.
 _Avoid_: professors, financial data
+
+**`roster`** — ui: "Elenco"
+The set of dancers and professors a choreography currently carries: the **`choreographyDancers`** the admin form edits, plus the linked professors. It is the English domain term and stays in identifiers, file names and comments (`choreography-roster.server.ts`, `updateChoreographyRosterIntent`, `removeInscriptionsFromRoster`); what the academy reads is "Elenco". Use "Bailarines de coreografía" when the surface names the dancers alone, and "Elenco" when it names the group the choreography presents with. Removal from it is not one gesture but two — a physical delete without evidence, a **`withdrawnInscription`** with it.
+_Avoid_: "Roster" as interface copy (retired), cast, lineup, plantel
 
 **`dancer`** — ui: "Bailarín"
 Person loaded by an academy to take part in choreographies.
@@ -310,6 +338,10 @@ _Avoid_: `comprobante`, `inscriptionStage` (retired), seña invoice, balance inv
 **Desactualizada** _(retired term)_ — no code identifier
 Currency badge each of the choreography financial detail's two `porción` metric cards carried, paired with a `Vigente` that meant "the covering factura bills every peso collected in this portion". It read a portion and died with **Porción**; those cards now carry no badge and no comprobante link. The surviving `Vigente` is the unrelated one — the derived `vigente` / `anulada` status of a **`comprobante`**, shown on the global comprobante list and detail. Do not use.
 _Avoid_: `comprobanteStatus`, `Vigente` (comprobante status), stale, outdated
+
+**Plata** _(retired term)_ — no code identifier
+Colloquial Rioplatense word for money, once used across the finance surfaces: the allocation dialog's `Asignar plata` / `Quitar plata`, the withdrawal copy, the payment-deletion warning and two server error messages. The register was wrong for a product an academy reads, so every surface now says **dinero** — masculine, so the agreement around it changed too ("el dinero asignado", not "la plata asignada"). It is retired as a _string_, not as a concept: what the copy names is still a **`paymentAllocation`** against an inscription. Do not use, in interface copy or in comments.
+_Avoid_: `paymentAllocation`, guita, saldo, `availableBalanceAmount`
 
 **Choreography invoice** _(retired term)_ — no code identifier
 Document of the old financial model (tables `academy_event_choreography_invoice` and `academy_event_invoice_imputation`), removed in V1 (see ADR-0009). Do not use; for the tax receipt see **`comprobante`**.

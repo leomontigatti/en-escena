@@ -93,9 +93,9 @@ describe("PaymentDetailRouteView", () => {
 
     const text = document.body.textContent ?? "";
 
-    // La plata sale del pool: el copy no puede prometer que vuelve al saldo
-    // disponible, porque el pago que la respaldaba se va con ella.
-    expect(text).toContain("Esa plata sale del pool");
+    // The money leaves the pool: the copy cannot promise it returns to the
+    // available balance, because the payment backing it goes with it.
+    expect(text).toContain("Ese dinero sale del pool");
     expect(text).not.toContain("volver al saldo disponible");
 
     expect(text).toContain("Coreografía Uno");
@@ -103,7 +103,7 @@ describe("PaymentDetailRouteView", () => {
     expect(text).toContain("2 inscripciones dejan de cumplir un umbral");
     expect(text).toContain("queda Seña pendiente");
 
-    // Sin descruce no se nombra ningún estado resultante.
+    // With nothing uncrossed, no resulting state is named.
     expect(text).toContain("Coreografía Dos");
     expect(text).toContain("$ 1.500");
     expect(text).not.toContain("0 inscripciones");

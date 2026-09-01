@@ -10,9 +10,9 @@ export function isDateOnly(value: string) {
   return parsed.toISOString().slice(0, 10) === value;
 }
 
-// "Hoy" tiene un solo dueño: `getBusinessDateOnly()`. El servidor corre en UTC,
-// así que resolverlo acá con `new Date()` adelantaría el día a partir de las 21
-// de Córdoba.
+// "Today" has a single owner: `getBusinessDateOnly()`. The server runs in UTC, so
+// resolving it here with `new Date()` would advance the day from 21:00 Córdoba
+// time onwards.
 export function isFutureDateOnly(value: string) {
   return value > getBusinessDateOnly();
 }

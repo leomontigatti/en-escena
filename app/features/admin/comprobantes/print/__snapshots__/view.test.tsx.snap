@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`renderComprobantePrintDocument > coincide con el snapshot del impreso 1`] = `
+exports[`renderComprobantePrintDocument > matches the printed representation snapshot 1`] = `
 "<!DOCTYPE html><html lang="es"><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>Factura C 0003-00000007 | En Escena</title><style>
   * { box-sizing: border-box; }
   body {

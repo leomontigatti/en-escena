@@ -247,7 +247,7 @@ AWS_SECRET_ACCESS_KEY="your-b2-application-key"
 AWS_DEFAULT_REGION="us-east-005"
 
 STORAGE_VOLUME_DIR="/var/lib/en-escena/storage"
-STORAGE_BACKUP_BUCKETS="en-escena-dancer-documents,en-escena-choreography-music"
+STORAGE_BACKUP_BUCKETS="en-escena-dancer-documents,en-escena-choreography-music,en-escena-event-documents"
 BACKUP_SYNC_MODE="copy"
 B2_FILESTORE_BUCKET="en-escena-filestore-backups"
 B2_FILESTORE_PREFIX="filestore"
@@ -354,7 +354,8 @@ drill restores an artifact into a **throwaway Postgres container** — never int
 `enescena` — then compares per-table row counts and the Drizzle migration
 journal against the live database. This is the check #267 step 7 requires.
 
-Run it on the server, because the database is `is_public: false` and the local
+Run it on the server, because the database has no published port (see
+[Production infrastructure](./infrastructure.md#database)) and the local
 copies live under `/data/coolify/backups`:
 
 ```sh

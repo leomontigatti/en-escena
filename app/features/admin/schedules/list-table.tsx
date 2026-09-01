@@ -4,14 +4,15 @@ import {
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { buildDetailPath } from "@/lib/shared/navigation";
+import { cn } from "@/lib/shared/utils";
 import type { ScheduleListItem } from "@/lib/events/bases.server";
 
 import { ResourceBadge } from "./dialogs";
 import { basePath } from "./shared";
 import {
   buildScheduleFacetedFilters,
+  formatAvailablePlacesSuffix,
   formatDate,
-  formatScheduleOccupancy,
 } from "./view-shared";
 
 export function ScheduleList({
@@ -62,10 +63,15 @@ export function ScheduleList({
       sortValue: (schedule) => schedule.startTime,
     },
     {
-      id: "occupancy",
-      header: "Ocupación",
-      cell: (schedule) => formatScheduleOccupancy(schedule),
-      className: "font-medium",
+      id: "capacity",
+      header: "Cupo",
+      cell: (schedule) => (
+        <ScheduleCapacity
+          availablePlaces={schedule.availablePlaces}
+          capacity={schedule.totalCapacity}
+        />
+      ),
+      className: "font-medium whitespace-nowrap",
     },
   ];
 
@@ -80,6 +86,33 @@ export function ScheduleList({
       emptyMessage="No hay cronogramas que coincidan con la búsqueda."
       initialSort={{ columnId: "scheduledDate", direction: "asc" }}
     />
+  );
+}
+
+/**
+ * Same shape as the cupo field in the form: the capacity, then what is left of
+ * it in muted read-only text. A cronograma with no room reads destructive, so
+ * a full one is findable while scanning the column.
+ */
+function ScheduleCapacity({
+  availablePlaces,
+  capacity,
+}: {
+  availablePlaces: number;
+  capacity: number;
+}) {
+  return (
+    <span>
+      {capacity}
+      <span
+        className={cn(
+          "font-normal",
+          availablePlaces === 0 ? "text-destructive" : "text-muted-foreground",
+        )}
+      >
+        {formatAvailablePlacesSuffix(availablePlaces)}
+      </span>
+    </span>
   );
 }
 

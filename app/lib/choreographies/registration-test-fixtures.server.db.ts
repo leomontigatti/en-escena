@@ -14,10 +14,21 @@ import {
   scheduleCapacities,
   submodalities,
 } from "@/db/schema";
+import { allocateChoreographyNumber } from "@/lib/choreographies/choreography-number.server";
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
 import { createAcademyUser } from "@/lib/test-support/academies";
 
 export const OPEN_REGISTRATION_ENDS_AT = date("2099-04-30T12:00:00Z");
+
+// Fixtures that insert a choreography by hand need its number first, and the
+// allocator only hands one out inside a transaction. Keeping the wrapper here
+// means a test never spells out the transaction, and never reaches for a
+// literal number that would collide with `choreography_event_number_unique`.
+export async function allocateChoreographyNumberForTest(eventId: string) {
+  return await db.transaction(async (tx) =>
+    allocateChoreographyNumber({ tx, eventId }),
+  );
+}
 
 export async function createAcademySession({
   academyName,

@@ -32,7 +32,7 @@ import {
 } from "@/features/admin/payments/form-fields";
 import { formatInscriptionFinancialStatus } from "@/lib/finances/choreography-financial-status";
 import { paymentMethodOptions } from "@/lib/finances/payment-methods";
-import { formatPaymentNumber } from "@/lib/finances/payment-number";
+import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import {
   createValidatedRouteFormDataSubmitHandler,
   isRouteFormPending,
@@ -108,7 +108,7 @@ export function PaymentDetailRouteView({
         <DeleteDialog
           description={
             loaderData.affectedChoreographies.length > 0
-              ? "El pago y sus asignaciones se eliminan juntos. Esa plata sale del pool: no vuelve al saldo disponible de la academia."
+              ? "El pago y sus asignaciones se eliminan juntos. Ese dinero sale del pool: no vuelve al saldo disponible de la academia."
               : "El pago sale del pool: el saldo disponible de la academia baja por su monto."
           }
           details={
@@ -172,7 +172,9 @@ function AffectedChoreographiesList({
 export function getPaymentDisplayName(
   payment: LoaderData["payment"] | undefined,
 ) {
-  return payment ? `# ${formatPaymentNumber(payment.paymentNumber)}` : "Pago";
+  return payment
+    ? `# ${formatEventSequenceNumber(payment.paymentNumber)}`
+    : "Pago";
 }
 
 function PaymentDetailForm({

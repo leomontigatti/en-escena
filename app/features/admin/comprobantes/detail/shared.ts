@@ -1,18 +1,18 @@
 import type { ComprobanteContingency } from "@/lib/comprobantes/contingency-alert";
 
-// Intención de anulación del detalle del comprobante (ADR-0011). La anulación
-// vive junto al comprobante que afecta, no en la lista global ni en el detalle
-// financiero de la coreografía.
+// The annulment intent of the comprobante detail (ADR-0011). Annulment lives
+// next to the comprobante it affects, not in the global list or in the
+// choreography's financial detail.
 export const annulComprobanteIntent = "annul-comprobante";
 
-// Palabra clave de submit deliberado que el server exige antes de disparar la
-// anulación: la afordancia de UI y el server acuerdan el mismo valor para que un
-// submit accidental no emita una Nota de crédito. Igual que la emisión, no es un
-// checkbox: la confirmación es el AlertDialog mismo.
+// The deliberate-submit keyword the server requires before triggering the
+// annulment: the UI affordance and the server agree on the same value so an
+// accidental submit cannot emit a Nota de crédito. As with emission, it is not a
+// checkbox: the confirmation is the AlertDialog itself.
 export const annulComprobanteConfirmValue = "nota-credito";
 
-// Re-verificación de una anulación que quedó sin resolver (#577): vuelve a
-// consultar a ARCA por esa Nota de crédito, sin reintentar la autorización.
+// Re-verification of an annulment left unresolved (#577): it queries ARCA again
+// for that Nota de crédito, without retrying the authorization.
 export const recheckNotaCreditoIntent = "recheck-nota-credito";
 
 export type ComprobanteDetailActionData =

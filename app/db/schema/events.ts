@@ -5,6 +5,7 @@ import {
   index,
   integer,
   jsonb,
+  pgEnum,
   text,
   timestamp,
   uniqueIndex,
@@ -321,3 +322,79 @@ export const scheduleCapacities = createTable(
     ),
   ],
 ).enableRLS();
+
+// One counter per event, one row per event. It feeds the readable numbers the
+// user reads and searches by: the payment's and the choreography's. Each number
+// is handed out by taking this row with `FOR UPDATE` inside the same
+// transaction that inserts, so two simultaneous creations serialize instead of
+// repeating a number. The numbering leaves gaps — deleting a choreography does
+// not give its number back — and that is as it should be: these numbers
+// identify, they do not count.
+export const eventSequences = createTable(
+  "event_sequence",
+  {
+    eventId: varchar("event_id", { length: 255 })
+      .primaryKey()
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    nextPaymentNumber: integer("next_payment_number").notNull().default(1),
+    nextChoreographyNumber: integer("next_choreography_number")
+      .notNull()
+      .default(1),
+    createdAt: timestamp("created_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: timestamp("updated_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [index("event_sequence_updated_idx").on(table.updatedAt)],
+).enableRLS();
+
+// Deliberately unlike its neighbours, and not an oversight: the enum carries no
+// `en_escena_` prefix and the table declares no `.enableRLS()`. The prefix is a
+// `create-t3-app` leftover, and the RLS call only ever muted a Supabase warning
+// against an app that connects as the table owner. #506 removes both repo-wide,
+// so a new declaration should not add to the pile.
+export const eventDocumentKind = pgEnum("event_document_kind", [
+  "professor_contract",
+  "minor_authorization",
+  "adult_contract",
+]);
+
+// A row exists only when a document is uploaded; absence is "no document". A
+// new event therefore starts empty, with no carry-over from the previous one.
+export const eventDocuments = createTable(
+  "event_document",
+  {
+    id: varchar("id", { length: 255 })
+      .primaryKey()
+      .notNull()
+      .$defaultFn(() => crypto.randomUUID()),
+    eventId: varchar("event_id", { length: 255 }).notNull(),
+    kind: eventDocumentKind("kind").notNull(),
+    storageKey: text("storage_key").notNull(),
+    uploadedAt: timestamp("uploaded_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.eventId],
+      foreignColumns: [events.id],
+    }).onDelete("cascade"),
+    uniqueIndex("event_document_event_kind_unique").on(
+      table.eventId,
+      table.kind,
+    ),
+  ],
+);

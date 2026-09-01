@@ -211,7 +211,7 @@ describe.sequential("administracion finanzas", () => {
       dancerId: northSecondDancer.id,
     });
 
-    // Norte Pagada: pagada, con la seña y el saldo en una sola asignación.
+    // Norte Pagada: paid, with the deposit and the balance in a single allocation.
     const northPaidDancer = await createDancer(academyNorth.academy.id, {
       firstName: "Carla",
       lastName: "Pagada",
@@ -229,7 +229,7 @@ describe.sequential("administracion finanzas", () => {
       paymentId: northPayment.id,
     });
 
-    // Sur Activa: impaga -> pending seña 3000, no allocations.
+    // Sur Activa: unpaid -> pending deposit 3000, no allocations.
     const southDancer = await createDancer(academySouth.academy.id, {
       firstName: "Delia",
       lastName: "Sur",
@@ -268,12 +268,13 @@ describe.sequential("administracion finanzas", () => {
     });
 
     expect(loaderData.selectedEventId).toBe(event.id);
-    // Norte: tres inscripciones de 10000 con seña 3000 cada una → seña 9000 y
-    // total 30000, la pagada incluida: los umbrales son contexto, no deuda.
-    // Pagos 20000 - asignaciones 13000 = disponible 7000; saldo adeudado 17000
-    // = 7000 de la que cubrió la seña + 10000 de la que no tiene nada.
-    // Sur: una sola inscripción → seña 3000 y total 10000; pagos 3000 -
-    // asignaciones 0 = disponible 3000; saldo adeudado 10000.
+    // Norte: three inscriptions of 10000 with a deposit of 3000 each → deposit
+    // 9000 and total 30000, the paid one included: the thresholds are context,
+    // not debt. Payments 20000 - allocations 13000 = available 7000; balance owed
+    // 17000 = 7000 from the one that covered the deposit + 10000 from the one
+    // with nothing.
+    // Sur: a single inscription → deposit 3000 and total 10000; payments 3000 -
+    // allocations 0 = available 3000; balance owed 10000.
     expect(loaderData.rows).toEqual([
       {
         academyId: academyNorth.academy.id,
@@ -356,8 +357,8 @@ describe.sequential("administracion finanzas", () => {
         academyId: academy.academy.id,
         academyName: "Academia Sin Precio",
         availableBalanceAmount: 0,
-        // Sin precio aplicable no hay umbral: ni la seña ni el total ni el
-        // saldo adeudado de la impaga se pueden cuantificar.
+        // With no applicable price there is no threshold: neither the deposit nor
+        // the total nor the balance owed by the unpaid one can be quantified.
         depositAmount: {
           status: "incomplete",
           amount: 0,

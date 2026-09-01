@@ -215,9 +215,9 @@ function buildChoreographyFinanceColumns(
     {
       id: "totalAmount",
       header: "Total",
-      // Decorativo y sin condición: `Total` es la columna de contexto —contra qué
-      // se mide lo adeudado—, así que va atenuada entera. Nunca por fila: un gris
-      // que varía vuelve a significar algo.
+      // Decorative and unconditional: `Total` is the context column — what the debt
+      // is measured against — so the whole of it is muted. Never per row: a grey
+      // that varies goes back to meaning something.
       className: "text-right tabular-nums text-muted-foreground",
       headerClassName: "text-right",
       cell: (row) => formatOperationalAmount(row.totalAmount),
@@ -225,7 +225,7 @@ function buildChoreographyFinanceColumns(
     {
       id: "owedBalanceAmount",
       header: "Saldo adeudado",
-      // La única cifra accionable de la fila, destacada por columna.
+      // The row's only actionable figure, highlighted by column.
       className: "text-right font-medium tabular-nums",
       headerClassName: "text-right",
       cell: (row) => formatOperationalAmount(row.owedBalanceAmount),
@@ -243,9 +243,9 @@ function buildChoreographyFinanceColumns(
 }
 
 /**
- * Una anomalía **reemplaza** al badge de estado, no lo acompaña: los dos compiten
- * por la misma mirada, y `Señada` al lado de `Sobreasignada` se lee como dos
- * hechos del mismo peso cuando sólo uno pide que alguien haga algo.
+ * An anomaly **replaces** the status badge, it does not accompany it: the two
+ * compete for the same glance, and `Señada` next to `Sobreasignada` reads as two
+ * facts of the same weight when only one of them asks anybody to do anything.
  *
  * The precedence between axes lives in `resolveInscriptionStatusBadge` and is
  * explicit, not positional: a new derived axis stacks on top by declaring

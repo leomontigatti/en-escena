@@ -9,6 +9,17 @@ import {
   readEventFormValues,
 } from "@/lib/admin/events/form-values";
 import {
+  eventDocumentKinds,
+  type EventDocumentKind,
+} from "@/lib/events/event-documents";
+import {
+  deleteEventDocument,
+  loadEventDocumentSummaries,
+  saveEventDocument,
+  type EventDocumentMutationResult,
+} from "@/lib/events/event-documents.server";
+import { createDefaultEventDocumentStorage } from "@/lib/storage/event-documents.server";
+import {
   activateEvent,
   deactivateEvent,
   deleteEvent,
@@ -23,6 +34,10 @@ import {
   type NotificationKey,
 } from "@/lib/shared/notification-toasts";
 import {
+  eventDocumentFileField,
+  eventDocumentKeptField,
+  eventDocumentsPresentField,
+  keptEventDocumentValue,
   type EventDetailActionData,
   type EventDetailLoaderData,
 } from "./shared";
@@ -48,12 +63,17 @@ export async function loadEventDetail(
     throw new Response("No encontramos ese evento.", { status: 404 });
   }
 
-  const [event, registrationReadiness] = await Promise.all([
+  const [event, registrationReadiness, documents] = await Promise.all([
     loadEvent(eventId),
     getEventRegistrationReadiness(eventId),
+    loadEventDocumentSummaries({
+      eventId,
+      storage: createDefaultEventDocumentStorage(),
+    }),
   ]);
 
   return {
+    documents,
     event,
     registrationReadiness,
   } satisfies EventDetailLoaderData;
@@ -148,7 +168,82 @@ async function updateEventAction(eventId: string, formData: FormData) {
     };
   }
 
+  const documentsResult = await applyEventDocumentChanges(eventId, formData);
+
+  if (!documentsResult.ok) {
+    return actionError(documentsResult.message);
+  }
+
   return actionSuccess("evento-guardado");
+}
+
+/**
+ * The event form carries the three PDFs, so one "Guardar" uploads, replaces and
+ * removes them along with the dates. The body always posts
+ * `multipart/form-data`: `request.formData()` parses it transparently, which is
+ * what lets the files ride on the same submission the rest of the form uses.
+ *
+ * A body without the marker is left alone. Three absent file inputs and three
+ * absent "kept" fields look exactly like "remove all three", and the costly way
+ * to be wrong about that is the one that deletes them.
+ */
+async function applyEventDocumentChanges(
+  eventId: string,
+  formData: FormData,
+): Promise<EventDocumentMutationResult> {
+  if (formData.get(eventDocumentsPresentField) !== keptEventDocumentValue) {
+    return { ok: true };
+  }
+
+  const storage = createDefaultEventDocumentStorage();
+  const summaries = await loadEventDocumentSummaries({ eventId, storage });
+
+  for (const kind of eventDocumentKinds) {
+    const result = await applyEventDocumentChange({
+      eventId,
+      formData,
+      isUploaded: summaries[kind] !== null,
+      kind,
+      storage,
+    });
+
+    if (!result.ok) {
+      return result;
+    }
+  }
+
+  return { ok: true };
+}
+
+async function applyEventDocumentChange({
+  eventId,
+  formData,
+  isUploaded,
+  kind,
+  storage,
+}: {
+  eventId: string;
+  formData: FormData;
+  isUploaded: boolean;
+  kind: EventDocumentKind;
+  storage: ReturnType<typeof createDefaultEventDocumentStorage>;
+}): Promise<EventDocumentMutationResult> {
+  const file = formData.get(eventDocumentFileField(kind));
+
+  // A file always wins: choosing one after clearing the field is a replacement,
+  // not a removal followed by an upload.
+  if (file instanceof File && file.size > 0) {
+    return await saveEventDocument({ eventId, file, kind, storage });
+  }
+
+  const isKept =
+    formData.get(eventDocumentKeptField(kind)) === keptEventDocumentValue;
+
+  if (isUploaded && !isKept) {
+    return await deleteEventDocument({ eventId, kind, storage });
+  }
+
+  return { ok: true };
 }
 
 function updateVisibility(
@@ -172,9 +267,9 @@ async function redirectAfterDeletion(
   );
 }
 
-// Las ediciones en el lugar del detalle no redirigen: retornan
-// `{ status: "success" }`, el loader revalida y la vista dispara el toast
-// directo. Ver docs/agents/form-feedback.md.
+// In-place edits on the detail do not redirect: they return
+// `{ status: "success" }`, the loader revalidates and the view fires the toast
+// directly. See docs/agents/form-feedback.md.
 async function successOrError(
   resultPromise: Promise<EventMutationResult>,
   notification: EventRouteNotification,

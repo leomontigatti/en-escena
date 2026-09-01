@@ -11,15 +11,16 @@ export type OperationalFinanceAmount =
 
 export type OperationalFinanceSummary = {
   availableBalanceAmount: number;
-  // `Seña` y `Total`: los dos umbrales de la academia, sumados sobre sus
-  // coreografías. Son contexto —contra qué se mide lo adeudado—, no deuda.
+  // `Seña` and `Total`: the academy's two thresholds, summed over its
+  // choreographies. They are context —what the owed figures are measured
+  // against— and not debt.
   depositAmount: OperationalFinanceAmount;
   totalAmount: OperationalFinanceAmount;
-  // `Saldo adeudado`: bruto, suma del faltante de cada inscripción contra su
-  // total. No descuenta `Saldo disponible`.
+  // `Saldo adeudado`: gross, the sum of each inscription's shortfall against its
+  // total. It does not subtract `Saldo disponible`.
   owedBalanceAmount: OperationalFinanceAmount;
-  // `Seña adeudada`: bruto, suma del faltante de cada inscripción contra su
-  // seña. Contenida en `Saldo adeudado`, nunca su complemento.
+  // `Seña adeudada`: gross, the sum of each inscription's shortfall against its
+  // deposit. Contained in `Saldo adeudado`, never its complement.
   owedDepositAmount: OperationalFinanceAmount;
   totalPaidAmount: number;
 };

@@ -46,9 +46,10 @@ describe("FinancesListRouteView", () => {
 });
 
 /**
- * Se ancla en el encabezado en vez de en la posición de la celda, para que el
- * test siga hablando de la columna si el orden cambia. El gris es de la columna
- * entera, así que se lee en el `className` del encabezado y de sus celdas.
+ * It anchors on the header rather than on the cell's position, so the test
+ * keeps talking about the column if the order changes. The dimming belongs to
+ * the whole column, so it is read off the `className` of the header and of its
+ * cells.
  */
 function isColumnMuted(markup: string, header: string) {
   const document = new DOMParser().parseFromString(markup, "text/html");

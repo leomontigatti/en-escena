@@ -16,17 +16,18 @@ import {
 } from "./shared";
 
 /*
- * Eje de emisión del detalle financiero: emitir la Factura C y re-verificar una
- * emisión que quedó sin resolver (ADR-0011, ADR-0012). Vive aparte del server del
- * detalle porque es la única parte que habla con ARCA y la única que decide entre
- * redirigir y quedarse en el diálogo.
+ * The financial detail's emission axis: emitting the Factura C and re-verifying
+ * an emission left unresolved (ADR-0011, ADR-0012). It lives apart from the
+ * detail's server because it is the only part that talks to ARCA and the only
+ * one that decides between redirecting and staying in the dialog.
  */
 
 /**
- * Dispara la emisión de la Factura C tras la confirmación irreversible. Un CAE
- * aprobado recarga el detalle (badge Vigente); un rechazo o contingencia de ARCA
- * vuelve como `emission-error` con el estado crudo, sin persistir nada ni dejar
- * la UI inconsistente (la recarga sólo ocurre en el camino feliz).
+ * Triggers the Factura C emission after the irreversible confirmation. An
+ * approved CAE reloads the detail (Vigente badge); a rejection or contingency
+ * from ARCA comes back as `emission-error` with the raw state, without
+ * persisting anything or leaving the UI inconsistent (the reload only happens on
+ * the happy path).
  */
 export async function handleEmitComprobante(input: {
   academyId: string;
@@ -48,10 +49,10 @@ export async function handleEmitComprobante(input: {
   );
 
   if (outcome.ok) {
-    // Una emisión recuperada redirige igual que cualquier otra, así que el aviso
-    // viaja por flash session (docs/agents/form-feedback.md). Es deliberado que
-    // no se parezca al `recovered` del diálogo: así el operador puede distinguir
-    // "se recuperó solo" de "lo recuperé yo".
+    // A recovered emission redirects like any other, so the notice travels by
+    // flash session (docs/agents/form-feedback.md). It deliberately does not look
+    // like the dialog's `recovered`: that way the operator can tell "it recovered
+    // on its own" from "I recovered it myself".
     throw await redirectToDetail(
       input.academyId,
       input.choreographyId,
@@ -64,10 +65,10 @@ export async function handleEmitComprobante(input: {
 }
 
 /**
- * Re-consulta a ARCA por la emisión que quedó sin resolver, sin salir del
- * diálogo (#577). Del form sólo se lee el correlativo: el importe y la fecha con
- * los que se valida el comprobante consultado los recalcula
- * `recheckChoreographyFacturaC` desde la coreografía (ADR-0012 decisión 4).
+ * Queries ARCA again for the emission left unresolved, without leaving the dialog
+ * (#577). Only the sequence number is read from the form: the amount and the date
+ * the queried comprobante is validated against are recomputed by
+ * `recheckChoreographyFacturaC` from the choreography (ADR-0012 decision 4).
  */
 export async function handleRecheckComprobante(input: {
   academyId: string;
@@ -90,8 +91,8 @@ export async function handleRecheckComprobante(input: {
     input.resolveEmissionDeps(),
   );
 
-  // La recuperación por re-verificación se queda en el diálogo: no cruza un
-  // redirect, así que llega como estado del alert y no como toast.
+  // Recovery by re-verification stays in the dialog: it does not cross a
+  // redirect, so it arrives as alert state and not as a toast.
   if (outcome.ok) {
     return { status: "contingency", contingency: { status: "recovered" } };
   }

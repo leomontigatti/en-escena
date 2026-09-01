@@ -20,6 +20,7 @@ import {
   createAgent,
   createSandboxProvider,
   requireEnv,
+  revokeGitHubToken,
   runMain,
   streamingLog,
   writeFailure,
@@ -88,6 +89,11 @@ await runMain(async ({ signal }) => {
   const prView = gh(["pr", "view", prNumber]);
   const mergeStatus = execFileSync("git", ["status"], { encoding: "utf8" });
   const conflictingFiles = git(["diff", "--name-only", "--diff-filter=U"]);
+
+  // Prefetch done: drop the token before the agent starts (§3.9). `noSandbox()`
+  // spreads `process.env` into the agent, so a step-level `GH_TOKEN` would reach
+  // it and its `gh` calls would succeed with the job's write permissions.
+  revokeGitHubToken();
 
   const result = await runWithExtraction({
     name: "update-branch",

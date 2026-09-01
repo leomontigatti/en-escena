@@ -53,8 +53,8 @@ function renderDetail(
   return renderToStaticMarkup(createElement(RouterProvider, { router }));
 }
 
-// Las clases de Tailwind traen variantes `disabled:`, así que el estado real
-// se lee del atributo (`disabled=""` en el markup del servidor).
+// Tailwind's classes carry `disabled:` variants, so the real state is read from
+// the attribute (`disabled=""` in the server's markup).
 function isFieldDisabled(markup: string, fieldName: string) {
   const tag = markup.match(
     new RegExp(`<input[^>]*name="${fieldName}"[^>]*>`),
@@ -128,7 +128,7 @@ describe.sequential("administracion academia detalle", () => {
       expect(isFieldDisabled(markup, fieldName)).toBe(false);
     }
 
-    // La vista quedó acotada a los datos de la academia.
+    // The view is scoped to the academy's own data.
     expect(markup).not.toContain("Seña adeudada");
     expect(markup).not.toContain("Saldo adeudado");
     expect(markup).not.toContain("Coreografías");
@@ -231,7 +231,7 @@ describe.sequential("administracion academia detalle", () => {
     expect(markup).toContain("Volver");
     expect(markup).not.toContain("Guardar");
 
-    // No alcanza con ocultar el botón: los campos también van deshabilitados.
+    // Hiding the button is not enough: the fields are disabled too.
     for (const fieldName of ["name", "contactName", "phone"]) {
       expect(isFieldDisabled(markup, fieldName)).toBe(true);
     }

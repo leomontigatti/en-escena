@@ -113,9 +113,17 @@ describe("the inscription snapshot drop migration", () => {
     await migrate(db, { migrationsFolder });
 
     const columnsAfter = await readChoreographyDancerColumns(db);
+    // Migrations after the drop add columns of their own — 0012 adds
+    // `created_at` — so the invariant is that the ten went and nothing else
+    // went with them, not that the column list is frozen from here on.
     expect(columnsAfter).toEqual(
-      columnsBefore.filter((column) => !droppedColumns.includes(column)),
+      expect.arrayContaining(
+        columnsBefore.filter((column) => !droppedColumns.includes(column)),
+      ),
     );
+    expect(
+      columnsAfter.filter((column) => droppedColumns.includes(column)),
+    ).toEqual([]);
     expect(columnsAfter).toContain("selected_price_id");
 
     const inscriptions = await db.execute<{

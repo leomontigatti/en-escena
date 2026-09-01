@@ -18,14 +18,21 @@ import { useSavedValueSelectForm } from "./use-saved-value-select-form";
 import type { ChoreographyDetailLoaderData } from "./server";
 
 /**
- * Los tres campos que se reasignan solos: cada uno tiene su propio `useForm`
- * aislado del form del roster, auto-submitea al elegir y postea su intent, así
- * que se quedan en la página y responden por toast. Ninguno participa del
- * guardado del roster ni de su diálogo de confirmación.
+ * The three fields that reassign on their own: each has its own `useForm`,
+ * isolated from the roster's form, auto-submits on selection and posts its
+ * intent, so they stay on the page and report back by toast. None of them takes
+ * part in saving the roster or in its confirmation dialog.
+ *
+ * `disabled` is what a pending modality correction uses to hold them while its
+ * resolution is in flight: they keep showing the saved value in the same
+ * control instead of collapsing into a read-only field, so nothing next to the
+ * modalidad select changes shape between the click and the answer.
  */
 export function SubmodalityField({
+  disabled = false,
   loaderData,
 }: {
+  disabled?: boolean;
   loaderData: ChoreographyDetailLoaderData;
 }) {
   const choreography = loaderData.choreography;
@@ -35,8 +42,9 @@ export function SubmodalityField({
     choreography.submodalityId ?? "",
   );
 
-  // Editable solo para `admin`, cuando la modalidad tiene submodalidades y la
-  // coreografía todavía no tiene presentación. La modalidad es inmutable.
+  // Editable only for `admin`, when the modalidad has submodalidades and the
+  // choreography has no presentación yet. Changing the modalidad itself is a
+  // separate compound correction, which owns this field while it is pending.
   const isEditable =
     loaderData.canEdit &&
     !choreography.hasPresentation &&
@@ -54,6 +62,7 @@ export function SubmodalityField({
   return (
     <SelectField
       control={submodalityForm.control}
+      disabled={disabled}
       label="Submodalidad"
       name="submodalityId"
       onValueChange={(value) => {
@@ -76,10 +85,12 @@ export function SubmodalityField({
 }
 
 export function ExperienceLevelField({
+  disabled = false,
   experienceLevelId,
   loaderData,
   requiresExperienceLevel,
 }: {
+  disabled?: boolean;
   experienceLevelId: string;
   loaderData: ChoreographyDetailLoaderData;
   requiresExperienceLevel: boolean;
@@ -95,14 +106,14 @@ export function ExperienceLevelField({
     value: option.id,
   }));
 
-  // `canReassign` mira la categoría guardada; el prop la reemplaza mientras hay
-  // un cambio de roster pendiente que la mueve.
+  // `canReassign` looks at the saved category; the prop replaces it while there is
+  // a pending roster change that moves it.
   if (!loaderData.experienceLevel.canReassign || !requiresExperienceLevel) {
     return (
       <ReadOnlySelectField
-        // Dos vacíos distintos: la categoría no pide nivel, o lo pide y falta.
-        // Sin la distinción, una coreografía incompleta se ve igual que una que
-        // está bien.
+        // Two different kinds of empty: the category does not ask for a level, or
+        // it asks and it is missing. Without the distinction, an incomplete
+        // choreography looks the same as one that is fine.
         emptyLabel={requiresExperienceLevel ? "Sin asignar" : "No aplica"}
         label="Nivel de experiencia"
         options={options}
@@ -114,6 +125,7 @@ export function ExperienceLevelField({
   return (
     <SelectField
       control={experienceLevelForm.control}
+      disabled={disabled}
       label="Nivel de experiencia"
       name={assignedExperienceLevelFieldName}
       onValueChange={(value) => {
@@ -133,8 +145,10 @@ export function ExperienceLevelField({
 }
 
 export function ScheduleCapacityField({
+  disabled = false,
   loaderData,
 }: {
+  disabled?: boolean;
   loaderData: ChoreographyDetailLoaderData;
 }) {
   const choreography = loaderData.choreography;
@@ -153,6 +167,7 @@ export function ScheduleCapacityField({
   return (
     <SelectField
       control={scheduleCapacityForm.control}
+      disabled={disabled}
       label="Cronograma"
       name={assignedScheduleCapacityFieldName}
       onValueChange={(value) => {

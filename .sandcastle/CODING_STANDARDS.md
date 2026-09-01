@@ -107,6 +107,7 @@ The product is Spanish; the codebase is English.
 | -------------------------------------- | -------------------------------- | ----------------------------------------------- |
 | UI strings, page titles, URLs          | Spanish                          | `"Comprobante"`, `/administracion/comprobantes` |
 | Code identifiers, comments, docs, ADRs | English                          | `loadAcademyFinances`                           |
+| Commit messages, PR titles and bodies  | English                          | `fix(choreographies): …`                        |
 | External-system adapters               | the external system's vocabulary | `ArcaVoucher`, `createVoucher`                  |
 
 Route filenames are URLs, so they stay Spanish
@@ -121,9 +122,9 @@ otherwise ADRs would qualify too.
 
 ### The surrounding file does not decide the language
 
-Much of the tree still carries Spanish comments —
-[#592](https://github.com/leomontigatti/en-escena/issues/592) counts roughly 666
-prose lines across 95 files. **That is debt, not precedent.** A comment you write
+Much of the tree still carries Spanish comments;
+[#592](https://github.com/leomontigatti/en-escena/issues/592) owns the count and
+the sweep. **That is debt, not precedent.** A comment you write
 or modify is English even when every comment around it is Spanish, and
 "consistent with the file" is not a reason to add another Spanish line. This is
 the rule the debt kept quietly suspending: reviews of
@@ -135,8 +136,13 @@ The converse also holds: **do not opportunistically translate** comments you are
 not otherwise touching. Sweeping the existing Spanish is #592's job, and mixing
 it into a feature branch buries the change under a diff nobody asked to review.
 
-Commit subjects and PR titles are not covered either way. Recent history is
-mostly Spanish, and nothing here changes that.
+One file type is exempt from both directions: **an applied migration under
+`app/db/migrations/` is frozen, comments included.** Drizzle hashes the whole
+`.sql` file, so translating a comment inside one stops the production container
+from starting — which is exactly what
+[#762](https://github.com/leomontigatti/en-escena/pull/762) did. Leave its
+Spanish where it is, whatever this section says; `pnpm check:migration-immutability`
+enforces it, and `docs/db/migrations.md` explains why.
 
 `CONTEXT.md` is the mapping table, keyed on the code identifier: every entry is
 the canonical English identifier followed by `ui:`, the Spanish term the user
@@ -147,12 +153,30 @@ a name, and cite it in review when a new identifier disagrees with the glossary.
 Docs quote UI copy verbatim. Spanish inside a quoted string, a route path or a
 glossary `ui:` value is data, not prose, and stays Spanish.
 
+### Commits and pull requests are English
+
+**Commit subjects and bodies, PR titles and PR descriptions are English.** They
+are engineering prose about the codebase, read by whoever is reviewing or
+bisecting it and by no user, so the rule at the top of this section already
+decides them the same way it decides comments and ADRs.
+
+The conventional-commit scope names a code area, so it is English too
+(`fix(choreographies):`, not `fix(coreografias):`). The exceptions are the ones
+that apply to docs: **quoted UI copy stays Spanish**, because a subject or a
+description that quotes what the user reads is quoting data, not writing prose
+— `fix(ui): replace "roster" with "elenco"` is the correct shape — and a
+reserved domain term (`comprobante`) stays Spanish wherever it appears.
+
+History before this rule is mostly Spanish. **That is debt, not precedent**, and
+it is not worth rewriting: published history does not get force-pushed to make a
+convention retroactive. Write the next one in English.
+
 ### Reserved Spanish Domain Terms
 
 Some domain nouns stay Spanish inside identifiers. The full list:
 
 - **`comprobante`** — a term of art defined by ARCA regulation (RG 1415, cited in
-  [ADR-0011](../docs/adr/0011-invoicing-concept-portion-and-surfaces.md)). Every
+  [ADR-0011](../docs/adr/superseded/0011-invoicing-concept-portion-and-surfaces.md)). Every
   English candidate is worse: `voucher` collides with discount vouchers in an app
   that has discounts, and `fiscalDocument` is verbose for a term this frequent.
   The URL stays Spanish regardless, so keeping the Spanish noun carries zero

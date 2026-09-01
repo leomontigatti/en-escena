@@ -64,8 +64,8 @@ const choreographyFinanceColumns: DataTableColumn<ChoreographyFinanceRow>[] = [
     cell: (row) => formatOperationalAmount(row.depositAmount),
   },
   {
-    // Decorativo y sin condición: `Total` es la columna de contexto —contra qué se
-    // mide lo adeudado—, así que va atenuada entera y nunca por fila.
+    // Decorative and unconditional: `Total` is the context column — what the debt
+    // is measured against — so the whole of it is muted, and never per row.
     id: "totalAmount",
     header: "Total",
     className: "text-right tabular-nums text-muted-foreground",
@@ -74,7 +74,7 @@ const choreographyFinanceColumns: DataTableColumn<ChoreographyFinanceRow>[] = [
     sortValue: (row) => row.totalAmount.amount,
   },
   {
-    // La única cifra accionable de la fila, destacada por columna.
+    // The row's only actionable figure, highlighted by column.
     id: "owedBalanceAmount",
     header: "Saldo adeudado",
     className: "text-right font-medium tabular-nums",

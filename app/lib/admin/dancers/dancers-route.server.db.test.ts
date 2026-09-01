@@ -51,6 +51,7 @@ import {
   handle as bailarinDetalleHandle,
   loader as detailLoader,
 } from "@/routes/administracion.bailarines_.$dancerId";
+import { allocateChoreographyNumberForTest } from "@/lib/choreographies/registration-test-fixtures.server.db";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
@@ -1693,9 +1694,13 @@ async function createAdministrativeLinkedChoreography(input: {
   experienceLevelId: string | null;
   scheduleCapacityId: string;
 }) {
+  const choreographyNumber = await allocateChoreographyNumberForTest(
+    input.eventId,
+  );
   const [choreography] = await db
     .insert(choreographies)
     .values({
+      choreographyNumber,
       eventId: input.eventId,
       academyId: input.academyId,
       name: input.choreographyName,

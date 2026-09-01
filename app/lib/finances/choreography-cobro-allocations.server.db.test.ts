@@ -62,7 +62,7 @@ async function readAllocations(inscriptionId: string) {
 }
 
 describe.sequential("applyAllocationDelta", () => {
-  test("suma sobre la fila del par en vez de crear una segunda", async () => {
+  test("sums onto the pair's row instead of creating a second one", async () => {
     const fixture = await seedAllocationFixture();
 
     await applyAllocationDelta(db, { ...fixture, delta: 3000 });
@@ -73,7 +73,7 @@ describe.sequential("applyAllocationDelta", () => {
     expect(allocations[0]?.amount).toBe(7000);
   });
 
-  test("borra la fila cuando el decremento la deja en cero", async () => {
+  test("deletes the row when the decrement leaves it at zero", async () => {
     const fixture = await seedAllocationFixture();
 
     await applyAllocationDelta(db, { ...fixture, delta: 3000 });
@@ -85,7 +85,7 @@ describe.sequential("applyAllocationDelta", () => {
 
     await applyAllocationDelta(db, { ...fixture, delta: -2000 });
 
-    // Ninguna fila sobrevive en cero: el CHECK de monto positivo no dejaría.
+    // No row survives at zero: the positive-amount CHECK would not allow it.
     expect(await readAllocations(fixture.inscriptionId)).toEqual([]);
   });
 });

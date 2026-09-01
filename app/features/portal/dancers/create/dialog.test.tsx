@@ -5,6 +5,7 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
 import { PortalDancersListRouteView } from "@/features/portal/dancers/list/view";
+import { eventDocumentDownloadUrls } from "@/lib/events/event-documents.test-support";
 import {
   clickReactDomButton,
   createReactDomTestRenderer,
@@ -113,6 +114,7 @@ describe("PortalDancersListRouteView dialog", () => {
 function createDancerLoaderData(): PortalDancersListRouteViewProps["loaderData"] {
   return {
     dancers: [],
+    documentDownloadUrls: eventDocumentDownloadUrls(),
   };
 }
 

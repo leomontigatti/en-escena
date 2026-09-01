@@ -161,6 +161,7 @@ function choreographyDetailRow(
 ): ChoreographyDetailViewProps["loaderData"]["choreography"] {
   return {
     id: "choreo_1",
+    choreographyNumber: 1,
     name: "Coreografía",
     modalityName: "Jazz",
     submodalityName: null,

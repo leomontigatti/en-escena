@@ -166,15 +166,16 @@ describe("AcademyFinancesRouteView", () => {
 
     const badges = statusBadges();
 
-    // Reemplaza, no acompaña: la fila sobreasignada muestra un solo badge.
+    // It replaces, it does not accompany: the over-allocated row shows a single
+    // badge.
     expect(badges[0]).toEqual([{ text: "Sobreasignada", destructive: true }]);
     expect(badges[1]).toEqual([{ text: "Señada", destructive: false }]);
   });
 
-  // Los presets sobreviven **sólo** como acciones de lista, y una acción de
-  // lista sin selección no tiene sobre qué actuar. Pero el menú no se esconde
-  // por eso: un botón que aparece y desaparece no enseña qué se puede hacer
-  // acá, así que queda a la vista con los dos cobros deshabilitados.
+  // The presets survive **only** as list actions, and a list action with no
+  // selection has nothing to act on. But the menu is not hidden for that: a
+  // button that comes and goes does not teach what can be done here, so it stays
+  // in sight with both presets disabled.
   test("keeps the actions menu visible and disables both presets without a selection", async () => {
     await renderListIntoDocument();
 
@@ -266,8 +267,8 @@ describe("AcademyFinancesRouteView", () => {
   test("pre-fills the owed deposit of the selected rows and prompts for a price", async () => {
     await renderListIntoDocument({ initialPresetStage: "deposit" });
 
-    // El diálogo no se monta sin selección: un preset sin filas elegidas no
-    // tiene cifra que precargar.
+    // The dialog does not mount without a selection: a preset with no rows chosen
+    // has no figure to preload.
     expect(document.querySelector('[role="dialog"]')).toBeNull();
 
     await clickCheckbox(getRenderedCheckboxes()[1]);
@@ -282,9 +283,9 @@ describe("AcademyFinancesRouteView", () => {
     expect(dialogText).toContain("Precio");
     expect(dialogText).toContain("Mantener el precio actual");
 
-    // Confirmar sin tocar el selector no puede repreciar nada: la cifra de
-    // arriba se calculó con los precios que ya rigen, así que el pick por
-    // defecto es *ninguno* y el monto escrito coincide con el mostrado.
+    // Confirming without touching the selector cannot reprice anything: the figure
+    // above was computed with the prices already in force, so the default pick is
+    // *none* and the amount written matches the one shown.
     const priceInput = document.querySelector('input[name="price-solo"]');
     expect(priceInput).not.toBeNull();
     expect((priceInput as HTMLInputElement).value).toBe("");
@@ -296,10 +297,10 @@ describe("AcademyFinancesRouteView", () => {
     ).toEqual(["choreography_1"]);
   });
 
-  // El escritor rechaza toda fila de precio atada a un cronograma que no sea el
-  // de la coreografía, así que ofrecerla es ofrecer un rechazo garantizado. Con
-  // la selección repartida entre dos cronogramas, lo único satisfacible para
-  // todas es el precio general.
+  // The writer rejects every price row tied to a schedule other than the
+  // choreography's, so offering it is offering a guaranteed rejection. With the
+  // selection split across two schedules, the only thing satisfiable for all of
+  // them is the general price.
   test("offers only the price rows the writer would accept for the selection", async () => {
     await renderListIntoDocument({
       initialPresetStage: "deposit",
@@ -334,8 +335,8 @@ describe("AcademyFinancesRouteView", () => {
     const dialogText =
       document.querySelector('[role="dialog"]')?.textContent ?? "";
 
-    // Ninguna de las dos filas sirve para las dos coreografías, así que no hay
-    // selector: no se ofrece un precio que el escritor va a rechazar.
+    // Neither of the two rows works for both choreographies, so there is no
+    // selector: a price the writer would reject is not offered.
     expect(document.querySelector('input[name="price-solo"]')).toBeNull();
     expect(dialogText).toContain("cronogramas distintos");
     expect(dialogText).not.toContain("Solo cronograma 1");
@@ -510,8 +511,8 @@ function choreographyFinanceRowFixture(
 }
 
 /**
- * Badges de la columna `Estado`, por fila. El test se ancla en el encabezado y
- * no en la posición de la celda.
+ * Badges of the `Estado` column, per row. The test anchors on the header and not
+ * on the cell's position.
  */
 function statusBadges() {
   const headers = [...document.querySelectorAll("thead th")].map((header) =>
@@ -525,8 +526,8 @@ function statusBadges() {
     return [...(cell?.querySelectorAll('[data-slot="badge"]') ?? [])].map(
       (badge) => ({
         text: (badge.textContent ?? "").trim(),
-        // Token exacto: la clase base del badge menciona `destructive` en sus
-        // estados `aria-invalid`, así que un `includes` daría siempre verdadero.
+        // An exact token: the badge's base class mentions `destructive` in its
+        // `aria-invalid` states, so an `includes` would always be true.
         destructive: badge.className.split(" ").includes("text-destructive"),
       }),
     );

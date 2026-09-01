@@ -17,6 +17,7 @@ export const choreographyGroupTypeOptions = [
 
 export type PortalChoreographyListItem = {
   id: string;
+  choreographyNumber: number;
   name: string;
   modalityName: string;
   submodalityName: string | null;

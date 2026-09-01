@@ -90,7 +90,7 @@ describe("private route headers", () => {
     }
   });
 
-  test("admin, auditoría y root error usan tokens semánticos en sus superficies compartidas", () => {
+  test("admin, auditoría and root error use semantic tokens on their shared surfaces", () => {
     const adminMarkup = renderAdminRoute();
     const auditoriaMarkup = renderPrivateRoute(
       <AuditoriaRouteView loaderData={{ email: "auditoria@example.com" }} />,

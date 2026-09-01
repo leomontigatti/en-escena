@@ -16,6 +16,7 @@ import {
   createAgent,
   createSandboxProvider,
   requireEnv,
+  revokeGitHubToken,
   runMain,
   streamingLog,
   writeFailure,
@@ -42,6 +43,11 @@ await runMain(async ({ signal }) => {
   // Same read-only context bundle as Review (linked issue, diff, PR_COMMENTS_JSON).
   const context = buildReviewContext(repo, prNumber);
   const anchors = parseDiffAnchors(context.diff);
+
+  // Prefetch done: drop the token before the agent starts (§3.9). `noSandbox()`
+  // spreads `process.env` into the agent, so a step-level `GH_TOKEN` would reach
+  // it and its `gh` calls would succeed with the job's write permissions.
+  revokeGitHubToken();
 
   const result = await runWithExtraction({
     name: "implement-pr",

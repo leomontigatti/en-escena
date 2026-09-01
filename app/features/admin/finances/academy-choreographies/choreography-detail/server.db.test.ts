@@ -50,9 +50,9 @@ async function seedPayment(input: {
 }
 
 /**
- * Fila de precio `solo` del catálogo del evento. Las inscripciones ya cobradas
- * la llevan en `selectedPriceId`, que es lo que el cobro escribe y de donde
- * salen la seña y el total.
+ * The `solo` price row of the event's catalogue. Already collected inscriptions
+ * carry it in `selectedPriceId`, which is what the collection writes and where
+ * the deposit and the total come from.
  */
 async function readSoloPriceId(eventId: string) {
   const [price] = await db
@@ -64,7 +64,7 @@ async function readSoloPriceId(eventId: string) {
 }
 
 /**
- * Entra al detalle como admin y devuelve lo que ve el loader.
+ * Enters the detail as an admin and returns what the loader sees.
  */
 async function loadDetailAsAdmin(input: {
   academyId: string;
@@ -127,7 +127,7 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
       allocatedAmount: 0,
       depositAmount: { amount: 3000, status: "complete" },
       financialStatus: "depositPending",
-      // Una coreografía registrada se adeuda completa desde el minuto cero.
+      // A registered choreography is owed in full from minute zero.
       owedBalanceAmount: { amount: 10000, status: "complete" },
       owedDepositAmount: { amount: 3000, status: "complete" },
       totalAmount: { amount: 10000, status: "complete" },
@@ -269,8 +269,8 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
       eventId: event.id,
       paymentNumber: 1,
     });
-    // Una sola fila por (pago, inscripción): la seña y el saldo cobrados con el
-    // mismo pago son una asignación de 10000.
+    // A single row per (payment, inscription): the deposit and the balance
+    // collected with the same payment are one allocation of 10000.
     await db.insert(paymentAllocations).values({
       academyId: academy.academy.id,
       amount: 10000,
@@ -289,7 +289,7 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
     expect(loaderData.choreography).toMatchObject({
       allocatedAmount: 10000,
       financialStatus: "paidInFull",
-      // El total se sigue mostrando aunque ya no se adeude nada de él.
+      // The total is still shown even though none of it is owed any more.
       owedBalanceAmount: { amount: 0, status: "complete" },
       totalAmount: { amount: 10000, status: "complete" },
     });

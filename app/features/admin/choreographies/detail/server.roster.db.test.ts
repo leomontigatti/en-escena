@@ -227,6 +227,91 @@ describe("administrative choreography roster editing", () => {
     expect(revived?.withdrawnAt).toBeNull();
   });
 
+  test("stamps a dancer added later with its own registration date, not the choreography's", async () => {
+    const scenario = await createRemovalScenario({
+      academyName: "Academia Roster Fecha",
+      email: "roster.fecha.academia@example.com",
+    });
+    // The choreography is backdated so the two dates cannot coincide by
+    // accident: this is exactly the gap the column exists to expose.
+    const choreographyCreatedAt = new Date("2026-07-20T12:00:00.000Z");
+    await db
+      .update(choreographies)
+      .set({ createdAt: choreographyCreatedAt })
+      .where(eq(choreographies.id, scenario.choreography.id));
+    // `dancer` carries the same `CURRENT_TIMESTAMP` default as the column under
+    // test, so these two bracket the roster save on the database's own clock —
+    // no assumption that the test runner's agrees with it.
+    const dancerC = await createDancer(scenario.academyId, {
+      firstName: "Cami",
+      lastName: "Tres",
+    });
+
+    const response = await submitRoster({
+      choreographyId: scenario.choreography.id,
+      dancerIds: [scenario.dancerA.id, scenario.dancerB.id, dancerC.id],
+    });
+
+    expect(response).toMatchObject({ status: "success" });
+
+    const afterSubmit = await createDancer(scenario.academyId, {
+      firstName: "Nadia",
+      lastName: "Testigo",
+    });
+    const added = await db.query.choreographyDancers.findFirst({
+      where: eq(choreographyDancers.dancerId, dancerC.id),
+    });
+    // Bounded on both sides by this roster save, which is the claim: the row is
+    // stamped when the dancer is added. `toBeGreaterThan(choreographyCreatedAt)`
+    // alone would pass on any date after the backdated one, copied or not.
+    expect(added?.createdAt.getTime()).toBeGreaterThanOrEqual(
+      dancerC.createdAt.getTime(),
+    );
+    expect(added?.createdAt.getTime()).toBeLessThanOrEqual(
+      afterSubmit.createdAt.getTime(),
+    );
+    expect(added?.createdAt.getTime()).toBeGreaterThan(
+      choreographyCreatedAt.getTime(),
+    );
+  });
+
+  test("keeps the original registration date when a withdrawn inscription is revived", async () => {
+    const scenario = await createRemovalScenario({
+      academyName: "Academia Roster Revive Fecha",
+      email: "roster.revive.fecha.academia@example.com",
+    });
+    const registeredAt = new Date("2026-07-20T12:00:00.000Z");
+    await db
+      .update(choreographyDancers)
+      .set({ createdAt: registeredAt })
+      .where(eq(choreographyDancers.id, scenario.inscriptionA.id));
+    const payment = await createPayment(scenario);
+    await db.insert(paymentAllocations).values({
+      academyId: scenario.academyId,
+      amount: 3000,
+      eventId: scenario.event.id,
+      inscriptionId: scenario.inscriptionA.id,
+      paymentId: payment.id,
+    });
+
+    await submitRoster({
+      choreographyId: scenario.choreography.id,
+      dancerIds: [scenario.dancerB.id],
+    });
+    const response = await submitRoster({
+      choreographyId: scenario.choreography.id,
+      dancerIds: [scenario.dancerA.id, scenario.dancerB.id],
+    });
+
+    expect(response).toMatchObject({ status: "success" });
+
+    const revived = await db.query.choreographyDancers.findFirst({
+      where: eq(choreographyDancers.id, scenario.inscriptionA.id),
+    });
+    expect(revived?.withdrawnAt).toBeNull();
+    expect(revived?.createdAt).toEqual(registeredAt);
+  });
+
   test("leaves the withdrawn row untouched when its allocations are removed afterwards", async () => {
     const scenario = await createRemovalScenario({
       academyName: "Academia Roster Desasigna",
@@ -1077,9 +1162,10 @@ async function createSoloScenarioInCatalog(input: {
 }
 
 /**
- * Duo con dos inscripciones, la de `dancerA` lista para que el test le cuelgue
- * la evidencia que quiera probar. Quitarla del roster deja un solo bailarín, que
- * es la baja más simple que ejercita la decisión entre borrar y retirar.
+ * A duo with two inscriptions, `dancerA`'s ready for the test to hang whatever
+ * evidence it wants to prove on it. Removing it from the roster leaves a single
+ * dancer, which is the simplest removal that exercises the choice between
+ * deleting and withdrawing.
  */
 async function createRemovalScenario(input: {
   academyName: string;
@@ -1209,9 +1295,9 @@ async function createPayment(scenario: {
   return payment;
 }
 
-// El admin firmante se crea de cero en cada submit, así que el mail tiene que
-// ser único también entre dos submits sobre la misma coreografía (retirar y
-// volver a agregar es exactamente ese caso).
+// The signing admin is created from scratch on every submit, so the email has to
+// be unique across two submits on the same choreography too (withdrawing and
+// adding again is exactly that case).
 let submitCount = 0;
 
 async function submitRoster(input: {

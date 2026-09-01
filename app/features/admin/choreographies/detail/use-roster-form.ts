@@ -33,10 +33,10 @@ type RosterFormValues = {
 };
 
 /**
- * Re-resuelve tipo de grupo, categoría y nivel contra el server cada vez que
- * cambia la selección de bailarines. La deduplicación es por clave de selección
- * (no por timer): cada selección se pide una sola vez, y volver a la selección
- * original no dispara pedido porque ya conocemos su resolución persistida.
+ * Re-resolves group type, category and level against the server every time the
+ * dancer selection changes. Deduplication is by selection key (not by timer):
+ * each selection is requested exactly once, and returning to the original
+ * selection fires no request because we already know its persisted resolution.
  */
 export function useRosterForm({
   form,
@@ -172,8 +172,8 @@ export function useRosterForm({
     form.setValue("scheduleCapacityId", fieldState.nextScheduleCapacityId, {
       shouldDirty: true,
     });
-    // `derivedResolution` y `watchedScheduleCapacityId` se leen para decidir el
-    // próximo estado; incluirlos re-dispararía el efecto sobre su propio output.
+    // `derivedResolution` and `watchedScheduleCapacityId` are read to decide the
+    // next state; including them would re-fire the effect on its own output.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form, resolutionFetcher.data]);
 

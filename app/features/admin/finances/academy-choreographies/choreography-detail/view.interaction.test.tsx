@@ -59,7 +59,7 @@ describe("DancerNameCell interaction", () => {
     await clickReactDomButton("Bruno Benítez");
 
     expect(dialogText()).toContain(allocateDescription);
-    // El título es el nombre de la bailarina: es el que dice de quién se habla.
+    // The title is the dancer's name: it is what says who is being talked about.
     expect(dialogText()).toContain("Bruno Benítez");
   });
 
@@ -100,7 +100,7 @@ describe("DancerNameCell interaction", () => {
     // Trabado y sin aviso: el precio es una lectura y no hay selector.
     expect(document.querySelector('[data-slot="select-trigger"]')).toBeNull();
     expect(dialogText()).not.toContain("Para cambiarle el precio");
-    // Y dice lo mismo que decía el selector que reemplaza, seña incluida.
+    // And it says what the picker it replaces said, deposit included.
     const readout = [...document.querySelectorAll("input")].find((candidate) =>
       candidate.value.includes("Dúo general"),
     );
@@ -371,10 +371,10 @@ describe("DancerNameCell interaction", () => {
     expect(document.body.textContent).toContain("Bruno Benítez");
   });
 
-  // Regresión: el diálogo por fila vivía en una celda que se remontaba cuando
-  // el padre re-renderizaba (por columnas recreadas en cada render), lo que lo
-  // cerraba de inmediato. Con las columnas memoizadas y loaderData estable el
-  // diálogo debe sobrevivir a un re-render del padre.
+  // Regression: the per-row dialog lived in a cell that remounted whenever the
+  // parent re-rendered (because the columns were recreated on every render),
+  // which closed it immediately. With the columns memoized and loaderData stable,
+  // the dialog must survive a parent re-render.
   test("keeps the dialog open across a parent re-render", async () => {
     const loaderData = loaderDataFixture();
 
@@ -656,7 +656,7 @@ async function typeRemovedAmount(value: string) {
   });
 }
 
-/** El botón que confirma la imputación, para leerle el estado deshabilitado. */
+/** The button that confirms the allocation, to read its disabled state. */
 function guardarButton(): HTMLButtonElement | null {
   return (
     [...document.querySelectorAll("button")].find(
@@ -665,7 +665,7 @@ function guardarButton(): HTMLButtonElement | null {
   );
 }
 
-/** El botón que confirma la quita, para leerle el estado deshabilitado. */
+/** The button that confirms the removal, to read its disabled state. */
 function quitarButton(): HTMLButtonElement | null {
   return (
     [...document.querySelectorAll("button")].find(
@@ -675,15 +675,15 @@ function quitarButton(): HTMLButtonElement | null {
 }
 
 /**
- * Las descripciones que distinguen una forma del diálogo de otra: el título es el
- * nombre de la bailarina en las tres, así que la cabecera ya no dice cuál es.
+ * The descriptions that tell one shape of the dialog from another: the title is
+ * the dancer's name in all three, so the header no longer says which one it is.
  */
 const allocateDescription =
   "El dinero se asigna desde el saldo disponible de la academia.";
 const removeDescription =
   "El dinero que se quita vuelve al saldo disponible de la academia.";
 
-/** Texto del diálogo abierto, para no confundirlo con el de la tabla de atrás. */
+/** Text of the open dialog, so it is not confused with the table's behind it. */
 function dialogText(): string {
   const dialog = document.querySelector('[data-slot="dialog-content"]');
 
