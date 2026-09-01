@@ -16,7 +16,7 @@ import {
   handlePortalProfessorsListAction,
   loadPortalProfessorsList,
 } from "@/features/portal/professors/list/server";
-import { allocateChoreographyNumber } from "@/lib/choreographies/choreography-number.server";
+import { allocateChoreographyNumberForTest } from "@/lib/choreographies/registration-test-fixtures.server.db";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -119,8 +119,8 @@ describe.sequential("loadPortalProfessorsList", () => {
         lastName: "Participa",
       })
       .returning();
-    const choreographyNumber = await db.transaction(async (tx) =>
-      allocateChoreographyNumber({ tx, eventId: event.id }),
+    const choreographyNumber = await allocateChoreographyNumberForTest(
+      event.id,
     );
     const [choreography] = await db
       .insert(choreographies)

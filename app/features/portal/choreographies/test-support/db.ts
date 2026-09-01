@@ -14,9 +14,11 @@ import {
   submodalities,
 } from "@/db/schema";
 import { registerAcademyEventPayment } from "@/features/admin/finances/academy-choreographies/payments.server";
-import { allocateChoreographyNumber } from "@/lib/choreographies/choreography-number.server";
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
-import { createScheduleForModalityFixture } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import {
+  allocateChoreographyNumberForTest,
+  createScheduleForModalityFixture,
+} from "@/lib/choreographies/registration-test-fixtures.server.db";
 import {
   createAcademyRecord as createPortalAcademyRecord,
   createAcademySession as createPortalAcademySession,
@@ -211,34 +213,30 @@ export async function createChoreographyRecord(
   // Numbers through the same path the application uses instead of pinning a
   // number, so two choreographies of one event in a test cannot collide with
   // `choreography_event_number_unique`.
-  const [choreography] = await db.transaction(async (tx) =>
-    tx
-      .insert(choreographies)
-      .values({
-        academyId: overrides.academyId,
-        eventId: overrides.eventId,
-        choreographyNumber:
-          overrides.choreographyNumber ??
-          (await allocateChoreographyNumber({
-            tx,
-            eventId: overrides.eventId,
-          })),
-        name: overrides.name,
-        modalityId: overrides.modalityId,
-        submodalityId: overrides.submodalityId ?? null,
-        groupType: overrides.groupType ?? "solo",
-        categoryId: overrides.categoryId ?? null,
-        categoryAgeBasis: overrides.categoryAgeBasis ?? 13,
-        categoryCalculationMode: overrides.categoryCalculationMode ?? "oldest",
-        experienceLevelId: overrides.experienceLevelId ?? null,
-        scheduleCapacityId: overrides.scheduleCapacityId,
-        musicStorageKey: overrides.musicStorageKey ?? null,
-        hasPresentation: overrides.hasPresentation ?? false,
-        createdAt: overrides.createdAt,
-        updatedAt: overrides.updatedAt,
-      })
-      .returning(),
-  );
+  const choreographyNumber =
+    overrides.choreographyNumber ??
+    (await allocateChoreographyNumberForTest(overrides.eventId));
+  const [choreography] = await db
+    .insert(choreographies)
+    .values({
+      academyId: overrides.academyId,
+      eventId: overrides.eventId,
+      choreographyNumber,
+      name: overrides.name,
+      modalityId: overrides.modalityId,
+      submodalityId: overrides.submodalityId ?? null,
+      groupType: overrides.groupType ?? "solo",
+      categoryId: overrides.categoryId ?? null,
+      categoryAgeBasis: overrides.categoryAgeBasis ?? 13,
+      categoryCalculationMode: overrides.categoryCalculationMode ?? "oldest",
+      experienceLevelId: overrides.experienceLevelId ?? null,
+      scheduleCapacityId: overrides.scheduleCapacityId,
+      musicStorageKey: overrides.musicStorageKey ?? null,
+      hasPresentation: overrides.hasPresentation ?? false,
+      createdAt: overrides.createdAt,
+      updatedAt: overrides.updatedAt,
+    })
+    .returning();
 
   return choreography;
 }
