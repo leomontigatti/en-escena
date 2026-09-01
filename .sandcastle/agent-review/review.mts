@@ -15,6 +15,7 @@ import {
   createAgent,
   createSandboxProvider,
   requireEnv,
+  revokeGitHubToken,
   runMain,
   streamingLog,
   writeOutput,
@@ -40,6 +41,13 @@ await runMain(async ({ signal }) => {
   const context = buildReviewContext(repo, prNumber);
   const anchors = parseDiffAnchors(context.diff);
 
+  // Prefetch done: drop the token before the agent starts. `noSandbox()` spreads
+  // `process.env` into the agent, so leaving it set would hand the agent a
+  // working, write-capable credential and make §3.9's "the agent never mutates
+  // the tracker" an instruction rather than an invariant. Nothing below needs it
+  // — the runner only writes files, and the orchestrator posts them.
+  revokeGitHubToken();
+
   const result = await runWithExtraction({
     name: "review",
     agent: createAgent(),
@@ -53,7 +61,9 @@ await runMain(async ({ signal }) => {
       BRANCH: branch,
       ISSUE_NUMBER: context.issueNumber,
       ISSUE_TITLE: context.issueTitle,
-      DIFF: context.diff,
+      ISSUE_BODY: context.issueBody,
+      SUB_ISSUES: context.subIssues || "(none — this issue has no sub-issues)",
+      DIFF_STAT: context.diffStat,
       PR_COMMENTS_JSON: context.prCommentsJson,
     },
     extractionPrompt: EXTRACTION_PROMPT,

@@ -177,7 +177,7 @@ Every runner step carries **two** ceilings, and the order between them is load-b
 | `agent-implement-pr`                   | 30                     | 25                     |
 | `agent-implement-prd` (implement pass) | 30                     | 25                     |
 | `agent-implement-prd` (write-prd-pr)   | 10                     | 8                      |
-| `agent-review`                         | 30                     | 25                     |
+| `agent-review`                         | 45                     | 40                     |
 | `agent-to-issues-prd`                  | 30                     | 25                     |
 | `agent-update-branch`                  | 30                     | 25                     |
 | `architecture-review`                  | 20 (spec §4.8)         | 15                     |
@@ -189,6 +189,11 @@ written)". On #512 that cost an entire review with no diagnosis. `AGENT_BUDGET_M
 an `AbortSignal` that the runner passes to sandcastle's `run()`, which aborts the agent
 mid-iteration and rejects — turning the timeout back into an **ordinary throw** that the
 existing failure plumbing reports normally.
+
+**Why `agent-review` gets more.** Its prompt delegates the analysis to the `code-review` skill,
+which fans out into parallel sub-agents, and the runner hands the agent a `--stat` summary
+instead of the full patch — so the agent spends its own time reading the diff per file. Measured
+review runs were 5-9 minutes end to end with a ~20 minute tail, already brushing the old 25.
 
 **The invariant: the budget must stay strictly below the step's `timeout-minutes`.** If it is
 equal or larger, Actions wins the race and the guardrail buys nothing.
