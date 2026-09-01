@@ -314,7 +314,7 @@ describe.sequential("choreography registration resolution", () => {
     });
   });
 
-  test("names the archived Bailarín it rejects, and says nothing about an ajeno Bailarín's existence", async () => {
+  test("names the archived dancer it rejects, and says nothing about another academy's dancer existing", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Alta Bailarines",
       email: "registro.coreografia.alta@example.com",
@@ -346,7 +346,7 @@ describe.sequential("choreography registration resolution", () => {
       ok: false,
       code: "invalid-dancers",
       error:
-        "Lucía Ferrer está archivado. Reactivalo para poder agregarlo a la coreografía.",
+        "Lucía Ferrer tiene Estado de alta Archivado. Reactivá a esa persona para poder agregarla a la coreografía.",
     });
 
     const ajenaResult = await resolveChoreographyRegistrationOperation({
@@ -365,7 +365,7 @@ describe.sequential("choreography registration resolution", () => {
     expect(ajenaResult.ok ? "" : ajenaResult.error).not.toContain("Mora");
   });
 
-  test("rejects a Bailarín that does not exist with the same wording as an ajeno one", async () => {
+  test("rejects a dancer that does not exist with the same wording as another academy's", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Alta Inexistente",
       email: "registro.coreografia.alta.inexistente@example.com",

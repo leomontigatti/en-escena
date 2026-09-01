@@ -21,11 +21,11 @@ import {
   type ShownParticipationStatus,
 } from "@/lib/participation/participation.shared";
 import {
-  getRosterPersonStatusBadgeVariant,
   getRosterPersonStatusLabel,
   toRosterPersonStatus,
   toRosterPersonStatusSearchValue,
 } from "@/lib/roster/roster-person-status.shared";
+import { RosterPersonStatusBadge } from "@/components/shared/roster-person-status-badge";
 
 import type { loadDancersList } from "./server";
 
@@ -103,7 +103,9 @@ function DancerTable({ loaderData }: { loaderData: LoaderData }) {
               participationStatus={dancer.participationStatus}
             />
           ) : null}
-          <RosterPersonStatusBadge active={dancer.active} />
+          <RosterPersonStatusBadge
+            status={toRosterPersonStatus(dancer.active)}
+          />
           <IdentificationBadge
             identificationStatus={dancer.identificationStatus}
           />
@@ -134,20 +136,6 @@ function DancerTable({ loaderData }: { loaderData: LoaderData }) {
       totalPages={loaderData.totalPages}
       totalRows={loaderData.totalCount}
     />
-  );
-}
-
-function RosterPersonStatusBadge({ active }: { active: boolean }) {
-  const status = toRosterPersonStatus(active);
-
-  if (status === "active") {
-    return null;
-  }
-
-  return (
-    <Badge variant={getRosterPersonStatusBadgeVariant(status)}>
-      {getRosterPersonStatusLabel(status)}
-    </Badge>
   );
 }
 

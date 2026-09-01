@@ -47,7 +47,7 @@ describe("classifyRosterPersonSelection", () => {
     ]);
   });
 
-  test("accepts an archived person that is already linked to this coreografía", () => {
+  test("accepts an archived person that is already linked to this choreography", () => {
     const result = classifyRosterPersonSelection({
       selectedIds: ["archived"],
       rows: [row({ id: "archived", active: false })],
@@ -96,7 +96,7 @@ describe("getRosterPersonRejectionMessage", () => {
         ],
       }),
     ).toBe(
-      "Lucía Pérez está archivado. Reactivalo para poder agregarlo a la coreografía.",
+      "Lucía Pérez tiene Estado de alta Archivado. Reactivá a esa persona para poder agregarla a la coreografía.",
     );
   });
 
@@ -110,7 +110,7 @@ describe("getRosterPersonRejectionMessage", () => {
         ],
       }),
     ).toBe(
-      "Lucía Pérez y Juan Gómez están archivados. Reactivalos para poder agregarlos a la coreografía.",
+      "Lucía Pérez y Juan Gómez tienen Estado de alta Archivado. Reactivá a esas personas para poder agregarlas a la coreografía.",
     );
   });
 
@@ -124,7 +124,7 @@ describe("getRosterPersonRejectionMessage", () => {
         ],
       }),
     ).toBe(
-      "Lucía Pérez está archivado. Reactivalo para poder agregarlo a la coreografía. Elegí bailarines que pertenezcan a tu academia.",
+      "Lucía Pérez tiene Estado de alta Archivado. Reactivá a esa persona para poder agregarla a la coreografía. Elegí bailarines que pertenezcan a tu academia.",
     );
   });
 });

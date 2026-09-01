@@ -264,7 +264,7 @@ describe.sequential("choreography registration confirmation", () => {
     });
   });
 
-  test("names the archived Profesor it rejects, and says nothing about an ajeno Profesor's existence", async () => {
+  test("names the archived professor it rejects, and says nothing about another academy's professor existing", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Alta Profesores",
       email: "registro.coreografia.profesor.alta@example.com",
@@ -303,7 +303,7 @@ describe.sequential("choreography registration confirmation", () => {
       ok: false,
       code: "invalid-professors",
       error:
-        "Nadia Roldán está archivado. Reactivalo para poder agregarlo a la coreografía.",
+        "Nadia Roldán tiene Estado de alta Archivado. Reactivá a esa persona para poder agregarla a la coreografía.",
     });
 
     const ajenoResult = await createChoreographyRegistration({

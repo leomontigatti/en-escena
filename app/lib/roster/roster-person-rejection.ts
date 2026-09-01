@@ -5,22 +5,22 @@ import {
 } from "@/lib/roster/roster-person-status.shared";
 
 /**
- * Why a roster person the academy picked cannot be part of a coreografía.
+ * Why a roster person the academy picked cannot be part of a choreography.
  * There are exactly two causes, and the pure half of the roster module owns
  * both the classification and the wording so that a read and a write cannot
  * disagree about them.
  *
  * `"not-found"` covers a person that does not exist **and** a person that
- * belongs to another academia. The merge is deliberate and it is a privacy
- * decision: telling the two apart would confirm to one academia that another
- * academia's record exists. Its wording says nothing about existence.
+ * belongs to another academy. The merge is deliberate and it is a privacy
+ * decision: telling the two apart would confirm to one academy that another
+ * academy's record exists. Its wording says nothing about existence.
  */
 export type RosterPersonRejection =
   | { personId: string; cause: "not-found" }
   | { personId: string; cause: "archived"; fullName: string };
 
 /**
- * The linked set of a selection that has no coreografía to be linked to yet.
+ * The linked set of a selection that has no choreography to be linked to yet.
  * Registration always classifies against it, so the strict behaviour academies
  * see when they register is the one eligibility rule and not a second policy.
  */
@@ -35,13 +35,13 @@ type RosterPersonRow = {
 
 /**
  * Splits a picked selection into the people that may be part of the
- * coreografía and a typed rejection for each of the rest, applying the one
+ * choreography and a typed rejection for each of the rest, applying the one
  * eligibility rule to every row.
  *
  * `rows` are the rows the caller read for `selectedIds` scoped to its own
- * academia: an id with no row is `"not-found"`, whether the person does not
+ * academy: an id with no row is `"not-found"`, whether the person does not
  * exist or belongs elsewhere. `linkedPersonIds` are the people already on
- * **this** coreografía; registration passes an empty set, which is what makes
+ * **this** choreography; registration passes an empty set, which is what makes
  * its strict behaviour a consequence of `isSelectableForRoster` rather than a
  * second policy.
  */
@@ -91,7 +91,11 @@ const notFoundMessages: Record<RosterPersonKind, string> = {
 
 /**
  * One sentence per cause, the archived one first because it is the one the
- * academia can act on: it names the people and says what to do with them.
+ * academy can act on: it names the people and says what to do with them.
+ *
+ * The sentence agrees with "persona", never with the name it interpolates:
+ * the roster stores no gender, so agreeing with the name would misgender
+ * roughly half the roster ("Lucia Ferrer esta archivado").
  */
 export function getRosterPersonRejectionMessage(input: {
   kind: RosterPersonKind;
@@ -107,11 +111,11 @@ export function getRosterPersonRejectionMessage(input: {
 
   if (archivedNames.length === 1) {
     sentences.push(
-      `${archivedNames[0]} está archivado. Reactivalo para poder agregarlo a la coreografía.`,
+      `${archivedNames[0]} tiene Estado de alta Archivado. Reactivá a esa persona para poder agregarla a la coreografía.`,
     );
   } else if (archivedNames.length > 1) {
     sentences.push(
-      `${formatNameList(archivedNames)} están archivados. Reactivalos para poder agregarlos a la coreografía.`,
+      `${formatNameList(archivedNames)} tienen Estado de alta Archivado. Reactivá a esas personas para poder agregarlas a la coreografía.`,
     );
   }
 

@@ -1,13 +1,13 @@
 /**
- * `rosterPersonStatus` —ui: "Estado de alta"— is the alta state of a roster
- * person: a bailarín or a profesor an academy either still works with or has
- * archived. It is stored as the `active` boolean on `dancer` and `professor`,
+ * `rosterPersonStatus` —ui: "Estado de alta"— is the roster state of a person:
+ * a dancer or a professor an academy either still works with or has archived.
+ * It is stored as the `active` boolean on `dancer` and `professor`,
  * and this module is the only place that boolean is turned into a concept:
  * readers branch on the status, never on the column.
  *
  * "Archivado" names this and only this. It is a third axis, independent of
- * Estado de participación and of Estado de verificación de bailarín, and it
- * touches no inscription, no Estado operativo and no figure.
+ * the participation status and of the dancer verification status, and it
+ * touches no inscription, no operational status and no figure.
  *
  * This is the pure half —usable from views and from tests— and it imports
  * nothing. The query predicate, its raw-SQL twin and the filter condition live
@@ -76,15 +76,15 @@ export function getRosterPersonStatusBadgeVariant(status: RosterPersonStatus) {
 }
 
 /**
- * The one eligibility rule: a roster person can be picked for a coreografía
- * when they are active, or when they are already on that coreografía. The
+ * The one eligibility rule: a roster person can be picked for a choreography
+ * when they are active, or when they are already on that choreography. The
  * grandfather half is what keeps archiving from stranding a record — an
  * archived person who is already linked stays offered, stays saveable, and
  * archiving is never refused because of them.
  *
- * `isAlreadyLinked` means linked to **this** coreografía — not to any
- * coreografía of the Evento activo, and not to any coreografía ever. A wider
- * scope would let one coreografía's roster leak into another's picker, and the
+ * `isAlreadyLinked` means linked to **this** choreography — not to any
+ * choreography of the current event, and not to any choreography ever. A wider
+ * scope would let one choreography's roster leak into another's picker, and the
  * widest would make archiving cosmetic for anyone with history. The function
  * cannot enforce that scope on its own: the caller owns the set it passes.
  *
@@ -99,8 +99,8 @@ export function isSelectableForRoster(input: {
 }
 
 /**
- * What the archive confirmation tells the academia before it confirms, and the
- * reason archiving needs no guard: it is roster hygiene, so the coreografías
+ * What the archive confirmation tells the academy before it confirms, and the
+ * reason archiving needs no guard: it is roster hygiene, so the choreographies
  * the person is already on keep them. The sentence is static — it queries
  * nothing — and it lives here so that the four archive confirmations cannot
  * promise four different things.

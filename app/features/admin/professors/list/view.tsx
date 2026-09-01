@@ -16,11 +16,11 @@ import {
   type ShownParticipationStatus,
 } from "@/lib/participation/participation.shared";
 import {
-  getRosterPersonStatusBadgeVariant,
   getRosterPersonStatusLabel,
   toRosterPersonStatus,
   toRosterPersonStatusSearchValue,
 } from "@/lib/roster/roster-person-status.shared";
+import { RosterPersonStatusBadge } from "@/components/shared/roster-person-status-badge";
 
 import type { loadProfessorsList } from "./server";
 
@@ -99,7 +99,9 @@ function ProfessorTable({ loaderData }: { loaderData: LoaderData }) {
               participationStatus={professor.participationStatus}
             />
           ) : null}
-          <RosterPersonStatusBadge active={professor.active} />
+          <RosterPersonStatusBadge
+            status={toRosterPersonStatus(professor.active)}
+          />
         </div>
       ),
       filterValue: (professor) => buildProfessorStatusSummary(professor),
@@ -127,20 +129,6 @@ function ProfessorTable({ loaderData }: { loaderData: LoaderData }) {
       totalPages={loaderData.totalPages}
       totalRows={loaderData.totalCount}
     />
-  );
-}
-
-function RosterPersonStatusBadge({ active }: { active: boolean }) {
-  const status = toRosterPersonStatus(active);
-
-  if (status === "active") {
-    return null;
-  }
-
-  return (
-    <Badge variant={getRosterPersonStatusBadgeVariant(status)}>
-      {getRosterPersonStatusLabel(status)}
-    </Badge>
   );
 }
 

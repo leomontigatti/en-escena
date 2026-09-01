@@ -27,9 +27,11 @@ async function loadCreateChoreographyDialogData(input: {
   academyId: string;
   eventId: string;
 }) {
-  // A coreografía being created has no roster yet, so the pickers get an empty
+  // A choreography being created has no roster yet, so the pickers get an empty
   // linked set: the shared eligibility rule then offers exactly the academy's
-  // active people, which is what creation has always shown.
+  // active people, which is what creation has always shown. The pickers sort
+  // case-insensitively, which is the order the list modules used before, so
+  // switching readers keeps the order creation has always shown too.
   const [activeDancers, activeProfessors, registrationBaseOptions] =
     await Promise.all([
       listDancerOptionsForChoreography(input.academyId, []),

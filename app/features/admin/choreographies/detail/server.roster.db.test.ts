@@ -1310,7 +1310,7 @@ async function createPayment(scenario: {
 let submitCount = 0;
 
 describe("Estado de alta on the administrative roster editor", () => {
-  test("keeps offering and accepting an archived bailarín who is already on the coreografía, and rejects one who is not", async () => {
+  test("keeps offering and accepting an archived dancer who is already on the choreography, and rejects one who is not", async () => {
     const scenario = await createArchivedRosterScenario({
       academyName: "Academia Roster Archivada",
       email: "roster.archivada.academia@example.com",
@@ -1348,7 +1348,7 @@ describe("Estado de alta on the administrative roster editor", () => {
     });
   });
 
-  test("rejects an archived profesor who is not already on the coreografía", async () => {
+  test("rejects an archived professor who is not already on the choreography", async () => {
     const scenario = await createArchivedRosterScenario({
       academyName: "Academia Profesor Archivado",
       email: "roster.profesor.archivado@example.com",
@@ -1366,7 +1366,7 @@ describe("Estado de alta on the administrative roster editor", () => {
     });
   });
 
-  test("leaves every other field of a coreografía with an archived roster editable", async () => {
+  test("leaves every other field of a choreography with an archived roster editable", async () => {
     const scenario = await createArchivedRosterScenario({
       academyName: "Academia Roster Sin Encallar",
       email: "roster.sin.encallar@example.com",

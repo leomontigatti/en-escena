@@ -485,11 +485,10 @@ export function validateExperienceLevelSelection(input: {
 }
 
 /**
- * The query no longer filters the alta state: it reads the rows the academia
- * picked and classifies them, so the rejection can name a bailarín and a
- * reason instead of collapsing every cause into a length mismatch. The scope
- * is still the people picked for one coreografía, so no cardinality bound
- * changes.
+ * The query no longer filters the roster status: it reads the rows the academy
+ * picked and classifies them, so the rejection can name a dancer and a reason
+ * instead of collapsing every cause into a length mismatch. The scope is still
+ * the people picked for one choreography, so no cardinality bound changes.
  */
 async function resolveDancers(input: {
   academyId: string;

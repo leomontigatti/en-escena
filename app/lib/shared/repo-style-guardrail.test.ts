@@ -98,6 +98,45 @@ describe("repo style check", () => {
     }
   });
 
+  test("flags the Estado de alta comparison however it is spelled", async () => {
+    const tempRoot = await mkdtemp(
+      path.join(tmpdir(), "repo-style-guardrail-roster-forms-"),
+    );
+
+    try {
+      await writeFile(
+        path.join(tempRoot, "sixth-reader.server.ts"),
+        [
+          "const byVariable = eq(dancers.active, showActiveOnly);",
+          "const inTemplate = sql`${professors.active} = true`;",
+          "const negated = ne(dancers.active, false);",
+          "const eventIndex = sql`${table.active} = true`;",
+        ].join("\n"),
+      );
+
+      const violations = await checkRepoStyle({
+        rootDirectory: tempRoot,
+        files: [path.join(tempRoot, "sixth-reader.server.ts")],
+      });
+
+      // Line 4 is the event's own `active` column, a different axis. The
+      // pattern cannot tell it apart — `table.active` names nothing — so it
+      // matches here and is exempted by path where it really lives, in
+      // `app/db/schema/events.ts`.
+      expect(violations.map((violation) => violation.lineNumber)).toEqual([
+        1, 2, 3, 4,
+      ]);
+      expect(
+        violations.every(
+          (violation) =>
+            violation.rule === "roster-person-status-owns-active-column",
+        ),
+      ).toBe(true);
+    } finally {
+      await rm(tempRoot, { force: true, recursive: true });
+    }
+  });
+
   test("exempts the roster person status owner with one path-prefix entry", async () => {
     const violations = await checkRepoStyle({
       files: [

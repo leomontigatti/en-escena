@@ -33,10 +33,14 @@ export function activeRosterPerson(table: RosterPersonTable): SQL {
 }
 
 /**
- * The raw-SQL twin, for the participation subqueries that build their SQL by
- * hand and give the table their own alias. Same shape and same reason as
- * `activeInscriptionSql`: a db test compares the two halves over a fixture, so
- * if either moves the other fails.
+ * The raw-SQL twin, for a caller that builds its SQL by hand and gives the
+ * table its own alias. Same shape and same reason as `activeInscriptionSql`: a
+ * db test compares the two halves over a fixture, so if either moves the other
+ * fails.
+ *
+ * No production caller needs it yet — today every reader of the axis composes
+ * Drizzle conditions — so it exists so that a hand-built query cannot become
+ * the sixth place the rule is restated.
  */
 export function activeRosterPersonSql(personTableAlias: string): SQL {
   return sql`${sql.identifier(personTableAlias)}.${sql.identifier("active")} = true`;
@@ -63,20 +67,20 @@ export function rosterPersonStatusCondition(
 /**
  * The one writer of the alta state, for both person kinds and both surfaces.
  * It replaces the four near-identical `setXActiveState` functions — two of
- * which shared a name and differed only in whether they scoped by academia —
+ * which shared a name and differed only in whether they scoped by academy —
  * so that a future rule about archiving is written once instead of four times.
  *
- * There is no guard: archiving is never refused, not even for a bailarín
- * inscripto en el Evento activo, and it touches no inscription. The mutation
+ * There is no guard: archiving is never refused, not even for a dancer with an
+ * active inscription in the current event, and it touches no inscription. The
+ * mutation
  * reads no inscription and runs no active-inscription query; it is an
  * existence check and a boolean write. Reactivating always succeeds and puts
  * the person back in the pickers immediately, because the pickers read the
  * column through `isSelectableForRoster` and nothing else.
  *
- * The scope is a runtime value rather than a type — `null` for the panel de
- * administración, which may write any person — so the module asserts it: a
- * portal caller that lost its academia would otherwise silently write across
- * academias.
+ * The scope is a runtime value rather than a type — `null` for the admin panel,
+ * which may write any person — so the module asserts it: a portal caller that
+ * lost its academy would otherwise silently write across academies.
  */
 export async function setRosterPersonStatus<
   Kind extends RosterPersonKind,

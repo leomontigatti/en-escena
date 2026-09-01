@@ -30,23 +30,27 @@ const spaceUtilityPattern = new RegExp(
  * documented.
  *
  * The comparison form covers the Drizzle predicate, the raw-SQL twin's
- * identifier and a hand-written `alias.active = true`. Identifiers naming an
- * event are excluded: `event.active` is the Evento activo, an unrelated axis.
+ * identifier, a hand-written `alias.active = true` and the same comparison
+ * inside a `sql` template (`${dancers.active} = true`). The Drizzle arm takes
+ * any right-hand side rather than only a literal, because `eq(t.active, show)`
+ * restates the rule exactly as much as `eq(t.active, true)` does. Identifiers
+ * naming an event are excluded: `event.active` is the current event, an
+ * unrelated axis.
  */
 const rosterPersonActiveComparisonPattern = new RegExp(
-  String.raw`(?<match>(?:eq|ne)\(\s*(?![\w.]*[Ee]vent)[\w.]*\.active\s*,\s*(?:true|false)\s*\)` +
+  String.raw`(?<match>(?:eq|ne)\(\s*(?![\w.]*[Ee]vent)[\w.]*\.active\s*,\s*[^),]+\)` +
     String.raw`|sql\.identifier\(\s*["'` +
     "`" +
     String.raw`]active["'` +
     "`" +
     String.raw`]\s*\)` +
-    String.raw`|(?![\w.]*[Ee]vent)\b\w+\.active\s*=\s*(?:true|false)\b)`,
+    String.raw`|(?![\w.]*[Ee]vent)\b\w+\.active\s*\}?\s*(?:=|<>|!=)\s*(?:true|false)\b)`,
   "g",
 );
 
 /**
  * The eligibility rule itself: `isSelectableForRoster` is the only place the
- * "active, or already linked to this coreografía" expression may be written.
+ * "active, or already linked to this choreography" expression may be written.
  * Membership on the other side of the `||` is what distinguishes it from an
  * unrelated boolean or.
  */
@@ -118,6 +122,13 @@ const repoStyleExceptions: RepoStyleException[] = [
     filePathPrefix: rosterPersonStatusOwnerDirectory,
     reason:
       "The roster person status module is the owner of the `active` column and of its SQL twin.",
+    rule: "roster-person-status-owns-active-column",
+  },
+  {
+    filePath: path.join("app", "db", "schema", "events.ts"),
+    match: "table.active} = true",
+    reason:
+      "The single-active-event unique index compares the event's own `active` column, an unrelated axis to Estado de alta.",
     rule: "roster-person-status-owns-active-column",
   },
   {

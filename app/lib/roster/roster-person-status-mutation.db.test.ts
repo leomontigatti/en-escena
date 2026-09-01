@@ -22,7 +22,7 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 installDatabaseTestHooks();
 
 /**
- * One academia, one coreografía del Evento activo and one bailarín inscripto in
+ * One academy, one choreography of the current event and one dancer inscribed in
  * it at the catalogue price: the shape that would break if archiving ever grew
  * a guard or touched an inscription.
  */
@@ -69,7 +69,7 @@ function readInscription(inscriptionId: string) {
 }
 
 describe.sequential("setRosterPersonStatus", () => {
-  test("archives a bailarín inscripto en el Evento activo without touching the inscription", async () => {
+  test("archives a dancer with an active inscription in the current event without touching the inscription", async () => {
     const fixture = await seedInscribedDancer();
     const inscriptionBefore = await readInscription(fixture.inscriptionId);
 
@@ -87,7 +87,7 @@ describe.sequential("setRosterPersonStatus", () => {
     );
   });
 
-  test("leaves the coreografía's operational finance row identical before and after archiving", async () => {
+  test("leaves the choreography's operational finance row identical before and after archiving", async () => {
     const fixture = await seedInscribedDancer();
     const readFinanceRow = async () => {
       const detail = await readAcademyEventOperationalFinanceDetail({
@@ -113,7 +113,7 @@ describe.sequential("setRosterPersonStatus", () => {
     expect(await readFinanceRow()).toEqual(before);
   });
 
-  test("takes an archived bailarín out of the pickers and puts them back on reactivation, with nothing else asked for", async () => {
+  test("takes an archived dancer out of the pickers and puts them back on reactivation, with nothing else asked for", async () => {
     const fixture = await seedInscribedDancer();
     const readOptionIds = async () =>
       (await listDancerOptionsForChoreography(fixture.academyId, [])).map(
@@ -129,7 +129,7 @@ describe.sequential("setRosterPersonStatus", () => {
     });
 
     expect(await readOptionIds()).not.toContain(fixture.dancer.id);
-    // Archiving is grandfathered: the coreografía they are already on keeps them.
+    // Archiving is grandfathered: the choreography they are already on keeps them.
     const linkedOptions = await listDancerOptionsForChoreography(
       fixture.academyId,
       [fixture.dancer.id],
@@ -150,7 +150,7 @@ describe.sequential("setRosterPersonStatus", () => {
     expect(await readOptionIds()).toContain(fixture.dancer.id);
   });
 
-  test("archives a profesor from the panel, which scopes by no academia", async () => {
+  test("archives a professor from the admin panel, which scopes by no academy", async () => {
     const fixture = await seedInscribedDancer();
     const professor = await createProfessor(fixture.academyId, {
       firstName: "Cami",
@@ -181,7 +181,7 @@ describe.sequential("setRosterPersonStatus", () => {
     expect(row?.active).toBe(true);
   });
 
-  test("refuses to write a person of another academia from the portal", async () => {
+  test("refuses to write a person of another academy from the portal", async () => {
     const fixture = await seedInscribedDancer();
     const otherAcademy = await createAcademyRecord({
       academyName: "Academia Vecina",
@@ -205,7 +205,7 @@ describe.sequential("setRosterPersonStatus", () => {
     expect(row?.active).toBe(true);
   });
 
-  test("asserts that a portal caller always supplies its academia", async () => {
+  test("asserts that a portal caller always supplies its academy", async () => {
     const fixture = await seedInscribedDancer();
 
     await expect(

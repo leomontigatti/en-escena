@@ -105,7 +105,7 @@ async function createRosterScenario(input: {
 }
 
 describe("the roster pickers, as the eligibility rule seen from the portal", () => {
-  test("offers every dancer but the archived one who is not on this coreografía", async () => {
+  test("offers every dancer but the archived one who is not on this choreography", async () => {
     const scenario = await createRosterScenario({
       academyName: "Academia Picker Bailarines",
       email: "picker.bailarines@example.com",
@@ -128,7 +128,7 @@ describe("the roster pickers, as the eligibility rule seen from the portal", () 
     );
   });
 
-  test("offers every profesor but the archived one who is not on this coreografía", async () => {
+  test("offers every professor but the archived one who is not on this choreography", async () => {
     const scenario = await createRosterScenario({
       academyName: "Academia Picker Profesores",
       email: "picker.profesores@example.com",
@@ -151,7 +151,7 @@ describe("the roster pickers, as the eligibility rule seen from the portal", () 
     );
   });
 
-  test("stops offering an archived person once they leave the coreografía's roster", async () => {
+  test("stops offering an archived person once they leave the choreography's roster", async () => {
     const scenario = await createRosterScenario({
       academyName: "Academia Picker Sin Vínculo",
       email: "picker.sin.vinculo@example.com",
