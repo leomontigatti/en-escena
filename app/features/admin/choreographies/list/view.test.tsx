@@ -30,12 +30,13 @@ describe("ChoreographiesListRouteView", () => {
     );
   });
 
-  test("renders choreography names as detail links with the approved columns and shared status badges", () => {
+  test("renders the number as the only detail link with the approved columns and shared status badges", () => {
     const markup = renderRoute({
       choreographies: [
         {
           academyName: "Academia Norte",
           categoryName: "Juvenil",
+          choreographyNumber: 1,
           groupType: "duo",
           id: "choreo_1",
           modalityName: "Jazz",
@@ -49,6 +50,7 @@ describe("ChoreographiesListRouteView", () => {
         {
           academyName: "Academia Sur",
           categoryName: null,
+          choreographyNumber: 2,
           groupType: "solo",
           id: "choreo_2",
           modalityName: "Contemporáneo",
@@ -63,6 +65,7 @@ describe("ChoreographiesListRouteView", () => {
     });
 
     for (const column of [
+      "#",
       "Nombre",
       "Academia",
       "Modalidad / Submodalidad",
@@ -72,10 +75,17 @@ describe("ChoreographiesListRouteView", () => {
       expect(markup).toContain(column);
     }
 
+    // The number is shown zero-padded and is the row's only link to the
+    // detail; the name renders as plain text beside it.
+    expect(markup).toContain("00001");
+    expect(markup).toContain("00002");
     expect(markup).toContain("Pieza Visible");
     expect(markup).toContain("Borrador");
     expect(markup).toContain('href="/administracion/coreografias/choreo_1"');
     expect(markup).toContain('href="/administracion/coreografias/choreo_2"');
+    expect(markup).toContain(">00001</a>");
+    expect(markup).not.toContain(">Pieza Visible</a>");
+    expect(markup).not.toContain(">Borrador</a>");
     expect(markup).toContain("Jazz · Lyrical");
     expect(markup).toContain("Contemporáneo");
     expect(markup).toContain("Juvenil · Dúo");
@@ -103,7 +113,9 @@ describe("ChoreographiesListRouteView", () => {
       hasAnyChoreography: true,
     });
 
-    expect(markup).toContain("Buscar coreografía por nombre o academia");
+    expect(markup).toContain(
+      "Buscar coreografía por número, nombre o academia",
+    );
     expect(markup).toContain('value="Sin resultados"');
     expect(markup).toContain(
       "No hay coreografías que coincidan con la búsqueda o los filtros.",

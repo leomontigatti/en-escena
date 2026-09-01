@@ -18,7 +18,7 @@ import {
   getPaymentMethodBadgeVariant,
   paymentMethodOptions,
 } from "@/lib/finances/payment-methods";
-import { formatPaymentNumber } from "@/lib/finances/payment-number";
+import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 
 import type { PaymentsListRow, PaymentsListLoaderData } from "./server";
 
@@ -35,7 +35,7 @@ const paymentColumns: DataTableColumn<PaymentsListRow>[] = [
     className: "font-medium tabular-nums",
     cell: (row) => (
       <DataTableLink to={`/administracion/pagos/${row.id}`}>
-        {formatPaymentNumber(row.paymentNumber)}
+        {formatEventSequenceNumber(row.paymentNumber)}
       </DataTableLink>
     ),
   },

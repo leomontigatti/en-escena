@@ -255,6 +255,7 @@ function buildLoaderData(): ChoreographyDetailLoaderData {
       academyName: "Academia Norte",
       categoryId: "category_1",
       categoryName: "Juvenil",
+      choreographyNumber: 1,
       dancers: [
         {
           active: true,

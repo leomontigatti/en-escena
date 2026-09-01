@@ -32,6 +32,7 @@ import {
   handle,
   loader,
 } from "@/routes/administracion.coreografias";
+import { allocateChoreographyNumberForTest } from "@/lib/choreographies/registration-test-fixtures.server.db";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
@@ -283,7 +284,7 @@ describe("administracion/coreografias route", () => {
     );
   });
 
-  test("supports sorting by academia and nombre", async () => {
+  test("sorts by number by default and supports academia and nombre", async () => {
     const event = await createSavedEvent();
     const academyNorth = await createAcademyUser({
       email: "academia.norte.orden@example.com",
@@ -327,31 +328,59 @@ describe("administracion/coreografias route", () => {
     });
 
     const baseUrl = `http://localhost/administracion/coreografias?evento=${event.id}`;
-    const [defaultData, academyDescData, nameAscData, nameDescData] =
-      await Promise.all([
-        loadRouteData({
-          email: "admin.coreografias.orden.default@example.com",
-          requestUrl: baseUrl,
-        }),
-        loadRouteData({
-          email: "admin.coreografias.orden.academia-desc@example.com",
-          requestUrl: `${baseUrl}&orden=academia:desc`,
-        }),
-        loadRouteData({
-          email: "admin.coreografias.orden.nombre-asc@example.com",
-          requestUrl: `${baseUrl}&orden=nombre:asc`,
-        }),
-        loadRouteData({
-          email: "admin.coreografias.orden.nombre-desc@example.com",
-          requestUrl: `${baseUrl}&orden=nombre:desc`,
-        }),
-      ]);
+    const [
+      defaultData,
+      numberDescData,
+      academyAscData,
+      academyDescData,
+      nameAscData,
+      nameDescData,
+    ] = await Promise.all([
+      loadRouteData({
+        email: "admin.coreografias.orden.default@example.com",
+        requestUrl: baseUrl,
+      }),
+      loadRouteData({
+        email: "admin.coreografias.orden.numero-desc@example.com",
+        requestUrl: `${baseUrl}&orden=numero:desc`,
+      }),
+      loadRouteData({
+        email: "admin.coreografias.orden.academia-asc@example.com",
+        requestUrl: `${baseUrl}&orden=academia:asc`,
+      }),
+      loadRouteData({
+        email: "admin.coreografias.orden.academia-desc@example.com",
+        requestUrl: `${baseUrl}&orden=academia:desc`,
+      }),
+      loadRouteData({
+        email: "admin.coreografias.orden.nombre-asc@example.com",
+        requestUrl: `${baseUrl}&orden=nombre:asc`,
+      }),
+      loadRouteData({
+        email: "admin.coreografias.orden.nombre-desc@example.com",
+        requestUrl: `${baseUrl}&orden=nombre:desc`,
+      }),
+    ]);
 
+    // The three were created as Beta, Gamma, Alfa, so they carry numbers 1, 2
+    // and 3 in an order that matches neither the names nor the academies. That
+    // is what makes the three orderings below tell each other apart.
     expect(defaultData.filters.order).toEqual({
-      columnId: "academia",
+      columnId: "numero",
       direction: "asc",
     });
-    expect(getChoreographyOrderLabels(defaultData)).toEqual([
+    expect(getChoreographyNames(defaultData)).toEqual([
+      "Beta",
+      "Gamma",
+      "Alfa",
+    ]);
+    expect(getChoreographyNames(numberDescData)).toEqual([
+      "Alfa",
+      "Gamma",
+      "Beta",
+    ]);
+
+    expect(getChoreographyOrderLabels(academyAscData)).toEqual([
       "Academia Norte:Gamma",
       "Academia Sur:Alfa",
       "Academia Sur:Beta",
@@ -628,9 +657,13 @@ async function createChoreographyRecord(input: {
   scheduleCapacityId: string;
   submodalityId?: string;
 }) {
+  const choreographyNumber = await allocateChoreographyNumberForTest(
+    input.eventId,
+  );
   const [choreography] = await db
     .insert(choreographies)
     .values({
+      choreographyNumber,
       academyId: input.academyId,
       categoryCalculationMode: "oldest",
       categoryId: input.categoryId ?? null,

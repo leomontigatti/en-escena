@@ -32,7 +32,7 @@ import {
 } from "@/features/admin/payments/form-fields";
 import { formatInscriptionFinancialStatus } from "@/lib/finances/choreography-financial-status";
 import { paymentMethodOptions } from "@/lib/finances/payment-methods";
-import { formatPaymentNumber } from "@/lib/finances/payment-number";
+import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import {
   createValidatedRouteFormDataSubmitHandler,
   isRouteFormPending,
@@ -172,7 +172,9 @@ function AffectedChoreographiesList({
 export function getPaymentDisplayName(
   payment: LoaderData["payment"] | undefined,
 ) {
-  return payment ? `# ${formatPaymentNumber(payment.paymentNumber)}` : "Pago";
+  return payment
+    ? `# ${formatEventSequenceNumber(payment.paymentNumber)}`
+    : "Pago";
 }
 
 function PaymentDetailForm({

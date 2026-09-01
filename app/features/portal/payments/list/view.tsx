@@ -14,7 +14,7 @@ import {
   getPaymentMethodBadgeVariant,
   paymentMethodOptions,
 } from "@/lib/finances/payment-methods";
-import { formatPaymentNumber } from "@/lib/finances/payment-number";
+import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 
 type PortalAcademyPaymentsLoaderData = Awaited<
   ReturnType<typeof loadPortalAcademyPayments>
@@ -35,7 +35,7 @@ const paymentColumns: DataTableColumn<PaymentRow>[] = [
     id: "paymentNumber",
     header: "#",
     className: "font-medium tabular-nums",
-    cell: (row) => formatPaymentNumber(row.paymentNumber),
+    cell: (row) => formatEventSequenceNumber(row.paymentNumber),
   },
   {
     id: "paymentDate",

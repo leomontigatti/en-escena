@@ -7,6 +7,7 @@ import {
   choreographyProfessors,
   professors,
 } from "@/db/schema";
+import { allocateChoreographyNumber } from "@/lib/choreographies/choreography-number.server";
 import {
   choreographyNameMaxLength,
   collapseChoreographyNameWhitespace,
@@ -153,11 +154,22 @@ export async function createChoreographyRegistration(
         throw createFailure(scheduleLock.code, scheduleLock.error);
       }
 
+      // After the capacity lock, never before. The counter is a single row per
+      // event that every registration goes through, so it is held for the
+      // shortest window possible. No other transaction takes both rows today;
+      // keeping this one order is what stops a future one from meeting this
+      // one head on.
+      const choreographyNumber = await allocateChoreographyNumber({
+        tx,
+        eventId: input.eventId,
+      });
+
       const [createdChoreography] = await tx
         .insert(choreographies)
         .values({
           eventId: input.eventId,
           academyId: input.academyId,
+          choreographyNumber,
           name: normalizedName.value,
           modalityId: input.modalityId,
           submodalityId: input.submodalityId,

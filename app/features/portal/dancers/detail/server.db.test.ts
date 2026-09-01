@@ -21,6 +21,7 @@ import {
 } from "@/features/portal/test-support/db";
 import { expectPersistedDancer } from "@/lib/test-support/person-detail-db-assertions";
 import { createFormData } from "@/lib/test-support/form-data";
+import { allocateChoreographyNumberForTest } from "@/lib/choreographies/registration-test-fixtures.server.db";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -164,9 +165,13 @@ describe.sequential("handlePortalDancerDetailAction", () => {
         birthDate: "2014-05-01",
       })
       .returning();
+    const choreographyNumber = await allocateChoreographyNumberForTest(
+      event.id,
+    );
     const [choreography] = await db
       .insert(choreographies)
       .values({
+        choreographyNumber,
         academyId: session.academyId,
         eventId: event.id,
         name: "Solo con recálculo",

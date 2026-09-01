@@ -392,4 +392,92 @@ describe.sequential("choreography registration confirmation", () => {
     });
     expect(storedChoreographies).toHaveLength(1);
   });
+
+  test("numbers choreographies from one per event, and restarts the count in another event", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Numeración",
+      email: "registro.coreografia.numeracion@example.com",
+    });
+    const first = await createOpenEventCatalog();
+    const firstDancer = await createDancer(owner.academyId, {
+      birthDate: "2014-05-01",
+      firstName: "ana",
+      lastName: "paz",
+    });
+    const secondDancer = await createDancer(owner.academyId, {
+      birthDate: "2014-06-01",
+      firstName: "sol",
+      lastName: "diaz",
+    });
+    const professor = await createProfessor(owner.academyId);
+
+    const registerInFirstEvent = async (name: string, dancerId: string) =>
+      await expectRegistered({
+        academyId: owner.academyId,
+        eventId: first.event.id,
+        name,
+        modalityId: first.catalog.modality.id,
+        submodalityId: first.catalog.submodality.id,
+        dancerIds: [dancerId],
+        professorIds: [professor.id],
+        experienceLevelId: first.catalog.level.id,
+        scheduleCapacityId: first.catalog.soloScheduleCapacity.id,
+      });
+
+    await registerInFirstEvent("Primera pieza", firstDancer.id);
+    await registerInFirstEvent("Segunda pieza", secondDancer.id);
+
+    const firstEventNumbers = (
+      await db.query.choreographies.findMany({
+        where: eq(choreographies.eventId, first.event.id),
+      })
+    )
+      .map((row) => row.choreographyNumber)
+      .sort((a, b) => a - b);
+
+    expect(firstEventNumbers).toEqual([1, 2]);
+
+    // Numbering is per event, so the second event starts over at 1 instead of
+    // continuing the first one's count.
+    const second = await createOpenEventCatalog();
+    const secondEventDancer = await createDancer(owner.academyId, {
+      birthDate: "2014-07-01",
+      firstName: "luz",
+      lastName: "rios",
+    });
+    const secondEventProfessor = await createProfessor(owner.academyId);
+
+    await expectRegistered({
+      academyId: owner.academyId,
+      eventId: second.event.id,
+      name: "Pieza de otro evento",
+      modalityId: second.catalog.modality.id,
+      submodalityId: second.catalog.submodality.id,
+      dancerIds: [secondEventDancer.id],
+      professorIds: [secondEventProfessor.id],
+      experienceLevelId: second.catalog.level.id,
+      scheduleCapacityId: second.catalog.soloScheduleCapacity.id,
+    });
+
+    const secondEventNumbers = (
+      await db.query.choreographies.findMany({
+        where: eq(choreographies.eventId, second.event.id),
+      })
+    ).map((row) => row.choreographyNumber);
+
+    expect(secondEventNumbers).toEqual([1]);
+  });
 });
+
+async function expectRegistered(
+  input: Parameters<typeof createChoreographyRegistration>[0],
+) {
+  const result = await createChoreographyRegistration(input);
+
+  // Without this, a rejected creation would read later as "the event numbered
+  // nothing" and the failure would point at the counter instead of the real
+  // reason.
+  expect(result).toMatchObject({ ok: true });
+
+  return result;
+}

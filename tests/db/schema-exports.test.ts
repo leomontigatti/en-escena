@@ -21,7 +21,7 @@ const schemaExportNames = [
   "eventDocumentKind",
   "eventDocuments",
   "events",
-  "eventFinancialSequences",
+  "eventSequences",
   "experienceLevel",
   "paymentMethod",
   "groupType",

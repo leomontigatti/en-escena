@@ -21,6 +21,7 @@ import {
   experienceLevelLabels,
   isExperienceLevel,
 } from "@/lib/events/experience-levels";
+import { allocateChoreographyNumberForTest } from "@/lib/choreographies/registration-test-fixtures.server.db";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -316,9 +317,13 @@ async function createLinkedChoreography(input: {
   scheduleCapacityId: string;
   hasPresentation: boolean;
 }) {
+  const choreographyNumber = await allocateChoreographyNumberForTest(
+    input.eventId,
+  );
   const [choreography] = await db
     .insert(choreographies)
     .values({
+      choreographyNumber,
       academyId: input.academyId,
       eventId: input.eventId,
       name: input.name,

@@ -167,6 +167,10 @@ _Avoid_: `choreography.createdAt`, `financialReferenceDate` (retired), payment d
 Choreography registered by an academy for a concrete event.
 _Avoid_: reusable work, `inscription`, number
 
+**`choreographyNumber`** — ui: "#"
+The short number a choreography is searched and quoted by, unique within its event rather than globally: every screen that lists choreographies already works against a chosen event, and a choreography's event never changes, so the number stays fixed for life. It identifies, it does not count — deleting a choreography does not give its number back, so the sequence has gaps by design and `#00042` does not mean "the event's forty-second choreography". The per-event counter behind it — the same one that numbers `paymentNumber`, and named `eventFinancialSequence` while it only counted money — hands it out inside the transaction that inserts, and `formatEventSequenceNumber` renders it zero-padded at the shared width. It does not replace the `id`, which stays the UUID every route and foreign key uses.
+_Avoid_: choreography id, position, order, correlative
+
 **`choreographyWithoutActiveInscriptions`** — ui: "Coreografía sin inscripciones activas"
 Exceptional case, pending definition, for a choreography that keeps its history but no longer has active inscriptions.
 _Avoid_: deleted choreography, unpaid choreography
