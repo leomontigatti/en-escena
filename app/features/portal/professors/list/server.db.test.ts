@@ -16,9 +16,9 @@ import {
   handlePortalProfessorsListAction,
   loadPortalProfessorsList,
 } from "@/features/portal/professors/list/server";
+import { allocateChoreographyNumber } from "@/lib/choreographies/choreography-number.server";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
-import { allocateChoreographyNumber } from "@/lib/choreographies/choreography-number.server";
 
 installDatabaseTestHooks();
 

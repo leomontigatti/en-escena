@@ -13,7 +13,7 @@ import {
   formatChoreographyOperationalStatusLabel,
   getChoreographyOperationalStatusBadgeVariant,
 } from "@/lib/choreographies/operational-status";
-import { formatChoreographyNumber } from "@/lib/choreographies/choreography-number";
+import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 
 import type { loadChoreographies } from "./server";
@@ -45,11 +45,11 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
     headerClassName: "w-[8%]",
     cell: (choreography) => (
       <DataTableLink to={`/administracion/coreografias/${choreography.id}`}>
-        {formatChoreographyNumber(choreography.choreographyNumber)}
+        {formatEventSequenceNumber(choreography.choreographyNumber)}
       </DataTableLink>
     ),
     filterValue: (choreography) =>
-      formatChoreographyNumber(choreography.choreographyNumber),
+      formatEventSequenceNumber(choreography.choreographyNumber),
   },
   {
     id: "nombre",

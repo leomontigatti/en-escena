@@ -21,9 +21,9 @@ import {
   experienceLevelLabels,
   isExperienceLevel,
 } from "@/lib/events/experience-levels";
+import { allocateChoreographyNumber } from "@/lib/choreographies/choreography-number.server";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
-import { allocateChoreographyNumber } from "@/lib/choreographies/choreography-number.server";
 
 installDatabaseTestHooks();
 

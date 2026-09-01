@@ -46,7 +46,7 @@ export const choreographies = createTable(
     // event, not globally: every screen that lists choreographies already works
     // against a chosen event, and a choreography's event never changes, so the
     // number stays fixed for life. `eventSequences` hands it out;
-    // `formatChoreographyNumber` displays it.
+    // `formatEventSequenceNumber` displays it.
     choreographyNumber: integer("choreography_number").notNull(),
     name: text("name").notNull(),
     modalityId: varchar("modality_id", { length: 255 })

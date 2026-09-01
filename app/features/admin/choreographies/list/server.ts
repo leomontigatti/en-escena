@@ -12,7 +12,7 @@ import {
 } from "@/db/schema";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
-import { formatChoreographyNumber } from "@/lib/choreographies/choreography-number";
+import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import {
   deriveChoreographyOperationalStatus,
   type ChoreographyOperationalStatus,
@@ -452,7 +452,7 @@ function matchesChoreographyFilters(
   return (
     normalizeSearchValue(row.name).includes(normalizedQuery) ||
     normalizeSearchValue(row.academyName).includes(normalizedQuery) ||
-    formatChoreographyNumber(row.choreographyNumber).includes(normalizedQuery)
+    formatEventSequenceNumber(row.choreographyNumber).includes(normalizedQuery)
   );
 }
 

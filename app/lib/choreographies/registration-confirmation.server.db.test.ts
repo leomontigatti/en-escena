@@ -393,7 +393,7 @@ describe.sequential("choreography registration confirmation", () => {
     expect(storedChoreographies).toHaveLength(1);
   });
 
-  test("numbers Coreografías from one per event, and restarts the count in another event", async () => {
+  test("numbers choreographies from one per event, and restarts the count in another event", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Numeración",
       email: "registro.coreografia.numeracion@example.com",

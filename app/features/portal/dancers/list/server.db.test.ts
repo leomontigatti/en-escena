@@ -16,9 +16,9 @@ import {
   createAcademySession,
   createPortalPostRequest,
 } from "@/features/portal/test-support/db";
+import { allocateChoreographyNumber } from "@/lib/choreographies/choreography-number.server";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
-import { allocateChoreographyNumber } from "@/lib/choreographies/choreography-number.server";
 
 installDatabaseTestHooks();
 

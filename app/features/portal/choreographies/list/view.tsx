@@ -17,7 +17,7 @@ import {
   getChoreographyOperationalStatusBadgeVariant,
   type ChoreographyOperationalStatus,
 } from "@/lib/choreographies/operational-status";
-import { formatChoreographyNumber } from "@/lib/choreographies/choreography-number";
+import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { getPortalChoreographyCreationAvailability } from "@/lib/portal/choreography-creation-availability";
 import {
   formatGroupTypeLabel as formatChoreographyGroupTypeLabel,
@@ -109,11 +109,11 @@ function ChoreographyTable({
       className: "font-medium tabular-nums",
       cell: (choreography) => (
         <DataTableLink to={`/portal/coreografias/${choreography.id}`}>
-          {formatChoreographyNumber(choreography.choreographyNumber)}
+          {formatEventSequenceNumber(choreography.choreographyNumber)}
         </DataTableLink>
       ),
       filterValue: (choreography) =>
-        formatChoreographyNumber(choreography.choreographyNumber),
+        formatEventSequenceNumber(choreography.choreographyNumber),
       sortValue: (choreography) => choreography.choreographyNumber,
     },
     {

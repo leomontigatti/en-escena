@@ -21,9 +21,9 @@ import {
 } from "@/features/portal/test-support/db";
 import { expectPersistedDancer } from "@/lib/test-support/person-detail-db-assertions";
 import { createFormData } from "@/lib/test-support/form-data";
+import { allocateChoreographyNumber } from "@/lib/choreographies/choreography-number.server";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
-import { allocateChoreographyNumber } from "@/lib/choreographies/choreography-number.server";
 
 const createDocumentImageSignedUrlMock = vi.hoisted(() => vi.fn());
 const uploadDocumentImageMock = vi.hoisted(() => vi.fn());

@@ -51,9 +51,9 @@ import {
   handle as bailarinDetalleHandle,
   loader as detailLoader,
 } from "@/routes/administracion.bailarines_.$dancerId";
+import { allocateChoreographyNumber } from "@/lib/choreographies/choreography-number.server";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
-import { allocateChoreographyNumber } from "@/lib/choreographies/choreography-number.server";
 
 const createDocumentImageSignedUrlMock = vi.hoisted(() => vi.fn());
 
