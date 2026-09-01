@@ -540,7 +540,7 @@ describe.sequential(
 
     // The emission was seen failing for up to 45 seconds and then finished fine:
     // switching to "done" without saying anything reads as a glitch (ADR-0012).
-    test("una emisión recuperada redirige avisando por flash session", async () => {
+    test("a recovered emission redirects and reports through the flash session", async () => {
       const seeded = await seedChoreographyWithPaidInscription({
         academyName: "Academia Recuperada",
         choreographyName: "Coreografía recuperada",
@@ -594,7 +594,7 @@ describe.sequential(
       expect(stored).toHaveLength(1);
     });
 
-    test("la re-verificación recupera el comprobante sin salir del diálogo", async () => {
+    test("re-verification recovers the comprobante without leaving the dialog", async () => {
       const seeded = await seedChoreographyWithPaidInscription({
         academyName: "Academia Re-verificada",
         choreographyName: "Coreografía re-verificada",
@@ -647,7 +647,7 @@ describe.sequential(
     // The amount is recomputed by the server from the billable: a tampered
     // sequence number cannot force somebody else's CAE to be persisted
     // (decision 4).
-    test("la re-verificación de un correlativo ajeno se queda sin verificar", async () => {
+    test("re-verifying someone else's sequence number stays unverified", async () => {
       const seeded = await seedChoreographyWithPaidInscription({
         academyName: "Academia Ajena",
         choreographyName: "Coreografía ajena",

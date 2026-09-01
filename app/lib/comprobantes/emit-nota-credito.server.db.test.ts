@@ -215,7 +215,7 @@ function expectOk(
 }
 
 describe("annulComprobante", () => {
-  test("emite una Nota de crédito espejo tipo 13 con CbtesAsoc y anula el original", async () => {
+  test("emits a mirror type 13 Nota de crédito with CbtesAsoc and annuls the original", async () => {
     const { academy, choreography, inscription } =
       await seedChoreographyWithInscription(
         `anula.${crypto.randomUUID()}@example.com`,
@@ -272,7 +272,7 @@ describe("annulComprobante", () => {
     });
   });
 
-  test("la Nota de crédito reenvía las fechas de servicio del comprobante que anula", async () => {
+  test("the Nota de crédito resends the service dates of the comprobante it annuls", async () => {
     // Regression (10049): emission is always Concepto 2, so the NC must forward
     // the three dates of the comprobante it annuls. It used to go out as Concepto
     // 2 with no dates and ARCA rejected it.
@@ -308,7 +308,7 @@ describe("annulComprobante", () => {
     expect(sent.FchVtoPago).toBe("20260723");
   });
 
-  test("la Nota de crédito replica las líneas internas del comprobante anulado", async () => {
+  test("the Nota de crédito replicates the internal lines of the annulled comprobante", async () => {
     const { academy, choreography, inscription } =
       await seedChoreographyWithInscription(
         `lineas.${crypto.randomUUID()}@example.com`,
@@ -342,7 +342,7 @@ describe("annulComprobante", () => {
     });
   });
 
-  test("no permite anular dos veces el mismo comprobante", async () => {
+  test("does not allow annulling the same comprobante twice", async () => {
     const { academy, choreography, inscription } =
       await seedChoreographyWithInscription(
         `doble.${crypto.randomUUID()}@example.com`,
@@ -386,7 +386,7 @@ describe("annulComprobante", () => {
   // unique index on `associated_comprobante_id` is the safety net: the second
   // write fails instead of leaving two valid mirror Notas de crédito and an
   // ambiguous derived state.
-  test("la base rechaza una segunda Nota de crédito contra el mismo comprobante", async () => {
+  test("the database rejects a second Nota de crédito against the same comprobante", async () => {
     const { academy, choreography, inscription } =
       await seedChoreographyWithInscription(
         `carrera.${crypto.randomUUID()}@example.com`,
@@ -444,7 +444,7 @@ describe("annulComprobante", () => {
   // The flip side of the previous test: the index is unique but the column is
   // nullable, and Postgres treats NULLs as distinct. Several comprobantes in
   // force (all with a null `associatedComprobanteId`) coexist without colliding.
-  test("varias facturas vigentes conviven bajo el índice único", async () => {
+  test("several live facturas coexist under the unique index", async () => {
     const { choreography, inscription } = await seedChoreographyWithInscription(
       `vigentes.${crypto.randomUUID()}@example.com`,
     );
@@ -464,7 +464,7 @@ describe("annulComprobante", () => {
     expect(rows.every((row) => row.status === "vigente")).toBe(true);
   });
 
-  test("un rechazo de ARCA no persiste la Nota de crédito ni anula el original", async () => {
+  test("an ARCA rejection persists no Nota de crédito and does not annul the original", async () => {
     const { academy, choreography, inscription } =
       await seedChoreographyWithInscription(
         `rechazo.${crypto.randomUUID()}@example.com`,
@@ -511,7 +511,7 @@ describe("annulComprobante", () => {
     expect(billing.getLastVoucher).not.toHaveBeenCalled();
   });
 
-  test("admite una cadena ilimitada: re-facturar el remanente liberado y re-anular", async () => {
+  test("supports an unbounded chain: re-invoice the released remainder and re-annul", async () => {
     const { academy, choreography, inscription } =
       await seedChoreographyWithInscription(
         `cadena.${crypto.randomUUID()}@example.com`,
@@ -582,7 +582,7 @@ describe("annulComprobante", () => {
 // ARCA does not respond during the annulment (ADR-0012): the same classification
 // by phase and the same recovery by lookup as emission, against the type 13
 // series.
-describe("annulComprobante (ARCA no responde)", () => {
+describe("annulComprobante (ARCA does not respond)", () => {
   // A choreography with a comprobante of 4000 in force, ready to annul. The Nota
   // de crédito to attempt is number 8 (`ultimoNotaCreditoAutorizado` = 7).
   async function seedFacturaVigente(prefix: string) {
@@ -621,7 +621,7 @@ describe("annulComprobante (ARCA no responde)", () => {
     };
   }
 
-  test("cortada la consulta del correlativo, no se anuló nada y no se consulta a ARCA", async () => {
+  test("with the sequence lookup cut off, nothing was annulled and ARCA is not queried", async () => {
     const { choreography, factura } = await seedFacturaVigente("lookup");
     const billing = fakeBilling({ getLastVoucher: vi.fn(connectionLost) });
 
@@ -638,7 +638,7 @@ describe("annulComprobante (ARCA no responde)", () => {
     expect(rows[0].status).toBe("vigente");
   });
 
-  test("cortada la autorización, consulta la Nota de crédito tipo 13 exacta y la persiste con el CAE devuelto", async () => {
+  test("with authorization cut off, it queries the exact type 13 Nota de crédito and persists it with the returned CAE", async () => {
     const { choreography, factura } = await seedFacturaVigente("recuperada");
     const billing = fakeBilling({
       createVoucher: vi.fn(connectionLost),
@@ -666,7 +666,7 @@ describe("annulComprobante (ARCA no responde)", () => {
     expect(rows.find((row) => row.id === factura.id)?.status).toBe("anulada");
   });
 
-  test("el timeout de autorización también dispara la recuperación", async () => {
+  test("an authorization timeout also triggers recovery", async () => {
     const { factura } = await seedFacturaVigente("auth-timeout");
     const billing = fakeBilling({
       createVoucher: vi.fn(neverAnswers),
@@ -682,7 +682,7 @@ describe("annulComprobante (ARCA no responde)", () => {
     expect(outcome.notaCredito.cbteNro).toBe(8);
   });
 
-  test("si ARCA no tiene esa Nota de crédito, no se anuló nada y reintentar es seguro", async () => {
+  test("if ARCA does not have that Nota de crédito, nothing was annulled and retrying is safe", async () => {
     const { choreography, factura } = await seedFacturaVigente("sin-nota");
 
     const outcome = await annulComprobante(
@@ -701,7 +701,7 @@ describe("annulComprobante (ARCA no responde)", () => {
     expect(rows[0].status).toBe("vigente");
   });
 
-  test("si la consulta también falla, el resultado es no verificado y lleva la Nota de crédito que no pudo resolver", async () => {
+  test("if the lookup fails too, the result is unverified and carries the Nota de crédito it could not resolve", async () => {
     const { choreography, factura } = await seedFacturaVigente("no-verificada");
 
     const outcome = await annulComprobante(
@@ -724,7 +724,7 @@ describe("annulComprobante (ARCA no responde)", () => {
     expect(rows[0].status).toBe("vigente");
   });
 
-  test("una Nota de crédito consultada con otro importe no es la nuestra: no se persiste", async () => {
+  test("a queried Nota de crédito with a different amount is not ours: it is not persisted", async () => {
     const { choreography, factura } = await seedFacturaVigente("otro-importe");
 
     const outcome = await annulComprobante(
@@ -741,7 +741,7 @@ describe("annulComprobante (ARCA no responde)", () => {
     expect(await listChoreographyComprobantes(choreography.id)).toHaveLength(1);
   });
 
-  test("una Nota de crédito consultada con otra fecha tampoco es la nuestra", async () => {
+  test("a queried Nota de crédito with a different date is not ours either", async () => {
     const { choreography, factura } = await seedFacturaVigente("otra-fecha");
 
     const outcome = await annulComprobante(

@@ -7,7 +7,7 @@ afterEach(() => {
 });
 
 describe("isDateOnly", () => {
-  test("acepta fechas con forma YYYY-MM-DD y rechaza el resto", () => {
+  test("accepts YYYY-MM-DD shaped dates and rejects the rest", () => {
     expect(isDateOnly("2026-05-31")).toBe(true);
     expect(isDateOnly("2026-02-30")).toBe(false);
     expect(isDateOnly("31/05/2026")).toBe(false);
@@ -18,7 +18,7 @@ describe("isDateOnly", () => {
 describe("isFutureDateOnly", () => {
   // "Today" is the business day, not the server's: at 23:30 on the 31st in Córdoba
   // (02:30 UTC on the 1st) the 31st is not yet in the future and the 1st is.
-  test("resuelve hoy en la zona horaria del negocio", () => {
+  test("resolves today in the business time zone", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-01T02:30:00Z"));
 

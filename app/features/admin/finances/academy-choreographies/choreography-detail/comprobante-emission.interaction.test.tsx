@@ -91,7 +91,7 @@ describe("EmissionDialog", () => {
     cbteNro: 43,
   } as const;
 
-  test("una emisión sin verificar bloquea el reintento y ofrece las dos salidas", async () => {
+  test("an unverified emission blocks the retry and offers both ways out", async () => {
     const { action } = contingencyAction(unverified);
     await mount({
       billableAmount: 12000,
@@ -108,7 +108,7 @@ describe("EmissionDialog", () => {
     expect(getButton("Ya verifiqué en ARCA")).not.toBeNull();
   });
 
-  test("declarar la verificación manual vuelve a habilitar el reintento", async () => {
+  test("declaring manual verification re-enables the retry", async () => {
     const { action } = contingencyAction(unverified);
     await mount({
       billableAmount: 12000,
@@ -122,7 +122,7 @@ describe("EmissionDialog", () => {
     expect(getButton("Confirmar emisión").disabled).toBe(false);
   });
 
-  test("verificar ahora manda sólo el correlativo y resuelve el alert en el diálogo", async () => {
+  test("verify now sends only the sequence number and resolves the alert inside the dialog", async () => {
     const { action, recheckPayloads } = contingencyAction(unverified);
     await mount({
       billableAmount: 12000,
@@ -144,7 +144,7 @@ describe("EmissionDialog", () => {
     expect(getButton("Cerrar")).not.toBeNull();
   });
 
-  test("un rechazo de ARCA deja reintentar y muestra los errores crudos", async () => {
+  test("an ARCA rejection allows a retry and shows the raw errors", async () => {
     const { action } = contingencyAction({
       status: "rejected",
       message: "ARCA no autorizó el comprobante (CUIT sin habilitar).",

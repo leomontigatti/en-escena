@@ -85,14 +85,14 @@ afterEach(() => {
 });
 
 describe("attemptArca", () => {
-  test("una llamada que responde vuelve como éxito con su valor", async () => {
+  test("a call that responds comes back as a success with its value", async () => {
     await expect(attemptArca("lookup", async () => 42)).resolves.toEqual({
       ok: true,
       value: 42,
     });
   });
 
-  test("una falla de comunicación se clasifica con la fase y no escapa", async () => {
+  test("a communication failure is classified with its phase and does not escape", async () => {
     const attempt = await attemptArca("authorization", () =>
       Promise.reject(new Error("socket hang up")),
     );
@@ -107,7 +107,7 @@ describe("attemptArca", () => {
     });
   });
 
-  test("un throw que no es Error igual se clasifica, sin romper", async () => {
+  test("a throw that is not an Error is still classified, without breaking", async () => {
     const attempt = await attemptArca("lookup", () =>
       Promise.reject("ECONNRESET"),
     );
@@ -121,7 +121,7 @@ describe("attemptArca", () => {
   // Our own timeout is distinguished from the transport's because it leaves the
   // request in flight: that is what decides whether an "ARCA does not have it"
   // can be read as final.
-  test("el timeout propio se marca aparte de una falla de transporte", async () => {
+  test("our own timeout is marked apart from a transport failure", async () => {
     const attempt = await attemptArca("authorization", () =>
       Promise.reject(new ArcaTimeoutError("FECAESolicitar", 30_000)),
     );
@@ -132,7 +132,7 @@ describe("attemptArca", () => {
     });
   });
 
-  test("el detalle queda en el log del servidor: es lo único que lo conserva", async () => {
+  test("the detail stays in the server log: that is the only thing that keeps it", async () => {
     await attemptArca("authorization", () =>
       Promise.reject(new Error("socket hang up")),
     );
@@ -146,7 +146,7 @@ describe("attemptArca", () => {
 });
 
 describe("recoverAuthorization", () => {
-  test("consulta el punto de venta, tipo y correlativo exactos que se intentaron", async () => {
+  test("queries the exact point of sale, type and sequence number that were attempted", async () => {
     const getVoucherInfo = vi.fn(async () => null);
 
     await recoverAuthorization(
@@ -158,7 +158,7 @@ describe("recoverAuthorization", () => {
     expect(getVoucherInfo).toHaveBeenCalledWith(43, 1, 11);
   });
 
-  test("el comprobante consultado coincide con lo enviado: se recupera su CAE", async () => {
+  test("the queried comprobante matches what was sent: its CAE is recovered", async () => {
     const recovery = await recoverAuthorization(
       clientConsulting(vi.fn(async () => facturaCConsultada)),
       submitted,
@@ -175,7 +175,7 @@ describe("recoverAuthorization", () => {
 
   // A timeout does not prevent recovery either: if ARCA already has it and it
   // matches, the question is answered and the in-flight request is irrelevant.
-  test("se recupera igual si la autorización se cortó por timeout", async () => {
+  test("it is recovered all the same if authorization was cut off by a timeout", async () => {
     const recovery = await recoverAuthorization(
       clientConsulting(vi.fn(async () => facturaCConsultada)),
       submitted,
@@ -185,7 +185,7 @@ describe("recoverAuthorization", () => {
     expect(recovery).toMatchObject({ status: "recovered" });
   });
 
-  test("la autorización falló en el transporte y ARCA no lo tiene: no se emitió nada", async () => {
+  test("authorization failed in transport and ARCA does not have it: nothing was emitted", async () => {
     const recovery = await recoverAuthorization(
       clientConsulting(vi.fn(async () => null)),
       submitted,
@@ -199,7 +199,7 @@ describe("recoverAuthorization", () => {
   // is still in flight, and the lookup — issued milliseconds later — is looking
   // at a CAE ARCA may be about to grant. Reading that `null` as "nothing was
   // emitted" would invite a retry and a second comprobante for the same amount.
-  test("la autorización venció por timeout y ARCA no lo tiene: sigue sin verificarse", async () => {
+  test("authorization timed out and ARCA does not have it: it stays unverified", async () => {
     const recovery = await recoverAuthorization(
       clientConsulting(vi.fn(async () => null)),
       submitted,
@@ -212,7 +212,7 @@ describe("recoverAuthorization", () => {
     });
   });
 
-  test("la consulta también falla: no se puede afirmar nada", async () => {
+  test("the lookup fails too: nothing can be asserted", async () => {
     const recovery = await recoverAuthorization(
       clientConsulting(
         vi.fn(() => Promise.reject(new Error("socket hang up"))),
@@ -229,7 +229,7 @@ describe("recoverAuthorization", () => {
 
   // Sequence numbers are not reserved: the number we attempted may belong to a
   // different comprobante (ADR-0012 decision 4).
-  test("otro importe con el mismo número no es nuestro comprobante", async () => {
+  test("a different amount under the same number is not our comprobante", async () => {
     const recovery = await recoverAuthorization(
       clientConsulting(
         vi.fn(async () => ({ ...facturaCConsultada, impTotal: 9999 })),
@@ -244,7 +244,7 @@ describe("recoverAuthorization", () => {
     });
   });
 
-  test("otra fecha con el mismo número tampoco lo es", async () => {
+  test("a different date under the same number is not either", async () => {
     const recovery = await recoverAuthorization(
       clientConsulting(
         vi.fn(async () => ({ ...facturaCConsultada, cbteFch: "20260101" })),
@@ -261,7 +261,7 @@ describe("recoverAuthorization", () => {
 
   // A comprobante without a CAE is not an authorization: persisting it would
   // leave a fiscal row with the field that backs it empty.
-  test("un comprobante que coincide pero vuelve sin CAE no se recupera", async () => {
+  test("a matching comprobante that comes back with no CAE is not recovered", async () => {
     const recovery = await recoverAuthorization(
       clientConsulting(
         vi.fn(async () => ({ ...facturaCConsultada, codAutorizacion: "" })),
@@ -276,7 +276,7 @@ describe("recoverAuthorization", () => {
     });
   });
 
-  test("un comprobante que coincide pero vuelve sin vencimiento tampoco", async () => {
+  test("a matching comprobante that comes back with no expiry is not either", async () => {
     const recovery = await recoverAuthorization(
       clientConsulting(
         vi.fn(async () => ({ ...facturaCConsultada, fchVto: "" })),
@@ -293,7 +293,7 @@ describe("recoverAuthorization", () => {
 });
 
 describe("mensajes de contingencia", () => {
-  test("no emitido: dice que no se emitió y que reintentar es seguro", () => {
+  test("not emitted: it says nothing was emitted and that retrying is safe", () => {
     expect(buildNotEmittedMessage("comprobante")).toBe(
       "No pudimos comunicarnos con ARCA: no se emitió el comprobante. " +
         "Reintentá en unos minutos.",
@@ -303,7 +303,7 @@ describe("mensajes de contingencia", () => {
     );
   });
 
-  test("no verificado: lleva el comprobante que no se pudo resolver", () => {
+  test("unverified: it carries the comprobante that could not be resolved", () => {
     const message = buildUnverifiedMessage(
       "comprobante",
       { ptoVta: 1, cbteTipo: 11, cbteNro: 43 },
@@ -318,7 +318,7 @@ describe("mensajes de contingencia", () => {
     expect(message).toContain("antes de reintentar");
   });
 
-  test("no verificado nombra la nota de crédito por su tipo, no por su código", () => {
+  test("unverified names the nota de crédito by its type, not by its code", () => {
     const message = buildUnverifiedMessage(
       "nota de crédito",
       { ptoVta: 1, cbteTipo: 13, cbteNro: 8 },
@@ -328,7 +328,7 @@ describe("mensajes de contingencia", () => {
     expect(message).toContain("Nota de crédito C 0001-00000008");
   });
 
-  test("no verificado concuerda en género con la nota de crédito", () => {
+  test("unverified agrees in gender with nota de crédito", () => {
     const message = buildUnverifiedMessage(
       "nota de crédito",
       { ptoVta: 1, cbteTipo: 13, cbteNro: 8 },
@@ -343,7 +343,7 @@ describe("mensajes de contingencia", () => {
   // Saying "the lookup did not resolve" here would be false: the lookup answered,
   // and it answered that ARCA does not have it. What is unresolved is whether it
   // will.
-  test("autorización en vuelo: dice que ARCA todavía no lo tiene, no que falló la consulta", () => {
+  test("authorization in flight: it says ARCA does not have it yet, not that the lookup failed", () => {
     const message = buildUnverifiedMessage(
       "comprobante",
       { ptoVta: 1, cbteTipo: 11, cbteNro: 43 },

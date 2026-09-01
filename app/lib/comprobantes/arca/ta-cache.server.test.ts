@@ -25,7 +25,7 @@ const inTwelveHours = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
 const anHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
 
 describe("InMemoryTaCache", () => {
-  test("reusa un TA vigente entre llamadas sin re-autenticar", async () => {
+  test("reuses a live TA across calls without re-authenticating", async () => {
     const cache = new InMemoryTaCache();
     const ticket = makeTicket(inTwelveHours);
 
@@ -35,7 +35,7 @@ describe("InMemoryTaCache", () => {
     expect(await cache.get(ArcaServiceNames.WSFE)).toBe(ticket);
   });
 
-  test("descarta un TA vencido para forzar la re-autenticación", async () => {
+  test("discards an expired TA to force re-authentication", async () => {
     const cache = new InMemoryTaCache();
 
     await cache.save(makeTicket(anHourAgo), ArcaServiceNames.WSFE);
@@ -43,13 +43,13 @@ describe("InMemoryTaCache", () => {
     expect(await cache.get(ArcaServiceNames.WSFE)).toBeNull();
   });
 
-  test("devuelve null cuando nunca se cacheó un TA para ese servicio", async () => {
+  test("returns null when no TA was ever cached for that service", async () => {
     const cache = new InMemoryTaCache();
 
     expect(await cache.get(ArcaServiceNames.WSFE)).toBeNull();
   });
 
-  test("no comparte TA entre instancias distintas de cache", async () => {
+  test("does not share a TA across different cache instances", async () => {
     const first = new InMemoryTaCache();
     const second = new InMemoryTaCache();
 
@@ -58,7 +58,7 @@ describe("InMemoryTaCache", () => {
     expect(await second.get(ArcaServiceNames.WSFE)).toBeNull();
   });
 
-  test("delete evicta el TA cacheado", async () => {
+  test("delete evicts the cached TA", async () => {
     const cache = new InMemoryTaCache();
     await cache.save(makeTicket(inTwelveHours), ArcaServiceNames.WSFE);
 

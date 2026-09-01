@@ -351,7 +351,7 @@ describe("handleComprobanteDetailAction — re-verificar (#577)", () => {
     });
   }
 
-  test("la nota de crédito aparece en ARCA: se persiste y el alert queda recuperado", async () => {
+  test("the nota de crédito shows up in ARCA: it is persisted and the alert is marked recovered", async () => {
     const seeded = await seedComprobante({
       academyName: "Academia Re-verificar",
       choreographyName: "Coreografía re-verificar",
@@ -386,7 +386,7 @@ describe("handleComprobanteDetailAction — re-verificar (#577)", () => {
   });
 
   // The amount comes from the comprobante being annulled, not from the form.
-  test("un importe consultado que no coincide deja el estado sin verificar", async () => {
+  test("a queried amount that does not match leaves the status unverified", async () => {
     const seeded = await seedComprobante({
       academyName: "Academia Re-verificar Ajena",
       choreographyName: "Coreografía re-verificar ajena",
@@ -414,7 +414,7 @@ describe("handleComprobanteDetailAction — re-verificar (#577)", () => {
 
   // It can only prove the positive: nobody has measured how long a request can
   // live on ARCA's side (ADR-0012 decision 2).
-  test("que ARCA siga sin tenerla nunca asciende a no emitida", async () => {
+  test("ARCA still not having it never escalates to not emitted", async () => {
     const seeded = await seedComprobante({
       academyName: "Academia Sin Nota",
       choreographyName: "Coreografía sin nota",

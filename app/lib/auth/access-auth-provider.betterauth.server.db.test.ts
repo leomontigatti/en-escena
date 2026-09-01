@@ -20,7 +20,7 @@ const CREDENTIAL_PROVIDER_ID = "credential";
 // `app/routes/`, which flatRoutes would take as a route and break the build).
 // These tests hit `auth.api` / `auth.handler` with the real table.
 describe("provider Better Auth", () => {
-  test("registra credencial con hash scrypt y abre sesión de 8 h", async () => {
+  test("registers a credential with a scrypt hash and opens an 8 h session", async () => {
     const { headers } = await signUp({
       email: "alta@example.com",
       password: "password-segura",
@@ -57,7 +57,7 @@ describe("provider Better Auth", () => {
     expect(Math.round(ttlMs / 1000)).toBe(8 * 60 * 60);
   });
 
-  test("inicia sesión con la contraseña correcta y rechaza la incorrecta", async () => {
+  test("signs in with the correct password and rejects the wrong one", async () => {
     await signUp({ email: "login@example.com", password: "password-segura" });
 
     const { headers, response } = await auth.api.signInEmail({
@@ -96,7 +96,7 @@ describe("provider Better Auth", () => {
     expect(afterSignOut).toBeNull();
   });
 
-  test("expone el token de reset por la tabla verification y lo aplica", async () => {
+  test("exposes the reset token through the verification table and applies it", async () => {
     const { response } = await signUp({
       email: "reset@example.com",
       password: "password-vieja",

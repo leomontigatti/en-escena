@@ -248,7 +248,7 @@ describe("event registration readiness", () => {
   // At 23:30 on the 31st in Córdoba (02:30 UTC on the 1st) the price expiring on
   // the 31st is still in force: readiness cannot announce the expiry three hours
   // before it happens for the academy.
-  test("no vence el precio del día a las 23:30 de Córdoba", async () => {
+  test("does not expire the day's price at 23:30 in Córdoba", async () => {
     const event = await createSavedEvent("Vence hoy 2026");
     const jazz = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
@@ -304,7 +304,7 @@ describe("event registration readiness", () => {
   // The cache's stamp is compared against the business day: a readiness computed
   // at 23:00 on the 31st in Córdoba is already stale at 00:30 on the 1st, even
   // though both instants fall on the same UTC day.
-  test("recalcula la readiness sellada el día de negocio anterior", async () => {
+  test("recomputes readiness sealed on the previous business day", async () => {
     const event = await createSavedEvent("Sello de ayer 2026");
 
     await db
