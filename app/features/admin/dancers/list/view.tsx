@@ -13,7 +13,6 @@ import {
   getDancerIdentificationBadgeVariant,
   toDancerIdentificationSearchValue,
   toDancerParticipationSearchValue,
-  toDancerStatusSearchValue,
   type DancerIdentificationStatus,
 } from "@/lib/admin/dancers/dancers.shared";
 import {
@@ -21,6 +20,12 @@ import {
   getParticipationLabel,
   type ShownParticipationStatus,
 } from "@/lib/participation/participation.shared";
+import {
+  getRosterPersonStatusBadgeVariant,
+  getRosterPersonStatusLabel,
+  toRosterPersonStatus,
+  toRosterPersonStatusSearchValue,
+} from "@/lib/roster/roster-person-status.shared";
 
 import type { loadDancersList } from "./server";
 
@@ -98,9 +103,7 @@ function DancerTable({ loaderData }: { loaderData: LoaderData }) {
               participationStatus={dancer.participationStatus}
             />
           ) : null}
-          {!dancer.active ? (
-            <Badge variant="destructive">Archivado</Badge>
-          ) : null}
+          <RosterPersonStatusBadge active={dancer.active} />
           <IdentificationBadge
             identificationStatus={dancer.identificationStatus}
           />
@@ -131,6 +134,20 @@ function DancerTable({ loaderData }: { loaderData: LoaderData }) {
       totalPages={loaderData.totalPages}
       totalRows={loaderData.totalCount}
     />
+  );
+}
+
+function RosterPersonStatusBadge({ active }: { active: boolean }) {
+  const status = toRosterPersonStatus(active);
+
+  if (status === "active") {
+    return null;
+  }
+
+  return (
+    <Badge variant={getRosterPersonStatusBadgeVariant(status)}>
+      {getRosterPersonStatusLabel(status)}
+    </Badge>
   );
 }
 
@@ -199,8 +216,11 @@ function buildDancerFacetedFilters(
     },
     {
       id: "estado",
-      label: "Archivo",
-      options: [{ label: "Archivado", value: "archivados" }],
+      label: "Estado de alta",
+      options: [
+        { label: "Archivado", value: "archivados" },
+        { label: "Todos", value: "todos" },
+      ],
     },
   );
 
@@ -215,7 +235,7 @@ function buildDancerStatusSummary(dancer: DancerRow) {
   }
 
   if (!dancer.active) {
-    values.push("Archivado");
+    values.push(getRosterPersonStatusLabel("archived"));
   }
 
   values.push(getGroupedDancerIdentificationLabel(dancer.identificationStatus));
@@ -277,7 +297,9 @@ function getSelectedFilterValues(loaderData: LoaderData) {
   const participationValue = toDancerParticipationSearchValue(
     loaderData.filters.participation,
   );
-  const statusValue = toDancerStatusSearchValue(loaderData.filters.status);
+  const statusValue = toRosterPersonStatusSearchValue(
+    loaderData.filters.status,
+  );
   const identificationValue = toDancerIdentificationSearchValue(
     loaderData.filters.identification,
   );
@@ -286,7 +308,7 @@ function getSelectedFilterValues(loaderData: LoaderData) {
     values.participando = participationValue;
   }
 
-  if (statusValue === "archivados") {
+  if (statusValue !== null) {
     values.estado = statusValue;
   }
 
@@ -301,7 +323,9 @@ function hasActiveListFilters(loaderData: LoaderData) {
   const participationValue = toDancerParticipationSearchValue(
     loaderData.filters.participation,
   );
-  const statusValue = toDancerStatusSearchValue(loaderData.filters.status);
+  const statusValue = toRosterPersonStatusSearchValue(
+    loaderData.filters.status,
+  );
   const identificationValue = toDancerIdentificationSearchValue(
     loaderData.filters.identification,
   );
@@ -310,7 +334,7 @@ function hasActiveListFilters(loaderData: LoaderData) {
     loaderData.filters.query.length > 0 ||
     loaderData.filters.page > 1 ||
     (loaderData.selectedEventId !== null && participationValue !== null) ||
-    statusValue === "archivados" ||
+    statusValue !== null ||
     identificationValue !== "todos"
   );
 }

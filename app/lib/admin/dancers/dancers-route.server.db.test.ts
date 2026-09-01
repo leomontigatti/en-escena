@@ -25,8 +25,8 @@ import {
 import {
   toDancerIdentificationSearchValue,
   toDancerParticipationSearchValue,
-  toDancerStatusSearchValue,
 } from "@/lib/admin/dancers/dancers.shared";
+import { toRosterPersonStatusSearchValue } from "@/lib/roster/roster-person-status.shared";
 import {
   createSignedInAdminRequest as createSignedInRequest,
   expectThrownResponse,
@@ -1489,7 +1489,9 @@ function buildListInitialEntry(
     searchParams.set("participando", participationValue);
   }
 
-  const statusValue = toDancerStatusSearchValue(loaderData.filters.status);
+  const statusValue = toRosterPersonStatusSearchValue(
+    loaderData.filters.status,
+  );
 
   if (statusValue !== null) {
     searchParams.set("estado", statusValue);

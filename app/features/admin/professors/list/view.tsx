@@ -9,15 +9,18 @@ import {
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
-import {
-  toProfessorParticipationSearchValue,
-  toProfessorStatusSearchValue,
-} from "@/lib/admin/professors/professors.shared";
+import { toProfessorParticipationSearchValue } from "@/lib/admin/professors/professors.shared";
 import {
   getParticipationBadgeVariant,
   getParticipationLabel,
   type ShownParticipationStatus,
 } from "@/lib/participation/participation.shared";
+import {
+  getRosterPersonStatusBadgeVariant,
+  getRosterPersonStatusLabel,
+  toRosterPersonStatus,
+  toRosterPersonStatusSearchValue,
+} from "@/lib/roster/roster-person-status.shared";
 
 import type { loadProfessorsList } from "./server";
 
@@ -96,9 +99,7 @@ function ProfessorTable({ loaderData }: { loaderData: LoaderData }) {
               participationStatus={professor.participationStatus}
             />
           ) : null}
-          {!professor.active ? (
-            <Badge variant="destructive">Archivado</Badge>
-          ) : null}
+          <RosterPersonStatusBadge active={professor.active} />
         </div>
       ),
       filterValue: (professor) => buildProfessorStatusSummary(professor),
@@ -126,6 +127,20 @@ function ProfessorTable({ loaderData }: { loaderData: LoaderData }) {
       totalPages={loaderData.totalPages}
       totalRows={loaderData.totalCount}
     />
+  );
+}
+
+function RosterPersonStatusBadge({ active }: { active: boolean }) {
+  const status = toRosterPersonStatus(active);
+
+  if (status === "active") {
+    return null;
+  }
+
+  return (
+    <Badge variant={getRosterPersonStatusBadgeVariant(status)}>
+      {getRosterPersonStatusLabel(status)}
+    </Badge>
   );
 }
 
@@ -159,8 +174,11 @@ function buildProfessorFacetedFilters(
 
   groups.push({
     id: "estado",
-    label: "Archivo",
-    options: [{ label: "Archivado", value: "archivados" }],
+    label: "Estado de alta",
+    options: [
+      { label: "Archivado", value: "archivados" },
+      { label: "Todos", value: "todos" },
+    ],
   });
 
   return [...groups];
@@ -174,7 +192,7 @@ function buildProfessorStatusSummary(professor: ProfessorRow) {
   }
 
   if (!professor.active) {
-    values.push("Archivado");
+    values.push(getRosterPersonStatusLabel("archived"));
   }
 
   return values.join(" ");
@@ -222,9 +240,11 @@ function buildInitialFacetedFilterValues(loaderData: LoaderData) {
 
 function getSelectedFilterValues(loaderData: LoaderData) {
   const values: Record<string, string> = {};
-  const statusValue = toProfessorStatusSearchValue(loaderData.filters.status);
+  const statusValue = toRosterPersonStatusSearchValue(
+    loaderData.filters.status,
+  );
 
-  if (statusValue === "archivados") {
+  if (statusValue !== null) {
     values.estado = statusValue;
   }
 

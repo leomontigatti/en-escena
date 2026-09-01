@@ -13,7 +13,6 @@ import {
   type ProfessorNameOrder,
   type ProfessorListFilters,
   readProfessorParticipationFilter,
-  readProfessorStatusFilter,
 } from "@/lib/admin/professors/professors.shared";
 import {
   findDuplicateProfessorDocument,
@@ -29,6 +28,8 @@ import {
   type ParticipationStatus,
   toParticipationStatus,
 } from "@/lib/participation/participation.shared";
+import { readRosterPersonStatusFilter } from "@/lib/roster/roster-person-status.shared";
+import { rosterPersonStatusCondition } from "@/lib/roster/roster-person-status.server";
 
 export type ProfessorListItem = {
   id: string;
@@ -107,7 +108,7 @@ export function readProfessorFilters(
       searchParams.get("participando"),
     ),
     query: searchParams.get("busqueda")?.trim() ?? "",
-    status: readProfessorStatusFilter(searchParams.get("estado")),
+    status: readRosterPersonStatusFilter(searchParams),
     page: readPage(searchParams),
   };
 }
@@ -415,10 +416,13 @@ function buildProfessorWhere(input: {
     input.selectedEventId,
   );
 
-  if (input.filters.status === "active") {
-    conditions.push(eq(professors.active, true));
-  } else if (input.filters.status === "archived") {
-    conditions.push(eq(professors.active, false));
+  const statusCondition = rosterPersonStatusCondition(
+    professors,
+    input.filters.status,
+  );
+
+  if (statusCondition) {
+    conditions.push(statusCondition);
   }
 
   if (input.selectedEventId !== null && input.filters.participation !== "all") {

@@ -1,8 +1,9 @@
+import type { RosterPersonStatusFilter } from "@/lib/roster/roster-person-status.shared";
+
 export const dancerPageSize = 50;
 export const dancerNotFoundMessage = "No encontramos ese Bailarín.";
 
 export type DancerParticipationFilter = "yes" | "no" | "all";
-export type DancerStatusFilter = "active" | "archived" | "all";
 export type DancerNameOrder = "asc" | "desc";
 export type DancerIdentificationFilter =
   | "incomplete"
@@ -18,7 +19,7 @@ export type DancerListFilters = {
   nameOrder: DancerNameOrder;
   participation: DancerParticipationFilter;
   query: string;
-  status: DancerStatusFilter;
+  status: RosterPersonStatusFilter;
   identification: DancerIdentificationFilter;
   page: number;
 };
@@ -33,19 +34,6 @@ export function readDancerParticipationFilter(
       return "no";
     default:
       return "all";
-  }
-}
-
-export function readDancerStatusFilter(
-  value: string | null,
-): DancerStatusFilter {
-  switch (value) {
-    case "archivados":
-      return "archived";
-    case "todos":
-      return "all";
-    default:
-      return "active";
   }
 }
 
@@ -77,18 +65,6 @@ export function toDancerParticipationSearchValue(
       return null;
     default:
       return "si";
-  }
-}
-
-/** `active` is encoded by the absence of the parameter, so it returns `null`. */
-export function toDancerStatusSearchValue(value: DancerStatusFilter) {
-  switch (value) {
-    case "archived":
-      return "archivados";
-    case "all":
-      return "todos";
-    default:
-      return null;
   }
 }
 
