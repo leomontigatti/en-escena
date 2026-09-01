@@ -66,7 +66,12 @@ async function main() {
       `pg_restore --list "/dumps/${dumpFile}" | head -40`,
     ]);
 
-    await run("docker", ["compose", "up", "-d", "postgres"]);
+    // `--wait` holds until the healthcheck in docker-compose.yml passes.
+    // Without it `up -d` returns as soon as the container exists, and when
+    // Compose has just recreated it the `psql` below reaches a server that is
+    // still starting: "connection to server on socket ... failed: No such file
+    // or directory". An already-healthy container makes the wait a no-op.
+    await run("docker", ["compose", "up", "-d", "--wait", "postgres"]);
 
     await run("docker", [
       "exec",
