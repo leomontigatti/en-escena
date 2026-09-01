@@ -239,11 +239,11 @@ describe("canSubmitChoreographyEdit", () => {
     ).toBe(false);
   });
 
-  // Reproduce el ida y vuelta de categoría: una resolución intermedia limpia el
-  // nivel del form del roster y la siguiente vuelve a la categoría persistida,
-  // donde la retención del server conserva el nivel guardado y el slot pasa a la
-  // reasignación autónoma. Exigirlo igual dejaba "Guardar" deshabilitado sin
-  // ningún campo con el que llenarlo.
+  // Reproduces the category round trip: an intermediate resolution clears the
+  // level from the roster form and the next one returns to the persisted
+  // category, where the server's retention keeps the saved level and the slot
+  // moves to the standalone reassignment. Requiring it anyway left "Guardar"
+  // disabled with no field to fill it in with.
   test("submits with an empty level when the slot went to the standalone field", () => {
     expect(
       canSubmitChoreographyEdit({
@@ -363,8 +363,8 @@ describe("getRosterScheduleSelectOptions", () => {
 });
 
 describe("getPersistedRosterResolutionState", () => {
-  // La derivación anterior leía `experienceLevelId !== null`, así que una
-  // coreografía a la que le falta el nivel afirmaba no necesitarlo.
+  // The previous derivation read `experienceLevelId !== null`, so a choreography
+  // missing the level claimed not to need it.
   test("reads requiredness off the category, not off the stored level", () => {
     const state = getPersistedRosterResolutionState(
       buildChoreography({
@@ -413,8 +413,8 @@ describe("getExperienceLevelSlotState", () => {
     });
   });
 
-  // La retención del server conserva el nivel guardado cuando la categoría se
-  // mantiene, así que el select del roster no tiene nada que ofrecer ahí.
+  // The server's retention keeps the saved level when the category holds, so the
+  // roster's select has nothing to offer there.
   test("keeps the standalone field when the pending change holds the category", () => {
     expect(
       getExperienceLevelSlotState({
@@ -435,9 +435,9 @@ describe("getExperienceLevelSlotState", () => {
     });
   });
 
-  // La retención exige un valor guardado válido. Sin él, el guardado del roster
-  // necesita uno nuevo, y `canSubmitRosterChange` lo va a exigir: el campo tiene
-  // que estar en el form del roster o el admin no puede guardar.
+  // The retention requires a valid saved value. Without one, saving the roster
+  // needs a new level, and `canSubmitRosterChange` will require it: the field has
+  // to be in the roster form or the admin cannot save.
   test("hands the slot to the roster form when the category holds but the stored level is missing", () => {
     expect(
       getExperienceLevelSlotState({
@@ -486,8 +486,8 @@ describe("getExperienceLevelSlotState", () => {
     });
   });
 
-  // `update-roster` nulea el nivel cuando la categoría nueva no lo pide, así que
-  // el campo muestra el estado resuelto y no el que el guardado va a borrar.
+  // `update-roster` nulls the level out when the new category does not ask for
+  // it, so the field shows the resolved state and not the one saving will erase.
   test("shows the resolved emptiness when the pending change moves to a category without levels", () => {
     expect(
       getExperienceLevelSlotState({

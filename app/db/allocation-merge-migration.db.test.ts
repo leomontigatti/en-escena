@@ -16,11 +16,11 @@ import {
 const allocationMigrationTag = "0007_strange_mantis";
 
 /**
- * La fusión de los pares corre DENTRO de la migración que colapsa la asignación,
- * y su precedencia es dura: si el índice único se crea antes, la migración falla
- * sobre los duplicados. Para verificar las dos mitades sin copiar su SQL, este
- * test migra la base hasta la migración anterior, siembra la forma del par y
- * ejecuta las sentencias reales del archivo.
+ * The merging of the pairs runs INSIDE the migration that collapses the
+ * allocation, and its precedence is hard: if the unique index is created first,
+ * the migration fails on the duplicates. To verify both halves without copying
+ * their SQL, this test migrates the database up to the previous migration, seeds
+ * the pair's shape and runs the file's real statements.
  */
 function readMigrationStatements(tag: string) {
   return readFileSync(path.join(migrationsFolder, `${tag}.sql`), "utf8")
@@ -41,8 +41,8 @@ const pairPaymentId = "payment_pair";
 const pairInscriptionId = "inscription_pair";
 
 async function seedPairShape(db: ReturnType<typeof drizzle>) {
-  // Sólo interesa la tabla de asignaciones: las foreign keys se apagan para no
-  // sembrar media base por dos filas.
+  // Only the allocations table matters: foreign keys are turned off so as not to
+  // seed half the database for two rows.
   await db.execute(sql`set session_replication_role = replica`);
   await db.execute(sql`
     insert into "en_escena_payment_allocation"
@@ -80,8 +80,8 @@ describe("the allocation-collapse migration", () => {
       await migrate(db, { migrationsFolder: folderBefore });
       await seedPairShape(db);
 
-      // Antes de la fusión el índice único no puede existir: los 62 pares de
-      // producción son exactamente esta forma.
+      // Before the merge the unique index cannot exist: the 62 pairs in
+      // production are exactly this shape.
       const indexError = await db
         .transaction((tx) => tx.execute(sql.raw(createUniqueIndex!)))
         .catch((error) => error);
@@ -99,14 +99,14 @@ describe("the allocation-collapse migration", () => {
         sql`select "id", "amount", "payment_id" from "en_escena_payment_allocation" order by "id"`,
       );
 
-      // Un sobreviviente por par —el de `created_at` más viejo—, con la suma
-      // encima, y la fila suelta intacta.
+      // One survivor per pair — the one with the oldest `created_at` — carrying
+      // the sum, and the loose row intact.
       expect(merged.rows).toEqual([
         expect.objectContaining({ id: "allocation_deposit", amount: 10000 }),
         expect.objectContaining({ id: "allocation_lone", amount: 2500 }),
       ]);
 
-      // Y ahora sí, el índice único entra limpio.
+      // And now the unique index goes in cleanly.
       await db.execute(sql.raw(createUniqueIndex!));
     } finally {
       await pglite.close();

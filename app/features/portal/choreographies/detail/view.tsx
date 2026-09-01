@@ -1,4 +1,5 @@
 import { AlertStack } from "@/components/shared/alert-stack";
+import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { OperationalStatusSummary } from "@/features/portal/choreographies/detail/operational-status-summary";
 import { ChoreographyMusicEditorForm } from "@/features/portal/choreographies/detail/music-editor-form";
 import type {
@@ -26,7 +27,10 @@ export function PortalChoreographyDetailRouteView({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-col gap-1">
           <h1 id="choreography-title" className="text-xl font-semibold">
-            Editar coreografía
+            Editar coreografía #{" "}
+            {formatEventSequenceNumber(
+              loaderData.choreography.choreographyNumber,
+            )}
           </h1>
           <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
             Actualizá la música de esta coreografía. El resto de los datos se

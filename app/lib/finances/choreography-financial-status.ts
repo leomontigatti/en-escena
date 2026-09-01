@@ -21,8 +21,8 @@ const inscriptionAnomalyLabels = {
 } as const satisfies Record<InscriptionAnomaly, string>;
 
 /**
- * `Sobreasignada` es `destructive`, no ámbar: al lado de `Seña pendiente` dos
- * badges ámbar se leerían como un mismo tipo de hecho.
+ * `Sobreasignada` is `destructive`, not amber: next to `Seña pendiente`, two
+ * amber badges would read as the same kind of fact.
  */
 const inscriptionAnomalyBadgeVariants = {
   overAllocated: "destructive",

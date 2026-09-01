@@ -12,6 +12,7 @@ import {
 } from "@/db/schema";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
+import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import {
   deriveChoreographyOperationalStatus,
   type ChoreographyOperationalStatus,
@@ -22,6 +23,7 @@ import { normalizeSearchValue } from "@/components/shared/data-table-helpers";
 type ChoreographyRow = {
   academyName: string;
   categoryId: string | null;
+  choreographyNumber: number;
   categoryName: string | null;
   experienceLevelId: string | null;
   categoryExperienceLevels: string[] | null;
@@ -51,7 +53,7 @@ type HydratedChoreographyRow = ChoreographyListItem & {
   modalityId: string;
 };
 
-type ChoreographySortColumn = "academia" | "nombre";
+type ChoreographySortColumn = "numero" | "academia" | "nombre";
 
 type ChoreographyOrder = {
   columnId: ChoreographySortColumn;
@@ -61,6 +63,7 @@ type ChoreographyOrder = {
 export type ChoreographyListItem = {
   academyName: string;
   categoryName: string | null;
+  choreographyNumber: number;
   groupType: ChoreographyGroupType;
   id: string;
   modalityName: string;
@@ -91,7 +94,7 @@ export type ChoreographyListResult = {
 
 const choreographyPageSize = 50;
 const defaultChoreographyOrder: ChoreographyOrder = {
-  columnId: "academia",
+  columnId: "numero",
   direction: "asc",
 };
 
@@ -133,6 +136,7 @@ export async function loadChoreographies(input: {
     .select({
       academyName: academies.name,
       categoryId: choreographies.categoryId,
+      choreographyNumber: choreographies.choreographyNumber,
       categoryName: categories.name,
       experienceLevelId: choreographies.experienceLevelId,
       categoryExperienceLevels: categories.experienceLevels,
@@ -280,6 +284,10 @@ function buildCanonicalChoreographiesSearch(input: {
 
 function readChoreographyOrder(value: string | null): ChoreographyOrder {
   switch (value) {
+    case "numero:asc":
+      return { columnId: "numero", direction: "asc" };
+    case "numero:desc":
+      return { columnId: "numero", direction: "desc" };
     case "academia:asc":
       return { columnId: "academia", direction: "asc" };
     case "academia:desc":
@@ -318,6 +326,7 @@ async function hydrateChoreographies(
     academyName: row.academyName,
     categoryId: row.categoryId,
     categoryName: row.categoryName,
+    choreographyNumber: row.choreographyNumber,
     groupType: row.groupType,
     id: row.id,
     modalityId: row.modalityId,
@@ -440,9 +449,14 @@ function matchesChoreographyFilters(
 
   const normalizedQuery = normalizeSearchValue(filters.query);
 
+  // The number is compared already zero-padded, so `42`, `042` and `00042` all
+  // find the same choreography. It stays an `includes` like the rest of the
+  // search: an admin who only remembers the tail of the number types that and
+  // still gets there.
   return (
     normalizeSearchValue(row.name).includes(normalizedQuery) ||
-    normalizeSearchValue(row.academyName).includes(normalizedQuery)
+    normalizeSearchValue(row.academyName).includes(normalizedQuery) ||
+    formatEventSequenceNumber(row.choreographyNumber).includes(normalizedQuery)
   );
 }
 
@@ -451,6 +465,15 @@ function compareChoreographies(
   secondRow: ChoreographyListItem,
   order: ChoreographyOrder,
 ) {
+  // The list is always scoped to one event and the number is unique within
+  // it, so ordering by number never ties and needs no second criterion.
+  if (order.columnId === "numero") {
+    return applySortDirection(
+      firstRow.choreographyNumber - secondRow.choreographyNumber,
+      order.direction,
+    );
+  }
+
   if (order.columnId === "nombre") {
     const comparison = compareText(firstRow.name, secondRow.name);
 

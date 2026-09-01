@@ -6,7 +6,7 @@ import { academies, payments } from "@/db/schema";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import { paymentMethodValues } from "@/lib/finances/payment-methods";
-import { paymentNumberDigits } from "@/lib/finances/payment-number";
+import { eventSequenceNumberDigits } from "@/lib/events/sequence-number";
 
 type PaymentsListMethod = PaymentsListRow["paymentMethod"];
 type PaymentsListOrder = {
@@ -160,7 +160,7 @@ function buildPaymentsWhere(
       or(
         ilike(academies.name, `%${query}%`),
         ilike(
-          sql`lpad(cast(${payments.paymentNumber} as text), ${paymentNumberDigits}, '0')`,
+          sql`lpad(cast(${payments.paymentNumber} as text), ${eventSequenceNumberDigits}, '0')`,
           `%${query}%`,
         ),
       )!,

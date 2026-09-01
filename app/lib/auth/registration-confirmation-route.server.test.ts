@@ -22,8 +22,8 @@ describe("registro confirm loader", () => {
     vi.clearAllMocks();
   });
 
-  // La forma `token_hash` + `type=signup` es heredada y se conserva para no
-  // romper los correos ya emitidos (#582): el proveedor actual la acepta.
+  // The `token_hash` + `type=signup` shape is inherited and kept so the emails
+  // already sent do not break (#582): the current provider accepts it.
   test("verifies the legacy confirmation link shape and redirects to academy onboarding", async () => {
     confirmEmailOtp.mockResolvedValue({
       headers: new Headers({

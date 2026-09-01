@@ -148,9 +148,9 @@ describe("choreography schedule step advance rule", () => {
     ).toBe(false);
   });
 
-  // El paso muestra el aviso en lugar del select, así que no hay nada para
-  // elegir: la acción del pie no puede quedar habilitada, ni siquiera con una
-  // elección anterior que quedó sin lugar.
+  // The step shows the notice instead of the select, so there is nothing to
+  // choose: the footer's action cannot stay enabled, not even with an earlier
+  // choice that has since run out of room.
   test("blocks the step while every compatible cupo is full", () => {
     const resolution = buildScheduleResolution([
       { id: "capacity_1", isFull: true },

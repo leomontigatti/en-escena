@@ -6,7 +6,7 @@ import {
 } from "./contingency-view";
 
 describe("toComprobanteContingency", () => {
-  test("un rechazo lleva el resultado crudo y los mensajes ya formateados", () => {
+  test("a rejection carries the raw result and the already formatted messages", () => {
     expect(
       toComprobanteContingency({
         reason: "rejected",
@@ -26,7 +26,7 @@ describe("toComprobanteContingency", () => {
     });
   });
 
-  test("un rechazo sin detalle de ARCA no inventa nada", () => {
+  test("a rejection with no detail from ARCA invents nothing", () => {
     expect(
       toComprobanteContingency({ reason: "rejected", message: "no" }),
     ).toEqual({
@@ -38,7 +38,7 @@ describe("toComprobanteContingency", () => {
     });
   });
 
-  test("no emitido sólo lleva el mensaje del server", () => {
+  test("not emitted carries only the server message", () => {
     expect(
       toComprobanteContingency({
         reason: "not-emitted",
@@ -47,7 +47,7 @@ describe("toComprobanteContingency", () => {
     ).toEqual({ status: "not-emitted", message: "no se emitió" });
   });
 
-  test("no verificado lleva el comprobante que no se pudo resolver", () => {
+  test("unverified carries the comprobante that could not be resolved", () => {
     expect(
       toComprobanteContingency({
         reason: "unverified",
@@ -63,10 +63,10 @@ describe("toComprobanteContingency", () => {
     });
   });
 
-  // Sin correlativo el alert no podría ofrecer ninguna de las dos salidas —ni
-  // re-verificar ni verificar en el portal—, así que degrada a error genérico
-  // en lugar de bloquear el submit sin decir qué hay que ir a mirar.
-  test("no verificado sin `attempt` no llega a la superficie de contingencia", () => {
+  // Without a sequence number the alert could offer neither of the two ways out —
+  // neither re-verifying nor verifying in the portal — so it degrades to a generic
+  // error instead of blocking the submit without saying what to go and look at.
+  test("unverified with no `attempt` never reaches the contingency surface", () => {
     expect(
       toComprobanteContingency({
         reason: "unverified",
@@ -75,7 +75,7 @@ describe("toComprobanteContingency", () => {
     ).toBeNull();
   });
 
-  // Nada de esto es una contingencia de ARCA: no habilita ni bloquea reintentos.
+  // None of this is an ARCA contingency: it neither enables nor blocks retries.
   test.each(["not-found", "nothing-to-bill", "already-annulled"])(
     "`%s` es un error genérico, no una contingencia",
     (reason) => {
@@ -85,7 +85,7 @@ describe("toComprobanteContingency", () => {
 });
 
 describe("toContingencyActionData", () => {
-  test("una contingencia de ARCA viaja como tal", () => {
+  test("an ARCA contingency travels as one", () => {
     expect(
       toContingencyActionData({
         reason: "not-emitted",
@@ -97,7 +97,7 @@ describe("toContingencyActionData", () => {
     });
   });
 
-  test("lo que no es contingencia cae al error genérico con su mensaje", () => {
+  test("anything that is not a contingency falls through to the generic error with its message", () => {
     expect(
       toContingencyActionData({
         reason: "already-annulled",

@@ -18,10 +18,10 @@ import { useSavedValueSelectForm } from "./use-saved-value-select-form";
 import type { ChoreographyDetailLoaderData } from "./server";
 
 /**
- * Los tres campos que se reasignan solos: cada uno tiene su propio `useForm`
- * aislado del form del roster, auto-submitea al elegir y postea su intent, así
- * que se quedan en la página y responden por toast. Ninguno participa del
- * guardado del roster ni de su diálogo de confirmación.
+ * The three fields that reassign on their own: each has its own `useForm`,
+ * isolated from the roster's form, auto-submits on selection and posts its
+ * intent, so they stay on the page and report back by toast. None of them takes
+ * part in saving the roster or in its confirmation dialog.
  *
  * `disabled` is what a pending modality correction uses to hold them while its
  * resolution is in flight: they keep showing the saved value in the same
@@ -106,14 +106,14 @@ export function ExperienceLevelField({
     value: option.id,
   }));
 
-  // `canReassign` mira la categoría guardada; el prop la reemplaza mientras hay
-  // un cambio de roster pendiente que la mueve.
+  // `canReassign` looks at the saved category; the prop replaces it while there is
+  // a pending roster change that moves it.
   if (!loaderData.experienceLevel.canReassign || !requiresExperienceLevel) {
     return (
       <ReadOnlySelectField
-        // Dos vacíos distintos: la categoría no pide nivel, o lo pide y falta.
-        // Sin la distinción, una coreografía incompleta se ve igual que una que
-        // está bien.
+        // Two different kinds of empty: the category does not ask for a level, or
+        // it asks and it is missing. Without the distinction, an incomplete
+        // choreography looks the same as one that is fine.
         emptyLabel={requiresExperienceLevel ? "Sin asignar" : "No aplica"}
         label="Nivel de experiencia"
         options={options}

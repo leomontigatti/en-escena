@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { payments, eventFinancialSequences } from "@/db/schema";
+import { payments, eventSequences } from "@/db/schema";
 
 export async function registerAcademyEventPayment(input: {
   academyId: string;
@@ -14,7 +14,7 @@ export async function registerAcademyEventPayment(input: {
 }) {
   return await db.transaction(async (tx) => {
     await tx
-      .insert(eventFinancialSequences)
+      .insert(eventSequences)
       .values({
         eventId: input.eventId,
       })
@@ -22,14 +22,14 @@ export async function registerAcademyEventPayment(input: {
 
     const [sequence] = await tx
       .select({
-        nextPaymentNumber: eventFinancialSequences.nextPaymentNumber,
+        nextPaymentNumber: eventSequences.nextPaymentNumber,
       })
-      .from(eventFinancialSequences)
-      .where(eq(eventFinancialSequences.eventId, input.eventId))
+      .from(eventSequences)
+      .where(eq(eventSequences.eventId, input.eventId))
       .for("update");
 
     if (!sequence) {
-      throw new Error("Expected event financial sequence to exist.");
+      throw new Error("Expected event sequence to exist.");
     }
 
     const paymentNumber = sequence.nextPaymentNumber;
@@ -49,12 +49,12 @@ export async function registerAcademyEventPayment(input: {
       .returning({ id: payments.id });
 
     await tx
-      .update(eventFinancialSequences)
+      .update(eventSequences)
       .set({
         nextPaymentNumber: paymentNumber + 1,
         updatedAt: new Date(),
       })
-      .where(eq(eventFinancialSequences.eventId, input.eventId));
+      .where(eq(eventSequences.eventId, input.eventId));
 
     return { paymentId: inserted.id };
   });

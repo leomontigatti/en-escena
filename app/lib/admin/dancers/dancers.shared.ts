@@ -66,7 +66,7 @@ export function readDancerIdentificationFilter(
   }
 }
 
-/** `all` se codifica por ausencia del parámetro, así que devuelve `null`. */
+/** `all` is encoded by the absence of the parameter, so it returns `null`. */
 export function toDancerParticipationSearchValue(
   value: DancerParticipationFilter,
 ) {
@@ -80,7 +80,7 @@ export function toDancerParticipationSearchValue(
   }
 }
 
-/** `active` se codifica por ausencia del parámetro, así que devuelve `null`. */
+/** `active` is encoded by the absence of the parameter, so it returns `null`. */
 export function toDancerStatusSearchValue(value: DancerStatusFilter) {
   switch (value) {
     case "archived":

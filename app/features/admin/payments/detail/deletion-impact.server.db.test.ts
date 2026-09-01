@@ -184,8 +184,8 @@ describe("readPaymentDeletionImpact", () => {
     const fixture = await seedDeletionFixture();
     const doomedPayment = fixture.paymentRows[0];
 
-    // La primera inscripción cruza la seña agotando el pago #1; la segunda se
-    // la lleva entera del #2, así que borrar el #1 no la toca.
+    // The first inscription crosses the deposit, exhausting payment #1; the second
+    // takes all of #2, so deleting #1 does not touch it.
     await spreadFromPool(db, {
       academyId: fixture.academyId,
       amount: 3000,
@@ -223,7 +223,7 @@ describe("readPaymentDeletionImpact", () => {
       eventId: fixture.eventId,
     });
 
-    // Lo que el diálogo prometió es lo que la eliminación hizo.
+    // What the dialog promised is what the deletion did.
     expect(statuses.get(fixture.choreographyIds[0])).toBe("depositPending");
     expect(statuses.get(fixture.choreographyIds[1])).toBe("depositMet");
   });
@@ -232,8 +232,8 @@ describe("readPaymentDeletionImpact", () => {
     const fixture = await seedDeletionFixture();
     const doomedPayment = fixture.paymentRows[0];
 
-    // 1000 sobre una seña de 3000: la inscripción sigue en `Seña pendiente`
-    // antes y después, así que no hay umbral que se descruce.
+    // 1000 against a deposit of 3000: the inscription stays in `Seña pendiente`
+    // before and after, so no threshold is uncrossed.
     await spreadFromPool(db, {
       academyId: fixture.academyId,
       amount: 1000,

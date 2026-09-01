@@ -1,42 +1,42 @@
-// Código QR del comprobante según la RG 4291 de ARCA. El QR codifica una URL
-// pública `https://www.afip.gob.ar/fe/qr/?p=<base64>` cuyo parámetro `p` es el
-// JSON del comprobante codificado en base64. El contenido es un espejo del
-// snapshot fiscal ya emitido (numeración, CUIT emisor, importe, CAE): la vista
-// imprimible lo genera bajo demanda y NUNCA dispara una emisión.
+// The comprobante's QR code per ARCA's RG 4291. The QR encodes a public URL
+// `https://www.afip.gob.ar/fe/qr/?p=<base64>` whose `p` parameter is the
+// comprobante's JSON encoded in base64. The content mirrors the already emitted
+// fiscal snapshot (numbering, issuer CUIT, amount, CAE): the printable view
+// generates it on demand and NEVER triggers an emission.
 
-// URL base del verificador público de ARCA (RG 4291).
+// Base URL of ARCA's public verifier (RG 4291).
 export const AFIP_QR_BASE_URL = "https://www.afip.gob.ar/fe/qr/";
 
-// Versión del formato del payload definida por la RG 4291.
+// Payload format version defined by RG 4291.
 export const QR_VERSION = 1;
 
-// Cotización de la moneda: siempre 1 porque se factura en pesos (`PES`).
+// Currency exchange rate: always 1, because billing is in pesos (`PES`).
 export const QR_MONEDA_COTIZACION = 1;
 
-// Tipo de código de autorización: "E" = CAE (electrónico). ARCA sólo admite "E"
-// para comprobantes electrónicos como la Factura C.
+// Authorization code type: "E" = CAE (electronic). ARCA admits only "E" for
+// electronic comprobantes such as the Factura C.
 export const QR_TIPO_COD_AUT = "E";
 
-// Datos del comprobante que codifica el QR. Provienen del snapshot inmutable de
-// la fila `comprobantes`, así que reproducen exactamente lo autorizado por ARCA.
+// The comprobante data the QR encodes. It comes from the immutable snapshot on
+// the `comprobantes` row, so it reproduces exactly what ARCA authorized.
 export type ComprobanteQrInput = {
-  // Fecha del comprobante en formato ARCA `AAAAMMDD` (columna `cbteFch`).
+  // Comprobante date in ARCA's `AAAAMMDD` format (the `cbteFch` column).
   cbteFch: string;
-  // CUIT del emisor como texto (30717611590 excede un integer de 32 bits).
+  // Issuer CUIT as text (30717611590 exceeds a 32-bit integer).
   issuerCuit: string;
   ptoVta: number;
   cbteTipo: number;
   cbteNro: number;
-  // Importe total en pesos argentinos enteros (sin centavos, ver finances.md).
+  // Total amount in whole Argentine pesos (no cents, see finances.md).
   impTotal: number;
   receptorDocTipo: number;
-  // Documento del receptor como texto (consumidor final anónimo: "0").
+  // The recipient's document as text (anonymous final consumer: "0").
   receptorDocNro: string;
   cae: string;
 };
 
-// Payload JSON conforme a la RG 4291. El orden y los nombres de los campos son
-// los que espera el verificador de ARCA.
+// JSON payload conforming to RG 4291. The field order and names are the ones
+// ARCA's verifier expects.
 export type ComprobanteQrData = {
   ver: number;
   fecha: string;
@@ -53,9 +53,9 @@ export type ComprobanteQrData = {
   codAut: number;
 };
 
-// Convierte una fecha ARCA `AAAAMMDD` al `AAAA-MM-DD` que exige el QR de la
-// RG 4291. Un valor con otra forma se propaga tal cual: el snapshot es inmutable
-// y no conviene ocultar un dato inesperado.
+// Converts an ARCA `AAAAMMDD` date to the `AAAA-MM-DD` RG 4291's QR requires. A
+// value with any other shape is propagated as is: the snapshot is immutable and
+// hiding unexpected data is not worth it.
 function toQrDate(cbteFch: string): string {
   const match = /^(\d{4})(\d{2})(\d{2})$/.exec(cbteFch);
 
@@ -67,10 +67,10 @@ function toQrDate(cbteFch: string): string {
   return `${year}-${month}-${day}`;
 }
 
-// Construye el objeto del payload del QR (RG 4291) a partir del snapshot del
-// comprobante. `moneda`/`ctz` son fijos porque se factura en pesos; `tipoCodAut`
-// es "E" (CAE). Los identificadores largos (CUIT, CAE) se codifican como número,
-// tal como los espera el verificador de ARCA.
+// Builds the QR payload object (RG 4291) from the comprobante's snapshot.
+// `moneda`/`ctz` are fixed because billing is in pesos; `tipoCodAut` is "E"
+// (CAE). The long identifiers (CUIT, CAE) are encoded as numbers, exactly as
+// ARCA's verifier expects them.
 export function buildComprobanteQrData(
   input: ComprobanteQrInput,
 ): ComprobanteQrData {
@@ -91,14 +91,14 @@ export function buildComprobanteQrData(
   };
 }
 
-// Codifica el payload del QR en base64, tal como viaja en el parámetro `p` de la
-// URL de la RG 4291.
+// Encodes the QR payload in base64, exactly as it travels in the `p` parameter
+// of the RG 4291 URL.
 export function encodeComprobanteQrPayload(data: ComprobanteQrData): string {
   return Buffer.from(JSON.stringify(data), "utf8").toString("base64");
 }
 
-// URL completa del verificador de ARCA con el payload codificado. Es el texto
-// que se representa dentro del código QR del impreso.
+// The full URL of ARCA's verifier with the encoded payload. It is the text
+// represented inside the QR code on the printout.
 export function buildComprobanteQrUrl(input: ComprobanteQrInput): string {
   const payload = encodeComprobanteQrPayload(buildComprobanteQrData(input));
   return `${AFIP_QR_BASE_URL}?p=${payload}`;

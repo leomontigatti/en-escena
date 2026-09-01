@@ -15,7 +15,7 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-describe("Bases del evento modalidades repository", () => {
+describe("Bases del evento modalities repository", () => {
   test("creates a modalidad together with its submodalidades in one transaction", async () => {
     const event = await createSavedEvent("Regional 2026");
 

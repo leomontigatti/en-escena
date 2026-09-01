@@ -23,10 +23,10 @@ import {
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import type { ComprobanteStatus } from "@/lib/comprobantes/comprobante-status.server";
 
-// Fila de la lista global de comprobantes (#339 variante A, #483). Es de sólo
-// lectura: expone el snapshot fiscal ya emitido (numeración, CAE, importe, fecha)
-// junto a su estado derivado y la coreografía/academia ancla para navegar al
-// detalle.
+// A row of the global comprobantes list (#339 variant A, #483). It is read-only:
+// it exposes the already emitted fiscal snapshot (numbering, CAE, amount, date)
+// alongside its derived state and the anchor choreography/academy for navigating
+// to the detail.
 export type ComprobantesListRow = {
   id: string;
   cbteTipo: number;
@@ -42,8 +42,9 @@ export type ComprobantesListRow = {
   academyName: string;
 };
 
-// Faceta de tipo: sólo se emiten Factura C (11) y Nota de crédito C (13). El
-// valor viaja como slug estable en la URL para no acoplar el filtro al label.
+// Type facet: only Factura C (11) and Nota de crédito C (13) are emitted. The
+// value travels as a stable slug in the URL, so the filter is not coupled to the
+// label.
 export type ComprobanteTipoFacet = "factura_c" | "nota_credito_c";
 
 export type ComprobantesListOrder = {
@@ -75,12 +76,12 @@ const defaultComprobantesOrder: ComprobantesListOrder = {
 };
 
 /**
- * Lista global de comprobantes emitidos en el evento activo, paginada, ordenada y
- * filtrada del lado del servidor (crece con el tiempo, #483). El estado
- * `vigente`/`anulada` NO se persiste: se deriva en SQL de la existencia de una
- * Nota de crédito del mismo evento que referencie la factura vía
- * `associatedComprobanteId`, así el filtro por estado y la paginación operan sobre
- * el estado real y no sobre la página cargada. NO muta nada.
+ * The global list of comprobantes emitted in the active event, paginated, sorted
+ * and filtered on the server (it grows over time, #483). The `vigente`/`anulada`
+ * state is NOT persisted: it is derived in SQL from the existence of a Nota de
+ * crédito of the same event referencing the factura via
+ * `associatedComprobanteId`, so that the state filter and the pagination operate
+ * on the real state and not on the loaded page. It mutates nothing.
  */
 export async function loadComprobantesList(
   request: Request,
@@ -172,8 +173,8 @@ export async function loadComprobantesList(
   };
 }
 
-// `anulada` derivada: existe una Nota de crédito del mismo evento que referencia
-// esta fila. Correlacionada con la fila externa vía `associatedComprobanteId`.
+// Derived `anulada`: a Nota de crédito of the same event referencing this row
+// exists. Correlated with the outer row via `associatedComprobanteId`.
 function buildAnnulledExists(selectedEventId: string): SQL {
   const notaCredito = alias(comprobantes, "nota_credito");
 
@@ -242,8 +243,8 @@ function buildComprobantesWhere(
       or(
         ilike(academies.name, `%${query}%`),
         ilike(choreographies.name, `%${query}%`),
-        // Número fiscal `PPPP-NNNNNNNN`, reconstruido para buscarlo como lo ve la
-        // operadora (mismo formato que `formatComprobanteNumber`).
+        // Fiscal number `PPPP-NNNNNNNN`, reconstructed so it can be searched as
+        // the operator sees it (the same format as `formatComprobanteNumber`).
         ilike(
           sql`lpad(cast(${comprobantes.ptoVta} as text), 4, '0') || '-' || lpad(cast(${comprobantes.cbteNro} as text), 8, '0')`,
           `%${query}%`,
@@ -311,7 +312,7 @@ function buildCanonicalComprobantesSearch(input: {
     searchParams.delete("tipo");
   }
 
-  // Facetas retiradas (ADR-0011): se limpian de URLs viejas.
+  // Retired facets (ADR-0011): they are stripped from old URLs.
   searchParams.delete("academia");
   searchParams.delete("porcion");
 

@@ -1162,9 +1162,10 @@ async function createSoloScenarioInCatalog(input: {
 }
 
 /**
- * Duo con dos inscripciones, la de `dancerA` lista para que el test le cuelgue
- * la evidencia que quiera probar. Quitarla del roster deja un solo bailarín, que
- * es la baja más simple que ejercita la decisión entre borrar y retirar.
+ * A duo with two inscriptions, `dancerA`'s ready for the test to hang whatever
+ * evidence it wants to prove on it. Removing it from the roster leaves a single
+ * dancer, which is the simplest removal that exercises the choice between
+ * deleting and withdrawing.
  */
 async function createRemovalScenario(input: {
   academyName: string;
@@ -1294,9 +1295,9 @@ async function createPayment(scenario: {
   return payment;
 }
 
-// El admin firmante se crea de cero en cada submit, así que el mail tiene que
-// ser único también entre dos submits sobre la misma coreografía (retirar y
-// volver a agregar es exactamente ese caso).
+// The signing admin is created from scratch on every submit, so the email has to
+// be unique across two submits on the same choreography too (withdrawing and
+// adding again is exactly that case).
 let submitCount = 0;
 
 async function submitRoster(input: {

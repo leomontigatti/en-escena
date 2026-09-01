@@ -9,7 +9,7 @@ import {
   resolveInscriptionStatusBadge,
 } from "./inscription-financial-status";
 
-// Seña 3000, total 10000: los dos umbrales de todos los casos de borde.
+// Deposit 3000, total 10000: the two thresholds of every edge case.
 const thresholds = { depositAmount: 3000, totalAmount: 10000 };
 
 function statusAt(allocatedAmount: number) {
@@ -33,8 +33,8 @@ describe("calculateDepositAmount", () => {
   });
 
   test("does not move when the dancer discount does", () => {
-    // El descuento vive en el total; el umbral bajo no lo ve, así que no se
-    // mueve bajo los pies de la academia cuando cambia el roster.
+    // The discount lives in the total; the low threshold does not see it, so it
+    // does not move under the academy's feet when the roster changes.
     const before = calculateDepositAmount({
       priceAmount: 10000,
       requiredDepositPercentage: 30,
@@ -81,8 +81,8 @@ describe("deriveInscriptionFinancialStatus", () => {
   });
 
   test("is paid in full above the total, rather than erroring", () => {
-    // El límite es `≥`, no `=`: la sobreasignación pasiva se tolera y se
-    // denuncia como anomalía, no como estado.
+    // The limit is `≥`, not `=`: passive over-allocation is tolerated and reported
+    // as an anomaly, not as a state.
     expect(statusAt(12000)).toBe("paidInFull");
   });
 
@@ -267,7 +267,7 @@ describe("deriveChoreographyFinancialStatus", () => {
   });
 
   test("does not stick high the way the watermark did", () => {
-    // La marca de agua leía `señada` acá y escondía al rezagado.
+    // The high-water mark read `señada` here and hid the laggard.
     expect(
       deriveChoreographyFinancialStatus(["depositMet", "depositPending"]),
     ).toBe("depositPending");

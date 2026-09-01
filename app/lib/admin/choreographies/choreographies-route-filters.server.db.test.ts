@@ -29,6 +29,7 @@ import {
   handle,
   loader,
 } from "@/routes/administracion.coreografias";
+import { allocateChoreographyNumberForTest } from "@/lib/choreographies/registration-test-fixtures.server.db";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
@@ -175,6 +176,22 @@ describe("administracion/coreografias route filters", () => {
       eventId: event.id,
       expectedNames: ["Sin Categoría Trio"],
       search: "&tipo-grupo=trio",
+    });
+
+    // The event's three choreographies were numbered 1, 2 and 3 in creation
+    // order. The search accepts the number both as displayed and written
+    // short, without the padding zeros.
+    await expectChoreographyNamesForSearch({
+      email: "admin.coreografias.busqueda-numero@example.com",
+      eventId: event.id,
+      expectedNames: ["Duo Incompleto"],
+      search: "&busqueda=00002",
+    });
+    await expectChoreographyNamesForSearch({
+      email: "admin.coreografias.busqueda-numero-corto@example.com",
+      eventId: event.id,
+      expectedNames: ["Sin Categoría Trio"],
+      search: "&busqueda=3",
     });
 
     const missingCategoryData = await loadRouteData({
@@ -338,9 +355,13 @@ async function createChoreographyRecord(input: {
   scheduleCapacityId: string;
   submodalityId?: string;
 }) {
+  const choreographyNumber = await allocateChoreographyNumberForTest(
+    input.eventId,
+  );
   const [choreography] = await db
     .insert(choreographies)
     .values({
+      choreographyNumber,
       academyId: input.academyId,
       categoryCalculationMode: "oldest",
       categoryId: input.categoryId ?? null,

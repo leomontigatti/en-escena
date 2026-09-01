@@ -1,9 +1,9 @@
-// Estado derivado de un `Comprobante` (#320/#326). El estado NO se persiste como
-// columna: se deriva de la existencia de una Nota de crédito asociada. Una
-// factura queda `anulada` cuando otro comprobante (la Nota de crédito, tipo 13)
-// la referencia vía `associatedComprobanteId` (`CbtesAsoc`); si nadie la
-// referencia, sigue `vigente`. En línea con el resto del modelo financiero,
-// donde los estados también son derivados y no persistidos.
+// The derived state of a `Comprobante` (#320/#326). The state is NOT persisted as
+// a column: it is derived from the existence of an associated Nota de crédito. A
+// factura becomes `anulada` when another comprobante (the Nota de crédito, type
+// 13) references it via `associatedComprobanteId` (`CbtesAsoc`); if nobody
+// references it, it stays `vigente`. In line with the rest of the financial
+// model, where the states are derived and not persisted either.
 
 export type ComprobanteStatus = "vigente" | "anulada";
 

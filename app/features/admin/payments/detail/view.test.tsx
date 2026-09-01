@@ -103,7 +103,7 @@ describe("PaymentDetailRouteView", () => {
     expect(text).toContain("2 inscripciones dejan de cumplir un umbral");
     expect(text).toContain("queda Seña pendiente");
 
-    // Sin descruce no se nombra ningún estado resultante.
+    // With nothing uncrossed, no resulting state is named.
     expect(text).toContain("Coreografía Dos");
     expect(text).toContain("$ 1.500");
     expect(text).not.toContain("0 inscripciones");

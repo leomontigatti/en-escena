@@ -15,11 +15,11 @@ if (typeof window !== "undefined") {
   testWindow.$RefreshReg$ = () => {};
   testWindow.$RefreshSig$ = () => (type) => type;
   globalThis.FormData = window.FormData;
-  // `URLSearchParams` va el de Node, no el de jsdom: el `Request` global lo pone
-  // undici (jsdom no implementa fetch) y rechaza un body que no sea una instancia
-  // de SU `URLSearchParams`. Con el de jsdom instalado, cualquier submit de
-  // `useFetcher` en un test de interacción explota antes de llegar al action
-  // (#577).
+  // `URLSearchParams` uses Node's, not jsdom's: the global `Request` is provided
+  // by undici (jsdom does not implement fetch) and it rejects a body that is not
+  // an instance of ITS `URLSearchParams`. With jsdom's installed, any
+  // `useFetcher` submit in an interaction test blows up before reaching the
+  // action (#577).
   globalThis.URLSearchParams =
     nodeURLSearchParams as unknown as typeof globalThis.URLSearchParams;
 

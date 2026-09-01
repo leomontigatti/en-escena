@@ -24,9 +24,9 @@ export type PortalChoreographyDetail = PortalChoreographyListItem & {
   experienceLevelId: string | null;
   hasPresentation?: boolean;
   /**
-   * Que la categoría resuelta declare niveles. La academia no edita el nivel,
-   * pero sí necesita distinguir "no corresponde" de "falta": son dos vacíos con
-   * significados opuestos.
+   * Whether the resolved category declares levels. The academy does not edit the
+   * level, but it does need to tell "not applicable" from "missing": two kinds of
+   * empty with opposite meanings.
    */
   requiresExperienceLevel: boolean;
   musicStorageKey: string | null;
@@ -50,6 +50,7 @@ export type PortalChoreographyDetail = PortalChoreographyListItem & {
 
 type ChoreographyRow = {
   id: string;
+  choreographyNumber: number;
   name: string;
   groupType: "solo" | "duo" | "trio" | "grupal";
   categoryId: string | null;
@@ -77,6 +78,7 @@ export async function listChoreographiesForAcademyEvent(
   const rows = await db
     .select({
       id: choreographies.id,
+      choreographyNumber: choreographies.choreographyNumber,
       name: choreographies.name,
       groupType: choreographies.groupType,
       categoryId: choreographies.categoryId,
@@ -110,6 +112,7 @@ export async function findChoreographyForAcademyEvent(
   const rows: ChoreographyDetailRow[] = await db
     .select({
       id: choreographies.id,
+      choreographyNumber: choreographies.choreographyNumber,
       name: choreographies.name,
       groupType: choreographies.groupType,
       categoryId: choreographies.categoryId,
@@ -258,6 +261,7 @@ async function hydrateChoreographyRows(
 
   return rows.map((row) => ({
     id: row.id,
+    choreographyNumber: row.choreographyNumber,
     name: row.name,
     modalityName: row.modalityName,
     submodalityName: row.submodalityName,

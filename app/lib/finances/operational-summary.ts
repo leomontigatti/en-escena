@@ -11,11 +11,11 @@ export type OperationalFinanceAmount =
 
 export type OperationalFinanceSummary = {
   availableBalanceAmount: number;
-  // `Saldo adeudado`: bruto, suma del faltante de cada inscripción contra su
-  // total. No descuenta `Saldo disponible`.
+  // `Saldo adeudado`: gross, the sum of each inscription's shortfall against its
+  // total. It does not subtract `Saldo disponible`.
   owedBalanceAmount: OperationalFinanceAmount;
-  // `Seña adeudada`: bruto, suma del faltante de cada inscripción contra su
-  // seña. Contenida en `Saldo adeudado`, nunca su complemento.
+  // `Seña adeudada`: gross, the sum of each inscription's shortfall against its
+  // deposit. Contained in `Saldo adeudado`, never its complement.
   owedDepositAmount: OperationalFinanceAmount;
   totalPaidAmount: number;
 };

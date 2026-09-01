@@ -334,7 +334,7 @@ describe("administrative choreography detail server", () => {
       facturaCInput({ choreographyId: invoiced.id, eventId: event.id }),
     );
 
-    // Sólo la existencia de la Factura C ya bloquea el borrado físico.
+    // The mere existence of the Factura C already blocks the physical delete.
     await expect(loadDeleteBlockers(invoiced.id)).resolves.toEqual([
       "comprobantes",
     ]);
@@ -348,8 +348,9 @@ describe("administrative choreography detail server", () => {
       409,
     );
 
-    // Anular con una Nota de crédito no libera el bloqueo: la historia fiscal
-    // persiste (la factura anulada + la NC siguen ancladas a la coreografía).
+    // Annulling with a Nota de crédito does not lift the block: the fiscal history
+    // remains (the annulled factura + the NC are still anchored to the
+    // choreography).
     await recordComprobante(
       facturaCInput({
         choreographyId: invoiced.id,
@@ -370,7 +371,7 @@ describe("administrative choreography detail server", () => {
       409,
     );
 
-    // La coreografía nunca se borró pese a los dos intentos.
+    // The choreography was never deleted, despite the two attempts.
     await expect(
       db.query.choreographies.findFirst({
         where: eq(choreographies.id, invoiced.id),
@@ -637,9 +638,9 @@ describe("administrative choreography detail server", () => {
     });
   });
 
-  // El cupo puntual con lugar no alcanza: la capacidad total del cronograma
-  // que lo contiene es una segunda barrera, y la reasignación tiene que
-  // chocarla igual que el registro.
+  // A specific capacity with room is not enough: the total capacity of the
+  // schedule containing it is a second barrier, and the reassignment has to hit
+  // it just as registration does.
   test("rejects a target cupo with room when its cronograma is already full", async () => {
     const scenario = await createScheduleCapacityScenario({
       academyName: "Academia Cronograma Total Lleno",
@@ -668,8 +669,8 @@ describe("administrative choreography detail server", () => {
     const target = detail.scheduleCapacity.options.find(
       (option) => option.id === scenario.target.scheduleCapacity.id,
     );
-    // El cupo puntual dice 1/5 y aun así se ofrece deshabilitado: la vista no
-    // puede prometer lugar donde el intent va a rechazar.
+    // The specific capacity says 1/5 and it is still offered disabled: the view
+    // cannot promise room where the intent is going to refuse.
     expect(target?.label).toContain("1/5 ocupados · sin cupo");
     expect(target?.isFull).toBe(true);
 
@@ -687,8 +688,8 @@ describe("administrative choreography detail server", () => {
     });
   });
 
-  // La seña puede aparecer entre que el loader abrió el campo y que el intent
-  // corre: la guarda se revalida dentro de la transacción, no antes de ella.
+  // The `Seña` may appear between the loader opening the field and the intent
+  // running: the guard is revalidated inside the transaction, not before it.
   test("blocks a reassignment whose seña was registered after the field was open", async () => {
     const scenario = await createScheduleCapacityScenario({
       academyName: "Academia Cronograma Seña Tardía",
@@ -761,8 +762,8 @@ describe("administrative choreography detail server", () => {
       academyName: "Academia Cronograma Sin Cambios",
       slug: "cronograma.sin.cambios",
     });
-    // El cupo queda lleno con la propia coreografía: sin la exclusión, elegir
-    // el cupo ya asignado se rechazaría por falta de lugar.
+    // The capacity is filled by the choreography itself: without the exclusion,
+    // picking the already assigned capacity would be rejected for lack of room.
     await db
       .update(scheduleCapacities)
       .set({ capacity: 1 })
@@ -847,8 +848,8 @@ describe("administrative choreography detail server", () => {
       ]),
     );
 
-    // Con el cupo asignado fuera de la compatibilidad, la opción vigente sigue
-    // en la lista aunque el campo quede bloqueado por falta de alternativas.
+    // With the assigned capacity outside compatibility, the current option stays
+    // in the list even though the field is blocked for lack of alternatives.
     const foreignModality = await createModalityRecord({
       eventId: scenario.event.id,
       name: "Urbano",
@@ -885,9 +886,9 @@ describe("administrative choreography detail server", () => {
       slug: "cronograma.unico",
     });
 
-    // La asignación deriva a un cupo de otra modalidad y queda un solo
-    // cronograma compatible: el campo se cierra, así que el intent tampoco
-    // puede aceptar el movimiento que la vista se niega a ofrecer.
+    // The assignment drifts to a capacity of another modality and a single
+    // compatible schedule is left: the field closes, so the intent cannot accept
+    // the move the view refuses to offer either.
     const foreignModality = await createModalityRecord({
       eventId: scenario.event.id,
       name: "Urbano",
@@ -953,13 +954,13 @@ describe("administrative choreography detail server", () => {
       (option) => option.id === scenario.target.scheduleCapacity.id,
     );
 
-    // La coreografía que se está moviendo no cuenta contra el cupo que ya
-    // ocupa: su propia opción no puede verse llena.
+    // The choreography being moved does not count against the capacity it
+    // already occupies: its own option cannot show as full.
     expect(assigned?.isFull).toBe(false);
     expect(assigned?.label).toContain("0/5 ocupados");
     expect(target?.isFull).toBe(true);
     expect(target?.label).toContain("1/1 ocupados · sin cupo");
-    // La etiqueta del cronograma asignado sigue sin ocupación.
+    // The assigned schedule's label still carries no occupancy.
     expect(detail.choreography.scheduleLabel).not.toContain("ocupados");
   });
 
@@ -1209,8 +1210,8 @@ describe("administrative choreography detail server", () => {
     await expect(scenario.readExperienceLevel()).resolves.toBe("amateur");
   });
 
-  // La misma condición que cierra el campo en el loader: un POST armado a mano
-  // no puede escribir una columna que el resto del dominio da por nula.
+  // The same condition that closes the field in the loader: a hand-crafted POST
+  // cannot write a column the rest of the domain assumes is null.
   test("rejects a reassignment the read-only field never offers, with a category without levels", async () => {
     const scenario = await createExperienceLevelScenario({
       academyName: "Academia Nivel Sin Niveles",
@@ -1261,8 +1262,8 @@ describe("administrative choreography detail server", () => {
     ]);
   });
 
-  // Si la categoría dejó de admitir el nivel guardado, sigue a la vista en vez
-  // de desaparecer del select sin explicación.
+  // If the category stopped admitting the saved level, it stays in view instead
+  // of disappearing from the select without explanation.
   test("keeps a drifted assigned level in the options", async () => {
     const scenario = await createExperienceLevelScenario({
       academyName: "Academia Nivel Derivado",
@@ -1353,8 +1354,8 @@ function experienceLevelFormData(experienceLevelId: string) {
 }
 
 /**
- * El catálogo compartido trae una categoría con un solo nivel; acá hace falta
- * una que admita más de uno para poder mover el valor de verdad.
+ * The shared catalogue brings a category with a single level; here we need one
+ * that admits more than one, so the value can actually be moved.
  */
 async function createCategoryWithLevels(input: {
   eventId: string;
@@ -1483,9 +1484,9 @@ async function createScheduleWithSoloCapacity(input: {
 }
 
 /**
- * Una coreografía registrada en el cupo del catálogo y un segundo cronograma
- * compatible al que reasignarla: el mínimo para que la resolución sea
- * `multiple` y el campo esté habilitado.
+ * A choreography registered in the catalogue's capacity and a second compatible
+ * schedule to reassign it to: the minimum for the resolution to be `multiple`
+ * and the field to be enabled.
  */
 async function createScheduleCapacityScenario(input: {
   academyName: string;
@@ -1620,8 +1621,9 @@ function deleteFormData() {
   return formData;
 }
 
-// Snapshot de Factura C a consumidor final anónimo del emisor exento; los
-// overrides permiten derivar la NC espejo (cbteTipo 13 + associatedComprobanteId).
+// Snapshot of a Factura C to an anonymous final consumer from the exempt issuer;
+// the overrides allow deriving the mirror NC (cbteTipo 13 +
+// associatedComprobanteId).
 function facturaCInput(
   overrides: Partial<RecordComprobanteInput> & {
     choreographyId: string;

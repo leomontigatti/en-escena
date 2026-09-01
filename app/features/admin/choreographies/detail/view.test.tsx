@@ -282,7 +282,8 @@ describe("ChoreographyDetailRouteView", () => {
 
     expect(markup).toContain("Nivel de experiencia");
     expect(markup).toContain('name="assignedExperienceLevelId"');
-    // El select del roster no coexiste con el autónomo: comparten el slot.
+    // The roster's select does not coexist with the standalone one: they share the
+    // slot.
     expect(markup).not.toContain('name="experienceLevelId"');
   });
 
@@ -394,8 +395,8 @@ describe("ChoreographyDetailRouteView", () => {
     expect(markup).toContain("Elegí uno para completarla");
   });
 
-  // Misma regla que la alerta financiera de #619: informa un estado de los
-  // datos, no una acción, así que no se suprime para el auditor.
+  // The same rule as #619's financial alert: it reports a state of the data, not
+  // an action, so it is not suppressed for the auditor.
   test("shows the missing-level alert to auditors too", () => {
     const markup = renderDetail({
       loaderData: buildLoaderData({
@@ -705,6 +706,7 @@ function buildChoreography(
     academyName: "Academia Norte",
     categoryId: "category_1",
     categoryName: "Juvenil",
+    choreographyNumber: 1,
     dancers: [
       {
         active: true,

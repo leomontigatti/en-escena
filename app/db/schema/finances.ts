@@ -23,32 +23,6 @@ export const paymentMethod = pgEnum("en_escena_finance_payment_method", [
   "otro",
 ]);
 
-export const eventFinancialSequences = createTable(
-  "event_financial_sequence",
-  {
-    eventId: varchar("event_id", { length: 255 })
-      .primaryKey()
-      .notNull()
-      .references(() => events.id, { onDelete: "cascade" }),
-    nextPaymentNumber: integer("next_payment_number").notNull().default(1),
-    createdAt: timestamp("created_at", {
-      mode: "date",
-      withTimezone: true,
-    })
-      .notNull()
-      .default(sql`CURRENT_TIMESTAMP`),
-    updatedAt: timestamp("updated_at", {
-      mode: "date",
-      withTimezone: true,
-    })
-      .notNull()
-      .default(sql`CURRENT_TIMESTAMP`),
-  },
-  (table) => [
-    index("event_financial_sequence_updated_idx").on(table.updatedAt),
-  ],
-).enableRLS();
-
 export const payments = createTable(
   "payment",
   {
@@ -122,10 +96,9 @@ export const paymentAllocations = createTable(
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),
   },
-  // Las foreign keys van nombradas porque el nombre que deriva Drizzle de esta
-  // tabla supera los 63 caracteres de un identificador de Postgres y se trunca.
-  // Los nombres deben coincidir con los de la migración baseline en
-  // app/db/migrations.
+  // The foreign keys are named because the name Drizzle derives from this table
+  // exceeds Postgres's 63-character identifier limit and gets truncated. The names
+  // must match those in the baseline migration in app/db/migrations.
   (table) => [
     foreignKey({
       columns: [table.paymentId],

@@ -13,12 +13,12 @@ export function activeInscription(): SQL {
 }
 
 /**
- * El gemelo en SQL crudo, para las consultas que no pasan por el query builder
- * (un `exists` armado a mano, por ejemplo). Toma el alias con el que la consulta
- * nombró a `choreography_dancer`, porque en un `exists` correlacionado la tabla
- * casi nunca se llama como en el schema. Es la misma condición que
- * `activeInscription()`, y un test la compara contra ella sobre una fixture con
- * filas retiradas: si una de las dos se mueve, la otra falla.
+ * The raw-SQL twin, for the queries that do not go through the query builder (a
+ * hand-built `exists`, for instance). It takes the alias the query gave
+ * `choreography_dancer`, because in a correlated `exists` the table is almost
+ * never named as it is in the schema. It is the same condition as
+ * `activeInscription()`, and a test compares it against that one over a fixture
+ * with withdrawn rows: if either moves, the other fails.
  */
 export function activeInscriptionSql(inscriptionTableAlias: string): SQL {
   return sql`${sql.identifier(inscriptionTableAlias)}.${sql.identifier("withdrawn_at")} is null`;

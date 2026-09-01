@@ -32,14 +32,14 @@ export type ChoreographyExperienceLevelOption = {
 };
 
 /**
- * Las opciones que la vista ofrece son exactamente las que el intent acepta:
- * los niveles que declara la categoría resuelta, más el nivel asignado hoy. Ese
- * agregado es solo de visibilidad —si la categoría dejó de admitir el nivel
- * guardado, tiene que seguir a la vista en lugar de desaparecer del select sin
- * explicación—, y reelegirlo es una escritura idéntica a lo que ya hay.
+ * The options the view offers are exactly the ones the intent accepts: the levels
+ * the resolved category declares, plus the level assigned today. That addition is
+ * for visibility only — if the category stopped admitting the saved level, it has
+ * to stay in view rather than disappear from the select without explanation —
+ * and re-picking it is a write identical to what is already there.
  *
- * No hay tabla de niveles: son un enum global y la categoría declara cuáles
- * admite, así que la lista se arma acá y no se consulta.
+ * There is no levels table: they are a global enum and the category declares
+ * which ones it admits, so the list is built here and not queried.
  */
 function resolveChoreographyExperienceLevelOptions(input: {
   categoryExperienceLevels: string[] | null;
@@ -69,6 +69,7 @@ type ChoreographyDetailRow = {
   academyId: string;
   academyName: string;
   categoryExperienceLevels: string[] | null;
+  choreographyNumber: number;
   categoryId: string | null;
   categoryName: string | null;
   experienceLevelId: string | null;
@@ -92,6 +93,7 @@ export type ChoreographyDetail = {
   academyId: string;
   academyName: string;
   categoryId: string | null;
+  choreographyNumber: number;
   categoryName: string | null;
   dancers: Array<{
     active: boolean;
@@ -104,8 +106,8 @@ export type ChoreographyDetail = {
   experienceLevelId: string | null;
   experienceLevelName: string | null;
   /**
-   * Los niveles que admite la categoría resuelta, más el asignado hoy. Es la
-   * lista que el select ofrece y la que el intent acepta.
+   * The levels the resolved category admits, plus the one assigned today. It is
+   * the list the select offers and the one the intent accepts.
    */
   experienceLevelOptions: ChoreographyExperienceLevelOption[];
   groupType: ChoreographyGroupType;
@@ -124,9 +126,9 @@ export type ChoreographyDetail = {
     lastName: string;
   }>;
   /**
-   * Que la categoría resuelta declare niveles. Distinto de tener opciones: una
-   * categoría que dejó de admitir niveles sigue arrastrando el nivel guardado
-   * como opción visible, pero ya no lo requiere.
+   * Whether the resolved category declares levels. Different from having options:
+   * a category that stopped admitting levels still carries the saved level along
+   * as a visible option, but no longer requires it.
    */
   requiresExperienceLevel: boolean;
   scheduleCapacityId: string;
@@ -146,6 +148,7 @@ export async function findChoreographyDetail(input: {
       academyName: academies.name,
       categoryExperienceLevels: categories.experienceLevels,
       categoryId: choreographies.categoryId,
+      choreographyNumber: choreographies.choreographyNumber,
       categoryName: categories.name,
       experienceLevelId: choreographies.experienceLevelId,
       groupType: choreographies.groupType,
@@ -209,6 +212,7 @@ export async function findChoreographyDetail(input: {
     academyName: row.academyName,
     categoryId: row.categoryId,
     categoryName: row.categoryName,
+    choreographyNumber: row.choreographyNumber,
     dancers: dancerRows,
     experienceLevelId: row.experienceLevelId,
     experienceLevelName: formatExperienceLevelName(row.experienceLevelId),

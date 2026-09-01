@@ -45,8 +45,8 @@ describe("FinancesListRouteView", () => {
 });
 
 /**
- * Se ancla en el encabezado "Saldo disponible" en vez de en la posición de la
- * celda, para que el test siga hablando de la columna si el orden cambia.
+ * It anchors on the "Saldo disponible" header rather than on the cell's position,
+ * so the test keeps talking about the column if the order changes.
  */
 function isAvailableBalanceMuted(markup: string) {
   const document = new DOMParser().parseFromString(markup, "text/html");
