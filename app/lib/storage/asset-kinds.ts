@@ -92,7 +92,7 @@ export function getAssetKindPolicy(kind: AssetKind): AssetKindPolicy {
   return assetKindPolicies[kind];
 }
 
-export function getAssetKindAllowedContentTypes(kind: AssetKind) {
+function getAssetKindAllowedContentTypes(kind: AssetKind) {
   return Object.keys(assetKindPolicies[kind].extensionByContentType);
 }
 
@@ -101,7 +101,7 @@ export function getAssetKindAccept(kind: AssetKind) {
   return getAssetKindAllowedContentTypes(kind).join(",");
 }
 
-export function getAssetKindMaxFileSizeMegabytes(kind: AssetKind) {
+function getAssetKindMaxFileSizeMegabytes(kind: AssetKind) {
   return assetKindPolicies[kind].maxFileSizeBytes / BYTES_PER_MEGABYTE;
 }
 
@@ -202,14 +202,14 @@ export function formatUploadRejection(
   }
 }
 
-export function getAssetKindInvalidTypeMessage(
+function getAssetKindInvalidTypeMessage(
   kind: AssetKind,
   options: UploadSubjectOptions = {},
 ) {
   return `${getSubject(kind, options)} debe ser ${assetKindPolicies[kind].formatListLabel}.`;
 }
 
-export function getAssetKindMaxFileSizeMessage(
+function getAssetKindMaxFileSizeMessage(
   kind: AssetKind,
   options: UploadSubjectOptions = {},
 ) {

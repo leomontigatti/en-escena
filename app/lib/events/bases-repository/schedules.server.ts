@@ -31,6 +31,11 @@ import {
   validateInlineScheduleCapacitiesInput,
   validateInlineScheduleCapacityDependencies,
 } from "@/lib/events/bases-repository/schedule-capacities.server";
+import {
+  resolveScheduleCapacityOccupancies,
+  toScheduleCapacityOccupancyKey,
+  type ScheduleCapacityOccupancy,
+} from "@/lib/choreographies/schedule-capacity-occupancy.server";
 
 export async function listSchedules(
   eventId: string,
@@ -73,6 +78,18 @@ export async function listSchedules(
   const capacitiesByScheduleId = groupScheduleCapacities(
     eventScheduleCapacities,
   );
+  const occupancies = await resolveScheduleCapacityOccupancies({
+    targets: [
+      ...scheduleIds.map((scheduleId) => ({
+        scheduleCapacityId: null,
+        scheduleId,
+      })),
+      ...eventScheduleCapacities.map((scheduleCapacity) => ({
+        scheduleCapacityId: scheduleCapacity.id,
+        scheduleId: scheduleCapacity.scheduleId,
+      })),
+    ],
+  });
 
   return eventSchedules.map((schedule) => {
     const scheduleEntries = modalitiesByScheduleId.get(schedule.id) ?? [];
@@ -82,13 +99,45 @@ export async function listSchedules(
       ...schedule,
       modalities: scheduleEntries,
       modalityIds: scheduleEntries.map((modality) => modality.id),
-      occupiedCapacity: capacitiesForSchedule.reduce(
-        (total, capacity) => total + capacity.capacity,
-        0,
+      ...toScheduleOccupancy(
+        occupancies.get(
+          toScheduleCapacityOccupancyKey({
+            scheduleCapacityId: null,
+            scheduleId: schedule.id,
+          }),
+        ),
+        schedule.totalCapacity,
       ),
-      scheduleCapacities: capacitiesForSchedule,
+      scheduleCapacities: capacitiesForSchedule.map((scheduleCapacity) => ({
+        ...scheduleCapacity,
+        ...toScheduleOccupancy(
+          occupancies.get(
+            toScheduleCapacityOccupancyKey({
+              scheduleCapacityId: scheduleCapacity.id,
+              scheduleId: schedule.id,
+            }),
+          ),
+          scheduleCapacity.capacity,
+        ),
+      })),
     };
   });
+}
+
+/**
+ * Places never go below zero: if someone squeezed in an extra choreography or
+ * shrank the capacity afterwards, the view reads "sin lugares", not a negative.
+ */
+function toScheduleOccupancy(
+  occupancy: ScheduleCapacityOccupancy | undefined,
+  capacity: number,
+) {
+  const occupiedCount = occupancy?.occupiedCount ?? 0;
+
+  return {
+    availablePlaces: Math.max(capacity - occupiedCount, 0),
+    occupiedCount,
+  };
 }
 
 export async function createSchedule(

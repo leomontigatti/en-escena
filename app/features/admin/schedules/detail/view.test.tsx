@@ -23,7 +23,7 @@ vi.mock("react-router", async () => {
   };
 });
 
-describe("EventScheduleDetailView delete", () => {
+describe("EventScheduleDetailView", () => {
   const renderer = createReactDomTestRenderer();
 
   afterEach(() => {
@@ -54,6 +54,50 @@ describe("EventScheduleDetailView delete", () => {
     await renderDetail();
 
     expect(getButton("Eliminar").disabled).toBe(true);
+  });
+
+  // The form plans against what is left: the total capacity and each split
+  // capacity say how many places are still free, not just how much was shared out.
+  test("shows how many lugares are left for the cronograma and for each cupo", async () => {
+    useNavigationMock.mockReturnValue({ state: "idle" });
+
+    await renderDetail({
+      initialDeleteDialogOpen: false,
+      loaderData: buildOccupiedLoaderData(),
+    });
+
+    // Read-only decoration inside the control, right after the number.
+    expect(document.body.textContent).toContain(" / 4 disponibles");
+    expect(document.body.textContent).toContain(" / 2 disponibles");
+    // Never as a field description: that slot sits between the label and the
+    // control, and pushed every cupo out of line with its tipo de grupo select.
+    expect(
+      document.querySelectorAll('[data-slot="field-description"]'),
+    ).toHaveLength(0);
+    // The suffix is aria-hidden, so the accessible name spells the count out.
+    expect(
+      document.querySelector('label[for="schedule-capacity-capacity-0"]')
+        ?.textContent,
+    ).toBe("Cupo. Quedan 2 de 6 lugares.");
+    expect(
+      document.querySelector("#totalCapacity")?.getAttribute("aria-label"),
+    ).toBe("Cupo total. Quedan 4 de 10 lugares.");
+  });
+
+  test("leads the footer with Volver and its chevron, opposite Guardar", async () => {
+    useNavigationMock.mockReturnValue({ state: "idle" });
+
+    await renderDetail({ initialDeleteDialogOpen: false });
+
+    const volver = document.querySelector(
+      'a[href*="/administracion/cronogramas"]',
+    );
+    const actions = volver?.closest("div");
+
+    expect(volver?.textContent).toContain("Volver");
+    expect(volver?.querySelector("svg")).not.toBeNull();
+    expect(actions?.className).toContain("justify-between");
+    expect(actions?.firstElementChild?.textContent).toContain("Volver");
   });
 
   async function renderDetail(
@@ -96,8 +140,36 @@ function buildLoaderData(): EventScheduleDetailLoaderData {
         createdAt: new Date("2026-01-01T00:00:00.000Z"),
         modalityIds: [],
         modalities: [],
-        occupiedCapacity: 0,
+        availablePlaces: 10,
+        occupiedCount: 0,
         scheduleCapacities: [],
+      },
+    ],
+  };
+}
+
+function buildOccupiedLoaderData(): EventScheduleDetailLoaderData {
+  const loaderData = buildLoaderData();
+  const [schedule] = loaderData.schedules;
+
+  return {
+    ...loaderData,
+    schedules: [
+      {
+        ...schedule,
+        availablePlaces: 4,
+        occupiedCount: 6,
+        scheduleCapacities: [
+          {
+            id: "schedule_capacity_1",
+            scheduleId: schedule.id,
+            groupType: "solo",
+            capacity: 6,
+            createdAt: new Date("2026-01-01T00:00:00.000Z"),
+            availablePlaces: 2,
+            occupiedCount: 4,
+          },
+        ],
       },
     ],
   };

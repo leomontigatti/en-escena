@@ -52,6 +52,12 @@ type IntegerInputFieldProps<
   labelClassName?: string;
   name: TName;
   orientation?: SharedFieldOrientation;
+  /**
+   * Read-only text rendered right after the typed value, inside the control.
+   * It is decoration: `aria-hidden`, unselectable, and never submitted, so the
+   * label still has to carry whatever it says.
+   */
+  suffix?: string;
 };
 
 function getIntegerInputValue(value: string) {
@@ -90,6 +96,7 @@ function IntegerInputField<
   labelClassName,
   name,
   orientation,
+  suffix,
   disabled = false,
   ...inputProps
 }: IntegerInputFieldProps<TFieldValues, TName>) {
@@ -125,6 +132,7 @@ function IntegerInputField<
                   className={cn(disabled && "pr-9", inputClassName)}
                   disabled={disabled}
                 />
+                <IntegerInputSuffix suffix={suffix} value={field.value} />
                 {disabled ? <FieldControlLockIcon /> : null}
               </div>
             )}
@@ -132,6 +140,34 @@ function IntegerInputField<
         );
       }}
     />
+  );
+}
+
+/**
+ * The suffix has to sit right after the typed value and move with it, so it is
+ * laid out over the control on top of an invisible copy of that value: same
+ * font and padding as the input, so the copy is exactly as wide as the text it
+ * mirrors and no measurement is needed.
+ */
+function IntegerInputSuffix({
+  suffix,
+  value,
+}: {
+  suffix?: string;
+  value?: string;
+}) {
+  if (!suffix || !value) {
+    return null;
+  }
+
+  return (
+    <span
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-y-0 left-2.5 flex max-w-[calc(100%-1.25rem)] items-center overflow-hidden whitespace-pre text-base md:text-sm"
+    >
+      <span className="invisible">{value}</span>
+      <span className="text-muted-foreground">{suffix}</span>
+    </span>
   );
 }
 

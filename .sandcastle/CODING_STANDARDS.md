@@ -136,6 +136,14 @@ The converse also holds: **do not opportunistically translate** comments you are
 not otherwise touching. Sweeping the existing Spanish is #592's job, and mixing
 it into a feature branch buries the change under a diff nobody asked to review.
 
+One file type is exempt from both directions: **an applied migration under
+`app/db/migrations/` is frozen, comments included.** Drizzle hashes the whole
+`.sql` file, so translating a comment inside one stops the production container
+from starting — which is exactly what
+[#762](https://github.com/leomontigatti/en-escena/pull/762) did. Leave its
+Spanish where it is, whatever this section says; `pnpm check:migration-immutability`
+enforces it, and `docs/db/migrations.md` explains why.
+
 `CONTEXT.md` is the mapping table, keyed on the code identifier: every entry is
 the canonical English identifier followed by `ui:`, the Spanish term the user
 sees. That direction matches how the table is used — you are writing code, you
