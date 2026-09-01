@@ -459,7 +459,7 @@ function ConfirmEditDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Confirmar edición</AlertDialogTitle>
           <AlertDialogDescription>
-            Vas a guardar los cambios de esta coreografía. Revisá que el roster
+            Vas a guardar los cambios de esta coreografía. Revisá que el elenco
             sea correcto antes de confirmar.
           </AlertDialogDescription>
         </AlertDialogHeader>
