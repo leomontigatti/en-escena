@@ -17,6 +17,7 @@
     "check:banned-imports": "node --import tsx scripts/check-banned-imports.ts",
     "check:file-tokens": "node --import tsx scripts/check-file-tokens.ts",
     "check:doc-map": "node scripts/check-doc-map.mjs",
+    "check:migration-immutability": "node scripts/check-migration-immutability.mjs",
     "check:migration-order": "node scripts/check-migration-order.mjs",
     "check:repo-styles": "node --import tsx scripts/repo-style-guardrail.ts",
     "format": "prettier --write .",
