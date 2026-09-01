@@ -42,11 +42,11 @@ export const choreographies = createTable(
     academyId: varchar("academy_id", { length: 255 })
       .notNull()
       .references(() => academies.id),
-    // El número corto por el que se busca una coreografía. Es único dentro del
-    // evento, no globalmente: toda pantalla que lista coreografías ya trabaja
-    // sobre un evento elegido, y el evento de una coreografía nunca cambia, así
-    // que el número queda fijo de por vida. Lo entrega `eventSequences`; se
-    // muestra con `formatChoreographyNumber`.
+    // The short number a choreography is searched by. It is unique within the
+    // event, not globally: every screen that lists choreographies already works
+    // against a chosen event, and a choreography's event never changes, so the
+    // number stays fixed for life. `eventSequences` hands it out;
+    // `formatChoreographyNumber` displays it.
     choreographyNumber: integer("choreography_number").notNull(),
     name: text("name").notNull(),
     modalityId: varchar("modality_id", { length: 255 })

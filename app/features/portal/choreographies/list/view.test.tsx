@@ -64,8 +64,8 @@ describe("PortalChoreographiesListRouteView", () => {
     }
 
     expect(markup).not.toContain("Evento consultado");
-    // La academia ve el mismo número que el administrador: es el que va a citar
-    // cuando pregunte por una coreografía.
+    // The academy sees the same number the admin does: it is the one they will
+    // quote when they ask about a choreography.
     expect(markup).toContain("00001");
     expect(markup).toContain("00002");
     expect(markup).toContain("Mi Pieza");

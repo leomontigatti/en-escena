@@ -50,13 +50,12 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
     ),
     filterValue: (choreography) =>
       formatChoreographyNumber(choreography.choreographyNumber),
-    sortValue: (choreography) => choreography.choreographyNumber,
   },
   {
     id: "nombre",
     header: "Nombre",
-    className: "w-[22%] font-medium",
-    headerClassName: "w-[22%]",
+    className: "w-[20%] font-medium",
+    headerClassName: "w-[20%]",
     cell: (choreography) => (
       <DataTableLink to={`/administracion/coreografias/${choreography.id}`}>
         {choreography.name}
@@ -68,8 +67,8 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
   {
     id: "academia",
     header: "Academia",
-    className: "w-[22%] text-muted-foreground",
-    headerClassName: "w-[22%]",
+    className: "w-[20%] text-muted-foreground",
+    headerClassName: "w-[20%]",
     cell: (choreography) => choreography.academyName,
     filterValue: (choreography) => choreography.academyName,
     sortValue: (choreography) => choreography.academyName,
@@ -77,8 +76,8 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
   {
     id: "modalidadSubmodalidad",
     header: "Modalidad / Submodalidad",
-    className: "w-[22%] text-muted-foreground",
-    headerClassName: "w-[22%]",
+    className: "w-[20%] text-muted-foreground",
+    headerClassName: "w-[20%]",
     cell: (choreography) =>
       formatPrimaryAndSecondaryValue(
         choreography.modalityName,
@@ -88,8 +87,8 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
   {
     id: "categoriaTipoGrupo",
     header: "Categoría / Tipo de grupo",
-    className: "w-[22%] text-muted-foreground",
-    headerClassName: "w-[22%]",
+    className: "w-[20%] text-muted-foreground",
+    headerClassName: "w-[20%]",
     cell: (choreography) =>
       formatPrimaryAndSecondaryValue(
         choreography.categoryName ?? "Sin asignar",

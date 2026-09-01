@@ -6,14 +6,14 @@ import { eventSequences } from "@/db/schema";
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /**
- * Entrega el próximo número de coreografía del evento y deja el contador
- * listo para el siguiente. Va dentro de la transacción que inserta la
- * coreografía: el `FOR UPDATE` serializa dos altas simultáneas del mismo
- * evento, y si la inserción falla, el número vuelve atrás con ella.
+ * Hands out the event's next choreography number and leaves the counter ready
+ * for the following one. It belongs inside the transaction that inserts the
+ * choreography: the `FOR UPDATE` serializes two simultaneous creations in the
+ * same event, and if the insert fails the number rolls back with it.
  *
- * El `insert ... on conflict do nothing` crea la fila del contador la primera
- * vez que un evento la necesita, sin importar si llegó antes por un pago o por
- * una coreografía.
+ * The `insert ... on conflict do nothing` creates the counter row the first
+ * time an event needs it, no matter whether a payment or a choreography got
+ * there first.
  */
 export async function allocateChoreographyNumber(input: {
   tx: Transaction;

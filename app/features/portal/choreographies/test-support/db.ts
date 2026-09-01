@@ -208,8 +208,8 @@ export async function createChoreographyRecord(
     name: string;
   },
 ) {
-  // Numera por el mismo camino que la aplicación en vez de fijar un número: así
-  // dos coreografías del mismo evento en un test no chocan contra
+  // Numbers through the same path the application uses instead of pinning a
+  // number, so two choreographies of one event in a test cannot collide with
   // `choreography_event_number_unique`.
   const [choreography] = await db.transaction(async (tx) =>
     tx

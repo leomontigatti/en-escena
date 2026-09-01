@@ -178,9 +178,9 @@ describe("administracion/coreografias route filters", () => {
       search: "&tipo-grupo=trio",
     });
 
-    // Las tres coreografías del evento se numeraron 1, 2 y 3 en el orden en que
-    // se crearon. La búsqueda acepta el número tal como se muestra y también
-    // escrito corto, sin los ceros de relleno.
+    // The event's three choreographies were numbered 1, 2 and 3 in creation
+    // order. The search accepts the number both as displayed and written
+    // short, without the padding zeros.
     await expectChoreographyNamesForSearch({
       email: "admin.coreografias.busqueda-numero@example.com",
       eventId: event.id,

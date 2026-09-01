@@ -445,10 +445,10 @@ function matchesChoreographyFilters(
 
   const normalizedQuery = normalizeSearchValue(filters.query);
 
-  // El número se compara ya rellenado con ceros, así que `42`, `042` y `00042`
-  // encuentran la misma coreografía. Sigue siendo un `includes` como el resto
-  // de la búsqueda: el administrador que solo recuerda el final del número lo
-  // escribe y llega igual.
+  // The number is compared already zero-padded, so `42`, `042` and `00042` all
+  // find the same choreography. It stays an `includes` like the rest of the
+  // search: an admin who only remembers the tail of the number types that and
+  // still gets there.
   return (
     normalizeSearchValue(row.name).includes(normalizedQuery) ||
     normalizeSearchValue(row.academyName).includes(normalizedQuery) ||

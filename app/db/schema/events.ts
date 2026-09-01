@@ -322,12 +322,13 @@ export const scheduleCapacities = createTable(
   ],
 ).enableRLS();
 
-// Un contador por evento, una fila por evento. Alimenta los números legibles
-// que el usuario lee y busca: el del pago y el de la coreografía. Cada número
-// se entrega tomando esta fila con `FOR UPDATE` dentro de la misma transacción
-// que inserta, así que dos altas simultáneas se serializan en vez de repetir el
-// número. La numeración deja huecos —borrar una coreografía no devuelve el
-// suyo— y así debe ser: estos números identifican, no cuentan.
+// One counter per event, one row per event. It feeds the readable numbers the
+// user reads and searches by: the payment's and the choreography's. Each number
+// is handed out by taking this row with `FOR UPDATE` inside the same
+// transaction that inserts, so two simultaneous creations serialize instead of
+// repeating a number. The numbering leaves gaps — deleting a choreography does
+// not give its number back — and that is as it should be: these numbers
+// identify, they do not count.
 export const eventSequences = createTable(
   "event_sequence",
   {

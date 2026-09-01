@@ -1,22 +1,23 @@
--- La coreografía gana un número corto por el que buscarla; qué significa y por
--- qué es único por evento y no globalmente está en `choreographies` en
--- `app/db/schema/choreographies.ts`. Acá queda lo propio de esta migración.
+-- A choreography gains a short number to search it by; what it means and why
+-- it is unique per event rather than globally lives with `choreographies` in
+-- `app/db/schema/choreographies.ts`. Only what is specific to this migration
+-- stays here.
 --
--- La tabla de contadores deja de llamarse `event_financial_sequence`: ya no
--- cuenta solo plata. El `RENAME` conserva filas, la clave primaria y los
--- permisos, así que la numeración de pagos en curso no se entera.
+-- The counter table stops being called `event_financial_sequence`: it no
+-- longer counts money alone. The `RENAME` preserves rows, the primary key and
+-- the grants, so payment numbering already in flight never notices.
 --
--- La columna nace nullable y recién al final es `NOT NULL`: la tabla tiene
--- filas y un `ADD COLUMN ... NOT NULL` sin default las rechazaría a todas. El
--- relleno numera cada evento por separado con `ROW_NUMBER()`, ordenando por
--- fecha de creación. El desempate por `id` no es decorativo: una alta masiva
--- comparte `created_at` al microsegundo y sin él el orden sería arbitrario
--- entre esas filas —y por lo tanto distinto en cada réplica—. Qué número
--- concreto recibió cada coreografía vieja da igual; que sea único dentro del
--- evento y estable, no.
+-- The column is born nullable and only becomes `NOT NULL` at the end: the
+-- table has rows, and an `ADD COLUMN ... NOT NULL` with no default would
+-- reject every one of them. The backfill numbers each event separately with
+-- `ROW_NUMBER()`, ordered by creation date. The `id` tiebreak is not
+-- decorative: a bulk insert shares `created_at` down to the microsecond, and
+-- without it the order among those rows would be arbitrary — and therefore
+-- different on each replica. Which particular number an old choreography got
+-- does not matter; that it is unique within its event and stable does.
 --
--- El índice único se crea después del relleno, cuando ya no hay nulos que
--- pueda rechazar.
+-- The unique index is created after the backfill, once there are no nulls left
+-- for it to reject.
 ALTER TABLE "en_escena_event_financial_sequence" RENAME TO "en_escena_event_sequence";--> statement-breakpoint
 ALTER TABLE "en_escena_event_sequence" DROP CONSTRAINT "en_escena_event_financial_sequence_event_id_en_escena_event_id_fk";
 --> statement-breakpoint
@@ -36,11 +37,11 @@ FROM (
 WHERE numbered."id" = c."id";--> statement-breakpoint
 ALTER TABLE "en_escena_choreography" ALTER COLUMN "choreography_number" SET NOT NULL;--> statement-breakpoint
 ALTER TABLE "en_escena_event_sequence" ADD COLUMN "next_choreography_number" integer DEFAULT 1 NOT NULL;--> statement-breakpoint
--- Cada evento que ya tiene coreografías arranca su contador después del último
--- número repartido. El `INSERT ... ON CONFLICT` cubre los dos casos de una vez:
--- el evento que nunca cobró un pago no tiene fila de contador y la necesita, y
--- el que sí la tiene solo actualiza el nuevo campo. Un evento sin coreografías
--- no aparece acá y arranca en 1 por el default.
+-- Every event that already has choreographies starts its counter after the
+-- last number handed out. The `INSERT ... ON CONFLICT` covers both cases at
+-- once: an event that never took a payment has no counter row and needs one,
+-- while an event that does only updates the new field. An event with no
+-- choreographies never appears here and starts at 1 through the default.
 INSERT INTO "en_escena_event_sequence" ("event_id", "next_choreography_number")
 SELECT "event_id", MAX("choreography_number") + 1
 FROM "en_escena_choreography"

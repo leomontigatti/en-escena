@@ -75,8 +75,8 @@ describe("ChoreographiesListRouteView", () => {
       expect(markup).toContain(column);
     }
 
-    // El número se muestra relleno con ceros y enlaza al detalle igual que el
-    // nombre: es el otro camino por el que el administrador entra a la ficha.
+    // The number is shown zero-padded and links to the detail just like the
+    // name does: it is the other way an admin reaches the record.
     expect(markup).toContain("00001");
     expect(markup).toContain("00002");
     expect(markup).toContain("Pieza Visible");

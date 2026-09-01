@@ -437,8 +437,8 @@ describe.sequential("choreography registration confirmation", () => {
 
     expect(firstEventNumbers).toEqual([1, 2]);
 
-    // La numeración es por evento, así que el segundo evento vuelve a empezar en
-    // 1 en vez de continuar la cuenta del primero.
+    // Numbering is per event, so the second event starts over at 1 instead of
+    // continuing the first one's count.
     const second = await createOpenEventCatalog();
     const secondEventDancer = await createDancer(owner.academyId, {
       birthDate: "2014-07-01",
@@ -474,8 +474,9 @@ async function expectRegistered(
 ) {
   const result = await createChoreographyRegistration(input);
 
-  // Sin esto, un alta rechazada se leería más tarde como "el evento no numeró
-  // nada" y el fallo apuntaría al contador en vez de al motivo real.
+  // Without this, a rejected creation would read later as "the event numbered
+  // nothing" and the failure would point at the counter instead of the real
+  // reason.
   expect(result).toMatchObject({ ok: true });
 
   return result;
