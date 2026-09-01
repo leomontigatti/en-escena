@@ -85,13 +85,26 @@ jobs:
           pnpm install --frozen-lockfile
           npm install -g @anthropic-ai/claude-code
 
+      # The `code-review` skill the review prompt delegates its analysis to.
+      # Installed globally (~/.claude/skills), deliberately outside the git work
+      # tree so the runner's commit step can never sweep it into the PR branch.
+      # Tracked at `latest` on purpose — the skill is Matt Pocock's managed
+      # bundle and every run exercises its current version. Scoped to the
+      # claude-code agent so the step exits 0.
+      - name: Install code-review skill
+        run: npx --yes skills@latest add mattpocock/skills -g -s code-review -a claude-code -y --copy
+
       - name: Configure git identity
         run: |
           git config user.name "claude-code[bot]"
           git config user.email "claude-code[bot]@users.noreply.github.com"
 
       - name: Run review runner
-        timeout-minutes: 30 # guardrail: an agent hang must not burn the whole run
+        # 45, not the 30 the other runners use: the `code-review` skill fans out
+        # into parallel sub-agents, and the agent now reads the diff per-file
+        # instead of being handed it. Review runs measured 5-9 min end to end
+        # before that, with a ~20 min tail already brushing the old budget.
+        timeout-minutes: 45 # guardrail: an agent hang must not burn the whole run
         env:
           # Read-only prefetch (diff, linked issue, PR_COMMENTS_JSON) uses this;
           # the agent is instructed not to mutate anything.
@@ -100,7 +113,7 @@ jobs:
           # Internal deadline, below the step's `timeout-minutes`: the runner aborts
           # the agent and fails with a real reason instead of Actions killing it
           # with no `failure_reason.txt` (#512).
-          AGENT_BUDGET_MINUTES: 25
+          AGENT_BUDGET_MINUTES: 40
         run: pnpm exec tsx .sandcastle/agent-review/review.mts
 
       - name: Upload agent log

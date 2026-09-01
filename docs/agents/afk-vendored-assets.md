@@ -68,6 +68,28 @@ are only concrete references to this repo:
   ([`prompts/implement-prd.prompt.md`](./prompts/implement-prd.prompt.md) line 44 keeps the
   source's wording). The rule this serves is in
   [`issue-tracker.md`](./issue-tracker.md#closing-an-issue).
+- **Review delegates its analysis to the `code-review` skill (§4.4), and reads the diff itself.**
+  Upstream moved the review agent off an ad-hoc pass and onto Matt Pocock's `code-review` skill,
+  which audits the diff along a **Standards** and a **Spec** axis in parallel sub-agents, and at
+  the same time stopped embedding the full patch in favour of a `git diff --stat` summary the
+  agent drills into per file. Both are adopted here. Two local differences follow from the
+  runner contract: the agent holds **no GitHub token** (§3.8), so the skill is told the spec is
+  already embedded and the tracker is off-limits — upstream's "pull the sub-issues with
+  `gh api`" branch for PRDs is replaced by "review against the embedded body and say so";
+  and `.sandcastle/agent-review/context.mts` keeps fetching the **full** patch even though the
+  prompt only shows `--stat`, because `diff-anchors.mts` validates the agent's inline anchors
+  against it. The skill is installed per run at `latest`, globally (outside the work tree, so
+  the commit step cannot sweep it into the PR branch), exactly as upstream does.
+- **The linked issue's body is embedded, not just its title.** Adopting the skill's Spec axis
+  exposed a local gap that predated it: the review context fetched the issue with
+  `--json title` only, so `<linked-issue>` expanded to a single line while the prompt asked the
+  agent to verify coverage, scope, and interpretation against "the spec". It now fetches
+  `--json title,body` and embeds the body.
+- **`agent-review` gets a bigger wall-clock budget** (45 / 40 instead of the usual 30 / 25),
+  because the skill's sub-agents and the agent's own per-file diff reading both cost time. The
+  table and the reasoning are in [`afk-setup.md`](./afk-setup.md) → "Wall-clock guardrails"; the
+  budget-below-timeout invariant is unchanged and still enforced by
+  `tests/afk/failure-reason-fallback.test.ts`.
 - **Promote Queued says what it does not promote (§4.7).** The gate stays exactly as specified
   (`state_reason != 'not_planned'` — a deferred or rejected decision genuinely unblocks nothing),
   but a `not planned` close is now the documented way to close a _deferred_ issue, so the local
