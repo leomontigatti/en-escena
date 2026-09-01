@@ -60,39 +60,24 @@ export function ChoreographyDetailAlerts({
 
       {/* La alerta financiera no se suprime para el auditor: el motivo del
           bloqueo es información de la coreografía, no del permiso de quien
-          mira. */}
-      {loaderData.scheduleCapacity.blockers.length > 0 ? (
-        <Alert variant="warning">
+          mira. Un bloqueo por línea, sin título ni lista: el label del servidor
+          ya es la frase entera, y dos bloqueos son dos alertas apiladas. */}
+      {loaderData.scheduleCapacity.blockers.map((blocker) => (
+        <Alert key={blocker.code} variant="warning">
           <TriangleAlert aria-hidden="true" />
-          <AlertTitle>El cupo de cronograma está bloqueado</AlertTitle>
-          <AlertDescription>
-            <p>No se puede reasignar el cupo de cronograma:</p>
-            <ul className="mt-2 flex flex-col gap-1">
-              {loaderData.scheduleCapacity.blockers.map((blocker) => (
-                <li key={blocker.code}>{blocker.label}</li>
-              ))}
-            </ul>
-          </AlertDescription>
+          <AlertDescription>{blocker.label}</AlertDescription>
         </Alert>
-      ) : null}
+      ))}
 
       {/* A seña does not close the modalidad: it only rejects the correction
-          that would move the cronograma, so it is listed as a
+          that would move the cronograma, so it is announced as a
           blocker-in-waiting. */}
-      {loaderData.modality.blockers.length > 0 ? (
-        <Alert variant="warning">
+      {loaderData.modality.blockers.map((blocker) => (
+        <Alert key={blocker.code} variant="warning">
           <TriangleAlert aria-hidden="true" />
-          <AlertTitle>La modalidad tiene un bloqueo en potencia</AlertTitle>
-          <AlertDescription>
-            <p>Se puede rechazar la corrección de la modalidad:</p>
-            <ul className="mt-2 flex flex-col gap-1">
-              {loaderData.modality.blockers.map((blocker) => (
-                <li key={blocker.code}>{blocker.label}</li>
-              ))}
-            </ul>
-          </AlertDescription>
+          <AlertDescription>{blocker.label}</AlertDescription>
         </Alert>
-      ) : null}
+      ))}
 
       {noCompatibleCategory ? (
         <Alert variant="destructive">

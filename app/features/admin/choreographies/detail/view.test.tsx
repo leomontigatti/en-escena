@@ -177,7 +177,7 @@ describe("ChoreographyDetailRouteView", () => {
             {
               code: "frozen-price",
               label:
-                "Al menos una inscripción tiene dinero asignado: su precio quedó congelado contra este cronograma.",
+                "No se puede reasignar el cupo de cronograma: hay inscripciones con dinero asignado y su precio quedó congelado contra este cronograma.",
             },
           ],
           canReassign: false,
@@ -192,8 +192,9 @@ describe("ChoreographyDetailRouteView", () => {
       }),
     });
 
-    expect(markup).toContain("El cupo de cronograma está bloqueado");
-    expect(markup).toContain("Al menos una inscripción tiene dinero asignado");
+    expect(markup).toContain(
+      "No se puede reasignar el cupo de cronograma: hay inscripciones con dinero asignado",
+    );
     expect(markup).not.toContain('name="assignedScheduleCapacityId"');
   });
 
@@ -209,14 +210,13 @@ describe("ChoreographyDetailRouteView", () => {
       }),
     });
 
-    expect(markup).toContain("El cupo de cronograma está bloqueado");
     expect(markup).toContain("Hay dinero asignado.");
   });
 
   test("does not announce a cupo de cronograma blocker when there is none", () => {
     const markup = renderDetail({ loaderData: buildLoaderData() });
 
-    expect(markup).not.toContain("El cupo de cronograma está bloqueado");
+    expect(markup).not.toContain("No se puede reasignar el cupo de cronograma");
   });
 
   test("renders an editable modalidad select for admins", () => {
@@ -256,7 +256,7 @@ describe("ChoreographyDetailRouteView", () => {
             {
               code: "frozen-price",
               label:
-                "Al menos una inscripción tiene dinero asignado: solo se puede corregir la modalidad si el cronograma no se mueve.",
+                "Solo se puede corregir la modalidad si el cronograma no se mueve: hay inscripciones con dinero asignado.",
             },
           ],
           canCorrect: false,
@@ -265,16 +265,17 @@ describe("ChoreographyDetailRouteView", () => {
       }),
     });
 
-    expect(markup).toContain("La modalidad tiene un bloqueo en potencia");
     expect(markup).toContain(
-      "solo se puede corregir la modalidad si el cronograma no se mueve",
+      "Solo se puede corregir la modalidad si el cronograma no se mueve",
     );
   });
 
   test("does not announce a modalidad blocker when there is no money on it", () => {
     const markup = renderDetail({ loaderData: buildLoaderData() });
 
-    expect(markup).not.toContain("La modalidad tiene un bloqueo en potencia");
+    expect(markup).not.toContain(
+      "Solo se puede corregir la modalidad si el cronograma no se mueve",
+    );
   });
 
   test("renders a standalone nivel de experiencia select for admins whose category declares levels", () => {
