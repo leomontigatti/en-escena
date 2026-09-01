@@ -66,8 +66,22 @@ describe("EventScheduleDetailView", () => {
       loaderData: buildOccupiedLoaderData(),
     });
 
-    expect(document.body.textContent).toContain("Quedan 4 de 10 lugares.");
-    expect(document.body.textContent).toContain("Quedan 2 de 6 lugares.");
+    // Read-only decoration inside the control, right after the number.
+    expect(document.body.textContent).toContain(" / 4 disponibles");
+    expect(document.body.textContent).toContain(" / 2 disponibles");
+    // Never as a field description: that slot sits between the label and the
+    // control, and pushed every cupo out of line with its tipo de grupo select.
+    expect(
+      document.querySelectorAll('[data-slot="field-description"]'),
+    ).toHaveLength(0);
+    // The suffix is aria-hidden, so the accessible name spells the count out.
+    expect(
+      document.querySelector('label[for="schedule-capacity-capacity-0"]')
+        ?.textContent,
+    ).toBe("Cupo. Quedan 2 de 6 lugares.");
+    expect(
+      document.querySelector("#totalCapacity")?.getAttribute("aria-label"),
+    ).toBe("Cupo total. Quedan 4 de 10 lugares.");
   });
 
   async function renderDetail(

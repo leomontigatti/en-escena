@@ -38,6 +38,7 @@ import {
   createEmptyScheduleCapacityFormValues,
   describeAvailablePlaces,
   emptyScheduleCapacities,
+  formatAvailablePlacesSuffix,
   emptySelection,
   getAvailableScheduleCapacityGroupTypeOptions,
   scheduleFormSchema,
@@ -141,14 +142,10 @@ export function ScheduleForm({
       <FieldGroup className="grid gap-4 sm:grid-cols-2">
         <ScheduleTextField form={form} label="Nombre" name="name" />
         <ScheduleTextField
-          description={
-            availablePlaces === undefined || totalCapacity === undefined
-              ? undefined
-              : describeAvailablePlaces({
-                  availablePlaces,
-                  capacity: totalCapacity,
-                })
+          availablePlaces={
+            totalCapacity === undefined ? undefined : availablePlaces
           }
+          capacity={totalCapacity}
           form={form}
           label="Cupo total"
           min={1}
@@ -202,16 +199,18 @@ export function ScheduleFormPanel({ children }: { children: ReactNode }) {
 }
 
 function ScheduleTextField({
+  availablePlaces,
+  capacity,
   className,
-  description,
   form,
   label,
   min,
   name,
   step,
 }: {
+  availablePlaces?: number;
+  capacity?: number;
   className?: string;
-  description?: string;
   form: ScheduleFormController;
   label: string;
   min?: number;
@@ -219,16 +218,30 @@ function ScheduleTextField({
   step?: number;
 }) {
   if (name === "totalCapacity") {
+    const hasAvailablePlaces =
+      availablePlaces !== undefined && capacity !== undefined;
+
     return (
       <IntegerInputField
         className={className}
         control={form.control}
-        description={description}
         id={name}
+        // The visible label stays just the label; the accessible name carries
+        // the count that the decorative suffix cannot.
+        aria-label={
+          hasAvailablePlaces
+            ? `${label}. ${describeAvailablePlaces({ availablePlaces, capacity })}`
+            : undefined
+        }
         label={label}
         min={min}
         name={name}
         step={step}
+        suffix={
+          hasAvailablePlaces
+            ? formatAvailablePlacesSuffix(availablePlaces)
+            : undefined
+        }
       />
     );
   }
@@ -339,7 +352,7 @@ function InlineFieldArray<TField extends { fieldId: string }>({
       </div>
       {fields.length > 0 ? (
         <div className="flex flex-col gap-2">
-          <div className="hidden gap-4 text-sm font-medium sm:grid sm:grid-cols-[minmax(0,1fr)_12rem_2rem]">
+          <div className="hidden gap-4 text-sm font-medium sm:grid sm:grid-cols-[minmax(0,1fr)_14rem_2rem]">
             <div>Tipo de grupo</div>
             <div>Cupo</div>
             <div />
@@ -375,7 +388,7 @@ function ScheduleCapacityInlineFields({
   const capacityFieldName = `scheduleCapacities.${index}.capacity` as const;
 
   return (
-    <FieldGroup className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_12rem_2rem] sm:items-start">
+    <FieldGroup className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_14rem_2rem] sm:items-start">
       {field.id ? (
         <input type="hidden" name={idFieldName} value={field.id} />
       ) : null}
@@ -389,15 +402,23 @@ function ScheduleCapacityInlineFields({
       />
       <IntegerInputField
         control={form.control}
-        description={
-          availablePlaces ? describeAvailablePlaces(availablePlaces) : undefined
-        }
         name={capacityFieldName}
         id={`schedule-capacity-capacity-${index}`}
-        label="Cupo"
+        // The label is already sr-only here, so it is where the count the
+        // decorative suffix cannot carry belongs.
+        label={
+          availablePlaces
+            ? `Cupo. ${describeAvailablePlaces(availablePlaces)}`
+            : "Cupo"
+        }
         labelClassName="sr-only"
         min={1}
         step={1}
+        suffix={
+          availablePlaces
+            ? formatAvailablePlacesSuffix(availablePlaces.availablePlaces)
+            : undefined
+        }
       />
       <Button
         type="button"

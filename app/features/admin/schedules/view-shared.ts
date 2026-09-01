@@ -153,8 +153,16 @@ export function formatAvailablePlaces({
 }
 
 /**
- * The same count as the list, worded for a form field description, where the
- * capacity is already visible in the input next to it.
+ * Read-only text shown inside the cupo field, right after the number being
+ * edited: the capacity is already there, so the suffix only adds what is left.
+ */
+export function formatAvailablePlacesSuffix(availablePlaces: number) {
+  return ` / ${availablePlaces} disponibles`;
+}
+
+/**
+ * The suffix is decoration that a screen reader never reaches, so the field
+ * label spells the same count out in full.
  */
 export function describeAvailablePlaces({
   availablePlaces,
