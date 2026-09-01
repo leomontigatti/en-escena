@@ -36,6 +36,7 @@ Emit a single `<output>` block as the **last thing** in your response:
 </output>
 ```
 
-- `prTitle`: single line, < 70 chars, conventional-commit style, framed around the PRD.
+- `prTitle`: single line, < 70 chars, conventional-commit style, framed around the PRD, in
+  English (`CODING_STANDARDS.md` § Code Language).
 - `prDescription`: restate the PRD's goal, list **every** sub-issue (number + title), and end
   with `Closes #{{PRD_NUMBER}}`.

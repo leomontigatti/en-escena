@@ -30,6 +30,11 @@ are only concrete references to this repo:
   [`domain.md`](./domain.md), instead of the source's generic `CONTEXT.md`/ADRs.
 - **Coding standards** pointing at `.sandcastle/CODING_STANDARDS.md` (canonical) and
   [`style-guide.md`](./style-guide.md) for frontend/UI.
+- **English PR titles.** The source leaves the language of the prose it asks for implicit,
+  which is safe in a monolingual repo and ambiguous here: this product is Spanish and the
+  history the agent reads for precedent is mostly Spanish commits. The `write-pr` and
+  `write-prd-pr` prompts name the language and point at
+  `.sandcastle/CODING_STANDARDS.md` § Code Language, which is what actually decides it.
 - **`gh` tracker** (GitHub Issues): the prompts use `gh issue view … --comments` instead of the
   source's "project-specific" placeholders.
 - **Appendix C** of the spec: `backlog.md` → [`issue-tracker.md`](./issue-tracker.md) (our
