@@ -219,6 +219,10 @@ _Avoid_: public link, presigned URL, permalink
 Dancers linked to a choreography through inscriptions.
 _Avoid_: professors, financial data
 
+**`roster`** — ui: "Elenco"
+The set of dancers and professors a choreography currently carries: the **`choreographyDancers`** the admin form edits, plus the linked professors. It is the English domain term and stays in identifiers, file names and comments (`choreography-roster.server.ts`, `updateChoreographyRosterIntent`, `removeInscriptionsFromRoster`); what the academy reads is "Elenco". Use "Bailarines de coreografía" when the surface names the dancers alone, and "Elenco" when it names the group the choreography presents with. Removal from it is not one gesture but two — a physical delete without evidence, a **`withdrawnInscription`** with it.
+_Avoid_: "Roster" as interface copy (retired), cast, lineup, plantel
+
 **`dancer`** — ui: "Bailarín"
 Person loaded by an academy to take part in choreographies.
 _Avoid_: `professor`, `user`
@@ -314,6 +318,10 @@ _Avoid_: `comprobante`, `inscriptionStage` (retired), seña invoice, balance inv
 **Desactualizada** _(retired term)_ — no code identifier
 Currency badge each of the choreography financial detail's two `porción` metric cards carried, paired with a `Vigente` that meant "the covering factura bills every peso collected in this portion". It read a portion and died with **Porción**; those cards now carry no badge and no comprobante link. The surviving `Vigente` is the unrelated one — the derived `vigente` / `anulada` status of a **`comprobante`**, shown on the global comprobante list and detail. Do not use.
 _Avoid_: `comprobanteStatus`, `Vigente` (comprobante status), stale, outdated
+
+**Plata** _(retired term)_ — no code identifier
+Colloquial Rioplatense word for money, once used across the finance surfaces: the allocation dialog's `Asignar plata` / `Quitar plata`, the withdrawal copy, the payment-deletion warning and two server error messages. The register was wrong for a product an academy reads, so every surface now says **dinero** — masculine, so the agreement around it changed too ("el dinero asignado", not "la plata asignada"). It is retired as a _string_, not as a concept: what the copy names is still a **`paymentAllocation`** against an inscription. Do not use, in interface copy or in comments.
+_Avoid_: `paymentAllocation`, guita, saldo, `availableBalanceAmount`
 
 **Choreography invoice** _(retired term)_ — no code identifier
 Document of the old financial model (tables `academy_event_choreography_invoice` and `academy_event_invoice_imputation`), removed in V1 (see ADR-0009). Do not use; for the tax receipt see **`comprobante`**.

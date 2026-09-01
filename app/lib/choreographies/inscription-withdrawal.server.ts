@@ -11,11 +11,10 @@ type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Executor = Transaction | typeof db;
 
 /**
- * Evidencia de una inscripción: dinero asignado o una línea de comprobante. Es
- * la justificación para conservar la fila, así que también es lo que la baja
- * del roster consulta para elegir entre borrar y retirar, y lo que el loader
- * del detalle admin usa para contarle la consecuencia al admin antes de
- * confirmar.
+ * An inscription's evidence: allocated money or a comprobante line. It is the
+ * justification for keeping the row, so it is also what removal from the roster
+ * consults to choose between deleting and withdrawing, and what the admin
+ * detail's loader uses to spell the consequence out before the admin confirms.
  */
 export async function findInscriptionsWithEvidence(
   inscriptionIds: string[],
@@ -50,14 +49,14 @@ export async function findInscriptionsWithEvidence(
 }
 
 /**
- * Quita inscripciones del roster eligiendo una sola vez, acá, entre borrado
- * físico y retiro: sin evidencia la fila se va —no documenta nada y dejarla
- * obligaría a relajar `choreography_dancer_unique`—, y con evidencia se marca
- * `withdrawnAt` y se queda con el dinero encima.
+ * Takes inscriptions off the roster, choosing once, here, between a physical
+ * delete and a withdrawal: without evidence the row goes —it documents nothing,
+ * and keeping it would force `choreography_dancer_unique` to be relaxed— and
+ * with evidence `withdrawnAt` is marked and the row keeps the money on it.
  *
- * La elección no se revisa nunca más. Desasignar después no toca esta fila: un
- * borrado diferido reintroduciría el cascade que se acaba de evitar y volvería
- * escritura a la desasignación.
+ * The choice is never revisited. Unallocating later does not touch this row: a
+ * deferred delete would reintroduce the cascade just avoided and would turn
+ * unallocation into a write.
  */
 export async function removeInscriptionsFromRoster(
   executor: Executor,
@@ -86,10 +85,10 @@ export async function removeInscriptionsFromRoster(
 }
 
 /**
- * Volver a agregar al mismo bailarín revive su fila retirada en lugar de
- * insertar otra: el `id` de la inscripción sobrevive, y con él el dinero y la
- * línea de comprobante que la retuvieron. Una baja corregida antes de que salga
- * el documento fiscal no deja rastro.
+ * Re-adding the same dancer revives their withdrawn row instead of inserting
+ * another: the inscription's `id` survives, and with it the money and the
+ * comprobante line that retained it. A removal corrected before the tax
+ * document goes out leaves no trace.
  */
 export async function reviveWithdrawnInscriptions(
   executor: Executor,

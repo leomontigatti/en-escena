@@ -8,12 +8,12 @@ import type { Transaction } from "./choreography-cobro-support.server";
 type Executor = Transaction | typeof db;
 
 /**
- * Mueve dinero contra una inscripción: suma `delta` a la fila `(pago,
- * inscripción)`, creándola si no existe y borrándola cuando el decremento la
- * deja en cero o menos. La unicidad la resuelve la base (índice único), no una
- * lectura previa, así que dos escrituras concurrentes no pueden duplicar la
- * fila. El `CHECK` de monto positivo hace de red: ninguna fila sobrevive en
- * cero.
+ * Moves money against an inscription: adds `delta` to the `(payment,
+ * inscription)` row, creating it if it does not exist and deleting it when the
+ * decrement leaves it at zero or less. Uniqueness is settled by the database
+ * (unique index), not by a prior read, so two concurrent writes cannot
+ * duplicate the row. The positive-amount `CHECK` acts as a net: no row survives
+ * at zero.
  */
 export async function applyAllocationDelta(
   tx: Executor,

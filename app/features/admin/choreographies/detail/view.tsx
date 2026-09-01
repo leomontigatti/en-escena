@@ -478,10 +478,10 @@ function ConfirmEditDialog({
 }
 
 /**
- * La baja de un bailarín con dinero asignado o con una línea de comprobante no
- * borra la inscripción: la retira. El diálogo enumera esa consecuencia solo
- * cuando hay evidencia; sin ella la baja es un borrado y no hay nada que
- * advertir.
+ * Removing a dancer who holds allocated money or a comprobante line does not
+ * delete the inscription: it withdraws it. The dialog spells that consequence
+ * out only when there is evidence; without it the removal is a delete and
+ * there is nothing to warn about.
  */
 function WithdrawalConsequences({
   dancers,

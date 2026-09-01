@@ -129,11 +129,11 @@ export const choreographyDancers = createTable(
     // inscription; every amount and every financial state is derived from that
     // row and from `Σ allocations`.
     selectedPriceId: varchar("selected_price_id", { length: 255 }),
-    // Retiro blando. Se escribe una sola vez, al quitar la inscripción del
-    // roster, y solo cuando hay evidencia que preservar: dinero asignado o una
-    // línea de comprobante. Sin evidencia la fila se borra físicamente, así que
-    // `choreography_dancer_unique` sigue valiendo y volver a agregar al mismo
-    // bailarín revive esta fila en lugar de insertar otra.
+    // Soft withdrawal. Written once, when the inscription is taken off the
+    // roster, and only when there is evidence to preserve: allocated money or
+    // a comprobante line. Without evidence the row is deleted physically, so
+    // `choreography_dancer_unique` still holds and re-adding the same dancer
+    // revives this row instead of inserting another.
     withdrawnAt: timestamp("withdrawn_at", {
       mode: "date",
       withTimezone: true,

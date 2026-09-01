@@ -48,8 +48,8 @@ const accountColumns: DataTableColumn<FinanceAccountRow>[] = [
     header: "Saldo disponible",
     className: "text-right tabular-nums",
     headerClassName: "text-right",
-    // Una academia sin saldo a favor es el caso normal: atenuarlo deja que las
-    // que sí tienen dinero disponible salten a la vista.
+    // An academy with no balance in its favour is the normal case: dimming it
+    // lets the ones that do hold available money stand out.
     cell: (row) => (
       <span
         className={cn(

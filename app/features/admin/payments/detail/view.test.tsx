@@ -93,8 +93,8 @@ describe("PaymentDetailRouteView", () => {
 
     const text = document.body.textContent ?? "";
 
-    // El dinero sale del pool: el copy no puede prometer que vuelve al saldo
-    // disponible, porque el pago que la respaldaba se va con ella.
+    // The money leaves the pool: the copy cannot promise it returns to the
+    // available balance, because the payment backing it goes with it.
     expect(text).toContain("Ese dinero sale del pool");
     expect(text).not.toContain("volver al saldo disponible");
 
