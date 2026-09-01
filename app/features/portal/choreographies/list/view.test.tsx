@@ -1,8 +1,15 @@
+/** @vitest-environment jsdom */
+
 import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, RouterProvider } from "react-router";
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test } from "vitest";
 
 import { PortalChoreographiesListRouteView } from "@/features/portal/choreographies/list/view";
+import {
+  createReactDomTestRenderer,
+  setInputValue,
+  updateReactDomForm,
+} from "@/lib/test-support/react-dom";
 import type { PortalEventContext } from "@/lib/portal/event-context";
 
 type ChoreographiesListViewProps = Parameters<
@@ -10,6 +17,10 @@ type ChoreographiesListViewProps = Parameters<
 >[0];
 
 describe("PortalChoreographiesListRouteView", () => {
+  const renderer = createReactDomTestRenderer();
+
+  afterEach(renderer.cleanup);
+
   test("shows the agreed columns for the active event", () => {
     const selectedEvent = eventSummary({
       id: "event_2025",
@@ -70,7 +81,7 @@ describe("PortalChoreographiesListRouteView", () => {
     expect(markup).toContain("00002");
     expect(markup).toContain("Mi Pieza");
     expect(markup).toContain(
-      "Buscar coreografía por nombre, modalidad o categoría",
+      "Buscar coreografía por número, nombre, modalidad o categoría",
     );
     expect(markup).toContain("Filtros");
     expect(markup).toContain("2 de 2 registros");
@@ -161,6 +172,45 @@ describe("PortalChoreographiesListRouteView", () => {
     expect(markup).toContain("Todavía no hay eventos configurados");
   });
 
+  test("finds a choreography by its number", async () => {
+    const loaderData = choreographiesLoaderData({
+      choreographies: [
+        choreographyListItem({ id: "choreo_1", name: "Mi Pieza" }),
+        choreographyListItem({
+          id: "choreo_2",
+          choreographyNumber: 2,
+          name: "Otra Pieza",
+        }),
+      ],
+    });
+
+    await renderer.renderAsync(
+      <RouterProvider router={buildChoreographiesRouter({ loaderData })} />,
+    );
+
+    const search = document.querySelector<HTMLInputElement>(
+      'input[placeholder="Buscar coreografía por número, nombre, modalidad o categoría"]',
+    );
+
+    if (!search) {
+      throw new Error(
+        "Expected the choreographies search input to be rendered.",
+      );
+    }
+
+    // Typed without the padding zeros, the way somebody reads a number off a
+    // screen. The box filters one column, so this only passes while the number
+    // travels inside that column's filter value.
+    await updateReactDomForm(() => {
+      setInputValue(search, "2");
+    });
+
+    const text = document.body.textContent ?? "";
+
+    expect(text).toContain("Otra Pieza");
+    expect(text).not.toContain("Mi Pieza");
+  });
+
   test("shows the enabled Nueva coreografía button for the active editable event", () => {
     const markup = renderChoreographiesList();
 
@@ -173,6 +223,14 @@ describe("PortalChoreographiesListRouteView", () => {
 });
 
 function renderChoreographiesList(
+  input: Partial<ChoreographiesListViewProps> = {},
+) {
+  return renderToStaticMarkup(
+    <RouterProvider router={buildChoreographiesRouter(input)} />,
+  );
+}
+
+function buildChoreographiesRouter(
   input: Partial<ChoreographiesListViewProps> = {},
 ) {
   const loaderData = input.loaderData ?? choreographiesLoaderData();
@@ -212,7 +270,7 @@ function renderChoreographiesList(
     { initialEntries: ["/portal/coreografias"] },
   );
 
-  return renderToStaticMarkup(<RouterProvider router={router} />);
+  return router;
 }
 
 function choreographiesLoaderData({
