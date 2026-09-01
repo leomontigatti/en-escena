@@ -14,15 +14,65 @@ const utilitySuffix = String.raw`[^\s"'` + "`" + String.raw`<>{}]+`;
 const variantPrefix = String.raw`(?:[\w![\]/().-]+:)*`;
 
 const hardcodedColorUtilityPattern = new RegExp(
-  `${utilityBoundary}(?<utility>${variantPrefix}(?:bg|text|border|ring|stroke|fill|outline|accent|caret|from|via|to|decoration)-${tailwindPalette}-\\d{1,3}(?:/\\d{1,3})?)`,
+  `${utilityBoundary}(?<match>${variantPrefix}(?:bg|text|border|ring|stroke|fill|outline|accent|caret|from|via|to|decoration)-${tailwindPalette}-\\d{1,3}(?:/\\d{1,3})?)`,
   "g",
 );
 const spaceUtilityPattern = new RegExp(
-  `${utilityBoundary}(?<utility>${variantPrefix}-?space-[xy]-${utilitySuffix})`,
+  `${utilityBoundary}(?<match>${variantPrefix}-?space-[xy]-${utilitySuffix})`,
   "g",
 );
 
-type RepoStyleRule = "no-tailwind-hardcoded-colors" | "prefer-gap-over-space";
+/**
+ * `rosterPersonStatus` —ui: "Estado de alta"— is owned by
+ * `app/lib/roster/roster-person-status*`: the `active` boolean on `dancer` and
+ * `professor` is compared there and nowhere else. The rule ended up stated five
+ * different ways once, which is why the boundary is gated rather than merely
+ * documented.
+ *
+ * The comparison form covers the Drizzle predicate, the raw-SQL twin's
+ * identifier and a hand-written `alias.active = true`. Identifiers naming an
+ * event are excluded: `event.active` is the Evento activo, an unrelated axis.
+ */
+const rosterPersonActiveComparisonPattern = new RegExp(
+  String.raw`(?<match>(?:eq|ne)\(\s*(?![\w.]*[Ee]vent)[\w.]*\.active\s*,\s*(?:true|false)\s*\)` +
+    String.raw`|sql\.identifier\(\s*["'` +
+    "`" +
+    String.raw`]active["'` +
+    "`" +
+    String.raw`]\s*\)` +
+    String.raw`|(?![\w.]*[Ee]vent)\b\w+\.active\s*=\s*(?:true|false)\b)`,
+  "g",
+);
+
+/**
+ * The eligibility rule itself: `isSelectableForRoster` is the only place the
+ * "active, or already linked to this coreografía" expression may be written.
+ * Membership on the other side of the `||` is what distinguishes it from an
+ * unrelated boolean or.
+ */
+const rosterPersonSelectableExpressionPattern = new RegExp(
+  String.raw`(?<match>\.active\s*\|\|\s*[\w.]*\b(?:has|includes)\(` +
+    String.raw`|\b(?:has|includes)\([^)]*\)\s*\|\|\s*[\w.]*\.active\b)`,
+  "g",
+);
+
+type RepoStyleRule =
+  | "no-tailwind-hardcoded-colors"
+  | "prefer-gap-over-space"
+  | "roster-person-status-owns-active-column"
+  | "roster-person-status-owns-selectable-rule";
+
+/** Why each rule exists, so a failure explains itself where it is read. */
+const repoStyleRuleReasons: Record<RepoStyleRule, string> = {
+  "no-tailwind-hardcoded-colors":
+    "Colors come from the theme tokens, not from the Tailwind palette.",
+  "prefer-gap-over-space":
+    "Spacing between siblings is `gap-*` on the flex or grid parent.",
+  "roster-person-status-owns-active-column":
+    "Estado de alta is read through `app/lib/roster/roster-person-status.server.ts` (`activeRosterPerson`, `activeRosterPersonSql`, `rosterPersonStatusCondition`), never by comparing the `active` column here.",
+  "roster-person-status-owns-selectable-rule":
+    "Roster eligibility is `isSelectableForRoster` in `app/lib/roster/roster-person-status.shared.ts`, so a read cannot offer what a write will refuse.",
+};
 
 type RepoStyleRuleCheck = {
   pattern: RegExp;
@@ -32,16 +82,22 @@ type RepoStyleRuleCheck = {
 export type RepoStyleViolation = {
   filePath: string;
   lineNumber: number;
+  match: string;
   rule: RepoStyleRule;
-  utility: string;
 };
 
+/**
+ * An exception with no `match` covers every match of its rule, which is what
+ * makes `filePathPrefix` usable: a module that owns a concept is exempted with
+ * one entry instead of one entry per occurrence per file.
+ */
 type RepoStyleException = {
-  rule: RepoStyleRule;
-  utility: string;
   filePath?: string;
+  filePathPrefix?: string;
   lineIncludes?: string;
+  match?: string;
   reason: string;
+  rule: RepoStyleRule;
 };
 
 type CheckRepoStyleOptions = {
@@ -49,12 +105,26 @@ type CheckRepoStyleOptions = {
   rootDirectory?: string;
 };
 
+const rosterPersonStatusOwnerDirectory = path.join("app", "lib", "roster");
+
 const repoStyleExceptions: RepoStyleException[] = [
   {
     filePath: path.join("app", "components", "ui", "avatar.tsx"),
+    match: "-space-x-2",
     reason: "AvatarGroup uses negative overlap spacing intentionally.",
     rule: "prefer-gap-over-space",
-    utility: "-space-x-2",
+  },
+  {
+    filePathPrefix: rosterPersonStatusOwnerDirectory,
+    reason:
+      "The roster person status module is the owner of the `active` column and of its SQL twin.",
+    rule: "roster-person-status-owns-active-column",
+  },
+  {
+    filePathPrefix: rosterPersonStatusOwnerDirectory,
+    reason:
+      "The roster person status module is the owner of the roster-eligibility rule.",
+    rule: "roster-person-status-owns-selectable-rule",
   },
 ];
 
@@ -66,6 +136,14 @@ const repoStyleRuleChecks: RepoStyleRuleCheck[] = [
   {
     pattern: spaceUtilityPattern,
     rule: "prefer-gap-over-space",
+  },
+  {
+    pattern: rosterPersonActiveComparisonPattern,
+    rule: "roster-person-status-owns-active-column",
+  },
+  {
+    pattern: rosterPersonSelectableExpressionPattern,
+    rule: "roster-person-status-owns-selectable-rule",
   },
 ];
 
@@ -99,8 +177,10 @@ export async function checkRepoStyle(
   });
 }
 
-export async function runRepoStyleGuardrail(): Promise<void> {
-  const violations = await checkRepoStyle();
+export async function runRepoStyleGuardrail(
+  options: CheckRepoStyleOptions = {},
+): Promise<void> {
+  const violations = await checkRepoStyle(options);
 
   if (violations.length === 0) {
     return;
@@ -110,7 +190,7 @@ export async function runRepoStyleGuardrail(): Promise<void> {
     "Repo-style guardrail found violations:",
     ...violations.map(
       (violation) =>
-        `- ${violation.filePath}:${violation.lineNumber} ${violation.rule} -> ${violation.utility}`,
+        `- ${violation.filePath}:${violation.lineNumber} ${violation.rule} -> ${violation.match}\n  ${repoStyleRuleReasons[violation.rule]}`,
     ),
   ];
 
@@ -125,12 +205,12 @@ function findViolations(input: {
   repoRelativePath: string;
   rule: RepoStyleRule;
 }): RepoStyleViolation[] {
-  const matches = Array.from(input.line.matchAll(input.pattern));
+  const patternMatches = Array.from(input.line.matchAll(input.pattern));
 
-  return matches.flatMap((match) => {
-    const utility = match.groups?.utility;
+  return patternMatches.flatMap((patternMatch) => {
+    const match = patternMatch.groups?.match;
 
-    if (!utility) {
+    if (!match) {
       return [];
     }
 
@@ -138,9 +218,9 @@ function findViolations(input: {
       repoStyleExceptions.some((exception) =>
         matchesException(exception, {
           line: input.line,
+          match,
           repoRelativePath: input.repoRelativePath,
           rule: input.rule,
-          utility,
         }),
       )
     ) {
@@ -151,8 +231,8 @@ function findViolations(input: {
       {
         filePath: input.filePath,
         lineNumber: input.lineNumber,
+        match,
         rule: input.rule,
-        utility,
       },
     ];
   });
@@ -162,19 +242,34 @@ function matchesException(
   exception: RepoStyleException,
   input: {
     line: string;
+    match: string;
     repoRelativePath: string;
     rule: RepoStyleRule;
-    utility: string;
   },
 ) {
   return (
     exception.rule === input.rule &&
-    exception.utility === input.utility &&
+    (exception.match === undefined || exception.match === input.match) &&
     (exception.filePath === undefined ||
       path.normalize(exception.filePath) ===
         path.normalize(input.repoRelativePath)) &&
+    (exception.filePathPrefix === undefined ||
+      isInsideDirectory(input.repoRelativePath, exception.filePathPrefix)) &&
     (exception.lineIncludes === undefined ||
       input.line.includes(exception.lineIncludes))
+  );
+}
+
+function isInsideDirectory(filePath: string, directoryPath: string) {
+  const relativePath = path.relative(
+    path.resolve(directoryPath),
+    path.resolve(filePath),
+  );
+
+  return (
+    relativePath !== "" &&
+    !relativePath.startsWith("..") &&
+    !path.isAbsolute(relativePath)
   );
 }
 
