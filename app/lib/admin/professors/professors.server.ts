@@ -95,10 +95,6 @@ export type ProfessorMutationResult =
       values: ProfessorUpdateInput;
     };
 
-type ProfessorStatusMutationResult = {
-  professor: ProfessorEditableSnapshot;
-};
-
 export function readProfessorFilters(
   searchParams: URLSearchParams,
 ): ProfessorListFilters {
@@ -373,36 +369,6 @@ export async function updateAdministrativeProfessor(input: {
 
   return {
     ok: true,
-    professor: savedSnapshot,
-  };
-}
-
-export async function setProfessorActiveState(input: {
-  action: "archive" | "reactivate";
-  professorId: string;
-  selectedEventId: string | null;
-}): Promise<ProfessorStatusMutationResult> {
-  const existingProfessor = await findProfessorForMutation({
-    professorId: input.professorId,
-    selectedEventId: input.selectedEventId,
-  });
-
-  if (!existingProfessor) {
-    throw new Response("No encontramos ese Profesor.", { status: 404 });
-  }
-
-  const nextActive = input.action === "reactivate";
-  const [updatedProfessor] = await db
-    .update(professors)
-    .set({
-      active: nextActive,
-      updatedAt: new Date(),
-    })
-    .where(eq(professors.id, existingProfessor.id))
-    .returning();
-  const savedSnapshot = toProfessorSnapshot(updatedProfessor);
-
-  return {
     professor: savedSnapshot,
   };
 }

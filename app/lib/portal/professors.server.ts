@@ -235,20 +235,6 @@ export async function updateAcademyProfessor(
   return { ok: true, professor };
 }
 
-export async function archiveAcademyProfessor(
-  academyId: string,
-  professorId: string,
-) {
-  return setProfessorActiveState(academyId, professorId, false);
-}
-
-export async function reactivateAcademyProfessor(
-  academyId: string,
-  professorId: string,
-) {
-  return setProfessorActiveState(academyId, professorId, true);
-}
-
 function toProfessorListItem(
   professor: ProfessorIdentityRow & { isParticipating?: boolean },
   selectedEventId: string | null,
@@ -270,29 +256,4 @@ function normalizeProfessorNames(input: CreateProfessorInput) {
 
 function hasFieldErrors(fieldErrors: Record<string, string | undefined>) {
   return Object.keys(fieldErrors).length > 0;
-}
-
-async function setProfessorActiveState(
-  academyId: string,
-  professorId: string,
-  active: boolean,
-) {
-  const professor = await findAcademyProfessor(academyId, professorId);
-
-  if (!professor) {
-    throw new Response("No encontramos ese Profesor.", { status: 404 });
-  }
-
-  const [updatedProfessor] = await db
-    .update(professors)
-    .set({
-      active,
-      updatedAt: new Date(),
-    })
-    .where(
-      and(eq(professors.id, professorId), eq(professors.academyId, academyId)),
-    )
-    .returning();
-
-  return updatedProfessor;
 }

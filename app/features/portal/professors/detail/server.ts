@@ -1,12 +1,11 @@
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
 import {
-  archiveAcademyProfessor,
   findAcademyProfessor,
-  reactivateAcademyProfessor,
   updateAcademyProfessor,
   type UpdateProfessorInput,
 } from "@/lib/portal/professors.server";
+import { setRosterPersonStatus } from "@/lib/roster/roster-person-status.server";
 import {
   archiveProfessorIntent,
   portalProfessorNotFoundMessage,
@@ -44,7 +43,13 @@ export async function handlePortalProfessorDetailAction({
   const intent = readFormString(formData, "intent");
 
   if (intent === archiveProfessorIntent) {
-    await archiveAcademyProfessor(academy.id, professorId);
+    await setRosterPersonStatus({
+      academyId: academy.id,
+      kind: "professor",
+      next: "archived",
+      personId: professorId,
+      surface: "portal",
+    });
     return {
       status: "success" as const,
       message: notificationToasts["profesor-archivado"].message,
@@ -52,7 +57,13 @@ export async function handlePortalProfessorDetailAction({
   }
 
   if (intent === reactivateProfessorIntent) {
-    await reactivateAcademyProfessor(academy.id, professorId);
+    await setRosterPersonStatus({
+      academyId: academy.id,
+      kind: "professor",
+      next: "active",
+      personId: professorId,
+      surface: "portal",
+    });
     return {
       status: "success" as const,
       message: notificationToasts["profesor-reactivado"].message,

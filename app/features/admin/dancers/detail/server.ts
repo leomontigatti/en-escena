@@ -5,9 +5,9 @@ import { loadEventContext } from "@/lib/admin/event-context.server";
 import { dancerNotFoundMessage } from "@/lib/admin/dancers/dancers.shared";
 import {
   findDancer,
-  setDancerActiveState,
   verifyDancerIdentity,
 } from "@/lib/admin/dancers/dancers.server";
+import { setRosterPersonStatus } from "@/lib/roster/roster-person-status.server";
 import { updateAdministrativeDancer } from "@/lib/admin/dancers/dancers-update.server";
 import {
   requireAdminUser,
@@ -92,10 +92,12 @@ export async function handleDancerDetailAction(input: {
   }
 
   if (intent === "archive-dancer" || intent === "reactivate-dancer") {
-    await setDancerActiveState({
-      action: intent === "archive-dancer" ? "archive" : "reactivate",
-      dancerId,
-      selectedEventId: eventContext.selectedEventId,
+    await setRosterPersonStatus({
+      academyId: null,
+      kind: "dancer",
+      next: intent === "archive-dancer" ? "archived" : "active",
+      personId: dancerId,
+      surface: "admin",
     });
 
     return buildDancerActionSuccess(

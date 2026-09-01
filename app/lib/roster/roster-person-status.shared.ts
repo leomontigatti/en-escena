@@ -15,6 +15,9 @@
  */
 export type RosterPersonStatus = "active" | "archived";
 
+/** The two person kinds that carry the axis. */
+export type RosterPersonKind = "dancer" | "professor";
+
 /**
  * The filter adds "all" to the two states. Every caller that omits the filter
  * gets `"active"`: an administrative list without an `estado` parameter shows
@@ -93,4 +96,20 @@ export function isSelectableForRoster(input: {
   isAlreadyLinked: boolean;
 }) {
   return input.status === "active" || input.isAlreadyLinked;
+}
+
+/**
+ * What the archive confirmation tells the academia before it confirms, and the
+ * reason archiving needs no guard: it is roster hygiene, so the coreografías
+ * the person is already on keep them. The sentence is static — it queries
+ * nothing — and it lives here so that the four archive confirmations cannot
+ * promise four different things.
+ */
+export function getArchiveKeepsRosterMessage(kind: RosterPersonKind) {
+  switch (kind) {
+    case "dancer":
+      return "Las inscripciones existentes no cambian: seguirá en las coreografías en las que ya está.";
+    case "professor":
+      return "Las coreografías existentes no cambian: seguirá en las que ya está.";
+  }
 }

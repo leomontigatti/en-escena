@@ -223,20 +223,6 @@ export async function updateDancerForAcademy(
   return { ok: true, dancer: updatedDancer };
 }
 
-export async function archiveDancerForAcademy(
-  academyId: string,
-  dancerId: string,
-) {
-  return setDancerActiveState(academyId, dancerId, false);
-}
-
-export async function reactivateDancerForAcademy(
-  academyId: string,
-  dancerId: string,
-) {
-  return setDancerActiveState(academyId, dancerId, true);
-}
-
 function validateCreateDancerInput(
   input: CreateDancerInput,
 ):
@@ -376,29 +362,6 @@ function normalizeOptionalStorageKey(value: string) {
   const normalized = value.trim().replace(/\s+/g, " ");
 
   return normalized.length > 0 ? normalized : null;
-}
-
-async function setDancerActiveState(
-  academyId: string,
-  dancerId: string,
-  active: boolean,
-) {
-  const dancer = await findDancerForAcademy(academyId, dancerId);
-
-  if (!dancer) {
-    throw new Response("No encontramos ese Bailarín.", { status: 404 });
-  }
-
-  const [updatedDancer] = await db
-    .update(dancers)
-    .set({
-      active,
-      updatedAt: new Date(),
-    })
-    .where(and(eq(dancers.id, dancerId), eq(dancers.academyId, academyId)))
-    .returning();
-
-  return updatedDancer;
 }
 
 function normalizePortalDancerValues(input: DancerNameInput) {

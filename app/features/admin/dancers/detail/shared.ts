@@ -6,6 +6,7 @@ import type {
   DancerEditConsequence,
   findDancer,
 } from "@/lib/admin/dancers/dancers.server";
+import { getArchiveKeepsRosterMessage } from "@/lib/roster/roster-person-status.shared";
 import { isDateOnly, isFutureDateOnly } from "@/lib/shared/date-only";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import {
@@ -253,8 +254,7 @@ export function getDancerEditValues({
 function getDancerStatusAction(active: boolean): DancerStatusAction {
   return active
     ? {
-        description:
-          "Archivá este Bailarín para que deje de aparecer en futuras selecciones del portal sin desvincular sus coreografías existentes.",
+        description: `Archivá este Bailarín para que deje de aparecer en futuras selecciones del portal. ${getArchiveKeepsRosterMessage("dancer")}`,
         intent: "archive-dancer",
         label: "Archivar",
       }

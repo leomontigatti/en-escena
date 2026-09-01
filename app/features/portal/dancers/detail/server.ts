@@ -8,11 +8,10 @@ import {
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
 import {
-  archiveDancerForAcademy,
   findDancerForAcademy,
-  reactivateDancerForAcademy,
   updateDancerForAcademy,
 } from "@/lib/portal/dancers.server";
+import { setRosterPersonStatus } from "@/lib/roster/roster-person-status.server";
 
 import {
   getClientDocumentImageValidationMessage,
@@ -50,7 +49,13 @@ export async function handlePortalDancerDetailAction(input: {
   const intent = readFormString(formData, "intent");
 
   if (intent === "archive-dancer") {
-    await archiveDancerForAcademy(academy.id, dancerId);
+    await setRosterPersonStatus({
+      academyId: academy.id,
+      kind: "dancer",
+      next: "archived",
+      personId: dancerId,
+      surface: "portal",
+    });
     return {
       status: "success" as const,
       message: notificationToasts["bailarin-archivado"].message,
@@ -58,7 +63,13 @@ export async function handlePortalDancerDetailAction(input: {
   }
 
   if (intent === "reactivate-dancer") {
-    await reactivateDancerForAcademy(academy.id, dancerId);
+    await setRosterPersonStatus({
+      academyId: academy.id,
+      kind: "dancer",
+      next: "active",
+      personId: dancerId,
+      surface: "portal",
+    });
     return {
       status: "success" as const,
       message: notificationToasts["bailarin-reactivado"].message,

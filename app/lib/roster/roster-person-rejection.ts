@@ -1,6 +1,7 @@
 import {
   isSelectableForRoster,
   toRosterPersonStatus,
+  type RosterPersonKind,
 } from "@/lib/roster/roster-person-status.shared";
 
 /**
@@ -17,8 +18,6 @@ import {
 export type RosterPersonRejection =
   | { personId: string; cause: "not-found" }
   | { personId: string; cause: "archived"; fullName: string };
-
-export type RosterPersonKind = "dancer" | "professor";
 
 /**
  * The linked set of a selection that has no coreografía to be linked to yet.
