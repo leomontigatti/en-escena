@@ -137,8 +137,37 @@ export function getAvailableScheduleCapacityGroupTypeOptions(
   );
 }
 
-export function formatScheduleOccupancy(schedule: ScheduleListItem) {
-  return `${schedule.occupiedCapacity}/${schedule.totalCapacity}`;
+/**
+ * Administración planifica sobre lo que queda, no sobre lo que se llenó: la
+ * columna dice cuántos lugares hay libres y contra qué cupo, en vez del par
+ * `ocupados/total` que se leía como "lleno" cuando no lo estaba.
+ */
+export function formatAvailablePlaces({
+  availablePlaces,
+  capacity,
+}: {
+  availablePlaces: number;
+  capacity: number;
+}) {
+  return `${availablePlaces} de ${capacity}`;
+}
+
+/**
+ * La misma cuenta que la lista, redactada para la descripción de un campo del
+ * formulario, donde el cupo ya está a la vista en el input de al lado.
+ */
+export function describeAvailablePlaces({
+  availablePlaces,
+  capacity,
+}: {
+  availablePlaces: number;
+  capacity: number;
+}) {
+  if (availablePlaces === 0) {
+    return "Sin lugares disponibles.";
+  }
+
+  return `Quedan ${formatAvailablePlaces({ availablePlaces, capacity })} lugares.`;
 }
 
 export function formatDate(value: string) {

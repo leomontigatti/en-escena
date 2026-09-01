@@ -154,14 +154,27 @@ export type ScheduleCapacityDependencies = {
   hasDependencies?: (scheduleCapacityId: string) => Promise<boolean> | boolean;
 };
 
-export type ScheduleListItem = typeof schedules.$inferSelect & {
-  modalities: Array<Pick<typeof modalities.$inferSelect, "id" | "name">>;
-  modalityIds: string[];
-  occupiedCapacity: number;
-  scheduleCapacities: ScheduleCapacityListItem[];
+/**
+ * Ocupación real: cuántas coreografías hay asignadas y cuántos lugares quedan.
+ * No confundir con la suma de los cupos divididos, que es un reparto del cupo
+ * total y no dice nada sobre lo que ya está ocupado.
+ */
+export type ScheduleOccupancy = {
+  availablePlaces: number;
+  occupiedCount: number;
 };
 
+export type ScheduleListItem = typeof schedules.$inferSelect &
+  ScheduleOccupancy & {
+    modalities: Array<Pick<typeof modalities.$inferSelect, "id" | "name">>;
+    modalityIds: string[];
+    scheduleCapacities: ScheduleCapacityWithOccupancy[];
+  };
+
 export type ScheduleCapacityListItem = typeof scheduleCapacities.$inferSelect;
+
+export type ScheduleCapacityWithOccupancy = ScheduleCapacityListItem &
+  ScheduleOccupancy;
 
 export type CompatibleScheduleCapacityResolution =
   | {

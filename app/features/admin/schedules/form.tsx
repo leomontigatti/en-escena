@@ -36,6 +36,7 @@ import {
 import { EventBasesFormActions } from "../events/bases-form-actions";
 import {
   createEmptyScheduleCapacityFormValues,
+  describeAvailablePlaces,
   emptyScheduleCapacities,
   emptySelection,
   getAvailableScheduleCapacityGroupTypeOptions,
@@ -48,6 +49,7 @@ import { basePath, type EventScheduleModalityRow } from "./shared";
 type ScheduleFormController = UseFormReturn<ScheduleFormValues>;
 
 export function ScheduleForm({
+  availablePlaces,
   formId,
   id,
   intent,
@@ -60,6 +62,7 @@ export function ScheduleForm({
   submittedValues,
   totalCapacity,
 }: {
+  availablePlaces?: number;
   formId?: string;
   id?: string;
   intent: string;
@@ -102,6 +105,19 @@ export function ScheduleForm({
       totalCapacity,
     ],
   );
+  const availablePlacesByScheduleCapacityId = useMemo(
+    () =>
+      new Map(
+        scheduleCapacities.map((scheduleCapacity) => [
+          scheduleCapacity.id,
+          {
+            availablePlaces: scheduleCapacity.availablePlaces,
+            capacity: scheduleCapacity.capacity,
+          },
+        ]),
+      ),
+    [scheduleCapacities],
+  );
   const form = useForm<ScheduleFormValues>({
     resolver: zodResolver(scheduleFormSchema),
     defaultValues,
@@ -125,6 +141,14 @@ export function ScheduleForm({
       <FieldGroup className="grid gap-4 sm:grid-cols-2">
         <ScheduleTextField form={form} label="Nombre" name="name" />
         <ScheduleTextField
+          description={
+            availablePlaces === undefined || totalCapacity === undefined
+              ? undefined
+              : describeAvailablePlaces({
+                  availablePlaces,
+                  capacity: totalCapacity,
+                })
+          }
           form={form}
           label="Cupo total"
           min={1}
@@ -147,7 +171,12 @@ export function ScheduleForm({
           title="Modalidades"
         />
       </FieldGroup>
-      <ScheduleCapacitiesInlineFieldArray form={form} />
+      <ScheduleCapacitiesInlineFieldArray
+        availablePlacesByScheduleCapacityId={
+          availablePlacesByScheduleCapacityId
+        }
+        form={form}
+      />
     </form>
   );
 }
@@ -174,6 +203,7 @@ export function ScheduleFormPanel({ children }: { children: ReactNode }) {
 
 function ScheduleTextField({
   className,
+  description,
   form,
   label,
   min,
@@ -181,6 +211,7 @@ function ScheduleTextField({
   step,
 }: {
   className?: string;
+  description?: string;
   form: ScheduleFormController;
   label: string;
   min?: number;
@@ -192,6 +223,7 @@ function ScheduleTextField({
       <IntegerInputField
         className={className}
         control={form.control}
+        description={description}
         id={name}
         label={label}
         min={min}
@@ -212,9 +244,16 @@ function ScheduleTextField({
   );
 }
 
+type AvailablePlacesByScheduleCapacityId = Map<
+  string,
+  { availablePlaces: number; capacity: number }
+>;
+
 function ScheduleCapacitiesInlineFieldArray({
+  availablePlacesByScheduleCapacityId,
   form,
 }: {
+  availablePlacesByScheduleCapacityId: AvailablePlacesByScheduleCapacityId;
   form: ScheduleFormController;
 }) {
   const { append, fields, remove } = useFieldArray({
@@ -241,6 +280,11 @@ function ScheduleCapacitiesInlineFieldArray({
       onRemove={remove}
       renderItem={(field, index, removeItem) => (
         <ScheduleCapacityInlineFields
+          availablePlaces={
+            field.id
+              ? availablePlacesByScheduleCapacityId.get(field.id)
+              : undefined
+          }
           field={field}
           form={form}
           index={index}
@@ -312,12 +356,14 @@ function InlineFieldArray<TField extends { fieldId: string }>({
 }
 
 function ScheduleCapacityInlineFields({
+  availablePlaces,
   field,
   form,
   index,
   options,
   onRemove,
 }: {
+  availablePlaces?: { availablePlaces: number; capacity: number };
   field: { id?: string };
   form: ScheduleFormController;
   index: number;
@@ -343,6 +389,9 @@ function ScheduleCapacityInlineFields({
       />
       <IntegerInputField
         control={form.control}
+        description={
+          availablePlaces ? describeAvailablePlaces(availablePlaces) : undefined
+        }
         name={capacityFieldName}
         id={`schedule-capacity-capacity-${index}`}
         label="Cupo"

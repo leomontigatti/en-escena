@@ -23,7 +23,7 @@ vi.mock("react-router", async () => {
   };
 });
 
-describe("EventScheduleDetailView delete", () => {
+describe("EventScheduleDetailView", () => {
   const renderer = createReactDomTestRenderer();
 
   afterEach(() => {
@@ -54,6 +54,20 @@ describe("EventScheduleDetailView delete", () => {
     await renderDetail();
 
     expect(getButton("Eliminar").disabled).toBe(true);
+  });
+
+  // El formulario planifica sobre lo que queda: el cupo total y cada cupo
+  // dividido dicen cuántos lugares siguen libres, no solo cuánto se repartió.
+  test("shows how many lugares are left for the cronograma and for each cupo", async () => {
+    useNavigationMock.mockReturnValue({ state: "idle" });
+
+    await renderDetail({
+      initialDeleteDialogOpen: false,
+      loaderData: buildOccupiedLoaderData(),
+    });
+
+    expect(document.body.textContent).toContain("Quedan 4 de 10 lugares.");
+    expect(document.body.textContent).toContain("Quedan 2 de 6 lugares.");
   });
 
   async function renderDetail(
@@ -96,8 +110,36 @@ function buildLoaderData(): EventScheduleDetailLoaderData {
         createdAt: new Date("2026-01-01T00:00:00.000Z"),
         modalityIds: [],
         modalities: [],
-        occupiedCapacity: 0,
+        availablePlaces: 10,
+        occupiedCount: 0,
         scheduleCapacities: [],
+      },
+    ],
+  };
+}
+
+function buildOccupiedLoaderData(): EventScheduleDetailLoaderData {
+  const loaderData = buildLoaderData();
+  const [schedule] = loaderData.schedules;
+
+  return {
+    ...loaderData,
+    schedules: [
+      {
+        ...schedule,
+        availablePlaces: 4,
+        occupiedCount: 6,
+        scheduleCapacities: [
+          {
+            id: "schedule_capacity_1",
+            scheduleId: schedule.id,
+            groupType: "solo",
+            capacity: 6,
+            createdAt: new Date("2026-01-01T00:00:00.000Z"),
+            availablePlaces: 2,
+            occupiedCount: 4,
+          },
+        ],
       },
     ],
   };

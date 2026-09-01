@@ -10,8 +10,8 @@ import { ResourceBadge } from "./dialogs";
 import { basePath } from "./shared";
 import {
   buildScheduleFacetedFilters,
+  formatAvailablePlaces,
   formatDate,
-  formatScheduleOccupancy,
 } from "./view-shared";
 
 export function ScheduleList({
@@ -62,10 +62,16 @@ export function ScheduleList({
       sortValue: (schedule) => schedule.startTime,
     },
     {
-      id: "occupancy",
-      header: "Ocupación",
-      cell: (schedule) => formatScheduleOccupancy(schedule),
+      id: "availablePlaces",
+      header: "Lugares disponibles",
+      cell: (schedule) => (
+        <AvailablePlaces
+          availablePlaces={schedule.availablePlaces}
+          capacity={schedule.totalCapacity}
+        />
+      ),
       className: "font-medium",
+      sortValue: (schedule) => schedule.availablePlaces,
     },
   ];
 
@@ -81,6 +87,20 @@ export function ScheduleList({
       initialSort={{ columnId: "scheduledDate", direction: "asc" }}
     />
   );
+}
+
+function AvailablePlaces({
+  availablePlaces,
+  capacity,
+}: {
+  availablePlaces: number;
+  capacity: number;
+}) {
+  if (availablePlaces === 0) {
+    return <span className="text-destructive">Sin lugares</span>;
+  }
+
+  return <span>{formatAvailablePlaces({ availablePlaces, capacity })}</span>;
 }
 
 function ScheduleModalityBadges({ schedule }: { schedule: ScheduleListItem }) {

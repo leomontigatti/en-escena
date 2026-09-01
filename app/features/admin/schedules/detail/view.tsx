@@ -50,6 +50,7 @@ export function EventScheduleDetailView({
       {schedule ? (
         <ScheduleFormPanel>
           <ScheduleForm
+            availablePlaces={schedule.availablePlaces}
             formId="update-schedule-form"
             id={schedule.id}
             intent="update-schedule"

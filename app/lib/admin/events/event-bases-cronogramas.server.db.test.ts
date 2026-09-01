@@ -41,7 +41,7 @@ installDatabaseTestHooks();
 describe.sequential(
   "administracion Cronogramas de Bases del evento routes",
   () => {
-    test("renders cronogramas as a browse list with ocupación and detail links", async () => {
+    test("renders cronogramas as a browse list with lugares disponibles and detail links", async () => {
       const { event, modalityIds } = await createEventScheduleAdminFixture();
 
       const schedule = await expectCreated(
@@ -74,8 +74,8 @@ describe.sequential(
       );
       const markup = renderBloquesHorariosRoute(data);
 
-      expect(markup).toContain("Ocupación");
-      expect(markup).toContain("8/24");
+      expect(markup).toContain("Lugares disponibles");
+      expect(markup).toContain("24 de 24");
       expect(markup).toContain("Sábado Mañana");
       expect(markup).toContain("2 de mayo de 2026");
       expect(markup).toContain("09:00");
@@ -127,6 +127,8 @@ describe.sequential(
       expect(detailMarkup).toContain('name="intent" value="update-schedule"');
       expect(detailMarkup).not.toContain("Cupos de cronograma");
       expect(detailMarkup).toContain("Dividir cupo");
+      expect(detailMarkup).toContain("Quedan 18 de 18 lugares.");
+      expect(createMarkup).not.toContain("lugares.");
     });
 
     test("creates, edits and deletes Cronogramas through the admin action", async () => {
@@ -181,7 +183,7 @@ describe.sequential(
       expect(markup).toContain("Sábado Mañana");
       expect(markup).toContain("2 de mayo de 2026");
       expect(markup).toContain("09:00");
-      expect(markup).toContain("0/24");
+      expect(markup).toContain("24 de 24");
       expect(markup).toContain("Jazz");
       expect(markup).toContain("Danzas Urbanas");
 
