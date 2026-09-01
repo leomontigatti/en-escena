@@ -11,6 +11,7 @@ import {
   type PriceResolutionResult,
 } from "@/lib/prices/repository.server";
 import {
+  findModalityIdsWithCompatibleSchedules,
   listSchedules,
   resolveCompatibleScheduleCapacities,
   type CompatibleScheduleCapacity,
@@ -80,6 +81,17 @@ export async function resolveEventBasesPrice(input: {
   scheduleId: string | null;
 }): Promise<PriceResolutionResult> {
   return resolveApplicablePrice(input);
+}
+
+/**
+ * Which modalidades of the event a cronograma can take. The select that offers
+ * a modalidad correction needs the whole set at once, so it asks for it in one
+ * query instead of resolving the cupos of every modalidad in turn.
+ */
+export async function resolveEventBasesScheduleModalityIds(
+  eventId: string,
+): Promise<string[]> {
+  return findModalityIdsWithCompatibleSchedules(eventId);
 }
 
 export async function resolveEventBasesScheduleOptions(input: {

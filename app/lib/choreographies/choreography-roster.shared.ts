@@ -80,6 +80,17 @@ export type ChoreographyDancerScheduleOption =
       : never
     : never;
 
+/**
+ * The labelled option: only the "multiple" resolution builds labels carrying the
+ * occupancy, so it is the only one that can feed the shared select builder.
+ * `ChoreographyDancerScheduleOption` flattens every variant and loses
+ * `label`/`isFull`; this one keeps them.
+ */
+export type ChoreographyDancerScheduleChoice = Extract<
+  ChoreographyRegistrationOperationResolution["schedule"],
+  { status: "multiple" }
+>["options"][number];
+
 export type ChoreographyDancerScheduleResolution =
   | {
       status: "none";
@@ -106,7 +117,7 @@ export type ChoreographyDancerScheduleResolution =
   | {
       status: "multiple";
       canSave: true;
-      options: ChoreographyDancerScheduleOption[];
+      options: ChoreographyDancerScheduleChoice[];
       selectedScheduleCapacityId: null;
     };
 

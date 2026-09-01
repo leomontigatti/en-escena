@@ -12,9 +12,10 @@ import {
 } from "./shared";
 
 /**
- * Las opciones que la vista ofrece son exactamente las que el intent acepta:
- * las submodalidades de la modalidad de la coreografía. La modalidad es
- * inmutable, así que la lista no depende de nada más.
+ * The options the view offers are exactly the ones the intent accepts: the
+ * submodalidades of the choreography's modalidad. The modality correction
+ * resolves its own list against the candidate modalidad, so this one always
+ * reads the saved one.
  */
 export async function listSubmodalitiesForModality(modalityId: string) {
   return await db

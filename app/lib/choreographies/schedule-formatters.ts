@@ -4,14 +4,7 @@ export type ScheduleDateTimeInput = {
   startTime: string;
 };
 
-type ScheduleDateTimeFormatOptions = {
-  includeName?: boolean;
-};
-
-export function formatScheduleDateTime(
-  input: ScheduleDateTimeInput,
-  options: ScheduleDateTimeFormatOptions = {},
-) {
+export function formatScheduleDateTime(input: ScheduleDateTimeInput) {
   const [year, month, day] = input.scheduledDate.split("-").map(Number);
 
   if (!year || !month || !day) {
@@ -25,10 +18,6 @@ export function formatScheduleDateTime(
     year: "numeric",
   }).format(date);
   const formattedTime = input.startTime.slice(0, 5);
-
-  if (options.includeName) {
-    return `${input.name} · ${formattedDate} · ${formattedTime} hs.`;
-  }
 
   return `${formattedDate} - ${formattedTime} hs.`;
 }

@@ -4,10 +4,7 @@ import { db } from "@/db";
 import { choreographies } from "@/db/schema";
 import { invalidExperienceLevelMessage } from "@/lib/choreographies/choreography-messages";
 import { validateExperienceLevelSelection } from "@/lib/choreographies/registration-resolution.server";
-import {
-  experienceLevelLabels,
-  isExperienceLevel,
-} from "@/lib/events/experience-levels";
+import { isExperienceLevel } from "@/lib/events/experience-levels";
 
 import type { ChoreographyDetail } from "./server";
 import {
@@ -16,45 +13,6 @@ import {
   type ChoreographyFieldUpdateErrorData,
   type ChoreographySuccessData,
 } from "./shared";
-
-export type ChoreographyExperienceLevelOption = {
-  id: string;
-  name: string;
-};
-
-/**
- * Las opciones que la vista ofrece son exactamente las que el intent acepta:
- * los niveles que declara la categoría resuelta, más el nivel asignado hoy. Ese
- * agregado es solo de visibilidad —si la categoría dejó de admitir el nivel
- * guardado, tiene que seguir a la vista en lugar de desaparecer del select sin
- * explicación—, y reelegirlo es una escritura idéntica a lo que ya hay.
- *
- * No hay tabla de niveles: son un enum global y la categoría declara cuáles
- * admite, así que la lista se arma acá y no se consulta.
- */
-export function resolveChoreographyExperienceLevelOptions(input: {
-  categoryExperienceLevels: string[] | null;
-  experienceLevelId: string | null;
-}): ChoreographyExperienceLevelOption[] {
-  const options = (input.categoryExperienceLevels ?? []).map((level) => ({
-    id: level,
-    name: experienceLevelLabels[level] ?? level,
-  }));
-
-  if (
-    input.experienceLevelId !== null &&
-    !options.some((option) => option.id === input.experienceLevelId)
-  ) {
-    options.push({
-      id: input.experienceLevelId,
-      name:
-        experienceLevelLabels[input.experienceLevelId] ??
-        input.experienceLevelId,
-    });
-  }
-
-  return options;
-}
 
 export async function updateChoreographyExperienceLevel(input: {
   choreography: ChoreographyDetail;

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import type {
-  ChoreographyDancerScheduleOption,
+  ChoreographyDancerScheduleChoice,
   ChoreographyDancerScheduleResolution,
   ResolveChoreographyDancersResult,
 } from "@/lib/choreographies/choreography-roster.shared";
@@ -14,7 +14,7 @@ import {
   getSelectionKey,
   getWithdrawnDancers,
   hasNoCompatibleCategory,
-  shouldRenderRosterScheduleSelect,
+  getRosterScheduleSelectOptions,
   shouldResolveRosterSelection,
   type RosterResolutionState,
 } from "./roster-form-state";
@@ -326,7 +326,7 @@ function buildKeepCurrentSchedule(): ChoreographyDancerScheduleResolution {
   };
 }
 
-describe("shouldRenderRosterScheduleSelect", () => {
+describe("getRosterScheduleSelectOptions", () => {
   const multipleResolution: ChoreographyDancerScheduleResolution = {
     status: "multiple",
     canSave: true,
@@ -337,28 +337,28 @@ describe("shouldRenderRosterScheduleSelect", () => {
     selectedScheduleCapacityId: null,
   };
 
-  test("renders the roster select while a roster change is pending", () => {
+  test("hands over the labelled options while a roster change is pending", () => {
     expect(
-      shouldRenderRosterScheduleSelect({
+      getRosterScheduleSelectOptions({
         hasResolvedRosterChange: true,
         scheduleResolution: multipleResolution,
       }),
-    ).toBe(true);
+    ).toEqual(multipleResolution.options);
   });
 
   test("leaves the slot to the standalone reassignment without a pending roster change", () => {
     expect(
-      shouldRenderRosterScheduleSelect({
+      getRosterScheduleSelectOptions({
         hasResolvedRosterChange: false,
         scheduleResolution: multipleResolution,
       }),
-    ).toBe(false);
+    ).toBeNull();
     expect(
-      shouldRenderRosterScheduleSelect({
+      getRosterScheduleSelectOptions({
         hasResolvedRosterChange: true,
         scheduleResolution: null,
       }),
-    ).toBe(false);
+    ).toBeNull();
   });
 });
 
@@ -523,7 +523,9 @@ function buildChoreography(
   } as ChoreographyDetail;
 }
 
-function buildScheduleOption(id: string): ChoreographyDancerScheduleOption {
+// Returns the labelled variant, which is what the "multiple" resolution demands
+// and still serves wherever `ChoreographyDancerScheduleOption` is enough.
+function buildScheduleOption(id: string): ChoreographyDancerScheduleChoice {
   return {
     id,
     scheduleId: "schedule_1",
@@ -531,6 +533,8 @@ function buildScheduleOption(id: string): ChoreographyDancerScheduleOption {
     groupType: "duo",
     capacity: 10,
     usesGlobalCapacity: false,
+    isFull: false,
+    label: "1 de mayo de 2026 - 14:00 hs. · 0/10 ocupados",
     schedule: {
       id: "schedule_1",
       name: "Jornada 1",
