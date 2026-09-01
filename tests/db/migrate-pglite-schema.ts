@@ -6,10 +6,10 @@ import { migrate } from "drizzle-orm/pglite/migrator";
 
 import { pgliteSchema } from "./pglite-schema";
 
-// Aplica las migraciones versionadas (app/db/migrations) sobre una data dir de
-// PGlite. Reemplaza el push directo de `pushSchema`: el harness de tests ejerce
-// el mismo SQL que corre en prod, no un diff del schema. `pushSchema` sobrevive
-// solo como oráculo del test de equivalencia (app/db/migrations.db.test.ts).
+// Applies the versioned migrations (app/db/migrations) onto a PGlite data dir. It
+// replaces `pushSchema`'s direct push: the test harness exercises the same SQL
+// that runs in production, not a schema diff. `pushSchema` survives only as the
+// oracle of the equivalence test (app/db/migrations.db.test.ts).
 const migrationsFolder = fileURLToPath(
   new URL("../../app/db/migrations", import.meta.url),
 );

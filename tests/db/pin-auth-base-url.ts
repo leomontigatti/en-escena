@@ -1,10 +1,10 @@
-// Fija el baseURL de Better Auth a http para que la suite sea determinística sin
-// importar el `.env` de cada dev. Con un baseURL https (p.ej. apuntando a
-// producción), Better Auth activa `useSecureCookies` y prefija la cookie de
-// sesión con `__Secure-`, lo que rompía 31 tests de auth en local (#501).
-// Asignación dura, no `??=`: el `.env` no debe poder cambiar el resultado.
+// Pins Better Auth's baseURL to http so the suite is deterministic regardless of
+// each dev's `.env`. With an https baseURL (pointing at production, for
+// instance), Better Auth turns on `useSecureCookies` and prefixes the session
+// cookie with `__Secure-`, which broke 31 auth tests locally (#501). A hard
+// assignment, not `??=`: the `.env` must not be able to change the outcome.
 //
-// Importado por los dos setups de DB (`setup.ts` y `setup-fast.ts`); el efecto
-// ocurre al importar el módulo.
+// Imported by both DB setups (`setup.ts` and `setup-fast.ts`); the effect
+// happens on module import.
 process.env.BETTER_AUTH_URL = "http://localhost:5173";
 process.env.APP_URL = "http://localhost:5173";

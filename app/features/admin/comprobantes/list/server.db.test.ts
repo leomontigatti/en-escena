@@ -113,7 +113,7 @@ describe("loadComprobantesList", () => {
         cae: "55556666777788",
       }),
     );
-    // Nota de crédito C que anula la factura de Alfa.
+    // A Nota de crédito C annulling Alfa's factura.
     await recordComprobante(
       facturaCInput({
         choreographyId: alfa.choreography.id,
@@ -276,19 +276,19 @@ describe("loadComprobantesList", () => {
       }),
     );
 
-    // Por academia.
+    // By academy.
     const porAcademia = await loadComprobantesList(
       await signedInAdminRequest("?busqueda=Academia+Alfa"),
     );
     expect(porAcademia.rows.map((row) => row.id)).toEqual([facturaAlfa.id]);
 
-    // Por coreografía (el nombre no coincide con la academia).
+    // By choreography (the name does not match the academy).
     const porCoreografia = await loadComprobantesList(
       await signedInAdminRequest("?busqueda=Vals"),
     );
     expect(porCoreografia.rows.map((row) => row.id)).toEqual([facturaBeta.id]);
 
-    // Por número fiscal formateado.
+    // By formatted fiscal number.
     const porNumero = await loadComprobantesList(
       await signedInAdminRequest("?busqueda=0001-00000002"),
     );

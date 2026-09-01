@@ -22,8 +22,8 @@ export async function loadPortalChoreographyFinanceDetail(input: {
     academyId: academy.id,
     eventId: eventContext.activeEvent.id,
   });
-  // El read-model ya viene acotado a la academia del usuario, así que una
-  // coreografía ajena es indistinguible de una inexistente.
+  // The read model already comes scoped to the user's academy, so somebody else's
+  // choreography is indistinguishable from a non-existent one.
   const choreographyFinanceRow = financeDetail.choreographyFinanceRows.find(
     (row) => row.id === choreographyId,
   );

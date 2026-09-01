@@ -25,7 +25,7 @@ function qrInput(
   };
 }
 
-// Decodifica el parámetro `p` de una URL de QR de la RG 4291 a su objeto JSON.
+// Decodes the `p` parameter of an RG 4291 QR URL into its JSON object.
 function decodeQrPayload(url: string): unknown {
   const param = new URL(url).searchParams.get("p");
   expect(param).not.toBeNull();

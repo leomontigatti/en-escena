@@ -1,38 +1,39 @@
 import type { ElectronicBillingService } from "@arcasdk/core";
 
-// El SDK no re-exporta `IVoucher` desde la raíz del paquete, así que derivamos su
-// forma del parámetro de `createVoucher` (el payload `FECAESolicitar`).
+// The SDK does not re-export `IVoucher` from the package root, so we derive its
+// shape from `createVoucher`'s parameter (the `FECAESolicitar` payload).
 export type ArcaVoucher = Parameters<
   ElectronicBillingService["createVoucher"]
 >[0];
 
-// Constantes del comprobante ARCA para el circuito de Factura C. Congeladas por
-// la spec #320 y confirmadas por el spike #428: el emisor es Proyecciones
-// Artísticas Asociación Civil (exenta → clase C) y el receptor es consumidor
-// final anónimo.
+// ARCA comprobante constants for the Factura C circuit. Frozen by spec #320 and
+// confirmed by spike #428: the issuer is Proyecciones Artísticas Asociación
+// Civil (VAT-exempt → class C) and the recipient is an anonymous final
+// consumer.
 export const FACTURA_C_CBTE_TIPO = 11;
-// Nota de crédito C: el comprobante espejo que anula una Factura C (#328/#449).
-// Se construye vía `buildNotaCreditoCVoucher` (nota-credito.ts) reutilizando la
-// base clase C más el array `CbtesAsoc`.
+// Nota de crédito C: the mirror comprobante that annuls a Factura C
+// (#328/#449). It is built via `buildNotaCreditoCVoucher` (nota-credito.ts),
+// reusing the class C base plus the `CbtesAsoc` array.
 export const NOTA_CREDITO_C_CBTE_TIPO = 13;
 export const DOC_TIPO_CONSUMIDOR_FINAL = 99;
 export const DOC_NRO_CONSUMIDOR_FINAL = 0;
-// Concepto 2 = Servicios. Una inscripción a un certamen es una prestación, no una
-// venta de cosa mueble (ADR-0011): se factura como servicio y el payload lleva el
-// período de servicio (`FchServDesde`/`FchServHasta`) y el vencimiento de pago
-// (`FchVtoPago`), como exige ARCA para Concepto 2 (Anexo II, RG 1415).
+// Concepto 2 = Services. An entry to a competition is a service, not a sale of
+// goods (ADR-0011): it is billed as a service and the payload carries the
+// service period (`FchServDesde`/`FchServHasta`) and the payment due date
+// (`FchVtoPago`), as ARCA requires for Concepto 2 (Annex II, RG 1415).
 export const CONCEPTO_SERVICIOS = 2;
 export const MONEDA_PESOS = "PES";
 
-// Formato de fecha ARCA `AAAAMMDD`, tanto para `CbteFch` como para `CAEFchVto`.
+// ARCA date format `AAAAMMDD`, for both `CbteFch` and `CAEFchVto`.
 const ARCA_DATE_RE = /^\d{8}$/;
 
-// Período de servicio y vencimiento de pago de un comprobante Concepto 2, en
-// formato ARCA `AAAAMMDD`. Las tres van juntas o ninguna: un payload de servicio
-// las lleva las tres. En la emisión (#479) `FchServDesde`/`FchServHasta` derivan
-// de las fechas del evento y `FchVtoPago` de la fecha del comprobante; la Nota de
-// crédito espeja las tres del comprobante que anula. Son opcionales en el builder
-// porque la lógica de emisión sobre DB todavía no las cablea (sub-issue aparte).
+// Service period and payment due date of a Concepto 2 comprobante, in ARCA's
+// `AAAAMMDD` format. The three go together or not at all: a service payload
+// carries all three. On emission (#479) `FchServDesde`/`FchServHasta` derive
+// from the event's dates and `FchVtoPago` from the comprobante's date; the Nota
+// de crédito mirrors all three from the comprobante it annuls. They are
+// optional in the builder because the DB-backed emission logic does not wire
+// them yet (separate sub-issue).
 export type ServiceDates = {
   fchServDesde: string;
   fchServHasta: string;
@@ -41,12 +42,12 @@ export type ServiceDates = {
 
 export type FacturaCVoucherInput = {
   ptoVta: number;
-  // Correlativo del comprobante. Lo resuelve la lógica de emisión (#446) a partir
-  // de `FECompUltimoAutorizado + 1`; el builder no auto-numera para no esconder
-  // esa decisión anti-doble-cobro.
+  // The comprobante's sequence number. The emission logic (#446) resolves it
+  // from `FECompUltimoAutorizado + 1`; the builder does not auto-number, so as
+  // not to hide that anti-double-charge decision.
   cbteNro: number;
   cbteFch: string;
-  // Importe total en pesos argentinos enteros (sin centavos, ver finances.md).
+  // Total amount in whole Argentine pesos (no cents, see finances.md).
   importe: number;
   condicionIvaReceptorId: number;
 } & Partial<ServiceDates>;
@@ -65,10 +66,11 @@ export function assertArcaDate(value: string, field = "CbteFch"): void {
   }
 }
 
-// Base común de un comprobante clase C a consumidor final anónimo (Factura C
-// tipo 11 y Nota de crédito C tipo 13). Ambos comparten emisor exento, receptor
-// consumidor final y la ausencia de IVA discriminado; sólo cambian `CbteTipo` y,
-// en la Nota de crédito, el array `CbtesAsoc` con el comprobante que anula (#449).
+// Common base of a class C comprobante to an anonymous final consumer (Factura
+// C type 11 and Nota de crédito C type 13). Both share the exempt issuer, the
+// final-consumer recipient and the absence of itemized VAT; only `CbteTipo`
+// changes and, on the Nota de crédito, the `CbtesAsoc` array with the
+// comprobante it annuls (#449).
 export type ClassCVoucherBase = {
   ptoVta: number;
   cbteNro: number;
@@ -77,11 +79,11 @@ export type ClassCVoucherBase = {
   condicionIvaReceptorId: number;
 } & Partial<ServiceDates>;
 
-// Resuelve el bloque de fechas de servicio del payload. Las tres fechas van
-// juntas o ninguna (un Concepto 2 real las lleva las tres); si vienen, valida su
-// formato y las restricciones duras de WSFEv1: `FchServHasta >= FchServDesde` y
-// `FchVtoPago >= CbteFch`. La comparación lexicográfica de `AAAAMMDD` (ancho fijo,
-// con ceros a la izquierda) coincide con el orden cronológico.
+// Resolves the payload's service-dates block. The three dates go together or
+// not at all (a real Concepto 2 carries all three); if they are present, it
+// validates their format and WSFEv1's hard constraints: `FchServHasta >=
+// FchServDesde` and `FchVtoPago >= CbteFch`. Lexicographic comparison of
+// `AAAAMMDD` (fixed width, zero-padded) matches chronological order.
 function buildServiceDates(
   input: ClassCVoucherBase,
 ): Pick<ArcaVoucher, "FchServDesde" | "FchServHasta" | "FchVtoPago"> {
@@ -125,12 +127,13 @@ function buildServiceDates(
   };
 }
 
-// Construye el payload `FECAESolicitar` de un comprobante clase C (#320/§3 de la
-// research #321). `Concepto: 2` (servicios, ADR-0011): si el input trae las
-// fechas de servicio, se emiten en el payload (`FchServDesde`/`FchServHasta`/
-// `FchVtoPago`). Sin IVA discriminado: `ImpNeto = ImpTotal`, el resto de los
-// importes en 0, y NO se envía el array `<Iva>`. `CbteHasta = CbteDesde`
-// (validación 10012). `cbtesAsoc`, si viene, arma el vínculo `CbtesAsoc`.
+// Builds the `FECAESolicitar` payload of a class C comprobante (#320/§3 of
+// research #321). `Concepto: 2` (services, ADR-0011): if the input carries the
+// service dates, they are emitted in the payload
+// (`FchServDesde`/`FchServHasta`/`FchVtoPago`). Without itemized VAT:
+// `ImpNeto = ImpTotal`, the remaining amounts at 0, and the `<Iva>` array is NOT
+// sent. `CbteHasta = CbteDesde` (validation 10012). `cbtesAsoc`, when present,
+// builds the `CbtesAsoc` link.
 export function buildClassCVoucher(
   input: ClassCVoucherBase,
   extras: { cbteTipo: number; cbtesAsoc?: ArcaVoucher["CbtesAsoc"] },
@@ -167,7 +170,7 @@ export function buildClassCVoucher(
   };
 }
 
-// Construye el payload `FECAESolicitar` de una Factura C (tipo 11).
+// Builds the `FECAESolicitar` payload of a Factura C (type 11).
 export function buildFacturaCVoucher(input: FacturaCVoucherInput): ArcaVoucher {
   return buildClassCVoucher(input, { cbteTipo: FACTURA_C_CBTE_TIPO });
 }

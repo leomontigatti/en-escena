@@ -51,8 +51,8 @@ async function seedInscribedChoreography(email: string) {
   return { event, academy, choreography, inscription };
 }
 
-// Snapshot de una Factura C a consumidor final anónimo emitida por el emisor
-// exento (los valores replican el circuito real del spike #428).
+// Snapshot of a Factura C to an anonymous final consumer issued by the exempt
+// issuer (the values replicate the real circuit of spike #428).
 function facturaCInput(
   overrides: Partial<RecordComprobanteInput> & {
     choreographyId: string;
@@ -135,8 +135,8 @@ describe("recordComprobante persistence", () => {
     );
     expect(beforeAnnulment.status).toBe("vigente");
 
-    // Nota de crédito C (tipo 13) espejo, anclada a la misma coreografía y
-    // apuntando a la factura vía `associatedComprobanteId` (CbtesAsoc).
+    // A mirror Nota de crédito C (type 13), anchored to the same choreography and
+    // pointing at the factura via `associatedComprobanteId` (CbtesAsoc).
     await recordComprobante(
       facturaCInput({
         choreographyId: choreography.id,
@@ -202,18 +202,18 @@ describe("recordComprobante persistence", () => {
       }),
     );
 
-    // La edición de roster (quitar una inscripción) sigue permitida aún con
-    // comprobantes emitidos (#340): sólo el borrado de la coreografía está
-    // bloqueado.
+    // Roster editing (removing an inscription) is still allowed even with
+    // comprobantes emitted (#340): only deleting the choreography is blocked.
     await db
       .delete(choreographyDancers)
       .where(eq(choreographyDancers.id, inscription.id));
 
     const [survivor] = await listChoreographyComprobantes(choreography.id);
-    // La fila fiscal es inmutable: su importe total no cambia.
+    // The fiscal row is immutable: its total amount does not change.
     expect(survivor.id).toBe(factura.id);
     expect(survivor.impTotal).toBe(10000);
-    // El vínculo a la inscripción se anula, pero el monto congelado se preserva.
+    // The link to the inscription is nulled out, but the frozen amount is
+    // preserved.
     expect(survivor.lines).toHaveLength(1);
     expect(survivor.lines[0]?.inscriptionId).toBeNull();
     expect(survivor.lines[0]?.amount).toBe(10000);

@@ -272,11 +272,12 @@ function isModalityFormMutation(input: ModalityActionInput) {
 }
 
 /**
- * Re-valida en el servidor las filas anidadas con el **mismo** esquema Zod que
- * usa el cliente (`modalityFormSchema`), cerrando la asimetría cliente/servidor
- * de los formularios de bases (PRD #465). Ante fallo devuelve el error por el
- * canal de `EventBasesActionResult`, que el runner convierte en el round-trip
- * de `submittedValues`/`ActionData` que repuebla el formulario y sus filas.
+ * Revalidates the nested rows on the server with the **same** Zod schema the
+ * client uses (`modalityFormSchema`), closing the client/server asymmetry of the
+ * bases forms (PRD #465). On failure it returns the error through the
+ * `EventBasesActionResult` channel, which the runner turns into the
+ * `submittedValues`/`ActionData` round trip that repopulates the form and its
+ * rows.
  */
 function revalidateModalityForm(
   input: ModalityActionInput,

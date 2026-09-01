@@ -13,8 +13,8 @@ import {
 import { ChoreographyFinanceDetailView } from "./view";
 import type { loadChoreographyFinanceDetail } from "./server";
 
-// El loader devuelve una unión: sin evento activo no hay coreografía. Las
-// fixtures modelan siempre la rama con evento.
+// The loader returns a union: with no active event there is no choreography. The
+// fixtures always model the branch with an event.
 type ChoreographyFinanceDetailLoaderData = Extract<
   Awaited<ReturnType<typeof loadChoreographyFinanceDetail>>,
   { selectedEventId: string }
@@ -140,7 +140,7 @@ describe("ChoreographyFinanceDetailView", () => {
       ],
     });
 
-    // Lee `Seña pendiente` con el faltante a la vista, no como impaga.
+    // It reads `Seña pendiente` with the shortfall in view, not as unpaid.
     expect(markup).toContain("Seña pendiente");
     expect(markup).toContain("$ 17.500");
   });
@@ -159,11 +159,11 @@ describe("ChoreographyFinanceDetailView", () => {
       }),
     );
 
-    // Ninguna cifra es provisoria, así que el estilo no puede variar con el
-    // estado: si variara, el gris volvería a significar algo.
+    // No figure is provisional, so the styling cannot vary with the state: if it
+    // did, grey would go back to meaning something.
     expect(pending).toEqual(paid);
-    // Lo que queda es decoración fija: `Total` es contexto, `Saldo adeudado` es
-    // la única cifra accionable.
+    // What is left is fixed decoration: `Total` is context, `Saldo adeudado` is
+    // the only actionable figure.
     expect(pending).toEqual({
       "Precio base": { emphasised: false, muted: false },
       Seña: { emphasised: false, muted: false },
@@ -195,7 +195,7 @@ describe("ChoreographyFinanceDetailView", () => {
     expect(alert.textContent).toContain(
       "Hay inscripciones con más dinero asignado que su total",
     );
-    // Genérica: sin título, y sin enumerar bailarines ni contarlos.
+    // Generic: no title, and no listing or counting of dancers.
     expect(alert.querySelector('[data-slot="alert-title"]')).toBeNull();
     expect(alert.textContent).not.toContain("Ana López");
     expect(alert.textContent).not.toContain("$");
@@ -223,9 +223,9 @@ describe("ChoreographyFinanceDetailView", () => {
 });
 
 /**
- * Mapea cada columna de importe de la fila de inscripción a su decoración. Se
- * ancla en el encabezado de la columna, no en su posición, para que el test
- * hable de "Saldo adeudado" y no de "la celda 5".
+ * Maps each amount column of the inscription row to its decoration. It anchors on
+ * the column's header, not on its position, so the test talks about
+ * "Saldo adeudado" and not about "cell 5".
  */
 function amountColumnStyles(markup: string) {
   const document = new DOMParser().parseFromString(markup, "text/html");
@@ -254,7 +254,7 @@ function amountColumnStyles(markup: string) {
   );
 }
 
-/** La alerta de anomalía del detalle, ubicada por su variante `destructive`. */
+/** The detail's anomaly alert, located by its `destructive` variant. */
 function anomalyAlert(markup: string): Element {
   const document = new DOMParser().parseFromString(markup, "text/html");
   const alert = [...document.querySelectorAll('[data-slot="alert"]')].find(
@@ -288,8 +288,8 @@ function amountCard(markup: string, title: string): Element {
 }
 
 /**
- * Renderiza con un data router porque el diálogo de cobro usa `useFetcher`, que
- * no funciona con un router de memoria a secas.
+ * Renders with a data router because the collection dialog uses `useFetcher`,
+ * which does not work with a plain memory router.
  */
 function renderDetail(
   overrides: Partial<ChoreographyFinanceDetailLoaderData> = {},
@@ -430,7 +430,7 @@ describe("ChoreographyFinanceDetailView actions menu", () => {
       }),
     });
 
-    // Cerrado, la afordancia no es un botón suelto: vive detrás del menú `...`.
+    // Closed, the affordance is not a loose button: it lives behind the `...` menu.
     expect(
       document.querySelector('button[aria-label="Acciones"]'),
     ).not.toBeNull();
@@ -444,12 +444,12 @@ describe("ChoreographyFinanceDetailView actions menu", () => {
   });
 
   /**
-   * Regresión: recuperar la emisión por "Verificar ahora" persiste el
-   * comprobante, así que la revalidación devuelve la coreografía ya facturada y
-   * `canEmit` en `false`. Con el diálogo montado según esa bandera, el estado
-   * `recovered` se desmontaba en el mismo tick en que se producía y el operador
-   * nunca lo veía. El facturable se congela al abrir y el diálogo se desmonta al
-   * cerrarlo, no al perder la afordancia (#577).
+   * Regression: recovering the emission via "Verificar ahora" persists the
+   * comprobante, so revalidation returns the choreography already billed and
+   * `canEmit` at `false`. With the dialog mounted off that flag, the `recovered`
+   * state was unmounted in the same tick it was produced and the operator never
+   * saw it. The billable is frozen on open and the dialog unmounts when it is
+   * closed, not when it loses the affordance (#577).
    */
   test("el diálogo de emisión sobrevive a que la coreografía deje de ser facturable", async () => {
     function Wrapper() {
@@ -487,7 +487,7 @@ describe("ChoreographyFinanceDetailView actions menu", () => {
 
     await clickReactDomButton("revalidar");
 
-    // El preview sigue mostrando el importe congelado al abrir, no un $ 0.
+    // The preview still shows the amount frozen on open, not a $ 0.
     expect(document.body.textContent).toContain("Confirmar emisión");
     expect(document.body.textContent).toContain("12.000");
   });

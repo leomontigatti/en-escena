@@ -37,9 +37,9 @@ describe("redirectToLoginForRequest", () => {
   });
 
   test("marca `expirada` cuando la cookie lleva el prefijo `__Secure-` (baseURL https)", () => {
-    // En producción el baseURL es https, Better Auth activa `useSecureCookies` y
-    // emite `__Secure-better-auth.session_token`. Sin reconocer el prefijo, a
-    // una sesión vencida le aparecía `continuar` en vez de `expirada` (#501).
+    // In production the baseURL is https, Better Auth turns on `useSecureCookies`
+    // and emits `__Secure-better-auth.session_token`. Without recognizing the
+    // prefix, an expired session showed `continuar` instead of `expirada` (#501).
     expect(motivoFor("__Secure-better-auth.session_token=signed.token")).toBe(
       "expirada",
     );
@@ -50,8 +50,8 @@ describe("redirectToLoginForRequest", () => {
     expect(motivoFor("otra_cookie=1")).toBe("continuar");
   });
 
-  // Shim de migración (#582): un navegador previo al cutover de auth todavía
-  // puede traer cookies `sb-*`; la redirección de sesión vencida las expira.
+  // A migration shim (#582): a browser predating the auth cutover may still carry
+  // `sb-*` cookies; the expired-session redirect expires them.
   test("expira las cookies `sb-*` heredadas al redirigir una sesión vencida", () => {
     const response = redirectFor("sb-project-auth-token=stale; theme=escena");
 
@@ -61,8 +61,9 @@ describe("redirectToLoginForRequest", () => {
     ]);
   });
 
-  // La rama `continuar` no emite headers: sin cookie de sesión no hay nada que
-  // expirar, y una cookie `sb-*` cuenta como sesión, así que nunca cae acá.
+  // The `continuar` branch emits no headers: with no session cookie there is
+  // nothing to expire, and an `sb-*` cookie counts as a session, so it never
+  // lands here.
   test("no emite `set-cookie` cuando redirige con `continuar`", () => {
     expect(getSetCookieValues(redirectFor("theme=escena").headers)).toEqual([]);
   });

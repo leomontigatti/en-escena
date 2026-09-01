@@ -21,7 +21,7 @@ describe("renderComprobanteQrSvg", () => {
 
     expect(svg.startsWith("<svg")).toBe(true);
     expect(svg).toContain("</svg>");
-    // El SVG dibuja la matriz del QR con un path relleno.
+    // The SVG draws the QR's matrix with a filled path.
     expect(svg).toContain("<path");
   });
 

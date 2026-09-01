@@ -103,8 +103,8 @@ describe.sequential("inscription identity and payment allocations", () => {
       paymentId: payment.id,
     });
 
-    // Sin tipo, el par (pago, inscripción) es único: una segunda fila del mismo
-    // par no entra, por más que traiga otro monto.
+    // With no type, the (payment, inscription) pair is unique: a second row of the
+    // same pair does not get in, whatever amount it carries.
     const duplicateAllocationError = await db
       .insert(paymentAllocations)
       .values({
@@ -118,7 +118,7 @@ describe.sequential("inscription identity and payment allocations", () => {
 
     expect(duplicateAllocationError).toBeInstanceOf(Error);
 
-    // Otro pago sobre la misma inscripción sí: varios pagos pueden cubrirla.
+    // Another payment on the same inscription does: several payments can cover it.
     await registerPaymentForTest({
       academyId: owner.academyId,
       amount: "6000",

@@ -63,9 +63,9 @@ describe("toComprobanteContingency", () => {
     });
   });
 
-  // Sin correlativo el alert no podría ofrecer ninguna de las dos salidas —ni
-  // re-verificar ni verificar en el portal—, así que degrada a error genérico
-  // en lugar de bloquear el submit sin decir qué hay que ir a mirar.
+  // Without a sequence number the alert could offer neither of the two ways out —
+  // neither re-verifying nor verifying in the portal — so it degrades to a generic
+  // error instead of blocking the submit without saying what to go and look at.
   test("no verificado sin `attempt` no llega a la superficie de contingencia", () => {
     expect(
       toComprobanteContingency({
@@ -75,7 +75,7 @@ describe("toComprobanteContingency", () => {
     ).toBeNull();
   });
 
-  // Nada de esto es una contingencia de ARCA: no habilita ni bloquea reintentos.
+  // None of this is an ARCA contingency: it neither enables nor blocks retries.
   test.each(["not-found", "nothing-to-bill", "already-annulled"])(
     "`%s` es un error genérico, no una contingencia",
     (reason) => {

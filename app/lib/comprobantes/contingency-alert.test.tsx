@@ -54,8 +54,8 @@ describe("ContingencyAlert", () => {
     expect(document.body.textContent).toContain(
       "Punto de venta no registrado (código 10015)",
     );
-    // Nada que verificar: ARCA respondió, no se generó nada y reintentar no puede
-    // duplicar.
+    // Nothing to verify: ARCA responded, nothing was generated and retrying cannot
+    // duplicate.
     expect(document.body.textContent).not.toContain("Verificar ahora");
   });
 
@@ -101,8 +101,8 @@ describe("ContingencyAlert", () => {
 
     await clickReactDomButton("Verificar ahora");
 
-    // El importe y la fecha NO viajan del cliente: los recalcula el server
-    // (ADR-0012 decisión 4).
+    // The amount and the date do NOT travel from the client: the server recomputes
+    // them (ADR-0012 decision 4).
     expect(onRecheck).toHaveBeenCalledWith({
       intent: "recheck-comprobante",
       cbteNro: "43",
@@ -159,8 +159,8 @@ describe("resolveContingencySubmitState", () => {
   });
 
   test("recuperado saca el submit, no lo deshabilita", () => {
-    // Un botón deshabilitado se lee como "esperá un momento" e invita a
-    // reintentar; acá reintentar emite un segundo comprobante fiscal.
+    // A disabled button reads as "hold on a moment" and invites a retry; here
+    // retrying emits a second fiscal comprobante.
     expect(resolveContingencySubmitState({ status: "recovered" }, false)).toBe(
       "removed",
     );

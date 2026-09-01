@@ -215,9 +215,9 @@ export function buildModeHref(
   return buildUserDetailPath(userId, nextSearchParams);
 }
 
-// La edición en el lugar del detalle no redirige: retorna
-// `{ status: "success", message }`, el loader revalida y la vista dispara el
-// toast directo desde `actionData`. Ver docs/agents/form-feedback.md.
+// In-place editing on the detail does not redirect: it returns
+// `{ status: "success", message }`, the loader revalidates and the view fires the
+// toast directly from `actionData`. See docs/agents/form-feedback.md.
 export function buildDetailActionSuccess(
   notification: UserRouteNotification,
 ): DetailSuccessData {

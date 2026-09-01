@@ -16,9 +16,9 @@ export type ComprobanteLineInput = {
   amount: number;
 };
 
-// Snapshot de emisión ya resuelto contra ARCA (CAE incluido). Esta capa NO llama
-// a ARCA: sólo persiste la fila inmutable y sus líneas internas. La emisión real
-// (WSAA/WSFEv1 → CAE) vive en slices posteriores (#445/#446).
+// An emission snapshot already resolved against ARCA (CAE included). This layer
+// does NOT call ARCA: it only persists the immutable row and its internal lines.
+// The real emission (WSAA/WSFEv1 → CAE) lives in later slices (#445/#446).
 export type RecordComprobanteInput = {
   choreographyId: string;
   eventId: string;
@@ -26,9 +26,9 @@ export type RecordComprobanteInput = {
   ptoVta: number;
   cbteNro: number;
   cbteFch: string;
-  // Período de servicio y vencimiento de pago (Concepto 2, RG 1415) en formato
-  // ARCA `AAAAMMDD`, congelados al emitir. Nullable: los comprobantes previos a
-  // ADR-0011 no los llevan.
+  // Service period and payment due date (Concepto 2, RG 1415) in ARCA's
+  // `AAAAMMDD` format, frozen at emission. Nullable: comprobantes predating
+  // ADR-0011 do not carry them.
   fchServDesde?: string | null;
   fchServHasta?: string | null;
   fchVtoPago?: string | null;
@@ -91,10 +91,11 @@ export async function recordComprobante(
   });
 }
 
-// ¿La coreografía tiene historia fiscal? Cuenta cualquier comprobante asociado
-// —Factura C o Nota de crédito, vigente o anulada— porque la existencia de una
-// sola fila ya bloquea el borrado físico (#340) y nunca se libera. Chequeo liviano
-// (LIMIT 1) para la guarda server-side, independiente de la UI.
+// Does the choreography have fiscal history? It counts any associated
+// comprobante — Factura C or Nota de crédito, in force or annulled — because the
+// existence of a single row already blocks the physical delete (#340) and is
+// never released. A light check (LIMIT 1) for the server-side guard, independent
+// of the UI.
 export async function choreographyHasComprobantes(
   choreographyId: string,
 ): Promise<boolean> {
@@ -107,9 +108,9 @@ export async function choreographyHasComprobantes(
   return rows.length > 0;
 }
 
-// Todos los comprobantes de una coreografía, con su estado derivado y sus líneas
-// internas. La Nota de crédito espejo se ancla a la misma coreografía, así que
-// el conjunto por coreografía es autocontenido para derivar `vigente`/`anulada`.
+// Every comprobante of a choreography, with its derived state and its internal
+// lines. The mirror Nota de crédito anchors to the same choreography, so the set
+// per choreography is self-contained for deriving `vigente`/`anulada`.
 export async function listChoreographyComprobantes(
   choreographyId: string,
 ): Promise<ComprobanteWithLines[]> {

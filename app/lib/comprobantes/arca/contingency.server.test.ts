@@ -24,8 +24,8 @@ import {
   ultimoAutorizado,
 } from "./fixtures";
 
-// El comprobante que se intentó autorizar, con el importe y la fecha que se le
-// mandaron a ARCA: es contra eso que se valida lo consultado.
+// The comprobante that was attempted, with the amount and date that were sent to
+// ARCA: that is what the queried one is validated against.
 const submitted = {
   ptoVta: 1,
   cbteTipo: 11,
@@ -58,24 +58,24 @@ function clientConsulting(
   return new ArcaClient(fakeBilling({ getVoucherInfo }));
 }
 
-// La autorización falló en el transporte: la petición terminó, así que lo que
-// ARCA diga al consultar es definitivo.
+// The authorization failed at the transport level: the request finished, so
+// whatever ARCA says on the lookup is final.
 const transportFailure: ArcaCallFailure = {
   phase: "authorization",
   timedOut: false,
   detail: "socket hang up",
 };
 
-// La autorización se cortó por NUESTRO timeout: sigue en vuelo y ARCA todavía
-// puede otorgar el CAE después de que dejamos de esperar.
+// The authorization was cut off by OUR timeout: it is still in flight and ARCA
+// may still grant the CAE after we stop waiting.
 const timeoutFailure: ArcaCallFailure = {
   phase: "authorization",
   timedOut: true,
   detail: "ARCA no respondió FECAESolicitar en 30000ms.",
 };
 
-// La falla se loguea (es lo único que sobrevive del detalle), así que se silencia
-// para no ensuciar la salida de los tests que la ejercitan.
+// The failure is logged (it is the only part of the detail that survives), so it
+// is silenced to keep the output of the tests exercising it clean.
 beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
@@ -118,8 +118,9 @@ describe("attemptArca", () => {
     });
   });
 
-  // Nuestro timeout se distingue del transporte porque deja la petición en vuelo:
-  // es lo que decide si un "ARCA no lo tiene" puede leerse como definitivo.
+  // Our own timeout is distinguished from the transport's because it leaves the
+  // request in flight: that is what decides whether an "ARCA does not have it"
+  // can be read as final.
   test("el timeout propio se marca aparte de una falla de transporte", async () => {
     const attempt = await attemptArca("authorization", () =>
       Promise.reject(new ArcaTimeoutError("FECAESolicitar", 30_000)),
@@ -172,8 +173,8 @@ describe("recoverAuthorization", () => {
     });
   });
 
-  // Un timeout tampoco impide recuperar: si ARCA ya lo tiene y coincide, la
-  // pregunta quedó respondida y la petición en vuelo es irrelevante.
+  // A timeout does not prevent recovery either: if ARCA already has it and it
+  // matches, the question is answered and the in-flight request is irrelevant.
   test("se recupera igual si la autorización se cortó por timeout", async () => {
     const recovery = await recoverAuthorization(
       clientConsulting(vi.fn(async () => facturaCConsultada)),
@@ -194,10 +195,10 @@ describe("recoverAuthorization", () => {
     expect(recovery).toEqual({ status: "not-emitted" });
   });
 
-  // El caso que la doble emisión necesita: la autorización se cortó por timeout,
-  // sigue en vuelo, y la consulta —emitida a los milisegundos— mira un CAE que
-  // ARCA puede estar por otorgar. Leer ese `null` como "no se emitió" invitaría a
-  // reintentar y a emitir un segundo comprobante por el mismo monto.
+  // The case double emission needs: the authorization was cut off by a timeout,
+  // is still in flight, and the lookup — issued milliseconds later — is looking
+  // at a CAE ARCA may be about to grant. Reading that `null` as "nothing was
+  // emitted" would invite a retry and a second comprobante for the same amount.
   test("la autorización venció por timeout y ARCA no lo tiene: sigue sin verificarse", async () => {
     const recovery = await recoverAuthorization(
       clientConsulting(vi.fn(async () => null)),
@@ -226,8 +227,8 @@ describe("recoverAuthorization", () => {
     });
   });
 
-  // Los correlativos no se reservan: el número que intentamos puede ser de otro
-  // comprobante (ADR-0012 decisión 4).
+  // Sequence numbers are not reserved: the number we attempted may belong to a
+  // different comprobante (ADR-0012 decision 4).
   test("otro importe con el mismo número no es nuestro comprobante", async () => {
     const recovery = await recoverAuthorization(
       clientConsulting(
@@ -258,8 +259,8 @@ describe("recoverAuthorization", () => {
     });
   });
 
-  // Un comprobante sin CAE no es una autorización: persistirlo dejaría una fila
-  // fiscal con el campo que la respalda vacío.
+  // A comprobante without a CAE is not an authorization: persisting it would
+  // leave a fiscal row with the field that backs it empty.
   test("un comprobante que coincide pero vuelve sin CAE no se recupera", async () => {
     const recovery = await recoverAuthorization(
       clientConsulting(
@@ -309,8 +310,8 @@ describe("mensajes de contingencia", () => {
       "consult-inconclusive",
     );
 
-    // Identificado como en el resto de la app y en el portal de ARCA: es la
-    // cadena exacta que el operador tiene que ir a buscar (#577).
+    // Identified as in the rest of the app and in ARCA's portal: it is the exact
+    // string the operator has to go and look for (#577).
     expect(message).toContain("Factura C 0001-00000043");
     expect(message).not.toContain("tipo 11");
     expect(message).not.toContain("número 43");
@@ -335,12 +336,13 @@ describe("mensajes de contingencia", () => {
     );
 
     expect(message).toContain("se autorizaba la nota de crédito");
-    // Nada de "consultarlo"/"emitido" en masculino sobre un sujeto femenino.
+    // No masculine "consultarlo"/"emitido" over a feminine subject.
     expect(message).not.toMatch(/consultarlo|autorizado\b/);
   });
 
-  // Decir "la consulta no resolvió" acá sería falso: la consulta respondió, y
-  // respondió que no lo tiene. Lo que no está resuelto es si va a tenerlo.
+  // Saying "the lookup did not resolve" here would be false: the lookup answered,
+  // and it answered that ARCA does not have it. What is unresolved is whether it
+  // will.
   test("autorización en vuelo: dice que ARCA todavía no lo tiene, no que falló la consulta", () => {
     const message = buildUnverifiedMessage(
       "comprobante",

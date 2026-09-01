@@ -47,7 +47,7 @@ function comprobanteFixture(
   };
 }
 
-// Ruta con loader real, para que la revalidación del fetcher se vea en la vista.
+// A route with a real loader, so the fetcher's revalidation shows up in the view.
 function LoadedComprobanteDetail() {
   const loaderData = useLoaderData() as ComprobanteDetailLoaderData;
 
@@ -85,8 +85,8 @@ describe("ComprobanteDetailRouteView", () => {
     await renderer.renderAsync(<RouterProvider router={router} />);
   }
 
-  // La anulación deja la nota de crédito sin resolver; la re-verificación la
-  // recupera.
+  // The annulment leaves the nota de crédito unresolved; the re-verification
+  // recovers it.
   function unverifiedThenRecovered() {
     const recheckPayloads: Array<Record<string, string>> = [];
 
@@ -144,23 +144,23 @@ describe("ComprobanteDetailRouteView", () => {
     await clickReactDomButton("Anular comprobante");
     await clickReactDomButton("Verificar ahora");
 
-    // Del cliente sólo viaja el correlativo (ADR-0012 decisión 4).
+    // Only the sequence number travels from the client (ADR-0012 decision 4).
     expect(recheckPayloads).toEqual([
       { intent: recheckNotaCreditoIntent, cbteNro: "8" },
     ]);
     expect(document.body.textContent).toContain("quedó registrado");
-    // La operación terminó: el submit se saca, no se deshabilita.
+    // The operation is over: the submit is removed, not disabled.
     expect(document.querySelector('button[type="submit"]')).toBeNull();
     expect(getButton("Cerrar")).not.toBeNull();
   });
 
   /**
-   * Regresión: recuperar la nota de crédito la persiste, así que la
-   * revalidación que dispara el fetcher devuelve el comprobante ya anulado y
-   * `canAnnul` en `false`. Con el diálogo montado según esa bandera, el estado
-   * `recovered` desaparecía en el mismo tick en que se producía y el operador
-   * nunca lo veía. El diálogo se desmonta al cerrarlo, no al perder la
-   * afordancia (#577).
+   * Regression: recovering the nota de crédito persists it, so the revalidation
+   * the fetcher triggers returns the comprobante already annulled and `canAnnul`
+   * at `false`. With the dialog mounted off that flag, the `recovered` state
+   * disappeared in the same tick it was produced and the operator never saw it.
+   * The dialog unmounts when it is closed, not when it loses the affordance
+   * (#577).
    */
   test("el estado recuperado sobrevive a la revalidación que deja el comprobante anulado", async () => {
     const { action } = unverifiedThenRecovered();
@@ -217,7 +217,7 @@ describe("ComprobanteDetailRouteView", () => {
   test("renders the comprobante data and the actions menu", async () => {
     await mount({});
 
-    // Datos del snapshot fiscal.
+    // Data from the fiscal snapshot.
     expect(document.body.textContent).toContain("0001-00000041");
     expect(document.body.textContent).toContain("Factura C");
     expect(document.body.textContent).toContain("Academia Centro");
@@ -225,30 +225,32 @@ describe("ComprobanteDetailRouteView", () => {
     // `porcion` is deleted, so the detail no longer carries a `Porción` field.
     expect(document.body.textContent).not.toContain("Porción");
 
-    // Menú de acciones (imprimir/anular) alojado en el header.
+    // Actions menu (print/annul) hosted in the header.
     expect(
       document.querySelector('button[aria-label="Acciones"]'),
     ).not.toBeNull();
 
-    // El diálogo de anulación no está montado hasta que se lo abre.
+    // The annulment dialog is not mounted until it is opened.
     expect(document.querySelector('[role="alertdialog"]')).toBeNull();
   });
 
   test("confirms annulment through an alertdialog without a checkbox", async () => {
     await mount({ initialAnnulDialogOpen: true });
 
-    // La confirmación es un AlertDialog: foco atrapado y anunciable por lectores.
+    // The confirmation is an AlertDialog: focus trapped and announceable by
+    // screen readers.
     expect(document.querySelector('[role="alertdialog"]')).not.toBeNull();
 
-    // El copy dice qué se anula, por cuánto, y la salida real (Nota de crédito).
+    // The copy says what is being annulled, for how much, and the real output
+    // (Nota de crédito).
     expect(document.body.textContent).toContain("0001-00000041");
     expect(document.body.textContent).toContain("7.000");
     expect(document.body.textContent).toMatch(/nota de crédito/i);
 
-    // Sin checkbox: la confirmación es el diálogo mismo.
+    // No checkbox: the confirmation is the dialog itself.
     expect(document.body.querySelector('input[type="checkbox"]')).toBeNull();
 
-    // El intent de anulación viaja en el form.
+    // The annulment intent travels in the form.
     expect(
       document.querySelector(
         `input[name="intent"][value="${annulComprobanteIntent}"]`,
@@ -263,7 +265,8 @@ describe("ComprobanteDetailRouteView", () => {
     });
 
     expect(document.body.textContent).toContain("Anulada");
-    // Sin comprobante vigente no hay anulación posible: ni diálogo ni acción.
+    // With no comprobante in force there is no possible annulment: neither dialog
+    // nor action.
     expect(document.querySelector('[role="alertdialog"]')).toBeNull();
   });
 });

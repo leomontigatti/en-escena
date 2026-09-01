@@ -267,9 +267,9 @@ async function redirectAfterDeletion(
   );
 }
 
-// Las ediciones en el lugar del detalle no redirigen: retornan
-// `{ status: "success" }`, el loader revalida y la vista dispara el toast
-// directo. Ver docs/agents/form-feedback.md.
+// In-place edits on the detail do not redirect: they return
+// `{ status: "success" }`, the loader revalidates and the view fires the toast
+// directly. See docs/agents/form-feedback.md.
 async function successOrError(
   resultPromise: Promise<EventMutationResult>,
   notification: EventRouteNotification,

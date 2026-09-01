@@ -245,9 +245,9 @@ describe("event registration readiness", () => {
     });
   });
 
-  // A las 23:30 del 31 en Córdoba (02:30 UTC del 1) el precio que vence el 31
-  // todavía rige: la readiness no puede anunciar el vencimiento tres horas
-  // antes de que ocurra para la academia.
+  // At 23:30 on the 31st in Córdoba (02:30 UTC on the 1st) the price expiring on
+  // the 31st is still in force: readiness cannot announce the expiry three hours
+  // before it happens for the academy.
   test("no vence el precio del día a las 23:30 de Córdoba", async () => {
     const event = await createSavedEvent("Vence hoy 2026");
     const jazz = await expectCreated(
@@ -286,7 +286,7 @@ describe("event registration readiness", () => {
       }),
     );
 
-    // Sólo `Date` queda congelado: el pool de la base sigue usando timers reales.
+    // Only `Date` is frozen: the database pool keeps using real timers.
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-06-01T02:30:00Z"));
 
@@ -301,9 +301,9 @@ describe("event registration readiness", () => {
     }
   });
 
-  // El sello del caché se compara contra el día del negocio: una readiness
-  // calculada a las 23:00 del 31 en Córdoba ya está vencida a las 00:30 del 1,
-  // aunque ambos instantes caigan en el mismo día UTC.
+  // The cache's stamp is compared against the business day: a readiness computed
+  // at 23:00 on the 31st in Córdoba is already stale at 00:30 on the 1st, even
+  // though both instants fall on the same UTC day.
   test("recalcula la readiness sellada el día de negocio anterior", async () => {
     const event = await createSavedEvent("Sello de ayer 2026");
 
@@ -319,7 +319,7 @@ describe("event registration readiness", () => {
       .where(eq(events.id, event.id));
 
     vi.useFakeTimers({ toFake: ["Date"] });
-    // 01/06 00:30 de Córdoba: mismo día UTC que el sello, día de negocio nuevo.
+    // 01/06 00:30 in Córdoba: the same UTC day as the stamp, a new business day.
     vi.setSystemTime(new Date("2026-06-01T03:30:00Z"));
 
     try {

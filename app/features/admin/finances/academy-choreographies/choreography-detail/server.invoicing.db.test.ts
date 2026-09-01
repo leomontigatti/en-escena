@@ -62,8 +62,8 @@ function fakeBilling(
     createVoucher: vi.fn(
       async (): Promise<CreateVoucherResultDto> => facturaCAprobada,
     ),
-    // Sólo se consulta cuando la autorización se cae: por defecto ARCA no tiene
-    // ese comprobante.
+    // Only queried when the authorization falls over: by default ARCA does not
+    // have that comprobante.
     getVoucherInfo: vi.fn(
       async (): Promise<VoucherInfoResultDto | null> => null,
     ),
@@ -181,8 +181,8 @@ async function recordVigenteFactura(input: {
   });
 }
 
-// Nota de crédito que espeja una factura: al referenciarla por
-// `associatedComprobanteId`, el estado derivado de la factura pasa a `anulada`.
+// A Nota de crédito mirroring a factura: by referencing it through
+// `associatedComprobanteId`, the factura's derived state becomes `anulada`.
 async function recordNotaCredito(input: {
   choreographyId: string;
   eventId: string;
@@ -415,7 +415,7 @@ describe.sequential(
         })
         .returning();
 
-      // A cobra 3000 y se factura entera (línea facturada de 3000).
+      // A collects 3000 and is billed in full (a billed line of 3000).
       await seedAllocation({
         academyId: academy.academy.id,
         amount: 3000,
@@ -429,15 +429,15 @@ describe.sequential(
         amount: 3000,
         cbteNro: 7,
       });
-      // B cobra sólo 1000 (menos que la línea facturada de A).
+      // B collects only 1000 (less than A's billed line).
       await seedAllocation({
         academyId: academy.academy.id,
         amount: 1000,
         eventId: event.id,
         inscriptionId: inscriptionB.id,
       });
-      // Se borra la asignación de A: su línea facturada queda huérfana y el
-      // agregado facturado (3000) supera al cobrado (1000).
+      // A's allocation is deleted: its billed line is orphaned and the billed
+      // aggregate (3000) exceeds the collected one (1000).
       await db
         .delete(paymentAllocations)
         .where(eq(paymentAllocations.inscriptionId, inscriptionA.id));
@@ -538,8 +538,8 @@ describe.sequential(
       expect(stored).toHaveLength(0);
     });
 
-    // Se vio fallar la emisión durante hasta 45 segundos y terminó bien: pasar a
-    // "listo" sin decir nada se lee como un glitch (ADR-0012).
+    // The emission was seen failing for up to 45 seconds and then finished fine:
+    // switching to "done" without saying anything reads as a glitch (ADR-0012).
     test("una emisión recuperada redirige avisando por flash session", async () => {
       const seeded = await seedChoreographyWithPaidInscription({
         academyName: "Academia Recuperada",
@@ -581,7 +581,8 @@ describe.sequential(
 
       expect(redirect).toBeInstanceOf(Response);
       expect((redirect as Response).status).toBe(302);
-      // El aviso viaja por flash session, no por `actionData`: la ruta redirige.
+      // The notice travels by flash session, not by `actionData`: the route
+      // redirects.
       expect((redirect as Response).headers.get("set-cookie")).toContain(
         "ee-flash",
       );
@@ -628,8 +629,8 @@ describe.sequential(
         resolveEmissionDeps: () => emissionDeps(billing),
       });
 
-      // No cruza un redirect: llega como estado del alert, distinguible de la
-      // recuperación durante el submit original.
+      // It does not cross a redirect: it arrives as alert state, distinguishable
+      // from recovery during the original submit.
       expect(result).toEqual({
         status: "contingency",
         contingency: { status: "recovered" },
@@ -643,8 +644,9 @@ describe.sequential(
       expect(stored).toHaveLength(1);
     });
 
-    // El importe lo recalcula el server desde el facturable: un correlativo
-    // adulterado no puede forzar la persistencia de un CAE ajeno (decisión 4).
+    // The amount is recomputed by the server from the billable: a tampered
+    // sequence number cannot force somebody else's CAE to be persisted
+    // (decision 4).
     test("la re-verificación de un correlativo ajeno se queda sin verificar", async () => {
       const seeded = await seedChoreographyWithPaidInscription({
         academyName: "Academia Ajena",

@@ -27,8 +27,8 @@ import {
   type LastVoucherResult,
 } from "./responses";
 
-// El comprobante persistido en el test: la coreografía no sabe qué es, sólo que
-// `persist` lo devuelve.
+// The comprobante persisted in the test: the choreography does not know what it
+// is, only that `persist` returns it.
 type PersistedVoucher = {
   cae: string;
   caeVto: string;
@@ -55,8 +55,8 @@ function fakeBilling(
   };
 }
 
-// La coreografía por defecto: consulta el correlativo, emite aprobado y
-// persiste. Cada test sobrescribe la parte que ejercita.
+// The default choreography: it looks up the sequence number, emits approved and
+// persists. Each test overrides the part it exercises.
 function choreography(
   overrides: Partial<ArcaEmissionChoreography<PersistedVoucher>> = {},
   billing: ArcaBillingPort = fakeBilling(),
@@ -161,8 +161,9 @@ describe("emitWithContingency", () => {
     expect(persist).not.toHaveBeenCalled();
   });
 
-  // Cortada la autorización en el transporte, la consulta posterior es
-  // definitiva: si ARCA no lo tiene, no se emitió nada (ADR-0012 decisión 5).
+  // With the authorization cut off at the transport level, the follow-up lookup
+  // is final: if ARCA does not have it, nothing was emitted (ADR-0012
+  // decision 5).
   test("cortada la autorización y ARCA no lo tiene: no se emitió nada", async () => {
     const persist = vi.fn();
 
@@ -212,7 +213,8 @@ describe("emitWithContingency", () => {
     expect(persist).not.toHaveBeenCalled();
   });
 
-  // El sujeto sólo elige cómo se nombra el documento en el mensaje al operador.
+  // The subject only picks how the document is named in the message to the
+  // operator.
   test("el sujeto nombra el documento en el mensaje de contingencia", async () => {
     const outcome = await emitWithContingency(
       choreography({
@@ -229,11 +231,11 @@ describe("emitWithContingency", () => {
     });
   });
 
-  // Sin `cbteFch` explícito (producción: sólo los tests inyectan uno) la fecha
-  // sale del huso horario de negocio, no del huso del servidor.
+  // Without an explicit `cbteFch` (in production only the tests inject one) the
+  // date comes from the business time zone, not the server's.
   test("sin fecha explícita, el comprobante sale con la fecha de negocio", async () => {
     vi.useFakeTimers();
-    // 01:30 UTC del 23 → todavía 22 en Córdoba (UTC-3).
+    // 01:30 UTC on the 23rd → still the 22nd in Córdoba (UTC-3).
     vi.setSystemTime(new Date("2026-07-23T01:30:00Z"));
 
     const emit = vi.fn(
@@ -254,8 +256,8 @@ describe("emitWithContingency", () => {
     vi.useRealTimers();
   });
 
-  // El motivo del rechazo se lee del primer error, y si no lo hay se va cayendo
-  // a la observación y al `Resultado` crudo.
+  // The reason for the rejection is read from the first error, and failing that
+  // it falls back to the observation and to the raw `Resultado`.
   test.each([
     {
       caso: "error",
@@ -306,7 +308,8 @@ describe("emitWithContingency", () => {
     },
   );
 
-  // Un "aprobado" sin CAE no cuenta como autorizado (ADR-0012): no se persiste.
+  // An "approved" without a CAE does not count as authorized (ADR-0012): nothing
+  // is persisted.
   test("aprobado sin CAE: no persiste nada y cuenta como rechazo", async () => {
     const persist = vi.fn();
 
@@ -375,7 +378,7 @@ describe("recheckWithContingency", () => {
     });
   });
 
-  // No autoriza nada: la re-verificación es sólo `FECompConsultar`.
+  // It authorizes nothing: re-verification is only `FECompConsultar`.
   test("no reintenta la autorización", async () => {
     const createVoucher = vi.fn(
       async (): Promise<CreateVoucherResultDto> => facturaCAprobada,
@@ -395,8 +398,8 @@ describe("recheckWithContingency", () => {
     expect(createVoucher).not.toHaveBeenCalled();
   });
 
-  // Un `cbteNro` adulterado o viejo hace que el importe recalculado no coincida:
-  // el resultado se queda en `unverified`, que es la dirección segura.
+  // A tampered or stale `cbteNro` makes the recomputed amount fail to match: the
+  // result stays `unverified`, which is the safe direction.
   test("importe que no coincide: no persiste y sigue sin verificar", async () => {
     const persist = vi.fn();
     const outcome = await recheckWithContingency(
@@ -428,9 +431,9 @@ describe("recheckWithContingency", () => {
   });
 
   /**
-   * Sólo puede probar el positivo: nadie midió cuánto puede vivir una petición
-   * del lado de ARCA, así que un `null` nunca asciende a `not-emitted` por más
-   * tiempo que haya pasado desde el intento (ADR-0012 decisión 2).
+   * It can only prove the positive: nobody has measured how long a request can
+   * live on ARCA's side, so a `null` never gets promoted to `not-emitted`, no
+   * matter how much time has passed since the attempt (ADR-0012 decision 2).
    */
   test("ARCA sigue sin tenerlo: se queda en no verificado, nunca en no emitido", async () => {
     const outcome = await recheckWithContingency(

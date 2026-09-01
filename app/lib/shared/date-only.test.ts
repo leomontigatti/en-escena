@@ -16,8 +16,8 @@ describe("isDateOnly", () => {
 });
 
 describe("isFutureDateOnly", () => {
-  // "Hoy" es el día del negocio, no el del servidor: a las 23:30 del 31 en
-  // Córdoba (02:30 UTC del 1) el 31 todavía no es futuro y el 1 sí lo es.
+  // "Today" is the business day, not the server's: at 23:30 on the 31st in Córdoba
+  // (02:30 UTC on the 1st) the 31st is not yet in the future and the 1st is.
   test("resuelve hoy en la zona horaria del negocio", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-01T02:30:00Z"));
