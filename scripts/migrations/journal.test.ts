@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   findJournalInconsistencies,
+  findMutatedMigrationFiles,
   findOutOfOrderEntries,
+  findRewrittenJournalEntries,
 } from "./journal.mjs";
 
 function journalEntry(idx: number, when: number) {
@@ -141,6 +143,98 @@ describe("findOutOfOrderEntries", () => {
   it("accepts any branch when the base has no migrations yet", () => {
     expect(
       findOutOfOrderEntries({
+        baseEntries: [],
+        headEntries: [journalEntry(0, 100)],
+      }),
+    ).toEqual([]);
+  });
+});
+
+describe("findMutatedMigrationFiles", () => {
+  it("accepts a branch that only adds migrations", () => {
+    expect(
+      findMutatedMigrationFiles({
+        changes: [
+          { path: "app/db/migrations/0008_new.sql", status: "added" },
+          { path: "app/db/migrations/0009_new.sql", status: "added" },
+        ],
+      }),
+    ).toEqual([]);
+  });
+
+  it("rejects an edit to a migration already on the base branch", () => {
+    // The incident this check exists for: a vocabulary sweep rewrote a comment
+    // inside an applied migration, which changed its hash and stopped every
+    // deploy after it.
+    expect(
+      findMutatedMigrationFiles({
+        changes: [
+          {
+            path: "app/db/migrations/0007_strange_mantis.sql",
+            status: "modified",
+          },
+          { path: "app/db/migrations/0008_new.sql", status: "added" },
+        ],
+      }),
+    ).toEqual([
+      { path: "app/db/migrations/0007_strange_mantis.sql", reason: "modified" },
+    ]);
+  });
+
+  it("rejects a deleted or renamed migration", () => {
+    expect(
+      findMutatedMigrationFiles({
+        changes: [
+          { path: "app/db/migrations/0006_gone.sql", status: "removed" },
+          { path: "app/db/migrations/0007_old_name.sql", status: "renamed" },
+        ],
+      }),
+    ).toEqual([
+      { path: "app/db/migrations/0006_gone.sql", reason: "removed" },
+      { path: "app/db/migrations/0007_old_name.sql", reason: "renamed" },
+    ]);
+  });
+});
+
+describe("findRewrittenJournalEntries", () => {
+  it("accepts a journal that only gained an entry", () => {
+    expect(
+      findRewrittenJournalEntries({
+        baseEntries: [journalEntry(0, 100), journalEntry(1, 200)],
+        headEntries: [
+          journalEntry(0, 100),
+          journalEntry(1, 200),
+          journalEntry(2, 300),
+        ],
+      }),
+    ).toEqual([]);
+  });
+
+  it("rejects a base entry whose timestamp moved", () => {
+    // The timestamp is what pairs the entry with its applied row, so moving it
+    // orphans the migration as surely as deleting it.
+    expect(
+      findRewrittenJournalEntries({
+        baseEntries: [journalEntry(0, 100), journalEntry(1, 200)],
+        headEntries: [journalEntry(0, 100), journalEntry(1, 250)],
+      }),
+    ).toEqual([
+      { tag: "0001_migration", when: 200, reason: "entry-rewritten" },
+    ]);
+  });
+
+  it("rejects a base entry that disappeared", () => {
+    expect(
+      findRewrittenJournalEntries({
+        baseEntries: [journalEntry(0, 100), journalEntry(1, 200)],
+        headEntries: [journalEntry(0, 100)],
+      }),
+    ).toEqual([{ tag: "0001_migration", when: 200, reason: "entry-removed" }]);
+  });
+
+  it("accepts any branch when the base has no migrations yet", () => {
+    expect(
+      findRewrittenJournalEntries({
         baseEntries: [],
         headEntries: [journalEntry(0, 100)],
       }),

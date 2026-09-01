@@ -47,6 +47,19 @@ and silently. The `migration-order` step in the `checks` CI job fails a PR whose
 newest migration predates the newest on `master`; the fix is a rebase plus a
 regenerate.
 
+**Never edit a migration that has been applied.** Drizzle records a sha256 of
+the whole `.sql` file in `drizzle.__drizzle_migrations` and `scripts/migrate.mjs`
+compares it at every start, so a change of any size — a comment, a reflowed line,
+a word swapped by a repo-wide search and replace — makes the container refuse to
+start and the deploy roll back. That is not a bug to work around: an applied
+migration is a record of what ran, not source to keep tidy. A migration that is
+genuinely wrong is corrected by a _new_ migration. The `migration-order and
+immutability` step in the `checks` CI job fails a PR that edits, deletes or
+renames a `.sql` file already on `master`, or that rewrites a journal entry
+already there; run it yourself with `pnpm check:migration-immutability`. Note
+that the file cannot carry a "do not edit" banner, because adding one would
+change its hash too.
+
 Test harnesses apply the exact same migrations: the PGlite snapshot builder and
 `pnpm db:test:reset` both run `migrate` against `app/db/migrations`. `pushSchema`
 survives only as the equivalence oracle in `app/db/migrations.db.test.ts`, which
