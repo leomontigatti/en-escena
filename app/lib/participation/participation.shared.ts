@@ -1,6 +1,6 @@
 /**
- * Vocabulario único de participación para admin y portal: las dos superficies
- * derivan el estado igual y lo nombran igual.
+ * The single participation vocabulary for admin and portal: both surfaces derive
+ * the state the same way and name it the same way.
  */
 export type ParticipationStatus =
   | "participating"
@@ -8,8 +8,8 @@ export type ParticipationStatus =
   | "no-event";
 
 /**
- * Los estados que sí se muestran. Sin evento activo no hay nada que informar:
- * las dos superficies esconden el badge en vez de nombrar `no-event`.
+ * The states that are actually shown. With no active event there is nothing to
+ * report: both surfaces hide the badge instead of naming `no-event`.
  */
 export type ShownParticipationStatus = Exclude<ParticipationStatus, "no-event">;
 

@@ -8,13 +8,13 @@ import {
 const LOGIN_PATH = "/ingresar";
 const CONTINUE_REASON = "continuar";
 const EXPIRED_REASON = "expirada";
-// Cookie de sesión de Better Auth (default, sin `cookiePrefix` custom). Su
-// presencia distingue una sesión vencida (`expirada`) de "nunca ingresó"
-// (`continuar`). Con un baseURL https, Better Auth activa `useSecureCookies` y
-// emite el nombre con prefijo `__Secure-`, así que hay que reconocer ambos: en
-// producción la cookie real es `__Secure-better-auth.session_token` (#501). El
-// prefijo `sb-` se conserva solo por las cookies previas al cutover de auth; se
-// retira junto con `legacy-session-cookies.server.ts` (#582).
+// Better Auth's session cookie (the default, with no custom `cookiePrefix`). Its
+// presence distinguishes an expired session (`expirada`) from "never signed in"
+// (`continuar`). With an https baseURL, Better Auth turns on `useSecureCookies`
+// and emits the name with the `__Secure-` prefix, so both have to be recognized:
+// in production the real cookie is `__Secure-better-auth.session_token` (#501).
+// The `sb-` prefix is kept only for the cookies predating the auth cutover; it is
+// retired together with `legacy-session-cookies.server.ts` (#582).
 const BETTER_AUTH_SESSION_COOKIE_NAME = "better-auth.session_token";
 const BETTER_AUTH_SECURE_SESSION_COOKIE_NAME =
   "__Secure-better-auth.session_token";

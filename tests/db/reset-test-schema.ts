@@ -83,10 +83,10 @@ async function dropExistingEnums(
   );
 }
 
-// El estado de migraciones debe irse junto con el schema: la base de test es un
-// Postgres persistente, así que si `drizzle.__drizzle_migrations` sobrevive al
-// reset, `drizzle-kit migrate` trata el baseline como aplicado y deja la base
-// vacía. Dropear el schema `drizzle` fuerza a migrate a re-aplicar desde cero.
+// The migration state has to go along with the schema: the test database is a
+// persistent Postgres, so if `drizzle.__drizzle_migrations` survives the reset,
+// `drizzle-kit migrate` treats the baseline as applied and leaves the database
+// empty. Dropping the `drizzle` schema forces migrate to re-apply from scratch.
 async function dropMigrationState(
   testClient: postgres.Sql<Record<string, unknown>>,
 ) {

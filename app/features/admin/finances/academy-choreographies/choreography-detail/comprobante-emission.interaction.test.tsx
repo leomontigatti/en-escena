@@ -47,8 +47,8 @@ describe("EmissionDialog", () => {
     await renderer.renderAsync(<RouterProvider router={router} />);
   }
 
-  // Responde según el intent: el primer submit deja la contingencia pedida y la
-  // re-verificación responde `recovered`.
+  // It answers by intent: the first submit leaves the requested contingency and
+  // the re-verification answers `recovered`.
   function contingencyAction(
     contingency: ChoreographyFinanceActionData["status"] extends never
       ? never
@@ -91,7 +91,7 @@ describe("EmissionDialog", () => {
     cbteNro: 43,
   } as const;
 
-  test("una emisión sin verificar bloquea el reintento y ofrece las dos salidas", async () => {
+  test("an unverified emission blocks the retry and offers both ways out", async () => {
     const { action } = contingencyAction(unverified);
     await mount({
       billableAmount: 12000,
@@ -102,13 +102,13 @@ describe("EmissionDialog", () => {
     await clickReactDomButton("Confirmar emisión");
 
     expect(document.body.textContent).toContain("Factura C 0001-00000043");
-    // Reintentar a ciegas es exactamente como se emite un comprobante duplicado.
+    // Retrying blindly is exactly how a duplicate comprobante gets emitted.
     expect(getButton("Confirmar emisión").disabled).toBe(true);
     expect(getButton("Verificar ahora")).not.toBeNull();
     expect(getButton("Ya verifiqué en ARCA")).not.toBeNull();
   });
 
-  test("declarar la verificación manual vuelve a habilitar el reintento", async () => {
+  test("declaring manual verification re-enables the retry", async () => {
     const { action } = contingencyAction(unverified);
     await mount({
       billableAmount: 12000,
@@ -122,7 +122,7 @@ describe("EmissionDialog", () => {
     expect(getButton("Confirmar emisión").disabled).toBe(false);
   });
 
-  test("verificar ahora manda sólo el correlativo y resuelve el alert en el diálogo", async () => {
+  test("verify now sends only the sequence number and resolves the alert inside the dialog", async () => {
     const { action, recheckPayloads } = contingencyAction(unverified);
     await mount({
       billableAmount: 12000,
@@ -133,17 +133,18 @@ describe("EmissionDialog", () => {
     await clickReactDomButton("Confirmar emisión");
     await clickReactDomButton("Verificar ahora");
 
-    // Ni importe ni fecha viajan del cliente (ADR-0012 decisión 4).
+    // Neither the amount nor the date travels from the client (ADR-0012
+    // decision 4).
     expect(recheckPayloads).toEqual([
       { intent: recheckComprobanteIntent, cbteNro: "43" },
     ]);
     expect(document.body.textContent).toContain("quedó registrado");
-    // Recuperado: el submit se saca, no se deshabilita.
+    // Recovered: the submit is removed, not disabled.
     expect(document.querySelector('button[type="submit"]')).toBeNull();
     expect(getButton("Cerrar")).not.toBeNull();
   });
 
-  test("un rechazo de ARCA deja reintentar y muestra los errores crudos", async () => {
+  test("an ARCA rejection allows a retry and shows the raw errors", async () => {
     const { action } = contingencyAction({
       status: "rejected",
       message: "ARCA no autorizó el comprobante (CUIT sin habilitar).",
@@ -175,7 +176,8 @@ describe("EmissionDialog", () => {
   test("previews the computed amount without letting the operator pick it", async () => {
     await mount({ billableAmount: 12000, open: true });
 
-    // La confirmación es un AlertDialog: foco atrapado y anunciable por lectores.
+    // The confirmation is an AlertDialog: focus trapped and announceable by screen
+    // readers.
     expect(document.querySelector('[role="alertdialog"]')).not.toBeNull();
 
     // It previews the derived amount and offers no control over it. `Porción` is
@@ -184,11 +186,11 @@ describe("EmissionDialog", () => {
     expect(document.body.textContent).toContain("12.000");
     expect(document.body.textContent).not.toContain("Porción");
 
-    // El copy nombra la salida real (nota de crédito, en minúscula dentro de la
-    // frase por ser término de dominio).
+    // The copy names the real output (nota de crédito, lowercase inside the
+    // sentence because it is a domain term).
     expect(document.body.textContent).toMatch(/nota de crédito/i);
 
-    // Sin checkbox: la confirmación queda habilitada de entrada.
+    // No checkbox: the confirmation is enabled from the start.
     expect(document.body.querySelector('input[type="checkbox"]')).toBeNull();
     expect(getButton("Confirmar emisión").disabled).toBe(false);
   });

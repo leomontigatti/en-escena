@@ -5,30 +5,32 @@ import {
   type ClassCVoucherBase,
 } from "./factura-c";
 
-// Comprobante asociado a la Nota de crédito: el que se anula (`CbtesAsoc`). Es la
-// Factura C original o, en una cadena, otra Nota de crédito. Se admite una cadena
-// ilimitada de asociación porque cada eslabón sólo referencia al anterior por su
-// (tipo, punto de venta, número) y el emisor es siempre el mismo.
+// The comprobante associated with the Nota de crédito: the one being annulled
+// (`CbtesAsoc`). It is the original Factura C or, in a chain, another Nota de
+// crédito. An unlimited association chain is allowed because each link only
+// references the previous one by its (type, sales point, number) and the issuer
+// is always the same.
 export type NotaCreditoCAsociado = {
   cbteTipo: number;
   ptoVta: number;
   cbteNro: number;
-  // `AAAAMMDD` del comprobante asociado. Opcional en `CbtesAsoc`.
+  // The associated comprobante's `AAAAMMDD`. Optional in `CbtesAsoc`.
   cbteFch?: string;
 };
 
 export type NotaCreditoCVoucherInput = ClassCVoucherBase & {
-  // CUIT del emisor del comprobante asociado. Como el emisor es siempre
-  // Proyecciones Artísticas (auto-emisión), coincide con el CUIT del emisor.
+  // The CUIT of the associated comprobante's issuer. Since the issuer is always
+  // Proyecciones Artísticas (self-issuance), it matches the issuer's CUIT.
   emisorCuit: string;
   asociado: NotaCreditoCAsociado;
 };
 
-// Construye el payload `FECAESolicitar` de una Nota de crédito C (tipo 13, #328).
-// Es un comprobante espejo total-only de la Factura C: mismo importe total y
-// misma base clase C, más el array `CbtesAsoc` que la vincula al comprobante que
-// anula. La lógica de emisión (emit-nota-credito.server) resuelve el correlativo
-// y el importe; el builder no auto-numera ni decide qué se anula.
+// Builds the `FECAESolicitar` payload of a Nota de crédito C (type 13, #328). It
+// is a total-only mirror of the Factura C: the same total amount and the same
+// class C base, plus the `CbtesAsoc` array linking it to the comprobante it
+// annuls. The emission logic (emit-nota-credito.server) resolves the sequence
+// number and the amount; the builder neither auto-numbers nor decides what is
+// annulled.
 export function buildNotaCreditoCVoucher(
   input: NotaCreditoCVoucherInput,
 ): ArcaVoucher {

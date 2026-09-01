@@ -3,21 +3,21 @@ import { useForm } from "react-hook-form";
 import { useNavigation } from "react-router";
 
 /**
- * Los campos sueltos del detalle (submodalidad, cupo de cronograma) no editan
- * un form: muestran lo guardado. RHF sostiene la selección solo mientras el
- * envío está en vuelo, así que apenas se resuelve el campo vuelve a lo que dice
- * el loader.
+ * The detail's standalone fields (submodality, schedule capacity) do not edit a
+ * form: they show what is saved. RHF holds the selection only while the
+ * submission is in flight, so as soon as it resolves the field goes back to what
+ * the loader says.
  *
- * Sin esta re-sincronización un rechazo deja el select mostrando un valor que
- * no se escribió: `defaultValues` se lee una sola vez y la revalidación del
- * loader no lo toca. En el cupo de cronograma eso es mentir sobre una clave de
- * precio, y `schedule-capacity-full` es una carrera ordinaria que el indicio de
- * ocupación explícitamente no previene. Es lo que promete el comentario de
- * `ChoreographyFieldUpdateErrorData` en `shared.ts`.
+ * Without this resynchronization a rejection leaves the select showing a value
+ * that was not written: `defaultValues` is read once and the loader's
+ * revalidation does not touch it. On the schedule capacity that means lying
+ * about a price key, and `schedule-capacity-full` is an ordinary race that the
+ * occupancy hint explicitly does not prevent. It is what the comment on
+ * `ChoreographyFieldUpdateErrorData` in `shared.ts` promises.
  *
- * Reponer contra el loader al volver a `idle` cubre las dos salidas: si el
- * servidor aceptó, el loader ya trae el valor nuevo y el reset no se nota; si
- * rechazó, el campo vuelve solo.
+ * Restoring against the loader on the return to `idle` covers both exits: if the
+ * server accepted, the loader already carries the new value and the reset goes
+ * unnoticed; if it rejected, the field reverts on its own.
  */
 export function useSavedValueSelectForm(name: string, savedValue: string) {
   const form = useForm<Record<string, string>>({

@@ -32,12 +32,13 @@ type ComprobantesListRouteViewProps = {
   loaderData: ComprobantesListLoaderData;
 };
 
-// Lista global de solo lectura, paginada/ordenada/filtrada del lado del servidor
-// (ADR-0011, #483). Orden fijo de columnas:
-// `# · Tipo · Academia · Coreografía · Estado · Fecha · Importe`. Sólo `Comprobante`
-// (número) y `Fecha` son ordenables (`sortValue` habilita el header). El número
-// enlaza al detalle del comprobante y la coreografía a su detalle financiero; no
-// hay columna CAE ni acciones inline (imprimir/anular viven en el detalle).
+// A read-only global list, paginated/sorted/filtered on the server (ADR-0011,
+// #483). Fixed column order:
+// `# · Tipo · Academia · Coreografía · Estado · Fecha · Importe`. Only
+// `Comprobante` (the number) and `Fecha` are sortable (`sortValue` enables the
+// header). The number links to the comprobante detail and the choreography to
+// its financial detail; there is no CAE column and no inline actions
+// (print/annul live in the detail).
 export const comprobanteColumns: DataTableColumn<ComprobantesListRow>[] = [
   {
     id: "numero",

@@ -255,7 +255,7 @@ describe.sequential("admin payment detail", () => {
       status: 302,
     });
 
-    // El pago y su asignación quedan eliminados.
+    // The payment and its allocation are deleted.
     await expect(findPaymentById(payment.id)).resolves.toBeUndefined();
     await expect(findAllocationsByPaymentId(payment.id)).resolves.toEqual([]);
 
@@ -277,7 +277,7 @@ describe.sequential("admin payment detail", () => {
       requestUrl: paymentDetailUrl("payment_pending", event.id),
     });
 
-    // Pago A: lleva la seña. Pago B: lleva el saldo.
+    // Payment A: carries the deposit. Payment B: carries the balance.
     await registerAcademyEventPayment({
       academyId: academy.academy.id,
       amount: 3000,
@@ -338,7 +338,7 @@ describe.sequential("admin payment detail", () => {
       requestUrl: paymentDetailUrl(depositPayment.id, event.id),
     });
 
-    // No hay orden de reversión: la plata es fungible y la eliminación procede.
+    // There is no reversal order: money is fungible and the deletion proceeds.
     await expect(
       handlePaymentDetailAction(request, depositPayment.id),
     ).rejects.toMatchObject({ status: 302 });
@@ -347,7 +347,8 @@ describe.sequential("admin payment detail", () => {
     await expect(
       findAllocationsByPaymentId(depositPayment.id),
     ).resolves.toEqual([]);
-    // El saldo del otro pago sigue asignado; la inscripción ya no está pagada.
+    // The other payment's balance is still allocated; the inscription is no longer
+    // paid.
     await expect(
       findAllocationsByPaymentId(balancePayment.id),
     ).resolves.toHaveLength(1);

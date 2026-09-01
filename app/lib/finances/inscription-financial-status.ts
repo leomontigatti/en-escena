@@ -1,10 +1,10 @@
 /**
- * El dueño único de las derivaciones de dinero de una inscripción: los tres
- * estados, las cuatro cifras y el arreglo de anomalías. Ninguna pantalla vuelve
- * a derivar un umbral ni un rollup por su cuenta.
+ * The single owner of an inscription's money derivations: the three states, the
+ * four figures and the anomaly array. No screen derives a threshold or a rollup
+ * on its own again.
  *
- * Todo se deriva al leer contra `Σ asignaciones`: no se escribe nada al cruzar
- * un umbral, y ninguna de estas cifras se persiste.
+ * Everything is derived on read against `Σ asignaciones`: nothing is written
+ * when a threshold is crossed, and none of these figures is persisted.
  */
 
 export type InscriptionFinancialStatus =
@@ -12,12 +12,12 @@ export type InscriptionFinancialStatus =
   | "depositMet"
   | "paidInFull";
 
-/** El rollup de una coreografía vive en la misma escala que sus inscripciones. */
+/** A choreography's rollup lives on the same scale as its inscriptions. */
 export type ChoreographyFinancialStatus = InscriptionFinancialStatus;
 
 /**
- * Anomalías: comparaciones del estado actual, todas auto-resolutivas y
- * persistidas en ningún lado. `Sobreasignada` es la única a este nivel.
+ * Anomalies: comparisons of the current state, all self-resolving and persisted
+ * nowhere. `Sobreasignada` is the only one at this level.
  */
 export type InscriptionAnomaly = "overAllocated";
 
@@ -32,8 +32,8 @@ const inscriptionAnomalyPrecedence = [
 ] as const satisfies readonly InscriptionAnomaly[];
 
 /**
- * Orden de la escala. `depositPending < depositMet < paidInFull`, que es lo que
- * hace del rollup un mínimo y no una marca de agua.
+ * Order of the scale. `depositPending < depositMet < paidInFull`, which is what
+ * makes the rollup a minimum rather than a high-water mark.
  */
 const statusOrder: Record<InscriptionFinancialStatus, number> = {
   depositPending: 0,
@@ -42,15 +42,16 @@ const statusOrder: Record<InscriptionFinancialStatus, number> = {
 };
 
 /**
- * Los dos umbrales de una inscripción. Son `null` juntos cuando no hay precio
- * aplicable: sin precio no hay umbral que cruzar, ni cifra que adeudar.
+ * An inscription's two thresholds. They are `null` together when there is no
+ * applicable price: with no price there is no threshold to cross, and no figure
+ * to owe.
  */
 export type InscriptionThresholds = {
   depositAmount: number | null;
   totalAmount: number | null;
 };
 
-/** Todo lo que una inscripción deriva de su dinero, en una sola lectura. */
+/** Everything an inscription derives from its money, in a single read. */
 export type InscriptionFinancialFigures = {
   allocatedAmount: number;
   anomalies: InscriptionAnomaly[];
@@ -63,9 +64,9 @@ export type InscriptionFinancialFigures = {
 };
 
 /**
- * `Seña` de la inscripción: se computa sobre el precio **sin descontar**, para
- * que el umbral no se mueva bajo los pies de la academia cuando el
- * `Descuento por bailarín` cambia con el roster.
+ * The inscription's `Seña`: computed on the price **before any discount**, so
+ * that the threshold does not move under the academy's feet when the
+ * `Descuento por bailarín` changes with the roster.
  */
 export function calculateDepositAmount(input: {
   priceAmount: number;
@@ -77,9 +78,9 @@ export function calculateDepositAmount(input: {
 }
 
 /**
- * `Total` de la inscripción: el precio seleccionado menos el
- * `Descuento por bailarín` vivo, aplicado **una sola vez**. No hay coalesce
- * contra un descuento congelado ni un tercer sustraendo.
+ * The inscription's `Total`: the selected price minus the live
+ * `Descuento por bailarín`, applied **exactly once**. There is no coalesce
+ * against a frozen discount, and no third subtrahend.
  */
 export function calculateTotalAmount(input: {
   priceAmount: number;
@@ -89,9 +90,10 @@ export function calculateTotalAmount(input: {
 }
 
 /**
- * El estado de una inscripción es su dinero contra sus dos umbrales, nada más.
- * Sin precio aplicable no hay umbral computable, y una inscripción no puede
- * haber cruzado un umbral que no se puede calcular: lee `depositPending`.
+ * An inscription's state is its money against its two thresholds, nothing more.
+ * With no applicable price there is no computable threshold, and an inscription
+ * cannot have crossed a threshold that cannot be calculated: it reads
+ * `depositPending`.
  */
 export function deriveInscriptionFinancialStatus(input: {
   allocatedAmount: number;
@@ -163,12 +165,12 @@ export function hasUncrossedThreshold(input: {
 }
 
 /**
- * Las cuatro cifras, el estado y las anomalías de una inscripción.
+ * The four figures, the state and the anomalies of an inscription.
  *
- * `Seña adeudada` y `Saldo adeudado` son faltantes contra cada umbral, con piso
- * en cero; como `seña ≤ total`, `Seña adeudada ≤ Saldo adeudado` siempre. Son
- * brutas: netean la inscripción contra **sus propias** asignaciones, nunca
- * contra el `Saldo disponible` de la academia.
+ * `Seña adeudada` and `Saldo adeudado` are shortfalls against each threshold,
+ * floored at zero; since `seña ≤ total`, `Seña adeudada ≤ Saldo adeudado`
+ * always. They are gross: they net the inscription against **its own**
+ * allocations, never against the academy's `Saldo disponible`.
  */
 export function deriveInscriptionFinancialFigures(input: {
   allocatedAmount: number;
@@ -281,11 +283,12 @@ export function resolveInscriptionStatusBadge(input: {
 }
 
 /**
- * El estado de una coreografía es el **mínimo** de sus inscripciones, no una
- * marca de agua: una sola inscripción sin cubrir arrastra a toda la coreografía,
- * porque el badge responde *¿puede presentarse como está coreografiada?*.
+ * A choreography's state is the **minimum** of its inscriptions, not a
+ * high-water mark: a single uncovered inscription drags the whole choreography
+ * down, because the badge answers *can it go on stage as choreographed?*.
  *
- * Una coreografía sin inscripciones tampoco puede presentarse: `depositPending`.
+ * A choreography with no inscriptions cannot go on stage either:
+ * `depositPending`.
  */
 export function deriveChoreographyFinancialStatus(
   statuses: InscriptionFinancialStatus[],

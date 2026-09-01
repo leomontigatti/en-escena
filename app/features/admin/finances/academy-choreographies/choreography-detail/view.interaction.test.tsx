@@ -54,11 +54,11 @@ describe("DancerNameCell interaction", () => {
   test("clicking a name opens the allocation dialog for that inscription", async () => {
     await mount();
 
-    expect(document.body.textContent).not.toContain("Asignar plata");
+    expect(document.body.textContent).not.toContain("Asignar dinero");
 
     await clickReactDomButton("Bruno Benítez");
 
-    expect(document.body.textContent).toContain("Asignar plata");
+    expect(document.body.textContent).toContain("Asignar dinero");
     expect(document.body.textContent).toContain("Bruno Benítez");
   });
 
@@ -98,7 +98,7 @@ describe("DancerNameCell interaction", () => {
     // Locked, not warned about: the price is a reading and there is no picker.
     expect(document.querySelector('[data-slot="select-trigger"]')).toBeNull();
     expect(document.body.textContent).toContain(
-      "Para cambiarle el precio hay que quitarle toda la plata",
+      "Para cambiarle el precio hay que quitarle todo el dinero",
     );
   });
 
@@ -136,7 +136,7 @@ describe("DancerNameCell interaction", () => {
 
     await clickReactDomButton("Bruno Benítez");
 
-    expect(dialogText()).toContain("Quitar plata");
+    expect(dialogText()).toContain("Quitar dinero");
     expect(dialogText()).not.toContain("Precio");
     expect(document.querySelector('[data-slot="select-trigger"]')).toBeNull();
     // Prefilled with everything allocated, and it accepts any smaller amount.
@@ -147,7 +147,7 @@ describe("DancerNameCell interaction", () => {
     await mount();
 
     await clickReactDomButton("Bruno Benítez");
-    await clickReactDomButton("Quitar plata");
+    await clickReactDomButton("Quitar dinero");
 
     expect(dialogText()).not.toContain("Precio");
     expect(document.querySelector('[data-slot="select-trigger"]')).toBeNull();
@@ -206,10 +206,10 @@ describe("DancerNameCell interaction", () => {
     expect(document.body.textContent).toContain("Bruno Benítez");
   });
 
-  // Regresión: el diálogo por fila vivía en una celda que se remontaba cuando
-  // el padre re-renderizaba (por columnas recreadas en cada render), lo que lo
-  // cerraba de inmediato. Con las columnas memoizadas y loaderData estable el
-  // diálogo debe sobrevivir a un re-render del padre.
+  // Regression: the per-row dialog lived in a cell that remounted whenever the
+  // parent re-rendered (because the columns were recreated on every render),
+  // which closed it immediately. With the columns memoized and loaderData stable,
+  // the dialog must survive a parent re-render.
   test("keeps the dialog open across a parent re-render", async () => {
     const loaderData = loaderDataFixture();
 
@@ -236,10 +236,10 @@ describe("DancerNameCell interaction", () => {
     await renderer.renderAsync(<RouterProvider router={router} />);
 
     await clickReactDomButton("Bruno Benítez");
-    expect(document.body.textContent).toContain("Asignar plata");
+    expect(document.body.textContent).toContain("Asignar dinero");
 
     await clickReactDomButton("re-render");
-    expect(document.body.textContent).toContain("Asignar plata");
+    expect(document.body.textContent).toContain("Asignar dinero");
   });
 
   // Regression (#708): a refused write left its reason on screen for an instant
@@ -259,7 +259,7 @@ describe("DancerNameCell interaction", () => {
     expect(dialogText()).toContain(
       "El saldo disponible de la academia no alcanza.",
     );
-    expect(dialogText()).toContain("Asignar plata");
+    expect(dialogText()).toContain("Asignar dinero");
   });
 
   test("closes the dialog when the write goes through", async () => {
@@ -300,10 +300,10 @@ describe("DancerNameCell interaction", () => {
     await renderer.renderAsync(<RouterProvider router={router} />);
 
     await clickReactDomButton("Bruno Benítez");
-    expect(document.body.textContent).toContain("Asignar plata");
+    expect(document.body.textContent).toContain("Asignar dinero");
 
     await clickReactDomButton("revalidar");
-    expect(document.body.textContent).toContain("Asignar plata");
+    expect(document.body.textContent).toContain("Asignar dinero");
   });
 
   /** Mounts the view behind a real loader, so a write revalidates it. */
@@ -347,7 +347,7 @@ function amountInput(id = "inscription-amount"): HTMLInputElement {
   return input;
 }
 
-/** Texto del diálogo abierto, para no confundirlo con el de la tabla de atrás. */
+/** Text of the open dialog, so it is not confused with the table's behind it. */
 function dialogText(): string {
   const dialog = document.querySelector('[data-slot="dialog-content"]');
 

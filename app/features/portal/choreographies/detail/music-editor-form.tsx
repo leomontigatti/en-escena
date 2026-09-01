@@ -145,9 +145,9 @@ export function ChoreographyMusicEditorForm({
               options={choreographyGroupTypeOptions}
               value={choreography.groupType}
             />
-            {/* Dos vacíos distintos: la categoría no pide nivel, o lo pide y
-                falta. El segundo es lo que deja la coreografía Incompleta, así
-                que no puede leerse igual que el primero. */}
+            {/* Two different kinds of empty: the category does not ask for a
+                level, or it asks and it is missing. The second is what leaves the
+                choreography Incompleta, so it cannot read the same as the first. */}
             <ReadOnlyField
               label="Nivel de experiencia"
               value={

@@ -2,9 +2,9 @@ import { loadComprobantePrint } from "@/features/admin/comprobantes/print/server
 
 import type { Route } from "./+types/administracion.comprobantes_.$comprobanteId.imprimir";
 
-// Vista imprimible on-demand del comprobante (#329/#334). Ruta de recurso: el
-// loader devuelve el HTML autocontenido directamente, sin componente ni chrome
-// de administración. No dispara ninguna emisión.
+// The comprobante's on-demand printable view (#329/#334). A resource route: the
+// loader returns the self-contained HTML directly, with no component and no
+// administration chrome. It triggers no emission.
 export async function loader({ request, params }: Route.LoaderArgs) {
   return await loadComprobantePrint(request, params.comprobanteId);
 }

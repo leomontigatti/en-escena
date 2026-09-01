@@ -1,7 +1,7 @@
-import { Plus } from "lucide-react";
 import { useEffect, useRef, useState, type ComponentProps } from "react";
 import { useFetcher } from "react-router";
 
+import { PortalListPageActions } from "@/components/portal/list-page-actions";
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import {
   ClientDataTable,
@@ -9,7 +9,6 @@ import {
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   getParticipationBadgeVariant,
   getParticipationLabel,
@@ -24,6 +23,8 @@ import { type PortalDancersListLoaderData } from "@/features/portal/dancers/list
 type LoaderData = PortalDancersListLoaderData;
 type ActionData = CreateDancerActionData;
 type DancerRow = LoaderData["dancers"][number];
+
+const dancerDocumentKinds = ["minor_authorization", "adult_contract"] as const;
 
 const baseDancerFilters = {
   filters: {
@@ -95,16 +96,15 @@ export function PortalDancersListRouteView({
         title="Bailarines"
         description="Gestioná los bailarines de tu academia y priorizá los registros que todavía necesitan documento o imágenes."
         action={
-          <Button
-            type="button"
-            onClick={() => {
+          <PortalListPageActions
+            createLabel="Nuevo bailarín"
+            documentDownloadUrls={loaderData.documentDownloadUrls}
+            kinds={dancerDocumentKinds}
+            onCreate={() => {
               setDismissServerState(true);
               setIsCreateDialogOpen(true);
             }}
-          >
-            <Plus aria-hidden="true" data-icon />
-            Nuevo bailarín
-          </Button>
+          />
         }
       >
         {loaderData.dancers.length > 0 ? (

@@ -18,6 +18,8 @@ const schemaExportNames = [
   "createTable",
   "dancers",
   "documentType",
+  "eventDocumentKind",
+  "eventDocuments",
   "events",
   "eventFinancialSequences",
   "experienceLevel",

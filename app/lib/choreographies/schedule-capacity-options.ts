@@ -1,24 +1,24 @@
 export type ScheduleCapacitySelectOption = {
   id: string;
   /**
-   * Sin lugar disponible. La vista lo traduce a `disabled`, que queda
-   * reservado exclusivamente para esto: la cuenta corre carrera con cualquier
-   * otra asignación, así que la opción gris es una pista, no una barrera, y el
-   * rechazo del servidor sigue siendo la única garantía.
+   * No room available. The view translates it to `disabled`, which is reserved
+   * exclusively for this: the count races with any other assignment, so the greyed
+   * option is a hint, not a barrier, and the server's rejection remains the only
+   * guarantee.
    */
   isFull: boolean;
   label: string;
 };
 
 /**
- * `disabled` está reservado exclusivamente para el cupo lleno: ninguna otra
- * causa apaga una opción suelta —el bloqueo financiero, por ejemplo, cierra el
- * campo entero— así que la opción gris tiene un único significado. Y como la
- * ocupación es una foto que corre carrera con otras asignaciones, es una pista:
- * el rechazo del servidor sigue siendo la garantía.
+ * `disabled` is reserved exclusively for a full capacity: no other cause greys
+ * out an individual option — the financial block, for instance, closes the whole
+ * field — so the greyed option has a single meaning. And since occupancy is a
+ * snapshot that races with other assignments, it is a hint: the server's
+ * rejection remains the guarantee.
  *
- * Administración y el portal arman sus opciones acá, para que las dos
- * superficies no puedan divergir.
+ * Administration and the portal build their options here, so the two surfaces
+ * cannot diverge.
  */
 export function toScheduleCapacitySelectOptions(
   options: readonly ScheduleCapacitySelectOption[],
@@ -31,9 +31,8 @@ export function toScheduleCapacitySelectOptions(
 }
 
 /**
- * Un select donde no hay nada elegible es un callejón sin salida silencioso:
- * el portal, que registra en lugar de corregir, lo reemplaza por un mensaje
- * que dice por qué.
+ * A select where nothing is selectable is a silent dead end: the portal, which
+ * registers rather than corrects, replaces it with a message saying why.
  */
 export function isEveryScheduleCapacityOptionFull(
   options: readonly ScheduleCapacitySelectOption[],

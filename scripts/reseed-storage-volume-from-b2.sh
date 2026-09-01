@@ -56,7 +56,7 @@ require_command aws
 require_command mkdir
 
 STORAGE_SOURCE_ENDPOINT="${STORAGE_SOURCE_ENDPOINT:-${B2_S3_ENDPOINT:-}}"
-STORAGE_BACKUP_BUCKETS="${STORAGE_BACKUP_BUCKETS:-en-escena-dancer-documents,en-escena-choreography-music}"
+STORAGE_BACKUP_BUCKETS="${STORAGE_BACKUP_BUCKETS:-en-escena-dancer-documents,en-escena-choreography-music,en-escena-event-documents}"
 AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-005}"
 
 export AWS_DEFAULT_REGION

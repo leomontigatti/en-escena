@@ -35,11 +35,11 @@ CREATE UNIQUE INDEX "payment_allocation_payment_inscription_unique" ON "en_escen
 ALTER TABLE "en_escena_payment_allocation" DROP COLUMN "allocation_type";--> statement-breakpoint
 ALTER TABLE "en_escena_payment_allocation" ADD CONSTRAINT "payment_allocation_amount_positive" CHECK ("en_escena_payment_allocation"."amount" > 0);--> statement-breakpoint
 DROP TYPE "public"."en_escena_payment_allocation_type";--> statement-breakpoint
--- Guard de precio: la fila de precio de una inscripción la fija su primera
--- asignación y no se puede mover mientras tenga plata encima, porque el umbral
--- de seña y el total se derivan de ese precio. La UI lo bloquea, y esto lo hace
--- cumplir en la base, que es donde el invariante vale para todo camino de
--- escritura. El texto es para quien lee un log, no para la academia.
+-- Price guard: an inscription's price row is fixed by its first allocation and
+-- cannot move while it holds money, because the deposit threshold and the total
+-- are derived from that price. The UI blocks it, and this enforces it in the
+-- database, which is where the invariant holds for every write path. The text
+-- is for whoever reads a log, not for the academy.
 CREATE OR REPLACE FUNCTION "en_escena_guard_inscription_selected_price"() RETURNS trigger AS $$
 BEGIN
   IF NEW."selected_price_id" IS DISTINCT FROM OLD."selected_price_id"

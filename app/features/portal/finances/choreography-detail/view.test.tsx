@@ -27,8 +27,8 @@ describe("PortalChoreographyFinanceDetailRouteView", () => {
       }),
     );
 
-    // Toda cifra que la academia lee es exacta y es exactamente lo que tiene que
-    // pagar, así que la decoración no puede depender del estado de la fila.
+    // Every figure the academy reads is exact and is exactly what they have to
+    // pay, so the decoration cannot depend on the row's state.
     expect(pending).toEqual(paid);
     expect(pending).toEqual({
       "Precio base": { muted: false },
@@ -106,8 +106,8 @@ function inscriptionFixture(
 }
 
 /**
- * Mapea cada columna de importe de la fila de inscripción a su decoración. Se
- * ancla en el encabezado y no en la posición de la celda.
+ * Maps each amount column of the inscription row to its decoration. It anchors on
+ * the header and not on the cell's position.
  */
 function amountColumnStyles(markup: string) {
   const document = new DOMParser().parseFromString(markup, "text/html");

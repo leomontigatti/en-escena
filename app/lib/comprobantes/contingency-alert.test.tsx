@@ -38,7 +38,7 @@ describe("ContingencyAlert", () => {
     );
   }
 
-  test("un rechazo muestra los errores y observaciones crudos de ARCA", () => {
+  test("a rejection shows ARCA's raw errors and observations", () => {
     mount({
       status: "rejected",
       message: "ARCA no autorizó el comprobante (CUIT sin habilitar).",
@@ -54,12 +54,12 @@ describe("ContingencyAlert", () => {
     expect(document.body.textContent).toContain(
       "Punto de venta no registrado (código 10015)",
     );
-    // Nada que verificar: ARCA respondió, no se generó nada y reintentar no puede
-    // duplicar.
+    // Nothing to verify: ARCA responded, nothing was generated and retrying cannot
+    // duplicate.
     expect(document.body.textContent).not.toContain("Verificar ahora");
   });
 
-  test("no emitido presenta el mensaje del server sin afordancias de verificación", () => {
+  test("not emitted presents the server message with no verification affordances", () => {
     mount({
       status: "not-emitted",
       message:
@@ -71,7 +71,7 @@ describe("ContingencyAlert", () => {
     expect(document.body.textContent).not.toContain("Ya verifiqué en ARCA");
   });
 
-  test("no verificado nombra el comprobante y ofrece las dos salidas", () => {
+  test("unverified names the comprobante and offers both ways out", () => {
     mount({
       status: "unverified",
       message:
@@ -86,7 +86,7 @@ describe("ContingencyAlert", () => {
     expect(document.body.textContent).toContain("Ya verifiqué en ARCA");
   });
 
-  test("verificar ahora manda sólo el intent y el correlativo", async () => {
+  test("verify now sends only the intent and the sequence number", async () => {
     const onRecheck = vi.fn();
     mount(
       {
@@ -101,15 +101,15 @@ describe("ContingencyAlert", () => {
 
     await clickReactDomButton("Verificar ahora");
 
-    // El importe y la fecha NO viajan del cliente: los recalcula el server
-    // (ADR-0012 decisión 4).
+    // The amount and the date do NOT travel from the client: the server recomputes
+    // them (ADR-0012 decision 4).
     expect(onRecheck).toHaveBeenCalledWith({
       intent: "recheck-comprobante",
       cbteNro: "43",
     });
   });
 
-  test("recuperado dice que quedó registrado y no ofrece reintentar", () => {
+  test("recovered says it was recorded and does not offer a retry", () => {
     mount({ status: "recovered" });
 
     expect(document.body.textContent).toContain(
@@ -120,11 +120,11 @@ describe("ContingencyAlert", () => {
 });
 
 describe("resolveContingencySubmitState", () => {
-  test("sin contingencia el submit queda habilitado", () => {
+  test("with no contingency the submit stays enabled", () => {
     expect(resolveContingencySubmitState(null, false)).toBe("enabled");
   });
 
-  test("un rechazo o un no emitido dejan reintentar", () => {
+  test("a rejection or a not-emitted result allow a retry", () => {
     expect(
       resolveContingencySubmitState(
         {
@@ -145,7 +145,7 @@ describe("resolveContingencySubmitState", () => {
     ).toBe("enabled");
   });
 
-  test("no verificado bloquea el submit hasta que el operador declara haber verificado", () => {
+  test("unverified blocks the submit until the operator declares they verified it", () => {
     const unverified: ComprobanteContingency = {
       status: "unverified",
       message: "sin resolver",
@@ -158,9 +158,9 @@ describe("resolveContingencySubmitState", () => {
     expect(resolveContingencySubmitState(unverified, true)).toBe("enabled");
   });
 
-  test("recuperado saca el submit, no lo deshabilita", () => {
-    // Un botón deshabilitado se lee como "esperá un momento" e invita a
-    // reintentar; acá reintentar emite un segundo comprobante fiscal.
+  test("recovered removes the submit, it does not disable it", () => {
+    // A disabled button reads as "hold on a moment" and invites a retry; here
+    // retrying emits a second fiscal comprobante.
     expect(resolveContingencySubmitState({ status: "recovered" }, false)).toBe(
       "removed",
     );

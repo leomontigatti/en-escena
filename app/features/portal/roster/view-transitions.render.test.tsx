@@ -23,6 +23,7 @@ import { PortalDancerDetailRouteView } from "@/features/portal/dancers/detail/vi
 import { PortalDancersListRouteView } from "@/features/portal/dancers/list/view";
 import { PortalProfessorDetailRouteView } from "@/features/portal/professors/detail/view";
 import { PortalProfessorsListRouteView } from "@/features/portal/professors/list/view";
+import { eventDocumentDownloadUrls } from "@/lib/events/event-documents.test-support";
 
 let container: HTMLDivElement | null = null;
 let root: ReturnType<typeof createRoot> | null = null;
@@ -54,6 +55,7 @@ describe("portal view transitions", () => {
       "/portal/bailarines",
       <PortalDancersListRouteView
         loaderData={{
+          documentDownloadUrls: eventDocumentDownloadUrls(),
           dancers: [
             {
               id: "dancer_1",
@@ -96,6 +98,7 @@ describe("portal view transitions", () => {
       "/portal/profesores",
       <PortalProfessorsListRouteView
         loaderData={{
+          documentDownloadUrls: eventDocumentDownloadUrls(),
           professors: [
             {
               id: "professor_1",

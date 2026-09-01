@@ -10,34 +10,33 @@ const repositoryRoot = path.resolve(currentDirectory, "../../../");
 const scannedDirectories = ["app", "tests"];
 const sourceFilePattern = /\.(ts|tsx)$/;
 
-// La regla Unmarked = admin (.sandcastle/CODING_STANDARDS.md § Surface Prefix
-// Rule) prohíbe marcar los símbolos de dominio de admin. Los loaders, handlers y
-// hooks son los que ya volvieron marcados una vez: #508 fijó `loadAdmin*` como
-// forma única y #527 tuvo que deshacerlo. Ese patrón se chequea sobre todas las
-// apariciones, así que también atrapa un import que sobreviva a un rename.
+// The Unmarked = admin rule (.sandcastle/CODING_STANDARDS.md § Surface Prefix
+// Rule) forbids marking admin's domain symbols. Loaders, handlers and hooks are
+// the ones that already came back marked once: #508 fixed `loadAdmin*` as the
+// single form and #527 had to undo it. That pattern is checked over every
+// occurrence, so it also catches an import that survives a rename.
 const markedEntryPointPattern =
   /\b(?:load|handle|use)(?:Admin|Administrative)[A-Z][A-Za-z0-9_$]*/g;
 
-// El resto se chequea sobre las declaraciones: tipos, componentes, helpers de
-// filtro/formato y constantes. La marca tiene que estar al principio del
-// identificador, o inmediatamente después de un verbo de transformación. Eso
-// deja afuera por forma —sin allowlist— a los símbolos donde `Admin` nombra el
-// rol y no la superficie: `requireAdminUser`, `createSignedInAdminRequest`,
-// `getMissingItemAdminPath`.
+// The rest is checked over declarations: types, components, filter/format
+// helpers and constants. The mark has to be at the start of the identifier, or
+// immediately after a transformation verb. That leaves out by shape — with no
+// allowlist — the symbols where `Admin` names the role and not the surface:
+// `requireAdminUser`, `createSignedInAdminRequest`, `getMissingItemAdminPath`.
 const declarationPattern =
   /\b(?:type|interface|class|enum|function|const|let)\s+([A-Za-z_$][A-Za-z0-9_$]*)/g;
 
-// La enumeración de verbos es lo que sostiene ese "sin allowlist", así que un
-// verbo entra sólo si el barrido no levanta falsos positivos y si su sujeto
-// natural es el dato de la superficie y no el usuario que actúa. Por eso quedan
-// afuera, del set evaluado en #544:
-// - `render`: levanta `renderAdminChildRoute` y `renderAdminRoute`, helpers de
-//   test que nombran la superficie que montan. Cubrirlo cuesta dos excepciones.
-// - `ensure` y `make`: sinónimos de `require` y `create`, los verbos con los que
-//   se nombran el guard (`requireAdminUser`) y el fixture del rol
-//   (`createSignedInAdminRequest`). Sumarlos rompe justo esa exclusión.
-// - `should`, `can`, `with`, `from`: predicados y preposiciones cuyo sujeto
-//   habitual es el usuario que actúa (`canAdminUserEdit`, `withAdminUser`).
+// The list of verbs is what holds up that "no allowlist", so a verb only gets
+// in if the sweep raises no false positives and if its natural subject is the
+// surface's data rather than the acting user. That is why these stay out, from
+// the set evaluated in #544:
+// - `render`: it picks up `renderAdminChildRoute` and `renderAdminRoute`, test
+//   helpers that name the surface they mount. Covering it costs two exceptions.
+// - `ensure` and `make`: synonyms of `require` and `create`, the verbs that name
+//   the guard (`requireAdminUser`) and the role fixture
+//   (`createSignedInAdminRequest`). Adding them breaks exactly that exclusion.
+// - `should`, `can`, `with`, `from`: predicates and prepositions whose usual
+//   subject is the acting user (`canAdminUserEdit`, `withAdminUser`).
 const markedSymbolVerbs = [
   "read",
   "build",
@@ -61,18 +60,18 @@ const markedSymbolVerbs = [
   "filter",
 ];
 
-// La forma en minúscula sólo cubre `administrative*`: un `admin*` suelto casi
-// siempre es el usuario que actúa (`adminUser`, `adminRequest`), 25 casos en el
-// barrido. Restringirlo a `const` de módulo (columna 0) baja esos 25 a 3, pero
-// no a 0, así que el agujero sigue abierto a propósito: cerrarlo pide una
-// allowlist y un rename, y este archivo prefiere cobertura menor sin
-// excepciones. Los 3 quedan anotados para decidirlos aparte:
-// - `app/routes/administracion._index.tsx: adminHomeCards` — marcado de verdad.
-// - `app/features/admin/migration.audit.test.ts: adminComponentsDirectory` y
+// The lowercase form only covers `administrative*`: a bare `admin*` is almost
+// always the acting user (`adminUser`, `adminRequest`), 25 cases in the sweep.
+// Restricting it to module-level `const` (column 0) brings those 25 down to 3,
+// but not to 0, so the hole stays open on purpose: closing it asks for an
+// allowlist and a rename, and this file prefers narrower coverage with no
+// exceptions. The 3 are noted here to be decided separately:
+// - `app/routes/administracion._index.tsx: adminHomeCards` — genuinely marked.
+// - `app/features/admin/migration.audit.test.ts: adminComponentsDirectory` and
 //   `app/lib/shared/domain-docs.test.ts: adminMigrationMapRequirements` —
-//   metadata que nombra el directorio de chrome y el doc de migración, el mismo
-//   caso estructural que la excepción `app/components/admin/` pero declarado
-//   fuera de ella.
+//   metadata naming the chrome directory and the migration doc, the same
+//   structural case as the `app/components/admin/` exception but declared
+//   outside it.
 const markedDeclarationPatterns = [
   /^(?:Admin|Administrative)[A-Z]/,
   new RegExp(
@@ -81,11 +80,11 @@ const markedDeclarationPatterns = [
   /^administrative[A-Z]/,
 ];
 
-// Las dos excepciones declaradas, ambas estructurales:
-// - `app/components/admin/`: el chrome nombra el shell, no un símbolo de dominio.
-// - `AdminShell*`: el mismo chrome, declarado fuera de ese directorio.
-// La capa de mutaciones (`createAdministrative*` / `updateAdministrative*`,
-// #526) queda afuera por forma: `create` y `update` no están entre los verbos.
+// The two declared exceptions, both structural:
+// - `app/components/admin/`: the chrome names the shell, not a domain symbol.
+// - `AdminShell*`: the same chrome, declared outside that directory.
+// The mutation layer (`createAdministrative*` / `updateAdministrative*`, #526)
+// stays out by shape: `create` and `update` are not among the verbs.
 const chromeDirectory = path.join("app", "components", "admin");
 const chromeSymbolPrefix = "AdminShell";
 
@@ -113,10 +112,10 @@ describe("surface prefix rule", () => {
   });
 });
 
-// Un guardrail que atrapa por forma sólo vale lo que atrapa: los dos tests de
-// arriba pasan igual si un patrón deja de matchear. Estos inyectan un símbolo
-// por patrón para probar que cada uno agarra, y los contraejemplos fijan las
-// exclusiones de las que depende el "sin allowlist".
+// A guardrail that catches by shape is only worth what it catches: the two tests
+// above pass just the same if a pattern stops matching. These inject one symbol
+// per pattern to prove each one bites, and the counterexamples pin down the
+// exclusions the "no allowlist" depends on.
 describe("surface prefix guardrail", () => {
   test.each([
     ["export async function loadAdminPayments() {}", "loadAdminPayments"],
@@ -150,9 +149,9 @@ describe("surface prefix guardrail", () => {
     expect(readMarkedDeclarations(source)).toEqual([symbol]);
   });
 
-  // La lista de verbos se arma con un `join("|")`, así que cada verbo depende de
-  // que la alternancia lo alcance: uno mal escrito, o tapado por otro más corto,
-  // dejaría de atrapar sin que ningún ejemplo de arriba lo note.
+  // The list of verbs is assembled with a `join("|")`, so every verb depends on
+  // the alternation reaching it: a misspelled one, or one shadowed by a shorter
+  // one, would stop catching without any example above noticing.
   test.each(markedSymbolVerbs)("catches the %s verb", (verb) => {
     expect(
       readMarkedDeclarations(`export function ${verb}AdminPaymentRow() {}`),
@@ -169,8 +168,8 @@ describe("surface prefix guardrail", () => {
     expect(readMarkedDeclarations(source)).toEqual([]);
   });
 
-  // Las dos excepciones estructurales, una por mecanismo: el prefijo del chrome
-  // exime al símbolo, el directorio del chrome exime al archivo.
+  // The two structural exceptions, one per mechanism: the chrome prefix exempts
+  // the symbol, the chrome directory exempts the file.
   test("leaves the chrome shell symbol alone", () => {
     expect(
       readMarkedDeclarations("export function AdminShellSidebar() {}"),
@@ -215,8 +214,9 @@ function isMarkedSymbol(symbol: string) {
   return markedDeclarationPatterns.some((pattern) => pattern.test(symbol));
 }
 
-// La excepción es el directorio, no el prefijo de su nombre: sin el separador,
-// un `app/components/administracion/` futuro quedaría exento sin haberlo pedido.
+// The exception is the directory, not the prefix of its name: without the
+// separator, a future `app/components/administracion/` would be exempt without
+// having asked for it.
 function isChromeFile(filePath: string) {
   return path
     .relative(repositoryRoot, filePath)
@@ -231,9 +231,9 @@ function unique(offenders: string[]) {
   return Array.from(new Set(offenders)).sort();
 }
 
-// El propio guardrail queda fuera del barrido: los símbolos que inyecta para
-// probar cada patrón son literales de este archivo y se reportarían a sí mismos.
-// No declara símbolos de dominio, así que la exclusión no tapa nada.
+// The guardrail itself stays out of the sweep: the symbols it injects to prove
+// each pattern are literals of this file and would report themselves. It
+// declares no domain symbols, so the exclusion hides nothing.
 function getSourceFiles(): string[] {
   return scannedDirectories
     .flatMap((directory) =>

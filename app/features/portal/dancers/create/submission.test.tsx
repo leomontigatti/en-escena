@@ -12,6 +12,7 @@ import {
   type PortalSubmissionFetcherState,
 } from "@/features/portal/test-support/submission";
 import { PortalDancersListRouteView } from "@/features/portal/dancers/list/view";
+import { eventDocumentDownloadUrls } from "@/lib/events/event-documents.test-support";
 
 installPortalSubmissionTestHooks();
 
@@ -34,7 +35,12 @@ describe("dancer create submissions", () => {
 
     const buildElement = () => (
       <MemoryRouter initialEntries={["/portal/bailarines"]}>
-        <PortalDancersListRouteView loaderData={{ dancers: [] }} />
+        <PortalDancersListRouteView
+          loaderData={{
+            dancers: [],
+            documentDownloadUrls: eventDocumentDownloadUrls(),
+          }}
+        />
       </MemoryRouter>
     );
 

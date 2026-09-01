@@ -160,8 +160,8 @@ describe("canReassignExperienceLevel", () => {
     expect(canReassignExperienceLevel(buildInput(overrides))).toBe(false);
   });
 
-  // A diferencia del cupo, una sola opción no cierra el campo: es el único modo
-  // de resolver un nivel faltante que deja la coreografía incompleta.
+  // Unlike the capacity, a single option does not close the field: it is the only
+  // way to resolve a missing level that leaves the choreography incomplete.
   test("stays open with a single available level", () => {
     expect(
       canReassignExperienceLevel(buildInput({ requiresExperienceLevel: true })),

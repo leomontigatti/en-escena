@@ -2,16 +2,18 @@ import { z } from "zod";
 import type { Control } from "react-hook-form";
 
 import { SelectField } from "@/components/shared/select-field";
-import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
+import { toScheduleCapacitySelectOptions } from "@/lib/choreographies/schedule-capacity-options";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 
 import {
   ExperienceLevelField,
   ScheduleCapacityField,
 } from "./reassignment-fields";
-import type { getExperienceLevelSlotState } from "./roster-form-state";
+import type {
+  getExperienceLevelSlotState,
+  getRosterScheduleSelectOptions,
+} from "./roster-form-state";
 import type { ChoreographyDetailLoaderData } from "./server";
-import type { useRosterForm } from "./use-roster-form";
 
 export const choreographyFormSchema = z.object({
   dancerIds: z.array(z.string()).min(1, requiredFieldMessage),
@@ -74,14 +76,14 @@ export function RosterScheduleSlot({
   control,
   disabled,
   loaderData,
-  scheduleResolution,
+  options,
 }: {
   control: Control<ChoreographyFormValues>;
   disabled: boolean;
   loaderData: ChoreographyDetailLoaderData;
-  scheduleResolution: ReturnType<typeof useRosterForm>["scheduleResolution"];
+  options: ReturnType<typeof getRosterScheduleSelectOptions>;
 }) {
-  if (!scheduleResolution || scheduleResolution.status !== "multiple") {
+  if (!options) {
     return (
       <ScheduleCapacityField disabled={disabled} loaderData={loaderData} />
     );
@@ -93,10 +95,7 @@ export function RosterScheduleSlot({
       disabled={disabled}
       label="Cronograma"
       name="scheduleCapacityId"
-      options={scheduleResolution.options.map((option) => ({
-        label: formatScheduleDateTime(option.schedule),
-        value: option.id,
-      }))}
+      options={toScheduleCapacitySelectOptions(options)}
       placeholder="Elegí el cronograma"
     />
   );

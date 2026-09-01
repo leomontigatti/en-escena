@@ -43,6 +43,7 @@ vi.mock("react-router", async () => {
   };
 });
 
+import { eventDocumentSummaries } from "@/lib/events/event-documents.test-support";
 import { EventDetailRouteView } from "@/routes/administracion.eventos_.$eventId";
 import { NewEventRouteView } from "@/routes/administracion.eventos_.nuevo";
 
@@ -181,6 +182,7 @@ function buildDetailLoaderData(): Parameters<
   typeof EventDetailRouteView
 >[0]["loaderData"] {
   return {
+    documents: eventDocumentSummaries(),
     event: {
       id: "evento_1",
       name: "Evento 2026",

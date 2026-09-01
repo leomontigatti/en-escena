@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { MemoryRouter } from "react-router";
+import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
@@ -271,18 +271,22 @@ function renderRoute(
   actionData?: Parameters<typeof EventDetailRouteView>[0]["actionData"],
   initialEntry = `/administracion/eventos/${loaderData.event.id}`,
 ) {
-  return renderToStaticMarkup(
-    createElement(
-      MemoryRouter,
+  // A data router, not `MemoryRouter`: the documents card posts with its own
+  // fetcher, and `useFetcher` is only available inside one.
+  const router = createMemoryRouter(
+    [
       {
-        initialEntries: [initialEntry],
+        path: "*",
+        element: createElement(EventDetailRouteView, {
+          loaderData,
+          actionData,
+        }),
       },
-      createElement(EventDetailRouteView, {
-        loaderData,
-        actionData,
-      }),
-    ),
+    ],
+    { initialEntries: [initialEntry] },
   );
+
+  return renderToStaticMarkup(createElement(RouterProvider, { router }));
 }
 
 function formData(input: Record<string, string>) {

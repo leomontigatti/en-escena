@@ -25,7 +25,7 @@ function qrInput(
   };
 }
 
-// Decodifica el parámetro `p` de una URL de QR de la RG 4291 a su objeto JSON.
+// Decodes the `p` parameter of an RG 4291 QR URL into its JSON object.
 function decodeQrPayload(url: string): unknown {
   const param = new URL(url).searchParams.get("p");
   expect(param).not.toBeNull();
@@ -33,7 +33,7 @@ function decodeQrPayload(url: string): unknown {
 }
 
 describe("buildComprobanteQrData", () => {
-  test("mapea el snapshot del comprobante al payload de la RG 4291", () => {
+  test("maps the comprobante snapshot onto RG 4291's payload", () => {
     expect(buildComprobanteQrData(qrInput())).toEqual({
       ver: 1,
       fecha: "2026-07-22",
@@ -51,26 +51,26 @@ describe("buildComprobanteQrData", () => {
     });
   });
 
-  test("convierte la fecha ARCA AAAAMMDD al AAAA-MM-DD del QR", () => {
+  test("converts ARCA's AAAAMMDD date into the QR's AAAA-MM-DD", () => {
     expect(buildComprobanteQrData(qrInput({ cbteFch: "20251231" })).fecha).toBe(
       "2025-12-31",
     );
   });
 
-  test("refleja el tipo de comprobante de una nota de crédito", () => {
+  test("reflects a nota de crédito's comprobante type", () => {
     expect(buildComprobanteQrData(qrInput({ cbteTipo: 13 })).tipoCmp).toBe(13);
   });
 });
 
 describe("buildComprobanteQrUrl", () => {
-  test("arma la URL del verificador de ARCA con el payload en base64", () => {
+  test("builds ARCA's verifier URL with the payload in base64", () => {
     const url = buildComprobanteQrUrl(qrInput());
 
     expect(url.startsWith(`${AFIP_QR_BASE_URL}?p=`)).toBe(true);
     expect(decodeQrPayload(url)).toEqual(buildComprobanteQrData(qrInput()));
   });
 
-  test("el payload codificado es reversible", () => {
+  test("the encoded payload is reversible", () => {
     const data = buildComprobanteQrData(qrInput());
     const encoded = encodeComprobanteQrPayload(data);
 

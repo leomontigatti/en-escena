@@ -27,10 +27,10 @@ import {
   type ComprobanteDetailActionData,
 } from "./shared";
 
-// Snapshot fiscal del comprobante enriquecido con su contexto ancla
-// (coreografía/academia/evento) y su estado derivado. Es de sólo lectura: la
-// fila es inmutable; lo único mutable desde acá es anularla emitiendo su Nota de
-// crédito espejo.
+// The comprobante's fiscal snapshot, enriched with its anchor context
+// (choreography/academy/event) and its derived state. It is read-only: the row
+// is immutable; the only mutable thing from here is annulling it by emitting its
+// mirror Nota de crédito.
 export type ComprobanteDetail = {
   id: string;
   cbteTipo: number;
@@ -49,8 +49,9 @@ export type ComprobanteDetail = {
   academyId: string;
   academyName: string;
   eventName: string;
-  // Sólo un comprobante vigente puede anularse: una Nota de crédito ya emitida no
-  // se anula, y un comprobante ya anulado no se re-anula desde la UI.
+  // Only a comprobante in force can be annulled: a Nota de crédito already
+  // emitted is not annulled, and an already annulled comprobante is not
+  // re-annulled from the UI.
   canAnnul: boolean;
 };
 
@@ -58,9 +59,10 @@ export type ComprobanteDetailLoaderData = {
   comprobante: ComprobanteDetail;
 };
 
-// Carga un comprobante por id con su contexto ancla y su estado derivado. El
-// estado se deriva sobre el conjunto de su coreografía, que es autocontenido (la
-// Nota de crédito espejo se ancla a la misma coreografía). 404 si no existe.
+// Loads a comprobante by id with its anchor context and its derived state. The
+// state is derived over the set of its choreography, which is self-contained
+// (the mirror Nota de crédito anchors to the same choreography). 404 if it does
+// not exist.
 export async function loadComprobanteDetail(
   request: Request,
   comprobanteId: string,
@@ -122,8 +124,8 @@ export async function loadComprobanteDetail(
 export async function handleComprobanteDetailAction(input: {
   request: Request;
   comprobanteId: string;
-  // Insumos de emisión inyectables: los tests pasan un cliente ARCA mockeado;
-  // en producción se resuelven desde el entorno (cert+key, punto de venta).
+  // Injectable emission inputs: the tests pass a mocked ARCA client; in
+  // production they are resolved from the environment (cert+key, sales point).
   resolveEmissionDeps?: () => FacturaCEmissionDeps;
 }): Promise<ComprobanteDetailActionData | never> {
   await requireAdminUser(input.request);
@@ -151,11 +153,11 @@ export async function handleComprobanteDetailAction(input: {
 }
 
 /**
- * Anula el comprobante emitiendo su Nota de crédito espejo tras la confirmación
- * del AlertDialog. Un CAE aprobado recarga el detalle (ahora anulado); un rechazo
- * o contingencia de ARCA vuelve como `annul-error` con el estado crudo, sin
- * persistir nada ni dejar la UI inconsistente (la recarga sólo ocurre en el
- * camino feliz).
+ * Annuls the comprobante by emitting its mirror Nota de crédito after the
+ * AlertDialog is confirmed. An approved CAE reloads the detail (now annulled); a
+ * rejection or contingency from ARCA comes back as `annul-error` with the raw
+ * state, without persisting anything or leaving the UI inconsistent (the reload
+ * only happens on the happy path).
  */
 async function handleAnnulComprobante(input: {
   comprobanteId: string;
@@ -177,10 +179,10 @@ async function handleAnnulComprobante(input: {
   const url = `/administracion/comprobantes/${input.comprobanteId}`;
 
   if (outcome.ok) {
-    // La anulación recuperada redirige igual que cualquier otra, así que el aviso
-    // viaja por flash session (docs/agents/form-feedback.md). Es deliberado que
-    // no se parezca al `recovered` del diálogo: así el operador puede distinguir
-    // "se recuperó sola" de "la recuperé yo".
+    // A recovered annulment redirects like any other, so the notice travels by
+    // flash session (docs/agents/form-feedback.md). It deliberately does not look
+    // like the dialog's `recovered`: that way the operator can tell "it recovered
+    // on its own" from "I recovered it myself".
     throw outcome.recovered
       ? await redirectWithFlashNotification(url, "comprobante-recuperado")
       : redirect(url);
@@ -190,11 +192,11 @@ async function handleAnnulComprobante(input: {
 }
 
 /**
- * Re-consulta a ARCA por la Nota de crédito que quedó sin resolver, sin salir del
- * diálogo (#577). Del form sólo se lee el correlativo: el importe y la fecha con
- * los que se valida el comprobante consultado los recalcula
- * `recheckComprobanteAnnulment` desde el comprobante que se está anulando
- * (ADR-0012 decisión 4).
+ * Queries ARCA again for the Nota de crédito left unresolved, without leaving
+ * the dialog (#577). Only the sequence number is read from the form: the amount
+ * and the date the queried comprobante is validated against are recomputed by
+ * `recheckComprobanteAnnulment` from the comprobante being annulled (ADR-0012
+ * decision 4).
  */
 async function handleRecheckNotaCredito(input: {
   comprobanteId: string;
@@ -215,8 +217,8 @@ async function handleRecheckNotaCredito(input: {
     input.resolveEmissionDeps(),
   );
 
-  // La recuperación por re-verificación se queda en el diálogo: no cruza un
-  // redirect, así que llega como estado del alert y no como toast.
+  // Recovery by re-verification stays in the dialog: it does not cross a
+  // redirect, so it arrives as alert state and not as a toast.
   if (outcome.ok) {
     return { status: "contingency", contingency: { status: "recovered" } };
   }

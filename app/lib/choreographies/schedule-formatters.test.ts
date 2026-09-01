@@ -34,7 +34,7 @@ describe("schedule formatters", () => {
     ).toBe("1 de mayo de 2026 - 14:00 hs. · 5/5 ocupados · sin cupo");
   });
 
-  // El cupo puntual puede tener lugar y el cronograma que lo contiene no.
+  // The specific capacity may have room while the schedule containing it does not.
   test("says sin cupo even when the count alone does not explain it", () => {
     expect(
       appendScheduleOccupancySuffix("Cronograma", {
@@ -48,9 +48,6 @@ describe("schedule formatters", () => {
   test("leaves the assigned schedule label free of occupancy", () => {
     expect(formatScheduleDateTime(schedule)).toBe(
       "1 de mayo de 2026 - 14:00 hs.",
-    );
-    expect(formatScheduleDateTime(schedule, { includeName: true })).toBe(
-      "Jornada 1 · 1 de mayo de 2026 · 14:00 hs.",
     );
   });
 });

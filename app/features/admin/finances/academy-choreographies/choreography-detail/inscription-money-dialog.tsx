@@ -11,7 +11,7 @@
  *
  * A row that still owes something but already holds money reaches the removal
  * shape from inside the allocation one, which keeps the entry point single
- * while leaving `Quitar plata` reachable wherever there is money to take off.
+ * while leaving `Quitar dinero` reachable wherever there is money to take off.
  * The switch only goes that way: a row opens on removal exactly when adding
  * money would be refused anyway.
  *
@@ -171,7 +171,7 @@ function AllocateMoneyDialog({
       description={`Se asigna a ${formatDancerName(inscription)} desde el saldo disponible de la academia.`}
       isSaving={isSaving}
       onOpenChange={onOpenChange}
-      title="Asignar plata"
+      title="Asignar dinero"
     >
       <fetcher.Form method="post" className="flex flex-col gap-4">
         <input type="hidden" name="intent" value={allocateInscriptionIntent} />
@@ -190,7 +190,7 @@ function AllocateMoneyDialog({
               />
               <p className="text-xs text-muted-foreground">
                 Tiene {formatAmount(inscription.allocatedAmount)} asignados.
-                Para cambiarle el precio hay que quitarle toda la plata.
+                Para cambiarle el precio hay que quitarle todo el dinero.
               </p>
             </div>
           ) : (
@@ -250,7 +250,7 @@ function AllocateMoneyDialog({
               onClick={onRemoveMoney}
             >
               <Undo2 aria-hidden="true" data-icon="inline-start" />
-              Quitar plata
+              Quitar dinero
             </Button>
           ) : null}
           <div className="flex gap-2">
@@ -302,7 +302,7 @@ function RemoveMoneyDialog({
       description={`Se le quitan a ${formatDancerName(inscription)} y vuelven al saldo disponible de la academia.`}
       isSaving={isSaving}
       onOpenChange={onOpenChange}
-      title="Quitar plata"
+      title="Quitar dinero"
     >
       <fetcher.Form method="post" className="flex flex-col gap-4">
         <input

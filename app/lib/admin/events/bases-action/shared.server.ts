@@ -201,12 +201,12 @@ export function getRequiredArrayErrors(
 }
 
 /**
- * Destino de un `action` de Bases del evento que redirige. El transporte del
- * toast depende del caso de la matriz (ver docs/agents/form-feedback.md):
+ * The destination of an event Bases `action` that redirects. The toast's
+ * transport depends on the case in the matrix (see docs/agents/form-feedback.md):
  *
- * - `plain`: redirect sin mensaje de feedback.
- * - `flash`: cookie de un solo uso que transporta el toast sin ensuciar la URL
- *   con un query param (PRD #409).
+ * - `plain`: a redirect with no feedback message.
+ * - `flash`: a single-use cookie that carries the toast without dirtying the URL
+ *   with a query param (PRD #409).
  */
 export type EventBasesRedirect =
   | { transport: "plain"; url: string }
@@ -239,11 +239,11 @@ export function invalidEventBasesActionResult(): EventBasesActionResult {
 }
 
 /**
- * Convierte los `issues` de una re-validación Zod server-side (PRD #465) en un
- * `EventBasesActionResult` inválido, quedándose con el primer mensaje por campo
- * para que el round-trip de `submittedValues`/`ActionData` repueble cada fila
- * anidada. Compartido por las re-validaciones de modalidad y cronograma para
- * mantener idéntico el mapeo de `path` → `fieldError`.
+ * Turns the `issues` of a server-side Zod revalidation (PRD #465) into an invalid
+ * `EventBasesActionResult`, keeping the first message per field so the
+ * `submittedValues`/`ActionData` round trip repopulates each nested row. Shared
+ * by the modality and schedule revalidations to keep the `path` → `fieldError`
+ * mapping identical.
  */
 export function invalidEventBasesFormResult(
   error: ZodError,

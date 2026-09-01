@@ -4,13 +4,13 @@ import type { ComprobantePrintViewModel } from "./model";
 
 type ComprobantePrintDocumentProps = {
   model: ComprobantePrintViewModel;
-  // SVG del código QR de la RG 4291 ya renderizado (arca/qr-code.server).
+  // The already rendered SVG of the RG 4291 QR code (arca/qr-code.server).
   qrCodeSvg: string;
 };
 
-// CSS mínimo autocontenido: el impreso no depende de la hoja de estilos de la
-// app porque se sirve como documento HTML suelto. `@media print` oculta el botón
-// de impresión.
+// Minimal self-contained CSS: the printout does not depend on the app's
+// stylesheet because it is served as a standalone HTML document. `@media print`
+// hides the print button.
 const printStyles = `
   * { box-sizing: border-box; }
   body {
@@ -78,10 +78,10 @@ const printStyles = `
 
 const printScript = `document.getElementById('print-button')?.addEventListener('click',function(){window.print();});`;
 
-// Documento HTML autocontenido de la vista imprimible del comprobante
-// (#329/#334). Todos los textos vienen ya formateados en el modelo. El QR de la
-// RG 4291 se inyecta como SVG. No hay lógica de emisión: es una proyección de
-// sólo lectura del snapshot inmutable.
+// The self-contained HTML document of the comprobante's printable view
+// (#329/#334). Every text arrives already formatted in the model. The RG 4291 QR
+// is injected as SVG. There is no emission logic: it is a read-only projection
+// of the immutable snapshot.
 export function ComprobantePrintDocument({
   model,
   qrCodeSvg,
@@ -200,8 +200,8 @@ export function ComprobantePrintDocument({
   );
 }
 
-// Serializa el documento a un string HTML completo con su `<!DOCTYPE html>`,
-// listo para servirse como respuesta del loader.
+// Serializes the document to a complete HTML string with its `<!DOCTYPE html>`,
+// ready to be served as the loader's response.
 export function renderComprobantePrintDocument(
   props: ComprobantePrintDocumentProps,
 ): string {

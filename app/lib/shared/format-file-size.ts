@@ -1,14 +1,14 @@
 const units = ["B", "KB", "MB", "GB", "TB"] as const;
 
 /**
- * Formatea una cantidad de bytes como string legible con unidades binarias
- * (cada escalón = 1024 del anterior): `B`, `KB`, `MB`, `GB`, `TB`.
+ * Formats a number of bytes as a readable string with binary units (each step =
+ * 1024 of the previous one): `B`, `KB`, `MB`, `GB`, `TB`.
  *
- * El valor se muestra con hasta un decimal (half-up), descartando el `.0`
- * sobrante (`1024` → `"1 KB"`, no `"1.0 KB"`).
+ * The value is shown with up to one decimal (half-up), dropping the trailing
+ * `.0` (`1024` → `"1 KB"`, not `"1.0 KB"`).
  *
- * Pensado para tamaños entre 0 y el rango de TB; no maneja negativos ni
- * valores por encima de TB (se saturan en la unidad `TB`).
+ * Intended for sizes between 0 and the TB range; it does not handle negatives or
+ * values above TB (they saturate at the `TB` unit).
  */
 export function formatFileSize(bytes: number): string {
   if (bytes === 0) {

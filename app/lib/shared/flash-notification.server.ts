@@ -7,27 +7,27 @@ import {
 import { type ToastMessage } from "@/lib/shared/toasts";
 
 /**
- * Único helper de flash session para transportar un mensaje de feedback a través
- * de un `redirect` sin ensuciar la URL con un query param. Es el único
- * transporte de feedback a través de redirects (ver docs/agents/form-feedback.md
- * y el PRD #409).
+ * The single flash-session helper for carrying a feedback message across a
+ * `redirect` without dirtying the URL with a query param. It is the only
+ * feedback transport across redirects (see docs/agents/form-feedback.md and
+ * PRD #409).
  *
- * El mensaje viaja como una **clave** del catálogo centralizado
- * (`notification-toasts`), así el copy/variante se comparte con el flujo
- * directo de `actionData`. La cookie es de un solo uso (semántica `flash`): al
- * leerla en el destino se consume, así el toast aparece una sola vez y no
- * reaparece al recargar o navegar hacia atrás.
+ * The message travels as a **key** of the centralized catalogue
+ * (`notification-toasts`), so the copy/variant is shared with the direct
+ * `actionData` flow. The cookie is single-use (`flash` semantics): reading it at
+ * the destination consumes it, so the toast appears once and does not come back
+ * on a reload or a back navigation.
  */
 
 const FLASH_NOTIFICATION_KEY = "notification";
 
-// Secreto de firma de la cookie de flash. El contenido es solo una clave del
-// catálogo de notificaciones (no sensible), pero sin firma cualquiera puede
-// forzar el toast que quiera —incluido un falso "pago registrado"—, así que la
-// cookie se firma siempre. Por defecto reusa `BETTER_AUTH_SECRET`, que ya es
-// obligatoria en producción; `SESSION_SECRET` queda como override opcional para
-// separar los secretos más adelante. En dev/test cae a un valor fijo para no
-// exigir configuración local (ver #492).
+// Signing secret for the flash cookie. The content is only a key of the
+// notification catalogue (not sensitive), but without a signature anyone could
+// force whichever toast they liked — including a fake "payment recorded" — so
+// the cookie is always signed. By default it reuses `BETTER_AUTH_SECRET`, which
+// is already required in production; `SESSION_SECRET` stays as an optional
+// override for splitting the secrets later on. In dev/test it falls back to a
+// fixed value so no local configuration is required (see #492).
 function getFlashSessionSecret() {
   const secret = process.env.SESSION_SECRET ?? process.env.BETTER_AUTH_SECRET;
 
@@ -44,9 +44,9 @@ function getFlashSessionSecret() {
   return "development-flash-session-secret-development-flash-session-secret";
 }
 
-// Inicialización perezosa: así el fallo en producción por falta de secreto
-// ocurre en el primer uso y no al importar el módulo (que tiraría durante el
-// arranque del server, antes de poder responder nada).
+// Lazy initialization: this way the production failure from a missing secret
+// happens on first use and not on module import (which would throw during
+// server startup, before anything could be answered).
 let flashSessionStorageSingleton: ReturnType<
   typeof createCookieSessionStorage<{
     [FLASH_NOTIFICATION_KEY]: NotificationKey;
@@ -71,9 +71,9 @@ function getFlashSessionStorage() {
 }
 
 /**
- * Adjunta un mensaje flash a una respuesta de `redirect` desde un `action`.
- * Preserva cualquier `header` de `init` (por ejemplo, los `set-cookie` de sesión
- * que devuelve el proveedor de acceso).
+ * Attaches a flash message to a `redirect` response from an `action`. It
+ * preserves any `header` from `init` (for example, the session `set-cookie`s the
+ * access provider returns).
  */
 export async function redirectWithFlashNotification(
   url: string,
@@ -98,10 +98,10 @@ export async function redirectWithFlashNotification(
 }
 
 /**
- * Lee-y-limpia (one-time) el mensaje flash en el `loader`/root de la ruta
- * destino. Devuelve el toast resuelto desde el catálogo compartido y el
- * `Set-Cookie` que consume la cookie; el disparo del toast lo hace el cliente
- * con `showToastMessage`. Una segunda lectura no devuelve nada.
+ * Reads-and-clears (one-time) the flash message in the destination route's
+ * `loader`/root. It returns the toast resolved from the shared catalogue and the
+ * `Set-Cookie` that consumes the cookie; firing the toast is the client's job,
+ * via `showToastMessage`. A second read returns nothing.
  */
 export async function readFlashNotification(
   request: Request,
@@ -114,7 +114,7 @@ export async function readFlashNotification(
 
   const flashSessionStorage = getFlashSessionStorage();
   const session = await flashSessionStorage.getSession(cookieHeader);
-  // `get` sobre un valor `flash` lo consume: el commit posterior lo elimina.
+  // `get` on a `flash` value consumes it: the later commit removes it.
   const notification = session.get(FLASH_NOTIFICATION_KEY);
   const toast = notification ? getNotificationToast(notification) : undefined;
 

@@ -79,12 +79,12 @@ export async function findCredentialUserForIdentifier(
 }
 
 /**
- * ¿El usuario tiene una credencial con la que pueda ingresar? Better Auth no
- * distingue "sin credencial" de "contraseña incorrecta" — las dos devuelven
- * `INVALID_EMAIL_OR_PASSWORD` — así que esta es la única forma de reconocer a
- * quien viene de GoTrue y todavía no eligió una contraseña en este sistema
- * (#491). Se consulta sólo cuando el login ya falló, para no pagar la query en
- * cada ingreso exitoso.
+ * Does the user have a credential they can sign in with? Better Auth does not
+ * distinguish "no credential" from "wrong password" — both return
+ * `INVALID_EMAIL_OR_PASSWORD` — so this is the only way to recognize someone who
+ * comes from GoTrue and has not yet chosen a password in this system (#491). It
+ * is queried only once sign-in has already failed, so as not to pay for the query
+ * on every successful login.
  */
 export async function hasCredentialAccount(userId: string) {
   const credentialAccount = await db.query.account.findFirst({

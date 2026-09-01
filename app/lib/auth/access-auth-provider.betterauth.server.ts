@@ -38,25 +38,25 @@ import type {
   VerifiedAccessIdentity,
 } from "@/lib/auth/access-auth-provider.shared.server";
 
-// Política de sesión del dominio (#297): 8 h de vida, refresco cada 30 min. Los
-// gates de dominio (`suspended`, `sessionInvalidBefore` vs `issuedAt`,
-// `requiresPasswordChange`) siguen en `internal-access.server.ts`.
+// Domain session policy (#297): 8 h lifetime, refreshed every 30 min. The
+// domain gates (`suspended`, `sessionInvalidBefore` vs `issuedAt`,
+// `requiresPasswordChange`) still live in `internal-access.server.ts`.
 export const SESSION_EXPIRES_IN_SECONDS = 8 * 60 * 60;
 export const SESSION_UPDATE_AGE_SECONDS = 30 * 60;
 
-// Provider Better Auth: `betterAuth()` + `drizzleAdapter` mapeando los modelos
-// canónicos a nuestras tablas `en_escena_*` (`session` → `en_escena_access_session`).
-// Hashing scrypt nativo de Better Auth; `advanced.database.generateId: "uuid"`
-// para que los IDs se generen con `gen_random_uuid()` en Postgres (research #364).
+// Better Auth provider: `betterAuth()` + `drizzleAdapter` mapping the canonical
+// models onto our `en_escena_*` tables (`session` → `en_escena_access_session`).
+// Better Auth's native scrypt hashing; `advanced.database.generateId: "uuid"`
+// so IDs are generated with `gen_random_uuid()` in Postgres (research #364).
 //
-// Plugin `admin` montado (#423): habilita `createUser`/`setUserPassword`/
-// `banUser`/`unbanUser`/`removeUser` para el ciclo de vida de los internos
-// (`internal-user-auth.server.ts`). El estado `banned` se mapea a la columna
-// `suspended` del dominio (misma noción); `defaultRole` es un rol válido del
-// enum (`academy`) porque `createUser` lo escribe antes de que el alta de
-// internos re-asigne el rol real. `sendResetPassword` envía el email real de
-// recuperación en español (Resend, #424); el token también queda en la tabla
-// `verification`, de donde los tests lo leen sin depender del envío.
+// `admin` plugin mounted (#423): enables `createUser`/`setUserPassword`/
+// `banUser`/`unbanUser`/`removeUser` for the internal-user lifecycle
+// (`internal-user-auth.server.ts`). The `banned` state maps onto the domain's
+// `suspended` column (the same notion); `defaultRole` is a valid role from the
+// enum (`academy`) because `createUser` writes it before internal-user sign-up
+// reassigns the real role. `sendResetPassword` sends the real recovery email in
+// Spanish (Resend, #424); the token also lands in the `verification` table,
+// where tests read it without depending on delivery.
 export const auth = betterAuth({
   appName: "En Escena",
   secret: getBetterAuthSecret(),
@@ -78,18 +78,18 @@ export const auth = betterAuth({
   },
   emailAndPassword: {
     enabled: true,
-    // Verifica también los hashes legacy migrados de `access_credential` (#433,
-    // formato `scrypt:<salt>:<hash>`). Better Auth verifica con su propio encoding
-    // scrypt, así que sin esto las credenciales migradas nunca validarían y
-    // empujarían un reset silencioso a esos usuarios. Para el formato nativo de
-    // Better Auth delega en su verificador.
+    // Also verifies the legacy hashes migrated from `access_credential` (#433,
+    // format `scrypt:<salt>:<hash>`). Better Auth verifies with its own scrypt
+    // encoding, so without this the migrated credentials would never validate
+    // and would silently push a reset onto those users. For Better Auth's own
+    // native format it delegates to its verifier.
     password: {
       verify: verifyAccessPassword,
     },
-    // Envío real del email de recuperación (Resend, en español). `url` trae el
-    // `callbackURL` (`/cambiar-contrasena`); el link lleva `?code=<token>`, que
-    // el loader de esa página intercambia por la sesión de recuperación. El
-    // token también vive en `verification`, así los tests lo leen sin email.
+    // Real recovery email delivery (Resend, in Spanish). `url` carries the
+    // `callbackURL` (`/cambiar-contrasena`); the link carries `?code=<token>`,
+    // which that page's loader exchanges for the recovery session. The token
+    // also lives in `verification`, so tests read it without email.
     sendResetPassword: async ({ user: resetUser, url, token }) => {
       await sendAccessRecoveryEmail({
         to: resetUser.email,
@@ -111,7 +111,7 @@ export const auth = betterAuth({
       schema: {
         user: {
           fields: {
-            // El baneo del admin plugin ES la suspensión del dominio.
+            // The admin plugin's ban IS the domain's suspension.
             banned: "suspended",
           },
         },
@@ -120,9 +120,9 @@ export const auth = betterAuth({
   ],
 });
 
-// Lado server-side que necesitan los loaders. El resto de los flujos
-// (sign-in/up, recovery) los cubre el client de Better Auth (`access-auth-client`)
-// contra el catch-all `/api/auth/*`.
+// The server-side surface the loaders need. The remaining flows (sign-in/up,
+// recovery) are covered by the Better Auth client (`access-auth-client`)
+// against the `/api/auth/*` catch-all.
 export async function getBetterAuthAccessSession(
   request: Request,
 ): Promise<AccessSession | null> {
@@ -171,10 +171,10 @@ export async function getBetterAuthVerifiedAccessIdentity(
 
 const RESET_PASSWORD_IDENTIFIER_PREFIX = "reset-password:";
 
-// Token de reset de contraseña más reciente de un usuario. Better Auth guarda el
-// token en `verification` como `identifier = "reset-password:<token>"` con
-// `value = userId`; los tests (y flujos de debug) lo leen de ahí en vez de
-// depender del envío de email (que llega en #424).
+// The most recent password-reset token for a user. Better Auth stores the token
+// in `verification` as `identifier = "reset-password:<token>"` with
+// `value = userId`; tests (and debug flows) read it from there instead of
+// depending on email delivery (which lands in #424).
 export async function readLatestBetterAuthResetToken(
   userId: string,
 ): Promise<string | null> {
@@ -191,12 +191,12 @@ export async function readLatestBetterAuthResetToken(
   return row.identifier.slice(RESET_PASSWORD_IDENTIFIER_PREFIX.length);
 }
 
-// `provider_id` de Better Auth para credenciales locales (email + contraseña).
+// Better Auth's `provider_id` for local credentials (email + password).
 export const CREDENTIAL_PROVIDER_ID = "credential";
 
-// Hasher scrypt nativo de Better Auth (`auth.$context.password`). Devuelve el hash
-// en el formato que Better Auth verifica al iniciar sesión, así el usuario creado
-// con estos helpers puede autenticarse con `auth.api.signInEmail`.
+// Better Auth's native scrypt hasher (`auth.$context.password`). Returns the
+// hash in the format Better Auth verifies at sign-in, so a user created with
+// these helpers can authenticate with `auth.api.signInEmail`.
 export async function hashBetterAuthPassword(
   password: string,
 ): Promise<string> {
@@ -204,9 +204,9 @@ export async function hashBetterAuthPassword(
   return ctx.password.hash(password);
 }
 
-// Crea o actualiza la credencial email+contraseña de un usuario, hasheando con
-// Better Auth. Reemplaza a `upsertLocalAccessPassword` del provider de test
-// retirado (#422); lo usan el alta de internos y la invitación.
+// Creates or updates a user's email+password credential, hashing with Better
+// Auth. Replaces `upsertLocalAccessPassword` from the retired test provider
+// (#422); used by internal-user sign-up and by invitations.
 export async function upsertBetterAuthCredentialPassword(input: {
   password: string;
   userId: string;
@@ -236,8 +236,8 @@ export async function upsertBetterAuthCredentialPassword(input: {
   });
 }
 
-// Verifica una credencial email+contraseña contra el hash guardado, usando el
-// verificador de Better Auth. Reemplaza a `verifyLocalAccessPassword` (#422).
+// Verifies an email+password credential against the stored hash, using Better
+// Auth's verifier. Replaces `verifyLocalAccessPassword` (#422).
 export async function verifyBetterAuthCredentialPassword(input: {
   email: string;
   password: string;
@@ -270,24 +270,24 @@ export async function verifyBetterAuthCredentialPassword(input: {
   });
 }
 
-// Cookie firmada que transporta el token de reset de Better Auth entre el
-// intercambio del código (`exchangePasswordRecoveryCode`) y el cambio de
-// contraseña (`updatePasswordForRecovery`). Reemplaza la cookie `sb-recovery-user`
-// del provider de Supabase manteniendo el mismo contrato de la ruta
-// `/cambiar-contrasena`.
+// Signed cookie that carries the Better Auth reset token between the code
+// exchange (`exchangePasswordRecoveryCode`) and the password change
+// (`updatePasswordForRecovery`). Replaces the Supabase provider's
+// `sb-recovery-user` cookie while keeping the same contract for the
+// `/cambiar-contrasena` route.
 const RECOVERY_TOKEN_COOKIE_NAME = "en_escena.recovery_token";
 
-// El alta pública de academias es un flujo app-owned (ADR-0001): la creación del
-// usuario se difiere hasta la confirmación por email. Better Auth crea el usuario
-// de inmediato en `signUpEmail`, así que guardamos el alta pendiente y recién
-// materializamos el usuario en `confirmEmailOtp`. Los emails reales llegan en #424;
-// acá el token de confirmación se devuelve como `debug*` para los tests.
+// Public academy sign-up is an app-owned flow (ADR-0001): user creation is
+// deferred until email confirmation. Better Auth creates the user immediately
+// in `signUpEmail`, so we store the pending sign-up and only materialize the
+// user in `confirmEmailOtp`. The real emails land in #424; here the
+// confirmation token is returned as `debug*` for the tests.
 //
-// El alta pendiente se persiste en la tabla `verification` (no en memoria del
-// proceso): la confirmación llega minutos u horas después, así que un redeploy,
-// un restart o una segunda instancia no deben perderla. El password va cifrado
-// con el secret de la app (`symmetricEncrypt`), nunca en claro en reposo, y la
-// fila expira a las 24 h.
+// The pending sign-up is persisted in the `verification` table (not in process
+// memory): the confirmation arrives minutes or hours later, so a redeploy, a
+// restart or a second instance must not lose it. The password is encrypted with
+// the app secret (`symmetricEncrypt`), never at rest in the clear, and the row
+// expires after 24 h.
 type PendingEmailSignUp = {
   email: string;
   password: string;
@@ -295,9 +295,9 @@ type PendingEmailSignUp = {
 const PENDING_SIGNUP_IDENTIFIER_PREFIX = "academy-signup:";
 const PENDING_SIGNUP_TTL_MS = 24 * 60 * 60 * 1000;
 
-// Adapter que expone Better Auth con la interfaz `AccessAuthProvider` que usan
-// las rutas y loaders del dominio. Reemplaza el provider de test propio: los
-// tests corren Better Auth real contra PGlite in-process (#422).
+// Adapter exposing Better Auth through the `AccessAuthProvider` interface the
+// domain's routes and loaders use. Replaces our own test provider: the tests
+// run real Better Auth against in-process PGlite (#422).
 export function createBetterAuthAccessAuthProvider(): AccessAuthProvider {
   return {
     getAccessSession(request: Request): Promise<AccessSession | null> {
@@ -362,9 +362,9 @@ export function createBetterAuthAccessAuthProvider(): AccessAuthProvider {
         expiresAt: new Date(Date.now() + PENDING_SIGNUP_TTL_MS),
       });
 
-      // Alta pública app-owned (ADR-0001): el usuario se materializa recién en
-      // `confirmEmailOtp`. Enviamos el email de confirmación en español (Resend)
-      // con el link a `/registro/confirmar?token_hash=...&type=signup`.
+      // App-owned public sign-up (ADR-0001): the user is materialized only in
+      // `confirmEmailOtp`. We send the confirmation email in Spanish (Resend)
+      // with the link to `/registro/confirmar?token_hash=...&type=signup`.
       await sendAcademySignUpConfirmationEmail({
         to: input.email,
         confirmationUrl: buildAcademySignUpConfirmationLink({
@@ -460,8 +460,8 @@ export function createBetterAuthAccessAuthProvider(): AccessAuthProvider {
       });
 
       if (recoveryUserId) {
-        // El reset invalida la credencial; revocamos toda sesión activa del
-        // usuario para forzar un nuevo login (política del dominio, #297).
+        // The reset invalidates the credential; we revoke every active session
+        // of the user to force a fresh login (domain policy, #297).
         await db
           .delete(accessSession)
           .where(eq(accessSession.userId, recoveryUserId));
@@ -475,10 +475,11 @@ export function createBetterAuthAccessAuthProvider(): AccessAuthProvider {
   };
 }
 
-// Lee y consume (borra) el alta pendiente persistida en `verification`. Devuelve
-// null si el token no existe, ya expiró, o su payload no se puede descifrar
-// (p.ej. rotación del secret entre el alta y la confirmación). La fila se borra
-// siempre que exista —válida o no— para no dejar altas colgadas.
+// Reads and consumes (deletes) the pending sign-up persisted in `verification`.
+// Returns null if the token does not exist, has already expired, or its payload
+// cannot be decrypted (e.g. a secret rotation between sign-up and confirmation).
+// The row is deleted whenever it exists — valid or not — so that no sign-up is
+// left dangling.
 async function consumePendingEmailSignUp(
   tokenHash: string,
 ): Promise<PendingEmailSignUp | null> {
@@ -540,8 +541,8 @@ async function beginBetterAuthPasswordRecovery(input: {
   return { headers, redirectTo: input.redirectTo };
 }
 
-// `userId` asociado a un token de reset vigente. Better Auth guarda el token en
-// `verification` como `identifier = "reset-password:<token>"` con `value = userId`.
+// The `userId` associated with a valid reset token. Better Auth stores the token
+// in `verification` as `identifier = "reset-password:<token>"`, `value = userId`.
 async function readBetterAuthResetTokenUserId(
   token: string,
 ): Promise<string | null> {
@@ -611,16 +612,16 @@ function createRecoveryTokenSignature(token: string) {
     .digest("hex");
 }
 
-// Longitud de clave scrypt del formato legacy `scrypt:<salt>:<hash>` que usaba
-// `createLocalAccessPasswordHash` (retirado en #422): `scryptSync` con los
-// parámetros por defecto de Node y `keylen = 64`, salt en hex.
+// scrypt key length of the legacy `scrypt:<salt>:<hash>` format that
+// `createLocalAccessPasswordHash` used (retired in #422): `scryptSync` with
+// Node's default parameters and `keylen = 64`, salt in hex.
 const LEGACY_SCRYPT_KEY_LENGTH = 64;
 
-// Verifica un password contra el hash guardado. Detecta el formato legacy
-// migrado de `access_credential` (`scrypt:<salt>:<hash>`) y lo verifica con el
-// algoritmo viejo; para el formato nativo de Better Auth delega en su
-// verificador (`better-auth/crypto`). Es el `password.verify` de la config, así
-// que también lo usa `verifyBetterAuthCredentialPassword` vía `ctx.password`.
+// Verifies a password against the stored hash. Detects the legacy format
+// migrated from `access_credential` (`scrypt:<salt>:<hash>`) and verifies it
+// with the old algorithm; for Better Auth's native format it delegates to its
+// verifier (`better-auth/crypto`). This is the config's `password.verify`, so
+// `verifyBetterAuthCredentialPassword` uses it too, via `ctx.password`.
 function verifyAccessPassword(input: {
   hash: string;
   password: string;
@@ -632,8 +633,8 @@ function verifyAccessPassword(input: {
   return verifyPassword({ hash: input.hash, password: input.password });
 }
 
-// El formato legacy es `scrypt:<salt>:<hash>` (3 segmentos, primero `"scrypt"`);
-// el nativo de Better Auth es `<salt>:<hash>` (2 segmentos), sin el prefijo.
+// The legacy format is `scrypt:<salt>:<hash>` (3 segments, the first `"scrypt"`);
+// Better Auth's native one is `<salt>:<hash>` (2 segments), without the prefix.
 function isLegacyScryptHash(hash: string): boolean {
   const segments = hash.split(":");
   return segments.length === 3 && segments[0] === "scrypt";
@@ -658,10 +659,10 @@ function verifyLegacyScryptHash(input: {
   );
 }
 
-// Secret de Better Auth (firma de sesión + HMAC del token de recuperación).
-// Falla cerrado en producción: si falta `BETTER_AUTH_SECRET`, tirar en vez de
-// caer a un secret público hardcodeado (que permitiría forjar tokens de
-// recuperación). En dev/test se mantiene el fallback para no exigir la env.
+// Better Auth secret (session signing + recovery-token HMAC). Fails closed in
+// production: if `BETTER_AUTH_SECRET` is missing, throw instead of falling back
+// to a hardcoded public secret (which would allow forging recovery tokens). In
+// dev/test the fallback is kept so the env var is not required.
 function getBetterAuthSecret() {
   const secret =
     process.env.BETTER_AUTH_SECRET ?? process.env.TEST_ACCESS_AUTH_SECRET;

@@ -94,9 +94,9 @@ export async function resolveChoreographyDancerUpdateContext(input: {
   }
 
   const requestedDancerIds = [...new Set(input.dancerIds)];
-  // Solo las activas cuentan como "ya está en el roster": esa excepción existe
-  // para no bloquear a un bailarín inactivo que ya figura, y una inscripción
-  // retirada no figura.
+  // Only the active ones count as "already on the roster": that exception exists
+  // so an inactive dancer who already appears is not blocked, and a withdrawn
+  // inscription does not appear.
   const currentLinks = await db
     .select({
       dancerId: choreographyDancers.dancerId,

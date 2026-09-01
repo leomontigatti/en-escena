@@ -1,13 +1,10 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
-import { TriangleAlert } from "lucide-react";
-import { useForm, useWatch, type UseFormReturn } from "react-hook-form";
+import { useForm, type UseFormReturn } from "react-hook-form";
 
-import { AlertStack } from "@/components/shared/alert-stack";
 import { DateOnlyField } from "@/components/shared/date-only-field";
 import { IntegerInputField } from "@/components/shared/integer-input-field";
 import { TextInputField } from "@/components/shared/text-input-field";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { FieldGroup } from "@/components/ui/field";
 import {
   MAX_REQUIRED_DEPOSIT_PERCENTAGE,
@@ -73,20 +70,13 @@ export function useEventForm({
   };
 }
 
+/**
+ * Everything the administration edits about the event itself, in a two-column
+ * grid: the name and the deposit share the first row, then the dates pair off
+ * as the event window and the inscription window.
+ */
 export function EventFormFields({ controller }: EventFormFieldsProps) {
   const { form } = controller;
-  const registrationStartsAt = useWatch({
-    control: form.control,
-    name: "registrationStartsAt",
-  });
-  const startsAt = useWatch({
-    control: form.control,
-    name: "startsAt",
-  });
-  const showRegistrationStartWarning =
-    registrationStartsAt !== "" &&
-    startsAt !== "" &&
-    registrationStartsAt > startsAt;
 
   return (
     <FieldGroup className="grid gap-5 md:grid-cols-2">
@@ -101,16 +91,6 @@ export function EventFormFields({ controller }: EventFormFieldsProps) {
       />
       <DateOnlyField
         control={form.control}
-        label="Inicio de inscripciones"
-        name="registrationStartsAt"
-      />
-      <DateOnlyField
-        control={form.control}
-        label="Cierre de inscripciones"
-        name="registrationEndsAt"
-      />
-      <DateOnlyField
-        control={form.control}
         label="Inicio del evento"
         name="startsAt"
       />
@@ -119,18 +99,16 @@ export function EventFormFields({ controller }: EventFormFieldsProps) {
         label="Cierre del evento"
         name="endsAt"
       />
-
-      <AlertStack className="md:col-span-2">
-        {showRegistrationStartWarning ? (
-          <Alert variant="warning">
-            <TriangleAlert aria-hidden="true" />
-            <AlertDescription>
-              La inscripción empieza después del inicio del evento. Podés
-              guardar esta configuración si es intencional.
-            </AlertDescription>
-          </Alert>
-        ) : null}
-      </AlertStack>
+      <DateOnlyField
+        control={form.control}
+        label="Inicio de inscripciones"
+        name="registrationStartsAt"
+      />
+      <DateOnlyField
+        control={form.control}
+        label="Cierre de inscripciones"
+        name="registrationEndsAt"
+      />
     </FieldGroup>
   );
 }

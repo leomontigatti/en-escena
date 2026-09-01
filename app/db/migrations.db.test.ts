@@ -17,8 +17,8 @@ import * as schema from "./schema";
 const migrationsFolder = fileURLToPath(
   new URL("./migrations", import.meta.url),
 );
-// Oráculo `pushSchema` — corre en un subproceso tsx porque `drizzle-kit/api` no
-// sobrevive el transform de vite dentro de un worker de vitest.
+// The `pushSchema` oracle — it runs in a tsx subprocess because
+// `drizzle-kit/api` does not survive vite's transform inside a vitest worker.
 const pushSchemaScriptPath = fileURLToPath(
   new URL("../../tests/db/push-pglite-schema.ts", import.meta.url),
 );

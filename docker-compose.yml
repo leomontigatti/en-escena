@@ -1,3 +1,10 @@
+# Without this, Compose names the project after the directory it is run from,
+# so a git worktree under `.claude/worktrees/` becomes its own project and
+# tries to start a second Postgres against the `container_name` below — which
+# fails, because the container the main checkout already started holds that
+# name. Pinning it means every checkout shares the one local database.
+name: en-escena
+
 services:
   postgres:
     image: postgres:17-alpine
