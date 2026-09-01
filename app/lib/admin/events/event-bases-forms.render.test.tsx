@@ -385,7 +385,8 @@ function buildLoaderData(): EventBasesLoaderData {
         createdAt,
         modalities: [{ id: "modality_1", name: "Jazz" }],
         modalityIds: ["modality_1"],
-        occupiedCapacity: 0,
+        availablePlaces: 20,
+        occupiedCount: 0,
         scheduleCapacities: [
           {
             id: "schedule_capacity_1",
@@ -393,6 +394,8 @@ function buildLoaderData(): EventBasesLoaderData {
             groupType: "solo",
             capacity: 8,
             createdAt,
+            availablePlaces: 5,
+            occupiedCount: 3,
           },
         ],
       },

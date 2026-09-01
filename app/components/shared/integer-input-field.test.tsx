@@ -51,6 +51,24 @@ function TestDisabledIntegerInputField() {
   );
 }
 
+function TestSuffixIntegerInputField({ amount }: { amount: string }) {
+  const form = useForm<TestFormValues>({
+    defaultValues: {
+      amount,
+    },
+  });
+
+  return (
+    <IntegerInputField
+      control={form.control}
+      id="amount"
+      label="Cupo"
+      name="amount"
+      suffix=" / 64 disponibles"
+    />
+  );
+}
+
 describe("IntegerInput", () => {
   test("renders a text input optimized for integer entry", () => {
     const markup = renderToStaticMarkup(<IntegerInput name="amount" />);
@@ -78,6 +96,28 @@ describe("IntegerInputField", () => {
     expect(markup).toContain('inputMode="numeric"');
     expect(markup).toContain('pattern="[0-9]*"');
     expect(markup).toContain("Ingresá solo números.");
+  });
+
+  // The suffix trails the typed value, so it is laid out over an invisible copy
+  // of that value rather than measured.
+  test("renders the suffix over an invisible mirror of the typed value", () => {
+    const markup = renderToStaticMarkup(
+      <TestSuffixIntegerInputField amount="135" />,
+    );
+
+    expect(markup).toContain("/ 64 disponibles");
+    expect(markup).toContain('aria-hidden="true"');
+    expect(markup).toContain("pointer-events-none");
+    expect(markup).toContain('class="invisible">135<');
+  });
+
+  // A lone " / 64 disponibles" hanging off an empty field reads as a typo.
+  test("hides the suffix while there is no value to trail", () => {
+    const markup = renderToStaticMarkup(
+      <TestSuffixIntegerInputField amount="" />,
+    );
+
+    expect(markup).not.toContain("/ 64 disponibles");
   });
 
   test("passes disabled to the input and renders the lock affordance", () => {

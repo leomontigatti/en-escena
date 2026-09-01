@@ -36,7 +36,9 @@ import {
 import { EventBasesFormActions } from "../events/bases-form-actions";
 import {
   createEmptyScheduleCapacityFormValues,
+  describeAvailablePlaces,
   emptyScheduleCapacities,
+  formatAvailablePlacesSuffix,
   emptySelection,
   getAvailableScheduleCapacityGroupTypeOptions,
   scheduleFormSchema,
@@ -48,6 +50,7 @@ import { basePath, type EventScheduleModalityRow } from "./shared";
 type ScheduleFormController = UseFormReturn<ScheduleFormValues>;
 
 export function ScheduleForm({
+  availablePlaces,
   formId,
   id,
   intent,
@@ -60,6 +63,7 @@ export function ScheduleForm({
   submittedValues,
   totalCapacity,
 }: {
+  availablePlaces?: number;
   formId?: string;
   id?: string;
   intent: string;
@@ -102,6 +106,19 @@ export function ScheduleForm({
       totalCapacity,
     ],
   );
+  const availablePlacesByScheduleCapacityId = useMemo(
+    () =>
+      new Map(
+        scheduleCapacities.map((scheduleCapacity) => [
+          scheduleCapacity.id,
+          {
+            availablePlaces: scheduleCapacity.availablePlaces,
+            capacity: scheduleCapacity.capacity,
+          },
+        ]),
+      ),
+    [scheduleCapacities],
+  );
   const form = useForm<ScheduleFormValues>({
     resolver: zodResolver(scheduleFormSchema),
     defaultValues,
@@ -125,6 +142,10 @@ export function ScheduleForm({
       <FieldGroup className="grid gap-4 sm:grid-cols-2">
         <ScheduleTextField form={form} label="Nombre" name="name" />
         <ScheduleTextField
+          availablePlaces={
+            totalCapacity === undefined ? undefined : availablePlaces
+          }
+          capacity={totalCapacity}
           form={form}
           label="Cupo total"
           min={1}
@@ -147,7 +168,12 @@ export function ScheduleForm({
           title="Modalidades"
         />
       </FieldGroup>
-      <ScheduleCapacitiesInlineFieldArray form={form} />
+      <ScheduleCapacitiesInlineFieldArray
+        availablePlacesByScheduleCapacityId={
+          availablePlacesByScheduleCapacityId
+        }
+        form={form}
+      />
     </form>
   );
 }
@@ -173,6 +199,8 @@ export function ScheduleFormPanel({ children }: { children: ReactNode }) {
 }
 
 function ScheduleTextField({
+  availablePlaces,
+  capacity,
   className,
   form,
   label,
@@ -180,6 +208,8 @@ function ScheduleTextField({
   name,
   step,
 }: {
+  availablePlaces?: number;
+  capacity?: number;
   className?: string;
   form: ScheduleFormController;
   label: string;
@@ -188,15 +218,30 @@ function ScheduleTextField({
   step?: number;
 }) {
   if (name === "totalCapacity") {
+    const hasAvailablePlaces =
+      availablePlaces !== undefined && capacity !== undefined;
+
     return (
       <IntegerInputField
         className={className}
         control={form.control}
         id={name}
+        // The visible label stays just the label; the accessible name carries
+        // the count that the decorative suffix cannot.
+        aria-label={
+          hasAvailablePlaces
+            ? `${label}. ${describeAvailablePlaces({ availablePlaces, capacity })}`
+            : undefined
+        }
         label={label}
         min={min}
         name={name}
         step={step}
+        suffix={
+          hasAvailablePlaces
+            ? formatAvailablePlacesSuffix(availablePlaces)
+            : undefined
+        }
       />
     );
   }
@@ -212,9 +257,16 @@ function ScheduleTextField({
   );
 }
 
+type AvailablePlacesByScheduleCapacityId = Map<
+  string,
+  { availablePlaces: number; capacity: number }
+>;
+
 function ScheduleCapacitiesInlineFieldArray({
+  availablePlacesByScheduleCapacityId,
   form,
 }: {
+  availablePlacesByScheduleCapacityId: AvailablePlacesByScheduleCapacityId;
   form: ScheduleFormController;
 }) {
   const { append, fields, remove } = useFieldArray({
@@ -241,6 +293,11 @@ function ScheduleCapacitiesInlineFieldArray({
       onRemove={remove}
       renderItem={(field, index, removeItem) => (
         <ScheduleCapacityInlineFields
+          availablePlaces={
+            field.id
+              ? availablePlacesByScheduleCapacityId.get(field.id)
+              : undefined
+          }
           field={field}
           form={form}
           index={index}
@@ -295,7 +352,7 @@ function InlineFieldArray<TField extends { fieldId: string }>({
       </div>
       {fields.length > 0 ? (
         <div className="flex flex-col gap-2">
-          <div className="hidden gap-4 text-sm font-medium sm:grid sm:grid-cols-[minmax(0,1fr)_12rem_2rem]">
+          <div className="hidden gap-4 text-sm font-medium sm:grid sm:grid-cols-[minmax(0,1fr)_14rem_2rem]">
             <div>Tipo de grupo</div>
             <div>Cupo</div>
             <div />
@@ -312,12 +369,14 @@ function InlineFieldArray<TField extends { fieldId: string }>({
 }
 
 function ScheduleCapacityInlineFields({
+  availablePlaces,
   field,
   form,
   index,
   options,
   onRemove,
 }: {
+  availablePlaces?: { availablePlaces: number; capacity: number };
   field: { id?: string };
   form: ScheduleFormController;
   index: number;
@@ -329,7 +388,7 @@ function ScheduleCapacityInlineFields({
   const capacityFieldName = `scheduleCapacities.${index}.capacity` as const;
 
   return (
-    <FieldGroup className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_12rem_2rem] sm:items-start">
+    <FieldGroup className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_14rem_2rem] sm:items-start">
       {field.id ? (
         <input type="hidden" name={idFieldName} value={field.id} />
       ) : null}
@@ -345,10 +404,21 @@ function ScheduleCapacityInlineFields({
         control={form.control}
         name={capacityFieldName}
         id={`schedule-capacity-capacity-${index}`}
-        label="Cupo"
+        // The label is already sr-only here, so it is where the count the
+        // decorative suffix cannot carry belongs.
+        label={
+          availablePlaces
+            ? `Cupo. ${describeAvailablePlaces(availablePlaces)}`
+            : "Cupo"
+        }
         labelClassName="sr-only"
         min={1}
         step={1}
+        suffix={
+          availablePlaces
+            ? formatAvailablePlacesSuffix(availablePlaces.availablePlaces)
+            : undefined
+        }
       />
       <Button
         type="button"
