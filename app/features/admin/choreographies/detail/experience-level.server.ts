@@ -18,8 +18,8 @@ export async function updateChoreographyExperienceLevel(input: {
   choreography: ChoreographyDetail;
   formData: FormData;
 }): Promise<ChoreographyFieldUpdateErrorData | ChoreographySuccessData> {
-  // Mismo bloqueo duro que el roster, la submodalidad y el cupo: con
-  // presentación el nivel no se toca, aunque el form mande uno.
+  // The same hard block as the roster, the submodality and the capacity: with a
+  // presentation the level is not touched, even if the form sends one.
   if (input.choreography.hasPresentation) {
     return {
       message:
@@ -28,11 +28,11 @@ export async function updateChoreographyExperienceLevel(input: {
     };
   }
 
-  // La misma condición que cierra el campo en el loader, revalidada contra la
-  // categoría que la coreografía tiene guardada. Sin ella el intent acepta un
-  // nivel que la vista se niega a ofrecer: con una categoría que no declara
-  // niveles, un POST armado a mano escribiría igual una columna que el resto
-  // del dominio da por nula.
+  // The same condition that closes the field in the loader, revalidated against
+  // the category the choreography has saved. Without it the intent accepts a
+  // level the view refuses to offer: with a category that declares no levels, a
+  // hand-crafted POST would write a column the rest of the domain assumes is
+  // null.
   if (!input.choreography.requiresExperienceLevel) {
     return {
       message:
@@ -56,9 +56,9 @@ export async function updateChoreographyExperienceLevel(input: {
     };
   }
 
-  // La validación ya garantizó la pertenencia a las opciones de la categoría;
-  // este guard es lo que le prueba al tipo de la columna que el string es un
-  // valor del enum.
+  // Validation has already guaranteed membership of the category's options; this
+  // guard is what proves to the column's type that the string is a value of the
+  // enum.
   if (
     requestedExperienceLevelId === null ||
     !isExperienceLevel(requestedExperienceLevelId)

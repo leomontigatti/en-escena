@@ -6,28 +6,30 @@ import {
 import { ArcaTimeoutError, type ArcaClient } from "./client.server";
 
 /**
- * Contingencia por falta de respuesta de ARCA (ADR-0012): la llamada SOAP falló
- * por red, timeout o caída del servicio, así que no hay `Resultado` que
- * interpretar. Es un caso distinto del rechazo —donde ARCA sí respondió y dijo
- * que no— y el riesgo depende de la fase en la que se cortó.
+ * Contingency from a missing response from ARCA (ADR-0012): the SOAP call
+ * failed on the network, on a timeout or on a service outage, so there is no
+ * `Resultado` to interpret. It is a different case from a rejection — where
+ * ARCA did respond and said no — and the risk depends on the phase it was cut
+ * off in.
  *
- * La fase NO se expone: es un insumo de la lógica de recuperación, no algo que
- * la UI use (ADR-0012 decisión 6).
+ * The phase is NOT exposed: it is an input to the recovery logic, not something
+ * the UI uses (ADR-0012 decision 6).
  */
 export type ArcaCallPhase =
-  // Llamada de sólo lectura (`FECompUltimoAutorizado`, `FECompConsultar`): no se
-  // pidió autorizar nada, así que con certeza esa llamada no emitió ningún
+  // Read-only call (`FECompUltimoAutorizado`, `FECompConsultar`): nothing was
+  // asked to be authorized, so that call certainly did not emit any
   // comprobante.
   | "lookup"
-  // `FECAESolicitar`: se pidió el CAE y no sabemos si ARCA llegó a otorgarlo.
-  // Reintentar a ciegas puede emitir un segundo comprobante por el mismo monto.
+  // `FECAESolicitar`: the CAE was requested and we do not know whether ARCA got
+  // as far as granting it. Retrying blindly may emit a second comprobante for
+  // the same amount.
   | "authorization";
 
 export type ArcaCallFailure = {
   phase: ArcaCallPhase;
-  // Si se agotó NUESTRO timeout en lugar de fallar el transporte. Un timeout deja
-  // la petición en vuelo, así que la llamada puede completarse del lado de ARCA
-  // después de que dejamos de esperar; un error de transporte, no.
+  // Whether OUR timeout elapsed instead of the transport failing. A timeout
+  // leaves the request in flight, so the call may complete on ARCA's side after
+  // we stop waiting; a transport error does not.
   timedOut: boolean;
   detail: string;
 };
@@ -37,9 +39,10 @@ export type ArcaAttempt<T> =
   | { ok: false; failure: ArcaCallFailure };
 
 /**
- * Corre una llamada a ARCA clasificando su falla por fase en lugar de dejar que
- * la excepción del SOAP escale al error boundary genérico. Sólo captura fallas
- * de comunicación: un rechazo llega como respuesta normal y se interpreta aparte.
+ * Runs a call to ARCA, classifying its failure by phase instead of letting the
+ * SOAP exception escalate to the generic error boundary. It only catches
+ * communication failures: a rejection arrives as a normal response and is
+ * interpreted separately.
  */
 export async function attemptArca<T>(
   phase: ArcaCallPhase,
@@ -54,66 +57,67 @@ export async function attemptArca<T>(
       detail: thrown instanceof Error ? thrown.message : String(thrown),
     };
 
-    // Al operador se le dice qué quedó resuelto, no qué se rompió (ADR-0012
-    // decisión 6). El detalle sólo sobrevive acá: antes de esto la excepción
-    // llegaba al error boundary y al menos quedaba en el log del servidor.
+    // The operator is told what was settled, not what broke (ADR-0012
+    // decision 6). The detail only survives here: before this the exception
+    // reached the error boundary and at least stayed in the server log.
     console.error("[arca:unreachable]", failure);
 
     return { ok: false, failure };
   }
 }
 
-// El comprobante que se intentó autorizar, tal como se lo consulta en ARCA.
+// The comprobante that was attempted, as it is queried in ARCA.
 export type ArcaAttemptedVoucher = {
   ptoVta: number;
   cbteTipo: number;
   cbteNro: number;
 };
 
-// Por qué no se pudo afirmar nada. No llega a la UI —que sólo distingue los tres
-// estados resueltos (decisión 6)— pero elige el texto, que de otro modo mentiría
-// sobre lo que pasó.
+// Why nothing could be asserted. It does not reach the UI — which only
+// distinguishes the three settled states (decision 6) — but it picks the text,
+// which would otherwise lie about what happened.
 export type ArcaUnverifiedReason =
-  // La consulta falló, o devolvió un comprobante que no es el nuestro.
+  // The lookup failed, or returned a comprobante that is not ours.
   | "consult-inconclusive"
-  // La consulta respondió que ARCA no lo tiene, pero la autorización se cortó por
-  // timeout y sigue en vuelo: el "no lo tengo" puede ser sólo "todavía no".
+  // The lookup answered that ARCA does not have it, but the authorization was
+  // cut off by a timeout and is still in flight: the "I don't have it" may be
+  // just "not yet".
   | "authorization-in-flight";
 
 export type ArcaRecovery =
-  // La consulta devolvió el comprobante y coincide con lo enviado: SÍ se
-  // autorizó. Hay que persistirlo con este CAE.
+  // The lookup returned the comprobante and it matches what was sent: it WAS
+  // authorized. It has to be persisted with this CAE.
   | { status: "recovered"; cae: string; caeVto: string; cbteFch: string }
-  // ARCA no tiene ese comprobante y la petición no puede seguir en curso: no se
-  // autorizó nada y reintentar es seguro.
+  // ARCA does not have that comprobante and the request cannot still be in
+  // progress: nothing was authorized and retrying is safe.
   | { status: "not-emitted" }
-  // No se puede afirmar nada.
+  // Nothing can be asserted.
   | { status: "unverified"; reason: ArcaUnverifiedReason };
 
 /**
- * Resuelve la ambigüedad que deja una falla en la fase de autorización
- * consultando a ARCA por el comprobante exacto que se intentó emitir
- * (`FECompConsultar`, ADR-0012 decisión 3).
+ * Resolves the ambiguity left by a failure in the authorization phase by
+ * querying ARCA for the exact comprobante that was attempted
+ * (`FECompConsultar`, ADR-0012 decision 3).
  *
- * El comprobante consultado cuenta como nuestro sólo si su importe total Y su
- * fecha coinciden con lo enviado (decisión 4): los correlativos no se reservan,
- * así que un comprobante con el número que intentamos no es necesariamente el
- * que quisimos emitir, y persistirlo a ciegas registraría un CAE ajeno que nada
- * río abajo podría detectar.
+ * The comprobante that comes back counts as ours only if its total amount AND
+ * its date match what was sent (decision 4): sequence numbers are not reserved,
+ * so a comprobante carrying the number we attempted is not necessarily the one
+ * we meant to emit, and persisting it blindly would record somebody else's CAE,
+ * which nothing downstream could detect.
  *
- * Que ARCA no tenga el comprobante sólo prueba que no se emitió si la petición
- * de autorización terminó. Si se cortó por timeout sigue en vuelo, y la consulta
- * —emitida milisegundos después— puede estar mirando un CAE que ARCA está por
- * otorgar: leer ese `null` como "reintentá tranquilo" es la doble emisión que
- * todo esto existe para evitar.
+ * ARCA not having the comprobante only proves it was not emitted if the
+ * authorization request finished. If it was cut off by a timeout it is still in
+ * flight, and the lookup — issued milliseconds later — may be looking at a CAE
+ * that ARCA is about to grant: reading that `null` as "safe to retry" is the
+ * double emission this whole thing exists to prevent.
  */
 export async function recoverAuthorization(
   client: ArcaClient,
   submitted: ArcaAttemptedVoucher & { impTotal: number; cbteFch: string },
   authorizationFailure: ArcaCallFailure,
 ): Promise<ArcaRecovery> {
-  // `FECompConsultar` es de sólo lectura: falle como falle, esta llamada no
-  // autoriza nada. La ambigüedad que se está resolviendo la dejó `FECAESolicitar`.
+  // `FECompConsultar` is read-only: however it fails, this call authorizes
+  // nothing. The ambiguity being resolved was left by `FECAESolicitar`.
   const consult = await attemptArca("lookup", () =>
     client.getVoucherInfo({
       ptoVta: submitted.ptoVta,
@@ -150,7 +154,7 @@ export async function recoverAuthorization(
   };
 }
 
-// Cómo se nombra el documento en los mensajes al operador.
+// How the document is named in the messages shown to the operator.
 export type ArcaContingencySubject = "comprobante" | "nota de crédito";
 
 const ARTICLE: Record<ArcaContingencySubject, string> = {
@@ -172,9 +176,9 @@ export function buildUnverifiedMessage(
   attempt: ArcaAttemptedVoucher,
   reason: ArcaUnverifiedReason,
 ): string {
-  // El texto no concuerda en género con el sujeto a propósito: la consulta
-  // posterior es el sujeto de la segunda oración, así que sirve igual para "el
-  // comprobante" y para "la nota de crédito".
+  // The text deliberately does not agree in gender with the subject: the
+  // follow-up lookup is the subject of the second sentence, so it works just as
+  // well for "el comprobante" and for "la nota de crédito".
   const what =
     reason === "authorization-in-flight"
       ? `ARCA tardó más de lo que esperamos autorizando ${ARTICLE[subject]} y ` +
@@ -190,12 +194,12 @@ export function buildUnverifiedMessage(
 }
 
 /**
- * Cómo se nombra el comprobante que quedó sin resolver: igual que en el resto de
- * la app y que en el portal de ARCA (`Factura C 0001-00001234`). Acá importa más
- * que en ningún otro lado, porque esa cadena es exactamente lo que el operador
- * tiene que tipear para hacer lo que el mensaje le está pidiendo; `tipo 11,
- * número 1234` no le sirve para eso. Vive en el builder y no en el componente,
- * así lo heredan la factura, la nota de crédito y el tipo que venga después.
+ * How the comprobante left unresolved is named: the same as in the rest of the
+ * app and in ARCA's own portal (`Factura C 0001-00001234`). It matters more
+ * here than anywhere else, because that string is exactly what the operator has
+ * to type in to do what the message is asking of them; `tipo 11, número 1234`
+ * is no use for that. It lives in the builder rather than in the component, so
+ * the factura, the nota de crédito and whatever type comes next inherit it.
  */
 function formatAttemptedVoucher(attempt: ArcaAttemptedVoucher): string {
   return `${formatComprobanteTipoLabel(attempt.cbteTipo)} ${formatComprobanteNumber(attempt)}`;

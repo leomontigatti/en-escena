@@ -30,9 +30,9 @@ export type ChoreographyScheduleCapacityReassignment = {
 };
 
 /**
- * El bloqueo es de todo el campo, nunca de opciones sueltas: toda opción que el
- * select ofrece cambia el cronograma y con él la clave de precio, así que no
- * hay reasignación financieramente inerte que eximir.
+ * The block covers the whole field, never individual options: every option the
+ * select offers changes the schedule and with it the price key, so there is no
+ * financially inert reassignment to exempt.
  */
 const frozenPriceBlocker: ChoreographyScheduleCapacityBlocker = {
   code: "frozen-price",
@@ -41,9 +41,9 @@ const frozenPriceBlocker: ChoreographyScheduleCapacityBlocker = {
 };
 
 /**
- * Motivos de bloqueo que el servidor arma para la alerta de la página. No se
- * filtran por rol: el auditor también tiene que ver por qué el cronograma no se
- * puede mover.
+ * The blocking reasons the server assembles for the page's alert. They are not
+ * filtered by role: the auditor also has to see why the schedule cannot be
+ * moved.
  *
  * The caller reads the money once and derives both this list and the modality
  * one from it: the two alerts describe the same inscriptions.
@@ -65,16 +65,16 @@ type ScheduleCapacityOptionCandidate = Omit<
 >;
 
 /**
- * Las opciones que la vista ofrece son exactamente las que el intent acepta:
- * los cupos compatibles con el evento, la modalidad y el tipo de grupo de la
- * coreografía, más el cupo asignado hoy. Ese agregado es solo de visibilidad:
- * si la asignación quedó fuera de la compatibilidad (cambió la modalidad del
- * cronograma, se borró el cupo), tiene que seguir a la vista en lugar de
- * desaparecer del select sin explicación.
+ * The options the view offers are exactly the ones the intent accepts: the
+ * capacities compatible with the choreography's event, modality and group type,
+ * plus the capacity assigned today. That addition is for visibility only: if the
+ * assignment fell outside compatibility (the schedule's modality changed, the
+ * capacity was deleted), it has to stay in view rather than disappear from the
+ * select without explanation.
  *
- * Sin ocupación: el intent solo necesita saber qué ids acepta, y contar
- * ocupantes para rotular opciones que nadie va a leer es trabajo tirado. La
- * vista pasa por `resolveChoreographyScheduleCapacityOptions`.
+ * Without occupancy: the intent only needs to know which ids it accepts, and
+ * counting occupants to label options nobody will read is wasted work. The view
+ * goes through `resolveChoreographyScheduleCapacityOptions`.
  */
 async function resolveScheduleCapacityCandidates(input: {
   choreography: ChoreographyDetail;
@@ -112,8 +112,8 @@ async function resolveScheduleCapacityCandidates(input: {
 }
 
 /**
- * Las mismas opciones que acepta el intent, rotuladas con la ocupación y con
- * las llenas marcadas, para el select del detalle.
+ * The same options the intent accepts, labelled with occupancy and with the full
+ * ones marked, for the detail's select.
  */
 export async function resolveChoreographyScheduleCapacityOptions(input: {
   choreography: ChoreographyDetail;
@@ -127,8 +127,8 @@ export async function resolveChoreographyScheduleCapacityOptions(input: {
   return {
     hasMultipleCompatibleOptions: candidates.hasMultipleCompatibleOptions,
     options: await withScheduleCapacityOccupancy({
-      // Misma exclusión que el lock: la coreografía que se está moviendo no
-      // cuenta contra el cupo que ya ocupa.
+      // The same exclusion as the lock: the choreography being moved does not
+      // count against the capacity it already occupies.
       excludeChoreographyId: input.choreography.id,
       options: candidates.options,
     }),
@@ -140,8 +140,8 @@ export async function updateChoreographyScheduleCapacity(input: {
   eventId: string;
   formData: FormData;
 }): Promise<ChoreographyFieldUpdateErrorData | ChoreographySuccessData> {
-  // Mismo bloqueo duro que el roster y la eliminación: con presentación el
-  // cronograma no se toca, aunque el form mande un cupo.
+  // The same hard block as the roster and deletion: with a presentation the
+  // schedule is not touched, even if the form sends a capacity.
   if (input.choreography.hasPresentation) {
     return {
       message:
@@ -156,10 +156,10 @@ export async function updateChoreographyScheduleCapacity(input: {
       eventId: input.eventId,
     });
 
-  // La misma condición que cierra el campo en el loader. Sin ella el intent
-  // acepta un movimiento que la vista se niega a ofrecer: con un solo cupo
-  // compatible el select queda de solo lectura, pero un POST armado a mano que
-  // nombre ese cupo movería la clave de precio igual.
+  // The same condition that closes the field in the loader. Without it the intent
+  // accepts a move the view refuses to offer: with a single compatible capacity
+  // the select is read-only, but a hand-crafted POST naming that capacity would
+  // move the price key all the same.
   if (!hasMultipleCompatibleOptions) {
     return {
       message:
@@ -175,7 +175,7 @@ export async function updateChoreographyScheduleCapacity(input: {
     (option) => option.id === requestedOptionId,
   );
 
-  // La compatibilidad se revalida acá y no se confía en lo que mandó el form.
+  // Compatibility is revalidated here; what the form sent is not trusted.
   if (!selectedOption) {
     return {
       message: invalidScheduleEntryMessage,

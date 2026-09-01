@@ -211,7 +211,7 @@ describe.sequential("administracion finanzas", () => {
       dancerId: northSecondDancer.id,
     });
 
-    // Norte Pagada: pagada, con la seña y el saldo en una sola asignación.
+    // Norte Pagada: paid, with the deposit and the balance in a single allocation.
     const northPaidDancer = await createDancer(academyNorth.academy.id, {
       firstName: "Carla",
       lastName: "Pagada",
@@ -229,7 +229,7 @@ describe.sequential("administracion finanzas", () => {
       paymentId: northPayment.id,
     });
 
-    // Sur Activa: impaga -> pending seña 3000, no allocations.
+    // Sur Activa: unpaid -> pending deposit 3000, no allocations.
     const southDancer = await createDancer(academySouth.academy.id, {
       firstName: "Delia",
       lastName: "Sur",
@@ -268,11 +268,12 @@ describe.sequential("administracion finanzas", () => {
     });
 
     expect(loaderData.selectedEventId).toBe(event.id);
-    // Norte: pagos 20000 - asignaciones 13000 = disponible 7000; seña adeudada
-    // 3000 (la que no llegó al umbral); saldo adeudado 17000 = 7000 de la que
-    // cubrió la seña + 10000 de la que no tiene nada, que adeuda las dos cosas.
-    // Sur: pagos 3000 - asignaciones 0 = disponible 3000; seña adeudada 3000;
-    // saldo adeudado 10000, el total de su única inscripción sin dinero.
+    // Norte: payments 20000 - allocations 13000 = available 7000; deposit owed
+    // 3000 (the one that did not reach the threshold); balance owed 17000 = 7000
+    // from the one that covered the deposit + 10000 from the one with nothing,
+    // which owes both.
+    // Sur: payments 3000 - allocations 0 = available 3000; deposit owed 3000;
+    // balance owed 10000, the total of its single inscription with no money.
     expect(loaderData.rows).toEqual([
       {
         academyId: academyNorth.academy.id,
@@ -353,8 +354,8 @@ describe.sequential("administracion finanzas", () => {
         academyId: academy.academy.id,
         academyName: "Academia Sin Precio",
         availableBalanceAmount: 0,
-        // La impaga sin precio adeuda seña y saldo, y no se puede cuantificar
-        // ninguno de los dos.
+        // The unpaid one with no price owes both deposit and balance, and neither
+        // of them can be quantified.
         owedBalanceAmount: {
           status: "incomplete",
           amount: 0,

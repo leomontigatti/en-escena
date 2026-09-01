@@ -14,13 +14,13 @@ import {
 } from "./responses";
 
 describe("formatArcaMessage", () => {
-  test("agrega el código de ARCA cuando lo hay", () => {
+  test("adds ARCA's code when there is one", () => {
     expect(formatArcaMessage({ code: 10049, msg: "Faltan fechas" })).toBe(
       "Faltan fechas (código 10049)",
     );
   });
 
-  test("sin código deja el mensaje solo", () => {
+  test("with no code it leaves the message alone", () => {
     expect(formatArcaMessage({ code: 0, msg: "Faltan fechas" })).toBe(
       "Faltan fechas",
     );
@@ -40,7 +40,7 @@ describe("parseCreateVoucherResult", () => {
     expect(parsed.errors).toEqual([]);
   });
 
-  test("superficializa las observaciones de un comprobante aprobado con reparos", () => {
+  test("surfaces the observations of a comprobante approved with reservations", () => {
     const parsed = parseCreateVoucherResult(facturaCAprobadaConObservaciones);
 
     expect(parsed.approved).toBe(true);
@@ -53,7 +53,7 @@ describe("parseCreateVoucherResult", () => {
     ]);
   });
 
-  test("marca no aprobado y superficializa los errores de un rechazo", () => {
+  test("marks it not approved and surfaces a rejection's errors", () => {
     const parsed = parseCreateVoucherResult(facturaCRechazada);
 
     expect(parsed.approved).toBe(false);
@@ -70,7 +70,7 @@ describe("parseCreateVoucherResult", () => {
 });
 
 describe("parseLastVoucher", () => {
-  test("devuelve el último autorizado y el siguiente a solicitar", () => {
+  test("returns the last authorized number and the next one to request", () => {
     const parsed = parseLastVoucher(ultimoAutorizado);
 
     expect(parsed.lastCbteNro).toBe(42);
@@ -78,7 +78,7 @@ describe("parseLastVoucher", () => {
     expect(parsed.errors).toEqual([]);
   });
 
-  test("un punto de venta sin comprobantes arranca en 1", () => {
+  test("a point of sale with no comprobantes starts at 1", () => {
     const parsed = parseLastVoucher(ultimoAutorizadoVacio);
 
     expect(parsed.lastCbteNro).toBe(0);

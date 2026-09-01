@@ -45,8 +45,8 @@ describe("choreography creation schedule step", () => {
     expect(markup).not.toContain(everyScheduleCapacityFullMessage);
   });
 
-  // Un select con todo deshabilitado es un callejón sin salida silencioso: el
-  // registro tiene que decir por qué no hay nada para elegir.
+  // A select with everything disabled is a silent dead end: registration has to
+  // say why there is nothing to choose.
   test("replaces the select with the blocked message when every cupo is full", () => {
     renderer.render(
       <ScheduleStepHarness

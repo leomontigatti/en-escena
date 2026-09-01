@@ -29,7 +29,7 @@ describe("buildFacturaCVoucher", () => {
     expect(voucher.MonCotiz).toBe(1);
   });
 
-  test("se emite como servicio (Concepto 2) con el período de servicio y el vencimiento de pago", () => {
+  test("is emitted as a service (Concepto 2) with the service period and the payment due date", () => {
     const voucher = buildFacturaCVoucher(baseInput);
 
     expect(voucher.Concepto).toBe(2);
@@ -38,7 +38,7 @@ describe("buildFacturaCVoucher", () => {
     expect(voucher.FchVtoPago).toBe("20260722");
   });
 
-  test("rechaza un período de servicio que termina antes de empezar (FchServHasta < FchServDesde)", () => {
+  test("rejects a service period that ends before it starts (FchServHasta < FchServDesde)", () => {
     expect(() =>
       buildFacturaCVoucher({
         ...baseInput,
@@ -48,24 +48,24 @@ describe("buildFacturaCVoucher", () => {
     ).toThrow(/FchServHasta/);
   });
 
-  test("rechaza un vencimiento de pago anterior a la fecha del comprobante (FchVtoPago < CbteFch)", () => {
+  test("rejects a payment due date earlier than the comprobante date (FchVtoPago < CbteFch)", () => {
     expect(() =>
       buildFacturaCVoucher({ ...baseInput, fchVtoPago: "20260721" }),
     ).toThrow(/FchVtoPago/);
   });
 
-  test("exige las tres fechas de servicio juntas o ninguna", () => {
+  test("requires all three service dates together or none at all", () => {
     const { fchVtoPago: _omitted, ...withoutVto } = baseInput;
     expect(() => buildFacturaCVoucher(withoutVto)).toThrow(/juntas o ninguna/);
   });
 
-  test("rechaza una fecha de servicio sin formato ARCA AAAAMMDD", () => {
+  test("rejects a service date that is not in ARCA's AAAAMMDD format", () => {
     expect(() =>
       buildFacturaCVoucher({ ...baseInput, fchServDesde: "2026-08-01" }),
     ).toThrow(/FchServDesde/);
   });
 
-  test("no discrimina IVA: ImpNeto = ImpTotal, el resto de los importes en 0 y sin array <Iva>", () => {
+  test("does not itemize VAT: ImpNeto = ImpTotal, every other amount at 0 and no <Iva> array", () => {
     const voucher = buildFacturaCVoucher({ ...baseInput, importe: 2500 });
 
     expect(voucher.ImpTotal).toBe(2500);
@@ -81,20 +81,20 @@ describe("buildFacturaCVoucher", () => {
     expect(buildFacturaCVoucher(baseInput).MonId).toBe("PES");
   });
 
-  test("usa el correlativo recibido con CbteHasta = CbteDesde (validación 10012)", () => {
+  test("uses the sequence number it was given with CbteHasta = CbteDesde (validation 10012)", () => {
     const voucher = buildFacturaCVoucher({ ...baseInput, cbteNro: 43 });
 
     expect(voucher.CbteDesde).toBe(43);
     expect(voucher.CbteHasta).toBe(43);
   });
 
-  test("rechaza una fecha que no tiene formato ARCA AAAAMMDD", () => {
+  test("rejects a date that is not in ARCA's AAAAMMDD format", () => {
     expect(() =>
       buildFacturaCVoucher({ ...baseInput, cbteFch: "2026-07-22" }),
     ).toThrow(/AAAAMMDD/);
   });
 
-  test("rechaza un importe no entero o no positivo (pesos enteros, sin centavos)", () => {
+  test("rejects a non-integer or non-positive amount (whole pesos, no cents)", () => {
     expect(() =>
       buildFacturaCVoucher({ ...baseInput, importe: 1000.5 }),
     ).toThrow(/ImpTotal/);
@@ -103,7 +103,7 @@ describe("buildFacturaCVoucher", () => {
     );
   });
 
-  test("rechaza un correlativo no positivo", () => {
+  test("rejects a non-positive sequence number", () => {
     expect(() => buildFacturaCVoucher({ ...baseInput, cbteNro: 0 })).toThrow(
       /CbteNro/,
     );

@@ -8,10 +8,10 @@ import {
   SESSION_UPDATE_AGE_SECONDS,
 } from "@/lib/auth/access-auth-provider.betterauth.server";
 
-// Soporte de tests de la suite de DB: crea usuarios y sesiones con **Better Auth
-// real** contra PGlite in-process (#422). Reemplaza el provider de test propio
-// (`access-test-auth.server.ts`), manteniendo el mismo contrato de retorno
-// (`{ headers, user, response }`) para minimizar el churn en los tests.
+// Test support for the DB suite: it creates users and sessions with **real
+// Better Auth** against in-process PGlite (#422). It replaces our own test
+// provider (`access-test-auth.server.ts`), keeping the same return contract
+// (`{ headers, user, response }`) to minimize churn in the tests.
 
 export const ACCESS_SESSION_EXPIRES_IN_SECONDS = SESSION_EXPIRES_IN_SECONDS;
 export const ACCESS_SESSION_UPDATE_AGE_SECONDS = SESSION_UPDATE_AGE_SECONDS;
@@ -61,11 +61,11 @@ export async function signInAccessUser(input: {
   return { headers, response: { user: signedIn }, user: signedIn };
 }
 
-// Nombre de la cookie de sesión de Better Auth, con el prefijo `__Secure-`
-// opcional. Con un baseURL https (`useSecureCookies`), Better Auth emite la
-// cookie como `__Secure-better-auth.session_token`; con http, sin prefijo. Los
-// helpers de test deben derivar el nombre real del `set-cookie` en vez de
-// hardcodearlo (#501).
+// The name of Better Auth's session cookie, with the optional `__Secure-`
+// prefix. With an https baseURL (`useSecureCookies`), Better Auth emits the
+// cookie as `__Secure-better-auth.session_token`; with http, without the prefix.
+// The test helpers must derive the real name from the `set-cookie` instead of
+// hardcoding it (#501).
 const SESSION_COOKIE_SET_COOKIE_PATTERN =
   /(?:^|,\s*)((?:__Secure-)?better-auth\.session_token)=([^;]+)/;
 
@@ -81,24 +81,24 @@ function matchSessionSetCookie(headers: Headers): RegExpMatchArray {
   return match;
 }
 
-// Valor (firmado) de la cookie de sesión que Better Auth setea en `headers`,
-// derivando el nombre real (con o sin prefijo `__Secure-`) del `set-cookie`.
+// The (signed) value of the session cookie Better Auth sets in `headers`,
+// deriving the real name (with or without the `__Secure-` prefix) from the
+// `set-cookie`.
 export function extractSessionCookieValue(headers: Headers): string {
   return matchSessionSetCookie(headers)[2];
 }
 
-// Header `cookie` (`nombre=valor`) para la cookie de sesión de Better Auth,
-// conservando el prefijo `__Secure-` real cuando lo hay. Reemplaza los
-// `createRequestCookie` que hardcodeaban `better-auth.session_token` (#501).
+// The `cookie` header (`name=value`) for Better Auth's session cookie, keeping
+// the real `__Secure-` prefix when there is one. It replaces the
+// `createRequestCookie`s that hardcoded `better-auth.session_token` (#501).
 export function createSessionRequestCookie(headers: Headers): string {
   const match = matchSessionSetCookie(headers);
 
   return `${match[1]}=${match[2]}`;
 }
 
-// Reconstruye el header `cookie` de un request a partir de las cookies que
-// Better Auth setea en `headers` (sesión + caché de sesión), para simular al
-// navegador en los tests de rutas.
+// Rebuilds a request's `cookie` header from the cookies Better Auth sets in
+// `headers` (session + session cache), to simulate the browser in route tests.
 export function createAccessRequestCookie(headers: Headers): string {
   const cookieHeader = readSetCookies(headers)
     .map((setCookie) => setCookie.split(";")[0]?.trim())
@@ -112,9 +112,9 @@ export function createAccessRequestCookie(headers: Headers): string {
   return cookieHeader;
 }
 
-// Lee (y refresca, según la política de `updateAge`) la sesión de Better Auth de
-// un request. Devuelve `null` si no hay sesión vigente. Equivale al
-// `readLocalAccessSession` del provider de test retirado.
+// Reads (and refreshes, per the `updateAge` policy) the Better Auth session of a
+// request. Returns `null` if there is no session in force. It is the equivalent
+// of `readLocalAccessSession` from the retired test provider.
 export async function readAccessSession(headers: Headers) {
   const result = await auth.api.getSession({ headers });
 

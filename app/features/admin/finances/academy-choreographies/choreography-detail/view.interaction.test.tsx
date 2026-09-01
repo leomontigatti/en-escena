@@ -206,10 +206,10 @@ describe("DancerNameCell interaction", () => {
     expect(document.body.textContent).toContain("Bruno Benítez");
   });
 
-  // Regresión: el diálogo por fila vivía en una celda que se remontaba cuando
-  // el padre re-renderizaba (por columnas recreadas en cada render), lo que lo
-  // cerraba de inmediato. Con las columnas memoizadas y loaderData estable el
-  // diálogo debe sobrevivir a un re-render del padre.
+  // Regression: the per-row dialog lived in a cell that remounted whenever the
+  // parent re-rendered (because the columns were recreated on every render),
+  // which closed it immediately. With the columns memoized and loaderData stable,
+  // the dialog must survive a parent re-render.
   test("keeps the dialog open across a parent re-render", async () => {
     const loaderData = loaderDataFixture();
 
@@ -347,7 +347,7 @@ function amountInput(id = "inscription-amount"): HTMLInputElement {
   return input;
 }
 
-/** Texto del diálogo abierto, para no confundirlo con el de la tabla de atrás. */
+/** Text of the open dialog, so it is not confused with the table's behind it. */
 function dialogText(): string {
   const dialog = document.querySelector('[data-slot="dialog-content"]');
 

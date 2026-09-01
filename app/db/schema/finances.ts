@@ -96,10 +96,9 @@ export const paymentAllocations = createTable(
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),
   },
-  // Las foreign keys van nombradas porque el nombre que deriva Drizzle de esta
-  // tabla supera los 63 caracteres de un identificador de Postgres y se trunca.
-  // Los nombres deben coincidir con los de la migración baseline en
-  // app/db/migrations.
+  // The foreign keys are named because the name Drizzle derives from this table
+  // exceeds Postgres's 63-character identifier limit and gets truncated. The names
+  // must match those in the baseline migration in app/db/migrations.
   (table) => [
     foreignKey({
       columns: [table.paymentId],

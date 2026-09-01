@@ -41,7 +41,7 @@ export function readProfessorStatusFilter(
   return "active";
 }
 
-/** `all` se codifica por ausencia del parámetro, así que devuelve `null`. */
+/** `all` is encoded by the absence of the parameter, so it returns `null`. */
 export function toProfessorParticipationSearchValue(
   value: ProfessorParticipationFilter,
 ) {
@@ -56,7 +56,7 @@ export function toProfessorParticipationSearchValue(
   return "si";
 }
 
-/** `active` se codifica por ausencia del parámetro, así que devuelve `null`. */
+/** `active` is encoded by the absence of the parameter, so it returns `null`. */
 export function toProfessorStatusSearchValue(value: ProfessorStatusFilter) {
   if (value === "archived") {
     return "archivados";

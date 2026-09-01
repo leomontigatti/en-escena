@@ -16,15 +16,16 @@ import {
   type ComprobanteImpresoHeader,
 } from "@/lib/comprobantes/impreso";
 
-// Contexto de coreografía/academia/evento que ancla el comprobante en el impreso.
+// The choreography/academy/event context anchoring the comprobante in the
+// printout.
 export type ComprobantePrintContext = {
   choreographyName: string;
   academyName: string;
   eventName: string;
 };
 
-// Snapshot ya cargado del comprobante con su estado derivado, sus líneas y el
-// contexto que ancla. Es el insumo del modelo de la vista imprimible.
+// The comprobante's already loaded snapshot with its derived state, its lines
+// and the anchoring context. It is the input to the printable view's model.
 export type ComprobantePrintRecord = ComprobanteWithLines &
   ComprobantePrintContext;
 
@@ -38,8 +39,8 @@ export type ComprobantePrintLine = {
   importe: string;
 };
 
-// Modelo de la vista imprimible, con todos los textos ya formateados. Es el
-// contrato que consume el documento HTML y el que valida el snapshot del test.
+// The printable view's model, with every text already formatted. It is the
+// contract the HTML document consumes and the one the test's snapshot validates.
 export type ComprobantePrintViewModel = {
   header: ComprobanteImpresoHeader;
   numero: string;
@@ -53,9 +54,9 @@ export type ComprobantePrintViewModel = {
   eventName: string;
   lines: ComprobantePrintLine[];
   importeTotal: string;
-  // Período de servicio facturado y vencimiento de pago (Concepto 2, RG 1415)
-  // ya formateados a `DD/MM/AAAA`. `null` cuando el snapshot no los lleva (la
-  // fila preexistente emitida como Concepto 1 nunca cargó fechas de servicio).
+  // The billed service period and payment due date (Concepto 2, RG 1415),
+  // already formatted to `DD/MM/AAAA`. `null` when the snapshot does not carry
+  // them (the pre-existing row emitted as Concepto 1 never carried service dates).
   periodoDesde: string | null;
   periodoHasta: string | null;
   vencimientoPago: string | null;
@@ -90,9 +91,9 @@ export type ComprobantePrintViewModel = {
  */
 const PRINT_LINE_DESCRIPTION = "Inscripción";
 
-// Arma el modelo de la vista imprimible desde el snapshot inmutable del
-// comprobante. Es una proyección pura de sólo lectura: NO llama a ARCA ni muta
-// nada. Las leyendas reflejan al emisor exento (impreso.ts).
+// Builds the printable view's model from the comprobante's immutable snapshot.
+// It is a pure read-only projection: it does NOT call ARCA and mutates nothing.
+// The legends reflect the exempt issuer (impreso.ts).
 export function buildComprobantePrintViewModel(
   record: ComprobantePrintRecord,
 ): ComprobantePrintViewModel {
@@ -126,8 +127,8 @@ export function buildComprobantePrintViewModel(
   };
 }
 
-// Formatea una fecha ARCA `AAAAMMDD` nullable a `DD/MM/AAAA`, preservando el
-// `null` cuando el snapshot no la lleva.
+// Formats a nullable ARCA date `AAAAMMDD` to `DD/MM/AAAA`, preserving the `null`
+// when the snapshot does not carry it.
 function formatArcaDateOrNull(value: string | null): string | null {
   return value === null ? null : formatComprobanteArcaDate(value);
 }

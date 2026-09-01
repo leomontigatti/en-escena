@@ -251,8 +251,9 @@ async function readAcademyEventFinance(input: {
     );
   }
 
-  // El precio manda: la seña sale de él sin descontar, el descuento vivo sale
-  // de él, y el total es su resta. Ninguna de las tres mira un snapshot.
+  // The price rules: the deposit comes from it undiscounted, the live discount
+  // comes from it, and the total is its subtraction. None of the three looks at a
+  // snapshot.
   //
   // Which price that is depends on the money already on the row, so this has to
   // run after the allocations are summed: the stored row governs only once the
@@ -347,9 +348,10 @@ async function readAcademyEventFinance(input: {
 }
 
 /**
- * El `Descuento por bailarín` califica sobre el **roster vivo**: toda
- * inscripción del bailarín con precio resoluble cuenta. No puede depender del
- * estado financiero, que se deriva del total, que ya contiene este descuento.
+ * The `Descuento por bailarín` qualifies over the **live roster**: every
+ * inscription of the dancer with a resolvable price counts. It cannot depend on
+ * the financial state, which is derived from the total, which already contains
+ * this discount.
  *
  * Live roster means without the withdrawn ones: an inscription that was taken
  * off the roster cannot keep making its siblings cheaper.

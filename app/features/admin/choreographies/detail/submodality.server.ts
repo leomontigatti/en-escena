@@ -32,8 +32,8 @@ export async function updateChoreographySubmodality(input: {
   choreography: ChoreographyDetail;
   formData: FormData;
 }): Promise<ChoreographyFieldUpdateErrorData | ChoreographySuccessData> {
-  // Una coreografía con presentación mantiene la submodalidad en solo lectura,
-  // igual que el roster: el intent la rechaza aunque el form la mande.
+  // A choreography with a presentation keeps the submodality read-only, just like
+  // the roster: the intent rejects it even if the form sends it.
   if (input.choreography.hasPresentation) {
     return {
       message:

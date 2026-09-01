@@ -79,7 +79,7 @@ describe("ComprobantesListRouteView", () => {
     );
 
     expect(markup).toContain("0003-00000007");
-    // El badge de Tipo muestra sólo las iniciales; el label completo queda en title.
+    // The Tipo badge shows only the initials; the full label stays in the title.
     expect(markup).toContain("FC");
     expect(markup).toContain("NC");
     expect(markup).toContain('title="Factura C"');
@@ -87,11 +87,11 @@ describe("ComprobantesListRouteView", () => {
     expect(markup).toContain("Anulada");
     expect(markup).toContain("22/07/2026");
     expect(markup).toContain("Academia Alfa");
-    // El número enlaza al detalle del comprobante (superficie de solo lectura).
+    // The number links to the comprobante detail (a read-only surface).
     expect(markup).toContain(
       'href="/administracion/comprobantes/comprobante_1"',
     );
-    // La coreografía enlaza a su detalle financiero.
+    // The choreography links to its financial detail.
     expect(markup).toContain(
       'href="/administracion/finanzas/academy_1/coreografias/choreo_1"',
     );

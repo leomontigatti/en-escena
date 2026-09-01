@@ -1,10 +1,10 @@
 export const choreographyNotFoundMessage = "No encontramos esa coreografía.";
 
 /**
- * Un solo texto para el rechazo del nivel de experiencia. Vive acá y no en el
- * módulo del roster porque lo comparten el alta desde el portal, el guardado
- * del roster y la reasignación autónoma del detalle, y el validador que los
- * tres usan no puede importar del roster sin invertir la dependencia.
+ * A single text for the experience-level rejection. It lives here and not in the
+ * roster module because portal sign-up, roster saving and the detail's standalone
+ * reassignment all share it, and the validator the three of them use cannot
+ * import from the roster without inverting the dependency.
  */
 export const invalidExperienceLevelMessage =
   "Elegí un nivel de experiencia válido para esta coreografía.";

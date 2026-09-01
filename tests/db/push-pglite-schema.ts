@@ -4,10 +4,10 @@ import { drizzle } from "drizzle-orm/pglite";
 
 import { pgliteSchema } from "./pglite-schema";
 
-// Oráculo del test de equivalencia (app/db/migrations.db.test.ts): aplica el
-// schema con `pushSchema` sobre una data dir de PGlite. Corre en un subproceso
-// tsx a propósito — el bundle de `drizzle-kit/api` no sobrevive el transform de
-// vite, así que nunca se importa dentro de un worker de vitest.
+// The oracle of the equivalence test (app/db/migrations.db.test.ts): it applies
+// the schema with `pushSchema` onto a PGlite data dir. It runs in a tsx
+// subprocess on purpose — the `drizzle-kit/api` bundle does not survive vite's
+// transform, so it is never imported inside a vitest worker.
 const dataDir = process.argv[2];
 
 if (!dataDir) {

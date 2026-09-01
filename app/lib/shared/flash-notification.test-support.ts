@@ -4,10 +4,10 @@ import { readFlashNotification } from "@/lib/shared/flash-notification.server";
 import { type ToastMessage } from "@/lib/shared/toasts";
 
 /**
- * Afirma que una respuesta de `redirect` transporta el mensaje flash esperado
- * hacia `expectedLocation` (una URL limpia, sin query param de feedback).
- * Reconstruye el request destino a partir del `Set-Cookie` y consume la cookie
- * para verificar el toast que verá la ruta destino.
+ * Asserts that a `redirect` response carries the expected flash message towards
+ * `expectedLocation` (a clean URL, with no feedback query param). It rebuilds the
+ * destination request from the `Set-Cookie` and consumes the cookie to verify the
+ * toast the destination route will see.
  */
 export async function expectFlashRedirect(
   response: Response,

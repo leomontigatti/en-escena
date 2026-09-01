@@ -19,8 +19,8 @@ const choreography: FinanceChoreographyRow = {
 };
 
 /**
- * Una inscripción de precio 10000 y seña 3000, sin dinero. Los tests mueven
- * `allocatedAmount` y dejan que las cifras se deriven, como en producción.
+ * An inscription priced at 10000 with a deposit of 3000, with no money. The tests
+ * move `allocatedAmount` and let the figures derive, as in production.
  */
 function resolvedInscription(
   overrides: Partial<ResolvedInscription> & { id: string },
@@ -110,8 +110,8 @@ describe("buildChoreographyOperationalFinanceRow", () => {
     expect(row.financialStatus).toBe("depositPending");
     expect(row.depositAmount).toEqual({ amount: 3000, status: "complete" });
     expect(row.totalAmount).toEqual({ amount: 10000, status: "complete" });
-    // Una coreografía registrada se adeuda completa: la inscripción aporta su
-    // faltante a cada uno de los dos cortes de la misma deuda.
+    // A registered choreography is owed in full: the inscription contributes its
+    // shortfall to each of the two cuts of the same debt.
     expect(row.owedDepositAmount).toEqual({ amount: 3000, status: "complete" });
     expect(row.owedBalanceAmount).toEqual({
       amount: 10000,
@@ -183,8 +183,8 @@ describe("buildChoreographyOperationalFinanceRow", () => {
       ],
     });
 
-    // La marca de agua leía `señada` acá, es decir *puede competir*, con un
-    // bailarín sin cubrir adentro.
+    // The high-water mark read `señada` here — that is, *can compete* — with an
+    // uncovered dancer inside.
     expect(row.financialStatus).toBe("depositPending");
     expect(row.totalAmount).toEqual({ amount: 30000, status: "complete" });
     expect(row.owedDepositAmount).toEqual({ amount: 3000, status: "complete" });
@@ -365,7 +365,7 @@ describe("buildOperationalFinanceSummaryFromChoreographyRows", () => {
       totalPaidAmount: 9000,
     });
 
-    // Bruto: el disponible está a la vista al lado y no se descuenta acá.
+    // Gross: the available balance is in view alongside and is not subtracted here.
     expect(summary.owedBalanceAmount).toEqual({
       amount: 7000,
       status: "complete",

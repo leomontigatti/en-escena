@@ -42,8 +42,8 @@ describe("choreography creation summary", () => {
     );
   });
 
-  // La ocupación es solo para elegir entre opciones: en el eco del cronograma
-  // ya elegido decir cuántos lugares quedan no significa nada.
+  // Occupancy is only for choosing between options: in the echo of the already
+  // chosen schedule, saying how many places are left means nothing.
   test("echoes the chosen cronograma without its ocupación", () => {
     renderer.render(
       <ChoreographyCreationSummary

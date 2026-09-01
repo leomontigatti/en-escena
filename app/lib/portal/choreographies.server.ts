@@ -24,9 +24,9 @@ export type PortalChoreographyDetail = PortalChoreographyListItem & {
   experienceLevelId: string | null;
   hasPresentation?: boolean;
   /**
-   * Que la categoría resuelta declare niveles. La academia no edita el nivel,
-   * pero sí necesita distinguir "no corresponde" de "falta": son dos vacíos con
-   * significados opuestos.
+   * Whether the resolved category declares levels. The academy does not edit the
+   * level, but it does need to tell "not applicable" from "missing": two kinds of
+   * empty with opposite meanings.
    */
   requiresExperienceLevel: boolean;
   musicStorageKey: string | null;

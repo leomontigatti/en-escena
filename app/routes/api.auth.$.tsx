@@ -2,10 +2,10 @@ import { auth } from "@/lib/auth/access-auth-provider.betterauth.server";
 
 import type { Route } from "./+types/api.auth.$";
 
-// Catch-all de Better Auth: delega loader (GET) y action (POST/PUT/...) en
-// `auth.handler`, que resuelve todos los endpoints bajo `/api/auth/*`
-// (sign-in/up, sesión, reset de contraseña, verificación de email). El client
-// de Better Auth (`access-auth-client`) golpea estas rutas.
+// Better Auth's catch-all: it delegates the loader (GET) and the action
+// (POST/PUT/...) to `auth.handler`, which resolves every endpoint under
+// `/api/auth/*` (sign-in/up, session, password reset, email verification).
+// Better Auth's client (`access-auth-client`) hits these routes.
 export async function loader({ request }: Route.LoaderArgs) {
   return auth.handler(request);
 }

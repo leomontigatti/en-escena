@@ -29,9 +29,9 @@ function getDb(): Database {
   return dbInstance;
 }
 
-// Init perezosa: no se valida `DATABASE_URL` ni se abre conexión al importar el
-// módulo, sino en el primer uso real. Así un test que solo importa
-// transitivamente `@/db` no requiere una base. Ver issue #308.
+// Lazy init: `DATABASE_URL` is not validated and no connection is opened on
+// module import, but on first real use. That way a test that only imports `@/db`
+// transitively does not require a database. See issue #308.
 export const client = new Proxy((() => undefined) as unknown as Client, {
   apply(_target, thisArg, args: unknown[]) {
     return Reflect.apply(

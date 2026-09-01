@@ -3,30 +3,31 @@ import {
   NOTA_CREDITO_C_CBTE_TIPO,
 } from "./arca/factura-c";
 
-// Datos y leyendas del impreso del comprobante (#329/#334). El emisor es
-// Proyecciones Artísticas Asociación Civil, una asociación civil EXENTA frente
-// al IVA (#426): NO es monotributista. La leyenda de condición frente al IVA del
-// emisor es "IVA Exento" —no "Responsable Monotributo"—, que es la que difiere
-// del caso monotributo. El resto del impreso clase C (letra "C", receptor
-// consumidor final, sin IVA discriminado) es idéntico.
+// Data and legends for the comprobante printout (#329/#334). The issuer is
+// Proyecciones Artísticas Asociación Civil, a civil association EXEMPT from VAT
+// (#426): it is NOT a monotributista. The legend for the issuer's VAT condition
+// is "IVA Exento" — not "Responsable Monotributo" — and that is what differs
+// from the monotributo case. The rest of the class C printout (letter "C",
+// final-consumer recipient, no itemized VAT) is identical.
 
-// Razón social del emisor. El CUIT no se fija acá: se toma del snapshot inmutable
-// de cada comprobante (`issuerCuit`), que es lo efectivamente autorizado.
+// The issuer's registered name. The CUIT is not fixed here: it is taken from
+// each comprobante's immutable snapshot (`issuerCuit`), which is what was
+// actually authorized.
 export const EMISOR_RAZON_SOCIAL = "Proyecciones Artísticas Asociación Civil";
 
-// Condición del emisor frente al IVA. Una asociación civil exenta imprime
-// "IVA Exento"; ésta es la leyenda que cambia respecto de un monotributista, que
-// imprimiría "Responsable Monotributo".
+// The issuer's VAT condition. An exempt civil association prints "IVA Exento";
+// this is the legend that differs from a monotributista's, which would print
+// "Responsable Monotributo".
 export const EMISOR_CONDICION_IVA_LABEL = "IVA Exento";
 
-// Condición del receptor: consumidor final anónimo (#324).
+// The recipient's condition: anonymous final consumer (#324).
 export const RECEPTOR_CONDICION_IVA_LABEL = "Consumidor Final";
 
-// Leyenda de autorización de ARCA que acompaña al CAE y al QR (RG 4291).
+// ARCA's authorization legend accompanying the CAE and the QR (RG 4291).
 export const COMPROBANTE_AUTORIZADO_LABEL = "Comprobante Autorizado";
 
-// Encabezado del comprobante según su tipo: letra grande, código ARCA a 3
-// dígitos y título. Sólo se emiten Factura C (011) y Nota de crédito C (013).
+// The comprobante's header by type: a large letter, a 3-digit ARCA code and a
+// title. Only Factura C (011) and Nota de crédito C (013) are emitted.
 export type ComprobanteImpresoHeader = {
   letra: string;
   codigo: string;

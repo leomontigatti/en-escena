@@ -7,9 +7,9 @@ afterEach(() => {
 });
 
 describe("defaultRegisterPaymentValues", () => {
-  // A las 23:30 del 31 en Córdoba (02:30 UTC del 1) el pago que se está
-  // cargando es del 31: el formulario no puede prefijar el día siguiente.
-  test("prefija la fecha de pago del día del negocio", () => {
+  // At 23:30 on the 31st in Córdoba (02:30 UTC on the 1st) the payment being
+  // entered is the 31st's: the form cannot prefill the following day.
+  test("prefills the payment date with the business day", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-01T02:30:00Z"));
 

@@ -4,23 +4,24 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
 /**
- * Lo que quedó resuelto de un intento contra ARCA, tal como se lo cuenta al
- * operador (ADR-0012 decisión 6). Keyea el **desenlace**, no la llamada SOAP que
- * se rompió: la fase es un insumo de la lógica de recuperación del server y no
- * llega hasta acá.
+ * What was settled about an attempt against ARCA, as it is told to the operator
+ * (ADR-0012 decision 6). It is keyed on the **outcome**, not on the SOAP call
+ * that broke: the phase is an input to the server's recovery logic and does not
+ * reach this far.
  *
- * Es un tipo compartido a propósito. Estaba duplicado —una copia en el diálogo de
- * emisión, otra inline en el detalle del comprobante— y una unión donde un estado
- * bloquea un submit destructivo no puede darse el lujo de divergir entre los dos
- * caminos: la consecuencia de la deriva es un segundo comprobante fiscal.
+ * It is a shared type on purpose. It used to be duplicated — one copy in the
+ * emission dialog, another inline in the comprobante detail — and a union where
+ * one state blocks a destructive submit cannot afford to diverge between the two
+ * paths: the consequence of that drift is a second fiscal comprobante.
  *
- * El `message` de los tres estados de falla lo escribe el server, que sabe si el
- * sujeto es "el comprobante" o "la nota de crédito" y si ARCA puede seguir
- * autorizando; reescribirlo acá perdería esas distinciones.
+ * The `message` for the three failure states is written by the server, which
+ * knows whether the subject is "el comprobante" or "la nota de crédito" and
+ * whether ARCA may still be authorizing; rewriting it here would lose those
+ * distinctions.
  */
 export type ComprobanteContingency =
-  // ARCA respondió y dijo que no. No se generó nada y reintentar no puede
-  // duplicar: el submit sigue habilitado.
+  // ARCA responded and said no. Nothing was generated and retrying cannot
+  // duplicate: the submit stays enabled.
   | {
       status: "rejected";
       message: string;
@@ -28,13 +29,13 @@ export type ComprobanteContingency =
       errors: string[];
       observaciones: string[];
     }
-  // No se generó nada y reintentar es seguro. Cubre tanto la falla consultando el
-  // correlativo como la autorización que la consulta resolvió en negativo: fases
-  // distintas, lo mismo para decir.
+  // Nothing was generated and retrying is safe. It covers both the failure while
+  // looking up the sequence number and the authorization the lookup resolved in
+  // the negative: different phases, the same thing to say.
   | { status: "not-emitted"; message: string }
-  // El ambiguo de verdad: la emisión puede haberse autorizado o no. El submit se
-  // bloquea, porque reintentar a ciegas es exactamente como se emite un
-  // comprobante fiscal duplicado.
+  // The genuinely ambiguous one: the emission may or may not have been
+  // authorized. The submit is blocked, because retrying blindly is exactly how a
+  // duplicate fiscal comprobante gets emitted.
   | {
       status: "unverified";
       message: string;
@@ -42,20 +43,20 @@ export type ComprobanteContingency =
       cbteTipo: number;
       cbteNro: number;
     }
-  // Una re-verificación encontró el comprobante y quedó registrado. Terminal.
+  // A re-verification found the comprobante and it was recorded. Terminal.
   | { status: "recovered" };
 
 export const contingencyRecoveredMessage =
   "El comprobante ya estaba autorizado en ARCA. Lo recuperamos y quedó registrado.";
 
-// Qué hacer con el botón que dispara la operación destructiva.
+// What to do with the button that triggers the destructive operation.
 export type ContingencySubmitState =
   | "enabled"
-  // `unverified` sin verificación: reintentar podría duplicar.
+  // `unverified` without verification: retrying could duplicate.
   | "blocked"
-  // `recovered`: la operación terminó. Se saca, no se deshabilita — un botón
-  // deshabilitado se lee como "esperá un momento" e invita a reintentar, y acá
-  // reintentar emite un segundo comprobante por el mismo importe.
+  // `recovered`: the operation is over. It is removed, not disabled — a disabled
+  // button reads as "hold on a moment" and invites a retry, and here retrying
+  // emits a second comprobante for the same amount.
   | "removed";
 
 export function resolveContingencySubmitState(
@@ -73,22 +74,22 @@ export function resolveContingencySubmitState(
   return "enabled";
 }
 
-// Con la operación terminada, cancelar ya no es lo que el botón hace.
+// Once the operation is over, cancelling is no longer what the button does.
 export function contingencyCancelLabel(state: ContingencySubmitState): string {
   return state === "removed" ? "Cerrar" : "Cancelar";
 }
 
 /**
- * Superficie única de la contingencia de ARCA, compartida por el diálogo de
- * emisión y el de anulación.
+ * The single surface for ARCA contingencies, shared by the emission dialog and
+ * the annulment one.
  *
- * `unverified` ofrece las dos únicas salidas que tiene el operador: re-consultar
- * a ARCA por ese comprobante sin salir del diálogo, o declarar que ya verificó
- * por su cuenta y desbloquear el reintento. La primera es la única que
- * **persiste** un comprobante recuperado; la segunda no puede hacerlo, porque la
- * app no tiene el CAE.
+ * `unverified` offers the only two ways out the operator has: query ARCA again
+ * for that comprobante without leaving the dialog, or declare that they have
+ * already verified it themselves and unblock the retry. The first is the only
+ * one that **persists** a recovered comprobante; the second cannot, because the
+ * app does not have the CAE.
  *
- * El intent de la re-verificación entra por prop: cada feature postea el suyo.
+ * The re-verification intent comes in as a prop: each feature posts its own.
  */
 export function ContingencyAlert({
   acknowledged,
@@ -102,10 +103,10 @@ export function ContingencyAlert({
   contingency: ComprobanteContingency;
   isBusy?: boolean;
   onAcknowledge: () => void;
-  // Recibe el payload ya armado: del cliente sólo viaja el `cbteNro`. El importe
-  // y la fecha contra los que se valida el comprobante consultado los recalcula
-  // el server (ADR-0012 decisión 4); mandarlos desde el form colapsaría esa
-  // validación a un solo campo efectivo.
+  // Receives the payload already assembled: only the `cbteNro` travels from the
+  // client. The amount and the date the queried comprobante is validated against
+  // are recomputed by the server (ADR-0012 decision 4); sending them from the
+  // form would collapse that validation to a single effective field.
   onRecheck: (payload: Record<string, string>) => void;
   recheckIntent: string;
 }) {

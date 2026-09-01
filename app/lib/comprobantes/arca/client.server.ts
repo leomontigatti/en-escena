@@ -26,9 +26,9 @@ import {
 } from "./responses";
 import { InMemoryTaCache } from "./ta-cache.server";
 
-// Superficie mínima de WSFEv1 que usa el wrapper. Es un puerto para poder
-// ejercitar el cliente contra fixtures sin construir un `Arca` real ni tocar la
-// red: en producción lo cumple `arca.electronicBillingService`.
+// The minimal surface of WSFEv1 the wrapper uses. It is a port, so the client
+// can be exercised against fixtures without building a real `Arca` or touching
+// the network: in production `arca.electronicBillingService` fulfils it.
 export type ArcaBillingPort = {
   getLastVoucher(
     salesPoint: number,
@@ -42,15 +42,16 @@ export type ArcaBillingPort = {
   ): Promise<VoucherInfoResultDto | null>;
 };
 
-// Timeouts por llamada, en milisegundos (ADR-0012 decisión 2). Son constantes de
-// código, no variables de entorno: una requerida rompería los deploys existentes
-// y una opcional es una perilla que nadie necesitó todavía.
+// Per-call timeouts, in milliseconds (ADR-0012 decision 2). They are code
+// constants, not environment variables: a required one would break the
+// existing deploys, and an optional one is a knob nobody has needed yet.
 export const ARCA_TIMEOUTS = {
-  // Consulta: abandonar temprano es gratis y una falla rápida pone al operador a
-  // reintentar antes.
+  // Lookup: giving up early is free, and a fast failure gets the operator
+  // retrying sooner.
   lookup: 15_000,
-  // Autorización: deliberadamente generoso. WSFEv1 tarda decenas de segundos bajo
-  // carga y cada corte prematuro fabrica la ambigüedad que hay que ir a resolver.
+  // Authorization: deliberately generous. WSFEv1 takes tens of seconds under
+  // load, and every premature cut-off manufactures the ambiguity that then has
+  // to be resolved.
   authorization: 30_000,
 } as const;
 
@@ -60,11 +61,11 @@ export type ArcaTimeouts = {
 };
 
 /**
- * Se agotó el timeout de una llamada, que es distinto de que la llamada haya
- * fallado: la excepción es nuestra, no del transporte, y la petición sigue en
- * vuelo. Distinguirla importa porque después de un timeout de autorización ARCA
- * todavía puede otorgar el CAE, así que una consulta inmediata que no encuentra
- * el comprobante no prueba que no se haya emitido (ADR-0012 decisión 3).
+ * A call's timeout elapsed, which is different from the call having failed: the
+ * exception is ours, not the transport's, and the request is still in flight.
+ * Telling them apart matters because after an authorization timeout ARCA may
+ * still grant the CAE, so an immediate lookup that does not find the
+ * comprobante does not prove it was never emitted (ADR-0012 decision 3).
  */
 export class ArcaTimeoutError extends Error {
   constructor(operation: string, ms: number) {
@@ -74,16 +75,16 @@ export class ArcaTimeoutError extends Error {
 }
 
 /**
- * Acota una llamada a ARCA con su timeout. `@arcasdk/core` no impone ninguno en
- * ninguna capa, así que un socket que abre y nunca responde deja la promesa
- * pendiente para siempre: no hay excepción que clasificar y el operador espera
- * hasta que un proxy se rinda por él.
+ * Bounds a call to ARCA with its timeout. `@arcasdk/core` imposes none at any
+ * layer, so a socket that opens and never answers leaves the promise pending
+ * forever: there is no exception to classify and the operator waits until some
+ * proxy gives up on their behalf.
  *
- * Ganar la carrera NO cancela la llamada en vuelo: ARCA puede autorizar el
- * comprobante igual, después de que dejamos de esperar. Eso es esperado, y es
- * por lo que el error se distingue: la recuperación posterior no puede leer un
- * "no lo tengo" como definitivo mientras la autorización pueda seguir en curso.
- * El SDK tampoco ofrece forma de propagar un `AbortSignal`.
+ * Winning the race does NOT cancel the in-flight call: ARCA may authorize the
+ * comprobante anyway, after we stop waiting. That is expected, and it is why
+ * the error is distinguished: the later recovery cannot read an "I don't have
+ * it" as final while the authorization may still be in progress. The SDK also
+ * offers no way to propagate an `AbortSignal`.
  */
 async function withTimeout<T>(
   ms: number,
@@ -107,18 +108,18 @@ async function withTimeout<T>(
   }
 }
 
-// Cliente WSAA + WSFEv1 acotado al circuito de Factura C. No decide correlativos
-// ni deriva estado: eso es la lógica de emisión (#446). Acá sólo se arma el
-// payload, se habla con ARCA y se interpreta la respuesta.
+// WSAA + WSFEv1 client, scoped to the Factura C circuit. It does not decide
+// sequence numbers or derive state: that is the emission logic (#446). Here we
+// only build the payload, talk to ARCA and interpret the response.
 export class ArcaClient {
   constructor(
     private readonly billing: ArcaBillingPort,
-    // Inyectables para que los tests los achiquen a milisegundos.
+    // Injectable so the tests can shrink them down to milliseconds.
     private readonly timeouts: ArcaTimeouts = ARCA_TIMEOUTS,
   ) {}
 
-  // `FECompUltimoAutorizado` para Factura C (tipo 11): último correlativo
-  // autorizado y el siguiente a solicitar.
+  // `FECompUltimoAutorizado` for Factura C (type 11): the last authorized
+  // sequence number and the next one to request.
   async getLastFacturaCNumber(ptoVta: number): Promise<LastVoucherResult> {
     const result = await withTimeout(
       this.timeouts.lookup,
@@ -129,8 +130,8 @@ export class ArcaClient {
     return parseLastVoucher(result);
   }
 
-  // `FECAESolicitar` de una Factura C: arma el payload, lo autoriza y devuelve
-  // CAE/vencimiento junto con errores/observaciones.
+  // `FECAESolicitar` for a Factura C: builds the payload, authorizes it and
+  // returns CAE/expiry along with errors/observations.
   async emitFacturaC(
     input: FacturaCVoucherInput,
   ): Promise<FacturaCEmissionResult> {
@@ -144,8 +145,8 @@ export class ArcaClient {
     return parseCreateVoucherResult(result);
   }
 
-  // `FECompUltimoAutorizado` para Nota de crédito C (tipo 13): su correlativo
-  // corre por una serie propia, separada de la de Factura C.
+  // `FECompUltimoAutorizado` for Nota de crédito C (type 13): its sequence runs
+  // on a series of its own, separate from Factura C's.
   async getLastNotaCreditoCNumber(ptoVta: number): Promise<LastVoucherResult> {
     const result = await withTimeout(
       this.timeouts.lookup,
@@ -156,9 +157,9 @@ export class ArcaClient {
     return parseLastVoucher(result);
   }
 
-  // `FECAESolicitar` de una Nota de crédito C: arma el payload espejo con
-  // `CbtesAsoc`, lo autoriza y devuelve CAE/vencimiento junto con
-  // errores/observaciones.
+  // `FECAESolicitar` for a Nota de crédito C: builds the mirror payload with
+  // `CbtesAsoc`, authorizes it and returns CAE/expiry along with
+  // errors/observations.
   async emitNotaCreditoC(
     input: NotaCreditoCVoucherInput,
   ): Promise<FacturaCEmissionResult> {
@@ -173,10 +174,10 @@ export class ArcaClient {
   }
 
   /**
-   * `FECompConsultar`: trae el comprobante exacto (`PtoVta`/`CbteTipo`/`CbteNro`)
-   * tal como ARCA lo tiene registrado. Es la llamada con la que se resuelve una
-   * autorización que quedó sin respuesta. Devuelve `null` cuando ARCA no tiene
-   * ese comprobante. Corre con el timeout de consulta.
+   * `FECompConsultar`: fetches the exact comprobante
+   * (`PtoVta`/`CbteTipo`/`CbteNro`) as ARCA has it on record. It is the call
+   * that resolves an authorization left without a response. Returns `null` when
+   * ARCA does not have that comprobante. Runs with the lookup timeout.
    */
   async getVoucherInfo(input: {
     ptoVta: number;
@@ -199,11 +200,12 @@ export class ArcaClient {
 }
 
 export type ArcaClientConfig = {
-  // Certificado y clave privada en PEM, ya decodificados desde base64.
+  // Certificate and private key in PEM, already decoded from base64.
   cert: string;
   key: string;
   cuit: number;
-  // `false` apunta el SDK a homologación (wsaahomo/wswhomo); `true`, a producción.
+  // `false` points the SDK at homologación (wsaahomo/wswhomo); `true`, at
+  // production.
   production: boolean;
 };
 
@@ -217,9 +219,9 @@ function requireEnv(name: string, env: NodeJS.ProcessEnv): string {
   return value;
 }
 
-// El cert y la key se inyectan en base64 (una sola línea, apta para un secreto de
-// CI/env) y acá se vuelven PEM. Un base64 mal armado no contiene el encabezado
-// PEM tras decodificar, así que se rechaza temprano con un mensaje claro.
+// The cert and the key are injected as base64 (a single line, suitable for a
+// CI/env secret) and turned into PEM here. A malformed base64 does not contain
+// the PEM header once decoded, so it is rejected early with a clear message.
 function decodePem(base64: string, kind: string): string {
   const pem = Buffer.from(base64, "base64").toString("utf8");
 
@@ -233,9 +235,9 @@ function decodePem(base64: string, kind: string): string {
   return pem;
 }
 
-// Lee la configuración del cliente desde el entorno. El emisor real es
-// Proyecciones Artísticas Asociación Civil (CUIT 30717611590); homologación es
-// el ambiente por defecto y producción se habilita explícitamente.
+// Reads the client configuration from the environment. The real issuer is
+// Proyecciones Artísticas Asociación Civil (CUIT 30717611590); homologación is
+// the default environment and production is enabled explicitly.
 export function readArcaClientConfig(
   env: NodeJS.ProcessEnv = process.env,
 ): ArcaClientConfig {
@@ -257,7 +259,7 @@ export function readArcaClientConfig(
   };
 }
 
-// Construye un `ArcaClient` real desde una config, con el cache de TA in-process.
+// Builds a real `ArcaClient` from a config, with the in-process TA cache.
 export function createArcaClient(config: ArcaClientConfig): ArcaClient {
   const arca = new Arca({
     production: config.production,
@@ -272,9 +274,9 @@ export function createArcaClient(config: ArcaClientConfig): ArcaClient {
 
 let memoizedClient: { key: string; client: ArcaClient } | null = null;
 
-// Cliente compartido a nivel de proceso. Memoizar mantiene vivo el mismo cache de
-// TA entre requests, que es lo que evita re-autenticar contra WSAA en cada
-// llamada durante la ventana de ~12h del ticket.
+// Process-wide shared client. Memoizing keeps the same TA cache alive across
+// requests, which is what avoids re-authenticating against WSAA on every call
+// during the ticket's ~12 h window.
 export function getArcaClient(
   env: NodeJS.ProcessEnv = process.env,
 ): ArcaClient {
