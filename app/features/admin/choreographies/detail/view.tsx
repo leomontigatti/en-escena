@@ -478,7 +478,7 @@ function ConfirmEditDialog({
 }
 
 /**
- * La baja de un bailarín con plata asignada o con una línea de comprobante no
+ * La baja de un bailarín con dinero asignado o con una línea de comprobante no
  * borra la inscripción: la retira. El diálogo enumera esa consecuencia solo
  * cuando hay evidencia; sin ella la baja es un borrado y no hay nada que
  * advertir.
@@ -492,8 +492,8 @@ function WithdrawalConsequences({
     <div className="text-sm text-muted-foreground">
       <p>
         {dancers.length === 1
-          ? "Esta inscripción tiene plata asignada o un comprobante emitido, así que no se borra: queda retirada."
-          : "Estas inscripciones tienen plata asignada o un comprobante emitido, así que no se borran: quedan retiradas."}
+          ? "Esta inscripción tiene dinero asignado o un comprobante emitido, así que no se borra: queda retirada."
+          : "Estas inscripciones tienen dinero asignado o un comprobante emitido, así que no se borran: quedan retiradas."}
       </p>
       <ul className="mt-2 list-disc pl-5">
         {dancers.map((dancer) => (
@@ -501,7 +501,7 @@ function WithdrawalConsequences({
         ))}
       </ul>
       <p className="mt-2">
-        Conservan la plata que tienen asignada y siguen en el comprobante.
+        Conservan el dinero que tienen asignado y siguen en el comprobante.
         Volver a agregar al bailarín las reactiva.
       </p>
     </div>

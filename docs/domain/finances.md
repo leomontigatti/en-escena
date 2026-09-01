@@ -431,13 +431,13 @@ from. Neither is available on the academy portal, which is read-only.
 The choreography financial detail has **one entry point per inscription** — the
 dancer's name — and the dialog behind it takes its shape from what the row holds.
 
-| Row                       | What opens                                          |
-| ------------------------- | --------------------------------------------------- |
-| over-allocated            | `Liberar el excedente`: one click, nothing to type  |
-| nothing owed, money on it | `Quitar plata`, prefilled with everything allocated |
-| anything else             | `Asignar plata`: price and amount                   |
+| Row                       | What opens                                           |
+| ------------------------- | ---------------------------------------------------- |
+| over-allocated            | `Liberar el excedente`: one click, nothing to type   |
+| nothing owed, money on it | `Quitar dinero`, prefilled with everything allocated |
+| anything else             | `Asignar dinero`: price and amount                   |
 
-A row that still owes something but already holds money reaches `Quitar plata`
+A row that still owes something but already holds money reaches `Quitar dinero`
 from inside the allocation dialog, so removal is available wherever there is
 money to take off while the entry point stays single.
 
@@ -455,7 +455,7 @@ money to take off while the entry point stays single.
   reason**: no threshold, no anomaly and no state of the pool can refuse it. It
   still refuses the two nonsensical inputs — an amount of zero or less ("El monto
   a quitar tiene que ser mayor a 0.") and an amount larger than the inscription
-  holds ("La inscripción no tiene esa plata asignada.") — so a caller must still
+  holds ("La inscripción no tiene ese dinero asignado.") — so a caller must still
   defend those. It is a different action from removing the inscription from the
   roster.
 - **Releasing the excess.** One button that takes off exactly what the
@@ -469,7 +469,7 @@ money to take off while the entry point stays single.
 rule locks the price at the deposit threshold, and both the write path and the
 database guard hold it there, but `inscription-money-dialog.tsx` swaps the picker
 for a readout as soon as `allocatedAmount > 0` and tells the administrator "Para
-cambiarle el precio hay que quitarle toda la plata.". A below-threshold price
+cambiarle el precio hay que quitarle todo el dinero.". A below-threshold price
 change is therefore accepted by every write path and unreachable from that
 dialog, and the hint under the readout describes the retired rule.
 
