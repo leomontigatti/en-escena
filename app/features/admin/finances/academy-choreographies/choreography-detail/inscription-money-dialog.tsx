@@ -67,46 +67,22 @@ import {
 import { hasCrossedDepositThreshold } from "@/lib/finances/inscription-financial-status";
 
 import { formatAmount } from "../../formatters";
-import type { loadChoreographyFinanceDetail } from "./server";
+import {
+  deriveOwedAgainstPrice,
+  formatDialogPrice,
+  formatOwedAmount,
+  readInscriptionMoneyDialogShape,
+  selectPickedPrice,
+  type InscriptionRow,
+  type OwedAgainstPrice,
+  type PriceOption,
+} from "./inscription-money-figures";
 import {
   allocateInscriptionIntent,
   formatDancerName,
   releaseInscriptionExcessIntent,
   removeInscriptionMoneyIntent,
 } from "./shared";
-
-type ChoreographyFinanceDetailLoaderData = Awaited<
-  ReturnType<typeof loadChoreographyFinanceDetail>
->;
-type InscriptionRow =
-  ChoreographyFinanceDetailLoaderData["inscriptions"][number];
-type PriceOption = ChoreographyFinanceDetailLoaderData["priceOptions"][number];
-
-export type InscriptionMoneyDialogShape =
-  | "releaseExcess"
-  | "remove"
-  | "allocate";
-
-/**
- * Which shape the row opens on. The excess outranks everything: an
- * over-allocated row is fully paid too, and the only sane act on it is getting
- * the surplus off. A row that owes nothing and holds money opens on removal,
- * because allocating onto it would be refused.
- */
-export function readInscriptionMoneyDialogShape(
-  inscription: Pick<
-    InscriptionRow,
-    "allocatedAmount" | "overAllocatedAmount" | "owedBalanceAmount"
-  >,
-): InscriptionMoneyDialogShape {
-  if ((inscription.overAllocatedAmount ?? 0) > 0) {
-    return "releaseExcess";
-  }
-
-  return inscription.owedBalanceAmount === 0 && inscription.allocatedAmount > 0
-    ? "remove"
-    : "allocate";
-}
 
 export function InscriptionMoneyDialog({
   inscription,
@@ -157,7 +133,9 @@ export function InscriptionMoneyDialog({
  * and typing over a prefilled figure is worse than typing into an empty box.
  *
  * The hint is the figure that finishes the next thing: the seña while that
- * threshold is unmet, the saldo once it is met.
+ * threshold is unmet, the saldo once it is met. It is the **picked** price's
+ * figure, not the row's: confirming applies the pick, so every amount the dialog
+ * names is one it is actually about to charge.
  */
 function AllocateMoneyDialog({
   inscription,
@@ -172,12 +150,11 @@ function AllocateMoneyDialog({
 }) {
   const fetcher = useMoneyWriteFetcher(onOpenChange);
   const [amount, setAmount] = useState("");
-  // It starts on the **effective** price: it is the one that produces every
-  // figure in this dialog —the amount's placeholder, the two owed figures— and
-  // the one the row behind it shows. Opening it on the stored price left the
-  // picker saying one thing and everything else another, and confirming without
-  // touching it fixed that old price as soon as the allocation covered the
-  // deposit.
+  // It starts on the **effective** price: it is the one the row behind the dialog
+  // shows, and the one the figures are derived from until something else is
+  // picked. Opening it on the stored price left the picker saying one thing and
+  // everything else another, and confirming without touching it fixed that old
+  // price as soon as the allocation covered the deposit.
   const [priceId, setPriceId] = useState(inscription.effectivePrice?.id ?? "");
   const isSaving = fetcher.state !== "idle";
   // It locks where the rule locks it: on covering the deposit, not on the
@@ -186,14 +163,23 @@ function AllocateMoneyDialog({
     allocatedAmount: inscription.allocatedAmount,
     depositAmount: inscription.depositAmount,
   });
+  // Every figure follows the **picked** price and not the row's, because
+  // confirming applies the pick: hinting the seña of a price the administrator
+  // just moved away from asks them to type a figure this dialog is not about to
+  // charge. Below the threshold that is a live choice, so the figures are
+  // re-derived on each change rather than read off the loader.
+  const owed = deriveOwedAgainstPrice({
+    inscription,
+    price: selectPickedPrice({ inscription, priceId, priceOptions }),
+  });
   const hintedAmount =
-    inscription.owedDepositAmount === null || inscription.owedDepositAmount > 0
-      ? inscription.owedDepositAmount
-      : inscription.owedBalanceAmount;
+    owed.owedDepositAmount === null || owed.owedDepositAmount > 0
+      ? owed.owedDepositAmount
+      : owed.owedBalanceAmount;
   // The ceiling is what the inscription owes, which is what the server refuses
   // against. The academy's pool is another ceiling, and that one is not known
   // here: it stays an alert.
-  const owedBalanceAmount = inscription.owedBalanceAmount;
+  const owedBalanceAmount = owed.owedBalanceAmount;
   const isOutOfRange =
     amount !== "" &&
     owedBalanceAmount !== null &&
@@ -277,9 +263,7 @@ function AllocateMoneyDialog({
 
         {/* The two owed figures only once there is money on it: on an empty
             inscription they restate the price sitting right above. */}
-        {inscription.allocatedAmount > 0 ? (
-          <OwedSummary inscription={inscription} />
-        ) : null}
+        {inscription.allocatedAmount > 0 ? <OwedSummary owed={owed} /> : null}
 
         <FetcherError data={fetcher.data} />
 
@@ -547,16 +531,16 @@ function MoneyDialog({
  * is meant to travel in, and the reason the amount field hints the seña while
  * that threshold is unmet.
  */
-function OwedSummary({ inscription }: { inscription: InscriptionRow }) {
+function OwedSummary({ owed }: { owed: OwedAgainstPrice }) {
   return (
     <div className="flex flex-col gap-1 rounded-md border bg-muted/50 px-3 py-2">
       <SummaryRow
         label="Seña adeudada"
-        value={formatOwedAmount(inscription.owedDepositAmount)}
+        value={formatOwedAmount(owed.owedDepositAmount)}
       />
       <SummaryRow
         label="Saldo adeudado"
-        value={formatOwedAmount(inscription.owedBalanceAmount)}
+        value={formatOwedAmount(owed.owedBalanceAmount)}
       />
     </div>
   );
@@ -594,23 +578,4 @@ function SubmitIcon({ isSaving }: { isSaving: boolean }) {
   ) : (
     <Check aria-hidden="true" data-icon="inline-start" />
   );
-}
-
-function formatOwedAmount(amount: number | null) {
-  return amount === null ? "Sin precio" : formatAmount(amount);
-}
-
-/**
- * How a price row reads in this dialog, picker and readout alike: name, amount
- * and the `Seña` it implies. One formatter for both, so locking a row cannot
- * quietly drop a figure the administrator was choosing by.
- *
- * The row it is given is the **effective** one — what the inscription is charged
- * at — and never the stored one, so it cannot show a figure the detail row
- * behind it contradicts.
- */
-function formatDialogPrice(price: PriceOption | null) {
-  return price === null
-    ? "Sin precio"
-    : `${price.name} · ${formatAmount(price.amount)} · seña ${formatAmount(price.depositAmount)}`;
 }

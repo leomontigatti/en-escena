@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 
-import { useState } from "react";
+import { act, useState } from "react";
 import {
   createMemoryRouter,
   redirect,
@@ -107,6 +107,49 @@ describe("DancerNameCell interaction", () => {
     );
 
     expect(readout?.value).toBe("Dúo general · $ 10.000 · seña $ 3.000");
+  });
+
+  // Everything the dialog says about money follows the **picked** price, not the
+  // one the row arrived with: the picker is what the confirm is going to apply,
+  // so hinting the old seña would ask for a figure that is not about to be
+  // charged.
+  test("re-hints the amount with the seña of the price that gets picked", async () => {
+    await mount({
+      inscriptions: [
+        inscriptionFixture({
+          allocatedAmount: 0,
+          financialStatus: "depositPending",
+          owedBalanceAmount: 10000,
+          owedDepositAmount: 3000,
+        }),
+      ],
+      priceOptions: [
+        {
+          amount: 10000,
+          depositAmount: 3000,
+          id: "price_1",
+          name: "Dúo general",
+        },
+        {
+          amount: 42000,
+          depositAmount: 12600,
+          id: "price_2",
+          name: "Primer vencimiento",
+        },
+      ],
+    });
+
+    await clickReactDomButton("Bruno Benítez");
+
+    expect(amountInput().placeholder).toBe("$ 3.000");
+
+    await openPriceSelect();
+    await selectPriceOption("Primer vencimiento · $ 42.000 · seña $ 12.600");
+
+    expect(amountInput().placeholder).toBe("$ 12.600");
+    // And the two owed figures move with it, so the card cannot contradict the
+    // hint sitting right above it.
+    expect(dialogText()).toContain("$ 42.000");
   });
 
   // Below the deposit the price keeps re-deriving on its own, so the picker is
@@ -641,6 +684,69 @@ async function selectStatusOption(label: string) {
       new MouseEvent("click", { bubbles: true, cancelable: true }),
     );
   });
+}
+
+/**
+ * Radix needs the pointer capture methods jsdom does not implement, and it
+ * commits on `Enter` over the focused item: with no layout the mouse path
+ * cannot be replayed faithfully, and the keyboard one reaches the same
+ * `onValueChange`. Same approach as the modality select of the choreography
+ * detail.
+ */
+async function openPriceSelect() {
+  const trigger = document.querySelector("#inscription-price");
+
+  if (!(trigger instanceof HTMLElement)) {
+    throw new Error("Expected the price select trigger to be rendered.");
+  }
+
+  trigger.hasPointerCapture ??= () => false;
+  trigger.setPointerCapture ??= () => {};
+  trigger.releasePointerCapture ??= () => {};
+
+  await act(async () => {
+    trigger.dispatchEvent(pointerEvent("pointerdown"));
+    await Promise.resolve();
+  });
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  });
+}
+
+async function selectPriceOption(text: string) {
+  const option = [
+    ...document.querySelectorAll('[data-slot="select-item"]'),
+  ].find((candidate) => candidate.textContent?.trim() === text);
+
+  if (!option) {
+    throw new Error(`Expected the option "${text}" to be rendered.`);
+  }
+
+  await act(async () => {
+    option.dispatchEvent(pointerEvent("pointermove"));
+    await Promise.resolve();
+  });
+  await act(async () => {
+    option.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        bubbles: true,
+        cancelable: true,
+        key: "Enter",
+      }),
+    );
+    await Promise.resolve();
+  });
+}
+
+function pointerEvent(type: string) {
+  const event = new MouseEvent(type, {
+    bubbles: true,
+    button: 0,
+    cancelable: true,
+  });
+  Object.defineProperty(event, "pointerType", { value: "mouse" });
+
+  return event;
 }
 
 function amountInput(id = "inscription-amount"): HTMLInputElement {
