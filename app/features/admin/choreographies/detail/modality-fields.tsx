@@ -1,3 +1,4 @@
+import { TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 
 import {
@@ -156,7 +157,8 @@ export function ModalityScheduleCapacityField({
 
   if (isEveryScheduleCapacityOptionFull(options)) {
     return (
-      <Alert>
+      <Alert variant="warning">
+        <TriangleAlert aria-hidden="true" />
         <AlertTitle>No hay cupo de cronograma disponible</AlertTitle>
         <AlertDescription>
           {everyModalityScheduleCapacityFullMessage}

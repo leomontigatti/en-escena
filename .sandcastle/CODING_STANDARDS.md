@@ -107,6 +107,7 @@ The product is Spanish; the codebase is English.
 | -------------------------------------- | -------------------------------- | ----------------------------------------------- |
 | UI strings, page titles, URLs          | Spanish                          | `"Comprobante"`, `/administracion/comprobantes` |
 | Code identifiers, comments, docs, ADRs | English                          | `loadAcademyFinances`                           |
+| Commit messages, PR titles and bodies  | English                          | `fix(choreographies): …`                        |
 | External-system adapters               | the external system's vocabulary | `ArcaVoucher`, `createVoucher`                  |
 
 Route filenames are URLs, so they stay Spanish
@@ -143,9 +144,6 @@ from starting — which is exactly what
 Spanish where it is, whatever this section says; `pnpm check:migration-immutability`
 enforces it, and `docs/db/migrations.md` explains why.
 
-Commit subjects and PR titles are not covered either way. Recent history is
-mostly Spanish, and nothing here changes that.
-
 `CONTEXT.md` is the mapping table, keyed on the code identifier: every entry is
 the canonical English identifier followed by `ui:`, the Spanish term the user
 sees. That direction matches how the table is used — you are writing code, you
@@ -154,6 +152,24 @@ a name, and cite it in review when a new identifier disagrees with the glossary.
 
 Docs quote UI copy verbatim. Spanish inside a quoted string, a route path or a
 glossary `ui:` value is data, not prose, and stays Spanish.
+
+### Commits and pull requests are English
+
+**Commit subjects and bodies, PR titles and PR descriptions are English.** They
+are engineering prose about the codebase, read by whoever is reviewing or
+bisecting it and by no user, so the rule at the top of this section already
+decides them the same way it decides comments and ADRs.
+
+The conventional-commit scope names a code area, so it is English too
+(`fix(choreographies):`, not `fix(coreografias):`). The exceptions are the ones
+that apply to docs: **quoted UI copy stays Spanish**, because a subject or a
+description that quotes what the user reads is quoting data, not writing prose
+— `fix(ui): replace "roster" with "elenco"` is the correct shape — and a
+reserved domain term (`comprobante`) stays Spanish wherever it appears.
+
+History before this rule is mostly Spanish. **That is debt, not precedent**, and
+it is not worth rewriting: published history does not get force-pushed to make a
+convention retroactive. Write the next one in English.
 
 ### Reserved Spanish Domain Terms
 

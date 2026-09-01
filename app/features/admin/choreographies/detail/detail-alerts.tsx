@@ -1,3 +1,6 @@
+import { CircleAlert, Info, TriangleAlert } from "lucide-react";
+
+import { AlertStack } from "@/components/shared/alert-stack";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
@@ -21,9 +24,10 @@ export function ChoreographyDetailAlerts({
   const choreography = loaderData.choreography;
 
   return (
-    <>
+    <AlertStack>
       {choreography.hasPresentation && loaderData.canEdit ? (
-        <Alert>
+        <Alert variant="info">
+          <Info aria-hidden="true" />
           <AlertTitle>La presentación bloquea esta coreografía</AlertTitle>
           <AlertDescription>
             Esta coreografía ya tiene una presentación asociada. Podés cambiar
@@ -33,15 +37,16 @@ export function ChoreographyDetailAlerts({
         </Alert>
       ) : null}
 
-      {/* This is not suppressed for the auditor either: it reports a state of the
-          data. The choreography ended up without a level its category requires —
-          because of a date-of-birth correction, a category that had levels added
-          later, or an old row — and the reason is not stored anywhere, so the
-          alert does not name it. */}
+      {/* Tampoco se suprime para el auditor: informa un estado de los datos.
+          La coreografía quedó sin un nivel que su categoría exige —por una
+          corrección de fecha de nacimiento, por una categoría a la que le
+          agregaron niveles después, o por una fila vieja—, y el motivo no
+          está guardado en ningún lado, así que la alerta no lo nombra. */}
       {choreography.operationalStatus.pendingItems.includes(
         "experienceLevel",
       ) ? (
-        <Alert>
+        <Alert variant="warning">
+          <TriangleAlert aria-hidden="true" />
           <AlertTitle>Falta el nivel de experiencia</AlertTitle>
           <AlertDescription>
             Esta coreografía no tiene nivel de experiencia y su categoría lo
@@ -53,42 +58,30 @@ export function ChoreographyDetailAlerts({
         </Alert>
       ) : null}
 
-      {/* The financial alert is not suppressed for the auditor: the reason for
-          the block is information about the choreography, not about the
-          permissions of whoever is looking. */}
-      {loaderData.scheduleCapacity.blockers.length > 0 ? (
-        <Alert>
-          <AlertTitle>El cupo de cronograma está bloqueado</AlertTitle>
-          <AlertDescription>
-            <p>No se puede reasignar el cupo de cronograma:</p>
-            <ul className="mt-2 list-disc pl-5">
-              {loaderData.scheduleCapacity.blockers.map((blocker) => (
-                <li key={blocker.code}>{blocker.label}</li>
-              ))}
-            </ul>
-          </AlertDescription>
+      {/* La alerta financiera no se suprime para el auditor: el motivo del
+          bloqueo es información de la coreografía, no del permiso de quien
+          mira. Un bloqueo por línea, sin título ni lista: el label del servidor
+          ya es la frase entera, y dos bloqueos son dos alertas apiladas. */}
+      {loaderData.scheduleCapacity.blockers.map((blocker) => (
+        <Alert key={blocker.code} variant="warning">
+          <TriangleAlert aria-hidden="true" />
+          <AlertDescription>{blocker.label}</AlertDescription>
         </Alert>
-      ) : null}
+      ))}
 
       {/* A seña does not close the modalidad: it only rejects the correction
-          that would move the cronograma, so it is listed as a
+          that would move the cronograma, so it is announced as a
           blocker-in-waiting. */}
-      {loaderData.modality.blockers.length > 0 ? (
-        <Alert>
-          <AlertTitle>La modalidad tiene un bloqueo en potencia</AlertTitle>
-          <AlertDescription>
-            <p>Se puede rechazar la corrección de la modalidad:</p>
-            <ul className="mt-2 list-disc pl-5">
-              {loaderData.modality.blockers.map((blocker) => (
-                <li key={blocker.code}>{blocker.label}</li>
-              ))}
-            </ul>
-          </AlertDescription>
+      {loaderData.modality.blockers.map((blocker) => (
+        <Alert key={blocker.code} variant="warning">
+          <TriangleAlert aria-hidden="true" />
+          <AlertDescription>{blocker.label}</AlertDescription>
         </Alert>
-      ) : null}
+      ))}
 
       {noCompatibleCategory ? (
         <Alert variant="destructive">
+          <CircleAlert aria-hidden="true" />
           <AlertTitle>No hay categoría compatible</AlertTitle>
           <AlertDescription>
             Con este elenco ({formatGroupTypeLabel(groupType)}) no existe una
@@ -96,6 +89,6 @@ export function ChoreographyDetailAlerts({
           </AlertDescription>
         </Alert>
       ) : null}
-    </>
+    </AlertStack>
   );
 }
