@@ -5,6 +5,7 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
 import { PortalProfessorsListRouteView } from "@/features/portal/professors/list/view";
+import { eventDocumentDownloadUrls } from "@/lib/events/event-documents.test-support";
 import {
   clickReactDomButton,
   createReactDomTestRenderer,
@@ -64,6 +65,7 @@ describe("PortalProfessorsListRouteView dialog", () => {
 function createProfessorLoaderData(): PortalProfessorsListRouteViewProps["loaderData"] {
   return {
     professors: [],
+    documentDownloadUrls: eventDocumentDownloadUrls(),
   };
 }
 

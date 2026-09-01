@@ -92,6 +92,13 @@
       "when": 1787575635570,
       "tag": "0012_add_inscription_created_at",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1788179568488,
+      "tag": "0013_add_event_document",
+      "breakpoints": true
     }
   ]
 }

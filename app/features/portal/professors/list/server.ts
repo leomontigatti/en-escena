@@ -1,4 +1,5 @@
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
+import { loadPortalEventDocumentDownloadUrls } from "@/lib/events/event-documents.server";
 import { getPortalActiveEventSummaryContext } from "@/lib/portal/event-context.server";
 import { listAcademyProfessors } from "@/lib/portal/professors.server";
 import { handleCreateProfessorAction } from "@/features/portal/professors/create/server";
@@ -7,11 +8,15 @@ import { createProfessorIntent } from "@/features/portal/professors/create/share
 export async function loadPortalProfessorsList(request: Request) {
   const { academy } = await requireAcademyUser(request);
   const eventContext = await getPortalActiveEventSummaryContext(request);
-  const professors = await listAcademyProfessors(academy.id, {
-    selectedEventId: eventContext.activeEvent?.id ?? null,
-  });
+  const [professors, documentDownloadUrls] = await Promise.all([
+    listAcademyProfessors(academy.id, {
+      selectedEventId: eventContext.activeEvent?.id ?? null,
+    }),
+    loadPortalEventDocumentDownloadUrls(eventContext.activeEvent?.id ?? null),
+  ]);
 
   return {
+    documentDownloadUrls,
     professors,
   };
 }

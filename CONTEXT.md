@@ -200,8 +200,24 @@ Private file an academy uploads and the system stores on the volume, referenced 
 _Avoid_: attachment, media, public file
 
 **`assetKind`** — ui: "Tipo de archivo subido"
-The class of uploaded asset — `musicFile` or `documentImage` — that decides accepted formats, size ceiling and key layout.
+The class of uploaded asset — `musicFile`, `documentImage` or `eventDocument` — that decides accepted formats, size ceiling and key layout.
 _Avoid_: mime type, file extension, bucket
+
+**`eventDocument`** — ui: "Documento del evento"
+Static PDF the administration uploads for an event and every academy downloads unchanged. A new event starts with none, and a missing one never blocks registration.
+_Avoid_: `documentImage`, `comprobante`, attachment, bases
+
+**`professorContract`** — ui: "Contrato para profesores"
+The event document an academy downloads from the professors list; `professor_contract` as an `EventDocumentKind` value.
+_Avoid_: `adultContract`, teacher agreement
+
+**`minorAuthorization`** — ui: "Autorización para menores"
+The event document authorizing a minor's participation, downloaded from the dancers list; `minor_authorization` as an `EventDocumentKind` value. Always offered, whether or not the academy has minors on its roster.
+_Avoid_: parental consent, `adultContract`
+
+**`adultContract`** — ui: "Contrato para mayores"
+The event document an adult dancer signs, downloaded from the dancers list; `adult_contract` as an `EventDocumentKind` value.
+_Avoid_: `professorContract`, `minorAuthorization`
 
 **`documentImage`** — ui: "Imagen del documento"
 Photograph of one side of a dancer's identity document, held as evidence for verification.

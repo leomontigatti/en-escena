@@ -1,8 +1,15 @@
+import { z } from "zod";
+
 import type { events as eventsTable } from "@/db/schema";
 import type {
   EventFormValues,
   FieldErrors,
 } from "@/lib/admin/events/form-values";
+import {
+  eventDocumentKinds,
+  type EventDocumentKind,
+} from "@/lib/events/event-documents";
+import type { EventDocumentSummaries } from "@/lib/events/event-documents.server";
 import type {
   EventRegistrationMissingCode,
   EventRegistrationReadiness,
@@ -10,7 +17,58 @@ import type {
 
 type EventRow = typeof eventsTable.$inferSelect;
 
+/**
+ * The documents ride along with the event form instead of owning a submission
+ * each: one `update` posts the name, the dates and the three PDFs together, so
+ * the card has a single "Guardar". These names are what tie the two halves.
+ *
+ * Absent marker included on purpose. A body that carries no `documentsPresent`
+ * is not "every document was removed" — it is a submission that never had the
+ * fields, and the action leaves the documents alone rather than deleting three
+ * PDFs because a field was missing.
+ */
+export const eventDocumentsPresentField = "documentsPresent";
+
+/** The file input for one document. Empty on every save that does not replace it. */
+export function eventDocumentFileField(kind: EventDocumentKind) {
+  return `documentFile_${kind}` as const;
+}
+
+/**
+ * Whether the document that already exists is still wanted. The upload field
+ * writes its "storage key" here, so its own remove button empties it and the
+ * save deletes the document — the client never learns the real storage key.
+ */
+export function eventDocumentKeptField(kind: EventDocumentKind) {
+  return `documentKept_${kind}` as const;
+}
+
+export const keptEventDocumentValue = "kept";
+
+type EventDocumentKeptFieldName = ReturnType<typeof eventDocumentKeptField>;
+
+/**
+ * One "kept" marker per document, and nothing else: the PDFs themselves travel
+ * as native file inputs the browser owns, which React Hook Form never holds.
+ * The schema is here rather than inline so the field names it is keyed on come
+ * from the same helper the action reads them with.
+ */
+export const eventDocumentsFormSchema = z.object(
+  Object.fromEntries(
+    eventDocumentKinds.map((kind) => [
+      eventDocumentKeptField(kind),
+      z.enum(["", keptEventDocumentValue]),
+    ]),
+  ) as Record<
+    EventDocumentKeptFieldName,
+    z.ZodEnum<{ "": ""; kept: typeof keptEventDocumentValue }>
+  >,
+);
+
+export type EventDocumentsFormValues = z.infer<typeof eventDocumentsFormSchema>;
+
 export type EventDetailLoaderData = {
+  documents: EventDocumentSummaries;
   event: EventRow;
   registrationReadiness: EventRegistrationReadiness;
 };

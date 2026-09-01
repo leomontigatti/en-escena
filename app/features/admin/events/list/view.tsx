@@ -8,18 +8,13 @@ import {
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
-import { BUSINESS_TIME_ZONE } from "@/lib/shared/business-time-zone";
+import { formatBusinessDate } from "@/lib/shared/business-time-zone";
 
 import type { EventsListLoaderData, EventListRow } from "./shared";
 
 export type EventsListViewProps = {
   loaderData: EventsListLoaderData;
 };
-
-const dateFormatter = new Intl.DateTimeFormat("es-AR", {
-  dateStyle: "short",
-  timeZone: BUSINESS_TIME_ZONE,
-});
 
 export function EventsListView({ loaderData }: EventsListViewProps) {
   return (
@@ -65,7 +60,7 @@ function EventTable({ events }: { events: EventListRow[] }) {
         />
       ),
       filterValue: (event) =>
-        `${formatDate(event.registrationStartsAt)} ${formatDate(
+        `${formatBusinessDate(event.registrationStartsAt)} ${formatBusinessDate(
           event.registrationEndsAt,
         )}`,
     },
@@ -76,7 +71,7 @@ function EventTable({ events }: { events: EventListRow[] }) {
         <DateRange startsAt={event.startsAt} endsAt={event.endsAt} />
       ),
       filterValue: (event) =>
-        `${formatDate(event.startsAt)} ${formatDate(event.endsAt)}`,
+        `${formatBusinessDate(event.startsAt)} ${formatBusinessDate(event.endsAt)}`,
       sortValue: (event) => event.startsAt,
     },
     {
@@ -130,9 +125,9 @@ function EventTable({ events }: { events: EventListRow[] }) {
 function DateRange({ startsAt, endsAt }: { startsAt: Date; endsAt: Date }) {
   return (
     <span>
-      {formatDate(startsAt)}
+      {formatBusinessDate(startsAt)}
       <span className="block text-xs text-muted-foreground">
-        hasta {formatDate(endsAt)}
+        hasta {formatBusinessDate(endsAt)}
       </span>
     </span>
   );
@@ -149,8 +144,4 @@ function getTemporalStateBadgeVariant(
     case "finished":
       return "secondary";
   }
-}
-
-function formatDate(date: Date) {
-  return dateFormatter.format(date);
 }
