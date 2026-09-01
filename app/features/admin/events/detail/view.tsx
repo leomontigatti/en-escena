@@ -1,5 +1,5 @@
 import { LoaderCircle, TriangleAlert } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link } from "react-router";
 
 import { EventFormFields, useEventForm } from "@/components/admin/events/form";
@@ -12,6 +12,16 @@ import { AlertStack } from "@/components/shared/alert-stack";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenuGroup,
@@ -22,6 +32,15 @@ import { eventFormValues } from "@/lib/admin/events/form-values";
 import { isRouteFormPending, useOptionalNavigation } from "@/lib/shared/forms";
 import { notificationToastIds } from "@/lib/shared/notification-toasts";
 import { useServerActionToast } from "@/lib/shared/toasts";
+
+import {
+  EventDocumentsFields,
+  useEventDocumentsForm,
+} from "./documents-fields";
+import {
+  eventDocumentDeclarations,
+  type EventDocumentKind,
+} from "@/lib/events/event-documents";
 
 import {
   eventActionPath,
@@ -65,14 +84,12 @@ export function EventDetailView({
         />
       }
     >
-      <AlertStack>
-        {!loaderData.registrationReadiness.isReady ? (
-          <EventRegistrationReadinessAlert
-            readiness={loaderData.registrationReadiness}
-          />
-        ) : null}
-      </AlertStack>
-      <EditEventPanel event={loaderData.event} actionData={errorData} />
+      <EditEventPanel
+        event={loaderData.event}
+        actionData={errorData}
+        documents={loaderData.documents}
+        registrationReadiness={loaderData.registrationReadiness}
+      />
     </AdminResourceLayout>
   );
 }
@@ -124,40 +141,177 @@ function summarizeMissingItems(
   }));
 }
 
+/**
+ * One form, one "Guardar". The three documents are fields of it rather than
+ * three upload forms of their own, which is what lets the card carry a single
+ * button — and is why nothing here may nest a `<form>`.
+ */
 function EditEventPanel({
   event,
   actionData,
+  documents,
+  registrationReadiness,
 }: {
   event: EventDetailLoaderData["event"];
   actionData?: Extract<EventDetailActionData, { status: "error" }>;
+  documents: EventDetailLoaderData["documents"];
+  registrationReadiness: EventDetailLoaderData["registrationReadiness"];
 }) {
   const defaultValues = actionData?.values ?? eventFormValues(event);
   const eventForm = useEventForm({
     values: defaultValues,
     pendingScope: { intent: "update" },
   });
+  const documentsForm = useEventDocumentsForm(documents);
+  const removal = useDocumentRemovalConfirmation({
+    handleSubmit: eventForm.handleSubmit,
+    removedKinds: documentsForm.removedKinds,
+  });
+  const hasChanges =
+    eventForm.form.formState.isDirty || documentsForm.hasPendingChanges;
 
   return (
-    <form
-      method="post"
-      action={eventActionPath(event.id)}
-      noValidate
-      onSubmit={eventForm.handleSubmit}
-    >
-      <AdminResourceFormCard
-        footer={
-          <>
-            <Button asChild variant="outline">
-              <Link to="/administracion/eventos">Volver</Link>
-            </Button>
-            <SubmitButton isPending={eventForm.isPending} />
-          </>
-        }
+    <>
+      {/* Above the card, never inside it: an alert about the whole event is not
+          a field, and the stack owns the spacing between however many there
+          are. */}
+      <AlertStack>
+        {!registrationReadiness.isReady ? (
+          <EventRegistrationReadinessAlert readiness={registrationReadiness} />
+        ) : null}
+      </AlertStack>
+      <form
+        ref={removal.formRef}
+        method="post"
+        action={eventActionPath(event.id)}
+        encType="multipart/form-data"
+        noValidate
+        onSubmit={removal.onSubmit}
       >
         <input type="hidden" name="intent" value="update" />
-        <EventFormFields controller={eventForm} />
-      </AdminResourceFormCard>
-    </form>
+        <AdminResourceFormCard
+          footer={
+            <>
+              <Button asChild variant="outline">
+                <Link to="/administracion/eventos">Volver</Link>
+              </Button>
+              <SubmitButton
+                disabled={!hasChanges}
+                isPending={eventForm.isPending}
+              />
+            </>
+          }
+        >
+          <EventFormFields controller={eventForm} />
+          <EventDocumentsFields
+            controller={documentsForm}
+            documents={documents}
+          />
+        </AdminResourceFormCard>
+      </form>
+      <RemoveDocumentsDialog
+        isPending={eventForm.isPending}
+        onConfirm={removal.confirm}
+        onOpenChange={removal.setIsConfirmOpen}
+        open={removal.isConfirmOpen}
+        removedKinds={documentsForm.removedKinds}
+      />
+    </>
+  );
+}
+
+/**
+ * Removing a document deletes the PDF the academies download, and folding it
+ * into "Guardar" is what removed the per-document button — so the confirmation
+ * the delete dialog used to give moves here rather than disappearing.
+ */
+function useDocumentRemovalConfirmation({
+  handleSubmit,
+  removedKinds,
+}: {
+  handleSubmit: (event: React.SubmitEvent<HTMLFormElement>) => void;
+  removedKinds: EventDocumentKind[];
+}) {
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const isConfirmedRef = useRef(false);
+
+  return {
+    confirm,
+    formRef,
+    isConfirmOpen,
+    onSubmit,
+    setIsConfirmOpen,
+  };
+
+  function onSubmit(event: React.SubmitEvent<HTMLFormElement>) {
+    if (removedKinds.length > 0 && !isConfirmedRef.current) {
+      event.preventDefault();
+      setIsConfirmOpen(true);
+      return;
+    }
+
+    isConfirmedRef.current = false;
+    handleSubmit(event);
+  }
+
+  function confirm() {
+    setIsConfirmOpen(false);
+    isConfirmedRef.current = true;
+    formRef.current?.requestSubmit();
+  }
+}
+
+function RemoveDocumentsDialog({
+  isPending,
+  onConfirm,
+  onOpenChange,
+  open,
+  removedKinds,
+}: {
+  isPending: boolean;
+  onConfirm: () => void;
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
+  removedKinds: EventDocumentKind[];
+}) {
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Confirmar los cambios</AlertDialogTitle>
+          <AlertDialogDescription>
+            Guardar elimina estos documentos. La acción no se puede deshacer y
+            las academias van a dejar de verlos.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <ul className="list-disc pl-5 text-sm text-muted-foreground">
+          {removedKinds.map((kind) => (
+            <li key={kind}>{eventDocumentDeclarations[kind].label}</li>
+          ))}
+        </ul>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
+          {/* Destructive, not the default: pressing this deletes the PDFs the
+              academies download, even though the submission it triggers is the
+              same "Guardar" the rest of the form uses. */}
+          <AlertDialogAction
+            disabled={isPending}
+            variant="destructive"
+            onClick={onConfirm}
+          >
+            {isPending ? (
+              <LoaderCircle
+                aria-hidden="true"
+                className="animate-spin"
+                data-icon
+              />
+            ) : null}
+            Eliminar y guardar
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 

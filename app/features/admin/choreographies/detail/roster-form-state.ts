@@ -175,19 +175,27 @@ export function hasNoCompatibleCategory({
 }
 
 /**
- * El slot "Cronograma" es uno solo y el select del roster tiene prioridad: un
- * cambio de tipo de grupo limpia el cupo, y el reemplazo se elige junto con la
- * confirmación del roster, no por separado. Recién cuando no hay cambio de
- * roster pendiente entra la reasignación autónoma.
+ * There is a single "Cronograma" slot and the roster select takes precedence: a
+ * group type change clears the cupo, and its replacement is chosen together with
+ * the roster confirmation rather than separately. Only once no roster change is
+ * pending does the standalone reassignment claim the slot.
+ *
+ * Returns the options rather than a boolean so the decision and the narrowing
+ * it implies live in one place: only the "multiple" resolution carries labelled
+ * options, and that is exactly the variant the shared select builder needs.
  */
-export function shouldRenderRosterScheduleSelect({
+export function getRosterScheduleSelectOptions({
   hasResolvedRosterChange,
   scheduleResolution,
 }: {
   hasResolvedRosterChange: boolean;
   scheduleResolution: ScheduleResolution;
 }) {
-  return hasResolvedRosterChange && scheduleResolution?.status === "multiple";
+  if (!hasResolvedRosterChange || scheduleResolution?.status !== "multiple") {
+    return null;
+  }
+
+  return scheduleResolution.options;
 }
 
 /**

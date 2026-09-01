@@ -25,7 +25,10 @@ export type FieldErrors = NonNullable<
 
 export { MAX_REQUIRED_DEPOSIT_PERCENTAGE, MIN_REQUIRED_DEPOSIT_PERCENTAGE };
 
-export const eventFormSchema = z.object({
+export const registrationAfterEventStartMessage =
+  "No puede ser posterior a la fecha de inicio del evento.";
+
+const eventFormFields = z.object({
   name: z.string().trim().min(1, requiredFieldMessage),
   registrationStartsAt: z
     .string()
@@ -46,6 +49,22 @@ export const eventFormSchema = z.object({
     );
   }, invalidRequiredDepositPercentageMessage),
 });
+
+/**
+ * Inscriptions that open after the event starts are a typo, not a
+ * configuration: the check lives in the schema so the same rule reaches the
+ * field through `zodResolver` and the action through `parseEventFormValues`.
+ */
+export const eventFormSchema = eventFormFields.refine(
+  (values) =>
+    values.registrationStartsAt === "" ||
+    values.startsAt === "" ||
+    values.registrationStartsAt <= values.startsAt,
+  {
+    message: registrationAfterEventStartMessage,
+    path: ["registrationStartsAt"],
+  },
+);
 
 export type EventFormValues = z.infer<typeof eventFormSchema>;
 

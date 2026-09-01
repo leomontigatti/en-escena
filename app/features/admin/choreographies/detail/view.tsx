@@ -52,9 +52,9 @@ import {
 import {
   canSubmitChoreographyEdit,
   getExperienceLevelSlotState,
+  getRosterScheduleSelectOptions,
   getWithdrawnDancers,
   hasNoCompatibleCategory,
-  shouldRenderRosterScheduleSelect,
 } from "./roster-form-state";
 import {
   deleteChoreographyIntent,
@@ -185,7 +185,7 @@ function ChoreographyDetailForm({
     derivedResolution: roster.derivedResolution,
     hasResolvedRosterChange: roster.hasResolvedRosterChange,
   });
-  const showScheduleSelect = shouldRenderRosterScheduleSelect({
+  const rosterScheduleOptions = getRosterScheduleSelectOptions({
     hasResolvedRosterChange: roster.hasResolvedRosterChange,
     scheduleResolution: roster.scheduleResolution,
   });
@@ -374,9 +374,7 @@ function ChoreographyDetailForm({
                   control={form.control}
                   disabled={disabled}
                   loaderData={loaderData}
-                  scheduleResolution={
-                    showScheduleSelect ? roster.scheduleResolution : null
-                  }
+                  options={rosterScheduleOptions}
                 />
               )}
             />

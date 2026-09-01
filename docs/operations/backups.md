@@ -247,7 +247,7 @@ AWS_SECRET_ACCESS_KEY="your-b2-application-key"
 AWS_DEFAULT_REGION="us-east-005"
 
 STORAGE_VOLUME_DIR="/var/lib/en-escena/storage"
-STORAGE_BACKUP_BUCKETS="en-escena-dancer-documents,en-escena-choreography-music"
+STORAGE_BACKUP_BUCKETS="en-escena-dancer-documents,en-escena-choreography-music,en-escena-event-documents"
 BACKUP_SYNC_MODE="copy"
 B2_FILESTORE_BUCKET="en-escena-filestore-backups"
 B2_FILESTORE_PREFIX="filestore"
