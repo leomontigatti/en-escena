@@ -12,7 +12,7 @@ import { findInscriptionsWithEvidence } from "@/lib/choreographies/inscription-w
 
 /**
  * El roster que edita el admin son las inscripciones activas. `hasEvidence` es
- * la única cosa que el formulario necesita saber de la plata: con evidencia,
+ * la única cosa que el formulario necesita saber del dinero: con evidencia,
  * quitar al bailarín retira la inscripción en lugar de borrarla, y el diálogo de
  * confirmación lo enumera antes de que el admin confirme.
  */

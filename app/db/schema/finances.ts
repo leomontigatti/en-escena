@@ -105,7 +105,7 @@ export const paymentAllocations = createTable(
     inscriptionId: varchar("inscription_id", { length: 255 }).notNull(),
     academyId: varchar("academy_id", { length: 255 }).notNull(),
     eventId: varchar("event_id", { length: 255 }).notNull(),
-    // Plata contra una inscripción, sin rol. Hay a lo sumo una fila por
+    // Dinero contra una inscripción, sin rol. Hay a lo sumo una fila por
     // (pago, inscripción): se escribe por upsert sumando, y se borra cuando un
     // decremento la deja en cero.
     amount: integer("amount").notNull(),

@@ -3,7 +3,7 @@ import { isNull, sql, type SQL } from "drizzle-orm";
 import { choreographyDancers } from "@/db/schema";
 
 /**
- * Una inscripción retirada sigue en la tabla —conserva la plata asignada y la
+ * Una inscripción retirada sigue en la tabla —conserva el dinero asignado y la
  * línea de comprobante que la justifican— así que toda lectura la filtra salvo
  * que muestre evidencia a propósito. Este predicado es el único lugar donde vive
  * ese filtro: nadie escribe `isNull(choreographyDancers.withdrawnAt)` a mano.

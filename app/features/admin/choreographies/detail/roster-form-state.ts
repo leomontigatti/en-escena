@@ -192,7 +192,7 @@ export function shouldRenderRosterScheduleSelect({
 
 /**
  * Los bailarines que este submit saca del roster y cuya inscripción tiene
- * evidencia: plata asignada o una línea de comprobante. Esas no se borran,
+ * evidencia: dinero asignado o una línea de comprobante. Esas no se borran,
  * quedan retiradas, y el diálogo enumera esa consecuencia solo cuando la lista
  * no está vacía. Sin evidencia no hay nada que contar: la baja es un borrado y
  * el diálogo queda como estaba.

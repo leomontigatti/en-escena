@@ -49,7 +49,7 @@ const accountColumns: DataTableColumn<FinanceAccountRow>[] = [
     className: "text-right tabular-nums",
     headerClassName: "text-right",
     // Una academia sin saldo a favor es el caso normal: atenuarlo deja que las
-    // que sí tienen plata disponible salten a la vista.
+    // que sí tienen dinero disponible salten a la vista.
     cell: (row) => (
       <span
         className={cn(

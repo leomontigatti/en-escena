@@ -37,7 +37,7 @@ import { guardAndLockScheduleCapacityMove } from "@/lib/choreographies/schedule-
  * mantienen no se tocan (marca de agua: una `señada` no vuelve a `impaga`). Alta
  * de bailarín → inscripción nueva, o la revivida si ya estaba retirada; baja →
  * borrado físico sin evidencia, retiro con ella (`removeInscriptionsFromRoster`).
- * La plata no se mueve en ninguno de los dos casos.
+ * El dinero no se mueve en ninguno de los dos casos.
  *
  * `name` es opcional y viaja acá para que el detalle admin pueda guardar nombre y
  * roster en un solo submit. Cuando cambian los bailarines se persiste dentro de la

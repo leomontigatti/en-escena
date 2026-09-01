@@ -8,7 +8,7 @@ import type { Transaction } from "./choreography-cobro-support.server";
 type Executor = Transaction | typeof db;
 
 /**
- * Mueve plata contra una inscripción: suma `delta` a la fila `(pago,
+ * Mueve dinero contra una inscripción: suma `delta` a la fila `(pago,
  * inscripción)`, creándola si no existe y borrándola cuando el decremento la
  * deja en cero o menos. La unicidad la resuelve la base (índice único), no una
  * lectura previa, así que dos escrituras concurrentes no pueden duplicar la

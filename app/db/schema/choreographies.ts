@@ -130,7 +130,7 @@ export const choreographyDancers = createTable(
     // row and from `Σ allocations`.
     selectedPriceId: varchar("selected_price_id", { length: 255 }),
     // Retiro blando. Se escribe una sola vez, al quitar la inscripción del
-    // roster, y solo cuando hay evidencia que preservar: plata asignada o una
+    // roster, y solo cuando hay evidencia que preservar: dinero asignado o una
     // línea de comprobante. Sin evidencia la fila se borra físicamente, así que
     // `choreography_dancer_unique` sigue valiendo y volver a agregar al mismo
     // bailarín revive esta fila en lugar de insertar otra.
