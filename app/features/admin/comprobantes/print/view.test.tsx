@@ -59,7 +59,7 @@ function printRecord(
 }
 
 describe("buildComprobantePrintViewModel", () => {
-  test("proyecta el snapshot del comprobante con numeración y leyendas de #334", () => {
+  test("projects the comprobante snapshot with #334's numbering and legends", () => {
     const model = buildComprobantePrintViewModel(printRecord());
 
     expect(model.numero).toBe("0003-00000007");
@@ -72,7 +72,7 @@ describe("buildComprobantePrintViewModel", () => {
     expect(model.estadoLabel).toBe("Vigente");
   });
 
-  test("proyecta una sola línea `Inscripción` con el total", () => {
+  test("projects a single `Inscripción` line with the total", () => {
     const model = buildComprobantePrintViewModel(
       printRecord({ impTotal: 25000 }),
     );
@@ -89,7 +89,7 @@ describe("buildComprobantePrintViewModel", () => {
     expect(model.lines[0].descripcion).not.toContain("Certamen 2026");
   });
 
-  test("expone el período facturado y el vencimiento de pago del snapshot", () => {
+  test("exposes the snapshot's billed period and payment due date", () => {
     const model = buildComprobantePrintViewModel(
       printRecord({
         fchServDesde: "20260801",
@@ -103,7 +103,7 @@ describe("buildComprobantePrintViewModel", () => {
     expect(model.vencimientoPago).toBe("22/07/2026");
   });
 
-  test("preserva null en las fechas de servicio cuando el snapshot no las lleva", () => {
+  test("preserves null service dates when the snapshot does not carry them", () => {
     const model = buildComprobantePrintViewModel(printRecord());
 
     expect(model.periodoDesde).toBeNull();
@@ -111,7 +111,7 @@ describe("buildComprobantePrintViewModel", () => {
     expect(model.vencimientoPago).toBeNull();
   });
 
-  test("refleja al emisor exento (no monotributista)", () => {
+  test("reflects the exempt issuer (not a monotributista)", () => {
     const model = buildComprobantePrintViewModel(printRecord());
 
     expect(model.emisorRazonSocial).toBe(
@@ -123,7 +123,7 @@ describe("buildComprobantePrintViewModel", () => {
     expect(model.receptorCondicionIva).toBe("Consumidor Final");
   });
 
-  test("usa el encabezado de nota de crédito para el tipo 13", () => {
+  test("uses the nota de crédito heading for type 13", () => {
     const model = buildComprobantePrintViewModel(
       printRecord({ cbteTipo: 13, status: "anulada" }),
     );
@@ -134,7 +134,7 @@ describe("buildComprobantePrintViewModel", () => {
 });
 
 describe("renderComprobantePrintDocument", () => {
-  test("renderiza el HTML del impreso con numeración, leyendas y QR", () => {
+  test("renders the printed representation's HTML with numbering, legends and QR", () => {
     const html = renderComprobantePrintDocument({
       model: buildComprobantePrintViewModel(printRecord()),
       qrCodeSvg: QR_SVG_STUB,
@@ -150,7 +150,7 @@ describe("renderComprobantePrintDocument", () => {
     expect(html).toContain("Comprobante Autorizado");
   });
 
-  test("imprime `Inscripción` sola en Descripción y deja el contexto en Receptor", () => {
+  test("prints `Inscripción` alone under Descripción and leaves the context under Receptor", () => {
     const html = renderComprobantePrintDocument({
       model: buildComprobantePrintViewModel(printRecord()),
       qrCodeSvg: QR_SVG_STUB,
@@ -163,7 +163,7 @@ describe("renderComprobantePrintDocument", () => {
     expect(html).toContain("<p>Academia Alfa — Coreografía Alfa</p>");
   });
 
-  test("muestra el período facturado y el vencimiento de pago cuando existen", () => {
+  test("shows the billed period and payment due date when they exist", () => {
     const html = renderComprobantePrintDocument({
       model: buildComprobantePrintViewModel(
         printRecord({
@@ -180,7 +180,7 @@ describe("renderComprobantePrintDocument", () => {
     expect(html).toContain("Vencimiento de pago:");
   });
 
-  test("coincide con el snapshot del impreso", () => {
+  test("matches the printed representation snapshot", () => {
     const html = renderComprobantePrintDocument({
       model: buildComprobantePrintViewModel(printRecord()),
       qrCodeSvg: QR_SVG_STUB,

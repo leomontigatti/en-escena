@@ -125,7 +125,7 @@ describe("ComprobanteDetailRouteView", () => {
     };
   }
 
-  test("una anulación sin verificar bloquea el reintento y nombra la nota de crédito", async () => {
+  test("an unverified annulment blocks the retry and names the nota de crédito", async () => {
     const { action } = unverifiedThenRecovered();
     await mount({ initialAnnulDialogOpen: true, action });
 
@@ -137,7 +137,7 @@ describe("ComprobanteDetailRouteView", () => {
     expect(getButton("Anular comprobante").disabled).toBe(true);
   });
 
-  test("verificar ahora recupera la nota de crédito y saca el botón de anular", async () => {
+  test("verify now recovers the nota de crédito and removes the annul button", async () => {
     const { action, recheckPayloads } = unverifiedThenRecovered();
     await mount({ initialAnnulDialogOpen: true, action });
 
@@ -162,7 +162,7 @@ describe("ComprobanteDetailRouteView", () => {
    * The dialog unmounts when it is closed, not when it loses the affordance
    * (#577).
    */
-  test("el estado recuperado sobrevive a la revalidación que deja el comprobante anulado", async () => {
+  test("the recovered state survives the revalidation that leaves the comprobante annulled", async () => {
     const { action } = unverifiedThenRecovered();
     let annulled = false;
 

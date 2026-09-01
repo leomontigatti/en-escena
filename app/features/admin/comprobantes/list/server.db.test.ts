@@ -76,7 +76,7 @@ async function signedInAdminRequest(search = "") {
 }
 
 describe("loadComprobantesList", () => {
-  test("expone estado derivado, CAE y numeración de cada comprobante del evento activo", async () => {
+  test("exposes the derived status, CAE and numbering of every comprobante in the active event", async () => {
     const event = await createEventRecord({ active: true });
     const catalog = await createEventCatalog(event.id);
     const beta = await seedChoreography({
@@ -152,7 +152,7 @@ describe("loadComprobantesList", () => {
     expect(facturaBetaRow?.academyName).toBe("Academia Beta");
   });
 
-  test("filtra por estado derivado: anulada devuelve la factura con Nota de crédito; vigente, el resto", async () => {
+  test("filters by derived status: `anulada` returns the factura with a Nota de crédito; `vigente`, the rest", async () => {
     const event = await createEventRecord({ active: true });
     const catalog = await createEventCatalog(event.id);
     const alfa = await seedChoreography({
@@ -202,7 +202,7 @@ describe("loadComprobantesList", () => {
     expect(vigentes.totalCount).toBe(2);
   });
 
-  test("filtra por tipo de comprobante", async () => {
+  test("filters by comprobante type", async () => {
     const event = await createEventRecord({ active: true });
     const catalog = await createEventCatalog(event.id);
     const alfa = await seedChoreography({
@@ -241,7 +241,7 @@ describe("loadComprobantesList", () => {
     expect(facturas.rows.map((row) => row.id)).toEqual([factura.id]);
   });
 
-  test("busca por academia, coreografía y número de comprobante", async () => {
+  test("searches by academy, choreography and comprobante number", async () => {
     const event = await createEventRecord({ active: true });
     const catalog = await createEventCatalog(event.id);
     const alfa = await seedChoreography({
@@ -295,7 +295,7 @@ describe("loadComprobantesList", () => {
     expect(porNumero.rows.map((row) => row.id)).toEqual([facturaBeta.id]);
   });
 
-  test("ordena por número ascendente cuando se pide", async () => {
+  test("sorts by ascending number when asked to", async () => {
     const event = await createEventRecord({ active: true });
     const catalog = await createEventCatalog(event.id);
     const alfa = await seedChoreography({
@@ -330,7 +330,7 @@ describe("loadComprobantesList", () => {
     expect(data.rows.map((row) => row.id)).toEqual([primero.id, segundo.id]);
   });
 
-  test("acota los comprobantes al evento activo: ignora los de otros eventos", async () => {
+  test("scopes comprobantes to the active event: ignores those of other events", async () => {
     const otherEvent = await createEventRecord({ active: false });
     const otherCatalog = await createEventCatalog(otherEvent.id);
     const otherChoreography = await seedChoreography({
@@ -372,7 +372,7 @@ describe("loadComprobantesList", () => {
     expect(data.rows[0]?.academyName).toBe("Academia Evento Activo");
   });
 
-  test("sin evento activo devuelve una lista vacía", async () => {
+  test("with no active event it returns an empty list", async () => {
     await createEventRecord({ active: false });
 
     const data = await loadComprobantesList(await signedInAdminRequest());

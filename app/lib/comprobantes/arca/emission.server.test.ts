@@ -96,7 +96,7 @@ afterEach(() => {
 });
 
 describe("emitWithContingency", () => {
-  test("autorizado por ARCA: persiste el CAE y no lo marca como recuperado", async () => {
+  test("authorized by ARCA: persists the CAE and does not mark it as recovered", async () => {
     const outcome = await emitWithContingency(choreography());
 
     expect(outcome).toEqual({
@@ -112,7 +112,7 @@ describe("emitWithContingency", () => {
     });
   });
 
-  test("el correlativo a emitir sale de la consulta del último autorizado", async () => {
+  test("the sequence number to emit comes from the last-authorized lookup", async () => {
     const emit = vi.fn(
       async (): Promise<FacturaCEmissionResult> =>
         parseCreateVoucherResult(facturaCAprobada),
@@ -123,7 +123,7 @@ describe("emitWithContingency", () => {
     expect(emit).toHaveBeenCalledWith({ cbteNro: 43, cbteFch: "20260722" });
   });
 
-  test("cortada la consulta del correlativo, no se emitió nada y no se autoriza", async () => {
+  test("with the sequence lookup cut off, nothing was emitted and nothing is authorized", async () => {
     const emit = vi.fn(
       async (): Promise<FacturaCEmissionResult> =>
         parseCreateVoucherResult(facturaCAprobada),
@@ -143,7 +143,7 @@ describe("emitWithContingency", () => {
     expect(emit).not.toHaveBeenCalled();
   });
 
-  test("ARCA rechaza: no persiste nada y devuelve el detalle del rechazo", async () => {
+  test("ARCA rejects: it persists nothing and returns the rejection detail", async () => {
     const persist = vi.fn();
 
     const outcome = await emitWithContingency(
@@ -164,7 +164,7 @@ describe("emitWithContingency", () => {
   // With the authorization cut off at the transport level, the follow-up lookup
   // is final: if ARCA does not have it, nothing was emitted (ADR-0012
   // decision 5).
-  test("cortada la autorización y ARCA no lo tiene: no se emitió nada", async () => {
+  test("authorization cut off and ARCA does not have it: nothing was emitted", async () => {
     const persist = vi.fn();
 
     const outcome = await emitWithContingency(
@@ -175,7 +175,7 @@ describe("emitWithContingency", () => {
     expect(persist).not.toHaveBeenCalled();
   });
 
-  test("cortada la autorización y ARCA sí lo tiene: persiste el CAE recuperado", async () => {
+  test("authorization cut off and ARCA does have it: persists the recovered CAE", async () => {
     const billing = fakeBilling({
       getVoucherInfo: vi.fn(async () => facturaCConsultada),
     });
@@ -197,7 +197,7 @@ describe("emitWithContingency", () => {
     });
   });
 
-  test("cortada la autorización y la consulta tampoco resuelve: queda sin verificar", async () => {
+  test("authorization cut off and the lookup does not resolve either: it stays unverified", async () => {
     const persist = vi.fn();
     const billing = fakeBilling({ getVoucherInfo: connectionLost });
 
@@ -215,7 +215,7 @@ describe("emitWithContingency", () => {
 
   // The subject only picks how the document is named in the message to the
   // operator.
-  test("el sujeto nombra el documento en el mensaje de contingencia", async () => {
+  test("the subject names the document in the contingency message", async () => {
     const outcome = await emitWithContingency(
       choreography({
         subject: "nota de crédito",
@@ -233,7 +233,7 @@ describe("emitWithContingency", () => {
 
   // Without an explicit `cbteFch` (in production only the tests inject one) the
   // date comes from the business time zone, not the server's.
-  test("sin fecha explícita, el comprobante sale con la fecha de negocio", async () => {
+  test("with no explicit date, the comprobante goes out with the business date", async () => {
     vi.useFakeTimers();
     // 01:30 UTC on the 23rd → still the 22nd in Córdoba (UTC-3).
     vi.setSystemTime(new Date("2026-07-23T01:30:00Z"));
@@ -310,7 +310,7 @@ describe("emitWithContingency", () => {
 
   // An "approved" without a CAE does not count as authorized (ADR-0012): nothing
   // is persisted.
-  test("aprobado sin CAE: no persiste nada y cuenta como rechazo", async () => {
+  test("approved with no CAE: it persists nothing and counts as a rejection", async () => {
     const persist = vi.fn();
 
     const outcome = await emitWithContingency(
@@ -335,13 +335,13 @@ describe("emitWithContingency", () => {
 });
 
 describe("toArcaDate", () => {
-  test("saca los guiones de la fecha de negocio", () => {
+  test("strips the dashes from the business date", () => {
     expect(toArcaDate("2026-07-22")).toBe("20260722");
   });
 });
 
 describe("recheckWithContingency", () => {
-  test("consulta el correlativo pedido, con el importe y la fecha del server", async () => {
+  test("queries the requested sequence number, with the server's amount and date", async () => {
     const getVoucherInfo = vi.fn(
       async (): Promise<VoucherInfoResultDto | null> => facturaCConsultada,
     );
@@ -354,7 +354,7 @@ describe("recheckWithContingency", () => {
     expect(getVoucherInfo).toHaveBeenCalledWith(43, 1, 11);
   });
 
-  test("el comprobante aparece y coincide: se persiste y queda recuperado", async () => {
+  test("the comprobante shows up and matches: it is persisted and marked recovered", async () => {
     const outcome = await recheckWithContingency(
       choreography(
         {},
@@ -379,7 +379,7 @@ describe("recheckWithContingency", () => {
   });
 
   // It authorizes nothing: re-verification is only `FECompConsultar`.
-  test("no reintenta la autorización", async () => {
+  test("does not retry authorization", async () => {
     const createVoucher = vi.fn(
       async (): Promise<CreateVoucherResultDto> => facturaCAprobada,
     );
@@ -400,7 +400,7 @@ describe("recheckWithContingency", () => {
 
   // A tampered or stale `cbteNro` makes the recomputed amount fail to match: the
   // result stays `unverified`, which is the safe direction.
-  test("importe que no coincide: no persiste y sigue sin verificar", async () => {
+  test("amount that does not match: it does not persist and stays unverified", async () => {
     const persist = vi.fn();
     const outcome = await recheckWithContingency(
       choreography(
@@ -416,7 +416,7 @@ describe("recheckWithContingency", () => {
     expect(outcome).toMatchObject({ ok: false, reason: "unverified" });
   });
 
-  test("fecha que no coincide: no persiste y sigue sin verificar", async () => {
+  test("date that does not match: it does not persist and stays unverified", async () => {
     const outcome = await recheckWithContingency(
       choreography(
         { cbteFch: "20260723" },
@@ -435,7 +435,7 @@ describe("recheckWithContingency", () => {
    * live on ARCA's side, so a `null` never gets promoted to `not-emitted`, no
    * matter how much time has passed since the attempt (ADR-0012 decision 2).
    */
-  test("ARCA sigue sin tenerlo: se queda en no verificado, nunca en no emitido", async () => {
+  test("ARCA still does not have it: it stays unverified, never not emitted", async () => {
     const outcome = await recheckWithContingency(
       choreography(
         {},
@@ -448,7 +448,7 @@ describe("recheckWithContingency", () => {
     expect(outcome).not.toMatchObject({ reason: "not-emitted" });
   });
 
-  test("la consulta falla: sigue sin verificar y no persiste", async () => {
+  test("the lookup fails: it stays unverified and does not persist", async () => {
     const persist = vi.fn();
     const outcome = await recheckWithContingency(
       choreography(

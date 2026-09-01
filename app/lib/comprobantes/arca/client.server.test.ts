@@ -63,7 +63,7 @@ const emissionInput = {
 };
 
 describe("ArcaClient", () => {
-  test("consulta el último autorizado para Factura C (tipo 11) y lo interpreta", async () => {
+  test("queries the last authorized number for Factura C (type 11) and interprets it", async () => {
     const billing = fakeBilling();
     const client = new ArcaClient(billing);
 
@@ -74,7 +74,7 @@ describe("ArcaClient", () => {
     expect(result.nextCbteNro).toBe(43);
   });
 
-  test("emite enviando un FECAESolicitar de Factura C y devuelve el CAE", async () => {
+  test("emits by sending a Factura C FECAESolicitar and returns the CAE", async () => {
     let sent: ArcaVoucher | undefined;
     const billing = fakeBilling({
       createVoucher: vi.fn(async (req: ArcaVoucher) => {
@@ -93,7 +93,7 @@ describe("ArcaClient", () => {
     expect(result.cae).toBe("41124578989845");
   });
 
-  test("propaga el error de validación del builder sin llamar a ARCA", async () => {
+  test("propagates the builder's validation error without calling ARCA", async () => {
     const billing = fakeBilling();
     const client = new ArcaClient(billing);
 
@@ -103,7 +103,7 @@ describe("ArcaClient", () => {
     expect(billing.createVoucher).not.toHaveBeenCalled();
   });
 
-  test("consulta el último autorizado para Nota de crédito C (tipo 13)", async () => {
+  test("queries the last authorized number for Nota de crédito C (type 13)", async () => {
     const billing = fakeBilling({
       getLastVoucher: vi.fn(async () => ultimoNotaCreditoAutorizado),
     });
@@ -116,7 +116,7 @@ describe("ArcaClient", () => {
     expect(result.nextCbteNro).toBe(8);
   });
 
-  test("emite una Nota de crédito C espejo (tipo 13) con CbtesAsoc y devuelve el CAE", async () => {
+  test("emits a mirror Nota de crédito C (type 13) with CbtesAsoc and returns the CAE", async () => {
     let sent: ArcaVoucher | undefined;
     const billing = fakeBilling({
       createVoucher: vi.fn(async (req: ArcaVoucher) => {
@@ -142,7 +142,7 @@ describe("ArcaClient", () => {
     expect(result.cae).toBe("41124599990011");
   });
 
-  test("consulta un comprobante puntual (FECompConsultar) con el orden posicional del SDK", async () => {
+  test("queries a single comprobante (FECompConsultar) with the SDK's positional order", async () => {
     const billing = fakeBilling({
       getVoucherInfo: vi.fn(async () => facturaCConsultada),
     });
@@ -163,7 +163,7 @@ describe("ArcaClient", () => {
     });
   });
 
-  test("un comprobante inexistente vuelve como null, no como error", async () => {
+  test("a non-existent comprobante comes back as null, not as an error", async () => {
     const client = new ArcaClient(fakeBilling());
 
     await expect(
@@ -175,7 +175,7 @@ describe("ArcaClient", () => {
 // The SDK imposes no timeout at any layer: without ours, a call that never
 // answers leaves the promise hanging forever (ADR-0012 decision 2).
 describe("ArcaClient (timeouts)", () => {
-  test("acota FECompUltimoAutorizado con el timeout de consulta", async () => {
+  test("bounds FECompUltimoAutorizado with the lookup timeout", async () => {
     const billing = fakeBilling({ getLastVoucher: vi.fn(neverAnswers) });
     const client = new ArcaClient(billing, FAST_TIMEOUTS);
 
@@ -184,7 +184,7 @@ describe("ArcaClient (timeouts)", () => {
     );
   });
 
-  test("acota FECAESolicitar con el timeout de autorización", async () => {
+  test("bounds FECAESolicitar with the authorization timeout", async () => {
     const billing = fakeBilling({ createVoucher: vi.fn(neverAnswers) });
     const client = new ArcaClient(billing, FAST_TIMEOUTS);
 
@@ -193,7 +193,7 @@ describe("ArcaClient (timeouts)", () => {
     );
   });
 
-  test("acota también la consulta del último de la serie tipo 13 y su emisión", async () => {
+  test("also bounds the type 13 series' last-number lookup and its emission", async () => {
     const client = new ArcaClient(
       fakeBilling({
         getLastVoucher: vi.fn(neverAnswers),
@@ -215,7 +215,7 @@ describe("ArcaClient (timeouts)", () => {
     ).rejects.toThrow(/FECAESolicitar/);
   });
 
-  test("acota FECompConsultar: la recuperación no puede quedar colgada", async () => {
+  test("bounds FECompConsultar: recovery cannot be left hanging", async () => {
     const billing = fakeBilling({ getVoucherInfo: vi.fn(neverAnswers) });
     const client = new ArcaClient(billing, FAST_TIMEOUTS);
 
@@ -224,7 +224,7 @@ describe("ArcaClient (timeouts)", () => {
     ).rejects.toThrow(/FECompConsultar/);
   });
 
-  test("una llamada que responde a tiempo no se ve afectada", async () => {
+  test("a call that responds in time is unaffected", async () => {
     const client = new ArcaClient(fakeBilling(), FAST_TIMEOUTS);
 
     await expect(client.getLastFacturaCNumber(1)).resolves.toMatchObject({
@@ -232,7 +232,7 @@ describe("ArcaClient (timeouts)", () => {
     });
   });
 
-  test("los timeouts por defecto son 15s de consulta y 30s de autorización", () => {
+  test("the default timeouts are 15s for lookup and 30s for authorization", () => {
     expect(ARCA_TIMEOUTS).toEqual({ lookup: 15_000, authorization: 30_000 });
   });
 });
@@ -245,7 +245,7 @@ describe("readArcaClientConfig", () => {
     ARCA_PRODUCTION: "false",
   });
 
-  test("decodifica cert+key base64 a PEM y lee el CUIT", () => {
+  test("decodes base64 cert+key into PEM and reads the CUIT", () => {
     const config = readArcaClientConfig(validEnv());
 
     expect(config.cert).toContain("-----BEGIN CERTIFICATE-----");
@@ -254,7 +254,7 @@ describe("readArcaClientConfig", () => {
     expect(config.production).toBe(false);
   });
 
-  test("homologación es el ambiente por defecto y producción se habilita explícitamente", () => {
+  test("homologación is the default environment and production is enabled explicitly", () => {
     const { ARCA_PRODUCTION: _omit, ...withoutFlag } = validEnv();
     expect(readArcaClientConfig(withoutFlag).production).toBe(false);
 
@@ -264,7 +264,7 @@ describe("readArcaClientConfig", () => {
     ).toBe(true);
   });
 
-  test("rechaza un base64 que no decodifica a un PEM", () => {
+  test("rejects base64 that does not decode into a PEM", () => {
     expect(() =>
       readArcaClientConfig({
         ...validEnv(),
@@ -273,13 +273,13 @@ describe("readArcaClientConfig", () => {
     ).toThrow(/PEM/);
   });
 
-  test("exige el certificado", () => {
+  test("requires the certificate", () => {
     const { ARCA_CERT_B64: _omit, ...withoutCert } = validEnv();
 
     expect(() => readArcaClientConfig(withoutCert)).toThrow(/ARCA_CERT_B64/);
   });
 
-  test("rechaza un CUIT no entero", () => {
+  test("rejects a non-integer CUIT", () => {
     expect(() =>
       readArcaClientConfig({ ...validEnv(), ARCA_CUIT: "no-numero" }),
     ).toThrow(/ARCA_CUIT/);

@@ -16,7 +16,7 @@ const qrInput: ComprobanteQrInput = {
 };
 
 describe("renderComprobanteQrSvg", () => {
-  test("genera un SVG autocontenido del QR de la RG 4291", async () => {
+  test("generates a self-contained SVG of the RG 4291 QR", async () => {
     const svg = await renderComprobanteQrSvg(qrInput);
 
     expect(svg.startsWith("<svg")).toBe(true);
@@ -25,7 +25,7 @@ describe("renderComprobanteQrSvg", () => {
     expect(svg).toContain("<path");
   });
 
-  test("es determinístico para el mismo comprobante", async () => {
+  test("is deterministic for the same comprobante", async () => {
     const first = await renderComprobanteQrSvg(qrInput);
     const second = await renderComprobanteQrSvg(qrInput);
 

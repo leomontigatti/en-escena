@@ -78,7 +78,7 @@ function facturaCInput(
 }
 
 describe("recordComprobante persistence", () => {
-  test("persiste el snapshot fiscal completo de la Factura C con sus líneas por inscripción", async () => {
+  test("persists the Factura C's full fiscal snapshot with its per-inscription lines", async () => {
     const { choreography, inscription } = await seedInscribedChoreography(
       `snapshot.${crypto.randomUUID()}@example.com`,
     );
@@ -117,7 +117,7 @@ describe("recordComprobante persistence", () => {
     ]);
   });
 
-  test("el estado se deriva: vigente por defecto, anulada cuando existe una Nota de crédito asociada", async () => {
+  test("the status is derived: `vigente` by default, `anulada` when an associated Nota de crédito exists", async () => {
     const { choreography, inscription } = await seedInscribedChoreography(
       `estado.${crypto.randomUUID()}@example.com`,
     );
@@ -156,7 +156,7 @@ describe("recordComprobante persistence", () => {
     expect(notaCredito?.status).toBe("vigente");
   });
 
-  test("el estado vigente/anulada no se persiste como columna", async () => {
+  test("the `vigente`/`anulada` status is not persisted as a column", async () => {
     const result = await db.execute<{ column_name: string }>(
       sql`select column_name from information_schema.columns where table_name = 'en_escena_comprobante'`,
     );
@@ -167,7 +167,7 @@ describe("recordComprobante persistence", () => {
     }
   });
 
-  test("conserva la coreografía ancla viva: no se puede borrar una coreografía con comprobantes (sin huérfanos)", async () => {
+  test("keeps the anchor choreography alive: a choreography with comprobantes cannot be deleted (no orphans)", async () => {
     const { choreography, inscription } = await seedInscribedChoreography(
       `ancla.${crypto.randomUUID()}@example.com`,
     );
@@ -188,7 +188,7 @@ describe("recordComprobante persistence", () => {
     expect(survivors).toHaveLength(1);
   });
 
-  test("la fila emitida sobrevive a la edición de roster: quitar una inscripción no la muta ni la borra", async () => {
+  test("the emitted row survives a roster edit: removing an inscription neither mutates nor deletes it", async () => {
     const { choreography, inscription } = await seedInscribedChoreography(
       `roster.${crypto.randomUUID()}@example.com`,
     );

@@ -451,7 +451,7 @@ describe("ChoreographyFinanceDetailView actions menu", () => {
    * saw it. The billable is frozen on open and the dialog unmounts when it is
    * closed, not when it loses the affordance (#577).
    */
-  test("el diálogo de emisión sobrevive a que la coreografía deje de ser facturable", async () => {
+  test("the emission dialog survives the choreography ceasing to be invoiceable", async () => {
     function Wrapper() {
       const [billable, setBillable] = useState(true);
 
