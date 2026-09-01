@@ -38,7 +38,7 @@ describe("DialogContent dismissal", () => {
       <Dialog open onOpenChange={onOpenChange}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Asignar plata</DialogTitle>
+            <DialogTitle>Asignar dinero</DialogTitle>
             <DialogDescription>Un diálogo con un select.</DialogDescription>
           </DialogHeader>
           <Select open={isSelectOpen} onOpenChange={setIsSelectOpen}>

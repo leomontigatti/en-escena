@@ -105,9 +105,9 @@ export const paymentAllocations = createTable(
     inscriptionId: varchar("inscription_id", { length: 255 }).notNull(),
     academyId: varchar("academy_id", { length: 255 }).notNull(),
     eventId: varchar("event_id", { length: 255 }).notNull(),
-    // Plata contra una inscripción, sin rol. Hay a lo sumo una fila por
-    // (pago, inscripción): se escribe por upsert sumando, y se borra cuando un
-    // decremento la deja en cero.
+    // Money against an inscription, with no role. There is at most one row per
+    // (payment, inscription): it is written by a summing upsert, and deleted
+    // when a decrement leaves it at zero.
     amount: integer("amount").notNull(),
     createdAt: timestamp("created_at", {
       mode: "date",

@@ -29,20 +29,21 @@ import {
 import { guardAndLockScheduleCapacityMove } from "@/lib/choreographies/schedule-capacity-lock.server";
 
 /**
- * Administración edita el roster (bailarines y profesores) de una coreografía ya
- * creada. A diferencia del portal, no está atada a la ventana de inscripción: el
- * único bloqueo duro es que la coreografía ya tenga una presentación asociada.
+ * Administration edits the roster (dancers and professors) of an
+ * already-created choreography. Unlike the portal, it is not tied to the
+ * registration window: the only hard lock is the choreography already having a
+ * presentation attached.
  *
- * A diferencia del reemplazo total del portal, las inscripciones que se
- * mantienen no se tocan (marca de agua: una `señada` no vuelve a `impaga`). Alta
- * de bailarín → inscripción nueva, o la revivida si ya estaba retirada; baja →
- * borrado físico sin evidencia, retiro con ella (`removeInscriptionsFromRoster`).
- * La plata no se mueve en ninguno de los dos casos.
+ * Unlike the portal's wholesale replacement, the inscriptions that stay are
+ * left untouched (watermark: a `señada` does not fall back to `impaga`).
+ * Adding a dancer → a new inscription, or the revived one if it was already
+ * withdrawn; removing one → a physical delete without evidence, a withdrawal
+ * with it (`removeInscriptionsFromRoster`). Money moves in neither case.
  *
- * `name` es opcional y viaja acá para que el detalle admin pueda guardar nombre y
- * roster en un solo submit. Cuando cambian los bailarines se persiste dentro de la
- * misma transacción que el roster. Un rename aislado no pasa por acá: usa
- * `rename-choreography`, que no tiene el hard lock por presentación.
+ * `name` is optional and travels here so the admin detail can save name and
+ * roster in a single submit. When the dancers change it is persisted inside the
+ * same transaction as the roster. An isolated rename does not come through
+ * here: it uses `rename-choreography`, which has no presentation hard lock.
  */
 export async function updateAdministrativeChoreographyRoster(input: {
   academyId: string;

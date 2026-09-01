@@ -423,7 +423,7 @@ async function applySelectedPrice(
       return {
         ok: false,
         message:
-          "El precio queda fijo desde que la inscripción cubre su seña. Para cambiarlo hay que quitarle plata hasta dejarla por debajo de la seña.",
+          "El precio queda fijo desde que la inscripción cubre su seña. Para cambiarlo hay que quitarle dinero hasta dejarla por debajo de la seña.",
       };
     }
 
