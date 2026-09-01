@@ -50,6 +50,7 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
     ),
     filterValue: (choreography) =>
       formatEventSequenceNumber(choreography.choreographyNumber),
+    sortValue: (choreography) => choreography.choreographyNumber,
   },
   {
     id: "nombre",

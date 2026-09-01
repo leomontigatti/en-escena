@@ -120,11 +120,9 @@ function ChoreographyTable({
       id: "name",
       header: "Nombre",
       className: "font-medium",
-      cell: (choreography) => (
-        <DataTableLink to={`/portal/coreografias/${choreography.id}`}>
-          {choreography.name}
-        </DataTableLink>
-      ),
+      // The number is the row's only way into the detail. Linking the name too
+      // gave one destination two targets, which reads as a choice and is not.
+      cell: (choreography) => choreography.name,
       filterValue: (choreography) =>
         [
           choreography.name,
@@ -196,7 +194,7 @@ function ChoreographyTable({
       textFilterColumnId="name"
       facetedFilters={buildChoreographyFacetedFilters(choreographies)}
       emptyMessage="No hay coreografías que coincidan con la búsqueda o los filtros."
-      initialSort={{ columnId: "name", direction: "asc" }}
+      initialSort={{ columnId: "number", direction: "asc" }}
     />
   );
 }

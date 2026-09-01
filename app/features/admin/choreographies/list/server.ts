@@ -53,7 +53,7 @@ type HydratedChoreographyRow = ChoreographyListItem & {
   modalityId: string;
 };
 
-type ChoreographySortColumn = "academia" | "nombre";
+type ChoreographySortColumn = "numero" | "academia" | "nombre";
 
 type ChoreographyOrder = {
   columnId: ChoreographySortColumn;
@@ -94,7 +94,7 @@ export type ChoreographyListResult = {
 
 const choreographyPageSize = 50;
 const defaultChoreographyOrder: ChoreographyOrder = {
-  columnId: "academia",
+  columnId: "numero",
   direction: "asc",
 };
 
@@ -284,6 +284,10 @@ function buildCanonicalChoreographiesSearch(input: {
 
 function readChoreographyOrder(value: string | null): ChoreographyOrder {
   switch (value) {
+    case "numero:asc":
+      return { columnId: "numero", direction: "asc" };
+    case "numero:desc":
+      return { columnId: "numero", direction: "desc" };
     case "academia:asc":
       return { columnId: "academia", direction: "asc" };
     case "academia:desc":
@@ -461,6 +465,15 @@ function compareChoreographies(
   secondRow: ChoreographyListItem,
   order: ChoreographyOrder,
 ) {
+  // The list is always scoped to one event and the number is unique within
+  // it, so ordering by number never ties and needs no second criterion.
+  if (order.columnId === "numero") {
+    return applySortDirection(
+      firstRow.choreographyNumber - secondRow.choreographyNumber,
+      order.direction,
+    );
+  }
+
   if (order.columnId === "nombre") {
     const comparison = compareText(firstRow.name, secondRow.name);
 

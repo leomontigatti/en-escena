@@ -84,6 +84,11 @@ describe("PortalChoreographiesListRouteView", () => {
     expect(markup).toContain("Nueva coreografía");
     expect(markup).toContain('disabled=""');
     expect(markup).toContain('href="/portal/coreografias/choreo_1"');
+    // The number is the row's only link to the detail; the name renders as
+    // plain text beside it. The positive assertion keeps the negative one
+    // honest: it fixes the markup shape both of them are read against.
+    expect(markup).toContain(">00001</a>");
+    expect(markup).not.toContain(">Mi Pieza</a>");
   });
 
   test("disables Nueva coreografía when there are no bailarines activos", () => {
