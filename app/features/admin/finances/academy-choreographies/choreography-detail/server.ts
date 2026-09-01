@@ -101,9 +101,9 @@ export async function loadChoreographyFinanceDetail(input: {
 
   return {
     academy,
-    // De la academia y no de la coreografía: la plata cobrada sin imputar no es
-    // de ninguna. Viaja hasta acá porque es el pozo del que sale toda imputación
-    // que se haga en este detalle.
+    // The academy's and not the choreography's: money collected but not
+    // allocated belongs to neither. It travels this far because it is the pool
+    // every allocation made in this detail comes out of.
     availableBalanceAmount: financeDetail.summary.availableBalanceAmount,
     invoicing,
     choreography: {

@@ -91,13 +91,14 @@ describe("DancerNameCell interaction", () => {
     expect(amountInput().placeholder).toBe("$ 3.000");
   });
 
-  // Se traba al cubrir la seña —3000 de 3000—, que es donde la traba la regla.
+  // It locks on covering the deposit —3000 of 3000—, which is where the rule
+  // locks it.
   test("locks the price of an inscription that covers its seña", async () => {
     await mount();
 
     await clickReactDomButton("Bruno Benítez");
 
-    // Trabado y sin aviso: el precio es una lectura y no hay selector.
+    // Locked and unannounced: the price is a readout and there is no picker.
     expect(document.querySelector('[data-slot="select-trigger"]')).toBeNull();
     expect(dialogText()).not.toContain("Para cambiarle el precio");
     // And it says what the picker it replaces said, deposit included.
@@ -108,8 +109,8 @@ describe("DancerNameCell interaction", () => {
     expect(readout?.value).toBe("Dúo general · $ 10.000 · seña $ 3.000");
   });
 
-  // Debajo de la seña el precio se sigue re-derivando solo, así que el selector
-  // sigue estando: el primer peso no traba nada.
+  // Below the deposit the price keeps re-deriving on its own, so the picker is
+  // still there: the first peso locks nothing.
   test("keeps the picker on a row that holds money but has not covered its seña", async () => {
     await mount({
       inscriptions: [
@@ -129,7 +130,8 @@ describe("DancerNameCell interaction", () => {
     ).not.toBeNull();
   });
 
-  // Las dos deudas repiten el precio de arriba mientras no haya plata puesta.
+  // The two owed figures restate the price above them while there is no money
+  // on the row.
   test("shows the owed figures only once the inscription holds money", async () => {
     await mount({
       inscriptions: [
@@ -153,8 +155,8 @@ describe("DancerNameCell interaction", () => {
     expect(dialogText()).toContain("Seña adeudada");
   });
 
-  // El techo es lo que se adeuda, y se dice bajo el campo en vez de volver del
-  // servidor como alerta.
+  // The ceiling is what is owed, and it is said under the field instead of
+  // coming back from the server as an alert.
   test("says the range under the field when the allocated amount exceeds what is owed", async () => {
     await mount();
 
@@ -188,10 +190,11 @@ describe("DancerNameCell interaction", () => {
     ).not.toBeNull();
   });
 
-  // El selector abre en el precio **efectivo**, no en el guardado. Abrirlo en el
-  // guardado dejaba el diálogo diciendo dos precios a la vez —el selector, uno;
-  // el placeholder del monto y las dos deudas, otro— y confirmar sin tocarlo
-  // fijaba el viejo en cuanto la imputación cubría la seña.
+  // The picker opens on the **effective** price, not on the stored one. Opening
+  // it on the stored one left the dialog saying two prices at once —the picker,
+  // one; the amount's placeholder and the two owed figures, another— and
+  // confirming without touching it fixed the old one as soon as the allocation
+  // covered the deposit.
   test("opens the price picker on the effective price", async () => {
     await mount({
       inscriptions: [
@@ -249,19 +252,19 @@ describe("DancerNameCell interaction", () => {
     expect(dialogText()).toContain(removeDescription);
     expect(dialogText()).not.toContain("Precio");
     expect(document.querySelector('[data-slot="select-trigger"]')).toBeNull();
-    // Todo lo asignado se sugiere como placeholder, igual que al imputar, y
-    // acepta cualquier monto menor.
+    // Everything allocated is hinted as a placeholder, just like when
+    // allocating, and any smaller amount is accepted.
     const removed = amountInput("inscription-removed-amount");
 
     expect(removed.value).toBe("");
     expect(removed.placeholder).toBe("$ 10.000");
-    // El total asignado lo dice el placeholder, así que la línea `Asignado` que
-    // lo repetía debajo del campo se fue.
+    // The placeholder says the allocated total, so the `Asignado` line that
+    // repeated it under the field is gone.
     expect(dialogText()).not.toContain("Asignado");
   });
 
-  // El rango se dice bajo el campo y no como alerta: es sobre lo que se tipeó, y
-  // el borde se conoce acá sin ir al servidor.
+  // The range is said under the field and not as an alert: it is about what was
+  // typed, and the bound is known here without going to the server.
   test("says the range under the field when the amount is out of it", async () => {
     await mount({
       inscriptions: [
@@ -570,8 +573,8 @@ describe("inscriptions table filters", () => {
   test("filters by the badge the Estado column shows, Retirada included", async () => {
     await mount();
 
-    // `Retirada` reemplaza al estado de dinero, así que filtrar por `Pagada` no
-    // trae a la retirada aunque su plata esté completa.
+    // `Retirada` replaces the money status, so filtering by `Pagada` does not
+    // bring the withdrawn one in even though its money is complete.
     await selectStatusOption("Pagada");
     expect(renderedDancerNames()).toEqual(["Ana López"]);
 
@@ -593,14 +596,14 @@ function searchInput(): HTMLInputElement {
   return input;
 }
 
-/** Los nombres visibles de la tabla, en orden. */
+/** The names the table shows, in order. */
 function renderedDancerNames() {
   return [
     ...document.querySelectorAll('[aria-label="Inscripciones"] tbody tr'),
   ].map((row) => row.querySelector("td")?.textContent?.trim() ?? "");
 }
 
-/** Abre el menú de filtros y togglea una opción de `Estado` por su etiqueta. */
+/** Opens the filters menu and toggles an `Estado` option by its label. */
 async function selectStatusOption(label: string) {
   const trigger = document.querySelector('button[aria-label^="Filtros"]');
 

@@ -172,14 +172,16 @@ function AllocateMoneyDialog({
 }) {
   const fetcher = useMoneyWriteFetcher(onOpenChange);
   const [amount, setAmount] = useState("");
-  // Arranca en el precio **efectivo**: es el que produce todas las cifras de
-  // este diálogo —el placeholder del monto, las dos deudas— y el que muestra la
-  // fila de atrás. Abrirlo en el precio guardado dejaba el selector diciendo una
-  // cosa y todo lo demás otra, y confirmar sin tocarlo fijaba ese precio viejo
-  // apenas la imputación cubría la seña.
+  // It starts on the **effective** price: it is the one that produces every
+  // figure in this dialog —the amount's placeholder, the two owed figures— and
+  // the one the row behind it shows. Opening it on the stored price left the
+  // picker saying one thing and everything else another, and confirming without
+  // touching it fixed that old price as soon as the allocation covered the
+  // deposit.
   const [priceId, setPriceId] = useState(inscription.effectivePrice?.id ?? "");
   const isSaving = fetcher.state !== "idle";
-  // Se traba donde la traba la regla: al cubrir la seña, no al primer peso.
+  // It locks where the rule locks it: on covering the deposit, not on the
+  // first peso.
   const isPriceLocked = hasCrossedDepositThreshold({
     allocatedAmount: inscription.allocatedAmount,
     depositAmount: inscription.depositAmount,
@@ -188,9 +190,9 @@ function AllocateMoneyDialog({
     inscription.owedDepositAmount === null || inscription.owedDepositAmount > 0
       ? inscription.owedDepositAmount
       : inscription.owedBalanceAmount;
-  // El techo es lo que la inscripción adeuda, que es lo que refuta el servidor.
-  // El pozo de la academia es otro techo, y ése no se conoce acá: sigue siendo
-  // una alerta.
+  // The ceiling is what the inscription owes, which is what the server refuses
+  // against. The academy's pool is another ceiling, and that one is not known
+  // here: it stays an alert.
   const owedBalanceAmount = inscription.owedBalanceAmount;
   const isOutOfRange =
     amount !== "" &&
@@ -273,8 +275,8 @@ function AllocateMoneyDialog({
           </SharedFieldLayout>
         </FieldGroup>
 
-        {/* Las dos deudas sólo cuando ya hay plata puesta: en una inscripción
-            vacía repiten el precio que está justo arriba. */}
+        {/* The two owed figures only once there is money on it: on an empty
+            inscription they restate the price sitting right above. */}
         {inscription.allocatedAmount > 0 ? (
           <OwedSummary inscription={inscription} />
         ) : null}
@@ -328,8 +330,8 @@ function AllocateMoneyDialog({
  * about what was typed, and the bound is known here — what is allocated is a
  * fact, not a projection, so the dialog can name the range instead of waiting
  * for the server to refuse it. The two server refusals it stands in for
- * ("El monto a quitar tiene que ser mayor a 0." and "La inscripción no tiene esa
- * plata asignada.") survive as guards, and still surface in the alert if the
+ * ("El monto a quitar tiene que ser mayor a 0." and "La inscripción no tiene ese
+ * dinero asignado.") survive as guards, and still surface in the alert if the
  * figure moved under the administrator while the dialog was open.
  *
  * There is no payment to pick: the amount unwinds newest-first through the pool

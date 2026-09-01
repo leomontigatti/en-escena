@@ -119,9 +119,9 @@ export const choreographyStatusFilterOptions = [
 ] as const satisfies ReadonlyArray<{ label: string; value: string }>;
 
 /**
- * Las mismas opciones para la columna `Estado` de una lista de inscripciones,
- * más `Retirada`: el eje de retiro es de la inscripción, y ahí sí hay filas que
- * la opción puede encontrar.
+ * The same options for the `Estado` column of a list of inscriptions, plus
+ * `Retirada`: the withdrawal axis belongs to the inscription, and there the
+ * option does have rows it can find.
  */
 export const inscriptionStatusFilterOptions = [
   ...choreographyStatusFilterOptions,

@@ -45,10 +45,10 @@ const accountColumns: DataTableColumn<FinanceAccountRow>[] = [
   {
     id: "totalAmount",
     header: "Total",
-    // Decorativo y sin condición, igual que en la tabla de coreografías:
-    // `Total` es la columna de contexto —contra qué se mide lo adeudado—, así
-    // que va atenuada entera. Nunca por fila: un gris que varía vuelve a
-    // significar algo.
+    // Decorative and unconditional, just like in the choreographies table:
+    // `Total` is the context column —what the owed figures are measured
+    // against— so it is dimmed whole. Never per row: a grey that varies starts
+    // meaning something again.
     className: "text-right tabular-nums text-muted-foreground",
     headerClassName: "text-right",
     cell: (row) => formatOperationalAmount(row.totalAmount),

@@ -29,9 +29,9 @@ describe("ChoreographyFinanceDetailView", () => {
   test("identifies the choreography in the title and drops the readonly data card", () => {
     const markup = renderDetail();
 
-    // Sólo el nombre en el título: es lo que identifica la coreografía. La
-    // descripción es genérica: dice qué se hace en la vista, no de quién es la
-    // coreografía.
+    // Only the name in the title: it is what identifies the choreography. The
+    // description is generic: it says what is done in the view, not whose
+    // choreography it is.
     expect(markup).toContain("Aire");
     expect(markup).not.toContain("Aire - Dúo");
     expect(markup).toContain(
@@ -45,14 +45,14 @@ describe("ChoreographyFinanceDetailView", () => {
   test("renders the five choreography metrics, and the inscriptions with their state", () => {
     const markup = renderDetail();
 
-    // Las mismas cinco que la academia, acotadas a esta coreografía.
+    // The same five as the academy, narrowed to this choreography.
     expect(amountCard(markup, "Seña total").textContent).toContain("$ 3.000");
     expect(amountCard(markup, "Seña adeudada").textContent).toContain("$ 0");
     expect(amountCard(markup, "Total").textContent).toContain("$ 10.000");
     expect(amountCard(markup, "Saldo adeudado").textContent).toContain(
       "$ 7.000",
     );
-    // De la academia, no de la coreografía: es el pozo sin imputar.
+    // The academy's, not the choreography's: it is the unallocated pool.
     expect(amountCard(markup, "Saldo disponible").textContent).toContain(
       "$ 5.000",
     );
@@ -70,7 +70,7 @@ describe("ChoreographyFinanceDetailView", () => {
     expect(headers).toContain("Precio");
     expect(headers).not.toContain("Precio base");
 
-    // El nombre de la fila de precio, no su importe.
+    // The name of the price row, not its amount.
     const cell = columnCell(markup, "Precio", 0);
     expect(cell.textContent?.trim()).toBe("Dúo general");
     expect(cell.querySelector('[data-slot="badge"]')).not.toBeNull();
@@ -498,8 +498,8 @@ describe("ChoreographyFinanceDetailView actions menu", () => {
     await renderer.renderAsync(<RouterProvider router={router} />);
   }
 
-  // Sin remanente por facturar el menú sigue estando: lo que se deshabilita es
-  // la opción. Un botón que aparece y desaparece no enseña qué se puede hacer.
+  // With nothing left to bill the menu is still there: what gets disabled is the
+  // option. A button that comes and goes does not teach what can be done.
   test("keeps the actions menu visible and disables Emitir factura with nothing to bill", async () => {
     await mount();
 

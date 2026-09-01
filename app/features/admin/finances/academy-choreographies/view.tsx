@@ -61,10 +61,11 @@ export function AcademyFinancesRouteView({
     selectedRowIds.includes(row.id),
   );
   const hasSelection = selectedRows.length > 0;
-  // Las dos deudas se acotan a la selección; los umbrales y el disponible no.
-  // `Seña adeudada` y `Saldo adeudado` son contra qué se cobra, y el cobro ya
-  // opera sobre lo seleccionado: dejarlas en el total de la academia obliga a
-  // sumar de memoria cuánto se está por cobrar.
+  // The two owed figures are narrowed to the selection; the thresholds and the
+  // available balance are not. `Seña adeudada` and `Saldo adeudado` are what the
+  // collection is measured against, and the collection already operates on the
+  // selection: leaving them at the academy's total forces adding up from memory
+  // how much is about to be collected.
   const owedDepositAmount = hasSelection
     ? sumOperationalFinanceAmounts(
         selectedRows.map((row) => row.owedDepositAmount),
@@ -92,9 +93,9 @@ export function AcademyFinancesRouteView({
           "Activá un evento para consultar la lista financiera de las coreografías de la academia.",
       }}
       headerAction={
-        // El menú está siempre: que el botón aparezca y desaparezca según la
-        // selección esconde qué se puede hacer acá. Sin filas seleccionadas los
-        // dos cobros quedan deshabilitados —no hay sobre qué cobrar—, pero
+        // The menu is always there: a button that comes and goes with the
+        // selection hides what can be done here. With no rows selected both
+        // collections are disabled —there is nothing to collect against— but
         // siguen a la vista.
         <ResourceActionsMenu contentClassName="w-48">
           <DropdownMenuItem
@@ -119,9 +120,10 @@ export function AcademyFinancesRouteView({
       }
     >
       <div className="flex flex-col gap-6">
-        {/* Cada umbral con su deuda al lado —`Seña total` con `Seña adeudada`,
-            `Total` con `Saldo adeudado`— y el disponible al final, que no es de
-            ninguno de los dos pares: es plata de la academia sin asignar. */}
+        {/* Each threshold with its owed figure beside it —`Seña total` with
+            `Seña adeudada`, `Total` with `Saldo adeudado`— and the available
+            balance at the end, which belongs to neither pair: it is the
+            academy's unallocated money. */}
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           <MetricCard
             title="Seña total"

@@ -58,9 +58,9 @@ export function ChoreographyFinanceDetailView({
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
-      // El título es el nombre de la coreografía y nada más: es lo que la
-      // identifica dentro de la academia, y el tipo de grupo ya está en cada
-      // precio de la lista.
+      // The title is the choreography's name and nothing else: it is what
+      // identifies it within the academy, and the group type is already on every
+      // price in the list.
       title={choreography ? choreography.name : "Coreografía no encontrada"}
       description={
         choreography
@@ -82,7 +82,7 @@ export function ChoreographyFinanceDetailView({
         <div className="flex flex-col gap-6">
           <ChoreographyAlerts loaderData={loaderData} />
 
-          {/* Las mismas cinco métricas que la academia, acotadas a esta
+          {/* The same five metrics as the academy, narrowed to this
               coreografía: cada umbral con su deuda al lado. `Saldo disponible`
               es la excepción y sigue siendo de la academia —la plata sin asignar
               no es de ninguna coreografía—, y es justo el pozo del que sale lo
@@ -187,9 +187,9 @@ function OverAllocatedAlert() {
  * dropdown closes. The `Pagar seña` / `Pagar saldo` presets do not live here:
  * they are list actions over the selected choreographies.
  *
- * El menú está siempre, y sin remanente lo que se deshabilita es la opción: un
- * botón que aparece y desaparece no enseña qué se puede hacer en la vista, y
- * "está pero no se puede" dice más que "no está".
+ * The menu is always there, and with nothing left to bill what gets disabled is
+ * the option: a button that comes and goes does not teach what can be done in the
+ * view, and "it is there but it cannot be used" says more than "it is not there".
  */
 function ChoreographyActions({
   loaderData,
@@ -343,10 +343,10 @@ function DancerNameCell({
 
 const inscriptionAmountColumns: DataTableColumn<InscriptionRow>[] = [
   {
-    // El nombre de la fila de precio y no su importe: el importe ya está en
-    // `Total`, y lo que no se podía leer en ningún lado era *cuál* de los
-    // precios del evento rige esta inscripción. Es el precio efectivo, el mismo
-    // con el que se calculan las cifras de la fila.
+    // The name of the price row and not its amount: the amount is already in
+    // `Total`, and what could not be read anywhere was *which* of the event's
+    // prices governs this inscription. It is the effective price, the same one
+    // the row's figures are calculated with.
     id: "price",
     header: "Precio",
     cell: (inscription) =>
@@ -355,8 +355,8 @@ const inscriptionAmountColumns: DataTableColumn<InscriptionRow>[] = [
       ) : (
         <Badge variant="secondary">{inscription.effectivePrice.name}</Badge>
       ),
-    // Sin `filterValue`: el nombre del precio no es una opción del filtro de
-    // `Estado`, y las facetas juntan los valores de todas las columnas.
+    // No `filterValue`: the price's name is not an option of the `Estado`
+    // filter, and the facets gather the values of every column.
     sortValue: (inscription) => inscription.effectivePrice?.name ?? "",
   },
   {
@@ -386,14 +386,14 @@ const inscriptionAmountColumns: DataTableColumn<InscriptionRow>[] = [
       formatInscriptionAmount(inscription.owedBalanceAmount),
   },
   {
-    // Última, después del dinero: el estado se deriva de las cifras de la fila,
-    // así que se lee como su conclusión y no como su encabezado.
+    // Last, after the money: the status is derived from the row's figures, so it
+    // reads as their conclusion and not as their heading.
     id: "financialStatus",
     header: "Estado",
     cell: (inscription) => <InscriptionStatusCell inscription={inscription} />,
-    // El filtro sale del mismo badge que muestra la celda, no de
-    // `financialStatus`: una fila badgeada `Retirada` que apareciera filtrando
-    // por `Pagada` se contradiría en pantalla.
+    // The filter comes from the same badge the cell shows and not from
+    // `financialStatus`: a row badged `Retirada` that showed up when filtering
+    // by `Pagada` would contradict itself on screen.
     filterValue: (inscription) => resolveStatusBadge(inscription).value,
   },
 ];

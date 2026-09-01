@@ -47,8 +47,8 @@ describe("AcademyFinancesRouteView", () => {
 
     expect(text).toContain("Academia Centro");
     expect(text).toContain("Lista financiera de las coreografías");
-    // Las cinco métricas: cada umbral con su deuda al lado y el disponible al
-    // final.
+    // The five metrics: each threshold with its owed figure beside it and the
+    // available balance at the end.
     expect(text).toContain("Seña total");
     expect(text).toContain("Seña adeudada");
     expect(text).toContain("Total");
@@ -206,9 +206,9 @@ describe("AcademyFinancesRouteView", () => {
     ]);
   });
 
-  // Las dos deudas son contra qué se cobra, y el cobro opera sobre lo
-  // seleccionado: mostrar el total de la academia mientras se cobran dos
-  // coreografías obliga a sumar de memoria.
+  // The two owed figures are what the collection is measured against, and the
+  // collection operates on the selection: showing the academy's total while two
+  // choreographies are being collected forces adding up from memory.
   test("scopes the owed metrics to the selection and restores them when it is cleared", async () => {
     await renderListIntoDocument({
       loaderData: academyFinancesLoaderDataFixture({
@@ -247,12 +247,13 @@ describe("AcademyFinancesRouteView", () => {
 
     await clickCheckbox(getRenderedCheckboxes()[2]);
 
-    // Las dos elegidas suman lo mismo que la academia entera, que es justo lo
-    // que corresponde: la selección completa no es un caso aparte.
+    // The two chosen ones add up to the same as the whole academy, which is
+    // exactly right: a complete selection is not a special case.
     expect(metricCardText("Seña adeudada")).toContain("$ 7.000");
     expect(metricCardText("Saldo adeudado")).toContain("$ 21.000");
 
-    // Los umbrales y el disponible son de la academia entera y no se mueven.
+    // The thresholds and the available balance are the whole academy's and do
+    // not move.
     expect(metricCardText("Seña total")).toContain("$ 18.000");
     expect(metricCardText("Total")).toContain("$ 60.000");
     expect(metricCardText("Saldo disponible")).toContain("$ 5.000");

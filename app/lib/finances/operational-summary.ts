@@ -57,10 +57,10 @@ export function buildOperationalFinanceAmount(input: {
 }
 
 /**
- * Suma cifras operativas propagando la incompletitud: si a alguna le falta el
- * precio, a la suma también. Vive acá y no en las calculations del servidor
- * porque la vista de la academia rehace la misma suma sobre la selección, y dos
- * sumas distintas para la misma cifra terminan discrepando.
+ * Adds operational figures propagating incompleteness: if any of them is
+ * missing its price, so is the sum. It lives here and not in the server's
+ * calculations because the academy's view redoes the same sum over the
+ * selection, and two different sums for the same figure end up disagreeing.
  */
 export function sumOperationalFinanceAmounts(
   amounts: OperationalFinanceAmount[],
