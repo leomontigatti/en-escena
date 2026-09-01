@@ -41,7 +41,7 @@ installDatabaseTestHooks();
 describe.sequential(
   "administracion Cronogramas de Bases del evento routes",
   () => {
-    test("renders cronogramas as a browse list with lugares disponibles and detail links", async () => {
+    test("renders cronogramas as a browse list with cupo and detail links", async () => {
       const { event, modalityIds } = await createEventScheduleAdminFixture();
 
       const schedule = await expectCreated(
@@ -74,8 +74,8 @@ describe.sequential(
       );
       const markup = renderBloquesHorariosRoute(data);
 
-      expect(markup).toContain("Lugares disponibles");
-      expect(markup).toContain("24 de 24");
+      expect(markup).toContain("Cupo");
+      expect(markup).toContain("/ 24 disponibles");
       expect(markup).toContain("Sábado Mañana");
       expect(markup).toContain("2 de mayo de 2026");
       expect(markup).toContain("09:00");
@@ -183,7 +183,7 @@ describe.sequential(
       expect(markup).toContain("Sábado Mañana");
       expect(markup).toContain("2 de mayo de 2026");
       expect(markup).toContain("09:00");
-      expect(markup).toContain("24 de 24");
+      expect(markup).toContain("/ 24 disponibles");
       expect(markup).toContain("Jazz");
       expect(markup).toContain("Danzas Urbanas");
 

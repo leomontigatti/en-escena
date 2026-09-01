@@ -137,12 +137,7 @@ export function getAvailableScheduleCapacityGroupTypeOptions(
   );
 }
 
-/**
- * Administración plans against what is left, not against what filled up: the
- * column says how many places are free and against which capacity, instead of
- * the `taken/total` pair that read as "full" when it was not.
- */
-export function formatAvailablePlaces({
+function formatAvailablePlaces({
   availablePlaces,
   capacity,
 }: {
@@ -153,10 +148,16 @@ export function formatAvailablePlaces({
 }
 
 /**
- * Read-only text shown inside the cupo field, right after the number being
- * edited: the capacity is already there, so the suffix only adds what is left.
+ * Read-only text shown right after the capacity, both in the list and inside
+ * the field being edited: the capacity is already there, so the suffix only
+ * adds what is left of it. One source, so the two surfaces cannot word the
+ * same count differently.
  */
 export function formatAvailablePlacesSuffix(availablePlaces: number) {
+  if (availablePlaces === 0) {
+    return " / sin lugares";
+  }
+
   return ` / ${availablePlaces} disponibles`;
 }
 

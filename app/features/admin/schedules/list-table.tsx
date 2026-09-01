@@ -4,13 +4,14 @@ import {
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { buildDetailPath } from "@/lib/shared/navigation";
+import { cn } from "@/lib/shared/utils";
 import type { ScheduleListItem } from "@/lib/events/bases.server";
 
 import { ResourceBadge } from "./dialogs";
 import { basePath } from "./shared";
 import {
   buildScheduleFacetedFilters,
-  formatAvailablePlaces,
+  formatAvailablePlacesSuffix,
   formatDate,
 } from "./view-shared";
 
@@ -62,16 +63,16 @@ export function ScheduleList({
       sortValue: (schedule) => schedule.startTime,
     },
     {
-      id: "availablePlaces",
-      header: "Lugares disponibles",
+      id: "capacity",
+      header: "Cupo",
       cell: (schedule) => (
-        <AvailablePlaces
+        <ScheduleCapacity
           availablePlaces={schedule.availablePlaces}
           capacity={schedule.totalCapacity}
         />
       ),
-      className: "font-medium",
-      sortValue: (schedule) => schedule.availablePlaces,
+      className: "font-medium whitespace-nowrap",
+      sortValue: (schedule) => schedule.totalCapacity,
     },
   ];
 
@@ -89,18 +90,31 @@ export function ScheduleList({
   );
 }
 
-function AvailablePlaces({
+/**
+ * Same shape as the cupo field in the form: the capacity, then what is left of
+ * it in muted read-only text. A cronograma with no room reads destructive, so
+ * a full one is findable while scanning the column.
+ */
+function ScheduleCapacity({
   availablePlaces,
   capacity,
 }: {
   availablePlaces: number;
   capacity: number;
 }) {
-  if (availablePlaces === 0) {
-    return <span className="text-destructive">Sin lugares</span>;
-  }
-
-  return <span>{formatAvailablePlaces({ availablePlaces, capacity })}</span>;
+  return (
+    <span>
+      {capacity}
+      <span
+        className={cn(
+          "font-normal",
+          availablePlaces === 0 ? "text-destructive" : "text-muted-foreground",
+        )}
+      >
+        {formatAvailablePlacesSuffix(availablePlaces)}
+      </span>
+    </span>
+  );
 }
 
 function ScheduleModalityBadges({ schedule }: { schedule: ScheduleListItem }) {
