@@ -15,7 +15,10 @@ import {
 } from "@/db/schema";
 import { registerAcademyEventPayment } from "@/features/admin/finances/academy-choreographies/payments.server";
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
-import { createScheduleForModalityFixture } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import {
+  allocateChoreographyNumberForTest,
+  createScheduleForModalityFixture,
+} from "@/lib/choreographies/registration-test-fixtures.server.db";
 import {
   createAcademyRecord as createPortalAcademyRecord,
   createAcademySession as createPortalAcademySession,
@@ -207,11 +210,18 @@ export async function createChoreographyRecord(
     name: string;
   },
 ) {
+  // Numbers through the same path the application uses instead of pinning a
+  // number, so two choreographies of one event in a test cannot collide with
+  // `choreography_event_number_unique`.
+  const choreographyNumber =
+    overrides.choreographyNumber ??
+    (await allocateChoreographyNumberForTest(overrides.eventId));
   const [choreography] = await db
     .insert(choreographies)
     .values({
       academyId: overrides.academyId,
       eventId: overrides.eventId,
+      choreographyNumber,
       name: overrides.name,
       modalityId: overrides.modalityId,
       submodalityId: overrides.submodalityId ?? null,

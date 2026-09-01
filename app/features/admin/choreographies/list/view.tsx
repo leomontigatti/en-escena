@@ -13,6 +13,7 @@ import {
   formatChoreographyOperationalStatusLabel,
   getChoreographyOperationalStatusBadgeVariant,
 } from "@/lib/choreographies/operational-status";
+import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 
 import type { loadChoreographies } from "./server";
@@ -38,23 +39,35 @@ const choreographyGroupTypeFilterOptions = [
 
 const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
   {
-    id: "nombre",
-    header: "Nombre",
-    className: "w-[22%] font-medium",
-    headerClassName: "w-[22%]",
+    id: "numero",
+    header: "#",
+    className: "w-[8%] font-medium tabular-nums",
+    headerClassName: "w-[8%]",
     cell: (choreography) => (
       <DataTableLink to={`/administracion/coreografias/${choreography.id}`}>
-        {choreography.name}
+        {formatEventSequenceNumber(choreography.choreographyNumber)}
       </DataTableLink>
     ),
+    filterValue: (choreography) =>
+      formatEventSequenceNumber(choreography.choreographyNumber),
+    sortValue: (choreography) => choreography.choreographyNumber,
+  },
+  {
+    id: "nombre",
+    header: "Nombre",
+    className: "w-[20%] font-medium",
+    headerClassName: "w-[20%]",
+    // The number is the row's only way into the detail. Linking the name too
+    // gave one destination two targets, which reads as a choice and is not.
+    cell: (choreography) => choreography.name,
     filterValue: (choreography) => choreography.name,
     sortValue: (choreography) => choreography.name,
   },
   {
     id: "academia",
     header: "Academia",
-    className: "w-[22%] text-muted-foreground",
-    headerClassName: "w-[22%]",
+    className: "w-[20%] text-muted-foreground",
+    headerClassName: "w-[20%]",
     cell: (choreography) => choreography.academyName,
     filterValue: (choreography) => choreography.academyName,
     sortValue: (choreography) => choreography.academyName,
@@ -62,8 +75,8 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
   {
     id: "modalidadSubmodalidad",
     header: "Modalidad / Submodalidad",
-    className: "w-[22%] text-muted-foreground",
-    headerClassName: "w-[22%]",
+    className: "w-[20%] text-muted-foreground",
+    headerClassName: "w-[20%]",
     cell: (choreography) =>
       formatPrimaryAndSecondaryValue(
         choreography.modalityName,
@@ -73,8 +86,8 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
   {
     id: "categoriaTipoGrupo",
     header: "Categoría / Tipo de grupo",
-    className: "w-[22%] text-muted-foreground",
-    headerClassName: "w-[22%]",
+    className: "w-[20%] text-muted-foreground",
+    headerClassName: "w-[20%]",
     cell: (choreography) =>
       formatPrimaryAndSecondaryValue(
         choreography.categoryName ?? "Sin asignar",
@@ -135,7 +148,7 @@ function ChoreographyTable({ loaderData }: { loaderData: LoaderData }) {
       pageParamName="pagina"
       searchParamName="busqueda"
       sortParamName="orden"
-      searchPlaceholder="Buscar coreografía por nombre o academia"
+      searchPlaceholder="Buscar coreografía por número, nombre o academia"
       initialSearchValue={loaderData.filters.query}
       facetedFilters={buildChoreographyFacetedFilters(loaderData)}
       initialFacetedFilterValues={buildChoreographyInitialFilters(loaderData)}

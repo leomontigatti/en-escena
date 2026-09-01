@@ -9,6 +9,7 @@ import {
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
+import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { FileUploadField } from "@/components/shared/file-upload-field";
 import { getAssetKindHelperText } from "@/lib/storage/asset-kinds";
 import { MultiComboboxField } from "@/components/shared/multi-combobox-field";
@@ -97,7 +98,9 @@ export function ChoreographyDetailRouteView({
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
       requireSelectedEvent={false}
-      title="Detalle coreografía"
+      title={`Detalle coreografía # ${formatEventSequenceNumber(
+        loaderData.choreography.choreographyNumber,
+      )}`}
       description="Revisá la coreografía registrada para el evento activo."
       headerAction={
         loaderData.canEdit ? (

@@ -69,6 +69,7 @@ type ChoreographyDetailRow = {
   academyId: string;
   academyName: string;
   categoryExperienceLevels: string[] | null;
+  choreographyNumber: number;
   categoryId: string | null;
   categoryName: string | null;
   experienceLevelId: string | null;
@@ -92,6 +93,7 @@ export type ChoreographyDetail = {
   academyId: string;
   academyName: string;
   categoryId: string | null;
+  choreographyNumber: number;
   categoryName: string | null;
   dancers: Array<{
     active: boolean;
@@ -146,6 +148,7 @@ export async function findChoreographyDetail(input: {
       academyName: academies.name,
       categoryExperienceLevels: categories.experienceLevels,
       categoryId: choreographies.categoryId,
+      choreographyNumber: choreographies.choreographyNumber,
       categoryName: categories.name,
       experienceLevelId: choreographies.experienceLevelId,
       groupType: choreographies.groupType,
@@ -209,6 +212,7 @@ export async function findChoreographyDetail(input: {
     academyName: row.academyName,
     categoryId: row.categoryId,
     categoryName: row.categoryName,
+    choreographyNumber: row.choreographyNumber,
     dancers: dancerRows,
     experienceLevelId: row.experienceLevelId,
     experienceLevelName: formatExperienceLevelName(row.experienceLevelId),

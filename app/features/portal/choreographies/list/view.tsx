@@ -17,6 +17,7 @@ import {
   getChoreographyOperationalStatusBadgeVariant,
   type ChoreographyOperationalStatus,
 } from "@/lib/choreographies/operational-status";
+import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { getPortalChoreographyCreationAvailability } from "@/lib/portal/choreography-creation-availability";
 import {
   formatGroupTypeLabel as formatChoreographyGroupTypeLabel,
@@ -103,16 +104,31 @@ function ChoreographyTable({
 }) {
   const columns: DataTableColumn<PortalChoreographyListItem>[] = [
     {
-      id: "name",
-      header: "Nombre",
-      className: "font-medium",
+      id: "number",
+      header: "#",
+      className: "font-medium tabular-nums",
       cell: (choreography) => (
         <DataTableLink to={`/portal/coreografias/${choreography.id}`}>
-          {choreography.name}
+          {formatEventSequenceNumber(choreography.choreographyNumber)}
         </DataTableLink>
       ),
       filterValue: (choreography) =>
+        formatEventSequenceNumber(choreography.choreographyNumber),
+      sortValue: (choreography) => choreography.choreographyNumber,
+    },
+    {
+      id: "name",
+      header: "Nombre",
+      className: "font-medium",
+      // The number is the row's only way into the detail. Linking the name too
+      // gave one destination two targets, which reads as a choice and is not.
+      cell: (choreography) => choreography.name,
+      // The search box filters this one column, so everything meant to be
+      // searchable travels in here. The number is included zero-padded, which
+      // is how `00042`, `042` and `42` all reach the same choreography.
+      filterValue: (choreography) =>
         [
+          formatEventSequenceNumber(choreography.choreographyNumber),
           choreography.name,
           choreography.modalityName,
           choreography.submodalityName,
@@ -178,11 +194,11 @@ function ChoreographyTable({
       rows={choreographies}
       columns={columns}
       getRowKey={(choreography) => choreography.id}
-      searchPlaceholder="Buscar coreografía por nombre, modalidad o categoría"
+      searchPlaceholder="Buscar coreografía por número, nombre, modalidad o categoría"
       textFilterColumnId="name"
       facetedFilters={buildChoreographyFacetedFilters(choreographies)}
       emptyMessage="No hay coreografías que coincidan con la búsqueda o los filtros."
-      initialSort={{ columnId: "name", direction: "asc" }}
+      initialSort={{ columnId: "number", direction: "asc" }}
     />
   );
 }

@@ -52,6 +52,7 @@ function buildLoaderData(
   return {
     choreography: {
       id: "choreo_1",
+      choreographyNumber: 1,
       name: "Danza lunar",
       modalityName: "Jazz",
       submodalityName: "Lyrical",
