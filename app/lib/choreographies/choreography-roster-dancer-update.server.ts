@@ -30,6 +30,10 @@ import {
   type ExperienceLevel,
   isExperienceLevel,
 } from "@/lib/events/experience-levels";
+import {
+  isSelectableForRoster,
+  toRosterPersonStatus,
+} from "@/lib/roster/roster-person-status.shared";
 
 export async function resolveChoreographyDancers(input: {
   academyId: string;
@@ -129,7 +133,12 @@ export async function resolveChoreographyDancerUpdateContext(input: {
 
   const allowedDancerIds = new Set(
     selectedDancers
-      .filter((dancer) => dancer.active || linkedDancerIds.has(dancer.id))
+      .filter((dancer) =>
+        isSelectableForRoster({
+          status: toRosterPersonStatus(dancer.active),
+          isAlreadyLinked: linkedDancerIds.has(dancer.id),
+        }),
+      )
       .map((dancer) => dancer.id),
   );
 

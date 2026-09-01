@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import {
   getRosterPersonStatusBadgeVariant,
+  isSelectableForRoster,
   getRosterPersonStatusLabel,
   readRosterPersonStatusFilter,
   toRosterPersonStatus,
@@ -80,4 +81,20 @@ describe("rosterPersonStatus labels", () => {
     expect(getRosterPersonStatusBadgeVariant("active")).toBe("success");
     expect(getRosterPersonStatusBadgeVariant("archived")).toBe("destructive");
   });
+});
+
+describe("isSelectableForRoster", () => {
+  test.each([
+    { status: "active", isAlreadyLinked: false, selectable: true },
+    { status: "active", isAlreadyLinked: true, selectable: true },
+    { status: "archived", isAlreadyLinked: true, selectable: true },
+    { status: "archived", isAlreadyLinked: false, selectable: false },
+  ] as const)(
+    "a $status person already linked=$isAlreadyLinked is selectable=$selectable",
+    ({ status, isAlreadyLinked, selectable }) => {
+      expect(isSelectableForRoster({ status, isAlreadyLinked })).toBe(
+        selectable,
+      );
+    },
+  );
 });

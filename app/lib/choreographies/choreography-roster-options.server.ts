@@ -6,6 +6,10 @@ import type {
   ChoreographyDancerOption,
   ChoreographyProfessorOption,
 } from "@/lib/choreographies/choreography-roster.shared";
+import {
+  isSelectableForRoster,
+  toRosterPersonStatus,
+} from "@/lib/roster/roster-person-status.shared";
 
 export async function listProfessorOptionsForChoreography(
   academyId: string,
@@ -23,8 +27,11 @@ export async function listProfessorOptionsForChoreography(
     .where(eq(professors.academyId, academyId))
     .orderBy(asc(professors.firstName), asc(professors.lastName));
 
-  return rows.filter(
-    (professor) => professor.active || linkedProfessorIdsSet.has(professor.id),
+  return rows.filter((professor) =>
+    isSelectableForRoster({
+      status: toRosterPersonStatus(professor.active),
+      isAlreadyLinked: linkedProfessorIdsSet.has(professor.id),
+    }),
   );
 }
 
@@ -44,7 +51,10 @@ export async function listDancerOptionsForChoreography(
     .where(eq(dancers.academyId, academyId))
     .orderBy(asc(dancers.firstName), asc(dancers.lastName));
 
-  return rows.filter(
-    (dancer) => dancer.active || linkedDancerIdsSet.has(dancer.id),
+  return rows.filter((dancer) =>
+    isSelectableForRoster({
+      status: toRosterPersonStatus(dancer.active),
+      isAlreadyLinked: linkedDancerIdsSet.has(dancer.id),
+    }),
   );
 }
