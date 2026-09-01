@@ -91,7 +91,7 @@ export function ChoreographyDetailAlerts({
         <Alert variant="destructive">
           <AlertTitle>No hay categoría compatible</AlertTitle>
           <AlertDescription>
-            Con este roster ({formatGroupTypeLabel(groupType)}) no existe una
+            Con este elenco ({formatGroupTypeLabel(groupType)}) no existe una
             categoría válida. Ajustá los bailarines para poder guardar.
           </AlertDescription>
         </Alert>

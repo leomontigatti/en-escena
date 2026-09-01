@@ -1,5 +1,5 @@
 {
-  "id": "2068ff28-abcd-43d2-a16b-20116584434f",
+  "id": "9b301b05-5ff9-4154-bc22-dcd4b05f75b3",
   "prevId": "22c0e462-9932-4dbb-8c2e-e80fed4224df",
   "version": "7",
   "dialect": "postgresql",
@@ -1083,39 +1083,37 @@
       "checkConstraints": {},
       "isRLSEnabled": true
     },
-    "public.en_escena_event_sequence": {
-      "name": "en_escena_event_sequence",
+    "public.en_escena_event_document": {
+      "name": "en_escena_event_document",
       "schema": "",
       "columns": {
-        "event_id": {
-          "name": "event_id",
+        "id": {
+          "name": "id",
           "type": "varchar(255)",
           "primaryKey": true,
           "notNull": true
         },
-        "next_payment_number": {
-          "name": "next_payment_number",
-          "type": "integer",
+        "event_id": {
+          "name": "event_id",
+          "type": "varchar(255)",
           "primaryKey": false,
-          "notNull": true,
-          "default": 1
+          "notNull": true
         },
-        "next_choreography_number": {
-          "name": "next_choreography_number",
-          "type": "integer",
+        "kind": {
+          "name": "kind",
+          "type": "event_document_kind",
+          "typeSchema": "public",
           "primaryKey": false,
-          "notNull": true,
-          "default": 1
+          "notNull": true
         },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
+        "storage_key": {
+          "name": "storage_key",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "default": "CURRENT_TIMESTAMP"
+          "notNull": true
         },
-        "updated_at": {
-          "name": "updated_at",
+        "uploaded_at": {
+          "name": "uploaded_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
@@ -1123,26 +1121,32 @@
         }
       },
       "indexes": {
-        "event_sequence_updated_idx": {
-          "name": "event_sequence_updated_idx",
+        "event_document_event_kind_unique": {
+          "name": "event_document_event_kind_unique",
           "columns": [
             {
-              "expression": "updated_at",
+              "expression": "event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "kind",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
         }
       },
       "foreignKeys": {
-        "en_escena_event_sequence_event_id_en_escena_event_id_fk": {
-          "name": "en_escena_event_sequence_event_id_en_escena_event_id_fk",
-          "tableFrom": "en_escena_event_sequence",
+        "en_escena_event_document_event_id_en_escena_event_id_fk": {
+          "name": "en_escena_event_document_event_id_en_escena_event_id_fk",
+          "tableFrom": "en_escena_event_document",
           "tableTo": "en_escena_event",
           "columnsFrom": ["event_id"],
           "columnsTo": ["id"],
@@ -1154,7 +1158,7 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": true
+      "isRLSEnabled": false
     },
     "public.en_escena_event": {
       "name": "en_escena_event",
@@ -1951,12 +1955,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "choreography_number": {
-          "name": "choreography_number",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
         "name": {
           "name": "name",
           "type": "text",
@@ -2072,27 +2070,6 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "choreography_event_number_unique": {
-          "name": "choreography_event_number_unique",
-          "columns": [
-            {
-              "expression": "event_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "choreography_number",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -2407,6 +2384,72 @@
           "columnsFrom": ["professor_id"],
           "columnsTo": ["id"],
           "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": true
+    },
+    "public.en_escena_event_financial_sequence": {
+      "name": "en_escena_event_financial_sequence",
+      "schema": "",
+      "columns": {
+        "event_id": {
+          "name": "event_id",
+          "type": "varchar(255)",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "next_payment_number": {
+          "name": "next_payment_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "event_financial_sequence_updated_idx": {
+          "name": "event_financial_sequence_updated_idx",
+          "columns": [
+            {
+              "expression": "updated_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "en_escena_event_financial_sequence_event_id_en_escena_event_id_fk": {
+          "name": "en_escena_event_financial_sequence_event_id_en_escena_event_id_fk",
+          "tableFrom": "en_escena_event_financial_sequence",
+          "tableTo": "en_escena_event",
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -3131,6 +3174,11 @@
       "name": "en_escena_user_role",
       "schema": "public",
       "values": ["academy", "admin", "auditor", "judge"]
+    },
+    "public.event_document_kind": {
+      "name": "event_document_kind",
+      "schema": "public",
+      "values": ["professor_contract", "minor_authorization", "adult_contract"]
     },
     "public.en_escena_choreography_category_calculation_mode": {
       "name": "en_escena_choreography_category_calculation_mode",

@@ -338,7 +338,7 @@ describe.sequential("admin payment detail", () => {
       requestUrl: paymentDetailUrl(depositPayment.id, event.id),
     });
 
-    // No hay orden de reversión: la plata es fungible y la eliminación procede.
+    // There is no reversal order: money is fungible and the deletion proceeds.
     await expect(
       handlePaymentDetailAction(request, depositPayment.id),
     ).rejects.toMatchObject({ status: 302 });

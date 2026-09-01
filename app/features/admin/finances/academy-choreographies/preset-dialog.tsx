@@ -279,8 +279,8 @@ function PresetPriceField({
       </Select>
       {priceId === keepCurrentPriceValue ? null : (
         <FieldDescription>
-          Se fija en las inscripciones elegidas que todavía no tienen plata
-          asignada, así que la cifra de arriba se recalcula al confirmar.
+          Se fija en las inscripciones elegidas que todavía no tienen dinero
+          asignado, así que la cifra de arriba se recalcula al confirmar.
         </FieldDescription>
       )}
       {spansSeveralSchedules ? (

@@ -23,10 +23,11 @@ describe("administracion/eventos route rendering", () => {
     expect(markup).not.toContain('name="requiredDepositPercentage"');
   });
 
-  test("shows a non-blocking warning when registration starts after the Evento starts", () => {
+  // The dates are days, not moments: the form must never offer a time input.
+  test("renders the Evento form with date-only fields", () => {
     const markup = renderCreateRoute({
       status: "error",
-      message: "Revisá los datos del Evento.",
+      message: "Revisá los datos del evento.",
       fieldErrors: {},
       values: {
         name: "Evento con inscripción tardía",
@@ -38,9 +39,7 @@ describe("administracion/eventos route rendering", () => {
       },
     });
 
-    expect(markup).toContain(
-      "La inscripción empieza después del inicio del evento.",
-    );
+    expect(markup).toContain('name="registrationStartsAt"');
     expect(markup).not.toContain('type="time"');
   });
 });

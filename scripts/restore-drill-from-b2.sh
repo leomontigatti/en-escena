@@ -60,7 +60,7 @@ require_command wc
 
 B2_FILESTORE_BUCKET="${B2_FILESTORE_BUCKET:-${B2_BUCKET:-}}"
 B2_FILESTORE_PREFIX="${B2_FILESTORE_PREFIX:-filestore}"
-STORAGE_BACKUP_BUCKETS="${STORAGE_BACKUP_BUCKETS:-en-escena-dancer-documents,en-escena-choreography-music}"
+STORAGE_BACKUP_BUCKETS="${STORAGE_BACKUP_BUCKETS:-en-escena-dancer-documents,en-escena-choreography-music,en-escena-event-documents}"
 AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-005}"
 RESTORE_TARGET_DIR="${RESTORE_TARGET_DIR:-${TMPDIR:-/tmp}/en-escena-restore-drill}"
 # Optional: point at the live volume to also report drift (backup vs live).

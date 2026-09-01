@@ -11,10 +11,10 @@ import { activeInscription } from "@/lib/choreographies/active-inscription";
 import { findInscriptionsWithEvidence } from "@/lib/choreographies/inscription-withdrawal.server";
 
 /**
- * El roster que edita el admin son las inscripciones activas. `hasEvidence` es
- * la única cosa que el formulario necesita saber de la plata: con evidencia,
- * quitar al bailarín retira la inscripción en lugar de borrarla, y el diálogo de
- * confirmación lo enumera antes de que el admin confirme.
+ * The roster the admin edits is the active inscriptions. `hasEvidence` is the
+ * only thing the form needs to know about the money: with evidence, removing
+ * the dancer withdraws the inscription instead of deleting it, and the
+ * confirmation dialog spells that out before the admin confirms.
  */
 export async function listChoreographyDancers(choreographyId: string) {
   const rows = await db

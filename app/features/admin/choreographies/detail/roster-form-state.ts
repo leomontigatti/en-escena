@@ -175,30 +175,38 @@ export function hasNoCompatibleCategory({
 }
 
 /**
- * El slot "Cronograma" es uno solo y el select del roster tiene prioridad: un
- * cambio de tipo de grupo limpia el cupo, y el reemplazo se elige junto con la
- * confirmación del roster, no por separado. Recién cuando no hay cambio de
- * roster pendiente entra la reasignación autónoma.
+ * There is a single "Cronograma" slot and the roster select takes precedence: a
+ * group type change clears the cupo, and its replacement is chosen together with
+ * the roster confirmation rather than separately. Only once no roster change is
+ * pending does the standalone reassignment claim the slot.
+ *
+ * Returns the options rather than a boolean so the decision and the narrowing
+ * it implies live in one place: only the "multiple" resolution carries labelled
+ * options, and that is exactly the variant the shared select builder needs.
  */
-export function shouldRenderRosterScheduleSelect({
+export function getRosterScheduleSelectOptions({
   hasResolvedRosterChange,
   scheduleResolution,
 }: {
   hasResolvedRosterChange: boolean;
   scheduleResolution: ScheduleResolution;
 }) {
-  return hasResolvedRosterChange && scheduleResolution?.status === "multiple";
+  if (!hasResolvedRosterChange || scheduleResolution?.status !== "multiple") {
+    return null;
+  }
+
+  return scheduleResolution.options;
 }
 
 /**
- * Los bailarines que este submit saca del roster y cuya inscripción tiene
- * evidencia: plata asignada o una línea de comprobante. Esas no se borran,
- * quedan retiradas, y el diálogo enumera esa consecuencia solo cuando la lista
- * no está vacía. Sin evidencia no hay nada que contar: la baja es un borrado y
- * el diálogo queda como estaba.
+ * The dancers this submit takes off the roster whose inscription holds
+ * evidence: allocated money or a comprobante line. Those are not deleted, they
+ * are withdrawn, and the dialog spells that consequence out only when the list
+ * is not empty. Without evidence there is nothing to tell: the removal is a
+ * delete and the dialog stays as it was.
  *
- * Devuelve el id junto al nombre porque dos bailarines homónimos en la misma
- * coreografía son posibles y el nombre no alcanza para identificar la fila.
+ * Returns the id alongside the name because two dancers sharing a name in the
+ * same choreography are possible, and the name alone does not identify the row.
  */
 export function getWithdrawnDancers({
   dancers,

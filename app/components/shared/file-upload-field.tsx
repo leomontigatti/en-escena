@@ -1,13 +1,11 @@
-import { CloudUpload, Download, ExternalLink, Trash2 } from "lucide-react";
+import { CloudUpload, Download, Trash2 } from "lucide-react";
 import {
   useEffect,
   useId,
   useRef,
   useState,
   type ChangeEvent,
-  type ComponentProps,
   type DragEvent,
-  type RefObject,
 } from "react";
 import {
   Controller,
@@ -16,98 +14,18 @@ import {
   type FieldValues,
 } from "react-hook-form";
 
-import {
-  FieldControlLockIcon,
-  FieldLockIcon,
-} from "@/components/shared/field-lock-icon";
+import { FieldControlLockIcon } from "@/components/shared/field-lock-icon";
 import { SharedFieldLayout } from "@/components/shared/field-layout";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/shared/utils";
 
-type FileUploadControlProps = Omit<ComponentProps<"input">, "type"> & {
-  // Optional so a download-only field can omit the whole validation set. The
-  // policy itself belongs to the asset kind, never to this generic component:
-  // see `getAssetUploadFieldProps` in `@/lib/storage/asset-kinds`.
-  allowedMimeTypes?: string[];
-  downloadLabel?: string;
-  downloadUrl?: string | null;
-  error?: boolean;
-  existingPreviewUrl?: string | null;
-  helperText: string;
-  invalidTypeMessage?: string;
-  label: string;
-  maxFileSizeBytes?: number;
-  maxFileSizeMessage?: string;
-  onSelectedFileChange?: (file: File | null) => void;
-  onStorageKeyChange?: (storageKey: string) => void;
-  onValidationErrorChange?: (hasError: boolean) => void;
-  onValidationErrorMessageChange?: (message: string | null) => void;
-  previewSelectedFile?: boolean;
-  removeLabel?: string;
-  storageKeyInputName?: string;
-  storageKeyValue?: string;
-  uploadedLabel?: string;
-  variant?: "dropzone" | "compact";
-};
-
-type FileUploadInputProps = Omit<
-  ComponentProps<"input">,
-  "className" | "disabled" | "id" | "onChange" | "type"
->;
-
-type FileUploadControlConfig = {
-  allowedMimeTypes?: string[];
-  className?: string;
-  disabled: boolean;
-  downloadLabel: string;
-  downloadUrl?: string | null;
-  error: boolean;
-  existingPreviewUrl?: string | null;
-  helperText: string;
-  id: string;
-  inputProps: FileUploadInputProps;
-  invalidTypeMessage: string;
-  label: string;
-  maxFileSizeBytes?: number;
-  maxFileSizeMessage: string;
-  onChange?: ComponentProps<"input">["onChange"];
-  onSelectedFileChange?: (file: File | null) => void;
-  onStorageKeyChange?: (storageKey: string) => void;
-  onValidationErrorChange?: (hasError: boolean) => void;
-  onValidationErrorMessageChange?: (message: string | null) => void;
-  previewSelectedFile: boolean;
-  removeLabel: string;
-  storageKeyInputName?: string;
-  storageKeyValue: string;
-  uploadedLabel: string;
-  validationErrorInputName: string;
-  variant: "dropzone" | "compact";
-};
-
-type FileUploadControlState = {
-  clearFile: () => void;
-  currentStorageKey: string;
-  displayedPreviewUrl: string | null;
-  downloadHref: string | null;
-  errorMessage: string | null;
-  handleDragOver: (event: DragEvent<HTMLElement>) => void;
-  handleDrop: (event: DragEvent<HTMLElement>) => void;
-  handleFileInputChange: (event: ChangeEvent<HTMLInputElement>) => void;
-  inputRef: RefObject<HTMLInputElement | null>;
-  previewAlt: string;
-  selectedFileName: string | null;
-  showsFileActions: boolean;
-  uploadLabel: string;
-};
-
-type FileUploadControlDerivedState = Pick<
+import { FileUploadCompactControl } from "./file-upload-compact-control";
+import type {
+  FileUploadControlConfig,
+  FileUploadControlDerivedState,
+  FileUploadControlProps,
   FileUploadControlState,
-  | "displayedPreviewUrl"
-  | "downloadHref"
-  | "previewAlt"
-  | "showsFileActions"
-  | "uploadLabel"
->;
+} from "./file-upload-control-types";
 
 type FileUploadFieldProps<
   TFieldValues extends FieldValues,
@@ -228,8 +146,10 @@ function getFileUploadControlConfig(
     onStorageKeyChange,
     onValidationErrorChange,
     onValidationErrorMessageChange,
+    placeholder = "",
     previewSelectedFile = true,
     removeLabel = "Borrar imagen",
+    replaceRequiresRemoval = false,
     storageKeyInputName,
     storageKeyValue = "",
     uploadedLabel = "Imagen cargada",
@@ -260,8 +180,10 @@ function getFileUploadControlConfig(
     onStorageKeyChange,
     onValidationErrorChange,
     onValidationErrorMessageChange,
+    placeholder,
     previewSelectedFile,
     removeLabel,
+    replaceRequiresRemoval,
     storageKeyInputName,
     storageKeyValue,
     uploadedLabel,
@@ -328,7 +250,7 @@ function useFileUploadControlState(
   function handleDrop(event: DragEvent<HTMLElement>) {
     event.preventDefault();
 
-    if (config.disabled) {
+    if (config.disabled || derivedState.isReplaceLocked) {
       return;
     }
 
@@ -446,6 +368,11 @@ function getFileUploadControlDerivedState({
       previewUrl,
     }),
     downloadHref: getDownloadHref(currentStorageKey, config.downloadUrl),
+    isReplaceLocked: getIsReplaceLocked({
+      currentStorageKey,
+      replaceRequiresRemoval: config.replaceRequiresRemoval,
+      selectedFileName,
+    }),
     previewAlt: getPreviewAlt(selectedFileName),
     showsFileActions: getShowsFileActions({
       currentStorageKey,
@@ -480,6 +407,27 @@ function getDisplayedPreviewUrl({
   }
 
   return existingPreviewUrl ?? null;
+}
+
+/**
+ * The field is holding a stored file that the caller wants removed before a
+ * replacement is chosen. A locked field has no picker to open and takes no
+ * drops: the remove button is the only way forward.
+ */
+function getIsReplaceLocked({
+  currentStorageKey,
+  replaceRequiresRemoval,
+  selectedFileName,
+}: {
+  currentStorageKey: string;
+  replaceRequiresRemoval: boolean;
+  selectedFileName: string | null;
+}) {
+  return (
+    replaceRequiresRemoval &&
+    currentStorageKey.length > 0 &&
+    selectedFileName === null
+  );
 }
 
 function getDownloadHref(
@@ -567,129 +515,6 @@ function FileUploadHiddenInputs({
         value={state.errorMessage ?? ""}
       />
     </>
-  );
-}
-
-function FileUploadCompactControl({
-  config,
-  state,
-}: {
-  config: FileUploadControlConfig;
-  state: FileUploadControlState;
-}) {
-  const showDownloadLink =
-    state.downloadHref &&
-    state.selectedFileName === null &&
-    !state.errorMessage;
-
-  return (
-    <div
-      className="relative"
-      onDragOver={state.handleDragOver}
-      onDrop={state.handleDrop}
-    >
-      <input
-        {...config.inputProps}
-        ref={state.inputRef}
-        id={config.id}
-        type="file"
-        aria-invalid={config.error || state.errorMessage ? true : undefined}
-        className="sr-only"
-        disabled={config.disabled}
-        onChange={state.handleFileInputChange}
-      />
-      {showDownloadLink ? (
-        <a
-          href={state.downloadHref ?? undefined}
-          target="_blank"
-          rel="noreferrer"
-          className={getFileUploadCompactClassName(config, state)}
-        >
-          <ExternalLink aria-hidden="true" className="size-3.5" />
-          <span className="truncate">{config.downloadLabel}</span>
-        </a>
-      ) : (
-        <label
-          htmlFor={config.id}
-          className={getFileUploadCompactClassName(config, state)}
-        >
-          <span className="truncate">
-            {getCompactFieldLabel(config, state)}
-          </span>
-        </label>
-      )}
-      {config.disabled ? (
-        <FileUploadCompactLockIcon />
-      ) : (
-        <FileUploadCompactActions
-          state={state}
-          removeLabel={config.removeLabel}
-        />
-      )}
-    </div>
-  );
-}
-
-function FileUploadCompactLockIcon() {
-  return (
-    <span className="pointer-events-none absolute top-1/2 right-3 flex size-4 -translate-y-1/2 items-center justify-center">
-      <FieldLockIcon className="size-3" />
-    </span>
-  );
-}
-
-function FileUploadCompactActions({
-  removeLabel,
-  state,
-}: {
-  removeLabel: string;
-  state: FileUploadControlState;
-}) {
-  if (!state.showsFileActions) {
-    return null;
-  }
-
-  return (
-    <Button
-      type="button"
-      variant="destructive"
-      size="icon-sm"
-      className="absolute top-1/2 right-1 -translate-y-1/2"
-      onClick={state.clearFile}
-    >
-      <Trash2 aria-hidden="true" data-icon />
-      <span className="sr-only">{removeLabel}</span>
-    </Button>
-  );
-}
-
-function getCompactFieldLabel(
-  config: FileUploadControlConfig,
-  state: FileUploadControlState,
-) {
-  if (state.selectedFileName) {
-    return state.selectedFileName;
-  }
-
-  if (state.currentStorageKey) {
-    return config.uploadedLabel;
-  }
-
-  return "";
-}
-
-function getFileUploadCompactClassName(
-  config: FileUploadControlConfig,
-  state: FileUploadControlState,
-) {
-  return cn(
-    "flex h-8 w-full min-w-0 items-center gap-1.5 rounded-lg border border-input bg-transparent px-2.5 py-1 pr-9 text-base transition-colors outline-none md:text-sm",
-    !config.disabled &&
-      "cursor-pointer hover:bg-muted/50 focus-visible:border-brand focus-visible:ring-3 focus-visible:ring-brand/50",
-    config.disabled && "bg-input/50 opacity-50",
-    (config.error || state.errorMessage) &&
-      "border-destructive ring-3 ring-destructive/20",
-    config.className,
   );
 }
 

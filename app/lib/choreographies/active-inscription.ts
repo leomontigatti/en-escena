@@ -3,10 +3,10 @@ import { isNull, sql, type SQL } from "drizzle-orm";
 import { choreographyDancers } from "@/db/schema";
 
 /**
- * Una inscripción retirada sigue en la tabla —conserva la plata asignada y la
- * línea de comprobante que la justifican— así que toda lectura la filtra salvo
- * que muestre evidencia a propósito. Este predicado es el único lugar donde vive
- * ese filtro: nadie escribe `isNull(choreographyDancers.withdrawnAt)` a mano.
+ * A withdrawn inscription stays in the table —it keeps the allocated money and
+ * the comprobante line that justify it— so every read filters it out unless it
+ * shows evidence on purpose. This predicate is the only place that filter
+ * lives: nobody writes `isNull(choreographyDancers.withdrawnAt)` by hand.
  */
 export function activeInscription(): SQL {
   return isNull(choreographyDancers.withdrawnAt);

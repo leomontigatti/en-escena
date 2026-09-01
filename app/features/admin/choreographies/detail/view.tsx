@@ -53,9 +53,9 @@ import {
 import {
   canSubmitChoreographyEdit,
   getExperienceLevelSlotState,
+  getRosterScheduleSelectOptions,
   getWithdrawnDancers,
   hasNoCompatibleCategory,
-  shouldRenderRosterScheduleSelect,
 } from "./roster-form-state";
 import {
   deleteChoreographyIntent,
@@ -188,7 +188,7 @@ function ChoreographyDetailForm({
     derivedResolution: roster.derivedResolution,
     hasResolvedRosterChange: roster.hasResolvedRosterChange,
   });
-  const showScheduleSelect = shouldRenderRosterScheduleSelect({
+  const rosterScheduleOptions = getRosterScheduleSelectOptions({
     hasResolvedRosterChange: roster.hasResolvedRosterChange,
     scheduleResolution: roster.scheduleResolution,
   });
@@ -377,9 +377,7 @@ function ChoreographyDetailForm({
                   control={form.control}
                   disabled={disabled}
                   loaderData={loaderData}
-                  scheduleResolution={
-                    showScheduleSelect ? roster.scheduleResolution : null
-                  }
+                  options={rosterScheduleOptions}
                 />
               )}
             />
@@ -462,7 +460,7 @@ function ConfirmEditDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Confirmar edición</AlertDialogTitle>
           <AlertDialogDescription>
-            Vas a guardar los cambios de esta coreografía. Revisá que el roster
+            Vas a guardar los cambios de esta coreografía. Revisá que el elenco
             sea correcto antes de confirmar.
           </AlertDialogDescription>
         </AlertDialogHeader>
@@ -481,10 +479,10 @@ function ConfirmEditDialog({
 }
 
 /**
- * La baja de un bailarín con plata asignada o con una línea de comprobante no
- * borra la inscripción: la retira. El diálogo enumera esa consecuencia solo
- * cuando hay evidencia; sin ella la baja es un borrado y no hay nada que
- * advertir.
+ * Removing a dancer who holds allocated money or a comprobante line does not
+ * delete the inscription: it withdraws it. The dialog spells that consequence
+ * out only when there is evidence; without it the removal is a delete and
+ * there is nothing to warn about.
  */
 function WithdrawalConsequences({
   dancers,
@@ -495,8 +493,8 @@ function WithdrawalConsequences({
     <div className="text-sm text-muted-foreground">
       <p>
         {dancers.length === 1
-          ? "Esta inscripción tiene plata asignada o un comprobante emitido, así que no se borra: queda retirada."
-          : "Estas inscripciones tienen plata asignada o un comprobante emitido, así que no se borran: quedan retiradas."}
+          ? "Esta inscripción tiene dinero asignado o un comprobante emitido, así que no se borra: queda retirada."
+          : "Estas inscripciones tienen dinero asignado o un comprobante emitido, así que no se borran: quedan retiradas."}
       </p>
       <ul className="mt-2 list-disc pl-5">
         {dancers.map((dancer) => (
@@ -504,7 +502,7 @@ function WithdrawalConsequences({
         ))}
       </ul>
       <p className="mt-2">
-        Conservan la plata que tienen asignada y siguen en el comprobante.
+        Conservan el dinero que tienen asignado y siguen en el comprobante.
         Volver a agregar al bailarín las reactiva.
       </p>
     </div>

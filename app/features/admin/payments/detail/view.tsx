@@ -108,7 +108,7 @@ export function PaymentDetailRouteView({
         <DeleteDialog
           description={
             loaderData.affectedChoreographies.length > 0
-              ? "El pago y sus asignaciones se eliminan juntos. Esa plata sale del pool: no vuelve al saldo disponible de la academia."
+              ? "El pago y sus asignaciones se eliminan juntos. Ese dinero sale del pool: no vuelve al saldo disponible de la academia."
               : "El pago sale del pool: el saldo disponible de la academia baja por su monto."
           }
           details={
