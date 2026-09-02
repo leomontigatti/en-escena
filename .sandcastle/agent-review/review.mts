@@ -44,6 +44,9 @@ await runMain(async ({ signal }) => {
   // no issue has nothing for half the review to run against. `agent-review.yml`
   // refuses that in its preflight, before the label transition and the installs
   // (#790); this is the belt-and-braces for a run started any other way.
+  //
+  // `issueBody` is null exactly when `issueNumber` is, so the second test is
+  // redundant at runtime — it is there to narrow `ISSUE_BODY` to a string below.
   if (context.issueNumber === null || context.issueBody === null) {
     throw new Error(
       "The PR body links no issue (closes/fixes/resolves #N), so the Spec axis has nothing to check against.",

@@ -111,7 +111,12 @@ are only concrete references to this repo:
   adding `agent:blocked` (nothing failed, the run was declined), in the vocabulary
   `agent-implement-pr.yml` already uses. Teaching Review a Standards-only, spec-less mode stays
   out of scope. Every step of a preflighted workflow is gated on its `proceed` output, which
-  `tests/afk/workflow-preflight-gating.test.ts` asserts across every workflow that has one.
+  `tests/afk/workflow-preflight-gating.test.ts` asserts across every workflow that has one — by
+  evaluating each condition on a refused run rather than matching how it is spelled, because the
+  two spellings differ where it matters. Review's failure report is gated on `!= 'false'`, not
+  `== 'true'`: a preflight that _itself_ fails leaves `proceed` unset, and `== 'true'` would
+  report neither the refusal nor the failure. The other four preflighted workflows still carry
+  the `== 'true'` spelling, so a failing preflight is silent there.
 - **The token-less runner is enforced, not just asserted (§3.9).** The spec's hard invariant is
   that the agent never mutates the tracker or the remote, and `agent-implement` /
   `agent-implement-prd` honour it by simply omitting `GH_TOKEN` from the runner step. The three

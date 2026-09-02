@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { workflowText } from "./pr-workflows.test-support";
+
 // Coverage for #790: `buildReviewContext` used to *throw* when the PR body had
 // no `closes/fixes/resolves #N`, and both callers (review, implement-pr) hit
 // that on their first prefetch call — after the label transition, the checkout
@@ -83,5 +85,49 @@ describe("buildReviewContext with no linked issue", () => {
     expect(context.issueNumber).toBe("123");
     expect(context.issueTitle).toBe("T");
     expect(context.issueBody).toBe("B");
+  });
+});
+
+// The rule "does this PR body link an issue?" is now written twice, in two
+// languages: as a `jq` regex in `agent-review.yml`'s preflight and as a JS one
+// inside `parseLinkedIssue`. They have to agree — a body the preflight accepts
+// and the parser rejects reaches the runner with a null issue and throws after
+// the installs, which is the exact waste #790 removed; the converse silently
+// refuses a PR that does link an issue. Nothing but this test couples them.
+describe("the preflight regex and the runner parser agree", () => {
+  /** The regex the preflight's `jq test(...)` uses, as a JS `RegExp`. */
+  function preflightPattern(): RegExp {
+    const yaml = workflowText(".github/workflows/agent-review.yml");
+    const match = /test\("([^"]+)";\s*"i"\)/.exec(yaml);
+    if (!match) throw new Error("agent-review.yml: no linked-issue jq test()");
+    // jq reads the YAML's `\\s` as the regex `\s`; JS needs the same unescaping.
+    return new RegExp(match[1].replace(/\\\\/g, "\\"), "i");
+  }
+
+  const BODIES = [
+    "",
+    "No linked issue at all.",
+    "Closes #12",
+    "closes #12",
+    "Fixes #12",
+    "RESOLVES #12",
+    "Closes\n#12",
+    "Closes  \t #12",
+    "Closes #abc",
+    "Closes: #12",
+    "encloses #12",
+    "Refs #12",
+    "## Summary\n\n- a bullet\n\nCloses #790",
+    "```\nCloses #12\n```",
+    "Closes #0",
+  ];
+
+  it.each(BODIES)("decides %j the same way in both", (body) => {
+    stubGh(body);
+
+    const linkedPerRunner =
+      buildReviewContext("owner/repo", "790").issueNumber !== null;
+
+    expect(preflightPattern().test(body)).toBe(linkedPerRunner);
   });
 });

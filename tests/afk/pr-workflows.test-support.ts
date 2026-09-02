@@ -37,9 +37,12 @@ export const PR_WORKFLOWS: PrWorkflow[] = [
 
 /**
  * Minimal evaluator for the GitHub Actions expression subset used by the
- * concurrency `group` and the job-level `if`: context lookups, string literals,
- * `==`, short-circuit `&&`/`||` (which return the operand, not a boolean), and
- * `format(...)`.
+ * concurrency `group`, the job-level `if` and the step-level `if`: context
+ * lookups, string literals, `==` / `!=`, short-circuit `&&`/`||` (which return
+ * the operand, not a boolean), `format(...)`, and the zero-argument status
+ * functions (`success()`, `failure()`, `always()`, `cancelled()`), which are
+ * looked up in `contextValues` under their bare name so a caller can say which
+ * run outcome it is evaluating for.
  */
 export function evalGha(
   expr: string,
@@ -87,6 +90,13 @@ export function evalGha(
         .map((a) => String(resolveToken(a, contextValues)));
       return template.replace(/\{(\d+)\}/g, (_m, i) => args[Number(i)]);
     }
+    const status = /^(success|failure|always|cancelled)\(\)/.exec(rest());
+    if (status) {
+      pos += status[0].length;
+      // A status function returns a *boolean*, and `truthy` reads the string
+      // "false" as truthy — so resolve it to a real boolean, not to its name.
+      return resolveToken(status[1], contextValues) === "true";
+    }
     const token = /^[A-Za-z0-9_.]+/.exec(rest());
     if (!token) throw new Error(`Cannot parse near: ${rest()}`);
     pos += token[0].length;
@@ -100,6 +110,10 @@ export function evalGha(
       pos += 2;
       const right = parsePrimary();
       left = String(left) === String(right);
+    } else if (rest().startsWith("!=")) {
+      pos += 2;
+      const right = parsePrimary();
+      left = String(left) !== String(right);
     }
     return left;
   };
@@ -144,7 +158,8 @@ function resolveToken(
   throw new Error(`Unknown context token: ${token}`);
 }
 
-function workflowText(file: string): string {
+/** The workflow file's raw text, read relative to the repo root. */
+export function workflowText(file: string): string {
   return readFileSync(`${repoRoot}${file}`, "utf8");
 }
 
@@ -195,6 +210,12 @@ export interface WorkflowStep {
  * Every step of every job in the workflow, in file order, paired with its
  * step-level `if:`. A step without one yields an empty condition, so a newly
  * added ungated step is visible rather than silently skipped.
+ *
+ * Steps are flattened across jobs: every workflow this reads is single-job
+ * today, and a caller that cares about job boundaries wants `jobConditions`.
+ * A workflow with no literal steps at all (a `uses:`-only reusable-workflow
+ * call) yields `[]` rather than throwing — callers scan the whole directory,
+ * and one such workflow added later must not break an unrelated suite.
  */
 export function workflowSteps(file: string): WorkflowStep[] {
   const lines = workflowText(file).split("\n");
@@ -224,7 +245,6 @@ export function workflowSteps(file: string): WorkflowStep[] {
     });
   }
 
-  if (steps.length === 0) throw new Error(`${file}: no steps found`);
   return steps;
 }
 
