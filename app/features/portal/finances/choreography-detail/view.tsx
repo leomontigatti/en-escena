@@ -27,6 +27,7 @@ import {
   formatInscriptionFinancialStatus,
   formatInscriptionStatusBadge,
 } from "@/lib/finances/choreography-financial-status";
+import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
 import { choreographyGroupTypeOptions } from "@/lib/portal/choreographies";
 
@@ -50,8 +51,11 @@ export function PortalChoreographyFinanceDetailRouteView({
       aria-labelledby="finanzas-coreografia-title"
     >
       <div className="flex flex-col gap-1">
+        {/* The number the academy quotes when it asks about a choreography,
+            titled the same way the rest of the portal titles it. */}
         <h2 id="finanzas-coreografia-title" className="text-xl font-semibold">
-          Detalle financiero
+          Detalle financiero #{" "}
+          {formatEventSequenceNumber(choreography.choreographyNumber)}
         </h2>
         <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
           Revisá los importes de esta coreografía y de cada bailarín inscripto.

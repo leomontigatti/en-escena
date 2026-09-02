@@ -37,6 +37,16 @@ describe("PortalChoreographyFinanceDetailRouteView", () => {
     });
   });
 
+  // The number the academy quotes when it asks about a choreography, titled the
+  // same way the administrator's finance detail titles it.
+  test("titles the detail with the choreography number", () => {
+    const title = renderDetail().match(
+      /id="finanzas-coreografia-title"[^>]*>([^<]*)</,
+    );
+
+    expect(title?.[1]).toBe("Detalle financiero # 00001");
+  });
+
   test("does not label any amount as provisional", () => {
     const markup = renderDetail({
       inscriptions: [inscriptionFixture({ financialStatus: "depositPending" })],
@@ -69,6 +79,7 @@ function loaderDataFixture(overrides: Partial<LoaderData> = {}): LoaderData {
   return {
     choreography: {
       allocatedAmount: 3000,
+      choreographyNumber: 1,
       depositAmount: { amount: 3000, status: "complete" },
       financialStatus: "depositMet",
       groupType: "duo",

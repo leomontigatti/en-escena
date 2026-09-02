@@ -14,6 +14,7 @@ import {
   formatOperationalAmount,
 } from "@/features/admin/finances/formatters";
 import type { loadPortalAcademyFinances } from "@/features/portal/finances/server";
+import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import {
   formatInscriptionFinancialStatus,
   getInscriptionFinancialStatusBadgeVariant,
@@ -38,15 +39,30 @@ const choreographyFinanceFacetedFilters: DataTableFacetedFilter[] = [
 
 const choreographyFinanceColumns: DataTableColumn<ChoreographyFinanceRow>[] = [
   {
+    id: "choreographyNumber",
+    header: "#",
+    className: "w-16 font-medium tabular-nums",
+    headerClassName: "w-16",
+    // The academy sees the same number the administrator does, in the same
+    // place and doing the same thing: it opens the row and it is the only link
+    // to the detail.
+    cell: (row) => (
+      <DataTableLink to={`/portal/finanzas/${row.id}`}>
+        {formatEventSequenceNumber(row.choreographyNumber)}
+      </DataTableLink>
+    ),
+    sortValue: (row) => row.choreographyNumber,
+  },
+  {
     id: "name",
     header: "Nombre",
     className: "min-w-56 font-medium",
-    cell: (row) => (
-      <DataTableLink to={`/portal/finanzas/${row.id}`}>
-        {row.name}
-      </DataTableLink>
-    ),
-    filterValue: (row) => row.name,
+    cell: (row) => row.name,
+    // The search box filters this one column, so the number travels in here to
+    // be searchable at all. Zero-padded, which is what makes `00042`, `042` and
+    // `42` all reach the same choreography.
+    filterValue: (row) =>
+      `${formatEventSequenceNumber(row.choreographyNumber)} ${row.name}`,
     sortValue: (row) => row.name,
   },
   {
@@ -143,10 +159,12 @@ export function PortalAcademyFinancesRouteView({
         columns={choreographyFinanceColumns}
         facetedFilters={choreographyFinanceFacetedFilters}
         getRowKey={(row) => row.id}
-        searchPlaceholder="Buscar coreografía por nombre"
+        searchPlaceholder="Buscar coreografía por número o nombre"
         textFilterColumnId="name"
+        // By number, like every other choreography list: it is the row's
+        // identity within the event.
         initialSort={{
-          columnId: "name",
+          columnId: "choreographyNumber",
           direction: "asc",
         }}
         emptyMessage="No hay coreografías para mostrar."

@@ -35,6 +35,7 @@ export async function loadPortalChoreographyFinanceDetail(input: {
   return {
     choreography: {
       allocatedAmount: choreographyFinanceRow.allocatedAmount,
+      choreographyNumber: choreographyFinanceRow.choreographyNumber,
       depositAmount: choreographyFinanceRow.depositAmount,
       financialStatus: choreographyFinanceRow.financialStatus,
       groupType: choreographyFinanceRow.groupType,
