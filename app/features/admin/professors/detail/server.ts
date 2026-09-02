@@ -7,7 +7,10 @@ import {
   findProfessor,
   updateAdministrativeProfessor,
 } from "@/lib/admin/professors/professors.server";
-import { setRosterPersonStatus } from "@/lib/roster/roster-person-status.server";
+import {
+  getRosterPersonNotFoundMessage,
+  setRosterPersonStatus,
+} from "@/lib/roster/roster-person-status.server";
 import {
   requireAdminUser,
   requireInternalUser,
@@ -82,13 +85,19 @@ export async function handleProfessorDetailAction(input: {
   }
 
   if (intent === "archive-professor" || intent === "reactivate-professor") {
-    await setRosterPersonStatus({
+    const result = await setRosterPersonStatus({
       academyId: null,
       kind: "professor",
       next: intent === "archive-professor" ? "archived" : "active",
       personId: professorId,
       surface: "admin",
     });
+
+    if (!result.ok) {
+      throw new Response(getRosterPersonNotFoundMessage("professor"), {
+        status: 404,
+      });
+    }
 
     return buildProfessorActionSuccess(
       intent === "archive-professor"

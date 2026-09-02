@@ -10,7 +10,7 @@
  * touches no inscription, no operational status and no figure.
  *
  * This is the pure half —usable from views and from tests— and it imports
- * nothing. The query predicate, its raw-SQL twin and the filter condition live
+ * nothing. The query predicate and the filter condition live
  * in `roster-person-status.server.ts`.
  */
 export type RosterPersonStatus = "active" | "archived";

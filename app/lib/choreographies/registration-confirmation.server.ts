@@ -312,8 +312,6 @@ async function resolveProfessorIds(input: {
     columns: {
       id: true,
       active: true,
-      firstName: true,
-      lastName: true,
     },
   });
 

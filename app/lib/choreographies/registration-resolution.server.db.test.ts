@@ -314,7 +314,7 @@ describe.sequential("choreography registration resolution", () => {
     });
   });
 
-  test("names the archived dancer it rejects, and says nothing about another academy's dancer existing", async () => {
+  test("asks to reactivate an archived dancer it rejects, and says nothing about another academy's dancer existing", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Alta Bailarines",
       email: "registro.coreografia.alta@example.com",
@@ -345,8 +345,7 @@ describe.sequential("choreography registration resolution", () => {
     ).resolves.toMatchObject({
       ok: false,
       code: "invalid-dancers",
-      error:
-        "Lucía Ferrer tiene Estado de alta Archivado. Reactivá a esa persona para poder agregarla a la coreografía.",
+      error: "Reactivá este bailarín para poder agregarlo a la coreografía.",
     });
 
     const ajenaResult = await resolveChoreographyRegistrationOperation({

@@ -39,10 +39,12 @@ Rules for roster links, choreography registration, locks and Bases del evento.
   that coreografía stays editable.
 - An archived person who is not already linked cannot be added. Registration is
   the same rule evaluated with an empty linked set, which is why it always
-  refuses an archived person, and it says which person and why: either the
-  person is archived and must be reactivated, or the person was not found —
-  which is also the answer for a person of another academy, so that one academy
-  is never told another academy's record exists.
+  refuses an archived person, and it says why: either someone in the selection
+  is archived and must be reactivated, or the person was not found — which is
+  also the answer for a person of another academy, so that one academy is never
+  told another academy's record exists. The rejection names no one: the roster
+  stores no gender, so the sentence agrees with the person-kind noun
+  ("Reactivá este bailarín…") instead of with an interpolated name.
 - **Archiving is never refused.** There is no guard: archiving a bailarín
   inscripto en el Evento activo succeeds and the inscription is untouched. The
   archive confirmation says so before the academy confirms; the sentence is

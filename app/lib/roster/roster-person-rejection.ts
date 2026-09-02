@@ -15,9 +15,10 @@ import {
  * decision: telling the two apart would confirm to one academy that another
  * academy's record exists. Its wording says nothing about existence.
  */
-export type RosterPersonRejection =
-  | { personId: string; cause: "not-found" }
-  | { personId: string; cause: "archived"; fullName: string };
+export type RosterPersonRejection = {
+  personId: string;
+  cause: "not-found" | "archived";
+};
 
 /**
  * The linked set of a selection that has no choreography to be linked to yet.
@@ -29,8 +30,6 @@ export const noLinkedRosterPeople: ReadonlySet<string> = new Set();
 type RosterPersonRow = {
   id: string;
   active: boolean;
-  firstName: string;
-  lastName: string;
 };
 
 /**
@@ -74,11 +73,7 @@ export function classifyRosterPersonSelection<
       continue;
     }
 
-    rejections.push({
-      personId,
-      cause: "archived",
-      fullName: `${row.firstName} ${row.lastName}`,
-    });
+    rejections.push({ personId, cause: "archived" });
   }
 
   return { people, rejections };
@@ -89,34 +84,36 @@ const notFoundMessages: Record<RosterPersonKind, string> = {
   professor: "Elegí profesores que pertenezcan a tu academia.",
 };
 
+const archivedMessages: Record<RosterPersonKind, string> = {
+  dancer: "Reactivá este bailarín para poder agregarlo a la coreografía.",
+  professor: "Reactivá este profesor para poder agregarlo a la coreografía.",
+};
+
 /**
  * One sentence per cause, the archived one first because it is the one the
- * academy can act on: it names the people and says what to do with them.
+ * academy can act on: it says what to do, and it uses the verb the rest of the
+ * product uses for this action ("Reactivar").
  *
- * The sentence agrees with "persona", never with the name it interpolates:
- * the roster stores no gender, so agreeing with the name would misgender
- * roughly half the roster ("Lucia Ferrer esta archivado").
+ * The sentence names no one and agrees with the person-kind noun, which is why
+ * it is picked by `kind`: the roster stores no gender, so a sentence agreeing
+ * with an interpolated name would misgender roughly half of it. The archived
+ * sentence is emitted once when at least one archived rejection is present,
+ * however many there are.
  */
 export function getRosterPersonRejectionMessage(input: {
   kind: RosterPersonKind;
   rejections: RosterPersonRejection[];
 }) {
-  const archivedNames = input.rejections
-    .filter((rejection) => rejection.cause === "archived")
-    .map((rejection) => rejection.fullName);
+  const hasArchived = input.rejections.some(
+    (rejection) => rejection.cause === "archived",
+  );
   const hasNotFound = input.rejections.some(
     (rejection) => rejection.cause === "not-found",
   );
   const sentences: string[] = [];
 
-  if (archivedNames.length === 1) {
-    sentences.push(
-      `${archivedNames[0]} tiene Estado de alta Archivado. Reactivá a esa persona para poder agregarla a la coreografía.`,
-    );
-  } else if (archivedNames.length > 1) {
-    sentences.push(
-      `${formatNameList(archivedNames)} tienen Estado de alta Archivado. Reactivá a esas personas para poder agregarlas a la coreografía.`,
-    );
+  if (hasArchived) {
+    sentences.push(archivedMessages[input.kind]);
   }
 
   if (hasNotFound) {
@@ -124,8 +121,4 @@ export function getRosterPersonRejectionMessage(input: {
   }
 
   return sentences.join(" ");
-}
-
-function formatNameList(names: string[]) {
-  return `${names.slice(0, -1).join(", ")} y ${names.at(-1)}`;
 }

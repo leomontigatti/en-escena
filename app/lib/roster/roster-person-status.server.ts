@@ -1,4 +1,4 @@
-import { and, eq, sql, type SQL } from "drizzle-orm";
+import { and, eq, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
 import { dancers, professors } from "@/db/schema";
@@ -24,26 +24,20 @@ type RosterPersonRowByKind = {
 export type RosterPersonTable = typeof dancers | typeof professors;
 
 /**
+ * The outcome of a write. `"not-found"` is the person the scope did not reach:
+ * a missing id, or —from the portal— a person of another academy.
+ */
+export type RosterPersonStatusWriteResult<Kind extends RosterPersonKind> =
+  | { ok: true; person: RosterPersonRowByKind[Kind] }
+  | { ok: false; cause: "not-found" };
+
+/**
  * The one place the `active` comparison lives: no reader writes
  * `eq(dancers.active, true)` by hand, which is how the rule ended up stated
  * five different ways.
  */
 export function activeRosterPerson(table: RosterPersonTable): SQL {
   return eq(table.active, true);
-}
-
-/**
- * The raw-SQL twin, for a caller that builds its SQL by hand and gives the
- * table its own alias. Same shape and same reason as `activeInscriptionSql`: a
- * db test compares the two halves over a fixture, so if either moves the other
- * fails.
- *
- * No production caller needs it yet — today every reader of the axis composes
- * Drizzle conditions — so it exists so that a hand-built query cannot become
- * the sixth place the rule is restated.
- */
-export function activeRosterPersonSql(personTableAlias: string): SQL {
-  return sql`${sql.identifier(personTableAlias)}.${sql.identifier("active")} = true`;
 }
 
 /**
@@ -80,7 +74,13 @@ export function rosterPersonStatusCondition(
  *
  * The scope is a runtime value rather than a type — `null` for the admin panel,
  * which may write any person — so the module asserts it: a portal caller that
- * lost its academy would otherwise silently write across academies.
+ * lost its academy would otherwise silently write across academies. That
+ * assertion stays a `throw`, because it is a programming error rather than
+ * something a user can cause.
+ *
+ * A person the scope does not reach is returned as a typed
+ * `{ ok: false, cause: "not-found" }`, not thrown: the HTTP status belongs to
+ * the route, which reads the wording from `getRosterPersonNotFoundMessage`.
  */
 export async function setRosterPersonStatus<
   Kind extends RosterPersonKind,
@@ -90,7 +90,7 @@ export async function setRosterPersonStatus<
   academyId: string | null;
   surface: RosterPersonWriteSurface;
   next: RosterPersonStatus;
-}): Promise<RosterPersonRowByKind[Kind]> {
+}): Promise<RosterPersonStatusWriteResult<Kind>> {
   if (input.surface === "portal" && input.academyId === null) {
     throw new Error(
       "El portal de academias solo puede cambiar el Estado de alta de su propia academia.",
@@ -110,13 +110,21 @@ export async function setRosterPersonStatus<
     .returning();
 
   if (!updatedPerson) {
-    throw new Response(personNotFoundMessages[input.kind], { status: 404 });
+    return { ok: false, cause: "not-found" };
   }
 
-  return updatedPerson as RosterPersonRowByKind[Kind];
+  return { ok: true, person: updatedPerson as RosterPersonRowByKind[Kind] };
 }
 
 const personNotFoundMessages: Record<RosterPersonKind, string> = {
   dancer: "No encontramos ese Bailarín.",
   professor: "No encontramos ese Profesor.",
 };
+
+/**
+ * The wording of the not-found case, owned here alongside the rest of the
+ * axis' copy: the route decides the status code, the module the sentence.
+ */
+export function getRosterPersonNotFoundMessage(kind: RosterPersonKind) {
+  return personNotFoundMessages[kind];
+}

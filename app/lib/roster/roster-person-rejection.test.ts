@@ -7,13 +7,8 @@ import {
 
 const noLinkedPeople: ReadonlySet<string> = new Set();
 
-function row(input: { id: string; active: boolean; firstName?: string }) {
-  return {
-    id: input.id,
-    active: input.active,
-    firstName: input.firstName ?? "Ana",
-    lastName: "Pérez",
-  };
+function row(input: { id: string; active: boolean }) {
+  return { id: input.id, active: input.active };
 }
 
 describe("classifyRosterPersonSelection", () => {
@@ -34,16 +29,16 @@ describe("classifyRosterPersonSelection", () => {
     ]);
   });
 
-  test("rejects an archived person that is not already linked, and names them", () => {
+  test("rejects an archived person that is not already linked", () => {
     const result = classifyRosterPersonSelection({
       selectedIds: ["archived"],
-      rows: [row({ id: "archived", active: false, firstName: "Lucía" })],
+      rows: [row({ id: "archived", active: false })],
       linkedPersonIds: noLinkedPeople,
     });
 
     expect(result.people).toEqual([]);
     expect(result.rejections).toEqual([
-      { personId: "archived", cause: "archived", fullName: "Lucía Pérez" },
+      { personId: "archived", cause: "archived" },
     ]);
   });
 
@@ -87,31 +82,31 @@ describe("getRosterPersonRejectionMessage", () => {
     ).toBe("Elegí profesores que pertenezcan a tu academia.");
   });
 
-  test("names the archived person and asks to reactivate them", () => {
+  test("asks to reactivate the archived person, naming no one and picking the noun by kind", () => {
     expect(
       getRosterPersonRejectionMessage({
         kind: "dancer",
-        rejections: [
-          { personId: "one", cause: "archived", fullName: "Lucía Pérez" },
-        ],
+        rejections: [{ personId: "one", cause: "archived" }],
       }),
-    ).toBe(
-      "Lucía Pérez tiene Estado de alta Archivado. Reactivá a esa persona para poder agregarla a la coreografía.",
-    );
+    ).toBe("Reactivá este bailarín para poder agregarlo a la coreografía.");
+    expect(
+      getRosterPersonRejectionMessage({
+        kind: "professor",
+        rejections: [{ personId: "one", cause: "archived" }],
+      }),
+    ).toBe("Reactivá este profesor para poder agregarlo a la coreografía.");
   });
 
-  test("names every archived person when more than one was picked", () => {
+  test("emits the archived sentence once however many archived people were picked", () => {
     expect(
       getRosterPersonRejectionMessage({
         kind: "professor",
         rejections: [
-          { personId: "one", cause: "archived", fullName: "Lucía Pérez" },
-          { personId: "two", cause: "archived", fullName: "Juan Gómez" },
+          { personId: "one", cause: "archived" },
+          { personId: "two", cause: "archived" },
         ],
       }),
-    ).toBe(
-      "Lucía Pérez y Juan Gómez tienen Estado de alta Archivado. Reactivá a esas personas para poder agregarlas a la coreografía.",
-    );
+    ).toBe("Reactivá este profesor para poder agregarlo a la coreografía.");
   });
 
   test("states both causes when the selection mixes them", () => {
@@ -120,11 +115,11 @@ describe("getRosterPersonRejectionMessage", () => {
         kind: "dancer",
         rejections: [
           { personId: "one", cause: "not-found" },
-          { personId: "two", cause: "archived", fullName: "Lucía Pérez" },
+          { personId: "two", cause: "archived" },
         ],
       }),
     ).toBe(
-      "Lucía Pérez tiene Estado de alta Archivado. Reactivá a esa persona para poder agregarla a la coreografía. Elegí bailarines que pertenezcan a tu academia.",
+      "Reactivá este bailarín para poder agregarlo a la coreografía. Elegí bailarines que pertenezcan a tu academia.",
     );
   });
 });

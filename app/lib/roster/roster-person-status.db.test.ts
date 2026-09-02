@@ -10,7 +10,6 @@ import {
 } from "@/lib/choreographies/registration-test-fixtures.server.db";
 import {
   activeRosterPerson,
-  activeRosterPersonSql,
   rosterPersonStatusCondition,
 } from "@/lib/roster/roster-person-status.server";
 
@@ -19,7 +18,7 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 installDatabaseTestHooks();
 
 describe("active roster person predicate", () => {
-  test("agrees with its raw-SQL twin over a roster that contains archived people", async () => {
+  test("keeps only the active people of both tables", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Alta",
       email: "alta.academia@example.com",
@@ -46,53 +45,26 @@ describe("active roster person predicate", () => {
     const dancerIds = [activeDancer.id, archivedDancer.id];
     const professorIds = [activeProfessor.id, archivedProfessor.id];
 
-    const [byPredicate, byTwin, professorsByPredicate, professorsByTwin] =
-      await Promise.all([
-        db
-          .select({ id: dancers.id })
-          .from(dancers)
-          .where(
-            and(inArray(dancers.id, dancerIds), activeRosterPerson(dancers)),
-          )
-          .orderBy(asc(dancers.id)),
-        db
-          .select({ id: dancers.id })
-          .from(dancers)
-          .where(
-            and(
-              inArray(dancers.id, dancerIds),
-              activeRosterPersonSql("en_escena_dancer"),
-            ),
-          )
-          .orderBy(asc(dancers.id)),
-        db
-          .select({ id: professors.id })
-          .from(professors)
-          .where(
-            and(
-              inArray(professors.id, professorIds),
-              activeRosterPerson(professors),
-            ),
-          )
-          .orderBy(asc(professors.id)),
-        db
-          .select({ id: professors.id })
-          .from(professors)
-          .where(
-            and(
-              inArray(professors.id, professorIds),
-              activeRosterPersonSql("en_escena_professor"),
-            ),
-          )
-          .orderBy(asc(professors.id)),
-      ]);
-
-    expect(byPredicate).toEqual(byTwin);
-    expect(byPredicate.map((row) => row.id)).toEqual([activeDancer.id]);
-    expect(professorsByPredicate).toEqual(professorsByTwin);
-    expect(professorsByPredicate.map((row) => row.id)).toEqual([
-      activeProfessor.id,
+    const [activeDancers, activeProfessors] = await Promise.all([
+      db
+        .select({ id: dancers.id })
+        .from(dancers)
+        .where(and(inArray(dancers.id, dancerIds), activeRosterPerson(dancers)))
+        .orderBy(asc(dancers.id)),
+      db
+        .select({ id: professors.id })
+        .from(professors)
+        .where(
+          and(
+            inArray(professors.id, professorIds),
+            activeRosterPerson(professors),
+          ),
+        )
+        .orderBy(asc(professors.id)),
     ]);
+
+    expect(activeDancers.map((row) => row.id)).toEqual([activeDancer.id]);
+    expect(activeProfessors.map((row) => row.id)).toEqual([activeProfessor.id]);
   });
 
   test("filters by the three values of the axis, and by nothing for 'all'", async () => {

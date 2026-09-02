@@ -11,7 +11,10 @@ import {
   findDancerForAcademy,
   updateDancerForAcademy,
 } from "@/lib/portal/dancers.server";
-import { setRosterPersonStatus } from "@/lib/roster/roster-person-status.server";
+import {
+  getRosterPersonNotFoundMessage,
+  setRosterPersonStatus,
+} from "@/lib/roster/roster-person-status.server";
 
 import {
   getClientDocumentImageValidationMessage,
@@ -49,13 +52,19 @@ export async function handlePortalDancerDetailAction(input: {
   const intent = readFormString(formData, "intent");
 
   if (intent === "archive-dancer") {
-    await setRosterPersonStatus({
+    const result = await setRosterPersonStatus({
       academyId: academy.id,
       kind: "dancer",
       next: "archived",
       personId: dancerId,
       surface: "portal",
     });
+
+    if (!result.ok) {
+      throw new Response(getRosterPersonNotFoundMessage("dancer"), {
+        status: 404,
+      });
+    }
     return {
       status: "success" as const,
       message: notificationToasts["bailarin-archivado"].message,
@@ -63,13 +72,19 @@ export async function handlePortalDancerDetailAction(input: {
   }
 
   if (intent === "reactivate-dancer") {
-    await setRosterPersonStatus({
+    const result = await setRosterPersonStatus({
       academyId: academy.id,
       kind: "dancer",
       next: "active",
       personId: dancerId,
       surface: "portal",
     });
+
+    if (!result.ok) {
+      throw new Response(getRosterPersonNotFoundMessage("dancer"), {
+        status: 404,
+      });
+    }
     return {
       status: "success" as const,
       message: notificationToasts["bailarin-reactivado"].message,

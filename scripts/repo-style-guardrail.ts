@@ -29,8 +29,8 @@ const spaceUtilityPattern = new RegExp(
  * different ways once, which is why the boundary is gated rather than merely
  * documented.
  *
- * The comparison form covers the Drizzle predicate, the raw-SQL twin's
- * identifier, a hand-written `alias.active = true` and the same comparison
+ * The comparison form covers the Drizzle predicate, a `sql.identifier`
+ * spelling of the column, a hand-written `alias.active = true` and the same comparison
  * inside a `sql` template (`${dancers.active} = true`). The Drizzle arm takes
  * any right-hand side rather than only a literal, because `eq(t.active, show)`
  * restates the rule exactly as much as `eq(t.active, true)` does. Identifiers
@@ -73,7 +73,7 @@ const repoStyleRuleReasons: Record<RepoStyleRule, string> = {
   "prefer-gap-over-space":
     "Spacing between siblings is `gap-*` on the flex or grid parent.",
   "roster-person-status-owns-active-column":
-    "Estado de alta is read through `app/lib/roster/roster-person-status.server.ts` (`activeRosterPerson`, `activeRosterPersonSql`, `rosterPersonStatusCondition`), never by comparing the `active` column here.",
+    "Estado de alta is read through `app/lib/roster/roster-person-status.server.ts` (`activeRosterPerson`, `rosterPersonStatusCondition`), never by comparing the `active` column here.",
   "roster-person-status-owns-selectable-rule":
     "Roster eligibility is `isSelectableForRoster` in `app/lib/roster/roster-person-status.shared.ts`, so a read cannot offer what a write will refuse.",
 };
@@ -121,7 +121,7 @@ const repoStyleExceptions: RepoStyleException[] = [
   {
     filePathPrefix: rosterPersonStatusOwnerDirectory,
     reason:
-      "The roster person status module is the owner of the `active` column and of its SQL twin.",
+      "The roster person status module is the owner of the `active` column.",
     rule: "roster-person-status-owns-active-column",
   },
   {

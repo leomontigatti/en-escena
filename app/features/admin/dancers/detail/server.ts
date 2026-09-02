@@ -7,7 +7,10 @@ import {
   findDancer,
   verifyDancerIdentity,
 } from "@/lib/admin/dancers/dancers.server";
-import { setRosterPersonStatus } from "@/lib/roster/roster-person-status.server";
+import {
+  getRosterPersonNotFoundMessage,
+  setRosterPersonStatus,
+} from "@/lib/roster/roster-person-status.server";
 import { updateAdministrativeDancer } from "@/lib/admin/dancers/dancers-update.server";
 import {
   requireAdminUser,
@@ -92,13 +95,19 @@ export async function handleDancerDetailAction(input: {
   }
 
   if (intent === "archive-dancer" || intent === "reactivate-dancer") {
-    await setRosterPersonStatus({
+    const result = await setRosterPersonStatus({
       academyId: null,
       kind: "dancer",
       next: intent === "archive-dancer" ? "archived" : "active",
       personId: dancerId,
       surface: "admin",
     });
+
+    if (!result.ok) {
+      throw new Response(getRosterPersonNotFoundMessage("dancer"), {
+        status: 404,
+      });
+    }
 
     return buildDancerActionSuccess(
       intent === "archive-dancer"

@@ -81,7 +81,8 @@ describe.sequential("setRosterPersonStatus", () => {
       surface: "portal",
     });
 
-    expect(archived.active).toBe(false);
+    expect(archived).toMatchObject({ ok: true });
+    expect(archived.ok && archived.person.active).toBe(false);
     expect(await readInscription(fixture.inscriptionId)).toEqual(
       inscriptionBefore,
     );
@@ -146,7 +147,7 @@ describe.sequential("setRosterPersonStatus", () => {
       surface: "portal",
     });
 
-    expect(reactivated.active).toBe(true);
+    expect(reactivated.ok && reactivated.person.active).toBe(true);
     expect(await readOptionIds()).toContain(fixture.dancer.id);
   });
 
@@ -165,7 +166,7 @@ describe.sequential("setRosterPersonStatus", () => {
       surface: "admin",
     });
 
-    expect(archived.active).toBe(false);
+    expect(archived.ok && archived.person.active).toBe(false);
     const reactivated = await setRosterPersonStatus({
       academyId: null,
       kind: "professor",
@@ -173,7 +174,7 @@ describe.sequential("setRosterPersonStatus", () => {
       personId: professor.id,
       surface: "admin",
     });
-    expect(reactivated.active).toBe(true);
+    expect(reactivated.ok && reactivated.person.active).toBe(true);
     const [row] = await db
       .select({ active: professors.active })
       .from(professors)
@@ -188,6 +189,8 @@ describe.sequential("setRosterPersonStatus", () => {
       email: `vecina.${crypto.randomUUID()}@example.com`,
     });
 
+    // Not a thrown `Response`: the status code is the route's to decide, so the
+    // module reports the cause and the route turns it into a 404.
     await expect(
       setRosterPersonStatus({
         academyId: otherAcademy.id,
@@ -196,7 +199,7 @@ describe.sequential("setRosterPersonStatus", () => {
         personId: fixture.dancer.id,
         surface: "portal",
       }),
-    ).rejects.toBeInstanceOf(Response);
+    ).resolves.toEqual({ ok: false, cause: "not-found" });
 
     const [row] = await db
       .select({ active: dancers.active })
