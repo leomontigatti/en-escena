@@ -29,6 +29,14 @@ changeset affect the verdict. Inherited findings in touched files are reported
 under `attribution` and annotated with `introduced: false`. Treat runtime JSON
 errors such as `{ "error": true, ... }` as non-blocking.
 
+`--base origin/master` is not decoration. Left to itself the audit bases on the
+merge base with `origin/<current-branch>` — the branch's own last pushed commit —
+so the first `git merge master` into an open branch re-attributes everything
+master merged meanwhile to whoever ran the merge. On this repo that meant 12
+clone groups and 2 complexity findings from #787 failing an unrelated branch's
+hook. Pinning the base to the default branch keeps "introduced" meaning what the
+gate says it means: what this branch adds on top of master.
+
 ## Fallow task map
 
 | When the agent is about to...      | Run                                                                                  |

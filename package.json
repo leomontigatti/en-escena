@@ -21,7 +21,7 @@
     "check:migration-immutability": "node scripts/check-migration-immutability.mjs",
     "check:migration-order": "node scripts/check-migration-order.mjs",
     "check:repo-styles": "node --import tsx scripts/repo-style-guardrail.ts",
-    "check:fallow": "fallow audit --quiet --gate-marker agent",
+    "check:fallow": "fallow audit --quiet --gate-marker agent --base origin/master",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky || true",
