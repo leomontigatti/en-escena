@@ -122,19 +122,24 @@ otherwise ADRs would qualify too.
 
 ### The surrounding file does not decide the language
 
-Much of the tree still carries Spanish comments;
-[#592](https://github.com/leomontigatti/en-escena/issues/592) owns the count and
-the sweep. **That is debt, not precedent.** A comment you write
-or modify is English even when every comment around it is Spanish, and
-"consistent with the file" is not a reason to add another Spanish line. This is
-the rule the debt kept quietly suspending: reviews of
+The tree used to carry 2,198 lines of Spanish comments across 177 files, and the
+argument that kept adding to them was "consistent with the file": reviews of
 [#698](https://github.com/leomontigatti/en-escena/issues/698) and
 [#701](https://github.com/leomontigatti/en-escena/issues/701) both found new
-Spanish comments defended on exactly that ground.
+Spanish comments defended on exactly that ground. That debt is gone —
+[#592](https://github.com/leomontigatti/en-escena/issues/592) swept it, comments
+and test names alike — and `pnpm check:comment-language` now fails the commit and
+the build on Spanish prose in a comment or a test name, so the argument no longer
+has anything to appeal to.
 
-The converse also holds: **do not opportunistically translate** comments you are
-not otherwise touching. Sweeping the existing Spanish is #592's job, and mixing
-it into a feature branch buries the change under a diff nobody asked to review.
+The guardrail reads Spanish *grammar*, not Spanish *vocabulary*. Naming a
+reserved term from `CONTEXT.md` inside an English sentence is the glossary being
+used as intended — "a `seña` does not close the `modalidad`" is correct prose —
+and quoted copy, route paths and backticked identifiers are data. Only a Spanish
+*sentence* fails.
+
+It covers `.ts`/`.tsx` under `app/`, `scripts/` and `tests/`. Markdown and YAML
+are on the same rule but are not machine-checked, so they rest on review.
 
 One file type is exempt from both directions: **an applied migration under
 `app/db/migrations/` is frozen, comments included.** Drizzle hashes the whole

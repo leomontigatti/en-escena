@@ -37,11 +37,11 @@ export function ChoreographyDetailAlerts({
         </Alert>
       ) : null}
 
-      {/* Tampoco se suprime para el auditor: informa un estado de los datos.
-          La coreografía quedó sin un nivel que su categoría exige —por una
-          corrección de fecha de nacimiento, por una categoría a la que le
-          agregaron niveles después, o por una fila vieja—, y el motivo no
-          está guardado en ningún lado, así que la alerta no lo nombra. */}
+      {/* Not suppressed for the auditor either: it reports a state of the data.
+          The coreografía was left without a level its categoría requires — a
+          date-of-birth correction, a categoría that had levels added to it
+          later, or an old row — and the reason is stored nowhere, so the alert
+          does not name it. */}
       {choreography.operationalStatus.pendingItems.includes(
         "experienceLevel",
       ) ? (
@@ -58,10 +58,11 @@ export function ChoreographyDetailAlerts({
         </Alert>
       ) : null}
 
-      {/* La alerta financiera no se suprime para el auditor: el motivo del
-          bloqueo es información de la coreografía, no del permiso de quien
-          mira. Un bloqueo por línea, sin título ni lista: el label del servidor
-          ya es la frase entera, y dos bloqueos son dos alertas apiladas. */}
+      {/* The financial alert is not suppressed for the auditor: the reason for
+          the block belongs to the coreografía, not to the permissions of
+          whoever is looking. One block per line, with no title and no list: the
+          server's label is already the whole sentence, and two blocks are two
+          stacked alerts. */}
       {loaderData.scheduleCapacity.blockers.map((blocker) => (
         <Alert key={blocker.code} variant="warning">
           <TriangleAlert aria-hidden="true" />

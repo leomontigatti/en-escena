@@ -120,10 +120,18 @@ Hook guidance:
 
 - Keep pre-commit hooks fast and deterministic. Formatting staged files through
   `lint-staged` is appropriate.
-- The pre-commit hook runs `lint-staged`, `pnpm typecheck`, and
-  `pnpm check:file-tokens`. Treat that as the minimum commit gate, not as the
-  only validation path for agent work. Hooks can be skipped and may not run in
-  every environment.
+- The pre-commit hook runs `lint-staged`, `pnpm check:comment-language`,
+  `pnpm typecheck`, `pnpm check:file-tokens` and `pnpm check:fallow`. Treat that
+  as the minimum commit gate, not as the only validation path for agent work.
+  Hooks can be skipped and may not run in every environment.
+- `pnpm check:comment-language` fails on Spanish prose in a comment or a test
+  name anywhere under `app/`, `scripts/` or `tests/` (#592). It matches Spanish
+  _grammar_, not Spanish _vocabulary_: the domain nouns `CONTEXT.md` reserves
+  are exactly what English prose here is supposed to use, and quoted copy, route
+  paths and backticked identifiers are data. See the Code Language section of
+  `.sandcastle/CODING_STANDARDS.md`.
+- `pnpm check:fallow` is the Fallow audit on its `new-only` gate; see
+  [fallow.md](fallow.md) for what it gates and what it costs.
 - `pnpm check:file-tokens` is a staged-source commit gate, not a required
   validation command after every implementation. Run it before committing
   staged application source, before a PR handoff that depends on staged files,

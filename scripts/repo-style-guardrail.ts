@@ -1,7 +1,9 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+
+import { collectSourceFiles } from "./source-files";
 
 const appDirectory = path.resolve("app");
 const sourceFilePattern = /\.(ts|tsx)$/;
@@ -73,7 +75,15 @@ export async function checkRepoStyle(
   options: CheckRepoStyleOptions = {},
 ): Promise<RepoStyleViolation[]> {
   const rootDirectory = options.rootDirectory ?? appDirectory;
-  const files = options.files ?? getSourceFiles(rootDirectory);
+  const files =
+    options.files ??
+    collectSourceFiles({
+      directoryPath: rootDirectory,
+      keeps: (fileName) =>
+        sourceFilePattern.test(fileName) &&
+        !testFilePattern.test(fileName) &&
+        !fileName.endsWith(".d.ts"),
+    });
   const relativeRoot = path.resolve(rootDirectory);
 
   return files.flatMap((filePath) => {
@@ -175,28 +185,6 @@ function matchesException(
         path.normalize(input.repoRelativePath)) &&
     (exception.lineIncludes === undefined ||
       input.line.includes(exception.lineIncludes))
-  );
-}
-
-function getSourceFiles(directoryPath: string): string[] {
-  return readdirSync(directoryPath, { withFileTypes: true }).flatMap(
-    (entry) => {
-      const entryPath = path.join(directoryPath, entry.name);
-
-      if (entry.isDirectory()) {
-        return getSourceFiles(entryPath);
-      }
-
-      if (
-        !sourceFilePattern.test(entry.name) ||
-        testFilePattern.test(entry.name) ||
-        entry.name.endsWith(".d.ts")
-      ) {
-        return [];
-      }
-
-      return [entryPath];
-    },
   );
 }
 
