@@ -31,20 +31,77 @@ describe("PortalChoreographyFinanceDetailRouteView", () => {
     // pay, so the decoration cannot depend on the row's state.
     expect(pending).toEqual(paid);
     expect(pending).toEqual({
-      "Precio base": { muted: false },
       Seña: { muted: false },
       Total: { muted: true },
+      "Saldo adeudado": { muted: false },
     });
   });
 
   // The number the academy quotes when it asks about a choreography, titled the
   // same way the administrator's finance detail titles it.
-  test("titles the detail with the choreography number", () => {
+  test("titles the detail with the choreography name and number", () => {
     const title = renderDetail().match(
       /id="finanzas-coreografia-title"[^>]*>([^<]*)</,
     );
 
-    expect(title?.[1]).toBe("Detalle financiero # 00001");
+    expect(title?.[1]).toBe("Aire # 00001");
+  });
+
+  // The same five the administrator reads, in the same order: each threshold
+  // with its owed figure beside it, and the academy's available balance last.
+  test("shows the five metrics and the same inscription columns as the admin", () => {
+    const markup = renderDetail();
+
+    for (const metric of [
+      "Seña total",
+      "Seña adeudada",
+      "Total",
+      "Saldo adeudado",
+      "Saldo disponible",
+    ]) {
+      expect(markup).toContain(metric);
+    }
+
+    // `Saldo disponible` is the academy's, not the choreography's.
+    expect(markup).toContain("$ 5.000");
+    expect(inscriptionHeaders()).toEqual([
+      "Bailarín",
+      "Precio",
+      "Seña",
+      "Total",
+      "Saldo adeudado",
+      "Estado",
+    ]);
+    // The effective price by name: which of the event's prices governs the row.
+    expect(markup).toContain("Primer vencimiento");
+  });
+
+  // The two things the academy does not get: the emission lives with the
+  // administrator, and so does the money dialog the dancer's name opens.
+  test("leaves out the emission action and the dancer's money dialog", () => {
+    const markup = renderDetail();
+
+    expect(markup).not.toContain("Emitir factura");
+    expect(markup).not.toContain("Acciones");
+    // Present as plain text, and the negative assertion is anchored on the row
+    // so it cannot pass by the name having disappeared.
+    expect(markup).toContain("Ana López");
+    expect(dancerCellMarkup()).not.toContain("<button");
+    expect(dancerCellMarkup()).not.toContain("<a ");
+  });
+
+  test("warns about over-allocated money without sending the academy to fix it", () => {
+    const markup = renderDetail({
+      choreography: choreographyFixture({ anomalies: ["overAllocated"] }),
+    });
+
+    expect(markup).toContain(
+      "Hay inscripciones con más dinero asignado que su total",
+    );
+    // The academy cannot move an allocation, so the alert points at
+    // administración instead of at a list they cannot act on.
+    expect(markup).toContain("administración");
+    expect(markup).not.toContain("Podés corregirlo");
   });
 
   test("does not label any amount as provisional", () => {
@@ -77,18 +134,29 @@ function renderDetail(overrides: Partial<LoaderData> = {}) {
 
 function loaderDataFixture(overrides: Partial<LoaderData> = {}): LoaderData {
   return {
-    choreography: {
-      allocatedAmount: 3000,
-      choreographyNumber: 1,
-      depositAmount: { amount: 3000, status: "complete" },
-      financialStatus: "depositMet",
-      groupType: "duo",
-      id: "choreography_1",
-      name: "Aire",
-      owedBalanceAmount: { amount: 7000, status: "complete" },
-      totalAmount: { amount: 10000, status: "complete" },
-    },
+    availableBalanceAmount: 5000,
+    choreography: choreographyFixture(),
     inscriptions: [inscriptionFixture()],
+    ...overrides,
+  };
+}
+
+function choreographyFixture(
+  overrides: Partial<LoaderData["choreography"]> = {},
+): LoaderData["choreography"] {
+  return {
+    allocatedAmount: 3000,
+    anomalies: [],
+    choreographyNumber: 1,
+    depositAmount: { amount: 3000, status: "complete" },
+    financialStatus: "depositMet",
+    groupType: "duo",
+    id: "choreography_1",
+    name: "Aire",
+    overAllocatedAmount: 0,
+    owedBalanceAmount: { amount: 7000, status: "complete" },
+    owedDepositAmount: { amount: 0, status: "complete" },
+    totalAmount: { amount: 10000, status: "complete" },
     ...overrides,
   };
 }
@@ -103,6 +171,12 @@ function inscriptionFixture(
     dancerId: "dancer_1",
     depositAmount: 3000,
     discountAmount: 0,
+    effectivePrice: {
+      amount: 10000,
+      depositAmount: 3000,
+      id: "price_1",
+      name: "Primer vencimiento",
+    },
     financialStatus: "depositMet",
     firstName: "Ana",
     inscriptionId: "inscription_1",
@@ -116,20 +190,47 @@ function inscriptionFixture(
   };
 }
 
+function inscriptionsTable(markup = renderDetail()) {
+  const document = new DOMParser().parseFromString(markup, "text/html");
+  const table = document.querySelector('[aria-label="Inscripciones"] table');
+
+  if (!table) {
+    throw new Error("Expected the inscriptions table to be rendered.");
+  }
+
+  return table;
+}
+
+function inscriptionHeaders(markup?: string) {
+  return [...inscriptionsTable(markup).querySelectorAll("thead th")].map(
+    (header) => header.textContent?.trim() ?? "",
+  );
+}
+
+/** The `Bailarín` cell of the single row, read by header and not by position. */
+function dancerCellMarkup(markup?: string) {
+  const table = inscriptionsTable(markup);
+  const columnIndex = inscriptionHeaders(markup).indexOf("Bailarín");
+  const cell = [...table.querySelectorAll("tbody tr td")][columnIndex];
+
+  if (!cell) {
+    throw new Error("Expected the dancer cell to be rendered.");
+  }
+
+  return cell.innerHTML;
+}
+
 /**
  * Maps each amount column of the inscription row to its decoration. It anchors on
  * the header and not on the cell's position.
  */
 function amountColumnStyles(markup: string) {
-  const document = new DOMParser().parseFromString(markup, "text/html");
-  const table = document.querySelector('[aria-label="Inscripciones"] table');
-  const headers = [...(table?.querySelectorAll("thead th") ?? [])].map(
-    (header) => header.textContent?.trim() ?? "",
-  );
-  const cells = [...(table?.querySelectorAll("tbody tr td") ?? [])];
+  const table = inscriptionsTable(markup);
+  const headers = inscriptionHeaders(markup);
+  const cells = [...table.querySelectorAll("tbody tr td")];
 
   return Object.fromEntries(
-    ["Precio base", "Seña", "Total"].map((column) => {
+    ["Seña", "Total", "Saldo adeudado"].map((column) => {
       const cell = cells[headers.indexOf(column)];
 
       if (!cell) {

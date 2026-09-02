@@ -808,10 +808,11 @@ Three of those rows retire a **concept**, not every string that spells it, and
 the difference matters to anyone about to delete something:
 
 - **`Cuenta corriente de academia`** retires the _entity_ — there is no
-  account-balance record, and no `academyAccountBalance` identifier. But
-  **"Cuenta corriente" is the live page title of the portal's finance page**
-  (`app/features/portal/finances/view.tsx`, linked from `app/routes/portal._index.tsx`).
-  That string is UI copy an academy reads and is not covered by this table.
+  account-balance record, and no `academyAccountBalance` identifier. The words
+  survive only as UI copy an academy reads, which this table does not cover: the
+  portal's finance page is titled `Resumen financiero`
+  (`app/features/portal/finances/view.tsx`), and the card that links to it from
+  `app/routes/portal._index.tsx` still describes it as their cuenta corriente.
 - **`Fecha de referencia financiera`** retires the _per-inscription column_; both
   reference-date columns were dropped in #689. The words survive as a local
   variable, `financialReferenceDate` in `resolveEstimatedBasePriceAmount`, which

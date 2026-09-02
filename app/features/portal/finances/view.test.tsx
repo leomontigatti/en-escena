@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 
+import { act } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
@@ -29,8 +30,10 @@ describe("PortalAcademyFinancesRouteView", () => {
 
     const headers = headerLabels();
 
-    expect(headers[0]).toBe("#");
-    expect(headers[1]).toBe("Nombre");
+    // The selection checkbox owns the first header, which carries no label.
+    expect(headers[0]).toBe("");
+    expect(headers[1]).toBe("#");
+    expect(headers[2]).toBe("Nombre");
     // The rows arrive in the opposite order, so this only passes while the list
     // opens ordered by the number.
     expect(columnValues("#")).toEqual(["00001", "00002"]);
@@ -85,14 +88,76 @@ describe("PortalAcademyFinancesRouteView", () => {
     ).not.toBeNull();
   });
 
-  test("keeps the aggregates visible", async () => {
+  // The same five the administrator reads, in the same order: each threshold
+  // with its owed figure beside it, and the unallocated money last.
+  test("keeps the five aggregates visible", async () => {
     await renderPortalFinances(portalFinancesLoaderDataFixture());
 
     const text = document.body.textContent ?? "";
 
-    expect(text).toContain("Seña adeudada");
-    expect(text).toContain("Saldo disponible");
-    expect(text).toContain("Saldo adeudado");
+    for (const metric of [
+      "Seña total",
+      "Seña adeudada",
+      "Total",
+      "Saldo adeudado",
+      "Saldo disponible",
+    ]) {
+      expect(text).toContain(metric);
+    }
+  });
+
+  // Selecting is how the academy asks what a few choreographies owe without
+  // adding them up from memory. It is the administrator's behaviour minus the
+  // collections: there is nothing to fire from here, so the rows only re-scope
+  // the two owed figures.
+  test("scopes the owed metrics to the selection and restores them when it is cleared", async () => {
+    await renderPortalFinances(
+      portalFinancesLoaderDataFixture({
+        choreographyFinanceRows: [
+          choreographyFinanceRowFixture({
+            choreographyNumber: 1,
+            id: "choreography_1",
+            name: "Aire",
+            owedBalanceAmount: { amount: 12000, status: "complete" },
+            owedDepositAmount: { amount: 3000, status: "complete" },
+          }),
+          choreographyFinanceRowFixture({
+            choreographyNumber: 2,
+            id: "choreography_2",
+            name: "Tango",
+            owedBalanceAmount: { amount: 9000, status: "complete" },
+            owedDepositAmount: { amount: 4000, status: "complete" },
+          }),
+        ],
+        summary: {
+          availableBalanceAmount: 5000,
+          depositAmount: { amount: 18000, status: "complete" },
+          totalAmount: { amount: 60000, status: "complete" },
+          owedBalanceAmount: { amount: 21000, status: "complete" },
+          owedDepositAmount: { amount: 7000, status: "complete" },
+          totalPaidAmount: 0,
+        },
+      }),
+    );
+
+    expect(metricCardText("Seña adeudada")).toContain("$ 7.000");
+    expect(metricCardText("Saldo adeudado")).toContain("$ 21.000");
+
+    // The first row after the header checkbox: `Aire`, which owes 3.000 / 12.000.
+    await clickCheckbox(getRenderedCheckboxes()[1]);
+
+    expect(metricCardText("Seña adeudada")).toContain("$ 3.000");
+    expect(metricCardText("Saldo adeudado")).toContain("$ 12.000");
+    // The thresholds and the available balance stay the academy's: they are what
+    // the debt is measured against, not part of it.
+    expect(metricCardText("Seña total")).toContain("$ 18.000");
+    expect(metricCardText("Total")).toContain("$ 60.000");
+    expect(metricCardText("Saldo disponible")).toContain("$ 5.000");
+
+    await clickCheckbox(getRenderedCheckboxes()[1]);
+
+    expect(metricCardText("Seña adeudada")).toContain("$ 7.000");
+    expect(metricCardText("Saldo adeudado")).toContain("$ 21.000");
   });
 
   test("shows the empty state when there is no active event", async () => {
@@ -107,6 +172,36 @@ describe("PortalAcademyFinancesRouteView", () => {
     );
   });
 });
+
+function getRenderedCheckboxes() {
+  return [...document.querySelectorAll('[role="checkbox"]')].filter(
+    (element): element is HTMLElement => element instanceof HTMLElement,
+  );
+}
+
+async function clickCheckbox(checkbox: HTMLElement) {
+  await act(async () => {
+    checkbox.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true }),
+    );
+    await Promise.resolve();
+  });
+}
+
+function metricCardText(title: string) {
+  const card = [...document.querySelectorAll('[data-slot="card"]')].find(
+    (candidate) =>
+      candidate
+        .querySelector('[data-slot="card-title"]')
+        ?.textContent?.trim() === title,
+  );
+
+  if (!card) {
+    throw new Error(`Expected the "${title}" metric card to be rendered.`);
+  }
+
+  return card.textContent ?? "";
+}
 
 function headerLabels() {
   return [...document.querySelectorAll("thead th")].map((header) =>

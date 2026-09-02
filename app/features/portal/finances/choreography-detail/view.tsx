@@ -1,35 +1,27 @@
-import { ChevronLeft } from "lucide-react";
-import { Link } from "react-router";
+import { AlertTriangle } from "lucide-react";
 
+import { PortalListPage } from "@/components/portal/ui";
+import { AlertStack } from "@/components/shared/alert-stack";
+import {
+  ClientDataTable,
+  type DataTableColumn,
+  type DataTableFacetedFilter,
+} from "@/components/shared/data-table";
 import { MetricCard } from "@/components/shared/metric-card";
-import {
-  ReadOnlyField,
-  ReadOnlySelectField,
-} from "@/components/shared/read-only-field";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { FieldGroup } from "@/components/ui/field";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { formatDancerName } from "@/features/admin/finances/academy-choreographies/choreography-detail/shared";
 import {
   formatAmount,
   formatOperationalAmount,
 } from "@/features/admin/finances/formatters";
 import type { loadPortalChoreographyFinanceDetail } from "@/features/portal/finances/choreography-detail/server";
-import {
-  formatInscriptionFinancialStatus,
-  formatInscriptionStatusBadge,
-} from "@/lib/finances/choreography-financial-status";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
+import {
+  formatInscriptionStatusBadge,
+  inscriptionStatusFilterOptions,
+} from "@/lib/finances/choreography-financial-status";
 import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
-import { choreographyGroupTypeOptions } from "@/lib/portal/choreographies";
 
 type PortalChoreographyFinanceDetailLoaderData = Awaited<
   ReturnType<typeof loadPortalChoreographyFinanceDetail>
@@ -38,6 +30,24 @@ type PortalChoreographyFinanceDetailLoaderData = Awaited<
 type InscriptionRow =
   PortalChoreographyFinanceDetailLoaderData["inscriptions"][number];
 
+const inscriptionFacetedFilters: DataTableFacetedFilter[] = [
+  {
+    id: "estado",
+    label: "Estado",
+    options: [...inscriptionStatusFilterOptions],
+  },
+];
+
+/**
+ * The academy's financial detail is the administrator's, minus what only the
+ * administrator can do: there is no `Emitir factura` here, and the dancer's name
+ * is plain text because the money dialog behind it is a write.
+ *
+ * Everything that is a *reading* —the title, the five metrics, the alerts and
+ * every column of the inscriptions table— is the same on both screens. That is
+ * the point: when the academy calls asking about a figure, both parties are
+ * looking at the same one.
+ */
 export function PortalChoreographyFinanceDetailRouteView({
   loaderData,
 }: {
@@ -46,75 +56,95 @@ export function PortalChoreographyFinanceDetailRouteView({
   const choreography = loaderData.choreography;
 
   return (
-    <section
-      className="flex flex-col gap-6"
-      aria-labelledby="finanzas-coreografia-title"
+    <PortalListPage
+      titleId="finanzas-coreografia-title"
+      title={`${choreography.name} # ${formatEventSequenceNumber(
+        choreography.choreographyNumber,
+      )}`}
+      description="Revisá los importes de esta coreografía y de cada bailarín inscripto."
     >
-      <div className="flex flex-col gap-1">
-        {/* The number the academy quotes when it asks about a choreography,
-            titled the same way the rest of the portal titles it. */}
-        <h2 id="finanzas-coreografia-title" className="text-xl font-semibold">
-          Detalle financiero #{" "}
-          {formatEventSequenceNumber(choreography.choreographyNumber)}
-        </h2>
-        <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-          Revisá los importes de esta coreografía y de cada bailarín inscripto.
-        </p>
-      </div>
+      <ChoreographyAlerts choreography={choreography} />
 
-      <section className="grid gap-4 md:grid-cols-3">
+      {/* The same five metrics as the list, narrowed to this choreography: each
+          threshold with its owed figure beside it. `Saldo disponible` is the
+          exception and stays the academy's —unallocated money belongs to no
+          choreography— and it is the pool this choreography gets paid from. */}
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <MetricCard
+          title="Seña total"
+          value={formatOperationalAmount(choreography.depositAmount)}
+        />
+        <MetricCard
+          title="Seña adeudada"
+          value={formatOperationalAmount(choreography.owedDepositAmount)}
+        />
         <MetricCard
           title="Total"
           value={formatOperationalAmount(choreography.totalAmount)}
         />
         <MetricCard
-          title="Pagado"
-          value={formatAmount(choreography.allocatedAmount)}
-        />
-        <MetricCard
           title="Saldo adeudado"
           value={formatOperationalAmount(choreography.owedBalanceAmount)}
         />
+        <MetricCard
+          title="Saldo disponible"
+          value={formatAmount(loaderData.availableBalanceAmount)}
+        />
       </section>
 
-      <Card aria-label="Información financiera">
-        <CardContent>
-          <FieldGroup className="grid gap-4 md:grid-cols-2">
-            <ReadOnlyField
-              id="portal-finance-choreography-name"
-              label="Nombre"
-              value={choreography.name}
-            />
-            <ReadOnlySelectField
-              label="Tipo de grupo"
-              options={choreographyGroupTypeOptions}
-              value={choreography.groupType}
-            />
-            <ReadOnlyField
-              id="portal-finance-choreography-status"
-              label="Estado"
-              value={formatInscriptionFinancialStatus(
-                choreography.financialStatus,
-              )}
-            />
-          </FieldGroup>
-        </CardContent>
-      </Card>
-
       <InscriptionsTable inscriptions={loaderData.inscriptions} />
-    </section>
+    </PortalListPage>
+  );
+}
+
+function ChoreographyAlerts({
+  choreography,
+}: {
+  choreography: PortalChoreographyFinanceDetailLoaderData["choreography"];
+}) {
+  const missingPrice = choreography.depositAmount.status === "incomplete";
+  const overAllocated = choreography.anomalies.includes("overAllocated");
+
+  if (!missingPrice && !overAllocated) {
+    return null;
+  }
+
+  return (
+    <AlertStack>
+      {overAllocated ? <OverAllocatedAlert /> : null}
+      {missingPrice ? (
+        <Alert variant="warning">
+          <AlertTriangle aria-hidden="true" />
+          <AlertDescription>
+            Esta coreografía todavía no tiene un precio configurado: hasta que
+            administración lo cargue no se puede calcular lo que adeuda.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+    </AlertStack>
   );
 }
 
 /**
- * Column styling, decorative and unconditional. No figure is provisional, so
- * there is nothing left to mute per row: the whole of `Total` is muted because it
- * is the context column — what the debt is measured against, which the academy
- * reads in its own metric above — and a grey that varied per row would go back to
- * meaning something.
+ * The `Sobreasignada` anomaly, as an alert and not as a badge, exactly as on the
+ * administrator's detail: money in excess is something somebody has to resolve.
+ *
+ * What changes is who. The academy cannot move an allocation, so the alert names
+ * the money and points at administración instead of sending the reader to a list
+ * they cannot act on. It is self-resolving —it is derived from today's money— so
+ * there is nothing to dismiss.
  */
-const amountColumnClassName = "text-right tabular-nums";
-const totalColumnClassName = "text-right tabular-nums text-muted-foreground";
+function OverAllocatedAlert() {
+  return (
+    <Alert variant="destructive">
+      <AlertTriangle aria-hidden="true" />
+      <AlertDescription>
+        Hay inscripciones con más dinero asignado que su total. Escribile a
+        administración para que lo corrija.
+      </AlertDescription>
+    </Alert>
+  );
+}
 
 function InscriptionsTable({
   inscriptions,
@@ -122,82 +152,110 @@ function InscriptionsTable({
   inscriptions: InscriptionRow[];
 }) {
   return (
-    <Card aria-label="Inscripciones">
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Bailarín</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead className="text-right">Precio base</TableHead>
-              <TableHead className="text-right">Seña</TableHead>
-              <TableHead className="text-right">Total</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {inscriptions.length > 0 ? (
-              inscriptions.map((inscription) => (
-                <TableRow key={inscription.dancerId}>
-                  <TableCell className="font-medium">
-                    {inscription.firstName} {inscription.lastName}
-                  </TableCell>
-                  <TableCell>
-                    <InscriptionStatusBadge inscription={inscription} />
-                  </TableCell>
-                  <TableCell className={amountColumnClassName}>
-                    {formatInscriptionAmount(inscription.basePriceAmount)}
-                  </TableCell>
-                  <TableCell className={amountColumnClassName}>
-                    {formatInscriptionAmount(inscription.depositAmount)}
-                  </TableCell>
-                  <TableCell className={totalColumnClassName}>
-                    {formatInscriptionAmount(inscription.totalAmount)}
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={5}
-                  className="h-24 text-center text-muted-foreground"
-                >
-                  No hay inscripciones para mostrar.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </CardContent>
-      <CardFooter className="justify-between gap-3 border-0 bg-transparent pt-0">
-        <Button asChild variant="outline">
-          <Link to="/portal/finanzas">
-            <ChevronLeft aria-hidden="true" data-icon="inline-start" />
-            Volver
-          </Link>
-        </Button>
-      </CardFooter>
-    </Card>
+    <section aria-label="Inscripciones">
+      <ClientDataTable
+        rows={inscriptions}
+        columns={inscriptionColumns}
+        facetedFilters={inscriptionFacetedFilters}
+        getRowKey={(inscription) => inscription.dancerId}
+        searchPlaceholder="Buscar inscripción por bailarín"
+        textFilterColumnId="dancer"
+        emptyMessage="No hay inscripciones para mostrar."
+      />
+    </section>
   );
 }
 
+const inscriptionColumns: DataTableColumn<InscriptionRow>[] = [
+  {
+    // Plain text and not a button: the administrator's name cell opens the money
+    // dialog, which is a write the academy does not have.
+    id: "dancer",
+    header: "Bailarín",
+    className: "font-medium",
+    cell: (inscription) => formatDancerName(inscription),
+    filterValue: (inscription) => formatDancerName(inscription),
+    sortValue: (inscription) => formatDancerName(inscription),
+  },
+  {
+    // The name of the price row and not its amount: the amount is already in
+    // `Total`, and what could not be read anywhere was *which* of the event's
+    // prices governs this inscription. It is the effective price, the same one
+    // the row's figures are calculated with.
+    id: "price",
+    header: "Precio",
+    cell: (inscription) =>
+      inscription.effectivePrice === null ? (
+        "Sin precio"
+      ) : (
+        <Badge variant="secondary">{inscription.effectivePrice.name}</Badge>
+      ),
+    // No `filterValue`: the price's name is not an option of the `Estado`
+    // filter, and the facets gather the values of every column.
+    sortValue: (inscription) => inscription.effectivePrice?.name ?? "",
+  },
+  {
+    id: "deposit",
+    header: "Seña",
+    className: "text-right tabular-nums",
+    headerClassName: "text-right",
+    cell: (inscription) => formatInscriptionAmount(inscription.depositAmount),
+  },
+  {
+    // Decorative and unconditional: `Total` is the context column — what the debt
+    // is measured against — so the whole of it is muted. Never per row: no figure
+    // is provisional, and a grey that varies goes back to meaning something.
+    id: "total",
+    header: "Total",
+    className: "text-right tabular-nums text-muted-foreground",
+    headerClassName: "text-right",
+    cell: (inscription) => formatInscriptionAmount(inscription.totalAmount),
+  },
+  {
+    // The row's only actionable figure, highlighted by column.
+    id: "owedBalance",
+    header: "Saldo adeudado",
+    className: "text-right font-medium tabular-nums",
+    headerClassName: "text-right",
+    cell: (inscription) =>
+      formatInscriptionAmount(inscription.owedBalanceAmount),
+  },
+  {
+    // Last, after the money: the status is derived from the row's figures, so it
+    // reads as their conclusion and not as their heading.
+    id: "financialStatus",
+    header: "Estado",
+    cell: (inscription) => <InscriptionStatusCell inscription={inscription} />,
+    // The filter comes from the same badge the cell shows and not from
+    // `financialStatus`: a row badged `Retirada` that showed up when filtering
+    // by `Pagada` would contradict itself on screen.
+    filterValue: (inscription) => resolveStatusBadge(inscription).value,
+  },
+];
+
 /**
- * The academy reads the same badge as the admin, through the same resolver: a
- * withdrawn inscription reads `Retirada` with what was retained on it, not the
- * status of a roster it is no longer part of. The money is theirs and they have
- * to be able to see it.
+ * The badge of the `Estado` column, resolved exactly as the administrator's:
+ * `Retirada` **replaces** the status, just as an anomaly does, and it carries
+ * the retained amount inside because that is half of the fact — the row is still
+ * there *because* money was left on it. The money is the academy's, so the
+ * academy reads the same badge.
  */
-function InscriptionStatusBadge({
-  inscription,
-}: {
-  inscription: InscriptionRow;
-}) {
-  const badge = formatInscriptionStatusBadge(
+function resolveStatusBadge(inscription: InscriptionRow) {
+  return formatInscriptionStatusBadge(
     resolveInscriptionStatusBadge({
-      anomalies: [],
+      anomalies: inscription.anomalies,
       financialStatus: inscription.financialStatus,
       withdrawn: inscription.withdrawn,
     }),
   );
+}
+
+function InscriptionStatusCell({
+  inscription,
+}: {
+  inscription: InscriptionRow;
+}) {
+  const badge = resolveStatusBadge(inscription);
 
   return (
     <Badge variant={badge.variant}>

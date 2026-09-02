@@ -1,4 +1,5 @@
 import { WalletCards } from "lucide-react";
+import { useState } from "react";
 
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import {
@@ -20,6 +21,7 @@ import {
   getInscriptionFinancialStatusBadgeVariant,
   inscriptionFinancialStatusOptions,
 } from "@/lib/finances/choreography-financial-status";
+import { sumOperationalFinanceAmounts } from "@/lib/finances/operational-summary";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 
 type PortalAcademyFinancesLoaderData = Awaited<
@@ -87,7 +89,6 @@ const choreographyFinanceColumns: DataTableColumn<ChoreographyFinanceRow>[] = [
     className: "text-right tabular-nums text-muted-foreground",
     headerClassName: "text-right",
     cell: (row) => formatOperationalAmount(row.totalAmount),
-    sortValue: (row) => row.totalAmount.amount,
   },
   {
     // The row's only actionable figure, highlighted by column.
@@ -96,7 +97,6 @@ const choreographyFinanceColumns: DataTableColumn<ChoreographyFinanceRow>[] = [
     className: "text-right font-medium tabular-nums",
     headerClassName: "text-right",
     cell: (row) => formatOperationalAmount(row.owedBalanceAmount),
-    sortValue: (row) => row.owedBalanceAmount.amount,
   },
   {
     id: "financialStatus",
@@ -117,11 +117,34 @@ export function PortalAcademyFinancesRouteView({
 }: {
   loaderData: PortalAcademyFinancesLoaderData;
 }) {
+  // The selection is lifted out of the table because it drives more than the
+  // table: the two owed metrics re-scope to it. The academy selects to read,
+  // not to act — the collections are the administrator's.
+  const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
+  const selectedRows = loaderData.choreographyFinanceRows.filter((row) =>
+    selectedRowIds.includes(row.id),
+  );
+  const hasSelection = selectedRows.length > 0;
+  // The two owed figures are narrowed to the selection; the thresholds and the
+  // available balance are not. `Seña adeudada` and `Saldo adeudado` are what the
+  // debt is measured by, and selecting a few choreographies is how the academy
+  // asks how much *those* owe without adding them up from memory.
+  const owedDepositAmount = hasSelection
+    ? sumOperationalFinanceAmounts(
+        selectedRows.map((row) => row.owedDepositAmount),
+      )
+    : loaderData.summary.owedDepositAmount;
+  const owedBalanceAmount = hasSelection
+    ? sumOperationalFinanceAmounts(
+        selectedRows.map((row) => row.owedBalanceAmount),
+      )
+    : loaderData.summary.owedBalanceAmount;
+
   if (!loaderData.activeEvent) {
     return (
       <PortalListPage
         titleId="finanzas-title"
-        title="Cuenta corriente"
+        title="Resumen financiero"
         description="Revisá el estado financiero de las coreografías de tu academia."
       >
         <PortalEmptyState
@@ -136,21 +159,33 @@ export function PortalAcademyFinancesRouteView({
   return (
     <PortalListPage
       titleId="finanzas-title"
-      title="Cuenta corriente"
+      title="Resumen financiero"
       description="Revisá el estado financiero de las coreografías de tu academia."
     >
-      <section className="grid gap-4 md:grid-cols-3">
+      {/* Each threshold with its owed figure beside it —`Seña total` with
+          `Seña adeudada`, `Total` with `Saldo adeudado`— and the available
+          balance at the end, which belongs to neither pair: it is the academy's
+          unallocated money. */}
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <MetricCard
+          title="Seña total"
+          value={formatOperationalAmount(loaderData.summary.depositAmount)}
+        />
         <MetricCard
           title="Seña adeudada"
-          value={formatOperationalAmount(loaderData.summary.owedDepositAmount)}
+          value={formatOperationalAmount(owedDepositAmount)}
+        />
+        <MetricCard
+          title="Total"
+          value={formatOperationalAmount(loaderData.summary.totalAmount)}
+        />
+        <MetricCard
+          title="Saldo adeudado"
+          value={formatOperationalAmount(owedBalanceAmount)}
         />
         <MetricCard
           title="Saldo disponible"
           value={formatAmount(loaderData.summary.availableBalanceAmount)}
-        />
-        <MetricCard
-          title="Saldo adeudado"
-          value={formatOperationalAmount(loaderData.summary.owedBalanceAmount)}
         />
       </section>
 
@@ -161,6 +196,9 @@ export function PortalAcademyFinancesRouteView({
         getRowKey={(row) => row.id}
         searchPlaceholder="Buscar coreografía por número o nombre"
         textFilterColumnId="name"
+        selectableRows
+        selectedRowIds={selectedRowIds}
+        onSelectedRowIdsChange={setSelectedRowIds}
         // By number, like every other choreography list: it is the row's
         // identity within the event.
         initialSort={{
