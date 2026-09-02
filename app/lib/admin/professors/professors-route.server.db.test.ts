@@ -6,10 +6,8 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { choreographyProfessors, professors } from "@/db/schema";
-import {
-  toProfessorParticipationSearchValue,
-  toProfessorStatusSearchValue,
-} from "@/lib/admin/professors/professors.shared";
+import { toProfessorParticipationSearchValue } from "@/lib/admin/professors/professors.shared";
+import { toRosterPersonStatusSearchValue } from "@/lib/roster/roster-person-status.shared";
 import {
   createSignedInAdminRequest as createSignedInRequest,
   expectThrownResponse,
@@ -1018,9 +1016,11 @@ function getProfessorFilterValues(
   loaderData: Parameters<typeof ProfessorsListRouteView>[0]["loaderData"],
 ) {
   const values: Record<string, string> = {};
-  const statusValue = toProfessorStatusSearchValue(loaderData.filters.status);
+  const statusValue = toRosterPersonStatusSearchValue(
+    loaderData.filters.status,
+  );
 
-  if (statusValue === "archivados") {
+  if (statusValue !== null) {
     values.estado = statusValue;
   }
 

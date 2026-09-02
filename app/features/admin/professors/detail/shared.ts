@@ -5,6 +5,7 @@ import type {
   ProfessorUpdateInput,
   findProfessor,
 } from "@/lib/admin/professors/professors.server";
+import { getArchiveKeepsRosterMessage } from "@/lib/roster/roster-person-status.shared";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import {
   notificationToasts,
@@ -86,8 +87,7 @@ export function getProfessorConfirmationAction({
     return {
       confirmLabel: "Archivar",
       confirmTitle: "¿Archivar profesor?",
-      description:
-        "El profesor dejará de aparecer en las vistas activas y en próximas selecciones del portal. Sus participaciones históricas se mantienen.",
+      description: `El profesor dejará de aparecer en las vistas activas y en próximas selecciones del portal. ${getArchiveKeepsRosterMessage("professor")}`,
       intent: "archive-professor",
       variant: "destructive",
     };

@@ -8,11 +8,13 @@ import {
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
 import {
-  archiveDancerForAcademy,
   findDancerForAcademy,
-  reactivateDancerForAcademy,
   updateDancerForAcademy,
 } from "@/lib/portal/dancers.server";
+import {
+  getRosterPersonNotFoundMessage,
+  setRosterPersonStatus,
+} from "@/lib/roster/roster-person-status.server";
 
 import {
   getClientDocumentImageValidationMessage,
@@ -50,7 +52,19 @@ export async function handlePortalDancerDetailAction(input: {
   const intent = readFormString(formData, "intent");
 
   if (intent === "archive-dancer") {
-    await archiveDancerForAcademy(academy.id, dancerId);
+    const result = await setRosterPersonStatus({
+      academyId: academy.id,
+      kind: "dancer",
+      next: "archived",
+      personId: dancerId,
+      surface: "portal",
+    });
+
+    if (!result.ok) {
+      throw new Response(getRosterPersonNotFoundMessage("dancer"), {
+        status: 404,
+      });
+    }
     return {
       status: "success" as const,
       message: notificationToasts["bailarin-archivado"].message,
@@ -58,7 +72,19 @@ export async function handlePortalDancerDetailAction(input: {
   }
 
   if (intent === "reactivate-dancer") {
-    await reactivateDancerForAcademy(academy.id, dancerId);
+    const result = await setRosterPersonStatus({
+      academyId: academy.id,
+      kind: "dancer",
+      next: "active",
+      personId: dancerId,
+      surface: "portal",
+    });
+
+    if (!result.ok) {
+      throw new Response(getRosterPersonNotFoundMessage("dancer"), {
+        status: 404,
+      });
+    }
     return {
       status: "success" as const,
       message: notificationToasts["bailarin-reactivado"].message,
