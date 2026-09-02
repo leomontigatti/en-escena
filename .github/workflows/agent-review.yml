@@ -46,19 +46,51 @@ jobs:
       BRANCH: ${{ github.event.pull_request.head.ref }}
       BRANCH_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
     steps:
-      - name: Transition to in-progress
+      # --- Preflight: refuse before the label transition and the installs (#790). ---
+      - name: Preflight (refusals)
+        id: preflight
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           echo "OUTPUT_DIR=$RUNNER_TEMP/afk-output" >> "$GITHUB_ENV"
           mkdir -p "$RUNNER_TEMP/afk-output"
+
+          pr=$(gh pr view "$PR_NUMBER" --json state,body)
+          state=$(jq -r '.state' <<< "$pr")
+          if [ "$state" != "OPEN" ]; then
+            gh pr edit "$PR_NUMBER" --remove-label "agent:review"
+            gh pr comment "$PR_NUMBER" --body "\`agent:review\` ignored: the PR is not open (state: $state)."
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # No linked issue means the Spec axis has no spec to check the diff
+          # against — half the review. Refusing here costs nothing; letting the
+          # run start costs the checkout, the installs and an `agent:blocked`
+          # label for a human to clear (#790).
+          if ! jq -re '(.body // "") | test("(closes|fixes|resolves)\\s+#[0-9]+"; "i")' <<< "$pr" > /dev/null; then
+            gh pr edit "$PR_NUMBER" --remove-label "agent:review"
+            gh pr comment "$PR_NUMBER" --body "\`agent:review\` ignored: the PR body links no issue (closes/fixes/resolves #N), so the Spec axis has nothing to check against."
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "proceed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Transition to in-progress
+        if: steps.preflight.outputs.proceed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
           gh pr edit "$PR_NUMBER" \
             --remove-label "agent:review" \
             --remove-label "agent:blocked" \
             --add-label "agent:in-progress"
 
       - name: Checkout PR head
+        if: steps.preflight.outputs.proceed == 'true'
         uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha }}
@@ -66,6 +98,7 @@ jobs:
           token: ${{ secrets.AGENT_PAT || github.token }}
 
       - name: Prepare branch refs
+        if: steps.preflight.outputs.proceed == 'true'
         run: |
           set -euo pipefail
           git fetch origin master:master
@@ -74,13 +107,16 @@ jobs:
           git checkout -B "$BRANCH" "$BRANCH_HEAD_SHA"
 
       - name: Setup pnpm
+        if: steps.preflight.outputs.proceed == 'true'
         uses: pnpm/action-setup@v5
       - name: Setup Node
+        if: steps.preflight.outputs.proceed == 'true'
         uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: pnpm
       - name: Install deps + agent runner
+        if: steps.preflight.outputs.proceed == 'true'
         run: |
           pnpm install --frozen-lockfile
           npm install -g @anthropic-ai/claude-code
@@ -92,14 +128,17 @@ jobs:
       # bundle and every run exercises its current version. Scoped to the
       # claude-code agent so the step exits 0.
       - name: Install code-review skill
+        if: steps.preflight.outputs.proceed == 'true'
         run: npx --yes skills@latest add mattpocock/skills -g -s code-review -a claude-code -y --copy
 
       - name: Configure git identity
+        if: steps.preflight.outputs.proceed == 'true'
         run: |
           git config user.name "claude-code[bot]"
           git config user.email "claude-code[bot]@users.noreply.github.com"
 
       - name: Run review runner
+        if: steps.preflight.outputs.proceed == 'true'
         # 45, not the 30 the other runners use: the `code-review` skill fans out
         # into parallel sub-agents, and the agent now reads the diff per-file
         # instead of being handed it. Review runs measured 5-9 min end to end
@@ -128,6 +167,7 @@ jobs:
           retention-days: 14
 
       - name: Race-safe push (if the agent committed)
+        if: steps.preflight.outputs.proceed == 'true'
         run: |
           set -euo pipefail
           if [ "$(git rev-parse HEAD)" = "$BRANCH_HEAD_SHA" ]; then
@@ -141,6 +181,7 @@ jobs:
           fi
 
       - name: Post review
+        if: steps.preflight.outputs.proceed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -149,11 +190,13 @@ jobs:
             --input "$OUTPUT_DIR/review_payload.json"
 
       - name: Mark PR ready
+        if: steps.preflight.outputs.proceed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh pr ready "$PR_NUMBER"
 
       - name: Post thread replies
+        if: steps.preflight.outputs.proceed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -172,7 +215,7 @@ jobs:
           done
 
       - name: On failure — block + comment
-        if: failure()
+        if: failure() && steps.preflight.outputs.proceed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -198,7 +241,7 @@ jobs:
           gh pr comment "$PR_NUMBER" --body "$(printf '`agent:review` run failed.\n\n**Reason:** %s\n\n**Workflow run:** %s/%s/actions/runs/%s\n\nRe-add `agent:review` to retry.' "$reason" "$GITHUB_SERVER_URL" "$GH_REPO" "$GITHUB_RUN_ID")"
 
       - name: Always — remove in-progress
-        if: always()
+        if: always() && steps.preflight.outputs.proceed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh pr edit "$PR_NUMBER" --remove-label "agent:in-progress" || true

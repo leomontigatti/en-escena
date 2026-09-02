@@ -39,6 +39,17 @@ await runMain(async ({ signal }) => {
   const repo = requireEnv("GH_REPO");
 
   const context = buildReviewContext(repo, prNumber);
+
+  // The Spec axis checks the diff against the issue *body*, so a PR that links
+  // no issue has nothing for half the review to run against. `agent-review.yml`
+  // refuses that in its preflight, before the label transition and the installs
+  // (#790); this is the belt-and-braces for a run started any other way.
+  if (context.issueNumber === null || context.issueBody === null) {
+    throw new Error(
+      "The PR body links no issue (closes/fixes/resolves #N), so the Spec axis has nothing to check against.",
+    );
+  }
+
   const anchors = parseDiffAnchors(context.diff);
 
   // Prefetch done: drop the token before the agent starts. `noSandbox()` spreads

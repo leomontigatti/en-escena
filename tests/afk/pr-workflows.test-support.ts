@@ -180,6 +180,71 @@ export function forkExposedWorkflows(): string[] {
     .sort();
 }
 
+export interface WorkflowStep {
+  /** The step's `name:`, or its `uses:` when it has none. */
+  name: string;
+  /** The step's `id:`, or `""`. */
+  id: string;
+  /** The step's `uses:`, or `""` when it runs a script. */
+  uses: string;
+  /** The step-level `if:`, or `""` when it has none. */
+  condition: string;
+}
+
+/**
+ * Every step of every job in the workflow, in file order, paired with its
+ * step-level `if:`. A step without one yields an empty condition, so a newly
+ * added ungated step is visible rather than silently skipped.
+ */
+export function workflowSteps(file: string): WorkflowStep[] {
+  const lines = workflowText(file).split("\n");
+  const steps: WorkflowStep[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    if (!/^ {6}- /.test(lines[i])) continue;
+
+    const block = [lines[i].replace(/^ {6}- /, "        ")];
+    for (let j = i + 1; j < lines.length; j++) {
+      // The step ends at the next step, or at anything indented less deeply.
+      if (/^ {6}- /.test(lines[j])) break;
+      if (lines[j].trim() !== "" && !/^ {8}/.test(lines[j])) break;
+      block.push(lines[j]);
+    }
+
+    const key = (name: string): string =>
+      new RegExp(`^ {8}${name}:[ \\t]*(.*)$`, "m")
+        .exec(block.join("\n"))?.[1]
+        .trim() ?? "";
+
+    steps.push({
+      name: key("name") || key("uses"),
+      id: key("id"),
+      uses: key("uses"),
+      condition: key("if"),
+    });
+  }
+
+  if (steps.length === 0) throw new Error(`${file}: no steps found`);
+  return steps;
+}
+
+/**
+ * Every workflow with a preflight step (`id: preflight`), discovered from disk
+ * rather than listed: the gating invariant is a property of that *shape*, so a
+ * workflow that grows a preflight later is covered without anyone remembering
+ * to extend a table.
+ */
+export function workflowsWithPreflight(): string[] {
+  const dir = ".github/workflows";
+  return readdirSync(`${repoRoot}${dir}`)
+    .filter((name) => name.endsWith(".yml") || name.endsWith(".yaml"))
+    .map((name) => `${dir}/${name}`)
+    .filter((file) =>
+      workflowSteps(file).some((step) => step.id === "preflight"),
+    )
+    .sort();
+}
+
 function concurrencyBlock(file: string): string {
   const block = topLevelBlock(file, "concurrency");
   if (!block) throw new Error(`${file}: no concurrency block`);

@@ -2,9 +2,11 @@
 //
 // The RUNNER SCRIPT does this read-only fetching and embeds it into the prompt;
 // the agent itself never needs a token to mutate. Surfaces gathered:
-//   - the linked issue (parsed from the PR body): its title AND its body — the
-//     body is the spec the review's Spec axis is checked against, and the agent
-//     holds no token to fetch it itself;
+//   - the linked issue (parsed from the PR body), when there is one: its title
+//     AND its body — the body is the spec the review's Spec axis is checked
+//     against, and the agent holds no token to fetch it itself. A PR may link no
+//     issue at all, so all three issue fields are nullable; deciding whether that
+//     is fatal belongs to the caller (§4.4 refuses in preflight, §4.5 does not);
 //   - the linked issue's sub-issues, when it is a PRD: the Spec axis needs them
 //     to tell "implements a sibling sub-issue" (scope violation) from
 //     "implements this one";
@@ -17,10 +19,12 @@ import { execFileSync } from "node:child_process";
 import { gh } from "../lib/gh.mjs";
 
 export interface ReviewContext {
-  readonly issueNumber: string;
-  readonly issueTitle: string;
-  /** The issue body — the spec. Embedded in the prompt verbatim. */
-  readonly issueBody: string;
+  /** `null` when the PR body links no issue. */
+  readonly issueNumber: string | null;
+  /** `null` when the PR body links no issue. */
+  readonly issueTitle: string | null;
+  /** The issue body — the spec. Embedded in the prompt verbatim. `null` when unlinked. */
+  readonly issueBody: string | null;
   /** Full patch. Used to validate inline anchors; NOT embedded in the prompt. */
   readonly diff: string;
   /** `git diff master...HEAD --stat` — the diff shape the prompt embeds. */
@@ -37,15 +41,10 @@ function git(args: string[]): string {
   return execFileSync("git", args, { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
 }
 
-/** First `closes|fixes|resolves #<n>` in the PR body. */
-function parseLinkedIssue(prBody: string): string {
+/** First `closes|fixes|resolves #<n>` in the PR body; `null` when there is none. */
+function parseLinkedIssue(prBody: string): string | null {
   const match = /(?:closes|fixes|resolves)\s+#(\d+)/i.exec(prBody);
-  if (!match) {
-    throw new Error(
-      "Could not find a linked issue (closes/fixes/resolves #N) in the PR body.",
-    );
-  }
-  return match[1];
+  return match ? match[1] : null;
 }
 
 /**
@@ -78,13 +77,18 @@ export function buildReviewContext(repo: string, prNumber: string): ReviewContex
 
   const prBody = gh(["pr", "view", prNumber, "--json", "body", "--jq", ".body"]);
   const issueNumber = parseLinkedIssue(prBody);
-  const issue = JSON.parse(
-    gh(["issue", "view", issueNumber, "--json", "title,body"]),
-  ) as { title: string; body: string | null };
-  const issueTitle = issue.title.trim();
-  const issueBody = (issue.body ?? "").trim();
+  const issue =
+    issueNumber === null
+      ? null
+      : (JSON.parse(gh(["issue", "view", issueNumber, "--json", "title,body"])) as {
+          title: string;
+          body: string | null;
+        });
+  const issueTitle = issue === null ? null : issue.title.trim();
+  const issueBody = issue === null ? null : (issue.body ?? "").trim();
 
-  const subIssues = fetchSubIssues(repo, issueNumber);
+  // No issue means no sub-issues to look up, not an empty answer to fetch.
+  const subIssues = issueNumber === null ? "" : fetchSubIssues(repo, issueNumber);
 
   const diff = git(["diff", "master...HEAD"]);
   const diffStat = git(["diff", "master...HEAD", "--stat"]);
