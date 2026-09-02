@@ -3,8 +3,10 @@
   vendored skeleton docs/agents/prompts/implement-pr.prompt.md. Two-pass: the
   produce pass addresses feedback + commits; a separate extract pass emits the
   <output> block. The runner embeds the linked issue, a --stat summary of the
-  diff, and PR_COMMENTS_JSON below. The full patch is deliberately not embedded. Same fetched-context bundle as Review, but the job is to
-  act on the conversation, not re-audit against the spec.
+  diff, and PR_COMMENTS_JSON below. The full patch is deliberately not embedded:
+  the agent reads it per-file with git, and the runner keeps the full patch only
+  to validate inline anchors. Same fetched-context bundle as Review, but the job
+  is to act on the conversation, not re-audit against the spec.
 -->
 
 # TASK
@@ -37,9 +39,10 @@ patch:
 </diff-to-master>
 
 The full patch is deliberately omitted: it can be long enough to crowd out this prompt, and a
-comment-driven pass needs a handful of files rather than all of them. The comments below name
-the paths they are about — read those with `git diff master...HEAD -- <path>`, and the file
-itself when you are about to change it. `git` is local and needs no token.
+comment-driven pass needs a handful of files rather than all of them. An inline thread names
+the path it hangs off; for the surfaces that don't carry one, the file list above is the map.
+Read what you need with `git diff master...HEAD -- <path>`, and the file itself when you are
+about to change it. `git` is local and needs no token.
 
 The PR conversation (`PR_COMMENTS_JSON`), tagged by surface — `issue_comments` (top-level),
 `review_threads` (unresolved inline threads; each comment has a `commentId` you can reply to),
