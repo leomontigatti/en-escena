@@ -12,7 +12,7 @@ import {
 import { DataTableLink } from "@/components/shared/data-table-link";
 import type { DataTableFacetedFilterValue } from "@/components/shared/data-table.shared";
 import { Badge } from "@/components/ui/badge";
-import { formatAmount, formatDate } from "@/features/admin/finances/formatters";
+import { formatAmount, formatDate } from "@/lib/finances/formatters";
 import {
   formatPaymentMethodLabel,
   getPaymentMethodBadgeVariant,

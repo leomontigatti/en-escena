@@ -12,7 +12,7 @@ import { DataTableLink } from "@/components/shared/data-table-link";
 import {
   formatAmount,
   formatOperationalAmount,
-} from "@/features/admin/finances/formatters";
+} from "@/lib/finances/formatters";
 
 import type { FinanceAccountRow, loadFinancesList } from "./server";
 

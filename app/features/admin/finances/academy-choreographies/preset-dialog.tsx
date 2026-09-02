@@ -28,7 +28,10 @@ import {
 } from "@/lib/portal/choreographies";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
-import { formatAmount, formatOperationalAmount } from "../formatters";
+import {
+  formatAmount,
+  formatOperationalAmount,
+} from "@/lib/finances/formatters";
 import {
   choreographyIdFieldName,
   financePresetIntent,

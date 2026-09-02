@@ -66,7 +66,7 @@ import {
 
 import { hasCrossedDepositThreshold } from "@/lib/finances/inscription-financial-status";
 
-import { formatAmount } from "../../formatters";
+import { formatAmount, formatDancerName } from "@/lib/finances/formatters";
 import {
   deriveOwedAgainstPrice,
   formatDialogPrice,
@@ -79,7 +79,6 @@ import {
 } from "./inscription-money-figures";
 import {
   allocateInscriptionIntent,
-  formatDancerName,
   releaseInscriptionExcessIntent,
   removeInscriptionMoneyIntent,
 } from "./shared";

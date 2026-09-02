@@ -16,12 +16,12 @@ import {
 } from "@/lib/finances/choreography-financial-status";
 import type { CobroStage } from "@/lib/finances/choreography-cobro-presets.server";
 import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
-import { sumOperationalFinanceAmounts } from "@/lib/finances/operational-summary";
+import { resolveSelectedOperationalTotals } from "@/lib/finances/selected-operational-totals";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 
-import { formatOperationalAmount } from "../formatters";
-import { OperationalFinanceMetrics } from "../operational-finance-metrics";
+import { formatOperationalAmount } from "@/lib/finances/formatters";
+import { OperationalFinanceMetrics } from "@/lib/finances/operational-finance-metrics";
 import { FinancePresetDialog } from "./preset-dialog";
 import { financePresetLabels } from "./presets";
 import type { AcademyFinancesLoaderData } from "./types";
@@ -58,25 +58,15 @@ export function AcademyFinancesRouteView({
     () => buildChoreographyFinanceColumns(loaderData.academy.id),
     [loaderData.academy.id],
   );
-  const selectedRows = loaderData.choreographyFinanceRows.filter((row) =>
-    selectedRowIds.includes(row.id),
-  );
-  const hasSelection = selectedRows.length > 0;
-  // The two owed figures are narrowed to the selection; the thresholds and the
-  // available balance are not. `Seña adeudada` and `Saldo adeudado` are what the
-  // collection is measured against, and the collection already operates on the
-  // selection: leaving them at the academy's total forces adding up from memory
-  // how much is about to be collected.
-  const owedDepositAmount = hasSelection
-    ? sumOperationalFinanceAmounts(
-        selectedRows.map((row) => row.owedDepositAmount),
-      )
-    : loaderData.summary.owedDepositAmount;
-  const owedBalanceAmount = hasSelection
-    ? sumOperationalFinanceAmounts(
-        selectedRows.map((row) => row.owedBalanceAmount),
-      )
-    : loaderData.summary.owedBalanceAmount;
+  // The collection operates on the selection, so the two owed figures follow it:
+  // leaving them at the academy's total forces adding up from memory how much is
+  // about to be collected.
+  const { hasSelection, owedBalanceAmount, owedDepositAmount, selectedRows } =
+    resolveSelectedOperationalTotals({
+      rows: loaderData.choreographyFinanceRows,
+      selectedRowIds,
+      summary: loaderData.summary,
+    });
   // Stable so the dialog can close itself from an effect when the write
   // succeeds without the effect re-running on every render of the list.
   const handlePresetOpenChange = useCallback((next: boolean) => {

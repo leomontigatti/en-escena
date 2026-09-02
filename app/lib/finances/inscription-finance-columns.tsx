@@ -13,7 +13,7 @@ import {
   type InscriptionFinancialStatus,
 } from "@/lib/finances/inscription-financial-status";
 
-import { formatAmount } from "./formatters";
+import { formatAmount } from "@/lib/finances/formatters";
 
 /**
  * The money half of an inscription row, which is the half the administrator and

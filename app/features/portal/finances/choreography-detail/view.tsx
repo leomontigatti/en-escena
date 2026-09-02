@@ -7,12 +7,12 @@ import {
   type DataTableColumn,
 } from "@/components/shared/data-table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { formatDancerName } from "@/features/admin/finances/academy-choreographies/choreography-detail/shared";
+import { formatDancerName } from "@/lib/finances/formatters";
 import {
   inscriptionFinanceColumns,
   inscriptionFinanceFacetedFilters,
-} from "@/features/admin/finances/inscription-finance-columns";
-import { OperationalFinanceMetrics } from "@/features/admin/finances/operational-finance-metrics";
+} from "@/lib/finances/inscription-finance-columns";
+import { OperationalFinanceMetrics } from "@/lib/finances/operational-finance-metrics";
 import type { loadPortalChoreographyFinanceDetail } from "@/features/portal/finances/choreography-detail/server";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 

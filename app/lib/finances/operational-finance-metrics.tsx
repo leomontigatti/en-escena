@@ -1,7 +1,10 @@
 import { MetricCard } from "@/components/shared/metric-card";
 import type { OperationalFinanceAmount } from "@/lib/finances/operational-summary";
 
-import { formatAmount, formatOperationalAmount } from "./formatters";
+import {
+  formatAmount,
+  formatOperationalAmount,
+} from "@/lib/finances/formatters";
 
 /**
  * The five figures the operational finance screens are read by, in the one order

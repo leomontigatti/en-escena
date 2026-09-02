@@ -9,8 +9,8 @@ import {
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
-import { formatOperationalAmount } from "@/features/admin/finances/formatters";
-import { OperationalFinanceMetrics } from "@/features/admin/finances/operational-finance-metrics";
+import { formatOperationalAmount } from "@/lib/finances/formatters";
+import { OperationalFinanceMetrics } from "@/lib/finances/operational-finance-metrics";
 import type { loadPortalAcademyFinances } from "@/features/portal/finances/server";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import {
@@ -18,7 +18,7 @@ import {
   getInscriptionFinancialStatusBadgeVariant,
   inscriptionFinancialStatusOptions,
 } from "@/lib/finances/choreography-financial-status";
-import { sumOperationalFinanceAmounts } from "@/lib/finances/operational-summary";
+import { resolveSelectedOperationalTotals } from "@/lib/finances/selected-operational-totals";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 
 type PortalAcademyFinancesLoaderData = Awaited<
@@ -118,24 +118,15 @@ export function PortalAcademyFinancesRouteView({
   // table: the two owed metrics re-scope to it. The academy selects to read,
   // not to act — the collections are the administrator's.
   const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
-  const selectedRows = loaderData.choreographyFinanceRows.filter((row) =>
-    selectedRowIds.includes(row.id),
-  );
-  const hasSelection = selectedRows.length > 0;
-  // The two owed figures are narrowed to the selection; the thresholds and the
-  // available balance are not. `Seña adeudada` and `Saldo adeudado` are what the
-  // debt is measured by, and selecting a few choreographies is how the academy
-  // asks how much *those* owe without adding them up from memory.
-  const owedDepositAmount = hasSelection
-    ? sumOperationalFinanceAmounts(
-        selectedRows.map((row) => row.owedDepositAmount),
-      )
-    : loaderData.summary.owedDepositAmount;
-  const owedBalanceAmount = hasSelection
-    ? sumOperationalFinanceAmounts(
-        selectedRows.map((row) => row.owedBalanceAmount),
-      )
-    : loaderData.summary.owedBalanceAmount;
+  // Selecting a few choreographies is how the academy asks how much *those* owe
+  // without adding them up from memory. It selects to read and not to act: the
+  // collections are the administrator's.
+  const { owedBalanceAmount, owedDepositAmount } =
+    resolveSelectedOperationalTotals({
+      rows: loaderData.choreographyFinanceRows,
+      selectedRowIds,
+      summary: loaderData.summary,
+    });
 
   if (!loaderData.activeEvent) {
     return (

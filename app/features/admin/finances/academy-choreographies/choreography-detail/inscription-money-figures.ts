@@ -13,7 +13,7 @@ import {
   deriveInscriptionFinancialFigures,
 } from "@/lib/finances/inscription-financial-status";
 
-import { formatAmount } from "../../formatters";
+import { formatAmount } from "@/lib/finances/formatters";
 import type { loadChoreographyFinanceDetail } from "./server";
 
 type ChoreographyFinanceDetailLoaderData = Awaited<

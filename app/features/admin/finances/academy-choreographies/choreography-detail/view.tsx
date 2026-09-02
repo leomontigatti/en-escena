@@ -15,15 +15,15 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
+import { formatDancerName } from "@/lib/finances/formatters";
 
 import {
   inscriptionFinanceColumns,
   inscriptionFinanceFacetedFilters,
-} from "../../inscription-finance-columns";
-import { OperationalFinanceMetrics } from "../../operational-finance-metrics";
+} from "@/lib/finances/inscription-finance-columns";
+import { OperationalFinanceMetrics } from "@/lib/finances/operational-finance-metrics";
 import { EmissionDialog } from "./comprobante-emission";
 import { InscriptionMoneyDialog } from "./inscription-money-dialog";
-import { formatDancerName } from "./shared";
 import type { loadChoreographyFinanceDetail } from "./server";
 
 type ChoreographyFinanceDetailLoaderData = Awaited<
