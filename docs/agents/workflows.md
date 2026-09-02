@@ -125,7 +125,8 @@ Hook guidance:
   as the minimum commit gate, not as the only validation path for agent work.
   Hooks can be skipped and may not run in every environment.
 - `pnpm check:comment-language` fails on Spanish prose in a comment or a test
-  name anywhere under `app/`, `scripts/` or `tests/` (#592). It matches Spanish
+  name anywhere under `.sandcastle/`, `app/`, `scripts/` or `tests/`, plus the
+  repo-root configs (#592). It matches Spanish
   _grammar_, not Spanish _vocabulary_: the domain nouns `CONTEXT.md` reserves
   are exactly what English prose here is supposed to use, and quoted copy, route
   paths and backticked identifiers are data. See the Code Language section of

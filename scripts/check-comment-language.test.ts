@@ -1,9 +1,12 @@
+import { execFileSync } from "node:child_process";
+
 import { describe, expect, test } from "vitest";
 
 import {
   checkCommentLanguage,
   findSpanishProseInSource,
   readGlossaryTerms,
+  scannedDirectories,
 } from "./check-comment-language";
 
 const filePath = "app/features/admin/example.tsx";
@@ -192,5 +195,33 @@ describe("comment-language guardrail (#592)", () => {
   // The assertion that actually guards the repo.
   test("the repository carries no Spanish comment and no Spanish test name", async () => {
     await expect(checkCommentLanguage()).resolves.toEqual([]);
+  });
+
+  // Twice now the gate has passed only because it was not looking: first at the
+  // repo-root configs, where `vitest.config.ts` sat, then at `.sandcastle/`.
+  // Both times the list of roots was the bug, so the list is what gets pinned —
+  // a clean run says nothing if the directory was never walked.
+  // Tracked files, not a directory listing: `.react-router` and `build/` hold
+  // generated `.ts` nobody writes prose into, and asking git is what separates
+  // "source we own" from "output we emit" without a second list to keep in sync.
+  test("every directory holding tracked scannable source is a scan root", () => {
+    const trackedSource = execFileSync(
+      "git",
+      ["ls-files", "*.ts", "*.tsx", "*.mts", "*.mjs"],
+      { cwd: process.cwd(), encoding: "utf8" },
+    )
+      .split("\n")
+      .filter(Boolean);
+
+    const unscanned = [
+      ...new Set(
+        trackedSource
+          .filter((repoRelativePath) => repoRelativePath.includes("/"))
+          .map((repoRelativePath) => repoRelativePath.split("/")[0])
+          .filter((directory) => !scannedDirectories.includes(directory)),
+      ),
+    ];
+
+    expect(unscanned).toEqual([]);
   });
 });

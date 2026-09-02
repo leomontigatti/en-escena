@@ -26,7 +26,11 @@ import { collectSourceFiles } from "./source-files";
 // already maps it to. If that lands on the strict side, the exemption here
 // inverts: blank only the reserved terms and flag the rest.
 
-const scannedDirectories = ["app", "scripts", "tests"];
+// Every directory in the repo that holds `.ts`/`.tsx`/`.mts`/`.mjs`, plus the
+// root-level configs `collectScannedFiles` adds. `.sandcastle` is here because
+// the agent workflows are code the same way `scripts/` is: a prompt or a
+// workflow step is read by a contributor, not by an end user.
+export const scannedDirectories = [".sandcastle", "app", "scripts", "tests"];
 const sourceFilePattern = /\.(ts|tsx|mts|mjs)$/;
 
 // Spanish function words with no English homograph. Deliberately absent:

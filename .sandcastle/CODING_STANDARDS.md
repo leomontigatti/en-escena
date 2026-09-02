@@ -147,9 +147,11 @@ of whether English prose should say `seña` at all or use the English identifier
 `CONTEXT.md` already gives it. Until that closes, treat a bare Spanish noun in an
 English sentence as tolerated, not as endorsed.
 
-It covers `.ts`, `.tsx`, `.mts` and `.mjs` under `app/`, `scripts/` and `tests/`,
-plus the config files at the repo root — `vitest.config.ts` was hiding seven
-lines of Spanish behind exactly that gap. Markdown and YAML are on the same rule
+It covers `.ts`, `.tsx`, `.mts` and `.mjs` under `.sandcastle/`, `app/`,
+`scripts/` and `tests/`, plus the config files at the repo root — that is every
+directory in the repo holding a file of those extensions, which is the point:
+`vitest.config.ts` was hiding seven lines of Spanish behind exactly such a gap,
+and `.sandcastle/` was the next one waiting. Markdown and YAML are on the same rule
 but are not machine-checked, so they rest on review;
 [#793](https://github.com/leomontigatti/en-escena/issues/793) owns what is left
 there.
