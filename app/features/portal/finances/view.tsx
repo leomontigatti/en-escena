@@ -8,12 +8,9 @@ import {
   type DataTableFacetedFilter,
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
-import { MetricCard } from "@/components/shared/metric-card";
 import { Badge } from "@/components/ui/badge";
-import {
-  formatAmount,
-  formatOperationalAmount,
-} from "@/features/admin/finances/formatters";
+import { formatOperationalAmount } from "@/features/admin/finances/formatters";
+import { OperationalFinanceMetrics } from "@/features/admin/finances/operational-finance-metrics";
 import type { loadPortalAcademyFinances } from "@/features/portal/finances/server";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import {
@@ -162,32 +159,15 @@ export function PortalAcademyFinancesRouteView({
       title="Resumen financiero"
       description="Revisá el estado financiero de las coreografías de tu academia."
     >
-      {/* Each threshold with its owed figure beside it —`Seña total` with
-          `Seña adeudada`, `Total` with `Saldo adeudado`— and the available
-          balance at the end, which belongs to neither pair: it is the academy's
-          unallocated money. */}
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        <MetricCard
-          title="Seña total"
-          value={formatOperationalAmount(loaderData.summary.depositAmount)}
-        />
-        <MetricCard
-          title="Seña adeudada"
-          value={formatOperationalAmount(owedDepositAmount)}
-        />
-        <MetricCard
-          title="Total"
-          value={formatOperationalAmount(loaderData.summary.totalAmount)}
-        />
-        <MetricCard
-          title="Saldo adeudado"
-          value={formatOperationalAmount(owedBalanceAmount)}
-        />
-        <MetricCard
-          title="Saldo disponible"
-          value={formatAmount(loaderData.summary.availableBalanceAmount)}
-        />
-      </section>
+      {/* The two owed figures re-scope to the selection; the thresholds and the
+          available balance do not. */}
+      <OperationalFinanceMetrics
+        availableBalanceAmount={loaderData.summary.availableBalanceAmount}
+        depositAmount={loaderData.summary.depositAmount}
+        owedBalanceAmount={owedBalanceAmount}
+        owedDepositAmount={owedDepositAmount}
+        totalAmount={loaderData.summary.totalAmount}
+      />
 
       <ClientDataTable
         rows={loaderData.choreographyFinanceRows}

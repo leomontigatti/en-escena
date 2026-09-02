@@ -7,7 +7,6 @@ import {
   type DataTableFacetedFilter,
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
-import { MetricCard } from "@/components/shared/metric-card";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
@@ -21,7 +20,8 @@ import { sumOperationalFinanceAmounts } from "@/lib/finances/operational-summary
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 
-import { formatAmount, formatOperationalAmount } from "../formatters";
+import { formatOperationalAmount } from "../formatters";
+import { OperationalFinanceMetrics } from "../operational-finance-metrics";
 import { FinancePresetDialog } from "./preset-dialog";
 import { financePresetLabels } from "./presets";
 import type { AcademyFinancesLoaderData } from "./types";
@@ -121,32 +121,15 @@ export function AcademyFinancesRouteView({
       }
     >
       <div className="flex flex-col gap-6">
-        {/* Each threshold with its owed figure beside it —`Seña total` with
-            `Seña adeudada`, `Total` with `Saldo adeudado`— and the available
-            balance at the end, which belongs to neither pair: it is the
-            academy's unallocated money. */}
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-          <MetricCard
-            title="Seña total"
-            value={formatOperationalAmount(loaderData.summary.depositAmount)}
-          />
-          <MetricCard
-            title="Seña adeudada"
-            value={formatOperationalAmount(owedDepositAmount)}
-          />
-          <MetricCard
-            title="Total"
-            value={formatOperationalAmount(loaderData.summary.totalAmount)}
-          />
-          <MetricCard
-            title="Saldo adeudado"
-            value={formatOperationalAmount(owedBalanceAmount)}
-          />
-          <MetricCard
-            title="Saldo disponible"
-            value={formatAmount(loaderData.summary.availableBalanceAmount)}
-          />
-        </section>
+        {/* The two owed figures re-scope to the selection; the thresholds and the
+            available balance do not. */}
+        <OperationalFinanceMetrics
+          availableBalanceAmount={loaderData.summary.availableBalanceAmount}
+          depositAmount={loaderData.summary.depositAmount}
+          owedBalanceAmount={owedBalanceAmount}
+          owedDepositAmount={owedDepositAmount}
+          totalAmount={loaderData.summary.totalAmount}
+        />
 
         <ClientDataTable
           rows={loaderData.choreographyFinanceRows}
