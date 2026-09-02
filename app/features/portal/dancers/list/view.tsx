@@ -14,6 +14,12 @@ import {
   getParticipationLabel,
 } from "@/lib/participation/participation.shared";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
+import {
+  defaultRosterPersonStatusFilter,
+  getRosterPersonStatusBadgeVariant,
+  getRosterPersonStatusLabel,
+  toRosterPersonStatus,
+} from "@/lib/roster/roster-person-status.shared";
 import { useServerActionToast } from "@/lib/shared/toasts";
 import { usePortalRecordTitleLinkTransitionStyle } from "@/lib/shared/view-transitions";
 import { CreateDancerDialog } from "@/features/portal/dancers/create/dialog";
@@ -28,7 +34,7 @@ const dancerDocumentKinds = ["minor_authorization", "adult_contract"] as const;
 
 const baseDancerFilters = {
   filters: {
-    archivo: "active",
+    archivo: defaultRosterPersonStatusFilter,
   },
 };
 
@@ -171,7 +177,7 @@ function DancersTable({ dancers }: { dancers: DancerRow[] }) {
         </div>
       ),
       filterValues: (dancer) => [
-        dancer.active ? "active" : "archived",
+        toRosterPersonStatus(dancer.active),
         dancer.participationStatus,
         dancer.verificationStatus,
       ],
@@ -203,8 +209,13 @@ function DancersTable({ dancers }: { dancers: DancerRow[] }) {
         },
         {
           id: "archivo",
-          label: "Archivo",
-          options: [{ label: "Archivado", value: "archived" }],
+          label: "Estado de alta",
+          options: [
+            {
+              label: getRosterPersonStatusLabel("archived"),
+              value: "archived",
+            },
+          ],
         },
       ]}
       baseFacetedFilterValues={baseDancerFilters}
@@ -229,7 +240,10 @@ function getDancerStateBadges(dancer: DancerRow) {
   const badges: DancerBadge[] = [];
 
   if (!dancer.active) {
-    badges.push({ label: "Archivado", variant: "destructive" });
+    badges.push({
+      label: getRosterPersonStatusLabel("archived"),
+      variant: getRosterPersonStatusBadgeVariant("archived"),
+    });
   }
 
   if (dancer.participationStatus !== "no-event") {

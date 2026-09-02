@@ -314,6 +314,78 @@ describe.sequential("choreography registration resolution", () => {
     });
   });
 
+  test("asks to reactivate an archived dancer it rejects, and says nothing about another academy's dancer existing", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Alta Bailarines",
+      email: "registro.coreografia.alta@example.com",
+    });
+    const other = await createAcademySession({
+      academyName: "Academia Alta Ajena",
+      email: "registro.coreografia.alta.ajena@example.com",
+    });
+    const { event, catalog } = await createOpenEventCatalog();
+    const archivedDancer = await createDancer(owner.academyId, {
+      firstName: "Lucía",
+      lastName: "Ferrer",
+      active: false,
+    });
+    const otherDancer = await createDancer(other.academyId, {
+      firstName: "Mora",
+      lastName: "Ajena",
+    });
+
+    await expect(
+      resolveChoreographyRegistrationOperation({
+        academyId: owner.academyId,
+        eventId: event.id,
+        modalityId: catalog.modality.id,
+        submodalityId: catalog.submodality.id,
+        dancerIds: [archivedDancer.id],
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      code: "invalid-dancers",
+      error: "Reactivá este bailarín para poder agregarlo a la coreografía.",
+    });
+
+    const ajenaResult = await resolveChoreographyRegistrationOperation({
+      academyId: owner.academyId,
+      eventId: event.id,
+      modalityId: catalog.modality.id,
+      submodalityId: catalog.submodality.id,
+      dancerIds: [otherDancer.id],
+    });
+
+    expect(ajenaResult).toMatchObject({
+      ok: false,
+      code: "invalid-dancers",
+      error: "Elegí bailarines que pertenezcan a tu academia.",
+    });
+    expect(ajenaResult.ok ? "" : ajenaResult.error).not.toContain("Mora");
+  });
+
+  test("rejects a dancer that does not exist with the same wording as another academy's", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Alta Inexistente",
+      email: "registro.coreografia.alta.inexistente@example.com",
+    });
+    const { event, catalog } = await createOpenEventCatalog();
+
+    await expect(
+      resolveChoreographyRegistrationOperation({
+        academyId: owner.academyId,
+        eventId: event.id,
+        modalityId: catalog.modality.id,
+        submodalityId: catalog.submodality.id,
+        dancerIds: ["dancer_inexistente"],
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      code: "invalid-dancers",
+      error: "Elegí bailarines que pertenezcan a tu academia.",
+    });
+  });
+
   test("uses oldest age for duo and skips experience level when the resolved Categoría has no levels", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Dúo",

@@ -23,6 +23,44 @@ Rules for roster links, choreography registration, locks and Bases del evento.
 - Academy cannot edit identity data or document images after a dancer is verified; later corrections are administrative.
 - Correcting dancer birth date can recalculate categories for signed or paid choreographies while their presentation is still pending; it does not change financial state.
 
+### Estado de alta de personas del elenco
+
+- `Estado de alta` is the alta state of a bailarín or a profesor, with two
+  values: `Activo` and `Archivado`. An academy archives the people it no longer
+  works with; it is roster hygiene, not a competitive or financial act.
+- Eligibility for a coreografía's elenco is one rule: a person can be picked
+  when they are active, **or** when they are already linked to **that**
+  coreografía. Already linked means linked to that coreografía — not to any
+  coreografía of the Evento activo, and not to any coreografía ever.
+- The grandfather half of that rule is what keeps an archived person from
+  stranding a record: an archived person already on a coreografía stays on it,
+  stays visible and stays re-saveable, so a roster whose people were archived
+  afterwards can still be corrected administratively and every other field of
+  that coreografía stays editable.
+- An archived person who is not already linked cannot be added. Registration is
+  the same rule evaluated with an empty linked set, which is why it always
+  refuses an archived person, and it says why: either someone in the selection
+  is archived and must be reactivated, or the person was not found — which is
+  also the answer for a person of another academy, so that one academy is never
+  told another academy's record exists. The rejection names no one: the roster
+  stores no gender, so the sentence agrees with the person-kind noun
+  ("Reactivá este bailarín…") instead of with an interpolated name.
+- **Archiving is never refused.** There is no guard: archiving a bailarín
+  inscripto en el Evento activo succeeds and the inscription is untouched. The
+  archive confirmation says so before the academy confirms; the sentence is
+  static and queries nothing.
+- Archiving is reversible and lossless. Reactivating always succeeds, puts the
+  person back in the pickers immediately and requires nothing else. There is no
+  hard delete, no archive date and no archive reason.
+- Archiving changes no inscription, no Estado operativo de coreografía, no
+  Estado financiero, no precio seleccionado, no conjunto que califica para el
+  Descuento por bailarín and no cifra de participación. `Estado de alta` is a
+  third axis, independent of Estado de participación and of Estado de
+  verificación de bailarín, and the three are shown side by side.
+- An archived person is still found by name search. Search is a lookup, not an
+  offer: what may be added to an elenco is governed by the eligibility rule
+  above, and the person's badge reads `Archivado`.
+
 ## Choreographies
 
 - `Coreografía` belongs to one academy and one event; it is not reusable between events.
@@ -68,9 +106,11 @@ Rules for roster links, choreography registration, locks and Bases del evento.
   not act as a historical archive of other events.
 - If there is no active event, the screen must show a specific empty state
   prompting to choose or activate an event before reviewing choreographies.
-- A choreography of the active event is shown even if its academy is archived or
-  inactive; the administrative view must not hide operational records because of
-  academy state.
+- A choreography of the active event is shown whatever the state of its academy;
+  the administrative view must not hide operational records because of academy
+  state. An academy carries no archive or inactive state of its own: the only
+  Estado de alta in the product belongs to bailarines and profesores (see
+  "Estado de alta de personas del elenco").
 - The operational list uses the same visible state as the Portal de academias:
   `Completa` or `Incompleta`.
 - The first version does not break down pending operational data with additional

@@ -46,7 +46,7 @@ describe("ProfessorsListRouteView", () => {
     );
     expect(markup).toContain('value="Academia Sur"');
     expect(markup).toContain(
-      'aria-label="Filtros: Participación: No participando, Archivo: Archivado"',
+      'aria-label="Filtros: Participación: No participando, Estado de alta: Archivado"',
     );
     expect(markup).toContain("Bruno Consulta");
     expect(markup).toContain("Academia Sur");

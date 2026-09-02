@@ -5,23 +5,32 @@ import { db } from "@/db";
 import {
   choreographies,
   choreographyDancers,
+  choreographyProfessors,
   paymentAllocations,
   payments,
   scheduleCapacities,
   scheduleModalities,
   schedules,
 } from "@/db/schema";
-import { handleChoreographyDetailAction } from "@/features/admin/choreographies/detail/server";
+import {
+  handleChoreographyDetailAction,
+  loadChoreographyDetailRouteData,
+} from "@/features/admin/choreographies/detail/server";
 import {
   toChoreographyDetailViewActionData,
   updateChoreographyRosterIntent,
 } from "@/features/admin/choreographies/detail/shared";
 import { createChoreographyRecord } from "@/features/portal/choreographies/test-support/db";
 import {
+  invalidDancerSelectionMessage,
+  invalidProfessorSelectionMessage,
+} from "@/lib/choreographies/choreography-roster.shared";
+import {
   createAcademySession,
   createDancer,
   createEventCatalog,
   createEventRecord,
+  createProfessor,
 } from "@/lib/choreographies/registration-test-fixtures.server.db";
 import { createSignedInAdminRequest } from "@/lib/admin/test-support/db";
 import { recordComprobante } from "@/lib/comprobantes/comprobantes.server";
@@ -1299,6 +1308,166 @@ async function createPayment(scenario: {
 // be unique across two submits on the same choreography too (withdrawing and
 // adding again is exactly that case).
 let submitCount = 0;
+
+describe("Estado de alta on the administrative roster editor", () => {
+  test("keeps offering and accepting an archived dancer who is already on the choreography, and rejects one who is not", async () => {
+    const scenario = await createArchivedRosterScenario({
+      academyName: "Academia Roster Archivada",
+      email: "roster.archivada.academia@example.com",
+    });
+
+    const loaded = await loadRosterDetail(scenario.choreography.id);
+    const offeredDancerIds = loaded.availableDancers.map((dancer) => dancer.id);
+
+    expect(offeredDancerIds).toContain(scenario.archivedLinkedDancer.id);
+    expect(offeredDancerIds).toContain(scenario.activeDancer.id);
+    expect(offeredDancerIds).not.toContain(scenario.archivedUnlinkedDancer.id);
+
+    const offeredProfessorIds = loaded.availableProfessors.map(
+      (professor) => professor.id,
+    );
+    expect(offeredProfessorIds).toContain(scenario.archivedLinkedProfessor.id);
+    expect(offeredProfessorIds).not.toContain(
+      scenario.archivedUnlinkedProfessor.id,
+    );
+
+    const accepted = await submitRoster({
+      choreographyId: scenario.choreography.id,
+      dancerIds: [scenario.activeDancer.id, scenario.archivedLinkedDancer.id],
+      professorIds: [scenario.archivedLinkedProfessor.id],
+    });
+    expect(accepted).toMatchObject({ status: "success" });
+
+    const rejected = await submitRoster({
+      choreographyId: scenario.choreography.id,
+      dancerIds: [scenario.activeDancer.id, scenario.archivedUnlinkedDancer.id],
+    });
+    expect(rejected).toMatchObject({
+      message: invalidDancerSelectionMessage,
+      status: "roster-error",
+    });
+  });
+
+  test("rejects an archived professor who is not already on the choreography", async () => {
+    const scenario = await createArchivedRosterScenario({
+      academyName: "Academia Profesor Archivado",
+      email: "roster.profesor.archivado@example.com",
+    });
+
+    const rejected = await submitRoster({
+      choreographyId: scenario.choreography.id,
+      dancerIds: [scenario.activeDancer.id, scenario.archivedLinkedDancer.id],
+      professorIds: [scenario.archivedUnlinkedProfessor.id],
+    });
+
+    expect(rejected).toMatchObject({
+      message: invalidProfessorSelectionMessage,
+      status: "roster-error",
+    });
+  });
+
+  test("leaves every other field of a choreography with an archived roster editable", async () => {
+    const scenario = await createArchivedRosterScenario({
+      academyName: "Academia Roster Sin Encallar",
+      email: "roster.sin.encallar@example.com",
+    });
+
+    const renamed = await submitRoster({
+      choreographyId: scenario.choreography.id,
+      dancerIds: [scenario.activeDancer.id, scenario.archivedLinkedDancer.id],
+      name: "Duo Corregido",
+      professorIds: [scenario.archivedLinkedProfessor.id],
+    });
+
+    expect(renamed).toMatchObject({ status: "success" });
+
+    const updated = await db.query.choreographies.findFirst({
+      columns: { name: true },
+      where: eq(choreographies.id, scenario.choreography.id),
+    });
+    expect(updated?.name).toBe("Duo Corregido");
+  });
+});
+
+async function createArchivedRosterScenario(input: {
+  academyName: string;
+  email: string;
+}) {
+  const owner = await createAcademySession(input);
+  const event = await createEventRecord({ active: true, name: "Regional" });
+  const catalog = await createEventCatalog(event.id);
+  const [activeDancer, archivedLinkedDancer, archivedUnlinkedDancer] =
+    await Promise.all([
+      createDancer(owner.academyId, { firstName: "Ana", lastName: "Activa" }),
+      createDancer(owner.academyId, {
+        active: false,
+        firstName: "Bea",
+        lastName: "Archivada",
+      }),
+      createDancer(owner.academyId, {
+        active: false,
+        firstName: "Cami",
+        lastName: "Archivada",
+      }),
+    ]);
+  const [archivedLinkedProfessor, archivedUnlinkedProfessor] =
+    await Promise.all([
+      createProfessor(owner.academyId, {
+        active: false,
+        firstName: "Dana",
+        lastName: "Archivada",
+      }),
+      createProfessor(owner.academyId, {
+        active: false,
+        firstName: "Eva",
+        lastName: "Archivada",
+      }),
+    ]);
+  const choreography = await createChoreographyRecord({
+    academyId: owner.academyId,
+    categoryId: catalog.teenCategory.id,
+    eventId: event.id,
+    groupType: "duo",
+    modalityId: catalog.modality.id,
+    name: "Duo",
+    scheduleCapacityId: catalog.duoScheduleCapacity.id,
+    submodalityId: catalog.submodality.id,
+  });
+  await db.insert(choreographyDancers).values(
+    [activeDancer.id, archivedLinkedDancer.id].map((dancerId) => ({
+      ageAtEventStart: 14,
+      choreographyId: choreography.id,
+      dancerId,
+    })),
+  );
+  await db.insert(choreographyProfessors).values({
+    choreographyId: choreography.id,
+    professorId: archivedLinkedProfessor.id,
+  });
+
+  return {
+    academyId: owner.academyId,
+    activeDancer,
+    archivedLinkedDancer,
+    archivedLinkedProfessor,
+    archivedUnlinkedDancer,
+    archivedUnlinkedProfessor,
+    choreography,
+  };
+}
+
+async function loadRosterDetail(choreographyId: string) {
+  const { request } = await createSignedInAdminRequest({
+    email: `admin.roster.loader.${(submitCount += 1)}.${choreographyId}@example.com`,
+    requestUrl: `http://localhost/administracion/coreografias/${choreographyId}`,
+    role: "admin",
+  });
+
+  return await loadChoreographyDetailRouteData({
+    params: { choreographyId },
+    request,
+  });
+}
 
 async function submitRoster(input: {
   choreographyId: string;

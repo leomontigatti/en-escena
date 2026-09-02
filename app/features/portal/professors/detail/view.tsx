@@ -11,6 +11,7 @@ import {
   documentTypeEmptyLabel,
   documentTypeOptions,
 } from "@/components/shared/document-type-options";
+import { getArchiveKeepsRosterMessage } from "@/lib/roster/roster-person-status.shared";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { SelectField } from "@/components/shared/select-field";
 import { TextInputField } from "@/components/shared/text-input-field";
@@ -67,8 +68,7 @@ const professorStatusActions = {
     intent: archiveProfessorIntent,
     label: "Archivar",
     confirmTitle: "¿Archivar profesor?",
-    confirmDescription:
-      "El profesor dejará de aparecer en listas activas y en próximas selecciones de coreografías. Sus coreografías existentes no se modifican.",
+    confirmDescription: `El profesor dejará de aparecer en listas activas y en próximas selecciones de coreografías. ${getArchiveKeepsRosterMessage("professor")}`,
     confirmButtonLabel: "Archivar",
     confirmButtonVariant: "destructive",
   },
