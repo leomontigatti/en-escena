@@ -62,7 +62,7 @@ await runMain(async ({ signal }) => {
       BRANCH: branch,
       ISSUE_NUMBER: context.issueNumber,
       ISSUE_TITLE: context.issueTitle,
-      DIFF: context.diff,
+      DIFF_STAT: context.diffStat,
       PR_COMMENTS_JSON: context.prCommentsJson,
     },
     extractionPrompt: EXTRACTION_PROMPT,

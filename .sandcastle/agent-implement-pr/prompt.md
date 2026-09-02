@@ -2,8 +2,8 @@
   Runtime prompt for the **implement-pr** runner (spec §4.5). Derived from the
   vendored skeleton docs/agents/prompts/implement-pr.prompt.md. Two-pass: the
   produce pass addresses feedback + commits; a separate extract pass emits the
-  <output> block. The runner embeds the linked issue, the diff, and
-  PR_COMMENTS_JSON below. Same fetched-context bundle as Review, but the job is to
+  <output> block. The runner embeds the linked issue, a --stat summary of the
+  diff, and PR_COMMENTS_JSON below. The full patch is deliberately not embedded. Same fetched-context bundle as Review, but the job is to
   act on the conversation, not re-audit against the spec.
 -->
 
@@ -29,11 +29,17 @@ The linked issue, for context only:
 Issue #{{ISSUE_NUMBER}}: {{ISSUE_TITLE}}
 </linked-issue>
 
-The current diff (`git diff master...HEAD`):
+The diff, as a **summary** — changed files with added/removed line counts, not the full
+patch:
 
 <diff-to-master>
-{{DIFF}}
+{{DIFF_STAT}}
 </diff-to-master>
+
+The full patch is deliberately omitted: it can be long enough to crowd out this prompt, and a
+comment-driven pass needs a handful of files rather than all of them. The comments below name
+the paths they are about — read those with `git diff master...HEAD -- <path>`, and the file
+itself when you are about to change it. `git` is local and needs no token.
 
 The PR conversation (`PR_COMMENTS_JSON`), tagged by surface — `issue_comments` (top-level),
 `review_threads` (unresolved inline threads; each comment has a `commentId` you can reply to),
