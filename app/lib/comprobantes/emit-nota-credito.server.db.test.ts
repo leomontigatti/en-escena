@@ -500,7 +500,7 @@ describe("annulComprobante", () => {
     expect(rows[0].status).toBe("vigente");
   });
 
-  test("rechaza un comprobante inexistente", async () => {
+  test("rejects a comprobante that does not exist", async () => {
     const billing = fakeBilling();
     const outcome = await annulComprobante(
       { comprobanteId: crypto.randomUUID() },
@@ -530,7 +530,7 @@ describe("annulComprobante", () => {
       cbteNro: 50,
     });
 
-    // 1) Anular la primera factura.
+    // 1) Annul the first Factura C.
     const firstAnnul = await annulComprobante(
       { comprobanteId: factura.id },
       annulDeps(fakeBilling()),

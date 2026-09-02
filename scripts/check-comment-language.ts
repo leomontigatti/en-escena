@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -15,21 +15,27 @@ import { collectSourceFiles } from "./source-files";
 // the whole tree expecting zero, so it needs no diff scoping and no allowlist
 // for old debt.
 //
-// It looks for Spanish *grammar*, never Spanish *vocabulary*. The glossary
-// (CONTEXT.md) deliberately puts Spanish domain nouns inside English sentences —
-// `seña`, `coreografía`, `cupo`, `comprobante` — so a word list of nouns would
-// fire on prose that is exactly right. Function words are the part of the
-// language that only shows up when the *sentence* is Spanish, which is what the
-// rule is actually about.
+// It looks for Spanish *grammar*, never Spanish *vocabulary*. Function words are
+// the part of the language that only shows up when the *sentence* is Spanish,
+// which is what the rule is actually about.
+//
+// Treating every glossary term as vocabulary is the provisional half of that,
+// and a wider licence than CODING_STANDARDS' reserved list (`comprobante`
+// alone, grown only by ADR) actually grants. #792 owns the question — whether
+// English prose should write `seña` at all, or the identifier `CONTEXT.md`
+// already maps it to. If that lands on the strict side, the exemption here
+// inverts: blank only the reserved terms and flag the rest.
 
 const scannedDirectories = ["app", "scripts", "tests"];
 const sourceFilePattern = /\.(ts|tsx|mts|mjs)$/;
 
 // Spanish function words with no English homograph. Deliberately absent:
 // `todo`/`todos` (the TODO comment marker), `sea`, `era`, `son`, `sin`, `solo`,
-// `algo` (short for algorithm), `con` (pro/con) and every one- or two-letter
-// word — each collides with ordinary English technical prose, and none of them
-// buys recall that a Spanish sentence does not already give up elsewhere.
+// `algo` (short for algorithm) and `con` (pro/con) — each collides with ordinary
+// English technical prose.
+//
+// Known false positive: "Los Angeles" matches `los`. No such string is in the
+// tree; if one arrives, quote it and it becomes data.
 const spanishFunctionWords = [
   "además",
   "allí",
@@ -109,15 +115,55 @@ const spanishFunctionWords = [
   "ya",
 ];
 
+// Short Spanish words with no English homograph, kept apart because they need
+// one extra guard: matched case-insensitively they would also hit the acronyms
+// `UN`, `SE` and `ES`, so an all-caps occurrence is rejected below.
+//
+// Without this tier the floor sits too high for ordinary short Spanish:
+// `// Se ejecuta al montar el componente.` and `test("cierra la sesión activa")`
+// are built almost entirely out of words this short, and both were live in the
+// tree until it was added.
+const shortSpanishWords = [
+  "al",
+  "el",
+  "es",
+  "la",
+  "lo",
+  "ni",
+  "se",
+  "su",
+  "un",
+  "sí",
+];
+
 const spanishFunctionWordPattern = new RegExp(
-  `(?<![\\p{L}-])(?:${spanishFunctionWords.join("|")})(?![\\p{L}-])`,
+  `(?<![\\p{L}-])(?:${[...spanishFunctionWords, ...shortSpanishWords].join("|")})(?![\\p{L}-])`,
   "giu",
 );
+
+/**
+ * `SE` is southeast and `UN` is the United Nations; `se` and `un` are Spanish.
+ * Only the short list is ambiguous this way — every long word stands on its own.
+ */
+function isAcronym(match: string): boolean {
+  return match.length <= 2 && match === match.toUpperCase();
+}
+
+// The known recall floor. A Spanish sentence built only from proper nouns,
+// conjugated verbs and words too short to list still passes — `// ARCA
+// respondió y no autorizó.` is the example #769 gave, and it is not caught.
+//
+// Closing that gap needs a morphology rule: any word carrying an accent or `ñ`
+// is Spanish. It was tried and reverted, because it is not a recall fix — it
+// reports 193 passages on today's tree, and every one of them is a bare `seña`
+// or `Nota de crédito` in otherwise-English prose. That is the question #792
+// owns, so the rule is its strict option to adopt, not this guardrail's bug to
+// quietly fix.
 
 /** `**\`identifier\`** — ui: "Término"`, the one shape every glossary row has. */
 const glossaryTermPattern = /—\s*ui:\s*"([^"]+)"/g;
 
-const testFunctionNames = new Set(["bench", "describe", "it", "test"]);
+const testFunctionNames = new Set(["describe", "it", "test"]);
 const quoteCharacters = new Set(['"', "'", "`"]);
 
 export type CommentLanguageViolation = {
@@ -182,8 +228,15 @@ function blankDataSpans(text: string, glossaryTerms: string[]): string {
     return blanked;
   }
 
+  // The trailing `\p{L}*` swallows the inflection the glossary does not list:
+  // blanking "Profesor" out of "profesores" on its own would leave a bare "es"
+  // behind, which then reads as the Spanish word it is not. The leading
+  // boundary stops a term from matching inside a longer unrelated word.
   return blanked.replace(
-    new RegExp(glossaryTerms.map(escapeForPattern).join("|"), "gi"),
+    new RegExp(
+      `(?<!\\p{L})(?:${glossaryTerms.map(escapeForPattern).join("|")})\\p{L}*`,
+      "giu",
+    ),
     blankTo,
   );
 }
@@ -433,7 +486,9 @@ export function findSpanishProseInSource(input: {
   return scopes.flatMap(({ kind, spans }) =>
     spans.flatMap((span) => {
       const prose = blankDataSpans(span.text, glossaryTerms);
-      const matches = Array.from(prose.matchAll(spanishFunctionWordPattern));
+      const matches = Array.from(
+        prose.matchAll(spanishFunctionWordPattern),
+      ).filter((match) => !isAcronym(match[0]));
 
       if (matches.length === 0) {
         return [];
@@ -460,14 +515,7 @@ export async function checkCommentLanguage(
 ): Promise<CommentLanguageViolation[]> {
   const rootDirectory = options.rootDirectory ?? process.cwd();
   const glossaryTerms = readGlossaryTerms(rootDirectory);
-  const files =
-    options.files ??
-    scannedDirectories.flatMap((directory) =>
-      collectSourceFiles({
-        directoryPath: path.join(rootDirectory, directory),
-        keeps: (fileName) => sourceFilePattern.test(fileName),
-      }),
-    );
+  const files = options.files ?? collectScannedFiles(rootDirectory);
 
   return files.flatMap((filePath) => {
     const absolutePath = path.resolve(rootDirectory, filePath);
@@ -478,6 +526,28 @@ export async function checkCommentLanguage(
       glossaryTerms,
     });
   });
+}
+
+/**
+ * The three scanned directories plus the configs sitting at the repo root.
+ * Those six files are the only source outside the directories, and skipping them
+ * is not hypothetical: `vitest.config.ts` was carrying seven lines of Spanish
+ * that this guardrail flags the moment it is allowed to look at them.
+ */
+function collectScannedFiles(rootDirectory: string): string[] {
+  const rootFiles = readdirSync(rootDirectory, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && sourceFilePattern.test(entry.name))
+    .map((entry) => path.join(rootDirectory, entry.name));
+
+  return [
+    ...rootFiles,
+    ...scannedDirectories.flatMap((directory) =>
+      collectSourceFiles({
+        directoryPath: path.join(rootDirectory, directory),
+        keeps: (fileName) => sourceFilePattern.test(fileName),
+      }),
+    ),
+  ];
 }
 
 async function runCommentLanguageGuardrail(): Promise<void> {

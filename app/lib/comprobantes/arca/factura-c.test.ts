@@ -18,7 +18,7 @@ const baseInput: FacturaCVoucherInput = {
 };
 
 describe("buildFacturaCVoucher", () => {
-  test("produce un FECAESolicitar de Factura C (tipo 11) a consumidor final anónimo", () => {
+  test("produces a FECAESolicitar for a Factura C (type 11) to an anonymous final consumer", () => {
     const voucher = buildFacturaCVoucher(baseInput);
 
     expect(voucher.CbteTipo).toBe(FACTURA_C_CBTE_TIPO);

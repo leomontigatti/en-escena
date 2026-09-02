@@ -54,10 +54,10 @@ jobs:
       # inherited. This reverses the older decision that Fallow was audit-only
       # (docs/agents/fallow.md) — an audit nobody is obliged to run had been
       # filing its findings as issues after the fact instead of before.
+      # No `git fetch` here: `fetch-depth: 0` above already brought the history
+      # the merge base is computed from.
       - name: fallow audit (findings this branch introduces)
-        run: |
-          git fetch --no-tags origin master
-          pnpm check:fallow
+        run: pnpm check:fallow
       # Drift-check (deferred from #391): `db:generate` is offline (it diffs
       # `schema.ts` against the snapshots in `app/db/migrations/meta/`, no DB)
       # and must report "No schema changes". If it emits a migration, `schema.ts`

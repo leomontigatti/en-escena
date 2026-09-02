@@ -204,7 +204,7 @@ describe("ComprobanteDetailRouteView", () => {
     expect(getButton("Cerrar")).not.toBeNull();
   });
 
-  test("declarar la verificación manual vuelve a habilitar la anulación", async () => {
+  test("declaring the manual verification re-enables the annulment", async () => {
     const { action } = unverifiedThenRecovered();
     await mount({ initialAnnulDialogOpen: true, action });
 

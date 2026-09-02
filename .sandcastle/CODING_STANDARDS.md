@@ -132,16 +132,29 @@ and test names alike — and `pnpm check:comment-language` now fails the commit 
 the build on Spanish prose in a comment or a test name, so the argument no longer
 has anything to appeal to.
 
-The guardrail reads Spanish *grammar*, not Spanish *vocabulary*. Naming a
-reserved term from `CONTEXT.md` inside an English sentence is the glossary being
-used as intended — "a `seña` does not close the `modalidad`" is correct prose —
-and quoted copy, route paths and backticked identifiers are data. Only a Spanish
-*sentence* fails.
+The converse still holds: **do not opportunistically translate** comments you are
+not otherwise touching. The sweep is done, so a stray Spanish line is now a bug
+report, not an invitation — fix it in a PR that says so rather than burying it in
+a feature diff nobody asked to review.
 
-It covers `.ts`/`.tsx` under `app/`, `scripts/` and `tests/`. Markdown and YAML
-are on the same rule but are not machine-checked, so they rest on review.
+The guardrail reads Spanish *grammar*, not Spanish *vocabulary*: quoted copy,
+route paths and backticked identifiers are data, and only a Spanish *sentence*
+fails. It also treats every Spanish term the glossary lists as vocabulary rather
+than prose, which is a **wider licence than the reserved list below grants**, and
+deliberately provisional —
+[#792](https://github.com/leomontigatti/en-escena/issues/792) owns the question
+of whether English prose should say `seña` at all or use the English identifier
+`CONTEXT.md` already gives it. Until that closes, treat a bare Spanish noun in an
+English sentence as tolerated, not as endorsed.
 
-One file type is exempt from both directions: **an applied migration under
+It covers `.ts`, `.tsx`, `.mts` and `.mjs` under `app/`, `scripts/` and `tests/`,
+plus the config files at the repo root — `vitest.config.ts` was hiding seven
+lines of Spanish behind exactly that gap. Markdown and YAML are on the same rule
+but are not machine-checked, so they rest on review;
+[#793](https://github.com/leomontigatti/en-escena/issues/793) owns what is left
+there.
+
+One file type is exempt from every direction of this rule: **an applied migration under
 `app/db/migrations/` is frozen, comments included.** Drizzle hashes the whole
 `.sql` file, so translating a comment inside one stops the production container
 from starting — which is exactly what

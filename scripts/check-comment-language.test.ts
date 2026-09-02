@@ -49,6 +49,48 @@ describe("comment-language guardrail (#592)", () => {
     ).toEqual([]);
   });
 
+  // #769 reported that the sweep's first pass missed short one-line comments,
+  // `// ARCA respondió y no autorizó.` among them. A word list that skipped
+  // every short word inherited exactly that hole.
+  test("catches short Spanish built only from short words", () => {
+    expect(kindsIn(`// Se ejecuta al montar el componente.`)).toEqual([
+      "comment",
+    ]);
+    expect(kindsIn(`// Devuelve el total con IVA incluido.`)).toEqual([
+      "comment",
+    ]);
+    expect(kindsIn(`test("cierra la sesión activa", () => {});`)).toEqual([
+      "test name",
+    ]);
+  });
+
+  // Pinned as the known floor, not as desired behaviour: #769 named this exact
+  // comment as one its first pass missed, and it is still missed. Closing it
+  // needs the accent rule that #792 owns — see the note in the script.
+  test("still misses Spanish carried only by accented verbs", () => {
+    expect(kindsIn(`// ARCA respondió y no autorizó.`)).toEqual([]);
+  });
+
+  // The short list is the only one that collides with acronyms, because it is
+  // the only one whose entries are two letters long.
+  test("does not read an acronym as a short Spanish word", () => {
+    expect(kindsIn(`// Reported to the UN and to the ES locale team.`)).toEqual(
+      [],
+    );
+    expect(kindsIn(`// SE quadrant only.`)).toEqual([]);
+  });
+
+  // Blanking "Profesor" out of "profesores" used to leave a bare "es" behind,
+  // which then read as the Spanish word it is not.
+  test("blanks a glossary term together with its inflection", () => {
+    expect(
+      kindsIn(`// Shows the empty state when there are no profesores.`),
+    ).toEqual([]);
+    expect(
+      kindsIn(`test("creates modalidades and submodalidades", () => {});`),
+    ).toEqual([]);
+  });
+
   // The rule is about the language of the sentence, not about which nouns it
   // uses: CONTEXT.md exists so English prose can name the Spanish term.
   test("allows the Spanish domain nouns the glossary reserves", () => {

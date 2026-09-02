@@ -28,7 +28,7 @@ const baseInput: NotaCreditoCVoucherInput = {
 };
 
 describe("buildNotaCreditoCVoucher", () => {
-  test("produce un FECAESolicitar de Nota de crédito C (tipo 13) a consumidor final", () => {
+  test("produces a FECAESolicitar for a Nota de crédito C (type 13) to a final consumer", () => {
     const voucher = buildNotaCreditoCVoucher(baseInput);
 
     expect(voucher.CbteTipo).toBe(NOTA_CREDITO_C_CBTE_TIPO);

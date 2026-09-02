@@ -288,7 +288,7 @@ describe("emitWithContingency", () => {
       esperado: "ARCA no autorizó el comprobante (sin detalle).",
     },
   ])(
-    "un rechazo con $caso explica el motivo",
+    "a rejection with $caso explains the reason",
     async ({ emission, esperado }) => {
       const outcome = await emitWithContingency(
         choreography({
