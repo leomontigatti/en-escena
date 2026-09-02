@@ -41,6 +41,8 @@ await runMain(async ({ signal }) => {
   const repo = requireEnv("GH_REPO");
 
   // Same read-only context bundle as Review (linked issue, diff, PR_COMMENTS_JSON).
+  // The prompt only gets the `--stat` summary; the full patch stays here, to
+  // validate the inline anchors the agent produces.
   const context = buildReviewContext(repo, prNumber);
   const anchors = parseDiffAnchors(context.diff);
 
@@ -62,7 +64,7 @@ await runMain(async ({ signal }) => {
       BRANCH: branch,
       ISSUE_NUMBER: context.issueNumber,
       ISSUE_TITLE: context.issueTitle,
-      DIFF: context.diff,
+      DIFF_STAT: context.diffStat,
       PR_COMMENTS_JSON: context.prCommentsJson,
     },
     extractionPrompt: EXTRACTION_PROMPT,
