@@ -61,6 +61,7 @@ export type ResolvedInscription = {
 
 export type FinanceChoreographyRow = {
   academyId: string;
+  choreographyNumber: number;
   groupType: ChoreographyGroupType;
   id: string;
   name: string;
@@ -82,6 +83,10 @@ export type ChoreographyOperationalFinanceRow = {
   allocatedAmount: number;
   anomalies: InscriptionAnomaly[];
   basePriceAmount: OperationalFinanceAmount;
+  // The event-scoped number the choreography is identified by. It carries no
+  // money, but it travels with the row because it is how the administrator and
+  // the academy name the choreography to each other.
+  choreographyNumber: number;
   depositAmount: OperationalFinanceAmount;
   totalAmount: OperationalFinanceAmount;
   financialStatus: ChoreographyFinancialStatus;
@@ -188,6 +193,7 @@ export function buildChoreographyOperationalFinanceRow(input: {
     allocatedAmount,
     anomalies: overAllocatedAmount > 0 ? ["overAllocated"] : [],
     basePriceAmount: basePriceAmount.build(),
+    choreographyNumber: input.choreography.choreographyNumber,
     depositAmount: depositAmount.build(),
     financialStatus: deriveChoreographyFinancialStatus(
       input.inscriptions

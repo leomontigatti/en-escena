@@ -109,6 +109,7 @@ export async function loadChoreographyFinanceDetail(input: {
     choreography: {
       allocatedAmount: choreographyFinanceRow.allocatedAmount,
       anomalies: choreographyFinanceRow.anomalies,
+      choreographyNumber: choreographyFinanceRow.choreographyNumber,
       depositAmount: choreographyFinanceRow.depositAmount,
       financialStatus: choreographyFinanceRow.financialStatus,
       groupType: choreographyFinanceRow.groupType,

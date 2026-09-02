@@ -124,6 +124,7 @@ function choreographyFinanceRowFixture(
     allocatedAmount: 0,
     anomalies: [],
     basePriceAmount: { amount: 10000, status: "complete" },
+    choreographyNumber: 1,
     depositAmount: { amount: 3000, status: "complete" },
     financialStatus: "depositPending",
     groupType: "solo",

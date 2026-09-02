@@ -11,6 +11,7 @@ import {
 
 const choreography: FinanceChoreographyRow = {
   academyId: "academy_1",
+  choreographyNumber: 1,
   choreographyScheduleId: null,
   groupType: "solo",
   id: "choreography_1",

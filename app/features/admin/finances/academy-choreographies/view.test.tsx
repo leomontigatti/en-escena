@@ -4,7 +4,11 @@ import { act } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
-import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
+import {
+  createReactDomTestRenderer,
+  setInputValue,
+  updateReactDomForm,
+} from "@/lib/test-support/react-dom";
 
 import { financePresetLabels } from "./presets";
 import { AcademyFinancesRouteView } from "./view";
@@ -128,6 +132,102 @@ describe("AcademyFinancesRouteView", () => {
 
     expect(rowCells[0]?.[totalColumnIndex]).toBe("$ 10.000");
     expect(rowCells[1]?.[totalColumnIndex]).toBe("Pendiente");
+  });
+
+  // The number is how the administrator and the academy name a choreography to
+  // each other, so it opens the row —right after the selection checkbox— it is
+  // the row's only link to the detail, and it is what the list is ordered by.
+  test("shows the choreography number first, links from it and sorts by it", async () => {
+    await renderListIntoDocument({
+      loaderData: academyFinancesLoaderDataFixture({
+        choreographyFinanceRows: [
+          choreographyFinanceRowFixture({
+            choreographyNumber: 7,
+            id: "choreography_2",
+            name: "Tango",
+          }),
+          choreographyFinanceRowFixture({
+            choreographyNumber: 2,
+            id: "choreography_1",
+            name: "Aire",
+          }),
+        ],
+      }),
+    });
+
+    const headers = headerLabels();
+
+    // The selection checkbox owns the first header, which carries no label.
+    expect(headers[0]).toBe("");
+    expect(headers[1]).toBe("#");
+    expect(headers[2]).toBe("Nombre");
+    // Padded to the same five digits as the payment number, which is the width
+    // both numberings of an event share. The rows arrive in the opposite order,
+    // so this only passes while the list opens ordered by the number.
+    expect(columnValues("#")).toEqual(["00002", "00007"]);
+    expect(columnValues("Nombre")).toEqual(["Aire", "Tango"]);
+
+    const links = [...document.querySelectorAll("tbody a")].map((link) => [
+      (link.textContent ?? "").trim(),
+      link.getAttribute("href"),
+    ]);
+
+    // One link per row and it is the number: the name renders as plain text
+    // beside it. The positive assertion keeps the count honest.
+    expect(links).toEqual([
+      [
+        "00002",
+        "/administracion/finanzas/academy_1/coreografias/choreography_1",
+      ],
+      [
+        "00007",
+        "/administracion/finanzas/academy_1/coreografias/choreography_2",
+      ],
+    ]);
+
+    // The header sorts. A numeric column cycles desc → asc → unsorted, and it
+    // starts on asc here, so reaching descending takes two clicks.
+    await clickHeaderSort("#");
+    await clickHeaderSort("#");
+
+    expect(columnValues("#")).toEqual(["00007", "00002"]);
+    expect(columnValues("Nombre")).toEqual(["Tango", "Aire"]);
+  });
+
+  test("finds a choreography by its number", async () => {
+    await renderListIntoDocument({
+      loaderData: academyFinancesLoaderDataFixture({
+        choreographyFinanceRows: [
+          choreographyFinanceRowFixture({
+            choreographyNumber: 1,
+            id: "choreography_1",
+            name: "Aire",
+          }),
+          choreographyFinanceRowFixture({
+            choreographyNumber: 2,
+            id: "choreography_2",
+            name: "Tango",
+          }),
+        ],
+      }),
+    });
+
+    const search = document.querySelector<HTMLInputElement>(
+      'input[placeholder="Buscar coreografía por número o nombre"]',
+    );
+
+    if (!search) {
+      throw new Error("Expected the finances search input to be rendered.");
+    }
+
+    // Typed without the padding zeros, the way somebody reads a number off a
+    // screen. The box filters a single column, so this only passes while the
+    // number travels inside that column's filter value.
+    await updateReactDomForm(() => {
+      setInputValue(search, "2");
+    });
+
+    expect(columnValues("Nombre")).toEqual(["Tango"]);
   });
 
   test("replaces the status badge with the anomaly badge when a choreography is over-allocated", async () => {
@@ -497,6 +597,7 @@ function choreographyFinanceRowFixture(
     allocatedAmount: 0,
     anomalies: [],
     basePriceAmount: { amount: 10000, status: "complete" },
+    choreographyNumber: 1,
     depositAmount: { amount: 3000, status: "complete" },
     financialStatus: "depositPending",
     groupType: "solo",
@@ -509,6 +610,41 @@ function choreographyFinanceRowFixture(
     totalAmount: { amount: 10000, status: "complete" },
     ...overrides,
   };
+}
+
+function headerLabels() {
+  return [...document.querySelectorAll("thead th")].map((header) =>
+    (header.textContent ?? "").trim(),
+  );
+}
+
+/** Every cell of one column, read by header label rather than by position. */
+function columnValues(header: string) {
+  const columnIndex = headerLabels().indexOf(header);
+
+  if (columnIndex === -1) {
+    throw new Error(`Expected a "${header}" column to be rendered.`);
+  }
+
+  return [...document.querySelectorAll("tbody tr")].map((row) =>
+    (row.querySelectorAll("td")[columnIndex]?.textContent ?? "").trim(),
+  );
+}
+
+async function clickHeaderSort(header: string) {
+  const columnIndex = headerLabels().indexOf(header);
+  const control = [...document.querySelectorAll("thead th")][
+    columnIndex
+  ]?.querySelector("button");
+
+  if (!control) {
+    throw new Error(`Expected the "${header}" header to offer a sort control.`);
+  }
+
+  await act(async () => {
+    control.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await Promise.resolve();
+  });
 }
 
 /**

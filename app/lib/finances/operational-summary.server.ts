@@ -135,6 +135,7 @@ async function readAcademyEventFinance(input: {
     db
       .select({
         academyId: choreographies.academyId,
+        choreographyNumber: choreographies.choreographyNumber,
         choreographyScheduleId: choreographies.scheduleId,
         groupType: choreographies.groupType,
         id: choreographies.id,
@@ -167,6 +168,7 @@ async function readAcademyEventFinance(input: {
       row.id,
       {
         academyId: row.academyId,
+        choreographyNumber: row.choreographyNumber,
         choreographyScheduleId: row.choreographyScheduleId,
         groupType: row.groupType as ChoreographyGroupType,
         id: row.id,

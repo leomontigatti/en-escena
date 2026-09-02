@@ -29,10 +29,11 @@ describe("ChoreographyFinanceDetailView", () => {
   test("identifies the choreography in the title and drops the readonly data card", () => {
     const markup = renderDetail();
 
-    // Only the name in the title: it is what identifies the choreography. The
-    // description is generic: it says what is done in the view, not whose
-    // choreography it is.
-    expect(markup).toContain("Aire");
+    // The name and the number in the title: the name identifies the
+    // choreography within the academy and the number within the event, which is
+    // the one the choreography detail titles itself with too. The description is
+    // generic: it says what is done in the view, not whose choreography it is.
+    expect(markup).toContain("Aire # 00001");
     expect(markup).not.toContain("Aire - Dúo");
     expect(markup).toContain(
       "Revisá y/o modificá las asignaciones de cada inscripción",
@@ -431,6 +432,7 @@ function choreographyFixture(
   return {
     allocatedAmount: 3000,
     anomalies: [],
+    choreographyNumber: 1,
     depositAmount: { amount: 3000, status: "complete" },
     financialStatus: "depositMet",
     groupType: "duo",

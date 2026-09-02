@@ -846,6 +846,7 @@ function loaderDataFixture(
     choreography: {
       allocatedAmount: 3000,
       anomalies: [],
+      choreographyNumber: 1,
       depositAmount: { amount: 3000, status: "complete" },
       financialStatus: "depositMet",
       groupType: "duo",

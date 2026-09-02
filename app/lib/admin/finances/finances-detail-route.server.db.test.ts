@@ -243,6 +243,9 @@ describe.sequential("administracion finanzas academia", () => {
       {
         id: choreography.id,
         basePriceAmount: { amount: 12000, status: "complete" },
+        // The first choreography of its event, so the number the list shows is
+        // the first one the counter hands out.
+        choreographyNumber: 1,
         depositAmount: { amount: 3600, status: "complete" },
         financialStatus: "depositMet",
         owedBalanceAmount: { amount: 8400, status: "complete" },
@@ -258,6 +261,7 @@ describe.sequential("administracion finanzas academia", () => {
       owedDepositAmount: { amount: 0, status: "complete" },
       totalPaidAmount: 3600,
     });
+    expect(markup).toContain("00001");
     expect(markup).toContain("$ 3.600");
     expect(markup).toContain("$ 8.400");
     expect(markup).toContain("Señada");
@@ -384,7 +388,7 @@ describe.sequential("administracion finanzas academia", () => {
       },
     ]);
     expect(markup).toContain("Lista financiera de las coreografías");
-    expect(markup).toContain("Buscar coreografía por nombre");
+    expect(markup).toContain("Buscar coreografía por número o nombre");
     // The list is selectable: the `Pagar seña` / `Pagar saldo` presets live here
     // and act on the chosen choreographies.
     expect(markup).toContain('aria-label="Seleccionar todas las filas"');

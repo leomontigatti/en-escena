@@ -18,6 +18,7 @@ import {
 import type { CobroStage } from "@/lib/finances/choreography-cobro-presets.server";
 import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
 import { sumOperationalFinanceAmounts } from "@/lib/finances/operational-summary";
+import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 
 import { formatAmount, formatOperationalAmount } from "../formatters";
@@ -152,13 +153,15 @@ export function AcademyFinancesRouteView({
           columns={columns}
           facetedFilters={choreographyFinanceFacetedFilters}
           getRowKey={(row) => row.id}
-          searchPlaceholder="Buscar coreografía por nombre"
+          searchPlaceholder="Buscar coreografía por número o nombre"
           textFilterColumnId="name"
           selectableRows
           selectedRowIds={selectedRowIds}
           onSelectedRowIdsChange={setSelectedRowIds}
+          // By number, like the choreography lists: it is the row's identity
+          // within the event, so it is what the list is ordered by.
           initialSort={{
-            columnId: "name",
+            columnId: "choreographyNumber",
             direction: "asc",
           }}
           emptyMessage="No hay coreografías para mostrar."
@@ -187,17 +190,32 @@ function buildChoreographyFinanceColumns(
 ): DataTableColumn<ChoreographyFinanceRow>[] {
   return [
     {
-      id: "name",
-      header: "Nombre",
-      className: "min-w-56 font-medium",
+      id: "choreographyNumber",
+      header: "#",
+      className: "w-16 font-medium tabular-nums",
+      headerClassName: "w-16",
       cell: (row) => (
         <DataTableLink
           to={`/administracion/finanzas/${academyId}/coreografias/${row.id}`}
         >
-          {row.name}
+          {formatEventSequenceNumber(row.choreographyNumber)}
         </DataTableLink>
       ),
-      filterValue: (row) => row.name,
+      sortValue: (row) => row.choreographyNumber,
+    },
+    {
+      id: "name",
+      header: "Nombre",
+      className: "min-w-56 font-medium",
+      // The number is the row's only way into the detail, as in the
+      // choreography lists. Linking the name too gave one destination two
+      // targets, which reads as a choice and is not.
+      cell: (row) => row.name,
+      // The search box filters this one column, so the number travels in here
+      // to be searchable at all. Zero-padded, which is what makes `00042`,
+      // `042` and `42` all reach the same choreography.
+      filterValue: (row) =>
+        `${formatEventSequenceNumber(row.choreographyNumber)} ${row.name}`,
       sortValue: (row) => row.name,
     },
     {

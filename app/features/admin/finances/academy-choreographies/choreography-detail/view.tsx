@@ -21,6 +21,7 @@ import {
   formatInscriptionStatusBadge,
   inscriptionStatusFilterOptions,
 } from "@/lib/finances/choreography-financial-status";
+import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
 
 import { formatAmount, formatOperationalAmount } from "../../formatters";
@@ -58,10 +59,17 @@ export function ChoreographyFinanceDetailView({
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
-      // The title is the choreography's name and nothing else: it is what
-      // identifies it within the academy, and the group type is already on every
-      // price in the list.
-      title={choreography ? choreography.name : "Coreografía no encontrada"}
+      // The name identifies the choreography within the academy, and the number
+      // identifies it within the event: the same number the choreography detail
+      // titles itself with, so an administrator moving between the two pages
+      // reads one identity and not two.
+      title={
+        choreography
+          ? `${choreography.name} # ${formatEventSequenceNumber(
+              choreography.choreographyNumber,
+            )}`
+          : "Coreografía no encontrada"
+      }
       description={
         choreography
           ? "Revisá y/o modificá las asignaciones de cada inscripción desde la lista."
