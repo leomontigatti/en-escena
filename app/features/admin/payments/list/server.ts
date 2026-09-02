@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { academies, payments } from "@/db/schema";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
+import { paymentAvailableAmountSql } from "@/lib/finances/payment-available-amount.server";
 import { paymentMethodValues } from "@/lib/finances/payment-methods";
 import { eventSequenceNumberDigits } from "@/lib/events/sequence-number";
 
@@ -14,7 +15,16 @@ type PaymentsListOrder = {
   direction: "asc" | "desc";
 };
 
+/**
+ * Whether the list is narrowed to payments that still have money free. It is a
+ * facet and not a sort: the administrator reaches it from the `Disponible`
+ * metric —"there is money uncommitted, show me where"— which is a filtering
+ * question and not an ordering one.
+ */
+type PaymentsListAvailability = "con" | "sin";
+
 type PaymentsListFilters = {
+  availability: PaymentsListAvailability | null;
   method: PaymentsListMethod | null;
   order: PaymentsListOrder;
   page: number;
@@ -25,10 +35,25 @@ export type PaymentsListRow = {
   academyId: string;
   academyName: string;
   amount: number;
+  // What is still free on this payment. See `paymentAvailableAmountSql`: it is
+  // the payment's own remainder, and it carries no provenance.
+  availableAmount: number;
   id: string;
   paymentDate: string;
   paymentMethod: "efectivo" | "mercado_pago" | "otro" | "transferencia";
   paymentNumber: number;
+};
+
+/**
+ * The event's money position, over **every** payment of the active event: it
+ * answers the same question no matter how the list below it is narrowed. A total
+ * that moved with the search box would be a different question than the one the
+ * card asks, and the whole use of `Disponible` is to be read first and filtered
+ * on second.
+ */
+export type PaymentsListSummary = {
+  availableAmount: number;
+  totalAmount: number;
 };
 
 export type PaymentsListLoaderData = {
@@ -36,6 +61,7 @@ export type PaymentsListLoaderData = {
   hasAnyPayment: boolean;
   rows: PaymentsListRow[];
   selectedEventId: string | null;
+  summary: PaymentsListSummary;
   totalCount: number;
   totalPages: number;
 };
@@ -61,16 +87,24 @@ export async function loadPaymentsList(
       hasAnyPayment: false,
       rows: [] as PaymentsListRow[],
       selectedEventId: null,
+      summary: { availableAmount: 0, totalAmount: 0 },
       totalCount: 0,
       totalPages: 1,
     };
   }
 
   const where = buildPaymentsWhere(selectedEventId, filters);
-  const [{ count: totalUnfilteredCount }] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(payments)
-    .where(eq(payments.eventId, selectedEventId));
+  // Unfiltered on purpose, and in the same pass as `hasAnyPayment`: both read
+  // the whole event and neither one narrows with the list.
+  const [{ count: totalUnfilteredCount, summaryAvailable, summaryTotal }] =
+    await db
+      .select({
+        count: sql<number>`count(*)`,
+        summaryAvailable: sql<number>`coalesce(sum(${paymentAvailableAmountSql}), 0)`,
+        summaryTotal: sql<number>`coalesce(sum(${payments.amount}), 0)`,
+      })
+      .from(payments)
+      .where(eq(payments.eventId, selectedEventId));
   const [{ count }] = await db
     .select({ count: sql<number>`count(*)` })
     .from(payments)
@@ -86,6 +120,7 @@ export async function loadPaymentsList(
       academyId: payments.academyId,
       academyName: academies.name,
       amount: payments.amount,
+      availableAmount: paymentAvailableAmountSql,
       id: payments.id,
       paymentDate: payments.paymentDate,
       paymentMethod: payments.paymentMethod,
@@ -114,8 +149,15 @@ export async function loadPaymentsList(
   return {
     filters: normalizedFilters,
     hasAnyPayment: Number(totalUnfilteredCount) > 0,
-    rows: paymentRows satisfies PaymentsListRow[],
+    rows: paymentRows.map((row) => ({
+      ...row,
+      availableAmount: Number(row.availableAmount),
+    })) satisfies PaymentsListRow[],
     selectedEventId,
+    summary: {
+      availableAmount: Number(summaryAvailable),
+      totalAmount: Number(summaryTotal),
+    },
     totalCount,
     totalPages,
   };
@@ -125,11 +167,18 @@ function readPaymentsListFilters(
   searchParams: URLSearchParams,
 ): PaymentsListFilters {
   return {
+    availability: readPaymentsListAvailability(searchParams.get("disponible")),
     method: readPaymentsListMethod(searchParams.get("medio")),
     order: readPaymentsOrder(searchParams.get("orden")),
     page: readPage(searchParams),
     query: searchParams.get("busqueda")?.trim() ?? "",
   };
+}
+
+function readPaymentsListAvailability(
+  value: string | null,
+): PaymentsListAvailability | null {
+  return value === "con" || value === "sin" ? value : null;
 }
 
 function readPaymentsListMethod(value: string | null) {
@@ -171,6 +220,17 @@ function buildPaymentsWhere(
     conditions.push(eq(payments.paymentMethod, filters.method));
   }
 
+  // A predicate over the derived figure rather than a `having`: the remainder is
+  // a correlated subquery per payment, so it needs no grouping and the two count
+  // queries stay the shape they already had.
+  if (filters.availability !== null) {
+    conditions.push(
+      filters.availability === "con"
+        ? sql`${paymentAvailableAmountSql} > 0`
+        : sql`${paymentAvailableAmountSql} = 0`,
+    );
+  }
+
   return and(...conditions);
 }
 
@@ -203,6 +263,12 @@ function buildCanonicalPaymentsSearch(input: {
     searchParams.set("medio", input.filters.method);
   } else {
     searchParams.delete("medio");
+  }
+
+  if (input.filters.availability !== null) {
+    searchParams.set("disponible", input.filters.availability);
+  } else {
+    searchParams.delete("disponible");
   }
 
   searchParams.delete("estado");

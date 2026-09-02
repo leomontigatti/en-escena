@@ -366,6 +366,10 @@ _Avoid_: `availableBalanceAmount`, `choreographyFinancialStatus`, operational ba
 Money an academy has handed over in an event and that is not committed: `paid − allocated − refunded`. Structurally never negative, because every allocation is capped against it and a payment's amount can never be edited below what it already funds. The refunds term is specified and not yet built (#536), so today the figure reads `paid − allocated`.
 _Avoid_: `owedBalanceAmount`, total paid, `academyAccountBalance` (retired)
 
+**`paymentAvailableAmount`** — ui: "Disponible"
+The `availableBalanceAmount` of a **single payment**: its amount minus what its own allocations commit, floored at zero. It reads as "how much of this payment is still free to draw", never as "this payment is unresolved" — the money arrived in full either way, which is why it is not called "Pendiente": that word already means an amount that cannot be computed for want of a price, and `Seña pendiente` means an unmet threshold. It carries **no provenance**: the pool draws oldest-first and unwinds newest-first, so money returned may land on a different payment than it left, and a row's figure can move without that payment being touched. Summed over an event it is the same money `availableBalanceAmount` counts per academy.
+_Avoid_: Pendiente, `owedBalanceAmount`, unpaid payment, `availableBalanceAmount` (that one is the academy's)
+
 **`owedBalanceAmount`** — ui: "Saldo adeudado"
 Shortfall of an inscription's allocations against its `inscriptionTotalAmount`, floored at zero. **Gross**: it never subtracts `availableBalanceAmount`, which is shown alongside as its own figure. Scope-owned — inscription, choreography and academy each carry it, the wider scopes by summing the narrower.
 _Avoid_: `availableBalanceAmount`, net debt, total paid, estimated total

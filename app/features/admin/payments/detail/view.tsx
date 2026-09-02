@@ -16,6 +16,7 @@ import {
   ReadOnlySelectField,
   ReadOnlyTextareaField,
 } from "@/components/shared/read-only-field";
+import { MetricCard } from "@/components/shared/metric-card";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
@@ -101,7 +102,20 @@ export function PaymentDetailRouteView({
           ) : null
         }
       >
-        <PaymentDetailForm actionData={actionData} loaderData={loaderData} />
+        <div className="flex flex-col gap-6">
+          {/* Above the form and alone: `Monto` is already a field a few
+              centimetres below, and repeating it here would say the same number
+              twice. This one is derived and cannot be edited, which is why it
+              does not belong among the fields. */}
+          <section className="grid gap-4 sm:grid-cols-2">
+            <MetricCard
+              title="Disponible"
+              value={formatAmount(loaderData.availableAmount)}
+            />
+          </section>
+
+          <PaymentDetailForm actionData={actionData} loaderData={loaderData} />
+        </div>
       </AdminResourceLayout>
 
       {loaderData.canDelete ? (
