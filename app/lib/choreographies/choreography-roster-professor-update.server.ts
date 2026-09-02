@@ -10,6 +10,10 @@ import {
   invalidProfessorSelectionMessage,
   type UpdateChoreographyProfessorsResult,
 } from "@/lib/choreographies/choreography-roster.shared";
+import {
+  isSelectableForRoster,
+  toRosterPersonStatus,
+} from "@/lib/roster/roster-person-status.shared";
 
 export async function updateChoreographyProfessors(input: {
   academyId: string;
@@ -107,8 +111,11 @@ export async function validateChoreographyProfessorSelection(input: {
   });
   const allowedProfessorIds = new Set(
     selectedProfessors
-      .filter(
-        (professor) => professor.active || linkedProfessorIds.has(professor.id),
+      .filter((professor) =>
+        isSelectableForRoster({
+          status: toRosterPersonStatus(professor.active),
+          isAlreadyLinked: linkedProfessorIds.has(professor.id),
+        }),
       )
       .map((professor) => professor.id),
   );

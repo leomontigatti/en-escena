@@ -1,12 +1,13 @@
-import { and, eq, ilike, or, sql, type SQL } from "drizzle-orm";
+import { and, ilike, or, sql, type SQL } from "drizzle-orm";
 
 import { academies, dancers } from "@/db/schema";
 import {
   readDancerIdentificationFilter,
   readDancerParticipationFilter,
-  readDancerStatusFilter,
   type DancerListFilters,
 } from "@/lib/admin/dancers/dancers.shared";
+import { readRosterPersonStatusFilter } from "@/lib/roster/roster-person-status.shared";
+import { rosterPersonStatusCondition } from "@/lib/roster/roster-person-status.server";
 import {
   escapeForLike,
   readDancerNameOrder,
@@ -21,7 +22,7 @@ function readDancerFilters(searchParams: URLSearchParams): DancerListFilters {
       searchParams.get("participando"),
     ),
     query: searchParams.get("busqueda")?.trim() ?? "",
-    status: readDancerStatusFilter(searchParams.get("estado")),
+    status: readRosterPersonStatusFilter(searchParams),
     identification: readDancerIdentificationFilter(
       searchParams.get("identificacion"),
     ),
@@ -38,10 +39,13 @@ function buildDancerFilters(input: {
     input.selectedEventId,
   );
 
-  if (input.filters.status === "active") {
-    conditions.push(eq(dancers.active, true));
-  } else if (input.filters.status === "archived") {
-    conditions.push(eq(dancers.active, false));
+  const statusCondition = rosterPersonStatusCondition(
+    dancers,
+    input.filters.status,
+  );
+
+  if (statusCondition) {
+    conditions.push(statusCondition);
   }
 
   if (input.selectedEventId !== null && input.filters.participation !== "all") {

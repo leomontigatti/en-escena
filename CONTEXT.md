@@ -251,6 +251,10 @@ _Avoid_: `professor`, `user`
 Documentary validation situation of a dancer.
 _Avoid_: `choreographyOperationalStatus`, `choreographyFinancialStatus`
 
+**`rosterPersonStatus`** — ui: "Estado de alta"
+Alta state of a roster person —a **`dancer`** or a **`professor`**— with exactly two values, `active` ("Activo") and `archived` ("Archivado"): whether the academy still works with them. It is stored as the `active` boolean on both tables, and `app/lib/roster/roster-person-status*` is the only module that reads that column: one predicate, one filter type with one default and one URL codec, one label pair, one eligibility rule (`isSelectableForRoster`) and one writer. It is a third axis, independent of **`participationStatus`** and of **`dancerVerificationStatus`**, and archiving touches no inscription, no **`choreographyOperationalStatus`**, no **`choreographyFinancialStatus`** and no figure (see `docs/domain/choreographies.md`, "Estado de alta de personas del elenco"). "Archivado" names this and only this: the internal user list's filter of the same name is an unrelated duplicate, pending retirement.
+_Avoid_: participating, `dancerVerificationStatus`, deleted person
+
 **`administrativeInconsistency`** — ui: "Inconsistencia administrativa"
 Internal administration alert for data requiring review or traceability without belonging to the operational, financial or competitive state.
 _Avoid_: `choreographyOperationalStatus`, `choreographyFinancialStatus`, disqualification

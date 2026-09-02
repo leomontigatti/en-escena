@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { dancers, professors } from "@/db/schema";
@@ -6,6 +6,10 @@ import type {
   ChoreographyDancerOption,
   ChoreographyProfessorOption,
 } from "@/lib/choreographies/choreography-roster.shared";
+import {
+  isSelectableForRoster,
+  toRosterPersonStatus,
+} from "@/lib/roster/roster-person-status.shared";
 
 export async function listProfessorOptionsForChoreography(
   academyId: string,
@@ -21,10 +25,16 @@ export async function listProfessorOptionsForChoreography(
     })
     .from(professors)
     .where(eq(professors.academyId, academyId))
-    .orderBy(asc(professors.firstName), asc(professors.lastName));
+    .orderBy(
+      asc(sql`lower(${professors.firstName})`),
+      asc(sql`lower(${professors.lastName})`),
+    );
 
-  return rows.filter(
-    (professor) => professor.active || linkedProfessorIdsSet.has(professor.id),
+  return rows.filter((professor) =>
+    isSelectableForRoster({
+      status: toRosterPersonStatus(professor.active),
+      isAlreadyLinked: linkedProfessorIdsSet.has(professor.id),
+    }),
   );
 }
 
@@ -42,9 +52,15 @@ export async function listDancerOptionsForChoreography(
     })
     .from(dancers)
     .where(eq(dancers.academyId, academyId))
-    .orderBy(asc(dancers.firstName), asc(dancers.lastName));
+    .orderBy(
+      asc(sql`lower(${dancers.firstName})`),
+      asc(sql`lower(${dancers.lastName})`),
+    );
 
-  return rows.filter(
-    (dancer) => dancer.active || linkedDancerIdsSet.has(dancer.id),
+  return rows.filter((dancer) =>
+    isSelectableForRoster({
+      status: toRosterPersonStatus(dancer.active),
+      isAlreadyLinked: linkedDancerIdsSet.has(dancer.id),
+    }),
   );
 }
