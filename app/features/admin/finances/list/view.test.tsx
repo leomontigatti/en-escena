@@ -29,7 +29,7 @@ describe("FinancesListRouteView", () => {
     expect(markup).toContain("$ 315.000");
   });
 
-  test("mutes Total for every row and leaves Saldo disponible in default text", () => {
+  test("mutes the total for every row and leaves balance available in default text", () => {
     const markup = renderList([
       accountRowFixture({ availableBalanceAmount: 0 }),
       accountRowFixture({

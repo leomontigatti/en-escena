@@ -40,7 +40,7 @@ this document is a bug — file it, do not fix one side silently.
   peso with `Math.round` (half up, toward `+∞`) at the point they are derived.
 - `Administrador` mutates financial records; `Auditor` reads them.
 - Out of scope and deliberately undefined: `Descuento administrativo` (see
-  "Descuento administrativo") and the lifecycle of a choreography with no active
+  "`Descuento administrativo`") and the lifecycle of a choreography with no active
   inscriptions.
 
 ## The model in one statement
@@ -142,14 +142,14 @@ provisional-figure cue: a marking true of every figure distinguishes nothing.
 
 The one provisional cue in the panel is outside them. The admin dancer detail —
 not a finance surface — heads its column `Subtotal estimado` and disclaims that
-"Los importes son estimados y no reemplazan comprobantes financieros.", and it
+`Los importes son estimados y no reemplazan comprobantes financieros.`, and it
 earns the disclaimer honestly, because it prices without the finance rules (see
 "Prices").
 
 The superseded per-inscription `Saldo de inscripción` (`base − deposit −
 discount`) is **gone, not renamed**: both of its subtrahends moved.
 
-## Descuento por bailarín
+## `Descuento por bailarín`
 
 - The only automatic discount. It lives per inscription and enters `totalAmount`
   and nothing else.
@@ -188,7 +188,7 @@ are unaffected. This is [#584](https://github.com/leomontigatti/en-escena/issues
 item 2 and it is a **bug, not a documented rule**; the owner of the shared
 predicate is [#489](https://github.com/leomontigatti/en-escena/issues/489).
 
-## Descuento administrativo
+## `Descuento administrativo`
 
 `Descuento administrativo` is **reserved and deliberately undefined**. Map #547
 ruled it out of scope, which is a scoping act and not an answer: its own
@@ -230,11 +230,11 @@ decision rather than an oversight.
   write may store a different row whatever the inscription already holds, and the
   read does not treat the stored row as authoritative — it re-derives from the row
   that applies today, so a page refresh moves the effective price and so does the
-  passage of time. Once `Σ allocations` reaches the seña of the row the
+  passage of time. Once `Σ allocations` reaches the deposit of the row the
   inscription **stores**, that row governs: the write path refuses a different one
-  with "El precio queda fijo desde que la inscripción cubre su seña…", and a
+  with `El precio queda fijo desde que la inscripción cubre su seña…`, and a
   database trigger on `choreography_dancer` refuses the same update. **Taking
-  money off until the row falls back below its seña is what releases the lock** —
+  money off until the row falls back below its deposit is what releases the lock** —
   not taking every peso off.
 - **`crossed` is always tested against the stored row**, never against the
   incoming or the currently applicable one. The threshold is derived _from_ the
@@ -248,11 +248,11 @@ decision rather than an oversight.
   threshold an inscription follows the list, so a drop can leave it holding more
   than its `Total` and reading `Sobreasignada`. That is passive over-allocation
   and it is tolerated: it warns, it blocks nothing and nothing throws.
-- **`Señada` and the price lock read the same `≥` against two different señas.**
+- **`Señada` and the price lock read the same `≥` against two different deposits.**
   The badge is derived from the **effective** price, and the lock is measured
   against the **stored** one, so when the stored row is dearer than the one that
   applies today there is a band where the row reads `Señada` and its price is
-  still loose: stored 12000 (seña 3600), current 10000 (seña 3000), 3000
+  still loose: stored 12000 (deposit 3600), current 10000 (deposit 3000), 3000
   allocated — the badge crosses at 3000 and the lock does not close until 3600.
   The asymmetry is one-sided, because the lock is never the earlier of the two:
   a locked price is the stored one, and it is the stored one the badge is then
@@ -291,7 +291,7 @@ written twice:
   — `resolveEffectiveBasePriceRow` is its single owner — so no two surfaces can
   disagree, and the answer moves with a page refresh and with the passage of
   time. That movement is the point: an academy's price should follow the list
-  until its seña is in, without anyone writing anything.
+  until its deposit is in, without anyone writing anything.
 - Below the threshold the **stored row and the effective row can differ**, so
   what reads which matters. The stored row is read by the write path's `crossed`
   test, by the `?? stored` fallback when nothing applies today, and by the guard
@@ -331,19 +331,19 @@ same inscription. Tracked in
   full edit form — academy, amount, date, method, reference and internal note —
   and it writes all of them. **Exactly two accounting guards stand in its way**,
   and nothing else:
-  - the **academy is frozen once the payment carries allocations** ("No se puede
-    cambiar la academia de un pago con asignaciones activas."), so a payment
+  - the **academy is frozen once the payment carries allocations**
+    (`No se puede cambiar la academia de un pago con asignaciones activas.`), so a payment
     registered against the wrong academy is re-pointed by editing while it is
     still unallocated;
-  - the **amount cannot drop below what is already allocated** ("El monto no
-    puede ser menor al total ya asignado."). It rises freely, and it falls freely
+  - the **amount cannot drop below what is already allocated**
+    (`El monto no puede ser menor al total ya asignado.`). It rises freely, and it falls freely
     down to that floor.
 
   Editing a payment moves no allocation: the existing rows keep their amounts and
   the difference lands in `Saldo disponible`.
 
 - The payment date cannot be in the future.
-- Payment methods: transferencia, efectivo, mercado_pago and otro.
+- Payment methods: `transferencia`, `efectivo`, `mercado_pago` and `otro`.
 - A payment has a visible internal number, sequential within the event. It is not
   a fiscal number.
 - Reference and internal note are optional; internal notes are not shown in the
@@ -401,7 +401,7 @@ they live in one module.
   keeps a reversal order from coming back.
 - **Over-allocation.** **Active** over-allocation is refused on the write path,
   with no override: a write that would push an inscription above its `Total` is
-  rejected with "No se puede asignar más de lo que la inscripción adeuda.", which
+  rejected with `No se puede asignar más de lo que la inscripción adeuda.`, which
   is why owed is computed on the write path and not only on read. Allocating
   against an inscription with no resolvable price is refused for the same reason
   — there is no way to know what it owes. **Passive** over-allocation already
@@ -449,11 +449,11 @@ money to take off while the entry point stays single.
   figure finishes the next thing. The two owed figures are shown **only once the
   inscription holds money**: on an empty row they restate the price named right
   above them. Because the bound is known on the client, an amount above what the
-  row owes is said **under the field** ("Ingresá un monto entre $ 1 y $ X.")
-  instead of round-tripping to "No se puede asignar más de lo que la inscripción
-  adeuda."; the pool's own ceiling is not known here and stays an alert. The
+  row owes is said **under the field** (`Ingresá un monto entre $ 1 y $ X.`)
+  instead of round-tripping to
+  `No se puede asignar más de lo que la inscripción adeuda.`; the pool's own ceiling is not known here and stays an alert. The
   **price is chosen inside this dialog and never in a table cell**, and it is a
-  readout rather than a picker once the row has **covered its seña**. This is the
+  readout rather than a picker once the row has **covered its deposit**. This is the
   only one of the three gestures that can bounce.
 - **Removing.** The amount is **hinted with everything the inscription holds**,
   as a placeholder and not as a prefilled value, and any smaller amount is
@@ -463,11 +463,11 @@ money to take off while the entry point stays single.
   amount returns to `Saldo disponible`. **Removing money never blocks for a
   financial reason**: no threshold, no anomaly and no state of the pool can
   refuse it. It still refuses the two nonsensical inputs — an amount of zero or
-  less ("El monto a quitar tiene que ser mayor a 0.") and an amount larger than
-  the inscription holds ("La inscripción no tiene ese dinero asignado.") — so a
+  less (`El monto a quitar tiene que ser mayor a 0.`) and an amount larger than
+  the inscription holds (`La inscripción no tiene ese dinero asignado.`) — so a
   caller must still defend those. Because the bound is known on the client, the
-  dialog says the range **under the field** ("Ingresá un monto entre $ 1 y
-  $ X.") rather than round-tripping to those two refusals, which stay as guards
+  dialog says the range **under the field** (`Ingresá un monto entre $ 1 y $ X.`)
+  rather than round-tripping to those two refusals, which stay as guards
   and still surface if the figure moved while the dialog was open. It is a
   different action from removing the inscription from the roster.
 - **Releasing the excess.** One button that takes off exactly what the
@@ -475,12 +475,12 @@ money to take off while the entry point stays single.
   so there is nothing to pick and nothing to type.
 - **Neither removal shape shows a price control**, not even a locked one. Price
   is an allocation-time concern, and taking money off until the row falls back
-  below its seña is precisely what opens the lock.
+  below its deposit is precisely what opens the lock.
 
 **The dialog locks the picker where the rule locks it**: at the deposit
 threshold. It used to swap the picker for a readout as soon as
-`allocatedAmount > 0` and to explain itself with "Para cambiarle el precio hay
-que quitarle todo el dinero." — a retired rule, and a below-threshold price
+`allocatedAmount > 0` and to explain itself with
+`Para cambiarle el precio hay que quitarle todo el dinero.` — a retired rule, and a below-threshold price
 change was therefore accepted by every write path while being unreachable from
 the one screen that offers prices. Both the swap and that hint are gone.
 
@@ -505,10 +505,10 @@ administrator last said. That was wrong in a way that cost money rather than
 merely reading oddly: on a row holding nothing whose list had moved since, the
 picker named the old row while the amount placeholder and both owed figures
 named the current one, and confirming without touching it wrote the old row and
-then locked there as soon as the allocation covered the seña — a seña quoted at
+then locked there as soon as the allocation covered the deposit — a deposit quoted at
 the current price, charged at it, and fixed at the old one.
 
-"Elegí un precio para la inscripción." stays reachable, and it is worth being
+`Elegí un precio para la inscripción.` stays reachable, and it is worth being
 precise about when: the picker arrives filled whenever a row **applies today**,
 but the option list is not filtered by `paymentDeadline` while
 `resolveApplicablePriceRow` is. An event whose every row for that group type has
@@ -528,7 +528,7 @@ payments it comes from. A preset is **all or nothing** — if the pool runs dry
 partway through, or any inscription is refused, the whole charge rolls back and
 the administrator who sees an error can trust that nothing moved. A preset
 selects and stores a price row only for inscriptions that have not covered their
-seña yet; anything already past that threshold keeps the price it holds.
+deposit yet; anything already past that threshold keeps the price it holds.
 
 ## Anomalies
 
@@ -622,9 +622,9 @@ inscription still computes its thresholds from the price row, so the write-path
 over-allocation guard measures against a `Total` the read side does not show.
 
 > **Specified, not built.**
-> ADR-0014 §6 makes the withdrawal's fiscal consequence `NC = línea facturada −
-retenido`, with the administrator choosing the retained amount in the
-> de-allocation dialog, a full forfeit producing **no nota de crédito at all**,
+> ADR-0014 §6 makes the withdrawal's fiscal consequence
+> `NC = línea facturada − retenido`, with the administrator choosing the retained amount in the
+> de-allocation dialog, a full forfeit producing **no credit note at all**,
 > and the 15-day clock running from `withdrawnAt`. None of it is computed today.
 > Historical withdrawals from before the soft withdrawal **cannot be
 > reconstructed and are not backfillable**: the old path hard-deleted the row and
@@ -655,7 +655,7 @@ settled model:
   `Inscripción` and nothing else, at the comprobante's total. There is no
   per-dancer line and no discount line. The description is a constant: it names
   the service sold, because with `porción` gone a comprobante covers an arbitrary
-  amount and is neither a seña nor a saldo. It carries no right-hand side because
+  amount and is neither a deposit nor a balance. It carries no right-hand side because
   the receptor block already prints `{academy} — {choreography}` and there is no
   dancer to name until #657 renders one line per inscription.
 - Status is derived, never stored, and has **two** values: `vigente` and
@@ -665,16 +665,16 @@ settled model:
   status above, shown on the global comprobante list and detail. The financial
   detail's `Seña` and `Saldo` metric cards carry **no** badge and **no** link to
   a comprobante: the `Vigente` / `Desactualizada` pair they used to carry read a
-  `porción` — which vigente factura covered it and whether new money had landed
+  `porción` — which vigente invoice covered it and whether new money had landed
   inside it — and went with the field. A choreography's comprobantes are reached
   from the global list, which searches by choreography name.
 - **`Anular comprobante` exists** as an action on the comprobante detail. It
-  emits a mirror **nota de crédito** for the target's full amount, replicating
+  emits a mirror **credit note** for the target's full amount, replicating
   its lines and pointing at it. A unique index caps a
   comprobante at **one** amendment ever, and annulling an already-annulled
   comprobante is refused.
-- There is **no nota de débito**: only Factura C (`CbteTipo` 11) and Nota de
-  Crédito C (`CbteTipo` 13) exist.
+- There is **no debit note**: only `Factura C` (`CbteTipo` 11) and
+  `Nota de crédito C` (`CbteTipo` 13) exist.
 - A comprobante is emitted as a **service** (WSFEv1 `Concepto` 2) with the
   event's dates as the service period and `FchVtoPago = CbteFch`.
 - Contingency and recovery when ARCA is unreachable are implemented: a failure is
@@ -683,7 +683,7 @@ settled model:
   The UI states what was resolved — `rejected` / `not-emitted` / `unverified` —
   never which call broke.
 - **Any comprobante of a choreography blocks its physical deletion**, in any
-  state, including a nota de crédito. The block is never released: a choreography
+  state, including a credit note. The block is never released: a choreography
   that was ever invoiced becomes permanently undeletable. It blocks deletion
   only, not roster editing.
 
@@ -693,19 +693,19 @@ settled model:
 > ahead of the rest, because the field asserted something untrue the moment #676
 > replaced the ladder with two thresholds. What is still specified only:
 >
-> - A factura is emitted once the choreography is **`Señada` and `total > 0`**,
+> - An invoice is emitted once the choreography is **`Señada` and `total > 0`**,
 >   per choreography, **all-or-nothing**, and it bills the **full price** rather
 >   than what was collected. Collection unlocks emission; it is never the amount.
 > - Every emitter computes the same subtraction, `delta = derived total −
-(FC + ΣND − ΣNC)`, and **the sign names the document**: positive → nota de
->   débito, negative → nota de crédito, zero → nothing. One function serves all
+(FC + ΣND − ΣNC)`, and **the sign names the document**: positive → a debit
+>   note, negative → a credit note, zero → nothing. One function serves all
 >   three, and the invariant `FC + ΣND − ΣNC = derived total` makes a roster
 >   change that never got its document _detectable_.
-> - Amendments form a **star anchored at the factura**, depth permanently 1, which
+> - Amendments form a **star anchored at the invoice**, depth permanently 1, which
 >   requires dropping the one-amendment unique index. `Señada` gates the first
 >   document only; ND and NC have no gate at all.
 > - Status becomes `vigente` / `ajustada` / `anulada`, derived **by amount** and a
->   property of the **factura alone**; total annulment is the limit case
+>   property of the **invoice alone**; total annulment is the limit case
 >   `ΣNC == FC`.
 > - The printed document carries **one line per inscription**, reading
 >   `Inscripción — {dancer}` at the **net** amount. The discount is **never** a
@@ -720,7 +720,7 @@ settled model:
 >
 > Owner: [#657](https://github.com/leomontigatti/en-escena/issues/657);
 > [#686](https://github.com/leomontigatti/en-escena/issues/686) already proved
-> Nota de Crédito C and Nota de Débito C against ARCA's homologation environment.
+> `Nota de crédito C` and `Nota de débito C` against ARCA's homologation environment.
 
 ## Roster editing and deletion
 

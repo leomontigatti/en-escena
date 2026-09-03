@@ -33,20 +33,138 @@ describe("repo style check", () => {
         expect.objectContaining({
           filePath: "feature.tsx",
           rule: "no-tailwind-hardcoded-colors",
-          utility: "bg-slate-50",
+          match: "bg-slate-50",
         }),
         expect.objectContaining({
           filePath: "feature.tsx",
           rule: "prefer-gap-over-space",
-          utility: "space-y-4",
+          match: "space-y-4",
         }),
         expect.objectContaining({
           filePath: "feature.tsx",
           rule: "prefer-gap-over-space",
-          utility: "-space-x-2",
+          match: "-space-x-2",
         }),
       ]);
       expect(violations).toHaveLength(3);
+    } finally {
+      await rm(tempRoot, { force: true, recursive: true });
+    }
+  });
+
+  test("flags the `Estado de alta` column and the inlined selectable rule outside their owner", async () => {
+    const tempRoot = await mkdtemp(
+      path.join(tmpdir(), "repo-style-guardrail-roster-"),
+    );
+
+    try {
+      await writeFile(
+        path.join(tempRoot, "some-list.server.ts"),
+        [
+          "const where = and(eq(dancers.active, true), eq(dancers.academyId, academyId));",
+          'const archived = sql`${sql.identifier("d")}.${sql.identifier("active")} = false`;',
+          "const selectable = people.filter((p) => p.active || linkedIds.has(p.id));",
+          "const alsoSelectable = people.filter((p) => linkedIds.has(p.id) || p.active);",
+          'const unrelated = event.active || temporalState.value !== "finished";',
+          "const projection = { active: dancers.active };",
+        ].join("\n"),
+      );
+
+      const violations = await checkRepoStyle({
+        rootDirectory: tempRoot,
+        files: [path.join(tempRoot, "some-list.server.ts")],
+      });
+
+      expect(violations).toEqual([
+        expect.objectContaining({
+          lineNumber: 1,
+          rule: "roster-person-status-owns-active-column",
+        }),
+        expect.objectContaining({
+          lineNumber: 2,
+          rule: "roster-person-status-owns-active-column",
+        }),
+        expect.objectContaining({
+          lineNumber: 3,
+          rule: "roster-person-status-owns-selectable-rule",
+        }),
+        expect.objectContaining({
+          lineNumber: 4,
+          rule: "roster-person-status-owns-selectable-rule",
+        }),
+      ]);
+    } finally {
+      await rm(tempRoot, { force: true, recursive: true });
+    }
+  });
+
+  test("flags the `Estado de alta` comparison however it is spelled", async () => {
+    const tempRoot = await mkdtemp(
+      path.join(tmpdir(), "repo-style-guardrail-roster-forms-"),
+    );
+
+    try {
+      await writeFile(
+        path.join(tempRoot, "sixth-reader.server.ts"),
+        [
+          "const byVariable = eq(dancers.active, showActiveOnly);",
+          "const inTemplate = sql`${professors.active} = true`;",
+          "const negated = ne(dancers.active, false);",
+          "const eventIndex = sql`${table.active} = true`;",
+        ].join("\n"),
+      );
+
+      const violations = await checkRepoStyle({
+        rootDirectory: tempRoot,
+        files: [path.join(tempRoot, "sixth-reader.server.ts")],
+      });
+
+      // Line 4 is the event's own `active` column, a different axis. The
+      // pattern cannot tell it apart — `table.active` names nothing — so it
+      // matches here and is exempted by path where it really lives, in
+      // `app/db/schema/events.ts`.
+      expect(violations.map((violation) => violation.lineNumber)).toEqual([
+        1, 2, 3, 4,
+      ]);
+      expect(
+        violations.every(
+          (violation) =>
+            violation.rule === "roster-person-status-owns-active-column",
+        ),
+      ).toBe(true);
+    } finally {
+      await rm(tempRoot, { force: true, recursive: true });
+    }
+  });
+
+  test("exempts the roster person status owner with one path-prefix entry", async () => {
+    const violations = await checkRepoStyle({
+      files: [
+        path.join("app", "lib", "roster", "roster-person-status.server.ts"),
+        path.join("app", "lib", "roster", "roster-person-status.shared.ts"),
+      ],
+    });
+
+    expect(violations).toEqual([]);
+  });
+
+  test("explains why each rule exists when it fails", async () => {
+    const tempRoot = await mkdtemp(
+      path.join(tmpdir(), "repo-style-guardrail-reason-"),
+    );
+
+    try {
+      await writeFile(
+        path.join(tempRoot, "offender.ts"),
+        "const where = eq(professors.active, true);\n",
+      );
+
+      await expect(
+        runRepoStyleGuardrail({
+          rootDirectory: tempRoot,
+          files: [path.join(tempRoot, "offender.ts")],
+        }),
+      ).rejects.toThrow(/roster-person-status\.server\.ts/);
     } finally {
       await rm(tempRoot, { force: true, recursive: true });
     }

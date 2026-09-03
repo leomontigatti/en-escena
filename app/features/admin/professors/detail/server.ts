@@ -5,9 +5,12 @@ import { loadEventContext } from "@/lib/admin/event-context.server";
 import { professorNotFoundMessage } from "@/lib/admin/professors/professors.shared";
 import {
   findProfessor,
-  setProfessorActiveState,
   updateAdministrativeProfessor,
 } from "@/lib/admin/professors/professors.server";
+import {
+  getRosterPersonNotFoundMessage,
+  setRosterPersonStatus,
+} from "@/lib/roster/roster-person-status.server";
 import {
   requireAdminUser,
   requireInternalUser,
@@ -82,11 +85,19 @@ export async function handleProfessorDetailAction(input: {
   }
 
   if (intent === "archive-professor" || intent === "reactivate-professor") {
-    await setProfessorActiveState({
-      action: intent === "archive-professor" ? "archive" : "reactivate",
-      professorId,
-      selectedEventId: eventContext.selectedEventId,
+    const result = await setRosterPersonStatus({
+      academyId: null,
+      kind: "professor",
+      next: intent === "archive-professor" ? "archived" : "active",
+      personId: professorId,
+      surface: "admin",
     });
+
+    if (!result.ok) {
+      throw new Response(getRosterPersonNotFoundMessage("professor"), {
+        status: 404,
+      });
+    }
 
     return buildProfessorActionSuccess(
       intent === "archive-professor"

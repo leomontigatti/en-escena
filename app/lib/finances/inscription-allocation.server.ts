@@ -16,9 +16,9 @@
  *   the status re-derive from whatever is left.
  * - **Only adding money has a price.** The price fixes the two thresholds, so it
  *   belongs to the moment money lands, and it is locked once the inscription
- *   covers its seña — a rule the database also holds, through the guard trigger
+ *   covers its deposit — a rule the database also holds, through the guard trigger
  *   on `selected_price_id`. The removal shapes carry no price control at all,
- *   and taking money off until the row falls back below its seña is precisely
+ *   and taking money off until the row falls back below its deposit is precisely
  *   what opens the lock again.
  */
 
@@ -251,7 +251,7 @@ type InscriptionMoneyInput = {
  * `Saldo disponible`.
  *
  * `priceId` is the price chosen inside the dialog, and it is only honoured
- * while the inscription has not covered its seña: from that crossing on, a
+ * while the inscription has not covered its deposit: from that crossing on, a
  * different row is refused rather than warned about. Any amount is allocatable
  * — a partial one leaves the row reading `Seña pendiente` with its shortfall,
  * which is an ordinary outcome and not an error.
@@ -376,7 +376,7 @@ async function unwindInscription(
  * The price the money lands against. While the inscription is **below its
  * deposit threshold** the chosen row is written, whatever it already holds;
  * from the crossing on the price is **locked**, and a different row is refused
- * with the way out named — take enough money off to drop back below the seña.
+ * with the way out named — take enough money off to drop back below the deposit.
  *
  * The threshold is the stored row's, never the incoming one's: see
  * `hasCrossedDepositThreshold`.

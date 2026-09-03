@@ -6,7 +6,7 @@ import { describe, expect, test } from "vitest";
 import { ProfessorsListRouteView } from "@/features/admin/professors/list/view";
 
 describe("ProfessorsListRouteView", () => {
-  test("shows the empty state when there are no profesores and no active filters", () => {
+  test("shows the empty state when there are no professors and no active filters", () => {
     const markup = renderRoute();
 
     expect(markup).toContain("Profesores");
@@ -46,7 +46,7 @@ describe("ProfessorsListRouteView", () => {
     );
     expect(markup).toContain('value="Academia Sur"');
     expect(markup).toContain(
-      'aria-label="Filtros: Participación: No participando, Archivo: Archivado"',
+      'aria-label="Filtros: Participación: No participando, Estado de alta: Archivado"',
     );
     expect(markup).toContain("Bruno Consulta");
     expect(markup).toContain("Academia Sur");

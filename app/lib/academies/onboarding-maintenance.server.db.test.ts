@@ -11,7 +11,7 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 installDatabaseTestHooks();
 
 describe("academy onboarding maintenance", () => {
-  test("lists confirmed academy users without an Academia and skips completed onboarding", async () => {
+  test("lists confirmed academy users without an academy and skips completed onboarding", async () => {
     const pending = await createAccessUser({
       email: "pendiente.mantenimiento@example.com",
       name: "pendiente.mantenimiento@example.com",

@@ -26,11 +26,11 @@ only list stable entry points, coordination modules and high-signal tests.
 - `app/lib/admin/` and `app/lib/portal/` are allowed for reusable behavior
   that is still specific to one product surface. Do not create them as mirrors
   of every feature folder.
-- `Bases del evento` is domain vocabulary for modalidades, categorias,
-  cronogramas, cupos and precios. In code, prefer concrete resource names for
+- `Bases del evento` is domain vocabulary for modalities, categories,
+  schedules, capacities and prices. In code, prefer concrete resource names for
   feature modules and use `event-bases`/`bases` names only for aggregators that
   genuinely coordinate several of those resources.
-- For Bases del evento persistence, prefer resource-level interfaces for new
+- For `Bases del evento` persistence, prefer resource-level interfaces for new
   callers: `app/lib/categories/`, `app/lib/modalities/`,
   `app/lib/schedules/` and `app/lib/prices/`. Existing
   `app/lib/events/bases-repository/` modules may stay as implementation or
@@ -94,7 +94,7 @@ summary, breadcrumbs, navigation, and cross-portal access policy.
 - UI modules: `app/features/portal/shell/view.tsx`, `app/components/portal/ui.tsx`
 - Tests: `app/features/portal/shell/server.db.test.ts`, `app/features/portal/shell/view.test.tsx`, `app/lib/portal/event-context.server.test.ts`
 
-## Portal Coreografias
+## Portal Choreographies
 
 Use for choreography lists, registration, detail edits, roster links, locks,
 schedule resolution and operational completion.
@@ -109,7 +109,7 @@ schedule resolution and operational completion.
 
 ## Admin Shell And Dashboard
 
-Use for the Panel de administración shell, dashboard entry points, shared
+Use for the `Panel de administración` shell, dashboard entry points, shared
 breadcrumbs/navigation and active event selector wiring.
 
 - Domain: `docs/domain/access.md`, `docs/domain/events.md`
@@ -136,7 +136,7 @@ password reset flows.
 
 ## Admin Choreographies
 
-Use for the operational admin list of coreografías for the active event.
+Use for the operational admin list of choreographies for the active event.
 
 - Domain: `docs/domain/choreographies.md`, `docs/domain/events.md`, `docs/domain/finances.md`
 - ADRs: `docs/adr/0002-selectable-event-contexts.md`, `docs/adr/0004-organize-app-code-by-product-surface.md`
@@ -147,14 +147,14 @@ Use for the operational admin list of coreografías for the active event.
 
 ## Admin Roster
 
-Use for administration and read-only views over profesores, bailarines,
+Use for administration and read-only views over professors, dancers,
 participation filters, archive/reactivate flows and admin corrections.
 
 - Domain: `docs/domain/choreographies.md`, `docs/domain/events.md`, `docs/domain/access.md`
 - ADRs: `docs/adr/0004-organize-app-code-by-product-surface.md`
 - Routes: `app/routes/administracion.profesores.tsx`, `app/routes/administracion.profesores_.$professorId.tsx`, `app/routes/administracion.bailarines.tsx`, `app/routes/administracion.bailarines_.$dancerId.tsx`
 - Feature modules: `app/features/admin/professors/list/`, `app/features/admin/professors/detail/`, `app/features/admin/dancers/list/`, `app/features/admin/dancers/detail/`
-- Shared modules kept in `app/lib` because they encapsulate reusable query and mutation behavior: `app/lib/admin/professors/professors.server.ts`, `app/lib/admin/professors/professors.shared.ts`, `app/lib/admin/dancers/dancers.server.ts`, `app/lib/admin/dancers/dancers-list.server.ts`, `app/lib/admin/dancers/dancers-detail.server.ts`, `app/lib/admin/dancers/dancers-update.server.ts`, `app/lib/admin/dancers/dancers-inscriptions.server.ts`, `app/lib/admin/dancers/dancers-identity.server.ts`, `app/lib/admin/dancers/dancers-active-state.server.ts`, `app/lib/participation/participation.server.ts`, `app/lib/participation/participation.shared.ts`
+- Shared modules kept in `app/lib` because they encapsulate reusable query and mutation behavior: `app/lib/admin/professors/professors.server.ts`, `app/lib/admin/professors/professors.shared.ts`, `app/lib/admin/dancers/dancers.server.ts`, `app/lib/admin/dancers/dancers-list.server.ts`, `app/lib/admin/dancers/dancers-detail.server.ts`, `app/lib/admin/dancers/dancers-update.server.ts`, `app/lib/admin/dancers/dancers-inscriptions.server.ts`, `app/lib/admin/dancers/dancers-identity.server.ts`, `app/lib/participation/participation.server.ts`, `app/lib/participation/participation.shared.ts`
 - Tests: `app/features/admin/dancers/routes.adapter.test.tsx`, `app/features/admin/professors/list/view.test.tsx`, `app/features/admin/professors/detail/view.test.tsx`, `app/lib/admin/professors/professors-route.server.db.test.ts`, `app/lib/admin/dancers/dancers-route.server.db.test.ts`, `app/lib/admin/dancers/dancer-detail-dialog.test.tsx`, `app/lib/admin/dancers/inscriptions-section.render.test.tsx`
 
 ## Admin Academies
@@ -170,10 +170,10 @@ summary lives in `Admin Finances`, not here.
 - Shared modules kept in `app/lib` because the update behavior is reused by the portal profile: `app/lib/academies/academy-profile.server.ts`
 - Tests: `app/lib/admin/academies/academy-detail-route.server.db.test.ts`
 
-## Admin Events And Bases Del Evento
+## Admin Events And `Bases del evento`
 
-Use for active event behavior, event CRUD, modalidades, categorías,
-cronogramas, cupos, precios and registration readiness.
+Use for active event behavior, event CRUD, modalities, categories,
+schedules, capacities, prices and registration readiness.
 
 - Domain: `docs/domain/events.md`, `docs/domain/choreographies.md`, `docs/domain/finances.md`
 - ADRs: `docs/adr/0002-selectable-event-contexts.md`, `docs/adr/0004-organize-app-code-by-product-surface.md`

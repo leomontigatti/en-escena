@@ -33,7 +33,7 @@ export function formatDate(value: string) {
  * How a dancer is named everywhere on the financial detail. It lives with the
  * money formatters and not with the administrator's view because both details
  * name a dancer the same way: the academy reads its own roster in the same words
- * administración uses when it calls about a figure.
+ * "administración" uses when it calls about a figure.
  */
 export function formatDancerName(input: {
   firstName: string;

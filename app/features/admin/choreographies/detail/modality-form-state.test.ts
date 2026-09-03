@@ -22,7 +22,7 @@ describe("getModalitySelectOptions", () => {
     ]);
   });
 
-  test("disables a modality no cronograma accepts and says so on the option", () => {
+  test("disables a modality no schedule accepts and says so on the option", () => {
     expect(
       getModalitySelectOptions([
         {
@@ -117,7 +117,7 @@ describe("getResolvedModalityFieldState", () => {
     expect(state.nextExperienceLevelId).toBe("");
   });
 
-  test("preselects the only compatible cupo", () => {
+  test("preselects the only compatible capacity", () => {
     const state = getResolvedModalityFieldState({
       categoryId: "juvenil",
       experienceLevelId: null,
@@ -128,7 +128,7 @@ describe("getResolvedModalityFieldState", () => {
     expect(state.nextScheduleCapacityId).toBe("cupo_1");
   });
 
-  test("keeps a still-offered cupo and drops one the destination no longer has", () => {
+  test("keeps a still-offered capacity and drops one the destination no longer has", () => {
     const resolution = buildResolution({
       scheduleCapacity: {
         options: [
@@ -159,11 +159,11 @@ describe("getResolvedModalityFieldState", () => {
 });
 
 describe("isModalityScheduleCapacityLocked", () => {
-  test("locks the cupo when the destination modality resolves exactly one", () => {
+  test("locks the capacity when the destination modality resolves exactly one", () => {
     expect(isModalityScheduleCapacityLocked(buildResolution())).toBe(true);
   });
 
-  test("leaves the cupo open when the destination modality offers several", () => {
+  test("leaves the capacity open when the destination modality offers several", () => {
     expect(
       isModalityScheduleCapacityLocked(
         buildResolution({
@@ -228,7 +228,7 @@ describe("canSubmitModalityCorrection", () => {
     ).toBe(false);
   });
 
-  // A destination modalidad with no compatible categoría saves all the same:
+  // A destination modality with no compatible category saves all the same:
   // the choreography stays operationally incomplete, as it does on creation.
   test("saves when no category resolves for the destination modality", () => {
     expect(
@@ -238,9 +238,9 @@ describe("canSubmitModalityCorrection", () => {
     ).toBe(true);
   });
 
-  // Only `multiple` leaves a cupo to choose; the default resolution is `auto`,
+  // Only `multiple` leaves a capacity to choose; the default resolution is `auto`,
   // which arrives preselected and never waits for an answer.
-  test("blocks the save while a cupo is still to be chosen", () => {
+  test("blocks the save while a capacity is still to be chosen", () => {
     expect(
       canSubmitModalityCorrection(
         buildInput({
@@ -259,7 +259,7 @@ describe("canSubmitModalityCorrection", () => {
     ).toBe(false);
   });
 
-  test("blocks the save when every compatible cupo is full", () => {
+  test("blocks the save when every compatible capacity is full", () => {
     expect(
       canSubmitModalityCorrection(
         buildInput({

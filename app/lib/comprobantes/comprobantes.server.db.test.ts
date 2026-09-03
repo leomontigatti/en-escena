@@ -51,7 +51,7 @@ async function seedInscribedChoreography(email: string) {
   return { event, academy, choreography, inscription };
 }
 
-// Snapshot of a Factura C to an anonymous final consumer issued by the exempt
+// Snapshot of a `Factura C` to an anonymous final consumer issued by the exempt
 // issuer (the values replicate the real circuit of spike #428).
 function facturaCInput(
   overrides: Partial<RecordComprobanteInput> & {
@@ -78,7 +78,7 @@ function facturaCInput(
 }
 
 describe("recordComprobante persistence", () => {
-  test("persists the Factura C's full fiscal snapshot with its per-inscription lines", async () => {
+  test("persists the `Factura C`'s full fiscal snapshot with its per-inscription lines", async () => {
     const { choreography, inscription } = await seedInscribedChoreography(
       `snapshot.${crypto.randomUUID()}@example.com`,
     );
@@ -117,7 +117,7 @@ describe("recordComprobante persistence", () => {
     ]);
   });
 
-  test("the status is derived: `vigente` by default, `anulada` when an associated Nota de crédito exists", async () => {
+  test("the status is derived: `vigente` by default, `anulada` when an associated credit note exists", async () => {
     const { choreography, inscription } = await seedInscribedChoreography(
       `estado.${crypto.randomUUID()}@example.com`,
     );
@@ -135,8 +135,8 @@ describe("recordComprobante persistence", () => {
     );
     expect(beforeAnnulment.status).toBe("vigente");
 
-    // A mirror Nota de crédito C (type 13), anchored to the same choreography and
-    // pointing at the factura via `associatedComprobanteId` (CbtesAsoc).
+    // A mirror `Nota de crédito C` (type 13), anchored to the same choreography and
+    // pointing at the invoice via `associatedComprobanteId` (CbtesAsoc).
     await recordComprobante(
       facturaCInput({
         choreographyId: choreography.id,

@@ -96,7 +96,7 @@ function ChoreographyAlerts({
  * administrator's detail: money in excess is something somebody has to resolve.
  *
  * What changes is who. The academy cannot move an allocation, so the alert names
- * the money and points at administración instead of sending the reader to a list
+ * the money and points at "administración" instead of sending the reader to a list
  * they cannot act on. It is self-resolving —it is derived from today's money— so
  * there is nothing to dismiss.
  */

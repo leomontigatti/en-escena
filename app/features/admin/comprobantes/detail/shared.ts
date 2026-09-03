@@ -7,12 +7,12 @@ export const annulComprobanteIntent = "annul-comprobante";
 
 // The deliberate-submit keyword the server requires before triggering the
 // annulment: the UI affordance and the server agree on the same value so an
-// accidental submit cannot emit a Nota de crédito. As with emission, it is not a
+// accidental submit cannot emit a credit note. As with emission, it is not a
 // checkbox: the confirmation is the AlertDialog itself.
 export const annulComprobanteConfirmValue = "nota-credito";
 
 // Re-verification of an annulment left unresolved (#577): it queries ARCA again
-// for that Nota de crédito, without retrying the authorization.
+// for that credit note, without retrying the authorization.
 export const recheckNotaCreditoIntent = "recheck-nota-credito";
 
 export type ComprobanteDetailActionData =

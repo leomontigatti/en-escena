@@ -199,8 +199,8 @@ Rules:
 - Use `Switch` for on/off preferences or settings. If `Switch` is not installed
   and the case needs it, add it before creating custom markup.
 - Use `Checkbox` for a few visible options when the set is short and it is
-  neither a filter nor a multiple relation of Evento configuration. For long
-  lists, Evento configuration, filters and multiple relations, use a multi-select
+  neither a filter nor a multiple relation of Event configuration. For long
+  lists, Event configuration, filters and multiple relations, use a multi-select
   `Combobox`.
 - Use shadcn's `Select` for single selection. Do not use a native `<select>` or
   `NativeSelect`.
@@ -220,8 +220,8 @@ components.
 Rules:
 
 - Every React form in the application uses React Hook Form, Zod and shadcn/ui
-  components as the default pattern, regardless of surface (`Panel de
-administración`, `Portal de academias`, auth, judging or public views).
+  components as the default pattern, regardless of surface (`Panel de administración`,
+  `Portal de academias`, auth, judging or public views).
 - Define the schema with Zod and pass it to `useForm` via `zodResolver`.
 - Derive the form types from the schema when there is Zod validation: use
   `z.input<typeof schema>` for the form's editable values and
@@ -343,13 +343,13 @@ hand-roll a `Dialog` for deleting.
 
 Each context uses a shell matching its operational intensity.
 
-| Context                 | Shell                                                              |
-| ----------------------- | ------------------------------------------------------------------ |
-| Panel de administración | Sidebar on desktop, topbar with user and actions, dense navigation |
-| Portal de academias     | Topbar with secondary navigation or tabs                           |
-| Judging                 | Focused layout, minimal topbar, next presentation prominent        |
-| Public views            | Simple topbar, readable content, visible filters                   |
-| Authentication          | Centered card                                                      |
+| Context                   | Shell                                                              |
+| ------------------------- | ------------------------------------------------------------------ |
+| `Panel de administración` | Sidebar on desktop, topbar with user and actions, dense navigation |
+| `Portal de academias`     | Topbar with secondary navigation or tabs                           |
+| Judging                   | Focused layout, minimal topbar, next presentation prominent        |
+| Public views              | Simple topbar, readable content, visible filters                   |
+| Authentication            | Centered card                                                      |
 
 Do not use a hero as the main structure of operational navigation.
 

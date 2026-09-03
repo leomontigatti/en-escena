@@ -51,9 +51,9 @@ type ChoreographyFinanceRow =
 /**
  * The preset dialog of the list actions. It pre-fills the owed figure of every
  * selected choreography — the whole point of a preset — and asks for the price
- * to fix on the inscriptions that **have not covered their seña yet**, which is
+ * to fix on the inscriptions that **have not covered their deposit yet**, which is
  * where the writer draws the line too: the crossing is what fixes a price, so an
- * inscription holding part of its seña can still be re-priced.
+ * inscription holding part of its deposit can still be re-priced.
  *
  * There is no payment picker: the money comes out of the academy's
  * `Saldo disponible`, and which payments fund it is the pool rule's business.
@@ -223,7 +223,7 @@ function buildPresetPriceFields(input: {
  *
  * It defaults to keeping the price that already resolves for each inscription,
  * which is the price the figure above was computed from. Picking a row is the
- * deliberate act of re-pricing the inscriptions that have not covered their seña
+ * deliberate act of re-pricing the inscriptions that have not covered their deposit
  * yet — money on the row does not spare it, only the crossing does — and the
  * description says so, because it moves the figure.
  */

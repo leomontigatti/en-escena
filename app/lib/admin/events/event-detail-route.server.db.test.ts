@@ -23,8 +23,8 @@ import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-describe("administracion/eventos/:eventId route", () => {
-  test("loads an Evento detail screen governed by the event URL", async () => {
+describe("`/administracion/eventos/:eventId` route", () => {
+  test("loads an event detail screen governed by the event URL", async () => {
     const event = await createSavedEvent({ name: "Regional 2026" });
     const { request } = await createSignedInRequest({
       email: "admin.detalle@example.com",
@@ -52,7 +52,7 @@ describe("administracion/eventos/:eventId route", () => {
     expect(markup).not.toContain("Evento de trabajo");
   });
 
-  test("updates Evento editable fields from the detail screen", async () => {
+  test("updates event editable fields from the detail screen", async () => {
     const event = await createSavedEvent({ name: "Regional 2026" });
     const { request } = await createSignedInRequest({
       email: "admin.editar@example.com",
@@ -88,7 +88,7 @@ describe("administracion/eventos/:eventId route", () => {
     expect(savedEvent?.endsAt.toISOString()).toBe("2027-05-03T03:00:00.000Z");
   });
 
-  test("returns the field error message when the Evento detail form fails validation", async () => {
+  test("returns the field error message when the event detail form fails validation", async () => {
     const event = await createSavedEvent({ name: "Regional 2026" });
     const { request } = await createSignedInRequest({
       email: "admin.editar.validacion@example.com",
@@ -116,7 +116,7 @@ describe("administracion/eventos/:eventId route", () => {
     });
   });
 
-  test("reports activation conflicts without changing the selected Evento", async () => {
+  test("reports activation conflicts without changing the selected event", async () => {
     const activeEvent = await createSavedEvent({ name: "Activo" });
     const inactiveEvent = await createSavedEvent({ name: "Inactivo" });
     await activateEvent(activeEvent.id);
@@ -142,7 +142,7 @@ describe("administracion/eventos/:eventId route", () => {
     ).resolves.toMatchObject({ active: false });
   });
 
-  test("requires confirmation before deactivating an active Evento", async () => {
+  test("requires confirmation before deactivating an active event", async () => {
     const event = await createSavedEvent({ name: "Activo" });
     await activateEvent(event.id);
     const blockedRequest = await createSignedInRequest({
@@ -212,7 +212,7 @@ describe("administracion/eventos/:eventId route", () => {
     });
   });
 
-  test("deletes only after explicit confirmation and returns to the Eventos list", async () => {
+  test("deletes only after explicit confirmation and returns to the events list", async () => {
     const event = await createSavedEvent({ name: "Borrable" });
     const blockedRequest = await createSignedInRequest({
       email: "admin.borrar.bloqueado@example.com",

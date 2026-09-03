@@ -28,9 +28,9 @@ import {
 
 type ComprobanteRow = Awaited<ReturnType<typeof recordComprobante>>;
 
-// Annulment reuses the same emission inputs as the Factura C: the ARCA client
+// Annulment reuses the same emission inputs as the `Factura C`: the ARCA client
 // (mockable), the sales point, the issuer CUIT and the recipient's VAT
-// condition. The Nota de crédito runs on its own sequence series.
+// condition. The credit note runs on its own sequence series.
 export type NotaCreditoEmissionInput = {
   comprobanteId: string;
 };
@@ -38,7 +38,7 @@ export type NotaCreditoEmissionInput = {
 export type NotaCreditoEmissionFailureReason =
   | "not-found"
   | "already-annulled"
-  // ARCA respondió y no autorizó.
+  // ARCA responded and did not authorize.
   | "rejected"
   // ARCA did not respond and it was established that nothing was emitted:
   // retrying is safe (ADR-0012 decision 6).
@@ -64,28 +64,28 @@ export type NotaCreditoEmissionOutcome =
         errors: ArcaMessage[];
         observaciones: ArcaMessage[];
       };
-      // Present only on `unverified`: the nota de crédito that could not be
+      // Present only on `unverified`: the credit note that could not be
       // resolved.
       attempt?: ArcaAttemptedVoucher;
     };
 
 /**
- * Annuls a comprobante by emitting its mirror Nota de crédito C (`CbteTipo` 13,
- * #328). The Nota de crédito is total-only: it replicates the amount and the
+ * Annuls a comprobante by emitting its mirror `Nota de crédito C` (`CbteTipo` 13,
+ * #328). The credit note is total-only: it replicates the amount and the
  * internal lines of the comprobante it annuls and references it via `CbtesAsoc`
  * (`associatedComprobanteId`). Unlimited association chains are allowed: the
  * annulled row is never deleted or mutated, so its collected remainder becomes
  * billable again and can be re-billed and re-annulled indefinitely.
  *
- * The Nota de crédito's `CbteNro` is derived from its own
+ * The credit note's `CbteNro` is derived from its own
  * `FECompUltimoAutorizado + 1` (the type 13 series). Only an approved CAE
- * persists the Nota de crédito; a rejection from ARCA persists nothing and
+ * persists the credit note; a rejection from ARCA persists nothing and
  * leaves the original comprobante intact and in force.
  *
  * If ARCA does not respond, the failure is classified by phase exactly as
  * emission is (ADR-0012), against the type 13 series: if the sequence-number
  * lookup was cut off, nothing was annulled; if the authorization was cut off,
- * ARCA is queried for that exact Nota de crédito and, if it shows up and matches
+ * ARCA is queried for that exact credit note and, if it shows up and matches
  * what was sent, it is persisted with that CAE — the one exception to the
  * invariant that a contingency persists nothing. If the lookup fails, returns a
  * different one, or does not find it but the authorization timed out — and so is
@@ -134,7 +134,7 @@ function toNotaCreditoOutcome(
 }
 
 /**
- * Builds the choreography of the mirror Nota de crédito: it validates the target
+ * Builds the choreography of the mirror credit note: it validates the target
  * comprobante and freezes amount, dates and lines. Annulment and re-verification
  * share it, the latter needing the same inputs computed on the server.
  */
@@ -226,7 +226,7 @@ async function resolveNotaCreditoChoreography(
 
 // Loads the target comprobante with its derived state and its internal lines.
 // The state is derived over the set of its anchor choreography, which is
-// self-contained (the mirror Nota de crédito anchors to the same choreography).
+// self-contained (the mirror credit note anchors to the same choreography).
 async function loadComprobanteWithStatus(
   comprobanteId: string,
 ): Promise<ComprobanteWithLines | null> {

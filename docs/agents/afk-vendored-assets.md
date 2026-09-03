@@ -85,6 +85,13 @@ are only concrete references to this repo:
   though the prompt only shows `--stat`, because `diff-anchors.mts` validates the agent's inline
   anchors against it. The skill is installed per run at `latest`, globally (outside the work tree, so
   the commit step cannot sweep it into the PR branch), exactly as upstream does.
+  **`agent-implement-pr` embeds `--stat` too** (#789), which keeps rather than widens this
+  deviation: spec §4.5 defines its inputs as _"identical to Review"_
+  ([line 829](./afk-agent-platform-spec.md)), so the two runners drifting apart on the diff
+  shape is what would have broken the contract. It adopts only the summary, not the skill —
+  an implement-pr pass acts on the conversation instead of auditing, so it keeps its budget at
+  30/25 while Review needs 45/40 for the sub-agent fan-out (rationale in
+  [`afk-setup.md`](./afk-setup.md#wall-clock-guardrails-timeout-minutes--agent_budget_minutes)).
 - **The linked issue's body is embedded, not just its title.** Adopting the skill's Spec axis
   exposed a local gap that predated it: the review context fetched the issue with
   `--json title` only, so `<linked-issue>` expanded to a single line while the prompt asked the

@@ -5,7 +5,7 @@ import { describe, expect, test } from "vitest";
 const requiredSections = [
   "# Request Performance Refactor Plan",
   "## Current Validation Workflow",
-  "## Critical Administración Routes",
+  "## Critical Administration Routes",
   "## Critical Portal Routes",
   "## Current Submit Patterns",
   "## View Transition Evaluation",

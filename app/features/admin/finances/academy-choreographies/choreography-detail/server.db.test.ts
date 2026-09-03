@@ -91,7 +91,7 @@ async function loadDetailAsAdmin(input: {
   );
 }
 
-describe.sequential("administracion finanzas coreografia detalle", () => {
+describe.sequential("`/administracion/finanzas` choreography detail", () => {
   test("derives deposit pending and both shortfalls from an inscription holding nothing", async () => {
     vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
       "2026-03-27",
@@ -161,7 +161,7 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
     ]);
   });
 
-  test("derives deposit met and the remaining shortfall once the seña is covered", async () => {
+  test("derives deposit met and the remaining shortfall once the threshold is covered", async () => {
     const event = await createSavedEvent({ requiredDepositPercentage: 30 });
     const { academy, choreography } =
       await createAcademyFinanceChoreographyFixture({
@@ -300,7 +300,7 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
     });
   });
 
-  test("reads the dialog out at the effective price below the seña, not at the stored one", async () => {
+  test("reads the dialog out at the effective price below the deposit, not at the stored one", async () => {
     vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
       "2026-04-10",
     );
@@ -345,7 +345,7 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
       eventId: event.id,
       paymentNumber: 1,
     });
-    // 3000 is 600 short of the stored row's 3600 seña, so the price is still
+    // 3000 is 600 short of the stored row's 3600 deposit, so the price is still
     // loose and the read follows the list.
     await db.insert(paymentAllocations).values({
       academyId: academy.academy.id,
@@ -466,7 +466,7 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
     });
   });
 
-  test("shows incomplete amounts and Sin precio when no applicable price exists", async () => {
+  test("shows incomplete amounts and `Sin precio` when no applicable price exists", async () => {
     vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
       "2026-06-01",
     );

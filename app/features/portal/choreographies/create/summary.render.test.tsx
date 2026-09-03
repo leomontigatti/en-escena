@@ -14,7 +14,7 @@ describe("choreography creation summary", () => {
     renderer.cleanup();
   });
 
-  test("warns that the Coreografía cannot be edited after creating it", () => {
+  test("warns that the choreography cannot be edited after creating it", () => {
     renderer.render(
       <ChoreographyCreationSummary
         baseOptions={{
@@ -44,7 +44,7 @@ describe("choreography creation summary", () => {
 
   // Occupancy is only for choosing between options: in the echo of the already
   // chosen schedule, saying how many places are left means nothing.
-  test("echoes the chosen cronograma without its ocupación", () => {
+  test("echoes the chosen schedule without its occupancy", () => {
     renderer.render(
       <ChoreographyCreationSummary
         baseOptions={{

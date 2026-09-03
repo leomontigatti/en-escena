@@ -1,7 +1,9 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+
+import { collectSourceFiles } from "./source-files";
 
 // Retired dependencies stay retired.
 //
@@ -112,7 +114,11 @@ export async function checkBannedImports(
   const files =
     options.files ??
     scannedDirectories.flatMap((directory) =>
-      getSourceFiles(path.join(rootDirectory, directory)),
+      collectSourceFiles({
+        directoryPath: path.join(rootDirectory, directory),
+        keeps: (fileName) =>
+          sourceFilePattern.test(fileName) && !testFilePattern.test(fileName),
+      }),
     );
 
   return files.flatMap((filePath) => {
@@ -143,23 +149,6 @@ export async function runBannedImportsGuardrail(): Promise<void> {
   ];
 
   throw new Error(lines.join("\n"));
-}
-
-function getSourceFiles(directoryPath: string): string[] {
-  return readdirSync(directoryPath, { withFileTypes: true }).flatMap(
-    (entry) => {
-      const entryPath = path.join(directoryPath, entry.name);
-
-      if (entry.isDirectory()) {
-        return getSourceFiles(entryPath);
-      }
-
-      return sourceFilePattern.test(entry.name) &&
-        !testFilePattern.test(entry.name)
-        ? [entryPath]
-        : [];
-    },
-  );
 }
 
 if (fileURLToPath(import.meta.url) === path.resolve(process.argv[1] ?? "")) {

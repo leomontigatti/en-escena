@@ -30,6 +30,10 @@ import {
   type ExperienceLevel,
   isExperienceLevel,
 } from "@/lib/events/experience-levels";
+import {
+  isSelectableForRoster,
+  toRosterPersonStatus,
+} from "@/lib/roster/roster-person-status.shared";
 
 export async function resolveChoreographyDancers(input: {
   academyId: string;
@@ -129,7 +133,12 @@ export async function resolveChoreographyDancerUpdateContext(input: {
 
   const allowedDancerIds = new Set(
     selectedDancers
-      .filter((dancer) => dancer.active || linkedDancerIds.has(dancer.id))
+      .filter((dancer) =>
+        isSelectableForRoster({
+          status: toRosterPersonStatus(dancer.active),
+          isAlreadyLinked: linkedDancerIds.has(dancer.id),
+        }),
+      )
       .map((dancer) => dancer.id),
   );
 
@@ -273,7 +282,7 @@ export function resolveSelectedExperienceLevelId(input: {
  * Compatibility rule shared by the select UIs (#709) and, since #730, by the
  * roster save path's own final revalidation: `currentScheduleCapacityId` is a
  * "selection id" (see `getScheduleSelectionId`) — a real `scheduleCapacityId`,
- * or the encoded global/whole-cronograma id for the no-specific-cupo case —
+ * or the encoded global/whole-schedule id for the no-specific-capacity case —
  * not necessarily the id of an actual `scheduleCapacities` row.
  */
 export function isCompatibleScheduleCapacity(
@@ -322,8 +331,8 @@ function resolveDancerUpdateScheduleSelection(
       canSave: true,
       // Same path as the standalone reassignment
       // (`resolveScheduleCapacityCandidates`): the select offers the full
-      // compatible set, not just the assigned cupo, even though it's still
-      // compatible. When the resolution is "auto" there's no other cupo to
+      // compatible set, not just the assigned capacity, even though it's still
+      // compatible. When the resolution is "auto" there's no other capacity to
       // choose from, so the single option stays as before.
       options:
         resolution.schedule.status === "multiple"
@@ -442,7 +451,7 @@ export function resolveSelectedScheduleCapacityIdForDancerUpdate(input: {
  * current assignment, or a resolved-but-not-yet-persisted selection) into the
  * "selection id" `isCompatibleScheduleCapacity` compares against a
  * resolution's compatible set: a real `scheduleCapacityId` when a specific
- * cupo is assigned, or the encoded global/whole-cronograma id otherwise.
+ * capacity is assigned, or the encoded global/whole-schedule id otherwise.
  */
 export function getScheduleSelectionId(input: {
   scheduleId: string | null;

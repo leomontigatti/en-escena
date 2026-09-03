@@ -69,12 +69,12 @@ describe("DancerNameCell interaction", () => {
     await clickReactDomButton("Bruno Benítez");
 
     const amount = amountInput();
-    // The seña is already covered, so what is left to finish is the saldo.
+    // The deposit is already covered, so what is left to finish is the balance.
     expect(amount.placeholder).toBe("$ 7.000");
     expect(amount.value).toBe("");
   });
 
-  test("hints the seña first while the deposit threshold is unmet", async () => {
+  test("hints the deposit first while that threshold is unmet", async () => {
     await mount({
       inscriptions: [
         inscriptionFixture({
@@ -93,7 +93,7 @@ describe("DancerNameCell interaction", () => {
 
   // It locks on covering the deposit —3000 of 3000—, which is where the rule
   // locks it.
-  test("locks the price of an inscription that covers its seña", async () => {
+  test("locks the price of an inscription that covers its deposit", async () => {
     await mount();
 
     await clickReactDomButton("Bruno Benítez");
@@ -111,9 +111,9 @@ describe("DancerNameCell interaction", () => {
 
   // Everything the dialog says about money follows the **picked** price, not the
   // one the row arrived with: the picker is what the confirm is going to apply,
-  // so hinting the old seña would ask for a figure that is not about to be
+  // so hinting the old deposit would ask for a figure that is not about to be
   // charged.
-  test("re-hints the amount with the seña of the price that gets picked", async () => {
+  test("re-hints the amount with the deposit of the price that gets picked", async () => {
     await mount({
       inscriptions: [
         inscriptionFixture({
@@ -154,7 +154,7 @@ describe("DancerNameCell interaction", () => {
 
   // Below the deposit the price keeps re-deriving on its own, so the picker is
   // still there: the first peso locks nothing.
-  test("keeps the picker on a row that holds money but has not covered its seña", async () => {
+  test("keeps the picker on a row that holds money but has not covered its deposit", async () => {
     await mount({
       inscriptions: [
         inscriptionFixture({
@@ -613,7 +613,7 @@ describe("inscriptions table filters", () => {
     expect(renderedDancerNames()).toEqual(["Ana López"]);
   });
 
-  test("filters by the badge the Estado column shows, Retirada included", async () => {
+  test('filters by the badge the "Estado" column shows, "Retirada" included', async () => {
     await mount();
 
     // `Retirada` replaces the money status, so filtering by `Pagada` does not

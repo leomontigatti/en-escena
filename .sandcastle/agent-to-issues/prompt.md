@@ -65,7 +65,7 @@ schema:
   "slices": [
     {
       "title": "short imperative title (no feat:/fix: prefix)",
-      "whatToBuild": "1-3 short paragraphs on end-to-end behaviour. Prose, no file paths. Embed newlines as \\n.",
+      "whatToBuild": "1-3 short paragraphs on end-to-end behaviour. Prose, no file paths. Separate paragraphs with a blank line.",
       "acceptanceCriteria": ["checkable outcome 1", "checkable outcome 2", "Tests cover the new behaviour"]
     }
   ]

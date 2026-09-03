@@ -97,8 +97,8 @@ leaves room to harden the policy later.
 
 Only **after** the zone is loaded and verified in Cloudflare (step 2).
 
-1. Log in to `nic.ar` with the registrant CUIT's Clave Fiscal.
-2. Mis dominios → `enescena.com.ar` → Cambiar delegación / DNS.
+1. Log in to `nic.ar` with the registrant CUIT's `Clave Fiscal`.
+2. `Mis dominios` → `enescena.com.ar` → `Cambiar delegación / DNS`.
 3. Replace `ns1/ns2/ns3.dreamhost.com` with the two nameservers Cloudflare
    assigned (`<something>.ns.cloudflare.com`).
 4. Save and wait for propagation (typically minutes, up to 24 h worst case).
@@ -376,7 +376,7 @@ dig +short TXT _dmarc.enescena.com.ar
 
 Then:
 
-1. Trigger a real "recuperar acceso" against a Gmail mailbox and confirm in the
+1. Trigger a real `recuperar acceso` against a Gmail mailbox and confirm in the
    message details that it says `signed-by: enescena.com.ar` and that DMARC
    passes.
 2. Send a mail _to_ `acceso@enescena.com.ar` and confirm it reaches the Gmail

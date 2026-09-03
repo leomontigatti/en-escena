@@ -16,7 +16,7 @@ describe("admin migration audit", () => {
     expect(codebaseMap).toContain("## Admin Users");
     expect(codebaseMap).toContain("app/features/admin/users/");
     expect(codebaseMap).toContain("## Admin Choreographies");
-    expect(codebaseMap).toContain("## Admin Events And Bases Del Evento");
+    expect(codebaseMap).toContain("## Admin Events And `Bases del evento`");
     expect(codebaseMap).toContain("app/features/admin/events/list/");
     expect(codebaseMap).toContain("app/features/admin/modalities/");
     expect(codebaseMap).toContain("app/features/admin/categories/");

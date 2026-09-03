@@ -5,23 +5,32 @@ import { db } from "@/db";
 import {
   choreographies,
   choreographyDancers,
+  choreographyProfessors,
   paymentAllocations,
   payments,
   scheduleCapacities,
   scheduleModalities,
   schedules,
 } from "@/db/schema";
-import { handleChoreographyDetailAction } from "@/features/admin/choreographies/detail/server";
+import {
+  handleChoreographyDetailAction,
+  loadChoreographyDetailRouteData,
+} from "@/features/admin/choreographies/detail/server";
 import {
   toChoreographyDetailViewActionData,
   updateChoreographyRosterIntent,
 } from "@/features/admin/choreographies/detail/shared";
 import { createChoreographyRecord } from "@/features/portal/choreographies/test-support/db";
 import {
+  invalidDancerSelectionMessage,
+  invalidProfessorSelectionMessage,
+} from "@/lib/choreographies/choreography-roster.shared";
+import {
   createAcademySession,
   createDancer,
   createEventCatalog,
   createEventRecord,
+  createProfessor,
 } from "@/lib/choreographies/registration-test-fixtures.server.db";
 import { createSignedInAdminRequest } from "@/lib/admin/test-support/db";
 import { recordComprobante } from "@/lib/comprobantes/comprobantes.server";
@@ -117,8 +126,8 @@ describe("administrative choreography roster editing", () => {
 
   test("withdraws a removed dancer whose inscription holds money, and keeps the allocation on it", async () => {
     // Grupal, five dancers down to four: the group type (and with it the
-    // cupo) stays "grupal" either way, so this exercises the withdrawal
-    // mechanism in isolation from the cupo guard below.
+    // capacity) stays "grupal" either way, so this exercises the withdrawal
+    // mechanism in isolation from the capacity guard below.
     const scenario = await createGrupalRemovalScenario({
       academyName: "Academia Roster Retiro",
       email: "roster.retiro.academia@example.com",
@@ -521,12 +530,12 @@ describe("administrative choreography roster editing", () => {
     expect(inscriptions.map((row) => row.dancerId)).toEqual([dancerA.id]);
   });
 
-  // #709: when the assigned cupo is still compatible with the resolved
-  // roster, the save must keep it as-is, even with other compatible cupos
+  // #709: when the assigned capacity is still compatible with the resolved
+  // roster, the save must keep it as-is, even with other compatible capacities
   // available: `resolveSelectedScheduleCapacityIdForDancerUpdate` used to take
   // the first item of the list, which stopped being the assigned one the day
   // "keep-current" started carrying the full set.
-  test("keeps the currently assigned cupo when it stays compatible after a roster change, even with another compatible cupo available", async () => {
+  test("keeps the currently assigned capacity when it stays compatible after a roster change, even with another compatible capacity available", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Roster Cupo Compatible",
       email: "roster.cupo.compatible.academia@example.com",
@@ -534,7 +543,7 @@ describe("administrative choreography roster editing", () => {
     const event = await createEventRecord({ active: true, name: "Regional" });
     const catalog = await createEventCatalog(event.id);
     // Scheduled earlier than `catalog`'s block: if the save picks "the first
-    // in the list" instead of looking up the assigned one, this cupo wins.
+    // in the list" instead of looking up the assigned one, this capacity wins.
     const [earlySchedule] = await db
       .insert(schedules)
       .values({
@@ -583,7 +592,7 @@ describe("administrative choreography roster editing", () => {
     ]);
 
     // Changes the roster (dancer swap) without touching the group type, so
-    // the assigned cupo stays compatible ("keep-current") and no explicit
+    // the assigned capacity stays compatible ("keep-current") and no explicit
     // `scheduleCapacityId` travels in the submit.
     const response = await submitRoster({
       choreographyId: choreography.id,
@@ -600,7 +609,7 @@ describe("administrative choreography roster editing", () => {
   });
 });
 
-describe("cupo de cronograma guard on the roster path", () => {
+describe("schedule capacity guard on the roster path", () => {
   test("blocks a roster change that would move a choreography with money assigned", async () => {
     const scenario = await createSoloScenario({
       academyName: "Academia Roster Cupo Congelado",
@@ -654,7 +663,7 @@ describe("cupo de cronograma guard on the roster path", () => {
     ]);
   });
 
-  test("blocks a roster change that would move a choreography into a full cupo", async () => {
+  test("blocks a roster change that would move a choreography into a full capacity", async () => {
     const scenario = await createSoloScenario({
       academyName: "Academia Roster Cupo Lleno",
       email: "roster.cupo.lleno@example.com",
@@ -705,7 +714,7 @@ describe("cupo de cronograma guard on the roster path", () => {
 
   test("blocks removing a dancer whose money would otherwise move with a shrinking group type", async () => {
     // Duo down to solo: the group type recalculation is out of this ticket's
-    // scope, but the cupo it lands on is not the same cupo the choreography
+    // scope, but the capacity it lands on is not the same capacity the choreography
     // came from, and dancerA's money is still on the choreography at removal
     // time — this is the exact "corruption #619 exists to prevent," reached
     // through a roster removal instead of the standalone reassignment.
@@ -747,7 +756,7 @@ describe("cupo de cronograma guard on the roster path", () => {
     expect(saved?.groupType).toBe("duo");
   });
 
-  test("does not guard a roster change that leaves the cupo untouched", async () => {
+  test("does not guard a roster change that leaves the capacity untouched", async () => {
     const scenario = await createRemovalScenario({
       academyName: "Academia Roster Cupo Sin Cambio",
       email: "roster.cupo.sincambio@example.com",
@@ -766,8 +775,8 @@ describe("cupo de cronograma guard on the roster path", () => {
     });
 
     // Swaps dancerB for dancerC, keeping the duo group type and the same
-    // cupo. The frozen inscription belongs to dancerA, who is untouched — the
-    // guard must not fire on a save that does not move the cupo.
+    // capacity. The frozen inscription belongs to dancerA, who is untouched — the
+    // guard must not fire on a save that does not move the capacity.
     const result = await submitRoster({
       choreographyId: scenario.choreography.id,
       dancerIds: [scenario.dancerA.id, dancerC.id],
@@ -777,10 +786,10 @@ describe("cupo de cronograma guard on the roster path", () => {
   });
 
   // #730 repro (undo): a roster edit moves Solo -> Duo picking a Duo-exclusive
-  // cupo, then a second submit undoes it back to Solo while the stale
+  // capacity, then a second submit undoes it back to Solo while the stale
   // Duo-exclusive `scheduleCapacityId` is still the one traveling in the
   // form. Needs a *second* schedule compatible with both group types so both
-  // resolve to "multiple" (only one cupo per group type would resolve
+  // resolve to "multiple" (only one capacity per group type would resolve
   // "auto" and self-heal without ever consulting the submitted id at all).
   // Empirically (verified by running this test before adding the #730 guard)
   // the second submit was already rejected without corrupting the roster:
@@ -791,7 +800,7 @@ describe("cupo de cronograma guard on the roster path", () => {
   // stale Duo id can never pass validation for a Solo resolution. This test
   // documents that outcome as a regression guard and doubles as a check that
   // the new #730 gate does not change it.
-  test("does not persist a stale duo-exclusive cupo when a roster save undoes duo back to solo", async () => {
+  test("does not persist a stale duo-exclusive capacity when a roster save undoes duo back to solo", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Roster Cupo Deshacer",
       email: "roster.cupo.deshacer@example.com",
@@ -836,7 +845,7 @@ describe("cupo de cronograma guard on the roster path", () => {
       dancerId: dancerA.id,
     });
 
-    // Solo -> Duo, picking the Duo-exclusive cupo explicitly (both group
+    // Solo -> Duo, picking the Duo-exclusive capacity explicitly (both group
     // types resolve "multiple" here, so the pick is not self-healed).
     const grow = await submitRoster({
       choreographyId: choreography.id,
@@ -867,7 +876,7 @@ describe("cupo de cronograma guard on the roster path", () => {
     });
     // Nothing about the second submit was persisted: still the Duo state the
     // first submit produced, not a Solo choreography sitting on the
-    // Duo-exclusive cupo.
+    // Duo-exclusive capacity.
     expect(afterUndo?.groupType).toBe("duo");
     expect(afterUndo?.scheduleCapacityId).toBe(catalog.duoScheduleCapacity.id);
 
@@ -882,9 +891,9 @@ describe("cupo de cronograma guard on the roster path", () => {
   // Protects the #730 final compatibility gate itself: it must not reject a
   // legitimate save. `getScheduleSelectionId`/`isCompatibleScheduleCapacity`
   // are new call sites on the roster save path, so a wiring mistake there
-  // (wrong argument order, wrong encoding for the specific-cupo case) would
+  // (wrong argument order, wrong encoding for the specific-capacity case) would
   // show up as this test failing instead of as a silent false rejection.
-  test("still saves a compatible cupo picked from a multiple-status resolution after the #730 final gate", async () => {
+  test("still saves a compatible capacity picked from a multiple-status resolution after the #730 final gate", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Roster Cupo Compatible Final",
       email: "roster.cupo.compatible.final@example.com",
@@ -934,8 +943,8 @@ describe("cupo de cronograma guard on the roster path", () => {
       },
     ]);
 
-    // Duo -> Solo, resolving "multiple" for solo (two solo-compatible cupos
-    // exist), explicitly picking the second schedule's cupo rather than the
+    // Duo -> Solo, resolving "multiple" for solo (two solo-compatible capacities
+    // exist), explicitly picking the second schedule's capacity rather than the
     // catalog's default one.
     const result = await submitRoster({
       choreographyId: choreography.id,
@@ -955,10 +964,10 @@ describe("cupo de cronograma guard on the roster path", () => {
   // #730's other sub-case: the submitted `scheduleCapacityId` is not stale —
   // it's the one already persisted, never touched by this submit — but the
   // *dancer* change in the same submit shifts the resolved groupType out from
-  // under it. Needs a second solo-compatible cupo so solo resolves
+  // under it. Needs a second solo-compatible capacity so solo resolves
   // "multiple" (a single option would resolve "auto" and self-heal past the
   // stale duo id without ever consulting it).
-  test("rejects a roster save whose persisted cupo is unchanged but incompatible with the groupType the same submit resolves to", async () => {
+  test("rejects a roster save whose persisted capacity is unchanged but incompatible with the groupType the same submit resolves to", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Roster Cupo Sin Cambiar",
       email: "roster.cupo.sin.cambiar@example.com",
@@ -1011,7 +1020,7 @@ describe("cupo de cronograma guard on the roster path", () => {
       },
     ]);
 
-    // Drop dancerB (Duo -> Solo), re-submitting the same Duo-exclusive cupo
+    // Drop dancerB (Duo -> Solo), re-submitting the same Duo-exclusive capacity
     // that is already persisted — the field never changed in this submit.
     const result = await submitRoster({
       choreographyId: choreography.id,
@@ -1025,7 +1034,7 @@ describe("cupo de cronograma guard on the roster path", () => {
       where: eq(choreographies.id, choreography.id),
     });
     // Neither the groupType nor the roster moved: the already-persisted,
-    // now-incompatible cupo was never left paired with a Solo choreography.
+    // now-incompatible capacity was never left paired with a Solo choreography.
     expect(saved?.groupType).toBe("duo");
     expect(saved?.scheduleCapacityId).toBe(catalog.duoScheduleCapacity.id);
 
@@ -1037,7 +1046,7 @@ describe("cupo de cronograma guard on the roster path", () => {
     );
   });
 
-  test("locks the destination cupo across two concurrent roster saves competing for the last slot", async () => {
+  test("locks the destination capacity across two concurrent roster saves competing for the last slot", async () => {
     const event = await createEventRecord({ active: true, name: "Regional" });
     const catalog = await createEventCatalog(event.id);
     await db
@@ -1078,7 +1087,7 @@ describe("cupo de cronograma guard on the roster path", () => {
       return result.status;
     });
 
-    // Both choreographies target the same cupo, which has exactly one free
+    // Both choreographies target the same capacity, which has exactly one free
     // slot: the lock must let exactly one of the two concurrent saves win it,
     // never both and never neither.
     expect(outcomes.filter((status) => status === "success")).toHaveLength(1);
@@ -1099,7 +1108,7 @@ describe("cupo de cronograma guard on the roster path", () => {
 /**
  * Solo with one inscription, `dancerA`, plus `dancerB` reserved to expand the
  * roster to duo in the schedule-capacity guard tests. Each call builds its own
- * event and catalog, so two choreographies never compete for the same cupo
+ * event and catalog, so two choreographies never compete for the same capacity
  * unless explicitly asked to (see `createSoloScenarioInCatalog`, used by the
  * concurrency test).
  */
@@ -1218,9 +1227,9 @@ async function createRemovalScenario(input: {
 /**
  * Grupal with five inscriptions, `dancerA`'s ready to hang financial evidence
  * on. Removing one of the other four leaves four dancers, still "grupal"
- * (`deriveGroupType` only drops to trío at three): the group type, and with it
- * the cupo, doesn't move, so this scenario exercises the withdrawal-with-money
- * mechanism without crossing the cupo guard.
+ * (`deriveGroupType` only drops to `trio` at three): the group type, and with
+ * it the capacity, doesn't move, so this scenario exercises the withdrawal-with-money
+ * mechanism without crossing the capacity guard.
  */
 async function createGrupalRemovalScenario(input: {
   academyName: string;
@@ -1271,7 +1280,7 @@ async function createGrupalRemovalScenario(input: {
     event,
     inscriptionA,
     // dancers[0] (dancerA) is the one being removed; the rest stay, keeping
-    // the group at four and the group type/cupo at "grupal".
+    // the group at four and the group type/capacity at "grupal".
     remainingDancerIds: dancers.slice(1).map((dancer) => dancer.id),
   };
 }
@@ -1299,6 +1308,166 @@ async function createPayment(scenario: {
 // be unique across two submits on the same choreography too (withdrawing and
 // adding again is exactly that case).
 let submitCount = 0;
+
+describe("`Estado de alta` on the administrative roster editor", () => {
+  test("keeps offering and accepting an archived dancer who is already on the choreography, and rejects one who is not", async () => {
+    const scenario = await createArchivedRosterScenario({
+      academyName: "Academia Roster Archivada",
+      email: "roster.archivada.academia@example.com",
+    });
+
+    const loaded = await loadRosterDetail(scenario.choreography.id);
+    const offeredDancerIds = loaded.availableDancers.map((dancer) => dancer.id);
+
+    expect(offeredDancerIds).toContain(scenario.archivedLinkedDancer.id);
+    expect(offeredDancerIds).toContain(scenario.activeDancer.id);
+    expect(offeredDancerIds).not.toContain(scenario.archivedUnlinkedDancer.id);
+
+    const offeredProfessorIds = loaded.availableProfessors.map(
+      (professor) => professor.id,
+    );
+    expect(offeredProfessorIds).toContain(scenario.archivedLinkedProfessor.id);
+    expect(offeredProfessorIds).not.toContain(
+      scenario.archivedUnlinkedProfessor.id,
+    );
+
+    const accepted = await submitRoster({
+      choreographyId: scenario.choreography.id,
+      dancerIds: [scenario.activeDancer.id, scenario.archivedLinkedDancer.id],
+      professorIds: [scenario.archivedLinkedProfessor.id],
+    });
+    expect(accepted).toMatchObject({ status: "success" });
+
+    const rejected = await submitRoster({
+      choreographyId: scenario.choreography.id,
+      dancerIds: [scenario.activeDancer.id, scenario.archivedUnlinkedDancer.id],
+    });
+    expect(rejected).toMatchObject({
+      message: invalidDancerSelectionMessage,
+      status: "roster-error",
+    });
+  });
+
+  test("rejects an archived professor who is not already on the choreography", async () => {
+    const scenario = await createArchivedRosterScenario({
+      academyName: "Academia Profesor Archivado",
+      email: "roster.profesor.archivado@example.com",
+    });
+
+    const rejected = await submitRoster({
+      choreographyId: scenario.choreography.id,
+      dancerIds: [scenario.activeDancer.id, scenario.archivedLinkedDancer.id],
+      professorIds: [scenario.archivedUnlinkedProfessor.id],
+    });
+
+    expect(rejected).toMatchObject({
+      message: invalidProfessorSelectionMessage,
+      status: "roster-error",
+    });
+  });
+
+  test("leaves every other field of a choreography with an archived roster editable", async () => {
+    const scenario = await createArchivedRosterScenario({
+      academyName: "Academia Roster Sin Encallar",
+      email: "roster.sin.encallar@example.com",
+    });
+
+    const renamed = await submitRoster({
+      choreographyId: scenario.choreography.id,
+      dancerIds: [scenario.activeDancer.id, scenario.archivedLinkedDancer.id],
+      name: "Duo Corregido",
+      professorIds: [scenario.archivedLinkedProfessor.id],
+    });
+
+    expect(renamed).toMatchObject({ status: "success" });
+
+    const updated = await db.query.choreographies.findFirst({
+      columns: { name: true },
+      where: eq(choreographies.id, scenario.choreography.id),
+    });
+    expect(updated?.name).toBe("Duo Corregido");
+  });
+});
+
+async function createArchivedRosterScenario(input: {
+  academyName: string;
+  email: string;
+}) {
+  const owner = await createAcademySession(input);
+  const event = await createEventRecord({ active: true, name: "Regional" });
+  const catalog = await createEventCatalog(event.id);
+  const [activeDancer, archivedLinkedDancer, archivedUnlinkedDancer] =
+    await Promise.all([
+      createDancer(owner.academyId, { firstName: "Ana", lastName: "Activa" }),
+      createDancer(owner.academyId, {
+        active: false,
+        firstName: "Bea",
+        lastName: "Archivada",
+      }),
+      createDancer(owner.academyId, {
+        active: false,
+        firstName: "Cami",
+        lastName: "Archivada",
+      }),
+    ]);
+  const [archivedLinkedProfessor, archivedUnlinkedProfessor] =
+    await Promise.all([
+      createProfessor(owner.academyId, {
+        active: false,
+        firstName: "Dana",
+        lastName: "Archivada",
+      }),
+      createProfessor(owner.academyId, {
+        active: false,
+        firstName: "Eva",
+        lastName: "Archivada",
+      }),
+    ]);
+  const choreography = await createChoreographyRecord({
+    academyId: owner.academyId,
+    categoryId: catalog.teenCategory.id,
+    eventId: event.id,
+    groupType: "duo",
+    modalityId: catalog.modality.id,
+    name: "Duo",
+    scheduleCapacityId: catalog.duoScheduleCapacity.id,
+    submodalityId: catalog.submodality.id,
+  });
+  await db.insert(choreographyDancers).values(
+    [activeDancer.id, archivedLinkedDancer.id].map((dancerId) => ({
+      ageAtEventStart: 14,
+      choreographyId: choreography.id,
+      dancerId,
+    })),
+  );
+  await db.insert(choreographyProfessors).values({
+    choreographyId: choreography.id,
+    professorId: archivedLinkedProfessor.id,
+  });
+
+  return {
+    academyId: owner.academyId,
+    activeDancer,
+    archivedLinkedDancer,
+    archivedLinkedProfessor,
+    archivedUnlinkedDancer,
+    archivedUnlinkedProfessor,
+    choreography,
+  };
+}
+
+async function loadRosterDetail(choreographyId: string) {
+  const { request } = await createSignedInAdminRequest({
+    email: `admin.roster.loader.${(submitCount += 1)}.${choreographyId}@example.com`,
+    requestUrl: `http://localhost/administracion/coreografias/${choreographyId}`,
+    role: "admin",
+  });
+
+  return await loadChoreographyDetailRouteData({
+    params: { choreographyId },
+    request,
+  });
+}
 
 async function submitRoster(input: {
   choreographyId: string;

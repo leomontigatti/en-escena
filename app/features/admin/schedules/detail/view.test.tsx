@@ -58,7 +58,7 @@ describe("EventScheduleDetailView", () => {
 
   // The form plans against what is left: the total capacity and each split
   // capacity say how many places are still free, not just how much was shared out.
-  test("shows how many lugares are left for the cronograma and for each cupo", async () => {
+  test("shows how many lugares are left for the schedule and for each capacity", async () => {
     useNavigationMock.mockReturnValue({ state: "idle" });
 
     await renderDetail({
@@ -70,7 +70,7 @@ describe("EventScheduleDetailView", () => {
     expect(document.body.textContent).toContain(" / 4 disponibles");
     expect(document.body.textContent).toContain(" / 2 disponibles");
     // Never as a field description: that slot sits between the label and the
-    // control, and pushed every cupo out of line with its tipo de grupo select.
+    // control, and pushed every capacity out of line with its group type select.
     expect(
       document.querySelectorAll('[data-slot="field-description"]'),
     ).toHaveLength(0);

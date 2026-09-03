@@ -13,7 +13,6 @@ import {
   type ProfessorNameOrder,
   type ProfessorListFilters,
   readProfessorParticipationFilter,
-  readProfessorStatusFilter,
 } from "@/lib/admin/professors/professors.shared";
 import {
   findDuplicateProfessorDocument,
@@ -29,6 +28,8 @@ import {
   type ParticipationStatus,
   toParticipationStatus,
 } from "@/lib/participation/participation.shared";
+import { readRosterPersonStatusFilter } from "@/lib/roster/roster-person-status.shared";
+import { rosterPersonStatusCondition } from "@/lib/roster/roster-person-status.server";
 
 export type ProfessorListItem = {
   id: string;
@@ -94,10 +95,6 @@ export type ProfessorMutationResult =
       values: ProfessorUpdateInput;
     };
 
-type ProfessorStatusMutationResult = {
-  professor: ProfessorEditableSnapshot;
-};
-
 export function readProfessorFilters(
   searchParams: URLSearchParams,
 ): ProfessorListFilters {
@@ -107,7 +104,7 @@ export function readProfessorFilters(
       searchParams.get("participando"),
     ),
     query: searchParams.get("busqueda")?.trim() ?? "",
-    status: readProfessorStatusFilter(searchParams.get("estado")),
+    status: readRosterPersonStatusFilter(searchParams),
     page: readPage(searchParams),
   };
 }
@@ -376,36 +373,6 @@ export async function updateAdministrativeProfessor(input: {
   };
 }
 
-export async function setProfessorActiveState(input: {
-  action: "archive" | "reactivate";
-  professorId: string;
-  selectedEventId: string | null;
-}): Promise<ProfessorStatusMutationResult> {
-  const existingProfessor = await findProfessorForMutation({
-    professorId: input.professorId,
-    selectedEventId: input.selectedEventId,
-  });
-
-  if (!existingProfessor) {
-    throw new Response("No encontramos ese Profesor.", { status: 404 });
-  }
-
-  const nextActive = input.action === "reactivate";
-  const [updatedProfessor] = await db
-    .update(professors)
-    .set({
-      active: nextActive,
-      updatedAt: new Date(),
-    })
-    .where(eq(professors.id, existingProfessor.id))
-    .returning();
-  const savedSnapshot = toProfessorSnapshot(updatedProfessor);
-
-  return {
-    professor: savedSnapshot,
-  };
-}
-
 function buildProfessorWhere(input: {
   selectedEventId: string | null;
   filters: ProfessorListFilters;
@@ -415,10 +382,13 @@ function buildProfessorWhere(input: {
     input.selectedEventId,
   );
 
-  if (input.filters.status === "active") {
-    conditions.push(eq(professors.active, true));
-  } else if (input.filters.status === "archived") {
-    conditions.push(eq(professors.active, false));
+  const statusCondition = rosterPersonStatusCondition(
+    professors,
+    input.filters.status,
+  );
+
+  if (statusCondition) {
+    conditions.push(statusCondition);
   }
 
   if (input.selectedEventId !== null && input.filters.participation !== "all") {

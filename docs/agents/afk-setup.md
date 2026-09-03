@@ -195,6 +195,11 @@ which fans out into parallel sub-agents, and the runner hands the agent a `--sta
 instead of the full patch — so the agent spends its own time reading the diff per file. Measured
 review runs were 5-9 minutes end to end with a ~20 minute tail, already brushing the old 25.
 
+`agent-implement-pr` also hands the agent `--stat` and stays at 30/25, which is not an
+oversight: the fan-out is what costs the time, not the summary. A review has to survey the
+whole diff, so reading it per file is a broad sweep; an implement-pr pass acts on comments that
+already name their paths, so it drills into a handful. The run on #787 took 5m49s of its 25.
+
 **The invariant: the budget must stay strictly below the step's `timeout-minutes`.** If it is
 equal or larger, Actions wins the race and the guardrail buys nothing.
 `tests/afk/failure-reason-fallback.test.ts` enforces this for every runner step, so retuning a

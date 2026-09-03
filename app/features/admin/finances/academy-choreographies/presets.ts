@@ -69,7 +69,7 @@ export type PresetPriceOption = {
  * It is the default because the figure the dialog shows was computed from the
  * prices that already resolve. Defaulting to a row of the catalogue would make
  * an administrator who only reads the figure and confirms re-price every
- * inscription that has not covered its seña, and allocate against a number they
+ * inscription that has not covered its deposit, and allocate against a number they
  * never saw.
  */
 export const keepCurrentPriceValue = "keep-current";

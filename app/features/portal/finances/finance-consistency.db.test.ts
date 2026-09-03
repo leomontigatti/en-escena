@@ -124,18 +124,18 @@ describe.sequential(
         })
         .returning();
 
-      // currentPrice: impaga at the current tentative price.
+      // currentPrice: unpaid at the current tentative price.
       await insertImpagaInscription(
         currentPriceChoreography.id,
         owner.academyId,
       );
-      // missingPrice: impaga with no applicable duo price.
+      // missingPrice: unpaid with no applicable duo price.
       await insertImpagaInscription(
         missingPriceChoreography.id,
         owner.academyId,
       );
 
-      // pendingSnapshot: señada with a deposit allocation.
+      // pendingSnapshot: deposit met with a deposit allocation.
       const pendingInscription = await insertSignedInscription({
         academyId: owner.academyId,
         choreographyId: pendingSnapshotChoreography.id,
@@ -179,7 +179,7 @@ describe.sequential(
       );
 
       expect(portalLoaderData.summary).toEqual({
-        // 16600 pagos - 15600 asignaciones = 1000 disponible.
+        // 16600 payments - 15600 allocations = 1000 available.
         availableBalanceAmount: 1000,
         // The thresholds of the three that have a price (3000 + 3600 + 3600 of
         // deposit, 10000 + 12000 + 12000 of total); the one with no price adds 1
@@ -202,7 +202,7 @@ describe.sequential(
           missingPriceCount: 1,
           status: "incomplete",
         },
-        // 3000 seña impaga (currentPrice); missing price adds 1.
+        // 3000 unpaid deposit (currentPrice); missing price adds 1.
         owedDepositAmount: {
           amount: 3000,
           missingPriceCount: 1,

@@ -176,8 +176,8 @@ const financeNavigationItems = [
 ] satisfies SidebarNavigationItem[];
 
 // Each group is one of the administrator's jobs, and its items are that job's
-// objects. That is why "Academias" appears twice: under Finanzas you look at
-// their balance, under Accesos you administer the entity. The group disambiguates.
+// objects. That is why "Academias" appears twice: under `Finanzas` you look at
+// their balance, under `Accesos` you administer the entity. The group disambiguates.
 const navigationGroups = [
   {
     items: contextNavigationItems,

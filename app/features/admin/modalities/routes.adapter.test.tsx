@@ -11,7 +11,7 @@ import { ModalityDetailRouteView } from "@/routes/administracion.modalidades_.$m
 import { NewModalityRouteView } from "@/routes/administracion.modalidades_.nueva";
 import { ModalitiesListRouteView } from "@/routes/administracion.modalidades";
 
-describe("administracion.modalidades route adapters", () => {
+describe("`administracion.modalidades` route adapters", () => {
   test("renders the list feature view from the list route adapter", () => {
     const markup = renderRouteView(
       createElement(ModalitiesListRouteView, {

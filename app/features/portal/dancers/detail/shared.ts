@@ -8,6 +8,7 @@ import type {
   DancerIdentificationPendingItem,
   DancerVerificationStatus,
 } from "@/lib/dancers/verification";
+import { getArchiveKeepsRosterMessage } from "@/lib/roster/roster-person-status.shared";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 
 export const portalDancerNotFoundMessage = "No encontramos ese Bailarín.";
@@ -100,8 +101,7 @@ export const portalDancerStatusActions = {
     intent: "archive-dancer",
     label: "Archivar",
     confirmTitle: "¿Archivar bailarín?",
-    confirmDescription:
-      "El bailarín dejará de aparecer en listas activas y en próximas selecciones de coreografías. Sus coreografías existentes no se modifican.",
+    confirmDescription: `El bailarín dejará de aparecer en listas activas y en próximas selecciones de coreografías. ${getArchiveKeepsRosterMessage("dancer")}`,
     confirmButtonLabel: "Archivar",
     confirmButtonVariant: "destructive",
   },

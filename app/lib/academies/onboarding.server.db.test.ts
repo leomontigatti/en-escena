@@ -25,7 +25,7 @@ describe("academy onboarding route", () => {
     vi.clearAllMocks();
   });
 
-  test("allows a confirmed access session without an Academia to load onboarding", async () => {
+  test("allows a confirmed access session without an academy to load onboarding", async () => {
     getVerifiedAccessIdentity.mockResolvedValue({
       headers: new Headers(),
       session: {
@@ -45,7 +45,7 @@ describe("academy onboarding route", () => {
     ).resolves.toBeNull();
   });
 
-  test("creates the Usuario and Academia for a confirmed session and redirects with SSR headers", async () => {
+  test("creates the user and academy for a confirmed session and redirects with SSR headers", async () => {
     getVerifiedAccessIdentity.mockResolvedValue({
       headers: new Headers({
         "cache-control": "no-store",

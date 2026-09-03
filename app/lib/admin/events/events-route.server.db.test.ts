@@ -35,8 +35,8 @@ import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-describe("administracion/eventos route", () => {
-  test("requires admin access for the Eventos screen", async () => {
+describe("`/administracion/eventos` route", () => {
+  test("requires admin access for the events screen", async () => {
     await expectThrownResponse(
       loader(routeArgs(new Request("http://localhost/administracion/eventos"))),
       302,
@@ -53,7 +53,7 @@ describe("administracion/eventos route", () => {
     });
   });
 
-  test("lists Eventos with name, registration dates, event dates and state", async () => {
+  test("lists events with name, registration dates, event dates and state", async () => {
     const finalEvent = await createSavedEvent({
       name: "Regional 2026",
       startsAt: date("2026-05-01T12:00:00Z"),
@@ -110,7 +110,7 @@ describe("administracion/eventos route", () => {
     expect(markup).toContain("No iniciado");
   });
 
-  test("loads only the active Evento summary in the admin shell for the Eventos family", async () => {
+  test("loads only the active event summary in the admin shell for the events family", async () => {
     const activeEvent = await createSavedEvent({
       name: "Regional 2026",
       active: true,
@@ -141,7 +141,7 @@ describe("administracion/eventos route", () => {
     ]);
   });
 
-  test("keeps Eventos child route data focused on resource content", async () => {
+  test("keeps events child route data focused on resource content", async () => {
     const event = await createSavedEvent({ name: "Regional 2026" });
     const { request: listRequest } = await createSignedInRequest({
       email: "admin.route-contract.list@example.com",
@@ -166,7 +166,7 @@ describe("administracion/eventos route", () => {
     expect(Object.hasOwn(newRouteModule, "loader")).toBe(false);
   });
 
-  test("creates an inactive Evento from the new route and redirects to detail", async () => {
+  test("creates an inactive event from the new route and redirects to detail", async () => {
     const { request } = await createSignedInRequest({
       email: "admin.crear@example.com",
       role: "admin",
@@ -208,7 +208,7 @@ describe("administracion/eventos route", () => {
     );
   });
 
-  test("allows registration to end after the Evento starts", async () => {
+  test("allows registration to end after the event starts", async () => {
     const { request } = await createSignedInRequest({
       email: "admin.inscripcion-tardia@example.com",
       role: "admin",
@@ -235,7 +235,7 @@ describe("administracion/eventos route", () => {
     });
   });
 
-  test("returns validation failures without creating an Evento", async () => {
+  test("returns validation failures without creating an event", async () => {
     const { request } = await createSignedInRequest({
       email: "admin.validacion@example.com",
       role: "admin",
@@ -262,7 +262,7 @@ describe("administracion/eventos route", () => {
     await expect(db.query.events.findMany()).resolves.toEqual([]);
   });
 
-  test("returns date validation failures without creating an Evento", async () => {
+  test("returns date validation failures without creating an event", async () => {
     const { request } = await createSignedInRequest({
       email: "admin.fechas@example.com",
       role: "admin",

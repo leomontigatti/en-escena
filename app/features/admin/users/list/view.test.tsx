@@ -6,7 +6,7 @@ import { describe, expect, test } from "vitest";
 import { InternalUsersListRouteView } from "@/features/admin/users/list/view";
 
 describe("InternalUsersListRouteView", () => {
-  test("keeps filtered empty results inside the Usuarios table", () => {
+  test("keeps filtered empty results inside the users table", () => {
     const markup = renderRoute({
       canManage: true,
       filters: {
@@ -26,7 +26,7 @@ describe("InternalUsersListRouteView", () => {
     expect(markup).not.toContain("No hay Usuarios para mostrar.");
   });
 
-  test("keeps active list filters when linking to a Usuario detail", () => {
+  test("keeps active list filters when linking to a user detail", () => {
     const markup = renderRoute({
       filters: {
         archived: true,

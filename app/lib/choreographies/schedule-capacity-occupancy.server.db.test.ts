@@ -20,7 +20,7 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 installDatabaseTestHooks();
 
 describe.sequential("schedule capacity occupancy", () => {
-  test("counts the choreographies assigned to each cupo", async () => {
+  test("counts the choreographies assigned to each capacity", async () => {
     const scenario = await createOccupiedCupo({
       academyName: "Academia Ocupación",
       email: "cupo.ocupacion@example.com",
@@ -35,7 +35,7 @@ describe.sequential("schedule capacity occupancy", () => {
     });
   });
 
-  test("leaves the excluded choreography out of the count of its own cupo", async () => {
+  test("leaves the excluded choreography out of the count of its own capacity", async () => {
     const scenario = await createOccupiedCupo({
       academyName: "Academia Ocupación Excluida",
       email: "cupo.ocupacion.excluida@example.com",
@@ -58,7 +58,7 @@ describe.sequential("schedule capacity occupancy", () => {
 
   // A specific capacity with room is not enough: the server rejects all the same
   // when the schedule containing it is exhausted, so the option looks full.
-  test("marks a cupo with room as full when its cronograma is full", async () => {
+  test("marks a capacity with room as full when its schedule is full", async () => {
     const scenario = await createOccupiedCupo({
       academyName: "Academia Cronograma Agotado",
       email: "cupo.ocupacion.cronograma@example.com",
@@ -77,7 +77,7 @@ describe.sequential("schedule capacity occupancy", () => {
     });
   });
 
-  test("falls back to the cronograma capacity when the option declares no cupo", async () => {
+  test("falls back to the schedule capacity when the option declares no capacity", async () => {
     const scenario = await createOccupiedCupo({
       academyName: "Academia Cupo Global",
       email: "cupo.ocupacion.global@example.com",

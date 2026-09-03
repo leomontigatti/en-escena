@@ -199,7 +199,7 @@ describe.sequential("readInscriptionThresholds on a withdrawn sibling", () => {
  * The two rows are what makes the rule observable. The catalogue row is 10000
  * with a deadline of 2026-05-31, so it is the one that applies on the mocked
  * business date; the stored row is 12000 with a later deadline of 2026-06-30,
- * so it is stored without ever being the current one. The two señas — 3000 for
+ * so it is stored without ever being the current one. The two deposits — 3000 for
  * the current row, 3600 for the stored one — straddle each other, which is what
  * lets a test tell "crossed against the stored row" apart from "crossed against
  * the current one".
@@ -334,8 +334,8 @@ async function readBothPaths(fixture: {
 }
 
 describe.sequential("the price lock at the deposit threshold", () => {
-  test("follows the price list while the inscription is below its seña", async () => {
-    // 1000 against a stored seña of 3600: below it, so the stored row is not
+  test("follows the price list while the inscription is below its deposit", async () => {
+    // 1000 against a stored deposit of 3600: below it, so the stored row is not
     // authoritative and the read re-derives from the row that applies today.
     // A refresh moves this figure, and so does the passage of time.
     const fixture = await seedPriceLockFixture({ allocatedAmount: 1000 });
@@ -350,7 +350,7 @@ describe.sequential("the price lock at the deposit threshold", () => {
     expect(read.summary).toEqual(read.thresholds);
   });
 
-  test("fixes the stored price once the inscription covers its seña", async () => {
+  test("fixes the stored price once the inscription covers its deposit", async () => {
     const fixture = await seedPriceLockFixture({ allocatedAmount: 3600 });
 
     const read = await readBothPaths(fixture);
@@ -364,7 +364,7 @@ describe.sequential("the price lock at the deposit threshold", () => {
   });
 
   test("measures the crossing against the stored price and not the current one", async () => {
-    // 3000 is exactly the **current** row's seña and 600 short of the stored
+    // 3000 is exactly the **current** row's deposit and 600 short of the stored
     // row's. Were the crossing measured against the current price the read
     // would lock onto the stored 12000 here, and the answer to "has it
     // crossed?" would depend on which price was asked about.
@@ -376,8 +376,8 @@ describe.sequential("the price lock at the deposit threshold", () => {
     expect(read.summary.priceAmount).toBe(10000);
 
     // The band where the two `≥` disagree. The badge is derived from the
-    // **effective** price, whose seña is 3000, so it already reads `Señada`;
-    // the lock is measured against the **stored** price, whose seña is 3600, so
+    // **effective** price, whose deposit is 3000, so it already reads `Señada`;
+    // the lock is measured against the **stored** price, whose deposit is 3600, so
     // the price is still loose. Documented in `docs/domain/finances.md`, and
     // one-sided: `Seña pendiente` next to a fixed price cannot happen.
     const detail = await readAcademyEventOperationalFinanceDetail({
@@ -409,7 +409,7 @@ describe.sequential("the price lock at the deposit threshold", () => {
   });
 
   test("tolerates the over-allocation a price list rolling down can now produce", async () => {
-    // A new route into `Sobreasignada`: the stored row is 100000, so its seña is
+    // A new route into `Sobreasignada`: the stored row is 100000, so its deposit is
     // 30000 and 25000 has not crossed it; the row that applies today charges
     // 20000, and the read follows it. What was already allocated now sits above
     // the total.

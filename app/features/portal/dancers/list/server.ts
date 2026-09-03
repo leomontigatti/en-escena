@@ -11,7 +11,6 @@ export async function loadPortalDancersList(request: Request) {
   const [dancers, documentDownloadUrls] = await Promise.all([
     listDancersForAcademy(academy.id, {
       selectedEventId: eventContext.activeEvent?.id ?? null,
-      status: "all",
     }),
     // The minor authorization is always offered, never conditioned on whether
     // the academy already has minors: an academy about to enroll its first

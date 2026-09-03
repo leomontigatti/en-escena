@@ -1,9 +1,9 @@
 <!--
-  Vendorizado de mattpocock/course-video-manager (.claude/skills/do-work/FRONTEND-TDD.md).
-  Adaptado: la fuente manda usar `useEffectReducer` de `use-effect-reducer`; este repo no usa
-  esa librería (ni reducers hoy), así que la sección "Reducer choice" queda neutral respecto de
-  la librería. El principio — extraer la lógica de estado a un módulo puro y testeable — se
-  mantiene. Ver docs/agents/afk-vendored-assets.md.
+  Vendored from mattpocock/course-video-manager (.claude/skills/do-work/FRONTEND-TDD.md).
+  Adapted: the source mandates `useEffectReducer` from `use-effect-reducer`; this repo uses
+  neither that library nor reducers today, so the "Reducer choice" section is left neutral
+  about the library. The principle — extract status logic into a pure, testable module —
+  stands. See docs/agents/afk-vendored-assets.md.
 -->
 
 When your change touches frontend code involving complex state, use this TDD workflow.

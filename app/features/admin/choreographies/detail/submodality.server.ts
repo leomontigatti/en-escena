@@ -13,8 +13,8 @@ import {
 
 /**
  * The options the view offers are exactly the ones the intent accepts: the
- * submodalidades of the choreography's modalidad. The modality correction
- * resolves its own list against the candidate modalidad, so this one always
+ * submodalities of the choreography's modality. The modality correction
+ * resolves its own list against the candidate modality, so this one always
  * reads the saved one.
  */
 export async function listSubmodalitiesForModality(modalityId: string) {

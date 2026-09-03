@@ -94,7 +94,7 @@ describe("internal navigation", () => {
     );
   });
 
-  test("authenticates internal users with nombre de usuario interno and redirects mandatory changes", async () => {
+  test("authenticates internal users with internal username and redirects mandatory changes", async () => {
     await createCredentialUser({
       email: "admin.interno@example.com",
       role: "admin",
@@ -328,7 +328,7 @@ describe("internal navigation", () => {
     },
   );
 
-  test("routes academy users without an Academia to onboarding after login", async () => {
+  test("routes academy users without an academy to onboarding after login", async () => {
     const { request } = await createSignedInRequest({
       email: "registro.pendiente@example.com",
       role: "academy",

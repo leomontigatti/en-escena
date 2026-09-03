@@ -212,7 +212,7 @@ describe.sequential("handlePortalChoreographiesListAction", () => {
     });
   });
 
-  test("lists only the authenticated Academia choreographies for the active Evento and derives operational pending items", async () => {
+  test("lists only the authenticated academy choreographies for the active event and derives operational pending items", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Dueña",
       email: "coreografias.owner@example.com",

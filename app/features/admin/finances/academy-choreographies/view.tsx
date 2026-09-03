@@ -87,7 +87,7 @@ export function AcademyFinancesRouteView({
         // The menu is always there: a button that comes and goes with the
         // selection hides what can be done here. With no rows selected both
         // collections are disabled —there is nothing to collect against— but
-        // siguen a la vista.
+        // they stay in view.
         <ResourceActionsMenu contentClassName="w-48">
           <DropdownMenuItem
             disabled={!hasSelection}

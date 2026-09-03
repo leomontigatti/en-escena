@@ -99,7 +99,7 @@ describe("PortalChoreographyFinanceDetailRouteView", () => {
       "Hay inscripciones con más dinero asignado que su total",
     );
     // The academy cannot move an allocation, so the alert points at
-    // administración instead of at a list they cannot act on.
+    // "administración" instead of at a list they cannot act on.
     expect(markup).toContain("administración");
     expect(markup).not.toContain("Podés corregirlo");
   });

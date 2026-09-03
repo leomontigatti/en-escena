@@ -10,7 +10,7 @@ import type { PaymentsListLoaderData, PaymentsListRow } from "./server";
 describe("PaymentsListRouteView", () => {
   // `Disponible` sits to the right of the amount it is a remainder of, and the
   // amount keeps its own name: `Monto` is one payment's figure, not a total.
-  test("shows Disponible right after Monto", () => {
+  test('shows "Disponible" right after "Monto"', () => {
     expect(headers()).toEqual([
       "#",
       "Fecha",

@@ -30,7 +30,7 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 installDatabaseTestHooks();
 
 describe("event registration readiness", () => {
-  test("reports missing compatible cupos de cronograma and applicable precios using the real bases del evento rules", async () => {
+  test("reports missing compatible schedule capacities and applicable prices using the real `Bases del evento` rules", async () => {
     const event = await createSavedEvent("Regional 2026");
     const jazz = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
@@ -105,7 +105,7 @@ describe("event registration readiness", () => {
     });
   });
 
-  test("marks an evento as ready when every supported registration path has cupo de cronograma and precio", async () => {
+  test("marks an event as ready when every supported registration path has schedule capacity and price", async () => {
     const event = await createSavedEvent("Final 2026");
     const jazz = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
@@ -313,7 +313,7 @@ describe("event registration readiness", () => {
         registrationReady: true,
         registrationReadinessMissingItems: [],
         registrationReadinessDirty: false,
-        // 31/05 23:00 de Córdoba.
+        // 31/05 23:00 in Córdoba.
         registrationReadinessCalculatedAt: new Date("2026-06-01T02:00:00Z"),
       })
       .where(eq(events.id, event.id));
@@ -337,7 +337,7 @@ describe("event registration readiness", () => {
     }
   });
 
-  test("reports an expired precio as expired instead of missing", async () => {
+  test("reports an expired price as expired instead of missing", async () => {
     const event = await createSavedEvent("Precios vencidos 2026");
     const jazz = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
@@ -387,7 +387,7 @@ describe("event registration readiness", () => {
     });
   });
 
-  test("loads readiness for multiple eventos while recalculating dirty entries", async () => {
+  test("loads readiness for multiple events while recalculating dirty entries", async () => {
     const cachedReadyEvent = await createSavedEvent("Cache listo 2026");
     const dirtyEvent = await createSavedEvent("Dirty 2026");
     await createSavedEvent("No solicitado 2026");

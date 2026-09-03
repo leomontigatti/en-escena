@@ -4,8 +4,11 @@ import { describe, expect, test, vi } from "vitest";
 
 vi.mock("@/lib/admin/dancers/dancers.server", () => ({
   findDancer: vi.fn(),
-  setDancerActiveState: vi.fn(),
   verifyDancerIdentity: vi.fn(),
+}));
+
+vi.mock("@/lib/roster/roster-person-status.server", () => ({
+  setRosterPersonStatus: vi.fn(),
 }));
 
 vi.mock("@/lib/admin/dancers/dancers-update.server", () => ({
@@ -27,7 +30,7 @@ import {
 } from "@/routes/administracion.bailarines_.$dancerId";
 
 describe("InscriptionsSection", () => {
-  test("shows an empty state when there is no Evento activo", () => {
+  test("shows an empty state when there is no event active", () => {
     const markup = renderSection({
       inscriptions: [],
       selectedEventId: null,
@@ -39,7 +42,7 @@ describe("InscriptionsSection", () => {
     );
   });
 
-  test("shows an empty state when the Bailarín has no inscriptions in the Evento activo", () => {
+  test("shows an empty state when the dancer has no inscriptions in the event active", () => {
     const markup = renderSection({
       inscriptions: [],
       selectedEventId: "event-1",

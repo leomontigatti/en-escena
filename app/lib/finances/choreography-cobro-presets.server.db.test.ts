@@ -293,7 +293,7 @@ describe("payChoreographiesPreset", () => {
     expect(await readAllocations(fixture.inscriptionIds)).toEqual([]);
   });
 
-  test("applies the picked price to an inscription still below its seña", async () => {
+  test("applies the picked price to an inscription still below its deposit", async () => {
     const fixture = await seedPresetFixture([20000]);
     const [cheaper] = await db
       .insert(prices)
@@ -307,7 +307,7 @@ describe("payChoreographiesPreset", () => {
       })
       .returning();
 
-    // 1000 against the catalogue row's 3000 seña: money on the inscription, and
+    // 1000 against the catalogue row's 3000 deposit: money on the inscription, and
     // nothing fixed by it. A preset may still say which row prices it.
     const [inscriptionId] = fixture.inscriptionIds;
     await db
@@ -342,7 +342,7 @@ describe("payChoreographiesPreset", () => {
     expect(row.selectedPriceId).toBe(cheaper.id);
   });
 
-  test("keeps the price of an inscription that already covers its seña", async () => {
+  test("keeps the price of an inscription that already covers its deposit", async () => {
     const fixture = await seedPresetFixture([20000]);
     const [cheaper] = await db
       .insert(prices)

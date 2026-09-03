@@ -97,7 +97,3 @@ export type DancerMutationResult =
       fieldErrors: DancerFieldErrors;
       values: DancerUpdateInput;
     };
-
-export type DancerStatusMutationResult = {
-  dancer: DancerEditableSnapshot;
-};

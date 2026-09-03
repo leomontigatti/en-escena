@@ -18,7 +18,7 @@ const baseInput: FacturaCVoucherInput = {
 };
 
 describe("buildFacturaCVoucher", () => {
-  test("produce un FECAESolicitar de Factura C (tipo 11) a consumidor final anónimo", () => {
+  test("produces a FECAESolicitar for a invoice C (type 11) to an anonymous final consumer", () => {
     const voucher = buildFacturaCVoucher(baseInput);
 
     expect(voucher.CbteTipo).toBe(FACTURA_C_CBTE_TIPO);
@@ -77,7 +77,7 @@ describe("buildFacturaCVoucher", () => {
     expect(voucher.Iva).toBeUndefined();
   });
 
-  test("emite en pesos (MonId = PES)", () => {
+  test("emits in pesos (MonId = PES)", () => {
     expect(buildFacturaCVoucher(baseInput).MonId).toBe("PES");
   });
 

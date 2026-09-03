@@ -7,7 +7,7 @@
  * | ------------------------------ | --------------------------------------------- |
  * | over-allocated                 | Release the excess. One button, nothing else.  |
  * | nothing owed, money on it      | Remove money, prefilled with everything        |
- * | anything else                  | Price + amount, hinting the seña then the saldo |
+ * | anything else                  | Price + amount, hinting the deposit then the balance |
  *
  * The three shapes share a header: the title is the dancer's name — who the
  * money is about, which is the one thing an administrator cannot re-read off the
@@ -24,7 +24,7 @@
  * an allocation-time concern, and taking money off is how the picker comes back.
  *
  * **The picker locks where the rule locks it**: at the deposit threshold, which
- * is what a seña buys, and not at the first peso. Below it the price still moves
+ * is what the deposit buys, and not at the first peso. Below it the price still moves
  * on its own —the effective row is re-derived against today— so offering the
  * picker there is offering to confirm a row that is going to be re-read anyway,
  * which is exactly what the rule intends.
@@ -131,8 +131,8 @@ export function InscriptionMoneyDialog({
  * open — the discount is live, so a sibling registering elsewhere changes it —
  * and typing over a prefilled figure is worse than typing into an empty box.
  *
- * The hint is the figure that finishes the next thing: the seña while that
- * threshold is unmet, the saldo once it is met. It is the **picked** price's
+ * The hint is the figure that finishes the next thing: the deposit while that
+ * threshold is unmet, the balance once it is met. It is the **picked** price's
  * figure, not the row's: confirming applies the pick, so every amount the dialog
  * names is one it is actually about to charge.
  */
@@ -163,7 +163,7 @@ function AllocateMoneyDialog({
     depositAmount: inscription.depositAmount,
   });
   // Every figure follows the **picked** price and not the row's, because
-  // confirming applies the pick: hinting the seña of a price the administrator
+  // confirming applies the pick: hinting the deposit of a price the administrator
   // just moved away from asks them to type a figure this dialog is not about to
   // charge. Below the threshold that is a live choice, so the figures are
   // re-derived on each change rather than read off the loader.
@@ -526,8 +526,8 @@ function MoneyDialog({
 }
 
 /**
- * What the inscription owes, seña first and saldo second — the order the money
- * is meant to travel in, and the reason the amount field hints the seña while
+ * What the inscription owes, deposit first and balance second — the order the money
+ * is meant to travel in, and the reason the amount field hints the deposit while
  * that threshold is unmet.
  */
 function OwedSummary({ owed }: { owed: OwedAgainstPrice }) {

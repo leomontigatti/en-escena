@@ -1,7 +1,7 @@
 <!--
-  Vendorizado de mattpocock/course-video-manager (.claude/skills/do-work/DB-TDD.md). Fiel al
-  original: nuestro stack de tests de DB también corre PGLite in-process (ver ADR 0007 y
-  pnpm test:db). Ver docs/agents/afk-vendored-assets.md.
+  Vendored from mattpocock/course-video-manager (.claude/skills/do-work/DB-TDD.md).
+  Faithful to the original: our DB test stack also runs PGLite in-process (see ADR 0007
+  and pnpm test:db). See docs/agents/afk-vendored-assets.md.
 -->
 
 When your change touches code that interacts with the database, use this TDD workflow.

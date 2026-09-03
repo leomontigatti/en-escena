@@ -3,13 +3,13 @@ import { describe, expect, test } from "vitest";
 import { readDancerFilters } from "@/lib/admin/dancers/dancers-list-filters.server";
 
 describe("readDancerFilters", () => {
-  test("reads participation from 'participando' and status from 'estado'", () => {
+  test("reads participation from `participando` and status from `estado`", () => {
     expect(
       readDancerFilters(new URLSearchParams("participando=no&estado=todos")),
     ).toMatchObject({ participation: "no", status: "all" });
   });
 
-  test("ignores participation values inside 'estado'", () => {
+  test("ignores participation values inside `estado`", () => {
     expect(
       readDancerFilters(new URLSearchParams("estado=participando")),
     ).toMatchObject({ participation: "all", status: "active" });
@@ -19,13 +19,13 @@ describe("readDancerFilters", () => {
     ).toMatchObject({ participation: "all", status: "active" });
   });
 
-  test("keeps 'estado=archivados' as an archived status filter", () => {
+  test("keeps `estado=archivados` as an archived status filter", () => {
     expect(
       readDancerFilters(new URLSearchParams("estado=archivados")),
     ).toMatchObject({ participation: "all", status: "archived" });
   });
 
-  test("combines 'estado=archivados' with an explicit participation", () => {
+  test("combines `estado=archivados` with an explicit participation", () => {
     expect(
       readDancerFilters(
         new URLSearchParams("estado=archivados&participando=si"),
@@ -45,7 +45,7 @@ describe("readDancerFilters", () => {
     });
   });
 
-  test("reads 'participando=todos' as no participation filter", () => {
+  test("reads `participando=todos` as no participation filter", () => {
     expect(
       readDancerFilters(new URLSearchParams("participando=todos")),
     ).toMatchObject({ participation: "all" });

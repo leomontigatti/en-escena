@@ -19,6 +19,11 @@ import {
   isExperienceLevel,
 } from "@/lib/events/experience-levels";
 import { getEventRegistrationReadinessForBases } from "@/lib/events/registration-readiness.server";
+import {
+  classifyRosterPersonSelection,
+  getRosterPersonRejectionMessage,
+  noLinkedRosterPeople,
+} from "@/lib/roster/roster-person-rejection";
 
 const EVENT_TIME_ZONE = BUSINESS_TIME_ZONE;
 
@@ -281,11 +286,8 @@ async function resolveRegistrationBases(
     eventLocalStartDate,
   });
 
-  if (!resolvedDancers) {
-    return failure(
-      "invalid-dancers",
-      "Elegí bailarines activos que pertenezcan a tu academia.",
-    );
+  if (!resolvedDancers.ok) {
+    return resolvedDancers.failure;
   }
 
   return await resolveRegistrationFromResolvedDancers({
@@ -294,7 +296,7 @@ async function resolveRegistrationBases(
     modalityId: input.modalityId,
     skipReadinessCheck: false,
     submodalityId: input.submodalityId,
-    dancers: resolvedDancers,
+    dancers: resolvedDancers.dancers,
   });
 }
 
@@ -482,39 +484,56 @@ export function validateExperienceLevelSelection(input: {
   return { ok: true };
 }
 
+/**
+ * The query no longer filters the roster status: it reads the rows the academy
+ * picked and classifies them, so the rejection can name a dancer and a reason
+ * instead of collapsing every cause into a length mismatch. The scope is still
+ * the people picked for one choreography, so no cardinality bound changes.
+ */
 async function resolveDancers(input: {
   academyId: string;
   dancerIds: string[];
   eventLocalStartDate: LocalDateParts;
-}): Promise<DancerAgeSummary[] | null> {
+}): Promise<
+  | { ok: true; dancers: DancerAgeSummary[] }
+  | { ok: false; failure: OperationFailure }
+> {
   const dancerRows = await db.query.dancers.findMany({
     where: and(
       eq(dancers.academyId, input.academyId),
-      eq(dancers.active, true),
       inArray(dancers.id, input.dancerIds),
     ),
     columns: {
       id: true,
+      active: true,
       firstName: true,
       lastName: true,
       birthDate: true,
     },
   });
 
-  if (dancerRows.length !== input.dancerIds.length) {
-    return null;
+  const selection = classifyRosterPersonSelection({
+    selectedIds: input.dancerIds,
+    rows: dancerRows,
+    linkedPersonIds: noLinkedRosterPeople,
+  });
+
+  if (selection.rejections.length > 0) {
+    return {
+      ok: false,
+      failure: failure(
+        "invalid-dancers",
+        getRosterPersonRejectionMessage({
+          kind: "dancer",
+          rejections: selection.rejections,
+        }),
+      ),
+    };
   }
 
-  const dancerById = new Map(dancerRows.map((dancer) => [dancer.id, dancer]));
-
-  return input.dancerIds.map((dancerId) => {
-    const dancer = dancerById.get(dancerId);
-
-    if (!dancer) {
-      throw new Error("Expected dancer to be present after validation.");
-    }
-
-    return {
+  return {
+    ok: true,
+    dancers: selection.people.map((dancer) => ({
       id: dancer.id,
       firstName: dancer.firstName,
       lastName: dancer.lastName,
@@ -522,8 +541,8 @@ async function resolveDancers(input: {
         dancer.birthDate,
         input.eventLocalStartDate,
       ),
-    };
-  });
+    })),
+  };
 }
 
 function toCategoryCandidate(

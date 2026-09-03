@@ -10,8 +10,8 @@ vi.mock("@/lib/auth/internal-navigation.server", () => ({
 import { EventsListRouteView } from "@/routes/administracion.eventos";
 import { NewEventRouteView } from "@/routes/administracion.eventos_.nuevo";
 
-describe("administracion/eventos route rendering", () => {
-  test("renders an empty Eventos state with a link to create a new Evento", () => {
+describe("`/administracion/eventos` route rendering", () => {
+  test("renders an empty events state with a link to create a new event", () => {
     const markup = renderRoute({
       events: [],
     });
@@ -24,7 +24,7 @@ describe("administracion/eventos route rendering", () => {
   });
 
   // The dates are days, not moments: the form must never offer a time input.
-  test("renders the Evento form with date-only fields", () => {
+  test("renders the event form with date-only fields", () => {
     const markup = renderCreateRoute({
       status: "error",
       message: "Revisá los datos del evento.",

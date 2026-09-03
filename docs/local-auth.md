@@ -1,7 +1,7 @@
 # Local Operation and Auth
 
 This document explains how to run the current En Escena access stack locally. It
-supports PRD #1, "Registro publico y autenticacion de usuarios". Better Auth is
+supports PRD #1, `Registro público y autenticación de usuarios`. Better Auth is
 the only credential provider; ADR
 [0013: Exit Supabase](adr/0013-exit-supabase.md) records why the Supabase
 adoption ADRs (0001, 0005, 0006, 0008 and 0010) are superseded.
