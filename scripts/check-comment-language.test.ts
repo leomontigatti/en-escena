@@ -327,6 +327,74 @@ describe("comment-language guardrail (#592)", () => {
   });
 });
 
+describe("comment-language guardrail, thrown error messages", () => {
+  test("catches Spanish in a thrown error message", () => {
+    expect(
+      violationsIn(`throw new Error("Falta la variable de entorno.");`),
+    ).toMatchObject([{ kind: "error message" }]);
+  });
+
+  test("catches Spanish carried only by the second half of a concatenation", () => {
+    // The literal that opens the call is English, so matching on the callee of
+    // the opening literal would report nothing here. The scope is the call.
+    const violations = violationsIn(
+      `throw new Error(
+         "The service dates go " +
+           "las tres juntas o ninguna.",
+       );`,
+    );
+
+    expect(violations).toMatchObject([{ kind: "error message" }]);
+    // `las` appears only in the second literal, so this is the half that fired.
+    expect(violations[0].markers).toContain("las");
+  });
+
+  test("catches Spanish thrown from an error subclass", () => {
+    expect(
+      violationsIn(`throw new ArcaTimeoutError("El servicio no respondió.");`),
+    ).toMatchObject([{ kind: "error message" }]);
+  });
+
+  // The distinction the whole rule rests on. This codebase names its refusal
+  // builders for what they refuse, so `updateError(…)` looks like a constructor
+  // and carries the copy a user reads. Requiring `new` is what separates them.
+  test("does not read a refusal builder as an error constructor", () => {
+    expect(
+      violationsIn(`return updateError("Ingresá el nombre visible.");`),
+    ).toEqual([]);
+    expect(violationsIn(`return actionError("Acción no soportada.");`)).toEqual(
+      [],
+    );
+  });
+
+  // A thrown `Response` reaches the error boundary, so its body is user copy.
+  test("leaves a thrown `Response` in Spanish alone", () => {
+    expect(
+      violationsIn(`throw new Response("No encontramos ese Bailarín.", {
+         status: 404,
+       });`),
+    ).toEqual([]);
+  });
+
+  test("does not read a `new Error` inside a fixture string as code", () => {
+    expect(
+      violationsIn('const fixture = `throw new Error("Falta la variable.");`;'),
+    ).toEqual([]);
+  });
+
+  test("reads an interpolation as the expression it is, not as vocabulary", () => {
+    expect(
+      violationsIn("throw new Error(`Expected ${academia} to be loaded.`);"),
+    ).toEqual([]);
+  });
+
+  test("still names a Spanish term the way the identifier rule does", () => {
+    expect(
+      violationsIn('throw new Error("Expected `Bases del evento` to exist.");'),
+    ).toEqual([]);
+  });
+});
+
 describe("comment-language guardrail, markdown (#792)", () => {
   const docPath = "docs/domain/example.md";
 

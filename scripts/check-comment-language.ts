@@ -29,6 +29,12 @@ import { collectSourceFiles } from "./source-files";
 // a comment is CODING_STANDARDS' reserved list — `comprobante`, grown only by
 // ADR. Everything else the glossary names is a violation, and naming it is done
 // the way the identifier rule already does it, by quoting or backticking it.
+//
+// The scopes it reads are comments, test names and the argument of a
+// `new …Error(…)`. Arbitrary string literals are left alone on purpose — Spanish
+// UI copy lives in literals — but an error message is engineering prose by the
+// same test #592 applied, and eleven Spanish ones outlived that sweep. See
+// `findErrorMessages` for why the predicate is exactly this narrow.
 
 // Every directory in the repo that holds `.ts`/`.tsx`/`.mts`/`.mjs`, plus the
 // root-level configs `collectScannedFiles` adds. `.sandcastle` is here because
@@ -246,7 +252,7 @@ const quoteCharacters = new Set(['"', "'", "`"]);
 
 export type CommentLanguageViolation = {
   filePath: string;
-  kind: "comment" | "prose" | "test name";
+  kind: "comment" | "error message" | "prose" | "test name";
   lineNumber: number;
   markers: string[];
   text: string;
@@ -381,6 +387,10 @@ function blankTo(match: string): string {
  * does not carry: blanking `comprobante` out of `comprobantes` on its own would
  * leave a bare `s` behind.
  *
+ * A `${…}` interpolation is blanked because it is an expression, not prose —
+ * `${academia}` in an error message names a variable, and reading it as
+ * vocabulary would report the identifier rather than the sentence around it.
+ *
  * The route alternative ends on a segment rather than on a slash, because
  * `/administracion/bases-del-evento/precios` has no trailing one and used to
  * leave `precios` behind as bare prose. Nothing reported it while the glossary
@@ -390,7 +400,7 @@ function blankTo(match: string): string {
 function blankDataSpans(text: string): string {
   return text
     .replace(
-      /`[^`]*`|"[^"]*"|«[^»]*»|“[^”]*”|https?:\/\/\S+|(?<![\p{L}\d])\/[\p{L}\d$_.\-]+(?:\/[\p{L}\d$_.\-]*)*/giu,
+      /\$\{[^}]*\}|`[^`]*`|"[^"]*"|«[^»]*»|“[^”]*”|https?:\/\/\S+|(?<![\p{L}\d])\/[\p{L}\d$_.\-]+(?:\/[\p{L}\d$_.\-]*)*/giu,
       blankTo,
     )
     .replace(reservedTermPattern, blankTo);
@@ -619,6 +629,120 @@ function findTestTitles(contents: string, strings: SourceSpan[]): SourceSpan[] {
   });
 }
 
+/**
+ * `new` followed by a constructor whose name ends in `Error`: the built-ins, and
+ * this repo's `ArcaTimeoutError` and `WebhookVerificationError`.
+ *
+ * The `new` is load-bearing, not decoration. Dropping it and matching any
+ * `…Error(` call reported 22 findings that are all correct Spanish, because this
+ * codebase builds its refusals with functions named for what they refuse:
+ * `updateError("Ingresá el nombre visible.")`, `actionError`, `creationError`,
+ * `genericLoginError` — result builders whose argument is the copy a user reads.
+ * No bare `Error(…)` constructor call exists in the tree, so requiring `new`
+ * costs nothing and separates the two exactly.
+ *
+ * The `Error` suffix carries the rest of the predicate. `CobroRefusal`, the one
+ * thrown type here that lacks it, exists to carry a *user's* refusal message
+ * across a transaction boundary — precisely what this rule must not reach.
+ */
+const errorConstructorPattern =
+  /(?<![\p{L}\d$_.])new\s+[\p{L}\d$_]*Error\s*\(/gu;
+
+/**
+ * The string literals a `new Error(…)` call holds.
+ *
+ * #791 gated comments, test names and markdown, and left string literals alone
+ * on purpose: Spanish UI copy lives in literals, so flagging them wholesale
+ * would be wrong. The gap that leaves is that a Spanish `throw new Error("…")`
+ * passes, even though it is engineering prose by the standard's own definition —
+ * a user-facing refusal in this codebase travels as a structured action result
+ * or a thrown `Response`, never as a thrown `Error`. Eleven such messages were
+ * still in the tree after #592's sweep reported zero.
+ *
+ * `new Error` is the whole predicate because it is the one call whose argument
+ * is engineering prose by construction. `new Response("Acción no soportada.")`
+ * sits two lines away in the same files and must stay Spanish: React Router
+ * routes a thrown `Response` to the error boundary, so its body is user copy.
+ *
+ * Matching on the *call* rather than on the literal that opens it is what makes
+ * a concatenated message — `"… van " + "las tres juntas o ninguna."` — checked
+ * in both halves rather than only the first.
+ */
+function findErrorMessages(
+  contents: string,
+  comments: SourceSpan[],
+  strings: SourceSpan[],
+): SourceSpan[] {
+  const calls = errorCallSpans(contents, comments, strings);
+
+  return strings.filter((span) =>
+    calls.some(
+      (call) => span.startIndex > call.open && span.startIndex < call.close,
+    ),
+  );
+}
+
+function errorCallSpans(
+  contents: string,
+  comments: SourceSpan[],
+  strings: SourceSpan[],
+): { close: number; open: number }[] {
+  return Array.from(contents.matchAll(errorConstructorPattern)).flatMap(
+    (match) => {
+      // This guardrail's own tests carry `new Error("…")` inside fixture
+      // strings, and the fixtures are not code. Same reasoning as `test("…")`.
+      if (isInsideAnySpan(match.index, [...comments, ...strings])) {
+        return [];
+      }
+
+      const open = match.index + match[0].length - 1;
+      const close = indexOfMatchingParenthesis(contents, open);
+
+      return close === -1 ? [] : [{ close, open }];
+    },
+  );
+}
+
+function isInsideAnySpan(index: number, spans: SourceSpan[]): boolean {
+  return spans.some(
+    (span) =>
+      index >= span.startIndex && index < span.startIndex + span.text.length,
+  );
+}
+
+/** From an opening `(`, the index of the `)` that closes it. */
+function indexOfMatchingParenthesis(
+  contents: string,
+  openIndex: number,
+): number {
+  let depth = 0;
+  let index = openIndex;
+
+  while (index < contents.length) {
+    // A parenthesis inside a literal or a comment does not nest.
+    const token = tokenAt(contents, index);
+
+    if (token !== null) {
+      index = token.stop;
+      continue;
+    }
+
+    if (contents[index] === "(") {
+      depth += 1;
+    } else if (contents[index] === ")") {
+      depth -= 1;
+
+      if (depth === 0) {
+        return index;
+      }
+    }
+
+    index += 1;
+  }
+
+  return -1;
+}
+
 function lineNumberAt(contents: string, index: number): number {
   return contents.slice(0, index).split("\n").length;
 }
@@ -711,6 +835,10 @@ export function findSpanishProseInSource(input: {
     spans: SourceSpan[];
   }[] = [
     { kind: "comment", spans: comments },
+    {
+      kind: "error message",
+      spans: findErrorMessages(input.contents, comments, strings),
+    },
     { kind: "test name", spans: findTestTitles(input.contents, strings) },
   ];
 

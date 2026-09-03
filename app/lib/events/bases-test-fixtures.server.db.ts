@@ -231,7 +231,7 @@ export async function expectCreated<TRecord extends { id: string }>(
   const result = await resultPromise;
 
   if (!result.ok || !result.record) {
-    throw new Error("Expected Bases del evento creation to succeed.");
+    throw new Error("Expected `Bases del evento` creation to succeed.");
   }
 
   return result.record;
