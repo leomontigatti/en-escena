@@ -128,7 +128,7 @@ describe("internal user invitations", () => {
         role: "academy" as "admin",
         requestUrl: "http://localhost/administracion/usuarios/nuevo",
       }),
-    ).rejects.toThrow("La invitación interna no puede asignar academia.");
+    ).rejects.toThrow("An internal invitation cannot assign an academy.");
   });
 
   test("marks consumed invitations as invalid after first use", async () => {

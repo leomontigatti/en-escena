@@ -27,7 +27,7 @@ describe("`Bases del evento` modalities repository", () => {
     );
 
     if (!("name" in modality)) {
-      throw new Error("Expected created modalidad to include a name.");
+      throw new Error("Expected the created `Modalidad` to include a name.");
     }
     expect(modality.name).toBe("Jazz");
 

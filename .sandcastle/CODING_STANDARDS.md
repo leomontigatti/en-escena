@@ -129,8 +129,8 @@ argument that kept adding to them was "consistent with the file": reviews of
 Spanish comments defended on exactly that ground. That debt is gone —
 [#592](https://github.com/leomontigatti/en-escena/issues/592) swept it, comments
 and test names alike — and `pnpm check:comment-language` now fails the commit and
-the build on Spanish prose in a comment or a test name, so the argument no longer
-has anything to appeal to.
+the build on Spanish prose in a comment, a test name or a thrown error message,
+so the argument no longer has anything to appeal to.
 
 The converse still holds: **do not opportunistically translate** comments you are
 not otherwise touching. The sweep is done, so a stray Spanish line is now a bug
@@ -168,6 +168,37 @@ of something external may not be rewritten. `docs/adr/` is the decision as it wa
 taken. `docs/research/` cites Argentine tax law by the titles the regulations
 actually carry, and `RG 1415/2003 — Régimen de emisión de comprobantes` is the
 name of the thing: a translated citation leads a reader nowhere.
+
+### `throw new Error("…")` is engineering prose
+
+The guardrail does not read arbitrary string literals, and that is deliberate:
+Spanish UI copy lives in literals, so flagging them wholesale would be wrong.
+That left one gap wide enough to matter — a Spanish `throw new Error("…")` is
+engineering prose by this section's own test, since nobody but a developer or an
+operator ever reads it, and eleven of them were still in the tree after #592
+reported zero. **The argument of a `new …Error(…)` is checked like a comment.**
+
+The predicate is narrow on purpose, and both halves of it earn their place:
+
+- **`new` is required.** This codebase names its refusal builders for what they
+  refuse — `updateError("Ingresá el nombre visible.")`, `actionError`,
+  `creationError`, `genericLoginError`. Their argument is the copy a user reads.
+  Matching any `…Error(` call instead reported 22 findings, every one of them
+  correctly Spanish.
+- **The constructor name must end in `Error`.** `new Response("Acción no
+  soportada.")` sits two lines away in the same files and stays Spanish: React
+  Router routes a thrown `Response` to the error boundary, so its body is user
+  copy. `CobroRefusal` carries a user's refusal across a transaction boundary and
+  is deliberately not named `…Error`.
+
+**A user-facing refusal never travels as a thrown `Error` here.** It is a
+structured action result or a thrown `Response`. If you find yourself wanting to
+throw an `Error` at a user, that is the bug — not this rule.
+
+Marking still works the usual way, so `` throw new Error("Expected `Bases del
+evento` to exist.") `` is fine. What the gate cannot see is a message assembled
+from a fragment passed in as a variable: `decodePem(…, "El certificado")` fed a
+Spanish subject into an English sentence and survived #592's sweep untouched.
 
 YAML is on the same rule and is still not machine-checked, so it rests on review;
 three workflow files under `.github/workflows/` carry Spanish today, and

@@ -213,7 +213,7 @@ function requireEnv(name: string, env: NodeJS.ProcessEnv): string {
   const value = env[name];
 
   if (!value || value.trim() === "") {
-    throw new Error(`Falta la variable de entorno ${name}.`);
+    throw new Error(`Missing environment variable ${name}.`);
   }
 
   return value;
@@ -227,8 +227,8 @@ function decodePem(base64: string, kind: string): string {
 
   if (!pem.includes("-----BEGIN")) {
     throw new Error(
-      `${kind} no parece un PEM válido tras decodificar base64 ` +
-        `(no contiene "-----BEGIN"). ¿La variable está bien codificada?`,
+      `${kind} does not look like a valid PEM once base64-decoded ` +
+        `(no "-----BEGIN" in it). Is the variable encoded correctly?`,
     );
   }
 
@@ -241,14 +241,14 @@ function decodePem(base64: string, kind: string): string {
 export function readArcaClientConfig(
   env: NodeJS.ProcessEnv = process.env,
 ): ArcaClientConfig {
-  const cert = decodePem(requireEnv("ARCA_CERT_B64", env), "El certificado");
-  const key = decodePem(requireEnv("ARCA_KEY_B64", env), "La clave privada");
+  const cert = decodePem(requireEnv("ARCA_CERT_B64", env), "The certificate");
+  const key = decodePem(requireEnv("ARCA_KEY_B64", env), "The private key");
 
   const cuitRaw = requireEnv("ARCA_CUIT", env);
   const cuit = Number(cuitRaw);
 
   if (!Number.isInteger(cuit)) {
-    throw new Error(`ARCA_CUIT="${cuitRaw}" no es un entero.`);
+    throw new Error(`ARCA_CUIT="${cuitRaw}" is not an integer.`);
   }
 
   return {

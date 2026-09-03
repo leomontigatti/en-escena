@@ -398,7 +398,7 @@ export function readFacturaCEmissionConfig(
 function requireEnv(env: NodeJS.ProcessEnv, name: string): string {
   const value = env[name];
   if (!value || value.trim() === "") {
-    throw new Error(`Falta la variable de entorno ${name}.`);
+    throw new Error(`Missing environment variable ${name}.`);
   }
   return value;
 }
@@ -407,7 +407,7 @@ function requirePositiveIntEnv(env: NodeJS.ProcessEnv, name: string): number {
   const raw = requireEnv(env, name);
   const value = Number(raw);
   if (!Number.isInteger(value) || value <= 0) {
-    throw new Error(`${name}="${raw}" no es un entero positivo.`);
+    throw new Error(`${name}="${raw}" is not a positive integer.`);
   }
   return value;
 }
