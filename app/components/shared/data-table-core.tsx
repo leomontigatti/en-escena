@@ -1,14 +1,16 @@
 import {
   flexRender,
   type ColumnDef,
+  type ColumnFiltersState,
   type OnChangeFn,
   type Row,
   type RowData,
   type RowSelectionState,
+  type SortingState,
   type Table as TanStackTable,
 } from "@tanstack/react-table";
 import { LoaderCircle, Search, X } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 
 import { Button } from "@/components/ui/button";
@@ -21,8 +23,10 @@ import {
 } from "@/components/shared/data-table-controls";
 import {
   compareSortValues,
+  createColumnFilters,
   getActiveFacetedFilterValues,
   isFacetedFilterValue,
+  mergeBaseFacetedFilterValues,
   normalizeSearchValue,
   toSortDirection,
 } from "@/components/shared/data-table-helpers";
@@ -57,6 +61,110 @@ export const emptyFacetedFilterValues: Record<
   string,
   DataTableFacetedFilterValue
 > = {};
+
+/**
+ * A stable identity for "no faceted filters". Both tables resolve their
+ * defaults on every render, and a fresh `[]` each time would make every effect
+ * that reads the filters treat "no filters" as a change.
+ */
+export const emptyFacetedFilters: DataTableFacetedFilter[] = [];
+
+/**
+ * The search box's own state, seeded from the prop and re-seeded when it moves.
+ * `lastAppliedSearchValueRef` is the server table's: it debounces the query into
+ * the URL and needs to know what it last navigated with. The client table
+ * filters in place and ignores it.
+ */
+export function useDataTableSearchQueryState(initialSearchValue: string) {
+  const [searchQuery, setSearchQuery] = useState(initialSearchValue);
+  const lastAppliedSearchValueRef = useRef(initialSearchValue);
+
+  useEffect(() => {
+    setSearchQuery(initialSearchValue);
+    lastAppliedSearchValueRef.current = initialSearchValue;
+  }, [initialSearchValue]);
+
+  return { lastAppliedSearchValueRef, searchQuery, setSearchQuery };
+}
+
+/**
+ * The faceted filters' state. The base values are the ones the caller pins —a
+ * filter the reader cannot lift— and the initial ones are where the reader
+ * starts; they are merged in that order every time either moves.
+ */
+export function useDataTableColumnFiltersState({
+  baseFacetedFilterValues,
+  initialFacetedFilterValues,
+}: {
+  baseFacetedFilterValues: Record<string, DataTableFacetedFilterValue>;
+  initialFacetedFilterValues: Record<string, DataTableFacetedFilterValue>;
+}) {
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(() =>
+    createMergedColumnFilters(
+      baseFacetedFilterValues,
+      initialFacetedFilterValues,
+    ),
+  );
+
+  useEffect(() => {
+    setColumnFilters(
+      createMergedColumnFilters(
+        baseFacetedFilterValues,
+        initialFacetedFilterValues,
+      ),
+    );
+  }, [baseFacetedFilterValues, initialFacetedFilterValues]);
+
+  return { columnFilters, setColumnFilters };
+}
+
+function createMergedColumnFilters(
+  baseFacetedFilterValues: Record<string, DataTableFacetedFilterValue>,
+  initialFacetedFilterValues: Record<string, DataTableFacetedFilterValue>,
+) {
+  return createColumnFilters(
+    mergeBaseFacetedFilterValues(
+      baseFacetedFilterValues,
+      initialFacetedFilterValues,
+    ),
+  );
+}
+
+/**
+ * The sort, seeded from the prop and re-seeded when the caller moves it.
+ *
+ * The two fields are read out before the effect rather than depended on as one
+ * object: every call site passes an object literal, so the object's identity
+ * changes on each render and depending on it would re-seed the sort forever.
+ * What the caller can actually move is the column and the direction.
+ */
+export function useDataTableSortingState(initialSort?: {
+  columnId: string;
+  direction: DataTableSortDirection;
+}) {
+  const sortColumnId = initialSort?.columnId;
+  const sortDirection = initialSort?.direction;
+  const [sorting, setSorting] = useState<SortingState>(() =>
+    createSortingState(sortColumnId, sortDirection),
+  );
+
+  useEffect(() => {
+    setSorting(createSortingState(sortColumnId, sortDirection));
+  }, [sortColumnId, sortDirection]);
+
+  return { sorting, setSorting };
+}
+
+function createSortingState(
+  columnId?: string,
+  direction?: DataTableSortDirection,
+): SortingState {
+  if (!columnId || !direction) {
+    return [];
+  }
+
+  return [{ id: columnId, desc: direction === "desc" }];
+}
 
 type DataTableShellProps<TData> = {
   table: TanStackTable<TData>;

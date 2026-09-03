@@ -7,14 +7,7 @@ import {
   type SortingState,
   useReactTable,
 } from "@tanstack/react-table";
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type Dispatch,
-  type SetStateAction,
-} from "react";
+import { useEffect, useMemo, type Dispatch, type SetStateAction } from "react";
 import { useLocation, useNavigate, useNavigation } from "react-router";
 
 import {
@@ -22,11 +15,9 @@ import {
   buildDataTablePageHref,
   buildDataTableSearchHref,
   buildDataTableSortHref,
-  createColumnFilters,
   getNextServerSortDirection,
   getServerSortDirection,
   isFacetedFilterValue,
-  mergeBaseFacetedFilterValues,
   mergeServerFilterValues,
 } from "@/components/shared/data-table-helpers";
 import {
@@ -34,8 +25,12 @@ import {
   createDataTableColumns,
   createGlobalFilterFn,
   DataTableShell,
+  emptyFacetedFilters,
   emptyFacetedFilterValues,
+  useDataTableColumnFiltersState,
   useDataTableRowSelection,
+  useDataTableSearchQueryState,
+  useDataTableSortingState,
 } from "@/components/shared/data-table-core";
 import type {
   DataTableFacetedFilter,
@@ -67,12 +62,12 @@ export function ServerDataTable<TData>(props: ServerDataTableProps<TData>) {
     selectedRowIds: props.selectedRowIds,
   });
   const { searchQuery, setSearchQuery, lastAppliedSearchValueRef } =
-    useSearchQueryState(initialSearchValue);
-  const { columnFilters, setColumnFilters } = useColumnFiltersState({
+    useDataTableSearchQueryState(initialSearchValue);
+  const { columnFilters, setColumnFilters } = useDataTableColumnFiltersState({
     baseFacetedFilterValues,
     initialFacetedFilterValues,
   });
-  const { sorting, setSorting } = useSortingState(props.initialSort);
+  const { sorting, setSorting } = useDataTableSortingState(props.initialSort);
   const serverSort = sorting[0];
 
   const table = useServerReactTable({
@@ -178,10 +173,6 @@ function resolveServerDataTableDefaults<TData>(
   };
 }
 
-// A stable identity: the resolver runs on every render, and a fresh `[]` would
-// make every effect that reads the filters treat "no filters" as a change.
-const emptyFacetedFilters: DataTableFacetedFilter[] = [];
-
 function useServerDataTableColumns<TData>(
   columns: ServerDataTableProps<TData>["columns"],
   selectableRows: boolean,
@@ -196,85 +187,6 @@ function useServerDataTableColumns<TData>(
   );
 
   return { columnVisibility, tableColumns };
-}
-
-function useSearchQueryState(initialSearchValue: string) {
-  const [searchQuery, setSearchQuery] = useState(initialSearchValue);
-  const lastAppliedSearchValueRef = useRef(initialSearchValue);
-
-  useEffect(() => {
-    setSearchQuery(initialSearchValue);
-    lastAppliedSearchValueRef.current = initialSearchValue;
-  }, [initialSearchValue]);
-
-  return { searchQuery, setSearchQuery, lastAppliedSearchValueRef };
-}
-
-function useColumnFiltersState({
-  baseFacetedFilterValues,
-  initialFacetedFilterValues,
-}: {
-  baseFacetedFilterValues: Record<string, DataTableFacetedFilterValue>;
-  initialFacetedFilterValues: Record<string, DataTableFacetedFilterValue>;
-}) {
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(() =>
-    createServerColumnFilters(
-      baseFacetedFilterValues,
-      initialFacetedFilterValues,
-    ),
-  );
-
-  useEffect(() => {
-    setColumnFilters(
-      createServerColumnFilters(
-        baseFacetedFilterValues,
-        initialFacetedFilterValues,
-      ),
-    );
-  }, [baseFacetedFilterValues, initialFacetedFilterValues]);
-
-  return { columnFilters, setColumnFilters };
-}
-
-function createServerColumnFilters(
-  baseFacetedFilterValues: Record<string, DataTableFacetedFilterValue>,
-  initialFacetedFilterValues: Record<string, DataTableFacetedFilterValue>,
-) {
-  return createColumnFilters(
-    mergeBaseFacetedFilterValues(
-      baseFacetedFilterValues,
-      initialFacetedFilterValues,
-    ),
-  );
-}
-
-function useSortingState(
-  initialSort: ServerDataTableProps<unknown>["initialSort"],
-) {
-  const [sorting, setSorting] = useState<SortingState>(() =>
-    createServerSortingState(initialSort),
-  );
-
-  useEffect(() => {
-    setSorting(createServerSortingState(initialSort));
-  }, [initialSort?.columnId, initialSort?.direction]);
-
-  return { sorting, setSorting };
-}
-
-function createServerSortingState(
-  initialSort: ServerDataTableProps<unknown>["initialSort"],
-): SortingState {
-  if (!initialSort) {
-    return [];
-  }
-
-  return [
-    {
-      id: initialSort.columnId,
-      desc: initialSort.direction === "desc",
-    },
-  ];
 }
 
 function useServerReactTable<TData>({
