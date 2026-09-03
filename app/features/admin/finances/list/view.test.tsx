@@ -59,7 +59,7 @@ function isColumnMuted(markup: string, header: string) {
   );
 
   if (index === -1) {
-    throw new Error(`No se encontró la columna "${header}".`);
+    throw new Error(`Expected a column headed "${header}".`);
   }
 
   const rows = [...document.querySelectorAll("tbody tr")];

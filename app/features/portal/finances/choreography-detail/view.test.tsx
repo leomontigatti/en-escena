@@ -234,7 +234,7 @@ function amountColumnStyles(markup: string) {
       const cell = cells[headers.indexOf(column)];
 
       if (!cell) {
-        throw new Error(`No se encontró la columna "${column}".`);
+        throw new Error(`Expected a cell for the column "${column}".`);
       }
 
       return [

@@ -300,7 +300,7 @@ function columnCell(markup: string, column: string, rowIndex: number): Element {
   ];
 
   if (!cell) {
-    throw new Error(`No se encontró la columna "${column}".`);
+    throw new Error(`Expected a cell for the column "${column}".`);
   }
 
   return cell;
@@ -318,7 +318,7 @@ function amountColumnStyles(markup: string) {
       const cell = cells[headers.indexOf(column)];
 
       if (!cell) {
-        throw new Error(`No se encontró la columna "${column}".`);
+        throw new Error(`Expected a cell for the column "${column}".`);
       }
 
       return [
@@ -340,7 +340,7 @@ function anomalyAlert(markup: string): Element {
   );
 
   if (!alert) {
-    throw new Error("No se encontró la alerta de anomalía.");
+    throw new Error("Expected the anomaly alert to be rendered.");
   }
 
   return alert;
@@ -359,7 +359,7 @@ function amountCard(markup: string, title: string): Element {
   );
 
   if (!card) {
-    throw new Error(`No se encontró la MetricCard "${title}".`);
+    throw new Error(`Expected a MetricCard titled "${title}".`);
   }
 
   return card;
