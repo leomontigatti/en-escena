@@ -57,7 +57,7 @@ function isAvailableBalanceMuted(markup: string) {
   const cell = cells[headers.indexOf("Saldo disponible")];
 
   if (!cell) {
-    throw new Error('No se encontró la columna "Saldo disponible".');
+    throw new Error('Expected a cell for the column "Saldo disponible".');
   }
 
   return cell.querySelector(".text-muted-foreground") !== null;

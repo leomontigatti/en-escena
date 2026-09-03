@@ -19,7 +19,7 @@ describe("internal username", () => {
     "USER+PLUS",
   ])("rejects invalid values: %s", (value) => {
     expect(() => assertValidInternalUsername(value)).toThrowError(
-      "Nombre de usuario interno inválido.",
+      "Invalid internal username.",
     );
   });
 });

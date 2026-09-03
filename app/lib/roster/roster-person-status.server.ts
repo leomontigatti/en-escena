@@ -93,7 +93,7 @@ export async function setRosterPersonStatus<
 }): Promise<RosterPersonStatusWriteResult<Kind>> {
   if (input.surface === "portal" && input.academyId === null) {
     throw new Error(
-      "El portal de academias solo puede cambiar el Estado de alta de su propia academia.",
+      "The academy portal can only change the roster status of its own academy.",
     );
   }
 

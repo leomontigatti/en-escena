@@ -5,11 +5,14 @@ import { describe, expect, test } from "vitest";
 import {
   checkCommentLanguage,
   excludedDocDirectories,
+  excludedYamlFiles,
   findSpanishProseInMarkdown,
   findSpanishProseInSource,
+  findSpanishProseInYaml,
   readGlossaryNouns,
   scannedDirectories,
   scannedDocDirectories,
+  scannedYamlDirectories,
 } from "./check-comment-language";
 
 const filePath = "app/features/admin/example.tsx";
@@ -327,6 +330,74 @@ describe("comment-language guardrail (#592)", () => {
   });
 });
 
+describe("comment-language guardrail, thrown error messages", () => {
+  test("catches Spanish in a thrown error message", () => {
+    expect(
+      violationsIn(`throw new Error("Falta la variable de entorno.");`),
+    ).toMatchObject([{ kind: "error message" }]);
+  });
+
+  test("catches Spanish carried only by the second half of a concatenation", () => {
+    // The literal that opens the call is English, so matching on the callee of
+    // the opening literal would report nothing here. The scope is the call.
+    const violations = violationsIn(
+      `throw new Error(
+         "The service dates go " +
+           "las tres juntas o ninguna.",
+       );`,
+    );
+
+    expect(violations).toMatchObject([{ kind: "error message" }]);
+    // `las` appears only in the second literal, so this is the half that fired.
+    expect(violations[0].markers).toContain("las");
+  });
+
+  test("catches Spanish thrown from an error subclass", () => {
+    expect(
+      violationsIn(`throw new ArcaTimeoutError("El servicio no respondió.");`),
+    ).toMatchObject([{ kind: "error message" }]);
+  });
+
+  // The distinction the whole rule rests on. This codebase names its refusal
+  // builders for what they refuse, so `updateError(…)` looks like a constructor
+  // and carries the copy a user reads. Requiring `new` is what separates them.
+  test("does not read a refusal builder as an error constructor", () => {
+    expect(
+      violationsIn(`return updateError("Ingresá el nombre visible.");`),
+    ).toEqual([]);
+    expect(violationsIn(`return actionError("Acción no soportada.");`)).toEqual(
+      [],
+    );
+  });
+
+  // A thrown `Response` reaches the error boundary, so its body is user copy.
+  test("leaves a thrown `Response` in Spanish alone", () => {
+    expect(
+      violationsIn(`throw new Response("No encontramos ese Bailarín.", {
+         status: 404,
+       });`),
+    ).toEqual([]);
+  });
+
+  test("does not read a `new Error` inside a fixture string as code", () => {
+    expect(
+      violationsIn('const fixture = `throw new Error("Falta la variable.");`;'),
+    ).toEqual([]);
+  });
+
+  test("reads an interpolation as the expression it is, not as vocabulary", () => {
+    expect(
+      violationsIn("throw new Error(`Expected ${academia} to be loaded.`);"),
+    ).toEqual([]);
+  });
+
+  test("still names a Spanish term the way the identifier rule does", () => {
+    expect(
+      violationsIn('throw new Error("Expected `Bases del evento` to exist.");'),
+    ).toEqual([]);
+  });
+});
+
 describe("comment-language guardrail, markdown (#792)", () => {
   const docPath = "docs/domain/example.md";
 
@@ -434,6 +505,79 @@ describe("comment-language guardrail, markdown (#792)", () => {
         !excludedDocDirectories.some((directory) =>
           repoRelativePath.startsWith(`${directory}/`),
         ),
+    );
+
+    expect(unaccounted).toEqual([]);
+  });
+});
+
+describe("comment-language guardrail, YAML (#793)", () => {
+  const yamlPath = ".github/workflows/ci.yml";
+
+  function yamlKindsIn(contents: string): string[] {
+    return findSpanishProseInYaml({
+      contents,
+      filePath: yamlPath,
+      glossaryNouns,
+    }).map((violation) => violation.kind);
+  }
+
+  test("catches a Spanish YAML comment, on its own line or trailing a value", () => {
+    expect(yamlKindsIn("# El default local es 5433.\n")).toEqual(["comment"]);
+    expect(
+      yamlKindsIn("uses: pnpm/action-setup@v5 # versión desde el manifiesto\n"),
+    ).toEqual(["comment"]);
+  });
+
+  test("stays quiet on an English comment and on ordinary YAML", () => {
+    expect(
+      yamlKindsIn(
+        "# The local default is 5433.\nTEST_DATABASE_URL: postgres://localhost:5432/db\n",
+      ),
+    ).toEqual([]);
+  });
+
+  // A `#` only opens a comment at line start or after whitespace, so neither of
+  // these is one. `#305` used to be the risk: the tree carries `(#305/#391)`.
+  test("does not read a `#` inside a value as a comment", () => {
+    expect(yamlKindsIn('name: "Corre la suite #305"\n')).toEqual([]);
+    expect(yamlKindsIn("color: '#fff' # el color de la marca\n")).toEqual([
+      "comment",
+    ]);
+  });
+
+  // A shell comment inside a `run: |` block is read by the same contributor as
+  // the YAML comment above it, so the rule does not stop at the block scalar.
+  test("reads a shell comment inside a `run:` block", () => {
+    expect(
+      yamlKindsIn("      - run: |\n          # Corre la suite completa.\n"),
+    ).toEqual(["comment"]);
+  });
+
+  test("marks data in a YAML comment the way a source comment does", () => {
+    expect(
+      yamlKindsIn("# version comes from `packageManager` (pnpm 11.9.0)\n"),
+    ).toEqual([]);
+  });
+
+  // The same argument as the other two scan roots: a clean run says nothing
+  // about a directory nobody walks.
+  test("every directory holding tracked YAML is scanned", () => {
+    const tracked = execFileSync("git", ["ls-files", "*.yml", "*.yaml"], {
+      cwd: process.cwd(),
+      encoding: "utf8",
+    })
+      .split("\n")
+      .filter(Boolean);
+
+    const unaccounted = tracked.filter(
+      (repoRelativePath) =>
+        // At the repo root, which `collectScannedYaml` picks up directly.
+        repoRelativePath.includes("/") &&
+        !scannedYamlDirectories.some((directory) =>
+          repoRelativePath.startsWith(`${directory}/`),
+        ) &&
+        !excludedYamlFiles.includes(repoRelativePath),
     );
 
     expect(unaccounted).toEqual([]);

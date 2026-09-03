@@ -14,7 +14,7 @@ function isValidInternalUsername(value: string) {
 
 export function assertValidInternalUsername(value: string) {
   if (!isValidInternalUsername(value)) {
-    throw new Error("Nombre de usuario interno inválido.");
+    throw new Error("Invalid internal username.");
   }
 
   return normalizeInternalUsername(value);

@@ -126,8 +126,9 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      # El default local es 5433; en CI el service mapea a 5432. `tests/db/config.ts`
-      # respeta esta env var, y `db:test:reset` la propaga como DATABASE_URL a drizzle-kit.
+      # The local default is 5433; in CI the service maps to 5432.
+      # `tests/db/config.ts` honours this env var, and `db:test:reset` passes it
+      # through to drizzle-kit as DATABASE_URL.
       TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/en-escena-test
     steps:
       - uses: actions/checkout@v5
@@ -137,6 +138,6 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Resetea y aplica el schema versionado (path de #305/#391) y corre la suite
-      # DB completa contra Postgres real.
+      # Resets and applies the versioned schema (the #305/#391 path), then runs
+      # the whole DB suite against a real Postgres.
       - run: pnpm test:db:postgres

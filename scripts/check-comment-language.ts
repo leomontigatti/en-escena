@@ -29,6 +29,12 @@ import { collectSourceFiles } from "./source-files";
 // a comment is CODING_STANDARDS' reserved list — `comprobante`, grown only by
 // ADR. Everything else the glossary names is a violation, and naming it is done
 // the way the identifier rule already does it, by quoting or backticking it.
+//
+// The scopes it reads are comments, test names and the argument of a
+// `new …Error(…)`. Arbitrary string literals are left alone on purpose — Spanish
+// UI copy lives in literals — but an error message is engineering prose by the
+// same test #592 applied, and eleven Spanish ones outlived that sweep. See
+// `findErrorMessages` for why the predicate is exactly this narrow.
 
 // Every directory in the repo that holds `.ts`/`.tsx`/`.mts`/`.mjs`, plus the
 // root-level configs `collectScannedFiles` adds. `.sandcastle` is here because
@@ -49,6 +55,24 @@ const docFilePattern = /\.md$/;
 // emisión de comprobantes" is the name of the thing, and a translated citation
 // leads a reader nowhere (#792 Q7/Q8).
 export const excludedDocDirectories = ["docs/adr", "docs/research"];
+
+// YAML is on the same rule and used to rest on review, which is how six Spanish
+// comments outlived #592 across four workflow files (#793). A `#` comment is
+// trivially extractable and the word lists already exist, so gating it is a
+// small change — and the alternative is sweeping the six and watching the
+// seventh drift back, which is exactly what happened to comments before #791.
+//
+// `.github` plus the root-level files `collectScannedYaml` adds. The first draft
+// of this claimed `.github` was the whole surface; the scan-root test below
+// answered with `docker-compose.yml`, `pnpm-workspace.yaml` and `pnpm-lock.yaml`
+// — which is the same gap `vitest.config.ts` was hiding in before #791, found
+// the same way.
+export const scannedYamlDirectories = [".github"];
+const yamlFilePattern = /\.(yml|yaml)$/;
+
+// Generated, not written: a lockfile is 330 KB of resolution output that no
+// contributor reads as prose, and nobody may rewrite by hand anyway.
+export const excludedYamlFiles = ["pnpm-lock.yaml"];
 
 // Spanish function words with no English homograph. Deliberately absent:
 // `todo`/`todos` (the TODO comment marker), `sea`, `era`, `son`, `sin`, `solo`,
@@ -246,7 +270,7 @@ const quoteCharacters = new Set(['"', "'", "`"]);
 
 export type CommentLanguageViolation = {
   filePath: string;
-  kind: "comment" | "prose" | "test name";
+  kind: "comment" | "error message" | "prose" | "test name";
   lineNumber: number;
   markers: string[];
   text: string;
@@ -258,6 +282,8 @@ type CheckCommentLanguageOptions = {
   /** Markdown files to scan. Defaults to every scanned doc directory. */
   docs?: string[];
   rootDirectory?: string;
+  /** YAML files to scan. Defaults to every scanned YAML directory. */
+  yaml?: string[];
 };
 
 type SourceSpan = {
@@ -381,6 +407,10 @@ function blankTo(match: string): string {
  * does not carry: blanking `comprobante` out of `comprobantes` on its own would
  * leave a bare `s` behind.
  *
+ * A `${…}` interpolation is blanked because it is an expression, not prose —
+ * `${academia}` in an error message names a variable, and reading it as
+ * vocabulary would report the identifier rather than the sentence around it.
+ *
  * The route alternative ends on a segment rather than on a slash, because
  * `/administracion/bases-del-evento/precios` has no trailing one and used to
  * leave `precios` behind as bare prose. Nothing reported it while the glossary
@@ -390,7 +420,7 @@ function blankTo(match: string): string {
 function blankDataSpans(text: string): string {
   return text
     .replace(
-      /`[^`]*`|"[^"]*"|«[^»]*»|“[^”]*”|https?:\/\/\S+|(?<![\p{L}\d])\/[\p{L}\d$_.\-]+(?:\/[\p{L}\d$_.\-]*)*/giu,
+      /\$\{[^}]*\}|`[^`]*`|"[^"]*"|«[^»]*»|“[^”]*”|https?:\/\/\S+|(?<![\p{L}\d])\/[\p{L}\d$_.\-]+(?:\/[\p{L}\d$_.\-]*)*/giu,
       blankTo,
     )
     .replace(reservedTermPattern, blankTo);
@@ -619,6 +649,120 @@ function findTestTitles(contents: string, strings: SourceSpan[]): SourceSpan[] {
   });
 }
 
+/**
+ * `new` followed by a constructor whose name ends in `Error`: the built-ins, and
+ * this repo's `ArcaTimeoutError` and `WebhookVerificationError`.
+ *
+ * The `new` is load-bearing, not decoration. Dropping it and matching any
+ * `…Error(` call reported 22 findings that are all correct Spanish, because this
+ * codebase builds its refusals with functions named for what they refuse:
+ * `updateError("Ingresá el nombre visible.")`, `actionError`, `creationError`,
+ * `genericLoginError` — result builders whose argument is the copy a user reads.
+ * No bare `Error(…)` constructor call exists in the tree, so requiring `new`
+ * costs nothing and separates the two exactly.
+ *
+ * The `Error` suffix carries the rest of the predicate. `CobroRefusal`, the one
+ * thrown type here that lacks it, exists to carry a *user's* refusal message
+ * across a transaction boundary — precisely what this rule must not reach.
+ */
+const errorConstructorPattern =
+  /(?<![\p{L}\d$_.])new\s+[\p{L}\d$_]*Error\s*\(/gu;
+
+/**
+ * The string literals a `new Error(…)` call holds.
+ *
+ * #791 gated comments, test names and markdown, and left string literals alone
+ * on purpose: Spanish UI copy lives in literals, so flagging them wholesale
+ * would be wrong. The gap that leaves is that a Spanish `throw new Error("…")`
+ * passes, even though it is engineering prose by the standard's own definition —
+ * a user-facing refusal in this codebase travels as a structured action result
+ * or a thrown `Response`, never as a thrown `Error`. Eleven such messages were
+ * still in the tree after #592's sweep reported zero.
+ *
+ * `new Error` is the whole predicate because it is the one call whose argument
+ * is engineering prose by construction. `new Response("Acción no soportada.")`
+ * sits two lines away in the same files and must stay Spanish: React Router
+ * routes a thrown `Response` to the error boundary, so its body is user copy.
+ *
+ * Matching on the *call* rather than on the literal that opens it is what makes
+ * a concatenated message — `"… van " + "las tres juntas o ninguna."` — checked
+ * in both halves rather than only the first.
+ */
+function findErrorMessages(
+  contents: string,
+  comments: SourceSpan[],
+  strings: SourceSpan[],
+): SourceSpan[] {
+  const calls = errorCallSpans(contents, comments, strings);
+
+  return strings.filter((span) =>
+    calls.some(
+      (call) => span.startIndex > call.open && span.startIndex < call.close,
+    ),
+  );
+}
+
+function errorCallSpans(
+  contents: string,
+  comments: SourceSpan[],
+  strings: SourceSpan[],
+): { close: number; open: number }[] {
+  return Array.from(contents.matchAll(errorConstructorPattern)).flatMap(
+    (match) => {
+      // This guardrail's own tests carry `new Error("…")` inside fixture
+      // strings, and the fixtures are not code. Same reasoning as `test("…")`.
+      if (isInsideAnySpan(match.index, [...comments, ...strings])) {
+        return [];
+      }
+
+      const open = match.index + match[0].length - 1;
+      const close = indexOfMatchingParenthesis(contents, open);
+
+      return close === -1 ? [] : [{ close, open }];
+    },
+  );
+}
+
+function isInsideAnySpan(index: number, spans: SourceSpan[]): boolean {
+  return spans.some(
+    (span) =>
+      index >= span.startIndex && index < span.startIndex + span.text.length,
+  );
+}
+
+/** From an opening `(`, the index of the `)` that closes it. */
+function indexOfMatchingParenthesis(
+  contents: string,
+  openIndex: number,
+): number {
+  let depth = 0;
+  let index = openIndex;
+
+  while (index < contents.length) {
+    // A parenthesis inside a literal or a comment does not nest.
+    const token = tokenAt(contents, index);
+
+    if (token !== null) {
+      index = token.stop;
+      continue;
+    }
+
+    if (contents[index] === "(") {
+      depth += 1;
+    } else if (contents[index] === ")") {
+      depth -= 1;
+
+      if (depth === 0) {
+        return index;
+      }
+    }
+
+    index += 1;
+  }
+
+  return -1;
+}
+
 function lineNumberAt(contents: string, index: number): number {
   return contents.slice(0, index).split("\n").length;
 }
@@ -698,6 +842,82 @@ function blankMarkdownDataSpans(contents: string): string {
     .replace(reservedTermPattern, blankTo);
 }
 
+/**
+ * A `#` opens a YAML comment when it starts the line or follows whitespace and
+ * is not inside a quoted scalar. That is the YAML rule, and the two guards are
+ * what keep `#` inside a value out of it — a colour, a URL fragment, or the
+ * `#305/#391` an issue reference carries.
+ *
+ * It reads a `#` inside a `run: |` block as a comment too. That is deliberate:
+ * a shell comment in a workflow step is read by the same contributor as the
+ * YAML comment above it, so the rule has no reason to stop at the block scalar.
+ */
+function yamlCommentAt(line: string): string | null {
+  let quote: string | null = null;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index];
+
+    if (quote !== null) {
+      if (character === quote) {
+        quote = null;
+      }
+      continue;
+    }
+
+    if (character === '"' || character === "'") {
+      quote = character;
+      continue;
+    }
+
+    if (character === "#" && (index === 0 || /\s/.test(line[index - 1]))) {
+      return line.slice(index);
+    }
+  }
+
+  return null;
+}
+
+/**
+ * YAML is prose only in its comments, so unlike markdown there is no question of
+ * what counts as a passage: the comment is the unit, and the line is where it is
+ * reported. Data is marked the way it is in a source comment — this is code, and
+ * `# versión desde \`packageManager\`` is the shape the tree actually carries.
+ */
+export function findSpanishProseInYaml(input: {
+  contents: string;
+  filePath: string;
+  /** Empty turns the vocabulary instrument off; say so rather than omit it. */
+  glossaryNouns: string[];
+}): CommentLanguageViolation[] {
+  return input.contents.split("\n").flatMap((line, index) => {
+    const comment = yamlCommentAt(line);
+
+    if (comment === null) {
+      return [];
+    }
+
+    const matches = spanishMarkersIn(
+      blankDataSpans(comment),
+      input.glossaryNouns,
+    );
+
+    if (matches.length === 0) {
+      return [];
+    }
+
+    return [
+      {
+        filePath: input.filePath,
+        kind: "comment" as const,
+        lineNumber: index + 1,
+        markers: [...new Set(matches.map((match) => match[0].toLowerCase()))],
+        text: comment.trim().slice(0, 120),
+      },
+    ];
+  });
+}
+
 export function findSpanishProseInSource(input: {
   contents: string;
   filePath: string;
@@ -711,6 +931,10 @@ export function findSpanishProseInSource(input: {
     spans: SourceSpan[];
   }[] = [
     { kind: "comment", spans: comments },
+    {
+      kind: "error message",
+      spans: findErrorMessages(input.contents, comments, strings),
+    },
     { kind: "test name", spans: findTestTitles(input.contents, strings) },
   ];
 
@@ -746,6 +970,7 @@ export async function checkCommentLanguage(
   const glossaryNouns = readGlossaryNouns(rootDirectory);
   const files = options.files ?? collectScannedFiles(rootDirectory);
   const docs = options.docs ?? collectScannedDocs(rootDirectory);
+  const yaml = options.yaml ?? collectScannedYaml(rootDirectory);
 
   return [
     ...files.flatMap((filePath) => {
@@ -761,6 +986,15 @@ export async function checkCommentLanguage(
       const absolutePath = path.resolve(rootDirectory, filePath);
 
       return findSpanishProseInMarkdown({
+        contents: readFileSync(absolutePath, "utf8"),
+        filePath: path.relative(rootDirectory, absolutePath),
+        glossaryNouns,
+      });
+    }),
+    ...yaml.flatMap((filePath) => {
+      const absolutePath = path.resolve(rootDirectory, filePath);
+
+      return findSpanishProseInYaml({
         contents: readFileSync(absolutePath, "utf8"),
         filePath: path.relative(rootDirectory, absolutePath),
         glossaryNouns,
@@ -803,6 +1037,25 @@ function collectScannedDocs(rootDirectory: string): string[] {
  * is not hypothetical: `vitest.config.ts` was carrying seven lines of Spanish
  * that this guardrail flags the moment it is allowed to look at them.
  */
+function collectScannedYaml(rootDirectory: string): string[] {
+  const keeps = (fileName: string) =>
+    yamlFilePattern.test(fileName) && !excludedYamlFiles.includes(fileName);
+
+  const rootYaml = readdirSync(rootDirectory, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && keeps(entry.name))
+    .map((entry) => path.join(rootDirectory, entry.name));
+
+  return [
+    ...rootYaml,
+    ...scannedYamlDirectories.flatMap((directory) =>
+      collectSourceFiles({
+        directoryPath: path.join(rootDirectory, directory),
+        keeps,
+      }),
+    ),
+  ];
+}
+
 function collectScannedFiles(rootDirectory: string): string[] {
   const rootFiles = readdirSync(rootDirectory, { withFileTypes: true })
     .filter((entry) => entry.isFile() && sourceFilePattern.test(entry.name))

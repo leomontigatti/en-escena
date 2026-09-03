@@ -219,7 +219,7 @@ describe.sequential("setRosterPersonStatus", () => {
         personId: fixture.dancer.id,
         surface: "portal",
       }),
-    ).rejects.toThrow(/academia/);
+    ).rejects.toThrow(/its own academy/);
 
     const [row] = await db
       .select({ active: dancers.active })

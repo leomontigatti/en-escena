@@ -108,7 +108,17 @@ The product is Spanish; the codebase is English.
 | UI strings, page titles, URLs          | Spanish                          | `"Comprobante"`, `/administracion/comprobantes` |
 | Code identifiers, comments, docs, ADRs | English                          | `loadAcademyFinances`                           |
 | Commit messages, PR titles and bodies  | English                          | `fix(choreographies): …`                        |
+| GitHub issues                          | Spanish for now — see below      | #592, #686, #793                                |
 | External-system adapters               | the external system's vocabulary | `ArcaVoucher`, `createVoucher`                  |
+
+**Issues are the one row that is not settled.** The owner decided on 2026-08-11
+that they stay Spanish for now, with English as the declared direction, and asked
+that this file stop being silent about it — the practice had settled without a
+decision, which is the state that lets an argument like "the file around it is
+already Spanish" take hold. So: write issues in Spanish today, expect that to
+change, and change it by amending this row rather than by drifting. Note the row
+covers the issue body a human writes; a commit or PR that closes it is English
+either way, per the row above.
 
 Route filenames are URLs, so they stay Spanish
 (`administracion.finanzas_.$academyId.tsx`) while the symbols they export are
@@ -129,8 +139,8 @@ argument that kept adding to them was "consistent with the file": reviews of
 Spanish comments defended on exactly that ground. That debt is gone —
 [#592](https://github.com/leomontigatti/en-escena/issues/592) swept it, comments
 and test names alike — and `pnpm check:comment-language` now fails the commit and
-the build on Spanish prose in a comment or a test name, so the argument no longer
-has anything to appeal to.
+the build on Spanish prose in a comment, a test name or a thrown error message,
+so the argument no longer has anything to appeal to.
 
 The converse still holds: **do not opportunistically translate** comments you are
 not otherwise touching. The sweep is done, so a stray Spanish line is now a bug
@@ -169,9 +179,46 @@ taken. `docs/research/` cites Argentine tax law by the titles the regulations
 actually carry, and `RG 1415/2003 — Régimen de emisión de comprobantes` is the
 name of the thing: a translated citation leads a reader nowhere.
 
-YAML is on the same rule and is still not machine-checked, so it rests on review;
-three workflow files under `.github/workflows/` carry Spanish today, and
-[#793](https://github.com/leomontigatti/en-escena/issues/793) owns them.
+### `throw new Error("…")` is engineering prose
+
+The guardrail does not read arbitrary string literals, and that is deliberate:
+Spanish UI copy lives in literals, so flagging them wholesale would be wrong.
+That left one gap wide enough to matter — a Spanish `throw new Error("…")` is
+engineering prose by this section's own test, since nobody but a developer or an
+operator ever reads it, and eleven of them were still in the tree after #592
+reported zero. **The argument of a `new …Error(…)` is checked like a comment.**
+
+The predicate is narrow on purpose, and both halves of it earn their place:
+
+- **`new` is required.** This codebase names its refusal builders for what they
+  refuse — `updateError("Ingresá el nombre visible.")`, `actionError`,
+  `creationError`, `genericLoginError`. Their argument is the copy a user reads.
+  Matching any `…Error(` call instead reported 22 findings, every one of them
+  correctly Spanish.
+- **The constructor name must end in `Error`.** `new Response("Acción no
+  soportada.")` sits two lines away in the same files and stays Spanish: React
+  Router routes a thrown `Response` to the error boundary, so its body is user
+  copy. `CobroRefusal` carries a user's refusal across a transaction boundary and
+  is deliberately not named `…Error`.
+
+**A user-facing refusal never travels as a thrown `Error` here.** It is a
+structured action result or a thrown `Response`. If you find yourself wanting to
+throw an `Error` at a user, that is the bug — not this rule.
+
+Marking still works the usual way, so `` throw new Error("Expected `Bases del
+evento` to exist.") `` is fine. What the gate cannot see is a message assembled
+from a fragment passed in as a variable: `decodePem(…, "El certificado")` fed a
+Spanish subject into an English sentence and survived #592's sweep untouched.
+
+**YAML is covered too** (#793): `.yml` and `.yaml` under `.github/`, plus the
+repo root. A `#` opens a comment at line start or after whitespace and outside a
+quoted scalar, which is YAML's own rule, so a `#` inside a value — `#fff`, or the
+`#305` of an issue reference — is not one. A shell comment inside a `run: |`
+block *is* read, because the contributor reading it is the one reading the YAML
+comment above it. One exclusion: `pnpm-lock.yaml` is generated, not written.
+
+It was gated because leaving it on review is what let six Spanish comments across
+four workflow files outlive #592's sweep.
 
 One file type is exempt from every direction of this rule: **an applied migration under
 `app/db/migrations/` is frozen, comments included.** Drizzle hashes the whole

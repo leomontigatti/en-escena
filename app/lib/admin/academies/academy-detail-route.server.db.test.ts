@@ -61,7 +61,9 @@ function isFieldDisabled(markup: string, fieldName: string) {
   )?.[0];
 
   if (!tag) {
-    throw new Error(`No se encontró el campo "${fieldName}" en el markup.`);
+    throw new Error(
+      `Expected the markup to hold a field named "${fieldName}".`,
+    );
   }
 
   return / disabled=""/.test(tag);
