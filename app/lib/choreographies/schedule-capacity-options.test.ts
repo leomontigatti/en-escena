@@ -6,7 +6,7 @@ import {
 } from "./schedule-capacity-options";
 
 describe("toScheduleCapacitySelectOptions", () => {
-  test("disables the options whose cupo is full and no others", () => {
+  test("disables the options whose capacity is full and no others", () => {
     expect(
       toScheduleCapacitySelectOptions([
         {

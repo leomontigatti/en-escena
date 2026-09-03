@@ -29,7 +29,8 @@ Index of the repo's conventions. Every operative rule lives in its own file unde
   [docs/operations/infrastructure.md](docs/operations/infrastructure.md).
 - **DNS and email** (zone on Cloudflare, inbound via Email Routing, outbound via
   Resend): [docs/operations/dns-and-email.md](docs/operations/dns-and-email.md).
-- **Fallow** (audit and investigation, not a commit gate): [docs/agents/fallow.md](docs/agents/fallow.md).
+- **Fallow** (commit gate via `pnpm check:fallow`, and investigation tool):
+  [docs/agents/fallow.md](docs/agents/fallow.md).
 - **AFK platform** (spec of the 8 workflows, source of truth; vendored from Matt Pocock):
   [docs/agents/afk-agent-platform-spec.md](docs/agents/afk-agent-platform-spec.md); what was
   adapted is in [docs/agents/afk-vendored-assets.md](docs/agents/afk-vendored-assets.md).

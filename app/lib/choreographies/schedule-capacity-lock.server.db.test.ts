@@ -53,7 +53,7 @@ async function createSingleSlotRegistration(input: {
 }
 
 describe.sequential("schedule capacity lock", () => {
-  test("keeps the cupo available for the choreography that already occupies it", async () => {
+  test("keeps the capacity available for the choreography that already occupies it", async () => {
     const { catalog, choreography } = await createSingleSlotRegistration({
       academyName: "Academia Cupo Excluido",
       email: "cupo.cronograma.excluido@example.com",
@@ -75,7 +75,7 @@ describe.sequential("schedule capacity lock", () => {
     });
   });
 
-  test("reports the cupo as full when no choreography is excluded", async () => {
+  test("reports the capacity as full when no choreography is excluded", async () => {
     const { catalog } = await createSingleSlotRegistration({
       academyName: "Academia Cupo Lleno",
       email: "cupo.cronograma.lleno@example.com",
@@ -96,7 +96,7 @@ describe.sequential("schedule capacity lock", () => {
     });
   });
 
-  test("keeps the cronograma total available for the choreography that already occupies it", async () => {
+  test("keeps the schedule total available for the choreography that already occupies it", async () => {
     const { catalog, choreography } = await createSingleSlotRegistration({
       academyName: "Academia Cronograma Excluido",
       email: "cronograma.total.excluido@example.com",
@@ -137,7 +137,7 @@ describe.sequential("schedule capacity lock", () => {
     });
   });
 
-  test("rejects a cupo that belongs to a different cronograma", async () => {
+  test("rejects a capacity that belongs to a different schedule", async () => {
     const { catalog, event } = await createSingleSlotRegistration({
       academyName: "Academia Cupo De Otro Cronograma",
       email: "cupo.de.otro.cronograma@example.com",
@@ -161,7 +161,7 @@ describe.sequential("schedule capacity lock", () => {
     });
   });
 
-  test("rejects a cronograma that no longer exists", async () => {
+  test("rejects a schedule that no longer exists", async () => {
     await createSingleSlotRegistration({
       academyName: "Academia Cronograma Inexistente",
       email: "cronograma.inexistente@example.com",

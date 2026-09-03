@@ -23,7 +23,7 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 installDatabaseTestHooks();
 
 describe.sequential("choreography registration confirmation", () => {
-  test("creates a Coreografía with dancer age snapshots, Profesores, and normalized Spanish title case on final confirmation", async () => {
+  test("creates a choreography with dancer age snapshots, professors, and normalized Spanish title case on final confirmation", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Confirmación",
       email: "registro.coreografia.confirmacion@example.com",
@@ -143,7 +143,7 @@ describe.sequential("choreography registration confirmation", () => {
     expect(storedChoreographies).toHaveLength(0);
   });
 
-  test("revalidates Nivel and Cupo de cronograma on final confirmation and rejects stale or tampered payloads", async () => {
+  test("revalidates level and schedule capacity on final confirmation and rejects stale or tampered payloads", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Revalidación",
       email: "registro.coreografia.revalidacion@example.com",
@@ -189,7 +189,7 @@ describe.sequential("choreography registration confirmation", () => {
     });
   });
 
-  test("rejects a Coreografía without Profesores on final confirmation", async () => {
+  test("rejects a choreography without professors on final confirmation", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Sin Profesores",
       email: "registro.coreografia.sin-profesores@example.com",
@@ -223,7 +223,7 @@ describe.sequential("choreography registration confirmation", () => {
     expect(storedChoreographies).toHaveLength(0);
   });
 
-  test("rejects Profesores from another Academia on final confirmation", async () => {
+  test("rejects professors from another academy on final confirmation", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Profesores Propios",
       email: "registro.coreografia.profesor.owner@example.com",
@@ -330,7 +330,7 @@ describe.sequential("choreography registration confirmation", () => {
     expect(storedChoreographies).toHaveLength(0);
   });
 
-  test("returns a clear cupo error and leaves no partial inserts when the selected Cupo de cronograma is already full", async () => {
+  test("returns a clear capacity error and leaves no partial inserts when the selected schedule capacity is already full", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Cupo",
       email: "registro.coreografia.cupo@example.com",
@@ -392,7 +392,7 @@ describe.sequential("choreography registration confirmation", () => {
     expect(storedDancerLinks).toHaveLength(1);
   });
 
-  test("uses cronograma total capacity when confirming without a specific cupo de cronograma", async () => {
+  test("uses schedule total capacity when confirming without a specific schedule capacity", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Cupo Global Confirmación",
       email: "registro.coreografia.global.confirmacion@example.com",

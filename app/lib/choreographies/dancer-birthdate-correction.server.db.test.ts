@@ -28,7 +28,7 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 installDatabaseTestHooks();
 
 describe.sequential("dancer birth date choreography correction", () => {
-  test("recalculates eligible linked coreografias, preserves or clears nivel, and skips presented records", async () => {
+  test("recalculates eligible linked choreographies, preserves or clears level, and skips presented records", async () => {
     const academy = await createAcademySession({
       academyName: "Academia Correcciones",
       email: "admin.birthdate.corrections@example.com",

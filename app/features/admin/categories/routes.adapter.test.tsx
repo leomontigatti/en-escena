@@ -12,7 +12,7 @@ import { CategoryDetailRouteView } from "../../../routes/administracion.categori
 import { NewCategoryRouteView } from "../../../routes/administracion.categorias_.nueva";
 import { CategoriesRouteView } from "../../../routes/administracion.categorias";
 
-describe("administracion.categorias route adapters", () => {
+describe("`administracion.categorias` route adapters", () => {
   test("renders the list feature view from the list route adapter", () => {
     const markup = renderRouteView(
       createElement(CategoriesRouteView, {

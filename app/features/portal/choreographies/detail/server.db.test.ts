@@ -23,7 +23,7 @@ import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 installDatabaseTestHooks();
 
 describe.sequential("portal choreographies reads", () => {
-  test("shows detail only for the authenticated Academia inside the selected Evento and includes archived linked roster", async () => {
+  test("shows detail only for the authenticated academy inside the selected event and includes archived linked roster", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Dueña",
       email: "coreografias.detail.owner@example.com",

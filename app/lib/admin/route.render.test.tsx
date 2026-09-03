@@ -22,8 +22,8 @@ import {
   handle as createUserHandle,
 } from "@/routes/administracion.usuarios_.nuevo";
 
-describe("administracion layout route", () => {
-  test("renders the administrative shell around the migrated Usuarios creation route", () => {
+describe("`/administracion` layout route", () => {
+  test("renders the administrative shell around the migrated users creation route", () => {
     const RoutesStub = createRoutesStub([
       {
         path: "/administracion",
@@ -62,7 +62,7 @@ describe("administracion layout route", () => {
     expect(markup).not.toContain("Evento activo");
   });
 
-  test("collects Bases del evento dynamic breadcrumbs from child route metadata", () => {
+  test("collects `Bases del evento` dynamic breadcrumbs from child route metadata", () => {
     const RoutesStub = createRoutesStub([
       {
         path: "/administracion",

@@ -21,7 +21,7 @@ import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-describe("administracion/usuarios/nuevo route", () => {
+describe("`/administracion/usuarios/nuevo` route", () => {
   test("requires admin access and renders the temporary password warning", async () => {
     await expectThrownResponse(
       loader(

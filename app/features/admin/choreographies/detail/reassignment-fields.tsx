@@ -26,7 +26,7 @@ import type { ChoreographyDetailLoaderData } from "./server";
  * `disabled` is what a pending modality correction uses to hold them while its
  * resolution is in flight: they keep showing the saved value in the same
  * control instead of collapsing into a read-only field, so nothing next to the
- * modalidad select changes shape between the click and the answer.
+ * modality select changes shape between the click and the answer.
  */
 export function SubmodalityField({
   disabled = false,
@@ -42,8 +42,8 @@ export function SubmodalityField({
     choreography.submodalityId ?? "",
   );
 
-  // Editable only for `admin`, when the modalidad has submodalidades and the
-  // choreography has no presentación yet. Changing the modalidad itself is a
+  // Editable only for `admin`, when the modality has submodalities and the
+  // choreography has no presentation yet. Changing the modality itself is a
   // separate compound correction, which owns this field while it is pending.
   const isEditable =
     loaderData.canEdit &&

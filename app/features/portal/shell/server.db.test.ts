@@ -28,8 +28,8 @@ import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-describe.sequential("portal loader Evento activo", () => {
-  test("uses the active Evento in the shell summary", async () => {
+describe.sequential("portal loader event active", () => {
+  test("uses the active event in the shell summary", async () => {
     await createSavedEvent({
       name: "Regional 2025",
       registrationStartsAt: date("2025-03-01T12:00:00Z"),
@@ -53,7 +53,7 @@ describe.sequential("portal loader Evento activo", () => {
     });
   });
 
-  test("ignores the event URL query and keeps using the active Evento", async () => {
+  test("ignores the event URL query and keeps using the active event", async () => {
     const selectedEvent = await createSavedEvent({ name: "Seleccionado" });
     const activeEvent = await createSavedEvent({
       name: "Activo",
@@ -75,7 +75,7 @@ describe.sequential("portal loader Evento activo", () => {
     });
   });
 
-  test("does not fall back to the most recent Evento when no Evento is active", async () => {
+  test("does not fall back to the most recent event when no event is active", async () => {
     await createSavedEvent({
       name: "Regional 2025",
       registrationStartsAt: date("2025-03-01T12:00:00Z"),
@@ -94,7 +94,7 @@ describe.sequential("portal loader Evento activo", () => {
     expect(loaderData.eventContext.activeEvent).toBeNull();
   });
 
-  test("keeps the portal accessible when there are no Eventos", async () => {
+  test("keeps the portal accessible when there are no events", async () => {
     const loaderData = await loadPortal("http://localhost/portal");
 
     expect(loaderData.academy).toMatchObject({
@@ -136,16 +136,13 @@ describe.sequential("portal roster list loaders", () => {
       "http://localhost/portal/coreografias",
     ],
     ["Profesores", profesoresLoader, "http://localhost/portal/profesores"],
-  ])(
-    "allows an Academia user to access %s",
-    async (_name, routeLoader, url) => {
-      const loaderData = await routeLoader({
-        request: await createAcademyRequest(url),
-      });
+  ])("allows an academy user to access %s", async (_name, routeLoader, url) => {
+    const loaderData = await routeLoader({
+      request: await createAcademyRequest(url),
+    });
 
-      expect(loaderData).toBeDefined();
-    },
-  );
+    expect(loaderData).toBeDefined();
+  });
 
   test.each([
     ["Perfil", perfilLoader, "http://localhost/portal/perfil"],

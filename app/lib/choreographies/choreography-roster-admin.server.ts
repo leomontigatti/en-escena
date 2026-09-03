@@ -29,7 +29,7 @@ import {
 import { guardAndLockScheduleCapacityMove } from "@/lib/choreographies/schedule-capacity-lock.server";
 
 /**
- * Administration edits the roster (dancers and professors) of an
+ * administration edits the roster (dancers and professors) of an
  * already-created choreography. Unlike the portal, it is not tied to the
  * registration window: the only hard lock is the choreography already having a
  * presentation attached.
@@ -212,7 +212,7 @@ async function updateChoreographyDancers(input: {
 
   const selectedSchedule = resolvedScheduleCapacityId.value;
 
-  // #730: final, explicit revalidation that the cupo about to be persisted is
+  // #730: final, explicit revalidation that the capacity about to be persisted is
   // still compatible with the groupType resolved in *this same submit*,
   // independent of `scheduleCapacityChanged` below. Every branch that builds
   // `selectedSchedule` already draws it from `resolution`'s own compatible
@@ -223,7 +223,7 @@ async function updateChoreographyDancers(input: {
   // currently reachable rejection. Cheap and needs no transaction/lock, so it
   // runs before entering one: a different, unconditional concern from the
   // capacity-lock/frozen-price guard (#659) right below, which only fires
-  // when the cupo axis actually moves.
+  // when the capacity axis actually moves.
   if (
     !isCompatibleScheduleCapacity(
       getScheduleSelectionId(selectedSchedule),
@@ -241,19 +241,19 @@ async function updateChoreographyDancers(input: {
     resolvedDancers.map((dancer) => dancer.id),
   );
   // The resolution always recomputes scheduleId/scheduleCapacityId, even when
-  // the roster edit lands on the same cupo it already occupies (e.g. a name-
+  // the roster edit lands on the same capacity it already occupies (e.g. a name-
   // only save, or a dancer swap that keeps the same group type). The guard and
   // the lock below must fire only on an actual move, or every unrelated save
   // would pay their cost — and a save that changes nothing on this axis would
-  // wrongly report the cupo it already holds as full.
+  // wrongly report the capacity it already holds as full.
   // A choreography row stores exactly one of the pair populated: a specific
-  // cupo (`scheduleCapacityId`) or the whole cronograma (`scheduleId`, with
+  // capacity (`scheduleCapacityId`) or the whole schedule (`scheduleId`, with
   // `scheduleCapacityId` left null). `scheduleId` on its own is therefore not
-  // a reliable diff target when a cupo is assigned — the cupo's own id already
-  // determines its cronograma, and comparing raw `scheduleId` in that case
-  // would read every save that keeps the same cupo as a move. `scheduleId`
-  // only carries the comparison when the destination selection has no cupo
-  // of its own (the whole-cronograma case).
+  // a reliable diff target when a capacity is assigned — the capacity's own id already
+  // determines its schedule, and comparing raw `scheduleId` in that case
+  // would read every save that keeps the same capacity as a move. `scheduleId`
+  // only carries the comparison when the destination selection has no capacity
+  // of its own (the whole-schedule case).
   const scheduleCapacityChanged =
     choreography.scheduleCapacityId !== selectedSchedule.scheduleCapacityId ||
     (selectedSchedule.scheduleCapacityId === null &&

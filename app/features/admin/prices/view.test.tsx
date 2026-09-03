@@ -42,7 +42,7 @@ describe("EventPriceDetailRouteView", () => {
     container = null;
   });
 
-  test("resets the form when rendering a different precio in the same component instance", async () => {
+  test("resets the form when rendering a different price in the same component instance", async () => {
     const firstPrice = createPrice({
       amount: 12000,
       groupType: "solo",

@@ -118,7 +118,7 @@ describe.sequential("handlePortalProfessorDetailAction", () => {
     });
   });
 
-  test("rejects a duplicate complete document within the same Academia", async () => {
+  test("rejects a duplicate complete document within the same academy", async () => {
     const owner = await createAcademySession({
       email: "profesores.duplicate.owner@example.com",
       academyName: "Academia Dueña",
@@ -162,7 +162,7 @@ describe.sequential("handlePortalProfessorDetailAction", () => {
     });
   });
 
-  test("allows the same complete document in another Academia", async () => {
+  test("allows the same complete document in another academy", async () => {
     const owner = await createAcademySession({
       email: "profesores.cross-academy.owner@example.com",
       academyName: "Academia Dueña",
@@ -208,7 +208,7 @@ describe.sequential("handlePortalProfessorDetailAction", () => {
     });
   });
 
-  test("allows the same complete document once as professor and once as dancer in the same Academia", async () => {
+  test("allows the same complete document once as professor and once as dancer in the same academy", async () => {
     const owner = await createAcademySession({
       email: "profesores.cross-role.owner@example.com",
       academyName: "Academia Dueña",
@@ -251,7 +251,7 @@ describe.sequential("handlePortalProfessorDetailAction", () => {
     });
   });
 
-  test("returns not found when another Academia loads or updates the professor", async () => {
+  test("returns not found when another academy loads or updates the professor", async () => {
     const owner = await createAcademySession({
       email: "profesores.not-found.owner@example.com",
       academyName: "Academia Dueña",

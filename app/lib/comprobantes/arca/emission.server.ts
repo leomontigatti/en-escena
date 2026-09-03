@@ -299,7 +299,7 @@ function buildRejectionMessage(emission: FacturaCEmissionResult): string {
   return `ARCA no autorizó el comprobante (${detail}).`;
 }
 
-// Fecha de negocio `AAAA-MM-DD` → formato ARCA `AAAAMMDD`.
+// Business date `AAAA-MM-DD` → ARCA format `AAAAMMDD`.
 export function toArcaDate(dateOnly: string): string {
   return dateOnly.replace(/-/g, "");
 }

@@ -18,7 +18,7 @@ type RosterPersonRowByKind = {
 };
 
 /**
- * The two tables that carry an alta state. They are the same axis, so they get
+ * The two tables that carry a roster person status. They are the same axis, so they get
  * the same predicate rather than one per person kind.
  */
 export type RosterPersonTable = typeof dancers | typeof professors;
@@ -59,7 +59,7 @@ export function rosterPersonStatusCondition(
 }
 
 /**
- * The one writer of the alta state, for both person kinds and both surfaces.
+ * The one writer of the roster person status, for both person kinds and both surfaces.
  * It replaces the four near-identical `setXActiveState` functions — two of
  * which shared a name and differed only in whether they scoped by academy —
  * so that a future rule about archiving is written once instead of four times.

@@ -30,8 +30,8 @@ vi.mock("@/features/admin/dancers/detail/view", () => ({
   InscriptionsSection: vi.fn(),
 }));
 
-describe("administracion.bailarines route adapters", () => {
-  test("delegates list loader and render to the admin Bailarines list feature module", async () => {
+describe("`administracion.bailarines` route adapters", () => {
+  test("delegates list loader and render to the admin dancers list feature module", async () => {
     const routeModule = await import("@/routes/administracion.bailarines");
     const request = new Request("http://localhost/administracion/bailarines");
     const loaderResult = {
@@ -73,7 +73,7 @@ describe("administracion.bailarines route adapters", () => {
     expect(markup).toContain("Bailarines view");
   });
 
-  test("delegates detail loader, action, and render to the admin Bailarín detail feature module", async () => {
+  test("delegates detail loader, action, and render to the admin dancer detail feature module", async () => {
     const routeModule =
       await import("@/routes/administracion.bailarines_.$dancerId");
     const request = new Request(

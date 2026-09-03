@@ -4,10 +4,10 @@ description: "End-to-end implementation workflow. Use when user wants to impleme
 ---
 
 <!--
-  Vendorizado de mattpocock/course-video-manager (.claude/skills/do-work). Adaptado a este
-  repo: comandos de validación pnpm typecheck / pnpm test (ver docs/agents/workflows.md), y la
-  elección de reducer en FRONTEND-TDD suavizada (este repo no usa use-effect-reducer). Ver
-  docs/agents/afk-vendored-assets.md.
+  Vendored from mattpocock/course-video-manager (.claude/skills/do-work). Adapted to this
+  repo: the validation commands are pnpm typecheck / pnpm test (see docs/agents/workflows.md),
+  and the reducer choice in FRONTEND-TDD is softened (this repo does not use
+  use-effect-reducer). See docs/agents/afk-vendored-assets.md.
 -->
 
 # Do Work

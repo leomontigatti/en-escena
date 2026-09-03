@@ -212,7 +212,7 @@ export function deriveInscriptionFinancialFigures(input: {
 
 /**
  * A withdrawn inscription's total is **what remains allocated to it, not zero**:
- * the seña may be forfeited, and the allocation that stays is the record of that
+ * the deposit may be forfeited, and the allocation that stays is the record of that
  * retention. Money and obligation become one statement, and three consequences
  * fall out of that single rule rather than being enforced one by one:
  *
@@ -223,7 +223,7 @@ export function deriveInscriptionFinancialFigures(input: {
  * - The retained money **re-enters the choreography's rollup**, because
  *   `totalAmount` and `allocatedAmount` are both real.
  *
- * The deposit figure survives untouched: the preset that takes the saldo off a
+ * The deposit figure survives untouched: the preset that takes the balance off a
  * withdrawn row needs it, and it is the price's figure, not a claim.
  *
  * The status reads `paidInFull` because nothing is owed, but no surface shows it

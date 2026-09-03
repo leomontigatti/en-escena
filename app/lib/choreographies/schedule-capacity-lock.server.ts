@@ -45,7 +45,7 @@ export type ScheduleCapacityMoveResult =
     };
 
 /**
- * The guard-then-lock pair every cupo move must run, whatever entry point
+ * The guard-then-lock pair every capacity move must run, whatever entry point
  * triggers it (the standalone reassignment, the roster path). Kept as one
  * function so the two callers can't drift on order or on which move counts as
  * frozen: re-checking the guard outside a transaction, or after the lock,
@@ -74,10 +74,10 @@ export async function guardAndLockScheduleCapacityMove(input: {
 }
 
 /**
- * Locks the cronograma (and its cupo, when the selection targets one) and
+ * Locks the schedule (and its capacity, when the selection targets one) and
  * counts the choreographies already assigned to it, so concurrent assignments
  * cannot overshoot the capacity. `excludeChoreographyId` keeps a choreography
- * from counting against the cupo it already occupies, which is what makes
+ * from counting against the capacity it already occupies, which is what makes
  * re-selecting the current assignment a no-op instead of a full-capacity error.
  *
  * `scheduleCapacityId`, when given, must belong to `scheduleId`; a pair that
@@ -122,8 +122,8 @@ export async function lockScheduleCapacityForAssignment(input: {
       return failure("invalid-schedule-capacity", invalidScheduleEntryMessage);
     }
 
-    // A cupo from another cronograma would be counted against the wrong
-    // cronograma's total and stored as a contradictory assignment, so the pair
+    // A capacity from another schedule would be counted against the wrong
+    // schedule's total and stored as a contradictory assignment, so the pair
     // has to belong together before anything is locked in.
     if (lockedScheduleCapacity.scheduleId !== lockedSchedule.id) {
       return failure("invalid-schedule-capacity", invalidScheduleEntryMessage);

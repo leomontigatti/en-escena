@@ -15,8 +15,8 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-describe("Bases del evento modalities repository", () => {
-  test("creates a modalidad together with its submodalidades in one transaction", async () => {
+describe("`Bases del evento` modalities repository", () => {
+  test("creates a modality together with its submodalities in one transaction", async () => {
     const event = await createSavedEvent("Regional 2026");
 
     const modality = await expectCreated(
@@ -45,7 +45,7 @@ describe("Bases del evento modalities repository", () => {
     ]);
   });
 
-  test("creates a modalidad with zero submodalidades", async () => {
+  test("creates a modality with zero submodalities", async () => {
     const event = await createSavedEvent("Regional 2026");
 
     const modality = await expectCreated(
@@ -61,7 +61,7 @@ describe("Bases del evento modalities repository", () => {
     await expect(listSubmodalities(event.id)).resolves.toEqual([]);
   });
 
-  test("surfaces the unique submodalidad name conflict and rolls back the whole insert", async () => {
+  test("surfaces the unique submodality name conflict and rolls back the whole insert", async () => {
     const event = await createSavedEvent("Regional 2026");
 
     await expect(
@@ -75,7 +75,7 @@ describe("Bases del evento modalities repository", () => {
     await expect(listSubmodalities(event.id)).resolves.toEqual([]);
   });
 
-  test("rejects an existing modalidad name without persisting submodalidades", async () => {
+  test("rejects an existing modality name without persisting submodalities", async () => {
     const event = await createSavedEvent("Regional 2026");
     const existing = await expectCreated(
       createModality(event.id, { name: "Jazz" }),

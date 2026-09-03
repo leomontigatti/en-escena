@@ -31,7 +31,7 @@ import { PortalChoreographiesListRouteView } from "@/features/portal/choreograph
 
 const renderer = createReactDomTestRenderer();
 
-describe("coreografías request flow", () => {
+describe("choreographies request flow", () => {
   afterEach(() => {
     renderer.cleanup();
     useActionDataMock.mockReset();

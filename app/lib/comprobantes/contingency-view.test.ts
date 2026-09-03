@@ -77,7 +77,7 @@ describe("toComprobanteContingency", () => {
 
   // None of this is an ARCA contingency: it neither enables nor blocks retries.
   test.each(["not-found", "nothing-to-bill", "already-annulled"])(
-    "`%s` es un error genérico, no una contingencia",
+    "`%s` is a generic error, not a contingency",
     (reason) => {
       expect(toComprobanteContingency({ reason, message: "no" })).toBeNull();
     },

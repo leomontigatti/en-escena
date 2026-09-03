@@ -83,7 +83,7 @@ async function seedSignedInscription(input: {
   return inscription;
 }
 
-describe.sequential("administracion finanzas", () => {
+describe.sequential("`/administracion/finanzas`", () => {
   test("lets admin open finance accounts from academies and renders event-scoped balances", async () => {
     vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
       "2026-03-27",
@@ -182,7 +182,7 @@ describe.sequential("administracion finanzas", () => {
       paymentNumber: 2,
     });
 
-    // Norte Activa: señada with a deposit allocation -> pending saldo 7000.
+    // Norte active: deposit met with a deposit allocation -> pending balance 7000.
     const northActiveDancer = await createDancer(academyNorth.academy.id, {
       firstName: "Ana",
       lastName: "Activa",
@@ -200,7 +200,7 @@ describe.sequential("administracion finanzas", () => {
       paymentId: northPayment.id,
     });
 
-    // Norte Segunda: impaga -> pending seña 3000 at the tentative price.
+    // Norte Segunda: impaga -> pending deposit 3000 at the tentative price.
     const northSecondDancer = await createDancer(academyNorth.academy.id, {
       firstName: "Bruno",
       lastName: "Segundo",
@@ -229,7 +229,7 @@ describe.sequential("administracion finanzas", () => {
       paymentId: northPayment.id,
     });
 
-    // Sur Activa: unpaid -> pending deposit 3000, no allocations.
+    // Sur active: unpaid -> pending deposit 3000, no allocations.
     const southDancer = await createDancer(academySouth.academy.id, {
       firstName: "Delia",
       lastName: "Sur",

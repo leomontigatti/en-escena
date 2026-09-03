@@ -79,7 +79,7 @@ describe("buildComprobantePrintViewModel", () => {
 
     expect(model.lines).toHaveLength(1);
     // The description names the service sold, not a rung of the retired ladder:
-    // `porcion` is deleted, so a comprobante is neither seña nor saldo.
+    // `porcion` is deleted, so a comprobante is neither deposit nor balance.
     expect(model.lines[0].descripcion).toBe("Inscripción");
     expect(model.lines[0].importe).toBe(model.importeTotal);
     // It carries no right-hand side: the receptor block already names the
@@ -123,7 +123,7 @@ describe("buildComprobantePrintViewModel", () => {
     expect(model.receptorCondicionIva).toBe("Consumidor Final");
   });
 
-  test("uses the nota de crédito heading for type 13", () => {
+  test("uses the credit note heading for type 13", () => {
     const model = buildComprobantePrintViewModel(
       printRecord({ cbteTipo: 13, status: "anulada" }),
     );
@@ -150,7 +150,7 @@ describe("renderComprobantePrintDocument", () => {
     expect(html).toContain("Comprobante Autorizado");
   });
 
-  test("prints `Inscripción` alone under Descripción and leaves the context under Receptor", () => {
+  test("prints `Inscripción` alone under `Descripción` and leaves the context under `Receptor`", () => {
     const html = renderComprobantePrintDocument({
       model: buildComprobantePrintViewModel(printRecord()),
       qrCodeSvg: QR_SVG_STUB,

@@ -362,7 +362,7 @@ function ChoreographyDetailForm({
               )}
             />
             {/* Without a pending correction the roster select takes over: a
-                tipo de grupo change clears the cupo and the replacement is
+                group type change clears the capacity and the replacement is
                 chosen together with the confirmation. */}
             <DependentFieldSlot
               modality={modality}

@@ -26,8 +26,8 @@ import { createPriceAdminRequest } from "./event-bases-price.test-helpers";
 
 installDatabaseTestHooks();
 
-describe.sequential("administracion Bases del evento routes", () => {
-  test("returns duplicate modalidad errors from Bases del evento actions", async () => {
+describe.sequential("`/administracion/bases-del-evento` routes", () => {
+  test("returns duplicate modality errors from `Bases del evento` actions", async () => {
     const event = await createSavedEvent("Regional 2026");
     await createModality(event.id, { name: "Jazz" });
     const duplicateRequest = await createSignedInRequest({
@@ -50,7 +50,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     });
   });
 
-  test("returns category validation errors from Bases del evento actions", async () => {
+  test("returns category validation errors from `Bases del evento` actions", async () => {
     const event = await createSavedEvent("Regional 2026");
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
@@ -134,7 +134,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     });
   });
 
-  test("returns precio validation errors from Bases del evento actions", async () => {
+  test("returns price validation errors from `Bases del evento` actions", async () => {
     const event = await createSavedEvent("Regional 2026");
     const createPriceRequest = await createPriceAdminRequest({
       email: "admin.precio.base@example.com",
@@ -218,7 +218,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     });
   });
 
-  test("returns cronograma and cupo de cronograma required errors from Bases del evento actions", async () => {
+  test("returns schedule and schedule capacity required errors from `Bases del evento` actions", async () => {
     const { event, modalities } = await createEventScheduleAdminFixture([
       "Jazz",
     ]);
@@ -304,7 +304,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     });
   });
 
-  test("routes modalidad and submodalidad field errors to the correct form", async () => {
+  test("routes modality and submodality field errors to the correct form", async () => {
     const event = await createSavedEvent("Regional 2026");
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),

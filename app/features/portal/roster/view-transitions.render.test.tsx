@@ -44,7 +44,7 @@ describe("portal view transitions", () => {
     useViewTransitionStateMock.mockReturnValue(false);
   });
 
-  test("scopes list-detail transitions to bailarines and profesores record names", async () => {
+  test("scopes list-detail transitions to dancers and professors record names", async () => {
     useViewTransitionStateMock.mockImplementation(
       (href: string) =>
         href === "/portal/bailarines/dancer_1" ||

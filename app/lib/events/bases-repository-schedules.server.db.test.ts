@@ -27,8 +27,8 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-describe("Bases del evento repository", () => {
-  test("validates cronograma total capacity and accepted modalidades by evento", async () => {
+describe("`Bases del evento` repository", () => {
+  test("validates schedule total capacity and accepted modalities by event", async () => {
     const firstEvent = await createSavedEvent("Regional 2026");
     const secondEvent = await createSavedEvent("Final 2026");
     const jazz = await expectCreated(
@@ -80,7 +80,7 @@ describe("Bases del evento repository", () => {
     });
   });
 
-  test("lists cronogramas with normalized names and allows duplicates inside one evento", async () => {
+  test("lists schedules with normalized names and allows duplicates inside one event", async () => {
     const { event, jazz, urbanas } = await createEventModalitiesFixture();
 
     const block = await createSavedSchedule(event.id, {
@@ -113,7 +113,7 @@ describe("Bases del evento repository", () => {
     ]);
   });
 
-  test("updates cronogramas names while blocking structural edits with dependencies", async () => {
+  test("updates schedules names while blocking structural edits with dependencies", async () => {
     const { event, jazz, urbanas } = await createEventModalitiesFixture();
     const block = await createSavedSchedule(event.id, {
       modalityIds: [jazz.id, urbanas.id],
@@ -160,7 +160,7 @@ describe("Bases del evento repository", () => {
     });
   });
 
-  test("manages cronogramas together with cupos inline through the shared Bases del evento listing", async () => {
+  test("manages schedules together with capacities inline through the shared `Bases del evento` listing", async () => {
     const { event, jazz, urbanas } = await createEventModalitiesFixture();
 
     const schedule = await expectCreated(
@@ -258,10 +258,10 @@ describe("Bases del evento repository", () => {
     ]);
   });
 
-  // The Administración list plans against what is left, so occupancy has to be
+  // The `Administración` list plans against what is left, so occupancy has to be
   // the real one — assigned choreographies — and not the sum of the split
   // capacities, which only shares out the total capacity.
-  test("reports the lugares disponibles left by the coreografías already assigned", async () => {
+  test("reports the lugares available left by the choreographies already assigned", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Lugares Disponibles",
       email: "lugares.disponibles@example.com",

@@ -77,8 +77,8 @@ beforeEach(() => {
   );
 });
 
-describe.sequential("administracion/bailarines route", () => {
-  test("allows admin access and renders an empty readonly Bailarines list", async () => {
+describe.sequential("`/administracion/bailarines` route", () => {
+  test("allows admin access and renders an empty readonly dancers list", async () => {
     const { request } = await createSignedInRequest({
       email: "admin.bailarines@example.com",
       role: "admin",
@@ -338,7 +338,7 @@ describe.sequential("administracion/bailarines route", () => {
     );
   });
 
-  test("shows active records without participation filters or badges when there is no Evento activo", async () => {
+  test("shows active records without participation filters or badges when there is no event active", async () => {
     const participatingAcademy = await createAcademyUser({
       email: "sin.evento.participa.dancers@example.com",
       academyName: "Academia Participa",
@@ -405,7 +405,7 @@ describe.sequential("administracion/bailarines route", () => {
     expect(markup).toContain("Sin verificar");
   });
 
-  test("renders a readonly Bailarín ficha with alerts, base context, tabs, and active-event inscriptions", async () => {
+  test("renders a readonly dancer ficha with alerts, base context, tabs, and active-event inscriptions", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "ficha.dancer.academia@example.com",
@@ -482,7 +482,7 @@ describe.sequential("administracion/bailarines route", () => {
     expect(markup).not.toContain("Acciones");
   });
 
-  test("scopes inscription loader data to the Evento activo and resolves estimated values", async () => {
+  test("scopes inscription loader data to the event active and resolves estimated values", async () => {
     const activeEvent = await createSavedEvent();
     const historicalEvent = await createInactiveEvent({
       name: "Regional histórico 2026",
@@ -556,7 +556,7 @@ describe.sequential("administracion/bailarines route", () => {
     );
   });
 
-  test("returns empty inscription loader data when the Bailarín has no active-event inscriptions", async () => {
+  test("returns empty inscription loader data when the dancer has no active-event inscriptions", async () => {
     const activeEvent = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "sin.inscripciones.academia@example.com",
@@ -666,7 +666,7 @@ describe.sequential("administracion/bailarines route", () => {
     expect(markup).toContain("Reactivar");
   });
 
-  test("renders migrated Bailarines list and detail screens inside the shared administration shell", async () => {
+  test("renders migrated dancers list and detail screens inside the shared administration shell", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "layout.bailarines.academia@example.com",
@@ -730,7 +730,7 @@ describe.sequential("administracion/bailarines route", () => {
     expect(detailMarkup).toContain("Julia Pérez");
   });
 
-  test("updates a Bailarín in explicit edit mode", async () => {
+  test("updates a dancer in explicit edit mode", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "admin.mutacion.bailarines.academia@example.com",
@@ -822,7 +822,7 @@ describe.sequential("administracion/bailarines route", () => {
     }
   });
 
-  test("saves a participating Bailarín without a correction reason", async () => {
+  test("saves a participating dancer without a correction reason", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "admin.motivo.evento.bailarines.academia@example.com",
@@ -872,7 +872,7 @@ describe.sequential("administracion/bailarines route", () => {
     });
   });
 
-  test("saves a Bailarín who participated in any Evento without a correction reason", async () => {
+  test("saves a dancer who participated in any event without a correction reason", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "admin.motivo.historial.bailarines.academia@example.com",
@@ -1009,7 +1009,7 @@ describe.sequential("administracion/bailarines route", () => {
     );
   });
 
-  test("recalculates eligible linked coreografias after a birth date correction", async () => {
+  test("recalculates eligible linked choreographies after a birth date correction", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "admin.fecha.bailarines.academia@example.com",
@@ -1181,7 +1181,7 @@ describe.sequential("administracion/bailarines route", () => {
     });
   });
 
-  test("verifies an unverified Bailarín and returns it to unverified after an administrative edit", async () => {
+  test("verifies an unverified dancer and returns it to unverified after an administrative edit", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "admin.verificacion.bailarines.academia@example.com",
@@ -1289,7 +1289,7 @@ describe.sequential("administracion/bailarines route", () => {
     });
   });
 
-  test("rejects verifying a Bailarín whose identity is already verified", async () => {
+  test("rejects verifying a dancer whose identity is already verified", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "admin.verificacion.repetida.bailarines.academia@example.com",
@@ -1327,7 +1327,7 @@ describe.sequential("administracion/bailarines route", () => {
     );
   });
 
-  test("archives and reactivates a participating Bailarín without a correction reason", async () => {
+  test("archives and reactivates a participating dancer without a correction reason", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "admin.archivo.bailarines.academia@example.com",

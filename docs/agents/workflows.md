@@ -120,10 +120,23 @@ Hook guidance:
 
 - Keep pre-commit hooks fast and deterministic. Formatting staged files through
   `lint-staged` is appropriate.
-- The pre-commit hook runs `lint-staged`, `pnpm typecheck`, and
-  `pnpm check:file-tokens`. Treat that as the minimum commit gate, not as the
-  only validation path for agent work. Hooks can be skipped and may not run in
-  every environment.
+- The pre-commit hook runs `lint-staged`, `pnpm check:comment-language`,
+  `pnpm typecheck`, `pnpm check:file-tokens` and `pnpm check:fallow`. Treat that
+  as the minimum commit gate, not as the only validation path for agent work.
+  Hooks can be skipped and may not run in every environment.
+- `pnpm check:comment-language` fails on Spanish prose in a comment or a test
+  name anywhere under `.sandcastle/`, `app/`, `scripts/` or `tests/`, plus the
+  repo-root configs (#592), and on Spanish in the `.md` under `.claude/`,
+  `.sandcastle/` and `docs/` — `docs/adr/` and `docs/research/` excepted,
+  because both are records of something external (#792). It reads three
+  instruments: Spanish function words, any word carrying an accent or `ñ`, and
+  every Spanish noun `CONTEXT.md` names. Prose is governed like an identifier,
+  so `comprobante` is the only Spanish that survives bare; naming the Spanish
+  term is still fine, marked as data. In code, quoted copy and backticked names
+  are data; in markdown, only backticked ones are. See the Code Language section
+  of `.sandcastle/CODING_STANDARDS.md`.
+- `pnpm check:fallow` is the Fallow audit on its `new-only` gate; see
+  [fallow.md](fallow.md) for what it gates and what it costs.
 - `pnpm check:file-tokens` is a staged-source commit gate, not a required
   validation command after every implementation. Run it before committing
   staged application source, before a PR handoff that depends on staged files,
@@ -306,10 +319,10 @@ screen keeps rendering the list.
 
 ## Admin Layout Routes
 
-The Panel de administración also uses a React Router layout route:
+The `Panel de administración` also uses a React Router layout route:
 
-- `administracion.tsx` owns `AdminShell`, loads shell-wide user and Evento
-  activo context, and renders `<Outlet />`.
+- `administracion.tsx` owns `AdminShell`, loads shell-wide user and Event
+  active context, and renders `<Outlet />`.
 - `administracion._index.tsx` owns the `/administracion` dashboard content.
 - Administration child screens render only screen content. Do not render
   `AdminShell` again from `administracion.profesores.tsx`,

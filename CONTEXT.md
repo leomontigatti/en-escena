@@ -15,6 +15,11 @@ Reading rules:
   (`event` → `eventId`, `events`, `loadAdminEvent`, `EventStatusBadge`).
 - `comprobante` is the only reserved Spanish term inside code; adding another
   requires an ADR. See [ADR-0011](docs/adr/superseded/0011-invoicing-concept-portion-and-surfaces.md).
+- **Prose is governed like an identifier** (#792): the terms below are what the
+  user reads, not what a comment, a test name or a design doc says. Write the
+  English identifier in prose, and if the surface's own wording is the point,
+  mark the Spanish as data — a backtick in markdown, a double quote for copy and
+  a backtick for a name in code.
 - External-system adapters are the exception: `app/lib/comprobantes/arca` speaks
   WSFEv1 (`ArcaVoucher`, `createVoucher`), not the glossary.
 - Where an existing symbol disagrees with the identifier here, the glossary wins
@@ -49,7 +54,7 @@ _Avoid_: `schedule`, time block
 
 **`academy`** — ui: "Academia"
 Participating entity that can register for events and load professors, dancers and choreographies.
-_Avoid_: `user`, `professor`, escuela, delegación
+_Avoid_: `user`, `professor`, `escuela`, `delegación`
 
 **`academyRegistration`** — ui: "Registro público de academia"
 Public flow through which an academy creates its initial access to the system.
@@ -141,7 +146,7 @@ _Avoid_: `eventStatus`, program visibility
 
 **`financialDocument`** — ui: "Documento financiero"
 Financial record managed by an administrator, such as an invoice or a credit note.
-_Avoid_: `payment`, imputación, `choreographyFinancialStatus`
+_Avoid_: `payment`, `imputación`, `choreographyFinancialStatus`
 
 **`professor`** — ui: "Profesor"
 Person associated with an academy and loaded by that academy as part of its data.
@@ -240,7 +245,7 @@ Dancers linked to a choreography through inscriptions.
 _Avoid_: professors, financial data
 
 **`roster`** — ui: "Elenco"
-The set of dancers and professors a choreography currently carries: the **`choreographyDancers`** the admin form edits, plus the linked professors. It is the English domain term and stays in identifiers, file names and comments (`choreography-roster.server.ts`, `updateChoreographyRosterIntent`, `removeInscriptionsFromRoster`); what the academy reads is "Elenco". Use "Bailarines de coreografía" when the surface names the dancers alone, and "Elenco" when it names the group the choreography presents with. Removal from it is not one gesture but two — a physical delete without evidence, a **`withdrawnInscription`** with it.
+The set of dancers and professors a choreography currently carries: the **`choreographyDancers`** the admin form edits, plus the linked professors. It is the English domain term and stays in identifiers, file names and comments (`choreography-roster.server.ts`, `updateChoreographyRosterIntent`, `removeInscriptionsFromRoster`); what the academy reads is `Elenco`. Use `Bailarines de coreografía` when the surface names the dancers alone, and `Elenco` when it names the group the choreography presents with. Removal from it is not one gesture but two — a physical delete without evidence, a **`withdrawnInscription`** with it.
 _Avoid_: "Roster" as interface copy (retired), cast, lineup, plantel
 
 **`dancer`** — ui: "Bailarín"
@@ -252,7 +257,7 @@ Documentary validation situation of a dancer.
 _Avoid_: `choreographyOperationalStatus`, `choreographyFinancialStatus`
 
 **`rosterPersonStatus`** — ui: "Estado de alta"
-Alta state of a roster person —a **`dancer`** or a **`professor`**— with exactly two values, `active` ("Activo") and `archived` ("Archivado"): whether the academy still works with them. It is stored as the `active` boolean on both tables, and `app/lib/roster/roster-person-status*` is the only module that reads that column: one predicate, one filter type with one default and one URL codec, one label pair, one eligibility rule (`isSelectableForRoster`) and one writer. It is a third axis, independent of **`participationStatus`** and of **`dancerVerificationStatus`**, and archiving touches no inscription, no **`choreographyOperationalStatus`**, no **`choreographyFinancialStatus`** and no figure (see `docs/domain/choreographies.md`, "Estado de alta de personas del elenco"). "Archivado" names this and only this: the internal user list's filter of the same name is an unrelated duplicate, pending retirement.
+Roster status of a person —a **`dancer`** or a **`professor`**— with exactly two values, `active` (`Activo`) and `archived` (`Archivado`): whether the academy still works with them. It is stored as the `active` boolean on both tables, and `app/lib/roster/roster-person-status*` is the only module that reads that column: one predicate, one filter type with one default and one URL codec, one label pair, one eligibility rule (`isSelectableForRoster`) and one writer. It is a third axis, independent of **`participationStatus`** and of **`dancerVerificationStatus`**, and archiving touches no inscription, no **`choreographyOperationalStatus`**, no **`choreographyFinancialStatus`** and no figure (see `docs/domain/choreographies.md`, "`Estado de alta` for roster people"). `Archivado` names this and only this: the internal user list's filter of the same name is an unrelated duplicate, pending retirement.
 _Avoid_: participating, `dancerVerificationStatus`, deleted person
 
 **`administrativeInconsistency`** — ui: "Inconsistencia administrativa"
@@ -320,7 +325,7 @@ Explicit administrative action on a confirmed score that excludes it from the co
 _Avoid_: `scoreCorrection`, assignment deletion
 
 **`feedbackAudio`** — ui: "Devolución"
-Optional audio file associated with the evaluation or disqualification made by a judge. **Specified, not built**: nothing in `app/` carries this identifier — judging owns the concept in `docs/domain/judging.md`, and the column, the upload and the reader are all still to come. **"Devolución" is reserved for it regardless**: a returned amount of money is a **`refund`** ("Reembolso"), never a devolución. The reservation is what keeps the name free for the surface that will need it.
+Optional audio file associated with the evaluation or disqualification made by a judge. **Specified, not built**: nothing in `app/` carries this identifier — judging owns the concept in `docs/domain/judging.md`, and the column, the upload and the reader are all still to come. **`Devolución` is reserved for it regardless**: a returned amount of money is a **`refund`** (`Reembolso`), never a `devolución`. The reservation is what keeps the name free for the surface that will need it.
 _Avoid_: numeric score, `presentation`, refund, money returned
 
 **`payment`** — ui: "Pago"
@@ -328,41 +333,41 @@ Money received and recorded for an academy in an event, which may stay available
 _Avoid_: invoice, `paymentAllocation`, `refund`, `choreographyFinancialStatus`
 
 **`refund`** — ui: "Reembolso"
-Money handed back to an academy in an event: an explicit mirror of **`payment`** — amount, date, `refundMethod` over the same method enum, `refundNumber` — that **never carries allocations** and is capped at `availableBalanceAmount`. It moves money, where a nota de crédito moves what is owed; either can happen without the other. **Specified, not built** (ADR-0014 §6, #536). Never call it "Devolución": that term is reserved for **`feedbackAudio`**, itself specified and not built.
-_Avoid_: Devolución, negative `payment`, `paymentAllocation`, nota de crédito
+Money handed back to an academy in an event: an explicit mirror of **`payment`** — amount, date, `refundMethod` over the same method enum, `refundNumber` — that **never carries allocations** and is capped at `availableBalanceAmount`. It moves money, where a credit note moves what is owed; either can happen without the other. **Specified, not built** (ADR-0014 §6, #536). Never call it `Devolución`: that term is reserved for **`feedbackAudio`**, itself specified and not built.
+_Avoid_: `Devolución`, negative `payment`, `paymentAllocation`, `nota de crédito`
 
 **`comprobante`** — ui: "Factura (comprobante fiscal ARCA)"
-Electronic tax receipt —Factura C, issued against ARCA/WSFEv1— derived from inscriptions, payments and allocations, and never governing financial state. One per choreography, immutable once it carries a CAE, and amended only by another comprobante. The term "factura"/"comprobante" is **the only reserved Spanish term inside code**; adding another requires an ADR. What the emission and amendment rules are today, and where they are still the ADR-0014 target rather than the code, is in [docs/domain/finances.md](docs/domain/finances.md).
+Electronic tax receipt —a `Factura C`, issued against ARCA/WSFEv1— derived from inscriptions, payments and allocations, and never governing financial state. One per choreography, immutable once it carries a CAE, and amended only by another comprobante. `comprobante` is **the only reserved Spanish term inside code**; adding another requires an ADR, and `factura` is not one of them — in prose it is an invoice. What the emission and amendment rules are today, and where they are still the ADR-0014 target rather than the code, is in [docs/domain/finances.md](docs/domain/finances.md).
 _Avoid_: `payment`, `paymentAllocation`, choreography invoice (retired), voucher
 
-**Porción** _(retired term)_ — no code identifier
-Label that classified a **`comprobante`** as covering the seña, the saldo or both. It only made sense under the two-rung ladder map #547 retired: money is now allocated in arbitrary amounts against two thresholds, so a comprobante covers an amount and is neither rung. The column, its pgEnum, its derivation and its printed label are gone; the printed line names the service sold instead. It is retired as a _concept_, not as a string: the comprobante list still scrubs a stale `porcion` query parameter out of old URLs, which canonicalises a bookmark rather than reading anything. Do not use.
-_Avoid_: `comprobante`, `inscriptionStage` (retired), seña invoice, balance invoice
+**`Porción`** _(retired term)_ — no code identifier
+Label that classified a **`comprobante`** as covering the deposit, the balance or both. It only made sense under the two-rung ladder map #547 retired: money is now allocated in arbitrary amounts against two thresholds, so a comprobante covers an amount and is neither rung. The column, its pgEnum, its derivation and its printed label are gone; the printed line names the service sold instead. It is retired as a _concept_, not as a string: the comprobante list still scrubs a stale `porcion` query parameter out of old URLs, which canonicalises a bookmark rather than reading anything. Do not use.
+_Avoid_: `comprobante`, `inscriptionStage` (retired), deposit invoice, balance invoice
 
-**Desactualizada** _(retired term)_ — no code identifier
-Currency badge each of the choreography financial detail's two `porción` metric cards carried, paired with a `Vigente` that meant "the covering factura bills every peso collected in this portion". It read a portion and died with **Porción**; those cards now carry no badge and no comprobante link. The surviving `Vigente` is the unrelated one — the derived `vigente` / `anulada` status of a **`comprobante`**, shown on the global comprobante list and detail. Do not use.
+**`Desactualizada`** _(retired term)_ — no code identifier
+Currency badge each of the choreography financial detail's two `porción` metric cards carried, paired with a `Vigente` that meant "the covering invoice bills every peso collected in this portion". It read a portion and died with **`Porción`**; those cards now carry no badge and no comprobante link. The surviving `Vigente` is the unrelated one — the derived `vigente` / `anulada` status of a **`comprobante`**, shown on the global comprobante list and detail. Do not use.
 _Avoid_: `comprobanteStatus`, `Vigente` (comprobante status), stale, outdated
 
-**Plata** _(retired term)_ — no code identifier
-Colloquial Rioplatense word for money, once used across the finance surfaces: the allocation dialog's `Asignar plata` / `Quitar plata`, the withdrawal copy, the payment-deletion warning and two server error messages. The register was wrong for a product an academy reads, so every surface now says **dinero** — masculine, so the agreement around it changed too ("el dinero asignado", not "la plata asignada"). It is retired as a _string_, not as a concept: what the copy names is still a **`paymentAllocation`** against an inscription. Do not use, in interface copy or in comments.
-_Avoid_: `paymentAllocation`, guita, saldo, `availableBalanceAmount`
+**`Plata`** _(retired term)_ — no code identifier
+Colloquial Rioplatense word for money, once used across the finance surfaces: the allocation dialog's `Asignar plata` / `Quitar plata`, the withdrawal copy, the payment-deletion warning and two server error messages. The register was wrong for a product an academy reads, so every surface now says **`dinero`** — masculine, so the agreement around it changed too (`el dinero asignado`, not `la plata asignada`). It is retired as a _string_, not as a concept: what the copy names is still a **`paymentAllocation`** against an inscription. Do not use, in interface copy or in comments.
+_Avoid_: `paymentAllocation`, guita, balance, `availableBalanceAmount`
 
 **Choreography invoice** _(retired term)_ — no code identifier
 Document of the old financial model (tables `academy_event_choreography_invoice` and `academy_event_invoice_imputation`), removed in V1 (see ADR-0009). Do not use; for the tax receipt see **`comprobante`**.
 
-**Imputación** _(retired term)_ — no code identifier
+**`Imputación`** _(retired term)_ — no code identifier
 Financial concept of the old model, retired from the payments and inscriptions model (see ADR-0009). Do not use; applying a payment is a **`paymentAllocation`**.
 _Avoid_: `paymentAllocation`, `payment`, invoice
 
 **`paymentAllocation`** — ui: "Asignación de pago"
 An amount of one payment committed to one inscription: the triple `(payment, inscription, amount)`, with no role and no type, unique on the pair, positive by CHECK and deleted rather than kept at zero. Mutable, deletable current state, not an append-only ledger. The administrator never names a payment: allocating draws from `availableBalanceAmount` oldest-first by payment number and de-allocating unwinds newest-first.
-_Avoid_: `payment`, invoice, imputación, `inscriptionStage` (retired), ledger entry
+_Avoid_: `payment`, invoice, `imputación`, `inscriptionStage` (retired), ledger entry
 
-**Etapa de inscripción** _(retired term)_ — no code identifier
+**`Etapa de inscripción`** _(retired term)_ — no code identifier
 The deposit-or-balance rung of the two-rung ladder retired by map #547 and ADR-0014 §1. An allocation no longer pays a rung: it is an amount against an inscription, and what replaced the ladder is a threshold reading, **`inscriptionFinancialStatus`**. Do not use.
 _Avoid_: installment, partial payment, rung
 
-**Cuenta corriente de academia** _(retired term)_ — no code identifier
+**`Cuenta corriente de academia`** _(retired term)_ — no code identifier
 Named no symbol in code before map #547 and names none after it. An academy's money is **`payment`**, **`paymentAllocation`**, **`refund`** and the derived **`availableBalanceAmount`**; there is no account-balance entity holding them together. Do not use it for an entity. It is retired as a _concept_, not as a string: "Cuenta corriente" is the live page title of the portal's finance page (`app/features/portal/finances/view.tsx`), which is UI copy an academy reads and is not covered by this tombstone.
 _Avoid_: `availableBalanceAmount`, `choreographyFinancialStatus`, operational balance
 
@@ -387,7 +392,7 @@ Upper threshold of an inscription: its `selectedPrice` minus the live `dancerDis
 _Avoid_: `inscriptionBalanceAmount` (retired), choreography balance, `availableBalanceAmount`
 
 **`inscriptionFinancialStatus`** — ui: "Estado"
-Status of an inscription derived on read from `Σ allocations` against its two thresholds: `depositPending` ("Seña pendiente"), `depositMet` ("Señada") and `paidInFull` ("Pagada"). Nothing is written when a threshold is crossed. A choreography carries the **minimum** over its inscriptions.
+Status of an inscription derived on read from `Σ allocations` against its two thresholds: `depositPending` (`Seña pendiente`), `depositMet` (`Señada`) and `paidInFull` (`Pagada`). Nothing is written when a threshold is crossed. A choreography carries the **minimum** over its inscriptions.
 _Avoid_: `choreographyFinancialState` (retired), watermark, needs attention
 
 **`choreographyPrice`** — ui: "Precio de coreografía"
@@ -398,19 +403,19 @@ _Avoid_: `payment`, `choreographyFinancialStatus`, applicable price × dancers
 The one price row that prices an inscription, held as `selectedPriceId` — the single surviving snapshot column. Every amount and every financial status derives from its `amount` and from `Σ paymentAllocation`. It is rewritten on each allocation write while the inscription is **below its deposit threshold** and fixed from the crossing on, enforced by the write path and by a database trigger; below the threshold the read does not treat it as authoritative either, and re-derives from the row that applies today. The existing `hasFrozenPriceInscription` / `frozen-price` symbols name a broader guard — any money at all, not the price lock — and are pending rename.
 _Avoid_: `tentativeInscriptionPrice` (retired), `frozenInscriptionPrice` (retired), invoice
 
-**Precio tentativo de inscripción** _(retired term)_ — no code identifier
+**`Precio tentativo de inscripción`** _(retired term)_ — no code identifier
 Indicative price of an unpaid inscription, retired with the estimate marking map #547 deleted: every figure an academy reads is exact and is exactly what must be paid, so there is no tentative price to contrast a fixed one with. Do not use; the price of an inscription is **`selectedPrice`**.
 _Avoid_: `selectedPrice`, estimated price
 
-**Precio congelado de inscripción** _(retired term)_ — no code identifier
+**`Precio congelado de inscripción`** _(retired term)_ — no code identifier
 The other half of the retired tentative/frozen pair. Fixing survives as behaviour — see **`selectedPrice`**, where it happens at the deposit threshold — but not as a second term, because there is only ever one price on an inscription. Do not use.
 _Avoid_: `selectedPrice`, snapshot price
 
-**Snapshot financiero de inscripción** _(retired term)_ — no code identifier
+**`Snapshot financiero de inscripción`** _(retired term)_ — no code identifier
 Economic data fixed by a payment allocation so that an inscription's financial state did not depend on later price or discount changes. The ten columns that held it were dropped in #689: amounts, thresholds and financial status are now derived from the selected price and `Σ paymentAllocation`. The one fixed thing left is the price row, and that is **`selectedPrice`**.
 _Avoid_: `inscriptionSnapshot` (retired), invoice, frozen amount, `financialReferenceDate` (retired)
 
-**Fecha de referencia financiera** _(retired term)_ — no code identifier
+**`Fecha de referencia financiera`** _(retired term)_ — no code identifier
 Per-inscription date that used to decide which price row applied. Map #547 replaced date-driven price resolution with the price fixed at the deposit threshold crossing, and the two reference-date columns were dropped in #689. What survives is the shared business date `getBusinessDateOnly()`, which is not a financial concept and needs no glossary term — it is held in a local named `financialReferenceDate` inside `resolveEstimatedBasePriceAmount`, on the **read** path, so the words do still appear in code even though they name no column, no type and no exported symbol. Do not use.
 _Avoid_: `selectedPrice`, UTC date, deposit date
 
@@ -448,4 +453,4 @@ _Avoid_: `category`
 
 **`notApplicableValue`** — ui: "No aplica"
 Empty value of a field that cannot hold one in this context, as opposed to one that has none yet. Reserved for the second case is "Sin asignar": the field admits a value and it is missing, which is what leaves a choreography `incomplete`. Rendering both the same way hides an incomplete record behind a correct-looking one.
-_Avoid_: "Sin asignar", "Sin datos", blank
+_Avoid_: `Sin asignar`, `Sin datos`, blank

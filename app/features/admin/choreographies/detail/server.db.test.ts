@@ -334,7 +334,7 @@ describe("administrative choreography detail server", () => {
       facturaCInput({ choreographyId: invoiced.id, eventId: event.id }),
     );
 
-    // The mere existence of the Factura C already blocks the physical delete.
+    // The mere existence of the `Factura C` already blocks the physical delete.
     await expect(loadDeleteBlockers(invoiced.id)).resolves.toEqual([
       "comprobantes",
     ]);
@@ -348,8 +348,8 @@ describe("administrative choreography detail server", () => {
       409,
     );
 
-    // Annulling with a Nota de crédito does not lift the block: the fiscal history
-    // remains (the annulled factura + the NC are still anchored to the
+    // Annulling with a credit note does not lift the block: the fiscal history
+    // remains (the annulled invoice + the NC are still anchored to the
     // choreography).
     await recordComprobante(
       facturaCInput({
@@ -559,7 +559,7 @@ describe("administrative choreography detail server", () => {
     ).resolves.toEqual({ submodalityId: catalog.submodality.id });
   });
 
-  test("reassigns the cupo de cronograma to another compatible cronograma", async () => {
+  test("reassigns the schedule capacity to another compatible schedule", async () => {
     const scenario = await createScheduleCapacityScenario({
       academyName: "Academia Cronograma",
       slug: "cronograma",
@@ -597,7 +597,7 @@ describe("administrative choreography detail server", () => {
     );
   });
 
-  test("rejects a cupo de cronograma that is not compatible, whatever the form sent", async () => {
+  test("rejects a schedule capacity that is not compatible, whatever the form sent", async () => {
     const scenario = await createScheduleCapacityScenario({
       academyName: "Academia Cronograma Incompatible",
       slug: "cronograma.incompatible",
@@ -641,7 +641,7 @@ describe("administrative choreography detail server", () => {
   // A specific capacity with room is not enough: the total capacity of the
   // schedule containing it is a second barrier, and the reassignment has to hit
   // it just as registration does.
-  test("rejects a target cupo with room when its cronograma is already full", async () => {
+  test("rejects a target capacity with room when its schedule is already full", async () => {
     const scenario = await createScheduleCapacityScenario({
       academyName: "Academia Cronograma Total Lleno",
       slug: "cronograma.total.lleno",
@@ -690,7 +690,7 @@ describe("administrative choreography detail server", () => {
 
   // The `Seña` may appear between the loader opening the field and the intent
   // running: the guard is revalidated inside the transaction, not before it.
-  test("blocks a reassignment whose seña was registered after the field was open", async () => {
+  test("blocks a reassignment whose deposit was registered after the field was open", async () => {
     const scenario = await createScheduleCapacityScenario({
       academyName: "Academia Cronograma Seña Tardía",
       slug: "cronograma.senia.tardia",
@@ -725,7 +725,7 @@ describe("administrative choreography detail server", () => {
     });
   });
 
-  test("rejects a target cupo de cronograma that is already full", async () => {
+  test("rejects a target schedule capacity that is already full", async () => {
     const scenario = await createScheduleCapacityScenario({
       academyName: "Academia Cronograma Lleno",
       slug: "cronograma.lleno",
@@ -757,7 +757,7 @@ describe("administrative choreography detail server", () => {
     });
   });
 
-  test("re-selecting the cupo the choreography already occupies succeeds even at capacity", async () => {
+  test("re-selecting the capacity the choreography already occupies succeeds even at capacity", async () => {
     const scenario = await createScheduleCapacityScenario({
       academyName: "Academia Cronograma Sin Cambios",
       slug: "cronograma.sin.cambios",
@@ -780,7 +780,7 @@ describe("administrative choreography detail server", () => {
     });
   });
 
-  test("lets a single choreography into a cupo with one slot when two are reassigned at once", async () => {
+  test("lets a single choreography into a capacity with one slot when two are reassigned at once", async () => {
     const scenario = await createScheduleCapacityScenario({
       academyName: "Academia Cronograma Concurrente",
       slug: "cronograma.concurrente",
@@ -827,7 +827,7 @@ describe("administrative choreography detail server", () => {
     expect(occupants).toHaveLength(1);
   });
 
-  test("keeps the assigned cupo in the options and locks the field with a single compatible one", async () => {
+  test("keeps the assigned capacity in the options and locks the field with a single compatible one", async () => {
     const scenario = await createScheduleCapacityScenario({
       academyName: "Academia Cronograma Opciones",
       slug: "cronograma.opciones",
@@ -880,7 +880,7 @@ describe("administrative choreography detail server", () => {
     ).toContain(drifted.scheduleCapacity.id);
   });
 
-  test("rejects a reassignment to the only compatible cupo, which the read-only field never offers", async () => {
+  test("rejects a reassignment to the only compatible capacity, which the read-only field never offers", async () => {
     const scenario = await createScheduleCapacityScenario({
       academyName: "Academia Cronograma Único",
       slug: "cronograma.unico",
@@ -925,7 +925,7 @@ describe("administrative choreography detail server", () => {
     });
   });
 
-  test("shows the occupancy in the cupo options and marks the full ones", async () => {
+  test("shows the occupancy in the capacity options and marks the full ones", async () => {
     const scenario = await createScheduleCapacityScenario({
       academyName: "Academia Cronograma Ocupación",
       slug: "cronograma.ocupacion",
@@ -1061,7 +1061,7 @@ describe("administrative choreography detail server", () => {
     ).toEqual(["frozen-price"]);
   });
 
-  test("blocks auditors from reassigning the cupo de cronograma", async () => {
+  test("blocks auditors from reassigning the schedule capacity", async () => {
     const scenario = await createScheduleCapacityScenario({
       academyName: "Academia Cronograma Auditor",
       slug: "cronograma.auditor",
@@ -1082,7 +1082,7 @@ describe("administrative choreography detail server", () => {
     });
   });
 
-  test("reassigns the nivel de experiencia without touching the roster and bumps updatedAt", async () => {
+  test("reassigns the experience level without touching the roster and bumps updatedAt", async () => {
     const staleUpdatedAt = date("2026-01-01T12:00:00Z");
     const scenario = await createExperienceLevelScenario({
       academyName: "Academia Nivel",
@@ -1114,7 +1114,7 @@ describe("administrative choreography detail server", () => {
     );
   });
 
-  test("resolves a missing nivel de experiencia that left the choreography incomplete", async () => {
+  test("resolves a missing experience level that left the choreography incomplete", async () => {
     const scenario = await createExperienceLevelScenario({
       academyName: "Academia Nivel Faltante",
       experienceLevelId: null,
@@ -1148,7 +1148,7 @@ describe("administrative choreography detail server", () => {
     );
   });
 
-  test("rejects a nivel de experiencia the resolved category does not admit", async () => {
+  test("rejects a experience level the resolved category does not admit", async () => {
     const scenario = await createExperienceLevelScenario({
       academyName: "Academia Nivel Ajeno",
       slug: "nivel.ajeno",
@@ -1168,7 +1168,7 @@ describe("administrative choreography detail server", () => {
     await expect(scenario.readExperienceLevel()).resolves.toBe("amateur");
   });
 
-  test("rejects a blank nivel de experiencia when the category requires one", async () => {
+  test("rejects a blank experience level when the category requires one", async () => {
     const scenario = await createExperienceLevelScenario({
       academyName: "Academia Nivel Vacío",
       slug: "nivel.vacio",
@@ -1284,7 +1284,7 @@ describe("administrative choreography detail server", () => {
     ]);
   });
 
-  test("blocks auditors from reassigning the nivel de experiencia", async () => {
+  test("blocks auditors from reassigning the experience level", async () => {
     const scenario = await createExperienceLevelScenario({
       academyName: "Academia Nivel Auditor",
       slug: "nivel.auditor",
@@ -1621,7 +1621,7 @@ function deleteFormData() {
   return formData;
 }
 
-// Snapshot of a Factura C to an anonymous final consumer from the exempt issuer;
+// Snapshot of a `Factura C` to an anonymous final consumer from the exempt issuer;
 // the overrides allow deriving the mirror NC (cbteTipo 13 +
 // associatedComprobanteId).
 function facturaCInput(

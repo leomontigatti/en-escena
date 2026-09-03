@@ -13,7 +13,7 @@ vi.mock("@/features/admin/events/list/view", () => ({
   EventsListView,
 }));
 
-describe("administracion.eventos route adapter", () => {
+describe("`administracion.eventos` route adapter", () => {
   test("delegates loader and render to the admin events list feature module", async () => {
     const routeModule = await import("@/routes/administracion.eventos");
     const request = new Request("http://localhost/administracion/eventos");
