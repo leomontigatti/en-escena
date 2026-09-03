@@ -51,7 +51,7 @@ import type { EventBasesLoaderData } from "./event-bases.test-helpers";
 let container: HTMLDivElement | null = null;
 let root: ReturnType<typeof createRoot> | null = null;
 
-describe("Evento bases migrated forms", () => {
+describe("Event bases migrated forms", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     reactRouterMocks.useFormAction.mockReset();
@@ -147,7 +147,7 @@ describe("Evento bases migrated forms", () => {
     });
   }
 
-  test("submits the modalidad form through React Router instead of form.submit()", async () => {
+  test("submits the modality form through React Router instead of form.submit()", async () => {
     const nativeSubmitSpy = spyOnNativeFormSubmit();
     const submitSpy = vi.fn();
 
@@ -185,7 +185,7 @@ describe("Evento bases migrated forms", () => {
     });
   });
 
-  test("submits the cronograma detail form through React Router instead of form.submit()", async () => {
+  test("submits the schedule detail form through React Router instead of form.submit()", async () => {
     const nativeSubmitSpy = spyOnNativeFormSubmit();
     const submitSpy = vi.fn();
 

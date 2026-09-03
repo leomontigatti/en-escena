@@ -52,7 +52,7 @@ describe("repo style check", () => {
     }
   });
 
-  test("flags the Estado de alta column and the inlined selectable rule outside their owner", async () => {
+  test("flags the `Estado de alta` column and the inlined selectable rule outside their owner", async () => {
     const tempRoot = await mkdtemp(
       path.join(tmpdir(), "repo-style-guardrail-roster-"),
     );
@@ -98,7 +98,7 @@ describe("repo style check", () => {
     }
   });
 
-  test("flags the Estado de alta comparison however it is spelled", async () => {
+  test("flags the `Estado de alta` comparison however it is spelled", async () => {
     const tempRoot = await mkdtemp(
       path.join(tmpdir(), "repo-style-guardrail-roster-forms-"),
     );

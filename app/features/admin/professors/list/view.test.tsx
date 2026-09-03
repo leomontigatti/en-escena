@@ -6,7 +6,7 @@ import { describe, expect, test } from "vitest";
 import { ProfessorsListRouteView } from "@/features/admin/professors/list/view";
 
 describe("ProfessorsListRouteView", () => {
-  test("shows the empty state when there are no profesores and no active filters", () => {
+  test("shows the empty state when there are no professors and no active filters", () => {
     const markup = renderRoute();
 
     expect(markup).toContain("Profesores");

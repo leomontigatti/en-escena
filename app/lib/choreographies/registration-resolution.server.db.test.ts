@@ -42,7 +42,7 @@ describe("deriveGroupType", () => {
 });
 
 describe.sequential("choreography registration resolution", () => {
-  test("resolves a valid solo registration using the evento local start date, required experience levels, and compatible cupos de cronograma", async () => {
+  test("resolves a valid solo registration using the event local start date, required experience levels, and compatible schedule capacities", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Dueña",
       email: "registro.coreografia.owner@example.com",
@@ -97,7 +97,7 @@ describe.sequential("choreography registration resolution", () => {
     });
   });
 
-  test("falls back to the cronograma global capacity when the matching cupo de cronograma does not exist", async () => {
+  test("falls back to the schedule global capacity when the matching schedule capacity does not exist", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Cupo Global",
       email: "registro.coreografia.global@example.com",
@@ -140,7 +140,7 @@ describe.sequential("choreography registration resolution", () => {
     });
   });
 
-  test("validates active Evento, registration window, and readiness before resolving the operation", async () => {
+  test("validates active event, registration window, and readiness before resolving the operation", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Estado",
       email: "registro.coreografia.estado@example.com",
@@ -211,7 +211,7 @@ describe.sequential("choreography registration resolution", () => {
     });
   });
 
-  test("calculates solo, duo, trio, and grupal from the selected Bailarín count", async () => {
+  test("calculates solo, duo, trio, and grupal from the selected dancer count", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Grupo",
       email: "registro.coreografia.grupo@example.com",
@@ -274,7 +274,7 @@ describe.sequential("choreography registration resolution", () => {
     });
   });
 
-  test("rejects missing required Submodalidad and Bailarines from another Academia", async () => {
+  test("rejects missing required submodality and dancers from another academy", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Submodalidad",
       email: "registro.coreografia.submodalidad@example.com",
@@ -386,7 +386,7 @@ describe.sequential("choreography registration resolution", () => {
     });
   });
 
-  test("uses oldest age for duo and skips experience level when the resolved Categoría has no levels", async () => {
+  test("uses oldest age for duo and skips experience level when the resolved category has no levels", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Dúo",
       email: "registro.coreografia.duo@example.com",
@@ -425,7 +425,7 @@ describe.sequential("choreography registration resolution", () => {
     });
   });
 
-  test("resolves grupal Categoría by tolerance and by integer average when tolerance does not apply", async () => {
+  test("resolves grupal category by tolerance and by integer average when tolerance does not apply", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Grupal",
       email: "registro.coreografia.grupal@example.com",
@@ -489,7 +489,7 @@ describe.sequential("choreography registration resolution", () => {
     });
   });
 
-  test("allows Categoría pendiente and omits experience level when no Categoría is compatible", async () => {
+  test("allows category pendiente and omits experience level when no category is compatible", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Pendiente",
       email: "registro.coreografia.pendiente@example.com",
@@ -528,7 +528,7 @@ describe.sequential("choreography registration resolution", () => {
     });
   });
 
-  test("returns compatible cupos de cronograma and falls back to cronograma global capacity when no specific cupo matches", async () => {
+  test("returns compatible schedule capacities and falls back to schedule global capacity when no specific capacity matches", async () => {
     const owner = await createAcademySession({
       academyName: "Academia cupo de cronograma",
       email: "registro.coreografia.cupo-cronograma@example.com",
@@ -661,7 +661,7 @@ describe.sequential("choreography registration resolution", () => {
       },
     });
   });
-  test("labels the compatible cupos with their occupancy and marks the full ones", async () => {
+  test("labels the compatible capacities with their occupancy and marks the full ones", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Ocupación Portal",
       email: "registro.coreografia.ocupacion@example.com",

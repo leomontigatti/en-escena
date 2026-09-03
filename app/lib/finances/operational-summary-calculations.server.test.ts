@@ -317,7 +317,7 @@ describe("buildChoreographyOperationalFinanceRow", () => {
 });
 
 describe("buildOperationalFinanceSummaryFromChoreographyRows", () => {
-  test("reports Seña adeudada gross, without discounting Saldo disponible", () => {
+  test("reports deposit owed gross, without discounting balance available", () => {
     const rows = [
       buildChoreographyOperationalFinanceRow({
         choreography,
@@ -343,7 +343,7 @@ describe("buildOperationalFinanceSummaryFromChoreographyRows", () => {
     expect(summary.totalPaidAmount).toBe(2000);
   });
 
-  test("reports Saldo adeudado gross, without discounting Saldo disponible", () => {
+  test("reports balance owed gross, without discounting balance available", () => {
     const rows = [
       buildChoreographyOperationalFinanceRow({
         choreography,
@@ -376,7 +376,7 @@ describe("buildOperationalFinanceSummaryFromChoreographyRows", () => {
     });
   });
 
-  test("keeps Seña adeudada contained inside Saldo adeudado across a roster", () => {
+  test("keeps deposit owed contained inside balance owed across a roster", () => {
     const rows = [
       buildChoreographyOperationalFinanceRow({
         choreography,

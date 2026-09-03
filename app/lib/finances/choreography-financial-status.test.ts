@@ -18,7 +18,7 @@ const everyStatus: InscriptionFinancialStatus[] = [
 const everyAnomaly: InscriptionAnomaly[] = ["overAllocated"];
 
 describe("formatInscriptionStatusBadge", () => {
-  test("labels a withdrawn inscription Retirada, neutral rather than alarming", () => {
+  test("labels a withdrawn inscription `Retirada`, neutral rather than alarming", () => {
     expect(formatInscriptionStatusBadge({ kind: "withdrawn" })).toEqual({
       kind: "withdrawn",
       label: "Retirada",
@@ -76,7 +76,7 @@ describe("choreographyStatusFilterOptions", () => {
     ).toEqual(new Set(reachable));
   });
 
-  test("does not offer Retirada, which no choreography can be", () => {
+  test("does not offer `Retirada`, which no choreography can be", () => {
     expect(
       choreographyStatusFilterOptions.map((option) => option.value),
     ).not.toContain("withdrawn");

@@ -20,7 +20,7 @@ describe("choreography creation schedule step", () => {
     renderer.cleanup();
   });
 
-  test("offers the cupos with their occupancy while at least one has room", () => {
+  test("offers the capacities with their occupancy while at least one has room", () => {
     renderer.render(
       <ScheduleStepHarness
         resolution={buildResolution([
@@ -47,7 +47,7 @@ describe("choreography creation schedule step", () => {
 
   // A select with everything disabled is a silent dead end: registration has to
   // say why there is nothing to choose.
-  test("replaces the select with the blocked message when every cupo is full", () => {
+  test("replaces the select with the blocked message when every capacity is full", () => {
     renderer.render(
       <ScheduleStepHarness
         resolution={buildResolution([

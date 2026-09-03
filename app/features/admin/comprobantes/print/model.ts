@@ -73,7 +73,7 @@ export type ComprobantePrintViewModel = {
  * label the line used to open with. It names **what was sold** rather than which
  * rung of a ladder the money paid, which is the whole reason `porción` had to
  * go: a comprobante now covers an arbitrary amount and can be honestly labelled
- * as neither deposit nor saldo. It is what RG 1415 asks that column for — a
+ * as neither deposit nor balance. It is what RG 1415 asks that column for — a
  * description identifying the service.
  *
  * It carries no right-hand side, per #554 decision 3 and the owner's ruling on

@@ -64,7 +64,7 @@ describe("private route headers", () => {
     },
   );
 
-  test("panel de administración renders session context in the sidebar dropdown trigger", () => {
+  test("admin panel renders session context in the sidebar dropdown trigger", () => {
     const markup = renderAdminRoute();
 
     expect(markup).toContain("admin@example.com");

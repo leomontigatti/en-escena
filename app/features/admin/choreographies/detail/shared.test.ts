@@ -69,7 +69,7 @@ describe("shouldRevalidateChoreographyDetail", () => {
 });
 
 describe("toChoreographyDetailViewActionData", () => {
-  test("forwards the rejection of a cupo de cronograma to the view", () => {
+  test("forwards the rejection of a schedule capacity to the view", () => {
     const rejection = {
       message:
         "El cupo de cronograma seleccionado ya no tiene cupo disponible.",
@@ -115,7 +115,7 @@ describe("canReassignScheduleCapacity", () => {
     label: "Al menos una inscripción tiene dinero asignado.",
   } as const;
 
-  test("opens the cupo de cronograma for an admin with alternatives and no blockers", () => {
+  test("opens the schedule capacity for an admin with alternatives and no blockers", () => {
     expect(canReassignScheduleCapacity(buildInput())).toBe(true);
   });
 
@@ -145,7 +145,7 @@ describe("canReassignScheduleCapacity", () => {
 });
 
 describe("canReassignExperienceLevel", () => {
-  test("opens the nivel de experiencia for an admin whose category declares levels", () => {
+  test("opens the experience level for an admin whose category declares levels", () => {
     expect(canReassignExperienceLevel(buildInput())).toBe(true);
   });
 
@@ -181,7 +181,7 @@ describe("canReassignExperienceLevel", () => {
 });
 
 describe("canCorrectChoreographyModality", () => {
-  test("opens the modalidad for an admin on a choreography without presentation", () => {
+  test("opens the modality for an admin on a choreography without presentation", () => {
     expect(canCorrectChoreographyModality(buildInput())).toBe(true);
   });
 

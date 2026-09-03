@@ -38,7 +38,7 @@ import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-describe("administracion/coreografias route", () => {
+describe("`/administracion/coreografias` route", () => {
   test("allows auditor access and blocks academy and judge users", async () => {
     const event = await createSavedEvent();
     const { request: auditorRequest } = await createSignedInRequest({
@@ -284,7 +284,7 @@ describe("administracion/coreografias route", () => {
     );
   });
 
-  test("sorts by number by default and supports academia and nombre", async () => {
+  test("sorts by number by default and supports academy and name", async () => {
     const event = await createSavedEvent();
     const academyNorth = await createAcademyUser({
       email: "academia.norte.orden@example.com",

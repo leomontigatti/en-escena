@@ -91,9 +91,9 @@ export type FacturaCEmissionOutcome =
 /**
  * Emits a `Factura C` (`CbteTipo` 11) for a choreography against WSFEv1.
  *
- * The factura is a DERIVED document (#320): it never governs financial state.
+ * The invoice is a DERIVED document (#320): it never governs financial state.
  * What is billed is the money actually collected (payment allocations) that no
- * vigente type-11 factura of the choreography covers yet, through the
+ * vigente type-11 invoice of the choreography covers yet, through the
  * per-inscription anti-double-billing derivation (#323/#326).
  *
  * The `CbteNro` is derived from `FECompUltimoAutorizado + 1`. Only an approved
@@ -273,7 +273,7 @@ export type ChoreographyBillable = {
  * Billable amount of a choreography: its internal lines, one per inscription
  * with a positive remainder, plus the total. It is what the emission UX (#447)
  * previews before confirming and what `emitChoreographyFacturaC` bills. It does
- * not call ARCA: it only crosses collections against vigente facturas.
+ * not call ARCA: it only crosses collections against vigente invoices.
  */
 export async function resolveChoreographyBillable(
   choreographyId: string,
@@ -297,8 +297,8 @@ async function readInscriptionIds(choreographyId: string): Promise<string[]> {
 
 /**
  * Billable amount of each inscription: what was collected (payment allocations)
- * minus what the choreography's VIGENTE type-11 facturas already cover. Only
- * inscriptions with a positive remainder are included. An annulled factura stops
+ * minus what the choreography's VIGENTE type-11 invoices already cover. Only
+ * inscriptions with a positive remainder are included. An annulled invoice stops
  * counting as billed — its status derives from the credit note — so its
  * amount becomes billable again.
  */

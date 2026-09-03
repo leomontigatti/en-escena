@@ -66,7 +66,7 @@ describe("administrative choreography modality correction", () => {
     });
   });
 
-  test("writes modality, submodality, category, level and cupo in one correction", async () => {
+  test("writes modality, submodality, category, level and capacity in one correction", async () => {
     const scenario = await createModalityScenario({ slug: "compuesta" });
 
     const response = await scenario.saveModality(scenario.target.modality.id);
@@ -175,7 +175,7 @@ describe("administrative choreography modality correction", () => {
     expect(detail.choreography.operationalStatus.code).not.toBe("complete");
   });
 
-  test("moves the cupo when the current one stops being compatible", async () => {
+  test("moves the capacity when the current one stops being compatible", async () => {
     const scenario = await createModalityScenario({ slug: "cupo" });
 
     await scenario.saveModality(scenario.target.modality.id);
@@ -186,7 +186,7 @@ describe("administrative choreography modality correction", () => {
     });
   });
 
-  test("rejects the correction when a deposit is registered and the cupo would move", async () => {
+  test("rejects the correction when a deposit is registered and the capacity would move", async () => {
     const scenario = await createModalityScenario({
       allocatedAmount: 5000,
       slug: "sena-mueve",
@@ -204,7 +204,7 @@ describe("administrative choreography modality correction", () => {
     });
   });
 
-  test("accepts the correction when a deposit is registered and the cupo does not move", async () => {
+  test("accepts the correction when a deposit is registered and the capacity does not move", async () => {
     const scenario = await createModalityScenario({
       allocatedAmount: 5000,
       slug: "sena-inerte",
@@ -289,7 +289,7 @@ describe("administrative choreography modality correction", () => {
     });
   });
 
-  test("offers every modality of the event, marking the ones no cronograma accepts", async () => {
+  test("offers every modality of the event, marking the ones no schedule accepts", async () => {
     const scenario = await createModalityScenario({
       allocatedAmount: 5000,
       slug: "opciones",
@@ -342,10 +342,10 @@ describe("administrative choreography modality correction", () => {
 });
 
 /**
- * A choreography registered in the catalogue modalidad, a complete destination
- * modalidad —with its own compatible cronograma, its submodalidad and its
- * categoría— and a third one with no cronograma: the minimum needed to exercise
- * the four things the modalidad determines, plus the dead end the select offers
+ * A choreography registered in the catalogue modality, a complete destination
+ * modality —with its own compatible schedule, its submodality and its
+ * category— and a third one with no schedule: the minimum needed to exercise
+ * the four things the modality determines, plus the dead end the select offers
  * disabled.
  */
 async function createModalityScenario(input: {

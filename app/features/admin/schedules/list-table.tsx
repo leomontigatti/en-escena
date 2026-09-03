@@ -90,8 +90,8 @@ export function ScheduleList({
 }
 
 /**
- * Same shape as the cupo field in the form: the capacity, then what is left of
- * it in muted read-only text. A cronograma with no room reads destructive, so
+ * Same shape as the capacity field in the form: the capacity, then what is left of
+ * it in muted read-only text. A schedule with no room reads destructive, so
  * a full one is findable while scanning the column.
  */
 function ScheduleCapacity({

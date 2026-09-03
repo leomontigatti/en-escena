@@ -85,7 +85,7 @@ describe("event registration readiness from loaded bases", () => {
     });
   });
 
-  test("uses the cronograma global capacity when no specific cupo exists for the group type", async () => {
+  test("uses the schedule global capacity when no specific capacity exists for the group type", async () => {
     const createdAt = new Date("2026-01-01T00:00:00Z");
     const eventBases = {
       modalities: [{ id: "modality_jazz", name: "Jazz" }],
@@ -140,7 +140,7 @@ describe("event registration readiness from loaded bases", () => {
     });
   });
 
-  test("does not mark an evento ready when every applicable precio expired", async () => {
+  test("does not mark an event ready when every applicable price expired", async () => {
     const eventBases = buildSoloEventBases([
       {
         id: "price_solo",
@@ -170,7 +170,7 @@ describe("event registration readiness from loaded bases", () => {
     });
   });
 
-  test("reports the latest deadline when several precios expired", async () => {
+  test("reports the latest deadline when several prices expired", async () => {
     const eventBases = buildSoloEventBases([
       {
         id: "price_solo_early",
@@ -207,7 +207,7 @@ describe("event registration readiness from loaded bases", () => {
     });
   });
 
-  test("keeps the evento ready when an expired precio is covered by an open-ended one", async () => {
+  test("keeps the event ready when an expired price is covered by an open-ended one", async () => {
     const eventBases = buildSoloEventBases([
       {
         id: "price_solo_expired",
@@ -236,7 +236,7 @@ describe("event registration readiness from loaded bases", () => {
     ).resolves.toMatchObject({ isReady: true, missingItems: [] });
   });
 
-  test("keeps reporting a missing precio when no row covers the path at all", async () => {
+  test("keeps reporting a missing price when no row covers the path at all", async () => {
     const eventBases = buildSoloEventBases([]);
 
     await expect(
@@ -254,7 +254,7 @@ describe("event registration readiness from loaded bases", () => {
     });
   });
 
-  test("keeps the evento ready on the precio's last day, and drops it the next", async () => {
+  test("keeps the event ready on the price's last day, and drops it the next", async () => {
     const lastDayPrice = {
       id: "price_solo",
       eventId: "event_2026",

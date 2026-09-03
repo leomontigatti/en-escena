@@ -658,7 +658,7 @@ async function main(): Promise<void> {
   //    finding, so every attempt is recorded and the process keeps going.
   const emisorCuit = String(cuit);
   const condicionIvaReceptorId = Number(consumidorFinal.id);
-  // Every amendment anchors HERE, at the factura — never at another amendment.
+  // Every amendment anchors HERE, at the invoice — never at another amendment.
   // That is the star anchoring of #599/#610, and it is the whole reason 10237 is
   // worth probing: chained anchoring would never produce the case.
   const facturaAsoc: CbteAsoc = {

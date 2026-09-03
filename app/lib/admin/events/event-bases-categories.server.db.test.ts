@@ -33,8 +33,8 @@ import {
 
 installDatabaseTestHooks();
 
-describe.sequential("administracion Bases del evento routes", () => {
-  test("creates modalidades, submodalidades and categorías from list actions", async () => {
+describe.sequential("administracion `Bases del evento` routes", () => {
+  test("creates modalities, submodalities and categories from list actions", async () => {
     const event = await createSavedEvent("Regional 2026");
     const modalityRequest = await createSignedInRequest({
       email: "admin.crea.modalidad@example.com",
@@ -106,7 +106,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     expect(categoriasMarkup).toContain("Amateur");
   });
 
-  test("updates categorías from list actions", async () => {
+  test("updates categories from list actions", async () => {
     const event = await createSavedEvent("Regional 2026");
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
@@ -150,7 +150,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     ).resolves.toMatchObject({ name: "Infantil A" });
   });
 
-  test("deletes submodalidades from list actions", async () => {
+  test("deletes submodalities from list actions", async () => {
     const event = await createSavedEvent("Regional 2026");
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
@@ -182,7 +182,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     ).resolves.toBeUndefined();
   });
 
-  test("uses dedicated category routes and fixed niveles from the Categoria form", async () => {
+  test("uses dedicated category routes and fixed levels from the Categoria form", async () => {
     const event = await createSavedEvent("Regional 2026");
     const jazz = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
@@ -590,7 +590,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     ).resolves.toMatchObject({ id: category.id });
   });
 
-  test("deletes Modalidades only from detail with explicit confirmation", async () => {
+  test("deletes modalities only from detail with explicit confirmation", async () => {
     const event = await createSavedEvent("Regional 2026");
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),

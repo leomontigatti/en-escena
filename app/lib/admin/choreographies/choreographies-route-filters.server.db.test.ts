@@ -35,7 +35,7 @@ import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-describe("administracion/coreografias route filters", () => {
+describe("`/administracion/coreografias` route filters", () => {
   test("supports operational filters, event-wide facets, sin-asignar, and invalid URL canonicalization", async () => {
     const event = await createSavedEvent();
     const otherEvent = await createInactiveEvent("Regional 2025");

@@ -79,7 +79,7 @@ const defaultComprobantesOrder: ComprobantesListOrder = {
  * The global list of comprobantes emitted in the active event, paginated, sorted
  * and filtered on the server (it grows over time, #483). The `vigente`/`anulada`
  * state is NOT persisted: it is derived in SQL from the existence of a credit
- * note of the same event referencing the factura via
+ * note of the same event referencing the invoice via
  * `associatedComprobanteId`, so that the state filter and the pagination operate
  * on the real state and not on the loaded page. It mutates nothing.
  */

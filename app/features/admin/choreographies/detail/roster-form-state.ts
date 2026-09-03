@@ -176,7 +176,7 @@ export function hasNoCompatibleCategory({
 
 /**
  * There is a single "Cronograma" slot and the roster select takes precedence: a
- * group type change clears the cupo, and its replacement is chosen together with
+ * group type change clears the capacity, and its replacement is chosen together with
  * the roster confirmation rather than separately. Only once no roster change is
  * pending does the standalone reassignment claim the slot.
  *

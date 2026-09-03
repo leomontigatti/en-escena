@@ -102,7 +102,7 @@ describe("PortalChoreographiesListRouteView", () => {
     expect(markup).not.toContain(">Mi Pieza</a>");
   });
 
-  test("disables Nueva coreografía when there are no bailarines activos", () => {
+  test("disables `Nueva coreografía` when there are no dancers active", () => {
     const markup = renderChoreographiesList({
       loaderData: choreographiesLoaderData({
         activeDancerCount: 0,
@@ -153,7 +153,7 @@ describe("PortalChoreographiesListRouteView", () => {
     expect(markup).not.toContain("Precios aplicables");
   });
 
-  test("keeps Coreografías visible without an active event", () => {
+  test("keeps choreographies visible without an active event", () => {
     const markup = renderChoreographiesList({
       loaderData: choreographiesLoaderData({
         eventContext: {
@@ -211,7 +211,7 @@ describe("PortalChoreographiesListRouteView", () => {
     expect(text).not.toContain("Mi Pieza");
   });
 
-  test("shows the enabled Nueva coreografía button for the active editable event", () => {
+  test("shows the enabled `Nueva coreografía` button for the active editable event", () => {
     const markup = renderChoreographiesList();
 
     expect(markup).toContain("Nueva coreografía");

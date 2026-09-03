@@ -168,7 +168,7 @@ describe("internal access authorization", () => {
     });
   });
 
-  test("redirects academy users without an Academia to onboarding", async () => {
+  test("redirects academy users without an academy to onboarding", async () => {
     const { request } = await createSignedInRequest({
       email: "pendiente.onboarding@example.com",
       role: "academy",

@@ -179,7 +179,7 @@ describe.sequential(
       );
 
       expect(portalLoaderData.summary).toEqual({
-        // 16600 pagos - 15600 asignaciones = 1000 disponible.
+        // 16600 payments - 15600 allocations = 1000 available.
         availableBalanceAmount: 1000,
         // 8400 of shortfall on the one that covered its deposit + 10000 from the
         // one with nothing, at the current price; the one with no price adds 1 to

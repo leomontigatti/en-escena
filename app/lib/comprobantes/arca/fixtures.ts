@@ -122,7 +122,7 @@ export const ultimoAutorizadoVacio: LastVoucherResultDto = {
 };
 
 // `FECAESolicitar` approved for a `Nota de crédito C` (type 13, #449): ARCA
-// returns CAE + expiry just as for a factura; only `CbteTipo` changes.
+// returns CAE + expiry just as for an invoice; only `CbteTipo` changes.
 export const notaCreditoCAprobada: CreateVoucherResultDto = {
   cae: "41124599990011",
   caeFchVto: "20260801",
@@ -155,7 +155,7 @@ export const notaCreditoCAprobada: CreateVoucherResultDto = {
 };
 
 // `FECompUltimoAutorizado` for the credit note series (type 13): it runs on
-// a sequence of its own, separate from the facturas'. Here it has emitted up to 7.
+// a sequence of its own, separate from the invoices'. Here it has emitted up to 7.
 export const ultimoNotaCreditoAutorizado: LastVoucherResultDto = {
   cbteNro: 7,
   cbteTipo: 13,

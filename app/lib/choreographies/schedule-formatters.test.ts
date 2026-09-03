@@ -35,7 +35,7 @@ describe("schedule formatters", () => {
   });
 
   // The specific capacity may have room while the schedule containing it does not.
-  test("says sin cupo even when the count alone does not explain it", () => {
+  test("says `sin cupo` even when the count alone does not explain it", () => {
     expect(
       appendScheduleOccupancySuffix("Cronograma", {
         capacity: 5,

@@ -670,7 +670,7 @@ describe.sequential("handlePortalDancerDetailAction", () => {
     });
   });
 
-  test("rejects duplicate complete documents only within the same Academia", async () => {
+  test("rejects duplicate complete documents only within the same academy", async () => {
     const ownerSession = await createAcademySession({
       email: "bailarines.duplicate.owner@example.com",
       academyName: "Academia Dueña",
@@ -762,7 +762,7 @@ describe.sequential("handlePortalDancerDetailAction", () => {
     expect(ownerExisting.id).not.toBe(otherEditable.id);
   });
 
-  test("returns not found when another Academia loads or updates a Bailarín", async () => {
+  test("returns not found when another academy loads or updates a dancer", async () => {
     const ownerSession = await createAcademySession({
       email: "bailarines.owner.scope@example.com",
       academyName: "Academia Dueña",
@@ -813,7 +813,7 @@ describe.sequential("handlePortalDancerDetailAction", () => {
     );
   });
 
-  test("archives and reactivates a Bailarín while keeping direct URL access", async () => {
+  test("archives and reactivates a dancer while keeping direct URL access", async () => {
     const session = await createAcademySession({
       email: "bailarines.archive@example.com",
       academyName: "Academia Archivo",

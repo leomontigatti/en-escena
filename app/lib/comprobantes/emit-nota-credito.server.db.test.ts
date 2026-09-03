@@ -444,7 +444,7 @@ describe("annulComprobante", () => {
   // The flip side of the previous test: the index is unique but the column is
   // nullable, and Postgres treats NULLs as distinct. Several comprobantes in
   // force (all with a null `associatedComprobanteId`) coexist without colliding.
-  test("several live facturas coexist under the unique index", async () => {
+  test("several live invoices coexist under the unique index", async () => {
     const { choreography, inscription } = await seedChoreographyWithInscription(
       `vigentes.${crypto.randomUUID()}@example.com`,
     );
@@ -537,7 +537,7 @@ describe("annulComprobante", () => {
     );
     expectOk(firstAnnul);
 
-    // 2) The remainder becomes billable again → emit a second factura.
+    // 2) The remainder becomes billable again → emit a second invoice.
     const reemit = await emitChoreographyFacturaC(
       { choreographyId: choreography.id, eventId: choreography.eventId },
       annulDeps(
@@ -550,7 +550,7 @@ describe("annulComprobante", () => {
     expect(reemit.ok).toBe(true);
     if (!reemit.ok) return;
 
-    // 3) Annul the second factura too: the chain grows without limit. The second
+    // 3) Annul the second invoice too: the chain grows without limit. The second
     // credit note runs at the next sequence number of its series.
     const secondAnnul = await annulComprobante(
       { comprobanteId: reemit.comprobante.id },
@@ -564,15 +564,15 @@ describe("annulComprobante", () => {
     expectOk(secondAnnul);
 
     const rows = await listChoreographyComprobantes(choreography.id);
-    // Four rows: 2 facturas + 2 credit notes, all undeletable.
+    // Four rows: 2 invoices + 2 credit notes, all undeletable.
     expect(rows).toHaveLength(4);
     const facturas = rows.filter((row) => row.cbteTipo === 11);
     const notas = rows.filter((row) => row.cbteTipo === 13);
     expect(facturas).toHaveLength(2);
     expect(notas).toHaveLength(2);
-    // Both facturas ended up annulled by their respective credit note.
+    // Both invoices ended up annulled by their respective credit note.
     expect(facturas.every((row) => row.status === "anulada")).toBe(true);
-    // Each credit note references a different factura.
+    // Each credit note references a different invoice.
     expect(new Set(notas.map((row) => row.associatedComprobanteId)).size).toBe(
       2,
     );

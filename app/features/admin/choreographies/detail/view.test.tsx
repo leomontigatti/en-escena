@@ -138,7 +138,7 @@ describe("ChoreographyDetailRouteView", () => {
     expect(markup).not.toContain('name="submodalityId"');
   });
 
-  test("renders a standalone cronograma select for admins with more than one compatible cupo", () => {
+  test("renders a standalone schedule select for admins with more than one compatible capacity", () => {
     const markup = renderDetail({ loaderData: buildLoaderData() });
 
     expect(markup).toContain("Cronograma");
@@ -147,7 +147,7 @@ describe("ChoreographyDetailRouteView", () => {
     expect(markup).not.toContain('name="scheduleCapacityId"');
   });
 
-  test("keeps the cronograma read-only when it cannot be reassigned", () => {
+  test("keeps the schedule read-only when it cannot be reassigned", () => {
     const markup = renderDetail({
       loaderData: buildLoaderData({
         scheduleCapacity: {
@@ -213,13 +213,13 @@ describe("ChoreographyDetailRouteView", () => {
     expect(markup).toContain("Hay dinero asignado.");
   });
 
-  test("does not announce a cupo de cronograma blocker when there is none", () => {
+  test("does not announce a schedule capacity blocker when there is none", () => {
     const markup = renderDetail({ loaderData: buildLoaderData() });
 
     expect(markup).not.toContain("No se puede reasignar el cupo de cronograma");
   });
 
-  test("renders an editable modalidad select for admins", () => {
+  test("renders an editable modality select for admins", () => {
     const markup = renderDetail({ loaderData: buildLoaderData() });
 
     expect(markup).toContain("Modalidad");
@@ -230,7 +230,7 @@ describe("ChoreographyDetailRouteView", () => {
   // Which condition closed the field is decided by
   // `canCorrectChoreographyModality` and covered in `shared.test.ts`; the view
   // only ever reads the resolved `canCorrect`, so one case covers it here.
-  test("keeps the modalidad read-only when the correction is closed", () => {
+  test("keeps the modality read-only when the correction is closed", () => {
     const markup = renderDetail({
       loaderData: buildLoaderData({
         canEdit: true,
@@ -247,7 +247,7 @@ describe("ChoreographyDetailRouteView", () => {
     expect(markup).not.toContain('name="modalityId"');
   });
 
-  test("announces the deposit as a blocker-in-waiting for the modalidad, auditors included", () => {
+  test("announces the deposit as a blocker-in-waiting for the modality, auditors included", () => {
     const markup = renderDetail({
       loaderData: buildLoaderData({
         canEdit: false,
@@ -270,7 +270,7 @@ describe("ChoreographyDetailRouteView", () => {
     );
   });
 
-  test("does not announce a modalidad blocker when there is no money on it", () => {
+  test("does not announce a modality blocker when there is no money on it", () => {
     const markup = renderDetail({ loaderData: buildLoaderData() });
 
     expect(markup).not.toContain(
@@ -278,7 +278,7 @@ describe("ChoreographyDetailRouteView", () => {
     );
   });
 
-  test("renders a standalone nivel de experiencia select for admins whose category declares levels", () => {
+  test("renders a standalone experience level select for admins whose category declares levels", () => {
     const markup = renderDetail({ loaderData: buildLoaderData() });
 
     expect(markup).toContain("Nivel de experiencia");
@@ -306,7 +306,7 @@ describe("ChoreographyDetailRouteView", () => {
       },
     ],
   ])(
-    "keeps the nivel de experiencia read-only when %s",
+    "keeps the experience level read-only when %s",
     (_cause, overrides: Partial<ChoreographyDetailLoaderData>) => {
       const markup = renderDetail({
         loaderData: buildLoaderData({
@@ -320,7 +320,7 @@ describe("ChoreographyDetailRouteView", () => {
     },
   );
 
-  test("reads a category without levels as No aplica, not as a missing value", () => {
+  test("reads a category without levels as `No aplica`, not as a missing value", () => {
     const markup = renderDetail({
       loaderData: buildLoaderData({
         choreography: buildChoreography({
@@ -337,7 +337,7 @@ describe("ChoreographyDetailRouteView", () => {
     expect(markup).not.toContain("Sin asignar");
   });
 
-  test("reads a required level that is missing as Sin asignar when nobody can set it", () => {
+  test("reads a required level that is missing as `Sin asignar` when nobody can set it", () => {
     const markup = renderDetail({
       loaderData: buildLoaderData({
         choreography: buildChoreography({
@@ -423,7 +423,7 @@ describe("ChoreographyDetailRouteView", () => {
     expect(markup).not.toContain("Falta el nivel de experiencia");
   });
 
-  test("reports the rejection of a nivel de experiencia to the view", () => {
+  test("reports the rejection of a experience level to the view", () => {
     const markup = renderDetail({
       actionData: {
         message:
@@ -486,7 +486,7 @@ describe("ChoreographyDetailRouteView", () => {
    * The roster select replaces the standalone reassignment while a dancer change
    * is pending, and only appears once the server resolves that change. The test
    * reaches it through the UI to pin that it labels through the shared builder —
-   * occupancy included, full cupo disabled — instead of rebuilding the label on
+   * occupancy included, full capacity disabled — instead of rebuilding the label on
    * its own, which is what made it diverge from the portal and from the
    * standalone reassignment.
    */

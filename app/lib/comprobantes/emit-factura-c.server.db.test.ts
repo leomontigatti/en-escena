@@ -146,7 +146,7 @@ async function seedChoreographyWithInscriptions(
 let paymentNumber = 0;
 
 // Records an actual collection: a `Pago` and its `Asignación de pago` on the
-// inscription. It is the financial source of truth the factura derives from.
+// inscription. It is the financial source of truth the invoice derives from.
 async function allocatePayment(input: {
   academyId: string;
   eventId: string;
@@ -227,7 +227,7 @@ describe("emitChoreographyFacturaC", () => {
     ).toEqual([4000, 6000]);
   });
 
-  test("does not re-invoice amounts already covered by a live type 11 factura", async () => {
+  test("does not re-invoice amounts already covered by a live type 11 invoice", async () => {
     const { academy, choreography, inscriptions } =
       await seedChoreographyWithInscriptions(
         `parcial.${crypto.randomUUID()}@example.com`,
@@ -374,7 +374,7 @@ describe("emitChoreographyFacturaC", () => {
     expect(allocations[0].amount).toBe(5000);
   });
 
-  test("an annulled factura does not count as invoiced: its amount becomes invoiceable again", async () => {
+  test("an annulled invoice does not count as invoiced: its amount becomes invoiceable again", async () => {
     const { academy, choreography, inscriptions } =
       await seedChoreographyWithInscriptions(
         `anulada.${crypto.randomUUID()}@example.com`,
@@ -404,7 +404,7 @@ describe("emitChoreographyFacturaC", () => {
       caeVto: "20260710",
       lines: [{ inscriptionId: inscription.id, amount: 7000 }],
     });
-    // Mirror credit note annulling the previous factura.
+    // Mirror credit note annulling the previous invoice.
     await recordComprobante({
       choreographyId: choreography.id,
       eventId: choreography.eventId,
@@ -562,7 +562,7 @@ describe("emitChoreographyFacturaC", () => {
     // line was billed, so the aggregate billed (3000) exceeds the aggregate
     // collected (1000) while B still has a remainder. The remainder is resolved
     // PER INSCRIPTION, so B's 1000 is billable and this emission is legitimate —
-    // there is money collected that no vigente factura covers. The loader's
+    // there is money collected that no vigente invoice covers. The loader's
     // `canEmit` asserts the same state in
     // `choreography-detail/server.invoicing.db.test.ts`; this is the server side
     // of that pair, and what makes the two agree an assertion rather than a

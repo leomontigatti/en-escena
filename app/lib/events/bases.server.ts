@@ -84,9 +84,9 @@ export async function resolveEventBasesPrice(input: {
 }
 
 /**
- * Which modalidades of the event a cronograma can take. The select that offers
- * a modalidad correction needs the whole set at once, so it asks for it in one
- * query instead of resolving the cupos of every modalidad in turn.
+ * Which modalities of the event a schedule can take. The select that offers
+ * a modality correction needs the whole set at once, so it asks for it in one
+ * query instead of resolving the capacities of every modality in turn.
  */
 export async function resolveEventBasesScheduleModalityIds(
   eventId: string,

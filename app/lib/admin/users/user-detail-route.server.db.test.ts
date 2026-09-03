@@ -26,7 +26,7 @@ import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-describe("administracion/usuarios/:userId route", () => {
+describe("`/administracion/usuarios/:userId` route", () => {
   test("suspends and reactivates an internal user and revokes sessions", async () => {
     const targetUser = await createSignedInRequest({
       email: "usuario.suspendible@example.com",

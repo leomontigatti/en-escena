@@ -184,7 +184,7 @@ export async function loadChoreographyDetailRouteData(input: {
     modality: {
       // The deposit does not close the field: it is listed as a blocker-in-waiting,
       // because it only rejects the save when the correction would move the
-      // cronograma.
+      // schedule.
       blockers: toChoreographyModalityBlockers(hasFrozenPrice),
       canCorrect: canCorrectChoreographyModality({
         canEdit,
@@ -428,7 +428,7 @@ async function updateChoreographyRosterAction(input: {
   });
 
   if (!result.ok) {
-    // The two cupo-de-cronograma guards (#659) reject a save that the roster
+    // The two schedule-capacity guards (#659) reject a save that the roster
     // section's own error channel would otherwise swallow (see
     // `toChoreographyDetailViewActionData` in `shared.ts`): they surface as a
     // plain `status: "error"` instead of `"roster-error"` so the rejection

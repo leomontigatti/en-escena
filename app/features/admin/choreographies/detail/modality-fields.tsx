@@ -29,7 +29,7 @@ type ModalityFieldProps = {
 /**
  * The three dependent fields only exist once the resolution answered. Until
  * then the page keeps the saved-value fields on screen, disabled, so no
- * control next to the modalidad select changes shape mid-round-trip.
+ * control next to the modality select changes shape mid-round-trip.
  */
 type ResolvedModalityFieldProps = {
   modality: ReturnType<typeof useModalityForm>;
@@ -37,14 +37,14 @@ type ResolvedModalityFieldProps = {
 };
 
 /**
- * One slot per field the modality correction rewrites — submodalidad, nivel de
- * experiencia and cupo de cronograma — with the precedence written once instead
+ * One slot per field the modality correction rewrites — submodality, level de
+ * experience and schedule capacity — with the precedence written once instead
  * of at each of the three.
  *
  * The correction wins as soon as its resolution answered, because it rewrites
  * all three at once. Until then the field keeps showing the saved value in the
  * same control, only disabled: swapping it for a read-only one and back flashes
- * a control next to the modalidad select twice in a single round-trip, and
+ * a control next to the modality select twice in a single round-trip, and
  * disabling it is already enough to stop anyone picking a value the resolution
  * is about to discard. The roster form and the modality block exclude each
  * other on screen, so a slot never has two candidates.
@@ -167,7 +167,7 @@ export function ModalityScheduleCapacityField({
     );
   }
 
-  // A single compatible cupo is not chosen: it stays preselected and
+  // A single compatible capacity is not chosen: it stays preselected and
   // read-only, like the `auto` status of registration.
   if (isModalityScheduleCapacityLocked(resolution)) {
     return (

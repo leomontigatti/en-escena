@@ -474,7 +474,7 @@ describe.sequential("administracion finanzas coreografia detalle", () => {
     });
   });
 
-  test("shows incomplete amounts and Sin precio when no applicable price exists", async () => {
+  test("shows incomplete amounts and `Sin precio` when no applicable price exists", async () => {
     vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
       "2026-06-01",
     );

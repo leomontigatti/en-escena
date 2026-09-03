@@ -181,8 +181,8 @@ async function recordVigenteFactura(input: {
   });
 }
 
-// A credit note mirroring a factura: by referencing it through
-// `associatedComprobanteId`, the factura's derived state becomes `anulada`.
+// A credit note mirroring an invoice: by referencing it through
+// `associatedComprobanteId`, the invoice's derived state becomes `anulada`.
 async function recordNotaCredito(input: {
   choreographyId: string;
   eventId: string;
@@ -285,7 +285,7 @@ describe.sequential("financial detail — comprobante emission axis", () => {
     });
   });
 
-  test("leaves nothing billable once a vigente factura covers the whole cobro", async () => {
+  test("leaves nothing billable once a vigente invoice covers the whole cobro", async () => {
     const seeded = await seedChoreographyWithPaidInscription({
       academyName: "Academia Vigente",
       choreographyName: "Coreografía vigente",
@@ -308,7 +308,7 @@ describe.sequential("financial detail — comprobante emission axis", () => {
     });
   });
 
-  test("makes money collected after a factura billable again", async () => {
+  test("makes money collected after an invoice billable again", async () => {
     const seeded = await seedChoreographyWithPaidInscription({
       academyName: "Academia Remanente",
       choreographyName: "Coreografía remanente",
@@ -337,7 +337,7 @@ describe.sequential("financial detail — comprobante emission axis", () => {
     });
   });
 
-  test("makes the annulled factura's amount billable again", async () => {
+  test("makes the annulled invoice's amount billable again", async () => {
     const seeded = await seedChoreographyWithPaidInscription({
       academyName: "Academia Anulada",
       choreographyName: "Coreografía anulada",

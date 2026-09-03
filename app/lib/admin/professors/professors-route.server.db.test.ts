@@ -36,8 +36,8 @@ import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-describe("administracion/profesores route", () => {
-  test("allows admin access and renders an empty readonly Profesores list", async () => {
+describe("`/administracion/profesores` route", () => {
+  test("allows admin access and renders an empty readonly professors list", async () => {
     const { request } = await createSignedInRequest({
       email: "admin.profesores@example.com",
       role: "admin",
@@ -238,7 +238,7 @@ describe("administracion/profesores route", () => {
     );
   });
 
-  test("shows active records without participation filters or badges when there is no Evento activo", async () => {
+  test("shows active records without participation filters or badges when there is no event active", async () => {
     const participatingAcademy = await createAcademyUser({
       email: "sin.evento.participa@example.com",
       academyName: "Academia Participa",
@@ -298,7 +298,7 @@ describe("administracion/profesores route", () => {
     expect(markup).toContain("Filtros");
   });
 
-  test("renders a readonly Profesor detail with the single-card administrative layout", async () => {
+  test("renders a readonly professor detail with the single-card administrative layout", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "ficha.academia@example.com",
@@ -360,7 +360,7 @@ describe("administracion/profesores route", () => {
     expect(markup).not.toContain("Trazabilidad");
   });
 
-  test("renders migrated Profesores list and detail screens inside the shared administration shell", async () => {
+  test("renders migrated professors list and detail screens inside the shared administration shell", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "layout.academia@example.com",
@@ -507,7 +507,7 @@ describe("administracion/profesores route", () => {
     expect(auditorMarkup).not.toContain("Acciones");
   });
 
-  test("renders the Profesor edit form without inline audit-reason fields or native required attributes", async () => {
+  test("renders the professor edit form without inline audit-reason fields or native required attributes", async () => {
     const academy = await createAcademyUser({
       email: "admin.render.rhf.profesores.academia@example.com",
       academyName: "Academia Render RHF",
@@ -591,7 +591,7 @@ describe("administracion/profesores route", () => {
     expect(markup).toContain('value="Dialogo"');
   });
 
-  test("updates a Profesor in explicit edit mode", async () => {
+  test("updates a professor in explicit edit mode", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "admin.mutacion.academia@example.com",
@@ -678,7 +678,7 @@ describe("administracion/profesores route", () => {
     }
   });
 
-  test("saves a participating Profesor without a correction reason", async () => {
+  test("saves a participating professor without a correction reason", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "admin.motivo.evento.academia@example.com",
@@ -723,7 +723,7 @@ describe("administracion/profesores route", () => {
     await expectPersistedProfessor(professor.id, { firstName: "Lia Mariel" });
   });
 
-  test("saves a Profesor who participated in any Evento without a correction reason", async () => {
+  test("saves a professor who participated in any event without a correction reason", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "admin.motivo.historial.academia@example.com",
@@ -815,7 +815,7 @@ describe("administracion/profesores route", () => {
     });
   });
 
-  test("archives and reactivates a participating Profesor without unlinking coreografias", async () => {
+  test("archives and reactivates a participating professor without unlinking coreografias", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "admin.archivo.academia@example.com",

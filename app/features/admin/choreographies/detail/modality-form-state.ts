@@ -25,27 +25,27 @@ export type ResolvedModalityFieldState = {
 };
 
 /**
- * The reason travels on the option, not in a separate message: a modalidad no
- * cronograma accepts is a structural dead end, and whoever sees it greyed out
+ * The reason travels on the option, not in a separate message: a modality no
+ * schedule accepts is a structural dead end, and whoever sees it greyed out
  * has to know why without going looking for it.
  */
 const noCompatibleScheduleOptionSuffix = " (sin cronograma compatible)";
 
 /**
- * A select where no compatible cupo has room is a silent dead end, exactly as
+ * A select where no compatible capacity has room is a silent dead end, exactly as
  * in the portal registration: it is replaced by the reason.
  */
 export const everyModalityScheduleCapacityFullMessage =
   "Los cronogramas compatibles con esta modalidad ya no tienen lugar. Elegí otra modalidad para corregirla.";
 
 /**
- * Every modalidad of the event, with the assigned one included rather than
- * excluded: re-selecting it is a successful no-op, and a modalidad that lost
- * its cronograma has to stay visibly selected instead of disappearing.
+ * Every modality of the event, with the assigned one included rather than
+ * excluded: re-selecting it is a successful no-op, and a modality that lost
+ * its schedule has to stay visibly selected instead of disappearing.
  *
- * `disabled` marks only the structural dead end —no cronograma of the event
- * accepts that modalidad—, never a full cupo: occupancy is a snapshot that
- * races and is resolved at the cupo step.
+ * `disabled` marks only the structural dead end —no schedule of the event
+ * accepts that modality—, never a full capacity: occupancy is a snapshot that
+ * races and is resolved at the capacity step.
  */
 export function getModalitySelectOptions(
   options: readonly ChoreographyModalityOption[],
@@ -60,7 +60,7 @@ export function getModalitySelectOptions(
 }
 
 /**
- * Each candidate modalidad is queried once, and going back to the assigned one
+ * Each candidate modality is queried once, and going back to the assigned one
  * fires no request: its resolution is the one already persisted.
  */
 export function shouldResolveModalitySelection({
@@ -93,10 +93,10 @@ export function shouldResolveModalitySelection({
 /**
  * The three dependent fields, filled or cleared from the resolution.
  *
- * The submodalidad is never carried over: `choreography.submodality_id` has a
- * plain FK to `submodality` and no constraint ties it to the modalidad, so
- * keeping it would leave the choreography pointing at a submodalidad of another
- * modalidad with nothing noticing.
+ * The submodality is never carried over: `choreography.submodality_id` has a
+ * plain FK to `submodality` and no constraint ties it to the modality, so
+ * keeping it would leave the choreography pointing at a submodality of another
+ * modality with nothing noticing.
  */
 export function getResolvedModalityFieldState({
   categoryId,
@@ -128,7 +128,7 @@ export function getResolvedModalityFieldState({
 }
 
 /**
- * With a single compatible cupo there is nothing to choose: it stays
+ * With a single compatible capacity there is nothing to choose: it stays
  * preselected and read-only, like the `auto` status of registration.
  */
 export function isModalityScheduleCapacityLocked(
@@ -139,7 +139,7 @@ export function isModalityScheduleCapacityLocked(
 
 /**
  * Every field the resolution leaves to be chosen holds the save until it is
- * answered, the cupo included: the roster form next door already does that, and
+ * answered, the capacity included: the roster form next door already does that, and
  * both now share one `Guardar`, so a required field that disables the button in
  * one form and not in the other would make the same button mean two things.
  */
@@ -159,7 +159,7 @@ export function canSubmitModalityCorrection(input: CanSubmitModalityInput) {
     return false;
   }
 
-  // With no eligible cupo there is no possible correction: the select has
+  // With no eligible capacity there is no possible correction: the select has
   // already been replaced by the reason, so leaving the button live would ask
   // for a field that is not there.
   if (
@@ -169,7 +169,7 @@ export function canSubmitModalityCorrection(input: CanSubmitModalityInput) {
     return false;
   }
 
-  // Only `multiple` leaves a cupo to choose: `auto` arrives preselected and
+  // Only `multiple` leaves a capacity to choose: `auto` arrives preselected and
   // `none` was already turned away above.
   if (
     resolution.scheduleCapacity.status === "multiple" &&

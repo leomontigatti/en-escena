@@ -3,7 +3,7 @@ import { describe, expect, test } from "vitest";
 import { resolveEventContext } from "@/lib/admin/event-context.server";
 
 describe("admin event context", () => {
-  test("defaults to the active Evento", () => {
+  test("defaults to the active event", () => {
     expect(
       resolveEventContext({
         events: [
@@ -17,7 +17,7 @@ describe("admin event context", () => {
     });
   });
 
-  test("does not select inactive Eventos", () => {
+  test("does not select inactive events", () => {
     expect(
       resolveEventContext({
         events: [

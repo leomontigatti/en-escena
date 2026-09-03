@@ -17,7 +17,7 @@ vi.mock("@/lib/auth/access-auth-provider.server", () => ({
 
 import { loader } from "@/routes/registro_.confirmar";
 
-describe("registro confirm loader", () => {
+describe("registration confirm loader", () => {
   afterEach(() => {
     vi.clearAllMocks();
   });

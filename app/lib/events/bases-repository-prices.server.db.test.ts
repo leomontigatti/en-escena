@@ -26,8 +26,8 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-describe("Bases del evento repository", () => {
-  test("keeps precios unique by evento and rejects cronogramas from another evento", async () => {
+describe("`Bases del evento` repository", () => {
+  test("keeps prices unique by event and rejects schedules from another event", async () => {
     const firstEvent = await createSavedEvent("Regional 2026");
     const secondEvent = await createSavedEvent("Final 2026");
     const jazz = await expectCreated(
@@ -92,7 +92,7 @@ describe("Bases del evento repository", () => {
     });
   });
 
-  test("resolves the applicable precio by cronograma specificity and payment deadline", async () => {
+  test("resolves the applicable price by schedule specificity and payment deadline", async () => {
     const { event, schedule: block } = await createEventPriceFixture();
     const general = await createSavedPrice(event.id);
     const specific = await createSavedPrice(event.id, {
@@ -150,7 +150,7 @@ describe("Bases del evento repository", () => {
     });
   });
 
-  test("lists precios with cronograma scope and blocks dependent updates and deletes", async () => {
+  test("lists prices with schedule scope and blocks dependent updates and deletes", async () => {
     const { event, schedule: block } = await createEventPriceFixture();
     const general = await createSavedPrice(event.id);
     await createSavedPrice(event.id, {

@@ -114,7 +114,7 @@ describe("deriveInscriptionFinancialFigures", () => {
     expect(figures.anomalies).toEqual([]);
   });
 
-  test("floors both owed figures at zero and keeps deposit inside saldo", () => {
+  test("floors both owed figures at zero and keeps deposit inside balance", () => {
     const figures = deriveInscriptionFinancialFigures({
       allocatedAmount: 12000,
       thresholds,
@@ -201,7 +201,7 @@ describe("deriveInscriptionFinancialFigures on a withdrawn inscription", () => {
     expect(figures.totalAmount).toBe(12000);
   });
 
-  test("keeps exposing its deposit figure so the saldo can still be taken off", () => {
+  test("keeps exposing its deposit figure so the balance can still be taken off", () => {
     expect(
       deriveInscriptionFinancialFigures({
         allocatedAmount: 10000,
@@ -225,7 +225,7 @@ describe("deriveInscriptionFinancialFigures on a withdrawn inscription", () => {
 });
 
 describe("resolveInscriptionStatusBadge", () => {
-  test("puts Retirada above the over-allocation anomaly", () => {
+  test("puts `Retirada` above the over-allocation anomaly", () => {
     expect(
       resolveInscriptionStatusBadge({
         anomalies: ["overAllocated"],

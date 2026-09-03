@@ -54,7 +54,7 @@ type SelectFieldProps<
   orientation?: SharedFieldOrientation;
   placeholder?: string;
   emptyLabel?: string;
-  // `disabled` is reserved for a full cupo de cronograma, so the greyed-out
+  // `disabled` is reserved for a full schedule capacity, so the greyed-out
   // option keeps exactly one meaning across every surface.
   options: readonly { value: string; label: string; disabled?: boolean }[];
 };

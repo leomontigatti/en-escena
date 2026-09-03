@@ -223,7 +223,7 @@ export function deriveInscriptionFinancialFigures(input: {
  * - The retained money **re-enters the choreography's rollup**, because
  *   `totalAmount` and `allocatedAmount` are both real.
  *
- * The deposit figure survives untouched: the preset that takes the saldo off a
+ * The deposit figure survives untouched: the preset that takes the balance off a
  * withdrawn row needs it, and it is the price's figure, not a claim.
  *
  * The status reads `paidInFull` because nothing is owed, but no surface shows it

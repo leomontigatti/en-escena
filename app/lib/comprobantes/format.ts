@@ -31,7 +31,7 @@ export function formatComprobanteTipoLabel(cbteTipo: number): string {
   return `Comprobante ${cbteTipo}`;
 }
 
-// Initials of the comprobante type for the list's Tipo column: `FC` (`Factura C`)
+// Initials of the comprobante type for the list's type column: `FC` (`Factura C`)
 // or `NC` (`Nota de crédito C`). The full label stays as the `title`, so the data
 // is not lost when the badge is shrunk.
 export function formatComprobanteTipoInitials(cbteTipo: number): string {
@@ -46,7 +46,7 @@ export function formatComprobanteTipoInitials(cbteTipo: number): string {
   return `C${cbteTipo}`;
 }
 
-// The type badge's variant (the list's Tipo column and the detail): `Factura C` is
+// The type badge's variant (the list's type column and the detail): `Factura C` is
 // `info` (blue) and `Nota de crédito C` is `warning` (yellow), to tell the original
 // comprobante from its annulment at a glance. The literal matches the Badge
 // component's variants without coupling the lib to the UI layer.

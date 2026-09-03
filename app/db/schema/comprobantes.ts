@@ -73,7 +73,7 @@ export const comprobantes = createTable(
     // CAE expiry in ARCA's `AAAAMMDD` format.
     caeVto: text("cae_vto").notNull(),
     // Associated comprobante: a credit note (type 13) points here at the
-    // factura it annuls (`CbtesAsoc`). Null on a factura. From the factura's
+    // invoice it annuls (`CbtesAsoc`). Null on an invoice. From the invoice's
     // side, the existence of a row referencing it is what derives it to `anulada`.
     associatedComprobanteId: varchar("associated_comprobante_id", {
       length: 255,

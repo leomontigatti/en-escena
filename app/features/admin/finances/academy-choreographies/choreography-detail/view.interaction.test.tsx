@@ -68,7 +68,7 @@ describe("DancerNameCell interaction", () => {
     await clickReactDomButton("Bruno Benítez");
 
     const amount = amountInput();
-    // The deposit is already covered, so what is left to finish is the saldo.
+    // The deposit is already covered, so what is left to finish is the balance.
     expect(amount.placeholder).toBe("$ 7.000");
     expect(amount.value).toBe("");
   });

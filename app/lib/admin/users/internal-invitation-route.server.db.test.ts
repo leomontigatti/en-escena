@@ -14,7 +14,7 @@ import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-describe("administracion/usuarios/invitaciones route", () => {
+describe("`/administracion/usuarios/invitaciones` route", () => {
   test("redirects administrators to direct internal user creation", async () => {
     const { request: loaderRequest } = await createSignedInRequest({
       email: "admin.invitaciones.loader@example.com",

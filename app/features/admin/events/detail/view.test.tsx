@@ -125,7 +125,7 @@ describe("EventDetailView form", () => {
     expect(submitted).toContain(eventDocumentKeptField("professor_contract"));
   });
 
-  test("holds Guardar until something changes", async () => {
+  test("holds `Guardar` until something changes", async () => {
     await renderForm();
 
     expect(getButton("Guardar").disabled).toBe(true);

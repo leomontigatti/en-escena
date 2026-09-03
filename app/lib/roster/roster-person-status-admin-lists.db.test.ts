@@ -74,8 +74,8 @@ function expectBadge(
   );
 }
 
-describe("Estado de alta on the two administrative lists", () => {
-  test("answers the estado parameter the same way for dancers and for professors", async () => {
+describe("`Estado de alta` on the two administrative lists", () => {
+  test("answers the status parameter the same way for dancers and for professors", async () => {
     const event = await createSavedEvent("Regional Alta", {
       activate: true,
       dates: createEventFixtureDates(2026),

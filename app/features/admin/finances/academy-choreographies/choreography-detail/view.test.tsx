@@ -42,7 +42,7 @@ describe("ChoreographyFinanceDetailView", () => {
     expect(markup).toContain("Ana López");
   });
 
-  test("replaces the status badge with Retirada and the retained amount", () => {
+  test("replaces the status badge with withdrawn and the retained amount", () => {
     const markup = renderDetail({
       inscriptions: [
         inscriptionFixture({
@@ -64,8 +64,8 @@ describe("ChoreographyFinanceDetailView", () => {
 
   test("carries no comprobante badge or link on the amount cards", () => {
     // `porcion` is deleted, and with it the two `Vigente`/`Desactualizada`
-    // badges the Deposit and Saldo cards carried: each read *a portion* — which
-    // vigente factura covered it, and whether new money had landed inside it —
+    // badges the deposit and balance cards carried: each read *a portion* — which
+    // vigente invoice covered it, and whether new money had landed inside it —
     // and with no portion there is nothing to cover. The surviving
     // `Vigente`/`Anulada` badge is the comprobante's own status, and it lives on
     // the global comprobante list and detail.
@@ -422,7 +422,7 @@ describe("ChoreographyFinanceDetailView actions menu", () => {
     expect(document.querySelector('button[aria-label="Acciones"]')).toBeNull();
   });
 
-  test("offers Emitir factura inside the actions menu, not as a standalone button", async () => {
+  test("offers Emitir invoice inside the actions menu, not as a standalone button", async () => {
     await mount({
       invoicing: invoicingFixture({
         billableAmount: 12000,

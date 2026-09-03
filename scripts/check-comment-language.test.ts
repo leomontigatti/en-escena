@@ -5,15 +5,15 @@ import { describe, expect, test } from "vitest";
 import {
   checkCommentLanguage,
   findSpanishProseInSource,
-  readGlossaryTerms,
+  readGlossaryNouns,
   scannedDirectories,
 } from "./check-comment-language";
 
 const filePath = "app/features/admin/example.tsx";
-const glossaryTerms = readGlossaryTerms(process.cwd());
+const glossaryNouns = readGlossaryNouns(process.cwd());
 
 function violationsIn(contents: string) {
-  return findSpanishProseInSource({ contents, filePath, glossaryTerms });
+  return findSpanishProseInSource({ contents, filePath, glossaryNouns });
 }
 
 function kindsIn(contents: string): string[] {
@@ -97,45 +97,77 @@ describe("comment-language guardrail (#592)", () => {
     expect(kindsIn(`// SE quadrant only.`)).toEqual([]);
   });
 
-  // Blanking "Profesor" out of "profesores" used to leave a bare "es" behind,
-  // which then read as the Spanish word it is not.
-  test("blanks a glossary term together with its inflection", () => {
+  // The inflection the glossary does not list is the same violation as the
+  // headword it comes from: `profesor` has a row in CONTEXT.md, `profesores`
+  // does not, and nobody writing the second means anything different.
+  test("catches a glossary noun in an inflection the glossary never lists", () => {
     expect(
       kindsIn(`// Shows the empty state when there are no profesores.`),
-    ).toEqual([]);
+    ).toEqual(["comment"]);
     expect(
       kindsIn(`test("creates modalidades and submodalidades", () => {});`),
+    ).toEqual(["test name"]);
+  });
+
+  // That tail is a closed set of Spanish endings and not `\p{L}*`, because an
+  // open one reads the English `activate` as an inflection of `activa`. All
+  // three of `activate`, `activates` and `activation` are live in the tree.
+  test("does not read an English word as an inflection of a glossary noun", () => {
+    expect(
+      kindsIn(`// The loader activates the one it was given, on activation.`),
     ).toEqual([]);
   });
 
-  // The rule is about the language of the sentence, not about which nouns it
-  // uses: CONTEXT.md exists so English prose can name the Spanish term.
-  test("allows the Spanish domain nouns the glossary reserves", () => {
+  // #792 settled this the strict way: prose is governed exactly like an
+  // identifier, so a glossary noun is a violation in a comment for the same
+  // reason it would be in a name.
+  test("catches the Spanish domain nouns the glossary names", () => {
     expect(
       kindsIn(
         `// The modalidad does not close the field: it only rejects a correction\n// that would move the cronograma of the coreografía.`,
       ),
-    ).toEqual([]);
+    ).toEqual(["comment"]);
   });
 
-  test("allows a glossary term that carries a Spanish function word", () => {
-    expect(kindsIn(`// Shared across the Bases del evento routes.`)).toEqual(
-      [],
-    );
+  // The one term CODING_STANDARDS reserves, and the reason the list is not
+  // empty: an empty reserved list has no escape valve and breaks quietly.
+  test("leaves the reserved term alone, inflection included", () => {
     expect(
-      kindsIn(`// The Descuento por bailarín is applied once per inscription.`),
+      kindsIn(`// The comprobante is derived; comprobantes are immutable.`),
     ).toEqual([]);
   });
 
-  // Without the glossary those same passages are Spanish-looking, which is what
-  // keeps the exemption honest: it is the glossary granting it, not the checker.
-  test("the glossary is what grants that exemption", () => {
+  // Naming the Spanish term is still allowed. It just has to be marked as the
+  // data it is, which is what the identifier rule has always asked for.
+  test("allows a glossary term marked as the data it is", () => {
+    expect(
+      kindsIn(`// Shared across the \`Bases del evento\` routes.`),
+    ).toEqual([]);
+    expect(
+      kindsIn(`// The button reads "Pagar la seña que falta" once it is due.`),
+    ).toEqual([]);
+  });
+
+  // Glossary words that are ordinary English: "Total de inscripción" is what
+  // puts `total` in the list, and `// the total is frozen` is not Spanish.
+  test("does not read an English homograph of a glossary word as Spanish", () => {
+    expect(
+      kindsIn(`// The total is frozen once emitted; the base price is not.`),
+    ).toEqual([]);
+  });
+
+  // Without the glossary the vocabulary rule has nothing to match on, which is
+  // what keeps it honest: CONTEXT.md names the term, the checker does not guess.
+  test("the glossary is what makes a domain noun a violation", () => {
     expect(
       findSpanishProseInSource({
-        contents: `// Shared across the Bases del evento routes.`,
+        contents: `// The cronograma is fixed at registration.`,
         filePath,
       }),
-    ).not.toEqual([]);
+    ).toEqual([]);
+    expect(kindsIn(`// The cronograma is fixed at registration.`)).toEqual([
+      "comment",
+    ]);
   });
 
   test("treats quoted copy, backticks, routes and URLs as the data they are", () => {
@@ -181,14 +213,14 @@ describe("comment-language guardrail (#592)", () => {
     ).toEqual(["test name"]);
   });
 
-  test("leaves an English test name alone, Spanish nouns included", () => {
+  test("leaves an English test name alone", () => {
     expect(
       kindsIn(
-        `test("refuses to move the price that covers its modalidad", () => {});`,
+        `test("refuses to move the price that covers its deposit", () => {});`,
       ),
     ).toEqual([]);
     expect(
-      kindsIn(`test("collects Bases del evento breadcrumbs", () => {});`),
+      kindsIn(`test("collects \`Bases del evento\` breadcrumbs", () => {});`),
     ).toEqual([]);
   });
 

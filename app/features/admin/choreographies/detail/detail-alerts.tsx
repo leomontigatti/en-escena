@@ -38,8 +38,8 @@ export function ChoreographyDetailAlerts({
       ) : null}
 
       {/* Not suppressed for the auditor either: it reports a state of the data.
-          The coreografía was left without a level its categoría requires — a
-          date-of-birth correction, a categoría that had levels added to it
+          The choreography was left without a level its category requires — a
+          date-of-birth correction, a category that had levels added to it
           later, or an old row — and the reason is stored nowhere, so the alert
           does not name it. */}
       {choreography.operationalStatus.pendingItems.includes(
@@ -59,7 +59,7 @@ export function ChoreographyDetailAlerts({
       ) : null}
 
       {/* The financial alert is not suppressed for the auditor: the reason for
-          the block belongs to the coreografía, not to the permissions of
+          the block belongs to the choreography, not to the permissions of
           whoever is looking. One block per line, with no title and no list: the
           server's label is already the whole sentence, and two blocks are two
           stacked alerts. */}
@@ -70,8 +70,8 @@ export function ChoreographyDetailAlerts({
         </Alert>
       ))}
 
-      {/* A deposit does not close the modalidad: it only rejects the correction
-          that would move the cronograma, so it is announced as a
+      {/* A deposit does not close the modality: it only rejects the correction
+          that would move the schedule, so it is announced as a
           blocker-in-waiting. */}
       {loaderData.modality.blockers.map((blocker) => (
         <Alert key={blocker.code} variant="warning">

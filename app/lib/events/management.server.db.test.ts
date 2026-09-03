@@ -18,7 +18,7 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 installDatabaseTestHooks();
 
 describe("event management", () => {
-  test("creates inactive Eventos with deposit and visibility defaults", async () => {
+  test("creates inactive events with deposit and visibility defaults", async () => {
     const result = await createEvent(eventInput({ name: "Regional 2026" }));
 
     expect(result).toMatchObject({
@@ -82,23 +82,20 @@ describe("event management", () => {
       }),
       "registrationEndsAt",
     ],
-  ] as const)(
-    "rejects invalid Evento data: %s",
-    async (_case, input, field) => {
-      const result = await createEvent(input);
+  ] as const)("rejects invalid event data: %s", async (_case, input, field) => {
+    const result = await createEvent(input);
 
-      expect(result).toMatchObject({
-        ok: false,
-        code: "invalid-event",
-        fieldErrors: {
-          [field]: expect.any(String),
-        },
-      });
-      await expect(db.query.events.findMany()).resolves.toEqual([]);
-    },
-  );
+    expect(result).toMatchObject({
+      ok: false,
+      code: "invalid-event",
+      fieldErrors: {
+        [field]: expect.any(String),
+      },
+    });
+    await expect(db.query.events.findMany()).resolves.toEqual([]);
+  });
 
-  test("allows registration to start or end after the Evento starts", async () => {
+  test("allows registration to start or end after the event starts", async () => {
     const result = await createEvent(
       eventInput({
         registrationStartsAt: date("2026-05-02T12:00:00Z"),
@@ -111,7 +108,7 @@ describe("event management", () => {
     expect(result).toMatchObject({ ok: true });
   });
 
-  test("updates Evento names with dependencies but blocks structural changes", async () => {
+  test("updates event names with dependencies but blocks structural changes", async () => {
     const event = await createSavedEvent("Regional 2026");
 
     await expect(
@@ -194,7 +191,7 @@ describe("event management", () => {
     });
   });
 
-  test("activates only when no other Evento is active", async () => {
+  test("activates only when no other event is active", async () => {
     const firstEvent = await createSavedEvent("Regional 2026");
     const secondEvent = await createSavedEvent("Final 2026");
 
@@ -219,7 +216,7 @@ describe("event management", () => {
     });
   });
 
-  test("enforces one active Evento at the database level", async () => {
+  test("enforces one active event at the database level", async () => {
     await db.insert(events).values({
       name: "Regional 2026",
       active: true,
@@ -240,7 +237,7 @@ describe("event management", () => {
     });
   });
 
-  test("deactivation leaves Evento data and visibility flags intact", async () => {
+  test("deactivation leaves event data and visibility flags intact", async () => {
     const event = await createSavedEvent("Regional 2026");
     await activateEvent(event.id);
     await setEventVisibility(event.id, {
@@ -279,7 +276,7 @@ describe("event management", () => {
     });
   });
 
-  test("deletes only inactive Eventos without operational dependencies", async () => {
+  test("deletes only inactive events without operational dependencies", async () => {
     const activeEvent = await createSavedEvent("Activo");
     const dependentEvent = await createSavedEvent("Con dependencias");
     const deletableEvent = await createSavedEvent("Borrable");

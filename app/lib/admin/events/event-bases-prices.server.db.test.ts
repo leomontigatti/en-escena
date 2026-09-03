@@ -27,8 +27,8 @@ import {
 
 installDatabaseTestHooks();
 
-describe.sequential("administracion Bases del evento routes", () => {
-  test("renders precios without the event deposit percentage form", async () => {
+describe.sequential("administracion `Bases del evento` routes", () => {
+  test("renders prices without the event deposit percentage form", async () => {
     const event = await createSavedEvent("Regional 2026");
     const listRequest = await createSignedInRequest({
       email: "admin.precios.sin.sena@example.com",
@@ -44,7 +44,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     expect(initialMarkup).not.toContain('name="requiredDepositPercentage"');
   });
 
-  test("renders the precios list with alcance and dedicated route actions", async () => {
+  test("renders the prices list with alcance and dedicated route actions", async () => {
     const { event, schedule } = await createEventPriceAdminFixture();
     const createBasePriceRequest = await createPriceAdminRequest({
       email: "admin.precio.base.lista@example.com",
@@ -88,7 +88,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     expect(markup).not.toContain("Borrar precio");
   });
 
-  test("creates, edits and deletes precios through dedicated create and detail routes", async () => {
+  test("creates, edits and deletes prices through dedicated create and detail routes", async () => {
     const { event, schedule } = await createEventPriceAdminFixture();
     const createPriceRequest = await createPriceAdminRequest({
       email: "admin.crea.precio@example.com",
@@ -285,7 +285,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     });
   });
 
-  test("creates, edits and deletes precios through the admin action", async () => {
+  test("creates, edits and deletes prices through the admin action", async () => {
     const { event, schedule } = await createEventPriceAdminFixture();
     const createPriceRequest = await createPriceAdminRequest({
       email: "admin.crea.precio@example.com",

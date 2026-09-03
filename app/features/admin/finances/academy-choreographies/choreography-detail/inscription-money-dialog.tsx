@@ -7,7 +7,7 @@
  * | ------------------------------ | --------------------------------------------- |
  * | over-allocated                 | Release the excess. One button, nothing else.  |
  * | nothing owed, money on it      | Remove money, prefilled with everything        |
- * | anything else                  | Price + amount, hinting the deposit then the saldo |
+ * | anything else                  | Price + amount, hinting the deposit then the balance |
  *
  * A row that still owes something but already holds money reaches the removal
  * shape from inside the allocation one, which keeps the entry point single
@@ -143,7 +143,7 @@ export function InscriptionMoneyDialog({
  * and typing over a prefilled figure is worse than typing into an empty box.
  *
  * The hint is the figure that finishes the next thing: the deposit while that
- * threshold is unmet, the saldo once it is met.
+ * threshold is unmet, the balance once it is met.
  */
 function AllocateMoneyDialog({
   inscription,
@@ -481,7 +481,7 @@ function MoneyDialog({
 }
 
 /**
- * What the inscription owes, deposit first and saldo second — the order the money
+ * What the inscription owes, deposit first and balance second — the order the money
  * is meant to travel in, and the reason the amount field hints the deposit while
  * that threshold is unmet.
  */

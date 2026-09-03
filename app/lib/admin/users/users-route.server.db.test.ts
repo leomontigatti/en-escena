@@ -20,8 +20,8 @@ import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-describe("administracion/usuarios route", () => {
-  test("allows admin and auditor access, blocks academy and judge users, and renders the filtered Usuarios list", async () => {
+describe("`/administracion/usuarios` route", () => {
+  test("allows admin and auditor access, blocks academy and judge users, and renders the filtered users list", async () => {
     const admin = await createSignedInRequest({
       email: "admin.usuarios.lista@example.com",
       role: "admin",

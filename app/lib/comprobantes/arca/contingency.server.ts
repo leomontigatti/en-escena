@@ -199,7 +199,7 @@ export function buildUnverifiedMessage(
  * here than anywhere else, because that string is exactly what the operator has
  * to type in to do what the message is asking of them; `tipo 11, número 1234`
  * is no use for that. It lives in the builder rather than in the component, so
- * the factura, the credit note and whatever type comes next inherit it.
+ * the invoice, the credit note and whatever type comes next inherit it.
  */
 function formatAttemptedVoucher(attempt: ArcaAttemptedVoucher): string {
   return `${formatComprobanteTipoLabel(attempt.cbteTipo)} ${formatComprobanteNumber(attempt)}`;

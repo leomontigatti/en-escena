@@ -66,7 +66,7 @@ export function assertArcaDate(value: string, field = "CbteFch"): void {
   }
 }
 
-// Common base of a class C comprobante to an anonymous final consumer (Factura
+// Common base of a class C comprobante to an anonymous final consumer (Invoice
 // C type 11 and `Nota de crédito C` type 13). Both share the exempt issuer, the
 // final-consumer recipient and the absence of itemized VAT; only `CbteTipo`
 // changes and, on the credit note, the `CbtesAsoc` array with the

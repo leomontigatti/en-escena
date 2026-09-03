@@ -15,19 +15,20 @@ import { collectSourceFiles } from "./source-files";
 // the whole tree expecting zero, so it needs no diff scoping and no allowlist
 // for old debt.
 //
-// It reads prose through two instruments, because neither reaches what the
-// other does. Function words are *grammar* — the part of the language that only
-// shows up when the whole sentence is Spanish. Accents are *morphology* — a mark
-// on a single word, whatever the sentence is doing. Measured over the tree they
-// overlap on 174 occurrences and are alone on 186 and 749 respectively (#792),
-// so dropping either one leaves a hole big enough to make a clean run a lie.
+// It reads prose through three instruments, because none of them reaches what
+// the others do. Function words are *grammar* — the part of the language that
+// only shows up when the whole sentence is Spanish. Accents are *morphology* — a
+// mark on one word, whatever the sentence is doing. Glossary nouns are
+// *vocabulary* — a term the repo has already agreed an English identifier for.
+// Measured over the tree, grammar and morphology overlap on 174 occurrences and
+// are alone on 186 and 749 respectively (#792): drop any one of them and a clean
+// run stops meaning what the gate says it means.
 //
-// Treating every glossary term as vocabulary is the provisional half of that,
-// and a wider licence than CODING_STANDARDS' reserved list (`comprobante`
-// alone, grown only by ADR) actually grants. #792 owns the question — whether
-// English prose should write `seña` at all, or the identifier `CONTEXT.md`
-// already maps it to. If that lands on the strict side, the exemption here
-// inverts: blank only the reserved terms and flag the rest.
+// #792 settled the licence the glossary grants. It is not an exemption: prose is
+// governed exactly like an identifier, so the only Spanish that survives bare in
+// a comment is CODING_STANDARDS' reserved list — `comprobante`, grown only by
+// ADR. Everything else the glossary names is a violation, and naming it is done
+// the way the identifier rule already does it, by quoting or backticking it.
 
 // Every directory in the repo that holds `.ts`/`.tsx`/`.mts`/`.mjs`, plus the
 // root-level configs `collectScannedFiles` adds. `.sandcastle` is here because
@@ -180,6 +181,38 @@ function isProperNoun(match: string): boolean {
 /** `**\`identifier\`** — ui: "Término"`, the one shape every glossary row has. */
 const glossaryTermPattern = /—\s*ui:\s*"([^"]+)"/g;
 
+// The third instrument: vocabulary. Every Spanish noun the glossary names is a
+// term the codebase has already agreed an English identifier for, so writing it
+// bare in a comment is the same choice the identifier rule forbids — and it is
+// where the volume is. 749 occurrences are reachable this way and no other,
+// because `cupo`, `cronograma`, `evento` and `saldo` carry neither a function
+// word nor an accent (#792).
+//
+// CODING_STANDARDS reserves exactly one term, and growing that list takes an
+// ADR. `comprobante` stays Spanish everywhere; everything else the glossary
+// names is a violation in prose, quoted or backticked if it must be named.
+const reservedTerms = new Set(["comprobante"]);
+
+// Glossary words that are not evidence of Spanish. Each is here for one of
+// three reasons, and a word without one of them does not belong:
+//
+//   - an English word spelled the same: `base`, `bases`, `total`, `portal`,
+//     `panel`, `fiscal`, `ranking`, `temporal`;
+//   - a proper noun: `arca` is the tax agency, not a common noun;
+//   - a function word the grammar rule already owns: `para`.
+const glossaryNounExceptions = new Set([
+  "arca",
+  "base",
+  "bases",
+  "fiscal",
+  "panel",
+  "para",
+  "portal",
+  "ranking",
+  "temporal",
+  "total",
+]);
+
 const testFunctionNames = new Set(["describe", "it", "test"]);
 const quoteCharacters = new Set(['"', "'", "`"]);
 
@@ -219,6 +252,62 @@ export function readGlossaryTerms(rootDirectory: string): string[] {
   );
 }
 
+/**
+ * The Spanish nouns the glossary names, one word at a time. Multi-word `ui:`
+ * values are split because prose borrows the noun, not the label: "Bases del
+ * evento" is where `evento` comes from. Words of three letters or fewer are
+ * dropped — they are `del`, `por`, `IVA`, and the grammar rule already holds
+ * the ones that matter.
+ */
+export function readGlossaryNouns(rootDirectory: string): string[] {
+  const nouns = new Set<string>();
+
+  for (const term of readGlossaryTerms(rootDirectory)) {
+    for (const word of term.split(/[^\p{L}]+/u)) {
+      const noun = word.toLowerCase();
+
+      if (
+        noun.length > 3 &&
+        !reservedTerms.has(noun) &&
+        !glossaryNounExceptions.has(noun)
+      ) {
+        nouns.add(noun);
+
+        // A Spanish plural in `-ón`/`-ín` drops the accent: `asignación` becomes
+        // `asignaciones`, which neither the accent rule nor the closed suffix
+        // tail can reach. Both instruments miss it, so the plural is listed.
+        const plural = noun.replace(
+          /([áéíóú])(n)$/u,
+          (_, vowel: string, n) => `${"aeiou"["áéíóú".indexOf(vowel)]}${n}es`,
+        );
+
+        if (plural !== noun) {
+          nouns.add(plural);
+        }
+      }
+    }
+  }
+
+  // Longest first, so `submodalidad` is matched whole rather than `modalidad`
+  // taking a bite out of its tail.
+  return [...nouns].sort((left, right) => right.length - left.length);
+}
+
+/**
+ * The tail catches the inflection the glossary does not list — `profesores` for
+ * `profesor`, `cupos` for `cupo` — but it is a closed set of Spanish endings and
+ * not `\p{L}*`. An open tail reads the English `activate`, `activation` and
+ * `activates` as inflections of `activa`, and all three are live in the tree.
+ * The trailing boundary is what makes the closed set bite: without it `activa`
+ * matches the first six letters of `activate` and the tail is simply skipped.
+ */
+function glossaryNounPatternFor(nouns: string[]): RegExp {
+  return new RegExp(
+    `(?<!\\p{L})(?:${nouns.map(escapeForPattern).join("|")})(?:es|as|os|s|a|o)?(?!\\p{L})`,
+    "giu",
+  );
+}
+
 function escapeForPattern(term: string): string {
   return term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -229,33 +318,35 @@ function blankTo(match: string): string {
 
 /**
  * Blanks out the spans of a passage that are data rather than prose: quoted UI
- * copy, backticked code, route paths, URLs and reserved glossary terms.
+ * copy, backticked code, route paths, URLs and the reserved terms.
  * CODING_STANDARDS calls these out by name — "Spanish inside a quoted string, a
  * route path or a glossary `ui:` value is data, not prose, and stays Spanish".
  * Blanking to spaces of the same width keeps every offset and line break intact,
  * so a match still reports the line it was found on.
+ *
+ * The trailing `\p{L}*` on the reserved terms swallows the inflection the list
+ * does not carry: blanking "comprobante" out of "comprobantes" on its own would
+ * leave a bare "s" behind.
+ *
+ * The route alternative ends on a segment rather than on a slash, because
+ * `/administracion/bases-del-evento/precios` has no trailing one and used to
+ * leave `precios` behind as bare prose. Nothing reported it while the glossary
+ * was an allow-list blanking that word anyway — the gap only surfaced when #792
+ * turned the glossary into the thing being looked for.
  */
-function blankDataSpans(text: string, glossaryTerms: string[]): string {
-  const blanked = text.replace(
-    /`[^`]*`|"[^"]*"|'[^']*'|«[^»]*»|“[^”]*”|https?:\/\/\S+|(?<![\p{L}\d])\/[\p{L}\d$_.\-/]*\//giu,
-    blankTo,
-  );
-
-  if (glossaryTerms.length === 0) {
-    return blanked;
-  }
-
-  // The trailing `\p{L}*` swallows the inflection the glossary does not list:
-  // blanking "Profesor" out of "profesores" on its own would leave a bare "es"
-  // behind, which then reads as the Spanish word it is not. The leading
-  // boundary stops a term from matching inside a longer unrelated word.
-  return blanked.replace(
-    new RegExp(
-      `(?<!\\p{L})(?:${glossaryTerms.map(escapeForPattern).join("|")})\\p{L}*`,
-      "giu",
-    ),
-    blankTo,
-  );
+function blankDataSpans(text: string): string {
+  return text
+    .replace(
+      /`[^`]*`|"[^"]*"|'[^']*'|«[^»]*»|“[^”]*”|https?:\/\/\S+|(?<![\p{L}\d])\/[\p{L}\d$_.\-]+(?:\/[\p{L}\d$_.\-]*)+/giu,
+      blankTo,
+    )
+    .replace(
+      new RegExp(
+        `(?<!\\p{L})(?:${[...reservedTerms].map(escapeForPattern).join("|")})\\p{L}*`,
+        "giu",
+      ),
+      blankTo,
+    );
 }
 
 /**
@@ -492,23 +583,21 @@ function lineNumberAt(contents: string, index: number): number {
  */
 export function proseSpansOf(
   contents: string,
-  rootDirectory: string = process.cwd(),
 ): (SourceSpan & { blanked: string })[] {
-  const glossaryTerms = readGlossaryTerms(rootDirectory);
   const { comments, strings } = scanSource(contents);
 
   return [...comments, ...findTestTitles(contents, strings)].map((span) => ({
     ...span,
-    blanked: blankDataSpans(span.text, glossaryTerms),
+    blanked: blankDataSpans(span.text),
   }));
 }
 
 export function findSpanishProseInSource(input: {
   contents: string;
   filePath: string;
-  glossaryTerms?: string[];
+  glossaryNouns?: string[];
 }): CommentLanguageViolation[] {
-  const glossaryTerms = input.glossaryTerms ?? [];
+  const glossaryNouns = input.glossaryNouns ?? [];
   const { comments, strings } = scanSource(input.contents);
   const scopes: {
     kind: CommentLanguageViolation["kind"];
@@ -520,7 +609,7 @@ export function findSpanishProseInSource(input: {
 
   return scopes.flatMap(({ kind, spans }) =>
     spans.flatMap((span) => {
-      const prose = blankDataSpans(span.text, glossaryTerms);
+      const prose = blankDataSpans(span.text);
       const matches = [
         ...Array.from(prose.matchAll(spanishFunctionWordPattern)).filter(
           (match) => !isAcronym(match[0]),
@@ -528,6 +617,9 @@ export function findSpanishProseInSource(input: {
         ...Array.from(prose.matchAll(accentedWordPattern)).filter(
           (match) => !isProperNoun(match[0]),
         ),
+        ...(glossaryNouns.length === 0
+          ? []
+          : Array.from(prose.matchAll(glossaryNounPatternFor(glossaryNouns)))),
       ].sort((left, right) => left.index - right.index);
 
       if (matches.length === 0) {
@@ -554,7 +646,7 @@ export async function checkCommentLanguage(
   options: CheckCommentLanguageOptions = {},
 ): Promise<CommentLanguageViolation[]> {
   const rootDirectory = options.rootDirectory ?? process.cwd();
-  const glossaryTerms = readGlossaryTerms(rootDirectory);
+  const glossaryNouns = readGlossaryNouns(rootDirectory);
   const files = options.files ?? collectScannedFiles(rootDirectory);
 
   return files.flatMap((filePath) => {
@@ -563,7 +655,7 @@ export async function checkCommentLanguage(
     return findSpanishProseInSource({
       contents: readFileSync(absolutePath, "utf8"),
       filePath: path.relative(rootDirectory, absolutePath),
-      glossaryTerms,
+      glossaryNouns,
     });
   });
 }

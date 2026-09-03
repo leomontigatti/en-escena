@@ -79,7 +79,7 @@ describe("buildComprobantePrintViewModel", () => {
 
     expect(model.lines).toHaveLength(1);
     // The description names the service sold, not a rung of the retired ladder:
-    // `porcion` is deleted, so a comprobante is neither deposit nor saldo.
+    // `porcion` is deleted, so a comprobante is neither deposit nor balance.
     expect(model.lines[0].descripcion).toBe("Inscripción");
     expect(model.lines[0].importe).toBe(model.importeTotal);
     // It carries no right-hand side: the receptor block already names the

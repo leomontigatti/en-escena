@@ -79,7 +79,7 @@ describe("ComprobantesListRouteView", () => {
     );
 
     expect(markup).toContain("0003-00000007");
-    // The Tipo badge shows only the initials; the full label stays in the title.
+    // The type badge shows only the initials; the full label stays in the title.
     expect(markup).toContain("FC");
     expect(markup).toContain("NC");
     expect(markup).toContain('title="Factura C"');

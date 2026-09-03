@@ -136,7 +136,7 @@ describe("recordComprobante persistence", () => {
     expect(beforeAnnulment.status).toBe("vigente");
 
     // A mirror `Nota de crédito C` (type 13), anchored to the same choreography and
-    // pointing at the factura via `associatedComprobanteId` (CbtesAsoc).
+    // pointing at the invoice via `associatedComprobanteId` (CbtesAsoc).
     await recordComprobante(
       facturaCInput({
         choreographyId: choreography.id,
