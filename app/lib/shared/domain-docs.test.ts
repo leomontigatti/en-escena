@@ -74,7 +74,7 @@ const codebaseMapRequirements = [
   "## Admin Users",
   "## Admin Choreographies",
   "## Admin Roster",
-  "## Admin Events And Bases Del Evento",
+  "## Admin Events And `Bases del evento`",
   "## Judging And Results",
   "`app/routes/portal.coreografias.tsx`",
   "`app/lib/portal/choreographies.server.ts`",
@@ -86,7 +86,7 @@ const codebaseMapRequirements = [
 ];
 
 const adminMigrationMapRequirements = [
-  "## Admin Events And Bases Del Evento",
+  "## Admin Events And `Bases del evento`",
   "`app/routes/administracion.profesores_.$professorId.tsx`",
   "`app/routes/administracion.bailarines_.$dancerId.tsx`",
   "`app/routes/administracion.coreografias.tsx`",
@@ -177,7 +177,7 @@ const infrastructureRequirements = [
 
 const accessPermissionRequirements = [
   "## Permission Matrix",
-  "| academia",
+  "| academy",
   "| admin",
   "| auditor",
   "| juzgamiento",

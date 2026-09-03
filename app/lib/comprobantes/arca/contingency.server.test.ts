@@ -292,7 +292,7 @@ describe("recoverAuthorization", () => {
   });
 });
 
-describe("mensajes de contingencia", () => {
+describe("contingency messages", () => {
   test("not emitted: it says nothing was emitted and that retrying is safe", () => {
     expect(buildNotEmittedMessage("comprobante")).toBe(
       "No pudimos comunicarnos con ARCA: no se emitió el comprobante. " +

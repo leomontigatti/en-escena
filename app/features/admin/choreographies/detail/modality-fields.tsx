@@ -37,8 +37,8 @@ type ResolvedModalityFieldProps = {
 };
 
 /**
- * One slot per field the modality correction rewrites — submodality, level de
- * experience and schedule capacity — with the precedence written once instead
+ * One slot per field the modality correction rewrites — submodality,
+ * experience level and schedule capacity — with the precedence written once instead
  * of at each of the three.
  *
  * The correction wins as soon as its resolution answered, because it rewrites

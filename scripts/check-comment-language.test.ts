@@ -4,9 +4,12 @@ import { describe, expect, test } from "vitest";
 
 import {
   checkCommentLanguage,
+  excludedDocDirectories,
+  findSpanishProseInMarkdown,
   findSpanishProseInSource,
   readGlossaryNouns,
   scannedDirectories,
+  scannedDocDirectories,
 } from "./check-comment-language";
 
 const filePath = "app/features/admin/example.tsx";
@@ -269,5 +272,107 @@ describe("comment-language guardrail (#592)", () => {
     ];
 
     expect(unscanned).toEqual([]);
+  });
+});
+
+describe("comment-language guardrail, markdown (#792)", () => {
+  const docPath = "docs/domain/example.md";
+
+  function docKindsIn(contents: string): string[] {
+    return findSpanishProseInMarkdown({
+      contents,
+      filePath: docPath,
+      glossaryNouns,
+    }).map((violation) => violation.kind);
+  }
+
+  test("fires on Spanish prose and reports the line it is on", () => {
+    const [violation] = findSpanishProseInMarkdown({
+      contents: `# Title\n\nEl cupo no se libera al archivar.\n`,
+      filePath: docPath,
+      glossaryNouns,
+    });
+
+    expect(violation.kind).toBe("prose");
+    expect(violation.lineNumber).toBe(3);
+  });
+
+  test("stays quiet on English prose", () => {
+    expect(docKindsIn(`The capacity is not released on archiving.\n`)).toEqual(
+      [],
+    );
+  });
+
+  // #792 Q9 chose the backtick, because it is what `docs/domain` already uses
+  // and what renders as the name it is.
+  test("a backticked term is the name of something, not prose", () => {
+    expect(docKindsIn(`Rules for locks and \`Bases del evento\`.\n`)).toEqual(
+      [],
+    );
+  });
+
+  // The deliberate difference from a source file, and the reason CONTEXT.md's
+  // quoted labels were rewritten into backticks: in markdown a double quote is
+  // ordinary punctuation around ordinary prose, so it grants nothing.
+  test("a double quote grants nothing in markdown", () => {
+    expect(docKindsIn(`The badge reads "Seña pendiente" once due.\n`)).toEqual([
+      "prose",
+    ]);
+  });
+
+  test("a fenced block is code, whatever language it carries", () => {
+    expect(
+      docKindsIn(
+        "Before.\n\n```ts\nconst cupo = 1; // El cupo no se libera.\n```\n\nAfter.\n",
+      ),
+    ).toEqual([]);
+  });
+
+  test("a link target is an address", () => {
+    expect(
+      docKindsIn(`See [the rules](./bases-del-evento/precios.md).\n`),
+    ).toEqual([]);
+  });
+
+  // The one shape whose double-quoted value is data by definition: it is the
+  // term this very script parses out of `CONTEXT.md`.
+  test("the glossary row's own `ui:` value is data", () => {
+    expect(
+      docKindsIn(`**\`scheduleCapacity\`** — ui: "Cupo de cronograma"\n`),
+    ).toEqual([]);
+  });
+
+  // What `de` is in the list for: a term-by-term sweep translates a word out of
+  // the middle of a label, and both halves of what is left are English.
+  test("catches a label a sweep translated a word out of", () => {
+    expect(
+      docKindsIn(`It is registered with a capacity de schedule.\n`),
+    ).toEqual(["prose"]);
+  });
+
+  // The same argument as the source scan roots: a clean run says nothing about
+  // a directory nobody walks. Every tracked markdown file is either scanned or
+  // exempt on the record, and there is no third option.
+  test("every directory holding tracked markdown is scanned or exempt", () => {
+    const tracked = execFileSync("git", ["ls-files", "*.md"], {
+      cwd: process.cwd(),
+      encoding: "utf8",
+    })
+      .split("\n")
+      .filter(Boolean);
+
+    const unaccounted = tracked.filter(
+      (repoRelativePath) =>
+        // At the repo root, which `collectScannedDocs` picks up directly.
+        repoRelativePath.includes("/") &&
+        !scannedDocDirectories.some((directory) =>
+          repoRelativePath.startsWith(`${directory}/`),
+        ) &&
+        !excludedDocDirectories.some((directory) =>
+          repoRelativePath.startsWith(`${directory}/`),
+        ),
+    );
+
+    expect(unaccounted).toEqual([]);
   });
 });

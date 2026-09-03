@@ -21,7 +21,7 @@ The rerunnable harness lives in
 - No production instrumentation was kept. The only retained measurement code is
   the DB-backed test harness.
 
-## Administración
+## Administration
 
 | Route                                                   | requestMs | roundTripMs | authSessionMs | eventContextMs | mainQueryMs | readiness/configurationMs | actionMs | revalidationMs |
 | ------------------------------------------------------- | --------: | ----------: | ------------: | -------------: | ----------: | ------------------------: | -------: | -------------: |
@@ -131,7 +131,7 @@ Comparison protocol for future runs:
    The shell-level `getPortalEventContext` work is already a noticeable fixed
    cost before child route queries start.
 
-## Follow-up: Administración Eventos Readiness Batching
+## Follow-up: Administration Events Readiness Batching
 
 Follow-up captured on 2026-06-22 after changing the `administracion.eventos`
 loader to use a list-oriented registration-readiness helper that reads cached
@@ -160,7 +160,7 @@ Interpretation:
 - The next real loader/query slice remains `portal.coreografias`, especially
   separating route-critical list data from create-flow data.
 
-## Follow-up: Portal Coreografías Create Options Deferral
+## Follow-up: Portal Choreographies Create Options Deferral
 
 Follow-up captured on 2026-06-22 after splitting `portal.coreografias` data
 loading into:
@@ -193,7 +193,7 @@ Interpretation:
 - Future optimization can target the create-options loader itself if first modal
   open feels slow, especially by slimming event-base option loading.
 
-## Follow-up: Portal Coreografías Slim Create Options
+## Follow-up: Portal Choreographies Slim Create Options
 
 Follow-up captured on 2026-06-22 after replacing full `getEventBases` loading
 inside `/portal/coreografias/crear` with a slim registration-options query that
@@ -221,7 +221,7 @@ Interpretation:
 - Further improvements should be driven by real list sizes or UX feedback
   before splitting dancers/professors into later step-specific requests.
 
-## Follow-up: Portal Coreografía Detail Option Parallelization
+## Follow-up: Portal Choreography Detail Option Parallelization
 
 Follow-up captured on 2026-06-22 after loading available dancer and professor
 options in parallel inside the `portal.coreografias_.$choreographyId` loader.

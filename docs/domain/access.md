@@ -10,7 +10,7 @@ Rules for public academy registration, users, sessions and internal invitations.
 - If that confirmed identity returns from login or direct navigation, the app must let it resume academy onboarding instead of forcing a new registration.
 - There is no automatic cleanup under this first maintenance policy; the incomplete state stays resumable and maintenance must list confirmed academy `Usuario` records with no `Academia` for a later operational decision.
 - Completing academy onboarding creates the academy, keeps the confirmed academy user, authenticates the academy, and does not require admin approval.
-- A `Usuario` has one main permission: academia, administración, auditoría or juzgamiento.
+- A `Usuario` has one main permission: `academy`, `admin`, `auditor` or `judge`.
 - Academy users sign in with a verified email and password.
 - Internal users sign in with a `Nombre de usuario interno` and password.
 - `Nombre de usuario interno` is unique ignoring case, normalized to lowercase, 3 to 32 characters, and only accepts lowercase letters, numbers, dot, hyphen and underscore. It cannot contain spaces, accents or email-like values.
@@ -31,7 +31,7 @@ and actions must enforce it even when UI controls are hidden.
 
 | Permission  | Main scope                                            | Can mutate                                                                                                                       | Cannot mutate                                                                                              |
 | ----------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| academia    | Their own data in the `Portal de academias`           | Their own academy profile, professors, dancers and choreographies, within the rules of the `Evento activo`                       | `Panel de administración`, internal users, publications, administrative corrections, other academies' data |
+| academy     | Their own data in the `Portal de academias`           | Their own academy profile, professors, dancers and choreographies, within the rules of the `Evento activo`                       | `Panel de administración`, internal users, publications, administrative corrections, other academies' data |
 | admin       | Operating the `Panel de administración`               | Events, `Bases del evento`, internal users, administrative corrections, publications and the allowed actions on operational data | Technical credentials outside the defined flows                                                            |
 | auditor     | Read-only over administration and audit               | Nothing in business flows                                                                                                        | Create, edit, publish, unpublish, cancel, correct, annul, suspend or reactivate                            |
 | juzgamiento | The evaluation assigned in the `Panel de juzgamiento` | Scores, judge feedback (`Devolución`) and disqualifications within the assigned evaluation flow                                  | General administration, `Bases del evento`, users, financial data and other areas' data                    |

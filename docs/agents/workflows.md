@@ -315,10 +315,10 @@ screen keeps rendering the list.
 
 ## Admin Layout Routes
 
-The Panel de administración also uses a React Router layout route:
+The `Panel de administración` also uses a React Router layout route:
 
-- `administracion.tsx` owns `AdminShell`, loads shell-wide user and Evento
-  activo context, and renders `<Outlet />`.
+- `administracion.tsx` owns `AdminShell`, loads shell-wide user and Event
+  active context, and renders `<Outlet />`.
 - `administracion._index.tsx` owns the `/administracion` dashboard content.
 - Administration child screens render only screen content. Do not render
   `AdminShell` again from `administracion.profesores.tsx`,

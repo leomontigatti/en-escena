@@ -196,8 +196,8 @@ export async function resolveChoreographyModalityCorrection(input: {
 }
 
 /**
- * The compound correction: modality, submodality, category, level and capacity
- * de schedule are written together or not at all. Nothing in the database
+ * The compound correction: modality, submodality, category, level and schedule
+ * capacity are written together or not at all. Nothing in the database
  * holds the three belongs-to invariants this write can break —submodality
  * within its modality, category through `category_modality`, modality inside
  * the schedule's modalities— so this transaction is the only thing behind

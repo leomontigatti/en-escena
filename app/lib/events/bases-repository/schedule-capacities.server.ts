@@ -186,8 +186,8 @@ export async function resolveCompatibleScheduleCapacities(input: {
  * It is `findCompatibleScheduleCapacities`' predicate with the modality filter
  * dropped, and it needs no group type: a schedule without a specific capacity
  * for a group type falls back to its own total capacity, so every schedule
- * that accepts the modality yields exactly one compatible option for any type
- * de group. A modality missing from this list is a structural dead end — no
+ * that accepts the modality yields exactly one compatible option for any group
+ * type. A modality missing from this list is a structural dead end — no
  * schedule of the event can take it.
  */
 export async function findModalityIdsWithCompatibleSchedules(

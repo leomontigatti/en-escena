@@ -439,8 +439,8 @@ Once the strategy is proven:
 - The full DB suite improves by at least 30% in wall clock, or it is documented
   why the improvement does not offset the risk.
 - If `isolate: false` is used, the suite passes 3 times with `--sequence.shuffle`.
-- The final workflow keeps a run with enough fidelity for the rules of Evento,
-  Academia, Coreografía, Bases del evento, Usuario and Sesión de acceso.
+- The final workflow keeps a run with enough fidelity for the rules of Event,
+  Academy, Choreography, `Bases del evento`, User and `Sesión de acceso`.
 
 ## Initial recommendation
 

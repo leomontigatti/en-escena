@@ -313,7 +313,7 @@ describe("event registration readiness", () => {
         registrationReady: true,
         registrationReadinessMissingItems: [],
         registrationReadinessDirty: false,
-        // 31/05 23:00 de Córdoba.
+        // 31/05 23:00 in Córdoba.
         registrationReadinessCalculatedAt: new Date("2026-06-01T02:00:00Z"),
       })
       .where(eq(events.id, event.id));

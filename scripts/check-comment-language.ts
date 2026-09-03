@@ -37,6 +37,19 @@ import { collectSourceFiles } from "./source-files";
 export const scannedDirectories = [".sandcastle", "app", "scripts", "tests"];
 const sourceFilePattern = /\.(ts|tsx|mts|mjs)$/;
 
+// The docs are engineering prose too, and #592's argument does not stop at the
+// file extension: a design note read by a contributor is not something a user
+// reads (#792 Q7).
+export const scannedDocDirectories = [".claude", ".sandcastle", "docs"];
+const docFilePattern = /\.md$/;
+
+// Records of something external, which a sweep may not rewrite. An ADR is the
+// decision as it was taken, and `docs/research` cites Argentine tax law by the
+// Spanish titles the regulations actually carry — "RG 1415/2003 — Régimen de
+// emisión de comprobantes" is the name of the thing, and a translated citation
+// leads a reader nowhere (#792 Q7/Q8).
+export const excludedDocDirectories = ["docs/adr", "docs/research"];
+
 // Spanish function words with no English homograph. Deliberately absent:
 // `todo`/`todos` (the TODO comment marker), `sea`, `era`, `son`, `sin`, `solo`,
 // `algo` (short for algorithm) and `con` (pro/con) — each collides with ordinary
@@ -131,8 +144,17 @@ const spanishFunctionWords = [
 // `// Se ejecuta al montar el componente.` and `test("cierra la sesión activa")`
 // are built almost entirely out of words this short, and both were live in the
 // tree until it was added.
+//
+// `de` earns its place by catching the one failure a term-by-term sweep
+// reliably produces: translating a word out of the middle of a Spanish label,
+// which leaves `capacity de schedule` and `Portal de academies` behind. Nothing
+// else sees those — both halves are English and `de` is the only Spanish left.
+// It cost 27 findings on the tree and 22 of them were exactly that. Known false
+// positive: "de facto", and a name like "Robert de Niro"; the hyphen guard
+// already keeps `de-allocation` out.
 const shortSpanishWords = [
   "al",
+  "de",
   "el",
   "es",
   "la",
@@ -218,7 +240,7 @@ const quoteCharacters = new Set(['"', "'", "`"]);
 
 export type CommentLanguageViolation = {
   filePath: string;
-  kind: "comment" | "test name";
+  kind: "comment" | "prose" | "test name";
   lineNumber: number;
   markers: string[];
   text: string;
@@ -592,6 +614,86 @@ export function proseSpansOf(
   }));
 }
 
+/** The three instruments, over prose whose data spans are already blanked. */
+function spanishMarkersIn(
+  prose: string,
+  glossaryNouns: string[],
+): RegExpExecArray[] {
+  return [
+    ...Array.from(prose.matchAll(spanishFunctionWordPattern)).filter(
+      (match) => !isAcronym(match[0]),
+    ),
+    ...Array.from(prose.matchAll(accentedWordPattern)).filter(
+      (match) => !isProperNoun(match[0]),
+    ),
+    ...(glossaryNouns.length === 0
+      ? []
+      : Array.from(prose.matchAll(glossaryNounPatternFor(glossaryNouns)))),
+  ].sort((left, right) => left.index - right.index);
+}
+
+/**
+ * Markdown is prose end to end, so there is no comment to find: the file is the
+ * passage, and a line is the unit worth reporting. The only difference from a
+ * source file is what counts as data — #792 chose the backtick, because that is
+ * what `docs/domain` already uses and what renders as the name it is, where a
+ * double quote in markdown is ordinary punctuation around ordinary prose.
+ */
+export function findSpanishProseInMarkdown(input: {
+  contents: string;
+  filePath: string;
+  glossaryNouns?: string[];
+}): CommentLanguageViolation[] {
+  const glossaryNouns = input.glossaryNouns ?? [];
+  const lines = input.contents.split("\n");
+
+  return blankMarkdownDataSpans(input.contents)
+    .split("\n")
+    .flatMap((line, index) => {
+      const matches = spanishMarkersIn(line, glossaryNouns);
+
+      if (matches.length === 0) {
+        return [];
+      }
+
+      return [
+        {
+          filePath: input.filePath,
+          kind: "prose" as const,
+          lineNumber: index + 1,
+          markers: [...new Set(matches.map((match) => match[0].toLowerCase()))],
+          text: lines[index].trim().slice(0, 120),
+        },
+      ];
+    });
+}
+
+/**
+ * Fenced blocks are code whatever language they carry, link targets are
+ * addresses, and a backticked run is the name of something. The glossary row is
+ * the one shape whose double-quoted value is data by definition: `ui: "Seña"` is
+ * the UI term this very file parses out of `CONTEXT.md`, so it is blanked here
+ * rather than rewritten into backticks that `readGlossaryTerms` would then have
+ * to learn.
+ */
+export function blankMarkdownDataSpans(contents: string): string {
+  return contents
+    .replace(/^ {0,3}```[^\n]*\n[\s\S]*?^ {0,3}```/gmu, blankTo)
+    .replace(/—\s*ui:\s*"[^"\n]*"/gu, blankTo)
+    .replace(/\]\([^)\n]*\)/gu, blankTo)
+    .replace(
+      /`[^`\n]*`|https?:\/\/\S+|(?<![\p{L}\d])\/[\p{L}\d$_.\-]+(?:\/[\p{L}\d$_.\-]*)+/giu,
+      blankTo,
+    )
+    .replace(
+      new RegExp(
+        `(?<!\\p{L})(?:${[...reservedTerms].map(escapeForPattern).join("|")})\\p{L}*`,
+        "giu",
+      ),
+      blankTo,
+    );
+}
+
 export function findSpanishProseInSource(input: {
   contents: string;
   filePath: string;
@@ -610,17 +712,7 @@ export function findSpanishProseInSource(input: {
   return scopes.flatMap(({ kind, spans }) =>
     spans.flatMap((span) => {
       const prose = blankDataSpans(span.text);
-      const matches = [
-        ...Array.from(prose.matchAll(spanishFunctionWordPattern)).filter(
-          (match) => !isAcronym(match[0]),
-        ),
-        ...Array.from(prose.matchAll(accentedWordPattern)).filter(
-          (match) => !isProperNoun(match[0]),
-        ),
-        ...(glossaryNouns.length === 0
-          ? []
-          : Array.from(prose.matchAll(glossaryNounPatternFor(glossaryNouns)))),
-      ].sort((left, right) => left.index - right.index);
+      const matches = spanishMarkersIn(prose, glossaryNouns);
 
       if (matches.length === 0) {
         return [];
@@ -648,15 +740,55 @@ export async function checkCommentLanguage(
   const rootDirectory = options.rootDirectory ?? process.cwd();
   const glossaryNouns = readGlossaryNouns(rootDirectory);
   const files = options.files ?? collectScannedFiles(rootDirectory);
+  const docs = options.files ? [] : collectScannedDocs(rootDirectory);
 
-  return files.flatMap((filePath) => {
-    const absolutePath = path.resolve(rootDirectory, filePath);
+  return [
+    ...files.flatMap((filePath) => {
+      const absolutePath = path.resolve(rootDirectory, filePath);
 
-    return findSpanishProseInSource({
-      contents: readFileSync(absolutePath, "utf8"),
-      filePath: path.relative(rootDirectory, absolutePath),
-      glossaryNouns,
-    });
+      return findSpanishProseInSource({
+        contents: readFileSync(absolutePath, "utf8"),
+        filePath: path.relative(rootDirectory, absolutePath),
+        glossaryNouns,
+      });
+    }),
+    ...docs.flatMap((filePath) => {
+      const absolutePath = path.resolve(rootDirectory, filePath);
+
+      return findSpanishProseInMarkdown({
+        contents: readFileSync(absolutePath, "utf8"),
+        filePath: path.relative(rootDirectory, absolutePath),
+        glossaryNouns,
+      });
+    }),
+  ];
+}
+
+/**
+ * The documented directories plus the markdown sitting at the repo root, minus
+ * the two directories #792 exempted. The exclusion is by path prefix rather than
+ * by a list of files, so a new ADR is covered the day it is written.
+ */
+function collectScannedDocs(rootDirectory: string): string[] {
+  const rootDocs = readdirSync(rootDirectory, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && docFilePattern.test(entry.name))
+    .map((entry) => path.join(rootDirectory, entry.name));
+
+  return [
+    ...rootDocs,
+    ...scannedDocDirectories.flatMap((directory) =>
+      collectSourceFiles({
+        directoryPath: path.join(rootDirectory, directory),
+        keeps: (fileName) => docFilePattern.test(fileName),
+      }),
+    ),
+  ].filter((filePath) => {
+    const relativePath = path.relative(rootDirectory, filePath);
+
+    return !excludedDocDirectories.some(
+      (excluded) =>
+        relativePath === excluded || relativePath.startsWith(`${excluded}/`),
+    );
   });
 }
 

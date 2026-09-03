@@ -37,7 +37,7 @@ Implementation guardrails that still matter for this PRD:
 - `pnpm test:db:postgres` is the high-fidelity real-Postgres path reserved for
   the CI gate on the PR (#305).
 
-## Critical Administración Routes
+## Critical Administration Routes
 
 Layout and shared event context:
 
@@ -192,7 +192,7 @@ Navigation map after the request-flow and pending-state fixes from PRD #130:
 - `Portal / Coreografías` create flow should not animate with View Transitions.
   The stepper and deferred calculations already communicate progress, and a
   route transition would only mask request work.
-- `Administración` list/detail and Bases del evento routes should not animate.
+- `Administración` list/detail and `Bases del evento` routes should not animate.
   Those screens sit under persistent shells with dense operational forms, so a
   route-wide transition would add motion without improving continuity.
 

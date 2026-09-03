@@ -4,15 +4,15 @@ Rules for presentations, judging, ranking, results, scores and feedback.
 
 ## Participation And Judging
 
-- `Presentación` is one-to-one with a coreografía and has unique order number within event.
-- Order is generated for signed or paid coreografías with category, even if operationally incomplete.
+- `Presentación` is one-to-one with a choreography and has unique order number within event.
+- Order is generated for signed or paid choreographies with category, even if operationally incomplete.
 - Order is assigned by block date/time, category age order, then group type order: solo, duo, trio, grupal.
 - Presentations with scores or disqualification are not reorderable.
-- If coreografía returns to unpaid before evaluation, its presentation is removed or invalidated.
+- If choreography returns to unpaid before evaluation, its presentation is removed or invalidated.
 - A judge can disqualify during evaluation. That closes the presentation for all judges and removes it from ranking.
 - Admin can reverse disqualification only with explicit reason and traceability.
 - If results are published, admin must unpublish before disqualifying, reversing disqualification, correcting or annulling scores.
-- `Estado de participación` values include sin presentación, pendiente, evaluada, descalificada and ausente inferida.
+- `Estado de participación` values include sin presentation, pendiente, evaluada, descalificada and ausente inferida.
 - `Asignación de juez` creates an empty score for presentation and judge.
 - Reassigning same judge to same presentation must not create duplicates.
 - Admin can remove assignment only while score is unconfirmed and empty.
