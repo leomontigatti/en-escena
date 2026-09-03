@@ -76,7 +76,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe.sequential("administracion finanzas academia", () => {
+describe.sequential("`/administracion/finanzas` academy", () => {
   test("renders academies participation linking each row to its detail", async () => {
     const event = await createSavedEvent();
     const academyNorth = await createAcademyUser({

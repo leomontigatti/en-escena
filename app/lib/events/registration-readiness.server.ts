@@ -160,7 +160,7 @@ export async function getEventRegistrationReadinessByEventId(
   return readinessByEventId;
 }
 
-// Readiness depends on the current date (a precio expires by the mere passage
+// Readiness depends on the current date (a price expires by the mere passage
 // of time, with no write to dirty the cache), so an entry calculated on an
 // earlier day is stale even when nothing was written since. "Day" is the
 // business day here too: stamping the cache in UTC would both expire it three
@@ -532,7 +532,7 @@ function describeRegistrationPath(input: RegistrationPathDescriptor) {
   return details.join(", ");
 }
 
-// Same shape the admin precios table uses to render a paymentDeadline, so the
+// Same shape the admin prices table uses to render a paymentDeadline, so the
 // readiness message and the row it points at read the same. UTC, because a
 // paymentDeadline is a date-only value with no time zone of its own.
 const deadlineFormatter = new Intl.DateTimeFormat("es-AR", {

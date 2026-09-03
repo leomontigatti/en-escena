@@ -23,9 +23,9 @@ import {
 
 /**
  * What is required depends on the resolution, so the button is governed by
- * `canSubmitModalityCorrection` rather than by this schema. The cupo keeps its
+ * `canSubmitModalityCorrection` rather than by this schema. The capacity keeps its
  * rule anyway: the footer `Guardar` sits in the roster form, and a stray submit
- * from it must not write a correction with no cupo.
+ * from it must not write a correction with no capacity.
  */
 const modalityFormSchema = z.object({
   modalityExperienceLevelId: z.string(),
@@ -38,14 +38,14 @@ type ModalityFormValues = z.input<typeof modalityFormSchema>;
 
 /**
  * The compound modality correction, shaped like the roster form: choosing a
- * candidate modalidad asks the server for the resolution over a fetcher, the
+ * candidate modality asks the server for the resolution over a fetcher, the
  * three dependent fields are filled or cleared from what comes back, and the
  * page's own `Guardar` writes it all in one transaction. Undoing it is
- * re-selecting the saved modalidad, which the select always offers, so the
+ * re-selecting the saved modality, which the select always offers, so the
  * block adds no buttons of its own.
  *
  * It is a sibling of the roster form, not a field on it: the guards differ —the
- * modalidad needs the seña guard over the cupo move, which the roster save
+ * modality needs the deposit guard over the capacity move, which the roster save
  * deliberately does not apply to the group type— which is why the two exclude
  * each other on screen instead of merging.
  */
@@ -204,7 +204,7 @@ export function useModalityForm({
   return {
     canCorrectModality,
     /**
-     * The categoría the slot shows while the correction is pending. `null`
+     * The category the slot shows while the correction is pending. `null`
      * leaves the persisted value in place.
      */
     categoryLabel:

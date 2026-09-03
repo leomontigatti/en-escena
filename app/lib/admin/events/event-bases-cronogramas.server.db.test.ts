@@ -39,9 +39,9 @@ import {
 installDatabaseTestHooks();
 
 describe.sequential(
-  "administracion Cronogramas de Bases del evento routes",
+  "`/administracion/bases-del-evento` schedule routes",
   () => {
-    test("renders cronogramas as a browse list with cupo and detail links", async () => {
+    test("renders schedules as a browse list with capacity and detail links", async () => {
       const { event, modalityIds } = await createEventScheduleAdminFixture();
 
       const schedule = await expectCreated(
@@ -90,7 +90,7 @@ describe.sequential(
       );
     });
 
-    test("renders dedicated create and detail routes for cronogramas", async () => {
+    test("renders dedicated create and detail routes for schedules", async () => {
       const { event, modalities } = await createEventScheduleAdminFixture([
         "Jazz",
       ]);
@@ -131,7 +131,7 @@ describe.sequential(
       expect(createMarkup).not.toContain("lugares.");
     });
 
-    test("creates, edits and deletes Cronogramas through the admin action", async () => {
+    test("creates, edits and deletes schedules through the admin action", async () => {
       const { event, modalities, modalityIds } =
         await createEventScheduleAdminFixture();
       const scheduleRequest = await createScheduleAdminRequest({
@@ -251,7 +251,7 @@ describe.sequential(
       ).resolves.toBeUndefined();
     });
 
-    test("creates cupos de cronograma through the admin action", async () => {
+    test("creates schedule capacities through the admin action", async () => {
       const { event, schedule } = await createScheduleForCapacityAdminFixture();
       const createScheduleCapacityRequest =
         await createScheduleCapacityAdminRequest({
@@ -284,7 +284,7 @@ describe.sequential(
       });
     });
 
-    test("renders cupos de cronograma fields in the cronograma detail route", async () => {
+    test("renders schedule capacities fields in the schedule detail route", async () => {
       const { event, schedule } = await createScheduleForCapacityAdminFixture();
       await createPersistedScheduleCapacity(event.id, schedule.id);
 
@@ -306,7 +306,7 @@ describe.sequential(
       expect(markup).toContain('name="scheduleCapacities.0.capacity"');
     });
 
-    test("updates cupos de cronograma through the admin action", async () => {
+    test("updates schedule capacities through the admin action", async () => {
       const { event, schedule } = await createScheduleForCapacityAdminFixture();
       const scheduleCapacity = await createPersistedScheduleCapacity(
         event.id,
@@ -350,7 +350,7 @@ describe.sequential(
       });
     });
 
-    test("deletes cupos de cronograma through the admin action", async () => {
+    test("deletes schedule capacities through the admin action", async () => {
       const { event, schedule } = await createScheduleForCapacityAdminFixture();
       const scheduleCapacity = await createPersistedScheduleCapacity(
         event.id,
@@ -384,7 +384,7 @@ describe.sequential(
       );
     });
 
-    test("saves inline cupos de cronograma through the cronograma form", async () => {
+    test("saves inline schedule capacities through the schedule form", async () => {
       const { event, modalities } = await createEventScheduleAdminFixture([
         "Jazz",
       ]);
@@ -478,7 +478,7 @@ describe.sequential(
       );
     });
 
-    test("does not leak cupo de cronograma field errors into unrelated forms", async () => {
+    test("does not leak schedule capacity field errors into unrelated forms", async () => {
       const event = await createSavedEvent("Regional 2026");
       const modality = await expectCreated(
         createModality(event.id, { name: "Jazz" }),
@@ -550,7 +550,7 @@ describe.sequential(
       expect(updateScheduleMarkup).not.toContain("Este campo es obligatorio.");
     });
 
-    test("returns inline cupo required errors from the cronograma action", async () => {
+    test("returns inline capacity required errors from the schedule action", async () => {
       const event = await createSavedEvent("Regional 2026");
       const modality = await expectCreated(
         createModality(event.id, { name: "Jazz" }),
@@ -603,7 +603,7 @@ describe.sequential(
       });
     });
 
-    test("rejects duplicate cupo group types server-side on cronograma creation", async () => {
+    test("rejects duplicate capacity group types server-side on schedule creation", async () => {
       const event = await createSavedEvent("Regional 2026");
       const modality = await expectCreated(
         createModality(event.id, { name: "Jazz" }),
@@ -647,7 +647,7 @@ describe.sequential(
       ).resolves.toBeUndefined();
     });
 
-    test("rejects invalid cupo rows server-side when the client is bypassed", async () => {
+    test("rejects invalid capacity rows server-side when the client is bypassed", async () => {
       const event = await createSavedEvent("Regional 2026");
       const modality = await expectCreated(
         createModality(event.id, { name: "Jazz" }),

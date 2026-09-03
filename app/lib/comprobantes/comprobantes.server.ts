@@ -92,7 +92,7 @@ export async function recordComprobante(
 }
 
 // Does the choreography have fiscal history? It counts any associated
-// comprobante — Factura C or Nota de crédito, in force or annulled — because the
+// comprobante — `Factura C` or credit note, in force or annulled — because the
 // existence of a single row already blocks the physical delete (#340) and is
 // never released. A light check (LIMIT 1) for the server-side guard, independent
 // of the UI.
@@ -109,7 +109,7 @@ export async function choreographyHasComprobantes(
 }
 
 // Every comprobante of a choreography, with its derived state and its internal
-// lines. The mirror Nota de crédito anchors to the same choreography, so the set
+// lines. The mirror credit note anchors to the same choreography, so the set
 // per choreography is self-contained for deriving `vigente`/`anulada`.
 export async function listChoreographyComprobantes(
   choreographyId: string,

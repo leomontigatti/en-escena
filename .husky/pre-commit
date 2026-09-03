@@ -1,3 +1,5 @@
 pnpm exec lint-staged
+pnpm check:comment-language
 pnpm typecheck
 pnpm check:file-tokens
+pnpm check:fallow

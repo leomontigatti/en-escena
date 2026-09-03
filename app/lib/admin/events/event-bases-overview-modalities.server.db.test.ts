@@ -31,7 +31,7 @@ import {
 
 installDatabaseTestHooks();
 
-describe.sequential("administracion Bases del evento routes", () => {
+describe.sequential("`/administracion/bases-del-evento` routes", () => {
   test("requires admin access and renders direct administration section links", async () => {
     const event = await createSavedEvent("Regional 2026");
 
@@ -74,7 +74,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     expect(markup).toContain("/administracion/eventos");
   });
 
-  test("shows the shared empty state across Bases del evento routes when there is no Evento activo", async () => {
+  test("shows the shared empty state across `Bases del evento` routes when there is no event active", async () => {
     const request = await createSignedInRequest({
       email: "admin.sin.evento@example.com",
       role: "admin",
@@ -124,7 +124,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     );
   });
 
-  test("ignores non-active event query and keeps Bases del evento on the Evento activo", async () => {
+  test("ignores non-active event query and keeps `Bases del evento` on the event active", async () => {
     const activeEvent = await createSavedEvent("Regional 2026");
     const inactiveEvent = await createSavedEvent("Nacional 2026", {
       activate: false,
@@ -143,7 +143,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     expect(markup).toContain("Nueva modalidad");
   });
 
-  test("renders the Modalidades list with Submodalidad badges and dedicated create/detail routes", async () => {
+  test("renders the modalities list with submodality badges and dedicated create/detail routes", async () => {
     const event = await createSavedEvent("Regional 2026");
     const jazz = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
@@ -185,7 +185,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     expect(markup).toContain("Submodalidades");
   });
 
-  test("creates Modalidades from the dedicated route and loads their detail route", async () => {
+  test("creates modalities from the dedicated route and loads their detail route", async () => {
     const event = await createSavedEvent("Regional 2026");
     await db
       .update(events)
@@ -248,7 +248,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     expect(detailMarkup).toContain("Acciones");
   });
 
-  test("edits Modalidades and manages Submodalidades from the detail route", async () => {
+  test("edits modalities and manages submodalities from the detail route", async () => {
     const event = await createSavedEvent("Regional 2026");
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
@@ -360,7 +360,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     ).resolves.toBeUndefined();
   });
 
-  test("saves inline submodalidades through the modalidad form", async () => {
+  test("saves inline submodalities through the modality form", async () => {
     const event = await createSavedEvent("Regional 2026");
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
@@ -414,7 +414,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     );
   });
 
-  test("renders the Agregar submodalidad editor on the Modalidad alta route", async () => {
+  test("renders the `Agregar` submodality editor on the modality `alta` route", async () => {
     const event = await createSavedEvent("Regional 2026");
 
     const request = await createSignedInRequest({
@@ -429,7 +429,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     expect(markup).toContain('name="submodalitiesMode" value="replace"');
   });
 
-  test("creates a Modalidad with its Submodalidades from the alta route", async () => {
+  test("creates a modality with its submodalities from the `alta` route", async () => {
     const event = await createSavedEvent("Regional 2026");
     const createRequest = await createSignedInRequest({
       email: "admin.crea.modalidad.submodalidades@example.com",
@@ -476,7 +476,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     );
   });
 
-  test("creates a Modalidad with zero Submodalidades from the alta route", async () => {
+  test("creates a modality with zero submodalities from the `alta` route", async () => {
     const event = await createSavedEvent("Regional 2026");
     const createRequest = await createSignedInRequest({
       email: "admin.crea.modalidad.sin.submodalidades@example.com",
@@ -503,7 +503,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     ).resolves.toHaveLength(0);
   });
 
-  test("rejects duplicate Submodalidad names server-side on Modalidad creation", async () => {
+  test("rejects duplicate submodality names server-side on modality creation", async () => {
     const event = await createSavedEvent("Regional 2026");
     const createRequest = await createSignedInRequest({
       email: "admin.crea.modalidad.duplicada@example.com",
@@ -534,7 +534,7 @@ describe.sequential("administracion Bases del evento routes", () => {
     ).resolves.toBeUndefined();
   });
 
-  test("rejects invalid Submodalidad rows server-side when the client is bypassed", async () => {
+  test("rejects invalid submodality rows server-side when the client is bypassed", async () => {
     const event = await createSavedEvent("Regional 2026");
     const createRequest = await createSignedInRequest({
       email: "admin.crea.modalidad.invalida@example.com",

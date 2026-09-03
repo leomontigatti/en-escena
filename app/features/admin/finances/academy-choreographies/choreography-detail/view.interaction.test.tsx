@@ -68,12 +68,12 @@ describe("DancerNameCell interaction", () => {
     await clickReactDomButton("Bruno Benítez");
 
     const amount = amountInput();
-    // The seña is already covered, so what is left to finish is the saldo.
+    // The deposit is already covered, so what is left to finish is the balance.
     expect(amount.placeholder).toBe("$ 7.000");
     expect(amount.value).toBe("");
   });
 
-  test("hints the seña first while the deposit threshold is unmet", async () => {
+  test("hints the deposit first while that threshold is unmet", async () => {
     await mount({
       inscriptions: [
         inscriptionFixture({

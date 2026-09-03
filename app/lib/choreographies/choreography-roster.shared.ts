@@ -40,7 +40,7 @@ export type UpdateChoreographyProfessorsResult =
     };
 
 /**
- * `code: "schedule-capacity"` marks the two new guards on the cupo axis
+ * `code: "schedule-capacity"` marks the two new guards on the capacity axis
  * (capacity lock, frozen-price guard): unlike the other dancers-section
  * failures, these are not swallowed behind the roster section's own error
  * channel — the route surfaces them as a plain `status: "error"` instead. See
@@ -103,7 +103,7 @@ export type ChoreographyDancerScheduleResolution =
       status: "keep-current";
       canSave: true;
       // Same criterion as the standalone path (`resolveScheduleCapacityCandidates`):
-      // the assigned cupo is still compatible, but the select offers the full
+      // the assigned capacity is still compatible, but the select offers the full
       // compatible set, not just the assigned one.
       options: ChoreographyDancerScheduleOption[];
       selectedScheduleCapacityId: string;

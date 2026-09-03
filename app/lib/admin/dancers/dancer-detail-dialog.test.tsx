@@ -51,7 +51,7 @@ describe("DancerDetailRouteView dialogs", () => {
     expect(document.body.textContent).not.toContain("¿Archivar bailarín?");
   });
 
-  test("changing a Bailarín's status confirms without a correction reason field", async () => {
+  test("changing a dancer's status confirms without a correction reason field", async () => {
     await renderer.renderAsync(
       <MemoryRouter initialEntries={["/administracion/bailarines/dancer-1"]}>
         <DancerDetailRouteView
@@ -71,7 +71,7 @@ describe("DancerDetailRouteView dialogs", () => {
     expect(document.body.textContent).not.toContain("Motivo de corrección");
   });
 
-  test("editing a non-consequential Bailarín saves without a confirmation dialog", async () => {
+  test("editing a non-consequential dancer saves without a confirmation dialog", async () => {
     await renderer.renderAsync(
       <MemoryRouter initialEntries={["/administracion/bailarines/dancer-1"]}>
         <DancerDetailRouteView
@@ -90,7 +90,7 @@ describe("DancerDetailRouteView dialogs", () => {
     expect(document.body.textContent).not.toContain("¿Guardar cambios?");
   });
 
-  test("editing a verified Bailarín confirms with the verified message before saving", async () => {
+  test("editing a verified dancer confirms with the verified message before saving", async () => {
     await renderer.renderAsync(
       <MemoryRouter initialEntries={["/administracion/bailarines/dancer-1"]}>
         <DancerDetailRouteView
@@ -112,7 +112,7 @@ describe("DancerDetailRouteView dialogs", () => {
     expect(document.body.textContent).not.toContain("Motivo de corrección");
   });
 
-  test("editing a participating Bailarín confirms with the participation message", async () => {
+  test("editing a participating dancer confirms with the participation message", async () => {
     await renderer.renderAsync(
       <MemoryRouter initialEntries={["/administracion/bailarines/dancer-1"]}>
         <DancerDetailRouteView

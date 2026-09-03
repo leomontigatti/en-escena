@@ -198,7 +198,7 @@ export function canReassignExperienceLevel(input: {
 export type ChoreographyModalityBlockerCode = "frozen-price";
 
 /**
- * Same shape as the cupo and deletion blockers: the server writes the code and
+ * Same shape as the capacity and deletion blockers: the server writes the code and
  * the label, and the view only enumerates it in the page alert.
  */
 export type ChoreographyModalityBlocker = {
@@ -207,11 +207,11 @@ export type ChoreographyModalityBlocker = {
 };
 
 /**
- * Only two causes of read-only for the modalidad: not being `admin` and having
- * a presentación. A registered seña deliberately does not close the field: a
- * destination modalidad that keeps the current cronograma is financially inert,
+ * Only two causes of read-only for the modality: not being `admin` and having
+ * a presentation. A registered deposit deliberately does not close the field: a
+ * destination modality that keeps the current schedule is financially inert,
  * so the money guard rejects at save and only when the correction would
- * actually move the cupo. It is reported as a blocker-in-waiting in the page
+ * actually move the capacity. It is reported as a blocker-in-waiting in the page
  * alert instead.
  */
 export function canCorrectChoreographyModality(input: {

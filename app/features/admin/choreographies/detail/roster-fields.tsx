@@ -30,7 +30,7 @@ export type ChoreographyFormValues = z.input<typeof choreographyFormSchema>;
  * The two slots the modality correction can take over, in the shape they have
  * while it does not. `disabled` is how a pending correction holds them: the
  * saved value stays in the same control instead of being swapped for a
- * read-only field, so nothing next to the modalidad select changes shape while
+ * read-only field, so nothing next to the modality select changes shape while
  * its resolution is in flight.
  */
 export function RosterExperienceLevelSlot({

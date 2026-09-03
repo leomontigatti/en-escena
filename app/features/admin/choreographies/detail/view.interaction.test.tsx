@@ -9,7 +9,7 @@ import type { ChoreographyDetailLoaderData } from "@/features/admin/choreographi
 import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 
 /**
- * The modalidad is the only select whose change costs a server round-trip, so
+ * The modality is the only select whose change costs a server round-trip, so
  * it is the only one that can leave the fields it rewrites in an intermediate
  * state. This exercises that window: what the admin reported as the select
  * "reopening" was the three dependent controls collapsing into read-only

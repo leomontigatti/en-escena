@@ -20,7 +20,7 @@ describe("ProfessorDetailRouteView dialogs", () => {
 
   afterEach(renderer.cleanup);
 
-  test("editing a non-consequential Profesor saves without a confirmation dialog", async () => {
+  test("editing a non-consequential professor saves without a confirmation dialog", async () => {
     await renderer.renderAsync(
       <MemoryRouter initialEntries={["/administracion/profesores/profesor_1"]}>
         <ProfessorDetailRouteView
@@ -38,7 +38,7 @@ describe("ProfessorDetailRouteView dialogs", () => {
     expect(document.body.textContent).not.toContain("¿Guardar cambios?");
   });
 
-  test("editing a participating Profesor confirms with the participation message and no reason field", async () => {
+  test("editing a participating professor confirms with the participation message and no reason field", async () => {
     await renderer.renderAsync(
       <MemoryRouter initialEntries={["/administracion/profesores/profesor_1"]}>
         <ProfessorDetailRouteView

@@ -11,7 +11,7 @@ type PortalChoreographiesListRouteViewProps = Parameters<
   typeof PortalChoreographiesListRouteView
 >[0];
 
-describe("coreografía creation dialog render", () => {
+describe("choreography creation dialog render", () => {
   let container: HTMLDivElement | null = null;
   let root: ReturnType<typeof createRoot> | null = null;
 

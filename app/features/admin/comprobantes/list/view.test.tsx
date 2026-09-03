@@ -79,7 +79,7 @@ describe("ComprobantesListRouteView", () => {
     );
 
     expect(markup).toContain("0003-00000007");
-    // The Tipo badge shows only the initials; the full label stays in the title.
+    // The type badge shows only the initials; the full label stays in the title.
     expect(markup).toContain("FC");
     expect(markup).toContain("NC");
     expect(markup).toContain('title="Factura C"');
@@ -108,7 +108,7 @@ describe("ComprobantesListRouteView", () => {
     );
   });
 
-  test("orders the columns as número, tipo, academia, coreografía, estado, fecha, importe", () => {
+  test("orders the columns as `número`, `tipo`, `academia`, `coreografía`, `estado`, `fecha`, `importe`", () => {
     expect(comprobanteColumns.map((column) => column.id)).toEqual([
       "numero",
       "tipo",
@@ -130,7 +130,7 @@ describe("ComprobantesListRouteView", () => {
     ]);
   });
 
-  test("only número and fecha are sortable", () => {
+  test("only `número` and `fecha` are sortable", () => {
     const sortable = comprobanteColumns
       .filter((column) => Boolean(column.sortValue))
       .map((column) => column.id);
@@ -138,7 +138,7 @@ describe("ComprobantesListRouteView", () => {
     expect(sortable).toEqual(["numero", "fecha"]);
   });
 
-  test("exposes only estado and tipo faceted filters (academia and porción are gone)", () => {
+  test("exposes only `estado` and `tipo` faceted filters (`academia` and `porción` are gone)", () => {
     expect(comprobanteFacetedFilters.map((filter) => filter.label)).toEqual([
       "Estado",
       "Tipo",
@@ -167,7 +167,7 @@ describe("ComprobantesListRouteView", () => {
     ]);
   });
 
-  test("searches by academia, coreografía and número", () => {
+  test("searches by `academia`, `coreografía` and `número`", () => {
     const markup = renderView(loaderData({ rows: [comprobanteRow()] }));
 
     expect(markup).toContain(

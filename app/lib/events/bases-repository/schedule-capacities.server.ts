@@ -179,16 +179,16 @@ export async function resolveCompatibleScheduleCapacities(input: {
 }
 
 /**
- * The modalidades of the event that at least one cronograma accepts, in one
+ * The modalities of the event that at least one schedule accepts, in one
  * query grouped by `schedule_modality.modality_id` instead of one resolution
- * pass per modalidad.
+ * pass per modality.
  *
- * It is `findCompatibleScheduleCapacities`' predicate with the modalidad filter
- * dropped, and it needs no tipo de grupo: a cronograma without a specific cupo
- * for a tipo de grupo falls back to its own total capacity, so every cronograma
- * that accepts the modalidad yields exactly one compatible option for any tipo
- * de grupo. A modalidad missing from this list is a structural dead end — no
- * cronograma of the event can take it.
+ * It is `findCompatibleScheduleCapacities`' predicate with the modality filter
+ * dropped, and it needs no group type: a schedule without a specific capacity
+ * for a group type falls back to its own total capacity, so every schedule
+ * that accepts the modality yields exactly one compatible option for any group
+ * type. A modality missing from this list is a structural dead end — no
+ * schedule of the event can take it.
  */
 export async function findModalityIdsWithCompatibleSchedules(
   eventId: string,

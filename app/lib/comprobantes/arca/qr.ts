@@ -14,7 +14,7 @@ export const QR_VERSION = 1;
 export const QR_MONEDA_COTIZACION = 1;
 
 // Authorization code type: "E" = CAE (electronic). ARCA admits only "E" for
-// electronic comprobantes such as the Factura C.
+// electronic comprobantes such as the invoice C.
 export const QR_TIPO_COD_AUT = "E";
 
 // The comprobante data the QR encodes. It comes from the immutable snapshot on

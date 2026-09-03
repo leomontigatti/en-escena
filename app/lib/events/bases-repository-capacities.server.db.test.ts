@@ -19,8 +19,8 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-describe("Bases del evento repository", () => {
-  test("keeps cupos de cronograma unique per group type and inside the cronograma total", async () => {
+describe("`Bases del evento` repository", () => {
+  test("keeps schedule capacities unique per group type and inside the schedule total", async () => {
     const { event, jazz } = await createEventModalitiesFixture();
     const block = await createSavedSchedule(event.id, {
       modalityIds: [jazz.id],
@@ -71,7 +71,7 @@ describe("Bases del evento repository", () => {
     );
   });
 
-  test("resolves compatible cupos de cronograma by modalidad and group type", async () => {
+  test("resolves compatible schedule capacities by modality and group type", async () => {
     const { event, jazz, urbanas } = await createEventModalitiesFixture();
     const block = await createSavedSchedule(event.id, {
       modalityIds: [jazz.id],
@@ -121,7 +121,7 @@ describe("Bases del evento repository", () => {
     });
   });
 
-  test("blocks editing or deleting dependent cupos de cronograma", async () => {
+  test("blocks editing or deleting dependent schedule capacities", async () => {
     const { event, jazz } = await createEventModalitiesFixture();
     const block = await createSavedSchedule(event.id, {
       modalityIds: [jazz.id],

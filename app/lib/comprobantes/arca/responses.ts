@@ -42,14 +42,14 @@ function normalizeMessages(raw: RawArcaMessage[] | undefined): ArcaMessage[] {
 
 export type FacturaCEmissionResult = {
   // ARCA approved the comprobante and returned a CAE. It is the only signal that
-  // the Factura C was authorized; a `Resultado` of "A" without a CAE does not
+  // the invoice C was authorized; a `Resultado` of "A" without a CAE does not
   // count.
   approved: boolean;
   cae: string | null;
   caeVto: string | null;
   cbteNro: number | null;
   cbteFch: string | null;
-  // Resultado de ARCA: "A" aprobado, "R" rechazado, "P" parcial.
+  // ARCA `Resultado`: "A" approved, "R" rejected, "P" partial.
   resultado: string | null;
   // They do not prevent authorization; the comprobante can be approved with them.
   observaciones: ArcaMessage[];

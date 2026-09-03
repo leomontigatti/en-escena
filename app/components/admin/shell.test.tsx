@@ -37,7 +37,7 @@ describe("AdminShell", () => {
     expect(markup).toContain("Accesos");
 
     // The order is verified by href because the label is not unique: "Academias"
-    // appears under Finanzas (their balance) and under Accesos (the entity).
+    // appears under `Finanzas` (their balance) and under `Accesos` (the entity).
     const orderedHrefs = [
       "/administracion/eventos",
       "/administracion/coreografias",
@@ -67,7 +67,7 @@ describe("AdminShell", () => {
     expect(markup).toContain("/administracion/eventos");
   });
 
-  test("shows the active Evento without offering a selector", () => {
+  test("shows the active event without offering a selector", () => {
     const markup = renderAdminShell({
       events: [
         { id: "evento_2025", name: "Evento 2025", active: false },

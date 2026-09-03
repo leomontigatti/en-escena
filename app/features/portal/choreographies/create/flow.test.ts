@@ -126,7 +126,7 @@ describe("choreography create flow helpers", () => {
 });
 
 describe("choreography schedule step advance rule", () => {
-  test("advances once a cupo with room is chosen", () => {
+  test("advances once a capacity with room is chosen", () => {
     expect(
       canAdvanceFromScheduleStep({
         resolution: buildScheduleResolution([
@@ -151,7 +151,7 @@ describe("choreography schedule step advance rule", () => {
   // The step shows the notice instead of the select, so there is nothing to
   // choose: the footer's action cannot stay enabled, not even with an earlier
   // choice that has since run out of room.
-  test("blocks the step while every compatible cupo is full", () => {
+  test("blocks the step while every compatible capacity is full", () => {
     const resolution = buildScheduleResolution([
       { id: "capacity_1", isFull: true },
       { id: "capacity_2", isFull: true },

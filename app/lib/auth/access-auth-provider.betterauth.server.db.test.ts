@@ -78,7 +78,7 @@ describe("provider Better Auth", () => {
     ).rejects.toThrow();
   });
 
-  test("cierra la sesión activa", async () => {
+  test("closes the active session", async () => {
     const { headers } = await signUp({
       email: "salir@example.com",
       password: "password-segura",

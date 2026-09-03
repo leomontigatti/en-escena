@@ -49,7 +49,7 @@ import { NewEventRouteView } from "@/routes/administracion.eventos_.nuevo";
 
 const renderer = createReactDomTestRenderer();
 
-describe("Evento RHF + React Router form submission", () => {
+describe("Event RHF + React Router form submission", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     reactRouterMocks.useFormAction.mockReset();
@@ -58,7 +58,7 @@ describe("Evento RHF + React Router form submission", () => {
     renderer.cleanup();
   });
 
-  test("submits the new Evento form through React Router instead of form.submit()", async () => {
+  test("submits the new event form through React Router instead of form.submit()", async () => {
     const nativeSubmitSpy = spyOnNativeFormSubmit();
     const submitSpy = vi.fn();
 
@@ -120,7 +120,7 @@ describe("Evento RHF + React Router form submission", () => {
     expect(submitSpy).not.toHaveBeenCalled();
   });
 
-  test("shows pending feedback while the Evento detail form is saving", () => {
+  test("shows pending feedback while the event detail form is saving", () => {
     const formData = new FormData();
     formData.set("intent", "update");
 
@@ -144,7 +144,7 @@ describe("Evento RHF + React Router form submission", () => {
     expect(submitButton.querySelector("svg.animate-spin")).not.toBeNull();
   });
 
-  test("keeps server field errors out of the Evento detail form fields", () => {
+  test("keeps server field errors out of the event detail form fields", () => {
     reactRouterMocks.useFormAction.mockReturnValue(
       "/administracion/eventos/evento_1",
     );

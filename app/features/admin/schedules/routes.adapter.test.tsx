@@ -57,7 +57,7 @@ vi.mock("@/features/admin/schedules/detail/view", () => ({
   EventScheduleDetailView,
 }));
 
-describe("administracion.cronogramas route adapters", () => {
+describe("`administracion.cronogramas` route adapters", () => {
   test("delegates loader and render to the admin event schedules list feature module", async () => {
     const routeModule = await import("@/routes/administracion.cronogramas");
     const request = new Request("http://localhost/administracion/cronogramas");

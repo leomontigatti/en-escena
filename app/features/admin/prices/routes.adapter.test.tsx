@@ -14,7 +14,7 @@ import { NewPriceRouteView } from "@/routes/administracion.precios_.nuevo";
 import { PricesListRouteView } from "@/routes/administracion.precios";
 import type { EventPriceDetailViewProps } from "./detail/view";
 
-describe("administracion.precios route adapters", () => {
+describe("`administracion.precios` route adapters", () => {
   test("renders the list feature view from the list route adapter", () => {
     const markup = renderRouteView(
       createElement(PricesListRouteView, {

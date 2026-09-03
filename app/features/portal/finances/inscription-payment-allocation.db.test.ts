@@ -194,7 +194,7 @@ describe.sequential("inscription identity and payment allocations", () => {
   // The catalogue price is 10000 and the event asks for 30 %, so the deposit
   // threshold of the stored row is exactly 3000. These three cases sit on either
   // side of it and on the case where there is no stored row to derive it from.
-  test("refuses to move the selected price of an inscription that covers its seña", async () => {
+  test("refuses to move the selected price of an inscription that covers its deposit", async () => {
     const { owner, event, inscription, payment } =
       await createInscriptionFixture();
     const { catalogPrice, otherPrice } = await readPricePair(event.id);
@@ -225,7 +225,7 @@ describe.sequential("inscription identity and payment allocations", () => {
     ).resolves.toMatchObject({ selectedPriceId: catalogPrice.id });
   });
 
-  test("lets the selected price move while the inscription is below its seña", async () => {
+  test("lets the selected price move while the inscription is below its deposit", async () => {
     const { owner, event, inscription, payment } =
       await createInscriptionFixture();
     const { catalogPrice, otherPrice } = await readPricePair(event.id);

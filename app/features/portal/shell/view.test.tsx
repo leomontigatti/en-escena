@@ -100,7 +100,7 @@ describe("portal route view", () => {
     expect(markup).not.toContain("bg-slate-50");
   });
 
-  test("renders shared coreografía availability states with shadcn alert and badge variants", () => {
+  test("renders shared choreography availability states with shadcn alert and badge variants", () => {
     const readyMarkup = renderToStaticMarkup(
       <PortalCoreographiesSection eventContext={portalEventContext()} />,
     );

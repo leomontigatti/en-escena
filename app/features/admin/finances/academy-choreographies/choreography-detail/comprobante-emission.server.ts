@@ -16,15 +16,15 @@ import {
 } from "./shared";
 
 /*
- * The financial detail's emission axis: emitting the Factura C and re-verifying
+ * The financial detail's emission axis: emitting the `Factura C` and re-verifying
  * an emission left unresolved (ADR-0011, ADR-0012). It lives apart from the
  * detail's server because it is the only part that talks to ARCA and the only
  * one that decides between redirecting and staying in the dialog.
  */
 
 /**
- * Triggers the Factura C emission after the irreversible confirmation. An
- * approved CAE reloads the detail (Vigente badge); a rejection or contingency
+ * Triggers the invoice C emission after the irreversible confirmation. An
+ * approved CAE reloads the detail (`Vigente` badge); a rejection or contingency
  * from ARCA comes back as `emission-error` with the raw state, without
  * persisting anything or leaving the UI inconsistent (the reload only happens on
  * the happy path).

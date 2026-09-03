@@ -13,7 +13,7 @@ import type { Transaction } from "./choreography-cobro-support.server";
  * against a schedule the choreography no longer has.
  *
  * The test is **deliberately broader than the price lock**, which closes at the
- * deposit threshold and not at the first peso: an inscription below its seña has
+ * deposit threshold and not at the first peso: an inscription below its deposit has
  * a price that still moves with the price list, but the money already allocated
  * to it is no less real, and this guard is about that money rather than about
  * which row prices it.

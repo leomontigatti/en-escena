@@ -151,7 +151,7 @@ async function loadDetail(input: {
 }
 
 /**
- * A second `solo` row at 12000 (seña 3600) whose deadline falls before the
+ * A second `solo` row at 12000 (deposit 3600) whose deadline falls before the
  * catalogue one's, so it is also the row that applies on the mocked business
  * date. Two rows on either side of a threshold is what makes "which price is
  * the crossing measured against?" an observable question.
@@ -239,7 +239,7 @@ describe.sequential("money on an inscription through the route action", () => {
     expect(inscription?.selectedPriceId).toBe(fixture.priceId);
   });
 
-  test("lets the price move while the inscription is below its seña", async () => {
+  test("lets the price move while the inscription is below its deposit", async () => {
     const fixture = await seedInscription();
     const otherPrice = await insertLatePrice(fixture.eventId);
 
@@ -256,7 +256,7 @@ describe.sequential("money on an inscription through the route action", () => {
     });
 
     // 1000 against a stored price of 10000 is one third of the way to its 3000
-    // seña: nothing is fixed yet, so the administrator may still say which row
+    // deposit: nothing is fixed yet, so the administrator may still say which row
     // prices this inscription.
     const result = await postDetailAction({
       academyId: fixture.academyId,
@@ -280,12 +280,12 @@ describe.sequential("money on an inscription through the route action", () => {
     ]);
   });
 
-  test("locks the price once the inscription covers its seña", async () => {
+  test("locks the price once the inscription covers its deposit", async () => {
     const fixture = await seedInscription();
     const otherPrice = await insertLatePrice(fixture.eventId);
 
-    // Exactly the seña of the stored 10000 row, and the boundary is `≥`. The
-    // badge reads on the same `≥` but against the seña of the **effective**
+    // Exactly the deposit of the stored 10000 row, and the boundary is `≥`. The
+    // badge reads on the same `≥` but against the deposit of the **effective**
     // price, so the two coincide only once the lock has closed — above the
     // threshold the effective row is the stored one. Below it they can part
     // ways; `docs/domain/finances.md` documents that band.
@@ -328,7 +328,7 @@ describe.sequential("money on an inscription through the route action", () => {
     const fixture = await seedInscription();
     const otherPrice = await insertLatePrice(fixture.eventId);
 
-    // Stored at 12000, whose seña is 3600, holding 3000.
+    // Stored at 12000, whose deposit is 3600, holding 3000.
     await postDetailAction({
       academyId: fixture.academyId,
       choreographyId: fixture.choreographyId,
@@ -341,7 +341,7 @@ describe.sequential("money on an inscription through the route action", () => {
       },
     });
 
-    // 3000 would be a crossing of the **incoming** 10000 row, whose seña is
+    // 3000 would be a crossing of the **incoming** 10000 row, whose deposit is
     // exactly 3000. Were the rule tested against the incoming price it would
     // refuse here, and whether the inscription had "crossed" would depend on
     // which price it was asked about.
@@ -364,7 +364,7 @@ describe.sequential("money on an inscription through the route action", () => {
     expect(inscription?.selectedPriceId).toBe(fixture.priceId);
   });
 
-  test("reopens the price when money drops the inscription back below its seña", async () => {
+  test("reopens the price when money drops the inscription back below its deposit", async () => {
     const fixture = await seedInscription();
     const otherPrice = await insertLatePrice(fixture.eventId);
 
@@ -381,7 +381,7 @@ describe.sequential("money on an inscription through the route action", () => {
     });
 
     // The escape hatch is no longer "take every peso off": dropping back below
-    // the seña is enough, and the money that stays keeps its row.
+    // the deposit is enough, and the money that stays keeps its row.
     await postDetailAction({
       academyId: fixture.academyId,
       choreographyId: fixture.choreographyId,
@@ -502,7 +502,7 @@ describe.sequential("money on an inscription through the route action", () => {
       .where(eq(choreographyDancers.id, fixture.inscriptionId));
 
     // The price stays. The removal shapes carry no price control at all, so
-    // nothing here could have moved it — dropping back below the seña reopens
+    // nothing here could have moved it — dropping back below the deposit reopens
     // the lock, it does not clear the stored row.
     expect(row.selectedPriceId).toBe(fixture.priceId);
   });

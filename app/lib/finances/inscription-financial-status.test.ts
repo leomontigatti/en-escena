@@ -64,11 +64,11 @@ describe("calculateTotalAmount", () => {
 });
 
 describe("deriveInscriptionFinancialStatus", () => {
-  test("is deposit pending one peso below the seña", () => {
+  test("is deposit pending one peso below the deposit", () => {
     expect(statusAt(2999)).toBe("depositPending");
   });
 
-  test("is deposit met exactly at the seña", () => {
+  test("is deposit met exactly at the deposit", () => {
     expect(statusAt(3000)).toBe("depositMet");
   });
 
@@ -86,7 +86,7 @@ describe("deriveInscriptionFinancialStatus", () => {
     expect(statusAt(12000)).toBe("paidInFull");
   });
 
-  test("holds most of its seña and still reads deposit pending, not unpaid", () => {
+  test("holds most of its deposit and still reads deposit pending, not unpaid", () => {
     expect(statusAt(2700)).toBe("depositPending");
   });
 
@@ -102,7 +102,7 @@ describe("deriveInscriptionFinancialStatus", () => {
 });
 
 describe("deriveInscriptionFinancialFigures", () => {
-  test("names the shortfall of an inscription holding most of its seña", () => {
+  test("names the shortfall of an inscription holding most of its deposit", () => {
     const figures = deriveInscriptionFinancialFigures({
       allocatedAmount: 2700,
       thresholds,
@@ -114,7 +114,7 @@ describe("deriveInscriptionFinancialFigures", () => {
     expect(figures.anomalies).toEqual([]);
   });
 
-  test("floors both owed figures at zero and keeps seña inside saldo", () => {
+  test("floors both owed figures at zero and keeps deposit inside balance", () => {
     const figures = deriveInscriptionFinancialFigures({
       allocatedAmount: 12000,
       thresholds,
@@ -201,7 +201,7 @@ describe("deriveInscriptionFinancialFigures on a withdrawn inscription", () => {
     expect(figures.totalAmount).toBe(12000);
   });
 
-  test("keeps exposing its deposit figure so the saldo can still be taken off", () => {
+  test("keeps exposing its deposit figure so the balance can still be taken off", () => {
     expect(
       deriveInscriptionFinancialFigures({
         allocatedAmount: 10000,
@@ -225,7 +225,7 @@ describe("deriveInscriptionFinancialFigures on a withdrawn inscription", () => {
 });
 
 describe("resolveInscriptionStatusBadge", () => {
-  test("puts Retirada above the over-allocation anomaly", () => {
+  test("puts `Retirada` above the over-allocation anomaly", () => {
     expect(
       resolveInscriptionStatusBadge({
         anomalies: ["overAllocated"],

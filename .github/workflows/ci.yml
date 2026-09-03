@@ -24,6 +24,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          # Full history: `check:fallow` attributes findings against the merge
+          # base with `origin/master`, and a shallow clone has neither the ref
+          # nor the history to attribute against.
+          fetch-depth: 0
       - uses: pnpm/action-setup@v5 # version comes from the `packageManager` field (pnpm 11.9.0)
       - uses: actions/setup-node@v5
         with:
@@ -40,6 +45,20 @@ jobs:
       # manifest does not keep it out, and typecheck has no opinion once it is
       # re-added. The rule carries its own reason and prints it on failure.
       - run: pnpm check:banned-imports
+      # Engineering prose stays English (#592). The sweep took the tree to zero
+      # Spanish comments and test names; this is what keeps it there, since the
+      # rule had been living in CODING_STANDARDS alone and losing every review
+      # to "the file around it is already Spanish".
+      - run: pnpm check:comment-language
+      # Fallow, on the `new-only` gate: dead code, complexity and duplication
+      # the branch *introduces* fail; what it merely touches is reported and
+      # inherited. This reverses the older decision that Fallow was audit-only
+      # (docs/agents/fallow.md) — an audit nobody is obliged to run had been
+      # filing its findings as issues after the fact instead of before.
+      # No `git fetch` here: `fetch-depth: 0` above already brought the history
+      # the merge base is computed from.
+      - name: fallow audit (findings this branch introduces)
+        run: pnpm check:fallow
       # Drift-check (deferred from #391): `db:generate` is offline (it diffs
       # `schema.ts` against the snapshots in `app/db/migrations/meta/`, no DB)
       # and must report "No schema changes". If it emits a migration, `schema.ts`
@@ -94,7 +113,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:17-alpine # calca prod
+        image: postgres:17-alpine # mirrors production
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres

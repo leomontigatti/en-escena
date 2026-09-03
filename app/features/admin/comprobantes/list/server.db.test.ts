@@ -113,7 +113,7 @@ describe("loadComprobantesList", () => {
         cae: "55556666777788",
       }),
     );
-    // A Nota de crédito C annulling Alfa's factura.
+    // A `Nota de crédito C` annulling Alfa's invoice.
     await recordComprobante(
       facturaCInput({
         choreographyId: alfa.choreography.id,
@@ -152,7 +152,7 @@ describe("loadComprobantesList", () => {
     expect(facturaBetaRow?.academyName).toBe("Academia Beta");
   });
 
-  test("filters by derived status: `anulada` returns the factura with a Nota de crédito; `vigente`, the rest", async () => {
+  test("filters by derived status: `anulada` returns the invoice with a credit note; `vigente`, the rest", async () => {
     const event = await createEventRecord({ active: true });
     const catalog = await createEventCatalog(event.id);
     const alfa = await seedChoreography({

@@ -28,7 +28,7 @@ function legacyDeleteChoreographyFormData(choreographyId: string) {
 }
 
 describe.sequential("portal choreography deletion", () => {
-  test("falls back to the generic unsupported-intent rejection and keeps the Coreografía registered", async () => {
+  test("falls back to the generic unsupported-intent rejection and keeps the choreography registered", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Sin Eliminación",
       email: "coreografias.detail.delete.removed@example.com",

@@ -12,8 +12,8 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-describe("administracion index route", () => {
-  test("shows an alert when the active Evento is not ready for choreography registration", async () => {
+describe("`/administracion` index route", () => {
+  test("shows an alert when the active event is not ready for choreography registration", async () => {
     const event = await createSavedEvent({ name: "En Escena 2026" });
     await activateEvent(event.id);
     const { request } = await createSignedInRequest({
@@ -36,7 +36,7 @@ describe("administracion index route", () => {
     expect(markup).toContain("En Escena 2026");
   });
 
-  test("does not show the bases alert when there is no active Evento", async () => {
+  test("does not show the bases alert when there is no active event", async () => {
     const { request } = await createSignedInRequest({
       email: "admin.dashboard.empty@example.com",
       role: "admin",

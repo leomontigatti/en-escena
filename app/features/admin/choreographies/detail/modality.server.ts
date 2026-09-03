@@ -33,9 +33,9 @@ import {
 
 export type ChoreographyModalityOption = {
   /**
-   * Whether any cronograma of the event accepts this modalidad. `false` is a
+   * Whether any schedule of the event accepts this modality. `false` is a
    * structural dead end: the correction would leave the choreography with no
-   * cronograma, and `findChoreographyDetail` innerJoins it, so the detail view
+   * schedule, and `findChoreographyDetail` innerJoins it, so the detail view
    * would 404 out from under the administrator.
    */
   hasCompatibleScheduleCapacity: boolean;
@@ -90,17 +90,17 @@ const divergedResolutionMessage =
   "La resolución cambió mientras corregías la modalidad. Revisá los campos y volvé a guardar.";
 
 /**
- * The seña rejection names the modalidad instead of reusing
- * `frozenPriceScheduleCapacityMessage`, which names the cupo: the administrator
- * did not touch the cupo select here, and pointing at it would send them to the
+ * The deposit rejection names the modality instead of reusing
+ * `frozenPriceScheduleCapacityMessage`, which names the capacity: the administrator
+ * did not touch the capacity select here, and pointing at it would send them to the
  * wrong field.
  */
 const frozenPriceModalityMessage =
   "No se puede cambiar la modalidad: el cronograma se movería y hay inscripciones con dinero asignado.";
 
 /**
- * The seña is reported as a blocker-in-waiting, not as a closed field: a
- * destination modalidad that keeps the current cronograma is financially inert
+ * The deposit is reported as a blocker-in-waiting, not as a closed field: a
+ * destination modality that keeps the current schedule is financially inert
  * and stays available. It is enumerated for the `auditor` too.
  */
 const frozenPriceBlocker: ChoreographyModalityBlocker = {
@@ -116,8 +116,8 @@ export function toChoreographyModalityBlockers(
 }
 
 /**
- * Every modalidad of the event, current one included, each carrying whether a
- * cronograma can take it. The options the view offers are exactly the ones the
+ * Every modality of the event, current one included, each carrying whether a
+ * schedule can take it. The options the view offers are exactly the ones the
  * intent accepts, and the ones it renders disabled are exactly the ones the
  * intent rejects.
  */
@@ -142,9 +142,9 @@ export async function listChoreographyModalityOptions(
 }
 
 /**
- * What the choreography would look like under a candidate modalidad, without
- * writing anything: the resolved categoría, whether a submodalidad and a nivel
- * are now required, and the compatible cupos. The `Guardar` re-resolves the
+ * What the choreography would look like under a candidate modality, without
+ * writing anything: the resolved category, whether a submodality and a level
+ * are now required, and the compatible capacities. The `Guardar` re-resolves the
  * same way before opening its transaction and rejects on divergence, because
  * this answer is older than the write by construction.
  */
@@ -196,11 +196,11 @@ export async function resolveChoreographyModalityCorrection(input: {
 }
 
 /**
- * The compound correction: modalidad, submodalidad, categoría, nivel and cupo
- * de cronograma are written together or not at all. Nothing in the database
- * holds the three belongs-to invariants this write can break —submodalidad
- * within its modalidad, categoría through `category_modality`, modalidad inside
- * the cronograma's modalidades— so this transaction is the only thing behind
+ * The compound correction: modality, submodality, category, level and schedule
+ * capacity are written together or not at all. Nothing in the database
+ * holds the three belongs-to invariants this write can break —submodality
+ * within its modality, category through `category_modality`, modality inside
+ * the schedule's modalities— so this transaction is the only thing behind
  * them.
  */
 export async function updateChoreographyModality(input: {
@@ -208,8 +208,8 @@ export async function updateChoreographyModality(input: {
   eventId: string;
   formData: FormData;
 }): Promise<ChoreographyFieldUpdateErrorData | ChoreographySuccessData> {
-  // Same hard lock as the roster, the cupo and the deletion. It also covers the
-  // puntajes: a Puntaje belongs to a judge assignment on a presentación, so
+  // Same hard lock as the roster, the capacity and the deletion. It also covers the
+  // scores: a score belongs to a judge assignment on a presentation, so
   // there is no scored choreography without one.
   if (input.choreography.hasPresentation) {
     return { message: presentationLockMessage, status: "error" };
@@ -224,9 +224,9 @@ export async function updateChoreographyModality(input: {
     return { message: invalidModalityMessage, status: "error" };
   }
 
-  // Re-selecting the modalidad it already has is a successful no-op, like
-  // re-selecting the current cupo. It also covers drift: a current modalidad
-  // that lost its cronograma still renders selected, and confirming it must not
+  // Re-selecting the modality it already has is a successful no-op, like
+  // re-selecting the current capacity. It also covers drift: a current modality
+  // that lost its schedule still renders selected, and confirming it must not
   // be reported as an incompatible choice.
   if (requestedModalityId === input.choreography.modalityId) {
     return choreographySavedSuccess();
@@ -246,7 +246,7 @@ export async function updateChoreographyModality(input: {
   }
 
   // The correction is re-resolved here and not read back from the form: the
-  // fetcher's preview is older than this write by construction, and a categoría
+  // fetcher's preview is older than this write by construction, and a category
   // resolved against bases that have moved since would be written against the
   // new ones. It runs immediately before the transaction rather than inside it
   // because the shared resolvers own their own executor; what the transaction
@@ -288,8 +288,8 @@ export async function updateChoreographyModality(input: {
   const experienceLevelOptions = context.classification.experienceLevel.required
     ? context.classification.experienceLevel.options
     : [];
-  // The nivel is dropped rather than carried over when the resolved categoría
-  // declares none: `experience_level` is meaningless outside the categoría that
+  // The level is dropped rather than carried over when the resolved category
+  // declares none: `experience_level` is meaningless outside the category that
   // admits it.
   const experienceLevelId =
     experienceLevelOptions.length > 0
@@ -325,9 +325,9 @@ export async function updateChoreographyModality(input: {
 
   const result = await db.transaction(async (tx) => {
     // The money guard fires only when the correction would actually move the
-    // price key. A destination modalidad that lands on the cupo the
+    // price key. A destination modality that lands on the capacity the
     // choreography already occupies is financially inert, and those corrections
-    // stay available on a choreography that holds money; the cupo is still
+    // stay available on a choreography that holds money; the capacity is still
     // locked and re-counted, excluding this choreography, so a full destination
     // is rejected either way.
     const movesScheduleCapacity =
@@ -405,7 +405,7 @@ async function resolveModalityCorrectionContext(input: {
     classification,
     scheduleOptions: await withScheduleCapacityOccupancy({
       // Same exclusion as the lock: the choreography being corrected does not
-      // count against the cupo it already occupies.
+      // count against the capacity it already occupies.
       excludeChoreographyId: input.choreography.id,
       options: scheduleResolution.options.map((option) => ({
         id: option.id,

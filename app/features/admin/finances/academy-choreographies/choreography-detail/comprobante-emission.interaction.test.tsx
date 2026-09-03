@@ -186,7 +186,7 @@ describe("EmissionDialog", () => {
     expect(document.body.textContent).toContain("12.000");
     expect(document.body.textContent).not.toContain("Porción");
 
-    // The copy names the real output (nota de crédito, lowercase inside the
+    // The copy names the real output (credit note, lowercase inside the
     // sentence because it is a domain term).
     expect(document.body.textContent).toMatch(/nota de crédito/i);
 

@@ -42,7 +42,7 @@ export type ComprobantesListRow = {
   academyName: string;
 };
 
-// Type facet: only Factura C (11) and Nota de crédito C (13) are emitted. The
+// Type facet: only `Factura C` (11) and `Nota de crédito C` (13) are emitted. The
 // value travels as a stable slug in the URL, so the filter is not coupled to the
 // label.
 export type ComprobanteTipoFacet = "factura_c" | "nota_credito_c";
@@ -78,8 +78,8 @@ const defaultComprobantesOrder: ComprobantesListOrder = {
 /**
  * The global list of comprobantes emitted in the active event, paginated, sorted
  * and filtered on the server (it grows over time, #483). The `vigente`/`anulada`
- * state is NOT persisted: it is derived in SQL from the existence of a Nota de
- * crédito of the same event referencing the factura via
+ * state is NOT persisted: it is derived in SQL from the existence of a credit
+ * note of the same event referencing the invoice via
  * `associatedComprobanteId`, so that the state filter and the pagination operate
  * on the real state and not on the loaded page. It mutates nothing.
  */
@@ -173,7 +173,7 @@ export async function loadComprobantesList(
   };
 }
 
-// Derived `anulada`: a Nota de crédito of the same event referencing this row
+// Derived `anulada`: a credit note of the same event referencing this row
 // exists. Correlated with the outer row via `associatedComprobanteId`.
 function buildAnnulledExists(selectedEventId: string): SQL {
   const notaCredito = alias(comprobantes, "nota_credito");

@@ -26,7 +26,7 @@ describe("FinancesListRouteView", () => {
     expect(markup).toContain("$ 315.000");
   });
 
-  test("mutes Saldo disponible when the academy has no money on account", () => {
+  test("mutes balance available when the academy has no money on account", () => {
     const markup = renderList([
       accountRowFixture({ availableBalanceAmount: 0 }),
     ]);
@@ -34,7 +34,7 @@ describe("FinancesListRouteView", () => {
     expect(isAvailableBalanceMuted(markup)).toBe(true);
   });
 
-  test("does not mute Saldo disponible when the academy has money on account", () => {
+  test("does not mute balance available when the academy has money on account", () => {
     const markup = renderList([
       accountRowFixture({ availableBalanceAmount: 34500 }),
     ]);

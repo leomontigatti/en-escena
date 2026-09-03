@@ -28,7 +28,7 @@ describe("formatArcaMessage", () => {
 });
 
 describe("parseCreateVoucherResult", () => {
-  test("extrae CAE, vencimiento y correlativo de un comprobante aprobado", () => {
+  test("extracts CAE, expiry and sequence number from an approved comprobante", () => {
     const parsed = parseCreateVoucherResult(facturaCAprobada);
 
     expect(parsed.approved).toBe(true);

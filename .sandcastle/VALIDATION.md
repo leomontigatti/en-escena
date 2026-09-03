@@ -41,6 +41,8 @@ The scripts that exist and what owns what:
 | `pnpm check:banned-imports` | Retired dependencies stay retired                          |
 | `pnpm check:file-tokens`    | Staged `app` modules under the token ceiling               |
 | `pnpm check:migration-order`| New migrations postdate `master`                           |
+| `pnpm check:comment-language`| Spanish prose in comments, test names and docs            |
+| `pnpm check:fallow`         | Fallow's `new-only` gate on what the branch adds           |
 
 CI runs the `check:*` scripts and `pnpm build` for you. You do not need to.
 

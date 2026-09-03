@@ -248,7 +248,7 @@ type EffectiveBasePriceInput = {
  * The price row an inscription is charged at: `crossed ? stored : (current ?? stored)`.
  *
  * **The price stops moving when the inscription crosses its deposit threshold**,
- * which is what a seña buys. Below that threshold the stored row is not
+ * which is what a deposit buys. Below that threshold the stored row is not
  * authoritative: the read re-derives from the row that applies today, so a page
  * refresh moves the figures and so does the passage of time. That is deliberate
  * — locking at the first allocated peso would let an academy freeze the whole
@@ -312,7 +312,7 @@ export function resolveEffectiveBasePriceAmount(
  * `missing-price` when no price row applies.
  *
  * It is asked about an inscription that stores no row **and** about one that
- * stores a row it has not yet paid the seña of: below that threshold the stored
+ * stores a row it has not yet paid the deposit of: below that threshold the stored
  * row is not authoritative, so this is the `current` half of
  * `resolveEffectiveBasePriceRow`.
  */

@@ -46,7 +46,7 @@ installDatabaseTestHooks();
 const ADMIN_EMAIL = "admin.comprobante.detalle@example.com";
 
 // Mocked WSFEv1: the last-number lookup returns the type 13 series and emission
-// approves the Nota de crédito. Each test overrides what it needs.
+// approves the credit note. Each test overrides what it needs.
 function fakeBilling(
   overrides: Partial<ArcaBillingPort> = {},
 ): ArcaBillingPort {
@@ -221,7 +221,7 @@ describe.sequential("loadComprobanteDetail", () => {
 });
 
 describe.sequential("handleComprobanteDetailAction — anular", () => {
-  test("emits the mirroring Nota de crédito and redirects to the detail", async () => {
+  test("emits the mirroring credit note and redirects to the detail", async () => {
     const seeded = await seedComprobante({
       academyName: "Academia Anular",
       choreographyName: "Coreografía anular",
@@ -323,7 +323,7 @@ describe.sequential("handleComprobanteDetailAction — anular", () => {
 });
 
 describe("handleComprobanteDetailAction — re-verificar (#577)", () => {
-  // Nota de crédito 8 as ARCA recorded it: the same amount and date that were
+  // Credit note 8 as ARCA recorded it: the same amount and date that were
   // sent, so it is ours (ADR-0012 decision 4).
   function consultada(
     overrides: Partial<VoucherInfoResultDto> = {},
@@ -351,7 +351,7 @@ describe("handleComprobanteDetailAction — re-verificar (#577)", () => {
     });
   }
 
-  test("the nota de crédito shows up in ARCA: it is persisted and the alert is marked recovered", async () => {
+  test("the credit note shows up in ARCA: it is persisted and the alert is marked recovered", async () => {
     const seeded = await seedComprobante({
       academyName: "Academia Re-verificar",
       choreographyName: "Coreografía re-verificar",
