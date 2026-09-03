@@ -213,7 +213,7 @@ function requireEnv(name: string, env: NodeJS.ProcessEnv): string {
   const value = env[name];
 
   if (!value || value.trim() === "") {
-    throw new Error(`Falta la variable de entorno ${name}.`);
+    throw new Error(`Missing environment variable ${name}.`);
   }
 
   return value;
@@ -227,8 +227,8 @@ function decodePem(base64: string, kind: string): string {
 
   if (!pem.includes("-----BEGIN")) {
     throw new Error(
-      `${kind} no parece un PEM válido tras decodificar base64 ` +
-        `(no contiene "-----BEGIN"). ¿La variable está bien codificada?`,
+      `${kind} does not look like a valid PEM once base64-decoded ` +
+        `(no "-----BEGIN" in it). Is the variable encoded correctly?`,
     );
   }
 

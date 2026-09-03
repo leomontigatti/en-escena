@@ -56,7 +56,9 @@ describe("buildFacturaCVoucher", () => {
 
   test("requires all three service dates together or none at all", () => {
     const { fchVtoPago: _omitted, ...withoutVto } = baseInput;
-    expect(() => buildFacturaCVoucher(withoutVto)).toThrow(/juntas o ninguna/);
+    expect(() => buildFacturaCVoucher(withoutVto)).toThrow(
+      /all three together or not at all/,
+    );
   });
 
   test("rejects a service date that is not in ARCA's AAAAMMDD format", () => {
