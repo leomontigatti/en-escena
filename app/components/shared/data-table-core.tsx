@@ -1,11 +1,14 @@
 import {
   flexRender,
   type ColumnDef,
+  type OnChangeFn,
   type Row,
   type RowData,
+  type RowSelectionState,
   type Table as TanStackTable,
 } from "@tanstack/react-table";
 import { LoaderCircle, Search, X } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 
 import { Button } from "@/components/ui/button";
@@ -27,6 +30,7 @@ import type {
   DataTableColumn,
   DataTableFacetedFilter,
   DataTableFacetedFilterValue,
+  DataTableRowSelectionProps,
   DataTableSortDirection,
 } from "@/components/shared/data-table.shared";
 import { dataTableFacetedFilterColumnId } from "@/components/shared/data-table.shared";
@@ -217,6 +221,54 @@ export function createGlobalFilterFn<TData>(columns: DataTableColumn<TData>[]) {
         ? normalizeSearchValue(value).includes(normalizedQuery)
         : false;
     });
+}
+
+/**
+ * The selection state both tables hand to TanStack, controlled or not. Passing
+ * `selectedRowIds` lifts it to the view — which is what a selection that drives
+ * figures or actions outside the table needs — and leaving it out keeps it here.
+ */
+export function useDataTableRowSelection({
+  onSelectedRowIdsChange,
+  selectedRowIds,
+}: Pick<
+  DataTableRowSelectionProps,
+  "onSelectedRowIdsChange" | "selectedRowIds"
+>) {
+  const [uncontrolledRowSelection, setUncontrolledRowSelection] =
+    useState<RowSelectionState>({});
+  const isSelectionControlled = selectedRowIds !== undefined;
+  const controlledRowSelection = useMemo(
+    () => Object.fromEntries((selectedRowIds ?? []).map((id) => [id, true])),
+    [selectedRowIds],
+  );
+  const rowSelection = isSelectionControlled
+    ? controlledRowSelection
+    : uncontrolledRowSelection;
+
+  // The select-all header toggles every visible row in one synchronous loop, so
+  // each updater has to see the previous one's result. Uncontrolled selection
+  // hands the updater to React, which chains them; controlled selection chains
+  // them through a ref, since the prop only catches up on the next render.
+  const latestRowSelectionRef = useRef(rowSelection);
+  latestRowSelectionRef.current = rowSelection;
+
+  const setRowSelection: OnChangeFn<RowSelectionState> = (updater) => {
+    if (!isSelectionControlled) {
+      setUncontrolledRowSelection(updater);
+      return;
+    }
+
+    const next =
+      typeof updater === "function"
+        ? updater(latestRowSelectionRef.current)
+        : updater;
+
+    latestRowSelectionRef.current = next;
+    onSelectedRowIdsChange?.(Object.keys(next).filter((rowId) => next[rowId]));
+  };
+
+  return { rowSelection, setRowSelection };
 }
 
 function createSelectionColumn<TData>(): ColumnDef<TData> {

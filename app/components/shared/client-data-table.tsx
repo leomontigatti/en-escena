@@ -4,12 +4,10 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   type ColumnFiltersState,
-  type OnChangeFn,
-  type RowSelectionState,
   type SortingState,
   useReactTable,
 } from "@tanstack/react-table";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router";
 
 import {
@@ -25,6 +23,7 @@ import {
   createGlobalFilterFn,
   DataTableShell,
   emptyFacetedFilterValues,
+  useDataTableRowSelection,
 } from "@/components/shared/data-table-core";
 import type {
   ClientDataTableProps,
@@ -78,38 +77,10 @@ export function ClientDataTable<TData>({
       ? [{ id: initialSort.columnId, desc: initialSort.direction === "desc" }]
       : [],
   );
-  const [uncontrolledRowSelection, setUncontrolledRowSelection] =
-    useState<RowSelectionState>({});
-  const isSelectionControlled = selectedRowIds !== undefined;
-  const controlledRowSelection = useMemo(
-    () => Object.fromEntries((selectedRowIds ?? []).map((id) => [id, true])),
-    [selectedRowIds],
-  );
-  const rowSelection = isSelectionControlled
-    ? controlledRowSelection
-    : uncontrolledRowSelection;
-
-  // The select-all header toggles every visible row in one synchronous loop, so
-  // each updater has to see the previous one's result. Uncontrolled selection
-  // hands the updater to React, which chains them; controlled selection chains
-  // them through a ref, since the prop only catches up on the next render.
-  const latestRowSelectionRef = useRef(rowSelection);
-  latestRowSelectionRef.current = rowSelection;
-
-  const setRowSelection: OnChangeFn<RowSelectionState> = (updater) => {
-    if (!isSelectionControlled) {
-      setUncontrolledRowSelection(updater);
-      return;
-    }
-
-    const next =
-      typeof updater === "function"
-        ? updater(latestRowSelectionRef.current)
-        : updater;
-
-    latestRowSelectionRef.current = next;
-    onSelectedRowIdsChange?.(Object.keys(next).filter((rowId) => next[rowId]));
-  };
+  const { rowSelection, setRowSelection } = useDataTableRowSelection({
+    onSelectedRowIdsChange,
+    selectedRowIds,
+  });
   const tableGlobalFilter = textFilterColumnId ? "" : searchQuery;
 
   useEffect(() => {

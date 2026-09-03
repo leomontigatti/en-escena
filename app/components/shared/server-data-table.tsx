@@ -2,6 +2,8 @@ import {
   getCoreRowModel,
   type ColumnDef,
   type ColumnFiltersState,
+  type OnChangeFn,
+  type RowSelectionState,
   type SortingState,
   useReactTable,
 } from "@tanstack/react-table";
@@ -33,6 +35,7 @@ import {
   createGlobalFilterFn,
   DataTableShell,
   emptyFacetedFilterValues,
+  useDataTableRowSelection,
 } from "@/components/shared/data-table-core";
 import type {
   DataTableFacetedFilter,
@@ -45,18 +48,24 @@ export function ServerDataTable<TData>(props: ServerDataTableProps<TData>) {
   const location = useLocation();
   const navigate = useNavigate();
   const navigation = useOptionalNavigation();
-  const initialSearchValue = props.initialSearchValue ?? "";
-  const facetedFilters = props.facetedFilters ?? [];
-  const emptyMessage = props.emptyMessage ?? "No hay resultados para mostrar.";
-  const baseFacetedFilterValues =
-    props.baseFacetedFilterValues ?? emptyFacetedFilterValues;
-  const initialFacetedFilterValues =
-    props.initialFacetedFilterValues ?? emptyFacetedFilterValues;
-  const resolvedBasePath = props.basePath ?? location.pathname;
+  const {
+    baseFacetedFilterValues,
+    emptyMessage,
+    facetedFilters,
+    initialFacetedFilterValues,
+    initialSearchValue,
+    resolvedBasePath,
+    selectableRows,
+  } = resolveServerDataTableDefaults(props, location.pathname);
   const currentHref = `${location.pathname}${location.search}`;
   const { columnVisibility, tableColumns } = useServerDataTableColumns(
     props.columns,
+    selectableRows,
   );
+  const { rowSelection, setRowSelection } = useDataTableRowSelection({
+    onSelectedRowIdsChange: props.onSelectedRowIdsChange,
+    selectedRowIds: props.selectedRowIds,
+  });
   const { searchQuery, setSearchQuery, lastAppliedSearchValueRef } =
     useSearchQueryState(initialSearchValue);
   const { columnFilters, setColumnFilters } = useColumnFiltersState({
@@ -72,6 +81,9 @@ export function ServerDataTable<TData>(props: ServerDataTableProps<TData>) {
     currentPage: props.currentPage,
     getRowKey: props.getRowKey,
     rows: props.rows,
+    rowSelection,
+    selectableRows,
+    setRowSelection,
     setSorting,
     sorting,
     tableColumns,
@@ -144,16 +156,43 @@ export function ServerDataTable<TData>(props: ServerDataTableProps<TData>) {
   );
 }
 
+/**
+ * The optional props, resolved once. They are defaults and nothing else, so they
+ * sit outside the component: read together they say what the table falls back
+ * to, and read inside they were only noise between the hooks.
+ */
+function resolveServerDataTableDefaults<TData>(
+  props: ServerDataTableProps<TData>,
+  currentPathname: string,
+) {
+  return {
+    baseFacetedFilterValues:
+      props.baseFacetedFilterValues ?? emptyFacetedFilterValues,
+    emptyMessage: props.emptyMessage ?? "No hay resultados para mostrar.",
+    facetedFilters: props.facetedFilters ?? emptyFacetedFilters,
+    initialFacetedFilterValues:
+      props.initialFacetedFilterValues ?? emptyFacetedFilterValues,
+    initialSearchValue: props.initialSearchValue ?? "",
+    resolvedBasePath: props.basePath ?? currentPathname,
+    selectableRows: props.selectableRows ?? false,
+  };
+}
+
+// A stable identity: the resolver runs on every render, and a fresh `[]` would
+// make every effect that reads the filters treat "no filters" as a change.
+const emptyFacetedFilters: DataTableFacetedFilter[] = [];
+
 function useServerDataTableColumns<TData>(
   columns: ServerDataTableProps<TData>["columns"],
+  selectableRows: boolean,
 ) {
   const columnVisibility = useMemo(
     () => createColumnVisibility(columns),
     [columns],
   );
   const tableColumns = useMemo(
-    () => createDataTableColumns(columns),
-    [columns],
+    () => createDataTableColumns(columns, { selectableRows }),
+    [columns, selectableRows],
   );
 
   return { columnVisibility, tableColumns };
@@ -244,6 +283,9 @@ function useServerReactTable<TData>({
   currentPage,
   getRowKey,
   rows,
+  rowSelection,
+  selectableRows,
+  setRowSelection,
   setSorting,
   sorting,
   tableColumns,
@@ -254,6 +296,9 @@ function useServerReactTable<TData>({
   currentPage: number;
   getRowKey: ServerDataTableProps<TData>["getRowKey"];
   rows: TData[];
+  rowSelection: RowSelectionState;
+  selectableRows: boolean;
+  setRowSelection: OnChangeFn<RowSelectionState>;
   setSorting: Dispatch<SetStateAction<SortingState>>;
   sorting: SortingState;
   tableColumns: ColumnDef<TData>[];
@@ -270,9 +315,12 @@ function useServerReactTable<TData>({
         pageIndex: currentPage - 1,
         pageSize: rows.length,
       },
+      rowSelection,
       sorting,
     },
+    onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
+    enableRowSelection: selectableRows,
     getCoreRowModel: getCoreRowModel(),
     getRowId: getRowKey,
     manualSorting: true,

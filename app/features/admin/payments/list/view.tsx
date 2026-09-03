@@ -1,4 +1,5 @@
 import { HandCoins } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import {
   AdminEmptyState,
@@ -20,6 +21,7 @@ import {
   paymentMethodOptions,
 } from "@/lib/finances/payment-methods";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
+import { resolveSelectedPaymentTotals } from "@/lib/finances/selected-payment-totals";
 
 import type { PaymentsListRow, PaymentsListLoaderData } from "./server";
 
@@ -107,6 +109,28 @@ const paymentFacetedFilters: DataTableFacetedFilter[] = [
 export function PaymentsListRouteView({
   loaderData,
 }: PaymentsListRouteViewProps) {
+  // Lifted out of the table because it drives more than the table: both metric
+  // cards re-scope to it. Selecting a few payments is how the administrator asks
+  // what *those* came to without adding them up by hand. The academy portal's
+  // payment list does not select: it reads its own payments and has nothing to
+  // re-scope.
+  const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
+  const visibleRowIds = loaderData.rows.map((row) => row.id).join(",");
+
+  // The list is server-paginated, so a selection only ever reaches the page on
+  // screen. Any navigation —page, search, facet, sort— sends a different set of
+  // rows, and carrying the old ticks over would leave the cards summing rows
+  // nobody can see. Clearing is the honest reading: the cards go back to the
+  // event's whole position.
+  useEffect(() => {
+    setSelectedRowIds([]);
+  }, [visibleRowIds]);
+
+  const { availableAmount, totalAmount } = resolveSelectedPaymentTotals({
+    rows: loaderData.rows,
+    selectedRowIds,
+    summary: loaderData.summary,
+  });
   const shouldShowTable =
     loaderData.rows.length > 0 ||
     loaderData.hasAnyPayment ||
@@ -135,19 +159,21 @@ export function PaymentsListRouteView({
             set: `Disponible` is read first and filtered on second, through the
             facet of the same name.
 
+            A selection is the one thing that narrows them, and it narrows them
+            on purpose: ticking rows is an explicit ask about *those* payments,
+            unlike a filter, which is an ask about which rows to show. Untick
+            everything and the event's position comes back.
+
             Outside the table's own emptiness on purpose. An event with no
             payments yet reads `$ 0` twice, which is the answer to what has been
             collected — a card that disappears is one the administrator has to
             guess the value of. They go away only with the event, where there is
             no position to state. */}
         <section className="grid gap-4 sm:grid-cols-2">
-          <MetricCard
-            title="Total cobrado"
-            value={formatAmount(loaderData.summary.totalAmount)}
-          />
+          <MetricCard title="Total cobrado" value={formatAmount(totalAmount)} />
           <MetricCard
             title="Disponible"
-            value={formatAmount(loaderData.summary.availableAmount)}
+            value={formatAmount(availableAmount)}
           />
         </section>
 
@@ -164,6 +190,9 @@ export function PaymentsListRouteView({
             )}
             initialSearchValue={loaderData.filters.query}
             getRowKey={(row) => row.id}
+            selectableRows
+            selectedRowIds={selectedRowIds}
+            onSelectedRowIdsChange={setSelectedRowIds}
             searchPlaceholder="Buscar pago por academia o número"
             initialSort={loaderData.filters.order}
             emptyMessage="No hay pagos para mostrar."

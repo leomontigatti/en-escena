@@ -53,8 +53,12 @@ export type DataTableBaseProps<TData> = {
   initialFacetedFilterValues?: Record<string, DataTableFacetedFilterValue>;
 };
 
-export type ClientDataTableProps<TData> = DataTableBaseProps<TData> & {
-  textFilterColumnId?: string;
+/**
+ * Row selection, shared by both tables because both ask the same thing of it.
+ * On the server table the checkbox reaches the current page only: the rows are
+ * the ones the loader sent, and there is nothing else on the client to select.
+ */
+export type DataTableRowSelectionProps = {
   selectableRows?: boolean;
   /**
    * Row selection, lifted. Pass both to control it from outside — needed when
@@ -64,25 +68,31 @@ export type ClientDataTableProps<TData> = DataTableBaseProps<TData> & {
    */
   selectedRowIds?: string[];
   onSelectedRowIdsChange?: (selectedRowIds: string[]) => void;
-  hideSearch?: boolean;
-  hidePagination?: boolean;
-  initialSort?: {
-    columnId: string;
-    direction: DataTableSortDirection;
-  };
 };
 
-export type ServerDataTableProps<TData> = DataTableBaseProps<TData> & {
-  currentPage: number;
-  totalPages: number;
-  totalRows: number;
-  basePath?: string;
-  initialSort?: {
-    columnId: string;
-    direction: DataTableSortDirection;
+export type ClientDataTableProps<TData> = DataTableBaseProps<TData> &
+  DataTableRowSelectionProps & {
+    textFilterColumnId?: string;
+    hideSearch?: boolean;
+    hidePagination?: boolean;
+    initialSort?: {
+      columnId: string;
+      direction: DataTableSortDirection;
+    };
   };
-  loading?: boolean;
-  pageParamName?: string;
-  searchParamName?: string;
-  sortParamName?: string;
-};
+
+export type ServerDataTableProps<TData> = DataTableBaseProps<TData> &
+  DataTableRowSelectionProps & {
+    currentPage: number;
+    totalPages: number;
+    totalRows: number;
+    basePath?: string;
+    initialSort?: {
+      columnId: string;
+      direction: DataTableSortDirection;
+    };
+    loading?: boolean;
+    pageParamName?: string;
+    searchParamName?: string;
+    sortParamName?: string;
+  };

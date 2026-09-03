@@ -12,6 +12,9 @@ describe("PaymentsListRouteView", () => {
   // amount keeps its own name: `Monto` is one payment's figure, not a total.
   test('shows "Disponible" right after "Monto"', () => {
     expect(headers()).toEqual([
+      // The selection column, whose header is the select-all checkbox and
+      // carries no text.
+      "",
       "#",
       "Fecha",
       "Academia",
@@ -19,6 +22,16 @@ describe("PaymentsListRouteView", () => {
       "Monto",
       "Disponible",
     ]);
+  });
+
+  // The administrator selects to read: the two cards above re-scope to what is
+  // ticked. What the sums come to is `resolveSelectedPaymentTotals`' own test;
+  // this one asserts the column is there to tick at all.
+  test("offers a checkbox on every row and one to select the page", () => {
+    const markup = render();
+
+    expect(markup).toContain('aria-label="Seleccionar todas las filas"');
+    expect(markup).toContain('aria-label="Seleccionar fila"');
   });
 
   test("shows what is still free on each payment", () => {
