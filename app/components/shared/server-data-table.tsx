@@ -24,7 +24,6 @@ import {
   createColumnVisibility,
   createDataTableColumns,
   createGlobalFilterFn,
-  DataTableShell,
   emptyFacetedFilters,
   emptyFacetedFilterValues,
   useDataTableColumnFiltersState,
@@ -32,6 +31,7 @@ import {
   useDataTableSearchQueryState,
   useDataTableSortingState,
 } from "@/components/shared/data-table-core";
+import { DataTableShell } from "@/components/shared/data-table-shell";
 import type {
   DataTableFacetedFilter,
   DataTableFacetedFilterValue,
@@ -113,40 +113,50 @@ export function ServerDataTable<TData>(props: ServerDataTableProps<TData>) {
 
   return (
     <DataTableShell
-      table={table}
-      getRowProps={props.getRowProps}
-      searchPlaceholder={props.searchPlaceholder}
-      searchQuery={searchQuery}
-      onSearchChange={setSearchQuery}
-      facetedFilters={facetedFilters}
-      getSelectedFilterValues={(columnId) =>
-        getSelectedFilterValues(columnFilters, columnId)
-      }
-      onFacetedFilterChange={setFacetedFilterValue}
       emptyMessage={emptyMessage}
-      basePath={resolvedBasePath}
-      filteredRowCount={props.rows.length}
-      totalRows={props.totalRows}
+      filters={{
+        getSelectedValues: (columnId) =>
+          getSelectedFilterValues(columnFilters, columnId),
+        groups: facetedFilters,
+        onChange: setFacetedFilterValue,
+      }}
+      getRowProps={props.getRowProps}
       isLoading={isLoading}
-      pageCount={props.totalPages}
-      currentPage={props.currentPage}
-      canPreviousPage={props.currentPage > 1}
-      canNextPage={props.currentPage < props.totalPages}
-      pageHrefBuilder={createServerPageHrefBuilder({
-        currentSearch: location.search,
-        pageParamName: props.pageParamName,
-        resolvedBasePath,
-      })}
-      getServerSortHref={createServerSortHrefBuilder({
-        currentSearch: location.search,
-        pageParamName: props.pageParamName,
-        resolvedBasePath,
-        serverSort,
-        sortParamName: props.sortParamName,
-      })}
-      getServerSortDirection={(columnId) =>
-        getServerSortDirection(serverSort, columnId)
-      }
+      pagination={{
+        basePath: resolvedBasePath,
+        canNextPage: props.currentPage < props.totalPages,
+        canPreviousPage: props.currentPage > 1,
+        currentPage: props.currentPage,
+        // The page the loader sent, against the whole set it was drawn from:
+        // there is no client-side filtering to narrow either number.
+        filteredRowCount: props.rows.length,
+        hrefBuilder: createServerPageHrefBuilder({
+          currentSearch: location.search,
+          pageParamName: props.pageParamName,
+          resolvedBasePath,
+        }),
+        pageCount: props.totalPages,
+        totalRows: props.totalRows,
+      }}
+      search={{
+        onChange: setSearchQuery,
+        placeholder: props.searchPlaceholder,
+        query: searchQuery,
+      }}
+      // Present, and that is what makes the headers sort by link: this table's
+      // sort is a URL the reader can share and go back to.
+      serverSort={{
+        getDirection: (columnId) =>
+          getServerSortDirection(serverSort, columnId),
+        getHref: createServerSortHrefBuilder({
+          currentSearch: location.search,
+          pageParamName: props.pageParamName,
+          resolvedBasePath,
+          serverSort,
+          sortParamName: props.sortParamName,
+        }),
+      }}
+      table={table}
     />
   );
 }
