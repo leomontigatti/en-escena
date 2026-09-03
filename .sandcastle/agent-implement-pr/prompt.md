@@ -11,8 +11,8 @@
 
 # TASK
 
-You are addressing reviewer feedback on PR #{{PR_NUMBER}} (branch `{{BRANCH}}`), linked to
-issue #{{ISSUE_NUMBER}}: {{ISSUE_TITLE}}.
+You are addressing reviewer feedback on PR #{{PR_NUMBER}} (branch `{{BRANCH}}`).
+Linked issue: {{LINKED_ISSUE}}.
 
 Unlike a review, your job is **not** to compare the code against a spec or coding standards.
 Read the unresolved conversation, decide what (if anything) to change, make those changes, and
@@ -25,10 +25,10 @@ Read the repo's domain/architecture docs (`CONTEXT.md`, `docs/adr/`,
 `docs/agents/domain.md`) **only if** a comment demands domain context — don't go deeper than
 the comments require. Coding conventions live in `.sandcastle/CODING_STANDARDS.md`.
 
-The linked issue, for context only:
+The linked issue, for context only (a PR need not link one):
 
 <linked-issue>
-Issue #{{ISSUE_NUMBER}}: {{ISSUE_TITLE}}
+{{LINKED_ISSUE}}
 </linked-issue>
 
 The diff, as a **summary** — changed files with added/removed line counts, not the full
