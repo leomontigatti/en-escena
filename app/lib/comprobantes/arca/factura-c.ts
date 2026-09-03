@@ -54,14 +54,14 @@ export type FacturaCVoucherInput = {
 
 export function assertPositiveInteger(value: number, field: string): void {
   if (!Number.isInteger(value) || value <= 0) {
-    throw new Error(`${field} debe ser un entero positivo (recibí ${value}).`);
+    throw new Error(`${field} must be a positive integer (received ${value}).`);
   }
 }
 
 export function assertArcaDate(value: string, field = "CbteFch"): void {
   if (!ARCA_DATE_RE.test(value)) {
     throw new Error(
-      `${field} debe tener formato ARCA AAAAMMDD (recibí "${value}").`,
+      `${field} must use the ARCA AAAAMMDD format (received "${value}").`,
     );
   }
 }
@@ -98,8 +98,8 @@ function buildServiceDates(
 
   if (present.length !== 3) {
     throw new Error(
-      "Las fechas de servicio (FchServDesde, FchServHasta, FchVtoPago) van " +
-        "las tres juntas o ninguna.",
+      "The service dates (FchServDesde, FchServHasta, FchVtoPago) travel " +
+        "all three together or not at all.",
     );
   }
 
@@ -109,14 +109,14 @@ function buildServiceDates(
 
   if (fchServHasta! < fchServDesde!) {
     throw new Error(
-      `FchServHasta (${fchServHasta}) debe ser >= FchServDesde ` +
+      `FchServHasta (${fchServHasta}) must be >= FchServDesde ` +
         `(${fchServDesde}).`,
     );
   }
 
   if (fchVtoPago! < input.cbteFch) {
     throw new Error(
-      `FchVtoPago (${fchVtoPago}) debe ser >= CbteFch (${input.cbteFch}).`,
+      `FchVtoPago (${fchVtoPago}) must be >= CbteFch (${input.cbteFch}).`,
     );
   }
 

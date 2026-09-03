@@ -398,7 +398,7 @@ export function readFacturaCEmissionConfig(
 function requireEnv(env: NodeJS.ProcessEnv, name: string): string {
   const value = env[name];
   if (!value || value.trim() === "") {
-    throw new Error(`Falta la variable de entorno ${name}.`);
+    throw new Error(`Missing environment variable ${name}.`);
   }
   return value;
 }

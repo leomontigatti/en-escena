@@ -89,7 +89,7 @@ function assertInternalUserRole(
   role: string,
 ): asserts role is InternalUserRole {
   if (!INTERNAL_USER_ROLES.includes(role as InternalUserRole)) {
-    throw new Error("La invitación interna no puede asignar academia.");
+    throw new Error("An internal invitation cannot assign an academy.");
   }
 }
 
