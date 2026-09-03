@@ -85,7 +85,7 @@ describe("ComprobanteDetailRouteView", () => {
     await renderer.renderAsync(<RouterProvider router={router} />);
   }
 
-  // The annulment leaves the nota de crédito unresolved; the re-verification
+  // The annulment leaves the credit note unresolved; the re-verification
   // recovers it.
   function unverifiedThenRecovered() {
     const recheckPayloads: Array<Record<string, string>> = [];
@@ -125,7 +125,7 @@ describe("ComprobanteDetailRouteView", () => {
     };
   }
 
-  test("an unverified annulment blocks the retry and names the nota de crédito", async () => {
+  test("an unverified annulment blocks the retry and names the credit note", async () => {
     const { action } = unverifiedThenRecovered();
     await mount({ initialAnnulDialogOpen: true, action });
 
@@ -137,7 +137,7 @@ describe("ComprobanteDetailRouteView", () => {
     expect(getButton("Anular comprobante").disabled).toBe(true);
   });
 
-  test("verify now recovers the nota de crédito and removes the annul button", async () => {
+  test("verify now recovers the credit note and removes the annul button", async () => {
     const { action, recheckPayloads } = unverifiedThenRecovered();
     await mount({ initialAnnulDialogOpen: true, action });
 
@@ -155,7 +155,7 @@ describe("ComprobanteDetailRouteView", () => {
   });
 
   /**
-   * Regression: recovering the nota de crédito persists it, so the revalidation
+   * Regression: recovering the credit note persists it, so the revalidation
    * the fetcher triggers returns the comprobante already annulled and `canAnnul`
    * at `false`. With the dialog mounted off that flag, the `recovered` state
    * disappeared in the same tick it was produced and the operator never saw it.
@@ -242,7 +242,7 @@ describe("ComprobanteDetailRouteView", () => {
     expect(document.querySelector('[role="alertdialog"]')).not.toBeNull();
 
     // The copy says what is being annulled, for how much, and the real output
-    // (Nota de crédito).
+    // (credit note).
     expect(document.body.textContent).toContain("0001-00000041");
     expect(document.body.textContent).toContain("7.000");
     expect(document.body.textContent).toMatch(/nota de crédito/i);

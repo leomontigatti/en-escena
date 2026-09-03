@@ -34,7 +34,7 @@ import {
 
 type ComprobanteRow = Awaited<ReturnType<typeof recordComprobante>>;
 
-// The issuer is Proyecciones Artísticas Asociación Civil, EXEMPT from VAT
+// The issuer is "Proyecciones Artísticas Asociación Civil", EXEMPT from VAT
 // (#426): it always issues class C. The snapshot enum admits only this value.
 export const ISSUER_IVA_CONDITION = "exento" as const;
 
@@ -58,7 +58,7 @@ export type FacturaCEmissionInput = {
 export type FacturaCEmissionFailureReason =
   | "not-found"
   | "nothing-to-bill"
-  // ARCA respondió y no autorizó.
+  // ARCA responded and did not authorize.
   | "rejected"
   // ARCA did not respond and it was established that nothing was emitted:
   // retrying is safe (ADR-0012 decision 6).
@@ -89,7 +89,7 @@ export type FacturaCEmissionOutcome =
     };
 
 /**
- * Emits a Factura C (`CbteTipo` 11) for a choreography against WSFEv1.
+ * Emits a `Factura C` (`CbteTipo` 11) for a choreography against WSFEv1.
  *
  * The factura is a DERIVED document (#320): it never governs financial state.
  * What is billed is the money actually collected (payment allocations) that no
@@ -165,7 +165,7 @@ function toFacturaCOutcome(
 }
 
 /**
- * Assembles the Factura C emission choreography: it validates the anchor,
+ * Assembles the `Factura C` emission choreography: it validates the anchor,
  * derives the billable and freezes the service dates. Emission and
  * re-verification share it, since re-verification needs exactly the same inputs
  * — the amount and the date a recovered comprobante is validated against
@@ -299,7 +299,7 @@ async function readInscriptionIds(choreographyId: string): Promise<string[]> {
  * Billable amount of each inscription: what was collected (payment allocations)
  * minus what the choreography's VIGENTE type-11 facturas already cover. Only
  * inscriptions with a positive remainder are included. An annulled factura stops
- * counting as billed — its status derives from the Nota de crédito — so its
+ * counting as billed — its status derives from the credit note — so its
  * amount becomes billable again.
  */
 async function resolveBillableLines(

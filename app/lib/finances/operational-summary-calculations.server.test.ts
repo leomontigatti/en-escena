@@ -120,7 +120,7 @@ describe("buildChoreographyOperationalFinanceRow", () => {
     expect(row.registrationCount).toBe(1);
   });
 
-  test("owes only the rest of the total once the seña is covered", () => {
+  test("owes only the rest of the total once the deposit is covered", () => {
     const row = buildChoreographyOperationalFinanceRow({
       choreography,
       inscriptions: [

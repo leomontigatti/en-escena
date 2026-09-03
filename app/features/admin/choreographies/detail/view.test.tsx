@@ -247,7 +247,7 @@ describe("ChoreographyDetailRouteView", () => {
     expect(markup).not.toContain('name="modalityId"');
   });
 
-  test("announces the seña as a blocker-in-waiting for the modalidad, auditors included", () => {
+  test("announces the deposit as a blocker-in-waiting for the modalidad, auditors included", () => {
     const markup = renderDetail({
       loaderData: buildLoaderData({
         canEdit: false,

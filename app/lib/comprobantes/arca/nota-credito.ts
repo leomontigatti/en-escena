@@ -5,9 +5,9 @@ import {
   type ClassCVoucherBase,
 } from "./factura-c";
 
-// The comprobante associated with the Nota de crédito: the one being annulled
-// (`CbtesAsoc`). It is the original Factura C or, in a chain, another Nota de
-// crédito. An unlimited association chain is allowed because each link only
+// The comprobante associated with the credit note: the one being annulled
+// (`CbtesAsoc`). It is the original `Factura C` or, in a chain, another credit
+// note. An unlimited association chain is allowed because each link only
 // references the previous one by its (type, sales point, number) and the issuer
 // is always the same.
 export type NotaCreditoCAsociado = {
@@ -25,8 +25,8 @@ export type NotaCreditoCVoucherInput = ClassCVoucherBase & {
   asociado: NotaCreditoCAsociado;
 };
 
-// Builds the `FECAESolicitar` payload of a Nota de crédito C (type 13, #328). It
-// is a total-only mirror of the Factura C: the same total amount and the same
+// Builds the `FECAESolicitar` payload of a `Nota de crédito C` (type 13, #328). It
+// is a total-only mirror of the `Factura C`: the same total amount and the same
 // class C base, plus the `CbtesAsoc` array linking it to the comprobante it
 // annuls. The emission logic (emit-nota-credito.server) resolves the sequence
 // number and the amount; the builder neither auto-numbers nor decides what is

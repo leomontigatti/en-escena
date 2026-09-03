@@ -282,7 +282,7 @@ describe("event registration readiness from loaded bases", () => {
     ).resolves.toMatchObject({ isReady: false });
   });
 
-  test("does not fall back to an expired precio general when the específico expired too", async () => {
+  test("does not fall back to an expired general price when the specific one expired too", async () => {
     const eventBases = buildSoloEventBases([
       {
         id: "price_solo_schedule",

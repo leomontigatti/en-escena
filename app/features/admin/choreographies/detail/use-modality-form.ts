@@ -45,7 +45,7 @@ type ModalityFormValues = z.input<typeof modalityFormSchema>;
  * block adds no buttons of its own.
  *
  * It is a sibling of the roster form, not a field on it: the guards differ —the
- * modalidad needs the seña guard over the cupo move, which the roster save
+ * modalidad needs the deposit guard over the cupo move, which the roster save
  * deliberately does not apply to the group type— which is why the two exclude
  * each other on screen instead of merging.
  */

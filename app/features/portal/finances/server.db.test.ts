@@ -277,7 +277,7 @@ describe.sequential("loadPortalAcademyFinances", () => {
     expect(markup).toContain("Pendiente");
   });
 
-  test("matches admin operational summaries once the seña is covered", async () => {
+  test("matches admin operational summaries once the deposit is covered", async () => {
     vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
       "2026-06-01",
     );

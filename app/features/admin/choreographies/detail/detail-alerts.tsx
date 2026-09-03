@@ -70,7 +70,7 @@ export function ChoreographyDetailAlerts({
         </Alert>
       ))}
 
-      {/* A seña does not close the modalidad: it only rejects the correction
+      {/* A deposit does not close the modalidad: it only rejects the correction
           that would move the cronograma, so it is announced as a
           blocker-in-waiting. */}
       {loaderData.modality.blockers.map((blocker) => (

@@ -57,7 +57,7 @@ describe("buildComprobanteQrData", () => {
     );
   });
 
-  test("reflects a nota de crédito's comprobante type", () => {
+  test("reflects a credit note's comprobante type", () => {
     expect(buildComprobanteQrData(qrInput({ cbteTipo: 13 })).tipoCmp).toBe(13);
   });
 });

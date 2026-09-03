@@ -258,7 +258,7 @@ describe("Bases del evento repository", () => {
     ]);
   });
 
-  // The Administración list plans against what is left, so occupancy has to be
+  // The `Administración` list plans against what is left, so occupancy has to be
   // the real one — assigned choreographies — and not the sum of the split
   // capacities, which only shares out the total capacity.
   test("reports the lugares disponibles left by the coreografías already assigned", async () => {

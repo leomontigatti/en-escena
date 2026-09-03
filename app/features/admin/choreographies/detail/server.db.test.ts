@@ -334,7 +334,7 @@ describe("administrative choreography detail server", () => {
       facturaCInput({ choreographyId: invoiced.id, eventId: event.id }),
     );
 
-    // The mere existence of the Factura C already blocks the physical delete.
+    // The mere existence of the `Factura C` already blocks the physical delete.
     await expect(loadDeleteBlockers(invoiced.id)).resolves.toEqual([
       "comprobantes",
     ]);
@@ -348,7 +348,7 @@ describe("administrative choreography detail server", () => {
       409,
     );
 
-    // Annulling with a Nota de crédito does not lift the block: the fiscal history
+    // Annulling with a credit note does not lift the block: the fiscal history
     // remains (the annulled factura + the NC are still anchored to the
     // choreography).
     await recordComprobante(
@@ -690,7 +690,7 @@ describe("administrative choreography detail server", () => {
 
   // The `Seña` may appear between the loader opening the field and the intent
   // running: the guard is revalidated inside the transaction, not before it.
-  test("blocks a reassignment whose seña was registered after the field was open", async () => {
+  test("blocks a reassignment whose deposit was registered after the field was open", async () => {
     const scenario = await createScheduleCapacityScenario({
       academyName: "Academia Cronograma Seña Tardía",
       slug: "cronograma.senia.tardia",
@@ -1621,7 +1621,7 @@ function deleteFormData() {
   return formData;
 }
 
-// Snapshot of a Factura C to an anonymous final consumer from the exempt issuer;
+// Snapshot of a `Factura C` to an anonymous final consumer from the exempt issuer;
 // the overrides allow deriving the mirror NC (cbteTipo 13 +
 // associatedComprobanteId).
 function facturaCInput(

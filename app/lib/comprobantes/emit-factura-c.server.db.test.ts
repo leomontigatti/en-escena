@@ -240,7 +240,7 @@ describe("emitChoreographyFacturaC", () => {
       inscriptionId: inscription.id,
       amount: 10000,
     });
-    // There is already a Factura C in force covering 6000 of the inscription.
+    // There is already a `Factura C` in force covering 6000 of the inscription.
     await recordComprobante({
       choreographyId: choreography.id,
       eventId: choreography.eventId,
@@ -404,7 +404,7 @@ describe("emitChoreographyFacturaC", () => {
       caeVto: "20260710",
       lines: [{ inscriptionId: inscription.id, amount: 7000 }],
     });
-    // Mirror Nota de crédito annulling the previous factura.
+    // Mirror credit note annulling the previous factura.
     await recordComprobante({
       choreographyId: choreography.id,
       eventId: choreography.eventId,
@@ -517,7 +517,7 @@ describe("emitChoreographyFacturaC", () => {
       inscriptionId: inscription.id,
       amount: 3000,
     });
-    // The `Seña` was already billed by a Factura C in force that covered the
+    // The `Seña` was already billed by a `Factura C` in force that covered the
     // deposit.
     await recordComprobante({
       choreographyId: choreography.id,
@@ -707,7 +707,7 @@ describe("emitChoreographyFacturaC (ARCA does not respond)", () => {
     return choreography;
   }
 
-  // `FECompConsultar` for Factura C 43 as ARCA recorded it.
+  // `FECompConsultar` for `Factura C` 43 as ARCA recorded it.
   function consultada(
     overrides: Partial<VoucherInfoResultDto> = {},
   ): VoucherInfoResultDto {
@@ -907,7 +907,7 @@ describe("emitChoreographyFacturaC (ARCA does not respond)", () => {
     expect(await listChoreographyComprobantes(choreography.id)).toHaveLength(0);
   });
 
-  describe("re-verificación (#577)", () => {
+  describe("re-verification (#577)", () => {
     async function recheckWith(
       choreographyId: string,
       eventId: string,

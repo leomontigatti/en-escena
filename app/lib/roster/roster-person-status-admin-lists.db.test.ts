@@ -141,7 +141,7 @@ describe("Estado de alta on the two administrative lists", () => {
     }
   });
 
-  test("keeps Estado de alta independent from Participación and from Verificación", async () => {
+  test("keeps `Estado de alta` independent from `Participación` and from `Verificación`", async () => {
     const event = await createSavedEvent("Regional Ejes", {
       activate: true,
       dates: createEventFixtureDates(2026),

@@ -108,7 +108,7 @@ async function withTimeout<T>(
   }
 }
 
-// WSAA + WSFEv1 client, scoped to the Factura C circuit. It does not decide
+// WSAA + WSFEv1 client, scoped to the `Factura C` circuit. It does not decide
 // sequence numbers or derive state: that is the emission logic (#446). Here we
 // only build the payload, talk to ARCA and interpret the response.
 export class ArcaClient {
@@ -118,7 +118,7 @@ export class ArcaClient {
     private readonly timeouts: ArcaTimeouts = ARCA_TIMEOUTS,
   ) {}
 
-  // `FECompUltimoAutorizado` for Factura C (type 11): the last authorized
+  // `FECompUltimoAutorizado` for `Factura C` (type 11): the last authorized
   // sequence number and the next one to request.
   async getLastFacturaCNumber(ptoVta: number): Promise<LastVoucherResult> {
     const result = await withTimeout(
@@ -130,7 +130,7 @@ export class ArcaClient {
     return parseLastVoucher(result);
   }
 
-  // `FECAESolicitar` for a Factura C: builds the payload, authorizes it and
+  // `FECAESolicitar` for a `Factura C`: builds the payload, authorizes it and
   // returns CAE/expiry along with errors/observations.
   async emitFacturaC(
     input: FacturaCVoucherInput,
@@ -145,8 +145,8 @@ export class ArcaClient {
     return parseCreateVoucherResult(result);
   }
 
-  // `FECompUltimoAutorizado` for Nota de crédito C (type 13): its sequence runs
-  // on a series of its own, separate from Factura C's.
+  // `FECompUltimoAutorizado` for `Nota de crédito C` (type 13): its sequence runs
+  // on a series of its own, separate from `Factura C`'s.
   async getLastNotaCreditoCNumber(ptoVta: number): Promise<LastVoucherResult> {
     const result = await withTimeout(
       this.timeouts.lookup,
@@ -157,7 +157,7 @@ export class ArcaClient {
     return parseLastVoucher(result);
   }
 
-  // `FECAESolicitar` for a Nota de crédito C: builds the mirror payload with
+  // `FECAESolicitar` for a `Nota de crédito C`: builds the mirror payload with
   // `CbtesAsoc`, authorizes it and returns CAE/expiry along with
   // errors/observations.
   async emitNotaCreditoC(
@@ -204,7 +204,7 @@ export type ArcaClientConfig = {
   cert: string;
   key: string;
   cuit: number;
-  // `false` points the SDK at homologación (wsaahomo/wswhomo); `true`, at
+  // `false` points the SDK at homologation (wsaahomo/wswhomo); `true`, at
   // production.
   production: boolean;
 };
@@ -236,7 +236,7 @@ function decodePem(base64: string, kind: string): string {
 }
 
 // Reads the client configuration from the environment. The real issuer is
-// Proyecciones Artísticas Asociación Civil (CUIT 30717611590); homologación is
+// "Proyecciones Artísticas Asociación Civil" (CUIT 30717611590); homologation is
 // the default environment and production is enabled explicitly.
 export function readArcaClientConfig(
   env: NodeJS.ProcessEnv = process.env,

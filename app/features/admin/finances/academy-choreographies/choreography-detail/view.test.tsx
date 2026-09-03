@@ -64,7 +64,7 @@ describe("ChoreographyFinanceDetailView", () => {
 
   test("carries no comprobante badge or link on the amount cards", () => {
     // `porcion` is deleted, and with it the two `Vigente`/`Desactualizada`
-    // badges the Seña and Saldo cards carried: each read *a portion* — which
+    // badges the Deposit and Saldo cards carried: each read *a portion* — which
     // vigente factura covered it, and whether new money had landed inside it —
     // and with no portion there is nothing to cover. The surviving
     // `Vigente`/`Anulada` badge is the comprobante's own status, and it lives on
@@ -128,7 +128,7 @@ describe("ChoreographyFinanceDetailView", () => {
     expect(table?.textContent).not.toContain("Precio base · ");
   });
 
-  test("names the shortfall of an inscription holding part of its seña", () => {
+  test("names the shortfall of an inscription holding part of its deposit", () => {
     const markup = renderDetail({
       inscriptions: [
         inscriptionFixture({

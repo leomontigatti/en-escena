@@ -6,12 +6,12 @@ export type ArcaVoucher = Parameters<
   ElectronicBillingService["createVoucher"]
 >[0];
 
-// ARCA comprobante constants for the Factura C circuit. Frozen by spec #320 and
-// confirmed by spike #428: the issuer is Proyecciones Artísticas Asociación
-// Civil (VAT-exempt → class C) and the recipient is an anonymous final
+// ARCA comprobante constants for the `Factura C` circuit. Frozen by spec #320 and
+// confirmed by spike #428: the issuer is "Proyecciones Artísticas Asociación
+// Civil" (VAT-exempt → class C) and the recipient is an anonymous final
 // consumer.
 export const FACTURA_C_CBTE_TIPO = 11;
-// Nota de crédito C: the mirror comprobante that annuls a Factura C
+// `Nota de crédito C`: the mirror comprobante that annuls a `Factura C`
 // (#328/#449). It is built via `buildNotaCreditoCVoucher` (nota-credito.ts),
 // reusing the class C base plus the `CbtesAsoc` array.
 export const NOTA_CREDITO_C_CBTE_TIPO = 13;
@@ -30,8 +30,8 @@ const ARCA_DATE_RE = /^\d{8}$/;
 // Service period and payment due date of a Concepto 2 comprobante, in ARCA's
 // `AAAAMMDD` format. The three go together or not at all: a service payload
 // carries all three. On emission (#479) `FchServDesde`/`FchServHasta` derive
-// from the event's dates and `FchVtoPago` from the comprobante's date; the Nota
-// de crédito mirrors all three from the comprobante it annuls. They are
+// from the event's dates and `FchVtoPago` from the comprobante's date; the
+// credit note mirrors all three from the comprobante it annuls. They are
 // optional in the builder because the DB-backed emission logic does not wire
 // them yet (separate sub-issue).
 export type ServiceDates = {
@@ -67,9 +67,9 @@ export function assertArcaDate(value: string, field = "CbteFch"): void {
 }
 
 // Common base of a class C comprobante to an anonymous final consumer (Factura
-// C type 11 and Nota de crédito C type 13). Both share the exempt issuer, the
+// C type 11 and `Nota de crédito C` type 13). Both share the exempt issuer, the
 // final-consumer recipient and the absence of itemized VAT; only `CbteTipo`
-// changes and, on the Nota de crédito, the `CbtesAsoc` array with the
+// changes and, on the credit note, the `CbtesAsoc` array with the
 // comprobante it annuls (#449).
 export type ClassCVoucherBase = {
   ptoVta: number;
@@ -170,7 +170,7 @@ export function buildClassCVoucher(
   };
 }
 
-// Builds the `FECAESolicitar` payload of a Factura C (type 11).
+// Builds the `FECAESolicitar` payload of a `Factura C` (type 11).
 export function buildFacturaCVoucher(input: FacturaCVoucherInput): ArcaVoucher {
   return buildClassCVoucher(input, { cbteTipo: FACTURA_C_CBTE_TIPO });
 }

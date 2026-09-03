@@ -182,7 +182,7 @@ export async function loadChoreographyDetailRouteData(input: {
       }),
     },
     modality: {
-      // The seña does not close the field: it is listed as a blocker-in-waiting,
+      // The deposit does not close the field: it is listed as a blocker-in-waiting,
       // because it only rejects the save when the correction would move the
       // cronograma.
       blockers: toChoreographyModalityBlockers(hasFrozenPrice),

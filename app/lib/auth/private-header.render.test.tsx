@@ -72,7 +72,7 @@ describe("private route headers", () => {
     expect(markup).not.toContain("Sesión activa para");
   });
 
-  test("auditoría renders shared readonly consultation links", () => {
+  test("`auditoria` renders shared readonly consultation links", () => {
     const markup = renderPrivateRoute(
       <AuditoriaRouteView loaderData={{ email: "auditoria@example.com" }} />,
     );
@@ -90,7 +90,7 @@ describe("private route headers", () => {
     }
   });
 
-  test("admin, auditoría and root error use semantic tokens on their shared surfaces", () => {
+  test("admin, `auditoria` and root error use semantic tokens on their shared surfaces", () => {
     const adminMarkup = renderAdminRoute();
     const auditoriaMarkup = renderPrivateRoute(
       <AuditoriaRouteView loaderData={{ email: "auditoria@example.com" }} />,

@@ -58,7 +58,7 @@ type ComprobanteDetailRouteViewProps = {
  * link here through the `porción` badges, and both went with the field, which is
  * the navigation cost #723 took knowingly. Annulment lives here, next to the
  * comprobante it affects, and is confirmed with an `AlertDialog` whose copy
- * tells the truth: the real way out is a Nota de crédito.
+ * tells the truth: the real way out is a credit note.
  */
 export function ComprobanteDetailRouteView({
   initialAnnulDialogOpen = false,
@@ -106,7 +106,7 @@ export function ComprobanteDetailRouteView({
       </AdminResourceLayout>
 
       {/* It unmounts when it is CLOSED, not when it loses the affordance: an
-          annulment recovered via "Verificar ahora" persists the nota de crédito
+          annulment recovered via "Verificar ahora" persists the credit note
           and revalidates the detail, which stops being annullable. Unmounting
           there would take the `recovered` state the dialog exists to show with
           it (#577). */}
@@ -228,7 +228,7 @@ function DetailRow({
  * not close on an outside click and it exposes `role="alertdialog"`. No
  * checkbox: the confirmation is the dialog itself. The copy says what is being
  * annulled, for how much, and that the annulment materializes by emitting a
- * mirror Nota de crédito.
+ * mirror credit note.
  */
 function AnnulDialog({
   comprobante,
@@ -315,7 +315,7 @@ function AnnulDialog({
             <AlertDialogCancel type="button" disabled={isSaving}>
               {contingencyCancelLabel(submitState)}
             </AlertDialogCancel>
-            {/* Recovered: the nota de crédito is already authorized and on
+            {/* Recovered: the credit note is already authorized and on
                 record, so the button is removed. Disabling it would read as
                 "hold on" and would invite a retry that would emit a second one. */}
             {submitState === "removed" ? null : (

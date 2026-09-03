@@ -186,7 +186,7 @@ describe("administrative choreography modality correction", () => {
     });
   });
 
-  test("rejects the correction when a seña is registered and the cupo would move", async () => {
+  test("rejects the correction when a deposit is registered and the cupo would move", async () => {
     const scenario = await createModalityScenario({
       allocatedAmount: 5000,
       slug: "sena-mueve",
@@ -204,7 +204,7 @@ describe("administrative choreography modality correction", () => {
     });
   });
 
-  test("accepts the correction when a seña is registered and the cupo does not move", async () => {
+  test("accepts the correction when a deposit is registered and the cupo does not move", async () => {
     const scenario = await createModalityScenario({
       allocatedAmount: 5000,
       slug: "sena-inerte",

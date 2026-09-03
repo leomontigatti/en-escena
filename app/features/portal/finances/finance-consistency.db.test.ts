@@ -124,18 +124,18 @@ describe.sequential(
         })
         .returning();
 
-      // currentPrice: impaga at the current tentative price.
+      // currentPrice: unpaid at the current tentative price.
       await insertImpagaInscription(
         currentPriceChoreography.id,
         owner.academyId,
       );
-      // missingPrice: impaga with no applicable duo price.
+      // missingPrice: unpaid with no applicable duo price.
       await insertImpagaInscription(
         missingPriceChoreography.id,
         owner.academyId,
       );
 
-      // pendingSnapshot: señada with a deposit allocation.
+      // pendingSnapshot: deposit met with a deposit allocation.
       const pendingInscription = await insertSignedInscription({
         academyId: owner.academyId,
         choreographyId: pendingSnapshotChoreography.id,
@@ -189,7 +189,7 @@ describe.sequential(
           missingPriceCount: 1,
           status: "incomplete",
         },
-        // 3000 seña impaga (currentPrice); missing price adds 1.
+        // 3000 unpaid deposit (currentPrice); missing price adds 1.
         owedDepositAmount: {
           amount: 3000,
           missingPriceCount: 1,

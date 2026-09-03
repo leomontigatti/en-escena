@@ -44,7 +44,7 @@ describe("choreography creation summary", () => {
 
   // Occupancy is only for choosing between options: in the echo of the already
   // chosen schedule, saying how many places are left means nothing.
-  test("echoes the chosen cronograma without its ocupación", () => {
+  test("echoes the chosen cronograma without its occupancy", () => {
     renderer.render(
       <ChoreographyCreationSummary
         baseOptions={{

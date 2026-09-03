@@ -208,7 +208,7 @@ export type ChoreographyModalityBlocker = {
 
 /**
  * Only two causes of read-only for the modalidad: not being `admin` and having
- * a presentación. A registered seña deliberately does not close the field: a
+ * a presentación. A registered deposit deliberately does not close the field: a
  * destination modalidad that keeps the current cronograma is financially inert,
  * so the money guard rejects at save and only when the correction would
  * actually move the cupo. It is reported as a blocker-in-waiting in the page

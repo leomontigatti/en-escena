@@ -182,7 +182,7 @@ describe.sequential("administracion finanzas", () => {
       paymentNumber: 2,
     });
 
-    // Norte Activa: señada with a deposit allocation -> pending saldo 7000.
+    // Norte Activa: deposit met with a deposit allocation -> pending saldo 7000.
     const northActiveDancer = await createDancer(academyNorth.academy.id, {
       firstName: "Ana",
       lastName: "Activa",
@@ -200,7 +200,7 @@ describe.sequential("administracion finanzas", () => {
       paymentId: northPayment.id,
     });
 
-    // Norte Segunda: impaga -> pending seña 3000 at the tentative price.
+    // Norte Segunda: impaga -> pending deposit 3000 at the tentative price.
     const northSecondDancer = await createDancer(academyNorth.academy.id, {
       firstName: "Bruno",
       lastName: "Segundo",

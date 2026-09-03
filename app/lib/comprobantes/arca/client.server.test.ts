@@ -63,7 +63,7 @@ const emissionInput = {
 };
 
 describe("ArcaClient", () => {
-  test("queries the last authorized number for Factura C (type 11) and interprets it", async () => {
+  test("queries the last authorized number for `Factura C` (type 11) and interprets it", async () => {
     const billing = fakeBilling();
     const client = new ArcaClient(billing);
 
@@ -74,7 +74,7 @@ describe("ArcaClient", () => {
     expect(result.nextCbteNro).toBe(43);
   });
 
-  test("emits by sending a Factura C FECAESolicitar and returns the CAE", async () => {
+  test("emits by sending a `Factura C` FECAESolicitar and returns the CAE", async () => {
     let sent: ArcaVoucher | undefined;
     const billing = fakeBilling({
       createVoucher: vi.fn(async (req: ArcaVoucher) => {
@@ -103,7 +103,7 @@ describe("ArcaClient", () => {
     expect(billing.createVoucher).not.toHaveBeenCalled();
   });
 
-  test("queries the last authorized number for Nota de crédito C (type 13)", async () => {
+  test("queries the last authorized number for `Nota de crédito C` (type 13)", async () => {
     const billing = fakeBilling({
       getLastVoucher: vi.fn(async () => ultimoNotaCreditoAutorizado),
     });
@@ -116,7 +116,7 @@ describe("ArcaClient", () => {
     expect(result.nextCbteNro).toBe(8);
   });
 
-  test("emits a mirror Nota de crédito C (type 13) with CbtesAsoc and returns the CAE", async () => {
+  test("emits a mirror `Nota de crédito C` (type 13) with CbtesAsoc and returns the CAE", async () => {
     let sent: ArcaVoucher | undefined;
     const billing = fakeBilling({
       createVoucher: vi.fn(async (req: ArcaVoucher) => {
@@ -254,7 +254,7 @@ describe("readArcaClientConfig", () => {
     expect(config.production).toBe(false);
   });
 
-  test("homologación is the default environment and production is enabled explicitly", () => {
+  test("homologation is the default environment and production is enabled explicitly", () => {
     const { ARCA_PRODUCTION: _omit, ...withoutFlag } = validEnv();
     expect(readArcaClientConfig(withoutFlag).production).toBe(false);
 

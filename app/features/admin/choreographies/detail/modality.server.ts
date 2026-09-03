@@ -90,7 +90,7 @@ const divergedResolutionMessage =
   "La resolución cambió mientras corregías la modalidad. Revisá los campos y volvé a guardar.";
 
 /**
- * The seña rejection names the modalidad instead of reusing
+ * The deposit rejection names the modalidad instead of reusing
  * `frozenPriceScheduleCapacityMessage`, which names the cupo: the administrator
  * did not touch the cupo select here, and pointing at it would send them to the
  * wrong field.
@@ -99,7 +99,7 @@ const frozenPriceModalityMessage =
   "No se puede cambiar la modalidad: el cronograma se movería y hay inscripciones con dinero asignado.";
 
 /**
- * The seña is reported as a blocker-in-waiting, not as a closed field: a
+ * The deposit is reported as a blocker-in-waiting, not as a closed field: a
  * destination modalidad that keeps the current cronograma is financially inert
  * and stays available. It is enumerated for the `auditor` too.
  */

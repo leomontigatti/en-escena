@@ -12,7 +12,7 @@ const baseInput: NotaCreditoCVoucherInput = {
   cbteFch: "20260722",
   importe: 7000,
   condicionIvaReceptorId: 5,
-  // The Nota de crédito mirrors the three dates of the comprobante it annuls: the
+  // The credit note mirrors the three dates of the comprobante it annuls: the
   // annulment logic copies them from the original comprobante into the input. The
   // builder still requires `FchVtoPago >= CbteFch` (WSFEv1) on the NC's date.
   fchServDesde: "20260801",
@@ -28,7 +28,7 @@ const baseInput: NotaCreditoCVoucherInput = {
 };
 
 describe("buildNotaCreditoCVoucher", () => {
-  test("produces a FECAESolicitar for a Nota de crédito C (type 13) to a final consumer", () => {
+  test("produces a FECAESolicitar for a `Nota de crédito C` (type 13) to a final consumer", () => {
     const voucher = buildNotaCreditoCVoucher(baseInput);
 
     expect(voucher.CbteTipo).toBe(NOTA_CREDITO_C_CBTE_TIPO);
@@ -84,7 +84,7 @@ describe("buildNotaCreditoCVoucher", () => {
     expect(voucher.CbtesAsoc?.[0]).not.toHaveProperty("CbteFch");
   });
 
-  test("supports a chain: it can annul another Nota de crédito (type 13)", () => {
+  test("supports a chain: it can annul another credit note (type 13)", () => {
     const voucher = buildNotaCreditoCVoucher({
       ...baseInput,
       asociado: { cbteTipo: 13, ptoVta: 1, cbteNro: 8 },

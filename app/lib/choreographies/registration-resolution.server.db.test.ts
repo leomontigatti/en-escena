@@ -661,7 +661,7 @@ describe.sequential("choreography registration resolution", () => {
       },
     });
   });
-  test("labels the compatible cupos with their ocupación and marks the full ones", async () => {
+  test("labels the compatible cupos with their occupancy and marks the full ones", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Ocupación Portal",
       email: "registro.coreografia.ocupacion@example.com",

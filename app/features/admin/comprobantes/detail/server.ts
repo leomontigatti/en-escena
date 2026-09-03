@@ -30,7 +30,7 @@ import {
 // The comprobante's fiscal snapshot, enriched with its anchor context
 // (choreography/academy/event) and its derived state. It is read-only: the row
 // is immutable; the only mutable thing from here is annulling it by emitting its
-// mirror Nota de crédito.
+// mirror credit note.
 export type ComprobanteDetail = {
   id: string;
   cbteTipo: number;
@@ -49,7 +49,7 @@ export type ComprobanteDetail = {
   academyId: string;
   academyName: string;
   eventName: string;
-  // Only a comprobante in force can be annulled: a Nota de crédito already
+  // Only a comprobante in force can be annulled: a credit note already
   // emitted is not annulled, and an already annulled comprobante is not
   // re-annulled from the UI.
   canAnnul: boolean;
@@ -61,7 +61,7 @@ export type ComprobanteDetailLoaderData = {
 
 // Loads a comprobante by id with its anchor context and its derived state. The
 // state is derived over the set of its choreography, which is self-contained
-// (the mirror Nota de crédito anchors to the same choreography). 404 if it does
+// (the mirror credit note anchors to the same choreography). 404 if it does
 // not exist.
 export async function loadComprobanteDetail(
   request: Request,
@@ -153,7 +153,7 @@ export async function handleComprobanteDetailAction(input: {
 }
 
 /**
- * Annuls the comprobante by emitting its mirror Nota de crédito after the
+ * Annuls the comprobante by emitting its mirror credit note after the
  * AlertDialog is confirmed. An approved CAE reloads the detail (now annulled); a
  * rejection or contingency from ARCA comes back as `annul-error` with the raw
  * state, without persisting anything or leaving the UI inconsistent (the reload
@@ -192,7 +192,7 @@ async function handleAnnulComprobante(input: {
 }
 
 /**
- * Queries ARCA again for the Nota de crédito left unresolved, without leaving
+ * Queries ARCA again for the credit note left unresolved, without leaving
  * the dialog (#577). Only the sequence number is read from the form: the amount
  * and the date the queried comprobante is validated against are recomputed by
  * `recheckComprobanteAnnulment` from the comprobante being annulled (ADR-0012

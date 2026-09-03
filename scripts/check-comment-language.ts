@@ -15,9 +15,12 @@ import { collectSourceFiles } from "./source-files";
 // the whole tree expecting zero, so it needs no diff scoping and no allowlist
 // for old debt.
 //
-// It looks for Spanish *grammar*, never Spanish *vocabulary*. Function words are
-// the part of the language that only shows up when the *sentence* is Spanish,
-// which is what the rule is actually about.
+// It reads prose through two instruments, because neither reaches what the
+// other does. Function words are *grammar* — the part of the language that only
+// shows up when the whole sentence is Spanish. Accents are *morphology* — a mark
+// on a single word, whatever the sentence is doing. Measured over the tree they
+// overlap on 174 occurrences and are alone on 186 and 749 respectively (#792),
+// so dropping either one leaves a hole big enough to make a clean run a lie.
 //
 // Treating every glossary term as vocabulary is the provisional half of that,
 // and a wider licence than CODING_STANDARDS' reserved list (`comprobante`
@@ -153,16 +156,26 @@ function isAcronym(match: string): boolean {
   return match.length <= 2 && match === match.toUpperCase();
 }
 
-// The known recall floor. A Spanish sentence built only from proper nouns,
-// conjugated verbs and words too short to list still passes — `// ARCA
-// respondió y no autorizó.` is the example #769 gave, and it is not caught.
+// The second instrument: morphology. A word carrying an accent or `ñ` is
+// Spanish, whatever the sentence around it is doing.
 //
-// Closing that gap needs a morphology rule: any word carrying an accent or `ñ`
-// is Spanish. It was tried and reverted, because it is not a recall fix — it
-// reports 193 passages on today's tree, and every one of them is a bare `seña`
-// or `Nota de crédito` in otherwise-English prose. That is the question #792
-// owns, so the rule is its strict option to adopt, not this guardrail's bug to
-// quietly fix.
+// It exists because the function-word list has a shape of blind spot it can
+// never cover on its own. `// ARCA respondió y no autorizó.` — the example #769
+// gave — is a whole Spanish sentence built from a proper noun and two conjugated
+// verbs, and no list of function words will ever hold `respondió`. Measured over
+// the tree the two instruments are near-disjoint: 186 occurrences only this rule
+// reaches, 749 only the vocabulary rule reaches, 174 both (#792).
+const accentedWordPattern = /(?<![\p{L}-])[\p{L}-]*[áéíóúñ][\p{L}-]*/giu;
+
+// Proper nouns are not prose. A place name keeps its accent in an English
+// sentence the same way "São Paulo" does, so matching one says nothing about the
+// language of the comment. Everything here is a name of something real; a word
+// that merely looks foreign does not belong on this list — quote it instead.
+const accentedProperNouns = new Set(["córdoba"]);
+
+function isProperNoun(match: string): boolean {
+  return accentedProperNouns.has(match.toLowerCase());
+}
 
 /** `**\`identifier\`** — ui: "Término"`, the one shape every glossary row has. */
 const glossaryTermPattern = /—\s*ui:\s*"([^"]+)"/g;
@@ -472,6 +485,24 @@ function lineNumberAt(contents: string, index: number): number {
   return contents.slice(0, index).split("\n").length;
 }
 
+/**
+ * The prose the guardrail reads, each span paired with its blanked twin. Sweeps
+ * use it to rewrite a term only where the guardrail can see it: a backticked or
+ * quoted occurrence is spaces in `blanked`, so no offset there ever matches.
+ */
+export function proseSpansOf(
+  contents: string,
+  rootDirectory: string = process.cwd(),
+): (SourceSpan & { blanked: string })[] {
+  const glossaryTerms = readGlossaryTerms(rootDirectory);
+  const { comments, strings } = scanSource(contents);
+
+  return [...comments, ...findTestTitles(contents, strings)].map((span) => ({
+    ...span,
+    blanked: blankDataSpans(span.text, glossaryTerms),
+  }));
+}
+
 export function findSpanishProseInSource(input: {
   contents: string;
   filePath: string;
@@ -490,9 +521,14 @@ export function findSpanishProseInSource(input: {
   return scopes.flatMap(({ kind, spans }) =>
     spans.flatMap((span) => {
       const prose = blankDataSpans(span.text, glossaryTerms);
-      const matches = Array.from(
-        prose.matchAll(spanishFunctionWordPattern),
-      ).filter((match) => !isAcronym(match[0]));
+      const matches = [
+        ...Array.from(prose.matchAll(spanishFunctionWordPattern)).filter(
+          (match) => !isAcronym(match[0]),
+        ),
+        ...Array.from(prose.matchAll(accentedWordPattern)).filter(
+          (match) => !isProperNoun(match[0]),
+        ),
+      ].sort((left, right) => left.index - right.index);
 
       if (matches.length === 0) {
         return [];

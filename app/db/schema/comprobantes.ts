@@ -15,7 +15,7 @@ import { createTable } from "./core";
 import { events } from "./events";
 
 // The issuer's VAT condition, frozen in the snapshot. The issuer is
-// Proyecciones Artísticas Asociación Civil (CUIT 30717611590), EXEMPT from VAT
+// "Proyecciones Artísticas Asociación Civil" (CUIT 30717611590), EXEMPT from VAT
 // → it issues class C just like a monotributista (correction recorded in #426).
 // The value is unique today; the enum documents that the column is a frozen
 // snapshot, not a free-form field.
@@ -24,11 +24,11 @@ export const comprobanteIssuerIvaCondition = pgEnum(
   ["exento"],
 );
 
-// `Comprobante` — ARCA electronic fiscal comprobante (Factura C, `CbteTipo` 11;
-// Nota de crédito C, type 13). It is a DERIVED and IMMUTABLE document
+// `Comprobante` — ARCA electronic fiscal comprobante (`Factura C`, `CbteTipo` 11;
+// `Nota de crédito C`, type 13). It is a DERIVED and IMMUTABLE document
 // (#320/#326): it never governs financial state and, once emitted with a CAE,
 // it is neither edited nor deleted. The `vigente`/`anulada` state is NOT
-// persisted: it is derived from the existence of an associated Nota de crédito
+// persisted: it is derived from the existence of an associated credit note
 // (see comprobante-status.server).
 export const comprobantes = createTable(
   "comprobante",
@@ -42,7 +42,7 @@ export const comprobantes = createTable(
     // row always keeps its anchor alive and there are no orphan comprobantes.
     choreographyId: varchar("choreography_id", { length: 255 }).notNull(),
     eventId: varchar("event_id", { length: 255 }).notNull(),
-    // ARCA comprobante type: 11 = Factura C, 13 = Nota de crédito C.
+    // ARCA comprobante type: 11 = `Factura C`, 13 = `Nota de crédito C`.
     cbteTipo: integer("cbte_tipo").notNull(),
     ptoVta: integer("pto_vta").notNull(),
     cbteNro: integer("cbte_nro").notNull(),
@@ -72,7 +72,7 @@ export const comprobantes = createTable(
     cae: text("cae").notNull(),
     // CAE expiry in ARCA's `AAAAMMDD` format.
     caeVto: text("cae_vto").notNull(),
-    // Associated comprobante: a Nota de crédito (type 13) points here at the
+    // Associated comprobante: a credit note (type 13) points here at the
     // factura it annuls (`CbtesAsoc`). Null on a factura. From the factura's
     // side, the existence of a row referencing it is what derives it to `anulada`.
     associatedComprobanteId: varchar("associated_comprobante_id", {
@@ -115,13 +115,13 @@ export const comprobantes = createTable(
     ),
     index("comprobante_event_idx").on(table.eventId, table.createdAt),
     // Unique, not a plain index: it guarantees at the database level that a
-    // comprobante has at most ONE associated Nota de crédito. The column is
+    // comprobante has at most ONE associated credit note. The column is
     // nullable and Postgres treats NULLs as distinct, so the comprobantes in
     // force (all NULL) do not collide with each other. It closes the race
     // between two concurrent annulments of the same comprobante: without it,
     // `annulComprobante`'s `already-annulled` check reads derived state and makes
     // a non-transactional round trip to ARCA before persisting, so both could
-    // insert their mirror Nota de crédito and leave the derived state ambiguous.
+    // insert their mirror credit note and leave the derived state ambiguous.
     uniqueIndex("comprobante_associated_unique").on(
       table.associatedComprobanteId,
     ),

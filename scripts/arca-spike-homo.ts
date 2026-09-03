@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 
 import { Arca, FileSystemTicketStorage } from "@arcasdk/core";
 
-// De-risking spike (#428): emits ONE Factura C end to end against ARCA's
+// De-risking spike (#428): emits ONE `Factura C` end to end against ARCA's
 // HOMOLOGACIÓN environment to confirm the whole circuit (WSAA + TA cache +
 // WSFEv1 → CAE) closes, before building the real `Comprobante` model (#326),
 // the emission logic, the UX (#339), NC (#328) and the printable (#329/#334).
@@ -67,7 +67,7 @@ import { Arca, FileSystemTicketStorage } from "@arcasdk/core";
 // correlatives of 11, 12 and 13 are snapshotted before and after the whole
 // sequence to confirm they ratchet independently (#686 point 4, #578).
 //
-// LIMITATION, so the evidence is not over-read: like the Factura C above, every
+// LIMITATION, so the evidence is not over-read: like the `Factura C` above, every
 // amendment goes out as `Concepto: 1` (products) with no service dates, which is
 // what #428 froze. The real emitter (#657) will use `Concepto: 2` per ADR-0011
 // and will therefore also carry `FchServDesde`/`FchServHasta`/`FchVtoPago`. This
@@ -80,7 +80,7 @@ import { Arca, FileSystemTicketStorage } from "@arcasdk/core";
 // with an absent `CbtesAsoc` is rejected.
 //
 // The amendment sequence never fails the process: a rejection or an unexpected
-// Observación IS the finding, so every attempt is recorded and printed verbatim
+// `Observación` IS the finding, so every attempt is recorded and printed verbatim
 // and the exit code stays governed by the ADR-0012 checks. What is under test is
 // a hypothesis about ARCA, not a regression in this repo.
 //
@@ -88,21 +88,21 @@ import { Arca, FileSystemTicketStorage } from "@arcasdk/core";
 //       ARCA_CUIT=30717611590 ARCA_PTOVTA_HOMO=1 \
 //       node --import tsx scripts/arca-spike-homo.ts
 
-// Factura C. Class C is what an IVA-exempt issuer emits; see the header.
+// `Factura C`. Class C is what an IVA-exempt issuer emits; see the header.
 const CBTE_TIPO_FACTURA_C = 11;
-// Nota de débito C and Nota de crédito C, the two amendments #686 verifies.
+// `Nota de débito C` and `Nota de crédito C`, the two amendments #686 verifies.
 // Neither has ever been sent to ARCA from this repo before this spike.
 const CBTE_TIPO_NOTA_DEBITO_C = 12;
 const CBTE_TIPO_NOTA_CREDITO_C = 13;
 
-// The validation #686 point 1 is about: ARCA's check that a Nota de crédito does
+// The validation #686 point 1 is about: ARCA's check that a credit note does
 // not credit more than its associated comprobante.
 const OBS_CODE_10237 = 10237;
 // The validation #686 point 2 is about: an amendment needs `CbtesAsoc` or
 // `PeriodoAsoc`.
 const ERR_CODE_10197 = 10197;
 
-// Importe of the Factura C every amendment below is measured against.
+// Importe of the `Factura C` every amendment below is measured against.
 const IMPORTE_FACTURA = 1000;
 
 function requireEnv(name: string): string {
@@ -205,7 +205,7 @@ type AmendmentAttempt = {
 // to test the raw payload against ARCA, and importing the model would make the
 // run evidence about our builder instead of about the web service.
 //
-// Mirrors the Factura C above field for field — Concepto 1, anonymous final
+// Mirrors the `Factura C` above field for field — Concepto 1, anonymous final
 // consumer, no itemized IVA (`ImpNeto = ImpTotal`, no `<Iva>` array) — so the
 // only variables between calls are `CbteTipo`, `ImpTotal` and `CbtesAsoc`.
 function buildAmendmentVoucher(params: {
@@ -219,7 +219,7 @@ function buildAmendmentVoucher(params: {
     CantReg: 1,
     PtoVta: params.ptoVta,
     CbteTipo: params.cbteTipo,
-    Concepto: 1, // Products, mirroring the Factura C this run emitted.
+    Concepto: 1, // Products, mirroring the "Factura C" this run emitted.
     DocTipo: 99, // Anonymous final consumer
     DocNro: 0,
     CbteFch: today(),
@@ -406,7 +406,7 @@ async function main(): Promise<void> {
   console.log(`  CUIT emisor: ${cuit}  ·  Punto de venta: ${ptoVta}`);
   console.log(`  Cache de TA: ${taDir}\n`);
 
-  // production:false points the SDK at the homologación endpoints
+  // production:false points the SDK at the homologation endpoints
   // (wsaahomo/wswhomo). FileSystemTicketStorage caches the TA per (CUIT,
   // environment, service) to respect the ~12h window.
   const arca = new Arca({
@@ -448,7 +448,7 @@ async function main(): Promise<void> {
   );
 
   // 3. Last authorized for the three series, before anything is emitted. Also
-  //    narrates the Factura C correlative (createNextVoucher resolves it on its
+  //    narrates the `Factura C` correlative (createNextVoucher resolves it on its
   //    own anyway). The snapshot is compared against a second one at the end to
   //    show the three ratchets move independently (#686 point 4).
   const correlativesBefore = await readCorrelatives(billing, ptoVta);
@@ -463,7 +463,7 @@ async function main(): Promise<void> {
     `    Nota de crédito C (13):${correlativesBefore.notaCreditoC}  → siguiente ${correlativesBefore.notaCreditoC + 1}\n`,
   );
 
-  // 4. Factura C to an anonymous final consumer (DocTipo 99 / DocNro 0).
+  // 4. `Factura C` to an anonymous final consumer (DocTipo 99 / DocNro 0).
   //    No itemized IVA: ImpNeto = subtotal, the rest 0, ImpTotal = ImpNeto.
   const importe = IMPORTE_FACTURA;
   const voucher = {
@@ -532,7 +532,7 @@ async function main(): Promise<void> {
   //
   //    Everything below is recorded in the JSON dump before the process exits,
   //    so a failed or throwing check never costs us the record of a voucher
-  //    that was really authorized in homologación.
+  //    that was really authorized in homologation.
   let consulted: Awaited<ReturnType<typeof billing.getVoucherInfo>> = null;
   let consultError: string | null = null;
   try {

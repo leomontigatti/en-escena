@@ -318,7 +318,7 @@ describe("mensajes de contingencia", () => {
     expect(message).toContain("antes de reintentar");
   });
 
-  test("unverified names the nota de crédito by its type, not by its code", () => {
+  test("unverified names the credit note by its type, not by its code", () => {
     const message = buildUnverifiedMessage(
       "nota de crédito",
       { ptoVta: 1, cbteTipo: 13, cbteNro: 8 },
@@ -328,7 +328,7 @@ describe("mensajes de contingencia", () => {
     expect(message).toContain("Nota de crédito C 0001-00000008");
   });
 
-  test("unverified agrees in gender with nota de crédito", () => {
+  test("unverified agrees in gender with credit note", () => {
     const message = buildUnverifiedMessage(
       "nota de crédito",
       { ptoVta: 1, cbteTipo: 13, cbteNro: 8 },

@@ -20,7 +20,7 @@ describe("choreography creation schedule step", () => {
     renderer.cleanup();
   });
 
-  test("offers the cupos with their ocupación while at least one has room", () => {
+  test("offers the cupos with their occupancy while at least one has room", () => {
     renderer.render(
       <ScheduleStepHarness
         resolution={buildResolution([

@@ -67,11 +67,25 @@ describe("comment-language guardrail (#592)", () => {
     ]);
   });
 
-  // Pinned as the known floor, not as desired behaviour: #769 named this exact
-  // comment as one its first pass missed, and it is still missed. Closing it
-  // needs the accent rule that #792 owns — see the note in the script.
-  test("still misses Spanish carried only by accented verbs", () => {
-    expect(kindsIn(`// ARCA respondió y no autorizó.`)).toEqual([]);
+  // #769's founding example, and the whole reason the second instrument exists:
+  // a sentence built from a proper noun and two conjugated verbs carries no
+  // function word at all, so no list of them can ever reach it (#792).
+  test("catches Spanish carried only by accented verbs", () => {
+    expect(kindsIn(`// ARCA respondió y no autorizó.`)).toEqual(["comment"]);
+  });
+
+  // The other half of that disjointness: `Nota de crédito` has no `CONTEXT.md`
+  // entry, so the vocabulary rule cannot name it and only morphology reaches it.
+  test("catches an accented term the glossary never lists", () => {
+    expect(
+      kindsIn(`// The mirror Nota de crédito annuls the original.`),
+    ).toEqual(["comment"]);
+  });
+
+  // A place name keeps its accent inside an English sentence, the same way
+  // "São Paulo" would. Matching one says nothing about the language around it.
+  test("does not read an accented proper noun as Spanish prose", () => {
+    expect(kindsIn(`// Defaults to Córdoba's business date.`)).toEqual([]);
   });
 
   // The short list is the only one that collides with acronyms, because it is
@@ -99,7 +113,7 @@ describe("comment-language guardrail (#592)", () => {
   test("allows the Spanish domain nouns the glossary reserves", () => {
     expect(
       kindsIn(
-        `// A seña does not close the modalidad: it only rejects a correction\n// that would move the cronograma of the coreografía.`,
+        `// The modalidad does not close the field: it only rejects a correction\n// that would move the cronograma of the coreografía.`,
       ),
     ).toEqual([]);
   });
@@ -170,7 +184,7 @@ describe("comment-language guardrail (#592)", () => {
   test("leaves an English test name alone, Spanish nouns included", () => {
     expect(
       kindsIn(
-        `test("refuses to move the price that covers its seña", () => {});`,
+        `test("refuses to move the price that covers its modalidad", () => {});`,
       ),
     ).toEqual([]);
     expect(

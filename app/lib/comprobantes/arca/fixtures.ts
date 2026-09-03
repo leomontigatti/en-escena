@@ -4,7 +4,7 @@ import type {
   VoucherInfoResultDto,
 } from "@arcasdk/core";
 
-// Fixtures with the real shape of WSFEv1's homologación responses, taken from
+// Fixtures with the real shape of WSFEv1's homologation responses, taken from
 // the circuit validated by spike #428 and from the official examples in the
 // WSFEv1 manual documented in research #321. No test touches the network: the
 // wrapper is exercised against these responses, already deserialized by the SDK.
@@ -121,7 +121,7 @@ export const ultimoAutorizadoVacio: LastVoucherResultDto = {
   ptoVta: 1,
 };
 
-// `FECAESolicitar` approved for a Nota de crédito C (type 13, #449): ARCA
+// `FECAESolicitar` approved for a `Nota de crédito C` (type 13, #449): ARCA
 // returns CAE + expiry just as for a factura; only `CbteTipo` changes.
 export const notaCreditoCAprobada: CreateVoucherResultDto = {
   cae: "41124599990011",
@@ -154,7 +154,7 @@ export const notaCreditoCAprobada: CreateVoucherResultDto = {
   },
 };
 
-// `FECompUltimoAutorizado` for the Nota de crédito series (type 13): it runs on
+// `FECompUltimoAutorizado` for the credit note series (type 13): it runs on
 // a sequence of its own, separate from the facturas'. Here it has emitted up to 7.
 export const ultimoNotaCreditoAutorizado: LastVoucherResultDto = {
   cbteNro: 7,
@@ -162,8 +162,8 @@ export const ultimoNotaCreditoAutorizado: LastVoucherResultDto = {
   ptoVta: 1,
 };
 
-// `FECompConsultar` for Factura C 43: the shape in which ARCA returns an already
-// authorized comprobante, verified against homologación by the spike (#574). It
+// `FECompConsultar` for `Factura C` 43: the shape in which ARCA returns an already
+// authorized comprobante, verified against homologation by the spike (#574). It
 // is what resolves an authorization left without a response (ADR-0012).
 export const facturaCConsultada: VoucherInfoResultDto = {
   codAutorizacion: "41124578989845",
@@ -183,7 +183,7 @@ export const facturaCConsultada: VoucherInfoResultDto = {
   monCotiz: 1,
 };
 
-// `FECompConsultar` for Nota de crédito C 8, with the same shape.
+// `FECompConsultar` for `Nota de crédito C` 8, with the same shape.
 export const notaCreditoCConsultada: VoucherInfoResultDto = {
   ...facturaCConsultada,
   codAutorizacion: "41124599990011",
