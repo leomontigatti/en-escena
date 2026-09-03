@@ -17,10 +17,10 @@ import {
 import type { CobroStage } from "@/lib/finances/choreography-cobro-presets.server";
 import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
 import { resolveSelectedOperationalTotals } from "@/lib/finances/selected-operational-totals";
+import { operationalFinanceColumns } from "@/lib/finances/operational-finance-columns";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 
-import { formatOperationalAmount } from "@/lib/finances/formatters";
 import { OperationalFinanceMetrics } from "@/lib/finances/operational-finance-metrics";
 import { FinancePresetDialog } from "./preset-dialog";
 import { financePresetLabels } from "./presets";
@@ -198,31 +198,7 @@ function buildChoreographyFinanceColumns(
         <Badge variant="secondary">{formatGroupTypeLabel(row.groupType)}</Badge>
       ),
     },
-    {
-      id: "depositAmount",
-      header: "Seña",
-      className: "text-right tabular-nums",
-      headerClassName: "text-right",
-      cell: (row) => formatOperationalAmount(row.depositAmount),
-    },
-    {
-      id: "totalAmount",
-      header: "Total",
-      // Decorative and unconditional: `Total` is the context column — what the debt
-      // is measured against — so the whole of it is muted. Never per row: a grey
-      // that varies goes back to meaning something.
-      className: "text-right tabular-nums text-muted-foreground",
-      headerClassName: "text-right",
-      cell: (row) => formatOperationalAmount(row.totalAmount),
-    },
-    {
-      id: "owedBalanceAmount",
-      header: "Saldo adeudado",
-      // The row's only actionable figure, highlighted by column.
-      className: "text-right font-medium tabular-nums",
-      headerClassName: "text-right",
-      cell: (row) => formatOperationalAmount(row.owedBalanceAmount),
-    },
+    ...operationalFinanceColumns,
     {
       id: "financialStatus",
       header: "Estado",

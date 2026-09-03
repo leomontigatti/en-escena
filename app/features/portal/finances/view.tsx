@@ -9,7 +9,7 @@ import {
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
-import { formatOperationalAmount } from "@/lib/finances/formatters";
+import { operationalFinanceColumns } from "@/lib/finances/operational-finance-columns";
 import { OperationalFinanceMetrics } from "@/lib/finances/operational-finance-metrics";
 import type { loadPortalAcademyFinances } from "@/features/portal/finances/server";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
@@ -71,30 +71,7 @@ const choreographyFinanceColumns: DataTableColumn<ChoreographyFinanceRow>[] = [
       <Badge variant="secondary">{formatGroupTypeLabel(row.groupType)}</Badge>
     ),
   },
-  {
-    id: "depositAmount",
-    header: "Seña",
-    className: "text-right tabular-nums",
-    headerClassName: "text-right",
-    cell: (row) => formatOperationalAmount(row.depositAmount),
-  },
-  {
-    // Decorative and unconditional: `Total` is the context column — what the debt
-    // is measured against — so the whole of it is muted, and never per row.
-    id: "totalAmount",
-    header: "Total",
-    className: "text-right tabular-nums text-muted-foreground",
-    headerClassName: "text-right",
-    cell: (row) => formatOperationalAmount(row.totalAmount),
-  },
-  {
-    // The row's only actionable figure, highlighted by column.
-    id: "owedBalanceAmount",
-    header: "Saldo adeudado",
-    className: "text-right font-medium tabular-nums",
-    headerClassName: "text-right",
-    cell: (row) => formatOperationalAmount(row.owedBalanceAmount),
-  },
+  ...operationalFinanceColumns,
   {
     id: "financialStatus",
     header: "Estado",

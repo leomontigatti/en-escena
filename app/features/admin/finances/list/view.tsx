@@ -9,10 +9,8 @@ import {
   type DataTableColumn,
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
-import {
-  formatAmount,
-  formatOperationalAmount,
-} from "@/lib/finances/formatters";
+import { formatAmount } from "@/lib/finances/formatters";
+import { operationalFinanceColumns } from "@/lib/finances/operational-finance-columns";
 
 import type { FinanceAccountRow, loadFinancesList } from "./server";
 
@@ -35,31 +33,7 @@ const accountColumns: DataTableColumn<FinanceAccountRow>[] = [
     filterValue: (row) => row.academyName,
     sortValue: (row) => row.academyName,
   },
-  {
-    id: "depositAmount",
-    header: "Seña",
-    className: "text-right tabular-nums",
-    headerClassName: "text-right",
-    cell: (row) => formatOperationalAmount(row.depositAmount),
-  },
-  {
-    id: "totalAmount",
-    header: "Total",
-    // Decorative and unconditional, just like in the choreographies table:
-    // `Total` is the context column —what the owed figures are measured
-    // against— so it is dimmed whole. Never per row: a grey that varies starts
-    // meaning something again.
-    className: "text-right tabular-nums text-muted-foreground",
-    headerClassName: "text-right",
-    cell: (row) => formatOperationalAmount(row.totalAmount),
-  },
-  {
-    id: "owedBalanceAmount",
-    header: "Saldo adeudado",
-    className: "text-right tabular-nums",
-    headerClassName: "text-right",
-    cell: (row) => formatOperationalAmount(row.owedBalanceAmount),
-  },
+  ...operationalFinanceColumns,
   {
     id: "availableBalanceAmount",
     header: "Saldo disponible",
