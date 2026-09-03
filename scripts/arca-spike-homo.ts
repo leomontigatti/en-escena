@@ -30,8 +30,14 @@ import { Arca, FileSystemTicketStorage } from "@arcasdk/core";
 // No `Comprobante` is persisted to the database: for a spike it is enough to
 // dump the result to a local JSON (see OUTPUT_DIR). The real schema is #326.
 //
-// Comments are English per `.sandcastle/CODING_STANDARDS.md`; the console
-// output stays Spanish, as it is what the operator running the spike reads.
+// Comments and console output are English per `.sandcastle/CODING_STANDARDS.md`.
+// The operator running this spike is a developer, not a user, so the output is
+// engineering prose by the same test that governs the comments — this file used
+// to claim the opposite and carved the console out, which left the identical env
+// guard reading in Spanish here and in English in `arca/client.server.ts`. What
+// stays Spanish is WSFEv1's own vocabulary: field names (`CbteTipo`,
+// `Observaciones`, `CbtesAsoc`), document names (`Factura C`,
+// `Nota de crédito C`) and the reserved `comprobante`.
 //
 // AMENDMENT SEQUENCE (#686). Seven FECAESolicitar calls after the `Factura C`,
 // ordered so each one isolates a single hypothesis. `FC` is the `Factura C` this
@@ -109,7 +115,7 @@ const IMPORTE_FACTURA = 1000;
 function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value || value.trim() === "") {
-    console.error(`Falta la variable de entorno ${name}.`);
+    console.error(`Missing environment variable ${name}.`);
     process.exit(1);
   }
   return value;
@@ -119,8 +125,8 @@ function decodePem(base64: string, kind: string): string {
   const pem = Buffer.from(base64, "base64").toString("utf8");
   if (!pem.includes("-----BEGIN")) {
     console.error(
-      `${kind} no parece un PEM válido tras decodificar base64 ` +
-        `(no contiene "-----BEGIN"). ¿La variable está bien codificada?`,
+      `${kind} does not look like a valid PEM once base64-decoded ` +
+        `(no "-----BEGIN" in it). Is the variable encoded correctly?`,
     );
     process.exit(1);
   }
@@ -128,7 +134,7 @@ function decodePem(base64: string, kind: string): string {
 }
 
 function yesNo(value: boolean): string {
-  return value ? "sí" : "NO";
+  return value ? "yes" : "NO";
 }
 
 type AbsentProbe = {
@@ -305,7 +311,7 @@ async function emitAmendment(
 
 function formatCoded(messages: CodedMessage[]): string {
   if (messages.length === 0) {
-    return "(ninguna)";
+    return "(none)";
   }
   return messages.map((m) => `[${m.Code}] ${m.Msg}`).join(" | ");
 }
@@ -319,30 +325,32 @@ function hasCode(messages: CodedMessage[], code: number): boolean {
 function printAttempt(attempt: AmendmentAttempt): void {
   const asoc = attempt.cbtesAsoc
     ? attempt.cbtesAsoc.map((c) => `${c.Tipo}-${c.PtoVta}-${c.Nro}`).join(", ")
-    : "(sin CbtesAsoc)";
+    : "(no CbtesAsoc)";
 
   console.log(
-    `\n→ ${attempt.label}  ·  CbteTipo ${attempt.cbteTipo} · $${attempt.importe} · asoc: ${asoc}`,
+    `\n→ ${attempt.label}  ·  CbteTipo ${attempt.cbteTipo} · $${attempt.importe} · assoc: ${asoc}`,
   );
-  console.log(`   Qué discrimina: ${attempt.hypothesis}`);
-  console.log(`   Se esperaba:    ${attempt.expectation}`);
+  console.log(`   Discriminates:  ${attempt.hypothesis}`);
+  console.log(`   Expected:       ${attempt.expectation}`);
   if (attempt.threw) {
-    console.log(`   ✗ Lanzó una excepción: ${attempt.threw}`);
+    console.log(`   ✗ Threw: ${attempt.threw}`);
     return;
   }
   console.log(
-    `   Resultado:      ${attempt.resultado ?? "(ausente)"}${
+    `   Resultado:      ${attempt.resultado ?? "(absent)"}${
       attempt.cbteNro === null ? "" : ` · Nro ${attempt.cbteNro}`
     }`,
   );
   console.log(
-    `   CAE:            ${attempt.cae ?? "(ausente)"}${
-      attempt.caeFchVto ? ` (vence ${attempt.caeFchVto})` : ""
+    `   CAE:            ${attempt.cae ?? "(absent)"}${
+      attempt.caeFchVto ? ` (expires ${attempt.caeFchVto})` : ""
     }`,
   );
+  // The three labels are WSFEv1's own field names, so they stay as the wire
+  // spells them: `Observaciones`, `Errors`, `Events`.
   console.log(`   Observaciones:  ${formatCoded(attempt.observaciones)}`);
-  console.log(`   Errores:        ${formatCoded(attempt.errors)}`);
-  console.log(`   Eventos:        ${formatCoded(attempt.events)}`);
+  console.log(`   Errors:         ${formatCoded(attempt.errors)}`);
+  console.log(`   Events:         ${formatCoded(attempt.events)}`);
 }
 
 // Snapshot of `FECompUltimoAutorizado` for the three series this spike touches.
@@ -386,14 +394,14 @@ function today(): string {
 }
 
 async function main(): Promise<void> {
-  const cert = decodePem(requireEnv("ARCA_CERT_HOMO_B64"), "El certificado");
-  const key = decodePem(requireEnv("ARCA_KEY_HOMO_B64"), "La clave privada");
+  const cert = decodePem(requireEnv("ARCA_CERT_HOMO_B64"), "The certificate");
+  const key = decodePem(requireEnv("ARCA_KEY_HOMO_B64"), "The private key");
   const cuit = Number(requireEnv("ARCA_CUIT"));
   const ptoVta = Number(process.env.ARCA_PTOVTA_HOMO ?? "1");
   const taDir = process.env.ARCA_TA_DIR ?? "./.arca-ta";
 
   if (!Number.isInteger(cuit)) {
-    console.error(`ARCA_CUIT="${process.env.ARCA_CUIT}" no es un entero.`);
+    console.error(`ARCA_CUIT="${process.env.ARCA_CUIT}" is not an integer.`);
     process.exit(1);
   }
 
@@ -403,9 +411,9 @@ async function main(): Promise<void> {
   mkdirSync(outputDir, { recursive: true });
   mkdirSync(taDir, { recursive: true });
 
-  console.log("→ ARCA spike (HOMOLOGACIÓN)");
-  console.log(`  CUIT emisor: ${cuit}  ·  Punto de venta: ${ptoVta}`);
-  console.log(`  Cache de TA: ${taDir}\n`);
+  console.log("→ ARCA spike (HOMOLOGATION)");
+  console.log(`  Issuer CUIT: ${cuit}  ·  PtoVta: ${ptoVta}`);
+  console.log(`  TA cache:    ${taDir}\n`);
 
   // production:false points the SDK at the homologation endpoints
   // (wsaahomo/wswhomo). FileSystemTicketStorage caches the TA per (CUIT,
@@ -439,8 +447,8 @@ async function main(): Promise<void> {
     ) ?? null;
   if (!consumidorFinal) {
     console.error(
-      "No se encontró 'Consumidor Final' en FEParamGetCondicionIvaReceptor(C). " +
-        `Códigos devueltos: ${JSON.stringify(ivaReceptors.resultGet?.condicionIvaReceptor)}`,
+      "FEParamGetCondicionIvaReceptor(C) returned no 'Consumidor Final'. " +
+        `Codes returned: ${JSON.stringify(ivaReceptors.resultGet?.condicionIvaReceptor)}`,
     );
     process.exit(1);
   }
@@ -453,15 +461,15 @@ async function main(): Promise<void> {
   //    own anyway). The snapshot is compared against a second one at the end to
   //    show the three ratchets move independently (#686 point 4).
   const correlativesBefore = await readCorrelatives(billing, ptoVta);
-  console.log(`✓ FECompUltimoAutorizado(PtoVta=${ptoVta}) antes de emitir:`);
+  console.log(`✓ FECompUltimoAutorizado(PtoVta=${ptoVta}) before emitting:`);
   console.log(
-    `    Factura C (11):        ${correlativesBefore.facturaC}  → siguiente ${correlativesBefore.facturaC + 1}`,
+    `    Factura C (11):        ${correlativesBefore.facturaC}  → next ${correlativesBefore.facturaC + 1}`,
   );
   console.log(
-    `    Nota de débito C (12): ${correlativesBefore.notaDebitoC}  → siguiente ${correlativesBefore.notaDebitoC + 1}`,
+    `    Nota de débito C (12): ${correlativesBefore.notaDebitoC}  → next ${correlativesBefore.notaDebitoC + 1}`,
   );
   console.log(
-    `    Nota de crédito C (13):${correlativesBefore.notaCreditoC}  → siguiente ${correlativesBefore.notaCreditoC + 1}\n`,
+    `    Nota de crédito C (13):${correlativesBefore.notaCreditoC}  → next ${correlativesBefore.notaCreditoC + 1}\n`,
   );
 
   // 4. `Factura C` to an anonymous final consumer (DocTipo 99 / DocNro 0).
@@ -486,7 +494,7 @@ async function main(): Promise<void> {
     CondicionIVAReceptorId: Number(consumidorFinal.id),
   };
 
-  console.log("→ Emitiendo Factura C…");
+  console.log("→ Emitting the Factura C…");
   const result = await billing.createNextVoucher(voucher);
 
   const det = result.response.FeDetResp?.FECAEDetResponse?.[0];
@@ -502,25 +510,25 @@ async function main(): Promise<void> {
     !det ||
     typeof emittedCbteNro !== "number"
   ) {
-    console.error("\n✗ ARCA NO autorizó el comprobante.");
+    console.error("\n✗ ARCA did NOT authorize the comprobante.");
     console.error(`  Resultado: ${resultado}`);
-    console.error(`  CAE: ${result.cae ?? "(ausente)"}`);
-    console.error(`  CbteDesde: ${emittedCbteNro ?? "(ausente)"}`);
+    console.error(`  CAE: ${result.cae ?? "(absent)"}`);
+    console.error(`  CbteDesde: ${emittedCbteNro ?? "(absent)"}`);
     console.error(
       `  Observaciones: ${JSON.stringify(det?.Observaciones?.Obs ?? [])}`,
     );
     console.error(
-      `  Errores: ${JSON.stringify(result.response.Errors?.Err ?? [])}`,
+      `  Errors: ${JSON.stringify(result.response.Errors?.Err ?? [])}`,
     );
-    const errPath = `${outputDir}rechazo-${Date.now()}.json`;
+    const errPath = `${outputDir}rejection-${Date.now()}.json`;
     writeFileSync(errPath, JSON.stringify({ voucher, result }, null, 2));
-    console.error(`\n  Respuesta completa: ${errPath}`);
+    console.error(`\n  Full response: ${errPath}`);
     process.exit(1);
   }
 
-  console.log("\n✓✓ CAE OBTENIDO");
+  console.log("\n✓✓ CAE GRANTED");
   console.log(`   CAE:        ${result.cae}`);
-  console.log(`   Vencimiento:${result.caeFchVto}`);
+  console.log(`   Expires:    ${result.caeFchVto}`);
   console.log(
     `   Comprobante: PtoVta ${ptoVta} · Nro ${det.CbteDesde} · Tipo ${CBTE_TIPO_FACTURA_C}`,
   );
@@ -569,32 +577,32 @@ async function main(): Promise<void> {
     cbteFchMatches: consulted?.cbteFch === voucher.CbteFch,
   };
 
-  console.log("\n→ FECompConsultar sobre el comprobante recién emitido");
+  console.log("\n→ FECompConsultar on the comprobante just emitted");
   if (consultError) {
-    console.log(`   ✗ Lanzó una excepción: ${consultError}`);
+    console.log(`   ✗ Threw: ${consultError}`);
   }
   console.log(
-    `   Devuelve el comprobante:  ${yesNo(consultChecks.returnsVoucher)}`,
+    `   Returns the comprobante:  ${yesNo(consultChecks.returnsVoucher)}`,
   );
   console.log(
-    `   impTotal llega numérico:  ${yesNo(consultChecks.impTotalIsNumber)}  (typeof ${typeof consulted?.impTotal})`,
+    `   impTotal arrives numeric: ${yesNo(consultChecks.impTotalIsNumber)}  (typeof ${typeof consulted?.impTotal})`,
   );
   console.log(
-    `   cbteFch llega string:     ${yesNo(consultChecks.cbteFchIsString)}  (typeof ${typeof consulted?.cbteFch})`,
+    `   cbteFch arrives string:   ${yesNo(consultChecks.cbteFchIsString)}  (typeof ${typeof consulted?.cbteFch})`,
   );
   console.log(
     `   codAutorizacion == CAE:   ${yesNo(consultChecks.caeMatches)}  (${consulted?.codAutorizacion} vs ${result.cae})`,
   );
   console.log(
-    `   impTotal == el enviado:   ${yesNo(consultChecks.impTotalMatches)}  (${consulted?.impTotal} vs ${voucher.ImpTotal})`,
+    `   impTotal == what we sent: ${yesNo(consultChecks.impTotalMatches)}  (${consulted?.impTotal} vs ${voucher.ImpTotal})`,
   );
   console.log(
-    `   cbteFch == el enviado:    ${yesNo(consultChecks.cbteFchMatches)}  (${consulted?.cbteFch} vs ${voucher.CbteFch})`,
+    `   cbteFch == what we sent:  ${yesNo(consultChecks.cbteFchMatches)}  (${consulted?.cbteFch} vs ${voucher.CbteFch})`,
   );
   // Diagnostic only, not a verdict: if cbteFch does not match what we sent, this
   // says whether FECAESolicitar had already echoed a different date back.
   console.log(
-    `   (FECAESolicitar devolvió CbteFch=${det.CbteFch}; enviado=${voucher.CbteFch})`,
+    `   (FECAESolicitar echoed CbteFch=${det.CbteFch}; sent=${voucher.CbteFch})`,
   );
 
   // 5b. A correlative that was never authorized must come back as `null` rather
@@ -620,14 +628,14 @@ async function main(): Promise<void> {
     farOutOfRangeReturnsNull: absentProbes.farOutOfRange.outcome === "null",
   };
 
-  console.log("\n→ FECompConsultar sobre correlativos nunca autorizados");
+  console.log("\n→ FECompConsultar on correlatives never authorized");
   for (const [label, probe] of Object.entries(absentProbes)) {
     console.log(
       `   ${label} (${probe.cbteNro}): ${probe.outcome}${probe.error ? ` — ${probe.error}` : ""}`,
     );
   }
   console.log(
-    `   Ambos devuelven null en lugar de lanzar: ${yesNo(
+    `   Both return null instead of throwing: ${yesNo(
       Object.values(absentChecks).every(Boolean),
     )}`,
   );
@@ -637,10 +645,10 @@ async function main(): Promise<void> {
   // so a bare `null` is weaker evidence of "nothing was authorized" than it
   // looks. Flagged for ADR-0012 rather than silently treated as verified.
   console.log(
-    "   Nota: el SDK devuelve null tanto por error 602 como por ResultGet ausente;",
+    "   Note: the SDK returns null both for error 602 and for an absent ResultGet;",
   );
   console.log(
-    "         el spike no puede distinguirlos (ver electronic-billing-repository).",
+    "         the spike cannot tell them apart (see electronic-billing-repository).",
   );
 
   const allChecksPassed =
@@ -648,8 +656,8 @@ async function main(): Promise<void> {
     Object.values(absentChecks).every(Boolean) &&
     consultError === null;
   console.log(
-    `\n${allChecksPassed ? "✓✓" : "✗✗"} Supuestos de ADR-0012 sobre FECompConsultar: ${
-      allChecksPassed ? "CONFIRMADOS" : "NO confirmados (ver arriba)"
+    `\n${allChecksPassed ? "✓✓" : "✗✗"} ADR-0012 assumptions about FECompConsultar: ${
+      allChecksPassed ? "CONFIRMED" : "NOT confirmed (see above)"
     }`,
   );
 
@@ -694,42 +702,43 @@ async function main(): Promise<void> {
   };
 
   console.log(
-    `\n════════ Notas de débito y de crédito (#686) ════════\n` +
-      `   Factura C de referencia: PtoVta ${ptoVta} · Nro ${emittedCbteNro} · $${importe}`,
+    `\n════════ Notas de débito / Notas de crédito (#686) ════════\n` +
+      `   Reference Factura C: PtoVta ${ptoVta} · Nro ${emittedCbteNro} · $${importe}`,
   );
 
   const probeNcSinAsoc = await run({
-    label: "(a) NC sin CbtesAsoc ni PeriodoAsoc",
-    hypothesis: "si 10197 es excluyente para la Nota de crédito",
-    expectation: "rechazo (Resultado R) con el código 10197",
+    label: "(a) NC with neither CbtesAsoc nor PeriodoAsoc",
+    hypothesis: "whether 10197 is excluding for the Nota de crédito",
+    expectation: "rejection (Resultado R) carrying code 10197",
     cbteTipo: CBTE_TIPO_NOTA_CREDITO_C,
     importe: IMPORTE_PROBE,
     cbtesAsoc: null,
   });
 
   const probeNdSinAsoc = await run({
-    label: "(b) ND sin CbtesAsoc ni PeriodoAsoc",
-    hypothesis: "si 10197 también es excluyente para la Nota de débito",
-    expectation: "rechazo (Resultado R) con el código 10197",
+    label: "(b) ND with neither CbtesAsoc nor PeriodoAsoc",
+    hypothesis: "whether 10197 is excluding for the Nota de débito too",
+    expectation: "rejection (Resultado R) carrying code 10197",
     cbteTipo: CBTE_TIPO_NOTA_DEBITO_C,
     importe: IMPORTE_PROBE,
     cbtesAsoc: null,
   });
 
   const notaDebito = await run({
-    label: "(c) ND asociada a la Factura C",
-    hypothesis: "si el payload de la ND cierra (CbteTipo 12, sin arte previo)",
-    expectation: "CAE otorgado, sin observaciones",
+    label: "(c) ND associated with the Factura C",
+    hypothesis:
+      "whether the ND payload closes at all (CbteTipo 12, no prior art)",
+    expectation: "CAE granted, no Observaciones",
     cbteTipo: CBTE_TIPO_NOTA_DEBITO_C,
     importe: IMPORTE_ND,
     cbtesAsoc: [facturaAsoc],
   });
 
   const ncParcial = await run({
-    label: "(d) NC parcial que deja remanente",
+    label: "(d) partial NC leaving a residue",
     hypothesis:
-      "si una NC parcial es invisible al web service (no exige ΣNC = FC)",
-    expectation: "CAE otorgado, sin observaciones y sin 10237",
+      "whether a partial NC is invisible to the web service (no ΣNC = FC demand)",
+    expectation: "CAE granted, no Observaciones and no 10237",
     cbteTipo: CBTE_TIPO_NOTA_CREDITO_C,
     importe: IMPORTE_NC_PARCIAL,
     cbtesAsoc: [facturaAsoc],
@@ -741,12 +750,12 @@ async function main(): Promise<void> {
   let ncMultiAsoc: AmendmentAttempt | null = null;
   if (notaDebito.cae !== null && notaDebito.cbteNro !== null) {
     ncMultiAsoc = await run({
-      label: "(e) NC con CbtesAsoc múltiple [FC, ND]",
+      label: "(e) NC with a multi-entry CbtesAsoc [FC, ND]",
       hypothesis:
-        "si ARCA acepta más de una entrada en CbtesAsoc (salida reservada por #610)",
+        "whether ARCA accepts more than one entry in CbtesAsoc (#610's reserved exit)",
       expectation:
-        "CAE otorgado; ΣNC sigue por debajo de la FC, así que " +
-        "cualquier observación acá es atribuible al array múltiple",
+        "CAE granted; ΣNC is still under the FC, so any Observación " +
+        "here is attributable to the multi-entry array",
       cbteTipo: CBTE_TIPO_NOTA_CREDITO_C,
       importe: IMPORTE_NC_MULTI,
       cbtesAsoc: [
@@ -762,31 +771,31 @@ async function main(): Promise<void> {
     });
   } else {
     console.log(
-      "\n→ (e) NC con CbtesAsoc múltiple: OMITIDA. La ND de (c) no obtuvo CAE, " +
-        "así que no hay un segundo comprobante real que asociar.",
+      "\n→ (e) NC with a multi-entry CbtesAsoc: SKIPPED. The ND of (c) got no " +
+        "CAE, so there is no second real comprobante to associate.",
     );
   }
 
   const ncAcumulado = await run({
-    label: "(f) NC que lleva ΣNC por encima de la FC",
+    label: "(f) NC taking ΣNC above the FC",
     hypothesis:
-      "si 10237 lee el crédito ACUMULADO o sólo el documento individual",
+      "whether 10237 reads CUMULATIVE credit or only the individual document",
     expectation:
-      `$${IMPORTE_NC_ACUMULADO} < $${importe} por sí sola, pero acumula por ` +
-      `encima de la FC mientras FC + ΣND todavía la cubre: con lectura ` +
-      `acumulada aparece 10237, con lectura por documento no aparece`,
+      `$${IMPORTE_NC_ACUMULADO} < $${importe} on its own, but it accumulates ` +
+      `above the FC while FC + ΣND still covers it: on a cumulative reading ` +
+      `10237 fires, on a per-document reading it does not`,
     cbteTipo: CBTE_TIPO_NOTA_CREDITO_C,
     importe: IMPORTE_NC_ACUMULADO,
     cbtesAsoc: [facturaAsoc],
   });
 
   const ncExcede = await run({
-    label: "(g) NC que excede la FC por sí sola",
+    label: "(g) NC exceeding the FC on its own",
     hypothesis:
-      "si 10237 es NO excluyente (CAE + Observaciones) o excluyente (Resultado R)",
+      "whether 10237 is NON-excluding (CAE + Observaciones) or excluding (Resultado R)",
     expectation:
-      `$${IMPORTE_NC_EXCEDE} > $${importe}: 10237 debería dispararse ` +
-      `con cualquiera de las dos lecturas`,
+      `$${IMPORTE_NC_EXCEDE} > $${importe}: 10237 should fire ` +
+      `under either reading`,
     cbteTipo: CBTE_TIPO_NOTA_CREDITO_C,
     importe: IMPORTE_NC_EXCEDE,
     cbtesAsoc: [facturaAsoc],
@@ -824,18 +833,18 @@ async function main(): Promise<void> {
     correlativeCheck.notaCreditoCDelta ===
       correlativeCheck.expectedNotaCreditoCDelta;
 
-  console.log("\n→ Correlativos después de la secuencia");
+  console.log("\n→ Correlatives after the sequence");
   console.log(
-    `   Factura C (11):        ${correlativesBefore.facturaC} → ${correlativesAfter.facturaC}  (Δ ${correlativeCheck.facturaCDelta}, esperado ${correlativeCheck.expectedFacturaCDelta})`,
+    `   Factura C (11):        ${correlativesBefore.facturaC} → ${correlativesAfter.facturaC}  (Δ ${correlativeCheck.facturaCDelta}, expected ${correlativeCheck.expectedFacturaCDelta})`,
   );
   console.log(
-    `   Nota de débito C (12): ${correlativesBefore.notaDebitoC} → ${correlativesAfter.notaDebitoC}  (Δ ${correlativeCheck.notaDebitoCDelta}, esperado ${correlativeCheck.expectedNotaDebitoCDelta})`,
+    `   Nota de débito C (12): ${correlativesBefore.notaDebitoC} → ${correlativesAfter.notaDebitoC}  (Δ ${correlativeCheck.notaDebitoCDelta}, expected ${correlativeCheck.expectedNotaDebitoCDelta})`,
   );
   console.log(
-    `   Nota de crédito C (13):${correlativesBefore.notaCreditoC} → ${correlativesAfter.notaCreditoC}  (Δ ${correlativeCheck.notaCreditoCDelta}, esperado ${correlativeCheck.expectedNotaCreditoCDelta})`,
+    `   Nota de crédito C (13):${correlativesBefore.notaCreditoC} → ${correlativesAfter.notaCreditoC}  (Δ ${correlativeCheck.notaCreditoCDelta}, expected ${correlativeCheck.expectedNotaCreditoCDelta})`,
   );
   console.log(
-    `   Los tres avanzan de forma independiente: ${yesNo(correlativesAdvancedIndependently)}`,
+    `   All three advance independently: ${yesNo(correlativesAdvancedIndependently)}`,
   );
 
   // 8. What was observed, point by point. Deliberately phrased as observations
@@ -911,10 +920,10 @@ async function main(): Promise<void> {
         // an over-credit. Collapsing it into "not non-excluding" would read as
         // "excluding", which is the opposite of what happened.
         verdict: !wasAccepted(ncExcede)
-          ? ("excluyente" as const)
+          ? ("excluding" as const)
           : carries10237(ncExcede)
-            ? ("no-excluyente" as const)
-            : ("no-se-disparo" as const),
+            ? ("non-excluding" as const)
+            : ("did-not-fire" as const),
         nonExcluding: wasAccepted(ncExcede) && carries10237(ncExcede),
         excluding: ncExcede.resultado === "R",
       },
@@ -922,7 +931,7 @@ async function main(): Promise<void> {
     // #610's reserved per-case exit.
     multiEntryCbtesAsoc:
       ncMultiAsoc === null
-        ? { probed: false as const, reason: "la ND de (c) no obtuvo CAE" }
+        ? { probed: false as const, reason: "the ND of (c) got no CAE" }
         : {
             probed: true as const,
             resultado: ncMultiAsoc.resultado,
@@ -939,49 +948,49 @@ async function main(): Promise<void> {
     },
   };
 
-  console.log("\n════════ Lo observado, punto por punto (#686) ════════");
+  console.log("\n════════ What was observed, point by point (#686) ════════");
   console.log(
-    `   1. 10237 con anclaje en estrella:\n` +
-      `      NC parcial con remanente:    ${ncParcial.resultado ?? "?"}, 10237: ${yesNo(carries10237(ncParcial))}\n` +
-      `      NC que acumula sobre la FC:  ${ncAcumulado.resultado ?? "?"}, 10237: ${yesNo(carries10237(ncAcumulado))}\n` +
-      `      NC que excede la FC sola:    ${ncExcede.resultado ?? "?"}, 10237: ${yesNo(carries10237(ncExcede))}\n` +
-      `      → veredicto: ${
+    `   1. 10237 under star anchoring:\n` +
+      `      partial NC with a residue:   ${ncParcial.resultado ?? "?"}, 10237: ${yesNo(carries10237(ncParcial))}\n` +
+      `      NC accumulating over the FC: ${ncAcumulado.resultado ?? "?"}, 10237: ${yesNo(carries10237(ncAcumulado))}\n` +
+      `      NC exceeding the FC alone:   ${ncExcede.resultado ?? "?"}, 10237: ${yesNo(carries10237(ncExcede))}\n` +
+      `      → verdict: ${
         {
-          excluyente: "EXCLUYENTE (rechazo)",
-          "no-excluyente": "NO excluyente (CAE + Observaciones)",
-          "no-se-disparo":
-            "NO SE DISPARÓ: CAE limpio, sin observaciones, ni siquiera " +
-            "excediendo la FC por sí sola",
+          excluding: "EXCLUDING (rejected)",
+          "non-excluding": "NON-excluding (CAE + Observaciones)",
+          "did-not-fire":
+            "DID NOT FIRE: clean CAE, no Observaciones, not even when " +
+            "exceeding the FC on its own",
         }[findings.validacion10237.exceedsFacturaAlone.verdict]
       }`,
   );
   console.log(
-    `   2. 10197 sin comprobante asociado:\n` +
-      `      NC: ${probeNcSinAsoc.resultado ?? "?"}, código 10197: ${yesNo(carries10197(probeNcSinAsoc))}\n` +
-      `      ND: ${probeNdSinAsoc.resultado ?? "?"}, código 10197: ${yesNo(carries10197(probeNdSinAsoc))}\n` +
-      `      (dónde llega el código: ${
+    `   2. 10197 with no associated comprobante:\n` +
+      `      NC: ${probeNcSinAsoc.resultado ?? "?"}, code 10197: ${yesNo(carries10197(probeNcSinAsoc))}\n` +
+      `      ND: ${probeNdSinAsoc.resultado ?? "?"}, code 10197: ${yesNo(carries10197(probeNdSinAsoc))}\n` +
+      `      (where the code arrives: ${
         hasCode(probeNcSinAsoc.observaciones, ERR_CODE_10197)
-          ? "en Observaciones, NO en Errors"
-          : "en Errors"
+          ? "in Observaciones, NOT in Errors"
+          : "in Errors"
       })`,
   );
   console.log(
-    `   3. El payload de la ND cierra: ${yesNo(findings.notaDebitoPayload.closed)}`,
+    `   3. The ND payload closes: ${yesNo(findings.notaDebitoPayload.closed)}`,
   );
   console.log(
-    `   4. Correlativos independientes: ${yesNo(correlativesAdvancedIndependently)}`,
+    `   4. Correlatives independent: ${yesNo(correlativesAdvancedIndependently)}`,
   );
   console.log(
-    `   Extra · CbtesAsoc múltiple: ${
+    `   Extra · multi-entry CbtesAsoc: ${
       ncMultiAsoc === null
-        ? "no se probó (la ND de (c) no obtuvo CAE)"
+        ? "not probed (the ND of (c) got no CAE)"
         : yesNo(wasAccepted(ncMultiAsoc))
     }`,
   );
   console.log(
-    "\n   Esto es evidencia, no un veredicto: si 10237 resulta excluyente, " +
-      "revisar\n   el anclaje en estrella (#599/#610) es una decisión de modelo, " +
-      "no de este script.",
+    "\n   This is evidence, not a verdict: if 10237 turns out to be excluding, " +
+      "revisiting\n   the star anchoring (#599/#610) is a model decision, " +
+      "not this script's.",
   );
 
   // Minimal persistence of the "comprobante" (local JSON, not the database).
@@ -1018,7 +1027,7 @@ async function main(): Promise<void> {
   };
   const outPath = `${outputDir}comprobante-${emittedCbteNro}.json`;
   writeFileSync(outPath, JSON.stringify(comprobante, null, 2));
-  console.log(`\n   Persistido en: ${outPath}`);
+  console.log(`\n   Persisted at: ${outPath}`);
 
   // Exit non-zero once the evidence is safely on disk: an unconfirmed ADR-0012
   // assumption is a failed run, and every other failure branch here exits 1.
@@ -1031,7 +1040,7 @@ async function main(): Promise<void> {
 }
 
 main().catch((error) => {
-  console.error("\n✗ El spike falló con una excepción:");
+  console.error("\n✗ The spike failed with an exception:");
   console.error(error);
   process.exit(1);
 });

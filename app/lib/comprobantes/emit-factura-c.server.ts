@@ -407,7 +407,7 @@ function requirePositiveIntEnv(env: NodeJS.ProcessEnv, name: string): number {
   const raw = requireEnv(env, name);
   const value = Number(raw);
   if (!Number.isInteger(value) || value <= 0) {
-    throw new Error(`${name}="${raw}" no es un entero positivo.`);
+    throw new Error(`${name}="${raw}" is not a positive integer.`);
   }
   return value;
 }

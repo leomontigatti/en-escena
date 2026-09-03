@@ -184,7 +184,7 @@ async function settle() {
 
 async function openSelect(trigger: HTMLElement | undefined) {
   if (!trigger) {
-    throw new Error("Expected the modalidad select trigger to be rendered.");
+    throw new Error("Expected the `Modalidad` select trigger to be rendered.");
   }
 
   trigger.hasPointerCapture ??= () => false;
