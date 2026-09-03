@@ -41,7 +41,7 @@ function describeLinkedIssue(
   issueTitle: string | null,
 ): string {
   if (issueNumber === null) return "(none — this PR links no issue)";
-  return `issue #${issueNumber}: ${issueTitle ?? ""}`.trimEnd();
+  return `#${issueNumber}: ${issueTitle ?? ""}`.trimEnd();
 }
 
 await runMain(async ({ signal }) => {
