@@ -29,7 +29,10 @@ import type {
   ClientDataTableProps,
   DataTableFacetedFilterValue,
 } from "@/components/shared/data-table.shared";
-import { dataTableFacetedFilterColumnId } from "@/components/shared/data-table.shared";
+import {
+  dataTableFacetedFilterColumnId,
+  defaultClientDataTablePageSize,
+} from "@/components/shared/data-table.shared";
 
 export function ClientDataTable<TData>({
   rows,
@@ -48,6 +51,7 @@ export function ClientDataTable<TData>({
   onSelectedRowIdsChange,
   hideSearch = false,
   hidePagination = false,
+  pageSize = defaultClientDataTablePageSize,
   initialSort,
 }: ClientDataTableProps<TData>) {
   const location = useLocation();
@@ -70,7 +74,7 @@ export function ClientDataTable<TData>({
   );
   const [pagination, setPagination] = useState({
     pageIndex: 0,
-    pageSize: 10,
+    pageSize,
   });
   const [sorting, setSorting] = useState<SortingState>(
     initialSort
@@ -86,6 +90,12 @@ export function ClientDataTable<TData>({
   useEffect(() => {
     setSearchQuery(initialSearchValue);
   }, [initialSearchValue]);
+
+  // Back to the first page with it: the page the reader was on is a position in
+  // a pagination that no longer exists.
+  useEffect(() => {
+    setPagination({ pageIndex: 0, pageSize });
+  }, [pageSize]);
 
   useEffect(() => {
     setColumnFilters(

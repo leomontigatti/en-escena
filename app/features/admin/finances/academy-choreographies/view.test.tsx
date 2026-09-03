@@ -306,6 +306,27 @@ describe("AcademyFinancesRouteView", () => {
     ]);
   });
 
+  // The collections act on the selection, so an academy whose choreographies
+  // spill onto a second page is one whose deposit cannot be collected in a
+  // single reading. Twenty-five rows fit on one page here; the shared default
+  // of ten would have paged this list twice over.
+  test("fits an academy's whole roster on one page up to twenty-five rows", async () => {
+    await renderListIntoDocument({
+      loaderData: academyFinancesLoaderDataFixture({
+        choreographyFinanceRows: Array.from({ length: 25 }, (_row, index) =>
+          choreographyFinanceRowFixture({
+            choreographyNumber: index + 1,
+            id: `choreography_${index + 1}`,
+            name: `Coreografía ${index + 1}`,
+          }),
+        ),
+      }),
+    });
+
+    // One per row plus the select-all in the header.
+    expect(getRenderedCheckboxes().length).toBe(26);
+  });
+
   // The two owed figures are what the collection is measured against, and the
   // collection operates on the selection: showing the academy's total while two
   // choreographies are being collected forces adding up from memory.

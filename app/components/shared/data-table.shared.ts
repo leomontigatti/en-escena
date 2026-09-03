@@ -70,11 +70,24 @@ export type DataTableRowSelectionProps = {
   onSelectedRowIdsChange?: (selectedRowIds: string[]) => void;
 };
 
+/**
+ * What a client list pages at unless it says otherwise. Ten keeps a short list
+ * short; a list that is read as a whole —or acted on as a whole, through a
+ * selection— asks for more.
+ */
+export const defaultClientDataTablePageSize = 10;
+
 export type ClientDataTableProps<TData> = DataTableBaseProps<TData> &
   DataTableRowSelectionProps & {
     textFilterColumnId?: string;
     hideSearch?: boolean;
     hidePagination?: boolean;
+    /**
+     * Rows per page, defaulting to `defaultClientDataTablePageSize`. Raise it on
+     * a list whose whole set is worth reading at once: the rows are already all
+     * here, so paging them is a reading choice and not a cost.
+     */
+    pageSize?: number;
     initialSort?: {
       columnId: string;
       direction: DataTableSortDirection;

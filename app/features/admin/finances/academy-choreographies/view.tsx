@@ -128,6 +128,11 @@ export function AcademyFinancesRouteView({
           getRowKey={(row) => row.id}
           searchPlaceholder="Buscar coreografía por número o nombre"
           textFilterColumnId="name"
+          // Higher than the default ten because the two collections act on the
+          // selection: an academy whose choreographies span pages is one whose
+          // deposit cannot be collected in a single reading. The rows are all
+          // here already, so this costs a longer page and nothing else.
+          pageSize={25}
           selectableRows
           selectedRowIds={selectedRowIds}
           onSelectedRowIdsChange={setSelectedRowIds}
