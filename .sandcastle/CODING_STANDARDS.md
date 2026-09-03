@@ -108,7 +108,17 @@ The product is Spanish; the codebase is English.
 | UI strings, page titles, URLs          | Spanish                          | `"Comprobante"`, `/administracion/comprobantes` |
 | Code identifiers, comments, docs, ADRs | English                          | `loadAcademyFinances`                           |
 | Commit messages, PR titles and bodies  | English                          | `fix(choreographies): …`                        |
+| GitHub issues                          | Spanish for now — see below      | #592, #686, #793                                |
 | External-system adapters               | the external system's vocabulary | `ArcaVoucher`, `createVoucher`                  |
+
+**Issues are the one row that is not settled.** The owner decided on 2026-08-11
+that they stay Spanish for now, with English as the declared direction, and asked
+that this file stop being silent about it — the practice had settled without a
+decision, which is the state that lets an argument like "the file around it is
+already Spanish" take hold. So: write issues in Spanish today, expect that to
+change, and change it by amending this row rather than by drifting. Note the row
+covers the issue body a human writes; a commit or PR that closes it is English
+either way, per the row above.
 
 Route filenames are URLs, so they stay Spanish
 (`administracion.finanzas_.$academyId.tsx`) while the symbols they export are
@@ -200,9 +210,15 @@ evento` to exist.") `` is fine. What the gate cannot see is a message assembled
 from a fragment passed in as a variable: `decodePem(…, "El certificado")` fed a
 Spanish subject into an English sentence and survived #592's sweep untouched.
 
-YAML is on the same rule and is still not machine-checked, so it rests on review;
-three workflow files under `.github/workflows/` carry Spanish today, and
-[#793](https://github.com/leomontigatti/en-escena/issues/793) owns them.
+**YAML is covered too** (#793): `.yml` and `.yaml` under `.github/`, plus the
+repo root. A `#` opens a comment at line start or after whitespace and outside a
+quoted scalar, which is YAML's own rule, so a `#` inside a value — `#fff`, or the
+`#305` of an issue reference — is not one. A shell comment inside a `run: |`
+block *is* read, because the contributor reading it is the one reading the YAML
+comment above it. One exclusion: `pnpm-lock.yaml` is generated, not written.
+
+It was gated because leaving it on review is what let six Spanish comments across
+four workflow files outlive #592's sweep.
 
 One file type is exempt from every direction of this rule: **an applied migration under
 `app/db/migrations/` is frozen, comments included.** Drizzle hashes the whole
