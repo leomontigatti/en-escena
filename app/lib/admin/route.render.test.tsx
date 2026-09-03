@@ -22,7 +22,7 @@ import {
   handle as createUserHandle,
 } from "@/routes/administracion.usuarios_.nuevo";
 
-describe("administracion layout route", () => {
+describe("`/administracion` layout route", () => {
   test("renders the administrative shell around the migrated users creation route", () => {
     const RoutesStub = createRoutesStub([
       {

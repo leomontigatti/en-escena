@@ -1009,7 +1009,7 @@ describe.sequential("`/administracion/bailarines` route", () => {
     );
   });
 
-  test("recalculates eligible linked coreografias after a birth date correction", async () => {
+  test("recalculates eligible linked choreographies after a birth date correction", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "admin.fecha.bailarines.academia@example.com",

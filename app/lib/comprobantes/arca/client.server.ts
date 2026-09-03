@@ -236,7 +236,7 @@ function decodePem(base64: string, kind: string): string {
 }
 
 // Reads the client configuration from the environment. The real issuer is
-// "Proyecciones Artísticas Asociación Civil" (CUIT 30717611590); homologation is
+// `Proyecciones Artísticas Asociación Civil` (CUIT 30717611590); homologation is
 // the default environment and production is enabled explicitly.
 export function readArcaClientConfig(
   env: NodeJS.ProcessEnv = process.env,

@@ -6,13 +6,13 @@ import {
 } from "@/lib/admin/professors/professors.server";
 
 describe("readProfessorFilters", () => {
-  test("reads participation from 'participando' and status from 'estado'", () => {
+  test("reads participation from `participando` and status from `estado`", () => {
     expect(
       readProfessorFilters(new URLSearchParams("participando=no&estado=todos")),
     ).toMatchObject({ participation: "no", status: "all" });
   });
 
-  test("ignores participation values inside 'estado'", () => {
+  test("ignores participation values inside `estado`", () => {
     expect(
       readProfessorFilters(new URLSearchParams("estado=participando")),
     ).toMatchObject({ participation: "all", status: "active" });
@@ -22,19 +22,19 @@ describe("readProfessorFilters", () => {
     ).toMatchObject({ participation: "all", status: "active" });
   });
 
-  test("reads 'participando=todos' as no participation filter", () => {
+  test("reads `participando=todos` as no participation filter", () => {
     expect(
       readProfessorFilters(new URLSearchParams("participando=todos")),
     ).toMatchObject({ participation: "all" });
   });
 
-  test("keeps 'estado=archivados' as an archived status filter", () => {
+  test("keeps `estado=archivados` as an archived status filter", () => {
     expect(
       readProfessorFilters(new URLSearchParams("estado=archivados")),
     ).toMatchObject({ participation: "all", status: "archived" });
   });
 
-  test("combines 'estado=archivados' with an explicit participation", () => {
+  test("combines `estado=archivados` with an explicit participation", () => {
     expect(
       readProfessorFilters(
         new URLSearchParams("estado=archivados&participando=si"),

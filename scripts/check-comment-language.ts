@@ -55,7 +55,7 @@ export const excludedDocDirectories = ["docs/adr", "docs/research"];
 // `algo` (short for algorithm) and `con` (pro/con) — each collides with ordinary
 // English technical prose.
 //
-// Known false positive: "Los Angeles" matches `los`. No such string is in the
+// Known false positive: `Los Angeles` matches `los`. No such string is in the
 // tree; if one arrives, quote it and it becomes data.
 const spanishFunctionWords = [
   "además",
@@ -150,7 +150,7 @@ const spanishFunctionWords = [
 // which leaves `capacity de schedule` and `Portal de academies` behind. Nothing
 // else sees those — both halves are English and `de` is the only Spanish left.
 // It cost 27 findings on the tree and 22 of them were exactly that. Known false
-// positive: "de facto", and a name like "Robert de Niro"; the hyphen guard
+// positive: `de facto`, and a name like `Robert de Niro`; the hyphen guard
 // already keeps `de-allocation` out.
 const shortSpanishWords = [
   "al",
@@ -167,16 +167,22 @@ const shortSpanishWords = [
 ];
 
 const spanishFunctionWordPattern = new RegExp(
-  `(?<![\\p{L}-])(?:${[...spanishFunctionWords, ...shortSpanishWords].join("|")})(?![\\p{L}-])`,
+  `(?<![\\p{L}\\d-])(?:${[...spanishFunctionWords, ...shortSpanishWords].join("|")})(?![\\p{L}\\d-])`,
   "giu",
 );
 
 /**
- * `SE` is southeast and `UN` is the United Nations; `se` and `un` are Spanish.
- * Only the short list is ambiguous this way — every long word stands on its own.
+ * `SE` is southeast, `UN` is the United Nations, `DEL` is a key and `LOS` is
+ * line-of-sight; `se`, `un`, `del` and `los` are Spanish. An all-caps match is
+ * an acronym at any length — the long list holds `del`, `los` and `sus` too, so
+ * the two-letter guard this used to apply was not enough.
+ *
+ * The cost is a Spanish comment written entirely in capitals, which this cannot
+ * see. Prose in caps is rare enough to trade against acronyms in English, which
+ * are not.
  */
 function isAcronym(match: string): boolean {
-  return match.length <= 2 && match === match.toUpperCase();
+  return match === match.toUpperCase() && match !== match.toLowerCase();
 }
 
 // The second instrument: morphology. A word carrying an accent or `ñ` is
@@ -188,10 +194,10 @@ function isAcronym(match: string): boolean {
 // verbs, and no list of function words will ever hold `respondió`. Measured over
 // the tree the two instruments are near-disjoint: 186 occurrences only this rule
 // reaches, 749 only the vocabulary rule reaches, 174 both (#792).
-const accentedWordPattern = /(?<![\p{L}-])[\p{L}-]*[áéíóúñ][\p{L}-]*/giu;
+const accentedWordPattern = /(?<![\p{L}-])[\p{L}-]*[áéíóúñü][\p{L}-]*/giu;
 
 // Proper nouns are not prose. A place name keeps its accent in an English
-// sentence the same way "São Paulo" does, so matching one says nothing about the
+// sentence the same way `São Paulo` does, so matching one says nothing about the
 // language of the comment. Everything here is a name of something real; a word
 // that merely looks foreign does not belong on this list — quote it instead.
 const accentedProperNouns = new Set(["córdoba"]);
@@ -247,7 +253,10 @@ export type CommentLanguageViolation = {
 };
 
 type CheckCommentLanguageOptions = {
+  /** Source files to scan. Defaults to every scanned directory. */
   files?: string[];
+  /** Markdown files to scan. Defaults to every scanned doc directory. */
+  docs?: string[];
   rootDirectory?: string;
 };
 
@@ -258,8 +267,8 @@ type SourceSpan = {
 
 /**
  * The Spanish terms the glossary reserves, read from `CONTEXT.md` itself so the
- * two cannot drift apart. Some of them carry a function word — "Bases del
- * evento", "Descuento por bailarín" — and naming one in an English sentence is
+ * two cannot drift apart. Some of them carry a function word — `Bases del
+ * evento`, `Descuento por bailarín` — and naming one in an English sentence is
  * the glossary being used as intended, not a Spanish sentence.
  */
 export function readGlossaryTerms(rootDirectory: string): string[] {
@@ -268,16 +277,21 @@ export function readGlossaryTerms(rootDirectory: string): string[] {
   return (
     Array.from(contents.matchAll(glossaryTermPattern))
       .map((match) => match[1])
-      // Longest first, so "Bases del evento" is blanked whole instead of a
+      // Longest first, so `Bases del evento` is blanked whole instead of a
       // shorter term nested inside it taking a bite out of the middle.
       .sort((left, right) => right.length - left.length)
   );
 }
 
+/** `coreografía` → `coreografia`, the spelling a URL and a hurried hand use. */
+function withoutAccents(word: string): string {
+  return word.normalize("NFD").replace(/\p{Diacritic}/gu, "");
+}
+
 /**
  * The Spanish nouns the glossary names, one word at a time. Multi-word `ui:`
- * values are split because prose borrows the noun, not the label: "Bases del
- * evento" is where `evento` comes from. Words of three letters or fewer are
+ * values are split because prose borrows the noun, not the label: `Bases del
+ * evento` is where `evento` comes from. Words of three letters or fewer are
  * dropped — they are `del`, `por`, `IVA`, and the grammar rule already holds
  * the ones that matter.
  */
@@ -306,6 +320,13 @@ export function readGlossaryNouns(rootDirectory: string): string[] {
         if (plural !== noun) {
           nouns.add(plural);
         }
+
+        // And the accent-stripped spelling, because the repo writes it itself:
+        // the route is `administracion.categorias`, and prose follows the URL.
+        // `categorias` and `coreografias` both survived the #792 sweep by
+        // sitting in exactly this hole — no accent for morphology to find, and
+        // not the spelling the glossary lists.
+        nouns.add(withoutAccents(noun));
       }
     }
   }
@@ -334,6 +355,16 @@ function escapeForPattern(term: string): string {
   return term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+/**
+ * The reserved terms, with the inflection the list does not carry: blanking
+ * `comprobante` out of `comprobantes` on its own would leave a bare `s` behind.
+ * Built once, because both scanners blank the same thing.
+ */
+const reservedTermPattern = new RegExp(
+  `(?<!\\p{L})(?:${[...reservedTerms].map(escapeForPattern).join("|")})\\p{L}*`,
+  "giu",
+);
+
 function blankTo(match: string): string {
   return match.replace(/[^\n]/g, " ");
 }
@@ -347,8 +378,8 @@ function blankTo(match: string): string {
  * so a match still reports the line it was found on.
  *
  * The trailing `\p{L}*` on the reserved terms swallows the inflection the list
- * does not carry: blanking "comprobante" out of "comprobantes" on its own would
- * leave a bare "s" behind.
+ * does not carry: blanking `comprobante` out of `comprobantes` on its own would
+ * leave a bare `s` behind.
  *
  * The route alternative ends on a segment rather than on a slash, because
  * `/administracion/bases-del-evento/precios` has no trailing one and used to
@@ -359,16 +390,10 @@ function blankTo(match: string): string {
 function blankDataSpans(text: string): string {
   return text
     .replace(
-      /`[^`]*`|"[^"]*"|'[^']*'|«[^»]*»|“[^”]*”|https?:\/\/\S+|(?<![\p{L}\d])\/[\p{L}\d$_.\-]+(?:\/[\p{L}\d$_.\-]*)+/giu,
+      /`[^`]*`|"[^"]*"|«[^»]*»|“[^”]*”|https?:\/\/\S+|(?<![\p{L}\d])\/[\p{L}\d$_.\-]+(?:\/[\p{L}\d$_.\-]*)*/giu,
       blankTo,
     )
-    .replace(
-      new RegExp(
-        `(?<!\\p{L})(?:${[...reservedTerms].map(escapeForPattern).join("|")})\\p{L}*`,
-        "giu",
-      ),
-      blankTo,
-    );
+    .replace(reservedTermPattern, blankTo);
 }
 
 /**
@@ -598,22 +623,6 @@ function lineNumberAt(contents: string, index: number): number {
   return contents.slice(0, index).split("\n").length;
 }
 
-/**
- * The prose the guardrail reads, each span paired with its blanked twin. Sweeps
- * use it to rewrite a term only where the guardrail can see it: a backticked or
- * quoted occurrence is spaces in `blanked`, so no offset there ever matches.
- */
-export function proseSpansOf(
-  contents: string,
-): (SourceSpan & { blanked: string })[] {
-  const { comments, strings } = scanSource(contents);
-
-  return [...comments, ...findTestTitles(contents, strings)].map((span) => ({
-    ...span,
-    blanked: blankDataSpans(span.text),
-  }));
-}
-
 /** The three instruments, over prose whose data spans are already blanked. */
 function spanishMarkersIn(
   prose: string,
@@ -642,9 +651,10 @@ function spanishMarkersIn(
 export function findSpanishProseInMarkdown(input: {
   contents: string;
   filePath: string;
-  glossaryNouns?: string[];
+  /** Empty turns the vocabulary instrument off; say so rather than omit it. */
+  glossaryNouns: string[];
 }): CommentLanguageViolation[] {
-  const glossaryNouns = input.glossaryNouns ?? [];
+  const { glossaryNouns } = input;
   const lines = input.contents.split("\n");
 
   return blankMarkdownDataSpans(input.contents)
@@ -676,30 +686,25 @@ export function findSpanishProseInMarkdown(input: {
  * rather than rewritten into backticks that `readGlossaryTerms` would then have
  * to learn.
  */
-export function blankMarkdownDataSpans(contents: string): string {
+function blankMarkdownDataSpans(contents: string): string {
   return contents
     .replace(/^ {0,3}```[^\n]*\n[\s\S]*?^ {0,3}```/gmu, blankTo)
     .replace(/—\s*ui:\s*"[^"\n]*"/gu, blankTo)
     .replace(/\]\([^)\n]*\)/gu, blankTo)
     .replace(
-      /`[^`\n]*`|https?:\/\/\S+|(?<![\p{L}\d])\/[\p{L}\d$_.\-]+(?:\/[\p{L}\d$_.\-]*)+/giu,
+      /`[^`\n]*(?:\n[^`\n]*)?`|https?:\/\/\S+|(?<![\p{L}\d])\/[\p{L}\d$_.\-]+(?:\/[\p{L}\d$_.\-]*)*/giu,
       blankTo,
     )
-    .replace(
-      new RegExp(
-        `(?<!\\p{L})(?:${[...reservedTerms].map(escapeForPattern).join("|")})\\p{L}*`,
-        "giu",
-      ),
-      blankTo,
-    );
+    .replace(reservedTermPattern, blankTo);
 }
 
 export function findSpanishProseInSource(input: {
   contents: string;
   filePath: string;
-  glossaryNouns?: string[];
+  /** Empty turns the vocabulary instrument off; say so rather than omit it. */
+  glossaryNouns: string[];
 }): CommentLanguageViolation[] {
-  const glossaryNouns = input.glossaryNouns ?? [];
+  const { glossaryNouns } = input;
   const { comments, strings } = scanSource(input.contents);
   const scopes: {
     kind: CommentLanguageViolation["kind"];
@@ -740,7 +745,7 @@ export async function checkCommentLanguage(
   const rootDirectory = options.rootDirectory ?? process.cwd();
   const glossaryNouns = readGlossaryNouns(rootDirectory);
   const files = options.files ?? collectScannedFiles(rootDirectory);
-  const docs = options.files ? [] : collectScannedDocs(rootDirectory);
+  const docs = options.docs ?? collectScannedDocs(rootDirectory);
 
   return [
     ...files.flatMap((filePath) => {

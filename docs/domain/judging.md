@@ -12,7 +12,7 @@ Rules for presentations, judging, ranking, results, scores and feedback.
 - A judge can disqualify during evaluation. That closes the presentation for all judges and removes it from ranking.
 - Admin can reverse disqualification only with explicit reason and traceability.
 - If results are published, admin must unpublish before disqualifying, reversing disqualification, correcting or annulling scores.
-- `Estado de participación` values include sin presentation, pendiente, evaluada, descalificada and ausente inferida.
+- `Estado de participación` values include `sin presentación`, `pendiente`, `evaluada`, `descalificada` and `ausente inferida`.
 - `Asignación de juez` creates an empty score for presentation and judge.
 - Reassigning same judge to same presentation must not create duplicates.
 - Admin can remove assignment only while score is unconfirmed and empty.

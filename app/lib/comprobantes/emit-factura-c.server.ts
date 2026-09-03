@@ -34,7 +34,7 @@ import {
 
 type ComprobanteRow = Awaited<ReturnType<typeof recordComprobante>>;
 
-// The issuer is "Proyecciones Artísticas Asociación Civil", EXEMPT from VAT
+// The issuer is `Proyecciones Artísticas Asociación Civil`, EXEMPT from VAT
 // (#426): it always issues class C. The snapshot enum admits only this value.
 export const ISSUER_IVA_CONDITION = "exento" as const;
 

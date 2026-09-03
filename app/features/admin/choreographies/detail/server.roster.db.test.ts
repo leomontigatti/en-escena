@@ -714,7 +714,7 @@ describe("schedule capacity guard on the roster path", () => {
 
   test("blocks removing a dancer whose money would otherwise move with a shrinking group type", async () => {
     // Duo down to solo: the group type recalculation is out of this ticket's
-    // scope, but the cupo it lands on is not the same cupo the choreography
+    // scope, but the capacity it lands on is not the same capacity the choreography
     // came from, and dancerA's money is still on the choreography at removal
     // time — this is the exact "corruption #619 exists to prevent," reached
     // through a roster removal instead of the standalone reassignment.
@@ -944,7 +944,7 @@ describe("schedule capacity guard on the roster path", () => {
     ]);
 
     // Duo -> Solo, resolving "multiple" for solo (two solo-compatible capacities
-    // exist), explicitly picking the second schedule's cupo rather than the
+    // exist), explicitly picking the second schedule's capacity rather than the
     // catalog's default one.
     const result = await submitRoster({
       choreographyId: choreography.id,
@@ -1227,8 +1227,8 @@ async function createRemovalScenario(input: {
 /**
  * Grupal with five inscriptions, `dancerA`'s ready to hang financial evidence
  * on. Removing one of the other four leaves four dancers, still "grupal"
- * (`deriveGroupType` only drops to trío at three): the group type, and with it
- * the cupo, doesn't move, so this scenario exercises the withdrawal-with-money
+ * (`deriveGroupType` only drops to `trio` at three): the group type, and with
+ * it the capacity, doesn't move, so this scenario exercises the withdrawal-with-money
  * mechanism without crossing the capacity guard.
  */
 async function createGrupalRemovalScenario(input: {

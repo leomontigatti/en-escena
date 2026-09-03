@@ -83,7 +83,7 @@ async function seedSignedInscription(input: {
   return inscription;
 }
 
-describe.sequential("administracion finanzas", () => {
+describe.sequential("`/administracion/finanzas`", () => {
   test("lets admin open finance accounts from academies and renders event-scoped balances", async () => {
     vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
       "2026-03-27",

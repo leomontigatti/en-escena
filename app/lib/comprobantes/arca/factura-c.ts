@@ -7,8 +7,8 @@ export type ArcaVoucher = Parameters<
 >[0];
 
 // ARCA comprobante constants for the `Factura C` circuit. Frozen by spec #320 and
-// confirmed by spike #428: the issuer is "Proyecciones Artísticas Asociación
-// Civil" (VAT-exempt → class C) and the recipient is an anonymous final
+// confirmed by spike #428: the issuer is `Proyecciones Artísticas Asociación
+// Civil` (VAT-exempt → class C) and the recipient is an anonymous final
 // consumer.
 export const FACTURA_C_CBTE_TIPO = 11;
 // `Nota de crédito C`: the mirror comprobante that annuls a `Factura C`

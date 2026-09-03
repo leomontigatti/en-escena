@@ -27,7 +27,7 @@ import {
 
 installDatabaseTestHooks();
 
-describe.sequential("administracion `Bases del evento` routes", () => {
+describe.sequential("`/administracion/bases-del-evento` routes", () => {
   test("renders prices without the event deposit percentage form", async () => {
     const event = await createSavedEvent("Regional 2026");
     const listRequest = await createSignedInRequest({

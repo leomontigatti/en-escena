@@ -33,7 +33,7 @@ import {
 
 installDatabaseTestHooks();
 
-describe.sequential("administracion `Bases del evento` routes", () => {
+describe.sequential("`/administracion/bases-del-evento` routes", () => {
   test("creates modalities, submodalities and categories from list actions", async () => {
     const event = await createSavedEvent("Regional 2026");
     const modalityRequest = await createSignedInRequest({
@@ -182,7 +182,7 @@ describe.sequential("administracion `Bases del evento` routes", () => {
     ).resolves.toBeUndefined();
   });
 
-  test("uses dedicated category routes and fixed levels from the Categoria form", async () => {
+  test("uses dedicated category routes and fixed levels from the `Categoría` form", async () => {
     const event = await createSavedEvent("Regional 2026");
     const jazz = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
@@ -381,7 +381,7 @@ describe.sequential("administracion `Bases del evento` routes", () => {
     ).resolves.toBeUndefined();
   });
 
-  test("loads Categoria detail data from the active event and route param", async () => {
+  test("loads `Categoría` detail data from the active event and route param", async () => {
     const event = await createSavedEvent("Regional 2026");
     const otherEvent = await createSavedEvent("Otra regional", {
       activate: false,
@@ -433,7 +433,7 @@ describe.sequential("administracion `Bases del evento` routes", () => {
     expect(otherData.category).toBeNull();
   });
 
-  test("uses the Categoria detail route param as the mutation id", async () => {
+  test("uses the `Categoría` detail route param as the mutation id", async () => {
     const event = await createSavedEvent("Regional 2026");
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
@@ -493,7 +493,7 @@ describe.sequential("administracion `Bases del evento` routes", () => {
     ).resolves.toMatchObject({ name: "Form Oculto" });
   });
 
-  test("rejects Categoria detail mutations outside the active event", async () => {
+  test("rejects `Categoría` detail mutations outside the active event", async () => {
     const event = await createSavedEvent("Regional 2026");
     const otherEvent = await createSavedEvent("Otra regional", {
       activate: false,
@@ -544,7 +544,7 @@ describe.sequential("administracion `Bases del evento` routes", () => {
     ).resolves.toMatchObject({ name: "Otro Evento" });
   });
 
-  test("requires confirmation before deleting a Categoria from its detail route", async () => {
+  test("requires confirmation before deleting a `Categoría` from its detail route", async () => {
     const event = await createSavedEvent("Regional 2026");
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),

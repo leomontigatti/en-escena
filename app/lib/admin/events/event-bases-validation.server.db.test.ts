@@ -26,7 +26,7 @@ import { createPriceAdminRequest } from "./event-bases-price.test-helpers";
 
 installDatabaseTestHooks();
 
-describe.sequential("administracion `Bases del evento` routes", () => {
+describe.sequential("`/administracion/bases-del-evento` routes", () => {
   test("returns duplicate modality errors from `Bases del evento` actions", async () => {
     const event = await createSavedEvent("Regional 2026");
     await createModality(event.id, { name: "Jazz" });

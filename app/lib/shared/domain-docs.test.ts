@@ -69,7 +69,7 @@ const codebaseMapRequirements = [
   "## Public Academy Registration",
   "## Access And Internal Users",
   "## Portal Roster",
-  "## Portal Coreografias",
+  "## Portal Choreographies",
   "## Admin Shell And Dashboard",
   "## Admin Users",
   "## Admin Choreographies",

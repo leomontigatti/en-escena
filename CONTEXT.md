@@ -257,7 +257,7 @@ Documentary validation situation of a dancer.
 _Avoid_: `choreographyOperationalStatus`, `choreographyFinancialStatus`
 
 **`rosterPersonStatus`** — ui: "Estado de alta"
-Roster status of a person —a **`dancer`** or a **`professor`**— with exactly two values, `active` ("Active") and `archived` ("Archivado"): whether the academy still works with them. It is stored as the `active` boolean on both tables, and `app/lib/roster/roster-person-status*` is the only module that reads that column: one predicate, one filter type with one default and one URL codec, one label pair, one eligibility rule (`isSelectableForRoster`) and one writer. It is a third axis, independent of **`participationStatus`** and of **`dancerVerificationStatus`**, and archiving touches no inscription, no **`choreographyOperationalStatus`**, no **`choreographyFinancialStatus`** and no figure (see `docs/domain/choreographies.md`, "`Estado de alta` for roster people"). `Archivado` names this and only this: the internal user list's filter of the same name is an unrelated duplicate, pending retirement.
+Roster status of a person —a **`dancer`** or a **`professor`**— with exactly two values, `active` (`Activo`) and `archived` (`Archivado`): whether the academy still works with them. It is stored as the `active` boolean on both tables, and `app/lib/roster/roster-person-status*` is the only module that reads that column: one predicate, one filter type with one default and one URL codec, one label pair, one eligibility rule (`isSelectableForRoster`) and one writer. It is a third axis, independent of **`participationStatus`** and of **`dancerVerificationStatus`**, and archiving touches no inscription, no **`choreographyOperationalStatus`**, no **`choreographyFinancialStatus`** and no figure (see `docs/domain/choreographies.md`, "`Estado de alta` for roster people"). `Archivado` names this and only this: the internal user list's filter of the same name is an unrelated duplicate, pending retirement.
 _Avoid_: participating, `dancerVerificationStatus`, deleted person
 
 **`administrativeInconsistency`** — ui: "Inconsistencia administrativa"
@@ -392,7 +392,7 @@ Upper threshold of an inscription: its `selectedPrice` minus the live `dancerDis
 _Avoid_: `inscriptionBalanceAmount` (retired), choreography balance, `availableBalanceAmount`
 
 **`inscriptionFinancialStatus`** — ui: "Estado"
-Status of an inscription derived on read from `Σ allocations` against its two thresholds: `depositPending` (`Seña pendiente`), `depositMet` (`Señada`) and `paidInFull` ("Pagada"). Nothing is written when a threshold is crossed. A choreography carries the **minimum** over its inscriptions.
+Status of an inscription derived on read from `Σ allocations` against its two thresholds: `depositPending` (`Seña pendiente`), `depositMet` (`Señada`) and `paidInFull` (`Pagada`). Nothing is written when a threshold is crossed. A choreography carries the **minimum** over its inscriptions.
 _Avoid_: `choreographyFinancialState` (retired), watermark, needs attention
 
 **`choreographyPrice`** — ui: "Precio de coreografía"

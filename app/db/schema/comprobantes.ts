@@ -15,7 +15,7 @@ import { createTable } from "./core";
 import { events } from "./events";
 
 // The issuer's VAT condition, frozen in the snapshot. The issuer is
-// "Proyecciones Artísticas Asociación Civil" (CUIT 30717611590), EXEMPT from VAT
+// `Proyecciones Artísticas Asociación Civil` (CUIT 30717611590), EXEMPT from VAT
 // → it issues class C just like a monotributista (correction recorded in #426).
 // The value is unique today; the enum documents that the column is a frozen
 // snapshot, not a free-form field.

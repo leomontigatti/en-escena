@@ -12,7 +12,7 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-describe("administracion index route", () => {
+describe("`/administracion` index route", () => {
   test("shows an alert when the active event is not ready for choreography registration", async () => {
     const event = await createSavedEvent({ name: "En Escena 2026" });
     await activateEvent(event.id);

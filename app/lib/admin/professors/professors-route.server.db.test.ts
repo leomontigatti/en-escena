@@ -815,7 +815,7 @@ describe("`/administracion/profesores` route", () => {
     });
   });
 
-  test("archives and reactivates a participating professor without unlinking coreografias", async () => {
+  test("archives and reactivates a participating professor without unlinking choreographies", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "admin.archivo.academia@example.com",

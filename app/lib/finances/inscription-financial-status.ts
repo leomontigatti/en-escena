@@ -212,7 +212,7 @@ export function deriveInscriptionFinancialFigures(input: {
 
 /**
  * A withdrawn inscription's total is **what remains allocated to it, not zero**:
- * the seña may be forfeited, and the allocation that stays is the record of that
+ * the deposit may be forfeited, and the allocation that stays is the record of that
  * retention. Money and obligation become one statement, and three consequences
  * fall out of that single rule rather than being enforced one by one:
  *

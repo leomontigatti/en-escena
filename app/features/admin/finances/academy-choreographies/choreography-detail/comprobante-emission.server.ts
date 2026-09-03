@@ -16,7 +16,7 @@ import {
 } from "./shared";
 
 /*
- * The financial detail's emission axis: emitting the Factura C and re-verifying
+ * The financial detail's emission axis: emitting the `Factura C` and re-verifying
  * an emission left unresolved (ADR-0011, ADR-0012). It lives apart from the
  * detail's server because it is the only part that talks to ARCA and the only
  * one that decides between redirecting and staying in the dialog.

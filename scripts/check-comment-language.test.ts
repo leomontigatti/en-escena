@@ -91,13 +91,42 @@ describe("comment-language guardrail (#592)", () => {
     expect(kindsIn(`// Defaults to Córdoba's business date.`)).toEqual([]);
   });
 
-  // The short list is the only one that collides with acronyms, because it is
-  // the only one whose entries are two letters long.
   test("does not read an acronym as a short Spanish word", () => {
     expect(kindsIn(`// Reported to the UN and to the ES locale team.`)).toEqual(
       [],
     );
     expect(kindsIn(`// SE quadrant only.`)).toEqual([]);
+  });
+
+  // The long list holds `del`, `los` and `sus` too, so the two-letter guard
+  // this once applied was not enough: `DEL` is a key and `LOS` is
+  // line-of-sight.
+  test("does not read a longer all-caps acronym as a Spanish word", () => {
+    expect(kindsIn(`// Uses the DEL key; LOS is line-of-sight.`)).toEqual([]);
+  });
+
+  // A digit ends a word as surely as a letter does, or `// Target es2020
+  // output.` reads `es` as Spanish.
+  test("does not read a Spanish word out of an alphanumeric token", () => {
+    expect(kindsIn(`// Target es2020 output, not es5.`)).toEqual([]);
+  });
+
+  // An apostrophe is not a quote. Two contractions in one English sentence used
+  // to pair up and blank everything between them, so this comment was silently
+  // clean — and it hid real Spanish in five files.
+  test("does not let an apostrophe blank the prose between two of them", () => {
+    expect(kindsIn(`// It's fine; the cronograma isn't.`)).toEqual(["comment"]);
+    expect(
+      violationsIn(`/* The user's cupo, the academy's saldo. */`)[0].markers,
+    ).toEqual(["cupo", "saldo"]);
+  });
+
+  // `ü` is Spanish too, and leaving it out contradicted the rule's own claim to
+  // catch any word carrying an accent.
+  test("catches a word carrying a diaeresis", () => {
+    expect(kindsIn(`// Antigüedad bilingüe pingüino vergüenza.`)).toEqual([
+      "comment",
+    ]);
   });
 
   // The inflection the glossary does not list is the same violation as the
@@ -118,6 +147,28 @@ describe("comment-language guardrail (#592)", () => {
   test("does not read an English word as an inflection of a glossary noun", () => {
     expect(
       kindsIn(`// The loader activates the one it was given, on activation.`),
+    ).toEqual([]);
+  });
+
+  // The spelling the routes use and a hurried hand types. Neither instrument
+  // reached it before: no accent for morphology to find, and not the spelling
+  // the glossary lists — which is how `categorias` and `coreografias` survived
+  // the #792 sweep with the gate reporting clean.
+  test("catches a glossary noun spelled without its accent", () => {
+    expect(
+      kindsIn(`// Recalculates the linked coreografias on correction.`),
+    ).toEqual(["comment"]);
+    expect(kindsIn(`test("loads Categoria detail data", () => {});`)).toEqual([
+      "test name",
+    ]);
+  });
+
+  // A route may be a single segment, and the pattern used to need two — so
+  // `/cambiar-contrasena` was read as prose while `/administracion/usuarios`
+  // was not.
+  test("treats a single-segment route as the address it is", () => {
+    expect(
+      kindsIn(`// Completes recovery through /cambiar-contrasena.`),
     ).toEqual([]);
   });
 
@@ -166,6 +217,7 @@ describe("comment-language guardrail (#592)", () => {
       findSpanishProseInSource({
         contents: `// The cronograma is fixed at registration.`,
         filePath,
+        glossaryNouns: [],
       }),
     ).toEqual([]);
     expect(kindsIn(`// The cronograma is fixed at registration.`)).toEqual([
@@ -318,6 +370,17 @@ describe("comment-language guardrail, markdown (#792)", () => {
     expect(docKindsIn(`The badge reads "Seña pendiente" once due.\n`)).toEqual([
       "prose",
     ]);
+  });
+
+  // The docs hard-wrap at 80 columns, so a backticked term wraps. The source
+  // scanner has had a test for this shape since it was a live false positive;
+  // the markdown one needed the same, and did not have it.
+  test("a backticked term still reads as data when it wraps", () => {
+    expect(
+      docKindsIn(
+        "The label is the whole sentence, as `Descuento\npor bailarín` shows.\n",
+      ),
+    ).toEqual([]);
   });
 
   test("a fenced block is code, whatever language it carries", () => {

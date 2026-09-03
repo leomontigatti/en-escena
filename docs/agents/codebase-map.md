@@ -26,7 +26,7 @@ only list stable entry points, coordination modules and high-signal tests.
 - `app/lib/admin/` and `app/lib/portal/` are allowed for reusable behavior
   that is still specific to one product surface. Do not create them as mirrors
   of every feature folder.
-- `Bases del evento` is domain vocabulary for modalities, categorias,
+- `Bases del evento` is domain vocabulary for modalities, categories,
   schedules, capacities and prices. In code, prefer concrete resource names for
   feature modules and use `event-bases`/`bases` names only for aggregators that
   genuinely coordinate several of those resources.
@@ -94,7 +94,7 @@ summary, breadcrumbs, navigation, and cross-portal access policy.
 - UI modules: `app/features/portal/shell/view.tsx`, `app/components/portal/ui.tsx`
 - Tests: `app/features/portal/shell/server.db.test.ts`, `app/features/portal/shell/view.test.tsx`, `app/lib/portal/event-context.server.test.ts`
 
-## Portal Coreografias
+## Portal Choreographies
 
 Use for choreography lists, registration, detail edits, roster links, locks,
 schedule resolution and operational completion.

@@ -20,7 +20,7 @@ export type NotaCreditoCAsociado = {
 
 export type NotaCreditoCVoucherInput = ClassCVoucherBase & {
   // The CUIT of the associated comprobante's issuer. Since the issuer is always
-  // Proyecciones Artísticas (self-issuance), it matches the issuer's CUIT.
+  // `Proyecciones Artísticas` (self-issuance), it matches the issuer's CUIT.
   emisorCuit: string;
   asociado: NotaCreditoCAsociado;
 };

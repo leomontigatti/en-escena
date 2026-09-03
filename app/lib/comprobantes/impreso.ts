@@ -4,7 +4,7 @@ import {
 } from "./arca/factura-c";
 
 // Data and legends for the comprobante printout (#329/#334). The issuer is
-// "Proyecciones Artísticas Asociación Civil", a civil association EXEMPT from VAT
+// `Proyecciones Artísticas Asociación Civil`, a civil association EXEMPT from VAT
 // (#426): it is NOT a monotributista. The legend for the issuer's VAT condition
 // is "IVA Exento" — not "Responsable Monotributo" — and that is what differs
 // from the monotributo case. The rest of the class C printout (letter "C",

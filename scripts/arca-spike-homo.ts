@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { Arca, FileSystemTicketStorage } from "@arcasdk/core";
 
 // De-risking spike (#428): emits ONE `Factura C` end to end against ARCA's
-// HOMOLOGACIÓN environment to confirm the whole circuit (WSAA + TA cache +
+// homologation environment to confirm the whole circuit (WSAA + TA cache +
 // WSFEv1 → CAE) closes, before building the real `Comprobante` model (#326),
 // the emission logic, the UX (#339), NC (#328) and the printable (#329/#334).
 //
@@ -17,13 +17,14 @@ import { Arca, FileSystemTicketStorage } from "@arcasdk/core";
 //      about recovery after a timeout — that consulting the voucher just
 //      emitted returns the same CAE, amount and date, and that a
 //      never-authorized correlative returns `null` instead of throwing.
-//   4. Amendments (added in #686): emits a Nota de débito C (`CbteTipo` 12) and
-//      four Notas de crédito C (`CbteTipo` 13) against the Factura C just
-//      emitted, plus two deliberately malformed probes, to collect empirical
-//      evidence for the four points of #686. See AMENDMENT SEQUENCE below.
+//   4. Amendments (added in #686): emits a `Nota de débito C` (`CbteTipo` 12)
+//      and four `Notas de crédito C` (`CbteTipo` 13) against the `Factura C`
+//      just emitted, plus two deliberately malformed probes, to collect
+//      empirical evidence for the four points of #686. See AMENDMENT SEQUENCE
+//      below.
 //
-// The issuer is Proyecciones Artísticas Asociación Civil (CUIT 30717611590),
-// EXENTA for IVA. Exempt subjects also issue class C, so the Factura C
+// The issuer is `Proyecciones Artísticas Asociación Civil` (CUIT 30717611590),
+// VAT-exempt. Exempt subjects also issue class C, so the `Factura C`
 // (`CbteTipo` 11) and the WSFEv1 payload stay intact.
 //
 // No `Comprobante` is persisted to the database: for a spike it is enough to
@@ -32,8 +33,8 @@ import { Arca, FileSystemTicketStorage } from "@arcasdk/core";
 // Comments are English per `.sandcastle/CODING_STANDARDS.md`; the console
 // output stays Spanish, as it is what the operator running the spike reads.
 //
-// AMENDMENT SEQUENCE (#686). Seven FECAESolicitar calls after the Factura C,
-// ordered so each one isolates a single hypothesis. `FC` is the Factura C this
+// AMENDMENT SEQUENCE (#686). Seven FECAESolicitar calls after the `Factura C`,
+// ordered so each one isolates a single hypothesis. `FC` is the `Factura C` this
 // run emits, for $1000. Every amendment anchors at `FC` — never at another
 // amendment — because that is the star anchoring #599/#610 committed to.
 //

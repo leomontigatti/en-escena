@@ -2,19 +2,19 @@
 
 Rules for event context, `Bases del evento`, administration and portal behavior.
 
-## Event y `Bases del evento`
+## Events and `Bases del evento`
 
 - `Evento activo` is the only event context in V1 for `Panel de administración` and `Portal de academias`. Lists, event-specific mutations, choreographies, financial operations, scores and awards use it unless a detail route identifies one explicit `Evento` by URL.
 - At most one `Evento activo` can exist globally; there can also be none.
 - `Estado del evento` is automatic from dates: no iniciado, en curso, finalizado. It is not the same as active.
 - `Visibilidad de resultados` is controlled by publish/unpublish actions and is independent from active status and temporal state.
 - `Cronograma` dates and times are local business dates/times, without their own timezone.
-- A `Cupo de cronograma` consumes capacity inside a `Cronograma`; the sum of capacity capacities cannot exceed schedule capacity.
+- A `Cupo de cronograma` consumes capacity inside a `Cronograma`; the sum of its capacities cannot exceed the `Cronograma` capacity.
 - A choreography first uses a `Cupo de cronograma` when schedule modality and capacity group type are compatible.
-- If a compatible `Cronograma` has no `Cupo de cronograma` for the choreography group type, the choreography falls back to the Schedule total capacity as global capacity.
+- If a compatible `Cronograma` has no `Cupo de cronograma` for the choreography group type, the choreography falls back to the `Cronograma` total capacity as global capacity.
 - `Bases del evento` includes modalities, submodalities, categories, experience levels, schedules, schedule capacities and prices. It does not include Events.
 
-## Administration y Portal
+## Administration and portal
 
 - `Portal de academias` can manage professors and dancers even without an active event.
 - Portal choreographies stays visible without active event, showing an empty state.

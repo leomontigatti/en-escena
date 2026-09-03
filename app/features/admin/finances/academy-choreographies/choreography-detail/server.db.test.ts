@@ -91,7 +91,7 @@ async function loadDetailAsAdmin(input: {
   );
 }
 
-describe.sequential("administracion finanzas coreografia detalle", () => {
+describe.sequential("`/administracion/finanzas` choreography detail", () => {
   test("derives deposit pending and both shortfalls from an inscription holding nothing", async () => {
     vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
       "2026-03-27",

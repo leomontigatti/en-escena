@@ -658,7 +658,7 @@ settled model:
 > ahead of the rest, because the field asserted something untrue the moment #676
 > replaced the ladder with two thresholds. What is still specified only:
 >
-> - A invoice is emitted once the choreography is **`Señada` and `total > 0`**,
+> - An invoice is emitted once the choreography is **`Señada` and `total > 0`**,
 >   per choreography, **all-or-nothing**, and it bills the **full price** rather
 >   than what was collected. Collection unlocks emission; it is never the amount.
 > - Every emitter computes the same subtraction, `delta = derived total −

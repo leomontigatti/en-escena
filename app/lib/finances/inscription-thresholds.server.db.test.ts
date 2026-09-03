@@ -364,7 +364,7 @@ describe.sequential("the price lock at the deposit threshold", () => {
   });
 
   test("measures the crossing against the stored price and not the current one", async () => {
-    // 3000 is exactly the **current** row's seña and 600 short of the stored
+    // 3000 is exactly the **current** row's deposit and 600 short of the stored
     // row's. Were the crossing measured against the current price the read
     // would lock onto the stored 12000 here, and the answer to "has it
     // crossed?" would depend on which price was asked about.
