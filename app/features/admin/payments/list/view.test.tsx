@@ -80,6 +80,26 @@ describe("PaymentsListRouteView", () => {
     expect(markup).toContain("$ 4.000");
   });
 
+  // An event with nothing collected yet still has a position, and it is `$ 0`.
+  // The cards state it beside the empty state instead of disappearing with the
+  // table, which would leave the administrator guessing at the figure.
+  test("states the zero position on an event with no payments", () => {
+    const markup = render(
+      loaderDataFixture({
+        hasAnyPayment: false,
+        rows: [],
+        summary: { availableAmount: 0, totalAmount: 0 },
+        totalCount: 0,
+      }),
+    );
+
+    expect(markup).toContain("Total cobrado");
+    expect(markup).toContain("Disponible");
+    expect(markup).toContain("$ 0");
+    // The table is what goes away, not the position above it.
+    expect(markup).toContain("Todavía no hay pagos registrados");
+  });
+
   // A filter that matched nothing must not fall back to the "no payments yet"
   // empty state: the cards and the facet are how the reader undoes it.
   test("keeps the table visible when the availability facet empties it", () => {

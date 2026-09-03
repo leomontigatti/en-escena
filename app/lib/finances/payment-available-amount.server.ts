@@ -8,8 +8,10 @@ import { paymentAllocations, payments } from "@/db/schema";
  *
  * It is the per-payment cut of `availableBalanceAmount` ("Saldo disponible"),
  * which the glossary defines at academy scope as `paid − allocated − refunded`.
- * The allocation pool already walks this same figure internally to decide which
- * payment to draw from (`readPoolAvailability`), oldest payment first.
+ * This is the definition of that figure and not a second copy of it: the
+ * allocation pool draws through `resolvePaymentAvailableAmount` too
+ * (`readPoolAvailability`, oldest payment first), so what the list shows as free
+ * on a payment is what the pool would actually take from it.
  *
  * **It carries no provenance.** Money is fungible here: an allocation names an
  * inscription and an amount, never a payment, and unwinding one can return the

@@ -106,8 +106,13 @@ export function PaymentDetailRouteView({
           {/* Above the form and alone: `Monto` is already a field a few
               centimetres below, and repeating it here would say the same number
               twice. This one is derived and cannot be edited, which is why it
-              does not belong among the fields. */}
-          <section className="grid gap-4 sm:grid-cols-2">
+              does not belong among the fields.
+
+              It breaks at `md` and not at `sm` so that the one card tracks the
+              form under it, which is a single column until `md` too. Breaking
+              earlier left the card at half width with an empty cell beside it,
+              over a form that was still full width. */}
+          <section className="grid gap-4 md:grid-cols-2">
             <MetricCard
               title="Disponible"
               value={formatAmount(loaderData.availableAmount)}

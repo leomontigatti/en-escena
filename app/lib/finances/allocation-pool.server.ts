@@ -49,6 +49,7 @@ import { and, asc, desc, eq } from "drizzle-orm";
 
 import { paymentAllocations, payments } from "@/db/schema";
 import { deriveInscriptionFinancialFigures } from "@/lib/finances/inscription-financial-status";
+import { resolvePaymentAvailableAmount } from "@/lib/finances/payment-available-amount.server";
 import { readInscriptionThresholds } from "@/lib/finances/inscription-thresholds.server";
 
 import { applyAllocationDelta } from "./choreography-cobro-allocations.server";
@@ -315,10 +316,10 @@ async function readPoolAvailability(
   }
 
   return paymentRows.map((payment) => ({
-    availableAmount: Math.max(
-      0,
-      payment.amount - (allocatedByPayment.get(payment.id) ?? 0),
-    ),
+    availableAmount: resolvePaymentAvailableAmount({
+      allocatedAmount: allocatedByPayment.get(payment.id) ?? 0,
+      amount: payment.amount,
+    }),
     paymentId: payment.id,
   }));
 }

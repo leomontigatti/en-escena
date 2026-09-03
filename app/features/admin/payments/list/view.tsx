@@ -130,22 +130,28 @@ export function PaymentsListRouteView({
         to: getCreatePaymentUrl(loaderData.selectedEventId),
       }}
     >
-      {shouldShowTable ? (
-        <div className="flex flex-col gap-6">
-          {/* The event's whole position, never the page's and never the
-              filtered set: `Disponible` is read first and filtered on second,
-              through the facet of the same name. */}
-          <section className="grid gap-4 sm:grid-cols-2">
-            <MetricCard
-              title="Total cobrado"
-              value={formatAmount(loaderData.summary.totalAmount)}
-            />
-            <MetricCard
-              title="Disponible"
-              value={formatAmount(loaderData.summary.availableAmount)}
-            />
-          </section>
+      <div className="flex flex-col gap-6">
+        {/* The event's whole position, never the page's and never the filtered
+            set: `Disponible` is read first and filtered on second, through the
+            facet of the same name.
 
+            Outside the table's own emptiness on purpose. An event with no
+            payments yet reads `$ 0` twice, which is the answer to what has been
+            collected — a card that disappears is one the administrator has to
+            guess the value of. They go away only with the event, where there is
+            no position to state. */}
+        <section className="grid gap-4 sm:grid-cols-2">
+          <MetricCard
+            title="Total cobrado"
+            value={formatAmount(loaderData.summary.totalAmount)}
+          />
+          <MetricCard
+            title="Disponible"
+            value={formatAmount(loaderData.summary.availableAmount)}
+          />
+        </section>
+
+        {shouldShowTable ? (
           <ServerDataTable
             rows={loaderData.rows}
             columns={paymentColumns}
@@ -165,14 +171,14 @@ export function PaymentsListRouteView({
             totalPages={loaderData.totalPages}
             totalRows={loaderData.totalCount}
           />
-        </div>
-      ) : (
-        <AdminEmptyState
-          icon={HandCoins}
-          title="Todavía no hay pagos registrados."
-          description="Cuando registres un pago lo vas a poder revisar acá."
-        />
-      )}
+        ) : (
+          <AdminEmptyState
+            icon={HandCoins}
+            title="Todavía no hay pagos registrados."
+            description="Cuando registres un pago lo vas a poder revisar acá."
+          />
+        )}
+      </div>
     </AdminResourceLayout>
   );
 }
