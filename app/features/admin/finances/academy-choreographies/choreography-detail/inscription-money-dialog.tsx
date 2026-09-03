@@ -179,10 +179,7 @@ function AllocateMoneyDialog({
   // against. The academy's pool is another ceiling, and that one is not known
   // here: it stays an alert.
   const owedBalanceAmount = owed.owedBalanceAmount;
-  const isOutOfRange =
-    amount !== "" &&
-    owedBalanceAmount !== null &&
-    (Number(amount) < 1 || Number(amount) > owedBalanceAmount);
+  const isOutOfRange = isAmountOutOfRange(amount, owedBalanceAmount);
 
   return (
     <MoneyDialog
@@ -200,64 +197,23 @@ function AllocateMoneyDialog({
         />
 
         <FieldGroup>
-          {isPriceLocked ? (
-            <ReadOnlyField
-              label="Precio"
-              value={formatDialogPrice(inscription.effectivePrice)}
-            />
-          ) : (
-            <Field>
-              <FieldLabel htmlFor="inscription-price">Precio</FieldLabel>
-              <Select
-                name="priceId"
-                value={priceId}
-                onValueChange={setPriceId}
-                disabled={isSaving}
-              >
-                <SelectTrigger id="inscription-price" className="w-full">
-                  <SelectValue placeholder="Elegí un precio" />
-                </SelectTrigger>
-                <SelectContent>
-                  {priceOptions.map((price) => (
-                    <SelectItem key={price.id} value={price.id}>
-                      {formatDialogPrice(price)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-          )}
+          <AllocationPriceField
+            effectivePrice={inscription.effectivePrice}
+            isLocked={isPriceLocked}
+            isSaving={isSaving}
+            onPriceIdChange={setPriceId}
+            priceId={priceId}
+            priceOptions={priceOptions}
+          />
 
-          <SharedFieldLayout
-            error={
-              isOutOfRange && owedBalanceAmount !== null
-                ? `Ingresá un monto entre ${formatAmount(1)} y ${formatAmount(owedBalanceAmount)}.`
-                : undefined
-            }
+          <MoneyAmountField
+            amount={amount}
             id="inscription-amount"
-            label="Monto"
-          >
-            {({ describedBy, isInvalid }) => (
-              <Input
-                id="inscription-amount"
-                name="amount"
-                inputMode="numeric"
-                autoComplete="off"
-                aria-describedby={describedBy}
-                aria-invalid={isInvalid}
-                autoFocus
-                className="tabular-nums"
-                disabled={isSaving}
-                placeholder={
-                  hintedAmount === null ? undefined : formatAmount(hintedAmount)
-                }
-                value={amount}
-                onChange={(event) =>
-                  setAmount(event.target.value.replace(/\D/g, ""))
-                }
-              />
-            )}
-          </SharedFieldLayout>
+            isSaving={isSaving}
+            maxAmount={owedBalanceAmount}
+            onAmountChange={setAmount}
+            placeholderAmount={hintedAmount}
+          />
         </FieldGroup>
 
         {/* The two owed figures only once there is money on it: on an empty
@@ -266,39 +222,184 @@ function AllocateMoneyDialog({
 
         <FetcherError data={fetcher.data} />
 
-        <DialogFooter className={onRemoveMoney ? "sm:justify-between" : ""}>
-          {onRemoveMoney ? (
-            <Button
-              type="button"
-              variant="destructive"
-              disabled={isSaving}
-              onClick={onRemoveMoney}
-            >
-              Quitar dinero
-            </Button>
-          ) : null}
-          <div className="flex gap-2">
-            <DialogClose asChild>
-              <Button type="button" variant="outline" disabled={isSaving}>
-                Cancelar
-              </Button>
-            </DialogClose>
-            <Button
-              type="submit"
-              disabled={
-                isSaving ||
-                amount === "" ||
-                isOutOfRange ||
-                (!isPriceLocked && priceOptions.length === 0)
-              }
-            >
-              <SubmitIcon isSaving={isSaving} />
-              Guardar
-            </Button>
-          </div>
-        </DialogFooter>
+        <AllocationFooter
+          isSaving={isSaving}
+          isSubmitDisabled={
+            isSaving ||
+            amount === "" ||
+            isOutOfRange ||
+            (!isPriceLocked && priceOptions.length === 0)
+          }
+          onRemoveMoney={onRemoveMoney}
+        />
       </fetcher.Form>
     </MoneyDialog>
+  );
+}
+
+/**
+ * The price control of the allocation shape, which is a picker or a readout and
+ * never both. Locked, it says exactly what the picker it replaces said — name,
+ * amount and `Seña`, through the one formatter — so crossing the threshold
+ * cannot quietly drop a figure the administrator was choosing by.
+ */
+function AllocationPriceField({
+  effectivePrice,
+  isLocked,
+  isSaving,
+  onPriceIdChange,
+  priceId,
+  priceOptions,
+}: {
+  effectivePrice: InscriptionRow["effectivePrice"];
+  isLocked: boolean;
+  isSaving: boolean;
+  onPriceIdChange: (priceId: string) => void;
+  priceId: string;
+  priceOptions: PriceOption[];
+}) {
+  if (isLocked) {
+    return (
+      <ReadOnlyField label="Precio" value={formatDialogPrice(effectivePrice)} />
+    );
+  }
+
+  return (
+    <Field>
+      <FieldLabel htmlFor="inscription-price">Precio</FieldLabel>
+      <Select
+        name="priceId"
+        value={priceId}
+        onValueChange={onPriceIdChange}
+        disabled={isSaving}
+      >
+        <SelectTrigger id="inscription-price" className="w-full">
+          <SelectValue placeholder="Elegí un precio" />
+        </SelectTrigger>
+        <SelectContent>
+          {priceOptions.map((price) => (
+            <SelectItem key={price.id} value={price.id}>
+              {formatDialogPrice(price)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </Field>
+  );
+}
+
+/**
+ * The amount field of the two shapes that take one. Allocating and removing are
+ * typed the same way on purpose — a placeholder and never a prefilled value, and
+ * the range said under the field rather than as an alert — so they share the
+ * control instead of agreeing twice.
+ *
+ * `maxAmount` is `null` only where the ceiling is unknown, which is an
+ * inscription with no applicable price: there is no range to name, so nothing is
+ * said and the server's refusal is what catches it.
+ */
+function MoneyAmountField({
+  amount,
+  id,
+  isSaving,
+  maxAmount,
+  onAmountChange,
+  placeholderAmount,
+}: {
+  amount: string;
+  id: string;
+  isSaving: boolean;
+  maxAmount: number | null;
+  onAmountChange: (amount: string) => void;
+  placeholderAmount: number | null;
+}) {
+  return (
+    <SharedFieldLayout
+      error={
+        isAmountOutOfRange(amount, maxAmount) && maxAmount !== null
+          ? `Ingresá un monto entre ${formatAmount(1)} y ${formatAmount(maxAmount)}.`
+          : undefined
+      }
+      id={id}
+      label="Monto"
+    >
+      {({ describedBy, isInvalid }) => (
+        <Input
+          id={id}
+          name="amount"
+          inputMode="numeric"
+          autoComplete="off"
+          aria-describedby={describedBy}
+          aria-invalid={isInvalid}
+          autoFocus
+          className="tabular-nums"
+          disabled={isSaving}
+          placeholder={
+            placeholderAmount === null
+              ? undefined
+              : formatAmount(placeholderAmount)
+          }
+          value={amount}
+          onChange={(event) =>
+            onAmountChange(event.target.value.replace(/\D/g, ""))
+          }
+        />
+      )}
+    </SharedFieldLayout>
+  );
+}
+
+/**
+ * The allocation footer. `Quitar dinero` is the way into the removal shape and
+ * is pushed to the far side, away from the confirming pair: it is a different
+ * gesture, not a second way of saving.
+ */
+function AllocationFooter({
+  isSaving,
+  isSubmitDisabled,
+  onRemoveMoney,
+}: {
+  isSaving: boolean;
+  isSubmitDisabled: boolean;
+  onRemoveMoney: (() => void) | null;
+}) {
+  return (
+    <DialogFooter className={onRemoveMoney ? "sm:justify-between" : ""}>
+      {onRemoveMoney ? (
+        <Button
+          type="button"
+          variant="destructive"
+          disabled={isSaving}
+          onClick={onRemoveMoney}
+        >
+          Quitar dinero
+        </Button>
+      ) : null}
+      <div className="flex gap-2">
+        <DialogClose asChild>
+          <Button type="button" variant="outline" disabled={isSaving}>
+            Cancelar
+          </Button>
+        </DialogClose>
+        <Button type="submit" disabled={isSubmitDisabled}>
+          <SubmitIcon isSaving={isSaving} />
+          Guardar
+        </Button>
+      </div>
+    </DialogFooter>
+  );
+}
+
+/**
+ * Out of range is `< 1` or above the ceiling, and an empty box is not out of
+ * range — it is the state the field opens in. With no ceiling known there is
+ * nothing to be outside of.
+ */
+function isAmountOutOfRange(amount: string, maxAmount: number | null) {
+  return (
+    amount !== "" &&
+    maxAmount !== null &&
+    (Number(amount) < 1 || Number(amount) > maxAmount)
   );
 }
 
@@ -330,9 +431,7 @@ function RemoveMoneyDialog({
   const fetcher = useMoneyWriteFetcher(onOpenChange);
   const [amount, setAmount] = useState("");
   const isSaving = fetcher.state !== "idle";
-  const isOutOfRange =
-    amount !== "" &&
-    (Number(amount) < 1 || Number(amount) > inscription.allocatedAmount);
+  const isOutOfRange = isAmountOutOfRange(amount, inscription.allocatedAmount);
 
   return (
     <MoneyDialog
@@ -354,34 +453,14 @@ function RemoveMoneyDialog({
         />
 
         <FieldGroup>
-          <SharedFieldLayout
-            error={
-              isOutOfRange
-                ? `Ingresá un monto entre ${formatAmount(1)} y ${formatAmount(inscription.allocatedAmount)}.`
-                : undefined
-            }
+          <MoneyAmountField
+            amount={amount}
             id="inscription-removed-amount"
-            label="Monto"
-          >
-            {({ describedBy, isInvalid }) => (
-              <Input
-                id="inscription-removed-amount"
-                name="amount"
-                inputMode="numeric"
-                autoComplete="off"
-                aria-describedby={describedBy}
-                aria-invalid={isInvalid}
-                autoFocus
-                className="tabular-nums"
-                disabled={isSaving}
-                placeholder={formatAmount(inscription.allocatedAmount)}
-                value={amount}
-                onChange={(event) =>
-                  setAmount(event.target.value.replace(/\D/g, ""))
-                }
-              />
-            )}
-          </SharedFieldLayout>
+            isSaving={isSaving}
+            maxAmount={inscription.allocatedAmount}
+            onAmountChange={setAmount}
+            placeholderAmount={inscription.allocatedAmount}
+          />
         </FieldGroup>
 
         <FetcherError data={fetcher.data} />
