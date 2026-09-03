@@ -137,24 +137,41 @@ not otherwise touching. The sweep is done, so a stray Spanish line is now a bug
 report, not an invitation — fix it in a PR that says so rather than burying it in
 a feature diff nobody asked to review.
 
-The guardrail reads Spanish *grammar*, not Spanish *vocabulary*: quoted copy,
-route paths and backticked identifiers are data, and only a Spanish *sentence*
-fails. It also treats every Spanish term the glossary lists as vocabulary rather
-than prose, which is a **wider licence than the reserved list below grants**, and
-deliberately provisional —
-[#792](https://github.com/leomontigatti/en-escena/issues/792) owns the question
-of whether English prose should say `seña` at all or use the English identifier
-`CONTEXT.md` already gives it. Until that closes, treat a bare Spanish noun in an
-English sentence as tolerated, not as endorsed.
+The guardrail reads prose through three instruments, because none of them
+reaches what the others do. **Grammar**: Spanish function words, which only show
+up when the whole sentence is Spanish. **Morphology**: any word carrying an
+accent or `ñ`, whatever the sentence is doing — this is what catches
+`// ARCA respondió y no autorizó.`, a sentence with no function word in it at
+all. **Vocabulary**: every Spanish noun `CONTEXT.md` names. Measured over the
+tree, grammar and morphology overlap on 174 occurrences and are alone on 186 and
+749: drop any one and a clean run stops meaning what the gate says it means.
+
+[#792](https://github.com/leomontigatti/en-escena/issues/792) settled the licence
+the glossary grants, and settled it the strict way: **prose is governed exactly
+like an identifier.** A bare Spanish noun in an English comment is the same
+choice the identifier rule forbids, so the only Spanish that survives bare is the
+reserved list below. Naming the Spanish term is still fine — it just has to be
+marked as the data it is, which is what the identifier rule always asked for.
+`// the cupo of the cronograma` is a violation; ``// the `Cupo de cronograma`
+column`` is not.
 
 It covers `.ts`, `.tsx`, `.mts` and `.mjs` under `.sandcastle/`, `app/`,
 `scripts/` and `tests/`, plus the config files at the repo root — that is every
 directory in the repo holding a file of those extensions, which is the point:
 `vitest.config.ts` was hiding seven lines of Spanish behind exactly such a gap,
-and `.sandcastle/` was the next one waiting. Markdown and YAML are on the same rule
-but are not machine-checked, so they rest on review;
-[#793](https://github.com/leomontigatti/en-escena/issues/793) owns what is left
-there.
+and `.sandcastle/` was the next one waiting. A test derives the expected roots
+from `git ls-files`, so the next gap of that shape fails rather than hides.
+
+**Markdown is covered too** (#792): `.md` under `.claude/`, `.sandcastle/` and
+`docs/`, plus the repo root. Two directories are exempt, for one reason — a record
+of something external may not be rewritten. `docs/adr/` is the decision as it was
+taken. `docs/research/` cites Argentine tax law by the titles the regulations
+actually carry, and `RG 1415/2003 — Régimen de emisión de comprobantes` is the
+name of the thing: a translated citation leads a reader nowhere.
+
+YAML is on the same rule and is still not machine-checked, so it rests on review;
+three workflow files under `.github/workflows/` carry Spanish today, and
+[#793](https://github.com/leomontigatti/en-escena/issues/793) owns them.
 
 One file type is exempt from every direction of this rule: **an applied migration under
 `app/db/migrations/` is frozen, comments included.** Drizzle hashes the whole
@@ -171,7 +188,19 @@ have the concept, you need the name and the copy. Reach for it before inventing
 a name, and cite it in review when a new identifier disagrees with the glossary.
 
 Docs quote UI copy verbatim. Spanish inside a quoted string, a route path or a
-glossary `ui:` value is data, not prose, and stays Spanish.
+glossary `ui:` value is data, not prose, and stays Spanish. **Which mark makes it
+data depends on the language**, and there is exactly one per language: in code a
+double quote marks Spanish copy and a backtick marks a name, because a name has
+to nest inside a double-quoted test title; in markdown it is the backtick and
+only the backtick, because a double quote there is ordinary punctuation around
+ordinary prose. One exception, which would otherwise be circular: the glossary
+row's own `— ui: "…"` value is the term the checker parses out of `CONTEXT.md`,
+so it is data by definition.
+
+A name is not translated. `Factura C` and `Nota de crédito C` are what WSFEv1
+calls `CbteTipo` 11 and 13, `Proyecciones Artísticas Asociación Civil` is the
+issuer's legal name, and `Retirada` is a badge: a translated name names nothing.
+Backtick them and move on.
 
 ### Commits and pull requests are English
 
@@ -196,11 +225,21 @@ convention retroactive. Write the next one in English.
 Some domain nouns stay Spanish inside identifiers. The full list:
 
 - **`comprobante`** — a term of art defined by ARCA regulation (RG 1415, cited in
-  [ADR-0011](../docs/adr/superseded/0011-invoicing-concept-portion-and-surfaces.md)). Every
-  English candidate is worse: `voucher` collides with discount vouchers in an app
-  that has discounts, and `fiscalDocument` is verbose for a term this frequent.
-  The URL stays Spanish regardless, so keeping the Spanish noun carries zero
-  mapping instead of one.
+  [ADR-0011](../docs/adr/superseded/0011-invoicing-concept-portion-and-surfaces.md)).
+  It survives for three reasons. It is a **generic container**: it covers a
+  `Factura C` and a `Nota de crédito C` alike, and English has a crisp word for
+  each of those and none for the category. The URL is Spanish
+  (`app/routes/administracion.comprobantes.tsx`), so the Spanish noun carries
+  zero mapping instead of one. And `voucher` is already spoken for by the
+  anti-corruption layer below, where it means the WSFEv1 payload; taking it for
+  the domain too would collapse the seam that directory exists to keep visible.
+
+  One argument ADR-0011 gives for it does **not** hold, and is recorded here so
+  nobody re-derives it: "`voucher` collides with discount vouchers in an app that
+  has discounts". There are no discount vouchers. `coupon`, `giftCard` and
+  `promoCode` appear nowhere in the tree, and the app's discounts
+  (`dancerDiscount`, `administrativeDiscount`) are computed amounts, not
+  redeemable instruments. The reasons above are the ones doing the work.
 
 **Growing this list requires an ADR.** An empty reserved list has no escape valve
 and breaks quietly; an unbounded one rots back into a mixed codebase.

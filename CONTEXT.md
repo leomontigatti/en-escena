@@ -15,6 +15,11 @@ Reading rules:
   (`event` → `eventId`, `events`, `loadAdminEvent`, `EventStatusBadge`).
 - `comprobante` is the only reserved Spanish term inside code; adding another
   requires an ADR. See [ADR-0011](docs/adr/superseded/0011-invoicing-concept-portion-and-surfaces.md).
+- **Prose is governed like an identifier** (#792): the terms below are what the
+  user reads, not what a comment, a test name or a design doc says. Write the
+  English identifier in prose, and if the surface's own wording is the point,
+  mark the Spanish as data — a backtick in markdown, a double quote for copy and
+  a backtick for a name in code.
 - External-system adapters are the exception: `app/lib/comprobantes/arca` speaks
   WSFEv1 (`ArcaVoucher`, `createVoucher`), not the glossary.
 - Where an existing symbol disagrees with the identifier here, the glossary wins

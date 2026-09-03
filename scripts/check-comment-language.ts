@@ -831,7 +831,7 @@ async function runCommentLanguageGuardrail(): Promise<void> {
     ),
     "",
     "Engineering prose is English (CODING_STANDARDS, 'Code Language'): Spanish is for what a user reads. The file around it being Spanish is not a reason — that argument is the one #592 retired.",
-    "Spanish domain nouns the glossary reserves are fine inside an English sentence; quote UI copy, route paths and identifiers so they read as the data they are.",
+    "Prose is governed like an identifier (#792): `comprobante` is the only Spanish that survives bare. Naming the Spanish term is still fine — mark it as the data it is. In code, double-quote UI copy and backtick a name; in markdown, backtick both.",
   ];
 
   throw new Error(lines.join("\n"));

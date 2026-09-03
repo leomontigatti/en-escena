@@ -126,11 +126,15 @@ Hook guidance:
   Hooks can be skipped and may not run in every environment.
 - `pnpm check:comment-language` fails on Spanish prose in a comment or a test
   name anywhere under `.sandcastle/`, `app/`, `scripts/` or `tests/`, plus the
-  repo-root configs (#592). It matches Spanish
-  _grammar_, not Spanish _vocabulary_: the domain nouns `CONTEXT.md` reserves
-  are exactly what English prose here is supposed to use, and quoted copy, route
-  paths and backticked identifiers are data. See the Code Language section of
-  `.sandcastle/CODING_STANDARDS.md`.
+  repo-root configs (#592), and on Spanish in the `.md` under `.claude/`,
+  `.sandcastle/` and `docs/` — `docs/adr/` and `docs/research/` excepted,
+  because both are records of something external (#792). It reads three
+  instruments: Spanish function words, any word carrying an accent or `ñ`, and
+  every Spanish noun `CONTEXT.md` names. Prose is governed like an identifier,
+  so `comprobante` is the only Spanish that survives bare; naming the Spanish
+  term is still fine, marked as data. In code, quoted copy and backticked names
+  are data; in markdown, only backticked ones are. See the Code Language section
+  of `.sandcastle/CODING_STANDARDS.md`.
 - `pnpm check:fallow` is the Fallow audit on its `new-only` gate; see
   [fallow.md](fallow.md) for what it gates and what it costs.
 - `pnpm check:file-tokens` is a staged-source commit gate, not a required
