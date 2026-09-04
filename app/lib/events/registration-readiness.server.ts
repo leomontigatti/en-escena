@@ -266,22 +266,18 @@ export async function getEventRegistrationReadinessForBases(
           continue;
         }
 
-        for (const option of scheduleResolution.options) {
-          const priceResolution = resolvePriceFromBases(eventBases, {
-            groupType,
-            scheduleId: option.schedule.id,
-            referenceDate,
-          });
+        const priceResolution = resolvePriceFromBases(eventBases, {
+          groupType,
+        });
 
-          if (!priceResolution.ok) {
-            missingItems.push({
-              code: "price-coverage",
-              label: "Precios aplicables",
-              detail: priceResolution.lastDeadline
-                ? `El último precio para ${registrationPath} en el cronograma ${option.schedule.name} ${formatDeadlineExpiryVerb(priceResolution.lastDeadline, referenceDate)} el ${formatDeadline(priceResolution.lastDeadline)} y no hay un precio base.`
-                : `Falta un precio aplicable para ${registrationPath} en el cronograma ${option.schedule.name}.`,
-            });
-          }
+        if (!priceResolution.ok) {
+          missingItems.push({
+            code: "price-coverage",
+            label: "Precios aplicables",
+            detail: priceResolution.lastDeadline
+              ? `El último precio general para ${registrationPath} ${formatDeadlineExpiryVerb(priceResolution.lastDeadline, referenceDate)} el ${formatDeadline(priceResolution.lastDeadline)} y no hay uno sin fecha límite.`
+              : `Falta un precio general sin fecha límite para ${registrationPath}.`,
+          });
         }
       }
     }
@@ -412,73 +408,38 @@ function resolveScheduleOptionsFromBases(
   return { status: "multiple" as const, options };
 }
 
-// Readiness does not only ask whether a price applies today, but whether the
-// path can ever stop resolving: a row with no paymentDeadline is what keeps an
-// open event from expiring silently mid-registration. Either tier can carry
-// that row, because the runtime resolver falls through on the resolved row
-// being null rather than on the tier being empty.
+// Readiness does not ask whether a price applies today, but whether the path
+// can ever stop resolving: a row with no paymentDeadline is what keeps an open
+// event from expiring silently mid-registration, and because it is applicable
+// at every date it answers the today-question on its own.
+// Only the general tier counts. A schedule-specific row with no deadline stays
+// allowed — a schedule may want its own tail — but it does not cover the path:
+// `resolveApplicablePrice` never consults the schedule tier when the caller
+// hands it a null scheduleId, so such a path would still yield `missing-price`.
 function resolvePriceFromBases(
   eventBases: EventBases,
-  input: {
-    groupType: string;
-    scheduleId: string | null;
-    referenceDate: string;
-  },
+  input: { groupType: string },
 ) {
   if (!isGroupType(input.groupType)) {
     return { ok: false as const, lastDeadline: null };
   }
 
-  const scheduleCandidates = input.scheduleId
-    ? eventBases.prices.filter(
-        (price) =>
-          price.groupType === input.groupType &&
-          price.scheduleId === input.scheduleId,
-      )
-    : [];
   const generalCandidates = eventBases.prices.filter(
     (price) => price.groupType === input.groupType && price.scheduleId === null,
   );
-  const applicablePrice =
-    selectApplicablePrice(scheduleCandidates, input.referenceDate) ??
-    selectApplicablePrice(generalCandidates, input.referenceDate);
-  const hasBasePrice =
-    hasNeverExpiringPrice(scheduleCandidates) ||
-    hasNeverExpiringPrice(generalCandidates);
 
-  if (applicablePrice && hasBasePrice) {
-    return { ok: true as const, price: applicablePrice };
+  if (hasNeverExpiringPrice(generalCandidates)) {
+    return { ok: true as const };
   }
 
   return {
     ok: false as const,
-    lastDeadline: findLatestDeadline([
-      ...scheduleCandidates,
-      ...generalCandidates,
-    ]),
+    lastDeadline: findLatestDeadline(generalCandidates),
   };
 }
 
-// Same rule as the runtime resolver (`selectApplicablePriceFromCandidates`):
-// a row whose paymentDeadline already passed cannot be charged, and there is
-// no fallback to an expired row.
-function selectApplicablePrice(
-  candidates: EventBases["prices"],
-  referenceDate: string,
-) {
-  return (
-    candidates
-      .filter(
-        (price) =>
-          price.paymentDeadline === null ||
-          price.paymentDeadline >= referenceDate,
-      )
-      .sort(compareApplicablePrices)[0] ?? null
-  );
-}
-
-// A base price (no paymentDeadline) is the tail of its tier: while one exists,
-// the tier resolves at any date. Readiness only needs to know that the tail is
+// A row with no paymentDeadline is the tail of its tier: while one exists, the
+// tier resolves at any date. Readiness only needs to know that the tail is
 // there, never which row it is.
 function hasNeverExpiringPrice(candidates: EventBases["prices"]) {
   return candidates.some((price) => price.paymentDeadline === null);
@@ -492,31 +453,6 @@ function findLatestDeadline(candidates: EventBases["prices"]) {
       .sort()
       .at(-1) ?? null
   );
-}
-
-function compareApplicablePrices(
-  first: EventBases["prices"][number],
-  second: EventBases["prices"][number],
-) {
-  if (first.paymentDeadline === null && second.paymentDeadline !== null) {
-    return 1;
-  }
-
-  if (first.paymentDeadline !== null && second.paymentDeadline === null) {
-    return -1;
-  }
-
-  if (first.paymentDeadline && second.paymentDeadline) {
-    const deadlineComparison = first.paymentDeadline.localeCompare(
-      second.paymentDeadline,
-    );
-
-    if (deadlineComparison !== 0) {
-      return deadlineComparison;
-    }
-  }
-
-  return first.amount - second.amount;
 }
 
 function describeRegistrationPath(input: RegistrationPathDescriptor) {

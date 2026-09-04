@@ -164,7 +164,7 @@ describe("event registration readiness from loaded bases", () => {
         expect.objectContaining({
           code: "price-coverage",
           detail:
-            "El último precio para Categoría Infantil, Modalidad Jazz, Tipo de grupo Solo en el cronograma Sábado mañana venció el 31 de mayo de 2026 y no hay un precio base.",
+            "El último precio general para Categoría Infantil, Modalidad Jazz, Tipo de grupo Solo venció el 31 de mayo de 2026 y no hay uno sin fecha límite.",
         }),
       ],
     });
@@ -187,7 +187,7 @@ describe("event registration readiness from loaded bases", () => {
         groupType: "solo",
         amount: 14000,
         paymentDeadline: "2026-04-30",
-        scheduleId: "schedule_sabado",
+        scheduleId: null,
         schedule: null,
       },
     ]);
@@ -248,7 +248,9 @@ describe("event registration readiness from loaded bases", () => {
       missingItems: expect.arrayContaining([
         expect.objectContaining({
           code: "price-coverage",
-          detail: expect.stringContaining("Falta un precio aplicable"),
+          detail: expect.stringContaining(
+            "Falta un precio general sin fecha límite",
+          ),
         }),
       ]),
     });
@@ -277,13 +279,13 @@ describe("event registration readiness from loaded bases", () => {
         expect.objectContaining({
           code: "price-coverage",
           detail:
-            "El último precio para Categoría Infantil, Modalidad Jazz, Tipo de grupo Solo en el cronograma Sábado mañana vence el 31 de mayo de 2026 y no hay un precio base.",
+            "El último precio general para Categoría Infantil, Modalidad Jazz, Tipo de grupo Solo vence el 31 de mayo de 2026 y no hay uno sin fecha límite.",
         }),
       ],
     });
   });
 
-  test("accepts a schedule-specific base price as the tail of its schedule", async () => {
+  test("does not accept a schedule-specific base price as coverage on its own", async () => {
     const eventBases = buildSoloEventBases([
       {
         id: "price_solo_general",
@@ -305,11 +307,24 @@ describe("event registration readiness from loaded bases", () => {
       },
     ]);
 
+    // A caller that hands `resolveApplicablePrice` no scheduleId never reaches
+    // the schedule tier, so the deadline-less row on `schedule_sabado` leaves
+    // the path uncovered from 2026-04-01 on.
     await expect(
       getEventRegistrationReadinessForBases("event_2026", eventBases, {
         referenceDate: "2026-06-01",
       }),
-    ).resolves.toMatchObject({ isReady: true, missingItems: [] });
+    ).resolves.toMatchObject({
+      isReady: false,
+      missingItems: [
+        expect.objectContaining({
+          code: "price-coverage",
+          detail: expect.stringContaining(
+            "venció el 31 de marzo de 2026 y no hay uno sin fecha límite",
+          ),
+        }),
+      ],
+    });
   });
 
   test("does not fall back to an expired general price when the specific one expired too", async () => {
@@ -344,14 +359,14 @@ describe("event registration readiness from loaded bases", () => {
         expect.objectContaining({
           code: "price-coverage",
           detail: expect.stringContaining(
-            "venció el 5 de diciembre de 2026 y no hay un precio base",
+            "venció el 5 de diciembre de 2026 y no hay uno sin fecha límite",
           ),
         }),
       ],
     });
   });
 
-  test("names the last date the path resolves, across both price tiers", async () => {
+  test("names the last general deadline, ignoring a later schedule-specific one", async () => {
     const eventBases = buildSoloEventBases([
       {
         id: "price_solo_general",
@@ -383,7 +398,7 @@ describe("event registration readiness from loaded bases", () => {
         expect.objectContaining({
           code: "price-coverage",
           detail: expect.stringContaining(
-            "vence el 5 de diciembre de 2026 y no hay un precio base",
+            "venció el 31 de enero de 2026 y no hay uno sin fecha límite",
           ),
         }),
       ],

@@ -392,7 +392,7 @@ describe("event registration readiness", () => {
         expect.objectContaining({
           code: "price-coverage",
           detail:
-            "El último precio para Categoría Juvenil, Modalidad Jazz, Tipo de grupo Solo en el cronograma Domingo Mañana venció el 31 de enero de 2020 y no hay un precio base.",
+            "El último precio general para Categoría Juvenil, Modalidad Jazz, Tipo de grupo Solo venció el 31 de enero de 2020 y no hay uno sin fecha límite.",
         }),
       ],
     });
@@ -494,7 +494,7 @@ describe("event registration readiness", () => {
     }
   });
 
-  test("accepts a schedule-specific base price instead of a general one", async () => {
+  test("rejects a schedule-specific base price without a general one", async () => {
     const event = await createSavedEvent("Precio base por cronograma 2026");
     const jazz = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
@@ -539,11 +539,30 @@ describe("event registration readiness", () => {
       }),
     );
 
-    await expect(getEventRegistrationReadiness(event.id)).resolves.toEqual({
-      eventId: event.id,
-      isReady: true,
-      missingItems: [],
+    await expect(
+      getEventRegistrationReadiness(event.id),
+    ).resolves.toMatchObject({
+      isReady: false,
+      missingItems: [
+        expect.objectContaining({
+          code: "price-coverage",
+          detail: expect.stringContaining(
+            "venció el 31 de mayo de 2026 y no hay uno sin fecha límite",
+          ),
+        }),
+      ],
     });
+
+    // Why the schedule tier cannot stand alone: a caller with no schedule of
+    // its own goes straight to the general tier, whose last row expired.
+    await expect(
+      resolveApplicablePrice({
+        eventId: event.id,
+        groupType: "solo",
+        paymentDate: "2026-06-01",
+        scheduleId: null,
+      }),
+    ).resolves.toMatchObject({ ok: false, code: "missing-price" });
   });
 
   test("loads readiness for multiple events while recalculating dirty entries", async () => {
