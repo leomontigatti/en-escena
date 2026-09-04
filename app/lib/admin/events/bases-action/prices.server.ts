@@ -47,6 +47,7 @@ type PriceActionInput = EventBasesActionBaseInput & {
   name: string;
   groupType: string;
   amount: number;
+  isOpenEnded: boolean;
   paymentDeadline: string;
   priceScheduleId: string | null;
 };
@@ -85,12 +86,19 @@ function getPriceRequiredFieldErrors(
     return null;
   }
 
-  const fieldErrors = getRequiredErrors({
+  // An open-ended price carries no deadline on purpose, so the field only joins
+  // the required set while the switch is off.
+  const requiredFields: Record<string, FormDataEntryValue | null> = {
     name: formData.get("name"),
     groupType: formData.get("groupType"),
     amount: formData.get("amount"),
-    paymentDeadline: formData.get("paymentDeadline"),
-  });
+  };
+
+  if (!input.isOpenEnded) {
+    requiredFields.paymentDeadline = formData.get("paymentDeadline");
+  }
+
+  const fieldErrors = getRequiredErrors(requiredFields);
 
   if (
     String(formData.get("isSpecialPrice") ?? "") === "true" &&
@@ -182,6 +190,7 @@ function readPriceActionInput(
     name: String(formData.get("name") ?? ""),
     groupType: String(formData.get("groupType") ?? ""),
     amount: Number.parseInt(String(formData.get("amount") ?? ""), 10),
+    isOpenEnded: String(formData.get("isOpenEnded") ?? "") === "true",
     paymentDeadline: String(formData.get("paymentDeadline") ?? ""),
     priceScheduleId: String(formData.get("scheduleId") ?? "") || null,
   };
@@ -191,6 +200,7 @@ function readPriceActionValues(formData: FormData): PriceActionValues {
   return {
     name: String(formData.get("name") ?? ""),
     isSpecialPrice: String(formData.get("isSpecialPrice") ?? ""),
+    isOpenEnded: String(formData.get("isOpenEnded") ?? ""),
     groupType: String(formData.get("groupType") ?? ""),
     amount: String(formData.get("amount") ?? ""),
     paymentDeadline: String(formData.get("paymentDeadline") ?? ""),
@@ -203,7 +213,7 @@ function getPriceInput(input: PriceActionInput): PriceInput {
     name: input.name,
     groupType: input.groupType,
     amount: input.amount,
-    paymentDeadline: input.paymentDeadline,
+    paymentDeadline: input.isOpenEnded ? null : input.paymentDeadline,
     scheduleId: input.priceScheduleId,
   };
 }

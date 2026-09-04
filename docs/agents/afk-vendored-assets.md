@@ -97,6 +97,26 @@ are only concrete references to this repo:
   `--json title` only, so `<linked-issue>` expanded to a single line while the prompt asked the
   agent to verify coverage, scope, and interpretation against "the spec". It now fetches
   `--json title,body` and embeds the body.
+- **A PR that links no issue is refused in preflight, not mid-run (§4.4/§4.5).** The spec gives
+  Review "Preconditions & refusals: none — labeling implies intent", and both Review and
+  Implement PR read the linked issue out of the PR body via the same prefetch. That parse used
+  to **throw**, so a PR with no `Closes #N` burned the label transition, the checkout and the
+  installs before failing and leaving `agent:blocked` for a human to clear (#790). Locally the
+  linked issue is **optional** in `context.mts` (the fields are nullable and the sub-issue
+  lookup is skipped), and the two callers diverge as their contracts do: `agent-implement-pr`
+  acts on the conversation and only shows the issue "for context only", so it degrades to
+  `(none — this PR links no issue)` and runs; `agent-review`'s Spec axis checks the diff against
+  the issue **body**, so `agent-review.yml` grows the preflight the spec says it has none of —
+  refusing a closed PR and one linking no issue by removing the label and commenting, never
+  adding `agent:blocked` (nothing failed, the run was declined), in the vocabulary
+  `agent-implement-pr.yml` already uses. Teaching Review a Standards-only, spec-less mode stays
+  out of scope. Every step of a preflighted workflow is gated on its `proceed` output, which
+  `tests/afk/workflow-preflight-gating.test.ts` asserts across every workflow that has one — by
+  evaluating each condition on a refused run rather than matching how it is spelled, because the
+  two spellings differ where it matters. Review's failure report is gated on `!= 'false'`, not
+  `== 'true'`: a preflight that _itself_ fails leaves `proceed` unset, and `== 'true'` would
+  report neither the refusal nor the failure. The other four preflighted workflows still carry
+  the `== 'true'` spelling, so a failing preflight is silent there.
 - **The token-less runner is enforced, not just asserted (§3.9).** The spec's hard invariant is
   that the agent never mutates the tracker or the remote, and `agent-implement` /
   `agent-implement-prd` honour it by simply omitting `GH_TOKEN` from the runner step. The three

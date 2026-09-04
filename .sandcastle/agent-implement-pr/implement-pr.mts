@@ -35,6 +35,15 @@ const EXTRACTION_PROMPT = [
   "OUTPUT section of the prompt described (threadReplies, newInlineComments, topLevelComments).",
 ].join("\n");
 
+/** How the prompt names the linked issue — or its absence (#790). */
+function describeLinkedIssue(
+  issueNumber: string | null,
+  issueTitle: string | null,
+): string {
+  if (issueNumber === null) return "(none — this PR links no issue)";
+  return `#${issueNumber}: ${issueTitle ?? ""}`.trimEnd();
+}
+
 await runMain(async ({ signal }) => {
   const prNumber = requireEnv("PR_NUMBER");
   const branch = requireEnv("BRANCH");
@@ -43,6 +52,12 @@ await runMain(async ({ signal }) => {
   // Same read-only context bundle as Review (linked issue, diff, PR_COMMENTS_JSON).
   // The prompt only gets the `--stat` summary; the full patch stays here, to
   // validate the inline anchors the agent produces.
+  //
+  // The linked issue is optional here (#790): this runner shows it "for context
+  // only" and never receives its body — it acts on the conversation, not on a
+  // spec — so a PR that links no issue degrades to a placeholder rather than
+  // burning the run. Review, whose Spec axis genuinely needs the body, refuses
+  // in its workflow preflight instead.
   const context = buildReviewContext(repo, prNumber);
   const anchors = parseDiffAnchors(context.diff);
 
@@ -62,8 +77,7 @@ await runMain(async ({ signal }) => {
     promptArgs: {
       PR_NUMBER: prNumber,
       BRANCH: branch,
-      ISSUE_NUMBER: context.issueNumber,
-      ISSUE_TITLE: context.issueTitle,
+      LINKED_ISSUE: describeLinkedIssue(context.issueNumber, context.issueTitle),
       DIFF_STAT: context.diffStat,
       PR_COMMENTS_JSON: context.prCommentsJson,
     },

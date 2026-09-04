@@ -261,16 +261,15 @@ function parsePriceInput(input: PriceInput):
     } {
   const fieldErrors: Record<string, string> = {};
   const name = normalizeNullableName(input.name ?? "");
-  const paymentDeadline = input.paymentDeadline.trim();
+  const paymentDeadline = readPricePaymentDeadline(
+    input.paymentDeadline,
+    fieldErrors,
+  );
   const scheduleId = input.scheduleId?.trim() || null;
   const groupType = readPriceGroupType(input.groupType, fieldErrors);
 
   if (!Number.isInteger(input.amount) || input.amount <= 0) {
     fieldErrors.amount = "Ingresá un monto mayor a cero.";
-  }
-
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(paymentDeadline)) {
-    fieldErrors.paymentDeadline = "Este campo es obligatorio.";
   }
 
   if (Object.keys(fieldErrors).length > 0 || !groupType) {
@@ -287,6 +286,23 @@ function parsePriceInput(input: PriceInput):
       scheduleId,
     },
   };
+}
+
+// An absent deadline makes the row open-ended, it is not a missing field: the
+// form gates that with its own switch, and the repository only rejects a
+// malformed date.
+function readPricePaymentDeadline(
+  paymentDeadline: string | null,
+  fieldErrors: Record<string, string>,
+) {
+  const trimmed = paymentDeadline?.trim() || null;
+
+  if (trimmed !== null && !/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    fieldErrors.paymentDeadline = "Elegí una fecha válida.";
+    return null;
+  }
+
+  return trimmed;
 }
 
 function readPriceGroupType(
@@ -360,6 +376,9 @@ async function findDuplicatePrice(
   const scheduleFilter = input.scheduleId
     ? eq(prices.scheduleId, input.scheduleId)
     : isNull(prices.scheduleId);
+  const deadlineFilter = input.paymentDeadline
+    ? eq(prices.paymentDeadline, input.paymentDeadline)
+    : isNull(prices.paymentDeadline);
 
   return db
     .select({ id: prices.id })
@@ -368,7 +387,7 @@ async function findDuplicatePrice(
       and(
         eq(prices.eventId, eventId),
         eq(prices.groupType, input.groupType),
-        eq(prices.paymentDeadline, input.paymentDeadline),
+        deadlineFilter,
         scheduleFilter,
         idFilter,
       ),

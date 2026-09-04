@@ -210,15 +210,17 @@ export type PriceInput = {
   name?: string;
   groupType: string;
   amount: number;
-  paymentDeadline: string;
+  paymentDeadline: string | null;
   scheduleId: string | null;
 };
 
+// A null `paymentDeadline` makes the row open-ended: it applies once every dated
+// row of its tier has expired.
 export type ValidPriceInput = {
   name: string;
   groupType: GroupType;
   amount: number;
-  paymentDeadline: string;
+  paymentDeadline: string | null;
   scheduleId: string | null;
 };
 

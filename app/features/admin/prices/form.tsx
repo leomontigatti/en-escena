@@ -29,6 +29,7 @@ import { SelectField } from "@/components/shared/select-field";
 
 import { EventBasesFormActions } from "../events/bases-form-actions";
 import {
+  openEndedDeadlineLabel,
   EMPTY_SCHEDULE_VALUE,
   priceFormSchema,
   type PriceFormValues,
@@ -43,7 +44,7 @@ type PriceFormProps = {
   id?: string;
   intent: string;
   name?: string | null;
-  paymentDeadline?: string;
+  paymentDeadline?: string | null;
   scheduleId?: string | null;
   schedules: ScheduleListItem[];
   submittedValues?: PriceActionValues;
@@ -72,6 +73,7 @@ function getPriceFormDefaultValues({
       isSpecialPrice:
         submittedValues.isSpecialPrice === "true" ||
         submittedValues.scheduleId.length > 0,
+      isOpenEnded: submittedValues.isOpenEnded === "true",
       groupType: submittedValues.groupType,
       amount: submittedValues.amount,
       paymentDeadline: submittedValues.paymentDeadline,
@@ -82,6 +84,7 @@ function getPriceFormDefaultValues({
   return {
     name: name ?? "",
     isSpecialPrice: Boolean(scheduleId),
+    isOpenEnded: paymentDeadline === null,
     groupType: groupType ?? "",
     amount: amount ? String(amount) : "",
     paymentDeadline: paymentDeadline ?? "",
@@ -126,6 +129,7 @@ export function PriceForm({
   }, [defaultValues, form]);
 
   const isSpecialPrice = form.watch("isSpecialPrice");
+  const isOpenEnded = form.watch("isOpenEnded");
 
   return (
     <form
@@ -155,8 +159,10 @@ export function PriceForm({
         <DateOnlyField
           control={form.control}
           name="paymentDeadline"
+          disabled={isOpenEnded}
           id={`price-payment-deadline-${id ?? intent}`}
           label="Fecha límite de pago"
+          labelAdornment={<OpenEndedSwitch form={form} />}
         />
         <FieldGroup className="grid gap-4 sm:grid-cols-2">
           <SelectField
@@ -230,13 +236,29 @@ function NameField({ form }: { form: PriceFormController }) {
   );
 }
 
-function SpecialPriceSwitch({ form }: { form: PriceFormController }) {
+// One switch shape for both price toggles: hidden input so the boolean reaches
+// the action, tooltip on the control, and a side effect on the field the toggle
+// governs. `onToggle` receives the new state, because the two switches clear
+// their partner field on opposite edges.
+type PriceFormSwitchProps = {
+  form: PriceFormController;
+  label: string;
+  name: "isOpenEnded" | "isSpecialPrice";
+  onToggle: (checked: boolean) => void;
+};
+
+function PriceFormSwitch({
+  form,
+  label,
+  name,
+  onToggle,
+}: PriceFormSwitchProps) {
   const id = useId();
 
   return (
     <Controller
       control={form.control}
-      name="isSpecialPrice"
+      name={name}
       render={({ field }) => (
         <>
           <input
@@ -249,7 +271,7 @@ function SpecialPriceSwitch({ form }: { form: PriceFormController }) {
               <TooltipTrigger asChild>
                 <Switch
                   id={id}
-                  aria-label="Precio especial"
+                  aria-label={label}
                   className={cn(
                     "border-border shadow-xs",
                     field.value ? "!bg-primary" : "!bg-muted",
@@ -258,21 +280,55 @@ function SpecialPriceSwitch({ form }: { form: PriceFormController }) {
                   onBlur={field.onBlur}
                   onCheckedChange={(checked) => {
                     field.onChange(checked);
-
-                    if (!checked) {
-                      form.setValue("scheduleId", EMPTY_SCHEDULE_VALUE, {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      });
-                    }
+                    onToggle(checked);
                   }}
                 />
               </TooltipTrigger>
-              <TooltipContent>Precio especial</TooltipContent>
+              <TooltipContent>{label}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </>
       )}
+    />
+  );
+}
+
+// Turns the row open-ended: no deadline, so it applies once every dated row has
+// expired. It sits in the label row rather than inside the control, because
+// `DateOnlyField`'s right edge already carries the calendar icon and, once
+// disabled, the lock icon.
+function OpenEndedSwitch({ form }: { form: PriceFormController }) {
+  return (
+    <PriceFormSwitch
+      form={form}
+      label={openEndedDeadlineLabel}
+      name="isOpenEnded"
+      onToggle={(checked) => {
+        if (checked) {
+          form.setValue("paymentDeadline", "", {
+            shouldDirty: true,
+            shouldValidate: true,
+          });
+        }
+      }}
+    />
+  );
+}
+
+function SpecialPriceSwitch({ form }: { form: PriceFormController }) {
+  return (
+    <PriceFormSwitch
+      form={form}
+      label="Precio especial"
+      name="isSpecialPrice"
+      onToggle={(checked) => {
+        if (!checked) {
+          form.setValue("scheduleId", EMPTY_SCHEDULE_VALUE, {
+            shouldDirty: true,
+            shouldValidate: true,
+          });
+        }
+      }}
     />
   );
 }

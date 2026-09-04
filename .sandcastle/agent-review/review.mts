@@ -21,7 +21,7 @@ import {
   writeOutput,
 } from "../lib/runner.mjs";
 import { runWithExtraction } from "../lib/run-with-extraction.mjs";
-import { buildReviewContext } from "./context.mjs";
+import { buildReviewContext, type ReviewContext } from "./context.mjs";
 import { isAnchorInDiff, parseDiffAnchors } from "./diff-anchors.mjs";
 import { reviewSchema, type ReviewOutput } from "./output.mjs";
 
@@ -33,12 +33,35 @@ const EXTRACTION_PROMPT = [
   "OUTPUT section of the review prompt described (summary, inlineComments, replies).",
 ].join("\n");
 
+/**
+ * The Spec axis checks the diff against the issue *body*, so a PR that links no
+ * issue has nothing for half the review to run against. `agent-review.yml`
+ * refuses that in its preflight, before the label transition and the installs
+ * (#790); this is the belt-and-braces for a run started any other way.
+ *
+ * `issueBody` is null exactly when `issueNumber` is, so the second test is
+ * redundant at runtime — it is there to narrow the prompt argument to a string.
+ */
+function requireLinkedIssue(context: ReviewContext): {
+  number: string;
+  body: string;
+} {
+  if (context.issueNumber === null || context.issueBody === null) {
+    throw new Error(
+      "The PR body links no issue (closes/fixes/resolves #N), so the Spec axis has nothing to check against.",
+    );
+  }
+  return { number: context.issueNumber, body: context.issueBody };
+}
+
 await runMain(async ({ signal }) => {
   const prNumber = requireEnv("PR_NUMBER");
   const branch = requireEnv("BRANCH");
   const repo = requireEnv("GH_REPO");
 
   const context = buildReviewContext(repo, prNumber);
+  const linkedIssue = requireLinkedIssue(context);
+
   const anchors = parseDiffAnchors(context.diff);
 
   // Prefetch done: drop the token before the agent starts. `noSandbox()` spreads
@@ -59,9 +82,9 @@ await runMain(async ({ signal }) => {
     promptArgs: {
       PR_NUMBER: prNumber,
       BRANCH: branch,
-      ISSUE_NUMBER: context.issueNumber,
+      ISSUE_NUMBER: linkedIssue.number,
       ISSUE_TITLE: context.issueTitle,
-      ISSUE_BODY: context.issueBody,
+      ISSUE_BODY: linkedIssue.body,
       SUB_ISSUES: context.subIssues || "(none — this issue has no sub-issues)",
       DIFF_STAT: context.diffStat,
       PR_COMMENTS_JSON: context.prCommentsJson,

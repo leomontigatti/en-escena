@@ -27,6 +27,7 @@ type SharedFieldLayoutProps = {
   errorClassName?: string;
   id: string;
   label: ReactNode;
+  labelAdornment?: ReactNode;
   labelClassName?: string;
   orientation?: SharedFieldOrientation;
 };
@@ -42,6 +43,7 @@ function SharedFieldLayout({
   errorClassName,
   id,
   label,
+  labelAdornment,
   labelClassName,
   orientation,
 }: SharedFieldLayoutProps) {
@@ -64,9 +66,11 @@ function SharedFieldLayout({
       data-invalid={dataFlag(isInvalid)}
       orientation={orientation}
     >
-      <FieldLabel htmlFor={id} className={labelClassName}>
-        {label}
-      </FieldLabel>
+      <FieldLabelRow adornment={labelAdornment}>
+        <FieldLabel htmlFor={id} className={labelClassName}>
+          {label}
+        </FieldLabel>
+      </FieldLabelRow>
       <FieldContent className={contentClassName}>
         <FieldDescriptionSlot
           descriptionNode={descriptionNode}
@@ -123,6 +127,27 @@ function FieldDescriptionSlot({
   }
 
   return descriptionNode;
+}
+
+// Without an adornment the label stands alone, exactly as it did before the
+// slot existed; with one they share a row, the adornment pushed to the end.
+function FieldLabelRow({
+  adornment,
+  children,
+}: {
+  adornment?: ReactNode;
+  children: ReactNode;
+}) {
+  if (!adornment) {
+    return children;
+  }
+
+  return (
+    <div className="flex items-center justify-between gap-2">
+      {children}
+      {adornment}
+    </div>
+  );
 }
 
 export { SharedFieldLayout, type SharedFieldOrientation };

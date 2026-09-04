@@ -44,6 +44,7 @@ export type ModalityActionValues = NameActionValues & {
 export type PriceActionValues = {
   name: string;
   isSpecialPrice: string;
+  isOpenEnded: string;
   groupType: string;
   amount: string;
   paymentDeadline: string;

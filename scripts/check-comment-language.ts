@@ -56,6 +56,24 @@ const docFilePattern = /\.md$/;
 // leads a reader nowhere (#792 Q7/Q8).
 export const excludedDocDirectories = ["docs/adr", "docs/research"];
 
+// YAML is on the same rule and used to rest on review, which is how six Spanish
+// comments outlived #592 across four workflow files (#793). A `#` comment is
+// trivially extractable and the word lists already exist, so gating it is a
+// small change — and the alternative is sweeping the six and watching the
+// seventh drift back, which is exactly what happened to comments before #791.
+//
+// `.github` plus the root-level files `collectScannedYaml` adds. The first draft
+// of this claimed `.github` was the whole surface; the scan-root test below
+// answered with `docker-compose.yml`, `pnpm-workspace.yaml` and `pnpm-lock.yaml`
+// — which is the same gap `vitest.config.ts` was hiding in before #791, found
+// the same way.
+export const scannedYamlDirectories = [".github"];
+const yamlFilePattern = /\.(yml|yaml)$/;
+
+// Generated, not written: a lockfile is 330 KB of resolution output that no
+// contributor reads as prose, and nobody may rewrite by hand anyway.
+export const excludedYamlFiles = ["pnpm-lock.yaml"];
+
 // Spanish function words with no English homograph. Deliberately absent:
 // `todo`/`todos` (the TODO comment marker), `sea`, `era`, `son`, `sin`, `solo`,
 // `algo` (short for algorithm) and `con` (pro/con) — each collides with ordinary
@@ -264,6 +282,8 @@ type CheckCommentLanguageOptions = {
   /** Markdown files to scan. Defaults to every scanned doc directory. */
   docs?: string[];
   rootDirectory?: string;
+  /** YAML files to scan. Defaults to every scanned YAML directory. */
+  yaml?: string[];
 };
 
 type SourceSpan = {
@@ -822,6 +842,82 @@ function blankMarkdownDataSpans(contents: string): string {
     .replace(reservedTermPattern, blankTo);
 }
 
+/**
+ * A `#` opens a YAML comment when it starts the line or follows whitespace and
+ * is not inside a quoted scalar. That is the YAML rule, and the two guards are
+ * what keep `#` inside a value out of it — a colour, a URL fragment, or the
+ * `#305/#391` an issue reference carries.
+ *
+ * It reads a `#` inside a `run: |` block as a comment too. That is deliberate:
+ * a shell comment in a workflow step is read by the same contributor as the
+ * YAML comment above it, so the rule has no reason to stop at the block scalar.
+ */
+function yamlCommentAt(line: string): string | null {
+  let quote: string | null = null;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index];
+
+    if (quote !== null) {
+      if (character === quote) {
+        quote = null;
+      }
+      continue;
+    }
+
+    if (character === '"' || character === "'") {
+      quote = character;
+      continue;
+    }
+
+    if (character === "#" && (index === 0 || /\s/.test(line[index - 1]))) {
+      return line.slice(index);
+    }
+  }
+
+  return null;
+}
+
+/**
+ * YAML is prose only in its comments, so unlike markdown there is no question of
+ * what counts as a passage: the comment is the unit, and the line is where it is
+ * reported. Data is marked the way it is in a source comment — this is code, and
+ * `# versión desde \`packageManager\`` is the shape the tree actually carries.
+ */
+export function findSpanishProseInYaml(input: {
+  contents: string;
+  filePath: string;
+  /** Empty turns the vocabulary instrument off; say so rather than omit it. */
+  glossaryNouns: string[];
+}): CommentLanguageViolation[] {
+  return input.contents.split("\n").flatMap((line, index) => {
+    const comment = yamlCommentAt(line);
+
+    if (comment === null) {
+      return [];
+    }
+
+    const matches = spanishMarkersIn(
+      blankDataSpans(comment),
+      input.glossaryNouns,
+    );
+
+    if (matches.length === 0) {
+      return [];
+    }
+
+    return [
+      {
+        filePath: input.filePath,
+        kind: "comment" as const,
+        lineNumber: index + 1,
+        markers: [...new Set(matches.map((match) => match[0].toLowerCase()))],
+        text: comment.trim().slice(0, 120),
+      },
+    ];
+  });
+}
+
 export function findSpanishProseInSource(input: {
   contents: string;
   filePath: string;
@@ -874,6 +970,7 @@ export async function checkCommentLanguage(
   const glossaryNouns = readGlossaryNouns(rootDirectory);
   const files = options.files ?? collectScannedFiles(rootDirectory);
   const docs = options.docs ?? collectScannedDocs(rootDirectory);
+  const yaml = options.yaml ?? collectScannedYaml(rootDirectory);
 
   return [
     ...files.flatMap((filePath) => {
@@ -889,6 +986,15 @@ export async function checkCommentLanguage(
       const absolutePath = path.resolve(rootDirectory, filePath);
 
       return findSpanishProseInMarkdown({
+        contents: readFileSync(absolutePath, "utf8"),
+        filePath: path.relative(rootDirectory, absolutePath),
+        glossaryNouns,
+      });
+    }),
+    ...yaml.flatMap((filePath) => {
+      const absolutePath = path.resolve(rootDirectory, filePath);
+
+      return findSpanishProseInYaml({
         contents: readFileSync(absolutePath, "utf8"),
         filePath: path.relative(rootDirectory, absolutePath),
         glossaryNouns,
@@ -931,6 +1037,25 @@ function collectScannedDocs(rootDirectory: string): string[] {
  * is not hypothetical: `vitest.config.ts` was carrying seven lines of Spanish
  * that this guardrail flags the moment it is allowed to look at them.
  */
+function collectScannedYaml(rootDirectory: string): string[] {
+  const keeps = (fileName: string) =>
+    yamlFilePattern.test(fileName) && !excludedYamlFiles.includes(fileName);
+
+  const rootYaml = readdirSync(rootDirectory, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && keeps(entry.name))
+    .map((entry) => path.join(rootDirectory, entry.name));
+
+  return [
+    ...rootYaml,
+    ...scannedYamlDirectories.flatMap((directory) =>
+      collectSourceFiles({
+        directoryPath: path.join(rootDirectory, directory),
+        keeps,
+      }),
+    ),
+  ];
+}
+
 function collectScannedFiles(rootDirectory: string): string[] {
   const rootFiles = readdirSync(rootDirectory, { withFileTypes: true })
     .filter((entry) => entry.isFile() && sourceFilePattern.test(entry.name))
