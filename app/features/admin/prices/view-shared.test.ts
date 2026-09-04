@@ -3,7 +3,7 @@ import { describe, expect, test } from "vitest";
 import type { PriceListItem } from "@/lib/events/bases.server";
 
 import {
-  basePriceDeadlineLabel,
+  openEndedDeadlineLabel,
   EMPTY_SCHEDULE_VALUE,
   formatPaymentDeadlineForTable,
   getPriceDisplayName,
@@ -17,7 +17,7 @@ function buildPriceFormValues(
   return {
     name: "Precio solo",
     isSpecialPrice: false,
-    isBasePrice: false,
+    isOpenEnded: false,
     groupType: "solo",
     amount: "12000",
     paymentDeadline: "2026-05-31",
@@ -27,16 +27,16 @@ function buildPriceFormValues(
 }
 
 describe("priceFormSchema", () => {
-  test("accepts a base price with no payment deadline", () => {
+  test("accepts an open-ended price with no payment deadline", () => {
     const result = priceFormSchema.safeParse(
-      buildPriceFormValues({ isBasePrice: true, paymentDeadline: "" }),
+      buildPriceFormValues({ isOpenEnded: true, paymentDeadline: "" }),
     );
 
     expect(result.success).toBe(true);
     expect(result.data?.paymentDeadline).toBe("");
   });
 
-  test("still requires a payment deadline while the base price switch is off", () => {
+  test("still requires a payment deadline while the open-ended switch is off", () => {
     const result = priceFormSchema.safeParse(
       buildPriceFormValues({ paymentDeadline: "   " }),
     );
@@ -48,10 +48,10 @@ describe("priceFormSchema", () => {
     ).toBe("Este campo es obligatorio.");
   });
 
-  test("keeps requiring a schedule on a special base price", () => {
+  test("keeps requiring a schedule on a special open-ended price", () => {
     const result = priceFormSchema.safeParse(
       buildPriceFormValues({
-        isBasePrice: true,
+        isOpenEnded: true,
         isSpecialPrice: true,
         paymentDeadline: "",
       }),
@@ -65,8 +65,8 @@ describe("priceFormSchema", () => {
 });
 
 describe("formatPaymentDeadlineForTable", () => {
-  test("reads a deadline-less price as a base price", () => {
-    expect(formatPaymentDeadlineForTable(null)).toBe(basePriceDeadlineLabel);
+  test("reads a deadline-less price as open-ended", () => {
+    expect(formatPaymentDeadlineForTable(null)).toBe(openEndedDeadlineLabel);
     expect(formatPaymentDeadlineForTable("2026-05-31")).toBe(
       "31 de mayo de 2026",
     );
@@ -97,7 +97,7 @@ describe("getPriceDisplayName", () => {
     ).toBe("Solo - Precio base - sin fecha límite");
   });
 
-  // Without the tail, a base price and a dated one whose deadline the derived
+  // Without the tail, an open-ended price and a dated one whose deadline the derived
   // name dropped would read identically wherever `getPriceDisplayName` lands —
   // the detail header, the list `aria-label` and the delete confirmation.
   test("keeps naming a dated price by its deadline", () => {

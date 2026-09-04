@@ -29,7 +29,7 @@ import { SelectField } from "@/components/shared/select-field";
 
 import { EventBasesFormActions } from "../events/bases-form-actions";
 import {
-  basePriceDeadlineLabel,
+  openEndedDeadlineLabel,
   EMPTY_SCHEDULE_VALUE,
   priceFormSchema,
   type PriceFormValues,
@@ -73,7 +73,7 @@ function getPriceFormDefaultValues({
       isSpecialPrice:
         submittedValues.isSpecialPrice === "true" ||
         submittedValues.scheduleId.length > 0,
-      isBasePrice: submittedValues.isBasePrice === "true",
+      isOpenEnded: submittedValues.isOpenEnded === "true",
       groupType: submittedValues.groupType,
       amount: submittedValues.amount,
       paymentDeadline: submittedValues.paymentDeadline,
@@ -84,7 +84,7 @@ function getPriceFormDefaultValues({
   return {
     name: name ?? "",
     isSpecialPrice: Boolean(scheduleId),
-    isBasePrice: paymentDeadline === null,
+    isOpenEnded: paymentDeadline === null,
     groupType: groupType ?? "",
     amount: amount ? String(amount) : "",
     paymentDeadline: paymentDeadline ?? "",
@@ -129,7 +129,7 @@ export function PriceForm({
   }, [defaultValues, form]);
 
   const isSpecialPrice = form.watch("isSpecialPrice");
-  const isBasePrice = form.watch("isBasePrice");
+  const isOpenEnded = form.watch("isOpenEnded");
 
   return (
     <form
@@ -159,10 +159,10 @@ export function PriceForm({
         <DateOnlyField
           control={form.control}
           name="paymentDeadline"
-          disabled={isBasePrice}
+          disabled={isOpenEnded}
           id={`price-payment-deadline-${id ?? intent}`}
           label="Fecha límite de pago"
-          labelAdornment={<BasePriceSwitch form={form} />}
+          labelAdornment={<OpenEndedSwitch form={form} />}
         />
         <FieldGroup className="grid gap-4 sm:grid-cols-2">
           <SelectField
@@ -243,7 +243,7 @@ function NameField({ form }: { form: PriceFormController }) {
 type PriceFormSwitchProps = {
   form: PriceFormController;
   label: string;
-  name: "isBasePrice" | "isSpecialPrice";
+  name: "isOpenEnded" | "isSpecialPrice";
   onToggle: (checked: boolean) => void;
 };
 
@@ -293,16 +293,16 @@ function PriceFormSwitch({
   );
 }
 
-// Turns the row into a base price: one with no deadline, which applies once
-// every dated row has expired. It sits in the label row rather than inside the
-// control, because `DateOnlyField`'s right edge already carries the calendar
-// icon and, once disabled, the lock icon.
-function BasePriceSwitch({ form }: { form: PriceFormController }) {
+// Turns the row open-ended: no deadline, so it applies once every dated row has
+// expired. It sits in the label row rather than inside the control, because
+// `DateOnlyField`'s right edge already carries the calendar icon and, once
+// disabled, the lock icon.
+function OpenEndedSwitch({ form }: { form: PriceFormController }) {
   return (
     <PriceFormSwitch
       form={form}
-      label={basePriceDeadlineLabel}
-      name="isBasePrice"
+      label={openEndedDeadlineLabel}
+      name="isOpenEnded"
       onToggle={(checked) => {
         if (checked) {
           form.setValue("paymentDeadline", "", {

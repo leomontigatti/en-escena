@@ -214,8 +214,8 @@ export type PriceInput = {
   scheduleId: string | null;
 };
 
-// A null `paymentDeadline` is the base price: the row that applies once every
-// dated row of its tier has expired.
+// A null `paymentDeadline` makes the row open-ended: it applies once every dated
+// row of its tier has expired.
 export type ValidPriceInput = {
   name: string;
   groupType: GroupType;

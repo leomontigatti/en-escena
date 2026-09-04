@@ -12,13 +12,13 @@ export const EMPTY_SCHEDULE_VALUE = "__empty_schedule__";
 
 // A price with no `paymentDeadline` never expires: it is the row that applies
 // once every dated rung of the ladder has passed. "Precio base" is already the
-// UI term for `selectedPrice` (CONTEXT.md), so the deadline reads as its own
-// absence instead.
-export const basePriceDeadlineLabel = "Sin fecha límite";
+// UI term for `selectedPrice` (CONTEXT.md), so this row is named after the
+// absence itself rather than borrowing that term.
+export const openEndedDeadlineLabel = "Sin fecha límite";
 
 // The same absence inside a sentence, where `getPriceDisplayName` reads it as
 // the tail of "Solo - Precio base - ...".
-const basePriceDeadlinePhrase = "sin fecha límite";
+const openEndedDeadlinePhrase = "sin fecha límite";
 
 const priceDateFormatter = new Intl.DateTimeFormat("es-AR", {
   day: "numeric",
@@ -44,7 +44,7 @@ export const priceFormSchema = z
   .object({
     name: z.string().trim().min(1, requiredFieldMessage),
     isSpecialPrice: z.boolean(),
-    isBasePrice: z.boolean(),
+    isOpenEnded: z.boolean(),
     groupType: z.string().min(1, requiredFieldMessage),
     amount: z
       .string()
@@ -69,7 +69,7 @@ export const priceFormSchema = z
       });
     }
 
-    if (!values.isBasePrice && values.paymentDeadline.length === 0) {
+    if (!values.isOpenEnded && values.paymentDeadline.length === 0) {
       context.addIssue({
         code: "custom",
         message: requiredFieldMessage,
@@ -95,7 +95,7 @@ export function getPriceDisplayName(price: PriceListItem) {
 
   return deadlineLabel
     ? `${groupTypeLabel} - ${scopeLabel} - hasta ${deadlineLabel}`
-    : `${groupTypeLabel} - ${scopeLabel} - ${basePriceDeadlinePhrase}`;
+    : `${groupTypeLabel} - ${scopeLabel} - ${openEndedDeadlinePhrase}`;
 }
 
 export function getPriceName(price: PriceListItem) {
@@ -104,7 +104,7 @@ export function getPriceName(price: PriceListItem) {
 
 export function formatPaymentDeadlineForTable(paymentDeadline: string | null) {
   if (!paymentDeadline) {
-    return basePriceDeadlineLabel;
+    return openEndedDeadlineLabel;
   }
 
   return priceTableDateFormatter.format(
@@ -142,7 +142,7 @@ function isPriceActionValues(
     "paymentDeadline" in values &&
     "name" in values &&
     "isSpecialPrice" in values &&
-    "isBasePrice" in values &&
+    "isOpenEnded" in values &&
     "scheduleId" in values
   );
 }

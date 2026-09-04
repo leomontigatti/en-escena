@@ -288,8 +288,9 @@ function parsePriceInput(input: PriceInput):
   };
 }
 
-// An absent deadline is the base price, not a missing field: the form gates that
-// with its own switch, and the repository only rejects a malformed date.
+// An absent deadline makes the row open-ended, it is not a missing field: the
+// form gates that with its own switch, and the repository only rejects a
+// malformed date.
 function readPricePaymentDeadline(
   paymentDeadline: string | null,
   fieldErrors: Record<string, string>,

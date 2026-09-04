@@ -150,7 +150,7 @@ describe("`Bases del evento` repository", () => {
     });
   });
 
-  test("keeps one base price per tier and rejects a second one in the database", async () => {
+  test("keeps one open-ended price per tier and rejects a second one in the database", async () => {
     const { event, schedule: block } = await createEventPriceFixture();
     await createSavedPrice(event.id, {
       amount: 20000,
@@ -215,7 +215,7 @@ describe("`Bases del evento` repository", () => {
   // snapshot cannot carry it. That leaves it invisible to `drizzle-kit
   // generate`, which would drop it without a word if it ever recreated these
   // indexes. This asserts the clause itself rather than its effect, so the
-  // regression surfaces here instead of as a silently duplicated base price.
+  // regression surfaces here instead of as a silently duplicated open-ended price.
   test("keeps `NULLS NOT DISTINCT` on both price unique indexes", async () => {
     const indexes = await db.execute<{
       indexname: string;
@@ -236,7 +236,7 @@ describe("`Bases del evento` repository", () => {
     ]);
   });
 
-  test("falls back to the base price only once every dated row has expired", async () => {
+  test("falls back to the open-ended price only once every dated row has expired", async () => {
     const { event, schedule: block } = await createEventPriceFixture();
     const dated = await createSavedPrice(event.id, {
       amount: 12000,
@@ -272,7 +272,7 @@ describe("`Bases del evento` repository", () => {
     ).resolves.toMatchObject({ ok: true, price: { id: generalBase.id } });
 
     // Two tiers: the schedule's own row still applies, and once it expires the
-    // resolution falls through to the general tier's base price rather than to
+    // resolution falls through to the general tier's open-ended price rather than to
     // `missing-price`.
     await expect(
       resolveApplicablePrice({

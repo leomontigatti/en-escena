@@ -279,7 +279,7 @@ export const prices = createTable(
     }),
     index("price_schedule_id_idx").on(table.scheduleId),
     // Both unique indexes below are created with `NULLS NOT DISTINCT` by
-    // migration 0015, so the one deadline-less base price per tier collides
+    // migration 0015, so the one deadline-less price per tier collides
     // with itself. Drizzle can only express that on a `unique()` constraint,
     // and neither of these can be one: both are partial.
     uniqueIndex("price_general_unique")
