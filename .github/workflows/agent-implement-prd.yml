@@ -234,7 +234,7 @@ jobs:
       # a retry of the same sub-issue continues from this partial progress
       # instead of redoing it. Surfaced in the failure comment below. ---
       - name: Bank partial work on runner failure
-        if: failure() && steps.preflight.outputs.proceed == 'true'
+        if: failure() && steps.preflight.outputs.proceed != 'false'
         env:
           BRANCH: ${{ steps.branch.outputs.branch }}
         run: |
@@ -408,8 +408,11 @@ jobs:
           fi
 
       # --- Failure: mark blocked + comment on BOTH the PRD and the sub-issue (§4.3). ---
+      # `!= 'false'`, not `== 'true'`: a preflight that *itself* fails leaves
+      # `proceed` unset, and `== 'true'` would swallow that — a red run with no
+      # `agent:blocked` and no comment. Only a deliberate refusal (`false`) is silent.
       - name: On failure — block + comment
-        if: failure() && steps.preflight.outputs.proceed == 'true'
+        if: failure() && steps.preflight.outputs.proceed != 'false'
         env:
           GH_TOKEN: ${{ github.token }}
           SUB_NUMBER: ${{ steps.preflight.outputs.sub_number }}
@@ -442,7 +445,7 @@ jobs:
           gh issue comment "$SUB_NUMBER" --body "$body" || true
 
       - name: Always — remove in-progress from PRD
-        if: always() && steps.preflight.outputs.proceed == 'true'
+        if: always() && steps.preflight.outputs.proceed != 'false'
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh issue edit "$ISSUE_NUMBER" --remove-label "agent:in-progress" || true

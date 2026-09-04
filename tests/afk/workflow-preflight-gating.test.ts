@@ -122,27 +122,23 @@ describe("preflight-gated workflows (#790)", () => {
   // A refusal writes `proceed=false`; a preflight that *fails* writes nothing,
   // so `proceed` is the empty string. Gating the failure report on
   // `== 'true'` collapses those two cases and reports neither — a red run with
-  // no `agent:blocked` and no comment on the PR, which is precisely the failure
-  // mode the reporting step exists to prevent.
-  //
-  // Scoped to `agent-review.yml`, which is the workflow #790 gave a preflight:
-  // the other four carry the `== 'true'` spelling as pre-existing code, and
-  // widening this into the cross-cutting assertion above means sweeping them,
-  // which is its own change.
+  // no `agent:blocked` and no comment on the issue or PR, which is precisely
+  // the failure mode the reporting step exists to prevent (#795).
   it("still reports when the preflight itself fails", () => {
-    const file = ".github/workflows/agent-review.yml";
-    const reporting = workflowSteps(file).filter((step) =>
-      step.name.startsWith("On failure"),
-    );
+    for (const file of workflowsWithPreflight()) {
+      const reporting = workflowSteps(file).filter((step) =>
+        step.name.startsWith("On failure"),
+      );
 
-    expect(reporting.length, `${file}: no failure-reporting step`).toBe(1);
-    expect(
-      runsWhen(reporting[0].condition, { proceed: "", failure: true }),
-      `${file}: a failed preflight would go unreported`,
-    ).toBe(true);
-    expect(
-      runsWhen(reporting[0].condition, { proceed: "false", failure: false }),
-      `${file}: a deliberate refusal must not be reported as a failure`,
-    ).toBe(false);
+      expect(reporting.length, `${file}: no failure-reporting step`).toBe(1);
+      expect(
+        runsWhen(reporting[0].condition, { proceed: "", failure: true }),
+        `${file}: a failed preflight would go unreported`,
+      ).toBe(true);
+      expect(
+        runsWhen(reporting[0].condition, { proceed: "false", failure: false }),
+        `${file}: a deliberate refusal must not be reported as a failure`,
+      ).toBe(false);
+    }
   });
 });

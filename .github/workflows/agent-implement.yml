@@ -164,7 +164,7 @@ jobs:
       # the run (a retry still branches fresh from master). It makes the progress
       # recoverable for a human, and is surfaced in the failure comment below. ---
       - name: Bank partial work on runner failure
-        if: failure() && steps.preflight.outputs.proceed == 'true'
+        if: failure() && steps.preflight.outputs.proceed != 'false'
         env:
           BRANCH: ${{ steps.branch.outputs.branch }}
         run: |
@@ -260,8 +260,11 @@ jobs:
           GH_TOKEN="$GITHUB_TOKEN" add_review_label
 
       # --- Failure: mark blocked + comment (§3.7). ---
+      # `!= 'false'`, not `== 'true'`: a preflight that *itself* fails leaves
+      # `proceed` unset, and `!= 'false'` would swallow that — a red run with no
+      # `agent:blocked` and no comment. Only a deliberate refusal (`false`) is silent.
       - name: On failure — block + comment
-        if: failure() && steps.preflight.outputs.proceed == 'true'
+        if: failure() && steps.preflight.outputs.proceed != 'false'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -292,7 +295,7 @@ jobs:
 
       # --- Always: release the lock. ---
       - name: Always — remove in-progress
-        if: always() && steps.preflight.outputs.proceed == 'true'
+        if: always() && steps.preflight.outputs.proceed != 'false'
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh issue edit "$ISSUE_NUMBER" --remove-label "agent:in-progress" || true
