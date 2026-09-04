@@ -167,8 +167,11 @@ jobs:
           done
 
       # --- Failure: mark blocked + comment, listing sub-issues already created (§4.1). ---
+      # `!= 'false'`, not `== 'true'`: a preflight that *itself* fails leaves
+      # `proceed` unset, and `== 'true'` would swallow that — a red run with no
+      # `agent:blocked` and no comment. Only a deliberate refusal (`false`) is silent.
       - name: On failure — block + comment
-        if: failure() && steps.preflight.outputs.proceed == 'true'
+        if: failure() && steps.preflight.outputs.proceed != 'false'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -196,7 +199,7 @@ jobs:
           gh issue comment "$ISSUE_NUMBER" --body "$(printf '`agent:to-issues` run failed.\n\n**Reason:** %s\n\n**Sub-issues already created (clean up if needed):** %s\n\n**Workflow run:** %s/%s/actions/runs/%s\n\nRe-add `agent:to-issues` to retry.' "$reason" "$created" "$GITHUB_SERVER_URL" "$GH_REPO" "$GITHUB_RUN_ID")"
 
       - name: Always — remove in-progress
-        if: always() && steps.preflight.outputs.proceed == 'true'
+        if: always() && steps.preflight.outputs.proceed != 'false'
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh issue edit "$ISSUE_NUMBER" --remove-label "agent:in-progress" || true
