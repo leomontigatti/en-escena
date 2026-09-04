@@ -157,7 +157,7 @@ export async function createEventCatalog(eventId: string) {
       name: "Precio Solo",
       groupType: "solo",
       amount: 10000,
-      paymentDeadline: "2099-12-31",
+      paymentDeadline: null,
       scheduleId: null,
     },
     {
@@ -165,7 +165,7 @@ export async function createEventCatalog(eventId: string) {
       name: "Precio Duo",
       groupType: "duo",
       amount: 15000,
-      paymentDeadline: "2099-12-31",
+      paymentDeadline: null,
       scheduleId: null,
     },
     {
@@ -173,7 +173,7 @@ export async function createEventCatalog(eventId: string) {
       name: "Precio Trio",
       groupType: "trio",
       amount: 20000,
-      paymentDeadline: "2099-12-31",
+      paymentDeadline: null,
       scheduleId: null,
     },
     {
@@ -181,7 +181,7 @@ export async function createEventCatalog(eventId: string) {
       name: "Precio Grupal",
       groupType: "grupal",
       amount: 25000,
-      paymentDeadline: "2099-12-31",
+      paymentDeadline: null,
       scheduleId: null,
     },
   ]);

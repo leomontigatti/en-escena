@@ -8,7 +8,10 @@ import {
   createModality,
   createSubmodality,
 } from "@/lib/modalities/repository.server";
-import { createPrice } from "@/lib/prices/repository.server";
+import {
+  createPrice,
+  resolveApplicablePrice,
+} from "@/lib/prices/repository.server";
 import {
   createSchedule,
   createScheduleCapacity,
@@ -153,7 +156,7 @@ describe("event registration readiness", () => {
       createPrice(event.id, {
         groupType: "solo",
         amount: 14000,
-        paymentDeadline: "2099-12-31",
+        paymentDeadline: null,
         scheduleId: null,
       }),
     );
@@ -161,7 +164,7 @@ describe("event registration readiness", () => {
       createPrice(event.id, {
         groupType: "duo",
         amount: 22000,
-        paymentDeadline: "2099-12-31",
+        paymentDeadline: null,
         scheduleId: null,
       }),
     );
@@ -248,7 +251,7 @@ describe("event registration readiness", () => {
   // At 23:30 on the 31st in Córdoba (02:30 UTC on the 1st) the price expiring on
   // the 31st is still in force: readiness cannot announce the expiry three hours
   // before it happens for the academy.
-  test("does not expire the day's price at 23:30 in Córdoba", async () => {
+  test("does not report the day's price as expired at 23:30 in Córdoba", async () => {
     const event = await createSavedEvent("Vence hoy 2026");
     const jazz = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
@@ -291,10 +294,17 @@ describe("event registration readiness", () => {
     vi.setSystemTime(new Date("2026-06-01T02:30:00Z"));
 
     try {
-      await expect(getEventRegistrationReadiness(event.id)).resolves.toEqual({
+      await expect(
+        getEventRegistrationReadiness(event.id),
+      ).resolves.toMatchObject({
         eventId: event.id,
-        isReady: true,
-        missingItems: [],
+        isReady: false,
+        missingItems: [
+          expect.objectContaining({
+            code: "price-coverage",
+            detail: expect.stringContaining("vence el 31 de mayo de 2026"),
+          }),
+        ],
       });
     } finally {
       vi.useRealTimers();
@@ -337,7 +347,7 @@ describe("event registration readiness", () => {
     }
   });
 
-  test("reports an expired price as expired instead of missing", async () => {
+  test("reports the last deadline and the affected path when no base price exists", async () => {
     const event = await createSavedEvent("Precios vencidos 2026");
     const jazz = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
@@ -381,10 +391,178 @@ describe("event registration readiness", () => {
       missingItems: [
         expect.objectContaining({
           code: "price-coverage",
-          detail: expect.stringContaining("venció el 31 de enero de 2020"),
+          detail:
+            "El último precio general para Categoría Juvenil, Modalidad Jazz, Tipo de grupo Solo venció el 31 de enero de 2020 y no hay uno sin fecha límite.",
         }),
       ],
     });
+  });
+
+  test("becomes ready once a base price covers each reachable group type, and keeps resolving a price at any date", async () => {
+    const event = await createSavedEvent("Precio base 2026");
+    const jazz = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
+
+    await expectCreated(
+      createCategory(event.id, {
+        name: "Juvenil",
+        minAge: 13,
+        maxAge: 17,
+        groupTypes: ["solo", "duo"],
+        modalityIds: [jazz.id],
+        experienceLevels: [],
+      }),
+    );
+    const block = await expectCreated(
+      createSchedule(event.id, {
+        name: "Domingo mañana",
+        scheduledDate: "2026-06-07",
+        startTime: "10:00",
+        totalCapacity: 20,
+        modalityIds: [jazz.id],
+      }),
+    );
+    await expectCreated(
+      createScheduleCapacity(block.id, { groupType: "solo", capacity: 6 }),
+    );
+    await expectCreated(
+      createScheduleCapacity(block.id, { groupType: "duo", capacity: 6 }),
+    );
+    await expectCreated(
+      createPrice(event.id, {
+        groupType: "solo",
+        amount: 14000,
+        paymentDeadline: "2026-05-31",
+        scheduleId: null,
+      }),
+    );
+    await expectCreated(
+      createPrice(event.id, {
+        groupType: "duo",
+        amount: 22000,
+        paymentDeadline: "2026-05-31",
+        scheduleId: null,
+      }),
+    );
+
+    await expect(
+      getEventRegistrationReadiness(event.id),
+    ).resolves.toMatchObject({ isReady: false });
+
+    await expectCreated(
+      createPrice(event.id, {
+        groupType: "solo",
+        amount: 18000,
+        paymentDeadline: null,
+        scheduleId: null,
+      }),
+    );
+    await expectCreated(
+      createPrice(event.id, {
+        groupType: "duo",
+        amount: 26000,
+        paymentDeadline: null,
+        scheduleId: null,
+      }),
+    );
+    await markEventRegistrationReadinessDirty(event.id);
+
+    await expect(getEventRegistrationReadiness(event.id)).resolves.toEqual({
+      eventId: event.id,
+      isReady: true,
+      missingItems: [],
+    });
+
+    // The point of the check: no reachable path can fall into `missing-price`,
+    // at any date the finance screens may ask for. A choreography with no
+    // schedule of its own resolves through the general tier alone, so the null
+    // scheduleId is part of the guarantee a general base price makes.
+    for (const groupType of ["solo", "duo"]) {
+      for (const paymentDate of ["2026-05-01", "2030-01-01"]) {
+        for (const scheduleId of [block.id, null]) {
+          await expect(
+            resolveApplicablePrice({
+              eventId: event.id,
+              groupType,
+              paymentDate,
+              scheduleId,
+            }),
+          ).resolves.toMatchObject({ ok: true });
+        }
+      }
+    }
+  });
+
+  test("rejects a schedule-specific base price without a general one", async () => {
+    const event = await createSavedEvent("Precio base por cronograma 2026");
+    const jazz = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
+
+    await expectCreated(
+      createCategory(event.id, {
+        name: "Juvenil",
+        minAge: 13,
+        maxAge: 17,
+        groupTypes: ["solo"],
+        modalityIds: [jazz.id],
+        experienceLevels: [],
+      }),
+    );
+    const block = await expectCreated(
+      createSchedule(event.id, {
+        name: "Domingo mañana",
+        scheduledDate: "2026-06-07",
+        startTime: "10:00",
+        totalCapacity: 20,
+        modalityIds: [jazz.id],
+      }),
+    );
+    await expectCreated(
+      createScheduleCapacity(block.id, { groupType: "solo", capacity: 6 }),
+    );
+    await expectCreated(
+      createPrice(event.id, {
+        groupType: "solo",
+        amount: 14000,
+        paymentDeadline: "2026-05-31",
+        scheduleId: null,
+      }),
+    );
+    await expectCreated(
+      createPrice(event.id, {
+        groupType: "solo",
+        amount: 18000,
+        paymentDeadline: null,
+        scheduleId: block.id,
+      }),
+    );
+
+    await expect(
+      getEventRegistrationReadiness(event.id),
+    ).resolves.toMatchObject({
+      isReady: false,
+      missingItems: [
+        expect.objectContaining({
+          code: "price-coverage",
+          detail: expect.stringContaining(
+            "venció el 31 de mayo de 2026 y no hay uno sin fecha límite",
+          ),
+        }),
+      ],
+    });
+
+    // Why the schedule tier cannot stand alone: a caller with no schedule of
+    // its own goes straight to the general tier, whose last row expired.
+    await expect(
+      resolveApplicablePrice({
+        eventId: event.id,
+        groupType: "solo",
+        paymentDate: "2026-06-01",
+        scheduleId: null,
+      }),
+    ).resolves.toMatchObject({ ok: false, code: "missing-price" });
   });
 
   test("loads readiness for multiple events while recalculating dirty entries", async () => {
