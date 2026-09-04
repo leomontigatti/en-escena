@@ -86,16 +86,19 @@ function getPriceRequiredFieldErrors(
     return null;
   }
 
-  // A base price carries no deadline on purpose, so the field is only required
-  // while the switch is off.
-  const fieldErrors = getRequiredErrors({
+  // A base price carries no deadline on purpose, so the field only joins the
+  // required set while the switch is off.
+  const requiredFields: Record<string, FormDataEntryValue | null> = {
     name: formData.get("name"),
     groupType: formData.get("groupType"),
     amount: formData.get("amount"),
-    ...(input.isBasePrice
-      ? {}
-      : { paymentDeadline: formData.get("paymentDeadline") }),
-  });
+  };
+
+  if (!input.isBasePrice) {
+    requiredFields.paymentDeadline = formData.get("paymentDeadline");
+  }
+
+  const fieldErrors = getRequiredErrors(requiredFields);
 
   if (
     String(formData.get("isSpecialPrice") ?? "") === "true" &&

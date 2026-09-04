@@ -236,17 +236,29 @@ function NameField({ form }: { form: PriceFormController }) {
   );
 }
 
-// The switch that turns the row into a base price: one with no deadline, which
-// applies once every dated row has expired. It sits in the label row rather
-// than inside the control, because `DateOnlyField`'s right edge already carries
-// the calendar icon and, once disabled, the lock icon.
-function BasePriceSwitch({ form }: { form: PriceFormController }) {
+// One switch shape for both price toggles: hidden input so the boolean reaches
+// the action, tooltip on the control, and a side effect on the field the toggle
+// governs. `onToggle` receives the new state, because the two switches clear
+// their partner field on opposite edges.
+type PriceFormSwitchProps = {
+  form: PriceFormController;
+  label: string;
+  name: "isBasePrice" | "isSpecialPrice";
+  onToggle: (checked: boolean) => void;
+};
+
+function PriceFormSwitch({
+  form,
+  label,
+  name,
+  onToggle,
+}: PriceFormSwitchProps) {
   const id = useId();
 
   return (
     <Controller
       control={form.control}
-      name="isBasePrice"
+      name={name}
       render={({ field }) => (
         <>
           <input
@@ -259,7 +271,7 @@ function BasePriceSwitch({ form }: { form: PriceFormController }) {
               <TooltipTrigger asChild>
                 <Switch
                   id={id}
-                  aria-label={basePriceDeadlineLabel}
+                  aria-label={label}
                   className={cn(
                     "border-border shadow-xs",
                     field.value ? "!bg-primary" : "!bg-muted",
@@ -268,17 +280,11 @@ function BasePriceSwitch({ form }: { form: PriceFormController }) {
                   onBlur={field.onBlur}
                   onCheckedChange={(checked) => {
                     field.onChange(checked);
-
-                    if (checked) {
-                      form.setValue("paymentDeadline", "", {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      });
-                    }
+                    onToggle(checked);
                   }}
                 />
               </TooltipTrigger>
-              <TooltipContent>{basePriceDeadlineLabel}</TooltipContent>
+              <TooltipContent>{label}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </>
@@ -287,49 +293,42 @@ function BasePriceSwitch({ form }: { form: PriceFormController }) {
   );
 }
 
-function SpecialPriceSwitch({ form }: { form: PriceFormController }) {
-  const id = useId();
-
+// Turns the row into a base price: one with no deadline, which applies once
+// every dated row has expired. It sits in the label row rather than inside the
+// control, because `DateOnlyField`'s right edge already carries the calendar
+// icon and, once disabled, the lock icon.
+function BasePriceSwitch({ form }: { form: PriceFormController }) {
   return (
-    <Controller
-      control={form.control}
-      name="isSpecialPrice"
-      render={({ field }) => (
-        <>
-          <input
-            type="hidden"
-            name={field.name}
-            value={field.value ? "true" : "false"}
-          />
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Switch
-                  id={id}
-                  aria-label="Precio especial"
-                  className={cn(
-                    "border-border shadow-xs",
-                    field.value ? "!bg-primary" : "!bg-muted",
-                  )}
-                  checked={field.value}
-                  onBlur={field.onBlur}
-                  onCheckedChange={(checked) => {
-                    field.onChange(checked);
+    <PriceFormSwitch
+      form={form}
+      label={basePriceDeadlineLabel}
+      name="isBasePrice"
+      onToggle={(checked) => {
+        if (checked) {
+          form.setValue("paymentDeadline", "", {
+            shouldDirty: true,
+            shouldValidate: true,
+          });
+        }
+      }}
+    />
+  );
+}
 
-                    if (!checked) {
-                      form.setValue("scheduleId", EMPTY_SCHEDULE_VALUE, {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      });
-                    }
-                  }}
-                />
-              </TooltipTrigger>
-              <TooltipContent>Precio especial</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </>
-      )}
+function SpecialPriceSwitch({ form }: { form: PriceFormController }) {
+  return (
+    <PriceFormSwitch
+      form={form}
+      label="Precio especial"
+      name="isSpecialPrice"
+      onToggle={(checked) => {
+        if (!checked) {
+          form.setValue("scheduleId", EMPTY_SCHEDULE_VALUE, {
+            shouldDirty: true,
+            shouldValidate: true,
+          });
+        }
+      }}
     />
   );
 }

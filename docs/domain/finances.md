@@ -220,6 +220,13 @@ decision rather than an oversight.
   the choreography's candidate set — same event, same group type, and either the
   choreography's own schedule row or the general one — **with no date filter at
   all**, so a row whose `paymentDeadline` has passed can be selected and stored.
+- **A price row may carry no `paymentDeadline`.** That row is the one that
+  applies once every dated row of its tier has expired: it survives the date
+  filter and sorts last among the survivors, so it can only win when nothing
+  dated is left. Adding one is a no-op until then. There can be at most one per
+  `(event, group type)` and one per `(event, group type, schedule)`, enforced by
+  `price_general_unique` and `price_specific_unique` — both created `NULLS NOT
+DISTINCT`, because two of them would otherwise be separated only by amount.
 - **The business date** — today in the business time zone, never a payment's date
   — appears only on the **read** path, in `resolveEstimatedBasePriceAmount`. It
   resolves the currently applicable row, preferring the row specific to the

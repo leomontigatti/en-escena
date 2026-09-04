@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { prices } from "@/db/schema";
 import { createSelectedPriceInscriptionForTest } from "@/features/portal/choreographies/test-support/db";
@@ -207,6 +207,33 @@ describe("`Bases del evento` repository", () => {
     ).rejects.toMatchObject({
       cause: { constraint_name: "price_specific_unique" },
     });
+  });
+
+  // The clause lives only in migration 0015's hand-written SQL: Drizzle can
+  // express `NULLS NOT DISTINCT` on a `unique()` constraint but not on an
+  // index, and both of these are partial, so the TypeScript schema and the
+  // snapshot cannot carry it. That leaves it invisible to `drizzle-kit
+  // generate`, which would drop it without a word if it ever recreated these
+  // indexes. This asserts the clause itself rather than its effect, so the
+  // regression surfaces here instead of as a silently duplicated base price.
+  test("keeps `NULLS NOT DISTINCT` on both price unique indexes", async () => {
+    const indexes = await db.execute<{
+      indexname: string;
+      nulls_not_distinct: boolean;
+    }>(sql`
+      select
+        pg_class.relname as indexname,
+        pg_index.indnullsnotdistinct as nulls_not_distinct
+      from pg_index
+      join pg_class on pg_class.oid = pg_index.indexrelid
+      where pg_class.relname in ('price_general_unique', 'price_specific_unique')
+      order by pg_class.relname
+    `);
+
+    expect(readRows(indexes)).toEqual([
+      { indexname: "price_general_unique", nulls_not_distinct: true },
+      { indexname: "price_specific_unique", nulls_not_distinct: true },
+    ]);
   });
 
   test("falls back to the base price only once every dated row has expired", async () => {
@@ -418,3 +445,10 @@ describe("`Bases del evento` repository", () => {
     });
   });
 });
+
+// `db.execute` hands back a bare array on postgres.js and a `{ rows }` envelope
+// on PGlite, which is what the fast config runs. Same shape as the helper in
+// `tests/db/schema-security.db.test.ts`.
+function readRows<Row extends object>(result: { rows: Row[] } | Row[]) {
+  return Array.isArray(result) ? result : result.rows;
+}

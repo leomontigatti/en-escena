@@ -16,6 +16,10 @@ export const EMPTY_SCHEDULE_VALUE = "__empty_schedule__";
 // absence instead.
 export const basePriceDeadlineLabel = "Sin fecha límite";
 
+// The same absence inside a sentence, where `getPriceDisplayName` reads it as
+// the tail of "Solo - Precio base - ...".
+const basePriceDeadlinePhrase = "sin fecha límite";
+
 const priceDateFormatter = new Intl.DateTimeFormat("es-AR", {
   day: "numeric",
   month: "numeric",
@@ -91,7 +95,7 @@ export function getPriceDisplayName(price: PriceListItem) {
 
   return deadlineLabel
     ? `${groupTypeLabel} - ${scopeLabel} - hasta ${deadlineLabel}`
-    : `${groupTypeLabel} - ${scopeLabel}`;
+    : `${groupTypeLabel} - ${scopeLabel} - ${basePriceDeadlinePhrase}`;
 }
 
 export function getPriceName(price: PriceListItem) {

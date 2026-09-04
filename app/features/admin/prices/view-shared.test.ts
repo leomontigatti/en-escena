@@ -1,13 +1,19 @@
 import { describe, expect, test } from "vitest";
 
+import type { PriceListItem } from "@/lib/events/bases.server";
+
 import {
   basePriceDeadlineLabel,
   EMPTY_SCHEDULE_VALUE,
   formatPaymentDeadlineForTable,
+  getPriceDisplayName,
   priceFormSchema,
+  type PriceFormValues,
 } from "./view-shared";
 
-function buildPriceFormValues(overrides: Record<string, unknown> = {}) {
+function buildPriceFormValues(
+  overrides: Partial<PriceFormValues> = {},
+): PriceFormValues {
   return {
     name: "Precio solo",
     isSpecialPrice: false,
@@ -63,6 +69,40 @@ describe("formatPaymentDeadlineForTable", () => {
     expect(formatPaymentDeadlineForTable(null)).toBe(basePriceDeadlineLabel);
     expect(formatPaymentDeadlineForTable("2026-05-31")).toBe(
       "31 de mayo de 2026",
+    );
+  });
+});
+
+function buildPriceListItem(
+  overrides: Partial<PriceListItem> = {},
+): PriceListItem {
+  return {
+    id: "price_1",
+    name: "",
+    eventId: "event_1",
+    groupType: "solo",
+    amount: 12000,
+    paymentDeadline: "2026-05-31",
+    scheduleId: null,
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    schedule: null,
+    ...overrides,
+  };
+}
+
+describe("getPriceDisplayName", () => {
+  test("names a deadline-less price by its missing deadline", () => {
+    expect(
+      getPriceDisplayName(buildPriceListItem({ paymentDeadline: null })),
+    ).toBe("Solo - Precio base - sin fecha límite");
+  });
+
+  // Without the tail, a base price and a dated one whose deadline the derived
+  // name dropped would read identically wherever `getPriceDisplayName` lands —
+  // the detail header, the list `aria-label` and the delete confirmation.
+  test("keeps naming a dated price by its deadline", () => {
+    expect(getPriceDisplayName(buildPriceListItem())).toBe(
+      "Solo - Precio base - hasta 31/5/26",
     );
   });
 });

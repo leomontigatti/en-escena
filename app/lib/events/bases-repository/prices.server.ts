@@ -297,7 +297,7 @@ function readPricePaymentDeadline(
   const trimmed = paymentDeadline?.trim() || null;
 
   if (trimmed !== null && !/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-    fieldErrors.paymentDeadline = "Este campo es obligatorio.";
+    fieldErrors.paymentDeadline = "Elegí una fecha válida.";
     return null;
   }
 
