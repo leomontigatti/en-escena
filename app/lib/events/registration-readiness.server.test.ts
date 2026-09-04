@@ -62,7 +62,7 @@ describe("event registration readiness from loaded bases", () => {
           eventId: "event_2026",
           groupType: "solo",
           amount: 14000,
-          paymentDeadline: "2026-05-31",
+          paymentDeadline: null,
           scheduleId: null,
           schedule: null,
         },
@@ -122,7 +122,7 @@ describe("event registration readiness from loaded bases", () => {
           eventId: "event_2026",
           groupType: "solo",
           amount: 14000,
-          paymentDeadline: "2026-05-31",
+          paymentDeadline: null,
           scheduleId: null,
           schedule: null,
         },
@@ -140,7 +140,7 @@ describe("event registration readiness from loaded bases", () => {
     });
   });
 
-  test("does not mark an event ready when every applicable price expired", async () => {
+  test("does not mark an event ready when every price for the path expired", async () => {
     const eventBases = buildSoloEventBases([
       {
         id: "price_solo",
@@ -164,7 +164,7 @@ describe("event registration readiness from loaded bases", () => {
         expect.objectContaining({
           code: "price-coverage",
           detail:
-            "El precio para Categoría Infantil, Modalidad Jazz, Tipo de grupo Solo en el cronograma Sábado mañana venció el 31 de mayo de 2026 y no hay otro vigente.",
+            "El último precio para Categoría Infantil, Modalidad Jazz, Tipo de grupo Solo en el cronograma Sábado mañana venció el 31 de mayo de 2026 y no hay un precio base.",
         }),
       ],
     });
@@ -254,32 +254,62 @@ describe("event registration readiness from loaded bases", () => {
     });
   });
 
-  test("keeps the event ready on the price's last day, and drops it the next", async () => {
-    const lastDayPrice = {
-      id: "price_solo",
-      eventId: "event_2026",
-      groupType: "solo",
-      amount: 14000,
-      paymentDeadline: "2026-05-31",
-      scheduleId: null,
-      schedule: null,
-    };
+  test("warns ahead of time when the only price for the path still applies but expires", async () => {
+    const eventBases = buildSoloEventBases([
+      {
+        id: "price_solo",
+        eventId: "event_2026",
+        groupType: "solo",
+        amount: 14000,
+        paymentDeadline: "2026-05-31",
+        scheduleId: null,
+        schedule: null,
+      },
+    ]);
 
     await expect(
-      getEventRegistrationReadinessForBases(
-        "event_2026",
-        buildSoloEventBases([lastDayPrice]),
-        { referenceDate: "2026-05-31" },
-      ),
+      getEventRegistrationReadinessForBases("event_2026", eventBases, {
+        referenceDate: "2026-05-01",
+      }),
+    ).resolves.toMatchObject({
+      isReady: false,
+      missingItems: [
+        expect.objectContaining({
+          code: "price-coverage",
+          detail:
+            "El último precio para Categoría Infantil, Modalidad Jazz, Tipo de grupo Solo en el cronograma Sábado mañana vence el 31 de mayo de 2026 y no hay un precio base.",
+        }),
+      ],
+    });
+  });
+
+  test("accepts a schedule-specific base price as the tail of its schedule", async () => {
+    const eventBases = buildSoloEventBases([
+      {
+        id: "price_solo_general",
+        eventId: "event_2026",
+        groupType: "solo",
+        amount: 12000,
+        paymentDeadline: "2026-03-31",
+        scheduleId: null,
+        schedule: null,
+      },
+      {
+        id: "price_solo_schedule_base",
+        eventId: "event_2026",
+        groupType: "solo",
+        amount: 18000,
+        paymentDeadline: null,
+        scheduleId: "schedule_sabado",
+        schedule: null,
+      },
+    ]);
+
+    await expect(
+      getEventRegistrationReadinessForBases("event_2026", eventBases, {
+        referenceDate: "2026-06-01",
+      }),
     ).resolves.toMatchObject({ isReady: true, missingItems: [] });
-
-    await expect(
-      getEventRegistrationReadinessForBases(
-        "event_2026",
-        buildSoloEventBases([lastDayPrice]),
-        { referenceDate: "2026-06-01" },
-      ),
-    ).resolves.toMatchObject({ isReady: false });
   });
 
   test("does not fall back to an expired general price when the specific one expired too", async () => {
@@ -313,7 +343,9 @@ describe("event registration readiness from loaded bases", () => {
       missingItems: [
         expect.objectContaining({
           code: "price-coverage",
-          detail: expect.stringContaining("venció el 5 de diciembre de 2026"),
+          detail: expect.stringContaining(
+            "venció el 5 de diciembre de 2026 y no hay un precio base",
+          ),
         }),
       ],
     });

@@ -277,8 +277,8 @@ export async function getEventRegistrationReadinessForBases(
             missingItems.push({
               code: "price-coverage",
               label: "Precios aplicables",
-              detail: priceResolution.expiredDeadline
-                ? `El precio para ${registrationPath} en el cronograma ${option.schedule.name} venció el ${formatDeadline(priceResolution.expiredDeadline)} y no hay otro vigente.`
+              detail: priceResolution.lastDeadline
+                ? `El último precio para ${registrationPath} en el cronograma ${option.schedule.name} ${describeDeadlineExpiry(priceResolution.lastDeadline, referenceDate)} el ${formatDeadline(priceResolution.lastDeadline)} y no hay un precio base.`
                 : `Falta un precio aplicable para ${registrationPath} en el cronograma ${option.schedule.name}.`,
             });
           }
@@ -412,6 +412,13 @@ function resolveScheduleOptionsFromBases(
   return { status: "multiple" as const, options };
 }
 
+// Readiness does not ask whether a price applies today, but whether the path
+// can ever stop resolving: a row with no paymentDeadline is what keeps an open
+// event from expiring silently mid-registration. Both questions run through the
+// same two tiers (a schedule-specific row first, the general one as fallback),
+// and the fallthrough is on the resolved row being null, so one general base
+// row per group type covers every schedule and a schedule-specific base row is
+// allowed where a schedule wants its own tail.
 function resolvePriceFromBases(
   eventBases: EventBases,
   input: {
@@ -421,7 +428,7 @@ function resolvePriceFromBases(
   },
 ) {
   if (!isGroupType(input.groupType)) {
-    return { ok: false as const, expiredDeadline: null };
+    return { ok: false as const, lastDeadline: null };
   }
 
   const scheduleCandidates = input.scheduleId
@@ -431,30 +438,27 @@ function resolvePriceFromBases(
           price.scheduleId === input.scheduleId,
       )
     : [];
-  const specificPrice = selectApplicablePrice(
-    scheduleCandidates,
-    input.referenceDate,
-  );
-
-  if (specificPrice) {
-    return { ok: true as const, price: specificPrice };
-  }
-
   const generalCandidates = eventBases.prices.filter(
     (price) => price.groupType === input.groupType && price.scheduleId === null,
   );
-  const generalPrice = selectApplicablePrice(
-    generalCandidates,
-    input.referenceDate,
-  );
+  const resolveFromTiers = (
+    select: (
+      candidates: EventBases["prices"],
+    ) => EventBases["prices"][number] | null,
+  ) => select(scheduleCandidates) ?? select(generalCandidates);
 
-  if (generalPrice) {
-    return { ok: true as const, price: generalPrice };
+  const applicablePrice = resolveFromTiers((candidates) =>
+    selectApplicablePrice(candidates, input.referenceDate),
+  );
+  const basePrice = resolveFromTiers(selectBasePrice);
+
+  if (applicablePrice && basePrice) {
+    return { ok: true as const, price: applicablePrice };
   }
 
   return {
     ok: false as const,
-    expiredDeadline: findLatestDeadline([
+    lastDeadline: findLatestDeadline([
       ...scheduleCandidates,
       ...generalCandidates,
     ]),
@@ -475,6 +479,16 @@ function selectApplicablePrice(
           price.paymentDeadline === null ||
           price.paymentDeadline >= referenceDate,
       )
+      .sort(compareApplicablePrices)[0] ?? null
+  );
+}
+
+// A base price (no paymentDeadline) is the tail of its tier: while one exists,
+// the path resolves at any date.
+function selectBasePrice(candidates: EventBases["prices"]) {
+  return (
+    candidates
+      .filter((price) => price.paymentDeadline === null)
       .sort(compareApplicablePrices)[0] ?? null
   );
 }
@@ -541,6 +555,10 @@ const deadlineFormatter = new Intl.DateTimeFormat("es-AR", {
   year: "numeric",
   timeZone: "UTC",
 });
+
+function describeDeadlineExpiry(deadline: string, referenceDate: string) {
+  return deadline < referenceDate ? "venció" : "vence";
+}
 
 function formatDeadline(deadline: string) {
   const parsed = new Date(`${deadline}T00:00:00.000Z`);
