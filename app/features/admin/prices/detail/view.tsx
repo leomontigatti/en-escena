@@ -56,7 +56,7 @@ export function EventPriceDetailView({
               name={price.name}
               groupType={price.groupType}
               amount={price.amount}
-              paymentDeadline={price.paymentDeadline ?? ""}
+              paymentDeadline={price.paymentDeadline}
               scheduleId={price.scheduleId}
               submittedValues={getPriceSubmittedValues(
                 actionData,

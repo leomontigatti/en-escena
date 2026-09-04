@@ -173,6 +173,7 @@ describe.sequential("`/administracion/bases-del-evento` routes", () => {
       values: {
         name: "Precio duplicado",
         isSpecialPrice: "",
+        isOpenEnded: "",
         groupType: "solo",
         amount: "13000",
         paymentDeadline: "2026-05-31",
@@ -210,6 +211,7 @@ describe.sequential("`/administracion/bases-del-evento` routes", () => {
       values: {
         name: "",
         isSpecialPrice: "",
+        isOpenEnded: "",
         groupType: "",
         amount: "",
         paymentDeadline: "",

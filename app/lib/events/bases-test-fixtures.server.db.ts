@@ -51,7 +51,7 @@ type SavedPriceFixtureInput = {
   amount?: number;
   groupType?: GroupType;
   name?: string;
-  paymentDeadline?: string;
+  paymentDeadline?: string | null;
   scheduleId?: string | null;
 };
 

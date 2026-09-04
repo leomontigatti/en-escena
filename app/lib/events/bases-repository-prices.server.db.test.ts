@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { prices } from "@/db/schema";
 import { createSelectedPriceInscriptionForTest } from "@/features/portal/choreographies/test-support/db";
@@ -148,6 +148,148 @@ describe("`Bases del evento` repository", () => {
       error:
         "No hay un precio configurado para este tipo de grupo y cronograma.",
     });
+  });
+
+  test("keeps one open-ended price per tier and rejects a second one in the database", async () => {
+    const { event, schedule: block } = await createEventPriceFixture();
+    await createSavedPrice(event.id, {
+      amount: 20000,
+      name: "Precio base general",
+      paymentDeadline: null,
+    });
+    await createSavedPrice(event.id, {
+      amount: 25000,
+      name: "Precio base del cronograma",
+      paymentDeadline: null,
+      scheduleId: block.id,
+    });
+
+    await expect(listPrices(event.id)).resolves.toMatchObject([
+      { name: "Precio base del cronograma", paymentDeadline: null },
+      { name: "Precio base general", paymentDeadline: null },
+    ]);
+    await expect(
+      createPrice(event.id, {
+        groupType: "solo",
+        amount: 30000,
+        paymentDeadline: null,
+        scheduleId: null,
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      error: "Ya existe un precio general para ese tipo de grupo.",
+    });
+
+    // `price_general_unique` and `price_specific_unique` are the last word:
+    // without `NULLS NOT DISTINCT` Postgres reads two null deadlines as
+    // distinct and lets both rows in behind the repository check.
+    await expect(
+      db.insert(prices).values({
+        eventId: event.id,
+        name: "Segundo precio base general",
+        groupType: "solo",
+        amount: 30000,
+        paymentDeadline: null,
+        scheduleId: null,
+      }),
+    ).rejects.toMatchObject({
+      cause: { constraint_name: "price_general_unique" },
+    });
+    await expect(
+      db.insert(prices).values({
+        eventId: event.id,
+        name: "Segundo precio base del cronograma",
+        groupType: "solo",
+        amount: 30000,
+        paymentDeadline: null,
+        scheduleId: block.id,
+      }),
+    ).rejects.toMatchObject({
+      cause: { constraint_name: "price_specific_unique" },
+    });
+  });
+
+  // The clause lives only in migration 0015's hand-written SQL: Drizzle can
+  // express `NULLS NOT DISTINCT` on a `unique()` constraint but not on an
+  // index, and both of these are partial, so the TypeScript schema and the
+  // snapshot cannot carry it. That leaves it invisible to `drizzle-kit
+  // generate`, which would drop it without a word if it ever recreated these
+  // indexes. This asserts the clause itself rather than its effect, so the
+  // regression surfaces here instead of as a silently duplicated open-ended price.
+  test("keeps `NULLS NOT DISTINCT` on both price unique indexes", async () => {
+    const indexes = await db.execute<{
+      indexname: string;
+      nulls_not_distinct: boolean;
+    }>(sql`
+      select
+        pg_class.relname as indexname,
+        pg_index.indnullsnotdistinct as nulls_not_distinct
+      from pg_index
+      join pg_class on pg_class.oid = pg_index.indexrelid
+      where pg_class.relname in ('price_general_unique', 'price_specific_unique')
+      order by pg_class.relname
+    `);
+
+    expect(readRows(indexes)).toEqual([
+      { indexname: "price_general_unique", nulls_not_distinct: true },
+      { indexname: "price_specific_unique", nulls_not_distinct: true },
+    ]);
+  });
+
+  test("falls back to the open-ended price only once every dated row has expired", async () => {
+    const { event, schedule: block } = await createEventPriceFixture();
+    const dated = await createSavedPrice(event.id, {
+      amount: 12000,
+      paymentDeadline: "2026-05-31",
+    });
+    const generalBase = await createSavedPrice(event.id, {
+      amount: 20000,
+      name: "Precio base general",
+      paymentDeadline: null,
+    });
+    const datedBlock = await createSavedPrice(event.id, {
+      amount: 15000,
+      name: "Precio bloque",
+      paymentDeadline: "2026-05-31",
+      scheduleId: block.id,
+    });
+
+    await expect(
+      resolveApplicablePrice({
+        eventId: event.id,
+        groupType: "solo",
+        paymentDate: "2026-05-20",
+        scheduleId: null,
+      }),
+    ).resolves.toMatchObject({ ok: true, price: { id: dated.id } });
+    await expect(
+      resolveApplicablePrice({
+        eventId: event.id,
+        groupType: "solo",
+        paymentDate: "2026-06-01",
+        scheduleId: null,
+      }),
+    ).resolves.toMatchObject({ ok: true, price: { id: generalBase.id } });
+
+    // Two tiers: the schedule's own row still applies, and once it expires the
+    // resolution falls through to the general tier's open-ended price rather than to
+    // `missing-price`.
+    await expect(
+      resolveApplicablePrice({
+        eventId: event.id,
+        groupType: "solo",
+        paymentDate: "2026-05-20",
+        scheduleId: block.id,
+      }),
+    ).resolves.toMatchObject({ ok: true, price: { id: datedBlock.id } });
+    await expect(
+      resolveApplicablePrice({
+        eventId: event.id,
+        groupType: "solo",
+        paymentDate: "2026-06-01",
+        scheduleId: block.id,
+      }),
+    ).resolves.toMatchObject({ ok: true, price: { id: generalBase.id } });
   });
 
   test("lists prices with schedule scope and blocks dependent updates and deletes", async () => {
@@ -303,3 +445,10 @@ describe("`Bases del evento` repository", () => {
     });
   });
 });
+
+// `db.execute` hands back a bare array on postgres.js and a `{ rows }` envelope
+// on PGlite, which is what the fast config runs. Same shape as the helper in
+// `tests/db/schema-security.db.test.ts`.
+function readRows<Row extends object>(result: { rows: Row[] } | Row[]) {
+  return Array.isArray(result) ? result : result.rows;
+}

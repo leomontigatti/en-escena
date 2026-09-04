@@ -1,7 +1,7 @@
 import { format } from "date-fns/format";
 import { es } from "date-fns/locale";
 import { CalendarIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   Controller,
   type Control,
@@ -31,6 +31,7 @@ type DateOnlyFieldBaseProps = {
   errorClassName?: string;
   id?: string;
   label: string;
+  labelAdornment?: ReactNode;
   labelClassName?: string;
   name: string;
   onBlur?: () => void;
@@ -82,6 +83,7 @@ function DateOnlyFieldControl({
   errorClassName,
   id: providedId,
   label,
+  labelAdornment,
   labelClassName,
   name,
   onBlur,
@@ -92,12 +94,7 @@ function DateOnlyFieldControl({
   value,
 }: DateOnlyFieldBaseProps) {
   const id = providedId ?? name;
-  const [open, setOpen] = useState(false);
   const dateValue = getDateOnlyValue(value ?? "");
-  const selectedDate = useMemo(
-    () => (dateValue ? parseDateOnly(dateValue) : undefined),
-    [dateValue],
-  );
 
   return (
     <SharedFieldLayout
@@ -107,6 +104,7 @@ function DateOnlyFieldControl({
       errorClassName={errorClassName}
       id={id}
       label={label}
+      labelAdornment={labelAdornment}
       labelClassName={labelClassName}
       orientation={orientation}
     >
@@ -114,58 +112,104 @@ function DateOnlyFieldControl({
         <>
           <input type="hidden" name={name} value={dateValue} />
           <div className="relative">
-            <Popover
-              open={disabled ? false : open}
-              onOpenChange={(nextOpen) => {
-                if (!disabled) {
-                  setOpen(nextOpen);
-                }
-              }}
-            >
-              <PopoverTrigger asChild>
-                <Button
-                  id={id}
-                  disabled={disabled}
-                  type="button"
-                  variant="outline"
-                  className={cn(
-                    "w-full cursor-pointer justify-between font-normal",
-                    disabled && "pr-9",
-                    buttonClassName,
-                  )}
-                  aria-invalid={isInvalid ? true : undefined}
-                  aria-describedby={describedBy}
-                  onBlur={onBlur}
-                >
-                  {selectedDate
-                    ? format(selectedDate, "d 'de' MMMM 'de' yyyy", {
-                        locale: es,
-                      })
-                    : "Elegí fecha"}
-                  {disabled ? null : <CalendarIcon data-icon="inline-end" />}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  captionLayout="dropdown"
-                  startMonth={startMonth}
-                  endMonth={endMonth}
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={(date) => {
-                    const nextDate = date ? formatDateOnly(date) : "";
-                    onValueChange?.(nextDate);
-                    setOpen(false);
-                  }}
-                  locale={es}
-                />
-              </PopoverContent>
-            </Popover>
+            <DateOnlyFieldPicker
+              buttonClassName={buttonClassName}
+              dateValue={dateValue}
+              describedBy={describedBy}
+              disabled={disabled}
+              endMonth={endMonth}
+              id={id}
+              isInvalid={isInvalid}
+              onBlur={onBlur}
+              onValueChange={onValueChange}
+              startMonth={startMonth}
+            />
             {disabled ? <FieldControlLockIcon /> : null}
           </div>
         </>
       )}
     </SharedFieldLayout>
+  );
+}
+
+type DateOnlyFieldPickerProps = Pick<
+  DateOnlyFieldBaseProps,
+  | "buttonClassName"
+  | "disabled"
+  | "endMonth"
+  | "onBlur"
+  | "onValueChange"
+  | "startMonth"
+> & {
+  dateValue: string;
+  describedBy?: string;
+  id: string;
+  isInvalid: boolean;
+};
+
+function DateOnlyFieldPicker({
+  buttonClassName,
+  dateValue,
+  describedBy,
+  disabled,
+  endMonth,
+  id,
+  isInvalid,
+  onBlur,
+  onValueChange,
+  startMonth,
+}: DateOnlyFieldPickerProps) {
+  const [open, setOpen] = useState(false);
+  const selectedDate = useMemo(
+    () => (dateValue ? parseDateOnly(dateValue) : undefined),
+    [dateValue],
+  );
+
+  return (
+    <Popover
+      open={disabled ? false : open}
+      onOpenChange={(nextOpen) => {
+        if (!disabled) {
+          setOpen(nextOpen);
+        }
+      }}
+    >
+      <PopoverTrigger asChild>
+        <Button
+          id={id}
+          disabled={disabled}
+          type="button"
+          variant="outline"
+          className={cn(
+            "w-full cursor-pointer justify-between font-normal",
+            disabled && "pr-9",
+            buttonClassName,
+          )}
+          aria-invalid={isInvalid ? true : undefined}
+          aria-describedby={describedBy}
+          onBlur={onBlur}
+        >
+          {selectedDate
+            ? format(selectedDate, "d 'de' MMMM 'de' yyyy", { locale: es })
+            : "Elegí fecha"}
+          {disabled ? null : <CalendarIcon data-icon="inline-end" />}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          captionLayout="dropdown"
+          startMonth={startMonth}
+          endMonth={endMonth}
+          mode="single"
+          selected={selectedDate}
+          onSelect={(date) => {
+            onValueChange?.(date ? formatDateOnly(date) : "");
+            setOpen(false);
+          }}
+          locale={es}
+        />
+      </PopoverContent>
+    </Popover>
   );
 }
 
