@@ -2,6 +2,7 @@ import { and, asc, eq, or, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
+  categories,
   choreographies,
   choreographyDancers,
   scheduleCapacities,
@@ -27,6 +28,7 @@ export async function findDancerInscriptions(input: {
     .select({
       id: choreographies.id,
       name: choreographies.name,
+      categoryName: categories.name,
       groupType: choreographies.groupType,
       scheduleId: schedules.id,
     })
@@ -35,6 +37,7 @@ export async function findDancerInscriptions(input: {
       choreographies,
       eq(choreographies.id, choreographyDancers.choreographyId),
     )
+    .leftJoin(categories, eq(choreographies.categoryId, categories.id))
     .leftJoin(
       scheduleCapacities,
       eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
@@ -67,6 +70,7 @@ export async function findDancerInscriptions(input: {
       return {
         id: choreography.id,
         choreographyName: choreography.name,
+        categoryName: choreography.categoryName,
         groupType: choreography.groupType,
         basePriceAmount: priceAmount,
         discountAmount: 0,

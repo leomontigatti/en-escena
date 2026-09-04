@@ -56,6 +56,7 @@ export type DancerDetail = {
 export type DancerInscription = {
   id: string;
   choreographyName: string;
+  categoryName: string | null;
   groupType: "solo" | "duo" | "trio" | "grupal";
   basePriceAmount: number | null;
   discountAmount: number;

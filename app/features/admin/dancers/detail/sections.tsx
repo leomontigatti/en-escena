@@ -512,7 +512,7 @@ export function InscriptionsSection({
         <TableHeader>
           <TableRow>
             <TableHead className="px-3">Nombre coreografía</TableHead>
-            <TableHead className="px-3">Tipo de grupo</TableHead>
+            <TableHead className="px-3">Categoría / Tipo de grupo</TableHead>
             <TableHead className="px-3">Precio base</TableHead>
             <TableHead className="px-3">Descuento</TableHead>
             <TableHead className="px-3">Subtotal estimado</TableHead>
@@ -525,7 +525,10 @@ export function InscriptionsSection({
                 {inscription.choreographyName}
               </TableCell>
               <TableCell className="px-3 text-muted-foreground">
-                {formatGroupTypeLabel(inscription.groupType)}
+                {formatPrimaryAndSecondaryValue(
+                  inscription.categoryName ?? "Sin asignar",
+                  formatGroupTypeLabel(inscription.groupType),
+                )}
               </TableCell>
               <TableCell className="px-3">
                 {formatMoney(inscription.basePriceAmount)}
@@ -542,6 +545,13 @@ export function InscriptionsSection({
       </Table>
     </div>
   );
+}
+
+function formatPrimaryAndSecondaryValue(
+  primaryValue: string,
+  secondaryValue: string | null,
+) {
+  return secondaryValue ? `${primaryValue} · ${secondaryValue}` : primaryValue;
 }
 
 function formatMoney(amount: number | null) {
