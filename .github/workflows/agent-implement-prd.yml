@@ -239,6 +239,14 @@ jobs:
           BRANCH: ${{ steps.branch.outputs.branch }}
         run: |
           set -euo pipefail
+          # A crashed preflight (not a refusal) reaches here with no checkout on
+          # disk — the checkout step is gated on `proceed == 'true'`. There is
+          # nothing to bank, and `git` here would only add a second red step on
+          # top of the real failure.
+          if [ ! -e .git ]; then
+            echo "No checkout — nothing to bank."
+            exit 0
+          fi
           # Commits added this run sit on top of the branch's prior remote state
           # (origin/$BRANCH on resume; a fresh first sub-issue has none → master).
           base="origin/$BRANCH"

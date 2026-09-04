@@ -141,4 +141,29 @@ describe("preflight-gated workflows (#790)", () => {
       ).toBe(false);
     }
   });
+
+  // The label-cleanup steps carry the same three-outcome shape, and #795 gave
+  // them the same spelling. On these workflows the cleanup is inert after a
+  // crashed preflight — the preflight runs before the transition to
+  // `agent:in-progress`, so there is no label to remove — which is exactly why
+  // it needs an assertion: nothing about a run would notice the condition
+  // drifting back to `== 'true'`, and the next workflow to move its preflight
+  // after the transition would inherit a stuck `agent:in-progress`.
+  it("runs the label cleanup when the preflight itself fails", () => {
+    for (const file of workflowsWithPreflight()) {
+      const cleanup = workflowSteps(file).filter((step) =>
+        step.name.startsWith("Always"),
+      );
+
+      expect(cleanup.length, `${file}: no label-cleanup step`).toBeGreaterThan(
+        0,
+      );
+      for (const step of cleanup) {
+        expect(
+          runsWhen(step.condition, { proceed: "", failure: true }),
+          `${file}: \`${step.name}\` would leave the label after a failed preflight`,
+        ).toBe(true);
+      }
+    }
+  });
 });
