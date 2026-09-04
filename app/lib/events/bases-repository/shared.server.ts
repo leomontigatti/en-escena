@@ -210,15 +210,17 @@ export type PriceInput = {
   name?: string;
   groupType: string;
   amount: number;
-  paymentDeadline: string;
+  paymentDeadline: string | null;
   scheduleId: string | null;
 };
 
+// A null `paymentDeadline` is the base price: the row that applies once every
+// dated row of its tier has expired.
 export type ValidPriceInput = {
   name: string;
   groupType: GroupType;
   amount: number;
-  paymentDeadline: string;
+  paymentDeadline: string | null;
   scheduleId: string | null;
 };
 

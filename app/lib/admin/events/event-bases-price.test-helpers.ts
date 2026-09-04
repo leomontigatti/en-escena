@@ -22,6 +22,7 @@ import {
 type PriceDraft = {
   amount: string;
   groupType: string;
+  isBasePrice?: string;
   isSpecialPrice?: string;
   name: string;
   paymentDeadline: string;
@@ -67,6 +68,7 @@ export async function createEventPriceAdminFixture() {
 function buildPriceDraft(overrides: Partial<PriceDraft> = {}): PriceDraft {
   return {
     name: "Precio base",
+    isBasePrice: "",
     isSpecialPrice: "",
     groupType: "solo",
     amount: "12000",
@@ -121,16 +123,18 @@ export async function findSavedPriceById(priceId: string) {
 
 export async function findSavedPriceByScope(input: {
   groupType: GroupType;
-  paymentDeadline: string;
-  scheduleId: string | null;
+  paymentDeadline: string | null;
+  scheduleId?: string | null;
 }) {
   return db.query.prices.findFirst({
     where: and(
       eq(prices.groupType, input.groupType),
-      eq(prices.paymentDeadline, input.paymentDeadline),
-      input.scheduleId === null
-        ? isNull(prices.scheduleId)
-        : eq(prices.scheduleId, input.scheduleId),
+      input.paymentDeadline === null
+        ? isNull(prices.paymentDeadline)
+        : eq(prices.paymentDeadline, input.paymentDeadline),
+      input.scheduleId
+        ? eq(prices.scheduleId, input.scheduleId)
+        : isNull(prices.scheduleId),
     ),
   });
 }
@@ -174,6 +178,7 @@ function formDataWithPrice(
     intent,
     name: price.name,
     isSpecialPrice: price.isSpecialPrice ?? "",
+    isBasePrice: price.isBasePrice ?? "",
     groupType: price.groupType,
     amount: price.amount,
     paymentDeadline: price.paymentDeadline,

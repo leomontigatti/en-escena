@@ -29,6 +29,7 @@ import { SelectField } from "@/components/shared/select-field";
 
 import { EventBasesFormActions } from "../events/bases-form-actions";
 import {
+  basePriceDeadlineLabel,
   EMPTY_SCHEDULE_VALUE,
   priceFormSchema,
   type PriceFormValues,
@@ -43,7 +44,7 @@ type PriceFormProps = {
   id?: string;
   intent: string;
   name?: string | null;
-  paymentDeadline?: string;
+  paymentDeadline?: string | null;
   scheduleId?: string | null;
   schedules: ScheduleListItem[];
   submittedValues?: PriceActionValues;
@@ -72,6 +73,7 @@ function getPriceFormDefaultValues({
       isSpecialPrice:
         submittedValues.isSpecialPrice === "true" ||
         submittedValues.scheduleId.length > 0,
+      isBasePrice: submittedValues.isBasePrice === "true",
       groupType: submittedValues.groupType,
       amount: submittedValues.amount,
       paymentDeadline: submittedValues.paymentDeadline,
@@ -82,6 +84,7 @@ function getPriceFormDefaultValues({
   return {
     name: name ?? "",
     isSpecialPrice: Boolean(scheduleId),
+    isBasePrice: paymentDeadline === null,
     groupType: groupType ?? "",
     amount: amount ? String(amount) : "",
     paymentDeadline: paymentDeadline ?? "",
@@ -126,6 +129,7 @@ export function PriceForm({
   }, [defaultValues, form]);
 
   const isSpecialPrice = form.watch("isSpecialPrice");
+  const isBasePrice = form.watch("isBasePrice");
 
   return (
     <form
@@ -155,8 +159,10 @@ export function PriceForm({
         <DateOnlyField
           control={form.control}
           name="paymentDeadline"
+          disabled={isBasePrice}
           id={`price-payment-deadline-${id ?? intent}`}
           label="Fecha límite de pago"
+          labelAdornment={<BasePriceSwitch form={form} />}
         />
         <FieldGroup className="grid gap-4 sm:grid-cols-2">
           <SelectField
@@ -227,6 +233,57 @@ function NameField({ form }: { form: PriceFormController }) {
         />
       )}
     </SharedFieldLayout>
+  );
+}
+
+// The switch that turns the row into a base price: one with no deadline, which
+// applies once every dated row has expired. It sits in the label row rather
+// than inside the control, because `DateOnlyField`'s right edge already carries
+// the calendar icon and, once disabled, the lock icon.
+function BasePriceSwitch({ form }: { form: PriceFormController }) {
+  const id = useId();
+
+  return (
+    <Controller
+      control={form.control}
+      name="isBasePrice"
+      render={({ field }) => (
+        <>
+          <input
+            type="hidden"
+            name={field.name}
+            value={field.value ? "true" : "false"}
+          />
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Switch
+                  id={id}
+                  aria-label={basePriceDeadlineLabel}
+                  className={cn(
+                    "border-border shadow-xs",
+                    field.value ? "!bg-primary" : "!bg-muted",
+                  )}
+                  checked={field.value}
+                  onBlur={field.onBlur}
+                  onCheckedChange={(checked) => {
+                    field.onChange(checked);
+
+                    if (checked) {
+                      form.setValue("paymentDeadline", "", {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      });
+                    }
+                  }}
+                />
+              </TooltipTrigger>
+              <TooltipContent>{basePriceDeadlineLabel}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </>
+      )}
+    />
   );
 }
 

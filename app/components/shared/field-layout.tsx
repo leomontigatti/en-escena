@@ -27,6 +27,7 @@ type SharedFieldLayoutProps = {
   errorClassName?: string;
   id: string;
   label: ReactNode;
+  labelAdornment?: ReactNode;
   labelClassName?: string;
   orientation?: SharedFieldOrientation;
 };
@@ -42,6 +43,7 @@ function SharedFieldLayout({
   errorClassName,
   id,
   label,
+  labelAdornment,
   labelClassName,
   orientation,
 }: SharedFieldLayoutProps) {
@@ -64,9 +66,18 @@ function SharedFieldLayout({
       data-invalid={dataFlag(isInvalid)}
       orientation={orientation}
     >
-      <FieldLabel htmlFor={id} className={labelClassName}>
-        {label}
-      </FieldLabel>
+      {labelAdornment ? (
+        <div className="flex items-center justify-between gap-2">
+          <FieldLabel htmlFor={id} className={labelClassName}>
+            {label}
+          </FieldLabel>
+          {labelAdornment}
+        </div>
+      ) : (
+        <FieldLabel htmlFor={id} className={labelClassName}>
+          {label}
+        </FieldLabel>
+      )}
       <FieldContent className={contentClassName}>
         <FieldDescriptionSlot
           descriptionNode={descriptionNode}

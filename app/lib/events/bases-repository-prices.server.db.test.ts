@@ -150,6 +150,121 @@ describe("`Bases del evento` repository", () => {
     });
   });
 
+  test("keeps one base price per tier and rejects a second one in the database", async () => {
+    const { event, schedule: block } = await createEventPriceFixture();
+    await createSavedPrice(event.id, {
+      amount: 20000,
+      name: "Precio base general",
+      paymentDeadline: null,
+    });
+    await createSavedPrice(event.id, {
+      amount: 25000,
+      name: "Precio base del cronograma",
+      paymentDeadline: null,
+      scheduleId: block.id,
+    });
+
+    await expect(listPrices(event.id)).resolves.toMatchObject([
+      { name: "Precio base del cronograma", paymentDeadline: null },
+      { name: "Precio base general", paymentDeadline: null },
+    ]);
+    await expect(
+      createPrice(event.id, {
+        groupType: "solo",
+        amount: 30000,
+        paymentDeadline: null,
+        scheduleId: null,
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      error: "Ya existe un precio general para ese tipo de grupo.",
+    });
+
+    // `price_general_unique` and `price_specific_unique` are the last word:
+    // without `NULLS NOT DISTINCT` Postgres reads two null deadlines as
+    // distinct and lets both rows in behind the repository check.
+    await expect(
+      db.insert(prices).values({
+        eventId: event.id,
+        name: "Segundo precio base general",
+        groupType: "solo",
+        amount: 30000,
+        paymentDeadline: null,
+        scheduleId: null,
+      }),
+    ).rejects.toMatchObject({
+      cause: { constraint_name: "price_general_unique" },
+    });
+    await expect(
+      db.insert(prices).values({
+        eventId: event.id,
+        name: "Segundo precio base del cronograma",
+        groupType: "solo",
+        amount: 30000,
+        paymentDeadline: null,
+        scheduleId: block.id,
+      }),
+    ).rejects.toMatchObject({
+      cause: { constraint_name: "price_specific_unique" },
+    });
+  });
+
+  test("falls back to the base price only once every dated row has expired", async () => {
+    const { event, schedule: block } = await createEventPriceFixture();
+    const dated = await createSavedPrice(event.id, {
+      amount: 12000,
+      paymentDeadline: "2026-05-31",
+    });
+    const generalBase = await createSavedPrice(event.id, {
+      amount: 20000,
+      name: "Precio base general",
+      paymentDeadline: null,
+    });
+    const datedBlock = await createSavedPrice(event.id, {
+      amount: 15000,
+      name: "Precio bloque",
+      paymentDeadline: "2026-05-31",
+      scheduleId: block.id,
+    });
+
+    await expect(
+      resolveApplicablePrice({
+        eventId: event.id,
+        groupType: "solo",
+        paymentDate: "2026-05-20",
+        scheduleId: null,
+      }),
+    ).resolves.toMatchObject({ ok: true, price: { id: dated.id } });
+    await expect(
+      resolveApplicablePrice({
+        eventId: event.id,
+        groupType: "solo",
+        paymentDate: "2026-06-01",
+        scheduleId: null,
+      }),
+    ).resolves.toMatchObject({ ok: true, price: { id: generalBase.id } });
+
+    // Two tiers: the schedule's own row still applies, and once it expires the
+    // resolution falls through to the general tier's base price rather than to
+    // `missing-price`.
+    await expect(
+      resolveApplicablePrice({
+        eventId: event.id,
+        groupType: "solo",
+        paymentDate: "2026-05-20",
+        scheduleId: block.id,
+      }),
+    ).resolves.toMatchObject({ ok: true, price: { id: datedBlock.id } });
+    await expect(
+      resolveApplicablePrice({
+        eventId: event.id,
+        groupType: "solo",
+        paymentDate: "2026-06-01",
+        scheduleId: block.id,
+      }),
+    ).resolves.toMatchObject({ ok: true, price: { id: generalBase.id } });
+  });
+
   test("lists prices with schedule scope and blocks dependent updates and deletes", async () => {
     const { event, schedule: block } = await createEventPriceFixture();
     const general = await createSavedPrice(event.id);

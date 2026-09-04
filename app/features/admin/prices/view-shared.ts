@@ -10,6 +10,12 @@ import { requiredFieldMessage } from "@/lib/shared/forms";
 
 export const EMPTY_SCHEDULE_VALUE = "__empty_schedule__";
 
+// A price with no `paymentDeadline` never expires: it is the row that applies
+// once every dated rung of the ladder has passed. "Precio base" is already the
+// UI term for `selectedPrice` (CONTEXT.md), so the deadline reads as its own
+// absence instead.
+export const basePriceDeadlineLabel = "Sin fecha límite";
+
 const priceDateFormatter = new Intl.DateTimeFormat("es-AR", {
   day: "numeric",
   month: "numeric",
@@ -34,6 +40,7 @@ export const priceFormSchema = z
   .object({
     name: z.string().trim().min(1, requiredFieldMessage),
     isSpecialPrice: z.boolean(),
+    isBasePrice: z.boolean(),
     groupType: z.string().min(1, requiredFieldMessage),
     amount: z
       .string()
@@ -43,7 +50,7 @@ export const priceFormSchema = z
 
         return Number.isInteger(amount) && amount > 0;
       }, "Ingresá un monto mayor a cero."),
-    paymentDeadline: z.string().trim().min(1, requiredFieldMessage),
+    paymentDeadline: z.string().trim(),
     scheduleId: z.string(),
   })
   .superRefine((values, context) => {
@@ -55,6 +62,14 @@ export const priceFormSchema = z
         code: "custom",
         message: requiredFieldMessage,
         path: ["scheduleId"],
+      });
+    }
+
+    if (!values.isBasePrice && values.paymentDeadline.length === 0) {
+      context.addIssue({
+        code: "custom",
+        message: requiredFieldMessage,
+        path: ["paymentDeadline"],
       });
     }
   });
@@ -85,7 +100,7 @@ export function getPriceName(price: PriceListItem) {
 
 export function formatPaymentDeadlineForTable(paymentDeadline: string | null) {
   if (!paymentDeadline) {
-    return "";
+    return basePriceDeadlineLabel;
   }
 
   return priceTableDateFormatter.format(
@@ -123,6 +138,7 @@ function isPriceActionValues(
     "paymentDeadline" in values &&
     "name" in values &&
     "isSpecialPrice" in values &&
+    "isBasePrice" in values &&
     "scheduleId" in values
   );
 }

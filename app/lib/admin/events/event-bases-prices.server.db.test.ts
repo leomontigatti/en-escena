@@ -204,6 +204,54 @@ describe.sequential("`/administracion/bases-del-evento` routes", () => {
     await expectPriceDeletedRedirect(deleteResponse);
   });
 
+  test("saves a base price with no deadline and still requires one otherwise", async () => {
+    const { event } = await createEventPriceAdminFixture();
+    const basePriceRequest = await createPriceAdminRequest({
+      email: "admin.precio.sin.vencimiento@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/precios/nuevo?evento=${event.id}`,
+      intent: "create-price",
+      price: {
+        name: "Precio sin vencimiento",
+        isBasePrice: "true",
+        paymentDeadline: "",
+      },
+    });
+
+    await expectThrownResponse(
+      action(routeArgs(basePriceRequest.request)),
+      302,
+    );
+    await expect(
+      findSavedPriceByScope({
+        groupType: "solo",
+        paymentDeadline: null,
+        scheduleId: null,
+      }),
+    ).resolves.toMatchObject({
+      name: "Precio sin vencimiento",
+      paymentDeadline: null,
+    });
+
+    const missingDeadlineRequest = await createPriceAdminRequest({
+      email: "admin.precio.sin.fecha@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/precios/nuevo?evento=${event.id}`,
+      intent: "create-price",
+      price: {
+        name: "Precio con ladder",
+        paymentDeadline: "",
+      },
+    });
+
+    await expect(
+      action(routeArgs(missingDeadlineRequest.request)),
+    ).resolves.toMatchObject({
+      status: "error",
+      fieldErrors: { paymentDeadline: "Este campo es obligatorio." },
+    });
+  });
+
   test("shows a frozen inscription validation when structural changes or deletion are blocked", async () => {
     const event = await createSavedEvent("Regional 2032");
     const { academy, choreography } =
@@ -256,6 +304,7 @@ describe.sequential("`/administracion/bases-del-evento` routes", () => {
       values: {
         amount: "12000",
         groupType: "solo",
+        isBasePrice: "",
         isSpecialPrice: "",
         name: "Precio base",
         paymentDeadline: "2026-05-31",
