@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 
-import { act, useState } from "react";
+import { useState } from "react";
 import {
   createMemoryRouter,
   redirect,
@@ -15,6 +15,10 @@ import {
   setInputValue,
   updateReactDomForm,
 } from "@/lib/test-support/react-dom";
+import {
+  openRadixSelect,
+  selectRadixOption,
+} from "@/lib/test-support/radix-select";
 
 import { ChoreographyFinanceDetailView } from "./view";
 import type { loadChoreographyFinanceDetail } from "./server";
@@ -144,7 +148,7 @@ describe("DancerNameCell interaction", () => {
     expect(amountInput().placeholder).toBe("$ 3.000");
 
     await openPriceSelect();
-    await selectPriceOption("Primer vencimiento · $ 42.000 · seña $ 12.600");
+    await selectRadixOption("Primer vencimiento · $ 42.000 · seña $ 12.600");
 
     expect(amountInput().placeholder).toBe("$ 12.600");
     // And the two owed figures move with it, so the card cannot contradict the
@@ -686,67 +690,9 @@ async function selectStatusOption(label: string) {
   });
 }
 
-/**
- * Radix needs the pointer capture methods jsdom does not implement, and it
- * commits on `Enter` over the focused item: with no layout the mouse path
- * cannot be replayed faithfully, and the keyboard one reaches the same
- * `onValueChange`. Same approach as the modality select of the choreography
- * detail.
- */
+/** The price picker of the allocation shape, named by the one it is. */
 async function openPriceSelect() {
-  const trigger = document.querySelector("#inscription-price");
-
-  if (!(trigger instanceof HTMLElement)) {
-    throw new Error("Expected the price select trigger to be rendered.");
-  }
-
-  trigger.hasPointerCapture ??= () => false;
-  trigger.setPointerCapture ??= () => {};
-  trigger.releasePointerCapture ??= () => {};
-
-  await act(async () => {
-    trigger.dispatchEvent(pointerEvent("pointerdown"));
-    await Promise.resolve();
-  });
-  await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 20));
-  });
-}
-
-async function selectPriceOption(text: string) {
-  const option = [
-    ...document.querySelectorAll('[data-slot="select-item"]'),
-  ].find((candidate) => candidate.textContent?.trim() === text);
-
-  if (!option) {
-    throw new Error(`Expected the option "${text}" to be rendered.`);
-  }
-
-  await act(async () => {
-    option.dispatchEvent(pointerEvent("pointermove"));
-    await Promise.resolve();
-  });
-  await act(async () => {
-    option.dispatchEvent(
-      new KeyboardEvent("keydown", {
-        bubbles: true,
-        cancelable: true,
-        key: "Enter",
-      }),
-    );
-    await Promise.resolve();
-  });
-}
-
-function pointerEvent(type: string) {
-  const event = new MouseEvent(type, {
-    bubbles: true,
-    button: 0,
-    cancelable: true,
-  });
-  Object.defineProperty(event, "pointerType", { value: "mouse" });
-
-  return event;
+  await openRadixSelect(document.querySelector("#inscription-price"));
 }
 
 function amountInput(id = "inscription-amount"): HTMLInputElement {

@@ -28,15 +28,20 @@ import {
 } from "@/lib/portal/choreographies";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
+import type { OperationalFinanceAmount } from "@/lib/finances/operational-summary";
 import {
   formatAmount,
   formatOperationalAmount,
 } from "@/lib/finances/formatters";
 import {
+  formatKeepCurrentPriceLabel,
+  sumPresetOwedAmount,
+  type PresetInscription,
+} from "./preset-figures";
+import {
   choreographyIdFieldName,
   financePresetIntent,
   financePresetLabels,
-  keepCurrentPriceLabel,
   keepCurrentPriceValue,
   presetPriceFieldName,
   selectPresetPriceOptions,
@@ -62,9 +67,15 @@ type ChoreographyFinanceRow =
  * It is a dialog over a list, so the write does not redirect: the outcome comes
  * back in `fetcher.data` and is announced with a toast, and a success closes the
  * dialog over the list the loader has just revalidated.
+ *
+ * **The figure follows the picks.** Picking a price re-prices part of the
+ * selection, so leaving the pre-filled figure at the loader's would name an
+ * amount the confirm is not about to write. The picks are held here rather than
+ * in each field for that reason: the figure is about all of them at once.
  */
 export function FinancePresetDialog({
   availableBalanceAmount,
+  inscriptions,
   onOpenChange,
   open,
   priceOptionsByGroupType,
@@ -73,6 +84,7 @@ export function FinancePresetDialog({
   stage,
 }: {
   availableBalanceAmount: number;
+  inscriptions: PresetInscription[];
   onOpenChange: (open: boolean) => void;
   open: boolean;
   priceOptionsByGroupType: Record<string, PresetPriceOption[]>;
@@ -81,12 +93,27 @@ export function FinancePresetDialog({
   stage: CobroStage;
 }) {
   const fetcher = useFetcher<AcademyFinancesActionData>();
+  const [priceIdByGroupType, setPriceIdByGroupType] = useState<
+    Record<string, string>
+  >({});
   const isSaving = fetcher.state !== "idle";
-  const owed = sumOwedAmount(selectedRows, stage);
+  const selectedInscriptions = selectInscriptionsOf(inscriptions, selectedRows);
   const priceFields = buildPresetPriceFields({
     priceOptionsByGroupType,
     pricingScheduleIdByChoreography,
+    selectedInscriptions,
     selectedRows,
+  });
+  const owed = sumPresetOwedAmount({
+    groupTypeByChoreography: Object.fromEntries(
+      selectedRows.map((row) => [row.id, row.groupType]),
+    ),
+    inscriptions: selectedInscriptions,
+    pickedPriceByGroupType: resolvePickedPrices({
+      priceFields,
+      priceIdByGroupType,
+    }),
+    stage,
   });
 
   useServerActionToast(fetcher.data);
@@ -134,7 +161,20 @@ export function FinancePresetDialog({
             <PresetPriceField
               key={field.groupType}
               groupType={field.groupType}
+              keepCurrentLabel={formatKeepCurrentPriceLabel({
+                inscriptions: field.inscriptions,
+                options: field.options,
+              })}
+              onPriceIdChange={(priceId) =>
+                setPriceIdByGroupType((current) => ({
+                  ...current,
+                  [field.groupType]: priceId,
+                }))
+              }
               options={field.options}
+              priceId={
+                priceIdByGroupType[field.groupType] ?? keepCurrentPriceValue
+              }
               showGroupType={priceFields.length > 1}
               spansSeveralSchedules={field.spansSeveralSchedules}
             />
@@ -151,7 +191,8 @@ export function FinancePresetDialog({
               <AlertTriangle aria-hidden="true" />
               <AlertDescription>
                 Alguna inscripción todavía no tiene precio, así que la cifra que
-                ves no es toda la deuda. Elegí un precio abajo para completarla.
+                ves no es toda la deuda. Elegí un precio arriba para
+                completarla.
               </AlertDescription>
             </Alert>
           ) : null}
@@ -183,17 +224,21 @@ export function FinancePresetDialog({
 
 type PresetPriceFieldSpec = {
   groupType: ChoreographyGroupType;
+  inscriptions: PresetInscription[];
   options: PresetPriceOption[];
   spansSeveralSchedules: boolean;
 };
 
 /**
  * One price prompt per group type in the selection, each already narrowed to
- * the rows the writer would accept for the choreographies of that group type.
+ * the rows the writer would accept for the choreographies of that group type,
+ * and carrying the inscriptions it is about so it can name the price they are
+ * on today.
  */
 function buildPresetPriceFields(input: {
   priceOptionsByGroupType: Record<string, PresetPriceOption[]>;
   pricingScheduleIdByChoreography: Record<string, string | null>;
+  selectedInscriptions: PresetInscription[];
   selectedRows: ChoreographyFinanceRow[];
 }): PresetPriceFieldSpec[] {
   const groupTypes = [
@@ -201,12 +246,16 @@ function buildPresetPriceFields(input: {
   ].sort();
 
   return groupTypes.map((groupType) => {
-    const scheduleIds = input.selectedRows
-      .filter((row) => row.groupType === groupType)
-      .map((row) => input.pricingScheduleIdByChoreography[row.id] ?? null);
+    const rows = input.selectedRows.filter(
+      (row) => row.groupType === groupType,
+    );
+    const scheduleIds = rows.map(
+      (row) => input.pricingScheduleIdByChoreography[row.id] ?? null,
+    );
 
     return {
       groupType,
+      inscriptions: selectInscriptionsOf(input.selectedInscriptions, rows),
       options: selectPresetPriceOptions({
         options: input.priceOptionsByGroupType[groupType] ?? [],
         scheduleIds,
@@ -216,25 +265,72 @@ function buildPresetPriceFields(input: {
   });
 }
 
+/** The inscriptions of a set of choreographies, in the order they arrived. */
+function selectInscriptionsOf(
+  inscriptions: PresetInscription[],
+  rows: ChoreographyFinanceRow[],
+): PresetInscription[] {
+  const choreographyIds = new Set(rows.map((row) => row.id));
+
+  return inscriptions.filter((inscription) =>
+    choreographyIds.has(inscription.choreographyId),
+  );
+}
+
+/**
+ * The picked row per group type, resolved against what that field actually
+ * offers. Keeping the current price is *not* a pick — it travels as no entry at
+ * all, the same way it travels to the server — so the projection and the write
+ * agree on what a default confirm does: nothing to the prices.
+ */
+function resolvePickedPrices(input: {
+  priceFields: PresetPriceFieldSpec[];
+  priceIdByGroupType: Record<string, string>;
+}): Record<string, PresetPriceOption> {
+  const picked: Record<string, PresetPriceOption> = {};
+
+  for (const field of input.priceFields) {
+    const option = field.options.find(
+      (candidate) => candidate.id === input.priceIdByGroupType[field.groupType],
+    );
+
+    if (option) {
+      picked[field.groupType] = option;
+    }
+  }
+
+  return picked;
+}
+
 /**
  * The price prompt, one per group type in the selection. It is named by its
  * group type only when the selection spans more than one, since otherwise the
  * qualifier says nothing.
  *
  * It defaults to keeping the price that already resolves for each inscription,
- * which is the price the figure above was computed from. Picking a row is the
- * deliberate act of re-pricing the inscriptions that have not covered their deposit
- * yet — money on the row does not spare it, only the crossing does — and the
- * description says so, because it moves the figure.
+ * which is the price the figure above was computed from. The default names that
+ * price whenever the inscriptions agree on one, so the reader can compare it
+ * against the rows below without leaving the dialog.
+ *
+ * Picking a row is the deliberate act of re-pricing the inscriptions that have
+ * not covered their deposit yet — money on the row does not spare it, only the
+ * crossing does — and the description says so, because that is the part of the
+ * selection the pick reaches.
  */
 function PresetPriceField({
   groupType,
+  keepCurrentLabel,
+  onPriceIdChange,
   options,
+  priceId,
   showGroupType,
   spansSeveralSchedules,
 }: {
   groupType: ChoreographyGroupType;
+  keepCurrentLabel: string;
+  onPriceIdChange: (priceId: string) => void;
   options: PresetPriceOption[];
+  priceId: string;
   showGroupType: boolean;
   spansSeveralSchedules: boolean;
 }) {
@@ -242,7 +338,6 @@ function PresetPriceField({
   const label = showGroupType
     ? `Precio · ${formatGroupTypeLabel(groupType)}`
     : "Precio";
-  const [priceId, setPriceId] = useState<string>(keepCurrentPriceValue);
 
   if (options.length === 0) {
     return (
@@ -268,13 +363,13 @@ function PresetPriceField({
         name={fieldName}
         value={priceId === keepCurrentPriceValue ? "" : priceId}
       />
-      <Select value={priceId} onValueChange={setPriceId}>
+      <Select value={priceId} onValueChange={onPriceIdChange}>
         <SelectTrigger id={fieldName} className="w-full">
           <SelectValue placeholder="Elegí un precio" />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value={keepCurrentPriceValue}>
-            {keepCurrentPriceLabel}
+            {keepCurrentLabel}
           </SelectItem>
           {options.map((option) => (
             <SelectItem key={option.id} value={option.id}>
@@ -286,7 +381,7 @@ function PresetPriceField({
       {priceId === keepCurrentPriceValue ? null : (
         <FieldDescription>
           Se fija en las inscripciones elegidas que todavía no cubrieron su
-          seña, así que la cifra de arriba se recalcula al confirmar.
+          seña. Las que ya la cubrieron quedan con el precio que tienen.
         </FieldDescription>
       )}
       {spansSeveralSchedules ? (
@@ -303,6 +398,9 @@ function PresetPriceField({
  * What the preset is about to allocate against what there is to allocate it
  * from. The administrator no longer picks a payment, so what they need to read
  * is that the money suffices.
+ *
+ * The owed figure is the projection against the current picks and not the
+ * loader's, so it is always the amount the button below is about to move.
  */
 function PresetTotals({
   availableBalanceAmount,
@@ -310,7 +408,7 @@ function PresetTotals({
   stage,
 }: {
   availableBalanceAmount: number;
-  owedAmount: OwedAmount;
+  owedAmount: OperationalFinanceAmount;
   stage: CobroStage;
 }) {
   return (
@@ -331,34 +429,4 @@ function PresetTotals({
       </div>
     </div>
   );
-}
-
-type OwedAmount = ChoreographyFinanceRow["owedDepositAmount"];
-
-/**
- * The pre-filled figure: the sum of the selected rows' shortfall against the
- * preset's threshold. It stays `incomplete` as soon as one row is, because a
- * figure that silently drops an unpriced inscription would understate the debt.
- */
-function sumOwedAmount(
-  rows: ChoreographyFinanceRow[],
-  stage: CobroStage,
-): OwedAmount {
-  let amount = 0;
-  let missingPriceCount = 0;
-
-  for (const row of rows) {
-    const owed =
-      stage === "deposit" ? row.owedDepositAmount : row.owedBalanceAmount;
-
-    amount += owed.amount;
-
-    if (owed.status === "incomplete") {
-      missingPriceCount += owed.missingPriceCount;
-    }
-  }
-
-  return missingPriceCount > 0
-    ? { amount, missingPriceCount, status: "incomplete" }
-    : { amount, status: "complete" };
 }

@@ -5,6 +5,10 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
 import {
+  openRadixSelect,
+  selectRadixOption,
+} from "@/lib/test-support/radix-select";
+import {
   createReactDomTestRenderer,
   setInputValue,
   updateReactDomForm,
@@ -419,6 +423,60 @@ describe("AcademyFinancesRouteView", () => {
     ).toEqual(["choreography_1"]);
   });
 
+  /**
+   * The pre-filled figure is the whole point of a preset, and a pick re-prices
+   * part of the selection: leaving it on the loader's figure would name an
+   * amount the confirm is not about to write.
+   */
+  test("moves the owed deposit when another price is picked", async () => {
+    await renderListIntoDocument({
+      initialPresetStage: "deposit",
+      loaderData: academyFinancesLoaderDataFixture({
+        priceOptionsByGroupType: {
+          solo: [
+            {
+              amount: 10000,
+              depositAmount: 3000,
+              id: "price_1",
+              name: "Primera fecha",
+              paymentDeadline: null,
+              scheduleId: null,
+            },
+            {
+              amount: 20000,
+              depositAmount: 6000,
+              id: "price_2",
+              name: "Segunda fecha",
+              paymentDeadline: null,
+              scheduleId: null,
+            },
+          ],
+        },
+      }),
+    });
+
+    await clickCheckbox(getRenderedCheckboxes()[1]);
+
+    expect(dialogText()).toContain("$ 3.000");
+    // The default names the price it keeps, so the row in force can be compared
+    // against the ones on offer without leaving the dialog.
+    expect(dialogText()).toContain(
+      "Mantener el precio actual · Primera fecha · $ 10.000",
+    );
+
+    await openRadixSelect(
+      document.querySelector('[data-slot="select-trigger"]'),
+    );
+    await selectRadixOption("Segunda fecha · $ 20.000");
+
+    expect(dialogText()).toContain("$ 6.000");
+    expect(dialogText()).not.toContain("$ 3.000");
+    expect(
+      document.querySelector<HTMLInputElement>('input[name="price-solo"]')
+        ?.value,
+    ).toBe("price_2");
+  });
+
   // The writer rejects every price row tied to a schedule other than the
   // choreography's, so offering it is offering a guaranteed rejection. With the
   // selection split across two schedules, the only thing satisfiable for all of
@@ -431,6 +489,7 @@ describe("AcademyFinancesRouteView", () => {
           solo: [
             {
               amount: 8000,
+              depositAmount: 2400,
               id: "price_schedule_1",
               name: "Solo cronograma 1",
               paymentDeadline: null,
@@ -438,6 +497,7 @@ describe("AcademyFinancesRouteView", () => {
             },
             {
               amount: 12000,
+              depositAmount: 3600,
               id: "price_schedule_2",
               name: "Solo cronograma 2",
               paymentDeadline: null,
@@ -492,6 +552,10 @@ describe("AcademyFinancesRouteView", () => {
     await renderer.renderAsync(<RouterProvider router={router} />);
   }
 });
+
+function dialogText() {
+  return document.querySelector('[role="dialog"]')?.textContent ?? "";
+}
 
 function getRenderedCheckboxes() {
   return [...document.querySelectorAll('[role="checkbox"]')].filter(
@@ -581,10 +645,21 @@ function academyFinancesLoaderDataFixture(
         name: "Tango",
       }),
     ],
+    inscriptions: [
+      presetInscriptionFixture({
+        choreographyId: "choreography_1",
+        id: "inscription_1",
+      }),
+      presetInscriptionFixture({
+        choreographyId: "choreography_2",
+        id: "inscription_2",
+      }),
+    ],
     priceOptionsByGroupType: {
       solo: [
         {
           amount: 10000,
+          depositAmount: 3000,
           id: "price_1",
           name: "Primera fecha",
           paymentDeadline: "2026-03-01",
@@ -605,6 +680,29 @@ function academyFinancesLoaderDataFixture(
       owedDepositAmount: { amount: 6000, status: "complete" },
       totalPaidAmount: 0,
     },
+    ...overrides,
+  };
+}
+
+/**
+ * One inscription of the fixture's choreographies, mirroring the row above it:
+ * the dialog projects off the inscriptions, so the two have to agree or the
+ * pre-filled figure stops matching the list behind it.
+ */
+function presetInscriptionFixture(
+  overrides: Partial<AcademyFinancesLoaderData["inscriptions"][number]> = {},
+): AcademyFinancesLoaderData["inscriptions"][number] {
+  return {
+    allocatedAmount: 0,
+    basePriceAmount: 10000,
+    basePriceId: "price_1",
+    choreographyId: "choreography_1",
+    dancerDiscountAmount: 0,
+    depositAmount: 3000,
+    id: "inscription",
+    owedBalanceAmount: 0,
+    owedDepositAmount: 3000,
+    withdrawn: false,
     ...overrides,
   };
 }

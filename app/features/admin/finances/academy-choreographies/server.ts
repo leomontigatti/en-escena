@@ -4,18 +4,22 @@ import { db } from "@/db";
 import {
   academies,
   choreographies,
+  events,
   prices,
   scheduleCapacities,
 } from "@/db/schema";
 import { loadEventContext } from "@/lib/admin/event-context.server";
+import { calculateDepositAmount } from "@/lib/finances/inscription-financial-status";
 import { resolveChoreographyPricingScheduleId } from "@/lib/finances/choreography-pricing-schedule";
 import { emptyOperationalFinanceSummary } from "@/lib/finances/operational-summary";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
+import type { ResolvedInscription } from "@/lib/finances/operational-summary-calculations.server";
 import { payChoreographiesPreset } from "@/lib/finances/choreography-cobro-presets.server";
 import {
   requireAdminUser,
   requireInternalUser,
 } from "@/lib/auth/internal-access.server";
+import type { PresetInscription } from "./preset-figures";
 import {
   choreographyIdFieldName,
   financePresetLabels,
@@ -47,6 +51,7 @@ export async function loadAcademyFinances(input: {
       ? [
           {
             choreographyFinanceRows: [],
+            inscriptions: [],
             summary: emptyOperationalFinanceSummary(),
           },
           {} as Record<string, PresetPriceOption[]>,
@@ -67,6 +72,7 @@ export async function loadAcademyFinances(input: {
   return {
     academy,
     choreographyFinanceRows: financeDetail.choreographyFinanceRows,
+    inscriptions: financeDetail.inscriptions.map(toPresetInscription),
     priceOptionsByGroupType,
     pricingScheduleIdByChoreography,
     selectedEventId: eventContext.selectedEventId,
@@ -148,27 +154,64 @@ function readPriceSelection(formData: FormData): Record<string, string> {
 }
 
 /**
+ * The dialog's slice of an inscription: the figures the reader already derived,
+ * and what it takes to re-derive them against another price. It is trimmed here
+ * rather than shipped whole because the dialog projects money and nothing else —
+ * who the dancer is, and how the row is badged, are the list's business.
+ */
+function toPresetInscription(
+  inscription: ResolvedInscription,
+): PresetInscription {
+  return {
+    allocatedAmount: inscription.allocatedAmount,
+    basePriceAmount: inscription.basePriceAmount,
+    basePriceId: inscription.basePriceId,
+    choreographyId: inscription.choreographyId,
+    dancerDiscountAmount: inscription.dancerDiscountAmount,
+    depositAmount: inscription.depositAmount,
+    id: inscription.id,
+    owedBalanceAmount: inscription.owedBalanceAmount,
+    owedDepositAmount: inscription.owedDepositAmount,
+    withdrawn: inscription.withdrawn,
+  };
+}
+
+/**
  * Every price row of the event, bucketed by group type and carrying its
  * schedule. The group type is the only bucket the loader can build, because
  * which schedules matter depends on what the administrator selects; the picker
  * narrows the bucket to the rows the writer would accept for that selection
  * (`selectPresetPriceOptions`).
+ *
+ * The `Seña` of each row is computed here, off the event's percentage, so the
+ * dialog can say what a pick would leave owing without carrying a rule of its
+ * own.
  */
 async function readPresetPriceOptions(
   eventId: string,
 ): Promise<Record<string, PresetPriceOption[]>> {
-  const rows = await db
-    .select({
-      amount: prices.amount,
-      groupType: prices.groupType,
-      id: prices.id,
-      name: prices.name,
-      paymentDeadline: prices.paymentDeadline,
-      scheduleId: prices.scheduleId,
-    })
-    .from(prices)
-    .where(eq(prices.eventId, eventId))
-    .orderBy(asc(prices.amount));
+  const [event, rows] = await Promise.all([
+    db.query.events.findFirst({
+      columns: { requiredDepositPercentage: true },
+      where: eq(events.id, eventId),
+    }),
+    db
+      .select({
+        amount: prices.amount,
+        groupType: prices.groupType,
+        id: prices.id,
+        name: prices.name,
+        paymentDeadline: prices.paymentDeadline,
+        scheduleId: prices.scheduleId,
+      })
+      .from(prices)
+      .where(eq(prices.eventId, eventId))
+      .orderBy(asc(prices.amount)),
+  ]);
+
+  if (!event) {
+    throw new Response("No encontramos ese evento.", { status: 404 });
+  }
 
   const optionsByGroupType: Record<string, PresetPriceOption[]> = {};
 
@@ -177,6 +220,10 @@ async function readPresetPriceOptions(
 
     bucket.push({
       amount: row.amount,
+      depositAmount: calculateDepositAmount({
+        priceAmount: row.amount,
+        requiredDepositPercentage: event.requiredDepositPercentage,
+      }),
       id: row.id,
       name: row.name,
       paymentDeadline: row.paymentDeadline,

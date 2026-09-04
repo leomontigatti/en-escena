@@ -27,8 +27,9 @@ import {
   computeDancerDiscountAmounts,
   type DancerDiscount,
   type FinanceChoreographyRow,
+  type FinancePriceRow,
   type ResolvedInscription,
-  resolveEffectiveBasePriceAmount,
+  resolveEffectiveBasePriceRow,
 } from "@/lib/finances/operational-summary-calculations.server";
 
 type InscriptionRow = {
@@ -260,11 +261,11 @@ async function readAcademyEventFinance(input: {
   // Which price that is depends on the money already on the row, so this has to
   // run after the allocations are summed: the stored row governs only once the
   // inscription has crossed its deposit threshold.
-  const priceAmountByInscription = new Map<string, number | null>();
+  const priceRowByInscription = new Map<string, FinancePriceRow | null>();
   for (const inscription of inscriptionRows) {
-    priceAmountByInscription.set(
+    priceRowByInscription.set(
       inscription.id,
-      resolveEffectiveBasePriceAmount({
+      resolveEffectiveBasePriceRow({
         allocatedAmount: allocationByInscription.get(inscription.id) ?? 0,
         choreography: choreographyById.get(inscription.choreographyId),
         priceRows,
@@ -273,6 +274,13 @@ async function readAcademyEventFinance(input: {
       }),
     );
   }
+
+  const priceAmountByInscription = new Map(
+    [...priceRowByInscription].map(([inscriptionId, price]) => [
+      inscriptionId,
+      price?.amount ?? null,
+    ]),
+  );
 
   const dancerDiscounts = buildDancerDiscounts({
     inscriptionRows,
@@ -306,6 +314,7 @@ async function readAcademyEventFinance(input: {
       return {
         ...figures,
         basePriceAmount: priceAmount,
+        basePriceId: priceRowByInscription.get(inscription.id)?.id ?? null,
         choreographyId: inscription.choreographyId,
         dancerDiscountAmount,
         dancerId: inscription.dancerId,

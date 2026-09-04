@@ -44,6 +44,9 @@ export type ResolvedInscription = {
   allocatedAmount: number;
   // Selected price, **before** any discount. `null` only if no price applies.
   basePriceAmount: number | null;
+  // The row that amount came from, so a surface offering to change the price can
+  // name the one in force instead of only pricing it.
+  basePriceId: string | null;
   // `Descuento por bailarín`, always live.
   dancerDiscountAmount: number;
   // `price − discount`, the high threshold. Applies the discount exactly once.

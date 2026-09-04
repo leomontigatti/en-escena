@@ -149,6 +149,7 @@ export function AcademyFinancesRouteView({
       {presetStage !== null && selectedRows.length > 0 ? (
         <FinancePresetDialog
           availableBalanceAmount={loaderData.summary.availableBalanceAmount}
+          inscriptions={loaderData.inscriptions}
           open
           onOpenChange={handlePresetOpenChange}
           priceOptionsByGroupType={loaderData.priceOptionsByGroupType}
