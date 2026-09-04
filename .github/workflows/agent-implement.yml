@@ -164,11 +164,19 @@ jobs:
       # the run (a retry still branches fresh from master). It makes the progress
       # recoverable for a human, and is surfaced in the failure comment below. ---
       - name: Bank partial work on runner failure
-        if: failure() && steps.preflight.outputs.proceed == 'true'
+        if: failure() && steps.preflight.outputs.proceed != 'false'
         env:
           BRANCH: ${{ steps.branch.outputs.branch }}
         run: |
           set -euo pipefail
+          # A crashed preflight (not a refusal) reaches here with no checkout on
+          # disk — the checkout step is gated on `proceed == 'true'`. There is
+          # nothing to bank, and `git` here would only add a second red step on
+          # top of the real failure.
+          if [ ! -e .git ]; then
+            echo "No checkout — nothing to bank."
+            exit 0
+          fi
           count=$(git rev-list --count master..HEAD)
           if [ "$count" -eq 0 ]; then
             echo "No commits to bank."
@@ -260,8 +268,11 @@ jobs:
           GH_TOKEN="$GITHUB_TOKEN" add_review_label
 
       # --- Failure: mark blocked + comment (§3.7). ---
+      # `!= 'false'`, not `== 'true'`: a preflight that *itself* fails leaves
+      # `proceed` unset, and `== 'true'` would swallow that — a red run with no
+      # `agent:blocked` and no comment. Only a deliberate refusal (`false`) is silent.
       - name: On failure — block + comment
-        if: failure() && steps.preflight.outputs.proceed == 'true'
+        if: failure() && steps.preflight.outputs.proceed != 'false'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -292,7 +303,7 @@ jobs:
 
       # --- Always: release the lock. ---
       - name: Always — remove in-progress
-        if: always() && steps.preflight.outputs.proceed == 'true'
+        if: always() && steps.preflight.outputs.proceed != 'false'
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh issue edit "$ISSUE_NUMBER" --remove-label "agent:in-progress" || true

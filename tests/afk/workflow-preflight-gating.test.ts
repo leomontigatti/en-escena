@@ -122,27 +122,48 @@ describe("preflight-gated workflows (#790)", () => {
   // A refusal writes `proceed=false`; a preflight that *fails* writes nothing,
   // so `proceed` is the empty string. Gating the failure report on
   // `== 'true'` collapses those two cases and reports neither — a red run with
-  // no `agent:blocked` and no comment on the PR, which is precisely the failure
-  // mode the reporting step exists to prevent.
-  //
-  // Scoped to `agent-review.yml`, which is the workflow #790 gave a preflight:
-  // the other four carry the `== 'true'` spelling as pre-existing code, and
-  // widening this into the cross-cutting assertion above means sweeping them,
-  // which is its own change.
+  // no `agent:blocked` and no comment on the issue or PR, which is precisely
+  // the failure mode the reporting step exists to prevent (#795).
   it("still reports when the preflight itself fails", () => {
-    const file = ".github/workflows/agent-review.yml";
-    const reporting = workflowSteps(file).filter((step) =>
-      step.name.startsWith("On failure"),
-    );
+    for (const file of workflowsWithPreflight()) {
+      const reporting = workflowSteps(file).filter((step) =>
+        step.name.startsWith("On failure"),
+      );
 
-    expect(reporting.length, `${file}: no failure-reporting step`).toBe(1);
-    expect(
-      runsWhen(reporting[0].condition, { proceed: "", failure: true }),
-      `${file}: a failed preflight would go unreported`,
-    ).toBe(true);
-    expect(
-      runsWhen(reporting[0].condition, { proceed: "false", failure: false }),
-      `${file}: a deliberate refusal must not be reported as a failure`,
-    ).toBe(false);
+      expect(reporting.length, `${file}: no failure-reporting step`).toBe(1);
+      expect(
+        runsWhen(reporting[0].condition, { proceed: "", failure: true }),
+        `${file}: a failed preflight would go unreported`,
+      ).toBe(true);
+      expect(
+        runsWhen(reporting[0].condition, { proceed: "false", failure: false }),
+        `${file}: a deliberate refusal must not be reported as a failure`,
+      ).toBe(false);
+    }
+  });
+
+  // The label-cleanup steps carry the same three-outcome shape, and #795 gave
+  // them the same spelling. On these workflows the cleanup is inert after a
+  // crashed preflight — the preflight runs before the transition to
+  // `agent:in-progress`, so there is no label to remove — which is exactly why
+  // it needs an assertion: nothing about a run would notice the condition
+  // drifting back to `== 'true'`, and the next workflow to move its preflight
+  // after the transition would inherit a stuck `agent:in-progress`.
+  it("runs the label cleanup when the preflight itself fails", () => {
+    for (const file of workflowsWithPreflight()) {
+      const cleanup = workflowSteps(file).filter((step) =>
+        step.name.startsWith("Always"),
+      );
+
+      expect(cleanup.length, `${file}: no label-cleanup step`).toBeGreaterThan(
+        0,
+      );
+      for (const step of cleanup) {
+        expect(
+          runsWhen(step.condition, { proceed: "", failure: true }),
+          `${file}: \`${step.name}\` would leave the label after a failed preflight`,
+        ).toBe(true);
+      }
+    }
   });
 });
