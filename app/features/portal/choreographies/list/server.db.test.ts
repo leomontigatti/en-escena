@@ -497,6 +497,14 @@ describe.sequential("handlePortalChoreographiesListAction", () => {
         groupType: "solo",
         amount: 15000,
         paymentDeadline: null,
+        scheduleId: null,
+      }),
+    );
+    await expectCreated(
+      createPrice(event.id, {
+        groupType: "solo",
+        amount: 15000,
+        paymentDeadline: null,
         scheduleId: block.id,
       }),
     );
