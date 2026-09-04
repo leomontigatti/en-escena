@@ -132,7 +132,7 @@ export function getMissingItemSummary(code: EventRegistrationMissingCode) {
     case "schedule-compatibility":
       return "Existen categorías sin un cupo de cronograma compatible.";
     case "price-coverage":
-      return "Existen combinaciones sin un precio aplicable.";
+      return "Existen combinaciones sin un precio que no venza.";
   }
 }
 

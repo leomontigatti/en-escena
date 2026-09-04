@@ -350,6 +350,45 @@ describe("event registration readiness from loaded bases", () => {
       ],
     });
   });
+
+  test("names the last date the path resolves, across both price tiers", async () => {
+    const eventBases = buildSoloEventBases([
+      {
+        id: "price_solo_general",
+        eventId: "event_2026",
+        groupType: "solo",
+        amount: 12000,
+        paymentDeadline: "2026-01-31",
+        scheduleId: null,
+        schedule: null,
+      },
+      {
+        id: "price_solo_schedule",
+        eventId: "event_2026",
+        groupType: "solo",
+        amount: 18000,
+        paymentDeadline: "2026-12-05",
+        scheduleId: "schedule_sabado",
+        schedule: null,
+      },
+    ]);
+
+    await expect(
+      getEventRegistrationReadinessForBases("event_2026", eventBases, {
+        referenceDate: "2026-06-01",
+      }),
+    ).resolves.toMatchObject({
+      isReady: false,
+      missingItems: [
+        expect.objectContaining({
+          code: "price-coverage",
+          detail: expect.stringContaining(
+            "vence el 5 de diciembre de 2026 y no hay un precio base",
+          ),
+        }),
+      ],
+    });
+  });
 });
 
 function buildSoloEventBases(prices: unknown[]) {

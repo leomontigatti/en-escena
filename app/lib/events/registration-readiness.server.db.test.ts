@@ -475,17 +475,21 @@ describe("event registration readiness", () => {
     });
 
     // The point of the check: no reachable path can fall into `missing-price`,
-    // at any date the finance screens may ask for.
+    // at any date the finance screens may ask for. A choreography with no
+    // schedule of its own resolves through the general tier alone, so the null
+    // scheduleId is part of the guarantee a general base price makes.
     for (const groupType of ["solo", "duo"]) {
       for (const paymentDate of ["2026-05-01", "2030-01-01"]) {
-        await expect(
-          resolveApplicablePrice({
-            eventId: event.id,
-            groupType,
-            paymentDate,
-            scheduleId: block.id,
-          }),
-        ).resolves.toMatchObject({ ok: true });
+        for (const scheduleId of [block.id, null]) {
+          await expect(
+            resolveApplicablePrice({
+              eventId: event.id,
+              groupType,
+              paymentDate,
+              scheduleId,
+            }),
+          ).resolves.toMatchObject({ ok: true });
+        }
       }
     }
   });
