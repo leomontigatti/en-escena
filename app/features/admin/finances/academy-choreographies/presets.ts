@@ -67,21 +67,6 @@ export type PresetPriceOption = {
 };
 
 /**
- * The picker's default: leave every inscription on the price that already
- * resolves for it. It is a value rather than an empty option because Radix's
- * `Select` cannot hold one, and it travels to the server as no pick at all.
- *
- * It is the default because the figure the dialog shows was computed from the
- * prices that already resolve. Defaulting to a row of the catalogue would make
- * an administrator who only reads the figure and confirms re-price every
- * inscription that has not covered its deposit, and allocate against a number they
- * never saw.
- */
-export const keepCurrentPriceValue = "keep-current";
-
-export const keepCurrentPriceLabel = "Mantener el precio actual";
-
-/**
  * The rows offered for one group type of the selection. The writer refuses any
  * price tied to a schedule other than the choreography's, so a schedule-bound
  * row of another schedule is a guaranteed refusal and is never offered.

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import {
-  formatKeepCurrentPriceLabel,
+  resolveCurrentPriceId,
   sumPresetOwedAmount,
   type PresetInscription,
 } from "./preset-figures";
@@ -150,62 +150,92 @@ describe("sumPresetOwedAmount", () => {
   });
 });
 
-describe("formatKeepCurrentPriceLabel", () => {
-  test("names the row the inscriptions share", () => {
+describe("resolveCurrentPriceId", () => {
+  const currentPrice = priceFixture({
+    amount: 10000,
+    depositAmount: 3000,
+    id: "price_1",
+    name: "Primera fecha",
+  });
+
+  test("opens on the row the inscriptions it would reach are on today", () => {
     expect(
-      formatKeepCurrentPriceLabel({
+      resolveCurrentPriceId({
         inscriptions: [
           inscriptionFixture({ id: "inscription_1" }),
           inscriptionFixture({ id: "inscription_2" }),
         ],
-        options: [priceFixture({ id: "price_1", name: "Primera fecha" })],
+        options: [currentPrice, priceFixture()],
       }),
-    ).toBe("Mantener el precio actual · Primera fecha · $ 20.000");
+    ).toBe("price_1");
+  });
+
+  /**
+   * The crossing fixed that row and a pick cannot move it, so letting it break
+   * the agreement would empty a picker it is not even affected by.
+   */
+  test("ignores an inscription whose deposit is already covered", () => {
+    expect(
+      resolveCurrentPriceId({
+        inscriptions: [
+          inscriptionFixture({
+            allocatedAmount: 3000,
+            basePriceId: "price_old",
+            id: "inscription_1",
+          }),
+          inscriptionFixture({ id: "inscription_2" }),
+        ],
+        options: [currentPrice],
+      }),
+    ).toBe("price_1");
+  });
+
+  test("opens empty when they are on different rows", () => {
+    expect(
+      resolveCurrentPriceId({
+        inscriptions: [
+          inscriptionFixture({ id: "inscription_1" }),
+          inscriptionFixture({ basePriceId: "price_2", id: "inscription_2" }),
+        ],
+        options: [currentPrice, priceFixture()],
+      }),
+    ).toBeNull();
   });
 
   /**
    * A selection spanning schedules is only offered the general rows, so the row
-   * in force may not be among them. The amount is still the same for all of
-   * them, and it is the figure the reader is comparing by.
+   * in force can be one the picker cannot show. Opening on nothing is what keeps
+   * it from claiming to hold a value it does not have.
    */
-  test("falls back to the amount when the row is not on offer", () => {
+  test("opens empty when the row in force is not on offer", () => {
     expect(
-      formatKeepCurrentPriceLabel({
+      resolveCurrentPriceId({
         inscriptions: [inscriptionFixture({ id: "inscription_1" })],
-        options: [priceFixture({ id: "price_general" })],
+        options: [priceFixture()],
       }),
-    ).toBe("Mantener el precio actual · $ 10.000");
+    ).toBeNull();
   });
 
-  test("says nothing more when the inscriptions are on different prices", () => {
+  test("opens empty when no price applies", () => {
     expect(
-      formatKeepCurrentPriceLabel({
+      resolveCurrentPriceId({
         inscriptions: [
-          inscriptionFixture({ id: "inscription_1" }),
-          inscriptionFixture({
-            basePriceAmount: 12000,
-            basePriceId: "price_2",
-            id: "inscription_2",
-          }),
+          inscriptionFixture({ basePriceId: null, id: "inscription_1" }),
         ],
-        options: [],
+        options: [currentPrice],
       }),
-    ).toBe("Mantener el precio actual");
+    ).toBeNull();
   });
 
-  test("says nothing more when no price applies", () => {
+  test("opens empty when a pick would reach nothing", () => {
     expect(
-      formatKeepCurrentPriceLabel({
+      resolveCurrentPriceId({
         inscriptions: [
-          inscriptionFixture({
-            basePriceAmount: null,
-            basePriceId: null,
-            id: "inscription_1",
-          }),
+          inscriptionFixture({ id: "inscription_1", withdrawn: true }),
         ],
-        options: [],
+        options: [currentPrice],
       }),
-    ).toBe("Mantener el precio actual");
+    ).toBeNull();
   });
 });
 

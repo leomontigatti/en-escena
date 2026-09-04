@@ -1,7 +1,7 @@
 /**
  * What the preset dialog *says* about the money, with none of how it looks: what
- * the selection owes against the prices currently picked, and how the row that
- * keeps the price in force reads.
+ * the selection owes against the prices currently picked, and which row the
+ * picker opens on.
  *
  * It sits beside `preset-dialog.tsx` rather than inside it because none of it is
  * UI, exactly as `inscription-money-figures.ts` sits beside the single
@@ -10,7 +10,6 @@
  */
 
 import type { CobroStage } from "@/lib/finances/choreography-cobro-presets.server";
-import { formatAmount } from "@/lib/finances/formatters";
 import {
   calculateTotalAmount,
   deriveInscriptionFinancialFigures,
@@ -21,7 +20,7 @@ import {
   type OperationalFinanceAmount,
 } from "@/lib/finances/operational-summary";
 
-import { keepCurrentPriceLabel, type PresetPriceOption } from "./presets";
+import type { PresetPriceOption } from "./presets";
 
 /**
  * An inscription of the academy, as much of it as the dialog's projection needs.
@@ -99,15 +98,8 @@ function resolvePresetOwedAmount(input: {
   stage: CobroStage;
 }): number | null {
   const { inscription, price } = input;
-  const keepsItsPrice =
-    price === null ||
-    inscription.withdrawn ||
-    hasCrossedDepositThreshold({
-      allocatedAmount: inscription.allocatedAmount,
-      depositAmount: inscription.depositAmount,
-    });
 
-  if (keepsItsPrice) {
+  if (price === null || !canBeRePriced(inscription)) {
     return input.stage === "deposit"
       ? inscription.owedDepositAmount
       : inscription.owedBalanceAmount;
@@ -130,41 +122,50 @@ function resolvePresetOwedAmount(input: {
 }
 
 /**
- * How the default row reads: `Mantener el precio actual`, and the price it means
- * whenever the inscriptions it covers agree on one. Naming it is what turns the
- * default from a promise into a figure — an administrator who opens the picker to
- * find out what they are keeping should not have to close it and go read the
- * list.
+ * The row the picker opens on: the price that applies **today** to the
+ * inscriptions a pick would reach, when they all resolve to the same one and it
+ * is among the rows on offer.
  *
- * They are named by the row when they share it and by the amount when they only
- * share that, which is the case of a selection spanning schedules whose
- * schedule-bound row is not on offer. Sharing neither is left unnamed rather than
- * summarised: `varios precios` is what the plain label already says.
+ * It is read off the inscriptions the pick reaches and not off all of them. One
+ * that has covered its deposit is on the row that crossing fixed, which can be
+ * an older one; letting it break the agreement would empty a picker whose
+ * default it is not even affected by.
+ *
+ * `null` is a picker that opens on its placeholder, which happens when those
+ * inscriptions sit on different rows — a selection spanning schedules — or when
+ * the row in force is not offered, and submitting it leaves every price where it
+ * is. It is the honest empty: there is no single price today to open on.
  */
-export function formatKeepCurrentPriceLabel(input: {
+export function resolveCurrentPriceId(input: {
   inscriptions: PresetInscription[];
   options: PresetPriceOption[];
-}): string {
+}): string | null {
   const priceIds = new Set(
-    input.inscriptions.map((inscription) => inscription.basePriceId),
+    input.inscriptions
+      .filter(canBeRePriced)
+      .map((inscription) => inscription.basePriceId),
   );
 
-  if (priceIds.size === 1) {
-    const option = input.options.find(
-      (candidate) => candidate.id === [...priceIds][0],
-    );
-
-    if (option) {
-      return `${keepCurrentPriceLabel} · ${option.name} · ${formatAmount(option.amount)}`;
-    }
+  if (priceIds.size !== 1) {
+    return null;
   }
 
-  const amounts = new Set(
-    input.inscriptions.map((inscription) => inscription.basePriceAmount),
-  );
-  const amount = amounts.size === 1 ? [...amounts][0] : null;
+  const priceId = [...priceIds][0];
 
-  return amount === null
-    ? keepCurrentPriceLabel
-    : `${keepCurrentPriceLabel} · ${formatAmount(amount)}`;
+  return input.options.some((option) => option.id === priceId) ? priceId : null;
+}
+
+/**
+ * Whether a pick reaches an inscription at all, which is the writer's own rule:
+ * off the roster it is not touched, and once its deposit is covered its price is
+ * fixed — money on the row does not fix it, only the crossing does.
+ */
+function canBeRePriced(inscription: PresetInscription): boolean {
+  return (
+    !inscription.withdrawn &&
+    !hasCrossedDepositThreshold({
+      allocatedAmount: inscription.allocatedAmount,
+      depositAmount: inscription.depositAmount,
+    })
+  );
 }

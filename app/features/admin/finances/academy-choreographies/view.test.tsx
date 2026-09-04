@@ -407,14 +407,14 @@ describe("AcademyFinancesRouteView", () => {
     expect(dialogText).toContain("Seña adeudada");
     expect(dialogText).toContain("$ 3.000");
     expect(dialogText).toContain("Precio");
-    expect(dialogText).toContain("Mantener el precio actual");
 
-    // Confirming without touching the selector cannot reprice anything: the figure
-    // above was computed with the prices already in force, so the default pick is
-    // *none* and the amount written matches the one shown.
+    // The picker opens on the row that applies today, which is the one the
+    // figure above was computed from: confirming without touching it charges
+    // what the dialog already says.
     const priceInput = document.querySelector('input[name="price-solo"]');
     expect(priceInput).not.toBeNull();
-    expect((priceInput as HTMLInputElement).value).toBe("");
+    expect((priceInput as HTMLInputElement).value).toBe("price_1");
+    expect(dialogText).toContain("Primera fecha · $ 10.000");
 
     expect(
       [...document.querySelectorAll('input[name="choreographyId"]')].map(
@@ -457,12 +457,10 @@ describe("AcademyFinancesRouteView", () => {
 
     await clickCheckbox(getRenderedCheckboxes()[1]);
 
+    // The figure the list shows, because the picker opened on the very price
+    // that figure was derived from.
     expect(dialogText()).toContain("$ 3.000");
-    // The default names the price it keeps, so the row in force can be compared
-    // against the ones on offer without leaving the dialog.
-    expect(dialogText()).toContain(
-      "Mantener el precio actual · Primera fecha · $ 10.000",
-    );
+    expect(dialogText()).toContain("Primera fecha · $ 10.000");
 
     await openRadixSelect(
       document.querySelector('[data-slot="select-trigger"]'),

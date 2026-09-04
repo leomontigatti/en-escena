@@ -34,7 +34,7 @@ import {
   formatOperationalAmount,
 } from "@/lib/finances/formatters";
 import {
-  formatKeepCurrentPriceLabel,
+  resolveCurrentPriceId,
   sumPresetOwedAmount,
   type PresetInscription,
 } from "./preset-figures";
@@ -42,7 +42,6 @@ import {
   choreographyIdFieldName,
   financePresetIntent,
   financePresetLabels,
-  keepCurrentPriceValue,
   presetPriceFieldName,
   selectPresetPriceOptions,
   type PresetPriceOption,
@@ -93,10 +92,6 @@ export function FinancePresetDialog({
   stage: CobroStage;
 }) {
   const fetcher = useFetcher<AcademyFinancesActionData>();
-  const [priceIdByGroupType, setPriceIdByGroupType] = useState<
-    Record<string, string>
-  >({});
-  const isSaving = fetcher.state !== "idle";
   const selectedInscriptions = selectInscriptionsOf(inscriptions, selectedRows);
   const priceFields = buildPresetPriceFields({
     priceOptionsByGroupType,
@@ -104,6 +99,12 @@ export function FinancePresetDialog({
     selectedInscriptions,
     selectedRows,
   });
+  // Seeded once: the dialog mounts on a selection that cannot change under it,
+  // so re-seeding could only undo what the administrator has picked since.
+  const [priceIdByGroupType, setPriceIdByGroupType] = useState(() =>
+    resolveDefaultPriceIds(priceFields),
+  );
+  const isSaving = fetcher.state !== "idle";
   const owed = sumPresetOwedAmount({
     groupTypeByChoreography: Object.fromEntries(
       selectedRows.map((row) => [row.id, row.groupType]),
@@ -161,10 +162,6 @@ export function FinancePresetDialog({
             <PresetPriceField
               key={field.groupType}
               groupType={field.groupType}
-              keepCurrentLabel={formatKeepCurrentPriceLabel({
-                inscriptions: field.inscriptions,
-                options: field.options,
-              })}
               onPriceIdChange={(priceId) =>
                 setPriceIdByGroupType((current) => ({
                   ...current,
@@ -172,9 +169,7 @@ export function FinancePresetDialog({
                 }))
               }
               options={field.options}
-              priceId={
-                priceIdByGroupType[field.groupType] ?? keepCurrentPriceValue
-              }
+              priceId={priceIdByGroupType[field.groupType] ?? ""}
               showGroupType={priceFields.length > 1}
               spansSeveralSchedules={field.spansSeveralSchedules}
             />
@@ -278,10 +273,33 @@ function selectInscriptionsOf(
 }
 
 /**
+ * What each picker opens on: the row that applies today to the inscriptions the
+ * pick would reach. A field with no single such row is left out and opens empty,
+ * which travels to the server as no pick at all.
+ */
+function resolveDefaultPriceIds(
+  priceFields: PresetPriceFieldSpec[],
+): Record<string, string> {
+  const defaults: Record<string, string> = {};
+
+  for (const field of priceFields) {
+    const priceId = resolveCurrentPriceId({
+      inscriptions: field.inscriptions,
+      options: field.options,
+    });
+
+    if (priceId) {
+      defaults[field.groupType] = priceId;
+    }
+  }
+
+  return defaults;
+}
+
+/**
  * The picked row per group type, resolved against what that field actually
- * offers. Keeping the current price is *not* a pick — it travels as no entry at
- * all, the same way it travels to the server — so the projection and the write
- * agree on what a default confirm does: nothing to the prices.
+ * offers. An empty picker resolves to no entry at all, the same way it travels
+ * to the server, so the projection and the write agree on what it means.
  */
 function resolvePickedPrices(input: {
   priceFields: PresetPriceFieldSpec[];
@@ -307,19 +325,22 @@ function resolvePickedPrices(input: {
  * group type only when the selection spans more than one, since otherwise the
  * qualifier says nothing.
  *
- * It defaults to keeping the price that already resolves for each inscription,
- * which is the price the figure above was computed from. The default names that
- * price whenever the inscriptions agree on one, so the reader can compare it
- * against the rows below without leaving the dialog.
+ * **It opens on the price that applies today**, which is the one the figure
+ * above was computed from, so confirming without touching it charges what the
+ * dialog already says. There is no row for *keep the current price*: it was the
+ * same statement made twice, and the one that named no figure.
  *
- * Picking a row is the deliberate act of re-pricing the inscriptions that have
- * not covered their deposit yet — money on the row does not spare it, only the
- * crossing does — and the description says so, because that is the part of the
- * selection the pick reaches.
+ * The picker is empty only when there is no single price to open on — the
+ * inscriptions sit on different rows, or the row in force is not among the ones
+ * offered — and submitting it that way leaves every price where it is.
+ *
+ * Picking another row re-prices the inscriptions that have not covered their
+ * deposit yet — money on the row does not spare it, only the crossing does — and
+ * the description says so, because that is the part of the selection a price
+ * reaches.
  */
 function PresetPriceField({
   groupType,
-  keepCurrentLabel,
   onPriceIdChange,
   options,
   priceId,
@@ -327,7 +348,6 @@ function PresetPriceField({
   spansSeveralSchedules,
 }: {
   groupType: ChoreographyGroupType;
-  keepCurrentLabel: string;
   onPriceIdChange: (priceId: string) => void;
   options: PresetPriceOption[];
   priceId: string;
@@ -356,21 +376,15 @@ function PresetPriceField({
     <Field>
       <FieldLabel htmlFor={fieldName}>{label}</FieldLabel>
       {/* Radix's `Select` is not a form control, so the picked row travels in a
-          hidden input, the same way `SelectField` does it. Keeping the current
-          price travels as no pick at all. */}
-      <input
-        type="hidden"
-        name={fieldName}
-        value={priceId === keepCurrentPriceValue ? "" : priceId}
-      />
+          hidden input, the same way `SelectField` does it. An empty picker
+          travels as no pick at all, which the writer reads as leaving every
+          price where it is. */}
+      <input type="hidden" name={fieldName} value={priceId} />
       <Select value={priceId} onValueChange={onPriceIdChange}>
         <SelectTrigger id={fieldName} className="w-full">
           <SelectValue placeholder="Elegí un precio" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={keepCurrentPriceValue}>
-            {keepCurrentLabel}
-          </SelectItem>
           {options.map((option) => (
             <SelectItem key={option.id} value={option.id}>
               {option.name} · {formatAmount(option.amount)}
@@ -378,12 +392,12 @@ function PresetPriceField({
           ))}
         </SelectContent>
       </Select>
-      {priceId === keepCurrentPriceValue ? null : (
+      {priceId ? (
         <FieldDescription>
           Se fija en las inscripciones elegidas que todavía no cubrieron su
           seña. Las que ya la cubrieron quedan con el precio que tienen.
         </FieldDescription>
-      )}
+      ) : null}
       {spansSeveralSchedules ? (
         <FieldDescription>
           Las coreografías elegidas están en cronogramas distintos, así que sólo
