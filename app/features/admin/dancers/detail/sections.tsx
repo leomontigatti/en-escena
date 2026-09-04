@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
+import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
 
 import {
   DancerBirthDateField,
@@ -545,13 +546,6 @@ export function InscriptionsSection({
       </Table>
     </div>
   );
-}
-
-function formatPrimaryAndSecondaryValue(
-  primaryValue: string,
-  secondaryValue: string | null,
-) {
-  return secondaryValue ? `${primaryValue} · ${secondaryValue}` : primaryValue;
 }
 
 function formatMoney(amount: number | null) {
