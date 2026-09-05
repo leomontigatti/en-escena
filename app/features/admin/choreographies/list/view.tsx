@@ -42,7 +42,7 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
   {
     id: "numero",
     header: "#",
-    className: "w-[8%] font-medium tabular-nums",
+    className: "w-[8%] align-top font-medium tabular-nums",
     headerClassName: "w-[8%]",
     cell: (choreography) => (
       <DataTableLink to={`/administracion/coreografias/${choreography.id}`}>
@@ -56,7 +56,7 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
   {
     id: "nombre",
     header: "Nombre",
-    className: "w-[20%] font-medium",
+    className: "w-[20%] align-top font-medium whitespace-normal",
     headerClassName: "w-[20%]",
     // The number is the row's only way into the detail. Linking the name too
     // gave one destination two targets, which reads as a choice and is not.
@@ -67,7 +67,7 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
   {
     id: "academia",
     header: "Academia",
-    className: "w-[20%] text-muted-foreground",
+    className: "w-[20%] align-top whitespace-normal text-muted-foreground",
     headerClassName: "w-[20%]",
     cell: (choreography) => choreography.academyName,
     filterValue: (choreography) => choreography.academyName,
@@ -76,7 +76,7 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
   {
     id: "modalidadSubmodalidad",
     header: "Modalidad / Submodalidad",
-    className: "w-[20%] text-muted-foreground",
+    className: "w-[20%] align-top whitespace-normal text-muted-foreground",
     headerClassName: "w-[20%]",
     cell: (choreography) =>
       formatPrimaryAndSecondaryValue(
@@ -87,7 +87,7 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
   {
     id: "categoriaTipoGrupo",
     header: "Categoría / Tipo de grupo",
-    className: "w-[20%] text-muted-foreground",
+    className: "w-[20%] align-top whitespace-normal text-muted-foreground",
     headerClassName: "w-[20%]",
     cell: (choreography) =>
       formatPrimaryAndSecondaryValue(
@@ -98,7 +98,7 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
   {
     id: "estado",
     header: "Estado",
-    className: "w-[12%]",
+    className: "w-[12%] align-top",
     headerClassName: "w-[12%]",
     cell: (choreography) => (
       <Badge
