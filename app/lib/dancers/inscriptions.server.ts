@@ -2,12 +2,13 @@ import { and, asc, eq, or, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
+  categories,
   choreographies,
   choreographyDancers,
   scheduleCapacities,
   schedules,
 } from "@/db/schema";
-import type { DancerInscription } from "@/lib/admin/dancers/dancers.server.types";
+import type { DancerInscription } from "@/lib/dancers/inscriptions";
 import { activeInscription } from "@/lib/choreographies/active-inscription";
 import { resolveApplicablePrice } from "@/lib/prices/repository.server";
 
@@ -27,6 +28,8 @@ export async function findDancerInscriptions(input: {
     .select({
       id: choreographies.id,
       name: choreographies.name,
+      choreographyNumber: choreographies.choreographyNumber,
+      categoryName: categories.name,
       groupType: choreographies.groupType,
       scheduleId: schedules.id,
     })
@@ -35,6 +38,7 @@ export async function findDancerInscriptions(input: {
       choreographies,
       eq(choreographies.id, choreographyDancers.choreographyId),
     )
+    .leftJoin(categories, eq(choreographies.categoryId, categories.id))
     .leftJoin(
       scheduleCapacities,
       eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
@@ -67,6 +71,8 @@ export async function findDancerInscriptions(input: {
       return {
         id: choreography.id,
         choreographyName: choreography.name,
+        choreographyNumber: choreography.choreographyNumber,
+        categoryName: choreography.categoryName,
         groupType: choreography.groupType,
         basePriceAmount: priceAmount,
         discountAmount: 0,

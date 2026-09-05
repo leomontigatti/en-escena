@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { MemoryRouter } from "react-router";
 import { describe, expect, test } from "vitest";
 
+import { renderInDataRouter } from "@/lib/test-support/data-router";
 import { DancerDetailRouteView } from "@/routes/administracion.bailarines_.$dancerId";
 
 type DetailRouteViewProps = Parameters<typeof DancerDetailRouteView>[0];
@@ -12,7 +12,7 @@ describe("DancerDetailRouteView", () => {
       loaderData: createLoaderData({ canEdit: false }),
     });
 
-    expect(markup).toContain("Detalle bailarín");
+    expect(markup).toContain("Julia Detalle");
     expect(markup).toContain("Academia Test");
     expect(markup).toContain("Julia");
     expect(markup).toContain("Detalle");
@@ -44,12 +44,13 @@ describe("DancerDetailRouteView", () => {
 
 function renderDetailView(input: Partial<DetailRouteViewProps> = {}) {
   return renderToStaticMarkup(
-    <MemoryRouter initialEntries={["/administracion/bailarines/dancer-1"]}>
+    renderInDataRouter(
+      "/administracion/bailarines/dancer-1",
       <DancerDetailRouteView
         loaderData={input.loaderData ?? createLoaderData()}
         actionData={input.actionData}
-      />
-    </MemoryRouter>,
+      />,
+    ),
   );
 }
 

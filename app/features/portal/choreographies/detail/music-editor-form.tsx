@@ -186,10 +186,10 @@ export function ChoreographyMusicEditorForm({
           </FieldGroup>
         </CardContent>
         <CardFooter className="justify-end gap-3 border-0 bg-transparent pt-0">
-          <Button asChild variant="outline" size="lg">
+          <Button asChild variant="outline">
             <Link to="/portal/coreografias">Volver</Link>
           </Button>
-          <Button type="submit" size="lg" disabled={!canSubmit}>
+          <Button type="submit" disabled={!canSubmit}>
             {isSubmitting ? (
               <LoaderCircle
                 aria-hidden="true"

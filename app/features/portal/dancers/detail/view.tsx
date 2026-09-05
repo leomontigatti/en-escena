@@ -2,6 +2,7 @@ import { Archive, Info, RotateCcw, TriangleAlert } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { Link, useNavigation, useSubmit } from "react-router";
 
+import { PortalEmptyState } from "@/components/portal/ui";
 import { SubmitButton } from "@/components/shared/action-buttons";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { ArchivedPersonAlert } from "@/components/shared/archived-person-alert";
@@ -9,6 +10,8 @@ import {
   documentTypeEmptyLabel,
   documentTypeOptions,
 } from "@/components/shared/document-type-options";
+import { DancerInscriptionsTable } from "@/components/shared/dancer-inscriptions-table";
+import { ReadOnlyDocumentImageField } from "@/components/shared/read-only-document-image-field";
 import {
   ReadOnlyDateField,
   ReadOnlyField,
@@ -30,6 +33,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   formatDancerIdentificationPendingItemLabel,
   getDancerIdentificationPendingItems,
@@ -37,7 +41,7 @@ import {
   type DancerIdentificationPendingItem,
 } from "@/lib/dancers/verification";
 import { useServerActionToast } from "@/lib/shared/toasts";
-import { usePortalRecordTitleDetailTransitionStyle } from "@/lib/shared/view-transitions";
+import { useRecordTitleDetailTransitionStyle } from "@/lib/shared/view-transitions";
 
 import {
   PortalDancerBirthDateField,
@@ -47,7 +51,6 @@ import {
 } from "./form";
 import {
   buildPortalDancerDetailViewModel,
-  getDocumentImageStateLabel,
   getGeneralActionError,
   getPortalDancerFormValues,
   getPortalDancerStatusFormId,
@@ -94,7 +97,7 @@ export function PortalDancerDetailRouteView({
   const isSubmitting =
     navigation.state !== "idle" &&
     navigation.formData?.get("intent") === "update-dancer";
-  const viewTransitionStyle = usePortalRecordTitleDetailTransitionStyle({
+  const viewTransitionStyle = useRecordTitleDetailTransitionStyle({
     detailHref: viewModel.detailHref,
     listHref: "/portal/bailarines",
   });
@@ -161,107 +164,140 @@ export function PortalDancerDetailRouteView({
               encType="multipart/form-data"
               noValidate
               onSubmit={form.handleSubmit}
+              className="flex flex-col gap-6"
             >
               <input type="hidden" name="intent" value="update-dancer" />
               <FieldGroup className="grid gap-5 md:grid-cols-2">
-                <PortalDancerTextField
-                  form={form.form}
-                  label="Nombre"
-                  name="firstName"
-                />
-                <PortalDancerTextField
-                  form={form.form}
-                  label="Apellido"
-                  name="lastName"
-                />
-                {viewModel.isIdentityVerified ? (
-                  <ReadOnlyDateField
-                    label="Fecha de nacimiento"
-                    name="birthDate"
-                    value={viewModel.identityFieldValues.birthDate}
-                  />
-                ) : (
-                  <PortalDancerBirthDateField form={form.form} />
-                )}
-                <div className="hidden md:block" aria-hidden="true" />
-                {viewModel.isIdentityVerified ? (
-                  <ReadOnlySelectField
-                    label="Tipo de documento"
-                    name="documentType"
-                    options={documentTypeOptions}
-                    value={viewModel.identityFieldValues.documentType}
-                  />
-                ) : (
-                  <SelectField
-                    allowEmpty
-                    control={form.form.control}
-                    emptyLabel={documentTypeEmptyLabel}
-                    label="Tipo de documento"
-                    name="documentType"
-                    options={documentTypeOptions}
-                    placeholder={documentTypeEmptyLabel}
-                  />
-                )}
-                {viewModel.isIdentityVerified ? (
-                  <ReadOnlyField
-                    label="Número de documento"
-                    name="documentNumber"
-                    value={viewModel.identityFieldValues.documentNumber}
-                  />
-                ) : (
-                  <PortalDancerTextField
-                    form={form.form}
-                    label="Número de documento"
-                    name="documentNumber"
-                  />
-                )}
                 {viewModel.isIdentityVerified ? (
                   <>
                     <ReadOnlyField
-                      label="Frente del documento"
-                      name="documentFrontImageStorageKey"
-                      value={
-                        viewModel.identityFieldValues
-                          .documentFrontImageStorageKey
-                      }
-                      displayValue={getDocumentImageStateLabel(
-                        viewModel.identityFieldValues
-                          .documentFrontImageStorageKey,
-                      )}
+                      label="Nombre"
+                      name="firstName"
+                      value={viewModel.identityFieldValues.firstName}
                     />
                     <ReadOnlyField
-                      label="Dorso del documento"
-                      name="documentBackImageStorageKey"
-                      value={
-                        viewModel.identityFieldValues
-                          .documentBackImageStorageKey
-                      }
-                      displayValue={getDocumentImageStateLabel(
-                        viewModel.identityFieldValues
-                          .documentBackImageStorageKey,
-                      )}
+                      label="Apellido"
+                      name="lastName"
+                      value={viewModel.identityFieldValues.lastName}
                     />
                   </>
                 ) : (
-                  <PortalDancerDocumentImageFields
-                    form={form.form}
-                    imageUrls={loaderData.documentImageUrls}
-                  />
+                  <>
+                    <PortalDancerTextField
+                      form={form.form}
+                      label="Nombre"
+                      name="firstName"
+                    />
+                    <PortalDancerTextField
+                      form={form.form}
+                      label="Apellido"
+                      name="lastName"
+                    />
+                  </>
                 )}
               </FieldGroup>
+              <Tabs defaultValue="identificacion">
+                <TabsList variant="line">
+                  <TabsTrigger value="identificacion">
+                    Identificación
+                  </TabsTrigger>
+                  <TabsTrigger value="inscripciones">Inscripciones</TabsTrigger>
+                </TabsList>
+                {/* The identity fields stay mounted so a file picked here is
+                    still submitted after a look at the inscriptions tab.
+                    `forceMount` leaves the panel to hide itself. */}
+                <TabsContent
+                  forceMount
+                  value="identificacion"
+                  className="pt-2 data-[state=inactive]:hidden"
+                >
+                  <FieldGroup className="grid gap-5 md:grid-cols-2">
+                    {viewModel.isIdentityVerified ? (
+                      <ReadOnlyDateField
+                        label="Fecha de nacimiento"
+                        name="birthDate"
+                        value={viewModel.identityFieldValues.birthDate}
+                      />
+                    ) : (
+                      <PortalDancerBirthDateField form={form.form} />
+                    )}
+                    <div className="hidden md:block" aria-hidden="true" />
+                    {viewModel.isIdentityVerified ? (
+                      <ReadOnlySelectField
+                        label="Tipo de documento"
+                        name="documentType"
+                        options={documentTypeOptions}
+                        value={viewModel.identityFieldValues.documentType}
+                      />
+                    ) : (
+                      <SelectField
+                        allowEmpty
+                        control={form.form.control}
+                        emptyLabel={documentTypeEmptyLabel}
+                        label="Tipo de documento"
+                        name="documentType"
+                        options={documentTypeOptions}
+                        placeholder={documentTypeEmptyLabel}
+                      />
+                    )}
+                    {viewModel.isIdentityVerified ? (
+                      <ReadOnlyField
+                        label="Número de documento"
+                        name="documentNumber"
+                        value={viewModel.identityFieldValues.documentNumber}
+                      />
+                    ) : (
+                      <PortalDancerTextField
+                        form={form.form}
+                        label="Número de documento"
+                        name="documentNumber"
+                      />
+                    )}
+                    {viewModel.isIdentityVerified ? (
+                      <>
+                        <ReadOnlyDocumentImageField
+                          label="Imagen frente del documento"
+                          name="documentFrontImageStorageKey"
+                          storageKey={
+                            viewModel.identityFieldValues
+                              .documentFrontImageStorageKey
+                          }
+                          url={loaderData.documentImageUrls.front}
+                        />
+                        <ReadOnlyDocumentImageField
+                          label="Imagen dorso del documento"
+                          name="documentBackImageStorageKey"
+                          storageKey={
+                            viewModel.identityFieldValues
+                              .documentBackImageStorageKey
+                          }
+                          url={loaderData.documentImageUrls.back}
+                        />
+                      </>
+                    ) : (
+                      <PortalDancerDocumentImageFields
+                        form={form.form}
+                        imageUrls={loaderData.documentImageUrls}
+                      />
+                    )}
+                  </FieldGroup>
+                </TabsContent>
+                <TabsContent value="inscripciones" className="pt-2">
+                  <PortalDancerInscriptionsSection
+                    inscriptions={loaderData.inscriptions}
+                    selectedEventId={loaderData.selectedEventId}
+                  />
+                </TabsContent>
+              </Tabs>
             </form>
           </CardContent>
-          <CardFooter className="justify-end gap-3 border-0 bg-transparent pt-0">
-            <Button asChild variant="outline" size="lg">
+          <CardFooter className="justify-between gap-3 border-0 bg-transparent pt-0">
+            <Button asChild variant="outline">
               <Link to="/portal/bailarines" viewTransition>
                 Volver
               </Link>
             </Button>
-            <SubmitButton
-              form={portalDancerFormId}
-              size="lg"
-              isPending={isSubmitting}
-            />
+            <SubmitButton form={portalDancerFormId} isPending={isSubmitting} />
           </CardFooter>
         </PortalDancerFormSection>
       </section>
@@ -335,6 +371,41 @@ function PortalDancerAlertsSection({
         ) : null}
       </AlertStack>
     </section>
+  );
+}
+
+function PortalDancerInscriptionsSection({
+  inscriptions,
+  selectedEventId,
+}: {
+  inscriptions: PortalDancerDetailLoaderData["inscriptions"];
+  selectedEventId: PortalDancerDetailLoaderData["selectedEventId"];
+}) {
+  if (!selectedEventId) {
+    return (
+      <PortalEmptyState
+        title="Sin evento activo"
+        description="No hay un evento activo para revisar inscripciones."
+      />
+    );
+  }
+
+  if (inscriptions.length === 0) {
+    return (
+      <PortalEmptyState
+        title="Sin inscripciones en el evento activo"
+        description="Este bailarín no tiene inscripciones en el evento activo."
+      />
+    );
+  }
+
+  return (
+    <DancerInscriptionsTable
+      buildChoreographyHref={(choreographyId) =>
+        `/portal/coreografias/${choreographyId}`
+      }
+      inscriptions={inscriptions}
+    />
   );
 }
 

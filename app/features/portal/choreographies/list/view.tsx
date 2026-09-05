@@ -24,6 +24,7 @@ import {
   formatOperationalStatusLabel,
   type PortalChoreographyListItem,
 } from "@/lib/portal/choreographies";
+import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
 import { showToastMessage } from "@/lib/shared/toasts";
 
@@ -294,13 +295,6 @@ function getChoreographiesEmptyDescription(
   }
 
   return "Cuando administración cree un evento, vas a poder consultar las coreografías de tu academia desde esta sección.";
-}
-
-function formatPrimaryAndSecondaryValue(
-  primaryValue: string,
-  secondaryValue: string | null,
-) {
-  return secondaryValue ? `${primaryValue} · ${secondaryValue}` : primaryValue;
 }
 
 function CreateChoreographyDialogLoader({

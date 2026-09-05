@@ -52,6 +52,8 @@ function buildDancerDetailLoaderData(): Parameters<
       back: null,
       front: null,
     },
+    inscriptions: [],
+    selectedEventId: "event_1",
     dancer: {
       id: "dancer_1",
       academyId: "academy_1",
