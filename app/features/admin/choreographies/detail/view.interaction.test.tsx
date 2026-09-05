@@ -6,7 +6,10 @@ import { afterEach, describe, expect, test } from "vitest";
 
 import { ChoreographyDetailRouteView } from "@/features/admin/choreographies/detail/view";
 import type { ChoreographyDetailLoaderData } from "@/features/admin/choreographies/detail/server";
-import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
+import {
+  clickReactDomButton,
+  createReactDomTestRenderer,
+} from "@/lib/test-support/react-dom";
 
 /**
  * The modality is the only select whose change costs a server round-trip, so
@@ -59,6 +62,116 @@ describe("ChoreographyDetailRouteView modality correction", () => {
     expect(findTriggerByText("Urbano")).toBeDefined();
   });
 });
+
+/**
+ * The capacity select stopped being the odd one out: it used to write on
+ * change, so moving the dropdown was the reassignment. It now holds the choice
+ * like the modality correction next to it and waits for the page's `Guardar`.
+ */
+describe("ChoreographyDetailRouteView schedule capacity reassignment", () => {
+  const renderer = createReactDomTestRenderer();
+
+  afterEach(renderer.cleanup);
+
+  test("holds the picked capacity until `Guardar` writes it", async () => {
+    const submissions: Record<string, string>[] = [];
+
+    await renderScheduleCapacityDetail(renderer, submissions);
+
+    await openSelect(findTriggerByText("1 de mayo de 2026 - 14:00 hs."));
+    await selectOption("2 de mayo de 2026 - 10:00 hs.");
+
+    // The pick alone posts nothing: it only leaves the field showing the
+    // destination and the `Guardar` live.
+    expect(submissions).toEqual([]);
+    expect(findTriggerByText("2 de mayo de 2026 - 10:00 hs.")).toBeDefined();
+
+    await clickReactDomButton("Guardar");
+    await settle();
+
+    expect(submissions).toEqual([
+      {
+        assignedScheduleCapacityId: "schedule_capacity_2",
+        intent: "update-schedule-capacity",
+      },
+    ]);
+  });
+
+  test("returns the field to the saved capacity when the save is rejected", async () => {
+    // `schedule-capacity-full` is a race the option list cannot filter out, so
+    // the rejection path stays live: nothing was written, and the select must
+    // not be left claiming a capacity —and a price key— it does not have.
+    await renderScheduleCapacityDetail(renderer, [], {
+      message: "El cronograma elegido ya no tiene lugar.",
+      status: "error" as const,
+    });
+
+    await openSelect(findTriggerByText("1 de mayo de 2026 - 14:00 hs."));
+    await selectOption("2 de mayo de 2026 - 10:00 hs.");
+    await clickReactDomButton("Guardar");
+    await settle();
+
+    expect(findTriggerByText("1 de mayo de 2026 - 14:00 hs.")).toBeDefined();
+    expect(findTriggerByText("2 de mayo de 2026 - 10:00 hs.")).toBeUndefined();
+  });
+});
+
+async function renderScheduleCapacityDetail(
+  renderer: ReturnType<typeof createReactDomTestRenderer>,
+  submissions: Record<string, string>[],
+  actionResult: unknown = { message: "Guardado", status: "success" as const },
+) {
+  const loaderData = buildLoaderData();
+  const router = createMemoryRouter(
+    [
+      {
+        path: "/administracion/coreografias/choreo_1",
+        action: async ({ request }) => {
+          const formData = await request.formData();
+
+          submissions.push(
+            Object.fromEntries(
+              Array.from(formData.entries()).map(([key, value]) => [
+                key,
+                String(value),
+              ]),
+            ),
+          );
+
+          return actionResult;
+        },
+        element: (
+          <ChoreographyDetailRouteView
+            loaderData={{
+              ...loaderData,
+              // Two destinations, so the standalone capacity select is the one
+              // filling the slot.
+              scheduleCapacity: {
+                blockers: [],
+                canReassign: true,
+                options: [
+                  {
+                    id: "schedule_capacity_1",
+                    isFull: false,
+                    label: "1 de mayo de 2026 - 14:00 hs.",
+                  },
+                  {
+                    id: "schedule_capacity_2",
+                    isFull: false,
+                    label: "2 de mayo de 2026 - 10:00 hs.",
+                  },
+                ],
+              },
+            }}
+          />
+        ),
+      },
+    ],
+    { initialEntries: ["/administracion/coreografias/choreo_1"] },
+  );
+
+  await renderer.renderAsync(<RouterProvider router={router} />);
+}
 
 function createDeferredResolution() {
   let resolve = () => {};

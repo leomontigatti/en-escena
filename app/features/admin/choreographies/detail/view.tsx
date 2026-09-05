@@ -67,6 +67,7 @@ import {
 import { SubmodalityField } from "./reassignment-fields";
 import { useModalityForm } from "./use-modality-form";
 import { useRosterForm } from "./use-roster-form";
+import { useScheduleCapacityForm } from "./use-schedule-capacity-form";
 import type { ChoreographyDetailLoaderData } from "./server";
 
 type ChoreographyDetailRouteViewProps = {
@@ -178,6 +179,7 @@ function ChoreographyDetailForm({
     roster.hasRosterChanged ||
     roster.hasProfessorsChanged;
   const modality = useModalityForm({ isRosterFormDirty, loaderData });
+  const scheduleCapacity = useScheduleCapacityForm({ loaderData });
 
   useEffect(() => {
     reset(defaultValues);
@@ -197,13 +199,26 @@ function ChoreographyDetailForm({
     hasResolvedRosterChange: roster.hasResolvedRosterChange,
   });
 
-  // One `Guardar` in the footer for both forms. They exclude each other on
+  // One `Guardar` in the footer for the three forms. They exclude each other on
   // screen, so the pending correction decides what the button submits: the
-  // modality one writes on its own, the roster one still confirms first.
+  // modality and the schedule capacity write on their own, the roster one still
+  // confirms first.
+  //
+  // The capacity only counts while its own select is the one on screen: a
+  // resolved roster change replaces it with the roster's, and a selection left
+  // behind in the hidden form must not decide what `Guardar` means.
+  const hasPendingScheduleCapacity =
+    scheduleCapacity.isDirty && rosterScheduleOptions === null;
+  const pendingSave = modality.isDirty
+    ? "modality"
+    : hasPendingScheduleCapacity
+      ? "schedule-capacity"
+      : "roster";
   const canSubmitModality = canSubmitModalityCorrection(modality);
   const canSubmitRoster =
     loaderData.canEdit &&
     !modality.isDirty &&
+    !hasPendingScheduleCapacity &&
     canSubmitChoreographyEdit({
       canEditRoster: roster.canEditRoster,
       derivedResolution: roster.derivedResolution,
@@ -269,10 +284,16 @@ function ChoreographyDetailForm({
         onSubmit={(event) => {
           event.preventDefault();
 
-          // The modality correction writes on its own: the confirmation
-          // dialog enumerates roster consequences it does not have.
-          if (modality.isDirty) {
+          // The modality correction and the capacity reassignment write on
+          // their own: the confirmation dialog enumerates roster consequences
+          // neither of them has.
+          if (pendingSave === "modality") {
             modality.save();
+            return;
+          }
+
+          if (pendingSave === "schedule-capacity") {
+            scheduleCapacity.save();
             return;
           }
 
@@ -286,12 +307,18 @@ function ChoreographyDetailForm({
             <FormActions
               backToList={loaderData.backToList}
               canEdit={loaderData.canEdit}
-              canSubmit={modality.isDirty ? canSubmitModality : canSubmitRoster}
-              isPending={
-                modality.isDirty
-                  ? modality.isResolving || modality.isSubmitting
-                  : roster.isResolving || roster.isSubmitting
-              }
+              canSubmit={getFooterCanSubmit({
+                canSubmitModality,
+                canSubmitRoster,
+                pendingSave,
+                scheduleCapacity,
+              })}
+              isPending={getFooterIsPending({
+                modality,
+                pendingSave,
+                roster,
+                scheduleCapacity,
+              })}
             />
           }
         >
@@ -378,6 +405,7 @@ function ChoreographyDetailForm({
                   disabled={disabled}
                   loaderData={loaderData}
                   options={rosterScheduleOptions}
+                  scheduleCapacity={scheduleCapacity}
                 />
               )}
             />
@@ -437,6 +465,48 @@ function ChoreographyDetailForm({
       />
     </>
   );
+}
+
+type PendingSave = "modality" | "roster" | "schedule-capacity";
+
+function getFooterCanSubmit({
+  canSubmitModality,
+  canSubmitRoster,
+  pendingSave,
+  scheduleCapacity,
+}: {
+  canSubmitModality: boolean;
+  canSubmitRoster: boolean;
+  pendingSave: PendingSave;
+  scheduleCapacity: ReturnType<typeof useScheduleCapacityForm>;
+}) {
+  if (pendingSave === "modality") {
+    return canSubmitModality;
+  }
+
+  return pendingSave === "schedule-capacity"
+    ? scheduleCapacity.canSave
+    : canSubmitRoster;
+}
+
+function getFooterIsPending({
+  modality,
+  pendingSave,
+  roster,
+  scheduleCapacity,
+}: {
+  modality: ReturnType<typeof useModalityForm>;
+  pendingSave: PendingSave;
+  roster: ReturnType<typeof useRosterForm>;
+  scheduleCapacity: ReturnType<typeof useScheduleCapacityForm>;
+}) {
+  if (pendingSave === "modality") {
+    return modality.isResolving || modality.isSubmitting;
+  }
+
+  return pendingSave === "schedule-capacity"
+    ? scheduleCapacity.isSubmitting
+    : roster.isResolving || roster.isSubmitting;
 }
 
 /**
