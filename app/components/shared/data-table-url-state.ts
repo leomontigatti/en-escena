@@ -2,9 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 
 import {
+  buildDataTableFilterHref,
   buildDataTablePageHref,
   buildDataTableSearchHref,
 } from "@/components/shared/data-table-helpers";
+import type {
+  DataTableFacetedFilter,
+  DataTableFacetedFilterValue,
+} from "@/components/shared/data-table.shared";
 import {
   dataTablePageParamName,
   dataTableSearchParamName,
@@ -28,11 +33,15 @@ const dataTableSearchDebounceMs = 300;
  */
 export function useDataTableUrlState({
   basePath,
+  facetedFilters,
+  initialFacetedFilterValue,
   initialSearchValue = "",
   pageParamName = dataTablePageParamName,
   searchParamName = dataTableSearchParamName,
 }: {
   basePath: string;
+  facetedFilters: DataTableFacetedFilter[];
+  initialFacetedFilterValue: DataTableFacetedFilterValue;
   initialSearchValue?: string;
   pageParamName?: string;
   searchParamName?: string;
@@ -50,6 +59,22 @@ export function useDataTableUrlState({
   };
 
   return {
+    facetedFilterValue: readDataTableFacetedFilterValue(
+      location.search,
+      facetedFilters,
+      initialFacetedFilterValue,
+    ),
+    setFacetedFilterValue: (values: DataTableFacetedFilterValue) => {
+      replaceHref(
+        buildDataTableFilterHref({
+          basePath,
+          currentSearch: location.search,
+          groups: facetedFilters,
+          pageParamName,
+          values,
+        }),
+      );
+    },
     page: readDataTablePage(location.search, pageParamName),
     setPage: (page: number) => {
       replaceHref(
@@ -119,6 +144,36 @@ export function useDebouncedDataTableSearch({
   }, [searchQuery]);
 
   return { searchQuery, setSearchQuery };
+}
+
+/**
+ * Each filter group reads its selection from its own query parameter, named by
+ * the group id. A view's initial value is the fallback for a group the query
+ * string says nothing about.
+ */
+function readDataTableFacetedFilterValue(
+  currentSearch: string,
+  groups: DataTableFacetedFilter[],
+  initialValue: DataTableFacetedFilterValue,
+) {
+  const searchParams = new URLSearchParams(currentSearch);
+  const values: DataTableFacetedFilterValue = { ...initialValue };
+
+  for (const group of groups) {
+    const value = searchParams.get(group.id);
+
+    if (value === null) {
+      continue;
+    }
+
+    if (value.length > 0) {
+      values[group.id] = value;
+    } else {
+      delete values[group.id];
+    }
+  }
+
+  return values;
 }
 
 function readDataTablePage(

@@ -16,7 +16,6 @@ import {
   createColumnFilters,
   getVisibleFacetedFilterValue,
   isFacetedFilterValue,
-  mergeBaseFacetedFilterValue,
   mergeBaseFacetedFilterValues,
 } from "@/components/shared/data-table-helpers";
 import {
@@ -24,12 +23,10 @@ import {
   createDataTableColumns,
   createGlobalFilterFn,
   DataTableShell,
+  emptyFacetedFilterValue,
   emptyFacetedFilterValues,
 } from "@/components/shared/data-table-core";
-import type {
-  ClientDataTableProps,
-  DataTableFacetedFilterValue,
-} from "@/components/shared/data-table.shared";
+import type { ClientDataTableProps } from "@/components/shared/data-table.shared";
 import { dataTableFacetedFilterColumnId } from "@/components/shared/data-table.shared";
 import {
   useDataTableUrlState,
@@ -60,8 +57,19 @@ export function ClientDataTable<TData>({
   searchParamName,
 }: ClientDataTableProps<TData>) {
   const location = useLocation();
-  const { page, setPage, search, setSearch } = useDataTableUrlState({
+  const {
+    facetedFilterValue,
+    setFacetedFilterValue,
+    page,
+    setPage,
+    search,
+    setSearch,
+  } = useDataTableUrlState({
     basePath: location.pathname,
+    facetedFilters,
+    initialFacetedFilterValue:
+      initialFacetedFilterValues[dataTableFacetedFilterColumnId] ??
+      emptyFacetedFilterValue,
     initialSearchValue,
     pageParamName,
     searchParamName,
@@ -78,13 +86,13 @@ export function ClientDataTable<TData>({
     () => createDataTableColumns(columns, { selectableRows }),
     [columns, selectableRows],
   );
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(
-    createColumnFilters(
-      mergeBaseFacetedFilterValues(
-        baseFacetedFilterValues,
-        initialFacetedFilterValues,
-      ),
-    ),
+  // The faceted selections come from the address bar, so a filtered list URL
+  // renders filtered and a filter the reader picks is recorded straight away.
+  const columnFilters: ColumnFiltersState = createColumnFilters(
+    mergeBaseFacetedFilterValues(baseFacetedFilterValues, {
+      ...initialFacetedFilterValues,
+      [dataTableFacetedFilterColumnId]: facetedFilterValue,
+    }),
   );
   const pagination = useMemo(
     () => ({ pageIndex: page - 1, pageSize: clientDataTablePageSize }),
@@ -143,17 +151,6 @@ export function ClientDataTable<TData>({
   }, [columnFilters, searchQuery, textFilterColumnId]);
 
   useEffect(() => {
-    setColumnFilters(
-      createColumnFilters(
-        mergeBaseFacetedFilterValues(
-          baseFacetedFilterValues,
-          initialFacetedFilterValues,
-        ),
-      ),
-    );
-  }, [baseFacetedFilterValues, initialFacetedFilterValues]);
-
-  useEffect(() => {
     setSorting(
       initialSort
         ? [
@@ -177,7 +174,6 @@ export function ClientDataTable<TData>({
       rowSelection,
       sorting,
     },
-    onColumnFiltersChange: setColumnFilters,
     onGlobalFilterChange: setSearchQuery,
     onPaginationChange: (updater) => {
       const nextPagination =
@@ -188,6 +184,10 @@ export function ClientDataTable<TData>({
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
     enableRowSelection: selectableRows,
+    // The address bar owns when the page resets: the shared href builders drop
+    // the page whenever the search, the filters or the sort change. Left on,
+    // the engine would also reset the page on its own and overwrite it.
+    autoResetPageIndex: false,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -206,17 +206,6 @@ export function ClientDataTable<TData>({
       setPage(1);
     }
   }, [page, pageCount, setPage]);
-
-  const setFacetedFilterValue = (values: DataTableFacetedFilterValue) => {
-    table
-      .getColumn(dataTableFacetedFilterColumnId)
-      ?.setFilterValue(
-        mergeBaseFacetedFilterValue(
-          baseFacetedFilterValues[dataTableFacetedFilterColumnId],
-          values,
-        ),
-      );
-  };
 
   const getSelectedFilterValues = (columnId: string) => {
     const filterValue = table.getColumn(columnId)?.getFilterValue();

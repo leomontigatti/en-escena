@@ -455,6 +455,104 @@ describe("ClientDataTable search in the address bar", () => {
   });
 });
 
+describe("ClientDataTable filters in the address bar", () => {
+  const renderer = createReactDomTestRenderer();
+
+  afterEach(renderer.cleanup);
+
+  test("records the selected filter in the address bar and returns to page one", async () => {
+    const router = createListRouter(
+      "/administracion/finanzas/academy_1?pagina=2",
+      {
+        facetedFilters: listFacetedFilters,
+      },
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await openFiltersDropdown();
+    await clickFilterOption("Archivado");
+
+    expect(router.state.location.search).toBe("?estado=archived");
+    expect(getRenderedRowNames()).toContain("Coreografía 02");
+    expect(getRenderedRowNames()).not.toContain("Coreografía 01");
+  });
+
+  test("renders the list filtered by the address bar with the control showing the selection", async () => {
+    const router = createListRouter(
+      "/administracion/finanzas/academy_1?estado=archived",
+      { facetedFilters: listFacetedFilters },
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    expect(getRenderedRowNames()).toContain("Coreografía 02");
+    expect(getRenderedRowNames()).not.toContain("Coreografía 01");
+    expect(getFiltersTrigger().getAttribute("aria-label")).toBe(
+      "Filtros: Estado: Archivado",
+    );
+  });
+
+  test("removes the parameter when the reader clears the filter", async () => {
+    const router = createListRouter(
+      "/administracion/finanzas/academy_1?estado=archived",
+      { facetedFilters: listFacetedFilters },
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await openFiltersDropdown();
+    await clickFilterOption("Limpiar filtros");
+
+    expect(router.state.location.search).toBe("");
+    expect(getRenderedRowNames()).toContain("Coreografía 01");
+  });
+
+  test("replaces the history entry instead of pushing one", async () => {
+    const router = createListRouter("/administracion/finanzas/academy_1", {
+      facetedFilters: listFacetedFilters,
+    });
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await openFiltersDropdown();
+    await clickFilterOption("Archivado");
+
+    expect(router.state.location.search).toBe("?estado=archived");
+
+    await act(async () => {
+      await router.navigate(-1);
+    });
+
+    expect(router.state.location.pathname).toBe("/inicio");
+  });
+
+  test("leaves the filter untouched while the reader pages", async () => {
+    const router = createListRouter(
+      "/administracion/finanzas/academy_1?busqueda=Coreograf%C3%ADa&estado=archived",
+      { facetedFilters: listFacetedFilters },
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await clickElement(getPaginationLink("2"));
+
+    const params = new URLSearchParams(router.state.location.search);
+    expect(params.get("estado")).toBe("archived");
+    expect(params.get("busqueda")).toBe("Coreografía");
+    expect(params.get("pagina")).toBe("2");
+  });
+
+  test("applies a view's initial filter values while the parameter is absent", async () => {
+    const router = createListRouter("/administracion/finanzas/academy_1", {
+      facetedFilters: listFacetedFilters,
+      initialFacetedFilterValues: { filters: { estado: "archived" } },
+    });
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    expect(getRenderedRowNames()).toContain("Coreografía 02");
+    expect(getRenderedRowNames()).not.toContain("Coreografía 01");
+    expect(getFiltersTrigger().getAttribute("aria-label")).toBe(
+      "Filtros: Estado: Archivado",
+    );
+  });
+});
+
 describe("DataTable server-side href helpers", () => {
   test("builds debounced search targets by preserving active filters and clearing page 1", () => {
     expect(
@@ -545,16 +643,35 @@ describe("DataTable server-side href helpers", () => {
   });
 });
 
+const listFacetedFilters = [
+  {
+    id: "estado",
+    label: "Estado",
+    options: [
+      { label: "Activo", value: "active" },
+      { label: "Archivado", value: "archived" },
+    ],
+  },
+];
+
 function createListRouter(
   entry: string,
-  { selectableRows = false }: { selectableRows?: boolean } = {},
+  {
+    facetedFilters,
+    initialFacetedFilterValues,
+    selectableRows = false,
+  }: {
+    facetedFilters?: typeof listFacetedFilters;
+    initialFacetedFilterValues?: Record<string, Record<string, string>>;
+    selectableRows?: boolean;
+  } = {},
 ) {
   const [path] = entry.split("?");
   const rows: Row[] = Array.from({ length: 25 }, (_, index) => ({
     id: `choreography_${index + 1}`,
     academy: "Academia Norte",
     name: `Coreografía ${String(index + 1).padStart(2, "0")}`,
-    status: "active",
+    status: index % 2 === 0 ? "active" : "archived",
   }));
 
   return createMemoryRouter(
@@ -569,6 +686,8 @@ function createListRouter(
             getRowKey={(row) => row.id}
             searchPlaceholder="Buscar coreografía por nombre"
             textFilterColumnId="name"
+            facetedFilters={facetedFilters}
+            initialFacetedFilterValues={initialFacetedFilterValues}
             selectableRows={selectableRows}
           />
         ),
@@ -646,4 +765,44 @@ async function clickElement(element: Element) {
     );
     await Promise.resolve();
   });
+}
+
+function getFiltersTrigger() {
+  const trigger = Array.from(document.querySelectorAll("button")).find(
+    (button) =>
+      button.getAttribute("aria-label")?.startsWith("Filtros") ?? false,
+  );
+
+  if (!trigger) {
+    throw new Error("Expected the faceted filter trigger to be rendered.");
+  }
+
+  return trigger;
+}
+
+async function openFiltersDropdown() {
+  const trigger = getFiltersTrigger();
+
+  await act(async () => {
+    trigger.dispatchEvent(
+      new MouseEvent("pointerdown", {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+      }),
+    );
+    await Promise.resolve();
+  });
+}
+
+async function clickFilterOption(label: string) {
+  const option = Array.from(
+    document.querySelectorAll('[role="menuitemradio"], [role="menuitem"]'),
+  ).find((item) => item.textContent?.trim() === label);
+
+  if (!option) {
+    throw new Error(`Expected the filter option "${label}" to be rendered.`);
+  }
+
+  await clickElement(option);
 }

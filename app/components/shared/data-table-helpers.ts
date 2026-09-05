@@ -142,7 +142,7 @@ export function mergeBaseFacetedFilterValues(
   return mergedValues;
 }
 
-export function mergeBaseFacetedFilterValue(
+function mergeBaseFacetedFilterValue(
   baseValue: DataTableFacetedFilterValue | undefined,
   selectedValue: DataTableFacetedFilterValue,
 ) {
