@@ -156,6 +156,20 @@ export function resolveCurrentPriceId(input: {
 }
 
 /**
+ * Whether a pick would reach any of these inscriptions at all.
+ *
+ * A group type whose inscriptions have all covered their deposit has nothing
+ * left to re-price, so a picker over it would ask a question no answer changes:
+ * every row leaves the same prices in place. The dialog says so instead of
+ * offering one.
+ */
+export function hasRePriceableInscription(
+  inscriptions: PresetInscription[],
+): boolean {
+  return inscriptions.some(canBeRePriced);
+}
+
+/**
  * Whether a pick reaches an inscription at all, which is the writer's own rule:
  * off the roster it is not touched, and once its deposit is covered its price is
  * fixed — money on the row does not fix it, only the crossing does.

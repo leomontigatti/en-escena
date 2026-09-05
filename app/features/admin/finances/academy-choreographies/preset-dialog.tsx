@@ -34,6 +34,7 @@ import {
   formatOperationalAmount,
 } from "@/lib/finances/formatters";
 import {
+  hasRePriceableInscription,
   resolveCurrentPriceId,
   sumPresetOwedAmount,
   type PresetInscription,
@@ -170,6 +171,7 @@ export function FinancePresetDialog({
                   [field.groupType]: priceId,
                 }))
               }
+              canRePrice={hasRePriceableInscription(field.inscriptions)}
               options={field.options}
               priceId={priceIdByGroupType[field.groupType] ?? ""}
               showGroupType={priceFields.length > 1}
@@ -334,7 +336,9 @@ function resolvePickedPrices(input: {
  *
  * The picker is empty only when there is no single price to open on — the
  * inscriptions sit on different rows, or the row in force is not among the ones
- * offered — and submitting it that way leaves every price where it is.
+ * offered — and submitting it that way leaves every price where it is. The far
+ * commoner reason to have nothing to open on, a selection whose inscriptions
+ * have all covered their deposit, is not a picker at all: see the early return.
  *
  * Picking another row re-prices the inscriptions that have not covered their
  * deposit yet — money on the row does not spare it, only the crossing does. That
@@ -344,6 +348,7 @@ function resolvePickedPrices(input: {
  * about the rows *this* picker offers and is true of one field at a time.
  */
 function PresetPriceField({
+  canRePrice,
   groupType,
   onPriceIdChange,
   options,
@@ -351,6 +356,7 @@ function PresetPriceField({
   showGroupType,
   spansSeveralSchedules,
 }: {
+  canRePrice: boolean;
   groupType: ChoreographyGroupType;
   onPriceIdChange: (priceId: string) => void;
   options: PresetPriceOption[];
@@ -362,6 +368,21 @@ function PresetPriceField({
   const label = showGroupType
     ? `Precio · ${formatGroupTypeLabel(groupType)}`
     : "Precio";
+
+  // Nothing a pick could reach, so there is no question to ask. It comes before
+  // the missing-rows warning on purpose: which rows the catalogue offers cannot
+  // matter to a selection no row would touch.
+  if (!canRePrice) {
+    return (
+      <Field>
+        <FieldLabel>{label}</FieldLabel>
+        <FieldDescription>
+          Las inscripciones elegidas ya cubrieron su seña, así que su precio no
+          cambia.
+        </FieldDescription>
+      </Field>
+    );
+  }
 
   if (options.length === 0) {
     return (

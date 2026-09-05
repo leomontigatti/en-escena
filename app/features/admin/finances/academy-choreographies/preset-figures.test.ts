@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import {
+  hasRePriceableInscription,
   resolveCurrentPriceId,
   sumPresetOwedAmount,
   type PresetInscription,
@@ -147,6 +148,40 @@ describe("sumPresetOwedAmount", () => {
         stage: "deposit",
       }),
     ).toEqual({ amount: 9000, status: "complete" });
+  });
+});
+
+describe("hasRePriceableInscription", () => {
+  test("is true while one inscription is still short of its deposit", () => {
+    expect(
+      hasRePriceableInscription([
+        inscriptionFixture({ allocatedAmount: 3000, id: "covered" }),
+        inscriptionFixture({ allocatedAmount: 500, id: "short" }),
+      ]),
+    ).toBe(true);
+  });
+
+  // The crossing is what fixes the price, so a selection past it has nothing a
+  // pick could reach and the dialog stops asking.
+  test("is false once every inscription has covered its deposit", () => {
+    expect(
+      hasRePriceableInscription([
+        inscriptionFixture({ allocatedAmount: 3000, id: "one" }),
+        inscriptionFixture({ allocatedAmount: 9000, id: "two" }),
+      ]),
+    ).toBe(false);
+  });
+
+  test("is false for a roster of withdrawn inscriptions, unpaid as they are", () => {
+    expect(
+      hasRePriceableInscription([
+        inscriptionFixture({ id: "gone", withdrawn: true }),
+      ]),
+    ).toBe(false);
+  });
+
+  test("is false for no inscriptions at all", () => {
+    expect(hasRePriceableInscription([])).toBe(false);
   });
 });
 

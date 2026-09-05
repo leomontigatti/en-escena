@@ -476,6 +476,36 @@ describe("AcademyFinancesRouteView", () => {
   });
 
   /**
+   * `Pagar saldo` over choreographies that have already covered their deposit is
+   * ordinary — they still owe their balance — and a pick reaches none of them.
+   * Offering a picker there asks a question no answer changes.
+   */
+  test("says the price will not move instead of asking for one nothing would reach", async () => {
+    await renderListIntoDocument({
+      initialPresetStage: "balance",
+      loaderData: academyFinancesLoaderDataFixture({
+        inscriptions: [
+          presetInscriptionFixture({
+            // Its deposit is covered, so the crossing has fixed its price.
+            allocatedAmount: 3000,
+            choreographyId: "choreography_1",
+            id: "inscription_1",
+            owedBalanceAmount: 7000,
+            owedDepositAmount: 0,
+          }),
+        ],
+      }),
+    });
+
+    await clickCheckbox(getRenderedCheckboxes()[1]);
+
+    expect(dialogText()).toContain("ya cubrieron su seña");
+    // No picker at all, so nothing travels and the writer leaves the price be.
+    expect(document.querySelector('input[name="price-solo"]')).toBeNull();
+    expect(dialogText()).not.toContain("Elegí un precio");
+  });
+
+  /**
    * How a pick reaches the selection is the same statement for every field, so
    * it belongs to the dialog and not to each picker: a selection spanning three
    * group types used to make it three times.
