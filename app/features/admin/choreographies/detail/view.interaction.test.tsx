@@ -6,7 +6,10 @@ import { afterEach, describe, expect, test } from "vitest";
 
 import { ChoreographyDetailRouteView } from "@/features/admin/choreographies/detail/view";
 import type { ChoreographyDetailLoaderData } from "@/features/admin/choreographies/detail/server";
-import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
+import {
+  clickReactDomButton,
+  createReactDomTestRenderer,
+} from "@/lib/test-support/react-dom";
 
 /**
  * The modality is the only select whose change costs a server round-trip, so
@@ -58,7 +61,180 @@ describe("ChoreographyDetailRouteView modality correction", () => {
     expect(isFieldDisabled("Submodalidad")).toBe(false);
     expect(findTriggerByText("Urbano")).toBeDefined();
   });
+
+  /**
+   * Occupancy belongs to the options of a select. A destination modality with a
+   * single compatible capacity offers none: the capacity arrives preselected and
+   * read-only, like the `auto` status of registration, so the preview reads the
+   * bare date-time the resolution composes for it.
+   */
+  test("previews a locked single capacity as a read-only field with no occupancy", async () => {
+    await renderIntoDocument(renderer, Promise.resolve(), {
+      options: [
+        {
+          id: "schedule_capacity_2",
+          isFull: false,
+          label: "2 de mayo de 2026 - 10:00 hs.",
+        },
+      ],
+      status: "auto",
+    });
+
+    await openSelect(findTriggerByText("Jazz"));
+    await selectOption("Urbano");
+    await settle();
+
+    expect(getFieldShape("Cronograma")).toBe("static");
+    expect(readFieldValue("Cronograma")).toBe("2 de mayo de 2026 - 10:00 hs.");
+    expect(readFieldValue("Cronograma")).not.toContain("ocupados");
+  });
 });
+
+/**
+ * The capacity select stopped being the odd one out: it used to write on
+ * change, so moving the dropdown was the reassignment. It now holds the choice
+ * like the modality correction next to it and waits for the page's `Guardar`.
+ */
+describe("ChoreographyDetailRouteView schedule capacity reassignment", () => {
+  const renderer = createReactDomTestRenderer();
+
+  afterEach(renderer.cleanup);
+
+  test("holds the picked capacity until `Guardar` writes it", async () => {
+    const submissions: Record<string, string>[] = [];
+
+    await renderScheduleCapacityDetail(renderer, submissions);
+
+    await openSelect(findTriggerByText("1 de mayo de 2026 - 14:00 hs."));
+    await selectOption("2 de mayo de 2026 - 10:00 hs.");
+
+    // The pick alone posts nothing: it only leaves the field showing the
+    // destination and the `Guardar` live.
+    expect(submissions).toEqual([]);
+    expect(findTriggerByText("2 de mayo de 2026 - 10:00 hs.")).toBeDefined();
+
+    await clickReactDomButton("Guardar");
+    await settle();
+
+    expect(submissions).toEqual([
+      {
+        assignedScheduleCapacityId: "schedule_capacity_2",
+        intent: "update-schedule-capacity",
+      },
+    ]);
+  });
+
+  test("holds the roster inputs while a picked capacity waits for `Guardar`", async () => {
+    // One `Guardar` can only mean one form, so the exclusion runs both ways:
+    // with a capacity pending, the roster inputs are held the way a pending
+    // modality correction holds them. Otherwise the button would write the
+    // capacity and drop the roster edits typed beside it, unannounced.
+    await renderScheduleCapacityDetail(renderer, []);
+
+    expect(isNameInputDisabled()).toBe(false);
+
+    await openSelect(findTriggerByText("1 de mayo de 2026 - 14:00 hs."));
+    await selectOption("2 de mayo de 2026 - 10:00 hs.");
+
+    expect(isNameInputDisabled()).toBe(true);
+  });
+
+  test("stops offering the capacity select while the roster form is dirty", async () => {
+    // The other direction, and the same one the modality correction takes: a
+    // dirty roster collapses the capacity into a read-only field, so the
+    // administrator cannot start a second pending save the button would have
+    // to choose between.
+    const submissions: Record<string, string>[] = [];
+
+    await renderScheduleCapacityDetail(renderer, submissions);
+
+    await typeIntoNameInput("Danza solar");
+
+    expect(getFieldShape("Cronograma")).toBe("static");
+
+    // And the button still belongs to the roster: it confirms first.
+    await clickReactDomButton("Guardar");
+    await settle();
+
+    expect(submissions).toEqual([]);
+    expect(document.body.textContent).toContain("Confirmar");
+  });
+
+  test("returns the field to the saved capacity when the save is rejected", async () => {
+    // `schedule-capacity-full` is a race the option list cannot filter out, so
+    // the rejection path stays live: nothing was written, and the select must
+    // not be left claiming a capacity —and a price key— it does not have.
+    await renderScheduleCapacityDetail(renderer, [], {
+      message: "El cronograma elegido ya no tiene lugar.",
+      status: "error" as const,
+    });
+
+    await openSelect(findTriggerByText("1 de mayo de 2026 - 14:00 hs."));
+    await selectOption("2 de mayo de 2026 - 10:00 hs.");
+    await clickReactDomButton("Guardar");
+    await settle();
+
+    expect(findTriggerByText("1 de mayo de 2026 - 14:00 hs.")).toBeDefined();
+    expect(findTriggerByText("2 de mayo de 2026 - 10:00 hs.")).toBeUndefined();
+  });
+});
+
+async function renderScheduleCapacityDetail(
+  renderer: ReturnType<typeof createReactDomTestRenderer>,
+  submissions: Record<string, string>[],
+  actionResult: unknown = { message: "Guardado", status: "success" as const },
+) {
+  const loaderData = buildLoaderData();
+  const router = createMemoryRouter(
+    [
+      {
+        path: "/administracion/coreografias/choreo_1",
+        action: async ({ request }) => {
+          const formData = await request.formData();
+
+          submissions.push(
+            Object.fromEntries(
+              Array.from(formData.entries()).map(([key, value]) => [
+                key,
+                String(value),
+              ]),
+            ),
+          );
+
+          return actionResult;
+        },
+        element: (
+          <ChoreographyDetailRouteView
+            loaderData={{
+              ...loaderData,
+              // Two destinations, so the standalone capacity select is the one
+              // filling the slot.
+              scheduleCapacity: {
+                blockers: [],
+                canReassign: true,
+                options: [
+                  {
+                    id: "schedule_capacity_1",
+                    isFull: false,
+                    label: "1 de mayo de 2026 - 14:00 hs.",
+                  },
+                  {
+                    id: "schedule_capacity_2",
+                    isFull: false,
+                    label: "2 de mayo de 2026 - 10:00 hs.",
+                  },
+                ],
+              },
+            }}
+          />
+        ),
+      },
+    ],
+    { initialEntries: ["/administracion/coreografias/choreo_1"] },
+  );
+
+  await renderer.renderAsync(<RouterProvider router={router} />);
+}
 
 function createDeferredResolution() {
   let resolve = () => {};
@@ -72,6 +248,24 @@ function createDeferredResolution() {
 async function renderIntoDocument(
   renderer: ReturnType<typeof createReactDomTestRenderer>,
   held: Promise<void>,
+  scheduleCapacity: {
+    options: { id: string; isFull: boolean; label: string }[];
+    status: "auto" | "multiple" | "none";
+  } = {
+    options: [
+      {
+        id: "schedule_capacity_2",
+        isFull: false,
+        label: "2 de mayo de 2026 - 10:00 hs. · 1/5 ocupados",
+      },
+      {
+        id: "schedule_capacity_3",
+        isFull: false,
+        label: "3 de mayo de 2026 - 10:00 hs. · 0/5 ocupados",
+      },
+    ],
+    status: "multiple",
+  },
 ) {
   const router = createMemoryRouter(
     [
@@ -91,21 +285,7 @@ async function renderIntoDocument(
                   required: true,
                 },
                 modalityId: "modality_2",
-                scheduleCapacity: {
-                  options: [
-                    {
-                      id: "schedule_capacity_2",
-                      isFull: false,
-                      label: "2 de mayo de 2026 - 10:00 hs.",
-                    },
-                    {
-                      id: "schedule_capacity_3",
-                      isFull: false,
-                      label: "3 de mayo de 2026 - 10:00 hs.",
-                    },
-                  ],
-                  status: "multiple" as const,
-                },
+                scheduleCapacity,
                 submodality: {
                   options: [{ id: "submodality_9", name: "Hip hop" }],
                   required: true,
@@ -123,6 +303,42 @@ async function renderIntoDocument(
   await renderer.renderAsync(<RouterProvider router={router} />);
 }
 
+function getNameInput() {
+  return document.querySelector<HTMLInputElement>('input[name="name"]');
+}
+
+function isNameInputDisabled() {
+  return getNameInput()?.disabled ?? false;
+}
+
+async function typeIntoNameInput(value: string) {
+  const input = getNameInput();
+
+  if (!input) {
+    throw new Error("Expected the `Nombre` input to be rendered.");
+  }
+
+  await act(async () => {
+    const setter = Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )?.set;
+
+    setter?.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await Promise.resolve();
+  });
+  await settle();
+}
+
+function getFieldShape(label: string) {
+  return fieldControl(findLabel(label))?.querySelector(
+    '[data-slot="select-trigger"]',
+  )
+    ? "select"
+    : "static";
+}
+
 function getFieldShapes() {
   const shapes: Record<string, string> = {};
 
@@ -133,14 +349,26 @@ function getFieldShapes() {
       continue;
     }
 
-    shapes[name] = fieldControl(label)?.querySelector(
-      '[data-slot="select-trigger"]',
-    )
-      ? "select"
-      : "static";
+    shapes[name] = getFieldShape(name);
   }
 
   return shapes;
+}
+
+/**
+ * A read-only field is a disabled `input`, so what the administrator reads is
+ * its value and not the element's text.
+ */
+function readFieldValue(label: string) {
+  const input = fieldControl(findLabel(label))?.querySelector<HTMLInputElement>(
+    'input:not([type="hidden"])',
+  );
+
+  if (!input) {
+    throw new Error(`Expected the field "${label}" to render an input.`);
+  }
+
+  return input.value;
 }
 
 function isFieldDisabled(label: string) {
@@ -184,7 +412,7 @@ async function settle() {
 
 async function openSelect(trigger: HTMLElement | undefined) {
   if (!trigger) {
-    throw new Error("Expected the `Modalidad` select trigger to be rendered.");
+    throw new Error("Expected the select trigger to be rendered.");
   }
 
   trigger.hasPointerCapture ??= () => false;

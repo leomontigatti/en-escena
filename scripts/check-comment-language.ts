@@ -54,7 +54,13 @@ const docFilePattern = /\.md$/;
 // Spanish titles the regulations actually carry — "RG 1415/2003 — Régimen de
 // emisión de comprobantes" is the name of the thing, and a translated citation
 // leads a reader nowhere (#792 Q7/Q8).
-export const excludedDocDirectories = ["docs/adr", "docs/research"];
+// `.agents` is the same argument one step further out: the skills under it are
+// vendored verbatim from their upstream repo and pinned by content hash in
+// `skills-lock.json`, so a sweep may not rewrite them — editing one breaks the
+// hash and the next `skills add` discards the edit anyway. It scans clean today;
+// excluding it is about what happens when it does not, since the remedy would
+// have to be unpinning someone else's prose rather than fixing ours.
+export const excludedDocDirectories = [".agents", "docs/adr", "docs/research"];
 
 // YAML is on the same rule and used to rest on review, which is how six Spanish
 // comments outlived #592 across four workflow files (#793). A `#` comment is
@@ -72,7 +78,14 @@ const yamlFilePattern = /\.(yml|yaml)$/;
 
 // Generated, not written: a lockfile is 330 KB of resolution output that no
 // contributor reads as prose, and nobody may rewrite by hand anyway.
-export const excludedYamlFiles = ["pnpm-lock.yaml"];
+// `openai.yml` is vendored with the shadcn skill, on the same argument as
+// `.agents` above. This list is file-by-file rather than by directory on
+// purpose: a second vendored YAML should fail the scan-root test on arrival and
+// be recorded here deliberately, not be absorbed by a prefix nobody revisits.
+export const excludedYamlFiles = [
+  ".agents/skills/shadcn/agents/openai.yml",
+  "pnpm-lock.yaml",
+];
 
 // Spanish function words with no English homograph. Deliberately absent:
 // `todo`/`todos` (the TODO comment marker), `sea`, `era`, `son`, `sin`, `solo`,

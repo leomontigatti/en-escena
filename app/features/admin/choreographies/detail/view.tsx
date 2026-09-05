@@ -1,8 +1,6 @@
-import { zodResolver } from "@hookform/resolvers/zod";
 import { Check, ChevronLeft, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { Link, useSubmit } from "react-router";
-import { useForm } from "react-hook-form";
 
 import {
   AdminResourceFormCard,
@@ -44,30 +42,16 @@ import {
   ModalityScheduleCapacityField,
   ModalitySubmodalityField,
 } from "./modality-fields";
-import { canSubmitModalityCorrection } from "./modality-form-state";
-import {
-  choreographyFormSchema,
-  RosterExperienceLevelSlot,
-  RosterScheduleSlot,
-  type ChoreographyFormValues,
-} from "./roster-fields";
-import {
-  canSubmitChoreographyEdit,
-  getExperienceLevelSlotState,
-  getRosterScheduleSelectOptions,
-  getWithdrawnDancers,
-  hasNoCompatibleCategory,
-} from "./roster-form-state";
+import { RosterExperienceLevelSlot, RosterScheduleSlot } from "./roster-fields";
+import { getWithdrawnDancers } from "./roster-form-state";
 import {
   deleteChoreographyIntent,
-  renameChoreographyIntent,
   updateChoreographyRosterIntent,
   type ChoreographyDeleteBlocker,
   type ChoreographyViewActionData,
 } from "./shared";
 import { SubmodalityField } from "./reassignment-fields";
-import { useModalityForm } from "./use-modality-form";
-import { useRosterForm } from "./use-roster-form";
+import { useChoreographyDetailForms } from "./use-choreography-detail-forms";
 import type { ChoreographyDetailLoaderData } from "./server";
 
 type ChoreographyDetailRouteViewProps = {
@@ -157,78 +141,23 @@ function ChoreographyDetailForm({
   loaderData: ChoreographyDetailLoaderData;
 }) {
   const choreography = loaderData.choreography;
-  const defaultValues = useMemo(
-    () => getChoreographyFormValues(loaderData, actionData),
-    [actionData, loaderData],
-  );
-  const form = useForm<ChoreographyFormValues>({
-    defaultValues,
-    mode: "onSubmit",
-    resolver: zodResolver(choreographyFormSchema),
-  });
-  const { reset } = form;
+  const {
+    canSubmitRoster,
+    experienceLevelSlot,
+    footer,
+    form,
+    hasPendingScheduleCapacity,
+    intent,
+    isRosterEditDisabled,
+    modality,
+    noCompatibleCategory,
+    pendingSave,
+    roster,
+    rosterScheduleOptions,
+    scheduleCapacity,
+  } = useChoreographyDetailForms({ actionData, loaderData });
   const submit = useSubmit();
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-
-  const roster = useRosterForm({ form, loaderData });
-  // The two forms exclude each other on screen: while one has unsaved changes
-  // the other goes read-only, because the same resolution would rewrite the
-  // same derived fields from two sides.
-  const isRosterFormDirty =
-    roster.hasNameChanged ||
-    roster.hasRosterChanged ||
-    roster.hasProfessorsChanged;
-  const modality = useModalityForm({ isRosterFormDirty, loaderData });
-
-  useEffect(() => {
-    reset(defaultValues);
-  }, [defaultValues, reset]);
-
-  const experienceLevelSlot = getExperienceLevelSlotState({
-    choreography,
-    derivedResolution: roster.derivedResolution,
-    hasResolvedRosterChange: roster.hasResolvedRosterChange,
-  });
-  const rosterScheduleOptions = getRosterScheduleSelectOptions({
-    hasResolvedRosterChange: roster.hasResolvedRosterChange,
-    scheduleResolution: roster.scheduleResolution,
-  });
-  const noCompatibleCategory = hasNoCompatibleCategory({
-    derivedResolution: roster.derivedResolution,
-    hasResolvedRosterChange: roster.hasResolvedRosterChange,
-  });
-
-  // One `Guardar` in the footer for both forms. They exclude each other on
-  // screen, so the pending correction decides what the button submits: the
-  // modality one writes on its own, the roster one still confirms first.
-  const canSubmitModality = canSubmitModalityCorrection(modality);
-  const canSubmitRoster =
-    loaderData.canEdit &&
-    !modality.isDirty &&
-    canSubmitChoreographyEdit({
-      canEditRoster: roster.canEditRoster,
-      derivedResolution: roster.derivedResolution,
-      hasNameChanged: roster.hasNameChanged,
-      hasProfessorsChanged: roster.hasProfessorsChanged,
-      hasRosterChanged: roster.hasRosterChanged,
-      isResolving: roster.isResolving,
-      isSubmitting: roster.isSubmitting,
-      resolution: roster.resolution,
-      resolvedSelectionKey: roster.resolvedSelectionKey,
-      scheduleResolution: roster.scheduleResolution,
-      selectionKey: roster.selectionKey,
-      showRosterExperienceLevelSelect: experienceLevelSlot.showRosterSelect,
-      watchedDancerIds: roster.watchedDancerIds,
-      watchedExperienceLevelId: roster.watchedExperienceLevelId,
-      watchedScheduleCapacityId: roster.watchedScheduleCapacityId,
-    });
-
-  // An isolated rename does not touch the roster, so it avoids the hard lock from
-  // a presentation that does apply to `update-roster`.
-  const intent =
-    roster.hasRosterChanged || roster.hasProfessorsChanged
-      ? updateChoreographyRosterIntent
-      : renameChoreographyIntent;
 
   const withdrawnDancers = getWithdrawnDancers({
     dancers: choreography.dancers,
@@ -270,10 +199,16 @@ function ChoreographyDetailForm({
         onSubmit={(event) => {
           event.preventDefault();
 
-          // The modality correction writes on its own: the confirmation
-          // dialog enumerates roster consequences it does not have.
-          if (modality.isDirty) {
+          // The modality correction and the capacity reassignment write on
+          // their own: the confirmation dialog enumerates roster consequences
+          // neither of them has.
+          if (pendingSave === "modality") {
             modality.save();
+            return;
+          }
+
+          if (pendingSave === "schedule-capacity") {
+            scheduleCapacity.save();
             return;
           }
 
@@ -287,12 +222,8 @@ function ChoreographyDetailForm({
             <FormActions
               backToList={loaderData.backToList}
               canEdit={loaderData.canEdit}
-              canSubmit={modality.isDirty ? canSubmitModality : canSubmitRoster}
-              isPending={
-                modality.isDirty
-                  ? modality.isResolving || modality.isSubmitting
-                  : roster.isResolving || roster.isSubmitting
-              }
+              canSubmit={footer.canSubmit}
+              isPending={footer.isPending}
             />
           }
         >
@@ -306,7 +237,7 @@ function ChoreographyDetailForm({
               <TextInputField
                 className="md:col-span-2"
                 control={form.control}
-                disabled={modality.isDirty}
+                disabled={isRosterEditDisabled}
                 label="Nombre"
                 name="name"
               />
@@ -355,7 +286,7 @@ function ChoreographyDetailForm({
               saved={(disabled) => (
                 <RosterExperienceLevelSlot
                   control={form.control}
-                  disabled={disabled}
+                  disabled={disabled || hasPendingScheduleCapacity}
                   experienceLevelSlot={experienceLevelSlot}
                   loaderData={loaderData}
                   options={roster.derivedResolution.experienceLevelOptions}
@@ -379,6 +310,7 @@ function ChoreographyDetailForm({
                   disabled={disabled}
                   loaderData={loaderData}
                   options={rosterScheduleOptions}
+                  scheduleCapacity={scheduleCapacity}
                 />
               )}
             />
@@ -387,7 +319,7 @@ function ChoreographyDetailForm({
           <FieldGroup>
             <MultiComboboxField
               control={form.control}
-              disabled={!roster.canEditRoster || modality.isDirty}
+              disabled={!roster.canEditRoster || isRosterEditDisabled}
               emptyMessage="Sin bailarines disponibles"
               inputName="dancerIds"
               label="Bailarines"
@@ -399,7 +331,7 @@ function ChoreographyDetailForm({
 
             <MultiComboboxField
               control={form.control}
-              disabled={!roster.canEditRoster || modality.isDirty}
+              disabled={!roster.canEditRoster || isRosterEditDisabled}
               emptyMessage="Sin profesores disponibles"
               inputName="professorIds"
               label="Profesores"
@@ -541,25 +473,6 @@ function FormActions({
       ) : null}
     </>
   );
-}
-
-function getChoreographyFormValues(
-  loaderData: ChoreographyDetailLoaderData,
-  actionData?: ChoreographyViewActionData,
-): ChoreographyFormValues {
-  const choreography = loaderData.choreography;
-
-  return {
-    dancerIds: choreography.dancers.map((dancer) => dancer.id),
-    experienceLevelId: choreography.experienceLevelId ?? "",
-    musicStorageKey: choreography.musicStorageKey ?? "",
-    name:
-      (actionData && "values" in actionData
-        ? actionData.values.name
-        : undefined) ?? choreography.name,
-    professorIds: choreography.professors.map((professor) => professor.id),
-    scheduleCapacityId: "",
-  };
 }
 
 function toPersonOption(person: {
