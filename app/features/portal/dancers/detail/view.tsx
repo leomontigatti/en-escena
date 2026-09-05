@@ -10,13 +10,13 @@ import {
   documentTypeEmptyLabel,
   documentTypeOptions,
 } from "@/components/shared/document-type-options";
+import { DancerInscriptionsTable } from "@/components/shared/dancer-inscriptions-table";
+import { ReadOnlyDocumentImageField } from "@/components/shared/read-only-document-image-field";
 import {
   ReadOnlyDateField,
   ReadOnlyField,
   ReadOnlySelectField,
 } from "@/components/shared/read-only-field";
-import { DancerInscriptionsTable } from "@/components/shared/dancer-inscriptions-table";
-import { ReadOnlyDocumentImageField } from "@/components/shared/read-only-document-image-field";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { SelectField } from "@/components/shared/select-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -292,16 +292,12 @@ export function PortalDancerDetailRouteView({
             </form>
           </CardContent>
           <CardFooter className="justify-between gap-3 border-0 bg-transparent pt-0">
-            <Button asChild variant="outline" size="lg">
+            <Button asChild variant="outline">
               <Link to="/portal/bailarines" viewTransition>
                 Volver
               </Link>
             </Button>
-            <SubmitButton
-              form={portalDancerFormId}
-              size="lg"
-              isPending={isSubmitting}
-            />
+            <SubmitButton form={portalDancerFormId} isPending={isSubmitting} />
           </CardFooter>
         </PortalDancerFormSection>
       </section>

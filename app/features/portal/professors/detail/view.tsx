@@ -224,14 +224,13 @@ export function PortalProfessorDetailRouteView({
             </form>
           </CardContent>
           <CardFooter className="justify-end gap-3 border-0 bg-transparent pt-0">
-            <Button asChild variant="outline" size="lg">
+            <Button asChild variant="outline">
               <Link to="/portal/profesores" viewTransition>
                 Volver
               </Link>
             </Button>
             <SubmitButton
               form={professorDetailFormId}
-              size="lg"
               isPending={isSubmitting}
             />
           </CardFooter>
