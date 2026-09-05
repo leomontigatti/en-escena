@@ -19,6 +19,7 @@ import {
   getEventBases,
   resolveEventBasesScheduleModalityIds,
   resolveEventBasesScheduleOptions,
+  resolveEventBasesSchedules,
 } from "@/lib/events/bases.server";
 import { isExperienceLevel } from "@/lib/events/experience-levels";
 import { loadPriceDivergenceCheck } from "@/lib/finances/choreography-frozen-price-guard.server";
@@ -107,20 +108,48 @@ const frozenPriceModalityMessage =
   "No se puede cambiar la modalidad: el cronograma se movería y cambiaría el precio de inscripciones con dinero asignado.";
 
 /**
- * The deposit is reported as a blocker-in-waiting, not as a closed field: a
- * destination modality that keeps the current schedule is financially inert
- * and stays available. It is enumerated for the `auditor` too.
+ * The price is reported as a blocker-in-waiting, not as a closed field: a
+ * destination modality whose capacity holds the price is saved like any other.
+ * It is enumerated for the `auditor` too.
+ *
+ * Phrased around the price and not around the schedule moving, which is what
+ * keeps it from reading as a second copy of the capacity alert: the schedule
+ * moving is no longer what the save refuses, the price changing is.
  */
-const frozenPriceBlocker: ChoreographyModalityBlocker = {
-  code: "frozen-price",
+const priceChangeBlocker: ChoreographyModalityBlocker = {
+  code: "price-change",
   label:
-    "Solo se puede corregir la modalidad si el cronograma no se mueve: hay inscripciones con dinero asignado.",
+    "Solo se puede corregir la modalidad si el cronograma no cambia de precio: hay inscripciones con dinero asignado.",
 };
 
-export function toChoreographyModalityBlockers(
-  hasFrozenPrice: boolean,
-): ChoreographyModalityBlocker[] {
-  return hasFrozenPrice ? [frozenPriceBlocker] : [];
+/**
+ * Whether any correction could land on a schedule that reprices a
+ * money-holding inscription — asked of every schedule of the event, not of the
+ * ones the current modality accepts, because the correction is precisely what
+ * changes which modality's schedules are in play.
+ *
+ * Money alone is not the question any more: a choreography whose inscriptions
+ * are all frozen against general rows can be corrected into any modality
+ * without a peso moving, and announcing a caveat there is announcing nothing.
+ */
+export async function listChoreographyModalityBlockers(input: {
+  choreography: ChoreographyDetail;
+  eventId: string;
+}): Promise<ChoreographyModalityBlocker[]> {
+  const [schedules, diverges] = await Promise.all([
+    resolveEventBasesSchedules(input.eventId),
+    loadPriceDivergenceCheck({ choreographyId: input.choreography.id }),
+  ]);
+  const hasPriceDivergentSchedule = schedules.some((schedule) =>
+    diverges({
+      // Modality is not part of the price key: the correction moves the
+      // schedule alone and keeps the group type the roster gives.
+      groupType: input.choreography.groupType,
+      scheduleId: schedule.id,
+    }),
+  );
+
+  return hasPriceDivergentSchedule ? [priceChangeBlocker] : [];
 }
 
 /**

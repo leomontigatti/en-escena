@@ -1027,23 +1027,9 @@ describe("administrative choreography detail server", () => {
   });
 
   test("blocks the reassignment when the destination reprices an inscription below its deposit", async () => {
-    const scenario = await createScheduleCapacityScenario({
+    const scenario = await createPriceDivergentScheduleScenario({
       academyName: "Academia Cronograma Señada",
       slug: "cronograma.senada",
-    });
-    await insertSoloPrice({ amount: 10000, eventId: scenario.event.id });
-    await insertSoloPrice({
-      amount: 20000,
-      eventId: scenario.event.id,
-      scheduleId: scenario.target.schedule.id,
-    });
-    // Below its deposit (30 % of 10000), so the price is still live and the
-    // destination's own row is what it would be charged at.
-    await createSelectedPriceInscriptionForTest({
-      academyId: scenario.owner.academyId,
-      allocatedAmount: 1000,
-      choreographyId: scenario.choreography.id,
-      eventId: scenario.event.id,
     });
 
     const detail = await loadDetail({
@@ -1056,8 +1042,9 @@ describe("administrative choreography detail server", () => {
     expect(detail.scheduleCapacity.canReassign).toBe(false);
     expect(detail.scheduleCapacity.blockers).toEqual([
       {
-        code: "frozen-price",
-        label: expect.stringContaining("dinero asignado"),
+        code: "no-price-preserving-option",
+        label:
+          "No se puede reasignar el cupo de cronograma: hay inscripciones con dinero asignado y no hay cronogramas alternativos que mantengan el precio.",
       },
     ]);
     // The repricing destination is omitted, not offered as disabled: only the
@@ -1084,30 +1071,11 @@ describe("administrative choreography detail server", () => {
   });
 
   test("omits only the alternatives that would reprice, and keeps the ones that hold the price", async () => {
-    const scenario = await createScheduleCapacityScenario({
-      academyName: "Academia Cronograma Filtrado",
-      slug: "cronograma.filtrado",
-    });
-    // A third compatible schedule with no row of its own, so it rides the same
-    // general row the assignment does and the move is price-neutral.
-    const neutral = await createScheduleWithSoloCapacity({
-      eventId: scenario.event.id,
-      modalityId: scenario.catalog.modality.id,
-    });
-    await insertSoloPrice({ amount: 10000, eventId: scenario.event.id });
-    await insertSoloPrice({
-      amount: 20000,
-      eventId: scenario.event.id,
-      scheduleId: scenario.target.schedule.id,
-    });
-    // Below its deposit (30 % of 10000), so the price is live and the
-    // destination's own row is what it would be charged at.
-    await createSelectedPriceInscriptionForTest({
-      academyId: scenario.owner.academyId,
-      allocatedAmount: 1000,
-      choreographyId: scenario.choreography.id,
-      eventId: scenario.event.id,
-    });
+    const { neutral, ...scenario } =
+      await createPartiallyFilteredScheduleScenario({
+        academyName: "Academia Cronograma Filtrado",
+        slug: "cronograma.filtrado",
+      });
 
     const detail = await loadDetail({
       choreographyId: scenario.choreography.id,
@@ -1336,16 +1304,10 @@ describe("administrative choreography detail server", () => {
     });
   });
 
-  test("shows the frozen-price blocker to auditors as well", async () => {
-    const scenario = await createScheduleCapacityScenario({
+  test("shows the price blocker to auditors as well", async () => {
+    const scenario = await createPriceDivergentScheduleScenario({
       academyName: "Academia Cronograma Señada Auditor",
       slug: "cronograma.senada.auditor",
-    });
-    await createSelectedPriceInscriptionForTest({
-      academyId: scenario.owner.academyId,
-      allocatedAmount: 3000,
-      choreographyId: scenario.choreography.id,
-      eventId: scenario.event.id,
     });
 
     const detail = await loadDetail({
@@ -1356,7 +1318,67 @@ describe("administrative choreography detail server", () => {
 
     expect(
       detail.scheduleCapacity.blockers.map((blocker) => blocker.code),
-    ).toEqual(["frozen-price"]);
+    ).toEqual(["no-price-preserving-option"]);
+  });
+
+  test("announces the filter as partial when an alternative keeps the price", async () => {
+    const { neutral, ...scenario } =
+      await createPartiallyFilteredScheduleScenario({
+        academyName: "Academia Cronograma Parcial",
+        slug: "cronograma.parcial",
+      });
+
+    const detail = await loadDetail({
+      choreographyId: scenario.choreography.id,
+      email: "admin.coreografias.cronograma.parcial.detalle@example.com",
+      role: "admin",
+    });
+
+    // The field stays open: one alternative survived the filter.
+    expect(detail.scheduleCapacity.canReassign).toBe(true);
+    expect(detail.scheduleCapacity.blockers).toEqual([
+      {
+        code: "price-filtered-options",
+        label:
+          "Hay inscripciones con dinero asignado, así que solo se ofrecen los cronogramas que mantienen el precio.",
+      },
+    ]);
+    // The alert names no destination and no amount: the select already lists
+    // what is on offer, and an enumeration would go stale.
+    expect(detail.scheduleCapacity.blockers[0]?.label).not.toContain("20.000");
+    expect(
+      detail.scheduleCapacity.options.map((option) => option.id).sort(),
+    ).toEqual(
+      [
+        scenario.catalog.scheduleCapacity.id,
+        neutral.scheduleCapacity.id,
+      ].sort(),
+    );
+  });
+
+  test("announces nothing when the money holds its price on every option", async () => {
+    const scenario = await createScheduleCapacityScenario({
+      academyName: "Academia Cronograma Sin Divergencia",
+      slug: "cronograma.sin.divergencia",
+    });
+    await insertSoloPrice({ amount: 10000, eventId: scenario.event.id });
+    await createSelectedPriceInscriptionForTest({
+      academyId: scenario.owner.academyId,
+      allocatedAmount: 1000,
+      choreographyId: scenario.choreography.id,
+      eventId: scenario.event.id,
+    });
+
+    const detail = await loadDetail({
+      choreographyId: scenario.choreography.id,
+      email: "admin.coreografias.cronograma.sin.divergencia@example.com",
+      role: "admin",
+    });
+
+    // Money alone says nothing any more: no option would reprice it, so there
+    // is nothing to announce.
+    expect(detail.scheduleCapacity.blockers).toEqual([]);
+    expect(detail.scheduleCapacity.canReassign).toBe(true);
   });
 
   test("blocks auditors from reassigning the schedule capacity", async () => {
@@ -1868,6 +1890,52 @@ async function createScheduleCapacityScenario(input: {
     },
     target,
   };
+}
+
+/**
+ * The reassignment scenario in its repricing shape: money below its deposit, so
+ * the price is still live, and the only alternative carrying a dearer row of
+ * its own, so moving there is what changes what the inscription is charged.
+ */
+async function createPriceDivergentScheduleScenario(input: {
+  academyName: string;
+  slug: string;
+}) {
+  const scenario = await createScheduleCapacityScenario(input);
+  await insertSoloPrice({ amount: 10000, eventId: scenario.event.id });
+  await insertSoloPrice({
+    amount: 20000,
+    eventId: scenario.event.id,
+    scheduleId: scenario.target.schedule.id,
+  });
+  // Below its deposit (30 % of 10000), so the stored row is not authoritative
+  // and the destination's own row is what it would be charged at.
+  await createSelectedPriceInscriptionForTest({
+    academyId: scenario.owner.academyId,
+    allocatedAmount: 1000,
+    choreographyId: scenario.choreography.id,
+    eventId: scenario.event.id,
+  });
+
+  return scenario;
+}
+
+/**
+ * The same shape plus a third compatible schedule with no row of its own: it
+ * rides the general row the assignment does, so it survives the filter and
+ * leaves something to move to.
+ */
+async function createPartiallyFilteredScheduleScenario(input: {
+  academyName: string;
+  slug: string;
+}) {
+  const scenario = await createPriceDivergentScheduleScenario(input);
+  const neutral = await createScheduleWithSoloCapacity({
+    eventId: scenario.event.id,
+    modalityId: scenario.catalog.modality.id,
+  });
+
+  return { ...scenario, neutral };
 }
 
 function scheduleCapacityFormData(optionId: string) {

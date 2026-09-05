@@ -94,6 +94,18 @@ export async function resolveEventBasesScheduleModalityIds(
   return findModalityIdsWithCompatibleSchedules(eventId);
 }
 
+/**
+ * Every schedule of the event, whatever modality it accepts. The modality
+ * correction asks for it to answer a question no single modality can: whether
+ * *some* destination would move the price key, which is what its
+ * blocker-in-waiting announces.
+ */
+export async function resolveEventBasesSchedules(
+  eventId: string,
+): Promise<ScheduleListItem[]> {
+  return listSchedules(eventId);
+}
+
 export async function resolveEventBasesScheduleOptions(input: {
   eventId: string;
   modalityId: string;

@@ -34,30 +34,6 @@ export type DestinationPriceKey = {
 };
 
 /**
- * Does any inscription of the choreography hold money?
- *
- * The blanket read the detail's two alerts still derive from. The move guard no
- * longer asks it: holding money and being repriced by a move are different
- * questions, and `hasPriceDivergentInscription` below asks the second one.
- */
-export async function hasFrozenPriceInscription(
-  choreographyId: string,
-  executor: Executor = db,
-) {
-  const [inscription] = await executor
-    .select({ id: choreographyDancers.id })
-    .from(choreographyDancers)
-    .innerJoin(
-      paymentAllocations,
-      eq(paymentAllocations.inscriptionId, choreographyDancers.id),
-    )
-    .where(eq(choreographyDancers.choreographyId, choreographyId))
-    .limit(1);
-
-  return inscription !== undefined;
-}
-
-/**
  * Would the move change what any money-holding inscription is charged?
  *
  * The question is amount equality **evaluated today**, per inscription with

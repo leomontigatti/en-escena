@@ -324,9 +324,9 @@ describe("administrative choreography modality correction", () => {
     expect(detail.modality.canCorrect).toBe(true);
     expect(detail.modality.blockers).toEqual([
       {
-        code: "frozen-price",
+        code: "price-change",
         label:
-          "Solo se puede corregir la modalidad si el cronograma no se mueve: hay inscripciones con dinero asignado.",
+          "Solo se puede corregir la modalidad si el cronograma no cambia de precio: hay inscripciones con dinero asignado.",
       },
     ]);
     expect(
@@ -350,6 +350,22 @@ describe("administrative choreography modality correction", () => {
         },
       ]),
     );
+  });
+
+  test("announces no modality blocker when no schedule would change the price", async () => {
+    // The destination modality shares the choreography's schedule, so the
+    // event has a single schedule and no correction can move the price key.
+    const scenario = await createModalityScenario({
+      allocatedAmount: 5000,
+      slug: "sin.divergencia",
+      targetSharesSchedule: true,
+    });
+
+    const detail = await scenario.loadDetail();
+
+    // Holding money is no longer the question: what closes on price is a
+    // destination that would reprice it, and there is none.
+    expect(detail.modality.blockers).toEqual([]);
   });
 
   test("keeps the correction read-only for auditors", async () => {

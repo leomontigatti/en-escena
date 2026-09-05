@@ -32,28 +32,48 @@ export type ChoreographyScheduleCapacityReassignment = {
 };
 
 /**
- * The block covers the whole field, never individual options: every option the
- * select offers changes the schedule and with it the price key, so there is no
- * financially inert reassignment to exempt.
+ * The filter left something to choose from. Not phrased as a block, because
+ * nothing is blocked: the select is open and every destination in it holds the
+ * price. It names no destination and no amount — the select is already the
+ * list, and an enumeration in an alert would go stale the moment a price row
+ * or an allocation moves.
  */
-const frozenPriceBlocker: ChoreographyScheduleCapacityBlocker = {
-  code: "frozen-price",
+const priceFilteredOptionsBlocker: ChoreographyScheduleCapacityBlocker = {
+  code: "price-filtered-options",
   label:
-    "No se puede reasignar el cupo de cronograma: hay inscripciones con dinero asignado y su precio quedó congelado contra este cronograma.",
+    "Hay inscripciones con dinero asignado, así que solo se ofrecen los cronogramas que mantienen el precio.",
 };
 
 /**
- * The blocking reasons the server assembles for the page's alert. They are not
- * filtered by role: the auditor also has to see why the schedule cannot be
- * moved.
- *
- * The caller reads the money once and derives both this list and the modality
- * one from it: the two alerts describe the same inscriptions.
+ * The filter left nothing to choose from, so the field fell back to read-only.
+ * Without this the administrator sees a locked select and no reason at all: the
+ * omitted destinations explain themselves nowhere else.
  */
-export function toScheduleCapacityBlockers(
-  hasFrozenPrice: boolean,
-): ChoreographyScheduleCapacityBlocker[] {
-  return hasFrozenPrice ? [frozenPriceBlocker] : [];
+const noPricePreservingOptionBlocker: ChoreographyScheduleCapacityBlocker = {
+  code: "no-price-preserving-option",
+  label:
+    "No se puede reasignar el cupo de cronograma: hay inscripciones con dinero asignado y no hay cronogramas alternativos que mantengan el precio.",
+};
+
+/**
+ * What the page's alert reads out about the price, chosen from the options that
+ * survived the filter and not from a blanket money read: money no destination
+ * would reprice omits nothing and is announced nowhere. It is not filtered by
+ * role — the auditor also has to see why the select is narrower, or closed.
+ */
+export function toScheduleCapacityBlockers(input: {
+  hasPriceDivergentOption: boolean;
+  hasSelectableAlternative: boolean;
+}): ChoreographyScheduleCapacityBlocker[] {
+  if (!input.hasPriceDivergentOption) {
+    return [];
+  }
+
+  return [
+    input.hasSelectableAlternative
+      ? priceFilteredOptionsBlocker
+      : noPricePreservingOptionBlocker,
+  ];
 }
 
 type ResolvedScheduleCapacityOption = ChoreographyScheduleCapacityOption & {
@@ -159,12 +179,16 @@ export async function resolveChoreographyScheduleCapacityOptions(input: {
   choreography: ChoreographyDetail;
   eventId: string;
 }): Promise<{
+  hasPriceDivergentOption: boolean;
   hasSelectableAlternative: boolean;
   options: ResolvedScheduleCapacityOption[];
 }> {
   const candidates = await resolveScheduleCapacityCandidates(input);
 
   return {
+    // Whether the filter took anything away, so the loader can say so without
+    // asking the money a second question of its own.
+    hasPriceDivergentOption: candidates.priceDivergentOptionIds.length > 0,
     hasSelectableAlternative: candidates.hasSelectableAlternative,
     options: await withScheduleCapacityOccupancy({
       // The same exclusion as the lock: the choreography being moved does not
