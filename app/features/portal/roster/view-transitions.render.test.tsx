@@ -77,7 +77,7 @@ describe("portal view transitions", () => {
       'a[href="/portal/bailarines/dancer_1"]',
     );
     expect(dancerLink?.getAttribute("style")).toContain(
-      "view-transition-name: portal-record-title",
+      "view-transition-name: record-title",
     );
 
     await renderRoute(
@@ -92,7 +92,7 @@ describe("portal view transitions", () => {
     );
     expect(
       document.getElementById("bailarin-detail-title")?.getAttribute("style"),
-    ).toContain("view-transition-name: portal-record-title");
+    ).toContain("view-transition-name: record-title");
 
     await renderRoute(
       "/portal/profesores",
@@ -119,7 +119,7 @@ describe("portal view transitions", () => {
       'a[href="/portal/profesores/professor_1"]',
     );
     expect(professorLink?.getAttribute("style")).toContain(
-      "view-transition-name: portal-record-title",
+      "view-transition-name: record-title",
     );
 
     await renderRoute(
@@ -134,7 +134,7 @@ describe("portal view transitions", () => {
     );
     expect(
       document.getElementById("profesor-detail-title")?.getAttribute("style"),
-    ).toContain("view-transition-name: portal-record-title");
+    ).toContain("view-transition-name: record-title");
   });
 });
 
@@ -167,8 +167,11 @@ function buildDancerDetailLoaderData() {
       back: null,
       front: null,
     },
+    inscriptions: [],
+    selectedEventId: "event_1",
     dancer: {
       id: "dancer_1",
+      academyId: "academy_1",
       firstName: "Ana",
       lastName: "Paz",
       active: true,
@@ -178,6 +181,8 @@ function buildDancerDetailLoaderData() {
       documentFrontImageStorageKey: null,
       documentBackImageStorageKey: null,
       identityVerifiedAt: null,
+      createdAt: new Date("2026-01-01T00:00:00Z"),
+      updatedAt: new Date("2026-01-01T00:00:00Z"),
     },
   } as Parameters<typeof PortalDancerDetailRouteView>[0]["loaderData"];
 }

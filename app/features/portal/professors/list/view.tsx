@@ -21,7 +21,7 @@ import {
   toRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.shared";
 import { useServerActionToast } from "@/lib/shared/toasts";
-import { usePortalRecordTitleLinkTransitionStyle } from "@/lib/shared/view-transitions";
+import { useRecordTitleLinkTransitionStyle } from "@/lib/shared/view-transitions";
 import { CreateProfessorDialog } from "@/features/portal/professors/create/dialog";
 import { type CreateProfessorActionData } from "@/features/portal/professors/create/shared";
 import { type PortalProfessorsListLoaderData } from "@/features/portal/professors/list/shared";
@@ -227,7 +227,7 @@ function ProfessorsTable({ professors }: { professors: ProfessorRow[] }) {
 
 function ProfessorDetailLink({ professor }: { professor: ProfessorRow }) {
   const href = `/portal/profesores/${professor.id}`;
-  const viewTransitionStyle = usePortalRecordTitleLinkTransitionStyle(href);
+  const viewTransitionStyle = useRecordTitleLinkTransitionStyle(href);
 
   return (
     <DataTableLink to={href} viewTransition style={viewTransitionStyle}>

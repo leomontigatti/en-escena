@@ -3,25 +3,27 @@ import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { choreographies, modalities } from "@/db/schema";
 import {
-  resolveChoreographyClassificationForResolvedDancers,
   validateExperienceLevelSelection,
   validateSubmodalitySelection,
 } from "@/lib/choreographies/registration-resolution.server";
 import {
   guardAndLockScheduleCapacityMove,
-  invalidScheduleEntryMessage,
   lockScheduleCapacityForAssignment,
 } from "@/lib/choreographies/schedule-capacity-lock.server";
 import type { ScheduleCapacitySelectOption } from "@/lib/choreographies/schedule-capacity-options";
-import { withScheduleCapacityOccupancy } from "@/lib/choreographies/schedule-capacity-options.server";
-import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
 import {
   getEventBases,
   resolveEventBasesScheduleModalityIds,
-  resolveEventBasesScheduleOptions,
+  resolveEventBasesCorrectableScheduleIds,
 } from "@/lib/events/bases.server";
 import { isExperienceLevel } from "@/lib/events/experience-levels";
+import { loadPriceDivergenceCheck } from "@/lib/finances/choreography-price-divergence-guard.server";
 
+import {
+  priceDivergenceModalityMessage,
+  resolveModalityCorrectionContext,
+  toMissingScheduleMessage,
+} from "./modality-resolution.server";
 import type { ChoreographyDetail } from "./server";
 import {
   choreographySavedSuccess,
@@ -64,20 +66,6 @@ export type ChoreographyModalityResolutionResult =
   | { ok: true; resolution: ChoreographyModalityResolution }
   | { ok: false; message: string };
 
-type ResolvedModalityScheduleOption = ScheduleCapacitySelectOption & {
-  scheduleCapacityId: string | null;
-  scheduleId: string;
-};
-
-type ModalityCorrectionContext = {
-  classification: ReturnType<
-    typeof resolveChoreographyClassificationForResolvedDancers
-  >;
-  scheduleOptions: ResolvedModalityScheduleOption[];
-  scheduleStatus: "auto" | "multiple" | "none";
-  submodalityOptions: Array<{ id: string; name: string }>;
-};
-
 const presentationLockMessage =
   "No se puede cambiar la modalidad: la coreografía ya tiene presentación.";
 
@@ -90,29 +78,51 @@ const divergedResolutionMessage =
   "La resolución cambió mientras corregías la modalidad. Revisá los campos y volvé a guardar.";
 
 /**
- * The deposit rejection names the modality instead of reusing
- * `frozenPriceScheduleCapacityMessage`, which names the capacity: the administrator
- * did not touch the capacity select here, and pointing at it would send them to the
- * wrong field.
+ * The price is reported as a blocker-in-waiting, not as a closed field: a
+ * destination modality whose capacity holds the price is saved like any other.
+ * It is enumerated for the `auditor` too.
+ *
+ * Phrased around the price and not around the schedule moving, which is what
+ * keeps it from reading as a second copy of the capacity alert: the schedule
+ * moving is no longer what the save refuses, the price changing is.
  */
-const frozenPriceModalityMessage =
-  "No se puede cambiar la modalidad: el cronograma se movería y hay inscripciones con dinero asignado.";
-
-/**
- * The deposit is reported as a blocker-in-waiting, not as a closed field: a
- * destination modality that keeps the current schedule is financially inert
- * and stays available. It is enumerated for the `auditor` too.
- */
-const frozenPriceBlocker: ChoreographyModalityBlocker = {
-  code: "frozen-price",
+const priceChangeBlocker: ChoreographyModalityBlocker = {
+  code: "price-change",
   label:
-    "Solo se puede corregir la modalidad si el cronograma no se mueve: hay inscripciones con dinero asignado.",
+    "Solo se puede corregir la modalidad si el cronograma no cambia de precio: hay inscripciones con dinero asignado.",
 };
 
-export function toChoreographyModalityBlockers(
-  hasFrozenPrice: boolean,
-): ChoreographyModalityBlocker[] {
-  return hasFrozenPrice ? [frozenPriceBlocker] : [];
+/**
+ * Whether any correction could land on a schedule that reprices a
+ * money-holding inscription — asked of every schedule some modality of the
+ * event accepts, not of the ones the current modality accepts, because the
+ * correction is precisely what changes which modality's schedules are in play.
+ *
+ * Money alone is not the question any more: a choreography whose inscriptions
+ * are all frozen against general rows can be corrected into any modality
+ * without a peso moving, and announcing a caveat there is announcing nothing.
+ */
+export async function listChoreographyModalityBlockers(input: {
+  choreography: ChoreographyDetail;
+  eventId: string;
+}): Promise<ChoreographyModalityBlocker[]> {
+  const [scheduleIds, diverges] = await Promise.all([
+    resolveEventBasesCorrectableScheduleIds(input.eventId),
+    loadPriceDivergenceCheck({
+      choreographyId: input.choreography.id,
+      executor: db,
+    }),
+  ]);
+  const hasPriceDivergentSchedule = scheduleIds.some((scheduleId) =>
+    diverges({
+      // Modality is not part of the price key: the correction moves the
+      // schedule alone and keeps the group type the roster gives.
+      groupType: input.choreography.groupType,
+      scheduleId,
+    }),
+  );
+
+  return hasPriceDivergentSchedule ? [priceChangeBlocker] : [];
 }
 
 /**
@@ -310,17 +320,22 @@ export async function updateChoreographyModality(input: {
     };
   }
 
+  const requestedScheduleOptionId = readNonEmptyFormValue(
+    input.formData,
+    modalityFieldNames.scheduleCapacityId,
+  );
   const selectedSchedule = context.scheduleOptions.find(
-    (option) =>
-      option.id ===
-      readNonEmptyFormValue(
-        input.formData,
-        modalityFieldNames.scheduleCapacityId,
-      ),
+    (option) => option.id === requestedScheduleOptionId,
   );
 
   if (!selectedSchedule) {
-    return { message: invalidScheduleEntryMessage, status: "error" };
+    return {
+      message: toMissingScheduleMessage({
+        context,
+        requestedScheduleOptionId,
+      }),
+      status: "error",
+    };
   }
 
   const result = await db.transaction(async (tx) => {
@@ -335,6 +350,9 @@ export async function updateChoreographyModality(input: {
     const move = movesScheduleCapacity
       ? await guardAndLockScheduleCapacityMove({
           choreographyId: input.choreography.id,
+          // Modality is not part of the price key, so the correction moves the
+          // schedule alone and keeps the choreography's group type.
+          destinationGroupType: input.choreography.groupType,
           scheduleCapacityId: selectedSchedule.scheduleCapacityId,
           scheduleId: selectedSchedule.scheduleId,
           tx,
@@ -349,8 +367,8 @@ export async function updateChoreographyModality(input: {
     if (!move.ok) {
       return {
         error:
-          move.code === "frozen-price"
-            ? frozenPriceModalityMessage
+          move.code === "price-divergence"
+            ? priceDivergenceModalityMessage
             : move.error,
         ok: false as const,
       };
@@ -382,43 +400,6 @@ export async function updateChoreographyModality(input: {
   }
 
   return choreographySavedSuccess();
-}
-
-async function resolveModalityCorrectionContext(input: {
-  choreography: ChoreographyDetail;
-  eventBases: Awaited<ReturnType<typeof getEventBases>>;
-  eventId: string;
-  modalityId: string;
-}): Promise<ModalityCorrectionContext> {
-  const classification = resolveChoreographyClassificationForResolvedDancers({
-    dancers: input.choreography.dancers,
-    eventBases: input.eventBases,
-    modalityId: input.modalityId,
-  });
-  const scheduleResolution = await resolveEventBasesScheduleOptions({
-    eventId: input.eventId,
-    groupType: classification.groupType,
-    modalityId: input.modalityId,
-  });
-
-  return {
-    classification,
-    scheduleOptions: await withScheduleCapacityOccupancy({
-      // Same exclusion as the lock: the choreography being corrected does not
-      // count against the capacity it already occupies.
-      excludeChoreographyId: input.choreography.id,
-      options: scheduleResolution.options.map((option) => ({
-        id: option.id,
-        label: formatScheduleDateTime(option.schedule),
-        scheduleCapacityId: option.scheduleCapacityId,
-        scheduleId: option.scheduleId,
-      })),
-    }),
-    scheduleStatus: scheduleResolution.status,
-    submodalityOptions: input.eventBases.submodalities
-      .filter((submodality) => submodality.modalityId === input.modalityId)
-      .map((submodality) => ({ id: submodality.id, name: submodality.name })),
-  };
 }
 
 /**

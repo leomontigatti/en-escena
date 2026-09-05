@@ -3,9 +3,12 @@ import { describe, expect, test } from "vitest";
 import type { ChoreographyModalityResolution } from "./modality.server";
 import {
   canSubmitModalityCorrection,
+  everyModalityScheduleCapacityFullMessage,
+  getModalityScheduleCapacityDeadEndMessage,
   getModalitySelectOptions,
   getResolvedModalityFieldState,
   isModalityScheduleCapacityLocked,
+  noModalityScheduleCapacityMessage,
   shouldResolveModalitySelection,
 } from "./modality-form-state";
 
@@ -180,6 +183,32 @@ describe("isModalityScheduleCapacityLocked", () => {
   });
 });
 
+describe("getModalityScheduleCapacityDeadEndMessage", () => {
+  test("says nothing while there is a capacity with room", () => {
+    expect(
+      getModalityScheduleCapacityDeadEndMessage([
+        { id: "cupo_1", isFull: false, label: "1 de mayo" },
+      ]),
+    ).toBeNull();
+  });
+
+  // Reachable with the modality still offered: the price filter takes the
+  // capacities away while the modality select stays structural.
+  test("explains an empty set instead of leaving the select blank", () => {
+    expect(getModalityScheduleCapacityDeadEndMessage([])).toBe(
+      noModalityScheduleCapacityMessage,
+    );
+  });
+
+  test("keeps naming occupancy when the surviving capacities are full", () => {
+    expect(
+      getModalityScheduleCapacityDeadEndMessage([
+        { id: "cupo_1", isFull: true, label: "1 de mayo" },
+      ]),
+    ).toBe(everyModalityScheduleCapacityFullMessage);
+  });
+});
+
 describe("canSubmitModalityCorrection", () => {
   test("saves a resolved correction that has everything it needs", () => {
     expect(canSubmitModalityCorrection(buildInput())).toBe(true);
@@ -252,6 +281,19 @@ describe("canSubmitModalityCorrection", () => {
               ],
               status: "multiple",
             },
+          }),
+          watchedScheduleCapacityId: "",
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  test("blocks the save when no capacity survived for the destination modality", () => {
+    expect(
+      canSubmitModalityCorrection(
+        buildInput({
+          resolution: buildResolution({
+            scheduleCapacity: { options: [], status: "none" },
           }),
           watchedScheduleCapacityId: "",
         }),

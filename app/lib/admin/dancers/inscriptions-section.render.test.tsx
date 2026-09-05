@@ -61,6 +61,8 @@ describe("InscriptionsSection", () => {
         {
           id: "choreo-1",
           choreographyName: "Finale",
+          choreographyNumber: 12,
+          categoryName: "Juvenil",
           groupType: "duo",
           basePriceAmount: 35000,
           discountAmount: 0,
@@ -69,13 +71,15 @@ describe("InscriptionsSection", () => {
       ],
     });
 
-    expect(markup).toContain("Nombre coreografía");
-    expect(markup).toContain("Tipo de grupo");
+    expect(markup).toContain("Coreografía");
+    expect(markup).toContain("00012");
+    expect(markup).toContain('href="/administracion/coreografias/choreo-1"');
+    expect(markup).toContain("Categoría / Tipo de grupo");
     expect(markup).toContain("Precio base");
     expect(markup).toContain("Descuento");
     expect(markup).toContain("Subtotal estimado");
     expect(markup).toContain("Finale");
-    expect(markup).toContain("Dúo");
+    expect(markup).toContain("Juvenil · Dúo");
     expect(markup).toContain("35.000");
     expect(markup).not.toContain("350");
     expect(markup).not.toContain("Buscar coreografía");
@@ -85,6 +89,26 @@ describe("InscriptionsSection", () => {
     expect(markup).not.toContain(
       "Los importes son estimados y no reemplazan comprobantes financieros.",
     );
+  });
+
+  test("falls back to an unassigned label when the choreography has no category", () => {
+    const markup = renderSection({
+      selectedEventId: "event-1",
+      inscriptions: [
+        {
+          id: "choreo-1",
+          choreographyName: "Finale",
+          choreographyNumber: 12,
+          categoryName: null,
+          groupType: "solo",
+          basePriceAmount: 35000,
+          discountAmount: 0,
+          estimatedSubtotalAmount: 35000,
+        },
+      ],
+    });
+
+    expect(markup).toContain("Sin asignar · Solo");
   });
 });
 

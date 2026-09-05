@@ -4,6 +4,7 @@ import type {
   findDancerForAcademy,
   UpdateDancerField,
 } from "@/lib/portal/dancers.server";
+import type { DancerInscription } from "@/lib/dancers/inscriptions";
 import type {
   DancerIdentificationPendingItem,
   DancerVerificationStatus,
@@ -48,6 +49,8 @@ export const dancerSchema = z
 export type PortalDancerDetailLoaderData = {
   dancer: NonNullable<Awaited<ReturnType<typeof findDancerForAcademy>>>;
   documentImageUrls: PortalDancerDocumentImageUrls;
+  inscriptions: DancerInscription[];
+  selectedEventId: string | null;
 };
 
 export type PortalDancerDetailActionData =
@@ -78,6 +81,8 @@ export type PortalDancerDetailViewModel = {
     | "documentFrontImageStorageKey"
     | "documentNumber"
     | "documentType"
+    | "firstName"
+    | "lastName"
   >;
   isIdentityVerified: boolean;
   showsIdentificationAlert: boolean;
@@ -225,6 +230,8 @@ export function buildPortalDancerDetailViewModel(input: {
     identificationPendingItems,
     identityFieldValues: isIdentityVerified
       ? {
+          firstName: dancer.firstName,
+          lastName: dancer.lastName,
           birthDate: dancer.birthDate,
           documentType: dancer.documentType ?? "",
           documentNumber: dancer.documentNumber ?? "",
@@ -233,6 +240,8 @@ export function buildPortalDancerDetailViewModel(input: {
           documentBackImageStorageKey: dancer.documentBackImageStorageKey ?? "",
         }
       : {
+          firstName: formValues.firstName,
+          lastName: formValues.lastName,
           birthDate: formValues.birthDate,
           documentType: formValues.documentType,
           documentNumber: formValues.documentNumber,
@@ -280,8 +289,4 @@ export function getPortalDancerFieldAutoComplete(
     case "documentNumber":
       return "off";
   }
-}
-
-export function getDocumentImageStateLabel(storageKey: string) {
-  return storageKey ? "Imagen cargada" : "Sin imagen";
 }

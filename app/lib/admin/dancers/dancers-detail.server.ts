@@ -8,7 +8,7 @@ import {
 } from "@/lib/admin/dancers/dancers.server.shared";
 import { toParticipationStatus } from "@/lib/participation/participation.shared";
 import type { DancerDetail } from "@/lib/admin/dancers/dancers.server.types";
-import { findDancerInscriptions } from "@/lib/admin/dancers/dancers-inscriptions.server";
+import { findDancerInscriptions } from "@/lib/dancers/inscriptions.server";
 import {
   buildDancerAnyEventParticipationSql,
   buildDancerEventParticipationSql,

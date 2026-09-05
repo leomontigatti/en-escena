@@ -10,7 +10,7 @@ import {
   createReactDomTestRenderer,
 } from "@/lib/test-support/react-dom";
 
-const fieldName = "assignedScheduleCapacityId";
+const fieldName = "assignedExperienceLevelId";
 
 describe("useSavedValueSelectForm", () => {
   const renderer = createReactDomTestRenderer();
@@ -20,7 +20,7 @@ describe("useSavedValueSelectForm", () => {
   test("returns the saved value from the loader on the first render", async () => {
     await renderHarness();
 
-    expect(readFieldValue()).toBe("schedule_capacity_1");
+    expect(readFieldValue()).toBe("experience_level_1");
   });
 
   test("keeps the picked value while the submission is in flight", async () => {
@@ -28,22 +28,22 @@ describe("useSavedValueSelectForm", () => {
 
     await clickReactDomButton("Elegir otro");
 
-    expect(readFieldValue()).toBe("schedule_capacity_2");
+    expect(readFieldValue()).toBe("experience_level_2");
   });
 
   test("restores the saved value once a rejected submission settles", async () => {
-    // The rejection wrote nothing, so the loader still brings the old capacity:
-    // the field cannot be left showing the one the server refused.
+    // The rejection wrote nothing, so the loader still brings the old level: the
+    // field cannot be left showing the one the server refused.
     await renderHarness();
 
     await clickReactDomButton("Elegir otro");
     await settle();
 
-    expect(readFieldValue()).toBe("schedule_capacity_1");
+    expect(readFieldValue()).toBe("experience_level_1");
   });
 
   test("follows the loader, not the local pick, once the submission settles", async () => {
-    // The loader rules: if it comes back with a capacity other than the chosen one
+    // The loader rules: if it comes back with a level other than the chosen one
     // (another path reassigned it, or the server normalized the destination), the
     // field adopts it.
     await renderHarness();
@@ -52,7 +52,7 @@ describe("useSavedValueSelectForm", () => {
     await clickReactDomButton("Revalidar");
     await settle();
 
-    expect(readFieldValue()).toBe("schedule_capacity_3");
+    expect(readFieldValue()).toBe("experience_level_3");
   });
 
   async function renderHarness(
@@ -79,7 +79,7 @@ describe("useSavedValueSelectForm", () => {
  * exactly what is being tested.
  */
 function Harness() {
-  const [savedValue, setSavedValue] = useState("schedule_capacity_1");
+  const [savedValue, setSavedValue] = useState("experience_level_1");
   const form = useSavedValueSelectForm(fieldName, savedValue);
   const submit = useSubmit();
 
@@ -89,19 +89,16 @@ function Harness() {
       <button
         type="button"
         onClick={() => {
-          form.setValue(fieldName, "schedule_capacity_2");
+          form.setValue(fieldName, "experience_level_2");
 
           const formData = new FormData();
-          formData.set(fieldName, "schedule_capacity_2");
+          formData.set(fieldName, "experience_level_2");
           void submit(formData, { method: "post" });
         }}
       >
         Elegir otro
       </button>
-      <button
-        type="button"
-        onClick={() => setSavedValue("schedule_capacity_3")}
-      >
+      <button type="button" onClick={() => setSavedValue("experience_level_3")}>
         Revalidar
       </button>
     </>

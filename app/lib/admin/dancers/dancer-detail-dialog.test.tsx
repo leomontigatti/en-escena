@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 
-import { MemoryRouter } from "react-router";
 import { afterEach, beforeAll, describe, expect, test } from "vitest";
 
+import { renderInDataRouter } from "@/lib/test-support/data-router";
 import {
   clickReactDomButton,
   createReactDomTestRenderer,
@@ -29,9 +29,10 @@ describe("DancerDetailRouteView dialogs", () => {
 
   test("unmounts closed confirmation dialogs so another dialog can be closed normally", async () => {
     await renderer.renderAsync(
-      <MemoryRouter initialEntries={["/administracion/bailarines/dancer-1"]}>
-        <DancerDetailRouteView loaderData={createLoaderData()} />
-      </MemoryRouter>,
+      renderInDataRouter(
+        "/administracion/bailarines/dancer-1",
+        <DancerDetailRouteView loaderData={createLoaderData()} />,
+      ),
     );
 
     expect(document.body.textContent).not.toContain("¿Guardar cambios?");
@@ -53,14 +54,15 @@ describe("DancerDetailRouteView dialogs", () => {
 
   test("changing a dancer's status confirms without a correction reason field", async () => {
     await renderer.renderAsync(
-      <MemoryRouter initialEntries={["/administracion/bailarines/dancer-1"]}>
+      renderInDataRouter(
+        "/administracion/bailarines/dancer-1",
         <DancerDetailRouteView
           loaderData={createLoaderData({
             active: false,
             editConsequence: "participated",
           })}
-        />
-      </MemoryRouter>,
+        />,
+      ),
     );
 
     expect(document.body.textContent).not.toContain("¿Reactivar bailarín?");
@@ -73,14 +75,15 @@ describe("DancerDetailRouteView dialogs", () => {
 
   test("editing a non-consequential dancer saves without a confirmation dialog", async () => {
     await renderer.renderAsync(
-      <MemoryRouter initialEntries={["/administracion/bailarines/dancer-1"]}>
+      renderInDataRouter(
+        "/administracion/bailarines/dancer-1",
         <DancerDetailRouteView
           loaderData={createLoaderData({
             editConsequence: null,
             isEditing: true,
           })}
-        />
-      </MemoryRouter>,
+        />,
+      ),
     );
 
     const saveButton = getButton("Guardar");
@@ -92,14 +95,15 @@ describe("DancerDetailRouteView dialogs", () => {
 
   test("editing a verified dancer confirms with the verified message before saving", async () => {
     await renderer.renderAsync(
-      <MemoryRouter initialEntries={["/administracion/bailarines/dancer-1"]}>
+      renderInDataRouter(
+        "/administracion/bailarines/dancer-1",
         <DancerDetailRouteView
           loaderData={createLoaderData({
             editConsequence: "verified",
             isEditing: true,
           })}
-        />
-      </MemoryRouter>,
+        />,
+      ),
     );
 
     expect(document.body.textContent).not.toContain("¿Guardar cambios?");
@@ -114,14 +118,15 @@ describe("DancerDetailRouteView dialogs", () => {
 
   test("editing a participating dancer confirms with the participation message", async () => {
     await renderer.renderAsync(
-      <MemoryRouter initialEntries={["/administracion/bailarines/dancer-1"]}>
+      renderInDataRouter(
+        "/administracion/bailarines/dancer-1",
         <DancerDetailRouteView
           loaderData={createLoaderData({
             editConsequence: "participated",
             isEditing: true,
           })}
-        />
-      </MemoryRouter>,
+        />,
+      ),
     );
 
     await clickReactDomButton("Guardar", { exact: true });

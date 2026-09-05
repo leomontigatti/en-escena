@@ -6,6 +6,8 @@ import {
   loadDancerDocumentImageUrls,
 } from "@/lib/storage/dancer-documents.server";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
+import { findDancerInscriptions } from "@/lib/dancers/inscriptions.server";
+import { getPortalActiveEventContext } from "@/lib/portal/event-context.server";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
 import {
   findDancerForAcademy,
@@ -31,6 +33,12 @@ export async function loadPortalDancerDetail(input: {
   const { academy } = await requireAcademyUser(input.request);
   const dancerId = readPortalDancerId(input.params);
   const dancer = await requirePortalDancer(academy.id, dancerId);
+  const eventContext = await getPortalActiveEventContext(input.request);
+  const selectedEventId = eventContext.selectedEvent?.id ?? null;
+  const { inscriptions } = await findDancerInscriptions({
+    dancerId,
+    selectedEventId,
+  });
 
   return {
     dancer,
@@ -39,6 +47,8 @@ export async function loadPortalDancerDetail(input: {
       documentFrontImageStorageKey: dancer.documentFrontImageStorageKey,
       storage: createDefaultDancerDocumentStorage(),
     }),
+    inscriptions,
+    selectedEventId,
   };
 }
 

@@ -15,6 +15,7 @@ import {
 } from "@/lib/choreographies/operational-status";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
+import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
 
 import type { loadChoreographies } from "./server";
 
@@ -177,13 +178,6 @@ function hasChoreographyTableContent(loaderData: LoaderData) {
 
 function hasNonDefaultChoreographyOrder(order: LoaderData["filters"]["order"]) {
   return order.direction === "desc" || order.columnId !== "academia";
-}
-
-function formatPrimaryAndSecondaryValue(
-  primaryValue: string,
-  secondaryValue: string | null,
-) {
-  return secondaryValue ? `${primaryValue} · ${secondaryValue}` : primaryValue;
 }
 
 function buildChoreographyFacetedFilters(
