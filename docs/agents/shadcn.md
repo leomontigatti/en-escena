@@ -86,23 +86,51 @@ overwrite is unsafe.
 | `dialog`                                     | `useLayerAbovePress` — see below                                                  |
 | all                                          | `font-heading` instead of upstream's `cn-font-heading`                            |
 
-`dialog.tsx`'s `useLayerAbovePress` is the only one that is load-bearing rather
-than cosmetic: it stops a `Select` closing its parent dialog when the press that
-dismissed the select lands on the overlay (#708). The comment in the file
-explains the mechanism. Deleting it reopens the bug.
+Most of those rows are cosmetic. Two are load-bearing and will break behaviour
+if they are reconciled away:
+
+`dialog.tsx`'s `useLayerAbovePress` stops a `Select` closing its parent dialog
+when the press that dismissed the select lands on the overlay (#708). The comment
+in the file explains the mechanism. Deleting it reopens the bug.
+
+`forceMount` on `dialog.tsx` and `alert-dialog.tsx` has no upstream counterpart
+at all — upstream never offers the escape hatch. It arrived for SSR/jsdom test
+rendering and is now also what keeps a dialog's `<form>` in the DOM for a submit
+button that sits outside it and targets it by `form={id}`. Two details are
+deliberate: the prop is typed `true`, not `boolean`, and it is spread as
+`{...(forceMount ? { forceMount: true } : {})}` so it is _omitted_ rather than
+passed as `false` — Radix treats those differently. It is applied to Portal,
+Overlay and Content together, because force-mounting Content alone does nothing
+if the Portal unmounts around it. With the prop omitted the component behaves
+exactly as upstream does, so this is additive, not a fork. Callers must still
+gate rendering themselves (`{open ? <AlertDialogContent forceMount/> : null}`),
+since `forceMount` defeats Radix's presence-based unmounting.
 
 ## Upstream exports we deliberately do not carry
 
 `pnpm check:fallow` gates unused exports, and the style guide says not to install
 a component without a concrete use. Together they mean a component file here is
-allowed to be a _subset_ of upstream. These exist upstream and are absent on
-purpose, because nothing consumes them:
+allowed to expose a _subset_ of what upstream exposes.
 
-- `popover.tsx`: `PopoverAnchor`, `PopoverHeader`, `PopoverTitle`,
-  `PopoverDescription`
-- `badge.tsx`: `badgeVariants`
-- `tabs.tsx`: `tabsListVariants`
-- `calendar.tsx`: `CalendarDayButton`
+Three of these are defined and used inside their own file — they are simply not
+re-exported. Publishing them is a one-word change to the `export {}` list, and it
+is the export, not the code, that would become the dead symbol fallow rejects:
 
-Add each one back in the same change as its first consumer, not ahead of it —
+| Symbol              | Defined at         | Used internally at |
+| ------------------- | ------------------ | ------------------ |
+| `badgeVariants`     | `badge.tsx:7`      | `badge.tsx:48`     |
+| `tabsListVariants`  | `tabs.tsx:25`      | `tabs.tsx:50`      |
+| `CalendarDayButton` | `calendar.tsx:187` | `calendar.tsx:169` |
+
+Prefer the composed form over the raw cva export where one exists: `Badge`
+supports `asChild`, so `<Badge asChild><Link/></Badge>` covers what
+`badgeVariants({ variant })` used to, without exporting the variant function.
+
+Only `popover.tsx` is genuinely missing code: upstream also ships
+`PopoverAnchor`, `PopoverHeader`, `PopoverTitle` and `PopoverDescription`.
+`PopoverAnchor` re-exports the Radix primitive that lets a popover position
+against something other than its trigger; the other three are styled `div`/`p`
+wrappers with no logic.
+
+Add any of these in the same change as its first consumer, not ahead of it —
 adding them speculatively fails the commit hook.
