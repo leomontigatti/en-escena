@@ -1,11 +1,11 @@
 import { describe, expect, test } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { MemoryRouter } from "react-router";
 
 import { db } from "@/db";
 import { dancers, professors } from "@/db/schema";
 import { createSignedInAdminRequest } from "@/lib/admin/test-support/db";
+import { renderInDataRouter } from "@/lib/test-support/data-router";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import {
   createEventChoreographyFixture,
@@ -194,9 +194,8 @@ describe("`Estado de alta` on the two administrative lists", () => {
     // Archived, participating and verified: the three badges render together.
     const everything = await listNames("&estado=todos&identificacion=todos");
     const markup = renderToStaticMarkup(
-      createElement(
-        MemoryRouter,
-        { initialEntries: ["/administracion/bailarines"] },
+      renderInDataRouter(
+        "/administracion/bailarines",
         createElement(DancersListRouteView, { loaderData: everything.data }),
       ),
     );
