@@ -97,6 +97,42 @@ describe("ChoreographyDetailRouteView schedule capacity reassignment", () => {
     ]);
   });
 
+  test("holds the roster inputs while a picked capacity waits for `Guardar`", async () => {
+    // One `Guardar` can only mean one form, so the exclusion runs both ways:
+    // with a capacity pending, the roster inputs are held the way a pending
+    // modality correction holds them. Otherwise the button would write the
+    // capacity and drop the roster edits typed beside it, unannounced.
+    await renderScheduleCapacityDetail(renderer, []);
+
+    expect(isNameInputDisabled()).toBe(false);
+
+    await openSelect(findTriggerByText("1 de mayo de 2026 - 14:00 hs."));
+    await selectOption("2 de mayo de 2026 - 10:00 hs.");
+
+    expect(isNameInputDisabled()).toBe(true);
+  });
+
+  test("stops offering the capacity select while the roster form is dirty", async () => {
+    // The other direction, and the same one the modality correction takes: a
+    // dirty roster collapses the capacity into a read-only field, so the
+    // administrator cannot start a second pending save the button would have
+    // to choose between.
+    const submissions: Record<string, string>[] = [];
+
+    await renderScheduleCapacityDetail(renderer, submissions);
+
+    await typeIntoNameInput("Danza solar");
+
+    expect(getFieldShape("Cronograma")).toBe("static");
+
+    // And the button still belongs to the roster: it confirms first.
+    await clickReactDomButton("Guardar");
+    await settle();
+
+    expect(submissions).toEqual([]);
+    expect(document.body.textContent).toContain("Confirmar");
+  });
+
   test("returns the field to the saved capacity when the save is rejected", async () => {
     // `schedule-capacity-full` is a race the option list cannot filter out, so
     // the rejection path stays live: nothing was written, and the select must
@@ -236,6 +272,42 @@ async function renderIntoDocument(
   await renderer.renderAsync(<RouterProvider router={router} />);
 }
 
+function getNameInput() {
+  return document.querySelector<HTMLInputElement>('input[name="name"]');
+}
+
+function isNameInputDisabled() {
+  return getNameInput()?.disabled ?? false;
+}
+
+async function typeIntoNameInput(value: string) {
+  const input = getNameInput();
+
+  if (!input) {
+    throw new Error("Expected the `Nombre` input to be rendered.");
+  }
+
+  await act(async () => {
+    const setter = Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )?.set;
+
+    setter?.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await Promise.resolve();
+  });
+  await settle();
+}
+
+function getFieldShape(label: string) {
+  return fieldControl(findLabel(label))?.querySelector(
+    '[data-slot="select-trigger"]',
+  )
+    ? "select"
+    : "static";
+}
+
 function getFieldShapes() {
   const shapes: Record<string, string> = {};
 
@@ -246,11 +318,7 @@ function getFieldShapes() {
       continue;
     }
 
-    shapes[name] = fieldControl(label)?.querySelector(
-      '[data-slot="select-trigger"]',
-    )
-      ? "select"
-      : "static";
+    shapes[name] = getFieldShape(name);
   }
 
   return shapes;
@@ -297,7 +365,7 @@ async function settle() {
 
 async function openSelect(trigger: HTMLElement | undefined) {
   if (!trigger) {
-    throw new Error("Expected the `Modalidad` select trigger to be rendered.");
+    throw new Error("Expected the select trigger to be rendered.");
   }
 
   trigger.hasPointerCapture ??= () => false;

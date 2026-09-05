@@ -24,8 +24,8 @@ import type { useScheduleCapacityForm } from "./use-schedule-capacity-form";
  * roster or in its confirmation dialog.
  *
  * Two of them still write on selection; the schedule capacity holds the choice
- * until the page's `Guardar`, because it is the one whose form the modality
- * correction is shaped like. See `useScheduleCapacityForm`.
+ * until the page's `Guardar`, shaped like the modality correction next to it.
+ * See `useScheduleCapacityForm`.
  *
  * `disabled` is what a pending modality correction uses to hold them while its
  * resolution is in flight: they keep showing the saved value in the same

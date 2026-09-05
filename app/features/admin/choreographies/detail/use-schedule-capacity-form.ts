@@ -26,10 +26,19 @@ type ScheduleCapacityFormValues = Record<
  * intent that re-checks occupancy on its own, and it must not be dragged into
  * the roster's confirmation dialog, which enumerates consequences the capacity
  * move does not have.
+ *
+ * Sharing the footer means sharing the modality's mutual exclusion too: a
+ * single `Guardar` can only mean one form at a time, so while the roster has
+ * unsaved changes the capacity stops offering its select —the same read-only
+ * collapse the modality field does— and the roster inputs go the other way
+ * while a capacity is pending. Without that, `Guardar` would write the capacity
+ * and drop the roster edits with no signal that it had.
  */
 export function useScheduleCapacityForm({
+  isRosterFormDirty,
   loaderData,
 }: {
+  isRosterFormDirty: boolean;
   loaderData: ChoreographyDetailLoaderData;
 }) {
   const savedScheduleCapacityId = loaderData.choreography.scheduleCapacityId;
@@ -39,6 +48,13 @@ export function useScheduleCapacityForm({
     }),
     [savedScheduleCapacityId],
   );
+  // Deliberately without a Zod resolver, against the style guide's default for
+  // forms: the only rule here —a destination, and one other than the saved
+  // one— is the `save` guard below, and reaching it through
+  // `form.handleSubmit` costs the guarantee the whole field exists for. RHF
+  // settles its own submit state after the handler resolves, which lands on
+  // top of the resynchronization reset and leaves the select showing the
+  // capacity the server refused.
   const form = useForm<ScheduleCapacityFormValues>({ defaultValues });
   const { reset, watch } = form;
   const navigation = useNavigation();
@@ -46,6 +62,8 @@ export function useScheduleCapacityForm({
 
   const selectedScheduleCapacityId = watch(assignedScheduleCapacityFieldName);
   const isDirty = selectedScheduleCapacityId !== savedScheduleCapacityId;
+  const canReassign =
+    loaderData.scheduleCapacity.canReassign && !isRosterFormDirty;
   const isSubmitting = isRouteFormPending(navigation, {
     intent: updateChoreographyScheduleCapacityIntent,
   });
@@ -67,9 +85,8 @@ export function useScheduleCapacityForm({
   };
 
   return {
-    canReassign: loaderData.scheduleCapacity.canReassign,
-    canSave:
-      loaderData.scheduleCapacity.canReassign && isDirty && !isSubmitting,
+    canReassign,
+    canSave: canReassign && isDirty && !isSubmitting,
     form,
     isDirty,
     isSubmitting,

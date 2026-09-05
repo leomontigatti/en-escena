@@ -36,6 +36,7 @@ import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import { ChoreographyDetailAlerts } from "./detail-alerts";
+import { getFooterState, getPendingSave } from "./footer-save-state";
 import {
   DependentFieldSlot,
   ModalityExperienceLevelField,
@@ -179,7 +180,10 @@ function ChoreographyDetailForm({
     roster.hasRosterChanged ||
     roster.hasProfessorsChanged;
   const modality = useModalityForm({ isRosterFormDirty, loaderData });
-  const scheduleCapacity = useScheduleCapacityForm({ loaderData });
+  const scheduleCapacity = useScheduleCapacityForm({
+    isRosterFormDirty,
+    loaderData,
+  });
 
   useEffect(() => {
     reset(defaultValues);
@@ -209,11 +213,10 @@ function ChoreographyDetailForm({
   // behind in the hidden form must not decide what `Guardar` means.
   const hasPendingScheduleCapacity =
     scheduleCapacity.isDirty && rosterScheduleOptions === null;
-  const pendingSave = modality.isDirty
-    ? "modality"
-    : hasPendingScheduleCapacity
-      ? "schedule-capacity"
-      : "roster";
+  const pendingSave = getPendingSave({
+    hasPendingScheduleCapacity,
+    isModalityDirty: modality.isDirty,
+  });
   const canSubmitModality = canSubmitModalityCorrection(modality);
   const canSubmitRoster =
     loaderData.canEdit &&
@@ -236,6 +239,19 @@ function ChoreographyDetailForm({
       watchedExperienceLevelId: roster.watchedExperienceLevelId,
       watchedScheduleCapacityId: roster.watchedScheduleCapacityId,
     });
+
+  const footer = getFooterState({
+    canSubmitModality,
+    canSubmitRoster,
+    modality,
+    pendingSave,
+    roster,
+    scheduleCapacity,
+  });
+  // The roster inputs go read-only while another form owns the button, so the
+  // exclusion the modality already had now covers the capacity too: `Guardar`
+  // writing the capacity can no longer drop roster edits made beside it.
+  const isRosterEditDisabled = modality.isDirty || hasPendingScheduleCapacity;
 
   // An isolated rename does not touch the roster, so it avoids the hard lock from
   // a presentation that does apply to `update-roster`.
@@ -307,18 +323,8 @@ function ChoreographyDetailForm({
             <FormActions
               backToList={loaderData.backToList}
               canEdit={loaderData.canEdit}
-              canSubmit={getFooterCanSubmit({
-                canSubmitModality,
-                canSubmitRoster,
-                pendingSave,
-                scheduleCapacity,
-              })}
-              isPending={getFooterIsPending({
-                modality,
-                pendingSave,
-                roster,
-                scheduleCapacity,
-              })}
+              canSubmit={footer.canSubmit}
+              isPending={footer.isPending}
             />
           }
         >
@@ -332,7 +338,7 @@ function ChoreographyDetailForm({
               <TextInputField
                 className="md:col-span-2"
                 control={form.control}
-                disabled={modality.isDirty}
+                disabled={isRosterEditDisabled}
                 label="Nombre"
                 name="name"
               />
@@ -381,7 +387,7 @@ function ChoreographyDetailForm({
               saved={(disabled) => (
                 <RosterExperienceLevelSlot
                   control={form.control}
-                  disabled={disabled}
+                  disabled={disabled || hasPendingScheduleCapacity}
                   experienceLevelSlot={experienceLevelSlot}
                   loaderData={loaderData}
                   options={roster.derivedResolution.experienceLevelOptions}
@@ -414,7 +420,7 @@ function ChoreographyDetailForm({
           <FieldGroup>
             <MultiComboboxField
               control={form.control}
-              disabled={!roster.canEditRoster || modality.isDirty}
+              disabled={!roster.canEditRoster || isRosterEditDisabled}
               emptyMessage="Sin bailarines disponibles"
               inputName="dancerIds"
               label="Bailarines"
@@ -426,7 +432,7 @@ function ChoreographyDetailForm({
 
             <MultiComboboxField
               control={form.control}
-              disabled={!roster.canEditRoster || modality.isDirty}
+              disabled={!roster.canEditRoster || isRosterEditDisabled}
               emptyMessage="Sin profesores disponibles"
               inputName="professorIds"
               label="Profesores"
@@ -465,48 +471,6 @@ function ChoreographyDetailForm({
       />
     </>
   );
-}
-
-type PendingSave = "modality" | "roster" | "schedule-capacity";
-
-function getFooterCanSubmit({
-  canSubmitModality,
-  canSubmitRoster,
-  pendingSave,
-  scheduleCapacity,
-}: {
-  canSubmitModality: boolean;
-  canSubmitRoster: boolean;
-  pendingSave: PendingSave;
-  scheduleCapacity: ReturnType<typeof useScheduleCapacityForm>;
-}) {
-  if (pendingSave === "modality") {
-    return canSubmitModality;
-  }
-
-  return pendingSave === "schedule-capacity"
-    ? scheduleCapacity.canSave
-    : canSubmitRoster;
-}
-
-function getFooterIsPending({
-  modality,
-  pendingSave,
-  roster,
-  scheduleCapacity,
-}: {
-  modality: ReturnType<typeof useModalityForm>;
-  pendingSave: PendingSave;
-  roster: ReturnType<typeof useRosterForm>;
-  scheduleCapacity: ReturnType<typeof useScheduleCapacityForm>;
-}) {
-  if (pendingSave === "modality") {
-    return modality.isResolving || modality.isSubmitting;
-  }
-
-  return pendingSave === "schedule-capacity"
-    ? scheduleCapacity.isSubmitting
-    : roster.isResolving || roster.isSubmitting;
 }
 
 /**
