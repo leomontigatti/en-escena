@@ -96,7 +96,7 @@ const divergedResolutionMessage =
  * wrong field.
  */
 const frozenPriceModalityMessage =
-  "No se puede cambiar la modalidad: el cronograma se movería y hay inscripciones con dinero asignado.";
+  "No se puede cambiar la modalidad: el cronograma se movería y cambiaría el precio de inscripciones con dinero asignado.";
 
 /**
  * The deposit is reported as a blocker-in-waiting, not as a closed field: a
@@ -335,6 +335,9 @@ export async function updateChoreographyModality(input: {
     const move = movesScheduleCapacity
       ? await guardAndLockScheduleCapacityMove({
           choreographyId: input.choreography.id,
+          // Modality is not part of the price key, so the correction moves the
+          // schedule alone and keeps the choreography's group type.
+          destinationGroupType: input.choreography.groupType,
           scheduleCapacityId: selectedSchedule.scheduleCapacityId,
           scheduleId: selectedSchedule.scheduleId,
           tx,

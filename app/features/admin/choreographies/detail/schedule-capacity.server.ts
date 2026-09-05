@@ -193,6 +193,9 @@ export async function updateChoreographyScheduleCapacity(input: {
     // entry points can't drift on order or on which move counts as frozen.
     const move = await guardAndLockScheduleCapacityMove({
       choreographyId: input.choreography.id,
+      // The reassignment moves the schedule alone: the group type it is priced
+      // against is the one the roster already gives it.
+      destinationGroupType: input.choreography.groupType,
       scheduleCapacityId: selectedOption.scheduleCapacityId,
       scheduleId: selectedOption.scheduleId,
       tx,

@@ -8,6 +8,7 @@ import {
   choreographyDancers,
   choreographyProfessors,
   modalities,
+  prices,
   scheduleCapacities,
   schedules,
   submodalities,
@@ -695,6 +696,12 @@ describe("administrative choreography detail server", () => {
       academyName: "Academia Cronograma Seña Tardía",
       slug: "cronograma.senia.tardia",
     });
+    await insertSoloPrice({ amount: 10000, eventId: scenario.event.id });
+    await insertSoloPrice({
+      amount: 20000,
+      eventId: scenario.event.id,
+      scheduleId: scenario.target.schedule.id,
+    });
 
     const detail = await loadDetail({
       choreographyId: scenario.choreography.id,
@@ -705,7 +712,7 @@ describe("administrative choreography detail server", () => {
 
     await createSelectedPriceInscriptionForTest({
       academyId: scenario.owner.academyId,
-      allocatedAmount: 3000,
+      allocatedAmount: 1000,
       choreographyId: scenario.choreography.id,
       eventId: scenario.event.id,
     });
@@ -716,7 +723,7 @@ describe("administrative choreography detail server", () => {
 
     expect(result).toMatchObject({
       message:
-        "No se puede cambiar el cupo de cronograma: hay inscripciones con dinero asignado.",
+        "No se puede cambiar el cupo de cronograma: hay inscripciones con dinero asignado cuyo precio cambiaría.",
       status: "error",
     });
     await expect(scenario.readAssignment()).resolves.toEqual({
@@ -964,14 +971,22 @@ describe("administrative choreography detail server", () => {
     expect(detail.choreography.scheduleLabel).not.toContain("ocupados");
   });
 
-  test("blocks the reassignment when an inscription has a frozen deposit", async () => {
+  test("blocks the reassignment when the destination reprices an inscription below its deposit", async () => {
     const scenario = await createScheduleCapacityScenario({
       academyName: "Academia Cronograma Señada",
       slug: "cronograma.senada",
     });
+    await insertSoloPrice({ amount: 10000, eventId: scenario.event.id });
+    await insertSoloPrice({
+      amount: 20000,
+      eventId: scenario.event.id,
+      scheduleId: scenario.target.schedule.id,
+    });
+    // Below its deposit (30 % of 10000), so the price is still live and the
+    // destination's own row is what it would be charged at.
     await createSelectedPriceInscriptionForTest({
       academyId: scenario.owner.academyId,
-      allocatedAmount: 3000,
+      allocatedAmount: 1000,
       choreographyId: scenario.choreography.id,
       eventId: scenario.event.id,
     });
@@ -995,13 +1010,93 @@ describe("administrative choreography detail server", () => {
 
     expect(result).toMatchObject({
       message:
-        "No se puede cambiar el cupo de cronograma: hay inscripciones con dinero asignado.",
+        "No se puede cambiar el cupo de cronograma: hay inscripciones con dinero asignado cuyo precio cambiaría.",
       status: "error",
     });
     await expect(scenario.readAssignment()).resolves.toEqual({
       scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
       scheduleId: null,
     });
+  });
+
+  // The #48 shape, and the majority of the fleet: money on a general row, past
+  // its deposit. The price is frozen against that row whatever schedule the
+  // choreography sits on, so the move cannot touch a peso.
+  test("reassigns a frozen inscription that holds a general price row", async () => {
+    const scenario = await createScheduleCapacityScenario({
+      academyName: "Academia Cronograma Congelada General",
+      slug: "cronograma.congelada.general",
+    });
+    const generalPrice = await insertSoloPrice({
+      amount: 10000,
+      eventId: scenario.event.id,
+    });
+    // A dearer row on the destination, which the move would ride if the price
+    // were still live.
+    await insertSoloPrice({
+      amount: 20000,
+      eventId: scenario.event.id,
+      scheduleId: scenario.target.schedule.id,
+    });
+    await createSelectedPriceInscriptionForTest({
+      academyId: scenario.owner.academyId,
+      allocatedAmount: 3000,
+      choreographyId: scenario.choreography.id,
+      eventId: scenario.event.id,
+      selectedPriceId: generalPrice.id,
+    });
+
+    const result = await scenario.reassignTo(
+      scenario.target.scheduleCapacity.id,
+    );
+
+    expect(result).toMatchObject({ status: "success" });
+    await expect(scenario.readAssignment()).resolves.toEqual({
+      scheduleCapacityId: scenario.target.scheduleCapacity.id,
+      scheduleId: scenario.target.schedule.id,
+    });
+  });
+
+  test("blocks a reassignment whose destination price row is pinned to the schedule it leaves", async () => {
+    const scenario = await createScheduleCapacityScenario({
+      academyName: "Academia Cronograma Congelada Fijada",
+      slug: "cronograma.congelada.fijada",
+    });
+    // The same amount on both sides: only the pinning of the stored row makes
+    // this move refusable, and re-pointing it is exactly what the freeze
+    // promises not to do.
+    const pinnedPrice = await insertSoloPrice({
+      amount: 10000,
+      eventId: scenario.event.id,
+      scheduleId: scenario.catalog.schedule.id,
+    });
+    await insertSoloPrice({
+      amount: 10000,
+      eventId: scenario.event.id,
+      scheduleId: scenario.target.schedule.id,
+    });
+    await createSelectedPriceInscriptionForTest({
+      academyId: scenario.owner.academyId,
+      allocatedAmount: 3000,
+      choreographyId: scenario.choreography.id,
+      eventId: scenario.event.id,
+      selectedPriceId: pinnedPrice.id,
+    });
+
+    const result = await scenario.reassignTo(
+      scenario.target.scheduleCapacity.id,
+    );
+
+    expect(result).toMatchObject({ status: "error" });
+    await expect(scenario.readAssignment()).resolves.toEqual({
+      scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
+      scheduleId: null,
+    });
+    const inscription = await db.query.choreographyDancers.findFirst({
+      columns: { selectedPriceId: true },
+      where: eq(choreographyDancers.choreographyId, scenario.choreography.id),
+    });
+    expect(inscription?.selectedPriceId).toBe(pinnedPrice.id);
   });
 
   test("reassigns when the inscriptions carry no deposit snapshot", async () => {
@@ -1460,6 +1555,30 @@ async function createSubmodalityRecord(input: {
     .returning();
 
   return submodality;
+}
+
+/**
+ * A `solo` price with no payment deadline, so it is the row that applies
+ * whatever day the suite runs on. Pinned to a schedule when one is given.
+ */
+async function insertSoloPrice(input: {
+  amount: number;
+  eventId: string;
+  scheduleId?: string;
+}) {
+  const [price] = await db
+    .insert(prices)
+    .values({
+      amount: input.amount,
+      eventId: input.eventId,
+      groupType: "solo",
+      name: `Precio Solo ${input.amount} ${input.scheduleId ?? "general"}`,
+      paymentDeadline: null,
+      scheduleId: input.scheduleId ?? null,
+    })
+    .returning();
+
+  return price;
 }
 
 async function createScheduleWithSoloCapacity(input: {

@@ -7,6 +7,7 @@ import {
   categoryModalities,
   choreographies,
   modalities,
+  prices,
   scheduleCapacities,
   scheduleModalities,
   submodalities,
@@ -196,7 +197,7 @@ describe("administrative choreography modality correction", () => {
 
     expect(response).toMatchObject({
       message:
-        "No se puede cambiar la modalidad: el cronograma se movería y hay inscripciones con dinero asignado.",
+        "No se puede cambiar la modalidad: el cronograma se movería y cambiaría el precio de inscripciones con dinero asignado.",
       status: "error",
     });
     await expect(scenario.readChoreography()).resolves.toMatchObject({
@@ -401,6 +402,27 @@ async function createModalityScenario(input: {
     scheduleCapacityId: catalog.scheduleCapacity.id,
     submodalityId: catalog.submodality.id,
   });
+  // Deadline-less rows, so they are the ones that apply whatever day the suite
+  // runs on, and the destination schedule carries a dearer one: with money on
+  // the choreography, moving the schedule is what changes the price.
+  await db.insert(prices).values([
+    {
+      amount: 10000,
+      eventId: event.id,
+      groupType: "solo",
+      name: `Precio Solo ${input.slug}`,
+      paymentDeadline: null,
+      scheduleId: null,
+    },
+    {
+      amount: 20000,
+      eventId: event.id,
+      groupType: "solo",
+      name: `Precio Solo destino ${input.slug}`,
+      paymentDeadline: null,
+      scheduleId: target.schedule.id,
+    },
+  ]);
   await createSelectedPriceInscriptionForTest({
     academyId: owner.academyId,
     allocatedAmount: input.allocatedAmount,
