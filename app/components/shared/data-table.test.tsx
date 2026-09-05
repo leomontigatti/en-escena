@@ -100,7 +100,7 @@ describe("DataTable", () => {
     const markup = renderToStaticMarkup(
       <MemoryRouter
         initialEntries={[
-          "/administracion/profesores?q=Ana&estado=archivados&page=2",
+          "/administracion/profesores?busqueda=Ana&estado=archivados&pagina=2",
         ]}
       >
         <ServerDataTable
@@ -147,18 +147,18 @@ describe("DataTable", () => {
     expect(markup).toContain('value="Ana"');
     expect(markup).toContain('aria-label="Filtros: Estado: Archivados"');
     expect(markup).toContain(
-      'href="/administracion/profesores?q=Ana&amp;estado=archivados&amp;orden=name%3Adesc"',
+      'href="/administracion/profesores?busqueda=Ana&amp;estado=archivados&amp;orden=name%3Adesc"',
     );
     expect(markup).toContain(">1<");
     expect(markup).toContain("Actualizando");
     expect(markup).toContain(
-      'href="/administracion/profesores?q=Ana&amp;estado=archivados"',
+      'href="/administracion/profesores?busqueda=Ana&amp;estado=archivados"',
     );
     expect(markup).toContain(
-      'href="/administracion/profesores?q=Ana&amp;estado=archivados&amp;page=2"',
+      'href="/administracion/profesores?busqueda=Ana&amp;estado=archivados&amp;pagina=2"',
     );
     expect(markup).toContain(
-      'href="/administracion/profesores?q=Ana&amp;estado=archivados&amp;page=3"',
+      'href="/administracion/profesores?busqueda=Ana&amp;estado=archivados&amp;pagina=3"',
     );
   });
 
@@ -297,15 +297,15 @@ describe("DataTable server-side href helpers", () => {
     expect(
       buildDataTableSearchHref({
         basePath: "/administracion/profesores",
-        currentSearch: "?q=Ana&estado=archivados&page=2",
+        currentSearch: "?busqueda=Ana&estado=archivados&pagina=2",
         searchValue: "Beto",
       }),
-    ).toBe("/administracion/profesores?q=Beto&estado=archivados");
+    ).toBe("/administracion/profesores?busqueda=Beto&estado=archivados");
 
     expect(
       buildDataTableSearchHref({
         basePath: "/administracion/profesores",
-        currentSearch: "?q=Ana&estado=archivados&page=2",
+        currentSearch: "?busqueda=Ana&estado=archivados&pagina=2",
         searchValue: "",
       }),
     ).toBe("/administracion/profesores?estado=archivados");
@@ -315,7 +315,7 @@ describe("DataTable server-side href helpers", () => {
     expect(
       buildDataTableFilterHref({
         basePath: "/administracion/profesores",
-        currentSearch: "?q=Ana&estado=archivados&page=2",
+        currentSearch: "?busqueda=Ana&estado=archivados&pagina=2",
         groups: [
           {
             id: "estado",
@@ -325,25 +325,47 @@ describe("DataTable server-side href helpers", () => {
         ],
         values: {},
       }),
-    ).toBe("/administracion/profesores?q=Ana");
+    ).toBe("/administracion/profesores?busqueda=Ana");
   });
 
   test("builds pagination targets that preserve active query params", () => {
     expect(
       buildDataTablePageHref({
         basePath: "/administracion/profesores",
-        currentSearch: "?q=Ana&estado=archivados&page=2",
+        currentSearch: "?busqueda=Ana&estado=archivados&pagina=2",
         page: 1,
       }),
-    ).toBe("/administracion/profesores?q=Ana&estado=archivados");
+    ).toBe("/administracion/profesores?busqueda=Ana&estado=archivados");
 
     expect(
       buildDataTablePageHref({
         basePath: "/administracion/profesores",
-        currentSearch: "?q=Ana&estado=archivados&page=2",
+        currentSearch: "?busqueda=Ana&estado=archivados&pagina=2",
         page: 3,
       }),
-    ).toBe("/administracion/profesores?q=Ana&estado=archivados&page=3");
+    ).toBe(
+      "/administracion/profesores?busqueda=Ana&estado=archivados&pagina=3",
+    );
+  });
+
+  test("keeps honoring per-view parameter name overrides", () => {
+    expect(
+      buildDataTablePageHref({
+        basePath: "/administracion/profesores",
+        currentSearch: "?page=2",
+        page: 3,
+        pageParamName: "page",
+      }),
+    ).toBe("/administracion/profesores?page=3");
+
+    expect(
+      buildDataTableSearchHref({
+        basePath: "/administracion/profesores",
+        currentSearch: "?pagina=2",
+        searchParamName: "q",
+        searchValue: "Ana",
+      }),
+    ).toBe("/administracion/profesores?q=Ana");
   });
 
   test("builds sort targets by preserving active params and clearing page 1", () => {
@@ -351,11 +373,11 @@ describe("DataTable server-side href helpers", () => {
       buildDataTableSortHref({
         basePath: "/administracion/profesores",
         columnId: "nombre",
-        currentSearch: "?q=Ana&estado=archivados&page=2",
+        currentSearch: "?busqueda=Ana&estado=archivados&pagina=2",
         direction: "desc",
       }),
     ).toBe(
-      "/administracion/profesores?q=Ana&estado=archivados&orden=nombre%3Adesc",
+      "/administracion/profesores?busqueda=Ana&estado=archivados&orden=nombre%3Adesc",
     );
   });
 });

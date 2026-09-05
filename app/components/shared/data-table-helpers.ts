@@ -1,5 +1,10 @@
 import type { ColumnFiltersState, SortingState } from "@tanstack/react-table";
 
+import {
+  dataTablePageParamName,
+  dataTableSearchParamName,
+  dataTableSortParamName,
+} from "@/components/shared/data-table.shared";
 import type {
   DataTableFacetedFilter,
   DataTableFacetedFilterGroup,
@@ -206,7 +211,7 @@ export function mergeServerFilterValues(
 
 function removePageSearchParam(
   searchParams: URLSearchParams,
-  pageParamName = "page",
+  pageParamName = dataTablePageParamName,
 ) {
   searchParams.delete(pageParamName);
 }
@@ -215,7 +220,7 @@ export function buildDataTablePageHref({
   basePath,
   currentSearch,
   page,
-  pageParamName = "page",
+  pageParamName = dataTablePageParamName,
 }: {
   basePath: string;
   currentSearch: string;
@@ -236,8 +241,8 @@ export function buildDataTablePageHref({
 export function buildDataTableSearchHref({
   basePath,
   currentSearch,
-  pageParamName = "page",
-  searchParamName = "q",
+  pageParamName = dataTablePageParamName,
+  searchParamName = dataTableSearchParamName,
   searchValue,
 }: {
   basePath: string;
@@ -263,7 +268,7 @@ export function buildDataTableFilterHref({
   basePath,
   currentSearch,
   groups,
-  pageParamName = "page",
+  pageParamName = dataTablePageParamName,
   values,
 }: {
   basePath: string;
@@ -295,8 +300,8 @@ export function buildDataTableSortHref({
   columnId,
   currentSearch,
   direction,
-  pageParamName = "page",
-  sortParamName = "orden",
+  pageParamName = dataTablePageParamName,
+  sortParamName = dataTableSortParamName,
 }: {
   basePath: string;
   columnId: string;

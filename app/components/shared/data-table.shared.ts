@@ -1,5 +1,14 @@
 import type { ComponentProps, ReactNode } from "react";
 
+/**
+ * The shared query-parameter contract for both tables: Spanish names, so a URL
+ * a reader shares or bookmarks reads like the rest of the product. Views only
+ * pass the override props when they need a different name.
+ */
+export const dataTablePageParamName = "pagina";
+export const dataTableSearchParamName = "busqueda";
+export const dataTableSortParamName = "orden";
+
 export type DataTableSortDirection = "asc" | "desc";
 
 export type DataTableSortValue =
@@ -51,6 +60,9 @@ export type DataTableBaseProps<TData> = {
   emptyMessage?: string;
   baseFacetedFilterValues?: Record<string, DataTableFacetedFilterValue>;
   initialFacetedFilterValues?: Record<string, DataTableFacetedFilterValue>;
+  pageParamName?: string;
+  searchParamName?: string;
+  sortParamName?: string;
 };
 
 export type ClientDataTableProps<TData> = DataTableBaseProps<TData> & {
@@ -82,7 +94,4 @@ export type ServerDataTableProps<TData> = DataTableBaseProps<TData> & {
     direction: DataTableSortDirection;
   };
   loading?: boolean;
-  pageParamName?: string;
-  searchParamName?: string;
-  sortParamName?: string;
 };
