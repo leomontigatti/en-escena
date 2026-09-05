@@ -477,30 +477,32 @@ async function resolveModalityCorrectionContext(input: {
       options: scheduleResolution.options,
     });
 
-  const labeledOptions = selectableOptions.map((option) => ({
+  const bareLabeledOptions = selectableOptions.map((option) => ({
     id: option.id,
     label: formatScheduleDateTime(option.schedule),
     scheduleCapacityId: option.scheduleCapacityId,
     scheduleId: option.scheduleId,
   }));
-  const occupiedOptions = await withScheduleCapacityOccupancy({
+  const occupancyLabeledOptions = await withScheduleCapacityOccupancy({
     // Same exclusion as the lock: the choreography being corrected does not
     // count against the capacity it already occupies.
     excludeChoreographyId: input.choreography.id,
-    options: labeledOptions,
+    options: bareLabeledOptions,
   });
+  // Read off what survived rather than carried over from the resolution: a
+  // modality left with a single holding-the-price capacity is `auto`, and one
+  // left with none is the dead end the view replaces with its reason.
+  const scheduleStatus = toScheduleCapacityStatus(selectableOptions.length);
 
   return {
     classification,
     priceDivergentScheduleOptionIds: divergentIds,
-    scheduleOptions: withoutOccupancyOnALockedLabel(
-      labeledOptions,
-      occupiedOptions,
-    ),
-    // Read off what survived rather than carried over from the resolution: a
-    // modality left with a single holding-the-price capacity is `auto`, and one
-    // left with none is the dead end the view replaces with its reason.
-    scheduleStatus: toScheduleCapacityStatus(selectableOptions.length),
+    scheduleOptions: withoutOccupancyOnThePreselectedCapacity({
+      bareLabel: bareLabeledOptions[0]?.label,
+      occupancyLabeled: occupancyLabeledOptions,
+      status: scheduleStatus,
+    }),
+    scheduleStatus,
     submodalityOptions: input.eventBases.submodalities
       .filter((submodality) => submodality.modalityId === input.modalityId)
       .map((submodality) => ({ id: submodality.id, name: submodality.name })),
@@ -540,24 +542,34 @@ function toMissingScheduleMessage(input: {
 }
 
 /**
- * Occupancy is a suffix on *options*, and a lone compatible capacity is not one:
- * it arrives preselected and read-only, like the `auto` status of registration,
- * where saying how many places are left on a field nobody can change means
- * nothing. So it goes back to the bare date-time label.
+ * The rule registration writes into its own resolution type: only `multiple`
+ * carries a label with occupancy. `auto` offers no options to pick between —
+ * its lone capacity arrives preselected and read-only, where saying how many
+ * places are left means nothing —, so it goes back to the bare date-time label.
  *
- * The occupancy read still stands behind it: `isFull` is what turns a lone full
- * capacity into the dead end the view explains instead of previewing.
+ * Keyed on the status the view itself reads, not on a second count of the same
+ * options, so the preview and the lock cannot drift apart; `auto` is exactly one
+ * option, which is why only the first is read. `isFull` still comes from the
+ * occupancy read: a lone full capacity is the dead end the view explains.
  */
-function withoutOccupancyOnALockedLabel<
-  TOption extends { isFull: boolean; label: string },
->(labeledOptions: readonly { label: string }[], options: TOption[]) {
-  const [onlyLabeled] = labeledOptions;
+function withoutOccupancyOnThePreselectedCapacity<
+  TOption extends { label: string },
+>(input: {
+  bareLabel: string | undefined;
+  occupancyLabeled: TOption[];
+  status: ReturnType<typeof toScheduleCapacityStatus>;
+}) {
+  const [preselected] = input.occupancyLabeled;
 
-  if (options.length !== 1 || !onlyLabeled) {
-    return options;
+  if (
+    input.status !== "auto" ||
+    !preselected ||
+    input.bareLabel === undefined
+  ) {
+    return input.occupancyLabeled;
   }
 
-  return options.map((option) => ({ ...option, label: onlyLabeled.label }));
+  return [{ ...preselected, label: input.bareLabel }];
 }
 
 /**
