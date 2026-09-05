@@ -11,6 +11,11 @@ export const dataTableSortParamName = "orden";
 
 export type DataTableSortDirection = "asc" | "desc";
 
+export type DataTableSort = {
+  columnId: string;
+  direction: DataTableSortDirection;
+};
+
 export type DataTableSortValue =
   | string
   | number
@@ -78,10 +83,7 @@ export type ClientDataTableProps<TData> = DataTableBaseProps<TData> & {
   onSelectedRowIdsChange?: (selectedRowIds: string[]) => void;
   hideSearch?: boolean;
   hidePagination?: boolean;
-  initialSort?: {
-    columnId: string;
-    direction: DataTableSortDirection;
-  };
+  initialSort?: DataTableSort;
 };
 
 export type ServerDataTableProps<TData> = DataTableBaseProps<TData> & {
@@ -89,9 +91,6 @@ export type ServerDataTableProps<TData> = DataTableBaseProps<TData> & {
   totalPages: number;
   totalRows: number;
   basePath?: string;
-  initialSort?: {
-    columnId: string;
-    direction: DataTableSortDirection;
-  };
+  initialSort?: DataTableSort;
   loading?: boolean;
 };

@@ -5,14 +5,17 @@ import {
   buildDataTableFilterHref,
   buildDataTablePageHref,
   buildDataTableSearchHref,
+  buildDataTableSortHref,
 } from "@/components/shared/data-table-helpers";
 import type {
   DataTableFacetedFilter,
   DataTableFacetedFilterValue,
+  DataTableSort,
 } from "@/components/shared/data-table.shared";
 import {
   dataTablePageParamName,
   dataTableSearchParamName,
+  dataTableSortParamName,
 } from "@/components/shared/data-table.shared";
 
 /**
@@ -36,15 +39,19 @@ export function useDataTableUrlState({
   facetedFilters,
   initialFacetedFilterValue,
   initialSearchValue = "",
+  initialSort,
   pageParamName = dataTablePageParamName,
   searchParamName = dataTableSearchParamName,
+  sortParamName = dataTableSortParamName,
 }: {
   basePath: string;
   facetedFilters: DataTableFacetedFilter[];
   initialFacetedFilterValue: DataTableFacetedFilterValue;
   initialSearchValue?: string;
+  initialSort?: DataTableSort;
   pageParamName?: string;
   searchParamName?: string;
+  sortParamName?: string;
 }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -97,6 +104,19 @@ export function useDataTableUrlState({
           pageParamName,
           searchParamName,
           searchValue,
+        }),
+      );
+    },
+    sort: readDataTableSort(location.search, sortParamName) ?? initialSort,
+    setSort: (sort: DataTableSort) => {
+      replaceHref(
+        buildDataTableSortHref({
+          basePath,
+          columnId: sort.columnId,
+          currentSearch: location.search,
+          direction: sort.direction,
+          pageParamName,
+          sortParamName,
         }),
       );
     },
@@ -174,6 +194,29 @@ function readDataTableFacetedFilterValue(
   }
 
   return values;
+}
+
+/**
+ * The sort travels as a column and direction pair. A parameter naming neither
+ * — from a hand-edited URL — means the same as an absent one: the view's
+ * default order.
+ */
+function readDataTableSort(currentSearch: string, sortParamName: string) {
+  const rawSort = new URLSearchParams(currentSearch).get(sortParamName);
+
+  if (!rawSort) {
+    return undefined;
+  }
+
+  const separatorIndex = rawSort.lastIndexOf(":");
+  const columnId = rawSort.slice(0, separatorIndex);
+  const direction = rawSort.slice(separatorIndex + 1);
+
+  if (columnId.length === 0 || (direction !== "asc" && direction !== "desc")) {
+    return undefined;
+  }
+
+  return { columnId, direction } satisfies DataTableSort;
 }
 
 function readDataTablePage(

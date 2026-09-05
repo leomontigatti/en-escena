@@ -7,6 +7,7 @@ import {
   type OnChangeFn,
   type RowSelectionState,
   type SortingState,
+  type Updater,
   useReactTable,
 } from "@tanstack/react-table";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -26,7 +27,10 @@ import {
   emptyFacetedFilterValue,
   emptyFacetedFilterValues,
 } from "@/components/shared/data-table-core";
-import type { ClientDataTableProps } from "@/components/shared/data-table.shared";
+import type {
+  ClientDataTableProps,
+  DataTableSort,
+} from "@/components/shared/data-table.shared";
 import { dataTableFacetedFilterColumnId } from "@/components/shared/data-table.shared";
 import {
   useDataTableUrlState,
@@ -55,6 +59,7 @@ export function ClientDataTable<TData>({
   initialSort,
   pageParamName,
   searchParamName,
+  sortParamName,
 }: ClientDataTableProps<TData>) {
   const location = useLocation();
   const {
@@ -64,6 +69,8 @@ export function ClientDataTable<TData>({
     setPage,
     search,
     setSearch,
+    sort,
+    setSort,
   } = useDataTableUrlState({
     basePath: location.pathname,
     facetedFilters,
@@ -71,8 +78,10 @@ export function ClientDataTable<TData>({
       initialFacetedFilterValues[dataTableFacetedFilterColumnId] ??
       emptyFacetedFilterValue,
     initialSearchValue,
+    initialSort,
     pageParamName,
     searchParamName,
+    sortParamName,
   });
   const { searchQuery, setSearchQuery } = useDebouncedDataTableSearch({
     search,
@@ -98,11 +107,11 @@ export function ClientDataTable<TData>({
     () => ({ pageIndex: page - 1, pageSize: clientDataTablePageSize }),
     [page],
   );
-  const [sorting, setSorting] = useState<SortingState>(
-    initialSort
-      ? [{ id: initialSort.columnId, desc: initialSort.direction === "desc" }]
-      : [],
-  );
+  // The order comes from the address bar too, so a list URL naming a sort
+  // renders in that order and a column the reader clicks is recorded.
+  const sorting: SortingState = sort
+    ? [{ id: sort.columnId, desc: sort.direction === "desc" }]
+    : [];
   const [uncontrolledRowSelection, setUncontrolledRowSelection] =
     useState<RowSelectionState>({});
   const isSelectionControlled = selectedRowIds !== undefined;
@@ -150,19 +159,6 @@ export function ClientDataTable<TData>({
     ];
   }, [columnFilters, searchQuery, textFilterColumnId]);
 
-  useEffect(() => {
-    setSorting(
-      initialSort
-        ? [
-            {
-              id: initialSort.columnId,
-              desc: initialSort.direction === "desc",
-            },
-          ]
-        : [],
-    );
-  }, [initialSort?.columnId, initialSort?.direction]);
-
   const table = useReactTable({
     data: rows,
     columns: tableColumns,
@@ -182,7 +178,13 @@ export function ClientDataTable<TData>({
       setPage(nextPagination.pageIndex + 1);
     },
     onRowSelectionChange: setRowSelection,
-    onSortingChange: setSorting,
+    onSortingChange: (updater) => {
+      const nextSort = getNextClientSort(sorting, updater);
+
+      if (nextSort) {
+        setSort(nextSort);
+      }
+    },
     enableRowSelection: selectableRows,
     // The address bar owns when the page resets: the shared href builders drop
     // the page whenever the search, the filters or the sort change. Left on,
@@ -246,4 +248,33 @@ export function ClientDataTable<TData>({
       onPageChange={(page) => table.setPageIndex(page - 1)}
     />
   );
+}
+
+/**
+ * The engine cycles a column ascending, descending, then unsorted; the address
+ * bar has nothing to write down for that third state, since an absent parameter
+ * already means the view's default order. Landing on it is read as a request to
+ * start the cycle over, so clicking a header alternates the two directions —
+ * the way the server-paginated table already does.
+ */
+function getNextClientSort(
+  sorting: SortingState,
+  updater: Updater<SortingState>,
+): DataTableSort | undefined {
+  const nextSorting =
+    typeof updater === "function" ? updater(sorting) : updater;
+  const nextSort = nextSorting[0];
+
+  if (nextSort) {
+    return {
+      columnId: nextSort.id,
+      direction: nextSort.desc ? "desc" : "asc",
+    };
+  }
+
+  const currentSort = sorting[0];
+
+  return currentSort
+    ? { columnId: currentSort.id, direction: "asc" }
+    : undefined;
 }

@@ -553,6 +553,87 @@ describe("ClientDataTable filters in the address bar", () => {
   });
 });
 
+describe("ClientDataTable sort in the address bar", () => {
+  const renderer = createReactDomTestRenderer();
+
+  afterEach(renderer.cleanup);
+
+  test("records the clicked column and direction in the address bar", async () => {
+    const router = createListRouter("/administracion/finanzas/academy_1");
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await clickElement(getSortHeaderButton("Nombre"));
+
+    expect(router.state.location.search).toBe("?orden=name%3Aasc");
+    expect(getRenderedRowNames()[0]).toBe("Coreografía 01");
+  });
+
+  test("alternates ascending and descending on repeated clicks", async () => {
+    const router = createListRouter("/administracion/finanzas/academy_1");
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await clickElement(getSortHeaderButton("Nombre"));
+    expect(router.state.location.search).toBe("?orden=name%3Aasc");
+
+    await clickElement(getSortHeaderButton("Nombre"));
+    expect(router.state.location.search).toBe("?orden=name%3Adesc");
+    expect(getRenderedRowNames()[0]).toBe("Coreografía 25");
+
+    await clickElement(getSortHeaderButton("Nombre"));
+    expect(router.state.location.search).toBe("?orden=name%3Aasc");
+    expect(getRenderedRowNames()[0]).toBe("Coreografía 01");
+  });
+
+  test("renders the rows in the order named in the address bar", async () => {
+    const router = createListRouter(
+      "/administracion/finanzas/academy_1?orden=name%3Adesc",
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    expect(getRenderedRowNames()[0]).toBe("Coreografía 25");
+  });
+
+  test("applies a view's default order while the parameter is absent", async () => {
+    const router = createListRouter("/administracion/finanzas/academy_1", {
+      initialSort: { columnId: "name", direction: "desc" },
+    });
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    expect(router.state.location.search).toBe("");
+    expect(getRenderedRowNames()[0]).toBe("Coreografía 25");
+  });
+
+  test("drops the page when the sort changes", async () => {
+    const router = createListRouter(
+      "/administracion/finanzas/academy_1?busqueda=Coreograf%C3%ADa&pagina=2",
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await clickElement(getSortHeaderButton("Nombre"));
+
+    const params = new URLSearchParams(router.state.location.search);
+    expect(params.get("orden")).toBe("name:asc");
+    expect(params.get("busqueda")).toBe("Coreografía");
+    expect(params.get("pagina")).toBeNull();
+  });
+
+  test("replaces the history entry instead of pushing one", async () => {
+    const router = createListRouter("/administracion/finanzas/academy_1");
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await clickElement(getSortHeaderButton("Nombre"));
+    await clickElement(getSortHeaderButton("Nombre"));
+
+    expect(router.state.location.search).toBe("?orden=name%3Adesc");
+
+    await act(async () => {
+      await router.navigate(-1);
+    });
+
+    expect(router.state.location.pathname).toBe("/inicio");
+  });
+});
+
 describe("DataTable server-side href helpers", () => {
   test("builds debounced search targets by preserving active filters and clearing page 1", () => {
     expect(
@@ -659,10 +740,12 @@ function createListRouter(
   {
     facetedFilters,
     initialFacetedFilterValues,
+    initialSort,
     selectableRows = false,
   }: {
     facetedFilters?: typeof listFacetedFilters;
     initialFacetedFilterValues?: Record<string, Record<string, string>>;
+    initialSort?: { columnId: string; direction: "asc" | "desc" };
     selectableRows?: boolean;
   } = {},
 ) {
@@ -688,6 +771,7 @@ function createListRouter(
             textFilterColumnId="name"
             facetedFilters={facetedFilters}
             initialFacetedFilterValues={initialFacetedFilterValues}
+            initialSort={initialSort}
             selectableRows={selectableRows}
           />
         ),
@@ -765,6 +849,18 @@ async function clickElement(element: Element) {
     );
     await Promise.resolve();
   });
+}
+
+function getSortHeaderButton(header: string) {
+  const button = Array.from(document.querySelectorAll("thead button")).find(
+    (candidate) => candidate.textContent?.trim() === header,
+  );
+
+  if (!button) {
+    throw new Error(`Expected a sortable header labelled ${header}.`);
+  }
+
+  return button;
 }
 
 function getFiltersTrigger() {
