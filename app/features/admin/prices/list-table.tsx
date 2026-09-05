@@ -81,10 +81,12 @@ export function PriceListTable({
       textFilterColumnId="name"
       facetedFilters={[
         {
+          id: "tipo-de-grupo",
           label: "Tipo de grupo",
           options: groupTypeOptions,
         },
         {
+          id: "cronograma",
           label: "Cronograma",
           options: [
             { label: "Sí", value: "yes" },

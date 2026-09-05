@@ -36,7 +36,6 @@ import type {
 import {
   getActiveFacetedFilterValues,
   getFacetedFilterSummary,
-  getFilterGroupQueryParamKey,
   getPaginationPages,
   toggleFacetedFilterValue,
 } from "@/components/shared/data-table-helpers";
@@ -146,7 +145,7 @@ export function DataTableFacetedFilterControl({
             </DropdownMenuItem>
           </DropdownMenuGroup>
           {groups.map((group) => {
-            const groupId = getFilterGroupQueryParamKey(group);
+            const groupId = group.id;
             const selectedValue = selectedValues[groupId] ?? "";
 
             return (

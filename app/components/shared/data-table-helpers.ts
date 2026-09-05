@@ -7,7 +7,6 @@ import {
 } from "@/components/shared/data-table.shared";
 import type {
   DataTableFacetedFilter,
-  DataTableFacetedFilterGroup,
   DataTableFacetedFilterValue,
   DataTableSortDirection,
   DataTableSortValue,
@@ -95,18 +94,12 @@ export function getActiveFacetedFilterValues(
   );
 }
 
-export function getFilterGroupQueryParamKey(
-  group: DataTableFacetedFilterGroup,
-) {
-  return group.id ?? group.label;
-}
-
 export function getFacetedFilterSummary(
   groups: DataTableFacetedFilter[],
   selectedValues: DataTableFacetedFilterValue,
 ) {
   const parts = groups.flatMap((group) => {
-    const selectedValue = selectedValues[getFilterGroupQueryParamKey(group)];
+    const selectedValue = selectedValues[group.id];
 
     if (!selectedValue) {
       return [];
@@ -280,7 +273,7 @@ export function buildDataTableFilterHref({
   const searchParams = new URLSearchParams(currentSearch);
 
   for (const group of groups) {
-    const queryParamKey = getFilterGroupQueryParamKey(group);
+    const queryParamKey = group.id;
     const nextValue = values[queryParamKey];
 
     if (nextValue) {

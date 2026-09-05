@@ -209,6 +209,7 @@ function buildChoreographyFacetedFilters(
 ) {
   return [
     {
+      id: "estado",
       label: "Estado",
       options: [
         { label: "Completa", value: "complete" },
@@ -216,6 +217,7 @@ function buildChoreographyFacetedFilters(
       ],
     },
     {
+      id: "modalidad",
       label: "Modalidad",
       options: getUniqueSortedOptions(
         choreographies.map((choreography) => ({
@@ -225,6 +227,7 @@ function buildChoreographyFacetedFilters(
       ),
     },
     {
+      id: "categoria",
       label: "Categoría",
       options: getUniqueSortedOptions(
         choreographies.map((choreography) => ({
@@ -234,6 +237,7 @@ function buildChoreographyFacetedFilters(
       ),
     },
     {
+      id: "tipo-de-grupo",
       label: "Tipo de grupo",
       options: [
         { label: "Solo", value: "solo" },

@@ -76,6 +76,7 @@ describe("DataTable", () => {
           textFilterColumnId="name"
           facetedFilters={[
             {
+              id: "estado",
               label: "Estado",
               options: [
                 { label: "Activo", value: "active" },

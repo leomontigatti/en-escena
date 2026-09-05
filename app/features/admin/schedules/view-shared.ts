@@ -80,6 +80,7 @@ export const emptyScheduleCapacities: ScheduleListItem["scheduleCapacities"] =
 export function buildScheduleFacetedFilters(schedules: ScheduleListItem[]) {
   return [
     {
+      id: "modalidad",
       label: "Modalidad",
       options: getScheduleModalityOptions(schedules),
     },

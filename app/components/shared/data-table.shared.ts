@@ -37,7 +37,7 @@ export const dataTableFacetedFilterColumnId = "filters";
 export type DataTableFacetedFilter = DataTableFacetedFilterGroup;
 
 export type DataTableFacetedFilterGroup = {
-  id?: string;
+  id: string;
   label: string;
   options: DataTableFacetedFilterOption[];
 };

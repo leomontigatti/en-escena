@@ -193,6 +193,7 @@ function DancersTable({ dancers }: { dancers: DancerRow[] }) {
       textFilterColumnId="name"
       facetedFilters={[
         {
+          id: "participacion",
           label: "Participación",
           options: [
             { label: "Participando", value: "participating" },
@@ -200,6 +201,7 @@ function DancersTable({ dancers }: { dancers: DancerRow[] }) {
           ],
         },
         {
+          id: "verificacion",
           label: "Verificación",
           options: [
             { label: "Incompleto", value: "incomplete" },

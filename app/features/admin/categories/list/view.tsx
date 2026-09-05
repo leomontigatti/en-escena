@@ -71,6 +71,7 @@ const categoryColumns: DataTableColumn<CategoryRow>[] = [
 
 const categoryFacetedFilters: DataTableFacetedFilter[] = [
   {
+    id: "tipo-de-grupo",
     label: "Tipo de grupo",
     options: groupTypeOptions,
   },

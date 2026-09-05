@@ -194,6 +194,7 @@ function ProfessorsTable({ professors }: { professors: ProfessorRow[] }) {
       textFilterColumnId="name"
       facetedFilters={[
         {
+          id: "participacion",
           label: "Participación",
           options: [
             { label: "Participando", value: "participating" },
@@ -201,6 +202,7 @@ function ProfessorsTable({ professors }: { professors: ProfessorRow[] }) {
           ],
         },
         {
+          id: "completitud",
           label: "Completitud",
           options: [
             { label: "Completo", value: "complete" },
