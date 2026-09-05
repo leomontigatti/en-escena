@@ -10,6 +10,7 @@ import {
   prices,
   scheduleCapacities,
   scheduleModalities,
+  schedules,
   submodalities,
 } from "@/db/schema";
 import {
@@ -365,6 +366,39 @@ describe("administrative choreography modality correction", () => {
 
     // Holding money is no longer the question: what closes on price is a
     // destination that would reprice it, and there is none.
+    expect(detail.modality.blockers).toEqual([]);
+  });
+
+  test("ignores a schedule no modality accepts when announcing the blocker", async () => {
+    // Every reachable destination keeps the price, and the only schedule that
+    // would move it is one no correction can land on: it takes no modality, so
+    // it is a structural dead end and the caveat would be about nothing.
+    const scenario = await createModalityScenario({
+      allocatedAmount: 5000,
+      slug: "cronograma.huerfano",
+      targetSharesSchedule: true,
+    });
+    const [orphanSchedule] = await db
+      .insert(schedules)
+      .values({
+        eventId: scenario.event.id,
+        name: "Bloque sin modalidad",
+        scheduledDate: "2026-05-02",
+        startTime: "10:00",
+        totalCapacity: 10,
+      })
+      .returning();
+    await db.insert(prices).values({
+      amount: 30000,
+      eventId: scenario.event.id,
+      groupType: "solo",
+      name: "Precio Solo huérfano",
+      paymentDeadline: null,
+      scheduleId: orphanSchedule.id,
+    });
+
+    const detail = await scenario.loadDetail();
+
     expect(detail.modality.blockers).toEqual([]);
   });
 

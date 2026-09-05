@@ -19,7 +19,7 @@ import {
   getEventBases,
   resolveEventBasesScheduleModalityIds,
   resolveEventBasesScheduleOptions,
-  resolveEventBasesSchedules,
+  resolveEventBasesCorrectableScheduleIds,
 } from "@/lib/events/bases.server";
 import { isExperienceLevel } from "@/lib/events/experience-levels";
 import {
@@ -127,9 +127,9 @@ const priceChangeBlocker: ChoreographyModalityBlocker = {
 
 /**
  * Whether any correction could land on a schedule that reprices a
- * money-holding inscription — asked of every schedule of the event, not of the
- * ones the current modality accepts, because the correction is precisely what
- * changes which modality's schedules are in play.
+ * money-holding inscription — asked of every schedule some modality of the
+ * event accepts, not of the ones the current modality accepts, because the
+ * correction is precisely what changes which modality's schedules are in play.
  *
  * Money alone is not the question any more: a choreography whose inscriptions
  * are all frozen against general rows can be corrected into any modality
@@ -139,19 +139,19 @@ export async function listChoreographyModalityBlockers(input: {
   choreography: ChoreographyDetail;
   eventId: string;
 }): Promise<ChoreographyModalityBlocker[]> {
-  const [schedules, diverges] = await Promise.all([
-    resolveEventBasesSchedules(input.eventId),
+  const [scheduleIds, diverges] = await Promise.all([
+    resolveEventBasesCorrectableScheduleIds(input.eventId),
     loadPriceDivergenceCheck({
       choreographyId: input.choreography.id,
       executor: db,
     }),
   ]);
-  const hasPriceDivergentSchedule = schedules.some((schedule) =>
+  const hasPriceDivergentSchedule = scheduleIds.some((scheduleId) =>
     diverges({
       // Modality is not part of the price key: the correction moves the
       // schedule alone and keeps the group type the roster gives.
       groupType: input.choreography.groupType,
-      scheduleId: schedule.id,
+      scheduleId,
     }),
   );
 

@@ -12,6 +12,7 @@ import {
 } from "@/lib/prices/repository.server";
 import {
   findModalityIdsWithCompatibleSchedules,
+  findScheduleIdsWithCompatibleModalities,
   listSchedules,
   resolveCompatibleScheduleCapacities,
   type CompatibleScheduleCapacity,
@@ -95,15 +96,20 @@ export async function resolveEventBasesScheduleModalityIds(
 }
 
 /**
- * Every schedule of the event, whatever modality it accepts. The modality
- * correction asks for it to answer a question no single modality can: whether
- * *some* destination would move the price key, which is what its
- * blocker-in-waiting announces.
+ * The schedules a modality correction could land on: every schedule of the
+ * event that some modality accepts, not the ones the current modality accepts.
+ * The correction is precisely what changes which modality's schedules are in
+ * play, so no single modality can answer whether *some* destination would move
+ * the price key — which is what its blocker-in-waiting announces.
+ *
+ * Schedules no modality accepts are left out: they are a structural dead end,
+ * and a caveat raised by a destination nothing can reach is a caveat about
+ * nothing.
  */
-export async function resolveEventBasesSchedules(
+export async function resolveEventBasesCorrectableScheduleIds(
   eventId: string,
-): Promise<ScheduleListItem[]> {
-  return listSchedules(eventId);
+): Promise<string[]> {
+  return findScheduleIdsWithCompatibleModalities(eventId);
 }
 
 export async function resolveEventBasesScheduleOptions(input: {
