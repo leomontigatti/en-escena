@@ -21,7 +21,7 @@ import {
   toRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.shared";
 import { useServerActionToast } from "@/lib/shared/toasts";
-import { usePortalRecordTitleLinkTransitionStyle } from "@/lib/shared/view-transitions";
+import { useRecordTitleLinkTransitionStyle } from "@/lib/shared/view-transitions";
 import { CreateDancerDialog } from "@/features/portal/dancers/create/dialog";
 import { type CreateDancerActionData } from "@/features/portal/dancers/create/shared";
 import { type PortalDancersListLoaderData } from "@/features/portal/dancers/list/shared";
@@ -227,7 +227,7 @@ function DancersTable({ dancers }: { dancers: DancerRow[] }) {
 
 function DancerDetailLink({ dancer }: { dancer: DancerRow }) {
   const href = `/portal/bailarines/${dancer.id}`;
-  const viewTransitionStyle = usePortalRecordTitleLinkTransitionStyle(href);
+  const viewTransitionStyle = useRecordTitleLinkTransitionStyle(href);
 
   return (
     <DataTableLink to={href} viewTransition style={viewTransitionStyle}>

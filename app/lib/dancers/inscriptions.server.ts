@@ -8,7 +8,7 @@ import {
   scheduleCapacities,
   schedules,
 } from "@/db/schema";
-import type { DancerInscription } from "@/lib/admin/dancers/dancers.server.types";
+import type { DancerInscription } from "@/lib/dancers/inscriptions";
 import { activeInscription } from "@/lib/choreographies/active-inscription";
 import { resolveApplicablePrice } from "@/lib/prices/repository.server";
 

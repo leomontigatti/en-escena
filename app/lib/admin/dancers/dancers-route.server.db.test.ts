@@ -1,7 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
@@ -32,6 +31,7 @@ import {
   expectThrownResponse,
 } from "@/lib/admin/test-support/db";
 import { renderAdminChildRoute } from "@/lib/admin/test-support/render-admin-child-route";
+import { renderInDataRouter } from "@/lib/test-support/data-router";
 import { expectPersistedDancer } from "@/lib/test-support/person-detail-db-assertions";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import {
@@ -1409,11 +1409,8 @@ function renderRoute(
   loaderData: Parameters<typeof DancersListRouteView>[0]["loaderData"],
 ) {
   return renderToStaticMarkup(
-    createElement(
-      MemoryRouter,
-      {
-        initialEntries: [buildListInitialEntry(loaderData)],
-      },
+    renderInDataRouter(
+      buildListInitialEntry(loaderData),
       createElement(DancersListRouteView, { loaderData }),
     ),
   );
@@ -1424,11 +1421,8 @@ function renderDetailRoute(
   dancerId: string,
 ) {
   return renderToStaticMarkup(
-    createElement(
-      MemoryRouter,
-      {
-        initialEntries: [`/administracion/bailarines/${dancerId}`],
-      },
+    renderInDataRouter(
+      `/administracion/bailarines/${dancerId}`,
       createElement(DancerDetailRouteView, { loaderData }),
     ),
   );

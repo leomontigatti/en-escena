@@ -71,7 +71,7 @@ describe("InscriptionsSection", () => {
       ],
     });
 
-    expect(markup).toContain("Nombre coreografía");
+    expect(markup).toContain("Coreografía");
     expect(markup).toContain("00012");
     expect(markup).toContain('href="/administracion/coreografias/choreo-1"');
     expect(markup).toContain("Categoría / Tipo de grupo");
