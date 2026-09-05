@@ -264,7 +264,7 @@ async function updateChoreographyDancers(input: {
       // Checked first and inside the transaction, before any roster write:
       // on rejection nothing about this save should be persisted. Same
       // guard-then-lock pair as the standalone reassignment, so the two
-      // entry points can't drift on order or on which move counts as divergent.
+      // entry points can't drift on order or on which move counts as a price divergence.
       const move = await guardAndLockScheduleCapacityMove({
         choreographyId: input.choreographyId,
         // The group type of *this* submit, derived from the post-edit dancer

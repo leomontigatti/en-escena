@@ -581,12 +581,13 @@ dialog) and the allocation write path's own inscription lookup
 (`inscription-allocation.server.ts`), the price-divergence guard that asks
 whether a move would reprice any money-holding inscription of a choreography
 (`choreography-price-divergence-guard.server.ts`), the check that refuses to
-delete a price row some inscription references (`prices.server.ts`), and the roster
-editor's deliberate read of the withdrawn rows themselves, which are the revival
-candidates (`choreography-roster-admin.server.ts`). **Only the first kind is
-four.** Do not read "four exceptions" as "four queries without the predicate" —
-the second kind is at least as large, and a query touching `choreography_dancer`
-without `activeInscription()` is not by itself evidence of a bug.
+delete a price row some inscription references (`prices.server.ts`), and the
+roster editor's deliberate read of the withdrawn rows themselves, which are the
+revival candidates (`choreography-roster-admin.server.ts`). **Only the first
+kind is four.** Do not read "four exceptions" as "four queries without the
+predicate" — the second kind is at least as large, and a query touching
+`choreography_dancer` without `activeInscription()` is not by itself evidence of
+a bug.
 
 **Known divergence — the write path does not know a row is withdrawn.** Only the
 read path derives the withdrawn figures; an allocation write against a withdrawn

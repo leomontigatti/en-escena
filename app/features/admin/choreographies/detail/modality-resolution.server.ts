@@ -38,9 +38,9 @@ type ModalityCorrectionContext = {
 
 /**
  * The deposit rejection names the modality instead of reusing
- * `priceDivergenceScheduleCapacityMessage`, which names the capacity: the administrator
- * did not touch the capacity select here, and pointing at it would send them to the
- * wrong field.
+ * `priceDivergenceScheduleCapacityMessage`, which names the capacity: the
+ * administrator did not touch the capacity select here, and pointing at it
+ * would send them to the wrong field.
  */
 export const priceDivergenceModalityMessage =
   "No se puede cambiar la modalidad: el cronograma se movería y cambiaría el precio de inscripciones con dinero asignado.";

@@ -271,7 +271,7 @@ export async function updateChoreographyScheduleCapacity(input: {
     // the lock: reading it outside, or before opening one, left a window in
     // which an allocation landing in between went unnoticed and the schedule
     // moved anyway. Same guard-then-lock pair as the roster path, so the two
-    // entry points can't drift on order or on which move counts as divergent.
+    // entry points can't drift on order or on which move counts as a price divergence.
     const move = await guardAndLockScheduleCapacityMove({
       choreographyId: input.choreography.id,
       // The reassignment moves the schedule alone: the group type it is priced
