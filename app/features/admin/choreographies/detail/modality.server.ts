@@ -477,20 +477,26 @@ async function resolveModalityCorrectionContext(input: {
       options: scheduleResolution.options,
     });
 
+  const labeledOptions = selectableOptions.map((option) => ({
+    id: option.id,
+    label: formatScheduleDateTime(option.schedule),
+    scheduleCapacityId: option.scheduleCapacityId,
+    scheduleId: option.scheduleId,
+  }));
+  const occupiedOptions = await withScheduleCapacityOccupancy({
+    // Same exclusion as the lock: the choreography being corrected does not
+    // count against the capacity it already occupies.
+    excludeChoreographyId: input.choreography.id,
+    options: labeledOptions,
+  });
+
   return {
     classification,
     priceDivergentScheduleOptionIds: divergentIds,
-    scheduleOptions: await withScheduleCapacityOccupancy({
-      // Same exclusion as the lock: the choreography being corrected does not
-      // count against the capacity it already occupies.
-      excludeChoreographyId: input.choreography.id,
-      options: selectableOptions.map((option) => ({
-        id: option.id,
-        label: formatScheduleDateTime(option.schedule),
-        scheduleCapacityId: option.scheduleCapacityId,
-        scheduleId: option.scheduleId,
-      })),
-    }),
+    scheduleOptions: withoutOccupancyOnALockedLabel(
+      labeledOptions,
+      occupiedOptions,
+    ),
     // Read off what survived rather than carried over from the resolution: a
     // modality left with a single holding-the-price capacity is `auto`, and one
     // left with none is the dead end the view replaces with its reason.
@@ -531,6 +537,27 @@ function toMissingScheduleMessage(input: {
   }
 
   return invalidScheduleEntryMessage;
+}
+
+/**
+ * Occupancy is a suffix on *options*, and a lone compatible capacity is not one:
+ * it arrives preselected and read-only, like the `auto` status of registration,
+ * where saying how many places are left on a field nobody can change means
+ * nothing. So it goes back to the bare date-time label.
+ *
+ * The occupancy read still stands behind it: `isFull` is what turns a lone full
+ * capacity into the dead end the view explains instead of previewing.
+ */
+function withoutOccupancyOnALockedLabel<
+  TOption extends { isFull: boolean; label: string },
+>(labeledOptions: readonly { label: string }[], options: TOption[]) {
+  const [onlyLabeled] = labeledOptions;
+
+  if (options.length !== 1 || !onlyLabeled) {
+    return options;
+  }
+
+  return options.map((option) => ({ ...option, label: onlyLabeled.label }));
 }
 
 /**

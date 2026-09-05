@@ -68,6 +68,30 @@ describe("administrative choreography modality correction", () => {
     });
   });
 
+  /**
+   * Occupancy is a suffix on the options a select offers. The lone compatible
+   * capacity is not offered: it arrives preselected and read-only, like the
+   * `auto` status of registration, and saying how many places are left on a
+   * field nobody can change means nothing. `isFull` still comes from the same
+   * read: a lone full capacity is the dead end the view explains instead.
+   */
+  test("previews the locked single capacity with no occupancy on its label", async () => {
+    const scenario = await createModalityScenario({ slug: "cupo-unico" });
+
+    const preview = readModalityResolution(
+      await scenario.resolveModality(scenario.target.modality.id),
+    );
+
+    expect(preview?.scheduleCapacity.status).toBe("auto");
+    expect(preview?.scheduleCapacity.options).toEqual([
+      {
+        id: scenario.target.scheduleCapacity.id,
+        isFull: false,
+        label: expect.stringMatching(/ hs\.$/),
+      },
+    ]);
+  });
+
   test("writes modality, submodality, category, level and capacity in one correction", async () => {
     const scenario = await createModalityScenario({ slug: "compuesta" });
 
