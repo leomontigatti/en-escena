@@ -2,7 +2,7 @@
 
 import { act } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { MemoryRouter } from "react-router";
+import { createMemoryRouter, MemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
 import {
@@ -293,6 +293,80 @@ describe("DataTable", () => {
   });
 });
 
+describe("ClientDataTable page in the address bar", () => {
+  const renderer = createReactDomTestRenderer();
+
+  afterEach(renderer.cleanup);
+
+  test("records the clicked page in the address bar without piling up history", async () => {
+    const router = createListRouter("/administracion/finanzas/academy_1");
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    expect(getRenderedRowNames()).toContain("Coreografía 01");
+
+    await clickElement(getPaginationLink("2"));
+
+    expect(router.state.location.search).toBe("?pagina=2");
+    expect(getRenderedRowNames()).toContain("Coreografía 11");
+    expect(getRenderedRowNames()).not.toContain("Coreografía 01");
+    expect(router.state.preventScrollReset).toBe(true);
+
+    await act(async () => {
+      await router.navigate(-1);
+    });
+
+    expect(router.state.location.pathname).toBe("/inicio");
+
+    await act(async () => {
+      await router.navigate(1);
+    });
+
+    expect(router.state.location.pathname).toBe(
+      "/administracion/finanzas/academy_1",
+    );
+    expect(router.state.location.search).toBe("?pagina=2");
+    expect(getRenderedRowNames()).toContain("Coreografía 11");
+  });
+
+  test("renders the page named in the address bar", async () => {
+    const router = createListRouter(
+      "/administracion/finanzas/academy_1?pagina=3",
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    expect(getRenderedRowNames()).toContain("Coreografía 21");
+    expect(getRenderedRowNames()).not.toContain("Coreografía 11");
+  });
+
+  test("resolves a page beyond the last one to page one", async () => {
+    const router = createListRouter(
+      "/administracion/finanzas/academy_1?pagina=9",
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    expect(router.state.location.search).toBe("");
+    expect(getRenderedRowNames()).toContain("Coreografía 01");
+  });
+
+  test("keeps the row selection while the reader pages", async () => {
+    const router = createListRouter("/administracion/finanzas/academy_1", {
+      selectableRows: true,
+    });
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    const [, firstRowCheckbox] = getRenderedCheckboxes();
+    await clickElement(firstRowCheckbox);
+
+    expect(getRenderedCheckboxes()[1].ariaChecked).toBe("true");
+
+    await clickElement(getPaginationLink("2"));
+    await clickElement(getPaginationLink("1"));
+
+    expect(router.state.location.search).toBe("");
+    expect(getRenderedCheckboxes()[1].ariaChecked).toBe("true");
+  });
+});
+
 describe("DataTable server-side href helpers", () => {
   test("builds debounced search targets by preserving active filters and clearing page 1", () => {
     expect(
@@ -383,6 +457,57 @@ describe("DataTable server-side href helpers", () => {
   });
 });
 
+function createListRouter(
+  entry: string,
+  { selectableRows = false }: { selectableRows?: boolean } = {},
+) {
+  const [path] = entry.split("?");
+  const rows: Row[] = Array.from({ length: 25 }, (_, index) => ({
+    id: `choreography_${index + 1}`,
+    academy: "Academia Norte",
+    name: `Coreografía ${String(index + 1).padStart(2, "0")}`,
+    status: "active",
+  }));
+
+  return createMemoryRouter(
+    [
+      { path: "/inicio", element: <p>Inicio</p> },
+      {
+        path,
+        element: (
+          <ClientDataTable
+            rows={rows}
+            columns={columns}
+            getRowKey={(row) => row.id}
+            searchPlaceholder="Buscar coreografía por nombre"
+            textFilterColumnId="name"
+            selectableRows={selectableRows}
+          />
+        ),
+      },
+    ],
+    { initialEntries: ["/inicio", entry], initialIndex: 1 },
+  );
+}
+
+function getRenderedRowNames() {
+  return Array.from(document.querySelectorAll("tbody tr td:first-of-type")).map(
+    (cell) => cell.textContent ?? "",
+  );
+}
+
+function getPaginationLink(text: string) {
+  const link = Array.from(document.querySelectorAll("a")).find(
+    (anchor) => anchor.textContent?.trim() === text,
+  );
+
+  if (!link) {
+    throw new Error(`Expected a pagination link labelled ${text}.`);
+  }
+
+  return link;
+}
+
 function getRenderedCheckboxes() {
   return Array.from(document.querySelectorAll('[role="checkbox"]')).map(
     (element) => {
@@ -396,8 +521,12 @@ function getRenderedCheckboxes() {
 }
 
 async function clickCheckbox(checkbox: HTMLElement) {
+  await clickElement(checkbox);
+}
+
+async function clickElement(element: Element) {
   await act(async () => {
-    checkbox.dispatchEvent(
+    element.dispatchEvent(
       new MouseEvent("click", {
         bubbles: true,
         cancelable: true,

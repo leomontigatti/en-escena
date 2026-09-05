@@ -31,6 +31,9 @@ import type {
   DataTableFacetedFilterValue,
 } from "@/components/shared/data-table.shared";
 import { dataTableFacetedFilterColumnId } from "@/components/shared/data-table.shared";
+import { useDataTableUrlState } from "@/components/shared/data-table-url-state";
+
+const clientDataTablePageSize = 10;
 
 export function ClientDataTable<TData>({
   rows,
@@ -50,8 +53,13 @@ export function ClientDataTable<TData>({
   hideSearch = false,
   hidePagination = false,
   initialSort,
+  pageParamName,
 }: ClientDataTableProps<TData>) {
   const location = useLocation();
+  const { page, setPage } = useDataTableUrlState({
+    basePath: location.pathname,
+    pageParamName,
+  });
   const columnVisibility = useMemo(
     () => createColumnVisibility(columns),
     [columns],
@@ -69,10 +77,10 @@ export function ClientDataTable<TData>({
       ),
     ),
   );
-  const [pagination, setPagination] = useState({
-    pageIndex: 0,
-    pageSize: 10,
-  });
+  const pagination = useMemo(
+    () => ({ pageIndex: page - 1, pageSize: clientDataTablePageSize }),
+    [page],
+  );
   const [sorting, setSorting] = useState<SortingState>(
     initialSort
       ? [{ id: initialSort.columnId, desc: initialSort.direction === "desc" }]
@@ -153,7 +161,12 @@ export function ClientDataTable<TData>({
     },
     onColumnFiltersChange: setColumnFilters,
     onGlobalFilterChange: setSearchQuery,
-    onPaginationChange: setPagination,
+    onPaginationChange: (updater) => {
+      const nextPagination =
+        typeof updater === "function" ? updater(pagination) : updater;
+
+      setPage(nextPagination.pageIndex + 1);
+    },
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
     enableRowSelection: selectableRows,
@@ -164,6 +177,17 @@ export function ClientDataTable<TData>({
     getRowId: getRowKey,
     globalFilterFn: createGlobalFilterFn(columns),
   });
+
+  const pageCount = table.getPageCount();
+
+  // A page beyond the last one — reachable from a stale bookmark or a pasted
+  // link — resolves to page one, so the reader sees rows instead of an empty
+  // table.
+  useEffect(() => {
+    if (page > 1 && page > pageCount) {
+      setPage(1);
+    }
+  }, [page, pageCount, setPage]);
 
   const setSearchFilter = (value: string) => {
     setSearchQuery(value);
