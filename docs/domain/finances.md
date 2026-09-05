@@ -19,7 +19,9 @@ silently:
 - **A `> **Specified, not built.**` callout describes the settled target**, with
   the issue that owns it. Do not read those as behaviour.
 - **A `Known divergence` paragraph** records a place where the code disagrees
-  with the model on purpose or by defect, with the issue tracking it.
+  with the model on purpose or by defect, with the issue tracking it. The word
+  is this document's own: the price-divergence guard is unrelated, and names a
+  divergence between two prices rather than between the code and this model.
 
 When this document and the code disagree anywhere else, the code is right and
 this document is a bug — file it, do not fix one side silently.
