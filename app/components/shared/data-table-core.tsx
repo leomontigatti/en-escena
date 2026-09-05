@@ -54,8 +54,6 @@ export const emptyFacetedFilterValues: Record<
   DataTableFacetedFilterValue
 > = {};
 
-export const emptyFacetedFilterValue: DataTableFacetedFilterValue = {};
-
 type DataTableShellProps<TData> = {
   table: TanStackTable<TData>;
   getRowProps?: (row: TData) => React.ComponentProps<"tr">;

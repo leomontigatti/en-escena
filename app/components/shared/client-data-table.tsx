@@ -24,11 +24,11 @@ import {
   createDataTableColumns,
   createGlobalFilterFn,
   DataTableShell,
-  emptyFacetedFilterValue,
   emptyFacetedFilterValues,
 } from "@/components/shared/data-table-core";
 import type {
   ClientDataTableProps,
+  DataTableFacetedFilterValue,
   DataTableSort,
 } from "@/components/shared/data-table.shared";
 import { dataTableFacetedFilterColumnId } from "@/components/shared/data-table.shared";
@@ -38,6 +38,9 @@ import {
 } from "@/components/shared/data-table-url-state";
 
 const clientDataTablePageSize = 10;
+
+/** The fallback for a view that declares no initial faceted selection. */
+const noFacetedFilterValue: DataTableFacetedFilterValue = {};
 
 export function ClientDataTable<TData>({
   rows,
@@ -76,7 +79,7 @@ export function ClientDataTable<TData>({
     facetedFilters,
     initialFacetedFilterValue:
       initialFacetedFilterValues[dataTableFacetedFilterColumnId] ??
-      emptyFacetedFilterValue,
+      noFacetedFilterValue,
     initialSearchValue,
     initialSort,
     pageParamName,
@@ -148,16 +151,12 @@ export function ClientDataTable<TData>({
   // The text filter is derived from the search rather than stored beside it, so
   // a search arriving from the address bar filters the rows the same way one
   // the reader typed does.
-  const tableColumnFilters = useMemo(() => {
-    if (!textFilterColumnId) {
-      return columnFilters;
-    }
-
-    return [
-      ...columnFilters.filter((filter) => filter.id !== textFilterColumnId),
-      { id: textFilterColumnId, value: searchQuery },
-    ];
-  }, [columnFilters, searchQuery, textFilterColumnId]);
+  const tableColumnFilters: ColumnFiltersState = textFilterColumnId
+    ? [
+        ...columnFilters.filter((filter) => filter.id !== textFilterColumnId),
+        { id: textFilterColumnId, value: searchQuery },
+      ]
+    : columnFilters;
 
   const table = useReactTable({
     data: rows,

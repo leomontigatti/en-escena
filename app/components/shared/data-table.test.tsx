@@ -441,6 +441,17 @@ describe("ClientDataTable search in the address bar", () => {
     expect(getSearchInput().value).toBe("12");
   });
 
+  test("keeps the whitespace the reader typed after the search is recorded", async () => {
+    const router = createListRouter("/administracion/finanzas/academy_1");
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await typeSearch("Coreografía ");
+    await advanceSearchDebounce();
+
+    expect(router.state.location.search).toBe("?busqueda=Coreograf%C3%ADa");
+    expect(getSearchInput().value).toBe("Coreografía ");
+  });
+
   test("removes the parameter when the reader clears the search", async () => {
     const router = createListRouter(
       "/administracion/finanzas/academy_1?busqueda=12",

@@ -137,24 +137,30 @@ export function useDebouncedDataTableSearch({
   setSearch: (searchValue: string) => void;
 }) {
   const [searchQuery, setSearchQuery] = useState(search);
-  const lastWrittenSearchRef = useRef(search);
   // The setter closes over the current query string, so it changes on every
-  // render; a ref keeps the debounce keyed on the typed value alone.
+  // render; a ref keeps the debounce keyed on the typed value alone. The
+  // recorded search is read through a ref for the same reason.
   const setSearchRef = useRef(setSearch);
   setSearchRef.current = setSearch;
+  const searchRef = useRef(search);
+  searchRef.current = search;
 
+  // The query string records the search trimmed, so the typed value is the
+  // authority on its surrounding spaces: a search arriving from the address bar
+  // only replaces what the reader typed when it says something different, and
+  // never trims a space they are still typing past.
   useEffect(() => {
-    setSearchQuery(search);
-    lastWrittenSearchRef.current = search;
+    setSearchQuery((typedSearch) =>
+      typedSearch.trim() === search ? typedSearch : search,
+    );
   }, [search]);
 
   useEffect(() => {
-    if (searchQuery === lastWrittenSearchRef.current) {
+    if (searchQuery.trim() === searchRef.current) {
       return;
     }
 
     const timeoutId = window.setTimeout(() => {
-      lastWrittenSearchRef.current = searchQuery;
       setSearchRef.current(searchQuery);
     }, dataTableSearchDebounceMs);
 
