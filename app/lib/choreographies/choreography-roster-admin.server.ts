@@ -267,6 +267,11 @@ async function updateChoreographyDancers(input: {
       // entry points can't drift on order or on which move counts as frozen.
       const move = await guardAndLockScheduleCapacityMove({
         choreographyId: input.choreographyId,
+        // The group type of *this* submit, derived from the post-edit dancer
+        // count: on this path the price key can move through the group type
+        // alone, and pricing the move against the outgoing one would evaluate
+        // a solo that just became a duo against solo prices.
+        destinationGroupType: resolution.groupType,
         scheduleCapacityId: selectedSchedule.scheduleCapacityId,
         scheduleId: selectedSchedule.scheduleId,
         tx,

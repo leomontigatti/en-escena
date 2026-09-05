@@ -202,6 +202,25 @@ export async function findModalityIdsWithCompatibleSchedules(
   return rows.map((row) => row.modalityId);
 }
 
+/**
+ * The schedules of the event that at least one modality accepts, the mirror of
+ * `findModalityIdsWithCompatibleSchedules` and with the same reason for needing
+ * no group type: a schedule without a specific capacity for a group type falls
+ * back to its own total capacity. A schedule missing from this list is a
+ * structural dead end — no modality of the event can be corrected into it.
+ */
+export async function findScheduleIdsWithCompatibleModalities(
+  eventId: string,
+): Promise<string[]> {
+  const rows = await db
+    .selectDistinct({ scheduleId: scheduleModalities.scheduleId })
+    .from(scheduleModalities)
+    .innerJoin(schedules, eq(scheduleModalities.scheduleId, schedules.id))
+    .where(eq(schedules.eventId, eventId));
+
+  return rows.map((row) => row.scheduleId);
+}
+
 export async function validateInlineScheduleCapacitiesInput({
   existingEntries = [],
   scheduleCapacities: inputEntries,

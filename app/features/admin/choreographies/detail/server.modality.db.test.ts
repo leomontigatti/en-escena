@@ -7,8 +7,10 @@ import {
   categoryModalities,
   choreographies,
   modalities,
+  prices,
   scheduleCapacities,
   scheduleModalities,
+  schedules,
   submodalities,
 } from "@/db/schema";
 import {
@@ -196,12 +198,35 @@ describe("administrative choreography modality correction", () => {
 
     expect(response).toMatchObject({
       message:
-        "No se puede cambiar la modalidad: el cronograma se movería y hay inscripciones con dinero asignado.",
+        "No se puede cambiar la modalidad: el cronograma se movería y cambiaría el precio de inscripciones con dinero asignado.",
       status: "error",
     });
     await expect(scenario.readChoreography()).resolves.toMatchObject({
       modalityId: scenario.catalog.modality.id,
     });
+  });
+
+  // The dead end the omission creates: the modality select stays structural, so
+  // this modality is offered, and every capacity behind it would reprice.
+  test("previews no capacity at all when every one of them would reprice", async () => {
+    const scenario = await createModalityScenario({
+      allocatedAmount: 5000,
+      slug: "sena-sin-cupo",
+    });
+
+    const preview = readModalityResolution(
+      await scenario.resolveModality(scenario.target.modality.id),
+    );
+
+    expect(preview?.scheduleCapacity).toEqual({ options: [], status: "none" });
+    // The modality is still offered: money never greys a modality, and the
+    // detail explains the dead end at the capacity instead.
+    const detail = await scenario.loadDetail();
+    expect(
+      detail.modality.options.find(
+        (option) => option.id === scenario.target.modality.id,
+      ),
+    ).toMatchObject({ hasCompatibleScheduleCapacity: true });
   });
 
   test("accepts the correction when a deposit is registered and the capacity does not move", async () => {
@@ -300,9 +325,9 @@ describe("administrative choreography modality correction", () => {
     expect(detail.modality.canCorrect).toBe(true);
     expect(detail.modality.blockers).toEqual([
       {
-        code: "frozen-price",
+        code: "price-change",
         label:
-          "Solo se puede corregir la modalidad si el cronograma no se mueve: hay inscripciones con dinero asignado.",
+          "Solo se puede corregir la modalidad si el cronograma no cambia de precio: hay inscripciones con dinero asignado.",
       },
     ]);
     expect(
@@ -326,6 +351,55 @@ describe("administrative choreography modality correction", () => {
         },
       ]),
     );
+  });
+
+  test("announces no modality blocker when no schedule would change the price", async () => {
+    // The destination modality shares the choreography's schedule, so the
+    // event has a single schedule and no correction can move the price key.
+    const scenario = await createModalityScenario({
+      allocatedAmount: 5000,
+      slug: "sin.divergencia",
+      targetSharesSchedule: true,
+    });
+
+    const detail = await scenario.loadDetail();
+
+    // Holding money is no longer the question: what closes on price is a
+    // destination that would reprice it, and there is none.
+    expect(detail.modality.blockers).toEqual([]);
+  });
+
+  test("ignores a schedule no modality accepts when announcing the blocker", async () => {
+    // Every reachable destination keeps the price, and the only schedule that
+    // would move it is one no correction can land on: it takes no modality, so
+    // it is a structural dead end and the caveat would be about nothing.
+    const scenario = await createModalityScenario({
+      allocatedAmount: 5000,
+      slug: "cronograma.huerfano",
+      targetSharesSchedule: true,
+    });
+    const [orphanSchedule] = await db
+      .insert(schedules)
+      .values({
+        eventId: scenario.event.id,
+        name: "Bloque sin modalidad",
+        scheduledDate: "2026-05-02",
+        startTime: "10:00",
+        totalCapacity: 10,
+      })
+      .returning();
+    await db.insert(prices).values({
+      amount: 30000,
+      eventId: scenario.event.id,
+      groupType: "solo",
+      name: "Precio Solo huérfano",
+      paymentDeadline: null,
+      scheduleId: orphanSchedule.id,
+    });
+
+    const detail = await scenario.loadDetail();
+
+    expect(detail.modality.blockers).toEqual([]);
   });
 
   test("keeps the correction read-only for auditors", async () => {
@@ -401,6 +475,27 @@ async function createModalityScenario(input: {
     scheduleCapacityId: catalog.scheduleCapacity.id,
     submodalityId: catalog.submodality.id,
   });
+  // Deadline-less rows, so they are the ones that apply whatever day the suite
+  // runs on, and the destination schedule carries a dearer one: with money on
+  // the choreography, moving the schedule is what changes the price.
+  await db.insert(prices).values([
+    {
+      amount: 10000,
+      eventId: event.id,
+      groupType: "solo",
+      name: `Precio Solo ${input.slug}`,
+      paymentDeadline: null,
+      scheduleId: null,
+    },
+    {
+      amount: 20000,
+      eventId: event.id,
+      groupType: "solo",
+      name: `Precio Solo destino ${input.slug}`,
+      paymentDeadline: null,
+      scheduleId: target.schedule.id,
+    },
+  ]);
   await createSelectedPriceInscriptionForTest({
     academyId: owner.academyId,
     allocatedAmount: input.allocatedAmount,

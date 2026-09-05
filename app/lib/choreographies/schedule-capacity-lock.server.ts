@@ -2,7 +2,8 @@ import { and, eq, ne, or, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { choreographies, schedules, scheduleCapacities } from "@/db/schema";
-import { hasFrozenPriceInscription } from "@/lib/finances/choreography-frozen-price-guard.server";
+import { hasPriceDivergentInscription } from "@/lib/finances/choreography-frozen-price-guard.server";
+import type { ChoreographyGroupType } from "@/lib/finances/operational-summary-calculations.server";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -10,7 +11,7 @@ export const invalidScheduleEntryMessage =
   "Elegí un cupo de cronograma compatible para confirmar la coreografía.";
 
 export const frozenPriceScheduleCapacityMessage =
-  "No se puede cambiar el cupo de cronograma: hay inscripciones con dinero asignado.";
+  "No se puede cambiar el cupo de cronograma: hay inscripciones con dinero asignado cuyo precio cambiaría.";
 
 export type ScheduleCapacityLockFailureCode =
   | "invalid-schedule-capacity"
@@ -46,18 +47,38 @@ export type ScheduleCapacityMoveResult =
 
 /**
  * The guard-then-lock pair every capacity move must run, whatever entry point
- * triggers it (the standalone reassignment, the roster path). Kept as one
- * function so the two callers can't drift on order or on which move counts as
- * frozen: re-checking the guard outside a transaction, or after the lock,
- * would leave a window where a concurrent allocation lands unnoticed.
+ * triggers it (the standalone reassignment, the modality correction, the roster
+ * path). Kept as one function so the three callers can't drift on order or on
+ * which move counts as blocked: re-checking the guard outside a transaction, or
+ * after the lock, would leave a window where a concurrent allocation lands
+ * unnoticed.
+ *
+ * The money question is asked against the **destination price key**, so every
+ * caller has to name where the move lands on both of its axes.
+ * `destinationGroupType` is the choreography's own for the two schedule-moving
+ * entry points, and the post-edit one for the roster path, where a solo turning
+ * into a duo moves the price key with no schedule moving at all.
  */
 export async function guardAndLockScheduleCapacityMove(input: {
   tx: Transaction;
   choreographyId: string;
+  destinationGroupType: ChoreographyGroupType;
   scheduleId: string;
   scheduleCapacityId: string | null;
 }): Promise<ScheduleCapacityMoveResult> {
-  if (await hasFrozenPriceInscription(input.choreographyId, input.tx)) {
+  const diverges = await hasPriceDivergentInscription({
+    choreographyId: input.choreographyId,
+    destination: {
+      groupType: input.destinationGroupType,
+      // The schedule the capacity belongs to is validated against this one by
+      // the lock below, so the pair cannot price the move against one schedule
+      // and store it against another.
+      scheduleId: input.scheduleId,
+    },
+    executor: input.tx,
+  });
+
+  if (diverges) {
     return {
       ok: false,
       code: "frozen-price",

@@ -8,6 +8,7 @@ import {
   choreographyDancers,
   choreographyProfessors,
   modalities,
+  prices,
   scheduleCapacities,
   schedules,
   submodalities,
@@ -695,6 +696,12 @@ describe("administrative choreography detail server", () => {
       academyName: "Academia Cronograma Seña Tardía",
       slug: "cronograma.senia.tardia",
     });
+    await insertSoloPrice({ amount: 10000, eventId: scenario.event.id });
+    await insertSoloPrice({
+      amount: 20000,
+      eventId: scenario.event.id,
+      scheduleId: scenario.target.schedule.id,
+    });
 
     const detail = await loadDetail({
       choreographyId: scenario.choreography.id,
@@ -705,7 +712,7 @@ describe("administrative choreography detail server", () => {
 
     await createSelectedPriceInscriptionForTest({
       academyId: scenario.owner.academyId,
-      allocatedAmount: 3000,
+      allocatedAmount: 1000,
       choreographyId: scenario.choreography.id,
       eventId: scenario.event.id,
     });
@@ -716,7 +723,7 @@ describe("administrative choreography detail server", () => {
 
     expect(result).toMatchObject({
       message:
-        "No se puede cambiar el cupo de cronograma: hay inscripciones con dinero asignado.",
+        "No se puede cambiar el cupo de cronograma: hay inscripciones con dinero asignado cuyo precio cambiaría.",
       status: "error",
     });
     await expect(scenario.readAssignment()).resolves.toEqual({
@@ -849,7 +856,10 @@ describe("administrative choreography detail server", () => {
     );
 
     // With the assigned capacity outside compatibility, the current option stays
-    // in the list even though the field is blocked for lack of alternatives.
+    // in the list, and the one compatible capacity next to it is a real
+    // destination: reassignability is read off the options, so the drift is
+    // repairable instead of locked behind a count of compatible capacities that
+    // the assignment is not part of.
     const foreignModality = await createModalityRecord({
       eventId: scenario.event.id,
       name: "Urbano",
@@ -874,21 +884,73 @@ describe("administrative choreography detail server", () => {
       email: "admin.coreografias.cronograma.opciones.single@example.com",
       role: "admin",
     });
-    expect(single.scheduleCapacity.canReassign).toBe(false);
+    expect(single.scheduleCapacity.canReassign).toBe(true);
     expect(
       single.scheduleCapacity.options.map((option) => option.id),
     ).toContain(drifted.scheduleCapacity.id);
   });
 
-  test("rejects a reassignment to the only compatible capacity, which the read-only field never offers", async () => {
+  test("locks the field when the drifted assignment is the only option left", async () => {
+    const scenario = await createScheduleCapacityScenario({
+      academyName: "Academia Cronograma Sin Alternativa",
+      slug: "cronograma.sin.alternativa",
+    });
+    const foreignModality = await createModalityRecord({
+      eventId: scenario.event.id,
+      name: "Urbano",
+    });
+    const drifted = await createScheduleWithSoloCapacity({
+      eventId: scenario.event.id,
+      modalityId: foreignModality.id,
+    });
+    await db
+      .update(choreographies)
+      .set({
+        scheduleCapacityId: drifted.scheduleCapacity.id,
+        scheduleId: null,
+      })
+      .where(eq(choreographies.id, scenario.choreography.id));
+    // Every compatible schedule is gone: the select is left with the assignment
+    // alone, which is not a destination.
+    await db
+      .delete(schedules)
+      .where(eq(schedules.id, scenario.target.schedule.id));
+    await db
+      .delete(schedules)
+      .where(eq(schedules.id, scenario.catalog.schedule.id));
+
+    const detail = await loadDetail({
+      choreographyId: scenario.choreography.id,
+      email:
+        "admin.coreografias.cronograma.sin.alternativa.detalle@example.com",
+      role: "admin",
+    });
+
+    expect(detail.scheduleCapacity.options.map((option) => option.id)).toEqual([
+      drifted.scheduleCapacity.id,
+    ]);
+    expect(detail.scheduleCapacity.canReassign).toBe(false);
+
+    // The intent refuses exactly what the read-only field never offered.
+    const result = await scenario.reassignTo(drifted.scheduleCapacity.id);
+
+    expect(result).toMatchObject({
+      message:
+        "No se puede cambiar el cupo de cronograma: no hay otro cronograma compatible con esta coreografía.",
+      status: "error",
+    });
+  });
+
+  test("repairs a drifted assignment onto the only compatible capacity", async () => {
     const scenario = await createScheduleCapacityScenario({
       academyName: "Academia Cronograma Único",
       slug: "cronograma.unico",
     });
 
     // The assignment drifts to a capacity of another modality and a single
-    // compatible schedule is left: the field closes, so the intent cannot accept
-    // the move the view refuses to offer either.
+    // compatible schedule is left: that schedule is an alternative to where the
+    // choreography sits, so the field opens and the intent accepts exactly the
+    // move it offers.
     const foreignModality = await createModalityRecord({
       eventId: scenario.event.id,
       name: "Urbano",
@@ -913,15 +975,15 @@ describe("administrative choreography detail server", () => {
       email: "admin.coreografias.cronograma.unico.detalle@example.com",
       role: "admin",
     });
-    expect(detail.scheduleCapacity.canReassign).toBe(false);
+    expect(detail.scheduleCapacity.canReassign).toBe(true);
 
     const result = await scenario.reassignTo(
       scenario.catalog.scheduleCapacity.id,
     );
 
-    expect(result).toMatchObject({ status: "error" });
+    expect(result).toMatchObject({ status: "success" });
     expect(await scenario.readAssignment()).toMatchObject({
-      scheduleCapacityId: drifted.scheduleCapacity.id,
+      scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
     });
   });
 
@@ -964,16 +1026,10 @@ describe("administrative choreography detail server", () => {
     expect(detail.choreography.scheduleLabel).not.toContain("ocupados");
   });
 
-  test("blocks the reassignment when an inscription has a frozen deposit", async () => {
-    const scenario = await createScheduleCapacityScenario({
+  test("blocks the reassignment when the destination reprices an inscription below its deposit", async () => {
+    const scenario = await createPriceDivergentScheduleScenario({
       academyName: "Academia Cronograma Señada",
       slug: "cronograma.senada",
-    });
-    await createSelectedPriceInscriptionForTest({
-      academyId: scenario.owner.academyId,
-      allocatedAmount: 3000,
-      choreographyId: scenario.choreography.id,
-      eventId: scenario.event.id,
     });
 
     const detail = await loadDetail({
@@ -981,27 +1037,292 @@ describe("administrative choreography detail server", () => {
       email: "admin.coreografias.cronograma.senada.detalle@example.com",
       role: "admin",
     });
+    // Read-only because the filter left nothing to move to, not because money
+    // exists: the one alternative was the omitted one.
     expect(detail.scheduleCapacity.canReassign).toBe(false);
     expect(detail.scheduleCapacity.blockers).toEqual([
       {
-        code: "frozen-price",
-        label: expect.stringContaining("dinero asignado"),
+        code: "no-price-preserving-option",
+        label:
+          "No se puede reasignar el cupo de cronograma: hay inscripciones con dinero asignado y no hay cronogramas alternativos que mantengan el precio.",
       },
+    ]);
+    // The repricing destination is omitted, not offered as disabled: only the
+    // assignment is left in the select.
+    expect(detail.scheduleCapacity.options.map((option) => option.id)).toEqual([
+      scenario.catalog.scheduleCapacity.id,
     ]);
 
     const result = await scenario.reassignTo(
       scenario.target.scheduleCapacity.id,
     );
 
+    // Absent from the accepted set, but reported as the price problem it is and
+    // not as an incompatible selection.
     expect(result).toMatchObject({
       message:
-        "No se puede cambiar el cupo de cronograma: hay inscripciones con dinero asignado.",
+        "No se puede cambiar el cupo de cronograma: hay inscripciones con dinero asignado cuyo precio cambiaría.",
       status: "error",
     });
     await expect(scenario.readAssignment()).resolves.toEqual({
       scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
       scheduleId: null,
     });
+  });
+
+  test("omits only the alternatives that would reprice, and keeps the ones that hold the price", async () => {
+    const { neutral, ...scenario } =
+      await createPartiallyFilteredScheduleScenario({
+        academyName: "Academia Cronograma Filtrado",
+        slug: "cronograma.filtrado",
+      });
+
+    const detail = await loadDetail({
+      choreographyId: scenario.choreography.id,
+      email: "admin.coreografias.cronograma.filtrado.detalle@example.com",
+      role: "admin",
+    });
+    expect(detail.scheduleCapacity.options.map((option) => option.id)).toEqual(
+      expect.arrayContaining([
+        scenario.catalog.scheduleCapacity.id,
+        neutral.scheduleCapacity.id,
+      ]),
+    );
+    expect(
+      detail.scheduleCapacity.options.map((option) => option.id),
+    ).not.toContain(scenario.target.scheduleCapacity.id);
+    // Money on the choreography no longer closes the field: one alternative
+    // holds the price, so there is something to choose and the select opens.
+    expect(detail.scheduleCapacity.canReassign).toBe(true);
+    // The omission is not a disabling: nothing in the surviving list is marked
+    // full, which is the only thing `isFull` ever means.
+    expect(
+      detail.scheduleCapacity.options.every((option) => !option.isFull),
+    ).toBe(true);
+
+    // The intent accepts exactly what the loader offered: the neutral one goes
+    // through, the omitted one is refused for its price.
+    const refused = await scenario.reassignTo(
+      scenario.target.scheduleCapacity.id,
+    );
+    expect(refused).toMatchObject({
+      message:
+        "No se puede cambiar el cupo de cronograma: hay inscripciones con dinero asignado cuyo precio cambiaría.",
+      status: "error",
+    });
+
+    const accepted = await scenario.reassignTo(neutral.scheduleCapacity.id, {
+      sessionKey: "neutro",
+    });
+    expect(accepted).toMatchObject({ status: "success" });
+    await expect(scenario.readAssignment()).resolves.toEqual({
+      scheduleCapacityId: neutral.scheduleCapacity.id,
+      scheduleId: neutral.schedule.id,
+    });
+  });
+
+  test("offers exactly the ids the intent accepts", async () => {
+    const { neutral, ...scenario } =
+      await createPartiallyFilteredScheduleScenario({
+        academyName: "Academia Cronograma Invariante",
+        slug: "cronograma.invariante",
+      });
+
+    const detail = await loadDetail({
+      choreographyId: scenario.choreography.id,
+      email: "admin.coreografias.cronograma.invariante.detalle@example.com",
+      role: "admin",
+    });
+    const offeredIds = new Set(
+      detail.scheduleCapacity.options.map((option) => option.id),
+    );
+    const original = await scenario.readAssignment();
+
+    // Every capacity of the event, offered or omitted, put to the intent: the
+    // invariant `resolveScheduleCapacityCandidates` documents is that the two
+    // sets coincide, so an id the select omits has to be refused and every id
+    // it offers has to go through. Asserted over the whole set rather than over
+    // one example of each, which is how a filter and a guard reading the price
+    // key from different sources would slip past.
+    const candidateIds = [
+      scenario.catalog.scheduleCapacity.id,
+      neutral.scheduleCapacity.id,
+      scenario.target.scheduleCapacity.id,
+    ];
+    const accepted: string[] = [];
+
+    for (const [index, candidateId] of candidateIds.entries()) {
+      const result = await scenario.reassignTo(candidateId, {
+        sessionKey: `invariante.${index}`,
+      });
+
+      expect(result).not.toBeInstanceOf(Response);
+
+      if ((result as { status: string }).status === "success") {
+        accepted.push(candidateId);
+      }
+
+      // Put the choreography back where it started, so each candidate is asked
+      // of the same assignment the loader was asked of.
+      await db
+        .update(choreographies)
+        .set({
+          scheduleCapacityId: original?.scheduleCapacityId ?? null,
+          scheduleId: original?.scheduleId ?? null,
+        })
+        .where(eq(choreographies.id, scenario.choreography.id));
+    }
+
+    expect(new Set(accepted)).toEqual(offeredIds);
+  });
+
+  test("keeps an assignment that fell outside compatibility even when every alternative reprices", async () => {
+    const scenario = await createScheduleCapacityScenario({
+      academyName: "Academia Cronograma Filtrado Deriva",
+      slug: "cronograma.filtrado.deriva",
+    });
+    await insertSoloPrice({ amount: 10000, eventId: scenario.event.id });
+    await insertSoloPrice({
+      amount: 20000,
+      eventId: scenario.event.id,
+      scheduleId: scenario.target.schedule.id,
+    });
+    await insertSoloPrice({
+      amount: 20000,
+      eventId: scenario.event.id,
+      scheduleId: scenario.catalog.schedule.id,
+    });
+    await createSelectedPriceInscriptionForTest({
+      academyId: scenario.owner.academyId,
+      allocatedAmount: 1000,
+      choreographyId: scenario.choreography.id,
+      eventId: scenario.event.id,
+    });
+    // The assignment drifts to a capacity of another modality: it is outside
+    // compatibility *and* would reprice if it were an alternative, and it still
+    // has to stay in the select rather than leave it empty.
+    const foreignModality = await createModalityRecord({
+      eventId: scenario.event.id,
+      name: "Urbano",
+    });
+    const drifted = await createScheduleWithSoloCapacity({
+      eventId: scenario.event.id,
+      modalityId: foreignModality.id,
+    });
+    await db
+      .update(choreographies)
+      .set({
+        scheduleCapacityId: drifted.scheduleCapacity.id,
+        scheduleId: null,
+      })
+      .where(eq(choreographies.id, scenario.choreography.id));
+
+    const detail = await loadDetail({
+      choreographyId: scenario.choreography.id,
+      email: "admin.coreografias.cronograma.filtrado.deriva@example.com",
+      role: "admin",
+    });
+
+    expect(detail.scheduleCapacity.options.map((option) => option.id)).toEqual([
+      drifted.scheduleCapacity.id,
+    ]);
+    // The assignment is in the select for visibility, not as a destination: it
+    // is not an alternative, so the field stays read-only.
+    expect(detail.scheduleCapacity.canReassign).toBe(false);
+  });
+
+  // The #48 shape, and the majority of the fleet: money on a general row, past
+  // its deposit. The price is frozen against that row whatever schedule the
+  // choreography sits on, so the move cannot touch a peso.
+  test("reassigns a frozen inscription that holds a general price row", async () => {
+    const scenario = await createScheduleCapacityScenario({
+      academyName: "Academia Cronograma Congelada General",
+      slug: "cronograma.congelada.general",
+    });
+    const generalPrice = await insertSoloPrice({
+      amount: 10000,
+      eventId: scenario.event.id,
+    });
+    // A dearer row on the destination, which the move would ride if the price
+    // were still live.
+    await insertSoloPrice({
+      amount: 20000,
+      eventId: scenario.event.id,
+      scheduleId: scenario.target.schedule.id,
+    });
+    await createSelectedPriceInscriptionForTest({
+      academyId: scenario.owner.academyId,
+      allocatedAmount: 3000,
+      choreographyId: scenario.choreography.id,
+      eventId: scenario.event.id,
+      selectedPriceId: generalPrice.id,
+    });
+
+    const detail = await loadDetail({
+      choreographyId: scenario.choreography.id,
+      email:
+        "admin.coreografias.cronograma.congelada.general.detalle@example.com",
+      role: "admin",
+    });
+    // Frozen against a general row: the dearer destination cannot reach it, so
+    // the option is not filtered out and the field opens with money on the
+    // choreography, which the blanket block used to close outright.
+    expect(
+      detail.scheduleCapacity.options.map((option) => option.id),
+    ).toContain(scenario.target.scheduleCapacity.id);
+    expect(detail.scheduleCapacity.canReassign).toBe(true);
+
+    const result = await scenario.reassignTo(
+      scenario.target.scheduleCapacity.id,
+    );
+
+    expect(result).toMatchObject({ status: "success" });
+    await expect(scenario.readAssignment()).resolves.toEqual({
+      scheduleCapacityId: scenario.target.scheduleCapacity.id,
+      scheduleId: scenario.target.schedule.id,
+    });
+  });
+
+  test("blocks a reassignment whose destination price row is pinned to the schedule it leaves", async () => {
+    const scenario = await createScheduleCapacityScenario({
+      academyName: "Academia Cronograma Congelada Fijada",
+      slug: "cronograma.congelada.fijada",
+    });
+    // The same amount on both sides: only the pinning of the stored row makes
+    // this move refusable, and re-pointing it is exactly what the freeze
+    // promises not to do.
+    const pinnedPrice = await insertSoloPrice({
+      amount: 10000,
+      eventId: scenario.event.id,
+      scheduleId: scenario.catalog.schedule.id,
+    });
+    await insertSoloPrice({
+      amount: 10000,
+      eventId: scenario.event.id,
+      scheduleId: scenario.target.schedule.id,
+    });
+    await createSelectedPriceInscriptionForTest({
+      academyId: scenario.owner.academyId,
+      allocatedAmount: 3000,
+      choreographyId: scenario.choreography.id,
+      eventId: scenario.event.id,
+      selectedPriceId: pinnedPrice.id,
+    });
+
+    const result = await scenario.reassignTo(
+      scenario.target.scheduleCapacity.id,
+    );
+
+    expect(result).toMatchObject({ status: "error" });
+    await expect(scenario.readAssignment()).resolves.toEqual({
+      scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
+      scheduleId: null,
+    });
+    const inscription = await db.query.choreographyDancers.findFirst({
+      columns: { selectedPriceId: true },
+      where: eq(choreographyDancers.choreographyId, scenario.choreography.id),
+    });
+    expect(inscription?.selectedPriceId).toBe(pinnedPrice.id);
   });
 
   test("reassigns when the inscriptions carry no deposit snapshot", async () => {
@@ -1038,16 +1359,10 @@ describe("administrative choreography detail server", () => {
     });
   });
 
-  test("shows the frozen-price blocker to auditors as well", async () => {
-    const scenario = await createScheduleCapacityScenario({
+  test("shows the price blocker to auditors as well", async () => {
+    const scenario = await createPriceDivergentScheduleScenario({
       academyName: "Academia Cronograma Señada Auditor",
       slug: "cronograma.senada.auditor",
-    });
-    await createSelectedPriceInscriptionForTest({
-      academyId: scenario.owner.academyId,
-      allocatedAmount: 3000,
-      choreographyId: scenario.choreography.id,
-      eventId: scenario.event.id,
     });
 
     const detail = await loadDetail({
@@ -1058,7 +1373,67 @@ describe("administrative choreography detail server", () => {
 
     expect(
       detail.scheduleCapacity.blockers.map((blocker) => blocker.code),
-    ).toEqual(["frozen-price"]);
+    ).toEqual(["no-price-preserving-option"]);
+  });
+
+  test("announces the filter as partial when an alternative keeps the price", async () => {
+    const { neutral, ...scenario } =
+      await createPartiallyFilteredScheduleScenario({
+        academyName: "Academia Cronograma Parcial",
+        slug: "cronograma.parcial",
+      });
+
+    const detail = await loadDetail({
+      choreographyId: scenario.choreography.id,
+      email: "admin.coreografias.cronograma.parcial.detalle@example.com",
+      role: "admin",
+    });
+
+    // The field stays open: one alternative survived the filter.
+    expect(detail.scheduleCapacity.canReassign).toBe(true);
+    expect(detail.scheduleCapacity.blockers).toEqual([
+      {
+        code: "price-filtered-options",
+        label:
+          "Hay inscripciones con dinero asignado, así que solo se ofrecen los cronogramas que mantienen el precio.",
+      },
+    ]);
+    // The alert names no destination and no amount: the select already lists
+    // what is on offer, and an enumeration would go stale.
+    expect(detail.scheduleCapacity.blockers[0]?.label).not.toContain("20.000");
+    expect(
+      detail.scheduleCapacity.options.map((option) => option.id).sort(),
+    ).toEqual(
+      [
+        scenario.catalog.scheduleCapacity.id,
+        neutral.scheduleCapacity.id,
+      ].sort(),
+    );
+  });
+
+  test("announces nothing when the money holds its price on every option", async () => {
+    const scenario = await createScheduleCapacityScenario({
+      academyName: "Academia Cronograma Sin Divergencia",
+      slug: "cronograma.sin.divergencia",
+    });
+    await insertSoloPrice({ amount: 10000, eventId: scenario.event.id });
+    await createSelectedPriceInscriptionForTest({
+      academyId: scenario.owner.academyId,
+      allocatedAmount: 1000,
+      choreographyId: scenario.choreography.id,
+      eventId: scenario.event.id,
+    });
+
+    const detail = await loadDetail({
+      choreographyId: scenario.choreography.id,
+      email: "admin.coreografias.cronograma.sin.divergencia@example.com",
+      role: "admin",
+    });
+
+    // Money alone says nothing any more: no option would reprice it, so there
+    // is nothing to announce.
+    expect(detail.scheduleCapacity.blockers).toEqual([]);
+    expect(detail.scheduleCapacity.canReassign).toBe(true);
   });
 
   test("blocks auditors from reassigning the schedule capacity", async () => {
@@ -1462,6 +1837,30 @@ async function createSubmodalityRecord(input: {
   return submodality;
 }
 
+/**
+ * A `solo` price with no payment deadline, so it is the row that applies
+ * whatever day the suite runs on. Pinned to a schedule when one is given.
+ */
+async function insertSoloPrice(input: {
+  amount: number;
+  eventId: string;
+  scheduleId?: string;
+}) {
+  const [price] = await db
+    .insert(prices)
+    .values({
+      amount: input.amount,
+      eventId: input.eventId,
+      groupType: "solo",
+      name: `Precio Solo ${input.amount} ${input.scheduleId ?? "general"}`,
+      paymentDeadline: null,
+      scheduleId: input.scheduleId ?? null,
+    })
+    .returning();
+
+  return price;
+}
+
 async function createScheduleWithSoloCapacity(input: {
   capacity?: number;
   eventId: string;
@@ -1546,6 +1945,52 @@ async function createScheduleCapacityScenario(input: {
     },
     target,
   };
+}
+
+/**
+ * The reassignment scenario in its repricing shape: money below its deposit, so
+ * the price is still live, and the only alternative carrying a dearer row of
+ * its own, so moving there is what changes what the inscription is charged.
+ */
+async function createPriceDivergentScheduleScenario(input: {
+  academyName: string;
+  slug: string;
+}) {
+  const scenario = await createScheduleCapacityScenario(input);
+  await insertSoloPrice({ amount: 10000, eventId: scenario.event.id });
+  await insertSoloPrice({
+    amount: 20000,
+    eventId: scenario.event.id,
+    scheduleId: scenario.target.schedule.id,
+  });
+  // Below its deposit (30 % of 10000), so the stored row is not authoritative
+  // and the destination's own row is what it would be charged at.
+  await createSelectedPriceInscriptionForTest({
+    academyId: scenario.owner.academyId,
+    allocatedAmount: 1000,
+    choreographyId: scenario.choreography.id,
+    eventId: scenario.event.id,
+  });
+
+  return scenario;
+}
+
+/**
+ * The same shape plus a third compatible schedule with no row of its own: it
+ * rides the general row the assignment does, so it survives the filter and
+ * leaves something to move to.
+ */
+async function createPartiallyFilteredScheduleScenario(input: {
+  academyName: string;
+  slug: string;
+}) {
+  const scenario = await createPriceDivergentScheduleScenario(input);
+  const neutral = await createScheduleWithSoloCapacity({
+    eventId: scenario.event.id,
+    modalityId: scenario.catalog.modality.id,
+  });
+
+  return { ...scenario, neutral };
 }
 
 function scheduleCapacityFormData(optionId: string) {

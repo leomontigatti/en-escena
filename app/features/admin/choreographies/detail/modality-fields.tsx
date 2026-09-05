@@ -7,13 +7,10 @@ import {
 } from "@/components/shared/read-only-field";
 import { SelectField } from "@/components/shared/select-field";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  isEveryScheduleCapacityOptionFull,
-  toScheduleCapacitySelectOptions,
-} from "@/lib/choreographies/schedule-capacity-options";
+import { toScheduleCapacitySelectOptions } from "@/lib/choreographies/schedule-capacity-options";
 
 import {
-  everyModalityScheduleCapacityFullMessage,
+  getModalityScheduleCapacityDeadEndMessage,
   getModalitySelectOptions,
   isModalityScheduleCapacityLocked,
 } from "./modality-form-state";
@@ -154,15 +151,18 @@ export function ModalityScheduleCapacityField({
   resolution,
 }: ResolvedModalityFieldProps) {
   const options = resolution.scheduleCapacity.options;
+  // An empty set and a set with no room are the same dead end on screen: an
+  // empty select says nothing, so the reason takes its place. Emptiness is
+  // reachable with the modality offered, because the price filter removes
+  // capacities while the modality select stays structural.
+  const deadEndMessage = getModalityScheduleCapacityDeadEndMessage(options);
 
-  if (isEveryScheduleCapacityOptionFull(options)) {
+  if (deadEndMessage !== null) {
     return (
       <Alert variant="warning">
         <TriangleAlert aria-hidden="true" />
         <AlertTitle>No hay cupo de cronograma disponible</AlertTitle>
-        <AlertDescription>
-          {everyModalityScheduleCapacityFullMessage}
-        </AlertDescription>
+        <AlertDescription>{deadEndMessage}</AlertDescription>
       </Alert>
     );
   }

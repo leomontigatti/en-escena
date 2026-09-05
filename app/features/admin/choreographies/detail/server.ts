@@ -10,7 +10,6 @@ import {
   requireInternalUser,
 } from "@/lib/auth/internal-access.server";
 import { choreographyHasComprobantes } from "@/lib/comprobantes/comprobantes.server";
-import { hasFrozenPriceInscription } from "@/lib/finances/choreography-frozen-price-guard.server";
 import { updateAdministrativeChoreographyRoster } from "@/lib/choreographies/choreography-roster-admin.server";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import {
@@ -34,7 +33,7 @@ import { updateChoreographyExperienceLevel } from "./experience-level.server";
 import {
   listChoreographyModalityOptions,
   resolveChoreographyModalityCorrection,
-  toChoreographyModalityBlockers,
+  listChoreographyModalityBlockers,
   updateChoreographyModality,
   type ChoreographyModalityOption,
   type ChoreographyModalityResolutionResult,
@@ -139,7 +138,7 @@ export async function loadChoreographyDetailRouteData(input: {
     availableProfessors,
     submodalityOptions,
     scheduleCapacityOptions,
-    hasFrozenPrice,
+    modalityBlockers,
     modalityOptions,
   ] = await Promise.all([
     getChoreographyDeleteBlockers(choreography),
@@ -156,10 +155,20 @@ export async function loadChoreographyDetailRouteData(input: {
       choreography,
       eventId: selectedEventId,
     }),
-    hasFrozenPriceInscription(choreography.id),
+    listChoreographyModalityBlockers({
+      choreography,
+      eventId: selectedEventId,
+    }),
     listChoreographyModalityOptions(selectedEventId),
   ]);
-  const scheduleCapacityBlockers = toScheduleCapacityBlockers(hasFrozenPrice);
+  // Both alerts are chosen from what the price does to a destination, and no
+  // longer from one blanket money read shared between them: the capacity one
+  // off the options the filter left, the modality one off the schedules a
+  // correction could land on.
+  const scheduleCapacityBlockers = toScheduleCapacityBlockers({
+    hasPriceDivergentOption: scheduleCapacityOptions.hasPriceDivergentOption,
+    hasSelectableAlternative: scheduleCapacityOptions.hasSelectableAlternative,
+  });
 
   return {
     availableDancers,
@@ -182,10 +191,10 @@ export async function loadChoreographyDetailRouteData(input: {
       }),
     },
     modality: {
-      // The deposit does not close the field: it is listed as a blocker-in-waiting,
-      // because it only rejects the save when the correction would move the
-      // schedule.
-      blockers: toChoreographyModalityBlockers(hasFrozenPrice),
+      // The price does not close the field: it is listed as a blocker-in-waiting,
+      // because it only rejects the save when the correction would land on a
+      // schedule that reprices the money.
+      blockers: modalityBlockers,
       canCorrect: canCorrectChoreographyModality({
         canEdit,
         hasPresentation: choreography.hasPresentation,
@@ -197,15 +206,16 @@ export async function loadChoreographyDetailRouteData(input: {
       // another cause: the page's alert lists them for the auditor too.
       blockers: scheduleCapacityBlockers,
       // Reassigning is an administrative correction: `admin` only, never with a
-      // presentation, never with a frozen `Seña`, and only when there is more
-      // than one compatible capacity to choose between. A choreography already
-      // presented has its schedule as closed as its roster.
+      // presentation, and only when the options left something to move to. A
+      // choreography already presented has its schedule as closed as its
+      // roster. Money is not consulted here: it already spoke by omitting the
+      // destinations it would reprice, and asking it twice would close the
+      // field on a choreography whose surviving alternatives are all valid.
       canReassign: canReassignScheduleCapacity({
-        blockers: scheduleCapacityBlockers,
         canEdit,
-        hasMultipleCompatibleOptions:
-          scheduleCapacityOptions.hasMultipleCompatibleOptions,
         hasPresentation: choreography.hasPresentation,
+        hasSelectableAlternative:
+          scheduleCapacityOptions.hasSelectableAlternative,
       }),
       options: scheduleCapacityOptions.options.map((option) => ({
         id: option.id,

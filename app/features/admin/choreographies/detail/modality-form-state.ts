@@ -1,4 +1,7 @@
-import { isEveryScheduleCapacityOptionFull } from "@/lib/choreographies/schedule-capacity-options";
+import {
+  isEveryScheduleCapacityOptionFull,
+  type ScheduleCapacitySelectOption,
+} from "@/lib/choreographies/schedule-capacity-options";
 
 import type {
   ChoreographyModalityOption,
@@ -37,6 +40,34 @@ const noCompatibleScheduleOptionSuffix = " (sin cronograma compatible)";
  */
 export const everyModalityScheduleCapacityFullMessage =
   "Los cronogramas compatibles con esta modalidad ya no tienen lugar. Elegí otra modalidad para corregirla.";
+
+/**
+ * The other dead end, and the one the price filter can now reach with the
+ * modality still offered: the destination accepts the choreography, and every
+ * capacity it has either does not exist for its group type or would reprice an
+ * inscription with money assigned. The modality select stays structural —money
+ * never greys a modality— so this is where that combination is explained.
+ */
+export const noModalityScheduleCapacityMessage =
+  "Ningún cronograma compatible con esta modalidad está disponible para esta coreografía. Elegí otra modalidad para corregirla.";
+
+/**
+ * Why the capacity select has nothing to offer, or `null` when it does. An
+ * empty set and a set with no room are the same dead end for whoever is looking
+ * at it, so both are answered in one place: the view replaces the select with
+ * the reason and the `Guardar` stays closed.
+ */
+export function getModalityScheduleCapacityDeadEndMessage(
+  options: readonly ScheduleCapacitySelectOption[],
+) {
+  if (options.length === 0) {
+    return noModalityScheduleCapacityMessage;
+  }
+
+  return isEveryScheduleCapacityOptionFull(options)
+    ? everyModalityScheduleCapacityFullMessage
+    : null;
+}
 
 /**
  * Every modality of the event, with the assigned one included rather than
@@ -161,10 +192,11 @@ export function canSubmitModalityCorrection(input: CanSubmitModalityInput) {
 
   // With no eligible capacity there is no possible correction: the select has
   // already been replaced by the reason, so leaving the button live would ask
-  // for a field that is not there.
+  // for a field that is not there. Same rule the view renders, read once.
   if (
-    resolution.scheduleCapacity.status === "none" ||
-    isEveryScheduleCapacityOptionFull(resolution.scheduleCapacity.options)
+    getModalityScheduleCapacityDeadEndMessage(
+      resolution.scheduleCapacity.options,
+    ) !== null
   ) {
     return false;
   }

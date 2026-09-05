@@ -19,8 +19,13 @@ import {
   getEventBases,
   resolveEventBasesScheduleModalityIds,
   resolveEventBasesScheduleOptions,
+  resolveEventBasesCorrectableScheduleIds,
 } from "@/lib/events/bases.server";
 import { isExperienceLevel } from "@/lib/events/experience-levels";
+import {
+  loadPriceDivergenceCheck,
+  partitionPriceDivergentOptions,
+} from "@/lib/finances/choreography-frozen-price-guard.server";
 
 import type { ChoreographyDetail } from "./server";
 import {
@@ -73,6 +78,13 @@ type ModalityCorrectionContext = {
   classification: ReturnType<
     typeof resolveChoreographyClassificationForResolvedDancers
   >;
+  /**
+   * The capacities compatible with the destination modality that were left out
+   * because they would reprice a money-holding inscription. The save re-derives
+   * its reason from them: an id the preview offered before an allocation landed
+   * is a price problem, not an invalid selection.
+   */
+  priceDivergentScheduleOptionIds: string[];
   scheduleOptions: ResolvedModalityScheduleOption[];
   scheduleStatus: "auto" | "multiple" | "none";
   submodalityOptions: Array<{ id: string; name: string }>;
@@ -96,23 +108,54 @@ const divergedResolutionMessage =
  * wrong field.
  */
 const frozenPriceModalityMessage =
-  "No se puede cambiar la modalidad: el cronograma se movería y hay inscripciones con dinero asignado.";
+  "No se puede cambiar la modalidad: el cronograma se movería y cambiaría el precio de inscripciones con dinero asignado.";
 
 /**
- * The deposit is reported as a blocker-in-waiting, not as a closed field: a
- * destination modality that keeps the current schedule is financially inert
- * and stays available. It is enumerated for the `auditor` too.
+ * The price is reported as a blocker-in-waiting, not as a closed field: a
+ * destination modality whose capacity holds the price is saved like any other.
+ * It is enumerated for the `auditor` too.
+ *
+ * Phrased around the price and not around the schedule moving, which is what
+ * keeps it from reading as a second copy of the capacity alert: the schedule
+ * moving is no longer what the save refuses, the price changing is.
  */
-const frozenPriceBlocker: ChoreographyModalityBlocker = {
-  code: "frozen-price",
+const priceChangeBlocker: ChoreographyModalityBlocker = {
+  code: "price-change",
   label:
-    "Solo se puede corregir la modalidad si el cronograma no se mueve: hay inscripciones con dinero asignado.",
+    "Solo se puede corregir la modalidad si el cronograma no cambia de precio: hay inscripciones con dinero asignado.",
 };
 
-export function toChoreographyModalityBlockers(
-  hasFrozenPrice: boolean,
-): ChoreographyModalityBlocker[] {
-  return hasFrozenPrice ? [frozenPriceBlocker] : [];
+/**
+ * Whether any correction could land on a schedule that reprices a
+ * money-holding inscription — asked of every schedule some modality of the
+ * event accepts, not of the ones the current modality accepts, because the
+ * correction is precisely what changes which modality's schedules are in play.
+ *
+ * Money alone is not the question any more: a choreography whose inscriptions
+ * are all frozen against general rows can be corrected into any modality
+ * without a peso moving, and announcing a caveat there is announcing nothing.
+ */
+export async function listChoreographyModalityBlockers(input: {
+  choreography: ChoreographyDetail;
+  eventId: string;
+}): Promise<ChoreographyModalityBlocker[]> {
+  const [scheduleIds, diverges] = await Promise.all([
+    resolveEventBasesCorrectableScheduleIds(input.eventId),
+    loadPriceDivergenceCheck({
+      choreographyId: input.choreography.id,
+      executor: db,
+    }),
+  ]);
+  const hasPriceDivergentSchedule = scheduleIds.some((scheduleId) =>
+    diverges({
+      // Modality is not part of the price key: the correction moves the
+      // schedule alone and keeps the group type the roster gives.
+      groupType: input.choreography.groupType,
+      scheduleId,
+    }),
+  );
+
+  return hasPriceDivergentSchedule ? [priceChangeBlocker] : [];
 }
 
 /**
@@ -310,17 +353,22 @@ export async function updateChoreographyModality(input: {
     };
   }
 
+  const requestedScheduleOptionId = readNonEmptyFormValue(
+    input.formData,
+    modalityFieldNames.scheduleCapacityId,
+  );
   const selectedSchedule = context.scheduleOptions.find(
-    (option) =>
-      option.id ===
-      readNonEmptyFormValue(
-        input.formData,
-        modalityFieldNames.scheduleCapacityId,
-      ),
+    (option) => option.id === requestedScheduleOptionId,
   );
 
   if (!selectedSchedule) {
-    return { message: invalidScheduleEntryMessage, status: "error" };
+    return {
+      message: toMissingScheduleMessage({
+        context,
+        requestedScheduleOptionId,
+      }),
+      status: "error",
+    };
   }
 
   const result = await db.transaction(async (tx) => {
@@ -335,6 +383,9 @@ export async function updateChoreographyModality(input: {
     const move = movesScheduleCapacity
       ? await guardAndLockScheduleCapacityMove({
           choreographyId: input.choreography.id,
+          // Modality is not part of the price key, so the correction moves the
+          // schedule alone and keeps the choreography's group type.
+          destinationGroupType: input.choreography.groupType,
           scheduleCapacityId: selectedSchedule.scheduleCapacityId,
           scheduleId: selectedSchedule.scheduleId,
           tx,
@@ -395,30 +446,104 @@ async function resolveModalityCorrectionContext(input: {
     eventBases: input.eventBases,
     modalityId: input.modalityId,
   });
-  const scheduleResolution = await resolveEventBasesScheduleOptions({
-    eventId: input.eventId,
-    groupType: classification.groupType,
-    modalityId: input.modalityId,
-  });
+  const [scheduleResolution, diverges] = await Promise.all([
+    resolveEventBasesScheduleOptions({
+      eventId: input.eventId,
+      groupType: classification.groupType,
+      modalityId: input.modalityId,
+    }),
+    loadPriceDivergenceCheck({
+      choreographyId: input.choreography.id,
+      executor: db,
+    }),
+  ]);
+  // The same omission the standalone reassignment makes, for the same reason: a
+  // capacity that would reprice a money-holding inscription is one the save
+  // refuses, and greying it would show a disabled option whose own label says
+  // it has room.
+  //
+  // Priced against the **stored** group type, not the classification's, even
+  // though compatibility above is resolved against the classification's: the
+  // correction writes no `group_type`, so the price key the move lands on keeps
+  // the one the column already holds — and it is the one the guard inside the
+  // transaction asks about. Reading the two from different sources would let
+  // the offered set and the guard disagree wherever they drift, which is the
+  // one thing this filter exists to prevent.
+  const { divergentIds, selectable: selectableOptions } =
+    partitionPriceDivergentOptions({
+      assignedOptionId: input.choreography.scheduleCapacityId,
+      diverges,
+      groupType: input.choreography.groupType,
+      options: scheduleResolution.options,
+    });
 
   return {
     classification,
+    priceDivergentScheduleOptionIds: divergentIds,
     scheduleOptions: await withScheduleCapacityOccupancy({
       // Same exclusion as the lock: the choreography being corrected does not
       // count against the capacity it already occupies.
       excludeChoreographyId: input.choreography.id,
-      options: scheduleResolution.options.map((option) => ({
+      options: selectableOptions.map((option) => ({
         id: option.id,
         label: formatScheduleDateTime(option.schedule),
         scheduleCapacityId: option.scheduleCapacityId,
         scheduleId: option.scheduleId,
       })),
     }),
-    scheduleStatus: scheduleResolution.status,
+    // Read off what survived rather than carried over from the resolution: a
+    // modality left with a single holding-the-price capacity is `auto`, and one
+    // left with none is the dead end the view replaces with its reason.
+    scheduleStatus: toScheduleCapacityStatus(selectableOptions.length),
     submodalityOptions: input.eventBases.submodalities
       .filter((submodality) => submodality.modalityId === input.modalityId)
       .map((submodality) => ({ id: submodality.id, name: submodality.name })),
   };
+}
+
+/**
+ * Why the correction names no capacity of the destination modality. A capacity
+ * omitted for its price is *absent* from the set rather than invalid, so the
+ * reason is re-derived instead of sending the administrator to a field they did
+ * not get wrong; and when the omissions emptied the set the select was replaced
+ * by its dead-end alert, so the form carries no id at all and the price is
+ * still the reason.
+ */
+function toMissingScheduleMessage(input: {
+  context: ModalityCorrectionContext;
+  requestedScheduleOptionId: string | null;
+}) {
+  const divergentIds = input.context.priceDivergentScheduleOptionIds;
+
+  // The select was replaced by its dead-end alert, so the form carries no id at
+  // all and the omissions are the only account of why there was nothing to send.
+  if (input.context.scheduleOptions.length === 0) {
+    return divergentIds.length > 0
+      ? frozenPriceModalityMessage
+      : invalidScheduleEntryMessage;
+  }
+
+  if (
+    input.requestedScheduleOptionId !== null &&
+    divergentIds.includes(input.requestedScheduleOptionId)
+  ) {
+    return frozenPriceModalityMessage;
+  }
+
+  return invalidScheduleEntryMessage;
+}
+
+/**
+ * The same three states `resolveCompatibleScheduleCapacities` reports, recomputed
+ * over the capacities that survived the price filter: nothing to choose, one
+ * that arrives preselected, or a real choice.
+ */
+function toScheduleCapacityStatus(count: number) {
+  if (count === 0) {
+    return "none" as const;
+  }
+
+  return count === 1 ? ("auto" as const) : ("multiple" as const);
 }
 
 /**
