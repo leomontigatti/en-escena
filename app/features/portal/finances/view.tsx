@@ -4,7 +4,7 @@ import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import {
   ClientDataTable,
   type DataTableColumn,
-  type DataTableFacetedFilter,
+  type DataTableFacetedFiltersOf,
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { MetricCard } from "@/components/shared/metric-card";
@@ -28,7 +28,11 @@ type PortalAcademyFinancesLoaderData = Awaited<
 type ChoreographyFinanceRow =
   PortalAcademyFinancesLoaderData["choreographyFinanceRows"][number];
 
-const choreographyFinanceFacetedFilters: DataTableFacetedFilter[] = [
+export const portalFinanceFacetedFilterIds = ["estado"] as const;
+
+const choreographyFinanceFacetedFilters: DataTableFacetedFiltersOf<
+  typeof portalFinanceFacetedFilterIds
+> = [
   {
     id: "estado",
     label: "Estado",

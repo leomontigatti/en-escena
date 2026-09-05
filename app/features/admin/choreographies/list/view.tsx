@@ -146,9 +146,6 @@ function ChoreographyTable({ loaderData }: { loaderData: LoaderData }) {
       rows={loaderData.choreographies}
       columns={choreographyColumns}
       getRowKey={(choreography) => choreography.id}
-      pageParamName="pagina"
-      searchParamName="busqueda"
-      sortParamName="orden"
       searchPlaceholder="Buscar coreografía por número, nombre o academia"
       initialSearchValue={loaderData.filters.query}
       facetedFilters={buildChoreographyFacetedFilters(loaderData)}

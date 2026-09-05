@@ -1,4 +1,5 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
+import { createDataTableShouldRevalidate } from "@/components/shared/data-table-revalidation";
 import {
   handleChoreographyFinanceAction,
   loadChoreographyFinanceDetail,
@@ -49,6 +50,8 @@ export async function action({ request, params }: Route.ActionArgs) {
     params,
   });
 }
+
+export const shouldRevalidate = createDataTableShouldRevalidate();
 
 function ChoreographyFinanceDetailRouteView({
   loaderData,

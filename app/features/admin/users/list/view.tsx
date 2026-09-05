@@ -151,9 +151,6 @@ function UsersTable({
       rows={users}
       columns={columns}
       getRowKey={(savedUser) => savedUser.id}
-      pageParamName="pagina"
-      searchParamName="busqueda"
-      sortParamName="orden"
       searchPlaceholder="Buscar usuario por nombre o email"
       initialSearchValue={filters.query}
       facetedFilters={[

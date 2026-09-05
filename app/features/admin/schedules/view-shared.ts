@@ -4,6 +4,7 @@ import type {
   ActionData,
   ScheduleActionValues,
 } from "@/lib/admin/events/bases-action/shared.server";
+import type { DataTableFacetedFiltersOf } from "@/components/shared/data-table";
 import type { ScheduleListItem } from "@/lib/events/bases.server";
 import { groupTypeOptions } from "@/lib/events/group-types";
 import { requiredFieldMessage } from "@/lib/shared/forms";
@@ -77,9 +78,14 @@ export const emptySelection: string[] = [];
 export const emptyScheduleCapacities: ScheduleListItem["scheduleCapacities"] =
   [];
 
-export function buildScheduleFacetedFilters(schedules: ScheduleListItem[]) {
+export const scheduleFacetedFilterIds = ["modalidad"] as const;
+
+export function buildScheduleFacetedFilters(
+  schedules: ScheduleListItem[],
+): DataTableFacetedFiltersOf<typeof scheduleFacetedFilterIds> {
   return [
     {
+      id: "modalidad",
       label: "Modalidad",
       options: getScheduleModalityOptions(schedules),
     },

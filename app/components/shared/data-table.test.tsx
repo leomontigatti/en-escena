@@ -2,8 +2,8 @@
 
 import { act } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { MemoryRouter } from "react-router";
-import { afterEach, describe, expect, test } from "vitest";
+import { createMemoryRouter, MemoryRouter, RouterProvider } from "react-router";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import {
   buildDataTableFilterHref,
@@ -14,7 +14,10 @@ import {
   ServerDataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
-import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
+import {
+  createReactDomTestRenderer,
+  setInputValue,
+} from "@/lib/test-support/react-dom";
 
 type Row = {
   id: string;
@@ -76,6 +79,7 @@ describe("DataTable", () => {
           textFilterColumnId="name"
           facetedFilters={[
             {
+              id: "estado",
               label: "Estado",
               options: [
                 { label: "Activo", value: "active" },
@@ -100,7 +104,7 @@ describe("DataTable", () => {
     const markup = renderToStaticMarkup(
       <MemoryRouter
         initialEntries={[
-          "/administracion/profesores?q=Ana&estado=archivados&page=2",
+          "/administracion/profesores?busqueda=Ana&estado=archivados&pagina=2",
         ]}
       >
         <ServerDataTable
@@ -147,18 +151,18 @@ describe("DataTable", () => {
     expect(markup).toContain('value="Ana"');
     expect(markup).toContain('aria-label="Filtros: Estado: Archivados"');
     expect(markup).toContain(
-      'href="/administracion/profesores?q=Ana&amp;estado=archivados&amp;orden=name%3Adesc"',
+      'href="/administracion/profesores?busqueda=Ana&amp;estado=archivados&amp;orden=name%3Adesc"',
     );
     expect(markup).toContain(">1<");
     expect(markup).toContain("Actualizando");
     expect(markup).toContain(
-      'href="/administracion/profesores?q=Ana&amp;estado=archivados"',
+      'href="/administracion/profesores?busqueda=Ana&amp;estado=archivados"',
     );
     expect(markup).toContain(
-      'href="/administracion/profesores?q=Ana&amp;estado=archivados&amp;page=2"',
+      'href="/administracion/profesores?busqueda=Ana&amp;estado=archivados&amp;pagina=2"',
     );
     expect(markup).toContain(
-      'href="/administracion/profesores?q=Ana&amp;estado=archivados&amp;page=3"',
+      'href="/administracion/profesores?busqueda=Ana&amp;estado=archivados&amp;pagina=3"',
     );
   });
 
@@ -292,20 +296,369 @@ describe("DataTable", () => {
   });
 });
 
+describe("ClientDataTable page in the address bar", () => {
+  const renderer = createReactDomTestRenderer();
+
+  afterEach(renderer.cleanup);
+
+  test("records the clicked page in the address bar without piling up history", async () => {
+    const router = createListRouter("/administracion/finanzas/academy_1");
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    expect(getRenderedRowNames()).toContain("Coreografía 01");
+
+    await clickElement(getPaginationLink("2"));
+
+    expect(router.state.location.search).toBe("?pagina=2");
+    expect(getRenderedRowNames()).toContain("Coreografía 11");
+    expect(getRenderedRowNames()).not.toContain("Coreografía 01");
+    expect(router.state.preventScrollReset).toBe(true);
+
+    await act(async () => {
+      await router.navigate(-1);
+    });
+
+    expect(router.state.location.pathname).toBe("/inicio");
+
+    await act(async () => {
+      await router.navigate(1);
+    });
+
+    expect(router.state.location.pathname).toBe(
+      "/administracion/finanzas/academy_1",
+    );
+    expect(router.state.location.search).toBe("?pagina=2");
+    expect(getRenderedRowNames()).toContain("Coreografía 11");
+  });
+
+  test("renders the page named in the address bar", async () => {
+    const router = createListRouter(
+      "/administracion/finanzas/academy_1?pagina=3",
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    expect(getRenderedRowNames()).toContain("Coreografía 21");
+    expect(getRenderedRowNames()).not.toContain("Coreografía 11");
+  });
+
+  test("resolves a page beyond the last one to page one", async () => {
+    const router = createListRouter(
+      "/administracion/finanzas/academy_1?pagina=9",
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    expect(router.state.location.search).toBe("");
+    expect(getRenderedRowNames()).toContain("Coreografía 01");
+  });
+
+  test("keeps the row selection while the reader pages", async () => {
+    const router = createListRouter("/administracion/finanzas/academy_1", {
+      selectableRows: true,
+    });
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    const [, firstRowCheckbox] = getRenderedCheckboxes();
+    await clickElement(firstRowCheckbox);
+
+    expect(getRenderedCheckboxes()[1].ariaChecked).toBe("true");
+
+    await clickElement(getPaginationLink("2"));
+    await clickElement(getPaginationLink("1"));
+
+    expect(router.state.location.search).toBe("");
+    expect(getRenderedCheckboxes()[1].ariaChecked).toBe("true");
+  });
+});
+
+describe("ClientDataTable search in the address bar", () => {
+  const renderer = createReactDomTestRenderer();
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  });
+
+  afterEach(() => {
+    renderer.cleanup();
+    vi.useRealTimers();
+  });
+
+  test("filters the rows immediately and records the search once typing stops", async () => {
+    const router = createListRouter("/administracion/finanzas/academy_1");
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await typeSearch("12");
+
+    expect(getRenderedRowNames()).toEqual(["Coreografía 12"]);
+    expect(router.state.location.search).toBe("");
+
+    await advanceSearchDebounce(299);
+
+    expect(router.state.location.search).toBe("");
+
+    await advanceSearchDebounce(1);
+
+    expect(router.state.location.search).toBe("?busqueda=12");
+    expect(getSearchInput().value).toBe("12");
+  });
+
+  test("replaces the history entry instead of pushing one", async () => {
+    const router = createListRouter("/administracion/finanzas/academy_1");
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await typeSearch("12");
+    await advanceSearchDebounce();
+
+    expect(router.state.location.search).toBe("?busqueda=12");
+
+    await act(async () => {
+      await router.navigate(-1);
+    });
+
+    expect(router.state.location.pathname).toBe("/inicio");
+  });
+
+  test("drops the page when the search changes", async () => {
+    const router = createListRouter(
+      "/administracion/finanzas/academy_1?pagina=2",
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await typeSearch("Coreografía");
+    await advanceSearchDebounce();
+
+    const params = new URLSearchParams(router.state.location.search);
+    expect(params.get("busqueda")).toBe("Coreografía");
+    expect(params.get("pagina")).toBeNull();
+  });
+
+  test("renders the search named in the address bar", async () => {
+    const router = createListRouter(
+      "/administracion/finanzas/academy_1?busqueda=12",
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    expect(getRenderedRowNames()).toEqual(["Coreografía 12"]);
+    expect(getSearchInput().value).toBe("12");
+  });
+
+  test("keeps the whitespace the reader typed after the search is recorded", async () => {
+    const router = createListRouter("/administracion/finanzas/academy_1");
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await typeSearch("Coreografía ");
+    await advanceSearchDebounce();
+
+    expect(router.state.location.search).toBe("?busqueda=Coreograf%C3%ADa");
+    expect(getSearchInput().value).toBe("Coreografía ");
+  });
+
+  test("removes the parameter when the reader clears the search", async () => {
+    const router = createListRouter(
+      "/administracion/finanzas/academy_1?busqueda=12",
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await typeSearch("");
+    await advanceSearchDebounce();
+
+    expect(router.state.location.search).toBe("");
+    expect(getRenderedRowNames()).toContain("Coreografía 01");
+  });
+});
+
+describe("ClientDataTable filters in the address bar", () => {
+  const renderer = createReactDomTestRenderer();
+
+  afterEach(renderer.cleanup);
+
+  test("records the selected filter in the address bar and returns to page one", async () => {
+    const router = createListRouter(
+      "/administracion/finanzas/academy_1?pagina=2",
+      {
+        facetedFilters: listFacetedFilters,
+      },
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await openFiltersDropdown();
+    await clickFilterOption("Archivado");
+
+    expect(router.state.location.search).toBe("?estado=archived");
+    expect(getRenderedRowNames()).toContain("Coreografía 02");
+    expect(getRenderedRowNames()).not.toContain("Coreografía 01");
+  });
+
+  test("renders the list filtered by the address bar with the control showing the selection", async () => {
+    const router = createListRouter(
+      "/administracion/finanzas/academy_1?estado=archived",
+      { facetedFilters: listFacetedFilters },
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    expect(getRenderedRowNames()).toContain("Coreografía 02");
+    expect(getRenderedRowNames()).not.toContain("Coreografía 01");
+    expect(getFiltersTrigger().getAttribute("aria-label")).toBe(
+      "Filtros: Estado: Archivado",
+    );
+  });
+
+  test("removes the parameter when the reader clears the filter", async () => {
+    const router = createListRouter(
+      "/administracion/finanzas/academy_1?estado=archived",
+      { facetedFilters: listFacetedFilters },
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await openFiltersDropdown();
+    await clickFilterOption("Limpiar filtros");
+
+    expect(router.state.location.search).toBe("");
+    expect(getRenderedRowNames()).toContain("Coreografía 01");
+  });
+
+  test("replaces the history entry instead of pushing one", async () => {
+    const router = createListRouter("/administracion/finanzas/academy_1", {
+      facetedFilters: listFacetedFilters,
+    });
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await openFiltersDropdown();
+    await clickFilterOption("Archivado");
+
+    expect(router.state.location.search).toBe("?estado=archived");
+
+    await act(async () => {
+      await router.navigate(-1);
+    });
+
+    expect(router.state.location.pathname).toBe("/inicio");
+  });
+
+  test("leaves the filter untouched while the reader pages", async () => {
+    const router = createListRouter(
+      "/administracion/finanzas/academy_1?busqueda=Coreograf%C3%ADa&estado=archived",
+      { facetedFilters: listFacetedFilters },
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await clickElement(getPaginationLink("2"));
+
+    const params = new URLSearchParams(router.state.location.search);
+    expect(params.get("estado")).toBe("archived");
+    expect(params.get("busqueda")).toBe("Coreografía");
+    expect(params.get("pagina")).toBe("2");
+  });
+
+  test("applies a view's initial filter values while the parameter is absent", async () => {
+    const router = createListRouter("/administracion/finanzas/academy_1", {
+      facetedFilters: listFacetedFilters,
+      initialFacetedFilterValues: { filters: { estado: "archived" } },
+    });
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    expect(getRenderedRowNames()).toContain("Coreografía 02");
+    expect(getRenderedRowNames()).not.toContain("Coreografía 01");
+    expect(getFiltersTrigger().getAttribute("aria-label")).toBe(
+      "Filtros: Estado: Archivado",
+    );
+  });
+});
+
+describe("ClientDataTable sort in the address bar", () => {
+  const renderer = createReactDomTestRenderer();
+
+  afterEach(renderer.cleanup);
+
+  test("records the clicked column and direction in the address bar", async () => {
+    const router = createListRouter("/administracion/finanzas/academy_1");
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await clickElement(getSortHeaderButton("Nombre"));
+
+    expect(router.state.location.search).toBe("?orden=name%3Aasc");
+    expect(getRenderedRowNames()[0]).toBe("Coreografía 01");
+  });
+
+  test("alternates ascending and descending on repeated clicks", async () => {
+    const router = createListRouter("/administracion/finanzas/academy_1");
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await clickElement(getSortHeaderButton("Nombre"));
+    expect(router.state.location.search).toBe("?orden=name%3Aasc");
+
+    await clickElement(getSortHeaderButton("Nombre"));
+    expect(router.state.location.search).toBe("?orden=name%3Adesc");
+    expect(getRenderedRowNames()[0]).toBe("Coreografía 25");
+
+    await clickElement(getSortHeaderButton("Nombre"));
+    expect(router.state.location.search).toBe("?orden=name%3Aasc");
+    expect(getRenderedRowNames()[0]).toBe("Coreografía 01");
+  });
+
+  test("renders the rows in the order named in the address bar", async () => {
+    const router = createListRouter(
+      "/administracion/finanzas/academy_1?orden=name%3Adesc",
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    expect(getRenderedRowNames()[0]).toBe("Coreografía 25");
+  });
+
+  test("applies a view's default order while the parameter is absent", async () => {
+    const router = createListRouter("/administracion/finanzas/academy_1", {
+      initialSort: { columnId: "name", direction: "desc" },
+    });
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    expect(router.state.location.search).toBe("");
+    expect(getRenderedRowNames()[0]).toBe("Coreografía 25");
+  });
+
+  test("drops the page when the sort changes", async () => {
+    const router = createListRouter(
+      "/administracion/finanzas/academy_1?busqueda=Coreograf%C3%ADa&pagina=2",
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await clickElement(getSortHeaderButton("Nombre"));
+
+    const params = new URLSearchParams(router.state.location.search);
+    expect(params.get("orden")).toBe("name:asc");
+    expect(params.get("busqueda")).toBe("Coreografía");
+    expect(params.get("pagina")).toBeNull();
+  });
+
+  test("replaces the history entry instead of pushing one", async () => {
+    const router = createListRouter("/administracion/finanzas/academy_1");
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await clickElement(getSortHeaderButton("Nombre"));
+    await clickElement(getSortHeaderButton("Nombre"));
+
+    expect(router.state.location.search).toBe("?orden=name%3Adesc");
+
+    await act(async () => {
+      await router.navigate(-1);
+    });
+
+    expect(router.state.location.pathname).toBe("/inicio");
+  });
+});
+
 describe("DataTable server-side href helpers", () => {
   test("builds debounced search targets by preserving active filters and clearing page 1", () => {
     expect(
       buildDataTableSearchHref({
         basePath: "/administracion/profesores",
-        currentSearch: "?q=Ana&estado=archivados&page=2",
+        currentSearch: "?busqueda=Ana&estado=archivados&pagina=2",
         searchValue: "Beto",
       }),
-    ).toBe("/administracion/profesores?q=Beto&estado=archivados");
+    ).toBe("/administracion/profesores?busqueda=Beto&estado=archivados");
 
     expect(
       buildDataTableSearchHref({
         basePath: "/administracion/profesores",
-        currentSearch: "?q=Ana&estado=archivados&page=2",
+        currentSearch: "?busqueda=Ana&estado=archivados&pagina=2",
         searchValue: "",
       }),
     ).toBe("/administracion/profesores?estado=archivados");
@@ -315,7 +668,7 @@ describe("DataTable server-side href helpers", () => {
     expect(
       buildDataTableFilterHref({
         basePath: "/administracion/profesores",
-        currentSearch: "?q=Ana&estado=archivados&page=2",
+        currentSearch: "?busqueda=Ana&estado=archivados&pagina=2",
         groups: [
           {
             id: "estado",
@@ -325,25 +678,47 @@ describe("DataTable server-side href helpers", () => {
         ],
         values: {},
       }),
-    ).toBe("/administracion/profesores?q=Ana");
+    ).toBe("/administracion/profesores?busqueda=Ana");
   });
 
   test("builds pagination targets that preserve active query params", () => {
     expect(
       buildDataTablePageHref({
         basePath: "/administracion/profesores",
-        currentSearch: "?q=Ana&estado=archivados&page=2",
+        currentSearch: "?busqueda=Ana&estado=archivados&pagina=2",
         page: 1,
       }),
-    ).toBe("/administracion/profesores?q=Ana&estado=archivados");
+    ).toBe("/administracion/profesores?busqueda=Ana&estado=archivados");
 
     expect(
       buildDataTablePageHref({
         basePath: "/administracion/profesores",
-        currentSearch: "?q=Ana&estado=archivados&page=2",
+        currentSearch: "?busqueda=Ana&estado=archivados&pagina=2",
         page: 3,
       }),
-    ).toBe("/administracion/profesores?q=Ana&estado=archivados&page=3");
+    ).toBe(
+      "/administracion/profesores?busqueda=Ana&estado=archivados&pagina=3",
+    );
+  });
+
+  test("keeps honoring per-view parameter name overrides", () => {
+    expect(
+      buildDataTablePageHref({
+        basePath: "/administracion/profesores",
+        currentSearch: "?page=2",
+        page: 3,
+        pageParamName: "page",
+      }),
+    ).toBe("/administracion/profesores?page=3");
+
+    expect(
+      buildDataTableSearchHref({
+        basePath: "/administracion/profesores",
+        currentSearch: "?pagina=2",
+        searchParamName: "q",
+        searchValue: "Ana",
+      }),
+    ).toBe("/administracion/profesores?q=Ana");
   });
 
   test("builds sort targets by preserving active params and clearing page 1", () => {
@@ -351,14 +726,113 @@ describe("DataTable server-side href helpers", () => {
       buildDataTableSortHref({
         basePath: "/administracion/profesores",
         columnId: "nombre",
-        currentSearch: "?q=Ana&estado=archivados&page=2",
+        currentSearch: "?busqueda=Ana&estado=archivados&pagina=2",
         direction: "desc",
       }),
     ).toBe(
-      "/administracion/profesores?q=Ana&estado=archivados&orden=nombre%3Adesc",
+      "/administracion/profesores?busqueda=Ana&estado=archivados&orden=nombre%3Adesc",
     );
   });
 });
+
+const listFacetedFilters = [
+  {
+    id: "estado",
+    label: "Estado",
+    options: [
+      { label: "Activo", value: "active" },
+      { label: "Archivado", value: "archived" },
+    ],
+  },
+];
+
+function createListRouter(
+  entry: string,
+  {
+    facetedFilters,
+    initialFacetedFilterValues,
+    initialSort,
+    selectableRows = false,
+  }: {
+    facetedFilters?: typeof listFacetedFilters;
+    initialFacetedFilterValues?: Record<string, Record<string, string>>;
+    initialSort?: { columnId: string; direction: "asc" | "desc" };
+    selectableRows?: boolean;
+  } = {},
+) {
+  const [path] = entry.split("?");
+  const rows: Row[] = Array.from({ length: 25 }, (_, index) => ({
+    id: `choreography_${index + 1}`,
+    academy: "Academia Norte",
+    name: `Coreografía ${String(index + 1).padStart(2, "0")}`,
+    status: index % 2 === 0 ? "active" : "archived",
+  }));
+
+  return createMemoryRouter(
+    [
+      { path: "/inicio", element: <p>Inicio</p> },
+      {
+        path,
+        element: (
+          <ClientDataTable
+            rows={rows}
+            columns={columns}
+            getRowKey={(row) => row.id}
+            searchPlaceholder="Buscar coreografía por nombre"
+            textFilterColumnId="name"
+            facetedFilters={facetedFilters}
+            initialFacetedFilterValues={initialFacetedFilterValues}
+            initialSort={initialSort}
+            selectableRows={selectableRows}
+          />
+        ),
+      },
+    ],
+    { initialEntries: ["/inicio", entry], initialIndex: 1 },
+  );
+}
+
+function getRenderedRowNames() {
+  return Array.from(document.querySelectorAll("tbody tr td:first-of-type")).map(
+    (cell) => cell.textContent ?? "",
+  );
+}
+
+function getPaginationLink(text: string) {
+  const link = Array.from(document.querySelectorAll("a")).find(
+    (anchor) => anchor.textContent?.trim() === text,
+  );
+
+  if (!link) {
+    throw new Error(`Expected a pagination link labelled ${text}.`);
+  }
+
+  return link;
+}
+
+function getSearchInput() {
+  const input = document.querySelector('input[type="text"]');
+
+  if (!(input instanceof HTMLInputElement)) {
+    throw new Error("Expected the table search input to be rendered.");
+  }
+
+  return input;
+}
+
+async function typeSearch(value: string) {
+  await act(async () => {
+    setInputValue(getSearchInput(), value);
+    await Promise.resolve();
+  });
+}
+
+async function advanceSearchDebounce(milliseconds = 300) {
+  await act(async () => {
+    vi.advanceTimersByTime(milliseconds);
+    await Promise.resolve();
+  });
+}
 
 function getRenderedCheckboxes() {
   return Array.from(document.querySelectorAll('[role="checkbox"]')).map(
@@ -373,8 +847,12 @@ function getRenderedCheckboxes() {
 }
 
 async function clickCheckbox(checkbox: HTMLElement) {
+  await clickElement(checkbox);
+}
+
+async function clickElement(element: Element) {
   await act(async () => {
-    checkbox.dispatchEvent(
+    element.dispatchEvent(
       new MouseEvent("click", {
         bubbles: true,
         cancelable: true,
@@ -382,4 +860,56 @@ async function clickCheckbox(checkbox: HTMLElement) {
     );
     await Promise.resolve();
   });
+}
+
+function getSortHeaderButton(header: string) {
+  const button = Array.from(document.querySelectorAll("thead button")).find(
+    (candidate) => candidate.textContent?.trim() === header,
+  );
+
+  if (!button) {
+    throw new Error(`Expected a sortable header labelled ${header}.`);
+  }
+
+  return button;
+}
+
+function getFiltersTrigger() {
+  const trigger = Array.from(document.querySelectorAll("button")).find(
+    (button) =>
+      button.getAttribute("aria-label")?.startsWith("Filtros") ?? false,
+  );
+
+  if (!trigger) {
+    throw new Error("Expected the faceted filter trigger to be rendered.");
+  }
+
+  return trigger;
+}
+
+async function openFiltersDropdown() {
+  const trigger = getFiltersTrigger();
+
+  await act(async () => {
+    trigger.dispatchEvent(
+      new MouseEvent("pointerdown", {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+      }),
+    );
+    await Promise.resolve();
+  });
+}
+
+async function clickFilterOption(label: string) {
+  const option = Array.from(
+    document.querySelectorAll('[role="menuitemradio"], [role="menuitem"]'),
+  ).find((item) => item.textContent?.trim() === label);
+
+  if (!option) {
+    throw new Error(`Expected the filter option "${label}" to be rendered.`);
+  }
+
+  await clickElement(option);
 }
