@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import { useServerActionToast } from "@/lib/shared/toasts";
+import { useRecordTitleDetailTransitionStyle } from "@/lib/shared/view-transitions";
 
 import { DancerConfirmationDialog } from "./confirmation-dialog";
 import { useDancerEditForm } from "./form";
@@ -60,6 +61,10 @@ export function DancerDetailRouteView({
   const statusFormId = "admin-dancer-status-form";
   const verifyFormId = "admin-dancer-verify-form";
   const watchedBirthDate = editForm.form.watch("birthDate");
+  const viewTransitionStyle = useRecordTitleDetailTransitionStyle({
+    detailHref: `/administracion/bailarines/${dancer.id}`,
+    listHref: "/administracion/bailarines",
+  });
   const viewState = buildDancerDetailViewState({
     actionData: errorData,
     canEdit: loaderData.canEdit,
@@ -90,7 +95,8 @@ export function DancerDetailRouteView({
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
-      title="Detalle bailarín"
+      title={`${dancer.firstName} ${dancer.lastName}`}
+      titleStyle={viewTransitionStyle}
       description="Consultá y corregí la información administrativa de este bailarín."
       requireSelectedEvent={false}
       headerAction={

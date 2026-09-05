@@ -8,10 +8,12 @@ import {
 } from "@/components/admin/resource-layout";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { ArchivedPersonAlert } from "@/components/shared/archived-person-alert";
+import { DancerInscriptionsTable } from "@/components/shared/dancer-inscriptions-table";
 import {
   documentTypeEmptyLabel,
   documentTypeOptions,
 } from "@/components/shared/document-type-options";
+import { ReadOnlyDocumentImageField } from "@/components/shared/read-only-document-image-field";
 import {
   ReadOnlyDateField,
   ReadOnlyField,
@@ -23,21 +25,11 @@ import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 
 import {
   DancerBirthDateField,
   DancerTextField,
-  ReadOnlyDocumentImageField,
   type DancerEditFormController,
 } from "./form";
 import {
@@ -50,12 +42,6 @@ export type InscriptionsSectionProps = {
   inscriptions: DancerDetailLoaderData["dancer"]["inscriptions"];
   selectedEventId: string | null;
 };
-
-const moneyFormatter = new Intl.NumberFormat("es-AR", {
-  style: "currency",
-  currency: "ARS",
-  maximumFractionDigits: 0,
-});
 
 export function DancerDetailHeaderActions({
   canEdit,
@@ -507,47 +493,11 @@ export function InscriptionsSection({
   }
 
   return (
-    <div className="rounded-lg border bg-background">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="px-3">Nombre coreografía</TableHead>
-            <TableHead className="px-3">Tipo de grupo</TableHead>
-            <TableHead className="px-3">Precio base</TableHead>
-            <TableHead className="px-3">Descuento</TableHead>
-            <TableHead className="px-3">Subtotal estimado</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {inscriptions.map((inscription) => (
-            <TableRow key={inscription.id}>
-              <TableCell className="px-3">
-                {inscription.choreographyName}
-              </TableCell>
-              <TableCell className="px-3 text-muted-foreground">
-                {formatGroupTypeLabel(inscription.groupType)}
-              </TableCell>
-              <TableCell className="px-3">
-                {formatMoney(inscription.basePriceAmount)}
-              </TableCell>
-              <TableCell className="px-3">
-                {formatMoney(inscription.discountAmount)}
-              </TableCell>
-              <TableCell className="px-3">
-                {formatMoney(inscription.estimatedSubtotalAmount)}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <DancerInscriptionsTable
+      buildChoreographyHref={(choreographyId) =>
+        `/administracion/coreografias/${choreographyId}`
+      }
+      inscriptions={inscriptions}
+    />
   );
-}
-
-function formatMoney(amount: number | null) {
-  if (amount === null) {
-    return "Sin precio";
-  }
-
-  return moneyFormatter.format(amount);
 }

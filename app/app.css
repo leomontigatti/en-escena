@@ -243,13 +243,13 @@
   color: var(--info-text);
 }
 
-::view-transition-group(portal-record-title) {
+::view-transition-group(record-title) {
   animation-duration: 160ms;
   animation-timing-function: ease;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  ::view-transition-group(portal-record-title) {
+  ::view-transition-group(record-title) {
     animation-duration: 1ms;
   }
 }

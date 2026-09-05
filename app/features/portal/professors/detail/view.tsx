@@ -34,7 +34,7 @@ import {
   type ReactRouterFormSubmit,
 } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
-import { usePortalRecordTitleDetailTransitionStyle } from "@/lib/shared/view-transitions";
+import { useRecordTitleDetailTransitionStyle } from "@/lib/shared/view-transitions";
 import {
   archiveProfessorIntent,
   professorDetailFormId,
@@ -115,7 +115,7 @@ export function PortalProfessorDetailRouteView({
     navigation.state !== "idle" &&
     navigation.formData?.get("intent") === updateProfessorIntent;
   const detailHref = `/portal/profesores/${loaderData.professor.id}`;
-  const viewTransitionStyle = usePortalRecordTitleDetailTransitionStyle({
+  const viewTransitionStyle = useRecordTitleDetailTransitionStyle({
     detailHref,
     listHref: "/portal/profesores",
   });
@@ -224,14 +224,13 @@ export function PortalProfessorDetailRouteView({
             </form>
           </CardContent>
           <CardFooter className="justify-end gap-3 border-0 bg-transparent pt-0">
-            <Button asChild variant="outline" size="lg">
+            <Button asChild variant="outline">
               <Link to="/portal/profesores" viewTransition>
                 Volver
               </Link>
             </Button>
             <SubmitButton
               form={professorDetailFormId}
-              size="lg"
               isPending={isSubmitting}
             />
           </CardFooter>
