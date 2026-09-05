@@ -9,10 +9,10 @@ import {
   type InscriptionFinancialStatus,
 } from "@/lib/finances/inscription-financial-status";
 import {
-  completeOperationalFinanceAmount,
-  incompleteOperationalFinanceAmount,
+  buildOperationalFinanceAmount,
   type OperationalFinanceAmount,
   type OperationalFinanceSummary,
+  sumOperationalFinanceAmounts,
 } from "@/lib/finances/operational-summary";
 import { selectApplicablePriceFromCandidates } from "@/lib/prices/repository.server";
 import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
@@ -44,6 +44,9 @@ export type ResolvedInscription = {
   allocatedAmount: number;
   // Selected price, **before** any discount. `null` only if no price applies.
   basePriceAmount: number | null;
+  // The row that amount came from, so a surface offering to change the price can
+  // name the one in force instead of only pricing it.
+  basePriceId: string | null;
   // `Descuento por bailarín`, always live.
   dancerDiscountAmount: number;
   // `price − discount`, the high threshold. Applies the discount exactly once.
@@ -61,6 +64,7 @@ export type ResolvedInscription = {
 
 export type FinanceChoreographyRow = {
   academyId: string;
+  choreographyNumber: number;
   groupType: ChoreographyGroupType;
   id: string;
   name: string;
@@ -82,6 +86,10 @@ export type ChoreographyOperationalFinanceRow = {
   allocatedAmount: number;
   anomalies: InscriptionAnomaly[];
   basePriceAmount: OperationalFinanceAmount;
+  // The event-scoped number the choreography is identified by. It carries no
+  // money, but it travels with the row because it is how the administrator and
+  // the academy name the choreography to each other.
+  choreographyNumber: number;
   depositAmount: OperationalFinanceAmount;
   totalAmount: OperationalFinanceAmount;
   financialStatus: ChoreographyFinancialStatus;
@@ -188,6 +196,7 @@ export function buildChoreographyOperationalFinanceRow(input: {
     allocatedAmount,
     anomalies: overAllocatedAmount > 0 ? ["overAllocated"] : [],
     basePriceAmount: basePriceAmount.build(),
+    choreographyNumber: input.choreography.choreographyNumber,
     depositAmount: depositAmount.build(),
     financialStatus: deriveChoreographyFinancialStatus(
       input.inscriptions
@@ -222,11 +231,19 @@ export function buildOperationalFinanceSummaryFromChoreographyRows(input: {
   const owedBalanceAmount = sumOperationalFinanceAmounts(
     input.choreographyFinanceRows.map((row) => row.owedBalanceAmount),
   );
+  const depositAmount = sumOperationalFinanceAmounts(
+    input.choreographyFinanceRows.map((row) => row.depositAmount),
+  );
+  const totalAmount = sumOperationalFinanceAmounts(
+    input.choreographyFinanceRows.map((row) => row.totalAmount),
+  );
 
   return {
     availableBalanceAmount: input.availableBalanceAmount,
-    owedBalanceAmount: buildOperationalFinanceAmount(owedBalanceAmount),
-    owedDepositAmount: buildOperationalFinanceAmount(owedDepositAmount),
+    depositAmount,
+    totalAmount,
+    owedBalanceAmount,
+    owedDepositAmount,
     totalPaidAmount: input.totalPaidAmount,
   };
 }
@@ -390,30 +407,4 @@ function createAmountAccumulator() {
       return buildOperationalFinanceAmount({ amount, missingPriceCount });
     },
   };
-}
-
-function buildOperationalFinanceAmount(input: {
-  amount: number;
-  missingPriceCount: number;
-}): OperationalFinanceAmount {
-  if (input.missingPriceCount > 0) {
-    return incompleteOperationalFinanceAmount(input);
-  }
-
-  return completeOperationalFinanceAmount(input.amount);
-}
-
-function sumOperationalFinanceAmounts(amounts: OperationalFinanceAmount[]) {
-  return amounts.reduce(
-    (total, amount) => ({
-      amount: total.amount + amount.amount,
-      missingPriceCount:
-        total.missingPriceCount +
-        (amount.status === "incomplete" ? amount.missingPriceCount : 0),
-    }),
-    {
-      amount: 0,
-      missingPriceCount: 0,
-    },
-  );
 }

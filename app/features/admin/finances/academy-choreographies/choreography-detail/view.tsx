@@ -6,30 +6,24 @@ import {
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
 import { AlertStack } from "@/components/shared/alert-stack";
-import { MetricCard } from "@/components/shared/metric-card";
-import {
-  ReadOnlyField,
-  ReadOnlySelectField,
-} from "@/components/shared/read-only-field";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import {
   ClientDataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { FieldGroup } from "@/components/ui/field";
-import { formatInscriptionStatusBadge } from "@/lib/finances/choreography-financial-status";
-import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
-import { choreographyGroupTypeOptions } from "@/lib/portal/choreographies";
+import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
+import { formatDancerName } from "@/lib/finances/formatters";
 
-import { formatAmount, formatOperationalAmount } from "../../formatters";
+import {
+  inscriptionFinanceColumns,
+  inscriptionFinanceFacetedFilters,
+} from "@/lib/finances/inscription-finance-columns";
+import { OperationalFinanceMetrics } from "@/lib/finances/operational-finance-metrics";
 import { EmissionDialog } from "./comprobante-emission";
 import { InscriptionMoneyDialog } from "./inscription-money-dialog";
-import { formatDancerName } from "./shared";
 import type { loadChoreographyFinanceDetail } from "./server";
 
 type ChoreographyFinanceDetailLoaderData = Awaited<
@@ -53,10 +47,20 @@ export function ChoreographyFinanceDetailView({
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
-      title={choreography ? "Detalle financiero" : "Coreografía no encontrada"}
+      // The name identifies the choreography within the academy, and the number
+      // identifies it within the event: the same number the choreography detail
+      // titles itself with, so an administrator moving between the two pages
+      // reads one identity and not two.
+      title={
+        choreography
+          ? `${choreography.name} # ${formatEventSequenceNumber(
+              choreography.choreographyNumber,
+            )}`
+          : "Coreografía no encontrada"
+      }
       description={
         choreography
-          ? "Revisá los importes, datos y participaciones vinculadas a esta coreografía."
+          ? "Revisá y/o modificá las asignaciones de cada inscripción desde la lista."
           : "No encontramos esa coreografía dentro de la lista financiera de la academia."
       }
       eventRequiredEmptyState={{
@@ -74,42 +78,17 @@ export function ChoreographyFinanceDetailView({
         <div className="flex flex-col gap-6">
           <ChoreographyAlerts loaderData={loaderData} />
 
-          <section className="grid gap-4 md:grid-cols-3">
-            <MetricCard
-              title="Seña"
-              value={formatOperationalAmount(choreography.depositAmount)}
-            />
-            <MetricCard
-              title="Saldo adeudado"
-              value={formatOperationalAmount(choreography.owedBalanceAmount)}
-            />
-            <MetricCard
-              title="Total"
-              value={formatOperationalAmount(choreography.totalAmount)}
-            />
-          </section>
-
-          <Card aria-label="Información financiera">
-            <CardContent>
-              <FieldGroup className="grid gap-4 md:grid-cols-2">
-                <ReadOnlyField
-                  id="finance-choreography-academy"
-                  label="Academia"
-                  value={loaderData.academy.name}
-                />
-                <ReadOnlyField
-                  id="finance-choreography-name"
-                  label="Nombre"
-                  value={choreography.name}
-                />
-                <ReadOnlySelectField
-                  label="Tipo de grupo"
-                  options={choreographyGroupTypeOptions}
-                  value={choreography.groupType}
-                />
-              </FieldGroup>
-            </CardContent>
-          </Card>
+          {/* The academy's five, narrowed to this choreography. `Saldo
+              disponible` is the exception and stays the academy's —unallocated
+              money is no choreography's— and it is the pool the allocations made
+              below come out of. */}
+          <OperationalFinanceMetrics
+            availableBalanceAmount={loaderData.availableBalanceAmount}
+            depositAmount={choreography.depositAmount}
+            owedBalanceAmount={choreography.owedBalanceAmount}
+            owedDepositAmount={choreography.owedDepositAmount}
+            totalAmount={choreography.totalAmount}
+          />
 
           <InscriptionsTable
             inscriptions={loaderData.inscriptions}
@@ -185,9 +164,12 @@ function OverAllocatedAlert() {
  * The header's single actions menu (`...`, ADR-0011): `Emitir factura` inside a
  * `ResourceActionsMenu` rather than a loose button. The item opens its own
  * dialog, mounted as a sibling of the menu so it is not unmounted when the
- * dropdown closes. The menu is not rendered at all when no action is available.
- * The `Pagar seña` / `Pagar saldo` presets do not live here: they are list
- * actions over the selected choreographies.
+ * dropdown closes. The `Pagar seña` / `Pagar saldo` presets do not live here:
+ * they are list actions over the selected choreographies.
+ *
+ * The menu is always there, and with nothing left to bill what gets disabled is
+ * the option: a button that comes and goes does not teach what can be done in the
+ * view, and "it is there but it cannot be used" says more than "it is not there".
  */
 function ChoreographyActions({
   loaderData,
@@ -200,23 +182,21 @@ function ChoreographyActions({
   // billable. Unmounting there would take the `recovered` state with it (#577).
   const [emission, setEmission] = useState<typeof invoicing | null>(null);
 
-  if (!canEmit && !emission) {
-    return null;
-  }
-
   return (
     <>
       <ResourceActionsMenu contentClassName="w-48">
-        {canEmit && invoicing ? (
-          <DropdownMenuItem
-            onSelect={(event) => {
-              event.preventDefault();
+        <DropdownMenuItem
+          disabled={!canEmit || !invoicing}
+          onSelect={(event) => {
+            event.preventDefault();
+
+            if (invoicing) {
               setEmission(invoicing);
-            }}
-          >
-            Emitir factura
-          </DropdownMenuItem>
-        ) : null}
+            }
+          }}
+        >
+          Emitir factura
+        </DropdownMenuItem>
       </ResourceActionsMenu>
       {emission ? (
         <EmissionDialog
@@ -272,10 +252,11 @@ function InscriptionsTable({
       <ClientDataTable
         rows={inscriptions}
         columns={columns}
+        facetedFilters={inscriptionFinanceFacetedFilters}
         getRowKey={(inscription) => inscription.dancerId}
         searchPlaceholder="Buscar inscripción por bailarín"
+        textFilterColumnId="dancer"
         emptyMessage="No hay inscripciones para mostrar."
-        hideSearch
       />
       {openInscription ? (
         <InscriptionMoneyDialog
@@ -306,7 +287,7 @@ function buildInscriptionColumns(
       filterValue: (inscription) => formatDancerName(inscription),
       sortValue: (inscription) => formatDancerName(inscription),
     },
-    ...inscriptionAmountColumns,
+    ...inscriptionFinanceColumns,
   ];
 }
 
@@ -338,82 +319,4 @@ function DancerNameCell({
       {formatDancerName(inscription)}
     </Button>
   );
-}
-
-const inscriptionAmountColumns: DataTableColumn<InscriptionRow>[] = [
-  {
-    id: "financialStatus",
-    header: "Estado",
-    cell: (inscription) => <InscriptionStatusCell inscription={inscription} />,
-  },
-  {
-    id: "basePrice",
-    header: "Precio base",
-    className: "text-right tabular-nums",
-    headerClassName: "text-right",
-    cell: (inscription) => formatInscriptionAmount(inscription.basePriceAmount),
-  },
-  {
-    id: "deposit",
-    header: "Seña",
-    className: "text-right tabular-nums",
-    headerClassName: "text-right",
-    cell: (inscription) => formatInscriptionAmount(inscription.depositAmount),
-  },
-  {
-    // Decorative and unconditional: `Total` is the context column — what the debt
-    // is measured against — so the whole of it is muted. Never per row: no figure
-    // is provisional, and a grey that varies goes back to meaning something.
-    id: "total",
-    header: "Total",
-    className: "text-right tabular-nums text-muted-foreground",
-    headerClassName: "text-right",
-    cell: (inscription) => formatInscriptionAmount(inscription.totalAmount),
-  },
-  {
-    // The row's only actionable figure, highlighted by column.
-    id: "owedBalance",
-    header: "Saldo adeudado",
-    className: "text-right font-medium tabular-nums",
-    headerClassName: "text-right",
-    cell: (inscription) =>
-      formatInscriptionAmount(inscription.owedBalanceAmount),
-  },
-];
-
-/**
- * The badge of the `Estado` column. `Retirada` **replaces** the status, just as
- * an anomaly does: the roster-withdrawal axis and the money axis do not share a
- * cell.
- *
- * It carries the retained amount inside because that is half of the fact: the
- * row is still there *because* money was left on it, and a bare `Retirada`
- * would not say how much. It is the same number as the `Total` column —for a
- * withdrawn row the total **is** what is allocated— and repeating it here is
- * what makes the cell readable on its own.
- */
-function InscriptionStatusCell({
-  inscription,
-}: {
-  inscription: InscriptionRow;
-}) {
-  const badge = formatInscriptionStatusBadge(
-    resolveInscriptionStatusBadge({
-      anomalies: inscription.anomalies,
-      financialStatus: inscription.financialStatus,
-      withdrawn: inscription.withdrawn,
-    }),
-  );
-
-  return (
-    <Badge variant={badge.variant}>
-      {badge.kind === "withdrawn"
-        ? `${badge.label} · ${formatAmount(inscription.allocatedAmount)}`
-        : badge.label}
-    </Badge>
-  );
-}
-
-function formatInscriptionAmount(amount: number | null) {
-  return amount === null ? "Sin precio" : formatAmount(amount);
 }

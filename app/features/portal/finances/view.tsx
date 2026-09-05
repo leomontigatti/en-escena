@@ -1,4 +1,5 @@
 import { WalletCards } from "lucide-react";
+import { useState } from "react";
 
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import {
@@ -7,18 +8,17 @@ import {
   type DataTableFacetedFiltersOf,
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
-import { MetricCard } from "@/components/shared/metric-card";
 import { Badge } from "@/components/ui/badge";
-import {
-  formatAmount,
-  formatOperationalAmount,
-} from "@/features/admin/finances/formatters";
+import { operationalFinanceColumns } from "@/lib/finances/operational-finance-columns";
+import { OperationalFinanceMetrics } from "@/lib/finances/operational-finance-metrics";
 import type { loadPortalAcademyFinances } from "@/features/portal/finances/server";
+import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import {
   formatInscriptionFinancialStatus,
   getInscriptionFinancialStatusBadgeVariant,
   inscriptionFinancialStatusOptions,
 } from "@/lib/finances/choreography-financial-status";
+import { resolveSelectedOperationalTotals } from "@/lib/finances/selected-operational-totals";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 
 type PortalAcademyFinancesLoaderData = Awaited<
@@ -42,15 +42,30 @@ const choreographyFinanceFacetedFilters: DataTableFacetedFiltersOf<
 
 const choreographyFinanceColumns: DataTableColumn<ChoreographyFinanceRow>[] = [
   {
+    id: "choreographyNumber",
+    header: "#",
+    className: "w-16 font-medium tabular-nums",
+    headerClassName: "w-16",
+    // The academy sees the same number the administrator does, in the same
+    // place and doing the same thing: it opens the row and it is the only link
+    // to the detail.
+    cell: (row) => (
+      <DataTableLink to={`/portal/finanzas/${row.id}`}>
+        {formatEventSequenceNumber(row.choreographyNumber)}
+      </DataTableLink>
+    ),
+    sortValue: (row) => row.choreographyNumber,
+  },
+  {
     id: "name",
     header: "Nombre",
     className: "min-w-56 font-medium",
-    cell: (row) => (
-      <DataTableLink to={`/portal/finanzas/${row.id}`}>
-        {row.name}
-      </DataTableLink>
-    ),
-    filterValue: (row) => row.name,
+    cell: (row) => row.name,
+    // The search box filters this one column, so the number travels in here to
+    // be searchable at all. Zero-padded, which is what makes `00042`, `042` and
+    // `42` all reach the same choreography.
+    filterValue: (row) =>
+      `${formatEventSequenceNumber(row.choreographyNumber)} ${row.name}`,
     sortValue: (row) => row.name,
   },
   {
@@ -60,32 +75,7 @@ const choreographyFinanceColumns: DataTableColumn<ChoreographyFinanceRow>[] = [
       <Badge variant="secondary">{formatGroupTypeLabel(row.groupType)}</Badge>
     ),
   },
-  {
-    id: "depositAmount",
-    header: "Seña",
-    className: "text-right tabular-nums",
-    headerClassName: "text-right",
-    cell: (row) => formatOperationalAmount(row.depositAmount),
-  },
-  {
-    // Decorative and unconditional: `Total` is the context column — what the debt
-    // is measured against — so the whole of it is muted, and never per row.
-    id: "totalAmount",
-    header: "Total",
-    className: "text-right tabular-nums text-muted-foreground",
-    headerClassName: "text-right",
-    cell: (row) => formatOperationalAmount(row.totalAmount),
-    sortValue: (row) => row.totalAmount.amount,
-  },
-  {
-    // The row's only actionable figure, highlighted by column.
-    id: "owedBalanceAmount",
-    header: "Saldo adeudado",
-    className: "text-right font-medium tabular-nums",
-    headerClassName: "text-right",
-    cell: (row) => formatOperationalAmount(row.owedBalanceAmount),
-    sortValue: (row) => row.owedBalanceAmount.amount,
-  },
+  ...operationalFinanceColumns,
   {
     id: "financialStatus",
     header: "Estado",
@@ -105,11 +95,25 @@ export function PortalAcademyFinancesRouteView({
 }: {
   loaderData: PortalAcademyFinancesLoaderData;
 }) {
+  // The selection is lifted out of the table because it drives more than the
+  // table: the two owed metrics re-scope to it. The academy selects to read,
+  // not to act — the collections are the administrator's.
+  const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
+  // Selecting a few choreographies is how the academy asks how much *those* owe
+  // without adding them up from memory. It selects to read and not to act: the
+  // collections are the administrator's.
+  const { owedBalanceAmount, owedDepositAmount } =
+    resolveSelectedOperationalTotals({
+      rows: loaderData.choreographyFinanceRows,
+      selectedRowIds,
+      summary: loaderData.summary,
+    });
+
   if (!loaderData.activeEvent) {
     return (
       <PortalListPage
         titleId="finanzas-title"
-        title="Cuenta corriente"
+        title="Resumen financiero"
         description="Revisá el estado financiero de las coreografías de tu academia."
       >
         <PortalEmptyState
@@ -124,33 +128,33 @@ export function PortalAcademyFinancesRouteView({
   return (
     <PortalListPage
       titleId="finanzas-title"
-      title="Cuenta corriente"
+      title="Resumen financiero"
       description="Revisá el estado financiero de las coreografías de tu academia."
     >
-      <section className="grid gap-4 md:grid-cols-3">
-        <MetricCard
-          title="Seña adeudada"
-          value={formatOperationalAmount(loaderData.summary.owedDepositAmount)}
-        />
-        <MetricCard
-          title="Saldo disponible"
-          value={formatAmount(loaderData.summary.availableBalanceAmount)}
-        />
-        <MetricCard
-          title="Saldo adeudado"
-          value={formatOperationalAmount(loaderData.summary.owedBalanceAmount)}
-        />
-      </section>
+      {/* The two owed figures re-scope to the selection; the thresholds and the
+          available balance do not. */}
+      <OperationalFinanceMetrics
+        availableBalanceAmount={loaderData.summary.availableBalanceAmount}
+        depositAmount={loaderData.summary.depositAmount}
+        owedBalanceAmount={owedBalanceAmount}
+        owedDepositAmount={owedDepositAmount}
+        totalAmount={loaderData.summary.totalAmount}
+      />
 
       <ClientDataTable
         rows={loaderData.choreographyFinanceRows}
         columns={choreographyFinanceColumns}
         facetedFilters={choreographyFinanceFacetedFilters}
         getRowKey={(row) => row.id}
-        searchPlaceholder="Buscar coreografía por nombre"
+        searchPlaceholder="Buscar coreografía por número o nombre"
         textFilterColumnId="name"
+        selectableRows
+        selectedRowIds={selectedRowIds}
+        onSelectedRowIdsChange={setSelectedRowIds}
+        // By number, like every other choreography list: it is the row's
+        // identity within the event.
         initialSort={{
-          columnId: "name",
+          columnId: "choreographyNumber",
           direction: "asc",
         }}
         emptyMessage="No hay coreografías para mostrar."

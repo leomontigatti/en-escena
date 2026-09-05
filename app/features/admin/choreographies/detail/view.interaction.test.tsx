@@ -8,6 +8,10 @@ import type { ChoreographyModalityResolution } from "@/features/admin/choreograp
 import type { ChoreographyDetailLoaderData } from "@/features/admin/choreographies/detail/server";
 import { ChoreographyDetailRouteView } from "@/features/admin/choreographies/detail/view";
 import {
+  openRadixSelect,
+  selectRadixOption,
+} from "@/lib/test-support/radix-select";
+import {
   clickReactDomButton,
   createReactDomTestRenderer,
 } from "@/lib/test-support/react-dom";
@@ -33,8 +37,8 @@ describe("ChoreographyDetailRouteView modality correction", () => {
     const modalityTrigger = findTriggerByText("Jazz");
     expect(modalityTrigger).toBeDefined();
 
-    await openSelect(modalityTrigger);
-    await selectOption("Urbano");
+    await openRadixSelect(modalityTrigger);
+    await selectRadixOption("Urbano");
 
     // Mid-round-trip: every dependent control is still a select, held by
     // `disabled` rather than swapped for another kind of field.
@@ -85,8 +89,8 @@ describe("ChoreographyDetailRouteView modality correction", () => {
       status: "auto",
     });
 
-    await openSelect(findTriggerByText("Jazz"));
-    await selectOption("Urbano");
+    await openRadixSelect(findTriggerByText("Jazz"));
+    await selectRadixOption("Urbano");
     await settle();
 
     expect(getFieldShape("Cronograma")).toBe("static");
@@ -110,8 +114,8 @@ describe("ChoreographyDetailRouteView schedule capacity reassignment", () => {
 
     await renderScheduleCapacityDetail(renderer, submissions);
 
-    await openSelect(findTriggerByText("1 de mayo de 2026 - 14:00 hs."));
-    await selectOption("2 de mayo de 2026 - 10:00 hs.");
+    await openRadixSelect(findTriggerByText("1 de mayo de 2026 - 14:00 hs."));
+    await selectRadixOption("2 de mayo de 2026 - 10:00 hs.");
 
     // The pick alone posts nothing: it only leaves the field showing the
     // destination and the `Guardar` live.
@@ -138,8 +142,8 @@ describe("ChoreographyDetailRouteView schedule capacity reassignment", () => {
 
     expect(isNameInputDisabled()).toBe(false);
 
-    await openSelect(findTriggerByText("1 de mayo de 2026 - 14:00 hs."));
-    await selectOption("2 de mayo de 2026 - 10:00 hs.");
+    await openRadixSelect(findTriggerByText("1 de mayo de 2026 - 14:00 hs."));
+    await selectRadixOption("2 de mayo de 2026 - 10:00 hs.");
 
     expect(isNameInputDisabled()).toBe(true);
   });
@@ -174,8 +178,8 @@ describe("ChoreographyDetailRouteView schedule capacity reassignment", () => {
       status: "error" as const,
     });
 
-    await openSelect(findTriggerByText("1 de mayo de 2026 - 14:00 hs."));
-    await selectOption("2 de mayo de 2026 - 10:00 hs.");
+    await openRadixSelect(findTriggerByText("1 de mayo de 2026 - 14:00 hs."));
+    await selectRadixOption("2 de mayo de 2026 - 10:00 hs.");
     await clickReactDomButton("Guardar");
     await settle();
 
@@ -410,64 +414,6 @@ async function settle() {
   await act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
   });
-}
-
-async function openSelect(trigger: HTMLElement | undefined) {
-  if (!trigger) {
-    throw new Error("Expected the select trigger to be rendered.");
-  }
-
-  trigger.hasPointerCapture ??= () => false;
-  trigger.setPointerCapture ??= () => {};
-  trigger.releasePointerCapture ??= () => {};
-
-  await act(async () => {
-    trigger.dispatchEvent(pointerEvent("pointerdown"));
-    await Promise.resolve();
-  });
-  await settle();
-}
-
-/**
- * Radix selects on `Enter` over the focused item. jsdom has no layout, so the
- * pointer path Radix uses for a mouse cannot be replayed faithfully; the
- * keyboard one reaches the same `onValueChange`.
- */
-async function selectOption(text: string) {
-  const option = Array.from(
-    document.querySelectorAll('[data-slot="select-item"]'),
-  ).find((candidate) => candidate.textContent?.trim() === text);
-
-  if (!option) {
-    throw new Error(`Expected the option "${text}" to be rendered.`);
-  }
-
-  await act(async () => {
-    option.dispatchEvent(pointerEvent("pointermove"));
-    await Promise.resolve();
-  });
-
-  await act(async () => {
-    option.dispatchEvent(
-      new KeyboardEvent("keydown", {
-        bubbles: true,
-        cancelable: true,
-        key: "Enter",
-      }),
-    );
-    await Promise.resolve();
-  });
-}
-
-function pointerEvent(type: string) {
-  const event = new MouseEvent(type, {
-    bubbles: true,
-    button: 0,
-    cancelable: true,
-  });
-  Object.defineProperty(event, "pointerType", { value: "mouse" });
-
-  return event;
 }
 
 function buildLoaderData(): ChoreographyDetailLoaderData {

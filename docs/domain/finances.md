@@ -303,10 +303,11 @@ written twice:
   until its deposit is in, without anyone writing anything.
 - Below the threshold the **stored row and the effective row can differ**, so
   what reads which matters. The stored row is read by the write path's `crossed`
-  test, by the price picker's default, by the `?? stored` fallback when nothing
-  applies today, and by the guard that refuses to delete a referenced price row.
-  Every displayed **figure** — `Precio`, `Seña`, `Total`, the badge and the
-  allocation dialog's readout — comes from the effective row.
+  test, by the `?? stored` fallback when nothing applies today, and by the guard
+  that refuses to delete a referenced price row — all of them server-side. It is
+  no longer read by anything the administrator sees: every displayed **figure**
+  and every control — `Precio`, `Seña`, `Total`, the badge, and both the
+  allocation dialog's readout and its picker — comes from the effective row.
 
 Amending §3 to match, or building the write-path refresh, is the owner's call.
 The circularity §3 breaks is broken here too, and by the same clause: `crossed`
@@ -440,11 +441,11 @@ from. Neither is available on the academy portal, which is read-only.
 The choreography financial detail has **one entry point per inscription** — the
 dancer's name — and the dialog behind it takes its shape from what the row holds.
 
-| Row                       | What opens                                           |
-| ------------------------- | ---------------------------------------------------- |
-| over-allocated            | `Liberar el excedente`: one click, nothing to type   |
-| nothing owed, money on it | `Quitar dinero`, prefilled with everything allocated |
-| anything else             | `Asignar dinero`: price and amount                   |
+| Row                       | What opens                                         |
+| ------------------------- | -------------------------------------------------- |
+| over-allocated            | `Liberar el excedente`: one click, nothing to type |
+| nothing owed, money on it | `Quitar dinero`, hinting everything allocated      |
+| anything else             | `Asignar dinero`: price and amount                 |
 
 A row that still owes something but already holds money reaches `Quitar dinero`
 from inside the allocation dialog, so removal is available wherever there is
@@ -454,19 +455,30 @@ money to take off while the entry point stays single.
   outcome and the row reads `Seña pendiente` with its shortfall, not as unpaid.
   The owed figure is a **placeholder, never a prefilled value**, because the
   discount is live and it moves while the dialog is open; the hint is whichever
-  figure finishes the next thing. The **price is chosen inside this dialog and
-  never in a table cell**, and it is a readout rather than a picker once the row
-  holds money. This is the only one of the three gestures that can bounce.
-- **Removing.** The amount is **prefilled with everything the inscription holds**
-  and any smaller amount is accepted: what is allocated is a fact and does not
-  move under the administrator. It unwinds newest-first and the released amount
-  returns to `Saldo disponible`. **Removing money never blocks for a financial
-  reason**: no threshold, no anomaly and no state of the pool can refuse it. It
-  still refuses the two nonsensical inputs — an amount of zero or less
-  (`El monto a quitar tiene que ser mayor a 0.`) and an amount larger than the inscription
-  holds (`La inscripción no tiene ese dinero asignado.`) — so a caller must still
-  defend those. It is a different action from removing the inscription from the
-  roster.
+  figure finishes the next thing. The two owed figures are shown **only once the
+  inscription holds money**: on an empty row they restate the price named right
+  above them. Because the bound is known on the client, an amount above what the
+  row owes is said **under the field** (`Ingresá un monto entre $ 1 y $ X.`)
+  instead of round-tripping to
+  `No se puede asignar más de lo que la inscripción adeuda.`; the pool's own ceiling is not known here and stays an alert. The
+  **price is chosen inside this dialog and never in a table cell**, and it is a
+  readout rather than a picker once the row has **covered its deposit**. This is the
+  only one of the three gestures that can bounce.
+- **Removing.** The amount is **hinted with everything the inscription holds**,
+  as a placeholder and not as a prefilled value, and any smaller amount is
+  accepted. The hint can be a real figure — what is allocated is a fact and does
+  not move under the administrator — but it is typed like the allocation one, so
+  the two gestures behave the same. It unwinds newest-first and the released
+  amount returns to `Saldo disponible`. **Removing money never blocks for a
+  financial reason**: no threshold, no anomaly and no state of the pool can
+  refuse it. It still refuses the two nonsensical inputs — an amount of zero or
+  less (`El monto a quitar tiene que ser mayor a 0.`) and an amount larger than
+  the inscription holds (`La inscripción no tiene ese dinero asignado.`) — so a
+  caller must still defend those. Because the bound is known on the client, the
+  dialog says the range **under the field** (`Ingresá un monto entre $ 1 y $ X.`)
+  rather than round-tripping to those two refusals, which stay as guards
+  and still surface if the figure moved while the dialog was open. It is a
+  different action from removing the inscription from the roster.
 - **Releasing the excess.** One button that takes off exactly what the
   inscription holds above its `Total` and nothing more. The excess is computed,
   so there is nothing to pick and nothing to type.
@@ -474,23 +486,46 @@ money to take off while the entry point stays single.
   is an allocation-time concern, and taking money off until the row falls back
   below its deposit is precisely what opens the lock.
 
-**Known divergence — the dialog still locks the picker at the first peso.** The
-rule locks the price at the deposit threshold, and both the write path and the
-database guard hold it there, but `inscription-money-dialog.tsx` swaps the picker
-for a readout as soon as `allocatedAmount > 0` and tells the administrator
-`Para cambiarle el precio hay que quitarle todo el dinero.`. A below-threshold price
-change is therefore accepted by every write path and unreachable from that
-dialog, and the hint under the readout describes the retired rule.
+**The dialog locks the picker where the rule locks it**: at the deposit
+threshold. It used to swap the picker for a readout as soon as
+`allocatedAmount > 0` and to explain itself with
+`Para cambiarle el precio hay que quitarle todo el dinero.` — a retired rule, and a below-threshold price
+change was therefore accepted by every write path while being unreachable from
+the one screen that offers prices. Both the swap and that hint are gone.
 
-**The readout names the effective price, and the picker opens on the stored
-one.** They are the same row above the threshold and can differ below it, so the
-two controls are fed separately: `readInscriptionEffectivePrices` for the
-readout, which is the figure the row behind the dialog also shows, and
-`readInscriptionSelectedPrices` for the picker's default, which is what the
-administrator last said. The one place the stored row is still shown as such is
-that default, on a row holding no money whose list has moved since — a
-confirmable default rather than a figure, and changing it to the effective row
-would make `Elegí un precio para la inscripción.` unreachable.
+The dialog reads the threshold off the row's **effective** deposit while the
+write path tests the **stored** one, and the two agree wherever it matters: once
+the stored row is crossed, the effective row _is_ the stored row. They can differ
+only when the list moved _down_ under a row already holding money, where the
+dialog is the stricter of the two — the same direction the old first-peso lock
+erred in, and far rarer.
+
+The readout says exactly what the picker it replaces said — name, amount and
+`Seña` — through one formatter, so locking a row cannot quietly drop a figure the
+administrator was choosing by.
+
+**The readout and the picker both name the effective price.** They are the same
+row above the threshold and can differ below it, and both are fed by
+`readInscriptionEffectivePrices` — the same figure the row behind the dialog
+shows. The stored row does not travel to the client at all.
+
+The picker used to open on the stored row instead, which is what the
+administrator last said. That was wrong in a way that cost money rather than
+merely reading oddly: on a row holding nothing whose list had moved since, the
+picker named the old row while the amount placeholder and both owed figures
+named the current one, and confirming without touching it wrote the old row and
+then locked there as soon as the allocation covered the deposit — a deposit quoted at
+the current price, charged at it, and fixed at the old one.
+
+`Elegí un precio para la inscripción.` stays reachable, and it is worth being
+precise about when: the picker arrives filled whenever a row **applies today**,
+but the option list is not filtered by `paymentDeadline` while
+`resolveApplicablePriceRow` is. An event whose every row for that group type has
+an expired deadline therefore offers options, applies none, and leaves the picker
+on its placeholder — so a row storing nothing can still be submitted without a
+price, and the refusal is what catches it. It is the only path there:
+`applySelectedPrice` is reached from `allocateToInscription` alone, which this
+dialog is the only caller of. The presets have their own `applySelectedPrices`.
 
 ### Per choreography
 
@@ -783,10 +818,11 @@ Three of those rows retire a **concept**, not every string that spells it, and
 the difference matters to anyone about to delete something:
 
 - **`Cuenta corriente de academia`** retires the _entity_ — there is no
-  account-balance record, and no `academyAccountBalance` identifier. But
-  **"Cuenta corriente" is the live page title of the portal's finance page**
-  (`app/features/portal/finances/view.tsx`, linked from `app/routes/portal._index.tsx`).
-  That string is UI copy an academy reads and is not covered by this table.
+  account-balance record, and no `academyAccountBalance` identifier. The words
+  survive only as UI copy an academy reads, which this table does not cover: the
+  portal's finance page is titled `Resumen financiero`
+  (`app/features/portal/finances/view.tsx`), and the card that links to it from
+  `app/routes/portal._index.tsx` still describes it as their cuenta corriente.
 - **`Fecha de referencia financiera`** retires the _per-inscription column_; both
   reference-date columns were dropped in #689. The words survive as a local
   variable, `financialReferenceDate` in `resolveEstimatedBasePriceAmount`, which

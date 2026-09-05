@@ -20,7 +20,7 @@ import {
   resolveContingencySubmitState,
 } from "@/lib/comprobantes/contingency-alert";
 
-import { formatAmount } from "../../formatters";
+import { formatAmount } from "@/lib/finances/formatters";
 import {
   emitComprobanteConfirmValue,
   emitComprobanteIntent,

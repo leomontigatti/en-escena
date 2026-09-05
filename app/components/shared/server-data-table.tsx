@@ -2,17 +2,12 @@ import {
   getCoreRowModel,
   type ColumnDef,
   type ColumnFiltersState,
+  type OnChangeFn,
+  type RowSelectionState,
   type SortingState,
   useReactTable,
 } from "@tanstack/react-table";
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type Dispatch,
-  type SetStateAction,
-} from "react";
+import { useEffect, useMemo, type Dispatch, type SetStateAction } from "react";
 import { useLocation, useNavigate, useNavigation } from "react-router";
 
 import {
@@ -20,20 +15,23 @@ import {
   buildDataTablePageHref,
   buildDataTableSearchHref,
   buildDataTableSortHref,
-  createColumnFilters,
   getNextServerSortDirection,
   getServerSortDirection,
   isFacetedFilterValue,
-  mergeBaseFacetedFilterValues,
   mergeServerFilterValues,
 } from "@/components/shared/data-table-helpers";
 import {
   createColumnVisibility,
   createDataTableColumns,
   createGlobalFilterFn,
-  DataTableShell,
+  emptyFacetedFilters,
   emptyFacetedFilterValues,
+  useDataTableColumnFiltersState,
+  useDataTableRowSelection,
+  useDataTableSearchQueryState,
+  useDataTableSortingState,
 } from "@/components/shared/data-table-core";
+import { DataTableShell } from "@/components/shared/data-table-shell";
 import type {
   DataTableFacetedFilter,
   DataTableFacetedFilterValue,
@@ -45,25 +43,31 @@ export function ServerDataTable<TData>(props: ServerDataTableProps<TData>) {
   const location = useLocation();
   const navigate = useNavigate();
   const navigation = useOptionalNavigation();
-  const initialSearchValue = props.initialSearchValue ?? "";
-  const facetedFilters = props.facetedFilters ?? [];
-  const emptyMessage = props.emptyMessage ?? "No hay resultados para mostrar.";
-  const baseFacetedFilterValues =
-    props.baseFacetedFilterValues ?? emptyFacetedFilterValues;
-  const initialFacetedFilterValues =
-    props.initialFacetedFilterValues ?? emptyFacetedFilterValues;
-  const resolvedBasePath = props.basePath ?? location.pathname;
+  const {
+    baseFacetedFilterValues,
+    emptyMessage,
+    facetedFilters,
+    initialFacetedFilterValues,
+    initialSearchValue,
+    resolvedBasePath,
+    selectableRows,
+  } = resolveServerDataTableDefaults(props, location.pathname);
   const currentHref = `${location.pathname}${location.search}`;
   const { columnVisibility, tableColumns } = useServerDataTableColumns(
     props.columns,
+    selectableRows,
   );
+  const { rowSelection, setRowSelection } = useDataTableRowSelection({
+    onSelectedRowIdsChange: props.onSelectedRowIdsChange,
+    selectedRowIds: props.selectedRowIds,
+  });
   const { searchQuery, setSearchQuery, lastAppliedSearchValueRef } =
-    useSearchQueryState(initialSearchValue);
-  const { columnFilters, setColumnFilters } = useColumnFiltersState({
+    useDataTableSearchQueryState(initialSearchValue);
+  const { columnFilters, setColumnFilters } = useDataTableColumnFiltersState({
     baseFacetedFilterValues,
     initialFacetedFilterValues,
   });
-  const { sorting, setSorting } = useSortingState(props.initialSort);
+  const { sorting, setSorting } = useDataTableSortingState(props.initialSort);
   const serverSort = sorting[0];
 
   const table = useServerReactTable({
@@ -72,6 +76,9 @@ export function ServerDataTable<TData>(props: ServerDataTableProps<TData>) {
     currentPage: props.currentPage,
     getRowKey: props.getRowKey,
     rows: props.rows,
+    rowSelection,
+    selectableRows,
+    setRowSelection,
     setSorting,
     sorting,
     tableColumns,
@@ -106,136 +113,90 @@ export function ServerDataTable<TData>(props: ServerDataTableProps<TData>) {
 
   return (
     <DataTableShell
-      table={table}
-      getRowProps={props.getRowProps}
-      searchPlaceholder={props.searchPlaceholder}
-      searchQuery={searchQuery}
-      onSearchChange={setSearchQuery}
-      facetedFilters={facetedFilters}
-      getSelectedFilterValues={(columnId) =>
-        getSelectedFilterValues(columnFilters, columnId)
-      }
-      onFacetedFilterChange={setFacetedFilterValue}
       emptyMessage={emptyMessage}
-      basePath={resolvedBasePath}
-      filteredRowCount={props.rows.length}
-      totalRows={props.totalRows}
+      filters={{
+        getSelectedValues: (columnId) =>
+          getSelectedFilterValues(columnFilters, columnId),
+        groups: facetedFilters,
+        onChange: setFacetedFilterValue,
+      }}
+      getRowProps={props.getRowProps}
       isLoading={isLoading}
-      pageCount={props.totalPages}
-      currentPage={props.currentPage}
-      canPreviousPage={props.currentPage > 1}
-      canNextPage={props.currentPage < props.totalPages}
-      pageHrefBuilder={createServerPageHrefBuilder({
-        currentSearch: location.search,
-        pageParamName: props.pageParamName,
-        resolvedBasePath,
-      })}
-      getServerSortHref={createServerSortHrefBuilder({
-        currentSearch: location.search,
-        pageParamName: props.pageParamName,
-        resolvedBasePath,
-        serverSort,
-        sortParamName: props.sortParamName,
-      })}
-      getServerSortDirection={(columnId) =>
-        getServerSortDirection(serverSort, columnId)
-      }
+      pagination={{
+        basePath: resolvedBasePath,
+        canNextPage: props.currentPage < props.totalPages,
+        canPreviousPage: props.currentPage > 1,
+        currentPage: props.currentPage,
+        // The page the loader sent, against the whole set it was drawn from:
+        // there is no client-side filtering to narrow either number.
+        filteredRowCount: props.rows.length,
+        hrefBuilder: createServerPageHrefBuilder({
+          currentSearch: location.search,
+          pageParamName: props.pageParamName,
+          resolvedBasePath,
+        }),
+        pageCount: props.totalPages,
+        totalRows: props.totalRows,
+      }}
+      search={{
+        onChange: setSearchQuery,
+        placeholder: props.searchPlaceholder,
+        query: searchQuery,
+      }}
+      // Present, and that is what makes the headers sort by link: this table's
+      // sort is a URL the reader can share and go back to.
+      serverSort={{
+        getDirection: (columnId) =>
+          getServerSortDirection(serverSort, columnId),
+        getHref: createServerSortHrefBuilder({
+          currentSearch: location.search,
+          pageParamName: props.pageParamName,
+          resolvedBasePath,
+          serverSort,
+          sortParamName: props.sortParamName,
+        }),
+      }}
+      table={table}
     />
   );
 }
 
+/**
+ * The optional props, resolved once. They are defaults and nothing else, so they
+ * sit outside the component: read together they say what the table falls back
+ * to, and read inside they were only noise between the hooks.
+ */
+function resolveServerDataTableDefaults<TData>(
+  props: ServerDataTableProps<TData>,
+  currentPathname: string,
+) {
+  return {
+    baseFacetedFilterValues:
+      props.baseFacetedFilterValues ?? emptyFacetedFilterValues,
+    emptyMessage: props.emptyMessage ?? "No hay resultados para mostrar.",
+    facetedFilters: props.facetedFilters ?? emptyFacetedFilters,
+    initialFacetedFilterValues:
+      props.initialFacetedFilterValues ?? emptyFacetedFilterValues,
+    initialSearchValue: props.initialSearchValue ?? "",
+    resolvedBasePath: props.basePath ?? currentPathname,
+    selectableRows: props.selectableRows ?? false,
+  };
+}
+
 function useServerDataTableColumns<TData>(
   columns: ServerDataTableProps<TData>["columns"],
+  selectableRows: boolean,
 ) {
   const columnVisibility = useMemo(
     () => createColumnVisibility(columns),
     [columns],
   );
   const tableColumns = useMemo(
-    () => createDataTableColumns(columns),
-    [columns],
+    () => createDataTableColumns(columns, { selectableRows }),
+    [columns, selectableRows],
   );
 
   return { columnVisibility, tableColumns };
-}
-
-function useSearchQueryState(initialSearchValue: string) {
-  const [searchQuery, setSearchQuery] = useState(initialSearchValue);
-  const lastAppliedSearchValueRef = useRef(initialSearchValue);
-
-  useEffect(() => {
-    setSearchQuery(initialSearchValue);
-    lastAppliedSearchValueRef.current = initialSearchValue;
-  }, [initialSearchValue]);
-
-  return { searchQuery, setSearchQuery, lastAppliedSearchValueRef };
-}
-
-function useColumnFiltersState({
-  baseFacetedFilterValues,
-  initialFacetedFilterValues,
-}: {
-  baseFacetedFilterValues: Record<string, DataTableFacetedFilterValue>;
-  initialFacetedFilterValues: Record<string, DataTableFacetedFilterValue>;
-}) {
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(() =>
-    createServerColumnFilters(
-      baseFacetedFilterValues,
-      initialFacetedFilterValues,
-    ),
-  );
-
-  useEffect(() => {
-    setColumnFilters(
-      createServerColumnFilters(
-        baseFacetedFilterValues,
-        initialFacetedFilterValues,
-      ),
-    );
-  }, [baseFacetedFilterValues, initialFacetedFilterValues]);
-
-  return { columnFilters, setColumnFilters };
-}
-
-function createServerColumnFilters(
-  baseFacetedFilterValues: Record<string, DataTableFacetedFilterValue>,
-  initialFacetedFilterValues: Record<string, DataTableFacetedFilterValue>,
-) {
-  return createColumnFilters(
-    mergeBaseFacetedFilterValues(
-      baseFacetedFilterValues,
-      initialFacetedFilterValues,
-    ),
-  );
-}
-
-function useSortingState(
-  initialSort: ServerDataTableProps<unknown>["initialSort"],
-) {
-  const [sorting, setSorting] = useState<SortingState>(() =>
-    createServerSortingState(initialSort),
-  );
-
-  useEffect(() => {
-    setSorting(createServerSortingState(initialSort));
-  }, [initialSort?.columnId, initialSort?.direction]);
-
-  return { sorting, setSorting };
-}
-
-function createServerSortingState(
-  initialSort: ServerDataTableProps<unknown>["initialSort"],
-): SortingState {
-  if (!initialSort) {
-    return [];
-  }
-
-  return [
-    {
-      id: initialSort.columnId,
-      desc: initialSort.direction === "desc",
-    },
-  ];
 }
 
 function useServerReactTable<TData>({
@@ -244,6 +205,9 @@ function useServerReactTable<TData>({
   currentPage,
   getRowKey,
   rows,
+  rowSelection,
+  selectableRows,
+  setRowSelection,
   setSorting,
   sorting,
   tableColumns,
@@ -254,6 +218,9 @@ function useServerReactTable<TData>({
   currentPage: number;
   getRowKey: ServerDataTableProps<TData>["getRowKey"];
   rows: TData[];
+  rowSelection: RowSelectionState;
+  selectableRows: boolean;
+  setRowSelection: OnChangeFn<RowSelectionState>;
   setSorting: Dispatch<SetStateAction<SortingState>>;
   sorting: SortingState;
   tableColumns: ColumnDef<TData>[];
@@ -270,9 +237,12 @@ function useServerReactTable<TData>({
         pageIndex: currentPage - 1,
         pageSize: rows.length,
       },
+      rowSelection,
       sorting,
     },
+    onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
+    enableRowSelection: selectableRows,
     getCoreRowModel: getCoreRowModel(),
     getRowId: getRowKey,
     manualSorting: true,

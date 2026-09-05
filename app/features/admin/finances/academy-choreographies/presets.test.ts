@@ -49,6 +49,7 @@ function priceOptionFixture(
 ): PresetPriceOption {
   return {
     amount: 10000,
+    depositAmount: 3000,
     id: "price",
     name: "Precio",
     paymentDeadline: null,

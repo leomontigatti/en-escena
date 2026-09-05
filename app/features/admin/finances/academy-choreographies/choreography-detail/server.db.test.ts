@@ -144,6 +144,7 @@ describe.sequential("`/administracion/finanzas` choreography detail", () => {
         // today: it is what the figures come from and what the dialog reads out.
         effectivePrice: {
           amount: 10000,
+          depositAmount: 3000,
           id: expect.any(String),
           name: "Precio Solo",
         },
@@ -154,7 +155,6 @@ describe.sequential("`/administracion/finanzas` choreography detail", () => {
         overAllocatedAmount: 0,
         owedBalanceAmount: 10000,
         owedDepositAmount: 3000,
-        selectedPrice: null,
         totalAmount: 10000,
         withdrawn: false,
       },
@@ -223,6 +223,7 @@ describe.sequential("`/administracion/finanzas` choreography detail", () => {
         discountAmount: 0,
         effectivePrice: {
           amount: 10000,
+          depositAmount: 3000,
           id: expect.any(String),
           name: "Precio Solo",
         },
@@ -233,11 +234,6 @@ describe.sequential("`/administracion/finanzas` choreography detail", () => {
         overAllocatedAmount: 0,
         owedBalanceAmount: 7000,
         owedDepositAmount: 0,
-        selectedPrice: {
-          amount: 10000,
-          id: expect.any(String),
-          name: "Precio Solo",
-        },
         totalAmount: 10000,
         withdrawn: false,
       },
@@ -297,12 +293,8 @@ describe.sequential("`/administracion/finanzas` choreography detail", () => {
       owedBalanceAmount: { amount: 0, status: "complete" },
       totalAmount: { amount: 10000, status: "complete" },
     });
-    // The price the row already holds travels with it: the dialog shows it
-    // locked, because the money has already fixed it. Above the threshold the
-    // effective price is that same stored row.
-    expect(loaderData.inscriptions[0]?.selectedPrice).toMatchObject({
-      amount: 10000,
-    });
+    // Above the threshold the effective price is the stored row, which is what
+    // the dialog shows locked: the money has already fixed it.
     expect(loaderData.inscriptions[0]?.effectivePrice).toMatchObject({
       amount: 10000,
     });
@@ -379,9 +371,9 @@ describe.sequential("`/administracion/finanzas` choreography detail", () => {
       name: "Precio Solo",
     });
     expect(row?.basePriceAmount).toBe(10000);
-    // The stored row travels too, and it is the picker's default — the one
-    // thing that still reads what the administrator last said.
-    expect(row?.selectedPrice).toMatchObject({ amount: 12000 });
+    // And the stored row —12000— does not travel at all: the picker opens on
+    // the effective one, so nothing on this screen can name it.
+    expect(row).not.toHaveProperty("selectedPrice");
   });
 
   test("keeps a withdrawn inscription visible, with its retained allocation as its total", async () => {
@@ -540,7 +532,6 @@ describe.sequential("`/administracion/finanzas` choreography detail", () => {
         overAllocatedAmount: null,
         owedBalanceAmount: null,
         owedDepositAmount: null,
-        selectedPrice: null,
         totalAmount: null,
         withdrawn: false,
       },

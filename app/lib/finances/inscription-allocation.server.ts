@@ -65,9 +65,14 @@ export type InscriptionPriceOption = {
   name: string;
 };
 
-/** A price row the allocation dialog names: the stored one or the effective one. */
+/**
+ * The price row the allocation dialog names. It carries its `Seña` for the same
+ * reason the options do: locked or not, the control reads the same three figures,
+ * so the readout cannot say less than the picker it replaces.
+ */
 export type InscriptionDialogPrice = {
   amount: number;
+  depositAmount: number;
   id: string;
   name: string;
 };
@@ -221,6 +226,10 @@ export async function readInscriptionEffectivePrices(input: {
     if (price) {
       effectivePrices.set(inscription.id, {
         amount: price.amount,
+        depositAmount: calculateDepositAmount({
+          priceAmount: price.amount,
+          requiredDepositPercentage: event.requiredDepositPercentage,
+        }),
         id: price.id,
         name: price.name,
       });
@@ -228,34 +237,6 @@ export async function readInscriptionEffectivePrices(input: {
   }
 
   return effectivePrices;
-}
-
-/**
- * The price row each inscription of a choreography has selected — what is
- * **stored**, which is what the picker opens on. What the inscription is charged
- * at is `readInscriptionEffectivePrices`, and below the deposit threshold the
- * two differ.
- */
-export async function readInscriptionSelectedPrices(input: {
-  choreographyId: string;
-}): Promise<Map<string, InscriptionDialogPrice>> {
-  const rows = await db
-    .select({
-      amount: prices.amount,
-      id: prices.id,
-      inscriptionId: choreographyDancers.id,
-      name: prices.name,
-    })
-    .from(choreographyDancers)
-    .innerJoin(prices, eq(choreographyDancers.selectedPriceId, prices.id))
-    .where(eq(choreographyDancers.choreographyId, input.choreographyId));
-
-  return new Map(
-    rows.map((row) => [
-      row.inscriptionId,
-      { amount: row.amount, id: row.id, name: row.name },
-    ]),
-  );
 }
 
 type InscriptionMoneyInput = {

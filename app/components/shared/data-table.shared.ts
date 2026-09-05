@@ -80,8 +80,12 @@ export type DataTableBaseProps<TData> = {
   sortParamName?: string;
 };
 
-export type ClientDataTableProps<TData> = DataTableBaseProps<TData> & {
-  textFilterColumnId?: string;
+/**
+ * Row selection, shared by both tables because both ask the same thing of it.
+ * On the server table the checkbox reaches the current page only: the rows are
+ * the ones the loader sent, and there is nothing else on the client to select.
+ */
+export type DataTableRowSelectionProps = {
   selectableRows?: boolean;
   /**
    * Row selection, lifted. Pass both to control it from outside — needed when
@@ -91,16 +95,35 @@ export type ClientDataTableProps<TData> = DataTableBaseProps<TData> & {
    */
   selectedRowIds?: string[];
   onSelectedRowIdsChange?: (selectedRowIds: string[]) => void;
-  hideSearch?: boolean;
-  hidePagination?: boolean;
-  initialSort?: DataTableSort;
 };
 
-export type ServerDataTableProps<TData> = DataTableBaseProps<TData> & {
-  currentPage: number;
-  totalPages: number;
-  totalRows: number;
-  basePath?: string;
-  initialSort?: DataTableSort;
-  loading?: boolean;
-};
+/**
+ * What a client list pages at unless it says otherwise. Ten keeps a short list
+ * short; a list that is read as a whole —or acted on as a whole, through a
+ * selection— asks for more.
+ */
+export const defaultClientDataTablePageSize = 10;
+
+export type ClientDataTableProps<TData> = DataTableBaseProps<TData> &
+  DataTableRowSelectionProps & {
+    textFilterColumnId?: string;
+    hideSearch?: boolean;
+    hidePagination?: boolean;
+    /**
+     * Rows per page, defaulting to `defaultClientDataTablePageSize`. Raise it on
+     * a list whose whole set is worth reading at once: the rows are already all
+     * here, so paging them is a reading choice and not a cost.
+     */
+    pageSize?: number;
+    initialSort?: DataTableSort;
+  };
+
+export type ServerDataTableProps<TData> = DataTableBaseProps<TData> &
+  DataTableRowSelectionProps & {
+    currentPage: number;
+    totalPages: number;
+    totalRows: number;
+    basePath?: string;
+    initialSort?: DataTableSort;
+    loading?: boolean;
+  };

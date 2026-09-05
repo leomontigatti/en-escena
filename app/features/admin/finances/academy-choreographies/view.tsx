@@ -7,7 +7,6 @@ import {
   type DataTableFacetedFiltersOf,
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
-import { MetricCard } from "@/components/shared/metric-card";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
@@ -17,9 +16,12 @@ import {
 } from "@/lib/finances/choreography-financial-status";
 import type { CobroStage } from "@/lib/finances/choreography-cobro-presets.server";
 import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
+import { resolveSelectedOperationalTotals } from "@/lib/finances/selected-operational-totals";
+import { operationalFinanceColumns } from "@/lib/finances/operational-finance-columns";
+import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 
-import { formatAmount, formatOperationalAmount } from "../formatters";
+import { OperationalFinanceMetrics } from "@/lib/finances/operational-finance-metrics";
 import { FinancePresetDialog } from "./preset-dialog";
 import { financePresetLabels } from "./presets";
 import type { AcademyFinancesLoaderData } from "./types";
@@ -60,9 +62,15 @@ export function AcademyFinancesRouteView({
     () => buildChoreographyFinanceColumns(loaderData.academy.id),
     [loaderData.academy.id],
   );
-  const selectedRows = loaderData.choreographyFinanceRows.filter((row) =>
-    selectedRowIds.includes(row.id),
-  );
+  // The collection operates on the selection, so the two owed figures follow it:
+  // leaving them at the academy's total forces adding up from memory how much is
+  // about to be collected.
+  const { hasSelection, owedBalanceAmount, owedDepositAmount, selectedRows } =
+    resolveSelectedOperationalTotals({
+      rows: loaderData.choreographyFinanceRows,
+      selectedRowIds,
+      summary: loaderData.summary,
+    });
   // Stable so the dialog can close itself from an effect when the write
   // succeeds without the effect re-running on every render of the list.
   const handlePresetOpenChange = useCallback((next: boolean) => {
@@ -80,60 +88,62 @@ export function AcademyFinancesRouteView({
           "Activá un evento para consultar la lista financiera de las coreografías de la academia.",
       }}
       headerAction={
-        selectedRows.length > 0 ? (
-          <ResourceActionsMenu contentClassName="w-48">
-            <DropdownMenuItem
-              onSelect={(event) => {
-                event.preventDefault();
-                setPresetStage("deposit");
-              }}
-            >
-              {financePresetLabels.deposit}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={(event) => {
-                event.preventDefault();
-                setPresetStage("balance");
-              }}
-            >
-              {financePresetLabels.balance}
-            </DropdownMenuItem>
-          </ResourceActionsMenu>
-        ) : undefined
+        // The menu is always there: a button that comes and goes with the
+        // selection hides what can be done here. With no rows selected both
+        // collections are disabled —there is nothing to collect against— but
+        // they stay in view.
+        <ResourceActionsMenu contentClassName="w-48">
+          <DropdownMenuItem
+            disabled={!hasSelection}
+            onSelect={(event) => {
+              event.preventDefault();
+              setPresetStage("deposit");
+            }}
+          >
+            {financePresetLabels.deposit}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={!hasSelection}
+            onSelect={(event) => {
+              event.preventDefault();
+              setPresetStage("balance");
+            }}
+          >
+            {financePresetLabels.balance}
+          </DropdownMenuItem>
+        </ResourceActionsMenu>
       }
     >
       <div className="flex flex-col gap-6">
-        <section className="grid gap-4 md:grid-cols-3">
-          <MetricCard
-            title="Seña adeudada"
-            value={formatOperationalAmount(
-              loaderData.summary.owedDepositAmount,
-            )}
-          />
-          <MetricCard
-            title="Saldo disponible"
-            value={formatAmount(loaderData.summary.availableBalanceAmount)}
-          />
-          <MetricCard
-            title="Saldo adeudado"
-            value={formatOperationalAmount(
-              loaderData.summary.owedBalanceAmount,
-            )}
-          />
-        </section>
+        {/* The two owed figures re-scope to the selection; the thresholds and the
+            available balance do not. */}
+        <OperationalFinanceMetrics
+          availableBalanceAmount={loaderData.summary.availableBalanceAmount}
+          depositAmount={loaderData.summary.depositAmount}
+          owedBalanceAmount={owedBalanceAmount}
+          owedDepositAmount={owedDepositAmount}
+          totalAmount={loaderData.summary.totalAmount}
+        />
 
         <ClientDataTable
           rows={loaderData.choreographyFinanceRows}
           columns={columns}
           facetedFilters={choreographyFinanceFacetedFilters}
           getRowKey={(row) => row.id}
-          searchPlaceholder="Buscar coreografía por nombre"
+          searchPlaceholder="Buscar coreografía por número o nombre"
           textFilterColumnId="name"
+          // Higher than the default ten because the two collections act on the
+          // selection: an academy whose choreographies span pages is one whose
+          // deposit cannot be collected in a single reading. The rows are all
+          // here already, so this costs a longer page and nothing else.
+          pageSize={25}
           selectableRows
           selectedRowIds={selectedRowIds}
           onSelectedRowIdsChange={setSelectedRowIds}
+          // By number, like the choreography lists: it is the row's identity
+          // within the event, so it is what the list is ordered by.
           initialSort={{
-            columnId: "name",
+            columnId: "choreographyNumber",
             direction: "asc",
           }}
           emptyMessage="No hay coreografías para mostrar."
@@ -143,6 +153,7 @@ export function AcademyFinancesRouteView({
       {presetStage !== null && selectedRows.length > 0 ? (
         <FinancePresetDialog
           availableBalanceAmount={loaderData.summary.availableBalanceAmount}
+          inscriptions={loaderData.inscriptions}
           open
           onOpenChange={handlePresetOpenChange}
           priceOptionsByGroupType={loaderData.priceOptionsByGroupType}
@@ -162,17 +173,32 @@ function buildChoreographyFinanceColumns(
 ): DataTableColumn<ChoreographyFinanceRow>[] {
   return [
     {
-      id: "name",
-      header: "Nombre",
-      className: "min-w-56 font-medium",
+      id: "choreographyNumber",
+      header: "#",
+      className: "w-16 font-medium tabular-nums",
+      headerClassName: "w-16",
       cell: (row) => (
         <DataTableLink
           to={`/administracion/finanzas/${academyId}/coreografias/${row.id}`}
         >
-          {row.name}
+          {formatEventSequenceNumber(row.choreographyNumber)}
         </DataTableLink>
       ),
-      filterValue: (row) => row.name,
+      sortValue: (row) => row.choreographyNumber,
+    },
+    {
+      id: "name",
+      header: "Nombre",
+      className: "min-w-56 font-medium",
+      // The number is the row's only way into the detail, as in the
+      // choreography lists. Linking the name too gave one destination two
+      // targets, which reads as a choice and is not.
+      cell: (row) => row.name,
+      // The search box filters this one column, so the number travels in here
+      // to be searchable at all. Zero-padded, which is what makes `00042`,
+      // `042` and `42` all reach the same choreography.
+      filterValue: (row) =>
+        `${formatEventSequenceNumber(row.choreographyNumber)} ${row.name}`,
       sortValue: (row) => row.name,
     },
     {
@@ -182,31 +208,7 @@ function buildChoreographyFinanceColumns(
         <Badge variant="secondary">{formatGroupTypeLabel(row.groupType)}</Badge>
       ),
     },
-    {
-      id: "depositAmount",
-      header: "Seña",
-      className: "text-right tabular-nums",
-      headerClassName: "text-right",
-      cell: (row) => formatOperationalAmount(row.depositAmount),
-    },
-    {
-      id: "totalAmount",
-      header: "Total",
-      // Decorative and unconditional: `Total` is the context column — what the debt
-      // is measured against — so the whole of it is muted. Never per row: a grey
-      // that varies goes back to meaning something.
-      className: "text-right tabular-nums text-muted-foreground",
-      headerClassName: "text-right",
-      cell: (row) => formatOperationalAmount(row.totalAmount),
-    },
-    {
-      id: "owedBalanceAmount",
-      header: "Saldo adeudado",
-      // The row's only actionable figure, highlighted by column.
-      className: "text-right font-medium tabular-nums",
-      headerClassName: "text-right",
-      cell: (row) => formatOperationalAmount(row.owedBalanceAmount),
-    },
+    ...operationalFinanceColumns,
     {
       id: "financialStatus",
       header: "Estado",

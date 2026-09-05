@@ -13,6 +13,7 @@ import {
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminUser } from "@/lib/auth/internal-access.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
+import { resolvePaymentAvailableAmount } from "@/lib/finances/payment-available-amount.server";
 import { getFieldErrors } from "@/lib/shared/form-validation";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
 
@@ -89,6 +90,12 @@ export async function loadPaymentDetail(request: Request, paymentId: string) {
     academies: academyOptions,
     affectedChoreographies,
     allocatedAmount,
+    // Derived from the sum the edit guards already needed, so the detail reads
+    // one figure and not two that could disagree.
+    availableAmount: resolvePaymentAvailableAmount({
+      allocatedAmount,
+      amount: paymentDetail.amount,
+    }),
     canDelete: user.role === "admin",
     canEdit: user.role === "admin",
     payment: paymentDetail,

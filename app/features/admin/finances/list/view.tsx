@@ -9,11 +9,8 @@ import {
   type DataTableColumn,
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
-import {
-  formatAmount,
-  formatOperationalAmount,
-} from "@/features/admin/finances/formatters";
-import { cn } from "@/lib/shared/utils";
+import { formatAmount } from "@/lib/finances/formatters";
+import { operationalFinanceColumns } from "@/lib/finances/operational-finance-columns";
 
 import type { FinanceAccountRow, loadFinancesList } from "./server";
 
@@ -36,36 +33,13 @@ const accountColumns: DataTableColumn<FinanceAccountRow>[] = [
     filterValue: (row) => row.academyName,
     sortValue: (row) => row.academyName,
   },
-  {
-    id: "owedDepositAmount",
-    header: "Seña adeudada",
-    className: "text-right tabular-nums",
-    headerClassName: "text-right",
-    cell: (row) => formatOperationalAmount(row.owedDepositAmount),
-  },
+  ...operationalFinanceColumns,
   {
     id: "availableBalanceAmount",
     header: "Saldo disponible",
     className: "text-right tabular-nums",
     headerClassName: "text-right",
-    // An academy with no balance in its favour is the normal case: dimming it
-    // lets the ones that do hold available money stand out.
-    cell: (row) => (
-      <span
-        className={cn(
-          row.availableBalanceAmount === 0 && "text-muted-foreground",
-        )}
-      >
-        {formatAmount(row.availableBalanceAmount)}
-      </span>
-    ),
-  },
-  {
-    id: "owedBalanceAmount",
-    header: "Saldo adeudado",
-    className: "text-right tabular-nums",
-    headerClassName: "text-right",
-    cell: (row) => formatOperationalAmount(row.owedBalanceAmount),
+    cell: (row) => formatAmount(row.availableBalanceAmount),
   },
 ];
 
@@ -76,7 +50,7 @@ export function FinancesListRouteView({
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
       title="Finanzas"
-      description="Saldo de cada academia en el evento activo: seña adeudada, saldo disponible y saldo adeudado."
+      description="Saldo de cada academia en el evento activo: seña, total, saldo adeudado y saldo disponible."
       eventRequiredEmptyState={{
         title: "No hay un evento activo para operar finanzas",
         description:

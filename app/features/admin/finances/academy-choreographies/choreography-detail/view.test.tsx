@@ -26,20 +26,75 @@ type ChoreographyRow = NonNullable<
 >;
 
 describe("ChoreographyFinanceDetailView", () => {
-  test("renders readonly finance cards, choreography fields, and inscriptions with state", () => {
+  test("identifies the choreography in the title and drops the readonly data card", () => {
     const markup = renderDetail();
 
-    expect(markup).toContain("Detalle financiero");
+    // The name and the number in the title: the name identifies the
+    // choreography within the academy and the number within the event, which is
+    // the one the choreography detail titles itself with too. The description is
+    // generic: it says what is done in the view, not whose choreography it is.
+    expect(markup).toContain("Aire # 00001");
+    expect(markup).not.toContain("Aire - Dúo");
+    expect(markup).toContain(
+      "Revisá y/o modificá las asignaciones de cada inscripción",
+    );
+    expect(markup).not.toContain('value="Aire"');
+    expect(markup).not.toContain('value="Academia Centro"');
+    expect(markup).not.toContain("Tipo de grupo");
+  });
+
+  test("renders the five choreography metrics, and the inscriptions with their state", () => {
+    const markup = renderDetail();
+
+    // The same five as the academy, narrowed to this choreography.
+    expect(amountCard(markup, "Seña total").textContent).toContain("$ 3.000");
+    expect(amountCard(markup, "Seña adeudada").textContent).toContain("$ 0");
+    expect(amountCard(markup, "Total").textContent).toContain("$ 10.000");
+    expect(amountCard(markup, "Saldo adeudado").textContent).toContain(
+      "$ 7.000",
+    );
+    // The academy's, not the choreography's: it is the unallocated pool.
+    expect(amountCard(markup, "Saldo disponible").textContent).toContain(
+      "$ 5.000",
+    );
+
     expect(markup).toContain("Estado");
     expect(markup).toContain("Señada");
-    expect(markup).toContain('value="Academia Centro"');
-    expect(markup).toContain('value="Aire"');
-    expect(markup).toContain('value="Dúo"');
     expect(markup).toContain("Bailarín");
-    expect(markup).toContain("Precio base");
-    expect(markup).toContain("Seña");
-    expect(markup).toContain("Saldo");
     expect(markup).toContain("Ana López");
+  });
+
+  test("names the price row instead of repeating its amount, and badges it", () => {
+    const markup = renderDetail();
+
+    const headers = columnHeaders(markup);
+    expect(headers).toContain("Precio");
+    expect(headers).not.toContain("Precio base");
+
+    // The name of the price row, not its amount.
+    const cell = columnCell(markup, "Precio", 0);
+    expect(cell.textContent?.trim()).toBe("Dúo general");
+    expect(cell.querySelector('[data-slot="badge"]')).not.toBeNull();
+  });
+
+  test("leaves an inscription without an applicable price without a badge", () => {
+    const markup = renderDetail({
+      inscriptions: [inscriptionFixture({ effectivePrice: null })],
+    });
+
+    const cell = columnCell(markup, "Precio", 0);
+    expect(cell.textContent?.trim()).toBe("Sin precio");
+    expect(cell.querySelector('[data-slot="badge"]')).toBeNull();
+  });
+
+  test("closes the table with the status column, after the money", () => {
+    const markup = renderDetail();
+    const headers = columnHeaders(markup);
+
+    expect(headers.at(-1)).toBe("Estado");
+    expect(headers.indexOf("Estado")).toBe(
+      headers.indexOf("Saldo adeudado") + 1,
+    );
   });
 
   test("replaces the status badge with withdrawn and the retained amount", () => {
@@ -71,7 +126,7 @@ describe("ChoreographyFinanceDetailView", () => {
     // the global comprobante list and detail.
     const markup = renderDetail();
 
-    for (const title of ["Seña", "Saldo adeudado", "Total"]) {
+    for (const title of ["Seña total", "Saldo adeudado", "Total"]) {
       const card = amountCard(markup, title);
       expect(card.textContent).not.toContain("Vigente");
       expect(card.textContent).not.toContain("Desactualizada");
@@ -109,7 +164,6 @@ describe("ChoreographyFinanceDetailView", () => {
           firstName: "Bruno",
           inscriptionId: null,
           lastName: "Benítez",
-          selectedPrice: null,
         }),
       ],
     });
@@ -165,7 +219,6 @@ describe("ChoreographyFinanceDetailView", () => {
     // What is left is fixed decoration: `Total` is context, `Saldo adeudado` is
     // the only actionable figure.
     expect(pending).toEqual({
-      "Precio base": { emphasised: false, muted: false },
       Seña: { emphasised: false, muted: false },
       Total: { emphasised: false, muted: true },
       "Saldo adeudado": { emphasised: true, muted: false },
@@ -227,16 +280,41 @@ describe("ChoreographyFinanceDetailView", () => {
  * the column's header, not on its position, so the test talks about
  * "Saldo adeudado" and not about "cell 5".
  */
-function amountColumnStyles(markup: string) {
+function inscriptionsTable(markup: string) {
   const document = new DOMParser().parseFromString(markup, "text/html");
-  const table = document.querySelector('[aria-label="Inscripciones"] table');
+
+  return document.querySelector('[aria-label="Inscripciones"] table');
+}
+
+function columnHeaders(markup: string) {
+  return [
+    ...(inscriptionsTable(markup)?.querySelectorAll("thead th") ?? []),
+  ].map((header) => header.textContent?.trim() ?? "");
+}
+
+function columnCell(markup: string, column: string, rowIndex: number): Element {
+  const table = inscriptionsTable(markup);
+  const row = [...(table?.querySelectorAll("tbody tr") ?? [])][rowIndex];
+  const cell = [...(row?.querySelectorAll("td") ?? [])][
+    columnHeaders(markup).indexOf(column)
+  ];
+
+  if (!cell) {
+    throw new Error(`Expected a cell for the column "${column}".`);
+  }
+
+  return cell;
+}
+
+function amountColumnStyles(markup: string) {
+  const table = inscriptionsTable(markup);
   const headers = [...(table?.querySelectorAll("thead th") ?? [])].map(
     (header) => header.textContent?.trim() ?? "",
   );
   const cells = [...(table?.querySelectorAll("tbody tr td") ?? [])];
 
   return Object.fromEntries(
-    ["Precio base", "Seña", "Total", "Saldo adeudado"].map((column) => {
+    ["Seña", "Total", "Saldo adeudado"].map((column) => {
       const cell = cells[headers.indexOf(column)];
 
       if (!cell) {
@@ -321,6 +399,7 @@ function loaderDataFixture(
       name: "Academia Centro",
       phone: "11-5555-5555",
     },
+    availableBalanceAmount: 5000,
     choreography: choreographyFixture(),
     inscriptions: [inscriptionFixture({ financialStatus: "depositMet" })],
     invoicing: invoicingFixture(),
@@ -353,6 +432,7 @@ function choreographyFixture(
   return {
     allocatedAmount: 3000,
     anomalies: [],
+    choreographyNumber: 1,
     depositAmount: { amount: 3000, status: "complete" },
     financialStatus: "depositMet",
     groupType: "duo",
@@ -376,7 +456,12 @@ function inscriptionFixture(
     dancerId: "dancer_1",
     depositAmount: 3000,
     discountAmount: 0,
-    effectivePrice: { amount: 10000, id: "price_1", name: "Dúo general" },
+    effectivePrice: {
+      amount: 10000,
+      depositAmount: 3000,
+      id: "price_1",
+      name: "Dúo general",
+    },
     financialStatus: "depositMet",
     firstName: "Ana",
     inscriptionId: "inscription_1",
@@ -384,7 +469,6 @@ function inscriptionFixture(
     overAllocatedAmount: 0,
     owedBalanceAmount: 7000,
     owedDepositAmount: 0,
-    selectedPrice: { amount: 10000, id: "price_1", name: "Dúo general" },
     totalAmount: 10000,
     withdrawn: false,
     ...overrides,
@@ -416,10 +500,21 @@ describe("ChoreographyFinanceDetailView actions menu", () => {
     await renderer.renderAsync(<RouterProvider router={router} />);
   }
 
-  test("omits the actions menu when there is nothing to emit or charge", async () => {
+  // With nothing left to bill the menu is still there: what gets disabled is the
+  // option. A button that comes and goes does not teach what can be done.
+  test('keeps the actions menu visible and disables "Emitir factura" with nothing to bill', async () => {
     await mount();
 
-    expect(document.querySelector('button[aria-label="Acciones"]')).toBeNull();
+    expect(
+      document.querySelector('button[aria-label="Acciones"]'),
+    ).not.toBeNull();
+
+    await openActionsMenu();
+
+    const item = [...document.querySelectorAll('[role="menuitem"]')].find(
+      (candidate) => candidate.textContent?.includes("Emitir factura"),
+    );
+    expect(item?.getAttribute("aria-disabled")).toBe("true");
   });
 
   test("offers Emitir invoice inside the actions menu, not as a standalone button", async () => {

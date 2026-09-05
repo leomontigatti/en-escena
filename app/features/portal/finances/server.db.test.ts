@@ -201,6 +201,9 @@ describe.sequential("loadPortalAcademyFinances", () => {
 
     expect(loaderData.summary).toEqual({
       availableBalanceAmount: 12000,
+      // Two inscriptions of 10000 with a deposit of 3000 each.
+      depositAmount: { status: "complete", amount: 6000 },
+      totalAmount: { status: "complete", amount: 20000 },
       // 7000 of shortfall on the one that covered its deposit + 10000 from the
       // one with nothing. Gross: the 12000 available is not subtracted here, it
       // is shown in its own metric.
@@ -352,6 +355,8 @@ describe.sequential("loadPortalAcademyFinances", () => {
 
     expect(portalLoaderData.summary).toEqual({
       availableBalanceAmount: 0,
+      depositAmount: { amount: 3600, status: "complete" },
+      totalAmount: { amount: 12000, status: "complete" },
       owedBalanceAmount: { amount: 8400, status: "complete" },
       owedDepositAmount: { amount: 0, status: "complete" },
       totalPaidAmount: 3600,

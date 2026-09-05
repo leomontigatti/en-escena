@@ -30,6 +30,20 @@ describe("PortalAcademyPaymentsRouteView", () => {
     expect(document.querySelector('a[href^="/portal/pagos/"]')).toBeNull();
   });
 
+  // Selecting payments is the administration panel's, not the academy's: the
+  // panel ticks rows to re-scope its two money cards, and this list has no such
+  // figures to re-scope. The academy reads its own payments and nothing else.
+  test("does not offer row selection", async () => {
+    await renderPortalPayments(portalPaymentsLoaderDataFixture());
+
+    expect(
+      document.querySelector('[aria-label="Seleccionar fila"]'),
+    ).toBeNull();
+    expect(
+      document.querySelector('[aria-label="Seleccionar todas las filas"]'),
+    ).toBeNull();
+  });
+
   test("shows the payment reference and method", async () => {
     await renderPortalPayments(portalPaymentsLoaderDataFixture());
 

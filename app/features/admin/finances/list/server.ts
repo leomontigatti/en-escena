@@ -14,8 +14,9 @@ export type FinanceAccountRow = {
   academyId: string;
   academyName: string;
   availableBalanceAmount: number;
+  depositAmount: OperationalFinanceAmount;
+  totalAmount: OperationalFinanceAmount;
   owedBalanceAmount: OperationalFinanceAmount;
-  owedDepositAmount: OperationalFinanceAmount;
 };
 
 export async function loadFinancesList(request: Request) {
@@ -63,8 +64,9 @@ export async function loadFinancesList(request: Request) {
         academyId: academy.id,
         academyName: academy.name,
         availableBalanceAmount: summary.availableBalanceAmount,
+        depositAmount: summary.depositAmount,
+        totalAmount: summary.totalAmount,
         owedBalanceAmount: summary.owedBalanceAmount,
-        owedDepositAmount: summary.owedDepositAmount,
       };
     }),
     selectedEventId,

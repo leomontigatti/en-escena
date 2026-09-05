@@ -11,6 +11,7 @@ import {
 
 const choreography: FinanceChoreographyRow = {
   academyId: "academy_1",
+  choreographyNumber: 1,
   choreographyScheduleId: null,
   groupType: "solo",
   id: "choreography_1",
@@ -29,6 +30,7 @@ function resolvedInscription(
     allocatedAmount: 0,
     anomalies: [],
     basePriceAmount: 10000,
+    basePriceId: "price_1",
     choreographyId: "choreography_1",
     dancerDiscountAmount: 0,
     dancerId: "dancer_1",

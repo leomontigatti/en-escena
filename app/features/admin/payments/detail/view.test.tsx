@@ -38,6 +38,20 @@ describe("PaymentDetailRouteView", () => {
     ).not.toBeNull();
   });
 
+  // The one figure the detail could not answer before: of what came in, how much
+  // is still free. Alone above the form, because `Monto` is already a field.
+  test("shows what is still free on the payment", async () => {
+    await renderDetailIntoDocument({
+      loaderData: buildLoaderData({
+        allocatedAmount: 4000,
+        availableAmount: 6000,
+      }),
+    });
+
+    expect(document.body.textContent).toContain("Disponible");
+    expect(document.body.textContent).toContain("$ 6.000");
+  });
+
   test("keeps payment details read-only for auditors", async () => {
     await renderDetailIntoDocument({
       loaderData: buildLoaderData({
@@ -146,6 +160,7 @@ function buildLoaderData(overrides: Partial<LoaderData> = {}): LoaderData {
     ],
     affectedChoreographies: [],
     allocatedAmount: 0,
+    availableAmount: payment.amount,
     canDelete: true,
     canEdit: true,
     payment,

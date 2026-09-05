@@ -117,3 +117,13 @@ export const choreographyStatusFilterOptions = [
   ...inscriptionFinancialStatusOptions,
   { label: inscriptionAnomalyLabels.overAllocated, value: "overAllocated" },
 ] as const satisfies ReadonlyArray<{ label: string; value: string }>;
+
+/**
+ * The same options for the `Estado` column of a list of inscriptions, plus
+ * `Retirada`: the withdrawal axis belongs to the inscription, and there the
+ * option does have rows it can find.
+ */
+export const inscriptionStatusFilterOptions = [
+  ...choreographyStatusFilterOptions,
+  { label: withdrawnInscriptionLabel, value: "withdrawn" },
+] as const satisfies ReadonlyArray<{ label: string; value: string }>;

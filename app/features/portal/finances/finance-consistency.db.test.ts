@@ -181,6 +181,19 @@ describe.sequential(
       expect(portalLoaderData.summary).toEqual({
         // 16600 payments - 15600 allocations = 1000 available.
         availableBalanceAmount: 1000,
+        // The thresholds of the three that have a price (3000 + 3600 + 3600 of
+        // deposit, 10000 + 12000 + 12000 of total); the one with no price adds 1
+        // to the incomplete count.
+        depositAmount: {
+          amount: 10200,
+          missingPriceCount: 1,
+          status: "incomplete",
+        },
+        totalAmount: {
+          amount: 34000,
+          missingPriceCount: 1,
+          status: "incomplete",
+        },
         // 8400 of shortfall on the one that covered its deposit + 10000 from the
         // one with nothing, at the current price; the one with no price adds 1 to
         // the incomplete count. Gross: it does not subtract the available balance.

@@ -268,38 +268,41 @@ describe.sequential("`/administracion/finanzas`", () => {
     });
 
     expect(loaderData.selectedEventId).toBe(event.id);
-    // Norte: payments 20000 - allocations 13000 = available 7000; deposit owed
-    // 3000 (the one that did not reach the threshold); balance owed 17000 = 7000
-    // from the one that covered the deposit + 10000 from the one with nothing,
-    // which owes both.
-    // Sur: payments 3000 - allocations 0 = available 3000; deposit owed 3000;
-    // balance owed 10000, the total of its single inscription with no money.
+    // Norte: three inscriptions of 10000 with a deposit of 3000 each → deposit
+    // 9000 and total 30000, the paid one included: the thresholds are context,
+    // not debt. Payments 20000 - allocations 13000 = available 7000; balance owed
+    // 17000 = 7000 from the one that covered the deposit + 10000 from the one
+    // with nothing.
+    // Sur: a single inscription → deposit 3000 and total 10000; payments 3000 -
+    // allocations 0 = available 3000; balance owed 10000.
     expect(loaderData.rows).toEqual([
       {
         academyId: academyNorth.academy.id,
         academyName: "Academia Norte",
         availableBalanceAmount: 7000,
+        depositAmount: { status: "complete", amount: 9000 },
+        totalAmount: { status: "complete", amount: 30000 },
         owedBalanceAmount: { status: "complete", amount: 17000 },
-        owedDepositAmount: { status: "complete", amount: 3000 },
       },
       {
         academyId: academySouth.academy.id,
         academyName: "Academia Sur",
         availableBalanceAmount: 3000,
+        depositAmount: { status: "complete", amount: 3000 },
+        totalAmount: { status: "complete", amount: 10000 },
         owedBalanceAmount: { status: "complete", amount: 10000 },
-        owedDepositAmount: { status: "complete", amount: 3000 },
       },
     ]);
     expect(markup).toContain("Finanzas");
     expect(markup).toContain(
       `/administracion/finanzas/${academyNorth.academy.id}`,
     );
-    expect(markup).toContain("Seña adeudada");
-    expect(markup).toContain("Saldo disponible");
+    expect(markup).toContain("Seña");
+    expect(markup).toContain("Total");
     expect(markup).toContain("Saldo adeudado");
+    expect(markup).toContain("Saldo disponible");
     expect(markup).toContain("$ 7.000");
     expect(markup).toContain("$ 3.000");
-    expect(markup).not.toContain("$ 20.000");
     expect(markup).not.toContain("Academia Fantasma");
     expect(markup).not.toContain("$ 3.333");
   });
@@ -354,21 +357,26 @@ describe.sequential("`/administracion/finanzas`", () => {
         academyId: academy.academy.id,
         academyName: "Academia Sin Precio",
         availableBalanceAmount: 0,
-        // The unpaid one with no price owes both deposit and balance, and neither
-        // of them can be quantified.
-        owedBalanceAmount: {
+        // With no applicable price there is no threshold: neither the deposit nor
+        // the total nor the balance owed by the unpaid one can be quantified.
+        depositAmount: {
           status: "incomplete",
           amount: 0,
           missingPriceCount: 1,
         },
-        owedDepositAmount: {
+        totalAmount: {
+          status: "incomplete",
+          amount: 0,
+          missingPriceCount: 1,
+        },
+        owedBalanceAmount: {
           status: "incomplete",
           amount: 0,
           missingPriceCount: 1,
         },
       },
     ]);
-    expect(markup.match(/Pendiente/g)).toHaveLength(2);
+    expect(markup.match(/Pendiente/g)).toHaveLength(3);
   });
 
   test("lets admin create a payment from the payments form", async () => {

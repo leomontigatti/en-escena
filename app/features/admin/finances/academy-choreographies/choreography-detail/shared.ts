@@ -9,14 +9,6 @@ export const allocateInscriptionIntent = "allocate-inscription";
 export const removeInscriptionMoneyIntent = "remove-inscription-money";
 export const releaseInscriptionExcessIntent = "release-inscription-excess";
 
-/** How a dancer is named everywhere on the financial detail. */
-export function formatDancerName(input: {
-  firstName: string;
-  lastName: string;
-}) {
-  return `${input.firstName} ${input.lastName}`;
-}
-
 // Re-verification of an emission left unresolved (#577): it queries ARCA again
 // for that sequence number, without retrying the authorization.
 export const recheckComprobanteIntent = "recheck-comprobante";

@@ -52,28 +52,19 @@ export function presetPriceFieldName(groupType: ChoreographyGroupType): string {
  * A price row a preset may fix on an inscription. `scheduleId` travels because
  * the writer refuses a row bound to a schedule other than the choreography's,
  * so the picker has to apply the very same rule.
+ *
+ * `depositAmount` travels already computed because the dialog projects what the
+ * selection would owe against the picked row, and the percentage it comes from
+ * belongs to the event and not to the price.
  */
 export type PresetPriceOption = {
   amount: number;
+  depositAmount: number;
   id: string;
   name: string;
   paymentDeadline: string | null;
   scheduleId: string | null;
 };
-
-/**
- * The picker's default: leave every inscription on the price that already
- * resolves for it. It is a value rather than an empty option because Radix's
- * `Select` cannot hold one, and it travels to the server as no pick at all.
- *
- * It is the default because the figure the dialog shows was computed from the
- * prices that already resolve. Defaulting to a row of the catalogue would make
- * an administrator who only reads the figure and confirms re-price every
- * money-free inscription, and allocate against a number they never saw.
- */
-export const keepCurrentPriceValue = "keep-current";
-
-export const keepCurrentPriceLabel = "Mantener el precio actual";
 
 /**
  * The rows offered for one group type of the selection. The writer refuses any
