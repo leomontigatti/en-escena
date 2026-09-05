@@ -35,19 +35,15 @@ describe("toScheduleCapacitySelectOptions", () => {
   });
 });
 
+// Occupancy is the whole input: the function is asked about capacities that
+// carry a label and about the locked one that carries none.
 describe("isEveryScheduleCapacityOptionFull", () => {
   test("is true only when no option has room left", () => {
     expect(
-      isEveryScheduleCapacityOptionFull([
-        { id: "schedule_capacity_1", isFull: true, label: "Primero" },
-        { id: "schedule_capacity_2", isFull: true, label: "Segundo" },
-      ]),
+      isEveryScheduleCapacityOptionFull([{ isFull: true }, { isFull: true }]),
     ).toBe(true);
     expect(
-      isEveryScheduleCapacityOptionFull([
-        { id: "schedule_capacity_1", isFull: true, label: "Primero" },
-        { id: "schedule_capacity_2", isFull: false, label: "Segundo" },
-      ]),
+      isEveryScheduleCapacityOptionFull([{ isFull: true }, { isFull: false }]),
     ).toBe(false);
   });
 
