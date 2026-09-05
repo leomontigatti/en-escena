@@ -1,4 +1,4 @@
-import { AlertTriangle, Ban, Check, LoaderCircle, Printer } from "lucide-react";
+import { AlertTriangle, Ban, Check, Printer } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useFetcher } from "react-router";
 
@@ -20,6 +20,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { Spinner } from "@/components/ui/spinner";
 import { formatAmount } from "@/features/admin/finances/formatters";
 import {
   ContingencyAlert,
@@ -325,11 +326,7 @@ function AnnulDialog({
                 disabled={isSaving || submitState === "blocked"}
               >
                 {isSaving ? (
-                  <LoaderCircle
-                    aria-hidden="true"
-                    className="animate-spin"
-                    data-icon="inline-start"
-                  />
+                  <Spinner aria-hidden="true" data-icon="inline-start" />
                 ) : (
                   <Check aria-hidden="true" data-icon="inline-start" />
                 )}

@@ -1,7 +1,8 @@
-import { Check, LoaderCircle, Trash } from "lucide-react";
+import { Check, Trash } from "lucide-react";
 import type { ComponentProps } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 
 type BaseButtonProps = Omit<ComponentProps<typeof Button>, "children"> & {
   isPending: boolean;
@@ -22,7 +23,7 @@ export function SubmitButton({
   return (
     <Button {...buttonProps} type="submit" disabled={disabled || isPending}>
       {isPending ? (
-        <LoaderCircle aria-hidden="true" className="animate-spin" data-icon />
+        <Spinner aria-hidden="true" data-icon />
       ) : (
         <Check aria-hidden="true" data-icon="inline-start" />
       )}
@@ -44,7 +45,7 @@ export function DestroyButton({
       disabled={disabled || isPending}
     >
       {isPending ? (
-        <LoaderCircle aria-hidden="true" className="animate-spin" data-icon />
+        <Spinner aria-hidden="true" data-icon />
       ) : (
         <Trash aria-hidden="true" data-icon="inline-start" />
       )}

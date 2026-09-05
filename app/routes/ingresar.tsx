@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import { LoaderCircle } from "lucide-react";
 import {
   Form,
   redirect,
@@ -19,6 +18,7 @@ import {
 import { AccessTextField, useAccessForm } from "@/components/auth/access-form";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
+import { Spinner } from "@/components/ui/spinner";
 import { accessAuthProvider } from "@/lib/auth/access-auth-provider.server";
 import { getSafeRedirectTo } from "@/lib/auth/access-redirects.server";
 import type { LoginRedirectReason } from "@/lib/auth/access-redirects.server";
@@ -254,13 +254,7 @@ export default function IngresarRoute() {
           />
 
           <Button className="w-full" type="submit" disabled={isSubmitting}>
-            {isSubmitting ? (
-              <LoaderCircle
-                aria-hidden="true"
-                className="animate-spin"
-                data-icon
-              />
-            ) : null}
+            {isSubmitting ? <Spinner aria-hidden="true" data-icon /> : null}
             Ingresar
           </Button>
         </FieldGroup>

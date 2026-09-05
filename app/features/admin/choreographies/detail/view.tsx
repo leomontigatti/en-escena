@@ -1,4 +1,4 @@
-import { Check, ChevronLeft, LoaderCircle, Trash2 } from "lucide-react";
+import { Check, ChevronLeft, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Link, useSubmit } from "react-router";
 
@@ -30,6 +30,7 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
+import { Spinner } from "@/components/ui/spinner";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
@@ -463,11 +464,7 @@ function FormActions({
       {canEdit ? (
         <Button type="submit" disabled={!canSubmit}>
           {isPending ? (
-            <LoaderCircle
-              aria-hidden="true"
-              className="animate-spin"
-              data-icon="inline-start"
-            />
+            <Spinner aria-hidden="true" data-icon="inline-start" />
           ) : (
             <Check aria-hidden="true" data-icon="inline-start" />
           )}

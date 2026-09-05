@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { LoaderCircle, TriangleAlert } from "lucide-react";
+import { TriangleAlert } from "lucide-react";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useNavigation, useSubmit } from "react-router";
@@ -14,6 +14,7 @@ import { TextInputField } from "@/components/shared/text-input-field";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
+import { Spinner } from "@/components/ui/spinner";
 import {
   createValidatedRouteSubmitHandler,
   isRouteFormPending,
@@ -104,11 +105,7 @@ export function NewInternalUserRouteView({
                 </Button>
                 <Button type="submit" disabled={isCreatingUser}>
                   {isCreatingUser ? (
-                    <LoaderCircle
-                      aria-hidden="true"
-                      className="animate-spin"
-                      data-icon
-                    />
+                    <Spinner aria-hidden="true" data-icon />
                   ) : null}
                   Nuevo usuario
                 </Button>
