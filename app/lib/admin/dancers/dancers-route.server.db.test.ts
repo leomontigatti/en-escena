@@ -450,7 +450,7 @@ describe.sequential("`/administracion/bailarines` route", () => {
         groupType: "solo",
       }),
     ]);
-    expect(markup).toContain("Detalle bailarín");
+    expect(markup).toContain("Julia Detalle");
     expect(markup).toContain("Academia Ficha");
     expect(markup).toContain("Julia");
     expect(markup).toContain("Detalle");
@@ -727,7 +727,7 @@ describe.sequential("`/administracion/bailarines` route", () => {
     expect(listMarkup.match(/Saltar al contenido principal/g)).toHaveLength(1);
     expect(listMarkup).toContain("Bailarines");
     expect(listMarkup).toContain("Evento activo");
-    expect(detailMarkup).toContain("Detalle bailarín");
+    expect(detailMarkup).toContain("Julia Pérez");
     expect(detailMarkup).toContain('href="/administracion/bailarines"');
     expect(detailMarkup).toContain("Julia Pérez");
   });

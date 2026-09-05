@@ -12,7 +12,7 @@ describe("DancerDetailRouteView", () => {
       loaderData: createLoaderData({ canEdit: false }),
     });
 
-    expect(markup).toContain("Detalle bailarín");
+    expect(markup).toContain("Julia Detalle");
     expect(markup).toContain("Academia Test");
     expect(markup).toContain("Julia");
     expect(markup).toContain("Detalle");

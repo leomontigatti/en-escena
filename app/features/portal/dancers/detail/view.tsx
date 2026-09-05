@@ -204,8 +204,13 @@ export function PortalDancerDetailRouteView({
                   <TabsTrigger value="inscripciones">Inscripciones</TabsTrigger>
                 </TabsList>
                 {/* The identity fields stay mounted so a file picked here is
-                    still submitted after a look at the inscriptions tab. */}
-                <TabsContent forceMount value="identificacion" className="pt-2">
+                    still submitted after a look at the inscriptions tab.
+                    `forceMount` leaves the panel to hide itself. */}
+                <TabsContent
+                  forceMount
+                  value="identificacion"
+                  className="pt-2 data-[state=inactive]:hidden"
+                >
                   <FieldGroup className="grid gap-5 md:grid-cols-2">
                     {viewModel.isIdentityVerified ? (
                       <ReadOnlyDateField

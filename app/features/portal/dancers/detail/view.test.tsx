@@ -7,6 +7,17 @@ import { PortalDancerDetailRouteView } from "@/features/portal/dancers/detail/vi
 type DancerDetailViewProps = Parameters<typeof PortalDancerDetailRouteView>[0];
 
 describe("PortalDancerDetailRouteView", () => {
+  test("keeps the mounted identification panel out of the inscriptions tab", () => {
+    const markup = renderDancerDetail();
+
+    // `forceMount` keeps the identity fields in the DOM for the submission, and
+    // stops Radix from hiding the panel, so the class has to do it.
+    expect(markup).toContain("data-[state=inactive]:hidden");
+    expect(markup).toContain('data-state="active"');
+    expect(markup).toContain('data-state="inactive"');
+    expect(markup).toContain("Inscripciones");
+  });
+
   test("renders the editable ficha", () => {
     const markup = renderDancerDetail({
       loaderData: dancerDetailLoaderData({

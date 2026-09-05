@@ -65,7 +65,7 @@ describe("admin dancer view transitions", () => {
     );
 
     const title = document.querySelector("h2");
-    expect(title?.textContent).toBe("Detalle bailarín");
+    expect(title?.textContent).toBe("Ana Paz");
     expect(title?.getAttribute("style")).toContain(
       "view-transition-name: record-title",
     );

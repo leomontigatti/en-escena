@@ -95,7 +95,7 @@ export function DancerDetailRouteView({
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
-      title="Detalle bailarín"
+      title={`${dancer.firstName} ${dancer.lastName}`}
       titleStyle={viewTransitionStyle}
       description="Consultá y corregí la información administrativa de este bailarín."
       requireSelectedEvent={false}
