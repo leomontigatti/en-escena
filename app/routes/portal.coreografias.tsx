@@ -5,7 +5,10 @@ import {
   handlePortalChoreographiesListAction,
   loadPortalChoreographiesList,
 } from "@/features/portal/choreographies/list/server";
-import { PortalChoreographiesListRouteView } from "@/features/portal/choreographies/list/view";
+import {
+  PortalChoreographiesListRouteView,
+  portalChoreographyFacetedFilterIds,
+} from "@/features/portal/choreographies/list/view";
 import type { PortalRouteHandle } from "@/components/portal/ui";
 
 type PortalChoreographiesListRouteProps = {
@@ -29,7 +32,7 @@ export async function action({ request }: { request: Request }) {
 }
 
 export const shouldRevalidate = createDataTableShouldRevalidate({
-  filterParamNames: ["estado", "modalidad", "categoria", "tipo-de-grupo"],
+  filterParamNames: [...portalChoreographyFacetedFilterIds],
 });
 
 export default function PortalCoreografiasRoute({

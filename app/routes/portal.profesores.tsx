@@ -4,7 +4,10 @@ import {
   handlePortalProfessorsListAction,
   loadPortalProfessorsList,
 } from "@/features/portal/professors/list/server";
-import { PortalProfessorsListRouteView } from "@/features/portal/professors/list/view";
+import {
+  PortalProfessorsListRouteView,
+  portalProfessorFacetedFilterIds,
+} from "@/features/portal/professors/list/view";
 
 type PortalProfessorsListRouteProps = {
   loaderData: Awaited<ReturnType<typeof loader>>;
@@ -27,7 +30,7 @@ export async function action({ request }: { request: Request }) {
 }
 
 export const shouldRevalidate = createDataTableShouldRevalidate({
-  filterParamNames: ["participacion", "completitud", "archivo"],
+  filterParamNames: [...portalProfessorFacetedFilterIds],
 });
 
 export default function PortalProfesoresRoute({

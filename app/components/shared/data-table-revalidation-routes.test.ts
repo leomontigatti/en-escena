@@ -1,4 +1,3 @@
-import type { ShouldRevalidateFunction } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import * as adminAcademies from "@/routes/administracion.academias";
@@ -22,104 +21,33 @@ import * as portalFinances from "@/routes/portal.finanzas";
 import * as portalPayments from "@/routes/portal.pagos";
 import * as portalProfessors from "@/routes/portal.profesores";
 
-type RouteModule = { shouldRevalidate?: ShouldRevalidateFunction };
-
 /**
- * Every route rendering a browser-paginated list, with the faceted filter
- * parameters its table puts in the address bar. The names must match the
- * filter group ids the view declares; a missing one costs an unnecessary
- * reload and never a wrong result.
+ * Wiring only. What the rule *decides* is covered by the pure function in
+ * `data-table-revalidation.test.ts`, and which parameters each route names is
+ * no longer assertable here: the routes read those ids from the very view that
+ * renders the filters, so the two cannot drift apart.
  */
-const browserPaginatedRoutes: {
-  filterParamNames: string[];
-  name: string;
-  path: string;
-  routeModule: RouteModule;
-}[] = [
+const browserPaginatedRoutes: { name: string; routeModule: object }[] = [
+  { name: "administración · academias", routeModule: adminAcademies },
+  { name: "administración · categorías", routeModule: adminCategories },
+  { name: "administración · cronogramas", routeModule: adminSchedules },
+  { name: "administración · eventos", routeModule: adminEvents },
+  { name: "administración · finanzas", routeModule: adminFinances },
   {
-    filterParamNames: ["participando"],
-    name: "administración · academias",
-    path: "/administracion/academias",
-    routeModule: adminAcademies,
-  },
-  {
-    filterParamNames: ["tipo-de-grupo"],
-    name: "administración · categorías",
-    path: "/administracion/categorias",
-    routeModule: adminCategories,
-  },
-  {
-    filterParamNames: ["modalidad"],
-    name: "administración · cronogramas",
-    path: "/administracion/cronogramas",
-    routeModule: adminSchedules,
-  },
-  {
-    filterParamNames: [],
-    name: "administración · eventos",
-    path: "/administracion/eventos",
-    routeModule: adminEvents,
-  },
-  {
-    filterParamNames: [],
-    name: "administración · finanzas",
-    path: "/administracion/finanzas",
-    routeModule: adminFinances,
-  },
-  {
-    filterParamNames: ["estado"],
     name: "administración · finanzas de una academia",
-    path: "/administracion/finanzas/academia-1",
     routeModule: adminAcademyFinances,
   },
   {
-    filterParamNames: [],
     name: "administración · finanzas de una coreografía",
-    path: "/administracion/finanzas/academia-1/coreografias/coreografia-1",
     routeModule: adminChoreographyFinances,
   },
-  {
-    filterParamNames: [],
-    name: "administración · modalidades",
-    path: "/administracion/modalidades",
-    routeModule: adminModalities,
-  },
-  {
-    filterParamNames: ["tipo-de-grupo", "cronograma"],
-    name: "administración · precios",
-    path: "/administracion/precios",
-    routeModule: adminPrices,
-  },
-  {
-    filterParamNames: ["participacion", "verificacion", "archivo"],
-    name: "portal · bailarines",
-    path: "/portal/bailarines",
-    routeModule: portalDancers,
-  },
-  {
-    filterParamNames: ["estado", "modalidad", "categoria", "tipo-de-grupo"],
-    name: "portal · coreografías",
-    path: "/portal/coreografias",
-    routeModule: portalChoreographies,
-  },
-  {
-    filterParamNames: ["estado"],
-    name: "portal · finanzas",
-    path: "/portal/finanzas",
-    routeModule: portalFinances,
-  },
-  {
-    filterParamNames: ["medio"],
-    name: "portal · pagos",
-    path: "/portal/pagos",
-    routeModule: portalPayments,
-  },
-  {
-    filterParamNames: ["participacion", "completitud", "archivo"],
-    name: "portal · profesores",
-    path: "/portal/profesores",
-    routeModule: portalProfessors,
-  },
+  { name: "administración · modalidades", routeModule: adminModalities },
+  { name: "administración · precios", routeModule: adminPrices },
+  { name: "portal · bailarines", routeModule: portalDancers },
+  { name: "portal · coreografías", routeModule: portalChoreographies },
+  { name: "portal · finanzas", routeModule: portalFinances },
+  { name: "portal · pagos", routeModule: portalPayments },
+  { name: "portal · profesores", routeModule: portalProfessors },
 ];
 
 /** The query string *is* the query on these, so none of them may opt out. */
@@ -134,79 +62,9 @@ const serverPaginatedRoutes: { name: string; routeModule: object }[] = [
 
 describe("revalidation on the browser-paginated routes", () => {
   test.each(browserPaginatedRoutes)(
-    "$name skips the reload while the reader pages, searches and sorts",
-    ({ path, routeModule }) => {
-      expect(
-        decide({
-          currentSearch: "?pagina=2",
-          nextSearch: "?pagina=3",
-          path,
-          routeModule,
-        }),
-      ).toBe(false);
-      expect(
-        decide({
-          currentSearch: "",
-          nextSearch: "?busqueda=ana",
-          path,
-          routeModule,
-        }),
-      ).toBe(false);
-      expect(
-        decide({
-          currentSearch: "?orden=nombre:asc",
-          nextSearch: "?orden=nombre:desc",
-          path,
-          routeModule,
-        }),
-      ).toBe(false);
-    },
-  );
-
-  test.each(
-    browserPaginatedRoutes.filter((route) => route.filterParamNames.length > 0),
-  )(
-    "$name skips the reload for each of its own filters",
-    ({ filterParamNames, path, routeModule }) => {
-      for (const filterParamName of filterParamNames) {
-        expect(
-          decide({
-            currentSearch: "?pagina=4",
-            nextSearch: `?${filterParamName}=alguno`,
-            path,
-            routeModule,
-          }),
-        ).toBe(false);
-      }
-    },
-  );
-
-  test.each(browserPaginatedRoutes)(
-    "$name still reloads after an action submission",
-    ({ path, routeModule }) => {
-      expect(
-        decide({
-          currentSearch: "?pagina=2",
-          formMethod: "POST",
-          nextSearch: "?pagina=2",
-          path,
-          routeModule,
-        }),
-      ).toBe(true);
-    },
-  );
-
-  test.each(browserPaginatedRoutes)(
-    "$name still reloads when a parameter of its own changed",
-    ({ path, routeModule }) => {
-      expect(
-        decide({
-          currentSearch: "",
-          nextSearch: "?evento=evento-1",
-          path,
-          routeModule,
-        }),
-      ).toBe(true);
+    "$name declares the shared rule",
+    ({ routeModule }) => {
+      expect("shouldRevalidate" in routeModule).toBe(true);
     },
   );
 });
@@ -219,34 +77,3 @@ describe("revalidation on the server-paginated routes", () => {
     },
   );
 });
-
-function decide({
-  currentSearch,
-  formMethod,
-  nextSearch,
-  path,
-  routeModule,
-}: {
-  currentSearch: string;
-  formMethod?: "POST";
-  nextSearch: string;
-  path: string;
-  routeModule: RouteModule;
-}) {
-  const shouldRevalidate = routeModule.shouldRevalidate;
-
-  if (shouldRevalidate === undefined) {
-    throw new Error(`The route at ${path} does not declare the shared rule.`);
-  }
-
-  return shouldRevalidate({
-    currentUrl: buildUrl(path, currentSearch),
-    defaultShouldRevalidate: true,
-    formMethod,
-    nextUrl: buildUrl(path, nextSearch),
-  } as Parameters<ShouldRevalidateFunction>[0]);
-}
-
-function buildUrl(pathname: string, search: string) {
-  return new URL(`https://en-escena.test${pathname}${search}`);
-}

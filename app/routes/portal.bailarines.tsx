@@ -3,7 +3,10 @@ import {
   handlePortalDancersListAction,
   loadPortalDancersList,
 } from "@/features/portal/dancers/list/server";
-import { PortalDancersListRouteView } from "@/features/portal/dancers/list/view";
+import {
+  PortalDancersListRouteView,
+  portalDancerFacetedFilterIds,
+} from "@/features/portal/dancers/list/view";
 import type { PortalRouteHandle } from "@/components/portal/ui";
 
 type PortalDancersListRouteProps = {
@@ -27,7 +30,7 @@ export async function action({ request }: { request: Request }) {
 }
 
 export const shouldRevalidate = createDataTableShouldRevalidate({
-  filterParamNames: ["participacion", "verificacion", "archivo"],
+  filterParamNames: [...portalDancerFacetedFilterIds],
 });
 
 export default function PortalBailarinesRoute({

@@ -1,7 +1,10 @@
 import type { PortalRouteHandle } from "@/components/portal/ui";
 import { createDataTableShouldRevalidate } from "@/components/shared/data-table-revalidation";
 import { loadPortalAcademyFinances } from "@/features/portal/finances/server";
-import { PortalAcademyFinancesRouteView } from "@/features/portal/finances/view";
+import {
+  PortalAcademyFinancesRouteView,
+  portalFinanceFacetedFilterIds,
+} from "@/features/portal/finances/view";
 
 export const meta = () => [
   { title: "Finanzas | Portal de academias | En Escena" },
@@ -16,7 +19,7 @@ export async function loader({ request }: { request: Request }) {
 }
 
 export const shouldRevalidate = createDataTableShouldRevalidate({
-  filterParamNames: ["estado"],
+  filterParamNames: [...portalFinanceFacetedFilterIds],
 });
 
 type PortalFinanzasRouteProps = {

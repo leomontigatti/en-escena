@@ -4,7 +4,10 @@ import {
   handleAcademyFinancesAction,
   loadAcademyFinances,
 } from "@/features/admin/finances/academy-choreographies/server";
-import { AcademyFinancesRouteView } from "@/features/admin/finances/academy-choreographies/view";
+import {
+  AcademyFinancesRouteView,
+  academyChoreographyFinanceFacetedFilterIds,
+} from "@/features/admin/finances/academy-choreographies/view";
 
 import type { Route } from "./+types/administracion.finanzas_.$academyId";
 
@@ -37,7 +40,7 @@ export async function action({ request, params }: Route.ActionArgs) {
 }
 
 export const shouldRevalidate = createDataTableShouldRevalidate({
-  filterParamNames: ["estado"],
+  filterParamNames: [...academyChoreographyFinanceFacetedFilterIds],
 });
 
 export { AcademyFinancesRouteView };

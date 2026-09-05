@@ -39,13 +39,23 @@ export type DataTableColumn<TData> = {
 
 export const dataTableFacetedFilterColumnId = "filters";
 
-export type DataTableFacetedFilter = DataTableFacetedFilterGroup;
+export type DataTableFacetedFilter<TId extends string = string> =
+  DataTableFacetedFilterGroup<TId>;
 
-export type DataTableFacetedFilterGroup = {
-  id: string;
+export type DataTableFacetedFilterGroup<TId extends string = string> = {
+  id: TId;
   label: string;
   options: DataTableFacetedFilterOption[];
 };
+
+/**
+ * The faceted filter groups of a view whose parameter names its route has to
+ * declare for the revalidation rule. The view exports its group ids as a
+ * `const` list and types its groups with this, so a group can only carry an id
+ * the route already names and the two cannot drift apart.
+ */
+export type DataTableFacetedFiltersOf<TIds extends readonly string[]> =
+  DataTableFacetedFilter<TIds[number]>[];
 
 export type DataTableFacetedFilterOption = {
   label: string;

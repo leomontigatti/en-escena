@@ -6,6 +6,7 @@ import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import {
   ClientDataTable,
   type DataTableColumn,
+  type DataTableFacetedFiltersOf,
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +42,43 @@ const baseProfessorFilters = {
     archivo: defaultRosterPersonStatusFilter,
   },
 };
+
+export const portalProfessorFacetedFilterIds = [
+  "participacion",
+  "completitud",
+  "archivo",
+] as const;
+
+const professorFacetedFilters: DataTableFacetedFiltersOf<
+  typeof portalProfessorFacetedFilterIds
+> = [
+  {
+    id: "participacion",
+    label: "Participación",
+    options: [
+      { label: "Participando", value: "participating" },
+      { label: "No participando", value: "not-participating" },
+    ],
+  },
+  {
+    id: "completitud",
+    label: "Completitud",
+    options: [
+      { label: "Completo", value: "complete" },
+      { label: "Incompleto", value: "incomplete" },
+    ],
+  },
+  {
+    id: "archivo",
+    label: "Estado de alta",
+    options: [
+      {
+        label: getRosterPersonStatusLabel("archived"),
+        value: "archived",
+      },
+    ],
+  },
+];
 
 export function PortalProfessorsListRouteView({
   loaderData,
@@ -192,34 +230,7 @@ function ProfessorsTable({ professors }: { professors: ProfessorRow[] }) {
       getRowKey={(professor) => professor.id}
       searchPlaceholder="Buscar profesor por nombre o número de documento"
       textFilterColumnId="name"
-      facetedFilters={[
-        {
-          id: "participacion",
-          label: "Participación",
-          options: [
-            { label: "Participando", value: "participating" },
-            { label: "No participando", value: "not-participating" },
-          ],
-        },
-        {
-          id: "completitud",
-          label: "Completitud",
-          options: [
-            { label: "Completo", value: "complete" },
-            { label: "Incompleto", value: "incomplete" },
-          ],
-        },
-        {
-          id: "archivo",
-          label: "Estado de alta",
-          options: [
-            {
-              label: getRosterPersonStatusLabel("archived"),
-              value: "archived",
-            },
-          ],
-        },
-      ]}
+      facetedFilters={professorFacetedFilters}
       baseFacetedFilterValues={baseProfessorFilters}
       emptyMessage="No hay profesores que coincidan con la búsqueda o los filtros."
       initialSort={{ columnId: "name", direction: "asc" }}

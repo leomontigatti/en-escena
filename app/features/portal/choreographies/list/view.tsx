@@ -6,6 +6,7 @@ import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import {
   ClientDataTable,
   type DataTableColumn,
+  type DataTableFacetedFiltersOf,
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
@@ -204,9 +205,16 @@ function ChoreographyTable({
   );
 }
 
+export const portalChoreographyFacetedFilterIds = [
+  "estado",
+  "modalidad",
+  "categoria",
+  "tipo-de-grupo",
+] as const;
+
 function buildChoreographyFacetedFilters(
   choreographies: PortalChoreographyListItem[],
-) {
+): DataTableFacetedFiltersOf<typeof portalChoreographyFacetedFilterIds> {
   return [
     {
       id: "estado",

@@ -4,6 +4,7 @@ import { loadCategoriesList } from "@/features/admin/categories/list/server";
 import {
   CategoriesListView,
   type CategoriesListViewProps,
+  categoryFacetedFilterIds,
 } from "@/features/admin/categories/list/view";
 
 import type { Route } from "./+types/administracion.categorias";
@@ -17,7 +18,7 @@ async function loader({ request }: Route.LoaderArgs) {
 }
 
 export const shouldRevalidate = createDataTableShouldRevalidate({
-  filterParamNames: ["tipo-de-grupo"],
+  filterParamNames: [...categoryFacetedFilterIds],
 });
 
 export function CategoriesRouteView({ loaderData }: CategoriesListViewProps) {

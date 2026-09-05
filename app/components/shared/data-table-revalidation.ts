@@ -9,9 +9,10 @@ import {
 type DataTableRevalidationParamNames = {
   /**
    * The faceted filter groups the route's table renders, by their query
-   * parameter name. A group left out of the list costs an unnecessary reload
-   * and never a wrong result, which is why the rule asks the route to name
-   * them rather than guessing.
+   * parameter name. Routes pass the id list the view exports rather than a
+   * literal of their own, so the two cannot drift apart. A group left out of
+   * the list costs an unnecessary reload and never a wrong result, which is
+   * why the rule asks the route to name them rather than guessing.
    */
   filterParamNames?: string[];
   pageParamName?: string;
