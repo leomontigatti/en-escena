@@ -4,9 +4,9 @@ import { act } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
-import { ChoreographyDetailRouteView } from "@/features/admin/choreographies/detail/view";
 import type { ChoreographyModalityResolution } from "@/features/admin/choreographies/detail/modality.server";
 import type { ChoreographyDetailLoaderData } from "@/features/admin/choreographies/detail/server";
+import { ChoreographyDetailRouteView } from "@/features/admin/choreographies/detail/view";
 import {
   clickReactDomButton,
   createReactDomTestRenderer,

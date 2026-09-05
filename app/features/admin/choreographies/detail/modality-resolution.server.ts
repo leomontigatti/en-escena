@@ -1,12 +1,11 @@
 import { db } from "@/db";
 import { resolveChoreographyClassificationForResolvedDancers } from "@/lib/choreographies/registration-resolution.server";
 import { invalidScheduleEntryMessage } from "@/lib/choreographies/schedule-capacity-lock.server";
-import {
-  resolveScheduleCapacityOccupancies,
-  toScheduleCapacityOccupancyKey,
-} from "@/lib/choreographies/schedule-capacity-occupancy.server";
 import type { ScheduleCapacitySelectOption } from "@/lib/choreographies/schedule-capacity-options";
-import { withScheduleCapacityOccupancy } from "@/lib/choreographies/schedule-capacity-options.server";
+import {
+  isScheduleCapacityFull,
+  withScheduleCapacityOccupancy,
+} from "@/lib/choreographies/schedule-capacity-options.server";
 import {
   formatScheduleDateTime,
   type ScheduleDateTimeInput,
@@ -189,8 +188,9 @@ export function toMissingScheduleMessage(input: {
  * arrives preselected and read-only, where saying how many places are left
  * means nothing—, so it goes back with the bare schedule the view formats.
  *
- * `isFull` is still read for that lone capacity, straight off the occupancy
- * count instead of off a label: a full one is the dead end the view explains.
+ * `isFull` is still read for that lone capacity, through the same module that
+ * builds the occupancy of the labelled ones: a full one is the dead end the
+ * view explains instead of previewing.
  */
 async function toModalityScheduleCapacityResolution(input: {
   excludeChoreographyId: string;
@@ -203,19 +203,21 @@ async function toModalityScheduleCapacityResolution(input: {
   }
 
   if (input.options.length === 1) {
-    const occupancies = await resolveScheduleCapacityOccupancies({
-      excludeChoreographyId: input.excludeChoreographyId,
-      targets: [preselected],
-    });
-
     return {
       options: [
         {
           id: preselected.id,
-          isFull:
-            occupancies.get(toScheduleCapacityOccupancyKey(preselected))
-              ?.isFull ?? false,
-          schedule: preselected.schedule,
+          isFull: await isScheduleCapacityFull({
+            excludeChoreographyId: input.excludeChoreographyId,
+            target: preselected,
+          }),
+          // Narrowed to what the view formats: the schedule row this came
+          // from crosses to the browser otherwise, `id` and all.
+          schedule: {
+            name: preselected.schedule.name,
+            scheduledDate: preselected.schedule.scheduledDate,
+            startTime: preselected.schedule.startTime,
+          },
         },
       ],
       status: "auto",

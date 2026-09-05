@@ -87,19 +87,26 @@ describe("administrative choreography modality correction", () => {
     );
     const scheduleCapacity = preview?.scheduleCapacity;
 
-    expect(scheduleCapacity?.status).toBe("auto");
-    expect(scheduleCapacity?.options).toEqual([
+    if (scheduleCapacity?.status !== "auto") {
+      throw new Error("the lone compatible capacity did not arrive locked");
+    }
+
+    // `toEqual` is what pins the bareness: an option that grew a `label` back
+    // would fail on the extra key, whatever the label said.
+    expect(scheduleCapacity.options).toEqual([
       {
         id: scenario.target.scheduleCapacity.id,
         isFull: false,
-        schedule: expect.objectContaining({ name: expect.any(String) }),
+        schedule: {
+          name: expect.any(String),
+          scheduledDate: "2026-05-01",
+          startTime: "10:00",
+        },
       },
     ]);
     expect(
-      scheduleCapacity?.status === "auto"
-        ? formatScheduleDateTime(scheduleCapacity.options[0].schedule)
-        : null,
-    ).toMatch(/ hs\.$/);
+      formatScheduleDateTime(scheduleCapacity.options[0].schedule),
+    ).toContain("1 de mayo de 2026");
   });
 
   /**
@@ -119,12 +126,15 @@ describe("administrative choreography modality correction", () => {
 
     const scheduleCapacity = preview?.scheduleCapacity;
 
-    expect(scheduleCapacity?.status).toBe("multiple");
-    expect(scheduleCapacity?.options).toHaveLength(2);
+    if (scheduleCapacity?.status !== "multiple") {
+      throw new Error(
+        "the two compatible capacities did not arrive as a choice",
+      );
+    }
 
-    for (const option of scheduleCapacity?.status === "multiple"
-      ? scheduleCapacity.options
-      : []) {
+    expect(scheduleCapacity.options).toHaveLength(2);
+
+    for (const option of scheduleCapacity.options) {
       expect(option.label).toContain("0/5 ocupados");
     }
   });

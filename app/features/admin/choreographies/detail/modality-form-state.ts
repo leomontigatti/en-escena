@@ -1,7 +1,4 @@
-import {
-  isEveryScheduleCapacityOptionFull,
-  type ScheduleCapacitySelectOption,
-} from "@/lib/choreographies/schedule-capacity-options";
+import { isEveryScheduleCapacityOptionFull } from "@/lib/choreographies/schedule-capacity-options";
 
 import type {
   ChoreographyModalityOption,
@@ -66,10 +63,7 @@ export function getModalityScheduleCapacityDeadEndMessage(
 
   // Occupancy is all that is read, so the locked capacity —which carries no
   // label— answers the same question as a select whose every option is full.
-  const options: readonly Pick<ScheduleCapacitySelectOption, "isFull">[] =
-    scheduleCapacity.options;
-
-  return isEveryScheduleCapacityOptionFull(options)
+  return isEveryScheduleCapacityOptionFull(scheduleCapacity.options)
     ? everyModalityScheduleCapacityFullMessage
     : null;
 }

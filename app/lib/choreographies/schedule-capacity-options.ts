@@ -34,11 +34,11 @@ export function toScheduleCapacitySelectOptions(
  * A select where nothing is selectable is a silent dead end: the portal, which
  * registers rather than corrects, replaces it with a message saying why.
  *
- * Occupancy is all it reads, so the locked capacity —which carries no label at
- * all— is answered by the same question as a full select.
+ * Occupancy is all it reads, never a label, so it answers for a capacity that
+ * is shown without one just as well as for a select full of them.
  */
-export function isEveryScheduleCapacityOptionFull<
-  TOption extends Pick<ScheduleCapacitySelectOption, "isFull">,
->(options: readonly TOption[]) {
+export function isEveryScheduleCapacityOptionFull(
+  options: readonly Pick<ScheduleCapacitySelectOption, "isFull">[],
+) {
   return options.length > 0 && options.every((option) => option.isFull);
 }
