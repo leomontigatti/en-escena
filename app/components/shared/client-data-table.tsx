@@ -31,7 +31,10 @@ import type {
   DataTableFacetedFilterValue,
 } from "@/components/shared/data-table.shared";
 import { dataTableFacetedFilterColumnId } from "@/components/shared/data-table.shared";
-import { useDataTableUrlState } from "@/components/shared/data-table-url-state";
+import {
+  useDataTableUrlState,
+  useDebouncedDataTableSearch,
+} from "@/components/shared/data-table-url-state";
 
 const clientDataTablePageSize = 10;
 
@@ -54,11 +57,18 @@ export function ClientDataTable<TData>({
   hidePagination = false,
   initialSort,
   pageParamName,
+  searchParamName,
 }: ClientDataTableProps<TData>) {
   const location = useLocation();
-  const { page, setPage } = useDataTableUrlState({
+  const { page, setPage, search, setSearch } = useDataTableUrlState({
     basePath: location.pathname,
+    initialSearchValue,
     pageParamName,
+    searchParamName,
+  });
+  const { searchQuery, setSearchQuery } = useDebouncedDataTableSearch({
+    search,
+    setSearch,
   });
   const columnVisibility = useMemo(
     () => createColumnVisibility(columns),
@@ -68,7 +78,6 @@ export function ClientDataTable<TData>({
     () => createDataTableColumns(columns, { selectableRows }),
     [columns, selectableRows],
   );
-  const [searchQuery, setSearchQuery] = useState(initialSearchValue);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(
     createColumnFilters(
       mergeBaseFacetedFilterValues(
@@ -119,10 +128,19 @@ export function ClientDataTable<TData>({
     onSelectedRowIdsChange?.(Object.keys(next).filter((rowId) => next[rowId]));
   };
   const tableGlobalFilter = textFilterColumnId ? "" : searchQuery;
+  // The text filter is derived from the search rather than stored beside it, so
+  // a search arriving from the address bar filters the rows the same way one
+  // the reader typed does.
+  const tableColumnFilters = useMemo(() => {
+    if (!textFilterColumnId) {
+      return columnFilters;
+    }
 
-  useEffect(() => {
-    setSearchQuery(initialSearchValue);
-  }, [initialSearchValue]);
+    return [
+      ...columnFilters.filter((filter) => filter.id !== textFilterColumnId),
+      { id: textFilterColumnId, value: searchQuery },
+    ];
+  }, [columnFilters, searchQuery, textFilterColumnId]);
 
   useEffect(() => {
     setColumnFilters(
@@ -152,7 +170,7 @@ export function ClientDataTable<TData>({
     data: rows,
     columns: tableColumns,
     state: {
-      columnFilters,
+      columnFilters: tableColumnFilters,
       columnVisibility,
       globalFilter: tableGlobalFilter,
       pagination,
@@ -189,17 +207,6 @@ export function ClientDataTable<TData>({
     }
   }, [page, pageCount, setPage]);
 
-  const setSearchFilter = (value: string) => {
-    setSearchQuery(value);
-
-    if (textFilterColumnId) {
-      table.getColumn(textFilterColumnId)?.setFilterValue(value);
-      return;
-    }
-
-    table.setGlobalFilter(value);
-  };
-
   const setFacetedFilterValue = (values: DataTableFacetedFilterValue) => {
     table
       .getColumn(dataTableFacetedFilterColumnId)
@@ -230,7 +237,7 @@ export function ClientDataTable<TData>({
       getRowProps={getRowProps}
       searchPlaceholder={searchPlaceholder}
       searchQuery={searchQuery}
-      onSearchChange={setSearchFilter}
+      onSearchChange={setSearchQuery}
       hideSearch={hideSearch}
       hidePagination={hidePagination}
       facetedFilters={facetedFilters}

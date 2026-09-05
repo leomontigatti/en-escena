@@ -3,7 +3,7 @@
 import { act } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, MemoryRouter, RouterProvider } from "react-router";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import {
   buildDataTableFilterHref,
@@ -14,7 +14,10 @@ import {
   ServerDataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
-import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
+import {
+  createReactDomTestRenderer,
+  setInputValue,
+} from "@/lib/test-support/react-dom";
 
 type Row = {
   id: string;
@@ -367,6 +370,91 @@ describe("ClientDataTable page in the address bar", () => {
   });
 });
 
+describe("ClientDataTable search in the address bar", () => {
+  const renderer = createReactDomTestRenderer();
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  });
+
+  afterEach(() => {
+    renderer.cleanup();
+    vi.useRealTimers();
+  });
+
+  test("filters the rows immediately and records the search once typing stops", async () => {
+    const router = createListRouter("/administracion/finanzas/academy_1");
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await typeSearch("12");
+
+    expect(getRenderedRowNames()).toEqual(["Coreografía 12"]);
+    expect(router.state.location.search).toBe("");
+
+    await advanceSearchDebounce(299);
+
+    expect(router.state.location.search).toBe("");
+
+    await advanceSearchDebounce(1);
+
+    expect(router.state.location.search).toBe("?busqueda=12");
+    expect(getSearchInput().value).toBe("12");
+  });
+
+  test("replaces the history entry instead of pushing one", async () => {
+    const router = createListRouter("/administracion/finanzas/academy_1");
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await typeSearch("12");
+    await advanceSearchDebounce();
+
+    expect(router.state.location.search).toBe("?busqueda=12");
+
+    await act(async () => {
+      await router.navigate(-1);
+    });
+
+    expect(router.state.location.pathname).toBe("/inicio");
+  });
+
+  test("drops the page when the search changes", async () => {
+    const router = createListRouter(
+      "/administracion/finanzas/academy_1?pagina=2",
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await typeSearch("Coreografía");
+    await advanceSearchDebounce();
+
+    const params = new URLSearchParams(router.state.location.search);
+    expect(params.get("busqueda")).toBe("Coreografía");
+    expect(params.get("pagina")).toBeNull();
+  });
+
+  test("renders the search named in the address bar", async () => {
+    const router = createListRouter(
+      "/administracion/finanzas/academy_1?busqueda=12",
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    expect(getRenderedRowNames()).toEqual(["Coreografía 12"]);
+    expect(getSearchInput().value).toBe("12");
+  });
+
+  test("removes the parameter when the reader clears the search", async () => {
+    const router = createListRouter(
+      "/administracion/finanzas/academy_1?busqueda=12",
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await typeSearch("");
+    await advanceSearchDebounce();
+
+    expect(router.state.location.search).toBe("");
+    expect(getRenderedRowNames()).toContain("Coreografía 01");
+  });
+});
+
 describe("DataTable server-side href helpers", () => {
   test("builds debounced search targets by preserving active filters and clearing page 1", () => {
     expect(
@@ -506,6 +594,30 @@ function getPaginationLink(text: string) {
   }
 
   return link;
+}
+
+function getSearchInput() {
+  const input = document.querySelector('input[type="text"]');
+
+  if (!(input instanceof HTMLInputElement)) {
+    throw new Error("Expected the table search input to be rendered.");
+  }
+
+  return input;
+}
+
+async function typeSearch(value: string) {
+  await act(async () => {
+    setInputValue(getSearchInput(), value);
+    await Promise.resolve();
+  });
+}
+
+async function advanceSearchDebounce(milliseconds = 300) {
+  await act(async () => {
+    vi.advanceTimersByTime(milliseconds);
+    await Promise.resolve();
+  });
 }
 
 function getRenderedCheckboxes() {
