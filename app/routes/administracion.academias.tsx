@@ -1,6 +1,10 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
+import { createDataTableShouldRevalidate } from "@/components/shared/data-table-revalidation";
 import { loadAcademiesList } from "@/features/admin/academies/list/server";
-import { AcademiesListRouteView } from "@/features/admin/academies/list/view";
+import {
+  AcademiesListRouteView,
+  academyFacetedFilterIds,
+} from "@/features/admin/academies/list/view";
 
 import type { Route } from "./+types/administracion.academias";
 
@@ -21,6 +25,10 @@ export const handle = {
 export async function loader({ request }: Route.LoaderArgs) {
   return await loadAcademiesList(request);
 }
+
+export const shouldRevalidate = createDataTableShouldRevalidate({
+  filterParamNames: [...academyFacetedFilterIds],
+});
 
 export { AcademiesListRouteView };
 

@@ -7,7 +7,7 @@ import {
 import {
   ClientDataTable,
   type DataTableColumn,
-  type DataTableFacetedFilter,
+  type DataTableFacetedFiltersOf,
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
@@ -62,7 +62,11 @@ const academyColumns: DataTableColumn<AcademyRow>[] = [
   },
 ];
 
-const academyFacetedFilters: DataTableFacetedFilter[] = [
+export const academyFacetedFilterIds = ["participando"] as const;
+
+const academyFacetedFilters: DataTableFacetedFiltersOf<
+  typeof academyFacetedFilterIds
+> = [
   {
     id: "participando",
     label: "Participación",

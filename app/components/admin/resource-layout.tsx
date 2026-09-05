@@ -1,5 +1,5 @@
 import { Inbox, Plus, Settings, type LucideIcon } from "lucide-react";
-import { type ReactNode } from "react";
+import { type CSSProperties, type ReactNode } from "react";
 import { Link } from "react-router";
 
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,7 @@ type AdminResourceLayoutProps = {
   requireSelectedEvent?: boolean;
   selectedEventId?: string | null;
   title: string;
+  titleStyle?: CSSProperties;
 };
 
 type AdminEmptyStateProps = {
@@ -64,6 +65,7 @@ export function AdminResourceLayout({
   requireSelectedEvent = true,
   selectedEventId = null,
   title,
+  titleStyle,
   description,
   children,
   eventRequiredEmptyState,
@@ -77,6 +79,7 @@ export function AdminResourceLayout({
     <div className="flex w-full flex-col gap-6">
       <AdminResourceHeader
         title={title}
+        titleStyle={titleStyle}
         description={description}
         action={action}
         headerAction={headerAction}
@@ -158,6 +161,7 @@ function AdminResourceHeader({
   action,
   headerAction,
   title,
+  titleStyle,
   description,
 }: {
   action?: {
@@ -166,12 +170,15 @@ function AdminResourceHeader({
   };
   headerAction?: ReactNode;
   title: string;
+  titleStyle?: CSSProperties;
   description: string;
 }) {
   return (
     <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div className="flex flex-col gap-1">
-        <h2 className="text-xl font-semibold">{title}</h2>
+        <h2 className="text-xl font-semibold" style={titleStyle}>
+          {title}
+        </h2>
         <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
           {description}
         </p>

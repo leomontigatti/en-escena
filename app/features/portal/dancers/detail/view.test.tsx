@@ -7,6 +7,17 @@ import { PortalDancerDetailRouteView } from "@/features/portal/dancers/detail/vi
 type DancerDetailViewProps = Parameters<typeof PortalDancerDetailRouteView>[0];
 
 describe("PortalDancerDetailRouteView", () => {
+  test("keeps the mounted identification panel out of the inscriptions tab", () => {
+    const markup = renderDancerDetail();
+
+    // `forceMount` keeps the identity fields in the DOM for the submission, and
+    // stops Radix from hiding the panel, so the class has to do it.
+    expect(markup).toContain("data-[state=inactive]:hidden");
+    expect(markup).toContain('data-state="active"');
+    expect(markup).toContain('data-state="inactive"');
+    expect(markup).toContain("Inscripciones");
+  });
+
   test("renders the editable ficha", () => {
     const markup = renderDancerDetail({
       loaderData: dancerDetailLoaderData({
@@ -38,8 +49,8 @@ describe("PortalDancerDetailRouteView", () => {
     expect(markup).toContain("Fecha de nacimiento");
     expect(markup).toContain("Tipo de documento");
     expect(markup).toContain("Número de documento");
-    expect(markup).toContain("Frente del documento");
-    expect(markup).toContain("Dorso del documento");
+    expect(markup).toContain("Imagen frente del documento");
+    expect(markup).toContain("Imagen dorso del documento");
     expect(markup).toContain('name="documentFrontImage"');
     expect(markup).toContain('name="documentBackImage"');
     expect(markup).toContain("JPG, PNG o WEBP - max 10 MB");
@@ -86,8 +97,10 @@ describe("PortalDancerDetailRouteView", () => {
     expect(markup).toContain(
       "Faltan completar tipo de documento y número de documento para poder verificar la identidad del bailarín.",
     );
-    expect(markup).not.toContain("frente del documento");
-    expect(markup).not.toContain("dorso del documento");
+    // The images are loaded, so the alert must not enumerate them. Their field
+    // labels carry the same words, hence the longer fragments.
+    expect(markup).not.toContain("completar frente del documento");
+    expect(markup).not.toContain("y dorso del documento para poder");
   });
 
   test("shows unverified alert when document data and images are complete", () => {
@@ -117,6 +130,10 @@ describe("PortalDancerDetailRouteView", () => {
   test("renders verified identification fields as locked readonly inputs", () => {
     const markup = renderDancerDetail({
       loaderData: dancerDetailLoaderData({
+        documentImageUrls: {
+          front: "https://storage.example/front.jpg",
+          back: "https://storage.example/back.jpg",
+        },
         dancer: dancerDetailRow({
           birthDate: "2014-02-01",
           documentType: "dni",
@@ -137,13 +154,19 @@ describe("PortalDancerDetailRouteView", () => {
     expect(markup).toContain("Número de documento");
     expect(markup).toContain('name="documentNumber" value="12345678"');
     expect(markup).toContain('disabled="" readOnly="" value="12345678"');
-    expect(markup).toContain("Frente del documento");
-    expect(markup).toContain("Dorso del documento");
+    expect(markup).toContain("Nombre");
+    expect(markup).toContain('name="firstName" value="Bailarina"');
+    expect(markup).toContain("Apellido");
+    expect(markup).toContain('name="lastName" value="Prueba"');
+    expect(markup).toContain("Imagen frente del documento");
+    expect(markup).toContain("Imagen dorso del documento");
     expect(markup).toContain(
       "La identidad del bailarín está verificada. Comunicate con nosotros si necesitás realizar algún cambio.",
     );
-    expect(countOccurrences(markup, "Imagen cargada")).toBe(2);
-    expect(countOccurrences(markup, "lucide-lock")).toBe(5);
+    expect(countOccurrences(markup, "Abrir imagen")).toBe(2);
+    expect(markup).toContain('href="https://storage.example/front.jpg"');
+    expect(markup).toContain('href="https://storage.example/back.jpg"');
+    expect(countOccurrences(markup, "lucide-lock")).toBe(7);
     expect(markup).not.toContain("Faltan completar");
   });
 
@@ -222,6 +245,8 @@ function dancerDetailLoaderData(
       back: null,
     },
     dancer: dancerDetailRow(),
+    inscriptions: [],
+    selectedEventId: "event_1",
     ...overrides,
   } satisfies DancerDetailViewProps["loaderData"];
 }

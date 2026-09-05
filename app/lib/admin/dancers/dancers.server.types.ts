@@ -6,6 +6,9 @@ import type {
 } from "@/lib/admin/dancers/dancers.shared";
 import type { ParticipationStatus } from "@/lib/participation/participation.shared";
 import type { DancerEditableSnapshot } from "@/lib/dancers/dancer-records.server";
+import type { DancerInscription } from "@/lib/dancers/inscriptions";
+
+export type { DancerInscription };
 
 export type DancerListItem = {
   id: string;
@@ -51,15 +54,6 @@ export type DancerDetail = {
   editConsequence: DancerEditConsequence;
   inscriptions: DancerInscription[];
   choreographyNames: string[];
-};
-
-export type DancerInscription = {
-  id: string;
-  choreographyName: string;
-  groupType: "solo" | "duo" | "trio" | "grupal";
-  basePriceAmount: number | null;
-  discountAmount: number;
-  estimatedSubtotalAmount: number | null;
 };
 
 export type DancerUpdateInput = {

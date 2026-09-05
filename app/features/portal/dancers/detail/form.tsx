@@ -121,7 +121,7 @@ export function PortalDancerDocumentImageFields({
         control={form.control}
         name="documentFrontImageStorageKey"
         fileInputName="documentFrontImage"
-        fieldLabel="Frente del documento"
+        fieldLabel="Imagen frente del documento"
         existingPreviewUrl={imageUrls.front}
         label="Arrastrá o hacé click"
         {...getAssetUploadFieldProps("dancerDocumentImage")}
@@ -130,7 +130,7 @@ export function PortalDancerDocumentImageFields({
         control={form.control}
         name="documentBackImageStorageKey"
         fileInputName="documentBackImage"
-        fieldLabel="Dorso del documento"
+        fieldLabel="Imagen dorso del documento"
         existingPreviewUrl={imageUrls.back}
         label="Arrastrá o hacé click"
         {...getAssetUploadFieldProps("dancerDocumentImage")}

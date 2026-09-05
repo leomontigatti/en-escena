@@ -147,11 +147,7 @@ export function PortalProfileRouteView({
           </form>
         </CardContent>
         <CardFooter className="justify-end gap-3 border-0 bg-transparent pt-0">
-          <SubmitButton
-            form={profileFormId}
-            size="lg"
-            isPending={isProfileSaving}
-          />
+          <SubmitButton form={profileFormId} isPending={isProfileSaving} />
         </CardFooter>
       </Card>
 

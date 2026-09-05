@@ -1,25 +1,23 @@
 import type { CSSProperties } from "react";
 import { useViewTransitionState } from "react-router";
 
-const portalRecordTitleViewTransitionName = "portal-record-title";
+const recordTitleViewTransitionName = "record-title";
 
-function getPortalRecordTitleViewTransitionStyle(
+function getRecordTitleViewTransitionStyle(
   isTransitioning: boolean,
 ): CSSProperties {
   return {
     viewTransitionName: isTransitioning
-      ? portalRecordTitleViewTransitionName
+      ? recordTitleViewTransitionName
       : "none",
   };
 }
 
-export function usePortalRecordTitleLinkTransitionStyle(
-  href: string,
-): CSSProperties {
-  return getPortalRecordTitleViewTransitionStyle(useViewTransitionState(href));
+export function useRecordTitleLinkTransitionStyle(href: string): CSSProperties {
+  return getRecordTitleViewTransitionStyle(useViewTransitionState(href));
 }
 
-export function usePortalRecordTitleDetailTransitionStyle({
+export function useRecordTitleDetailTransitionStyle({
   detailHref,
   listHref,
 }: {
@@ -29,7 +27,7 @@ export function usePortalRecordTitleDetailTransitionStyle({
   const isDetailTransitioning = useViewTransitionState(detailHref);
   const isListTransitioning = useViewTransitionState(listHref);
 
-  return getPortalRecordTitleViewTransitionStyle(
+  return getRecordTitleViewTransitionStyle(
     isDetailTransitioning || isListTransitioning,
   );
 }

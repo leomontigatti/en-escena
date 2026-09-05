@@ -10,19 +10,19 @@ import {
   guardAndLockScheduleCapacityMove,
   lockScheduleCapacityForAssignment,
 } from "@/lib/choreographies/schedule-capacity-lock.server";
-import type { ScheduleCapacitySelectOption } from "@/lib/choreographies/schedule-capacity-options";
 import {
   getEventBases,
   resolveEventBasesScheduleModalityIds,
   resolveEventBasesCorrectableScheduleIds,
 } from "@/lib/events/bases.server";
 import { isExperienceLevel } from "@/lib/events/experience-levels";
-import { loadPriceDivergenceCheck } from "@/lib/finances/choreography-frozen-price-guard.server";
+import { loadPriceDivergenceCheck } from "@/lib/finances/choreography-price-divergence-guard.server";
 
 import {
-  frozenPriceModalityMessage,
+  priceDivergenceModalityMessage,
   resolveModalityCorrectionContext,
   toMissingScheduleMessage,
+  type ChoreographyModalityScheduleCapacityResolution,
 } from "./modality-resolution.server";
 import type { ChoreographyDetail } from "./server";
 import {
@@ -52,10 +52,7 @@ export type ChoreographyModalityResolution = {
     required: boolean;
   };
   modalityId: string;
-  scheduleCapacity: {
-    options: ScheduleCapacitySelectOption[];
-    status: "auto" | "multiple" | "none";
-  };
+  scheduleCapacity: ChoreographyModalityScheduleCapacityResolution;
   submodality: {
     options: Array<{ id: string; name: string }>;
     required: boolean;
@@ -189,14 +186,7 @@ export async function resolveChoreographyModalityCorrection(input: {
         required: context.classification.experienceLevel.required,
       },
       modalityId: input.modalityId,
-      scheduleCapacity: {
-        options: context.scheduleOptions.map((option) => ({
-          id: option.id,
-          isFull: option.isFull,
-          label: option.label,
-        })),
-        status: context.scheduleStatus,
-      },
+      scheduleCapacity: context.scheduleCapacity,
       submodality: {
         options: context.submodalityOptions,
         required: context.submodalityOptions.length > 0,
@@ -367,8 +357,8 @@ export async function updateChoreographyModality(input: {
     if (!move.ok) {
       return {
         error:
-          move.code === "frozen-price"
-            ? frozenPriceModalityMessage
+          move.code === "price-divergence"
+            ? priceDivergenceModalityMessage
             : move.error,
         ok: false as const,
       };

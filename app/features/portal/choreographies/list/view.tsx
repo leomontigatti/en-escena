@@ -6,6 +6,7 @@ import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import {
   ClientDataTable,
   type DataTableColumn,
+  type DataTableFacetedFiltersOf,
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +25,7 @@ import {
   formatOperationalStatusLabel,
   type PortalChoreographyListItem,
 } from "@/lib/portal/choreographies";
+import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
 import { showToastMessage } from "@/lib/shared/toasts";
 
@@ -203,11 +205,19 @@ function ChoreographyTable({
   );
 }
 
+export const portalChoreographyFacetedFilterIds = [
+  "estado",
+  "modalidad",
+  "categoria",
+  "tipo-de-grupo",
+] as const;
+
 function buildChoreographyFacetedFilters(
   choreographies: PortalChoreographyListItem[],
-) {
+): DataTableFacetedFiltersOf<typeof portalChoreographyFacetedFilterIds> {
   return [
     {
+      id: "estado",
       label: "Estado",
       options: [
         { label: "Completa", value: "complete" },
@@ -215,6 +225,7 @@ function buildChoreographyFacetedFilters(
       ],
     },
     {
+      id: "modalidad",
       label: "Modalidad",
       options: getUniqueSortedOptions(
         choreographies.map((choreography) => ({
@@ -224,6 +235,7 @@ function buildChoreographyFacetedFilters(
       ),
     },
     {
+      id: "categoria",
       label: "Categoría",
       options: getUniqueSortedOptions(
         choreographies.map((choreography) => ({
@@ -233,6 +245,7 @@ function buildChoreographyFacetedFilters(
       ),
     },
     {
+      id: "tipo-de-grupo",
       label: "Tipo de grupo",
       options: [
         { label: "Solo", value: "solo" },
@@ -294,13 +307,6 @@ function getChoreographiesEmptyDescription(
   }
 
   return "Cuando administración cree un evento, vas a poder consultar las coreografías de tu academia desde esta sección.";
-}
-
-function formatPrimaryAndSecondaryValue(
-  primaryValue: string,
-  secondaryValue: string | null,
-) {
-  return secondaryValue ? `${primaryValue} · ${secondaryValue}` : primaryValue;
 }
 
 function CreateChoreographyDialogLoader({

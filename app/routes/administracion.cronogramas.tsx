@@ -1,4 +1,6 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
+import { createDataTableShouldRevalidate } from "@/components/shared/data-table-revalidation";
+import { scheduleFacetedFilterIds } from "@/features/admin/schedules/view-shared";
 import { loadEventSchedulesList } from "@/features/admin/schedules/list/server";
 import {
   EventSchedulesListView,
@@ -14,6 +16,10 @@ export const handle = {
 export async function loader({ request }: Route.LoaderArgs) {
   return loadEventSchedulesList(request);
 }
+
+export const shouldRevalidate = createDataTableShouldRevalidate({
+  filterParamNames: [...scheduleFacetedFilterIds],
+});
 
 export function EventSchedulesListRouteView({
   loaderData,

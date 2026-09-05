@@ -4,7 +4,7 @@ import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import {
   ClientDataTable,
   type DataTableColumn,
-  type DataTableFacetedFilter,
+  type DataTableFacetedFiltersOf,
 } from "@/components/shared/data-table";
 import { Badge } from "@/components/ui/badge";
 import { formatAmount, formatDate } from "@/features/admin/finances/formatters";
@@ -22,7 +22,11 @@ type PortalAcademyPaymentsLoaderData = Awaited<
 
 type PaymentRow = PortalAcademyPaymentsLoaderData["payments"][number];
 
-const paymentFacetedFilters: DataTableFacetedFilter[] = [
+export const portalPaymentFacetedFilterIds = ["medio"] as const;
+
+const paymentFacetedFilters: DataTableFacetedFiltersOf<
+  typeof portalPaymentFacetedFilterIds
+> = [
   {
     id: "medio",
     label: "Medio de pago",

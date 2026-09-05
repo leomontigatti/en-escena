@@ -11,7 +11,7 @@ import {
   createSelectedPriceInscriptionForTest,
 } from "@/features/portal/choreographies/test-support/db";
 import { createScheduleForModalityFixture } from "@/lib/choreographies/registration-test-fixtures.server.db";
-import { hasPriceDivergentInscription } from "@/lib/finances/choreography-frozen-price-guard.server";
+import { hasPriceDivergentInscription } from "@/lib/finances/choreography-price-divergence-guard.server";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 

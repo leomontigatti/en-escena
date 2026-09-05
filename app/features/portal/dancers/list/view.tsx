@@ -6,6 +6,7 @@ import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import {
   ClientDataTable,
   type DataTableColumn,
+  type DataTableFacetedFiltersOf,
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +22,7 @@ import {
   toRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.shared";
 import { useServerActionToast } from "@/lib/shared/toasts";
-import { usePortalRecordTitleLinkTransitionStyle } from "@/lib/shared/view-transitions";
+import { useRecordTitleLinkTransitionStyle } from "@/lib/shared/view-transitions";
 import { CreateDancerDialog } from "@/features/portal/dancers/create/dialog";
 import { type CreateDancerActionData } from "@/features/portal/dancers/create/shared";
 import { type PortalDancersListLoaderData } from "@/features/portal/dancers/list/shared";
@@ -37,6 +38,44 @@ const baseDancerFilters = {
     archivo: defaultRosterPersonStatusFilter,
   },
 };
+
+export const portalDancerFacetedFilterIds = [
+  "participacion",
+  "verificacion",
+  "archivo",
+] as const;
+
+const dancerFacetedFilters: DataTableFacetedFiltersOf<
+  typeof portalDancerFacetedFilterIds
+> = [
+  {
+    id: "participacion",
+    label: "Participación",
+    options: [
+      { label: "Participando", value: "participating" },
+      { label: "No participando", value: "not-participating" },
+    ],
+  },
+  {
+    id: "verificacion",
+    label: "Verificación",
+    options: [
+      { label: "Incompleto", value: "incomplete" },
+      { label: "Sin verificar", value: "unverified" },
+      { label: "Verificado", value: "verified" },
+    ],
+  },
+  {
+    id: "archivo",
+    label: "Estado de alta",
+    options: [
+      {
+        label: getRosterPersonStatusLabel("archived"),
+        value: "archived",
+      },
+    ],
+  },
+];
 
 type DancerBadge = {
   label: string;
@@ -191,33 +230,7 @@ function DancersTable({ dancers }: { dancers: DancerRow[] }) {
       getRowKey={(dancer) => dancer.id}
       searchPlaceholder="Buscar bailarín por nombre o número de documento"
       textFilterColumnId="name"
-      facetedFilters={[
-        {
-          label: "Participación",
-          options: [
-            { label: "Participando", value: "participating" },
-            { label: "No participando", value: "not-participating" },
-          ],
-        },
-        {
-          label: "Verificación",
-          options: [
-            { label: "Incompleto", value: "incomplete" },
-            { label: "Sin verificar", value: "unverified" },
-            { label: "Verificado", value: "verified" },
-          ],
-        },
-        {
-          id: "archivo",
-          label: "Estado de alta",
-          options: [
-            {
-              label: getRosterPersonStatusLabel("archived"),
-              value: "archived",
-            },
-          ],
-        },
-      ]}
+      facetedFilters={dancerFacetedFilters}
       baseFacetedFilterValues={baseDancerFilters}
       emptyMessage="No hay bailarines que coincidan con la búsqueda o los filtros."
       initialSort={{ columnId: "name", direction: "asc" }}
@@ -227,7 +240,7 @@ function DancersTable({ dancers }: { dancers: DancerRow[] }) {
 
 function DancerDetailLink({ dancer }: { dancer: DancerRow }) {
   const href = `/portal/bailarines/${dancer.id}`;
-  const viewTransitionStyle = usePortalRecordTitleLinkTransitionStyle(href);
+  const viewTransitionStyle = useRecordTitleLinkTransitionStyle(href);
 
   return (
     <DataTableLink to={href} viewTransition style={viewTransitionStyle}>

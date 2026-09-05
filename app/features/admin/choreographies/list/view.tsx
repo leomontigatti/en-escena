@@ -15,6 +15,7 @@ import {
 } from "@/lib/choreographies/operational-status";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
+import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
 
 import type { loadChoreographies } from "./server";
 
@@ -145,9 +146,6 @@ function ChoreographyTable({ loaderData }: { loaderData: LoaderData }) {
       rows={loaderData.choreographies}
       columns={choreographyColumns}
       getRowKey={(choreography) => choreography.id}
-      pageParamName="pagina"
-      searchParamName="busqueda"
-      sortParamName="orden"
       searchPlaceholder="Buscar coreografía por número, nombre o academia"
       initialSearchValue={loaderData.filters.query}
       facetedFilters={buildChoreographyFacetedFilters(loaderData)}
@@ -177,13 +175,6 @@ function hasChoreographyTableContent(loaderData: LoaderData) {
 
 function hasNonDefaultChoreographyOrder(order: LoaderData["filters"]["order"]) {
   return order.direction === "desc" || order.columnId !== "academia";
-}
-
-function formatPrimaryAndSecondaryValue(
-  primaryValue: string,
-  secondaryValue: string | null,
-) {
-  return secondaryValue ? `${primaryValue} · ${secondaryValue}` : primaryValue;
 }
 
 function buildChoreographyFacetedFilters(
