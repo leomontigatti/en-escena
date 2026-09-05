@@ -1,4 +1,5 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
+import { createDataTableShouldRevalidate } from "@/components/shared/data-table-revalidation";
 import { loadFinancesList } from "@/features/admin/finances/list/server";
 import { FinancesListRouteView } from "@/features/admin/finances/list/view";
 
@@ -21,6 +22,8 @@ export const handle = {
 export async function loader({ request }: Route.LoaderArgs) {
   return await loadFinancesList(request);
 }
+
+export const shouldRevalidate = createDataTableShouldRevalidate();
 
 export { FinancesListRouteView };
 

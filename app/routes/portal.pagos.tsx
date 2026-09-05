@@ -1,4 +1,5 @@
 import type { PortalRouteHandle } from "@/components/portal/ui";
+import { createDataTableShouldRevalidate } from "@/components/shared/data-table-revalidation";
 import { loadPortalAcademyPayments } from "@/features/portal/payments/list/server";
 import { PortalAcademyPaymentsRouteView } from "@/features/portal/payments/list/view";
 
@@ -13,6 +14,10 @@ export const handle = {
 export async function loader({ request }: { request: Request }) {
   return await loadPortalAcademyPayments(request);
 }
+
+export const shouldRevalidate = createDataTableShouldRevalidate({
+  filterParamNames: ["medio"],
+});
 
 type PortalPagosRouteProps = {
   loaderData: Awaited<ReturnType<typeof loader>>;

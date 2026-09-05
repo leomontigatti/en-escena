@@ -1,4 +1,5 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
+import { createDataTableShouldRevalidate } from "@/components/shared/data-table-revalidation";
 import { loadAcademiesList } from "@/features/admin/academies/list/server";
 import { AcademiesListRouteView } from "@/features/admin/academies/list/view";
 
@@ -21,6 +22,10 @@ export const handle = {
 export async function loader({ request }: Route.LoaderArgs) {
   return await loadAcademiesList(request);
 }
+
+export const shouldRevalidate = createDataTableShouldRevalidate({
+  filterParamNames: ["participando"],
+});
 
 export { AcademiesListRouteView };
 

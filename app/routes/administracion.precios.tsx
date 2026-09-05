@@ -1,6 +1,7 @@
 import { useActionData } from "react-router";
 
 import type { AdminRouteHandle } from "@/components/admin/shell";
+import { createDataTableShouldRevalidate } from "@/components/shared/data-table-revalidation";
 import {
   loadEventPricesList,
   updateAdministrativeEventPricesList,
@@ -23,6 +24,10 @@ export async function loader({ request }: Route.LoaderArgs) {
 export async function action({ request }: Route.ActionArgs) {
   return updateAdministrativeEventPricesList(request);
 }
+
+export const shouldRevalidate = createDataTableShouldRevalidate({
+  filterParamNames: ["tipo-de-grupo", "cronograma"],
+});
 
 export function PricesListRouteView({
   loaderData,

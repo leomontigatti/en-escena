@@ -1,4 +1,5 @@
 import type { PortalRouteHandle } from "@/components/portal/ui";
+import { createDataTableShouldRevalidate } from "@/components/shared/data-table-revalidation";
 import {
   handlePortalProfessorsListAction,
   loadPortalProfessorsList,
@@ -24,6 +25,10 @@ export async function loader({ request }: { request: Request }) {
 export async function action({ request }: { request: Request }) {
   return await handlePortalProfessorsListAction(request);
 }
+
+export const shouldRevalidate = createDataTableShouldRevalidate({
+  filterParamNames: ["participacion", "completitud", "archivo"],
+});
 
 export default function PortalProfesoresRoute({
   loaderData,

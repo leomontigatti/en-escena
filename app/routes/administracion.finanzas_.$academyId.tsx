@@ -1,4 +1,5 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
+import { createDataTableShouldRevalidate } from "@/components/shared/data-table-revalidation";
 import {
   handleAcademyFinancesAction,
   loadAcademyFinances,
@@ -34,6 +35,10 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 export async function action({ request, params }: Route.ActionArgs) {
   return await handleAcademyFinancesAction({ request, params });
 }
+
+export const shouldRevalidate = createDataTableShouldRevalidate({
+  filterParamNames: ["estado"],
+});
 
 export { AcademyFinancesRouteView };
 

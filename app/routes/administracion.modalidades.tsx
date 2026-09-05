@@ -1,4 +1,5 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
+import { createDataTableShouldRevalidate } from "@/components/shared/data-table-revalidation";
 import { loadEventModalitiesList } from "@/features/admin/modalities/list/server";
 import {
   EventModalitiesListView,
@@ -14,6 +15,8 @@ export const handle = {
 export async function loader({ request }: Route.LoaderArgs) {
   return loadEventModalitiesList(request);
 }
+
+export const shouldRevalidate = createDataTableShouldRevalidate();
 
 export function ModalitiesListRouteView({
   loaderData,

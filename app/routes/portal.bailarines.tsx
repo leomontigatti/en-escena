@@ -1,3 +1,4 @@
+import { createDataTableShouldRevalidate } from "@/components/shared/data-table-revalidation";
 import {
   handlePortalDancersListAction,
   loadPortalDancersList,
@@ -24,6 +25,10 @@ export async function loader({ request }: { request: Request }) {
 export async function action({ request }: { request: Request }) {
   return await handlePortalDancersListAction(request);
 }
+
+export const shouldRevalidate = createDataTableShouldRevalidate({
+  filterParamNames: ["participacion", "verificacion", "archivo"],
+});
 
 export default function PortalBailarinesRoute({
   loaderData,

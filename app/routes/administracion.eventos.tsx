@@ -1,4 +1,5 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
+import { createDataTableShouldRevalidate } from "@/components/shared/data-table-revalidation";
 import { loadEvents } from "@/features/admin/events/list/server";
 import {
   EventsListView,
@@ -18,6 +19,8 @@ export const handle = {
 export async function loader({ request }: Route.LoaderArgs) {
   return loadEvents(request);
 }
+
+export const shouldRevalidate = createDataTableShouldRevalidate();
 
 export function EventsListRouteView({ loaderData }: EventsListViewProps) {
   return <EventsListView loaderData={loaderData} />;

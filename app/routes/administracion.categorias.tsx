@@ -1,4 +1,5 @@
 import type { AdminRouteHandle } from "@/components/admin/shell";
+import { createDataTableShouldRevalidate } from "@/components/shared/data-table-revalidation";
 import { loadCategoriesList } from "@/features/admin/categories/list/server";
 import {
   CategoriesListView,
@@ -14,6 +15,10 @@ const handle = {
 async function loader({ request }: Route.LoaderArgs) {
   return loadCategoriesList(request);
 }
+
+export const shouldRevalidate = createDataTableShouldRevalidate({
+  filterParamNames: ["tipo-de-grupo"],
+});
 
 export function CategoriesRouteView({ loaderData }: CategoriesListViewProps) {
   return <CategoriesListView loaderData={loaderData} />;

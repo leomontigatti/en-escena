@@ -1,5 +1,6 @@
 import { useSearchParams } from "react-router";
 
+import { createDataTableShouldRevalidate } from "@/components/shared/data-table-revalidation";
 import {
   handlePortalChoreographiesListAction,
   loadPortalChoreographiesList,
@@ -26,6 +27,10 @@ export async function loader({ request }: { request: Request }) {
 export async function action({ request }: { request: Request }) {
   return await handlePortalChoreographiesListAction(request);
 }
+
+export const shouldRevalidate = createDataTableShouldRevalidate({
+  filterParamNames: ["estado", "modalidad", "categoria", "tipo-de-grupo"],
+});
 
 export default function PortalCoreografiasRoute({
   loaderData,
