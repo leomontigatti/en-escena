@@ -169,15 +169,15 @@ describe("ChoreographyDetailRouteView", () => {
     expect(markup).not.toContain('name="assignedScheduleCapacityId"');
   });
 
-  test("reports the frozen-price blocker in the page alert instead of on the field", () => {
+  test("reports the price blocker in the page alert instead of on the field", () => {
     const markup = renderDetail({
       loaderData: buildLoaderData({
         scheduleCapacity: {
           blockers: [
             {
-              code: "frozen-price",
+              code: "no-price-preserving-option",
               label:
-                "No se puede reasignar el cupo de cronograma: hay inscripciones con dinero asignado y su precio quedó congelado contra este cronograma.",
+                "No se puede reasignar el cupo de cronograma: hay inscripciones con dinero asignado y no hay cronogramas alternativos que mantengan el precio.",
             },
           ],
           canReassign: false,
@@ -198,12 +198,14 @@ describe("ChoreographyDetailRouteView", () => {
     expect(markup).not.toContain('name="assignedScheduleCapacityId"');
   });
 
-  test("shows the frozen-price alert to auditors too", () => {
+  test("shows the price alert to auditors too", () => {
     const markup = renderDetail({
       loaderData: buildLoaderData({
         canEdit: false,
         scheduleCapacity: {
-          blockers: [{ code: "frozen-price", label: "Hay dinero asignado." }],
+          blockers: [
+            { code: "price-filtered-options", label: "Hay dinero asignado." },
+          ],
           canReassign: false,
           options: [],
         },
@@ -254,9 +256,9 @@ describe("ChoreographyDetailRouteView", () => {
         modality: {
           blockers: [
             {
-              code: "frozen-price",
+              code: "price-change",
               label:
-                "Solo se puede corregir la modalidad si el cronograma no se mueve: hay inscripciones con dinero asignado.",
+                "Solo se puede corregir la modalidad si el cronograma no cambia de precio: hay inscripciones con dinero asignado.",
             },
           ],
           canCorrect: false,
@@ -266,7 +268,7 @@ describe("ChoreographyDetailRouteView", () => {
     });
 
     expect(markup).toContain(
-      "Solo se puede corregir la modalidad si el cronograma no se mueve",
+      "Solo se puede corregir la modalidad si el cronograma no cambia de precio",
     );
   });
 
@@ -274,7 +276,7 @@ describe("ChoreographyDetailRouteView", () => {
     const markup = renderDetail({ loaderData: buildLoaderData() });
 
     expect(markup).not.toContain(
-      "Solo se puede corregir la modalidad si el cronograma no se mueve",
+      "Solo se puede corregir la modalidad si el cronograma no cambia de precio",
     );
   });
 

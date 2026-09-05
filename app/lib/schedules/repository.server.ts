@@ -10,6 +10,7 @@ export {
   createScheduleCapacity,
   deleteScheduleCapacity,
   findModalityIdsWithCompatibleSchedules,
+  findScheduleIdsWithCompatibleModalities,
   resolveCompatibleScheduleCapacities,
   updateScheduleCapacity,
 } from "@/lib/events/bases-repository/schedule-capacities.server";

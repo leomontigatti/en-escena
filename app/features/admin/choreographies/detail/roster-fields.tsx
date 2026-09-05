@@ -14,6 +14,7 @@ import type {
   getRosterScheduleSelectOptions,
 } from "./roster-form-state";
 import type { ChoreographyDetailLoaderData } from "./server";
+import type { useScheduleCapacityForm } from "./use-schedule-capacity-form";
 
 export const choreographyFormSchema = z.object({
   dancerIds: z.array(z.string()).min(1, requiredFieldMessage),
@@ -77,15 +78,21 @@ export function RosterScheduleSlot({
   disabled,
   loaderData,
   options,
+  scheduleCapacity,
 }: {
   control: Control<ChoreographyFormValues>;
   disabled: boolean;
   loaderData: ChoreographyDetailLoaderData;
   options: ReturnType<typeof getRosterScheduleSelectOptions>;
+  scheduleCapacity: ReturnType<typeof useScheduleCapacityForm>;
 }) {
   if (!options) {
     return (
-      <ScheduleCapacityField disabled={disabled} loaderData={loaderData} />
+      <ScheduleCapacityField
+        disabled={disabled}
+        loaderData={loaderData}
+        scheduleCapacity={scheduleCapacity}
+      />
     );
   }
 

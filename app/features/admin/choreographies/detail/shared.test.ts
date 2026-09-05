@@ -110,22 +110,16 @@ describe("toChoreographyDetailViewActionData", () => {
 });
 
 describe("canReassignScheduleCapacity", () => {
-  const frozenDeposit = {
-    code: "frozen-price",
-    label: "Al menos una inscripción tiene dinero asignado.",
-  } as const;
-
-  test("opens the schedule capacity for an admin with alternatives and no blockers", () => {
+  test("opens the schedule capacity for an admin with a surviving alternative", () => {
     expect(canReassignScheduleCapacity(buildInput())).toBe(true);
   });
 
   test.each([
     ["the user is not an admin", { canEdit: false }],
     ["the choreography has a presentation", { hasPresentation: true }],
-    ["an inscription carries a frozen deposit", { blockers: [frozenDeposit] }],
     [
-      "there are fewer than two compatible cupos",
-      { hasMultipleCompatibleOptions: false },
+      "no alternative survived the options",
+      { hasSelectableAlternative: false },
     ],
   ])("keeps it read-only when %s", (_cause, overrides) => {
     expect(canReassignScheduleCapacity(buildInput(overrides))).toBe(false);
@@ -135,10 +129,9 @@ describe("canReassignScheduleCapacity", () => {
     overrides: Partial<Parameters<typeof canReassignScheduleCapacity>[0]> = {},
   ) {
     return {
-      blockers: [],
       canEdit: true,
-      hasMultipleCompatibleOptions: true,
       hasPresentation: false,
+      hasSelectableAlternative: true,
       ...overrides,
     };
   }

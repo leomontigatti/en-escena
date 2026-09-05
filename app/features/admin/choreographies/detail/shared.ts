@@ -145,12 +145,21 @@ export function toChoreographyDetailViewActionData(
     : undefined;
 }
 
-export type ChoreographyScheduleCapacityBlockerCode = "frozen-price";
+/**
+ * The two things the price filter can have done to the alternatives: omitted
+ * some of them, or omitted all of them and left the field read-only. Which one
+ * is read off the options that survived, never off a blanket money read: money
+ * that no destination would reprice is not a reason for an alert.
+ */
+export type ChoreographyScheduleCapacityBlockerCode =
+  | "no-price-preserving-option"
+  | "price-filtered-options";
 
 /**
- * Why schedule-capacity reassignment is closed, with the same shape as the
- * deletion blockers: the server builds the `code` and the label that gets read,
- * and the view only lists it in the page's alert.
+ * What the price did to the schedule-capacity reassignment — narrow it or close
+ * it — with the same shape as the deletion blockers: the server builds the
+ * `code` and the label that gets read, and the view only lists it in the page's
+ * alert.
  */
 export type ChoreographyScheduleCapacityBlocker = {
   code: ChoreographyScheduleCapacityBlockerCode;
@@ -158,21 +167,25 @@ export type ChoreographyScheduleCapacityBlocker = {
 };
 
 /**
- * The four read-only causes for the schedule capacity: not being `admin`,
- * having a presentation, carrying a blocker from the server (today, the frozen
- * `Seña`) and not having at least two compatible capacities to choose between.
+ * The three read-only causes for the schedule capacity: not being `admin`,
+ * having a presentation, and having nothing to move to.
+ *
+ * Money is not one of them. It is no longer a property of the choreography but
+ * of each destination —an alternative that would reprice an inscription is
+ * omitted from the options— so the question "is there somewhere to move to" is
+ * answered once, off the surviving alternatives, and the blockers stay what
+ * they are: the explanation the page's alert reads out. ANDing the two routes
+ * would ask the same thing twice by different paths, and they can disagree: a
+ * choreography holding money whose alternatives all hold the price would render
+ * closed with a select full of valid destinations.
  */
 export function canReassignScheduleCapacity(input: {
-  blockers: ChoreographyScheduleCapacityBlocker[];
   canEdit: boolean;
-  hasMultipleCompatibleOptions: boolean;
   hasPresentation: boolean;
+  hasSelectableAlternative: boolean;
 }) {
   return (
-    input.canEdit &&
-    !input.hasPresentation &&
-    input.blockers.length === 0 &&
-    input.hasMultipleCompatibleOptions
+    input.canEdit && !input.hasPresentation && input.hasSelectableAlternative
   );
 }
 
@@ -195,7 +208,7 @@ export function canReassignExperienceLevel(input: {
   );
 }
 
-export type ChoreographyModalityBlockerCode = "frozen-price";
+export type ChoreographyModalityBlockerCode = "price-change";
 
 /**
  * Same shape as the capacity and deletion blockers: the server writes the code and

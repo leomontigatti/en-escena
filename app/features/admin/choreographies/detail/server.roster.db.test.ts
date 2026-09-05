@@ -635,7 +635,7 @@ describe("schedule capacity guard on the roster path", () => {
     // come back as a plain `status: "error"` to actually be visible.
     expect(result).toMatchObject({
       message:
-        "No se puede cambiar el cupo de cronograma: hay inscripciones con dinero asignado.",
+        "No se puede cambiar el cupo de cronograma: hay inscripciones con dinero asignado cuyo precio cambiaría.",
       status: "error",
     });
     expect(result).not.toBeInstanceOf(Response);
@@ -738,7 +738,7 @@ describe("schedule capacity guard on the roster path", () => {
 
     expect(result).toMatchObject({
       message:
-        "No se puede cambiar el cupo de cronograma: hay inscripciones con dinero asignado.",
+        "No se puede cambiar el cupo de cronograma: hay inscripciones con dinero asignado cuyo precio cambiaría.",
       status: "error",
     });
 

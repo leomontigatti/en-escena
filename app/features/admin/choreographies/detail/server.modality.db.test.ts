@@ -7,8 +7,10 @@ import {
   categoryModalities,
   choreographies,
   modalities,
+  prices,
   scheduleCapacities,
   scheduleModalities,
+  schedules,
   submodalities,
 } from "@/db/schema";
 import {
@@ -64,6 +66,53 @@ describe("administrative choreography modality correction", () => {
       modalityId: scenario.catalog.modality.id,
       submodalityId: scenario.catalog.submodality.id,
     });
+  });
+
+  /**
+   * Occupancy is a suffix on the options a select offers. The lone compatible
+   * capacity is not offered: it arrives preselected and read-only, like the
+   * `auto` status of registration, and saying how many places are left on a
+   * field nobody can change means nothing. `isFull` still comes from the same
+   * read: a lone full capacity is the dead end the view explains instead.
+   */
+  test("previews the locked single capacity with no occupancy on its label", async () => {
+    const scenario = await createModalityScenario({ slug: "cupo-unico" });
+
+    const preview = readModalityResolution(
+      await scenario.resolveModality(scenario.target.modality.id),
+    );
+
+    expect(preview?.scheduleCapacity.status).toBe("auto");
+    expect(preview?.scheduleCapacity.options).toEqual([
+      {
+        id: scenario.target.scheduleCapacity.id,
+        isFull: false,
+        label: expect.stringMatching(/ hs\.$/),
+      },
+    ]);
+  });
+
+  /**
+   * The other half of the same rule, so the fix cannot be read as "strip the
+   * suffix everywhere": where there *is* a capacity to choose, every label the
+   * select offers keeps its occupancy.
+   */
+  test("keeps occupancy on the labels when there is a capacity to choose", async () => {
+    const scenario = await createModalityScenario({
+      slug: "cupo-multiple",
+      targetHasSecondCapacity: true,
+    });
+
+    const preview = readModalityResolution(
+      await scenario.resolveModality(scenario.target.modality.id),
+    );
+
+    expect(preview?.scheduleCapacity.status).toBe("multiple");
+    expect(preview?.scheduleCapacity.options).toHaveLength(2);
+
+    for (const option of preview?.scheduleCapacity.options ?? []) {
+      expect(option.label).toContain("0/5 ocupados");
+    }
   });
 
   test("writes modality, submodality, category, level and capacity in one correction", async () => {
@@ -196,12 +245,35 @@ describe("administrative choreography modality correction", () => {
 
     expect(response).toMatchObject({
       message:
-        "No se puede cambiar la modalidad: el cronograma se movería y hay inscripciones con dinero asignado.",
+        "No se puede cambiar la modalidad: el cronograma se movería y cambiaría el precio de inscripciones con dinero asignado.",
       status: "error",
     });
     await expect(scenario.readChoreography()).resolves.toMatchObject({
       modalityId: scenario.catalog.modality.id,
     });
+  });
+
+  // The dead end the omission creates: the modality select stays structural, so
+  // this modality is offered, and every capacity behind it would reprice.
+  test("previews no capacity at all when every one of them would reprice", async () => {
+    const scenario = await createModalityScenario({
+      allocatedAmount: 5000,
+      slug: "sena-sin-cupo",
+    });
+
+    const preview = readModalityResolution(
+      await scenario.resolveModality(scenario.target.modality.id),
+    );
+
+    expect(preview?.scheduleCapacity).toEqual({ options: [], status: "none" });
+    // The modality is still offered: money never greys a modality, and the
+    // detail explains the dead end at the capacity instead.
+    const detail = await scenario.loadDetail();
+    expect(
+      detail.modality.options.find(
+        (option) => option.id === scenario.target.modality.id,
+      ),
+    ).toMatchObject({ hasCompatibleScheduleCapacity: true });
   });
 
   test("accepts the correction when a deposit is registered and the capacity does not move", async () => {
@@ -300,9 +372,9 @@ describe("administrative choreography modality correction", () => {
     expect(detail.modality.canCorrect).toBe(true);
     expect(detail.modality.blockers).toEqual([
       {
-        code: "frozen-price",
+        code: "price-change",
         label:
-          "Solo se puede corregir la modalidad si el cronograma no se mueve: hay inscripciones con dinero asignado.",
+          "Solo se puede corregir la modalidad si el cronograma no cambia de precio: hay inscripciones con dinero asignado.",
       },
     ]);
     expect(
@@ -326,6 +398,55 @@ describe("administrative choreography modality correction", () => {
         },
       ]),
     );
+  });
+
+  test("announces no modality blocker when no schedule would change the price", async () => {
+    // The destination modality shares the choreography's schedule, so the
+    // event has a single schedule and no correction can move the price key.
+    const scenario = await createModalityScenario({
+      allocatedAmount: 5000,
+      slug: "sin.divergencia",
+      targetSharesSchedule: true,
+    });
+
+    const detail = await scenario.loadDetail();
+
+    // Holding money is no longer the question: what closes on price is a
+    // destination that would reprice it, and there is none.
+    expect(detail.modality.blockers).toEqual([]);
+  });
+
+  test("ignores a schedule no modality accepts when announcing the blocker", async () => {
+    // Every reachable destination keeps the price, and the only schedule that
+    // would move it is one no correction can land on: it takes no modality, so
+    // it is a structural dead end and the caveat would be about nothing.
+    const scenario = await createModalityScenario({
+      allocatedAmount: 5000,
+      slug: "cronograma.huerfano",
+      targetSharesSchedule: true,
+    });
+    const [orphanSchedule] = await db
+      .insert(schedules)
+      .values({
+        eventId: scenario.event.id,
+        name: "Bloque sin modalidad",
+        scheduledDate: "2026-05-02",
+        startTime: "10:00",
+        totalCapacity: 10,
+      })
+      .returning();
+    await db.insert(prices).values({
+      amount: 30000,
+      eventId: scenario.event.id,
+      groupType: "solo",
+      name: "Precio Solo huérfano",
+      paymentDeadline: null,
+      scheduleId: orphanSchedule.id,
+    });
+
+    const detail = await scenario.loadDetail();
+
+    expect(detail.modality.blockers).toEqual([]);
   });
 
   test("keeps the correction read-only for auditors", async () => {
@@ -355,6 +476,7 @@ async function createModalityScenario(input: {
   targetCategoryLevels?: ExperienceLevel[];
   targetCategoryMaxAge?: number;
   targetCategoryMinAge?: number;
+  targetHasSecondCapacity?: boolean;
   targetHasSubmodality?: boolean;
   targetSharesSchedule?: boolean;
 }) {
@@ -377,6 +499,7 @@ async function createModalityScenario(input: {
     categoryMaxAge: input.targetCategoryMaxAge ?? 17,
     categoryMinAge: input.targetCategoryMinAge ?? 13,
     eventId: event.id,
+    hasSecondCapacity: input.targetHasSecondCapacity ?? false,
     hasSubmodality: input.targetHasSubmodality ?? true,
     name: `Urbano ${input.slug}`,
     sharedSchedule: input.targetSharesSchedule
@@ -401,6 +524,27 @@ async function createModalityScenario(input: {
     scheduleCapacityId: catalog.scheduleCapacity.id,
     submodalityId: catalog.submodality.id,
   });
+  // Deadline-less rows, so they are the ones that apply whatever day the suite
+  // runs on, and the destination schedule carries a dearer one: with money on
+  // the choreography, moving the schedule is what changes the price.
+  await db.insert(prices).values([
+    {
+      amount: 10000,
+      eventId: event.id,
+      groupType: "solo",
+      name: `Precio Solo ${input.slug}`,
+      paymentDeadline: null,
+      scheduleId: null,
+    },
+    {
+      amount: 20000,
+      eventId: event.id,
+      groupType: "solo",
+      name: `Precio Solo destino ${input.slug}`,
+      paymentDeadline: null,
+      scheduleId: target.schedule.id,
+    },
+  ]);
   await createSelectedPriceInscriptionForTest({
     academyId: owner.academyId,
     allocatedAmount: input.allocatedAmount,
@@ -518,6 +662,7 @@ async function createTargetModality(input: {
   categoryMaxAge: number;
   categoryMinAge: number;
   eventId: string;
+  hasSecondCapacity: boolean;
   hasSubmodality: boolean;
   name: string;
   sharedSchedule: {
@@ -579,6 +724,20 @@ async function createTargetModality(input: {
     .insert(scheduleCapacities)
     .values({ scheduleId: schedule.id, groupType: "solo", capacity: 5 })
     .returning();
+
+  // A second compatible capacity turns the destination into a real choice, so
+  // the preview reports `multiple` instead of the preselected `auto`.
+  if (input.hasSecondCapacity) {
+    const secondSchedule = await createScheduleForModalityFixture({
+      eventId: input.eventId,
+      modalityId: modality.id,
+    });
+    await db.insert(scheduleCapacities).values({
+      scheduleId: secondSchedule.id,
+      groupType: "solo",
+      capacity: 5,
+    });
+  }
 
   return { category, modality, schedule, scheduleCapacity, submodality };
 }

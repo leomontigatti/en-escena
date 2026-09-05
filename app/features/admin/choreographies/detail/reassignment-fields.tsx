@@ -11,17 +11,21 @@ import {
   assignedExperienceLevelFieldName,
   assignedScheduleCapacityFieldName,
   updateChoreographyExperienceLevelIntent,
-  updateChoreographyScheduleCapacityIntent,
   updateChoreographySubmodalityIntent,
 } from "./shared";
 import { useSavedValueSelectForm } from "./use-saved-value-select-form";
 import type { ChoreographyDetailLoaderData } from "./server";
+import type { useScheduleCapacityForm } from "./use-schedule-capacity-form";
 
 /**
  * The three fields that reassign on their own: each has its own `useForm`,
- * isolated from the roster's form, auto-submits on selection and posts its
- * intent, so they stay on the page and report back by toast. None of them takes
- * part in saving the roster or in its confirmation dialog.
+ * isolated from the roster's form, and posts its own intent, so they stay on
+ * the page and report back by toast. None of them takes part in saving the
+ * roster or in its confirmation dialog.
+ *
+ * Two of them still write on selection; the schedule capacity holds the choice
+ * until the page's `Guardar`, shaped like the modality correction next to it.
+ * See `useScheduleCapacityForm`.
  *
  * `disabled` is what a pending modality correction uses to hold them while its
  * resolution is in flight: they keep showing the saved value in the same
@@ -147,18 +151,15 @@ export function ExperienceLevelField({
 export function ScheduleCapacityField({
   disabled = false,
   loaderData,
+  scheduleCapacity,
 }: {
   disabled?: boolean;
   loaderData: ChoreographyDetailLoaderData;
+  scheduleCapacity: ReturnType<typeof useScheduleCapacityForm>;
 }) {
   const choreography = loaderData.choreography;
-  const submit = useSubmit();
-  const scheduleCapacityForm = useSavedValueSelectForm(
-    assignedScheduleCapacityFieldName,
-    choreography.scheduleCapacityId,
-  );
 
-  if (!loaderData.scheduleCapacity.canReassign) {
+  if (!scheduleCapacity.canReassign) {
     return (
       <ReadOnlyField label="Cronograma" value={choreography.scheduleLabel} />
     );
@@ -166,20 +167,10 @@ export function ScheduleCapacityField({
 
   return (
     <SelectField
-      control={scheduleCapacityForm.control}
+      control={scheduleCapacity.form.control}
       disabled={disabled}
       label="Cronograma"
       name={assignedScheduleCapacityFieldName}
-      onValueChange={(value) => {
-        if (!value || value === choreography.scheduleCapacityId) {
-          return;
-        }
-
-        const formData = new FormData();
-        formData.set("intent", updateChoreographyScheduleCapacityIntent);
-        formData.set(assignedScheduleCapacityFieldName, value);
-        submit(formData, { method: "post" });
-      }}
       options={toScheduleCapacitySelectOptions(
         loaderData.scheduleCapacity.options,
       )}
