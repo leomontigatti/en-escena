@@ -10,21 +10,17 @@ import {
   type RowSelectionState,
   type SortingState,
   type Table,
+  type Updater,
   useReactTable,
 } from "@tanstack/react-table";
-import {
-  useEffect,
-  useMemo,
-  useState,
-  type Dispatch,
-  type SetStateAction,
-} from "react";
+import { useEffect, useMemo } from "react";
 import { useLocation } from "react-router";
 
 import {
+  createColumnFilters,
   getVisibleFacetedFilterValue,
   isFacetedFilterValue,
-  mergeBaseFacetedFilterValue,
+  mergeBaseFacetedFilterValues,
 } from "@/components/shared/data-table-helpers";
 import {
   createColumnVisibility,
@@ -32,20 +28,25 @@ import {
   createGlobalFilterFn,
   emptyFacetedFilters,
   emptyFacetedFilterValues,
-  useDataTableColumnFiltersState,
   useDataTableRowSelection,
-  useDataTableSearchQueryState,
-  useDataTableSortingState,
 } from "@/components/shared/data-table-core";
 import { DataTableShell } from "@/components/shared/data-table-shell";
 import type {
   ClientDataTableProps,
   DataTableFacetedFilterValue,
+  DataTableSort,
 } from "@/components/shared/data-table.shared";
 import {
   dataTableFacetedFilterColumnId,
   defaultClientDataTablePageSize,
 } from "@/components/shared/data-table.shared";
+import {
+  useDataTableUrlState,
+  useDebouncedDataTableSearch,
+} from "@/components/shared/data-table-url-state";
+
+/** The fallback for a view that declares no initial faceted selection. */
+const noFacetedFilterValue: DataTableFacetedFilterValue = {};
 
 export function ClientDataTable<TData>(props: ClientDataTableProps<TData>) {
   const location = useLocation();
@@ -62,14 +63,51 @@ export function ClientDataTable<TData>(props: ClientDataTableProps<TData>) {
     props.columns,
     selectableRows,
   );
-  const { searchQuery, setSearchQuery } =
-    useDataTableSearchQueryState(initialSearchValue);
-  const { columnFilters, setColumnFilters } = useDataTableColumnFiltersState({
-    baseFacetedFilterValues,
-    initialFacetedFilterValues,
+  // The address bar owns the search, the filters, the page and the order, so a
+  // list URL renders the list as it was left and everything the reader does to
+  // it is recorded.
+  const {
+    facetedFilterValue,
+    setFacetedFilterValue,
+    page,
+    setPage,
+    search,
+    setSearch,
+    sort,
+    setSort,
+  } = useDataTableUrlState({
+    basePath: location.pathname,
+    facetedFilters,
+    initialFacetedFilterValue:
+      initialFacetedFilterValues[dataTableFacetedFilterColumnId] ??
+      noFacetedFilterValue,
+    initialSearchValue,
+    initialSort: props.initialSort,
+    pageParamName: props.pageParamName,
+    searchParamName: props.searchParamName,
+    sortParamName: props.sortParamName,
   });
-  const { pagination, setPagination } = usePaginationState(pageSize);
-  const { sorting, setSorting } = useDataTableSortingState(props.initialSort);
+  const { searchQuery, setSearchQuery } = useDebouncedDataTableSearch({
+    search,
+    setSearch,
+  });
+  // The faceted selections come from the address bar, so a filtered list URL
+  // renders filtered and a filter the reader picks is recorded straight away.
+  const columnFilters: ColumnFiltersState = createColumnFilters(
+    mergeBaseFacetedFilterValues(baseFacetedFilterValues, {
+      ...initialFacetedFilterValues,
+      [dataTableFacetedFilterColumnId]: facetedFilterValue,
+    }),
+  );
+  const pagination = useMemo(
+    () => ({ pageIndex: page - 1, pageSize }),
+    [page, pageSize],
+  );
+  // The order comes from the address bar too, so a list URL naming a sort
+  // renders in that order and a column the reader clicks is recorded.
+  const sorting: SortingState = sort
+    ? [{ id: sort.columnId, desc: sort.direction === "desc" }]
+    : [];
   const { rowSelection, setRowSelection } = useDataTableRowSelection({
     onSelectedRowIdsChange: props.onSelectedRowIdsChange,
     selectedRowIds: props.selectedRowIds,
@@ -83,25 +121,39 @@ export function ClientDataTable<TData>(props: ClientDataTableProps<TData>) {
     pagination,
     rows: props.rows,
     rowSelection,
+    searchQuery,
     selectableRows,
-    setColumnFilters,
-    setPagination,
+    setPage,
     setRowSelection,
     setSearchQuery,
-    setSorting,
+    setSort,
     sorting,
     tableColumns,
-    // The text filter narrows one named column, so the global filter stays out
-    // of the way; without one, the search box is the global filter.
-    tableGlobalFilter: props.textFilterColumnId ? "" : searchQuery,
+    textFilterColumnId: props.textFilterColumnId,
   });
-  const { getSelectedFilterValues, setFacetedFilterValue, setSearchFilter } =
-    createClientFilterHandlers({
-      baseFacetedFilterValues,
-      setSearchQuery,
-      table,
-      textFilterColumnId: props.textFilterColumnId,
-    });
+  const pageCount = table.getPageCount();
+
+  // A page beyond the last one — reachable from a stale bookmark or a pasted
+  // link — resolves to page one, so the reader sees rows instead of an empty
+  // table.
+  useEffect(() => {
+    if (page > 1 && page > pageCount) {
+      setPage(1);
+    }
+  }, [page, pageCount, setPage]);
+
+  const getSelectedFilterValues = (columnId: string) => {
+    const filterValue = table.getColumn(columnId)?.getFilterValue();
+
+    if (!isFacetedFilterValue(filterValue)) {
+      return {};
+    }
+
+    return getVisibleFacetedFilterValue(
+      baseFacetedFilterValues[columnId],
+      filterValue,
+    );
+  };
 
   return (
     <DataTableShell
@@ -123,14 +175,14 @@ export function ClientDataTable<TData>(props: ClientDataTableProps<TData>) {
         filteredRowCount: table.getFilteredRowModel().rows.length,
         hidden: props.hidePagination ?? false,
         onNextPage: () => table.nextPage(),
-        onPageChange: (page) => table.setPageIndex(page - 1),
+        onPageChange: (nextPage) => table.setPageIndex(nextPage - 1),
         onPreviousPage: () => table.previousPage(),
-        pageCount: table.getPageCount(),
+        pageCount,
         totalRows: table.getCoreRowModel().rows.length,
       }}
       search={{
         hidden: props.hideSearch ?? false,
-        onChange: setSearchFilter,
+        onChange: setSearchQuery,
         placeholder: props.searchPlaceholder,
         query: searchQuery,
       }}
@@ -176,21 +228,6 @@ function useClientDataTableColumns<TData>(
   return { columnVisibility, tableColumns };
 }
 
-/**
- * The page the reader is on, and how many rows fit on it. A change of page size
- * goes back to the first page: the position they were on belongs to a
- * pagination that no longer exists.
- */
-function usePaginationState(pageSize: number) {
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize });
-
-  useEffect(() => {
-    setPagination({ pageIndex: 0, pageSize });
-  }, [pageSize]);
-
-  return { pagination, setPagination };
-}
-
 function useClientReactTable<TData>({
   columnFilters,
   columnVisibility,
@@ -199,15 +236,15 @@ function useClientReactTable<TData>({
   pagination,
   rows,
   rowSelection,
+  searchQuery,
   selectableRows,
-  setColumnFilters,
-  setPagination,
+  setPage,
   setRowSelection,
   setSearchQuery,
-  setSorting,
+  setSort,
   sorting,
   tableColumns,
-  tableGlobalFilter,
+  textFilterColumnId,
 }: {
   columnFilters: ColumnFiltersState;
   columnVisibility: Record<string, boolean>;
@@ -216,33 +253,60 @@ function useClientReactTable<TData>({
   pagination: PaginationState;
   rows: TData[];
   rowSelection: RowSelectionState;
+  searchQuery: string;
   selectableRows: boolean;
-  setColumnFilters: OnChangeFn<ColumnFiltersState>;
-  setPagination: OnChangeFn<PaginationState>;
+  setPage: (page: number) => void;
   setRowSelection: OnChangeFn<RowSelectionState>;
-  setSearchQuery: Dispatch<SetStateAction<string>>;
-  setSorting: OnChangeFn<SortingState>;
+  setSearchQuery: (searchValue: string) => void;
+  setSort: (sort: DataTableSort) => void;
   sorting: SortingState;
   tableColumns: ColumnDef<TData>[];
-  tableGlobalFilter: string;
-}) {
+  textFilterColumnId?: string;
+}): Table<TData> {
+  // The text filter narrows one named column, so the global filter stays out of
+  // the way; without one, the search box is the global filter. Either way it is
+  // derived from the search rather than stored beside it, so a search arriving
+  // from the address bar filters the rows the same way one the reader typed
+  // does.
+  const tableGlobalFilter = textFilterColumnId ? "" : searchQuery;
+  const tableColumnFilters: ColumnFiltersState = textFilterColumnId
+    ? [
+        ...columnFilters.filter((filter) => filter.id !== textFilterColumnId),
+        { id: textFilterColumnId, value: searchQuery },
+      ]
+    : columnFilters;
+
   return useReactTable({
     data: rows,
     columns: tableColumns,
     state: {
-      columnFilters,
+      columnFilters: tableColumnFilters,
       columnVisibility,
       globalFilter: tableGlobalFilter,
       pagination,
       rowSelection,
       sorting,
     },
-    onColumnFiltersChange: setColumnFilters,
     onGlobalFilterChange: setSearchQuery,
-    onPaginationChange: setPagination,
+    onPaginationChange: (updater) => {
+      const nextPagination =
+        typeof updater === "function" ? updater(pagination) : updater;
+
+      setPage(nextPagination.pageIndex + 1);
+    },
     onRowSelectionChange: setRowSelection,
-    onSortingChange: setSorting,
+    onSortingChange: (updater) => {
+      const nextSort = getNextClientSort(sorting, updater);
+
+      if (nextSort) {
+        setSort(nextSort);
+      }
+    },
     enableRowSelection: selectableRows,
+    // The address bar owns when the page resets: the shared href builders drop
+    // the page whenever the search, the filters or the sort change. Left on,
+    // the engine would also reset the page on its own and overwrite it.
+    autoResetPageIndex: false,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -253,52 +317,36 @@ function useClientReactTable<TData>({
 }
 
 /**
- * The three handlers that write through the table rather than through state:
- * they need the built table, so they are made after it and not before.
+ * The engine cycles a column ascending, descending, then unsorted; the address
+ * bar has nothing to write down for that third state, since an absent parameter
+ * already means the view's default order. Landing on it is read as a request to
+ * start the cycle over, so clicking a header alternates the two directions —
+ * the way the server-paginated table already does.
  */
-function createClientFilterHandlers<TData>({
-  baseFacetedFilterValues,
-  setSearchQuery,
-  table,
-  textFilterColumnId,
-}: {
-  baseFacetedFilterValues: Record<string, DataTableFacetedFilterValue>;
-  setSearchQuery: Dispatch<SetStateAction<string>>;
-  table: Table<TData>;
-  textFilterColumnId?: string;
-}) {
-  return {
-    getSelectedFilterValues: (columnId: string) => {
-      const filterValue = table.getColumn(columnId)?.getFilterValue();
+function getNextClientSort(
+  sorting: SortingState,
+  updater: Updater<SortingState>,
+): DataTableSort | undefined {
+  const nextSorting =
+    typeof updater === "function" ? updater(sorting) : updater;
+  const nextSort = nextSorting[0];
 
-      if (!isFacetedFilterValue(filterValue)) {
-        return {};
+  if (nextSort) {
+    return {
+      columnId: nextSort.id,
+      direction: nextSort.desc ? "desc" : "asc",
+    };
+  }
+
+  const currentSort = sorting[0];
+
+  // The flip is read off the current direction rather than fixed at ascending:
+  // a numeric column cycles descending first, so a column already ascending
+  // lands on unsorted and would otherwise be re-asserted ascending forever.
+  return currentSort
+    ? {
+        columnId: currentSort.id,
+        direction: currentSort.desc ? "asc" : "desc",
       }
-
-      return getVisibleFacetedFilterValue(
-        baseFacetedFilterValues[columnId],
-        filterValue,
-      );
-    },
-    setFacetedFilterValue: (values: DataTableFacetedFilterValue) => {
-      table
-        .getColumn(dataTableFacetedFilterColumnId)
-        ?.setFilterValue(
-          mergeBaseFacetedFilterValue(
-            baseFacetedFilterValues[dataTableFacetedFilterColumnId],
-            values,
-          ),
-        );
-    },
-    setSearchFilter: (value: string) => {
-      setSearchQuery(value);
-
-      if (textFilterColumnId) {
-        table.getColumn(textFilterColumnId)?.setFilterValue(value);
-        return;
-      }
-
-      table.setGlobalFilter(value);
-    },
-  };
+    : undefined;
 }

@@ -18,6 +18,11 @@ Index of the repo's conventions. Every operative rule lives in its own file unde
   `comprobante` as the only reserved term). The identifier → UI term mapping lives in
   [CONTEXT.md](CONTEXT.md).
 - **Style guide** (frontend/UI): [docs/agents/style-guide.md](docs/agents/style-guide.md).
+- **shadcn/ui** (vendored `shadcn` skill, upstream sync policy, and which local
+  divergences are deliberate): [docs/agents/shadcn.md](docs/agents/shadcn.md).
+  The skill lives in `.agents/skills/shadcn`, is pinned by `skills-lock.json`, and
+  loads automatically — it reads `components.json`, so read that doc before
+  re-adding a component the CLI would overwrite.
 - **Form feedback and redirection** (stay/redirect matrix, flash session vs. direct
   `actionData`): [docs/agents/form-feedback.md](docs/agents/form-feedback.md).
 - **Issue tracker** (GitHub Issues via `gh`): [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md).

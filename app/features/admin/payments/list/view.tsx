@@ -181,9 +181,6 @@ export function PaymentsListRouteView({
           <ServerDataTable
             rows={loaderData.rows}
             columns={paymentColumns}
-            pageParamName="pagina"
-            searchParamName="busqueda"
-            sortParamName="orden"
             facetedFilters={paymentFacetedFilters}
             initialFacetedFilterValues={buildInitialFacetedFilterValues(
               loaderData,

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import {
+  buildDataTableFilterHref,
   createColumnFilters,
   getActiveFacetedFilterValues,
   getFacetedFilterSummary,
@@ -23,6 +24,7 @@ describe("data-table helpers", () => {
     ],
   };
   const locationFilter: DataTableFacetedFilter = {
+    id: "sede",
     label: "Sede",
     options: [{ label: "Norte", value: "north" }],
   };
@@ -130,9 +132,27 @@ describe("data-table helpers", () => {
     expect(
       getFacetedFilterSummary([statusFilter, locationFilter], {
         estado: "archived",
-        Sede: "north",
+        sede: "north",
       }),
     ).toBe("Estado: Archivados, Sede: Norte");
+  });
+
+  test("keys faceted filter selections by group id and not by group label", () => {
+    expect(
+      getFacetedFilterSummary([statusFilter, locationFilter], {
+        Estado: "archived",
+        Sede: "north",
+      }),
+    ).toBe("");
+
+    expect(
+      buildDataTableFilterHref({
+        basePath: "/administracion/precios",
+        currentSearch: "",
+        groups: [locationFilter],
+        values: { sede: "north" },
+      }),
+    ).toBe("/administracion/precios?sede=north");
   });
 
   test("replaces only the targeted server-side filter entry", () => {

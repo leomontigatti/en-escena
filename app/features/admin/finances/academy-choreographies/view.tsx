@@ -4,7 +4,7 @@ import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import {
   ClientDataTable,
   type DataTableColumn,
-  type DataTableFacetedFilter,
+  type DataTableFacetedFiltersOf,
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
@@ -29,7 +29,11 @@ import type { AcademyFinancesLoaderData } from "./types";
 type ChoreographyFinanceRow =
   AcademyFinancesLoaderData["choreographyFinanceRows"][number];
 
-const choreographyFinanceFacetedFilters: DataTableFacetedFilter[] = [
+export const academyChoreographyFinanceFacetedFilterIds = ["estado"] as const;
+
+const choreographyFinanceFacetedFilters: DataTableFacetedFiltersOf<
+  typeof academyChoreographyFinanceFacetedFilterIds
+> = [
   {
     id: "estado",
     label: "Estado",

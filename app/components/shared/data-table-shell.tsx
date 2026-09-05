@@ -4,11 +4,12 @@ import {
   type Row,
   type Table as TanStackTable,
 } from "@tanstack/react-table";
-import { LoaderCircle, Search, X } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { Link } from "react-router";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import {
   DataTableFacetedFilterControl,
   DataTablePagination,
@@ -364,7 +365,7 @@ function DataTableFooter({
         {pagination.totalRows === 1 ? "registro" : "registros"}
         {isLoading ? (
           <span className="ml-2 inline-flex items-center gap-1">
-            <LoaderCircle className="size-3 animate-spin" aria-hidden="true" />
+            <Spinner aria-hidden="true" />
             Actualizando…
           </span>
         ) : null}

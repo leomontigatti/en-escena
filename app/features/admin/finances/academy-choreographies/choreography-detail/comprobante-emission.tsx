@@ -1,4 +1,4 @@
-import { AlertTriangle, Check, LoaderCircle } from "lucide-react";
+import { AlertTriangle, Check } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useFetcher } from "react-router";
 
@@ -13,6 +13,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   ContingencyAlert,
   contingencyCancelLabel,
@@ -127,11 +128,7 @@ export function EmissionDialog({
                 disabled={isSaving || submitState === "blocked"}
               >
                 {isSaving ? (
-                  <LoaderCircle
-                    aria-hidden="true"
-                    className="animate-spin"
-                    data-icon="inline-start"
-                  />
+                  <Spinner aria-hidden="true" data-icon="inline-start" />
                 ) : (
                   <Check aria-hidden="true" data-icon="inline-start" />
                 )}

@@ -6,7 +6,7 @@ import { basePath } from "@/features/admin/categories/shared";
 import {
   ClientDataTable,
   type DataTableColumn,
-  type DataTableFacetedFilter,
+  type DataTableFacetedFiltersOf,
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { BadgesList } from "@/components/shared/badges-list";
@@ -69,8 +69,13 @@ const categoryColumns: DataTableColumn<CategoryRow>[] = [
   },
 ];
 
-const categoryFacetedFilters: DataTableFacetedFilter[] = [
+export const categoryFacetedFilterIds = ["tipo-de-grupo"] as const;
+
+const categoryFacetedFilters: DataTableFacetedFiltersOf<
+  typeof categoryFacetedFilterIds
+> = [
   {
+    id: "tipo-de-grupo",
     label: "Tipo de grupo",
     options: groupTypeOptions,
   },

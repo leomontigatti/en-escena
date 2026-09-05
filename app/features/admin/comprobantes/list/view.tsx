@@ -159,9 +159,6 @@ export function ComprobantesListRouteView({
         <ServerDataTable
           rows={loaderData.rows}
           columns={comprobanteColumns}
-          pageParamName="pagina"
-          searchParamName="busqueda"
-          sortParamName="orden"
           facetedFilters={comprobanteFacetedFilters}
           initialFacetedFilterValues={buildInitialFacetedFilterValues(
             loaderData,

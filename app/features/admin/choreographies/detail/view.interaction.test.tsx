@@ -4,8 +4,9 @@ import { act } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
-import { ChoreographyDetailRouteView } from "@/features/admin/choreographies/detail/view";
+import type { ChoreographyModalityResolution } from "@/features/admin/choreographies/detail/modality.server";
 import type { ChoreographyDetailLoaderData } from "@/features/admin/choreographies/detail/server";
+import { ChoreographyDetailRouteView } from "@/features/admin/choreographies/detail/view";
 import {
   openRadixSelect,
   selectRadixOption,
@@ -69,8 +70,8 @@ describe("ChoreographyDetailRouteView modality correction", () => {
   /**
    * Occupancy belongs to the options of a select. A destination modality with a
    * single compatible capacity offers none: the capacity arrives preselected and
-   * read-only, like the `auto` status of registration, so the preview reads the
-   * bare date-time the resolution composes for it.
+   * read-only, like the `auto` status of registration, and the resolution gives it
+   * no label at all: the field composes the bare date-time itself.
    */
   test("previews a locked single capacity as a read-only field with no occupancy", async () => {
     await renderIntoDocument(renderer, Promise.resolve(), {
@@ -78,7 +79,11 @@ describe("ChoreographyDetailRouteView modality correction", () => {
         {
           id: "schedule_capacity_2",
           isFull: false,
-          label: "2 de mayo de 2026 - 10:00 hs.",
+          schedule: {
+            name: "Cronograma 2",
+            scheduledDate: "2026-05-02",
+            startTime: "10:00:00",
+          },
         },
       ],
       status: "auto",
@@ -252,10 +257,7 @@ function createDeferredResolution() {
 async function renderIntoDocument(
   renderer: ReturnType<typeof createReactDomTestRenderer>,
   held: Promise<void>,
-  scheduleCapacity: {
-    options: { id: string; isFull: boolean; label: string }[];
-    status: "auto" | "multiple" | "none";
-  } = {
+  scheduleCapacity: ChoreographyModalityResolution["scheduleCapacity"] = {
     options: [
       {
         id: "schedule_capacity_2",

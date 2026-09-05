@@ -1,10 +1,14 @@
 import { useSearchParams } from "react-router";
 
+import { createDataTableShouldRevalidate } from "@/components/shared/data-table-revalidation";
 import {
   handlePortalChoreographiesListAction,
   loadPortalChoreographiesList,
 } from "@/features/portal/choreographies/list/server";
-import { PortalChoreographiesListRouteView } from "@/features/portal/choreographies/list/view";
+import {
+  PortalChoreographiesListRouteView,
+  portalChoreographyFacetedFilterIds,
+} from "@/features/portal/choreographies/list/view";
 import type { PortalRouteHandle } from "@/components/portal/ui";
 
 type PortalChoreographiesListRouteProps = {
@@ -26,6 +30,10 @@ export async function loader({ request }: { request: Request }) {
 export async function action({ request }: { request: Request }) {
   return await handlePortalChoreographiesListAction(request);
 }
+
+export const shouldRevalidate = createDataTableShouldRevalidate({
+  filterParamNames: [...portalChoreographyFacetedFilterIds],
+});
 
 export default function PortalCoreografiasRoute({
   loaderData,

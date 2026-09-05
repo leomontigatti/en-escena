@@ -9,4 +9,5 @@ export { ServerDataTable } from "@/components/shared/server-data-table";
 export type {
   DataTableColumn,
   DataTableFacetedFilter,
+  DataTableFacetedFiltersOf,
 } from "@/components/shared/data-table.shared";

@@ -1,4 +1,3 @@
-import { LoaderCircle } from "lucide-react";
 import { Form, useActionData, useNavigation } from "react-router";
 import { z } from "zod";
 
@@ -10,6 +9,7 @@ import {
 import { AccessTextField, useAccessForm } from "@/components/auth/access-form";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
+import { Spinner } from "@/components/ui/spinner";
 import { requestAccessRecoveryEmail } from "@/lib/auth/access-recovery.server";
 import { authToastIds, emailField } from "@/lib/auth/access-form.shared";
 import {
@@ -108,13 +108,7 @@ export default function RecuperarAccesoRoute() {
           />
 
           <Button className="w-full" type="submit" disabled={isSubmitting}>
-            {isSubmitting ? (
-              <LoaderCircle
-                aria-hidden="true"
-                className="animate-spin"
-                data-icon
-              />
-            ) : null}
+            {isSubmitting ? <Spinner aria-hidden="true" data-icon /> : null}
             Enviar enlace
           </Button>
         </FieldGroup>

@@ -1,6 +1,7 @@
 import {
   ClientDataTable,
   type DataTableColumn,
+  type DataTableFacetedFiltersOf,
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +17,26 @@ import {
   getPriceDisplayName,
   getPriceName,
 } from "./view-shared";
+
+export const priceFacetedFilterIds = ["tipo-de-grupo", "cronograma"] as const;
+
+const priceFacetedFilters: DataTableFacetedFiltersOf<
+  typeof priceFacetedFilterIds
+> = [
+  {
+    id: "tipo-de-grupo",
+    label: "Tipo de grupo",
+    options: groupTypeOptions,
+  },
+  {
+    id: "cronograma",
+    label: "Cronograma",
+    options: [
+      { label: "Sí", value: "yes" },
+      { label: "No", value: "no" },
+    ],
+  },
+];
 
 export function PriceListTable({
   prices,
@@ -79,19 +100,7 @@ export function PriceListTable({
       getRowKey={(price) => price.id}
       searchPlaceholder="Buscar precio por nombre"
       textFilterColumnId="name"
-      facetedFilters={[
-        {
-          label: "Tipo de grupo",
-          options: groupTypeOptions,
-        },
-        {
-          label: "Cronograma",
-          options: [
-            { label: "Sí", value: "yes" },
-            { label: "No", value: "no" },
-          ],
-        },
-      ]}
+      facetedFilters={priceFacetedFilters}
       emptyMessage="No hay precios que coincidan con la búsqueda."
       initialSort={{ columnId: "paymentDeadline", direction: "asc" }}
     />

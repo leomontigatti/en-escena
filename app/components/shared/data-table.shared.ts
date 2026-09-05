@@ -1,6 +1,20 @@
 import type { ComponentProps, ReactNode } from "react";
 
+/**
+ * The shared query-parameter contract for both tables: Spanish names, so a URL
+ * a reader shares or bookmarks reads like the rest of the product. Views only
+ * pass the override props when they need a different name.
+ */
+export const dataTablePageParamName = "pagina";
+export const dataTableSearchParamName = "busqueda";
+export const dataTableSortParamName = "orden";
+
 export type DataTableSortDirection = "asc" | "desc";
+
+export type DataTableSort = {
+  columnId: string;
+  direction: DataTableSortDirection;
+};
 
 export type DataTableSortValue =
   | string
@@ -25,13 +39,23 @@ export type DataTableColumn<TData> = {
 
 export const dataTableFacetedFilterColumnId = "filters";
 
-export type DataTableFacetedFilter = DataTableFacetedFilterGroup;
+export type DataTableFacetedFilter<TId extends string = string> =
+  DataTableFacetedFilterGroup<TId>;
 
-export type DataTableFacetedFilterGroup = {
-  id?: string;
+export type DataTableFacetedFilterGroup<TId extends string = string> = {
+  id: TId;
   label: string;
   options: DataTableFacetedFilterOption[];
 };
+
+/**
+ * The faceted filter groups of a view whose parameter names its route has to
+ * declare for the revalidation rule. The view exports its group ids as a
+ * `const` list and types its groups with this, so a group can only carry an id
+ * the route already names and the two cannot drift apart.
+ */
+export type DataTableFacetedFiltersOf<TIds extends readonly string[]> =
+  DataTableFacetedFilter<TIds[number]>[];
 
 export type DataTableFacetedFilterOption = {
   label: string;
@@ -51,6 +75,9 @@ export type DataTableBaseProps<TData> = {
   emptyMessage?: string;
   baseFacetedFilterValues?: Record<string, DataTableFacetedFilterValue>;
   initialFacetedFilterValues?: Record<string, DataTableFacetedFilterValue>;
+  pageParamName?: string;
+  searchParamName?: string;
+  sortParamName?: string;
 };
 
 /**
@@ -88,10 +115,7 @@ export type ClientDataTableProps<TData> = DataTableBaseProps<TData> &
      * here, so paging them is a reading choice and not a cost.
      */
     pageSize?: number;
-    initialSort?: {
-      columnId: string;
-      direction: DataTableSortDirection;
-    };
+    initialSort?: DataTableSort;
   };
 
 export type ServerDataTableProps<TData> = DataTableBaseProps<TData> &
@@ -100,12 +124,6 @@ export type ServerDataTableProps<TData> = DataTableBaseProps<TData> &
     totalPages: number;
     totalRows: number;
     basePath?: string;
-    initialSort?: {
-      columnId: string;
-      direction: DataTableSortDirection;
-    };
+    initialSort?: DataTableSort;
     loading?: boolean;
-    pageParamName?: string;
-    searchParamName?: string;
-    sortParamName?: string;
   };

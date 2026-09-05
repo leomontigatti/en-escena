@@ -37,7 +37,7 @@
  * erred in, and far rarer.
  */
 
-import { AlertTriangle, Check, LoaderCircle } from "lucide-react";
+import { AlertTriangle, Check } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useFetcher } from "react-router";
 
@@ -63,6 +63,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 
 import { hasCrossedDepositThreshold } from "@/lib/finances/inscription-financial-status";
 
@@ -648,11 +649,7 @@ function FetcherError({ data }: { data: { message: string } | undefined }) {
 
 function SubmitIcon({ isSaving }: { isSaving: boolean }) {
   return isSaving ? (
-    <LoaderCircle
-      aria-hidden="true"
-      className="animate-spin"
-      data-icon="inline-start"
-    />
+    <Spinner aria-hidden="true" data-icon="inline-start" />
   ) : (
     <Check aria-hidden="true" data-icon="inline-start" />
   );

@@ -10,7 +10,6 @@ import {
   guardAndLockScheduleCapacityMove,
   lockScheduleCapacityForAssignment,
 } from "@/lib/choreographies/schedule-capacity-lock.server";
-import type { ScheduleCapacitySelectOption } from "@/lib/choreographies/schedule-capacity-options";
 import {
   getEventBases,
   resolveEventBasesScheduleModalityIds,
@@ -23,6 +22,7 @@ import {
   priceDivergenceModalityMessage,
   resolveModalityCorrectionContext,
   toMissingScheduleMessage,
+  type ChoreographyModalityScheduleCapacityResolution,
 } from "./modality-resolution.server";
 import type { ChoreographyDetail } from "./server";
 import {
@@ -52,10 +52,7 @@ export type ChoreographyModalityResolution = {
     required: boolean;
   };
   modalityId: string;
-  scheduleCapacity: {
-    options: ScheduleCapacitySelectOption[];
-    status: "auto" | "multiple" | "none";
-  };
+  scheduleCapacity: ChoreographyModalityScheduleCapacityResolution;
   submodality: {
     options: Array<{ id: string; name: string }>;
     required: boolean;
@@ -189,14 +186,7 @@ export async function resolveChoreographyModalityCorrection(input: {
         required: context.classification.experienceLevel.required,
       },
       modalityId: input.modalityId,
-      scheduleCapacity: {
-        options: context.scheduleOptions.map((option) => ({
-          id: option.id,
-          isFull: option.isFull,
-          label: option.label,
-        })),
-        status: context.scheduleStatus,
-      },
+      scheduleCapacity: context.scheduleCapacity,
       submodality: {
         options: context.submodalityOptions,
         required: context.submodalityOptions.length > 0,

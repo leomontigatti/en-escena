@@ -189,9 +189,8 @@ describe("AcademyFinancesRouteView", () => {
       ],
     ]);
 
-    // The header sorts. A numeric column cycles desc → asc → unsorted, and it
-    // starts on asc here, so reaching descending takes two clicks.
-    await clickHeaderSort("#");
+    // The header sorts, alternating the two directions the way the rest of the
+    // lists do: the list opens ascending, so one click turns it around.
     await clickHeaderSort("#");
 
     expect(columnValues("#")).toEqual(["00007", "00002"]);

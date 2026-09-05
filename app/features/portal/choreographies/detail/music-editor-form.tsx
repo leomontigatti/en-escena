@@ -1,4 +1,4 @@
-import { Check, LoaderCircle } from "lucide-react";
+import { Check } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Form, Link, useNavigation } from "react-router";
@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { FieldGroup } from "@/components/ui/field";
+import { Spinner } from "@/components/ui/spinner";
 import { choreographyGroupTypeOptions } from "@/lib/portal/choreographies";
 import { getAssetUploadFieldProps } from "@/lib/storage/asset-kinds";
 import {
@@ -191,11 +192,7 @@ export function ChoreographyMusicEditorForm({
           </Button>
           <Button type="submit" disabled={!canSubmit}>
             {isSubmitting ? (
-              <LoaderCircle
-                aria-hidden="true"
-                className="animate-spin"
-                data-icon="inline-start"
-              />
+              <Spinner aria-hidden="true" data-icon="inline-start" />
             ) : (
               <Check aria-hidden="true" data-icon="inline-start" />
             )}

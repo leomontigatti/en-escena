@@ -166,7 +166,6 @@ describe("ChoreographiesListRouteView", () => {
           ],
         },
       ],
-      pageParamName: "pagina",
       values: { estado: "completa" },
     });
 

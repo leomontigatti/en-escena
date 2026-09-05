@@ -1,4 +1,4 @@
-import { LoaderCircle, TriangleAlert } from "lucide-react";
+import { TriangleAlert } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link } from "react-router";
 
@@ -28,6 +28,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { Spinner } from "@/components/ui/spinner";
 import { eventFormValues } from "@/lib/admin/events/form-values";
 import { isRouteFormPending, useOptionalNavigation } from "@/lib/shared/forms";
 import { notificationToastIds } from "@/lib/shared/notification-toasts";
@@ -300,13 +301,7 @@ function RemoveDocumentsDialog({
             variant="destructive"
             onClick={onConfirm}
           >
-            {isPending ? (
-              <LoaderCircle
-                aria-hidden="true"
-                className="animate-spin"
-                data-icon
-              />
-            ) : null}
+            {isPending ? <Spinner aria-hidden="true" data-icon /> : null}
             Eliminar y guardar
           </AlertDialogAction>
         </AlertDialogFooter>
@@ -416,13 +411,7 @@ function EventActionItem({
           className="w-full justify-start whitespace-nowrap"
         >
           <span className="inline-flex items-center gap-2">
-            {isPending ? (
-              <LoaderCircle
-                aria-hidden="true"
-                className="animate-spin"
-                data-icon
-              />
-            ) : null}
+            {isPending ? <Spinner aria-hidden="true" data-icon /> : null}
             {label}
           </span>
         </button>
