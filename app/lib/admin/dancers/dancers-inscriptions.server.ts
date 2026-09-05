@@ -28,6 +28,7 @@ export async function findDancerInscriptions(input: {
     .select({
       id: choreographies.id,
       name: choreographies.name,
+      choreographyNumber: choreographies.choreographyNumber,
       categoryName: categories.name,
       groupType: choreographies.groupType,
       scheduleId: schedules.id,
@@ -70,6 +71,7 @@ export async function findDancerInscriptions(input: {
       return {
         id: choreography.id,
         choreographyName: choreography.name,
+        choreographyNumber: choreography.choreographyNumber,
         categoryName: choreography.categoryName,
         groupType: choreography.groupType,
         basePriceAmount: priceAmount,

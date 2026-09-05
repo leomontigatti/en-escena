@@ -541,6 +541,7 @@ describe.sequential("`/administracion/bailarines` route", () => {
       expect.objectContaining({
         id: activeEventChoreography.id,
         choreographyName: "Finale",
+        choreographyNumber: activeEventChoreography.choreographyNumber,
         categoryName: null,
         groupType: "duo",
         basePriceAmount: 1250000,

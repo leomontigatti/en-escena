@@ -8,6 +8,7 @@ import {
 } from "@/components/admin/resource-layout";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { ArchivedPersonAlert } from "@/components/shared/archived-person-alert";
+import { DataTableLink } from "@/components/shared/data-table-link";
 import {
   documentTypeEmptyLabel,
   documentTypeOptions,
@@ -32,6 +33,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
 
@@ -512,6 +514,7 @@ export function InscriptionsSection({
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="px-3">#</TableHead>
             <TableHead className="px-3">Nombre coreografía</TableHead>
             <TableHead className="px-3">Categoría / Tipo de grupo</TableHead>
             <TableHead className="px-3">Precio base</TableHead>
@@ -522,6 +525,13 @@ export function InscriptionsSection({
         <TableBody>
           {inscriptions.map((inscription) => (
             <TableRow key={inscription.id}>
+              <TableCell className="px-3 font-medium tabular-nums">
+                <DataTableLink
+                  to={`/administracion/coreografias/${inscription.id}`}
+                >
+                  {formatEventSequenceNumber(inscription.choreographyNumber)}
+                </DataTableLink>
+              </TableCell>
               <TableCell className="px-3">
                 {inscription.choreographyName}
               </TableCell>
