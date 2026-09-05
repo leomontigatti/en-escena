@@ -205,6 +205,29 @@ describe("administrative choreography modality correction", () => {
     });
   });
 
+  // The dead end the omission creates: the modality select stays structural, so
+  // this modality is offered, and every capacity behind it would reprice.
+  test("previews no capacity at all when every one of them would reprice", async () => {
+    const scenario = await createModalityScenario({
+      allocatedAmount: 5000,
+      slug: "sena-sin-cupo",
+    });
+
+    const preview = readModalityResolution(
+      await scenario.resolveModality(scenario.target.modality.id),
+    );
+
+    expect(preview?.scheduleCapacity).toEqual({ options: [], status: "none" });
+    // The modality is still offered: money never greys a modality, and the
+    // detail explains the dead end at the capacity instead.
+    const detail = await scenario.loadDetail();
+    expect(
+      detail.modality.options.find(
+        (option) => option.id === scenario.target.modality.id,
+      ),
+    ).toMatchObject({ hasCompatibleScheduleCapacity: true });
+  });
+
   test("accepts the correction when a deposit is registered and the capacity does not move", async () => {
     const scenario = await createModalityScenario({
       allocatedAmount: 5000,

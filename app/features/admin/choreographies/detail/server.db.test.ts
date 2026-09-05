@@ -856,7 +856,10 @@ describe("administrative choreography detail server", () => {
     );
 
     // With the assigned capacity outside compatibility, the current option stays
-    // in the list even though the field is blocked for lack of alternatives.
+    // in the list, and the one compatible capacity next to it is a real
+    // destination: reassignability is read off the options, so the drift is
+    // repairable instead of locked behind a count of compatible capacities that
+    // the assignment is not part of.
     const foreignModality = await createModalityRecord({
       eventId: scenario.event.id,
       name: "Urbano",
@@ -881,21 +884,73 @@ describe("administrative choreography detail server", () => {
       email: "admin.coreografias.cronograma.opciones.single@example.com",
       role: "admin",
     });
-    expect(single.scheduleCapacity.canReassign).toBe(false);
+    expect(single.scheduleCapacity.canReassign).toBe(true);
     expect(
       single.scheduleCapacity.options.map((option) => option.id),
     ).toContain(drifted.scheduleCapacity.id);
   });
 
-  test("rejects a reassignment to the only compatible capacity, which the read-only field never offers", async () => {
+  test("locks the field when the drifted assignment is the only option left", async () => {
+    const scenario = await createScheduleCapacityScenario({
+      academyName: "Academia Cronograma Sin Alternativa",
+      slug: "cronograma.sin.alternativa",
+    });
+    const foreignModality = await createModalityRecord({
+      eventId: scenario.event.id,
+      name: "Urbano",
+    });
+    const drifted = await createScheduleWithSoloCapacity({
+      eventId: scenario.event.id,
+      modalityId: foreignModality.id,
+    });
+    await db
+      .update(choreographies)
+      .set({
+        scheduleCapacityId: drifted.scheduleCapacity.id,
+        scheduleId: null,
+      })
+      .where(eq(choreographies.id, scenario.choreography.id));
+    // Every compatible schedule is gone: the select is left with the assignment
+    // alone, which is not a destination.
+    await db
+      .delete(schedules)
+      .where(eq(schedules.id, scenario.target.schedule.id));
+    await db
+      .delete(schedules)
+      .where(eq(schedules.id, scenario.catalog.schedule.id));
+
+    const detail = await loadDetail({
+      choreographyId: scenario.choreography.id,
+      email:
+        "admin.coreografias.cronograma.sin.alternativa.detalle@example.com",
+      role: "admin",
+    });
+
+    expect(detail.scheduleCapacity.options.map((option) => option.id)).toEqual([
+      drifted.scheduleCapacity.id,
+    ]);
+    expect(detail.scheduleCapacity.canReassign).toBe(false);
+
+    // The intent refuses exactly what the read-only field never offered.
+    const result = await scenario.reassignTo(drifted.scheduleCapacity.id);
+
+    expect(result).toMatchObject({
+      message:
+        "No se puede cambiar el cupo de cronograma: no hay otro cronograma compatible con esta coreografía.",
+      status: "error",
+    });
+  });
+
+  test("repairs a drifted assignment onto the only compatible capacity", async () => {
     const scenario = await createScheduleCapacityScenario({
       academyName: "Academia Cronograma Único",
       slug: "cronograma.unico",
     });
 
     // The assignment drifts to a capacity of another modality and a single
-    // compatible schedule is left: the field closes, so the intent cannot accept
-    // the move the view refuses to offer either.
+    // compatible schedule is left: that schedule is an alternative to where the
+    // choreography sits, so the field opens and the intent accepts exactly the
+    // move it offers.
     const foreignModality = await createModalityRecord({
       eventId: scenario.event.id,
       name: "Urbano",
@@ -920,15 +975,15 @@ describe("administrative choreography detail server", () => {
       email: "admin.coreografias.cronograma.unico.detalle@example.com",
       role: "admin",
     });
-    expect(detail.scheduleCapacity.canReassign).toBe(false);
+    expect(detail.scheduleCapacity.canReassign).toBe(true);
 
     const result = await scenario.reassignTo(
       scenario.catalog.scheduleCapacity.id,
     );
 
-    expect(result).toMatchObject({ status: "error" });
+    expect(result).toMatchObject({ status: "success" });
     expect(await scenario.readAssignment()).toMatchObject({
-      scheduleCapacityId: drifted.scheduleCapacity.id,
+      scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
     });
   });
 
@@ -996,6 +1051,8 @@ describe("administrative choreography detail server", () => {
       email: "admin.coreografias.cronograma.senada.detalle@example.com",
       role: "admin",
     });
+    // Read-only because the filter left nothing to move to, not because money
+    // exists: the one alternative was the omitted one.
     expect(detail.scheduleCapacity.canReassign).toBe(false);
     expect(detail.scheduleCapacity.blockers).toEqual([
       {
@@ -1066,6 +1123,9 @@ describe("administrative choreography detail server", () => {
     expect(
       detail.scheduleCapacity.options.map((option) => option.id),
     ).not.toContain(scenario.target.scheduleCapacity.id);
+    // Money on the choreography no longer closes the field: one alternative
+    // holds the price, so there is something to choose and the select opens.
+    expect(detail.scheduleCapacity.canReassign).toBe(true);
     // The omission is not a disabling: nothing in the surviving list is marked
     // full, which is the only thing `isFull` ever means.
     expect(
@@ -1143,6 +1203,9 @@ describe("administrative choreography detail server", () => {
     expect(detail.scheduleCapacity.options.map((option) => option.id)).toEqual([
       drifted.scheduleCapacity.id,
     ]);
+    // The assignment is in the select for visibility, not as a destination: it
+    // is not an alternative, so the field stays read-only.
+    expect(detail.scheduleCapacity.canReassign).toBe(false);
   });
 
   // The #48 shape, and the majority of the fleet: money on a general row, past
@@ -1179,10 +1242,12 @@ describe("administrative choreography detail server", () => {
       role: "admin",
     });
     // Frozen against a general row: the dearer destination cannot reach it, so
-    // the option is not filtered out.
+    // the option is not filtered out and the field opens with money on the
+    // choreography, which the blanket block used to close outright.
     expect(
       detail.scheduleCapacity.options.map((option) => option.id),
     ).toContain(scenario.target.scheduleCapacity.id);
+    expect(detail.scheduleCapacity.canReassign).toBe(true);
 
     const result = await scenario.reassignTo(
       scenario.target.scheduleCapacity.id,

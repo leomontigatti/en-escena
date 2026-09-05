@@ -158,21 +158,25 @@ export type ChoreographyScheduleCapacityBlocker = {
 };
 
 /**
- * The four read-only causes for the schedule capacity: not being `admin`,
- * having a presentation, carrying a blocker from the server (today, the frozen
- * `Seña`) and not having at least two compatible capacities to choose between.
+ * The three read-only causes for the schedule capacity: not being `admin`,
+ * having a presentation, and having nothing to move to.
+ *
+ * Money is not one of them. It is no longer a property of the choreography but
+ * of each destination —an alternative that would reprice an inscription is
+ * omitted from the options— so the question "is there somewhere to move to" is
+ * answered once, off the surviving alternatives, and the blockers stay what
+ * they are: the explanation the page's alert reads out. ANDing the two routes
+ * would ask the same thing twice by different paths, and they can disagree: a
+ * choreography holding money whose alternatives all hold the price would render
+ * closed with a select full of valid destinations.
  */
 export function canReassignScheduleCapacity(input: {
-  blockers: ChoreographyScheduleCapacityBlocker[];
   canEdit: boolean;
-  hasMultipleCompatibleOptions: boolean;
   hasPresentation: boolean;
+  hasSelectableAlternative: boolean;
 }) {
   return (
-    input.canEdit &&
-    !input.hasPresentation &&
-    input.blockers.length === 0 &&
-    input.hasMultipleCompatibleOptions
+    input.canEdit && !input.hasPresentation && input.hasSelectableAlternative
   );
 }
 

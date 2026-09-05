@@ -93,7 +93,7 @@ async function resolveScheduleCapacityCandidates(input: {
   choreography: ChoreographyDetail;
   eventId: string;
 }): Promise<{
-  hasMultipleCompatibleOptions: boolean;
+  hasSelectableAlternative: boolean;
   options: ScheduleCapacityOptionCandidate[];
   priceDivergentOptionIds: string[];
 }> {
@@ -138,7 +138,14 @@ async function resolveScheduleCapacityCandidates(input: {
   }
 
   return {
-    hasMultipleCompatibleOptions: resolution.status === "multiple",
+    // Whether the field is reassignable is read off the list that survived the
+    // filter, not off the compatible count: those two answer the same question
+    // by different routes and disagree exactly when the only alternative was
+    // the one omitted, which would render an open select with nothing in it but
+    // the assignment.
+    hasSelectableAlternative: options.some(
+      (option) => option.id !== input.choreography.scheduleCapacityId,
+    ),
     options,
     priceDivergentOptionIds,
   };
@@ -152,13 +159,13 @@ export async function resolveChoreographyScheduleCapacityOptions(input: {
   choreography: ChoreographyDetail;
   eventId: string;
 }): Promise<{
-  hasMultipleCompatibleOptions: boolean;
+  hasSelectableAlternative: boolean;
   options: ResolvedScheduleCapacityOption[];
 }> {
   const candidates = await resolveScheduleCapacityCandidates(input);
 
   return {
-    hasMultipleCompatibleOptions: candidates.hasMultipleCompatibleOptions,
+    hasSelectableAlternative: candidates.hasSelectableAlternative,
     options: await withScheduleCapacityOccupancy({
       // The same exclusion as the lock: the choreography being moved does not
       // count against the capacity it already occupies.
@@ -183,20 +190,22 @@ export async function updateChoreographyScheduleCapacity(input: {
     };
   }
 
-  const { hasMultipleCompatibleOptions, options, priceDivergentOptionIds } =
+  const { hasSelectableAlternative, options, priceDivergentOptionIds } =
     await resolveScheduleCapacityCandidates({
       choreography: input.choreography,
       eventId: input.eventId,
     });
 
-  // The same condition that closes the field in the loader. Without it the intent
-  // accepts a move the view refuses to offer: with a single compatible capacity
-  // the select is read-only, but a hand-crafted POST naming that capacity would
-  // move the price key all the same.
-  if (!hasMultipleCompatibleOptions) {
+  // The same condition that closes the field in the loader, read off the same
+  // list. Without it the intent accepts a move the view refuses to offer: with
+  // no alternative left the select is read-only, but a hand-crafted POST naming
+  // the assignment would move the price key all the same.
+  if (!hasSelectableAlternative) {
     return {
       message:
-        "No se puede cambiar el cupo de cronograma: no hay otro cronograma compatible con esta coreografía.",
+        priceDivergentOptionIds.length > 0
+          ? frozenPriceScheduleCapacityMessage
+          : "No se puede cambiar el cupo de cronograma: no hay otro cronograma compatible con esta coreografía.",
       status: "error",
     };
   }

@@ -197,15 +197,16 @@ export async function loadChoreographyDetailRouteData(input: {
       // another cause: the page's alert lists them for the auditor too.
       blockers: scheduleCapacityBlockers,
       // Reassigning is an administrative correction: `admin` only, never with a
-      // presentation, never with a frozen `Seña`, and only when there is more
-      // than one compatible capacity to choose between. A choreography already
-      // presented has its schedule as closed as its roster.
+      // presentation, and only when the options left something to move to. A
+      // choreography already presented has its schedule as closed as its
+      // roster. Money is not consulted here: it already spoke by omitting the
+      // destinations it would reprice, and asking it twice would close the
+      // field on a choreography whose surviving alternatives are all valid.
       canReassign: canReassignScheduleCapacity({
-        blockers: scheduleCapacityBlockers,
         canEdit,
-        hasMultipleCompatibleOptions:
-          scheduleCapacityOptions.hasMultipleCompatibleOptions,
         hasPresentation: choreography.hasPresentation,
+        hasSelectableAlternative:
+          scheduleCapacityOptions.hasSelectableAlternative,
       }),
       options: scheduleCapacityOptions.options.map((option) => ({
         id: option.id,
