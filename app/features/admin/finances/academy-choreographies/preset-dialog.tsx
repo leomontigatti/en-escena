@@ -1,4 +1,4 @@
-import { AlertTriangle, Check, LoaderCircle } from "lucide-react";
+import { AlertTriangle, Check } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useFetcher } from "react-router";
 
@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 import type { CobroStage } from "@/lib/finances/choreography-cobro-presets.server";
 import {
   formatGroupTypeLabel,
@@ -159,11 +160,7 @@ export function FinancePresetDialog({
             </DialogClose>
             <Button type="submit" disabled={isSaving}>
               {isSaving ? (
-                <LoaderCircle
-                  aria-hidden="true"
-                  className="animate-spin"
-                  data-icon="inline-start"
-                />
+                <Spinner aria-hidden="true" data-icon="inline-start" />
               ) : (
                 <Check aria-hidden="true" data-icon="inline-start" />
               )}

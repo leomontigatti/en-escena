@@ -1,4 +1,3 @@
-import { LoaderCircle } from "lucide-react";
 import {
   Form,
   redirect,
@@ -12,6 +11,7 @@ import { AccessHeader, AccessPage } from "@/components/auth/access-ui";
 import { AccessTextField, useAccessForm } from "@/components/auth/access-form";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
+import { Spinner } from "@/components/ui/spinner";
 import {
   exchangeAccessRecoveryCode,
   updateAccessRecoveryPassword,
@@ -291,13 +291,7 @@ function MandatoryPasswordChangeForm({
           />
 
           <Button className="w-full" type="submit" disabled={isSubmitting}>
-            {isSubmitting ? (
-              <LoaderCircle
-                aria-hidden="true"
-                className="animate-spin"
-                data-icon
-              />
-            ) : null}
+            {isSubmitting ? <Spinner aria-hidden="true" data-icon /> : null}
             Guardar contraseña
           </Button>
         </FieldGroup>
@@ -361,13 +355,7 @@ function RecoveryPasswordChangeForm({
           />
 
           <Button className="w-full" type="submit" disabled={isSubmitting}>
-            {isSubmitting ? (
-              <LoaderCircle
-                aria-hidden="true"
-                className="animate-spin"
-                data-icon
-              />
-            ) : null}
+            {isSubmitting ? <Spinner aria-hidden="true" data-icon /> : null}
             Guardar contraseña
           </Button>
         </FieldGroup>

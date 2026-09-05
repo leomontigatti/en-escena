@@ -26,7 +26,7 @@
  * **effective** price, so no figure on this screen contradicts another.
  */
 
-import { AlertTriangle, Check, LoaderCircle, Undo2 } from "lucide-react";
+import { AlertTriangle, Check, Undo2 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useFetcher } from "react-router";
 
@@ -51,6 +51,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 
 import { formatAmount } from "../../formatters";
 import type { loadChoreographyFinanceDetail } from "./server";
@@ -524,11 +525,7 @@ function FetcherError({ data }: { data: { message: string } | undefined }) {
 
 function SubmitIcon({ isSaving }: { isSaving: boolean }) {
   return isSaving ? (
-    <LoaderCircle
-      aria-hidden="true"
-      className="animate-spin"
-      data-icon="inline-start"
-    />
+    <Spinner aria-hidden="true" data-icon="inline-start" />
   ) : (
     <Check aria-hidden="true" data-icon="inline-start" />
   );

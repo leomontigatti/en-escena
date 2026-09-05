@@ -1,4 +1,4 @@
-import { Check, ChevronLeft, ChevronRight, LoaderCircle } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Control } from "react-hook-form";
 
 import { AccessNotice } from "@/components/auth/access-ui";
@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
 import { Progress } from "@/components/ui/progress";
+import { Spinner } from "@/components/ui/spinner";
 import type { ChoreographyRegistrationBaseOptions } from "@/lib/events/bases.server";
 import { useCreateChoreographyDialog } from "@/features/portal/choreographies/create/use-create-choreography-dialog";
 
@@ -355,7 +356,7 @@ function CreateChoreographyFooterAction({
       >
         Siguiente
         {isResolving ? (
-          <LoaderCircle aria-hidden="true" className="animate-spin" data-icon />
+          <Spinner aria-hidden="true" data-icon />
         ) : (
           <ChevronRight aria-hidden="true" data-icon />
         )}
@@ -394,7 +395,7 @@ function CreateChoreographyFooterAction({
     summary: (
       <Button type="button" disabled={isSubmitting} onClick={handleConfirm}>
         {isSubmitting ? (
-          <LoaderCircle aria-hidden="true" className="animate-spin" data-icon />
+          <Spinner aria-hidden="true" data-icon />
         ) : (
           <Check aria-hidden="true" data-icon />
         )}

@@ -5,12 +5,13 @@ import {
   type RowData,
   type Table as TanStackTable,
 } from "@tanstack/react-table";
-import { LoaderCircle, Search, X } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { Link } from "react-router";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import {
   DataTableFacetedFilterControl,
   DataTablePagination,
@@ -455,10 +456,7 @@ export function DataTableShell<TData>({
             {totalRows === 1 ? "registro" : "registros"}
             {isLoading ? (
               <span className="ml-2 inline-flex items-center gap-1">
-                <LoaderCircle
-                  className="size-3 animate-spin"
-                  aria-hidden="true"
-                />
+                <Spinner className="size-3" aria-hidden="true" />
                 Actualizando…
               </span>
             ) : null}
