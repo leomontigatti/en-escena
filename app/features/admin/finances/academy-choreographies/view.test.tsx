@@ -475,6 +475,58 @@ describe("AcademyFinancesRouteView", () => {
     ).toBe("price_2");
   });
 
+  /**
+   * How a pick reaches the selection is the same statement for every field, so
+   * it belongs to the dialog and not to each picker: a selection spanning three
+   * group types used to make it three times.
+   */
+  test("states how the price applies once, however many pickers there are", async () => {
+    await renderListIntoDocument({
+      initialPresetStage: "deposit",
+      loaderData: academyFinancesLoaderDataFixture({
+        choreographyFinanceRows: [
+          choreographyFinanceRowFixture({ id: "choreography_1", name: "Aire" }),
+          choreographyFinanceRowFixture({
+            groupType: "grupal",
+            id: "choreography_2",
+            name: "Tango",
+          }),
+        ],
+        priceOptionsByGroupType: {
+          grupal: [
+            {
+              amount: 20000,
+              depositAmount: 6000,
+              id: "price_grupal",
+              name: "Primera fecha",
+              paymentDeadline: null,
+              scheduleId: null,
+            },
+          ],
+          solo: [
+            {
+              amount: 10000,
+              depositAmount: 3000,
+              id: "price_1",
+              name: "Primera fecha",
+              paymentDeadline: null,
+              scheduleId: null,
+            },
+          ],
+        },
+      }),
+    });
+
+    await clickCheckbox(getRenderedCheckboxes()[0]);
+
+    // Two pickers, so the rule would have been said twice where it used to live.
+    expect(document.querySelector('input[name="price-solo"]')).not.toBeNull();
+    expect(document.querySelector('input[name="price-grupal"]')).not.toBeNull();
+
+    const statements = dialogText().split("todavía no cubrieron su seña");
+    expect(statements).toHaveLength(2);
+  });
+
   // The writer rejects every price row tied to a schedule other than the
   // choreography's, so offering it is offering a guaranteed rejection. With the
   // selection split across two schedules, the only thing satisfiable for all of

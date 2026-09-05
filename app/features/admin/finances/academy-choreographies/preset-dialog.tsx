@@ -139,7 +139,9 @@ export function FinancePresetDialog({
               ? "1 coreografía elegida."
               : `${selectedRows.length} coreografías elegidas.`}{" "}
             Sale del saldo disponible de la academia y se asigna a cada
-            inscripción lo que adeuda.
+            inscripción lo que adeuda. El precio elegido se fija en las que
+            todavía no cubrieron su seña; las que ya la cubrieron quedan con el
+            que tienen.
           </DialogDescription>
         </DialogHeader>
 
@@ -335,9 +337,11 @@ function resolvePickedPrices(input: {
  * offered — and submitting it that way leaves every price where it is.
  *
  * Picking another row re-prices the inscriptions that have not covered their
- * deposit yet — money on the row does not spare it, only the crossing does — and
- * the description says so, because that is the part of the selection a price
- * reaches.
+ * deposit yet — money on the row does not spare it, only the crossing does. That
+ * rule is stated in the dialog's subtitle and not here: it is the same sentence
+ * for every field, so a selection spanning three group types said it three
+ * times. What stays field-level is the note about spanning schedules, which is
+ * about the rows *this* picker offers and is true of one field at a time.
  */
 function PresetPriceField({
   groupType,
@@ -392,12 +396,6 @@ function PresetPriceField({
           ))}
         </SelectContent>
       </Select>
-      {priceId ? (
-        <FieldDescription>
-          Se fija en las inscripciones elegidas que todavía no cubrieron su
-          seña. Las que ya la cubrieron quedan con el precio que tienen.
-        </FieldDescription>
-      ) : null}
       {spansSeveralSchedules ? (
         <FieldDescription>
           Las coreografías elegidas están en cronogramas distintos, así que sólo
