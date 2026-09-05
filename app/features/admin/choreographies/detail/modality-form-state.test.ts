@@ -7,7 +7,6 @@ import {
   getModalityScheduleCapacityDeadEndMessage,
   getModalitySelectOptions,
   getResolvedModalityFieldState,
-  isModalityScheduleCapacityLocked,
   noModalityScheduleCapacityMessage,
   shouldResolveModalitySelection,
 } from "./modality-form-state";
@@ -161,50 +160,47 @@ describe("getResolvedModalityFieldState", () => {
   });
 });
 
-describe("isModalityScheduleCapacityLocked", () => {
-  test("locks the capacity when the destination modality resolves exactly one", () => {
-    expect(isModalityScheduleCapacityLocked(buildResolution())).toBe(true);
-  });
-
-  test("leaves the capacity open when the destination modality offers several", () => {
-    expect(
-      isModalityScheduleCapacityLocked(
-        buildResolution({
-          scheduleCapacity: {
-            options: [
-              { id: "cupo_1", isFull: false, label: "1 de mayo" },
-              { id: "cupo_2", isFull: false, label: "2 de mayo" },
-            ],
-            status: "multiple",
-          },
-        }),
-      ),
-    ).toBe(false);
-  });
-});
-
 describe("getModalityScheduleCapacityDeadEndMessage", () => {
   test("says nothing while there is a capacity with room", () => {
     expect(
-      getModalityScheduleCapacityDeadEndMessage([
-        { id: "cupo_1", isFull: false, label: "1 de mayo" },
-      ]),
+      getModalityScheduleCapacityDeadEndMessage({
+        options: [{ id: "cupo_1", isFull: false, schedule: buildSchedule() }],
+        status: "auto",
+      }),
     ).toBeNull();
   });
 
   // Reachable with the modality still offered: the price filter takes the
   // capacities away while the modality select stays structural.
   test("explains an empty set instead of leaving the select blank", () => {
-    expect(getModalityScheduleCapacityDeadEndMessage([])).toBe(
-      noModalityScheduleCapacityMessage,
-    );
+    expect(
+      getModalityScheduleCapacityDeadEndMessage({
+        options: [],
+        status: "none",
+      }),
+    ).toBe(noModalityScheduleCapacityMessage);
+  });
+
+  // The locked capacity carries no label, so occupancy reaches this reading
+  // through `isFull` alone: a lone full capacity is still the dead end.
+  test("explains a locked capacity that has no room left", () => {
+    expect(
+      getModalityScheduleCapacityDeadEndMessage({
+        options: [{ id: "cupo_1", isFull: true, schedule: buildSchedule() }],
+        status: "auto",
+      }),
+    ).toBe(everyModalityScheduleCapacityFullMessage);
   });
 
   test("keeps naming occupancy when the surviving capacities are full", () => {
     expect(
-      getModalityScheduleCapacityDeadEndMessage([
-        { id: "cupo_1", isFull: true, label: "1 de mayo" },
-      ]),
+      getModalityScheduleCapacityDeadEndMessage({
+        options: [
+          { id: "cupo_1", isFull: true, label: "1 de mayo" },
+          { id: "cupo_2", isFull: true, label: "2 de mayo" },
+        ],
+        status: "multiple",
+      }),
     ).toBe(everyModalityScheduleCapacityFullMessage);
   });
 });
@@ -344,10 +340,18 @@ function buildResolution(
     experienceLevel: { options: [], required: false },
     modalityId: "urbano",
     scheduleCapacity: {
-      options: [{ id: "cupo_1", isFull: false, label: "1 de mayo" }],
+      options: [{ id: "cupo_1", isFull: false, schedule: buildSchedule() }],
       status: "auto",
     },
     submodality: { options: [], required: false },
     ...overrides,
+  };
+}
+
+function buildSchedule() {
+  return {
+    name: "Cronograma 1",
+    scheduledDate: "2026-05-01",
+    startTime: "10:00:00",
   };
 }

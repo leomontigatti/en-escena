@@ -8,11 +8,11 @@ import {
 import { SelectField } from "@/components/shared/select-field";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toScheduleCapacitySelectOptions } from "@/lib/choreographies/schedule-capacity-options";
+import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
 
 import {
   getModalityScheduleCapacityDeadEndMessage,
   getModalitySelectOptions,
-  isModalityScheduleCapacityLocked,
 } from "./modality-form-state";
 import type { ChoreographyModalityResolution } from "./modality.server";
 import type { ChoreographyDetailLoaderData } from "./server";
@@ -150,12 +150,13 @@ export function ModalityScheduleCapacityField({
   modality,
   resolution,
 }: ResolvedModalityFieldProps) {
-  const options = resolution.scheduleCapacity.options;
+  const scheduleCapacity = resolution.scheduleCapacity;
   // An empty set and a set with no room are the same dead end on screen: an
   // empty select says nothing, so the reason takes its place. Emptiness is
   // reachable with the modality offered, because the price filter removes
   // capacities while the modality select stays structural.
-  const deadEndMessage = getModalityScheduleCapacityDeadEndMessage(options);
+  const deadEndMessage =
+    getModalityScheduleCapacityDeadEndMessage(scheduleCapacity);
 
   if (deadEndMessage !== null) {
     return (
@@ -168,13 +169,15 @@ export function ModalityScheduleCapacityField({
   }
 
   // A single compatible capacity is not chosen: it stays preselected and
-  // read-only, like the `auto` status of registration.
-  if (isModalityScheduleCapacityLocked(resolution)) {
+  // read-only, like the `auto` status of registration. It carries no label —
+  // occupancy on a field nobody can change says nothing—, so the bare date-time
+  // is composed here, the way the assigned `Cronograma` next door composes its
+  // own.
+  if (scheduleCapacity.status === "auto") {
     return (
-      <ReadOnlySelectField
+      <ReadOnlyField
         label="Cronograma"
-        options={toScheduleCapacitySelectOptions(options)}
-        value={modality.watchedScheduleCapacityId}
+        value={formatScheduleDateTime(scheduleCapacity.options[0].schedule)}
       />
     );
   }
@@ -184,7 +187,7 @@ export function ModalityScheduleCapacityField({
       control={modality.form.control}
       label="Cronograma"
       name="modalityScheduleCapacityId"
-      options={toScheduleCapacitySelectOptions(options)}
+      options={toScheduleCapacitySelectOptions(scheduleCapacity.options)}
       placeholder="Elegí el cronograma"
     />
   );

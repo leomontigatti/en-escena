@@ -1,9 +1,16 @@
 import { db } from "@/db";
 import { resolveChoreographyClassificationForResolvedDancers } from "@/lib/choreographies/registration-resolution.server";
 import { invalidScheduleEntryMessage } from "@/lib/choreographies/schedule-capacity-lock.server";
+import {
+  resolveScheduleCapacityOccupancies,
+  toScheduleCapacityOccupancyKey,
+} from "@/lib/choreographies/schedule-capacity-occupancy.server";
 import type { ScheduleCapacitySelectOption } from "@/lib/choreographies/schedule-capacity-options";
 import { withScheduleCapacityOccupancy } from "@/lib/choreographies/schedule-capacity-options.server";
-import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
+import {
+  formatScheduleDateTime,
+  type ScheduleDateTimeInput,
+} from "@/lib/choreographies/schedule-formatters";
 import {
   getEventBases,
   resolveEventBasesScheduleOptions,
@@ -15,10 +22,37 @@ import {
 
 import type { ChoreographyDetail } from "./server";
 
-type ResolvedModalityScheduleOption = ScheduleCapacitySelectOption & {
+type ResolvedModalityScheduleOption = {
+  id: string;
+  schedule: ScheduleDateTimeInput;
   scheduleCapacityId: string | null;
   scheduleId: string;
 };
+
+/**
+ * The lone capacity of the `auto` status, with no `label` at all — the same
+ * shape registration gives its own non-choice in `ScheduleOptionSummary`. It
+ * arrives preselected and read-only, so there is no label for occupancy to get
+ * wrong: the view formats the bare date-time itself.
+ *
+ * `isFull` stays, unlike registration's summary: a lone full capacity is the
+ * dead end the administrative view explains instead of previewing.
+ */
+export type ChoreographyModalityLockedScheduleCapacity = {
+  id: string;
+  isFull: boolean;
+  schedule: ScheduleDateTimeInput;
+};
+
+/**
+ * Only `multiple` carries labels, and therefore occupancy. The rule is the
+ * type's, not the data's: there is no `auto` label to strip because there is
+ * none to build.
+ */
+export type ChoreographyModalityScheduleCapacityResolution =
+  | { options: []; status: "none" }
+  | { options: [ChoreographyModalityLockedScheduleCapacity]; status: "auto" }
+  | { options: ScheduleCapacitySelectOption[]; status: "multiple" };
 
 type ModalityCorrectionContext = {
   classification: ReturnType<
@@ -31,8 +65,10 @@ type ModalityCorrectionContext = {
    * is a price problem, not an invalid selection.
    */
   priceDivergentScheduleOptionIds: string[];
+  /** What the preview shows, already shaped for the view. */
+  scheduleCapacity: ChoreographyModalityScheduleCapacityResolution;
+  /** What the save locks against: ids alone, no labels involved. */
   scheduleOptions: ResolvedModalityScheduleOption[];
-  scheduleStatus: "auto" | "multiple" | "none";
   submodalityOptions: Array<{ id: string; name: string }>;
 };
 
@@ -87,32 +123,27 @@ export async function resolveModalityCorrectionContext(input: {
       options: scheduleResolution.options,
     });
 
-  const bareLabeledOptions = selectableOptions.map((option) => ({
+  // Read off what survived the price filter rather than carried over from the
+  // resolution: a modality left with a single holding-the-price capacity is
+  // `auto`, and one left with none is the dead end the view replaces with its
+  // reason.
+  const scheduleOptions = selectableOptions.map((option) => ({
     id: option.id,
-    label: formatScheduleDateTime(option.schedule),
+    schedule: option.schedule,
     scheduleCapacityId: option.scheduleCapacityId,
     scheduleId: option.scheduleId,
   }));
-  const occupancyLabeledOptions = await withScheduleCapacityOccupancy({
-    // Same exclusion as the lock: the choreography being corrected does not
-    // count against the capacity it already occupies.
-    excludeChoreographyId: input.choreography.id,
-    options: bareLabeledOptions,
-  });
-  // Read off what survived rather than carried over from the resolution: a
-  // modality left with a single holding-the-price capacity is `auto`, and one
-  // left with none is the dead end the view replaces with its reason.
-  const scheduleStatus = toScheduleCapacityStatus(selectableOptions.length);
 
   return {
     classification,
     priceDivergentScheduleOptionIds: divergentIds,
-    scheduleOptions: withoutOccupancyOnThePreselectedCapacity({
-      bareLabel: bareLabeledOptions[0]?.label,
-      occupancyLabeled: occupancyLabeledOptions,
-      status: scheduleStatus,
+    scheduleCapacity: await toModalityScheduleCapacityResolution({
+      // Same exclusion as the lock: the choreography being corrected does not
+      // count against the capacity it already occupies.
+      excludeChoreographyId: input.choreography.id,
+      options: scheduleOptions,
     }),
-    scheduleStatus,
+    scheduleOptions,
     submodalityOptions: input.eventBases.submodalities
       .filter((submodality) => submodality.modalityId === input.modalityId)
       .map((submodality) => ({ id: submodality.id, name: submodality.name })),
@@ -152,45 +183,59 @@ export function toMissingScheduleMessage(input: {
 }
 
 /**
- * The rule registration writes into its own resolution type: only `multiple`
- * carries a label with occupancy. `auto` offers no options to pick between —
- * its lone capacity arrives preselected and read-only, where saying how many
- * places are left means nothing —, so it goes back to the bare date-time label.
+ * The rule registration writes into its own resolution type, held here by the
+ * type as well: only `multiple` has labels, so only `multiple` builds
+ * occupancy. `auto` offers no options to pick between —its lone capacity
+ * arrives preselected and read-only, where saying how many places are left
+ * means nothing—, so it goes back with the bare schedule the view formats.
  *
- * Keyed on the status the view itself reads, not on a second count of the same
- * options, so the preview and the lock cannot drift apart; `auto` is exactly one
- * option, which is why only the first is read. `isFull` still comes from the
- * occupancy read: a lone full capacity is the dead end the view explains.
+ * `isFull` is still read for that lone capacity, straight off the occupancy
+ * count instead of off a label: a full one is the dead end the view explains.
  */
-function withoutOccupancyOnThePreselectedCapacity<
-  TOption extends { label: string },
->(input: {
-  bareLabel: string | undefined;
-  occupancyLabeled: TOption[];
-  status: ReturnType<typeof toScheduleCapacityStatus>;
-}) {
-  const [preselected] = input.occupancyLabeled;
+async function toModalityScheduleCapacityResolution(input: {
+  excludeChoreographyId: string;
+  options: ResolvedModalityScheduleOption[];
+}): Promise<ChoreographyModalityScheduleCapacityResolution> {
+  const [preselected] = input.options;
 
-  if (
-    input.status !== "auto" ||
-    !preselected ||
-    input.bareLabel === undefined
-  ) {
-    return input.occupancyLabeled;
+  if (!preselected) {
+    return { options: [], status: "none" };
   }
 
-  return [{ ...preselected, label: input.bareLabel }];
-}
+  if (input.options.length === 1) {
+    const occupancies = await resolveScheduleCapacityOccupancies({
+      excludeChoreographyId: input.excludeChoreographyId,
+      targets: [preselected],
+    });
 
-/**
- * The same three states `resolveCompatibleScheduleCapacities` reports, recomputed
- * over the capacities that survived the price filter: nothing to choose, one
- * that arrives preselected, or a real choice.
- */
-function toScheduleCapacityStatus(count: number) {
-  if (count === 0) {
-    return "none" as const;
+    return {
+      options: [
+        {
+          id: preselected.id,
+          isFull:
+            occupancies.get(toScheduleCapacityOccupancyKey(preselected))
+              ?.isFull ?? false,
+          schedule: preselected.schedule,
+        },
+      ],
+      status: "auto",
+    };
   }
 
-  return count === 1 ? ("auto" as const) : ("multiple" as const);
+  const options = await withScheduleCapacityOccupancy({
+    excludeChoreographyId: input.excludeChoreographyId,
+    options: input.options.map((option) => ({
+      ...option,
+      label: formatScheduleDateTime(option.schedule),
+    })),
+  });
+
+  return {
+    options: options.map((option) => ({
+      id: option.id,
+      isFull: option.isFull,
+      label: option.label,
+    })),
+    status: "multiple",
+  };
 }

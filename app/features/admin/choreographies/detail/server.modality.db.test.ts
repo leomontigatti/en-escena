@@ -35,6 +35,7 @@ import {
   expectThrownResponse,
 } from "@/lib/admin/test-support/db";
 import { createScheduleForModalityFixture } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
 import type { ExperienceLevel } from "@/lib/events/experience-levels";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
@@ -72,8 +73,11 @@ describe("administrative choreography modality correction", () => {
    * Occupancy is a suffix on the options a select offers. The lone compatible
    * capacity is not offered: it arrives preselected and read-only, like the
    * `auto` status of registration, and saying how many places are left on a
-   * field nobody can change means nothing. `isFull` still comes from the same
-   * read: a lone full capacity is the dead end the view explains instead.
+   * field nobody can change means nothing. The rule is the type's here — the
+   * locked capacity carries no label to get wrong—, so what is pinned is that
+   * it carries none and that the date-time the view composes from it is bare.
+   * `isFull` still comes from the occupancy read: a lone full capacity is the
+   * dead end the view explains instead.
    */
   test("previews the locked single capacity with no occupancy on its label", async () => {
     const scenario = await createModalityScenario({ slug: "cupo-unico" });
@@ -81,15 +85,21 @@ describe("administrative choreography modality correction", () => {
     const preview = readModalityResolution(
       await scenario.resolveModality(scenario.target.modality.id),
     );
+    const scheduleCapacity = preview?.scheduleCapacity;
 
-    expect(preview?.scheduleCapacity.status).toBe("auto");
-    expect(preview?.scheduleCapacity.options).toEqual([
+    expect(scheduleCapacity?.status).toBe("auto");
+    expect(scheduleCapacity?.options).toEqual([
       {
         id: scenario.target.scheduleCapacity.id,
         isFull: false,
-        label: expect.stringMatching(/ hs\.$/),
+        schedule: expect.objectContaining({ name: expect.any(String) }),
       },
     ]);
+    expect(
+      scheduleCapacity?.status === "auto"
+        ? formatScheduleDateTime(scheduleCapacity.options[0].schedule)
+        : null,
+    ).toMatch(/ hs\.$/);
   });
 
   /**
@@ -107,10 +117,14 @@ describe("administrative choreography modality correction", () => {
       await scenario.resolveModality(scenario.target.modality.id),
     );
 
-    expect(preview?.scheduleCapacity.status).toBe("multiple");
-    expect(preview?.scheduleCapacity.options).toHaveLength(2);
+    const scheduleCapacity = preview?.scheduleCapacity;
 
-    for (const option of preview?.scheduleCapacity.options ?? []) {
+    expect(scheduleCapacity?.status).toBe("multiple");
+    expect(scheduleCapacity?.options).toHaveLength(2);
+
+    for (const option of scheduleCapacity?.status === "multiple"
+      ? scheduleCapacity.options
+      : []) {
       expect(option.label).toContain("0/5 ocupados");
     }
   });

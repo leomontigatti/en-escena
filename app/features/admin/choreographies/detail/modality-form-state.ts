@@ -58,11 +58,16 @@ export const noModalityScheduleCapacityMessage =
  * the reason and the `Guardar` stays closed.
  */
 export function getModalityScheduleCapacityDeadEndMessage(
-  options: readonly ScheduleCapacitySelectOption[],
+  scheduleCapacity: ChoreographyModalityResolution["scheduleCapacity"],
 ) {
-  if (options.length === 0) {
+  if (scheduleCapacity.status === "none") {
     return noModalityScheduleCapacityMessage;
   }
+
+  // Occupancy is all that is read, so the locked capacity —which carries no
+  // label— answers the same question as a select whose every option is full.
+  const options: readonly Pick<ScheduleCapacitySelectOption, "isFull">[] =
+    scheduleCapacity.options;
 
   return isEveryScheduleCapacityOptionFull(options)
     ? everyModalityScheduleCapacityFullMessage
@@ -159,16 +164,6 @@ export function getResolvedModalityFieldState({
 }
 
 /**
- * With a single compatible capacity there is nothing to choose: it stays
- * preselected and read-only, like the `auto` status of registration.
- */
-export function isModalityScheduleCapacityLocked(
-  resolution: ChoreographyModalityResolution,
-) {
-  return resolution.scheduleCapacity.status === "auto";
-}
-
-/**
  * Every field the resolution leaves to be chosen holds the save until it is
  * answered, the capacity included: the roster form next door already does that, and
  * both now share one `Guardar`, so a required field that disables the button in
@@ -194,9 +189,8 @@ export function canSubmitModalityCorrection(input: CanSubmitModalityInput) {
   // already been replaced by the reason, so leaving the button live would ask
   // for a field that is not there. Same rule the view renders, read once.
   if (
-    getModalityScheduleCapacityDeadEndMessage(
-      resolution.scheduleCapacity.options,
-    ) !== null
+    getModalityScheduleCapacityDeadEndMessage(resolution.scheduleCapacity) !==
+    null
   ) {
     return false;
   }
