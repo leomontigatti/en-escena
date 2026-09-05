@@ -61,6 +61,33 @@ describe("ChoreographyDetailRouteView modality correction", () => {
     expect(isFieldDisabled("Submodalidad")).toBe(false);
     expect(findTriggerByText("Urbano")).toBeDefined();
   });
+
+  /**
+   * Occupancy belongs to the options of a select. A destination modality with a
+   * single compatible capacity offers none: the capacity arrives preselected and
+   * read-only, like the `auto` status of registration, so the preview reads the
+   * bare date-time the resolution composes for it.
+   */
+  test("previews a locked single capacity as a read-only field with no occupancy", async () => {
+    await renderIntoDocument(renderer, Promise.resolve(), {
+      options: [
+        {
+          id: "schedule_capacity_2",
+          isFull: false,
+          label: "2 de mayo de 2026 - 10:00 hs.",
+        },
+      ],
+      status: "auto",
+    });
+
+    await openSelect(findTriggerByText("Jazz"));
+    await selectOption("Urbano");
+    await settle();
+
+    expect(getFieldShape("Cronograma")).toBe("static");
+    expect(readFieldValue("Cronograma")).toBe("2 de mayo de 2026 - 10:00 hs.");
+    expect(readFieldValue("Cronograma")).not.toContain("ocupados");
+  });
 });
 
 /**
@@ -221,6 +248,24 @@ function createDeferredResolution() {
 async function renderIntoDocument(
   renderer: ReturnType<typeof createReactDomTestRenderer>,
   held: Promise<void>,
+  scheduleCapacity: {
+    options: { id: string; isFull: boolean; label: string }[];
+    status: "auto" | "multiple" | "none";
+  } = {
+    options: [
+      {
+        id: "schedule_capacity_2",
+        isFull: false,
+        label: "2 de mayo de 2026 - 10:00 hs. · 1/5 ocupados",
+      },
+      {
+        id: "schedule_capacity_3",
+        isFull: false,
+        label: "3 de mayo de 2026 - 10:00 hs. · 0/5 ocupados",
+      },
+    ],
+    status: "multiple",
+  },
 ) {
   const router = createMemoryRouter(
     [
@@ -240,21 +285,7 @@ async function renderIntoDocument(
                   required: true,
                 },
                 modalityId: "modality_2",
-                scheduleCapacity: {
-                  options: [
-                    {
-                      id: "schedule_capacity_2",
-                      isFull: false,
-                      label: "2 de mayo de 2026 - 10:00 hs.",
-                    },
-                    {
-                      id: "schedule_capacity_3",
-                      isFull: false,
-                      label: "3 de mayo de 2026 - 10:00 hs.",
-                    },
-                  ],
-                  status: "multiple" as const,
-                },
+                scheduleCapacity,
                 submodality: {
                   options: [{ id: "submodality_9", name: "Hip hop" }],
                   required: true,
@@ -322,6 +353,22 @@ function getFieldShapes() {
   }
 
   return shapes;
+}
+
+/**
+ * A read-only field is a disabled `input`, so what the administrator reads is
+ * its value and not the element's text.
+ */
+function readFieldValue(label: string) {
+  const input = fieldControl(findLabel(label))?.querySelector<HTMLInputElement>(
+    'input:not([type="hidden"])',
+  );
+
+  if (!input) {
+    throw new Error(`Expected the field "${label}" to render an input.`);
+  }
+
+  return input.value;
 }
 
 function isFieldDisabled(label: string) {

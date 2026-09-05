@@ -68,6 +68,53 @@ describe("administrative choreography modality correction", () => {
     });
   });
 
+  /**
+   * Occupancy is a suffix on the options a select offers. The lone compatible
+   * capacity is not offered: it arrives preselected and read-only, like the
+   * `auto` status of registration, and saying how many places are left on a
+   * field nobody can change means nothing. `isFull` still comes from the same
+   * read: a lone full capacity is the dead end the view explains instead.
+   */
+  test("previews the locked single capacity with no occupancy on its label", async () => {
+    const scenario = await createModalityScenario({ slug: "cupo-unico" });
+
+    const preview = readModalityResolution(
+      await scenario.resolveModality(scenario.target.modality.id),
+    );
+
+    expect(preview?.scheduleCapacity.status).toBe("auto");
+    expect(preview?.scheduleCapacity.options).toEqual([
+      {
+        id: scenario.target.scheduleCapacity.id,
+        isFull: false,
+        label: expect.stringMatching(/ hs\.$/),
+      },
+    ]);
+  });
+
+  /**
+   * The other half of the same rule, so the fix cannot be read as "strip the
+   * suffix everywhere": where there *is* a capacity to choose, every label the
+   * select offers keeps its occupancy.
+   */
+  test("keeps occupancy on the labels when there is a capacity to choose", async () => {
+    const scenario = await createModalityScenario({
+      slug: "cupo-multiple",
+      targetHasSecondCapacity: true,
+    });
+
+    const preview = readModalityResolution(
+      await scenario.resolveModality(scenario.target.modality.id),
+    );
+
+    expect(preview?.scheduleCapacity.status).toBe("multiple");
+    expect(preview?.scheduleCapacity.options).toHaveLength(2);
+
+    for (const option of preview?.scheduleCapacity.options ?? []) {
+      expect(option.label).toContain("0/5 ocupados");
+    }
+  });
+
   test("writes modality, submodality, category, level and capacity in one correction", async () => {
     const scenario = await createModalityScenario({ slug: "compuesta" });
 
@@ -429,6 +476,7 @@ async function createModalityScenario(input: {
   targetCategoryLevels?: ExperienceLevel[];
   targetCategoryMaxAge?: number;
   targetCategoryMinAge?: number;
+  targetHasSecondCapacity?: boolean;
   targetHasSubmodality?: boolean;
   targetSharesSchedule?: boolean;
 }) {
@@ -451,6 +499,7 @@ async function createModalityScenario(input: {
     categoryMaxAge: input.targetCategoryMaxAge ?? 17,
     categoryMinAge: input.targetCategoryMinAge ?? 13,
     eventId: event.id,
+    hasSecondCapacity: input.targetHasSecondCapacity ?? false,
     hasSubmodality: input.targetHasSubmodality ?? true,
     name: `Urbano ${input.slug}`,
     sharedSchedule: input.targetSharesSchedule
@@ -613,6 +662,7 @@ async function createTargetModality(input: {
   categoryMaxAge: number;
   categoryMinAge: number;
   eventId: string;
+  hasSecondCapacity: boolean;
   hasSubmodality: boolean;
   name: string;
   sharedSchedule: {
@@ -674,6 +724,20 @@ async function createTargetModality(input: {
     .insert(scheduleCapacities)
     .values({ scheduleId: schedule.id, groupType: "solo", capacity: 5 })
     .returning();
+
+  // A second compatible capacity turns the destination into a real choice, so
+  // the preview reports `multiple` instead of the preselected `auto`.
+  if (input.hasSecondCapacity) {
+    const secondSchedule = await createScheduleForModalityFixture({
+      eventId: input.eventId,
+      modalityId: modality.id,
+    });
+    await db.insert(scheduleCapacities).values({
+      scheduleId: secondSchedule.id,
+      groupType: "solo",
+      capacity: 5,
+    });
+  }
 
   return { category, modality, schedule, scheduleCapacity, submodality };
 }
