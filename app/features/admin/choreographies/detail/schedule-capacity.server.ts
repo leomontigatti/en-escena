@@ -5,12 +5,14 @@ import { choreographies } from "@/db/schema";
 import { getGlobalScheduleCapacityOptionId } from "@/lib/choreographies/choreography-roster.shared";
 import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
 import {
+  frozenPriceScheduleCapacityMessage,
   guardAndLockScheduleCapacityMove,
   invalidScheduleEntryMessage,
 } from "@/lib/choreographies/schedule-capacity-lock.server";
 import type { ScheduleCapacitySelectOption } from "@/lib/choreographies/schedule-capacity-options";
 import { withScheduleCapacityOccupancy } from "@/lib/choreographies/schedule-capacity-options.server";
 import { resolveEventBasesScheduleOptions } from "@/lib/events/bases.server";
+import { loadPriceDivergenceCheck } from "@/lib/finances/choreography-frozen-price-guard.server";
 
 import type { ChoreographyDetail } from "./server";
 import {
@@ -67,10 +69,21 @@ type ScheduleCapacityOptionCandidate = Omit<
 /**
  * The options the view offers are exactly the ones the intent accepts: the
  * capacities compatible with the choreography's event, modality and group type,
- * plus the capacity assigned today. That addition is for visibility only: if the
+ * minus the alternatives that would reprice a money-holding inscription, plus
+ * the capacity assigned today. That addition is for visibility only: if the
  * assignment fell outside compatibility (the schedule's modality changed, the
  * capacity was deleted), it has to stay in view rather than disappear from the
  * select without explanation.
+ *
+ * Price-divergent alternatives are **omitted**, not marked: `disabled` keeps its
+ * single meaning, `sin cupo`, and a greyed option whose own label reads
+ * `1/75 ocupados` would be a disabled option claiming to have room. It is the
+ * same treatment the modality-incompatible schedules already get, which are
+ * absent rather than offered.
+ *
+ * The assignment is never filtered, whether it comes from the compatible set or
+ * is pushed back in: the move that keeps the choreography where it is cannot
+ * reprice anything, and dropping it would empty the select.
  *
  * Without occupancy: the intent only needs to know which ids it accepts, and
  * counting occupants to label options nobody will read is wasted work. The view
@@ -82,19 +95,38 @@ async function resolveScheduleCapacityCandidates(input: {
 }): Promise<{
   hasMultipleCompatibleOptions: boolean;
   options: ScheduleCapacityOptionCandidate[];
+  priceDivergentOptionIds: string[];
 }> {
-  const resolution = await resolveEventBasesScheduleOptions({
-    eventId: input.eventId,
-    groupType: input.choreography.groupType,
-    modalityId: input.choreography.modalityId,
-  });
-  const options: ScheduleCapacityOptionCandidate[] = resolution.options.map(
-    (option) => ({
+  const [resolution, diverges] = await Promise.all([
+    resolveEventBasesScheduleOptions({
+      eventId: input.eventId,
+      groupType: input.choreography.groupType,
+      modalityId: input.choreography.modalityId,
+    }),
+    loadPriceDivergenceCheck({ choreographyId: input.choreography.id }),
+  ]);
+  const compatibleOptions: ScheduleCapacityOptionCandidate[] =
+    resolution.options.map((option) => ({
       id: option.id,
       label: formatScheduleDateTime(option.schedule),
       scheduleCapacityId: option.scheduleCapacityId,
       scheduleId: option.scheduleId,
-    }),
+    }));
+  const priceDivergentOptionIds = compatibleOptions
+    .filter(
+      (option) =>
+        option.id !== input.choreography.scheduleCapacityId &&
+        diverges({
+          // The reassignment moves the schedule alone: the group type the
+          // destination is priced against is the one the roster already gives
+          // the choreography.
+          groupType: input.choreography.groupType,
+          scheduleId: option.scheduleId,
+        }),
+    )
+    .map((option) => option.id);
+  const options = compatibleOptions.filter(
+    (option) => !priceDivergentOptionIds.includes(option.id),
   );
 
   if (
@@ -108,6 +140,7 @@ async function resolveScheduleCapacityCandidates(input: {
   return {
     hasMultipleCompatibleOptions: resolution.status === "multiple",
     options,
+    priceDivergentOptionIds,
   };
 }
 
@@ -150,7 +183,7 @@ export async function updateChoreographyScheduleCapacity(input: {
     };
   }
 
-  const { hasMultipleCompatibleOptions, options } =
+  const { hasMultipleCompatibleOptions, options, priceDivergentOptionIds } =
     await resolveScheduleCapacityCandidates({
       choreography: input.choreography,
       eventId: input.eventId,
@@ -175,10 +208,18 @@ export async function updateChoreographyScheduleCapacity(input: {
     (option) => option.id === requestedOptionId,
   );
 
-  // Compatibility is revalidated here; what the form sent is not trusted.
+  // Compatibility is revalidated here; what the form sent is not trusted. A
+  // price-divergent capacity is now simply absent from the accepted set, so the
+  // reason has to be re-derived: an id the select offered before an allocation
+  // landed is a price problem, not an incompatible selection, and reporting it
+  // as one would send the administrator looking at the modality.
   if (!selectedOption) {
     return {
-      message: invalidScheduleEntryMessage,
+      message:
+        requestedOptionId !== null &&
+        priceDivergentOptionIds.includes(requestedOptionId)
+          ? frozenPriceScheduleCapacityMessage
+          : invalidScheduleEntryMessage,
       status: "error",
     };
   }

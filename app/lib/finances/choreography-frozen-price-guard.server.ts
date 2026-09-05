@@ -89,14 +89,37 @@ export async function hasPriceDivergentInscription(input: {
   destination: DestinationPriceKey;
   executor: Executor;
 }): Promise<boolean> {
-  const { destination, executor } = input;
+  const diverges = await loadPriceDivergenceCheck({
+    choreographyId: input.choreographyId,
+    executor: input.executor,
+  });
+
+  return diverges(input.destination);
+}
+
+/**
+ * Answers the same question as `hasPriceDivergentInscription` for **many**
+ * destinations off a single read.
+ *
+ * The option resolver asks it once per alternative schedule, and the money of a
+ * choreography does not change between two of those answers: loading the
+ * inscriptions, the event and the event's price rows once and closing over them
+ * keeps the filter to one round trip instead of one per option, and — because
+ * both go through the same closure — keeps the offered options and the guard
+ * answering with the same rule.
+ */
+export async function loadPriceDivergenceCheck(input: {
+  choreographyId: string;
+  executor?: Executor;
+}): Promise<(destination: DestinationPriceKey) => boolean> {
+  const executor = input.executor ?? db;
   const choreography = await loadChoreographyScheduleRow(
     executor,
     input.choreographyId,
   );
 
   if (!choreography) {
-    return false;
+    return () => false;
   }
 
   const moneyRows = await executor
@@ -121,7 +144,7 @@ export async function hasPriceDivergentInscription(input: {
     .filter((inscription) => inscription.allocatedAmount > 0);
 
   if (inscriptions.length === 0) {
-    return false;
+    return () => false;
   }
 
   const [event, priceRows] = await Promise.all([
@@ -135,7 +158,7 @@ export async function hasPriceDivergentInscription(input: {
   ]);
 
   if (!event) {
-    return false;
+    return () => false;
   }
 
   const currentKey = {
@@ -143,44 +166,47 @@ export async function hasPriceDivergentInscription(input: {
     groupType: choreography.groupType as ChoreographyGroupType,
     scheduleCapacityScheduleId: choreography.scheduleCapacityScheduleId,
   };
-  // The destination arrives already resolved to a single schedule, so it is
-  // fed in through the choreography's own source and leaves the capacity's
-  // empty; `resolveChoreographyPricingScheduleId` reads the pair the same way.
-  const destinationKey = {
-    choreographyScheduleId: destination.scheduleId,
-    groupType: destination.groupType,
-    scheduleCapacityScheduleId: null,
+
+  return (destination: DestinationPriceKey) => {
+    // The destination arrives already resolved to a single schedule, so it is
+    // fed in through the choreography's own source and leaves the capacity's
+    // empty; `resolveChoreographyPricingScheduleId` reads the pair the same way.
+    const destinationKey = {
+      choreographyScheduleId: destination.scheduleId,
+      groupType: destination.groupType,
+      scheduleCapacityScheduleId: null,
+    };
+    const destinationScheduleId =
+      resolveChoreographyPricingScheduleId(destinationKey);
+
+    return inscriptions.some(({ allocatedAmount, selectedPriceId }) => {
+      const resolveAgainst = (choreographyKey: typeof currentKey) =>
+        resolveEffectiveBasePriceRow({
+          allocatedAmount,
+          choreography: choreographyKey,
+          priceRows,
+          requiredDepositPercentage: event.requiredDepositPercentage,
+          selectedPriceId,
+        });
+
+      if (
+        isSchedulePinnedFrozenRow({
+          allocatedAmount,
+          destinationScheduleId,
+          priceRows,
+          requiredDepositPercentage: event.requiredDepositPercentage,
+          selectedPriceId,
+        })
+      ) {
+        return true;
+      }
+
+      const before = resolveAgainst(currentKey)?.amount ?? null;
+      const after = resolveAgainst(destinationKey)?.amount ?? null;
+
+      return before !== after;
+    });
   };
-  const destinationScheduleId =
-    resolveChoreographyPricingScheduleId(destinationKey);
-
-  return inscriptions.some(({ allocatedAmount, selectedPriceId }) => {
-    const resolveAgainst = (choreographyKey: typeof currentKey) =>
-      resolveEffectiveBasePriceRow({
-        allocatedAmount,
-        choreography: choreographyKey,
-        priceRows,
-        requiredDepositPercentage: event.requiredDepositPercentage,
-        selectedPriceId,
-      });
-
-    if (
-      isSchedulePinnedFrozenRow({
-        allocatedAmount,
-        destinationScheduleId,
-        priceRows,
-        requiredDepositPercentage: event.requiredDepositPercentage,
-        selectedPriceId,
-      })
-    ) {
-      return true;
-    }
-
-    const before = resolveAgainst(currentKey)?.amount ?? null;
-    const after = resolveAgainst(destinationKey)?.amount ?? null;
-
-    return before !== after;
-  });
 }
 
 /**
