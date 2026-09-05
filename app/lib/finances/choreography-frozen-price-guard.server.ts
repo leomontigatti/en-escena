@@ -1,6 +1,5 @@
 import { eq, sql } from "drizzle-orm";
 
-import { db } from "@/db";
 import {
   choreographyDancers,
   events,
@@ -86,9 +85,9 @@ export async function hasPriceDivergentInscription(input: {
  */
 export async function loadPriceDivergenceCheck(input: {
   choreographyId: string;
-  executor?: Executor;
+  executor: Executor;
 }): Promise<(destination: DestinationPriceKey) => boolean> {
-  const executor = input.executor ?? db;
+  const { executor } = input;
   const choreography = await loadChoreographyScheduleRow(
     executor,
     input.choreographyId,
@@ -216,4 +215,46 @@ function isSchedulePinnedFrozenRow(input: {
   });
 
   return frozen && stored.scheduleId !== input.destinationScheduleId;
+}
+
+/**
+ * The alternatives a price filter leaves standing, and the ids it took away.
+ *
+ * Both surfaces that offer a schedule capacity — the standalone reassignment
+ * and the modality correction — split their compatible set exactly this way, so
+ * they split it here: the two lists have to be complements of one another for
+ * the intent to re-derive its refusal reason from the omitted half, and one
+ * pass keyed on `id` is also what keeps them from disagreeing.
+ *
+ * `assignedOptionId` is never filtered, whatever the price says: staying put
+ * reprices nothing, and dropping the assignment would leave the select with no
+ * account of where the choreography sits today.
+ */
+export function partitionPriceDivergentOptions<
+  TOption extends { id: string; scheduleId: string },
+>(input: {
+  assignedOptionId: string | null;
+  diverges: (destination: DestinationPriceKey) => boolean;
+  groupType: ChoreographyGroupType;
+  options: TOption[];
+}): { divergentIds: string[]; selectable: TOption[] } {
+  const divergentIds: string[] = [];
+  const selectable: TOption[] = [];
+
+  for (const option of input.options) {
+    const isDivergent =
+      option.id !== input.assignedOptionId &&
+      input.diverges({
+        groupType: input.groupType,
+        scheduleId: option.scheduleId,
+      });
+
+    if (isDivergent) {
+      divergentIds.push(option.id);
+    } else {
+      selectable.push(option);
+    }
+  }
+
+  return { divergentIds, selectable };
 }

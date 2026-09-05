@@ -12,7 +12,10 @@ import {
 import type { ScheduleCapacitySelectOption } from "@/lib/choreographies/schedule-capacity-options";
 import { withScheduleCapacityOccupancy } from "@/lib/choreographies/schedule-capacity-options.server";
 import { resolveEventBasesScheduleOptions } from "@/lib/events/bases.server";
-import { loadPriceDivergenceCheck } from "@/lib/finances/choreography-frozen-price-guard.server";
+import {
+  loadPriceDivergenceCheck,
+  partitionPriceDivergentOptions,
+} from "@/lib/finances/choreography-frozen-price-guard.server";
 
 import type { ChoreographyDetail } from "./server";
 import {
@@ -123,7 +126,10 @@ async function resolveScheduleCapacityCandidates(input: {
       groupType: input.choreography.groupType,
       modalityId: input.choreography.modalityId,
     }),
-    loadPriceDivergenceCheck({ choreographyId: input.choreography.id }),
+    loadPriceDivergenceCheck({
+      choreographyId: input.choreography.id,
+      executor: db,
+    }),
   ]);
   const compatibleOptions: ScheduleCapacityOptionCandidate[] =
     resolution.options.map((option) => ({
@@ -132,22 +138,15 @@ async function resolveScheduleCapacityCandidates(input: {
       scheduleCapacityId: option.scheduleCapacityId,
       scheduleId: option.scheduleId,
     }));
-  const priceDivergentOptionIds = compatibleOptions
-    .filter(
-      (option) =>
-        option.id !== input.choreography.scheduleCapacityId &&
-        diverges({
-          // The reassignment moves the schedule alone: the group type the
-          // destination is priced against is the one the roster already gives
-          // the choreography.
-          groupType: input.choreography.groupType,
-          scheduleId: option.scheduleId,
-        }),
-    )
-    .map((option) => option.id);
-  const options = compatibleOptions.filter(
-    (option) => !priceDivergentOptionIds.includes(option.id),
-  );
+  // The reassignment moves the schedule alone: the group type the destination is
+  // priced against is the one the roster already gives the choreography.
+  const { divergentIds: priceDivergentOptionIds, selectable: options } =
+    partitionPriceDivergentOptions({
+      assignedOptionId: input.choreography.scheduleCapacityId,
+      diverges,
+      groupType: input.choreography.groupType,
+      options: compatibleOptions,
+    });
 
   if (
     !options.some(
@@ -225,11 +224,13 @@ export async function updateChoreographyScheduleCapacity(input: {
   // no alternative left the select is read-only, but a hand-crafted POST naming
   // the assignment would move the price key all the same.
   if (!hasSelectableAlternative) {
+    if (priceDivergentOptionIds.length > 0) {
+      return { message: frozenPriceScheduleCapacityMessage, status: "error" };
+    }
+
     return {
       message:
-        priceDivergentOptionIds.length > 0
-          ? frozenPriceScheduleCapacityMessage
-          : "No se puede cambiar el cupo de cronograma: no hay otro cronograma compatible con esta coreografía.",
+        "No se puede cambiar el cupo de cronograma: no hay otro cronograma compatible con esta coreografía.",
       status: "error",
     };
   }
@@ -247,14 +248,14 @@ export async function updateChoreographyScheduleCapacity(input: {
   // landed is a price problem, not an incompatible selection, and reporting it
   // as one would send the administrator looking at the modality.
   if (!selectedOption) {
-    return {
-      message:
-        requestedOptionId !== null &&
-        priceDivergentOptionIds.includes(requestedOptionId)
-          ? frozenPriceScheduleCapacityMessage
-          : invalidScheduleEntryMessage,
-      status: "error",
-    };
+    if (
+      requestedOptionId !== null &&
+      priceDivergentOptionIds.includes(requestedOptionId)
+    ) {
+      return { message: frozenPriceScheduleCapacityMessage, status: "error" };
+    }
+
+    return { message: invalidScheduleEntryMessage, status: "error" };
   }
 
   const result = await db.transaction(async (tx) => {

@@ -22,7 +22,10 @@ import {
   resolveEventBasesSchedules,
 } from "@/lib/events/bases.server";
 import { isExperienceLevel } from "@/lib/events/experience-levels";
-import { loadPriceDivergenceCheck } from "@/lib/finances/choreography-frozen-price-guard.server";
+import {
+  loadPriceDivergenceCheck,
+  partitionPriceDivergentOptions,
+} from "@/lib/finances/choreography-frozen-price-guard.server";
 
 import type { ChoreographyDetail } from "./server";
 import {
@@ -138,7 +141,10 @@ export async function listChoreographyModalityBlockers(input: {
 }): Promise<ChoreographyModalityBlocker[]> {
   const [schedules, diverges] = await Promise.all([
     resolveEventBasesSchedules(input.eventId),
-    loadPriceDivergenceCheck({ choreographyId: input.choreography.id }),
+    loadPriceDivergenceCheck({
+      choreographyId: input.choreography.id,
+      executor: db,
+    }),
   ]);
   const hasPriceDivergentSchedule = schedules.some((schedule) =>
     diverges({
@@ -446,29 +452,34 @@ async function resolveModalityCorrectionContext(input: {
       groupType: classification.groupType,
       modalityId: input.modalityId,
     }),
-    loadPriceDivergenceCheck({ choreographyId: input.choreography.id }),
+    loadPriceDivergenceCheck({
+      choreographyId: input.choreography.id,
+      executor: db,
+    }),
   ]);
   // The same omission the standalone reassignment makes, for the same reason: a
   // capacity that would reprice a money-holding inscription is one the save
   // refuses, and greying it would show a disabled option whose own label says
-  // it has room. The capacity the choreography already occupies is never
-  // filtered — staying put reprices nothing, and it resolves as equal anyway.
-  const selectableOptions = scheduleResolution.options.filter(
-    (option) =>
-      option.id === input.choreography.scheduleCapacityId ||
-      !diverges({
-        // Modality is not part of the price key: the correction moves the
-        // schedule alone and keeps the group type the roster gives.
-        groupType: classification.groupType,
-        scheduleId: option.scheduleId,
-      }),
-  );
+  // it has room.
+  //
+  // Priced against the **stored** group type, not the classification's, even
+  // though compatibility above is resolved against the classification's: the
+  // correction writes no `group_type`, so the price key the move lands on keeps
+  // the one the column already holds — and it is the one the guard inside the
+  // transaction asks about. Reading the two from different sources would let
+  // the offered set and the guard disagree wherever they drift, which is the
+  // one thing this filter exists to prevent.
+  const { divergentIds, selectable: selectableOptions } =
+    partitionPriceDivergentOptions({
+      assignedOptionId: input.choreography.scheduleCapacityId,
+      diverges,
+      groupType: input.choreography.groupType,
+      options: scheduleResolution.options,
+    });
 
   return {
     classification,
-    priceDivergentScheduleOptionIds: scheduleResolution.options
-      .filter((option) => !selectableOptions.includes(option))
-      .map((option) => option.id),
+    priceDivergentScheduleOptionIds: divergentIds,
     scheduleOptions: await withScheduleCapacityOccupancy({
       // Same exclusion as the lock: the choreography being corrected does not
       // count against the capacity it already occupies.
@@ -503,15 +514,23 @@ function toMissingScheduleMessage(input: {
   requestedScheduleOptionId: string | null;
 }) {
   const divergentIds = input.context.priceDivergentScheduleOptionIds;
-  const isPriceRefusal =
-    input.context.scheduleOptions.length === 0
-      ? divergentIds.length > 0
-      : input.requestedScheduleOptionId !== null &&
-        divergentIds.includes(input.requestedScheduleOptionId);
 
-  return isPriceRefusal
-    ? frozenPriceModalityMessage
-    : invalidScheduleEntryMessage;
+  // The select was replaced by its dead-end alert, so the form carries no id at
+  // all and the omissions are the only account of why there was nothing to send.
+  if (input.context.scheduleOptions.length === 0) {
+    return divergentIds.length > 0
+      ? frozenPriceModalityMessage
+      : invalidScheduleEntryMessage;
+  }
+
+  if (
+    input.requestedScheduleOptionId !== null &&
+    divergentIds.includes(input.requestedScheduleOptionId)
+  ) {
+    return frozenPriceModalityMessage;
+  }
+
+  return invalidScheduleEntryMessage;
 }
 
 /**

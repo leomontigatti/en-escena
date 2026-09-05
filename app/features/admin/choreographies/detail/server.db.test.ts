@@ -1121,6 +1121,61 @@ describe("administrative choreography detail server", () => {
     });
   });
 
+  test("offers exactly the ids the intent accepts", async () => {
+    const { neutral, ...scenario } =
+      await createPartiallyFilteredScheduleScenario({
+        academyName: "Academia Cronograma Invariante",
+        slug: "cronograma.invariante",
+      });
+
+    const detail = await loadDetail({
+      choreographyId: scenario.choreography.id,
+      email: "admin.coreografias.cronograma.invariante.detalle@example.com",
+      role: "admin",
+    });
+    const offeredIds = new Set(
+      detail.scheduleCapacity.options.map((option) => option.id),
+    );
+    const original = await scenario.readAssignment();
+
+    // Every capacity of the event, offered or omitted, put to the intent: the
+    // invariant `resolveScheduleCapacityCandidates` documents is that the two
+    // sets coincide, so an id the select omits has to be refused and every id
+    // it offers has to go through. Asserted over the whole set rather than over
+    // one example of each, which is how a filter and a guard reading the price
+    // key from different sources would slip past.
+    const candidateIds = [
+      scenario.catalog.scheduleCapacity.id,
+      neutral.scheduleCapacity.id,
+      scenario.target.scheduleCapacity.id,
+    ];
+    const accepted: string[] = [];
+
+    for (const [index, candidateId] of candidateIds.entries()) {
+      const result = await scenario.reassignTo(candidateId, {
+        sessionKey: `invariante.${index}`,
+      });
+
+      expect(result).not.toBeInstanceOf(Response);
+
+      if ((result as { status: string }).status === "success") {
+        accepted.push(candidateId);
+      }
+
+      // Put the choreography back where it started, so each candidate is asked
+      // of the same assignment the loader was asked of.
+      await db
+        .update(choreographies)
+        .set({
+          scheduleCapacityId: original?.scheduleCapacityId ?? null,
+          scheduleId: original?.scheduleId ?? null,
+        })
+        .where(eq(choreographies.id, scenario.choreography.id));
+    }
+
+    expect(new Set(accepted)).toEqual(offeredIds);
+  });
+
   test("keeps an assignment that fell outside compatibility even when every alternative reprices", async () => {
     const scenario = await createScheduleCapacityScenario({
       academyName: "Academia Cronograma Filtrado Deriva",
