@@ -11,7 +11,7 @@ import {
 import {
   loadPriceDivergenceCheck,
   partitionPriceDivergentOptions,
-} from "@/lib/finances/choreography-frozen-price-guard.server";
+} from "@/lib/finances/choreography-price-divergence-guard.server";
 
 import type { ChoreographyDetail } from "./server";
 
@@ -38,11 +38,11 @@ type ModalityCorrectionContext = {
 
 /**
  * The deposit rejection names the modality instead of reusing
- * `frozenPriceScheduleCapacityMessage`, which names the capacity: the administrator
- * did not touch the capacity select here, and pointing at it would send them to the
- * wrong field.
+ * `priceDivergenceScheduleCapacityMessage`, which names the capacity: the
+ * administrator did not touch the capacity select here, and pointing at it
+ * would send them to the wrong field.
  */
-export const frozenPriceModalityMessage =
+export const priceDivergenceModalityMessage =
   "No se puede cambiar la modalidad: el cronograma se movería y cambiaría el precio de inscripciones con dinero asignado.";
 
 export async function resolveModalityCorrectionContext(input: {
@@ -137,7 +137,7 @@ export function toMissingScheduleMessage(input: {
   // all and the omissions are the only account of why there was nothing to send.
   if (input.context.scheduleOptions.length === 0) {
     return divergentIds.length > 0
-      ? frozenPriceModalityMessage
+      ? priceDivergenceModalityMessage
       : invalidScheduleEntryMessage;
   }
 
@@ -145,7 +145,7 @@ export function toMissingScheduleMessage(input: {
     input.requestedScheduleOptionId !== null &&
     divergentIds.includes(input.requestedScheduleOptionId)
   ) {
-    return frozenPriceModalityMessage;
+    return priceDivergenceModalityMessage;
   }
 
   return invalidScheduleEntryMessage;

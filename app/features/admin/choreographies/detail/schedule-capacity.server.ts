@@ -5,7 +5,7 @@ import { choreographies } from "@/db/schema";
 import { getGlobalScheduleCapacityOptionId } from "@/lib/choreographies/choreography-roster.shared";
 import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
 import {
-  frozenPriceScheduleCapacityMessage,
+  priceDivergenceScheduleCapacityMessage,
   guardAndLockScheduleCapacityMove,
   invalidScheduleEntryMessage,
 } from "@/lib/choreographies/schedule-capacity-lock.server";
@@ -15,7 +15,7 @@ import { resolveEventBasesScheduleOptions } from "@/lib/events/bases.server";
 import {
   loadPriceDivergenceCheck,
   partitionPriceDivergentOptions,
-} from "@/lib/finances/choreography-frozen-price-guard.server";
+} from "@/lib/finances/choreography-price-divergence-guard.server";
 
 import type { ChoreographyDetail } from "./server";
 import {
@@ -225,7 +225,10 @@ export async function updateChoreographyScheduleCapacity(input: {
   // the assignment would move the price key all the same.
   if (!hasSelectableAlternative) {
     if (priceDivergentOptionIds.length > 0) {
-      return { message: frozenPriceScheduleCapacityMessage, status: "error" };
+      return {
+        message: priceDivergenceScheduleCapacityMessage,
+        status: "error",
+      };
     }
 
     return {
@@ -252,7 +255,10 @@ export async function updateChoreographyScheduleCapacity(input: {
       requestedOptionId !== null &&
       priceDivergentOptionIds.includes(requestedOptionId)
     ) {
-      return { message: frozenPriceScheduleCapacityMessage, status: "error" };
+      return {
+        message: priceDivergenceScheduleCapacityMessage,
+        status: "error",
+      };
     }
 
     return { message: invalidScheduleEntryMessage, status: "error" };
@@ -265,7 +271,7 @@ export async function updateChoreographyScheduleCapacity(input: {
     // the lock: reading it outside, or before opening one, left a window in
     // which an allocation landing in between went unnoticed and the schedule
     // moved anyway. Same guard-then-lock pair as the roster path, so the two
-    // entry points can't drift on order or on which move counts as frozen.
+    // entry points can't drift on order or on which move counts as a price divergence.
     const move = await guardAndLockScheduleCapacityMove({
       choreographyId: input.choreography.id,
       // The reassignment moves the schedule alone: the group type it is priced

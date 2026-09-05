@@ -19,7 +19,9 @@ silently:
 - **A `> **Specified, not built.**` callout describes the settled target**, with
   the issue that owns it. Do not read those as behaviour.
 - **A `Known divergence` paragraph** records a place where the code disagrees
-  with the model on purpose or by defect, with the issue tracking it.
+  with the model on purpose or by defect, with the issue tracking it. The word
+  is this document's own: the price-divergence guard is unrelated, and names a
+  divergence between two prices rather than between the code and this model.
 
 When this document and the code disagree anywhere else, the code is right and
 this document is a bug — file it, do not fix one side silently.
@@ -578,15 +580,16 @@ The second is queries that are not about display at all and simply do not need
 the predicate, because a withdrawn row answers their question as well as an
 active one: `readInscriptionSelectedPrices` (the price readout behind the money
 dialog) and the allocation write path's own inscription lookup
-(`inscription-allocation.server.ts`), the frozen-price guard that asks whether
-any inscription of a choreography holds money
-(`choreography-frozen-price-guard.server.ts`), the check that refuses to delete a
-price row some inscription references (`prices.server.ts`), and the roster
-editor's deliberate read of the withdrawn rows themselves, which are the revival
-candidates (`choreography-roster-admin.server.ts`). **Only the first kind is
-four.** Do not read "four exceptions" as "four queries without the predicate" —
-the second kind is at least as large, and a query touching `choreography_dancer`
-without `activeInscription()` is not by itself evidence of a bug.
+(`inscription-allocation.server.ts`), the price-divergence guard that asks
+whether a move would reprice any money-holding inscription of a choreography
+(`choreography-price-divergence-guard.server.ts`), the check that refuses to
+delete a price row some inscription references (`prices.server.ts`), and the
+roster editor's deliberate read of the withdrawn rows themselves, which are the
+revival candidates (`choreography-roster-admin.server.ts`). **Only the first
+kind is four.** Do not read "four exceptions" as "four queries without the
+predicate" — the second kind is at least as large, and a query touching
+`choreography_dancer` without `activeInscription()` is not by itself evidence of
+a bug.
 
 **Known divergence — the write path does not know a row is withdrawn.** Only the
 read path derives the withdrawn figures; an allocation write against a withdrawn
