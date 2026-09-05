@@ -222,7 +222,7 @@ async function updateChoreographyDancers(input: {
   // future change to those branches silently breaking that guarantee, not a
   // currently reachable rejection. Cheap and needs no transaction/lock, so it
   // runs before entering one: a different, unconditional concern from the
-  // capacity-lock/frozen-price guard (#659) right below, which only fires
+  // capacity-lock/price-divergence guard (#659) right below, which only fires
   // when the capacity axis actually moves.
   if (
     !isCompatibleScheduleCapacity(
@@ -264,7 +264,7 @@ async function updateChoreographyDancers(input: {
       // Checked first and inside the transaction, before any roster write:
       // on rejection nothing about this save should be persisted. Same
       // guard-then-lock pair as the standalone reassignment, so the two
-      // entry points can't drift on order or on which move counts as frozen.
+      // entry points can't drift on order or on which move counts as divergent.
       const move = await guardAndLockScheduleCapacityMove({
         choreographyId: input.choreographyId,
         // The group type of *this* submit, derived from the post-edit dancer

@@ -2,7 +2,7 @@ import { and, eq, ne, or, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { choreographies, schedules, scheduleCapacities } from "@/db/schema";
-import { hasPriceDivergentInscription } from "@/lib/finances/choreography-frozen-price-guard.server";
+import { hasPriceDivergentInscription } from "@/lib/finances/choreography-price-divergence-guard.server";
 import type { ChoreographyGroupType } from "@/lib/finances/operational-summary-calculations.server";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -10,7 +10,7 @@ type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export const invalidScheduleEntryMessage =
   "Elegí un cupo de cronograma compatible para confirmar la coreografía.";
 
-export const frozenPriceScheduleCapacityMessage =
+export const priceDivergenceScheduleCapacityMessage =
   "No se puede cambiar el cupo de cronograma: hay inscripciones con dinero asignado cuyo precio cambiaría.";
 
 export type ScheduleCapacityLockFailureCode =
@@ -31,7 +31,7 @@ export type ScheduleCapacityLockResult =
 
 export type ScheduleCapacityMoveFailureCode =
   | ScheduleCapacityLockFailureCode
-  | "frozen-price";
+  | "price-divergence";
 
 export type ScheduleCapacityMoveResult =
   | {
@@ -81,8 +81,8 @@ export async function guardAndLockScheduleCapacityMove(input: {
   if (diverges) {
     return {
       ok: false,
-      code: "frozen-price",
-      error: frozenPriceScheduleCapacityMessage,
+      code: "price-divergence",
+      error: priceDivergenceScheduleCapacityMessage,
     };
   }
 

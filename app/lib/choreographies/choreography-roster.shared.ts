@@ -41,7 +41,7 @@ export type UpdateChoreographyProfessorsResult =
 
 /**
  * `code: "schedule-capacity"` marks the two new guards on the capacity axis
- * (capacity lock, frozen-price guard): unlike the other dancers-section
+ * (capacity lock, price-divergence guard): unlike the other dancers-section
  * failures, these are not swallowed behind the roster section's own error
  * channel — the route surfaces them as a plain `status: "error"` instead. See
  * `updateChoreographyRosterAction` in `server.ts`.

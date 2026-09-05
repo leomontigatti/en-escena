@@ -17,10 +17,10 @@ import {
   resolveEventBasesCorrectableScheduleIds,
 } from "@/lib/events/bases.server";
 import { isExperienceLevel } from "@/lib/events/experience-levels";
-import { loadPriceDivergenceCheck } from "@/lib/finances/choreography-frozen-price-guard.server";
+import { loadPriceDivergenceCheck } from "@/lib/finances/choreography-price-divergence-guard.server";
 
 import {
-  frozenPriceModalityMessage,
+  priceDivergenceModalityMessage,
   resolveModalityCorrectionContext,
   toMissingScheduleMessage,
 } from "./modality-resolution.server";
@@ -367,8 +367,8 @@ export async function updateChoreographyModality(input: {
     if (!move.ok) {
       return {
         error:
-          move.code === "frozen-price"
-            ? frozenPriceModalityMessage
+          move.code === "price-divergence"
+            ? priceDivergenceModalityMessage
             : move.error,
         ok: false as const,
       };

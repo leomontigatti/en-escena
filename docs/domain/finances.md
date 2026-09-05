@@ -578,10 +578,10 @@ The second is queries that are not about display at all and simply do not need
 the predicate, because a withdrawn row answers their question as well as an
 active one: `readInscriptionSelectedPrices` (the price readout behind the money
 dialog) and the allocation write path's own inscription lookup
-(`inscription-allocation.server.ts`), the frozen-price guard that asks whether
-any inscription of a choreography holds money
-(`choreography-frozen-price-guard.server.ts`), the check that refuses to delete a
-price row some inscription references (`prices.server.ts`), and the roster
+(`inscription-allocation.server.ts`), the price-divergence guard that asks
+whether a move would reprice any money-holding inscription of a choreography
+(`choreography-price-divergence-guard.server.ts`), the check that refuses to
+delete a price row some inscription references (`prices.server.ts`), and the roster
 editor's deliberate read of the withdrawn rows themselves, which are the revival
 candidates (`choreography-roster-admin.server.ts`). **Only the first kind is
 four.** Do not read "four exceptions" as "four queries without the predicate" —
