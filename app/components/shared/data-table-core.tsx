@@ -48,24 +48,6 @@ export const emptyFacetedFilterValues: Record<
 export const emptyFacetedFilters: DataTableFacetedFilter[] = [];
 
 /**
- * The search box's own state, seeded from the prop and re-seeded when it moves.
- * `lastAppliedSearchValueRef` is the server table's: it debounces the query into
- * the URL and needs to know what it last navigated with. The client table
- * filters in place and ignores it.
- */
-export function useDataTableSearchQueryState(initialSearchValue: string) {
-  const [searchQuery, setSearchQuery] = useState(initialSearchValue);
-  const lastAppliedSearchValueRef = useRef(initialSearchValue);
-
-  useEffect(() => {
-    setSearchQuery(initialSearchValue);
-    lastAppliedSearchValueRef.current = initialSearchValue;
-  }, [initialSearchValue]);
-
-  return { lastAppliedSearchValueRef, searchQuery, setSearchQuery };
-}
-
-/**
  * The faceted filters' state. The base values are the ones the caller pins —a
  * filter the reader cannot lift— and the initial ones are where the reader
  * starts; they are merged in that order every time either moves.

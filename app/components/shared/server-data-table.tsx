@@ -7,7 +7,14 @@ import {
   type SortingState,
   useReactTable,
 } from "@tanstack/react-table";
-import { useEffect, useMemo, type Dispatch, type SetStateAction } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { useLocation, useNavigate, useNavigation } from "react-router";
 
 import {
@@ -28,7 +35,6 @@ import {
   emptyFacetedFilterValues,
   useDataTableColumnFiltersState,
   useDataTableRowSelection,
-  useDataTableSearchQueryState,
   useDataTableSortingState,
 } from "@/components/shared/data-table-core";
 import { DataTableShell } from "@/components/shared/data-table-shell";
@@ -37,7 +43,10 @@ import type {
   DataTableFacetedFilterValue,
   ServerDataTableProps,
 } from "@/components/shared/data-table.shared";
-import { dataTableFacetedFilterColumnId } from "@/components/shared/data-table.shared";
+import {
+  dataTableFacetedFilterColumnId,
+  dataTableSearchDebounceMs,
+} from "@/components/shared/data-table.shared";
 
 export function ServerDataTable<TData>(props: ServerDataTableProps<TData>) {
   const location = useLocation();
@@ -61,8 +70,23 @@ export function ServerDataTable<TData>(props: ServerDataTableProps<TData>) {
     onSelectedRowIdsChange: props.onSelectedRowIdsChange,
     selectedRowIds: props.selectedRowIds,
   });
-  const { searchQuery, setSearchQuery, lastAppliedSearchValueRef } =
-    useDataTableSearchQueryState(initialSearchValue);
+  const { clearSearchQuery, searchQuery, setSearchQuery } =
+    useServerSearchQuery({
+      applySearch: (searchValue) => {
+        const nextHref = buildDataTableSearchHref({
+          basePath: resolvedBasePath,
+          currentSearch: location.search,
+          pageParamName: props.pageParamName,
+          searchParamName: props.searchParamName,
+          searchValue,
+        });
+
+        if (nextHref !== currentHref) {
+          void navigate(nextHref, { replace: true });
+        }
+      },
+      initialSearchValue,
+    });
   const { columnFilters, setColumnFilters } = useDataTableColumnFiltersState({
     baseFacetedFilterValues,
     initialFacetedFilterValues,
@@ -100,17 +124,6 @@ export function ServerDataTable<TData>(props: ServerDataTableProps<TData>) {
     setColumnFilters,
   });
 
-  useServerSearchNavigation({
-    currentHref,
-    currentSearch: location.search,
-    lastAppliedSearchValueRef,
-    navigate,
-    pageParamName: props.pageParamName,
-    resolvedBasePath,
-    searchParamName: props.searchParamName,
-    searchQuery,
-  });
-
   return (
     <DataTableShell
       emptyMessage={emptyMessage}
@@ -140,6 +153,7 @@ export function ServerDataTable<TData>(props: ServerDataTableProps<TData>) {
       }}
       search={{
         onChange: setSearchQuery,
+        onClear: clearSearchQuery,
         placeholder: props.searchPlaceholder,
         query: searchQuery,
       }}
@@ -252,59 +266,116 @@ function useServerReactTable<TData>({
   });
 }
 
-function useServerSearchNavigation({
-  currentHref,
-  currentSearch,
-  lastAppliedSearchValueRef,
-  navigate,
-  pageParamName,
-  resolvedBasePath,
-  searchParamName,
-  searchQuery,
+/**
+ * The search box's state for a server-paginated table: the reader's keystrokes
+ * land in the box at once and reach the loader debounced, through the URL.
+ *
+ * The loader answers the keystroke that asked for it long after it was typed,
+ * and by then the reader has usually typed on. So a search arriving from the
+ * address bar only replaces what is in the box when it did not come from here:
+ * every search this hook navigates with is queued, and an arriving one found in
+ * the queue is its own echo, which the box ignores. Anything else — Back, a
+ * shared link, a view resetting its filters — is an outside change, and the box
+ * adopts it.
+ */
+function useServerSearchQuery({
+  applySearch,
+  initialSearchValue,
 }: {
-  currentHref: string;
-  currentSearch: string;
-  lastAppliedSearchValueRef: { current: string };
-  navigate: ReturnType<typeof useNavigate>;
-  pageParamName?: string;
-  resolvedBasePath: string;
-  searchParamName?: string;
-  searchQuery: string;
+  applySearch: (searchValue: string) => void;
+  initialSearchValue: string;
 }) {
+  const [searchQuery, setSearchQuery] = useState(initialSearchValue);
+  // `applySearch` closes over the current URL, so it changes on every render; a
+  // ref keeps the debounce keyed on the typed value alone.
+  const applySearchRef = useRef(applySearch);
+  applySearchRef.current = applySearch;
+  // The searches navigated with and not yet echoed back, oldest first, and the
+  // one the address bar is expected to hold once they all land. The URL records
+  // the search trimmed, so both are trimmed too.
+  const pendingSearchValuesRef = useRef<string[]>([]);
+  const targetSearchValueRef = useRef(initialSearchValue.trim());
+
   useEffect(() => {
-    if (searchQuery === lastAppliedSearchValueRef.current) {
+    const echoIndex =
+      pendingSearchValuesRef.current.indexOf(initialSearchValue);
+
+    if (echoIndex >= 0) {
+      // Ours, along with any earlier one a later navigation interrupted before
+      // its loader could answer.
+      pendingSearchValuesRef.current = pendingSearchValuesRef.current.slice(
+        echoIndex + 1,
+      );
+      return;
+    }
+
+    pendingSearchValuesRef.current = [];
+    targetSearchValueRef.current = initialSearchValue;
+    setSearchQuery(initialSearchValue);
+  }, [initialSearchValue]);
+
+  // The typed value is the authority on its own surrounding spaces, so a search
+  // already recorded trimmed is not navigated with again for a space the reader
+  // is still typing past.
+  useEffect(() => {
+    if (searchQuery.trim() === targetSearchValueRef.current) {
       return;
     }
 
     const timeoutId = window.setTimeout(() => {
-      const nextHref = buildDataTableSearchHref({
-        basePath: resolvedBasePath,
-        currentSearch,
-        pageParamName,
-        searchParamName,
+      applyServerSearch({
+        applySearchRef,
+        pendingSearchValuesRef,
         searchValue: searchQuery,
+        targetSearchValueRef,
       });
-
-      lastAppliedSearchValueRef.current = searchQuery;
-
-      if (nextHref !== currentHref) {
-        void navigate(nextHref, { replace: true });
-      }
-    }, 300);
+    }, dataTableSearchDebounceMs);
 
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [
-    currentHref,
-    currentSearch,
-    lastAppliedSearchValueRef,
-    navigate,
-    pageParamName,
-    resolvedBasePath,
-    searchParamName,
+  }, [searchQuery]);
+
+  return {
+    // Clearing is a decision, not a pause in typing: it reaches the loader
+    // without waiting out the debounce.
+    clearSearchQuery: () => {
+      setSearchQuery("");
+      applyServerSearch({
+        applySearchRef,
+        pendingSearchValuesRef,
+        searchValue: "",
+        targetSearchValueRef,
+      });
+    },
     searchQuery,
-  ]);
+    setSearchQuery,
+  };
+}
+
+function applyServerSearch({
+  applySearchRef,
+  pendingSearchValuesRef,
+  searchValue,
+  targetSearchValueRef,
+}: {
+  applySearchRef: { current: (searchValue: string) => void };
+  pendingSearchValuesRef: { current: string[] };
+  searchValue: string;
+  targetSearchValueRef: { current: string };
+}) {
+  const recordedSearchValue = searchValue.trim();
+
+  if (recordedSearchValue === targetSearchValueRef.current) {
+    return;
+  }
+
+  targetSearchValueRef.current = recordedSearchValue;
+  pendingSearchValuesRef.current = [
+    ...pendingSearchValuesRef.current,
+    recordedSearchValue,
+  ];
+  applySearchRef.current(searchValue);
 }
 
 function createServerFacetedFilterHandler({

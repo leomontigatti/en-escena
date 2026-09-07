@@ -9,6 +9,13 @@ export const dataTablePageParamName = "pagina";
 export const dataTableSearchParamName = "busqueda";
 export const dataTableSortParamName = "orden";
 
+/**
+ * How long both tables wait before writing a search to the address bar. Long
+ * enough that a reader still typing writes nothing, short enough that the
+ * address bar settles as soon as they stop.
+ */
+export const dataTableSearchDebounceMs = 300;
+
 export type DataTableSortDirection = "asc" | "desc";
 
 export type DataTableSort = {
