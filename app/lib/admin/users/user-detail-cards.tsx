@@ -1,12 +1,11 @@
 import { type ReactNode } from "react";
-import { Link } from "react-router";
 
 import { AdminResourceFormCard } from "@/components/admin/resource-layout";
+import { BackButton } from "@/components/shared/action-buttons";
 import {
   ReadOnlyField,
   ReadOnlySelectField,
 } from "@/components/shared/read-only-field";
-import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import {
   detailUserRoleOptions,
@@ -45,13 +44,7 @@ export function AcademyUserFormCard({
   user: DetailUser;
 }) {
   return (
-    <UserFormCard
-      footer={
-        <Button asChild variant="outline">
-          <Link to={backToList}>Volver</Link>
-        </Button>
-      }
-    >
+    <UserFormCard footer={<BackButton to={backToList} />}>
       <ReadOnlyField label="Nombre" value={user.name} />
       <ReadOnlyField label="Correo de acceso" value={user.email ?? ""} />
       <ReadOnlyField label="Tipo" value="Usuario de academia" />

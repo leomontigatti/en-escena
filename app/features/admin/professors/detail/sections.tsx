@@ -3,6 +3,7 @@ import type { FormEventHandler } from "react";
 import { Link } from "react-router";
 
 import { AdminResourceFormCard } from "@/components/admin/resource-layout";
+import { BackButton } from "@/components/shared/action-buttons";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { ArchivedPersonAlert } from "@/components/shared/archived-person-alert";
 import {
@@ -214,11 +215,13 @@ function ProfessorDetailFooterActions({
 }) {
   return (
     <>
-      <Button asChild variant="outline">
-        <Link to={isEditing ? cancelHref : backToList}>
-          {isEditing ? "Cancelar" : "Volver"}
-        </Link>
-      </Button>
+      {isEditing ? (
+        <Button asChild variant="outline">
+          <Link to={cancelHref}>Cancelar</Link>
+        </Button>
+      ) : (
+        <BackButton to={backToList} />
+      )}
       <ProfessorPrimaryFooterAction
         canEdit={canEdit}
         editFormId={editFormId}

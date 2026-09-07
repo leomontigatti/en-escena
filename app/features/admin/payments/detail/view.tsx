@@ -1,14 +1,14 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { Link, useSubmit } from "react-router";
+import { useSubmit } from "react-router";
 import { Trash2 } from "lucide-react";
 
 import {
   AdminResourceFormCard,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
-import { SubmitButton } from "@/components/shared/action-buttons";
+import { BackButton, SubmitButton } from "@/components/shared/action-buttons";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
 import {
   ReadOnlyDateField,
@@ -18,7 +18,6 @@ import {
 } from "@/components/shared/read-only-field";
 import { MetricCard } from "@/components/shared/metric-card";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
-import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
 import { formatAmount } from "@/lib/finances/formatters";
@@ -253,11 +252,7 @@ function EditablePaymentDetailForm({
         contentClassName="gap-5"
         footer={
           <>
-            <Button asChild variant="outline">
-              <Link to={getPaymentsListUrl(loaderData.selectedEventId)}>
-                Volver
-              </Link>
-            </Button>
+            <BackButton to={getPaymentsListUrl(loaderData.selectedEventId)} />
             <SubmitButton isPending={isPending} />
           </>
         }
@@ -283,11 +278,7 @@ function ReadOnlyPaymentDetail({ loaderData }: { loaderData: LoaderData }) {
     <AdminResourceFormCard
       contentClassName="gap-5"
       footer={
-        <Button asChild variant="outline">
-          <Link to={getPaymentsListUrl(loaderData.selectedEventId)}>
-            Volver
-          </Link>
-        </Button>
+        <BackButton to={getPaymentsListUrl(loaderData.selectedEventId)} />
       }
     >
       <FieldGroup className="grid gap-5 md:grid-cols-2">

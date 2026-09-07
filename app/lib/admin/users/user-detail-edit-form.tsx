@@ -2,8 +2,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Check } from "lucide-react";
 import { useEffect, type FormEvent } from "react";
 import { type SubmitHandler, useForm } from "react-hook-form";
-import { Link } from "react-router";
 
+import { BackButton } from "@/components/shared/action-buttons";
 import { ReadOnlyField } from "@/components/shared/read-only-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { Button } from "@/components/ui/button";
@@ -60,9 +60,7 @@ export function InternalUserEditCard({
       <UserFormCard
         footer={
           <>
-            <Button asChild variant="outline">
-              <Link to={cancelHref}>Volver</Link>
-            </Button>
+            <BackButton to={cancelHref} />
             <Button type="submit">
               <Check aria-hidden="true" data-icon="inline-start" />
               Guardar

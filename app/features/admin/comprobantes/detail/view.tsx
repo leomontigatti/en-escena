@@ -6,6 +6,7 @@ import {
   AdminResourceFormCard,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
+import { BackButton } from "@/components/shared/action-buttons";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -130,11 +131,7 @@ function ComprobanteDetailCard({
   return (
     <AdminResourceFormCard
       contentClassName="gap-4"
-      footer={
-        <Button asChild variant="outline">
-          <Link to="/administracion/comprobantes">Volver</Link>
-        </Button>
-      }
+      footer={<BackButton to="/administracion/comprobantes" />}
     >
       <div className="flex flex-col gap-3">
         <DetailRow
