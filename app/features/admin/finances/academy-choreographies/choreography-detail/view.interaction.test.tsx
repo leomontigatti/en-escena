@@ -650,7 +650,7 @@ function renderedDancerNames() {
   ].map((row) => row.querySelector("td")?.textContent?.trim() ?? "");
 }
 
-/** Opens the filters menu and toggles an `Estado` option by its label. */
+/** Opens the filters panel and picks an `Estado` option by its label. */
 async function selectStatusOption(label: string) {
   const trigger = document.querySelector('button[aria-label^="Filtros"]');
 
@@ -658,36 +658,27 @@ async function selectStatusOption(label: string) {
     throw new Error("Expected the filters trigger to be rendered.");
   }
 
-  const pointerDown = new MouseEvent("pointerdown", {
-    bubbles: true,
-    button: 0,
-    cancelable: true,
-  });
-  Object.defineProperty(pointerDown, "pointerType", { value: "mouse" });
-
-  await updateReactDomForm(() => {
-    trigger.dispatchEvent(pointerDown);
-    trigger.dispatchEvent(
-      new MouseEvent("pointerup", { bubbles: true, button: 0 }),
-    );
-    trigger.dispatchEvent(
-      new MouseEvent("click", { bubbles: true, cancelable: true }),
-    );
-  });
-
-  const option = [...document.querySelectorAll('[role="menuitemradio"]')].find(
-    (candidate) => candidate.textContent?.trim() === label,
-  );
-
-  if (!option) {
-    throw new Error(`Expected the "${label}" status option to be offered.`);
+  if (!document.querySelector('[data-slot="filters-panel"]')) {
+    await updateReactDomForm(() => {
+      trigger.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, cancelable: true }),
+      );
+    });
   }
 
-  await updateReactDomForm(() => {
-    option.dispatchEvent(
-      new MouseEvent("click", { bubbles: true, cancelable: true }),
-    );
-  });
+  const field = [...document.querySelectorAll("label[for]")].find(
+    (candidate) => candidate.textContent?.trim() === "Estado",
+  );
+  const picker = field
+    ? document.getElementById(field.getAttribute("for") ?? "")
+    : null;
+
+  if (!picker) {
+    throw new Error("Expected the panel to offer the `Estado` filter.");
+  }
+
+  await openRadixSelect(picker);
+  await selectRadixOption(label);
 }
 
 /** The price picker of the allocation shape, named by the one it is. */
