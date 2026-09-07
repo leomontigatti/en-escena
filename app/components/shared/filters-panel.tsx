@@ -271,6 +271,17 @@ export function FiltersPanelRegion() {
  *
  * Unlike the region it mirrors, this one does lie over the list: with no shell
  * to be laid out beside, there is nothing for it to push.
+ *
+ * It is kept deliberately, and a reader counting its callers will not find the
+ * reason. Every list today hangs off `routes/administracion.tsx` or
+ * `routes/portal.tsx`, both of which provide the region, so in production this
+ * never draws — only a test rendering a view on its own reaches it. What it
+ * guards against is the failure that has no symptom: a new route that forgets
+ * the provider would still render the toolbar's `Filtros` button, still badge
+ * it with the count of active filters, and do nothing at all when it is
+ * pressed. A dead control says less than a missing one, and nothing would
+ * report it. The cost of keeping this is a screenful of code; the cost of
+ * dropping it is a filter button that lies.
  */
 export function StandaloneFiltersPanel({
   content,
