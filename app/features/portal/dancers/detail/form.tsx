@@ -111,7 +111,7 @@ export function PortalDancerBirthDateField({
       buttonClassName="mt-0 h-8 w-full font-normal"
       defaultMonth={birthDateMonths.defaultMonth}
       endMonth={birthDateMonths.endMonth}
-      startMonth={new Date(1900, 0)}
+      startMonth={birthDateMonths.startMonth}
     />
   );
 }

@@ -9,7 +9,10 @@ import {
 } from "@/lib/storage/dancer-documents.server";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import { findDancerInscriptions } from "@/lib/dancers/inscriptions.server";
-import { findActiveEventStartDateOnly } from "@/lib/events/active-event.server";
+import {
+  findActiveEventStartDateOnly,
+  getEventStartDateOnly,
+} from "@/lib/events/active-event.server";
 import { getPortalActiveEventContext } from "@/lib/portal/event-context.server";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
 import {
@@ -48,7 +51,7 @@ export async function loadPortalDancerDetail(input: {
   });
 
   return {
-    activeEventStartDate: await findActiveEventStartDateOnly(),
+    activeEventStartDate: getEventStartDateOnly(eventContext.activeEvent),
     dancer,
     documentImageUrls: await loadDancerDocumentImageUrls({
       documentBackImageStorageKey: dancer.documentBackImageStorageKey,

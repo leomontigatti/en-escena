@@ -89,7 +89,7 @@ export type DancerDetailViewState = {
 
 export type DancerEditFormValues = DancerUpdateInput;
 
-export function buildDancerUpdateSchema(eventStartDate?: string | null) {
+export function buildDancerUpdateSchema(eventStartDate: string | null) {
   return z
     .object({
       firstName: z.string().trim().min(1, requiredFieldMessage),

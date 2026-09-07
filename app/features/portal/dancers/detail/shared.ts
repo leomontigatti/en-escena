@@ -18,7 +18,7 @@ export const portalDancerFormId = "portal-bailarin-form";
 export const portalDancerInvalidValuesMessage =
   "Revisá los datos del Bailarín.";
 
-export function buildPortalDancerSchema(eventStartDate?: string | null) {
+export function buildPortalDancerSchema(eventStartDate: string | null) {
   return z
     .object({
       firstName: z.string().trim().min(1, requiredFieldMessage),

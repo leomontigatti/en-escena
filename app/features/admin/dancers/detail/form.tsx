@@ -93,7 +93,7 @@ export function DancerBirthDateField({
       label="Fecha de nacimiento"
       defaultMonth={birthDateMonths.defaultMonth}
       endMonth={birthDateMonths.endMonth}
-      startMonth={new Date(1900, 0)}
+      startMonth={birthDateMonths.startMonth}
     />
   );
 }

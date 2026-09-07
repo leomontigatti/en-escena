@@ -35,10 +35,6 @@ describe("birth date refinement", () => {
 
   test("applies only the date checks without an event start", () => {
     expect(parseBirthDate("2026-01-15", null)).toEqual([]);
-    expect(
-      z.string().superRefine(buildBirthDateRefinement()).safeParse("2026-01-15")
-        .success,
-    ).toBe(true);
     expect(parseBirthDate("2026-02-30", null)).toEqual([
       invalidBirthDateMessage,
     ]);
@@ -81,7 +77,7 @@ describe("birth date picker months", () => {
   test("falls back to today without an active event", () => {
     const today = new Date();
 
-    for (const eventStart of [null, undefined, "no-es-fecha"]) {
+    for (const eventStart of [null, "no-es-fecha"]) {
       const months = getBirthDatePickerMonths(eventStart);
 
       expect(months.defaultMonth.getFullYear()).toBe(today.getFullYear());
@@ -89,6 +85,15 @@ describe("birth date picker months", () => {
       expect(months.endMonth.getFullYear()).toBe(today.getFullYear());
       expect(months.endMonth.getMonth()).toBe(today.getMonth());
     }
+  });
+
+  test("offers the same oldest month with and without an active event", () => {
+    expect(getBirthDatePickerMonths(eventStartDate).startMonth).toEqual(
+      getBirthDatePickerMonths(null).startMonth,
+    );
+    expect(
+      getBirthDatePickerMonths(eventStartDate).startMonth.getFullYear(),
+    ).toBe(1900);
   });
 });
 

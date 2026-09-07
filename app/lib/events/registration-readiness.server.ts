@@ -344,7 +344,7 @@ function countCategoriesByAge(
 
     for (const modality of reachedModalities) {
       for (const groupType of reachedGroupTypes) {
-        const pair = takeAgeCoveragePair(pairs, modality, groupType);
+        const pair = getOrCreateAgeCoveragePair(pairs, modality, groupType);
         const from = Math.max(category.minAge, youngestCoveredAge);
         const to = Math.min(category.maxAge, oldestCoveredAge);
 
@@ -358,7 +358,7 @@ function countCategoriesByAge(
   return pairs;
 }
 
-function takeAgeCoveragePair(
+function getOrCreateAgeCoveragePair(
   pairs: Map<string, AgeCoveragePair>,
   modality: { id: string; name: string },
   groupType: GroupType,

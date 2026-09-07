@@ -5,7 +5,7 @@ import { requiredFieldMessage } from "@/lib/shared/forms";
 
 export const createDancerIntent = "create-dancer";
 
-export function buildCreateDancerSchema(eventStartDate?: string | null) {
+export function buildCreateDancerSchema(eventStartDate: string | null) {
   return z.object({
     firstName: z.string().trim().min(1, requiredFieldMessage),
     lastName: z.string().trim().min(1, requiredFieldMessage),

@@ -8,8 +8,7 @@ const minimumDancerAgeAtEventStart = 1;
 export const invalidBirthDateMessage = "Usá una fecha válida.";
 export const futureBirthDateMessage =
   "La fecha de nacimiento no puede ser futura.";
-export const underageBirthDateMessage =
-  "El Bailarín debe tener al menos 1 año cumplido cuando empieza el evento.";
+export const underageBirthDateMessage = `El Bailarín debe tener al menos ${minimumDancerAgeAtEventStart} año cumplido cuando empieza el evento.`;
 
 /**
  * The newest birth date that still leaves a dancer old enough at `eventStartDate`.
@@ -30,17 +29,24 @@ export function getLatestEligibleBirthDate(eventStartDate: string) {
  */
 const typicalDancerAgeAtEventStart = 12;
 
+/** The oldest month the picker offers, well below any living dancer's. */
+const earliestOfferedMonth = new Date(1900, 0);
+
 /**
  * The months the birth-date picker opens on and the newest one it offers. They
  * answer different questions: the bound is the newest birth date that still
  * competes, while the default month is an ergonomics choice deliberately far
  * from it. Without an active event both fall back to today.
  */
-export function getBirthDatePickerMonths(eventStartDate?: string | null) {
+export function getBirthDatePickerMonths(eventStartDate: string | null) {
   if (!eventStartDate || !isDateOnly(eventStartDate)) {
     const today = new Date();
 
-    return { defaultMonth: today, endMonth: today };
+    return {
+      defaultMonth: today,
+      endMonth: today,
+      startMonth: earliestOfferedMonth,
+    };
   }
 
   const [year, month] = eventStartDate.split("-").map(Number);
@@ -48,6 +54,7 @@ export function getBirthDatePickerMonths(eventStartDate?: string | null) {
   return {
     defaultMonth: new Date(year - typicalDancerAgeAtEventStart, month - 1),
     endMonth: new Date(year - minimumDancerAgeAtEventStart, month - 1),
+    startMonth: earliestOfferedMonth,
   };
 }
 
@@ -57,7 +64,7 @@ export function getBirthDatePickerMonths(eventStartDate?: string | null) {
  * event start — no active event — only the first two checks apply, because age
  * is a property of a (dancer, event) pair rather than of the roster row.
  */
-export function buildBirthDateRefinement(eventStartDate?: string | null) {
+export function buildBirthDateRefinement(eventStartDate: string | null) {
   return (value: string, context: z.RefinementCtx) => {
     if (value.length === 0) {
       return;
@@ -91,10 +98,11 @@ export function buildBirthDateRefinement(eventStartDate?: string | null) {
  */
 export function getUnderageDancersMessage(dancerNames: string[]) {
   const names = dancerNames.join(", ");
+  const age = `al menos ${minimumDancerAgeAtEventStart} año cumplido cuando empieza el evento`;
 
   return dancerNames.length === 1
-    ? `${names} debe tener al menos 1 año cumplido cuando empieza el evento. Corregí su fecha de nacimiento y volvé a registrar la coreografía.`
-    : `${names} deben tener al menos 1 año cumplido cuando empieza el evento. Corregí sus fechas de nacimiento y volvé a registrar la coreografía.`;
+    ? `${names} debe tener ${age}. Corregí su fecha de nacimiento y volvé a registrar la coreografía.`
+    : `${names} deben tener ${age}. Corregí sus fechas de nacimiento y volvé a registrar la coreografía.`;
 }
 
 /**

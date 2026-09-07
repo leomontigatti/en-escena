@@ -16,5 +16,16 @@ export async function findActiveEventStartDateOnly(): Promise<string | null> {
     orderBy: [desc(events.startsAt)],
   });
 
-  return activeEvent ? getBusinessDateOnly(activeEvent.startsAt) : null;
+  return getEventStartDateOnly(activeEvent ?? null);
+}
+
+/**
+ * The same day, read from an event a caller already loaded. A loader holding
+ * the portal's event context must not pay for a second lookup of the row it is
+ * already looking at.
+ */
+export function getEventStartDateOnly(
+  event: { startsAt: Date } | null,
+): string | null {
+  return event ? getBusinessDateOnly(event.startsAt) : null;
 }
