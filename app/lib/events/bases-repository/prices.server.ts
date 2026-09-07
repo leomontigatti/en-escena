@@ -31,10 +31,17 @@ const frozenPriceUpdateError =
   "No se pueden editar monto, tipo de grupo, vencimiento ni cronograma porque hay inscripciones que congelaron este precio.";
 const frozenPriceDeleteError =
   "No se puede borrar el precio porque hay inscripciones que congelaron este precio.";
+// The guard tests two things — that this is the group type's only row with no
+// deadline, and that the group type carries active inscriptions — but not that
+// those inscriptions read this row. A group type whose inscriptions have all
+// frozen onto another row is still refused, and correctly so: the roster admin
+// path skips the readiness gate, so nothing else would stop a later un-frozen
+// inscription from landing on an uncovered path. The copy therefore states the
+// two conditions without claiming a dependency that may not hold.
 const uncoveredPriceUpdateError =
-  "No se puede editar el precio porque es el único sin fecha límite de ese tipo de grupo y hay inscripciones activas que dependen de él.";
+  "No se puede editar el precio porque es el único sin fecha límite de ese tipo de grupo, que tiene inscripciones activas. Podés cambiarle el monto.";
 const uncoveredPriceDeleteError =
-  "No se puede borrar el precio porque es el único sin fecha límite de ese tipo de grupo y hay inscripciones activas que dependen de él.";
+  "No se puede borrar el precio porque es el único sin fecha límite de ese tipo de grupo, que tiene inscripciones activas.";
 
 export async function listPrices(eventId: string): Promise<PriceListItem[]> {
   const eventPrices = await db.query.prices.findMany({

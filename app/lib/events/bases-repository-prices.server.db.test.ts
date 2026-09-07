@@ -566,6 +566,53 @@ describe("`Bases del evento` repository", () => {
     });
   });
 
+  test("refuses the open-ended price of a fully frozen group type without claiming its inscriptions read it", async () => {
+    const { datedRung, inscription, openEnded } =
+      await createCoveredPathFixture({
+        academyName: "Academia Congelada Entera",
+        choreographyName: "Coreografía Congelada Entera",
+        email: "academia.congelada.entera@example.com",
+        eventName: "Regional 2038",
+      });
+
+    // Every active inscription of `solo` now reads its own stored row, so none
+    // of them depends on the tail. The refusal is still right — the roster
+    // admin path skips the readiness gate, so a later un-frozen inscription
+    // could land on an uncovered path — but the copy must not assert a
+    // dependency that is not there.
+    await db
+      .update(choreographyDancers)
+      .set({ selectedPriceId: datedRung.id })
+      .where(eq(choreographyDancers.id, inscription.id));
+
+    await expect(deletePrice(openEnded.id)).resolves.toMatchObject({
+      ok: false,
+      code: "event-bases-has-dependencies",
+      error: uncoveredDeleteError,
+    });
+    await expect(
+      updatePrice(openEnded.id, {
+        groupType: "solo",
+        amount: 20000,
+        paymentDeadline: "2099-12-31",
+        scheduleId: null,
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      code: "event-bases-has-dependencies",
+      error: uncoveredUpdateError,
+    });
+    // What the update message points at: repricing the tail stays open.
+    await expect(
+      updatePrice(openEnded.id, {
+        groupType: "solo",
+        amount: 26000,
+        paymentDeadline: null,
+        scheduleId: null,
+      }),
+    ).resolves.toMatchObject({ ok: true, record: { amount: 26000 } });
+  });
+
   test("keeps blocking a frozen price even when the group type keeps its open-ended price", async () => {
     const { academy, choreography, datedRung } = await createCoveredPathFixture(
       {
@@ -644,9 +691,9 @@ const frozenUpdateError =
 const frozenDeleteError =
   "No se puede borrar el precio porque hay inscripciones que congelaron este precio.";
 const uncoveredUpdateError =
-  "No se puede editar el precio porque es el único sin fecha límite de ese tipo de grupo y hay inscripciones activas que dependen de él.";
+  "No se puede editar el precio porque es el único sin fecha límite de ese tipo de grupo, que tiene inscripciones activas. Podés cambiarle el monto.";
 const uncoveredDeleteError =
-  "No se puede borrar el precio porque es el único sin fecha límite de ese tipo de grupo y hay inscripciones activas que dependen de él.";
+  "No se puede borrar el precio porque es el único sin fecha límite de ese tipo de grupo, que tiene inscripciones activas.";
 
 // A `solo` path with one active un-frozen inscription: the state the guard has
 // to see. The catalog seeds the dated rung, and the open-ended row is the tail
