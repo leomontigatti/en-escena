@@ -28,6 +28,7 @@ import {
   FILTERS_PANEL_REGION_ID,
   StandaloneFiltersPanel,
   useFiltersPanelOwner,
+  type FiltersPanelContent,
 } from "@/components/shared/filters-panel";
 
 /**
@@ -69,6 +70,54 @@ function useReturnFocusOnClose(
   }, [hideTooltip, isOpen, triggerRef]);
 }
 
+/**
+ * Which panel this trigger drives, and how to work it.
+ *
+ * A trigger inside a shell drives the shell's panel, which is one panel shared
+ * by the page. A trigger with no shell around it drives one of its own. The
+ * difference is answered here so that the trigger below only has a panel that
+ * opens and closes, whichever of the two it turned out to be.
+ */
+function useFiltersPanelTarget(content: FiltersPanelContent) {
+  const fallbackPanelId = useId();
+  const [isFallbackOpen, setIsFallbackOpen] = useState(false);
+  const shellPanel = useFiltersPanelOwner(content);
+  const hasFallback = !shellPanel.isAvailable;
+
+  return {
+    closeFallback: () => setIsFallbackOpen(false),
+    fallbackPanelId,
+    isFallbackShowing: hasFallback && isFallbackOpen,
+    isOpen: hasFallback ? isFallbackOpen : shellPanel.isOpen,
+    // The shell's panel is drawn whether or not it is open, so the trigger can
+    // point at it either way; its own is only there once it has been opened.
+    panelId: hasFallback
+      ? isFallbackOpen
+        ? fallbackPanelId
+        : undefined
+      : FILTERS_PANEL_REGION_ID,
+    toggle: () => {
+      if (hasFallback) {
+        setIsFallbackOpen((wasOpen) => !wasOpen);
+      } else {
+        shellPanel.toggle();
+      }
+    },
+  };
+}
+
+/** The count of groups the reader has narrowed the list by. */
+function SelectedFilterCountBadge({ count }: { count: number }) {
+  return (
+    <Badge
+      variant="secondary"
+      className="pointer-events-none absolute -top-2 -right-2 min-w-5 justify-center px-1"
+    >
+      {count}
+    </Badge>
+  );
+}
+
 type DataTableFacetedFilterControlProps = {
   groups: DataTableFacetedFilter[];
   selectedValues: DataTableFacetedFilterValue;
@@ -96,27 +145,17 @@ export function DataTableFacetedFilterControl({
   const selectedCount = getActiveFacetedFilterValues(selectedValues).length;
   const hasSelectedValues = selectedCount > 0;
   const tooltipId = useId();
-  const fallbackPanelId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [isTooltipOpen, setIsTooltipOpen] = useState(false);
-  const [isFallbackOpen, setIsFallbackOpen] = useState(false);
-  const shellPanel = useFiltersPanelOwner({ groups, onChange, selectedValues });
-  const isOpen = shellPanel.isAvailable ? shellPanel.isOpen : isFallbackOpen;
-  // The shell's panel is drawn whether or not it is open, so the trigger can
-  // point at it either way; its own is only there once it has been opened.
-  const controlledPanelId = shellPanel.isAvailable
-    ? FILTERS_PANEL_REGION_ID
-    : isFallbackOpen
-      ? fallbackPanelId
-      : undefined;
+  const panel = useFiltersPanelTarget({ groups, onChange, selectedValues });
 
-  useReturnFocusOnClose(isOpen, triggerRef, setIsTooltipOpen);
+  useReturnFocusOnClose(panel.isOpen, triggerRef, setIsTooltipOpen);
   const triggerLabel = hasSelectedValues
     ? `Filtros: ${getFacetedFilterSummary(groups, selectedValues)}`
     : "Filtros";
 
   const handleTooltipOpenChange = (open: boolean) => {
-    if (open && isOpen) {
+    if (open && panel.isOpen) {
       return;
     }
 
@@ -124,12 +163,7 @@ export function DataTableFacetedFilterControl({
   };
 
   const togglePanel = () => {
-    if (shellPanel.isAvailable) {
-      shellPanel.toggle();
-    } else {
-      setIsFallbackOpen((wasOpen) => !wasOpen);
-    }
-
+    panel.toggle();
     setIsTooltipOpen(false);
   };
 
@@ -142,21 +176,16 @@ export function DataTableFacetedFilterControl({
             type="button"
             variant="outline"
             size="icon-sm"
-            aria-controls={controlledPanelId}
+            aria-controls={panel.panelId}
             aria-describedby={tooltipId}
-            aria-expanded={isOpen}
+            aria-expanded={panel.isOpen}
             aria-label={triggerLabel}
             className="relative"
             onClick={togglePanel}
           >
             <ListFilter data-icon />
             {hasSelectedValues ? (
-              <Badge
-                variant="secondary"
-                className="pointer-events-none absolute -top-2 -right-2 min-w-5 justify-center px-1"
-              >
-                {selectedCount}
-              </Badge>
+              <SelectedFilterCountBadge count={selectedCount} />
             ) : null}
             <span className="sr-only">{triggerLabel}</span>
           </Button>
@@ -165,11 +194,11 @@ export function DataTableFacetedFilterControl({
           Filtros
         </TooltipContent>
       </Tooltip>
-      {!shellPanel.isAvailable && isFallbackOpen ? (
+      {panel.isFallbackShowing ? (
         <StandaloneFiltersPanel
-          id={fallbackPanelId}
+          id={panel.fallbackPanelId}
           content={{ groups, onChange, selectedValues }}
-          onClose={() => setIsFallbackOpen(false)}
+          onClose={panel.closeFallback}
         />
       ) : null}
     </>

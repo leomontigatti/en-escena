@@ -7,6 +7,7 @@ import { afterEach, describe, expect, test } from "vitest";
 import { AdminShell } from "@/components/admin/shell";
 import { ClientDataTable } from "@/components/shared/data-table";
 import type { DataTableColumn } from "@/components/shared/data-table";
+import { openRadixSelect } from "@/lib/test-support/radix-select";
 import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 
 type Row = {
@@ -92,20 +93,32 @@ describe("filters panel in the shell", () => {
     expect(getPanel().dataset.state).toBe("closed");
   });
 
-  // A group's picker draws its options in a portal, outside the panel: the
-  // Escape that dismisses the picker must not take the panel with it.
-  test("leaves the panel open on Escape from a portal outside it", async () => {
+  // A group's picker draws its options in a portal, outside the panel. Escape
+  // has to reach only as far as the picker: closing the panel behind it would
+  // take away every other group the reader had not finished with.
+  test("dismisses an open group picker without closing the panel", async () => {
     await renderShellWithTable();
     await clickFiltersTrigger();
 
-    const portalled = document.createElement("div");
-    document.body.append(portalled);
+    await openRadixSelect(
+      getPanelContainer().querySelector('[data-slot="select-trigger"]'),
+    );
 
-    await pressEscapeOn(portalled);
+    const picker = document.querySelector('[data-slot="select-content"]');
 
+    if (!(picker instanceof HTMLElement)) {
+      throw new Error("Expected the group's picker to be open.");
+    }
+
+    // The premise of the whole arrangement: the picker is drawn outside the
+    // panel, so an Escape raised in it never travels through the panel.
+    expect(getPanelContainer().contains(picker)).toBe(false);
+    expect(getRenderedOptionLabels()).toContain("Archivado");
+
+    await pressEscapeOn(picker);
+
+    expect(getRenderedOptionLabels()).toEqual([]);
     expect(getPanel().dataset.state).toBe("open");
-
-    portalled.remove();
   });
 
   // A closed panel is `inert`, so whatever was focused inside it cannot stay
@@ -152,6 +165,12 @@ function getPanelContainer() {
   }
 
   return container;
+}
+
+function getRenderedOptionLabels() {
+  return [...document.querySelectorAll('[data-slot="select-item"]')].map(
+    (option) => option.textContent?.trim() ?? "",
+  );
 }
 
 function getFiltersTrigger() {

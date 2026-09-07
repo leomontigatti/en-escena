@@ -52,6 +52,12 @@ type ChoreographyListFilters = {
 };
 
 type ChoreographyStatusFilter = "completa" | "incompleta" | null;
+
+/** What each status the reader can pick is called on an operational status. */
+const CHOREOGRAPHY_STATUS_CODES = {
+  completa: "complete",
+  incompleta: "incomplete",
+} as const;
 type ChoreographyCategoryFilter = string | "sin-asignar" | null;
 type ChoreographyScheduleDateFilter = string | "sin-asignar" | null;
 type HydratedChoreographyRow = ChoreographyListItem & {
@@ -479,20 +485,29 @@ function normalizeChoreographyFilters(
   };
 }
 
+/**
+ * The two halves are asked in this order on purpose: the facets are a handful
+ * of comparisons and the search normalizes three strings, so the rows the
+ * panel has already ruled out never reach it.
+ */
 function matchesChoreographyFilters(
   row: HydratedChoreographyRow,
   filters: ChoreographyListFilters,
 ) {
-  if (
-    filters.status === "completa" &&
-    row.operationalStatus.code !== "complete"
-  ) {
-    return false;
-  }
+  return (
+    matchesChoreographyFacets(row, filters) &&
+    matchesChoreographyQuery(row, filters.query)
+  );
+}
 
+/** Everything the filters panel offers: one answer per group. */
+function matchesChoreographyFacets(
+  row: HydratedChoreographyRow,
+  filters: ChoreographyListFilters,
+) {
   if (
-    filters.status === "incompleta" &&
-    row.operationalStatus.code !== "incomplete"
+    filters.status !== null &&
+    row.operationalStatus.code !== CHOREOGRAPHY_STATUS_CODES[filters.status]
   ) {
     return false;
   }
@@ -501,25 +516,23 @@ function matchesChoreographyFilters(
     return false;
   }
 
-  if (!matchesChoreographyCategory(row.categoryId, filters.category)) {
-    return false;
-  }
-
   if (filters.groupType !== null && row.groupType !== filters.groupType) {
     return false;
   }
 
-  if (
-    !matchesChoreographyScheduleDate(row.scheduleDate, filters.scheduleDate)
-  ) {
-    return false;
-  }
+  return (
+    matchesChoreographyCategory(row.categoryId, filters.category) &&
+    matchesChoreographyScheduleDate(row.scheduleDate, filters.scheduleDate)
+  );
+}
 
-  if (filters.query.length === 0) {
+/** What the search box asks, which is a different question from the panel's. */
+function matchesChoreographyQuery(row: HydratedChoreographyRow, query: string) {
+  if (query.length === 0) {
     return true;
   }
 
-  const normalizedQuery = normalizeSearchValue(filters.query);
+  const normalizedQuery = normalizeSearchValue(query);
 
   // The number is compared already zero-padded, so `42`, `042` and `00042` all
   // find the same choreography. It stays an `includes` like the rest of the
