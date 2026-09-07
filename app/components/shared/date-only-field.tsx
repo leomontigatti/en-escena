@@ -23,8 +23,23 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/shared/utils";
 
+/**
+ * What the calendar may offer, as one value: the caller that knows one of these
+ * knows all of them, and they only make sense together. `endMonth` bounds the
+ * month dropdown while `latestSelectableDate` bounds the days inside the last
+ * month it offers — a bound given only by month still shows clickable days past
+ * it.
+ */
+type DateOnlyFieldCalendarBounds = {
+  defaultMonth?: Date;
+  startMonth?: Date;
+  endMonth?: Date;
+  latestSelectableDate?: Date;
+};
+
 type DateOnlyFieldBaseProps = {
   buttonClassName?: string;
+  calendarBounds?: DateOnlyFieldCalendarBounds;
   className?: string;
   disabled?: boolean;
   error?: string;
@@ -37,8 +52,6 @@ type DateOnlyFieldBaseProps = {
   onBlur?: () => void;
   onValueChange?: (value: string) => void;
   orientation?: SharedFieldOrientation;
-  startMonth?: Date;
-  endMonth?: Date;
   value?: string;
 };
 
@@ -77,6 +90,7 @@ export function DateOnlyField<
 
 function DateOnlyFieldControl({
   buttonClassName,
+  calendarBounds,
   className,
   disabled = false,
   error,
@@ -89,8 +103,6 @@ function DateOnlyFieldControl({
   onBlur,
   onValueChange,
   orientation,
-  startMonth,
-  endMonth,
   value,
 }: DateOnlyFieldBaseProps) {
   const id = providedId ?? name;
@@ -114,15 +126,14 @@ function DateOnlyFieldControl({
           <div className="relative">
             <DateOnlyFieldPicker
               buttonClassName={buttonClassName}
+              calendarBounds={calendarBounds}
               dateValue={dateValue}
               describedBy={describedBy}
               disabled={disabled}
-              endMonth={endMonth}
               id={id}
               isInvalid={isInvalid}
               onBlur={onBlur}
               onValueChange={onValueChange}
-              startMonth={startMonth}
             />
             {disabled ? <FieldControlLockIcon /> : null}
           </div>
@@ -134,12 +145,7 @@ function DateOnlyFieldControl({
 
 type DateOnlyFieldPickerProps = Pick<
   DateOnlyFieldBaseProps,
-  | "buttonClassName"
-  | "disabled"
-  | "endMonth"
-  | "onBlur"
-  | "onValueChange"
-  | "startMonth"
+  "buttonClassName" | "calendarBounds" | "disabled" | "onBlur" | "onValueChange"
 > & {
   dateValue: string;
   describedBy?: string;
@@ -149,15 +155,14 @@ type DateOnlyFieldPickerProps = Pick<
 
 function DateOnlyFieldPicker({
   buttonClassName,
+  calendarBounds,
   dateValue,
   describedBy,
   disabled,
-  endMonth,
   id,
   isInvalid,
   onBlur,
   onValueChange,
-  startMonth,
 }: DateOnlyFieldPickerProps) {
   const [open, setOpen] = useState(false);
   const selectedDate = useMemo(
@@ -180,26 +185,22 @@ function DateOnlyFieldPicker({
           disabled={disabled}
           type="button"
           variant="outline"
-          className={cn(
-            "w-full cursor-pointer justify-between font-normal",
-            disabled && "pr-9",
-            buttonClassName,
-          )}
+          className={getTriggerClassName(disabled, buttonClassName)}
           aria-invalid={isInvalid ? true : undefined}
           aria-describedby={describedBy}
           onBlur={onBlur}
         >
-          {selectedDate
-            ? format(selectedDate, "d 'de' MMMM 'de' yyyy", { locale: es })
-            : "Elegí fecha"}
+          {getTriggerLabel(selectedDate)}
           {disabled ? null : <CalendarIcon data-icon="inline-end" />}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
         <Calendar
           captionLayout="dropdown"
-          startMonth={startMonth}
-          endMonth={endMonth}
+          defaultMonth={calendarBounds?.defaultMonth}
+          startMonth={calendarBounds?.startMonth}
+          endMonth={calendarBounds?.endMonth}
+          disabled={toDisabledDays(calendarBounds?.latestSelectableDate)}
           mode="single"
           selected={selectedDate}
           onSelect={(date) => {
@@ -211,6 +212,29 @@ function DateOnlyFieldPicker({
       </PopoverContent>
     </Popover>
   );
+}
+
+/** The trigger reads the chosen date, or invites the user to choose one. */
+function getTriggerLabel(selectedDate: Date | undefined) {
+  return selectedDate
+    ? format(selectedDate, "d 'de' MMMM 'de' yyyy", { locale: es })
+    : "Elegí fecha";
+}
+
+/** A locked field keeps room on the right for the lock icon drawn over it. */
+function getTriggerClassName(
+  disabled: boolean | undefined,
+  buttonClassName: string | undefined,
+) {
+  return cn(
+    "w-full cursor-pointer justify-between font-normal",
+    disabled && "pr-9",
+    buttonClassName,
+  );
+}
+
+function toDisabledDays(latestSelectableDate: Date | undefined) {
+  return latestSelectableDate ? { after: latestSelectableDate } : undefined;
 }
 
 function getDateOnlyValue(value: string) {

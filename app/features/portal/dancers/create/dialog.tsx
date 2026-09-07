@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { SubmitButton } from "@/components/shared/action-buttons";
 import { DateOnlyField } from "@/components/shared/date-only-field";
 import { TextInputField } from "@/components/shared/text-input-field";
+import { getBirthDatePickerBounds } from "@/lib/dancers/birth-date";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,8 +22,8 @@ import {
   type ReactRouterFormSubmit,
 } from "@/lib/shared/forms";
 import {
+  buildCreateDancerSchema,
   createDancerIntent,
-  createDancerSchema,
   emptyDancerValues,
   type CreateDancerActionData,
   type CreateDancerFormValues,
@@ -30,12 +31,14 @@ import {
 
 export function CreateDancerDialog({
   actionData,
+  eventStartDate,
   isOpen,
   isSubmitting,
   onOpenChange,
   submit,
 }: {
   actionData?: Extract<CreateDancerActionData, { status: "error" }>;
+  eventStartDate: string | null;
   isOpen: boolean;
   isSubmitting: boolean;
   onOpenChange: (nextOpen: boolean) => void;
@@ -43,7 +46,7 @@ export function CreateDancerDialog({
 }) {
   const birthDateId = useId();
   const form = useForm<CreateDancerFormValues>({
-    resolver: zodResolver(createDancerSchema),
+    resolver: zodResolver(buildCreateDancerSchema(eventStartDate)),
     defaultValues: actionData?.values ?? emptyDancerValues,
   });
 
@@ -89,8 +92,7 @@ export function CreateDancerDialog({
               name="birthDate"
               id={birthDateId}
               label="Fecha de nacimiento"
-              endMonth={new Date()}
-              startMonth={new Date(1900, 0)}
+              calendarBounds={getBirthDatePickerBounds(eventStartDate)}
             />
           </FieldGroup>
 

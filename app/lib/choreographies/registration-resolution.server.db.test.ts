@@ -19,6 +19,7 @@ import {
 import {
   createAcademySession,
   createDancer,
+  createGrupalOnlyModalityFixture,
   createEventCatalog,
   createEventRecord,
   createOpenEventCatalog,
@@ -494,7 +495,8 @@ describe.sequential("choreography registration resolution", () => {
       academyName: "Academia Pendiente",
       email: "registro.coreografia.pendiente@example.com",
     });
-    const { event, catalog } = await createOpenEventCatalog();
+    const { event } = await createOpenEventCatalog();
+    const grupalOnly = await createGrupalOnlyModalityFixture(event.id);
     const adultDancer = await createDancer(owner.academyId, {
       birthDate: "1990-01-01",
     });
@@ -503,8 +505,8 @@ describe.sequential("choreography registration resolution", () => {
       resolveChoreographyRegistrationOperation({
         academyId: owner.academyId,
         eventId: event.id,
-        modalityId: catalog.modality.id,
-        submodalityId: catalog.submodality.id,
+        modalityId: grupalOnly.modality.id,
+        submodalityId: null,
         dancerIds: [adultDancer.id],
       }),
     ).resolves.toMatchObject({
@@ -568,8 +570,8 @@ describe.sequential("choreography registration resolution", () => {
       .values({
         eventId: event.id,
         name: `Tap solo ${event.id}`,
-        minAge: 8,
-        maxAge: 12,
+        minAge: 1,
+        maxAge: 100,
         groupTypes: ["solo"],
         groupTypeKey: "solo",
         experienceLevelKey: "",
@@ -743,6 +745,63 @@ describe.sequential("choreography registration resolution", () => {
             }),
           ]),
         },
+      },
+    });
+  });
+
+  test("rejects a dancer who would be under one year old at the event start, naming them", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Bebé",
+      email: "registro.coreografia.bebe@example.com",
+    });
+    const { event, catalog } = await createOpenEventCatalog();
+    const infantDancer = await createDancer(owner.academyId, {
+      birthDate: "2026-01-10",
+      firstName: "Nina",
+      lastName: "Ríos",
+    });
+
+    await expect(
+      resolveChoreographyRegistrationOperation({
+        academyId: owner.academyId,
+        eventId: event.id,
+        modalityId: catalog.modality.id,
+        submodalityId: catalog.submodality.id,
+        dancerIds: [infantDancer.id],
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      code: "dancer-under-minimum-age",
+      error: expect.stringContaining("Nina Ríos"),
+    });
+  });
+
+  test("accepts a dancer who turns one exactly on the event start date", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Un Año",
+      email: "registro.coreografia.un-anio@example.com",
+    });
+    const { event, catalog } = await createOpenEventCatalog();
+    const dancer = await createDancer(owner.academyId, {
+      birthDate: "2025-05-01",
+    });
+
+    await expect(
+      resolveChoreographyRegistrationOperation({
+        academyId: owner.academyId,
+        eventId: event.id,
+        modalityId: catalog.modality.id,
+        submodalityId: catalog.submodality.id,
+        dancerIds: [dancer.id],
+      }),
+    ).resolves.toMatchObject({
+      ok: true,
+      resolution: {
+        category: {
+          status: "resolved",
+          id: catalog.childCategory.id,
+        },
+        dancers: [{ id: dancer.id, ageAtEventStart: 1 }],
       },
     });
   });

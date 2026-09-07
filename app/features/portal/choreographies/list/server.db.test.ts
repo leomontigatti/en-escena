@@ -470,8 +470,10 @@ describe.sequential("handlePortalChoreographiesListAction", () => {
     const category = await expectCreated(
       createCategory(event.id, {
         name: "Juvenil",
-        minAge: 11,
-        maxAge: 12,
+        // The whole 1-100 range, because readiness refuses a ladder with a
+        // hole and the creation this test drives goes through that gate.
+        minAge: 1,
+        maxAge: 100,
         groupTypes: ["solo"],
         modalityIds: [modality.id],
         experienceLevels: [level.id],

@@ -1,12 +1,13 @@
 import { z } from "zod";
 
+import { findActiveEventStartDateOnly } from "@/lib/events/active-event.server";
 import {
   createDancerForAcademy,
   type CreateDancerInput,
 } from "@/lib/portal/dancers.server";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
 import {
-  createDancerSchema,
+  buildCreateDancerSchema,
   type CreateDancerFormValues,
 } from "@/features/portal/dancers/create/shared";
 
@@ -22,7 +23,9 @@ export async function handleCreateDancerAction({
     lastName: formValue(formData, "lastName"),
     birthDate: formValue(formData, "birthDate"),
   };
-  const parsed = createDancerSchema.safeParse(values);
+  const parsed = buildCreateDancerSchema(
+    await findActiveEventStartDateOnly(),
+  ).safeParse(values);
 
   if (!parsed.success) {
     return {

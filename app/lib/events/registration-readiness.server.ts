@@ -228,6 +228,11 @@ export async function getEventRegistrationReadinessForBases(
   const modalitiesById = new Map(
     eventBases.modalities.map((modality) => [modality.id, modality]),
   );
+
+  missingItems.push(
+    ...collectAgeCoverageMissingItems(eventBases, modalitiesById),
+  );
+
   const submodalityCountByModalityId = countSubmodalitiesByModalityId(
     eventBases.submodalities,
   );
@@ -291,6 +296,157 @@ export async function getEventRegistrationReadinessForBases(
     isReady: dedupedMissingItems.length === 0,
     missingItems: dedupedMissingItems,
   };
+}
+
+// Every age a choreography can be registered with has to land on exactly one
+// category, or the placement is either impossible or ambiguous. The floor is
+// the same one the dancer guard enforces at registration, and the ceiling is
+// the one the data already uses everywhere.
+const youngestCoveredAge = 1;
+const oldestCoveredAge = 100;
+
+type AgeCoveragePair = {
+  modalityName: string;
+  groupType: GroupType;
+  categoryCountByAge: number[];
+};
+
+type AgeRange = { from: number; to: number };
+
+// Only the pairs the categories themselves reach are checked. A modality that
+// declares no category for a group type is offering nothing there, which is the
+// documented "no rule applies" case, not a hole in a ladder that exists.
+function collectAgeCoverageMissingItems(
+  eventBases: EventBases,
+  modalitiesById: Map<string, { id: string; name: string }>,
+) {
+  const pairs = countCategoriesByAge(eventBases, modalitiesById);
+  const missingItems: EventRegistrationMissingItem[] = [];
+
+  for (const pair of pairs.values()) {
+    missingItems.push(...describeAgeCoverageFailures(pair));
+  }
+
+  return missingItems;
+}
+
+function countCategoriesByAge(
+  eventBases: EventBases,
+  modalitiesById: Map<string, { id: string; name: string }>,
+) {
+  const pairs = new Map<string, AgeCoveragePair>();
+
+  for (const category of eventBases.categories) {
+    const reachedModalities = category.modalityIds
+      .map((modalityId) => modalitiesById.get(modalityId))
+      .filter((modality) => modality !== undefined);
+    const reachedGroupTypes = category.groupTypes.filter(isGroupType);
+
+    for (const modality of reachedModalities) {
+      for (const groupType of reachedGroupTypes) {
+        const pair = getOrCreateAgeCoveragePair(pairs, modality, groupType);
+        const from = Math.max(category.minAge, youngestCoveredAge);
+        const to = Math.min(category.maxAge, oldestCoveredAge);
+
+        for (let age = from; age <= to; age += 1) {
+          pair.categoryCountByAge[age - youngestCoveredAge] += 1;
+        }
+      }
+    }
+  }
+
+  return pairs;
+}
+
+function getOrCreateAgeCoveragePair(
+  pairs: Map<string, AgeCoveragePair>,
+  modality: { id: string; name: string },
+  groupType: GroupType,
+) {
+  const key = `${modality.id}\0${groupType}`;
+  const existingPair = pairs.get(key);
+
+  if (existingPair) {
+    return existingPair;
+  }
+
+  const pair: AgeCoveragePair = {
+    modalityName: modality.name,
+    groupType,
+    categoryCountByAge: new Array<number>(
+      oldestCoveredAge - youngestCoveredAge + 1,
+    ).fill(0),
+  };
+
+  pairs.set(key, pair);
+
+  return pair;
+}
+
+function describeAgeCoverageFailures(pair: AgeCoveragePair) {
+  const path = `Modalidad ${pair.modalityName}, Tipo de grupo ${formatGroupType(pair.groupType)}`;
+  const uncovered = collectAgeRanges(
+    pair.categoryCountByAge,
+    (count) => count === 0,
+  );
+  const overlapping = collectAgeRanges(
+    pair.categoryCountByAge,
+    (count) => count > 1,
+  );
+  const missingItems: EventRegistrationMissingItem[] = [];
+
+  if (uncovered.length > 0) {
+    missingItems.push({
+      code: "age-coverage",
+      label: "Cobertura de edades",
+      detail: `Faltan categorías para ${path}: sin cobertura para ${formatAgeRanges(uncovered)}.`,
+    });
+  }
+
+  if (overlapping.length > 0) {
+    missingItems.push({
+      code: "age-coverage",
+      label: "Cobertura de edades",
+      detail: `Se superponen categorías para ${path}: más de una categoría para ${formatAgeRanges(overlapping)}.`,
+    });
+  }
+
+  return missingItems;
+}
+
+function collectAgeRanges(
+  categoryCountByAge: number[],
+  matches: (count: number) => boolean,
+) {
+  const ranges: AgeRange[] = [];
+
+  categoryCountByAge.forEach((count, index) => {
+    if (!matches(count)) {
+      return;
+    }
+
+    const age = index + youngestCoveredAge;
+    const lastRange = ranges.at(-1);
+
+    if (lastRange && lastRange.to === age - 1) {
+      lastRange.to = age;
+      return;
+    }
+
+    ranges.push({ from: age, to: age });
+  });
+
+  return ranges;
+}
+
+function formatAgeRanges(ranges: AgeRange[]) {
+  return ranges
+    .map((range) =>
+      range.from === range.to
+        ? `la edad ${range.from}`
+        : `las edades ${range.from} a ${range.to}`,
+    )
+    .join(", ");
 }
 
 function collectBaseMissingItems(eventBases: EventBases) {

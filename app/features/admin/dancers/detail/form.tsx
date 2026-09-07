@@ -4,6 +4,7 @@ import { useForm, type UseFormReturn } from "react-hook-form";
 
 import { DateOnlyField } from "@/components/shared/date-only-field";
 import { TextInputField } from "@/components/shared/text-input-field";
+import { getBirthDatePickerBounds } from "@/lib/dancers/birth-date";
 import { createValidatedNativeSubmitHandler } from "@/lib/shared/forms";
 
 import { buildDancerUpdateSchema, type DancerEditFormValues } from "./shared";
@@ -15,14 +16,16 @@ type DancerEditFormReturn = UseFormReturn<
 >;
 
 export function useDancerEditForm({
+  eventStartDate,
   values,
 }: {
+  eventStartDate: string | null;
   values: DancerEditFormValues;
 }) {
   const form = useForm<DancerEditFormValues, unknown, DancerEditFormValues>({
     defaultValues: values,
     mode: "onSubmit",
-    resolver: zodResolver(buildDancerUpdateSchema()),
+    resolver: zodResolver(buildDancerUpdateSchema(eventStartDate)),
   });
 
   useEffect(() => {
@@ -38,7 +41,11 @@ export function useDancerEditForm({
     values.lastName,
   ]);
 
-  return { form, handleSubmit: createValidatedNativeSubmitHandler(form) };
+  return {
+    eventStartDate,
+    form,
+    handleSubmit: createValidatedNativeSubmitHandler(form),
+  };
 }
 
 export function DancerTextField({
@@ -67,9 +74,11 @@ export function DancerTextField({
 
 export function DancerBirthDateField({
   className,
+  eventStartDate,
   form,
 }: {
   className?: string;
+  eventStartDate: string | null;
   form: DancerEditFormReturn;
 }) {
   const id = useId();
@@ -81,6 +90,7 @@ export function DancerBirthDateField({
       className={className}
       id={id}
       label="Fecha de nacimiento"
+      calendarBounds={getBirthDatePickerBounds(eventStartDate)}
     />
   );
 }

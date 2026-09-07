@@ -48,6 +48,7 @@ function buildDancerDetailLoaderData(): Parameters<
   typeof PortalDancerDetailRouteView
 >[0]["loaderData"] {
   return {
+    activeEventStartDate: "2026-09-25",
     documentImageUrls: {
       back: null,
       front: null,

@@ -12,6 +12,7 @@ import {
   setRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.server";
 import { updateAdministrativeDancer } from "@/lib/admin/dancers/dancers-update.server";
+import { findActiveEventStartDateOnly } from "@/lib/events/active-event.server";
 import {
   requireAdminUser,
   requireInternalUser,
@@ -55,6 +56,7 @@ export async function loadDancerDetail(input: {
   const url = new URL(input.request.url);
 
   return {
+    activeEventStartDate: await findActiveEventStartDateOnly(),
     canEdit: user.role === "admin",
     selectedEventId: eventContext.selectedEventId,
     dancer,
@@ -131,7 +133,9 @@ export async function handleDancerDetailAction(input: {
     documentBackImageStorageKey: dancer.documentBackImageStorageKey ?? "",
     documentFrontImageStorageKey: dancer.documentFrontImageStorageKey ?? "",
   };
-  const parsed = buildDancerUpdateSchema().safeParse(values);
+  const parsed = buildDancerUpdateSchema(
+    await findActiveEventStartDateOnly(),
+  ).safeParse(values);
 
   if (!parsed.success) {
     return buildDancerActionError(

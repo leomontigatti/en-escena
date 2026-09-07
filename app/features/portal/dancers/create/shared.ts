@@ -1,16 +1,25 @@
 import { z } from "zod";
 
+import { buildBirthDateRefinement } from "@/lib/dancers/birth-date";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 
 export const createDancerIntent = "create-dancer";
 
-export const createDancerSchema = z.object({
-  firstName: z.string().trim().min(1, requiredFieldMessage),
-  lastName: z.string().trim().min(1, requiredFieldMessage),
-  birthDate: z.string().trim().min(1, requiredFieldMessage),
-});
+export function buildCreateDancerSchema(eventStartDate: string | null) {
+  return z.object({
+    firstName: z.string().trim().min(1, requiredFieldMessage),
+    lastName: z.string().trim().min(1, requiredFieldMessage),
+    birthDate: z
+      .string()
+      .trim()
+      .min(1, requiredFieldMessage)
+      .superRefine(buildBirthDateRefinement(eventStartDate)),
+  });
+}
 
-export type CreateDancerFormValues = z.infer<typeof createDancerSchema>;
+export type CreateDancerFormValues = z.infer<
+  ReturnType<typeof buildCreateDancerSchema>
+>;
 
 export const emptyDancerValues: CreateDancerFormValues = {
   firstName: "",

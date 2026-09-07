@@ -1,3 +1,5 @@
+import type { z } from "zod";
+
 import { formatUploadRejection } from "@/lib/storage/asset-kinds";
 import {
   type DancerDocumentSide,
@@ -7,11 +9,16 @@ import {
 } from "@/lib/storage/dancer-documents.server";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import { findDancerInscriptions } from "@/lib/dancers/inscriptions.server";
+import {
+  findActiveEventStartDateOnly,
+  getEventStartDateOnly,
+} from "@/lib/events/active-event.server";
 import { getPortalActiveEventContext } from "@/lib/portal/event-context.server";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
 import {
   findDancerForAcademy,
   updateDancerForAcademy,
+  type UpdateDancerField,
 } from "@/lib/portal/dancers.server";
 import {
   getRosterPersonNotFoundMessage,
@@ -19,11 +26,14 @@ import {
 } from "@/lib/roster/roster-person-status.server";
 
 import {
+  buildPortalDancerSchema,
   getClientDocumentImageValidationMessage,
+  portalDancerInvalidValuesMessage,
   portalDancerNotFoundMessage,
   readPortalDancerFormValues,
   readPortalDancerId,
   readFormString,
+  type PortalDancerFormValues,
 } from "./shared";
 
 export async function loadPortalDancerDetail(input: {
@@ -41,6 +51,7 @@ export async function loadPortalDancerDetail(input: {
   });
 
   return {
+    activeEventStartDate: getEventStartDateOnly(eventContext.activeEvent),
     dancer,
     documentImageUrls: await loadDancerDocumentImageUrls({
       documentBackImageStorageKey: dancer.documentBackImageStorageKey,
@@ -118,6 +129,21 @@ export async function handlePortalDancerDetailAction(input: {
     };
   }
 
+  // Parsed before any upload runs: a birth date the schema refuses must not
+  // leave a file behind in the store.
+  const parsed = buildPortalDancerSchema(
+    await findActiveEventStartDateOnly(),
+  ).safeParse(submittedValues);
+
+  if (!parsed.success) {
+    return {
+      status: "error" as const,
+      message: portalDancerInvalidValuesMessage,
+      fieldErrors: getPortalDancerFieldErrors(parsed.error),
+      values: submittedValues,
+    };
+  }
+
   const documentImageStorageKeys =
     await resolvePortalDancerDocumentImageStorageKeys({
       academyId: academy.id,
@@ -154,6 +180,18 @@ export async function handlePortalDancerDetailAction(input: {
     status: "success" as const,
     message: notificationToasts["bailarin-guardado"].message,
   };
+}
+
+function getPortalDancerFieldErrors(
+  error: z.ZodError<PortalDancerFormValues>,
+): Partial<Record<UpdateDancerField, string>> {
+  const fieldErrors = error.flatten().fieldErrors;
+
+  return Object.fromEntries(
+    Object.entries(fieldErrors).flatMap(([field, messages]) =>
+      messages?.[0] ? [[field, messages[0]]] : [],
+    ),
+  );
 }
 
 async function requirePortalDancer(academyId: string, dancerId: string) {
