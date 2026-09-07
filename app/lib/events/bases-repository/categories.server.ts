@@ -1,15 +1,17 @@
-import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, ne, or, sql, type SQL } from "drizzle-orm";
 
 import {
   categories,
   categoryModalities,
   categoryNotFound,
   categoryValues,
+  choreographies,
   created,
   db,
   experienceLevelOrder,
   groupRelationIdsByCategory,
   groupTypeOrder,
+  hasOccupyingChoreographies,
   haveSameValues,
   isExperienceLevel,
   isGroupType,
@@ -142,6 +144,15 @@ export async function updateCategory(
     return validation;
   }
 
+  if (await removesOccupiedRegistrationPaths(category, validation.input)) {
+    return {
+      ok: false,
+      code: "event-bases-has-dependencies",
+      error:
+        "No se pueden quitar tipos de grupo, modalidades ni niveles de experiencia que las coreografías de la categoría todavía usan.",
+    };
+  }
+
   const [record] = await db.transaction(async (tx) => {
     const updated = await tx
       .update(categories)
@@ -168,9 +179,81 @@ export async function deleteCategory(
     return categoryNotFound();
   }
 
+  // Broader than the update guard on purpose: `choreography.category_id` has no
+  // `on delete` behaviour, so the foreign key refuses the delete under any
+  // choreography, withdrawn inscriptions included. Reporting that as a typed
+  // failure is what this check adds; the refusal itself is the database's.
+  if (await categoryHasChoreographies(categoryId)) {
+    return {
+      ok: false,
+      code: "event-bases-has-dependencies",
+      error:
+        "No se puede borrar la categoría porque tiene coreografías relacionadas.",
+    };
+  }
+
   await db.delete(categories).where(eq(categories.id, categoryId));
 
   return { ok: true };
+}
+
+async function categoryHasChoreographies(categoryId: string) {
+  const [choreography] = await db
+    .select({ id: choreographies.id })
+    .from(choreographies)
+    .where(eq(choreographies.categoryId, categoryId))
+    .limit(1);
+
+  return Boolean(choreography);
+}
+
+/**
+ * Whether the edit drops a registration path a choreography of the category
+ * still sits on: a group type, a modality link or an experience level it no
+ * longer offers. Readiness only walks the paths still reachable, so an orphaned
+ * choreography stops having a price demanded for it while the finance screens
+ * keep resolving one.
+ *
+ * Only removals count. A rename leaves every path standing, and so does an
+ * age-range edit: a choreography stores its own age basis and calculation mode,
+ * so an age edit re-categorises rather than orphans.
+ */
+async function removesOccupiedRegistrationPaths(
+  category: typeof categories.$inferSelect,
+  input: ValidCategoryInput,
+) {
+  const existingModalityIds = await db
+    .select({ modalityId: categoryModalities.modalityId })
+    .from(categoryModalities)
+    .where(eq(categoryModalities.categoryId, category.id));
+  const removedGroupTypes = category.groupTypes.filter(
+    (groupType) => !input.groupTypes.includes(groupType),
+  );
+  const removedModalityIds = existingModalityIds
+    .map((relation) => relation.modalityId)
+    .filter((modalityId) => !input.modalityIds.includes(modalityId));
+  const removedExperienceLevels = category.experienceLevels.filter(
+    (experienceLevel) => !input.experienceLevels.includes(experienceLevel),
+  );
+  const removedPaths = [
+    removedGroupTypes.length > 0
+      ? inArray(choreographies.groupType, removedGroupTypes)
+      : null,
+    removedModalityIds.length > 0
+      ? inArray(choreographies.modalityId, removedModalityIds)
+      : null,
+    removedExperienceLevels.length > 0
+      ? inArray(choreographies.experienceLevelId, removedExperienceLevels)
+      : null,
+  ].filter((path): path is SQL => path !== null);
+
+  if (removedPaths.length === 0) {
+    return false;
+  }
+
+  return hasOccupyingChoreographies(
+    and(eq(choreographies.categoryId, category.id), or(...removedPaths)),
+  );
 }
 
 async function validateCategoryInput(

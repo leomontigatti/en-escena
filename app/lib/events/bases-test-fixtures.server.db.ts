@@ -3,7 +3,9 @@ import {
   choreographyDancers,
   choreographyProfessors,
   choreographies,
+  dancers,
 } from "@/db/schema";
+import { createAcademyUser } from "@/lib/test-support/academies";
 import { allocateChoreographyNumber } from "@/lib/choreographies/choreography-number.server";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import {
@@ -29,6 +31,8 @@ type SavedEventFixtureDates = {
   startsAt: Date;
   endsAt: Date;
 };
+
+type InscriptionsFixtureState = "none" | "active" | "withdrawn";
 
 type EventChoreographyFixtureInput = {
   eventId: string;
@@ -220,6 +224,90 @@ export async function createEventChoreographyFixture({
   }
 
   return choreography;
+}
+
+type OccupyingChoreographyFixtureInput = {
+  eventId: string;
+  academyId: string;
+  modalityId: string;
+  name?: string;
+  groupType?: GroupType;
+  categoryId?: string;
+  experienceLevelId?: ExperienceLevel;
+  scheduleId?: string;
+  scheduleCapacityId?: string;
+  inscriptions?: InscriptionsFixtureState;
+};
+
+/**
+ * A choreography sitting on the bases the caller names, with the inscription
+ * state the bases guards read: none at all, one active, or one withdrawn.
+ * Unlike `createEventChoreographyFixture` it invents no modality and no
+ * schedule, because a guard test needs the choreography on the very rows it is
+ * about to edit.
+ */
+export async function createChoreographyOnBases({
+  eventId,
+  academyId,
+  modalityId,
+  name = "Coreografía",
+  groupType = "solo",
+  categoryId,
+  experienceLevelId,
+  scheduleId,
+  scheduleCapacityId,
+  inscriptions = "active",
+}: OccupyingChoreographyFixtureInput) {
+  const [choreography] = await db.transaction(async (tx) =>
+    tx
+      .insert(choreographies)
+      .values({
+        eventId,
+        academyId,
+        choreographyNumber: await allocateChoreographyNumber({ tx, eventId }),
+        name,
+        modalityId,
+        groupType,
+        categoryId,
+        categoryCalculationMode: "oldest",
+        experienceLevelId,
+        scheduleId,
+        scheduleCapacityId,
+      })
+      .returning(),
+  );
+
+  if (inscriptions !== "none") {
+    const [dancer] = await db
+      .insert(dancers)
+      .values({
+        academyId,
+        firstName: "Ana",
+        lastName: name,
+        birthDate: "2012-01-10",
+      })
+      .returning();
+
+    await db.insert(choreographyDancers).values({
+      choreographyId: choreography.id,
+      dancerId: dancer.id,
+      ageAtEventStart: 14,
+      withdrawnAt: inscriptions === "withdrawn" ? new Date() : null,
+    });
+  }
+
+  return choreography;
+}
+
+let createdAcademyOffset = 0;
+
+export async function createSavedAcademy(name = "Academia") {
+  const academyUser = await createAcademyUser({
+    academyName: `${name} ${createdAcademyOffset}`,
+    email: `academia.bases.${createdAcademyOffset++}@example.com`,
+  });
+
+  return academyUser.academy;
 }
 
 export async function expectCreated<TRecord extends { id: string }>(

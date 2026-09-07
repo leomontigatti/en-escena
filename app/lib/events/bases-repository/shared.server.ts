@@ -1,9 +1,11 @@
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq, exists, ne, notExists, or, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
   categories,
   categoryModalities,
+  choreographies,
+  choreographyDancers,
   events,
   modalities,
   prices,
@@ -12,6 +14,7 @@ import {
   schedules,
   submodalities,
 } from "@/db/schema";
+import { activeInscription } from "@/lib/choreographies/active-inscription";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import { toTitleCase } from "@/lib/shared/text-normalization";
 import {
@@ -28,6 +31,7 @@ import {
 export {
   categories,
   categoryModalities,
+  choreographies,
   db,
   modalities,
   prices,
@@ -505,6 +509,46 @@ export async function replaceCategoryRelations(
       modalityId,
     })),
   );
+}
+
+/**
+ * Whether a choreography matching `filter` still occupies the base the caller
+ * is about to edit. Every `Bases del evento` guard asks this one question, so
+ * the rule that answers it lives here only.
+ *
+ * A choreography occupies its bases while at least one of its inscriptions is
+ * active, and also while it carries no inscription at all: that is a freshly
+ * created roster, a registration path in use, and the foreign keys already
+ * refuse to delete under it — a guard that said otherwise would disagree with
+ * them. Only a choreography whose inscriptions were all withdrawn stops
+ * occupying, because it preserves evidence rather than a path.
+ */
+export async function hasOccupyingChoreographies(filter: SQL | undefined) {
+  const [choreography] = await db
+    .select({ id: choreographies.id })
+    .from(choreographies)
+    .where(and(filter, isOccupyingChoreography()))
+    .limit(1);
+
+  return Boolean(choreography);
+}
+
+function isOccupyingChoreography() {
+  const anyInscription = db
+    .select({ id: choreographyDancers.id })
+    .from(choreographyDancers)
+    .where(eq(choreographyDancers.choreographyId, choreographies.id));
+  const activeInscriptions = db
+    .select({ id: choreographyDancers.id })
+    .from(choreographyDancers)
+    .where(
+      and(
+        eq(choreographyDancers.choreographyId, choreographies.id),
+        activeInscription(),
+      ),
+    );
+
+  return or(notExists(anyInscription), exists(activeInscriptions));
 }
 
 export { isExperienceLevel, isGroupType };

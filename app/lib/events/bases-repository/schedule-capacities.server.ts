@@ -1,8 +1,10 @@
 import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 
 import {
+  choreographies,
   created,
   db,
+  hasOccupyingChoreographies,
   isGroupType,
   requiredFieldMessage,
   scheduleCapacities,
@@ -131,9 +133,11 @@ export async function deleteScheduleCapacity(
 }
 
 async function scheduleCapacityHasOperationalDependencies(
-  _scheduleCapacityId: string,
+  scheduleCapacityId: string,
 ) {
-  return false;
+  return hasOccupyingChoreographies(
+    eq(choreographies.scheduleCapacityId, scheduleCapacityId),
+  );
 }
 
 export async function resolveCompatibleScheduleCapacities(input: {

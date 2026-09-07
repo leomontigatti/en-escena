@@ -1,9 +1,11 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 
 import {
+  choreographies,
   created,
   db,
   eventBaseEntityNotFound,
+  hasOccupyingChoreographies,
   isValidDate,
   isValidTime,
   modalities,
@@ -456,7 +458,11 @@ async function scheduleHasOperationalDependencies(scheduleId: string) {
     where: eq(prices.scheduleId, scheduleId),
   });
 
-  return Boolean(price);
+  if (price) {
+    return true;
+  }
+
+  return hasOccupyingChoreographies(eq(choreographies.scheduleId, scheduleId));
 }
 
 async function validateScheduleInput(

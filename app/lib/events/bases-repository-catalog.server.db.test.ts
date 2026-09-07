@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { submodalities } from "@/db/schema";
+import { choreographies, submodalities } from "@/db/schema";
 import {
   createCategory,
   deleteCategory,
@@ -17,6 +17,8 @@ import {
   updateSubmodality,
 } from "@/lib/modalities/repository.server";
 import {
+  createChoreographyOnBases,
+  createSavedAcademy,
   createSavedEvent,
   expectCreated,
   fixedExperienceLevel,
@@ -314,5 +316,148 @@ describe("`Bases del evento` repository", () => {
     await expect(deleteModality(modality.id)).resolves.toEqual({
       ok: true,
     });
+  });
+
+  test("refuses removing registration paths the choreographies of a category still occupy", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    const academy = await createSavedAcademy();
+    const jazz = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
+    const urbanas = await expectCreated(
+      createModality(event.id, { name: "Danzas urbanas" }),
+    );
+    const category = await expectCreated(
+      createCategory(event.id, {
+        name: "Infantil",
+        minAge: 8,
+        maxAge: 12,
+        groupTypes: ["solo", "duo"],
+        modalityIds: [jazz.id, urbanas.id],
+        experienceLevels: ["amateur", "profesional"],
+      }),
+    );
+    await createChoreographyOnBases({
+      eventId: event.id,
+      academyId: academy.id,
+      modalityId: jazz.id,
+      groupType: "solo",
+      categoryId: category.id,
+      experienceLevelId: "amateur",
+    });
+
+    const categoryInput = {
+      name: "Infantil",
+      minAge: 8,
+      maxAge: 12,
+      groupTypes: ["solo", "duo"],
+      modalityIds: [jazz.id, urbanas.id],
+      experienceLevels: ["amateur", "profesional"],
+    };
+    const occupiedPathError =
+      "No se pueden quitar tipos de grupo, modalidades ni niveles de experiencia que las coreografías de la categoría todavía usan.";
+
+    await expect(
+      updateCategory(category.id, { ...categoryInput, groupTypes: ["duo"] }),
+    ).resolves.toMatchObject({ ok: false, error: occupiedPathError });
+    await expect(
+      updateCategory(category.id, {
+        ...categoryInput,
+        modalityIds: [urbanas.id],
+      }),
+    ).resolves.toMatchObject({ ok: false, error: occupiedPathError });
+    await expect(
+      updateCategory(category.id, {
+        ...categoryInput,
+        experienceLevels: ["profesional"],
+      }),
+    ).resolves.toMatchObject({ ok: false, error: occupiedPathError });
+    await expect(
+      updateCategory(category.id, {
+        ...categoryInput,
+        name: "Infantil A",
+        minAge: 7,
+        maxAge: 13,
+        groupTypes: ["solo"],
+        experienceLevels: ["amateur"],
+      }),
+    ).resolves.toMatchObject({
+      ok: true,
+      record: { name: "Infantil A", minAge: 7 },
+    });
+  });
+
+  test("frees the registration paths of a category once every inscription is withdrawn", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    const academy = await createSavedAcademy();
+    const jazz = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
+    const category = await expectCreated(
+      createCategory(event.id, {
+        name: "Infantil",
+        minAge: 8,
+        maxAge: 12,
+        groupTypes: ["solo", "duo"],
+        modalityIds: [jazz.id],
+        experienceLevels: [],
+      }),
+    );
+    await createChoreographyOnBases({
+      eventId: event.id,
+      academyId: academy.id,
+      modalityId: jazz.id,
+      categoryId: category.id,
+      inscriptions: "withdrawn",
+    });
+
+    await expect(
+      updateCategory(category.id, {
+        name: "Infantil",
+        minAge: 8,
+        maxAge: 12,
+        groupTypes: ["duo"],
+        modalityIds: [jazz.id],
+        experienceLevels: [],
+      }),
+    ).resolves.toMatchObject({ ok: true });
+  });
+
+  test("reports deleting a category with choreographies as a dependency failure", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    const academy = await createSavedAcademy();
+    const jazz = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
+    const category = await expectCreated(
+      createCategory(event.id, {
+        name: "Infantil",
+        minAge: 8,
+        maxAge: 12,
+        groupTypes: ["solo"],
+        modalityIds: [jazz.id],
+        experienceLevels: [],
+      }),
+    );
+    const choreography = await createChoreographyOnBases({
+      eventId: event.id,
+      academyId: academy.id,
+      modalityId: jazz.id,
+      categoryId: category.id,
+      inscriptions: "none",
+    });
+
+    await expect(deleteCategory(category.id)).resolves.toEqual({
+      ok: false,
+      code: "event-bases-has-dependencies",
+      error:
+        "No se puede borrar la categoría porque tiene coreografías relacionadas.",
+    });
+
+    await db
+      .delete(choreographies)
+      .where(eq(choreographies.id, choreography.id));
+
+    await expect(deleteCategory(category.id)).resolves.toEqual({ ok: true });
   });
 });
