@@ -1,8 +1,13 @@
 /** @vitest-environment jsdom */
 
-import { act } from "react";
+import { act, useEffect, useState } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { createMemoryRouter, MemoryRouter, RouterProvider } from "react-router";
+import {
+  createMemoryRouter,
+  MemoryRouter,
+  RouterProvider,
+  useLocation,
+} from "react-router";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import {
@@ -14,7 +19,9 @@ import {
   ServerDataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
+import { dataTableSearchDebounceMs } from "@/components/shared/data-table.shared";
 import {
+  clickReactDomButton,
   createReactDomTestRenderer,
   setInputValue,
 } from "@/lib/test-support/react-dom";
@@ -564,6 +571,97 @@ describe("ClientDataTable search in the address bar", () => {
   });
 });
 
+describe("ServerDataTable search while the loader is answering", () => {
+  const renderer = createReactDomTestRenderer();
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  });
+
+  afterEach(() => {
+    renderer.cleanup();
+    vi.useRealTimers();
+  });
+
+  test("keeps what the reader typed while an earlier search is still on its way back", async () => {
+    const router = createServerListRouter("/administracion/profesores");
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await typeSearch("mar");
+    await advanceSearchDebounce();
+
+    expect(router.state.location.search).toBe("?busqueda=mar");
+
+    // The reader types on while the loader is still answering "mar".
+    await typeSearch("marían");
+    await advanceSearchDebounce();
+
+    expect(router.state.location.search).toBe("?busqueda=mar%C3%ADan");
+
+    // "mar" comes back on its own, after the search that replaced it.
+    await advanceTimers(serverLoaderDelayMs - dataTableSearchDebounceMs);
+
+    expect(getSearchInput().value).toBe("marían");
+
+    await advanceTimers(dataTableSearchDebounceMs);
+
+    expect(getSearchInput().value).toBe("marían");
+    expect(router.state.location.search).toBe("?busqueda=mar%C3%ADan");
+  });
+
+  test("keeps a deletion the loader has not caught up with", async () => {
+    const router = createServerListRouter(
+      "/administracion/profesores?busqueda=marianela",
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    expect(getSearchInput().value).toBe("marianela");
+
+    await typeSearch("mari");
+    await advanceSearchDebounce();
+    await typeSearch("mar");
+    await advanceSearchDebounce();
+
+    expect(router.state.location.search).toBe("?busqueda=mar");
+
+    // The longer search comes back after the shorter one replaced it.
+    await advanceTimers(serverLoaderDelayMs - dataTableSearchDebounceMs);
+
+    expect(getSearchInput().value).toBe("mar");
+
+    await advanceTimers(dataTableSearchDebounceMs);
+
+    expect(getSearchInput().value).toBe("mar");
+  });
+
+  test("adopts a search that comes from outside the box", async () => {
+    const router = createServerListRouter("/administracion/profesores");
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await typeSearch("mar");
+    await advanceSearchDebounce();
+
+    await act(async () => {
+      await router.navigate("/administracion/profesores?busqueda=ana");
+    });
+    await advanceTimers(serverLoaderDelayMs);
+
+    expect(getSearchInput().value).toBe("ana");
+  });
+
+  test("records a cleared search without waiting out the debounce", async () => {
+    const router = createServerListRouter(
+      "/administracion/profesores?busqueda=marianela",
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    await clickReactDomButton("Limpiar búsqueda");
+
+    expect(getSearchInput().value).toBe("");
+    expect(router.state.location.search).toBe("");
+  });
+});
+
 describe("ClientDataTable filters in the address bar", () => {
   const renderer = createReactDomTestRenderer();
 
@@ -890,6 +988,67 @@ function createListRouter(
   );
 }
 
+/**
+ * A server-paginated list whose loader takes `serverLoaderDelayMs` to answer,
+ * and answers every search it was asked for — including one a later search
+ * overtook. That is the shape the search box has to survive: the reader keeps
+ * typing while an earlier search is still in flight.
+ */
+const serverLoaderDelayMs = 500;
+
+function SlowServerList() {
+  const location = useLocation();
+  const recordedSearch =
+    new URLSearchParams(location.search).get("busqueda") ?? "";
+  const [loadedSearch, setLoadedSearch] = useState(recordedSearch);
+
+  useEffect(() => {
+    // Deliberately not cancelled: a loader already on its way still answers.
+    window.setTimeout(() => {
+      setLoadedSearch(recordedSearch);
+    }, serverLoaderDelayMs);
+  }, [recordedSearch]);
+
+  return (
+    <ServerDataTable
+      rows={[
+        {
+          id: "professor_1",
+          academy: "Academia Norte",
+          name: "Marianela Torres",
+          status: "active",
+        },
+      ]}
+      columns={columns}
+      getRowKey={(row) => row.id}
+      searchPlaceholder="Buscar profesor por nombre"
+      initialSearchValue={loadedSearch}
+      currentPage={1}
+      totalPages={1}
+      totalRows={1}
+    />
+  );
+}
+
+function createServerListRouter(entry: string) {
+  const [path] = entry.split("?");
+
+  return createMemoryRouter(
+    [
+      { path: "/inicio", element: <p>Inicio</p> },
+      { path, element: <SlowServerList /> },
+    ],
+    { initialEntries: ["/inicio", entry], initialIndex: 1 },
+  );
+}
+
+async function advanceTimers(milliseconds: number) {
+  await act(async () => {
+    vi.advanceTimersByTime(milliseconds);
+    await Promise.resolve();
+  });
+}
+
 function getRenderedRowNames() {
   return Array.from(document.querySelectorAll("tbody tr td:first-of-type")).map(
     (cell) => cell.textContent ?? "",
@@ -925,7 +1084,7 @@ async function typeSearch(value: string) {
   });
 }
 
-async function advanceSearchDebounce(milliseconds = 300) {
+async function advanceSearchDebounce(milliseconds = dataTableSearchDebounceMs) {
   await act(async () => {
     vi.advanceTimersByTime(milliseconds);
     await Promise.resolve();

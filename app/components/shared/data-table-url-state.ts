@@ -14,15 +14,10 @@ import type {
 } from "@/components/shared/data-table.shared";
 import {
   dataTablePageParamName,
+  dataTableSearchDebounceMs,
   dataTableSearchParamName,
   dataTableSortParamName,
 } from "@/components/shared/data-table.shared";
-
-/**
- * Long enough that a reader still typing writes nothing, short enough that the
- * address bar settles as soon as they stop. Matches the server-paginated table.
- */
-const dataTableSearchDebounceMs = 300;
 
 /**
  * The mapping between a browser-paginated list's state and the query string.

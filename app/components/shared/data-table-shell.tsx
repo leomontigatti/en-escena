@@ -43,6 +43,12 @@ import { cn } from "@/lib/shared/utils";
 type DataTableSearchProps = {
   hidden?: boolean;
   onChange: (value: string) => void;
+  /**
+   * What the clear button does, when emptying the box is worth more than the
+   * debounce the typed value goes through. Without it, clearing is a change
+   * like any other.
+   */
+  onClear?: () => void;
   placeholder: string;
   query: string;
 };
@@ -284,7 +290,7 @@ function DataTableSearchField({ search }: { search: DataTableSearchProps }) {
           variant="ghost"
           size="icon-xs"
           className="absolute top-1/2 right-1 -translate-y-1/2"
-          onClick={() => search.onChange("")}
+          onClick={() => (search.onClear ?? (() => search.onChange("")))()}
         >
           <X aria-hidden="true" data-icon />
           <span className="sr-only">Limpiar búsqueda</span>
