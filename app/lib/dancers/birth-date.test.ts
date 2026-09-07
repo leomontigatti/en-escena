@@ -6,7 +6,9 @@ import {
   getBirthDatePickerMonths,
   futureBirthDateMessage,
   getLatestEligibleBirthDate,
+  getUnderageDancersMessage,
   invalidBirthDateMessage,
+  isOldEnoughAtEventStart,
   underageBirthDateMessage,
 } from "@/lib/dancers/birth-date";
 
@@ -44,6 +46,20 @@ describe("birth date refinement", () => {
 
   test("names the newest birth date that still competes", () => {
     expect(getLatestEligibleBirthDate(eventStartDate)).toBe("2025-09-25");
+  });
+});
+
+describe("registration age guard", () => {
+  test("admits an age of exactly one and refuses anything under it", () => {
+    expect(isOldEnoughAtEventStart(1)).toBe(true);
+    expect(isOldEnoughAtEventStart(0)).toBe(false);
+  });
+
+  test("names every dancer that blocks the registration", () => {
+    expect(getUnderageDancersMessage(["Nina Ríos"])).toContain("Nina Ríos");
+    expect(getUnderageDancersMessage(["Nina Ríos", "Lía Paz"])).toContain(
+      "Nina Ríos, Lía Paz",
+    );
   });
 });
 

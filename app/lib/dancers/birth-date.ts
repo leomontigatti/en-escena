@@ -82,3 +82,26 @@ export function buildBirthDateRefinement(eventStartDate?: string | null) {
     }
   };
 }
+
+/**
+ * The registration rejection, naming every dancer whose birth date blocks it so
+ * the academy can correct the roster itself and retry. It is deliberately not
+ * the form's sentence: the form has one field in front of the user, while
+ * registration has a whole roster and must say which row is the problem.
+ */
+export function getUnderageDancersMessage(dancerNames: string[]) {
+  const names = dancerNames.join(", ");
+
+  return dancerNames.length === 1
+    ? `${names} debe tener al menos 1 año cumplido cuando empieza el evento. Corregí su fecha de nacimiento y volvé a registrar la coreografía.`
+    : `${names} deben tener al menos 1 año cumplido cuando empieza el evento. Corregí sus fechas de nacimiento y volvé a registrar la coreografía.`;
+}
+
+/**
+ * The age guard itself, so registration — the correctness boundary, where the
+ * age is measured against the event that is actually being registered into —
+ * and the schemas share one floor.
+ */
+export function isOldEnoughAtEventStart(ageAtEventStart: number) {
+  return ageAtEventStart >= minimumDancerAgeAtEventStart;
+}
