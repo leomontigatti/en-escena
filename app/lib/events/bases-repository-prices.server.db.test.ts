@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { prices } from "@/db/schema";
+import { choreographyDancers, prices } from "@/db/schema";
 import { createSelectedPriceInscriptionForTest } from "@/features/portal/choreographies/test-support/db";
 import { createModality } from "@/lib/modalities/repository.server";
 import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
@@ -406,6 +406,199 @@ describe("`Bases del evento` repository", () => {
     });
   });
 
+  test("keeps mutating a dated rung open while the group type keeps its open-ended price", async () => {
+    const { event, catalog, datedRung } = await createCoveredPathFixture({
+      academyName: "Academia Escalera",
+      choreographyName: "Coreografía Escalera",
+      email: "academia.escalera@example.com",
+      eventName: "Regional 2031",
+    });
+
+    await expect(deletePrice(datedRung.id)).resolves.toMatchObject({
+      ok: true,
+    });
+    await expect(
+      createPrice(event.id, {
+        groupType: "solo",
+        amount: 30000,
+        paymentDeadline: null,
+        scheduleId: catalog.schedule.id,
+      }),
+    ).resolves.toMatchObject({ ok: true });
+  });
+
+  test("refuses to remove the open-ended price of a group type with active inscriptions", async () => {
+    const { openEnded } = await createCoveredPathFixture({
+      academyName: "Academia Sin Fecha",
+      choreographyName: "Coreografía Sin Fecha",
+      email: "academia.sin.fecha@example.com",
+      eventName: "Regional 2032",
+      // A dated rung that has not expired: the path resolves today, so a
+      // date-relative check would let the tail go.
+      liveRungDeadline: "2099-12-31",
+    });
+
+    await expect(deletePrice(openEnded.id)).resolves.toMatchObject({
+      ok: false,
+      code: "event-bases-has-dependencies",
+      error: uncoveredDeleteError,
+    });
+  });
+
+  test("refuses to date, re-point or re-type the open-ended price of a group type with active inscriptions", async () => {
+    const { catalog, openEnded } = await createCoveredPathFixture({
+      academyName: "Academia Vencimiento",
+      choreographyName: "Coreografía Vencimiento",
+      email: "academia.vencimiento@example.com",
+      eventName: "Regional 2033",
+      liveRungDeadline: "2099-12-31",
+    });
+    const uncoveredUpdate = {
+      ok: false,
+      code: "event-bases-has-dependencies",
+      error: uncoveredUpdateError,
+    };
+
+    await expect(
+      updatePrice(openEnded.id, {
+        groupType: "solo",
+        amount: 20000,
+        paymentDeadline: "2099-06-30",
+        scheduleId: null,
+      }),
+    ).resolves.toMatchObject(uncoveredUpdate);
+    await expect(
+      updatePrice(openEnded.id, {
+        groupType: "solo",
+        amount: 20000,
+        paymentDeadline: null,
+        scheduleId: catalog.schedule.id,
+      }),
+    ).resolves.toMatchObject(uncoveredUpdate);
+    await expect(
+      updatePrice(openEnded.id, {
+        groupType: "duo",
+        amount: 20000,
+        paymentDeadline: null,
+        scheduleId: null,
+      }),
+    ).resolves.toMatchObject(uncoveredUpdate);
+
+    // The amount is not a coverage question: the row stays open-ended and
+    // general, so the edit goes through.
+    await expect(
+      updatePrice(openEnded.id, {
+        groupType: "solo",
+        amount: 21000,
+        paymentDeadline: null,
+        scheduleId: null,
+      }),
+    ).resolves.toMatchObject({ ok: true, record: { amount: 21000 } });
+  });
+
+  test("lets the schedule tier lose its open-ended price even when the general tier is uncovered", async () => {
+    const { catalog, event, openEnded } = await createCoveredPathFixture({
+      academyName: "Academia Cronograma",
+      choreographyName: "Coreografía Cronograma",
+      email: "academia.cronograma@example.com",
+      eventName: "Regional 2034",
+    });
+    const scheduleOpenEnded = await createSavedPrice(event.id, {
+      amount: 25000,
+      name: "Sin fecha límite - Bloque",
+      paymentDeadline: null,
+      scheduleId: catalog.schedule.id,
+    });
+
+    // The general tail goes out of band, so the guard's `scheduleId` exit is
+    // the only thing left permitting the delete below. Without it the test
+    // would pass on a general-tier coverage check it is not meant to assert.
+    await db.delete(prices).where(eq(prices.id, openEnded.id));
+
+    await expect(deletePrice(scheduleOpenEnded.id)).resolves.toMatchObject({
+      ok: true,
+    });
+  });
+
+  test("does not refuse mutations on a group type that already has no open-ended price", async () => {
+    const { datedRung, openEnded } = await createCoveredPathFixture({
+      academyName: "Academia Sin Cola",
+      choreographyName: "Coreografía Sin Cola",
+      email: "academia.sin.cola@example.com",
+      eventName: "Regional 2035",
+    });
+
+    // The gap is pre-existing, not this mutation's doing: `solo` carries an
+    // active inscription and has lost its tail out of band. Mutating what is
+    // left must stay possible, or the admin is trapped on an event they cannot
+    // repair. The last delete empties the path entirely and still succeeds.
+    await db.delete(prices).where(eq(prices.id, openEnded.id));
+
+    await expect(
+      updatePrice(datedRung.id, {
+        groupType: "duo",
+        amount: 10000,
+        paymentDeadline: "2026-05-31",
+        scheduleId: null,
+      }),
+    ).resolves.toMatchObject({ ok: true });
+    await expect(deletePrice(datedRung.id)).resolves.toMatchObject({
+      ok: true,
+    });
+    await expect(listPrices(datedRung.eventId)).resolves.toEqual([]);
+  });
+
+  test("ignores withdrawn inscriptions when guarding the open-ended price", async () => {
+    const { inscription, openEnded } = await createCoveredPathFixture({
+      academyName: "Academia Baja",
+      choreographyName: "Coreografía Baja",
+      email: "academia.baja@example.com",
+      eventName: "Regional 2036",
+    });
+
+    await db
+      .update(choreographyDancers)
+      .set({ withdrawnAt: new Date("2026-04-01T12:00:00Z") })
+      .where(eq(choreographyDancers.id, inscription.id));
+
+    await expect(deletePrice(openEnded.id)).resolves.toMatchObject({
+      ok: true,
+    });
+  });
+
+  test("keeps blocking a frozen price even when the group type keeps its open-ended price", async () => {
+    const { academy, choreography, datedRung } = await createCoveredPathFixture(
+      {
+        academyName: "Academia Congelada Cubierta",
+        choreographyName: "Coreografía Congelada Cubierta",
+        email: "academia.congelada.cubierta@example.com",
+        eventName: "Regional 2037",
+      },
+    );
+
+    await createSelectedPriceInscriptionForTest({
+      academyId: academy.academy.id,
+      choreographyId: choreography.id,
+      selectedPriceId: datedRung.id,
+    });
+
+    await expect(
+      updatePrice(datedRung.id, {
+        groupType: "solo",
+        amount: 11000,
+        paymentDeadline: "2026-05-31",
+        scheduleId: null,
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      error: frozenUpdateError,
+    });
+    await expect(deletePrice(datedRung.id)).resolves.toMatchObject({
+      ok: false,
+      error: frozenDeleteError,
+    });
+  });
+
   test("ignores inscriptions that did not freeze the price when changing it", async () => {
     const event = await createSavedEvent("Regional 2027", { activate: true });
     const { academy, choreography } =
@@ -445,6 +638,71 @@ describe("`Bases del evento` repository", () => {
     });
   });
 });
+
+const frozenUpdateError =
+  "No se pueden editar monto, tipo de grupo, vencimiento ni cronograma porque hay inscripciones que congelaron este precio.";
+const frozenDeleteError =
+  "No se puede borrar el precio porque hay inscripciones que congelaron este precio.";
+const uncoveredUpdateError =
+  "No se puede editar el precio porque es el único sin fecha límite de ese tipo de grupo y hay inscripciones activas que dependen de él.";
+const uncoveredDeleteError =
+  "No se puede borrar el precio porque es el único sin fecha límite de ese tipo de grupo y hay inscripciones activas que dependen de él.";
+
+// A `solo` path with one active un-frozen inscription: the state the guard has
+// to see. The catalog seeds the dated rung, and the open-ended row is the tail
+// the coverage guard protects.
+async function createCoveredPathFixture(input: {
+  academyName: string;
+  choreographyName: string;
+  email: string;
+  eventName: string;
+  liveRungDeadline?: string;
+}) {
+  const event = await createSavedEvent(input.eventName, { activate: true });
+  const { academy, catalog, choreography } =
+    await createAcademyFinanceChoreographyFixture({
+      academyName: input.academyName,
+      choreographyName: input.choreographyName,
+      email: input.email,
+      event,
+    });
+  const datedRung = await db.query.prices.findFirst({
+    where: eq(prices.eventId, event.id),
+  });
+
+  if (!datedRung) {
+    throw new Error("Expected seeded price fixture.");
+  }
+
+  if (input.liveRungDeadline) {
+    await createSavedPrice(event.id, {
+      amount: 18000,
+      name: "Segunda fecha",
+      paymentDeadline: input.liveRungDeadline,
+    });
+  }
+
+  const openEnded = await createSavedPrice(event.id, {
+    amount: 20000,
+    name: "Sin fecha límite",
+    paymentDeadline: null,
+  });
+  const inscription = await createSelectedPriceInscriptionForTest({
+    academyId: academy.academy.id,
+    choreographyId: choreography.id,
+    selectedPriceId: null,
+  });
+
+  return {
+    academy,
+    catalog,
+    choreography,
+    datedRung,
+    event,
+    inscription,
+    openEnded,
+  };
+}
 
 // `db.execute` hands back a bare array on postgres.js and a `{ rows }` envelope
 // on PGlite, which is what the fast config runs. Same shape as the helper in

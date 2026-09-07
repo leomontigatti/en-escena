@@ -3,6 +3,7 @@ import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { events } from "@/db/schema";
 import { getEventBases, type EventBases } from "@/lib/events/bases.server";
+import { hasNeverExpiringPrice } from "@/lib/events/never-expiring-price";
 import type {
   EventRegistrationMissingItem,
   EventRegistrationReadiness,
@@ -436,13 +437,6 @@ function resolvePriceFromBases(
     ok: false as const,
     lastDeadline: findLatestDeadline(generalCandidates),
   };
-}
-
-// A row with no paymentDeadline is the tail of its tier: while one exists, the
-// tier resolves at any date. Readiness only needs to know that the tail is
-// there, never which row it is.
-function hasNeverExpiringPrice(candidates: EventBases["prices"]) {
-  return candidates.some((price) => price.paymentDeadline === null);
 }
 
 function findLatestDeadline(candidates: EventBases["prices"]) {
