@@ -37,16 +37,15 @@ describe("filters panel in the shell", () => {
   test("keeps the panel closed until the toolbar button asks for it", async () => {
     await renderShellWithTable();
 
-    // Closed, and it takes no width from the content while it is.
+    // Closed, it says so and holds nothing the reader could reach.
     expect(getPanel().dataset.state).toBe("closed");
     expect(getPanel().textContent).toBe("");
-    expect(
-      getPanel().querySelector('[data-slot="filters-panel-gap"]')?.className,
-    ).toContain("group-data-[state=closed]/filters-panel:w-0");
+    expect(getPanelContainer().hasAttribute("inert")).toBe(true);
 
     await clickFiltersTrigger();
 
     expect(getPanel().dataset.state).toBe("open");
+    expect(getPanelContainer().hasAttribute("inert")).toBe(false);
     // The group is offered as a picker, so the panel names the group and holds
     // its options behind it rather than stacking every option on screen.
     expect(getPanel().textContent).toContain("Estado");
@@ -65,7 +64,9 @@ describe("filters panel in the shell", () => {
 
     const panel = getPanel();
 
-    expect(panel.parentElement?.dataset.slot).toBe("sidebar-wrapper");
+    // Beside the content and not over it: inside the shell, outside the region
+    // the list is drawn in, and with nothing dimming what is being filtered.
+    expect(panel.closest('[data-slot="sidebar-wrapper"]')).not.toBeNull();
     expect(panel.closest("main")).toBeNull();
     expect(document.querySelector('[data-slot="filters-panel-overlay"]')).toBe(
       null,
@@ -105,6 +106,19 @@ describe("filters panel in the shell", () => {
     expect(getPanel().dataset.state).toBe("open");
 
     portalled.remove();
+  });
+
+  // A closed panel is `inert`, so whatever was focused inside it cannot stay
+  // there: without this the keyboard drops to the top of the page.
+  test("gives focus back to the trigger when the panel closes", async () => {
+    await renderShellWithTable();
+    await clickFiltersTrigger();
+
+    expect(getPanelContainer().contains(document.activeElement)).toBe(true);
+
+    await pressEscapeOn(getPanelContainer());
+
+    expect(document.activeElement).toBe(getFiltersTrigger());
   });
 
   test("names the panel the trigger controls", async () => {

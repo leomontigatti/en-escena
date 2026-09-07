@@ -1,4 +1,5 @@
 import { X } from "lucide-react";
+import { createPortal } from "react-dom";
 import {
   createContext,
   useCallback,
@@ -8,6 +9,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type ReactNode,
   type RefObject,
 } from "react";
@@ -22,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  SIDEBAR_WIDTH,
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
@@ -82,7 +85,7 @@ const FiltersPanelActionsContext = createContext<FiltersPanelActions | null>(
  * event up the tree it rendered, portal and all, which is exactly the walk this
  * listener has to miss.
  */
-export function useCloseOnEscape(
+function useCloseOnEscape(
   isOpen: boolean,
   onClose: () => void,
   panelRef: RefObject<HTMLElement | null>,
@@ -258,11 +261,55 @@ export function FiltersPanelRegion() {
 }
 
 /**
+ * The panel for a table with no shell around it: a test, or a surface that has
+ * no region. It is portalled to the body so that the edge it sits against is
+ * the screen's and not whichever ancestor happens to be positioned.
+ *
+ * It sets the width variable itself, because a table outside a shell is also
+ * outside the `SidebarProvider` that would otherwise be setting it. The value
+ * is the sidebar's own, so this panel and the region's cannot drift apart.
+ *
+ * Unlike the region it mirrors, this one does lie over the list: with no shell
+ * to be laid out beside, there is nothing for it to push.
+ */
+export function StandaloneFiltersPanel({
+  content,
+  id,
+  onClose,
+}: {
+  content: FiltersPanelContent;
+  id: string;
+  onClose: () => void;
+}) {
+  const containerRef = useRef<HTMLElement>(null);
+
+  useCloseOnEscape(true, onClose, containerRef);
+
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  return createPortal(
+    <aside
+      ref={containerRef}
+      id={id}
+      data-slot="filters-panel"
+      data-state="open"
+      style={{ "--sidebar-width": SIDEBAR_WIDTH } as CSSProperties}
+      className="fixed inset-y-0 right-0 z-40 flex w-(--sidebar-width) max-w-full flex-col border-l bg-sidebar text-sidebar-foreground shadow-lg"
+    >
+      <FiltersPanelBody autoFocusClose content={content} onClose={onClose} />
+    </aside>,
+    document.body,
+  );
+}
+
+/**
  * Everything inside the panel, wherever the panel ends up. Every change applies
  * at once, so there is no `Aplicar`: the list re-filters behind the panel while
  * it is open and the reader watches it happen.
  */
-export function FiltersPanelBody({
+function FiltersPanelBody({
   autoFocusClose,
   content,
   onClose,
@@ -446,7 +493,7 @@ export function useFiltersPanelOwner({
   }, [ownerId, panel]);
 
   return {
-    hasRegion: panel !== null,
+    isAvailable: panel !== null,
     isOpen: openOwnerId === ownerId,
     toggle: () => panel?.toggle(ownerId),
   };

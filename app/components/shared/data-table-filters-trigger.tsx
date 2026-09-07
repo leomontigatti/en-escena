@@ -1,6 +1,13 @@
 import { ListFilter } from "lucide-react";
-import { useId, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type Dispatch,
+  type RefObject,
+  type SetStateAction,
+} from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,10 +26,48 @@ import {
 } from "@/components/shared/data-table-helpers";
 import {
   FILTERS_PANEL_REGION_ID,
-  FiltersPanelBody,
-  useCloseOnEscape,
+  StandaloneFiltersPanel,
   useFiltersPanelOwner,
 } from "@/components/shared/filters-panel";
+
+/**
+ * A closed panel is `inert`, and an `inert` panel cannot hold what is focused
+ * inside it: were the reader left there, the keyboard would drop to the top of
+ * the page. So the trigger takes focus back —but only if the panel still had
+ * it, since the reader is free to be somewhere else entirely by then.
+ *
+ * Taking focus would bring the tooltip along with it, which is why the dropdown
+ * this replaced blurred its trigger rather than keeping it. Here the tooltip is
+ * closed in the same breath instead, so the focus can stay where the keyboard
+ * needs it without the label following it back.
+ */
+function useReturnFocusOnClose(
+  isOpen: boolean,
+  triggerRef: RefObject<HTMLButtonElement | null>,
+  hideTooltip: Dispatch<SetStateAction<boolean>>,
+) {
+  const wasOpenRef = useRef(false);
+
+  useEffect(() => {
+    const wasOpen = wasOpenRef.current;
+    wasOpenRef.current = isOpen;
+
+    if (!wasOpen || isOpen) {
+      return;
+    }
+
+    const focused = document.activeElement;
+    const wasLeftInThePanel =
+      focused === null ||
+      focused === document.body ||
+      focused.closest('[data-slot="filters-panel"]') !== null;
+
+    if (wasLeftInThePanel) {
+      triggerRef.current?.focus();
+      hideTooltip(false);
+    }
+  }, [hideTooltip, isOpen, triggerRef]);
+}
 
 type DataTableFacetedFilterControlProps = {
   groups: DataTableFacetedFilter[];
@@ -52,17 +97,20 @@ export function DataTableFacetedFilterControl({
   const hasSelectedValues = selectedCount > 0;
   const tooltipId = useId();
   const fallbackPanelId = useId();
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const [isTooltipOpen, setIsTooltipOpen] = useState(false);
   const [isFallbackOpen, setIsFallbackOpen] = useState(false);
-  const region = useFiltersPanelOwner({ groups, onChange, selectedValues });
-  const isOpen = region.hasRegion ? region.isOpen : isFallbackOpen;
+  const shellPanel = useFiltersPanelOwner({ groups, onChange, selectedValues });
+  const isOpen = shellPanel.isAvailable ? shellPanel.isOpen : isFallbackOpen;
   // The shell's panel is drawn whether or not it is open, so the trigger can
   // point at it either way; its own is only there once it has been opened.
-  const controlledPanelId = region.hasRegion
+  const controlledPanelId = shellPanel.isAvailable
     ? FILTERS_PANEL_REGION_ID
     : isFallbackOpen
       ? fallbackPanelId
       : undefined;
+
+  useReturnFocusOnClose(isOpen, triggerRef, setIsTooltipOpen);
   const triggerLabel = hasSelectedValues
     ? `Filtros: ${getFacetedFilterSummary(groups, selectedValues)}`
     : "Filtros";
@@ -76,8 +124,8 @@ export function DataTableFacetedFilterControl({
   };
 
   const togglePanel = () => {
-    if (region.hasRegion) {
-      region.toggle();
+    if (shellPanel.isAvailable) {
+      shellPanel.toggle();
     } else {
       setIsFallbackOpen((wasOpen) => !wasOpen);
     }
@@ -90,6 +138,7 @@ export function DataTableFacetedFilterControl({
       <Tooltip open={isTooltipOpen} onOpenChange={handleTooltipOpenChange}>
         <TooltipTrigger asChild>
           <Button
+            ref={triggerRef}
             type="button"
             variant="outline"
             size="icon-sm"
@@ -116,52 +165,13 @@ export function DataTableFacetedFilterControl({
           Filtros
         </TooltipContent>
       </Tooltip>
-      {!region.hasRegion && isFallbackOpen ? (
-        <DataTableStandaloneFiltersPanel
+      {!shellPanel.isAvailable && isFallbackOpen ? (
+        <StandaloneFiltersPanel
           id={fallbackPanelId}
           content={{ groups, onChange, selectedValues }}
           onClose={() => setIsFallbackOpen(false)}
         />
       ) : null}
     </>
-  );
-}
-
-/**
- * The panel for a table with no shell around it. It is portalled to the body so
- * that the edge it sits against is the screen's and not whichever ancestor
- * happens to be positioned.
- */
-function DataTableStandaloneFiltersPanel({
-  content,
-  id,
-  onClose,
-}: {
-  content: Parameters<typeof FiltersPanelBody>[0]["content"];
-  id: string;
-  onClose: () => void;
-}) {
-  const containerRef = useRef<HTMLElement>(null);
-
-  useCloseOnEscape(true, onClose, containerRef);
-
-  if (typeof document === "undefined") {
-    return null;
-  }
-
-  return createPortal(
-    <aside
-      ref={containerRef}
-      id={id}
-      data-slot="filters-panel"
-      data-state="open"
-      // The width is the shell panel's, so the two cannot drift apart. Read
-      // through a default because a table outside a shell is also outside the
-      // sidebar that would otherwise be setting the variable.
-      className="fixed inset-y-0 right-0 z-40 flex w-[var(--sidebar-width,16rem)] max-w-full flex-col border-l bg-sidebar text-sidebar-foreground shadow-lg"
-    >
-      <FiltersPanelBody autoFocusClose content={content} onClose={onClose} />
-    </aside>,
-    document.body,
   );
 }

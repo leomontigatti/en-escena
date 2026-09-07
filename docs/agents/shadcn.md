@@ -79,6 +79,7 @@ overwrite is unsafe.
 | `progress`                                   | indicator uses `bg-brand`                                                         |
 | `badge`, `alert`                             | extra `success` / `info` / `warning` variants, and borders upstream dropped       |
 | `avatar`                                     | `data-layout="overlap"` for avatar groups                                         |
+| `sidebar`                                    | `SIDEBAR_WIDTH` is exported, so the filters panel cannot drift from the sidebar   |
 | `select`                                     | defaults to `position="popper"`, `align="start"`, explicit `side`                 |
 | `sidebar`                                    | wraps its tree in `TooltipProvider`                                               |
 | `alert-dialog`                               | `forceMount` passthrough to Portal / Overlay / Content                            |
