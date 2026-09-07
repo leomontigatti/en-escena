@@ -24,6 +24,34 @@ export function getLatestEligibleBirthDate(eventStartDate: string) {
 }
 
 /**
+ * Where the birth-date calendar opens: the roster's birth years peak around a
+ * twelve-year-old, so a mis-click without touching the year dropdown lands on a
+ * plainly wrong year instead of on a value that quietly passes validation.
+ */
+const typicalDancerAgeAtEventStart = 12;
+
+/**
+ * The months the birth-date picker opens on and the newest one it offers. They
+ * answer different questions: the bound is the newest birth date that still
+ * competes, while the default month is an ergonomics choice deliberately far
+ * from it. Without an active event both fall back to today.
+ */
+export function getBirthDatePickerMonths(eventStartDate?: string | null) {
+  if (!eventStartDate || !isDateOnly(eventStartDate)) {
+    const today = new Date();
+
+    return { defaultMonth: today, endMonth: today };
+  }
+
+  const [year, month] = eventStartDate.split("-").map(Number);
+
+  return {
+    defaultMonth: new Date(year - typicalDancerAgeAtEventStart, month - 1),
+    endMonth: new Date(year - minimumDancerAgeAtEventStart, month - 1),
+  };
+}
+
+/**
  * The one birth-date rule, shared by every dancer schema: a real date-only
  * string, not in the future, and old enough at the event's start. Without an
  * event start — no active event — only the first two checks apply, because age

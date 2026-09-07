@@ -10,6 +10,7 @@ import {
   type ReactRouterFormSubmit,
 } from "@/lib/shared/forms";
 
+import { getBirthDatePickerMonths } from "@/lib/dancers/birth-date";
 import { getAssetUploadFieldProps } from "@/lib/storage/asset-kinds";
 
 import {
@@ -63,6 +64,7 @@ export function usePortalDancerForm({
   ]);
 
   return {
+    eventStartDate,
     form,
     handleSubmit: createValidatedReactRouterSubmitHandler(form, submit, {
       encType: "multipart/form-data",
@@ -91,11 +93,14 @@ export function PortalDancerTextField({
 }
 
 export function PortalDancerBirthDateField({
+  eventStartDate,
   form,
 }: {
+  eventStartDate: string | null;
   form: PortalDancerFormReturn;
 }) {
   const id = useId();
+  const birthDateMonths = getBirthDatePickerMonths(eventStartDate);
 
   return (
     <DateOnlyField
@@ -104,7 +109,8 @@ export function PortalDancerBirthDateField({
       id={id}
       label="Fecha de nacimiento"
       buttonClassName="mt-0 h-8 w-full font-normal"
-      endMonth={new Date()}
+      defaultMonth={birthDateMonths.defaultMonth}
+      endMonth={birthDateMonths.endMonth}
       startMonth={new Date(1900, 0)}
     />
   );

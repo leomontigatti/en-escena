@@ -26,6 +26,7 @@ import { cn } from "@/lib/shared/utils";
 type DateOnlyFieldBaseProps = {
   buttonClassName?: string;
   className?: string;
+  defaultMonth?: Date;
   disabled?: boolean;
   error?: string;
   errorClassName?: string;
@@ -78,6 +79,7 @@ export function DateOnlyField<
 function DateOnlyFieldControl({
   buttonClassName,
   className,
+  defaultMonth,
   disabled = false,
   error,
   errorClassName,
@@ -115,6 +117,7 @@ function DateOnlyFieldControl({
             <DateOnlyFieldPicker
               buttonClassName={buttonClassName}
               dateValue={dateValue}
+              defaultMonth={defaultMonth}
               describedBy={describedBy}
               disabled={disabled}
               endMonth={endMonth}
@@ -135,6 +138,7 @@ function DateOnlyFieldControl({
 type DateOnlyFieldPickerProps = Pick<
   DateOnlyFieldBaseProps,
   | "buttonClassName"
+  | "defaultMonth"
   | "disabled"
   | "endMonth"
   | "onBlur"
@@ -150,6 +154,7 @@ type DateOnlyFieldPickerProps = Pick<
 function DateOnlyFieldPicker({
   buttonClassName,
   dateValue,
+  defaultMonth,
   describedBy,
   disabled,
   endMonth,
@@ -198,6 +203,7 @@ function DateOnlyFieldPicker({
       <PopoverContent className="w-auto p-0" align="start">
         <Calendar
           captionLayout="dropdown"
+          defaultMonth={defaultMonth}
           startMonth={startMonth}
           endMonth={endMonth}
           mode="single"

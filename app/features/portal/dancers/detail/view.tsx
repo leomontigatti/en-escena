@@ -220,7 +220,10 @@ export function PortalDancerDetailRouteView({
                         value={viewModel.identityFieldValues.birthDate}
                       />
                     ) : (
-                      <PortalDancerBirthDateField form={form.form} />
+                      <PortalDancerBirthDateField
+                        eventStartDate={form.eventStartDate}
+                        form={form.form}
+                      />
                     )}
                     <div className="hidden md:block" aria-hidden="true" />
                     {viewModel.isIdentityVerified ? (

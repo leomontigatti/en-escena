@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import {
   buildBirthDateRefinement,
+  getBirthDatePickerMonths,
   futureBirthDateMessage,
   getLatestEligibleBirthDate,
   invalidBirthDateMessage,
@@ -43,6 +44,35 @@ describe("birth date refinement", () => {
 
   test("names the newest birth date that still competes", () => {
     expect(getLatestEligibleBirthDate(eventStartDate)).toBe("2025-09-25");
+  });
+});
+
+describe("birth date picker months", () => {
+  test("opens on a plausible birth year, well before the bound", () => {
+    const months = getBirthDatePickerMonths(eventStartDate);
+
+    expect(months.defaultMonth.getFullYear()).toBe(2014);
+    expect(months.defaultMonth.getMonth()).toBe(8);
+  });
+
+  test("offers no month after the newest birth date that still competes", () => {
+    const months = getBirthDatePickerMonths(eventStartDate);
+
+    expect(months.endMonth.getFullYear()).toBe(2025);
+    expect(months.endMonth.getMonth()).toBe(8);
+  });
+
+  test("falls back to today without an active event", () => {
+    const today = new Date();
+
+    for (const eventStart of [null, undefined, "no-es-fecha"]) {
+      const months = getBirthDatePickerMonths(eventStart);
+
+      expect(months.defaultMonth.getFullYear()).toBe(today.getFullYear());
+      expect(months.defaultMonth.getMonth()).toBe(today.getMonth());
+      expect(months.endMonth.getFullYear()).toBe(today.getFullYear());
+      expect(months.endMonth.getMonth()).toBe(today.getMonth());
+    }
   });
 });
 
