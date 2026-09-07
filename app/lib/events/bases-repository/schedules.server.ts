@@ -6,6 +6,7 @@ import {
   db,
   eventBaseEntityNotFound,
   hasOccupyingChoreographies,
+  hasReferencingChoreographies,
   isValidDate,
   isValidTime,
   modalities,
@@ -427,8 +428,7 @@ export async function deleteSchedule(
     return eventBaseEntityNotFound("schedule");
   }
 
-  const hasDependencies =
-    dependencies.hasDependencies ?? scheduleHasOperationalDependencies;
+  const hasDependencies = dependencies.hasDependencies ?? scheduleIsReferenced;
 
   if (await hasDependencies(scheduleId)) {
     return {
@@ -463,6 +463,27 @@ async function scheduleHasOperationalDependencies(scheduleId: string) {
   }
 
   return hasOccupyingChoreographies(eq(choreographies.scheduleId, scheduleId));
+}
+
+/**
+ * The delete counterpart of the guard above. Restructuring only has to refuse
+ * while the schedule is occupied, but a delete has to refuse whenever any
+ * choreography points at it: `choreography.schedule_id` carries no `on delete`
+ * behaviour, so the database would refuse anyway and the caller would get a raw
+ * driver error instead of a typed failure.
+ */
+async function scheduleIsReferenced(scheduleId: string) {
+  const price = await db.query.prices.findFirst({
+    where: eq(prices.scheduleId, scheduleId),
+  });
+
+  if (price) {
+    return true;
+  }
+
+  return hasReferencingChoreographies(
+    eq(choreographies.scheduleId, scheduleId),
+  );
 }
 
 async function validateScheduleInput(

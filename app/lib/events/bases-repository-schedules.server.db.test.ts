@@ -363,4 +363,72 @@ describe("`Bases del evento` repository", () => {
       }),
     ).resolves.toMatchObject({ ok: true, record: { totalCapacity: 18 } });
   });
+  test("reports deleting a schedule any choreography points at as a dependency failure", async () => {
+    const { event, jazz } = await createEventModalitiesFixture();
+    const academy = await createSavedAcademy();
+    const withdrawnBlock = await createSavedSchedule(event.id, {
+      modalityIds: [jazz.id],
+      totalCapacity: 20,
+    });
+    const freeBlock = await createSavedSchedule(event.id, {
+      name: "Sábado tarde",
+      startTime: "14:00",
+      modalityIds: [jazz.id],
+      totalCapacity: 20,
+    });
+    await createChoreographyOnBases({
+      eventId: event.id,
+      academyId: academy.id,
+      modalityId: jazz.id,
+      scheduleId: withdrawnBlock.id,
+      inscriptions: "withdrawn",
+    });
+
+    // Restructuring the block is free —every inscription on it was withdrawn—
+    // but deleting it is not: the foreign key refuses, so the guard reports it.
+    await expect(
+      updateSchedule(withdrawnBlock.id, {
+        name: "Sábado mañana",
+        scheduledDate: "2026-05-02",
+        startTime: "09:30",
+        totalCapacity: 18,
+        modalityIds: [jazz.id],
+      }),
+    ).resolves.toMatchObject({ ok: true });
+    await expect(deleteSchedule(withdrawnBlock.id)).resolves.toEqual({
+      ok: false,
+      code: "schedule-has-dependencies",
+      error: "No se puede borrar el cronograma porque tiene dependencias.",
+    });
+    await expect(deleteSchedule(freeBlock.id)).resolves.toEqual({ ok: true });
+  });
+  test("refuses restructuring a schedule whose choreography carries no inscription", async () => {
+    const { event, jazz, urbanas } = await createEventModalitiesFixture();
+    const academy = await createSavedAcademy();
+    const block = await createSavedSchedule(event.id, {
+      modalityIds: [jazz.id],
+      totalCapacity: 20,
+    });
+    await createChoreographyOnBases({
+      eventId: event.id,
+      academyId: academy.id,
+      modalityId: jazz.id,
+      scheduleId: block.id,
+      inscriptions: "none",
+    });
+
+    await expect(
+      updateSchedule(block.id, {
+        name: "Sábado mañana",
+        scheduledDate: "2026-05-02",
+        startTime: "09:00",
+        totalCapacity: 20,
+        modalityIds: [jazz.id, urbanas.id],
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      error:
+        "No se pueden editar fecha, hora, cupo total ni modalidades aceptadas porque el cronograma tiene dependencias.",
+    });
+  });
 });

@@ -5,6 +5,7 @@ import {
   created,
   db,
   hasOccupyingChoreographies,
+  hasReferencingChoreographies,
   isGroupType,
   requiredFieldMessage,
   scheduleCapacities,
@@ -114,7 +115,7 @@ export async function deleteScheduleCapacity(
   }
 
   const hasDependencies =
-    dependencies.hasDependencies ?? scheduleCapacityHasOperationalDependencies;
+    dependencies.hasDependencies ?? scheduleCapacityIsReferenced;
 
   if (await hasDependencies(scheduleCapacityId)) {
     return {
@@ -136,6 +137,19 @@ async function scheduleCapacityHasOperationalDependencies(
   scheduleCapacityId: string,
 ) {
   return hasOccupyingChoreographies(
+    eq(choreographies.scheduleCapacityId, scheduleCapacityId),
+  );
+}
+
+/**
+ * The delete counterpart of the guard above. A structural edit only has to
+ * refuse while the entry is occupied, but a delete has to refuse whenever any
+ * choreography points at it: `choreography.schedule_capacity_id` carries no
+ * `on delete` behaviour, so the database would refuse anyway and the caller
+ * would get a raw driver error instead of a typed failure.
+ */
+async function scheduleCapacityIsReferenced(scheduleCapacityId: string) {
+  return hasReferencingChoreographies(
     eq(choreographies.scheduleCapacityId, scheduleCapacityId),
   );
 }
@@ -317,12 +331,9 @@ export async function validateInlineScheduleCapacityDependencies({
 
   for (const existingEntry of existingEntries) {
     const nextEntry = nextEntryById.get(existingEntry.id);
-    const hasDependencies = await scheduleCapacityHasOperationalDependencies(
-      existingEntry.id,
-    );
 
     if (!nextEntry) {
-      if (hasDependencies) {
+      if (await scheduleCapacityIsReferenced(existingEntry.id)) {
         return {
           ok: false,
           code: "invalid-schedule-capacity",
@@ -335,7 +346,7 @@ export async function validateInlineScheduleCapacityDependencies({
     }
 
     if (
-      hasDependencies &&
+      (await scheduleCapacityHasOperationalDependencies(existingEntry.id)) &&
       hasStructuralScheduleCapacityChanges(existingEntry, {
         groupType: nextEntry.groupType,
         capacity: nextEntry.capacity,

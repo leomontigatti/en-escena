@@ -160,6 +160,34 @@ export async function createEventPriceFixture(name = "Regional 2026") {
   return { event, modality, schedule };
 }
 
+/**
+ * The one insert both choreography fixtures share. The choreography number is
+ * allocated inside the transaction that writes the row, because the allocation
+ * reads the numbers already taken for the event.
+ */
+async function insertChoreography(
+  values: Omit<
+    typeof choreographies.$inferInsert,
+    "choreographyNumber" | "categoryCalculationMode"
+  >,
+) {
+  const [choreography] = await db.transaction(async (tx) =>
+    tx
+      .insert(choreographies)
+      .values({
+        ...values,
+        choreographyNumber: await allocateChoreographyNumber({
+          tx,
+          eventId: values.eventId,
+        }),
+        categoryCalculationMode: "oldest",
+      })
+      .returning(),
+  );
+
+  return choreography;
+}
+
 export async function createEventChoreographyFixture({
   eventId,
   academyId,
@@ -188,21 +216,14 @@ export async function createEventChoreographyFixture({
       capacity: 10,
     }),
   );
-  const [choreography] = await db.transaction(async (tx) =>
-    tx
-      .insert(choreographies)
-      .values({
-        eventId,
-        academyId,
-        choreographyNumber: await allocateChoreographyNumber({ tx, eventId }),
-        name,
-        modalityId: modality.id,
-        groupType,
-        categoryCalculationMode: "oldest",
-        scheduleCapacityId: entry.id,
-      })
-      .returning(),
-  );
+  const choreography = await insertChoreography({
+    eventId,
+    academyId,
+    name,
+    modalityId: modality.id,
+    groupType,
+    scheduleCapacityId: entry.id,
+  });
 
   if (dancerIds.length > 0) {
     await db.insert(choreographyDancers).values(
@@ -226,7 +247,7 @@ export async function createEventChoreographyFixture({
   return choreography;
 }
 
-type OccupyingChoreographyFixtureInput = {
+type ChoreographyOnBasesFixtureInput = {
   eventId: string;
   academyId: string;
   modalityId: string;
@@ -257,25 +278,18 @@ export async function createChoreographyOnBases({
   scheduleId,
   scheduleCapacityId,
   inscriptions = "active",
-}: OccupyingChoreographyFixtureInput) {
-  const [choreography] = await db.transaction(async (tx) =>
-    tx
-      .insert(choreographies)
-      .values({
-        eventId,
-        academyId,
-        choreographyNumber: await allocateChoreographyNumber({ tx, eventId }),
-        name,
-        modalityId,
-        groupType,
-        categoryId,
-        categoryCalculationMode: "oldest",
-        experienceLevelId,
-        scheduleId,
-        scheduleCapacityId,
-      })
-      .returning(),
-  );
+}: ChoreographyOnBasesFixtureInput) {
+  const choreography = await insertChoreography({
+    eventId,
+    academyId,
+    name,
+    modalityId,
+    groupType,
+    categoryId,
+    experienceLevelId,
+    scheduleId,
+    scheduleCapacityId,
+  });
 
   if (inscriptions !== "none") {
     const [dancer] = await db

@@ -533,6 +533,24 @@ export async function hasOccupyingChoreographies(filter: SQL | undefined) {
   return Boolean(choreography);
 }
 
+/**
+ * Whether any choreography at all matches `filter`, occupying or not. The
+ * delete guards ask this instead of `hasOccupyingChoreographies`: none of these
+ * foreign keys carries an `on delete` behaviour, so the database refuses to
+ * drop a base under a choreography whose inscriptions were all withdrawn too.
+ * Reporting that refusal as a typed failure is what the guard adds — asking the
+ * narrower question would let the raw driver error through.
+ */
+export async function hasReferencingChoreographies(filter: SQL | undefined) {
+  const [choreography] = await db
+    .select({ id: choreographies.id })
+    .from(choreographies)
+    .where(filter)
+    .limit(1);
+
+  return Boolean(choreography);
+}
+
 function isOccupyingChoreography() {
   const anyInscription = db
     .select({ id: choreographyDancers.id })

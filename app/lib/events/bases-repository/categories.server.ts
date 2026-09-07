@@ -12,6 +12,7 @@ import {
   groupRelationIdsByCategory,
   groupTypeOrder,
   hasOccupyingChoreographies,
+  hasReferencingChoreographies,
   haveSameValues,
   isExperienceLevel,
   isGroupType,
@@ -183,7 +184,11 @@ export async function deleteCategory(
   // `on delete` behaviour, so the foreign key refuses the delete under any
   // choreography, withdrawn inscriptions included. Reporting that as a typed
   // failure is what this check adds; the refusal itself is the database's.
-  if (await categoryHasChoreographies(categoryId)) {
+  if (
+    await hasReferencingChoreographies(
+      eq(choreographies.categoryId, categoryId),
+    )
+  ) {
     return {
       ok: false,
       code: "event-bases-has-dependencies",
@@ -195,16 +200,6 @@ export async function deleteCategory(
   await db.delete(categories).where(eq(categories.id, categoryId));
 
   return { ok: true };
-}
-
-async function categoryHasChoreographies(categoryId: string) {
-  const [choreography] = await db
-    .select({ id: choreographies.id })
-    .from(choreographies)
-    .where(eq(choreographies.categoryId, categoryId))
-    .limit(1);
-
-  return Boolean(choreography);
 }
 
 /**

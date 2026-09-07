@@ -307,5 +307,95 @@ describe("`Bases del evento` repository", () => {
         ],
       }),
     ).resolves.toEqual({ ok: true });
+    await expect(
+      validateInlineScheduleCapacityDependencies({
+        existingEntries,
+        nextEntries: [
+          { id: occupiedEntry.id, index: 0, groupType: "solo", capacity: 6 },
+        ],
+      }),
+    ).resolves.toEqual({ ok: true });
+  });
+  test("reports deleting a schedule capacity any choreography points at as a dependency failure", async () => {
+    const { event, jazz } = await createEventModalitiesFixture();
+    const academy = await createSavedAcademy();
+    const block = await createSavedSchedule(event.id, {
+      modalityIds: [jazz.id],
+      totalCapacity: 10,
+    });
+    const withdrawnEntry = await expectCreated(
+      createScheduleCapacity(block.id, { groupType: "solo", capacity: 6 }),
+    );
+    const freeEntry = await expectCreated(
+      createScheduleCapacity(block.id, { groupType: "duo", capacity: 4 }),
+    );
+    await createChoreographyOnBases({
+      eventId: event.id,
+      academyId: academy.id,
+      modalityId: jazz.id,
+      scheduleCapacityId: withdrawnEntry.id,
+      inscriptions: "withdrawn",
+    });
+
+    // The entry is free to restructure —every inscription on it was withdrawn—
+    // but not to delete: the foreign key still refuses, so the guard has to
+    // report that rather than let the driver error through.
+    await expect(
+      updateScheduleCapacity(withdrawnEntry.id, {
+        groupType: "solo",
+        capacity: 5,
+      }),
+    ).resolves.toMatchObject({ ok: true });
+    await expect(deleteScheduleCapacity(withdrawnEntry.id)).resolves.toEqual({
+      ok: false,
+      code: "invalid-schedule-capacity",
+      error:
+        "No se puede borrar el cupo de cronograma porque tiene dependencias.",
+    });
+    await expect(deleteScheduleCapacity(freeEntry.id)).resolves.toEqual({
+      ok: true,
+    });
+  });
+
+  test("refuses removing a schedule capacity a withdrawn choreography points at from the inline path", async () => {
+    const { event, jazz } = await createEventModalitiesFixture();
+    const academy = await createSavedAcademy();
+    const block = await createSavedSchedule(event.id, {
+      modalityIds: [jazz.id],
+      totalCapacity: 10,
+    });
+    const withdrawnEntry = await expectCreated(
+      createScheduleCapacity(block.id, { groupType: "solo", capacity: 6 }),
+    );
+    await createChoreographyOnBases({
+      eventId: event.id,
+      academyId: academy.id,
+      modalityId: jazz.id,
+      scheduleCapacityId: withdrawnEntry.id,
+      inscriptions: "withdrawn",
+    });
+
+    const existingEntries = await db.query.scheduleCapacities.findMany({
+      where: eq(scheduleCapacities.scheduleId, block.id),
+    });
+
+    await expect(
+      validateInlineScheduleCapacityDependencies({
+        existingEntries,
+        nextEntries: [],
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      error:
+        "No se puede borrar el cupo de cronograma porque tiene dependencias.",
+    });
+    await expect(
+      validateInlineScheduleCapacityDependencies({
+        existingEntries,
+        nextEntries: [
+          { id: withdrawnEntry.id, index: 0, groupType: "duo", capacity: 5 },
+        ],
+      }),
+    ).resolves.toEqual({ ok: true });
   });
 });
