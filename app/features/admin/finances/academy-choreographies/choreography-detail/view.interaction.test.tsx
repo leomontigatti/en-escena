@@ -650,7 +650,7 @@ function renderedDancerNames() {
   ].map((row) => row.querySelector("td")?.textContent?.trim() ?? "");
 }
 
-/** Opens the filters menu and toggles an `Estado` option by its label. */
+/** Opens the filters drawer and picks an `Estado` option by its label. */
 async function selectStatusOption(label: string) {
   const trigger = document.querySelector('button[aria-label^="Filtros"]');
 
@@ -658,26 +658,20 @@ async function selectStatusOption(label: string) {
     throw new Error("Expected the filters trigger to be rendered.");
   }
 
-  const pointerDown = new MouseEvent("pointerdown", {
-    bubbles: true,
-    button: 0,
-    cancelable: true,
-  });
-  Object.defineProperty(pointerDown, "pointerType", { value: "mouse" });
+  if (!document.querySelector('[data-slot="sheet-content"]')) {
+    await updateReactDomForm(() => {
+      trigger.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, cancelable: true }),
+      );
+    });
+  }
 
-  await updateReactDomForm(() => {
-    trigger.dispatchEvent(pointerDown);
-    trigger.dispatchEvent(
-      new MouseEvent("pointerup", { bubbles: true, button: 0 }),
-    );
-    trigger.dispatchEvent(
-      new MouseEvent("click", { bubbles: true, cancelable: true }),
-    );
-  });
-
-  const option = [...document.querySelectorAll('[role="menuitemradio"]')].find(
+  const optionLabel = [...document.querySelectorAll("label[for]")].find(
     (candidate) => candidate.textContent?.trim() === label,
   );
+  const option = optionLabel
+    ? document.getElementById(optionLabel.getAttribute("for") ?? "")
+    : null;
 
   if (!option) {
     throw new Error(`Expected the "${label}" status option to be offered.`);

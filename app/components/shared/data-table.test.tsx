@@ -676,7 +676,7 @@ describe("ClientDataTable filters in the address bar", () => {
     );
     await renderer.renderAsync(<RouterProvider router={router} />);
 
-    await openFiltersDropdown();
+    await openFiltersDrawer();
     await clickFilterOption("Archivado");
 
     expect(router.state.location.search).toBe("?estado=archived");
@@ -705,8 +705,8 @@ describe("ClientDataTable filters in the address bar", () => {
     );
     await renderer.renderAsync(<RouterProvider router={router} />);
 
-    await openFiltersDropdown();
-    await clickFilterOption("Limpiar filtros");
+    await openFiltersDrawer();
+    await clearFilters();
 
     expect(router.state.location.search).toBe("");
     expect(getRenderedRowNames()).toContain("Coreografía 01");
@@ -718,7 +718,7 @@ describe("ClientDataTable filters in the address bar", () => {
     });
     await renderer.renderAsync(<RouterProvider router={router} />);
 
-    await openFiltersDropdown();
+    await openFiltersDrawer();
     await clickFilterOption("Archivado");
 
     expect(router.state.location.search).toBe("?estado=archived");
@@ -1144,29 +1144,35 @@ function getFiltersTrigger() {
   return trigger;
 }
 
-async function openFiltersDropdown() {
-  const trigger = getFiltersTrigger();
-
-  await act(async () => {
-    trigger.dispatchEvent(
-      new MouseEvent("pointerdown", {
-        bubbles: true,
-        cancelable: true,
-        button: 0,
-      }),
-    );
-    await Promise.resolve();
-  });
+async function openFiltersDrawer() {
+  await clickElement(getFiltersTrigger());
 }
 
+/** Picks an option of the drawer by the label the reader reads next to it. */
 async function clickFilterOption(label: string) {
-  const option = Array.from(
-    document.querySelectorAll('[role="menuitemradio"], [role="menuitem"]'),
-  ).find((item) => item.textContent?.trim() === label);
+  const optionLabel = Array.from(document.querySelectorAll("label[for]")).find(
+    (candidate) => candidate.textContent?.trim() === label,
+  );
+  const option = optionLabel
+    ? document.getElementById(optionLabel.getAttribute("for") ?? "")
+    : null;
 
   if (!option) {
     throw new Error(`Expected the filter option "${label}" to be rendered.`);
   }
 
   await clickElement(option);
+}
+
+/** The drawer's footer action, which clears every group at once. */
+async function clearFilters() {
+  const button = Array.from(
+    document.querySelectorAll('[data-slot="sheet-footer"] button'),
+  ).find((candidate) => candidate.textContent?.trim() === "Limpiar filtros");
+
+  if (!button) {
+    throw new Error("Expected the drawer to offer clearing every filter.");
+  }
+
+  await clickElement(button);
 }

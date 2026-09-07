@@ -10,7 +10,7 @@ import {
   getServerSortDirection,
   mergeBaseFacetedFilterValues,
   mergeServerFilterValues,
-  toggleFacetedFilterValue,
+  setFacetedFilterValue,
 } from "@/components/shared/data-table-helpers";
 import type { DataTableFacetedFilter } from "@/components/shared/data-table.shared";
 
@@ -100,22 +100,23 @@ describe("data-table helpers", () => {
     );
   });
 
-  test("toggles one faceted filter group without mutating other groups", () => {
+  test("writes one faceted filter group without mutating other groups", () => {
     expect(
-      toggleFacetedFilterValue(
+      setFacetedFilterValue(
         {
           estado: "active",
           sede: "north",
         },
         "estado",
-        "active",
+        "archived",
       ),
     ).toEqual({
+      estado: "archived",
       sede: "north",
     });
 
     expect(
-      toggleFacetedFilterValue(
+      setFacetedFilterValue(
         {
           estado: "active",
         },
@@ -126,6 +127,25 @@ describe("data-table helpers", () => {
       estado: "active",
       sede: "north",
     });
+  });
+
+  test("clears a faceted filter group when it is emptied or re-picked", () => {
+    expect(
+      setFacetedFilterValue(
+        {
+          estado: "active",
+          sede: "north",
+        },
+        "estado",
+        "",
+      ),
+    ).toEqual({
+      sede: "north",
+    });
+
+    expect(
+      setFacetedFilterValue({ estado: "active" }, "estado", "active"),
+    ).toEqual({});
   });
 
   test("summarizes only active faceted filter labels", () => {

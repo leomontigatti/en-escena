@@ -3,17 +3,7 @@ import { useId, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Label } from "@/components/ui/label";
 import {
   Pagination,
   PaginationContent,
@@ -23,6 +13,16 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import {
   Tooltip,
   TooltipContent,
@@ -37,7 +37,7 @@ import {
   getActiveFacetedFilterValues,
   getFacetedFilterSummary,
   getPaginationPages,
-  toggleFacetedFilterValue,
+  setFacetedFilterValue,
 } from "@/components/shared/data-table-helpers";
 import { cn } from "@/lib/shared/utils";
 
@@ -63,6 +63,16 @@ type SortIconProps = {
   direction?: DataTableSortDirection | false;
 };
 
+/**
+ * The filters, in a drawer that comes in from the right — the mirror of the
+ * navigation sidebar, which comes in from the left. A dropdown could only show
+ * the groups as a stacked menu; a panel gives each group its own labelled block
+ * and leaves room for the list to grow.
+ *
+ * Every change applies at once, so the panel has no "Aplicar": the table behind
+ * it narrows while it is open. `Todos` is what clears a single group, and the
+ * footer clears them all.
+ */
 export function DataTableFacetedFilterControl({
   groups,
   selectedValues,
@@ -72,7 +82,7 @@ export function DataTableFacetedFilterControl({
   const hasSelectedValues = selectedCount > 0;
   const tooltipId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isTooltipOpen, setIsTooltipOpen] = useState(false);
   const activeFilterSummary = getFacetedFilterSummary(groups, selectedValues);
   const triggerLabel = hasSelectedValues
@@ -80,22 +90,22 @@ export function DataTableFacetedFilterControl({
     : "Filtros";
 
   const handleTooltipOpenChange = (open: boolean) => {
-    if (open && isDropdownOpen) {
+    if (open && isDrawerOpen) {
       return;
     }
 
     setIsTooltipOpen(open);
   };
 
-  const handleDropdownOpenChange = (open: boolean) => {
-    setIsDropdownOpen(open);
+  const handleDrawerOpenChange = (open: boolean) => {
+    setIsDrawerOpen(open);
 
     if (open) {
       setIsTooltipOpen(false);
     }
   };
 
-  const preventTriggerFocusAfterDropdownClose = (event: Event) => {
+  const preventTriggerFocusAfterDrawerClose = (event: Event) => {
     event.preventDefault();
     triggerRef.current?.blur();
     setIsTooltipOpen(false);
@@ -103,12 +113,9 @@ export function DataTableFacetedFilterControl({
 
   return (
     <Tooltip open={isTooltipOpen} onOpenChange={handleTooltipOpenChange}>
-      <DropdownMenu
-        open={isDropdownOpen}
-        onOpenChange={handleDropdownOpenChange}
-      >
+      <Sheet open={isDrawerOpen} onOpenChange={handleDrawerOpenChange}>
         <TooltipTrigger asChild>
-          <DropdownMenuTrigger asChild>
+          <SheetTrigger asChild>
             <Button
               ref={triggerRef}
               type="button"
@@ -129,59 +136,109 @@ export function DataTableFacetedFilterControl({
               ) : null}
               <span className="sr-only">{triggerLabel}</span>
             </Button>
-          </DropdownMenuTrigger>
+          </SheetTrigger>
         </TooltipTrigger>
-        <DropdownMenuContent
-          align="end"
-          className="w-56"
-          onCloseAutoFocus={preventTriggerFocusAfterDropdownClose}
+        <SheetContent
+          side="right"
+          className="gap-0 bg-background"
+          onCloseAutoFocus={preventTriggerFocusAfterDrawerClose}
         >
-          <DropdownMenuGroup>
-            <DropdownMenuItem
+          <SheetHeader className="border-b">
+            <SheetTitle>Filtros</SheetTitle>
+            <SheetDescription>
+              {hasSelectedValues
+                ? activeFilterSummary
+                : "Elegí cómo querés acotar la lista."}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="flex flex-1 flex-col gap-6 overflow-y-auto p-4">
+            {groups.map((group) => (
+              <DataTableFacetedFilterGroupField
+                key={group.id}
+                group={group}
+                selectedValue={selectedValues[group.id] ?? ""}
+                onChange={(nextValue) => {
+                  onChange(
+                    setFacetedFilterValue(selectedValues, group.id, nextValue),
+                  );
+                }}
+              />
+            ))}
+          </div>
+          <SheetFooter className="border-t">
+            <Button
+              type="button"
+              variant="outline"
               disabled={!hasSelectedValues}
-              onSelect={() => onChange({})}
+              onClick={() => onChange({})}
             >
               Limpiar filtros
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-          {groups.map((group) => {
-            const groupId = group.id;
-            const selectedValue = selectedValues[groupId] ?? "";
-
-            return (
-              <DropdownMenuGroup key={groupId}>
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel>{group.label}</DropdownMenuLabel>
-                <DropdownMenuRadioGroup
-                  value={selectedValue}
-                  onValueChange={(nextValue) => {
-                    onChange(
-                      toggleFacetedFilterValue(
-                        selectedValues,
-                        groupId,
-                        nextValue,
-                      ),
-                    );
-                  }}
-                >
-                  {group.options.map((option) => (
-                    <DropdownMenuRadioItem
-                      key={option.value}
-                      value={option.value}
-                    >
-                      {option.label}
-                    </DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuGroup>
-            );
-          })}
-        </DropdownMenuContent>
-      </DropdownMenu>
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
       <TooltipContent id={tooltipId} side="left" sideOffset={6}>
         Filtros
       </TooltipContent>
     </Tooltip>
+  );
+}
+
+/**
+ * One group of the drawer: its name, its options as radios, and the way back
+ * out. The way out is a per-group `Limpiar` rather than an extra `Todos` option,
+ * because a group is free to offer an option of its own by that name —the
+ * professors list does— and a synthetic one would either duplicate it or take
+ * its value away.
+ */
+function DataTableFacetedFilterGroupField({
+  group,
+  onChange,
+  selectedValue,
+}: {
+  group: DataTableFacetedFilter;
+  onChange: (value: string) => void;
+  selectedValue: string;
+}) {
+  const groupLabelId = useId();
+  const hasSelectedValue = selectedValue.length > 0;
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-2">
+        <p id={groupLabelId} className="text-sm font-medium text-foreground">
+          {group.label}
+        </p>
+        {hasSelectedValue ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => onChange("")}
+          >
+            Limpiar
+          </Button>
+        ) : null}
+      </div>
+      <RadioGroup
+        aria-labelledby={groupLabelId}
+        value={selectedValue}
+        onValueChange={onChange}
+      >
+        {group.options.map((option) => {
+          const optionId = `${groupLabelId}-${option.value}`;
+
+          return (
+            <div key={option.value} className="flex items-center gap-2">
+              <RadioGroupItem id={optionId} value={option.value} />
+              <Label htmlFor={optionId} className="font-normal">
+                {option.label}
+              </Label>
+            </div>
+          );
+        })}
+      </RadioGroup>
+    </div>
   );
 }
 

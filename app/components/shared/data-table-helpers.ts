@@ -171,14 +171,20 @@ export function getVisibleFacetedFilterValue(
   return visibleValue;
 }
 
-export function toggleFacetedFilterValue(
+/**
+ * Writes one group's selection, leaving the other groups alone. Clearing a
+ * group —the drawer's `Limpiar`, or re-picking what is already picked, which
+ * says the same thing— removes it rather than storing an empty value, so a
+ * cleared group never reaches the URL.
+ */
+export function setFacetedFilterValue(
   selectedValues: DataTableFacetedFilterValue,
   groupId: string,
   nextValue: string,
 ) {
   const updatedValues = { ...selectedValues };
 
-  if (nextValue === selectedValues[groupId]) {
+  if (nextValue === "" || nextValue === selectedValues[groupId]) {
     delete updatedValues[groupId];
   } else {
     updatedValues[groupId] = nextValue;
