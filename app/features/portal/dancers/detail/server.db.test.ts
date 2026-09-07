@@ -6,6 +6,11 @@ import { checkAssetAgainstPolicy } from "@/lib/storage/asset-kinds";
 import { choreographies, choreographyDancers, dancers } from "@/db/schema";
 import { createCategory } from "@/lib/categories/repository.server";
 import { createModality } from "@/lib/modalities/repository.server";
+import { activateEvent } from "@/lib/events/management.server";
+import {
+  invalidBirthDateMessage,
+  underageBirthDateMessage,
+} from "@/lib/dancers/birth-date";
 import { fixedExperienceLevel } from "@/lib/events/bases-test-fixtures.server.db";
 import {
   createPortalSavedEvent as createSavedEvent,
@@ -580,6 +585,88 @@ describe.sequential("handlePortalDancerDetailAction", () => {
       documentFrontImageStorageKey: "dancers/vera-front.jpg",
       identityVerifiedAt: new Date("2026-06-16T12:00:00Z"),
     });
+  });
+
+  test("rejects a birth date that is not a real date and keeps the stored one", async () => {
+    const session = await createAcademySession({
+      email: "bailarines.fecha.rota@example.com",
+      academyName: "Academia Fecha Rota",
+    });
+    const [dancer] = await db
+      .insert(dancers)
+      .values({
+        academyId: session.academyId,
+        firstName: "Ana",
+        lastName: "Fecha",
+        birthDate: "2014-02-01",
+      })
+      .returning();
+
+    const result = await handlePortalDancerDetailAction({
+      request: createPortalPostRequest(
+        `http://localhost/portal/bailarines/${dancer.id}`,
+        session.cookie,
+        dancerEditFormData({
+          firstName: "Ana",
+          lastName: "Fecha",
+          birthDate: "01/02/2014",
+          documentType: "",
+          documentNumber: "",
+        }),
+      ),
+      params: { dancerId: dancer.id },
+    });
+
+    expect(result).toMatchObject({
+      status: "error",
+      fieldErrors: { birthDate: invalidBirthDateMessage },
+      values: { birthDate: "01/02/2014" },
+    });
+    await expectPersistedDancer(dancer.id, { birthDate: "2014-02-01" });
+  });
+
+  test("rejects a dancer under one year old at the active event start", async () => {
+    const event = await createSavedEvent({
+      name: "Regional Edad Mínima",
+      startsAt: date("2026-05-01T12:00:00Z"),
+      endsAt: date("2026-05-03T12:00:00Z"),
+    });
+    await activateEvent(event.id);
+    const session = await createAcademySession({
+      email: "bailarines.edad.minima@example.com",
+      academyName: "Academia Edad Mínima",
+    });
+    const [dancer] = await db
+      .insert(dancers)
+      .values({
+        academyId: session.academyId,
+        firstName: "Ana",
+        lastName: "Edad",
+        birthDate: "2014-02-01",
+      })
+      .returning();
+
+    const result = await handlePortalDancerDetailAction({
+      request: createPortalPostRequest(
+        `http://localhost/portal/bailarines/${dancer.id}`,
+        session.cookie,
+        dancerEditFormData({
+          firstName: "Ana",
+          lastName: "Edad",
+          birthDate: "2026-01-15",
+          documentType: "",
+          documentNumber: "",
+        }),
+      ),
+      params: { dancerId: dancer.id },
+    });
+
+    expect(result).toMatchObject({
+      status: "error",
+      fieldErrors: { birthDate: underageBirthDateMessage },
+      values: { birthDate: "2026-01-15" },
+    });
+    await expectPersistedDancer(dancer.id, { birthDate: "2014-02-01" });
   });
 
   test("keeps existing document images when clearing document type and number", async () => {

@@ -13,7 +13,7 @@ import {
 import { getAssetUploadFieldProps } from "@/lib/storage/asset-kinds";
 
 import {
-  dancerSchema,
+  buildPortalDancerSchema,
   getPortalDancerFieldAutoComplete,
   type PortalDancerDetailLoaderData,
   type PortalDancerFormValues,
@@ -33,9 +33,11 @@ type PortalDancerTextFieldName =
   | "lastName";
 
 export function usePortalDancerForm({
+  eventStartDate,
   submit,
   values,
 }: {
+  eventStartDate: string | null;
   submit: ReactRouterFormSubmit;
   values: PortalDancerFormValues;
 }) {
@@ -43,7 +45,7 @@ export function usePortalDancerForm({
     {
       defaultValues: values,
       mode: "onSubmit",
-      resolver: zodResolver(dancerSchema),
+      resolver: zodResolver(buildPortalDancerSchema(eventStartDate)),
     },
   );
 

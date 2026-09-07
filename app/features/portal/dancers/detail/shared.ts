@@ -9,44 +9,55 @@ import type {
   DancerIdentificationPendingItem,
   DancerVerificationStatus,
 } from "@/lib/dancers/verification";
+import { buildBirthDateRefinement } from "@/lib/dancers/birth-date";
 import { getArchiveKeepsRosterMessage } from "@/lib/roster/roster-person-status.shared";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 
 export const portalDancerNotFoundMessage = "No encontramos ese Bailarín.";
 export const portalDancerFormId = "portal-bailarin-form";
-export const dancerSchema = z
-  .object({
-    firstName: z.string().trim().min(1, requiredFieldMessage),
-    lastName: z.string().trim().min(1, requiredFieldMessage),
-    birthDate: z.string().trim().min(1, requiredFieldMessage),
-    documentType: z.string().trim(),
-    documentNumber: z.string().trim(),
-    documentFrontImageStorageKey: z.string().trim(),
-    documentBackImageStorageKey: z.string().trim(),
-  })
-  .superRefine((values, context) => {
-    if (!values.documentType && !values.documentNumber) {
-      return;
-    }
+export const portalDancerInvalidValuesMessage =
+  "Revisá los datos del Bailarín.";
 
-    if (!values.documentType) {
-      context.addIssue({
-        code: "custom",
-        message: "Seleccioná el tipo de documento.",
-        path: ["documentType"],
-      });
-    }
+export function buildPortalDancerSchema(eventStartDate?: string | null) {
+  return z
+    .object({
+      firstName: z.string().trim().min(1, requiredFieldMessage),
+      lastName: z.string().trim().min(1, requiredFieldMessage),
+      birthDate: z
+        .string()
+        .trim()
+        .min(1, requiredFieldMessage)
+        .superRefine(buildBirthDateRefinement(eventStartDate)),
+      documentType: z.string().trim(),
+      documentNumber: z.string().trim(),
+      documentFrontImageStorageKey: z.string().trim(),
+      documentBackImageStorageKey: z.string().trim(),
+    })
+    .superRefine((values, context) => {
+      if (!values.documentType && !values.documentNumber) {
+        return;
+      }
 
-    if (!values.documentNumber) {
-      context.addIssue({
-        code: "custom",
-        message: "Ingresá el número de documento.",
-        path: ["documentNumber"],
-      });
-    }
-  });
+      if (!values.documentType) {
+        context.addIssue({
+          code: "custom",
+          message: "Seleccioná el tipo de documento.",
+          path: ["documentType"],
+        });
+      }
+
+      if (!values.documentNumber) {
+        context.addIssue({
+          code: "custom",
+          message: "Ingresá el número de documento.",
+          path: ["documentNumber"],
+        });
+      }
+    });
+}
 
 export type PortalDancerDetailLoaderData = {
+  activeEventStartDate: string | null;
   dancer: NonNullable<Awaited<ReturnType<typeof findDancerForAcademy>>>;
   documentImageUrls: PortalDancerDocumentImageUrls;
   inscriptions: DancerInscription[];
@@ -65,7 +76,9 @@ export type PortalDancerDetailActionData =
       message: string;
     };
 
-export type PortalDancerFormValues = z.infer<typeof dancerSchema>;
+export type PortalDancerFormValues = z.infer<
+  ReturnType<typeof buildPortalDancerSchema>
+>;
 export type PortalDancerDocumentImageUrls = {
   back: string | null;
   front: string | null;

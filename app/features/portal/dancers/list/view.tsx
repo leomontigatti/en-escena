@@ -165,6 +165,7 @@ export function PortalDancersListRouteView({
       <CreateDancerDialog
         key={dialogResetKey}
         actionData={visibleActionData}
+        eventStartDate={loaderData.activeEventStartDate}
         isOpen={isCreateDialogOpen}
         isSubmitting={createDancerFetcher.state !== "idle"}
         onOpenChange={(nextOpen) => {

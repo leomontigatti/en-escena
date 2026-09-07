@@ -209,6 +209,7 @@ function renderDancersList(input: DancersListViewInput = {}) {
         element: (
           <PortalDancersListRouteView
             loaderData={{
+              activeEventStartDate: "2026-09-25",
               dancers: [],
               documentDownloadUrls: eventDocumentDownloadUrls(),
               ...input.loaderData,

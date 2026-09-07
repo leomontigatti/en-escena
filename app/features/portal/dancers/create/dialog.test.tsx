@@ -113,6 +113,7 @@ describe("PortalDancersListRouteView dialog", () => {
 
 function createDancerLoaderData(): PortalDancersListRouteViewProps["loaderData"] {
   return {
+    activeEventStartDate: "2026-09-25",
     dancers: [],
     documentDownloadUrls: eventDocumentDownloadUrls(),
   };

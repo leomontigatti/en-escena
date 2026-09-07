@@ -21,8 +21,8 @@ import {
   type ReactRouterFormSubmit,
 } from "@/lib/shared/forms";
 import {
+  buildCreateDancerSchema,
   createDancerIntent,
-  createDancerSchema,
   emptyDancerValues,
   type CreateDancerActionData,
   type CreateDancerFormValues,
@@ -30,12 +30,14 @@ import {
 
 export function CreateDancerDialog({
   actionData,
+  eventStartDate,
   isOpen,
   isSubmitting,
   onOpenChange,
   submit,
 }: {
   actionData?: Extract<CreateDancerActionData, { status: "error" }>;
+  eventStartDate: string | null;
   isOpen: boolean;
   isSubmitting: boolean;
   onOpenChange: (nextOpen: boolean) => void;
@@ -43,7 +45,7 @@ export function CreateDancerDialog({
 }) {
   const birthDateId = useId();
   const form = useForm<CreateDancerFormValues>({
-    resolver: zodResolver(createDancerSchema),
+    resolver: zodResolver(buildCreateDancerSchema(eventStartDate)),
     defaultValues: actionData?.values ?? emptyDancerValues,
   });
 

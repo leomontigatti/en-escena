@@ -79,6 +79,7 @@ export function PortalDancerDetailRouteView({
     dancer: loaderData.dancer,
   });
   const form = usePortalDancerForm({
+    eventStartDate: loaderData.activeEventStartDate,
     submit,
     values: formValues,
   });

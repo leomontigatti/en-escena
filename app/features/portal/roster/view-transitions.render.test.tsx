@@ -55,6 +55,7 @@ describe("portal view transitions", () => {
       "/portal/bailarines",
       <PortalDancersListRouteView
         loaderData={{
+          activeEventStartDate: "2026-09-25",
           documentDownloadUrls: eventDocumentDownloadUrls(),
           dancers: [
             {
@@ -163,6 +164,7 @@ async function renderRoute(path: string, element: React.ReactNode) {
 
 function buildDancerDetailLoaderData() {
   return {
+    activeEventStartDate: "2026-09-25",
     documentImageUrls: {
       back: null,
       front: null,

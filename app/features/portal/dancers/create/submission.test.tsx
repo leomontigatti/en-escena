@@ -37,6 +37,7 @@ describe("dancer create submissions", () => {
       <MemoryRouter initialEntries={["/portal/bailarines"]}>
         <PortalDancersListRouteView
           loaderData={{
+            activeEventStartDate: "2026-09-25",
             dancers: [],
             documentDownloadUrls: eventDocumentDownloadUrls(),
           }}
