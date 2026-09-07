@@ -1,3 +1,24 @@
+const scheduleDayFormatter = new Intl.DateTimeFormat("es-AR", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+/**
+ * A schedule's day on its own, without the time. A day holds as many schedules
+ * as the event needs, so what names it is the date they share.
+ */
+export function formatScheduleDayLabel(scheduledDate: string) {
+  const [year, month, day] = scheduledDate.split("-");
+
+  if (!year || !month || !day) {
+    return scheduledDate;
+  }
+
+  return scheduleDayFormatter.format(new Date(`${scheduledDate}T00:00:00Z`));
+}
+
 export type ScheduleDateTimeInput = {
   name: string;
   scheduledDate: string;

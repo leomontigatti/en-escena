@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import {
   appendScheduleOccupancySuffix,
   formatScheduleDateTime,
+  formatScheduleDayLabel,
 } from "@/lib/choreographies/schedule-formatters";
 
 const schedule = {
@@ -49,5 +50,17 @@ describe("schedule formatters", () => {
     expect(formatScheduleDateTime(schedule)).toBe(
       "1 de mayo de 2026 - 14:00 hs.",
     );
+  });
+
+  test("names a day the same way the schedule label does, without its time", () => {
+    expect(formatScheduleDayLabel(schedule.scheduledDate)).toBe(
+      "1 de mayo de 2026",
+    );
+  });
+
+  // The date is read as written, never shifted by the reader's time zone: from
+  // Córdoba, a day parsed as UTC midnight and formatted locally goes back one.
+  test("keeps the day the schedule was saved with", () => {
+    expect(formatScheduleDayLabel("2026-01-01")).toBe("1 de enero de 2026");
   });
 });

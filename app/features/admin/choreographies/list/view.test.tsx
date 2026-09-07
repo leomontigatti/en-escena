@@ -108,6 +108,7 @@ describe("ChoreographiesListRouteView", () => {
         },
         page: 1,
         query: "Sin resultados",
+        scheduleDate: null,
         status: null,
       },
       hasAnyChoreography: true,
@@ -131,6 +132,10 @@ describe("ChoreographiesListRouteView", () => {
           { label: "Sin asignar", value: "sin-asignar" },
         ],
         modalities: [{ label: "Contemporáneo", value: "modalidad_1" }],
+        scheduleDates: [
+          { label: "3 de octubre de 2026", value: "2026-10-03" },
+          { label: "Sin asignar", value: "sin-asignar" },
+        ],
       },
       filters: {
         category: "categoria_1",
@@ -142,13 +147,14 @@ describe("ChoreographiesListRouteView", () => {
         },
         page: 1,
         query: "",
+        scheduleDate: "2026-10-03",
         status: "incompleta",
       },
       hasAnyChoreography: true,
     });
 
     expect(markup).toContain(
-      'aria-label="Filtros: Estado: Incompleta, Modalidad: Contemporáneo, Categoría: Adulto, Tipo de grupo: Dúo"',
+      'aria-label="Filtros: Estado: Incompleta, Modalidad: Contemporáneo, Categoría: Adulto, Tipo de grupo: Dúo, Día: 3 de octubre de 2026"',
     );
   });
 
@@ -191,6 +197,7 @@ function renderRoute(
           facets: {
             categories: [],
             modalities: [],
+            scheduleDates: [],
           },
           filters: {
             category: null,
@@ -202,6 +209,7 @@ function renderRoute(
             },
             page: 1,
             query: "",
+            scheduleDate: null,
             status: null,
           },
           hasAnyChoreography: false,

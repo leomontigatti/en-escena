@@ -8,17 +8,20 @@ import {
   choreographies,
   choreographyProfessors,
   modalities,
+  schedules,
   submodalities,
 } from "@/db/schema";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
+import { formatScheduleDayLabel } from "@/lib/choreographies/schedule-formatters";
 import {
   deriveChoreographyOperationalStatus,
   type ChoreographyOperationalStatus,
 } from "@/lib/choreographies/operational-status";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import { normalizeSearchValue } from "@/components/shared/data-table-helpers";
+import { isDateOnly } from "@/lib/shared/date-only";
 
 type ChoreographyRow = {
   academyName: string;
@@ -33,6 +36,7 @@ type ChoreographyRow = {
   modalityName: string;
   musicStorageKey: string | null;
   name: string;
+  scheduleDate: string | null;
   submodalityName: string | null;
 };
 
@@ -43,14 +47,17 @@ type ChoreographyListFilters = {
   order: ChoreographyOrder;
   page: number;
   query: string;
+  scheduleDate: ChoreographyScheduleDateFilter;
   status: ChoreographyStatusFilter;
 };
 
 type ChoreographyStatusFilter = "completa" | "incompleta" | null;
 type ChoreographyCategoryFilter = string | "sin-asignar" | null;
+type ChoreographyScheduleDateFilter = string | "sin-asignar" | null;
 type HydratedChoreographyRow = ChoreographyListItem & {
   categoryId: string | null;
   modalityId: string;
+  scheduleDate: string | null;
 };
 
 type ChoreographySortColumn = "numero" | "academia" | "nombre";
@@ -80,6 +87,7 @@ type ChoreographyFilterOption = {
 type ChoreographyFacets = {
   categories: ChoreographyFilterOption[];
   modalities: ChoreographyFilterOption[];
+  scheduleDates: ChoreographyFilterOption[];
 };
 
 export type ChoreographyListResult = {
@@ -108,6 +116,7 @@ function readChoreographyFilters(
     order: readChoreographyOrder(searchParams.get("orden")),
     page: readPage(searchParams),
     query: searchParams.get("busqueda")?.trim() ?? "",
+    scheduleDate: readChoreographyScheduleDateFilter(searchParams.get("dia")),
     status: readChoreographyStatusFilter(searchParams.get("estado")),
   };
 }
@@ -122,6 +131,7 @@ export async function loadChoreographies(input: {
       facets: {
         categories: [],
         modalities: [],
+        scheduleDates: [],
       },
       filters: input.filters,
       hasAnyChoreography: false,
@@ -146,6 +156,7 @@ export async function loadChoreographies(input: {
       modalityName: modalities.name,
       musicStorageKey: choreographies.musicStorageKey,
       name: choreographies.name,
+      scheduleDate: schedules.scheduledDate,
       submodalityName: submodalities.name,
     })
     .from(choreographies)
@@ -153,6 +164,7 @@ export async function loadChoreographies(input: {
     .innerJoin(modalities, eq(choreographies.modalityId, modalities.id))
     .leftJoin(submodalities, eq(choreographies.submodalityId, submodalities.id))
     .leftJoin(categories, eq(choreographies.categoryId, categories.id))
+    .leftJoin(schedules, eq(choreographies.scheduleId, schedules.id))
     .where(eq(choreographies.eventId, selectedEventId));
   const hasAnyChoreography = rows.length > 0;
   const facets = buildChoreographyFacets(rows);
@@ -168,7 +180,14 @@ export async function loadChoreographies(input: {
   const page = Math.min(filters.page, totalPages);
   const paginatedRows = filteredRows
     .slice((page - 1) * choreographyPageSize, page * choreographyPageSize)
-    .map(({ categoryId: _categoryId, modalityId: _modalityId, ...row }) => row);
+    .map(
+      ({
+        categoryId: _categoryId,
+        modalityId: _modalityId,
+        scheduleDate: _scheduleDate,
+        ...row
+      }) => row,
+    );
 
   return {
     choreographies: paginatedRows,
@@ -233,53 +252,50 @@ function buildCanonicalChoreographiesSearch(input: {
   filters: ChoreographyListResult["filters"];
 }) {
   const searchParams = new URLSearchParams(input.currentSearch);
+  const { filters } = input;
 
-  if (input.filters.query.length > 0) {
-    searchParams.set("busqueda", input.filters.query);
-  } else {
-    searchParams.delete("busqueda");
-  }
-
-  if (input.filters.status) {
-    searchParams.set("estado", input.filters.status);
-  } else {
-    searchParams.delete("estado");
-  }
-
-  if (input.filters.modalityId) {
-    searchParams.set("modalidad", input.filters.modalityId);
-  } else {
-    searchParams.delete("modalidad");
-  }
-
-  if (input.filters.category) {
-    searchParams.set("categoria", input.filters.category);
-  } else {
-    searchParams.delete("categoria");
-  }
-
-  if (input.filters.groupType) {
-    searchParams.set("tipo-grupo", input.filters.groupType);
-  } else {
-    searchParams.delete("tipo-grupo");
-  }
-
-  if (!isDefaultChoreographyOrder(input.filters.order)) {
-    searchParams.set(
-      "orden",
-      `${input.filters.order.columnId}:${input.filters.order.direction}`,
-    );
-  } else {
-    searchParams.delete("orden");
-  }
-
-  if (input.filters.page > 1) {
-    searchParams.set("pagina", String(input.filters.page));
-  } else {
-    searchParams.delete("pagina");
-  }
+  writeCanonicalSearchParam(
+    searchParams,
+    "busqueda",
+    filters.query.length > 0 ? filters.query : null,
+  );
+  writeCanonicalSearchParam(searchParams, "estado", filters.status);
+  writeCanonicalSearchParam(searchParams, "modalidad", filters.modalityId);
+  writeCanonicalSearchParam(searchParams, "categoria", filters.category);
+  writeCanonicalSearchParam(searchParams, "tipo-grupo", filters.groupType);
+  writeCanonicalSearchParam(searchParams, "dia", filters.scheduleDate);
+  writeCanonicalSearchParam(
+    searchParams,
+    "orden",
+    isDefaultChoreographyOrder(filters.order)
+      ? null
+      : `${filters.order.columnId}:${filters.order.direction}`,
+  );
+  writeCanonicalSearchParam(
+    searchParams,
+    "pagina",
+    filters.page > 1 ? String(filters.page) : null,
+  );
 
   return searchParams.toString();
+}
+
+/**
+ * A filter's canonical form is either its value or its absence: what is at its
+ * default is never written, so one list state has one URL.
+ */
+function writeCanonicalSearchParam(
+  searchParams: URLSearchParams,
+  key: string,
+  value: string | null,
+) {
+  if (value === null) {
+    searchParams.delete(key);
+
+    return;
+  }
+
+  searchParams.set(key, value);
 }
 
 function readChoreographyOrder(value: string | null): ChoreographyOrder {
@@ -332,6 +348,7 @@ async function hydrateChoreographies(
     modalityId: row.modalityId,
     modalityName: row.modalityName,
     name: row.name,
+    scheduleDate: row.scheduleDate,
     operationalStatus: deriveChoreographyOperationalStatus({
       categoryId: row.categoryId,
       experienceLevelId: row.experienceLevelId,
@@ -367,6 +384,26 @@ function readChoreographyCategoryFilter(
   return readNonEmptySearchParam(value);
 }
 
+/**
+ * A day is written in the URL as the schedule's own `YYYY-MM-DD`, so the link is
+ * readable and survives a schedule being renamed or moved by an hour. Anything
+ * else is dropped here, and a day the event does not hold is dropped later,
+ * against the facets.
+ */
+function readChoreographyScheduleDateFilter(
+  value: string | null,
+): ChoreographyScheduleDateFilter {
+  if (value === "sin-asignar") {
+    return value;
+  }
+
+  const scheduleDate = readNonEmptySearchParam(value);
+
+  return scheduleDate !== null && isDateOnly(scheduleDate)
+    ? scheduleDate
+    : null;
+}
+
 function readChoreographyGroupTypeFilter(
   value: string | null,
 ): ChoreographyGroupType | null {
@@ -399,7 +436,32 @@ function buildChoreographyFacets(rows: ChoreographyRow[]) {
         value: row.modalityId,
       })),
     ),
+    scheduleDates: getScheduleDateFilterOptions(rows),
   };
+}
+
+/**
+ * The days the event's choreographies are actually spread over, in the order
+ * they happen — a day is read as a point on the calendar and not as a word, so
+ * these are the one facet not sorted by label. Choreographies still waiting for
+ * a schedule are gathered at the end, where the rest of the list puts them.
+ */
+function getScheduleDateFilterOptions(rows: ChoreographyRow[]) {
+  const scheduleDates = Array.from(
+    new Set(
+      rows
+        .map((row) => row.scheduleDate)
+        .filter((scheduleDate) => scheduleDate !== null),
+    ),
+  ).sort();
+  const options = scheduleDates.map((scheduleDate) => ({
+    label: formatScheduleDayLabel(scheduleDate),
+    value: scheduleDate,
+  }));
+
+  return rows.some((row) => row.scheduleDate === null)
+    ? [...options, { label: "Sin asignar", value: "sin-asignar" }]
+    : options;
 }
 
 function normalizeChoreographyFilters(
@@ -410,6 +472,10 @@ function normalizeChoreographyFilters(
     ...filters,
     category: keepKnownFacetValue(filters.category, facets.categories),
     modalityId: keepKnownFacetValue(filters.modalityId, facets.modalities),
+    scheduleDate: keepKnownFacetValue(
+      filters.scheduleDate,
+      facets.scheduleDates,
+    ),
   };
 }
 
@@ -440,6 +506,12 @@ function matchesChoreographyFilters(
   }
 
   if (filters.groupType !== null && row.groupType !== filters.groupType) {
+    return false;
+  }
+
+  if (
+    !matchesChoreographyScheduleDate(row.scheduleDate, filters.scheduleDate)
+  ) {
     return false;
   }
 
@@ -546,6 +618,21 @@ function matchesChoreographyCategory(
   }
 
   return categoryId === categoryFilter;
+}
+
+function matchesChoreographyScheduleDate(
+  scheduleDate: string | null,
+  scheduleDateFilter: ChoreographyScheduleDateFilter,
+) {
+  if (scheduleDateFilter === null) {
+    return true;
+  }
+
+  if (scheduleDateFilter === "sin-asignar") {
+    return scheduleDate === null;
+  }
+
+  return scheduleDate === scheduleDateFilter;
 }
 
 function getUniqueSortedFilterOptions(options: ChoreographyFilterOption[]) {

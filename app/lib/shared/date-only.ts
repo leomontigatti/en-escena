@@ -7,6 +7,12 @@ export function isDateOnly(value: string) {
 
   const parsed = new Date(`${value}T00:00:00.000Z`);
 
+  // A date can be shaped right and still be no date at all —`2026-13-40`— and
+  // asking an invalid one for its ISO form throws rather than answering.
+  if (Number.isNaN(parsed.getTime())) {
+    return false;
+  }
+
   return parsed.toISOString().slice(0, 10) === value;
 }
 
