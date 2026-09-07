@@ -116,7 +116,10 @@ export async function createEventCatalog(eventId: string) {
     .values({
       eventId,
       name: `Infantil ${eventId}`,
-      minAge: 8,
+      // The ladder covers 1 to 100 with no gap and no overlap, because event
+      // registration readiness now refuses anything less and every fixture
+      // registration goes through that gate.
+      minAge: 1,
       maxAge: 12,
       groupTypes: ["solo", "duo", "trio", "grupal"],
       groupTypeKey: "duo|grupal|solo|trio",
@@ -130,7 +133,7 @@ export async function createEventCatalog(eventId: string) {
       eventId,
       name: `Juvenil ${eventId}`,
       minAge: 13,
-      maxAge: 17,
+      maxAge: 100,
       groupTypes: ["solo", "duo", "trio", "grupal"],
       groupTypeKey: "duo|grupal|solo|trio",
       experienceLevels: [],
@@ -228,6 +231,55 @@ export async function createEventCatalog(eventId: string) {
     trioScheduleCapacity,
     grupalScheduleCapacity,
   };
+}
+
+/**
+ * A modality that offers grupal and nothing else. Now that readiness refuses a
+ * ladder with a hole, a modality declaring no category for a group type is the
+ * remaining way a registration legitimately resolves to no category — the
+ * documented incomplete state, rather than a gap in the bases.
+ */
+export async function createGrupalOnlyModalityFixture(eventId: string) {
+  const [modality] = await db
+    .insert(modalities)
+    .values({
+      eventId,
+      name: `Solo grupal ${eventId}`,
+    })
+    .returning();
+  const [category] = await db
+    .insert(categories)
+    .values({
+      eventId,
+      name: `Grupal ${eventId}`,
+      minAge: 1,
+      maxAge: 100,
+      groupTypes: ["grupal"],
+      groupTypeKey: "grupal",
+      experienceLevels: [],
+      experienceLevelKey: "",
+    })
+    .returning();
+  await db.insert(categoryModalities).values({
+    categoryId: category.id,
+    modalityId: modality.id,
+  });
+  const [schedule] = await db
+    .insert(schedules)
+    .values({
+      eventId,
+      name: `Bloque solo grupal ${eventId}`,
+      scheduledDate: "2026-05-02",
+      startTime: "12:00",
+      totalCapacity: 10,
+    })
+    .returning();
+  await db.insert(scheduleModalities).values({
+    scheduleId: schedule.id,
+    modalityId: modality.id,
+  });
+
+  return { modality, category, schedule };
 }
 
 export async function createScheduleForModalityFixture(input: {

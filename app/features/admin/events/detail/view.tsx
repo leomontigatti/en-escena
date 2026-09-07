@@ -42,6 +42,7 @@ import {
   eventDocumentDeclarations,
   type EventDocumentKind,
 } from "@/lib/events/event-documents";
+import type { EventRegistrationMissingCode } from "@/lib/events/registration-readiness";
 
 import {
   eventActionPath,
@@ -114,7 +115,7 @@ function EventRegistrationReadinessAlert({
         <p>Este evento no está listo para inscribir coreografías.</p>
         <ul className="list-disc pl-5">
           {summarizeMissingItems(readiness.missingItems).map((item) => (
-            <li key={item.code}>
+            <li key={item.message}>
               {item.message}{" "}
               <Link to={getMissingItemAdminPath(item.code)}>
                 Revisar {item.linkLabel}
@@ -128,18 +129,35 @@ function EventRegistrationReadinessAlert({
   );
 }
 
+/**
+ * One bullet per distinct message rather than per item: several rows share a
+ * code and a generic summary, and repeating it once per offending path would
+ * bury the ones that differ. An age-coverage row carries its own detail, so
+ * each of them earns a bullet.
+ */
 function summarizeMissingItems(
   missingItems: EventDetailLoaderData["registrationReadiness"]["missingItems"],
 ) {
-  const missingCodes = Array.from(
-    new Set(missingItems.map((item) => item.code)),
-  );
+  const summaries = new Map<
+    string,
+    { code: EventRegistrationMissingCode; linkLabel: string; message: string }
+  >();
 
-  return missingCodes.map((code) => ({
-    code,
-    linkLabel: getMissingItemLinkLabel(code),
-    message: getMissingItemSummary(code),
-  }));
+  for (const item of missingItems) {
+    const message = getMissingItemSummary(item);
+
+    if (summaries.has(message)) {
+      continue;
+    }
+
+    summaries.set(message, {
+      code: item.code,
+      linkLabel: getMissingItemLinkLabel(item.code),
+      message,
+    });
+  }
+
+  return Array.from(summaries.values());
 }
 
 /**

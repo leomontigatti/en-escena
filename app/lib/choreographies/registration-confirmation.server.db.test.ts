@@ -13,6 +13,7 @@ import {
 import {
   createAcademySession,
   createDancer,
+  createGrupalOnlyModalityFixture,
   createOpenEventCatalog,
   createProfessor,
 } from "@/lib/choreographies/registration-test-fixtures.server.db";
@@ -577,7 +578,8 @@ describe.sequential("choreography registration confirmation", () => {
       academyName: "Academia Sin Categoría",
       email: "registro.coreografia.sin-categoria@example.com",
     });
-    const { event, catalog } = await createOpenEventCatalog();
+    const { event } = await createOpenEventCatalog();
+    const grupalOnly = await createGrupalOnlyModalityFixture(event.id);
     const adultDancer = await createDancer(owner.academyId, {
       birthDate: "1990-01-01",
     });
@@ -586,13 +588,13 @@ describe.sequential("choreography registration confirmation", () => {
     const result = await createChoreographyRegistration({
       academyId: owner.academyId,
       eventId: event.id,
-      modalityId: catalog.modality.id,
-      submodalityId: catalog.submodality.id,
+      modalityId: grupalOnly.modality.id,
+      submodalityId: null,
       name: "Sin bracket",
       dancerIds: [adultDancer.id],
       professorIds: [professor.id],
       experienceLevelId: null,
-      scheduleCapacityId: catalog.soloScheduleCapacity.id,
+      scheduleCapacityId: `schedule:${grupalOnly.schedule.id}:global`,
     });
 
     expect(result).toMatchObject({

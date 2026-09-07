@@ -19,6 +19,7 @@ import {
 import {
   createAcademySession,
   createDancer,
+  createGrupalOnlyModalityFixture,
   createEventCatalog,
   createEventRecord,
   createOpenEventCatalog,
@@ -494,7 +495,8 @@ describe.sequential("choreography registration resolution", () => {
       academyName: "Academia Pendiente",
       email: "registro.coreografia.pendiente@example.com",
     });
-    const { event, catalog } = await createOpenEventCatalog();
+    const { event } = await createOpenEventCatalog();
+    const grupalOnly = await createGrupalOnlyModalityFixture(event.id);
     const adultDancer = await createDancer(owner.academyId, {
       birthDate: "1990-01-01",
     });
@@ -503,8 +505,8 @@ describe.sequential("choreography registration resolution", () => {
       resolveChoreographyRegistrationOperation({
         academyId: owner.academyId,
         eventId: event.id,
-        modalityId: catalog.modality.id,
-        submodalityId: catalog.submodality.id,
+        modalityId: grupalOnly.modality.id,
+        submodalityId: null,
         dancerIds: [adultDancer.id],
       }),
     ).resolves.toMatchObject({
@@ -568,8 +570,8 @@ describe.sequential("choreography registration resolution", () => {
       .values({
         eventId: event.id,
         name: `Tap solo ${event.id}`,
-        minAge: 8,
-        maxAge: 12,
+        minAge: 1,
+        maxAge: 100,
         groupTypes: ["solo"],
         groupTypeKey: "solo",
         experienceLevelKey: "",
@@ -796,8 +798,8 @@ describe.sequential("choreography registration resolution", () => {
       ok: true,
       resolution: {
         category: {
-          status: "pending",
-          reason: "no-compatible-category",
+          status: "resolved",
+          id: catalog.childCategory.id,
         },
         dancers: [{ id: dancer.id, ageAtEventStart: 1 }],
       },

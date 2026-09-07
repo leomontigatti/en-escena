@@ -12,6 +12,7 @@ import {
 import type { EventDocumentSummaries } from "@/lib/events/event-documents.server";
 import type {
   EventRegistrationMissingCode,
+  EventRegistrationMissingItem,
   EventRegistrationReadiness,
 } from "@/lib/events/registration-readiness";
 
@@ -90,6 +91,7 @@ export function getMissingItemAdminPath(code: EventRegistrationMissingCode) {
     case "modalities":
       return "/administracion/modalidades";
     case "categories":
+    case "age-coverage":
       return "/administracion/categorias";
     case "schedules":
     case "schedule-entries":
@@ -106,6 +108,7 @@ export function getMissingItemLinkLabel(code: EventRegistrationMissingCode) {
     case "modalities":
       return "modalidades";
     case "categories":
+    case "age-coverage":
       return "categorías";
     case "schedules":
     case "schedule-entries":
@@ -117,8 +120,19 @@ export function getMissingItemLinkLabel(code: EventRegistrationMissingCode) {
   }
 }
 
-export function getMissingItemSummary(code: EventRegistrationMissingCode) {
-  switch (code) {
+/**
+ * One line per readiness failure. Every code but one collapses to a generic
+ * sentence, because the link beside it is enough to find the rows. The
+ * age-coverage failure cannot: only its own detail names the modality, the
+ * group type and the uncovered ages, and without them the `admin` has to
+ * enumerate the ladder by hand to learn which category is missing.
+ */
+export function getMissingItemSummary(item: EventRegistrationMissingItem) {
+  if (item.code === "age-coverage") {
+    return item.detail;
+  }
+
+  switch (item.code) {
     case "modalities":
       return "Falta cargar modalidades.";
     case "categories":

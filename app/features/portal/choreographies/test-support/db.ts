@@ -98,7 +98,10 @@ export async function createEventCatalog(eventId: string) {
     .values({
       eventId,
       name: `Juvenil ${eventId}`,
-      minAge: 13,
+      // The ladder covers 1 to 100 with no gap and no overlap: event
+      // registration readiness refuses anything less, and a portal
+      // registration goes through that gate.
+      minAge: 1,
       maxAge: 17,
       groupTypes: ["solo"],
       groupTypeKey: "solo",
@@ -112,7 +115,7 @@ export async function createEventCatalog(eventId: string) {
       eventId,
       name: `Adultos ${eventId}`,
       minAge: 18,
-      maxAge: 99,
+      maxAge: 100,
       groupTypes: ["solo"],
       groupTypeKey: "solo",
       experienceLevels: [],
