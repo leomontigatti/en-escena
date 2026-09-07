@@ -15,14 +15,16 @@ type DancerEditFormReturn = UseFormReturn<
 >;
 
 export function useDancerEditForm({
+  eventStartDate,
   values,
 }: {
+  eventStartDate: string | null;
   values: DancerEditFormValues;
 }) {
   const form = useForm<DancerEditFormValues, unknown, DancerEditFormValues>({
     defaultValues: values,
     mode: "onSubmit",
-    resolver: zodResolver(buildDancerUpdateSchema()),
+    resolver: zodResolver(buildDancerUpdateSchema(eventStartDate)),
   });
 
   useEffect(() => {

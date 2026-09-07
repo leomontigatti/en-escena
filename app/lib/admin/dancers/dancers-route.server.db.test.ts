@@ -780,6 +780,50 @@ describe.sequential("`/administracion/bailarines` route", () => {
     });
   });
 
+  test("refuses a birth date that leaves the dancer under one when the event starts", async () => {
+    const event = await createSavedEvent();
+    const academy = await createAcademyUser({
+      email: "admin.bebe.bailarines.academia@example.com",
+      academyName: "Academia Bebe",
+      contactName: "Bruna Bebe",
+      phone: "6666-6666",
+    });
+    const dancer = await createDancer({
+      academyId: academy.academy.id,
+      firstName: "Nina",
+      lastName: "Bebe",
+      birthDate: "2013-01-10",
+    });
+    const { request } = await createSignedInRequest({
+      email: "admin.bebe.bailarines@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}&modo=editar`,
+    });
+
+    const result = await detailAction(
+      detailActionArgs(
+        createPostRequest(request.url, request.headers.get("cookie") ?? "", {
+          intent: "update-dancer",
+          firstName: "Nina",
+          lastName: "Bebe",
+          birthDate: "2025-06-01",
+          documentType: "",
+          documentNumber: "",
+        }),
+        dancer.id,
+      ),
+    );
+
+    expect(result).toMatchObject({
+      status: "error",
+      fieldErrors: {
+        birthDate:
+          "El Bailarín debe tener al menos 1 año cumplido cuando empieza el evento.",
+      },
+    });
+    await expectPersistedDancer(dancer.id, { birthDate: "2013-01-10" });
+  });
+
   test("rejects auditor, judge, and academy mutations", async () => {
     const academy = await createAcademyUser({
       email: "admin.roles.bailarines.academia@example.com",

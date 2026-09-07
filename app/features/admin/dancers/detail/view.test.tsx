@@ -58,6 +58,7 @@ function createLoaderData(
   overrides: Partial<DetailRouteViewProps["loaderData"]> = {},
 ): DetailRouteViewProps["loaderData"] {
   return {
+    activeEventStartDate: "2026-09-25",
     backToList: "/administracion/bailarines",
     cancelHref: "/administracion/bailarines/dancer-1",
     canEdit: true,

@@ -6,8 +6,8 @@ import type {
   DancerEditConsequence,
   findDancer,
 } from "@/lib/admin/dancers/dancers.server";
+import { buildBirthDateRefinement } from "@/lib/dancers/birth-date";
 import { getArchiveKeepsRosterMessage } from "@/lib/roster/roster-person-status.shared";
-import { isDateOnly, isFutureDateOnly } from "@/lib/shared/date-only";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import {
   notificationToasts,
@@ -27,6 +27,7 @@ export const dancerFieldNames = [
 ] as const satisfies ReadonlyArray<keyof DancerFieldErrors>;
 
 export type DancerDetailLoaderData = {
+  activeEventStartDate: string | null;
   backToList: string;
   cancelHref: string;
   canEdit: boolean;
@@ -88,7 +89,7 @@ export type DancerDetailViewState = {
 
 export type DancerEditFormValues = DancerUpdateInput;
 
-export function buildDancerUpdateSchema() {
+export function buildDancerUpdateSchema(eventStartDate?: string | null) {
   return z
     .object({
       firstName: z.string().trim().min(1, requiredFieldMessage),
@@ -97,26 +98,7 @@ export function buildDancerUpdateSchema() {
         .string()
         .trim()
         .min(1, requiredFieldMessage)
-        .superRefine((value, context) => {
-          if (value.length === 0) {
-            return;
-          }
-
-          if (!isDateOnly(value)) {
-            context.addIssue({
-              code: "custom",
-              message: "Usá una fecha válida.",
-            });
-            return;
-          }
-
-          if (isFutureDateOnly(value)) {
-            context.addIssue({
-              code: "custom",
-              message: "La fecha de nacimiento no puede ser futura.",
-            });
-          }
-        }),
+        .superRefine(buildBirthDateRefinement(eventStartDate)),
       documentType: z.string().trim(),
       documentNumber: z.string().trim(),
       documentFrontImageStorageKey: z.string().trim(),
