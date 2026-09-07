@@ -260,19 +260,20 @@ async function priceHasOperationalDependencies(priceId: string) {
 // is the silent expiry this guards against.
 async function removesNeverExpiringCoverage(
   existing: typeof prices.$inferSelect,
-  input: ValidPriceInput | null,
+  // What the row becomes, or `null` when it is being deleted.
+  next: ValidPriceInput | null,
 ) {
   if (existing.scheduleId !== null || existing.paymentDeadline !== null) {
     return false;
   }
 
-  const keepsCoverage =
-    input !== null &&
-    input.scheduleId === null &&
-    input.groupType === existing.groupType &&
-    input.paymentDeadline === null;
+  const staysTheGeneralTail =
+    next !== null &&
+    next.scheduleId === null &&
+    next.groupType === existing.groupType &&
+    next.paymentDeadline === null;
 
-  if (keepsCoverage) {
+  if (staysTheGeneralTail) {
     return false;
   }
 

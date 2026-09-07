@@ -496,8 +496,8 @@ describe("`Bases del evento` repository", () => {
     ).resolves.toMatchObject({ ok: true, record: { amount: 21000 } });
   });
 
-  test("lets the schedule tier lose its open-ended price while the general tier covers the group type", async () => {
-    const { catalog, event } = await createCoveredPathFixture({
+  test("lets the schedule tier lose its open-ended price even when the general tier is uncovered", async () => {
+    const { catalog, event, openEnded } = await createCoveredPathFixture({
       academyName: "Academia Cronograma",
       choreographyName: "Coreografía Cronograma",
       email: "academia.cronograma@example.com",
@@ -510,19 +510,29 @@ describe("`Bases del evento` repository", () => {
       scheduleId: catalog.schedule.id,
     });
 
+    // The general tail goes out of band, so the guard's `scheduleId` exit is
+    // the only thing left permitting the delete below. Without it the test
+    // would pass on a general-tier coverage check it is not meant to assert.
+    await db.delete(prices).where(eq(prices.id, openEnded.id));
+
     await expect(deletePrice(scheduleOpenEnded.id)).resolves.toMatchObject({
       ok: true,
     });
   });
 
-  test("does not refuse mutations on a group type that never had an open-ended price", async () => {
-    const { datedRung } = await createCoveredPathFixture({
+  test("does not refuse mutations on a group type that already has no open-ended price", async () => {
+    const { datedRung, openEnded } = await createCoveredPathFixture({
       academyName: "Academia Sin Cola",
       choreographyName: "Coreografía Sin Cola",
       email: "academia.sin.cola@example.com",
       eventName: "Regional 2035",
-      withOpenEndedPrice: false,
     });
+
+    // The gap is pre-existing, not this mutation's doing: `solo` carries an
+    // active inscription and has lost its tail out of band. Mutating what is
+    // left must stay possible, or the admin is trapped on an event they cannot
+    // repair. The last delete empties the path entirely and still succeeds.
+    await db.delete(prices).where(eq(prices.id, openEnded.id));
 
     await expect(
       updatePrice(datedRung.id, {
@@ -535,6 +545,7 @@ describe("`Bases del evento` repository", () => {
     await expect(deletePrice(datedRung.id)).resolves.toMatchObject({
       ok: true,
     });
+    await expect(listPrices(datedRung.eventId)).resolves.toEqual([]);
   });
 
   test("ignores withdrawn inscriptions when guarding the open-ended price", async () => {
@@ -646,7 +657,6 @@ async function createCoveredPathFixture(input: {
   email: string;
   eventName: string;
   liveRungDeadline?: string;
-  withOpenEndedPrice?: boolean;
 }) {
   const event = await createSavedEvent(input.eventName, { activate: true });
   const { academy, catalog, choreography } =
@@ -672,14 +682,11 @@ async function createCoveredPathFixture(input: {
     });
   }
 
-  const openEnded =
-    input.withOpenEndedPrice === false
-      ? null
-      : await createSavedPrice(event.id, {
-          amount: 20000,
-          name: "Sin fecha límite",
-          paymentDeadline: null,
-        });
+  const openEnded = await createSavedPrice(event.id, {
+    amount: 20000,
+    name: "Sin fecha límite",
+    paymentDeadline: null,
+  });
   const inscription = await createSelectedPriceInscriptionForTest({
     academyId: academy.academy.id,
     choreographyId: choreography.id,
@@ -693,7 +700,7 @@ async function createCoveredPathFixture(input: {
     datedRung,
     event,
     inscription,
-    openEnded: openEnded as NonNullable<typeof openEnded>,
+    openEnded,
   };
 }
 
