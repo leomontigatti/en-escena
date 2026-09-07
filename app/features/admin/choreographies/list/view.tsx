@@ -176,13 +176,25 @@ function hasChoreographyTableContent(loaderData: LoaderData) {
   return (
     loaderData.choreographies.length > 0 ||
     loaderData.hasAnyChoreography ||
-    loaderData.filters.query.length > 0 ||
-    loaderData.filters.page > 1 ||
-    loaderData.filters.status !== null ||
-    loaderData.filters.modalityId !== null ||
-    loaderData.filters.category !== null ||
-    loaderData.filters.groupType !== null ||
-    hasNonDefaultChoreographyOrder(loaderData.filters.order)
+    hasNarrowedChoreographyList(loaderData.filters)
+  );
+}
+
+/**
+ * Whether the reader asked for this list rather than landed on it. An admin who
+ * filtered their way to nothing is told nothing matched, and keeps the table to
+ * undo it with; the empty state is for an event that has no choreographies yet.
+ */
+function hasNarrowedChoreographyList(filters: LoaderData["filters"]) {
+  return (
+    filters.query.length > 0 ||
+    filters.page > 1 ||
+    filters.status !== null ||
+    filters.modalityId !== null ||
+    filters.category !== null ||
+    filters.groupType !== null ||
+    filters.scheduleDate !== null ||
+    hasNonDefaultChoreographyOrder(filters.order)
   );
 }
 
@@ -214,6 +226,11 @@ function buildChoreographyFacetedFilters(
       label: "Tipo de grupo",
       options: choreographyGroupTypeFilterOptions,
     },
+    {
+      id: "dia",
+      label: "Día",
+      options: loaderData.facets.scheduleDates,
+    },
   ];
 }
 
@@ -234,6 +251,10 @@ function buildChoreographyInitialFilters(loaderData: LoaderData) {
 
   if (loaderData.filters.groupType) {
     filters["tipo-grupo"] = loaderData.filters.groupType;
+  }
+
+  if (loaderData.filters.scheduleDate) {
+    filters.dia = loaderData.filters.scheduleDate;
   }
 
   return {

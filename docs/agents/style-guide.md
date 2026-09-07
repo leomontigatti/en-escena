@@ -377,8 +377,22 @@ Rules:
 - Use badges for states.
 - Use a per-row actions menu when there are more than two actions.
 - Show bulk actions only when there is an active selection.
-- Keep filters at the top in a compact bar; use a large panel only for advanced
-  filters.
+- Keep the search box and the toolbar actions at the top in a compact bar, and
+  put the faceted filters in the shell's filters panel behind the toolbar's
+  `Filtros` button — every group, not only the advanced ones. A list carries a
+  category's worth of options per group, and a compact bar can hold neither
+  those nor the count of groups a list has grown to.
+- Inside a shell, the panel pushes the list aside instead of covering it: no
+  overlay, nothing dimmed, and the table stays readable while it is being
+  filtered. Do not reach for a `Sheet` or a `Dialog` here — a component that
+  dims what it filters takes the list away at the moment the reader is judging
+  it. A table with no shell around it falls back to a panel that does lie over
+  the list, because there is nothing for it to push.
+- Offer a group as a `Select`, not a stack of radios, and clear it with a
+  per-group `Limpiar` rather than a synthetic `Todos` option — a group is free
+  to offer an option of its own by that name. This is the single-select case
+  only: a filter that takes several values at once is still a multi-select
+  `Combobox`, as the forms rules say.
 - Use a sticky header only on long lists.
 - Leave a list on the default `auto` layout unless it actually overflows. `auto`
   lets each column ask for the width it needs, and forcing a table with narrow

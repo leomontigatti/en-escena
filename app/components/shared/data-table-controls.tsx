@@ -1,19 +1,5 @@
-import { ArrowDown, ArrowUp, ArrowUpDown, ListFilter } from "lucide-react";
-import { useId, useRef, useState } from "react";
+import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Pagination,
   PaginationContent,
@@ -23,29 +9,9 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import type {
-  DataTableFacetedFilter,
-  DataTableFacetedFilterValue,
-  DataTableSortDirection,
-} from "@/components/shared/data-table.shared";
-import {
-  getActiveFacetedFilterValues,
-  getFacetedFilterSummary,
-  getPaginationPages,
-  toggleFacetedFilterValue,
-} from "@/components/shared/data-table-helpers";
+import type { DataTableSortDirection } from "@/components/shared/data-table.shared";
+import { getPaginationPages } from "@/components/shared/data-table-helpers";
 import { cn } from "@/lib/shared/utils";
-
-type DataTableFacetedFilterControlProps = {
-  groups: DataTableFacetedFilter[];
-  selectedValues: DataTableFacetedFilterValue;
-  onChange: (values: DataTableFacetedFilterValue) => void;
-};
 
 type DataTablePaginationProps = {
   basePath: string;
@@ -62,128 +28,6 @@ type DataTablePaginationProps = {
 type SortIconProps = {
   direction?: DataTableSortDirection | false;
 };
-
-export function DataTableFacetedFilterControl({
-  groups,
-  selectedValues,
-  onChange,
-}: DataTableFacetedFilterControlProps) {
-  const selectedCount = getActiveFacetedFilterValues(selectedValues).length;
-  const hasSelectedValues = selectedCount > 0;
-  const tooltipId = useId();
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isTooltipOpen, setIsTooltipOpen] = useState(false);
-  const activeFilterSummary = getFacetedFilterSummary(groups, selectedValues);
-  const triggerLabel = hasSelectedValues
-    ? `Filtros: ${activeFilterSummary}`
-    : "Filtros";
-
-  const handleTooltipOpenChange = (open: boolean) => {
-    if (open && isDropdownOpen) {
-      return;
-    }
-
-    setIsTooltipOpen(open);
-  };
-
-  const handleDropdownOpenChange = (open: boolean) => {
-    setIsDropdownOpen(open);
-
-    if (open) {
-      setIsTooltipOpen(false);
-    }
-  };
-
-  const preventTriggerFocusAfterDropdownClose = (event: Event) => {
-    event.preventDefault();
-    triggerRef.current?.blur();
-    setIsTooltipOpen(false);
-  };
-
-  return (
-    <Tooltip open={isTooltipOpen} onOpenChange={handleTooltipOpenChange}>
-      <DropdownMenu
-        open={isDropdownOpen}
-        onOpenChange={handleDropdownOpenChange}
-      >
-        <TooltipTrigger asChild>
-          <DropdownMenuTrigger asChild>
-            <Button
-              ref={triggerRef}
-              type="button"
-              variant="outline"
-              size="icon-sm"
-              aria-describedby={tooltipId}
-              aria-label={triggerLabel}
-              className="relative"
-            >
-              <ListFilter data-icon />
-              {hasSelectedValues ? (
-                <Badge
-                  variant="secondary"
-                  className="pointer-events-none absolute -top-2 -right-2 min-w-5 justify-center px-1"
-                >
-                  {selectedCount}
-                </Badge>
-              ) : null}
-              <span className="sr-only">{triggerLabel}</span>
-            </Button>
-          </DropdownMenuTrigger>
-        </TooltipTrigger>
-        <DropdownMenuContent
-          align="end"
-          className="w-56"
-          onCloseAutoFocus={preventTriggerFocusAfterDropdownClose}
-        >
-          <DropdownMenuGroup>
-            <DropdownMenuItem
-              disabled={!hasSelectedValues}
-              onSelect={() => onChange({})}
-            >
-              Limpiar filtros
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-          {groups.map((group) => {
-            const groupId = group.id;
-            const selectedValue = selectedValues[groupId] ?? "";
-
-            return (
-              <DropdownMenuGroup key={groupId}>
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel>{group.label}</DropdownMenuLabel>
-                <DropdownMenuRadioGroup
-                  value={selectedValue}
-                  onValueChange={(nextValue) => {
-                    onChange(
-                      toggleFacetedFilterValue(
-                        selectedValues,
-                        groupId,
-                        nextValue,
-                      ),
-                    );
-                  }}
-                >
-                  {group.options.map((option) => (
-                    <DropdownMenuRadioItem
-                      key={option.value}
-                      value={option.value}
-                    >
-                      {option.label}
-                    </DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuGroup>
-            );
-          })}
-        </DropdownMenuContent>
-      </DropdownMenu>
-      <TooltipContent id={tooltipId} side="left" sideOffset={6}>
-        Filtros
-      </TooltipContent>
-    </Tooltip>
-  );
-}
 
 export function DataTablePagination({
   basePath,

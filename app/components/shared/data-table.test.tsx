@@ -25,6 +25,10 @@ import {
   createReactDomTestRenderer,
   setInputValue,
 } from "@/lib/test-support/react-dom";
+import {
+  openRadixSelect,
+  selectRadixOption,
+} from "@/lib/test-support/radix-select";
 
 type Row = {
   id: string;
@@ -676,8 +680,8 @@ describe("ClientDataTable filters in the address bar", () => {
     );
     await renderer.renderAsync(<RouterProvider router={router} />);
 
-    await openFiltersDropdown();
-    await clickFilterOption("Archivado");
+    await openFiltersPanel();
+    await clickFilterOption("Estado", "Archivado");
 
     expect(router.state.location.search).toBe("?estado=archived");
     expect(getRenderedRowNames()).toContain("Coreografía 02");
@@ -705,8 +709,8 @@ describe("ClientDataTable filters in the address bar", () => {
     );
     await renderer.renderAsync(<RouterProvider router={router} />);
 
-    await openFiltersDropdown();
-    await clickFilterOption("Limpiar filtros");
+    await openFiltersPanel();
+    await clearFilters();
 
     expect(router.state.location.search).toBe("");
     expect(getRenderedRowNames()).toContain("Coreografía 01");
@@ -718,8 +722,8 @@ describe("ClientDataTable filters in the address bar", () => {
     });
     await renderer.renderAsync(<RouterProvider router={router} />);
 
-    await openFiltersDropdown();
-    await clickFilterOption("Archivado");
+    await openFiltersPanel();
+    await clickFilterOption("Estado", "Archivado");
 
     expect(router.state.location.search).toBe("?estado=archived");
 
@@ -1144,29 +1148,36 @@ function getFiltersTrigger() {
   return trigger;
 }
 
-async function openFiltersDropdown() {
-  const trigger = getFiltersTrigger();
-
-  await act(async () => {
-    trigger.dispatchEvent(
-      new MouseEvent("pointerdown", {
-        bubbles: true,
-        cancelable: true,
-        button: 0,
-      }),
-    );
-    await Promise.resolve();
-  });
+async function openFiltersPanel() {
+  await clickElement(getFiltersTrigger());
 }
 
-async function clickFilterOption(label: string) {
-  const option = Array.from(
-    document.querySelectorAll('[role="menuitemradio"], [role="menuitem"]'),
-  ).find((item) => item.textContent?.trim() === label);
+/** Picks an option out of the panel's picker for the given group. */
+async function clickFilterOption(groupLabel: string, optionLabel: string) {
+  const field = Array.from(document.querySelectorAll("label[for]")).find(
+    (candidate) => candidate.textContent?.trim() === groupLabel,
+  );
+  const trigger = field
+    ? document.getElementById(field.getAttribute("for") ?? "")
+    : null;
 
-  if (!option) {
-    throw new Error(`Expected the filter option "${label}" to be rendered.`);
+  if (!trigger) {
+    throw new Error(`Expected the "${groupLabel}" filter to be offered.`);
   }
 
-  await clickElement(option);
+  await openRadixSelect(trigger);
+  await selectRadixOption(optionLabel);
+}
+
+/** The panel's footer action, which clears every group at once. */
+async function clearFilters() {
+  const button = Array.from(document.querySelectorAll("button")).find(
+    (candidate) => candidate.textContent?.trim() === "Limpiar filtros",
+  );
+
+  if (!button) {
+    throw new Error("Expected the panel to offer clearing every filter.");
+  }
+
+  await clickElement(button);
 }

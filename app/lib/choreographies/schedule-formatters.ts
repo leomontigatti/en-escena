@@ -1,3 +1,26 @@
+import { isDateOnly } from "@/lib/shared/date-only";
+
+const scheduleDayFormatter = new Intl.DateTimeFormat("es-AR", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+/**
+ * A schedule's day on its own, without the time. A day holds as many schedules
+ * as the event needs, so what names it is the date they share.
+ */
+export function formatScheduleDayLabel(scheduledDate: string) {
+  // Shape alone is not enough: `2026-13-40` splits into three parts and is
+  // still no date at all, and formatting one throws rather than answering.
+  if (!isDateOnly(scheduledDate)) {
+    return scheduledDate;
+  }
+
+  return scheduleDayFormatter.format(new Date(`${scheduledDate}T00:00:00Z`));
+}
+
 export type ScheduleDateTimeInput = {
   name: string;
   scheduledDate: string;
