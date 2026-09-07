@@ -20,6 +20,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarHeader,
+} from "@/components/ui/sidebar";
 import type {
   DataTableFacetedFilter,
   DataTableFacetedFilterValue,
@@ -217,15 +224,12 @@ export function FiltersPanelBody({
 
   return (
     <section aria-labelledby={titleId} className="flex h-full flex-col">
-      <div className="flex items-start justify-between gap-2 p-2">
-        <div className="flex flex-col gap-0.5 px-2 py-1">
-          <p id={titleId} className="font-heading text-base font-medium">
-            Filtros
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Elegí cómo querés acotar la lista.
-          </p>
-        </div>
+      {/*
+       * The panel sits against the right edge, so it reads from that edge in:
+       * every line of it is aligned to the end, and the close button is the one
+       * thing left at the far side.
+       */}
+      <SidebarHeader className="flex-row items-start justify-between">
         <Button
           ref={closeButtonRef}
           type="button"
@@ -236,8 +240,16 @@ export function FiltersPanelBody({
           <X data-icon />
           <span className="sr-only">Cerrar filtros</span>
         </Button>
-      </div>
-      <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-2">
+        <div className="flex flex-col items-end gap-0.5 px-2 py-1 text-right">
+          <p id={titleId} className="font-heading text-base font-medium">
+            Filtros
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Elegí cómo querés acotar la lista.
+          </p>
+        </div>
+      </SidebarHeader>
+      <SidebarContent>
         {groups.map((group) => (
           <FiltersPanelGroupField
             key={group.id}
@@ -250,17 +262,17 @@ export function FiltersPanelBody({
             }}
           />
         ))}
-      </div>
-      <div data-slot="filters-panel-footer" className="flex flex-col gap-2 p-2">
+      </SidebarContent>
+      <SidebarFooter className="items-end">
         <Button
           type="button"
-          variant="outline"
+          className="w-fit"
           disabled={!hasSelectedValues}
           onClick={() => onChange({})}
         >
           Limpiar filtros
         </Button>
-      </div>
+      </SidebarFooter>
     </section>
   );
 }
@@ -289,22 +301,30 @@ function FiltersPanelGroupField({
   const hasSelectedValue = selectedValue.length > 0;
 
   return (
-    <div className="flex flex-col gap-1.5 px-2">
-      <div className="flex min-h-8 items-center justify-between gap-2">
-        <Label htmlFor={selectId}>{group.label}</Label>
+    <SidebarGroup className="gap-1.5">
+      <div className="flex items-center justify-between gap-2">
         {hasSelectedValue ? (
           <Button
             type="button"
-            variant="ghost"
+            variant="link"
             size="sm"
             onClick={() => onChange("")}
           >
             Limpiar
           </Button>
         ) : null}
+        <SidebarGroupLabel asChild className="ml-auto">
+          <Label htmlFor={selectId}>{group.label}</Label>
+        </SidebarGroupLabel>
       </div>
       <Select value={selectedValue} onValueChange={onChange}>
-        <SelectTrigger id={selectId} className="w-full">
+        {/*
+         * The panel's surface is the sidebar's, and the trigger is transparent
+         * by default: left alone it takes that grey and reads as disabled. The
+         * field is on a surface the component was not drawn against, so it says
+         * which one it sits on.
+         */}
+        <SelectTrigger id={selectId} className="w-full bg-background">
           <SelectValue placeholder="Todos" />
         </SelectTrigger>
         <SelectContent>
@@ -315,7 +335,7 @@ function FiltersPanelGroupField({
           ))}
         </SelectContent>
       </Select>
-    </div>
+    </SidebarGroup>
   );
 }
 
