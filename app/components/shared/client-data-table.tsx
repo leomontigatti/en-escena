@@ -167,6 +167,7 @@ export function ClientDataTable<TData>(props: ClientDataTableProps<TData>) {
       // Never loading: the rows are already here, so nothing the reader does to
       // this table waits on anything.
       isLoading={false}
+      layout={props.layout ?? "auto"}
       pagination={{
         basePath: location.pathname,
         canNextPage: table.getCanNextPage(),

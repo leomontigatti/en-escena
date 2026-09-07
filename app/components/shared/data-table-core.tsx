@@ -25,13 +25,17 @@ import type {
   DataTableRowSelectionProps,
   DataTableSortDirection,
 } from "@/components/shared/data-table.shared";
-import { dataTableFacetedFilterColumnId } from "@/components/shared/data-table.shared";
+import {
+  dataTableFacetedFilterColumnId,
+  dataTableSelectionColumnId,
+} from "@/components/shared/data-table.shared";
 
 declare module "@tanstack/react-table" {
   interface ColumnMeta<TData extends RowData, TValue> {
     className?: string;
     headerClassName?: string;
     cellClassName?: (row: TData) => string | undefined;
+    width?: number;
   }
 }
 
@@ -178,6 +182,7 @@ export function createDataTableColumns<TData>(
       className: column.className,
       headerClassName: column.headerClassName,
       cellClassName: column.cellClassName,
+      width: column.width,
     },
   }));
 
@@ -313,7 +318,7 @@ export function useDataTableRowSelection({
 
 function createSelectionColumn<TData>(): ColumnDef<TData> {
   return {
-    id: "select",
+    id: dataTableSelectionColumnId,
     header: ({ table }) => {
       const selectableRows = table.getFilteredRowModel().rows;
       const hasRows = selectableRows.length > 0;

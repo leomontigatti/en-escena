@@ -303,6 +303,104 @@ describe("DataTable", () => {
   });
 });
 
+describe("DataTable fit layout", () => {
+  const weightedColumns: DataTableColumn<Row>[] = [
+    { id: "name", header: "Nombre", width: 1, cell: (row) => row.name },
+    { id: "academy", header: "Academia", width: 3, cell: (row) => row.academy },
+  ];
+
+  const row: Row = {
+    id: "choreography_1",
+    academy: "Academia Norte",
+    name: "Coreografía 01",
+    status: "active",
+  };
+
+  function renderTable({
+    layout,
+    selectableRows,
+  }: {
+    layout?: "auto" | "fit";
+    selectableRows?: boolean;
+  }) {
+    return renderToStaticMarkup(
+      <MemoryRouter initialEntries={["/administracion/coreografias"]}>
+        <ServerDataTable
+          rows={[row]}
+          columns={weightedColumns}
+          getRowKey={(current) => current.id}
+          layout={layout}
+          selectableRows={selectableRows}
+          searchPlaceholder="Buscar coreografía por nombre"
+          currentPage={1}
+          totalPages={1}
+          totalRows={1}
+        />
+      </MemoryRouter>,
+    );
+  }
+
+  function getColumnWidths(markup: string) {
+    return Array.from(markup.matchAll(/<col style="width:([^"]*)"/g)).map(
+      ([, width]) => width,
+    );
+  }
+
+  test("leaves the columns to the browser unless the table is asked to fit", () => {
+    const markup = renderTable({ layout: "auto" });
+
+    expect(markup).not.toContain("<colgroup>");
+    expect(markup).not.toContain("table-fixed");
+  });
+
+  test("shares the row out by weight, whatever the weights add up to", () => {
+    const markup = renderTable({ layout: "fit" });
+
+    expect(markup).toContain("table-fixed");
+    // Four parts, not a hundred: a weight is a share of the row and not a
+    // percentage the view had to balance itself.
+    expect(getColumnWidths(markup)).toEqual([
+      "calc(100% * 1 / 4)",
+      "calc(100% * 3 / 4)",
+    ]);
+  });
+
+  test("takes the selection column out of the row before sharing the rest", () => {
+    const markup = renderTable({ layout: "fit", selectableRows: true });
+
+    // The view never declared the checkbox, so the table is what has to account
+    // for it. Were it not taken out first, these columns would still claim the
+    // whole row and overflow it by exactly the checkbox's width.
+    expect(getColumnWidths(markup)).toEqual([
+      "2.5rem",
+      "calc((100% - 2.5rem) * 1 / 4)",
+      "calc((100% - 2.5rem) * 3 / 4)",
+    ]);
+  });
+
+  test("leaves a column with no weight to share what the others did not claim", () => {
+    const markup = renderToStaticMarkup(
+      <MemoryRouter initialEntries={["/administracion/coreografias"]}>
+        <ServerDataTable
+          rows={[row]}
+          columns={[
+            { id: "name", header: "Nombre", width: 1, cell: (c) => c.name },
+            { id: "academy", header: "Academia", cell: (c) => c.academy },
+          ]}
+          getRowKey={(current) => current.id}
+          layout="fit"
+          searchPlaceholder="Buscar coreografía por nombre"
+          currentPage={1}
+          totalPages={1}
+          totalRows={1}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(markup).toContain('<col style="width:calc(100% * 1 / 1)"/><col/>');
+  });
+});
+
 describe("ClientDataTable page in the address bar", () => {
   const renderer = createReactDomTestRenderer();
 

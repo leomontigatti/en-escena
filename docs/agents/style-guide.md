@@ -380,6 +380,17 @@ Rules:
 - Keep filters at the top in a compact bar; use a large panel only for advanced
   filters.
 - Use a sticky header only on long lists.
+- Leave a list on the default `auto` layout unless it actually overflows. `auto`
+  lets each column ask for the width it needs, and forcing a table with narrow
+  columns —a number, a date, a badge, an amount— to fill the page only spreads
+  short content across it.
+- Reach for `layout="fit"` on a list that does overflow, which in practice means
+  one with several free-text columns. Give every column a `width`, and cut the
+  long cells with `DataTableTruncatedText` rather than letting them wrap.
+- A `width` is a share of the row, not a percentage: the table divides each
+  column by the total. Do not make them add up to 100 — the selection checkbox
+  is a column the view never declares, and a budget balanced to 100% would
+  overflow the row by exactly its width.
 
 ## Cards and panels
 

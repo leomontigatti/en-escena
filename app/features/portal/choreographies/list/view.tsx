@@ -5,6 +5,7 @@ import { useFetcher } from "react-router";
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import {
   ClientDataTable,
+  DataTableTruncatedText,
   type DataTableColumn,
   type DataTableFacetedFiltersOf,
 } from "@/components/shared/data-table";
@@ -108,6 +109,7 @@ function ChoreographyTable({
     {
       id: "number",
       header: "#",
+      width: 7,
       className: "font-medium tabular-nums",
       cell: (choreography) => (
         <DataTableLink to={`/portal/coreografias/${choreography.id}`}>
@@ -121,10 +123,13 @@ function ChoreographyTable({
     {
       id: "name",
       header: "Nombre",
+      width: 37,
       className: "font-medium",
       // The number is the row's only way into the detail. Linking the name too
       // gave one destination two targets, which reads as a choice and is not.
-      cell: (choreography) => choreography.name,
+      cell: (choreography) => (
+        <DataTableTruncatedText value={choreography.name} />
+      ),
       // The search box filters this one column, so everything meant to be
       // searchable travels in here. The number is included zero-padded, which
       // is how `00042`, `042` and `42` all reach the same choreography.
@@ -144,13 +149,15 @@ function ChoreographyTable({
     {
       id: "modality",
       header: "Modalidad / Submodalidad",
+      width: 21,
       cell: (choreography) => (
-        <span className="text-muted-foreground">
-          {formatPrimaryAndSecondaryValue(
+        <DataTableTruncatedText
+          className="text-muted-foreground"
+          value={formatPrimaryAndSecondaryValue(
             choreography.modalityName,
             choreography.submodalityName,
           )}
-        </span>
+        />
       ),
       filterValue: (choreography) =>
         [choreography.modalityName, choreography.submodalityName]
@@ -160,13 +167,15 @@ function ChoreographyTable({
     {
       id: "categoryGroup",
       header: "Categoría / Tipo de grupo",
+      width: 22,
       cell: (choreography) => (
-        <span className="text-muted-foreground">
-          {formatPrimaryAndSecondaryValue(
+        <DataTableTruncatedText
+          className="text-muted-foreground"
+          value={formatPrimaryAndSecondaryValue(
             choreography.categoryName ?? "Sin asignar",
             formatChoreographyGroupTypeLabel(choreography.groupType),
           )}
-        </span>
+        />
       ),
       filterValue: (choreography) =>
         [
@@ -177,6 +186,7 @@ function ChoreographyTable({
     {
       id: "status",
       header: "Estado",
+      width: 13,
       cell: (choreography) => (
         <OperationalStatusBadge
           operationalStatus={choreography.operationalStatus}
@@ -196,6 +206,8 @@ function ChoreographyTable({
       rows={choreographies}
       columns={columns}
       getRowKey={(choreography) => choreography.id}
+      // Same shares as the admin list this mirrors, minus its academy column.
+      layout="fit"
       searchPlaceholder="Buscar coreografía por número, nombre, modalidad o categoría"
       textFilterColumnId="name"
       facetedFilters={buildChoreographyFacetedFilters(choreographies)}
