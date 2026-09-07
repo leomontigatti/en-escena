@@ -1,3 +1,5 @@
+import { isDateOnly } from "@/lib/shared/date-only";
+
 const scheduleDayFormatter = new Intl.DateTimeFormat("es-AR", {
   day: "numeric",
   month: "long",
@@ -10,9 +12,9 @@ const scheduleDayFormatter = new Intl.DateTimeFormat("es-AR", {
  * as the event needs, so what names it is the date they share.
  */
 export function formatScheduleDayLabel(scheduledDate: string) {
-  const [year, month, day] = scheduledDate.split("-");
-
-  if (!year || !month || !day) {
+  // Shape alone is not enough: `2026-13-40` splits into three parts and is
+  // still no date at all, and formatting one throws rather than answering.
+  if (!isDateOnly(scheduledDate)) {
     return scheduledDate;
   }
 

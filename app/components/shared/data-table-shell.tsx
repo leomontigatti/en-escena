@@ -15,7 +15,7 @@ import {
   DataTablePagination,
   SortIcon,
 } from "@/components/shared/data-table-controls";
-import { DataTableFacetedFilterControl } from "@/components/shared/data-table-filters-panel";
+import { DataTableFacetedFilterControl } from "@/components/shared/data-table-filters-trigger";
 import { toSortDirection } from "@/components/shared/data-table-helpers";
 import type {
   DataTableFacetedFilter,

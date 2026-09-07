@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
   type ReactNode,
+  type RefObject,
 } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,13 @@ import {
   setFacetedFilterValue,
 } from "@/components/shared/data-table-helpers";
 
+/**
+ * The shell's panel is the one panel of its page, so a trigger in a toolbar can
+ * name it without being handed an id: `aria-controls` needs a name that is the
+ * same on both ends, and there is only ever one end here.
+ */
+export const FILTERS_PANEL_REGION_ID = "filters-panel-region";
+
 /** What a table hands over for the panel to draw and to write back to. */
 export type FiltersPanelContent = {
   groups: DataTableFacetedFilter[];
@@ -60,6 +68,45 @@ type FiltersPanelActions = {
 const FiltersPanelActionsContext = createContext<FiltersPanelActions | null>(
   null,
 );
+
+/**
+ * Escape closes the panel, but only when the key was pressed inside it.
+ *
+ * The listener is a native one on the panel's own element rather than on the
+ * document, and that is the whole point: a group's `Select` draws its options in
+ * a portal outside the panel, so the Escape that dismisses an open picker never
+ * reaches here. A document listener would take that same Escape and shut the
+ * panel behind the picker the reader meant to close.
+ *
+ * Native rather than React's `onKeyDown` for the same reason: React sends an
+ * event up the tree it rendered, portal and all, which is exactly the walk this
+ * listener has to miss.
+ */
+export function useCloseOnEscape(
+  isOpen: boolean,
+  onClose: () => void,
+  panelRef: RefObject<HTMLElement | null>,
+) {
+  useEffect(() => {
+    const panelElement = panelRef.current;
+
+    if (!isOpen || !panelElement) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    panelElement.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      panelElement.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, onClose, panelRef]);
+}
 
 /**
  * The shell's half of the filters panel. It holds what the tables on the page
@@ -157,28 +204,21 @@ export function FiltersPanelRegion() {
   const { content } = useContext(FiltersPanelStateContext);
   const isOpen = content !== null;
   // What slid in has to still be there while it slides back out, so the panel
-  // keeps drawing the last filters it was given until it is off the screen.
+  // keeps drawing the last filters it was given until it is off the screen. The
+  // remembering is an effect and not an assignment during the render, because a
+  // render may be thrown away and this has to hold only what was really shown.
   const lastContentRef = useRef<FiltersPanelContent | null>(null);
-  lastContentRef.current = content ?? lastContentRef.current;
   const shownContent = content ?? lastContentRef.current;
+  const containerRef = useRef<HTMLElement>(null);
+  const close = useCallback(() => panel?.close(), [panel]);
 
   useEffect(() => {
-    if (!isOpen || !panel) {
-      return;
+    if (content) {
+      lastContentRef.current = content;
     }
+  }, [content]);
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        panel.close();
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isOpen, panel]);
+  useCloseOnEscape(isOpen, close, containerRef);
 
   return (
     <div
@@ -197,6 +237,8 @@ export function FiltersPanelRegion() {
        * away what it needs in order to slide back out.
        */}
       <aside
+        ref={containerRef}
+        id={FILTERS_PANEL_REGION_ID}
         inert={!isOpen}
         data-slot="filters-panel-container"
         className="fixed inset-y-0 right-0 z-40 flex h-svh w-(--sidebar-width) bg-sidebar p-2 transition-[right] duration-200 ease-linear group-data-[state=closed]/filters-panel:right-[calc(var(--sidebar-width)*-1)] md:z-10 md:bg-transparent"
@@ -205,7 +247,7 @@ export function FiltersPanelRegion() {
           <div className="flex h-full w-full flex-col">
             <FiltersPanelBody
               content={shownContent}
-              onClose={() => panel?.close()}
+              onClose={close}
               autoFocusClose={isOpen}
             />
           </div>
@@ -369,9 +411,14 @@ export function useFiltersPanelOwner({
   const panel = useContext(FiltersPanelActionsContext);
   const { openOwnerId } = useContext(FiltersPanelStateContext);
   const ownerId = useId();
+  // What is published is read through refs rather than taken as dependencies,
+  // so that the shape below is what decides when to republish and the effect
+  // still hands over the objects the view built, not copies of them.
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
-  const contentKey = JSON.stringify({ groups, selectedValues });
+  const publishedRef = useRef({ groups, selectedValues });
+  publishedRef.current = { groups, selectedValues };
+  const contentKey = JSON.stringify(publishedRef.current);
 
   useEffect(() => {
     if (!panel) {
@@ -379,13 +426,15 @@ export function useFiltersPanelOwner({
     }
 
     const { groups: publishedGroups, selectedValues: publishedValues } =
-      JSON.parse(contentKey) as Omit<FiltersPanelContent, "onChange">;
+      publishedRef.current;
 
     panel.publish(ownerId, {
       groups: publishedGroups,
       selectedValues: publishedValues,
       onChange: (values) => onChangeRef.current(values),
     });
+    // `contentKey` is the shape of what is published: it is the dependency
+    // precisely because the objects themselves are rebuilt on every render.
   }, [contentKey, ownerId, panel]);
 
   useEffect(() => {
@@ -399,7 +448,6 @@ export function useFiltersPanelOwner({
   return {
     hasRegion: panel !== null,
     isOpen: openOwnerId === ownerId,
-    close: () => panel?.close(),
     toggle: () => panel?.toggle(ownerId),
   };
 }

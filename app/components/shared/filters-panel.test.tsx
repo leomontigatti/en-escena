@@ -81,6 +81,41 @@ describe("filters panel in the shell", () => {
     await clickFiltersTrigger();
     expect(getPanel().dataset.state).toBe("closed");
   });
+
+  test("closes the panel on Escape from inside it", async () => {
+    await renderShellWithTable();
+    await clickFiltersTrigger();
+
+    await pressEscapeOn(getPanelContainer());
+
+    expect(getPanel().dataset.state).toBe("closed");
+  });
+
+  // A group's picker draws its options in a portal, outside the panel: the
+  // Escape that dismisses the picker must not take the panel with it.
+  test("leaves the panel open on Escape from a portal outside it", async () => {
+    await renderShellWithTable();
+    await clickFiltersTrigger();
+
+    const portalled = document.createElement("div");
+    document.body.append(portalled);
+
+    await pressEscapeOn(portalled);
+
+    expect(getPanel().dataset.state).toBe("open");
+
+    portalled.remove();
+  });
+
+  test("names the panel the trigger controls", async () => {
+    await renderShellWithTable();
+
+    const trigger = getFiltersTrigger();
+    const controlled = trigger.getAttribute("aria-controls");
+
+    expect(controlled).not.toBe(null);
+    expect(document.getElementById(controlled ?? "")).toBe(getPanelContainer());
+  });
 });
 
 function getPanel() {
@@ -93,16 +128,47 @@ function getPanel() {
   return panel;
 }
 
-async function clickFiltersTrigger() {
+function getPanelContainer() {
+  const container = getPanel().querySelector(
+    '[data-slot="filters-panel-container"]',
+  );
+
+  if (!(container instanceof HTMLElement)) {
+    throw new Error("Expected the panel region to hold its container.");
+  }
+
+  return container;
+}
+
+function getFiltersTrigger() {
   const trigger = document.querySelector('button[aria-label^="Filtros"]');
 
-  if (!trigger) {
+  if (!(trigger instanceof HTMLElement)) {
     throw new Error("Expected the filters trigger to be rendered.");
   }
+
+  return trigger;
+}
+
+async function clickFiltersTrigger() {
+  const trigger = getFiltersTrigger();
 
   await act(async () => {
     trigger.dispatchEvent(
       new MouseEvent("click", { bubbles: true, cancelable: true }),
+    );
+    await Promise.resolve();
+  });
+}
+
+async function pressEscapeOn(target: HTMLElement) {
+  await act(async () => {
+    target.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Escape",
+        bubbles: true,
+        cancelable: true,
+      }),
     );
     await Promise.resolve();
   });

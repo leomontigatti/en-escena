@@ -63,4 +63,8 @@ describe("schedule formatters", () => {
   test("keeps the day the schedule was saved with", () => {
     expect(formatScheduleDayLabel("2026-01-01")).toBe("1 de enero de 2026");
   });
+
+  test("hands back a date that is shaped right but impossible", () => {
+    expect(formatScheduleDayLabel("2026-13-40")).toBe("2026-13-40");
+  });
 });

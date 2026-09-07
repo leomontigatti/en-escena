@@ -1,5 +1,5 @@
 import { ListFilter } from "lucide-react";
-import { useEffect, useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { Badge } from "@/components/ui/badge";
@@ -13,10 +13,14 @@ import type {
   DataTableFacetedFilter,
   DataTableFacetedFilterValue,
 } from "@/components/shared/data-table.shared";
-import { getActiveFacetedFilterValues } from "@/components/shared/data-table-helpers";
-import { getFacetedFilterSummary } from "@/components/shared/data-table-helpers";
 import {
+  getActiveFacetedFilterValues,
+  getFacetedFilterSummary,
+} from "@/components/shared/data-table-helpers";
+import {
+  FILTERS_PANEL_REGION_ID,
   FiltersPanelBody,
+  useCloseOnEscape,
   useFiltersPanelOwner,
 } from "@/components/shared/filters-panel";
 
@@ -47,10 +51,18 @@ export function DataTableFacetedFilterControl({
   const selectedCount = getActiveFacetedFilterValues(selectedValues).length;
   const hasSelectedValues = selectedCount > 0;
   const tooltipId = useId();
+  const fallbackPanelId = useId();
   const [isTooltipOpen, setIsTooltipOpen] = useState(false);
   const [isFallbackOpen, setIsFallbackOpen] = useState(false);
   const region = useFiltersPanelOwner({ groups, onChange, selectedValues });
   const isOpen = region.hasRegion ? region.isOpen : isFallbackOpen;
+  // The shell's panel is drawn whether or not it is open, so the trigger can
+  // point at it either way; its own is only there once it has been opened.
+  const controlledPanelId = region.hasRegion
+    ? FILTERS_PANEL_REGION_ID
+    : isFallbackOpen
+      ? fallbackPanelId
+      : undefined;
   const triggerLabel = hasSelectedValues
     ? `Filtros: ${getFacetedFilterSummary(groups, selectedValues)}`
     : "Filtros";
@@ -81,6 +93,7 @@ export function DataTableFacetedFilterControl({
             type="button"
             variant="outline"
             size="icon-sm"
+            aria-controls={controlledPanelId}
             aria-describedby={tooltipId}
             aria-expanded={isOpen}
             aria-label={triggerLabel}
@@ -105,6 +118,7 @@ export function DataTableFacetedFilterControl({
       </Tooltip>
       {!region.hasRegion && isFallbackOpen ? (
         <DataTableStandaloneFiltersPanel
+          id={fallbackPanelId}
           content={{ groups, onChange, selectedValues }}
           onClose={() => setIsFallbackOpen(false)}
         />
@@ -120,24 +134,16 @@ export function DataTableFacetedFilterControl({
  */
 function DataTableStandaloneFiltersPanel({
   content,
+  id,
   onClose,
 }: {
   content: Parameters<typeof FiltersPanelBody>[0]["content"];
+  id: string;
   onClose: () => void;
 }) {
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    };
+  const containerRef = useRef<HTMLElement>(null);
 
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [onClose]);
+  useCloseOnEscape(true, onClose, containerRef);
 
   if (typeof document === "undefined") {
     return null;
@@ -145,9 +151,14 @@ function DataTableStandaloneFiltersPanel({
 
   return createPortal(
     <aside
+      ref={containerRef}
+      id={id}
       data-slot="filters-panel"
       data-state="open"
-      className="fixed inset-y-0 right-0 z-40 flex w-full max-w-sm flex-col border-l bg-sidebar text-sidebar-foreground shadow-lg"
+      // The width is the shell panel's, so the two cannot drift apart. Read
+      // through a default because a table outside a shell is also outside the
+      // sidebar that would otherwise be setting the variable.
+      className="fixed inset-y-0 right-0 z-40 flex w-[var(--sidebar-width,16rem)] max-w-full flex-col border-l bg-sidebar text-sidebar-foreground shadow-lg"
     >
       <FiltersPanelBody autoFocusClose content={content} onClose={onClose} />
     </aside>,
