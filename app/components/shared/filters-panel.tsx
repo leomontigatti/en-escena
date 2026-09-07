@@ -35,7 +35,6 @@ import {
   getActiveFacetedFilterValues,
   setFacetedFilterValue,
 } from "@/components/shared/data-table-helpers";
-import { cn } from "@/lib/shared/utils";
 
 /** What a table hands over for the panel to draw and to write back to. */
 export type FiltersPanelContent = {
@@ -145,13 +144,23 @@ const FiltersPanelStateContext = createContext<FiltersPanelState>({
  * flex child of the shell, so opening it narrows the page the way the navigation
  * sidebar does instead of covering what the reader is filtering.
  *
- * Below `md` there is no room to give away, so it stops taking part in the flow
- * and sits over the right edge — still with no overlay and nothing dimmed.
+ * Built in the same two pieces as that sidebar, and for the same reason: a gap
+ * that gives the width away, and a panel of fixed width that slides in from
+ * beyond the edge. Were the panel itself to grow out of nothing, its fields
+ * would be squeezed on the way in rather than arriving whole.
+ *
+ * Below `md` there is no room to give away, so the gap keeps to itself and the
+ * panel slides over the right edge — still with no overlay and nothing dimmed.
  */
 export function FiltersPanelRegion() {
   const panel = useContext(FiltersPanelActionsContext);
   const { content } = useContext(FiltersPanelStateContext);
   const isOpen = content !== null;
+  // What slid in has to still be there while it slides back out, so the panel
+  // keeps drawing the last filters it was given until it is off the screen.
+  const lastContentRef = useRef<FiltersPanelContent | null>(null);
+  lastContentRef.current = content ?? lastContentRef.current;
+  const shownContent = content ?? lastContentRef.current;
 
   useEffect(() => {
     if (!isOpen || !panel) {
@@ -172,27 +181,37 @@ export function FiltersPanelRegion() {
   }, [isOpen, panel]);
 
   return (
-    <aside
-      aria-hidden={!isOpen}
+    <div
       data-slot="filters-panel"
       data-state={isOpen ? "open" : "closed"}
-      className={cn(
-        "shrink-0 overflow-hidden text-sidebar-foreground transition-[width] duration-200 ease-linear md:sticky md:top-0 md:h-svh md:p-2 md:pl-0",
-        isOpen
-          ? "max-md:fixed max-md:inset-y-0 max-md:right-0 max-md:z-40 max-md:w-(--sidebar-width) max-md:bg-sidebar max-md:p-2 md:w-[calc(var(--sidebar-width)+--spacing(2))]"
-          : "w-0",
-      )}
+      className="group/filters-panel text-sidebar-foreground"
     >
-      {content ? (
-        <div className="flex h-full w-full flex-col md:w-(--sidebar-width)">
-          <FiltersPanelBody
-            content={content}
-            onClose={() => panel?.close()}
-            autoFocusClose
-          />
-        </div>
-      ) : null}
-    </aside>
+      {/* What hands the width over to the panel, and takes it back. */}
+      <div
+        data-slot="filters-panel-gap"
+        className="relative hidden w-(--sidebar-width) bg-transparent transition-[width] duration-200 ease-linear group-data-[state=closed]/filters-panel:w-0 md:block"
+      />
+      {/*
+       * Closed, the panel is off the screen but still drawn, so `inert` keeps it
+       * out of the reader's way —no focus, nothing announced— without taking
+       * away what it needs in order to slide back out.
+       */}
+      <aside
+        inert={!isOpen}
+        data-slot="filters-panel-container"
+        className="fixed inset-y-0 right-0 z-40 flex h-svh w-(--sidebar-width) bg-sidebar p-2 transition-[right] duration-200 ease-linear group-data-[state=closed]/filters-panel:right-[calc(var(--sidebar-width)*-1)] md:z-10 md:bg-transparent"
+      >
+        {shownContent ? (
+          <div className="flex h-full w-full flex-col">
+            <FiltersPanelBody
+              content={shownContent}
+              onClose={() => panel?.close()}
+              autoFocusClose={isOpen}
+            />
+          </div>
+        ) : null}
+      </aside>
+    </div>
   );
 }
 

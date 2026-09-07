@@ -39,8 +39,10 @@ describe("filters panel in the shell", () => {
 
     // Closed, and it takes no width from the content while it is.
     expect(getPanel().dataset.state).toBe("closed");
-    expect(getPanel().className).toContain("w-0");
     expect(getPanel().textContent).toBe("");
+    expect(
+      getPanel().querySelector('[data-slot="filters-panel-gap"]')?.className,
+    ).toContain("group-data-[state=closed]/filters-panel:w-0");
 
     await clickFiltersTrigger();
 
