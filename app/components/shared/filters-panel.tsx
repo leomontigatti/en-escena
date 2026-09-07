@@ -224,12 +224,15 @@ export function FiltersPanelBody({
 
   return (
     <section aria-labelledby={titleId} className="flex h-full flex-col">
-      {/*
-       * The panel sits against the right edge, so it reads from that edge in:
-       * every line of it is aligned to the end, and the close button is the one
-       * thing left at the far side.
-       */}
       <SidebarHeader className="flex-row items-start justify-between">
+        <div className="flex flex-col gap-0.5 px-2 py-1">
+          <p id={titleId} className="font-heading text-base font-medium">
+            Filtros
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Elegí cómo querés acotar la lista.
+          </p>
+        </div>
         <Button
           ref={closeButtonRef}
           type="button"
@@ -240,14 +243,6 @@ export function FiltersPanelBody({
           <X data-icon />
           <span className="sr-only">Cerrar filtros</span>
         </Button>
-        <div className="flex flex-col items-end gap-0.5 px-2 py-1 text-right">
-          <p id={titleId} className="font-heading text-base font-medium">
-            Filtros
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Elegí cómo querés acotar la lista.
-          </p>
-        </div>
       </SidebarHeader>
       <SidebarContent>
         {groups.map((group) => (
@@ -263,7 +258,7 @@ export function FiltersPanelBody({
           />
         ))}
       </SidebarContent>
-      <SidebarFooter className="items-end">
+      <SidebarFooter className="items-center">
         <Button
           type="button"
           className="w-fit"
@@ -303,6 +298,9 @@ function FiltersPanelGroupField({
   return (
     <SidebarGroup className="gap-1.5">
       <div className="flex items-center justify-between gap-2">
+        <SidebarGroupLabel asChild>
+          <Label htmlFor={selectId}>{group.label}</Label>
+        </SidebarGroupLabel>
         {hasSelectedValue ? (
           <Button
             type="button"
@@ -313,9 +311,6 @@ function FiltersPanelGroupField({
             Limpiar
           </Button>
         ) : null}
-        <SidebarGroupLabel asChild className="ml-auto">
-          <Label htmlFor={selectId}>{group.label}</Label>
-        </SidebarGroupLabel>
       </div>
       <Select value={selectedValue} onValueChange={onChange}>
         {/*
