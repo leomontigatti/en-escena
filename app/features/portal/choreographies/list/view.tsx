@@ -5,6 +5,7 @@ import { useFetcher } from "react-router";
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import {
   ClientDataTable,
+  DataTableTruncatedText,
   type DataTableColumn,
   type DataTableFacetedFiltersOf,
 } from "@/components/shared/data-table";
@@ -108,7 +109,8 @@ function ChoreographyTable({
     {
       id: "number",
       header: "#",
-      className: "font-medium tabular-nums",
+      className: "w-[7%] font-medium tabular-nums",
+      headerClassName: "w-[7%]",
       cell: (choreography) => (
         <DataTableLink to={`/portal/coreografias/${choreography.id}`}>
           {formatEventSequenceNumber(choreography.choreographyNumber)}
@@ -121,10 +123,13 @@ function ChoreographyTable({
     {
       id: "name",
       header: "Nombre",
-      className: "font-medium",
+      className: "w-[37%] font-medium",
+      headerClassName: "w-[37%]",
       // The number is the row's only way into the detail. Linking the name too
       // gave one destination two targets, which reads as a choice and is not.
-      cell: (choreography) => choreography.name,
+      cell: (choreography) => (
+        <DataTableTruncatedText value={choreography.name} />
+      ),
       // The search box filters this one column, so everything meant to be
       // searchable travels in here. The number is included zero-padded, which
       // is how `00042`, `042` and `42` all reach the same choreography.
@@ -144,13 +149,16 @@ function ChoreographyTable({
     {
       id: "modality",
       header: "Modalidad / Submodalidad",
+      className: "w-[21%]",
+      headerClassName: "w-[21%]",
       cell: (choreography) => (
-        <span className="text-muted-foreground">
-          {formatPrimaryAndSecondaryValue(
+        <DataTableTruncatedText
+          className="text-muted-foreground"
+          value={formatPrimaryAndSecondaryValue(
             choreography.modalityName,
             choreography.submodalityName,
           )}
-        </span>
+        />
       ),
       filterValue: (choreography) =>
         [choreography.modalityName, choreography.submodalityName]
@@ -160,13 +168,16 @@ function ChoreographyTable({
     {
       id: "categoryGroup",
       header: "Categoría / Tipo de grupo",
+      className: "w-[22%]",
+      headerClassName: "w-[22%]",
       cell: (choreography) => (
-        <span className="text-muted-foreground">
-          {formatPrimaryAndSecondaryValue(
+        <DataTableTruncatedText
+          className="text-muted-foreground"
+          value={formatPrimaryAndSecondaryValue(
             choreography.categoryName ?? "Sin asignar",
             formatChoreographyGroupTypeLabel(choreography.groupType),
           )}
-        </span>
+        />
       ),
       filterValue: (choreography) =>
         [
@@ -177,6 +188,8 @@ function ChoreographyTable({
     {
       id: "status",
       header: "Estado",
+      className: "w-[13%]",
+      headerClassName: "w-[13%]",
       cell: (choreography) => (
         <OperationalStatusBadge
           operationalStatus={choreography.operationalStatus}
@@ -196,6 +209,8 @@ function ChoreographyTable({
       rows={choreographies}
       columns={columns}
       getRowKey={(choreography) => choreography.id}
+      // Same budget as the admin list this mirrors, minus its academy column.
+      layout="fit"
       searchPlaceholder="Buscar coreografía por número, nombre, modalidad o categoría"
       textFilterColumnId="name"
       facetedFilters={buildChoreographyFacetedFilters(choreographies)}

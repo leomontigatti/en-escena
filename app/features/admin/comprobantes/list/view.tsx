@@ -5,6 +5,7 @@ import {
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
 import {
+  DataTableTruncatedText,
   ServerDataTable,
   type DataTableColumn,
   type DataTableFacetedFilter,
@@ -43,7 +44,8 @@ export const comprobanteColumns: DataTableColumn<ComprobantesListRow>[] = [
   {
     id: "numero",
     header: "Comprobante",
-    className: "font-medium tabular-nums",
+    className: "w-[14%] font-medium tabular-nums",
+    headerClassName: "w-[14%]",
     cell: (row) => (
       <DataTableLink to={`/administracion/comprobantes/${row.id}`}>
         {formatComprobanteNumber(row)}
@@ -54,6 +56,8 @@ export const comprobanteColumns: DataTableColumn<ComprobantesListRow>[] = [
   {
     id: "tipo",
     header: "Tipo",
+    className: "w-[6%]",
+    headerClassName: "w-[6%]",
     cell: (row) => (
       <Badge
         variant={comprobanteTipoBadgeVariant(row.cbteTipo)}
@@ -66,24 +70,30 @@ export const comprobanteColumns: DataTableColumn<ComprobantesListRow>[] = [
   {
     id: "academia",
     header: "Academia",
-    className: "text-muted-foreground",
-    cell: (row) => row.academyName,
+    className: "w-[24%] text-muted-foreground",
+    headerClassName: "w-[24%]",
+    cell: (row) => <DataTableTruncatedText value={row.academyName} />,
   },
   {
     id: "coreografia",
     header: "Coreografía",
-    className: "text-muted-foreground",
+    className: "w-[24%] text-muted-foreground",
+    headerClassName: "w-[24%]",
     cell: (row) => (
-      <DataTableLink
-        to={`/administracion/finanzas/${row.academyId}/coreografias/${row.choreographyId}`}
-      >
-        {row.choreographyName}
-      </DataTableLink>
+      <DataTableTruncatedText value={row.choreographyName}>
+        <DataTableLink
+          to={`/administracion/finanzas/${row.academyId}/coreografias/${row.choreographyId}`}
+        >
+          {row.choreographyName}
+        </DataTableLink>
+      </DataTableTruncatedText>
     ),
   },
   {
     id: "estado",
     header: "Estado",
+    className: "w-[10%]",
+    headerClassName: "w-[10%]",
     cell: (row) => (
       <Badge variant={row.status === "vigente" ? "success" : "destructive"}>
         {formatComprobanteStatusLabel(row.status)}
@@ -93,15 +103,16 @@ export const comprobanteColumns: DataTableColumn<ComprobantesListRow>[] = [
   {
     id: "fecha",
     header: "Fecha",
-    className: "tabular-nums",
+    className: "w-[10%] tabular-nums",
+    headerClassName: "w-[10%]",
     cell: (row) => formatComprobanteArcaDate(row.cbteFch),
     sortValue: (row) => row.cbteFch,
   },
   {
     id: "importe",
     header: "Importe",
-    className: "text-right tabular-nums",
-    headerClassName: "text-right",
+    className: "w-[12%] text-right tabular-nums",
+    headerClassName: "w-[12%] text-right",
     cell: (row) => formatAmount(row.impTotal),
   },
 ];
@@ -165,6 +176,9 @@ export function ComprobantesListRouteView({
           )}
           initialSearchValue={loaderData.filters.query}
           getRowKey={(row) => row.id}
+          // The column widths above are the whole budget: seven columns is the
+          // widest list here, and this is what keeps it inside the page.
+          layout="fit"
           searchPlaceholder="Buscar por academia, coreografía o número"
           initialSort={loaderData.filters.order}
           emptyMessage="No hay comprobantes que coincidan con la búsqueda o los filtros."

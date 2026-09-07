@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import { cn } from "@/lib/shared/utils";
 
 /**
@@ -16,9 +18,15 @@ import { cn } from "@/lib/shared/utils";
  * searchable in the page.
  */
 export function DataTableTruncatedText({
+  children,
   className,
   value,
 }: {
+  /**
+   * What to draw, when the value is not drawn as plain text — a linked name is
+   * still the same value and still gets cut the same way. Defaults to `value`.
+   */
+  children?: ReactNode;
   className?: string;
   value: string;
 }) {
@@ -30,7 +38,7 @@ export function DataTableTruncatedText({
         className,
       )}
     >
-      {value}
+      {children ?? value}
     </span>
   );
 }
