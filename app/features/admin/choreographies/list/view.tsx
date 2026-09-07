@@ -43,8 +43,8 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
   {
     id: "numero",
     header: "#",
-    className: "w-[7%] font-medium tabular-nums",
-    headerClassName: "w-[7%]",
+    width: 7,
+    className: "font-medium tabular-nums",
     cell: (choreography) => (
       <DataTableLink to={`/administracion/coreografias/${choreography.id}`}>
         {formatEventSequenceNumber(choreography.choreographyNumber)}
@@ -57,8 +57,8 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
   {
     id: "nombre",
     header: "Nombre",
-    className: "w-[23%] font-medium",
-    headerClassName: "w-[23%]",
+    width: 23,
+    className: "font-medium",
     // The number is the row's only way into the detail. Linking the name too
     // gave one destination two targets, which reads as a choice and is not.
     cell: (choreography) => (
@@ -70,8 +70,8 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
   {
     id: "academia",
     header: "Academia",
-    className: "w-[23%] text-muted-foreground",
-    headerClassName: "w-[23%]",
+    width: 23,
+    className: "text-muted-foreground",
     cell: (choreography) => (
       <DataTableTruncatedText value={choreography.academyName} />
     ),
@@ -81,8 +81,8 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
   {
     id: "modalidadSubmodalidad",
     header: "Modalidad / Submodalidad",
-    className: "w-[18%] text-muted-foreground",
-    headerClassName: "w-[18%]",
+    width: 18,
+    className: "text-muted-foreground",
     cell: (choreography) => (
       <DataTableTruncatedText
         value={formatPrimaryAndSecondaryValue(
@@ -95,8 +95,8 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
   {
     id: "categoriaTipoGrupo",
     header: "Categoría / Tipo de grupo",
-    className: "w-[19%] text-muted-foreground",
-    headerClassName: "w-[19%]",
+    width: 19,
+    className: "text-muted-foreground",
     cell: (choreography) => (
       <DataTableTruncatedText
         value={formatPrimaryAndSecondaryValue(
@@ -109,8 +109,7 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
   {
     id: "estado",
     header: "Estado",
-    className: "w-[10%]",
-    headerClassName: "w-[10%]",
+    width: 10,
     cell: (choreography) => (
       <Badge
         variant={getChoreographyOperationalStatusBadgeVariant(
@@ -157,8 +156,8 @@ function ChoreographyTable({ loaderData }: { loaderData: LoaderData }) {
       rows={loaderData.choreographies}
       columns={choreographyColumns}
       getRowKey={(choreography) => choreography.id}
-      // The column widths above are the whole budget, so a row cannot outgrow
-      // the page and the list never asks the reader to scroll sideways.
+      // The widths above share the row out, so it cannot outgrow the page and
+      // the list never asks the reader to scroll sideways.
       layout="fit"
       searchPlaceholder="Buscar coreografía por número, nombre o academia"
       initialSearchValue={loaderData.filters.query}

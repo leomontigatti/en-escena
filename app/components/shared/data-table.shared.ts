@@ -36,7 +36,7 @@ export type DataTableSortValue =
  * be wider than the space it was given and the horizontal scrollbar cannot
  * appear. The cost is that a cell which runs long has to be cut instead of
  * widening its column, which is why a `fit` table has to give every column a
- * width and say what its long cells do — see `DataTableTruncatedText`.
+ * `width` and say what its long cells do — see `DataTableTruncatedText`.
  */
 export type DataTableLayout = "auto" | "fit";
 
@@ -48,12 +48,34 @@ export type DataTableColumn<TData> = {
   className?: string;
   headerClassName?: string;
   cellClassName?: (row: TData) => string | undefined;
+  /**
+   * The column's share of the row, read only by a `fit` table and ignored by an
+   * `auto` one.
+   *
+   * It is a weight and not a percentage: the table divides each column by the
+   * total, so `7/23/23/18/19/10` and `1/3/3/2/3/1` both describe a row, and
+   * widening one column does not mean finding the width back somewhere else.
+   * Nothing has to add up to 100, which is the point — the selection checkbox
+   * is a fixed column the view never declares, and a budget that had to total
+   * 100% would silently overflow the row by exactly its width.
+   */
+  width?: number;
   filterValue?: (row: TData) => string;
   filterValues?: (row: TData) => string[];
   sortValue?: (row: TData) => DataTableSortValue;
 };
 
 export const dataTableFacetedFilterColumnId = "filters";
+
+/**
+ * The selection checkbox column, which the table adds rather than the view. A
+ * `fit` table takes its width out of the row before sharing the rest, so it is
+ * named here for both sides to agree on.
+ */
+export const dataTableSelectionColumnId = "select";
+
+/** What the selection column takes, wide enough for the checkbox and no wider. */
+export const dataTableSelectionColumnWidth = "2.5rem";
 
 export type DataTableFacetedFilter<TId extends string = string> =
   DataTableFacetedFilterGroup<TId>;

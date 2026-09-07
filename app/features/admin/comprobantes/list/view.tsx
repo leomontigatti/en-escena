@@ -44,8 +44,8 @@ export const comprobanteColumns: DataTableColumn<ComprobantesListRow>[] = [
   {
     id: "numero",
     header: "Comprobante",
-    className: "w-[14%] font-medium tabular-nums",
-    headerClassName: "w-[14%]",
+    width: 14,
+    className: "font-medium tabular-nums",
     cell: (row) => (
       <DataTableLink to={`/administracion/comprobantes/${row.id}`}>
         {formatComprobanteNumber(row)}
@@ -56,8 +56,7 @@ export const comprobanteColumns: DataTableColumn<ComprobantesListRow>[] = [
   {
     id: "tipo",
     header: "Tipo",
-    className: "w-[6%]",
-    headerClassName: "w-[6%]",
+    width: 6,
     cell: (row) => (
       <Badge
         variant={comprobanteTipoBadgeVariant(row.cbteTipo)}
@@ -70,15 +69,15 @@ export const comprobanteColumns: DataTableColumn<ComprobantesListRow>[] = [
   {
     id: "academia",
     header: "Academia",
-    className: "w-[24%] text-muted-foreground",
-    headerClassName: "w-[24%]",
+    width: 24,
+    className: "text-muted-foreground",
     cell: (row) => <DataTableTruncatedText value={row.academyName} />,
   },
   {
     id: "coreografia",
     header: "Coreografía",
-    className: "w-[24%] text-muted-foreground",
-    headerClassName: "w-[24%]",
+    width: 24,
+    className: "text-muted-foreground",
     cell: (row) => (
       <DataTableTruncatedText value={row.choreographyName}>
         <DataTableLink
@@ -92,8 +91,7 @@ export const comprobanteColumns: DataTableColumn<ComprobantesListRow>[] = [
   {
     id: "estado",
     header: "Estado",
-    className: "w-[10%]",
-    headerClassName: "w-[10%]",
+    width: 10,
     cell: (row) => (
       <Badge variant={row.status === "vigente" ? "success" : "destructive"}>
         {formatComprobanteStatusLabel(row.status)}
@@ -103,16 +101,17 @@ export const comprobanteColumns: DataTableColumn<ComprobantesListRow>[] = [
   {
     id: "fecha",
     header: "Fecha",
-    className: "w-[10%] tabular-nums",
-    headerClassName: "w-[10%]",
+    width: 10,
+    className: "tabular-nums",
     cell: (row) => formatComprobanteArcaDate(row.cbteFch),
     sortValue: (row) => row.cbteFch,
   },
   {
     id: "importe",
     header: "Importe",
-    className: "w-[12%] text-right tabular-nums",
-    headerClassName: "w-[12%] text-right",
+    width: 12,
+    className: "text-right tabular-nums",
+    headerClassName: "text-right",
     cell: (row) => formatAmount(row.impTotal),
   },
 ];
@@ -176,8 +175,8 @@ export function ComprobantesListRouteView({
           )}
           initialSearchValue={loaderData.filters.query}
           getRowKey={(row) => row.id}
-          // The column widths above are the whole budget: seven columns is the
-          // widest list here, and this is what keeps it inside the page.
+          // Seven columns is the widest list here; sharing the row out among
+          // them is what keeps it inside the page.
           layout="fit"
           searchPlaceholder="Buscar por academia, coreografía o número"
           initialSort={loaderData.filters.order}

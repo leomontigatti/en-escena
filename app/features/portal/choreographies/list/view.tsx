@@ -109,8 +109,8 @@ function ChoreographyTable({
     {
       id: "number",
       header: "#",
-      className: "w-[7%] font-medium tabular-nums",
-      headerClassName: "w-[7%]",
+      width: 7,
+      className: "font-medium tabular-nums",
       cell: (choreography) => (
         <DataTableLink to={`/portal/coreografias/${choreography.id}`}>
           {formatEventSequenceNumber(choreography.choreographyNumber)}
@@ -123,8 +123,8 @@ function ChoreographyTable({
     {
       id: "name",
       header: "Nombre",
-      className: "w-[37%] font-medium",
-      headerClassName: "w-[37%]",
+      width: 37,
+      className: "font-medium",
       // The number is the row's only way into the detail. Linking the name too
       // gave one destination two targets, which reads as a choice and is not.
       cell: (choreography) => (
@@ -149,8 +149,7 @@ function ChoreographyTable({
     {
       id: "modality",
       header: "Modalidad / Submodalidad",
-      className: "w-[21%]",
-      headerClassName: "w-[21%]",
+      width: 21,
       cell: (choreography) => (
         <DataTableTruncatedText
           className="text-muted-foreground"
@@ -168,8 +167,7 @@ function ChoreographyTable({
     {
       id: "categoryGroup",
       header: "Categoría / Tipo de grupo",
-      className: "w-[22%]",
-      headerClassName: "w-[22%]",
+      width: 22,
       cell: (choreography) => (
         <DataTableTruncatedText
           className="text-muted-foreground"
@@ -188,8 +186,7 @@ function ChoreographyTable({
     {
       id: "status",
       header: "Estado",
-      className: "w-[13%]",
-      headerClassName: "w-[13%]",
+      width: 13,
       cell: (choreography) => (
         <OperationalStatusBadge
           operationalStatus={choreography.operationalStatus}
@@ -209,7 +206,7 @@ function ChoreographyTable({
       rows={choreographies}
       columns={columns}
       getRowKey={(choreography) => choreography.id}
-      // Same budget as the admin list this mirrors, minus its academy column.
+      // Same shares as the admin list this mirrors, minus its academy column.
       layout="fit"
       searchPlaceholder="Buscar coreografía por número, nombre, modalidad o categoría"
       textFilterColumnId="name"

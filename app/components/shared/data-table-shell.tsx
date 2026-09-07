@@ -1,5 +1,6 @@
 import {
   flexRender,
+  type Column,
   type Header,
   type Row,
   type Table as TanStackTable,
@@ -22,7 +23,11 @@ import type {
   DataTableLayout,
   DataTableSortDirection,
 } from "@/components/shared/data-table.shared";
-import { dataTableFacetedFilterColumnId } from "@/components/shared/data-table.shared";
+import {
+  dataTableFacetedFilterColumnId,
+  dataTableSelectionColumnId,
+  dataTableSelectionColumnWidth,
+} from "@/components/shared/data-table.shared";
 import {
   Table,
   TableBody,
@@ -128,6 +133,7 @@ export function DataTableShell<TData>({
         )}
       >
         <Table className={layout === "fit" ? "table-fixed" : undefined}>
+          {layout === "fit" ? <DataTableColumnGroup table={table} /> : null}
           <DataTableHead serverSort={serverSort} table={table} />
           <DataTableBody
             emptyMessage={emptyMessage}
@@ -141,6 +147,79 @@ export function DataTableShell<TData>({
       ) : null}
     </div>
   );
+}
+
+/**
+ * The row's widths, as a `colgroup` rather than a class on every cell.
+ *
+ * This is where a `fit` table's arithmetic lives, and it lives here because
+ * this is the only place that can see all of it. A view declares what share of
+ * the row each of its columns is worth; it cannot account for the selection
+ * checkbox, because the table is what adds that column, and it should not have
+ * to — so the fixed part comes out of the row first and the views' weights
+ * divide what is left. That is also why the weights are relative: there is no
+ * total to keep them adding up to, so no way to leave the row over-committed.
+ *
+ * A column with no weight is left to the browser, which under a fixed layout
+ * means it shares whatever the weighted columns did not claim.
+ */
+function DataTableColumnGroup<TData>({
+  table,
+}: {
+  table: TanStackTable<TData>;
+}) {
+  const columns = table.getVisibleLeafColumns();
+  const totalWeight = columns.reduce(
+    (total, column) => total + (column.columnDef.meta?.width ?? 0),
+    0,
+  );
+  const hasSelectionColumn = columns.some(
+    (column) => column.id === dataTableSelectionColumnId,
+  );
+  const shareable = hasSelectionColumn
+    ? `(100% - ${dataTableSelectionColumnWidth})`
+    : "100%";
+
+  return (
+    <colgroup>
+      {columns.map((column) => (
+        <col
+          key={column.id}
+          style={{
+            width: resolveDataTableColumnWidth({
+              column,
+              shareable,
+              totalWeight,
+            }),
+          }}
+        />
+      ))}
+    </colgroup>
+  );
+}
+
+function resolveDataTableColumnWidth<TData>({
+  column,
+  shareable,
+  totalWeight,
+}: {
+  column: Column<TData, unknown>;
+  shareable: string;
+  totalWeight: number;
+}) {
+  if (column.id === dataTableSelectionColumnId) {
+    return dataTableSelectionColumnWidth;
+  }
+
+  const weight = column.columnDef.meta?.width;
+
+  if (!weight || totalWeight <= 0) {
+    return undefined;
+  }
+
+  // Kept as a division rather than a percentage worked out here: the browser
+  // divides exactly, and a weight stays the number the view wrote.
+  return `calc(${shareable} * ${weight} / ${totalWeight})`;
 }
 
 /**
