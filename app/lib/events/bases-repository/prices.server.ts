@@ -1,6 +1,7 @@
 import { and, asc, eq, inArray, isNull, ne } from "drizzle-orm";
 
-import { choreographyDancers } from "@/db/schema";
+import { choreographies, choreographyDancers } from "@/db/schema";
+import { hasNeverExpiringPrice } from "@/lib/events/never-expiring-price";
 import {
   created,
   db,
@@ -14,6 +15,7 @@ import {
   toDateOnly,
   uniqueValues,
 } from "@/lib/events/bases-repository/shared.server";
+import type { GroupType } from "@/lib/events/group-types";
 import type {
   EventBaseFailure,
   EventBasesDeleteResult,
@@ -29,6 +31,10 @@ const frozenPriceUpdateError =
   "No se pueden editar monto, tipo de grupo, vencimiento ni cronograma porque hay inscripciones que congelaron este precio.";
 const frozenPriceDeleteError =
   "No se puede borrar el precio porque hay inscripciones que congelaron este precio.";
+const uncoveredPriceUpdateError =
+  "No se puede editar el precio porque es el único sin fecha límite de ese tipo de grupo y hay inscripciones activas que dependen de él.";
+const uncoveredPriceDeleteError =
+  "No se puede borrar el precio porque es el único sin fecha límite de ese tipo de grupo y hay inscripciones activas que dependen de él.";
 
 export async function listPrices(eventId: string): Promise<PriceListItem[]> {
   const eventPrices = await db.query.prices.findMany({
@@ -111,15 +117,22 @@ export async function updatePrice(
   const hasDependencies =
     dependencies.hasDependencies ?? priceHasOperationalDependencies;
 
-  if (
-    (await hasDependencies(priceId)) &&
-    hasStructuralPriceChanges(existing, validation.input)
-  ) {
-    return {
-      ok: false,
-      code: "event-bases-has-dependencies",
-      error: frozenPriceUpdateError,
-    };
+  if (hasStructuralPriceChanges(existing, validation.input)) {
+    if (await hasDependencies(priceId)) {
+      return {
+        ok: false,
+        code: "event-bases-has-dependencies",
+        error: frozenPriceUpdateError,
+      };
+    }
+
+    if (await removesNeverExpiringCoverage(existing, validation.input)) {
+      return {
+        ok: false,
+        code: "event-bases-has-dependencies",
+        error: uncoveredPriceUpdateError,
+      };
+    }
   }
 
   const [record] = await db
@@ -151,6 +164,14 @@ export async function deletePrice(
       ok: false,
       code: "event-bases-has-dependencies",
       error: frozenPriceDeleteError,
+    };
+  }
+
+  if (await removesNeverExpiringCoverage(price, null)) {
+    return {
+      ok: false,
+      code: "event-bases-has-dependencies",
+      error: uncoveredPriceDeleteError,
     };
   }
 
@@ -214,6 +235,10 @@ export async function resolveApplicablePrice(input: {
   };
 }
 
+// `selectedPriceId` is only written when an inscription crosses its deposit, so
+// this sees frozen inscriptions and nothing else. Every un-crossed inscription
+// derives its price on read, and `removesNeverExpiringCoverage` is what answers
+// for those.
 async function priceHasOperationalDependencies(priceId: string) {
   const [dependency] = await db
     .select({
@@ -224,6 +249,71 @@ async function priceHasOperationalDependencies(priceId: string) {
     .limit(1);
 
   return Boolean(dependency);
+}
+
+// The write-side of readiness' demand: a reachable group type must keep a row
+// with no deadline in its general tier. Two-tier resolution falls through to
+// the general tier whenever the schedule tier yields nothing, so a path
+// resolves as long as that row is there, and only the general tier can break
+// coverage. The question is asked pre-mutation and is deliberately not
+// date-relative: leaving a dated row applicable today while removing the tail
+// is the silent expiry this guards against.
+async function removesNeverExpiringCoverage(
+  existing: typeof prices.$inferSelect,
+  // What the row becomes, or `null` when it is being deleted.
+  next: ValidPriceInput | null,
+) {
+  if (existing.scheduleId !== null || existing.paymentDeadline !== null) {
+    return false;
+  }
+
+  const staysTheGeneralTail =
+    next !== null &&
+    next.scheduleId === null &&
+    next.groupType === existing.groupType &&
+    next.paymentDeadline === null;
+
+  if (staysTheGeneralTail) {
+    return false;
+  }
+
+  const remainingGeneralPrices = await db
+    .select({ paymentDeadline: prices.paymentDeadline })
+    .from(prices)
+    .where(
+      and(
+        eq(prices.eventId, existing.eventId),
+        eq(prices.groupType, existing.groupType),
+        isNull(prices.scheduleId),
+        ne(prices.id, existing.id),
+      ),
+    );
+
+  if (hasNeverExpiringPrice(remainingGeneralPrices)) {
+    return false;
+  }
+
+  return hasActiveInscriptions(existing.eventId, existing.groupType);
+}
+
+async function hasActiveInscriptions(eventId: string, groupType: GroupType) {
+  const [inscription] = await db
+    .select({ id: choreographyDancers.id })
+    .from(choreographyDancers)
+    .innerJoin(
+      choreographies,
+      eq(choreographies.id, choreographyDancers.choreographyId),
+    )
+    .where(
+      and(
+        eq(choreographies.eventId, eventId),
+        eq(choreographies.groupType, groupType),
+        isNull(choreographyDancers.withdrawnAt),
+      ),
+    )
+    .limit(1);
+
+  return Boolean(inscription);
 }
 
 async function validatePriceInput(
