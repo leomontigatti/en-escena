@@ -45,7 +45,13 @@ describe("filters panel in the shell", () => {
     await clickFiltersTrigger();
 
     expect(getPanel().dataset.state).toBe("open");
-    expect(getPanel().textContent).toContain("Archivado");
+    // The group is offered as a picker, so the panel names the group and holds
+    // its options behind it rather than stacking every option on screen.
+    expect(getPanel().textContent).toContain("Estado");
+    expect(getPanel().textContent).not.toContain("Archivado");
+    expect(getPanel().querySelector('[data-slot="select-trigger"]')).not.toBe(
+      null,
+    );
   });
 
   // The panel is a sibling of the content, not a layer over it: that is what

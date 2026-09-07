@@ -25,6 +25,10 @@ import {
   createReactDomTestRenderer,
   setInputValue,
 } from "@/lib/test-support/react-dom";
+import {
+  openRadixSelect,
+  selectRadixOption,
+} from "@/lib/test-support/radix-select";
 
 type Row = {
   id: string;
@@ -677,7 +681,7 @@ describe("ClientDataTable filters in the address bar", () => {
     await renderer.renderAsync(<RouterProvider router={router} />);
 
     await openFiltersPanel();
-    await clickFilterOption("Archivado");
+    await clickFilterOption("Estado", "Archivado");
 
     expect(router.state.location.search).toBe("?estado=archived");
     expect(getRenderedRowNames()).toContain("Coreografía 02");
@@ -719,7 +723,7 @@ describe("ClientDataTable filters in the address bar", () => {
     await renderer.renderAsync(<RouterProvider router={router} />);
 
     await openFiltersPanel();
-    await clickFilterOption("Archivado");
+    await clickFilterOption("Estado", "Archivado");
 
     expect(router.state.location.search).toBe("?estado=archived");
 
@@ -1148,20 +1152,21 @@ async function openFiltersPanel() {
   await clickElement(getFiltersTrigger());
 }
 
-/** Picks an option of the panel by the label the reader reads next to it. */
-async function clickFilterOption(label: string) {
-  const optionLabel = Array.from(document.querySelectorAll("label[for]")).find(
-    (candidate) => candidate.textContent?.trim() === label,
+/** Picks an option out of the panel's picker for the given group. */
+async function clickFilterOption(groupLabel: string, optionLabel: string) {
+  const field = Array.from(document.querySelectorAll("label[for]")).find(
+    (candidate) => candidate.textContent?.trim() === groupLabel,
   );
-  const option = optionLabel
-    ? document.getElementById(optionLabel.getAttribute("for") ?? "")
+  const trigger = field
+    ? document.getElementById(field.getAttribute("for") ?? "")
     : null;
 
-  if (!option) {
-    throw new Error(`Expected the filter option "${label}" to be rendered.`);
+  if (!trigger) {
+    throw new Error(`Expected the "${groupLabel}" filter to be offered.`);
   }
 
-  await clickElement(option);
+  await openRadixSelect(trigger);
+  await selectRadixOption(optionLabel);
 }
 
 /** The panel's footer action, which clears every group at once. */

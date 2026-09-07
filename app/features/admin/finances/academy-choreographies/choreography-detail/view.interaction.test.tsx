@@ -666,22 +666,19 @@ async function selectStatusOption(label: string) {
     });
   }
 
-  const optionLabel = [...document.querySelectorAll("label[for]")].find(
-    (candidate) => candidate.textContent?.trim() === label,
+  const field = [...document.querySelectorAll("label[for]")].find(
+    (candidate) => candidate.textContent?.trim() === "Estado",
   );
-  const option = optionLabel
-    ? document.getElementById(optionLabel.getAttribute("for") ?? "")
+  const picker = field
+    ? document.getElementById(field.getAttribute("for") ?? "")
     : null;
 
-  if (!option) {
-    throw new Error(`Expected the "${label}" status option to be offered.`);
+  if (!picker) {
+    throw new Error("Expected the panel to offer the `Estado` filter.");
   }
 
-  await updateReactDomForm(() => {
-    option.dispatchEvent(
-      new MouseEvent("click", { bubbles: true, cancelable: true }),
-    );
-  });
+  await openRadixSelect(picker);
+  await selectRadixOption(label);
 }
 
 /** The price picker of the allocation shape, named by the one it is. */

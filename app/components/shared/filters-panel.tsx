@@ -13,14 +13,19 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type {
   DataTableFacetedFilter,
   DataTableFacetedFilterValue,
 } from "@/components/shared/data-table.shared";
 import {
   getActiveFacetedFilterValues,
-  getFacetedFilterSummary,
   setFacetedFilterValue,
 } from "@/components/shared/data-table-helpers";
 import { cn } from "@/lib/shared/utils";
@@ -165,14 +170,14 @@ export function FiltersPanelRegion() {
       data-slot="filters-panel"
       data-state={isOpen ? "open" : "closed"}
       className={cn(
-        "shrink-0 overflow-hidden bg-sidebar text-sidebar-foreground transition-[width] duration-200 ease-linear md:sticky md:top-0 md:h-svh",
+        "shrink-0 overflow-hidden text-sidebar-foreground transition-[width] duration-200 ease-linear md:sticky md:top-0 md:h-svh md:p-2 md:pl-0",
         isOpen
-          ? "max-md:fixed max-md:inset-y-0 max-md:right-0 max-md:z-40 max-md:w-full max-md:max-w-sm max-md:shadow-lg md:w-80 md:border-l"
+          ? "max-md:fixed max-md:inset-y-0 max-md:right-0 max-md:z-40 max-md:w-(--sidebar-width) max-md:bg-sidebar max-md:p-2 md:w-[calc(var(--sidebar-width)+--spacing(2))]"
           : "w-0",
       )}
     >
       {content ? (
-        <div className="flex h-full w-full flex-col max-md:max-w-sm md:w-80">
+        <div className="flex h-full w-full flex-col md:w-(--sidebar-width)">
           <FiltersPanelBody
             content={content}
             onClose={() => panel?.close()}
@@ -203,7 +208,6 @@ export function FiltersPanelBody({
   const { groups, onChange, selectedValues } = content;
   const hasSelectedValues =
     getActiveFacetedFilterValues(selectedValues).length > 0;
-  const activeFilterSummary = getFacetedFilterSummary(groups, selectedValues);
 
   useEffect(() => {
     if (autoFocusClose) {
@@ -213,15 +217,13 @@ export function FiltersPanelBody({
 
   return (
     <section aria-labelledby={titleId} className="flex h-full flex-col">
-      <div className="flex items-start justify-between gap-2 border-b p-4">
-        <div className="flex flex-col gap-0.5">
+      <div className="flex items-start justify-between gap-2 p-2">
+        <div className="flex flex-col gap-0.5 px-2 py-1">
           <p id={titleId} className="font-heading text-base font-medium">
             Filtros
           </p>
           <p className="text-sm text-muted-foreground">
-            {hasSelectedValues
-              ? activeFilterSummary
-              : "Elegí cómo querés acotar la lista."}
+            Elegí cómo querés acotar la lista.
           </p>
         </div>
         <Button
@@ -235,7 +237,7 @@ export function FiltersPanelBody({
           <span className="sr-only">Cerrar filtros</span>
         </Button>
       </div>
-      <div className="flex flex-1 flex-col gap-6 overflow-y-auto p-4">
+      <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-2">
         {groups.map((group) => (
           <FiltersPanelGroupField
             key={group.id}
@@ -249,10 +251,7 @@ export function FiltersPanelBody({
           />
         ))}
       </div>
-      <div
-        data-slot="filters-panel-footer"
-        className="flex flex-col gap-2 border-t p-4"
-      >
+      <div data-slot="filters-panel-footer" className="flex flex-col gap-2 p-2">
         <Button
           type="button"
           variant="outline"
@@ -267,8 +266,12 @@ export function FiltersPanelBody({
 }
 
 /**
- * One group of the panel: its name, its options as radios, and the way back
- * out. The way out is a per-group `Limpiar` rather than an extra `Todos` option,
+ * One group of the panel: its name and a picker holding its options. A picker
+ * rather than a list of radios because a group's options are a category's worth
+ * —a dozen and a half of them on the choreographies list— and stacking them all
+ * turns the panel into a scrolling wall where the next group cannot be seen.
+ *
+ * The way back out is a per-group `Limpiar` rather than a `Todos` option,
  * because a group is free to offer an option of its own by that name —the
  * professors list does— and a synthetic one would either duplicate it or take
  * its value away.
@@ -282,15 +285,13 @@ function FiltersPanelGroupField({
   onChange: (value: string) => void;
   selectedValue: string;
 }) {
-  const groupLabelId = useId();
+  const selectId = useId();
   const hasSelectedValue = selectedValue.length > 0;
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-2">
-        <p id={groupLabelId} className="text-sm font-medium text-foreground">
-          {group.label}
-        </p>
+    <div className="flex flex-col gap-1.5 px-2">
+      <div className="flex min-h-8 items-center justify-between gap-2">
+        <Label htmlFor={selectId}>{group.label}</Label>
         {hasSelectedValue ? (
           <Button
             type="button"
@@ -302,24 +303,18 @@ function FiltersPanelGroupField({
           </Button>
         ) : null}
       </div>
-      <RadioGroup
-        aria-labelledby={groupLabelId}
-        value={selectedValue}
-        onValueChange={onChange}
-      >
-        {group.options.map((option) => {
-          const optionId = `${groupLabelId}-${option.value}`;
-
-          return (
-            <div key={option.value} className="flex items-center gap-2">
-              <RadioGroupItem id={optionId} value={option.value} />
-              <Label htmlFor={optionId} className="font-normal">
-                {option.label}
-              </Label>
-            </div>
-          );
-        })}
-      </RadioGroup>
+      <Select value={selectedValue} onValueChange={onChange}>
+        <SelectTrigger id={selectId} className="w-full">
+          <SelectValue placeholder="Todos" />
+        </SelectTrigger>
+        <SelectContent>
+          {group.options.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }
