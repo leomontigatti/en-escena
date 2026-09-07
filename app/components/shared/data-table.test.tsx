@@ -1167,9 +1167,7 @@ async function clickFilterOption(label: string) {
 /** The panel's footer action, which clears every group at once. */
 async function clearFilters() {
   const button = Array.from(
-    document.querySelectorAll(
-      '[data-slot="data-table-filters-panel-footer"] button',
-    ),
+    document.querySelectorAll('[data-slot="filters-panel-footer"] button'),
   ).find((candidate) => candidate.textContent?.trim() === "Limpiar filtros");
 
   if (!button) {

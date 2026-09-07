@@ -57,6 +57,10 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
+  FiltersPanelProvider,
+  FiltersPanelRegion,
+} from "@/components/shared/filters-panel";
+import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
@@ -269,94 +273,100 @@ export function PortalShell({
       >
         Saltar al contenido principal
       </a>
-      <SidebarProvider>
-        <Sidebar variant="inset">
-          <SidebarHeader>
-            <PortalActiveEventSummary eventContext={eventContext} />
-          </SidebarHeader>
+      <FiltersPanelProvider>
+        <SidebarProvider>
+          <Sidebar variant="inset">
+            <SidebarHeader>
+              <PortalActiveEventSummary eventContext={eventContext} />
+            </SidebarHeader>
 
-          <SidebarContent>
-            <SidebarNavigationGroups
-              groups={navigationGroups}
-              rootPath="/portal"
-            />
-          </SidebarContent>
-
-          <SidebarFooter>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <SidebarMenuButton size="lg">
-                      <Avatar className="rounded-lg after:rounded-lg">
-                        <AvatarFallback className="rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                          {getUserInitials(displayName)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="grid flex-1 text-left text-sm leading-tight">
-                        <span className="truncate font-medium">
-                          {displayName}
-                        </span>
-                        <span className="truncate text-xs">{academyName}</span>
-                      </div>
-                      <ChevronsUpDown aria-hidden="true" />
-                    </SidebarMenuButton>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    side="top"
-                    align="end"
-                    className="w-(--radix-dropdown-menu-trigger-width)"
-                  >
-                    <DropdownMenuGroup>
-                      <DropdownMenuItem asChild>
-                        <Link to="/portal/perfil">
-                          <User aria-hidden="true" />
-                          Perfil
-                        </Link>
-                      </DropdownMenuItem>
-                    </DropdownMenuGroup>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuGroup>
-                      <form action="/salir" method="post">
-                        <DropdownMenuItem asChild variant="destructive">
-                          <button type="submit" className="w-full">
-                            <LogOut aria-hidden="true" />
-                            Salir
-                          </button>
-                        </DropdownMenuItem>
-                      </form>
-                    </DropdownMenuGroup>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarFooter>
-        </Sidebar>
-
-        <SidebarInset>
-          <header className="flex shrink-0 flex-col border-b border-border bg-background">
-            <div className="flex min-h-16 items-center gap-2 px-4 py-4">
-              <SidebarTrigger className="-ml-1" />
-              <span className="mr-2 flex h-4 items-center">
-                <Separator
-                  orientation="vertical"
-                  className="data-[orientation=vertical]:h-full"
-                />
-              </span>
-              <PortalBreadcrumbs
-                isHome={isHome}
-                items={resolvedBreadcrumbItems}
+            <SidebarContent>
+              <SidebarNavigationGroups
+                groups={navigationGroups}
+                rootPath="/portal"
               />
-            </div>
-          </header>
+            </SidebarContent>
 
-          <main id="contenido-principal" className="flex-1 px-4 py-6">
-            <div className="mx-auto flex max-w-6xl flex-col gap-6">
-              {children}
-            </div>
-          </main>
-        </SidebarInset>
-      </SidebarProvider>
+            <SidebarFooter>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <SidebarMenuButton size="lg">
+                        <Avatar className="rounded-lg after:rounded-lg">
+                          <AvatarFallback className="rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                            {getUserInitials(displayName)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="grid flex-1 text-left text-sm leading-tight">
+                          <span className="truncate font-medium">
+                            {displayName}
+                          </span>
+                          <span className="truncate text-xs">
+                            {academyName}
+                          </span>
+                        </div>
+                        <ChevronsUpDown aria-hidden="true" />
+                      </SidebarMenuButton>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      side="top"
+                      align="end"
+                      className="w-(--radix-dropdown-menu-trigger-width)"
+                    >
+                      <DropdownMenuGroup>
+                        <DropdownMenuItem asChild>
+                          <Link to="/portal/perfil">
+                            <User aria-hidden="true" />
+                            Perfil
+                          </Link>
+                        </DropdownMenuItem>
+                      </DropdownMenuGroup>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuGroup>
+                        <form action="/salir" method="post">
+                          <DropdownMenuItem asChild variant="destructive">
+                            <button type="submit" className="w-full">
+                              <LogOut aria-hidden="true" />
+                              Salir
+                            </button>
+                          </DropdownMenuItem>
+                        </form>
+                      </DropdownMenuGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarFooter>
+          </Sidebar>
+
+          <SidebarInset>
+            <header className="flex shrink-0 flex-col border-b border-border bg-background">
+              <div className="flex min-h-16 items-center gap-2 px-4 py-4">
+                <SidebarTrigger className="-ml-1" />
+                <span className="mr-2 flex h-4 items-center">
+                  <Separator
+                    orientation="vertical"
+                    className="data-[orientation=vertical]:h-full"
+                  />
+                </span>
+                <PortalBreadcrumbs
+                  isHome={isHome}
+                  items={resolvedBreadcrumbItems}
+                />
+              </div>
+            </header>
+
+            <main id="contenido-principal" className="flex-1 px-4 py-6">
+              <div className="mx-auto flex max-w-6xl flex-col gap-6">
+                {children}
+              </div>
+            </main>
+          </SidebarInset>
+
+          <FiltersPanelRegion />
+        </SidebarProvider>
+      </FiltersPanelProvider>
     </>
   );
 }

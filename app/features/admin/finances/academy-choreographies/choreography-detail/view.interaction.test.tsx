@@ -658,7 +658,7 @@ async function selectStatusOption(label: string) {
     throw new Error("Expected the filters trigger to be rendered.");
   }
 
-  if (!document.querySelector('[data-slot="data-table-filters-panel"]')) {
+  if (!document.querySelector('[data-slot="filters-panel"]')) {
     await updateReactDomForm(() => {
       trigger.dispatchEvent(
         new MouseEvent("click", { bubbles: true, cancelable: true }),
