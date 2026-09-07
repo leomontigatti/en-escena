@@ -19,6 +19,7 @@ import { toSortDirection } from "@/components/shared/data-table-helpers";
 import type {
   DataTableFacetedFilter,
   DataTableFacetedFilterValue,
+  DataTableLayout,
   DataTableSortDirection,
 } from "@/components/shared/data-table.shared";
 import { dataTableFacetedFilterColumnId } from "@/components/shared/data-table.shared";
@@ -89,6 +90,7 @@ type DataTableShellProps<TData> = {
   filters: DataTableFiltersProps;
   getRowProps?: (row: TData) => React.ComponentProps<"tr">;
   isLoading: boolean;
+  layout: DataTableLayout;
   pagination: DataTablePaginationProps;
   search: DataTableSearchProps;
   serverSort?: DataTableServerSortProps;
@@ -110,6 +112,7 @@ export function DataTableShell<TData>({
   filters,
   getRowProps,
   isLoading,
+  layout,
   pagination,
   search,
   serverSort,
@@ -124,7 +127,7 @@ export function DataTableShell<TData>({
           isLoading && "opacity-75",
         )}
       >
-        <Table>
+        <Table className={layout === "fit" ? "table-fixed" : undefined}>
           <DataTableHead serverSort={serverSort} table={table} />
           <DataTableBody
             emptyMessage={emptyMessage}

@@ -3,6 +3,7 @@ import {
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
 import {
+  DataTableTruncatedText,
   ServerDataTable,
   type DataTableColumn,
   type DataTableFacetedFilter,
@@ -42,8 +43,8 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
   {
     id: "numero",
     header: "#",
-    className: "w-[8%] font-medium tabular-nums",
-    headerClassName: "w-[8%]",
+    className: "w-[7%] font-medium tabular-nums",
+    headerClassName: "w-[7%]",
     cell: (choreography) => (
       <DataTableLink to={`/administracion/coreografias/${choreography.id}`}>
         {formatEventSequenceNumber(choreography.choreographyNumber)}
@@ -56,50 +57,60 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
   {
     id: "nombre",
     header: "Nombre",
-    className: "w-[20%] font-medium whitespace-normal",
-    headerClassName: "w-[20%]",
+    className: "w-[23%] font-medium",
+    headerClassName: "w-[23%]",
     // The number is the row's only way into the detail. Linking the name too
     // gave one destination two targets, which reads as a choice and is not.
-    cell: (choreography) => choreography.name,
+    cell: (choreography) => (
+      <DataTableTruncatedText value={choreography.name} />
+    ),
     filterValue: (choreography) => choreography.name,
     sortValue: (choreography) => choreography.name,
   },
   {
     id: "academia",
     header: "Academia",
-    className: "w-[20%] whitespace-normal text-muted-foreground",
-    headerClassName: "w-[20%]",
-    cell: (choreography) => choreography.academyName,
+    className: "w-[23%] text-muted-foreground",
+    headerClassName: "w-[23%]",
+    cell: (choreography) => (
+      <DataTableTruncatedText value={choreography.academyName} />
+    ),
     filterValue: (choreography) => choreography.academyName,
     sortValue: (choreography) => choreography.academyName,
   },
   {
     id: "modalidadSubmodalidad",
     header: "Modalidad / Submodalidad",
-    className: "w-[20%] whitespace-normal text-muted-foreground",
-    headerClassName: "w-[20%]",
-    cell: (choreography) =>
-      formatPrimaryAndSecondaryValue(
-        choreography.modalityName,
-        choreography.submodalityName,
-      ),
+    className: "w-[18%] text-muted-foreground",
+    headerClassName: "w-[18%]",
+    cell: (choreography) => (
+      <DataTableTruncatedText
+        value={formatPrimaryAndSecondaryValue(
+          choreography.modalityName,
+          choreography.submodalityName,
+        )}
+      />
+    ),
   },
   {
     id: "categoriaTipoGrupo",
     header: "Categoría / Tipo de grupo",
-    className: "w-[20%] whitespace-normal text-muted-foreground",
-    headerClassName: "w-[20%]",
-    cell: (choreography) =>
-      formatPrimaryAndSecondaryValue(
-        choreography.categoryName ?? "Sin asignar",
-        formatGroupTypeLabel(choreography.groupType),
-      ),
+    className: "w-[19%] text-muted-foreground",
+    headerClassName: "w-[19%]",
+    cell: (choreography) => (
+      <DataTableTruncatedText
+        value={formatPrimaryAndSecondaryValue(
+          choreography.categoryName ?? "Sin asignar",
+          formatGroupTypeLabel(choreography.groupType),
+        )}
+      />
+    ),
   },
   {
     id: "estado",
     header: "Estado",
-    className: "w-[12%]",
-    headerClassName: "w-[12%]",
+    className: "w-[10%]",
+    headerClassName: "w-[10%]",
     cell: (choreography) => (
       <Badge
         variant={getChoreographyOperationalStatusBadgeVariant(
@@ -146,6 +157,9 @@ function ChoreographyTable({ loaderData }: { loaderData: LoaderData }) {
       rows={loaderData.choreographies}
       columns={choreographyColumns}
       getRowKey={(choreography) => choreography.id}
+      // The column widths above are the whole budget, so a row cannot outgrow
+      // the page and the list never asks the reader to scroll sideways.
+      layout="fit"
       searchPlaceholder="Buscar coreografía por número, nombre o academia"
       initialSearchValue={loaderData.filters.query}
       facetedFilters={buildChoreographyFacetedFilters(loaderData)}

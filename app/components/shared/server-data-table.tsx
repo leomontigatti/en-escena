@@ -122,6 +122,7 @@ export function ServerDataTable<TData>(props: ServerDataTableProps<TData>) {
       }}
       getRowProps={props.getRowProps}
       isLoading={isLoading}
+      layout={props.layout ?? "auto"}
       pagination={{
         basePath: resolvedBasePath,
         canNextPage: props.currentPage < props.totalPages,

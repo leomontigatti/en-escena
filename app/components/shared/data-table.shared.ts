@@ -24,6 +24,22 @@ export type DataTableSortValue =
   | null
   | undefined;
 
+/**
+ * How a table sizes its columns.
+ *
+ * `auto` is the browser's own algorithm: a column takes whatever its widest row
+ * needs and the container scrolls sideways when the row does not fit. It is the
+ * right default for a list whose columns each ask for their own width, and it
+ * is what every table here did before `fit` existed.
+ *
+ * `fit` makes the declared column widths authoritative, so the table can never
+ * be wider than the space it was given and the horizontal scrollbar cannot
+ * appear. The cost is that a cell which runs long has to be cut instead of
+ * widening its column, which is why a `fit` table has to give every column a
+ * width and say what its long cells do — see `DataTableTruncatedText`.
+ */
+export type DataTableLayout = "auto" | "fit";
+
 export type DataTableColumn<TData> = {
   id: string;
   header: string;
@@ -69,6 +85,8 @@ export type DataTableBaseProps<TData> = {
   columns: DataTableColumn<TData>[];
   getRowKey: (row: TData) => string;
   getRowProps?: (row: TData) => ComponentProps<"tr">;
+  /** Defaults to `auto`. See `DataTableLayout`. */
+  layout?: DataTableLayout;
   searchPlaceholder: string;
   initialSearchValue?: string;
   facetedFilters?: DataTableFacetedFilter[];
