@@ -4,7 +4,7 @@ import { useForm, type UseFormReturn } from "react-hook-form";
 
 import { DateOnlyField } from "@/components/shared/date-only-field";
 import { TextInputField } from "@/components/shared/text-input-field";
-import { getBirthDatePickerMonths } from "@/lib/dancers/birth-date";
+import { getBirthDatePickerBounds } from "@/lib/dancers/birth-date";
 import { createValidatedNativeSubmitHandler } from "@/lib/shared/forms";
 
 import { buildDancerUpdateSchema, type DancerEditFormValues } from "./shared";
@@ -82,7 +82,6 @@ export function DancerBirthDateField({
   form: DancerEditFormReturn;
 }) {
   const id = useId();
-  const birthDateMonths = getBirthDatePickerMonths(eventStartDate);
 
   return (
     <DateOnlyField
@@ -91,9 +90,7 @@ export function DancerBirthDateField({
       className={className}
       id={id}
       label="Fecha de nacimiento"
-      defaultMonth={birthDateMonths.defaultMonth}
-      endMonth={birthDateMonths.endMonth}
-      startMonth={birthDateMonths.startMonth}
+      calendarBounds={getBirthDatePickerBounds(eventStartDate)}
     />
   );
 }

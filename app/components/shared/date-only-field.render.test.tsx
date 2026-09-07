@@ -13,7 +13,13 @@ type TestFormValues = {
   birthDate: string;
 };
 
-function TestDateOnlyField({ defaultMonth }: { defaultMonth?: Date }) {
+function TestDateOnlyField({
+  defaultMonth,
+  latestSelectableDate,
+}: {
+  defaultMonth?: Date;
+  latestSelectableDate?: Date;
+}) {
   const form = useForm<TestFormValues>({
     defaultValues: { birthDate: "" },
   });
@@ -21,9 +27,12 @@ function TestDateOnlyField({ defaultMonth }: { defaultMonth?: Date }) {
   return (
     <DateOnlyField
       control={form.control}
-      defaultMonth={defaultMonth}
-      endMonth={new Date(2025, 8)}
-      startMonth={new Date(1900, 0)}
+      calendarBounds={{
+        defaultMonth,
+        endMonth: new Date(2025, 8),
+        startMonth: new Date(1900, 0),
+        latestSelectableDate,
+      }}
       id="birth-date"
       label="Fecha de nacimiento"
       name="birthDate"
@@ -59,6 +68,23 @@ describe("DateOnlyField calendar months", () => {
     expect(years).not.toContain("2026");
   });
 
+  test("offers no day after the latest selectable date", async () => {
+    await renderer.renderAsync(
+      <TestDateOnlyField
+        defaultMonth={new Date(2025, 8)}
+        latestSelectableDate={new Date(2025, 8, 25)}
+      />,
+    );
+
+    await clickReactDomButton("Elegí fecha");
+
+    // The end month still shows the whole month, so the bound only holds if the
+    // days past it are unclickable: that is the mismatch the day bound closes.
+    expect(isSeptember2025DayDisabled(25)).toBe(false);
+    expect(isSeptember2025DayDisabled(26)).toBe(true);
+    expect(isSeptember2025DayDisabled(30)).toBe(true);
+  });
+
   test("opens on the end month when no default month is given", async () => {
     await renderer.renderAsync(<TestDateOnlyField />);
 
@@ -67,6 +93,18 @@ describe("DateOnlyField calendar months", () => {
     expect(readSelectedDropdownValues()).toEqual(["8", "2025"]);
   });
 });
+
+function isSeptember2025DayDisabled(day: number) {
+  const dayButton = document.querySelector<HTMLButtonElement>(
+    `button[data-day="${day}/9/2025"]`,
+  );
+
+  if (!dayButton) {
+    throw new Error(`The calendar offers no ${day} September 2025.`);
+  }
+
+  return dayButton.disabled;
+}
 
 function readDropdowns() {
   return Array.from(document.querySelectorAll("select"));

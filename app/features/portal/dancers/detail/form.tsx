@@ -10,7 +10,7 @@ import {
   type ReactRouterFormSubmit,
 } from "@/lib/shared/forms";
 
-import { getBirthDatePickerMonths } from "@/lib/dancers/birth-date";
+import { getBirthDatePickerBounds } from "@/lib/dancers/birth-date";
 import { getAssetUploadFieldProps } from "@/lib/storage/asset-kinds";
 
 import {
@@ -100,7 +100,6 @@ export function PortalDancerBirthDateField({
   form: PortalDancerFormReturn;
 }) {
   const id = useId();
-  const birthDateMonths = getBirthDatePickerMonths(eventStartDate);
 
   return (
     <DateOnlyField
@@ -109,9 +108,7 @@ export function PortalDancerBirthDateField({
       id={id}
       label="Fecha de nacimiento"
       buttonClassName="mt-0 h-8 w-full font-normal"
-      defaultMonth={birthDateMonths.defaultMonth}
-      endMonth={birthDateMonths.endMonth}
-      startMonth={birthDateMonths.startMonth}
+      calendarBounds={getBirthDatePickerBounds(eventStartDate)}
     />
   );
 }

@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
 import { isDateOnly, isFutureDateOnly } from "@/lib/shared/date-only";
 
 /** A dancer younger than this at the event's start fits no category ladder. */
@@ -33,19 +34,26 @@ const typicalDancerAgeAtEventStart = 12;
 const earliestOfferedMonth = new Date(1900, 0);
 
 /**
- * The months the birth-date picker opens on and the newest one it offers. They
- * answer different questions: the bound is the newest birth date that still
- * competes, while the default month is an ergonomics choice deliberately far
- * from it. Without an active event both fall back to today.
+ * Every bound the birth-date picker needs. They answer different questions: the
+ * bound is the newest birth date that still competes, while the default month is
+ * an ergonomics choice deliberately far from it. Without an active event both
+ * fall back to today — the same today the refinement measures the future
+ * against, so the calendar cannot offer a date the server then refuses.
+ *
+ * `endMonth` and `latestSelectableDate` are the same bound at two granularities:
+ * `react-day-picker` bounds the month dropdown by month only, so without the
+ * day-granular matcher the last month it offers still shows clickable days that
+ * the refinement rejects on submit.
  */
-export function getBirthDatePickerMonths(eventStartDate: string | null) {
+export function getBirthDatePickerBounds(eventStartDate: string | null) {
   if (!eventStartDate || !isDateOnly(eventStartDate)) {
-    const today = new Date();
+    const today = toLocalDate(getBusinessDateOnly());
 
     return {
       defaultMonth: today,
       endMonth: today,
       startMonth: earliestOfferedMonth,
+      latestSelectableDate: today,
     };
   }
 
@@ -55,7 +63,22 @@ export function getBirthDatePickerMonths(eventStartDate: string | null) {
     defaultMonth: new Date(year - typicalDancerAgeAtEventStart, month - 1),
     endMonth: new Date(year - minimumDancerAgeAtEventStart, month - 1),
     startMonth: earliestOfferedMonth,
+    latestSelectableDate: toLocalDate(
+      getLatestEligibleBirthDate(eventStartDate),
+    ),
   };
+}
+
+/**
+ * A date-only string as the local `Date` the calendar compares days with. The
+ * day is clamped to the month because subtracting the minimum age from a 29th
+ * of February lands on a day that does not exist in the resulting year.
+ */
+function toLocalDate(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  const lastDayOfMonth = new Date(year, month, 0).getDate();
+
+  return new Date(year, month - 1, Math.min(day, lastDayOfMonth));
 }
 
 /**

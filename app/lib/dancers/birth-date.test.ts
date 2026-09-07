@@ -1,9 +1,10 @@
 import { describe, expect, test } from "vitest";
 import { z } from "zod";
 
+import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
 import {
   buildBirthDateRefinement,
-  getBirthDatePickerMonths,
+  getBirthDatePickerBounds,
   futureBirthDateMessage,
   getLatestEligibleBirthDate,
   getUnderageDancersMessage,
@@ -59,40 +60,68 @@ describe("registration age guard", () => {
   });
 });
 
-describe("birth date picker months", () => {
+describe("birth date picker bounds", () => {
   test("opens on a plausible birth year, well before the bound", () => {
-    const months = getBirthDatePickerMonths(eventStartDate);
+    const bounds = getBirthDatePickerBounds(eventStartDate);
 
-    expect(months.defaultMonth.getFullYear()).toBe(2014);
-    expect(months.defaultMonth.getMonth()).toBe(8);
+    expect(bounds.defaultMonth.getFullYear()).toBe(2014);
+    expect(bounds.defaultMonth.getMonth()).toBe(8);
   });
 
   test("offers no month after the newest birth date that still competes", () => {
-    const months = getBirthDatePickerMonths(eventStartDate);
+    const bounds = getBirthDatePickerBounds(eventStartDate);
 
-    expect(months.endMonth.getFullYear()).toBe(2025);
-    expect(months.endMonth.getMonth()).toBe(8);
+    expect(bounds.endMonth.getFullYear()).toBe(2025);
+    expect(bounds.endMonth.getMonth()).toBe(8);
   });
 
   test("falls back to today without an active event", () => {
-    const today = new Date();
+    const [year, month, day] = getBusinessDateOnly().split("-").map(Number);
 
     for (const eventStart of [null, "no-es-fecha"]) {
-      const months = getBirthDatePickerMonths(eventStart);
+      const bounds = getBirthDatePickerBounds(eventStart);
 
-      expect(months.defaultMonth.getFullYear()).toBe(today.getFullYear());
-      expect(months.defaultMonth.getMonth()).toBe(today.getMonth());
-      expect(months.endMonth.getFullYear()).toBe(today.getFullYear());
-      expect(months.endMonth.getMonth()).toBe(today.getMonth());
+      expect(bounds.defaultMonth.getFullYear()).toBe(year);
+      expect(bounds.defaultMonth.getMonth()).toBe(month - 1);
+      expect(bounds.endMonth.getFullYear()).toBe(year);
+      expect(bounds.endMonth.getMonth()).toBe(month - 1);
+      expect(bounds.latestSelectableDate).toEqual(
+        new Date(year, month - 1, day),
+      );
     }
   });
 
+  test("offers no day after the newest birth date that still competes", () => {
+    expect(
+      getBirthDatePickerBounds(eventStartDate).latestSelectableDate,
+    ).toEqual(new Date(2025, 8, 25));
+  });
+
+  test("keeps the day bound inside the bound month", () => {
+    const bounds = getBirthDatePickerBounds(eventStartDate);
+
+    expect(bounds.latestSelectableDate.getFullYear()).toBe(
+      bounds.endMonth.getFullYear(),
+    );
+    expect(bounds.latestSelectableDate.getMonth()).toBe(
+      bounds.endMonth.getMonth(),
+    );
+  });
+
+  test("clamps a bound day that its month does not have", () => {
+    // 2028 is a leap year and 2027 is not: the newest eligible birth date for an
+    // event starting on 29 February is a day that does not exist.
+    expect(getBirthDatePickerBounds("2028-02-29").latestSelectableDate).toEqual(
+      new Date(2027, 1, 28),
+    );
+  });
+
   test("offers the same oldest month with and without an active event", () => {
-    expect(getBirthDatePickerMonths(eventStartDate).startMonth).toEqual(
-      getBirthDatePickerMonths(null).startMonth,
+    expect(getBirthDatePickerBounds(eventStartDate).startMonth).toEqual(
+      getBirthDatePickerBounds(null).startMonth,
     );
     expect(
-      getBirthDatePickerMonths(eventStartDate).startMonth.getFullYear(),
+      getBirthDatePickerBounds(eventStartDate).startMonth.getFullYear(),
     ).toBe(1900);
   });
 });
