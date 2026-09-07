@@ -39,8 +39,6 @@ export function ScheduleList({
     {
       id: "modalities",
       header: "Modalidades",
-      className: "min-w-64 lg:w-[31rem] lg:max-w-[31rem]",
-      headerClassName: "min-w-64 lg:w-[31rem] lg:max-w-[31rem]",
       cell: (schedule) => <ScheduleModalityBadges schedule={schedule} />,
       filterValues: (schedule) =>
         schedule.modalities.map((modality) => modality.id),
@@ -116,28 +114,31 @@ function ScheduleCapacity({
   );
 }
 
+/**
+ * How many modalities a row spells out before it starts counting instead. Two
+ * is what the column is worth: the badges say what kind of schedule this is,
+ * which the first two already answer, and the rest is a number the reader
+ * opens the schedule to expand. It used to be two here and four from `lg` up,
+ * which made the column the widest on the page to hold a fourth badge most
+ * rows did not have.
+ */
+const visibleModalityCount = 2;
+
 function ScheduleModalityBadges({ schedule }: { schedule: ScheduleListItem }) {
-  const compactHiddenModalitiesCount = schedule.modalities.length - 2;
-  const largeHiddenModalitiesCount = schedule.modalities.length - 4;
+  const hiddenModalities = schedule.modalities.slice(visibleModalityCount);
 
   return (
-    <div className="flex flex-wrap gap-2">
-      {schedule.modalities.slice(0, 4).map((modality, index) => (
-        <ResourceBadge
-          key={modality.id}
-          className={index >= 2 ? "hidden lg:inline-flex" : undefined}
-        >
-          {modality.name}
-        </ResourceBadge>
+    <div className="flex items-center gap-2">
+      {schedule.modalities.slice(0, visibleModalityCount).map((modality) => (
+        <ResourceBadge key={modality.id}>{modality.name}</ResourceBadge>
       ))}
-      {compactHiddenModalitiesCount > 0 ? (
-        <ResourceBadge className="lg:hidden">
-          {compactHiddenModalitiesCount}+
-        </ResourceBadge>
-      ) : null}
-      {largeHiddenModalitiesCount > 0 ? (
-        <ResourceBadge className="hidden lg:inline-flex">
-          {largeHiddenModalitiesCount}+
+      {hiddenModalities.length > 0 ? (
+        // The count is the only trace of the rest, so it carries their names:
+        // the reader can tell what was folded away without opening the row.
+        <ResourceBadge
+          title={hiddenModalities.map((modality) => modality.name).join(", ")}
+        >
+          {hiddenModalities.length}+
         </ResourceBadge>
       ) : null}
     </div>

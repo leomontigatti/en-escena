@@ -65,13 +65,14 @@ export function EmptyResourceState({ children }: { children: ReactNode }) {
 
 export function ResourceBadge({
   children,
-  className,
+  title,
 }: {
   children: ReactNode;
-  className?: string;
+  /** The whole of what the badge stands for, when it stands for more than it shows. */
+  title?: string;
 }) {
   return (
-    <Badge className={className} variant="secondary">
+    <Badge title={title} variant="secondary">
       {children}
     </Badge>
   );
