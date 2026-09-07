@@ -12,10 +12,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import {
-  DataTableFacetedFilterControl,
   DataTablePagination,
   SortIcon,
 } from "@/components/shared/data-table-controls";
+import { DataTableFacetedFilterControl } from "@/components/shared/data-table-filters-panel";
 import { toSortDirection } from "@/components/shared/data-table-helpers";
 import type {
   DataTableFacetedFilter,

@@ -650,7 +650,7 @@ function renderedDancerNames() {
   ].map((row) => row.querySelector("td")?.textContent?.trim() ?? "");
 }
 
-/** Opens the filters drawer and picks an `Estado` option by its label. */
+/** Opens the filters panel and picks an `Estado` option by its label. */
 async function selectStatusOption(label: string) {
   const trigger = document.querySelector('button[aria-label^="Filtros"]');
 
@@ -658,7 +658,7 @@ async function selectStatusOption(label: string) {
     throw new Error("Expected the filters trigger to be rendered.");
   }
 
-  if (!document.querySelector('[data-slot="sheet-content"]')) {
+  if (!document.querySelector('[data-slot="data-table-filters-panel"]')) {
     await updateReactDomForm(() => {
       trigger.dispatchEvent(
         new MouseEvent("click", { bubbles: true, cancelable: true }),

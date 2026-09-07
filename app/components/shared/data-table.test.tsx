@@ -676,7 +676,7 @@ describe("ClientDataTable filters in the address bar", () => {
     );
     await renderer.renderAsync(<RouterProvider router={router} />);
 
-    await openFiltersDrawer();
+    await openFiltersPanel();
     await clickFilterOption("Archivado");
 
     expect(router.state.location.search).toBe("?estado=archived");
@@ -705,7 +705,7 @@ describe("ClientDataTable filters in the address bar", () => {
     );
     await renderer.renderAsync(<RouterProvider router={router} />);
 
-    await openFiltersDrawer();
+    await openFiltersPanel();
     await clearFilters();
 
     expect(router.state.location.search).toBe("");
@@ -718,7 +718,7 @@ describe("ClientDataTable filters in the address bar", () => {
     });
     await renderer.renderAsync(<RouterProvider router={router} />);
 
-    await openFiltersDrawer();
+    await openFiltersPanel();
     await clickFilterOption("Archivado");
 
     expect(router.state.location.search).toBe("?estado=archived");
@@ -1144,11 +1144,11 @@ function getFiltersTrigger() {
   return trigger;
 }
 
-async function openFiltersDrawer() {
+async function openFiltersPanel() {
   await clickElement(getFiltersTrigger());
 }
 
-/** Picks an option of the drawer by the label the reader reads next to it. */
+/** Picks an option of the panel by the label the reader reads next to it. */
 async function clickFilterOption(label: string) {
   const optionLabel = Array.from(document.querySelectorAll("label[for]")).find(
     (candidate) => candidate.textContent?.trim() === label,
@@ -1164,14 +1164,16 @@ async function clickFilterOption(label: string) {
   await clickElement(option);
 }
 
-/** The drawer's footer action, which clears every group at once. */
+/** The panel's footer action, which clears every group at once. */
 async function clearFilters() {
   const button = Array.from(
-    document.querySelectorAll('[data-slot="sheet-footer"] button'),
+    document.querySelectorAll(
+      '[data-slot="data-table-filters-panel-footer"] button',
+    ),
   ).find((candidate) => candidate.textContent?.trim() === "Limpiar filtros");
 
   if (!button) {
-    throw new Error("Expected the drawer to offer clearing every filter.");
+    throw new Error("Expected the panel to offer clearing every filter.");
   }
 
   await clickElement(button);
