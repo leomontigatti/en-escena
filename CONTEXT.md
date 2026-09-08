@@ -152,6 +152,14 @@ _Avoid_: `payment`, `imputación`, `choreographyFinancialStatus`
 Person associated with an academy and loaded by that academy as part of its data.
 _Avoid_: `user`, `admin`
 
+**`seminar`** — ui: "Seminario"
+A class an event offers around the competition, created by administration: an instructor's name and picture, a date and time, and a quota. It has no name of its own —the instructor and the date are what an academy reads it by— and it is not part of the `Bases del evento`, so registration readiness ignores it. Prices and payments for it are not modelled yet.
+_Avoid_: `schedule`, workshop, taller, class, `eventDocument`
+
+**`seminarInscription`** — ui: "Inscripción a seminario"
+The registration of exactly one roster person —a `dancer` or a `professor` of the academy that registers them— into one seminar, capped by the seminar's quota and open until the seminar starts. Unique per seminar and person; the same person may hold one in any number of seminars. It carries no money, so it is not an `inscription`, and removing it is a plain delete rather than a withdrawal.
+_Avoid_: `inscription`, student, `academyRegistration`, `choreographyRegistration`, attendance
+
 **`inscription`** — ui: "Inscripción"
 Link with economic identity and stable identity (its own `id`) between a choreography and a dancer within a concrete event. Removing it from the roster chooses once between a physical delete —when it holds neither allocations nor a `comprobante` line— and a withdrawal (`withdrawnAt`), which keeps the row and the money on it. Adding the same dancer again revives that row.
 _Avoid_: academy participation, account, `payment`, invoice, inactive inscription
