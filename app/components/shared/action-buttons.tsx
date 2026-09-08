@@ -1,5 +1,5 @@
 import { Check, ChevronLeft, Trash } from "lucide-react";
-import type { ComponentProps, ReactNode } from "react";
+import type { ComponentProps } from "react";
 import { Link } from "react-router";
 
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,6 @@ type BackButtonProps = Omit<
   ComponentProps<typeof Button>,
   "asChild" | "children" | "variant"
 > & {
-  children?: ReactNode;
   to: ComponentProps<typeof Link>["to"];
   viewTransition?: boolean;
 };
@@ -65,7 +64,6 @@ export function DestroyButton({
 }
 
 export function BackButton({
-  children = "Volver",
   to,
   viewTransition,
   ...buttonProps
@@ -74,7 +72,7 @@ export function BackButton({
     <Button {...buttonProps} asChild variant="outline">
       <Link to={to} viewTransition={viewTransition}>
         <ChevronLeft aria-hidden="true" data-icon="inline-start" />
-        {children}
+        Volver
       </Link>
     </Button>
   );

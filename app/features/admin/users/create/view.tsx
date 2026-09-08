@@ -101,7 +101,7 @@ export function NewInternalUserRouteView({
           <AdminResourceFormCard
             footer={
               <>
-                <BackButton to="/administracion">Volver al panel</BackButton>
+                <BackButton to="/administracion" />
                 <Button type="submit" disabled={isCreatingUser}>
                   {isCreatingUser ? (
                     <Spinner aria-hidden="true" data-icon />
