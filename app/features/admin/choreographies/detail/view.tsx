@@ -1,11 +1,12 @@
-import { Check, ChevronLeft, Trash2 } from "lucide-react";
+import { Check, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { Link, useSubmit } from "react-router";
+import { useSubmit } from "react-router";
 
 import {
   AdminResourceFormCard,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
+import { BackButton } from "@/components/shared/action-buttons";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { FileUploadField } from "@/components/shared/file-upload-field";
@@ -455,12 +456,7 @@ function FormActions({
 }) {
   return (
     <>
-      <Button asChild variant="outline">
-        <Link to={backToList}>
-          <ChevronLeft aria-hidden="true" data-icon="inline-start" />
-          Volver
-        </Link>
-      </Button>
+      <BackButton to={backToList} />
       {canEdit ? (
         <Button type="submit" disabled={!canSubmit}>
           {isPending ? (

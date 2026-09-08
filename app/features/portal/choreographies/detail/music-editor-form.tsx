@@ -1,9 +1,10 @@
 import { Check } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
-import { Form, Link, useNavigation } from "react-router";
+import { Form, useNavigation } from "react-router";
 import { toast } from "sonner";
 
+import { BackButton } from "@/components/shared/action-buttons";
 import { FileUploadField } from "@/components/shared/file-upload-field";
 import {
   ReadOnlyField,
@@ -186,10 +187,8 @@ export function ChoreographyMusicEditorForm({
             />
           </FieldGroup>
         </CardContent>
-        <CardFooter className="justify-end gap-3 border-0 bg-transparent pt-0">
-          <Button asChild variant="outline">
-            <Link to="/portal/coreografias">Volver</Link>
-          </Button>
+        <CardFooter className="justify-between gap-3 border-0 bg-transparent pt-0">
+          <BackButton to="/portal/coreografias" />
           <Button type="submit" disabled={!canSubmit}>
             {isSubmitting ? (
               <Spinner aria-hidden="true" data-icon="inline-start" />

@@ -1,9 +1,9 @@
 import { Archive, Info, RotateCcw, TriangleAlert } from "lucide-react";
 import { type ReactNode, useState } from "react";
-import { Link, useNavigation, useSubmit } from "react-router";
+import { useNavigation, useSubmit } from "react-router";
 
 import { PortalEmptyState } from "@/components/portal/ui";
-import { SubmitButton } from "@/components/shared/action-buttons";
+import { BackButton, SubmitButton } from "@/components/shared/action-buttons";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { ArchivedPersonAlert } from "@/components/shared/archived-person-alert";
 import {
@@ -296,11 +296,7 @@ export function PortalDancerDetailRouteView({
             </form>
           </CardContent>
           <CardFooter className="justify-between gap-3 border-0 bg-transparent pt-0">
-            <Button asChild variant="outline">
-              <Link to="/portal/bailarines" viewTransition>
-                Volver
-              </Link>
-            </Button>
+            <BackButton to="/portal/bailarines" viewTransition />
             <SubmitButton form={portalDancerFormId} isPending={isSubmitting} />
           </CardFooter>
         </PortalDancerFormSection>

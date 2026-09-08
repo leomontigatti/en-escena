@@ -1,12 +1,9 @@
-import { Link } from "react-router";
-
 import { EventFormFields, useEventForm } from "@/components/admin/events/form";
 import {
   AdminResourceFormCard,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
-import { SubmitButton } from "@/components/shared/action-buttons";
-import { Button } from "@/components/ui/button";
+import { BackButton, SubmitButton } from "@/components/shared/action-buttons";
 import { defaultEventFormValues } from "@/lib/admin/events/form-values";
 import { notificationToastIds } from "@/lib/shared/notification-toasts";
 import { useServerActionToast } from "@/lib/shared/toasts";
@@ -39,9 +36,7 @@ export function EventCreateView({ actionData }: EventCreateViewProps) {
         <AdminResourceFormCard
           footer={
             <>
-              <Button asChild variant="outline">
-                <Link to="/administracion/eventos">Volver</Link>
-              </Button>
+              <BackButton to="/administracion/eventos" />
               <SubmitButton isPending={eventForm.isPending} />
             </>
           }

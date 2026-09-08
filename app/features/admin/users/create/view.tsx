@@ -2,12 +2,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { TriangleAlert } from "lucide-react";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { Link, useNavigation, useSubmit } from "react-router";
+import { useNavigation, useSubmit } from "react-router";
 
 import {
   AdminResourceFormCard,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
+import { BackButton } from "@/components/shared/action-buttons";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { SelectField } from "@/components/shared/select-field";
 import { TextInputField } from "@/components/shared/text-input-field";
@@ -100,9 +101,7 @@ export function NewInternalUserRouteView({
           <AdminResourceFormCard
             footer={
               <>
-                <Button asChild variant="outline">
-                  <Link to="/administracion">Volver al panel</Link>
-                </Button>
+                <BackButton to="/administracion" />
                 <Button type="submit" disabled={isCreatingUser}>
                   {isCreatingUser ? (
                     <Spinner aria-hidden="true" data-icon />
