@@ -1,16 +1,15 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { Link, useNavigation, useSubmit } from "react-router";
+import { useNavigation, useSubmit } from "react-router";
 
 import {
   AdminResourceFormCard,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
-import { SubmitButton } from "@/components/shared/action-buttons";
+import { BackButton, SubmitButton } from "@/components/shared/action-buttons";
 import { ReadOnlyField } from "@/components/shared/read-only-field";
 import { TextInputField } from "@/components/shared/text-input-field";
-import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import { argentinePhonePlaceholder } from "@/lib/shared/argentine-phone";
 import {
@@ -62,9 +61,7 @@ export function AcademyDetailRouteView({
       <AdminResourceFormCard
         footer={
           <>
-            <Button asChild variant="outline">
-              <Link to="/administracion/academias">Volver</Link>
-            </Button>
+            <BackButton to="/administracion/academias" />
             {canEdit ? (
               <SubmitButton form={academyDetailFormId} isPending={isSaving} />
             ) : null}

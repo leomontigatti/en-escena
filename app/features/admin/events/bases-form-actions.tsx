@@ -1,8 +1,4 @@
-import { ChevronLeft } from "lucide-react";
-import { Link } from "react-router";
-
-import { SubmitButton } from "@/components/shared/action-buttons";
-import { Button } from "@/components/ui/button";
+import { BackButton, SubmitButton } from "@/components/shared/action-buttons";
 import {
   isRouteFormPending,
   type RouteFormPendingScope,
@@ -26,12 +22,7 @@ function EventBasesFormActions({
 
   return (
     <div className={className}>
-      <Button asChild variant="outline">
-        <Link to={buildListPath(basePath, null)}>
-          <ChevronLeft aria-hidden="true" data-icon="inline-start" />
-          Volver
-        </Link>
-      </Button>
+      <BackButton to={buildListPath(basePath, null)} />
       <SubmitButton form={formId} isPending={isPending} />
     </div>
   );

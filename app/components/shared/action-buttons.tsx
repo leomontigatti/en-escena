@@ -1,11 +1,20 @@
-import { Check, Trash } from "lucide-react";
+import { Check, ChevronLeft, Trash } from "lucide-react";
 import type { ComponentProps } from "react";
+import { Link } from "react-router";
 
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 
 type BaseButtonProps = Omit<ComponentProps<typeof Button>, "children"> & {
   isPending: boolean;
+};
+
+type BackButtonProps = Omit<
+  ComponentProps<typeof Button>,
+  "asChild" | "children" | "variant"
+> & {
+  to: ComponentProps<typeof Link>["to"];
+  viewTransition?: boolean;
 };
 
 type OptionalPendingButtonProps = Omit<
@@ -50,6 +59,21 @@ export function DestroyButton({
         <Trash aria-hidden="true" data-icon="inline-start" />
       )}
       Eliminar
+    </Button>
+  );
+}
+
+export function BackButton({
+  to,
+  viewTransition,
+  ...buttonProps
+}: BackButtonProps) {
+  return (
+    <Button {...buttonProps} asChild variant="outline">
+      <Link to={to} viewTransition={viewTransition}>
+        <ChevronLeft aria-hidden="true" data-icon="inline-start" />
+        Volver
+      </Link>
     </Button>
   );
 }

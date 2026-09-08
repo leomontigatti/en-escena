@@ -1,13 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Link, useSubmit } from "react-router";
+import { useSubmit } from "react-router";
 
 import {
   AdminResourceFormCard,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
-import { SubmitButton } from "@/components/shared/action-buttons";
-import { Button } from "@/components/ui/button";
+import { BackButton, SubmitButton } from "@/components/shared/action-buttons";
 import { FieldGroup } from "@/components/ui/field";
 import {
   PaymentAcademyField,
@@ -80,11 +79,7 @@ export function NewPaymentRouteView({
           contentClassName="gap-5"
           footer={
             <>
-              <Button asChild variant="outline">
-                <Link to={getPaymentsListUrl(loaderData.selectedEventId)}>
-                  Volver
-                </Link>
-              </Button>
+              <BackButton to={getPaymentsListUrl(loaderData.selectedEventId)} />
               <SubmitButton isPending={isPending} />
             </>
           }
