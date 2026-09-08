@@ -7,6 +7,7 @@ import { afterEach, describe, expect, test } from "vitest";
 import { emptyOperationalFinanceSummary } from "@/lib/finances/operational-summary";
 import {
   createReactDomTestRenderer,
+  type ReactDomTestRenderer,
   setInputValue,
   updateReactDomForm,
 } from "@/lib/test-support/react-dom";
@@ -26,7 +27,7 @@ describe("PortalAcademyFinancesRouteView", () => {
   // the row, it is the only link to the detail, and it is what the list is
   // ordered by.
   test("shows the choreography number first and links to the detail from it", async () => {
-    await renderPortalFinances(portalFinancesLoaderDataFixture());
+    await renderPortalFinances(renderer, portalFinancesLoaderDataFixture());
 
     const headers = headerLabels();
 
@@ -53,7 +54,7 @@ describe("PortalAcademyFinancesRouteView", () => {
   });
 
   test("finds a choreography by its number", async () => {
-    await renderPortalFinances(portalFinancesLoaderDataFixture());
+    await renderPortalFinances(renderer, portalFinancesLoaderDataFixture());
 
     const search = document.querySelector<HTMLInputElement>(
       'input[placeholder="Buscar coreografía por número o nombre"]',
@@ -74,7 +75,7 @@ describe("PortalAcademyFinancesRouteView", () => {
   });
 
   test("filters choreographies by financial status", async () => {
-    await renderPortalFinances(portalFinancesLoaderDataFixture());
+    await renderPortalFinances(renderer, portalFinancesLoaderDataFixture());
 
     const text = document.body.textContent ?? "";
 
@@ -91,7 +92,7 @@ describe("PortalAcademyFinancesRouteView", () => {
   // The same five the administrator reads, in the same order: each threshold
   // with its owed figure beside it, and the unallocated money last.
   test("keeps the five aggregates visible", async () => {
-    await renderPortalFinances(portalFinancesLoaderDataFixture());
+    await renderPortalFinances(renderer, portalFinancesLoaderDataFixture());
 
     const text = document.body.textContent ?? "";
 
@@ -112,6 +113,7 @@ describe("PortalAcademyFinancesRouteView", () => {
   // the two owed figures.
   test("scopes the owed metrics to the selection and restores them when it is cleared", async () => {
     await renderPortalFinances(
+      renderer,
       portalFinancesLoaderDataFixture({
         choreographyFinanceRows: [
           choreographyFinanceRowFixture({
@@ -161,7 +163,7 @@ describe("PortalAcademyFinancesRouteView", () => {
   });
 
   test("shows the empty state when there is no active event", async () => {
-    await renderPortalFinances({
+    await renderPortalFinances(renderer, {
       activeEvent: null,
       choreographyFinanceRows: [],
       summary: emptyOperationalFinanceSummary(),
@@ -222,8 +224,13 @@ function columnValues(header: string) {
   );
 }
 
-async function renderPortalFinances(loaderData: LoaderData) {
-  const renderer = createReactDomTestRenderer();
+// Renders through the renderer the suite already cleans in `afterEach`: a
+// renderer created here would leave its root mounted, and the router
+// subscription it keeps alive can schedule work after jsdom teardown.
+async function renderPortalFinances(
+  renderer: ReactDomTestRenderer,
+  loaderData: LoaderData,
+) {
   const router = createMemoryRouter(
     [
       {
