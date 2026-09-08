@@ -6,7 +6,14 @@ import { choreographies, choreographyDancers, dancers } from "@/db/schema";
 import { expectCreated } from "@/lib/events/bases-test-fixtures.server.db";
 import { createModality } from "@/lib/modalities/repository.server";
 import { activateEvent } from "@/lib/events/management.server";
-import { createPortalSavedEvent as createSavedEvent } from "@/lib/events/saved-event-test-support.server";
+import {
+  createPortalSavedEvent as createSavedEvent,
+  testEventDate,
+} from "@/lib/events/saved-event-test-support.server";
+import {
+  invalidBirthDateMessage,
+  underageBirthDateMessage,
+} from "@/lib/dancers/birth-date";
 import {
   handlePortalDancersListAction,
   loadPortalDancersList,
@@ -148,6 +155,67 @@ describe.sequential("loadPortalDancersList", () => {
         firstName: "Martina",
         lastName: "López",
         birthDate: "2999-01-01",
+      },
+    });
+    await expect(db.query.dancers.findMany()).resolves.toEqual([]);
+  });
+
+  test("rejects a malformed birth date without creating a record", async () => {
+    const session = await createAcademySession({
+      email: "bailarines.malformada@example.com",
+      academyName: "Academia Fecha Rota",
+    });
+
+    const result = await handlePortalDancersListAction(
+      createPortalPostRequest(
+        "http://localhost/portal/bailarines",
+        session.cookie,
+        dancerFormData({
+          firstName: "Martina",
+          lastName: "López",
+          birthDate: "03/04/2015",
+        }),
+      ),
+    );
+
+    expect(result).toMatchObject({
+      status: "error",
+      fieldErrors: { birthDate: invalidBirthDateMessage },
+    });
+    await expect(db.query.dancers.findMany()).resolves.toEqual([]);
+  });
+
+  test("rejects a dancer under one year old at the active event start", async () => {
+    const event = await createSavedEvent({
+      name: "En Escena Edad Mínima",
+      startsAt: testEventDate("2026-05-01T12:00:00Z"),
+      endsAt: testEventDate("2026-05-03T12:00:00Z"),
+    });
+    await activateEvent(event.id);
+    const session = await createAcademySession({
+      email: "bailarines.edad.minima@example.com",
+      academyName: "Academia Edad Mínima",
+    });
+
+    const result = await handlePortalDancersListAction(
+      createPortalPostRequest(
+        "http://localhost/portal/bailarines",
+        session.cookie,
+        dancerFormData({
+          firstName: "Martina",
+          lastName: "López",
+          birthDate: "2026-01-15",
+        }),
+      ),
+    );
+
+    expect(result).toMatchObject({
+      status: "error",
+      fieldErrors: { birthDate: underageBirthDateMessage },
+      values: {
+        firstName: "Martina",
+        lastName: "López",
+        birthDate: "2026-01-15",
       },
     });
     await expect(db.query.dancers.findMany()).resolves.toEqual([]);

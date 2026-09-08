@@ -3,6 +3,10 @@ import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { dancers, events } from "@/db/schema";
 import { BUSINESS_TIME_ZONE } from "@/lib/shared/business-time-zone";
+import {
+  getUnderageDancersMessage,
+  isOldEnoughAtEventStart,
+} from "@/lib/dancers/birth-date";
 import { invalidExperienceLevelMessage } from "@/lib/choreographies/choreography-messages";
 import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
 import { withScheduleCapacityOccupancy } from "@/lib/choreographies/schedule-capacity-options.server";
@@ -156,7 +160,8 @@ export type ChoreographyRegistrationOperationFailureCode =
   | "invalid-submodality"
   | "experience-level-required"
   | "invalid-experience-level"
-  | "invalid-dancers";
+  | "invalid-dancers"
+  | "dancer-under-minimum-age";
 
 export type OperationFailure = {
   ok: false;
@@ -354,6 +359,21 @@ async function resolveRegistrationFromResolvedDancers(input: {
     return failure(
       "invalid-dancers",
       "Elegí uno o más bailarines válidos para resolver la coreografía.",
+    );
+  }
+
+  const underageDancers = input.dancers.filter(
+    (dancer) => !isOldEnoughAtEventStart(dancer.ageAtEventStart),
+  );
+
+  if (underageDancers.length > 0) {
+    return failure(
+      "dancer-under-minimum-age",
+      getUnderageDancersMessage(
+        underageDancers.map(
+          (dancer) => `${dancer.firstName} ${dancer.lastName}`,
+        ),
+      ),
     );
   }
 

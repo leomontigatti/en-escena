@@ -10,10 +10,11 @@ import {
   type ReactRouterFormSubmit,
 } from "@/lib/shared/forms";
 
+import { getBirthDatePickerBounds } from "@/lib/dancers/birth-date";
 import { getAssetUploadFieldProps } from "@/lib/storage/asset-kinds";
 
 import {
-  dancerSchema,
+  buildPortalDancerSchema,
   getPortalDancerFieldAutoComplete,
   type PortalDancerDetailLoaderData,
   type PortalDancerFormValues,
@@ -33,9 +34,11 @@ type PortalDancerTextFieldName =
   | "lastName";
 
 export function usePortalDancerForm({
+  eventStartDate,
   submit,
   values,
 }: {
+  eventStartDate: string | null;
   submit: ReactRouterFormSubmit;
   values: PortalDancerFormValues;
 }) {
@@ -43,7 +46,7 @@ export function usePortalDancerForm({
     {
       defaultValues: values,
       mode: "onSubmit",
-      resolver: zodResolver(dancerSchema),
+      resolver: zodResolver(buildPortalDancerSchema(eventStartDate)),
     },
   );
 
@@ -61,6 +64,7 @@ export function usePortalDancerForm({
   ]);
 
   return {
+    eventStartDate,
     form,
     handleSubmit: createValidatedReactRouterSubmitHandler(form, submit, {
       encType: "multipart/form-data",
@@ -89,8 +93,10 @@ export function PortalDancerTextField({
 }
 
 export function PortalDancerBirthDateField({
+  eventStartDate,
   form,
 }: {
+  eventStartDate: string | null;
   form: PortalDancerFormReturn;
 }) {
   const id = useId();
@@ -102,8 +108,7 @@ export function PortalDancerBirthDateField({
       id={id}
       label="Fecha de nacimiento"
       buttonClassName="mt-0 h-8 w-full font-normal"
-      endMonth={new Date()}
-      startMonth={new Date(1900, 0)}
+      calendarBounds={getBirthDatePickerBounds(eventStartDate)}
     />
   );
 }

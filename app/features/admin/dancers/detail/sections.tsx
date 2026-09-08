@@ -292,7 +292,10 @@ function DancerIdentificationSection({
     <FieldGroup className="grid gap-5 md:grid-cols-2">
       {isEditing ? (
         <>
-          <DancerBirthDateField form={editForm.form} />
+          <DancerBirthDateField
+            eventStartDate={editForm.eventStartDate}
+            form={editForm.form}
+          />
           <div aria-hidden="true" className="hidden md:block" />
           <SelectField
             allowEmpty

@@ -44,6 +44,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import {
+  FiltersPanelProvider,
+  FiltersPanelRegion,
+} from "@/components/shared/filters-panel";
+import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
@@ -220,117 +224,121 @@ export function AdminShell({
       >
         Saltar al contenido principal
       </a>
-      <SidebarProvider>
-        <Sidebar variant="inset">
-          <SidebarHeader>
-            {showEventSelector ? (
-              <AdminActiveEventSummary
-                events={events}
-                selectedEventId={selectedEventId}
-              />
-            ) : (
-              <AdminBrandLink />
-            )}
-          </SidebarHeader>
-
-          <SidebarContent>
-            <SidebarNavigationGroups
-              groups={navigationGroups}
-              rootPath="/administracion"
-            />
-          </SidebarContent>
-
-          <SidebarFooter>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <SidebarMenuButton size="lg">
-                      <Avatar className="rounded-lg after:rounded-lg">
-                        <AvatarFallback className="rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                          {getUserInitials(email)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="grid flex-1 text-left text-sm leading-tight">
-                        <span className="truncate font-medium">
-                          Usuario interno
-                        </span>
-                        <span className="truncate text-xs">{email}</span>
-                      </div>
-                      <ChevronsUpDown aria-hidden="true" />
-                    </SidebarMenuButton>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    side="top"
-                    align="end"
-                    className="w-(--radix-dropdown-menu-trigger-width)"
-                  >
-                    <DropdownMenuGroup>
-                      <DropdownMenuItem disabled>{email}</DropdownMenuItem>
-                    </DropdownMenuGroup>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuGroup>
-                      <form action="/salir" method="post">
-                        <DropdownMenuItem asChild variant="destructive">
-                          <button type="submit" className="w-full">
-                            <LogOut aria-hidden="true" />
-                            Salir
-                          </button>
-                        </DropdownMenuItem>
-                      </form>
-                    </DropdownMenuGroup>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarFooter>
-        </Sidebar>
-
-        <SidebarInset>
-          <header className="flex shrink-0 flex-col border-b border-border bg-background">
-            <div className="flex min-h-16 items-center gap-2 px-4 py-4">
-              <SidebarTrigger className="-ml-1" />
-              <span className="mr-2 flex h-4 items-center">
-                <Separator
-                  orientation="vertical"
-                  className="data-[orientation=vertical]:h-full"
+      <FiltersPanelProvider>
+        <SidebarProvider>
+          <Sidebar variant="inset">
+            <SidebarHeader>
+              {showEventSelector ? (
+                <AdminActiveEventSummary
+                  events={events}
+                  selectedEventId={selectedEventId}
                 />
-              </span>
-              <Breadcrumb className="flex items-center">
-                <BreadcrumbList>
-                  <BreadcrumbItem>
-                    {isHome ? (
-                      <BreadcrumbPage>Inicio</BreadcrumbPage>
-                    ) : (
-                      <BreadcrumbLink asChild>
-                        <Link to="/administracion">Inicio</Link>
-                      </BreadcrumbLink>
-                    )}
-                  </BreadcrumbItem>
-                  {isHome
-                    ? null
-                    : resolvedBreadcrumbItems.map((item, index) => {
-                        const isCurrent =
-                          index === resolvedBreadcrumbItems.length - 1;
+              ) : (
+                <AdminBrandLink />
+              )}
+            </SidebarHeader>
 
-                        return (
-                          <BreadcrumbSegment
-                            key={`${item.label}-${index}`}
-                            item={item}
-                            isCurrent={isCurrent}
-                          />
-                        );
-                      })}
-                </BreadcrumbList>
-              </Breadcrumb>
-            </div>
-          </header>
+            <SidebarContent>
+              <SidebarNavigationGroups
+                groups={navigationGroups}
+                rootPath="/administracion"
+              />
+            </SidebarContent>
 
-          <main id="contenido-principal" className="flex-1 px-4 py-6">
-            <div className="mx-auto max-w-6xl">{children}</div>
-          </main>
-        </SidebarInset>
-      </SidebarProvider>
+            <SidebarFooter>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <SidebarMenuButton size="lg">
+                        <Avatar className="rounded-lg after:rounded-lg">
+                          <AvatarFallback className="rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                            {getUserInitials(email)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="grid flex-1 text-left text-sm leading-tight">
+                          <span className="truncate font-medium">
+                            Usuario interno
+                          </span>
+                          <span className="truncate text-xs">{email}</span>
+                        </div>
+                        <ChevronsUpDown aria-hidden="true" />
+                      </SidebarMenuButton>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      side="top"
+                      align="end"
+                      className="w-(--radix-dropdown-menu-trigger-width)"
+                    >
+                      <DropdownMenuGroup>
+                        <DropdownMenuItem disabled>{email}</DropdownMenuItem>
+                      </DropdownMenuGroup>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuGroup>
+                        <form action="/salir" method="post">
+                          <DropdownMenuItem asChild variant="destructive">
+                            <button type="submit" className="w-full">
+                              <LogOut aria-hidden="true" />
+                              Salir
+                            </button>
+                          </DropdownMenuItem>
+                        </form>
+                      </DropdownMenuGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarFooter>
+          </Sidebar>
+
+          <SidebarInset>
+            <header className="flex shrink-0 flex-col border-b border-border bg-background">
+              <div className="flex min-h-16 items-center gap-2 px-4 py-4">
+                <SidebarTrigger className="-ml-1" />
+                <span className="mr-2 flex h-4 items-center">
+                  <Separator
+                    orientation="vertical"
+                    className="data-[orientation=vertical]:h-full"
+                  />
+                </span>
+                <Breadcrumb className="flex items-center">
+                  <BreadcrumbList>
+                    <BreadcrumbItem>
+                      {isHome ? (
+                        <BreadcrumbPage>Inicio</BreadcrumbPage>
+                      ) : (
+                        <BreadcrumbLink asChild>
+                          <Link to="/administracion">Inicio</Link>
+                        </BreadcrumbLink>
+                      )}
+                    </BreadcrumbItem>
+                    {isHome
+                      ? null
+                      : resolvedBreadcrumbItems.map((item, index) => {
+                          const isCurrent =
+                            index === resolvedBreadcrumbItems.length - 1;
+
+                          return (
+                            <BreadcrumbSegment
+                              key={`${item.label}-${index}`}
+                              item={item}
+                              isCurrent={isCurrent}
+                            />
+                          );
+                        })}
+                  </BreadcrumbList>
+                </Breadcrumb>
+              </div>
+            </header>
+
+            <main id="contenido-principal" className="flex-1 px-4 py-6">
+              <div className="mx-auto max-w-6xl">{children}</div>
+            </main>
+          </SidebarInset>
+
+          <FiltersPanelRegion />
+        </SidebarProvider>
+      </FiltersPanelProvider>
     </>
   );
 }

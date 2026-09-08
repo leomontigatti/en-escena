@@ -240,6 +240,7 @@ function dancerDetailLoaderData(
   overrides: Partial<DancerDetailViewProps["loaderData"]> = {},
 ) {
   return {
+    activeEventStartDate: "2026-09-25",
     documentImageUrls: {
       front: null,
       back: null,

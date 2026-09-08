@@ -84,6 +84,7 @@ describe("`administracion.bailarines` route adapters", () => {
     );
     const params = { dancerId: "dancer-1" };
     const loaderResult = {
+      activeEventStartDate: "2026-09-25",
       backToList: "/administracion/bailarines",
       cancelHref: "/administracion/bailarines/dancer-1",
       canEdit: true,

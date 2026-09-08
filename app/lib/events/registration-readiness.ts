@@ -5,7 +5,8 @@ export type EventRegistrationMissingCode =
   | "schedule-entries"
   | "prices"
   | "schedule-compatibility"
-  | "price-coverage";
+  | "price-coverage"
+  | "age-coverage";
 
 export type EventRegistrationMissingItem = {
   code: EventRegistrationMissingCode;

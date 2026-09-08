@@ -182,6 +182,34 @@ describe("EventDetailView form", () => {
     ).toBeTruthy();
   });
 
+  // The generic per-code line cannot say which category is missing, so this is
+  // the one readiness failure whose own detail reaches the alert.
+  test("shows the uncovered ages of an age-coverage failure", async () => {
+    await renderForm({
+      registrationReadiness: {
+        eventId: "event_1",
+        isReady: false,
+        missingItems: [
+          {
+            code: "age-coverage",
+            label: "Cobertura de edades",
+            detail:
+              "Faltan categorías para Modalidad Acrobacias Aéreas, Tipo de grupo Solo: sin cobertura para las edades 1 a 4.",
+          },
+        ],
+      },
+    });
+
+    const alert = document.querySelector('[data-slot="alert"]');
+
+    expect(alert?.textContent).toContain(
+      "Faltan categorías para Modalidad Acrobacias Aéreas, Tipo de grupo Solo: sin cobertura para las edades 1 a 4.",
+    );
+    expect(
+      alert?.querySelector('a[href="/administracion/categorias"]'),
+    ).not.toBeNull();
+  });
+
   function getEventForm() {
     const form = document.querySelector<HTMLFormElement>("form[enctype]");
 

@@ -1,4 +1,5 @@
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
+import { getEventStartDateOnly } from "@/lib/events/active-event.server";
 import { loadPortalEventDocumentDownloadUrls } from "@/lib/events/event-documents.server";
 import { listDancersForAcademy } from "@/lib/portal/dancers.server";
 import { getPortalActiveEventSummaryContext } from "@/lib/portal/event-context.server";
@@ -19,6 +20,7 @@ export async function loadPortalDancersList(request: Request) {
   ]);
 
   return {
+    activeEventStartDate: getEventStartDateOnly(eventContext.activeEvent),
     dancers,
     documentDownloadUrls,
   };

@@ -52,8 +52,8 @@ describe("event registration readiness", () => {
     await expectCreated(
       createCategory(event.id, {
         name: "Infantil",
-        minAge: 8,
-        maxAge: 12,
+        minAge: 1,
+        maxAge: 100,
         groupTypes: ["solo", "duo"],
         modalityIds: [jazz.id],
         experienceLevels: [inicial.id],
@@ -62,8 +62,8 @@ describe("event registration readiness", () => {
     await expectCreated(
       createCategory(event.id, {
         name: "Juvenil",
-        minAge: 13,
-        maxAge: 17,
+        minAge: 1,
+        maxAge: 100,
         groupTypes: ["solo"],
         modalityIds: [contemporaneo.id],
         experienceLevels: [],
@@ -124,8 +124,8 @@ describe("event registration readiness", () => {
     await expectCreated(
       createCategory(event.id, {
         name: "Juvenil",
-        minAge: 13,
-        maxAge: 17,
+        minAge: 1,
+        maxAge: 100,
         groupTypes: ["solo", "duo"],
         modalityIds: [jazz.id],
         experienceLevels: [inicial.id],
@@ -261,8 +261,8 @@ describe("event registration readiness", () => {
     await expectCreated(
       createCategory(event.id, {
         name: "Juvenil",
-        minAge: 13,
-        maxAge: 17,
+        minAge: 1,
+        maxAge: 100,
         groupTypes: ["solo"],
         modalityIds: [jazz.id],
         experienceLevels: [inicial.id],
@@ -356,8 +356,8 @@ describe("event registration readiness", () => {
     await expectCreated(
       createCategory(event.id, {
         name: "Juvenil",
-        minAge: 13,
-        maxAge: 17,
+        minAge: 1,
+        maxAge: 100,
         groupTypes: ["solo"],
         modalityIds: [jazz.id],
         experienceLevels: [],
@@ -407,8 +407,8 @@ describe("event registration readiness", () => {
     await expectCreated(
       createCategory(event.id, {
         name: "Juvenil",
-        minAge: 13,
-        maxAge: 17,
+        minAge: 1,
+        maxAge: 100,
         groupTypes: ["solo", "duo"],
         modalityIds: [jazz.id],
         experienceLevels: [],
@@ -503,8 +503,8 @@ describe("event registration readiness", () => {
     await expectCreated(
       createCategory(event.id, {
         name: "Juvenil",
-        minAge: 13,
-        maxAge: 17,
+        minAge: 1,
+        maxAge: 100,
         groupTypes: ["solo"],
         modalityIds: [jazz.id],
         experienceLevels: [],
@@ -563,6 +563,73 @@ describe("event registration readiness", () => {
         scheduleId: null,
       }),
     ).resolves.toMatchObject({ ok: false, code: "missing-price" });
+  });
+
+  test("refuses an event whose category ladder leaves an age band uncovered", async () => {
+    const event = await createSavedEvent("Escalera incompleta 2026");
+    const acrobacias = await expectCreated(
+      createModality(event.id, { name: "Acrobacias Aéreas" }),
+    );
+
+    await expectCreated(
+      createCategory(event.id, {
+        name: "Baby",
+        minAge: 5,
+        maxAge: 6,
+        groupTypes: ["solo"],
+        modalityIds: [acrobacias.id],
+        experienceLevels: [],
+      }),
+    );
+    await expectCreated(
+      createCategory(event.id, {
+        name: "Mayores",
+        minAge: 7,
+        maxAge: 100,
+        groupTypes: ["solo"],
+        modalityIds: [acrobacias.id],
+        experienceLevels: [],
+      }),
+    );
+    const block = await expectCreated(
+      createSchedule(event.id, {
+        name: "Domingo mañana",
+        scheduledDate: "2026-06-07",
+        startTime: "10:00",
+        totalCapacity: 20,
+        modalityIds: [acrobacias.id],
+      }),
+    );
+    await expectCreated(
+      createScheduleCapacity(block.id, { groupType: "solo", capacity: 6 }),
+    );
+    await expectCreated(
+      createPrice(event.id, {
+        groupType: "solo",
+        amount: 14000,
+        paymentDeadline: null,
+        scheduleId: null,
+      }),
+    );
+
+    await expect(
+      getEventRegistrationReadiness(event.id),
+    ).resolves.toMatchObject({
+      isReady: false,
+      missingItems: [
+        expect.objectContaining({
+          code: "age-coverage",
+          detail:
+            "Faltan categorías para Modalidad Acrobacias Aéreas, Tipo de grupo Solo: sin cobertura para las edades 1 a 4.",
+        }),
+      ],
+    });
+    await expect(
+      db.query.events.findFirst({
+        columns: { registrationReady: true },
+        where: eq(events.id, event.id),
+      }),
+    ).resolves.toMatchObject({ registrationReady: false });
   });
 
   test("loads readiness for multiple events while recalculating dirty entries", async () => {

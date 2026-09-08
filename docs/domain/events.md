@@ -13,6 +13,7 @@ Rules for event context, `Bases del evento`, administration and portal behavior.
 - A choreography first uses a `Cupo de cronograma` when schedule modality and capacity group type are compatible.
 - If a compatible `Cronograma` has no `Cupo de cronograma` for the choreography group type, the choreography falls back to the `Cronograma` total capacity as global capacity.
 - `Bases del evento` includes modalities, submodalities, categories, experience levels, schedules, schedule capacities and prices. It does not include Events.
+- An event cannot open its `Período de inscripción` while its categories leave an age uncovered: for every `Modalidad` and `Tipo de grupo` its categories reach, ages 1 to 100 must be covered by exactly one `Categoría`. A gap is a choreography that cannot be placed; an overlap makes the `Categoría` depend on the order the `Bases del evento` load in. A `Modalidad` that declares no `Categoría` at all for a `Tipo de grupo` is offering nothing there and is not asked for coverage.
 
 ## Administration and portal
 

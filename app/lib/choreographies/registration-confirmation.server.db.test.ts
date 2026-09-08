@@ -13,10 +13,12 @@ import {
 import {
   createAcademySession,
   createDancer,
+  createGrupalOnlyModalityFixture,
   createOpenEventCatalog,
   createProfessor,
 } from "@/lib/choreographies/registration-test-fixtures.server.db";
 import { createChoreographyRegistration } from "@/lib/choreographies/registration-confirmation.server";
+import { deriveChoreographyOperationalStatus } from "@/lib/choreographies/operational-status";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -532,6 +534,94 @@ describe.sequential("choreography registration confirmation", () => {
     ).map((row) => row.choreographyNumber);
 
     expect(secondEventNumbers).toEqual([1]);
+  });
+
+  test("rejects a dancer under one year old at the event start without writing a choreography", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Bebé Confirmación",
+      email: "registro.coreografia.bebe.confirmacion@example.com",
+    });
+    const { event, catalog } = await createOpenEventCatalog();
+    const infantDancer = await createDancer(owner.academyId, {
+      birthDate: "2026-01-10",
+      firstName: "Nina",
+      lastName: "Ríos",
+    });
+    const professor = await createProfessor(owner.academyId);
+
+    await expect(
+      createChoreographyRegistration({
+        academyId: owner.academyId,
+        eventId: event.id,
+        name: "Primera vuelta",
+        modalityId: catalog.modality.id,
+        submodalityId: catalog.submodality.id,
+        dancerIds: [infantDancer.id],
+        professorIds: [professor.id],
+        experienceLevelId: catalog.level.id,
+        scheduleCapacityId: catalog.soloScheduleCapacity.id,
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      code: "dancer-under-minimum-age",
+      error: expect.stringContaining("Nina Ríos"),
+    });
+
+    const storedChoreographies = await db.query.choreographies.findMany({
+      where: eq(choreographies.academyId, owner.academyId),
+    });
+    expect(storedChoreographies).toHaveLength(0);
+  });
+
+  test("registers a dancer whose age matches no category band, leaving the choreography operationally incomplete", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Sin Categoría",
+      email: "registro.coreografia.sin-categoria@example.com",
+    });
+    const { event } = await createOpenEventCatalog();
+    const grupalOnly = await createGrupalOnlyModalityFixture(event.id);
+    const adultDancer = await createDancer(owner.academyId, {
+      birthDate: "1990-01-01",
+    });
+    const professor = await createProfessor(owner.academyId);
+
+    const result = await createChoreographyRegistration({
+      academyId: owner.academyId,
+      eventId: event.id,
+      modalityId: grupalOnly.modality.id,
+      submodalityId: null,
+      name: "Sin bracket",
+      dancerIds: [adultDancer.id],
+      professorIds: [professor.id],
+      experienceLevelId: null,
+      scheduleCapacityId: `schedule:${grupalOnly.schedule.id}:global`,
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      choreography: expect.objectContaining({
+        categoryId: null,
+        experienceLevelId: null,
+      }),
+    });
+
+    const storedChoreography = await db.query.choreographies.findFirst({
+      where: eq(choreographies.academyId, owner.academyId),
+    });
+    expect(storedChoreography).toMatchObject({ categoryId: null });
+
+    expect(
+      deriveChoreographyOperationalStatus({
+        categoryId: storedChoreography?.categoryId ?? null,
+        experienceLevelId: storedChoreography?.experienceLevelId ?? null,
+        hasMusic: false,
+        hasProfessors: true,
+        requiresExperienceLevel: false,
+      }),
+    ).toMatchObject({
+      code: "incomplete",
+      pendingItems: expect.arrayContaining(["category"]),
+    });
   });
 });
 

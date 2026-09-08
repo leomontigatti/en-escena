@@ -13,6 +13,13 @@ describe("isDateOnly", () => {
     expect(isDateOnly("31/05/2026")).toBe(false);
     expect(isDateOnly("2026-5-31")).toBe(false);
   });
+
+  // A month and a day that do not exist still fit the shape, and answering
+  // them used to throw instead of returning `false`.
+  test("rejects impossible dates without throwing", () => {
+    expect(isDateOnly("2026-13-40")).toBe(false);
+    expect(isDateOnly("0000-00-00")).toBe(false);
+  });
 });
 
 describe("isFutureDateOnly", () => {
