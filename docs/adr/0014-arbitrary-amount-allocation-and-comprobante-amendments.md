@@ -663,3 +663,84 @@ only in a PR paragraph: decision 5 lists `list/server.ts:319` among the `porcion
 readers to drop. That line is `searchParams.delete("porcion")`, which
 canonicalises stale bookmarked URLs exactly as the `delete("academia")` beside it
 does. It reads no concept, so it stays.
+
+## Correction (2026-09-09): the price is derived at read time, and §3's write-path refresh is withdrawn
+
+Appended, not edited in place. §3 stands for _what_ is fixed and _when_; this
+paragraph replaces its account of _how_, for choreography inscriptions and for
+seminar inscriptions alike.
+
+§3 specifies that below the threshold `selectedPriceId` is refreshed to the
+currently applicable row **on every allocation write**, that it is `NOT NULL`
+and written at **creation**, and that a `groupType`-changing roster write
+refreshes it regardless of the threshold. It grounds the first of these in the
+circularity of #583: _"there is no fixed point to solve, because it is the
+**write path** that refreshes, not a read-time derivation."_ It lists
+"reference-date derivation" among the rejected options and, by the same
+sentence, a read-time derivation of any kind.
+
+**None of that was built, and it will not be.** What runs on `master` — and has
+since #689 dropped the snapshot columns — derives the effective row at read time,
+in one owner, `resolveEffectiveBasePriceRow`, and never refreshes the stored row
+on its own. `selectedPriceId` is nullable, no creation path writes it, and it is
+written only by the act of charging: the allocation dialog and the presets store
+the row the administrator named. [#885](https://github.com/leomontigatti/en-escena/issues/885)
+then chose the same mechanism for `seminarInscription.selectedPriceId`, in the
+one place where §3 could have been honoured from day one, so that the two
+inscription kinds would not diverge from each other. The owner has decided to
+keep that mechanism and amend the record, rather than build §3.
+
+The decision is the mechanism as it runs, stated once:
+
+- The effective price is `crossed ? stored : (current ?? stored)`, derived on
+  every read, with `crossed` **always tested against `stored`**. That clause,
+  and not the write path, is what breaks #583's circularity: the threshold is
+  measured against the one side that does not depend on the answer. §3's
+  argument that the write path was load-bearing for this was wrong — the same
+  clause breaks it whichever side derives.
+- `selectedPriceId` is **nullable** and is written **only when money is
+  allocated**, holding the row the administrator picked. Nothing writes it at
+  creation, nothing refreshes it in the background, and no write path rewrites
+  it on the administrator's behalf. Below the threshold the stored row is read by
+  the write path's `crossed` test, by the `?? stored` fallback, and by the guard
+  that refuses to delete a referenced row; every displayed figure comes from the
+  effective row.
+- `Sin precio` is therefore a real state, not a defect: an inscription that no
+  row prices — never charged, and with no row applicable today — has null
+  thresholds and incomplete figures. Portal creation stays gated on price
+  coverage by event readiness, which is where the signal belongs; the `NOT NULL`
+  column that §3 wanted, and the creation-time refusal that #621 specified to
+  make it possible, are withdrawn.
+- The `?? stored` fallback, the money-keyed lock and its trigger, the ban on a
+  cron and the deletion of every estimate marking all stand as §3 wrote them.
+
+What is traded away is §3's property that "the displayed figure equals what the
+next write will use". Below the threshold the stored row and the effective row
+can differ, so a page refresh and the passage of time move the figure without
+anybody writing anything. That movement is the point rather than the cost: an
+academy's price follows the list until its deposit is in, and the moment the
+deposit is in, the row it was measured against is the one that governs.
+
+Two things this correction does **not** decide:
+
+- **A crossed inscription whose stored row no longer matches what is sold.** §3
+  answered the `groupType` case with a refresh regardless of threshold. With the
+  refresh withdrawn, a roster or schedule change on a funded inscription leaves
+  it holding a row of the old key, which is the anomaly
+  [#660](https://github.com/leomontigatti/en-escena/issues/660) records. It
+  stays a known divergence with that owner; below the threshold the read-time
+  derivation already follows the new key on its own.
+- **Which module owns applicable-row _selection_.** That is still triplicated
+  and the dancer-inscriptions view still resolves without a date. It is
+  [#403](https://github.com/leomontigatti/en-escena/issues/403)'s, re-scoped to
+  that and to extending the owner to seminar tiers, and no longer to any write
+  rule.
+
+The `Sin precio` rejection in §3 — "a nullable `selected_price_id` buys nothing
+portal readiness does not already give, and revives `orphanedAllocations` and
+`Sin precio`" — is the one bullet of the list this correction overturns.
+`Sin precio` is revived on purpose. `orphanedAllocations` is not revived as an
+anomaly: an inscription can hold money and store no row — the presets can
+produce it — and it simply reads `Sin precio` until the next allocation write
+names a row, with no detector and no slot of its own, as the anomaly table in
+`docs/domain/finances.md` records.
