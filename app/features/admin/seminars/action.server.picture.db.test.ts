@@ -114,6 +114,14 @@ async function save(seminarId: string, picture: PictureChange) {
   );
 }
 
+/** The staged upload every test but the format one starts from. */
+function saveJpgPicture(seminarId: string) {
+  return save(seminarId, {
+    kind: "upload",
+    file: new File(["picture"], "instructor.jpg", { type: "image/jpeg" }),
+  });
+}
+
 function pictureFolder(eventId: string, seminarId: string) {
   return join(
     storageState.baseDir,
@@ -127,10 +135,7 @@ describe.sequential("the seminar instructor picture", () => {
     const event = await createSavedEvent();
     const seminar = await createSavedSeminar(event.id);
 
-    const result = await save(seminar.id, {
-      kind: "upload",
-      file: new File(["picture"], "instructor.jpg", { type: "image/jpeg" }),
-    });
+    const result = await saveJpgPicture(seminar.id);
 
     expect(result).toMatchObject({ status: "success" });
     expect((await getSeminar(seminar.id))?.instructorPictureStorageKey).toBe(
@@ -184,10 +189,7 @@ describe.sequential("the seminar instructor picture", () => {
     const event = await createSavedEvent();
     const seminar = await createSavedSeminar(event.id);
 
-    await save(seminar.id, {
-      kind: "upload",
-      file: new File(["picture"], "instructor.jpg", { type: "image/jpeg" }),
-    });
+    await saveJpgPicture(seminar.id);
     await save(seminar.id, { kind: "keep" });
 
     expect((await getSeminar(seminar.id))?.instructorPictureStorageKey).toBe(
@@ -201,10 +203,7 @@ describe.sequential("the seminar instructor picture", () => {
     const event = await createSavedEvent();
     const seminar = await createSavedSeminar(event.id);
 
-    await save(seminar.id, {
-      kind: "upload",
-      file: new File(["picture"], "instructor.jpg", { type: "image/jpeg" }),
-    });
+    await saveJpgPicture(seminar.id);
     await save(seminar.id, { kind: "absent" });
 
     expect((await getSeminar(seminar.id))?.instructorPictureStorageKey).toBe(
@@ -247,10 +246,7 @@ describe.sequential("the seminar instructor picture", () => {
 
     expect((await loadDetail()).instructorPictureUrl).toBeNull();
 
-    await save(seminar.id, {
-      kind: "upload",
-      file: new File(["picture"], "instructor.jpg", { type: "image/jpeg" }),
-    });
+    await saveJpgPicture(seminar.id);
 
     const signedUrl = (await loadDetail()).instructorPictureUrl ?? "";
 
@@ -265,10 +261,7 @@ describe.sequential("the seminar instructor picture", () => {
     const event = await createSavedEvent();
     const seminar = await createSavedSeminar(event.id);
 
-    await save(seminar.id, {
-      kind: "upload",
-      file: new File(["picture"], "instructor.jpg", { type: "image/jpeg" }),
-    });
+    await saveJpgPicture(seminar.id);
 
     const url = `http://localhost/administracion/seminarios/${seminar.id}`;
     const signedIn = await createSignedInRequest({
