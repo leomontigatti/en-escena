@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   foreignKey,
   index,
   integer,
@@ -12,7 +13,13 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 
-import { createTable, experienceLevel, groupType } from "./core";
+import {
+  createTable,
+  experienceLevel,
+  groupType,
+  uuidPrimaryKey,
+} from "./core";
+import { dancers, professors } from "./roster";
 
 export const events = createTable(
   "event",
@@ -220,6 +227,97 @@ export const schedules = createTable(
       .default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => [index("schedule_event_id_idx").on(table.eventId)],
+).enableRLS();
+
+// A class the event offers around the competition: a guest instructor, a local
+// date and time, and a hard cap on how many roster people an academy can
+// register. It carries no name of its own — the instructor plus the moment is
+// what identifies it, which is what the unique index below states.
+export const seminars = createTable(
+  "seminar",
+  {
+    id: uuidPrimaryKey(),
+    eventId: varchar("event_id", { length: 255 }).notNull(),
+    instructorName: text("instructor_name").notNull(),
+    instructorPictureStorageKey: text("instructor_picture_storage_key"),
+    scheduledDate: text("scheduled_date").notNull(),
+    startTime: text("start_time").notNull(),
+    quota: integer("quota").notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.eventId],
+      foreignColumns: [events.id],
+      name: "seminar_event_fk",
+    }).onDelete("cascade"),
+    index("seminar_event_id_idx").on(table.eventId),
+    uniqueIndex("seminar_event_instructor_slot_unique").on(
+      table.eventId,
+      table.instructorName,
+      table.scheduledDate,
+      table.startTime,
+    ),
+    check("seminar_quota_positive", sql`${table.quota} >= 1`),
+  ],
+).enableRLS();
+
+// One roster person registered into one seminar. The owning academy is not a
+// column: it is read through the person, so the roster and the inscription can
+// never disagree about who an inscription belongs to.
+export const seminarInscriptions = createTable(
+  "seminar_inscription",
+  {
+    id: uuidPrimaryKey(),
+    seminarId: varchar("seminar_id", { length: 255 }).notNull(),
+    dancerId: varchar("dancer_id", { length: 255 }),
+    professorId: varchar("professor_id", { length: 255 }),
+    // The order the quota was consumed in, which is the only history the row
+    // keeps: an inscription is created and deleted, never edited.
+    createdAt: timestamp("created_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.seminarId],
+      foreignColumns: [seminars.id],
+      name: "seminar_inscription_seminar_fk",
+    }).onDelete("cascade"),
+    // The person keys restrict on purpose: nobody deletes roster people today,
+    // and if a path ever appears the database refuses while inscriptions exist.
+    foreignKey({
+      columns: [table.dancerId],
+      foreignColumns: [dancers.id],
+      name: "seminar_inscription_dancer_fk",
+    }),
+    foreignKey({
+      columns: [table.professorId],
+      foreignColumns: [professors.id],
+      name: "seminar_inscription_professor_fk",
+    }),
+    index("seminar_inscription_seminar_id_idx").on(table.seminarId),
+    index("seminar_inscription_dancer_id_idx").on(table.dancerId),
+    index("seminar_inscription_professor_id_idx").on(table.professorId),
+    uniqueIndex("seminar_inscription_seminar_dancer_unique")
+      .on(table.seminarId, table.dancerId)
+      .where(sql`${table.dancerId} is not null`),
+    uniqueIndex("seminar_inscription_seminar_professor_unique")
+      .on(table.seminarId, table.professorId)
+      .where(sql`${table.professorId} is not null`),
+    check(
+      "seminar_inscription_exactly_one_person",
+      sql`num_nonnulls(${table.dancerId}, ${table.professorId}) = 1`,
+    ),
+  ],
 ).enableRLS();
 
 export const scheduleModalities = createTable(

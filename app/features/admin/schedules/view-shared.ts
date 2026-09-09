@@ -195,7 +195,7 @@ export function formatDate(value: string) {
   return scheduleDateFormatter.format(new Date(`${value}T00:00:00Z`));
 }
 
-function isPositiveIntegerString(value: string) {
+export function isPositiveIntegerString(value: string) {
   const parsedValue = Number(value);
 
   return Number.isInteger(parsedValue) && parsedValue > 0;

@@ -60,7 +60,7 @@ require_command mkdir
 
 B2_FILESTORE_BUCKET="${B2_FILESTORE_BUCKET:-${B2_BUCKET:-}}"
 B2_FILESTORE_PREFIX="${B2_FILESTORE_PREFIX:-filestore}"
-STORAGE_BACKUP_BUCKETS="${STORAGE_BACKUP_BUCKETS:-en-escena-dancer-documents,en-escena-choreography-music,en-escena-event-documents}"
+STORAGE_BACKUP_BUCKETS="${STORAGE_BACKUP_BUCKETS:-en-escena-dancer-documents,en-escena-choreography-music,en-escena-event-documents,enescena-seminar-pictures}"
 BACKUP_SYNC_MODE="${BACKUP_SYNC_MODE:-copy}"
 AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-005}"
 

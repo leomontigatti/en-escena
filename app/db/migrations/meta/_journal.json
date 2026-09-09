@@ -113,6 +113,20 @@
       "when": 1788531334904,
       "tag": "0015_base_price_nulls_not_distinct",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1788930705628,
+      "tag": "0016_add_seminar",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1788931891493,
+      "tag": "0017_add_seminar_inscription",
+      "breakpoints": true
     }
   ]
 }

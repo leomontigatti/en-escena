@@ -274,52 +274,52 @@ DISTINCT`, because two of them would otherwise be separated only by amount.
   an expired one would not.
 - A price row that any inscription references **cannot be deleted**.
 
-> **Specified, not built.**
-> Beyond the threshold rule above, ADR-0014 §3 makes `selected_price_id`
-> `NOT NULL` and written at
-> **creation**, and refreshes it on a `groupType` change regardless of the
-> threshold, refusing the roster write when no row applies to the new group type.
-> Today the column is nullable, no creation path writes it, and the stored row is
-> never refreshed on its own. Owner:
-> [#403](https://github.com/leomontigatti/en-escena/issues/403), with the
-> `groupType` refresh in
-> [#709](https://github.com/leomontigatti/en-escena/issues/709).
-
-**Known divergence — the price is derived at read time, and ADR-0014 §3 says it
-must not be.** The threshold at which the price stops moving is §3's, and
-so is `effective = crossed ? stored : (current ?? stored)` with `crossed` always
-tested against `stored`. **The mechanism is not.** §3 keeps `selectedPriceId`
-refreshed to the currently applicable row **on every allocation write** below the
-threshold and explicitly rejects "a read-time derivation"; what is built derives
-at read time and never refreshes the stored row. The two are not the same rule
-written twice:
-
-- §3's property "the displayed figure equals what the next write will use" is
-  bought by the write-path refresh, so it does **not** hold here. What holds
-  instead is that every figure on every surface comes from the same derivation
-  — `resolveEffectiveBasePriceRow` is its single owner — so no two surfaces can
-  disagree, and the answer moves with a page refresh and with the passage of
-  time. That movement is the point: an academy's price should follow the list
-  until its deposit is in, without anyone writing anything.
+- **The mechanism is read-time derivation, by decision.** ADR-0014 §3 as
+  written specified a write-path refresh of `selectedPriceId` below the
+  threshold, a `NOT NULL` column written at creation, and a refresh on a
+  `groupType` change; its correction of 2026-09-09 withdraws all three and
+  adopts what runs. The stored row is written only by the act of charging and is
+  never refreshed on its own; every figure on every surface comes from the same
+  derivation — `resolveEffectiveBasePriceRow` is its single owner — so no two
+  surfaces can disagree, and the answer moves with a page refresh and with the
+  passage of time. That movement is the point: an academy's price follows the
+  list until its deposit is in, without anyone writing anything. The
+  circularity the ADR worried about is broken by the clause above — `crossed`
+  is tested against `stored`, the one side that does not depend on the answer —
+  and not by which path derives.
 - Below the threshold the **stored row and the effective row can differ**, so
-  what reads which matters. The stored row is read by the write path's `crossed`
-  test, by the `?? stored` fallback when nothing applies today, and by the guard
-  that refuses to delete a referenced price row — all of them server-side. It is
-  no longer read by anything the administrator sees: every displayed **figure**
-  and every control — `Precio`, `Seña`, `Total`, the badge, and both the
-  allocation dialog's readout and its picker — comes from the effective row.
+  what reads which matters. The stored row is read by the write path's
+  `crossed` test, by the `?? stored` fallback when nothing applies today, and by
+  the guard that refuses to delete a referenced price row — all of them
+  server-side. It is not read by anything the administrator sees: every
+  displayed **figure** and every control — `Precio`, `Seña`, `Total`, the badge,
+  and both the allocation dialog's readout and its picker — comes from the
+  effective row.
+- **`Sin precio` is a state, not a defect.** An inscription that stores no row
+  and that no row applies to today has null thresholds and incomplete figures.
+  Portal creation is gated on price coverage by event readiness, which is where
+  the signal belongs; nothing refuses an inscription for lacking a price at
+  creation, and presets can leave a row holding money and storing no price.
 
-Amending §3 to match, or building the write-path refresh, is the owner's call.
-The circularity §3 breaks is broken here too, and by the same clause: `crossed`
-is tested against `stored`, which is the one side that does not depend on the
-answer.
+> **Specified, not built.**
+> A seminar inscription is priced the same way, decided in
+> [#885](https://github.com/leomontigatti/en-escena/issues/885):
+> `seminarInscription.selectedPriceId` is nullable, references a `seminarPrice`
+> tier, is written only by the allocation dialog, and the effective tier is
+> `crossed ? stored : (current ?? stored)` through the same owner, fed the
+> seminar's tiers as the candidate set — no schedule or group-type axis — and the
+> seminar's own `requiredDepositPercentage`. A seminar with no tier can be
+> registered into and its inscriptions read `Sin precio`. The seminar side of
+> the applicable-row selection is
+> [#403](https://github.com/leomontigatti/en-escena/issues/403)'s.
 
-**Known divergence — a roster change can leave the price impossible.** Because
-nothing refreshes `selectedPriceId`, a roster change that moves the group type or
-the schedule leaves a funded inscription holding a row that no longer belongs to
-what is being sold. Tracked in
-[#709](https://github.com/leomontigatti/en-escena/issues/709) and
-[#660](https://github.com/leomontigatti/en-escena/issues/660). The only guard in
+**Known divergence — a roster change can leave a crossed price impossible.**
+Because nothing refreshes `selectedPriceId`, a roster change that moves the
+group type or the schedule leaves a **crossed** inscription holding a row that no
+longer belongs to what is being sold; below the threshold the read-time
+derivation follows the new key on its own. ADR-0014's 2026-09-09 correction
+withdrew §3's `groupType` refresh without replacing it, so this is open. Tracked
+in [#660](https://github.com/leomontigatti/en-escena/issues/660). The only guard in
 place is the schedule-capacity one, which refuses to move a choreography's
 schedule capacity while any inscription holds money.
 
@@ -327,8 +327,11 @@ schedule capacity while any inscription holds money.
 `findDancerInscriptions` resolves prices with no date and hardcodes a zero
 discount, so that view can show an expired row as `Subtotal estimado` and never
 shows the `Descuento por bailarín`. It contradicts the finance read model for the
-same inscription. Tracked in
-[#584](https://github.com/leomontigatti/en-escena/issues/584).
+same inscription. The no-date resolution is
+[#403](https://github.com/leomontigatti/en-escena/issues/403)'s, which retires
+the dateless `resolveApplicablePrice` overload; the hardcoded discount was
+[#584](https://github.com/leomontigatti/en-escena/issues/584)'s and is still in
+code.
 
 ## Payments
 

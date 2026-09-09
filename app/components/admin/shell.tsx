@@ -15,6 +15,7 @@ import {
   ClipboardList,
   HandCoins,
   ReceiptText,
+  Presentation,
 } from "lucide-react";
 import { Link, useLocation, type UIMatch } from "react-router";
 
@@ -145,6 +146,11 @@ const operationNavigationItems = [
     label: "Bailarines",
     to: "/administracion/bailarines",
     icon: Users,
+  },
+  {
+    label: "Seminarios",
+    to: "/administracion/seminarios",
+    icon: Presentation,
   },
 ] satisfies SidebarNavigationItem[];
 

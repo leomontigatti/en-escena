@@ -262,7 +262,7 @@ const reservedTerms = new Set(["comprobante"]);
 // three reasons, and a word without one of them does not belong:
 //
 //   - an English word spelled the same: `base`, `bases`, `total`, `portal`,
-//     `panel`, `fiscal`, `ranking`, `temporal`;
+//     `panel`, `fiscal`, `ranking`, `temporal`, `instructor`;
 //   - a proper noun: `arca` is the tax agency, not a common noun;
 //   - a function word the grammar rule already owns: `para`.
 const glossaryNounExceptions = new Set([
@@ -270,6 +270,7 @@ const glossaryNounExceptions = new Set([
   "base",
   "bases",
   "fiscal",
+  "instructor",
   "panel",
   "para",
   "portal",

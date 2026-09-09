@@ -28,6 +28,9 @@ export const notificationToastIds = {
   "evento-eliminado": "route-notification:evento-eliminado",
   "cronograma-guardado": "route-notification:cronograma-guardado",
   "cronograma-eliminado": "route-notification:cronograma-eliminado",
+  "seminario-creado": "route-notification:seminario-creado",
+  "seminario-guardado": "route-notification:seminario-guardado",
+  "seminario-eliminado": "route-notification:seminario-eliminado",
   "cupo-cronograma-guardado": "route-notification:cupo-cronograma-guardado",
   "cupo-cronograma-eliminado": "route-notification:cupo-cronograma-eliminado",
   "precio-guardado": "route-notification:precio-guardado",
@@ -156,6 +159,21 @@ export const notificationToasts = {
   "cronograma-eliminado": {
     id: notificationToastIds["cronograma-eliminado"],
     message: "Cronograma eliminado.",
+    variant: "success",
+  },
+  "seminario-creado": {
+    id: notificationToastIds["seminario-creado"],
+    message: "Seminario creado.",
+    variant: "success",
+  },
+  "seminario-guardado": {
+    id: notificationToastIds["seminario-guardado"],
+    message: "Seminario guardado.",
+    variant: "success",
+  },
+  "seminario-eliminado": {
+    id: notificationToastIds["seminario-eliminado"],
+    message: "Seminario eliminado.",
     variant: "success",
   },
   "cupo-cronograma-guardado": {

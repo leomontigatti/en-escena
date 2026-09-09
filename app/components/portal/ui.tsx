@@ -10,6 +10,7 @@ import {
   Inbox,
   Info,
   LogOut,
+  Presentation,
   TriangleAlert,
   User,
   Users,
@@ -201,6 +202,11 @@ const primaryNavigationItems = [
     label: "Coreografías",
     to: "/portal/coreografias",
     icon: AudioLines,
+  },
+  {
+    label: "Seminarios",
+    to: "/portal/seminarios",
+    icon: Presentation,
   },
 ] satisfies SidebarNavigationItem[];
 

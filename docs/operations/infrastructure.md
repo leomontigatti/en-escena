@@ -151,6 +151,35 @@ is written by `app/lib/events/event-documents.server.ts`.
   absent, so the retry converges. The other order reports success over bytes
   that survived, which is the one outcome "eliminar" must not mean.
 
+### Seminar instructor picture contract
+
+Bucket, formats, size limit and expiry are declared in
+`app/lib/storage/asset-kinds.ts` and enforced by
+`app/lib/storage/seminar-pictures.server.ts`; the row that points at the object
+is written by `app/lib/seminars/repository.server.ts`, from the seminar detail's
+own "Guardar".
+
+- Bucket directory: `enescena-seminar-pictures`, private. The name deliberately
+  drops the `en-escena-` prefix the other three carry: nothing globs on the
+  prefix, and every bucket name is pinned by `asset-kinds.test.ts` anyway.
+- Accepted formats: JPG, PNG and WEBP, up to **10 MB**. Downloads go through a
+  signed URL that expires after **300** seconds. There is no thumbnail and no
+  derived variant: the original is served and sized by CSS.
+- One object per seminar, at
+  `events/{eventId}/seminars/{seminarId}/instructor.{ext}`. The row holds that
+  key, never a URL.
+- A replace uploads the new object **before** removing any sibling under the
+  seminar's prefix with another extension, so a JPG replaced by a PNG leaves
+  exactly one object. The removal propagates, as it does for dancer documents:
+  the row is written only afterwards, so a failure leaves the seminar pointing
+  at the picture it already had.
+- A removal deletes the object first and nulls the key second, and
+  `removeInstructorPicture` tolerates an object that is already gone, so a retry
+  converges. Deleting the seminar removes the object the same way.
+- Deleting the **event** orphans the object, exactly as it orphans event
+  documents today. Cleaning storage orphans on event deletion is a separate
+  issue that has to cover both.
+
 ## Related runbooks
 
 - [Backups](./backups.md) — database and storage backups, restore drills.
