@@ -1,6 +1,7 @@
 // PROTOTYPE ROUTE — throwaway, lives only on this branch. `pnpm dev` and open
-// /prototipo/instrucciones-de-pago to compare the three payment instructions
-// cards of wayfinder ticket #870. No loader, no auth, no database.
+// /prototipo/instrucciones-de-pago to see the payment instructions card of
+// wayfinder ticket #870 against every data case. No loader, no auth, no
+// database.
 import { HandCoins } from "lucide-react";
 import { useSearchParams } from "react-router";
 
@@ -8,7 +9,6 @@ import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import { Button } from "@/components/ui/button";
 import {
   PaymentInstructionsAlertGridVariant,
-  PaymentInstructionsCardVariant,
   type PrototypePaymentInstructions,
 } from "@/features/portal/payments/prototype/payment-instructions-card.prototype";
 
@@ -16,7 +16,6 @@ const fullInstructions: PrototypePaymentInstructions = {
   holderName: "En Escena Producciones SRL",
   bankName: "Banco Galicia",
   cbu: "0070099930004512345678",
-  cvu: "0000003100010000000001",
   alias: "en.escena.pagos",
   holderCuit: "30712345674",
   text: "Poné el nombre de tu academia en la referencia de la transferencia.\nMandanos el comprobante por WhatsApp al 341 555-0100.\n\nTambién podés pagar con Mercado Pago: https://link.mercadopago.com.ar/enescena",
@@ -28,7 +27,6 @@ const casesById = {
     holderName: null,
     bankName: null,
     cbu: null,
-    cvu: null,
     alias: null,
     holderCuit: null,
     text: "Pagá en efectivo en la sede, de lunes a viernes de 15 a 20.",
@@ -40,9 +38,10 @@ const casesById = {
     holderCuit: null,
     text: null,
   },
-  "solo-cvu": {
+  // A wallet: the same field carries a CVU, which starts with `000`.
+  billetera: {
     ...fullInstructions,
-    cbu: null,
+    cbu: "0000003100010000000001",
     bankName: "Mercado Pago",
   },
   "texto-largo": {
@@ -50,25 +49,6 @@ const casesById = {
     text: "Las transferencias se acreditan en 24 horas hábiles. Hasta que administración registre el pago, la coreografía sigue figurando como impaga.\n\nSi transferís desde una cuenta que no está a nombre de la academia, avisanos antes: el banco muestra el titular de origen y necesitamos poder identificarlo.\n\nNo aceptamos pagos parciales por debajo del anticipo del evento.",
   },
 } satisfies Record<string, PrototypePaymentInstructions>;
-
-const variantsById = {
-  "alerta-grilla": {
-    label: "Alert info + grilla",
-    Component: PaymentInstructionsAlertGridVariant,
-  },
-  tarjeta: {
-    label: "Card + grilla",
-    Component: PaymentInstructionsCardVariant,
-  },
-} satisfies Record<
-  string,
-  {
-    label: string;
-    Component: (props: {
-      instructions: PrototypePaymentInstructions;
-    }) => React.ReactNode;
-  }
->;
 
 const contentsById = {
   vacio: "Sin pagos (empty state)",
@@ -88,12 +68,6 @@ function resolveParam<T extends Record<string, unknown>>(
 
 export default function PaymentInstructionsPrototypeRoute() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const variantId = resolveParam(
-    searchParams,
-    "variante",
-    variantsById,
-    "alerta-grilla",
-  );
   const caseId = resolveParam(searchParams, "caso", casesById, "completo");
   const contentId = resolveParam(
     searchParams,
@@ -103,7 +77,6 @@ export default function PaymentInstructionsPrototypeRoute() {
   );
 
   const instructions = casesById[caseId];
-  const Card = variantsById[variantId].Component;
 
   function setParam(key: string, value: string) {
     setSearchParams((previous) => {
@@ -121,7 +94,7 @@ export default function PaymentInstructionsPrototypeRoute() {
           title="Pagos"
           description="Consultá los pagos que administración registró para tu academia."
         >
-          <Card instructions={instructions} />
+          <PaymentInstructionsAlertGridVariant instructions={instructions} />
 
           {contentId === "lista" ? (
             <FakePaymentsTable />
@@ -135,23 +108,16 @@ export default function PaymentInstructionsPrototypeRoute() {
         </PortalListPage>
       </div>
 
-      <SwitcherBar
-        variantId={variantId}
-        caseId={caseId}
-        contentId={contentId}
-        onSelect={setParam}
-      />
+      <SwitcherBar caseId={caseId} contentId={contentId} onSelect={setParam} />
     </div>
   );
 }
 
 function SwitcherBar({
-  variantId,
   caseId,
   contentId,
   onSelect,
 }: {
-  variantId: string;
   caseId: string;
   contentId: string;
   onSelect: (key: string, value: string) => void;
@@ -159,15 +125,6 @@ function SwitcherBar({
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-card px-4 py-3">
       <div className="mx-auto flex max-w-6xl flex-col gap-2 text-xs">
-        <SwitcherRow
-          legend="Variante"
-          options={Object.entries(variantsById).map(([id, entry]) => ({
-            id,
-            label: entry.label,
-          }))}
-          activeId={variantId}
-          onSelect={(id) => onSelect("variante", id)}
-        />
         <SwitcherRow
           legend="Caso"
           options={Object.keys(casesById).map((id) => ({ id, label: id }))}

@@ -6,21 +6,14 @@ import { Check, Copy, Landmark } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/shared/utils";
 
 export type PrototypePaymentInstructions = {
   holderName: string | null;
   bankName: string | null;
+  /** One field: an account is reached by a CBU or by a CVU, never by both. */
   cbu: string | null;
-  cvu: string | null;
   alias: string | null;
   holderCuit: string | null;
   text: string | null;
@@ -41,12 +34,23 @@ function formatCuitForDisplay(cuit: string) {
   return `${cuit.slice(0, 2)}-${cuit.slice(2, 10)}-${cuit.slice(10)}`;
 }
 
+/** `En Escena Producciones SRL · CUIT 30-71234567-4`, dropping what is absent. */
+function formatHolderLine(instructions: PrototypePaymentInstructions) {
+  return [
+    instructions.holderName,
+    instructions.holderCuit
+      ? `CUIT ${formatCuitForDisplay(instructions.holderCuit)}`
+      : null,
+  ]
+    .filter((part) => Boolean(part))
+    .join(" · ");
+}
+
 function getCopyableFields(
   instructions: PrototypePaymentInstructions,
 ): CopyableField[] {
   return [
-    { label: "CBU", value: instructions.cbu },
-    { label: "CVU", value: instructions.cvu },
+    { label: "CBU/CVU", value: instructions.cbu },
     { label: "Alias", value: instructions.alias },
   ].filter((field): field is CopyableField => Boolean(field.value));
 }
@@ -54,7 +58,6 @@ function getCopyableFields(
 function hasIdentifiers(instructions: PrototypePaymentInstructions) {
   return [
     instructions.cbu,
-    instructions.cvu,
     instructions.alias,
     instructions.holderName,
     instructions.bankName,
@@ -148,8 +151,8 @@ function IdentifierRow({
 }
 
 /**
- * The chosen shape: the definition grid of the Card variant, rendered inside
- * the info Alert the portal already uses for event-scoped notices.
+ * The chosen shape: a definition grid inside the info Alert the portal already
+ * uses for event-scoped notices. No lead sentence — the title says it.
  */
 export function PaymentInstructionsAlertGridVariant({
   instructions,
@@ -161,18 +164,24 @@ export function PaymentInstructionsAlertGridVariant({
       <Landmark aria-hidden="true" />
       <AlertTitle>Instrucciones de pago</AlertTitle>
       <AlertDescription className="flex flex-col gap-4">
-        <p>Datos de la cuenta que recibe los pagos de este evento.</p>
         <InstructionsBody instructions={instructions} />
       </AlertDescription>
     </Alert>
   );
 }
 
+/**
+ * Two columns from `sm`: CBU/CVU beside the alias, then banco beside titular.
+ * The titular cell carries the CUIT, since a payer reads them together on the
+ * bank's confirmation screen.
+ */
 function IdentifierGrid({
   instructions,
 }: {
   instructions: PrototypePaymentInstructions;
 }) {
+  const holderLine = formatHolderLine(instructions);
+
   return (
     <dl className="grid gap-4 sm:grid-cols-2">
       {getCopyableFields(instructions).map((field) => (
@@ -188,16 +197,11 @@ function IdentifierGrid({
           </dd>
         </div>
       ))}
-      {instructions.holderName ? (
-        <IdentifierRow label="Titular">{instructions.holderName}</IdentifierRow>
-      ) : null}
       {instructions.bankName ? (
         <IdentifierRow label="Banco">{instructions.bankName}</IdentifierRow>
       ) : null}
-      {instructions.holderCuit ? (
-        <IdentifierRow label="CUIT" className="tabular-nums">
-          {formatCuitForDisplay(instructions.holderCuit)}
-        </IdentifierRow>
+      {holderLine ? (
+        <IdentifierRow label="Titular">{holderLine}</IdentifierRow>
       ) : null}
     </dl>
   );
@@ -226,31 +230,4 @@ function InstructionsBody({
       {block}
     </Fragment>
   ));
-}
-
-/** Kept for comparison: the same grid on a neutral Card instead of the Alert. */
-export function PaymentInstructionsCardVariant({
-  instructions,
-}: {
-  instructions: PrototypePaymentInstructions;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Landmark
-            aria-hidden="true"
-            className="size-4 text-muted-foreground"
-          />
-          Instrucciones de pago
-        </CardTitle>
-        <CardDescription>
-          Datos de la cuenta que recibe los pagos de este evento.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        <InstructionsBody instructions={instructions} />
-      </CardContent>
-    </Card>
-  );
 }
