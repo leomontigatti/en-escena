@@ -7,16 +7,18 @@ import {
 } from "@/lib/seminars/registration-refusals";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 
-export const registerSeminarInscriptionIntent = "register-seminar-inscription";
-export const deleteSeminarInscriptionIntent = "delete-seminar-inscription";
+export const registerPortalSeminarInscriptionIntent =
+  "register-seminar-inscription";
+export const deletePortalSeminarInscriptionIntent =
+  "delete-seminar-inscription";
 
-export const registerSeminarInscriptionSchema = z.object({
+export const registerPortalSeminarInscriptionSchema = z.object({
   seminarId: z.string().min(1),
   person: z.string().trim().min(1, requiredFieldMessage),
 });
 
-export type RegisterSeminarInscriptionFormValues = z.infer<
-  typeof registerSeminarInscriptionSchema
+export type RegisterPortalSeminarInscriptionFormValues = z.infer<
+  typeof registerPortalSeminarInscriptionSchema
 >;
 
 export type PortalSeminarPersonOption = {
@@ -50,8 +52,8 @@ export type PortalSeminarsListLoaderData = {
 export type PortalSeminarsActionData =
   | {
       intent:
-        | typeof deleteSeminarInscriptionIntent
-        | typeof registerSeminarInscriptionIntent;
+        | typeof deletePortalSeminarInscriptionIntent
+        | typeof registerPortalSeminarInscriptionIntent;
       message: string;
       status: "error" | "success";
     }
@@ -62,14 +64,14 @@ export type PortalSeminarsActionData =
  * has to carry which of the two a person is: two roster tables mean an id alone
  * does not say what to insert. This pair is the only encoding of that value.
  */
-export function toSeminarPersonValue(person: {
+export function toPortalSeminarPersonValue(person: {
   id: string;
   kind: RosterPersonKind;
 }) {
   return `${person.kind}:${person.id}`;
 }
 
-export function parseSeminarPersonValue(value: string) {
+export function parsePortalSeminarPersonValue(value: string) {
   const [kind, ...rest] = value.split(":");
   const personId = rest.join(":");
 
@@ -83,7 +85,7 @@ export function parseSeminarPersonValue(value: string) {
   };
 }
 
-export function getSeminarPersonKindLabel(kind: RosterPersonKind) {
+export function getPortalSeminarPersonKindLabel(kind: RosterPersonKind) {
   return kind === "dancer" ? "Bailarín" : "Profesor";
 }
 
@@ -95,7 +97,7 @@ const seminarDateFormatter = new Intl.DateTimeFormat("es-AR", {
 });
 
 /** The card's subtitle and the dialog's, so the two cannot word it apart. */
-export function formatSeminarMoment(seminar: {
+export function formatPortalSeminarMoment(seminar: {
   scheduledDate: string;
   startTime: string;
 }) {
@@ -108,7 +110,7 @@ export function formatSeminarMoment(seminar: {
  * The two reasons a footer holds a sentence instead of the button. "Started"
  * wins over "full": once it has begun, the quota stopped being the question.
  */
-export function getSeminarClosedReason(seminar: {
+export function getPortalSeminarClosedReason(seminar: {
   hasStarted: boolean;
   isFull: boolean;
 }) {

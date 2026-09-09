@@ -8,6 +8,15 @@ import { isDateOnly } from "@/lib/shared/date-only";
 export type SeminarRow = typeof seminars.$inferSelect;
 
 /**
+ * `db` or an open transaction. The quota floor has to count under the same lock
+ * the registration path takes, so the count query is written once and told
+ * which of the two to run on.
+ */
+type SeminarExecutor =
+  | typeof db
+  | Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
  * A seminar as every surface reads it: the row plus how many places are left,
  * the quota minus the inscriptions already taken. It is a reading, never a
  * decision: the quota is enforced under a lock when an inscription is written
@@ -98,12 +107,15 @@ export async function getSeminar(
  * One query for the whole list, so a gallery of seminars does not become one
  * count per card.
  */
-async function countInscriptionsBySeminar(seminarIds: string[]) {
+async function countInscriptionsBySeminar(
+  seminarIds: string[],
+  executor: SeminarExecutor = db,
+) {
   if (seminarIds.length === 0) {
     return new Map<string, number>();
   }
 
-  const rows = await db
+  const rows = await executor
     .select({
       seminarId: seminarInscriptions.seminarId,
       inscriptionCount: sql<number>`count(*)`,
@@ -117,8 +129,11 @@ async function countInscriptionsBySeminar(seminarIds: string[]) {
   );
 }
 
-async function countSeminarInscriptions(seminarId: string) {
-  const counts = await countInscriptionsBySeminar([seminarId]);
+async function countSeminarInscriptions(
+  seminarId: string,
+  executor: SeminarExecutor = db,
+) {
+  const counts = await countInscriptionsBySeminar([seminarId], executor);
 
   return counts.get(seminarId) ?? 0;
 }
@@ -176,48 +191,57 @@ export async function updateSeminar(
     return validation;
   }
 
-  const existing = await db.query.seminars.findFirst({
-    where: eq(seminars.id, seminarId),
+  // The whole read-decide-write runs under a lock on the seminar row, the same
+  // one `registerSeminarInscription` takes. Counting outside it would let a
+  // registration land between the count and the update and leave the seminar
+  // holding more inscriptions than its new quota describes.
+  return db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select({ eventId: seminars.eventId })
+      .from(seminars)
+      .where(eq(seminars.id, seminarId))
+      .for("update");
+
+    if (!existing) {
+      return seminarNotFoundFailure();
+    }
+
+    const duplicate = await findConflictingSeminar(
+      existing.eventId,
+      validation.input,
+      seminarId,
+      tx,
+    );
+
+    if (duplicate) {
+      return duplicateSeminarFailure();
+    }
+
+    // The quota can never describe fewer places than the seminar already gave
+    // away: administration removes an inscription first, which is the only way
+    // the floor moves down.
+    const inscriptionCount = await countSeminarInscriptions(seminarId, tx);
+
+    if (validation.input.quota < inscriptionCount) {
+      return {
+        ok: false,
+        code: "quota-below-count",
+        error: `No se puede bajar el cupo a menos de ${inscriptionCount}: es la cantidad de inscriptos.`,
+      };
+    }
+
+    const [seminar] = await tx
+      .update(seminars)
+      .set(validation.input)
+      .where(eq(seminars.id, seminarId))
+      .returning();
+
+    if (!seminar) {
+      return seminarNotFoundFailure();
+    }
+
+    return { ok: true, seminar };
   });
-
-  if (!existing) {
-    return seminarNotFoundFailure();
-  }
-
-  const duplicate = await findConflictingSeminar(
-    existing.eventId,
-    validation.input,
-    seminarId,
-  );
-
-  if (duplicate) {
-    return duplicateSeminarFailure();
-  }
-
-  // The quota can never describe fewer places than the seminar already gave
-  // away: administration removes an inscription first, which is the only way
-  // the floor moves down.
-  const inscriptionCount = await countSeminarInscriptions(seminarId);
-
-  if (validation.input.quota < inscriptionCount) {
-    return {
-      ok: false,
-      code: "quota-below-count",
-      error: `No se puede bajar el cupo a menos de ${inscriptionCount}: es la cantidad de inscriptos.`,
-    };
-  }
-
-  const [seminar] = await db
-    .update(seminars)
-    .set(validation.input)
-    .where(eq(seminars.id, seminarId))
-    .returning();
-
-  if (!seminar) {
-    return seminarNotFoundFailure();
-  }
-
-  return { ok: true, seminar };
 }
 
 /**
@@ -243,24 +267,32 @@ export async function setSeminarInstructorPicture(
 export async function deleteSeminar(
   seminarId: string,
 ): Promise<SeminarDeleteResult> {
-  if ((await countSeminarInscriptions(seminarId)) > 0) {
-    return {
-      ok: false,
-      code: "has-inscriptions",
-      error: seminarHasInscriptionsMessage,
-    };
-  }
+  // Under the same lock the registration path takes: the foreign key cascades,
+  // so counting outside it would let an inscription land between the guard and
+  // the delete and be taken with the seminar without ever being refused.
+  return db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select({ id: seminars.id })
+      .from(seminars)
+      .where(eq(seminars.id, seminarId))
+      .for("update");
 
-  const [deleted] = await db
-    .delete(seminars)
-    .where(eq(seminars.id, seminarId))
-    .returning({ id: seminars.id });
+    if (!existing) {
+      return seminarNotFoundFailure();
+    }
 
-  if (!deleted) {
-    return seminarNotFoundFailure();
-  }
+    if ((await countSeminarInscriptions(seminarId, tx)) > 0) {
+      return {
+        ok: false,
+        code: "has-inscriptions",
+        error: seminarHasInscriptionsMessage,
+      };
+    }
 
-  return { ok: true };
+    await tx.delete(seminars).where(eq(seminars.id, seminarId));
+
+    return { ok: true };
+  });
 }
 
 /**
@@ -272,6 +304,7 @@ async function findConflictingSeminar(
   eventId: string,
   input: SeminarInput,
   exceptSeminarId?: string,
+  executor: SeminarExecutor = db,
 ) {
   const filters = [
     eq(seminars.eventId, eventId),
@@ -281,10 +314,13 @@ async function findConflictingSeminar(
     exceptSeminarId ? ne(seminars.id, exceptSeminarId) : undefined,
   ].filter(Boolean);
 
-  return db.query.seminars.findFirst({
-    columns: { id: true },
-    where: and(...filters),
-  });
+  const [conflicting] = await executor
+    .select({ id: seminars.id })
+    .from(seminars)
+    .where(and(...filters))
+    .limit(1);
+
+  return conflicting;
 }
 
 function validateSeminarInput(

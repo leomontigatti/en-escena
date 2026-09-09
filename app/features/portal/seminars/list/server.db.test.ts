@@ -16,9 +16,9 @@ import {
   loadPortalSeminarsList,
 } from "@/features/portal/seminars/list/server";
 import {
-  deleteSeminarInscriptionIntent,
-  registerSeminarInscriptionIntent,
-  toSeminarPersonValue,
+  deletePortalSeminarInscriptionIntent,
+  registerPortalSeminarInscriptionIntent,
+  toPortalSeminarPersonValue,
 } from "@/features/portal/seminars/list/shared";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
@@ -57,7 +57,7 @@ function registerRequest(
 ) {
   const body = new FormData();
 
-  body.set("intent", registerSeminarInscriptionIntent);
+  body.set("intent", registerPortalSeminarInscriptionIntent);
   body.set("seminarId", input.seminarId);
   body.set("person", input.person);
 
@@ -69,7 +69,7 @@ function registerRequest(
 function deleteRequest(cookie: string, inscriptionId: string) {
   const body = new FormData();
 
-  body.set("intent", deleteSeminarInscriptionIntent);
+  body.set("intent", deletePortalSeminarInscriptionIntent);
   body.set("id", inscriptionId);
   body.set("confirmDeletion", inscriptionId);
 
@@ -115,7 +115,7 @@ describe.sequential("portal seminars list", () => {
     await expect(
       registerRequest(session.cookie, {
         seminarId: seminar.id,
-        person: toSeminarPersonValue({ id: dancer.id, kind: "dancer" }),
+        person: toPortalSeminarPersonValue({ id: dancer.id, kind: "dancer" }),
       }),
     ).resolves.toMatchObject({ status: "success" });
 
@@ -138,16 +138,16 @@ describe.sequential("portal seminars list", () => {
 
     await registerRequest(session.cookie, {
       seminarId: seminar.id,
-      person: toSeminarPersonValue({ id: first.id, kind: "dancer" }),
+      person: toPortalSeminarPersonValue({ id: first.id, kind: "dancer" }),
     });
 
     await expect(
       registerRequest(session.cookie, {
         seminarId: seminar.id,
-        person: toSeminarPersonValue({ id: second.id, kind: "dancer" }),
+        person: toPortalSeminarPersonValue({ id: second.id, kind: "dancer" }),
       }),
     ).resolves.toEqual({
-      intent: registerSeminarInscriptionIntent,
+      intent: registerPortalSeminarInscriptionIntent,
       message: "Sin lugares disponibles.",
       status: "error",
     });
@@ -164,7 +164,7 @@ describe.sequential("portal seminars list", () => {
 
     await registerRequest(session.cookie, {
       seminarId: seminar.id,
-      person: toSeminarPersonValue({ id: first.id, kind: "dancer" }),
+      person: toPortalSeminarPersonValue({ id: first.id, kind: "dancer" }),
     });
 
     const [card] = (await loadList(session.cookie)).seminars;
@@ -174,7 +174,7 @@ describe.sequential("portal seminars list", () => {
     await expect(
       deleteRequest(session.cookie, card.inscriptions[0].id),
     ).resolves.toEqual({
-      intent: deleteSeminarInscriptionIntent,
+      intent: deletePortalSeminarInscriptionIntent,
       message: "Inscripción eliminada.",
       status: "success",
     });
@@ -184,7 +184,7 @@ describe.sequential("portal seminars list", () => {
     await expect(
       registerRequest(session.cookie, {
         seminarId: seminar.id,
-        person: toSeminarPersonValue({ id: second.id, kind: "dancer" }),
+        person: toPortalSeminarPersonValue({ id: second.id, kind: "dancer" }),
       }),
     ).resolves.toMatchObject({ status: "success" });
   });
@@ -203,7 +203,7 @@ describe.sequential("portal seminars list", () => {
 
     await registerRequest(owner.cookie, {
       seminarId: seminar.id,
-      person: toSeminarPersonValue({ id: dancer.id, kind: "dancer" }),
+      person: toPortalSeminarPersonValue({ id: dancer.id, kind: "dancer" }),
     });
 
     const [card] = (await loadList(owner.cookie)).seminars;
@@ -211,7 +211,7 @@ describe.sequential("portal seminars list", () => {
     await expect(
       deleteRequest(stranger.cookie, card.inscriptions[0].id),
     ).resolves.toEqual({
-      intent: deleteSeminarInscriptionIntent,
+      intent: deletePortalSeminarInscriptionIntent,
       message: "No encontramos esa inscripción.",
       status: "error",
     });

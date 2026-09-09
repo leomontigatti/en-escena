@@ -17,9 +17,9 @@ import {
 } from "@/lib/storage/seminar-pictures.server";
 
 import {
-  deleteSeminarInscriptionIntent,
-  parseSeminarPersonValue,
-  registerSeminarInscriptionIntent,
+  deletePortalSeminarInscriptionIntent,
+  parsePortalSeminarPersonValue,
+  registerPortalSeminarInscriptionIntent,
   type PortalSeminarCard,
   type PortalSeminarsActionData,
   type PortalSeminarsListLoaderData,
@@ -88,15 +88,15 @@ export async function handlePortalSeminarsListAction(
   const intent = formData.get("intent");
 
   if (
-    intent !== registerSeminarInscriptionIntent &&
-    intent !== deleteSeminarInscriptionIntent
+    intent !== registerPortalSeminarInscriptionIntent &&
+    intent !== deletePortalSeminarInscriptionIntent
   ) {
     throw new Response("Acción no soportada.", { status: 400 });
   }
 
   const { activeEvent } = await getPortalActiveEventContext(request);
 
-  if (intent === deleteSeminarInscriptionIntent) {
+  if (intent === deletePortalSeminarInscriptionIntent) {
     return await removeInscription(formData, {
       academyId: academy.id,
       eventId: activeEvent?.id ?? null,
@@ -113,11 +113,13 @@ async function registerInscription(
   formData: FormData,
   context: { academyId: string; eventId: string | null },
 ): Promise<PortalSeminarsActionData> {
-  const person = parseSeminarPersonValue(String(formData.get("person") ?? ""));
+  const person = parsePortalSeminarPersonValue(
+    String(formData.get("person") ?? ""),
+  );
 
   if (!context.eventId || !person) {
     return actionResult(
-      registerSeminarInscriptionIntent,
+      registerPortalSeminarInscriptionIntent,
       "error",
       "Elegí una persona del plantel de tu academia.",
     );
@@ -136,14 +138,14 @@ async function registerInscription(
   // wrong, the seminar simply moved under it.
   if (!result.ok) {
     return actionResult(
-      registerSeminarInscriptionIntent,
+      registerPortalSeminarInscriptionIntent,
       "error",
       result.error,
     );
   }
 
   return actionResult(
-    registerSeminarInscriptionIntent,
+    registerPortalSeminarInscriptionIntent,
     "success",
     seminarInscriptionSuccessMessage,
   );
@@ -155,7 +157,7 @@ async function removeInscription(
 ): Promise<PortalSeminarsActionData> {
   const inscriptionId = String(formData.get("id") ?? "").trim();
   const failed = (message: string) =>
-    actionResult(deleteSeminarInscriptionIntent, "error", message);
+    actionResult(deletePortalSeminarInscriptionIntent, "error", message);
 
   if (String(formData.get("confirmDeletion") ?? "").trim() !== inscriptionId) {
     return failed("Confirmá la baja de la inscripción.");
@@ -177,7 +179,7 @@ async function removeInscription(
   }
 
   return actionResult(
-    deleteSeminarInscriptionIntent,
+    deletePortalSeminarInscriptionIntent,
     "success",
     seminarInscriptionDeletedMessage,
   );

@@ -316,7 +316,7 @@ describe.sequential("the seminar instructor picture", () => {
     expect(await getSeminar(seminar.id)).not.toBeNull();
   });
 
-  // The object is removed before the row, and a retry has to converge: a key
+  // The row is removed before the object, and a retry has to converge: a key
   // whose bytes are already gone is still a delete that succeeds.
   test("deleting the seminar tolerates a picture object that is already gone", async () => {
     const event = await createSavedEvent();

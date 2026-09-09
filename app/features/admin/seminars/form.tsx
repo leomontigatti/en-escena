@@ -85,8 +85,12 @@ export function SeminarForm({
     reset(defaultValues);
   }, [defaultValues, reset]);
 
-  // A refusal the server alone can see — the same instructor at the same
-  // moment — belongs on the field that caused it, not only in the toast.
+  // Documented exception to the style guide's "server errors are toasts, never
+  // `FieldError`s" rule (docs/agents/style-guide.md § React Hook Form): the PRD
+  // asks for the duplicate-seminar refusal on the instructor field by name, so
+  // it is the one server outcome that lands inline. The quota floor and every
+  // other refusal stay toasts — this only ever reads `fieldErrors`, which the
+  // repository sets for the unique index alone.
   useEffect(() => {
     if (actionData?.intent !== intent || !actionData.fieldErrors) {
       return;

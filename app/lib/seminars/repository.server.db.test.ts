@@ -226,6 +226,41 @@ describe("seminar repository", () => {
     ).toMatchObject({ scheduledDate: "2020-01-01", quota: 2 });
   });
 
+  // The floor and the hard cap decide on the same number, so they have to read
+  // it under the same lock. Whichever of the two wins, the invariant the pair
+  // exists for must hold afterwards: a seminar never holds more inscriptions
+  // than its quota describes.
+  test("keeps the count within the quota when a registration races the lowering", async () => {
+    const { eventId, seminarId } = await createRegistration();
+    const third = await createDancer(
+      (
+        await createAcademyUser({
+          academyName: "Academia Tercera",
+          email: `${crypto.randomUUID()}@example.com`,
+        })
+      ).academy.id,
+      { firstName: "Carla", lastName: "Sosa" },
+    );
+
+    expectSaved(await updateSeminar(seminarId, { ...seminarInput, quota: 3 }));
+
+    await Promise.all([
+      updateSeminar(seminarId, { ...seminarInput, quota: 2 }),
+      registerSeminarInscription({
+        academyId: third.academyId,
+        eventId,
+        now: new Date("2026-10-10T21:29:00.000Z"),
+        personId: third.id,
+        personKind: "dancer",
+        seminarId,
+      }),
+    ]);
+
+    const seminar = await getSeminar(seminarId);
+
+    expect(seminar?.inscriptionCount).toBeLessThanOrEqual(seminar?.quota ?? 0);
+  });
+
   test("counts the inscriptions the quota already gave away", async () => {
     const { eventId, seminarId } = await createRegistration();
 

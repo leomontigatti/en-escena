@@ -32,18 +32,18 @@ import { createValidatedRouteFormDataSubmitHandler } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import {
-  deleteSeminarInscriptionIntent,
-  formatSeminarMoment,
-  getSeminarClosedReason,
-  getSeminarPersonKindLabel,
-  registerSeminarInscriptionIntent,
-  registerSeminarInscriptionSchema,
-  toSeminarPersonValue,
+  deletePortalSeminarInscriptionIntent,
+  formatPortalSeminarMoment,
+  getPortalSeminarClosedReason,
+  getPortalSeminarPersonKindLabel,
+  registerPortalSeminarInscriptionIntent,
+  registerPortalSeminarInscriptionSchema,
+  toPortalSeminarPersonValue,
   type PortalSeminarCard,
   type PortalSeminarInscription,
   type PortalSeminarsActionData,
   type PortalSeminarsListLoaderData,
-  type RegisterSeminarInscriptionFormValues,
+  type RegisterPortalSeminarInscriptionFormValues,
 } from "./shared";
 
 export function PortalSeminarsListRouteView({
@@ -126,7 +126,7 @@ export function PortalSeminarsListRouteView({
         <DeleteDialog
           title={deletingInscription.inscription.fullName}
           description={`Esta acción da de baja la inscripción en el seminario de ${deletingInscription.instructorName} y libera su lugar. No se puede deshacer.`}
-          intentValue={deleteSeminarInscriptionIntent}
+          intentValue={deletePortalSeminarInscriptionIntent}
           recordId={deletingInscription.inscription.id}
           open
           onOpenChange={(nextOpen) =>
@@ -168,7 +168,7 @@ function SeminarCardView({
   onOpenRegister: () => void;
   onRemoveInscription: (inscriptionId: string) => void;
 }) {
-  const closedReason = getSeminarClosedReason(seminar);
+  const closedReason = getPortalSeminarClosedReason(seminar);
 
   return (
     <Card className="overflow-hidden">
@@ -188,7 +188,7 @@ function SeminarCardView({
         <CardTitle>{seminar.instructorName}</CardTitle>
         <CardDescription className="flex items-center gap-1.5">
           <CalendarClock aria-hidden="true" className="size-3.5" />
-          {formatSeminarMoment(seminar)}
+          {formatPortalSeminarMoment(seminar)}
         </CardDescription>
       </CardHeader>
 
@@ -276,13 +276,13 @@ function RegisterInscriptionDialog({
   submit: ReturnType<typeof useFetcher>["submit"];
 }) {
   const contentRef = useRef<HTMLDivElement | null>(null);
-  const form = useForm<RegisterSeminarInscriptionFormValues>({
-    resolver: zodResolver(registerSeminarInscriptionSchema),
+  const form = useForm<RegisterPortalSeminarInscriptionFormValues>({
+    resolver: zodResolver(registerPortalSeminarInscriptionSchema),
     defaultValues: { seminarId: seminar.id, person: "" },
   });
   const options = seminar.people.map((person) => ({
-    value: toSeminarPersonValue(person),
-    label: `${person.fullName} · ${getSeminarPersonKindLabel(person.kind)}`,
+    value: toPortalSeminarPersonValue(person),
+    label: `${person.fullName} · ${getPortalSeminarPersonKindLabel(person.kind)}`,
   }));
 
   return (
@@ -301,7 +301,9 @@ function RegisterInscriptionDialog({
       >
         <DialogHeader>
           <DialogTitle>{seminar.instructorName}</DialogTitle>
-          <DialogDescription>{formatSeminarMoment(seminar)}</DialogDescription>
+          <DialogDescription>
+            {formatPortalSeminarMoment(seminar)}
+          </DialogDescription>
         </DialogHeader>
 
         <form
@@ -312,7 +314,7 @@ function RegisterInscriptionDialog({
           <input
             type="hidden"
             name="intent"
-            value={registerSeminarInscriptionIntent}
+            value={registerPortalSeminarInscriptionIntent}
           />
           <input type="hidden" name="seminarId" value={seminar.id} />
           <FieldGroup>

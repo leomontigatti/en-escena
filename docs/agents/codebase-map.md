@@ -212,7 +212,7 @@ them and they have their own section under `Operación`.
 - Routes: `app/routes/administracion.seminarios.tsx`, `app/routes/administracion.seminarios_.nuevo.tsx`, `app/routes/administracion.seminarios_.$seminarId.tsx`
 - Feature modules: `app/features/admin/seminars/list/`, `app/features/admin/seminars/create/`, `app/features/admin/seminars/detail/`
 - Shared feature modules: `app/features/admin/seminars/shared.ts`, `app/features/admin/seminars/server.ts`, `app/features/admin/seminars/action.server.ts`, `app/features/admin/seminars/form.tsx`, `app/features/admin/seminars/list-table.tsx`, `app/features/admin/seminars/inscriptions-table.tsx`, `app/features/admin/seminars/actions.tsx`
-- Domain modules: `app/lib/seminars/repository.server.ts`, `app/lib/seminars/inscriptions.server.ts`
+- Domain modules: `app/lib/seminars/repository.server.ts`, `app/lib/seminars/inscriptions.server.ts`, `app/lib/seminars/registration-refusals.ts`
 - Storage module: `app/lib/storage/seminar-pictures.server.ts`
 - Tests: `app/lib/seminars/repository.server.db.test.ts`, `app/features/admin/seminars/action.server.db.test.ts`, `app/features/admin/seminars/action.server.picture.db.test.ts`, `app/features/admin/seminars/routes.adapter.test.tsx`, `app/features/admin/seminars/view.test.tsx`, `app/lib/storage/seminar-pictures.server.test.ts`
 

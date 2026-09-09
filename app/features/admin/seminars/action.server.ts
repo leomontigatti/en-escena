@@ -1,4 +1,3 @@
-import { seminarHasInscriptionsMessage } from "@/lib/seminars/registration-refusals";
 import {
   removeSeminarInscription,
   seminarInscriptionDeletedMessage,
@@ -141,26 +140,11 @@ async function removeSeminar(
 
   const seminar = await getSeminar(seminarId);
 
-  // The guard is read before anything is removed: a refused delete has to leave
-  // the picture exactly where it was. `deleteSeminar` checks it again, which is
-  // what actually decides — this only keeps the bytes out of the refusal.
-  if (seminar && seminar.inscriptionCount > 0) {
-    return {
-      status: "error",
-      intent: deleteSeminarIntent,
-      message: seminarHasInscriptionsMessage,
-    };
-  }
-
-  // The object goes first: a delete that reported success over bytes that
-  // survived is the one outcome "eliminar" must not mean. `removeInstructorPicture`
-  // tolerates an object that is already gone, so a retry converges.
-  if (seminar?.instructorPictureStorageKey) {
-    await createDefaultSeminarPictureStorage().removeInstructorPicture(
-      seminar.instructorPictureStorageKey,
-    );
-  }
-
+  // The row goes first, because `deleteSeminar` is what actually decides: it
+  // re-reads the guard, so an inscription created since this handler started
+  // still refuses. Removing the object before that decision would let a refused
+  // delete destroy the picture of a seminar that is still there, leaving the
+  // stored key pointing at bytes that are gone.
   const result = await deleteSeminar(seminarId);
 
   if (!result.ok) {
@@ -169,6 +153,15 @@ async function removeSeminar(
       intent: deleteSeminarIntent,
       message: result.error,
     };
+  }
+
+  // Only once the row is gone. A failure here orphans the object on the volume,
+  // which is what deleting an event already does to its documents;
+  // `removeInstructorPicture` tolerates one already gone, so a retry converges.
+  if (seminar?.instructorPictureStorageKey) {
+    await createDefaultSeminarPictureStorage().removeInstructorPicture(
+      seminar.instructorPictureStorageKey,
+    );
   }
 
   throw await redirectWithFlashNotification(

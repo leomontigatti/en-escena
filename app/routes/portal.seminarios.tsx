@@ -27,7 +27,7 @@ export async function action({ request }: { request: Request }) {
   return await handlePortalSeminarsListAction(request);
 }
 
-export default function PortalSeminariosRoute({
+export default function PortalSeminarsRoute({
   loaderData,
 }: PortalSeminarsListRouteProps) {
   const actionData = useActionData<typeof action>();

@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { isPositiveIntegerString } from "@/features/admin/schedules/view-shared";
 import type { FieldErrors } from "@/lib/shared/form-validation";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import type { SeminarInscriptionRow } from "@/lib/seminars/inscriptions.server";
@@ -125,10 +126,4 @@ export function readSeminarFormValues(formData: FormData): SeminarFormValues {
         ? keptSeminarPictureValue
         : "",
   };
-}
-
-function isPositiveIntegerString(value: string) {
-  const parsedValue = Number(value);
-
-  return Number.isInteger(parsedValue) && parsedValue > 0;
 }
