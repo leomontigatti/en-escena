@@ -19,14 +19,12 @@ import { deleteSeminarInscriptionIntent } from "./shared";
  */
 export function SeminarInscriptionsTable({
   inscriptions,
-  initialRemovingInscriptionId = null,
 }: {
   inscriptions: SeminarInscriptionRow[];
-  initialRemovingInscriptionId?: string | null;
 }) {
   const [removingInscriptionId, setRemovingInscriptionId] = useState<
     string | null
-  >(initialRemovingInscriptionId);
+  >(null);
   const removingInscription =
     inscriptions.find(
       (inscription) => inscription.id === removingInscriptionId,

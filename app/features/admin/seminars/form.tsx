@@ -88,9 +88,10 @@ export function SeminarForm({
   // Documented exception to the style guide's "server errors are toasts, never
   // `FieldError`s" rule (docs/agents/style-guide.md § React Hook Form): the PRD
   // asks for the duplicate-seminar refusal on the instructor field by name, so
-  // it is the one server outcome that lands inline. The quota floor and every
-  // other refusal stay toasts — this only ever reads `fieldErrors`, which the
-  // repository sets for the unique index alone.
+  // it is the one server outcome that lands inline. Nothing else reaches it in
+  // practice: the other `fieldErrors` the server can send restate this same Zod
+  // schema, which validated on the client before the submit left. The quota
+  // floor and every other refusal carry no field and stay toasts.
   useEffect(() => {
     if (actionData?.intent !== intent || !actionData.fieldErrors) {
       return;

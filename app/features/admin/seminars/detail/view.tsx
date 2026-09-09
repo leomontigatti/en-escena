@@ -16,16 +16,12 @@ const updateSeminarFormId = "update-seminar-form";
 export type SeminarDetailViewProps = {
   actionData?: SeminarActionData;
   initialDeleteDialogOpen?: boolean;
-  initialRemovingInscriptionId?: string | null;
-  initialTab?: string;
   loaderData: SeminarDetailLoaderData;
 };
 
 export function SeminarDetailView({
   actionData,
   initialDeleteDialogOpen = false,
-  initialRemovingInscriptionId = null,
-  initialTab = "informacion",
   loaderData,
 }: SeminarDetailViewProps) {
   useServerActionToast(actionData);
@@ -44,7 +40,7 @@ export function SeminarDetailView({
         />
       }
     >
-      <Tabs defaultValue={initialTab}>
+      <Tabs defaultValue="informacion">
         <TabsList variant="line">
           <TabsTrigger value="informacion">Información</TabsTrigger>
           <TabsTrigger value="inscriptos">Inscriptos</TabsTrigger>
@@ -71,10 +67,7 @@ export function SeminarDetailView({
           </SeminarFormPanel>
         </TabsContent>
         <TabsContent value="inscriptos" className="pt-2">
-          <SeminarInscriptionsTable
-            inscriptions={loaderData.inscriptions}
-            initialRemovingInscriptionId={initialRemovingInscriptionId}
-          />
+          <SeminarInscriptionsTable inscriptions={loaderData.inscriptions} />
         </TabsContent>
       </Tabs>
     </AdminResourceLayout>

@@ -149,7 +149,15 @@ function lockSeminar(tx: Transaction, input: RegisterSeminarInscriptionInput) {
     .then((rows) => rows.at(0));
 }
 
-/** The three reasons a locked seminar refuses, in the order they are read. */
+/**
+ * The three reasons a locked seminar refuses, in the order they are read.
+ * Deliberately not the PRD's order, which lists the full seminar first: once a
+ * seminar has begun its quota stopped being the question, so "started" wins —
+ * the same precedence the portal footer reads a closed seminar by
+ * (`getPortalSeminarClosedReason`). Eligibility comes before the count because
+ * a person who could never be registered should not be told the seminar filled
+ * up.
+ */
 async function findRegistrationRefusal(
   tx: Transaction,
   seminar: {

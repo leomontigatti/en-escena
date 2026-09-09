@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 
+import { act } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
@@ -191,17 +192,12 @@ function buildInscription(
   };
 }
 
-function renderInscriptions(
-  inscriptions: SeminarInscriptionRow[],
-  initialRemovingInscriptionId: string | null = null,
-) {
+async function renderInscriptions(inscriptions: SeminarInscriptionRow[]) {
   const seminar = buildSeminar({ inscriptionCount: inscriptions.length });
 
-  return renderAt(
+  await renderAt(
     "/administracion/seminarios/seminar_1",
     <SeminarDetailView
-      initialRemovingInscriptionId={initialRemovingInscriptionId}
-      initialTab="inscriptos"
       loaderData={{
         inscriptions,
         instructorPictureUrl: null,
@@ -211,6 +207,27 @@ function renderInscriptions(
       }}
     />,
   );
+
+  // The tab is reached the way an administrator reaches it: the panel is not
+  // mounted until its trigger is pressed.
+  await clickText('[role="tab"]', "Inscriptos");
+}
+
+/** Presses the first element matching `selector` whose text is `text`. */
+async function clickText(selector: string, text: string) {
+  const target = Array.from(
+    document.querySelectorAll<HTMLElement>(selector),
+  ).find((element) => element.textContent?.trim() === text);
+
+  if (!target) {
+    throw new Error(`Expected to find ${selector} reading "${text}".`);
+  }
+
+  await act(async () => {
+    // Radix's tabs select on focus, buttons on click; pressing does both.
+    target.focus();
+    target.click();
+  });
 }
 
 describe("SeminarDetailView `Inscriptos`", () => {
@@ -245,7 +262,11 @@ describe("SeminarDetailView `Inscriptos`", () => {
   });
 
   test("opens the removal confirmation from the person name", async () => {
-    await renderInscriptions([buildInscription()], "inscription_1");
+    await renderInscriptions([buildInscription()]);
+
+    expect(document.querySelector('[role="alertdialog"]')).toBeNull();
+
+    await clickText("button", "Abril Sosa");
 
     const dialog = document.querySelector('[role="alertdialog"]');
 
