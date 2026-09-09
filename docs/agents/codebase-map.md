@@ -107,6 +107,19 @@ schedule resolution and operational completion.
 - UI modules: `app/features/portal/choreographies/list/view.tsx`, `app/features/portal/choreographies/create/dialog.tsx`, `app/features/portal/choreographies/detail/view.tsx`, `app/features/portal/choreographies/detail/music-editor-form.tsx`
 - Tests: `app/features/portal/choreographies/detail/server.db.test.ts`, `app/lib/choreographies/registration-resolution.server.db.test.ts`, `app/lib/choreographies/registration-confirmation.server.db.test.ts`, `app/features/portal/choreographies/list/server.db.test.ts`, `app/features/portal/choreographies/create/flow.test.ts`, `app/features/portal/choreographies/request-flow.render.test.tsx`, `app/features/portal/choreographies/detail/view.test.tsx`
 
+## Portal Seminars
+
+Use for the academy-facing seminar gallery: the seminar cards of the active
+event, the academy's own inscriptions and the registration dialog. The seminar
+row and its administrative surfaces live in `Admin Seminars`.
+
+- Domain: `docs/domain/seminars.md`
+- ADRs: `docs/adr/0002-selectable-event-contexts.md`, `docs/adr/0004-organize-app-code-by-product-surface.md`
+- Routes: `app/routes/portal.seminarios.tsx`
+- Feature modules: `app/features/portal/seminars/list/`
+- Domain modules: `app/lib/seminars/inscriptions.server.ts`, `app/lib/seminars/registration-window.ts`, `app/lib/seminars/registration-refusals.ts`
+- Tests: `app/lib/seminars/inscriptions.server.db.test.ts`, `app/lib/seminars/registration-window.test.ts`, `app/features/portal/seminars/list/server.db.test.ts`, `app/features/portal/seminars/list/view.test.tsx`
+
 ## Admin Shell And Dashboard
 
 Use for the `Panel de administración` shell, dashboard entry points, shared
@@ -185,6 +198,23 @@ schedules, capacities, prices and registration readiness.
 - High-signal feature UI entry points: `app/features/admin/schedules/list/view.tsx`, `app/features/admin/schedules/detail/view.tsx`, `app/features/admin/prices/list/view.tsx`, `app/features/admin/prices/detail/view.tsx`
 - Test helpers: `app/lib/admin/events/event-bases.test-helpers.tsx`
 - Tests: `app/features/admin/events/routes.adapter.test.tsx`, `app/features/admin/modalities/routes.adapter.test.tsx`, `app/features/admin/categories/routes.adapter.test.tsx`, `app/features/admin/schedules/routes.adapter.test.tsx`, `app/features/admin/prices/routes.adapter.test.tsx`, `app/lib/admin/event-context.server.test.ts`, `app/lib/admin/events/events-route.server.db.test.ts`, `app/lib/admin/events/event-detail-route.server.db.test.ts`, `app/lib/admin/events/event-bases-overview-modalities.server.db.test.ts`, `app/lib/admin/events/event-bases-categories.server.db.test.ts`, `app/lib/admin/events/event-bases-prices.server.db.test.ts`, `app/lib/admin/events/event-bases-validation.server.db.test.ts`, `app/lib/admin/events/event-bases-cronogramas.server.db.test.ts`, `app/lib/events/management.server.db.test.ts`, `app/lib/events/bases.server.test.ts`, `app/lib/events/bases-repository-catalog.server.db.test.ts`, `app/lib/events/bases-repository-schedules.server.db.test.ts`, `app/lib/events/bases-repository-prices.server.db.test.ts`, `app/lib/events/bases-repository-capacities.server.db.test.ts`, `app/lib/events/registration-readiness.server.db.test.ts`
+
+## Admin Seminars
+
+Use for the seminars an event offers around the competition: the seminar row,
+the admin list, the create page, the detail with its `Información` and
+`Inscriptos` tabs, the instructor's picture and the removal of an inscription.
+Seminars are not part of the `Bases del evento` — registration readiness ignores
+them and they have their own section under `Operación`.
+
+- Domain: `docs/domain/seminars.md`
+- ADRs: `docs/adr/0002-selectable-event-contexts.md`, `docs/adr/0004-organize-app-code-by-product-surface.md`
+- Routes: `app/routes/administracion.seminarios.tsx`, `app/routes/administracion.seminarios_.nuevo.tsx`, `app/routes/administracion.seminarios_.$seminarId.tsx`
+- Feature modules: `app/features/admin/seminars/list/`, `app/features/admin/seminars/create/`, `app/features/admin/seminars/detail/`
+- Shared feature modules: `app/features/admin/seminars/shared.ts`, `app/features/admin/seminars/server.ts`, `app/features/admin/seminars/action.server.ts`, `app/features/admin/seminars/form.tsx`, `app/features/admin/seminars/list-table.tsx`, `app/features/admin/seminars/inscriptions-table.tsx`, `app/features/admin/seminars/actions.tsx`
+- Domain modules: `app/lib/seminars/repository.server.ts`, `app/lib/seminars/inscriptions.server.ts`, `app/lib/seminars/registration-refusals.ts`
+- Storage module: `app/lib/storage/seminar-pictures.server.ts`
+- Tests: `app/lib/seminars/repository.server.db.test.ts`, `app/features/admin/seminars/action.server.db.test.ts`, `app/features/admin/seminars/action.server.picture.db.test.ts`, `app/features/admin/seminars/routes.adapter.test.tsx`, `app/features/admin/seminars/view.test.tsx`, `app/lib/storage/seminar-pictures.server.test.ts`
 
 ## Judging And Results
 

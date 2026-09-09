@@ -34,9 +34,12 @@ const schemaExportNames = [
   "scheduleCapacities",
   "scheduleModalities",
   "schedules",
+  "seminarInscriptions",
+  "seminars",
   "submodalities",
   "user",
   "userRole",
+  "uuidPrimaryKey",
   "verification",
 ] as const;
 

@@ -17,6 +17,7 @@ const assetKinds: AssetKind[] = [
   "choreographyMusic",
   "dancerDocumentImage",
   "eventDocument",
+  "seminarInstructorPicture",
 ];
 
 describe("asset kind policy", () => {
@@ -31,6 +32,9 @@ describe("asset kind policy", () => {
     );
     expect(assetKindPolicies.eventDocument.bucket).toBe(
       "en-escena-event-documents",
+    );
+    expect(assetKindPolicies.seminarInstructorPicture.bucket).toBe(
+      "enescena-seminar-pictures",
     );
   });
 
@@ -65,6 +69,9 @@ describe("asset kind policy", () => {
       "JPG, PNG o WEBP - max 10 MB",
     );
     expect(getAssetKindHelperText("eventDocument")).toBe("PDF - max 10 MB");
+    expect(getAssetKindHelperText("seminarInstructorPicture")).toBe(
+      "JPG, PNG o WEBP - max 10 MB",
+    );
   });
 
   test("maps every accepted content type to an extension", () => {
@@ -300,5 +307,47 @@ describe("event document policy", () => {
       maxFileSizeMessage:
         "El archivo de la autorización para menores no puede superar 10 MB.",
     });
+  });
+});
+
+describe("seminar instructor picture policy", () => {
+  test("accepts the three image formats and refuses a PDF", () => {
+    for (const contentType of ["image/jpeg", "image/png", "image/webp"]) {
+      expect(
+        checkAssetAgainstPolicy("seminarInstructorPicture", {
+          size: 1,
+          type: contentType,
+        }),
+      ).toBeNull();
+    }
+
+    expect(
+      checkAssetAgainstPolicy("seminarInstructorPicture", {
+        size: 1,
+        type: "application/pdf",
+      }),
+    ).toEqual({
+      contentType: "application/pdf",
+      kind: "seminarInstructorPicture",
+      reason: "unsupported-content-type",
+    });
+  });
+
+  // The field has no per-file label to borrow, so the kind's own subject is
+  // what the administration reads when a picture is refused.
+  test("names the picture in its own refusals", () => {
+    expect(
+      formatUploadRejection({
+        kind: "seminarInstructorPicture",
+        reason: "file-too-large",
+        sizeBytes: 1,
+      }),
+    ).toBe("La foto del instructor no puede superar 10 MB.");
+  });
+
+  test("signs a picture link for the same short window as the other kinds", () => {
+    expect(
+      assetKindPolicies.seminarInstructorPicture.signedUrlExpiresInSeconds,
+    ).toBe(300);
   });
 });
