@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
@@ -6,11 +6,11 @@ import { choreographyDancers, prices } from "@/db/schema";
 import { createSelectedPriceInscriptionForTest } from "@/features/portal/choreographies/test-support/db";
 import { createModality } from "@/lib/modalities/repository.server";
 import { createAcademyFinanceChoreographyFixture } from "@/lib/admin/finances/finances.test-support";
+import { resolveApplicableInscriptionPrice } from "@/lib/finances/inscription-price.server";
 import {
   createPrice,
   deletePrice,
   listPrices,
-  resolveApplicablePrice,
   updatePrice,
 } from "@/lib/prices/repository.server";
 import { deleteSchedule } from "@/lib/schedules/repository.server";
@@ -22,9 +22,25 @@ import {
   expectCreated,
 } from "@/lib/events/bases-test-fixtures.server.db";
 
+import * as businessTimeZone from "@/lib/shared/business-time-zone";
+
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+/**
+ * The resolver has no date parameter: it resolves against today's business
+ * date, so a test that needs a particular day sets that day.
+ */
+function onBusinessDate(businessDate: string) {
+  vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
+    businessDate,
+  );
+}
 
 describe("`Bases del evento` repository", () => {
   test("keeps prices unique by event and rejects schedules from another event", async () => {
@@ -100,8 +116,11 @@ describe("`Bases del evento` repository", () => {
       name: "Precio bloque",
       scheduleId: block.id,
     });
+    // Every fixture row expires on 2026-05-31; the resolver has no date of its
+    // own, so the business date is what the test moves.
+    onBusinessDate("2026-05-20");
     await expect(
-      resolveApplicablePrice({
+      resolveApplicableInscriptionPrice(db, {
         eventId: event.id,
         groupType: "solo",
         scheduleId: block.id,
@@ -115,19 +134,21 @@ describe("`Bases del evento` repository", () => {
       name: "Precio segunda fecha",
       paymentDeadline: "2026-06-30",
     });
+    onBusinessDate("2026-06-10");
     await expect(
-      resolveApplicablePrice({
+      resolveApplicableInscriptionPrice(db, {
         eventId: event.id,
         groupType: "solo",
-        paymentDate: "2026-06-10",
         scheduleId: null,
       }),
     ).resolves.toMatchObject({
       ok: true,
       price: { id: laterGeneral.id, amount: 17000 },
     });
+    // Both general rows apply again, and the nearest deadline wins.
+    onBusinessDate("2026-05-20");
     await expect(
-      resolveApplicablePrice({
+      resolveApplicableInscriptionPrice(db, {
         eventId: event.id,
         groupType: "solo",
         scheduleId: null,
@@ -137,7 +158,7 @@ describe("`Bases del evento` repository", () => {
       price: { id: general.id, amount: 12000 },
     });
     await expect(
-      resolveApplicablePrice({
+      resolveApplicableInscriptionPrice(db, {
         eventId: event.id,
         groupType: "duo",
         scheduleId: block.id,
@@ -254,19 +275,19 @@ describe("`Bases del evento` repository", () => {
       scheduleId: block.id,
     });
 
+    onBusinessDate("2026-05-20");
     await expect(
-      resolveApplicablePrice({
+      resolveApplicableInscriptionPrice(db, {
         eventId: event.id,
         groupType: "solo",
-        paymentDate: "2026-05-20",
         scheduleId: null,
       }),
     ).resolves.toMatchObject({ ok: true, price: { id: dated.id } });
+    onBusinessDate("2026-06-01");
     await expect(
-      resolveApplicablePrice({
+      resolveApplicableInscriptionPrice(db, {
         eventId: event.id,
         groupType: "solo",
-        paymentDate: "2026-06-01",
         scheduleId: null,
       }),
     ).resolves.toMatchObject({ ok: true, price: { id: generalBase.id } });
@@ -274,19 +295,19 @@ describe("`Bases del evento` repository", () => {
     // Two tiers: the schedule's own row still applies, and once it expires the
     // resolution falls through to the general tier's open-ended price rather than to
     // `missing-price`.
+    onBusinessDate("2026-05-20");
     await expect(
-      resolveApplicablePrice({
+      resolveApplicableInscriptionPrice(db, {
         eventId: event.id,
         groupType: "solo",
-        paymentDate: "2026-05-20",
         scheduleId: block.id,
       }),
     ).resolves.toMatchObject({ ok: true, price: { id: datedBlock.id } });
+    onBusinessDate("2026-06-01");
     await expect(
-      resolveApplicablePrice({
+      resolveApplicableInscriptionPrice(db, {
         eventId: event.id,
         groupType: "solo",
-        paymentDate: "2026-06-01",
         scheduleId: block.id,
       }),
     ).resolves.toMatchObject({ ok: true, price: { id: generalBase.id } });

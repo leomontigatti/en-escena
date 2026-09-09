@@ -17,8 +17,8 @@ import {
   type ChoreographyGroupType,
   computeDancerDiscountAmounts,
   type DancerDiscount,
-  resolveEffectiveBasePriceAmount,
 } from "@/lib/finances/operational-summary-calculations.server";
+import { resolveEffectiveBasePriceAmount } from "@/lib/finances/inscription-price";
 
 import type { Executor } from "./choreography-cobro-support.server";
 

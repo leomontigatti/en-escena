@@ -230,10 +230,15 @@ decision rather than an oversight.
   `price_general_unique` and `price_specific_unique` — both created `NULLS NOT
 DISTINCT`, because two of them would otherwise be separated only by amount.
 - **The business date** — today in the business time zone, never a payment's date
-  — appears only on the **read** path, in `resolveEstimatedBasePriceAmount`. It
-  resolves the currently applicable row, preferring the row specific to the
-  choreography's schedule and group type, then the general row for that group
-  type.
+  — appears only on the **read** path, and only inside
+  `app/lib/finances/inscription-price.ts`, the single owner of applicable-row
+  selection. `selectApplicableInscriptionPrice` resolves the currently
+  applicable row, preferring the row specific to the choreography's schedule and
+  group type, then the general row for that group type; both tiers go through
+  `selectApplicablePriceCandidate`, which owns the deadline filter and the
+  nearest-deadline / lowest-amount tie-break and has no dateless overload.
+  `resolveApplicableInscriptionPrice` (`inscription-price.server.ts`) is the same
+  rule from the database, for a caller that has not loaded the event's rows.
 - **The price is fixed by the deposit threshold crossing, not by the first peso
   and not by the calendar.** Below the threshold nothing is fixed: an allocation
   write may store a different row whatever the inscription already holds, and the
@@ -328,9 +333,8 @@ schedule capacity while any inscription holds money.
   the effective price against today's business date, the stored row once the
   deposit is covered, the live `Descuento por bailarín`, and `Sin precio` when
   nothing resolves — the same figures as the finance surfaces for the same
-  inscription. The dateless `resolveApplicablePrice` overload it used to call
-  still exists for other callers; retiring it is
-  [#403](https://github.com/leomontigatti/en-escena/issues/403)'s.
+  inscription. The dateless resolver it used to call is retired; nothing
+  resolves a price without the business date any more.
 
 ## Payments
 
@@ -826,11 +830,10 @@ the difference matters to anyone about to delete something:
   (`app/features/portal/finances/view.tsx`), and the card that links to it from
   `app/routes/portal._index.tsx` still describes it as their cuenta corriente.
 - **`Fecha de referencia financiera`** retires the _per-inscription column_; both
-  reference-date columns were dropped in #689. The words survive as a local
-  variable, `financialReferenceDate` in `resolveEstimatedBasePriceAmount`, which
-  holds the shared business date on the read path. It names no column, no type
-  and no exported symbol, and it is not a financial concept — but it is a real
-  identifier, and grep will find it.
+  reference-date columns were dropped in #689. The words no longer appear in
+  code either: the read path takes the shared business date as a `businessDate`
+  parameter of `selectApplicableInscriptionPrice`, which is not a financial
+  concept and needs no term.
 - **`Porción`** retires the _classification_: the column, its pgEnum, its
   derivation and its printed label are gone, and no identifier spells it. But
   `readComprobantesListFilters` still calls `searchParams.delete("porcion")`,

@@ -38,10 +38,8 @@ import {
   deriveInscriptionFinancialFigures,
 } from "@/lib/finances/inscription-financial-status";
 import { readInscriptionThresholds } from "@/lib/finances/inscription-thresholds.server";
-import {
-  type ChoreographyGroupType,
-  resolveEffectiveBasePriceRow,
-} from "@/lib/finances/operational-summary-calculations.server";
+import { type ChoreographyGroupType } from "@/lib/finances/operational-summary-calculations.server";
+import { resolveEffectiveBasePriceRow } from "@/lib/finances/inscription-price";
 
 import {
   readInscriptionAllocatedAmount,
@@ -90,8 +88,8 @@ export type InscriptionDialogPrice = {
  * `paymentDeadline` is deliberately not a filter, here or on the write path
  * (`loadCandidatePriceRow` does not look at it either), so an expired row is
  * both offerable and storable. The deadline decides which price an inscription
- * *would* be charged when nobody has said — that is the read-side estimate in
- * `resolveEstimatedBasePriceAmount`. Here somebody is saying it: an
+ * *would* be charged when nobody has said — that is the read side's
+ * `selectApplicableInscriptionPrice`. Here somebody is saying it: an
  * administrator naming the price a late payment settles at is making the call
  * the deadline exists to make in their absence.
  */

@@ -12,7 +12,6 @@ import {
   priceNotFound,
   prices,
   schedules,
-  toDateOnly,
   uniqueValues,
 } from "@/lib/events/bases-repository/shared.server";
 import type { GroupType } from "@/lib/events/group-types";
@@ -23,7 +22,6 @@ import type {
   PriceDependencies,
   PriceInput,
   PriceListItem,
-  PriceResolutionResult,
   ValidPriceInput,
 } from "@/lib/events/bases-repository/shared.server";
 
@@ -185,61 +183,6 @@ export async function deletePrice(
   await db.delete(prices).where(eq(prices.id, priceId));
 
   return { ok: true };
-}
-
-export async function resolveApplicablePrice(input: {
-  eventId: string;
-  groupType: string;
-  paymentDate?: Date | string | null;
-  scheduleId: string | null;
-}): Promise<PriceResolutionResult> {
-  if (!isGroupType(input.groupType)) {
-    return {
-      ok: false,
-      code: "invalid-group-type",
-      error: "No se pudo resolver el precio para ese tipo de grupo.",
-    };
-  }
-
-  if (input.scheduleId) {
-    const specificPrices = await db.query.prices.findMany({
-      where: and(
-        eq(prices.eventId, input.eventId),
-        eq(prices.groupType, input.groupType),
-        eq(prices.scheduleId, input.scheduleId),
-      ),
-    });
-    const specificPrice = selectApplicablePriceFromCandidates(
-      specificPrices,
-      input.paymentDate,
-    );
-
-    if (specificPrice) {
-      return { ok: true, price: specificPrice };
-    }
-  }
-
-  const generalPrices = await db.query.prices.findMany({
-    where: and(
-      eq(prices.eventId, input.eventId),
-      eq(prices.groupType, input.groupType),
-      isNull(prices.scheduleId),
-    ),
-  });
-  const generalPrice = selectApplicablePriceFromCandidates(
-    generalPrices,
-    input.paymentDate,
-  );
-
-  if (generalPrice) {
-    return { ok: true, price: generalPrice };
-  }
-
-  return {
-    ok: false,
-    code: "missing-price",
-    error: "No hay un precio configurado para este tipo de grupo y cronograma.",
-  };
 }
 
 // `selectedPriceId` is only written when an inscription crosses its deposit, so
@@ -532,46 +475,6 @@ function comparePrices(first: PriceListItem, second: PriceListItem) {
 
   if (scheduleComparison !== 0) {
     return scheduleComparison;
-  }
-
-  return first.amount - second.amount;
-}
-
-export function selectApplicablePriceFromCandidates(
-  candidates: Array<typeof prices.$inferSelect>,
-  paymentDate: Date | string | null | undefined,
-) {
-  const dateOnly = paymentDate ? toDateOnly(paymentDate) : null;
-  const applicableCandidates = dateOnly
-    ? candidates.filter(
-        (price) =>
-          price.paymentDeadline === null || price.paymentDeadline >= dateOnly,
-      )
-    : candidates;
-
-  return applicableCandidates.sort(compareApplicablePrices)[0] ?? null;
-}
-
-function compareApplicablePrices(
-  first: typeof prices.$inferSelect,
-  second: typeof prices.$inferSelect,
-) {
-  if (first.paymentDeadline === null && second.paymentDeadline !== null) {
-    return 1;
-  }
-
-  if (first.paymentDeadline !== null && second.paymentDeadline === null) {
-    return -1;
-  }
-
-  if (first.paymentDeadline && second.paymentDeadline) {
-    const deadlineComparison = first.paymentDeadline.localeCompare(
-      second.paymentDeadline,
-    );
-
-    if (deadlineComparison !== 0) {
-      return deadlineComparison;
-    }
   }
 
   return first.amount - second.amount;

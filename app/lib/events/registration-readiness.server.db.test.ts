@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import { events } from "@/db/schema";
@@ -8,10 +8,8 @@ import {
   createModality,
   createSubmodality,
 } from "@/lib/modalities/repository.server";
-import {
-  createPrice,
-  resolveApplicablePrice,
-} from "@/lib/prices/repository.server";
+import { resolveApplicableInscriptionPrice } from "@/lib/finances/inscription-price.server";
+import { createPrice } from "@/lib/prices/repository.server";
 import {
   createSchedule,
   createScheduleCapacity,
@@ -28,9 +26,25 @@ import {
   markEventRegistrationReadinessDirty,
 } from "@/lib/events/registration-readiness.server";
 
+import * as businessTimeZone from "@/lib/shared/business-time-zone";
+
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+/**
+ * The resolver has no date parameter: it resolves against today's business
+ * date, so a test that needs a particular day sets that day.
+ */
+function onBusinessDate(businessDate: string) {
+  vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
+    businessDate,
+  );
+}
 
 describe("event registration readiness", () => {
   test("reports missing compatible schedule capacities and applicable prices using the real `Bases del evento` rules", async () => {
@@ -479,13 +493,13 @@ describe("event registration readiness", () => {
     // schedule of its own resolves through the general tier alone, so the null
     // scheduleId is part of the guarantee a general base price makes.
     for (const groupType of ["solo", "duo"]) {
-      for (const paymentDate of ["2026-05-01", "2030-01-01"]) {
+      for (const businessDate of ["2026-05-01", "2030-01-01"]) {
+        onBusinessDate(businessDate);
         for (const scheduleId of [block.id, null]) {
           await expect(
-            resolveApplicablePrice({
+            resolveApplicableInscriptionPrice(db, {
               eventId: event.id,
               groupType,
-              paymentDate,
               scheduleId,
             }),
           ).resolves.toMatchObject({ ok: true });
@@ -555,11 +569,11 @@ describe("event registration readiness", () => {
 
     // Why the schedule tier cannot stand alone: a caller with no schedule of
     // its own goes straight to the general tier, whose last row expired.
+    onBusinessDate("2026-06-01");
     await expect(
-      resolveApplicablePrice({
+      resolveApplicableInscriptionPrice(db, {
         eventId: event.id,
         groupType: "solo",
-        paymentDate: "2026-06-01",
         scheduleId: null,
       }),
     ).resolves.toMatchObject({ ok: false, code: "missing-price" });
