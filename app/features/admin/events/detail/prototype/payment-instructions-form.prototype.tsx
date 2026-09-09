@@ -22,6 +22,7 @@ import {
   MIN_REQUIRED_DEPOSIT_PERCENTAGE,
 } from "@/lib/admin/events/form-values";
 import { requiredFieldMessage } from "@/lib/shared/forms";
+import { cn } from "@/lib/shared/utils";
 
 /* ------------------------------------------------------------------ *
  * The algorithms. In the real build these live in
@@ -46,15 +47,34 @@ function hasValidBlockCheckDigit(block: string, weights: number[]) {
 }
 
 /**
+ * What is wrong with an identifier, which is not the same as "it is invalid".
+ * Two failures are distinguishable and a person fixes them differently:
+ *
+ * - `shape` — it is not 22 digits (or 11, for a CUIT). A counting mistake.
+ * - `check-digit` — it is the right length, but the digits do not agree with
+ *   each other. The check digit is computed from the others, so this means one
+ *   digit is mistyped or two are transposed. Nothing more.
+ *
+ * Neither answers whether the account exists, is open, or belongs to anyone in
+ * particular — no arithmetic can, only the bank can. So the copy for these
+ * never claims the number is "valid", only that it is self-consistent.
+ */
+export type IdentifierProblem = "shape" | "check-digit" | null;
+
+/**
  * 22 digits, two mod-10 check digits. Takes a CBU or a CVU: the `000` prefix
  * that marks a CVU is deliberately not enforced (#869, amendment).
  */
-export function isValidCbu(value: string) {
-  return (
-    /^\d{22}$/.test(value) &&
+export function checkCbu(value: string): IdentifierProblem {
+  if (!/^\d{22}$/.test(value)) {
+    return "shape";
+  }
+
+  const digitsAgree =
     hasValidBlockCheckDigit(value.slice(0, 8), cbuBlockWeights.bank) &&
-    hasValidBlockCheckDigit(value.slice(8), cbuBlockWeights.account)
-  );
+    hasValidBlockCheckDigit(value.slice(8), cbuBlockWeights.account);
+
+  return digitsAgree ? null : "check-digit";
 }
 
 export function isValidAlias(value: string) {
@@ -64,11 +84,11 @@ export function isValidAlias(value: string) {
 const cuitWeights = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2];
 
 /** Mod 11. Accepts `30-71234567-1` and `30712345671` alike. */
-export function isValidCuit(value: string) {
+export function checkCuit(value: string): IdentifierProblem {
   const digits = value.replace(/[\s-]/g, "");
 
   if (!/^\d{11}$/.test(digits)) {
-    return false;
+    return "shape";
   }
 
   const sum = cuitWeights.reduce(
@@ -78,7 +98,9 @@ export function isValidCuit(value: string) {
   const remainder = 11 - (sum % 11);
   const checkDigit = remainder === 11 ? 0 : remainder;
 
-  return checkDigit !== 10 && checkDigit === Number(digits[10]);
+  return checkDigit !== 10 && checkDigit === Number(digits[10])
+    ? null
+    : "check-digit";
 }
 
 /* ------------------------------------------------------------------ *
@@ -89,11 +111,39 @@ export function isValidCuit(value: string) {
 
 export const MAX_PAYMENT_INSTRUCTIONS_TEXT_LENGTH = 2000;
 
-const invalidCbuMessage =
-  "El CBU/CVU tiene que tener 22 dígitos y ser un número válido.";
+// Each identifier has two messages, one per problem, because "no es válido"
+// hides which of the two happened and neither is what the admin would guess:
+// the check digit does not tell us the account is real, only that the digits
+// disagree with each other, which in practice means a typo.
+const cbuMessages = {
+  shape: "El CBU/CVU tiene que tener 22 dígitos, sin espacios ni guiones.",
+  "check-digit":
+    "Revisá el CBU/CVU: son 22 dígitos pero no se corresponden entre sí, así que hay alguno mal tipeado.",
+} as const;
+const cuitMessages = {
+  shape: "El CUIT tiene que tener 11 dígitos.",
+  "check-digit":
+    "Revisá el CUIT: el último dígito no se corresponde con los demás, así que hay alguno mal tipeado.",
+} as const;
 const invalidAliasMessage =
   "El alias tiene entre 6 y 20 caracteres, y solo admite letras, números, puntos y guiones.";
-const invalidCuitMessage = "El CUIT no es válido. Revisá los 11 dígitos.";
+
+// REVIEWER: these two diverge from the style guide on purpose, and the PRD
+// should carry the exception.
+//
+// `docs/agents/style-guide.md` says an empty required field must always read
+// "Este campo es obligatorio.", reserving specific copy for values that are
+// present but invalid. These fields are empty when the message fires, so the
+// letter of the rule applies — but they are only *conditionally* required: both
+// are optional until some other identifier is filled (the group rule of #869).
+// "Este campo es obligatorio." on a field that was optional a second ago states
+// the requirement without the condition that created it, which is exactly the
+// half the admin needs.
+//
+// The rule reads as being about unconditionally required fields; it does not
+// cover conditional groups. Resolve it one of two ways — keep this copy and
+// record the exception, or amend the guide to draw the distinction — but do not
+// silently "fix" these two strings back to the generic message.
 const missingCbuMessage =
   "Completá el CBU/CVU para guardar los datos bancarios.";
 const missingHolderNameMessage =
@@ -144,13 +194,14 @@ export const paymentInstructionsIdentifierFields = [
 
 export const prototypeEventFormSchema = prototypeEventFormFields
   .superRefine((values, ctx) => {
-    if (
-      values.paymentInstructionsCbu &&
-      !isValidCbu(values.paymentInstructionsCbu)
-    ) {
+    const cbuProblem = values.paymentInstructionsCbu
+      ? checkCbu(values.paymentInstructionsCbu)
+      : null;
+
+    if (cbuProblem) {
       ctx.addIssue({
         code: "custom",
-        message: invalidCbuMessage,
+        message: cbuMessages[cbuProblem],
         path: ["paymentInstructionsCbu"],
       });
     }
@@ -166,13 +217,14 @@ export const prototypeEventFormSchema = prototypeEventFormFields
       });
     }
 
-    if (
-      values.paymentInstructionsHolderCuit &&
-      !isValidCuit(values.paymentInstructionsHolderCuit)
-    ) {
+    const cuitProblem = values.paymentInstructionsHolderCuit
+      ? checkCuit(values.paymentInstructionsHolderCuit)
+      : null;
+
+    if (cuitProblem) {
       ctx.addIssue({
         code: "custom",
-        message: invalidCuitMessage,
+        message: cuitMessages[cuitProblem],
         path: ["paymentInstructionsHolderCuit"],
       });
     }
@@ -299,6 +351,26 @@ export function PaymentInstructionsFields({
     name: "paymentInstructionsText",
   });
   const length = text?.length ?? 0;
+  const isTooLong = length > MAX_PAYMENT_INSTRUCTIONS_TEXT_LENGTH;
+
+  // The cap is the one rule a person can cross *while typing*, so it is the one
+  // that must not wait for a submit to show itself: past 2000 the label, the
+  // border and the ring go destructive through the field's own `data-invalid` /
+  // `aria-invalid` states, rather than the counter turning red on its own next
+  // to a field that still looks fine. The only error this field can carry is
+  // this one, so clearing it unconditionally is safe.
+  const { clearErrors, setError } = form;
+
+  useEffect(() => {
+    if (isTooLong) {
+      setError("paymentInstructionsText", {
+        message: longTextMessage,
+        type: "max",
+      });
+    } else {
+      clearErrors("paymentInstructionsText");
+    }
+  }, [clearErrors, isTooLong, setError]);
 
   return (
     <FieldGroup className="grid gap-5 md:grid-cols-2">
@@ -348,12 +420,14 @@ export function PaymentInstructionsFields({
         // The counter rides the existing description slot, which already sits
         // under the control: no new component, no new token.
         description={
+          // `FieldDescription` sets its own muted colour, so the field's
+          // `data-invalid` does not reach the counter: it says which number is
+          // over the cap, so it is told separately.
           <span
-            className={
-              length > MAX_PAYMENT_INSTRUCTIONS_TEXT_LENGTH
-                ? "block text-right tabular-nums text-destructive"
-                : "block text-right tabular-nums"
-            }
+            className={cn(
+              "block text-right tabular-nums",
+              isTooLong && "text-destructive",
+            )}
           >
             {length} / {MAX_PAYMENT_INSTRUCTIONS_TEXT_LENGTH}
           </span>
@@ -387,9 +461,8 @@ export function EventFormTabs({
   documentsPanel: React.ReactNode;
   form: PrototypeEventForm;
 }) {
-  // Documentos is the landing tab: it is what the admin edits today, and the
-  // instructions are the addition. The tab order still reads instructions
-  // first, so the default is not the leftmost one on purpose.
+  // Documentos leads and lands: it is what the admin edits today, and the
+  // instructions are the addition.
   const [tab, setTab] = useState<string>(documentsTabValue);
   const erroredTab = getErroredTab(form);
   const submitCount = form.formState.submitCount;
@@ -406,13 +479,13 @@ export function EventFormTabs({
   return (
     <Tabs value={tab} onValueChange={setTab}>
       <TabsList variant="line">
+        <TabsTrigger value={documentsTabValue}>Documentos</TabsTrigger>
         <TabsTrigger value={paymentInstructionsTabValue}>
           Instrucciones de pago
           {erroredTab === paymentInstructionsTabValue ? (
             <TriangleAlert aria-hidden="true" className="text-destructive" />
           ) : null}
         </TabsTrigger>
-        <TabsTrigger value={documentsTabValue}>Documentos</TabsTrigger>
       </TabsList>
       {/* `forceMount` on both, the inactive one hidden: Radix unmounts an
           inactive panel by default, and an unmounted input is not submitted —
@@ -420,17 +493,17 @@ export function EventFormTabs({
           chosen in a native file input would be lost on a tab switch. */}
       <TabsContent
         forceMount
-        value={paymentInstructionsTabValue}
-        className="pt-2 data-[state=inactive]:hidden"
-      >
-        <PaymentInstructionsFields form={form} />
-      </TabsContent>
-      <TabsContent
-        forceMount
         value={documentsTabValue}
         className="pt-2 data-[state=inactive]:hidden"
       >
         {documentsPanel}
+      </TabsContent>
+      <TabsContent
+        forceMount
+        value={paymentInstructionsTabValue}
+        className="pt-2 data-[state=inactive]:hidden"
+      >
+        <PaymentInstructionsFields form={form} />
       </TabsContent>
     </Tabs>
   );
