@@ -83,13 +83,25 @@ export function isValidAlias(value: string) {
 
 const cuitWeights = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2];
 
-/** Mod 11. Accepts `30-71234567-1` and `30712345671` alike. */
+/**
+ * Mod 11. Accepts `30-71234567-1` and `30712345671` alike — but when the hyphens
+ * are there they have to be in the right places. A CUIT is written 2-8-1, so
+ * `3-071234567-1` carries eleven digits and is still not a CUIT: the first two
+ * are the tipo, and hyphens that fall elsewhere mean the person mistyped or
+ * pasted something that was never a CUIT. Without hyphens there is nothing to
+ * place, so the count is the whole shape.
+ */
 export function checkCuit(value: string): IdentifierProblem {
-  const digits = value.replace(/[\s-]/g, "");
+  const hasSeparators = value.includes("-");
+  const hasValidShape = hasSeparators
+    ? /^\d{2}-\d{8}-\d$/.test(value)
+    : /^\d{11}$/.test(value);
 
-  if (!/^\d{11}$/.test(digits)) {
+  if (!hasValidShape) {
     return "shape";
   }
+
+  const digits = value.replace(/-/g, "");
 
   const sum = cuitWeights.reduce(
     (total, weight, index) => total + weight * Number(digits[index]),
@@ -111,19 +123,17 @@ export function checkCuit(value: string): IdentifierProblem {
 
 export const MAX_PAYMENT_INSTRUCTIONS_TEXT_LENGTH = 2000;
 
-// Each identifier has two messages, one per problem, because "no es válido"
-// hides which of the two happened and neither is what the admin would guess:
-// the check digit does not tell us the account is real, only that the digits
-// disagree with each other, which in practice means a typo.
+// One message per problem. The shape copy states the count and nothing else;
+// the check-digit copy cannot reuse it, because by then the count is right and
+// repeating "debe contener 22 dígitos" at someone who typed 22 digits reads as
+// a broken form. It says the only thing a check digit proves: a digit is wrong.
 const cbuMessages = {
-  shape: "El CBU/CVU tiene que tener 22 dígitos, sin espacios ni guiones.",
-  "check-digit":
-    "Revisá el CBU/CVU: son 22 dígitos pero no se corresponden entre sí, así que hay alguno mal tipeado.",
+  shape: "El número de CBU/CVU debe contener 22 dígitos.",
+  "check-digit": "Revisá el CBU/CVU: alguno de los dígitos está mal tipeado.",
 } as const;
 const cuitMessages = {
-  shape: "El CUIT tiene que tener 11 dígitos.",
-  "check-digit":
-    "Revisá el CUIT: el último dígito no se corresponde con los demás, así que hay alguno mal tipeado.",
+  shape: "El número de CUIT debe contener 11 dígitos con o sin guiones.",
+  "check-digit": "Revisá el CUIT: alguno de los dígitos está mal tipeado.",
 } as const;
 const invalidAliasMessage =
   "El alias tiene entre 6 y 20 caracteres, y solo admite letras, números, puntos y guiones.";
@@ -380,7 +390,7 @@ export function PaymentInstructionsFields({
         name="paymentInstructionsCbu"
         autoComplete="off"
         inputMode="numeric"
-        placeholder="22 caracteres numéricos"
+        placeholder="22 dígitos"
       />
       <TextInputField
         control={form.control}
