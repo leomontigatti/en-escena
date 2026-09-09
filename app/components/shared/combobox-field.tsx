@@ -13,6 +13,8 @@ import {
   type FieldValues,
 } from "react-hook-form";
 
+import { ChevronDownIcon } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import {
   Combobox,
@@ -165,11 +167,19 @@ function ComboboxField<
                       render={
                         <Button
                           variant="outline"
-                          className="w-full justify-between font-normal"
+                          // A field, not a button: it keeps the arrow cursor,
+                          // does not react to hover, and takes the brand ring
+                          // on focus, like the control `MultiCombobox` builds
+                          // out of `ComboboxChips`.
+                          className="w-full cursor-default justify-between border-input font-normal hover:bg-background hover:text-foreground aria-expanded:bg-background aria-expanded:text-foreground focus-visible:border-brand focus-visible:ring-brand/50 dark:hover:bg-input/30 dark:aria-expanded:bg-input/30"
                           aria-describedby={describedBy || undefined}
                           aria-invalid={isInvalid ? true : undefined}
                         >
                           {fieldValue ? <ComboboxValue /> : placeholder}
+                          <ChevronDownIcon
+                            aria-hidden="true"
+                            className="size-4 text-muted-foreground"
+                          />
                         </Button>
                       }
                     />
