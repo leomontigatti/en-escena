@@ -186,6 +186,21 @@ schedules, capacities, prices and registration readiness.
 - Test helpers: `app/lib/admin/events/event-bases.test-helpers.tsx`
 - Tests: `app/features/admin/events/routes.adapter.test.tsx`, `app/features/admin/modalities/routes.adapter.test.tsx`, `app/features/admin/categories/routes.adapter.test.tsx`, `app/features/admin/schedules/routes.adapter.test.tsx`, `app/features/admin/prices/routes.adapter.test.tsx`, `app/lib/admin/event-context.server.test.ts`, `app/lib/admin/events/events-route.server.db.test.ts`, `app/lib/admin/events/event-detail-route.server.db.test.ts`, `app/lib/admin/events/event-bases-overview-modalities.server.db.test.ts`, `app/lib/admin/events/event-bases-categories.server.db.test.ts`, `app/lib/admin/events/event-bases-prices.server.db.test.ts`, `app/lib/admin/events/event-bases-validation.server.db.test.ts`, `app/lib/admin/events/event-bases-cronogramas.server.db.test.ts`, `app/lib/events/management.server.db.test.ts`, `app/lib/events/bases.server.test.ts`, `app/lib/events/bases-repository-catalog.server.db.test.ts`, `app/lib/events/bases-repository-schedules.server.db.test.ts`, `app/lib/events/bases-repository-prices.server.db.test.ts`, `app/lib/events/bases-repository-capacities.server.db.test.ts`, `app/lib/events/registration-readiness.server.db.test.ts`
 
+## Admin Seminars
+
+Use for the seminars an event offers around the competition: the seminar row,
+the admin list, the create page and the detail. Seminars are not part of the
+`Bases del evento` — registration readiness ignores them and they have their own
+section under `Operación`.
+
+- Domain: `docs/domain/seminars.md`
+- ADRs: `docs/adr/0002-selectable-event-contexts.md`, `docs/adr/0004-organize-app-code-by-product-surface.md`
+- Routes: `app/routes/administracion.seminarios.tsx`, `app/routes/administracion.seminarios_.nuevo.tsx`, `app/routes/administracion.seminarios_.$seminarId.tsx`
+- Feature modules: `app/features/admin/seminars/list/`, `app/features/admin/seminars/create/`, `app/features/admin/seminars/detail/`
+- Shared feature modules: `app/features/admin/seminars/shared.ts`, `app/features/admin/seminars/server.ts`, `app/features/admin/seminars/action.server.ts`, `app/features/admin/seminars/form.tsx`, `app/features/admin/seminars/list-table.tsx`, `app/features/admin/seminars/actions.tsx`
+- Domain module: `app/lib/seminars/repository.server.ts`
+- Tests: `app/lib/seminars/repository.server.db.test.ts`, `app/features/admin/seminars/action.server.db.test.ts`, `app/features/admin/seminars/routes.adapter.test.tsx`, `app/features/admin/seminars/view.test.tsx`
+
 ## Judging And Results
 
 Use for judge panel access, presentations, scores, disqualifications, ranking,

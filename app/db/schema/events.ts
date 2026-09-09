@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   foreignKey,
   index,
   integer,
@@ -12,7 +13,12 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 
-import { createTable, experienceLevel, groupType } from "./core";
+import {
+  createTable,
+  experienceLevel,
+  groupType,
+  uuidPrimaryKey,
+} from "./core";
 
 export const events = createTable(
   "event",
@@ -220,6 +226,44 @@ export const schedules = createTable(
       .default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => [index("schedule_event_id_idx").on(table.eventId)],
+).enableRLS();
+
+// A class the event offers around the competition: a guest instructor, a local
+// date and time, and a hard cap on how many roster people an academy can
+// register. It carries no name of its own — the instructor plus the moment is
+// what identifies it, which is what the unique index below states.
+export const seminars = createTable(
+  "seminar",
+  {
+    id: uuidPrimaryKey(),
+    eventId: varchar("event_id", { length: 255 }).notNull(),
+    instructorName: text("instructor_name").notNull(),
+    instructorPictureStorageKey: text("instructor_picture_storage_key"),
+    scheduledDate: text("scheduled_date").notNull(),
+    startTime: text("start_time").notNull(),
+    quota: integer("quota").notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.eventId],
+      foreignColumns: [events.id],
+      name: "seminar_event_fk",
+    }).onDelete("cascade"),
+    index("seminar_event_id_idx").on(table.eventId),
+    uniqueIndex("seminar_event_instructor_slot_unique").on(
+      table.eventId,
+      table.instructorName,
+      table.scheduledDate,
+      table.startTime,
+    ),
+    check("seminar_quota_positive", sql`${table.quota} >= 1`),
+  ],
 ).enableRLS();
 
 export const scheduleModalities = createTable(
