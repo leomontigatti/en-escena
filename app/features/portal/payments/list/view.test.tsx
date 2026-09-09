@@ -385,4 +385,24 @@ describe("PortalAcademyPaymentsRouteView copy buttons", () => {
       document.querySelector('[aria-label="Copiar CBU/CVU"]'),
     ).not.toBeNull();
   });
+
+  // A non-secure context has the API and rejects the write. Confirming a copy
+  // that never landed would send 22 wrong digits into home banking.
+  test("does not confirm when the clipboard write is rejected", async () => {
+    writeText.mockImplementationOnce(() => Promise.reject(new Error("denied")));
+    await renderPortalPayments(
+      renderer,
+      portalPaymentsLoaderDataFixture({
+        paymentInstructions: paymentInstructionsFixture(),
+      }),
+    );
+
+    await clickReactDomButton("Copiar CBU/CVU", { exact: true });
+
+    expect(writeText).toHaveBeenCalledWith("0070099330004512345678");
+    expect(document.querySelector('[aria-label="CBU/CVU copiado"]')).toBeNull();
+    expect(
+      document.querySelector('[aria-label="Copiar CBU/CVU"]'),
+    ).not.toBeNull();
+  });
 });

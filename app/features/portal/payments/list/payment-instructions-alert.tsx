@@ -4,12 +4,13 @@ import { Check, Copy, Landmark } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import type { PaymentInstructions } from "@/lib/finances/payment-instructions";
+import { cn } from "@/lib/shared/utils";
+
 import {
   formatPaymentHolderLine,
   hasPaymentIdentifiers,
-  type PaymentInstructions,
-} from "@/lib/finances/payment-instructions";
-import { cn } from "@/lib/shared/utils";
+} from "./payment-instructions-format";
 
 /** How long the copy button shows its confirmation before reverting. */
 const COPIED_FEEDBACK_MS = 2000;
@@ -129,7 +130,10 @@ function CopyableCell({ label, value }: { label: string; value: string }) {
 /**
  * Inline feedback, never a toast: copying never reaches the server, and toasts
  * are reserved for server-confirmed results. The clipboard receives the stored
- * value exactly.
+ * value exactly, and the confirmation waits for the write to land: on a
+ * non-secure context the API is present but rejects, and announcing `copiado`
+ * over 22 digits that never reached the clipboard is the failure that matters.
+ * A silent no-op is the better one.
  */
 function CopyIconButton({ label, value }: { label: string; value: string }) {
   const [copied, setCopied] = useState(false);
@@ -154,8 +158,10 @@ function CopyIconButton({ label, value }: { label: string; value: string }) {
       size="icon-sm"
       aria-label={copied ? `${label} copiado` : `Copiar ${label}`}
       onClick={() => {
-        void navigator.clipboard?.writeText(value);
-        setCopied(true);
+        navigator.clipboard
+          ?.writeText(value)
+          .then(() => setCopied(true))
+          .catch(() => {});
       }}
     >
       {copied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}

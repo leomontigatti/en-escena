@@ -30,6 +30,11 @@ export async function getPortalActiveEventSummaryContext(
  * The active event and its payment instructions in the single query the summary
  * already costs — the payments page needs both, and no other portal page pays
  * for the six extra columns.
+ *
+ * This restates `listPortalEventSummaries`'s query and the active-event pick on
+ * purpose. A `columns` parameter on that function would collapse the two, but
+ * Drizzle widens the inferred row type enough to need casts at every caller;
+ * the duplication is the cheaper of the two.
  */
 export async function getPortalActiveEventPaymentInstructionsContext(
   _request: Request,
