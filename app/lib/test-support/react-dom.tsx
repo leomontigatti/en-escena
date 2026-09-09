@@ -1,6 +1,9 @@
 import { act, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 
+/** What {@link createReactDomTestRenderer} hands back, for helpers that take one. */
+type ReactDomTestRenderer = ReturnType<typeof createReactDomTestRenderer>;
+
 function createReactDomTestRenderer() {
   let container: HTMLDivElement | null = null;
   let root: ReturnType<typeof createRoot> | null = null;
@@ -126,3 +129,4 @@ export {
   setInputValue,
   updateReactDomForm,
 };
+export type { ReactDomTestRenderer };

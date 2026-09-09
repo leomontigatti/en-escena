@@ -2,9 +2,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Archive, RotateCcw, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm, type FieldPath, type UseFormReturn } from "react-hook-form";
-import { Link, useNavigation, useSubmit } from "react-router";
+import { useNavigation, useSubmit } from "react-router";
 
-import { SubmitButton } from "@/components/shared/action-buttons";
+import { BackButton, SubmitButton } from "@/components/shared/action-buttons";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { ArchivedPersonAlert } from "@/components/shared/archived-person-alert";
 import {
@@ -223,12 +223,8 @@ export function PortalProfessorDetailRouteView({
               </FieldGroup>
             </form>
           </CardContent>
-          <CardFooter className="justify-end gap-3 border-0 bg-transparent pt-0">
-            <Button asChild variant="outline">
-              <Link to="/portal/profesores" viewTransition>
-                Volver
-              </Link>
-            </Button>
+          <CardFooter className="justify-between gap-3 border-0 bg-transparent pt-0">
+            <BackButton to="/portal/profesores" viewTransition />
             <SubmitButton
               form={professorDetailFormId}
               isPending={isSubmitting}

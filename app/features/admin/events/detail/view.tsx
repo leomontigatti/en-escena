@@ -7,7 +7,7 @@ import {
   AdminResourceFormCard,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
-import { SubmitButton } from "@/components/shared/action-buttons";
+import { BackButton, SubmitButton } from "@/components/shared/action-buttons";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
@@ -22,7 +22,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenuGroup,
   DropdownMenuItem,
@@ -211,9 +210,7 @@ function EditEventPanel({
         <AdminResourceFormCard
           footer={
             <>
-              <Button asChild variant="outline">
-                <Link to="/administracion/eventos">Volver</Link>
-              </Button>
+              <BackButton to="/administracion/eventos" />
               <SubmitButton
                 disabled={!hasChanges}
                 isPending={eventForm.isPending}

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, test } from "vitest";
 
 import {
   createReactDomTestRenderer,
+  type ReactDomTestRenderer,
   setInputValue,
   updateReactDomForm,
 } from "@/lib/test-support/react-dom";
@@ -24,7 +25,7 @@ describe("PortalAcademyPaymentsRouteView", () => {
   afterEach(renderer.cleanup);
 
   test("shows each payment number without linking to a detail", async () => {
-    await renderPortalPayments(portalPaymentsLoaderDataFixture());
+    await renderPortalPayments(renderer, portalPaymentsLoaderDataFixture());
 
     expect(document.body.textContent).toContain("0001");
     expect(document.querySelector('a[href^="/portal/pagos/"]')).toBeNull();
@@ -34,7 +35,7 @@ describe("PortalAcademyPaymentsRouteView", () => {
   // panel ticks rows to re-scope its two money cards, and this list has no such
   // figures to re-scope. The academy reads its own payments and nothing else.
   test("does not offer row selection", async () => {
-    await renderPortalPayments(portalPaymentsLoaderDataFixture());
+    await renderPortalPayments(renderer, portalPaymentsLoaderDataFixture());
 
     expect(
       document.querySelector('[aria-label="Seleccionar fila"]'),
@@ -45,7 +46,7 @@ describe("PortalAcademyPaymentsRouteView", () => {
   });
 
   test("shows the payment reference and method", async () => {
-    await renderPortalPayments(portalPaymentsLoaderDataFixture());
+    await renderPortalPayments(renderer, portalPaymentsLoaderDataFixture());
 
     const text = document.body.textContent ?? "";
 
@@ -57,6 +58,7 @@ describe("PortalAcademyPaymentsRouteView", () => {
 
   test("finds a payment by its reference", async () => {
     await renderPortalPayments(
+      renderer,
       portalPaymentsLoaderDataFixture({
         payments: [
           paymentRowFixture({ id: "payment_1", reference: "TRF-9" }),
@@ -89,6 +91,7 @@ describe("PortalAcademyPaymentsRouteView", () => {
 
   test("shows the empty state when the academy has no payments", async () => {
     await renderPortalPayments(
+      renderer,
       portalPaymentsLoaderDataFixture({ payments: [] }),
     );
 
@@ -98,8 +101,13 @@ describe("PortalAcademyPaymentsRouteView", () => {
   });
 });
 
-async function renderPortalPayments(loaderData: LoaderData) {
-  const renderer = createReactDomTestRenderer();
+// Renders through the renderer the suite already cleans in `afterEach`: a
+// renderer created here would leave its root mounted, and the router
+// subscription it keeps alive can schedule work after jsdom teardown.
+async function renderPortalPayments(
+  renderer: ReactDomTestRenderer,
+  loaderData: LoaderData,
+) {
   const router = createMemoryRouter(
     [
       {

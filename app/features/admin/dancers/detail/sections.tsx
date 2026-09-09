@@ -6,6 +6,7 @@ import {
   AdminEmptyState,
   AdminResourceFormCard,
 } from "@/components/admin/resource-layout";
+import { BackButton } from "@/components/shared/action-buttons";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { ArchivedPersonAlert } from "@/components/shared/archived-person-alert";
 import { DancerInscriptionsTable } from "@/components/shared/dancer-inscriptions-table";
@@ -382,11 +383,13 @@ function DancerDetailFooterActions({
 }) {
   return (
     <>
-      <Button asChild variant="outline">
-        <Link to={isEditing ? cancelHref : backToList}>
-          {isEditing ? "Cancelar" : "Volver"}
-        </Link>
-      </Button>
+      {isEditing ? (
+        <Button asChild variant="outline">
+          <Link to={cancelHref}>Cancelar</Link>
+        </Button>
+      ) : (
+        <BackButton to={backToList} />
+      )}
       <DancerPrimaryFooterAction
         canEdit={canEdit}
         editFormId={editFormId}
