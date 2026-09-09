@@ -9,6 +9,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { formatAmount, formatDate } from "@/lib/finances/formatters";
 import type { loadPortalAcademyPayments } from "@/features/portal/payments/list/server";
+import { PaymentInstructionsAlert } from "@/features/portal/payments/list/payment-instructions-alert";
 import {
   formatPaymentMethodLabel,
   getPaymentMethodBadgeVariant,
@@ -101,6 +102,11 @@ export function PortalAcademyPaymentsRouteView({
         title="Pagos"
         description="Consultá los pagos que administración registró para tu academia."
       >
+        {loaderData.paymentInstructions ? (
+          <PaymentInstructionsAlert
+            instructions={loaderData.paymentInstructions}
+          />
+        ) : null}
         <PortalEmptyState
           title="Todavía no hay pagos registrados"
           description="Cuando administración registre un pago de tu academia en este evento, lo vas a poder revisar acá."
@@ -116,6 +122,11 @@ export function PortalAcademyPaymentsRouteView({
       title="Pagos"
       description="Consultá los pagos que administración registró para tu academia."
     >
+      {loaderData.paymentInstructions ? (
+        <PaymentInstructionsAlert
+          instructions={loaderData.paymentInstructions}
+        />
+      ) : null}
       <ClientDataTable
         rows={loaderData.payments}
         columns={paymentColumns}

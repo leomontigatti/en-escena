@@ -1,7 +1,9 @@
 import { db } from "@/db";
 import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
+import { toPaymentInstructions } from "@/lib/finances/payment-instructions";
 import type {
   PortalActiveEventContext,
+  PortalActiveEventPaymentInstructionsContext,
   PortalActiveEventSummaryContext,
   PortalEventContext,
   PortalShellEventContext,
@@ -21,6 +23,47 @@ export async function getPortalActiveEventSummaryContext(
 ): Promise<PortalActiveEventSummaryContext> {
   return {
     activeEvent: await findPortalActiveEventSummary(),
+  };
+}
+
+/**
+ * The active event and its payment instructions in the single query the summary
+ * already costs — the payments page needs both, and no other portal page pays
+ * for the six extra columns.
+ */
+export async function getPortalActiveEventPaymentInstructionsContext(
+  _request: Request,
+): Promise<PortalActiveEventPaymentInstructionsContext> {
+  const events = await db.query.events.findMany({
+    columns: {
+      ...portalEventSummaryColumns,
+      paymentInstructionsCbu: true,
+      paymentInstructionsAlias: true,
+      paymentInstructionsHolderName: true,
+      paymentInstructionsBankName: true,
+      paymentInstructionsHolderCuit: true,
+      paymentInstructionsText: true,
+    },
+    orderBy: (table, { desc }) => [desc(table.startsAt), desc(table.createdAt)],
+  });
+
+  const activeEvent = events.find((event) => event.active) ?? null;
+
+  if (!activeEvent) {
+    return { activeEvent: null, paymentInstructions: null };
+  }
+
+  return {
+    activeEvent: {
+      id: activeEvent.id,
+      name: activeEvent.name,
+      active: activeEvent.active,
+      registrationStartsAt: activeEvent.registrationStartsAt,
+      registrationEndsAt: activeEvent.registrationEndsAt,
+      startsAt: activeEvent.startsAt,
+      endsAt: activeEvent.endsAt,
+    },
+    paymentInstructions: toPaymentInstructions(activeEvent),
   };
 }
 
@@ -61,17 +104,19 @@ async function findPortalActiveEventSummary() {
   return events.find((event) => event.active) ?? null;
 }
 
+const portalEventSummaryColumns = {
+  id: true,
+  name: true,
+  active: true,
+  registrationStartsAt: true,
+  registrationEndsAt: true,
+  startsAt: true,
+  endsAt: true,
+} as const;
+
 async function listPortalEventSummaries(): Promise<PortalEventSummary[]> {
   return db.query.events.findMany({
-    columns: {
-      id: true,
-      name: true,
-      active: true,
-      registrationStartsAt: true,
-      registrationEndsAt: true,
-      startsAt: true,
-      endsAt: true,
-    },
+    columns: portalEventSummaryColumns,
     orderBy: (table, { desc }) => [desc(table.startsAt), desc(table.createdAt)],
   });
 }

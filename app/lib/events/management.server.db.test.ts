@@ -12,6 +12,7 @@ import {
   updateEvent,
   updateEventRequiredDepositPercentage,
 } from "@/lib/events/management.server";
+import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -200,6 +201,29 @@ describe("event management", () => {
         ok: true,
         event: loadedInstructions(),
       });
+    });
+
+    // Readiness is about the `Bases del evento`; missing instructions never
+    // block the `Período de inscripción`.
+    test("changes neither readiness nor its missing items", async () => {
+      const event = await createSavedEvent("Regional 2026");
+      const before = await getEventRegistrationReadiness(event.id);
+
+      await expect(
+        updateEvent(event.id, unchangedEventInput(event, loadedInstructions())),
+      ).resolves.toMatchObject({ ok: true });
+
+      await expect(getEventRegistrationReadiness(event.id)).resolves.toEqual(
+        before,
+      );
+
+      await expect(
+        updateEvent(event.id, unchangedEventInput(event)),
+      ).resolves.toMatchObject({ ok: true });
+
+      await expect(getEventRegistrationReadiness(event.id)).resolves.toEqual(
+        before,
+      );
     });
 
     function loadedInstructions() {
