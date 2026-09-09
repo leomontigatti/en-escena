@@ -22,7 +22,7 @@ import {
   expectCreated,
 } from "@/lib/events/bases-test-fixtures.server.db";
 
-import * as businessTimeZone from "@/lib/shared/business-time-zone";
+import { onBusinessDate } from "@/lib/shared/business-time-zone.test-support";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -31,16 +31,6 @@ installDatabaseTestHooks();
 afterEach(() => {
   vi.restoreAllMocks();
 });
-
-/**
- * The resolver has no date parameter: it resolves against today's business
- * date, so a test that needs a particular day sets that day.
- */
-function onBusinessDate(businessDate: string) {
-  vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
-    businessDate,
-  );
-}
 
 describe("`Bases del evento` repository", () => {
   test("keeps prices unique by event and rejects schedules from another event", async () => {

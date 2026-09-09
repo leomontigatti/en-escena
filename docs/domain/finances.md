@@ -238,7 +238,9 @@ DISTINCT`, because two of them would otherwise be separated only by amount.
   `selectApplicablePriceCandidate`, which owns the deadline filter and the
   nearest-deadline / lowest-amount tie-break and has no dateless overload.
   `resolveApplicableInscriptionPrice` (`inscription-price.server.ts`) is the same
-  rule from the database, for a caller that has not loaded the event's rows.
+  rule from the database, the transaction entry point for a caller that only
+  holds the key; no production path calls it yet — every reader already has the
+  event's rows loaded — and its db tests pin the rule against real rows.
 - **The price is fixed by the deposit threshold crossing, not by the first peso
   and not by the calendar.** Below the threshold nothing is fixed: an allocation
   write may store a different row whatever the inscription already holds, and the
@@ -314,9 +316,10 @@ DISTINCT`, because two of them would otherwise be separated only by amount.
 > `crossed ? stored : (current ?? stored)` through the same owner, fed the
 > seminar's tiers as the candidate set — no schedule or group-type axis — and the
 > seminar's own `requiredDepositPercentage`. A seminar with no tier can be
-> registered into and its inscriptions read `Sin precio`. The seminar side of
-> the applicable-row selection is
-> [#403](https://github.com/leomontigatti/en-escena/issues/403)'s.
+> registered into and its inscriptions read `Sin precio`. The seminar tier
+> selector — the tiers reduced to the amount that applies to the person, then
+> `selectApplicablePriceCandidate` — is one call into the owner and belongs to
+> the seminar money map, [#884](https://github.com/leomontigatti/en-escena/issues/884).
 
 **Known divergence — a roster change can leave a crossed price impossible.**
 Because nothing refreshes `selectedPriceId`, a roster change that moves the

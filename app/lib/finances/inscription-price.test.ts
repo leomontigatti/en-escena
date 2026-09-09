@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { beforeEach, describe, expect, test } from "vitest";
 
-import * as businessTimeZone from "@/lib/shared/business-time-zone";
+import { onBusinessDate } from "@/lib/shared/business-time-zone.test-support";
 
 import {
   deriveEffectivePrice,
@@ -75,6 +75,24 @@ describe("selectApplicablePriceCandidate", () => {
         today,
       ),
     ).toBeNull();
+  });
+
+  test("selects a seminar tier list, which has no schedule or group-type axis", () => {
+    // A seminar's tiers reach the owner already reduced to the amount that
+    // applies to the person: nothing but id, amount and deadline.
+    const tiers = [
+      { id: "early", amount: 8000, paymentDeadline: "2026-06-30" },
+      { id: "regular", amount: 10000, paymentDeadline: "2026-08-31" },
+      { id: "door", amount: 12000, paymentDeadline: null },
+    ];
+
+    expect(selectApplicablePriceCandidate(tiers, today)?.id).toBe("early");
+    expect(selectApplicablePriceCandidate(tiers, "2026-07-01")?.id).toBe(
+      "regular",
+    );
+    expect(selectApplicablePriceCandidate(tiers, "2026-09-01")?.id).toBe(
+      "door",
+    );
   });
 });
 
@@ -256,7 +274,7 @@ describe("deriveEffectivePrice", () => {
 
 describe("resolveEffectiveBasePriceRow", () => {
   beforeEach(() => {
-    vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(today);
+    onBusinessDate(today);
   });
 
   const expiredStored = row({

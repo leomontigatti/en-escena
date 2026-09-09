@@ -31,6 +31,15 @@ export type InscriptionPriceKey = ChoreographyScheduleSources & {
 };
 
 /**
+ * A choreography `price` row as the two-tier choice sees it: a candidate plus
+ * the two axes the key is matched against.
+ */
+export type InscriptionPriceRow = PriceCandidate & {
+  groupType: string;
+  scheduleId: string | null;
+};
+
+/**
  * The one candidate that applies on `businessDate`: rows whose deadline has
  * passed are out, and among the survivors the nearest deadline wins, then the
  * lowest amount. A row with no deadline survives every date and sorts last, so
@@ -92,7 +101,7 @@ function compareApplicableCandidates(
  * one edit.
  */
 export function selectApplicableInscriptionPrice<
-  T extends PriceCandidate & { groupType: string; scheduleId: string | null },
+  T extends InscriptionPriceRow,
 >(input: {
   businessDate: string;
   key: InscriptionPriceKey;
@@ -164,9 +173,7 @@ export function deriveEffectivePrice<T extends PriceCandidate>(input: {
   return input.current ?? input.stored;
 }
 
-export type EffectiveBasePriceInput<
-  T extends PriceCandidate & { groupType: string; scheduleId: string | null },
-> = {
+export type EffectiveBasePriceInput<T extends InscriptionPriceRow> = {
   allocatedAmount: number;
   // `undefined` when the reader could not pair the inscription with its
   // choreography; nothing applies today then, and the stored row is all there is.
@@ -186,9 +193,9 @@ export type EffectiveBasePriceInput<
  * price-divergence guard — so no two of them can name different prices for the
  * same inscription.
  */
-export function resolveEffectiveBasePriceRow<
-  T extends PriceCandidate & { groupType: string; scheduleId: string | null },
->(input: EffectiveBasePriceInput<T>): T | null {
+export function resolveEffectiveBasePriceRow<T extends InscriptionPriceRow>(
+  input: EffectiveBasePriceInput<T>,
+): T | null {
   const stored =
     input.selectedPriceId === null
       ? null
@@ -211,8 +218,8 @@ export function resolveEffectiveBasePriceRow<
 }
 
 /** `resolveEffectiveBasePriceRow` for the callers that only need the figure. */
-export function resolveEffectiveBasePriceAmount<
-  T extends PriceCandidate & { groupType: string; scheduleId: string | null },
->(input: EffectiveBasePriceInput<T>): number | null {
+export function resolveEffectiveBasePriceAmount<T extends InscriptionPriceRow>(
+  input: EffectiveBasePriceInput<T>,
+): number | null {
   return resolveEffectiveBasePriceRow(input)?.amount ?? null;
 }

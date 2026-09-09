@@ -26,7 +26,7 @@ import {
   markEventRegistrationReadinessDirty,
 } from "@/lib/events/registration-readiness.server";
 
-import * as businessTimeZone from "@/lib/shared/business-time-zone";
+import { onBusinessDate } from "@/lib/shared/business-time-zone.test-support";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -35,16 +35,6 @@ installDatabaseTestHooks();
 afterEach(() => {
   vi.restoreAllMocks();
 });
-
-/**
- * The resolver has no date parameter: it resolves against today's business
- * date, so a test that needs a particular day sets that day.
- */
-function onBusinessDate(businessDate: string) {
-  vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
-    businessDate,
-  );
-}
 
 describe("event registration readiness", () => {
   test("reports missing compatible schedule capacities and applicable prices using the real `Bases del evento` rules", async () => {
