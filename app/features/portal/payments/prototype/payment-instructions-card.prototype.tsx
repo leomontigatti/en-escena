@@ -97,27 +97,11 @@ function CopyIconButton({ label, value }: { label: string; value: string }) {
   );
 }
 
-function linkify(paragraph: string): ReactNode[] {
-  return paragraph.split(/(https?:\/\/\S+)/g).map((chunk, index) =>
-    /^https?:\/\//.test(chunk) ? (
-      <a
-        key={index}
-        href={chunk}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="underline underline-offset-3 hover:text-foreground"
-      >
-        {chunk}
-      </a>
-    ) : (
-      chunk
-    ),
-  );
-}
-
 /**
  * The free text: paragraphs split on blank lines, single newlines preserved,
- * bare http(s) URLs turned into links. No markup language.
+ * and nothing else. No markup language and no autolinking — a URL renders as
+ * the characters it is, so whether a payment link deserves its own field stays
+ * an open question rather than being answered by the renderer.
  */
 function InstructionsText({ text }: { text: string }) {
   const paragraphs = text.split(/\n\s*\n/);
@@ -126,7 +110,7 @@ function InstructionsText({ text }: { text: string }) {
     <div className="flex flex-col gap-2 text-sm leading-6 text-muted-foreground">
       {paragraphs.map((paragraph, index) => (
         <p key={index} className="whitespace-pre-line">
-          {linkify(paragraph)}
+          {paragraph}
         </p>
       ))}
     </div>
