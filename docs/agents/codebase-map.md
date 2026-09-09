@@ -107,6 +107,19 @@ schedule resolution and operational completion.
 - UI modules: `app/features/portal/choreographies/list/view.tsx`, `app/features/portal/choreographies/create/dialog.tsx`, `app/features/portal/choreographies/detail/view.tsx`, `app/features/portal/choreographies/detail/music-editor-form.tsx`
 - Tests: `app/features/portal/choreographies/detail/server.db.test.ts`, `app/lib/choreographies/registration-resolution.server.db.test.ts`, `app/lib/choreographies/registration-confirmation.server.db.test.ts`, `app/features/portal/choreographies/list/server.db.test.ts`, `app/features/portal/choreographies/create/flow.test.ts`, `app/features/portal/choreographies/request-flow.render.test.tsx`, `app/features/portal/choreographies/detail/view.test.tsx`
 
+## Portal Seminars
+
+Use for the academy-facing seminar gallery: the seminar cards of the active
+event, the academy's own inscriptions and the registration dialog. The seminar
+row and its administrative surfaces live in `Admin Seminars`.
+
+- Domain: `docs/domain/seminars.md`
+- ADRs: `docs/adr/0002-selectable-event-contexts.md`, `docs/adr/0004-organize-app-code-by-product-surface.md`
+- Routes: `app/routes/portal.seminarios.tsx`
+- Feature modules: `app/features/portal/seminars/list/`
+- Domain modules: `app/lib/seminars/inscriptions.server.ts`, `app/lib/seminars/registration-window.ts`, `app/lib/seminars/registration-refusals.ts`
+- Tests: `app/lib/seminars/inscriptions.server.db.test.ts`, `app/lib/seminars/registration-window.test.ts`, `app/features/portal/seminars/list/server.db.test.ts`, `app/features/portal/seminars/list/view.test.tsx`
+
 ## Admin Shell And Dashboard
 
 Use for the `Panel de administración` shell, dashboard entry points, shared

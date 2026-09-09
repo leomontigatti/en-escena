@@ -1,15 +1,16 @@
-import { and, asc, eq, ne } from "drizzle-orm";
+import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { seminars } from "@/db/schema";
+import { seminarInscriptions, seminars } from "@/db/schema";
 import { isDateOnly } from "@/lib/shared/date-only";
 
 export type SeminarRow = typeof seminars.$inferSelect;
 
 /**
- * A seminar as every surface reads it: the row plus how many places are left.
- * Nothing consumes the quota yet — the inscription arrives with the portal
- * gallery — so `availablePlaces` is the whole quota until then.
+ * A seminar as every surface reads it: the row plus how many places are left,
+ * the quota minus the inscriptions already taken. It is a reading, never a
+ * decision: the quota is enforced under a lock when an inscription is written
+ * (`app/lib/seminars/inscriptions.server.ts`).
  */
 export type SeminarListItem = SeminarRow & {
   availablePlaces: number;
@@ -60,11 +61,13 @@ export async function listSeminars(
       asc(seminars.instructorName),
     ],
   });
+  const inscriptionCounts = await countInscriptionsBySeminar(
+    eventSeminars.map((seminar) => seminar.id),
+  );
 
-  return eventSeminars.map((seminar) => ({
-    ...seminar,
-    availablePlaces: seminar.quota,
-  }));
+  return eventSeminars.map((seminar) =>
+    toSeminarListItem(seminar, inscriptionCounts.get(seminar.id) ?? 0),
+  );
 }
 
 export async function getSeminar(
@@ -78,7 +81,42 @@ export async function getSeminar(
     return null;
   }
 
-  return { ...seminar, availablePlaces: seminar.quota };
+  const inscriptionCounts = await countInscriptionsBySeminar([seminar.id]);
+
+  return toSeminarListItem(seminar, inscriptionCounts.get(seminar.id) ?? 0);
+}
+
+/**
+ * One query for the whole list, so a gallery of seminars does not become one
+ * count per card.
+ */
+async function countInscriptionsBySeminar(seminarIds: string[]) {
+  if (seminarIds.length === 0) {
+    return new Map<string, number>();
+  }
+
+  const rows = await db
+    .select({
+      seminarId: seminarInscriptions.seminarId,
+      inscriptionCount: sql<number>`count(*)`,
+    })
+    .from(seminarInscriptions)
+    .where(inArray(seminarInscriptions.seminarId, seminarIds))
+    .groupBy(seminarInscriptions.seminarId);
+
+  return new Map(
+    rows.map((row) => [row.seminarId, Number(row.inscriptionCount)]),
+  );
+}
+
+function toSeminarListItem(
+  seminar: SeminarRow,
+  inscriptionCount: number,
+): SeminarListItem {
+  return {
+    ...seminar,
+    availablePlaces: Math.max(seminar.quota - inscriptionCount, 0),
+  };
 }
 
 export async function createSeminar(
