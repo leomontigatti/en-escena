@@ -8,6 +8,7 @@ import {
 import { requiredFieldMessage } from "@/lib/shared/forms";
 
 export const registerSeminarInscriptionIntent = "register-seminar-inscription";
+export const deleteSeminarInscriptionIntent = "delete-seminar-inscription";
 
 export const registerSeminarInscriptionSchema = z.object({
   seminarId: z.string().min(1),
@@ -48,7 +49,9 @@ export type PortalSeminarsListLoaderData = {
 
 export type PortalSeminarsActionData =
   | {
-      intent: typeof registerSeminarInscriptionIntent;
+      intent:
+        | typeof deleteSeminarInscriptionIntent
+        | typeof registerSeminarInscriptionIntent;
       message: string;
       status: "error" | "success";
     }

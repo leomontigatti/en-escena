@@ -1,9 +1,12 @@
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import { getPortalActiveEventContext } from "@/lib/portal/event-context.server";
 import {
+  deleteSeminarInscriptionForAcademy,
   listSeminarInscriptionsForAcademy,
   listSeminarPersonOptionsForAcademy,
   registerSeminarInscription,
+  seminarInscriptionDeletedMessage,
+  seminarInscriptionNotFoundMessage,
   seminarInscriptionSuccessMessage,
 } from "@/lib/seminars/inscriptions.server";
 import { hasSeminarStarted } from "@/lib/seminars/registration-window";
@@ -14,6 +17,7 @@ import {
 } from "@/lib/storage/seminar-pictures.server";
 
 import {
+  deleteSeminarInscriptionIntent,
   parseSeminarPersonValue,
   registerSeminarInscriptionIntent,
   type PortalSeminarCard,
@@ -81,21 +85,47 @@ export async function handlePortalSeminarsListAction(
 ): Promise<PortalSeminarsActionData> {
   const { academy } = await requireAcademyUser(request);
   const formData = await request.formData();
+  const intent = formData.get("intent");
 
-  if (formData.get("intent") !== registerSeminarInscriptionIntent) {
+  if (
+    intent !== registerSeminarInscriptionIntent &&
+    intent !== deleteSeminarInscriptionIntent
+  ) {
     throw new Response("Acción no soportada.", { status: 400 });
   }
 
   const { activeEvent } = await getPortalActiveEventContext(request);
+
+  if (intent === deleteSeminarInscriptionIntent) {
+    return await removeInscription(formData, {
+      academyId: academy.id,
+      eventId: activeEvent?.id ?? null,
+    });
+  }
+
+  return await registerInscription(formData, {
+    academyId: academy.id,
+    eventId: activeEvent?.id ?? null,
+  });
+}
+
+async function registerInscription(
+  formData: FormData,
+  context: { academyId: string; eventId: string | null },
+): Promise<PortalSeminarsActionData> {
   const person = parseSeminarPersonValue(String(formData.get("person") ?? ""));
 
-  if (!activeEvent || !person) {
-    return registrationError("Elegí una persona del plantel de tu academia.");
+  if (!context.eventId || !person) {
+    return actionResult(
+      registerSeminarInscriptionIntent,
+      "error",
+      "Elegí una persona del plantel de tu academia.",
+    );
   }
 
   const result = await registerSeminarInscription({
-    academyId: academy.id,
-    eventId: activeEvent.id,
+    academyId: context.academyId,
+    eventId: context.eventId,
     now: new Date(),
     personId: person.personId,
     personKind: person.kind,
@@ -105,20 +135,58 @@ export async function handlePortalSeminarsListAction(
   // Every refusal is a toast, never a field error: nothing the academy typed is
   // wrong, the seminar simply moved under it.
   if (!result.ok) {
-    return registrationError(result.error);
+    return actionResult(
+      registerSeminarInscriptionIntent,
+      "error",
+      result.error,
+    );
   }
 
-  return {
-    intent: registerSeminarInscriptionIntent,
-    message: seminarInscriptionSuccessMessage,
-    status: "success",
-  };
+  return actionResult(
+    registerSeminarInscriptionIntent,
+    "success",
+    seminarInscriptionSuccessMessage,
+  );
 }
 
-function registrationError(message: string): PortalSeminarsActionData {
-  return {
-    intent: registerSeminarInscriptionIntent,
-    message,
-    status: "error",
-  };
+async function removeInscription(
+  formData: FormData,
+  context: { academyId: string; eventId: string | null },
+): Promise<PortalSeminarsActionData> {
+  const inscriptionId = String(formData.get("id") ?? "").trim();
+  const failed = (message: string) =>
+    actionResult(deleteSeminarInscriptionIntent, "error", message);
+
+  if (String(formData.get("confirmDeletion") ?? "").trim() !== inscriptionId) {
+    return failed("Confirmá la baja de la inscripción.");
+  }
+
+  if (!context.eventId) {
+    return failed(seminarInscriptionNotFoundMessage);
+  }
+
+  const result = await deleteSeminarInscriptionForAcademy({
+    academyId: context.academyId,
+    eventId: context.eventId,
+    inscriptionId,
+    now: new Date(),
+  });
+
+  if (!result.ok) {
+    return failed(result.error);
+  }
+
+  return actionResult(
+    deleteSeminarInscriptionIntent,
+    "success",
+    seminarInscriptionDeletedMessage,
+  );
+}
+
+function actionResult(
+  intent: NonNullable<PortalSeminarsActionData>["intent"],
+  status: NonNullable<PortalSeminarsActionData>["status"],
+  message: string,
+): PortalSeminarsActionData {
+  return { intent, message, status };
 }

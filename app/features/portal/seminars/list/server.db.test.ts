@@ -16,6 +16,7 @@ import {
   loadPortalSeminarsList,
 } from "@/features/portal/seminars/list/server";
 import {
+  deleteSeminarInscriptionIntent,
   registerSeminarInscriptionIntent,
   toSeminarPersonValue,
 } from "@/features/portal/seminars/list/shared";
@@ -59,6 +60,18 @@ function registerRequest(
   body.set("intent", registerSeminarInscriptionIntent);
   body.set("seminarId", input.seminarId);
   body.set("person", input.person);
+
+  return handlePortalSeminarsListAction(
+    createPortalPostRequest(seminariosUrl, cookie, body),
+  );
+}
+
+function deleteRequest(cookie: string, inscriptionId: string) {
+  const body = new FormData();
+
+  body.set("intent", deleteSeminarInscriptionIntent);
+  body.set("id", inscriptionId);
+  body.set("confirmDeletion", inscriptionId);
 
   return handlePortalSeminarsListAction(
     createPortalPostRequest(seminariosUrl, cookie, body),
@@ -137,6 +150,73 @@ describe.sequential("portal seminars list", () => {
       intent: registerSeminarInscriptionIntent,
       message: "Sin lugares disponibles.",
       status: "error",
+    });
+  });
+
+  test("deletes the academy's own inscription and frees the place it held", async () => {
+    const session = await createAcademySession({
+      academyName: "Academia Baja",
+      email: "seminarios.baja@example.com",
+    });
+    const { seminar } = await createActiveEventWithSeminar(1);
+    const first = await createDancer(session.academyId, { firstName: "Uno" });
+    const second = await createDancer(session.academyId, { firstName: "Dos" });
+
+    await registerRequest(session.cookie, {
+      seminarId: seminar.id,
+      person: toSeminarPersonValue({ id: first.id, kind: "dancer" }),
+    });
+
+    const [card] = (await loadList(session.cookie)).seminars;
+
+    expect(card).toMatchObject({ isFull: true });
+
+    await expect(
+      deleteRequest(session.cookie, card.inscriptions[0].id),
+    ).resolves.toEqual({
+      intent: deleteSeminarInscriptionIntent,
+      message: "Inscripción eliminada.",
+      status: "success",
+    });
+    await expect(loadList(session.cookie)).resolves.toMatchObject({
+      seminars: [{ isFull: false, inscriptions: [] }],
+    });
+    await expect(
+      registerRequest(session.cookie, {
+        seminarId: seminar.id,
+        person: toSeminarPersonValue({ id: second.id, kind: "dancer" }),
+      }),
+    ).resolves.toMatchObject({ status: "success" });
+  });
+
+  test("turns a refused delete into an error message", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Dueña",
+      email: "seminarios.duena@example.com",
+    });
+    const stranger = await createAcademySession({
+      academyName: "Academia Ajena",
+      email: "seminarios.ajena@example.com",
+    });
+    const { seminar } = await createActiveEventWithSeminar();
+    const dancer = await createDancer(owner.academyId, { firstName: "Ana" });
+
+    await registerRequest(owner.cookie, {
+      seminarId: seminar.id,
+      person: toSeminarPersonValue({ id: dancer.id, kind: "dancer" }),
+    });
+
+    const [card] = (await loadList(owner.cookie)).seminars;
+
+    await expect(
+      deleteRequest(stranger.cookie, card.inscriptions[0].id),
+    ).resolves.toEqual({
+      intent: deleteSeminarInscriptionIntent,
+      message: "No encontramos esa inscripción.",
+      status: "error",
+    });
+    await expect(loadList(owner.cookie)).resolves.toMatchObject({
+      seminars: [{ inscriptions: [{ fullName: "Ana Paz" }] }],
     });
   });
 

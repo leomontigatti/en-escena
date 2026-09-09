@@ -112,6 +112,67 @@ describe("PortalSeminarsListRouteView", () => {
     expect(document.body.textContent).toContain("Todavía no hay seminarios");
   });
 
+  test("offers a removal on each own chip that confirms before deleting", async () => {
+    await renderSeminars({
+      hasActiveEvent: true,
+      seminars: [
+        buildSeminar({
+          inscriptions: [{ id: "inscription_1", fullName: "Ana Paz" }],
+        }),
+      ],
+    });
+
+    const removeButton = document.querySelector<HTMLButtonElement>(
+      '[aria-label="Eliminar la inscripción de Ana Paz"]',
+    );
+
+    expect(removeButton).not.toBeNull();
+    expect(document.querySelector('[role="alertdialog"]')).toBeNull();
+
+    await act(async () => {
+      removeButton?.click();
+    });
+
+    const dialog = document.querySelector('[role="alertdialog"]');
+
+    expect(dialog?.textContent).toContain("Ana Paz");
+    expect(dialog?.textContent).toContain("libera su lugar");
+  });
+
+  test("drops the removal once the seminar has started and keeps the chip's padding", async () => {
+    await renderSeminars({
+      hasActiveEvent: true,
+      seminars: [
+        buildSeminar({
+          id: "seminar_open",
+          inscriptions: [{ id: "inscription_1", fullName: "Ana Paz" }],
+        }),
+        buildSeminar({
+          id: "seminar_started",
+          hasStarted: true,
+          inscriptions: [{ id: "inscription_2", fullName: "Luz Suárez" }],
+        }),
+      ],
+    });
+
+    const chips = Array.from(
+      document.querySelectorAll('[data-slot="badge"]'),
+    ).map((chip) => chip as HTMLElement);
+
+    expect(
+      document.querySelector(
+        '[aria-label="Eliminar la inscripción de Ana Paz"]',
+      ),
+    ).not.toBeNull();
+    expect(
+      document.querySelector(
+        '[aria-label="Eliminar la inscripción de Luz Suárez"]',
+      ),
+    ).toBeNull();
+    expect(chips).toHaveLength(2);
+    expect(chips[1].className).toBe(chips[0].className);
+  });
+
   test("opens the register dialog on the picker, with dancers and professors in one list", async () => {
     await renderSeminars({ hasActiveEvent: true, seminars: [buildSeminar()] });
 

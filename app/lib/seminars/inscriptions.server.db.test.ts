@@ -9,6 +9,7 @@ import {
 } from "@/lib/choreographies/registration-test-fixtures.server.db";
 import { createSavedEvent } from "@/lib/events/bases-test-fixtures.server.db";
 import {
+  deleteSeminarInscriptionForAcademy,
   listSeminarInscriptionsForAcademy,
   listSeminarPersonOptionsForAcademy,
   registerSeminarInscription,
@@ -282,6 +283,114 @@ describe("seminar inscriptions", () => {
       { fullName: "Abril Sosa", kind: "professor" },
       { fullName: "Beto Luna", kind: "dancer" },
     ]);
+  });
+
+  test("deletes the academy's own inscription and frees the place it held", async () => {
+    const { eventId, seminar } = await createSeminarFixture(1);
+    const academy = await createAcademy("Academia Baja");
+    const first = await createDancer(academy.id, { firstName: "Uno" });
+    const second = await createDancer(academy.id, { firstName: "Dos" });
+    const register = (personId: string) =>
+      registerSeminarInscription({
+        academyId: academy.id,
+        eventId,
+        now: beforeStart,
+        personId,
+        personKind: "dancer" as const,
+        seminarId: seminar.id,
+      });
+    const inscriptionId = expectRegistered(await register(first.id));
+
+    await expect(register(second.id)).resolves.toMatchObject({ code: "full" });
+    await expect(
+      deleteSeminarInscriptionForAcademy({
+        academyId: academy.id,
+        eventId,
+        inscriptionId,
+        now: beforeStart,
+      }),
+    ).resolves.toEqual({ ok: true });
+
+    // The row is gone rather than marked, so the place is available again.
+    await expect(
+      db
+        .select({ id: seminarInscriptions.id })
+        .from(seminarInscriptions)
+        .where(eq(seminarInscriptions.id, inscriptionId)),
+    ).resolves.toEqual([]);
+    expectRegistered(await register(second.id));
+  });
+
+  test("refuses the academy's delete once the seminar has started", async () => {
+    const { eventId, seminar } = await createSeminarFixture();
+    const academy = await createAcademy("Academia Tarde Baja");
+    const dancer = await createDancer(academy.id);
+    const inscriptionId = expectRegistered(
+      await registerSeminarInscription({
+        academyId: academy.id,
+        eventId,
+        now: beforeStart,
+        personId: dancer.id,
+        personKind: "dancer",
+        seminarId: seminar.id,
+      }),
+    );
+
+    await expect(
+      deleteSeminarInscriptionForAcademy({
+        academyId: academy.id,
+        eventId,
+        inscriptionId,
+        now: afterStart,
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      code: "started",
+      error: "El seminario ya comenzó.",
+    });
+    await expect(
+      db
+        .select({ id: seminarInscriptions.id })
+        .from(seminarInscriptions)
+        .where(eq(seminarInscriptions.id, inscriptionId)),
+    ).resolves.toHaveLength(1);
+  });
+
+  test("refuses to delete an inscription of another academy or of another event", async () => {
+    const { eventId, seminar } = await createSeminarFixture();
+    const academy = await createAcademy("Academia Dueña");
+    const otherAcademy = await createAcademy("Academia Ajena Baja");
+    const otherEvent = await createSavedEvent("Regional 2027");
+    const professor = await createProfessor(academy.id);
+    const inscriptionId = expectRegistered(
+      await registerSeminarInscription({
+        academyId: academy.id,
+        eventId,
+        now: beforeStart,
+        personId: professor.id,
+        personKind: "professor",
+        seminarId: seminar.id,
+      }),
+    );
+    const deleteAs = (input: { academyId: string; eventId: string }) =>
+      deleteSeminarInscriptionForAcademy({
+        ...input,
+        inscriptionId,
+        now: beforeStart,
+      });
+
+    await expect(
+      deleteAs({ academyId: otherAcademy.id, eventId }),
+    ).resolves.toMatchObject({ ok: false, code: "inscription-not-found" });
+    await expect(
+      deleteAs({ academyId: academy.id, eventId: otherEvent.id }),
+    ).resolves.toMatchObject({ ok: false, code: "inscription-not-found" });
+    await expect(
+      db
+        .select({ id: seminarInscriptions.id })
+        .from(seminarInscriptions)
+        .where(eq(seminarInscriptions.id, inscriptionId)),
+    ).resolves.toHaveLength(1);
   });
 
   test("refuses at the database a row with both person columns or with neither", async () => {

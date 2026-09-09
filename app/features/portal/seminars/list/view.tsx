@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CalendarClock, ImageOff, Plus, UserRound } from "lucide-react";
+import { CalendarClock, ImageOff, Plus, UserRound, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useFetcher } from "react-router";
@@ -7,6 +7,7 @@ import { useFetcher } from "react-router";
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import { SubmitButton } from "@/components/shared/action-buttons";
 import { ComboboxField } from "@/components/shared/combobox-field";
+import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,6 +32,7 @@ import { createValidatedRouteFormDataSubmitHandler } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import {
+  deleteSeminarInscriptionIntent,
   formatSeminarMoment,
   getSeminarClosedReason,
   getSeminarPersonKindLabel,
@@ -38,21 +40,35 @@ import {
   registerSeminarInscriptionSchema,
   toSeminarPersonValue,
   type PortalSeminarCard,
+  type PortalSeminarInscription,
   type PortalSeminarsActionData,
   type PortalSeminarsListLoaderData,
   type RegisterSeminarInscriptionFormValues,
 } from "./shared";
 
 export function PortalSeminarsListRouteView({
+  actionData,
   loaderData,
 }: {
+  actionData?: PortalSeminarsActionData;
   loaderData: PortalSeminarsListLoaderData;
 }) {
   const fetcher = useFetcher<PortalSeminarsActionData>();
   const [openSeminarId, setOpenSeminarId] = useState<string | null>(null);
+  const [deletingInscriptionId, setDeletingInscriptionId] = useState<
+    string | null
+  >(null);
   const openSeminar =
     loaderData.seminars.find((seminar) => seminar.id === openSeminarId) ?? null;
+  // The dialog reads its target from the loader rather than from a copy taken
+  // when it opened, so the deleted chip closes it: once the row is gone the
+  // seminar no longer lists it and there is nothing left to confirm.
+  const deletingInscription = findInscription(
+    loaderData.seminars,
+    deletingInscriptionId,
+  );
 
+  useServerActionToast(actionData);
   useServerActionToast(fetcher.data);
 
   // The dialog stays mounted while the row is in flight so a refusal keeps the
@@ -77,6 +93,7 @@ export function PortalSeminarsListRouteView({
                 key={seminar.id}
                 seminar={seminar}
                 onOpenRegister={() => setOpenSeminarId(seminar.id)}
+                onRemoveInscription={setDeletingInscriptionId}
               />
             ))}
           </div>
@@ -104,16 +121,52 @@ export function PortalSeminarsListRouteView({
           submit={fetcher.submit}
         />
       ) : null}
+
+      {deletingInscription ? (
+        <DeleteDialog
+          title={deletingInscription.inscription.fullName}
+          description={`Esta acción da de baja la inscripción en el seminario de ${deletingInscription.instructorName} y libera su lugar. No se puede deshacer.`}
+          intentValue={deleteSeminarInscriptionIntent}
+          recordId={deletingInscription.inscription.id}
+          open
+          onOpenChange={(nextOpen) =>
+            nextOpen ? null : setDeletingInscriptionId(null)
+          }
+        />
+      ) : null}
     </>
   );
+}
+
+function findInscription(
+  seminars: PortalSeminarCard[],
+  inscriptionId: string | null,
+) {
+  if (!inscriptionId) {
+    return null;
+  }
+
+  for (const seminar of seminars) {
+    const inscription = seminar.inscriptions.find(
+      (candidate) => candidate.id === inscriptionId,
+    );
+
+    if (inscription) {
+      return { inscription, instructorName: seminar.instructorName };
+    }
+  }
+
+  return null;
 }
 
 function SeminarCardView({
   seminar,
   onOpenRegister,
+  onRemoveInscription,
 }: {
   seminar: PortalSeminarCard;
   onOpenRegister: () => void;
+  onRemoveInscription: (inscriptionId: string) => void;
 }) {
   const closedReason = getSeminarClosedReason(seminar);
 
@@ -148,10 +201,17 @@ function SeminarCardView({
           <ul className="flex flex-wrap gap-2">
             {seminar.inscriptions.map((inscription) => (
               <li key={inscription.id}>
-                <Badge variant="outline" className="h-7 gap-1.5 pr-2.5">
-                  <UserRound aria-hidden="true" />
-                  {inscription.fullName}
-                </Badge>
+                <InscriptionChip
+                  inscription={inscription}
+                  onRemove={
+                    // Once the seminar has started the chip loses its removal
+                    // and keeps everything else, padding included: the row of
+                    // chips must not shift when the window closes.
+                    seminar.hasStarted
+                      ? null
+                      : () => onRemoveInscription(inscription.id)
+                  }
+                />
               </li>
             ))}
           </ul>
@@ -174,6 +234,33 @@ function SeminarCardView({
         )}
       </CardFooter>
     </Card>
+  );
+}
+
+function InscriptionChip({
+  inscription,
+  onRemove,
+}: {
+  inscription: PortalSeminarInscription;
+  onRemove: (() => void) | null;
+}) {
+  return (
+    <Badge variant="outline" className="h-7 gap-1.5 pr-2.5">
+      <UserRound aria-hidden="true" />
+      {inscription.fullName}
+      {onRemove ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          aria-label={`Eliminar la inscripción de ${inscription.fullName}`}
+          className="-mr-1.5 size-4"
+          onClick={onRemove}
+        >
+          <X aria-hidden="true" data-icon />
+        </Button>
+      ) : null}
+    </Badge>
   );
 }
 

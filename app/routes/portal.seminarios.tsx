@@ -1,3 +1,5 @@
+import { useActionData } from "react-router";
+
 import type { PortalRouteHandle } from "@/components/portal/ui";
 import {
   handlePortalSeminarsListAction,
@@ -28,5 +30,12 @@ export async function action({ request }: { request: Request }) {
 export default function PortalSeminariosRoute({
   loaderData,
 }: PortalSeminarsListRouteProps) {
-  return <PortalSeminarsListRouteView loaderData={loaderData} />;
+  const actionData = useActionData<typeof action>();
+
+  return (
+    <PortalSeminarsListRouteView
+      actionData={actionData}
+      loaderData={loaderData}
+    />
+  );
 }

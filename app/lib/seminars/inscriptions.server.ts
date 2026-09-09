@@ -45,6 +45,21 @@ export type RegisterSeminarInscriptionInput = {
   seminarId: string;
 };
 
+export type DeleteSeminarInscriptionInput = {
+  academyId: string;
+  eventId: string;
+  inscriptionId: string;
+  now: Date;
+};
+
+export type DeleteSeminarInscriptionFailureCode =
+  | "inscription-not-found"
+  | "started";
+
+export type DeleteSeminarInscriptionResult =
+  | { ok: true }
+  | { ok: false; code: DeleteSeminarInscriptionFailureCode; error: string };
+
 export type RegisterSeminarInscriptionFailureCode =
   | "already-registered"
   | "full"
@@ -61,6 +76,9 @@ export type RegisterSeminarInscriptionResult =
     };
 
 export const seminarInscriptionSuccessMessage = "Inscripción guardada.";
+export const seminarInscriptionDeletedMessage = "Inscripción eliminada.";
+export const seminarInscriptionNotFoundMessage =
+  "No encontramos esa inscripción.";
 
 const ineligiblePersonMessage =
   "Elegí una persona activa del plantel de tu academia.";
@@ -168,6 +186,65 @@ async function insertInscription(
   }
 
   return { ok: true, inscriptionId: inserted.id };
+}
+
+/**
+ * The academy's own delete, open until the seminar starts. It is a physical
+ * delete: the row carries no money and no history, so the place it held is free
+ * the moment it is gone — a seminar that was refusing with `full` accepts the
+ * next registration. An inscription of another academy or of another event is
+ * not refused as forbidden but as missing: the portal never offers it, so
+ * naming it back would only say that it exists.
+ */
+export async function deleteSeminarInscriptionForAcademy(
+  input: DeleteSeminarInscriptionInput,
+): Promise<DeleteSeminarInscriptionResult> {
+  const inscription = await findAcademyInscription(input);
+
+  if (!inscription) {
+    return deletionFailure(
+      "inscription-not-found",
+      seminarInscriptionNotFoundMessage,
+    );
+  }
+
+  if (hasSeminarStarted(inscription, input.now)) {
+    return deletionFailure("started", seminarStartedMessage);
+  }
+
+  await db
+    .delete(seminarInscriptions)
+    .where(eq(seminarInscriptions.id, input.inscriptionId));
+
+  return { ok: true };
+}
+
+/**
+ * The owning academy is read through the person, as it is everywhere else: the
+ * inscription stores no academy of its own, so both roster tables are joined
+ * and whichever half is filled answers.
+ */
+async function findAcademyInscription(input: DeleteSeminarInscriptionInput) {
+  const [row] = await db
+    .select({
+      academyId: sql<
+        string | null
+      >`coalesce(${dancers.academyId}, ${professors.academyId})`,
+      scheduledDate: seminars.scheduledDate,
+      startTime: seminars.startTime,
+    })
+    .from(seminarInscriptions)
+    .innerJoin(seminars, eq(seminars.id, seminarInscriptions.seminarId))
+    .leftJoin(dancers, eq(dancers.id, seminarInscriptions.dancerId))
+    .leftJoin(professors, eq(professors.id, seminarInscriptions.professorId))
+    .where(
+      and(
+        eq(seminarInscriptions.id, input.inscriptionId),
+        eq(seminars.eventId, input.eventId),
+      ),
+    );
+
+  return row?.academyId === input.academyId ? row : undefined;
 }
 
 /**
@@ -389,6 +466,13 @@ function toPersonOption(
 
 function byFullName(first: { fullName: string }, second: { fullName: string }) {
   return first.fullName.localeCompare(second.fullName, "es-AR");
+}
+
+function deletionFailure(
+  code: DeleteSeminarInscriptionFailureCode,
+  error: string,
+): DeleteSeminarInscriptionResult {
+  return { ok: false, code, error };
 }
 
 function failure(
