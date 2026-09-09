@@ -49,7 +49,31 @@ export type CreateEventInput = {
   startsAt: Date;
   endsAt: Date;
   requiredDepositPercentage?: number;
+} & PaymentInstructionsInput;
+
+/**
+ * The bank identifiers and the how-to-pay text an academy reads on the portal.
+ * `null` is what an empty field stores, so absent and cleared are the same
+ * write; the fields are optional because `createEvent` never carries them — a
+ * new event starts empty.
+ */
+type PaymentInstructionsInput = {
+  paymentInstructionsCbu?: string | null;
+  paymentInstructionsAlias?: string | null;
+  paymentInstructionsHolderName?: string | null;
+  paymentInstructionsBankName?: string | null;
+  paymentInstructionsHolderCuit?: string | null;
+  paymentInstructionsText?: string | null;
 };
+
+const paymentInstructionsColumns = [
+  "paymentInstructionsCbu",
+  "paymentInstructionsAlias",
+  "paymentInstructionsHolderName",
+  "paymentInstructionsBankName",
+  "paymentInstructionsHolderCuit",
+  "paymentInstructionsText",
+] as const;
 
 type EventDependencies = {
   hasOperationalDependencies?: (eventId: string) => Promise<boolean> | boolean;
@@ -172,6 +196,7 @@ export async function updateEvent(
       endsAt: input.endsAt,
       requiredDepositPercentage:
         input.requiredDepositPercentage ?? DEFAULT_REQUIRED_DEPOSIT_PERCENTAGE,
+      ...paymentInstructionsValues(input),
     })
     .where(eq(events.id, eventId))
     .returning();
@@ -181,6 +206,17 @@ export async function updateEvent(
   }
 
   return { ok: true, event: updatedEvent };
+}
+
+/**
+ * A change to the instructions is a silent overwrite with no history, so the
+ * six columns are written on every save — clearing a field is the same write
+ * as never having filled it.
+ */
+function paymentInstructionsValues(input: CreateEventInput) {
+  return Object.fromEntries(
+    paymentInstructionsColumns.map((column) => [column, input[column] ?? null]),
+  ) as Record<(typeof paymentInstructionsColumns)[number], string | null>;
 }
 
 export async function updateEventRequiredDepositPercentage(

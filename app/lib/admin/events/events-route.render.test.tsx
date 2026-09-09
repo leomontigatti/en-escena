@@ -7,6 +7,7 @@ vi.mock("@/lib/auth/internal-navigation.server", () => ({
   requireAdminPanelUser: vi.fn(),
 }));
 
+import { defaultEventFormValues } from "@/lib/admin/events/form-values";
 import { EventsListRouteView } from "@/routes/administracion.eventos";
 import { NewEventRouteView } from "@/routes/administracion.eventos_.nuevo";
 
@@ -30,6 +31,7 @@ describe("`/administracion/eventos` route rendering", () => {
       message: "Revisá los datos del evento.",
       fieldErrors: {},
       values: {
+        ...defaultEventFormValues(),
         name: "Evento con inscripción tardía",
         registrationStartsAt: "2027-05-02",
         registrationEndsAt: "2027-05-03",

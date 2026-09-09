@@ -3,6 +3,7 @@
 import type * as React from "react";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
+import { defaultEventFormValues } from "@/lib/admin/events/form-values";
 import {
   createReactDomTestRenderer,
   getButton,
@@ -161,6 +162,7 @@ describe("Event RHF + React Router form submission", () => {
             name: "Usá un nombre distinto para el evento.",
           },
           values: {
+            ...defaultEventFormValues(),
             name: "Evento 2026",
             registrationStartsAt: "2026-03-01",
             registrationEndsAt: "2026-04-30",
@@ -198,6 +200,12 @@ function buildDetailLoaderData(): Parameters<
       registrationReadinessMissingItems: [],
       registrationReadinessDirty: true,
       registrationReadinessCalculatedAt: null,
+      paymentInstructionsCbu: null,
+      paymentInstructionsAlias: null,
+      paymentInstructionsHolderName: null,
+      paymentInstructionsBankName: null,
+      paymentInstructionsHolderCuit: null,
+      paymentInstructionsText: null,
       createdAt: new Date("2026-01-01T12:00:00.000Z"),
     },
     registrationReadiness: {
@@ -210,6 +218,7 @@ function buildDetailLoaderData(): Parameters<
 
 function buildSubmittedEventValues() {
   return {
+    ...defaultEventFormValues(),
     name: "Metropolitano 2027",
     registrationStartsAt: "2027-03-01",
     registrationEndsAt: "2027-05-02",

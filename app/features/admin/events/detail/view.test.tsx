@@ -266,6 +266,12 @@ function buildLoaderData(): EventDetailLoaderData {
       registrationReadinessMissingItems: [],
       registrationReadinessDirty: false,
       registrationReadinessCalculatedAt: null,
+      paymentInstructionsCbu: null,
+      paymentInstructionsAlias: null,
+      paymentInstructionsHolderName: null,
+      paymentInstructionsBankName: null,
+      paymentInstructionsHolderCuit: null,
+      paymentInstructionsText: null,
       createdAt: new Date("2026-01-01T00:00:00Z"),
     },
     registrationReadiness: {
