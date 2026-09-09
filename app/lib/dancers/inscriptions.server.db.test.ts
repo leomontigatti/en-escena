@@ -113,13 +113,9 @@ async function seedDancerWithTwoPriceRows(input: { allocatedAmount: number }) {
   };
 }
 
-async function readBothSurfaces(fixture: {
-  academyId: string;
-  choreographyId: string;
-  dancerId: string;
-  eventId: string;
-  inscriptionId: string;
-}) {
+async function readBothSurfaces(
+  fixture: Awaited<ReturnType<typeof seedDancerWithTwoPriceRows>>,
+) {
   const { inscriptions } = await findDancerInscriptions({
     dancerId: fixture.dancerId,
     selectedEventId: fixture.eventId,

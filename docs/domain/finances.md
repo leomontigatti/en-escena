@@ -146,7 +146,9 @@ The dancer detail's inscriptions tab — admin and portal, not a finance surface
 reads its `Precio base`, `Descuento` and `Total` through the same thresholds
 owner the write path uses (`readInscriptionThresholds`), so it carries no
 provisional cue either: the `Subtotal estimado` heading and its disclaimer are
-gone with the dateless resolution they excused.
+gone with the dateless resolution they excused. The dateless
+`resolveApplicablePrice` overload the tab used to call still exists for other
+callers; retiring it is [#403](https://github.com/leomontigatti/en-escena/issues/403)'s.
 
 The superseded per-inscription `Saldo de inscripción` (`base − deposit −
 discount`) is **gone, not renamed**: both of its subtrahends moved.
@@ -322,15 +324,6 @@ withdrew §3's `groupType` refresh without replacing it, so this is open. Tracke
 in [#660](https://github.com/leomontigatti/en-escena/issues/660). The only guard in
 place is the schedule-capacity one, which refuses to move a choreography's
 schedule capacity while any inscription holds money.
-
-- **The dancer detail prices with the finance rules.** `findDancerInscriptions`
-  reads each inscription through `readInscriptionThresholds`, so the tab shows
-  the effective price against today's business date, the stored row once the
-  deposit is covered, the live `Descuento por bailarín`, and `Sin precio` when
-  nothing resolves — the same figures as the finance surfaces for the same
-  inscription. The dateless `resolveApplicablePrice` overload it used to call
-  still exists for other callers; retiring it is
-  [#403](https://github.com/leomontigatti/en-escena/issues/403)'s.
 
 ## Payments
 
