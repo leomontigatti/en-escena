@@ -157,7 +157,7 @@ A class an event offers around the competition, created by administration: an in
 _Avoid_: `schedule`, workshop, taller, class, `eventDocument`
 
 **`seminarInscription`** — ui: "Inscripción a seminario"
-The registration of exactly one roster person —a `dancer` or a `professor` of the academy that registers them— into one seminar, capped by the seminar's quota and open until the seminar starts. Unique per seminar and person; the same person may hold one in any number of seminars. It carries no money, so it is not an `inscription`, and removing it is a plain delete rather than a withdrawal.
+The registration of exactly one roster person —a `dancer` or a `professor` of the academy that registers them— into one seminar, capped by the seminar's quota and open until the seminar starts. Only an academy creates one, from the portal, for its own roster; administration removes any at any time but never creates one. Unique per seminar and person; the same person may hold one in any number of seminars. It carries no money, so it is not an `inscription`, and removing it is a plain delete rather than a withdrawal.
 _Avoid_: `inscription`, student, `academyRegistration`, `choreographyRegistration`, attendance
 
 **`inscription`** — ui: "Inscripción"
@@ -217,12 +217,16 @@ Private file an academy uploads and the system stores on the volume, referenced 
 _Avoid_: attachment, media, public file
 
 **`assetKind`** — ui: "Tipo de archivo subido"
-The class of uploaded asset — `musicFile`, `documentImage` or `eventDocument` — that decides accepted formats, size ceiling and key layout.
+The class of uploaded asset — `musicFile`, `documentImage`, `eventDocument` or `seminarInstructorPicture` — that decides accepted formats, size ceiling and key layout.
 _Avoid_: mime type, file extension, bucket
 
 **`eventDocument`** — ui: "Documento del evento"
 Static PDF the administration uploads for an event and every academy downloads unchanged. A new event starts with none, and a missing one never blocks registration.
 _Avoid_: `documentImage`, `comprobante`, attachment, bases
+
+**`seminarInstructorPicture`** — ui: "Foto del instructor"
+The private image of a seminar's instructor, uploaded by administration from the seminar's detail and shown to academies in the portal through a temporary link. One object per seminar; a seminar may exist without one, and the portal shows a placeholder until it does.
+_Avoid_: avatar, `documentImage`, public image, logo
 
 **`professorContract`** — ui: "Contrato para profesores"
 The event document an academy downloads from the professors list; `professor_contract` as an `EventDocumentKind` value.

@@ -170,6 +170,36 @@ summary lives in `Admin Finances`, not here.
 - Shared modules kept in `app/lib` because the update behavior is reused by the portal profile: `app/lib/academies/academy-profile.server.ts`
 - Tests: `app/lib/admin/academies/academy-detail-route.server.db.test.ts`
 
+## Portal Seminars
+
+Use for the academy's view of the active event's seminars and the seminar
+inscriptions it registers from its roster. **Planned, not yet built**: the
+paths below are the intended homes, fixed by the PRD that
+[map #857](https://github.com/leomontigatti/en-escena/issues/857) produced;
+update them as the slices land.
+
+- Domain: `docs/domain/seminars.md`, `docs/domain/events.md`
+- ADRs: `docs/adr/0002-selectable-event-contexts.md`, `docs/adr/0004-organize-app-code-by-product-surface.md`
+- Routes: `app/routes/portal.seminarios.tsx`
+- Feature modules: `app/features/portal/seminars/list/`
+- Server modules: `app/features/portal/seminars/list/server.ts`, `app/lib/seminars/repository.server.ts`, `app/lib/seminars/inscriptions.server.ts`, `app/lib/seminars/registration-window.ts`
+- Storage: `app/lib/storage/seminar-pictures.server.ts`, the `seminarInstructorPicture` policy in `app/lib/storage/asset-kinds.ts`
+- Tests: `app/lib/seminars/inscriptions.server.db.test.ts`, `app/features/portal/seminars/list/server.db.test.ts`, `app/features/portal/seminars/list/view.test.tsx`
+
+## Admin Seminars
+
+Use for the administrative seminar list, create and detail, the instructor
+picture upload, and the removal of seminar inscriptions. **Planned, not yet
+built**; same caveat as `Portal Seminars`.
+
+- Domain: `docs/domain/seminars.md`, `docs/domain/events.md`
+- ADRs: `docs/adr/0002-selectable-event-contexts.md`, `docs/adr/0004-organize-app-code-by-product-surface.md`
+- Routes: `app/routes/administracion.seminarios.tsx`, `app/routes/administracion.seminarios_.nuevo.tsx`, `app/routes/administracion.seminarios_.$seminarId.tsx`
+- Feature modules: `app/features/admin/seminars/list/`, `app/features/admin/seminars/create/`, `app/features/admin/seminars/detail/`
+- Shared domain modules: `app/lib/seminars/repository.server.ts` (create, update, delete and their two guards), `app/lib/seminars/inscriptions.server.ts` (the quota-locked insert and the removal), `app/lib/storage/seminar-pictures.server.ts`
+- Shared UI reused from schedules: `formatDate` and `formatAvailablePlacesSuffix` in `app/features/admin/schedules/view-shared.ts`
+- Tests: `app/lib/seminars/repository.server.db.test.ts`, `app/features/admin/seminars/routes.adapter.test.tsx`, `app/lib/admin/seminars/seminar-detail-route.server.db.test.ts`
+
 ## Admin Events And `Bases del evento`
 
 Use for active event behavior, event CRUD, modalities, categories,
