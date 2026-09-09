@@ -9,7 +9,10 @@ import type {
   PortalSeminarCard,
   PortalSeminarsListLoaderData,
 } from "@/features/portal/seminars/list/shared";
-import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
+import {
+  createReactDomTestRenderer,
+  getReactDomTexts,
+} from "@/lib/test-support/react-dom";
 
 const renderer = createReactDomTestRenderer();
 
@@ -194,18 +197,14 @@ describe("PortalSeminarsListRouteView", () => {
       trigger?.click();
     });
 
-    const optionLabels = Array.from(
-      document.querySelectorAll('[role="option"]'),
-    ).map((option) => option.textContent);
-    const groupLabels = Array.from(
-      document.querySelectorAll('[data-slot="combobox-label"]'),
-    ).map((label) => label.textContent);
-
     // The kind is said once per heading, so the options carry the name alone.
-    expect(groupLabels).toEqual(["Bailarines", "Profesores"]);
-    expect(optionLabels).toEqual(["Ana Paz", "Luz Suárez"]);
-    expect(
-      document.querySelectorAll('[role="option"][data-slot="combobox-label"]'),
-    ).toHaveLength(0);
+    expect(getReactDomTexts('[data-slot="combobox-label"]')).toEqual([
+      "Bailarines",
+      "Profesores",
+    ]);
+    expect(getReactDomTexts('[role="option"]')).toEqual([
+      "Ana Paz",
+      "Luz Suárez",
+    ]);
   });
 });

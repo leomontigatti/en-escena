@@ -43,11 +43,21 @@ type ComboboxFieldOption = {
  * A titled section of the popup. The title is a heading, never an option: it
  * cannot be highlighted, searched for or selected. Use it when the list mixes
  * two kinds of thing that a single alphabetical order would interleave into
- * something the user has to read twice.
+ * something the user has to read twice. Labels must be unique across groups:
+ * the label is the section's identity for the combobox.
  */
 type ComboboxFieldOptionGroup<TOption extends ComboboxFieldOption> = {
   label: string;
   options: TOption[];
+};
+
+/**
+ * A group in the shape Base UI navigates and filters: the section's label as
+ * its identity and the option values it holds.
+ */
+type ComboboxGroupItem = {
+  items: string[];
+  value: string;
 };
 
 /**
@@ -174,10 +184,12 @@ function ComboboxFieldControl<TOption extends ComboboxFieldOption>({
   // is one entry per section carrying its own values, and it is what hides a
   // section whose options the search has all filtered out.
   const items = groups
-    ? groups.map((group) => ({
-        items: group.options.map((option) => option.value),
-        value: group.label,
-      }))
+    ? groups.map(
+        (group): ComboboxGroupItem => ({
+          items: group.options.map((option) => option.value),
+          value: group.label,
+        }),
+      )
     : flatOptions.map((option) => option.value);
   const value = typeof field.value === "string" ? field.value : "";
 
@@ -227,11 +239,9 @@ function ComboboxFieldControl<TOption extends ComboboxFieldOption>({
           <ComboboxEmpty>{emptyMessage}</ComboboxEmpty>
           <ComboboxList>
             {groups
-              ? (group: { items: string[]; value: string }) => (
+              ? (group: ComboboxGroupItem) => (
                   <ComboboxGroup key={group.value} items={group.items}>
-                    <ComboboxLabel className="font-medium">
-                      {group.value}
-                    </ComboboxLabel>
+                    <ComboboxLabel>{group.value}</ComboboxLabel>
                     <ComboboxCollection>{renderOption}</ComboboxCollection>
                   </ComboboxGroup>
                 )

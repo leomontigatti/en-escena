@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   clickReactDomButton,
   createReactDomTestRenderer,
+  getReactDomTexts,
   setInputValue,
   updateReactDomForm,
 } from "@/lib/test-support/react-dom";
@@ -77,12 +78,6 @@ function GroupedCombobox() {
   );
 }
 
-function getComboboxTexts(selector: string) {
-  return Array.from(document.querySelectorAll(selector)).map(
-    (element) => element.textContent,
-  );
-}
-
 describe("ComboboxField inside a dialog", () => {
   test("renders its popup into the dialog's portal host", async () => {
     await renderer.renderAsync(<ComboboxInDialog />);
@@ -108,11 +103,11 @@ describe("ComboboxField with grouped options", () => {
 
     await clickReactDomButton("Elegí una persona del plantel");
 
-    expect(getComboboxTexts('[data-slot="combobox-label"]')).toEqual([
+    expect(getReactDomTexts('[data-slot="combobox-label"]')).toEqual([
       "Bailarines",
       "Profesores",
     ]);
-    expect(getComboboxTexts('[role="option"]')).toEqual([
+    expect(getReactDomTexts('[role="option"]')).toEqual([
       "Abril Sosa",
       "Ezequiel Ipsale",
       "Fernanda Ledesma",
@@ -134,9 +129,9 @@ describe("ComboboxField with grouped options", () => {
       setInputValue(input as HTMLInputElement, "Fernanda");
     });
 
-    expect(getComboboxTexts('[data-slot="combobox-label"]')).toEqual([
+    expect(getReactDomTexts('[data-slot="combobox-label"]')).toEqual([
       "Profesores",
     ]);
-    expect(getComboboxTexts('[role="option"]')).toEqual(["Fernanda Ledesma"]);
+    expect(getReactDomTexts('[role="option"]')).toEqual(["Fernanda Ledesma"]);
   });
 });

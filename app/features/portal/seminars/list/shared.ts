@@ -88,13 +88,15 @@ export function parsePortalSeminarPersonValue(value: string) {
 }
 
 /**
- * The heading of each section of the picker. Plural because it titles a group
- * rather than qualifying one person: the kind is said once, above the names,
- * instead of being repeated as a suffix on every option.
+ * The heading of each section of the picker, in the order the sections are
+ * shown. Plural because it titles a group rather than qualifying one person:
+ * the kind is said once, above the names, instead of being repeated as a
+ * suffix on every option.
  */
-function getPortalSeminarPersonKindGroupLabel(kind: RosterPersonKind) {
-  return kind === "dancer" ? "Bailarines" : "Profesores";
-}
+const portalSeminarPersonGroupLabels: Record<RosterPersonKind, string> = {
+  dancer: "Bailarines",
+  professor: "Profesores",
+};
 
 /**
  * The picker's sections, in the order they are shown, with the empty ones
@@ -104,11 +106,9 @@ function getPortalSeminarPersonKindGroupLabel(kind: RosterPersonKind) {
 export function toPortalSeminarPersonGroups(
   people: PortalSeminarPersonOption[],
 ) {
-  const kinds: RosterPersonKind[] = ["dancer", "professor"];
-
-  return kinds
-    .map((kind) => ({
-      label: getPortalSeminarPersonKindGroupLabel(kind),
+  return Object.entries(portalSeminarPersonGroupLabels)
+    .map(([kind, label]) => ({
+      label,
       options: people
         .filter((person) => person.kind === kind)
         .map((person) => ({
