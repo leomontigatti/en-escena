@@ -173,7 +173,7 @@ describe("PortalSeminarsListRouteView", () => {
     expect(chips[1].className).toBe(chips[0].className);
   });
 
-  test("opens the register dialog on the picker, with dancers and professors in one list", async () => {
+  test("opens the register dialog on the picker, with dancers and professors under their own headings", async () => {
     await renderSeminars({ hasActiveEvent: true, seminars: [buildSeminar()] });
 
     const registerButton = findByText("button", "Inscribir");
@@ -197,10 +197,15 @@ describe("PortalSeminarsListRouteView", () => {
     const optionLabels = Array.from(
       document.querySelectorAll('[role="option"]'),
     ).map((option) => option.textContent);
+    const groupLabels = Array.from(
+      document.querySelectorAll('[data-slot="combobox-label"]'),
+    ).map((label) => label.textContent);
 
-    expect(optionLabels).toEqual([
-      "Ana Paz · Bailarín",
-      "Luz Suárez · Profesor",
-    ]);
+    // The kind is said once per heading, so the options carry the name alone.
+    expect(groupLabels).toEqual(["Bailarines", "Profesores"]);
+    expect(optionLabels).toEqual(["Ana Paz", "Luz Suárez"]);
+    expect(
+      document.querySelectorAll('[role="option"][data-slot="combobox-label"]'),
+    ).toHaveLength(0);
   });
 });

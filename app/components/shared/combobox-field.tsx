@@ -16,10 +16,13 @@ import { ChevronDownIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Combobox,
+  ComboboxCollection,
   ComboboxContent,
   ComboboxEmpty,
+  ComboboxGroup,
   ComboboxInput,
   ComboboxItem,
+  ComboboxLabel,
   ComboboxList,
   ComboboxTrigger,
   ComboboxValue,
@@ -36,14 +39,33 @@ type ComboboxFieldOption = {
   label: string;
 };
 
-type ComboboxFieldControlProps<TOption extends ComboboxFieldOption> = {
-  contentProps?: Omit<ComponentProps<typeof ComboboxContent>, "anchor">;
-  emptyMessage?: ReactNode;
-  inputPlaceholder?: string;
+/**
+ * A titled section of the popup. The title is a heading, never an option: it
+ * cannot be highlighted, searched for or selected. Use it when the list mixes
+ * two kinds of thing that a single alphabetical order would interleave into
+ * something the user has to read twice.
+ */
+type ComboboxFieldOptionGroup<TOption extends ComboboxFieldOption> = {
+  label: string;
   options: TOption[];
-  placeholder?: string;
-  popupClassName?: string;
 };
+
+/**
+ * Flat or grouped, never both: passing `options` and `groups` together would
+ * leave the order between them undefined, so the type makes it unrepresentable.
+ */
+type ComboboxFieldItemsProps<TOption extends ComboboxFieldOption> =
+  | { groups: ComboboxFieldOptionGroup<TOption>[]; options?: never }
+  | { groups?: never; options: TOption[] };
+
+type ComboboxFieldControlProps<TOption extends ComboboxFieldOption> =
+  ComboboxFieldItemsProps<TOption> & {
+    contentProps?: Omit<ComponentProps<typeof ComboboxContent>, "anchor">;
+    emptyMessage?: ReactNode;
+    inputPlaceholder?: string;
+    placeholder?: string;
+    popupClassName?: string;
+  };
 
 type ComboboxFieldProps<
   TFieldValues extends FieldValues,
@@ -120,6 +142,7 @@ function ComboboxFieldControl<TOption extends ComboboxFieldOption>({
   describedBy,
   emptyMessage = "Sin resultados.",
   field,
+  groups,
   id,
   inputPlaceholder = "Buscar",
   isInvalid,
@@ -141,21 +164,40 @@ function ComboboxFieldControl<TOption extends ComboboxFieldOption>({
 }) {
   const anchorRef = useComboboxAnchor();
   const dialogPortal = useComboboxDialogPortal(anchorRef);
+  const flatOptions = groups
+    ? groups.flatMap((group) => group.options)
+    : options;
   const optionByValue = new Map(
-    options.map((option) => [option.value, option] as const),
+    flatOptions.map((option) => [option.value, option] as const),
   );
-  const optionValues = options.map((option) => option.value);
+  // What the combobox filters and navigates. Grouped, the shape Base UI wants
+  // is one entry per section carrying its own values, and it is what hides a
+  // section whose options the search has all filtered out.
+  const items = groups
+    ? groups.map((group) => ({
+        items: group.options.map((option) => option.value),
+        value: group.label,
+      }))
+    : flatOptions.map((option) => option.value);
   const value = typeof field.value === "string" ? field.value : "";
 
   function getOptionLabel(optionValue: string) {
     return optionByValue.get(optionValue)?.label ?? optionValue;
   }
 
+  function renderOption(optionValue: string) {
+    return (
+      <ComboboxItem key={optionValue} value={optionValue}>
+        {getOptionLabel(optionValue)}
+      </ComboboxItem>
+    );
+  }
+
   return (
     <>
       <input type="hidden" name={field.name} value={value} />
       <Combobox
-        items={optionValues}
+        items={items}
         itemToStringLabel={getOptionLabel}
         itemToStringValue={getOptionLabel}
         value={value}
@@ -184,11 +226,16 @@ function ComboboxFieldControl<TOption extends ComboboxFieldOption>({
           />
           <ComboboxEmpty>{emptyMessage}</ComboboxEmpty>
           <ComboboxList>
-            {(optionValue) => (
-              <ComboboxItem key={optionValue} value={optionValue}>
-                {getOptionLabel(optionValue)}
-              </ComboboxItem>
-            )}
+            {groups
+              ? (group: { items: string[]; value: string }) => (
+                  <ComboboxGroup key={group.value} items={group.items}>
+                    <ComboboxLabel className="font-medium">
+                      {group.value}
+                    </ComboboxLabel>
+                    <ComboboxCollection>{renderOption}</ComboboxCollection>
+                  </ComboboxGroup>
+                )
+              : renderOption}
           </ComboboxList>
         </ComboboxContent>
       </Combobox>

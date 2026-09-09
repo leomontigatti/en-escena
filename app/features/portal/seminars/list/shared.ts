@@ -60,9 +60,11 @@ export type PortalSeminarsActionData =
   | undefined;
 
 /**
- * The picker is one flat list of dancers and professors, so the option value
- * has to carry which of the two a person is: two roster tables mean an id alone
- * does not say what to insert. This pair is the only encoding of that value.
+ * The picker draws from dancers and professors alike, so the option value has
+ * to carry which of the two a person is: two roster tables mean an id alone
+ * does not say what to insert. This pair is the only encoding of that value,
+ * and it is what the section a person is shown under cannot replace — the
+ * heading is presentation, the value is what the form submits.
  */
 export function toPortalSeminarPersonValue(person: {
   id: string;
@@ -85,8 +87,36 @@ export function parsePortalSeminarPersonValue(value: string) {
   };
 }
 
-export function getPortalSeminarPersonKindLabel(kind: RosterPersonKind) {
-  return kind === "dancer" ? "Bailarín" : "Profesor";
+/**
+ * The heading of each section of the picker. Plural because it titles a group
+ * rather than qualifying one person: the kind is said once, above the names,
+ * instead of being repeated as a suffix on every option.
+ */
+function getPortalSeminarPersonKindGroupLabel(kind: RosterPersonKind) {
+  return kind === "dancer" ? "Bailarines" : "Profesores";
+}
+
+/**
+ * The picker's sections, in the order they are shown, with the empty ones
+ * dropped: an academy without professors must not see a heading over nothing.
+ * Order inside a section is the loader's, which is already by name.
+ */
+export function toPortalSeminarPersonGroups(
+  people: PortalSeminarPersonOption[],
+) {
+  const kinds: RosterPersonKind[] = ["dancer", "professor"];
+
+  return kinds
+    .map((kind) => ({
+      label: getPortalSeminarPersonKindGroupLabel(kind),
+      options: people
+        .filter((person) => person.kind === kind)
+        .map((person) => ({
+          label: person.fullName,
+          value: toPortalSeminarPersonValue(person),
+        })),
+    }))
+    .filter((group) => group.options.length > 0);
 }
 
 const seminarDateFormatter = new Intl.DateTimeFormat("es-AR", {

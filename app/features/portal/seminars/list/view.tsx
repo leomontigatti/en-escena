@@ -35,10 +35,9 @@ import {
   deletePortalSeminarInscriptionIntent,
   formatPortalSeminarMoment,
   getPortalSeminarClosedReason,
-  getPortalSeminarPersonKindLabel,
   registerPortalSeminarInscriptionIntent,
   registerPortalSeminarInscriptionSchema,
-  toPortalSeminarPersonValue,
+  toPortalSeminarPersonGroups,
   type PortalSeminarCard,
   type PortalSeminarInscription,
   type PortalSeminarsActionData,
@@ -283,10 +282,7 @@ function RegisterInscriptionDialog({
     resolver: zodResolver(registerPortalSeminarInscriptionSchema),
     defaultValues: { seminarId: seminar.id, person: "" },
   });
-  const options = seminar.people.map((person) => ({
-    value: toPortalSeminarPersonValue(person),
-    label: `${person.fullName} · ${getPortalSeminarPersonKindLabel(person.kind)}`,
-  }));
+  const groups = toPortalSeminarPersonGroups(seminar.people);
 
   return (
     <Dialog open onOpenChange={(nextOpen) => (nextOpen ? null : onClose())}>
@@ -327,7 +323,7 @@ function RegisterInscriptionDialog({
               inputPlaceholder="Buscar por nombre"
               label="Persona"
               name="person"
-              options={options}
+              groups={groups}
               placeholder="Elegí una persona del plantel"
             />
           </FieldGroup>
