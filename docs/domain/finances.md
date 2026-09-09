@@ -142,11 +142,11 @@ Every figure an academy reads on a **finance surface** is **exact and is exactly
 what must be paid**. Those surfaces carry no tentative amounts and no
 provisional-figure cue: a marking true of every figure distinguishes nothing.
 
-The one provisional cue in the panel is outside them. The admin dancer detail —
-not a finance surface — heads its column `Subtotal estimado` and disclaims that
-`Los importes son estimados y no reemplazan comprobantes financieros.`, and it
-earns the disclaimer honestly, because it prices without the finance rules (see
-"Prices").
+The dancer detail's inscriptions tab — admin and portal, not a finance surface —
+reads its `Precio base`, `Descuento` and `Total` through the same thresholds
+owner the write path uses (`readInscriptionThresholds`), so it carries no
+provisional cue either: the `Subtotal estimado` heading and its disclaimer are
+gone with the dateless resolution they excused.
 
 The superseded per-inscription `Saldo de inscripción` (`base − deposit −
 discount`) is **gone, not renamed**: both of its subtrahends moved.
@@ -323,15 +323,14 @@ in [#660](https://github.com/leomontigatti/en-escena/issues/660). The only guard
 place is the schedule-capacity one, which refuses to move a choreography's
 schedule capacity while any inscription holds money.
 
-**Known divergence — the admin dancer detail prices without the finance rules.**
-`findDancerInscriptions` resolves prices with no date and hardcodes a zero
-discount, so that view can show an expired row as `Subtotal estimado` and never
-shows the `Descuento por bailarín`. It contradicts the finance read model for the
-same inscription. The no-date resolution is
-[#403](https://github.com/leomontigatti/en-escena/issues/403)'s, which retires
-the dateless `resolveApplicablePrice` overload; the hardcoded discount was
-[#584](https://github.com/leomontigatti/en-escena/issues/584)'s and is still in
-code.
+- **The dancer detail prices with the finance rules.** `findDancerInscriptions`
+  reads each inscription through `readInscriptionThresholds`, so the tab shows
+  the effective price against today's business date, the stored row once the
+  deposit is covered, the live `Descuento por bailarín`, and `Sin precio` when
+  nothing resolves — the same figures as the finance surfaces for the same
+  inscription. The dateless `resolveApplicablePrice` overload it used to call
+  still exists for other callers; retiring it is
+  [#403](https://github.com/leomontigatti/en-escena/issues/403)'s.
 
 ## Payments
 

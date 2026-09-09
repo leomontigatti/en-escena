@@ -10,7 +10,10 @@ import {
 } from "@/db/schema";
 import type { DancerInscription } from "@/lib/dancers/inscriptions";
 import { activeInscription } from "@/lib/choreographies/active-inscription";
-import { resolveApplicablePrice } from "@/lib/prices/repository.server";
+import {
+  type InscriptionThresholdResolution,
+  readInscriptionThresholds,
+} from "@/lib/finances/inscription-thresholds.server";
 
 export async function findDancerInscriptions(input: {
   dancerId: string;
@@ -32,6 +35,8 @@ export async function findDancerInscriptions(input: {
       categoryName: categories.name,
       groupType: choreographies.groupType,
       scheduleId: schedules.id,
+      academyId: choreographies.academyId,
+      inscriptionId: choreographyDancers.id,
     })
     .from(choreographyDancers)
     .innerJoin(
@@ -59,27 +64,48 @@ export async function findDancerInscriptions(input: {
     )
     .orderBy(asc(sql`lower(${choreographies.name})`));
 
-  const inscriptions = await Promise.all(
-    choreographyRows.map(async (choreography) => {
-      const priceResult = await resolveApplicablePrice({
-        eventId: selectedEventId,
-        groupType: choreography.groupType,
-        scheduleId: choreography.scheduleId,
-      });
-      const priceAmount = priceResult.ok ? priceResult.price.amount : null;
+  // Priced by the finance read model — the row that applies on today's
+  // business date, the stored row once the deposit is covered, the live
+  // discount over the dancer's roster — so this tab shows the same figures as
+  // the finance surfaces. The discount qualifies per academy, hence one read
+  // per academy; a dancer belongs to one, so this is one read in practice.
+  const thresholds = new Map<string, InscriptionThresholdResolution>();
+  const inscriptionIdsByAcademy = new Map<string, string[]>();
+  for (const row of choreographyRows) {
+    const bucket = inscriptionIdsByAcademy.get(row.academyId);
 
-      return {
-        id: choreography.id,
-        choreographyName: choreography.name,
-        choreographyNumber: choreography.choreographyNumber,
-        categoryName: choreography.categoryName,
-        groupType: choreography.groupType,
-        basePriceAmount: priceAmount,
-        discountAmount: 0,
-        estimatedSubtotalAmount: priceAmount,
-      } satisfies DancerInscription;
-    }),
-  );
+    if (bucket) {
+      bucket.push(row.inscriptionId);
+    } else {
+      inscriptionIdsByAcademy.set(row.academyId, [row.inscriptionId]);
+    }
+  }
+  for (const [academyId, inscriptionIds] of inscriptionIdsByAcademy) {
+    const resolved = await readInscriptionThresholds(db, {
+      academyId,
+      eventId: selectedEventId,
+      inscriptionIds,
+    });
+
+    for (const [inscriptionId, resolution] of resolved) {
+      thresholds.set(inscriptionId, resolution);
+    }
+  }
+
+  const inscriptions = choreographyRows.map((choreography) => {
+    const resolution = thresholds.get(choreography.inscriptionId);
+
+    return {
+      id: choreography.id,
+      choreographyName: choreography.name,
+      choreographyNumber: choreography.choreographyNumber,
+      categoryName: choreography.categoryName,
+      groupType: choreography.groupType,
+      basePriceAmount: resolution?.priceAmount ?? null,
+      discountAmount: resolution?.dancerDiscountAmount ?? 0,
+      totalAmount: resolution?.totalAmount ?? null,
+    } satisfies DancerInscription;
+  });
 
   return {
     choreographyRows,
