@@ -2,6 +2,7 @@ import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { seminarInscriptions, seminars } from "@/db/schema";
+import { seminarHasInscriptionsMessage } from "@/lib/seminars/registration-refusals";
 import { isDateOnly } from "@/lib/shared/date-only";
 
 export type SeminarRow = typeof seminars.$inferSelect;
@@ -14,6 +15,8 @@ export type SeminarRow = typeof seminars.$inferSelect;
  */
 export type SeminarListItem = SeminarRow & {
   availablePlaces: number;
+  /** How many places the quota has already given away. */
+  inscriptionCount: number;
 };
 
 export type SeminarInput = {
@@ -31,7 +34,12 @@ export type SeminarFieldName =
 
 export type SeminarFailure = {
   ok: false;
-  code: "invalid-seminar" | "duplicate-seminar" | "seminar-not-found";
+  code:
+    | "invalid-seminar"
+    | "duplicate-seminar"
+    | "has-inscriptions"
+    | "quota-below-count"
+    | "seminar-not-found";
   error: string;
   fieldErrors?: Partial<Record<SeminarFieldName, string>>;
 };
@@ -109,6 +117,12 @@ async function countInscriptionsBySeminar(seminarIds: string[]) {
   );
 }
 
+async function countSeminarInscriptions(seminarId: string) {
+  const counts = await countInscriptionsBySeminar([seminarId]);
+
+  return counts.get(seminarId) ?? 0;
+}
+
 function toSeminarListItem(
   seminar: SeminarRow,
   inscriptionCount: number,
@@ -116,6 +130,7 @@ function toSeminarListItem(
   return {
     ...seminar,
     availablePlaces: Math.max(seminar.quota - inscriptionCount, 0),
+    inscriptionCount,
   };
 }
 
@@ -179,6 +194,19 @@ export async function updateSeminar(
     return duplicateSeminarFailure();
   }
 
+  // The quota can never describe fewer places than the seminar already gave
+  // away: administration removes an inscription first, which is the only way
+  // the floor moves down.
+  const inscriptionCount = await countSeminarInscriptions(seminarId);
+
+  if (validation.input.quota < inscriptionCount) {
+    return {
+      ok: false,
+      code: "quota-below-count",
+      error: `No se puede bajar el cupo a menos de ${inscriptionCount}: es la cantidad de inscriptos.`,
+    };
+  }
+
   const [seminar] = await db
     .update(seminars)
     .set(validation.input)
@@ -207,9 +235,22 @@ export async function setSeminarInstructorPicture(
     .where(eq(seminars.id, seminarId));
 }
 
+/**
+ * The seminar's foreign key cascades, so nothing but this guard keeps a delete
+ * from taking the inscriptions with it. Administration removes them one by one
+ * first — that removal is the release valve, and there is no override.
+ */
 export async function deleteSeminar(
   seminarId: string,
 ): Promise<SeminarDeleteResult> {
+  if ((await countSeminarInscriptions(seminarId)) > 0) {
+    return {
+      ok: false,
+      code: "has-inscriptions",
+      error: seminarHasInscriptionsMessage,
+    };
+  }
+
   const [deleted] = await db
     .delete(seminars)
     .where(eq(seminars.id, seminarId))

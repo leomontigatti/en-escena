@@ -2,8 +2,11 @@ import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { events, seminars } from "@/db/schema";
+import { events, seminarInscriptions, seminars } from "@/db/schema";
+import { createDancer } from "@/lib/choreographies/registration-test-fixtures.server.db";
 import { createSavedEvent } from "@/lib/events/bases-test-fixtures.server.db";
+import { registerSeminarInscription } from "@/lib/seminars/inscriptions.server";
+import { createAcademyUser } from "@/lib/test-support/academies";
 import {
   createSeminar,
   deleteSeminar,
@@ -177,6 +180,65 @@ describe("seminar repository", () => {
     });
   });
 
+  test("refuses to delete a seminar that has inscriptions, and accepts once it has none", async () => {
+    const { eventId, seminarId } = await createRegistration();
+
+    await expect(deleteSeminar(seminarId)).resolves.toMatchObject({
+      ok: false,
+      code: "has-inscriptions",
+      error: "No se puede borrar el seminario porque tiene inscripciones.",
+    });
+    await expect(listSeminars(eventId)).resolves.toHaveLength(1);
+
+    await db
+      .delete(seminarInscriptions)
+      .where(eq(seminarInscriptions.seminarId, seminarId));
+
+    await expect(deleteSeminar(seminarId)).resolves.toEqual({ ok: true });
+  });
+
+  test("refuses a quota below the inscription count, naming the floor", async () => {
+    const { seminarId } = await createRegistration();
+
+    await expect(
+      updateSeminar(seminarId, { ...seminarInput, quota: 0 }),
+    ).resolves.toMatchObject({ ok: false, code: "invalid-seminar" });
+    await expect(
+      updateSeminar(seminarId, { ...seminarInput, quota: 1 }),
+    ).resolves.toMatchObject({
+      ok: false,
+      code: "quota-below-count",
+      error:
+        "No se puede bajar el cupo a menos de 2: es la cantidad de inscriptos.",
+    });
+
+    // The floor is the count, not one above it, and every other field still
+    // edits freely at the floor.
+    expect(
+      expectSaved(
+        await updateSeminar(seminarId, {
+          ...seminarInput,
+          scheduledDate: "2020-01-01",
+          startTime: "07:00",
+          quota: 2,
+        }),
+      ),
+    ).toMatchObject({ scheduledDate: "2020-01-01", quota: 2 });
+  });
+
+  test("counts the inscriptions the quota already gave away", async () => {
+    const { eventId, seminarId } = await createRegistration();
+
+    await expect(getSeminar(seminarId)).resolves.toMatchObject({
+      quota: 20,
+      inscriptionCount: 2,
+      availablePlaces: 18,
+    });
+    await expect(listSeminars(eventId)).resolves.toMatchObject([
+      { id: seminarId, inscriptionCount: 2 },
+    ]);
+  });
+
   test("deletes a seminar and drops the rest with the event", async () => {
     const event = await createSavedEvent("Regional 2026");
     const seminar = expectSaved(await createSeminar(event.id, seminarInput));
@@ -194,3 +256,33 @@ describe("seminar repository", () => {
     await expect(listSeminars(event.id)).resolves.toEqual([]);
   });
 });
+
+/** A seminar with two dancers of one academy on it, before it starts. */
+async function createRegistration() {
+  const event = await createSavedEvent("Regional 2026");
+  const seminar = expectSaved(await createSeminar(event.id, seminarInput));
+  const { academy } = await createAcademyUser({
+    academyName: "Academia Inscripciones",
+    email: `${crypto.randomUUID()}@example.com`,
+  });
+  for (const firstName of ["Abril", "Beto"]) {
+    const dancer = await createDancer(academy.id, {
+      firstName,
+      lastName: "Sosa",
+    });
+    const registered = await registerSeminarInscription({
+      academyId: academy.id,
+      eventId: event.id,
+      now: new Date("2026-10-10T21:29:00.000Z"),
+      personId: dancer.id,
+      personKind: "dancer",
+      seminarId: seminar.id,
+    });
+
+    if (!registered.ok) {
+      throw new Error(`Expected the inscription: ${registered.error}`);
+    }
+  }
+
+  return { eventId: event.id, seminarId: seminar.id };
+}

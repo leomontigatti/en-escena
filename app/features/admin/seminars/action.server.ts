@@ -1,3 +1,8 @@
+import { seminarHasInscriptionsMessage } from "@/lib/seminars/registration-refusals";
+import {
+  removeSeminarInscription,
+  seminarInscriptionDeletedMessage,
+} from "@/lib/seminars/inscriptions.server";
 import {
   createSeminar,
   deleteSeminar,
@@ -19,6 +24,7 @@ import { loadSeminarContext } from "./server";
 import {
   basePath,
   createSeminarIntent,
+  deleteSeminarInscriptionIntent,
   deleteSeminarIntent,
   keptSeminarPictureValue,
   readSeminarFormValues,
@@ -81,6 +87,10 @@ export async function handleSeminarDetailAction(
     return await removeSeminar(formData, seminarId, selectedEventId);
   }
 
+  if (intent === deleteSeminarInscriptionIntent) {
+    return await removeInscription(formData, seminarId);
+  }
+
   if (intent !== updateSeminarIntent) {
     throw new Response("Acción no soportada.", { status: 400 });
   }
@@ -129,11 +139,22 @@ async function removeSeminar(
     };
   }
 
+  const seminar = await getSeminar(seminarId);
+
+  // The guard is read before anything is removed: a refused delete has to leave
+  // the picture exactly where it was. `deleteSeminar` checks it again, which is
+  // what actually decides — this only keeps the bytes out of the refusal.
+  if (seminar && seminar.inscriptionCount > 0) {
+    return {
+      status: "error",
+      intent: deleteSeminarIntent,
+      message: seminarHasInscriptionsMessage,
+    };
+  }
+
   // The object goes first: a delete that reported success over bytes that
   // survived is the one outcome "eliminar" must not mean. `removeInstructorPicture`
   // tolerates an object that is already gone, so a retry converges.
-  const seminar = await getSeminar(seminarId);
-
   if (seminar?.instructorPictureStorageKey) {
     await createDefaultSeminarPictureStorage().removeInstructorPicture(
       seminar.instructorPictureStorageKey,
@@ -154,6 +175,37 @@ async function removeSeminar(
     buildListPath(basePath, selectedEventId),
     "seminario-eliminado",
   );
+}
+
+/**
+ * Administration's removal of one inscription, the release valve for the two
+ * guards on the seminar. It has no cut-off: a seminar that already started is
+ * corrected from here all the same.
+ */
+async function removeInscription(
+  formData: FormData,
+  seminarId: string,
+): Promise<SeminarActionData> {
+  const inscriptionId = String(formData.get("id") ?? "").trim();
+
+  if (String(formData.get("confirmDeletion") ?? "").trim() !== inscriptionId) {
+    return {
+      status: "error",
+      intent: deleteSeminarInscriptionIntent,
+      message: "Confirmá la baja de la inscripción.",
+    };
+  }
+
+  const result = await removeSeminarInscription({
+    inscriptionId,
+    seminarId,
+  });
+
+  return {
+    status: result.ok ? "success" : "error",
+    intent: deleteSeminarInscriptionIntent,
+    message: result.ok ? seminarInscriptionDeletedMessage : result.error,
+  };
 }
 
 /**

@@ -8,7 +8,10 @@ import {
   createSavedEvent,
   createSignedInRequest,
 } from "@/lib/admin/finances/finances.test-support";
+import { createDancer } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import { registerSeminarInscription } from "@/lib/seminars/inscriptions.server";
 import { createSeminar, getSeminar } from "@/lib/seminars/repository.server";
+import { createAcademyUser } from "@/lib/test-support/academies";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
@@ -120,6 +123,28 @@ function saveJpgPicture(seminarId: string) {
     kind: "upload",
     file: new File(["picture"], "instructor.jpg", { type: "image/jpeg" }),
   });
+}
+
+async function deleteSeminarRequest(seminarId: string) {
+  const url = `http://localhost/administracion/seminarios/${seminarId}`;
+  const signedIn = await createSignedInRequest({
+    email: `${crypto.randomUUID()}@example.com`,
+    role: "admin",
+    requestUrl: url,
+  });
+  const formData = new FormData();
+
+  formData.set("intent", "delete-seminar");
+  formData.set("confirmDeletion", seminarId);
+
+  return handleSeminarDetailAction(
+    new Request(url, {
+      method: "POST",
+      body: formData,
+      headers: { cookie: signedIn.request.headers.get("cookie") ?? "" },
+    }),
+    seminarId,
+  );
 }
 
 function pictureFolder(eventId: string, seminarId: string) {
@@ -255,6 +280,55 @@ describe.sequential("the seminar instructor picture", () => {
         "key",
       ),
     ).toBe(`events/${event.id}/seminars/${seminar.id}/instructor.jpg`);
+  });
+
+  test("a refused delete leaves the picture where it was", async () => {
+    const event = await createSavedEvent();
+    const seminar = await createSavedSeminar(event.id);
+
+    await saveJpgPicture(seminar.id);
+
+    const { academy } = await createAcademyUser({
+      academyName: "Academia Inscripciones",
+      email: `${crypto.randomUUID()}@example.com`,
+    });
+    const dancer = await createDancer(academy.id, {
+      firstName: "Abril",
+      lastName: "Sosa",
+    });
+    const registered = await registerSeminarInscription({
+      academyId: academy.id,
+      eventId: event.id,
+      now: new Date("2026-10-10T21:29:00.000Z"),
+      personId: dancer.id,
+      personKind: "dancer",
+      seminarId: seminar.id,
+    });
+
+    expect(registered.ok).toBe(true);
+    await expect(deleteSeminarRequest(seminar.id)).resolves.toMatchObject({
+      status: "error",
+      message: "No se puede borrar el seminario porque tiene inscripciones.",
+    });
+    expect(await readdir(pictureFolder(event.id, seminar.id))).toEqual([
+      "instructor.jpg",
+    ]);
+    expect(await getSeminar(seminar.id)).not.toBeNull();
+  });
+
+  // The object is removed before the row, and a retry has to converge: a key
+  // whose bytes are already gone is still a delete that succeeds.
+  test("deleting the seminar tolerates a picture object that is already gone", async () => {
+    const event = await createSavedEvent();
+    const seminar = await createSavedSeminar(event.id);
+
+    await saveJpgPicture(seminar.id);
+    await rm(join(pictureFolder(event.id, seminar.id), "instructor.jpg"));
+
+    await expect(deleteSeminarRequest(seminar.id)).rejects.toBeInstanceOf(
+      Response,
+    );
+    expect(await getSeminar(seminar.id)).toBeNull();
   });
 
   test("deleting the seminar removes its picture object", async () => {

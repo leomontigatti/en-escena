@@ -10,6 +10,8 @@ import {
 import { createSavedEvent } from "@/lib/events/bases-test-fixtures.server.db";
 import {
   deleteSeminarInscriptionForAcademy,
+  removeSeminarInscription,
+  listSeminarInscriptions,
   listSeminarInscriptionsForAcademy,
   listSeminarPersonOptionsForAcademy,
   registerSeminarInscription,
@@ -416,5 +418,134 @@ describe("seminar inscriptions", () => {
     await expect(
       db.insert(seminarInscriptions).values({ seminarId: seminar.id }),
     ).rejects.toThrow();
+  });
+});
+
+describe("the administrative reading of a seminar's inscriptions", () => {
+  test("lists every academy's people by academy, with the kind of each", async () => {
+    const { eventId, seminar } = await createSeminarFixture(4);
+    const north = await createAcademy("Academia Norte");
+    const south = await createAcademy("Academia Sur");
+    const dancer = await createDancer(north.id, {
+      firstName: "Abril",
+      lastName: "Sosa",
+    });
+    const professor = await createProfessor(south.id, {
+      firstName: "Beto",
+      lastName: "Luna",
+    });
+
+    expectRegistered(
+      await registerDancerBeforeStart({
+        academyId: north.id,
+        eventId,
+        personId: dancer.id,
+        seminarId: seminar.id,
+      }),
+    );
+    expectRegistered(
+      await registerSeminarInscription({
+        academyId: south.id,
+        eventId,
+        now: beforeStart,
+        personId: professor.id,
+        personKind: "professor",
+        seminarId: seminar.id,
+      }),
+    );
+
+    await expect(listSeminarInscriptions(seminar.id)).resolves.toMatchObject([
+      {
+        fullName: "Abril Sosa",
+        personKind: "dancer",
+        academyName: "Academia Norte",
+      },
+      {
+        fullName: "Beto Luna",
+        personKind: "professor",
+        academyName: "Academia Sur",
+      },
+    ]);
+  });
+
+  test("removes an inscription after the seminar started and frees its place", async () => {
+    const { eventId, seminar } = await createSeminarFixture(1);
+    const academy = await createAcademy("Academia Inscripciones");
+    const dancer = await createDancer(academy.id, {
+      firstName: "Abril",
+      lastName: "Sosa",
+    });
+    const other = await createDancer(academy.id, {
+      firstName: "Beto",
+      lastName: "Sosa",
+    });
+    const inscriptionId = expectRegistered(
+      await registerDancerBeforeStart({
+        academyId: academy.id,
+        eventId,
+        personId: dancer.id,
+        seminarId: seminar.id,
+      }),
+    );
+
+    // The academy itself is past its cut-off, and the seminar is full.
+    await expect(
+      deleteSeminarInscriptionForAcademy({
+        academyId: academy.id,
+        eventId,
+        inscriptionId,
+        now: afterStart,
+      }),
+    ).resolves.toMatchObject({ ok: false, code: "started" });
+
+    await expect(
+      removeSeminarInscription({
+        inscriptionId,
+        seminarId: seminar.id,
+      }),
+    ).resolves.toEqual({ ok: true });
+    await expect(listSeminarInscriptions(seminar.id)).resolves.toEqual([]);
+    await expect(listSeminars(eventId)).resolves.toMatchObject([
+      { id: seminar.id, availablePlaces: 1, inscriptionCount: 0 },
+    ]);
+
+    // The place is free again, which is what the removal is the valve for.
+    expectRegistered(
+      await registerDancerBeforeStart({
+        academyId: academy.id,
+        eventId,
+        personId: other.id,
+        seminarId: seminar.id,
+      }),
+    );
+  });
+
+  test("reports an inscription of another seminar as missing", async () => {
+    const { eventId, seminar } = await createSeminarFixture();
+    const academy = await createAcademy("Academia Inscripciones");
+    const dancer = await createDancer(academy.id, {
+      firstName: "Abril",
+      lastName: "Sosa",
+    });
+    const inscriptionId = expectRegistered(
+      await registerDancerBeforeStart({
+        academyId: academy.id,
+        eventId,
+        personId: dancer.id,
+        seminarId: seminar.id,
+      }),
+    );
+
+    await expect(
+      removeSeminarInscription({
+        inscriptionId,
+        seminarId: "seminar_missing",
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      code: "inscription-not-found",
+      error: "No encontramos esa inscripción.",
+    });
+    await expect(listSeminarInscriptions(seminar.id)).resolves.toHaveLength(1);
   });
 });

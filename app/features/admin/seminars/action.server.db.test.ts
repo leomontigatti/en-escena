@@ -8,7 +8,13 @@ import {
   createSavedEvent,
   createSignedInRequest,
 } from "@/lib/admin/finances/finances.test-support";
+import { createDancer } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import {
+  listSeminarInscriptions,
+  registerSeminarInscription,
+} from "@/lib/seminars/inscriptions.server";
 import { createSeminar, listSeminars } from "@/lib/seminars/repository.server";
+import { createAcademyUser } from "@/lib/test-support/academies";
 import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
@@ -203,6 +209,148 @@ describe.sequential("admin seminars", () => {
     await expect(listSeminars(event.id)).resolves.toEqual([]);
   });
 
+  test("refuses to delete a seminar with inscriptions and accepts once it has none", async () => {
+    const { eventId, seminarId, inscriptionIds } = await createRegistration([
+      "Abril",
+    ]);
+    const inscriptionId = inscriptionIds[0] ?? "";
+
+    await expect(
+      handleSeminarDetailAction(
+        await buildSignedRequest(seminarUrl(seminarId), {
+          intent: "delete-seminar",
+          id: seminarId,
+          confirmDeletion: seminarId,
+        }),
+        seminarId,
+      ),
+    ).resolves.toMatchObject({
+      status: "error",
+      intent: "delete-seminar",
+      message: "No se puede borrar el seminario porque tiene inscripciones.",
+    });
+    await expect(listSeminars(eventId)).resolves.toHaveLength(1);
+
+    await expect(
+      handleSeminarDetailAction(
+        await buildSignedRequest(seminarUrl(seminarId), {
+          intent: "delete-seminar-inscription",
+          id: inscriptionId,
+          confirmDeletion: inscriptionId,
+        }),
+        seminarId,
+      ),
+    ).resolves.toMatchObject({
+      status: "success",
+      intent: "delete-seminar-inscription",
+      message: "Inscripción eliminada.",
+    });
+    await expect(listSeminarInscriptions(seminarId)).resolves.toEqual([]);
+
+    const response = await expectThrownResponse(
+      handleSeminarDetailAction(
+        await buildSignedRequest(seminarUrl(seminarId), {
+          intent: "delete-seminar",
+          id: seminarId,
+          confirmDeletion: seminarId,
+        }),
+        seminarId,
+      ),
+    );
+
+    expect(response.status).toBe(302);
+    await expect(listSeminars(eventId)).resolves.toEqual([]);
+  });
+
+  test("removes an inscription only once the removal is confirmed", async () => {
+    const { seminarId, inscriptionIds } = await createRegistration(["Abril"]);
+    const inscriptionId = inscriptionIds[0] ?? "";
+
+    await expect(
+      handleSeminarDetailAction(
+        await buildSignedRequest(seminarUrl(seminarId), {
+          intent: "delete-seminar-inscription",
+          id: inscriptionId,
+        }),
+        seminarId,
+      ),
+    ).resolves.toMatchObject({
+      status: "error",
+      intent: "delete-seminar-inscription",
+    });
+    await expect(listSeminarInscriptions(seminarId)).resolves.toHaveLength(1);
+
+    // The detail carries the tab's rows, so the removal has something to open.
+    await expect(
+      loadSeminarDetailData(
+        await buildSignedRequest(seminarUrl(seminarId)),
+        seminarId,
+      ),
+    ).resolves.toMatchObject({
+      inscriptions: [
+        {
+          id: inscriptionId,
+          fullName: "Abril Sosa",
+          personKind: "dancer",
+          academyName: "Academia Inscripciones",
+        },
+      ],
+    });
+  });
+
+  // The floor is a refusal the reader can only act on by removing someone, so
+  // it is a toast about the seminar and not an error under the quota field.
+  test("refuses a quota below the inscription count as a message, not a field error", async () => {
+    const { seminarId } = await createRegistration();
+
+    await expect(
+      handleSeminarDetailAction(
+        await buildSignedRequest(seminarUrl(seminarId), {
+          intent: "update-seminar",
+          ...seminarFields,
+          quota: "0",
+        }),
+        seminarId,
+      ),
+    ).resolves.toMatchObject({
+      status: "error",
+      fieldErrors: { quota: "Ingresá un cupo mayor a cero." },
+    });
+
+    const refused = await handleSeminarDetailAction(
+      await buildSignedRequest(seminarUrl(seminarId), {
+        intent: "update-seminar",
+        ...seminarFields,
+        instructorName: "Nicolás Prado",
+        quota: "1",
+      }),
+      seminarId,
+    );
+
+    expect(refused).toMatchObject({
+      status: "error",
+      intent: "update-seminar",
+      message:
+        "No se puede bajar el cupo a menos de 2: es la cantidad de inscriptos.",
+    });
+    expect(refused.fieldErrors).toBeUndefined();
+
+    // Every other field still edits freely once the quota clears the floor,
+    // the date into the past included.
+    await expect(
+      handleSeminarDetailAction(
+        await buildSignedRequest(seminarUrl(seminarId), {
+          intent: "update-seminar",
+          ...seminarFields,
+          instructorName: "Nicolás Prado",
+          scheduledDate: "2020-01-01",
+          quota: "2",
+        }),
+        seminarId,
+      ),
+    ).resolves.toMatchObject({ status: "success" });
+  });
+
   test("asks for a confirmation before deleting", async () => {
     const event = await createSavedEvent();
     const seminarId = await createSavedSeminar(event.id);
@@ -266,6 +414,44 @@ describe.sequential("admin seminars", () => {
     expect(notFound.status).toBe(404);
   });
 });
+
+function seminarUrl(seminarId: string) {
+  return `http://localhost/administracion/seminarios/${seminarId}`;
+}
+
+/** A seminar of the active event with one dancer per given name on it. */
+async function createRegistration(firstNames = ["Abril", "Beto"]) {
+  const event = await createSavedEvent();
+  const seminarId = await createSavedSeminar(event.id);
+  const { academy } = await createAcademyUser({
+    academyName: "Academia Inscripciones",
+    email: `${crypto.randomUUID()}@example.com`,
+  });
+  const inscriptionIds: string[] = [];
+
+  for (const firstName of firstNames) {
+    const dancer = await createDancer(academy.id, {
+      firstName,
+      lastName: "Sosa",
+    });
+    const registered = await registerSeminarInscription({
+      academyId: academy.id,
+      eventId: event.id,
+      now: new Date("2026-10-10T21:29:00.000Z"),
+      personId: dancer.id,
+      personKind: "dancer",
+      seminarId,
+    });
+
+    if (!registered.ok) {
+      throw new Error(`Expected the inscription: ${registered.error}`);
+    }
+
+    inscriptionIds.push(registered.inscriptionId);
+  }
+
+  return { eventId: event.id, seminarId, inscriptionIds };
+}
 
 async function readEventReadiness(eventId: string) {
   const event = await db.query.events.findFirst({

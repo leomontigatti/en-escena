@@ -2,6 +2,7 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
+  academies,
   dancers,
   professors,
   seminarInscriptions,
@@ -30,6 +31,18 @@ export type SeminarInscriptionListItem = {
   createdAt: Date;
 };
 
+/**
+ * One row of the seminar detail's `Inscriptos` tab: who is registered, what
+ * kind of roster person they are and which academy registered them. The academy
+ * is read through the person, as it is everywhere else.
+ */
+export type SeminarInscriptionRow = {
+  id: string;
+  fullName: string;
+  personKind: RosterPersonKind;
+  academyName: string;
+};
+
 export type SeminarPersonOption = {
   id: string;
   kind: RosterPersonKind;
@@ -55,6 +68,12 @@ export type DeleteSeminarInscriptionInput = {
 export type DeleteSeminarInscriptionFailureCode =
   | "inscription-not-found"
   | "started";
+
+/** Administration's removal, which has no cut-off and no reason to refuse but
+ * a row that is not there. */
+export type RemoveSeminarInscriptionResult =
+  | { ok: true }
+  | { ok: false; code: "inscription-not-found"; error: string };
 
 export type DeleteSeminarInscriptionResult =
   | { ok: true }
@@ -245,6 +264,76 @@ async function findAcademyInscription(input: DeleteSeminarInscriptionInput) {
     );
 
   return row?.academyId === input.academyId ? row : undefined;
+}
+
+/**
+ * Every inscription of one seminar, whichever academy made it. Administration
+ * reads a flat table: there is no grouping and no occupancy line, so the two
+ * halves are merged and sorted by academy, the order the table opens in.
+ */
+export async function listSeminarInscriptions(
+  seminarId: string,
+): Promise<SeminarInscriptionRow[]> {
+  const [dancerRows, professorRows] = await Promise.all([
+    db
+      .select({
+        id: seminarInscriptions.id,
+        firstName: dancers.firstName,
+        lastName: dancers.lastName,
+        academyName: academies.name,
+      })
+      .from(seminarInscriptions)
+      .innerJoin(dancers, eq(dancers.id, seminarInscriptions.dancerId))
+      .innerJoin(academies, eq(academies.id, dancers.academyId))
+      .where(eq(seminarInscriptions.seminarId, seminarId)),
+    db
+      .select({
+        id: seminarInscriptions.id,
+        firstName: professors.firstName,
+        lastName: professors.lastName,
+        academyName: academies.name,
+      })
+      .from(seminarInscriptions)
+      .innerJoin(professors, eq(professors.id, seminarInscriptions.professorId))
+      .innerJoin(academies, eq(academies.id, professors.academyId))
+      .where(eq(seminarInscriptions.seminarId, seminarId)),
+  ]);
+
+  return [
+    ...dancerRows.map((row) => toInscriptionRow(row, "dancer")),
+    ...professorRows.map((row) => toInscriptionRow(row, "professor")),
+  ].sort(byAcademyThenFullName);
+}
+
+/**
+ * Administration's removal: no cut-off, no reason and no trail. A seminar that
+ * has already started is removed from all the same, because this is the release
+ * valve for the two guards on the seminar itself — a seminar with inscriptions
+ * cannot be deleted, and its quota cannot drop below the count.
+ */
+export async function removeSeminarInscription(input: {
+  inscriptionId: string;
+  seminarId: string;
+}): Promise<RemoveSeminarInscriptionResult> {
+  const [deleted] = await db
+    .delete(seminarInscriptions)
+    .where(
+      and(
+        eq(seminarInscriptions.id, input.inscriptionId),
+        eq(seminarInscriptions.seminarId, input.seminarId),
+      ),
+    )
+    .returning({ id: seminarInscriptions.id });
+
+  if (!deleted) {
+    return {
+      ok: false,
+      code: "inscription-not-found",
+      error: seminarInscriptionNotFoundMessage,
+    };
+  }
+
+  return { ok: true };
 }
 
 /**
@@ -462,6 +551,33 @@ function toPersonOption(
     kind,
     fullName: `${row.firstName} ${row.lastName}`,
   };
+}
+
+function toInscriptionRow(
+  row: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    academyName: string;
+  },
+  personKind: RosterPersonKind,
+): SeminarInscriptionRow {
+  return {
+    id: row.id,
+    fullName: `${row.firstName} ${row.lastName}`,
+    personKind,
+    academyName: row.academyName,
+  };
+}
+
+function byAcademyThenFullName(
+  first: SeminarInscriptionRow,
+  second: SeminarInscriptionRow,
+) {
+  return (
+    first.academyName.localeCompare(second.academyName, "es-AR") ||
+    byFullName(first, second)
+  );
 }
 
 function byFullName(first: { fullName: string }, second: { fullName: string }) {

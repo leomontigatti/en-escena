@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import type { FieldErrors } from "@/lib/shared/form-validation";
 import { requiredFieldMessage } from "@/lib/shared/forms";
+import type { SeminarInscriptionRow } from "@/lib/seminars/inscriptions.server";
 import type {
   SeminarFieldName,
   SeminarListItem,
@@ -12,6 +13,7 @@ export const basePath = "/administracion/seminarios";
 export const createSeminarIntent = "create-seminar";
 export const updateSeminarIntent = "update-seminar";
 export const deleteSeminarIntent = "delete-seminar";
+export const deleteSeminarInscriptionIntent = "delete-seminar-inscription";
 
 /**
  * The picture rides on the seminar's own form, as the event's PDFs ride on the
@@ -72,6 +74,8 @@ export type SeminarCreateLoaderData = {
 };
 
 export type SeminarDetailLoaderData = {
+  /** Everyone registered, whichever academy registered them. */
+  inscriptions: SeminarInscriptionRow[];
   /** A signed link to the stored picture, or `null` when there is none. */
   instructorPictureUrl: string | null;
   selectedEventId: string | null;

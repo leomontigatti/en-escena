@@ -10,6 +10,7 @@ import {
   defaultSeminarFormValues,
   toSeminarFormValues,
 } from "@/features/admin/seminars/shared";
+import type { SeminarInscriptionRow } from "@/lib/seminars/inscriptions.server";
 import type { SeminarListItem } from "@/lib/seminars/repository.server";
 import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 
@@ -32,6 +33,7 @@ function buildSeminar(
     quota: 20,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     availablePlaces: 20,
+    inscriptionCount: 0,
     ...overrides,
   };
 }
@@ -102,11 +104,16 @@ describe("SeminarsListView", () => {
   });
 });
 
-function renderDetail(seminar: SeminarListItem, instructorPictureUrl = null) {
+function renderDetail(
+  seminar: SeminarListItem,
+  instructorPictureUrl = null,
+  inscriptions: SeminarInscriptionRow[] = [],
+) {
   return renderAt(
     "/administracion/seminarios/seminar_1",
     <SeminarDetailView
       loaderData={{
+        inscriptions,
         instructorPictureUrl,
         selectedEventId: "event_1",
         seminar,
@@ -169,6 +176,135 @@ describe("SeminarDetailView", () => {
         'input[name="instructorPictureKept"]',
       )?.value,
     ).toBe("kept");
+  });
+});
+
+function buildInscription(
+  overrides: Partial<SeminarInscriptionRow> = {},
+): SeminarInscriptionRow {
+  return {
+    id: "inscription_1",
+    fullName: "Abril Sosa",
+    personKind: "dancer",
+    academyName: "Academia Norte",
+    ...overrides,
+  };
+}
+
+function renderInscriptions(
+  inscriptions: SeminarInscriptionRow[],
+  initialRemovingInscriptionId: string | null = null,
+) {
+  const seminar = buildSeminar({ inscriptionCount: inscriptions.length });
+
+  return renderAt(
+    "/administracion/seminarios/seminar_1",
+    <SeminarDetailView
+      initialRemovingInscriptionId={initialRemovingInscriptionId}
+      initialTab="inscriptos"
+      loaderData={{
+        inscriptions,
+        instructorPictureUrl: null,
+        selectedEventId: "event_1",
+        seminar,
+        values: toSeminarFormValues(seminar),
+      }}
+    />,
+  );
+}
+
+describe("SeminarDetailView `Inscriptos`", () => {
+  test("lists the person, the type and the academy, and offers no way to create one", async () => {
+    await renderInscriptions([
+      buildInscription(),
+      buildInscription({
+        id: "inscription_2",
+        fullName: "Beto Luna",
+        personKind: "professor",
+        academyName: "Academia Sur",
+      }),
+    ]);
+
+    const body = document.body.textContent ?? "";
+    expect(body).toContain("Abril Sosa");
+    expect(body).toContain("Bailarín");
+    expect(body).toContain("Beto Luna");
+    expect(body).toContain("Profesor");
+    expect(body).toContain("Academia Norte");
+    // The quota is not this tab's business, and administration never registers.
+    expect(body).not.toContain("Inscribir");
+    expect(body).not.toContain("disponibles");
+  });
+
+  test("reads the empty tab as a table with nobody in it", async () => {
+    await renderInscriptions([]);
+
+    expect(document.body.textContent).toContain(
+      "Todavía no hay inscriptos en este seminario.",
+    );
+  });
+
+  test("opens the removal confirmation from the person name", async () => {
+    await renderInscriptions([buildInscription()], "inscription_1");
+
+    const dialog = document.querySelector('[role="alertdialog"]');
+
+    expect(dialog?.textContent).toContain("Abril Sosa");
+    expect(dialog?.textContent).toContain(
+      "Esta acción da de baja la inscripción del seminario y libera su lugar. No se puede deshacer.",
+    );
+    expect(
+      dialog?.querySelector('input[name="intent"]')?.getAttribute("value"),
+    ).toBe("delete-seminar-inscription");
+    expect(
+      dialog?.querySelector('input[name="id"]')?.getAttribute("value"),
+    ).toBe("inscription_1");
+  });
+});
+
+describe("SeminarDetailView delete dialog", () => {
+  test("blocks the seminar delete while an inscription stands", async () => {
+    await renderAt(
+      "/administracion/seminarios/seminar_1",
+      <SeminarDetailView
+        initialDeleteDialogOpen
+        loaderData={{
+          inscriptions: [buildInscription()],
+          instructorPictureUrl: null,
+          selectedEventId: "event_1",
+          seminar: buildSeminar({ inscriptionCount: 1, availablePlaces: 19 }),
+          values: toSeminarFormValues(buildSeminar()),
+        }}
+      />,
+    );
+
+    const dialog = document.querySelector('[role="alertdialog"]');
+
+    expect(dialog?.textContent).toContain(
+      "No se puede borrar el seminario porque tiene inscripciones.",
+    );
+    expect(dialog?.querySelector("form")).toBeNull();
+  });
+
+  test("offers the destructive button once nobody is registered", async () => {
+    await renderAt(
+      "/administracion/seminarios/seminar_1",
+      <SeminarDetailView
+        initialDeleteDialogOpen
+        loaderData={{
+          inscriptions: [],
+          instructorPictureUrl: null,
+          selectedEventId: "event_1",
+          seminar: buildSeminar(),
+          values: toSeminarFormValues(buildSeminar()),
+        }}
+      />,
+    );
+
+    const dialog = document.querySelector('[role="alertdialog"]');
+
+    expect(dialog?.querySelector("form")).not.toBeNull();
+    expect(dialog?.textContent).not.toContain("tiene inscripciones");
   });
 });
 

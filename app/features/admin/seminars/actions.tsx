@@ -6,6 +6,7 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
+import { seminarHasInscriptionsMessage } from "@/lib/seminars/registration-refusals";
 import type { SeminarListItem } from "@/lib/seminars/repository.server";
 
 import { deleteSeminarIntent } from "./shared";
@@ -36,6 +37,11 @@ export function SeminarActions({
       <DeleteDialog
         title="Eliminar seminario"
         description={`Esta acción borra el seminario de ${seminar.instructorName}. No se puede deshacer.`}
+        // The inscriptions are what the seminar owes: while any of them stands,
+        // the dialog only explains itself and offers no destructive button.
+        // Administration removes them from `Inscriptos` first.
+        isBlocked={seminar.inscriptionCount > 0}
+        blockedDescription={seminarHasInscriptionsMessage}
         intentValue={deleteSeminarIntent}
         recordId={seminar.id}
         open={deleteDialogOpen}
