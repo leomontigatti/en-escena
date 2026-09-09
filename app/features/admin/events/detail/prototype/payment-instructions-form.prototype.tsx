@@ -127,13 +127,17 @@ export const MAX_PAYMENT_INSTRUCTIONS_TEXT_LENGTH = 2000;
 // the check-digit copy cannot reuse it, because by then the count is right and
 // repeating "debe contener 22 dígitos" at someone who typed 22 digits reads as
 // a broken form. It says the only thing a check digit proves: a digit is wrong.
+//
+// It names no field, so both identifiers share it: the message sits under its
+// own label, which has already said which field it is.
+const mistypedDigitMessage = "Alguno de los dígitos está mal tipeado.";
 const cbuMessages = {
   shape: "El número de CBU/CVU debe contener 22 dígitos.",
-  "check-digit": "Revisá el CBU/CVU: alguno de los dígitos está mal tipeado.",
+  "check-digit": mistypedDigitMessage,
 } as const;
 const cuitMessages = {
   shape: "El número de CUIT debe contener 11 dígitos con o sin guiones.",
-  "check-digit": "Revisá el CUIT: alguno de los dígitos está mal tipeado.",
+  "check-digit": mistypedDigitMessage,
 } as const;
 const invalidAliasMessage =
   "El alias tiene entre 6 y 20 caracteres, y solo admite letras, números, puntos y guiones.";
