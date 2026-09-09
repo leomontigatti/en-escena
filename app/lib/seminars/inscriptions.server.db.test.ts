@@ -51,6 +51,21 @@ async function createAcademy(name: string) {
   return academy;
 }
 
+/** The registration the quota and delete tests repeat: an open seminar, an
+ * active dancer of the academy, before the start. */
+function registerDancerBeforeStart(input: {
+  academyId: string;
+  eventId: string;
+  personId: string;
+  seminarId: string;
+}) {
+  return registerSeminarInscription({
+    ...input,
+    now: beforeStart,
+    personKind: "dancer",
+  });
+}
+
 function expectRegistered(result: RegisterSeminarInscriptionResult) {
   if (!result.ok) {
     throw new Error(`Expected the inscription to be saved: ${result.error}`);
@@ -110,12 +125,10 @@ describe("seminar inscriptions", () => {
     const first = await createDancer(academy.id, { firstName: "Uno" });
     const second = await createDancer(academy.id, { firstName: "Dos" });
     const register = (personId: string) =>
-      registerSeminarInscription({
+      registerDancerBeforeStart({
         academyId: academy.id,
         eventId,
-        now: beforeStart,
         personId,
-        personKind: "dancer" as const,
         seminarId: seminar.id,
       });
 
@@ -134,12 +147,10 @@ describe("seminar inscriptions", () => {
     const first = await createDancer(academy.id, { firstName: "Uno" });
     const second = await createDancer(academy.id, { firstName: "Dos" });
     const register = (personId: string) =>
-      registerSeminarInscription({
+      registerDancerBeforeStart({
         academyId: academy.id,
         eventId,
-        now: beforeStart,
         personId,
-        personKind: "dancer" as const,
         seminarId: seminar.id,
       });
 
@@ -194,12 +205,10 @@ describe("seminar inscriptions", () => {
     });
     const active = await createDancer(academy.id, { firstName: "Activa" });
     const register = (personId: string) =>
-      registerSeminarInscription({
+      registerDancerBeforeStart({
         academyId: academy.id,
         eventId,
-        now: beforeStart,
         personId,
-        personKind: "dancer" as const,
         seminarId: seminar.id,
       });
 
@@ -291,12 +300,10 @@ describe("seminar inscriptions", () => {
     const first = await createDancer(academy.id, { firstName: "Uno" });
     const second = await createDancer(academy.id, { firstName: "Dos" });
     const register = (personId: string) =>
-      registerSeminarInscription({
+      registerDancerBeforeStart({
         academyId: academy.id,
         eventId,
-        now: beforeStart,
         personId,
-        personKind: "dancer" as const,
         seminarId: seminar.id,
       });
     const inscriptionId = expectRegistered(await register(first.id));
