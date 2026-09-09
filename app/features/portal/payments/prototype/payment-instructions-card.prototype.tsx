@@ -147,7 +147,8 @@ export function PaymentInstructionsAlertGridVariant({
     <Alert variant="info">
       <Landmark aria-hidden="true" />
       <AlertTitle>Instrucciones de pago</AlertTitle>
-      <AlertDescription className="flex flex-col gap-4">
+      {/* `mt-2` because the alert's own row gap is 0.5, which crowds a grid. */}
+      <AlertDescription className="mt-2 flex flex-col gap-4">
         <InstructionsBody instructions={instructions} />
       </AlertDescription>
     </Alert>
@@ -155,7 +156,7 @@ export function PaymentInstructionsAlertGridVariant({
 }
 
 /**
- * Two columns from `sm`: CBU/CVU beside the alias, then banco beside titular.
+ * Two columns from `sm`: CBU/CVU beside the alias, then titular beside banco.
  * The titular cell carries the CUIT, since a payer reads them together on the
  * bank's confirmation screen.
  */
@@ -181,11 +182,11 @@ function IdentifierGrid({
           </dd>
         </div>
       ))}
-      {instructions.bankName ? (
-        <IdentifierRow label="Banco">{instructions.bankName}</IdentifierRow>
-      ) : null}
       {holderLine ? (
         <IdentifierRow label="Titular">{holderLine}</IdentifierRow>
+      ) : null}
+      {instructions.bankName ? (
+        <IdentifierRow label="Banco">{instructions.bankName}</IdentifierRow>
       ) : null}
     </dl>
   );
