@@ -22,6 +22,7 @@ const seminarFormValues = {
   scheduledDate: "2026-10-10",
   startTime: "18:30",
   quota: "20",
+  instructorPictureKept: "" as const,
 };
 
 const listLoaderResult = {
@@ -35,6 +36,7 @@ const createLoaderResult = {
 };
 
 const detailLoaderResult = {
+  instructorPictureUrl: null,
   selectedEventId: "evento_1",
   seminar: {
     id: "seminar_1",

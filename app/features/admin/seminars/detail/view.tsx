@@ -30,7 +30,7 @@ export function SeminarDetailView({
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
       title="Editar seminario"
-      description="Editá el instructor, la fecha, la hora y el cupo del seminario."
+      description="Editá el instructor, su foto, la fecha, la hora y el cupo del seminario."
       headerAction={
         <SeminarActions
           seminar={seminar}
@@ -42,11 +42,13 @@ export function SeminarDetailView({
         <SeminarForm
           actionData={actionData}
           formId={updateSeminarFormId}
+          instructorPictureUrl={loaderData.instructorPictureUrl}
           intent={updateSeminarIntent}
           occupancy={{
             availablePlaces: seminar.availablePlaces,
             quota: seminar.quota,
           }}
+          showInstructorPicture
           values={loaderData.values}
         />
         <SeminarFormActions

@@ -1,23 +1,32 @@
 import {
   createSeminar,
   deleteSeminar,
+  getSeminar,
+  setSeminarInstructorPicture,
   updateSeminar,
   type SeminarFailure,
   type SeminarInput,
+  type SeminarRow,
 } from "@/lib/seminars/repository.server";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
 import { getFieldErrors } from "@/lib/shared/form-validation";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
 import { buildDetailPath, buildListPath } from "@/lib/shared/navigation";
+import { formatUploadRejection } from "@/lib/storage/asset-kinds";
+import { createDefaultSeminarPictureStorage } from "@/lib/storage/seminar-pictures.server";
 
 import { loadSeminarContext } from "./server";
 import {
   basePath,
   createSeminarIntent,
   deleteSeminarIntent,
+  keptSeminarPictureValue,
   readSeminarFormValues,
   seminarFieldNames,
   seminarFormSchema,
+  seminarPictureFileField,
+  seminarPictureKeptField,
+  seminarPicturePresentField,
   updateSeminarIntent,
   type SeminarActionData,
   type SeminarFormValues,
@@ -89,6 +98,17 @@ export async function handleSeminarDetailAction(
     return toFailureActionData(result, updateSeminarIntent, values);
   }
 
+  const picture = await applySeminarPictureChange(formData, result.seminar);
+
+  if (!picture.ok) {
+    return {
+      status: "error",
+      intent: updateSeminarIntent,
+      message: picture.message,
+      values,
+    };
+  }
+
   return {
     status: "success",
     intent: updateSeminarIntent,
@@ -109,6 +129,17 @@ async function removeSeminar(
     };
   }
 
+  // The object goes first: a delete that reported success over bytes that
+  // survived is the one outcome "eliminar" must not mean. `removeInstructorPicture`
+  // tolerates an object that is already gone, so a retry converges.
+  const seminar = await getSeminar(seminarId);
+
+  if (seminar?.instructorPictureStorageKey) {
+    await createDefaultSeminarPictureStorage().removeInstructorPicture(
+      seminar.instructorPictureStorageKey,
+    );
+  }
+
   const result = await deleteSeminar(seminarId);
 
   if (!result.ok) {
@@ -123,6 +154,52 @@ async function removeSeminar(
     buildListPath(basePath, selectedEventId),
     "seminario-eliminado",
   );
+}
+
+/**
+ * The picture rides on the seminar's own "Guardar", as the event's PDFs ride on
+ * the event's. A body without the marker is left alone: an absent file input
+ * and an absent "kept" field look exactly like "remove the picture", and the
+ * costly way to be wrong about that is the one that deletes.
+ */
+async function applySeminarPictureChange(
+  formData: FormData,
+  seminar: SeminarRow,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  if (formData.get(seminarPicturePresentField) !== keptSeminarPictureValue) {
+    return { ok: true };
+  }
+
+  const storage = createDefaultSeminarPictureStorage();
+  const file = formData.get(seminarPictureFileField);
+
+  // A chosen file always wins: picking one after clearing the field is a
+  // replacement, not a removal followed by an upload.
+  if (file instanceof File && file.size > 0) {
+    const result = await storage.uploadInstructorPicture({
+      eventId: seminar.eventId,
+      file,
+      seminarId: seminar.id,
+    });
+
+    if (!result.ok) {
+      return { ok: false, message: formatUploadRejection(result.rejection) };
+    }
+
+    await setSeminarInstructorPicture(seminar.id, result.storageKey);
+
+    return { ok: true };
+  }
+
+  const isKept =
+    formData.get(seminarPictureKeptField) === keptSeminarPictureValue;
+
+  if (seminar.instructorPictureStorageKey && !isKept) {
+    await storage.removeInstructorPicture(seminar.instructorPictureStorageKey);
+    await setSeminarInstructorPicture(seminar.id, null);
+  }
+
+  return { ok: true };
 }
 
 function parseSeminarInput(

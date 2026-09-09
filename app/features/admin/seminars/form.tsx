@@ -1,14 +1,19 @@
 import { useEffect, useMemo, type ReactNode } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type Control } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { AdminResourceFormCard } from "@/components/admin/resource-layout";
 import { BackButton, SubmitButton } from "@/components/shared/action-buttons";
 import { DateOnlyField } from "@/components/shared/date-only-field";
+import { FileUploadField } from "@/components/shared/file-upload-field";
 import { IntegerInputField } from "@/components/shared/integer-input-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { TimeOnlyField } from "@/components/shared/time-only-field";
 import { FieldGroup } from "@/components/ui/field";
+import {
+  getAssetKindHelperText,
+  getAssetUploadFieldProps,
+} from "@/lib/storage/asset-kinds";
 import {
   describeAvailablePlaces,
   formatAvailablePlacesSuffix,
@@ -25,7 +30,11 @@ import { buildListPath } from "@/lib/shared/navigation";
 
 import {
   basePath,
+  keptSeminarPictureValue,
   seminarFormSchema,
+  seminarPictureFileField,
+  seminarPictureKeptField,
+  seminarPicturePresentField,
   type SeminarActionData,
   type SeminarFormValues,
 } from "./shared";
@@ -43,14 +52,20 @@ type SeminarQuotaOccupancy = {
 export function SeminarForm({
   actionData,
   formId,
+  instructorPictureUrl,
   intent,
   occupancy,
+  showInstructorPicture = false,
   values,
 }: {
   actionData?: SeminarActionData;
   formId: string;
+  /** A signed link to the stored picture, or `null` when there is none. */
+  instructorPictureUrl?: string | null;
   intent: string;
   occupancy?: SeminarQuotaOccupancy;
+  /** The picture belongs to a seminar that exists, so the create page has none. */
+  showInstructorPicture?: boolean;
   values: SeminarFormValues;
 }) {
   const defaultValues = useMemo(
@@ -92,6 +107,9 @@ export function SeminarForm({
       id={formId}
       method="post"
       className="flex w-full flex-col gap-5"
+      // The picture travels with the rest of the form, so the body is multipart
+      // wherever the field is rendered.
+      encType={showInstructorPicture ? "multipart/form-data" : undefined}
       onSubmit={createValidatedRouteSubmitHandler(form, submit, formAction)}
     >
       <input type="hidden" name="intent" value={intent} />
@@ -133,8 +151,58 @@ export function SeminarForm({
           buttonClassName="w-full"
         />
         <TimeOnlyField control={form.control} label="Hora" name="startTime" />
+        {showInstructorPicture ? (
+          <InstructorPictureField
+            control={form.control}
+            downloadUrl={instructorPictureUrl ?? undefined}
+          />
+        ) : null}
       </FieldGroup>
     </form>
+  );
+}
+
+/**
+ * The event-document upload field, configured the same way: an uploaded picture
+ * reads as a link that opens it and has to be removed before another can take
+ * its place. `FileUploadField` forwards `className` to the control rather than
+ * to the wrapper, so the grid span lives on a wrapper element around it.
+ */
+function InstructorPictureField({
+  control,
+  downloadUrl,
+}: {
+  control: Control<SeminarFormValues>;
+  downloadUrl?: string;
+}) {
+  return (
+    <div className="sm:col-span-2">
+      {/* Tells the action this body carries the picture at all, so a submission
+          without the field cannot read an empty input as "remove the picture". */}
+      <input
+        type="hidden"
+        name={seminarPicturePresentField}
+        value={keptSeminarPictureValue}
+      />
+      <FileUploadField
+        control={control}
+        name={seminarPictureKeptField}
+        fileInputName={seminarPictureFileField}
+        fieldLabel="Foto del instructor"
+        downloadLabel="Abrir foto"
+        downloadUrl={downloadUrl}
+        uploadedLabel="Foto cargada"
+        label="Elegí la foto o arrastrala acá"
+        // The compact variant renders no helper text, so the accepted formats
+        // and the ceiling stand in for the empty value instead.
+        placeholder={getAssetKindHelperText("seminarInstructorPicture")}
+        {...getAssetUploadFieldProps("seminarInstructorPicture")}
+        previewSelectedFile={false}
+        removeLabel="Quitar la foto del instructor"
+        replaceRequiresRemoval
+        variant="compact"
+      />
+    </div>
   );
 }
 

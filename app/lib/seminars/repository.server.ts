@@ -154,6 +154,21 @@ export async function updateSeminar(
   return { ok: true, seminar };
 }
 
+/**
+ * The row holds the storage key of the instructor's picture, never a URL, and
+ * the object is written or removed before this is called: the key is the last
+ * thing to change, so a seminar never points at bytes that are not there.
+ */
+export async function setSeminarInstructorPicture(
+  seminarId: string,
+  instructorPictureStorageKey: string | null,
+): Promise<void> {
+  await db
+    .update(seminars)
+    .set({ instructorPictureStorageKey })
+    .where(eq(seminars.id, seminarId));
+}
+
 export async function deleteSeminar(
   seminarId: string,
 ): Promise<SeminarDeleteResult> {

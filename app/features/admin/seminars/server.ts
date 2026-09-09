@@ -3,6 +3,10 @@ import { redirect } from "react-router";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 import { getSeminar, listSeminars } from "@/lib/seminars/repository.server";
+import {
+  createDefaultSeminarPictureStorage,
+  loadSeminarInstructorPictureUrl,
+} from "@/lib/storage/seminar-pictures.server";
 
 import {
   defaultSeminarFormValues,
@@ -60,6 +64,10 @@ export async function loadSeminarDetailData(
   }
 
   return {
+    instructorPictureUrl: await loadSeminarInstructorPictureUrl({
+      instructorPictureStorageKey: seminar.instructorPictureStorageKey,
+      storage: createDefaultSeminarPictureStorage(),
+    }),
     selectedEventId: selectedEventId ?? seminar.eventId,
     seminar,
     values: toSeminarFormValues(seminar),

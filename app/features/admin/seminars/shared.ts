@@ -13,6 +13,20 @@ export const createSeminarIntent = "create-seminar";
 export const updateSeminarIntent = "update-seminar";
 export const deleteSeminarIntent = "delete-seminar";
 
+/**
+ * The picture rides on the seminar's own form, as the event's PDFs ride on the
+ * event's: a single save writes the instructor, the date, the time, the quota
+ * and the picture together. These names are what tie the two halves.
+ *
+ * The "present" marker is included on purpose. A body that does not carry the
+ * picture fields is not "the picture was removed" — it is a submission that
+ * never had them, and the costly way to be wrong is the one that deletes.
+ */
+export const seminarPictureFileField = "instructorPictureFile";
+export const seminarPictureKeptField = "instructorPictureKept";
+export const seminarPicturePresentField = "instructorPicturePresent";
+export const keptSeminarPictureValue = "kept";
+
 // The form's fields are the row's, so the repository owns the name of each and
 // this list only fixes the order the refusals are read back in.
 export const seminarFieldNames: readonly SeminarFieldName[] = [
@@ -31,6 +45,10 @@ export const seminarFormSchema = z.object({
     .trim()
     .min(1, requiredFieldMessage)
     .refine(isPositiveIntegerString, "Ingresá un cupo mayor a cero."),
+  // Whether the stored picture is still wanted, never the storage key itself:
+  // the upload field empties this when its remove button is pressed, and the
+  // save deletes the object. The browser never learns the real key.
+  [seminarPictureKeptField]: z.enum(["", keptSeminarPictureValue]),
 });
 
 export type SeminarFormValues = z.infer<typeof seminarFormSchema>;
@@ -54,6 +72,8 @@ export type SeminarCreateLoaderData = {
 };
 
 export type SeminarDetailLoaderData = {
+  /** A signed link to the stored picture, or `null` when there is none. */
+  instructorPictureUrl: string | null;
   selectedEventId: string | null;
   seminar: SeminarListItem;
   values: SeminarFormValues;
@@ -65,13 +85,18 @@ export function defaultSeminarFormValues(): SeminarFormValues {
     scheduledDate: "",
     startTime: "",
     quota: "",
+    [seminarPictureKeptField]: "",
   };
 }
 
 export function toSeminarFormValues(
   seminar: Pick<
     SeminarListItem,
-    "instructorName" | "quota" | "scheduledDate" | "startTime"
+    | "instructorName"
+    | "instructorPictureStorageKey"
+    | "quota"
+    | "scheduledDate"
+    | "startTime"
   >,
 ): SeminarFormValues {
   return {
@@ -79,6 +104,9 @@ export function toSeminarFormValues(
     scheduledDate: seminar.scheduledDate,
     startTime: seminar.startTime,
     quota: seminar.quota.toString(),
+    [seminarPictureKeptField]: seminar.instructorPictureStorageKey
+      ? keptSeminarPictureValue
+      : "",
   };
 }
 
@@ -88,6 +116,10 @@ export function readSeminarFormValues(formData: FormData): SeminarFormValues {
     scheduledDate: String(formData.get("scheduledDate") ?? "").trim(),
     startTime: String(formData.get("startTime") ?? "").trim(),
     quota: String(formData.get("quota") ?? "").trim(),
+    [seminarPictureKeptField]:
+      formData.get(seminarPictureKeptField) === keptSeminarPictureValue
+        ? keptSeminarPictureValue
+        : "",
   };
 }
 

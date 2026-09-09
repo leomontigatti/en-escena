@@ -189,9 +189,9 @@ schedules, capacities, prices and registration readiness.
 ## Admin Seminars
 
 Use for the seminars an event offers around the competition: the seminar row,
-the admin list, the create page and the detail. Seminars are not part of the
-`Bases del evento` — registration readiness ignores them and they have their own
-section under `Operación`.
+the admin list, the create page, the detail and the instructor's picture.
+Seminars are not part of the `Bases del evento` — registration readiness ignores
+them and they have their own section under `Operación`.
 
 - Domain: `docs/domain/seminars.md`
 - ADRs: `docs/adr/0002-selectable-event-contexts.md`, `docs/adr/0004-organize-app-code-by-product-surface.md`
@@ -199,7 +199,8 @@ section under `Operación`.
 - Feature modules: `app/features/admin/seminars/list/`, `app/features/admin/seminars/create/`, `app/features/admin/seminars/detail/`
 - Shared feature modules: `app/features/admin/seminars/shared.ts`, `app/features/admin/seminars/server.ts`, `app/features/admin/seminars/action.server.ts`, `app/features/admin/seminars/form.tsx`, `app/features/admin/seminars/list-table.tsx`, `app/features/admin/seminars/actions.tsx`
 - Domain module: `app/lib/seminars/repository.server.ts`
-- Tests: `app/lib/seminars/repository.server.db.test.ts`, `app/features/admin/seminars/action.server.db.test.ts`, `app/features/admin/seminars/routes.adapter.test.tsx`, `app/features/admin/seminars/view.test.tsx`
+- Storage module: `app/lib/storage/seminar-pictures.server.ts`
+- Tests: `app/lib/seminars/repository.server.db.test.ts`, `app/features/admin/seminars/action.server.db.test.ts`, `app/features/admin/seminars/action.server.picture.db.test.ts`, `app/features/admin/seminars/routes.adapter.test.tsx`, `app/features/admin/seminars/view.test.tsx`, `app/lib/storage/seminar-pictures.server.test.ts`
 
 ## Judging And Results
 
