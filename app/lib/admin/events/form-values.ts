@@ -33,7 +33,7 @@ export { MAX_REQUIRED_DEPOSIT_PERCENTAGE, MIN_REQUIRED_DEPOSIT_PERCENTAGE };
 export const registrationAfterEventStartMessage =
   "No puede ser posterior a la fecha de inicio del evento.";
 
-const PAYMENT_INSTRUCTIONS_TEXT_MAX_LENGTH = 2000;
+export const PAYMENT_INSTRUCTIONS_TEXT_MAX_LENGTH = 2000;
 
 /**
  * REVIEWER: `missingCbu` and `missingHolderName` diverge from the style guide's

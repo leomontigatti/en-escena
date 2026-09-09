@@ -13,6 +13,7 @@ import {
 import { eventDocumentKinds } from "@/lib/events/event-documents";
 import { eventDocumentSummaries } from "@/lib/events/event-documents.test-support";
 import {
+  clickReactDomButton,
   createReactDomTestRenderer,
   getButton,
 } from "@/lib/test-support/react-dom";
@@ -101,7 +102,6 @@ describe("EventDetailView form", () => {
 
     const form = getEventForm();
 
-    expect(document.querySelector('[data-slot="tabs-trigger"]')).toBeNull();
     expect(form.querySelector("form")).toBeNull();
     expect(form.getAttribute("enctype")).toBe("multipart/form-data");
     expect(
@@ -210,6 +210,150 @@ describe("EventDetailView form", () => {
     ).not.toBeNull();
   });
 
+  // Radix unmounts an inactive panel, and an unmounted input is not submitted:
+  // without `forceMount` a tab switch would post empty identifiers — clearing
+  // them — and drop a PDF chosen in a native file input.
+  test("force-mounts both tab panels, hiding the one that is not showing", async () => {
+    await renderForm();
+
+    const panels = Array.from(
+      document.querySelectorAll('[data-slot="tabs-content"]'),
+    );
+
+    expect(panels).toHaveLength(2);
+    expect(panels.map((panel) => panel.getAttribute("data-state"))).toEqual([
+      "active",
+      "inactive",
+    ]);
+    expect(panels[1]!.className).toContain("data-[state=inactive]:hidden");
+    expect(
+      Array.from(document.querySelectorAll('[data-slot="tabs-trigger"]')).map(
+        (trigger) => trigger.textContent,
+      ),
+    ).toEqual(["Documentos", "Instrucciones de pago"]);
+
+    // The hidden panel's fields still ride the one submission.
+    const submitted = Array.from(new FormData(getEventForm()).keys());
+
+    expect(submitted).toContain("paymentInstructionsCbu");
+    expect(submitted).toContain("paymentInstructionsText");
+    expect(submitted).toContain(eventDocumentFileField("professor_contract"));
+  });
+
+  test("brings the instructions tab forward when the submit fails there, and leaves it there while the field is fixed", async () => {
+    await renderForm();
+
+    await act(async () => {
+      setInputValue(getInput("paymentInstructionsCbu"), "123");
+    });
+    await submitEventForm();
+
+    const trigger = getTabTrigger("Instrucciones de pago");
+
+    expect(trigger.getAttribute("data-state")).toBe("active");
+    expect(trigger.querySelector("svg")).not.toBeNull();
+
+    // Keyed on the submit count, not on the errors: fixing the field mid-typing
+    // must not yank the tab back under the administration's hands.
+    await act(async () => {
+      setInputValue(getInput("paymentInstructionsCbu"), validCbu);
+    });
+
+    expect(
+      getTabTrigger("Instrucciones de pago").getAttribute("data-state"),
+    ).toBe("active");
+  });
+
+  // The cap is the one rule a person can cross while typing, so it does not
+  // wait for a submit: the field's own invalid state turns the label, the
+  // border and the ring destructive, and the counter is told separately.
+  test("marks the how-to-pay text invalid as it crosses the cap, without a submit", async () => {
+    await renderForm();
+
+    const textarea = document.querySelector<HTMLTextAreaElement>(
+      'textarea[name="paymentInstructionsText"]',
+    )!;
+
+    await act(async () => {
+      setTextareaValue(textarea, "a".repeat(2001));
+    });
+
+    expect(textarea.getAttribute("aria-invalid")).toBe("true");
+    expect(document.body.textContent).toContain("2001 / 2000");
+
+    await act(async () => {
+      setTextareaValue(textarea, "a");
+    });
+
+    expect(textarea.getAttribute("aria-invalid")).toBeNull();
+    expect(document.body.textContent).toContain("1 / 2000");
+  });
+
+  // Clearing the instructions is a plain save: text can be retyped, a PDF
+  // cannot, so only the documents earn a confirmation.
+  test("saves with every instruction field empty without opening the documents dialog", async () => {
+    await renderForm();
+
+    await act(async () => {
+      setInputValue(getInput("name"), "Festival 2027");
+    });
+    await submitEventForm();
+
+    expect(document.querySelector('[role="alertdialog"]')).toBeNull();
+  });
+
+  test("still confirms before a save that removes a document", async () => {
+    await renderForm({
+      documents: eventDocumentSummaries({
+        professor_contract: {
+          downloadUrl: "/almacenamiento?key=contrato",
+          uploadedAt: new Date("2026-05-04T15:00:00Z"),
+        },
+      }),
+    });
+
+    await clickReactDomButton("Quitar contrato para profesores");
+    await submitEventForm();
+
+    expect(document.querySelector('[role="alertdialog"]')).not.toBeNull();
+    expect(document.body.textContent).toContain("Confirmar los cambios");
+  });
+
+  function getInput(name: string) {
+    const input = document.querySelector<HTMLInputElement>(
+      `input[name="${name}"]`,
+    );
+
+    expect(input).not.toBeNull();
+
+    return input!;
+  }
+
+  function getTabTrigger(label: string) {
+    const trigger = Array.from(
+      document.querySelectorAll('[data-slot="tabs-trigger"]'),
+    ).find((candidate) => candidate.textContent?.includes(label));
+
+    expect(trigger).toBeDefined();
+
+    return trigger!;
+  }
+
+  async function submitEventForm() {
+    await act(async () => {
+      getEventForm().requestSubmit();
+      await Promise.resolve();
+    });
+  }
+
+  function setTextareaValue(textarea: HTMLTextAreaElement, value: string) {
+    Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      "value",
+    )!.set!.call(textarea, value);
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
   function getEventForm() {
     const form = document.querySelector<HTMLFormElement>("form[enctype]");
 
@@ -247,6 +391,9 @@ describe("EventDetailView form", () => {
     await renderer.renderAsync(<RouterProvider router={router} />);
   }
 });
+
+/** A CBU whose two check digits agree — PRD #895's fixture. */
+const validCbu = "0070099330004512345678";
 
 function buildLoaderData(): EventDetailLoaderData {
   return {

@@ -1,8 +1,12 @@
 import { TriangleAlert } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 
-import { EventFormFields, useEventForm } from "@/components/admin/events/form";
+import {
+  EventFormFields,
+  useEventForm,
+  type EventFormController,
+} from "@/components/admin/events/form";
 import {
   AdminResourceFormCard,
   AdminResourceLayout,
@@ -28,6 +32,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { eventFormValues } from "@/lib/admin/events/form-values";
 import { isRouteFormPending, useOptionalNavigation } from "@/lib/shared/forms";
 import { notificationToastIds } from "@/lib/shared/notification-toasts";
@@ -37,6 +42,7 @@ import {
   EventDocumentsFields,
   useEventDocumentsForm,
 } from "./documents-fields";
+import { EventPaymentInstructionsFields } from "./payment-instructions-fields";
 import {
   eventDocumentDeclarations,
   type EventDocumentKind,
@@ -219,9 +225,14 @@ function EditEventPanel({
           }
         >
           <EventFormFields controller={eventForm} />
-          <EventDocumentsFields
-            controller={documentsForm}
-            documents={documents}
+          <EventFormTabs
+            controller={eventForm}
+            documentsPanel={
+              <EventDocumentsFields
+                controller={documentsForm}
+                documents={documents}
+              />
+            }
           />
         </AdminResourceFormCard>
       </form>
@@ -234,6 +245,80 @@ function EditEventPanel({
       />
     </>
   );
+}
+
+const documentsTabValue = "documentos";
+const paymentInstructionsTabValue = "instrucciones-de-pago";
+
+/**
+ * The two non-scalar halves of the event form, below the event's own fields and
+ * inside the same `<form>`: "Guardar" stays in the card footer, outside the
+ * tabs, and nothing here disables it — an invalid identifier is a field error
+ * on submit, not a dead button.
+ */
+function EventFormTabs({
+  controller,
+  documentsPanel,
+}: {
+  controller: EventFormController;
+  documentsPanel: React.ReactNode;
+}) {
+  // "Documentos" leads and lands: it is what the administration edits today,
+  // and the instructions are the addition.
+  const [tab, setTab] = useState(documentsTabValue);
+  const erroredTab = getErroredTab(controller);
+  const { submitCount } = controller.form.formState;
+
+  // A failed submission pulls its tab forward, so an error never lands on a
+  // panel nobody can see. Keyed by the submit count rather than by the errors:
+  // watching those would yank the tab back the moment a field is fixed
+  // mid-typing, and re-submitting the same broken form still switches.
+  useEffect(() => {
+    if (submitCount > 0 && erroredTab) {
+      setTab(erroredTab);
+    }
+  }, [erroredTab, submitCount]);
+
+  return (
+    <Tabs value={tab} onValueChange={setTab}>
+      <TabsList variant="line">
+        <TabsTrigger value={documentsTabValue}>Documentos</TabsTrigger>
+        <TabsTrigger value={paymentInstructionsTabValue}>
+          Instrucciones de pago
+          {erroredTab === paymentInstructionsTabValue ? (
+            <TriangleAlert aria-hidden="true" className="text-destructive" />
+          ) : null}
+        </TabsTrigger>
+      </TabsList>
+      {/* `forceMount` on both, the inactive one hidden: Radix unmounts an
+          inactive panel by default, and an unmounted input is not submitted —
+          the identifiers would post empty and clear themselves, and a PDF
+          chosen in a native file input would be lost on a tab switch. */}
+      <TabsContent
+        forceMount
+        value={documentsTabValue}
+        className="pt-2 data-[state=inactive]:hidden"
+      >
+        {documentsPanel}
+      </TabsContent>
+      <TabsContent
+        forceMount
+        value={paymentInstructionsTabValue}
+        className="pt-2 data-[state=inactive]:hidden"
+      >
+        <EventPaymentInstructionsFields controller={controller} />
+      </TabsContent>
+    </Tabs>
+  );
+}
+
+/** Which tab holds the first error, or `null` when the event's own fields do. */
+function getErroredTab(controller: EventFormController) {
+  return Object.keys(controller.form.formState.errors).some((field) =>
+    field.startsWith("paymentInstructions"),
+  )
+    ? paymentInstructionsTabValue
+    : null;
 }
 
 /**
