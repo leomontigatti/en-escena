@@ -1,4 +1,11 @@
-import { useId, type ComponentProps, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useState,
+  type ComponentProps,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import {
   Controller,
   type Control,
@@ -22,6 +29,39 @@ import {
   SharedFieldLayout,
   type SharedFieldOrientation,
 } from "@/components/shared/field-layout";
+
+// A combobox popup lives in a portal, so inside a dialog it is an outside
+// press by default: clicking an option dismisses the dialog, and the layer
+// above blocks pointer events on the search input. `MultiCombobox` solves
+// this by portalling into the host `DialogContent` renders for exactly this
+// purpose; a single-select combobox needs the same treatment.
+const dialogCollisionAvoidance = {
+  side: "none",
+  align: "shift",
+  fallbackAxisSide: "none",
+} as const;
+
+function useComboboxDialogHost(anchorRef: RefObject<HTMLDivElement | null>) {
+  const [isInsideDialog, setIsInsideDialog] = useState(false);
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(
+    null,
+  );
+
+  useEffect(() => {
+    const dialogContent =
+      anchorRef.current?.closest<HTMLElement>('[data-slot="dialog-content"]') ??
+      null;
+
+    setIsInsideDialog(dialogContent ? true : false);
+    setPortalContainer(
+      dialogContent?.querySelector<HTMLElement>(
+        '[data-slot="dialog-combobox-portal-host"]',
+      ) ?? null,
+    );
+  }, [anchorRef]);
+
+  return { isInsideDialog, portalContainer };
+}
 
 type ComboboxFieldOption = {
   value: string;
@@ -76,6 +116,7 @@ function ComboboxField<
   const generatedId = useId();
   const id = providedId ?? generatedId;
   const anchorRef = useComboboxAnchor();
+  const { isInsideDialog, portalContainer } = useComboboxDialogHost(anchorRef);
   const optionByValue = new Map(
     options.map((option) => [option.value, option] as const),
   );
@@ -116,21 +157,34 @@ function ComboboxField<
                   defaultValue={fieldValue}
                   onValueChange={field.onChange}
                 >
-                  <ComboboxTrigger
-                    render={
-                      <Button
-                        variant="outline"
-                        className="w-full justify-between font-normal"
-                        aria-describedby={describedBy || undefined}
-                        aria-invalid={isInvalid ? true : undefined}
-                      >
-                        {fieldValue ? <ComboboxValue /> : placeholder}
-                      </Button>
-                    }
-                  />
+                  {/* The anchor has to be a real element: the popup positions
+                      against it, and inside a dialog it is also what locates
+                      the dialog's portal host. */}
+                  <div ref={anchorRef}>
+                    <ComboboxTrigger
+                      render={
+                        <Button
+                          variant="outline"
+                          className="w-full justify-between font-normal"
+                          aria-describedby={describedBy || undefined}
+                          aria-invalid={isInvalid ? true : undefined}
+                        >
+                          {fieldValue ? <ComboboxValue /> : placeholder}
+                        </Button>
+                      }
+                    />
+                  </div>
                   <ComboboxContent
                     anchor={anchorRef}
                     className={popupClassName}
+                    collisionAvoidance={
+                      isInsideDialog ? dialogCollisionAvoidance : undefined
+                    }
+                    dismissableLayerBranch={isInsideDialog}
+                    positionerClassName={
+                      isInsideDialog ? "pointer-events-auto z-60" : undefined
+                    }
+                    portalContainer={portalContainer}
                     {...contentProps}
                   >
                     <ComboboxInput
