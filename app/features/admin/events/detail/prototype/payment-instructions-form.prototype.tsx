@@ -308,40 +308,33 @@ export function PaymentInstructionsFields({
         name="paymentInstructionsCbu"
         autoComplete="off"
         inputMode="numeric"
-        // The 22 digits read as one run on the portal card, and they read the
-        // same way here: the field the admin proof-reads against home banking
-        // is the field they typed into.
-        inputClassName="font-mono tabular-nums"
-        placeholder="0070099330004512345678"
+        placeholder="22 caracteres numéricos"
       />
       <TextInputField
         control={form.control}
         label="Alias"
         name="paymentInstructionsAlias"
         autoComplete="off"
-        placeholder="en.escena.pagos"
+        placeholder="En minúscula y sin espacios"
       />
       <TextInputField
         control={form.control}
         label="Titular"
         name="paymentInstructionsHolderName"
         autoComplete="off"
-        placeholder="En Escena Producciones SRL"
       />
       <TextInputField
         control={form.control}
         label="Banco"
         name="paymentInstructionsBankName"
         autoComplete="off"
-        placeholder="Banco Galicia"
       />
       <TextInputField
         control={form.control}
         label="CUIT del titular"
         name="paymentInstructionsHolderCuit"
         autoComplete="off"
-        inputClassName="font-mono tabular-nums"
-        placeholder="30-71234567-1"
+        placeholder="11 dígitos, con o sin guiones"
       />
       {/* The CUIT ends the identifier grid alone; the spacer keeps the
           textarea on its own row on wide screens. */}
@@ -394,7 +387,10 @@ export function EventFormTabs({
   documentsPanel: React.ReactNode;
   form: PrototypeEventForm;
 }) {
-  const [tab, setTab] = useState<string>(paymentInstructionsTabValue);
+  // Documentos is the landing tab: it is what the admin edits today, and the
+  // instructions are the addition. The tab order still reads instructions
+  // first, so the default is not the leftmost one on purpose.
+  const [tab, setTab] = useState<string>(documentsTabValue);
   const erroredTab = getErroredTab(form);
   const submitCount = form.formState.submitCount;
 

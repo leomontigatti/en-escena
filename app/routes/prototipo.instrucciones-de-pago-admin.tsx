@@ -118,7 +118,6 @@ export default function PaymentInstructionsAdminPrototypeRoute() {
 
   const form = usePrototypeEventForm(casesById[caseId]);
   const documentsForm = useEventDocumentsForm(documentsById[documentsId]);
-  const hasChanges = form.formState.isDirty || documentsForm.hasPendingChanges;
 
   const onSubmit = form.handleSubmit((values) => {
     setSubmitted(values);
@@ -144,9 +143,10 @@ export default function PaymentInstructionsAdminPrototypeRoute() {
               footer={
                 <>
                   <BackButton to="/prototipo/instrucciones-de-pago-admin" />
-                  {/* The one "Guardar" of the card, outside the tabs, enabled
-                      when anything in any panel is dirty. */}
-                  <SubmitButton disabled={!hasChanges} isPending={false} />
+                  {/* The one "Guardar" of the card, outside the tabs. Never
+                      disabled: an invalid identifier is reported as a field
+                      error on submit, not hidden behind a dead button. */}
+                  <SubmitButton isPending={false} />
                 </>
               }
             >
