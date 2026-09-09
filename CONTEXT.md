@@ -332,6 +332,10 @@ _Avoid_: numeric score, `presentation`, refund, money returned
 Money received and recorded for an academy in an event, which may stay available or be applied through payment allocations. It is editable after the fact — academy, amount, date, method, reference and note — under exactly two accounting guards: the academy is frozen once the payment carries allocations, and the amount can never be edited below what is already allocated. A payment recorded in error can also be deleted, cascading its allocations.
 _Avoid_: invoice, `paymentAllocation`, `refund`, `choreographyFinancialStatus`
 
+**`paymentInstructions`** — ui: "Instrucciones de pago"
+What an academy needs in order to pay an event: the bank identifiers of the account that receives the money, plus free text that says how to pay and what to write in the transfer. It belongs to one event, is loaded by administration on the event detail and is read by the academy on the portal's payments page. It is not a `payment` and records nothing about money received; an event without it simply shows no instructions.
+_Avoid_: `payment`, bank settings, global account, `eventBases`
+
 **`refund`** — ui: "Reembolso"
 Money handed back to an academy in an event: an explicit mirror of **`payment`** — amount, date, `refundMethod` over the same method enum, `refundNumber` — that **never carries allocations** and is capped at `availableBalanceAmount`. It moves money, where a credit note moves what is owed; either can happen without the other. **Specified, not built** (ADR-0014 §6, #536). Never call it `Devolución`: that term is reserved for **`feedbackAudio`**, itself specified and not built.
 _Avoid_: `Devolución`, negative `payment`, `paymentAllocation`, `nota de crédito`
