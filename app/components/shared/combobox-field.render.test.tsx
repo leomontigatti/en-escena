@@ -1,6 +1,5 @@
 /** @vitest-environment jsdom */
 
-// PROTOTYPE — throwaway. Wayfinder ticket #861 (map #857).
 // Pins the fix that made `ComboboxField` usable inside a dialog: its popup has
 // to render into the host `DialogContent` provides, not into `document.body`.
 // From the body it counts as an outside press, so picking an option dismisses
@@ -9,7 +8,7 @@
 import { useForm } from "react-hook-form";
 import { afterEach, describe, expect, test } from "vitest";
 
-import { ComboboxField } from "@/components/shared/combobox-field";
+import { ComboboxField } from "./combobox-field";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   clickReactDomButton,

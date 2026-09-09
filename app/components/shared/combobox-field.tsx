@@ -97,129 +97,238 @@ function ComboboxField<
   TFieldValues extends FieldValues,
   TName extends FieldPath<TFieldValues>,
   TOption extends ComboboxFieldOption,
->({
-  className,
-  contentClassName,
-  contentProps,
-  control,
-  description,
-  emptyMessage = "Sin resultados.",
-  errorClassName,
-  id: providedId,
-  inputPlaceholder = "Buscar",
-  label,
-  labelClassName,
-  name,
-  options,
-  orientation,
-  placeholder = "Seleccionar",
-  popupClassName,
-}: ComboboxFieldProps<TFieldValues, TName, TOption>) {
-  const generatedId = useId();
-  const id = providedId ?? generatedId;
-  const anchorRef = useComboboxAnchor();
-  const { isInsideDialog, portalContainer } = useComboboxDialogHost(anchorRef);
-  const optionByValue = new Map(
-    options.map((option) => [option.value, option] as const),
+>(props: ComboboxFieldProps<TFieldValues, TName, TOption>) {
+  const { control: comboboxConfig, layout } = useComboboxFieldConfig(props);
+
+  return (
+    <Controller
+      control={props.control}
+      name={props.name}
+      render={({ field, fieldState }) => (
+        <SharedFieldLayout {...layout} error={fieldState.error?.message}>
+          {({ describedBy, isInvalid }) => (
+            <ComboboxFieldControl
+              config={comboboxConfig}
+              describedBy={describedBy}
+              field={field}
+              isInvalid={isInvalid}
+            />
+          )}
+        </SharedFieldLayout>
+      )}
+    />
   );
-  const optionValues = options.map((option) => option.value);
+}
+
+// Splits the props into what the shared layout renders and what the combobox
+// itself needs, and owns the defaults.
+function useComboboxFieldConfig<
+  TFieldValues extends FieldValues,
+  TName extends FieldPath<TFieldValues>,
+  TOption extends ComboboxFieldOption,
+>(props: ComboboxFieldProps<TFieldValues, TName, TOption>) {
+  const generatedId = useId();
+  const id = props.id ?? generatedId;
+  const anchorRef = useComboboxAnchor();
+  const dialogHost = useComboboxDialogHost(anchorRef);
+  const optionByValue = new Map(
+    props.options.map((option) => [option.value, option] as const),
+  );
 
   function getOptionLabel(value: string) {
     return optionByValue.get(value)?.label ?? value;
   }
 
-  return (
-    <Controller
-      control={control}
-      name={name}
-      render={({ field, fieldState }) => {
-        const fieldValue = typeof field.value === "string" ? field.value : "";
-        const errorMessage = fieldState.error?.message;
+  return {
+    layout: {
+      className: props.className,
+      contentClassName: props.contentClassName,
+      description: props.description,
+      errorClassName: props.errorClassName,
+      id,
+      label: props.label,
+      labelClassName: props.labelClassName,
+      orientation: props.orientation,
+    },
+    control: {
+      anchorRef,
+      contentProps: props.contentProps,
+      emptyMessage: props.emptyMessage ?? "Sin resultados.",
+      getOptionLabel,
+      id,
+      inputPlaceholder: props.inputPlaceholder ?? "Buscar",
+      isInsideDialog: dialogHost.isInsideDialog,
+      optionValues: props.options.map((option) => option.value),
+      placeholder: props.placeholder ?? "Seleccionar",
+      popupClassName: props.popupClassName,
+      portalContainer: dialogHost.portalContainer,
+    },
+  };
+}
 
-        return (
-          <SharedFieldLayout
-            className={className}
-            contentClassName={contentClassName}
-            description={description}
-            error={errorMessage}
-            errorClassName={errorClassName}
-            id={id}
-            label={label}
-            labelClassName={labelClassName}
-            orientation={orientation}
+type ComboboxFieldControlConfig = {
+  anchorRef: RefObject<HTMLDivElement | null>;
+  contentProps?: Omit<ComponentProps<typeof ComboboxContent>, "anchor">;
+  emptyMessage: ReactNode;
+  getOptionLabel: (value: string) => string;
+  id: string;
+  inputPlaceholder: string;
+  isInsideDialog: boolean;
+  optionValues: string[];
+  placeholder: string;
+  popupClassName?: string;
+  portalContainer: HTMLElement | null;
+};
+
+function ComboboxFieldControl({
+  config,
+  describedBy,
+  field,
+  isInvalid,
+}: {
+  config: ComboboxFieldControlConfig;
+  describedBy?: string;
+  // Structurally what `Controller` hands back, without dragging the form's
+  // generics through every child.
+  field: {
+    name: string;
+    value: unknown;
+    onBlur: () => void;
+    onChange: (...event: unknown[]) => void;
+  };
+  isInvalid: boolean;
+}) {
+  const value = typeof field.value === "string" ? field.value : "";
+
+  return (
+    <>
+      <input type="hidden" name={field.name} value={value} />
+      <Combobox
+        items={config.optionValues}
+        itemToStringLabel={config.getOptionLabel}
+        itemToStringValue={config.getOptionLabel}
+        value={value}
+        defaultValue={value}
+        onValueChange={field.onChange}
+      >
+        <ComboboxFieldTrigger
+          anchorRef={config.anchorRef}
+          describedBy={describedBy}
+          isInvalid={isInvalid}
+          placeholder={config.placeholder}
+          value={value}
+        />
+        <ComboboxFieldPopup
+          anchorRef={config.anchorRef}
+          className={config.popupClassName}
+          contentProps={config.contentProps}
+          emptyMessage={config.emptyMessage}
+          getOptionLabel={config.getOptionLabel}
+          id={config.id}
+          inputPlaceholder={config.inputPlaceholder}
+          isInsideDialog={config.isInsideDialog}
+          isInvalid={isInvalid}
+          onBlur={field.onBlur}
+          portalContainer={config.portalContainer}
+        />
+      </Combobox>
+    </>
+  );
+}
+
+function ComboboxFieldTrigger({
+  anchorRef,
+  describedBy,
+  isInvalid,
+  placeholder,
+  value,
+}: {
+  anchorRef: RefObject<HTMLDivElement | null>;
+  describedBy?: string;
+  isInvalid: boolean;
+  placeholder: string;
+  value: string;
+}) {
+  return (
+    // The anchor has to be a real element: the popup positions against it, and
+    // inside a dialog it is also what locates the dialog's portal host.
+    <div ref={anchorRef}>
+      <ComboboxTrigger
+        render={
+          <Button
+            variant="outline"
+            // A field, not a button: it keeps the arrow cursor, does not react
+            // to hover, and takes the brand ring on focus, like the control
+            // `MultiCombobox` builds out of `ComboboxChips`.
+            className="w-full cursor-default justify-between border-input font-normal hover:bg-background hover:text-foreground aria-expanded:bg-background aria-expanded:text-foreground focus-visible:border-brand focus-visible:ring-brand/50 dark:hover:bg-input/30 dark:aria-expanded:bg-input/30"
+            aria-describedby={describedBy || undefined}
+            aria-invalid={isInvalid ? true : undefined}
           >
-            {({ describedBy, isInvalid }) => (
-              <>
-                <input type="hidden" name={field.name} value={fieldValue} />
-                <Combobox
-                  items={optionValues}
-                  itemToStringLabel={getOptionLabel}
-                  itemToStringValue={getOptionLabel}
-                  value={fieldValue}
-                  defaultValue={fieldValue}
-                  onValueChange={field.onChange}
-                >
-                  {/* The anchor has to be a real element: the popup positions
-                      against it, and inside a dialog it is also what locates
-                      the dialog's portal host. */}
-                  <div ref={anchorRef}>
-                    <ComboboxTrigger
-                      render={
-                        <Button
-                          variant="outline"
-                          // A field, not a button: it keeps the arrow cursor,
-                          // does not react to hover, and takes the brand ring
-                          // on focus, like the control `MultiCombobox` builds
-                          // out of `ComboboxChips`.
-                          className="w-full cursor-default justify-between border-input font-normal hover:bg-background hover:text-foreground aria-expanded:bg-background aria-expanded:text-foreground focus-visible:border-brand focus-visible:ring-brand/50 dark:hover:bg-input/30 dark:aria-expanded:bg-input/30"
-                          aria-describedby={describedBy || undefined}
-                          aria-invalid={isInvalid ? true : undefined}
-                        >
-                          {fieldValue ? <ComboboxValue /> : placeholder}
-                          <ChevronDownIcon
-                            aria-hidden="true"
-                            className="size-4 text-muted-foreground"
-                          />
-                        </Button>
-                      }
-                    />
-                  </div>
-                  <ComboboxContent
-                    anchor={anchorRef}
-                    className={popupClassName}
-                    collisionAvoidance={
-                      isInsideDialog ? dialogCollisionAvoidance : undefined
-                    }
-                    dismissableLayerBranch={isInsideDialog}
-                    positionerClassName={
-                      isInsideDialog ? "pointer-events-auto z-60" : undefined
-                    }
-                    portalContainer={portalContainer}
-                    {...contentProps}
-                  >
-                    <ComboboxInput
-                      id={id}
-                      aria-invalid={isInvalid ? true : undefined}
-                      placeholder={inputPlaceholder}
-                      showTrigger={false}
-                      onBlur={field.onBlur}
-                    />
-                    <ComboboxEmpty>{emptyMessage}</ComboboxEmpty>
-                    <ComboboxList>
-                      {(optionValue) => (
-                        <ComboboxItem key={optionValue} value={optionValue}>
-                          {getOptionLabel(optionValue)}
-                        </ComboboxItem>
-                      )}
-                    </ComboboxList>
-                  </ComboboxContent>
-                </Combobox>
-              </>
-            )}
-          </SharedFieldLayout>
-        );
-      }}
-    />
+            {value ? <ComboboxValue /> : placeholder}
+            <ChevronDownIcon
+              aria-hidden="true"
+              className="size-4 text-muted-foreground"
+            />
+          </Button>
+        }
+      />
+    </div>
+  );
+}
+
+function ComboboxFieldPopup({
+  anchorRef,
+  className,
+  contentProps,
+  emptyMessage,
+  getOptionLabel,
+  id,
+  inputPlaceholder,
+  isInsideDialog,
+  isInvalid,
+  onBlur,
+  portalContainer,
+}: {
+  anchorRef: RefObject<HTMLDivElement | null>;
+  className?: string;
+  contentProps?: Omit<ComponentProps<typeof ComboboxContent>, "anchor">;
+  emptyMessage: ReactNode;
+  getOptionLabel: (value: string) => string;
+  id: string;
+  inputPlaceholder: string;
+  isInsideDialog: boolean;
+  isInvalid: boolean;
+  onBlur: () => void;
+  portalContainer: HTMLElement | null;
+}) {
+  return (
+    <ComboboxContent
+      anchor={anchorRef}
+      className={className}
+      collisionAvoidance={isInsideDialog ? dialogCollisionAvoidance : undefined}
+      dismissableLayerBranch={isInsideDialog}
+      positionerClassName={
+        isInsideDialog ? "pointer-events-auto z-60" : undefined
+      }
+      portalContainer={portalContainer}
+      {...contentProps}
+    >
+      <ComboboxInput
+        id={id}
+        aria-invalid={isInvalid ? true : undefined}
+        placeholder={inputPlaceholder}
+        showTrigger={false}
+        onBlur={onBlur}
+      />
+      <ComboboxEmpty>{emptyMessage}</ComboboxEmpty>
+      <ComboboxList>
+        {(optionValue) => (
+          <ComboboxItem key={optionValue} value={optionValue}>
+            {getOptionLabel(optionValue)}
+          </ComboboxItem>
+        )}
+      </ComboboxList>
+    </ComboboxContent>
   );
 }
 
