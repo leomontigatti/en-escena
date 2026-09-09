@@ -122,10 +122,18 @@ function findButton(label: string, options: { exact?: boolean } = {}) {
   });
 }
 
+/** The text of every element matching `selector`, in document order. */
+function getReactDomTexts(selector: string) {
+  return Array.from(document.querySelectorAll(selector)).map(
+    (element) => element.textContent,
+  );
+}
+
 export {
   clickReactDomButton,
   createReactDomTestRenderer,
   getButton,
+  getReactDomTexts,
   setInputValue,
   updateReactDomForm,
 };

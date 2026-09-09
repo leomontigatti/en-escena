@@ -35,10 +35,9 @@ import {
   deletePortalSeminarInscriptionIntent,
   formatPortalSeminarMoment,
   getPortalSeminarClosedReason,
-  getPortalSeminarPersonKindLabel,
   registerPortalSeminarInscriptionIntent,
   registerPortalSeminarInscriptionSchema,
-  toPortalSeminarPersonValue,
+  toPortalSeminarPersonGroups,
   type PortalSeminarCard,
   type PortalSeminarInscription,
   type PortalSeminarsActionData,
@@ -171,13 +170,16 @@ function SeminarCardView({
   const closedReason = getPortalSeminarClosedReason(seminar);
 
   return (
-    <Card className="overflow-hidden">
-      <div className="flex h-40 items-center justify-center border-b bg-muted text-muted-foreground">
+    <Card className="group overflow-hidden">
+      {/* `overflow-hidden` is repeated here rather than left to the card: the
+          hover zoom scales the image past the frame, and the band's own bottom
+          border is what has to clip it. */}
+      <div className="flex h-56 items-center justify-center overflow-hidden border-b bg-muted text-muted-foreground">
         {seminar.instructorPictureUrl ? (
           <img
             src={seminar.instructorPictureUrl}
             alt={seminar.instructorName}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-105 motion-reduce:transform-none motion-reduce:transition-none"
           />
         ) : (
           <ImageOff aria-hidden="true" className="size-8" />
@@ -280,10 +282,7 @@ function RegisterInscriptionDialog({
     resolver: zodResolver(registerPortalSeminarInscriptionSchema),
     defaultValues: { seminarId: seminar.id, person: "" },
   });
-  const options = seminar.people.map((person) => ({
-    value: toPortalSeminarPersonValue(person),
-    label: `${person.fullName} · ${getPortalSeminarPersonKindLabel(person.kind)}`,
-  }));
+  const groups = toPortalSeminarPersonGroups(seminar.people);
 
   return (
     <Dialog open onOpenChange={(nextOpen) => (nextOpen ? null : onClose())}>
@@ -324,7 +323,7 @@ function RegisterInscriptionDialog({
               inputPlaceholder="Buscar por nombre"
               label="Persona"
               name="person"
-              options={options}
+              groups={groups}
               placeholder="Elegí una persona del plantel"
             />
           </FieldGroup>
