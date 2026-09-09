@@ -289,6 +289,19 @@ describe("payment instructions on the event form", () => {
       parseInstructions({ paymentInstructionsText: "a".repeat(2000) }).ok,
     ).toBe(true);
   });
+
+  // The cap counts what the column stores, and the column stores it trimmed —
+  // so does the admin panel's live counter.
+  test("counts the cap after trimming, and stores the trimmed text", () => {
+    const parsed = parseInstructions({
+      paymentInstructionsText: `  ${"a".repeat(2000)}\n  `,
+    });
+
+    expect(parsed.ok).toBe(true);
+    expect(parsed.ok ? parsed.input.paymentInstructionsText : null).toBe(
+      "a".repeat(2000),
+    );
+  });
 });
 
 function storedEvent(overrides: Partial<EventRow> = {}): EventRow {

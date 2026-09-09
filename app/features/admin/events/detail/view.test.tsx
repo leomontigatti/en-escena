@@ -289,6 +289,22 @@ describe("EventDetailView form", () => {
     expect(document.body.textContent).toContain("1 / 2000");
   });
 
+  // The counter and the schema measure the same text: the column stores it
+  // trimmed, so 2000 characters plus a trailing newline is a text the save
+  // accepts and the field must not paint destructive.
+  test("counts the how-to-pay text trimmed, as the schema and the column do", async () => {
+    await renderForm();
+
+    const textarea = getInstructionsTextarea();
+
+    await act(async () => {
+      setTextareaValue(textarea, `${"a".repeat(2000)}\n  `);
+    });
+
+    expect(textarea.getAttribute("aria-invalid")).toBeNull();
+    expect(document.body.textContent).toContain("2000 / 2000");
+  });
+
   // Clearing the instructions is a plain save: text can be retyped, a PDF
   // cannot, so only the documents earn a confirmation.
   test("saves with every instruction field empty without opening the documents dialog", async () => {
@@ -327,6 +343,16 @@ describe("EventDetailView form", () => {
     expect(input).not.toBeNull();
 
     return input!;
+  }
+
+  function getInstructionsTextarea() {
+    const textarea = document.querySelector<HTMLTextAreaElement>(
+      'textarea[name="paymentInstructionsText"]',
+    );
+
+    expect(textarea).not.toBeNull();
+
+    return textarea!;
   }
 
   function getTabTrigger(label: string) {

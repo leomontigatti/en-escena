@@ -9,7 +9,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { formatAmount, formatDate } from "@/lib/finances/formatters";
 import type { loadPortalAcademyPayments } from "@/features/portal/payments/list/server";
-import { PaymentInstructionsAlert } from "@/features/portal/payments/list/payment-instructions-alert";
+import { PortalPaymentInstructionsAlert } from "@/features/portal/payments/list/payment-instructions-alert";
 import {
   formatPaymentMethodLabel,
   getPaymentMethodBadgeVariant,
@@ -95,6 +95,15 @@ export function PortalAcademyPaymentsRouteView({
     );
   }
 
+  // One alert for both active-event branches, and the first child of
+  // `PortalListPage` in each: the page's own `flex flex-col gap-6` separates it
+  // from the subtitle and from what follows.
+  const instructionsAlert = loaderData.paymentInstructions ? (
+    <PortalPaymentInstructionsAlert
+      instructions={loaderData.paymentInstructions}
+    />
+  ) : null;
+
   if (loaderData.payments.length === 0) {
     return (
       <PortalListPage
@@ -102,11 +111,7 @@ export function PortalAcademyPaymentsRouteView({
         title="Pagos"
         description="Consultá los pagos que administración registró para tu academia."
       >
-        {loaderData.paymentInstructions ? (
-          <PaymentInstructionsAlert
-            instructions={loaderData.paymentInstructions}
-          />
-        ) : null}
+        {instructionsAlert}
         <PortalEmptyState
           title="Todavía no hay pagos registrados"
           description="Cuando administración registre un pago de tu academia en este evento, lo vas a poder revisar acá."
@@ -122,11 +127,7 @@ export function PortalAcademyPaymentsRouteView({
       title="Pagos"
       description="Consultá los pagos que administración registró para tu academia."
     >
-      {loaderData.paymentInstructions ? (
-        <PaymentInstructionsAlert
-          instructions={loaderData.paymentInstructions}
-        />
-      ) : null}
+      {instructionsAlert}
       <ClientDataTable
         rows={loaderData.payments}
         columns={paymentColumns}

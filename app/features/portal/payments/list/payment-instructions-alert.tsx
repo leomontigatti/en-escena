@@ -20,7 +20,7 @@ const COPIED_FEEDBACK_MS = 2000;
  * the bank identifiers and the free text. The portal stays read-only —
  * administration still registers every payment.
  */
-export function PaymentInstructionsAlert({
+export function PortalPaymentInstructionsAlert({
   instructions,
 }: {
   instructions: PaymentInstructions;
@@ -62,9 +62,9 @@ function PaymentInstructionsBody({
 }
 
 /**
- * Two columns from `sm`: the CBU/CVU beside the alias, then the titular beside
- * the banco. A cell renders only when its field is loaded, so a partial set
- * closes the gaps instead of leaving holes. The titular cell carries the CUIT,
+ * Two columns from `sm`: the CBU/CVU beside the alias, then the holder beside
+ * the bank. A cell renders only when its field is loaded, so a partial set
+ * closes the gaps instead of leaving holes. The holder's cell carries the CUIT,
  * since a payer reads the two together on the bank's confirmation screen.
  */
 function IdentifierGrid({

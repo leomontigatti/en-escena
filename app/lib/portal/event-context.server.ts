@@ -54,15 +54,7 @@ export async function getPortalActiveEventPaymentInstructionsContext(
   }
 
   return {
-    activeEvent: {
-      id: activeEvent.id,
-      name: activeEvent.name,
-      active: activeEvent.active,
-      registrationStartsAt: activeEvent.registrationStartsAt,
-      registrationEndsAt: activeEvent.registrationEndsAt,
-      startsAt: activeEvent.startsAt,
-      endsAt: activeEvent.endsAt,
-    },
+    activeEvent: toPortalEventSummary(activeEvent),
     paymentInstructions: toPaymentInstructions(activeEvent),
   };
 }
@@ -102,6 +94,19 @@ export async function getPortalActiveEventReadinessContext(
 async function findPortalActiveEventSummary() {
   const events = await listPortalEventSummaries();
   return events.find((event) => event.active) ?? null;
+}
+
+/** The summary's seven fields out of a row that carries more of them. */
+function toPortalEventSummary(event: PortalEventSummary): PortalEventSummary {
+  return {
+    id: event.id,
+    name: event.name,
+    active: event.active,
+    registrationStartsAt: event.registrationStartsAt,
+    registrationEndsAt: event.registrationEndsAt,
+    startsAt: event.startsAt,
+    endsAt: event.endsAt,
+  };
 }
 
 const portalEventSummaryColumns = {

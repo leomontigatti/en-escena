@@ -26,7 +26,10 @@ export function EventPaymentInstructionsFields({
     control: form.control,
     name: "paymentInstructionsText",
   });
-  const length = text?.length ?? 0;
+  // The count the schema measures, and the count the column stores: both trim
+  // first, so a trailing newline never paints the field destructive over a text
+  // the save would have accepted.
+  const length = text?.trim().length ?? 0;
   const isTooLong = length > PAYMENT_INSTRUCTIONS_TEXT_MAX_LENGTH;
   const { clearErrors, setError } = form;
 

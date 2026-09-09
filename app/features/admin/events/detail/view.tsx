@@ -33,7 +33,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { eventFormValues } from "@/lib/admin/events/form-values";
+import {
+  eventFormValues,
+  paymentInstructionsFields,
+} from "@/lib/admin/events/form-values";
 import { isRouteFormPending, useOptionalNavigation } from "@/lib/shared/forms";
 import { notificationToastIds } from "@/lib/shared/notification-toasts";
 import { useServerActionToast } from "@/lib/shared/toasts";
@@ -272,9 +275,21 @@ function EventFormTabs({
   // A failed submission pulls its tab forward, so an error never lands on a
   // panel nobody can see. Keyed by the submit count rather than by the errors:
   // watching those would yank the tab back the moment a field is fixed
-  // mid-typing, and re-submitting the same broken form still switches.
+  // mid-typing, and would also switch tabs with no submit at all when the live
+  // 2000-character cap raises its error. `erroredTab` stays a dependency for
+  // the linter, but the ref makes every run that is not a new submit a no-op —
+  // and re-submitting the same broken form still switches, because the count
+  // rises either way.
+  const handledSubmitCount = useRef(0);
+
   useEffect(() => {
-    if (submitCount > 0 && erroredTab) {
+    if (submitCount === handledSubmitCount.current) {
+      return;
+    }
+
+    handledSubmitCount.current = submitCount;
+
+    if (erroredTab) {
       setTab(erroredTab);
     }
   }, [erroredTab, submitCount]);
@@ -286,7 +301,11 @@ function EventFormTabs({
         <TabsTrigger value={paymentInstructionsTabValue}>
           Instrucciones de pago
           {erroredTab === paymentInstructionsTabValue ? (
-            <TriangleAlert aria-hidden="true" className="text-destructive" />
+            <TriangleAlert
+              aria-hidden="true"
+              className="text-destructive"
+              data-icon="inline-end"
+            />
           ) : null}
         </TabsTrigger>
       </TabsList>
@@ -312,10 +331,17 @@ function EventFormTabs({
   );
 }
 
-/** Which tab holds the first error, or `null` when the event's own fields do. */
+/**
+ * Which tab holds the first error, or `null` when none does. The documents are
+ * file inputs with no schema of their own, so the instructions panel is the only
+ * tab that can carry one; the event's own fields sit above the tabs and stay
+ * visible whichever tab is open.
+ */
 function getErroredTab(controller: EventFormController) {
-  return Object.keys(controller.form.formState.errors).some((field) =>
-    field.startsWith("paymentInstructions"),
+  const erroredFields = Object.keys(controller.form.formState.errors);
+
+  return paymentInstructionsFields.some((field) =>
+    erroredFields.includes(field),
   )
     ? paymentInstructionsTabValue
     : null;

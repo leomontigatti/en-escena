@@ -70,7 +70,12 @@ const paymentInstructionsIdentifierFields = [
   "paymentInstructionsHolderCuit",
 ] as const;
 
-const paymentInstructionsFields = [
+/**
+ * The six fields of the `Instrucciones de pago`, in the order the admin panel
+ * shows them. Exported so the panel's tab can tell its own errors from the
+ * event's without matching on the name prefix.
+ */
+export const paymentInstructionsFields = [
   ...paymentInstructionsIdentifierFields,
   "paymentInstructionsText",
 ] as const;
