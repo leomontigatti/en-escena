@@ -20,6 +20,7 @@ export type PrototypePaymentInstructions = {
   holderName: string | null;
   bankName: string | null;
   cbu: string | null;
+  cvu: string | null;
   alias: string | null;
   holderCuit: string | null;
   text: string | null;
@@ -27,16 +28,13 @@ export type PrototypePaymentInstructions = {
 
 type CopyableField = {
   label: string;
-  /** What the academy reads on screen: grouped for the eye. */
-  display: string;
-  /** What lands on the clipboard: exactly what home banking expects. */
-  copyValue: string;
+  /**
+   * A CBU and a CVU are 22 digits in a single run, not a card number: no
+   * grouping, so what is read is exactly what is copied and what a payer
+   * types.
+   */
+  value: string;
 };
-
-/** `0170099920000000000004` -> `0170 0999 2000 0000 0000 04`. */
-function formatCbuForDisplay(cbu: string) {
-  return cbu.replace(/(.{4})/g, "$1 ").trim();
-}
 
 /** `20123456789` -> `20-12345678-9`. */
 function formatCuitForDisplay(cuit: string) {
@@ -46,48 +44,22 @@ function formatCuitForDisplay(cuit: string) {
 function getCopyableFields(
   instructions: PrototypePaymentInstructions,
 ): CopyableField[] {
-  const fields: CopyableField[] = [];
-
-  if (instructions.cbu) {
-    fields.push({
-      label: "CBU",
-      display: formatCbuForDisplay(instructions.cbu),
-      copyValue: instructions.cbu,
-    });
-  }
-
-  if (instructions.alias) {
-    fields.push({
-      label: "Alias",
-      display: instructions.alias,
-      copyValue: instructions.alias,
-    });
-  }
-
-  return fields;
+  return [
+    { label: "CBU", value: instructions.cbu },
+    { label: "CVU", value: instructions.cvu },
+    { label: "Alias", value: instructions.alias },
+  ].filter((field): field is CopyableField => Boolean(field.value));
 }
 
 function hasIdentifiers(instructions: PrototypePaymentInstructions) {
   return [
     instructions.cbu,
+    instructions.cvu,
     instructions.alias,
     instructions.holderName,
     instructions.bankName,
     instructions.holderCuit,
   ].some((value) => Boolean(value));
-}
-
-/** `Titular · Banco · CUIT`, skipping whatever is not loaded. */
-function formatHolderLine(instructions: PrototypePaymentInstructions) {
-  return [
-    instructions.holderName,
-    instructions.bankName,
-    instructions.holderCuit
-      ? `CUIT ${formatCuitForDisplay(instructions.holderCuit)}`
-      : null,
-  ]
-    .filter((part) => Boolean(part))
-    .join(" · ");
 }
 
 function useCopyToClipboard() {
@@ -118,26 +90,6 @@ function CopyIconButton({ label, value }: { label: string; value: string }) {
       ) : (
         <Copy aria-hidden="true" />
       )}
-    </Button>
-  );
-}
-
-function CopyTextButton({ label, value }: { label: string; value: string }) {
-  const { isCopied, copy } = useCopyToClipboard();
-
-  return (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      onClick={() => copy(value)}
-    >
-      {isCopied ? (
-        <Check data-icon="inline-start" aria-hidden="true" />
-      ) : (
-        <Copy data-icon="inline-start" aria-hidden="true" />
-      )}
-      {isCopied ? "Copiado" : `Copiar ${label.toLowerCase()}`}
     </Button>
   );
 }
@@ -195,39 +147,11 @@ function IdentifierRow({
   );
 }
 
-function InlineIdentifierList({
-  instructions,
-}: {
-  instructions: PrototypePaymentInstructions;
-}) {
-  const holderLine = formatHolderLine(instructions);
-
-  return (
-    <dl className="flex flex-col gap-2">
-      {getCopyableFields(instructions).map((field) => (
-        <div
-          key={field.label}
-          className="flex flex-wrap items-center gap-x-2 gap-y-0.5"
-        >
-          <dt className="text-xs font-medium">{field.label}</dt>
-          <dd className="font-mono text-sm tabular-nums text-foreground">
-            {field.display}
-          </dd>
-          <CopyIconButton label={field.label} value={field.copyValue} />
-        </div>
-      ))}
-      {holderLine ? (
-        <div className="flex flex-wrap items-center gap-x-2">
-          <dt className="text-xs font-medium">Titular</dt>
-          <dd className="text-sm text-foreground">{holderLine}</dd>
-        </div>
-      ) : null}
-    </dl>
-  );
-}
-
-/** Variant A — the page's existing callout primitive, one info block. */
-export function PaymentInstructionsAlertVariant({
+/**
+ * The chosen shape: the definition grid of the Card variant, rendered inside
+ * the info Alert the portal already uses for event-scoped notices.
+ */
+export function PaymentInstructionsAlertGridVariant({
   instructions,
 }: {
   instructions: PrototypePaymentInstructions;
@@ -236,14 +160,9 @@ export function PaymentInstructionsAlertVariant({
     <Alert variant="info">
       <Landmark aria-hidden="true" />
       <AlertTitle>Instrucciones de pago</AlertTitle>
-      <AlertDescription className="flex flex-col gap-3">
-        <p>Transferí a esta cuenta y avisá a administración.</p>
-        {hasIdentifiers(instructions) ? (
-          <InlineIdentifierList instructions={instructions} />
-        ) : null}
-        {instructions.text ? (
-          <InstructionsText text={instructions.text} />
-        ) : null}
+      <AlertDescription className="flex flex-col gap-4">
+        <p>Datos de la cuenta que recibe los pagos de este evento.</p>
+        <InstructionsBody instructions={instructions} />
       </AlertDescription>
     </Alert>
   );
@@ -262,10 +181,10 @@ function IdentifierGrid({
             {field.label}
           </dt>
           <dd className="flex items-center gap-1">
-            <span className="font-mono text-sm tabular-nums">
-              {field.display}
+            <span className="font-mono text-sm tabular-nums text-foreground">
+              {field.value}
             </span>
-            <CopyIconButton label={field.label} value={field.copyValue} />
+            <CopyIconButton label={field.label} value={field.value} />
           </dd>
         </div>
       ))}
@@ -284,7 +203,7 @@ function IdentifierGrid({
   );
 }
 
-function CardBody({
+function InstructionsBody({
   instructions,
 }: {
   instructions: PrototypePaymentInstructions;
@@ -309,7 +228,7 @@ function CardBody({
   ));
 }
 
-/** Variant B — Card, full composition, identifiers as a definition grid. */
+/** Kept for comparison: the same grid on a neutral Card instead of the Alert. */
 export function PaymentInstructionsCardVariant({
   instructions,
 }: {
@@ -330,49 +249,7 @@ export function PaymentInstructionsCardVariant({
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <CardBody instructions={instructions} />
-      </CardContent>
-    </Card>
-  );
-}
-
-/** Variant C — Card where pasting is the hero: full-width copy buttons. */
-export function PaymentInstructionsPasteFirstVariant({
-  instructions,
-}: {
-  instructions: PrototypePaymentInstructions;
-}) {
-  const copyableFields = getCopyableFields(instructions);
-  const holderLine = formatHolderLine(instructions);
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Instrucciones de pago</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        {copyableFields.map((field) => (
-          <div
-            key={field.label}
-            className="flex flex-col gap-2 rounded-lg border border-border px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
-          >
-            <div className="flex flex-col gap-0.5">
-              <span className="text-xs font-medium text-muted-foreground">
-                {field.label}
-              </span>
-              <span className="font-mono text-base tabular-nums">
-                {field.display}
-              </span>
-            </div>
-            <CopyTextButton label={field.label} value={field.copyValue} />
-          </div>
-        ))}
-        {holderLine ? (
-          <p className="text-xs text-muted-foreground">{holderLine}</p>
-        ) : null}
-        {instructions.text ? (
-          <InstructionsText text={instructions.text} />
-        ) : null}
+        <InstructionsBody instructions={instructions} />
       </CardContent>
     </Card>
   );

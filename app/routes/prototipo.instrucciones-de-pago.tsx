@@ -7,9 +7,8 @@ import { useSearchParams } from "react-router";
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import { Button } from "@/components/ui/button";
 import {
-  PaymentInstructionsAlertVariant,
+  PaymentInstructionsAlertGridVariant,
   PaymentInstructionsCardVariant,
-  PaymentInstructionsPasteFirstVariant,
   type PrototypePaymentInstructions,
 } from "@/features/portal/payments/prototype/payment-instructions-card.prototype";
 
@@ -17,6 +16,7 @@ const fullInstructions: PrototypePaymentInstructions = {
   holderName: "En Escena Producciones SRL",
   bankName: "Banco Galicia",
   cbu: "0070099930004512345678",
+  cvu: "0000003100010000000001",
   alias: "en.escena.pagos",
   holderCuit: "30712345674",
   text: "Poné el nombre de tu academia en la referencia de la transferencia.\nMandanos el comprobante por WhatsApp al 341 555-0100.\n\nTambién podés pagar con Mercado Pago: https://link.mercadopago.com.ar/enescena",
@@ -28,6 +28,7 @@ const casesById = {
     holderName: null,
     bankName: null,
     cbu: null,
+    cvu: null,
     alias: null,
     holderCuit: null,
     text: "Pagá en efectivo en la sede, de lunes a viernes de 15 a 20.",
@@ -39,6 +40,11 @@ const casesById = {
     holderCuit: null,
     text: null,
   },
+  "solo-cvu": {
+    ...fullInstructions,
+    cbu: null,
+    bankName: "Mercado Pago",
+  },
   "texto-largo": {
     ...fullInstructions,
     text: "Las transferencias se acreditan en 24 horas hábiles. Hasta que administración registre el pago, la coreografía sigue figurando como impaga.\n\nSi transferís desde una cuenta que no está a nombre de la academia, avisanos antes: el banco muestra el titular de origen y necesitamos poder identificarlo.\n\nNo aceptamos pagos parciales por debajo del anticipo del evento.",
@@ -46,17 +52,13 @@ const casesById = {
 } satisfies Record<string, PrototypePaymentInstructions>;
 
 const variantsById = {
-  alerta: {
-    label: "A · Alert info",
-    Component: PaymentInstructionsAlertVariant,
+  "alerta-grilla": {
+    label: "Alert info + grilla",
+    Component: PaymentInstructionsAlertGridVariant,
   },
   tarjeta: {
-    label: "B · Card + grilla",
+    label: "Card + grilla",
     Component: PaymentInstructionsCardVariant,
-  },
-  "pegar-primero": {
-    label: "C · Pegar primero",
-    Component: PaymentInstructionsPasteFirstVariant,
   },
 } satisfies Record<
   string,
@@ -90,7 +92,7 @@ export default function PaymentInstructionsPrototypeRoute() {
     searchParams,
     "variante",
     variantsById,
-    "tarjeta",
+    "alerta-grilla",
   );
   const caseId = resolveParam(searchParams, "caso", casesById, "completo");
   const contentId = resolveParam(
