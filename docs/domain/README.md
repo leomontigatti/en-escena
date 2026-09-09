@@ -14,6 +14,7 @@ Read order for domain work:
 - [access.md](./access.md) - registration, users, sessions and invitations.
 - [choreographies.md](./choreographies.md) - roster links, choreography registration, locks and `Bases del evento`.
 - [judging.md](./judging.md) - presentations, judging, ranking, results, scores and feedback.
+- [seminars.md](./seminars.md) - seminars offered by an event, their quota, and the seminar inscriptions academies register from their roster.
 - [finances.md](./finances.md) - canonical finance model: inscriptions, payments, allocations, the two thresholds and the three statuses, pricing, withdrawal and invoicing.
 - [rules.md](./rules.md) - index for compatibility.
 
