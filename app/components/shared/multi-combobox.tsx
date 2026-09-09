@@ -1,5 +1,5 @@
 import { ChevronDownIcon } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import {
   Combobox,
@@ -14,6 +14,7 @@ import {
   ComboboxValue,
   useComboboxAnchor,
 } from "@/components/ui/combobox";
+import { useComboboxDialogPortal } from "@/components/shared/combobox-dialog-portal";
 import { cn } from "@/lib/shared/utils";
 
 export type MultiComboboxOption = {
@@ -67,11 +68,10 @@ type MultiComboboxViewModel<TOption extends MultiComboboxOption> = {
   anchorRef: ReturnType<typeof useComboboxAnchor>;
   comboboxItems: string[];
   currentEmptyMessage: string;
+  dialogPortal: ReturnType<typeof useComboboxDialogPortal>;
   getOption: (value: string) => TOption;
   getOptionLabel: (value: string) => string;
-  isInsideDialog: boolean;
   listOptions: TOption[];
-  portalContainer: HTMLElement | null;
 };
 
 const defaultAllSelectedMessage = "Ya seleccionaste todas las opciones.";
@@ -131,10 +131,7 @@ function useMultiComboboxViewModel<TOption extends MultiComboboxOption>(
   config: MultiComboboxConfig<TOption>,
 ): MultiComboboxViewModel<TOption> {
   const anchorRef = useComboboxAnchor();
-  const [isInsideDialog, setIsInsideDialog] = useState(false);
-  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(
-    null,
-  );
+  const dialogPortal = useComboboxDialogPortal(anchorRef);
   const optionByValue = new Map(
     config.options.map((option) => [option.value, option] as const),
   );
@@ -149,28 +146,14 @@ function useMultiComboboxViewModel<TOption extends MultiComboboxOption>(
     return getOption(value).label;
   }
 
-  useEffect(() => {
-    const dialogContent =
-      anchorRef.current?.closest<HTMLElement>('[data-slot="dialog-content"]') ??
-      null;
-    const dialogPortalHost =
-      dialogContent?.querySelector<HTMLElement>(
-        '[data-slot="dialog-combobox-portal-host"]',
-      ) ?? null;
-
-    setIsInsideDialog(dialogContent ? true : false);
-    setPortalContainer(dialogPortalHost);
-  }, [anchorRef]);
-
   return {
     anchorRef,
     comboboxItems,
     currentEmptyMessage: getEmptyMessage(config, listOptions),
+    dialogPortal,
     getOption,
     getOptionLabel,
-    isInsideDialog,
     listOptions,
-    portalContainer,
   };
 }
 
@@ -334,15 +317,7 @@ function MultiComboboxPopover<TOption extends MultiComboboxOption>({
   }
 
   return (
-    <ComboboxContent
-      anchor={viewModel.anchorRef}
-      collisionAvoidance={getDialogCollisionAvoidance(viewModel)}
-      dismissableLayerBranch={viewModel.isInsideDialog}
-      positionerClassName={
-        viewModel.isInsideDialog ? "pointer-events-auto z-60" : undefined
-      }
-      portalContainer={viewModel.portalContainer}
-    >
+    <ComboboxContent anchor={viewModel.anchorRef} {...viewModel.dialogPortal}>
       {config.searchable ? (
         <ComboboxInput
           disabled={config.options.length === 0}
@@ -362,20 +337,6 @@ function MultiComboboxPopover<TOption extends MultiComboboxOption>({
       </ComboboxList>
     </ComboboxContent>
   );
-}
-
-function getDialogCollisionAvoidance<TOption extends MultiComboboxOption>(
-  viewModel: MultiComboboxViewModel<TOption>,
-) {
-  if (!viewModel.isInsideDialog) {
-    return undefined;
-  }
-
-  return {
-    side: "none",
-    align: "shift",
-    fallbackAxisSide: "none",
-  } as const;
 }
 
 function MultiComboboxItem<TOption extends MultiComboboxOption>({
