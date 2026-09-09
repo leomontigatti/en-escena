@@ -9,7 +9,10 @@ import type {
   PortalSeminarCard,
   PortalSeminarsListLoaderData,
 } from "@/features/portal/seminars/list/shared";
-import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
+import {
+  createReactDomTestRenderer,
+  getReactDomTexts,
+} from "@/lib/test-support/react-dom";
 
 const renderer = createReactDomTestRenderer();
 
@@ -173,7 +176,7 @@ describe("PortalSeminarsListRouteView", () => {
     expect(chips[1].className).toBe(chips[0].className);
   });
 
-  test("opens the register dialog on the picker, with dancers and professors in one list", async () => {
+  test("opens the register dialog on the picker, with dancers and professors under their own headings", async () => {
     await renderSeminars({ hasActiveEvent: true, seminars: [buildSeminar()] });
 
     const registerButton = findByText("button", "Inscribir");
@@ -194,13 +197,14 @@ describe("PortalSeminarsListRouteView", () => {
       trigger?.click();
     });
 
-    const optionLabels = Array.from(
-      document.querySelectorAll('[role="option"]'),
-    ).map((option) => option.textContent);
-
-    expect(optionLabels).toEqual([
-      "Ana Paz · Bailarín",
-      "Luz Suárez · Profesor",
+    // The kind is said once per heading, so the options carry the name alone.
+    expect(getReactDomTexts('[data-slot="combobox-label"]')).toEqual([
+      "Bailarines",
+      "Profesores",
+    ]);
+    expect(getReactDomTexts('[role="option"]')).toEqual([
+      "Ana Paz",
+      "Luz Suárez",
     ]);
   });
 });

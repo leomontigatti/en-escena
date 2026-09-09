@@ -13,6 +13,9 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   clickReactDomButton,
   createReactDomTestRenderer,
+  getReactDomTexts,
+  setInputValue,
+  updateReactDomForm,
 } from "@/lib/test-support/react-dom";
 
 const renderer = createReactDomTestRenderer();
@@ -46,6 +49,35 @@ function ComboboxInDialog() {
   );
 }
 
+function GroupedCombobox() {
+  const form = useForm<{ person: string }>({
+    defaultValues: { person: "" },
+  });
+
+  return (
+    <ComboboxField
+      control={form.control}
+      inputPlaceholder="Buscar por nombre"
+      label="Persona"
+      name="person"
+      groups={[
+        {
+          label: "Bailarines",
+          options: [
+            { value: "dancer:1", label: "Abril Sosa" },
+            { value: "dancer:2", label: "Ezequiel Ipsale" },
+          ],
+        },
+        {
+          label: "Profesores",
+          options: [{ value: "professor:1", label: "Fernanda Ledesma" }],
+        },
+      ]}
+      placeholder="Elegí una persona del plantel"
+    />
+  );
+}
+
 describe("ComboboxField inside a dialog", () => {
   test("renders its popup into the dialog's portal host", async () => {
     await renderer.renderAsync(<ComboboxInDialog />);
@@ -60,5 +92,46 @@ describe("ComboboxField inside a dialog", () => {
     expect(
       portalHost?.querySelector('[data-slot="combobox-content"]'),
     ).not.toBeNull();
+  });
+});
+
+// The seminar picker mixes dancers and professors, and a single alphabetical
+// order interleaves them into a list the reader has to parse person by person.
+describe("ComboboxField with grouped options", () => {
+  test("titles each section without offering the title as an option", async () => {
+    await renderer.renderAsync(<GroupedCombobox />);
+
+    await clickReactDomButton("Elegí una persona del plantel");
+
+    expect(getReactDomTexts('[data-slot="combobox-label"]')).toEqual([
+      "Bailarines",
+      "Profesores",
+    ]);
+    expect(getReactDomTexts('[role="option"]')).toEqual([
+      "Abril Sosa",
+      "Ezequiel Ipsale",
+      "Fernanda Ledesma",
+    ]);
+  });
+
+  test("drops the heading of a section the search leaves empty", async () => {
+    await renderer.renderAsync(<GroupedCombobox />);
+
+    await clickReactDomButton("Elegí una persona del plantel");
+
+    const input = document.querySelector<HTMLInputElement>(
+      'input[placeholder="Buscar por nombre"]',
+    );
+
+    expect(input).not.toBeNull();
+
+    await updateReactDomForm(() => {
+      setInputValue(input as HTMLInputElement, "Fernanda");
+    });
+
+    expect(getReactDomTexts('[data-slot="combobox-label"]')).toEqual([
+      "Profesores",
+    ]);
+    expect(getReactDomTexts('[role="option"]')).toEqual(["Fernanda Ledesma"]);
   });
 });
