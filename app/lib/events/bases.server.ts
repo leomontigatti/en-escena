@@ -4,12 +4,7 @@ import {
   listSubmodalities,
 } from "@/lib/modalities/repository.server";
 import { listCategories } from "@/lib/categories/repository.server";
-import {
-  listPrices,
-  resolveApplicablePrice,
-  type PriceListItem,
-  type PriceResolutionResult,
-} from "@/lib/prices/repository.server";
+import { listPrices, type PriceListItem } from "@/lib/prices/repository.server";
 import {
   findModalityIdsWithCompatibleSchedules,
   findScheduleIdsWithCompatibleModalities,
@@ -24,7 +19,6 @@ export type {
   CompatibleScheduleCapacity,
   CompatibleScheduleCapacityResolution,
   PriceListItem,
-  PriceResolutionResult,
   ScheduleListItem,
 };
 
@@ -74,14 +68,6 @@ export function getChoreographyRegistrationBaseOptions(
       modalityId: submodality.modalityId,
     })),
   };
-}
-
-export async function resolveEventBasesPrice(input: {
-  eventId: string;
-  groupType: string;
-  scheduleId: string | null;
-}): Promise<PriceResolutionResult> {
-  return resolveApplicablePrice(input);
 }
 
 /**

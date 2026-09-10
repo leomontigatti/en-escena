@@ -10,10 +10,8 @@ import {
   calculateDepositAmount,
   hasCrossedDepositThreshold,
 } from "@/lib/finances/inscription-financial-status";
-import {
-  type ChoreographyGroupType,
-  resolveEffectiveBasePriceRow,
-} from "@/lib/finances/operational-summary-calculations.server";
+import { type ChoreographyGroupType } from "@/lib/finances/operational-summary-calculations.server";
+import { resolveEffectiveBasePriceRow } from "@/lib/finances/inscription-price";
 
 import {
   type Executor,

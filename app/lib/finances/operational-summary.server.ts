@@ -29,8 +29,8 @@ import {
   type FinanceChoreographyRow,
   type FinancePriceRow,
   type ResolvedInscription,
-  resolveEffectiveBasePriceRow,
 } from "@/lib/finances/operational-summary-calculations.server";
+import { resolveEffectiveBasePriceRow } from "@/lib/finances/inscription-price";
 
 type InscriptionRow = {
   id: string;
