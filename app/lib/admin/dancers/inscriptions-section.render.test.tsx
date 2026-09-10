@@ -54,7 +54,7 @@ describe("InscriptionsSection", () => {
     );
   });
 
-  test("shows active-event inscriptions with estimated columns and values", () => {
+  test("shows active-event inscriptions with the finance columns and values", () => {
     const markup = renderSection({
       selectedEventId: "event-1",
       inscriptions: [
@@ -66,7 +66,7 @@ describe("InscriptionsSection", () => {
           groupType: "duo",
           basePriceAmount: 35000,
           discountAmount: 0,
-          estimatedSubtotalAmount: 35000,
+          totalAmount: 35000,
         },
       ],
     });
@@ -77,7 +77,8 @@ describe("InscriptionsSection", () => {
     expect(markup).toContain("Categoría / Tipo de grupo");
     expect(markup).toContain("Precio base");
     expect(markup).toContain("Descuento");
-    expect(markup).toContain("Subtotal estimado");
+    expect(markup).toContain("Total");
+    expect(markup).not.toContain("Subtotal estimado");
     expect(markup).toContain("Finale");
     expect(markup).toContain("Juvenil · Dúo");
     expect(markup).toContain("35.000");
@@ -103,7 +104,7 @@ describe("InscriptionsSection", () => {
           groupType: "solo",
           basePriceAmount: 35000,
           discountAmount: 0,
-          estimatedSubtotalAmount: 35000,
+          totalAmount: 35000,
         },
       ],
     });

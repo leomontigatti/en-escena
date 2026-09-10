@@ -482,7 +482,7 @@ describe.sequential("`/administracion/bailarines` route", () => {
     expect(markup).not.toContain("Acciones");
   });
 
-  test("scopes inscription loader data to the event active and resolves estimated values", async () => {
+  test("scopes inscription loader data to the active event and prices it through the finance read model", async () => {
     const activeEvent = await createSavedEvent();
     const historicalEvent = await createInactiveEvent({
       name: "Regional histórico 2026",
@@ -515,7 +515,9 @@ describe.sequential("`/administracion/bailarines` route", () => {
       createPrice(activeEvent.id, {
         groupType: "duo",
         amount: 1250000,
-        paymentDeadline: "2026-05-31",
+        // Deadline-less: it applies whatever the business date is, so the
+        // expectation does not expire with the calendar.
+        paymentDeadline: null,
         scheduleId: null,
       }),
     );
@@ -546,7 +548,7 @@ describe.sequential("`/administracion/bailarines` route", () => {
         groupType: "duo",
         basePriceAmount: 1250000,
         discountAmount: 0,
-        estimatedSubtotalAmount: 1250000,
+        totalAmount: 1250000,
       }),
     ]);
     expect(loaderData.dancer.inscriptions).not.toEqual(
