@@ -4,7 +4,9 @@
   "ignorePatterns": [
     "tests/db/setup-fast.ts",
     "tests/db/setup.ts",
-    "tests/setup/react-test-env.ts"
+    "tests/setup/react-test-env.ts",
+    "app/features/**/prototype/*.prototype.{ts,tsx}",
+    "app/routes/prototipo.*.tsx"
   ],
   "ignoreDependencies": ["isbot"],
   "ignoreExports": [
