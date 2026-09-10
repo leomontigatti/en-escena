@@ -168,9 +168,9 @@ function inscriptionFixture(
     allocatedAmount: 3000,
     anomalies: [],
     basePriceAmount: 10000,
+    dancerDiscountAmount: 0,
     dancerId: "dancer_1",
     depositAmount: 3000,
-    discountAmount: 0,
     effectivePrice: {
       amount: 10000,
       depositAmount: 3000,

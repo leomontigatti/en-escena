@@ -547,7 +547,7 @@ describe.sequential("`/administracion/bailarines` route", () => {
         categoryName: null,
         groupType: "duo",
         basePriceAmount: 1250000,
-        discountAmount: 0,
+        dancerDiscountAmount: 0,
         totalAmount: 1250000,
       }),
     ]);

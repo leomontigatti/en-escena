@@ -136,16 +136,25 @@ async function readBothSurfaces(
   }
 
   return {
-    dancer: {
-      basePriceAmount: dancerRow.basePriceAmount,
-      discountAmount: dancerRow.discountAmount,
-      totalAmount: dancerRow.totalAmount,
-    },
-    finance: {
-      basePriceAmount: financeRow.basePriceAmount,
-      discountAmount: financeRow.dancerDiscountAmount,
-      totalAmount: financeRow.totalAmount,
-    },
+    dancer: moneyFigures(dancerRow),
+    finance: moneyFigures(financeRow),
+  };
+}
+
+/**
+ * The three figures both surfaces are expected to agree on. Since the rows name
+ * them alike, one projection serves both: what the assertions compare is the
+ * money, not the shape.
+ */
+function moneyFigures(row: {
+  basePriceAmount: number | null;
+  dancerDiscountAmount: number;
+  totalAmount: number | null;
+}) {
+  return {
+    basePriceAmount: row.basePriceAmount,
+    dancerDiscountAmount: row.dancerDiscountAmount,
+    totalAmount: row.totalAmount,
   };
 }
 
@@ -162,7 +171,7 @@ describe.sequential(
 
       expect(read.dancer).toEqual({
         basePriceAmount: 12000,
-        discountAmount: 0,
+        dancerDiscountAmount: 0,
         totalAmount: 12000,
       });
       expect(read.finance).toEqual(read.dancer);
@@ -179,7 +188,7 @@ describe.sequential(
 
       expect(read.dancer).toEqual({
         basePriceAmount: 10000,
-        discountAmount: 0,
+        dancerDiscountAmount: 0,
         totalAmount: 10000,
       });
       expect(read.finance).toEqual(read.dancer);
@@ -201,7 +210,7 @@ describe.sequential(
 
       expect(read.dancer).toEqual({
         basePriceAmount: null,
-        discountAmount: 0,
+        dancerDiscountAmount: 0,
         totalAmount: null,
       });
       expect(read.finance).toEqual(read.dancer);
