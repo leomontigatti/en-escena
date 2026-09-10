@@ -138,12 +138,12 @@ async function readBothSurfaces(
   return {
     dancer: {
       basePriceAmount: dancerRow.basePriceAmount,
-      discountAmount: dancerRow.discountAmount,
+      dancerDiscountAmount: dancerRow.dancerDiscountAmount,
       totalAmount: dancerRow.totalAmount,
     },
     finance: {
       basePriceAmount: financeRow.basePriceAmount,
-      discountAmount: financeRow.dancerDiscountAmount,
+      dancerDiscountAmount: financeRow.dancerDiscountAmount,
       totalAmount: financeRow.totalAmount,
     },
   };
@@ -162,7 +162,7 @@ describe.sequential(
 
       expect(read.dancer).toEqual({
         basePriceAmount: 12000,
-        discountAmount: 0,
+        dancerDiscountAmount: 0,
         totalAmount: 12000,
       });
       expect(read.finance).toEqual(read.dancer);
@@ -179,7 +179,7 @@ describe.sequential(
 
       expect(read.dancer).toEqual({
         basePriceAmount: 10000,
-        discountAmount: 0,
+        dancerDiscountAmount: 0,
         totalAmount: 10000,
       });
       expect(read.finance).toEqual(read.dancer);
@@ -201,7 +201,7 @@ describe.sequential(
 
       expect(read.dancer).toEqual({
         basePriceAmount: null,
-        discountAmount: 0,
+        dancerDiscountAmount: 0,
         totalAmount: null,
       });
       expect(read.finance).toEqual(read.dancer);

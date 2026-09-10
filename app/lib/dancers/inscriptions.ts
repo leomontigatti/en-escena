@@ -13,6 +13,6 @@ export type DancerInscription = {
   categoryName: string | null;
   groupType: "solo" | "duo" | "trio" | "grupal";
   basePriceAmount: number | null;
-  discountAmount: number;
+  dancerDiscountAmount: number;
   totalAmount: number | null;
 };

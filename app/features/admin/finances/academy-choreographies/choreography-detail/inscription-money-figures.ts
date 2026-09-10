@@ -98,7 +98,7 @@ export function deriveOwedAgainstPrice(input: {
     thresholds: {
       depositAmount: input.price.depositAmount,
       totalAmount: calculateTotalAmount({
-        dancerDiscountAmount: input.inscription.discountAmount,
+        dancerDiscountAmount: input.inscription.dancerDiscountAmount,
         priceAmount: input.price.amount,
       }),
     },

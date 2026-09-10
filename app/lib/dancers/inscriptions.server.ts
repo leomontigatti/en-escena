@@ -88,7 +88,7 @@ export async function findDancerInscriptions(input: {
       categoryName: choreography.categoryName,
       groupType: choreography.groupType,
       basePriceAmount: resolution?.priceAmount ?? null,
-      discountAmount: resolution?.dancerDiscountAmount ?? 0,
+      dancerDiscountAmount: resolution?.dancerDiscountAmount ?? 0,
       totalAmount: resolution?.totalAmount ?? null,
     } satisfies DancerInscription;
   });

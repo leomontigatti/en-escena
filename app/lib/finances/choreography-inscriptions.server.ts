@@ -14,7 +14,7 @@ export type ChoreographyInscriptionRow = {
   basePriceAmount: number | null;
   dancerId: string;
   depositAmount: number | null;
-  discountAmount: number;
+  dancerDiscountAmount: number;
   financialStatus: AcademyEventFinanceInscriptions[number]["financialStatus"];
   firstName: string;
   /** `null` for a roster dancer who does not have an inscription yet. */
@@ -78,7 +78,7 @@ function toInscriptionRow(
       anomalies: [],
       basePriceAmount: null,
       depositAmount: null,
-      discountAmount: 0,
+      dancerDiscountAmount: 0,
       financialStatus: "depositPending",
       inscriptionId: null,
       overAllocatedAmount: null,
@@ -95,7 +95,7 @@ function toInscriptionRow(
     anomalies: inscription.anomalies,
     basePriceAmount: inscription.basePriceAmount,
     depositAmount: inscription.depositAmount,
-    discountAmount: inscription.dancerDiscountAmount,
+    dancerDiscountAmount: inscription.dancerDiscountAmount,
     financialStatus: inscription.financialStatus,
     inscriptionId: inscription.id,
     overAllocatedAmount: inscription.overAllocatedAmount,

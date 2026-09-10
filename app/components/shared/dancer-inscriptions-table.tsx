@@ -65,7 +65,7 @@ export function DancerInscriptionsTable({
                 {formatMoney(inscription.basePriceAmount)}
               </TableCell>
               <TableCell className="px-3">
-                {formatMoney(inscription.discountAmount)}
+                {formatMoney(inscription.dancerDiscountAmount)}
               </TableCell>
               <TableCell className="px-3">
                 {formatMoney(inscription.totalAmount)}

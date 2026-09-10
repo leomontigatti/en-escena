@@ -170,7 +170,7 @@ function inscriptionFixture(
     basePriceAmount: 10000,
     dancerId: "dancer_1",
     depositAmount: 3000,
-    discountAmount: 0,
+    dancerDiscountAmount: 0,
     effectivePrice: {
       amount: 10000,
       depositAmount: 3000,

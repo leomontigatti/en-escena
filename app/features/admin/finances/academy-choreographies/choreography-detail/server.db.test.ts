@@ -139,7 +139,7 @@ describe.sequential("`/administracion/finanzas` choreography detail", () => {
         basePriceAmount: 10000,
         dancerId: dancer.id,
         depositAmount: 3000,
-        discountAmount: 0,
+        dancerDiscountAmount: 0,
         // No row is stored yet, and the effective price is the one that applies
         // today: it is what the figures come from and what the dialog reads out.
         effectivePrice: {
@@ -220,7 +220,7 @@ describe.sequential("`/administracion/finanzas` choreography detail", () => {
         basePriceAmount: 10000,
         dancerId: dancer.id,
         depositAmount: 3000,
-        discountAmount: 0,
+        dancerDiscountAmount: 0,
         effectivePrice: {
           amount: 10000,
           depositAmount: 3000,
@@ -523,7 +523,7 @@ describe.sequential("`/administracion/finanzas` choreography detail", () => {
         basePriceAmount: null,
         dancerId: dancer.id,
         depositAmount: null,
-        discountAmount: 0,
+        dancerDiscountAmount: 0,
         effectivePrice: null,
         financialStatus: "depositPending",
         firstName: "Mora",
