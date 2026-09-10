@@ -436,7 +436,7 @@ Economic data fixed by a payment allocation so that an inscription's financial s
 _Avoid_: `inscriptionSnapshot` (retired), invoice, frozen amount, `financialReferenceDate` (retired)
 
 **`Fecha de referencia financiera`** _(retired term)_ — no code identifier
-Per-inscription date that used to decide which price row applied. Map #547 replaced date-driven price resolution with the price fixed at the deposit threshold crossing, and the two reference-date columns were dropped in #689. What survives is the shared business date `getBusinessDateOnly()`, which is not a financial concept and needs no glossary term — it is held in a local named `financialReferenceDate` inside `resolveEstimatedBasePriceAmount`, on the **read** path, so the words do still appear in code even though they name no column, no type and no exported symbol. Do not use.
+Per-inscription date that used to decide which price row applied. Map #547 replaced date-driven price resolution with the price fixed at the deposit threshold crossing, and the two reference-date columns were dropped in #689. What survives is the shared business date `getBusinessDateOnly()`, which is not a financial concept and needs no glossary term — the read path receives it as the `businessDate` parameter of `selectApplicableInscriptionPrice`, and the words no longer appear in code. Do not use.
 _Avoid_: `selectedPrice`, UTC date, deposit date
 
 **`paymentDeadline`** — ui: "Fecha límite de pago"

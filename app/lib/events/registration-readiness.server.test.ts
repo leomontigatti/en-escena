@@ -307,7 +307,7 @@ describe("event registration readiness from loaded bases", () => {
       },
     ]);
 
-    // A caller that hands `resolveApplicablePrice` no scheduleId never reaches
+    // A caller that hands `selectApplicableInscriptionPrice` no scheduleId never reaches
     // the schedule tier, so the deadline-less row on `schedule_sabado` leaves
     // the path uncovered from 2026-04-01 on.
     await expect(

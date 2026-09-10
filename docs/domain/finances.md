@@ -142,11 +142,11 @@ Every figure an academy reads on a **finance surface** is **exact and is exactly
 what must be paid**. Those surfaces carry no tentative amounts and no
 provisional-figure cue: a marking true of every figure distinguishes nothing.
 
-The one provisional cue in the panel is outside them. The admin dancer detail —
-not a finance surface — heads its column `Subtotal estimado` and disclaims that
-`Los importes son estimados y no reemplazan comprobantes financieros.`, and it
-earns the disclaimer honestly, because it prices without the finance rules (see
-"Prices").
+The dancer detail's inscriptions tab — admin and portal, not a finance surface —
+reads its `Precio base`, `Descuento` and `Total` through the same thresholds
+owner the write path uses (`readInscriptionThresholds`), so it carries no
+provisional cue either: the `Subtotal estimado` heading and its disclaimer are
+gone with the dateless resolution they excused.
 
 The superseded per-inscription `Saldo de inscripción` (`base − deposit −
 discount`) is **gone, not renamed**: both of its subtrahends moved.
@@ -230,10 +230,17 @@ decision rather than an oversight.
   `price_general_unique` and `price_specific_unique` — both created `NULLS NOT
 DISTINCT`, because two of them would otherwise be separated only by amount.
 - **The business date** — today in the business time zone, never a payment's date
-  — appears only on the **read** path, in `resolveEstimatedBasePriceAmount`. It
-  resolves the currently applicable row, preferring the row specific to the
-  choreography's schedule and group type, then the general row for that group
-  type.
+  — appears only on the **read** path, and only inside
+  `app/lib/finances/inscription-price.ts`, the single owner of applicable-row
+  selection. `selectApplicableInscriptionPrice` resolves the currently
+  applicable row, preferring the row specific to the choreography's schedule and
+  group type, then the general row for that group type; both tiers go through
+  `selectApplicablePriceCandidate`, which owns the deadline filter and the
+  nearest-deadline / lowest-amount tie-break and has no dateless overload.
+  `resolveApplicableInscriptionPrice` (`inscription-price.server.ts`) is the same
+  rule from the database, the transaction entry point for a caller that only
+  holds the key; no production path calls it yet — every reader already has the
+  event's rows loaded — and its db tests pin the rule against real rows.
 - **The price is fixed by the deposit threshold crossing, not by the first peso
   and not by the calendar.** Below the threshold nothing is fixed: an allocation
   write may store a different row whatever the inscription already holds, and the
@@ -309,9 +316,10 @@ DISTINCT`, because two of them would otherwise be separated only by amount.
 > `crossed ? stored : (current ?? stored)` through the same owner, fed the
 > seminar's tiers as the candidate set — no schedule or group-type axis — and the
 > seminar's own `requiredDepositPercentage`. A seminar with no tier can be
-> registered into and its inscriptions read `Sin precio`. The seminar side of
-> the applicable-row selection is
-> [#403](https://github.com/leomontigatti/en-escena/issues/403)'s.
+> registered into and its inscriptions read `Sin precio`. The seminar tier
+> selector — the tiers reduced to the amount that applies to the person, then
+> `selectApplicablePriceCandidate` — is one call into the owner and belongs to
+> the seminar money map, [#884](https://github.com/leomontigatti/en-escena/issues/884).
 
 **Known divergence — a roster change can leave a crossed price impossible.**
 Because nothing refreshes `selectedPriceId`, a roster change that moves the
@@ -323,15 +331,13 @@ in [#660](https://github.com/leomontigatti/en-escena/issues/660). The only guard
 place is the schedule-capacity one, which refuses to move a choreography's
 schedule capacity while any inscription holds money.
 
-**Known divergence — the admin dancer detail prices without the finance rules.**
-`findDancerInscriptions` resolves prices with no date and hardcodes a zero
-discount, so that view can show an expired row as `Subtotal estimado` and never
-shows the `Descuento por bailarín`. It contradicts the finance read model for the
-same inscription. The no-date resolution is
-[#403](https://github.com/leomontigatti/en-escena/issues/403)'s, which retires
-the dateless `resolveApplicablePrice` overload; the hardcoded discount was
-[#584](https://github.com/leomontigatti/en-escena/issues/584)'s and is still in
-code.
+- **The dancer detail prices with the finance rules.** `findDancerInscriptions`
+  reads each inscription through `readInscriptionThresholds`, so the tab shows
+  the effective price against today's business date, the stored row once the
+  deposit is covered, the live `Descuento por bailarín`, and `Sin precio` when
+  nothing resolves — the same figures as the finance surfaces for the same
+  inscription. The dateless resolver it used to call is retired; nothing
+  resolves a price without the business date any more.
 
 ## Payments
 
@@ -867,11 +873,10 @@ the difference matters to anyone about to delete something:
   (`app/features/portal/finances/view.tsx`), and the card that links to it from
   `app/routes/portal._index.tsx` still describes it as their cuenta corriente.
 - **`Fecha de referencia financiera`** retires the _per-inscription column_; both
-  reference-date columns were dropped in #689. The words survive as a local
-  variable, `financialReferenceDate` in `resolveEstimatedBasePriceAmount`, which
-  holds the shared business date on the read path. It names no column, no type
-  and no exported symbol, and it is not a financial concept — but it is a real
-  identifier, and grep will find it.
+  reference-date columns were dropped in #689. The words no longer appear in
+  code either: the read path takes the shared business date as a `businessDate`
+  parameter of `selectApplicableInscriptionPrice`, which is not a financial
+  concept and needs no term.
 - **`Porción`** retires the _classification_: the column, its pgEnum, its
   derivation and its printed label are gone, and no identifier spells it. But
   `readComprobantesListFilters` still calls `searchParams.delete("porcion")`,

@@ -21,7 +21,8 @@ const moneyFormatter = new Intl.NumberFormat("es-AR", {
 /**
  * The inscriptions a dancer holds in the active event. Administration and the
  * academy portal read the same columns; each passes the choreography detail it
- * can reach.
+ * can reach. The figures are the finance read model's, so `Total` is what the
+ * inscription must pay, not an estimate.
  */
 export function DancerInscriptionsTable({
   buildChoreographyHref,
@@ -40,7 +41,7 @@ export function DancerInscriptionsTable({
             <TableHead className="px-3">Categoría / Tipo de grupo</TableHead>
             <TableHead className="px-3">Precio base</TableHead>
             <TableHead className="px-3">Descuento</TableHead>
-            <TableHead className="px-3">Subtotal estimado</TableHead>
+            <TableHead className="px-3">Total</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -67,7 +68,7 @@ export function DancerInscriptionsTable({
                 {formatMoney(inscription.discountAmount)}
               </TableCell>
               <TableCell className="px-3">
-                {formatMoney(inscription.estimatedSubtotalAmount)}
+                {formatMoney(inscription.totalAmount)}
               </TableCell>
             </TableRow>
           ))}
