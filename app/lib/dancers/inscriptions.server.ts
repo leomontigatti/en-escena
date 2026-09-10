@@ -67,30 +67,16 @@ export async function findDancerInscriptions(input: {
   // Priced by the finance read model — the row that applies on today's
   // business date, the stored row once the deposit is covered, the live
   // discount over the dancer's roster — so this tab shows the same figures as
-  // the finance surfaces. The discount qualifies per academy, hence one read
-  // per academy; a dancer belongs to one, so this is one read in practice.
-  const thresholds = new Map<string, InscriptionThresholdResolution>();
-  const inscriptionIdsByAcademy = new Map<string, string[]>();
-  for (const row of choreographyRows) {
-    const bucket = inscriptionIdsByAcademy.get(row.academyId);
-
-    if (bucket) {
-      bucket.push(row.inscriptionId);
-    } else {
-      inscriptionIdsByAcademy.set(row.academyId, [row.inscriptionId]);
-    }
-  }
-  for (const [academyId, inscriptionIds] of inscriptionIdsByAcademy) {
-    const resolved = await readInscriptionThresholds(db, {
-      academyId,
-      eventId: selectedEventId,
-      inscriptionIds,
-    });
-
-    for (const [inscriptionId, resolution] of resolved) {
-      thresholds.set(inscriptionId, resolution);
-    }
-  }
+  // the finance surfaces. The discount qualifies per academy, and a dancer
+  // belongs to one, so every row shares the academy of the first.
+  const academyId = choreographyRows[0]?.academyId;
+  const thresholds = academyId
+    ? await readInscriptionThresholds(db, {
+        academyId,
+        eventId: selectedEventId,
+        inscriptionIds: choreographyRows.map((row) => row.inscriptionId),
+      })
+    : new Map<string, InscriptionThresholdResolution>();
 
   const inscriptions = choreographyRows.map((choreography) => {
     const resolution = thresholds.get(choreography.inscriptionId);

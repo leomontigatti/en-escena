@@ -375,6 +375,49 @@ schedule capacity while any inscription holds money.
   no reversal order, no blocking case, and no automatic refill of what the
   deletion freed.
 
+## Payment instructions
+
+> **Specified, not built.** Owned by
+> [#895](https://github.com/leomontigatti/en-escena/issues/895), the PRD that
+> map [#867](https://github.com/leomontigatti/en-escena/issues/867) produced.
+> The slice that lands the portal alert removes this callout.
+
+`Instrucciones de pago` (`paymentInstructions`) is what an academy needs in
+order to pay an event: the bank identifiers of the account that receives the
+money, plus free text on how to pay. It records nothing about money received
+and is not a `payment`.
+
+- **It belongs to one event.** Administration loads it on the event detail;
+  there is no global account and no override chain. A new event starts empty.
+- **Five identifiers and one text**: `CBU/CVU` (one field, a CBU or a CVU,
+  never both), `Alias`, `Titular`, `Banco`, `CUIT del titular`, and
+  `Cómo pagar`. Every field is optional on its own.
+- **The identifiers form a group.** As soon as any of them is filled, the
+  `CBU/CVU` and the `Titular` are required — the alias can be re-pointed by
+  its holder at any time, and the holder name is what the payer's bank shows
+  before confirming. `Banco`, `Alias` and `CUIT` stay optional. The text can
+  stand alone.
+- **Validation refuses, it does not warn.** The `CBU/CVU` must have 22 digits
+  and both of its check digits; the `Alias` has 6 to 20 characters of letters,
+  digits, dot and hyphen, and is stored lowercased; the `CUIT` has 11 digits
+  with its check digit and, if hyphenated, the hyphens at 2-8-1; the text is
+  plain, trimmed and at most 2000 characters. **No message claims a number is
+  "valid"**: a check digit only proves a digit is mistyped, never that the
+  account exists — only the payer's home banking shows that.
+- **"Loaded" means the group is present or the text is present.** Only then
+  does the `Portal de academias` show anything.
+- **Always editable, silently.** The instructions are not structural: they
+  change while the event runs, with payments recorded, and the change is an
+  overwrite with no history and no notice to academies. Clearing every field
+  is a plain save.
+- **Registration readiness ignores them.** Missing instructions never block the
+  `Período de inscripción`.
+- **Where they show**: the payments page of the `Portal de academias`, as an
+  info note between the page subtitle and the payment list or its empty state,
+  in the `Evento activo` only, with a copy control on the `CBU/CVU` and the
+  `Alias` and the `Titular` and `CUIT` read together. Nowhere else — not the
+  finances page, not the portal home, not any admin list.
+
 ## Payment allocations
 
 An `Asignación de pago` is **an amount against an inscription** — the triple
@@ -795,7 +838,9 @@ and no request actions. The restriction is **permanent and role-based**.
   with the panel. The primary amounts on both are `Seña adeudada`, `Saldo disponible`
   and `Saldo adeudado`.
 - **The `Portal de academias` is read-only**: academies do not initiate payments
-  and do not upload receipts.
+  and do not upload receipts. The `Instrucciones de pago` on its payments page
+  (specified, not built — see [Payment instructions](#payment-instructions))
+  tell an academy how to pay; administration still registers every payment.
 - **The academy is told nothing when its bill moves** — not before a comprobante
   exists and not after. It is a decision, not an omission: the total the portal
   renders is already the correct current obligation, nothing about a pending
