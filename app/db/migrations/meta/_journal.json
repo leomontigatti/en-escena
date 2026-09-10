@@ -127,6 +127,13 @@
       "when": 1788931891493,
       "tag": "0017_add_seminar_inscription",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1788990793936,
+      "tag": "0018_add_event_payment_instructions",
+      "breakpoints": true
     }
   ]
 }

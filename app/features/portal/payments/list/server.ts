@@ -3,23 +3,25 @@ import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { payments as paymentTable } from "@/db/schema";
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
-import { getPortalActiveEventSummaryContext } from "@/lib/portal/event-context.server";
+import { getPortalActiveEventPaymentInstructionsContext } from "@/lib/portal/event-context.server";
 
 export async function loadPortalAcademyPayments(request: Request) {
   const [{ academy }, eventContext] = await Promise.all([
     requireAcademyUser(request),
-    getPortalActiveEventSummaryContext(request),
+    getPortalActiveEventPaymentInstructionsContext(request),
   ]);
 
   if (!eventContext.activeEvent) {
     return {
       activeEvent: null,
+      paymentInstructions: null,
       payments: [],
     };
   }
 
   return {
     activeEvent: eventContext.activeEvent,
+    paymentInstructions: eventContext.paymentInstructions,
     payments: await readAcademyEventPayments({
       academyId: academy.id,
       eventId: eventContext.activeEvent.id,

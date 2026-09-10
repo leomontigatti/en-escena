@@ -377,11 +377,6 @@ schedule capacity while any inscription holds money.
 
 ## Payment instructions
 
-> **Specified, not built.** Owned by
-> [#895](https://github.com/leomontigatti/en-escena/issues/895), the PRD that
-> map [#867](https://github.com/leomontigatti/en-escena/issues/867) produced.
-> The slice that lands the portal alert removes this callout.
-
 `Instrucciones de pago` (`paymentInstructions`) is what an academy needs in
 order to pay an event: the bank identifiers of the account that receives the
 money, plus free text on how to pay. It records nothing about money received
@@ -839,8 +834,8 @@ and no request actions. The restriction is **permanent and role-based**.
   and `Saldo adeudado`.
 - **The `Portal de academias` is read-only**: academies do not initiate payments
   and do not upload receipts. The `Instrucciones de pago` on its payments page
-  (specified, not built — see [Payment instructions](#payment-instructions))
-  tell an academy how to pay; administration still registers every payment.
+  (see [Payment instructions](#payment-instructions)) tell an academy how to
+  pay; administration still registers every payment.
 - **The academy is told nothing when its bill moves** — not before a comprobante
   exists and not after. It is a decision, not an omission: the total the portal
   renders is already the correct current obligation, nothing about a pending

@@ -74,6 +74,17 @@ export const events = createTable(
         withTimezone: true,
       },
     ),
+    // What an academy needs in order to pay this event: the bank identifiers
+    // of the account that receives the money and free text on how to pay.
+    // Nullable and empty on a new event; an empty field is NULL, never "".
+    // There is no history and no timestamp of its own — a change is a silent
+    // overwrite. See docs/domain/finances.md#payment-instructions.
+    paymentInstructionsCbu: text("payment_instructions_cbu"),
+    paymentInstructionsAlias: text("payment_instructions_alias"),
+    paymentInstructionsHolderName: text("payment_instructions_holder_name"),
+    paymentInstructionsBankName: text("payment_instructions_bank_name"),
+    paymentInstructionsHolderCuit: text("payment_instructions_holder_cuit"),
+    paymentInstructionsText: text("payment_instructions_text"),
     createdAt: timestamp("created_at", {
       mode: "date",
       withTimezone: true,

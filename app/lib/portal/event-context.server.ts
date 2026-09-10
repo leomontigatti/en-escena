@@ -1,7 +1,9 @@
 import { db } from "@/db";
 import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
+import { toPaymentInstructions } from "@/lib/finances/payment-instructions";
 import type {
   PortalActiveEventContext,
+  PortalActiveEventPaymentInstructionsContext,
   PortalActiveEventSummaryContext,
   PortalEventContext,
   PortalShellEventContext,
@@ -21,6 +23,44 @@ export async function getPortalActiveEventSummaryContext(
 ): Promise<PortalActiveEventSummaryContext> {
   return {
     activeEvent: await findPortalActiveEventSummary(),
+  };
+}
+
+/**
+ * The active event and its payment instructions in the single query the summary
+ * already costs — the payments page needs both, and no other portal page pays
+ * for the six extra columns.
+ *
+ * This restates `listPortalEventSummaries`'s query and the active-event pick on
+ * purpose. A `columns` parameter on that function would collapse the two, but
+ * Drizzle widens the inferred row type enough to need casts at every caller;
+ * the duplication is the cheaper of the two.
+ */
+export async function getPortalActiveEventPaymentInstructionsContext(
+  _request: Request,
+): Promise<PortalActiveEventPaymentInstructionsContext> {
+  const events = await db.query.events.findMany({
+    columns: {
+      ...portalEventSummaryColumns,
+      paymentInstructionsCbu: true,
+      paymentInstructionsAlias: true,
+      paymentInstructionsHolderName: true,
+      paymentInstructionsBankName: true,
+      paymentInstructionsHolderCuit: true,
+      paymentInstructionsText: true,
+    },
+    orderBy: (table, { desc }) => [desc(table.startsAt), desc(table.createdAt)],
+  });
+
+  const activeEvent = events.find((event) => event.active) ?? null;
+
+  if (!activeEvent) {
+    return { activeEvent: null, paymentInstructions: null };
+  }
+
+  return {
+    activeEvent: toPortalEventSummary(activeEvent),
+    paymentInstructions: toPaymentInstructions(activeEvent),
   };
 }
 
@@ -61,17 +101,32 @@ async function findPortalActiveEventSummary() {
   return events.find((event) => event.active) ?? null;
 }
 
+/** The summary's seven fields out of a row that carries more of them. */
+function toPortalEventSummary(event: PortalEventSummary): PortalEventSummary {
+  return {
+    id: event.id,
+    name: event.name,
+    active: event.active,
+    registrationStartsAt: event.registrationStartsAt,
+    registrationEndsAt: event.registrationEndsAt,
+    startsAt: event.startsAt,
+    endsAt: event.endsAt,
+  };
+}
+
+const portalEventSummaryColumns = {
+  id: true,
+  name: true,
+  active: true,
+  registrationStartsAt: true,
+  registrationEndsAt: true,
+  startsAt: true,
+  endsAt: true,
+} as const;
+
 async function listPortalEventSummaries(): Promise<PortalEventSummary[]> {
   return db.query.events.findMany({
-    columns: {
-      id: true,
-      name: true,
-      active: true,
-      registrationStartsAt: true,
-      registrationEndsAt: true,
-      startsAt: true,
-      endsAt: true,
-    },
+    columns: portalEventSummaryColumns,
     orderBy: (table, { desc }) => [desc(table.startsAt), desc(table.createdAt)],
   });
 }

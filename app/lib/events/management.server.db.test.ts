@@ -12,6 +12,7 @@ import {
   updateEvent,
   updateEventRequiredDepositPercentage,
 } from "@/lib/events/management.server";
+import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -151,6 +152,105 @@ describe("event management", () => {
       code: "event-has-operational-dependencies",
       error: "No se pueden editar fechas ni seña con dependencias operativas.",
     });
+  });
+
+  describe("payment instructions", () => {
+    const VALID_CBU = "0070099330004512345678";
+
+    test("writes the six columns and clears them back to null", async () => {
+      const event = await createSavedEvent("Regional 2026");
+
+      await expect(
+        updateEvent(event.id, unchangedEventInput(event, loadedInstructions())),
+      ).resolves.toMatchObject({ ok: true });
+
+      await expect(
+        db.query.events.findFirst({ where: eq(events.id, event.id) }),
+      ).resolves.toMatchObject(loadedInstructions());
+
+      await expect(
+        updateEvent(event.id, unchangedEventInput(event)),
+      ).resolves.toMatchObject({ ok: true });
+
+      await expect(
+        db.query.events.findFirst({ where: eq(events.id, event.id) }),
+      ).resolves.toMatchObject({
+        paymentInstructionsCbu: null,
+        paymentInstructionsAlias: null,
+        paymentInstructionsHolderName: null,
+        paymentInstructionsBankName: null,
+        paymentInstructionsHolderCuit: null,
+        paymentInstructionsText: null,
+      });
+    });
+
+    // The instructions are not structural: an account changes mid-event, with
+    // choreographies inscribed and payments recorded, and that is one save.
+    test("saves with operational dependencies when only the instructions change", async () => {
+      const event = await createSavedEvent("Regional 2026");
+
+      await expect(
+        updateEvent(
+          event.id,
+          unchangedEventInput(event, loadedInstructions()),
+          {
+            hasOperationalDependencies: async () => true,
+          },
+        ),
+      ).resolves.toMatchObject({
+        ok: true,
+        event: loadedInstructions(),
+      });
+    });
+
+    // Readiness is about the `Bases del evento`; missing instructions never
+    // block the `Período de inscripción`.
+    test("changes neither readiness nor its missing items", async () => {
+      const event = await createSavedEvent("Regional 2026");
+      const before = await getEventRegistrationReadiness(event.id);
+
+      await expect(
+        updateEvent(event.id, unchangedEventInput(event, loadedInstructions())),
+      ).resolves.toMatchObject({ ok: true });
+
+      await expect(getEventRegistrationReadiness(event.id)).resolves.toEqual(
+        before,
+      );
+
+      await expect(
+        updateEvent(event.id, unchangedEventInput(event)),
+      ).resolves.toMatchObject({ ok: true });
+
+      await expect(getEventRegistrationReadiness(event.id)).resolves.toEqual(
+        before,
+      );
+    });
+
+    function loadedInstructions() {
+      return {
+        paymentInstructionsCbu: VALID_CBU,
+        paymentInstructionsAlias: "mi.alias-01",
+        paymentInstructionsHolderName: "En Escena SRL",
+        paymentInstructionsBankName: "Banco Nación",
+        paymentInstructionsHolderCuit: "30-71234567-1",
+        paymentInstructionsText: "Poné tu academia en la referencia.",
+      };
+    }
+
+    function unchangedEventInput(
+      event: typeof events.$inferSelect,
+      overrides: Partial<Parameters<typeof updateEvent>[1]> = {},
+    ) {
+      return eventInput({
+        name: event.name,
+        requiredDepositPercentage: event.requiredDepositPercentage,
+        registrationStartsAt: event.registrationStartsAt,
+        registrationEndsAt: event.registrationEndsAt,
+        startsAt: event.startsAt,
+        endsAt: event.endsAt,
+        ...overrides,
+      });
+    }
   });
 
   test("updates only the event deposit percentage without touching other events", async () => {
