@@ -1,7 +1,7 @@
 // PROTOTYPE — throwaway, lives only on branch `prototype/890-seminar-money-admin`.
 //
 // Part of the admin seminar-money prototype for wayfinder ticket #890 (map #884):
-// the (seminar, academy) financial detail variants.
+// the (seminar, academy) financial detail.
 import { AlertTriangle, Info } from "lucide-react";
 import { useState } from "react";
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
@@ -32,30 +32,18 @@ import {
 } from "@/features/admin/seminars/prototype/seminar-money-fixtures.prototype";
 import { SeminarMoneyDialog } from "./seminar-money-dialog.prototype";
 
-const selectedEventId = "evento-prototipo";
-
 type Record = (entry: string) => void;
-
-function formatSeminarTitle(
-  seminar: Pick<PrototypeSeminar, "instructorName" | "scheduledDate">,
-) {
-  return `Seminario ${seminar.instructorName}, ${formatDate(seminar.scheduledDate)}`;
-}
 
 type SeminarFinanceRow = InscriptionFinanceRow & {
   inscription: SeminarInscriptionFigures;
 };
 
 /**
- * The table's reading of the amount kind is what the two variants disagree on;
- * the dialog is the same in both and always carries the `Precio aplicado`
- * readout beside the tier picker (#887).
- *
- * A — `Precio` names the tier (`Hasta 20/09/2026`) and a `Precio aplicado`
- * column beside it says which of the tier's two amounts applies.
- *
- * B — no extra column: the kind rides inside the `Precio` badge
- * (`Hasta 20/09/2026 · participante`).
+ * Twin of the choreography financial detail for one academy's inscriptions in
+ * one seminar (#894). The kind rides inside the `Precio` badge
+ * (`Hasta 20/09/2026 · participante`), with no extra column (review on #890);
+ * the money dialog carries the `Precio aplicado` readout beside the tier picker
+ * (#887).
  */
 export function SeminarFinanceDetailPrototype({
   availableBalanceAmount,
@@ -63,14 +51,12 @@ export function SeminarFinanceDetailPrototype({
   isFull,
   record,
   seminar,
-  variant,
 }: {
   availableBalanceAmount: number;
   inscriptions: SeminarInscriptionFigures[];
   isFull: boolean;
   record: Record;
   seminar: PrototypeSeminar;
-  variant: string;
 }) {
   const [openInscriptionId, setOpenInscriptionId] = useState<string | null>(
     null,
@@ -83,10 +69,9 @@ export function SeminarFinanceDetailPrototype({
     depositAmount: inscription.depositAmount,
     effectivePrice: inscription.tier
       ? {
-          name:
-            variant === "B"
-              ? `${formatTierLabel(inscription.tier)} · ${formatKindLabel(inscription.kind).toLowerCase()}`
-              : formatTierLabel(inscription.tier),
+          name: `${formatTierLabel(inscription.tier)} · ${formatKindLabel(
+            inscription.kind,
+          ).toLowerCase()}`,
         }
       : null,
     financialStatus: inscription.financialStatus,
@@ -95,8 +80,7 @@ export function SeminarFinanceDetailPrototype({
     totalAmount: inscription.totalAmount,
     withdrawn: inscription.withdrawn,
   }));
-  const [priceColumn, ...moneyColumns] = inscriptionFinanceColumns;
-  const nameColumns: DataTableColumn<SeminarFinanceRow>[] = [
+  const columns: DataTableColumn<SeminarFinanceRow>[] = [
     {
       id: "inscripto",
       header: "Inscripto",
@@ -123,18 +107,8 @@ export function SeminarFinanceDetailPrototype({
         </Badge>
       ),
     },
+    ...inscriptionFinanceColumns,
   ];
-  const appliedKindColumn: DataTableColumn<SeminarFinanceRow> = {
-    id: "appliedKind",
-    header: "Precio aplicado",
-    className: "text-muted-foreground",
-    cell: (row) =>
-      row.inscription.tier ? formatKindLabel(row.inscription.kind) : "—",
-  };
-  const columns: DataTableColumn<SeminarFinanceRow>[] =
-    variant === "B" || !priceColumn
-      ? [...nameColumns, ...inscriptionFinanceColumns]
-      : [...nameColumns, priceColumn, appliedKindColumn, ...moneyColumns];
   const openInscription =
     inscriptions.find((inscription) => inscription.id === openInscriptionId) ??
     null;
@@ -155,8 +129,8 @@ export function SeminarFinanceDetailPrototype({
 
   return (
     <AdminResourceLayout
-      selectedEventId={selectedEventId}
-      title={formatSeminarTitle(seminar)}
+      selectedEventId="evento-prototipo"
+      title={`Seminario ${seminar.instructorName}, ${formatDate(seminar.scheduledDate)}`}
       description="Revisá y/o modificá las asignaciones de cada inscripción desde la lista."
       headerAction={
         <>

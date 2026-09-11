@@ -8,8 +8,8 @@
 // The bar at the bottom switches everything, and the arrow keys cycle the
 // variant. The search parameters it writes:
 //   `pantalla`: `lista-seminarios`, `detalle-seminario`, `finanzas-lista`,
-//     `finanzas-seminarios`, `finanzas-academia`, `finanzas-seminario`
-//   `variante`: `A`, `B`, `C`
+//     `finanzas-academia`, `finanzas-seminario`
+//   `variante`: `A` (each screen keeps the one variant the review chose)
 //   `caso`: `normal`, `lleno`, `sin-precios`
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -29,7 +29,6 @@ import {
 } from "@/components/ui/card";
 import { FinancesListRouteView } from "@/features/admin/finances/list/view";
 import { AcademyFinancesPrototype } from "@/features/admin/finances/prototype/academy-finances.prototype";
-import { SeminarFinanceListPrototype } from "@/features/admin/finances/prototype/seminar-finance-list.prototype";
 import { SeminarFinanceDetailPrototype } from "@/features/admin/finances/prototype/seminar-finance-detail.prototype";
 import { SeminarDetailPrototype } from "@/features/admin/seminars/prototype/seminar-detail.prototype";
 import { SeminarListPrototype } from "@/features/admin/seminars/prototype/seminar-list.prototype";
@@ -56,26 +55,15 @@ export async function action({ request }: Route.ActionArgs) {
 const screens = {
   "lista-seminarios": {
     label: "Seminarios",
-    variants: {
-      A: "Cupo con lo que queda + Inscriptos",
-      B: "Lugares ocupados de cupo + Inscriptos",
-    },
+    variants: { A: "Cupo con lo que queda + Inscriptos" },
   },
   "detalle-seminario": {
     label: "Seminario",
-    variants: {
-      A: "Pestaña Precios: tabla y diálogo",
-      B: "Precios y seña dentro de Información",
-      C: "Pestaña Precios: formulario con la seña",
-    },
+    variants: { A: "Seña (%) junto a la foto, sin pestaña Precios" },
   },
   "finanzas-lista": {
     label: "Finanzas",
     variants: { A: "Sin cambios: cada academia suma los dos tipos" },
-  },
-  "finanzas-seminarios": {
-    label: "Finanzas: seminarios",
-    variants: { A: "Lista de cada academia en cada seminario" },
   },
   "finanzas-academia": {
     label: "Finanzas de la academia",
@@ -85,10 +73,7 @@ const screens = {
   },
   "finanzas-seminario": {
     label: "Finanzas del seminario",
-    variants: {
-      A: "Precio + columna Precio aplicado",
-      B: "Precio aplicado dentro del badge de Precio",
-    },
+    variants: { A: "Precio aplicado dentro del badge de Precio" },
   },
 } satisfies {
   [screenId: string]: { label: string; variants: { [id: string]: string } };
@@ -199,10 +184,6 @@ export default function SeminarMoneyAdminPrototypeRoute() {
       seminarCrumb,
     ],
     "finanzas-lista": [{ label: "Finanzas" }],
-    "finanzas-seminarios": [
-      { label: "Finanzas", to: buildHref({ pantalla: "finanzas-lista" }) },
-      { label: "Seminarios" },
-    ],
     "finanzas-academia": [
       { label: "Finanzas", to: buildHref({ pantalla: "finanzas-lista" }) },
       { label: data.academy.name },
@@ -235,7 +216,6 @@ export default function SeminarMoneyAdminPrototypeRoute() {
           <SeminarListPrototype
             buildDetailHref={() => buildHref({ pantalla: "detalle-seminario" })}
             seminars={data.seminars}
-            variant={variante}
           />
         ) : null}
         {pantalla === "detalle-seminario" ? (
@@ -244,8 +224,6 @@ export default function SeminarMoneyAdminPrototypeRoute() {
             inscriptions={data.inscriptions}
             record={record}
             seminar={data.seminar}
-            tierUsage={data.tierUsage}
-            variant={variante}
           />
         ) : null}
         {pantalla === "finanzas-lista" ? (
@@ -260,14 +238,6 @@ export default function SeminarMoneyAdminPrototypeRoute() {
                 typeof FinancesListRouteView
               >[0]["loaderData"]
             }
-          />
-        ) : null}
-        {pantalla === "finanzas-seminarios" ? (
-          <SeminarFinanceListPrototype
-            buildDetailHref={() =>
-              buildHref({ pantalla: "finanzas-seminario" })
-            }
-            rows={data.seminarAcademyRows}
           />
         ) : null}
         {pantalla === "finanzas-academia" ? (
@@ -288,7 +258,6 @@ export default function SeminarMoneyAdminPrototypeRoute() {
             isFull={isFull}
             record={record}
             seminar={data.seminar}
-            variant={variante}
           />
         ) : null}
 

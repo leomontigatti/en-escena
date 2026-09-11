@@ -98,11 +98,6 @@ export type SeminarUnitRow = {
   financialStatus: InscriptionFinancialStatus;
 };
 
-export type SeminarAcademyUnitRow = SeminarUnitRow & {
-  academyId: string;
-  academyName: string;
-};
-
 type FinanceAccountFixture = {
   academyId: string;
   academyName: string;
@@ -422,26 +417,6 @@ function addAmounts(
     : complete(amount);
 }
 
-/** One academy's inscriptions in one seminar, summed as a unit (#894). */
-function summarizeSeminarUnit(
-  seminar: PrototypeSeminar,
-  rows: SeminarInscriptionFigures[],
-): SeminarUnitRow {
-  return {
-    id: seminar.id,
-    instructorName: seminar.instructorName,
-    scheduledDate: seminar.scheduledDate,
-    inscriptionCount: rows.filter((row) => !row.withdrawn).length,
-    depositAmount: sumAmounts(rows.map((row) => row.depositAmount)),
-    totalAmount: sumAmounts(rows.map((row) => row.totalAmount)),
-    owedBalanceAmount: sumAmounts(rows.map((row) => row.owedBalanceAmount)),
-    owedDepositAmount: sumAmounts(rows.map((row) => row.owedDepositAmount)),
-    financialStatus: deriveChoreographyFinancialStatus(
-      rows.filter((row) => !row.withdrawn).map((row) => row.financialStatus),
-    ),
-  };
-}
-
 export function buildPrototypeData(caseId: PrototypeCaseId) {
   const hasTiers = caseId !== "sin-precios";
   const rate = 50;
@@ -553,29 +528,6 @@ export function buildPrototypeData(caseId: PrototypeCaseId) {
     },
   ];
 
-  // Every academy's unit in every seminar, for the `Finanzas` › `Seminarios` list.
-  const seminarAcademyRows: SeminarAcademyUnitRow[] = [
-    ...[prototypeAcademy, ...otherAcademies].map(
-      (academy): SeminarAcademyUnitRow => ({
-        ...summarizeSeminarUnit(
-          seminar,
-          inscriptions.filter((row) => row.academyId === academy.id),
-        ),
-        academyId: academy.id,
-        academyName: academy.name,
-      }),
-    ),
-    ...seminarUnitRows
-      .filter((row) => row.id !== seminar.id)
-      .map(
-        (row): SeminarAcademyUnitRow => ({
-          ...row,
-          academyId: prototypeAcademy.id,
-          academyName: prototypeAcademy.name,
-        }),
-      ),
-  ];
-
   const choreographyUnitRows: ChoreographyUnitRow[] = [
     {
       id: "coreografia-12",
@@ -658,7 +610,6 @@ export function buildPrototypeData(caseId: PrototypeCaseId) {
     financeAccounts,
     inscriptions,
     seminar,
-    seminarAcademyRows,
     seminarUnitRows,
     seminars,
     tierUsage,
