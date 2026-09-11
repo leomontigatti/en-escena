@@ -14,7 +14,18 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { EmissionDialog } from "@/features/admin/finances/academy-choreographies/choreography-detail/comprobante-emission";
-import { formatDate } from "@/features/admin/schedules/view-shared";
+import { InscriptionMoneyDialog } from "@/features/admin/finances/academy-choreographies/choreography-detail/inscription-money-dialog";
+import type {
+  InscriptionRow,
+  PriceOption,
+} from "@/features/admin/finances/academy-choreographies/choreography-detail/inscription-money-figures";
+import {
+  depositFor,
+  listPickableSeminarPrices,
+  type PrototypeSeminar,
+  type SeminarInscriptionFigures,
+  type SeminarPriceRow,
+} from "@/features/admin/seminars/prototype/seminar-money-fixtures.prototype";
 import {
   inscriptionFinanceColumns,
   inscriptionFinanceFacetedFilters,
@@ -22,14 +33,6 @@ import {
 } from "@/lib/finances/inscription-finance-columns";
 import { OperationalFinanceMetrics } from "@/lib/finances/operational-finance-metrics";
 import type { OperationalFinanceAmount } from "@/lib/finances/operational-summary";
-import type {
-  PrototypeSeminar,
-  SeminarInscriptionFigures,
-  SeminarPriceRow,
-} from "@/features/admin/seminars/prototype/seminar-money-fixtures.prototype";
-import { SeminarMoneyDialog } from "./seminar-money-dialog.prototype";
-
-type Record = (entry: string) => void;
 
 type SeminarFinanceRow = InscriptionFinanceRow & {
   inscription: SeminarInscriptionFigures;
@@ -37,32 +40,32 @@ type SeminarFinanceRow = InscriptionFinanceRow & {
 
 /**
  * Twin of the choreography financial detail for one academy's inscriptions in
- * one seminar (#894). The `Precio` badge shows the effective row's name, as the
- * choreography badge shows `price.name` (review on #890, name amended on #904);
- * the money dialog carries the `Participando` readout beside the price picker
- * (#887, #904). No "no prices" alert: a seminar only opens once both
- * deadline-less `Común` rows exist, and they cannot go while inscriptions do
- * (#904).
+ * one seminar (#894), titled with the seminar alone. The `Precio` badge shows
+ * the effective row's name, as the choreography badge shows `price.name`
+ * (review on #890, name amended on #904). The money dialog is the real
+ * choreography `InscriptionMoneyDialog`, not a twin: the same three shapes, the
+ * same picker reading `name · amount · seña`, the same blurred overlay. No "no
+ * prices" alert: a seminar only opens once both deadline-less `Común` rows
+ * exist, and they cannot go while inscriptions do (#904).
  */
 export function SeminarFinanceDetailPrototype({
   availableBalanceAmount,
   inscriptions,
   isFull,
   prices,
-  record,
   seminar,
 }: {
   availableBalanceAmount: number;
   inscriptions: SeminarInscriptionFigures[];
   isFull: boolean;
   prices: SeminarPriceRow[];
-  record: Record;
   seminar: PrototypeSeminar;
 }) {
   const [openInscriptionId, setOpenInscriptionId] = useState<string | null>(
     null,
   );
   const [isEmitting, setIsEmitting] = useState(false);
+  const rate = seminar.requiredDepositPercentage;
   const rows: SeminarFinanceRow[] = inscriptions.map((inscription) => ({
     allocatedAmount: inscription.allocatedAmount,
     anomalies: [],
@@ -115,7 +118,7 @@ export function SeminarFinanceDetailPrototype({
   return (
     <AdminResourceLayout
       selectedEventId="evento-prototipo"
-      title={`Seminario ${seminar.instructorName}, ${formatDate(seminar.scheduledDate)}`}
+      title={seminar.instructorName}
       description="Revisá y/o modificá las asignaciones de cada inscripción desde la lista."
       headerAction={
         <>
@@ -173,20 +176,58 @@ export function SeminarFinanceDetailPrototype({
       </div>
 
       {openInscription ? (
-        <SeminarMoneyDialog
+        <InscriptionMoneyDialog
           key={openInscription.id}
-          availableBalanceAmount={availableBalanceAmount}
-          inscription={openInscription}
-          isFull={isFull}
+          inscription={toMoneyDialogRow(openInscription, rate)}
           onOpenChange={(open) => (open ? null : setOpenInscriptionId(null))}
-          prices={prices}
-          rate={seminar.requiredDepositPercentage}
-          record={record}
-          seminarKind={seminar.kind}
+          // The picker offers the seminar kind's rows, then the `Común` ones,
+          // of the person's participant cell (#904).
+          priceOptions={listPickableSeminarPrices(
+            prices,
+            seminar.kind,
+            openInscription.participating,
+          ).map((price) => toPriceOption(price, rate))}
         />
       ) : null}
     </AdminResourceLayout>
   );
+}
+
+/**
+ * The real dialog reads a choreography loader row. A seminar row carries the
+ * same money fields — allocated, deposit, owed, the effective price — and no
+ * `Descuento por bailarín` (#887), so it goes through that shape as is. Its
+ * writes post the choreography intents to the prototype route, which stubs them.
+ */
+function toMoneyDialogRow(
+  inscription: SeminarInscriptionFigures,
+  rate: number,
+): InscriptionRow {
+  const [firstName = "", ...lastNames] = inscription.fullName.split(" ");
+
+  return {
+    inscriptionId: inscription.id,
+    firstName,
+    lastName: lastNames.join(" "),
+    allocatedAmount: inscription.allocatedAmount,
+    depositAmount: inscription.depositAmount,
+    discountAmount: 0,
+    effectivePrice: inscription.price
+      ? toPriceOption(inscription.price, rate)
+      : null,
+    overAllocatedAmount: 0,
+    owedBalanceAmount: inscription.owedBalanceAmount,
+    owedDepositAmount: inscription.owedDepositAmount,
+  } as unknown as InscriptionRow;
+}
+
+function toPriceOption(price: SeminarPriceRow, rate: number): PriceOption {
+  return {
+    id: price.id,
+    name: price.name,
+    amount: price.amount,
+    depositAmount: depositFor(price.amount, rate),
+  } as unknown as PriceOption;
 }
 
 function sumFigures(values: Array<number | null>): OperationalFinanceAmount {

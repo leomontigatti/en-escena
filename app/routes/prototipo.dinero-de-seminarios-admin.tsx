@@ -45,6 +45,7 @@ import { SeminarFinanceDetailPrototype } from "@/features/admin/finances/prototy
 import { SeminarDetailPrototype } from "@/features/admin/seminars/prototype/seminar-detail.prototype";
 import {
   buildPrototypeData,
+  depositFor,
   formatParticipantsLabel,
   formatSeminarKindLabel,
   prototypeCaseIds,
@@ -80,6 +81,41 @@ export async function action({ request }: Route.ActionArgs) {
       message: refusal ?? "Prototipo: se habría borrado el precio.",
       status: refusal ? ("error" as const) : ("success" as const),
     };
+  }
+
+  if (intent === "allocate-inscription") {
+    const data = buildPrototypeData(
+      readOption(
+        new URL(request.url).searchParams.get("caso"),
+        prototypeCaseIds,
+      ),
+    );
+    const inscription = data.inscriptions.find(
+      (row) => row.id === String(formData.get("inscriptionId") ?? ""),
+    );
+    const price =
+      data.seminarPrices.find(
+        (row) => row.id === String(formData.get("priceId") ?? ""),
+      ) ??
+      inscription?.price ??
+      null;
+    const deposit = price
+      ? depositFor(price.amount, data.seminar.requiredDepositPercentage)
+      : null;
+    const allocatedAmount = inscription?.allocatedAmount ?? 0;
+    const wouldCross =
+      deposit !== null &&
+      allocatedAmount < deposit &&
+      allocatedAmount + Number(formData.get("amount") ?? 0) >= deposit;
+
+    if (wouldCross && data.seminar.coveredCount >= data.seminar.quota) {
+      return {
+        intent,
+        message:
+          "No quedan lugares en el seminario, así que esta inscripción no puede cubrir su seña.",
+        status: "error" as const,
+      };
+    }
   }
 
   return {
@@ -261,7 +297,7 @@ export default function SeminarMoneyAdminPrototypeRoute() {
         label: data.academy.name,
         to: buildHref({ pantalla: "finanzas-academia" }),
       },
-      { label: `Seminario ${data.seminar.instructorName}` },
+      { label: data.seminar.instructorName },
     ],
   };
   const isFull = data.seminar.coveredCount >= data.seminar.quota;
@@ -344,7 +380,6 @@ export default function SeminarMoneyAdminPrototypeRoute() {
             inscriptions={data.academyInscriptions}
             isFull={isFull}
             prices={data.seminarPrices}
-            record={record}
             seminar={data.seminar}
           />
         ) : null}

@@ -3,7 +3,6 @@
 // The event-level seminar price model of the admin seminar-money prototype for
 // wayfinder ticket #890 (map #884), as #904 decided: the rows, their labels, the
 // kind fallback, the picker's candidates and the readiness cells.
-import { formatPaymentDeadlineForTable } from "@/features/admin/prices/view-shared";
 
 /** The business date the prototype reads prices against. */
 const prototypeToday = "2026-09-10";
@@ -105,12 +104,6 @@ export function formatParticipantsLabel(forParticipants: boolean) {
 /** The badge beside the kind in the price list. */
 export function formatParticipantBadgeLabel(forParticipants: boolean) {
   return forParticipants ? "Participante" : "No participante";
-}
-
-export function formatSeminarPriceDeadline(price: SeminarPriceRow) {
-  return price.paymentDeadline
-    ? `Hasta ${formatPaymentDeadlineForTable(price.paymentDeadline)}`
-    : formatPaymentDeadlineForTable(null);
 }
 
 export function depositFor(amount: number, rate: number) {
