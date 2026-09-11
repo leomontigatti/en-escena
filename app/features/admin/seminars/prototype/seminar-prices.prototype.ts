@@ -113,15 +113,6 @@ export function formatSeminarPriceDeadline(price: SeminarPriceRow) {
     : formatPaymentDeadlineForTable(null);
 }
 
-/** The row inside the finance `Precio` badge: `Hasta 20 de septiembre de 2026 · exclusivo · participantes`. */
-export function formatSeminarPriceLabel(price: SeminarPriceRow) {
-  return [
-    formatSeminarPriceDeadline(price),
-    formatSeminarKindLabel(price.kind).toLowerCase(),
-    formatParticipantsLabel(price.forParticipants).toLowerCase(),
-  ].join(" · ");
-}
-
 export function depositFor(amount: number, rate: number) {
   return Math.round((amount * rate) / 100);
 }

@@ -23,11 +23,10 @@ import {
 } from "@/lib/finances/inscription-finance-columns";
 import { OperationalFinanceMetrics } from "@/lib/finances/operational-finance-metrics";
 import type { OperationalFinanceAmount } from "@/lib/finances/operational-summary";
-import {
-  formatSeminarPriceLabel,
-  type PrototypeSeminar,
-  type SeminarInscriptionFigures,
-  type SeminarPriceRow,
+import type {
+  PrototypeSeminar,
+  SeminarInscriptionFigures,
+  SeminarPriceRow,
 } from "@/features/admin/seminars/prototype/seminar-money-fixtures.prototype";
 import { SeminarMoneyDialog } from "./seminar-money-dialog.prototype";
 
@@ -39,12 +38,12 @@ type SeminarFinanceRow = InscriptionFinanceRow & {
 
 /**
  * Twin of the choreography financial detail for one academy's inscriptions in
- * one seminar (#894). The effective row rides inside the `Precio` badge
- * (`Hasta 20 de septiembre de 2026 · exclusivo · participantes`), with no extra
- * column (review on #890); the money dialog carries the `Participando` readout
- * beside the price picker (#887, #904). No "no prices" alert: a seminar only
- * opens once both deadline-less `Común` rows exist, and they cannot go while
- * inscriptions do (#904).
+ * one seminar (#894). The `Precio` badge shows the effective row's name, as the
+ * choreography badge shows `price.name` (review on #890, name amended on #904);
+ * the money dialog carries the `Participando` readout beside the price picker
+ * (#887, #904). No "no prices" alert: a seminar only opens once both
+ * deadline-less `Común` rows exist, and they cannot go while inscriptions do
+ * (#904).
  */
 export function SeminarFinanceDetailPrototype({
   availableBalanceAmount,
@@ -69,9 +68,7 @@ export function SeminarFinanceDetailPrototype({
     allocatedAmount: inscription.allocatedAmount,
     anomalies: [],
     depositAmount: inscription.depositAmount,
-    effectivePrice: inscription.price
-      ? { name: formatSeminarPriceLabel(inscription.price) }
-      : null,
+    effectivePrice: inscription.price ? { name: inscription.price.name } : null,
     financialStatus: inscription.financialStatus,
     inscription,
     owedBalanceAmount: inscription.owedBalanceAmount,
