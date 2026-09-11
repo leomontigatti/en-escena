@@ -11,7 +11,6 @@ import {
 } from "@/components/shared/data-table";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { EmissionDialog } from "@/features/admin/finances/academy-choreographies/choreography-detail/comprobante-emission";
@@ -92,15 +91,6 @@ export function SeminarFinanceDetailPrototype({
       ),
       filterValue: (row) => row.inscription.fullName,
       sortValue: (row) => row.inscription.fullName,
-    },
-    {
-      id: "personKind",
-      header: "Tipo",
-      cell: (row) => (
-        <Badge variant="secondary">
-          {row.inscription.personKind === "professor" ? "Profesor" : "Bailarín"}
-        </Badge>
-      ),
     },
     ...inscriptionFinanceColumns,
   ];

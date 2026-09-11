@@ -14,7 +14,6 @@ import {
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
 import { BackButton, SubmitButton } from "@/components/shared/action-buttons";
-import { BadgesList } from "@/components/shared/badges-list";
 import {
   ClientDataTable,
   type DataTableColumn,
@@ -25,9 +24,11 @@ import { DateOnlyField } from "@/components/shared/date-only-field";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { SharedFieldLayout } from "@/components/shared/field-layout";
 import { IntegerInputField } from "@/components/shared/integer-input-field";
+import { ReadOnlyDateField } from "@/components/shared/read-only-field";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { SelectField } from "@/components/shared/select-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenuGroup,
   DropdownMenuItem,
@@ -189,7 +190,10 @@ const seminarPriceFacetedFilters: DataTableFacetedFiltersOf<
   },
 ];
 
-/** The twin of `PriceListTable`: the participant flag rides as a second badge beside the kind. */
+/**
+ * The twin of `PriceListTable`. The participant flag rides beside the kind as a
+ * second badge in a different variant, so the two readings don't blur together.
+ */
 function SeminarPriceListTable({
   buildEditHref,
   prices,
@@ -211,12 +215,14 @@ function SeminarPriceListTable({
       id: "kind",
       header: "Tipo de seminario",
       cell: (price) => (
-        <BadgesList
-          labels={[
-            formatSeminarKindLabel(price.kind),
-            formatParticipantBadgeLabel(price.forParticipants),
-          ]}
-        />
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="secondary">
+            {formatSeminarKindLabel(price.kind)}
+          </Badge>
+          <Badge variant="outline">
+            {formatParticipantBadgeLabel(price.forParticipants)}
+          </Badge>
+        </div>
       ),
       filterValues: (price) => [price.kind],
       filterValue: (price) => formatSeminarKindLabel(price.kind),
@@ -276,8 +282,8 @@ type SeminarPriceFormValues = {
  * like it: `Nombre` carries the `Para participantes` switch as the choreography
  * name carries `Precio especial`. What the guards would refuse is locked on
  * sight (review on #890): a referenced row keeps only its name editable, the
- * protected deadline-less `Común` row keeps its name and amount, and the delete
- * dialog opens blocked.
+ * protected deadline-less `Común` row keeps its name and amount, and `Borrar
+ * precio` is disabled for both.
  */
 export function SeminarPriceFormPrototype({
   backHref,
@@ -323,7 +329,7 @@ export function SeminarPriceFormPrototype({
         price ? (
           <SeminarPriceActions
             price={price}
-            refusal={refuseSeminarPriceDelete(price, usage)}
+            isDeleteLocked={refuseSeminarPriceDelete(price, usage) !== null}
           />
         ) : null
       }
@@ -355,28 +361,40 @@ export function SeminarPriceFormPrototype({
                 control={form.control}
                 locksParticipants={locksStructure}
               />
-              <DateOnlyField
-                control={form.control}
-                name="paymentDeadline"
-                disabled={isOpenEnded || locksStructure}
-                id="prototype-seminar-price-deadline"
-                label="Fecha límite de pago"
-                labelAdornment={
-                  <FormSwitch
-                    control={form.control}
-                    disabled={locksStructure}
-                    label={openEndedDeadlineLabel}
-                    name="isOpenEnded"
-                    onToggle={(checked) => {
-                      if (checked) {
-                        form.setValue("paymentDeadline", "", {
-                          shouldDirty: true,
-                        });
-                      }
-                    }}
-                  />
-                }
-              />
+              {locksStructure ? (
+                // Locked by inscriptions: the shared read-only look, as the
+                // other locked fields. The value itself says when the row has
+                // no deadline, so the open-ended switch is not needed here.
+                <ReadOnlyDateField
+                  id="prototype-seminar-price-deadline"
+                  label="Fecha límite de pago"
+                  value={price?.paymentDeadline}
+                  emptyLabel={openEndedDeadlineLabel}
+                />
+              ) : (
+                <DateOnlyField
+                  control={form.control}
+                  name="paymentDeadline"
+                  disabled={isOpenEnded}
+                  id="prototype-seminar-price-deadline"
+                  label="Fecha límite de pago"
+                  labelAdornment={
+                    <FormSwitch
+                      control={form.control}
+                      disabled={false}
+                      label={openEndedDeadlineLabel}
+                      name="isOpenEnded"
+                      onToggle={(checked) => {
+                        if (checked) {
+                          form.setValue("paymentDeadline", "", {
+                            shouldDirty: true,
+                          });
+                        }
+                      }}
+                    />
+                  }
+                />
+              )}
               <FieldGroup className="grid gap-4 sm:grid-cols-2">
                 <SelectField
                   control={form.control}
@@ -501,13 +519,13 @@ function FormSwitch({
   );
 }
 
-/** The delete dialog opens blocked when a guard would refuse it. */
+/** A delete the guards would refuse is disabled in the menu; the alert above the form says why. */
 function SeminarPriceActions({
+  isDeleteLocked,
   price,
-  refusal,
 }: {
+  isDeleteLocked: boolean;
   price: SeminarPriceRow;
-  refusal: string | null;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -521,6 +539,7 @@ function SeminarPriceActions({
         <DropdownMenuGroup>
           <DropdownMenuItem
             variant="destructive"
+            disabled={isDeleteLocked}
             onSelect={() => setOpen(true)}
           >
             Borrar precio
@@ -531,8 +550,6 @@ function SeminarPriceActions({
         title="Eliminar precio"
         description={`Esta acción borra ${price.name} si no tiene dependencias asociadas. No se puede deshacer.`}
         intentValue="delete-seminar-price"
-        isBlocked={refusal !== null}
-        blockedDescription={refusal}
         recordId={price.id}
         open={open}
         onOpenChange={setOpen}
