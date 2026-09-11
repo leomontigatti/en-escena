@@ -1,7 +1,7 @@
 // PROTOTYPE — throwaway, lives only on branch `prototype/890-seminar-money-admin`.
 //
 // Part of the admin seminar-money prototype for wayfinder ticket #890 (map #884):
-// the academy financial list variants.
+// the academy financial list, with a tab per kind.
 import { useState } from "react";
 import { toast } from "sonner";
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
@@ -10,7 +10,8 @@ import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { financePresetLabels } from "@/features/admin/finances/academy-choreographies/presets";
 import { OperationalFinanceMetrics } from "@/lib/finances/operational-finance-metrics";
-import type { OperationalFinanceAmount } from "@/lib/finances/operational-summary";
+import { sumOperationalFinanceAmounts } from "@/lib/finances/operational-summary";
+import { resolveSelectedOperationalTotals } from "@/lib/finances/selected-operational-totals";
 import {
   type ChoreographyUnitRow,
   type SeminarUnitRow,
@@ -18,49 +19,66 @@ import {
 import {
   ChoreographyUnitsTable,
   SeminarUnitsTable,
-  MixedUnitsTable,
 } from "./academy-finance-tables.prototype";
 
 const selectedEventId = "evento-prototipo";
 
-type AcademySummary = {
-  availableBalanceAmount: number;
-  depositAmount: OperationalFinanceAmount;
-  owedBalanceAmount: OperationalFinanceAmount;
-  owedDepositAmount: OperationalFinanceAmount;
-  totalAmount: OperationalFinanceAmount;
-};
+type FinanceTab = "coreografias" | "seminarios";
 
 /**
- * A — `Coreografías` and `Seminarios` as line tabs under the five figures, each
- * its own table. The collections act on the choreography tab only.
+ * `Coreografías` and `Seminarios` as line tabs under the five figures, each tab
+ * its own selectable table. The figures follow the tab: the thresholds and the
+ * owed amounts are the active kind's, and the owed pair narrows further to the
+ * selection, exactly as the choreography list does today. `Saldo disponible`
+ * never moves — unallocated money belongs to neither kind.
  *
- * B — one table for both kinds, with `Tipo` as a column and a facet. A seminar
- * row can be selected too, which is exactly what makes the collections refuse.
- *
- * C — two stacked sections, each with a heading and its own table; only the
- * choreography table is selectable.
+ * Each tab keeps its own selection, so switching back does not lose it. The
+ * collections act on the choreography selection only: there is no preset over
+ * seminar money (#888), so on the seminar tab they stay disabled.
  */
 export function AcademyFinancesPrototype({
   academyName,
+  availableBalanceAmount,
   buildSeminarHref,
   choreographyRows,
   seminarRows,
-  summary,
-  variant,
 }: {
   academyName: string;
+  availableBalanceAmount: number;
   buildSeminarHref: () => string;
   choreographyRows: ChoreographyUnitRow[];
   seminarRows: SeminarUnitRow[];
-  summary: AcademySummary;
-  variant: string;
 }) {
-  const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
-  const selectsSeminar = selectedRowIds.some((id) =>
-    seminarRows.some((row) => row.id === id),
+  const [tab, setTab] = useState<FinanceTab>("coreografias");
+  const [choreographySelection, setChoreographySelection] = useState<string[]>(
+    [],
   );
-  const canCollect = selectedRowIds.length > 0 && !selectsSeminar;
+  const [seminarSelection, setSeminarSelection] = useState<string[]>([]);
+  const activeRows: Array<ChoreographyUnitRow | SeminarUnitRow> =
+    tab === "coreografias" ? choreographyRows : seminarRows;
+  const activeSelection =
+    tab === "coreografias" ? choreographySelection : seminarSelection;
+  const kindSummary = {
+    depositAmount: sumOperationalFinanceAmounts(
+      activeRows.map((row) => row.depositAmount),
+    ),
+    owedBalanceAmount: sumOperationalFinanceAmounts(
+      activeRows.map((row) => row.owedBalanceAmount),
+    ),
+    owedDepositAmount: sumOperationalFinanceAmounts(
+      activeRows.map((row) => row.owedDepositAmount),
+    ),
+    totalAmount: sumOperationalFinanceAmounts(
+      activeRows.map((row) => row.totalAmount),
+    ),
+  };
+  const { owedBalanceAmount, owedDepositAmount } =
+    resolveSelectedOperationalTotals({
+      rows: activeRows,
+      selectedRowIds: activeSelection,
+      summary: kindSummary,
+    });
+  const canCollect = tab === "coreografias" && choreographySelection.length > 0;
 
   return (
     <AdminResourceLayout
@@ -76,7 +94,7 @@ export function AcademyFinancesPrototype({
               onSelect={(event) => {
                 event.preventDefault();
                 toast.success(
-                  `Prototipo: ${financePresetLabels[stage]} sobre ${selectedRowIds.length} coreografías.`,
+                  `Prototipo: ${financePresetLabels[stage]} sobre ${choreographySelection.length} coreografías.`,
                 );
               }}
             >
@@ -88,77 +106,37 @@ export function AcademyFinancesPrototype({
     >
       <div className="flex flex-col gap-6">
         <OperationalFinanceMetrics
-          availableBalanceAmount={summary.availableBalanceAmount}
-          depositAmount={summary.depositAmount}
-          owedBalanceAmount={summary.owedBalanceAmount}
-          owedDepositAmount={summary.owedDepositAmount}
-          totalAmount={summary.totalAmount}
+          availableBalanceAmount={availableBalanceAmount}
+          depositAmount={kindSummary.depositAmount}
+          owedBalanceAmount={owedBalanceAmount}
+          owedDepositAmount={owedDepositAmount}
+          totalAmount={kindSummary.totalAmount}
         />
 
-        {variant === "B" ? (
-          <MixedUnitsTable
-            buildSeminarHref={buildSeminarHref}
-            choreographyRows={choreographyRows}
-            onSelectedRowIdsChange={setSelectedRowIds}
-            selectedRowIds={selectedRowIds}
-            selectsSeminar={selectsSeminar}
-            seminarRows={seminarRows}
-          />
-        ) : variant === "C" ? (
-          <>
-            <section
-              aria-labelledby="prototipo-coreografias"
-              className="flex flex-col gap-3"
-            >
-              <h2 id="prototipo-coreografias" className="text-base font-medium">
-                Coreografías
-              </h2>
-              <ChoreographyUnitsTable
-                onSelectedRowIdsChange={setSelectedRowIds}
-                rows={choreographyRows}
-                selectedRowIds={selectedRowIds}
-              />
-            </section>
-            <section
-              aria-labelledby="prototipo-seminarios"
-              className="flex flex-col gap-3"
-            >
-              <h2 id="prototipo-seminarios" className="text-base font-medium">
-                Seminarios
-              </h2>
-              {/* Two tables on one page would share the URL's search and page
-                  parameters, so the second one shows neither. */}
-              <SeminarUnitsTable
-                buildSeminarHref={buildSeminarHref}
-                hideControls
-                rows={seminarRows}
-              />
-            </section>
-          </>
-        ) : (
-          <Tabs
-            defaultValue="coreografias"
-            onValueChange={() => setSelectedRowIds([])}
-          >
-            <TabsList variant="line">
-              <TabsTrigger value="coreografias">Coreografías</TabsTrigger>
-              <TabsTrigger value="seminarios">Seminarios</TabsTrigger>
-            </TabsList>
-            <TabsContent value="coreografias" className="pt-2">
-              <ChoreographyUnitsTable
-                onSelectedRowIdsChange={setSelectedRowIds}
-                rows={choreographyRows}
-                selectedRowIds={selectedRowIds}
-              />
-            </TabsContent>
-            <TabsContent value="seminarios" className="pt-2">
-              <SeminarUnitsTable
-                buildSeminarHref={buildSeminarHref}
-                rows={seminarRows}
-              />
-            </TabsContent>
-          </Tabs>
-        )}
+        <Tabs
+          value={tab}
+          onValueChange={(value) => setTab(value as FinanceTab)}
+        >
+          <TabsList variant="line">
+            <TabsTrigger value="coreografias">Coreografías</TabsTrigger>
+            <TabsTrigger value="seminarios">Seminarios</TabsTrigger>
+          </TabsList>
+          <TabsContent value="coreografias" className="pt-2">
+            <ChoreographyUnitsTable
+              onSelectedRowIdsChange={setChoreographySelection}
+              rows={choreographyRows}
+              selectedRowIds={choreographySelection}
+            />
+          </TabsContent>
+          <TabsContent value="seminarios" className="pt-2">
+            <SeminarUnitsTable
+              buildSeminarHref={buildSeminarHref}
+              onSelectedRowIdsChange={setSeminarSelection}
+              rows={seminarRows}
+              selectedRowIds={seminarSelection}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
     </AdminResourceLayout>
   );

@@ -80,9 +80,7 @@ const screens = {
   "finanzas-academia": {
     label: "Finanzas de la academia",
     variants: {
-      A: "Pestañas Coreografías / Seminarios",
-      B: "Una sola tabla con Tipo",
-      C: "Dos secciones apiladas",
+      A: "Pestañas Coreografías / Seminarios, métricas por pestaña",
     },
   },
   "finanzas-seminario": {
@@ -280,8 +278,7 @@ export default function SeminarMoneyAdminPrototypeRoute() {
             }
             choreographyRows={data.choreographyUnitRows}
             seminarRows={data.seminarUnitRows}
-            summary={data.academySummary}
-            variant={variante}
+            availableBalanceAmount={data.academySummary.availableBalanceAmount}
           />
         ) : null}
         {pantalla === "finanzas-seminario" ? (
