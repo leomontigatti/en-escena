@@ -38,6 +38,10 @@ import {
   type DialogVariantId,
 } from "@/features/portal/seminars/prototype/seminar-cards.prototype";
 import {
+  PortalSeminarDetailPrototype,
+  type SeminarDetailVariantId,
+} from "@/features/portal/seminars/prototype/seminar-detail.prototype";
+import {
   buildPrototypeData,
   formatSeminarKindLabel,
   getTargetSeminar,
@@ -103,9 +107,17 @@ const screens = {
   seminarios: {
     label: "Seminarios",
     variants: {
-      A: "Precios como cifras arriba, chips con estado",
-      B: "Inscriptos en filas con lo adeudado",
-      C: "Chips como hoy, precios en el pie, estados resumidos",
+      C: "Elegida: afiche con Ver detalle e Inscribir",
+      A: "Ronda 1: precios como cifras arriba, chips con estado",
+      B: "Ronda 1: inscriptos en filas con lo adeudado",
+    },
+  },
+  "detalle-seminario": {
+    label: "Detalle del seminario",
+    variants: {
+      A: "Pestañas Información / Inscriptos, como en administración",
+      B: "Una sola página: datos arriba, inscriptos con su dinero",
+      C: "Precios como métricas, inscriptos con estado",
     },
   },
   inscribir: {
@@ -185,7 +197,11 @@ export default function SeminarMoneyPortalPrototypeRoute() {
       const nextScreen = next.pantalla ?? pantalla;
       const params = new URLSearchParams({
         pantalla: nextScreen,
-        variante: next.variante ?? (nextScreen === pantalla ? variante : "A"),
+        variante:
+          next.variante ??
+          (nextScreen === pantalla
+            ? variante
+            : (Object.keys(screens[nextScreen].variants)[0] ?? "A")),
         caso: next.caso ?? caso,
       });
 
@@ -231,9 +247,14 @@ export default function SeminarMoneyPortalPrototypeRoute() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [go, variante, variantIds]);
 
-  const detailHref = buildHref({ pantalla: "resumen-seminario" });
+  const financeDetailHref = buildHref({ pantalla: "resumen-seminario" });
+  const seminarDetailHref = buildHref({ pantalla: "detalle-seminario" });
   const breadcrumbs: Record<ScreenId, PortalShellBreadcrumbItem[]> = {
     seminarios: [{ label: "Seminarios" }],
+    "detalle-seminario": [
+      { label: "Seminarios", to: buildHref({ pantalla: "seminarios" }) },
+      { label: target.instructorName },
+    ],
     inscribir: [{ label: "Seminarios" }],
     resumen: [{ label: "Resumen" }],
     "resumen-seminario": [
@@ -263,14 +284,20 @@ export default function SeminarMoneyPortalPrototypeRoute() {
               pantalla === "inscribir" ? (variante as DialogVariantId) : "A"
             }
             initialOpenSeminarId={pantalla === "inscribir" ? target.id : null}
-            seminarFinanceHref={detailHref}
+            seminarDetailHref={seminarDetailHref}
             seminars={data.seminars}
+          />
+        ) : null}
+        {pantalla === "detalle-seminario" ? (
+          <PortalSeminarDetailPrototype
+            seminar={target}
+            variant={variante as SeminarDetailVariantId}
           />
         ) : null}
         {pantalla === "resumen" ? (
           <PortalAcademyFinancesPrototype
             data={data}
-            seminarDetailHref={detailHref}
+            seminarDetailHref={financeDetailHref}
             variant={variante as FinancesVariantId}
           />
         ) : null}

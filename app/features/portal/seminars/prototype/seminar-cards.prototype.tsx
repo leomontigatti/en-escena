@@ -59,10 +59,7 @@ import {
   registerPortalSeminarInscriptionSchema,
   type RegisterPortalSeminarInscriptionFormValues,
 } from "@/features/portal/seminars/list/shared";
-import {
-  formatInscriptionStatusBadge,
-  getInscriptionFinancialStatusBadgeVariant,
-} from "@/lib/finances/choreography-financial-status";
+import { formatInscriptionStatusBadge } from "@/lib/finances/choreography-financial-status";
 import { formatAmount } from "@/lib/finances/formatters";
 import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
 import { seminarStartedMessage } from "@/lib/seminars/registration-refusals";
@@ -92,13 +89,13 @@ export function PortalSeminarsMoneyPrototype({
   cardVariant,
   dialogVariant,
   initialOpenSeminarId,
-  seminarFinanceHref,
+  seminarDetailHref,
   seminars,
 }: {
   cardVariant: CardVariantId;
   dialogVariant: DialogVariantId;
   initialOpenSeminarId: string | null;
-  seminarFinanceHref: string;
+  seminarDetailHref: string;
   seminars: PortalMoneySeminar[];
 }) {
   const fetcher = useFetcher<PrototypeActionData>();
@@ -136,7 +133,7 @@ export function PortalSeminarsMoneyPrototype({
             <SeminarCard
               key={seminar.id}
               seminar={seminar}
-              seminarFinanceHref={seminarFinanceHref}
+              seminarDetailHref={seminarDetailHref}
               onOpenRegister={() => setOpenSeminarId(seminar.id)}
               onRemoveInscription={setRemovingId}
             />
@@ -195,7 +192,7 @@ function findActiveInscription(
 
 type SeminarCardProps = {
   seminar: PortalMoneySeminar;
-  seminarFinanceHref: string;
+  seminarDetailHref: string;
   onOpenRegister: () => void;
   onRemoveInscription: (inscriptionId: string) => void;
 };
@@ -529,37 +526,19 @@ function describeWhatIsOwed(inscription: SeminarInscriptionFigures) {
   return "Sin saldo adeudado";
 }
 
-const statusCountLabels = {
-  depositPending: (count: number) => `${count} con seña pendiente`,
-  depositMet: (count: number) =>
-    count === 1 ? "1 señada" : `${count} señadas`,
-  paidInFull: (count: number) =>
-    count === 1 ? "1 pagada" : `${count} pagadas`,
-} as const;
-
 /**
- * C — the card stays the roster it is today: neutral chips, no participant
- * reading, money summarized as status counts with a link to `Resumen`; prices
- * move into the footer beside the button; the full state is a header badge.
+ * C, second round — the card is a poster. The chips, the status badges, the
+ * prices and the deposit all left it: who is registered and what it costs live
+ * on the seminar detail behind `Ver detalle`, so the gallery answers only
+ * whether the academy can still register someone. The full quota stays as a
+ * header badge, because it is the one fact that changes what the buttons do.
  */
 function SeminarCardC({
   seminar,
-  seminarFinanceHref,
+  seminarDetailHref,
   onOpenRegister,
-  onRemoveInscription,
 }: SeminarCardProps) {
-  const active = listActiveInscriptions(seminar);
-  const counts = (["depositPending", "depositMet", "paidInFull"] as const)
-    .map((status) => ({
-      status,
-      count: active.filter((row) => row.financialStatus === status).length,
-    }))
-    .filter((entry) => entry.count > 0);
   const isFull = isSeminarFull(seminar);
-  const deadlines = priceCells(seminar)
-    .map((cell) => cell.price?.paymentDeadline ?? null)
-    .filter((deadline): deadline is string => deadline !== null)
-    .sort();
 
   return (
     <Card className="overflow-hidden">
@@ -573,90 +552,35 @@ function SeminarCardC({
         }
       />
 
-      <CardContent className="flex flex-col gap-3">
-        {active.length === 0 ? (
-          <EmptyInscriptions />
-        ) : (
-          <>
-            <ul className="flex flex-wrap gap-2">
-              {active.map((inscription) => (
-                <li key={inscription.id}>
-                  <Badge variant="outline" className="h-7 gap-1.5 pr-2.5">
-                    <UserRound aria-hidden="true" />
-                    {inscription.person.fullName}
-                    {seminar.hasStarted ? null : (
-                      <RemoveButton
-                        fullName={inscription.person.fullName}
-                        onRemove={() => onRemoveInscription(inscription.id)}
-                      />
-                    )}
-                  </Badge>
-                </li>
-              ))}
-            </ul>
-            <div className="flex flex-wrap items-center gap-2">
-              {counts.map((entry) => (
-                <Badge
-                  key={entry.status}
-                  variant={getInscriptionFinancialStatusBadgeVariant(
-                    entry.status,
-                  )}
-                >
-                  {statusCountLabels[entry.status](entry.count)}
-                </Badge>
-              ))}
-              <Button asChild variant="link" size="xs" className="px-0">
-                <Link to={seminarFinanceHref}>Ver en Resumen</Link>
-              </Button>
-            </div>
-          </>
-        )}
-        {isFull && !seminar.hasStarted ? (
-          <p className="text-xs text-muted-foreground">
-            Las nuevas inscripciones toman su lugar cuando se libere uno.
-          </p>
-        ) : null}
-      </CardContent>
-
-      <CardFooter className="mt-auto items-center justify-between gap-3">
-        <dl className="flex min-w-0 flex-col gap-0.5 text-xs">
-          {priceCells(seminar).map((cell) => (
-            <div key={cell.label} className="flex gap-1.5">
-              <dt className="text-muted-foreground">{cell.label}</dt>
-              <dd className="font-medium tabular-nums">
-                {cell.price ? formatAmount(cell.price.amount) : "Sin precio"}
-              </dd>
-            </div>
-          ))}
-          <div className="text-muted-foreground">
-            <dt className="sr-only">Seña y vencimiento</dt>
-            <dd>
-              Seña del {seminar.requiredDepositPercentage}% ·{" "}
-              {formatPriceDeadline(deadlines[0] ?? null).toLowerCase()}
-            </dd>
-          </div>
-        </dl>
+      <CardFooter className="mt-auto flex-col items-stretch gap-2">
         {seminar.hasStarted ? (
-          <p className="text-xs text-muted-foreground">
+          <p className="flex h-8 items-center justify-center text-center text-xs text-muted-foreground">
             {seminarStartedMessage}
           </p>
-        ) : (
-          <Button type="button" onClick={onOpenRegister}>
-            <Plus aria-hidden="true" data-icon />
-            Inscribir
+        ) : null}
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline" className="flex-1">
+            <Link to={seminarDetailHref}>Ver detalle</Link>
           </Button>
-        )}
+          {seminar.hasStarted ? null : (
+            <Button type="button" className="flex-1" onClick={onOpenRegister}>
+              <Plus aria-hidden="true" data-icon />
+              Inscribir
+            </Button>
+          )}
+        </div>
       </CardFooter>
     </Card>
   );
 }
 
 /**
- * The withdrawal confirmation for a row with money on it (#889). Not the shared
+ * The withdrawal confirmation for a row with money on it (#889), shared with the
+ * seminar detail. Not the shared
  * `DeleteDialog`: that one always says "Esta acción es irreversible.", and a
  * withdrawal is revived by registering the same person again.
  */
-function WithdrawDialog({
+export function WithdrawDialog({
   inscription,
   instructorName,
   onOpenChange,
@@ -771,7 +695,7 @@ function describeWhatTheyPay(candidate: RegistrablePerson) {
  * B — grouped by participant cell with the cell's price in the heading.
  * C — as built: no price in the dialog, the card already shows it.
  */
-function RegisterDialogPrototype({
+export function RegisterDialogPrototype({
   isSubmitting,
   onClose,
   seminar,
