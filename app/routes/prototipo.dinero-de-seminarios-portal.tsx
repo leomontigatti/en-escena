@@ -107,7 +107,7 @@ const screens = {
   seminarios: {
     label: "Seminarios",
     variants: {
-      C: "Elegida: afiche con Ver detalle e Inscribir",
+      C: "Elegida: afiche con el contador y Ver detalle",
       A: "Ronda 1: precios como cifras arriba, chips con estado",
       B: "Ronda 1: inscriptos en filas con lo adeudado",
     },
@@ -115,13 +115,15 @@ const screens = {
   "detalle-seminario": {
     label: "Detalle del seminario",
     variants: {
-      A: "Pestañas Información / Inscriptos, como en administración",
-      B: "Una sola página: datos arriba, inscriptos con su dinero",
-      C: "Precios como métricas, inscriptos con estado",
+      A: "Elegida: solo la lista de inscriptos, sin pestañas",
+      B: "Ronda 2: datos arriba, inscriptos con su dinero",
+      C: "Ronda 2: precios como métricas, inscriptos con estado",
     },
   },
   inscribir: {
-    label: "Inscribir",
+    // Its own screen only so the dialog can be reviewed on its own; the real
+    // way in is the `Inscribir` button of the seminar detail.
+    label: "Diálogo de inscripción",
     variants: {
       A: "Lo que pagaría, debajo del selector",
       B: "Selector agrupado por participante, con el precio",

@@ -527,18 +527,14 @@ function describeWhatIsOwed(inscription: SeminarInscriptionFigures) {
 }
 
 /**
- * C, second round — the card is a poster. The chips, the status badges, the
- * prices and the deposit all left it: who is registered and what it costs live
- * on the seminar detail behind `Ver detalle`, so the gallery answers only
- * whether the academy can still register someone. The full quota stays as a
- * header badge, because it is the one fact that changes what the buttons do.
+ * C, third round — the card is a poster and nothing else: the instructor, the
+ * date, how many the academy has registered, and one way in. Everything the
+ * money added — chips, statuses, prices, the deposit, the full-quota badge —
+ * lives on the seminar detail, and so does registering, so the gallery no
+ * longer needs to know whether the seminar has started.
  */
-function SeminarCardC({
-  seminar,
-  seminarDetailHref,
-  onOpenRegister,
-}: SeminarCardProps) {
-  const isFull = isSeminarFull(seminar);
+function SeminarCardC({ seminar, seminarDetailHref }: SeminarCardProps) {
+  const count = listActiveInscriptions(seminar).length;
 
   return (
     <Card className="overflow-hidden">
@@ -546,32 +542,25 @@ function SeminarCardC({
       <SeminarHeading
         seminar={seminar}
         action={
-          isFull && !seminar.hasStarted ? (
-            <Badge variant="warning">Cupo completo</Badge>
-          ) : undefined
+          <Badge variant="secondary">{formatInscriptionCount(count)}</Badge>
         }
       />
 
       <CardFooter className="mt-auto flex-col items-stretch gap-2">
-        {seminar.hasStarted ? (
-          <p className="flex h-8 items-center justify-center text-center text-xs text-muted-foreground">
-            {seminarStartedMessage}
-          </p>
-        ) : null}
-        <div className="flex items-center gap-2">
-          <Button asChild variant="outline" className="flex-1">
-            <Link to={seminarDetailHref}>Ver detalle</Link>
-          </Button>
-          {seminar.hasStarted ? null : (
-            <Button type="button" className="flex-1" onClick={onOpenRegister}>
-              <Plus aria-hidden="true" data-icon />
-              Inscribir
-            </Button>
-          )}
-        </div>
+        <Button asChild variant="outline">
+          <Link to={seminarDetailHref}>Ver detalle</Link>
+        </Button>
       </CardFooter>
     </Card>
   );
+}
+
+function formatInscriptionCount(count: number) {
+  if (count === 0) {
+    return "Sin inscriptos";
+  }
+
+  return count === 1 ? "1 inscripto" : `${count} inscriptos`;
 }
 
 /**

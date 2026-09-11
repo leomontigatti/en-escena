@@ -18,12 +18,9 @@ import {
 } from "@/components/shared/data-table";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { MetricCard } from "@/components/shared/metric-card";
-import { ReadOnlyField } from "@/components/shared/read-only-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatInscriptionStatusBadge } from "@/lib/finances/choreography-financial-status";
 import { formatAmount, formatDate } from "@/lib/finances/formatters";
 import {
@@ -85,7 +82,7 @@ export function PortalSeminarDetailPrototype({
       <PortalListPage
         titleId="seminario-title"
         title={seminar.instructorName}
-        description={`${formatDate(seminar.scheduledDate)} · ${seminar.startTime}. Revisá los datos del seminario y la gente de tu academia que inscribiste.`}
+        description={`${formatDate(seminar.scheduledDate)} · ${seminar.startTime}`}
         action={
           seminar.hasStarted ? null : (
             <Button type="button" onClick={() => setIsRegistering(true)}>
@@ -96,7 +93,7 @@ export function PortalSeminarDetailPrototype({
         }
       >
         {seminar.hasStarted ? (
-          <Alert>
+          <Alert variant="warning">
             <Info aria-hidden="true" />
             <AlertDescription>
               {seminarStartedMessage} Ya no se puede inscribir ni dar de baja.
@@ -114,7 +111,7 @@ export function PortalSeminarDetailPrototype({
         ) : null}
 
         {variant === "A" ? (
-          <TabbedDetail
+          <RosterDetail
             active={active}
             canRemove={canRemove}
             onRemove={onRemove}
@@ -260,59 +257,17 @@ function priceValue(price: SeminarPriceRow | null, rate: number) {
 }
 
 /**
- * A — the admin detail's shape, read-only: `Información` holds the seminar's
- * data and its two prices as locked fields, `Inscriptos` is the flat table with
- * `Nombre` and `Tipo` only. Money stays entirely in `Resumen`.
+ * A, third round — no tabs at all: the academy's own inscriptions and nothing
+ * else, reading like the admin `Inscriptos` tab. The instructor, the date and
+ * the time are the page header; `Información` went away with them, so the
+ * prices are said only in `Resumen`. Registering happens here, not on the card.
  */
-function TabbedDetail({
-  active,
-  canRemove,
-  onRemove,
-  seminar,
-}: DetailVariantProps) {
+function RosterDetail({ active, canRemove, onRemove }: DetailVariantProps) {
   return (
-    <Tabs defaultValue="informacion">
-      <TabsList variant="line">
-        <TabsTrigger value="informacion">Información</TabsTrigger>
-        <TabsTrigger value="inscriptos">Inscriptos</TabsTrigger>
-      </TabsList>
-      <TabsContent value="informacion" className="pt-2">
-        <Card>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
-            <ReadOnlyField label="Instructor" value={seminar.instructorName} />
-            <ReadOnlyField
-              label="Tipo de seminario"
-              value={formatSeminarKindLabel(seminar.kind)}
-            />
-            <ReadOnlyField
-              label="Fecha"
-              value={formatDate(seminar.scheduledDate)}
-            />
-            <ReadOnlyField label="Hora" value={seminar.startTime} />
-            <ReadOnlyField
-              label="Precio para participantes"
-              value={priceValue(
-                seminar.currentPrices.participants,
-                seminar.requiredDepositPercentage,
-              )}
-            />
-            <ReadOnlyField
-              label="Precio para no participantes"
-              value={priceValue(
-                seminar.currentPrices.nonParticipants,
-                seminar.requiredDepositPercentage,
-              )}
-            />
-          </CardContent>
-        </Card>
-      </TabsContent>
-      <TabsContent value="inscriptos" className="pt-2">
-        <InscriptionsTable
-          columns={[nameColumn({ canRemove, onRemove }), kindColumn]}
-          rows={active}
-        />
-      </TabsContent>
-    </Tabs>
+    <InscriptionsTable
+      columns={[nameColumn({ canRemove, onRemove }), kindColumn]}
+      rows={active}
+    />
   );
 }
 
