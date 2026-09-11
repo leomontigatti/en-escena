@@ -562,6 +562,5 @@ export function buildPrototypeData(caseId: PrototypeCaseId) {
     seminar,
     seminarPrices,
     seminarUnitRows,
-    seminars,
   };
 }

@@ -18,6 +18,7 @@ export const seminarKindOptions = [
 /** One dated event-level row for a kind and a participant flag (#904). */
 export type SeminarPriceRow = {
   id: string;
+  name: string;
   kind: SeminarKind;
   forParticipants: boolean;
   paymentDeadline: string | null;
@@ -37,6 +38,7 @@ export type SeminarPriceUsage = {
 export const eventSeminarPrices: SeminarPriceRow[] = [
   {
     id: "comun-participantes-septiembre",
+    name: "Participantes preventa",
     kind: "regular",
     forParticipants: true,
     paymentDeadline: "2026-09-20",
@@ -44,6 +46,7 @@ export const eventSeminarPrices: SeminarPriceRow[] = [
   },
   {
     id: "comun-participantes-octubre",
+    name: "Participantes octubre",
     kind: "regular",
     forParticipants: true,
     paymentDeadline: "2026-10-05",
@@ -51,6 +54,7 @@ export const eventSeminarPrices: SeminarPriceRow[] = [
   },
   {
     id: "comun-participantes-sin-fecha",
+    name: "Participantes",
     kind: "regular",
     forParticipants: true,
     paymentDeadline: null,
@@ -58,6 +62,7 @@ export const eventSeminarPrices: SeminarPriceRow[] = [
   },
   {
     id: "comun-no-participantes-septiembre",
+    name: "Público preventa",
     kind: "regular",
     forParticipants: false,
     paymentDeadline: "2026-09-20",
@@ -65,6 +70,7 @@ export const eventSeminarPrices: SeminarPriceRow[] = [
   },
   {
     id: "comun-no-participantes-sin-fecha",
+    name: "Público general",
     kind: "regular",
     forParticipants: false,
     paymentDeadline: null,
@@ -72,6 +78,7 @@ export const eventSeminarPrices: SeminarPriceRow[] = [
   },
   {
     id: "exclusivo-participantes-septiembre",
+    name: "Exclusivo participantes preventa",
     kind: "special",
     forParticipants: true,
     paymentDeadline: "2026-09-20",
@@ -79,6 +86,7 @@ export const eventSeminarPrices: SeminarPriceRow[] = [
   },
   {
     id: "exclusivo-participantes-sin-fecha",
+    name: "Exclusivo participantes",
     kind: "special",
     forParticipants: true,
     paymentDeadline: null,
@@ -86,19 +94,17 @@ export const eventSeminarPrices: SeminarPriceRow[] = [
   },
 ];
 
-const shortDateFormatter = new Intl.DateTimeFormat("es-AR", {
-  day: "numeric",
-  month: "numeric",
-  year: "2-digit",
-  timeZone: "UTC",
-});
-
 export function formatSeminarKindLabel(kind: SeminarKind) {
   return kind === "special" ? "Exclusivo" : "Común";
 }
 
 export function formatParticipantsLabel(forParticipants: boolean) {
   return forParticipants ? "Participantes" : "No participantes";
+}
+
+/** The badge beside the kind in the price list. */
+export function formatParticipantBadgeLabel(forParticipants: boolean) {
+  return forParticipants ? "Participante" : "No participante";
 }
 
 export function formatSeminarPriceDeadline(price: SeminarPriceRow) {
@@ -114,15 +120,6 @@ export function formatSeminarPriceLabel(price: SeminarPriceRow) {
     formatSeminarKindLabel(price.kind).toLowerCase(),
     formatParticipantsLabel(price.forParticipants).toLowerCase(),
   ].join(" · ");
-}
-
-/** The list's name for a nameless row, as `getPriceDisplayName` builds one for a choreography price. */
-export function getSeminarPriceDisplayName(price: SeminarPriceRow) {
-  const head = `${formatSeminarKindLabel(price.kind)} - ${formatParticipantsLabel(price.forParticipants)}`;
-
-  return price.paymentDeadline
-    ? `${head} - hasta ${shortDateFormatter.format(new Date(`${price.paymentDeadline}T00:00:00Z`))}`
-    : `${head} - sin fecha límite`;
 }
 
 export function depositFor(amount: number, rate: number) {

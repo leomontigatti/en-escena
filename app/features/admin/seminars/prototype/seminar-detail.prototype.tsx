@@ -20,6 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SeminarActions } from "@/features/admin/seminars/actions";
 import { SeminarInscriptionsTable } from "@/features/admin/seminars/inscriptions-table";
 import {
+  keptSeminarPictureValue,
   seminarPictureFileField,
   seminarPictureKeptField,
 } from "@/features/admin/seminars/shared";
@@ -39,10 +40,10 @@ type Record = (entry: string) => void;
 
 type SeminarPrototypeFormValues = {
   instructorName: string;
+  kind: string;
   scheduledDate: string;
   startTime: string;
   quota: string;
-  kind: string;
   requiredDepositPercentage: string;
   [seminarPictureKeptField]: string;
 };
@@ -51,21 +52,19 @@ type SeminarPrototypeFormValues = {
  * The seminar detail as it stays: `Información` and `Inscriptos`, no prices tab
  * — seminar prices are event-level rows edited under `Bases del evento` ›
  * `Precios` (#904). `Información` gains `Tipo de seminario` (default `Común`)
- * and `Seña (%)`; variant A stacks both beside the instructor picture, variant B
- * puts the kind beside the instructor.
+ * beside the instructor and `Seña (%)` beside the quota; the instructor picture
+ * takes the full width, as on the real form (review on #890).
  */
 export function SeminarDetailPrototype({
   backHref,
   inscriptions,
   record,
   seminar,
-  variant,
 }: {
   backHref: string;
   inscriptions: SeminarInscriptionFigures[];
   record: Record;
   seminar: PrototypeSeminar;
-  variant: string;
 }) {
   const seminarListItem = {
     id: seminar.id,
@@ -90,7 +89,6 @@ export function SeminarDetailPrototype({
             backHref={backHref}
             record={record}
             seminar={seminar}
-            variant={variant}
           />
         </TabsContent>
         <TabsContent value="inscriptos" className="pt-2">
@@ -115,12 +113,10 @@ function SeminarInformationForm({
   backHref,
   record,
   seminar,
-  variant,
 }: {
   backHref: string;
   record: Record;
   seminar: PrototypeSeminar;
-  variant: string;
 }) {
   const formId = "prototype-seminar-information-form";
   // The rate and the kind are both locked while any inscription is covered
@@ -130,12 +126,13 @@ function SeminarInformationForm({
   const form = useForm<SeminarPrototypeFormValues>({
     defaultValues: {
       instructorName: seminar.instructorName,
+      kind: seminar.kind,
       scheduledDate: seminar.scheduledDate,
       startTime: seminar.startTime,
       quota: String(seminar.quota),
-      kind: seminar.kind,
       requiredDepositPercentage: String(seminar.requiredDepositPercentage),
-      [seminarPictureKeptField]: "",
+      // The seminar already has a picture, so the field opens on "Abrir foto".
+      [seminarPictureKeptField]: keptSeminarPictureValue,
     },
   });
   const onSubmit = form.handleSubmit((values) => {
@@ -149,55 +146,9 @@ function SeminarInformationForm({
 
     toast.success("Prototipo: se habría guardado el seminario.");
     record(`Guardar seminario → ${JSON.stringify(values)}`);
+    // Saved values become the new baseline, so `Guardar` disables again.
+    form.reset(values);
   });
-
-  const quotaField = (
-    <IntegerInputField
-      control={form.control}
-      label="Cupo"
-      min={1}
-      name="quota"
-      step={1}
-      suffix={formatAvailablePlacesSuffix(seminar.quota - seminar.coveredCount)}
-    />
-  );
-  const kindField = (
-    <SelectField
-      control={form.control}
-      label="Tipo de seminario"
-      name="kind"
-      options={seminarKindOptions}
-      disabled={isMoneyLocked}
-    />
-  );
-  const rateField = (
-    <IntegerInputField
-      control={form.control}
-      label="Seña (%)"
-      name="requiredDepositPercentage"
-      min={1}
-      max={99}
-      step={1}
-      disabled={isMoneyLocked}
-    />
-  );
-  const pictureField = (
-    <FileUploadField
-      control={form.control}
-      name={seminarPictureKeptField}
-      fileInputName={seminarPictureFileField}
-      fieldLabel="Foto del instructor"
-      downloadLabel="Abrir foto"
-      uploadedLabel="Foto cargada"
-      label="Elegí la foto o arrastrala acá"
-      placeholder={getAssetKindHelperText("seminarInstructorPicture")}
-      {...getAssetUploadFieldProps("seminarInstructorPicture")}
-      previewSelectedFile={false}
-      removeLabel="Quitar la foto del instructor"
-      replaceRequiresRemoval
-      variant="compact"
-    />
-  );
 
   return (
     <AdminResourceFormCard>
@@ -214,7 +165,13 @@ function SeminarInformationForm({
             label="Instructor"
             name="instructorName"
           />
-          {variant === "B" ? kindField : quotaField}
+          <SelectField
+            control={form.control}
+            label="Tipo de seminario"
+            name="kind"
+            options={seminarKindOptions}
+            disabled={isMoneyLocked}
+          />
           <DateOnlyField
             control={form.control}
             name="scheduledDate"
@@ -223,26 +180,55 @@ function SeminarInformationForm({
             buttonClassName="w-full"
           />
           <TimeOnlyField control={form.control} label="Hora" name="startTime" />
-          {variant === "B" ? (
-            <>
-              {quotaField}
-              {rateField}
-              {pictureField}
-            </>
-          ) : (
-            <>
-              <div className="flex flex-col gap-4">
-                {kindField}
-                {rateField}
-              </div>
-              {pictureField}
-            </>
-          )}
+          <IntegerInputField
+            control={form.control}
+            label="Cupo"
+            min={1}
+            name="quota"
+            step={1}
+            suffix={formatAvailablePlacesSuffix(
+              seminar.quota - seminar.coveredCount,
+            )}
+          />
+          <IntegerInputField
+            control={form.control}
+            label="Seña (%)"
+            name="requiredDepositPercentage"
+            min={1}
+            max={99}
+            step={1}
+            disabled={isMoneyLocked}
+          />
+          {/* `FileUploadField` forwards `className` to the control, so the grid
+              span lives on a wrapper, as on the real seminar form. */}
+          <div className="sm:col-span-2">
+            <FileUploadField
+              control={form.control}
+              name={seminarPictureKeptField}
+              fileInputName={seminarPictureFileField}
+              fieldLabel="Foto del instructor"
+              downloadLabel="Abrir foto"
+              downloadUrl="#"
+              uploadedLabel="Foto cargada"
+              label="Elegí la foto o arrastrala acá"
+              placeholder={getAssetKindHelperText("seminarInstructorPicture")}
+              {...getAssetUploadFieldProps("seminarInstructorPicture")}
+              previewSelectedFile={false}
+              removeLabel="Quitar la foto del instructor"
+              replaceRequiresRemoval
+              variant="compact"
+            />
+          </div>
         </FieldGroup>
       </form>
       <div className="flex items-center justify-between gap-2">
         <BackButton to={backHref} />
-        <SubmitButton form={formId} isPending={false} />
+        {/* Nothing to save until a field changes. */}
+        <SubmitButton
+          form={formId}
+          isPending={false}
+          disabled={!form.formState.isDirty}
+        />
       </div>
     </AdminResourceFormCard>
   );

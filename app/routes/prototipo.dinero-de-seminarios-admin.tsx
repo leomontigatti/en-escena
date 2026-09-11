@@ -7,10 +7,9 @@
 //
 // The bar at the bottom switches everything, and the arrow keys cycle the
 // variant. The search parameters it writes:
-//   `pantalla`: `lista-seminarios`, `detalle-seminario`, `precios`,
-//     `precio-seminario`, `finanzas-lista`, `finanzas-academia`,
-//     `finanzas-seminario`
-//   `variante`: `A` or `B` where a screen still offers two
+//   `pantalla`: `detalle-seminario`, `precios`, `precio-seminario`,
+//     `finanzas-lista`, `finanzas-academia`, `finanzas-seminario`
+//   `variante`: `A` (each screen keeps the one variant the reviews chose)
 //   `caso`: `normal`, `lleno`, `falta-precio`
 //   `pestana`: `coreografias` or `seminarios`, on `precios`
 //   `precio`: the seminar price row on `precio-seminario`, empty for a new one
@@ -44,12 +43,10 @@ import {
 import { AcademyFinancesPrototype } from "@/features/admin/finances/prototype/academy-finances.prototype";
 import { SeminarFinanceDetailPrototype } from "@/features/admin/finances/prototype/seminar-finance-detail.prototype";
 import { SeminarDetailPrototype } from "@/features/admin/seminars/prototype/seminar-detail.prototype";
-import { SeminarListPrototype } from "@/features/admin/seminars/prototype/seminar-list.prototype";
 import {
   buildPrototypeData,
   formatParticipantsLabel,
   formatSeminarKindLabel,
-  getSeminarPriceDisplayName,
   prototypeCaseIds,
   type PrototypeCaseId,
 } from "@/features/admin/seminars/prototype/seminar-money-fixtures.prototype";
@@ -59,8 +56,7 @@ import type { Route } from "./+types/prototipo.dinero-de-seminarios-admin";
 
 /**
  * Every write lands here and nothing persists. Deleting a seminar price answers
- * with the guard the case's fixtures would trip, so variant A's refusal reads as
- * the choreography price's does today.
+ * with the guard the case's fixtures would trip.
  */
 export async function action({ request }: Route.ActionArgs) {
   const formData = await request.formData();
@@ -94,15 +90,10 @@ export async function action({ request }: Route.ActionArgs) {
 }
 
 const screens = {
-  "lista-seminarios": {
-    label: "Seminarios",
-    variants: { A: "Cupo con lo que queda + Inscriptos" },
-  },
   "detalle-seminario": {
     label: "Seminario",
     variants: {
-      A: "Tipo y Seña (%) apilados, la foto a su derecha",
-      B: "Tipo junto al instructor, Cupo junto a Seña (%)",
+      A: "Tipo junto al instructor, Seña (%) junto al cupo, la foto a todo el ancho",
     },
   },
   precios: {
@@ -112,8 +103,7 @@ const screens = {
   "precio-seminario": {
     label: "Precio de seminario",
     variants: {
-      A: "Rechazo al guardar o borrar, como el precio de coreografía",
-      B: "Campos bloqueados a la vista, borrado bloqueado",
+      A: "Nombre con el switch Para participantes, campos bloqueados a la vista",
     },
   },
   "finanzas-lista": {
@@ -246,11 +236,10 @@ export default function SeminarMoneyAdminPrototypeRoute() {
     precio: "",
   });
   const breadcrumbs: Record<ScreenId, AdminShellBreadcrumbItem[]> = {
-    "lista-seminarios": [{ label: "Seminarios" }],
     "detalle-seminario": [
       {
         label: "Seminarios",
-        to: buildHref({ pantalla: "lista-seminarios" }),
+        to: "/administracion/seminarios",
       },
       seminarCrumb,
     ],
@@ -258,9 +247,7 @@ export default function SeminarMoneyAdminPrototypeRoute() {
     "precio-seminario": [
       { label: "Precios", to: pricesHref },
       {
-        label: selectedPrice
-          ? getSeminarPriceDisplayName(selectedPrice)
-          : "Nuevo precio",
+        label: selectedPrice ? selectedPrice.name : "Nuevo precio",
       },
     ],
     "finanzas-lista": [{ label: "Finanzas" }],
@@ -292,19 +279,12 @@ export default function SeminarMoneyAdminPrototypeRoute() {
         key={`${pantalla}-${variante}-${caso}-${precio}`}
         className="flex flex-col gap-6 pb-56"
       >
-        {pantalla === "lista-seminarios" ? (
-          <SeminarListPrototype
-            buildDetailHref={() => buildHref({ pantalla: "detalle-seminario" })}
-            seminars={data.seminars}
-          />
-        ) : null}
         {pantalla === "detalle-seminario" ? (
           <SeminarDetailPrototype
-            backHref={buildHref({ pantalla: "lista-seminarios" })}
+            backHref={"/administracion/seminarios"}
             inscriptions={data.inscriptions}
             record={record}
             seminar={data.seminar}
-            variant={variante}
           />
         ) : null}
         {pantalla === "precios" ? (
@@ -331,7 +311,6 @@ export default function SeminarMoneyAdminPrototypeRoute() {
             usage={
               selectedPrice ? data.priceUsage[selectedPrice.id] : undefined
             }
-            variant={variante}
           />
         ) : null}
         {pantalla === "finanzas-lista" ? (

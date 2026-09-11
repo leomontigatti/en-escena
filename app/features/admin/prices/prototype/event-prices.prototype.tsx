@@ -4,7 +4,7 @@
 // `Bases del evento` › `Precios` with the seminar price list in a tab beside the
 // choreography one, and the seminar price form with its guards (#904).
 import { AlertTriangle, Info } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Controller, useForm, type Control } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -14,6 +14,7 @@ import {
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
 import { BackButton, SubmitButton } from "@/components/shared/action-buttons";
+import { BadgesList } from "@/components/shared/badges-list";
 import {
   ClientDataTable,
   type DataTableColumn,
@@ -22,16 +23,17 @@ import {
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { DateOnlyField } from "@/components/shared/date-only-field";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
+import { SharedFieldLayout } from "@/components/shared/field-layout";
 import { IntegerInputField } from "@/components/shared/integer-input-field";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { SelectField } from "@/components/shared/select-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenuGroup,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { FieldGroup } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -47,14 +49,15 @@ import {
   openEndedDeadlineLabel,
 } from "@/features/admin/prices/view-shared";
 import {
+  formatParticipantBadgeLabel,
   formatParticipantsLabel,
   formatSeminarKindLabel,
-  getSeminarPriceDisplayName,
   seminarKindOptions,
   type SeminarPriceRow,
   type SeminarPriceUsage,
 } from "@/features/admin/seminars/prototype/seminar-money-fixtures.prototype";
 import type { PriceListItem } from "@/lib/events/bases.server";
+import { requiredFieldMessage } from "@/lib/shared/forms";
 import { buildCreatePath } from "@/lib/shared/navigation";
 import { cn } from "@/lib/shared/utils";
 
@@ -62,10 +65,8 @@ export const eventPricesTabs = ["coreografias", "seminarios"] as const;
 export type EventPricesTab = (typeof eventPricesTabs)[number];
 
 // The choreography guards' copy, re-keyed on the seminar row (#904 mirrors the
-// built guards verbatim: any reference freezes everything, the deadline-less
-// `Común` row of a cell only lets its amount change).
-const frozenUpdateError =
-  "No se pueden editar monto, tipo de seminario, participantes ni vencimiento porque hay inscripciones que congelaron este precio.";
+// built guards verbatim: any reference freezes everything but the name, the
+// deadline-less `Común` row of a cell also keeps its amount editable).
 const frozenDeleteError =
   "No se puede borrar el precio porque hay inscripciones que congelaron este precio.";
 
@@ -83,24 +84,6 @@ export function refuseSeminarPriceDelete(
 
   return usage?.isProtected
     ? `No se puede borrar el precio porque ${describeProtectedCell(price)}.`
-    : null;
-}
-
-function refuseSeminarPriceUpdate(
-  price: SeminarPriceRow,
-  usage: SeminarPriceUsage | undefined,
-  change: { amountChanged: boolean; structureChanged: boolean },
-) {
-  if (
-    usage &&
-    usage.referencedCount > 0 &&
-    (change.amountChanged || change.structureChanged)
-  ) {
-    return frozenUpdateError;
-  }
-
-  return usage?.isProtected && change.structureChanged
-    ? `No se puede editar el precio porque ${describeProtectedCell(price)}. Podés cambiarle el monto.`
     : null;
 }
 
@@ -206,7 +189,7 @@ const seminarPriceFacetedFilters: DataTableFacetedFiltersOf<
   },
 ];
 
-/** The twin of `PriceListTable`: no name, so the link reads the built display name. */
+/** The twin of `PriceListTable`: the participant flag rides as a second badge beside the kind. */
 function SeminarPriceListTable({
   buildEditHref,
   prices,
@@ -220,27 +203,23 @@ function SeminarPriceListTable({
       header: "Nombre",
       className: "min-w-56 font-medium",
       cell: (price) => (
-        <DataTableLink to={buildEditHref(price.id)}>
-          {getSeminarPriceDisplayName(price)}
-        </DataTableLink>
+        <DataTableLink to={buildEditHref(price.id)}>{price.name}</DataTableLink>
       ),
-      filterValue: getSeminarPriceDisplayName,
+      filterValue: (price) => price.name,
     },
     {
       id: "kind",
       header: "Tipo de seminario",
       cell: (price) => (
-        <Badge variant="secondary">{formatSeminarKindLabel(price.kind)}</Badge>
+        <BadgesList
+          labels={[
+            formatSeminarKindLabel(price.kind),
+            formatParticipantBadgeLabel(price.forParticipants),
+          ]}
+        />
       ),
       filterValues: (price) => [price.kind],
       filterValue: (price) => formatSeminarKindLabel(price.kind),
-    },
-    {
-      id: "forParticipants",
-      header: "Para participantes",
-      cell: (price) => (
-        <Badge variant="outline">{price.forParticipants ? "Sí" : "No"}</Badge>
-      ),
     },
     {
       id: "filters",
@@ -284,6 +263,7 @@ function SeminarPriceListTable({
 }
 
 type SeminarPriceFormValues = {
+  name: string;
   kind: string;
   forParticipants: boolean;
   isOpenEnded: boolean;
@@ -292,31 +272,31 @@ type SeminarPriceFormValues = {
 };
 
 /**
- * The seminar price form, under `Precios` like the choreography one. Variant A
- * refuses on save and on delete, as the choreography price does today; variant
- * B locks what the guard would refuse on sight and blocks the delete dialog.
+ * The seminar price form, under `Precios` like the choreography one and shaped
+ * like it: `Nombre` carries the `Para participantes` switch as the choreography
+ * name carries `Precio especial`. What the guards would refuse is locked on
+ * sight (review on #890): a referenced row keeps only its name editable, the
+ * protected deadline-less `Común` row keeps its name and amount, and the delete
+ * dialog opens blocked.
  */
 export function SeminarPriceFormPrototype({
   backHref,
   price,
   record,
   usage,
-  variant,
 }: {
   backHref: string;
   price: SeminarPriceRow | null;
   record: (entry: string) => void;
   usage: SeminarPriceUsage | undefined;
-  variant: string;
 }) {
   const formId = "prototype-seminar-price-form";
-  const locksOnSight = variant === "B";
-  const isFrozen = (usage?.referencedCount ?? 0) > 0;
-  const locksAmount = locksOnSight && isFrozen;
-  const locksStructure =
-    locksOnSight && (isFrozen || usage?.isProtected === true);
+  const referencedCount = usage?.referencedCount ?? 0;
+  const isFrozen = referencedCount > 0;
+  const locksStructure = isFrozen || usage?.isProtected === true;
   const form = useForm<SeminarPriceFormValues>({
     defaultValues: {
+      name: price?.name ?? "",
       kind: price?.kind ?? "regular",
       forParticipants: price?.forParticipants ?? true,
       isOpenEnded: price ? price.paymentDeadline === null : false,
@@ -326,23 +306,6 @@ export function SeminarPriceFormPrototype({
   });
   const isOpenEnded = form.watch("isOpenEnded");
   const onSubmit = form.handleSubmit((values) => {
-    const refusal = price
-      ? refuseSeminarPriceUpdate(price, usage, {
-          amountChanged: Number(values.amount) !== price.amount,
-          structureChanged:
-            values.kind !== price.kind ||
-            values.forParticipants !== price.forParticipants ||
-            (values.isOpenEnded ? null : values.paymentDeadline) !==
-              price.paymentDeadline,
-        })
-      : null;
-
-    if (refusal) {
-      toast.error(refusal);
-      record(`Guardar precio → rechazado: ${refusal}`);
-      return;
-    }
-
     toast.success("Prototipo: se habría guardado el precio.");
     record(`Guardar precio → ${JSON.stringify(values)}`);
   });
@@ -353,28 +316,30 @@ export function SeminarPriceFormPrototype({
       title={price ? "Editar precio" : "Nuevo precio"}
       description={
         price
-          ? "Editá el tipo de seminario, si es para participantes, el importe y la fecha límite de pago."
-          : "Configurá el tipo de seminario, si es para participantes, el importe y la fecha límite de pago."
+          ? "Editá el nombre, el tipo de seminario, si es para participantes, el importe y la fecha límite de pago."
+          : "Configurá el nombre, el tipo de seminario, si es para participantes, el importe y la fecha límite de pago."
       }
       headerAction={
         price ? (
           <SeminarPriceActions
             price={price}
-            refusal={
-              locksOnSight ? refuseSeminarPriceDelete(price, usage) : null
-            }
+            refusal={refuseSeminarPriceDelete(price, usage)}
           />
         ) : null
       }
     >
       <div className="flex flex-col gap-6">
-        {price && locksOnSight && (isFrozen || usage?.isProtected) ? (
-          <Alert>
+        {price && locksStructure ? (
+          <Alert variant="info">
             <Info aria-hidden="true" />
             <AlertDescription>
               {isFrozen
-                ? `${usage?.referencedCount} inscripciones congelaron este precio: no se puede editar ni borrar.`
-                : `Este precio ${describeProtectedCell(price)}: solo se le puede cambiar el monto.`}
+                ? `${
+                    referencedCount === 1
+                      ? "Una inscripción congeló"
+                      : `${referencedCount} inscripciones congelaron`
+                  } este precio: solo se le puede cambiar el nombre.`
+                : `Este precio ${describeProtectedCell(price)}: solo se le pueden cambiar el nombre y el monto.`}
             </AlertDescription>
           </Alert>
         ) : null}
@@ -386,6 +351,10 @@ export function SeminarPriceFormPrototype({
             onSubmit={(event) => void onSubmit(event)}
           >
             <FieldGroup>
+              <NameField
+                control={form.control}
+                locksParticipants={locksStructure}
+              />
               <DateOnlyField
                 control={form.control}
                 name="paymentDeadline"
@@ -393,14 +362,18 @@ export function SeminarPriceFormPrototype({
                 id="prototype-seminar-price-deadline"
                 label="Fecha límite de pago"
                 labelAdornment={
-                  <OpenEndedSwitch
+                  <FormSwitch
                     control={form.control}
                     disabled={locksStructure}
-                    onChecked={() =>
-                      form.setValue("paymentDeadline", "", {
-                        shouldDirty: true,
-                      })
-                    }
+                    label={openEndedDeadlineLabel}
+                    name="isOpenEnded"
+                    onToggle={(checked) => {
+                      if (checked) {
+                        form.setValue("paymentDeadline", "", {
+                          shouldDirty: true,
+                        });
+                      }
+                    }}
                   />
                 }
               />
@@ -419,26 +392,9 @@ export function SeminarPriceFormPrototype({
                   min="1"
                   name="amount"
                   step="1"
-                  disabled={locksAmount}
+                  disabled={isFrozen}
                 />
               </FieldGroup>
-              <Controller
-                control={form.control}
-                name="forParticipants"
-                render={({ field }) => (
-                  <Field orientation="horizontal">
-                    <Switch
-                      id="prototype-seminar-price-participants"
-                      checked={field.value}
-                      disabled={locksStructure}
-                      onCheckedChange={field.onChange}
-                    />
-                    <FieldLabel htmlFor="prototype-seminar-price-participants">
-                      Para participantes
-                    </FieldLabel>
-                  </Field>
-                )}
-              />
             </FieldGroup>
           </form>
           <div className="flex items-center justify-between gap-2">
@@ -451,41 +407,93 @@ export function SeminarPriceFormPrototype({
   );
 }
 
-function OpenEndedSwitch({
+/** `Nombre` with the `Para participantes` switch inside the input, as the choreography form's `Precio especial`. */
+function NameField({
+  control,
+  locksParticipants,
+}: {
+  control: Control<SeminarPriceFormValues>;
+  locksParticipants: boolean;
+}) {
+  const id = useId();
+
+  return (
+    <Controller
+      control={control}
+      name="name"
+      rules={{
+        validate: (value) => value.trim().length > 0 || requiredFieldMessage,
+      }}
+      render={({ field, fieldState }) => (
+        <SharedFieldLayout
+          error={fieldState.error?.message}
+          id={id}
+          label="Nombre"
+        >
+          {({ describedBy, isInvalid }) => (
+            <div className="relative">
+              <Input
+                id={id}
+                aria-describedby={describedBy || undefined}
+                aria-invalid={isInvalid ? true : undefined}
+                autoComplete="off"
+                className="pr-14"
+                {...field}
+              />
+              <div className="absolute top-1/2 right-3 flex -translate-y-1/2 items-center">
+                <FormSwitch
+                  control={control}
+                  disabled={locksParticipants}
+                  label="Para participantes"
+                  name="forParticipants"
+                />
+              </div>
+            </div>
+          )}
+        </SharedFieldLayout>
+      )}
+    />
+  );
+}
+
+/** The choreography form's switch shape: tooltip on the control, an optional side effect on toggle. */
+function FormSwitch({
   control,
   disabled,
-  onChecked,
+  label,
+  name,
+  onToggle,
 }: {
   control: Control<SeminarPriceFormValues>;
   disabled: boolean;
-  onChecked: () => void;
+  label: string;
+  name: "forParticipants" | "isOpenEnded";
+  onToggle?: (checked: boolean) => void;
 }) {
   return (
     <Controller
       control={control}
-      name="isOpenEnded"
+      name={name}
       render={({ field }) => (
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
               <Switch
-                aria-label={openEndedDeadlineLabel}
+                aria-label={label}
                 className={cn(
                   "border-border shadow-xs",
                   field.value ? "!bg-primary" : "!bg-muted",
                 )}
                 checked={field.value}
                 disabled={disabled}
+                onBlur={field.onBlur}
                 onCheckedChange={(checked) => {
                   field.onChange(checked);
-
-                  if (checked) {
-                    onChecked();
-                  }
+                  onToggle?.(checked);
                 }}
               />
             </TooltipTrigger>
-            <TooltipContent>{openEndedDeadlineLabel}</TooltipContent>
+            <TooltipContent>{label}</TooltipContent>
           </Tooltip>
         </TooltipProvider>
       )}
@@ -493,7 +501,7 @@ function OpenEndedSwitch({
   );
 }
 
-/** Variant A lets the dialog post and the action refuse; variant B opens it blocked. */
+/** The delete dialog opens blocked when a guard would refuse it. */
 function SeminarPriceActions({
   price,
   refusal,
@@ -521,7 +529,7 @@ function SeminarPriceActions({
       </ResourceActionsMenu>
       <DeleteDialog
         title="Eliminar precio"
-        description={`Esta acción borra ${getSeminarPriceDisplayName(price)} si no tiene dependencias asociadas. No se puede deshacer.`}
+        description={`Esta acción borra ${price.name} si no tiene dependencias asociadas. No se puede deshacer.`}
         intentValue="delete-seminar-price"
         isBlocked={refusal !== null}
         blockedDescription={refusal}
