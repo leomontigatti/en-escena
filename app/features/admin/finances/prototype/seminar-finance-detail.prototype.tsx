@@ -2,10 +2,9 @@
 //
 // Part of the admin seminar-money prototype for wayfinder ticket #890 (map #884):
 // the (seminar, academy) financial detail.
-import { AlertTriangle, Info } from "lucide-react";
+import { Info } from "lucide-react";
 import { useState } from "react";
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
-import { AlertStack } from "@/components/shared/alert-stack";
 import {
   ClientDataTable,
   type DataTableColumn,
@@ -25,10 +24,10 @@ import {
 import { OperationalFinanceMetrics } from "@/lib/finances/operational-finance-metrics";
 import type { OperationalFinanceAmount } from "@/lib/finances/operational-summary";
 import {
-  formatKindLabel,
-  formatTierLabel,
+  formatSeminarPriceLabel,
   type PrototypeSeminar,
   type SeminarInscriptionFigures,
+  type SeminarPriceRow,
 } from "@/features/admin/seminars/prototype/seminar-money-fixtures.prototype";
 import { SeminarMoneyDialog } from "./seminar-money-dialog.prototype";
 
@@ -40,21 +39,25 @@ type SeminarFinanceRow = InscriptionFinanceRow & {
 
 /**
  * Twin of the choreography financial detail for one academy's inscriptions in
- * one seminar (#894). The kind rides inside the `Precio` badge
- * (`Hasta 20/09/2026 · participante`), with no extra column (review on #890);
- * the money dialog carries the `Precio aplicado` readout beside the tier picker
- * (#887).
+ * one seminar (#894). The effective row rides inside the `Precio` badge
+ * (`Hasta 20 de septiembre de 2026 · exclusivo · participantes`), with no extra
+ * column (review on #890); the money dialog carries the `Participando` readout
+ * beside the price picker (#887, #904). No "no prices" alert: a seminar only
+ * opens once both deadline-less `Común` rows exist, and they cannot go while
+ * inscriptions do (#904).
  */
 export function SeminarFinanceDetailPrototype({
   availableBalanceAmount,
   inscriptions,
   isFull,
+  prices,
   record,
   seminar,
 }: {
   availableBalanceAmount: number;
   inscriptions: SeminarInscriptionFigures[];
   isFull: boolean;
+  prices: SeminarPriceRow[];
   record: Record;
   seminar: PrototypeSeminar;
 }) {
@@ -62,17 +65,12 @@ export function SeminarFinanceDetailPrototype({
     null,
   );
   const [isEmitting, setIsEmitting] = useState(false);
-  const hasTiers = seminar.tiers.length > 0;
   const rows: SeminarFinanceRow[] = inscriptions.map((inscription) => ({
     allocatedAmount: inscription.allocatedAmount,
     anomalies: [],
     depositAmount: inscription.depositAmount,
-    effectivePrice: inscription.tier
-      ? {
-          name: `${formatTierLabel(inscription.tier)} · ${formatKindLabel(
-            inscription.kind,
-          ).toLowerCase()}`,
-        }
+    effectivePrice: inscription.price
+      ? { name: formatSeminarPriceLabel(inscription.price) }
       : null,
     financialStatus: inscription.financialStatus,
     inscription,
@@ -156,27 +154,14 @@ export function SeminarFinanceDetailPrototype({
       }
     >
       <div className="flex flex-col gap-6">
-        {!hasTiers || isFull ? (
-          <AlertStack>
-            {!hasTiers ? (
-              <Alert variant="warning">
-                <AlertTriangle aria-hidden="true" />
-                <AlertDescription>
-                  Este seminario no tiene precios configurados: no se puede
-                  calcular lo que adeuda ni cobrarlo.
-                </AlertDescription>
-              </Alert>
-            ) : null}
-            {isFull ? (
-              <Alert>
-                <Info aria-hidden="true" />
-                <AlertDescription>
-                  No quedan lugares en el seminario: las inscripciones con seña
-                  pendiente no pueden cubrirla hasta que se libere uno.
-                </AlertDescription>
-              </Alert>
-            ) : null}
-          </AlertStack>
+        {isFull ? (
+          <Alert>
+            <Info aria-hidden="true" />
+            <AlertDescription>
+              No quedan lugares en el seminario: las inscripciones con seña
+              pendiente no pueden cubrirla hasta que se libere uno.
+            </AlertDescription>
+          </Alert>
         ) : null}
 
         <OperationalFinanceMetrics
@@ -207,9 +192,10 @@ export function SeminarFinanceDetailPrototype({
           inscription={openInscription}
           isFull={isFull}
           onOpenChange={(open) => (open ? null : setOpenInscriptionId(null))}
+          prices={prices}
           rate={seminar.requiredDepositPercentage}
           record={record}
-          tiers={seminar.tiers}
+          seminarKind={seminar.kind}
         />
       ) : null}
     </AdminResourceLayout>

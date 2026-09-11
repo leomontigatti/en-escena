@@ -29,12 +29,13 @@ import {
 } from "@/components/ui/select";
 import { formatAmount } from "@/lib/finances/formatters";
 import {
-  amountForKind,
   depositFor,
-  formatKindLabel,
-  formatTierLabel,
+  formatSeminarKindLabel,
+  formatSeminarPriceDeadline,
+  listPickableSeminarPrices,
   type SeminarInscriptionFigures,
-  type SeminarTier,
+  type SeminarKind,
+  type SeminarPriceRow,
 } from "@/features/admin/seminars/prototype/seminar-money-fixtures.prototype";
 
 type Record = (entry: string) => void;
@@ -42,43 +43,54 @@ type Record = (entry: string) => void;
 /**
  * The seminar twin of `InscriptionMoneyDialog`, allocate shape and remove shape
  * only (the release-excess shape is identical and left out). The picker offers
- * tiers, never kinds: the kind is derived from the `Participando` predicate when
- * the dialog opens and sits beside the picker as the `Precio aplicado` readout;
- * once the row is covered both are readouts (#887). The refusal order is the one #888 fixed — no
- * price, over-allocation, quota, pool — and the quota refusal lands as the
- * dialog's alert, with the words that ticket chose.
+ * the event rows of the seminar's kind and then the `Común` ones, for the
+ * person's `Participando` state when the dialog opens, with no date filter
+ * (#904). That state sits beside the picker as a readout; once the row is
+ * covered the stored row freezes both, and the readout reads the row, not the
+ * predicate. The only write is `selectedPriceId`. The refusal order is the one
+ * #888 fixed — no price, over-allocation, quota, pool — and the quota refusal
+ * lands as the dialog's alert, with the words that ticket chose.
  */
 export function SeminarMoneyDialog({
   availableBalanceAmount,
   inscription,
   isFull,
   onOpenChange,
+  prices,
   rate,
   record,
-  tiers,
+  seminarKind,
 }: {
   availableBalanceAmount: number;
   inscription: SeminarInscriptionFigures;
   isFull: boolean;
   onOpenChange: (open: boolean) => void;
+  prices: SeminarPriceRow[];
   rate: number;
   record: Record;
-  tiers: SeminarTier[];
+  seminarKind: SeminarKind;
 }) {
   const opensOnRemoval =
     inscription.withdrawn ||
     (inscription.owedBalanceAmount === 0 && inscription.allocatedAmount > 0);
   const [isRemoving, setIsRemoving] = useState(opensOnRemoval);
   const [amount, setAmount] = useState("");
-  const [tierId, setTierId] = useState(inscription.tier?.id ?? "");
+  const [priceId, setPriceId] = useState(inscription.price?.id ?? "");
   const [refusal, setRefusal] = useState<string | null>(null);
   const isLocked = inscription.covered;
-  const pickedTier = isLocked
-    ? inscription.tier
-    : (tiers.find((tier) => tier.id === tierId) ?? null);
-  const pickedTotal = pickedTier
-    ? amountForKind(pickedTier, inscription.kind)
-    : null;
+  const candidates = listPickableSeminarPrices(
+    prices,
+    seminarKind,
+    inscription.participating,
+  );
+  const pickedPrice = isLocked
+    ? inscription.price
+    : (candidates.find((price) => price.id === priceId) ?? null);
+  const pickedTotal = pickedPrice?.amount ?? null;
+  const participatingReadout =
+    isLocked && inscription.price
+      ? inscription.price.forParticipants
+      : inscription.participating;
   const pickedDeposit =
     pickedTotal === null ? null : depositFor(pickedTotal, rate);
   const owedDeposit =
@@ -95,9 +107,8 @@ export function SeminarMoneyDialog({
     maxAmount !== null &&
     (Number(amount) < 1 || Number(amount) > maxAmount);
 
-  function formatTierOption(tier: SeminarTier) {
-    const total = amountForKind(tier, inscription.kind);
-    return `${formatTierLabel(tier)} — ${formatAmount(total)} · Seña ${formatAmount(depositFor(total, rate))}`;
+  function formatPriceOption(price: SeminarPriceRow) {
+    return `${formatSeminarPriceDeadline(price)} · ${formatSeminarKindLabel(price.kind)} — ${formatAmount(price.amount)} · Seña ${formatAmount(depositFor(price.amount, rate))}`;
   }
 
   function submit(event: React.SubmitEvent<HTMLFormElement>) {
@@ -138,8 +149,7 @@ export function SeminarMoneyDialog({
       `Asignar → ${JSON.stringify({
         inscription: inscription.id,
         amount: value,
-        selectedPriceId: pickedTier?.id,
-        selectedAmountKind: inscription.kind,
+        selectedPriceId: pickedPrice?.id,
         takesPlace: wouldCross,
       })}`,
     );
@@ -166,21 +176,17 @@ export function SeminarMoneyDialog({
               />
             ) : (
               <div className="grid gap-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-                {isLocked && inscription.tier ? (
+                {isLocked && inscription.price ? (
                   <ReadOnlyField
                     label="Precio"
-                    value={formatTierOption(inscription.tier)}
+                    value={formatPriceOption(inscription.price)}
                   />
                 ) : (
                   <Field>
                     <FieldLabel htmlFor="prototype-seminar-price">
                       Precio
                     </FieldLabel>
-                    <Select
-                      value={tierId}
-                      onValueChange={setTierId}
-                      disabled={tiers.length === 0}
-                    >
+                    <Select value={priceId} onValueChange={setPriceId}>
                       <SelectTrigger
                         id="prototype-seminar-price"
                         className="w-full"
@@ -188,9 +194,9 @@ export function SeminarMoneyDialog({
                         <SelectValue placeholder="Elegí un precio" />
                       </SelectTrigger>
                       <SelectContent>
-                        {tiers.map((tier) => (
-                          <SelectItem key={tier.id} value={tier.id}>
-                            {formatTierOption(tier)}
+                        {candidates.map((price) => (
+                          <SelectItem key={price.id} value={price.id}>
+                            {formatPriceOption(price)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -198,8 +204,8 @@ export function SeminarMoneyDialog({
                   </Field>
                 )}
                 <ReadOnlyField
-                  label="Precio aplicado"
-                  value={formatKindLabel(inscription.kind)}
+                  label="Participando"
+                  value={participatingReadout ? "Sí" : "No"}
                 />
               </div>
             )}
@@ -254,16 +260,6 @@ export function SeminarMoneyDialog({
             </div>
           ) : null}
 
-          {tiers.length === 0 && !isRemoving ? (
-            <Alert variant="warning">
-              <AlertTriangle aria-hidden="true" />
-              <AlertDescription>
-                Este seminario no tiene precios: cargalos en el seminario antes
-                de asignar dinero.
-              </AlertDescription>
-            </Alert>
-          ) : null}
-
           {refusal ? (
             <Alert variant="destructive">
               <AlertTriangle aria-hidden="true" />
@@ -303,7 +299,7 @@ export function SeminarMoneyDialog({
                 disabled={
                   amount === "" ||
                   isOutOfRange ||
-                  (!isRemoving && pickedTier === null)
+                  (!isRemoving && pickedPrice === null)
                 }
               >
                 <Check aria-hidden="true" data-icon="inline-start" />

@@ -1,12 +1,12 @@
 // PROTOTYPE — throwaway, lives only on branch `prototype/890-seminar-money-admin`.
 //
 // In-memory data for the admin seminar-money prototype of wayfinder ticket #890
-// (map #884): one seminar with three tiers, seventeen inscriptions across three
-// academies, and one academy's finance account. Every figure is derived here
-// with the rules the map already decided — tiers and the deposit (#885), the
-// participant reading (#887), covered and places left (#888), the withdrawn row
-// (#889) — never read from a database.
-import { formatPaymentDeadlineForTable } from "@/features/admin/prices/view-shared";
+// (map #884): one event's seminar price list, one `Exclusivo` seminar, eighteen
+// inscriptions across three academies, and one academy's finance account. Every
+// figure is derived here with the rules the map already decided — event-level
+// seminar prices, the kind fallback and the deposit (#904), the participant
+// reading (#887), covered and places left (#888), the withdrawn row (#889) —
+// never read from a database.
 import { formatInscriptionStatusBadge } from "@/lib/finances/choreography-financial-status";
 import {
   deriveChoreographyFinancialStatus,
@@ -16,27 +16,20 @@ import {
 } from "@/lib/finances/inscription-financial-status";
 import type { OperationalFinanceAmount } from "@/lib/finances/operational-summary";
 
-export const prototypeCaseIds = ["normal", "lleno", "sin-precios"] as const;
+import {
+  depositFor,
+  eventSeminarPrices,
+  listMissingBaseCells,
+  resolveCurrentSeminarPrice,
+  type SeminarKind,
+  type SeminarPriceRow,
+  type SeminarPriceUsage,
+} from "./seminar-prices.prototype";
+
+export * from "./seminar-prices.prototype";
+
+export const prototypeCaseIds = ["normal", "lleno", "falta-precio"] as const;
 export type PrototypeCaseId = (typeof prototypeCaseIds)[number];
-
-/** The business date the prototype reads tiers against. */
-const prototypeToday = "2026-09-10";
-
-export type AmountKind = "participant" | "nonParticipant";
-
-export type SeminarTier = {
-  id: string;
-  paymentDeadline: string | null;
-  participantAmount: number;
-  nonParticipantAmount: number;
-};
-
-export type TierUsage = {
-  /** Inscriptions whose stored tier is this one, withdrawn rows included. */
-  referencedCount: number;
-  /** Whether a covered inscription holds it, which refuses amount edits. */
-  heldByCovered: boolean;
-};
 
 type InscriptionSeed = {
   id: string;
@@ -46,8 +39,7 @@ type InscriptionSeed = {
   academyName: string;
   participating: boolean;
   allocatedAmount: number;
-  storedTierId: string | null;
-  storedKind: AmountKind | null;
+  storedPriceId: string | null;
   withdrawn: boolean;
 };
 
@@ -55,21 +47,20 @@ export type SeminarInscriptionFigures = InscriptionSeed & {
   covered: boolean;
   depositAmount: number | null;
   financialStatus: InscriptionFinancialStatus;
-  kind: AmountKind;
   owedBalanceAmount: number | null;
   owedDepositAmount: number | null;
-  tier: SeminarTier | null;
+  price: SeminarPriceRow | null;
   totalAmount: number | null;
 };
 
 export type PrototypeSeminar = {
   id: string;
   instructorName: string;
+  kind: SeminarKind;
   scheduledDate: string;
   startTime: string;
   quota: number;
   requiredDepositPercentage: number;
-  tiers: SeminarTier[];
   coveredCount: number;
   registeredCount: number;
 };
@@ -112,26 +103,23 @@ const prototypeAcademy = {
   name: "Estudio Danza Sur",
 };
 
-const julietaTiers: SeminarTier[] = [
-  {
-    id: "precio-septiembre",
-    paymentDeadline: "2026-09-20",
-    participantAmount: 30000,
-    nonParticipantAmount: 40000,
-  },
-  {
-    id: "precio-octubre",
-    paymentDeadline: "2026-10-05",
-    participantAmount: 35000,
-    nonParticipantAmount: 45000,
-  },
-  {
-    id: "precio-sin-fecha",
-    paymentDeadline: null,
-    participantAmount: 40000,
-    nonParticipantAmount: 50000,
-  },
-];
+/** Shaped like `PriceListItem`, cast where the real choreography table reads it. */
+const choreographyPrices = [
+  ["solo-septiembre", "Solo septiembre", "solo", "2026-09-20", 50000],
+  ["solo", "Solo", "solo", null, 60000],
+  ["duo-septiembre", "Dúo septiembre", "duo", "2026-09-20", 100000],
+  ["grupal", "Grupal", "grupal", null, 300000],
+].map(([id, name, groupType, paymentDeadline, amount]) => ({
+  id,
+  eventId: "evento-prototipo",
+  name,
+  groupType,
+  paymentDeadline,
+  amount,
+  scheduleId: null,
+  schedule: null,
+  createdAt: new Date("2026-08-01T12:00:00Z"),
+}));
 
 const otherAcademies = [
   {
@@ -160,26 +148,6 @@ const otherAcademies = [
   },
 ];
 
-export function formatTierLabel(tier: SeminarTier) {
-  return tier.paymentDeadline
-    ? `Hasta ${formatPaymentDeadlineForTable(tier.paymentDeadline)}`
-    : formatPaymentDeadlineForTable(null);
-}
-
-export function formatKindLabel(kind: AmountKind) {
-  return kind === "participant" ? "Participante" : "No participante";
-}
-
-export function amountForKind(tier: SeminarTier, kind: AmountKind) {
-  return kind === "participant"
-    ? tier.participantAmount
-    : tier.nonParticipantAmount;
-}
-
-export function depositFor(amount: number, rate: number) {
-  return Math.round((amount * rate) / 100);
-}
-
 /** The `Estado` badge of one seminar inscription, through the real translators. */
 export function formatSeminarInscriptionBadge(
   inscription: Pick<SeminarInscriptionFigures, "financialStatus" | "withdrawn">,
@@ -193,45 +161,26 @@ export function formatSeminarInscriptionBadge(
   );
 }
 
-function resolveCurrentTier(tiers: SeminarTier[]) {
-  const dated = tiers
-    .filter(
-      (tier) =>
-        tier.paymentDeadline !== null && tier.paymentDeadline >= prototypeToday,
-    )
-    .sort((left, right) =>
-      (left.paymentDeadline ?? "").localeCompare(right.paymentDeadline ?? ""),
-    );
-
-  return (
-    dated[0] ?? tiers.find((tier) => tier.paymentDeadline === null) ?? null
-  );
-}
-
 /**
- * Effective tier = `crossed ? stored : (current ?? stored)`, with `crossed`
- * tested against the stored tier and the stored kind (#885, #887). A withdrawn
- * row's total is what it holds (#889).
+ * Effective row = `crossed ? stored : (current ?? stored)`, with `crossed`
+ * tested against the stored row, which also freezes the participant fact
+ * (#904). A withdrawn row's total is what it holds (#889).
  */
 function deriveFigures(
   seed: InscriptionSeed,
-  tiers: SeminarTier[],
+  rows: SeminarPriceRow[],
+  kind: SeminarKind,
   rate: number,
 ): SeminarInscriptionFigures {
-  const stored = tiers.find((tier) => tier.id === seed.storedTierId) ?? null;
-  const storedDeposit =
-    stored && seed.storedKind
-      ? depositFor(amountForKind(stored, seed.storedKind), rate)
-      : null;
+  const stored = rows.find((row) => row.id === seed.storedPriceId) ?? null;
+  const storedDeposit = stored ? depositFor(stored.amount, rate) : null;
   const crossed =
     storedDeposit !== null &&
     seed.allocatedAmount > 0 &&
     seed.allocatedAmount >= storedDeposit;
-  const currentKind: AmountKind = seed.participating
-    ? "participant"
-    : "nonParticipant";
-  const tier = crossed ? stored : (resolveCurrentTier(tiers) ?? stored);
-  const kind = crossed && seed.storedKind ? seed.storedKind : currentKind;
+  const price = crossed
+    ? stored
+    : (resolveCurrentSeminarPrice(rows, kind, seed.participating) ?? stored);
 
   if (seed.withdrawn) {
     return {
@@ -239,15 +188,14 @@ function deriveFigures(
       covered: false,
       depositAmount: seed.allocatedAmount,
       financialStatus: "paidInFull",
-      kind,
       owedBalanceAmount: 0,
       owedDepositAmount: 0,
-      tier,
+      price,
       totalAmount: seed.allocatedAmount,
     };
   }
 
-  const totalAmount = tier ? amountForKind(tier, kind) : null;
+  const totalAmount = price?.amount ?? null;
   const depositAmount =
     totalAmount === null ? null : depositFor(totalAmount, rate);
 
@@ -260,7 +208,6 @@ function deriveFigures(
       depositAmount,
       totalAmount,
     }),
-    kind,
     owedBalanceAmount:
       totalAmount === null
         ? null
@@ -269,89 +216,90 @@ function deriveFigures(
       depositAmount === null
         ? null
         : Math.max(depositAmount - seed.allocatedAmount, 0),
-    tier,
+    price,
     totalAmount,
   };
 }
 
-function buildSeeds(withMoney: boolean): InscriptionSeed[] {
+function buildSeeds(): InscriptionSeed[] {
   const sur = prototypeAcademy;
+  const seed = (
+    fields: Omit<InscriptionSeed, "academyId" | "academyName">,
+  ): InscriptionSeed => ({
+    ...fields,
+    academyId: sur.id,
+    academyName: sur.name,
+  });
   const surSeeds: InscriptionSeed[] = [
-    // Nothing on it yet: reads today's tier, participant amount.
-    {
+    // Nothing on it yet: reads today's `Exclusivo` participant row.
+    seed({
       id: "insc-lucia",
       fullName: "Lucía Fernández",
       personKind: "dancer",
-      academyId: sur.id,
-      academyName: sur.name,
       participating: true,
       allocatedAmount: 0,
-      storedTierId: null,
-      storedKind: null,
+      storedPriceId: null,
       withdrawn: false,
-    },
-    // Partial money below the deposit: intent, not a place.
-    {
+    }),
+    // Not participating: no `Exclusivo` row for the cell, so the `Común` one.
+    seed({
       id: "insc-tomas",
       fullName: "Tomás Acosta",
       personKind: "dancer",
-      academyId: sur.id,
-      academyName: sur.name,
       participating: false,
       allocatedAmount: 10000,
-      storedTierId: "precio-septiembre",
-      storedKind: "nonParticipant",
+      storedPriceId: "comun-no-participantes-septiembre",
       withdrawn: false,
-    },
-    {
+    }),
+    // Partial money below the deposit: intent, not a place.
+    seed({
       id: "insc-valentina",
       fullName: "Valentina Pereyra",
       personKind: "dancer",
-      academyId: sur.id,
-      academyName: sur.name,
       participating: true,
       allocatedAmount: 15000,
-      storedTierId: "precio-septiembre",
-      storedKind: "participant",
+      storedPriceId: "exclusivo-participantes-septiembre",
       withdrawn: false,
-    },
-    {
+    }),
+    seed({
       id: "insc-sofia",
       fullName: "Sofía Medina",
       personKind: "dancer",
-      academyId: sur.id,
-      academyName: sur.name,
       participating: true,
-      allocatedAmount: 30000,
-      storedTierId: "precio-septiembre",
-      storedKind: "participant",
+      allocatedAmount: 25000,
+      storedPriceId: "exclusivo-participantes-septiembre",
       withdrawn: false,
-    },
-    {
+    }),
+    seed({
       id: "insc-carla",
       fullName: "Carla Benítez",
       personKind: "professor",
-      academyId: sur.id,
-      academyName: sur.name,
       participating: true,
-      allocatedAmount: 20000,
-      storedTierId: "precio-septiembre",
-      storedKind: "participant",
+      allocatedAmount: 45000,
+      storedPriceId: "exclusivo-participantes-septiembre",
       withdrawn: false,
-    },
+    }),
+    // Covered as a participant, no longer participating: the stored row keeps
+    // the participant price and says nothing about the flip.
+    seed({
+      id: "insc-martina",
+      fullName: "Martina Quiroga",
+      personKind: "dancer",
+      participating: false,
+      allocatedAmount: 22500,
+      storedPriceId: "exclusivo-participantes-septiembre",
+      withdrawn: false,
+    }),
     // Removed with money on it: withdrawn, keeps the money, frees the place.
-    {
+    seed({
       id: "insc-joaquin",
       fullName: "Joaquín Ríos",
       personKind: "dancer",
-      academyId: sur.id,
-      academyName: sur.name,
       participating: false,
       allocatedAmount: 20000,
-      storedTierId: "precio-septiembre",
-      storedKind: "nonParticipant",
+      storedPriceId: "comun-no-participantes-septiembre",
       withdrawn: true,
-    },
+    }),
   ];
 
   const otherSeeds = otherAcademies.flatMap((academy) =>
@@ -366,27 +314,14 @@ function buildSeeds(withMoney: boolean): InscriptionSeed[] {
         academyName: academy.name,
         participating: true,
         allocatedAmount: stage === 0 ? 15000 : stage === 1 ? 30000 : 0,
-        storedTierId: stage === 2 ? null : "precio-septiembre",
-        storedKind: stage === 2 ? null : "participant",
+        storedPriceId:
+          stage === 2 ? null : "exclusivo-participantes-septiembre",
         withdrawn: false,
       };
     }),
   );
 
-  const seeds = [...surSeeds, ...otherSeeds];
-
-  // A seminar with no tier registers but cannot be allocated against (#885), so
-  // no row can hold money or a stored tier.
-  return withMoney
-    ? seeds
-    : seeds
-        .filter((seed) => !seed.withdrawn)
-        .map((seed) => ({
-          ...seed,
-          allocatedAmount: 0,
-          storedKind: null,
-          storedTierId: null,
-        }));
+  return [...surSeeds, ...otherSeeds];
 }
 
 function complete(amount: number): OperationalFinanceAmount {
@@ -418,11 +353,18 @@ function addAmounts(
 }
 
 export function buildPrototypeData(caseId: PrototypeCaseId) {
-  const hasTiers = caseId !== "sin-precios";
+  // "Falta precio": the event lacks the deadline-less `Común` row for
+  // non-participants, so no seminar has opened and nobody is registered.
+  const isClosed = caseId === "falta-precio";
   const rate = 50;
-  const tiers = hasTiers ? julietaTiers : [];
-  const inscriptions = buildSeeds(hasTiers).map((seed) =>
-    deriveFigures(seed, tiers, rate),
+  const seminarKind: SeminarKind = "special";
+  const seminarPrices = isClosed
+    ? eventSeminarPrices.filter(
+        (row) => row.id !== "comun-no-participantes-sin-fecha",
+      )
+    : eventSeminarPrices;
+  const inscriptions = (isClosed ? [] : buildSeeds()).map((seed) =>
+    deriveFigures(seed, seminarPrices, seminarKind, rate),
   );
   const coveredCount = inscriptions.filter(
     (inscription) => inscription.covered,
@@ -434,12 +376,12 @@ export function buildPrototypeData(caseId: PrototypeCaseId) {
   const seminar: PrototypeSeminar = {
     id: "seminario-julieta",
     instructorName: "Julieta Ruiz",
+    kind: seminarKind,
     scheduledDate: "2026-10-12",
     startTime: "15:00",
     // "Lleno": the covered rows already fill the quota.
     quota: caseId === "lleno" ? coveredCount : 20,
     requiredDepositPercentage: rate,
-    tiers,
     coveredCount,
     registeredCount,
   };
@@ -449,38 +391,41 @@ export function buildPrototypeData(caseId: PrototypeCaseId) {
     {
       id: "seminario-martin",
       instructorName: "Martín Gómez",
+      kind: "regular",
       scheduledDate: "2026-10-13",
       startTime: "11:00",
       quota: 15,
       requiredDepositPercentage: 50,
-      tiers: [],
-      coveredCount: 6,
-      registeredCount: 9,
+      coveredCount: isClosed ? 0 : 6,
+      registeredCount: isClosed ? 0 : 9,
     },
     {
       id: "seminario-ana",
       instructorName: "Ana Ferreyra",
+      kind: "regular",
       scheduledDate: "2026-10-14",
       startTime: "17:30",
       quota: 25,
       requiredDepositPercentage: 40,
-      tiers: [],
       coveredCount: 0,
-      registeredCount: 3,
+      registeredCount: isClosed ? 0 : 3,
     },
   ];
 
-  const tierUsage: Record<string, TierUsage> = Object.fromEntries(
-    tiers.map((tier) => [
-      tier.id,
+  const hasActiveInscriptions = seminars.some(
+    (item) => item.registeredCount > 0,
+  );
+  const priceUsage: Record<string, SeminarPriceUsage> = Object.fromEntries(
+    seminarPrices.map((row) => [
+      row.id,
       {
         referencedCount: inscriptions.filter(
-          (inscription) => inscription.storedTierId === tier.id,
+          (inscription) => inscription.storedPriceId === row.id,
         ).length,
-        heldByCovered: inscriptions.some(
-          (inscription) =>
-            inscription.covered && inscription.storedTierId === tier.id,
-        ),
+        isProtected:
+          hasActiveInscriptions &&
+          row.kind === "regular" &&
+          row.paymentDeadline === null,
       },
     ]),
   );
@@ -489,44 +434,46 @@ export function buildPrototypeData(caseId: PrototypeCaseId) {
     (inscription) => inscription.academyId === prototypeAcademy.id,
   );
 
-  const seminarUnitRows: SeminarUnitRow[] = [
-    {
-      id: seminar.id,
-      instructorName: seminar.instructorName,
-      scheduledDate: seminar.scheduledDate,
-      inscriptionCount: academyInscriptions.filter((row) => !row.withdrawn)
-        .length,
-      depositAmount: sumAmounts(
-        academyInscriptions.map((row) => row.depositAmount),
-      ),
-      totalAmount: sumAmounts(
-        academyInscriptions.map((row) => row.totalAmount),
-      ),
-      owedBalanceAmount: sumAmounts(
-        academyInscriptions.map((row) => row.owedBalanceAmount),
-      ),
-      owedDepositAmount: sumAmounts(
-        academyInscriptions.map((row) => row.owedDepositAmount),
-      ),
-      // The unit's state is the minimum of its active rows, as a choreography's is.
-      financialStatus: deriveChoreographyFinancialStatus(
-        academyInscriptions
-          .filter((row) => !row.withdrawn)
-          .map((row) => row.financialStatus),
-      ),
-    },
-    {
-      id: "seminario-martin",
-      instructorName: "Martín Gómez",
-      scheduledDate: "2026-10-13",
-      inscriptionCount: 2,
-      depositAmount: complete(40000),
-      totalAmount: complete(80000),
-      owedBalanceAmount: complete(60000),
-      owedDepositAmount: complete(20000),
-      financialStatus: "depositPending",
-    },
-  ];
+  const seminarUnitRows: SeminarUnitRow[] = isClosed
+    ? []
+    : [
+        {
+          id: seminar.id,
+          instructorName: seminar.instructorName,
+          scheduledDate: seminar.scheduledDate,
+          inscriptionCount: academyInscriptions.filter((row) => !row.withdrawn)
+            .length,
+          depositAmount: sumAmounts(
+            academyInscriptions.map((row) => row.depositAmount),
+          ),
+          totalAmount: sumAmounts(
+            academyInscriptions.map((row) => row.totalAmount),
+          ),
+          owedBalanceAmount: sumAmounts(
+            academyInscriptions.map((row) => row.owedBalanceAmount),
+          ),
+          owedDepositAmount: sumAmounts(
+            academyInscriptions.map((row) => row.owedDepositAmount),
+          ),
+          // The unit's state is the minimum of its active rows, as a choreography's is.
+          financialStatus: deriveChoreographyFinancialStatus(
+            academyInscriptions
+              .filter((row) => !row.withdrawn)
+              .map((row) => row.financialStatus),
+          ),
+        },
+        {
+          id: "seminario-martin",
+          instructorName: "Martín Gómez",
+          scheduledDate: "2026-10-13",
+          inscriptionCount: 2,
+          depositAmount: complete(40000),
+          totalAmount: complete(80000),
+          owedBalanceAmount: complete(60000),
+          owedDepositAmount: complete(20000),
+          financialStatus: "depositPending",
+        },
+      ];
 
   const choreographyUnitRows: ChoreographyUnitRow[] = [
     {
@@ -606,12 +553,15 @@ export function buildPrototypeData(caseId: PrototypeCaseId) {
     academy: prototypeAcademy,
     academyInscriptions,
     academySummary,
+    choreographyPrices,
     choreographyUnitRows,
     financeAccounts,
     inscriptions,
+    missingBaseCells: listMissingBaseCells(seminarPrices),
+    priceUsage,
     seminar,
+    seminarPrices,
     seminarUnitRows,
     seminars,
-    tierUsage,
   };
 }

@@ -7,13 +7,19 @@
 //
 // The bar at the bottom switches everything, and the arrow keys cycle the
 // variant. The search parameters it writes:
-//   `pantalla`: `lista-seminarios`, `detalle-seminario`, `finanzas-lista`,
-//     `finanzas-academia`, `finanzas-seminario`
-//   `variante`: `A` (each screen keeps the one variant the review chose)
-//   `caso`: `normal`, `lleno`, `sin-precios`
+//   `pantalla`: `lista-seminarios`, `detalle-seminario`, `precios`,
+//     `precio-seminario`, `finanzas-lista`, `finanzas-academia`,
+//     `finanzas-seminario`
+//   `variante`: `A` or `B` where a screen still offers two
+//   `caso`: `normal`, `lleno`, `falta-precio`
+//   `pestana`: `coreografias` or `seminarios`, on `precios`
+//   `precio`: the seminar price row on `precio-seminario`, empty for a new one
+//
+// Reworked after the event-level seminar prices of #904: prices live in a tab
+// of `Bases del evento` › `Precios`, the seminar gains its kind.
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router";
+import { useActionData, useSearchParams } from "react-router";
 
 import {
   AdminShell,
@@ -28,22 +34,57 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { FinancesListRouteView } from "@/features/admin/finances/list/view";
+import {
+  EventPricesPrototype,
+  eventPricesTabs,
+  refuseSeminarPriceDelete,
+  SeminarPriceFormPrototype,
+  type EventPricesTab,
+} from "@/features/admin/prices/prototype/event-prices.prototype";
 import { AcademyFinancesPrototype } from "@/features/admin/finances/prototype/academy-finances.prototype";
 import { SeminarFinanceDetailPrototype } from "@/features/admin/finances/prototype/seminar-finance-detail.prototype";
 import { SeminarDetailPrototype } from "@/features/admin/seminars/prototype/seminar-detail.prototype";
 import { SeminarListPrototype } from "@/features/admin/seminars/prototype/seminar-list.prototype";
 import {
   buildPrototypeData,
+  formatParticipantsLabel,
+  formatSeminarKindLabel,
+  getSeminarPriceDisplayName,
   prototypeCaseIds,
   type PrototypeCaseId,
 } from "@/features/admin/seminars/prototype/seminar-money-fixtures.prototype";
+import { useServerActionToast } from "@/lib/shared/toasts";
 
 import type { Route } from "./+types/prototipo.dinero-de-seminarios-admin";
 
-/** Every write lands here and is refused, so nothing a real dialog does can persist. */
+/**
+ * Every write lands here and nothing persists. Deleting a seminar price answers
+ * with the guard the case's fixtures would trip, so variant A's refusal reads as
+ * the choreography price's does today.
+ */
 export async function action({ request }: Route.ActionArgs) {
   const formData = await request.formData();
   const intent = String(formData.get("intent") ?? "");
+
+  if (intent === "delete-seminar-price") {
+    const data = buildPrototypeData(
+      readOption(
+        new URL(request.url).searchParams.get("caso"),
+        prototypeCaseIds,
+      ),
+    );
+    const priceId = String(formData.get("id") ?? "");
+    const price = data.seminarPrices.find((row) => row.id === priceId);
+    const refusal = price
+      ? refuseSeminarPriceDelete(price, data.priceUsage[price.id])
+      : null;
+
+    return {
+      intent,
+      message: refusal ?? "Prototipo: se habría borrado el precio.",
+      status: refusal ? ("error" as const) : ("success" as const),
+    };
+  }
 
   return {
     intent,
@@ -59,7 +100,21 @@ const screens = {
   },
   "detalle-seminario": {
     label: "Seminario",
-    variants: { A: "Seña (%) junto a la foto, sin pestaña Precios" },
+    variants: {
+      A: "Tipo y Seña (%) apilados, la foto a su derecha",
+      B: "Tipo junto al instructor, Cupo junto a Seña (%)",
+    },
+  },
+  precios: {
+    label: "Precios",
+    variants: { A: "Pestañas Coreografías / Seminarios" },
+  },
+  "precio-seminario": {
+    label: "Precio de seminario",
+    variants: {
+      A: "Rechazo al guardar o borrar, como el precio de coreografía",
+      B: "Campos bloqueados a la vista, borrado bloqueado",
+    },
   },
   "finanzas-lista": {
     label: "Finanzas",
@@ -73,7 +128,7 @@ const screens = {
   },
   "finanzas-seminario": {
     label: "Finanzas del seminario",
-    variants: { A: "Precio aplicado dentro del badge de Precio" },
+    variants: { A: "El precio efectivo dentro del badge de Precio" },
   },
 } satisfies {
   [screenId: string]: { label: string; variants: { [id: string]: string } };
@@ -87,6 +142,8 @@ type Selection = {
   pantalla: ScreenId;
   variante: string;
   caso: PrototypeCaseId;
+  pestana: EventPricesTab;
+  precio: string;
 };
 
 function readOption<TOption extends string>(
@@ -109,6 +166,8 @@ export default function SeminarMoneyAdminPrototypeRoute() {
     pantalla: screenId,
     variante: readOption(searchParams.get("variante"), variantIds),
     caso: readOption(searchParams.get("caso"), prototypeCaseIds),
+    pestana: readOption(searchParams.get("pestana"), eventPricesTabs),
+    precio: searchParams.get("precio") ?? "",
   };
   const data = useMemo(
     () => buildPrototypeData(selection.caso),
@@ -119,7 +178,10 @@ export default function SeminarMoneyAdminPrototypeRoute() {
     setLog((current) => [entry, ...current].slice(0, 6));
   }, []);
 
-  const { pantalla, variante, caso } = selection;
+  const actionData = useActionData<typeof action>();
+  useServerActionToast(actionData);
+
+  const { pantalla, variante, caso, pestana, precio } = selection;
   // Moving to another screen starts on its first variant and drops the table's
   // own search, page and filter parameters.
   const buildHref = useCallback(
@@ -129,11 +191,13 @@ export default function SeminarMoneyAdminPrototypeRoute() {
         pantalla: nextScreen,
         variante: next.variante ?? (nextScreen === pantalla ? variante : "A"),
         caso: next.caso ?? caso,
+        pestana: next.pestana ?? pestana,
+        precio: next.precio ?? precio,
       });
 
       return `?${params.toString()}`;
     },
-    [caso, pantalla, variante],
+    [caso, pantalla, pestana, precio, variante],
   );
   const go = useCallback(
     (next: Partial<Selection>) => {
@@ -174,6 +238,13 @@ export default function SeminarMoneyAdminPrototypeRoute() {
   }, [go, variante, variantIds]);
 
   const seminarCrumb = { label: data.seminar.instructorName };
+  const selectedPrice =
+    data.seminarPrices.find((row) => row.id === precio) ?? null;
+  const pricesHref = buildHref({
+    pantalla: "precios",
+    pestana: "seminarios",
+    precio: "",
+  });
   const breadcrumbs: Record<ScreenId, AdminShellBreadcrumbItem[]> = {
     "lista-seminarios": [{ label: "Seminarios" }],
     "detalle-seminario": [
@@ -182,6 +253,15 @@ export default function SeminarMoneyAdminPrototypeRoute() {
         to: buildHref({ pantalla: "lista-seminarios" }),
       },
       seminarCrumb,
+    ],
+    precios: [{ label: "Precios" }],
+    "precio-seminario": [
+      { label: "Precios", to: pricesHref },
+      {
+        label: selectedPrice
+          ? getSeminarPriceDisplayName(selectedPrice)
+          : "Nuevo precio",
+      },
     ],
     "finanzas-lista": [{ label: "Finanzas" }],
     "finanzas-academia": [
@@ -209,7 +289,7 @@ export default function SeminarMoneyAdminPrototypeRoute() {
       breadcrumbItems={breadcrumbs[pantalla]}
     >
       <div
-        key={`${pantalla}-${variante}-${caso}`}
+        key={`${pantalla}-${variante}-${caso}-${precio}`}
         className="flex flex-col gap-6 pb-56"
       >
         {pantalla === "lista-seminarios" ? (
@@ -224,6 +304,34 @@ export default function SeminarMoneyAdminPrototypeRoute() {
             inscriptions={data.inscriptions}
             record={record}
             seminar={data.seminar}
+            variant={variante}
+          />
+        ) : null}
+        {pantalla === "precios" ? (
+          <EventPricesPrototype
+            activeTab={pestana}
+            buildEditHref={(priceId) =>
+              buildHref({ pantalla: "precio-seminario", precio: priceId })
+            }
+            choreographyPrices={data.choreographyPrices}
+            missingBaseCells={data.missingBaseCells}
+            newSeminarPriceHref={buildHref({
+              pantalla: "precio-seminario",
+              precio: "",
+            })}
+            onTabChange={(tab) => go({ pestana: tab })}
+            seminarPrices={data.seminarPrices}
+          />
+        ) : null}
+        {pantalla === "precio-seminario" ? (
+          <SeminarPriceFormPrototype
+            backHref={pricesHref}
+            price={selectedPrice}
+            record={record}
+            usage={
+              selectedPrice ? data.priceUsage[selectedPrice.id] : undefined
+            }
+            variant={variante}
           />
         ) : null}
         {pantalla === "finanzas-lista" ? (
@@ -256,6 +364,7 @@ export default function SeminarMoneyAdminPrototypeRoute() {
             availableBalanceAmount={data.academySummary.availableBalanceAmount}
             inscriptions={data.academyInscriptions}
             isFull={isFull}
+            prices={data.seminarPrices}
             record={record}
             seminar={data.seminar}
           />
@@ -263,6 +372,14 @@ export default function SeminarMoneyAdminPrototypeRoute() {
 
         <PrototypeState
           caso={caso}
+          pricesLine={`Precios de seminario del evento: ${data.seminarPrices.length} · ${
+            data.missingBaseCells.length > 0
+              ? `falta el común sin fecha límite para ${data.missingBaseCells
+                  .map((cell) => formatParticipantsLabel(cell).toLowerCase())
+                  .join(" y para ")}, los seminarios no abren`
+              : "los dos comunes sin fecha límite están, los seminarios abren"
+          }`}
+          seminarKindLabel={formatSeminarKindLabel(data.seminar.kind)}
           coveredCount={data.seminar.coveredCount}
           log={log}
           quota={data.seminar.quota}
@@ -286,17 +403,21 @@ function PrototypeState({
   caso,
   coveredCount,
   log,
+  pricesLine,
   quota,
   registeredCount,
   screenLabel,
+  seminarKindLabel,
   variantLabel,
 }: {
   caso: string;
   coveredCount: number;
   log: string[];
+  pricesLine: string;
   quota: number;
   registeredCount: number;
   screenLabel: string;
+  seminarKindLabel: string;
   variantLabel: string;
 }) {
   return (
@@ -309,10 +430,11 @@ function PrototypeState({
       </CardHeader>
       <CardContent className="flex flex-col gap-2 text-xs">
         <p className="tabular-nums">
-          Seminario Julieta Ruiz: cupo {quota} · con la seña cubierta{" "}
-          {coveredCount} · inscriptos {registeredCount} · lugares libres{" "}
-          {quota - coveredCount}
+          Seminario Julieta Ruiz ({seminarKindLabel}): cupo {quota} · con la
+          seña cubierta {coveredCount} · inscriptos {registeredCount} · lugares
+          libres {quota - coveredCount}
         </p>
+        <p>{pricesLine}</p>
         {log.length > 0 ? (
           <ul className="flex flex-col gap-1 font-mono text-muted-foreground">
             {log.map((entry, index) => (
