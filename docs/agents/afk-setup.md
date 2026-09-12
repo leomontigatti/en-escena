@@ -208,8 +208,8 @@ gets nothing back from a rejected `run()`, so a late completion there is still a
 
 **Why the implement passes get 60 / 50.** A slice that carries a migration, a repository,
 screens and their tests outgrows 25 minutes: #917 committed in its 26th minute. The implement
-prompts state the budget (`{{WALL_CLOCK_BUDGET}}`, from `describeBudget()`, so it follows this
-table) and ask the agent to commit each green part as it goes, because the "Bank partial work"
+and review prompts state the budget (`{{WALL_CLOCK_BUDGET}}`, from `describeBudget()`, so it
+follows this table), and the implement prompts ask the agent to commit each green part as it goes, because the "Bank partial work"
 step can only push commits — uncommitted work dies with the runner.
 
 **Why `agent-review` gets more.** Its prompt delegates the analysis to the `code-review` skill,
