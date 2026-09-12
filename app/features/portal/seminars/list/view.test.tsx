@@ -31,6 +31,7 @@ function buildSeminar(
     startTime: "18:30",
     hasStarted: false,
     isFull: false,
+    hasRegistrationPrices: true,
     inscriptions: [],
     people: [
       { id: "dancer_1", kind: "dancer", fullName: "Ana Paz" },
@@ -90,17 +91,24 @@ describe("PortalSeminarsListRouteView", () => {
     expect(findByText("button", "Inscribir")).toBeDefined();
   });
 
-  test("replaces the button with the reason when the seminar is full or has started", async () => {
+  test("replaces the button with the reason when the seminar is full, unpriced or has started", async () => {
     await renderSeminars({
       hasActiveEvent: true,
       seminars: [
         buildSeminar({ id: "seminar_full", isFull: true }),
         buildSeminar({ id: "seminar_started", hasStarted: true }),
+        buildSeminar({
+          id: "seminar_unpriced",
+          hasRegistrationPrices: false,
+        }),
       ],
     });
 
     expect(document.body.textContent).toContain("Sin lugares disponibles.");
     expect(document.body.textContent).toContain("El seminario ya comenzó.");
+    expect(document.body.textContent).toContain(
+      "Las inscripciones a este seminario todavía no están abiertas.",
+    );
     expect(findByText("button", "Inscribir")).toBeUndefined();
   });
 

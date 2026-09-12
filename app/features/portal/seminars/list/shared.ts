@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { RosterPersonKind } from "@/lib/roster/roster-person-status.shared";
 import {
   seminarFullMessage,
+  seminarPricesMissingMessage,
   seminarStartedMessage,
 } from "@/lib/seminars/registration-refusals";
 import { requiredFieldMessage } from "@/lib/shared/forms";
@@ -40,6 +41,7 @@ export type PortalSeminarCard = {
   startTime: string;
   hasStarted: boolean;
   isFull: boolean;
+  hasRegistrationPrices: boolean;
   inscriptions: PortalSeminarInscription[];
   people: PortalSeminarPersonOption[];
 };
@@ -137,15 +139,22 @@ export function formatPortalSeminarMoment(seminar: {
 }
 
 /**
- * The two reasons a footer holds a sentence instead of the button. "Started"
- * wins over "full": once it has begun, the quota stopped being the question.
+ * The three reasons a footer holds a sentence instead of the button, in the
+ * order they are read. "Started" wins over the other two: once it has begun,
+ * neither the price list nor the quota is the question. The missing price list
+ * wins over "full" because it closes every seminar of the event at once.
  */
 export function getPortalSeminarClosedReason(seminar: {
   hasStarted: boolean;
   isFull: boolean;
+  hasRegistrationPrices: boolean;
 }) {
   if (seminar.hasStarted) {
     return seminarStartedMessage;
+  }
+
+  if (!seminar.hasRegistrationPrices) {
+    return seminarPricesMissingMessage;
   }
 
   return seminar.isFull ? seminarFullMessage : null;

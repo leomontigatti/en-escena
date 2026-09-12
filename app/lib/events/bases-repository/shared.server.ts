@@ -12,6 +12,7 @@ import {
   scheduleCapacities,
   scheduleModalities,
   schedules,
+  seminarPrices,
   submodalities,
 } from "@/db/schema";
 import { activeInscription } from "@/lib/choreographies/active-inscription";
@@ -64,7 +65,11 @@ export type EventBaseRecord =
   | typeof schedules.$inferSelect
   | typeof submodalities.$inferSelect
   | typeof categories.$inferSelect
-  | typeof prices.$inferSelect;
+  | typeof prices.$inferSelect
+  // Seminar prices are not `Bases del evento` —they live in their own resource
+  // module— but they return these same result shapes, so the record union has
+  // to admit their row (docs/domain/seminars.md, "Prices").
+  | typeof seminarPrices.$inferSelect;
 
 type EventBaseSuccess = {
   ok: true;

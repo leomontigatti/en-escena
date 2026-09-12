@@ -82,18 +82,52 @@ what runs today.
 
 ## Prices
 
-> **Specified, not built.** A seminar has no price today. The target, decided on
-> [Seminar prices as event-level rows](https://github.com/leomontigatti/en-escena/issues/904)
-> and its name amendment, mirrors the choreography price list wherever the rule
-> fits; every difference is named.
+The price list was decided on
+[Seminar prices as event-level rows](https://github.com/leomontigatti/en-escena/issues/904)
+and its name amendment, and mirrors the choreography price list wherever the
+rule fits; every difference is named.
+
+- **A `seminarPrice` (`Precio de seminario`) is an event-level row shared by
+  every seminar of the event.** It carries a free-text `name`, a `seminarKind`,
+  a `forParticipants` flag (`Para participantes`), a nullable `paymentDeadline`
+  and one `amount` of at least 1. There is at most one deadline-less row per
+  `(kind, forParticipants)` cell of an event, the row that applies once every
+  dated one has expired, exactly as a choreography `price` without a deadline —
+  the unique index is created `NULLS NOT DISTINCT`, so two absent deadlines
+  collide. The name is a label and is not unique. No seminar owns a price:
+  there is no `seminarId` on the table, and deleting the event takes its rows
+  with it.
+- **The inscription stores `selectedPriceId`**, nullable, referencing a
+  `seminarPrice`. It is the column the guards below read; nothing writes it yet
+  (see the callout under "The inscription").
+- **Guards mirror the built choreography guards verbatim.** A row referenced by
+  any inscription, withdrawn included, cannot be deleted, and its amount, kind,
+  participant flag and deadline cannot change; its name can. The deadline-less
+  `regular` row of a participant cell cannot be deleted or restructured while
+  any active seminar inscription of the event exists, even unreferenced; its
+  amount and name may change. On the form the guards show on sight — the locked
+  fields render through the shared read-only look, `Borrar precio` is disabled
+  and its dialog opens blocked, and an `info` alert says why — and the server
+  refuses all the same, for the race.
+- **Readiness.** A seminar's registration is closed while the event lacks a
+  deadline-less `regular` row for **either** participant cell, beside the
+  "started" closure and the full one. `Exclusivo` rows are optional because of
+  the fallback. Event registration readiness keeps ignoring seminars and their
+  prices: a seminar is not part of the `Bases del evento`.
+- **Where the list lives**: a `Seminarios` tab of the `Precios` section,
+  beside the choreography prices; `Nuevo precio` opens the active tab's form,
+  and the tab travels in the URL so a link can name it. The table reads the
+  name, the kind and the participant cell as two badges, the deadline and the
+  amount, with a facet per axis and a warning naming the participant cell whose
+  deadline-less `Común` row is missing. The seminar itself stays outside the
+  bases and carries no price editor.
+
+> **Specified, not built.** What the rows are read by is still ahead
+> ([the allocation target](https://github.com/leomontigatti/en-escena/issues/886),
+> [resolution](https://github.com/leomontigatti/en-escena/issues/887)): today
+> nothing resolves a seminar inscription's price and nothing writes
+> `selectedPriceId`.
 >
-> - **A `seminarPrice` (`Precio de seminario`) is an event-level row shared by
->   every seminar of the event.** It carries a free-text `name`, a
->   `seminarKind`, a `forParticipants` flag (`Para participantes`), a nullable
->   `paymentDeadline` and one `amount`. There is at most one deadline-less row
->   per `(kind, forParticipants)` cell of an event, the row that applies once
->   every dated one has expired, exactly as a choreography `price` without a
->   deadline. The name is a label and is not unique. No seminar owns a price.
 > - **A participant** (`Participando`) is whoever the existing per-event
 >   predicate says: a `dancer` with a non-withdrawn choreography inscription in
 >   the seminar's event, or a `professor` linked to a choreography of that
@@ -110,34 +144,19 @@ what runs today.
 >   rows only. Among the candidates the business date picks as it does for
 >   choreographies. The effective row is `crossed ? stored : (current ?? stored)`
 >   through the same owner as the choreography rule (`finances.md`, "Prices").
-> - **What the inscription stores** is `selectedPriceId` alone, nullable,
->   written only by the allocation dialog. The stored row carries its own
->   participant flag, so once the deposit is covered the row freezes both the
->   tier and the participant fact; nothing else is persisted. Below the
->   crossing the participant fact re-derives on every read, and a flip says
->   nothing to anyone: the academy is told nothing when its bill moves. A
->   covered row keeps its stored row with no anomaly when the person later
->   leaves every choreography, or joins one.
+> - **What the inscription stores** is `selectedPriceId` alone, written only by
+>   the allocation dialog. The stored row carries its own participant flag, so
+>   once the deposit is covered the row freezes both the tier and the
+>   participant fact; nothing else is persisted. Below the crossing the
+>   participant fact re-derives on every read, and a flip says nothing to
+>   anyone: the academy is told nothing when its bill moves. A covered row
+>   keeps its stored row with no anomaly when the person later leaves every
+>   choreography, or joins one.
 > - **The deposit** is `round(effectiveRow.amount × seminar.requiredDepositPercentage / 100)`;
 >   the **total** is the effective row's amount, full stop. Seminar
 >   inscriptions neither enter the `Descuento por bailarín` qualifying set nor
 >   receive it: the participant row is already the "you are also dancing"
 >   reduction.
-> - **Guards mirror the built choreography guards verbatim.** A row referenced
->   by any inscription, withdrawn included, cannot be deleted, and its amount,
->   kind, participant flag and deadline cannot change; its name can. The
->   deadline-less `regular` row of a participant cell cannot be deleted or
->   restructured while any active seminar inscription of the event exists, even
->   unreferenced; its amount and name may change. On the form the guards show
->   on sight, never as a refusal after saving.
-> - **Readiness.** A seminar's registration is closed while the event lacks a
->   deadline-less `regular` row for **either** participant cell, beside the
->   "started" closure. Special rows are optional because of the fallback. Event
->   registration readiness keeps ignoring seminars and their prices.
-> - **Where the list lives**: a `Seminarios` tab of the `Precios` section of
->   `Bases del evento`, beside the choreography prices; `Nuevo precio` opens
->   the active tab's form. The seminar itself stays outside the bases and
->   carries no price editor.
 
 ## The inscription
 

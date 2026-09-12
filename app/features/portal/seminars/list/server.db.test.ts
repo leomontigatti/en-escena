@@ -6,6 +6,7 @@ import {
 } from "@/lib/choreographies/registration-test-fixtures.server.db";
 import { activateEvent } from "@/lib/events/management.server";
 import { createPortalSavedEvent } from "@/lib/events/saved-event-test-support.server";
+import { createSeminarRegistrationPrices } from "@/lib/seminar-prices/test-fixtures.server.db";
 import { createSeminar } from "@/lib/seminars/repository.server";
 import { defaultSeminarFacts } from "@/lib/test-support/seminars";
 import {
@@ -18,9 +19,11 @@ import {
 } from "@/features/portal/seminars/list/server";
 import {
   deletePortalSeminarInscriptionIntent,
+  getPortalSeminarClosedReason,
   registerPortalSeminarInscriptionIntent,
   toPortalSeminarPersonValue,
 } from "@/features/portal/seminars/list/shared";
+import { seminarPricesMissingMessage } from "@/lib/seminars/registration-refusals";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -28,9 +31,14 @@ installDatabaseTestHooks();
 
 const seminariosUrl = "http://localhost/portal/seminarios";
 
-async function createActiveEventWithSeminar(quota = 5) {
+async function createActiveEventWithSeminar(quota = 5, withPrices = true) {
   const event = await createPortalSavedEvent({ name: "Regional 2026" });
   await activateEvent(event.id);
+
+  if (withPrices) {
+    await createSeminarRegistrationPrices(event.id);
+  }
+
   const result = await createSeminar(event.id, {
     instructorName: "Abril Sosa",
     // Far enough ahead that the seminar is open whenever the suite runs.
@@ -105,6 +113,7 @@ describe.sequential("portal seminars list", () => {
           instructorPictureUrl: null,
           hasStarted: false,
           isFull: false,
+          hasRegistrationPrices: true,
           inscriptions: [],
           people: [
             { fullName: "Ana Paz", kind: "dancer" },
@@ -127,6 +136,30 @@ describe.sequential("portal seminars list", () => {
       inscriptions: [{ fullName: "Ana Paz" }],
       people: [{ fullName: "Luz Suárez" }],
     });
+  });
+
+  test("reads a seminar as closed while the event lacks its `Común` price rows", async () => {
+    const session = await createAcademySession({
+      academyName: "Academia Sin Precios",
+      email: "seminarios.sin.precios@example.com",
+    });
+    const { event, seminar } = await createActiveEventWithSeminar(5, false);
+
+    const [card] = (await loadList(session.cookie)).seminars;
+
+    expect(card).toMatchObject({
+      id: seminar.id,
+      hasRegistrationPrices: false,
+    });
+    expect(getPortalSeminarClosedReason(card)).toBe(
+      seminarPricesMissingMessage,
+    );
+
+    await createSeminarRegistrationPrices(event.id);
+
+    const [pricedCard] = (await loadList(session.cookie)).seminars;
+
+    expect(getPortalSeminarClosedReason(pricedCard)).toBeNull();
   });
 
   test("turns a refusal into an error message instead of a field error", async () => {

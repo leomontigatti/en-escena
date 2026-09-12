@@ -36,6 +36,7 @@ const schemaExportNames = [
   "schedules",
   "seminarInscriptions",
   "seminarKind",
+  "seminarPrices",
   "seminars",
   "submodalities",
   "user",

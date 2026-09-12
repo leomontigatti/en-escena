@@ -26,6 +26,9 @@ import {
   markEventRegistrationReadinessDirty,
 } from "@/lib/events/registration-readiness.server";
 
+import { createSeminarRegistrationPrices } from "@/lib/seminar-prices/test-fixtures.server.db";
+import { createSeminar } from "@/lib/seminars/repository.server";
+import { defaultSeminarFacts } from "@/lib/test-support/seminars";
 import { onBusinessDate } from "@/lib/shared/business-time-zone.test-support";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
@@ -112,7 +115,7 @@ describe("event registration readiness", () => {
     });
   });
 
-  test("marks an event as ready when every supported registration path has schedule capacity and price", async () => {
+  test("marks an event as ready when every registration path has schedule capacity and price, and keeps ignoring seminars", async () => {
     const event = await createSavedEvent("Final 2026");
     const jazz = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
@@ -172,6 +175,30 @@ describe("event registration readiness", () => {
         scheduleId: null,
       }),
     );
+
+    // A seminar with no price list at all: readiness is about the
+    // `Bases del evento`, and a seminar is not one of them
+    // (docs/domain/seminars.md, "The seminar").
+    const seminar = await createSeminar(event.id, {
+      instructorName: "Abril Sosa",
+      scheduledDate: "2026-06-08",
+      startTime: "18:30",
+      quota: 20,
+      ...defaultSeminarFacts,
+    });
+
+    if (!seminar.ok) {
+      throw new Error(seminar.error);
+    }
+
+    await expect(getEventRegistrationReadiness(event.id)).resolves.toEqual({
+      eventId: event.id,
+      isReady: true,
+      missingItems: [],
+    });
+
+    await createSeminarRegistrationPrices(event.id);
+    await markEventRegistrationReadinessDirty(event.id);
 
     await expect(getEventRegistrationReadiness(event.id)).resolves.toEqual({
       eventId: event.id,

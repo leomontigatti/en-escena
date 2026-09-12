@@ -21,6 +21,7 @@ function isSeminarKind(value: string): value is SeminarKind {
 export {
   defaultSeminarKind,
   isSeminarKind,
+  seminarKindLabels,
   seminarKindOptions,
   seminarKindValues,
   type SeminarKind,

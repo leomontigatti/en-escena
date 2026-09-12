@@ -9,6 +9,7 @@ import {
   pgEnum,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   varchar,
 } from "drizzle-orm/pg-core";
@@ -247,6 +248,51 @@ export const seminarKind = pgEnum("en_escena_seminar_kind", [
   "special",
 ]);
 
+// One priced row of the event's seminar list, shared by every seminar of the
+// event: there is deliberately no `seminarId` here. A row prices the
+// `(kind, forParticipants)` cell it names, from the dated ladder the
+// `paymentDeadline` builds — the deadline-less row is the tail that applies
+// once every dated one has expired. See docs/domain/seminars.md, "Prices".
+export const seminarPrices = createTable(
+  "seminar_price",
+  {
+    id: uuidPrimaryKey(),
+    eventId: varchar("event_id", { length: 255 }).notNull(),
+    name: text("name").notNull(),
+    kind: seminarKind("kind").notNull(),
+    forParticipants: boolean("for_participants").notNull(),
+    paymentDeadline: text("payment_deadline"),
+    amount: integer("amount").notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.eventId],
+      foreignColumns: [events.id],
+      name: "seminar_price_event_fk",
+    }).onDelete("cascade"),
+    index("seminar_price_event_id_idx").on(table.eventId),
+    // `NULLS NOT DISTINCT`, so the one deadline-less row of a cell collides
+    // with itself the way `price_general_unique` does (migration 0015). Unlike
+    // that one this index is not partial, so Drizzle can express it as a
+    // `unique()` constraint and no hand-written SQL is needed.
+    unique("seminar_price_cell_unique")
+      .on(
+        table.eventId,
+        table.kind,
+        table.forParticipants,
+        table.paymentDeadline,
+      )
+      .nullsNotDistinct(),
+    check("seminar_price_amount_positive", sql`${table.amount} >= 1`),
+  ],
+).enableRLS();
+
 // A class the event offers around the competition: a guest instructor, a local
 // date and time, and a hard cap on how many roster people an academy can
 // register. It carries no name of its own — the instructor plus the moment is
@@ -306,6 +352,11 @@ export const seminarInscriptions = createTable(
     seminarId: varchar("seminar_id", { length: 255 }).notNull(),
     dancerId: varchar("dancer_id", { length: 255 }),
     professorId: varchar("professor_id", { length: 255 }),
+    // The `seminarPrice` row the inscription is charged by, written only when
+    // an administrator allocates money to it, exactly as a choreography
+    // inscription's `selectedPriceId` is. Nothing writes it yet; the price
+    // guards read it to know which rows an inscription depends on.
+    selectedPriceId: varchar("selected_price_id", { length: 255 }),
     // The order the quota was consumed in, which is the only history the row
     // keeps: an inscription is created and deleted, never edited.
     createdAt: timestamp("created_at", {
@@ -332,6 +383,11 @@ export const seminarInscriptions = createTable(
       columns: [table.professorId],
       foreignColumns: [professors.id],
       name: "seminar_inscription_professor_fk",
+    }),
+    foreignKey({
+      columns: [table.selectedPriceId],
+      foreignColumns: [seminarPrices.id],
+      name: "seminar_inscription_selected_price_fk",
     }),
     index("seminar_inscription_seminar_id_idx").on(table.seminarId),
     index("seminar_inscription_dancer_id_idx").on(table.dancerId),

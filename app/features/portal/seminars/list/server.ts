@@ -9,6 +9,7 @@ import {
   seminarInscriptionNotFoundMessage,
   seminarInscriptionSuccessMessage,
 } from "@/lib/seminars/inscriptions.server";
+import { hasSeminarRegistrationPrices } from "@/lib/seminar-prices/repository.server";
 import { hasSeminarStarted } from "@/lib/seminars/registration-window";
 import { listSeminars } from "@/lib/seminars/repository.server";
 import {
@@ -36,14 +37,19 @@ export async function loadPortalSeminarsList(
   }
 
   const now = new Date();
-  const [seminars, inscriptions, people] = await Promise.all([
-    listSeminars(activeEvent.id),
-    listSeminarInscriptionsForAcademy({
-      academyId: academy.id,
-      eventId: activeEvent.id,
-    }),
-    listSeminarPersonOptionsForAcademy(academy.id),
-  ]);
+  // The price list is an event-level fact, so it is read once for the gallery:
+  // while a participant cell has no deadline-less `Común` row, every seminar of
+  // the event is closed.
+  const [seminars, inscriptions, people, hasRegistrationPrices] =
+    await Promise.all([
+      listSeminars(activeEvent.id),
+      listSeminarInscriptionsForAcademy({
+        academyId: academy.id,
+        eventId: activeEvent.id,
+      }),
+      listSeminarPersonOptionsForAcademy(academy.id),
+      hasSeminarRegistrationPrices(activeEvent.id),
+    ]);
   const storage = createDefaultSeminarPictureStorage();
 
   const cards = await Promise.all(
@@ -68,6 +74,7 @@ export async function loadPortalSeminarsList(
         // The card never says how many places are left; what it needs is
         // whether there is one, which is what turns the button into a reason.
         isFull: seminar.availablePlaces === 0,
+        hasRegistrationPrices,
         inscriptions: seminarInscriptions.map((inscription) => ({
           id: inscription.id,
           fullName: inscription.fullName,

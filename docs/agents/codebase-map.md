@@ -211,13 +211,14 @@ the admin list, the create page, the detail with its `Información` and
 `Inscriptos` tabs, the instructor's picture, the seminar's kind and its own
 deposit rate, and the removal of an inscription.
 Seminars are not part of the `Bases del evento` — registration readiness ignores
-them and they have their own section under `Operación`. Specified, not built
-(PRD #906): the seminar price list is a tab of the `Precios` section
-(`app/features/admin/prices/`, `app/lib/prices/`), seminar money is allocated
-from the academy's pool (`app/lib/finances/`) through a `(seminar, academy)`
-financial detail under `app/features/admin/finances/`, and the seminar
-inscription becomes a second allocation and comprobante-line target; each slice
-adds its files here as it creates them.
+them and they have their own section under `Operación`. The event's seminar
+price list, shared by every seminar of the event, is the `Seminarios` tab of the
+`Precios` section (`app/features/admin/seminar-prices/`,
+`app/lib/seminar-prices/`). Specified, not built (PRD #906): seminar money is
+allocated from the academy's pool (`app/lib/finances/`) through a
+`(seminar, academy)` financial detail under `app/features/admin/finances/`, and
+the seminar inscription becomes a second allocation and comprobante-line
+target; each slice adds its files here as it creates them.
 
 - Domain: `docs/domain/seminars.md`, `docs/domain/finances.md`
 - ADRs: `docs/adr/0002-selectable-event-contexts.md`, `docs/adr/0004-organize-app-code-by-product-surface.md`
@@ -225,8 +226,9 @@ adds its files here as it creates them.
 - Feature modules: `app/features/admin/seminars/list/`, `app/features/admin/seminars/create/`, `app/features/admin/seminars/detail/`
 - Shared feature modules: `app/features/admin/seminars/shared.ts`, `app/features/admin/seminars/server.ts`, `app/features/admin/seminars/action.server.ts`, `app/features/admin/seminars/form.tsx`, `app/features/admin/seminars/list-table.tsx`, `app/features/admin/seminars/inscriptions-table.tsx`, `app/features/admin/seminars/actions.tsx`
 - Domain modules: `app/lib/seminars/repository.server.ts`, `app/lib/seminars/inscriptions.server.ts`, `app/lib/seminars/registration-refusals.ts`, `app/lib/seminars/seminar-kinds.ts`, `app/lib/seminars/deposit-percentage.ts`, `app/lib/seminars/covered-inscriptions.server.ts`
+- Seminar prices (the event-level list, its guards and its admin screens): routes `app/routes/administracion.precios_.seminarios_.nuevo.tsx` and `app/routes/administracion.precios_.seminarios_.$seminarPriceId.tsx`, feature modules `app/features/admin/seminar-prices/`, domain modules `app/lib/seminar-prices/repository.server.ts`, `app/lib/seminar-prices/participant-cells.ts`, `app/lib/seminar-prices/guard-messages.ts`, and the action handler `app/lib/admin/events/bases-action/seminar-prices.server.ts`
 - Storage module: `app/lib/storage/seminar-pictures.server.ts`
-- Tests: `app/lib/seminars/repository.server.db.test.ts`, `app/features/admin/seminars/action.server.db.test.ts`, `app/features/admin/seminars/action.server.picture.db.test.ts`, `app/features/admin/seminars/routes.adapter.test.tsx`, `app/features/admin/seminars/view.test.tsx`, `app/lib/storage/seminar-pictures.server.test.ts`
+- Tests: `app/lib/seminar-prices/repository.server.db.test.ts`, `app/features/admin/seminar-prices/action.server.db.test.ts`, `app/features/admin/seminar-prices/view.test.tsx`, `app/lib/seminars/repository.server.db.test.ts`, `app/features/admin/seminars/action.server.db.test.ts`, `app/features/admin/seminars/action.server.picture.db.test.ts`, `app/features/admin/seminars/routes.adapter.test.tsx`, `app/features/admin/seminars/view.test.tsx`, `app/lib/storage/seminar-pictures.server.test.ts`
 
 ## Judging And Results
 
