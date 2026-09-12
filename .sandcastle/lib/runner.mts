@@ -6,6 +6,7 @@
 // already-checked-out branch plus plain/JSON files under `OUTPUT_DIR`. The
 // workflow (orchestrator) does every tracker/VCS mutation.
 
+import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -69,14 +70,18 @@ export function outputDir(): string {
  * on-disk log lands under `OUTPUT_DIR` so a workflow step can upload it as an
  * artifact) but attach `onAgentStreamEvent` to echo each text chunk and tool
  * call to stdout. When the agent stalls, the last line tells us *where*.
+ *
+ * Passing the {@link RunnerContext.completion} watch opts the runner in to a
+ * completion that lands after the budget counting as success (see `runMain`).
  */
-export function streamingLog(name: string): LoggingOption {
+export function streamingLog(name: string, completion?: CompletionWatch): LoggingOption {
   return {
     type: "file",
     path: join(outputDir(), `${name}.agent.log`),
     onAgentStreamEvent: (event) => {
       const stamp = `[${name} i${event.iteration}]`;
       if (event.type === "text") {
+        completion?.observe(event.message);
         const text = event.message.trim();
         if (text) console.log(`${stamp} ${text}`);
       } else if (event.type === "toolCall") {
@@ -129,9 +134,11 @@ export class BudgetExhaustedError extends Error {
  * Why this exists: a step timeout kills the process tree outright, so
  * `runMain`'s catch never runs and no `failure_reason.txt` is written — the
  * orchestrator then comments "(no reason file written)" and the whole pass is
- * lost with no diagnosis (PR #512). Sandcastle's `run({ signal })` aborts
- * mid-iteration and rejects with `signal.reason`, which turns the timeout back
- * into an ordinary throw the existing failure plumbing already handles.
+ * lost with no diagnosis (PR #512). Sandcastle's `run({ signal })` rejects with
+ * `signal.reason`, which turns the timeout back into an ordinary throw the
+ * existing failure plumbing already handles. It rejects only once the agent
+ * exits, though: the abort cannot stop a `noSandbox()` agent (see
+ * {@link CompletionWatch}).
  *
  * Unset/invalid means no budget — the runner behaves exactly as before.
  *
@@ -140,10 +147,9 @@ export class BudgetExhaustedError extends Error {
  * to assert against.
  */
 export function createBudget(): { signal: AbortSignal; dispose: () => void } | undefined {
-  const raw = process.env.AGENT_BUDGET_MINUTES;
-  const minutes = Number(raw);
+  const minutes = readBudgetMinutes();
 
-  if (!raw || !Number.isFinite(minutes) || minutes <= 0) {
+  if (minutes === undefined) {
     return undefined;
   }
 
@@ -157,6 +163,78 @@ export function createBudget(): { signal: AbortSignal; dispose: () => void } | u
   timer.unref();
 
   return { signal: controller.signal, dispose: () => clearTimeout(timer) };
+}
+
+/**
+ * `AGENT_BUDGET_MINUTES` as a usable number of minutes, or `undefined` for no
+ * budget. Shared by {@link createBudget} and by the prompts that tell the agent
+ * how long it has, so the two cannot disagree.
+ */
+function readBudgetMinutes(): number | undefined {
+  const raw = process.env.AGENT_BUDGET_MINUTES;
+  const minutes = Number(raw);
+
+  if (!raw || !Number.isFinite(minutes) || minutes <= 0) {
+    return undefined;
+  }
+
+  return minutes;
+}
+
+/** The wall-clock budget as prompt prose: `50 minutes`, or `no fixed limit`. */
+export function describeBudget(): string {
+  const minutes = readBudgetMinutes();
+  return minutes === undefined ? "no fixed limit" : `${minutes} minutes`;
+}
+
+/** The line every runner prompt ends on; also sandcastle's default completion signal. */
+export const COMPLETION_SIGNAL = "<promise>COMPLETE</promise>";
+
+/**
+ * Remembers whether the agent's text stream ever carried the completion signal.
+ *
+ * Why this exists: the budget's abort cannot stop an agent under `noSandbox()`.
+ * Its `exec` is a bare child process with no cancel path, so sandcastle's race
+ * only settles once the agent exits on its own — an agent close to done keeps
+ * working past the deadline, commits and emits the signal, and `run()` still
+ * rejects with the abort reason. Run 34715632348 lost a finished, committed
+ * sub-issue (#917) that way. `runMain` reads this watch to tell that case apart
+ * from a run that genuinely did not finish.
+ *
+ * Text arrives in arbitrary chunks, so the signal can straddle two of them; the
+ * watch keeps just enough of the previous chunk to catch it.
+ */
+export interface CompletionWatch {
+  observe: (text: string) => void;
+  readonly seen: boolean;
+}
+
+export function createCompletionWatch(): CompletionWatch {
+  let seen = false;
+  let tail = "";
+
+  return {
+    observe(text) {
+      if (seen) {
+        return;
+      }
+      const window = tail + text;
+      seen = window.includes(COMPLETION_SIGNAL);
+      tail = window.slice(-(COMPLETION_SIGNAL.length - 1));
+    },
+    get seen() {
+      return seen;
+    },
+  };
+}
+
+/** Whether the checked-out worktree has nothing uncommitted, untracked files included. */
+function isWorkingTreeClean(): boolean {
+  try {
+    return execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).trim() === "";
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -199,10 +277,23 @@ function installSignalHandlers(): () => void {
 /** What `runMain` hands a runner. */
 export interface RunnerContext {
   /**
-   * Wire this into `run()` / `runWithExtraction()` so the wall-clock budget can
-   * actually interrupt the agent. `undefined` when no budget is configured.
+   * Wire this into `run()` / `runWithExtraction()` so the wall-clock budget turns
+   * into a rejection with a reason. It does not stop a `noSandbox()` agent — see
+   * {@link CompletionWatch}. `undefined` when no budget is configured.
    */
   readonly signal: AbortSignal | undefined;
+  /**
+   * Hand this to {@link streamingLog} to let a completion that lands after the
+   * budget count as success. Only a runner whose whole result is its commits may
+   * opt in: one that needs structured output gets nothing back from a rejected
+   * `run()`, so a late completion there is still a failure.
+   */
+  readonly completion: CompletionWatch;
+}
+
+/** Seams for tests; production uses the defaults. */
+export interface RunMainOptions {
+  readonly isWorkingTreeClean?: () => boolean;
 }
 
 /**
@@ -210,13 +301,32 @@ export interface RunnerContext {
  * non-zero exit so the orchestrator's `failure()` step can mark the item
  * blocked instead of the run dying with no reason file (§3.7).
  */
-export async function runMain(main: (context: RunnerContext) => Promise<void>): Promise<void> {
+export async function runMain(
+  main: (context: RunnerContext) => Promise<void>,
+  options: RunMainOptions = {},
+): Promise<void> {
   const budget = createBudget();
+  const completion = createCompletionWatch();
   const removeSignalHandlers = installSignalHandlers();
 
   try {
-    await main({ signal: budget?.signal });
+    await main({ signal: budget?.signal, completion });
   } catch (error) {
+    // The agent finished after the deadline: the work is committed and nothing
+    // is left in the tree, so failing here would only throw it away. A dirty
+    // tree means the signal was premature, and that stays a failure.
+    if (
+      error instanceof BudgetExhaustedError &&
+      completion.seen &&
+      (options.isWorkingTreeClean ?? isWorkingTreeClean)()
+    ) {
+      console.warn(
+        `Wall-clock budget of ${error.budgetMinutes} min exhausted after the agent had already ` +
+          `emitted the completion signal with a clean working tree — the run counts as finished.`,
+      );
+      return;
+    }
+
     // A budget abort is expected and self-explanatory — report it without the
     // stack, which would only point at sandcastle internals.
     const message =

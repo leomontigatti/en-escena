@@ -172,10 +172,10 @@ Every runner step carries **two** ceilings, and the order between them is load-b
 
 | Workflow                               | Step `timeout-minutes` | `AGENT_BUDGET_MINUTES` |
 | -------------------------------------- | ---------------------- | ---------------------- |
-| `agent-implement` (implement pass)     | 30                     | 25                     |
+| `agent-implement` (implement pass)     | 60                     | 50                     |
 | `agent-implement` (write-pr pass)      | 10                     | 8                      |
 | `agent-implement-pr`                   | 30                     | 25                     |
-| `agent-implement-prd` (implement pass) | 30                     | 25                     |
+| `agent-implement-prd` (implement pass) | 60                     | 50                     |
 | `agent-implement-prd` (write-prd-pr)   | 10                     | 8                      |
 | `agent-review`                         | 45                     | 40                     |
 | `agent-to-issues-prd`                  | 30                     | 25                     |
@@ -186,9 +186,31 @@ Every runner step carries **two** ceilings, and the order between them is load-b
 reporting machinery: Actions kills the process tree, so `runMain`'s catch never runs, no
 `failure_reason.txt` is written, and the orchestrator can only comment "(no reason file
 written)". On #512 that cost an entire review with no diagnosis. `AGENT_BUDGET_MINUTES` builds
-an `AbortSignal` that the runner passes to sandcastle's `run()`, which aborts the agent
-mid-iteration and rejects — turning the timeout back into an **ordinary throw** that the
-existing failure plumbing reports normally.
+an `AbortSignal` that the runner passes to sandcastle's `run()`, which rejects with the abort
+reason — turning the timeout back into an **ordinary throw** that the existing failure plumbing
+reports normally.
+
+**The abort does not stop the agent.** Under `noSandbox()` the agent is a bare child process
+whose `exec` has no cancel path, so sandcastle's race against the abort only settles once the
+agent exits on its own. The step's `timeout-minutes` is the only hard stop; the budget decides
+how the run is _reported_, not when the agent stops. The gap between the two is where an agent
+that was nearly done finishes anyway.
+
+**A completion after the budget counts.** Because of that gap, an agent can commit and emit
+`<promise>COMPLETE</promise>` after the budget fired, and `run()` still rejects. Run
+34715632348 lost #917 that way: finished and committed, reported as failed, never marked
+implemented. `runMain` now treats a `BudgetExhaustedError` as success when the agent's stream
+had already carried the completion signal **and** the working tree is clean. Runners opt in by
+passing the context's `completion` watch to `streamingLog`; only `implement` and
+`implement-prd` do, because their whole result is their commits. A runner with structured output
+gets nothing back from a rejected `run()`, so a late completion there is still a failure.
+`tests/afk/runner-budget.test.ts` covers the rule.
+
+**Why the implement passes get 60 / 50.** A slice that carries a migration, a repository,
+screens and their tests outgrows 25 minutes: #917 committed in its 26th minute. The implement
+prompts state the budget (`{{WALL_CLOCK_BUDGET}}`, from `describeBudget()`, so it follows this
+table) and ask the agent to commit each green part as it goes, because the "Bank partial work"
+step can only push commits — uncommitted work dies with the runner.
 
 **Why `agent-review` gets more.** Its prompt delegates the analysis to the `code-review` skill,
 which fans out into parallel sub-agents, and the runner hands the agent a `--stat` summary
