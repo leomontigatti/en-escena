@@ -18,6 +18,7 @@ import {
   type RegisterSeminarInscriptionResult,
 } from "@/lib/seminars/inscriptions.server";
 import { createSeminar, listSeminars } from "@/lib/seminars/repository.server";
+import { defaultSeminarFacts } from "@/lib/test-support/seminars";
 import { createAcademyUser } from "@/lib/test-support/academies";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
@@ -35,6 +36,7 @@ async function createSeminarFixture(quota = 2) {
     scheduledDate: "2026-10-10",
     startTime: "18:30",
     quota,
+    ...defaultSeminarFacts,
   });
 
   if (!seminar.ok) {

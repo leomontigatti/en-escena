@@ -32,6 +32,8 @@ function buildSeminar(
     scheduledDate: "2026-10-10",
     startTime: "18:30",
     quota: 20,
+    kind: "regular",
+    requiredDepositPercentage: 50,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     availablePlaces: 20,
     inscriptionCount: 0,
@@ -109,11 +111,13 @@ function renderDetail(
   seminar: SeminarListItem,
   instructorPictureUrl = null,
   inscriptions: SeminarInscriptionRow[] = [],
+  hasCoveredInscription = false,
 ) {
   return renderAt(
     "/administracion/seminarios/seminar_1",
     <SeminarDetailView
       loaderData={{
+        hasCoveredInscription,
         inscriptions,
         instructorPictureUrl,
         selectedEventId: "event_1",
@@ -135,6 +139,62 @@ describe("SeminarDetailView", () => {
     expect(
       document.querySelectorAll('[data-slot="field-description"]'),
     ).toHaveLength(0);
+  });
+
+  test("reads the kind and the seminar's own deposit rate as fields of its form", async () => {
+    await renderDetail(
+      buildSeminar({ kind: "special", requiredDepositPercentage: 40 }),
+    );
+
+    const body = document.body.textContent ?? "";
+
+    expect(body).toContain("Tipo de seminario");
+    expect(body).toContain("Exclusivo");
+    expect(body).toContain("Seña (%)");
+    expect(
+      document.querySelector<HTMLInputElement>("#requiredDepositPercentage")
+        ?.value,
+    ).toBe("40");
+  });
+
+  // Both facts fix the deposit an inscription had to cover to take its place,
+  // so once one covered it the refusal shows on sight rather than after the
+  // save. Everything else on the form keeps editing.
+  test("locks the kind and the deposit rate once an inscription is covered", async () => {
+    await renderDetail(buildSeminar(), null, [], true);
+
+    const kind = document.querySelector<HTMLInputElement>("#kind");
+    const requiredDepositPercentage = document.querySelector<HTMLInputElement>(
+      "#requiredDepositPercentage",
+    );
+
+    expect(kind?.readOnly).toBe(true);
+    expect(kind?.value).toBe("Común");
+    expect(requiredDepositPercentage?.readOnly).toBe(true);
+    expect(
+      document.querySelector<HTMLInputElement>('input[name="kind"]')?.value,
+    ).toBe("regular");
+    expect(
+      document.querySelector<HTMLInputElement>("#instructorName")?.readOnly,
+    ).toBe(false);
+  });
+
+  test("keeps `Guardar` disabled until the form is dirty", async () => {
+    await renderDetail(buildSeminar());
+
+    const save = Array.from(
+      document.querySelectorAll<HTMLButtonElement>('button[type="submit"]'),
+    ).find((button) => button.textContent?.includes("Guardar"));
+    const instructorName =
+      document.querySelector<HTMLInputElement>("#instructorName");
+
+    expect(save?.disabled).toBe(true);
+
+    await act(async () => {
+      setInputValue(instructorName, "Nicolás Prado");
+    });
+
+    expect(save?.disabled).toBe(false);
   });
 
   // The picture is a field of the seminar's own form, so it travels on the same
@@ -199,6 +259,7 @@ async function renderInscriptions(inscriptions: SeminarInscriptionRow[]) {
     "/administracion/seminarios/seminar_1",
     <SeminarDetailView
       loaderData={{
+        hasCoveredInscription: false,
         inscriptions,
         instructorPictureUrl: null,
         selectedEventId: "event_1",
@@ -290,6 +351,7 @@ describe("SeminarDetailView delete dialog", () => {
       <SeminarDetailView
         initialDeleteDialogOpen
         loaderData={{
+          hasCoveredInscription: false,
           inscriptions: [buildInscription()],
           instructorPictureUrl: null,
           selectedEventId: "event_1",
@@ -313,6 +375,7 @@ describe("SeminarDetailView delete dialog", () => {
       <SeminarDetailView
         initialDeleteDialogOpen
         loaderData={{
+          hasCoveredInscription: false,
           inscriptions: [],
           instructorPictureUrl: null,
           selectedEventId: "event_1",
@@ -351,4 +414,41 @@ describe("SeminarCreateView", () => {
       document.querySelector("#quota")?.getAttribute("aria-label"),
     ).toBeNull();
   });
+
+  test("offers a new seminar as `Común` with a deposit of half its price", async () => {
+    await renderAt(
+      "/administracion/seminarios/nuevo",
+      <SeminarCreateView
+        loaderData={{
+          selectedEventId: "event_1",
+          values: defaultSeminarFormValues(),
+        }}
+      />,
+    );
+
+    expect(document.querySelector("#kind")?.textContent).toContain("Común");
+    expect(
+      document.querySelector<HTMLInputElement>("#requiredDepositPercentage")
+        ?.value,
+    ).toBe("50");
+  });
 });
+
+/**
+ * React tracks the value it last rendered on the node, so a plain assignment is
+ * swallowed as "no change": the setter of the prototype is what makes the input
+ * event read as typing.
+ */
+function setInputValue(input: HTMLInputElement | null, value: string) {
+  if (!input) {
+    throw new Error("Expected the input to be rendered.");
+  }
+
+  const setter = Object.getOwnPropertyDescriptor(
+    window.HTMLInputElement.prototype,
+    "value",
+  )?.set;
+
+  setter?.call(input, value);
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+}

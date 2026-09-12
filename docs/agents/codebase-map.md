@@ -208,7 +208,8 @@ schedules, capacities, prices and registration readiness.
 
 Use for the seminars an event offers around the competition: the seminar row,
 the admin list, the create page, the detail with its `Información` and
-`Inscriptos` tabs, the instructor's picture and the removal of an inscription.
+`Inscriptos` tabs, the instructor's picture, the seminar's kind and its own
+deposit rate, and the removal of an inscription.
 Seminars are not part of the `Bases del evento` — registration readiness ignores
 them and they have their own section under `Operación`. Specified, not built
 (PRD #906): the seminar price list is a tab of the `Precios` section
@@ -223,7 +224,7 @@ adds its files here as it creates them.
 - Routes: `app/routes/administracion.seminarios.tsx`, `app/routes/administracion.seminarios_.nuevo.tsx`, `app/routes/administracion.seminarios_.$seminarId.tsx`
 - Feature modules: `app/features/admin/seminars/list/`, `app/features/admin/seminars/create/`, `app/features/admin/seminars/detail/`
 - Shared feature modules: `app/features/admin/seminars/shared.ts`, `app/features/admin/seminars/server.ts`, `app/features/admin/seminars/action.server.ts`, `app/features/admin/seminars/form.tsx`, `app/features/admin/seminars/list-table.tsx`, `app/features/admin/seminars/inscriptions-table.tsx`, `app/features/admin/seminars/actions.tsx`
-- Domain modules: `app/lib/seminars/repository.server.ts`, `app/lib/seminars/inscriptions.server.ts`, `app/lib/seminars/registration-refusals.ts`
+- Domain modules: `app/lib/seminars/repository.server.ts`, `app/lib/seminars/inscriptions.server.ts`, `app/lib/seminars/registration-refusals.ts`, `app/lib/seminars/seminar-kinds.ts`, `app/lib/seminars/deposit-percentage.ts`, `app/lib/seminars/covered-inscriptions.server.ts`
 - Storage module: `app/lib/storage/seminar-pictures.server.ts`
 - Tests: `app/lib/seminars/repository.server.db.test.ts`, `app/features/admin/seminars/action.server.db.test.ts`, `app/features/admin/seminars/action.server.picture.db.test.ts`, `app/features/admin/seminars/routes.adapter.test.tsx`, `app/features/admin/seminars/view.test.tsx`, `app/lib/storage/seminar-pictures.server.test.ts`
 

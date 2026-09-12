@@ -273,6 +273,8 @@ function parseSeminarInput(
       scheduledDate: parsed.data.scheduledDate,
       startTime: parsed.data.startTime,
       quota: Number(parsed.data.quota),
+      kind: parsed.data.kind,
+      requiredDepositPercentage: Number(parsed.data.requiredDepositPercentage),
     },
   };
 }

@@ -11,6 +11,7 @@ import {
 import { createDancer } from "@/lib/choreographies/registration-test-fixtures.server.db";
 import { registerSeminarInscription } from "@/lib/seminars/inscriptions.server";
 import { createSeminar, getSeminar } from "@/lib/seminars/repository.server";
+import { defaultSeminarFacts } from "@/lib/test-support/seminars";
 import { createAcademyUser } from "@/lib/test-support/academies";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
@@ -64,7 +65,11 @@ const seminarFields = {
 };
 
 async function createSavedSeminar(eventId: string) {
-  const created = await createSeminar(eventId, { ...seminarFields, quota: 20 });
+  const created = await createSeminar(eventId, {
+    ...seminarFields,
+    ...defaultSeminarFacts,
+    quota: 20,
+  });
 
   if (!created.ok) {
     throw new Error(`Expected the seminar fixture: ${created.error}`);
@@ -94,6 +99,11 @@ async function save(seminarId: string, picture: PictureChange) {
   formData.set("scheduledDate", seminarFields.scheduledDate);
   formData.set("startTime", seminarFields.startTime);
   formData.set("quota", "20");
+  formData.set("kind", defaultSeminarFacts.kind);
+  formData.set(
+    "requiredDepositPercentage",
+    defaultSeminarFacts.requiredDepositPercentage.toString(),
+  );
 
   if (picture.kind !== "absent") {
     formData.set(seminarPicturePresentField, keptSeminarPictureValue);

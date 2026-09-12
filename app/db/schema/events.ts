@@ -240,6 +240,13 @@ export const schedules = createTable(
   (table) => [index("schedule_event_id_idx").on(table.eventId)],
 ).enableRLS();
 
+// The kind of a seminar and of a seminar price. An enum rather than a boolean
+// so a third kind is a value and not a migration. See CONTEXT.md `seminarKind`.
+export const seminarKind = pgEnum("en_escena_seminar_kind", [
+  "regular",
+  "special",
+]);
+
 // A class the event offers around the competition: a guest instructor, a local
 // date and time, and a hard cap on how many roster people an academy can
 // register. It carries no name of its own — the instructor plus the moment is
@@ -254,6 +261,13 @@ export const seminars = createTable(
     scheduledDate: text("scheduled_date").notNull(),
     startTime: text("start_time").notNull(),
     quota: integer("quota").notNull(),
+    kind: seminarKind("kind").notNull().default("regular"),
+    // The seminar's own deposit rate, never the event's: the rate is what fixes
+    // the place, a per-seminar fact, while the price list is shared across the
+    // event's seminars. See docs/domain/seminars.md, "The seminar".
+    requiredDepositPercentage: integer("required_deposit_percentage")
+      .notNull()
+      .default(50),
     createdAt: timestamp("created_at", {
       mode: "date",
       withTimezone: true,
@@ -275,6 +289,10 @@ export const seminars = createTable(
       table.startTime,
     ),
     check("seminar_quota_positive", sql`${table.quota} >= 1`),
+    check(
+      "seminar_required_deposit_percentage_range",
+      sql`${table.requiredDepositPercentage} between 1 and 99`,
+    ),
   ],
 ).enableRLS();
 

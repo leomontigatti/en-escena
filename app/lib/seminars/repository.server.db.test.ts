@@ -1,5 +1,5 @@
-import { eq } from "drizzle-orm";
-import { describe, expect, test } from "vitest";
+import { eq, sql } from "drizzle-orm";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import { events, seminarInscriptions, seminars } from "@/db/schema";
@@ -13,6 +13,7 @@ import {
   getSeminar,
   listSeminars,
   updateSeminar,
+  type SeminarInput,
   type SeminarMutationResult,
 } from "@/lib/seminars/repository.server";
 
@@ -20,11 +21,27 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-const seminarInput = {
+// The seminar guards read one predicate, and what it answers is slice 2's
+// business: mocking it is what lets this suite state the guard without money.
+vi.mock("@/lib/seminars/covered-inscriptions.server", () => ({
+  hasCoveredSeminarInscription: vi.fn(async () => false),
+}));
+
+const { hasCoveredSeminarInscription } = vi.mocked(
+  await import("@/lib/seminars/covered-inscriptions.server"),
+);
+
+afterEach(() => {
+  hasCoveredSeminarInscription.mockResolvedValue(false);
+});
+
+const seminarInput: SeminarInput = {
   instructorName: "Abril Sosa",
   scheduledDate: "2026-10-10",
   startTime: "18:30",
   quota: 20,
+  kind: "regular",
+  requiredDepositPercentage: 50,
 };
 
 function expectSaved(result: SeminarMutationResult) {
@@ -136,6 +153,7 @@ describe("seminar repository", () => {
 
     const updated = expectSaved(
       await updateSeminar(seminar.id, {
+        ...seminarInput,
         instructorName: "Abril Sosa Vega",
         scheduledDate: "2026-10-11",
         startTime: "09:00",
@@ -161,6 +179,7 @@ describe("seminar repository", () => {
     // Saving a seminar over its own moment is not a duplicate of itself.
     expectSaved(
       await updateSeminar(seminar.id, {
+        ...seminarInput,
         instructorName: "Abril Sosa Vega",
         scheduledDate: "2026-10-11",
         startTime: "09:00",
@@ -178,6 +197,113 @@ describe("seminar repository", () => {
       ok: false,
       code: "seminar-not-found",
     });
+  });
+
+  test("stores the seminar's kind and its own deposit rate, and refuses a rate outside 1 and 99", async () => {
+    const event = await createSavedEvent("Regional 2026");
+
+    const seminar = expectSaved(
+      await createSeminar(event.id, {
+        ...seminarInput,
+        kind: "special",
+        requiredDepositPercentage: 30,
+      }),
+    );
+    expect(seminar).toMatchObject({ kind: "special" });
+    expect(seminar.requiredDepositPercentage).toBe(30);
+
+    for (const requiredDepositPercentage of [0, 100, 50.5]) {
+      await expect(
+        updateSeminar(seminar.id, {
+          ...seminarInput,
+          requiredDepositPercentage,
+        }),
+      ).resolves.toMatchObject({
+        ok: false,
+        code: "invalid-seminar",
+        fieldErrors: {
+          requiredDepositPercentage:
+            "La seña del seminario debe ser un entero entre 1 y 99.",
+        },
+      });
+    }
+  });
+
+  // The two facts every seminar carried before this pair existed: the row the
+  // migration left behind reads as a `Común` seminar with a deposit of half its
+  // price, and the database refuses a rate outside the range whichever writer
+  // produced it.
+  test("defaults a seminar written without the pair to regular and 50, under a database range check", async () => {
+    const event = await createSavedEvent("Regional 2026");
+
+    await db.execute(sql`
+      insert into en_escena_seminar
+        (id, event_id, instructor_name, scheduled_date, start_time, quota)
+      values
+        ('seminar_legacy', ${event.id}, 'Abril Sosa', '2026-10-10', '18:30', 20)
+    `);
+
+    await expect(getSeminar("seminar_legacy")).resolves.toMatchObject({
+      kind: "regular",
+      requiredDepositPercentage: 50,
+    });
+    await expect(
+      db.execute(sql`
+        update en_escena_seminar
+        set required_deposit_percentage = 100
+        where id = 'seminar_legacy'
+      `),
+    ).rejects.toThrow();
+  });
+
+  test("refuses to move the kind or the deposit rate while an inscription is covered, and lets the rest through", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    const seminar = expectSaved(await createSeminar(event.id, seminarInput));
+
+    hasCoveredSeminarInscription.mockResolvedValue(true);
+
+    for (const structuralChange of [
+      { kind: "special" as const },
+      { requiredDepositPercentage: 40 },
+    ]) {
+      await expect(
+        updateSeminar(seminar.id, { ...seminarInput, ...structuralChange }),
+      ).resolves.toMatchObject({
+        ok: false,
+        code: "covered-inscriptions",
+        error:
+          "No se puede cambiar el tipo de seminario ni la seña: ya hay inscripciones con la seña cubierta.",
+      });
+    }
+
+    // Saving the pair as it already stands is no change, so it is no refusal:
+    // the instructor, the moment and the quota keep editing under money.
+    expect(
+      expectSaved(
+        await updateSeminar(seminar.id, {
+          ...seminarInput,
+          instructorName: "Nicolás Prado",
+        }),
+      ),
+    ).toMatchObject({ instructorName: "Nicolás Prado" });
+  });
+
+  // Nothing covers a deposit yet: seminar money arrives with the allocation
+  // target, and until then the predicate answers `false` for every seminar, so
+  // the guard above blocks nobody.
+  test("moves both facts freely while no inscription is covered", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    const seminar = expectSaved(await createSeminar(event.id, seminarInput));
+
+    expect(
+      expectSaved(
+        await updateSeminar(seminar.id, {
+          ...seminarInput,
+          kind: "special",
+          requiredDepositPercentage: 25,
+        }),
+      ),
+    ).toMatchObject({ kind: "special", requiredDepositPercentage: 25 });
   });
 
   test("refuses to delete a seminar that has inscriptions, and accepts once it has none", async () => {

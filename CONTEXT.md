@@ -153,7 +153,7 @@ Person associated with an academy and loaded by that academy as part of its data
 _Avoid_: `user`, `admin`
 
 **`seminar`** — ui: "Seminario"
-A class an event offers around the competition, created by administration: an instructor's name and picture, a date and time, and a quota. It has no name of its own —the instructor and the date are what an academy reads it by— and it is not part of the `Bases del evento`, so registration readiness ignores it. **Specified, not built** (map #884, PRD #906): it also carries a `seminarKind` and its own deposit rate (`Seña (%)`, 1 to 99, default 50), and its quota caps the inscriptions that have **covered their deposit**, not the registrations — see `docs/domain/seminars.md`.
+A class an event offers around the competition, created by administration: an instructor's name and picture, a date and time, a quota, a `seminarKind` and its own deposit rate (`Seña (%)`, 1 to 99, default 50, never the event's). It has no name of its own —the instructor and the date are what an academy reads it by— and it is not part of the `Bases del evento`, so registration readiness ignores it. The kind and the rate are refused while any inscription of the seminar is covered. **Specified, not built** (map #884, PRD #906): its quota caps the inscriptions that have **covered their deposit**, not the registrations — see `docs/domain/seminars.md`.
 _Avoid_: `schedule`, workshop, taller, class, `eventDocument`
 
 **`seminarInscription`** — ui: "Inscripción a seminario"
@@ -165,7 +165,7 @@ Specified, not built (map #884, PRD #906). One named, dated, event-level price r
 _Avoid_: `price`, seminar tier, per-seminar price, `participantAmount`, `nonParticipantAmount`
 
 **`seminarKind`** — ui: "Tipo de seminario"
-Specified, not built (map #884, PRD #906). The kind of a seminar and of a seminar price, an enum with the values `regular` (`Común`) and `special` (`Exclusivo`), carried by both `seminar` and `seminarPrice`. It plays the role the schedule plays for a choreography price —a non-regular seminar resolves against its kind's rows first and falls back to the regular ones— with no schedule involved. An enum rather than a boolean so a third kind is a value, not a migration. A seminar's kind cannot flip while any of its inscriptions is covered.
+The kind of a seminar, an enum with the values `regular` (`Común`) and `special` (`Exclusivo`); **specified, not built** (map #884, PRD #906), the `seminarPrice` carries it too. It plays the role the schedule plays for a choreography price —a non-regular seminar resolves against its kind's rows first and falls back to the regular ones— with no schedule involved. An enum rather than a boolean so a third kind is a value, not a migration. A seminar's kind cannot flip while any of its inscriptions is covered.
 _Avoid_: special flag, `isSpecial`, exclusive, `groupType`, `modality`
 
 **`forParticipants`** — ui: "Para participantes"

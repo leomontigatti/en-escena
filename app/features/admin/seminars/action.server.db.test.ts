@@ -14,6 +14,7 @@ import {
   registerSeminarInscription,
 } from "@/lib/seminars/inscriptions.server";
 import { createSeminar, listSeminars } from "@/lib/seminars/repository.server";
+import { defaultSeminarFacts } from "@/lib/test-support/seminars";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 
@@ -32,6 +33,8 @@ const seminarFields = {
   scheduledDate: "2026-10-10",
   startTime: "18:30",
   quota: "20",
+  kind: "special",
+  requiredDepositPercentage: "40",
 };
 
 async function buildSignedRequest(
@@ -62,7 +65,11 @@ async function buildSignedRequest(
 }
 
 async function createSavedSeminar(eventId: string) {
-  const created = await createSeminar(eventId, { ...seminarFields, quota: 20 });
+  const created = await createSeminar(eventId, {
+    ...seminarFields,
+    ...defaultSeminarFacts,
+    quota: 20,
+  });
 
   if (!created.ok) {
     throw new Error(
@@ -106,6 +113,8 @@ describe.sequential("admin seminars", () => {
       startTime: "18:30",
       quota: 20,
       availablePlaces: 20,
+      kind: "special",
+      requiredDepositPercentage: 40,
     });
     await expectFlashRedirect(
       response,
@@ -165,10 +174,13 @@ describe.sequential("admin seminars", () => {
       `http://localhost/administracion/seminarios/${seminarId}`,
       {
         intent: "update-seminar",
+        ...seminarFields,
         instructorName: "Nicolás Prado",
         scheduledDate: "2026-10-11",
         startTime: "09:00",
         quota: "8",
+        kind: "regular",
+        requiredDepositPercentage: "25",
       },
     );
 
@@ -185,6 +197,8 @@ describe.sequential("admin seminars", () => {
         scheduledDate: "2026-10-11",
         startTime: "09:00",
         quota: 8,
+        kind: "regular",
+        requiredDepositPercentage: 25,
       },
     ]);
   });

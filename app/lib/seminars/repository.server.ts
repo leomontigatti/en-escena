@@ -2,6 +2,12 @@ import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { seminarInscriptions, seminars } from "@/db/schema";
+import { hasCoveredSeminarInscription } from "@/lib/seminars/covered-inscriptions.server";
+import {
+  invalidSeminarDepositPercentageMessage,
+  isValidSeminarDepositPercentage,
+} from "@/lib/seminars/deposit-percentage";
+import { isSeminarKind, type SeminarKind } from "@/lib/seminars/seminar-kinds";
 import { seminarHasInscriptionsMessage } from "@/lib/seminars/registration-refusals";
 import { isDateOnly } from "@/lib/shared/date-only";
 
@@ -33,13 +39,17 @@ export type SeminarInput = {
   scheduledDate: string;
   startTime: string;
   quota: number;
+  kind: SeminarKind;
+  requiredDepositPercentage: number;
 };
 
 export type SeminarFieldName =
   | "instructorName"
   | "scheduledDate"
   | "startTime"
-  | "quota";
+  | "quota"
+  | "kind"
+  | "requiredDepositPercentage";
 
 export type SeminarFailure = {
   ok: false;
@@ -47,6 +57,7 @@ export type SeminarFailure = {
     | "invalid-seminar"
     | "duplicate-seminar"
     | "has-inscriptions"
+    | "covered-inscriptions"
     | "quota-below-count"
     | "seminar-not-found";
   error: string;
@@ -66,6 +77,8 @@ const duplicateSeminarFieldError =
   "Cambiá el instructor, la fecha o la hora del seminario.";
 const seminarNotFoundError = "No encontramos ese seminario.";
 const requiredSeminarFieldError = "Este campo es obligatorio.";
+const coveredSeminarError =
+  "No se puede cambiar el tipo de seminario ni la seña: ya hay inscripciones con la seña cubierta.";
 
 export async function listSeminars(
   eventId: string,
@@ -197,7 +210,11 @@ export async function updateSeminar(
   // holding more inscriptions than its new quota describes.
   return db.transaction(async (tx) => {
     const [existing] = await tx
-      .select({ eventId: seminars.eventId })
+      .select({
+        eventId: seminars.eventId,
+        kind: seminars.kind,
+        requiredDepositPercentage: seminars.requiredDepositPercentage,
+      })
       .from(seminars)
       .where(eq(seminars.id, seminarId))
       .for("update");
@@ -215,6 +232,25 @@ export async function updateSeminar(
 
     if (duplicate) {
       return duplicateSeminarFailure();
+    }
+
+    // The kind and the deposit rate are structural once money depends on them:
+    // both feed the deposit an inscription had to cover to take its place, and
+    // a covered row cannot have that threshold moved under it.
+    const structuralChange =
+      existing.kind !== validation.input.kind ||
+      existing.requiredDepositPercentage !==
+        validation.input.requiredDepositPercentage;
+
+    if (
+      structuralChange &&
+      (await hasCoveredSeminarInscription(seminarId, tx))
+    ) {
+      return {
+        ok: false,
+        code: "covered-inscriptions",
+        error: coveredSeminarError,
+      };
     }
 
     // The quota can never describe fewer places than the seminar already gave
@@ -347,6 +383,15 @@ function validateSeminarInput(
     fieldErrors.quota = "Ingresá un cupo mayor a cero.";
   }
 
+  if (!isSeminarKind(input.kind)) {
+    fieldErrors.kind = requiredSeminarFieldError;
+  }
+
+  if (!isValidSeminarDepositPercentage(input.requiredDepositPercentage)) {
+    fieldErrors.requiredDepositPercentage =
+      invalidSeminarDepositPercentageMessage;
+  }
+
   if (Object.keys(fieldErrors).length > 0) {
     return {
       ok: false,
@@ -358,7 +403,14 @@ function validateSeminarInput(
 
   return {
     ok: true,
-    input: { instructorName, scheduledDate, startTime, quota: input.quota },
+    input: {
+      instructorName,
+      scheduledDate,
+      startTime,
+      quota: input.quota,
+      kind: input.kind,
+      requiredDepositPercentage: input.requiredDepositPercentage,
+    },
   };
 }
 

@@ -2,6 +2,7 @@ import { redirect } from "react-router";
 
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
+import { hasCoveredSeminarInscription } from "@/lib/seminars/covered-inscriptions.server";
 import { listSeminarInscriptions } from "@/lib/seminars/inscriptions.server";
 import { getSeminar, listSeminars } from "@/lib/seminars/repository.server";
 import {
@@ -65,6 +66,7 @@ export async function loadSeminarDetailData(
   }
 
   return {
+    hasCoveredInscription: await hasCoveredSeminarInscription(seminar.id),
     inscriptions: await listSeminarInscriptions(seminar.id),
     instructorPictureUrl: await loadSeminarInstructorPictureUrl({
       instructorPictureStorageKey: seminar.instructorPictureStorageKey,

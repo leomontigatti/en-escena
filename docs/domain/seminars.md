@@ -37,40 +37,44 @@ what runs today.
 - The quota is required, at least 1, with no upper bound. It is a **hard cap,
   first come first served**: there is no waitlist and no override. When a
   seminar is full, administration raises the quota; nobody registers past it.
+- It carries a **`seminarKind`** (`Tipo de seminario`), an enum with the values
+  `regular` (`Común`) and `special` (`Exclusivo`), not null, `Común` by default.
+  It picks which `seminarPrice` rows price the seminar (see "Prices"). It is an
+  enum rather than a boolean so a third kind is a value, not a migration.
+- It carries its own **`requiredDepositPercentage`** (`Seña (%)`), a not-null
+  integer from 1 to 99, 50 by default. It is the seminar's own rate, **not** the
+  event's: the rate is what fixes the place, a per-seminar fact, while the price
+  list is shared across the event's seminars.
+- **Both are refused while any inscription of the seminar is covered** — while
+  any has reached the deposit of its stored price row — because both move the
+  threshold that took a place. On the form both show the shared read-only look,
+  so the refusal is read on sight and not after the save; the server refuses all
+  the same, for the race. Nothing is covered until seminar money exists, so
+  today the pair edits freely
+  (`app/lib/seminars/covered-inscriptions.server.ts`).
 - The instructor's picture is optional at creation and uploaded from the
   seminar's detail, like an `eventDocument`. Until then the portal shows a
   placeholder. It is a private `uploadedAsset` of kind `seminarInstructorPicture`,
   served by `signedUrl`, one object per seminar; replacing it leaves no sibling
   behind, and removing it or the seminar removes the object. Deleting the event
   orphans it on the volume, as event documents are orphaned today.
-- Administration edits every field at any time, including after inscriptions
-  exist, with two refusals, both after the submission: a seminar with
-  inscriptions cannot be deleted, and the quota cannot drop below the current
-  inscription count. Moving a seminar's date into the past simply closes its
-  registration.
+- Administration edits every other field at any time, including after
+  inscriptions exist, with two refusals, both after the submission: a seminar
+  with inscriptions cannot be deleted, and the quota cannot drop below the
+  current inscription count. Moving a seminar's date into the past simply closes
+  its registration.
 
-> **Specified, not built.** The seminar gains two fields and its guards change
-> ([Seminar prices as event-level rows](https://github.com/leomontigatti/en-escena/issues/904),
-> [Quota at the crossing](https://github.com/leomontigatti/en-escena/issues/888),
+> **Specified, not built.** The seminar's remaining guards change
+> ([Quota at the crossing](https://github.com/leomontigatti/en-escena/issues/888),
 > [Seminar inscription removal](https://github.com/leomontigatti/en-escena/issues/889)):
 >
-> - **`seminarKind`** (`Tipo de seminario`), an enum with the values `regular`
->   (`Común`) and `special` (`Exclusivo`), not null, `Común` by default. It
->   picks which `seminarPrice` rows price the seminar (see "Prices"). It is an
->   enum rather than a boolean so a third kind is a value, not a migration.
-> - **`requiredDepositPercentage`** (`Seña (%)`), a not-null integer from 1 to
->   99, 50 by default. It is the seminar's own rate, **not** the event's: the
->   rate is what fixes the place, a per-seminar fact, while the price list is
->   shared across the event's seminars.
 > - **The quota stops being a cap on registration and becomes a cap on
 >   places.** Registration is unlimited; a place is taken when an inscription
 >   covers its deposit (see "The place"). The quota is a hard cap on covered
 >   inscriptions, still first come first served, still with no waitlist and no
 >   override.
-> - **Guards.** Both the kind and the rate are **refused while any inscription
->   of the seminar is covered**; on the form both show the shared read-only
->   look. The quota cannot drop below the **covered** count, replacing "below
->   the current inscription count". A seminar cannot be deleted while any
+> - **Guards.** The quota cannot drop below the **covered** count, replacing
+>   "below the current inscription count". A seminar cannot be deleted while any
 >   inscription row exists, **withdrawn rows included**: it is reachable by
 >   de-allocating every row and removing them, and permanently blocked by a row
 >   withdrawn while it held money or ever invoiced, as a choreography with a

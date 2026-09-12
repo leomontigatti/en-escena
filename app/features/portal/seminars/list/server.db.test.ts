@@ -7,6 +7,7 @@ import {
 import { activateEvent } from "@/lib/events/management.server";
 import { createPortalSavedEvent } from "@/lib/events/saved-event-test-support.server";
 import { createSeminar } from "@/lib/seminars/repository.server";
+import { defaultSeminarFacts } from "@/lib/test-support/seminars";
 import {
   createAcademySession,
   createPortalPostRequest,
@@ -36,6 +37,7 @@ async function createActiveEventWithSeminar(quota = 5) {
     scheduledDate: "2099-10-10",
     startTime: "18:30",
     quota,
+    ...defaultSeminarFacts,
   });
 
   if (!result.ok) {
