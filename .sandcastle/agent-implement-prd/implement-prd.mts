@@ -18,6 +18,7 @@ import { run } from "@ai-hero/sandcastle";
 import {
   createAgent,
   createSandboxProvider,
+  describeBudget,
   requireEnv,
   runMain,
   streamingLog,
@@ -25,7 +26,7 @@ import {
 
 const MAX_ITERATIONS = 100;
 
-await runMain(async ({ signal }) => {
+await runMain(async ({ signal, completion }) => {
   const prdNumber = requireEnv("PRD_NUMBER");
   const prdTitle = requireEnv("PRD_TITLE");
   const subNumber = requireEnv("SUB_ISSUE_NUMBER");
@@ -40,7 +41,8 @@ await runMain(async ({ signal }) => {
     name: "implement-prd",
     agent: createAgent(),
     sandbox: createSandboxProvider(),
-    logging: streamingLog("implement-prd"),
+    // Its whole result is its commits, so a completion after the budget counts.
+    logging: streamingLog("implement-prd", completion),
     signal,
     maxIterations: MAX_ITERATIONS,
     promptFile: "./.sandcastle/agent-implement-prd/prompt.md",
@@ -50,6 +52,7 @@ await runMain(async ({ signal }) => {
       SUB_ISSUE_NUMBER: subNumber,
       SUB_ISSUE_TITLE: subTitle,
       BRANCH: branch,
+      WALL_CLOCK_BUDGET: describeBudget(),
       PRD_BODY: prdBody,
       SUB_ISSUE_BODY: subBody,
       SIBLINGS: siblings,

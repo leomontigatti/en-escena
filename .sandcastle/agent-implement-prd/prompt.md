@@ -45,10 +45,11 @@ this sub-issue — especially nearby test files. Follow the `do-work` workflow
 
 # EXECUTION
 
-Use red-green-refactor where applicable (RED → GREEN → REPEAT → REFACTOR). Before committing,
-run `pnpm typecheck`, `pnpm lint`, `pnpm test:unit`, and `pnpm test:db <path>` for the DB test
-files you touched, and fix anything they surface. Don't run the full `pnpm test` — it takes
-~13 min of your 30 min budget and CI runs the complete suite in parallel anyway.
+Use red-green-refactor where applicable (RED → GREEN → REPEAT → REFACTOR). Before your final
+commit, run `pnpm typecheck`, `pnpm lint`, `pnpm test:unit`, and `pnpm test:db <path>` for the
+DB test files you touched, and fix anything they surface. Don't run the full `pnpm test` — it
+takes ~13 min of your wall-clock budget ({{WALL_CLOCK_BUDGET}}) and CI runs the complete suite
+in parallel anyway.
 
 **That list of four is exhaustive. Do not invent commands** — check `package.json` before
 running anything else, not after it fails. `pnpm lint` is oxlint with three rules (hook
@@ -59,6 +60,13 @@ result. See `.sandcastle/VALIDATION.md`.
 
 Make one or more commits on `{{BRANCH}}` with conventional-commit messages (`feat:`, `fix:`,
 `refactor:`, `test:`, `docs:`). Include `Part of #{{PRD_NUMBER}}` in each commit body.
+
+**Commit as you go.** Your wall-clock budget is {{WALL_CLOCK_BUDGET}}, and the run is stopped
+when it runs out. Each time a coherent part of the sub-issue is green — `pnpm typecheck` plus
+the tests covering that part — commit it, instead of saving everything for one commit at the
+end. If the run is stopped, the workflow pushes your commits to `{{BRANCH}}` and a retry resumes
+from them; **uncommitted work is lost**. The full check list above still runs before your last
+commit.
 
 - If you changed code mapped in `app/lib/shared/doc-map.json` (`app/lib/auth/**` →
   `docs/domain/access.md`; `app/lib/storage/**` and
