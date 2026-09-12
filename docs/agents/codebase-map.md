@@ -111,9 +111,13 @@ schedule resolution and operational completion.
 
 Use for the academy-facing seminar gallery: the seminar cards of the active
 event, the academy's own inscriptions and the registration dialog. The seminar
-row and its administrative surfaces live in `Admin Seminars`.
+row and its administrative surfaces live in `Admin Seminars`. Specified, not
+built (PRD #906): a portal seminar detail route that takes over registration and
+removal, and the seminar tab and `(seminar, academy)` detail of the portal
+`Resumen financiero` under `app/features/portal/finances/`; each slice adds its
+files here as it creates them.
 
-- Domain: `docs/domain/seminars.md`
+- Domain: `docs/domain/seminars.md`, `docs/domain/finances.md`
 - ADRs: `docs/adr/0002-selectable-event-contexts.md`, `docs/adr/0004-organize-app-code-by-product-surface.md`
 - Routes: `app/routes/portal.seminarios.tsx`
 - Feature modules: `app/features/portal/seminars/list/`
@@ -206,9 +210,15 @@ Use for the seminars an event offers around the competition: the seminar row,
 the admin list, the create page, the detail with its `Información` and
 `Inscriptos` tabs, the instructor's picture and the removal of an inscription.
 Seminars are not part of the `Bases del evento` — registration readiness ignores
-them and they have their own section under `Operación`.
+them and they have their own section under `Operación`. Specified, not built
+(PRD #906): the seminar price list is a tab of the `Precios` section
+(`app/features/admin/prices/`, `app/lib/prices/`), seminar money is allocated
+from the academy's pool (`app/lib/finances/`) through a `(seminar, academy)`
+financial detail under `app/features/admin/finances/`, and the seminar
+inscription becomes a second allocation and comprobante-line target; each slice
+adds its files here as it creates them.
 
-- Domain: `docs/domain/seminars.md`
+- Domain: `docs/domain/seminars.md`, `docs/domain/finances.md`
 - ADRs: `docs/adr/0002-selectable-event-contexts.md`, `docs/adr/0004-organize-app-code-by-product-surface.md`
 - Routes: `app/routes/administracion.seminarios.tsx`, `app/routes/administracion.seminarios_.nuevo.tsx`, `app/routes/administracion.seminarios_.$seminarId.tsx`
 - Feature modules: `app/features/admin/seminars/list/`, `app/features/admin/seminars/create/`, `app/features/admin/seminars/detail/`

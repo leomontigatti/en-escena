@@ -64,6 +64,22 @@ every figure re-derives from money and can move in both directions.
   is born `Seña pendiente`. Adding a dancer who was withdrawn **revives** the
   same row instead of inserting another (see "Withdrawal from the roster").
 
+> **Specified, not built.** The `Inscripción` gains a **second kind**. Map
+> [#884](https://github.com/leomontigatti/en-escena/issues/884) makes the
+> `seminarInscription` (`docs/domain/seminars.md`) an allocation target in the
+> same academy pool, with the same `Pago`, the same `Asignación de pago`, the
+> same `Saldo disponible` invariant and the same `Comprobante`; there is no
+> separate seminar payment. From then on `inscription` is the umbrella term and
+> the choreography–dancer link is the **choreography inscription**
+> ([Allocation and comprobante line as a two-kind target](https://github.com/leomontigatti/en-escena/issues/886)).
+> The seminar inscription carries the same two fields and nothing else
+> financial — `selectedPriceId`, referencing a `seminarPrice`, and
+> `withdrawnAt` — and no `academyId`: its academy is read through the person,
+> and the allocation row's own `academyId` covers the pool side. Owner: the PRD
+> [#906](https://github.com/leomontigatti/en-escena/issues/906). Where a seminar
+> inscription differs from a choreography one, the callouts below name it; where
+> no callout says otherwise, the rule reads the same for both kinds.
+
 ### Inscription financial status
 
 Read from `Σ allocations` against the two thresholds, recomputed on every read.
@@ -150,6 +166,26 @@ gone with the dateless resolution they excused.
 
 The superseded per-inscription `Saldo de inscripción` (`base − deposit −
 discount`) is **gone, not renamed**: both of its subtrahends moved.
+
+> **Specified, not built.** A seminar inscription's figures
+> ([Participant predicate](https://github.com/leomontigatti/en-escena/issues/887),
+> [Seminar prices as event-level rows](https://github.com/leomontigatti/en-escena/issues/904)):
+>
+> ```
+> depositAmount = round(effectiveSeminarPrice.amount × seminar.requiredDepositPercentage / 100)
+> totalAmount   = effectiveSeminarPrice.amount
+> ```
+>
+> The rate is the **seminar's own** (1 to 99, default 50), never the event's
+> `requiredDepositPercentage`. There is **no discount**: a seminar inscription
+> neither enters the `Descuento por bailarín` qualifying set nor receives it,
+> because the participant row already is the reduction for "also dancing". The
+> owed figures, the status table and `Sin precio` read exactly as above. The
+> academy scope's `owedDepositAmount`, `owedBalanceAmount` and
+> `totalPaidAmount` are **one figure each, summed over both kinds** — one debt
+> against one pool — and `availableBalanceAmount` is already pool-wide; a
+> surface may break a total down by kind, the read model does not
+> ([#886](https://github.com/leomontigatti/en-escena/issues/886)).
 
 ## `Descuento por bailarín`
 
@@ -310,16 +346,26 @@ DISTINCT`, because two of them would otherwise be separated only by amount.
 
 > **Specified, not built.**
 > A seminar inscription is priced the same way, decided in
-> [#885](https://github.com/leomontigatti/en-escena/issues/885):
+> [Seminar prices as event-level rows](https://github.com/leomontigatti/en-escena/issues/904)
+> (which superseded #885):
 > `seminarInscription.selectedPriceId` is nullable, references a `seminarPrice`
-> tier, is written only by the allocation dialog, and the effective tier is
-> `crossed ? stored : (current ?? stored)` through the same owner, fed the
-> seminar's tiers as the candidate set — no schedule or group-type axis — and the
-> seminar's own `requiredDepositPercentage`. A seminar with no tier can be
-> registered into and its inscriptions read `Sin precio`. The seminar tier
-> selector — the tiers reduced to the amount that applies to the person, then
-> `selectApplicablePriceCandidate` — is one call into the owner and belongs to
-> the seminar money map, [#884](https://github.com/leomontigatti/en-escena/issues/884).
+> row, is written only by the allocation dialog, and the effective row is
+> `crossed ? stored : (current ?? stored)` through the same owner,
+> `resolveEffectiveBasePriceRow`, fed the seminar's own `requiredDepositPercentage`
+> and a candidate set with **no schedule or group-type axis**: the event's
+> `seminarPrice` rows of the seminar's `seminarKind` for the person's participant
+> cell, falling back to the `regular` rows when the kind has none, with no
+> fallback on the participant axis. The business date then picks among them
+> through `selectApplicablePriceCandidate`, one call into the owner. The stored
+> row carries its own `forParticipants` flag, so the crossing freezes the tier
+> and the participant fact in one column and nothing else is persisted. The
+> picker offers the same candidate set with no date filter, as the choreography
+> picker does. A price row referenced by any seminar inscription cannot be
+> deleted or restructured, and a seminar's kind cannot flip while any of its
+> inscriptions is covered — which closes, for seminars, the known divergence
+> below. The `Señada`-without-a-place band this creates for the seminar quota is
+> named in `docs/domain/seminars.md`, "The place". Owner: the PRD
+> [#906](https://github.com/leomontigatti/en-escena/issues/906).
 
 **Known divergence — a roster change can leave a crossed price impossible.**
 Because nothing refreshes `selectedPriceId`, a roster change that moves the
@@ -434,6 +480,21 @@ than an append-only ledger.
 - One inscription's money can come from several payments, and one payment can
   fund several inscriptions.
 
+> **Specified, not built.** The allocation points at **either kind** of
+> inscription
+> ([Allocation and comprobante line as a two-kind target](https://github.com/leomontigatti/en-escena/issues/886)):
+> `inscriptionId` is **renamed** `choreographyInscriptionId` and a nullable
+> `seminarInscriptionId` joins it, both cascading, with a CHECK that exactly one
+> is set and one unique index on `(paymentId, choreographyInscriptionId,
+seminarInscriptionId)` created `NULLS NOT DISTINCT`, so the summing upsert
+> keeps a single conflict target. The `comprobante_inscription` line takes the
+> same pair with `set null` on both, a CHECK of at most one set (an orphaned line
+> keeps both null) and two partial unique indexes, one per kind. A supertype
+> table and a parallel seminar allocation table were both rejected: the only
+> thing that varies per kind is how thresholds resolve, and that is one seam
+> inside the pool module. Owner: the PRD
+> [#906](https://github.com/leomontigatti/en-escena/issues/906).
+
 ## The pool rules
 
 Funding an inscription and unfunding it are the two halves of one invariant, and
@@ -466,6 +527,24 @@ they live in one module.
 - **Accepted cost, stated plainly**: a specific payment can no longer be lifted
   off a specific inscription. The remedy for a payment recorded in error is
   deleting the payment, which cascades its allocations.
+
+> **Specified, not built.** The pool module stays single and takes a **target**
+> `{ kind: "choreography" | "seminar", id }` in place of an inscription id; the
+> one per-kind piece is the threshold read behind the over-allocation guard,
+> chosen inside the module from the target's kind
+> ([#886](https://github.com/leomontigatti/en-escena/issues/886)). For a seminar
+> target the write also enforces the **quota**
+> ([Quota at the crossing](https://github.com/leomontigatti/en-escena/issues/888)):
+> it locks the seminar row `FOR UPDATE` first, crossing or not, counts the
+> covered non-withdrawn inscriptions of the seminar excluding the one being
+> funded, and refuses only the write that would cross the stored row's deposit
+> when that count already equals the quota, with
+> `No quedan lugares en el seminario, así que esta inscripción no puede cubrir su seña.`
+> A partial allocation below the deposit goes through even when the seminar is
+> full. The order of refusals is no price → over-allocation → **quota** →
+> insufficient pool; the pool ceiling stays last because it is the one the
+> dialog cannot pre-check. Owner: the PRD
+> [#906](https://github.com/leomontigatti/en-escena/issues/906).
 
 > **Specified, not built.**
 > The `− Σ refunds` term has nothing behind it: there is no refunds table and no
@@ -574,6 +653,18 @@ price, and the refusal is what catches it. It is the only path there:
 `applySelectedPrice` is reached from `allocateToInscription` alone, which this
 dialog is the only caller of. The presets have their own `applySelectedPrices`.
 
+> **Specified, not built.** A seminar inscription opens **the same dialog**,
+> with its three shapes and its overlay, from the `(seminar, academy)`
+> financial detail
+> ([Admin surfaces for seminar money](https://github.com/leomontigatti/en-escena/issues/890)).
+> Options and the locked readout read `{name} · {amount} · seña {deposit}`; the
+> picker offers only the `seminarPrice` rows already filtered to the seminar's
+> kind (then `regular`) and to the person's participant cell, with no date
+> filter and no participant readout, and the only write is `selectedPriceId`.
+> The quota refusal lands in the dialog's existing error alert, where every
+> server refusal lands. Owner: the PRD
+> [#906](https://github.com/leomontigatti/en-escena/issues/906).
+
 ### Per choreography
 
 `Pagar seña` and `Pagar saldo` survive as **list actions** over the chosen
@@ -585,6 +676,12 @@ partway through, or any inscription is refused, the whole charge rolls back and
 the administrator who sees an error can trust that nothing moved. A preset
 selects and stores a price row only for inscriptions that have not covered their
 deposit yet; anything already past that threshold keeps the price it holds.
+
+> **Specified, not built.** The presets act on **choreographies only**. There
+> is no preset over seminar inscriptions: a bulk all-or-nothing crossing against
+> a shared quota stops naming one row, and the volume does not ask for it
+> ([#888](https://github.com/leomontigatti/en-escena/issues/888)). The
+> per-inscription dialog is the only gesture for seminar money.
 
 ## Anomalies
 
@@ -678,6 +775,29 @@ read path derives the withdrawn figures; an allocation write against a withdrawn
 inscription still computes its thresholds from the price row, so the write-path
 over-allocation guard measures against a `Total` the read side does not show.
 
+> **Specified, not built.** Removing a seminar inscription goes through **the
+> same chooser**, on both sides
+> ([Seminar inscription removal with money on it](https://github.com/leomontigatti/en-escena/issues/889)):
+> the academy keeps its removal until the seminar starts and administration
+> keeps its removal at any time; a row with no allocation and no comprobante
+> line is deleted, any other is withdrawn with its money, its stored row and
+> its `createdAt`. The academy therefore has an **academy-driven withdrawal**
+> choreographies do not have. A withdrawn seminar inscription owes nothing
+> beyond what it holds, exposes its deposit figure, reads `paidInFull` under
+> `Retirada`, stays in the money rollup and is out of the status rollup and of
+> the seminar's covered count — withdrawal **frees the place**. Revival is a
+> registration: the same person registered again revives the same row with its
+> money, under the seminar lock, and is refused with the no-places message when
+> the money it still holds would retake a place the seminar no longer has.
+> De-allocating a withdrawn row to zero does not delete it. Reads filter
+> withdrawn seminar rows behind an `activeSeminarInscription()` twin of the
+> predicate above, with its own raw-SQL twin and no generic predicate over two
+> tables ([#886](https://github.com/leomontigatti/en-escena/issues/886)); the
+> price-lock trigger gets a **separate** function on `seminar_inscription`, of
+> the same shape, deriving the stored deposit from `seminar_price` joined to the
+> seminar's own rate. Owner: the PRD
+> [#906](https://github.com/leomontigatti/en-escena/issues/906).
+
 > **Specified, not built.**
 > ADR-0014 §6 makes the withdrawal's fiscal consequence
 > `NC = línea facturada − retenido`, with the administrator choosing the retained amount in the
@@ -743,6 +863,30 @@ settled model:
   state, including a credit note. The block is never released: a choreography
   that was ever invoiced becomes permanently undeletable. It blocks deletion
   only, not roster editing.
+
+> **Specified, not built.** Seminar money **is invoiced**, and the comprobante's
+> root gains a second **anchor**
+> ([Seminar invoicing](https://github.com/leomontigatti/en-escena/issues/894)):
+> `choreographyId` becomes nullable, a nullable `seminarId` joins it with a
+> CHECK that exactly one is set, and `academyId` becomes a not-null column of
+> the root, backfilled from the choreography for every existing row. The
+> obligation unit for a seminar is the academy's inscriptions in one seminar —
+> **one comprobante per `(seminar, academy)`**, the exact twin of "one per
+> choreography" — so every rule above that reads "same choreography" reads
+> "same anchor": annulment by another comprobante of the same anchor, the
+> per-unit lock, and the deletion block, which makes a seminar with any invoiced
+> row permanently undeletable. Emission extends the **built collection-driven
+> emitter** to the unit — `collected − already billed` per seminar inscription
+> line, gated on a positive unbilled amount, withdrawn rows billed as evidence —
+> from a single `Emitir factura` on the `(seminar, academy)` financial detail;
+> there is no bulk action for either kind. The printed receptor block reads
+> `{academy} — Seminario {instructor}, {date}`, the single line stays
+> `Inscripción`, and the service period is the seminar's own date for both
+> ends. The global list searches by instructor name beside choreography name,
+> with no kind facet; the portal shows no comprobante for either kind. The
+> ADR-0014 §5 model stays the target for **both** kinds under
+> [#657](https://github.com/leomontigatti/en-escena/issues/657). Owner: the PRD
+> [#906](https://github.com/leomontigatti/en-escena/issues/906).
 
 > **Specified, not built.** This is the largest gap in the document, and it is
 > the whole of ADR-0014 §5, §6 and §7 **minus the one piece already built**: the
@@ -841,6 +985,32 @@ and no request actions. The restriction is **permanent and role-based**.
   renders is already the correct current obligation, nothing about a pending
   document is actionable by an academy, and the withdrawal signal already exists
   on the roster axis as the `Retirada` badge with the retained amount beside it.
+
+> **Specified, not built.** Seminar money is read on the same surfaces, split
+> by kind where a unit is named
+> ([Admin surfaces](https://github.com/leomontigatti/en-escena/issues/890),
+> [Portal surfaces](https://github.com/leomontigatti/en-escena/issues/891)):
+>
+> - The admin academy list is unchanged and each academy's figures sum both
+>   kinds. There is no separate seminars finance list.
+> - The admin academy finances and the portal `Resumen financiero` gain
+>   `Coreografías` / `Seminarios` tabs. `Seña total`, `Seña adeudada`, `Total`
+>   and `Saldo adeudado` follow the active tab; `Saldo disponible` never moves,
+>   because unallocated money belongs to neither kind. Each tab keeps its own
+>   selection and the owed pair narrows to it. The seminar tab lists the
+>   `(seminar, academy)` units — instructor, date, inscriptos, the shared
+>   figures and the status — each linking to its financial detail.
+> - A **`(seminar, academy)` financial detail** on each side, titled by the
+>   instructor alone, twin of the choreography one: the five metrics, the
+>   inscriptions table with `Precio` showing the effective row's name, and the
+>   `Retirada` rows — the one place the portal shows them. The admin one holds
+>   the money dialog and `Emitir factura`; the portal one writes nothing. Both
+>   carry the full-quota notice.
+> - The `Eliminar pago` impact list gains seminar entries in the same list as
+>   choreographies, each naming the money leaving it and how many of its
+>   inscriptions lose their place. Deletion never blocks.
+>
+> Owner: the PRD [#906](https://github.com/leomontigatti/en-escena/issues/906).
 
 ## Retired vocabulary
 
