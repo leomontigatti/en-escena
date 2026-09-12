@@ -744,3 +744,48 @@ anomaly: an inscription can hold money and store no row — the presets can
 produce it — and it simply reads `Sin precio` until the next allocation write
 names a row, with no detector and no slot of its own, as the anomaly table in
 `docs/domain/finances.md` records.
+
+## Correction (2026-09-12): the obligation unit has two kinds, and §8's `notNull` anchor is withdrawn
+
+Appended, not edited in place. §8 restates from ADR-0011 that "`comprobantes.choreographyId`
+stays `notNull`" and that there is "one factura per choreography". Map
+[#884](https://github.com/leomontigatti/en-escena/issues/884) brought seminar
+money into the same pool, and its ticket
+[Seminar invoicing](https://github.com/leomontigatti/en-escena/issues/894)
+decided that seminar money is invoiced too. A seminar has no choreography and
+spans academies, so the anchor as §8 wrote it cannot hold a seminar's
+comprobante. The decision, recorded here because it contradicts the sentence
+above and ADRs are append-only:
+
+- **The obligation unit has two kinds**: the choreography (one academy, one
+  roster, as today) and the academy's inscriptions in one seminar — one
+  comprobante per `(seminar, academy)`. The root gains a nullable `seminar_id`
+  beside a now-nullable `choreography_id`, exactly one set, and an
+  `academy_id NOT NULL` backfilled from the choreography for every existing
+  row. Every rule in §5, §7 and §8 that reads "same choreography" reads "same
+  anchor": the amendment star, the per-unit advisory lock, the annulment
+  scope and the permanent deletion block.
+- **What §8 argued is upheld, not overturned.** The multi-choreography voucher
+  was rejected because units reach the gate at different moments and a shared
+  document degrades the reconciliation invariant to per-group; the same
+  argument rejects one comprobante per `(event, academy)` covering every
+  seminar, and one per seminar inscription was rejected because choreographies
+  are not invoiced per dancer. The unit stays "one bounded roster, one academy,
+  one service, its own gate moment, its own star"; only the claim that a
+  choreography is the sole such unit is withdrawn.
+- **The emission model is unchanged by this correction.** The spec extends the
+  built collection-driven emitter to the seminar unit; §5 stays the target for
+  both kinds under [#657](https://github.com/leomontigatti/en-escena/issues/657).
+  Building §5 for seminars first, or waiting for §5 before any seminar money can
+  be invoiced, were both rejected: the first runs two emission models in
+  production, the second ships a line column nothing can write.
+- **§8's service-period sentence is widened, not changed**: the seminar unit's
+  `FchServDesde` / `FchServHasta` are the seminar's own local date, the truthful
+  period for that service and stable across the unit's documents, which a nota
+  de crédito must mirror. `FchVtoPago = CbteFch` stands with the weaker
+  rationale §8 already records.
+
+The current state — which anchor column exists, what the receptor block prints,
+where `Emitir factura` lives — is in `docs/domain/finances.md`, "Invoicing",
+marked as specified until the PRD
+[#906](https://github.com/leomontigatti/en-escena/issues/906) ships it.
