@@ -6,12 +6,15 @@ import {
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
 import { AlertStack } from "@/components/shared/alert-stack";
+import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import {
   ClientDataTable,
   type DataTableColumn,
 } from "@/components/shared/data-table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { EmissionDialog } from "@/features/admin/finances/comprobante-emission/dialog";
 import { InscriptionMoneyDialog } from "@/features/admin/finances/inscription-money/dialog";
 import { formatDate } from "@/features/admin/schedules/view-shared";
 import { formatDancerName } from "@/lib/finances/formatters";
@@ -40,8 +43,9 @@ type SeminarFinanceDetailViewProps = {
  * inscriptions table carries **no `Tipo` column**, because a seminar
  * inscription has no group type to read.
  *
- * There is no `Emitir factura` here yet: the seminar's fiscal anchor is a later
- * slice of the PRD, and an affordance that cannot bill would be a promise.
+ * `Emitir factura` lives in the header menu exactly as it does there, and it is
+ * the only entry point to seminar invoicing: it bills every inscription this
+ * academy holds in this seminar, and there is no bulk action for either kind.
  */
 export function SeminarFinanceDetailView({
   loaderData,
@@ -62,6 +66,9 @@ export function SeminarFinanceDetailView({
         description:
           "Activá un evento para consultar el detalle financiero de un seminario.",
       }}
+      headerAction={
+        seminar ? <SeminarActions loaderData={loaderData} /> : undefined
+      }
     >
       {seminar ? (
         <div className="flex flex-col gap-6">
@@ -90,6 +97,45 @@ export function SeminarFinanceDetailView({
         />
       )}
     </AdminResourceLayout>
+  );
+}
+
+/**
+ * The header's single actions menu (`...`, ADR-0011), the choreography detail's
+ * twin: `Emitir factura` as a menu item opening its own dialog, mounted as a
+ * sibling of the menu so the dropdown closing does not take it away. The item
+ * is disabled rather than removed when there is nothing left to bill, for the
+ * same reason it is there.
+ */
+function SeminarActions({ loaderData }: SeminarFinanceDetailViewProps) {
+  const invoicing = loaderData.invoicing;
+  // Frozen on open and unmounted when the dialog CLOSES, not when the unit
+  // stops being billable: an emission recovered via "Verificar ahora" persists
+  // the comprobante and revalidates the detail, and unmounting there would take
+  // the `recovered` state with it (#577).
+  const [emission, setEmission] = useState<typeof invoicing | null>(null);
+
+  return (
+    <>
+      <ResourceActionsMenu contentClassName="w-48">
+        <DropdownMenuItem
+          disabled={!invoicing.canEmit}
+          onSelect={(event) => {
+            event.preventDefault();
+            setEmission(invoicing);
+          }}
+        >
+          Emitir factura
+        </DropdownMenuItem>
+      </ResourceActionsMenu>
+      {emission ? (
+        <EmissionDialog
+          billableAmount={emission.billableAmount}
+          open
+          onOpenChange={(next) => setEmission(next ? emission : null)}
+        />
+      ) : null}
+    </>
   );
 }
 

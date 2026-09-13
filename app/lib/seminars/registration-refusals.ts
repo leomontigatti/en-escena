@@ -34,6 +34,16 @@ export const seminarHasInscriptionsMessage =
   "No se puede borrar el seminario porque tiene inscripciones.";
 
 /**
+ * The one refusal of the delete that is **permanent**: a comprobante is
+ * immutable and undeletable by fiscal obligation, so a seminar that was ever
+ * invoiced can never be deleted, however its inscriptions end up. Separate from
+ * the inscriptions message because that one is reachable — de-allocate and
+ * remove every row — and this one is not.
+ */
+export const seminarHasComprobantesMessage =
+  "No se puede borrar el seminario porque tiene comprobantes emitidos.";
+
+/**
  * The refusal of a **revival**: the withdrawn row still holds money past the
  * deposit of the row it stored, so bringing it back would retake a place the
  * seminar has already given away. It is short because it is the academy's to

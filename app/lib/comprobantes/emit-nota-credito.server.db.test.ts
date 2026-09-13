@@ -29,16 +29,17 @@ import {
   ultimoNotaCreditoAutorizado,
 } from "@/lib/comprobantes/arca/fixtures";
 import {
-  listChoreographyComprobantes,
+  listAnchorComprobantes,
   recordComprobante,
 } from "@/lib/comprobantes/comprobantes.server";
-import { emitChoreographyFacturaC } from "@/lib/comprobantes/emit-factura-c.server";
+import { emitFacturaC } from "@/lib/comprobantes/emit-factura-c.server";
 import {
   annulComprobante,
   type NotaCreditoEmissionOutcome,
 } from "@/lib/comprobantes/emit-nota-credito.server";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
+import { choreographyAnchor } from "@/lib/comprobantes/anchor";
 
 installDatabaseTestHooks();
 
@@ -187,7 +188,7 @@ async function recordFactura(input: {
   fchVtoPago?: string;
 }) {
   return await recordComprobante({
-    choreographyId: input.choreographyId,
+    anchor: choreographyAnchor(input.choreographyId),
     eventId: input.eventId,
     cbteTipo: 11,
     ptoVta: 1,
@@ -259,7 +260,9 @@ describe("annulComprobante", () => {
       },
     ]);
 
-    const rows = await listChoreographyComprobantes(choreography.id);
+    const rows = await listAnchorComprobantes(
+      choreographyAnchor(choreography.id),
+    );
     const facturaRow = rows.find((row) => row.id === factura.id);
     const notaCredito = rows.find((row) => row.cbteTipo === 13);
     // The original ends up annulled; the credit note, in force and associated.
@@ -335,7 +338,9 @@ describe("annulComprobante", () => {
     );
 
     expectOk(outcome);
-    const rows = await listChoreographyComprobantes(choreography.id);
+    const rows = await listAnchorComprobantes(
+      choreographyAnchor(choreography.id),
+    );
     const notaCredito = rows.find((row) => row.cbteTipo === 13);
     expect(notaCredito?.lines).toHaveLength(1);
     expect(notaCredito?.lines[0]).toMatchObject({
@@ -378,7 +383,9 @@ describe("annulComprobante", () => {
     expect(second).toMatchObject({ ok: false, reason: "already-annulled" });
     // No second credit note was emitted.
     expect(billing.createVoucher).not.toHaveBeenCalled();
-    const rows = await listChoreographyComprobantes(choreography.id);
+    const rows = await listAnchorComprobantes(
+      choreographyAnchor(choreography.id),
+    );
     expect(rows.filter((row) => row.cbteTipo === 13)).toHaveLength(1);
   });
 
@@ -420,7 +427,7 @@ describe("annulComprobante", () => {
     // far as persisting it.
     await expect(
       recordComprobante({
-        choreographyId: choreography.id,
+        anchor: choreographyAnchor(choreography.id),
         eventId: choreography.eventId,
         cbteTipo: 13,
         ptoVta: 1,
@@ -439,7 +446,9 @@ describe("annulComprobante", () => {
       }),
     ).rejects.toThrow();
 
-    const rows = await listChoreographyComprobantes(choreography.id);
+    const rows = await listAnchorComprobantes(
+      choreographyAnchor(choreography.id),
+    );
     expect(rows.filter((row) => row.cbteTipo === 13)).toHaveLength(1);
   });
 
@@ -461,7 +470,9 @@ describe("annulComprobante", () => {
       });
     }
 
-    const rows = await listChoreographyComprobantes(choreography.id);
+    const rows = await listAnchorComprobantes(
+      choreographyAnchor(choreography.id),
+    );
     expect(rows).toHaveLength(3);
     expect(rows.every((row) => row.status === "vigente")).toBe(true);
   });
@@ -497,7 +508,9 @@ describe("annulComprobante", () => {
       expect(outcome.reason).toBe("rejected");
       expect(outcome.arca?.errors[0]?.code).toBe(10016);
     }
-    const rows = await listChoreographyComprobantes(choreography.id);
+    const rows = await listAnchorComprobantes(
+      choreographyAnchor(choreography.id),
+    );
     expect(rows).toHaveLength(1);
     expect(rows[0].status).toBe("vigente");
   });
@@ -540,8 +553,11 @@ describe("annulComprobante", () => {
     expectOk(firstAnnul);
 
     // 2) The remainder becomes billable again → emit a second invoice.
-    const reemit = await emitChoreographyFacturaC(
-      { choreographyId: choreography.id, eventId: choreography.eventId },
+    const reemit = await emitFacturaC(
+      {
+        anchor: choreographyAnchor(choreography.id),
+        eventId: choreography.eventId,
+      },
       annulDeps(
         fakeBilling({
           getLastVoucher: vi.fn(async () => ultimoAutorizado),
@@ -565,7 +581,9 @@ describe("annulComprobante", () => {
     );
     expectOk(secondAnnul);
 
-    const rows = await listChoreographyComprobantes(choreography.id);
+    const rows = await listAnchorComprobantes(
+      choreographyAnchor(choreography.id),
+    );
     // Four rows: 2 invoices + 2 credit notes, all undeletable.
     expect(rows).toHaveLength(4);
     const facturas = rows.filter((row) => row.cbteTipo === 11);
@@ -635,7 +653,9 @@ describe("annulComprobante (ARCA does not respond)", () => {
     expect(outcome).toMatchObject({ ok: false, reason: "not-emitted" });
     expect(billing.createVoucher).not.toHaveBeenCalled();
     expect(billing.getVoucherInfo).not.toHaveBeenCalled();
-    const rows = await listChoreographyComprobantes(choreography.id);
+    const rows = await listAnchorComprobantes(
+      choreographyAnchor(choreography.id),
+    );
     expect(rows).toHaveLength(1);
     expect(rows[0].status).toBe("vigente");
   });
@@ -664,7 +684,9 @@ describe("annulComprobante (ARCA does not respond)", () => {
       associatedComprobanteId: factura.id,
     });
     // The original ended up annulled, just as on the happy path.
-    const rows = await listChoreographyComprobantes(choreography.id);
+    const rows = await listAnchorComprobantes(
+      choreographyAnchor(choreography.id),
+    );
     expect(rows.find((row) => row.id === factura.id)?.status).toBe("anulada");
   });
 
@@ -698,7 +720,9 @@ describe("annulComprobante (ARCA does not respond)", () => {
     );
 
     expect(outcome).toMatchObject({ ok: false, reason: "not-emitted" });
-    const rows = await listChoreographyComprobantes(choreography.id);
+    const rows = await listAnchorComprobantes(
+      choreographyAnchor(choreography.id),
+    );
     expect(rows).toHaveLength(1);
     expect(rows[0].status).toBe("vigente");
   });
@@ -721,7 +745,9 @@ describe("annulComprobante (ARCA does not respond)", () => {
       reason: "unverified",
       attempt: { ptoVta: 1, cbteTipo: 13, cbteNro: 8 },
     });
-    const rows = await listChoreographyComprobantes(choreography.id);
+    const rows = await listAnchorComprobantes(
+      choreographyAnchor(choreography.id),
+    );
     expect(rows).toHaveLength(1);
     expect(rows[0].status).toBe("vigente");
   });
@@ -740,7 +766,9 @@ describe("annulComprobante (ARCA does not respond)", () => {
     );
 
     expect(outcome).toMatchObject({ ok: false, reason: "unverified" });
-    expect(await listChoreographyComprobantes(choreography.id)).toHaveLength(1);
+    expect(
+      await listAnchorComprobantes(choreographyAnchor(choreography.id)),
+    ).toHaveLength(1);
   });
 
   test("a queried credit note with a different date is not ours either", async () => {
@@ -759,6 +787,8 @@ describe("annulComprobante (ARCA does not respond)", () => {
     );
 
     expect(outcome).toMatchObject({ ok: false, reason: "unverified" });
-    expect(await listChoreographyComprobantes(choreography.id)).toHaveLength(1);
+    expect(
+      await listAnchorComprobantes(choreographyAnchor(choreography.id)),
+    ).toHaveLength(1);
   });
 });

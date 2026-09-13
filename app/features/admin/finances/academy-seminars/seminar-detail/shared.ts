@@ -1,4 +1,9 @@
-export type SeminarFinanceActionData = { status: "error"; message: string };
+import type { ComprobanteEmissionActionData } from "@/features/admin/finances/comprobante-emission/shared";
+
+// The money gestures and the emission answer the same shape, which is the
+// shared emission union: the dialog mounted here is the choreography detail's,
+// not a twin of it.
+export type SeminarFinanceActionData = ComprobanteEmissionActionData;
 
 /**
  * The canonical URL of a `(seminar, academy)` financial detail. The seminar is

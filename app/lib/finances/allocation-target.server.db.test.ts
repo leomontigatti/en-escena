@@ -159,10 +159,15 @@ async function seedChoreographyId(eventId: string) {
   return choreography.id;
 }
 
-async function recordComprobanteRoot(eventId: string, choreographyId: string) {
+async function recordComprobanteRoot(
+  eventId: string,
+  choreographyId: string,
+  academyId: string,
+) {
   const [comprobante] = await db
     .insert(comprobantes)
     .values({
+      academyId,
       cae: "74123456789012",
       caeVto: "20300801",
       cbteFch: "20300722",
@@ -380,6 +385,7 @@ describe.sequential("the comprobante line target", () => {
     const comprobante = await recordComprobanteRoot(
       fixture.eventId,
       choreographyId,
+      fixture.academyId,
     );
 
     await db.insert(comprobanteInscriptions).values({
@@ -403,6 +409,7 @@ describe.sequential("the comprobante line target", () => {
     const comprobante = await recordComprobanteRoot(
       fixture.eventId,
       choreographyId,
+      fixture.academyId,
     );
 
     await db.insert(comprobanteInscriptions).values([

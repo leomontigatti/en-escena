@@ -12,11 +12,25 @@ import {
   readFinanceAcademy,
   readFinanceAcademyId,
 } from "@/features/admin/finances/academy.server";
+import {
+  handleEmitComprobante,
+  handleRecheckComprobante,
+} from "@/features/admin/finances/comprobante-emission/handlers.server";
+import {
+  emitComprobanteIntent,
+  recheckComprobanteIntent,
+} from "@/features/admin/finances/comprobante-emission/shared";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import {
   requireAdminUser,
   requireInternalUser,
 } from "@/lib/auth/internal-access.server";
+import { seminarAnchor } from "@/lib/comprobantes/anchor";
+import {
+  getFacturaCEmissionDeps,
+  resolveAnchorBillable,
+  type FacturaCEmissionDeps,
+} from "@/lib/comprobantes/emit-factura-c.server";
 import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operational-summary.server";
 import {
   allocateToSeminarInscription,
@@ -62,6 +76,7 @@ export async function loadSeminarFinanceDetail(input: {
       academy,
       availableBalanceAmount: 0,
       inscriptions: [],
+      invoicing: { billableAmount: 0, canEmit: false },
       priceOptionsByInscription: {} as Record<
         string,
         SeminarInscriptionPriceOption[]
@@ -84,11 +99,14 @@ export async function loadSeminarFinanceDetail(input: {
     throw new Response(seminarNotFoundMessage, { status: 404 });
   }
 
-  const [inscriptions, priceOptions, seminarRow] = await Promise.all([
-    readSeminarInscriptionFinanceRows({ academyId, eventId, seminarId }),
-    readSeminarInscriptionPriceOptions({ eventId, seminarId }),
-    getSeminar(seminarId),
-  ]);
+  const [inscriptions, priceOptions, seminarRow, invoicing] = await Promise.all(
+    [
+      readSeminarInscriptionFinanceRows({ academyId, eventId, seminarId }),
+      readSeminarInscriptionPriceOptions({ eventId, seminarId }),
+      getSeminar(seminarId),
+      readSeminarInvoicing(seminarId, academyId),
+    ],
+  );
 
   return {
     academy,
@@ -97,6 +115,7 @@ export async function loadSeminarFinanceDetail(input: {
     // of.
     availableBalanceAmount: financeDetail.summary.availableBalanceAmount,
     inscriptions,
+    invoicing,
     // A plain object rather than the `Map` the reader answers: it has to survive
     // the loader's serialization on its way to the view.
     priceOptionsByInscription: Object.fromEntries(
@@ -126,6 +145,29 @@ export async function loadSeminarFinanceDetail(input: {
   };
 }
 
+type SeminarInvoicing = {
+  // The collected remainder of this `(seminar, academy)` unit that no
+  // comprobante in force covers yet. Emission bills exactly this.
+  billableAmount: number;
+  canEmit: boolean;
+};
+
+/**
+ * The detail's emission axis, read off the same resolver the emitter bills
+ * from, so the affordance and the write cannot disagree about whether there is
+ * anything to invoice.
+ */
+async function readSeminarInvoicing(
+  seminarId: string,
+  academyId: string,
+): Promise<SeminarInvoicing> {
+  const billable = await resolveAnchorBillable(
+    seminarAnchor(seminarId, academyId),
+  );
+
+  return { billableAmount: billable.total, canEmit: billable.total > 0 };
+}
+
 /**
  * The three money gestures of a seminar inscription. They are the choreography
  * action's twin down to the redirect: a write that went through leaves the
@@ -135,6 +177,9 @@ export async function loadSeminarFinanceDetail(input: {
 export async function handleSeminarFinanceAction(input: {
   params: { academyId?: string; seminarId?: string };
   request: Request;
+  // Injectable emission inputs: the tests pass a mocked ARCA client; in
+  // production they are resolved from the environment (cert+key, sales point).
+  resolveEmissionDeps?: () => FacturaCEmissionDeps;
 }): Promise<SeminarFinanceActionData | never> {
   await requireAdminUser(input.request);
 
@@ -151,6 +196,28 @@ export async function handleSeminarFinanceAction(input: {
 
   const eventId = eventContext.selectedEventId;
   const formData = await input.request.formData();
+  const intent = String(formData.get("intent") ?? "");
+  const emissionContext = {
+    anchor: seminarAnchor(seminarId, academyId),
+    detailUrl: seminarFinanceDetailUrl(academyId, seminarId, eventId),
+    eventId,
+    resolveEmissionDeps: input.resolveEmissionDeps ?? getFacturaCEmissionDeps,
+  };
+
+  if (intent === emitComprobanteIntent) {
+    return await handleEmitComprobante({
+      ...emissionContext,
+      confirm: String(formData.get("confirm") ?? ""),
+    });
+  }
+
+  if (intent === recheckComprobanteIntent) {
+    return await handleRecheckComprobante({
+      ...emissionContext,
+      cbteNro: String(formData.get("cbteNro") ?? ""),
+    });
+  }
+
   const result = await runSeminarMoneyIntent({
     academyId,
     eventId,

@@ -46,7 +46,8 @@ import {
   emitComprobanteConfirmValue,
   emitComprobanteIntent,
   recheckComprobanteIntent,
-} from "./shared";
+} from "@/features/admin/finances/comprobante-emission/shared";
+import { choreographyAnchor } from "@/lib/comprobantes/anchor";
 
 installDatabaseTestHooks();
 
@@ -163,7 +164,7 @@ async function recordVigenteFactura(input: {
   cbteNro: number;
 }) {
   return await recordComprobante({
-    choreographyId: input.choreographyId,
+    anchor: choreographyAnchor(input.choreographyId),
     eventId: input.eventId,
     cbteTipo: FACTURA_C_CBTE_TIPO,
     ptoVta: 1,
@@ -194,7 +195,7 @@ async function recordNotaCredito(input: {
   associatedComprobanteId: string;
 }) {
   return await recordComprobante({
-    choreographyId: input.choreographyId,
+    anchor: choreographyAnchor(input.choreographyId),
     eventId: input.eventId,
     cbteTipo: NOTA_CREDITO_C_CBTE_TIPO,
     ptoVta: 1,

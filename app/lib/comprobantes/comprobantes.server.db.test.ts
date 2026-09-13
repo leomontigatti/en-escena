@@ -11,12 +11,13 @@ import {
 } from "@/features/portal/choreographies/test-support/db";
 import { createAcademyRecord } from "@/features/portal/test-support/db";
 import {
-  listChoreographyComprobantes,
+  listAnchorComprobantes,
   recordComprobante,
   type RecordComprobanteInput,
 } from "@/lib/comprobantes/comprobantes.server";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
+import { choreographyAnchor } from "@/lib/comprobantes/anchor";
 
 installDatabaseTestHooks();
 
@@ -59,7 +60,10 @@ function facturaCInput(
     eventId: string;
   },
 ): RecordComprobanteInput {
+  const { choreographyId, ...rest } = overrides;
+
   return {
+    anchor: choreographyAnchor(choreographyId),
     cbteTipo: 11,
     ptoVta: 1,
     cbteNro: 1,
@@ -73,7 +77,7 @@ function facturaCInput(
     cae: "75123456789012",
     caeVto: "20260801",
     lines: [],
-    ...overrides,
+    ...rest,
   };
 }
 
@@ -92,7 +96,9 @@ describe("recordComprobante persistence", () => {
       }),
     );
 
-    const [persisted] = await listChoreographyComprobantes(choreography.id);
+    const [persisted] = await listAnchorComprobantes(
+      choreographyAnchor(choreography.id),
+    );
 
     expect(persisted).toMatchObject({
       cbteTipo: 11,
@@ -130,8 +136,8 @@ describe("recordComprobante persistence", () => {
       }),
     );
 
-    const [beforeAnnulment] = await listChoreographyComprobantes(
-      choreography.id,
+    const [beforeAnnulment] = await listAnchorComprobantes(
+      choreographyAnchor(choreography.id),
     );
     expect(beforeAnnulment.status).toBe("vigente");
 
@@ -148,7 +154,9 @@ describe("recordComprobante persistence", () => {
       }),
     );
 
-    const afterAnnulment = await listChoreographyComprobantes(choreography.id);
+    const afterAnnulment = await listAnchorComprobantes(
+      choreographyAnchor(choreography.id),
+    );
     const facturaRow = afterAnnulment.find((row) => row.id === factura.id);
     const notaCredito = afterAnnulment.find((row) => row.cbteTipo === 13);
 
@@ -184,7 +192,9 @@ describe("recordComprobante persistence", () => {
       db.delete(choreographies).where(eq(choreographies.id, choreography.id)),
     ).rejects.toThrow();
 
-    const survivors = await listChoreographyComprobantes(choreography.id);
+    const survivors = await listAnchorComprobantes(
+      choreographyAnchor(choreography.id),
+    );
     expect(survivors).toHaveLength(1);
   });
 
@@ -208,7 +218,9 @@ describe("recordComprobante persistence", () => {
       .delete(choreographyDancers)
       .where(eq(choreographyDancers.id, inscription.id));
 
-    const [survivor] = await listChoreographyComprobantes(choreography.id);
+    const [survivor] = await listAnchorComprobantes(
+      choreographyAnchor(choreography.id),
+    );
     // The fiscal row is immutable: its total amount does not change.
     expect(survivor.id).toBe(factura.id);
     expect(survivor.impTotal).toBe(10000);

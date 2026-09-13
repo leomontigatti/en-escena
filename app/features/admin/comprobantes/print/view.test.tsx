@@ -17,7 +17,9 @@ function printRecord(
 ): ComprobantePrintRecord {
   return {
     id: "comprobante_1",
+    academyId: "academy_1",
     choreographyId: "choreo_1",
+    seminarId: null,
     eventId: "event_1",
     cbteTipo: 11,
     ptoVta: 3,

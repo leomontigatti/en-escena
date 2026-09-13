@@ -14,6 +14,7 @@ import {
 } from "@/lib/comprobantes/comprobantes.server";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
+import { choreographyAnchor } from "@/lib/comprobantes/anchor";
 
 installDatabaseTestHooks();
 
@@ -23,7 +24,10 @@ function facturaCInput(
     eventId: string;
   },
 ): RecordComprobanteInput {
+  const { choreographyId, ...rest } = overrides;
+
   return {
+    anchor: choreographyAnchor(choreographyId),
     cbteTipo: 11,
     ptoVta: 1,
     cbteNro: 1,
@@ -37,7 +41,7 @@ function facturaCInput(
     cae: "75123456789012",
     caeVto: "20260801",
     lines: [],
-    ...overrides,
+    ...rest,
   };
 }
 

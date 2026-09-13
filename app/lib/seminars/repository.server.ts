@@ -12,7 +12,11 @@ import {
   isValidSeminarDepositPercentage,
 } from "@/lib/seminars/deposit-percentage";
 import { isSeminarKind, type SeminarKind } from "@/lib/seminars/seminar-kinds";
-import { seminarHasInscriptionsMessage } from "@/lib/seminars/registration-refusals";
+import { seminarHasComprobantes } from "@/lib/comprobantes/comprobantes.server";
+import {
+  seminarHasComprobantesMessage,
+  seminarHasInscriptionsMessage,
+} from "@/lib/seminars/registration-refusals";
 import { isDateOnly } from "@/lib/shared/date-only";
 
 export type SeminarRow = typeof seminars.$inferSelect;
@@ -66,6 +70,7 @@ export type SeminarFailure = {
     | "invalid-seminar"
     | "duplicate-seminar"
     | "has-inscriptions"
+    | "has-comprobantes"
     | "covered-inscriptions"
     | "quota-below-covered"
     | "seminar-not-found";
@@ -347,6 +352,20 @@ export async function setSeminarInstructorPicture(
 export async function deleteSeminar(
   seminarId: string,
 ): Promise<SeminarDeleteResult> {
+  // The fiscal root first, and deliberately OUTSIDE the transaction below: a
+  // seminar that was ever invoiced is permanently undeletable, so there is no
+  // race to close — nothing can annul the block, and a comprobante appearing
+  // afterwards can only belong to a row the inscription guard already refuses.
+  // Saying "it has inscriptions" here would promise a way out that fiscal
+  // obligation does not give.
+  if (await seminarHasComprobantes(seminarId)) {
+    return {
+      ok: false,
+      code: "has-comprobantes",
+      error: seminarHasComprobantesMessage,
+    };
+  }
+
   // Under the same lock the registration path takes: the foreign key cascades,
   // so counting outside it would let an inscription land between the guard and
   // the delete and be taken with the seminar without ever being refused.

@@ -133,7 +133,10 @@ export async function loadComprobantesList(
       impTotal: comprobantes.impTotal,
       cae: comprobantes.cae,
       status: sql<ComprobanteStatus>`case when ${isAnnulled} then 'anulada' else 'vigente' end`,
-      choreographyId: comprobantes.choreographyId,
+      // Off the joined choreography, not off the nullable anchor column: the
+      // inner join already restricts the list to the choreography-anchored
+      // comprobantes.
+      choreographyId: choreographies.id,
       choreographyName: choreographies.name,
       academyId: academies.id,
       academyName: academies.name,

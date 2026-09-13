@@ -11,9 +11,10 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 
+import { academies } from "./academies";
 import { choreographies, choreographyDancers } from "./choreographies";
 import { createTable } from "./core";
-import { events, seminarInscriptions } from "./events";
+import { events, seminarInscriptions, seminars } from "./events";
 
 // The issuer's VAT condition, frozen in the snapshot. The issuer is
 // `Proyecciones Artísticas Asociación Civil` (CUIT 30717611590), EXEMPT from VAT
@@ -38,10 +39,25 @@ export const comprobantes = createTable(
       .primaryKey()
       .notNull()
       .$defaultFn(() => crypto.randomUUID()),
-    // Anchor choreography. No `onDelete cascade`: a choreography with fiscal
-    // history cannot be physically deleted (hard invariant of #340), so the root
-    // row always keeps its anchor alive and there are no orphan comprobantes.
-    choreographyId: varchar("choreography_id", { length: 255 }).notNull(),
+    // The ANCHOR, of either kind: exactly one of the two is set. A choreography
+    // comprobante bills one choreography; a seminar comprobante bills what one
+    // academy holds in one seminar, and the pair `(seminar, academy)` is the
+    // obligation unit there — the exact twin of "one per choreography". Every
+    // rule that used to read "same choreography" reads "same anchor": annulment
+    // by another comprobante of the same anchor, and the deletion block.
+    //
+    // Neither reference cascades: an anchor with fiscal history cannot be
+    // physically deleted (hard invariant of #340, extended to the seminar), so
+    // the root row always keeps its anchor alive and there are no orphan
+    // comprobantes.
+    choreographyId: varchar("choreography_id", { length: 255 }),
+    seminarId: varchar("seminar_id", { length: 255 }),
+    // The academy the comprobante is issued to. It is a column of the root and
+    // not a join through the anchor because a seminar has no single academy:
+    // the unit is the pair. On a choreography row it is the choreography's own
+    // academy, which is where every pre-existing row's value was backfilled
+    // from.
+    academyId: varchar("academy_id", { length: 255 }).notNull(),
     eventId: varchar("event_id", { length: 255 }).notNull(),
     // ARCA comprobante type: 11 = `Factura C`, 13 = `Nota de crédito C`.
     cbteTipo: integer("cbte_tipo").notNull(),
@@ -96,6 +112,16 @@ export const comprobantes = createTable(
       name: "comprobante_choreography_fk",
     }),
     foreignKey({
+      columns: [table.seminarId],
+      foreignColumns: [seminars.id],
+      name: "comprobante_seminar_fk",
+    }),
+    foreignKey({
+      columns: [table.academyId],
+      foreignColumns: [academies.id],
+      name: "comprobante_academy_fk",
+    }),
+    foreignKey({
       columns: [table.eventId],
       foreignColumns: [events.id],
       name: "comprobante_event_fk",
@@ -105,6 +131,12 @@ export const comprobantes = createTable(
       foreignColumns: [table.id],
       name: "comprobante_associated_fk",
     }),
+    // Exactly one, unlike the line's `at most one`: a comprobante with no anchor
+    // bills nothing, and one with two would belong to two units at once.
+    check(
+      "comprobante_exactly_one_anchor",
+      sql`num_nonnulls(${table.choreographyId}, ${table.seminarId}) = 1`,
+    ),
     uniqueIndex("comprobante_ptovta_tipo_nro_unique").on(
       table.ptoVta,
       table.cbteTipo,
@@ -112,6 +144,11 @@ export const comprobantes = createTable(
     ),
     index("comprobante_choreography_idx").on(
       table.choreographyId,
+      table.createdAt,
+    ),
+    index("comprobante_seminar_idx").on(
+      table.seminarId,
+      table.academyId,
       table.createdAt,
     ),
     index("comprobante_event_idx").on(table.eventId, table.createdAt),

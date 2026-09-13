@@ -822,10 +822,22 @@ two tables.
 
 ## Invoicing
 
-One `Comprobante` belongs to one choreography (`choreographyId` is not null), and
-a comprobante that carries a CAE is **immutable and undeletable by fiscal
-obligation**. It is emitted from the choreography's financial detail in the admin
-panel.
+One `Comprobante` belongs to one **anchor**, and a comprobante that carries a
+CAE is **immutable and undeletable by fiscal obligation**. The anchor is one of
+two, with a `CHECK` requiring exactly one: a **choreography**
+(`choreographyId`), or a **`(seminar, academy)` unit** (`seminarId` plus the
+root's own `academyId`) — the academy's inscriptions in one seminar, which is
+the exact twin of "one per choreography" for a thing sold to many academies at
+once. `academyId` is a not-null column of the root on both kinds, derived from
+the choreography for a choreography comprobante — which is where every row
+predating the column was backfilled from — and taken from the emission input for
+a seminar one. Each is emitted from its own financial detail in the admin panel,
+from a single `Emitir factura` in the header menu; there is no bulk action for
+either kind.
+
+**Every rule below that reads "the same choreography" reads "the same
+anchor"**: the anti-double-billing derivation, annulment by another comprobante
+of the same anchor, and the deletion block.
 
 What is implemented today is **collection-driven emission**, and it is not the
 settled model:
@@ -836,8 +848,10 @@ settled model:
   positive, so emission is **incremental and repeatable** rather than
   all-or-nothing.
 - Internal lines are one row per inscription (`comprobante_inscription`), holding
-  an amount and no text. If the inscription is later hard-deleted the line's
-  `inscriptionId` goes null and the line survives.
+  an amount and no text, and naming an inscription of either kind. If the
+  inscription is later hard-deleted the line's target goes null and the line
+  survives. A **withdrawn** seminar inscription is billed like any other: it kept
+  its money, and the comprobante is the evidence of what it retained.
 - **The printed document carries exactly one line**, whose description reads
   `Inscripción` and nothing else, at the comprobante's total. There is no
   per-dancer line and no discount line. The description is a constant: it names
@@ -847,7 +861,9 @@ settled model:
   dancer to name until #657 renders one line per inscription.
 - Status is derived, never stored, and has **two** values: `vigente` and
   `anulada`. It is derived by **existence** — a comprobante is `anulada` when
-  some other comprobante of the same choreography points at it.
+  some other comprobante **of the same anchor** points at it. The one-amendment
+  unique index is untouched by the second anchor: it caps a comprobante at one
+  amendment whatever it is anchored on.
 - **`Vigente` / `Anulada` is the only comprobante badge**, and it is the derived
   status above, shown on the global comprobante list and detail. The financial
   detail's `Seña` and `Saldo` metric cards carry **no** badge and **no** link to
@@ -862,39 +878,30 @@ settled model:
   comprobante is refused.
 - There is **no debit note**: only `Factura C` (`CbteTipo` 11) and
   `Nota de crédito C` (`CbteTipo` 13) exist.
-- A comprobante is emitted as a **service** (WSFEv1 `Concepto` 2) with the
-  event's dates as the service period and `FchVtoPago = CbteFch`.
+- A comprobante is emitted as a **service** (WSFEv1 `Concepto` 2).
 - Contingency and recovery when ARCA is unreachable are implemented: a failure is
   classified by phase, timeouts are wrapper-level constants, and authorization
   ambiguity is resolved by consulting ARCA rather than by asking the operator.
   The UI states what was resolved — `rejected` / `not-emitted` / `unverified` —
   never which call broke.
-- **Any comprobante of a choreography blocks its physical deletion**, in any
-  state, including a credit note. The block is never released: a choreography
-  that was ever invoiced becomes permanently undeletable. It blocks deletion
-  only, not roster editing.
+- **Any comprobante of an anchor blocks its physical deletion**, in any state,
+  including a credit note. The block is never released: a choreography — or a
+  seminar — that was ever invoiced becomes permanently undeletable. It blocks
+  deletion only, not roster editing. The seminar reference on the root carries no
+  cascade for exactly this reason: the block is the application's to state, in
+  Spanish, not the database's to resolve by destroying the evidence.
+- **The service period is the unit's own.** A choreography bills the event's
+  span; a seminar is taught on one day, so both ends read the seminar's date.
+  `FchVtoPago` is the comprobante's own date on both, because what is billed was
+  already collected.
 
-> **Specified, not built.** Seminar money **is invoiced**, and the comprobante's
-> root gains a second **anchor**
-> ([Seminar invoicing](https://github.com/leomontigatti/en-escena/issues/894)):
-> `choreographyId` becomes nullable, a nullable `seminarId` joins it with a
-> CHECK that exactly one is set, and `academyId` becomes a not-null column of
-> the root, backfilled from the choreography for every existing row. The
-> obligation unit for a seminar is the academy's inscriptions in one seminar —
-> **one comprobante per `(seminar, academy)`**, the exact twin of "one per
-> choreography" — so every rule above that reads "same choreography" reads
-> "same anchor": annulment by another comprobante of the same anchor, the
-> per-unit lock, and the deletion block, which makes a seminar with any invoiced
-> row permanently undeletable. Emission extends the **built collection-driven
-> emitter** to the unit — `collected − already billed` per seminar inscription
-> line, gated on a positive unbilled amount, withdrawn rows billed as evidence —
-> from a single `Emitir factura` on the `(seminar, academy)` financial detail;
-> there is no bulk action for either kind. The printed receptor block reads
-> `{academy} — Seminario {instructor}, {date}`, the single line stays
-> `Inscripción`, and the service period is the seminar's own date for both
-> ends. The global list searches by instructor name beside choreography name,
-> with no kind facet; the portal shows no comprobante for either kind. The
-> ADR-0014 §5 model stays the target for **both** kinds under
+> **Specified, not built.** What is left of seminar invoicing is how it
+> **reads**, not how it works
+> ([#926](https://github.com/leomontigatti/en-escena/issues/926)): the printed
+> receptor block `{academy} — Seminario {instructor}, {date}` (the single line
+> stays `Inscripción`), and the global list searching by instructor name beside
+> choreography name, with no kind facet. The portal shows no comprobante for
+> either kind. The ADR-0014 §5 model stays the target for **both** kinds under
 > [#657](https://github.com/leomontigatti/en-escena/issues/657). Owner: the PRD
 > [#906](https://github.com/leomontigatti/en-escena/issues/906).
 
@@ -1033,10 +1040,9 @@ disponible` never moves, each tab keeps its own selection and the owed pair
   sides read the same derivation, so they cannot disagree about an academy's
   seminar money.
 
-> **Specified, not built.** The admin `(seminar, academy)` detail gains
-> `Emitir factura` with the fiscal anchor
-> ([#894](https://github.com/leomontigatti/en-escena/issues/894)). Owner: the PRD
-> [#906](https://github.com/leomontigatti/en-escena/issues/906).
+The admin `(seminar, academy)` detail carries `Emitir factura` in its header
+menu, over the fiscal anchor above: it bills every inscription that academy
+holds in that seminar, and it is the only entry point to seminar invoicing.
 
 ## Retired vocabulary
 

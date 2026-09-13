@@ -34,17 +34,18 @@ import {
   ultimoAutorizado,
 } from "@/lib/comprobantes/arca/fixtures";
 import {
-  emitChoreographyFacturaC,
+  emitFacturaC,
   readFacturaCEmissionConfig,
-  recheckChoreographyFacturaC,
+  recheckFacturaC,
   type FacturaCEmissionDeps,
 } from "@/lib/comprobantes/emit-factura-c.server";
 import {
-  listChoreographyComprobantes,
+  listAnchorComprobantes,
   recordComprobante,
 } from "@/lib/comprobantes/comprobantes.server";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
+import { choreographyAnchor } from "@/lib/comprobantes/anchor";
 
 installDatabaseTestHooks();
 
@@ -175,7 +176,7 @@ async function allocatePayment(input: {
   });
 }
 
-describe("emitChoreographyFacturaC", () => {
+describe("emitFacturaC", () => {
   test("derives CbteNro from FECompUltimoAutorizado + 1 and invoices what was collected", async () => {
     const { academy, choreography, inscriptions } =
       await seedChoreographyWithInscriptions(
@@ -196,8 +197,11 @@ describe("emitChoreographyFacturaC", () => {
     });
 
     const deps = emissionDeps(fakeBilling());
-    const outcome = await emitChoreographyFacturaC(
-      { choreographyId: choreography.id, eventId: choreography.eventId },
+    const outcome = await emitFacturaC(
+      {
+        anchor: choreographyAnchor(choreography.id),
+        eventId: choreography.eventId,
+      },
       deps,
     );
 
@@ -210,7 +214,9 @@ describe("emitChoreographyFacturaC", () => {
     expect(sent.ImpTotal).toBe(10000);
 
     expect(outcome).toMatchObject({ ok: true, recovered: false });
-    const [persisted] = await listChoreographyComprobantes(choreography.id);
+    const [persisted] = await listAnchorComprobantes(
+      choreographyAnchor(choreography.id),
+    );
     expect(persisted).toMatchObject({
       cbteTipo: 11,
       cbteNro: 43,
@@ -242,7 +248,7 @@ describe("emitChoreographyFacturaC", () => {
     });
     // There is already a `Factura C` in force covering 6000 of the inscription.
     await recordComprobante({
-      choreographyId: choreography.id,
+      anchor: choreographyAnchor(choreography.id),
       eventId: choreography.eventId,
       cbteTipo: 11,
       ptoVta: 1,
@@ -260,8 +266,11 @@ describe("emitChoreographyFacturaC", () => {
     });
 
     const deps = emissionDeps(fakeBilling());
-    const outcome = await emitChoreographyFacturaC(
-      { choreographyId: choreography.id, eventId: choreography.eventId },
+    const outcome = await emitFacturaC(
+      {
+        anchor: choreographyAnchor(choreography.id),
+        eventId: choreography.eventId,
+      },
       deps,
     );
 
@@ -271,7 +280,9 @@ describe("emitChoreographyFacturaC", () => {
     // Only the unbilled remainder: 10000 − 6000.
     expect(sent.ImpTotal).toBe(4000);
 
-    const comprobantes = await listChoreographyComprobantes(choreography.id);
+    const comprobantes = await listAnchorComprobantes(
+      choreographyAnchor(choreography.id),
+    );
     const nuevo = comprobantes.find((row) => row.cbteNro === 43);
     expect(nuevo?.impTotal).toBe(4000);
     expect(nuevo?.lines[0]?.amount).toBe(4000);
@@ -291,7 +302,7 @@ describe("emitChoreographyFacturaC", () => {
       amount: 8000,
     });
     await recordComprobante({
-      choreographyId: choreography.id,
+      anchor: choreographyAnchor(choreography.id),
       eventId: choreography.eventId,
       cbteTipo: 11,
       ptoVta: 1,
@@ -309,8 +320,11 @@ describe("emitChoreographyFacturaC", () => {
     });
 
     const deps = emissionDeps(fakeBilling());
-    const outcome = await emitChoreographyFacturaC(
-      { choreographyId: choreography.id, eventId: choreography.eventId },
+    const outcome = await emitFacturaC(
+      {
+        anchor: choreographyAnchor(choreography.id),
+        eventId: choreography.eventId,
+      },
       deps,
     );
 
@@ -325,8 +339,11 @@ describe("emitChoreographyFacturaC", () => {
     );
 
     const deps = emissionDeps(fakeBilling());
-    const outcome = await emitChoreographyFacturaC(
-      { choreographyId: choreography.id, eventId: choreography.eventId },
+    const outcome = await emitFacturaC(
+      {
+        anchor: choreographyAnchor(choreography.id),
+        eventId: choreography.eventId,
+      },
       deps,
     );
 
@@ -352,8 +369,11 @@ describe("emitChoreographyFacturaC", () => {
         createVoucher: vi.fn(async () => facturaCRechazada),
       }),
     );
-    const outcome = await emitChoreographyFacturaC(
-      { choreographyId: choreography.id, eventId: choreography.eventId },
+    const outcome = await emitFacturaC(
+      {
+        anchor: choreographyAnchor(choreography.id),
+        eventId: choreography.eventId,
+      },
       deps,
     );
 
@@ -364,7 +384,9 @@ describe("emitChoreographyFacturaC", () => {
     }
 
     // No comprobante was persisted.
-    expect(await listChoreographyComprobantes(choreography.id)).toHaveLength(0);
+    expect(
+      await listAnchorComprobantes(choreographyAnchor(choreography.id)),
+    ).toHaveLength(0);
     // The financial state (payment allocations) is left intact.
     const allocations = await db
       .select()
@@ -390,7 +412,7 @@ describe("emitChoreographyFacturaC", () => {
       amount: 7000,
     });
     const factura = await recordComprobante({
-      choreographyId: choreography.id,
+      anchor: choreographyAnchor(choreography.id),
       eventId: choreography.eventId,
       cbteTipo: 11,
       ptoVta: 1,
@@ -408,7 +430,7 @@ describe("emitChoreographyFacturaC", () => {
     });
     // Mirror credit note annulling the previous invoice.
     await recordComprobante({
-      choreographyId: choreography.id,
+      anchor: choreographyAnchor(choreography.id),
       eventId: choreography.eventId,
       cbteTipo: 13,
       ptoVta: 1,
@@ -427,8 +449,11 @@ describe("emitChoreographyFacturaC", () => {
     });
 
     const deps = emissionDeps(fakeBilling());
-    const outcome = await emitChoreographyFacturaC(
-      { choreographyId: choreography.id, eventId: choreography.eventId },
+    const outcome = await emitFacturaC(
+      {
+        anchor: choreographyAnchor(choreography.id),
+        eventId: choreography.eventId,
+      },
       deps,
     );
 
@@ -452,8 +477,11 @@ describe("emitChoreographyFacturaC", () => {
     });
 
     const deps = emissionDeps(fakeBilling());
-    const outcome = await emitChoreographyFacturaC(
-      { choreographyId: choreography.id, eventId: choreography.eventId },
+    const outcome = await emitFacturaC(
+      {
+        anchor: choreographyAnchor(choreography.id),
+        eventId: choreography.eventId,
+      },
       deps,
     );
 
@@ -467,7 +495,9 @@ describe("emitChoreographyFacturaC", () => {
     expect(sent.FchServHasta).toBe("20260503");
     expect(sent.FchVtoPago).toBe("20260722");
 
-    const [persisted] = await listChoreographyComprobantes(choreography.id);
+    const [persisted] = await listAnchorComprobantes(
+      choreographyAnchor(choreography.id),
+    );
     expect(persisted).toMatchObject({
       fchServDesde: "20260501",
       fchServHasta: "20260503",
@@ -495,13 +525,18 @@ describe("emitChoreographyFacturaC", () => {
     });
 
     const deps = emissionDeps(fakeBilling());
-    const outcome = await emitChoreographyFacturaC(
-      { choreographyId: choreography.id, eventId: choreography.eventId },
+    const outcome = await emitFacturaC(
+      {
+        anchor: choreographyAnchor(choreography.id),
+        eventId: choreography.eventId,
+      },
       deps,
     );
 
     expect(outcome.ok).toBe(true);
-    const comprobantes = await listChoreographyComprobantes(choreography.id);
+    const comprobantes = await listAnchorComprobantes(
+      choreographyAnchor(choreography.id),
+    );
     expect(comprobantes).toHaveLength(1);
     expect(comprobantes[0]).toMatchObject({ impTotal: 10000 });
   });
@@ -522,7 +557,7 @@ describe("emitChoreographyFacturaC", () => {
     // The `Seña` was already billed by a `Factura C` in force that covered the
     // deposit.
     await recordComprobante({
-      choreographyId: choreography.id,
+      anchor: choreographyAnchor(choreography.id),
       eventId: choreography.eventId,
       cbteTipo: 11,
       ptoVta: 1,
@@ -547,15 +582,18 @@ describe("emitChoreographyFacturaC", () => {
     });
 
     const deps = emissionDeps(fakeBilling());
-    const outcome = await emitChoreographyFacturaC(
-      { choreographyId: choreography.id, eventId: choreography.eventId },
+    const outcome = await emitFacturaC(
+      {
+        anchor: choreographyAnchor(choreography.id),
+        eventId: choreography.eventId,
+      },
       deps,
     );
 
     expect(outcome.ok).toBe(true);
-    const nuevo = (await listChoreographyComprobantes(choreography.id)).find(
-      (row) => row.cbteNro === 43,
-    );
+    const nuevo = (
+      await listAnchorComprobantes(choreographyAnchor(choreography.id))
+    ).find((row) => row.cbteNro === 43);
     expect(nuevo).toMatchObject({ impTotal: 7000 });
   });
 
@@ -582,7 +620,7 @@ describe("emitChoreographyFacturaC", () => {
       amount: 3000,
     });
     await recordComprobante({
-      choreographyId: choreography.id,
+      anchor: choreographyAnchor(choreography.id),
       eventId: choreography.eventId,
       cbteTipo: 11,
       ptoVta: 1,
@@ -609,8 +647,11 @@ describe("emitChoreographyFacturaC", () => {
       .where(eq(paymentAllocations.choreographyInscriptionId, inscriptionA.id));
 
     const deps = emissionDeps(fakeBilling());
-    const outcome = await emitChoreographyFacturaC(
-      { choreographyId: choreography.id, eventId: choreography.eventId },
+    const outcome = await emitFacturaC(
+      {
+        anchor: choreographyAnchor(choreography.id),
+        eventId: choreography.eventId,
+      },
       deps,
     );
 
@@ -618,9 +659,9 @@ describe("emitChoreographyFacturaC", () => {
     const sent = vi.mocked(deps.billing.createVoucher).mock
       .calls[0][0] as ArcaVoucher;
     expect(sent.ImpTotal).toBe(1000);
-    const nuevo = (await listChoreographyComprobantes(choreography.id)).find(
-      (row) => row.cbteNro === 43,
-    );
+    const nuevo = (
+      await listAnchorComprobantes(choreographyAnchor(choreography.id))
+    ).find((row) => row.cbteNro === 43);
     expect(nuevo).toMatchObject({ impTotal: 1000 });
     // Only B's remainder is billed: A's orphaned line is not re-billed.
     expect(nuevo?.lines.map((line) => line.amount)).toEqual([1000]);
@@ -640,8 +681,11 @@ describe("emitChoreographyFacturaC", () => {
     });
 
     const deps = emissionDeps(fakeBilling());
-    const outcome = await emitChoreographyFacturaC(
-      { choreographyId: choreography.id, eventId: choreography.eventId },
+    const outcome = await emitFacturaC(
+      {
+        anchor: choreographyAnchor(choreography.id),
+        eventId: choreography.eventId,
+      },
       deps,
     );
     expect(outcome.ok).toBe(true);
@@ -678,8 +722,8 @@ describe("emitChoreographyFacturaC", () => {
     );
 
     const deps = emissionDeps(fakeBilling());
-    const outcome = await emitChoreographyFacturaC(
-      { choreographyId: choreography.id, eventId: "otro-evento" },
+    const outcome = await emitFacturaC(
+      { anchor: choreographyAnchor(choreography.id), eventId: "otro-evento" },
       deps,
     );
 
@@ -691,7 +735,7 @@ describe("emitChoreographyFacturaC", () => {
 // ARCA does not respond (ADR-0012): the failure is classified by phase and, if
 // it was cut off while authorizing, the server resolves the ambiguity by
 // querying the exact comprobante it tried to emit.
-describe("emitChoreographyFacturaC (ARCA does not respond)", () => {
+describe("emitFacturaC (ARCA does not respond)", () => {
   // A choreography with 5000 collected and nothing billed: the sequence number
   // to attempt is 43 (`ultimoAutorizado` = 42).
   async function seedCobrado(prefix: string) {
@@ -730,8 +774,8 @@ describe("emitChoreographyFacturaC (ARCA does not respond)", () => {
     timeouts?: ArcaTimeouts,
   ) {
     const deps = emissionDeps(billing, timeouts);
-    const outcome = await emitChoreographyFacturaC(
-      { choreographyId, eventId },
+    const outcome = await emitFacturaC(
+      { anchor: choreographyAnchor(choreographyId), eventId },
       deps,
     );
     return { deps, outcome };
@@ -750,7 +794,9 @@ describe("emitChoreographyFacturaC (ARCA does not respond)", () => {
     expect(deps.billing.createVoucher).not.toHaveBeenCalled();
     // Nothing to query: no comprobante was asked to be authorized.
     expect(deps.billing.getVoucherInfo).not.toHaveBeenCalled();
-    expect(await listChoreographyComprobantes(choreography.id)).toHaveLength(0);
+    expect(
+      await listAnchorComprobantes(choreographyAnchor(choreography.id)),
+    ).toHaveLength(0);
   });
 
   test("a sequence lookup timeout counts as a communication failure", async () => {
@@ -783,7 +829,9 @@ describe("emitChoreographyFacturaC (ARCA does not respond)", () => {
     // The CAE came from the lookup, not from the authorization.
     expect(outcome).toMatchObject({ ok: true, recovered: true });
 
-    const [persisted] = await listChoreographyComprobantes(choreography.id);
+    const [persisted] = await listAnchorComprobantes(
+      choreographyAnchor(choreography.id),
+    );
     expect(persisted).toMatchObject({
       cbteTipo: 11,
       cbteNro: 43,
@@ -811,7 +859,9 @@ describe("emitChoreographyFacturaC (ARCA does not respond)", () => {
 
     expect(deps.billing.getVoucherInfo).toHaveBeenCalledWith(43, 1, 11);
     expect(outcome.ok).toBe(true);
-    expect(await listChoreographyComprobantes(choreography.id)).toHaveLength(1);
+    expect(
+      await listAnchorComprobantes(choreographyAnchor(choreography.id)),
+    ).toHaveLength(1);
   });
 
   test("if ARCA does not have that comprobante, nothing was emitted and retrying is safe", async () => {
@@ -827,7 +877,9 @@ describe("emitChoreographyFacturaC (ARCA does not respond)", () => {
     );
 
     expect(outcome).toMatchObject({ ok: false, reason: "not-emitted" });
-    expect(await listChoreographyComprobantes(choreography.id)).toHaveLength(0);
+    expect(
+      await listAnchorComprobantes(choreographyAnchor(choreography.id)),
+    ).toHaveLength(0);
   });
 
   // The same "ARCA does not have it" as the previous test, but arriving by
@@ -852,7 +904,9 @@ describe("emitChoreographyFacturaC (ARCA does not respond)", () => {
       reason: "unverified",
       attempt: { ptoVta: 1, cbteTipo: 11, cbteNro: 43 },
     });
-    expect(await listChoreographyComprobantes(choreography.id)).toHaveLength(0);
+    expect(
+      await listAnchorComprobantes(choreographyAnchor(choreography.id)),
+    ).toHaveLength(0);
   });
 
   test("if the lookup fails too, the result is unverified and carries the comprobante it could not resolve", async () => {
@@ -872,7 +926,9 @@ describe("emitChoreographyFacturaC (ARCA does not respond)", () => {
       reason: "unverified",
       attempt: { ptoVta: 1, cbteTipo: 11, cbteNro: 43 },
     });
-    expect(await listChoreographyComprobantes(choreography.id)).toHaveLength(0);
+    expect(
+      await listAnchorComprobantes(choreographyAnchor(choreography.id)),
+    ).toHaveLength(0);
   });
 
   // Sequence numbers are not reserved: a comprobante carrying the number we
@@ -890,7 +946,9 @@ describe("emitChoreographyFacturaC (ARCA does not respond)", () => {
     );
 
     expect(outcome).toMatchObject({ ok: false, reason: "unverified" });
-    expect(await listChoreographyComprobantes(choreography.id)).toHaveLength(0);
+    expect(
+      await listAnchorComprobantes(choreographyAnchor(choreography.id)),
+    ).toHaveLength(0);
   });
 
   test("a queried comprobante with a different date is not ours either", async () => {
@@ -906,7 +964,9 @@ describe("emitChoreographyFacturaC (ARCA does not respond)", () => {
     );
 
     expect(outcome).toMatchObject({ ok: false, reason: "unverified" });
-    expect(await listChoreographyComprobantes(choreography.id)).toHaveLength(0);
+    expect(
+      await listAnchorComprobantes(choreographyAnchor(choreography.id)),
+    ).toHaveLength(0);
   });
 
   describe("re-verification (#577)", () => {
@@ -917,8 +977,8 @@ describe("emitChoreographyFacturaC (ARCA does not respond)", () => {
       cbteNro = 43,
     ) {
       const deps = emissionDeps(billing);
-      const outcome = await recheckChoreographyFacturaC(
-        { choreographyId, eventId, cbteNro },
+      const outcome = await recheckFacturaC(
+        { anchor: choreographyAnchor(choreographyId), eventId, cbteNro },
         deps,
       );
       return { deps, outcome };
@@ -939,7 +999,9 @@ describe("emitChoreographyFacturaC (ARCA does not respond)", () => {
       expect(outcome).toMatchObject({ ok: true, recovered: true });
       expect(deps.billing.createVoucher).not.toHaveBeenCalled();
 
-      const [persisted] = await listChoreographyComprobantes(choreography.id);
+      const [persisted] = await listAnchorComprobantes(
+        choreographyAnchor(choreography.id),
+      );
       expect(persisted).toMatchObject({
         cbteNro: 43,
         impTotal: 5000,
@@ -963,9 +1025,9 @@ describe("emitChoreographyFacturaC (ARCA does not respond)", () => {
       );
 
       expect(outcome).toMatchObject({ ok: false, reason: "unverified" });
-      expect(await listChoreographyComprobantes(choreography.id)).toHaveLength(
-        0,
-      );
+      expect(
+        await listAnchorComprobantes(choreographyAnchor(choreography.id)),
+      ).toHaveLength(0);
     });
 
     // It can only prove the positive: nobody has measured how long a request can
@@ -984,9 +1046,9 @@ describe("emitChoreographyFacturaC (ARCA does not respond)", () => {
         reason: "unverified",
         attempt: { ptoVta: 1, cbteTipo: 11, cbteNro: 43 },
       });
-      expect(await listChoreographyComprobantes(choreography.id)).toHaveLength(
-        0,
-      );
+      expect(
+        await listAnchorComprobantes(choreographyAnchor(choreography.id)),
+      ).toHaveLength(0);
     });
   });
 

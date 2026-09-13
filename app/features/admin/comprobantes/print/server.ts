@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { academies, choreographies, comprobantes, events } from "@/db/schema";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import { renderComprobanteQrSvg } from "@/lib/comprobantes/arca/qr-code.server";
-import { listChoreographyComprobantes } from "@/lib/comprobantes/comprobantes.server";
+import { listAnchorComprobantes } from "@/lib/comprobantes/comprobantes.server";
 
 import {
   buildComprobantePrintViewModel,
@@ -19,7 +19,10 @@ async function getComprobantePrintRecord(
 ): Promise<ComprobantePrintRecord | null> {
   const [context] = await db
     .select({
-      choreographyId: comprobantes.choreographyId,
+      // Off the joined choreography, not off the nullable anchor column: the
+      // inner join already restricts this reader to the choreography-anchored
+      // comprobantes.
+      choreographyId: choreographies.id,
       choreographyName: choreographies.name,
       academyName: academies.name,
       eventName: events.name,
@@ -37,7 +40,10 @@ async function getComprobantePrintRecord(
     return null;
   }
 
-  const scope = await listChoreographyComprobantes(context.choreographyId);
+  const scope = await listAnchorComprobantes({
+    kind: "choreography",
+    choreographyId: context.choreographyId,
+  });
   const comprobante = scope.find((row) => row.id === comprobanteId);
 
   if (!comprobante) {

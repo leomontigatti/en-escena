@@ -22,7 +22,7 @@ import {
   inscriptionFinanceFacetedFilters,
 } from "@/lib/finances/inscription-finance-columns";
 import { OperationalFinanceMetrics } from "@/lib/finances/operational-finance-metrics";
-import { EmissionDialog } from "./comprobante-emission";
+import { EmissionDialog } from "@/features/admin/finances/comprobante-emission/dialog";
 import { InscriptionMoneyDialog } from "@/features/admin/finances/inscription-money/dialog";
 import type { loadChoreographyFinanceDetail } from "./server";
 

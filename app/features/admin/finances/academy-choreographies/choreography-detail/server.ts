@@ -12,7 +12,7 @@ import {
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import {
   getFacturaCEmissionDeps,
-  resolveChoreographyBillable,
+  resolveAnchorBillable,
   type FacturaCEmissionDeps,
 } from "@/lib/comprobantes/emit-factura-c.server";
 import { readChoreographyInscriptionRows } from "@/lib/finances/choreography-inscriptions.server";
@@ -28,7 +28,11 @@ import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operati
 import {
   handleEmitComprobante,
   handleRecheckComprobante,
-} from "./comprobante-emission.server";
+} from "@/features/admin/finances/comprobante-emission/handlers.server";
+import {
+  emitComprobanteIntent,
+  recheckComprobanteIntent,
+} from "@/features/admin/finances/comprobante-emission/shared";
 import {
   allocateInscriptionIntent,
   readAllocationTargetKind,
@@ -40,8 +44,6 @@ import {
 
 import {
   choreographyDetailUrl,
-  emitComprobanteIntent,
-  recheckComprobanteIntent,
   type ChoreographyFinanceActionData,
 } from "./shared";
 
@@ -144,14 +146,17 @@ export type ChoreographyInvoicing = {
 
 /**
  * The detail's emission axis: what is left to bill. Mirrors the server's own
- * emission precondition (`emitChoreographyFacturaC`), which is now the single
- * test `total > 0` — with `porcion` gone there is no second derivable input the
+ * emission precondition (`emitFacturaC`), which is now the single test
+ * `total > 0` — with `porcion` gone there is no second derivable input the
  * button could disagree with.
  */
 async function readChoreographyInvoicing(
   choreographyId: string,
 ): Promise<ChoreographyInvoicing> {
-  const billable = await resolveChoreographyBillable(choreographyId);
+  const billable = await resolveAnchorBillable({
+    kind: "choreography",
+    choreographyId,
+  });
 
   return {
     billableAmount: billable.total,
@@ -203,23 +208,24 @@ export async function handleChoreographyFinanceAction(input: {
     throw redirectToDetail(academyId, choreographyId, eventId);
   }
 
+  const emissionContext = {
+    anchor: { kind: "choreography", choreographyId } as const,
+    detailUrl: choreographyDetailUrl(academyId, choreographyId, eventId),
+    eventId,
+    resolveEmissionDeps: input.resolveEmissionDeps ?? getFacturaCEmissionDeps,
+  };
+
   if (intent === emitComprobanteIntent) {
     return await handleEmitComprobante({
-      academyId,
-      choreographyId,
+      ...emissionContext,
       confirm: String(formData.get("confirm") ?? ""),
-      eventId,
-      resolveEmissionDeps: input.resolveEmissionDeps ?? getFacturaCEmissionDeps,
     });
   }
 
   if (intent === recheckComprobanteIntent) {
     return await handleRecheckComprobante({
-      academyId,
-      choreographyId,
+      ...emissionContext,
       cbteNro: String(formData.get("cbteNro") ?? ""),
-      eventId,
-      resolveEmissionDeps: input.resolveEmissionDeps ?? getFacturaCEmissionDeps,
     });
   }
 

@@ -8,7 +8,7 @@ import {
   requireInternalUser,
 } from "@/lib/auth/internal-access.server";
 import type { ComprobanteStatus } from "@/lib/comprobantes/comprobante-status.server";
-import { listChoreographyComprobantes } from "@/lib/comprobantes/comprobantes.server";
+import { listAnchorComprobantes } from "@/lib/comprobantes/comprobantes.server";
 import { toContingencyActionData } from "@/lib/comprobantes/contingency-view";
 import {
   getFacturaCEmissionDeps,
@@ -71,7 +71,10 @@ export async function loadComprobanteDetail(
 
   const [context] = await db
     .select({
-      choreographyId: comprobantes.choreographyId,
+      // Off the joined choreography and not off the nullable anchor column: the
+      // inner join already restricts this reader to the choreography-anchored
+      // comprobantes, and reading the join's own id says so in the type.
+      choreographyId: choreographies.id,
       choreographyName: choreographies.name,
       academyId: academies.id,
       academyName: academies.name,
@@ -90,7 +93,10 @@ export async function loadComprobanteDetail(
     throw new Response("Comprobante no encontrado", { status: 404 });
   }
 
-  const scope = await listChoreographyComprobantes(context.choreographyId);
+  const scope = await listAnchorComprobantes({
+    kind: "choreography",
+    choreographyId: context.choreographyId,
+  });
   const comprobante = scope.find((row) => row.id === comprobanteId);
 
   if (!comprobante) {

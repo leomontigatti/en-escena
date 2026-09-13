@@ -1,12 +1,16 @@
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { restrictedChoreographyInscriptionId } from "@/lib/finances/allocation-target.server";
 import {
   choreographies,
-  choreographyDancers,
+  dancers,
   events,
   paymentAllocations,
+  professors,
+  choreographyDancers,
+  seminarInscriptions,
+  seminars,
 } from "@/db/schema";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import { getBusinessDateOnly } from "@/lib/shared/business-time-zone";
@@ -27,8 +31,9 @@ import {
 } from "./arca/factura-c";
 import type { ServiceDates } from "./arca/factura-c";
 import type { ArcaMessage } from "./arca/responses";
+import type { ComprobanteAnchor } from "./anchor";
 import {
-  listChoreographyComprobantes,
+  listAnchorComprobantes,
   recordComprobante,
   type ComprobanteLineInput,
 } from "./comprobantes.server";
@@ -51,10 +56,15 @@ export type FacturaCEmissionDeps = {
   cbteFch?: string;
 };
 
+// The unit being billed and the event it belongs to. The anchor decides
+// everything that differs between the two kinds; the event is checked against
+// the anchor's own so a form cannot bill one event's unit under another's.
 export type FacturaCEmissionInput = {
-  choreographyId: string;
+  anchor: ComprobanteAnchor;
   eventId: string;
 };
+
+const seminarNotFoundMessage = "No encontramos ese seminario.";
 
 export type FacturaCEmissionFailureReason =
   | "not-found"
@@ -90,11 +100,12 @@ export type FacturaCEmissionOutcome =
     };
 
 /**
- * Emits a `Factura C` (`CbteTipo` 11) for a choreography against WSFEv1.
+ * Emits a `Factura C` (`CbteTipo` 11) for one anchor against WSFEv1 — a
+ * choreography, or what one academy holds in one seminar.
  *
  * The invoice is a DERIVED document (#320): it never governs financial state.
  * What is billed is the money actually collected (payment allocations) that no
- * vigente type-11 invoice of the choreography covers yet, through the
+ * vigente type-11 invoice of the SAME ANCHOR covers yet, through the
  * per-inscription anti-double-billing derivation (#323/#326).
  *
  * The `CbteNro` is derived from `FECompUltimoAutorizado + 1`. Only an approved
@@ -113,7 +124,7 @@ export type FacturaCEmissionOutcome =
  * so it is still in flight and may be authorized later — the result is
  * `unverified` and nothing is persisted.
  */
-export async function emitChoreographyFacturaC(
+export async function emitFacturaC(
   input: FacturaCEmissionInput,
   deps: FacturaCEmissionDeps,
 ): Promise<FacturaCEmissionOutcome> {
@@ -131,11 +142,11 @@ export async function emitChoreographyFacturaC(
 /**
  * Re-verifies against ARCA an emission left unresolved (#577), for the sequence
  * number the dialog carries over from the previous attempt. It re-derives the
- * choreography's billable — which is where the amount the queried comprobante is
+ * anchor's billable — which is where the amount the queried comprobante is
  * validated against comes from — so if somebody touched the allocations in the
  * meantime, the amount does not match and the result stays `unverified`.
  */
-export async function recheckChoreographyFacturaC(
+export async function recheckFacturaC(
   input: FacturaCEmissionInput & { cbteNro: number },
   deps: FacturaCEmissionDeps,
 ): Promise<FacturaCEmissionOutcome> {
@@ -180,45 +191,30 @@ async function resolveFacturaCChoreography(
   | { ok: true; choreography: ArcaEmissionChoreography<ComprobanteRow> }
   | Extract<FacturaCEmissionOutcome, { ok: false }>
 > {
-  const [choreography] = await db
-    .select({
-      id: choreographies.id,
-      eventId: choreographies.eventId,
-      eventStartsAt: events.startsAt,
-      eventEndsAt: events.endsAt,
-    })
-    .from(choreographies)
-    .innerJoin(events, eq(events.id, choreographies.eventId))
-    .where(eq(choreographies.id, input.choreographyId));
+  const anchorContext = await resolveAnchorContext(input);
 
-  if (!choreography || choreography.eventId !== input.eventId) {
-    return {
-      ok: false,
-      reason: "not-found",
-      message: choreographyNotFoundMessage,
-    };
+  if (!anchorContext.ok) {
+    return anchorContext;
   }
 
-  const { lines, total } = await resolveChoreographyBillable(
-    input.choreographyId,
-  );
+  const { lines, total } = await resolveAnchorBillable(input.anchor);
 
   if (total <= 0) {
     return {
       ok: false,
       reason: "nothing-to-bill",
-      message:
-        "No hay un monto cobrado pendiente de facturar en esta coreografía.",
+      message: anchorContext.nothingToBillMessage,
     };
   }
 
-  // Service dates (Concepto 2, ADR-0011): the period is the event's, and the
-  // payment due date is the comprobante's own date, because what is billed was
-  // already collected and so nothing falls due in the future. Frozen at
+  // Service dates (Concepto 2, ADR-0011): the period is the unit's own — the
+  // event's for a choreography, the seminar's single date for a seminar — and
+  // the payment due date is the comprobante's own date, because what is billed
+  // was already collected and so nothing falls due in the future. Frozen at
   // emission.
   const serviceDates = (cbteFch: string): ServiceDates => ({
-    fchServDesde: toArcaDate(getBusinessDateOnly(choreography.eventStartsAt)),
-    fchServHasta: toArcaDate(getBusinessDateOnly(choreography.eventEndsAt)),
+    fchServDesde: anchorContext.serviceFrom,
+    fchServHasta: anchorContext.serviceTo,
     fchVtoPago: cbteFch,
   });
 
@@ -241,7 +237,7 @@ async function resolveFacturaCChoreography(
       }),
     persist: (authorized, request): Promise<ComprobanteRow> =>
       recordComprobante({
-        choreographyId: input.choreographyId,
+        anchor: input.anchor,
         eventId: input.eventId,
         cbteTipo: FACTURA_C_CBTE_TIPO,
         ptoVta: deps.ptoVta,
@@ -265,65 +261,224 @@ async function resolveFacturaCChoreography(
   return { ok: true, choreography: choreographyCall };
 }
 
-export type ChoreographyBillable = {
+type AnchorContext = {
+  ok: true;
+  // ARCA-formatted service period, already frozen: both ends are the seminar's
+  // own date for a seminar unit, and the event's span for a choreography.
+  serviceFrom: string;
+  serviceTo: string;
+  nothingToBillMessage: string;
+};
+
+/**
+ * Validates that the anchor exists inside the named event and answers what the
+ * emission needs from it. It is the one place the two kinds are told apart on
+ * the way in; everything past it reads the same shape.
+ */
+async function resolveAnchorContext(
+  input: FacturaCEmissionInput,
+): Promise<AnchorContext | Extract<FacturaCEmissionOutcome, { ok: false }>> {
+  if (input.anchor.kind === "choreography") {
+    const [choreography] = await db
+      .select({
+        eventId: choreographies.eventId,
+        eventStartsAt: events.startsAt,
+        eventEndsAt: events.endsAt,
+      })
+      .from(choreographies)
+      .innerJoin(events, eq(events.id, choreographies.eventId))
+      .where(eq(choreographies.id, input.anchor.choreographyId));
+
+    if (!choreography || choreography.eventId !== input.eventId) {
+      return {
+        ok: false,
+        reason: "not-found",
+        message: choreographyNotFoundMessage,
+      };
+    }
+
+    return {
+      ok: true,
+      serviceFrom: toArcaDate(getBusinessDateOnly(choreography.eventStartsAt)),
+      serviceTo: toArcaDate(getBusinessDateOnly(choreography.eventEndsAt)),
+      nothingToBillMessage:
+        "No hay un monto cobrado pendiente de facturar en esta coreografía.",
+    };
+  }
+
+  const [seminar] = await db
+    .select({
+      eventId: seminars.eventId,
+      scheduledDate: seminars.scheduledDate,
+    })
+    .from(seminars)
+    .where(eq(seminars.id, input.anchor.seminarId));
+
+  if (!seminar || seminar.eventId !== input.eventId) {
+    return { ok: false, reason: "not-found", message: seminarNotFoundMessage };
+  }
+
+  // A seminar is taught on one day, so the service period collapses to it: both
+  // ends read the same date rather than borrowing the event's span, which would
+  // claim a period nothing was sold for.
+  const seminarDate = toArcaDate(seminar.scheduledDate);
+
+  return {
+    ok: true,
+    serviceFrom: seminarDate,
+    serviceTo: seminarDate,
+    nothingToBillMessage:
+      "No hay un monto cobrado pendiente de facturar en este seminario.",
+  };
+}
+
+export type AnchorBillable = {
   lines: ComprobanteLineInput[];
   total: number;
 };
 
 /**
- * Billable amount of a choreography: its internal lines, one per inscription
- * with a positive remainder, plus the total. It is what the emission UX (#447)
- * previews before confirming and what `emitChoreographyFacturaC` bills. It does
- * not call ARCA: it only crosses collections against vigente invoices.
+ * Billable amount of one anchor: its internal lines, one per inscription with a
+ * positive remainder, plus the total. It is what the emission UX (#447) previews
+ * before confirming and what `emitFacturaC` bills. It does not call ARCA: it
+ * only crosses collections against vigente invoices of the same anchor.
  */
-export async function resolveChoreographyBillable(
-  choreographyId: string,
-): Promise<ChoreographyBillable> {
-  const inscriptionIds = await readInscriptionIds(choreographyId);
-  const lines = await resolveBillableLines(choreographyId, inscriptionIds);
+export async function resolveAnchorBillable(
+  anchor: ComprobanteAnchor,
+): Promise<AnchorBillable> {
+  const inscriptionIds = await readAnchorInscriptionIds(anchor);
+  const lines = await resolveBillableLines(anchor, inscriptionIds);
   const total = lines.reduce((sum, line) => sum + line.amount, 0);
 
   return { lines, total };
 }
 
-/** The ids of every inscription of the choreography, withdrawn ones included. */
-async function readInscriptionIds(choreographyId: string): Promise<string[]> {
+/**
+ * The ids of every inscription the anchor bills, **withdrawn ones included**: a
+ * withdrawal keeps its money, and the comprobante is the evidence of what was
+ * retained.
+ *
+ * For a seminar the unit is the pair, so the academy is read through the person
+ * the inscription names — whichever of the two roster tables is filled — which
+ * is the same rule the `(seminar, academy)` financial detail lists by.
+ */
+async function readAnchorInscriptionIds(
+  anchor: ComprobanteAnchor,
+): Promise<string[]> {
+  if (anchor.kind === "choreography") {
+    const rows = await db
+      .select({ id: choreographyDancers.id })
+      .from(choreographyDancers)
+      .where(eq(choreographyDancers.choreographyId, anchor.choreographyId));
+
+    return rows.map((row) => row.id);
+  }
+
+  const academyId = sql<string>`coalesce(${dancers.academyId}, ${professors.academyId})`;
   const rows = await db
-    .select({ id: choreographyDancers.id })
-    .from(choreographyDancers)
-    .where(eq(choreographyDancers.choreographyId, choreographyId));
+    .select({ id: seminarInscriptions.id })
+    .from(seminarInscriptions)
+    .leftJoin(dancers, eq(dancers.id, seminarInscriptions.dancerId))
+    .leftJoin(professors, eq(professors.id, seminarInscriptions.professorId))
+    .where(
+      and(
+        eq(seminarInscriptions.seminarId, anchor.seminarId),
+        eq(academyId, anchor.academyId),
+      ),
+    );
 
   return rows.map((row) => row.id);
 }
 
 /**
  * Billable amount of each inscription: what was collected (payment allocations)
- * minus what the choreography's VIGENTE type-11 invoices already cover. Only
+ * minus what the anchor's VIGENTE type-11 invoices already cover. Only
  * inscriptions with a positive remainder are included. An annulled invoice stops
  * counting as billed — its status derives from the credit note — so its
  * amount becomes billable again.
  */
 async function resolveBillableLines(
-  choreographyId: string,
+  anchor: ComprobanteAnchor,
   inscriptionIds: string[],
 ): Promise<ComprobanteLineInput[]> {
   if (inscriptionIds.length === 0) {
     return [];
   }
 
-  const allocations = await db
+  const paidByInscription = await sumAllocationsByInscription(
+    anchor,
+    inscriptionIds,
+  );
+  const billedByInscription = await sumBilledByInscription(anchor);
+
+  return inscriptionIds.flatMap((inscriptionId) => {
+    const paid = paidByInscription.get(inscriptionId) ?? 0;
+    const billable = paid - (billedByInscription.get(inscriptionId) ?? 0);
+
+    return billable > 0 ? [buildLine(anchor, inscriptionId, billable)] : [];
+  });
+}
+
+function buildLine(
+  anchor: ComprobanteAnchor,
+  inscriptionId: string,
+  amount: number,
+): ComprobanteLineInput {
+  return anchor.kind === "choreography"
+    ? { choreographyInscriptionId: inscriptionId, amount }
+    : { seminarInscriptionId: inscriptionId, amount };
+}
+
+/**
+ * What each inscription has collected. The allocation's target column is chosen
+ * by the anchor's kind, which is the only thing that differs: the summing itself
+ * is one rule for both.
+ */
+async function sumAllocationsByInscription(
+  anchor: ComprobanteAnchor,
+  inscriptionIds: string[],
+): Promise<Map<string, number>> {
+  const targetColumn =
+    anchor.kind === "choreography"
+      ? restrictedChoreographyInscriptionId
+      : paymentAllocations.seminarInscriptionId;
+  const rows = await db
     .select({
-      inscriptionId: restrictedChoreographyInscriptionId,
+      inscriptionId: targetColumn,
       amount: paymentAllocations.amount,
     })
     .from(paymentAllocations)
     .where(
-      inArray(paymentAllocations.choreographyInscriptionId, inscriptionIds),
+      anchor.kind === "choreography"
+        ? inArray(paymentAllocations.choreographyInscriptionId, inscriptionIds)
+        : inArray(paymentAllocations.seminarInscriptionId, inscriptionIds),
     );
 
-  const paidByInscription = sumByInscription(allocations);
-  const existing = await listChoreographyComprobantes(choreographyId);
-  const billedByInscription = new Map<string, number>();
+  const totals = new Map<string, number>();
+  for (const row of rows) {
+    if (row.inscriptionId === null) {
+      continue;
+    }
+    totals.set(
+      row.inscriptionId,
+      (totals.get(row.inscriptionId) ?? 0) + row.amount,
+    );
+  }
+
+  return totals;
+}
+
+/**
+ * What the anchor's invoices in force already cover, per inscription. An
+ * orphaned line — both target columns null — is skipped: it names nobody, so it
+ * can neither be re-billed nor subtracted from anyone.
+ */
+async function sumBilledByInscription(
+  anchor: ComprobanteAnchor,
+): Promise<Map<string, number>> {
+  const existing = await listAnchorComprobantes(anchor);
+  const billed = new Map<string, number>();
+
   for (const comprobante of existing) {
     if (
       comprobante.cbteTipo !== FACTURA_C_CBTE_TIPO ||
@@ -332,43 +487,19 @@ async function resolveBillableLines(
       continue;
     }
     for (const line of comprobante.lines) {
-      if (line.choreographyInscriptionId === null) {
+      const inscriptionId =
+        anchor.kind === "choreography"
+          ? line.choreographyInscriptionId
+          : line.seminarInscriptionId;
+
+      if (inscriptionId === null) {
         continue;
       }
-      billedByInscription.set(
-        line.choreographyInscriptionId,
-        (billedByInscription.get(line.choreographyInscriptionId) ?? 0) +
-          line.amount,
-      );
+      billed.set(inscriptionId, (billed.get(inscriptionId) ?? 0) + line.amount);
     }
   }
 
-  const lines: ComprobanteLineInput[] = [];
-  for (const inscriptionId of inscriptionIds) {
-    const paid = paidByInscription.get(inscriptionId) ?? 0;
-    const billable = paid - (billedByInscription.get(inscriptionId) ?? 0);
-    if (billable > 0) {
-      lines.push({
-        choreographyInscriptionId: inscriptionId,
-        amount: billable,
-      });
-    }
-  }
-
-  return lines;
-}
-
-function sumByInscription(
-  allocations: Array<{ inscriptionId: string; amount: number }>,
-): Map<string, number> {
-  const totals = new Map<string, number>();
-  for (const allocation of allocations) {
-    totals.set(
-      allocation.inscriptionId,
-      (totals.get(allocation.inscriptionId) ?? 0) + allocation.amount,
-    );
-  }
-  return totals;
+  return billed;
 }
 
 /**

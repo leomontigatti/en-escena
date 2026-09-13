@@ -40,6 +40,7 @@ import {
   annulComprobanteIntent,
   recheckNotaCreditoIntent,
 } from "./shared";
+import { choreographyAnchor } from "@/lib/comprobantes/anchor";
 
 installDatabaseTestHooks();
 
@@ -125,7 +126,7 @@ async function seedComprobante(input: {
   });
 
   const factura = await recordComprobante({
-    choreographyId: choreography.id,
+    anchor: choreographyAnchor(choreography.id),
     eventId: event.id,
     cbteTipo: FACTURA_C_CBTE_TIPO,
     ptoVta: 1,

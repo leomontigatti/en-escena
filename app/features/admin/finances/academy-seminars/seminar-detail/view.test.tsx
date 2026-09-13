@@ -152,6 +152,7 @@ function loaderDataFixture(
     },
     availableBalanceAmount: 7000,
     inscriptions: [inscriptionFixture()],
+    invoicing: { billableAmount: 4000, canEmit: true },
     priceOptionsByInscription: {
       seminar_inscription_1: [
         {
