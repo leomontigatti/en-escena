@@ -51,6 +51,15 @@ export type PriceActionValues = {
   scheduleId: string;
 };
 
+export type SeminarPriceActionValues = {
+  name: string;
+  forParticipants: string;
+  isOpenEnded: string;
+  kind: string;
+  amount: string;
+  paymentDeadline: string;
+};
+
 export type ScheduleCapacityActionValues = {
   id?: string;
   groupType: string;
@@ -71,6 +80,7 @@ export type EventBasesActionValues =
   | ModalityActionValues
   | NameActionValues
   | PriceActionValues
+  | SeminarPriceActionValues
   | ScheduleActionValues
   | ScheduleCapacityActionValues;
 

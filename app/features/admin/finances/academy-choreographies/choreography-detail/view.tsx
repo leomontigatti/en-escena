@@ -22,8 +22,8 @@ import {
   inscriptionFinanceFacetedFilters,
 } from "@/lib/finances/inscription-finance-columns";
 import { OperationalFinanceMetrics } from "@/lib/finances/operational-finance-metrics";
-import { EmissionDialog } from "./comprobante-emission";
-import { InscriptionMoneyDialog } from "./inscription-money-dialog";
+import { EmissionDialog } from "@/features/admin/finances/comprobante-emission/dialog";
+import { InscriptionMoneyDialog } from "@/features/admin/finances/inscription-money/dialog";
 import type { loadChoreographyFinanceDetail } from "./server";
 
 type ChoreographyFinanceDetailLoaderData = Awaited<
@@ -264,6 +264,7 @@ function InscriptionsTable({
           inscription={openInscription}
           onOpenChange={closeMoneyDialog}
           priceOptions={priceOptions}
+          targetKind="choreography"
         />
       ) : null}
     </section>

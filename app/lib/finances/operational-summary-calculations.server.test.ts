@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import {
   buildChoreographyOperationalFinanceRow,
-  buildOperationalFinanceSummaryFromChoreographyRows,
+  buildOperationalFinanceSummaryFromRows,
   computeDancerDiscountAmounts,
   dancerDiscountPercentage,
   type FinanceChoreographyRow,
@@ -318,7 +318,7 @@ describe("buildChoreographyOperationalFinanceRow", () => {
   });
 });
 
-describe("buildOperationalFinanceSummaryFromChoreographyRows", () => {
+describe("buildOperationalFinanceSummaryFromRows", () => {
   test("reports deposit owed gross, without discounting balance available", () => {
     const rows = [
       buildChoreographyOperationalFinanceRow({
@@ -327,9 +327,9 @@ describe("buildOperationalFinanceSummaryFromChoreographyRows", () => {
       }),
     ];
 
-    const summary = buildOperationalFinanceSummaryFromChoreographyRows({
+    const summary = buildOperationalFinanceSummaryFromRows({
       availableBalanceAmount: 2000,
-      choreographyFinanceRows: rows,
+      financeRows: rows,
       totalPaidAmount: 2000,
     });
 
@@ -361,9 +361,9 @@ describe("buildOperationalFinanceSummaryFromChoreographyRows", () => {
       }),
     ];
 
-    const summary = buildOperationalFinanceSummaryFromChoreographyRows({
+    const summary = buildOperationalFinanceSummaryFromRows({
       availableBalanceAmount: 9000,
-      choreographyFinanceRows: rows,
+      financeRows: rows,
       totalPaidAmount: 9000,
     });
 
@@ -402,9 +402,9 @@ describe("buildOperationalFinanceSummaryFromChoreographyRows", () => {
       }),
     ];
 
-    const summary = buildOperationalFinanceSummaryFromChoreographyRows({
+    const summary = buildOperationalFinanceSummaryFromRows({
       availableBalanceAmount: 0,
-      choreographyFinanceRows: rows,
+      financeRows: rows,
       totalPaidAmount: 0,
     });
 

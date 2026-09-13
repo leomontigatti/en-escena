@@ -3,7 +3,7 @@ import { describe, expect, test } from "vitest";
 import {
   calculateDepositAmount,
   calculateTotalAmount,
-  deriveChoreographyFinancialStatus,
+  deriveMinimumFinancialStatus,
   deriveInscriptionFinancialFigures,
   deriveInscriptionFinancialStatus,
   resolveInscriptionStatusBadge,
@@ -255,10 +255,10 @@ describe("resolveInscriptionStatusBadge", () => {
   });
 });
 
-describe("deriveChoreographyFinancialStatus", () => {
+describe("deriveMinimumFinancialStatus", () => {
   test("is the minimum, so one uncovered dancer pulls the whole choreography down", () => {
     expect(
-      deriveChoreographyFinancialStatus([
+      deriveMinimumFinancialStatus([
         "paidInFull",
         "paidInFull",
         "depositPending",
@@ -268,21 +268,21 @@ describe("deriveChoreographyFinancialStatus", () => {
 
   test("does not stick high the way the watermark did", () => {
     // The high-water mark read `señada` here and hid the laggard.
-    expect(
-      deriveChoreographyFinancialStatus(["depositMet", "depositPending"]),
-    ).toBe("depositPending");
+    expect(deriveMinimumFinancialStatus(["depositMet", "depositPending"])).toBe(
+      "depositPending",
+    );
   });
 
   test("is paid in full only when every inscription crossed the total", () => {
-    expect(
-      deriveChoreographyFinancialStatus(["paidInFull", "paidInFull"]),
-    ).toBe("paidInFull");
-    expect(
-      deriveChoreographyFinancialStatus(["paidInFull", "depositMet"]),
-    ).toBe("depositMet");
+    expect(deriveMinimumFinancialStatus(["paidInFull", "paidInFull"])).toBe(
+      "paidInFull",
+    );
+    expect(deriveMinimumFinancialStatus(["paidInFull", "depositMet"])).toBe(
+      "depositMet",
+    );
   });
 
   test("is deposit pending without inscriptions, which cannot compete either", () => {
-    expect(deriveChoreographyFinancialStatus([])).toBe("depositPending");
+    expect(deriveMinimumFinancialStatus([])).toBe("depositPending");
   });
 });

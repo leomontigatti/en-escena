@@ -284,7 +284,7 @@ export async function createSelectedPriceInscriptionForTest(input: {
       academyId: input.academyId,
       amount: allocatedAmount,
       eventId,
-      inscriptionId: inscription.id,
+      choreographyInscriptionId: inscription.id,
       paymentId,
     });
   }

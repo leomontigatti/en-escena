@@ -283,16 +283,17 @@ export function resolveInscriptionStatusBadge(input: {
 }
 
 /**
- * A choreography's state is the **minimum** of its inscriptions, not a
- * high-water mark: a single uncovered inscription drags the whole choreography
- * down, because the badge answers *can it go on stage as choreographed?*.
+ * A unit's state is the **minimum** of its inscriptions, not a high-water mark:
+ * a single uncovered inscription drags the whole unit down, because the badge
+ * answers *can this happen as registered?* — for a choreography, *can it go on
+ * stage as choreographed?*, and for a `(seminar, academy)` pair, *does every
+ * person the academy registered hold their place?*.
  *
- * A choreography with no inscriptions cannot go on stage either:
- * `depositPending`.
+ * A unit with no inscriptions cannot happen either: `depositPending`.
  */
-export function deriveChoreographyFinancialStatus(
+export function deriveMinimumFinancialStatus(
   statuses: InscriptionFinancialStatus[],
-): ChoreographyFinancialStatus {
+): InscriptionFinancialStatus {
   if (statuses.length === 0) {
     return "depositPending";
   }

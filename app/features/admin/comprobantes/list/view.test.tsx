@@ -23,8 +23,11 @@ function comprobanteRow(
     impTotal: 25000,
     cae: "11112222333344",
     status: "vigente",
-    choreographyId: "choreo_1",
-    choreographyName: "Coreografía Alfa",
+    anchor: {
+      kind: "choreography",
+      choreographyId: "choreo_1",
+      choreographyName: "Coreografía Alfa",
+    },
     academyId: "academy_1",
     academyName: "Academia Alfa",
     ...overrides,
@@ -72,7 +75,11 @@ describe("ComprobantesListRouteView", () => {
             cbteTipo: 13,
             cbteNro: 9,
             academyName: "Academia Beta",
-            choreographyName: "Coreografía Beta",
+            anchor: {
+              kind: "choreography",
+              choreographyId: "choreo_2",
+              choreographyName: "Coreografía Beta",
+            },
           }),
         ],
       }),
@@ -113,7 +120,7 @@ describe("ComprobantesListRouteView", () => {
       "numero",
       "tipo",
       "academia",
-      "coreografia",
+      "unidad",
       "estado",
       "fecha",
       "importe",
@@ -123,7 +130,7 @@ describe("ComprobantesListRouteView", () => {
       "Comprobante",
       "Tipo",
       "Academia",
-      "Coreografía",
+      "Coreografía o seminario",
       "Estado",
       "Fecha",
       "Importe",
@@ -167,11 +174,37 @@ describe("ComprobantesListRouteView", () => {
     ]);
   });
 
-  test("searches by `academia`, `coreografía` and `número`", () => {
+  test("searches by `academia`, `coreografía`, instructor and `número`", () => {
     const markup = renderView(loaderData({ rows: [comprobanteRow()] }));
 
     expect(markup).toContain(
-      'placeholder="Buscar por academia, coreografía o número"',
+      'placeholder="Buscar por academia, coreografía, instructor o número"',
+    );
+  });
+
+  test("a seminar comprobante reads its unit as the instructor and the date, linked to the `(seminar, academy)` detail", () => {
+    const markup = renderView(
+      loaderData({
+        rows: [
+          comprobanteRow({
+            anchor: {
+              kind: "seminar",
+              seminarId: "seminar_1",
+              instructorName: "Abril Sosa",
+              scheduledDate: "2030-10-10",
+            },
+          }),
+        ],
+      }),
+    );
+
+    expect(markup).toContain("Seminario Abril Sosa, 10/10/2030");
+    expect(markup).toContain(
+      'href="/administracion/finanzas/academy_1/seminarios/seminar_1"',
+    );
+    // No kind facet joins the list for the second anchor.
+    expect(comprobanteFacetedFilters.map((filter) => filter.id)).not.toContain(
+      "unidad",
     );
   });
 

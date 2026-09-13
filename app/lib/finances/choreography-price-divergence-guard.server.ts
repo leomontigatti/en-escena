@@ -104,7 +104,7 @@ export async function loadPriceDivergenceCheck(input: {
     .from(choreographyDancers)
     .innerJoin(
       paymentAllocations,
-      eq(paymentAllocations.inscriptionId, choreographyDancers.id),
+      eq(paymentAllocations.choreographyInscriptionId, choreographyDancers.id),
     )
     .where(eq(choreographyDancers.choreographyId, input.choreographyId))
     .groupBy(choreographyDancers.id);

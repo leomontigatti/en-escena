@@ -1,6 +1,7 @@
 import { and, eq, inArray, isNotNull } from "drizzle-orm";
 
 import { db } from "@/db";
+import { restrictedChoreographyInscriptionId } from "@/lib/finances/allocation-target.server";
 import {
   choreographyDancers,
   comprobanteInscriptions,
@@ -26,16 +27,23 @@ export async function findInscriptionsWithEvidence(
 
   const [allocated, invoiced] = await Promise.all([
     executor
-      .selectDistinct({ inscriptionId: paymentAllocations.inscriptionId })
+      .selectDistinct({ inscriptionId: restrictedChoreographyInscriptionId })
       .from(paymentAllocations)
-      .where(inArray(paymentAllocations.inscriptionId, inscriptionIds)),
+      .where(
+        inArray(paymentAllocations.choreographyInscriptionId, inscriptionIds),
+      ),
     executor
-      .selectDistinct({ inscriptionId: comprobanteInscriptions.inscriptionId })
+      .selectDistinct({
+        inscriptionId: comprobanteInscriptions.choreographyInscriptionId,
+      })
       .from(comprobanteInscriptions)
       .where(
         and(
-          isNotNull(comprobanteInscriptions.inscriptionId),
-          inArray(comprobanteInscriptions.inscriptionId, inscriptionIds),
+          isNotNull(comprobanteInscriptions.choreographyInscriptionId),
+          inArray(
+            comprobanteInscriptions.choreographyInscriptionId,
+            inscriptionIds,
+          ),
         ),
       ),
   ]);

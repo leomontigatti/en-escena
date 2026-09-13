@@ -1,5 +1,10 @@
 import { useEffect, useMemo, type ReactNode } from "react";
-import { useForm, type Control } from "react-hook-form";
+import {
+  useForm,
+  useFormState,
+  type Control,
+  type UseFormReturn,
+} from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { AdminResourceFormCard } from "@/components/admin/resource-layout";
@@ -7,6 +12,11 @@ import { BackButton, SubmitButton } from "@/components/shared/action-buttons";
 import { DateOnlyField } from "@/components/shared/date-only-field";
 import { FileUploadField } from "@/components/shared/file-upload-field";
 import { IntegerInputField } from "@/components/shared/integer-input-field";
+import {
+  ReadOnlyField,
+  ReadOnlySelectField,
+} from "@/components/shared/read-only-field";
+import { SelectField } from "@/components/shared/select-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { TimeOnlyField } from "@/components/shared/time-only-field";
 import { FieldGroup } from "@/components/ui/field";
@@ -18,6 +28,11 @@ import {
   describeAvailablePlaces,
   formatAvailablePlacesSuffix,
 } from "@/features/admin/schedules/view-shared";
+import {
+  MAX_SEMINAR_DEPOSIT_PERCENTAGE,
+  MIN_SEMINAR_DEPOSIT_PERCENTAGE,
+} from "@/lib/seminars/deposit-percentage";
+import { seminarKindOptions } from "@/lib/seminars/seminar-kinds";
 import {
   createValidatedRouteSubmitHandler,
   isRouteFormPending,
@@ -49,25 +64,25 @@ type SeminarQuotaOccupancy = {
   quota: number;
 };
 
-export function SeminarForm({
+/**
+ * The form's state, owned by the page rather than by the fields, because
+ * "Guardar" lives outside the `<form>` and stays disabled until something
+ * actually changed.
+ */
+export type SeminarFormController = {
+  form: UseFormReturn<SeminarFormValues>;
+  handleSubmit: (event: React.SubmitEvent<HTMLFormElement>) => void;
+};
+
+export function useSeminarForm({
   actionData,
-  formId,
-  instructorPictureUrl,
   intent,
-  occupancy,
-  showInstructorPicture = false,
   values,
 }: {
   actionData?: SeminarActionData;
-  formId: string;
-  /** A signed link to the stored picture, or `null` when there is none. */
-  instructorPictureUrl?: string | null;
   intent: string;
-  occupancy?: SeminarQuotaOccupancy;
-  /** The picture belongs to a seminar that exists, so the create page has none. */
-  showInstructorPicture?: boolean;
   values: SeminarFormValues;
-}) {
+}): SeminarFormController {
   const defaultValues = useMemo(
     () =>
       actionData?.intent === intent ? (actionData.values ?? values) : values,
@@ -107,6 +122,41 @@ export function SeminarForm({
     }
   }, [actionData, intent, setError]);
 
+  return {
+    form,
+    handleSubmit: createValidatedRouteSubmitHandler(form, submit, formAction),
+  };
+}
+
+export function SeminarForm({
+  controller,
+  formId,
+  hasCoveredInscription = false,
+  instructorPictureUrl,
+  intent,
+  occupancy,
+  showInstructorPicture = false,
+}: {
+  controller: SeminarFormController;
+  formId: string;
+  /**
+   * An inscription of this seminar already covered its deposit, so the kind and
+   * the deposit rate are shown locked rather than refused after the save: both
+   * feed the threshold that took a place. The server refuses all the same, for
+   * the race.
+   */
+  hasCoveredInscription?: boolean;
+  /** A signed link to the stored picture, or `null` when there is none. */
+  instructorPictureUrl?: string | null;
+  intent: string;
+  occupancy?: SeminarQuotaOccupancy;
+  /** The picture belongs to a seminar that exists, so the create page has none. */
+  showInstructorPicture?: boolean;
+}) {
+  const { form, handleSubmit } = controller;
+  const kind = form.watch("kind");
+  const requiredDepositPercentage = form.watch("requiredDepositPercentage");
+
   return (
     <form
       id={formId}
@@ -115,7 +165,7 @@ export function SeminarForm({
       // The picture travels with the rest of the form, so the body is multipart
       // wherever the field is rendered.
       encType={showInstructorPicture ? "multipart/form-data" : undefined}
-      onSubmit={createValidatedRouteSubmitHandler(form, submit, formAction)}
+      onSubmit={handleSubmit}
     >
       <input type="hidden" name="intent" value={intent} />
       <FieldGroup className="grid gap-4 sm:grid-cols-2">
@@ -125,6 +175,31 @@ export function SeminarForm({
           label="Instructor"
           name="instructorName"
         />
+        {hasCoveredInscription ? (
+          <ReadOnlySelectField
+            id="kind"
+            label="Tipo de seminario"
+            name="kind"
+            options={seminarKindOptions}
+            value={kind}
+          />
+        ) : (
+          <SelectField
+            control={form.control}
+            id="kind"
+            label="Tipo de seminario"
+            name="kind"
+            options={seminarKindOptions}
+          />
+        )}
+        <DateOnlyField
+          control={form.control}
+          name="scheduledDate"
+          id={`seminar-date-${intent}`}
+          label="Fecha"
+          buttonClassName="w-full"
+        />
+        <TimeOnlyField control={form.control} label="Hora" name="startTime" />
         <IntegerInputField
           control={form.control}
           id="quota"
@@ -148,14 +223,24 @@ export function SeminarForm({
               : undefined
           }
         />
-        <DateOnlyField
-          control={form.control}
-          name="scheduledDate"
-          id={`seminar-date-${intent}`}
-          label="Fecha"
-          buttonClassName="w-full"
-        />
-        <TimeOnlyField control={form.control} label="Hora" name="startTime" />
+        {hasCoveredInscription ? (
+          <ReadOnlyField
+            id="requiredDepositPercentage"
+            label="Seña (%)"
+            name="requiredDepositPercentage"
+            value={requiredDepositPercentage}
+          />
+        ) : (
+          <IntegerInputField
+            control={form.control}
+            id="requiredDepositPercentage"
+            label="Seña (%)"
+            max={MAX_SEMINAR_DEPOSIT_PERCENTAGE}
+            min={MIN_SEMINAR_DEPOSIT_PERCENTAGE}
+            name="requiredDepositPercentage"
+            step={1}
+          />
+        )}
         {showInstructorPicture ? (
           <InstructorPictureField
             control={form.control}
@@ -212,21 +297,26 @@ function InstructorPictureField({
 }
 
 export function SeminarFormActions({
+  controller,
   formId,
   pendingScope,
   selectedEventId,
 }: {
+  controller: SeminarFormController;
   formId: string;
   pendingScope: RouteFormPendingScope;
   selectedEventId: string | null;
 }) {
   const navigation = useOptionalNavigation();
   const isPending = isRouteFormPending(navigation, pendingScope);
+  // Nothing changed is nothing to save: the button only wakes up once the form
+  // is dirty, so a save is always a save of something.
+  const { isDirty } = useFormState({ control: controller.form.control });
 
   return (
     <div className="flex items-center justify-between gap-2">
       <BackButton to={buildListPath(basePath, selectedEventId)} />
-      <SubmitButton form={formId} isPending={isPending} />
+      <SubmitButton disabled={!isDirty} form={formId} isPending={isPending} />
     </div>
   );
 }

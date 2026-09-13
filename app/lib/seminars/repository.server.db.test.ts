@@ -1,5 +1,5 @@
-import { eq } from "drizzle-orm";
-import { describe, expect, test } from "vitest";
+import { eq, sql } from "drizzle-orm";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import { events, seminarInscriptions, seminars } from "@/db/schema";
@@ -13,6 +13,7 @@ import {
   getSeminar,
   listSeminars,
   updateSeminar,
+  type SeminarInput,
   type SeminarMutationResult,
 } from "@/lib/seminars/repository.server";
 
@@ -20,11 +21,49 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-const seminarInput = {
+// The seminar guards read what the money says: whether any inscription covered
+// its deposit, and how many did. Both come from one module, and mocking it is
+// what lets this suite state the guards without seeding a price list and a pool
+// — the real readings are exercised in
+// `app/lib/finances/seminar-inscription-allocation.server.db.test.ts`.
+vi.mock("@/lib/seminars/covered-inscriptions.server", () => ({
+  countCoveredSeminarInscriptions: vi.fn(async () => 0),
+  countCoveredSeminarInscriptionsBySeminar: vi.fn(async () => new Map()),
+  hasCoveredSeminarInscription: vi.fn(async () => false),
+  holdsCoveredDeposit: vi.fn(async () => false),
+}));
+
+const {
+  countCoveredSeminarInscriptions,
+  countCoveredSeminarInscriptionsBySeminar,
+  hasCoveredSeminarInscription,
+} = vi.mocked(await import("@/lib/seminars/covered-inscriptions.server"));
+
+/**
+ * The gallery reads the covered count in one batched query and the detail reads
+ * it one seminar at a time, so a test that stands a count up has to stand up
+ * both readings of it.
+ */
+function stubCoveredCount(seminarId: string, coveredCount: number) {
+  countCoveredSeminarInscriptions.mockResolvedValue(coveredCount);
+  countCoveredSeminarInscriptionsBySeminar.mockResolvedValue(
+    new Map([[seminarId, coveredCount]]),
+  );
+}
+
+afterEach(() => {
+  countCoveredSeminarInscriptions.mockResolvedValue(0);
+  countCoveredSeminarInscriptionsBySeminar.mockResolvedValue(new Map());
+  hasCoveredSeminarInscription.mockResolvedValue(false);
+});
+
+const seminarInput: SeminarInput = {
   instructorName: "Abril Sosa",
   scheduledDate: "2026-10-10",
   startTime: "18:30",
   quota: 20,
+  kind: "regular",
+  requiredDepositPercentage: 50,
 };
 
 function expectSaved(result: SeminarMutationResult) {
@@ -136,6 +175,7 @@ describe("seminar repository", () => {
 
     const updated = expectSaved(
       await updateSeminar(seminar.id, {
+        ...seminarInput,
         instructorName: "Abril Sosa Vega",
         scheduledDate: "2026-10-11",
         startTime: "09:00",
@@ -161,6 +201,7 @@ describe("seminar repository", () => {
     // Saving a seminar over its own moment is not a duplicate of itself.
     expectSaved(
       await updateSeminar(seminar.id, {
+        ...seminarInput,
         instructorName: "Abril Sosa Vega",
         scheduledDate: "2026-10-11",
         startTime: "09:00",
@@ -180,6 +221,113 @@ describe("seminar repository", () => {
     });
   });
 
+  test("stores the seminar's kind and its own deposit rate, and refuses a rate outside 1 and 99", async () => {
+    const event = await createSavedEvent("Regional 2026");
+
+    const seminar = expectSaved(
+      await createSeminar(event.id, {
+        ...seminarInput,
+        kind: "special",
+        requiredDepositPercentage: 30,
+      }),
+    );
+    expect(seminar).toMatchObject({ kind: "special" });
+    expect(seminar.requiredDepositPercentage).toBe(30);
+
+    for (const requiredDepositPercentage of [0, 100, 50.5]) {
+      await expect(
+        updateSeminar(seminar.id, {
+          ...seminarInput,
+          requiredDepositPercentage,
+        }),
+      ).resolves.toMatchObject({
+        ok: false,
+        code: "invalid-seminar",
+        fieldErrors: {
+          requiredDepositPercentage:
+            "La seña del seminario debe ser un entero entre 1 y 99.",
+        },
+      });
+    }
+  });
+
+  // The two facts every seminar carried before this pair existed: the row the
+  // migration left behind reads as a `Común` seminar with a deposit of half its
+  // price, and the database refuses a rate outside the range whichever writer
+  // produced it.
+  test("defaults a seminar written without the pair to regular and 50, under a database range check", async () => {
+    const event = await createSavedEvent("Regional 2026");
+
+    await db.execute(sql`
+      insert into en_escena_seminar
+        (id, event_id, instructor_name, scheduled_date, start_time, quota)
+      values
+        ('seminar_legacy', ${event.id}, 'Abril Sosa', '2026-10-10', '18:30', 20)
+    `);
+
+    await expect(getSeminar("seminar_legacy")).resolves.toMatchObject({
+      kind: "regular",
+      requiredDepositPercentage: 50,
+    });
+    await expect(
+      db.execute(sql`
+        update en_escena_seminar
+        set required_deposit_percentage = 100
+        where id = 'seminar_legacy'
+      `),
+    ).rejects.toThrow();
+  });
+
+  test("refuses to move the kind or the deposit rate while an inscription is covered, and lets the rest through", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    const seminar = expectSaved(await createSeminar(event.id, seminarInput));
+
+    hasCoveredSeminarInscription.mockResolvedValue(true);
+
+    for (const structuralChange of [
+      { kind: "special" as const },
+      { requiredDepositPercentage: 40 },
+    ]) {
+      await expect(
+        updateSeminar(seminar.id, { ...seminarInput, ...structuralChange }),
+      ).resolves.toMatchObject({
+        ok: false,
+        code: "covered-inscriptions",
+        error:
+          "No se puede cambiar el tipo de seminario ni la seña: ya hay inscripciones con la seña cubierta.",
+      });
+    }
+
+    // Saving the pair as it already stands is no change, so it is no refusal:
+    // the instructor, the moment and the quota keep editing under money.
+    expect(
+      expectSaved(
+        await updateSeminar(seminar.id, {
+          ...seminarInput,
+          instructorName: "Nicolás Prado",
+        }),
+      ),
+    ).toMatchObject({ instructorName: "Nicolás Prado" });
+  });
+
+  // Nothing covers a deposit yet: seminar money arrives with the allocation
+  // target, and until then the predicate answers `false` for every seminar, so
+  // the guard above blocks nobody.
+  test("moves both facts freely while no inscription is covered", async () => {
+    const event = await createSavedEvent("Regional 2026");
+    const seminar = expectSaved(await createSeminar(event.id, seminarInput));
+
+    expect(
+      expectSaved(
+        await updateSeminar(seminar.id, {
+          ...seminarInput,
+          kind: "special",
+          requiredDepositPercentage: 25,
+        }),
+      ),
+    ).toMatchObject({ kind: "special", requiredDepositPercentage: 25 });
+  });
+
   test("refuses to delete a seminar that has inscriptions, and accepts once it has none", async () => {
     const { eventId, seminarId } = await createRegistration();
 
@@ -197,8 +345,10 @@ describe("seminar repository", () => {
     await expect(deleteSeminar(seminarId)).resolves.toEqual({ ok: true });
   });
 
-  test("refuses a quota below the inscription count, naming the floor", async () => {
+  test("refuses a quota below the covered count, naming the floor", async () => {
     const { seminarId } = await createRegistration();
+
+    countCoveredSeminarInscriptions.mockResolvedValue(2);
 
     await expect(
       updateSeminar(seminarId, { ...seminarInput, quota: 0 }),
@@ -207,13 +357,13 @@ describe("seminar repository", () => {
       updateSeminar(seminarId, { ...seminarInput, quota: 1 }),
     ).resolves.toMatchObject({
       ok: false,
-      code: "quota-below-count",
+      code: "quota-below-covered",
       error:
-        "No se puede bajar el cupo a menos de 2: es la cantidad de inscriptos.",
+        "No se puede bajar el cupo a menos de 2: es la cantidad de inscripciones con la seña cubierta.",
     });
 
-    // The floor is the count, not one above it, and every other field still
-    // edits freely at the floor.
+    // The floor is the covered count, not one above it, and every other field
+    // still edits freely at the floor.
     expect(
       expectSaved(
         await updateSeminar(seminarId, {
@@ -226,52 +376,63 @@ describe("seminar repository", () => {
     ).toMatchObject({ scheduledDate: "2020-01-01", quota: 2 });
   });
 
-  // The floor and the hard cap decide on the same number, so they have to read
-  // it under the same lock. Whichever of the two wins, the invariant the pair
-  // exists for must hold afterwards: a seminar never holds more inscriptions
-  // than its quota describes.
-  test("keeps the count within the quota when a registration races the lowering", async () => {
-    const { eventId, seminarId } = await createRegistration();
-    const third = await createDancer(
-      (
-        await createAcademyUser({
-          academyName: "Academia Tercera",
-          email: `${crypto.randomUUID()}@example.com`,
-        })
-      ).academy.id,
-      { firstName: "Carla", lastName: "Sosa" },
-    );
+  // Registration is unlimited, so the floor ignores it: two people on the
+  // roster who covered nothing hold no place, and the quota drops under them.
+  test("ignores the uncovered inscriptions and lets the quota be raised freely", async () => {
+    const { seminarId } = await createRegistration();
 
-    expectSaved(await updateSeminar(seminarId, { ...seminarInput, quota: 3 }));
-
-    await Promise.all([
-      updateSeminar(seminarId, { ...seminarInput, quota: 2 }),
-      registerSeminarInscription({
-        academyId: third.academyId,
-        eventId,
-        now: new Date("2026-10-10T21:29:00.000Z"),
-        personId: third.id,
-        personKind: "dancer",
-        seminarId,
-      }),
-    ]);
-
-    const seminar = await getSeminar(seminarId);
-
-    expect(seminar?.inscriptionCount).toBeLessThanOrEqual(seminar?.quota ?? 0);
+    expect(
+      expectSaved(
+        await updateSeminar(seminarId, { ...seminarInput, quota: 1 }),
+      ),
+    ).toMatchObject({ quota: 1 });
+    expect(
+      expectSaved(
+        await updateSeminar(seminarId, { ...seminarInput, quota: 50 }),
+      ),
+    ).toMatchObject({ quota: 50 });
   });
 
-  test("counts the inscriptions the quota already gave away", async () => {
+  test("reads the places off the covered count and the roster off the inscriptions", async () => {
     const { eventId, seminarId } = await createRegistration();
+
+    stubCoveredCount(seminarId, 1);
 
     await expect(getSeminar(seminarId)).resolves.toMatchObject({
       quota: 20,
+      registeredCount: 2,
       inscriptionCount: 2,
-      availablePlaces: 18,
+      availablePlaces: 19,
     });
     await expect(listSeminars(eventId)).resolves.toMatchObject([
-      { id: seminarId, inscriptionCount: 2 },
+      { id: seminarId, availablePlaces: 19, registeredCount: 2 },
     ]);
+  });
+
+  // The delete guard refuses on every row, withdrawn included, so the count the
+  // dialog blocks on has to see what the roster does not.
+  test("keeps a withdrawn row out of the roster count and in the inscription count", async () => {
+    const { eventId, seminarId } = await createRegistration();
+
+    await db
+      .update(seminarInscriptions)
+      .set({ withdrawnAt: new Date("2026-10-01T12:00:00.000Z") })
+      .where(eq(seminarInscriptions.seminarId, seminarId));
+
+    for (const seminar of [
+      await getSeminar(seminarId),
+      ...(await listSeminars(eventId)),
+    ]) {
+      expect(seminar).toMatchObject({
+        registeredCount: 0,
+        inscriptionCount: 2,
+      });
+    }
+
+    await expect(deleteSeminar(seminarId)).resolves.toMatchObject({
+      ok: false,
+      code: "has-inscriptions",
+    });
   });
 
   test("deletes a seminar and drops the rest with the event", async () => {

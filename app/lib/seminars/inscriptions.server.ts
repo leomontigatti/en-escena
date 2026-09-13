@@ -1,8 +1,7 @@
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
-  academies,
   dancers,
   professors,
   seminarInscriptions,
@@ -13,40 +12,29 @@ import {
   toRosterPersonStatus,
   type RosterPersonKind,
 } from "@/lib/roster/roster-person-status.shared";
+import { activeSeminarInscription } from "@/lib/seminars/active-inscription";
 import {
-  seminarFullMessage,
+  countCoveredSeminarInscriptions,
+  holdsCoveredDeposit,
+} from "@/lib/seminars/covered-inscriptions.server";
+import {
+  removeSeminarInscriptionFromRoster,
+  reviveWithdrawnSeminarInscription,
+} from "@/lib/seminars/inscription-withdrawal.server";
+import {
+  seminarNoPlacesForRevivalMessage,
   seminarStartedMessage,
 } from "@/lib/seminars/registration-refusals";
 import { hasSeminarStarted } from "@/lib/seminars/registration-window";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-export type SeminarInscriptionListItem = {
+/** The seminar row the registration path holds a lock on while it decides. */
+type LockedSeminar = {
   id: string;
-  seminarId: string;
-  personId: string;
-  personKind: RosterPersonKind;
-  fullName: string;
-  academyId: string;
-  createdAt: Date;
-};
-
-/**
- * One row of the seminar detail's `Inscriptos` tab: who is registered, what
- * kind of roster person they are and which academy registered them. The academy
- * is read through the person, as it is everywhere else.
- */
-export type SeminarInscriptionRow = {
-  id: string;
-  fullName: string;
-  personKind: RosterPersonKind;
-  academyName: string;
-};
-
-export type SeminarPersonOption = {
-  id: string;
-  kind: RosterPersonKind;
-  fullName: string;
+  quota: number;
+  scheduledDate: string;
+  startTime: string;
 };
 
 export type RegisterSeminarInscriptionInput = {
@@ -72,17 +60,17 @@ export type DeleteSeminarInscriptionFailureCode =
 /** Administration's removal, which has no cut-off and no reason to refuse but
  * a row that is not there. */
 export type RemoveSeminarInscriptionResult =
-  | { ok: true }
+  | { ok: true; withdrawn: boolean }
   | { ok: false; code: "inscription-not-found"; error: string };
 
 export type DeleteSeminarInscriptionResult =
-  | { ok: true }
+  | { ok: true; withdrawn: boolean }
   | { ok: false; code: DeleteSeminarInscriptionFailureCode; error: string };
 
 export type RegisterSeminarInscriptionFailureCode =
   | "already-registered"
-  | "full"
   | "ineligible-person"
+  | "no-places"
   | "seminar-not-found"
   | "started";
 
@@ -96,6 +84,9 @@ export type RegisterSeminarInscriptionResult =
 
 export const seminarInscriptionSuccessMessage = "Inscripción guardada.";
 export const seminarInscriptionDeletedMessage = "Inscripción eliminada.";
+/** Said instead when the row held money or a comprobante line: what happened is
+ * not a deletion, and the surface that asked must not report one. */
+export const seminarInscriptionWithdrawnMessage = "Inscripción retirada.";
 export const seminarInscriptionNotFoundMessage =
   "No encontramos esa inscripción.";
 
@@ -105,11 +96,15 @@ const alreadyRegisteredMessage = "Esa persona ya está inscripta.";
 const seminarNotFoundMessage = "No encontramos ese seminario.";
 
 /**
- * The quota is a hard cap, so the count that decides it has to be taken under a
- * lock on the seminar row: `SELECT … FOR UPDATE` first, count second, insert
- * third. Two academies taking the last place at once are serialized by that
- * lock, and the loser reads the count the winner already wrote — the same
- * `full` refusal a plain attempt on a full seminar gets.
+ * **Registration is unlimited.** The quota is not a cap on inscriptions: a place
+ * is taken by covering the deposit, which is a decision of the allocation path
+ * (`app/lib/finances/seminar-inscription-allocation.server.ts`), so an academy
+ * registers whoever it wants and then decides who to pay for
+ * (docs/domain/seminars.md, "The place").
+ *
+ * The row lock on the seminar stays all the same: the start time and the
+ * eligibility are read off it, and holding it keeps a registration from racing
+ * the seminar's own edits.
  */
 export async function registerSeminarInscription(
   input: RegisterSeminarInscriptionInput,
@@ -125,7 +120,7 @@ export async function registerSeminarInscription(
 
     return (
       (await findRegistrationRefusal(tx, seminar, input)) ??
-      (await insertInscription(tx, seminar.id, input))
+      (await insertOrReviveInscription(tx, seminar, input))
     );
   });
 }
@@ -150,22 +145,14 @@ function lockSeminar(tx: Transaction, input: RegisterSeminarInscriptionInput) {
 }
 
 /**
- * The three reasons a locked seminar refuses, in the order they are read.
- * Deliberately not the PRD's order, which lists the full seminar first: once a
- * seminar has begun its quota stopped being the question, so "started" wins —
- * the same precedence the portal footer reads a closed seminar by
- * (`getPortalSeminarClosedReason`). Eligibility comes before the count because
- * a person who could never be registered should not be told the seminar filled
- * up.
+ * The two reasons a locked seminar refuses, in the order they are read: a
+ * seminar that has begun takes nobody, and a person who is not on the academy's
+ * active roster is nobody it may register. How full the seminar is is not among
+ * them.
  */
 async function findRegistrationRefusal(
   tx: Transaction,
-  seminar: {
-    id: string;
-    quota: number;
-    scheduledDate: string;
-    startTime: string;
-  },
+  seminar: LockedSeminar,
   input: RegisterSeminarInscriptionInput,
 ): Promise<RegisterSeminarInscriptionResult | null> {
   if (hasSeminarStarted(seminar, input.now)) {
@@ -176,32 +163,42 @@ async function findRegistrationRefusal(
     return failure("ineligible-person", ineligiblePersonMessage);
   }
 
-  const [countRow] = await tx
-    .select({ inscriptionCount: sql<number>`count(*)` })
-    .from(seminarInscriptions)
-    .where(eq(seminarInscriptions.seminarId, seminar.id));
-
-  if (Number(countRow?.inscriptionCount ?? 0) >= seminar.quota) {
-    return failure("full", seminarFullMessage);
-  }
-
   return null;
 }
 
 /**
- * The partial unique indexes are what actually forbid the same person twice, so
- * the refusal is read from the insert rather than from a check that another
- * transaction could invalidate a moment later.
+ * Registering somebody who already holds a **withdrawn** row brings that row
+ * back rather than inserting a second one: the id survives, and with it the
+ * money the withdrawal retained, the price row it stored and the `createdAt`
+ * that dates the inscription.
+ *
+ * The revival is a registration in every other respect — it happens under the
+ * seminar's lock, from the portal, for an active person, until the seminar
+ * starts — and it is the one registration the quota can refuse: a row still
+ * holding money past its stored deposit takes its place back the moment it is
+ * active again, so a seminar whose covered rows already fill the quota refuses
+ * it and leaves the row withdrawn.
  */
-async function insertInscription(
+async function insertOrReviveInscription(
   tx: Transaction,
-  seminarId: string,
+  seminar: LockedSeminar,
   input: RegisterSeminarInscriptionInput,
 ): Promise<RegisterSeminarInscriptionResult> {
+  const existing = await findPersonInscription(tx, input);
+
+  if (existing) {
+    return existing.withdrawnAt === null
+      ? failure("already-registered", alreadyRegisteredMessage)
+      : await reviveInscription(tx, seminar, existing.id);
+  }
+
+  // The partial unique indexes are what actually forbid the same person twice,
+  // so a row that appeared after the read above is refused by the insert rather
+  // than by a check another transaction could invalidate a moment later.
   const [inserted] = await tx
     .insert(seminarInscriptions)
     .values({
-      seminarId,
+      seminarId: seminar.id,
       dancerId: input.personKind === "dancer" ? input.personId : null,
       professorId: input.personKind === "professor" ? input.personId : null,
     })
@@ -215,13 +212,64 @@ async function insertInscription(
   return { ok: true, inscriptionId: inserted.id };
 }
 
+async function reviveInscription(
+  tx: Transaction,
+  seminar: LockedSeminar,
+  inscriptionId: string,
+): Promise<RegisterSeminarInscriptionResult> {
+  // The row is still withdrawn while this is read, so the covered count cannot
+  // see it and needs no exception for it.
+  if (await holdsCoveredDeposit(inscriptionId, tx)) {
+    const coveredCount = await countCoveredSeminarInscriptions(seminar.id, tx);
+
+    if (coveredCount >= seminar.quota) {
+      return failure("no-places", seminarNoPlacesForRevivalMessage);
+    }
+  }
+
+  await reviveWithdrawnSeminarInscription(tx, inscriptionId);
+
+  return { ok: true, inscriptionId };
+}
+
+/** The person's row on this seminar, withdrawn or not: the one read that tells
+ * a registration from a revival. */
+async function findPersonInscription(
+  tx: Transaction,
+  input: RegisterSeminarInscriptionInput,
+) {
+  const [row] = await tx
+    .select({
+      id: seminarInscriptions.id,
+      withdrawnAt: seminarInscriptions.withdrawnAt,
+    })
+    .from(seminarInscriptions)
+    .where(
+      and(
+        eq(seminarInscriptions.seminarId, input.seminarId),
+        eq(personColumn(input.personKind), input.personId),
+      ),
+    );
+
+  return row;
+}
+
+function personColumn(personKind: RosterPersonKind) {
+  return personKind === "dancer"
+    ? seminarInscriptions.dancerId
+    : seminarInscriptions.professorId;
+}
+
 /**
- * The academy's own delete, open until the seminar starts. It is a physical
- * delete: the row carries no money and no history, so the place it held is free
- * the moment it is gone — a seminar that was refusing with `full` accepts the
- * next registration. An inscription of another academy or of another event is
- * not refused as forbidden but as missing: the portal never offers it, so
- * naming it back would only say that it exists.
+ * The academy's own removal, open until the seminar starts. Whether it deletes
+ * the row or withdraws it is not decided here: the chooser reads the evidence
+ * and answers (`inscription-withdrawal.server.ts`). A withdrawal keeps the money
+ * on the row and frees its place all the same, which is what lets the academy
+ * change its mind about somebody it already paid for.
+ *
+ * An inscription of another academy or of another event is not refused as
+ * forbidden but as missing: the portal never offers it, so naming it back would
+ * only say that it exists.
  */
 export async function deleteSeminarInscriptionForAcademy(
   input: DeleteSeminarInscriptionInput,
@@ -239,11 +287,10 @@ export async function deleteSeminarInscriptionForAcademy(
     return deletionFailure("started", seminarStartedMessage);
   }
 
-  await db
-    .delete(seminarInscriptions)
-    .where(eq(seminarInscriptions.id, input.inscriptionId));
-
-  return { ok: true };
+  return {
+    ok: true,
+    ...(await removeSeminarInscriptionFromRoster(db, input.inscriptionId)),
+  };
 }
 
 /**
@@ -268,6 +315,10 @@ async function findAcademyInscription(input: DeleteSeminarInscriptionInput) {
       and(
         eq(seminarInscriptions.id, input.inscriptionId),
         eq(seminars.eventId, input.eventId),
+        // A row already withdrawn is off the roster: the portal does not list
+        // it, so removing it again is the same miss as removing one that is
+        // gone.
+        activeSeminarInscription(),
       ),
     );
 
@@ -275,65 +326,31 @@ async function findAcademyInscription(input: DeleteSeminarInscriptionInput) {
 }
 
 /**
- * Every inscription of one seminar, whichever academy made it. Administration
- * reads a flat table: there is no grouping and no occupancy line, so the two
- * halves are merged and sorted by academy, the order the table opens in.
- */
-export async function listSeminarInscriptions(
-  seminarId: string,
-): Promise<SeminarInscriptionRow[]> {
-  const [dancerRows, professorRows] = await Promise.all([
-    db
-      .select({
-        id: seminarInscriptions.id,
-        firstName: dancers.firstName,
-        lastName: dancers.lastName,
-        academyName: academies.name,
-      })
-      .from(seminarInscriptions)
-      .innerJoin(dancers, eq(dancers.id, seminarInscriptions.dancerId))
-      .innerJoin(academies, eq(academies.id, dancers.academyId))
-      .where(eq(seminarInscriptions.seminarId, seminarId)),
-    db
-      .select({
-        id: seminarInscriptions.id,
-        firstName: professors.firstName,
-        lastName: professors.lastName,
-        academyName: academies.name,
-      })
-      .from(seminarInscriptions)
-      .innerJoin(professors, eq(professors.id, seminarInscriptions.professorId))
-      .innerJoin(academies, eq(academies.id, professors.academyId))
-      .where(eq(seminarInscriptions.seminarId, seminarId)),
-  ]);
-
-  return [
-    ...dancerRows.map((row) => toInscriptionRow(row, "dancer")),
-    ...professorRows.map((row) => toInscriptionRow(row, "professor")),
-  ].sort(byAcademyThenFullName);
-}
-
-/**
  * Administration's removal: no cut-off, no reason and no trail. A seminar that
  * has already started is removed from all the same, because this is the release
- * valve for the two guards on the seminar itself — a seminar with inscriptions
- * cannot be deleted, and its quota cannot drop below the count.
+ * valve for the guards on the seminar itself — a seminar with inscriptions
+ * cannot be deleted, and its quota cannot drop below the covered count.
+ *
+ * It goes through the same chooser the academy's removal does: what differs
+ * between the two sides is who may ask and until when, never what happens to
+ * the money.
  */
 export async function removeSeminarInscription(input: {
   inscriptionId: string;
   seminarId: string;
 }): Promise<RemoveSeminarInscriptionResult> {
-  const [deleted] = await db
-    .delete(seminarInscriptions)
+  const [existing] = await db
+    .select({ id: seminarInscriptions.id })
+    .from(seminarInscriptions)
     .where(
       and(
         eq(seminarInscriptions.id, input.inscriptionId),
         eq(seminarInscriptions.seminarId, input.seminarId),
+        activeSeminarInscription(),
       ),
-    )
-    .returning({ id: seminarInscriptions.id });
+    );
 
-  if (!deleted) {
+  if (!existing) {
     return {
       ok: false,
       code: "inscription-not-found",
@@ -341,118 +358,10 @@ export async function removeSeminarInscription(input: {
     };
   }
 
-  return { ok: true };
-}
-
-/**
- * The academy's own inscriptions on an event's seminars, dancers and professors
- * in one list. The academy is read through the person, which is why the two
- * halves are queried separately and merged here.
- */
-export async function listSeminarInscriptionsForAcademy(input: {
-  academyId: string;
-  eventId: string;
-}): Promise<SeminarInscriptionListItem[]> {
-  const eventSeminarIds = db
-    .select({ id: seminars.id })
-    .from(seminars)
-    .where(eq(seminars.eventId, input.eventId));
-
-  const [dancerRows, professorRows] = await Promise.all([
-    db
-      .select({
-        id: seminarInscriptions.id,
-        seminarId: seminarInscriptions.seminarId,
-        personId: dancers.id,
-        firstName: dancers.firstName,
-        lastName: dancers.lastName,
-        academyId: dancers.academyId,
-        createdAt: seminarInscriptions.createdAt,
-      })
-      .from(seminarInscriptions)
-      .innerJoin(dancers, eq(dancers.id, seminarInscriptions.dancerId))
-      .where(
-        and(
-          eq(dancers.academyId, input.academyId),
-          inArray(seminarInscriptions.seminarId, eventSeminarIds),
-        ),
-      ),
-    db
-      .select({
-        id: seminarInscriptions.id,
-        seminarId: seminarInscriptions.seminarId,
-        personId: professors.id,
-        firstName: professors.firstName,
-        lastName: professors.lastName,
-        academyId: professors.academyId,
-        createdAt: seminarInscriptions.createdAt,
-      })
-      .from(seminarInscriptions)
-      .innerJoin(professors, eq(professors.id, seminarInscriptions.professorId))
-      .where(
-        and(
-          eq(professors.academyId, input.academyId),
-          inArray(seminarInscriptions.seminarId, eventSeminarIds),
-        ),
-      ),
-  ]);
-
-  return [
-    ...dancerRows.map((row) => toInscriptionListItem(row, "dancer")),
-    ...professorRows.map((row) => toInscriptionListItem(row, "professor")),
-  ].sort(byFullName);
-}
-
-/**
- * Everyone the academy may still register: its active dancers and professors in
- * one flat list. An archived person is absent — the grandfather half of the
- * roster rule keeps the inscriptions they already have, and those are listed
- * from `listSeminarInscriptionsForAcademy`, not from here.
- */
-export async function listSeminarPersonOptionsForAcademy(
-  academyId: string,
-): Promise<SeminarPersonOption[]> {
-  const [dancerRows, professorRows] = await Promise.all([
-    db
-      .select({
-        id: dancers.id,
-        firstName: dancers.firstName,
-        lastName: dancers.lastName,
-        active: dancers.active,
-      })
-      .from(dancers)
-      .where(eq(dancers.academyId, academyId))
-      .orderBy(asc(sql`lower(${dancers.firstName})`)),
-    db
-      .select({
-        id: professors.id,
-        firstName: professors.firstName,
-        lastName: professors.lastName,
-        active: professors.active,
-      })
-      .from(professors)
-      .where(eq(professors.academyId, academyId))
-      .orderBy(asc(sql`lower(${professors.firstName})`)),
-  ]);
-
-  return [
-    ...dancerRows
-      .filter(isRegistrable)
-      .map((row) => toPersonOption(row, "dancer")),
-    ...professorRows
-      .filter(isRegistrable)
-      .map((row) => toPersonOption(row, "professor")),
-  ].sort(byFullName);
-}
-
-// Nobody is linked yet from the picker's point of view: the people already on
-// the seminar are subtracted by the caller, so what is left is the active half
-// of the same rule the server enforces.
-function isRegistrable(person: { active: boolean }) {
-  return isSelectableForRoster({
-    status: toRosterPersonStatus(person.active),
-    isAlreadyLinked: false,
-  });
+  return {
+    ok: true,
+    ...(await removeSeminarInscriptionFromRoster(db, input.inscriptionId)),
+  };
 }
 
 async function isPersonEligibleForSeminar(
@@ -506,90 +415,27 @@ async function findAcademyPerson(
   return professor;
 }
 
+/**
+ * Active rows only, which is what makes a **revival** the registration of an
+ * active person: an archived person holding a withdrawn row is not grandfathered
+ * back in by the row they no longer have.
+ */
 async function isPersonRegistered(
   tx: Transaction,
   input: RegisterSeminarInscriptionInput,
 ) {
-  const personColumn =
-    input.personKind === "dancer"
-      ? seminarInscriptions.dancerId
-      : seminarInscriptions.professorId;
   const [existing] = await tx
     .select({ id: seminarInscriptions.id })
     .from(seminarInscriptions)
     .where(
       and(
         eq(seminarInscriptions.seminarId, input.seminarId),
-        eq(personColumn, input.personId),
+        eq(personColumn(input.personKind), input.personId),
+        activeSeminarInscription(),
       ),
     );
 
   return existing !== undefined;
-}
-
-function toInscriptionListItem(
-  row: {
-    id: string;
-    seminarId: string;
-    personId: string;
-    firstName: string;
-    lastName: string;
-    academyId: string;
-    createdAt: Date;
-  },
-  personKind: RosterPersonKind,
-): SeminarInscriptionListItem {
-  return {
-    id: row.id,
-    seminarId: row.seminarId,
-    personId: row.personId,
-    personKind,
-    fullName: `${row.firstName} ${row.lastName}`,
-    academyId: row.academyId,
-    createdAt: row.createdAt,
-  };
-}
-
-function toPersonOption(
-  row: { id: string; firstName: string; lastName: string },
-  kind: RosterPersonKind,
-): SeminarPersonOption {
-  return {
-    id: row.id,
-    kind,
-    fullName: `${row.firstName} ${row.lastName}`,
-  };
-}
-
-function toInscriptionRow(
-  row: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    academyName: string;
-  },
-  personKind: RosterPersonKind,
-): SeminarInscriptionRow {
-  return {
-    id: row.id,
-    fullName: `${row.firstName} ${row.lastName}`,
-    personKind,
-    academyName: row.academyName,
-  };
-}
-
-function byAcademyThenFullName(
-  first: SeminarInscriptionRow,
-  second: SeminarInscriptionRow,
-) {
-  return (
-    first.academyName.localeCompare(second.academyName, "es-AR") ||
-    byFullName(first, second)
-  );
-}
-
-function byFullName(first: { fullName: string }, second: { fullName: string }) {
-  return first.fullName.localeCompare(second.fullName, "es-AR");
 }
 
 function deletionFailure(

@@ -196,7 +196,7 @@ describe.sequential("`/administracion/finanzas`", () => {
       academyId: academyNorth.academy.id,
       amount: 3000,
       eventId: event.id,
-      inscriptionId: northActiveInscription.id,
+      choreographyInscriptionId: northActiveInscription.id,
       paymentId: northPayment.id,
     });
 
@@ -225,7 +225,7 @@ describe.sequential("`/administracion/finanzas`", () => {
       academyId: academyNorth.academy.id,
       amount: 10000,
       eventId: event.id,
-      inscriptionId: northPaidInscription.id,
+      choreographyInscriptionId: northPaidInscription.id,
       paymentId: northPayment.id,
     });
 

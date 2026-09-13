@@ -19,6 +19,7 @@ import {
   type DancerDiscount,
 } from "@/lib/finances/operational-summary-calculations.server";
 import { resolveEffectiveBasePriceAmount } from "@/lib/finances/inscription-price";
+import { restrictedChoreographyInscriptionId } from "@/lib/finances/allocation-target.server";
 
 import type { Executor } from "./choreography-cobro-support.server";
 
@@ -126,12 +127,12 @@ export async function readInscriptionThresholds(
       : await executor
           .select({
             amount: paymentAllocations.amount,
-            inscriptionId: paymentAllocations.inscriptionId,
+            inscriptionId: restrictedChoreographyInscriptionId,
           })
           .from(paymentAllocations)
           .where(
             inArray(
-              paymentAllocations.inscriptionId,
+              paymentAllocations.choreographyInscriptionId,
               rosterRows.map((row) => row.id),
             ),
           );

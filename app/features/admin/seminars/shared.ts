@@ -1,9 +1,20 @@
 import { z } from "zod";
 
 import { isPositiveIntegerString } from "@/features/admin/schedules/view-shared";
+import {
+  DEFAULT_SEMINAR_DEPOSIT_PERCENTAGE,
+  invalidSeminarDepositPercentageMessage,
+  isValidSeminarDepositPercentage,
+} from "@/lib/seminars/deposit-percentage";
+import {
+  defaultSeminarKind,
+  isSeminarKind,
+  seminarKindValues,
+  type SeminarKind,
+} from "@/lib/seminars/seminar-kinds";
 import type { FieldErrors } from "@/lib/shared/form-validation";
 import { requiredFieldMessage } from "@/lib/shared/forms";
-import type { SeminarInscriptionRow } from "@/lib/seminars/inscriptions.server";
+import type { SeminarInscriptionRow } from "@/lib/seminars/inscription-rosters.server";
 import type {
   SeminarFieldName,
   SeminarListItem,
@@ -37,6 +48,8 @@ export const seminarFieldNames: readonly SeminarFieldName[] = [
   "scheduledDate",
   "startTime",
   "quota",
+  "kind",
+  "requiredDepositPercentage",
 ];
 
 export const seminarFormSchema = z.object({
@@ -48,6 +61,15 @@ export const seminarFormSchema = z.object({
     .trim()
     .min(1, requiredFieldMessage)
     .refine(isPositiveIntegerString, "Ingresá un cupo mayor a cero."),
+  kind: z.enum(seminarKindValues),
+  requiredDepositPercentage: z
+    .string()
+    .trim()
+    .min(1, requiredFieldMessage)
+    .refine(
+      (value) => isValidSeminarDepositPercentage(Number(value)),
+      invalidSeminarDepositPercentageMessage,
+    ),
   // Whether the stored picture is still wanted, never the storage key itself:
   // the upload field empties this when its remove button is pressed, and the
   // save deletes the object. The browser never learns the real key.
@@ -75,6 +97,13 @@ export type SeminarCreateLoaderData = {
 };
 
 export type SeminarDetailLoaderData = {
+  /**
+   * Whether an inscription of this seminar has already covered its deposit, in
+   * which case the kind and the deposit rate are read-only: the refusal shows
+   * on sight rather than after the save. Always `false` until seminar money
+   * exists (`app/lib/seminars/covered-inscriptions.server.ts`).
+   */
+  hasCoveredInscription: boolean;
   /** Everyone registered, whichever academy registered them. */
   inscriptions: SeminarInscriptionRow[];
   /** A signed link to the stored picture, or `null` when there is none. */
@@ -90,6 +119,8 @@ export function defaultSeminarFormValues(): SeminarFormValues {
     scheduledDate: "",
     startTime: "",
     quota: "",
+    kind: defaultSeminarKind,
+    requiredDepositPercentage: DEFAULT_SEMINAR_DEPOSIT_PERCENTAGE.toString(),
     [seminarPictureKeptField]: "",
   };
 }
@@ -99,7 +130,9 @@ export function toSeminarFormValues(
     SeminarListItem,
     | "instructorName"
     | "instructorPictureStorageKey"
+    | "kind"
     | "quota"
+    | "requiredDepositPercentage"
     | "scheduledDate"
     | "startTime"
   >,
@@ -109,6 +142,8 @@ export function toSeminarFormValues(
     scheduledDate: seminar.scheduledDate,
     startTime: seminar.startTime,
     quota: seminar.quota.toString(),
+    kind: seminar.kind,
+    requiredDepositPercentage: seminar.requiredDepositPercentage.toString(),
     [seminarPictureKeptField]: seminar.instructorPictureStorageKey
       ? keptSeminarPictureValue
       : "",
@@ -121,9 +156,23 @@ export function readSeminarFormValues(formData: FormData): SeminarFormValues {
     scheduledDate: String(formData.get("scheduledDate") ?? "").trim(),
     startTime: String(formData.get("startTime") ?? "").trim(),
     quota: String(formData.get("quota") ?? "").trim(),
+    kind: readSeminarKind(formData.get("kind")),
+    requiredDepositPercentage: String(
+      formData.get("requiredDepositPercentage") ?? "",
+    ).trim(),
     [seminarPictureKeptField]:
       formData.get(seminarPictureKeptField) === keptSeminarPictureValue
         ? keptSeminarPictureValue
         : "",
   };
+}
+
+/**
+ * The kind is a closed set, so an unreadable value falls back to the default
+ * rather than reaching the schema as a free string.
+ */
+function readSeminarKind(value: FormDataEntryValue | null): SeminarKind {
+  const kind = String(value ?? "").trim();
+
+  return isSeminarKind(kind) ? kind : defaultSeminarKind;
 }

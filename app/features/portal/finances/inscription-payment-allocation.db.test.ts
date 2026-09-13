@@ -99,7 +99,7 @@ describe.sequential("inscription identity and payment allocations", () => {
       academyId: owner.academyId,
       amount: 3000,
       eventId: event.id,
-      inscriptionId: inscription.id,
+      choreographyInscriptionId: inscription.id,
       paymentId: payment.id,
     });
 
@@ -111,7 +111,7 @@ describe.sequential("inscription identity and payment allocations", () => {
         academyId: owner.academyId,
         amount: 6000,
         eventId: event.id,
-        inscriptionId: inscription.id,
+        choreographyInscriptionId: inscription.id,
         paymentId: payment.id,
       })
       .catch((error) => error);
@@ -136,12 +136,12 @@ describe.sequential("inscription identity and payment allocations", () => {
       academyId: owner.academyId,
       amount: 6000,
       eventId: event.id,
-      inscriptionId: inscription.id,
+      choreographyInscriptionId: inscription.id,
       paymentId: secondPayment.id,
     });
 
     const allocations = await db.query.paymentAllocations.findMany({
-      where: eq(paymentAllocations.inscriptionId, inscription.id),
+      where: eq(paymentAllocations.choreographyInscriptionId, inscription.id),
     });
 
     expect(allocations).toHaveLength(2);
@@ -157,7 +157,7 @@ describe.sequential("inscription identity and payment allocations", () => {
         academyId: owner.academyId,
         amount: 0,
         eventId: event.id,
-        inscriptionId: inscription.id,
+        choreographyInscriptionId: inscription.id,
         paymentId: payment.id,
       })
       .catch((caught) => caught);
@@ -165,7 +165,7 @@ describe.sequential("inscription identity and payment allocations", () => {
     expect(error).toBeInstanceOf(Error);
     await expect(
       db.query.paymentAllocations.findMany({
-        where: eq(paymentAllocations.inscriptionId, inscription.id),
+        where: eq(paymentAllocations.choreographyInscriptionId, inscription.id),
       }),
     ).resolves.toEqual([]);
   });
@@ -178,7 +178,7 @@ describe.sequential("inscription identity and payment allocations", () => {
       academyId: owner.academyId,
       amount: 3000,
       eventId: event.id,
-      inscriptionId: inscription.id,
+      choreographyInscriptionId: inscription.id,
       paymentId: payment.id,
     });
 
@@ -186,7 +186,7 @@ describe.sequential("inscription identity and payment allocations", () => {
 
     await expect(
       db.query.paymentAllocations.findMany({
-        where: eq(paymentAllocations.inscriptionId, inscription.id),
+        where: eq(paymentAllocations.choreographyInscriptionId, inscription.id),
       }),
     ).resolves.toEqual([]);
   });
@@ -207,7 +207,7 @@ describe.sequential("inscription identity and payment allocations", () => {
       academyId: owner.academyId,
       amount: 3000,
       eventId: event.id,
-      inscriptionId: inscription.id,
+      choreographyInscriptionId: inscription.id,
       paymentId: payment.id,
     });
 
@@ -239,7 +239,7 @@ describe.sequential("inscription identity and payment allocations", () => {
       academyId: owner.academyId,
       amount: 2999,
       eventId: event.id,
-      inscriptionId: inscription.id,
+      choreographyInscriptionId: inscription.id,
       paymentId: payment.id,
     });
 
@@ -264,7 +264,7 @@ describe.sequential("inscription identity and payment allocations", () => {
       academyId: owner.academyId,
       amount: 9000,
       eventId: event.id,
-      inscriptionId: inscription.id,
+      choreographyInscriptionId: inscription.id,
       paymentId: payment.id,
     });
 

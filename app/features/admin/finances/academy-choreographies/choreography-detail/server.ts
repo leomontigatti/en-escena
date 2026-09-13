@@ -1,8 +1,9 @@
-import { eq } from "drizzle-orm";
 import { redirect } from "react-router";
 
-import { db } from "@/db";
-import { academies } from "@/db/schema";
+import {
+  readFinanceAcademy,
+  readFinanceAcademyId,
+} from "@/features/admin/finances/academy.server";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import {
   requireAdminUser,
@@ -11,7 +12,7 @@ import {
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import {
   getFacturaCEmissionDeps,
-  resolveChoreographyBillable,
+  resolveAnchorBillable,
   type FacturaCEmissionDeps,
 } from "@/lib/comprobantes/emit-factura-c.server";
 import { readChoreographyInscriptionRows } from "@/lib/finances/choreography-inscriptions.server";
@@ -27,14 +28,22 @@ import { readAcademyEventOperationalFinanceDetail } from "@/lib/finances/operati
 import {
   handleEmitComprobante,
   handleRecheckComprobante,
-} from "./comprobante-emission.server";
+} from "@/features/admin/finances/comprobante-emission/handlers.server";
 import {
-  allocateInscriptionIntent,
-  choreographyDetailUrl,
   emitComprobanteIntent,
   recheckComprobanteIntent,
+} from "@/features/admin/finances/comprobante-emission/shared";
+import {
+  allocateInscriptionIntent,
+  readAllocationTargetKind,
+  readMoneyAmount,
+  readPickedPriceId,
   releaseInscriptionExcessIntent,
   removeInscriptionMoneyIntent,
+} from "@/features/admin/finances/inscription-money/intents";
+
+import {
+  choreographyDetailUrl,
   type ChoreographyFinanceActionData,
 } from "./shared";
 
@@ -44,10 +53,10 @@ export async function loadChoreographyFinanceDetail(input: {
 }) {
   await requireInternalUser(input.request, ["admin", "auditor"]);
 
-  const academyId = readAcademyId(input.params);
+  const academyId = readFinanceAcademyId(input.params);
   const choreographyId = readChoreographyId(input.params);
   const [academy, eventContext] = await Promise.all([
-    readAcademy(academyId),
+    readFinanceAcademy(academyId),
     loadEventContext(input.request),
   ]);
 
@@ -137,14 +146,17 @@ export type ChoreographyInvoicing = {
 
 /**
  * The detail's emission axis: what is left to bill. Mirrors the server's own
- * emission precondition (`emitChoreographyFacturaC`), which is now the single
- * test `total > 0` — with `porcion` gone there is no second derivable input the
+ * emission precondition (`emitFacturaC`), which is now the single test
+ * `total > 0` — with `porcion` gone there is no second derivable input the
  * button could disagree with.
  */
 async function readChoreographyInvoicing(
   choreographyId: string,
 ): Promise<ChoreographyInvoicing> {
-  const billable = await resolveChoreographyBillable(choreographyId);
+  const billable = await resolveAnchorBillable({
+    kind: "choreography",
+    choreographyId,
+  });
 
   return {
     billableAmount: billable.total,
@@ -161,7 +173,7 @@ export async function handleChoreographyFinanceAction(input: {
 }): Promise<ChoreographyFinanceActionData | never> {
   await requireAdminUser(input.request);
 
-  const academyId = readAcademyId(input.params);
+  const academyId = readFinanceAcademyId(input.params);
   const choreographyId = readChoreographyId(input.params);
   const eventContext = await loadEventContext(input.request);
 
@@ -196,23 +208,24 @@ export async function handleChoreographyFinanceAction(input: {
     throw redirectToDetail(academyId, choreographyId, eventId);
   }
 
+  const emissionContext = {
+    anchor: { kind: "choreography", choreographyId } as const,
+    detailUrl: choreographyDetailUrl(academyId, choreographyId, eventId),
+    eventId,
+    resolveEmissionDeps: input.resolveEmissionDeps ?? getFacturaCEmissionDeps,
+  };
+
   if (intent === emitComprobanteIntent) {
     return await handleEmitComprobante({
-      academyId,
-      choreographyId,
+      ...emissionContext,
       confirm: String(formData.get("confirm") ?? ""),
-      eventId,
-      resolveEmissionDeps: input.resolveEmissionDeps ?? getFacturaCEmissionDeps,
     });
   }
 
   if (intent === recheckComprobanteIntent) {
     return await handleRecheckComprobante({
-      academyId,
-      choreographyId,
+      ...emissionContext,
       cbteNro: String(formData.get("cbteNro") ?? ""),
-      eventId,
-      resolveEmissionDeps: input.resolveEmissionDeps ?? getFacturaCEmissionDeps,
     });
   }
 
@@ -237,6 +250,13 @@ async function runInscriptionMoneyIntent(input: {
     input.formData.get("inscriptionId") ?? "",
   ).trim();
 
+  // The shared dialog names the kind it is about, and this action owns one of
+  // them: a seminar target reaching here is a form pointed at the wrong writer,
+  // not a choreography inscription that went missing.
+  if (readAllocationTargetKind(input.formData) !== "choreography") {
+    return { status: "error", message: "No pudimos procesar esa acción." };
+  }
+
   if (!inscriptionId) {
     return { status: "error", message: "No encontramos esa inscripción." };
   }
@@ -254,7 +274,7 @@ async function runInscriptionMoneyIntent(input: {
     return result.ok ? null : { status: "error", message: result.message };
   }
 
-  const amount = readAmount(input.formData);
+  const amount = readMoneyAmount(input.formData);
 
   if (amount === null) {
     return { status: "error", message: "Ingresá un monto mayor a 0." };
@@ -265,29 +285,11 @@ async function runInscriptionMoneyIntent(input: {
       ? await allocateToInscription({
           ...target,
           amount,
-          priceId: readPriceId(input.formData),
+          priceId: readPickedPriceId(input.formData),
         })
       : await removeFromInscription({ ...target, amount });
 
   return result.ok ? null : { status: "error", message: result.message };
-}
-
-/** The typed amount, or `null` when it is not a positive whole number. */
-function readAmount(formData: FormData): number | null {
-  const amount = Number(String(formData.get("amount") ?? "").trim());
-
-  return Number.isSafeInteger(amount) && amount > 0 ? amount : null;
-}
-
-/**
- * The price chosen inside the dialog. `null` when the field is absent, which is
- * how a locked price arrives: the dialog shows it as a readout and submits
- * nothing, so the inscription keeps the row it already holds.
- */
-function readPriceId(formData: FormData): string | null {
-  const priceId = String(formData.get("priceId") ?? "").trim();
-
-  return priceId === "" ? null : priceId;
 }
 
 function redirectToDetail(
@@ -296,32 +298,6 @@ function redirectToDetail(
   eventId: string,
 ) {
   return redirect(choreographyDetailUrl(academyId, choreographyId, eventId));
-}
-
-async function readAcademy(academyId: string) {
-  const academy = await db.query.academies.findFirst({
-    columns: {
-      contactName: true,
-      id: true,
-      name: true,
-      phone: true,
-    },
-    where: eq(academies.id, academyId),
-  });
-
-  if (!academy) {
-    throw new Response("No encontramos esa academia.", { status: 404 });
-  }
-
-  return academy;
-}
-
-function readAcademyId(params: { academyId?: string }) {
-  if (!params.academyId) {
-    throw new Response("No encontramos esa academia.", { status: 404 });
-  }
-
-  return params.academyId;
 }
 
 function readChoreographyId(params: { choreographyId?: string }) {

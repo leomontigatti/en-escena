@@ -109,20 +109,20 @@ schedule resolution and operational completion.
 
 ## Portal Seminars
 
-Use for the academy-facing seminar gallery: the seminar cards of the active
-event, the academy's own inscriptions and the registration dialog. The seminar
-row and its administrative surfaces live in `Admin Seminars`. Specified, not
-built (PRD #906): a portal seminar detail route that takes over registration and
-removal, and the seminar tab and `(seminar, academy)` detail of the portal
-`Resumen financiero` under `app/features/portal/finances/`; each slice adds its
-files here as it creates them.
+Use for the academy-facing seminar surfaces: the gallery of posters for the
+active event's seminars, and the seminar detail each poster links to, which owns
+the academy's own inscriptions, the registration dialog and the removal. The
+seminar row and its administrative surfaces live in `Admin Seminars`, and the
+seminar tab and read-only `(seminar, academy)` detail of the portal
+`Resumen financiero` are under `app/features/portal/finances/`.
 
 - Domain: `docs/domain/seminars.md`, `docs/domain/finances.md`
 - ADRs: `docs/adr/0002-selectable-event-contexts.md`, `docs/adr/0004-organize-app-code-by-product-surface.md`
-- Routes: `app/routes/portal.seminarios.tsx`
-- Feature modules: `app/features/portal/seminars/list/`
-- Domain modules: `app/lib/seminars/inscriptions.server.ts`, `app/lib/seminars/registration-window.ts`, `app/lib/seminars/registration-refusals.ts`
-- Tests: `app/lib/seminars/inscriptions.server.db.test.ts`, `app/lib/seminars/registration-window.test.ts`, `app/features/portal/seminars/list/server.db.test.ts`, `app/features/portal/seminars/list/view.test.tsx`
+- Routes: `app/routes/portal.seminarios.tsx`, `app/routes/portal.seminarios_.$seminarId.tsx`
+- Feature modules: `app/features/portal/seminars/list/`, `app/features/portal/seminars/detail/`
+- Shared feature modules: `app/features/portal/seminars/shared.ts`
+- Domain modules: `app/lib/seminars/inscriptions.server.ts`, `app/lib/seminars/inscription-rosters.server.ts`, `app/lib/seminars/registration-window.ts`, `app/lib/seminars/registration-refusals.ts`, `app/lib/seminars/inscription-withdrawal.server.ts`
+- Tests: `app/lib/seminars/inscriptions.server.db.test.ts`, `app/lib/seminars/inscription-withdrawal.server.db.test.ts`, `app/lib/seminars/registration-window.test.ts`, `app/features/portal/seminars/list/server.db.test.ts`, `app/features/portal/seminars/list/view.test.tsx`, `app/features/portal/seminars/detail/server.db.test.ts`, `app/features/portal/seminars/detail/view.test.tsx`
 
 ## Admin Shell And Dashboard
 
@@ -208,24 +208,52 @@ schedules, capacities, prices and registration readiness.
 
 Use for the seminars an event offers around the competition: the seminar row,
 the admin list, the create page, the detail with its `Información` and
-`Inscriptos` tabs, the instructor's picture and the removal of an inscription.
+`Inscriptos` tabs, the instructor's picture, the seminar's kind and its own
+deposit rate, and the removal of an inscription.
 Seminars are not part of the `Bases del evento` — registration readiness ignores
-them and they have their own section under `Operación`. Specified, not built
-(PRD #906): the seminar price list is a tab of the `Precios` section
-(`app/features/admin/prices/`, `app/lib/prices/`), seminar money is allocated
-from the academy's pool (`app/lib/finances/`) through a `(seminar, academy)`
-financial detail under `app/features/admin/finances/`, and the seminar
-inscription becomes a second allocation and comprobante-line target; each slice
-adds its files here as it creates them.
+them and they have their own section under `Operación`. The event's seminar
+price list, shared by every seminar of the event, is the `Seminarios` tab of the
+`Precios` section (`app/features/admin/seminar-prices/`,
+`app/lib/seminar-prices/`). The payment allocation and the comprobante line
+already point at either kind of inscription — a choreography one or a seminar
+one — through `app/lib/finances/allocation-target.server.ts`, which the pool
+module takes as its target, and a seminar inscription's figures are derived on
+read by `app/lib/finances/seminar-inscription-price.ts` and
+`app/lib/finances/seminar-inscription-thresholds.server.ts`. Seminar money is
+allocated from the academy's pool through the admin `(seminar, academy)`
+financial detail, which opens the same money dialog choreographies do
+(`app/features/admin/finances/inscription-money/`), and the quota is spent by
+deposits rather than by registrations (`app/lib/seminars/covered-inscriptions.server.ts`).
+Removal chooses between a delete and a withdrawal through
+`app/lib/seminars/inscription-withdrawal.server.ts`, on both sides.
+Seminar money is invoiced from the same `(seminar, academy)` detail: the
+comprobante root carries a second **anchor** (`app/lib/comprobantes/anchor.ts`)
+and the emitter is parameterised by it, so one emission path serves both kinds.
+How the anchor **reads** is one module of its own
+(`app/lib/comprobantes/anchor-reading.ts`, with the loader
+`app/lib/comprobantes/anchor-context.server.ts`), shared by the printed
+document, the comprobante detail and the global comprobante list, which holds
+both kinds in one column and searches the instructor's name beside the
+choreography's.
 
 - Domain: `docs/domain/seminars.md`, `docs/domain/finances.md`
 - ADRs: `docs/adr/0002-selectable-event-contexts.md`, `docs/adr/0004-organize-app-code-by-product-surface.md`
 - Routes: `app/routes/administracion.seminarios.tsx`, `app/routes/administracion.seminarios_.nuevo.tsx`, `app/routes/administracion.seminarios_.$seminarId.tsx`
 - Feature modules: `app/features/admin/seminars/list/`, `app/features/admin/seminars/create/`, `app/features/admin/seminars/detail/`
 - Shared feature modules: `app/features/admin/seminars/shared.ts`, `app/features/admin/seminars/server.ts`, `app/features/admin/seminars/action.server.ts`, `app/features/admin/seminars/form.tsx`, `app/features/admin/seminars/list-table.tsx`, `app/features/admin/seminars/inscriptions-table.tsx`, `app/features/admin/seminars/actions.tsx`
-- Domain modules: `app/lib/seminars/repository.server.ts`, `app/lib/seminars/inscriptions.server.ts`, `app/lib/seminars/registration-refusals.ts`
+- Domain modules: `app/lib/seminars/repository.server.ts`, `app/lib/seminars/inscriptions.server.ts`, `app/lib/seminars/inscription-rosters.server.ts`, `app/lib/seminars/registration-refusals.ts`, `app/lib/seminars/seminar-kinds.ts`, `app/lib/seminars/deposit-percentage.ts`, `app/lib/seminars/covered-inscriptions.server.ts`, `app/lib/seminars/active-inscription.ts`
+- Seminar money (price resolution, the two thresholds at the seminar's own rate, the covered predicate and the `(seminar, academy)` rollup): `app/lib/finances/seminar-inscription-price.ts`, `app/lib/finances/seminar-inscription-thresholds.server.ts`, `app/lib/finances/seminar-operational-summary.server.ts`, and the participation set reader `app/lib/participation/participation.server.ts`
+- The allocation target (the kind and id an allocation points at, the columns it writes and the predicate it reads): `app/lib/finances/allocation-target.server.ts`, consumed by `app/lib/finances/allocation-pool.server.ts` and `app/lib/finances/choreography-cobro-allocations.server.ts`
+- Seminar prices (the event-level list, its guards and its admin screens): routes `app/routes/administracion.precios_.seminarios_.nuevo.tsx` and `app/routes/administracion.precios_.seminarios_.$seminarPriceId.tsx`, feature modules `app/features/admin/seminar-prices/`, domain modules `app/lib/seminar-prices/repository.server.ts`, `app/lib/seminar-prices/participant-cells.ts`, `app/lib/seminar-prices/guard-messages.ts`, and the action handler `app/lib/admin/events/bases-action/seminar-prices.server.ts`
+- Seminar money allocation (the three gestures and the per-person price options of a `(seminar, academy)` unit): `app/lib/finances/seminar-inscription-allocation.server.ts`, `app/lib/finances/seminar-inscriptions.server.ts`, route `app/routes/administracion.finanzas_.$academyId_.seminarios_.$seminarId.tsx`, feature module `app/features/admin/finances/academy-seminars/seminar-detail/`
+- The academy's seminar money (the `Coreografías` / `Seminarios` split of `Resumen financiero` and the read-only `(seminar, academy)` detail, the one portal surface that lists withdrawn rows): `app/features/portal/finances/view.tsx`, `app/features/portal/finances/server.ts`, route `app/routes/portal.finanzas_.seminarios_.$seminarId.tsx`, feature module `app/features/portal/finances/seminar-detail/`
+- The place at the crossing (the covered count the quota is spent by, the refusal the crossing raises, and the payment-deletion impact that frees places): `app/lib/seminars/covered-inscriptions.server.ts`, `app/lib/seminars/registration-refusals.ts`, `app/features/admin/payments/detail/deletion-impact.server.ts`
+- Removal with money (the delete-or-withdraw chooser both sides go through, the revival of a withdrawn row and the confirmation that says the money stays): `app/lib/seminars/inscription-withdrawal.server.ts`, `app/components/shared/withdraw-dialog.tsx`
+- The shared money dialog (one dialog for both kinds of inscription, told which target it is about): `app/features/admin/finances/inscription-money/dialog.tsx`, `app/features/admin/finances/inscription-money/figures.ts`, `app/features/admin/finances/inscription-money/intents.ts`
+- Seminar invoicing (the comprobante's second anchor, the emitter parameterised by it, and the one `Emitir factura` both financial details share): `app/lib/comprobantes/anchor.ts`, `app/lib/comprobantes/emit-factura-c.server.ts`, `app/lib/comprobantes/comprobantes.server.ts`, `app/features/admin/finances/comprobante-emission/shared.ts`, `app/features/admin/finances/comprobante-emission/handlers.server.ts`, `app/features/admin/finances/comprobante-emission/dialog.tsx`
+- How a comprobante reads its anchor (one reading for both kinds, on the printed document, the detail and the global list): `app/lib/comprobantes/anchor-reading.ts`, `app/lib/comprobantes/anchor-context.server.ts`, `app/features/admin/comprobantes/print/model.ts`, `app/features/admin/comprobantes/print/server.ts`, `app/features/admin/comprobantes/list/server.ts`, `app/features/admin/comprobantes/list/view.tsx`, `app/features/admin/comprobantes/detail/server.ts`, `app/features/admin/comprobantes/detail/view.tsx`
 - Storage module: `app/lib/storage/seminar-pictures.server.ts`
-- Tests: `app/lib/seminars/repository.server.db.test.ts`, `app/features/admin/seminars/action.server.db.test.ts`, `app/features/admin/seminars/action.server.picture.db.test.ts`, `app/features/admin/seminars/routes.adapter.test.tsx`, `app/features/admin/seminars/view.test.tsx`, `app/lib/storage/seminar-pictures.server.test.ts`
+- Tests: `app/lib/comprobantes/anchor-reading.test.ts`, `app/features/admin/comprobantes/print/server.db.test.ts`, `app/features/admin/comprobantes/print/view.test.tsx`, `app/features/admin/comprobantes/list/server.db.test.ts`, `app/features/admin/comprobantes/list/view.test.tsx`, `app/features/admin/comprobantes/detail/server.db.test.ts`, `app/features/admin/comprobantes/detail/view.interaction.test.tsx`, `app/lib/comprobantes/emit-factura-c.seminar.server.db.test.ts`, `app/features/admin/finances/academy-seminars/seminar-detail/view.interaction.test.tsx`, `app/features/admin/finances/comprobante-emission/dialog.interaction.test.tsx`, `app/lib/seminars/inscription-withdrawal.server.db.test.ts`, `app/lib/finances/seminar-inscription-allocation.server.db.test.ts`, `app/features/admin/payments/detail/deletion-impact.server.db.test.ts`, `app/lib/seminars/inscriptions.server.db.test.ts`, `app/features/portal/seminars/list/server.db.test.ts`, `app/features/admin/finances/academy-seminars/seminar-detail/view.test.tsx`, `app/features/portal/finances/seminar-detail/view.test.tsx`, `app/features/portal/finances/seminar-detail/server.db.test.ts`, `app/features/portal/finances/view.test.tsx`, `app/lib/finances/allocation-target.server.db.test.ts`, `app/lib/finances/seminar-inscription-price.test.ts`, `app/lib/finances/seminar-inscription-thresholds.server.db.test.ts`, `app/lib/seminars/active-inscription.db.test.ts`, `app/lib/seminar-prices/repository.server.db.test.ts`, `app/features/admin/seminar-prices/action.server.db.test.ts`, `app/features/admin/seminar-prices/view.test.tsx`, `app/lib/seminars/repository.server.db.test.ts`, `app/features/admin/seminars/action.server.db.test.ts`, `app/features/admin/seminars/action.server.picture.db.test.ts`, `app/features/admin/seminars/routes.adapter.test.tsx`, `app/features/admin/seminars/view.test.tsx`, `app/lib/storage/seminar-pictures.server.test.ts`
 
 ## Judging And Results
 
