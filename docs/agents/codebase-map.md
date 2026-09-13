@@ -109,20 +109,21 @@ schedule resolution and operational completion.
 
 ## Portal Seminars
 
-Use for the academy-facing seminar gallery: the seminar cards of the active
-event, the academy's own inscriptions and the registration dialog. The seminar
-row and its administrative surfaces live in `Admin Seminars`. Specified, not
-built (PRD #906): a portal seminar detail route that takes over registration and
-removal, and the seminar tab and `(seminar, academy)` detail of the portal
-`Resumen financiero` under `app/features/portal/finances/`; each slice adds its
-files here as it creates them.
+Use for the academy-facing seminar surfaces: the gallery of posters for the
+active event's seminars, and the seminar detail each poster links to, which owns
+the academy's own inscriptions, the registration dialog and the removal. The
+seminar row and its administrative surfaces live in `Admin Seminars`. Specified,
+not built (PRD #906): the seminar tab and `(seminar, academy)` detail of the
+portal `Resumen financiero` under `app/features/portal/finances/`; each slice
+adds its files here as it creates them.
 
 - Domain: `docs/domain/seminars.md`, `docs/domain/finances.md`
 - ADRs: `docs/adr/0002-selectable-event-contexts.md`, `docs/adr/0004-organize-app-code-by-product-surface.md`
-- Routes: `app/routes/portal.seminarios.tsx`
-- Feature modules: `app/features/portal/seminars/list/`
+- Routes: `app/routes/portal.seminarios.tsx`, `app/routes/portal.seminarios_.$seminarId.tsx`
+- Feature modules: `app/features/portal/seminars/list/`, `app/features/portal/seminars/detail/`
+- Shared feature modules: `app/features/portal/seminars/shared.ts`
 - Domain modules: `app/lib/seminars/inscriptions.server.ts`, `app/lib/seminars/inscription-rosters.server.ts`, `app/lib/seminars/registration-window.ts`, `app/lib/seminars/registration-refusals.ts`, `app/lib/seminars/inscription-withdrawal.server.ts`
-- Tests: `app/lib/seminars/inscriptions.server.db.test.ts`, `app/lib/seminars/inscription-withdrawal.server.db.test.ts`, `app/lib/seminars/registration-window.test.ts`, `app/features/portal/seminars/list/server.db.test.ts`, `app/features/portal/seminars/list/view.test.tsx`
+- Tests: `app/lib/seminars/inscriptions.server.db.test.ts`, `app/lib/seminars/inscription-withdrawal.server.db.test.ts`, `app/lib/seminars/registration-window.test.ts`, `app/features/portal/seminars/list/server.db.test.ts`, `app/features/portal/seminars/list/view.test.tsx`, `app/features/portal/seminars/detail/server.db.test.ts`, `app/features/portal/seminars/detail/view.test.tsx`
 
 ## Admin Shell And Dashboard
 
@@ -226,7 +227,7 @@ financial detail, which opens the same money dialog choreographies do
 deposits rather than by registrations (`app/lib/seminars/covered-inscriptions.server.ts`).
 Removal chooses between a delete and a withdrawal through
 `app/lib/seminars/inscription-withdrawal.server.ts`, on both sides.
-Specified, not built (PRD #906): the portal's seminar surfaces and seminar
+Specified, not built (PRD #906): seminar
 invoicing; each slice adds its files here as it creates them.
 
 - Domain: `docs/domain/seminars.md`, `docs/domain/finances.md`

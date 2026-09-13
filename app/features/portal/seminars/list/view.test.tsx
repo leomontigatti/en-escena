@@ -1,6 +1,5 @@
 /** @vitest-environment jsdom */
 
-import { act } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
@@ -9,10 +8,7 @@ import type {
   PortalSeminarCard,
   PortalSeminarsListLoaderData,
 } from "@/features/portal/seminars/list/shared";
-import {
-  createReactDomTestRenderer,
-  getReactDomTexts,
-} from "@/lib/test-support/react-dom";
+import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 
 const renderer = createReactDomTestRenderer();
 
@@ -29,13 +25,7 @@ function buildSeminar(
     instructorPictureUrl: null,
     scheduledDate: "2026-10-10",
     startTime: "18:30",
-    hasStarted: false,
-    hasRegistrationPrices: true,
-    inscriptions: [],
-    people: [
-      { id: "dancer_1", kind: "dancer", fullName: "Ana Paz" },
-      { id: "professor_1", kind: "professor", fullName: "Luz Suárez" },
-    ],
+    inscriptionCount: 0,
     ...overrides,
   };
 }
@@ -45,7 +35,6 @@ async function renderSeminars(loaderData: PortalSeminarsListLoaderData) {
     [
       {
         path: "/portal/seminarios",
-        action: async () => null,
         element: <PortalSeminarsListRouteView loaderData={loaderData} />,
       },
     ],
@@ -62,65 +51,58 @@ function findByText(selector: string, text: string) {
 }
 
 describe("PortalSeminarsListRouteView", () => {
-  test("reads the instructor, the moment and the academy's own inscriptions, and never a quota figure", async () => {
+  test("reads as a poster: the instructor, the moment, the academy's own count and one way in", async () => {
     await renderSeminars({
       hasActiveEvent: true,
-      seminars: [
-        buildSeminar({
-          inscriptions: [
-            { id: "inscription_1", fullName: "Ana Paz", hasMoney: false },
-          ],
-        }),
-      ],
+      seminars: [buildSeminar({ inscriptionCount: 3 })],
     });
 
     const text = document.body.textContent ?? "";
 
     expect(text).toContain("Abril Sosa");
     expect(text).toContain("10 de octubre de 2026 · 18:30");
-    expect(text).toContain("Ana Paz");
+    expect(text).toContain("3 inscriptos");
+    expect(
+      document.querySelector('a[href="/portal/seminarios/seminar_1"]')
+        ?.textContent,
+    ).toBe("Ver detalle");
     expect(text).not.toContain("cupo");
     expect(text).not.toContain("disponibles");
+    expect(text).not.toContain("$");
   });
 
-  test("says nobody is registered yet and offers the button when the seminar is open", async () => {
+  test("says the places are taken by the deposit administration registers", async () => {
     await renderSeminars({ hasActiveEvent: true, seminars: [buildSeminar()] });
 
     expect(document.body.textContent).toContain(
+      "Cada inscripción toma su lugar cuando administración registra su seña.",
+    );
+  });
+
+  test("counts nobody as `Sin inscriptos` and never says it as a sentence", async () => {
+    await renderSeminars({ hasActiveEvent: true, seminars: [buildSeminar()] });
+
+    expect(document.body.textContent).toContain("Sin inscriptos");
+    expect(document.body.textContent).not.toContain(
       "Todavía no inscribiste a nadie.",
     );
-    expect(findByText("button", "Inscribir")).toBeDefined();
   });
 
-  test("replaces the button with the reason when the seminar is unpriced or has started, and never because it is full", async () => {
+  test("renders a started seminar exactly as an open one", async () => {
+    // The poster carries no state at all — whether the seminar has started, is
+    // full or is unpriced is the detail's business — so the card of a started
+    // seminar is the card of an open one, name for name.
     await renderSeminars({
       hasActiveEvent: true,
-      seminars: [
-        buildSeminar({ id: "seminar_started", hasStarted: true }),
-        buildSeminar({
-          id: "seminar_unpriced",
-          hasRegistrationPrices: false,
-        }),
-      ],
+      seminars: [buildSeminar({ inscriptionCount: 1 })],
     });
 
-    expect(document.body.textContent).toContain("El seminario ya comenzó.");
-    expect(document.body.textContent).toContain(
-      "Las inscripciones a este seminario todavía no están abiertas.",
-    );
     expect(findByText("button", "Inscribir")).toBeUndefined();
-  });
-
-  test("keeps the button on an open seminar whatever its occupancy", async () => {
-    // Registration is unlimited: the quota is spent by deposits, and the portal
-    // never turns it into a closed footer.
-    await renderSeminars({
-      hasActiveEvent: true,
-      seminars: [buildSeminar({ id: "seminar_open" })],
-    });
-
-    expect(document.body.textContent).not.toContain("Sin lugares disponibles.");
-    expect(findByText("button", "Inscribir")).toBeDefined();
+    expect(document.body.textContent).not.toContain("El seminario ya comenzó.");
+    expect(document.body.textContent).not.toContain("Cupo completo");
+    expect(
+      document.querySelector('[aria-label^="Eliminar la inscripción"]'),
+    ).toBeNull();
   });
 
   test("shows the empty state without an active event and without seminars", async () => {
@@ -132,135 +114,5 @@ describe("PortalSeminarsListRouteView", () => {
     await renderSeminars({ hasActiveEvent: true, seminars: [] });
 
     expect(document.body.textContent).toContain("Todavía no hay seminarios");
-  });
-
-  test("offers a removal on each own chip that confirms before deleting", async () => {
-    await renderSeminars({
-      hasActiveEvent: true,
-      seminars: [
-        buildSeminar({
-          inscriptions: [
-            { id: "inscription_1", fullName: "Ana Paz", hasMoney: false },
-          ],
-        }),
-      ],
-    });
-
-    const removeButton = document.querySelector<HTMLButtonElement>(
-      '[aria-label="Eliminar la inscripción de Ana Paz"]',
-    );
-
-    expect(removeButton).not.toBeNull();
-    expect(document.querySelector('[role="alertdialog"]')).toBeNull();
-
-    await act(async () => {
-      removeButton?.click();
-    });
-
-    const dialog = document.querySelector('[role="alertdialog"]');
-
-    expect(dialog?.textContent).toContain("Ana Paz");
-    expect(dialog?.textContent).toContain("libera su lugar");
-  });
-
-  test("confirms a funded inscription as a withdrawal, without naming an amount", async () => {
-    await renderSeminars({
-      hasActiveEvent: true,
-      seminars: [
-        buildSeminar({
-          inscriptions: [
-            { id: "inscription_1", fullName: "Ana Paz", hasMoney: true },
-          ],
-        }),
-      ],
-    });
-
-    await act(async () => {
-      document
-        .querySelector<HTMLButtonElement>(
-          '[aria-label="Eliminar la inscripción de Ana Paz"]',
-        )
-        ?.click();
-    });
-
-    const dialog = document.querySelector('[role="alertdialog"]');
-
-    expect(dialog?.textContent).not.toContain("Esta acción es irreversible.");
-    expect(dialog?.textContent).toContain("queda retirada del seminario");
-    expect(dialog?.textContent).toContain(
-      "El dinero que la inscripción tiene asignado queda como está y su lugar se libera.",
-    );
-    expect(dialog?.textContent).toContain("Retirar inscripción");
-    expect(dialog?.textContent).not.toContain("$");
-  });
-
-  test("drops the removal once the seminar has started and keeps the chip's padding", async () => {
-    await renderSeminars({
-      hasActiveEvent: true,
-      seminars: [
-        buildSeminar({
-          id: "seminar_open",
-          inscriptions: [
-            { id: "inscription_1", fullName: "Ana Paz", hasMoney: false },
-          ],
-        }),
-        buildSeminar({
-          id: "seminar_started",
-          hasStarted: true,
-          inscriptions: [
-            { id: "inscription_2", fullName: "Luz Suárez", hasMoney: false },
-          ],
-        }),
-      ],
-    });
-
-    const chips = Array.from(
-      document.querySelectorAll('[data-slot="badge"]'),
-    ).map((chip) => chip as HTMLElement);
-
-    expect(
-      document.querySelector(
-        '[aria-label="Eliminar la inscripción de Ana Paz"]',
-      ),
-    ).not.toBeNull();
-    expect(
-      document.querySelector(
-        '[aria-label="Eliminar la inscripción de Luz Suárez"]',
-      ),
-    ).toBeNull();
-    expect(chips).toHaveLength(2);
-    expect(chips[1].className).toBe(chips[0].className);
-  });
-
-  test("opens the register dialog on the picker, with dancers and professors under their own headings", async () => {
-    await renderSeminars({ hasActiveEvent: true, seminars: [buildSeminar()] });
-
-    const registerButton = findByText("button", "Inscribir");
-
-    await act(async () => {
-      (registerButton as HTMLButtonElement).click();
-    });
-
-    const trigger = document.querySelector<HTMLElement>(
-      '[data-slot="combobox-trigger"]',
-    );
-
-    expect(document.body.textContent).toContain("Persona");
-    expect(trigger).not.toBeNull();
-    expect(document.activeElement).toBe(trigger);
-
-    await act(async () => {
-      trigger?.click();
-    });
-
-    // The kind is said once per heading, so the options carry the name alone.
-    expect(getReactDomTexts('[data-slot="combobox-label"]')).toEqual([
-      "Bailarines",
-      "Profesores",
-    ]);
-    expect(getReactDomTexts('[role="option"]')).toEqual([
-      "Ana Paz",
-      "Luz Suárez",
-    ]);
   });
 });

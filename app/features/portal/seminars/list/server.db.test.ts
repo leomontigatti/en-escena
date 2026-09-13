@@ -1,29 +1,14 @@
 import { describe, expect, test } from "vitest";
 
-import {
-  createDancer,
-  createProfessor,
-} from "@/lib/choreographies/registration-test-fixtures.server.db";
+import { createDancer } from "@/lib/choreographies/registration-test-fixtures.server.db";
 import { activateEvent } from "@/lib/events/management.server";
 import { createPortalSavedEvent } from "@/lib/events/saved-event-test-support.server";
 import { createSeminarRegistrationPrices } from "@/lib/seminar-prices/test-fixtures.server.db";
+import { registerSeminarInscription } from "@/lib/seminars/inscriptions.server";
 import { createSeminar } from "@/lib/seminars/repository.server";
 import { defaultSeminarFacts } from "@/lib/test-support/seminars";
-import {
-  createAcademySession,
-  createPortalPostRequest,
-} from "@/features/portal/test-support/db";
-import {
-  handlePortalSeminarsListAction,
-  loadPortalSeminarsList,
-} from "@/features/portal/seminars/list/server";
-import {
-  deletePortalSeminarInscriptionIntent,
-  getPortalSeminarClosedReason,
-  registerPortalSeminarInscriptionIntent,
-  toPortalSeminarPersonValue,
-} from "@/features/portal/seminars/list/shared";
-import { seminarPricesMissingMessage } from "@/lib/seminars/registration-refusals";
+import { createAcademySession } from "@/features/portal/test-support/db";
+import { loadPortalSeminarsList } from "@/features/portal/seminars/list/server";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -31,13 +16,10 @@ installDatabaseTestHooks();
 
 const seminariosUrl = "http://localhost/portal/seminarios";
 
-async function createActiveEventWithSeminar(quota = 5, withPrices = true) {
+async function createActiveEventWithSeminar(quota = 5) {
   const event = await createPortalSavedEvent({ name: "Regional 2026" });
   await activateEvent(event.id);
-
-  if (withPrices) {
-    await createSeminarRegistrationPrices(event.id);
-  }
+  await createSeminarRegistrationPrices(event.id);
 
   const result = await createSeminar(event.id, {
     instructorName: "Abril Sosa",
@@ -61,215 +43,43 @@ function loadList(cookie: string) {
   );
 }
 
-function registerRequest(
-  cookie: string,
-  input: { seminarId: string; person: string },
-) {
-  const body = new FormData();
-
-  body.set("intent", registerPortalSeminarInscriptionIntent);
-  body.set("seminarId", input.seminarId);
-  body.set("person", input.person);
-
-  return handlePortalSeminarsListAction(
-    createPortalPostRequest(seminariosUrl, cookie, body),
-  );
-}
-
-function deleteRequest(cookie: string, inscriptionId: string) {
-  const body = new FormData();
-
-  body.set("intent", deletePortalSeminarInscriptionIntent);
-  body.set("id", inscriptionId);
-  body.set("confirmDeletion", inscriptionId);
-
-  return handlePortalSeminarsListAction(
-    createPortalPostRequest(seminariosUrl, cookie, body),
-  );
-}
-
 describe.sequential("portal seminars list", () => {
-  test("reads the active event's seminars with the academy's picker and its own inscriptions", async () => {
+  test("reads a poster per seminar of the active event, with the academy's own count on it", async () => {
     const session = await createAcademySession({
       academyName: "Academia Seminarios",
       email: "seminarios.lista@example.com",
     });
-    const { seminar } = await createActiveEventWithSeminar();
+    const { event, seminar } = await createActiveEventWithSeminar();
     const dancer = await createDancer(session.academyId, {
       firstName: "Ana",
       lastName: "Paz",
     });
-    await createProfessor(session.academyId, {
-      firstName: "Luz",
-      lastName: "Suárez",
-    });
 
-    await expect(loadList(session.cookie)).resolves.toMatchObject({
+    await expect(loadList(session.cookie)).resolves.toEqual({
       hasActiveEvent: true,
       seminars: [
         {
           id: seminar.id,
           instructorName: "Abril Sosa",
           instructorPictureUrl: null,
-          hasStarted: false,
-          hasRegistrationPrices: true,
-          inscriptions: [],
-          people: [
-            { fullName: "Ana Paz", kind: "dancer" },
-            { fullName: "Luz Suárez", kind: "professor" },
-          ],
+          scheduledDate: "2099-10-10",
+          startTime: "18:30",
+          inscriptionCount: 0,
         },
       ],
     });
 
-    await expect(
-      registerRequest(session.cookie, {
-        seminarId: seminar.id,
-        person: toPortalSeminarPersonValue({ id: dancer.id, kind: "dancer" }),
-      }),
-    ).resolves.toMatchObject({ status: "success" });
-
-    const loaderData = await loadList(session.cookie);
-
-    expect(loaderData.seminars[0]).toMatchObject({
-      inscriptions: [{ fullName: "Ana Paz" }],
-      people: [{ fullName: "Luz Suárez" }],
-    });
-  });
-
-  test("reads a seminar as closed while the event lacks its `Común` price rows", async () => {
-    const session = await createAcademySession({
-      academyName: "Academia Sin Precios",
-      email: "seminarios.sin.precios@example.com",
-    });
-    const { event, seminar } = await createActiveEventWithSeminar(5, false);
-
-    const [card] = (await loadList(session.cookie)).seminars;
-
-    expect(card).toMatchObject({
-      id: seminar.id,
-      hasRegistrationPrices: false,
-    });
-    expect(getPortalSeminarClosedReason(card)).toBe(
-      seminarPricesMissingMessage,
-    );
-
-    await createSeminarRegistrationPrices(event.id);
-
-    const [pricedCard] = (await loadList(session.cookie)).seminars;
-
-    expect(getPortalSeminarClosedReason(pricedCard)).toBeNull();
-  });
-
-  test("turns a refusal into an error message instead of a field error", async () => {
-    const session = await createAcademySession({
-      academyName: "Academia Refusal",
-      email: "seminarios.refusal@example.com",
-    });
-    const { seminar } = await createActiveEventWithSeminar(1);
-    const archived = await createDancer(session.academyId, {
-      active: false,
-      firstName: "Uno",
-    });
-
-    await expect(
-      registerRequest(session.cookie, {
-        seminarId: seminar.id,
-        person: toPortalSeminarPersonValue({ id: archived.id, kind: "dancer" }),
-      }),
-    ).resolves.toEqual({
-      intent: registerPortalSeminarInscriptionIntent,
-      message: "Elegí una persona activa del plantel de tu academia.",
-      status: "error",
-    });
-  });
-
-  test("registers past the quota, because a full seminar closes nothing on the portal", async () => {
-    const session = await createAcademySession({
-      academyName: "Academia Sin Lugares",
-      email: "seminarios.sin.lugares@example.com",
-    });
-    const { seminar } = await createActiveEventWithSeminar(1);
-    const first = await createDancer(session.academyId, { firstName: "Uno" });
-    const second = await createDancer(session.academyId, { firstName: "Dos" });
-
-    for (const dancer of [first, second]) {
-      await expect(
-        registerRequest(session.cookie, {
-          seminarId: seminar.id,
-          person: toPortalSeminarPersonValue({ id: dancer.id, kind: "dancer" }),
-        }),
-      ).resolves.toMatchObject({ status: "success" });
-    }
-
-    const [card] = (await loadList(session.cookie)).seminars;
-
-    expect(card.inscriptions).toHaveLength(2);
-    expect(getPortalSeminarClosedReason(card)).toBeNull();
-  });
-
-  test("deletes the academy's own inscription and takes it off the card", async () => {
-    const session = await createAcademySession({
-      academyName: "Academia Baja",
-      email: "seminarios.baja@example.com",
-    });
-    const { seminar } = await createActiveEventWithSeminar(1);
-    const first = await createDancer(session.academyId, { firstName: "Uno" });
-    const second = await createDancer(session.academyId, { firstName: "Dos" });
-
-    await registerRequest(session.cookie, {
+    await registerSeminarInscription({
+      academyId: session.academyId,
+      eventId: event.id,
+      now: new Date(),
+      personId: dancer.id,
+      personKind: "dancer",
       seminarId: seminar.id,
-      person: toPortalSeminarPersonValue({ id: first.id, kind: "dancer" }),
     });
 
-    const [card] = (await loadList(session.cookie)).seminars;
-
-    await expect(
-      deleteRequest(session.cookie, card.inscriptions[0].id),
-    ).resolves.toEqual({
-      intent: deletePortalSeminarInscriptionIntent,
-      message: "Inscripción eliminada.",
-      status: "success",
-    });
     await expect(loadList(session.cookie)).resolves.toMatchObject({
-      seminars: [{ inscriptions: [] }],
-    });
-    await expect(
-      registerRequest(session.cookie, {
-        seminarId: seminar.id,
-        person: toPortalSeminarPersonValue({ id: second.id, kind: "dancer" }),
-      }),
-    ).resolves.toMatchObject({ status: "success" });
-  });
-
-  test("turns a refused delete into an error message", async () => {
-    const owner = await createAcademySession({
-      academyName: "Academia Dueña",
-      email: "seminarios.duena@example.com",
-    });
-    const stranger = await createAcademySession({
-      academyName: "Academia Ajena",
-      email: "seminarios.ajena@example.com",
-    });
-    const { seminar } = await createActiveEventWithSeminar();
-    const dancer = await createDancer(owner.academyId, { firstName: "Ana" });
-
-    await registerRequest(owner.cookie, {
-      seminarId: seminar.id,
-      person: toPortalSeminarPersonValue({ id: dancer.id, kind: "dancer" }),
-    });
-
-    const [card] = (await loadList(owner.cookie)).seminars;
-
-    await expect(
-      deleteRequest(stranger.cookie, card.inscriptions[0].id),
-    ).resolves.toEqual({
-      intent: deletePortalSeminarInscriptionIntent,
-      message: "No encontramos esa inscripción.",
-      status: "error",
-    });
-    await expect(loadList(owner.cookie)).resolves.toMatchObject({
-      seminars: [{ inscriptions: [{ fullName: "Ana Paz" }] }],
+      seminars: [{ inscriptionCount: 1 }],
     });
   });
 

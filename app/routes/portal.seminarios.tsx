@@ -1,10 +1,5 @@
-import { useActionData } from "react-router";
-
 import type { PortalRouteHandle } from "@/components/portal/ui";
-import {
-  handlePortalSeminarsListAction,
-  loadPortalSeminarsList,
-} from "@/features/portal/seminars/list/server";
+import { loadPortalSeminarsList } from "@/features/portal/seminars/list/server";
 import { PortalSeminarsListRouteView } from "@/features/portal/seminars/list/view";
 
 type PortalSeminarsListRouteProps = {
@@ -23,19 +18,8 @@ export async function loader({ request }: { request: Request }) {
   return await loadPortalSeminarsList(request);
 }
 
-export async function action({ request }: { request: Request }) {
-  return await handlePortalSeminarsListAction(request);
-}
-
 export default function PortalSeminarsRoute({
   loaderData,
 }: PortalSeminarsListRouteProps) {
-  const actionData = useActionData<typeof action>();
-
-  return (
-    <PortalSeminarsListRouteView
-      actionData={actionData}
-      loaderData={loaderData}
-    />
-  );
+  return <PortalSeminarsListRouteView loaderData={loaderData} />;
 }

@@ -254,10 +254,12 @@ de-allocating below it releases both.
   (all non-withdrawn rows) is a separate figure. Withdrawn rows are in neither.
   `coveredCount ≤ quota` always holds.
 - **When covered rows fill the quota**, the admin `(seminar, academy)` financial
-  detail carries a non-blocking notice: new inscriptions are accepted, but a new
-  inscription's deposit cannot be covered until a place frees up. There is no
-  per-row "no place" state: `Señada` already means "holds a place" and
-  `Seña pendiente` already means "does not".
+  detail and the portal seminar detail each carry a non-blocking notice: new
+  inscriptions are accepted, but a new inscription's deposit cannot be covered
+  until a place frees up. The portal's wording is
+  `podés inscribir igual, pero la seña de una nueva inscripción no se cubre hasta que se libere un lugar`.
+  There is no per-row "no place" state: `Señada` already means "holds a place"
+  and `Seña pendiente` already means "does not".
 - **The band, kept.** The badge reads against the effective row and the place
   against the stored one, exactly as the choreography badge and lock do, so a row
   can read `Señada` without holding a place when a price is lowered under money
@@ -265,12 +267,10 @@ de-allocating below it releases both.
 - No bulk gesture over seminar inscriptions: the per-inscription dialog is the
   only money gesture for seminar money.
 
-> **Specified, not built.** The same notice is repeated by the two surfaces that
-> do not exist yet: the portal seminar detail
-> ([#891](https://github.com/leomontigatti/en-escena/issues/891)) and the portal
-> `(seminar, academy)` financial detail, whose copy is
-> `podés inscribir igual, pero la seña de una nueva inscripción no se cubre hasta que se libere un lugar`.
-> Owner: the PRD
+> **Specified, not built.** The same notice is repeated by the one surface that
+> does not exist yet, the portal `(seminar, academy)` financial detail
+> ([#891](https://github.com/leomontigatti/en-escena/issues/891)), in the same
+> words the portal seminar detail uses. Owner: the PRD
 > [#906](https://github.com/leomontigatti/en-escena/issues/906).
 
 ## What a seminar does not do
@@ -287,15 +287,28 @@ de-allocating below it releases both.
 
 ## Surfaces
 
-- **Portal**: a card gallery of the active event's seminars, one card per
-  seminar with the instructor's picture, name, date and time, the academy's own
-  inscriptions as chips, and a footer that holds either `Inscribir` or the
-  one-sentence reason it is closed — the seminar started, or the event has no
-  seminar price list. The card says nothing about the quota, and a full seminar
-  closes nothing: places are taken by money, on administration's side.
-  Registering is a dialog with one searchable
-  picker over the academy's active dancers and professors in one flat list.
-  Without an active event, or without seminars, the shared portal empty state.
+- **Portal**: a gallery of **posters** for the active event's seminars, one per
+  seminar with the instructor's picture, name, date and time, a badge with the
+  academy's own active inscription count, and a single `Ver detalle`. The poster
+  carries no state at all — no chips, no prices, no quota, no started sentence
+  and no `Inscribir` — so a started seminar's card reads exactly like an open
+  one. Without an active event, or without seminars, the shared portal empty
+  state.
+- **The portal seminar detail** (`/portal/seminarios/:id`) is where the poster
+  leads and where everything the card gave up lives: the instructor as the
+  title, `{fecha} · {hora}` as the subtitle, `Inscribir` as the page action, and
+  the academy's own **active** inscriptions as a flat table of name and type,
+  with the name as the only row action. Registering is a dialog with one
+  searchable picker over the academy's active dancers and professors in one flat
+  list, with the people it already has actively registered left out and people
+  whose row was withdrawn offered for revival. A started seminar carries a
+  `warning` notice and offers neither registration nor removal; an unpriced
+  event closes registration the same way. Removal is the shared delete dialog on
+  a row without money and a `Retirar inscripción` confirmation on a row with it,
+  which says the money stays assigned, the place is freed and re-registering
+  brings the money back. **No price, deposit, deadline or participant reading
+  appears on any of these surfaces**: what a seminar costs is read in
+  `Resumen financiero`.
 - **Administration**: one more admin resource on the schedules' path. A list of
   instructor, date, time and quota with the places left on it (`quota −
 coveredCount`); a create page; a detail
@@ -304,23 +317,8 @@ coveredCount`); a create page; a detail
   confirmation).
 
 > **Specified, not built.** Decided on
-> [Portal surfaces for seminar money](https://github.com/leomontigatti/en-escena/issues/891)
-> and [Admin surfaces for seminar money](https://github.com/leomontigatti/en-escena/issues/890).
+> [Admin surfaces for seminar money](https://github.com/leomontigatti/en-escena/issues/890).
 >
-> - **The portal card becomes a poster**: banner, instructor, date and time,
->   one badge with the academy's own active count, and a single `Ver detalle`.
->   No chips, no statuses, no prices, no `Inscribir`; a started seminar's card
->   is identical to an open one.
-> - **A new portal seminar detail** (`/portal/seminarios/:id`) holds the
->   academy's own active inscriptions as a flat table of name and type, owns
->   registration (`Inscribir` as the page action, the built dialog unchanged,
->   with people already actively registered left out and withdrawn people
->   offered for revival) and removal (the shared delete dialog without money, a
->   `Retirar inscripción` confirmation with it), and carries the started
->   notice and the full-quota notice. **No price, deposit, deadline or
->   participant reading appears on any seminar surface**: the academy learns
->   what a seminar costs in `Resumen financiero`, where the effective price's
->   name is the only carrier of the participant fact.
 > - **Administration**: the list keeps its shape, with places left counting
 >   `quota − covered`; the detail keeps `Información` and `Inscriptos` and
 >   gains `Tipo de seminario` and `Seña (%)`, both read-only while any row is
