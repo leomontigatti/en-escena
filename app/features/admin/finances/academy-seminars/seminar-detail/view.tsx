@@ -168,7 +168,7 @@ function SeminarAlerts({ loaderData }: SeminarFinanceDetailViewProps) {
         </Alert>
       ) : null}
       {isFull ? (
-        <Alert>
+        <Alert variant="info">
           <Info aria-hidden="true" />
           <AlertDescription>
             El seminario no tiene lugares disponibles: las inscripciones con la

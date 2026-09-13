@@ -5,6 +5,7 @@ import { seminarInscriptions, seminars } from "@/db/schema";
 import { activeSeminarInscription } from "@/lib/seminars/active-inscription";
 import {
   countCoveredSeminarInscriptions,
+  countCoveredSeminarInscriptionsBySeminar,
   hasCoveredSeminarInscription,
 } from "@/lib/seminars/covered-inscriptions.server";
 import {
@@ -45,6 +46,13 @@ export type SeminarListItem = SeminarRow & {
   availablePlaces: number;
   /** How many people are registered, covered or not. */
   registeredCount: number;
+  /**
+   * Every row the seminar holds, withdrawn ones included, which is the only
+   * count that answers whether `deleteSeminar` would refuse: a withdrawn row
+   * keeps its money and its comprobante line, so it blocks the delete while
+   * appearing on no roster.
+   */
+  inscriptionCount: number;
 };
 
 export type SeminarInput = {
@@ -105,17 +113,17 @@ export async function listSeminars(
       asc(seminars.instructorName),
     ],
   });
-  const registeredCounts = await countInscriptionsBySeminar(
-    eventSeminars.map((seminar) => seminar.id),
-  );
+  const seminarIds = eventSeminars.map((seminar) => seminar.id);
+  const [inscriptionCounts, coveredCounts] = await Promise.all([
+    countInscriptionsBySeminar(seminarIds),
+    countCoveredSeminarInscriptionsBySeminar(seminarIds),
+  ]);
 
-  return Promise.all(
-    eventSeminars.map(async (seminar) =>
-      toSeminarListItem(seminar, {
-        coveredCount: await countCoveredSeminarInscriptions(seminar.id),
-        registeredCount: registeredCounts.get(seminar.id) ?? 0,
-      }),
-    ),
+  return eventSeminars.map((seminar) =>
+    toSeminarListItem(seminar, {
+      coveredCount: coveredCounts.get(seminar.id) ?? 0,
+      ...(inscriptionCounts.get(seminar.id) ?? emptyInscriptionCounts),
+    }),
   );
 }
 
@@ -132,48 +140,61 @@ export async function getSeminar(
 
   return toSeminarListItem(seminar, {
     coveredCount: await countCoveredSeminarInscriptions(seminar.id),
-    registeredCount: await countSeminarInscriptions(seminar.id),
+    ...(await countSeminarInscriptions(seminar.id)),
   });
 }
 
+type SeminarInscriptionCounts = {
+  inscriptionCount: number;
+  registeredCount: number;
+};
+
+const emptyInscriptionCounts: SeminarInscriptionCounts = {
+  inscriptionCount: 0,
+  registeredCount: 0,
+};
+
 /**
  * One query for the whole list, so a gallery of seminars does not become one
- * count per card. Active rows only: a withdrawn inscription is off the roster.
+ * count per card, and both counts off the same scan: the roster reading leaves
+ * withdrawn rows out, the delete reading keeps them in.
  */
 async function countInscriptionsBySeminar(
   seminarIds: string[],
   executor: SeminarExecutor = db,
 ) {
   if (seminarIds.length === 0) {
-    return new Map<string, number>();
+    return new Map<string, SeminarInscriptionCounts>();
   }
 
   const rows = await executor
     .select({
       seminarId: seminarInscriptions.seminarId,
       inscriptionCount: sql<number>`count(*)`,
+      registeredCount: sql<number>`count(*) filter (where ${activeSeminarInscription()})`,
     })
     .from(seminarInscriptions)
-    .where(
-      and(
-        inArray(seminarInscriptions.seminarId, seminarIds),
-        activeSeminarInscription(),
-      ),
-    )
+    .where(inArray(seminarInscriptions.seminarId, seminarIds))
     .groupBy(seminarInscriptions.seminarId);
 
   return new Map(
-    rows.map((row) => [row.seminarId, Number(row.inscriptionCount)]),
+    rows.map((row) => [
+      row.seminarId,
+      {
+        inscriptionCount: Number(row.inscriptionCount),
+        registeredCount: Number(row.registeredCount),
+      },
+    ]),
   );
 }
 
 async function countSeminarInscriptions(
   seminarId: string,
   executor: SeminarExecutor = db,
-) {
+): Promise<SeminarInscriptionCounts> {
   const counts = await countInscriptionsBySeminar([seminarId], executor);
 
-  return counts.get(seminarId) ?? 0;
+  return counts.get(seminarId) ?? emptyInscriptionCounts;
 }
 
 /** Every row of the seminar, withdrawn ones included: the only reading that
@@ -192,11 +213,12 @@ async function countAllSeminarInscriptions(
 
 function toSeminarListItem(
   seminar: SeminarRow,
-  counts: { coveredCount: number; registeredCount: number },
+  counts: SeminarInscriptionCounts & { coveredCount: number },
 ): SeminarListItem {
   return {
     ...seminar,
     availablePlaces: Math.max(seminar.quota - counts.coveredCount, 0),
+    inscriptionCount: counts.inscriptionCount,
     registeredCount: counts.registeredCount,
   };
 }

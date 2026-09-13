@@ -218,6 +218,25 @@ describe("seminar price repository", () => {
     ).resolves.toMatchObject({ ok: true, record: { amount: 21000 } });
   });
 
+  test("lets the tail go when every seminar inscription of the event is withdrawn", async () => {
+    const { event, inscriptionId } = await createSeminarInscriptionFixture();
+    const tail = expectSavedPrice(
+      await createSeminarPrice(event.id, participantTail),
+    );
+
+    await db
+      .update(seminarInscriptions)
+      .set({ withdrawnAt: new Date("2026-10-01T12:00:00.000Z") })
+      .where(eq(seminarInscriptions.id, inscriptionId));
+
+    // A withdrawn row resolves no price: it holds its money against the row it
+    // already stored, so the cell's coverage protects nobody until a revival
+    // puts the person back on the roster.
+    await expect(deleteSeminarPrice(tail.id)).resolves.toMatchObject({
+      ok: true,
+    });
+  });
+
   test("lets the tail go when the event has no seminar inscription", async () => {
     const event = await createSavedEvent("Regional 2026");
     const tail = expectSavedPrice(

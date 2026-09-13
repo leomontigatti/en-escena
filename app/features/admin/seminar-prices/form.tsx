@@ -126,10 +126,11 @@ export function SeminarPriceForm({
   });
   const formAction = useOptionalFormAction();
   const submit = useOptionalSubmit();
+  const { reset } = form;
 
   useEffect(() => {
-    form.reset(defaultValues);
-  }, [defaultValues, form]);
+    reset(defaultValues);
+  }, [defaultValues, reset]);
 
   const values = form.watch();
 

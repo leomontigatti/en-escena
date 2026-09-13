@@ -28,14 +28,32 @@ installDatabaseTestHooks();
 // `app/lib/finances/seminar-inscription-allocation.server.db.test.ts`.
 vi.mock("@/lib/seminars/covered-inscriptions.server", () => ({
   countCoveredSeminarInscriptions: vi.fn(async () => 0),
+  countCoveredSeminarInscriptionsBySeminar: vi.fn(async () => new Map()),
   hasCoveredSeminarInscription: vi.fn(async () => false),
+  holdsCoveredDeposit: vi.fn(async () => false),
 }));
 
-const { countCoveredSeminarInscriptions, hasCoveredSeminarInscription } =
-  vi.mocked(await import("@/lib/seminars/covered-inscriptions.server"));
+const {
+  countCoveredSeminarInscriptions,
+  countCoveredSeminarInscriptionsBySeminar,
+  hasCoveredSeminarInscription,
+} = vi.mocked(await import("@/lib/seminars/covered-inscriptions.server"));
+
+/**
+ * The gallery reads the covered count in one batched query and the detail reads
+ * it one seminar at a time, so a test that stands a count up has to stand up
+ * both readings of it.
+ */
+function stubCoveredCount(seminarId: string, coveredCount: number) {
+  countCoveredSeminarInscriptions.mockResolvedValue(coveredCount);
+  countCoveredSeminarInscriptionsBySeminar.mockResolvedValue(
+    new Map([[seminarId, coveredCount]]),
+  );
+}
 
 afterEach(() => {
   countCoveredSeminarInscriptions.mockResolvedValue(0);
+  countCoveredSeminarInscriptionsBySeminar.mockResolvedValue(new Map());
   hasCoveredSeminarInscription.mockResolvedValue(false);
 });
 
@@ -378,16 +396,43 @@ describe("seminar repository", () => {
   test("reads the places off the covered count and the roster off the inscriptions", async () => {
     const { eventId, seminarId } = await createRegistration();
 
-    countCoveredSeminarInscriptions.mockResolvedValue(1);
+    stubCoveredCount(seminarId, 1);
 
     await expect(getSeminar(seminarId)).resolves.toMatchObject({
       quota: 20,
       registeredCount: 2,
+      inscriptionCount: 2,
       availablePlaces: 19,
     });
     await expect(listSeminars(eventId)).resolves.toMatchObject([
       { id: seminarId, availablePlaces: 19, registeredCount: 2 },
     ]);
+  });
+
+  // The delete guard refuses on every row, withdrawn included, so the count the
+  // dialog blocks on has to see what the roster does not.
+  test("keeps a withdrawn row out of the roster count and in the inscription count", async () => {
+    const { eventId, seminarId } = await createRegistration();
+
+    await db
+      .update(seminarInscriptions)
+      .set({ withdrawnAt: new Date("2026-10-01T12:00:00.000Z") })
+      .where(eq(seminarInscriptions.seminarId, seminarId));
+
+    for (const seminar of [
+      await getSeminar(seminarId),
+      ...(await listSeminars(eventId)),
+    ]) {
+      expect(seminar).toMatchObject({
+        registeredCount: 0,
+        inscriptionCount: 2,
+      });
+    }
+
+    await expect(deleteSeminar(seminarId)).resolves.toMatchObject({
+      ok: false,
+      code: "has-inscriptions",
+    });
   });
 
   test("deletes a seminar and drops the rest with the event", async () => {

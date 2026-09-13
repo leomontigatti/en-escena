@@ -17,7 +17,7 @@ export const registerPortalSeminarInscriptionSchema = z.object({
   person: z.string().trim().min(1, requiredFieldMessage),
 });
 
-export type RegisterPortalSeminarInscriptionFormValues = z.infer<
+export type RegisterPortalSeminarInscriptionFormValues = z.input<
   typeof registerPortalSeminarInscriptionSchema
 >;
 

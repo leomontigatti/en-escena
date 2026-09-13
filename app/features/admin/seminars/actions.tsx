@@ -37,10 +37,13 @@ export function SeminarActions({
       <DeleteDialog
         title="Eliminar seminario"
         description={`Esta acción borra el seminario de ${seminar.instructorName}. No se puede deshacer.`}
-        // The inscriptions are what the seminar owes: while any of them stands,
-        // the dialog only explains itself and offers no destructive button.
-        // Administration removes them from `Inscriptos` first.
-        isBlocked={seminar.registeredCount > 0}
+        // The inscriptions are what the seminar owes: while any row stands, the
+        // dialog only explains itself and offers no destructive button.
+        // Administration removes them from `Inscriptos` first. The count is the
+        // withdrawn-inclusive one, because that is what `deleteSeminar` refuses
+        // on — a seminar holding only withdrawn rows would otherwise offer a
+        // button that always fails.
+        isBlocked={seminar.inscriptionCount > 0}
         blockedDescription={seminarHasInscriptionsMessage}
         intentValue={deleteSeminarIntent}
         recordId={seminar.id}

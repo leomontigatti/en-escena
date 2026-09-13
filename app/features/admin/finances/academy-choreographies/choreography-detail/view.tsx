@@ -264,6 +264,7 @@ function InscriptionsTable({
           inscription={openInscription}
           onOpenChange={closeMoneyDialog}
           priceOptions={priceOptions}
+          targetKind="choreography"
         />
       ) : null}
     </section>

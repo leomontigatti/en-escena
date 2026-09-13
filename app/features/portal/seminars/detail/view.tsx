@@ -230,7 +230,7 @@ function RemovalDialog({
     return (
       <WithdrawDialog
         confirmLabel="Retirar inscripción"
-        consequence="El dinero que la inscripción tiene asignado queda como está y su lugar se libera. Si volvés a inscribir a la persona, la inscripción vuelve con su dinero."
+        consequence="El dinero que la inscripción tiene asignado queda como está y, si ya tenía la seña cubierta, su lugar se libera. Si volvés a inscribir a la persona, la inscripción vuelve con su dinero."
         description={`Esta inscripción ya tiene dinero asignado, así que no se borra: ${inscription.fullName} queda retirada del seminario de ${instructorName}.`}
         intentValue={deletePortalSeminarInscriptionIntent}
         onOpenChange={onOpenChange}

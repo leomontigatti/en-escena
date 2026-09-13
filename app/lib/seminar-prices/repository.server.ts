@@ -15,6 +15,7 @@ import {
   uncoveredSeminarPriceUpdateError,
 } from "@/lib/seminar-prices/guard-messages";
 import { hasCompleteSeminarPriceCells } from "@/lib/seminar-prices/participant-cells";
+import { activeSeminarInscription } from "@/lib/seminars/active-inscription";
 import { isSeminarKind, type SeminarKind } from "@/lib/seminars/seminar-kinds";
 
 export type SeminarPriceRow = typeof seminarPrices.$inferSelect;
@@ -282,15 +283,17 @@ async function removesNeverExpiringCoverage(
 
 /**
  * Whether the event carries a seminar inscription that is still on a roster.
- * Withdrawal does not exist yet (PRD #906, slice 4), so every row counts; the
- * filter lands here when `withdrawnAt` does.
+ * Withdrawn rows are out, exactly as the choreography twin leaves out a
+ * withdrawn `choreographyDancer`: the coverage this guard protects is the one a
+ * future price resolution needs, and a withdrawn row resolves nothing until it
+ * is revived — at which point it is a registration and the guard sees it again.
  */
 async function hasActiveSeminarInscriptions(eventId: string) {
   const [inscription] = await db
     .select({ id: seminarInscriptions.id })
     .from(seminarInscriptions)
     .innerJoin(seminars, eq(seminars.id, seminarInscriptions.seminarId))
-    .where(eq(seminars.eventId, eventId))
+    .where(and(eq(seminars.eventId, eventId), activeSeminarInscription()))
     .limit(1);
 
   return Boolean(inscription);

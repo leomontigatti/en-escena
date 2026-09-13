@@ -356,6 +356,47 @@ describe("readPaymentDeletionImpact", () => {
     expect(await countCoveredSeminarInscriptions(seminar.seminarId)).toBe(0);
   });
 
+  test("names a withdrawn seminar row's money while counting no place for it", async () => {
+    const fixture = await seedDeletionFixture();
+    const doomedPayment = fixture.paymentRows[0];
+    const seminar = await seedSeminarInscription(fixture);
+
+    await expect(
+      allocateToSeminarInscription({
+        academyId: fixture.academyId,
+        amount: 2000,
+        eventId: fixture.eventId,
+        inscriptionId: seminar.inscriptionId,
+        priceId: seminar.priceId,
+        seminarId: seminar.seminarId,
+      }),
+    ).resolves.toEqual({ ok: true });
+
+    // Withdrawal keeps the money on the row and gives the place back, so the
+    // deletion still takes 2000 out of a row nobody would otherwise be warned
+    // about — and there is no place left for it to lose.
+    await db
+      .update(seminarInscriptions)
+      .set({ withdrawnAt: new Date("2026-10-01T12:00:00.000Z") })
+      .where(eq(seminarInscriptions.id, seminar.inscriptionId));
+
+    expect(
+      await readPaymentDeletionImpact({
+        academyId: fixture.academyId,
+        eventId: fixture.eventId,
+        paymentId: doomedPayment.id,
+      }),
+    ).toEqual([
+      {
+        allocatedAmount: 2000,
+        id: seminar.seminarId,
+        kind: "seminar",
+        losingPlaceCount: 0,
+        name: "Abril Sosa",
+      },
+    ]);
+  });
+
   test("reads nothing for a payment with no allocations", async () => {
     const fixture = await seedDeletionFixture();
 

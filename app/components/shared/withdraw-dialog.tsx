@@ -57,6 +57,10 @@ function WithdrawDialog({
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent
+        // The same viewport bound the delete dialog carries (#708): the
+        // consequence is the longest copy either dialog shows, so on a phone in
+        // landscape it is what would otherwise push the footer off screen.
+        className="max-h-[calc(100dvh-2rem)] grid-rows-[auto_1fr_auto]"
         onEscapeKeyDown={(event) => {
           event.preventDefault();
         }}
@@ -65,10 +69,12 @@ function WithdrawDialog({
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
-        <Alert variant="warning">
-          <AlertCircleIcon aria-hidden="true" />
-          <AlertDescription>{consequence}</AlertDescription>
-        </Alert>
+        <div className="min-h-0 overflow-y-auto overscroll-contain">
+          <Alert variant="warning">
+            <AlertCircleIcon aria-hidden="true" />
+            <AlertDescription>{consequence}</AlertDescription>
+          </Alert>
+        </div>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
           <form method="post">

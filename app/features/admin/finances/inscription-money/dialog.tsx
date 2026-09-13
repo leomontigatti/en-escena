@@ -95,12 +95,15 @@ export function InscriptionMoneyDialog({
   inscription,
   onOpenChange,
   priceOptions,
-  targetKind = "choreography",
+  targetKind,
 }: {
   inscription: InscriptionRow;
   onOpenChange: (open: boolean) => void;
   priceOptions: PriceOption[];
-  targetKind?: AllocationTargetKind;
+  // Required rather than defaulted to `"choreography"`: the kind decides which
+  // inscription table the action writes against, so an omission at a call site
+  // has to fail to typecheck instead of silently allocating to the other kind.
+  targetKind: AllocationTargetKind;
 }) {
   const shape = readInscriptionMoneyDialogShape(inscription);
   const [removing, setRemoving] = useState(shape === "remove");

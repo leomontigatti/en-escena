@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -38,7 +38,11 @@ export async function hasCoveredSeminarInscription(
   executor: SeminarInscriptionExecutor = db,
 ): Promise<boolean> {
   return (
-    (await listCoveredSeminarInscriptionIds(seminarId, executor)).length > 0
+    (
+      (await listCoveredSeminarInscriptionIds([seminarId], executor)).get(
+        seminarId,
+      ) ?? []
+    ).length > 0
   );
 }
 
@@ -53,19 +57,53 @@ export async function countCoveredSeminarInscriptions(
   executor: SeminarInscriptionExecutor = db,
   options: { exceptInscriptionId?: string } = {},
 ): Promise<number> {
-  const ids = await listCoveredSeminarInscriptionIds(seminarId, executor);
+  const ids =
+    (await listCoveredSeminarInscriptionIds([seminarId], executor)).get(
+      seminarId,
+    ) ?? [];
 
   return ids.filter((id) => id !== options.exceptInscriptionId).length;
 }
 
-/** The covered rows themselves, which both readings above are counted off. */
+/**
+ * The same count for a whole gallery of seminars, in one query. The list screen
+ * reads a count per card and the per-seminar reading would make that one query
+ * per card, which is the shape `countInscriptionsBySeminar` already avoids for
+ * the registered count.
+ */
+export async function countCoveredSeminarInscriptionsBySeminar(
+  seminarIds: string[],
+  executor: SeminarInscriptionExecutor = db,
+): Promise<Map<string, number>> {
+  const coveredIds = await listCoveredSeminarInscriptionIds(
+    seminarIds,
+    executor,
+  );
+
+  return new Map(
+    seminarIds.map((seminarId) => [
+      seminarId,
+      (coveredIds.get(seminarId) ?? []).length,
+    ]),
+  );
+}
+
+/**
+ * The covered rows themselves, grouped by seminar, which every reading above is
+ * counted off.
+ */
 async function listCoveredSeminarInscriptionIds(
-  seminarId: string,
+  seminarIds: string[],
   executor: SeminarInscriptionExecutor,
-): Promise<string[]> {
+): Promise<Map<string, string[]>> {
+  if (seminarIds.length === 0) {
+    return new Map();
+  }
+
   const rows = await executor
     .select({
       id: seminarInscriptions.id,
+      seminarId: seminarInscriptions.seminarId,
       allocatedAmount: sql<number>`coalesce((
         select sum(${paymentAllocations.amount})
         from ${paymentAllocations}
@@ -84,23 +122,30 @@ async function listCoveredSeminarInscriptionIds(
     )
     .where(
       and(
-        eq(seminarInscriptions.seminarId, seminarId),
+        inArray(seminarInscriptions.seminarId, seminarIds),
         activeSeminarInscription(),
       ),
     );
+  const covered = new Map<string, string[]>();
 
-  return rows
-    .filter((row) =>
-      isSeminarInscriptionCovered({
-        allocatedAmount: Number(row.allocatedAmount),
-        storedDepositAmount: deriveSeminarInscriptionThresholds({
-          priceAmount: row.storedPriceAmount,
-          requiredDepositPercentage: row.requiredDepositPercentage,
-        }).depositAmount,
-        withdrawn: false,
-      }),
-    )
-    .map((row) => row.id);
+  for (const row of rows) {
+    const isCovered = isSeminarInscriptionCovered({
+      allocatedAmount: Number(row.allocatedAmount),
+      storedDepositAmount: deriveSeminarInscriptionThresholds({
+        priceAmount: row.storedPriceAmount,
+        requiredDepositPercentage: row.requiredDepositPercentage,
+      }).depositAmount,
+      withdrawn: false,
+    });
+
+    if (!isCovered) {
+      continue;
+    }
+
+    covered.set(row.seminarId, [...(covered.get(row.seminarId) ?? []), row.id]);
+  }
+
+  return covered;
 }
 
 /**

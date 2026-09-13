@@ -294,9 +294,11 @@ export const seminarPrices = createTable(
 ).enableRLS();
 
 // A class the event offers around the competition: a guest instructor, a local
-// date and time, and a hard cap on how many roster people an academy can
-// register. It carries no name of its own — the instructor plus the moment is
-// what identifies it, which is what the unique index below states.
+// date and time, and a quota of places. Registration is unlimited; the quota
+// bounds how many inscriptions may cover their deposit, because covering it is
+// what takes a place. The seminar carries no name of its own — the instructor
+// plus the moment is what identifies it, which is what the unique index below
+// states.
 export const seminars = createTable(
   "seminar",
   {
@@ -354,19 +356,19 @@ export const seminarInscriptions = createTable(
     professorId: varchar("professor_id", { length: 255 }),
     // The `seminarPrice` row the inscription is charged by, written only when
     // an administrator allocates money to it, exactly as a choreography
-    // inscription's `selectedPriceId` is. Nothing writes it yet; the price
-    // guards read it to know which rows an inscription depends on.
+    // inscription's `selectedPriceId` is. The price guards read it to know
+    // which rows an inscription depends on.
     selectedPriceId: varchar("selected_price_id", { length: 255 }),
     // When the inscription was withdrawn, which is what tells a row that keeps
     // its money apart from one that never had any. A withdrawn row holds no
-    // place and appears on no roster; it is written by the removal chooser
-    // (PRD #906, slice 4) and read here only to tell the two apart.
+    // place and appears on no roster; the removal chooser stamps it, and
+    // reviving the person on re-registration clears it.
     withdrawnAt: timestamp("withdrawn_at", {
       mode: "date",
       withTimezone: true,
     }),
-    // The order the quota was consumed in, which is the only history the row
-    // keeps: an inscription is created and deleted, never edited.
+    // When the person was first registered, kept across a withdrawal and its
+    // revival so that the row's age survives a change of plans.
     createdAt: timestamp("created_at", {
       mode: "date",
       withTimezone: true,

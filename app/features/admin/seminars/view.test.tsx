@@ -37,6 +37,7 @@ function buildSeminar(
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     availablePlaces: 20,
     registeredCount: 0,
+    inscriptionCount: 0,
     ...overrides,
   };
 }
@@ -254,7 +255,10 @@ function buildInscription(
 }
 
 async function renderInscriptions(inscriptions: SeminarInscriptionRow[]) {
-  const seminar = buildSeminar({ registeredCount: inscriptions.length });
+  const seminar = buildSeminar({
+    inscriptionCount: inscriptions.length,
+    registeredCount: inscriptions.length,
+  });
 
   await renderAt(
     "/administracion/seminarios/seminar_1",
@@ -376,7 +380,40 @@ describe("SeminarDetailView delete dialog", () => {
           inscriptions: [buildInscription()],
           instructorPictureUrl: null,
           selectedEventId: "event_1",
-          seminar: buildSeminar({ registeredCount: 1, availablePlaces: 19 }),
+          seminar: buildSeminar({
+            availablePlaces: 19,
+            inscriptionCount: 1,
+            registeredCount: 1,
+          }),
+          values: toSeminarFormValues(buildSeminar()),
+        }}
+      />,
+    );
+
+    const dialog = document.querySelector('[role="alertdialog"]');
+
+    expect(dialog?.textContent).toContain(
+      "No se puede borrar el seminario porque tiene inscripciones.",
+    );
+    expect(dialog?.querySelector("form")).toBeNull();
+  });
+
+  // `deleteSeminar` refuses on every row, so a seminar whose only rows are
+  // withdrawn must block too: the roster is empty and the delete is not.
+  test("blocks the seminar delete while only a withdrawn inscription stands", async () => {
+    await renderAt(
+      "/administracion/seminarios/seminar_1",
+      <SeminarDetailView
+        initialDeleteDialogOpen
+        loaderData={{
+          hasCoveredInscription: false,
+          inscriptions: [],
+          instructorPictureUrl: null,
+          selectedEventId: "event_1",
+          seminar: buildSeminar({
+            inscriptionCount: 1,
+            registeredCount: 0,
+          }),
           values: toSeminarFormValues(buildSeminar()),
         }}
       />,

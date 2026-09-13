@@ -33,7 +33,9 @@ installDatabaseTestHooks();
 // `app/lib/finances/seminar-inscription-allocation.server.db.test.ts`.
 vi.mock("@/lib/seminars/covered-inscriptions.server", () => ({
   countCoveredSeminarInscriptions: vi.fn(async () => 0),
+  countCoveredSeminarInscriptionsBySeminar: vi.fn(async () => new Map()),
   hasCoveredSeminarInscription: vi.fn(async () => false),
+  holdsCoveredDeposit: vi.fn(async () => false),
 }));
 
 const { countCoveredSeminarInscriptions } = vi.mocked(

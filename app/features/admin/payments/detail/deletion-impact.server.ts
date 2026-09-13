@@ -41,7 +41,6 @@ import {
 import { readInscriptionThresholds } from "@/lib/finances/inscription-thresholds.server";
 import { deriveSeminarInscriptionThresholds } from "@/lib/finances/seminar-inscription-price";
 import { isSeminarInscriptionCovered } from "@/lib/finances/seminar-inscription-thresholds.server";
-import { activeSeminarInscription } from "@/lib/seminars/active-inscription";
 
 /** What this payment has allocated to one unit, and takes with it. */
 type PaymentDeletionImpactBase = {
@@ -102,6 +101,7 @@ async function readSeminarImpacts(
       requiredDepositPercentage: seminars.requiredDepositPercentage,
       seminarId: seminars.id,
       storedPriceAmount: seminarPrices.amount,
+      withdrawnAt: seminarInscriptions.withdrawnAt,
     })
     .from(paymentAllocations)
     .innerJoin(
@@ -113,12 +113,11 @@ async function readSeminarImpacts(
       seminarPrices,
       eq(seminarPrices.id, seminarInscriptions.selectedPriceId),
     )
-    .where(
-      and(
-        eq(paymentAllocations.paymentId, paymentId),
-        activeSeminarInscription(),
-      ),
-    );
+    // Every row the payment funds, withdrawn ones included: the money leaves a
+    // withdrawn row exactly as it leaves an active one, so hiding it here would
+    // delete money the impact list never named. Only the place is active-only,
+    // which the predicate below reads off `withdrawnAt`.
+    .where(eq(paymentAllocations.paymentId, paymentId));
 
   const impacts = new Map<string, SeminarUnitImpact>();
 
@@ -128,16 +127,20 @@ async function readSeminarImpacts(
       requiredDepositPercentage: row.requiredDepositPercentage,
     }).depositAmount;
     const allocatedAmount = Number(row.allocatedAmount);
+    const withdrawn = row.withdrawnAt !== null;
+    // A withdrawn row holds no place, so it has none to lose: the predicate
+    // answers `false` on both sides of the subtraction and the row contributes
+    // its money to the entry without inflating the count.
     const losesPlace =
       isSeminarInscriptionCovered({
         allocatedAmount,
         storedDepositAmount,
-        withdrawn: false,
+        withdrawn,
       }) &&
       !isSeminarInscriptionCovered({
         allocatedAmount: allocatedAmount - row.releasedAmount,
         storedDepositAmount,
-        withdrawn: false,
+        withdrawn,
       });
     const impact = impacts.get(row.seminarId) ?? {
       allocatedAmount: 0,

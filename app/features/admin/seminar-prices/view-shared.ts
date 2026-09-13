@@ -42,7 +42,7 @@ export const seminarPriceFormSchema = z
     }
   });
 
-export type SeminarPriceFormValues = z.infer<typeof seminarPriceFormSchema>;
+export type SeminarPriceFormValues = z.input<typeof seminarPriceFormSchema>;
 
 export const participantsSwitchLabel = "Para participantes";
 
