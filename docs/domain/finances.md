@@ -791,26 +791,22 @@ read path derives the withdrawn figures; an allocation write against a withdrawn
 inscription still computes its thresholds from the price row, so the write-path
 over-allocation guard measures against a `Total` the read side does not show.
 
-> **Specified, not built.** Removing a seminar inscription goes through **the
-> same chooser**, on both sides
-> ([Seminar inscription removal with money on it](https://github.com/leomontigatti/en-escena/issues/889)):
-> the academy keeps its removal until the seminar starts and administration
-> keeps its removal at any time; a row with no allocation and no comprobante
-> line is deleted, any other is withdrawn with its money, its stored row and
-> its `createdAt`. The academy therefore has an **academy-driven withdrawal**
-> choreographies do not have. A withdrawn seminar inscription owes nothing
-> beyond what it holds, exposes its deposit figure, reads `paidInFull` under
-> `Retirada`, stays in the money rollup and is out of the status rollup and of
-> the seminar's covered count — withdrawal **frees the place**. Revival is a
-> registration: the same person registered again revives the same row with its
-> money, under the seminar lock, and is refused with the no-places message when
-> the money it still holds would retake a place the seminar no longer has.
-> De-allocating a withdrawn row to zero does not delete it. Reads filter
-> withdrawn seminar rows behind an `activeSeminarInscription()` twin of the
-> predicate above, with its own raw-SQL twin and no generic predicate over two
-> tables ([#886](https://github.com/leomontigatti/en-escena/issues/886)).
-> Owner: the PRD
-> [#906](https://github.com/leomontigatti/en-escena/issues/906).
+**Removing a seminar inscription goes through the same chooser**, on both sides
+(`app/lib/seminars/inscription-withdrawal.server.ts`): the academy keeps its
+removal until the seminar starts and administration keeps its removal at any
+time; a row with no allocation and no comprobante line is deleted, any other is
+withdrawn with its money, its stored row and its `createdAt`. The academy
+therefore has an **academy-driven withdrawal** choreographies do not have. A
+withdrawn seminar inscription owes nothing beyond what it holds, exposes its
+deposit figure, reads `paidInFull` under `Retirada`, stays in the money rollup
+and is out of the status rollup and of the seminar's covered count — withdrawal
+**frees the place**. Revival is a registration: the same person registered again
+revives the same row with its money, under the seminar lock, and is refused with
+`Sin lugares disponibles.` when the money it still holds would retake a place the
+seminar no longer has. De-allocating a withdrawn row to zero does not delete it.
+Reads filter withdrawn seminar rows behind the `activeSeminarInscription()` twin
+of the predicate above, with its own raw-SQL twin and no generic predicate over
+two tables.
 
 > **Specified, not built.**
 > ADR-0014 §6 makes the withdrawal's fiscal consequence

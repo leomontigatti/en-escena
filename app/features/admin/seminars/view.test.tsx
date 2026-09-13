@@ -11,7 +11,7 @@ import {
   defaultSeminarFormValues,
   toSeminarFormValues,
 } from "@/features/admin/seminars/shared";
-import type { SeminarInscriptionRow } from "@/lib/seminars/inscriptions.server";
+import type { SeminarInscriptionRow } from "@/lib/seminars/inscription-rosters.server";
 import type { SeminarListItem } from "@/lib/seminars/repository.server";
 import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 
@@ -248,6 +248,7 @@ function buildInscription(
     fullName: "Abril Sosa",
     personKind: "dancer",
     academyName: "Academia Norte",
+    hasMoney: false,
     ...overrides,
   };
 }
@@ -341,6 +342,26 @@ describe("SeminarDetailView `Inscriptos`", () => {
     expect(
       dialog?.querySelector('input[name="id"]')?.getAttribute("value"),
     ).toBe("inscription_1");
+  });
+
+  test("confirms a funded row as a withdrawal instead of a deletion", async () => {
+    await renderInscriptions([buildInscription({ hasMoney: true })]);
+
+    await clickText("button", "Abril Sosa");
+
+    const dialog = document.querySelector('[role="alertdialog"]');
+
+    // The shared delete dialog's promise would be false here: the row survives
+    // with everything on it.
+    expect(dialog?.textContent).not.toContain("Esta acción es irreversible.");
+    expect(dialog?.textContent).toContain("queda retirada del seminario");
+    expect(dialog?.textContent).toContain(
+      "El dinero asignado sigue en la inscripción y el lugar que tenía queda libre.",
+    );
+    expect(dialog?.textContent).toContain("Retirar inscripción");
+    expect(
+      dialog?.querySelector('input[name="intent"]')?.getAttribute("value"),
+    ).toBe("delete-seminar-inscription");
   });
 });
 

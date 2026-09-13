@@ -30,6 +30,10 @@ export type PortalSeminarPersonOption = {
 export type PortalSeminarInscription = {
   id: string;
   fullName: string;
+  /** Whether taking it off the seminar withdraws the row instead of deleting
+   * it, which is the only thing the portal reads of a seminar inscription's
+   * money: the amount itself belongs to `Resumen financiero`. */
+  hasMoney: boolean;
 };
 
 export type PortalSeminarCard = {

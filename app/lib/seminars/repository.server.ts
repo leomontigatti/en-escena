@@ -171,6 +171,20 @@ async function countSeminarInscriptions(
   return counts.get(seminarId) ?? 0;
 }
 
+/** Every row of the seminar, withdrawn ones included: the only reading that
+ * answers whether deleting the seminar would take something with it. */
+async function countAllSeminarInscriptions(
+  seminarId: string,
+  executor: SeminarExecutor,
+) {
+  const [row] = await executor
+    .select({ inscriptionCount: sql<number>`count(*)` })
+    .from(seminarInscriptions)
+    .where(eq(seminarInscriptions.seminarId, seminarId));
+
+  return Number(row?.inscriptionCount ?? 0);
+}
+
 function toSeminarListItem(
   seminar: SeminarRow,
   counts: { coveredCount: number; registeredCount: number },
@@ -322,6 +336,13 @@ export async function setSeminarInstructorPicture(
  * The seminar's foreign key cascades, so nothing but this guard keeps a delete
  * from taking the inscriptions with it. Administration removes them one by one
  * first — that removal is the release valve, and there is no override.
+ *
+ * **Withdrawn rows count.** They are off the roster but they are still rows, and
+ * what they hold is money and comprobante lines: cascading them away is exactly
+ * the destruction the withdrawal exists to prevent. A seminar becomes deletable
+ * once every row is de-allocated and removed, and a row withdrawn while holding
+ * money makes it permanently undeletable — which is the correct answer, not a
+ * gap.
  */
 export async function deleteSeminar(
   seminarId: string,
@@ -340,7 +361,7 @@ export async function deleteSeminar(
       return seminarNotFoundFailure();
     }
 
-    if ((await countSeminarInscriptions(seminarId, tx)) > 0) {
+    if ((await countAllSeminarInscriptions(seminarId, tx)) > 0) {
       return {
         ok: false,
         code: "has-inscriptions",

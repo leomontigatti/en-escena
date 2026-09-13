@@ -8,6 +8,7 @@ import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import { SubmitButton } from "@/components/shared/action-buttons";
 import { ComboboxField } from "@/components/shared/combobox-field";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
+import { WithdrawDialog } from "@/components/shared/withdraw-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -122,18 +123,59 @@ export function PortalSeminarsListRouteView({
       ) : null}
 
       {deletingInscription ? (
-        <DeleteDialog
-          title={deletingInscription.inscription.fullName}
-          description={`Esta acción da de baja la inscripción en el seminario de ${deletingInscription.instructorName} y libera su lugar. No se puede deshacer.`}
-          intentValue={deletePortalSeminarInscriptionIntent}
-          recordId={deletingInscription.inscription.id}
-          open
-          onOpenChange={(nextOpen) =>
-            nextOpen ? null : setDeletingInscriptionId(null)
-          }
+        <RemovalDialog
+          inscription={deletingInscription.inscription}
+          instructorName={deletingInscription.instructorName}
+          onClose={() => setDeletingInscriptionId(null)}
         />
       ) : null}
     </>
+  );
+}
+
+/**
+ * The academy's own removal, confirmed twice over. A row administration has
+ * already put money on is not deleted but retired: it keeps that money and
+ * frees its place, and registering the same person again brings both back. The
+ * shared delete dialog cannot say that — it promises the removal is
+ * irreversible — so a funded row gets the withdrawal dialog instead. No amount
+ * is named: what a seminar costs is read in `Resumen financiero`.
+ */
+function RemovalDialog({
+  inscription,
+  instructorName,
+  onClose,
+}: {
+  inscription: PortalSeminarInscription;
+  instructorName: string;
+  onClose: () => void;
+}) {
+  const onOpenChange = (nextOpen: boolean) => (nextOpen ? null : onClose());
+
+  if (inscription.hasMoney) {
+    return (
+      <WithdrawDialog
+        confirmLabel="Retirar inscripción"
+        consequence="El dinero que la inscripción tiene asignado queda como está y su lugar se libera. Si volvés a inscribir a la persona, la inscripción vuelve con su dinero."
+        description={`Esta inscripción ya tiene dinero asignado, así que no se borra: ${inscription.fullName} queda retirada del seminario de ${instructorName}.`}
+        intentValue={deletePortalSeminarInscriptionIntent}
+        onOpenChange={onOpenChange}
+        open
+        recordId={inscription.id}
+        title={inscription.fullName}
+      />
+    );
+  }
+
+  return (
+    <DeleteDialog
+      title={inscription.fullName}
+      description={`Esta acción da de baja la inscripción en el seminario de ${instructorName} y libera su lugar. No se puede deshacer.`}
+      intentValue={deletePortalSeminarInscriptionIntent}
+      recordId={inscription.id}
+      open
+      onOpenChange={onOpenChange}
+    />
   );
 }
 

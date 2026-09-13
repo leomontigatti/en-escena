@@ -1,6 +1,7 @@
 import {
   removeSeminarInscription,
   seminarInscriptionDeletedMessage,
+  seminarInscriptionWithdrawnMessage,
 } from "@/lib/seminars/inscriptions.server";
 import {
   createSeminar,
@@ -194,10 +195,20 @@ async function removeInscription(
     seminarId,
   });
 
+  if (!result.ok) {
+    return {
+      status: "error",
+      intent: deleteSeminarInscriptionIntent,
+      message: result.error,
+    };
+  }
+
   return {
-    status: result.ok ? "success" : "error",
+    status: "success",
     intent: deleteSeminarInscriptionIntent,
-    message: result.ok ? seminarInscriptionDeletedMessage : result.error,
+    message: result.withdrawn
+      ? seminarInscriptionWithdrawnMessage
+      : seminarInscriptionDeletedMessage,
   };
 }
 

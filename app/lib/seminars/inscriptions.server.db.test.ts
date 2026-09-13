@@ -11,12 +11,14 @@ import { createSavedEvent } from "@/lib/events/bases-test-fixtures.server.db";
 import {
   deleteSeminarInscriptionForAcademy,
   removeSeminarInscription,
-  listSeminarInscriptions,
-  listSeminarInscriptionsForAcademy,
-  listSeminarPersonOptionsForAcademy,
   registerSeminarInscription,
   type RegisterSeminarInscriptionResult,
 } from "@/lib/seminars/inscriptions.server";
+import {
+  listSeminarInscriptions,
+  listSeminarInscriptionsForAcademy,
+  listSeminarPersonOptionsForAcademy,
+} from "@/lib/seminars/inscription-rosters.server";
 import { createSeminar, listSeminars } from "@/lib/seminars/repository.server";
 import { defaultSeminarFacts } from "@/lib/test-support/seminars";
 import { createAcademyUser } from "@/lib/test-support/academies";
@@ -290,7 +292,7 @@ describe("seminar inscriptions", () => {
         inscriptionId,
         now: beforeStart,
       }),
-    ).resolves.toEqual({ ok: true });
+    ).resolves.toEqual({ ok: true, withdrawn: false });
 
     // The row is gone rather than marked, so nothing of it is left to revive.
     await expect(
@@ -475,7 +477,7 @@ describe("the administrative reading of a seminar's inscriptions", () => {
         inscriptionId,
         seminarId: seminar.id,
       }),
-    ).resolves.toEqual({ ok: true });
+    ).resolves.toEqual({ ok: true, withdrawn: false });
     await expect(listSeminarInscriptions(seminar.id)).resolves.toEqual([]);
     await expect(listSeminars(eventId)).resolves.toMatchObject([
       { id: seminar.id, availablePlaces: 1, registeredCount: 0 },

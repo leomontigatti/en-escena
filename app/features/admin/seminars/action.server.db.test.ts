@@ -9,10 +9,8 @@ import {
   createSignedInRequest,
 } from "@/lib/admin/finances/finances.test-support";
 import { createDancer } from "@/lib/choreographies/registration-test-fixtures.server.db";
-import {
-  listSeminarInscriptions,
-  registerSeminarInscription,
-} from "@/lib/seminars/inscriptions.server";
+import { registerSeminarInscription } from "@/lib/seminars/inscriptions.server";
+import { listSeminarInscriptions } from "@/lib/seminars/inscription-rosters.server";
 import { createSeminar, listSeminars } from "@/lib/seminars/repository.server";
 import { defaultSeminarFacts } from "@/lib/test-support/seminars";
 import { createAcademyUser } from "@/lib/test-support/academies";

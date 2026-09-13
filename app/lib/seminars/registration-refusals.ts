@@ -32,3 +32,12 @@ export const seminarPricesMissingMessage =
  */
 export const seminarHasInscriptionsMessage =
   "No se puede borrar el seminario porque tiene inscripciones.";
+
+/**
+ * The refusal of a **revival**: the withdrawn row still holds money past the
+ * deposit of the row it stored, so bringing it back would retake a place the
+ * seminar has already given away. It is short because it is the academy's to
+ * read on the portal, where no seminar surface says a word about money — the
+ * place is the whole of what it may know (docs/domain/seminars.md, "The place").
+ */
+export const seminarNoPlacesForRevivalMessage = "Sin lugares disponibles.";

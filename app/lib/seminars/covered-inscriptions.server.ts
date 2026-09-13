@@ -102,3 +102,46 @@ async function listCoveredSeminarInscriptionIds(
     )
     .map((row) => row.id);
 }
+
+/**
+ * Whether **one** row's allocations reach the deposit of the row it stores,
+ * withdrawn or not. It is the question revival asks about the row it is about
+ * to bring back: the money a withdrawal retained is still there, so reviving it
+ * can retake a place, and that has to be read before `withdrawnAt` is cleared —
+ * which is exactly when the covered count cannot see it yet.
+ */
+export async function holdsCoveredDeposit(
+  inscriptionId: string,
+  executor: SeminarInscriptionExecutor = db,
+): Promise<boolean> {
+  const [row] = await executor
+    .select({
+      allocatedAmount: sql<number>`coalesce((
+        select sum(${paymentAllocations.amount})
+        from ${paymentAllocations}
+        where ${paymentAllocations.seminarInscriptionId} = ${seminarInscriptions.id}
+      ), 0)`,
+      requiredDepositPercentage: seminars.requiredDepositPercentage,
+      storedPriceAmount: seminarPrices.amount,
+    })
+    .from(seminarInscriptions)
+    .innerJoin(seminars, eq(seminars.id, seminarInscriptions.seminarId))
+    .innerJoin(
+      seminarPrices,
+      eq(seminarPrices.id, seminarInscriptions.selectedPriceId),
+    )
+    .where(eq(seminarInscriptions.id, inscriptionId));
+
+  if (!row) {
+    return false;
+  }
+
+  return isSeminarInscriptionCovered({
+    allocatedAmount: Number(row.allocatedAmount),
+    storedDepositAmount: deriveSeminarInscriptionThresholds({
+      priceAmount: row.storedPriceAmount,
+      requiredDepositPercentage: row.requiredDepositPercentage,
+    }).depositAmount,
+    withdrawn: false,
+  });
+}

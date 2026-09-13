@@ -67,7 +67,9 @@ describe("PortalSeminarsListRouteView", () => {
       hasActiveEvent: true,
       seminars: [
         buildSeminar({
-          inscriptions: [{ id: "inscription_1", fullName: "Ana Paz" }],
+          inscriptions: [
+            { id: "inscription_1", fullName: "Ana Paz", hasMoney: false },
+          ],
         }),
       ],
     });
@@ -137,7 +139,9 @@ describe("PortalSeminarsListRouteView", () => {
       hasActiveEvent: true,
       seminars: [
         buildSeminar({
-          inscriptions: [{ id: "inscription_1", fullName: "Ana Paz" }],
+          inscriptions: [
+            { id: "inscription_1", fullName: "Ana Paz", hasMoney: false },
+          ],
         }),
       ],
     });
@@ -159,18 +163,53 @@ describe("PortalSeminarsListRouteView", () => {
     expect(dialog?.textContent).toContain("libera su lugar");
   });
 
+  test("confirms a funded inscription as a withdrawal, without naming an amount", async () => {
+    await renderSeminars({
+      hasActiveEvent: true,
+      seminars: [
+        buildSeminar({
+          inscriptions: [
+            { id: "inscription_1", fullName: "Ana Paz", hasMoney: true },
+          ],
+        }),
+      ],
+    });
+
+    await act(async () => {
+      document
+        .querySelector<HTMLButtonElement>(
+          '[aria-label="Eliminar la inscripción de Ana Paz"]',
+        )
+        ?.click();
+    });
+
+    const dialog = document.querySelector('[role="alertdialog"]');
+
+    expect(dialog?.textContent).not.toContain("Esta acción es irreversible.");
+    expect(dialog?.textContent).toContain("queda retirada del seminario");
+    expect(dialog?.textContent).toContain(
+      "El dinero que la inscripción tiene asignado queda como está y su lugar se libera.",
+    );
+    expect(dialog?.textContent).toContain("Retirar inscripción");
+    expect(dialog?.textContent).not.toContain("$");
+  });
+
   test("drops the removal once the seminar has started and keeps the chip's padding", async () => {
     await renderSeminars({
       hasActiveEvent: true,
       seminars: [
         buildSeminar({
           id: "seminar_open",
-          inscriptions: [{ id: "inscription_1", fullName: "Ana Paz" }],
+          inscriptions: [
+            { id: "inscription_1", fullName: "Ana Paz", hasMoney: false },
+          ],
         }),
         buildSeminar({
           id: "seminar_started",
           hasStarted: true,
-          inscriptions: [{ id: "inscription_2", fullName: "Luz Suárez" }],
+          inscriptions: [
+            { id: "inscription_2", fullName: "Luz Suárez", hasMoney: false },
+          ],
         }),
       ],
     });

@@ -62,25 +62,18 @@ what runs today.
   orphans it on the volume, as event documents are orphaned today.
 - Administration edits every other field at any time, including after
   inscriptions exist, with two refusals, both after the submission: a seminar
-  with inscriptions cannot be deleted, and the quota cannot drop below the
-  current inscription count. Moving a seminar's date into the past simply closes
-  its registration.
-
-> **Specified, not built.** The seminar's remaining guards change
-> ([Quota at the crossing](https://github.com/leomontigatti/en-escena/issues/888),
-> [Seminar inscription removal](https://github.com/leomontigatti/en-escena/issues/889)):
->
-> - **The quota stops being a cap on registration and becomes a cap on
->   places.** Registration is unlimited; a place is taken when an inscription
->   covers its deposit (see "The place"). The quota is a hard cap on covered
->   inscriptions, still first come first served, still with no waitlist and no
->   override.
-> - **Guards.** The quota cannot drop below the **covered** count, replacing
->   "below the current inscription count". A seminar cannot be deleted while any
->   inscription row exists, **withdrawn rows included**: it is reachable by
->   de-allocating every row and removing them, and permanently blocked by a row
->   withdrawn while it held money or ever invoiced, as a choreography with a
->   comprobante is.
+  cannot be deleted while it has inscriptions, and the quota cannot drop below
+  the **covered** count — an inscription that has not covered its deposit holds
+  no place, so it does not hold the floor up either, and raising the quota is
+  always free. Moving a seminar's date into the past simply closes its
+  registration.
+- **The delete guard counts withdrawn rows.** A withdrawn inscription is off the
+  roster but it is still a row, holding money and, eventually, comprobante
+  lines, and the seminar's foreign key cascades. Deleting a seminar is therefore
+  reachable only by de-allocating every row and removing them, and is
+  permanently blocked by a row that was withdrawn while it held money or was
+  ever invoiced, exactly as a choreography with a comprobante is
+  (`app/lib/seminars/repository.server.ts`).
 
 ## Prices
 
@@ -178,13 +171,40 @@ How a seminar inscription is priced from those rows:
   `Período de inscripción`. Once started, the academy can neither add nor delete;
   the rows stay listed as read-only history while the event is active, and leave
   the portal when it is not, as choreographies do.
-- The academy deletes its own inscription until the seminar starts. It is a
-  physical delete: the inscription carries no money, so there is nothing to
-  withdraw. Every destructive action confirms through the shared delete dialog.
-- Administration removes any inscription at any time, including after the
-  seminar has started, from the seminar's detail. This is the release valve for
-  the refusal to delete a seminar that has inscriptions. There is no reason
-  field, no origin flag and no audit trail.
+- **Removal goes through one chooser on both sides**
+  (`app/lib/seminars/inscription-withdrawal.server.ts`): a row holding no
+  allocation and no comprobante line is **physically deleted**, any other row is
+  **withdrawn** — `withdrawnAt` stamped, the money, the stored price row and the
+  `createdAt` all kept. Nothing cascades, withdrawal does not wait for
+  de-allocation, and comprobantes gate nothing. What differs between the two
+  sides is who may ask and until when, never what happens to the money.
+- The academy removes its own inscription until the seminar starts;
+  administration removes any inscription at any time, including after the
+  seminar has started, from the seminar's detail. Administration's removal is
+  the release valve for the refusal to delete a seminar that has inscriptions.
+  There is no reason field, no origin flag and no audit trail.
+- Removing a row with no money confirms through the shared delete dialog;
+  **a funded row confirms through its own dialog**, because the shared dialog's
+  `Esta acción es irreversible.` would be false of a row that keeps everything
+  it has. It says
+  the money stays allocated and the place is freed, and its button reads
+  `Retirar inscripción`. No amount appears on either side of the portal: what a
+  seminar costs is read in `Resumen financiero`.
+- **Revival.** Registering the same person again revives the withdrawn row
+  instead of inserting a second one: the id survives, and with it the money, the
+  stored price row and the `createdAt`. It is a registration in every other
+  respect — under the seminar lock, from the portal, for an **active** person, until
+  the seminar starts — and it is the one registration the quota can refuse: a
+  row still holding money past its stored deposit takes its place back the
+  moment it is active again, so a seminar whose covered rows fill the quota
+  refuses it with `Sin lugares disponibles.` and leaves the row withdrawn.
+  De-allocating a withdrawn row to zero does **not** delete it; the chooser
+  decides once.
+- **The row gains `selectedPriceId` and `withdrawnAt`**, the same two fields a
+  choreography inscription carries and nothing else financial. It gains no
+  `academyId`: the academy is read through the person. Every roster surface
+  lists **active rows only**, through `activeSeminarInscription()`; withdrawn
+  rows are read under `Finanzas`, badged `Retirada`.
 - **Registration is unlimited.** The insert counts nothing against the quota and
   there is no `full` refusal: an academy registers past the quota, and an
   uncovered inscription is intent rather than a place. The registration path
@@ -194,34 +214,10 @@ How a seminar inscription is priced from those rows:
 - The inscription dates itself by its own `createdAt`, the seminar counterpart of
   `Fecha de inscripción`.
 
-> **Specified, not built.** A seminar inscription becomes an **`inscription`**
-> in the finance sense — the second kind of allocation target, beside the
-> choreography inscription — and its money rules live in `finances.md`. What
-> changes on this side
-> ([Quota at the crossing](https://github.com/leomontigatti/en-escena/issues/888),
-> [Seminar inscription removal](https://github.com/leomontigatti/en-escena/issues/889)):
->
-> - **The row gains `selectedPriceId` and `withdrawnAt`**, the same two
->   fields a choreography inscription carries and nothing else financial. It
->   gains no `academyId`: the academy keeps being read through the person.
-> - **Removal follows the choreography rule, on both sides.** The academy keeps
->   its removal until the seminar starts and administration keeps its removal at
->   any time; both go through one chooser: a **physical delete** when the row
->   holds no allocation and no comprobante line, a **withdrawal** otherwise,
->   which stamps `withdrawnAt` and keeps the row with its money, its stored row
->   and its `createdAt`. The academy therefore has an academy-driven withdrawal
->   that choreographies do not have. Nothing cascades and nothing waits for
->   de-allocation; the confirmation on a funded row says the money stays
->   allocated and the place is freed.
-> - **Revival.** Registering the same person again revives the same row with
->   its money, under the seminar lock, from the portal only, for an active
->   person only, until the seminar starts. A revival that would retake a place
->   the seminar no longer has is refused with the no-places message and the
->   row stays withdrawn. De-allocating a withdrawn row to zero does not delete
->   it; only a revival brings it back.
-> - **The rows stay on the roster surfaces as active rows only**: the portal
->   detail and the admin `Inscriptos` tab list non-withdrawn rows and show no
->   money. Withdrawn rows are read under `Finanzas`, badged `Retirada`.
+A seminar inscription is an **`inscription`** in the finance sense — the second
+kind of allocation target, beside the choreography inscription — and its money
+rules live in `finances.md`. The academy therefore has an **academy-driven
+withdrawal** that choreographies do not have.
 
 ## The place
 
@@ -281,19 +277,13 @@ de-allocating below it releases both.
 
 - It does not make anyone `Participando`: the badge and the admin roster filters
   ignore seminar inscriptions.
-- It sends no notification on register, delete or filling up.
+- It sends no notification on anything: not on register, not on removal, not on
+  a covered deposit, not on taking a place and not on losing one.
 - It does not appear on the admin dashboard; the list under `Operación` is its
   only admin surface.
-- It has no price and no payment. Prices and payments for seminars are a later
-  effort, whose first question is whether the academy's delete becomes a
-  withdrawal once money exists.
-
-> **Specified, not built.** The last bullet is the one map #884 answers: the
-> price is in "Prices", the payment is the academy's event pool
-> (`finances.md`), and the academy's delete becomes the chooser in "The
-> inscription". What stays true: no `Participando` reading, no notification —
-> not on deposit, not on taking a place, not on losing one — and no dashboard
-> presence.
+- It has no price and no payment **of its own**: the price is the event's list
+  in "Prices" and the payment is the academy's event pool (`finances.md`), one
+  pool for both kinds of inscription.
 
 ## Surfaces
 

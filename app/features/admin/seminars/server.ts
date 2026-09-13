@@ -3,7 +3,7 @@ import { redirect } from "react-router";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 import { hasCoveredSeminarInscription } from "@/lib/seminars/covered-inscriptions.server";
-import { listSeminarInscriptions } from "@/lib/seminars/inscriptions.server";
+import { listSeminarInscriptions } from "@/lib/seminars/inscription-rosters.server";
 import { getSeminar, listSeminars } from "@/lib/seminars/repository.server";
 import {
   createDefaultSeminarPictureStorage,

@@ -14,7 +14,7 @@ import {
 } from "@/lib/seminars/seminar-kinds";
 import type { FieldErrors } from "@/lib/shared/form-validation";
 import { requiredFieldMessage } from "@/lib/shared/forms";
-import type { SeminarInscriptionRow } from "@/lib/seminars/inscriptions.server";
+import type { SeminarInscriptionRow } from "@/lib/seminars/inscription-rosters.server";
 import type {
   SeminarFieldName,
   SeminarListItem,

@@ -2,13 +2,16 @@ import { requireAcademyUser } from "@/lib/auth/internal-access.server";
 import { getPortalActiveEventContext } from "@/lib/portal/event-context.server";
 import {
   deleteSeminarInscriptionForAcademy,
-  listSeminarInscriptionsForAcademy,
-  listSeminarPersonOptionsForAcademy,
   registerSeminarInscription,
   seminarInscriptionDeletedMessage,
   seminarInscriptionNotFoundMessage,
   seminarInscriptionSuccessMessage,
+  seminarInscriptionWithdrawnMessage,
 } from "@/lib/seminars/inscriptions.server";
+import {
+  listSeminarInscriptionsForAcademy,
+  listSeminarPersonOptionsForAcademy,
+} from "@/lib/seminars/inscription-rosters.server";
 import { hasSeminarRegistrationPrices } from "@/lib/seminar-prices/repository.server";
 import { hasSeminarStarted } from "@/lib/seminars/registration-window";
 import { listSeminars } from "@/lib/seminars/repository.server";
@@ -75,6 +78,7 @@ export async function loadPortalSeminarsList(
         inscriptions: seminarInscriptions.map((inscription) => ({
           id: inscription.id,
           fullName: inscription.fullName,
+          hasMoney: inscription.hasMoney,
         })),
         people: people.filter((person) => !registeredPersonIds.has(person.id)),
       };
@@ -185,7 +189,9 @@ async function removeInscription(
   return actionResult(
     deletePortalSeminarInscriptionIntent,
     "success",
-    seminarInscriptionDeletedMessage,
+    result.withdrawn
+      ? seminarInscriptionWithdrawnMessage
+      : seminarInscriptionDeletedMessage,
   );
 }
 
