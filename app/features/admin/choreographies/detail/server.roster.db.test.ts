@@ -137,7 +137,7 @@ describe("administrative choreography roster editing", () => {
       academyId: scenario.academyId,
       amount: 3000,
       eventId: scenario.event.id,
-      inscriptionId: scenario.inscriptionA.id,
+      choreographyInscriptionId: scenario.inscriptionA.id,
       paymentId: payment.id,
     });
 
@@ -154,7 +154,10 @@ describe("administrative choreography roster editing", () => {
     expect(withdrawn?.withdrawnAt).toBeInstanceOf(Date);
 
     const allocations = await db.query.paymentAllocations.findMany({
-      where: eq(paymentAllocations.inscriptionId, scenario.inscriptionA.id),
+      where: eq(
+        paymentAllocations.choreographyInscriptionId,
+        scenario.inscriptionA.id,
+      ),
     });
     expect(allocations.map((row) => row.amount)).toEqual([3000]);
 
@@ -180,7 +183,9 @@ describe("administrative choreography roster editing", () => {
       impTotal: 10000,
       issuerCuit: "30717611590",
       issuerIvaCondition: "exento",
-      lines: [{ amount: 10000, inscriptionId: scenario.inscriptionA.id }],
+      lines: [
+        { amount: 10000, choreographyInscriptionId: scenario.inscriptionA.id },
+      ],
       ptoVta: 1,
       receptorDocNro: "0",
       receptorDocTipo: 99,
@@ -210,7 +215,7 @@ describe("administrative choreography roster editing", () => {
       academyId: scenario.academyId,
       amount: 3000,
       eventId: scenario.event.id,
-      inscriptionId: scenario.inscriptionA.id,
+      choreographyInscriptionId: scenario.inscriptionA.id,
       paymentId: payment.id,
     });
 
@@ -299,7 +304,7 @@ describe("administrative choreography roster editing", () => {
       academyId: scenario.academyId,
       amount: 3000,
       eventId: scenario.event.id,
-      inscriptionId: scenario.inscriptionA.id,
+      choreographyInscriptionId: scenario.inscriptionA.id,
       paymentId: payment.id,
     });
 
@@ -333,7 +338,7 @@ describe("administrative choreography roster editing", () => {
         academyId: scenario.academyId,
         amount: 3000,
         eventId: scenario.event.id,
-        inscriptionId: scenario.inscriptionA.id,
+        choreographyInscriptionId: scenario.inscriptionA.id,
         paymentId: payment.id,
       })
       .returning();
@@ -620,7 +625,7 @@ describe("schedule capacity guard on the roster path", () => {
       academyId: scenario.academyId,
       amount: 3000,
       eventId: scenario.event.id,
-      inscriptionId: scenario.inscriptionA.id,
+      choreographyInscriptionId: scenario.inscriptionA.id,
       paymentId: payment.id,
     });
 
@@ -727,7 +732,7 @@ describe("schedule capacity guard on the roster path", () => {
       academyId: scenario.academyId,
       amount: 3000,
       eventId: scenario.event.id,
-      inscriptionId: scenario.inscriptionA.id,
+      choreographyInscriptionId: scenario.inscriptionA.id,
       paymentId: payment.id,
     });
 
@@ -766,7 +771,7 @@ describe("schedule capacity guard on the roster path", () => {
       academyId: scenario.academyId,
       amount: 3000,
       eventId: scenario.event.id,
-      inscriptionId: scenario.inscriptionA.id,
+      choreographyInscriptionId: scenario.inscriptionA.id,
       paymentId: payment.id,
     });
     const dancerC = await createDancer(scenario.academyId, {

@@ -8,6 +8,7 @@ import {
   spreadFromPool,
   unwindToPool,
 } from "@/lib/finances/allocation-pool.server";
+import { choreographyTarget } from "@/lib/finances/allocation-target.server";
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
@@ -91,7 +92,7 @@ async function readAllocationsByPaymentNumber(inscriptionId: string) {
     })
     .from(paymentAllocations)
     .innerJoin(payments, eq(paymentAllocations.paymentId, payments.id))
-    .where(eq(paymentAllocations.inscriptionId, inscriptionId))
+    .where(eq(paymentAllocations.choreographyInscriptionId, inscriptionId))
     .orderBy(asc(payments.paymentNumber));
 
   return rows;
@@ -114,7 +115,7 @@ async function readAllocationIdentities(inscriptionId: string) {
     })
     .from(paymentAllocations)
     .innerJoin(payments, eq(paymentAllocations.paymentId, payments.id))
-    .where(eq(paymentAllocations.inscriptionId, inscriptionId))
+    .where(eq(paymentAllocations.choreographyInscriptionId, inscriptionId))
     .orderBy(asc(payments.paymentNumber));
 }
 
@@ -126,7 +127,7 @@ describe.sequential("the pool funding rule and its inverse", () => {
       academyId: fixture.academyId,
       amount: 2500,
       eventId: fixture.eventId,
-      inscriptionId: fixture.inscriptionId,
+      target: choreographyTarget(fixture.inscriptionId),
     });
 
     expect(result).toEqual({ ok: true });
@@ -146,13 +147,13 @@ describe.sequential("the pool funding rule and its inverse", () => {
       academyId: fixture.academyId,
       amount: 2500,
       eventId: fixture.eventId,
-      inscriptionId: fixture.inscriptionId,
+      target: choreographyTarget(fixture.inscriptionId),
     });
     const result = await unwindToPool(db, {
       academyId: fixture.academyId,
       amount: 2000,
       eventId: fixture.eventId,
-      inscriptionId: fixture.inscriptionId,
+      target: choreographyTarget(fixture.inscriptionId),
     });
 
     expect(result).toEqual({ ok: true });
@@ -170,7 +171,7 @@ describe.sequential("the pool funding rule and its inverse", () => {
       academyId: fixture.academyId,
       amount: 1200,
       eventId: fixture.eventId,
-      inscriptionId: fixture.inscriptionId,
+      target: choreographyTarget(fixture.inscriptionId),
     });
     const before = await readAllocationIdentities(fixture.inscriptionId);
 
@@ -178,13 +179,13 @@ describe.sequential("the pool funding rule and its inverse", () => {
       academyId: fixture.academyId,
       amount: 1800,
       eventId: fixture.eventId,
-      inscriptionId: fixture.inscriptionId,
+      target: choreographyTarget(fixture.inscriptionId),
     });
     await unwindToPool(db, {
       academyId: fixture.academyId,
       amount: 1800,
       eventId: fixture.eventId,
-      inscriptionId: fixture.inscriptionId,
+      target: choreographyTarget(fixture.inscriptionId),
     });
 
     expect(await readAllocationIdentities(fixture.inscriptionId)).toEqual(
@@ -199,13 +200,13 @@ describe.sequential("the pool funding rule and its inverse", () => {
       academyId: fixture.academyId,
       amount: 3000,
       eventId: fixture.eventId,
-      inscriptionId: fixture.inscriptionId,
+      target: choreographyTarget(fixture.inscriptionId),
     });
     await unwindToPool(db, {
       academyId: fixture.academyId,
       amount: 3000,
       eventId: fixture.eventId,
-      inscriptionId: fixture.inscriptionId,
+      target: choreographyTarget(fixture.inscriptionId),
     });
 
     expect(await readAllocationsByPaymentNumber(fixture.inscriptionId)).toEqual(
@@ -220,7 +221,7 @@ describe.sequential("the pool funding rule and its inverse", () => {
       academyId: fixture.academyId,
       amount: 10001,
       eventId: fixture.eventId,
-      inscriptionId: fixture.inscriptionId,
+      target: choreographyTarget(fixture.inscriptionId),
     });
 
     expect(result).toMatchObject({ ok: false });
@@ -236,7 +237,7 @@ describe.sequential("the pool funding rule and its inverse", () => {
       academyId: fixture.academyId,
       amount: 3001,
       eventId: fixture.eventId,
-      inscriptionId: fixture.inscriptionId,
+      target: choreographyTarget(fixture.inscriptionId),
     });
 
     expect(result).toMatchObject({ ok: false });
@@ -259,7 +260,7 @@ describe.sequential("the pool funding rule and its inverse", () => {
       academyId: fixture.academyId,
       amount: 12000,
       eventId: fixture.eventId,
-      inscriptionId: fixture.inscriptionId,
+      choreographyInscriptionId: fixture.inscriptionId,
       paymentId: payment.id,
     });
 
@@ -267,7 +268,7 @@ describe.sequential("the pool funding rule and its inverse", () => {
       academyId: fixture.academyId,
       amount: 1,
       eventId: fixture.eventId,
-      inscriptionId: fixture.inscriptionId,
+      target: choreographyTarget(fixture.inscriptionId),
     });
 
     expect(result).toMatchObject({ ok: false });
@@ -284,13 +285,13 @@ describe.sequential("the pool funding rule and its inverse", () => {
       academyId: fixture.academyId,
       amount: 1000,
       eventId: fixture.eventId,
-      inscriptionId: fixture.inscriptionId,
+      target: choreographyTarget(fixture.inscriptionId),
     });
     const result = await unwindToPool(db, {
       academyId: fixture.academyId,
       amount: 1001,
       eventId: fixture.eventId,
-      inscriptionId: fixture.inscriptionId,
+      target: choreographyTarget(fixture.inscriptionId),
     });
 
     expect(result).toMatchObject({ ok: false });

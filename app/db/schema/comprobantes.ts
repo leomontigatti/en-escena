@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  check,
   foreignKey,
   index,
   integer,
@@ -12,7 +13,7 @@ import {
 
 import { choreographies, choreographyDancers } from "./choreographies";
 import { createTable } from "./core";
-import { events } from "./events";
+import { events, seminarInscriptions } from "./events";
 
 // The issuer's VAT condition, frozen in the snapshot. The issuer is
 // `Proyecciones Artísticas Asociación Civil` (CUIT 30717611590), EXEMPT from VAT
@@ -142,7 +143,13 @@ export const comprobanteInscriptions = createTable(
       .notNull()
       .$defaultFn(() => crypto.randomUUID()),
     comprobanteId: varchar("comprobante_id", { length: 255 }).notNull(),
-    inscriptionId: varchar("inscription_id", { length: 255 }),
+    // The billed inscription, of either kind: at most one of the two is set. A
+    // line with both null is a line whose inscription was deleted after
+    // emission, which is the shape the frozen amount survives in.
+    choreographyInscriptionId: varchar("choreography_inscription_id", {
+      length: 255,
+    }),
+    seminarInscriptionId: varchar("seminar_inscription_id", { length: 255 }),
     amount: integer("amount").notNull(),
   },
   (table) => [
@@ -152,14 +159,33 @@ export const comprobanteInscriptions = createTable(
       name: "comprobante_inscription_comprobante_fk",
     }).onDelete("cascade"),
     foreignKey({
-      columns: [table.inscriptionId],
+      columns: [table.choreographyInscriptionId],
       foreignColumns: [choreographyDancers.id],
-      name: "comprobante_inscription_inscription_fk",
+      name: "comprobante_inscription_choreography_fk",
     }).onDelete("set null"),
-    uniqueIndex("comprobante_inscription_unique").on(
-      table.comprobanteId,
-      table.inscriptionId,
+    foreignKey({
+      columns: [table.seminarInscriptionId],
+      foreignColumns: [seminarInscriptions.id],
+      name: "comprobante_inscription_seminar_fk",
+    }).onDelete("set null"),
+    // One partial unique index per kind, not a single unique over both columns:
+    // orphaned lines carry null in both, and two of them on the same
+    // comprobante must not collide. Postgres treating NULLs as distinct is what
+    // the choreography index relied on before; keeping each index partial keeps
+    // that true now that a line has two nullable target columns.
+    uniqueIndex("comprobante_inscription_choreography_unique")
+      .on(table.comprobanteId, table.choreographyInscriptionId)
+      .where(sql`${table.choreographyInscriptionId} is not null`),
+    uniqueIndex("comprobante_inscription_seminar_unique")
+      .on(table.comprobanteId, table.seminarInscriptionId)
+      .where(sql`${table.seminarInscriptionId} is not null`),
+    check(
+      "comprobante_inscription_at_most_one_target",
+      sql`num_nonnulls(${table.choreographyInscriptionId}, ${table.seminarInscriptionId}) <= 1`,
     ),
-    index("comprobante_inscription_inscription_idx").on(table.inscriptionId),
+    index("comprobante_inscription_choreography_idx").on(
+      table.choreographyInscriptionId,
+    ),
+    index("comprobante_inscription_seminar_idx").on(table.seminarInscriptionId),
   ],
 ).enableRLS();

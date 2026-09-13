@@ -150,7 +150,7 @@ async function seedAllocation(input: {
     academyId: input.academyId,
     amount: input.amount,
     eventId: input.eventId,
-    inscriptionId: input.inscriptionId,
+    choreographyInscriptionId: input.inscriptionId,
     paymentId: payment.id,
   });
 }
@@ -177,7 +177,9 @@ async function recordVigenteFactura(input: {
     receptorIvaConditionId: 5,
     cae: "74123456789012",
     caeVto: "20260801",
-    lines: [{ inscriptionId: input.inscriptionId, amount: input.amount }],
+    lines: [
+      { choreographyInscriptionId: input.inscriptionId, amount: input.amount },
+    ],
   });
 }
 
@@ -207,7 +209,9 @@ async function recordNotaCredito(input: {
     cae: "74123456789013",
     caeVto: "20260801",
     associatedComprobanteId: input.associatedComprobanteId,
-    lines: [{ inscriptionId: input.inscriptionId, amount: input.amount }],
+    lines: [
+      { choreographyInscriptionId: input.inscriptionId, amount: input.amount },
+    ],
   });
 }
 
@@ -438,7 +442,7 @@ describe.sequential("financial detail — comprobante emission axis", () => {
     // aggregate (3000) exceeds the collected one (1000).
     await db
       .delete(paymentAllocations)
-      .where(eq(paymentAllocations.inscriptionId, inscriptionA.id));
+      .where(eq(paymentAllocations.choreographyInscriptionId, inscriptionA.id));
 
     const loaderData = await loadDetail({
       academyId: academy.academy.id,

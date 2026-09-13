@@ -12,7 +12,7 @@ type ComprobanteRow = typeof comprobantes.$inferSelect;
 type ComprobanteInscriptionRow = typeof comprobanteInscriptions.$inferSelect;
 
 export type ComprobanteLineInput = {
-  inscriptionId: string | null;
+  choreographyInscriptionId: string | null;
   amount: number;
 };
 
@@ -81,7 +81,7 @@ export async function recordComprobante(
       await tx.insert(comprobanteInscriptions).values(
         input.lines.map((line) => ({
           comprobanteId: comprobante.id,
-          inscriptionId: line.inscriptionId,
+          choreographyInscriptionId: line.choreographyInscriptionId,
           amount: line.amount,
         })),
       );

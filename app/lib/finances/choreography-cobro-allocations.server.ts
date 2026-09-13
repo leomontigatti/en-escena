@@ -3,17 +3,22 @@ import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { paymentAllocations } from "@/db/schema";
 
+import {
+  allocationTargetColumns,
+  allocationTargetCondition,
+  type AllocationTarget,
+} from "./allocation-target.server";
 import type { Transaction } from "./choreography-cobro-support.server";
 
 type Executor = Transaction | typeof db;
 
 /**
- * Moves money against an inscription: adds `delta` to the `(payment,
- * inscription)` row, creating it if it does not exist and deleting it when the
- * decrement leaves it at zero or less. Uniqueness is settled by the database
- * (unique index), not by a prior read, so two concurrent writes cannot
- * duplicate the row. The positive-amount `CHECK` acts as a net: no row survives
- * at zero.
+ * Moves money against an inscription of either kind: adds `delta` to the
+ * `(payment, target)` row, creating it if it does not exist and deleting it when
+ * the decrement leaves it at zero or less. Uniqueness is settled by the database
+ * (the `NULLS NOT DISTINCT` unique constraint over the payment and both target
+ * columns), not by a prior read, so two concurrent writes cannot duplicate the
+ * row. The positive-amount `CHECK` acts as a net: no row survives at zero.
  */
 export async function applyAllocationDelta(
   tx: Executor,
@@ -21,8 +26,8 @@ export async function applyAllocationDelta(
     academyId: string;
     delta: number;
     eventId: string;
-    inscriptionId: string;
     paymentId: string;
+    target: AllocationTarget;
   },
 ): Promise<void> {
   if (input.delta === 0) {
@@ -36,13 +41,14 @@ export async function applyAllocationDelta(
         academyId: input.academyId,
         amount: input.delta,
         eventId: input.eventId,
-        inscriptionId: input.inscriptionId,
         paymentId: input.paymentId,
+        ...allocationTargetColumns(input.target),
       })
       .onConflictDoUpdate({
         target: [
           paymentAllocations.paymentId,
-          paymentAllocations.inscriptionId,
+          paymentAllocations.choreographyInscriptionId,
+          paymentAllocations.seminarInscriptionId,
         ],
         set: {
           amount: sql`${paymentAllocations.amount} + ${input.delta}`,
@@ -56,7 +62,7 @@ export async function applyAllocationDelta(
   const existing = await tx.query.paymentAllocations.findFirst({
     where: and(
       eq(paymentAllocations.paymentId, input.paymentId),
-      eq(paymentAllocations.inscriptionId, input.inscriptionId),
+      allocationTargetCondition(input.target),
     ),
   });
 

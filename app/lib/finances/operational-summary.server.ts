@@ -211,7 +211,7 @@ async function readAcademyEventFinance(input: {
     db
       .select({
         academyId: paymentAllocations.academyId,
-        inscriptionId: paymentAllocations.inscriptionId,
+        inscriptionId: paymentAllocations.choreographyInscriptionId,
         amount: paymentAllocations.amount,
       })
       .from(paymentAllocations)
@@ -234,11 +234,17 @@ async function readAcademyEventFinance(input: {
   const allocatedByAcademy = new Map<string, number>();
 
   for (const allocation of allocationRows) {
-    allocationByInscription.set(
-      allocation.inscriptionId,
-      (allocationByInscription.get(allocation.inscriptionId) ?? 0) +
-        allocation.amount,
-    );
+    // The academy total takes every allocation of the event, whatever kind of
+    // inscription it sits on — it is one pool. The per-inscription map is the
+    // choreography rollup, so a seminar allocation contributes to the first and
+    // is skipped by the second.
+    if (allocation.inscriptionId !== null) {
+      allocationByInscription.set(
+        allocation.inscriptionId,
+        (allocationByInscription.get(allocation.inscriptionId) ?? 0) +
+          allocation.amount,
+      );
+    }
     allocatedByAcademy.set(
       allocation.academyId,
       (allocatedByAcademy.get(allocation.academyId) ?? 0) + allocation.amount,

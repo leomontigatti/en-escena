@@ -183,7 +183,7 @@ async function readAllocations(inscriptionId: string) {
       paymentId: paymentAllocations.paymentId,
     })
     .from(paymentAllocations)
-    .where(eq(paymentAllocations.inscriptionId, inscriptionId));
+    .where(eq(paymentAllocations.choreographyInscriptionId, inscriptionId));
 }
 
 describe.sequential("money on an inscription through the route action", () => {

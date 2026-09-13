@@ -51,7 +51,13 @@ import { paymentAllocations, payments } from "@/db/schema";
 import { deriveInscriptionFinancialFigures } from "@/lib/finances/inscription-financial-status";
 import { resolvePaymentAvailableAmount } from "@/lib/finances/payment-available-amount.server";
 import { readInscriptionThresholds } from "@/lib/finances/inscription-thresholds.server";
+import type { InscriptionThresholds } from "@/lib/finances/inscription-financial-status";
 
+import {
+  allocationTargetCondition,
+  type AllocationTarget,
+  type AllocationTargetKind,
+} from "./allocation-target.server";
 import { applyAllocationDelta } from "./choreography-cobro-allocations.server";
 import type {
   CobroResult,
@@ -67,7 +73,33 @@ export type PoolMovement = {
   academyId: string;
   amount: number;
   eventId: string;
-  inscriptionId: string;
+  target: AllocationTarget;
+};
+
+/**
+ * How a kind of inscription answers "what does this row owe?". The two halves
+ * of the invariant stay single functions, and the only thing that varies with
+ * the target's kind is this read — chosen inside the module, so no caller has
+ * to know which reader belongs to which kind.
+ */
+type ThresholdReader = (
+  executor: Executor,
+  input: { academyId: string; eventId: string; inscriptionIds: string[] },
+) => Promise<Map<string, InscriptionThresholds>>;
+
+const thresholdReaders: Record<AllocationTargetKind, ThresholdReader> = {
+  choreography: readInscriptionThresholds,
+  // The seat the seminar reader takes (PRD #906, slice 2). Seminar price
+  // resolution does not exist yet, so every seminar inscription comes back with
+  // no thresholds — which the guard below already has an answer for, and it is
+  // the true one: nothing can be allocated to a row whose price is unknown.
+  seminar: async (_executor, input) =>
+    new Map(
+      input.inscriptionIds.map((inscriptionId) => [
+        inscriptionId,
+        { depositAmount: null, totalAmount: null },
+      ]),
+    ),
 };
 
 /**
@@ -134,8 +166,8 @@ export async function spreadFromPool(
       academyId: input.academyId,
       delta,
       eventId: input.eventId,
-      inscriptionId: input.inscriptionId,
       paymentId: entry.paymentId,
+      target: input.target,
     });
 
     remaining -= delta;
@@ -160,7 +192,7 @@ export async function unwindToPool(
     return { ok: false, message: "El monto a quitar tiene que ser mayor a 0." };
   }
 
-  const allocations = await readInscriptionAllocations(tx, input.inscriptionId);
+  const allocations = await readInscriptionAllocations(tx, input.target);
   const allocatedAmount = allocations.reduce(
     (sum, allocation) => sum + allocation.amount,
     0,
@@ -186,8 +218,8 @@ export async function unwindToPool(
       academyId: input.academyId,
       delta: -delta,
       eventId: input.eventId,
-      inscriptionId: input.inscriptionId,
       paymentId: allocation.paymentId,
+      target: input.target,
     });
 
     remaining -= delta;
@@ -203,9 +235,9 @@ export async function unwindToPool(
  */
 export async function readInscriptionAllocatedAmount(
   tx: Executor,
-  inscriptionId: string,
+  target: AllocationTarget,
 ): Promise<number> {
-  const allocations = await readInscriptionAllocations(tx, inscriptionId);
+  const allocations = await readInscriptionAllocations(tx, target);
 
   return allocations.reduce((sum, allocation) => sum + allocation.amount, 0);
 }
@@ -214,6 +246,10 @@ export async function readInscriptionAllocatedAmount(
  * The academy's `Saldo disponible` for an event: what is left free across its
  * payments. The presets read it before writing anything, so a shortfall is
  * refused whole instead of halfway through a choreography.
+ *
+ * It is **target-agnostic** on purpose: an allocation row carries `academyId`
+ * and `eventId` whichever kind of inscription it points at, so the pool one
+ * academy draws on is one pool and not one per kind.
  */
 export async function readAcademyAvailableBalance(
   tx: Executor,
@@ -234,22 +270,19 @@ async function assertNoActiveOverAllocation(
   tx: Executor,
   input: PoolMovement,
 ): Promise<CobroResult> {
-  const thresholds = await readInscriptionThresholds(tx, {
+  const thresholds = await thresholdReaders[input.target.kind](tx, {
     academyId: input.academyId,
     eventId: input.eventId,
-    inscriptionIds: [input.inscriptionId],
+    inscriptionIds: [input.target.id],
   });
-  const inscriptionThresholds = thresholds.get(input.inscriptionId);
+  const inscriptionThresholds = thresholds.get(input.target.id);
 
   if (!inscriptionThresholds) {
     return { ok: false, message: "No encontramos esa inscripción." };
   }
 
   const figures = deriveInscriptionFinancialFigures({
-    allocatedAmount: await readInscriptionAllocatedAmount(
-      tx,
-      input.inscriptionId,
-    ),
+    allocatedAmount: await readInscriptionAllocatedAmount(tx, input.target),
     thresholds: inscriptionThresholds,
   });
 
@@ -330,7 +363,7 @@ async function readPoolAvailability(
  */
 async function readInscriptionAllocations(
   tx: Executor,
-  inscriptionId: string,
+  target: AllocationTarget,
 ): Promise<Array<{ amount: number; paymentId: string }>> {
   return await tx
     .select({
@@ -339,6 +372,6 @@ async function readInscriptionAllocations(
     })
     .from(paymentAllocations)
     .innerJoin(payments, eq(paymentAllocations.paymentId, payments.id))
-    .where(eq(paymentAllocations.inscriptionId, inscriptionId))
+    .where(allocationTargetCondition(target))
     .orderBy(desc(payments.paymentNumber));
 }

@@ -3,6 +3,10 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import {
+  choreographyTarget,
+  restrictedChoreographyInscriptionId,
+} from "@/lib/finances/allocation-target.server";
+import {
   choreographyDancers,
   paymentAllocations,
   payments,
@@ -133,12 +137,12 @@ async function readChoreographyStatuses(input: {
   const allocations = await db
     .select({
       amount: paymentAllocations.amount,
-      inscriptionId: paymentAllocations.inscriptionId,
+      inscriptionId: restrictedChoreographyInscriptionId,
     })
     .from(paymentAllocations)
     .where(
       inArray(
-        paymentAllocations.inscriptionId,
+        paymentAllocations.choreographyInscriptionId,
         inscriptions.map((inscription) => inscription.id),
       ),
     );
@@ -190,13 +194,13 @@ describe("readPaymentDeletionImpact", () => {
       academyId: fixture.academyId,
       amount: 3000,
       eventId: fixture.eventId,
-      inscriptionId: fixture.inscriptionIds[0],
+      target: choreographyTarget(fixture.inscriptionIds[0]),
     });
     await spreadFromPool(db, {
       academyId: fixture.academyId,
       amount: 3000,
       eventId: fixture.eventId,
-      inscriptionId: fixture.inscriptionIds[1],
+      target: choreographyTarget(fixture.inscriptionIds[1]),
     });
 
     const impact = await readPaymentDeletionImpact({
@@ -238,7 +242,7 @@ describe("readPaymentDeletionImpact", () => {
       academyId: fixture.academyId,
       amount: 1000,
       eventId: fixture.eventId,
-      inscriptionId: fixture.inscriptionIds[0],
+      target: choreographyTarget(fixture.inscriptionIds[0]),
     });
 
     const impact = await readPaymentDeletionImpact({

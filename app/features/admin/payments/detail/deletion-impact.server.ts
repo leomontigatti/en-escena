@@ -20,6 +20,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
+import { restrictedChoreographyInscriptionId } from "@/lib/finances/allocation-target.server";
 import {
   choreographies,
   choreographyDancers,
@@ -54,12 +55,12 @@ export async function readPaymentDeletionImpact(input: {
       amount: paymentAllocations.amount,
       choreographyId: choreographyDancers.choreographyId,
       choreographyName: choreographies.name,
-      inscriptionId: paymentAllocations.inscriptionId,
+      inscriptionId: restrictedChoreographyInscriptionId,
     })
     .from(paymentAllocations)
     .innerJoin(
       choreographyDancers,
-      eq(paymentAllocations.inscriptionId, choreographyDancers.id),
+      eq(paymentAllocations.choreographyInscriptionId, choreographyDancers.id),
     )
     .innerJoin(
       choreographies,
@@ -200,10 +201,12 @@ async function readAllocatedByInscription(
   const rows = await db
     .select({
       amount: paymentAllocations.amount,
-      inscriptionId: paymentAllocations.inscriptionId,
+      inscriptionId: restrictedChoreographyInscriptionId,
     })
     .from(paymentAllocations)
-    .where(inArray(paymentAllocations.inscriptionId, inscriptionIds));
+    .where(
+      inArray(paymentAllocations.choreographyInscriptionId, inscriptionIds),
+    );
 
   for (const row of rows) {
     allocatedByInscription.set(

@@ -1,6 +1,7 @@
 import { eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
+import { restrictedChoreographyInscriptionId } from "@/lib/finances/allocation-target.server";
 import {
   choreographies,
   choreographyDancers,
@@ -312,11 +313,13 @@ async function resolveBillableLines(
 
   const allocations = await db
     .select({
-      inscriptionId: paymentAllocations.inscriptionId,
+      inscriptionId: restrictedChoreographyInscriptionId,
       amount: paymentAllocations.amount,
     })
     .from(paymentAllocations)
-    .where(inArray(paymentAllocations.inscriptionId, inscriptionIds));
+    .where(
+      inArray(paymentAllocations.choreographyInscriptionId, inscriptionIds),
+    );
 
   const paidByInscription = sumByInscription(allocations);
   const existing = await listChoreographyComprobantes(choreographyId);
@@ -329,12 +332,13 @@ async function resolveBillableLines(
       continue;
     }
     for (const line of comprobante.lines) {
-      if (line.inscriptionId === null) {
+      if (line.choreographyInscriptionId === null) {
         continue;
       }
       billedByInscription.set(
-        line.inscriptionId,
-        (billedByInscription.get(line.inscriptionId) ?? 0) + line.amount,
+        line.choreographyInscriptionId,
+        (billedByInscription.get(line.choreographyInscriptionId) ?? 0) +
+          line.amount,
       );
     }
   }
@@ -344,7 +348,10 @@ async function resolveBillableLines(
     const paid = paidByInscription.get(inscriptionId) ?? 0;
     const billable = paid - (billedByInscription.get(inscriptionId) ?? 0);
     if (billable > 0) {
-      lines.push({ inscriptionId, amount: billable });
+      lines.push({
+        choreographyInscriptionId: inscriptionId,
+        amount: billable,
+      });
     }
   }
 

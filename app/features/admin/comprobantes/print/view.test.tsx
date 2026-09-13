@@ -41,13 +41,15 @@ function printRecord(
       {
         id: "line_1",
         comprobanteId: "comprobante_1",
-        inscriptionId: "insc_1",
+        choreographyInscriptionId: "insc_1",
+        seminarInscriptionId: null,
         amount: 15000,
       },
       {
         id: "line_2",
         comprobanteId: "comprobante_1",
-        inscriptionId: "insc_2",
+        choreographyInscriptionId: "insc_2",
+        seminarInscriptionId: null,
         amount: 10000,
       },
     ],

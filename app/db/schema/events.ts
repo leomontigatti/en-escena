@@ -357,6 +357,14 @@ export const seminarInscriptions = createTable(
     // inscription's `selectedPriceId` is. Nothing writes it yet; the price
     // guards read it to know which rows an inscription depends on.
     selectedPriceId: varchar("selected_price_id", { length: 255 }),
+    // When the inscription was withdrawn, which is what tells a row that keeps
+    // its money apart from one that never had any. A withdrawn row holds no
+    // place and appears on no roster; it is written by the removal chooser
+    // (PRD #906, slice 4) and read here only to tell the two apart.
+    withdrawnAt: timestamp("withdrawn_at", {
+      mode: "date",
+      withTimezone: true,
+    }),
     // The order the quota was consumed in, which is the only history the row
     // keeps: an inscription is created and deleted, never edited.
     createdAt: timestamp("created_at", {

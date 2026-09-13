@@ -168,7 +168,7 @@ async function allocatePayment(input: {
 
   await db.insert(paymentAllocations).values({
     paymentId: payment.id,
-    inscriptionId: input.inscriptionId,
+    choreographyInscriptionId: input.inscriptionId,
     academyId: input.academyId,
     eventId: input.eventId,
     amount: input.amount,
@@ -256,7 +256,7 @@ describe("emitChoreographyFacturaC", () => {
       receptorIvaConditionId: 5,
       cae: "40000000000000",
       caeVto: "20260710",
-      lines: [{ inscriptionId: inscription.id, amount: 6000 }],
+      lines: [{ choreographyInscriptionId: inscription.id, amount: 6000 }],
     });
 
     const deps = emissionDeps(fakeBilling());
@@ -305,7 +305,7 @@ describe("emitChoreographyFacturaC", () => {
       receptorIvaConditionId: 5,
       cae: "40000000000000",
       caeVto: "20260710",
-      lines: [{ inscriptionId: inscription.id, amount: 8000 }],
+      lines: [{ choreographyInscriptionId: inscription.id, amount: 8000 }],
     });
 
     const deps = emissionDeps(fakeBilling());
@@ -369,7 +369,9 @@ describe("emitChoreographyFacturaC", () => {
     const allocations = await db
       .select()
       .from(paymentAllocations)
-      .where(eq(paymentAllocations.inscriptionId, inscriptions[0].id));
+      .where(
+        eq(paymentAllocations.choreographyInscriptionId, inscriptions[0].id),
+      );
     expect(allocations).toHaveLength(1);
     expect(allocations[0].amount).toBe(5000);
   });
@@ -402,7 +404,7 @@ describe("emitChoreographyFacturaC", () => {
       receptorIvaConditionId: 5,
       cae: "40000000000000",
       caeVto: "20260710",
-      lines: [{ inscriptionId: inscription.id, amount: 7000 }],
+      lines: [{ choreographyInscriptionId: inscription.id, amount: 7000 }],
     });
     // Mirror credit note annulling the previous invoice.
     await recordComprobante({
@@ -421,7 +423,7 @@ describe("emitChoreographyFacturaC", () => {
       cae: "41000000000000",
       caeVto: "20260711",
       associatedComprobanteId: factura.id,
-      lines: [{ inscriptionId: inscription.id, amount: 7000 }],
+      lines: [{ choreographyInscriptionId: inscription.id, amount: 7000 }],
     });
 
     const deps = emissionDeps(fakeBilling());
@@ -534,7 +536,7 @@ describe("emitChoreographyFacturaC", () => {
       receptorIvaConditionId: 5,
       cae: "40000000000000",
       caeVto: "20260710",
-      lines: [{ inscriptionId: inscription.id, amount: 3000 }],
+      lines: [{ choreographyInscriptionId: inscription.id, amount: 3000 }],
     });
     // The balance payment comes in.
     await allocatePayment({
@@ -594,7 +596,7 @@ describe("emitChoreographyFacturaC", () => {
       receptorIvaConditionId: 5,
       cae: "40000000000000",
       caeVto: "20260710",
-      lines: [{ inscriptionId: inscriptionA.id, amount: 3000 }],
+      lines: [{ choreographyInscriptionId: inscriptionA.id, amount: 3000 }],
     });
     await allocatePayment({
       academyId: academy.id,
@@ -604,7 +606,7 @@ describe("emitChoreographyFacturaC", () => {
     });
     await db
       .delete(paymentAllocations)
-      .where(eq(paymentAllocations.inscriptionId, inscriptionA.id));
+      .where(eq(paymentAllocations.choreographyInscriptionId, inscriptionA.id));
 
     const deps = emissionDeps(fakeBilling());
     const outcome = await emitChoreographyFacturaC(

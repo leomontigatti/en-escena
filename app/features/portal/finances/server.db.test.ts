@@ -186,7 +186,7 @@ describe.sequential("loadPortalAcademyFinances", () => {
       academyId: owner.academyId,
       amount: 3000,
       eventId: event.id,
-      inscriptionId: signedInscription.id,
+      choreographyInscriptionId: signedInscription.id,
       paymentId: activePayment.id,
     });
     await seedImpagaInscription(impagaChoreography.id, owner.academyId);
@@ -335,7 +335,7 @@ describe.sequential("loadPortalAcademyFinances", () => {
       academyId: owner.academyId,
       amount: 3600,
       eventId: event.id,
-      inscriptionId: inscription.id,
+      choreographyInscriptionId: inscription.id,
       paymentId: payment.id,
     });
 

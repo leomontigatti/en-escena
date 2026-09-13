@@ -148,6 +148,13 @@
       "when": 1789243211725,
       "tag": "0020_add_seminar_price",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1789330000000,
+      "tag": "0021_add_seminar_allocation_target",
+      "breakpoints": true
     }
   ]
 }

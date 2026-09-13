@@ -166,7 +166,7 @@ async function allocatePayment(input: {
 
   await db.insert(paymentAllocations).values({
     paymentId: payment.id,
-    inscriptionId: input.inscriptionId,
+    choreographyInscriptionId: input.inscriptionId,
     academyId: input.academyId,
     eventId: input.eventId,
     amount: input.amount,
@@ -204,7 +204,9 @@ async function recordFactura(input: {
     receptorIvaConditionId: 5,
     cae: "40000000000000",
     caeVto: "20260710",
-    lines: [{ inscriptionId: input.inscriptionId, amount: input.amount }],
+    lines: [
+      { choreographyInscriptionId: input.inscriptionId, amount: input.amount },
+    ],
   });
 }
 
@@ -337,7 +339,7 @@ describe("annulComprobante", () => {
     const notaCredito = rows.find((row) => row.cbteTipo === 13);
     expect(notaCredito?.lines).toHaveLength(1);
     expect(notaCredito?.lines[0]).toMatchObject({
-      inscriptionId: inscription.id,
+      choreographyInscriptionId: inscription.id,
       amount: 5000,
     });
   });
@@ -433,7 +435,7 @@ describe("annulComprobante", () => {
         cae: "41124599990999",
         caeVto: "20260801",
         associatedComprobanteId: factura.id,
-        lines: [{ inscriptionId: inscription.id, amount: 3000 }],
+        lines: [{ choreographyInscriptionId: inscription.id, amount: 3000 }],
       }),
     ).rejects.toThrow();
 

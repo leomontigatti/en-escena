@@ -215,7 +215,7 @@ async function resolveNotaCreditoChoreography(
         associatedComprobanteId: target.id,
         // Replica of the annulled comprobante's internal lines, frozen.
         lines: target.lines.map((line) => ({
-          inscriptionId: line.inscriptionId,
+          choreographyInscriptionId: line.choreographyInscriptionId,
           amount: line.amount,
         })),
       }),

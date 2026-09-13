@@ -67,7 +67,7 @@ async function seedInscriptionAllocation(input: {
     academyId: input.academyId,
     amount: input.amount,
     eventId: input.eventId,
-    inscriptionId: input.inscriptionId,
+    choreographyInscriptionId: input.inscriptionId,
     paymentId: payment.id,
   });
 }
@@ -470,7 +470,7 @@ describe.sequential("`/administracion/finanzas` academy", () => {
     const allocations = await db
       .select({ amount: paymentAllocations.amount })
       .from(paymentAllocations)
-      .where(eq(paymentAllocations.inscriptionId, inscription.id));
+      .where(eq(paymentAllocations.choreographyInscriptionId, inscription.id));
 
     expect(allocations.map((allocation) => allocation.amount)).toEqual([3000]);
   });

@@ -88,7 +88,7 @@ describe("recordComprobante persistence", () => {
         choreographyId: choreography.id,
         eventId: choreography.eventId,
         impTotal: 10000,
-        lines: [{ inscriptionId: inscription.id, amount: 10000 }],
+        lines: [{ choreographyInscriptionId: inscription.id, amount: 10000 }],
       }),
     );
 
@@ -111,7 +111,7 @@ describe("recordComprobante persistence", () => {
     });
     expect(persisted.lines).toEqual([
       expect.objectContaining({
-        inscriptionId: inscription.id,
+        choreographyInscriptionId: inscription.id,
         amount: 10000,
       }),
     ]);
@@ -126,7 +126,7 @@ describe("recordComprobante persistence", () => {
       facturaCInput({
         choreographyId: choreography.id,
         eventId: choreography.eventId,
-        lines: [{ inscriptionId: inscription.id, amount: 10000 }],
+        lines: [{ choreographyInscriptionId: inscription.id, amount: 10000 }],
       }),
     );
 
@@ -144,7 +144,7 @@ describe("recordComprobante persistence", () => {
         cbteTipo: 13,
         cbteNro: 2,
         associatedComprobanteId: factura.id,
-        lines: [{ inscriptionId: inscription.id, amount: 10000 }],
+        lines: [{ choreographyInscriptionId: inscription.id, amount: 10000 }],
       }),
     );
 
@@ -176,7 +176,7 @@ describe("recordComprobante persistence", () => {
       facturaCInput({
         choreographyId: choreography.id,
         eventId: choreography.eventId,
-        lines: [{ inscriptionId: inscription.id, amount: 10000 }],
+        lines: [{ choreographyInscriptionId: inscription.id, amount: 10000 }],
       }),
     );
 
@@ -198,7 +198,7 @@ describe("recordComprobante persistence", () => {
         choreographyId: choreography.id,
         eventId: choreography.eventId,
         impTotal: 10000,
-        lines: [{ inscriptionId: inscription.id, amount: 10000 }],
+        lines: [{ choreographyInscriptionId: inscription.id, amount: 10000 }],
       }),
     );
 
@@ -215,7 +215,7 @@ describe("recordComprobante persistence", () => {
     // The link to the inscription is nulled out, but the frozen amount is
     // preserved.
     expect(survivor.lines).toHaveLength(1);
-    expect(survivor.lines[0]?.inscriptionId).toBeNull();
+    expect(survivor.lines[0]?.choreographyInscriptionId).toBeNull();
     expect(survivor.lines[0]?.amount).toBe(10000);
   });
 });

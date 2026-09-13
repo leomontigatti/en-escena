@@ -288,6 +288,13 @@ DISTINCT`, because two of them would otherwise be separated only by amount.
   database trigger on `choreography_dancer` refuses the same update. **Taking
   money off until the row falls back below its deposit is what releases the lock** —
   not taking every peso off.
+- **The seminar inscription has a trigger of its own, not a shared one.** It is
+  the same rule re-keyed: it skips when the stored row does not move or is
+  absent, opens when nothing is allocated, and otherwise derives the deposit from
+  the stored `seminar_price` joined to the **seminar's** own
+  `requiredDepositPercentage`, never the event's, summing allocations by the
+  seminar target. A single function branching on the table would have to name
+  both tables in every branch; two functions each name one.
 - **`crossed` is always tested against the stored row**, never against the
   incoming or the currently applicable one. The threshold is derived _from_ the
   price, so the answer would otherwise depend on which price is asked about: 1000
@@ -465,13 +472,22 @@ An `Asignación de pago` is **an amount against an inscription** — the triple
 `(payment, inscription, amount)` — and mutable, deletable current state rather
 than an append-only ledger.
 
-- Stored fields, besides its own `id`: `paymentId`, `inscriptionId`, `academyId`,
-  `eventId`, `amount`, `createdAt`, `updatedAt`. **The row carries no type and no
-  role**: money is fungible, so an allocation is an amount and nothing else.
-  There is no
+- Stored fields, besides its own `id`: `paymentId`, the target pair
+  `choreographyInscriptionId` / `seminarInscriptionId`, `academyId`, `eventId`,
+  `amount`, `createdAt`, `updatedAt`. **The row carries no type and no role**:
+  money is fungible, so an allocation is an amount and nothing else. There is no
   `allocation_type` and no deletion rank.
-- **Unique on `(paymentId, inscriptionId)`.** At most one row per pair; a
-  positive delta is an upsert that sums.
+- **The target is either kind of inscription.** The two columns are nullable and
+  a CHECK requires **exactly one** of them set: a single column could not carry a
+  foreign key to two tables, and the pair with its CHECK says the same thing the
+  database can enforce. A supertype table and a parallel seminar allocation table
+  were both rejected — the only thing that varies per kind is how thresholds
+  resolve, and that is one seam inside the pool module.
+- **Unique on `(paymentId, choreographyInscriptionId, seminarInscriptionId)`,
+  created `NULLS NOT DISTINCT`.** At most one row per (payment, target); a
+  positive delta is an upsert that sums, and the clause is what keeps that upsert
+  to a single conflict target — without it Postgres would read the null half of
+  every target as distinct and each allocation would insert a second row.
 - **`amount > 0` by CHECK.** A decrement to zero **deletes the row**: a zero row
   would assert a history this table does not hold. Negatives are ruled out
   because `Σ allocations` would then be reachable by two different row sets.
@@ -480,20 +496,15 @@ than an append-only ledger.
 - One inscription's money can come from several payments, and one payment can
   fund several inscriptions.
 
-> **Specified, not built.** The allocation points at **either kind** of
-> inscription
-> ([Allocation and comprobante line as a two-kind target](https://github.com/leomontigatti/en-escena/issues/886)):
-> `inscriptionId` is **renamed** `choreographyInscriptionId` and a nullable
-> `seminarInscriptionId` joins it, both cascading, with a CHECK that exactly one
-> is set and one unique index on `(paymentId, choreographyInscriptionId,
-seminarInscriptionId)` created `NULLS NOT DISTINCT`, so the summing upsert
-> keeps a single conflict target. The `comprobante_inscription` line takes the
-> same pair with `set null` on both, a CHECK of at most one set (an orphaned line
-> keeps both null) and two partial unique indexes, one per kind. A supertype
-> table and a parallel seminar allocation table were both rejected: the only
-> thing that varies per kind is how thresholds resolve, and that is one seam
-> inside the pool module. Owner: the PRD
-> [#906](https://github.com/leomontigatti/en-escena/issues/906).
+The `comprobante_inscription` line carries the same pair, with two differences
+that follow from what a line is. Both targets are `set null` rather than
+cascading, and the CHECK allows **at most one** rather than exactly one: a line
+whose inscription was deleted after emission keeps its frozen amount with both
+columns null, which is the shape the fiscal figure survives in. Uniqueness is
+then **two partial indexes, one per kind**, each over `(comprobante, its own
+target)` and restricted to rows where that target is set — a single unique over
+both columns would have to treat nulls as equal to say anything at all, and two
+orphaned lines of one comprobante would collide.
 
 ## The pool rules
 
@@ -524,16 +535,19 @@ they live in one module.
   — there is no way to know what it owes. **Passive** over-allocation already
   recorded is tolerated: it stays where it sits, stays readable, and only an
   administrator moves it.
+- **The target.** Funding, unfunding and the delta they share take a **target**
+  `{ kind: "choreography" | "seminar", id }` rather than an inscription id, and
+  they stay single functions. The one per-kind piece is the threshold read behind
+  the over-allocation guard, chosen inside the module from the target's kind.
+  `Saldo disponible` is target-agnostic: an allocation row carries its academy
+  and its event whichever kind of inscription it points at, so an academy draws
+  on **one** pool and not one per kind.
 - **Accepted cost, stated plainly**: a specific payment can no longer be lifted
   off a specific inscription. The remedy for a payment recorded in error is
   deleting the payment, which cascades its allocations.
 
-> **Specified, not built.** The pool module stays single and takes a **target**
-> `{ kind: "choreography" | "seminar", id }` in place of an inscription id; the
-> one per-kind piece is the threshold read behind the over-allocation guard,
-> chosen inside the module from the target's kind
-> ([#886](https://github.com/leomontigatti/en-escena/issues/886)). For a seminar
-> target the write also enforces the **quota**
+> **Specified, not built.** For a seminar target the write also enforces the
+> **quota**
 > ([Quota at the crossing](https://github.com/leomontigatti/en-escena/issues/888)):
 > it locks the seminar row `FOR UPDATE` first, crossing or not, counts the
 > covered non-withdrawn inscriptions of the seminar excluding the one being
@@ -792,10 +806,8 @@ over-allocation guard measures against a `Total` the read side does not show.
 > De-allocating a withdrawn row to zero does not delete it. Reads filter
 > withdrawn seminar rows behind an `activeSeminarInscription()` twin of the
 > predicate above, with its own raw-SQL twin and no generic predicate over two
-> tables ([#886](https://github.com/leomontigatti/en-escena/issues/886)); the
-> price-lock trigger gets a **separate** function on `seminar_inscription`, of
-> the same shape, deriving the stored deposit from `seminar_price` joined to the
-> seminar's own rate. Owner: the PRD
+> tables ([#886](https://github.com/leomontigatti/en-escena/issues/886)).
+> Owner: the PRD
 > [#906](https://github.com/leomontigatti/en-escena/issues/906).
 
 > **Specified, not built.**

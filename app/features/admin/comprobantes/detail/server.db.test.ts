@@ -120,7 +120,7 @@ async function seedComprobante(input: {
     academyId: academy.academy.id,
     amount: 7000,
     eventId: event.id,
-    inscriptionId: inscription.id,
+    choreographyInscriptionId: inscription.id,
     paymentId: payment.id,
   });
 
@@ -142,7 +142,7 @@ async function seedComprobante(input: {
     receptorIvaConditionId: 5,
     cae: "74123456789012",
     caeVto: "20260801",
-    lines: [{ inscriptionId: inscription.id, amount: 7000 }],
+    lines: [{ choreographyInscriptionId: inscription.id, amount: 7000 }],
   });
 
   return {

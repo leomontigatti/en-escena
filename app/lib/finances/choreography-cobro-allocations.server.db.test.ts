@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
+import { choreographyTarget } from "@/lib/finances/allocation-target.server";
 import { choreographyDancers, paymentAllocations, payments } from "@/db/schema";
 import { createDancer } from "@/features/portal/choreographies/test-support/db";
 import { applyAllocationDelta } from "@/lib/finances/choreography-cobro-allocations.server";
@@ -52,12 +53,13 @@ async function seedAllocationFixture() {
     eventId: event.id,
     inscriptionId: inscription.id,
     paymentId: payment.id,
+    target: choreographyTarget(inscription.id),
   };
 }
 
 async function readAllocations(inscriptionId: string) {
   return await db.query.paymentAllocations.findMany({
-    where: eq(paymentAllocations.inscriptionId, inscriptionId),
+    where: eq(paymentAllocations.choreographyInscriptionId, inscriptionId),
   });
 }
 
