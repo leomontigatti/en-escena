@@ -37,8 +37,35 @@ export async function hasCoveredSeminarInscription(
   seminarId: string,
   executor: SeminarInscriptionExecutor = db,
 ): Promise<boolean> {
+  return (
+    (await listCoveredSeminarInscriptionIds(seminarId, executor)).length > 0
+  );
+}
+
+/**
+ * How many places of the seminar are already taken. `exceptInscriptionId` is
+ * what the allocation guard names the row it is about to fund: a row that is
+ * already covered must not count against its own crossing, and a row that is not
+ * cannot be double-counted by the write that crosses it.
+ */
+export async function countCoveredSeminarInscriptions(
+  seminarId: string,
+  executor: SeminarInscriptionExecutor = db,
+  options: { exceptInscriptionId?: string } = {},
+): Promise<number> {
+  const ids = await listCoveredSeminarInscriptionIds(seminarId, executor);
+
+  return ids.filter((id) => id !== options.exceptInscriptionId).length;
+}
+
+/** The covered rows themselves, which both readings above are counted off. */
+async function listCoveredSeminarInscriptionIds(
+  seminarId: string,
+  executor: SeminarInscriptionExecutor,
+): Promise<string[]> {
   const rows = await executor
     .select({
+      id: seminarInscriptions.id,
       allocatedAmount: sql<number>`coalesce((
         select sum(${paymentAllocations.amount})
         from ${paymentAllocations}
@@ -62,14 +89,16 @@ export async function hasCoveredSeminarInscription(
       ),
     );
 
-  return rows.some((row) =>
-    isSeminarInscriptionCovered({
-      allocatedAmount: Number(row.allocatedAmount),
-      storedDepositAmount: deriveSeminarInscriptionThresholds({
-        priceAmount: row.storedPriceAmount,
-        requiredDepositPercentage: row.requiredDepositPercentage,
-      }).depositAmount,
-      withdrawn: false,
-    }),
-  );
+  return rows
+    .filter((row) =>
+      isSeminarInscriptionCovered({
+        allocatedAmount: Number(row.allocatedAmount),
+        storedDepositAmount: deriveSeminarInscriptionThresholds({
+          priceAmount: row.storedPriceAmount,
+          requiredDepositPercentage: row.requiredDepositPercentage,
+        }).depositAmount,
+        withdrawn: false,
+      }),
+    )
+    .map((row) => row.id);
 }

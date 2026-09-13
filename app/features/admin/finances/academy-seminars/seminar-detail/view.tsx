@@ -1,4 +1,4 @@
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Info } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 
 import {
@@ -93,13 +93,20 @@ export function SeminarFinanceDetailView({
   );
 }
 
+/**
+ * The full seminar is stated and **never blocks**: the refusal it announces
+ * belongs to one write — the allocation that would cover a deposit — so partial
+ * allocations and everything else on this screen go through unchanged
+ * (docs/domain/seminars.md, "The place").
+ */
 function SeminarAlerts({ loaderData }: SeminarFinanceDetailViewProps) {
   const missingPrice =
     loaderData.seminar?.depositAmount.status === "incomplete";
   const overAllocated =
     loaderData.seminar?.anomalies.includes("overAllocated") ?? false;
+  const isFull = loaderData.seminar?.availablePlaces === 0;
 
-  if (!missingPrice && !overAllocated) {
+  if (!missingPrice && !overAllocated && !isFull) {
     return null;
   }
 
@@ -111,6 +118,17 @@ function SeminarAlerts({ loaderData }: SeminarFinanceDetailViewProps) {
           <AlertDescription>
             Hay inscripciones con más dinero asignado que su total. Podés
             corregirlo desde la lista de inscripciones.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+      {isFull ? (
+        <Alert>
+          <Info aria-hidden="true" />
+          <AlertDescription>
+            El seminario no tiene lugares disponibles: las inscripciones con la
+            seña cubierta ya ocupan el cupo. Podés asignar dinero igual, pero
+            una asignación que cubra la seña de otra inscripción se rechaza
+            hasta que se libere un lugar.
           </AlertDescription>
         </Alert>
       ) : null}

@@ -40,7 +40,7 @@ export function SeminarActions({
         // The inscriptions are what the seminar owes: while any of them stands,
         // the dialog only explains itself and offers no destructive button.
         // Administration removes them from `Inscriptos` first.
-        isBlocked={seminar.inscriptionCount > 0}
+        isBlocked={seminar.registeredCount > 0}
         blockedDescription={seminarHasInscriptionsMessage}
         intentValue={deleteSeminarIntent}
         recordId={seminar.id}

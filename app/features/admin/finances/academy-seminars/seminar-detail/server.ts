@@ -26,6 +26,7 @@ import {
   type SeminarInscriptionPriceOption,
 } from "@/lib/finances/seminar-inscription-allocation.server";
 import { readSeminarInscriptionFinanceRows } from "@/lib/finances/seminar-inscriptions.server";
+import { getSeminar } from "@/lib/seminars/repository.server";
 
 import {
   seminarFinanceDetailUrl,
@@ -83,9 +84,10 @@ export async function loadSeminarFinanceDetail(input: {
     throw new Response(seminarNotFoundMessage, { status: 404 });
   }
 
-  const [inscriptions, priceOptions] = await Promise.all([
+  const [inscriptions, priceOptions, seminarRow] = await Promise.all([
     readSeminarInscriptionFinanceRows({ academyId, eventId, seminarId }),
     readSeminarInscriptionPriceOptions({ eventId, seminarId }),
+    getSeminar(seminarId),
   ]);
 
   return {
@@ -106,6 +108,10 @@ export async function loadSeminarFinanceDetail(input: {
     seminar: {
       allocatedAmount: seminarFinanceRow.allocatedAmount,
       anomalies: seminarFinanceRow.anomalies,
+      // The quota minus the **covered** inscriptions, whichever academy holds
+      // them: a place is taken by covering a deposit, so this is what says
+      // whether the next crossing here can go through at all.
+      availablePlaces: seminarRow?.availablePlaces ?? 0,
       depositAmount: seminarFinanceRow.depositAmount,
       financialStatus: seminarFinanceRow.financialStatus,
       id: seminarFinanceRow.id,

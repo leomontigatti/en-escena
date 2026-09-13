@@ -34,9 +34,11 @@ what runs today.
   `Cronograma`'s are. "The seminar has started" is one rule, computed by
   combining both in the business time zone; no reader recombines them by hand.
   There is no end time.
-- The quota is required, at least 1, with no upper bound. It is a **hard cap,
-  first come first served**: there is no waitlist and no override. When a
-  seminar is full, administration raises the quota; nobody registers past it.
+- The quota is required, at least 1, with no upper bound. It is a **hard cap on
+  the places, and a place is taken by covering the deposit** (see "The place"):
+  registration is unlimited, there is no waitlist and no override, and when the
+  covered inscriptions fill the quota administration raises it or a place frees
+  up. It can never be lowered below the covered count.
 - It carries a **`seminarKind`** (`Tipo de seminario`), an enum with the values
   `regular` (`Común`) and `special` (`Exclusivo`), not null, `Común` by default.
   It picks which `seminarPrice` rows price the seminar (see "Prices"). It is an
@@ -111,7 +113,8 @@ rule fits; every difference is named.
   refuses all the same, for the race.
 - **Readiness.** A seminar's registration is closed while the event lacks a
   deadline-less `regular` row for **either** participant cell, beside the
-  "started" closure and the full one. `Exclusivo` rows are optional because of
+  "started" closure — those two are the only ones; a full seminar closes
+  nothing. `Exclusivo` rows are optional because of
   the fallback. Event registration readiness keeps ignoring seminars and their
   prices: a seminar is not part of the `Bases del evento`.
 - **Where the list lives**: a `Seminarios` tab of the `Precios` section,
@@ -182,11 +185,14 @@ How a seminar inscription is priced from those rows:
   seminar has started, from the seminar's detail. This is the release valve for
   the refusal to delete a seminar that has inscriptions. There is no reason
   field, no origin flag and no audit trail.
-- The quota is enforced under a lock on the seminar row: two academies taking
-  the last place at once are refused one at a time, with the same feedback as a
-  plain refusal.
-- The inscription dates itself by its own `createdAt`, the order the quota was
-  consumed in and the seminar counterpart of `Fecha de inscripción`.
+- **Registration is unlimited.** The insert counts nothing against the quota and
+  there is no `full` refusal: an academy registers past the quota, and an
+  uncovered inscription is intent rather than a place. The registration path
+  still locks the seminar row, because the start time and the eligibility are
+  read off it, and the only refusals it raises are "started" and an ineligible
+  person, plus the missing-price closure above.
+- The inscription dates itself by its own `createdAt`, the seminar counterpart of
+  `Fecha de inscripción`.
 
 > **Specified, not built.** A seminar inscription becomes an **`inscription`**
 > in the finance sense — the second kind of allocation target, beside the
@@ -195,10 +201,6 @@ How a seminar inscription is priced from those rows:
 > ([Quota at the crossing](https://github.com/leomontigatti/en-escena/issues/888),
 > [Seminar inscription removal](https://github.com/leomontigatti/en-escena/issues/889)):
 >
-> - **Registration is unlimited.** The insert no longer counts against the
->   quota and there is no `full` refusal: an academy registers past the quota,
->   and an uncovered inscription is intent, not a place. The one closed reason
->   on registration is "started", plus the missing-price closure above.
 > - **The row gains `selectedPriceId` and `withdrawnAt`**, the same two
 >   fields a choreography inscription carries and nothing else financial. It
 >   gains no `academyId`: the academy keeps being read through the person.
@@ -223,45 +225,57 @@ How a seminar inscription is priced from those rows:
 
 ## The place
 
-> **Specified, not built.** Decided on
-> [Quota at the crossing](https://github.com/leomontigatti/en-escena/issues/888).
->
-> - **Only a deposit-covered inscription holds a place.** "Covered" is
->   `Σ allocations ≥ deposit of the stored row` with `Σ > 0`, on a
->   non-withdrawn row: the same predicate that fixes the price. One threshold,
->   both directions, nothing persisted — covering the deposit fixes the row and
->   takes the place, de-allocating below it releases both.
-> - **The quota is enforced on the allocation write.** Every allocation write
->   whose target is a seminar inscription locks the seminar row first, counts
->   the covered non-withdrawn inscriptions excluding the one being funded, and
->   **refuses only the write that would cross** when that count already equals
->   the quota. A partial allocation that stays below the deposit goes through
->   even when the seminar is full. Two crossings for the last place serialise
->   on the lock. Refusals are ordered: no price, then over-allocation, then
->   quota, then insufficient pool.
-> - **Money after the start stays allowed**, and a crossing after the start
->   takes a place or is refused like any other. Registration closes at the
->   start; money does not.
-> - **The only way a covered row loses its place is money leaving it**: taking
->   money off, or a payment deletion cascading its allocations. Deleting a
->   payment never blocks; its impact warning names each seminar row that would
->   drop below its deposit as losing its place. Afterwards the row reads
->   `Seña pendiente` like any uncovered row, with no memory of the place.
-> - **Counts.** `availablePlaces = quota − coveredCount`; `registeredCount`
->   (all non-withdrawn rows) is a separate figure. Withdrawn rows are in
->   neither. `coveredCount ≤ quota` always holds.
-> - **When covered rows fill the quota**, the portal seminar detail and the two
->   `(seminar, academy)` financial details carry a non-blocking notice: new
->   inscriptions are accepted, but a new inscription's deposit cannot be covered
->   until a place frees up. There is no per-row "no place" state: `Señada`
->   already means "holds a place" and `Seña pendiente` already means "does not".
-> - **The band, kept.** The badge reads against the effective row and the
->   place against the stored one, exactly as the choreography badge and lock
->   do, so a row can read `Señada` without holding a place when a price is
->   lowered under money already on it. `finances.md` names it beside the
->   choreography band.
-> - No bulk gesture over seminar inscriptions: the per-inscription dialog is
->   the only money gesture for seminar money.
+**Only a deposit-covered inscription holds a place.** "Covered" is
+`Σ allocations ≥ deposit of the stored row` with `Σ > 0`, on a non-withdrawn row:
+the same predicate that fixes the price. One threshold, both directions, nothing
+persisted — covering the deposit fixes the row and takes the place,
+de-allocating below it releases both.
+
+- **The quota is enforced on the allocation write.** Every money gesture whose
+  target is a seminar inscription locks the seminar row first; the funding write
+  counts the covered non-withdrawn inscriptions excluding the one being funded
+  and **refuses only the write that would cross** when that count already equals
+  the quota, with
+  `No quedan lugares en el seminario, así que esta inscripción no puede cubrir su seña.`
+  A partial allocation that stays below the deposit goes through even when the
+  seminar is full. Two crossings for the last place serialise on the lock.
+  Refusals are ordered: no price, then over-allocation, then quota, then
+  insufficient pool.
+- **Money after the start stays allowed**, and a crossing after the start takes a
+  place or is refused like any other. Registration closes at the start; money
+  does not.
+- **Lowering the quota is refused against the covered count**, under the same
+  lock and naming the floor; an uncovered inscription holds no place, so it does
+  not hold the floor up either. Raising the quota is free.
+- **The only way a covered row loses its place is money leaving it**: taking
+  money off, or a payment deletion cascading its allocations. Deleting a payment
+  never blocks; its impact list names each seminar, by its instructor, with the
+  money leaving it and how many of its inscriptions drop below their deposit and
+  lose their place. `Quitar dinero` stays silent about the place. Afterwards the
+  row reads `Seña pendiente` like any uncovered row, with no memory of the place.
+- **Counts.** `availablePlaces = quota − coveredCount`, which is the `Cupo`
+  suffix on the admin list and the figure the detail reads; `registeredCount`
+  (all non-withdrawn rows) is a separate figure. Withdrawn rows are in neither.
+  `coveredCount ≤ quota` always holds.
+- **When covered rows fill the quota**, the admin `(seminar, academy)` financial
+  detail carries a non-blocking notice: new inscriptions are accepted, but a new
+  inscription's deposit cannot be covered until a place frees up. There is no
+  per-row "no place" state: `Señada` already means "holds a place" and
+  `Seña pendiente` already means "does not".
+- **The band, kept.** The badge reads against the effective row and the place
+  against the stored one, exactly as the choreography badge and lock do, so a row
+  can read `Señada` without holding a place when a price is lowered under money
+  already on it. `finances.md` names it beside the choreography band.
+- No bulk gesture over seminar inscriptions: the per-inscription dialog is the
+  only money gesture for seminar money.
+
+> **Specified, not built.** The same notice is repeated by the two surfaces that
+> do not exist yet: the portal seminar detail
+> ([#891](https://github.com/leomontigatti/en-escena/issues/891)) and the portal
+> `(seminar, academy)` financial detail, whose copy is
+> `podés inscribir igual, pero la seña de una nueva inscripción no se cubre hasta que se libere un lugar`.
+> Owner: the PRD
+> [#906](https://github.com/leomontigatti/en-escena/issues/906).
 
 ## What a seminar does not do
 
@@ -286,12 +300,15 @@ How a seminar inscription is priced from those rows:
 - **Portal**: a card gallery of the active event's seminars, one card per
   seminar with the instructor's picture, name, date and time, the academy's own
   inscriptions as chips, and a footer that holds either `Inscribir` or the
-  one-sentence reason it is closed. The card says nothing about the quota;
-  places surface only as a refusal. Registering is a dialog with one searchable
+  one-sentence reason it is closed — the seminar started, or the event has no
+  seminar price list. The card says nothing about the quota, and a full seminar
+  closes nothing: places are taken by money, on administration's side.
+  Registering is a dialog with one searchable
   picker over the academy's active dancers and professors in one flat list.
   Without an active event, or without seminars, the shared portal empty state.
 - **Administration**: one more admin resource on the schedules' path. A list of
-  instructor, date, time and quota with places left; a create page; a detail
+  instructor, date, time and quota with the places left on it (`quota −
+coveredCount`); a create page; a detail
   with two tabs, `Información` (the form and the picture) and `Inscriptos` (a
   flat table of name, type and academy, where the name opens the removal
   confirmation).

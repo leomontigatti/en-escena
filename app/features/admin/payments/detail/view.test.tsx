@@ -82,14 +82,15 @@ describe("PaymentDetailRouteView", () => {
     expect(document.querySelector('textarea[name="reason"]')).toBeNull();
   });
 
-  test("names each affected choreography with its amount and its un-crossings", async () => {
+  test("names each affected unit with its amount, its un-crossings and the places a seminar loses", async () => {
     await renderDetailIntoDocument({
       initialDeleteDialogOpen: true,
       loaderData: buildLoaderData({
-        affectedChoreographies: [
+        affectedUnits: [
           {
             allocatedAmount: 4000,
             id: "cho_1",
+            kind: "choreography",
             name: "Coreografía Uno",
             resultingStatus: "depositPending",
             uncrossingInscriptionCount: 2,
@@ -97,9 +98,17 @@ describe("PaymentDetailRouteView", () => {
           {
             allocatedAmount: 1500,
             id: "cho_2",
+            kind: "choreography",
             name: "Coreografía Dos",
             resultingStatus: null,
             uncrossingInscriptionCount: 0,
+          },
+          {
+            allocatedAmount: 9000,
+            id: "sem_1",
+            kind: "seminar",
+            losingPlaceCount: 1,
+            name: "Abril Sosa",
           },
         ],
       }),
@@ -121,6 +130,12 @@ describe("PaymentDetailRouteView", () => {
     expect(text).toContain("Coreografía Dos");
     expect(text).toContain("$ 1.500");
     expect(text).not.toContain("0 inscripciones");
+
+    // The seminar is in the same list, named by its instructor, and what it
+    // loses is places rather than a threshold.
+    expect(text).toContain("Abril Sosa");
+    expect(text).toContain("$ 9.000");
+    expect(text).toContain("1 inscripción pierde su lugar");
   });
 });
 
@@ -158,7 +173,7 @@ function buildLoaderData(overrides: Partial<LoaderData> = {}): LoaderData {
       },
       { contactName: "Academia Sur", id: "academy_2", name: "Academia Sur" },
     ],
-    affectedChoreographies: [],
+    affectedUnits: [],
     allocatedAmount: 0,
     availableAmount: payment.amount,
     canDelete: true,

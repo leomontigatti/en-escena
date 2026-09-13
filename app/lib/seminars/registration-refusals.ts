@@ -1,10 +1,20 @@
 /**
- * The sentences a closed seminar is read by, in one place because they are
- * said twice: the portal footer says them before the submission, the server
- * says them back when the seminar filled up or started in between.
+ * Said twice because the portal footer says it before the submission and the
+ * server says it back when the seminar started in between. Registration itself
+ * is **unlimited**: a full seminar refuses no inscription, it refuses the
+ * allocation that would cover a deposit (see below).
  */
-export const seminarFullMessage = "Sin lugares disponibles.";
 export const seminarStartedMessage = "El seminario ya comenzó.";
+
+/**
+ * The refusal of the one write the quota governs: **covering the deposit is what
+ * takes the place**, so the seminar fills up against allocations and never
+ * against registrations. Surfaced by the money dialog's error alert, which is
+ * why it names the inscription rather than the seminar's occupancy
+ * (docs/domain/seminars.md, "The place").
+ */
+export const seminarNoPlacesForDepositMessage =
+  "No quedan lugares en el seminario, así que esta inscripción no puede cubrir su seña.";
 
 /**
  * Said by the portal footer alone: the event has no seminar price list yet, so

@@ -11,6 +11,9 @@ import {
   paymentAllocations,
   payments,
   prices,
+  seminarInscriptions,
+  seminarPrices,
+  seminars,
 } from "@/db/schema";
 import { readPaymentDeletionImpact } from "@/features/admin/payments/detail/deletion-impact.server";
 import {
@@ -18,6 +21,8 @@ import {
   createDancer,
 } from "@/features/portal/choreographies/test-support/db";
 import { spreadFromPool } from "@/lib/finances/allocation-pool.server";
+import { allocateToSeminarInscription } from "@/lib/finances/seminar-inscription-allocation.server";
+import { countCoveredSeminarInscriptions } from "@/lib/seminars/covered-inscriptions.server";
 import {
   deriveMinimumFinancialStatus,
   deriveInscriptionFinancialStatus,
@@ -183,6 +188,53 @@ async function readChoreographyStatuses(input: {
   );
 }
 
+/**
+ * A seminar of the same event with one inscription of the same academy, priced
+ * by a non-participant `Común` row of 4000 at the seminar's own 50 %: its
+ * deposit is 2000, which is what the payment about to be deleted covers.
+ */
+async function seedSeminarInscription(fixture: {
+  academyId: string;
+  eventId: string;
+}) {
+  const [seminar] = await db
+    .insert(seminars)
+    .values({
+      eventId: fixture.eventId,
+      instructorName: "Abril Sosa",
+      quota: 5,
+      requiredDepositPercentage: 50,
+      scheduledDate: "2026-10-10",
+      startTime: "18:30",
+    })
+    .returning();
+  const [price] = await db
+    .insert(seminarPrices)
+    .values({
+      amount: 4000,
+      eventId: fixture.eventId,
+      forParticipants: false,
+      kind: "regular",
+      name: "General",
+      paymentDeadline: null,
+    })
+    .returning();
+  const dancer = await createDancer(fixture.academyId, {
+    firstName: "Seminarista",
+    lastName: "Borrado",
+  });
+  const [inscription] = await db
+    .insert(seminarInscriptions)
+    .values({ dancerId: dancer.id, seminarId: seminar.id })
+    .returning();
+
+  return {
+    inscriptionId: inscription.id,
+    priceId: price.id,
+    seminarId: seminar.id,
+  };
+}
+
 describe("readPaymentDeletionImpact", () => {
   test("names each choreography with its amount and the un-cross count the deletion produces", async () => {
     const fixture = await seedDeletionFixture();
@@ -213,6 +265,7 @@ describe("readPaymentDeletionImpact", () => {
       {
         allocatedAmount: 3000,
         id: fixture.choreographyIds[0],
+        kind: "choreography",
         name: "Aire",
         resultingStatus: "depositPending",
         uncrossingInscriptionCount: 1,
@@ -255,11 +308,52 @@ describe("readPaymentDeletionImpact", () => {
       {
         allocatedAmount: 1000,
         id: fixture.choreographyIds[0],
+        kind: "choreography",
         name: "Aire",
         resultingStatus: null,
         uncrossingInscriptionCount: 0,
       },
     ]);
+  });
+
+  test("names the seminar by its instructor with the places its inscriptions lose", async () => {
+    const fixture = await seedDeletionFixture();
+    const doomedPayment = fixture.paymentRows[0];
+    const seminar = await seedSeminarInscription(fixture);
+
+    // Exactly the deposit of the stored row, so the inscription holds a place —
+    // and the money comes out of the payment about to be deleted.
+    await expect(
+      allocateToSeminarInscription({
+        academyId: fixture.academyId,
+        amount: 2000,
+        eventId: fixture.eventId,
+        inscriptionId: seminar.inscriptionId,
+        priceId: seminar.priceId,
+        seminarId: seminar.seminarId,
+      }),
+    ).resolves.toEqual({ ok: true });
+
+    expect(
+      await readPaymentDeletionImpact({
+        academyId: fixture.academyId,
+        eventId: fixture.eventId,
+        paymentId: doomedPayment.id,
+      }),
+    ).toEqual([
+      {
+        allocatedAmount: 2000,
+        id: seminar.seminarId,
+        kind: "seminar",
+        losingPlaceCount: 1,
+        name: "Abril Sosa",
+      },
+    ]);
+
+    // The deletion never blocks, and the place the money held comes back.
+    await db.delete(payments).where(eq(payments.id, doomedPayment.id));
+
+    expect(await countCoveredSeminarInscriptions(seminar.seminarId)).toBe(0);
   });
 
   test("reads nothing for a payment with no allocations", async () => {

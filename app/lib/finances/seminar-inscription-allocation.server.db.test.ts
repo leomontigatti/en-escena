@@ -17,7 +17,10 @@ import {
   removeFromSeminarInscription,
 } from "@/lib/finances/seminar-inscription-allocation.server";
 import { readSeminarInscriptionThresholds } from "@/lib/finances/seminar-inscription-thresholds.server";
-import { hasCoveredSeminarInscription } from "@/lib/seminars/covered-inscriptions.server";
+import {
+  countCoveredSeminarInscriptions,
+  hasCoveredSeminarInscription,
+} from "@/lib/seminars/covered-inscriptions.server";
 import { updateSeminar } from "@/lib/seminars/repository.server";
 import { createAcademyUser } from "@/lib/test-support/academies";
 
@@ -100,6 +103,22 @@ async function seedFixture() {
     priceIds.set(cell as keyof typeof amounts, row.id);
   }
 
+  // Two more dancers of the same academy, on the roster of no choreography: they
+  // are priced as non-participants, and they are what the quota tests cross with.
+  const roommates = [];
+  for (const firstName of ["Bruno", "Celeste"]) {
+    const dancer = await createDancer(academyId, {
+      firstName,
+      lastName: "Bailando",
+    });
+    const [row] = await db
+      .insert(seminarInscriptions)
+      .values({ dancerId: dancer.id, seminarId: seminar.id })
+      .returning();
+
+    roommates.push(row.id);
+  }
+
   const [inscription] = await db
     .insert(seminarInscriptions)
     .values({ dancerId: participant.id, seminarId: seminar.id })
@@ -124,7 +143,9 @@ async function seedFixture() {
     inscriptionId: inscription.id,
     outsiderInscriptionId: outsiderInscription.id,
     priceIds,
+    secondInscriptionId: roommates[0]!,
     seminarId: seminar.id,
+    thirdInscriptionId: roommates[1]!,
     watchingAcademyId: watching.academyId,
   };
 }
@@ -133,17 +154,41 @@ type Fixture = Awaited<ReturnType<typeof seedFixture>>;
 
 function allocate(
   fixture: Fixture,
-  input: { amount: number; priceId: string | null },
+  input: { amount: number; inscriptionId?: string; priceId: string | null },
 ) {
   return allocateToSeminarInscription({
     academyId: fixture.academyId,
     amount: input.amount,
     eventId: fixture.eventId,
-    inscriptionId: fixture.inscriptionId,
+    inscriptionId: input.inscriptionId ?? fixture.inscriptionId,
     priceId: input.priceId,
     seminarId: fixture.seminarId,
   });
 }
+
+/** Covers the participant's deposit, which is the one place the quota tests
+ * start from: one taken place, whatever the seminar's quota says. */
+async function coverFirstPlace(fixture: Fixture) {
+  const covered = await allocate(fixture, {
+    amount: amounts.specialParticipant / 2,
+    priceId: fixture.priceIds.get("specialParticipant")!,
+  });
+
+  if (!covered.ok) {
+    throw new Error(`Expected the deposit to be covered: ${covered.message}`);
+  }
+}
+
+function setQuota(fixture: Fixture, quota: number) {
+  return db
+    .update(seminars)
+    .set({ quota })
+    .where(eq(seminars.id, fixture.seminarId));
+}
+
+/** The deposit of a non-participant row, which is what the second and third
+ * inscriptions cross at. */
+const outsiderDeposit = amounts.specialOutsider / 2;
 
 async function readSelectedPriceId(inscriptionId: string) {
   const thresholds = await db.query.seminarInscriptions.findFirst({
@@ -317,6 +362,119 @@ describe.sequential("seminar inscription allocation", () => {
       ok: false,
       message: "No encontramos esa inscripción.",
     });
+  });
+
+  test("refuses the crossing that would take a place a full seminar has none of, and lets a partial allocation through", async () => {
+    const fixture = await seedFixture();
+    await coverFirstPlace(fixture);
+    await setQuota(fixture, 1);
+
+    // The quota is full of covered rows, so the write that would cover this
+    // one's deposit is the only write refused.
+    await expect(
+      allocate(fixture, {
+        amount: outsiderDeposit,
+        inscriptionId: fixture.secondInscriptionId,
+        priceId: fixture.priceIds.get("specialOutsider")!,
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      message:
+        "No quedan lugares en el seminario, así que esta inscripción no puede cubrir su seña.",
+    });
+
+    // A peso short of the deposit takes no place, so it goes through.
+    await expect(
+      allocate(fixture, {
+        amount: outsiderDeposit - 1,
+        inscriptionId: fixture.secondInscriptionId,
+        priceId: fixture.priceIds.get("specialOutsider")!,
+      }),
+    ).resolves.toEqual({ ok: true });
+
+    // Raising the quota is free, and the crossing it makes room for goes
+    // through: the place was the only thing missing.
+    await setQuota(fixture, 2);
+    await expect(
+      allocate(fixture, {
+        amount: 1,
+        inscriptionId: fixture.secondInscriptionId,
+        priceId: fixture.priceIds.get("specialOutsider")!,
+      }),
+    ).resolves.toEqual({ ok: true });
+  });
+
+  test("refuses over-allocation before the quota and the quota before the pool", async () => {
+    const fixture = await seedFixture();
+    await coverFirstPlace(fixture);
+    await setQuota(fixture, 1);
+
+    // More than the row owes is refused as over-allocation even though the same
+    // write would also be refused for the place.
+    await expect(
+      allocate(fixture, {
+        amount: amounts.specialOutsider + 1,
+        inscriptionId: fixture.secondInscriptionId,
+        priceId: fixture.priceIds.get("specialOutsider")!,
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      message: "No se puede asignar más de lo que la inscripción adeuda.",
+    });
+
+    // And the place is read before the pool: what the academy has paid is not
+    // the question once there is nowhere to put it.
+    await db
+      .update(payments)
+      .set({ amount: amounts.specialParticipant / 2 })
+      .where(eq(payments.academyId, fixture.academyId));
+    await expect(
+      allocate(fixture, {
+        amount: outsiderDeposit,
+        inscriptionId: fixture.secondInscriptionId,
+        priceId: fixture.priceIds.get("specialOutsider")!,
+      }),
+    ).resolves.toMatchObject({
+      message:
+        "No quedan lugares en el seminario, así que esta inscripción no puede cubrir su seña.",
+    });
+  });
+
+  test("lets exactly one of two crossings for the last place through", async () => {
+    const fixture = await seedFixture();
+    await setQuota(fixture, 1);
+
+    const results = await Promise.all([
+      allocate(fixture, {
+        amount: outsiderDeposit,
+        inscriptionId: fixture.secondInscriptionId,
+        priceId: fixture.priceIds.get("specialOutsider")!,
+      }),
+      allocate(fixture, {
+        amount: outsiderDeposit,
+        inscriptionId: fixture.thirdInscriptionId,
+        priceId: fixture.priceIds.get("specialOutsider")!,
+      }),
+    ]);
+
+    expect(results.filter((result) => result.ok)).toHaveLength(1);
+    expect(await countCoveredSeminarInscriptions(fixture.seminarId)).toBe(1);
+  });
+
+  test("allows money after the seminar has started", async () => {
+    const fixture = await seedFixture();
+    await db
+      .update(seminars)
+      .set({ scheduledDate: "2020-01-01" })
+      .where(eq(seminars.id, fixture.seminarId));
+
+    await expect(
+      allocate(fixture, {
+        amount: amounts.specialParticipant / 2,
+        priceId: fixture.priceIds.get("specialParticipant")!,
+      }),
+    ).resolves.toEqual({ ok: true });
+    expect(await hasCoveredSeminarInscription(fixture.seminarId)).toBe(true);
   });
 
   test("releases exactly what the row holds above its total", async () => {

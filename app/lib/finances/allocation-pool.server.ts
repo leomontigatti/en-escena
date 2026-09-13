@@ -78,6 +78,21 @@ export type PoolMovement = {
 };
 
 /**
+ * A refusal that belongs to the kind of target rather than to the pool: the
+ * seminar's quota is the only one so far, and it has to be read between the two
+ * refusals `spreadFromPool` owns. The order is the PRD's — missing price,
+ * over-allocation, **this**, insufficient pool — and it lives here so no caller
+ * can put it somewhere else. It runs with what the over-allocation check
+ * already read, so the guard does not query the same figures again.
+ */
+export type PoolTargetGuard = (input: {
+  allocatedAmount: number;
+  amount: number;
+}) => Promise<CobroResult>;
+
+export type PoolSpread = PoolMovement & { targetGuard?: PoolTargetGuard };
+
+/**
  * How a kind of inscription answers "what does this row owe?". The two halves
  * of the invariant stay single functions, and the only thing that varies with
  * the target's kind is this read — chosen inside the module, so no caller has
@@ -105,12 +120,15 @@ const thresholdReaders: Record<AllocationTargetKind, ThresholdReader> = {
  *   path, and not only on read.
  * - **Insufficient pool**: money the academy never paid is never allocated.
  *
+ * A `targetGuard` adds the refusal the kind of target owns — today the seminar's
+ * quota — and is read **between** those two, which is the order the PRD fixes.
+ *
  * **Passive** over-allocation — the kind already recorded — is left alone: this
  * function neither corrects nor deletes it, it only refuses to grow it.
  */
 export async function spreadFromPool(
   tx: Executor,
-  input: PoolMovement,
+  input: PoolSpread,
 ): Promise<CobroResult> {
   if (input.amount <= 0) {
     return {
@@ -119,9 +137,20 @@ export async function spreadFromPool(
     };
   }
 
-  const refusal = await assertNoActiveOverAllocation(tx, input);
-  if (!refusal.ok) {
-    return refusal;
+  const overAllocation = await assertNoActiveOverAllocation(tx, input);
+  if (!overAllocation.ok) {
+    return overAllocation;
+  }
+
+  if (input.targetGuard) {
+    const refusal = await input.targetGuard({
+      allocatedAmount: overAllocation.allocatedAmount,
+      amount: input.amount,
+    });
+
+    if (!refusal.ok) {
+      return refusal;
+    }
   }
 
   const pool = await readPoolAvailability(tx, {
@@ -260,7 +289,9 @@ export async function readAcademyAvailableBalance(
 async function assertNoActiveOverAllocation(
   tx: Executor,
   input: PoolMovement,
-): Promise<CobroResult> {
+): Promise<
+  { ok: false; message: string } | { ok: true; allocatedAmount: number }
+> {
   const thresholds = await thresholdReaders[input.target.kind](tx, {
     academyId: input.academyId,
     eventId: input.eventId,
@@ -272,8 +303,12 @@ async function assertNoActiveOverAllocation(
     return { ok: false, message: "No encontramos esa inscripción." };
   }
 
+  const allocatedAmount = await readInscriptionAllocatedAmount(
+    tx,
+    input.target,
+  );
   const figures = deriveInscriptionFinancialFigures({
-    allocatedAmount: await readInscriptionAllocatedAmount(tx, input.target),
+    allocatedAmount,
     thresholds: inscriptionThresholds,
   });
 
@@ -292,7 +327,7 @@ async function assertNoActiveOverAllocation(
     };
   }
 
-  return { ok: true };
+  return { ok: true, allocatedAmount };
 }
 
 /**

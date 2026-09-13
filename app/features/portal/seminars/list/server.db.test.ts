@@ -112,7 +112,6 @@ describe.sequential("portal seminars list", () => {
           instructorName: "Abril Sosa",
           instructorPictureUrl: null,
           hasStarted: false,
-          isFull: false,
           hasRegistrationPrices: true,
           inscriptions: [],
           people: [
@@ -164,31 +163,52 @@ describe.sequential("portal seminars list", () => {
 
   test("turns a refusal into an error message instead of a field error", async () => {
     const session = await createAcademySession({
-      academyName: "Academia Sin Lugares",
+      academyName: "Academia Refusal",
       email: "seminarios.refusal@example.com",
     });
     const { seminar } = await createActiveEventWithSeminar(1);
-    const first = await createDancer(session.academyId, { firstName: "Uno" });
-    const second = await createDancer(session.academyId, { firstName: "Dos" });
-
-    await registerRequest(session.cookie, {
-      seminarId: seminar.id,
-      person: toPortalSeminarPersonValue({ id: first.id, kind: "dancer" }),
+    const archived = await createDancer(session.academyId, {
+      active: false,
+      firstName: "Uno",
     });
 
     await expect(
       registerRequest(session.cookie, {
         seminarId: seminar.id,
-        person: toPortalSeminarPersonValue({ id: second.id, kind: "dancer" }),
+        person: toPortalSeminarPersonValue({ id: archived.id, kind: "dancer" }),
       }),
     ).resolves.toEqual({
       intent: registerPortalSeminarInscriptionIntent,
-      message: "Sin lugares disponibles.",
+      message: "Elegí una persona activa del plantel de tu academia.",
       status: "error",
     });
   });
 
-  test("deletes the academy's own inscription and frees the place it held", async () => {
+  test("registers past the quota, because a full seminar closes nothing on the portal", async () => {
+    const session = await createAcademySession({
+      academyName: "Academia Sin Lugares",
+      email: "seminarios.sin.lugares@example.com",
+    });
+    const { seminar } = await createActiveEventWithSeminar(1);
+    const first = await createDancer(session.academyId, { firstName: "Uno" });
+    const second = await createDancer(session.academyId, { firstName: "Dos" });
+
+    for (const dancer of [first, second]) {
+      await expect(
+        registerRequest(session.cookie, {
+          seminarId: seminar.id,
+          person: toPortalSeminarPersonValue({ id: dancer.id, kind: "dancer" }),
+        }),
+      ).resolves.toMatchObject({ status: "success" });
+    }
+
+    const [card] = (await loadList(session.cookie)).seminars;
+
+    expect(card.inscriptions).toHaveLength(2);
+    expect(getPortalSeminarClosedReason(card)).toBeNull();
+  });
+
+  test("deletes the academy's own inscription and takes it off the card", async () => {
     const session = await createAcademySession({
       academyName: "Academia Baja",
       email: "seminarios.baja@example.com",
@@ -204,8 +224,6 @@ describe.sequential("portal seminars list", () => {
 
     const [card] = (await loadList(session.cookie)).seminars;
 
-    expect(card).toMatchObject({ isFull: true });
-
     await expect(
       deleteRequest(session.cookie, card.inscriptions[0].id),
     ).resolves.toEqual({
@@ -214,7 +232,7 @@ describe.sequential("portal seminars list", () => {
       status: "success",
     });
     await expect(loadList(session.cookie)).resolves.toMatchObject({
-      seminars: [{ isFull: false, inscriptions: [] }],
+      seminars: [{ inscriptions: [] }],
     });
     await expect(
       registerRequest(session.cookie, {

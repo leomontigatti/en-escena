@@ -118,12 +118,14 @@ describe("seminar inscriptions", () => {
       { fullName: "Abril Sosa", personKind: "dancer", seminarId: seminar.id },
       { fullName: "Beto Luna", personKind: "professor", seminarId: seminar.id },
     ]);
+    // Nobody covered a deposit, so the quota is untouched and both rows are on
+    // the roster: registration does not spend places.
     await expect(listSeminars(eventId)).resolves.toMatchObject([
-      { id: seminar.id, availablePlaces: 0 },
+      { id: seminar.id, availablePlaces: 2, registeredCount: 2 },
     ]);
   });
 
-  test("takes the last place and refuses the next one until the quota is raised", async () => {
+  test("registers past the quota, because a place is taken by money and not by the roster", async () => {
     const { eventId, seminar } = await createSeminarFixture(1);
     const academy = await createAcademy("Academia Cupo");
     const first = await createDancer(academy.id, { firstName: "Uno" });
@@ -137,42 +139,11 @@ describe("seminar inscriptions", () => {
       });
 
     expectRegistered(await register(first.id));
+    expectRegistered(await register(second.id));
 
-    await expect(register(second.id)).resolves.toMatchObject({
-      ok: false,
-      code: "full",
-      error: "Sin lugares disponibles.",
-    });
-  });
-
-  test("leaves exactly one winner when two inscriptions race for the last place", async () => {
-    const { eventId, seminar } = await createSeminarFixture(1);
-    const academy = await createAcademy("Academia Carrera");
-    const first = await createDancer(academy.id, { firstName: "Uno" });
-    const second = await createDancer(academy.id, { firstName: "Dos" });
-    const register = (personId: string) =>
-      registerDancerBeforeStart({
-        academyId: academy.id,
-        eventId,
-        personId,
-        seminarId: seminar.id,
-      });
-
-    const results = await Promise.all([
-      register(first.id),
-      register(second.id),
+    await expect(listSeminars(eventId)).resolves.toMatchObject([
+      { id: seminar.id, availablePlaces: 1, registeredCount: 2 },
     ]);
-
-    expect(results.filter((result) => result.ok)).toHaveLength(1);
-    expect(results.filter((result) => !result.ok)).toMatchObject([
-      { code: "full" },
-    ]);
-    await expect(
-      db
-        .select({ id: seminarInscriptions.id })
-        .from(seminarInscriptions)
-        .where(eq(seminarInscriptions.seminarId, seminar.id)),
-    ).resolves.toHaveLength(1);
   });
 
   test("refuses once the seminar has started", async () => {
@@ -298,7 +269,7 @@ describe("seminar inscriptions", () => {
     ]);
   });
 
-  test("deletes the academy's own inscription and frees the place it held", async () => {
+  test("deletes the academy's own inscription and leaves the row gone", async () => {
     const { eventId, seminar } = await createSeminarFixture(1);
     const academy = await createAcademy("Academia Baja");
     const first = await createDancer(academy.id, { firstName: "Uno" });
@@ -312,7 +283,6 @@ describe("seminar inscriptions", () => {
       });
     const inscriptionId = expectRegistered(await register(first.id));
 
-    await expect(register(second.id)).resolves.toMatchObject({ code: "full" });
     await expect(
       deleteSeminarInscriptionForAcademy({
         academyId: academy.id,
@@ -322,7 +292,7 @@ describe("seminar inscriptions", () => {
       }),
     ).resolves.toEqual({ ok: true });
 
-    // The row is gone rather than marked, so the place is available again.
+    // The row is gone rather than marked, so nothing of it is left to revive.
     await expect(
       db
         .select({ id: seminarInscriptions.id })
@@ -490,7 +460,7 @@ describe("the administrative reading of a seminar's inscriptions", () => {
       }),
     );
 
-    // The academy itself is past its cut-off, and the seminar is full.
+    // The academy itself is past its cut-off.
     await expect(
       deleteSeminarInscriptionForAcademy({
         academyId: academy.id,
@@ -508,10 +478,11 @@ describe("the administrative reading of a seminar's inscriptions", () => {
     ).resolves.toEqual({ ok: true });
     await expect(listSeminarInscriptions(seminar.id)).resolves.toEqual([]);
     await expect(listSeminars(eventId)).resolves.toMatchObject([
-      { id: seminar.id, availablePlaces: 1, inscriptionCount: 0 },
+      { id: seminar.id, availablePlaces: 1, registeredCount: 0 },
     ]);
 
-    // The place is free again, which is what the removal is the valve for.
+    // Somebody else takes the row's place on the roster, which is what the
+    // removal is the valve for.
     expectRegistered(
       await registerDancerBeforeStart({
         academyId: academy.id,

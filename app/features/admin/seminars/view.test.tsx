@@ -36,7 +36,7 @@ function buildSeminar(
     requiredDepositPercentage: 50,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     availablePlaces: 20,
-    inscriptionCount: 0,
+    registeredCount: 0,
     ...overrides,
   };
 }
@@ -253,7 +253,7 @@ function buildInscription(
 }
 
 async function renderInscriptions(inscriptions: SeminarInscriptionRow[]) {
-  const seminar = buildSeminar({ inscriptionCount: inscriptions.length });
+  const seminar = buildSeminar({ registeredCount: inscriptions.length });
 
   await renderAt(
     "/administracion/seminarios/seminar_1",
@@ -355,7 +355,7 @@ describe("SeminarDetailView delete dialog", () => {
           inscriptions: [buildInscription()],
           instructorPictureUrl: null,
           selectedEventId: "event_1",
-          seminar: buildSeminar({ inscriptionCount: 1, availablePlaces: 19 }),
+          seminar: buildSeminar({ registeredCount: 1, availablePlaces: 19 }),
           values: toSeminarFormValues(buildSeminar()),
         }}
       />,

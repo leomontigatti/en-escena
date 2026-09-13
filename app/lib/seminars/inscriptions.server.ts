@@ -14,10 +14,7 @@ import {
   type RosterPersonKind,
 } from "@/lib/roster/roster-person-status.shared";
 import { activeSeminarInscription } from "@/lib/seminars/active-inscription";
-import {
-  seminarFullMessage,
-  seminarStartedMessage,
-} from "@/lib/seminars/registration-refusals";
+import { seminarStartedMessage } from "@/lib/seminars/registration-refusals";
 import { hasSeminarStarted } from "@/lib/seminars/registration-window";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -82,7 +79,6 @@ export type DeleteSeminarInscriptionResult =
 
 export type RegisterSeminarInscriptionFailureCode =
   | "already-registered"
-  | "full"
   | "ineligible-person"
   | "seminar-not-found"
   | "started";
@@ -106,11 +102,15 @@ const alreadyRegisteredMessage = "Esa persona ya está inscripta.";
 const seminarNotFoundMessage = "No encontramos ese seminario.";
 
 /**
- * The quota is a hard cap, so the count that decides it has to be taken under a
- * lock on the seminar row: `SELECT … FOR UPDATE` first, count second, insert
- * third. Two academies taking the last place at once are serialized by that
- * lock, and the loser reads the count the winner already wrote — the same
- * `full` refusal a plain attempt on a full seminar gets.
+ * **Registration is unlimited.** The quota is not a cap on inscriptions: a place
+ * is taken by covering the deposit, which is a decision of the allocation path
+ * (`app/lib/finances/seminar-inscription-allocation.server.ts`), so an academy
+ * registers whoever it wants and then decides who to pay for
+ * (docs/domain/seminars.md, "The place").
+ *
+ * The row lock on the seminar stays all the same: the start time and the
+ * eligibility are read off it, and holding it keeps a registration from racing
+ * the seminar's own edits.
  */
 export async function registerSeminarInscription(
   input: RegisterSeminarInscriptionInput,
@@ -135,7 +135,6 @@ function lockSeminar(tx: Transaction, input: RegisterSeminarInscriptionInput) {
   return tx
     .select({
       id: seminars.id,
-      quota: seminars.quota,
       scheduledDate: seminars.scheduledDate,
       startTime: seminars.startTime,
     })
@@ -151,22 +150,14 @@ function lockSeminar(tx: Transaction, input: RegisterSeminarInscriptionInput) {
 }
 
 /**
- * The three reasons a locked seminar refuses, in the order they are read.
- * Deliberately not the PRD's order, which lists the full seminar first: once a
- * seminar has begun its quota stopped being the question, so "started" wins —
- * the same precedence the portal footer reads a closed seminar by
- * (`getPortalSeminarClosedReason`). Eligibility comes before the count because
- * a person who could never be registered should not be told the seminar filled
- * up.
+ * The two reasons a locked seminar refuses, in the order they are read: a
+ * seminar that has begun takes nobody, and a person who is not on the academy's
+ * active roster is nobody it may register. How full the seminar is is not among
+ * them.
  */
 async function findRegistrationRefusal(
   tx: Transaction,
-  seminar: {
-    id: string;
-    quota: number;
-    scheduledDate: string;
-    startTime: string;
-  },
+  seminar: { id: string; scheduledDate: string; startTime: string },
   input: RegisterSeminarInscriptionInput,
 ): Promise<RegisterSeminarInscriptionResult | null> {
   if (hasSeminarStarted(seminar, input.now)) {
@@ -175,15 +166,6 @@ async function findRegistrationRefusal(
 
   if (!(await isPersonEligibleForSeminar(tx, input))) {
     return failure("ineligible-person", ineligiblePersonMessage);
-  }
-
-  const [countRow] = await tx
-    .select({ inscriptionCount: sql<number>`count(*)` })
-    .from(seminarInscriptions)
-    .where(eq(seminarInscriptions.seminarId, seminar.id));
-
-  if (Number(countRow?.inscriptionCount ?? 0) >= seminar.quota) {
-    return failure("full", seminarFullMessage);
   }
 
   return null;
@@ -218,9 +200,8 @@ async function insertInscription(
 
 /**
  * The academy's own delete, open until the seminar starts. It is a physical
- * delete: the row carries no money and no history, so the place it held is free
- * the moment it is gone — a seminar that was refusing with `full` accepts the
- * next registration. An inscription of another academy or of another event is
+ * delete: the row carries no money and no history, so it frees whatever place it
+ * had taken the moment it is gone. An inscription of another academy or of another event is
  * not refused as forbidden but as missing: the portal never offers it, so
  * naming it back would only say that it exists.
  */

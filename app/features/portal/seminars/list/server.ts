@@ -71,9 +71,6 @@ export async function loadPortalSeminarsList(
         scheduledDate: seminar.scheduledDate,
         startTime: seminar.startTime,
         hasStarted: hasSeminarStarted(seminar, now),
-        // The card never says how many places are left; what it needs is
-        // whether there is one, which is what turns the button into a reason.
-        isFull: seminar.availablePlaces === 0,
         hasRegistrationPrices,
         inscriptions: seminarInscriptions.map((inscription) => ({
           id: inscription.id,

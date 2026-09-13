@@ -78,6 +78,19 @@ describe("SeminarFinanceDetailView", () => {
     expect(markup).toContain("Retirada");
     expect(markup).toContain("$ 5.000");
   });
+
+  test("states a full quota without blocking anything, and says nothing while a place is left", () => {
+    const full = renderDetail({
+      seminar: { ...loaderDataFixture().seminar, availablePlaces: 0 },
+    });
+
+    expect(full).toContain("El seminario no tiene lugares disponibles");
+    expect(full).toContain("se rechaza hasta que se libere un lugar");
+
+    expect(renderDetail()).not.toContain(
+      "El seminario no tiene lugares disponibles",
+    );
+  });
 });
 
 function columnHeaders(markup: string) {
@@ -152,6 +165,7 @@ function loaderDataFixture(
     seminar: {
       allocatedAmount: 5000,
       anomalies: [],
+      availablePlaces: 4,
       depositAmount: { amount: 5000, status: "complete" },
       financialStatus: "depositMet",
       id: "seminar_1",

@@ -550,19 +550,19 @@ they live in one module.
   off a specific inscription. The remedy for a payment recorded in error is
   deleting the payment, which cascades its allocations.
 
-> **Specified, not built.** For a seminar target the write also enforces the
-> **quota**
-> ([Quota at the crossing](https://github.com/leomontigatti/en-escena/issues/888)):
-> it locks the seminar row `FOR UPDATE` first, crossing or not, counts the
-> covered non-withdrawn inscriptions of the seminar excluding the one being
-> funded, and refuses only the write that would cross the stored row's deposit
-> when that count already equals the quota, with
-> `No quedan lugares en el seminario, así que esta inscripción no puede cubrir su seña.`
-> A partial allocation below the deposit goes through even when the seminar is
-> full. The order of refusals is no price → over-allocation → **quota** →
-> insufficient pool; the pool ceiling stays last because it is the one the
-> dialog cannot pre-check. Owner: the PRD
-> [#906](https://github.com/leomontigatti/en-escena/issues/906).
+- **The quota, for a seminar target.** Every money gesture whose target is a
+  seminar inscription locks the seminar row `FOR UPDATE` first, crossing or not
+  and before it reads anything else. Under that lock the funding write counts the
+  covered non-withdrawn inscriptions of the seminar **excluding the one being
+  funded**, and refuses only the write that would cross the stored row's deposit
+  from below when that count already equals the quota, with
+  `No quedan lugares en el seminario, así que esta inscripción no puede cubrir su seña.`
+  A partial allocation below the deposit goes through even when the seminar is
+  full, and money after the seminar started is money like any other. The order of
+  refusals is no price → over-allocation → **quota** → insufficient pool; the
+  pool ceiling stays last because it is the one the dialog cannot pre-check.
+  Taking money off refuses nothing: it only frees places
+  (`docs/domain/seminars.md`, "The place").
 
 > **Specified, not built.**
 > The `− Σ refunds` term has nothing behind it: there is no refunds table and no
@@ -1015,18 +1015,21 @@ Seminar money is read on the same surfaces, split by kind where a unit is named:
   instructor alone and is the choreography one's twin: the five metrics, the
   inscriptions table with `Precio` showing the effective row's name and **no
   `Tipo` column**, the `Retirada` rows with what they retained, and the money
-  dialog behind the person's name.
+  dialog behind the person's name. It carries a non-blocking `info` notice while
+  covered inscriptions fill the seminar's quota.
+- The `Eliminar pago` impact list names **seminars in the same list as
+  choreographies**, each under the seminar's instructor name, with the money
+  leaving it and how many of its inscriptions drop below their deposit and so
+  lose their place. Deletion never blocks, and removing money by any other
+  gesture stays silent about the place.
 
 > **Specified, not built.** The portal's half of the same split
 > ([Portal surfaces](https://github.com/leomontigatti/en-escena/issues/891)):
 > `Resumen financiero` gains the same two tabs under the same rules, and a
 > read-only `(seminar, academy)` detail — the one place the portal shows
-> `Retirada` rows — writes nothing. Both details carry the full-quota notice,
+> `Retirada` rows — writes nothing. That detail repeats the full-quota notice,
 > and the admin one gains `Emitir factura` with the fiscal anchor
-> ([#894](https://github.com/leomontigatti/en-escena/issues/894)). The
-> `Eliminar pago` impact list gains seminar entries in the same list as
-> choreographies, each naming the money leaving it and how many of its
-> inscriptions lose their place; deletion never blocks. Owner: the PRD
+> ([#894](https://github.com/leomontigatti/en-escena/issues/894)). Owner: the PRD
 > [#906](https://github.com/leomontigatti/en-escena/issues/906).
 
 ## Retired vocabulary

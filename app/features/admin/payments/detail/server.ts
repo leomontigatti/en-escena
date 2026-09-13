@@ -75,20 +75,19 @@ export async function loadPaymentDetail(request: Request, paymentId: string) {
     throw new Response("No encontramos ese pago.", { status: 404 });
   }
 
-  const [academyOptions, allocatedAmount, affectedChoreographies] =
-    await Promise.all([
-      listPaymentAcademyOptions(),
-      sumPaymentAllocatedAmount(paymentDetail.id),
-      readPaymentDeletionImpact({
-        academyId: paymentDetail.academyId,
-        eventId: paymentDetail.eventId,
-        paymentId: paymentDetail.id,
-      }),
-    ]);
+  const [academyOptions, allocatedAmount, affectedUnits] = await Promise.all([
+    listPaymentAcademyOptions(),
+    sumPaymentAllocatedAmount(paymentDetail.id),
+    readPaymentDeletionImpact({
+      academyId: paymentDetail.academyId,
+      eventId: paymentDetail.eventId,
+      paymentId: paymentDetail.id,
+    }),
+  ]);
 
   return {
     academies: academyOptions,
-    affectedChoreographies,
+    affectedUnits,
     allocatedAmount,
     // Derived from the sum the edit guards already needed, so the detail reads
     // one figure and not two that could disagree.

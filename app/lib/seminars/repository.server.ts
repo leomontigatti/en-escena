@@ -2,7 +2,11 @@ import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { seminarInscriptions, seminars } from "@/db/schema";
-import { hasCoveredSeminarInscription } from "@/lib/seminars/covered-inscriptions.server";
+import { activeSeminarInscription } from "@/lib/seminars/active-inscription";
+import {
+  countCoveredSeminarInscriptions,
+  hasCoveredSeminarInscription,
+} from "@/lib/seminars/covered-inscriptions.server";
 import {
   invalidSeminarDepositPercentageMessage,
   isValidSeminarDepositPercentage,
@@ -14,24 +18,29 @@ import { isDateOnly } from "@/lib/shared/date-only";
 export type SeminarRow = typeof seminars.$inferSelect;
 
 /**
- * `db` or an open transaction. The quota floor has to count under the same lock
- * the registration path takes, so the count query is written once and told
- * which of the two to run on.
+ * `db` or an open transaction. The counts feed decisions taken under a lock on
+ * the seminar row, so the queries are written once and told which of the two to
+ * run on.
  */
 type SeminarExecutor =
   | typeof db
   | Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /**
- * A seminar as every surface reads it: the row plus how many places are left,
- * the quota minus the inscriptions already taken. It is a reading, never a
- * decision: the quota is enforced under a lock when an inscription is written
- * (`app/lib/seminars/inscriptions.server.ts`).
+ * A seminar as every surface reads it: the row plus the two counts that are not
+ * the same question.
+ *
+ * **A place is taken by covering the deposit**, so `availablePlaces` is the
+ * quota minus the *covered* inscriptions, while `registeredCount` is how many
+ * people are on the roster whether they paid or not — registration is unlimited.
+ * Withdrawn rows are in neither. Both are readings, never decisions: the quota
+ * is enforced under a lock on the allocation that crosses a deposit
+ * (`app/lib/finances/seminar-inscription-allocation.server.ts`).
  */
 export type SeminarListItem = SeminarRow & {
   availablePlaces: number;
-  /** How many places the quota has already given away. */
-  inscriptionCount: number;
+  /** How many people are registered, covered or not. */
+  registeredCount: number;
 };
 
 export type SeminarInput = {
@@ -58,7 +67,7 @@ export type SeminarFailure = {
     | "duplicate-seminar"
     | "has-inscriptions"
     | "covered-inscriptions"
-    | "quota-below-count"
+    | "quota-below-covered"
     | "seminar-not-found";
   error: string;
   fieldErrors?: Partial<Record<SeminarFieldName, string>>;
@@ -91,12 +100,17 @@ export async function listSeminars(
       asc(seminars.instructorName),
     ],
   });
-  const inscriptionCounts = await countInscriptionsBySeminar(
+  const registeredCounts = await countInscriptionsBySeminar(
     eventSeminars.map((seminar) => seminar.id),
   );
 
-  return eventSeminars.map((seminar) =>
-    toSeminarListItem(seminar, inscriptionCounts.get(seminar.id) ?? 0),
+  return Promise.all(
+    eventSeminars.map(async (seminar) =>
+      toSeminarListItem(seminar, {
+        coveredCount: await countCoveredSeminarInscriptions(seminar.id),
+        registeredCount: registeredCounts.get(seminar.id) ?? 0,
+      }),
+    ),
   );
 }
 
@@ -111,14 +125,15 @@ export async function getSeminar(
     return null;
   }
 
-  const inscriptionCounts = await countInscriptionsBySeminar([seminar.id]);
-
-  return toSeminarListItem(seminar, inscriptionCounts.get(seminar.id) ?? 0);
+  return toSeminarListItem(seminar, {
+    coveredCount: await countCoveredSeminarInscriptions(seminar.id),
+    registeredCount: await countSeminarInscriptions(seminar.id),
+  });
 }
 
 /**
  * One query for the whole list, so a gallery of seminars does not become one
- * count per card.
+ * count per card. Active rows only: a withdrawn inscription is off the roster.
  */
 async function countInscriptionsBySeminar(
   seminarIds: string[],
@@ -134,7 +149,12 @@ async function countInscriptionsBySeminar(
       inscriptionCount: sql<number>`count(*)`,
     })
     .from(seminarInscriptions)
-    .where(inArray(seminarInscriptions.seminarId, seminarIds))
+    .where(
+      and(
+        inArray(seminarInscriptions.seminarId, seminarIds),
+        activeSeminarInscription(),
+      ),
+    )
     .groupBy(seminarInscriptions.seminarId);
 
   return new Map(
@@ -153,12 +173,12 @@ async function countSeminarInscriptions(
 
 function toSeminarListItem(
   seminar: SeminarRow,
-  inscriptionCount: number,
+  counts: { coveredCount: number; registeredCount: number },
 ): SeminarListItem {
   return {
     ...seminar,
-    availablePlaces: Math.max(seminar.quota - inscriptionCount, 0),
-    inscriptionCount,
+    availablePlaces: Math.max(seminar.quota - counts.coveredCount, 0),
+    registeredCount: counts.registeredCount,
   };
 }
 
@@ -205,9 +225,9 @@ export async function updateSeminar(
   }
 
   // The whole read-decide-write runs under a lock on the seminar row, the same
-  // one `registerSeminarInscription` takes. Counting outside it would let a
-  // registration land between the count and the update and leave the seminar
-  // holding more inscriptions than its new quota describes.
+  // one the allocation path takes before it crosses a deposit. Counting outside
+  // it would let a crossing land between the count and the update and leave the
+  // seminar holding more covered inscriptions than its new quota describes.
   return db.transaction(async (tx) => {
     const [existing] = await tx
       .select({
@@ -254,15 +274,18 @@ export async function updateSeminar(
     }
 
     // The quota can never describe fewer places than the seminar already gave
-    // away: administration removes an inscription first, which is the only way
-    // the floor moves down.
-    const inscriptionCount = await countSeminarInscriptions(seminarId, tx);
+    // away, and what gives a place away is a **covered** deposit: an inscription
+    // that has not covered its own holds no place, so it does not hold the floor
+    // up either. Raising the quota is always free. The count is taken under the
+    // same lock the crossing takes, so a deposit cannot be covered between the
+    // count and the update.
+    const coveredCount = await countCoveredSeminarInscriptions(seminarId, tx);
 
-    if (validation.input.quota < inscriptionCount) {
+    if (validation.input.quota < coveredCount) {
       return {
         ok: false,
-        code: "quota-below-count",
-        error: `No se puede bajar el cupo a menos de ${inscriptionCount}: es la cantidad de inscriptos.`,
+        code: "quota-below-covered",
+        error: `No se puede bajar el cupo a menos de ${coveredCount}: es la cantidad de inscripciones con la seña cubierta.`,
       };
     }
 

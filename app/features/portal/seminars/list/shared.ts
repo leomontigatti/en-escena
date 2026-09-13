@@ -2,7 +2,6 @@ import { z } from "zod";
 
 import type { RosterPersonKind } from "@/lib/roster/roster-person-status.shared";
 import {
-  seminarFullMessage,
   seminarPricesMissingMessage,
   seminarStartedMessage,
 } from "@/lib/seminars/registration-refusals";
@@ -40,7 +39,6 @@ export type PortalSeminarCard = {
   scheduledDate: string;
   startTime: string;
   hasStarted: boolean;
-  isFull: boolean;
   hasRegistrationPrices: boolean;
   inscriptions: PortalSeminarInscription[];
   people: PortalSeminarPersonOption[];
@@ -139,23 +137,20 @@ export function formatPortalSeminarMoment(seminar: {
 }
 
 /**
- * The three reasons a footer holds a sentence instead of the button, in the
- * order they are read. "Started" wins over the other two: once it has begun,
- * neither the price list nor the quota is the question. The missing price list
- * wins over "full" because it closes every seminar of the event at once.
+ * The two reasons a footer holds a sentence instead of the button, in the order
+ * they are read. **A full seminar is not one of them**: registration is
+ * unlimited and the quota is spent by deposits, so an academy registers whoever
+ * it wants and the refusal, if any, lands on administration's allocation
+ * (docs/domain/seminars.md, "The place"). "Started" wins over the missing price
+ * list: once it has begun, what it would have cost is not the question.
  */
 export function getPortalSeminarClosedReason(seminar: {
   hasStarted: boolean;
-  isFull: boolean;
   hasRegistrationPrices: boolean;
 }) {
   if (seminar.hasStarted) {
     return seminarStartedMessage;
   }
 
-  if (!seminar.hasRegistrationPrices) {
-    return seminarPricesMissingMessage;
-  }
-
-  return seminar.isFull ? seminarFullMessage : null;
+  return seminar.hasRegistrationPrices ? null : seminarPricesMissingMessage;
 }

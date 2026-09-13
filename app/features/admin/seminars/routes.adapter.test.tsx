@@ -54,7 +54,7 @@ const detailLoaderResult = {
     requiredDepositPercentage: 50,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     availablePlaces: 20,
-    inscriptionCount: 0,
+    registeredCount: 0,
   },
   values: seminarFormValues,
 };

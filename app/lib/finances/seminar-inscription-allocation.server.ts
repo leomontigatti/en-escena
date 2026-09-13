@@ -49,6 +49,9 @@ import {
   type SeminarFinancePriceRow,
 } from "@/lib/finances/seminar-inscription-thresholds.server";
 
+import { countCoveredSeminarInscriptions } from "@/lib/seminars/covered-inscriptions.server";
+import { seminarNoPlacesForDepositMessage } from "@/lib/seminars/registration-refusals";
+
 import {
   readInscriptionAllocatedAmount,
   spreadFromPool,
@@ -181,8 +184,90 @@ export async function allocateToSeminarInscription(
       amount: input.amount,
       eventId: input.eventId,
       target: { id: input.inscriptionId, kind: "seminar" },
+      targetGuard: (movement) =>
+        assertSeminarPlaceForCrossing(tx, {
+          ...movement,
+          inscriptionId: input.inscriptionId,
+          seminar: context.seminar,
+        }),
     });
   });
+}
+
+/**
+ * **Covering the deposit is what takes the place**, so the quota is checked on
+ * the write that crosses it and on no other: a partial allocation below the
+ * deposit goes through in a full seminar, taking money off never refuses, and
+ * money after the seminar started is money like any other.
+ *
+ * The threshold is the **stored** row's, read again here because the pricing
+ * step may have just written it. The count leaves this row out — a row that is
+ * already covered would otherwise count against its own crossing — and it is
+ * taken under the lock `loadSeminarMoneyContext` already holds on the seminar.
+ */
+async function assertSeminarPlaceForCrossing(
+  tx: Transaction,
+  input: {
+    allocatedAmount: number;
+    amount: number;
+    inscriptionId: string;
+    seminar: SeminarPricingRow;
+  },
+): Promise<CobroResult> {
+  const depositAmount = await readStoredSeminarDepositAmount(tx, {
+    inscriptionId: input.inscriptionId,
+    requiredDepositPercentage: input.seminar.requiredDepositPercentage,
+  });
+  const crosses =
+    !hasCrossedDepositThreshold({
+      allocatedAmount: input.allocatedAmount,
+      depositAmount,
+    }) &&
+    hasCrossedDepositThreshold({
+      allocatedAmount: input.allocatedAmount + input.amount,
+      depositAmount,
+    });
+
+  if (!crosses) {
+    return { ok: true };
+  }
+
+  const coveredCount = await countCoveredSeminarInscriptions(
+    input.seminar.id,
+    tx,
+    { exceptInscriptionId: input.inscriptionId },
+  );
+
+  return coveredCount >= input.seminar.quota
+    ? { ok: false, message: seminarNoPlacesForDepositMessage }
+    : { ok: true };
+}
+
+/** The deposit of the row the inscription stores right now, at the seminar's
+ * own rate — `null` while it stores no row, which is a row that can cross
+ * nothing. */
+async function readStoredSeminarDepositAmount(
+  executor: Executor,
+  input: { inscriptionId: string; requiredDepositPercentage: number },
+): Promise<number | null> {
+  const inscription = await executor.query.seminarInscriptions.findFirst({
+    columns: { selectedPriceId: true },
+    where: eq(seminarInscriptions.id, input.inscriptionId),
+  });
+
+  if (!inscription?.selectedPriceId) {
+    return null;
+  }
+
+  const stored = await executor.query.seminarPrices.findFirst({
+    columns: { amount: true },
+    where: eq(seminarPrices.id, inscription.selectedPriceId),
+  });
+
+  return deriveSeminarInscriptionThresholds({
+    priceAmount: stored?.amount ?? null,
+    requiredDepositPercentage: input.requiredDepositPercentage,
+  }).depositAmount;
 }
 
 /**
@@ -358,7 +443,9 @@ async function hasCrossedStoredSeminarDepositThreshold(
 
 type SeminarPricingRow = {
   eventId: string;
+  id: string;
   kind: SeminarFinancePriceRow["kind"];
+  quota: number;
   requiredDepositPercentage: number;
 };
 
@@ -384,7 +471,7 @@ async function loadSeminarMoneyContext(
   tx: Transaction,
   input: SeminarInscriptionMoneyInput,
 ): Promise<SeminarMoneyContext> {
-  const seminar = await readSeminarPricingRow(tx, input.seminarId);
+  const seminar = await lockSeminarPricingRow(tx, input.seminarId);
 
   if (!seminar || seminar.eventId !== input.eventId) {
     return { ok: false, message: seminarNotFoundMessage };
@@ -438,9 +525,46 @@ async function readSeminarPricingRow(
   seminarId: string,
 ): Promise<SeminarPricingRow | null> {
   const seminar = await executor.query.seminars.findFirst({
-    columns: { eventId: true, kind: true, requiredDepositPercentage: true },
+    columns: {
+      eventId: true,
+      id: true,
+      kind: true,
+      quota: true,
+      requiredDepositPercentage: true,
+    },
     where: eq(seminars.id, seminarId),
   });
+
+  return seminar ?? null;
+}
+
+/**
+ * The same row, taken **`FOR UPDATE`**. Every money gesture on a seminar
+ * inscription starts here, crossing or not: the quota is decided by counting
+ * covered rows, and a count that is not taken under a lock on the seminar can be
+ * invalidated by a concurrent crossing between the count and the write. Two
+ * transactions racing for the last place are serialized by this lock, and the
+ * loser reads the count the winner already wrote.
+ *
+ * It is taken before anything else is read — including the price and the
+ * participant cell — so the whole decision rests on one snapshot of the seminar.
+ */
+async function lockSeminarPricingRow(
+  tx: Transaction,
+  seminarId: string,
+): Promise<SeminarPricingRow | null> {
+  const [seminar] = await tx
+    .select({
+      eventId: seminars.eventId,
+      id: seminars.id,
+      kind: seminars.kind,
+      quota: seminars.quota,
+      requiredDepositPercentage: seminars.requiredDepositPercentage,
+    })
+    .from(seminars)
+    .where(eq(seminars.id, seminarId))
+    .for("update")
+    .limit(1);
 
   return seminar ?? null;
 }

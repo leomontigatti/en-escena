@@ -30,7 +30,6 @@ function buildSeminar(
     scheduledDate: "2026-10-10",
     startTime: "18:30",
     hasStarted: false,
-    isFull: false,
     hasRegistrationPrices: true,
     inscriptions: [],
     people: [
@@ -91,11 +90,10 @@ describe("PortalSeminarsListRouteView", () => {
     expect(findByText("button", "Inscribir")).toBeDefined();
   });
 
-  test("replaces the button with the reason when the seminar is full, unpriced or has started", async () => {
+  test("replaces the button with the reason when the seminar is unpriced or has started, and never because it is full", async () => {
     await renderSeminars({
       hasActiveEvent: true,
       seminars: [
-        buildSeminar({ id: "seminar_full", isFull: true }),
         buildSeminar({ id: "seminar_started", hasStarted: true }),
         buildSeminar({
           id: "seminar_unpriced",
@@ -104,12 +102,23 @@ describe("PortalSeminarsListRouteView", () => {
       ],
     });
 
-    expect(document.body.textContent).toContain("Sin lugares disponibles.");
     expect(document.body.textContent).toContain("El seminario ya comenzó.");
     expect(document.body.textContent).toContain(
       "Las inscripciones a este seminario todavía no están abiertas.",
     );
     expect(findByText("button", "Inscribir")).toBeUndefined();
+  });
+
+  test("keeps the button on an open seminar whatever its occupancy", async () => {
+    // Registration is unlimited: the quota is spent by deposits, and the portal
+    // never turns it into a closed footer.
+    await renderSeminars({
+      hasActiveEvent: true,
+      seminars: [buildSeminar({ id: "seminar_open" })],
+    });
+
+    expect(document.body.textContent).not.toContain("Sin lugares disponibles.");
+    expect(findByText("button", "Inscribir")).toBeDefined();
   });
 
   test("shows the empty state without an active event and without seminars", async () => {
