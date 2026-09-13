@@ -1,12 +1,11 @@
-import { eq } from "drizzle-orm";
 import { redirect } from "react-router";
 
-import { db } from "@/db";
-import { academies, choreographies, comprobantes, events } from "@/db/schema";
 import {
   requireAdminUser,
   requireInternalUser,
 } from "@/lib/auth/internal-access.server";
+import { readComprobanteAnchorContext } from "@/lib/comprobantes/anchor-context.server";
+import type { ComprobanteAnchorReading } from "@/lib/comprobantes/anchor-reading";
 import type { ComprobanteStatus } from "@/lib/comprobantes/comprobante-status.server";
 import { listAnchorComprobantes } from "@/lib/comprobantes/comprobantes.server";
 import { toContingencyActionData } from "@/lib/comprobantes/contingency-view";
@@ -27,8 +26,8 @@ import {
   type ComprobanteDetailActionData,
 } from "./shared";
 
-// The comprobante's fiscal snapshot, enriched with its anchor context
-// (choreography/academy/event) and its derived state. It is read-only: the row
+// The comprobante's fiscal snapshot, enriched with its anchor context (the
+// anchor's reading, the academy and the event) and its derived state. It is read-only: the row
 // is immutable; the only mutable thing from here is annulling it by emitting its
 // mirror credit note.
 export type ComprobanteDetail = {
@@ -44,8 +43,8 @@ export type ComprobanteDetail = {
   fchServHasta: string | null;
   fchVtoPago: string | null;
   status: ComprobanteStatus;
-  choreographyId: string;
-  choreographyName: string;
+  // What the comprobante belongs to, as the detail reads it: one of two units.
+  anchor: ComprobanteAnchorReading;
   academyId: string;
   academyName: string;
   eventName: string;
@@ -60,43 +59,21 @@ export type ComprobanteDetailLoaderData = {
 };
 
 // Loads a comprobante by id with its anchor context and its derived state. The
-// state is derived over the set of its choreography, which is self-contained
-// (the mirror credit note anchors to the same choreography). 404 if it does
-// not exist.
+// state is derived over the set of its anchor, which is self-contained (the
+// mirror credit note anchors to the same unit). 404 if it does not exist.
 export async function loadComprobanteDetail(
   request: Request,
   comprobanteId: string,
 ): Promise<ComprobanteDetailLoaderData> {
   await requireInternalUser(request, ["admin", "auditor"]);
 
-  const [context] = await db
-    .select({
-      // Off the joined choreography and not off the nullable anchor column: the
-      // inner join already restricts this reader to the choreography-anchored
-      // comprobantes, and reading the join's own id says so in the type.
-      choreographyId: choreographies.id,
-      choreographyName: choreographies.name,
-      academyId: academies.id,
-      academyName: academies.name,
-      eventName: events.name,
-    })
-    .from(comprobantes)
-    .innerJoin(
-      choreographies,
-      eq(comprobantes.choreographyId, choreographies.id),
-    )
-    .innerJoin(academies, eq(choreographies.academyId, academies.id))
-    .innerJoin(events, eq(comprobantes.eventId, events.id))
-    .where(eq(comprobantes.id, comprobanteId));
+  const context = await readComprobanteAnchorContext(comprobanteId);
 
   if (!context) {
     throw new Response("Comprobante no encontrado", { status: 404 });
   }
 
-  const scope = await listAnchorComprobantes({
-    kind: "choreography",
-    choreographyId: context.choreographyId,
-  });
+  const scope = await listAnchorComprobantes(context.anchor);
   const comprobante = scope.find((row) => row.id === comprobanteId);
 
   if (!comprobante) {
@@ -117,8 +94,7 @@ export async function loadComprobanteDetail(
       fchServHasta: comprobante.fchServHasta,
       fchVtoPago: comprobante.fchVtoPago,
       status: comprobante.status,
-      choreographyId: context.choreographyId,
-      choreographyName: context.choreographyName,
+      anchor: context.reading,
       academyId: context.academyId,
       academyName: context.academyName,
       eventName: context.eventName,

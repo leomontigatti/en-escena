@@ -64,21 +64,19 @@ every figure re-derives from money and can move in both directions.
   is born `Seña pendiente`. Adding a dancer who was withdrawn **revives** the
   same row instead of inserting another (see "Withdrawal from the roster").
 
-> **Specified, not built.** The `Inscripción` gains a **second kind**. Map
-> [#884](https://github.com/leomontigatti/en-escena/issues/884) makes the
-> `seminarInscription` (`docs/domain/seminars.md`) an allocation target in the
-> same academy pool, with the same `Pago`, the same `Asignación de pago`, the
-> same `Saldo disponible` invariant and the same `Comprobante`; there is no
-> separate seminar payment. From then on `inscription` is the umbrella term and
-> the choreography–dancer link is the **choreography inscription**
-> ([Allocation and comprobante line as a two-kind target](https://github.com/leomontigatti/en-escena/issues/886)).
-> The seminar inscription carries the same two fields and nothing else
-> financial — `selectedPriceId`, referencing a `seminarPrice`, and
-> `withdrawnAt` — and no `academyId`: its academy is read through the person,
-> and the allocation row's own `academyId` covers the pool side. Owner: the PRD
-> [#906](https://github.com/leomontigatti/en-escena/issues/906). Where a seminar
-> inscription differs from a choreography one, the callouts below name it; where
-> no callout says otherwise, the rule reads the same for both kinds.
+The `Inscripción` has a **second kind**. The `seminarInscription`
+(`docs/domain/seminars.md`) is an allocation target in the same academy pool,
+with the same `Pago`, the same `Asignación de pago`, the same `Saldo disponible`
+invariant and the same `Comprobante`; there is no separate seminar payment
+(map [#884](https://github.com/leomontigatti/en-escena/issues/884),
+[#886](https://github.com/leomontigatti/en-escena/issues/886)). `inscription` is
+therefore the umbrella term and the choreography–dancer link is the
+**choreography inscription**. The seminar inscription carries the same two fields
+and nothing else financial — `selectedPriceId`, referencing a `seminarPrice`, and
+`withdrawnAt` — and no `academyId`: its academy is read through the person, and
+the allocation row's own `academyId` covers the pool side. Where a seminar
+inscription differs from a choreography one, this document names it; where it says
+nothing, the rule reads the same for both kinds.
 
 ### Inscription financial status
 
@@ -355,28 +353,25 @@ DISTINCT`, because two of them would otherwise be separated only by amount.
   the signal belongs; nothing refuses an inscription for lacking a price at
   creation, and presets can leave a row holding money and storing no price.
 
-> **Specified, not built.**
-> A seminar inscription is priced the same way, decided in
-> [Seminar prices as event-level rows](https://github.com/leomontigatti/en-escena/issues/904)
-> (which superseded #885):
-> `seminarInscription.selectedPriceId` is nullable, references a `seminarPrice`
-> row, is written only by the allocation dialog, and the effective row is
-> `crossed ? stored : (current ?? stored)` through the same owner,
-> `resolveEffectiveBasePriceRow`, fed the seminar's own `requiredDepositPercentage`
-> and a candidate set with **no schedule or group-type axis**: the event's
-> `seminarPrice` rows of the seminar's `seminarKind` for the person's participant
-> cell, falling back to the `regular` rows when the kind has none, with no
-> fallback on the participant axis. The business date then picks among them
-> through `selectApplicablePriceCandidate`, one call into the owner. The stored
-> row carries its own `forParticipants` flag, so the crossing freezes the tier
-> and the participant fact in one column and nothing else is persisted. The
-> picker offers the same candidate set with no date filter, as the choreography
-> picker does. A price row referenced by any seminar inscription cannot be
-> deleted or restructured, and a seminar's kind cannot flip while any of its
-> inscriptions is covered — which closes, for seminars, the known divergence
-> below. The `Señada`-without-a-place band this creates for the seminar quota is
-> named in `docs/domain/seminars.md`, "The place". Owner: the PRD
-> [#906](https://github.com/leomontigatti/en-escena/issues/906).
+**A seminar inscription is priced the same way**
+([#904](https://github.com/leomontigatti/en-escena/issues/904), which superseded
+#885). `seminarInscription.selectedPriceId` is nullable, references a
+`seminarPrice` row, is written only by the allocation dialog, and the effective
+row is `crossed ? stored : (current ?? stored)` through the same owner,
+`resolveEffectiveBasePriceRow`, fed the seminar's own
+`requiredDepositPercentage` and a candidate set with **no schedule or group-type
+axis**: the event's `seminarPrice` rows of the seminar's `seminarKind` for the
+person's participant cell, falling back to the `regular` rows when the kind has
+none, with no fallback on the participant axis. The business date then picks
+among them through `selectApplicablePriceCandidate`, one call into the owner. The
+stored row carries its own `forParticipants` flag, so the crossing freezes the
+tier and the participant fact in one column and nothing else is persisted. The
+picker offers the same candidate set with no date filter, as the choreography
+picker does. A price row referenced by any seminar inscription cannot be deleted
+or restructured, and a seminar's kind cannot flip while any of its inscriptions
+is covered — which closes, for seminars, the known divergence below. The
+`Señada`-without-a-place band this creates for the seminar quota is named in
+`docs/domain/seminars.md`, "The place".
 
 **Known divergence — a roster change can leave a crossed price impossible.**
 Because nothing refreshes `selectedPriceId`, a roster change that moves the
@@ -894,16 +889,20 @@ settled model:
   span; a seminar is taught on one day, so both ends read the seminar's date.
   `FchVtoPago` is the comprobante's own date on both, because what is billed was
   already collected.
-
-> **Specified, not built.** What is left of seminar invoicing is how it
-> **reads**, not how it works
-> ([#926](https://github.com/leomontigatti/en-escena/issues/926)): the printed
-> receptor block `{academy} — Seminario {instructor}, {date}` (the single line
-> stays `Inscripción`), and the global list searching by instructor name beside
-> choreography name, with no kind facet. The portal shows no comprobante for
-> either kind. The ADR-0014 §5 model stays the target for **both** kinds under
-> [#657](https://github.com/leomontigatti/en-escena/issues/657). Owner: the PRD
-> [#906](https://github.com/leomontigatti/en-escena/issues/906).
+- **The anchor reads as one of two units on every surface**
+  ([#926](https://github.com/leomontigatti/en-escena/issues/926)). A
+  choreography reads as its name; a seminar reads
+  `Seminario {instructor}, {fecha}`, because a seminar has no name of its own.
+  The printed receptor block is `{academia} — {unidad}` and the single detail
+  line stays the constant `Inscripción` on both kinds, since the receptor block
+  already names what was sold. The global comprobante list holds both kinds in
+  one `Coreografía o seminario` column, each reading linking to its unit's
+  financial detail, and the search matches the academy's name, the
+  choreography's name, the **instructor's** name and the fiscal number; there is
+  **no kind facet** — the reading already says which kind it is. The portal
+  shows no comprobante for either kind. The ADR-0014 §5 model stays the target
+  for **both** kinds under
+  [#657](https://github.com/leomontigatti/en-escena/issues/657).
 
 > **Specified, not built.** This is the largest gap in the document, and it is
 > the whole of ADR-0014 §5, §6 and §7 **minus the one piece already built**: the

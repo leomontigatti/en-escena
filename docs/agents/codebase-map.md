@@ -112,10 +112,9 @@ schedule resolution and operational completion.
 Use for the academy-facing seminar surfaces: the gallery of posters for the
 active event's seminars, and the seminar detail each poster links to, which owns
 the academy's own inscriptions, the registration dialog and the removal. The
-seminar row and its administrative surfaces live in `Admin Seminars`. Specified,
-not built (PRD #906): the seminar tab and `(seminar, academy)` detail of the
-portal `Resumen financiero` under `app/features/portal/finances/`; each slice
-adds its files here as it creates them.
+seminar row and its administrative surfaces live in `Admin Seminars`, and the
+seminar tab and read-only `(seminar, academy)` detail of the portal
+`Resumen financiero` are under `app/features/portal/finances/`.
 
 - Domain: `docs/domain/seminars.md`, `docs/domain/finances.md`
 - ADRs: `docs/adr/0002-selectable-event-contexts.md`, `docs/adr/0004-organize-app-code-by-product-surface.md`
@@ -230,8 +229,12 @@ Removal chooses between a delete and a withdrawal through
 Seminar money is invoiced from the same `(seminar, academy)` detail: the
 comprobante root carries a second **anchor** (`app/lib/comprobantes/anchor.ts`)
 and the emitter is parameterised by it, so one emission path serves both kinds.
-Specified, not built (PRD #906): how a seminar comprobante reads on the printed
-document and in the global list (#926).
+How the anchor **reads** is one module of its own
+(`app/lib/comprobantes/anchor-reading.ts`, with the loader
+`app/lib/comprobantes/anchor-context.server.ts`), shared by the printed
+document, the comprobante detail and the global comprobante list, which holds
+both kinds in one column and searches the instructor's name beside the
+choreography's.
 
 - Domain: `docs/domain/seminars.md`, `docs/domain/finances.md`
 - ADRs: `docs/adr/0002-selectable-event-contexts.md`, `docs/adr/0004-organize-app-code-by-product-surface.md`
@@ -248,8 +251,9 @@ document and in the global list (#926).
 - Removal with money (the delete-or-withdraw chooser both sides go through, the revival of a withdrawn row and the confirmation that says the money stays): `app/lib/seminars/inscription-withdrawal.server.ts`, `app/components/shared/withdraw-dialog.tsx`
 - The shared money dialog (one dialog for both kinds of inscription, told which target it is about): `app/features/admin/finances/inscription-money/dialog.tsx`, `app/features/admin/finances/inscription-money/figures.ts`, `app/features/admin/finances/inscription-money/intents.ts`
 - Seminar invoicing (the comprobante's second anchor, the emitter parameterised by it, and the one `Emitir factura` both financial details share): `app/lib/comprobantes/anchor.ts`, `app/lib/comprobantes/emit-factura-c.server.ts`, `app/lib/comprobantes/comprobantes.server.ts`, `app/features/admin/finances/comprobante-emission/shared.ts`, `app/features/admin/finances/comprobante-emission/handlers.server.ts`, `app/features/admin/finances/comprobante-emission/dialog.tsx`
+- How a comprobante reads its anchor (one reading for both kinds, on the printed document, the detail and the global list): `app/lib/comprobantes/anchor-reading.ts`, `app/lib/comprobantes/anchor-context.server.ts`, `app/features/admin/comprobantes/print/model.ts`, `app/features/admin/comprobantes/print/server.ts`, `app/features/admin/comprobantes/list/server.ts`, `app/features/admin/comprobantes/list/view.tsx`, `app/features/admin/comprobantes/detail/server.ts`, `app/features/admin/comprobantes/detail/view.tsx`
 - Storage module: `app/lib/storage/seminar-pictures.server.ts`
-- Tests: `app/lib/comprobantes/emit-factura-c.seminar.server.db.test.ts`, `app/features/admin/finances/academy-seminars/seminar-detail/view.interaction.test.tsx`, `app/features/admin/finances/comprobante-emission/dialog.interaction.test.tsx`, `app/lib/seminars/inscription-withdrawal.server.db.test.ts`, `app/lib/finances/seminar-inscription-allocation.server.db.test.ts`, `app/features/admin/payments/detail/deletion-impact.server.db.test.ts`, `app/lib/seminars/inscriptions.server.db.test.ts`, `app/features/portal/seminars/list/server.db.test.ts`, `app/features/admin/finances/academy-seminars/seminar-detail/view.test.tsx`, `app/features/portal/finances/seminar-detail/view.test.tsx`, `app/features/portal/finances/seminar-detail/server.db.test.ts`, `app/features/portal/finances/view.test.tsx`, `app/lib/finances/allocation-target.server.db.test.ts`, `app/lib/finances/seminar-inscription-price.test.ts`, `app/lib/finances/seminar-inscription-thresholds.server.db.test.ts`, `app/lib/seminars/active-inscription.db.test.ts`, `app/lib/seminar-prices/repository.server.db.test.ts`, `app/features/admin/seminar-prices/action.server.db.test.ts`, `app/features/admin/seminar-prices/view.test.tsx`, `app/lib/seminars/repository.server.db.test.ts`, `app/features/admin/seminars/action.server.db.test.ts`, `app/features/admin/seminars/action.server.picture.db.test.ts`, `app/features/admin/seminars/routes.adapter.test.tsx`, `app/features/admin/seminars/view.test.tsx`, `app/lib/storage/seminar-pictures.server.test.ts`
+- Tests: `app/lib/comprobantes/anchor-reading.test.ts`, `app/features/admin/comprobantes/print/server.db.test.ts`, `app/features/admin/comprobantes/print/view.test.tsx`, `app/features/admin/comprobantes/list/server.db.test.ts`, `app/features/admin/comprobantes/list/view.test.tsx`, `app/features/admin/comprobantes/detail/server.db.test.ts`, `app/features/admin/comprobantes/detail/view.interaction.test.tsx`, `app/lib/comprobantes/emit-factura-c.seminar.server.db.test.ts`, `app/features/admin/finances/academy-seminars/seminar-detail/view.interaction.test.tsx`, `app/features/admin/finances/comprobante-emission/dialog.interaction.test.tsx`, `app/lib/seminars/inscription-withdrawal.server.db.test.ts`, `app/lib/finances/seminar-inscription-allocation.server.db.test.ts`, `app/features/admin/payments/detail/deletion-impact.server.db.test.ts`, `app/lib/seminars/inscriptions.server.db.test.ts`, `app/features/portal/seminars/list/server.db.test.ts`, `app/features/admin/finances/academy-seminars/seminar-detail/view.test.tsx`, `app/features/portal/finances/seminar-detail/view.test.tsx`, `app/features/portal/finances/seminar-detail/server.db.test.ts`, `app/features/portal/finances/view.test.tsx`, `app/lib/finances/allocation-target.server.db.test.ts`, `app/lib/finances/seminar-inscription-price.test.ts`, `app/lib/finances/seminar-inscription-thresholds.server.db.test.ts`, `app/lib/seminars/active-inscription.db.test.ts`, `app/lib/seminar-prices/repository.server.db.test.ts`, `app/features/admin/seminar-prices/action.server.db.test.ts`, `app/features/admin/seminar-prices/view.test.tsx`, `app/lib/seminars/repository.server.db.test.ts`, `app/features/admin/seminars/action.server.db.test.ts`, `app/features/admin/seminars/action.server.picture.db.test.ts`, `app/features/admin/seminars/routes.adapter.test.tsx`, `app/features/admin/seminars/view.test.tsx`, `app/lib/storage/seminar-pictures.server.test.ts`
 
 ## Judging And Results
 

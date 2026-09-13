@@ -1,8 +1,5 @@
-import { eq } from "drizzle-orm";
-
-import { db } from "@/db";
-import { academies, choreographies, comprobantes, events } from "@/db/schema";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
+import { readComprobanteAnchorContext } from "@/lib/comprobantes/anchor-context.server";
 import { renderComprobanteQrSvg } from "@/lib/comprobantes/arca/qr-code.server";
 import { listAnchorComprobantes } from "@/lib/comprobantes/comprobantes.server";
 
@@ -13,37 +10,18 @@ import {
 import { renderComprobantePrintDocument } from "./view";
 
 // Loads the comprobante with its derived state, its lines and the anchoring
-// context (choreography/academy/event). Returns null if it does not exist.
+// context (the anchor's reading, the academy and the event). Returns null if it
+// does not exist.
 async function getComprobantePrintRecord(
   comprobanteId: string,
 ): Promise<ComprobantePrintRecord | null> {
-  const [context] = await db
-    .select({
-      // Off the joined choreography, not off the nullable anchor column: the
-      // inner join already restricts this reader to the choreography-anchored
-      // comprobantes.
-      choreographyId: choreographies.id,
-      choreographyName: choreographies.name,
-      academyName: academies.name,
-      eventName: events.name,
-    })
-    .from(comprobantes)
-    .innerJoin(
-      choreographies,
-      eq(comprobantes.choreographyId, choreographies.id),
-    )
-    .innerJoin(academies, eq(choreographies.academyId, academies.id))
-    .innerJoin(events, eq(comprobantes.eventId, events.id))
-    .where(eq(comprobantes.id, comprobanteId));
+  const context = await readComprobanteAnchorContext(comprobanteId);
 
   if (!context) {
     return null;
   }
 
-  const scope = await listAnchorComprobantes({
-    kind: "choreography",
-    choreographyId: context.choreographyId,
-  });
+  const scope = await listAnchorComprobantes(context.anchor);
   const comprobante = scope.find((row) => row.id === comprobanteId);
 
   if (!comprobante) {
@@ -52,7 +30,7 @@ async function getComprobantePrintRecord(
 
   return {
     ...comprobante,
-    choreographyName: context.choreographyName,
+    anchor: context.reading,
     academyName: context.academyName,
     eventName: context.eventName,
   };

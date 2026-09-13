@@ -14,8 +14,10 @@ import { alias } from "drizzle-orm/pg-core";
 import { redirect } from "react-router";
 
 import { db } from "@/db";
-import { academies, choreographies, comprobantes } from "@/db/schema";
+import { academies, choreographies, comprobantes, seminars } from "@/db/schema";
 import { loadEventContext } from "@/lib/admin/event-context.server";
+import { readAnchorFromJoins } from "@/lib/comprobantes/anchor-context.server";
+import type { ComprobanteAnchorReading } from "@/lib/comprobantes/anchor-reading";
 import {
   FACTURA_C_CBTE_TIPO,
   NOTA_CREDITO_C_CBTE_TIPO,
@@ -25,8 +27,8 @@ import type { ComprobanteStatus } from "@/lib/comprobantes/comprobante-status.se
 
 // A row of the global comprobantes list (#339 variant A, #483). It is read-only:
 // it exposes the already emitted fiscal snapshot (numbering, CAE, amount, date)
-// alongside its derived state and the anchor choreography/academy for navigating
-// to the detail.
+// alongside its derived state, the academy and the anchor's reading — of either
+// kind — for navigating to the unit's financial detail.
 export type ComprobantesListRow = {
   id: string;
   cbteTipo: number;
@@ -36,8 +38,7 @@ export type ComprobantesListRow = {
   impTotal: number;
   cae: string;
   status: ComprobanteStatus;
-  choreographyId: string;
-  choreographyName: string;
+  anchor: ComprobanteAnchorReading;
   academyId: string;
   academyName: string;
 };
@@ -112,18 +113,19 @@ export async function loadComprobantesList(
   const [{ count }] = await db
     .select({ count: sql<number>`count(*)` })
     .from(comprobantes)
-    .innerJoin(
+    .innerJoin(academies, eq(comprobantes.academyId, academies.id))
+    .leftJoin(
       choreographies,
       eq(comprobantes.choreographyId, choreographies.id),
     )
-    .innerJoin(academies, eq(choreographies.academyId, academies.id))
+    .leftJoin(seminars, eq(comprobantes.seminarId, seminars.id))
     .where(where);
   const totalCount = Number(count);
   const totalPages = Math.max(1, Math.ceil(totalCount / comprobantesPageSize));
   const page = Math.min(filters.page, totalPages);
   const normalizedFilters = { ...filters, page };
 
-  const comprobanteRows = await db
+  const anchorRows = await db
     .select({
       id: comprobantes.id,
       cbteTipo: comprobantes.cbteTipo,
@@ -133,24 +135,49 @@ export async function loadComprobantesList(
       impTotal: comprobantes.impTotal,
       cae: comprobantes.cae,
       status: sql<ComprobanteStatus>`case when ${isAnnulled} then 'anulada' else 'vigente' end`,
-      // Off the joined choreography, not off the nullable anchor column: the
-      // inner join already restricts the list to the choreography-anchored
-      // comprobantes.
-      choreographyId: choreographies.id,
+      // The two anchor columns with their joined readings: each row satisfies
+      // exactly one of the LEFT joins, and the root's `CHECK` is what makes the
+      // branch in `readAnchorFromJoins` total. The academy comes off the root's
+      // own column, which every kind carries.
+      choreographyId: comprobantes.choreographyId,
       choreographyName: choreographies.name,
+      seminarId: comprobantes.seminarId,
+      instructorName: seminars.instructorName,
+      scheduledDate: seminars.scheduledDate,
       academyId: academies.id,
       academyName: academies.name,
     })
     .from(comprobantes)
-    .innerJoin(
+    .innerJoin(academies, eq(comprobantes.academyId, academies.id))
+    .leftJoin(
       choreographies,
       eq(comprobantes.choreographyId, choreographies.id),
     )
-    .innerJoin(academies, eq(choreographies.academyId, academies.id))
+    .leftJoin(seminars, eq(comprobantes.seminarId, seminars.id))
     .where(where)
     .orderBy(...buildComprobantesOrderBy(normalizedFilters.order))
     .limit(comprobantesPageSize)
     .offset((page - 1) * comprobantesPageSize);
+
+  const comprobanteRows: ComprobantesListRow[] = anchorRows.map(
+    ({
+      choreographyId,
+      choreographyName,
+      seminarId,
+      instructorName,
+      scheduledDate,
+      ...row
+    }) => ({
+      ...row,
+      anchor: readAnchorFromJoins({
+        choreographyId,
+        choreographyName,
+        seminarId,
+        instructorName,
+        scheduledDate,
+      }),
+    }),
+  );
 
   const canonicalSearch = buildCanonicalComprobantesSearch({
     currentSearch: url.search,
@@ -169,7 +196,7 @@ export async function loadComprobantesList(
   return {
     filters: normalizedFilters,
     hasAnyComprobante: Number(totalUnfilteredCount) > 0,
-    rows: comprobanteRows satisfies ComprobantesListRow[],
+    rows: comprobanteRows,
     selectedEventId,
     totalCount,
     totalPages,
@@ -245,7 +272,10 @@ function buildComprobantesWhere(
     conditions.push(
       or(
         ilike(academies.name, `%${query}%`),
+        // The two anchor readings: a choreography by name, a seminar by its
+        // instructor's name, which is how a seminar is named at all.
         ilike(choreographies.name, `%${query}%`),
+        ilike(seminars.instructorName, `%${query}%`),
         // Fiscal number `PPPP-NNNNNNNN`, reconstructed so it can be searched as
         // the operator sees it (the same format as `formatComprobanteNumber`).
         ilike(

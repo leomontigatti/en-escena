@@ -13,9 +13,7 @@ reasoning lives in the ticket that fixed it.
 
 This document reads like `finances.md`: **unmarked prose describes the code as
 it runs**, and a `> **Specified, not built.**` callout describes a settled
-target with the issue that owns it. Every callout below is owned by the PRD of
-map #884, [#906](https://github.com/leomontigatti/en-escena/issues/906); the
-slice that builds a rule promotes its callout to prose. Where a callout
+target with the issue that owns it. Where a callout
 contradicts the prose beside it, the callout is the target and the prose is
 what runs today.
 
@@ -305,18 +303,11 @@ de-allocating below it releases both.
   appears on any of these surfaces**: what a seminar costs is read in
   `Resumen financiero`.
 - **Administration**: one more admin resource on the schedules' path. A list of
-  instructor, date, time and quota with the places left on it (`quota −
-coveredCount`); a create page; a detail
-  with two tabs, `Información` (the form and the picture) and `Inscriptos` (a
-  flat table of name, type and academy, where the name opens the removal
-  confirmation).
-
-> **Specified, not built.** Decided on
-> [Admin surfaces for seminar money](https://github.com/leomontigatti/en-escena/issues/890).
->
-> - **Administration**: the list keeps its shape, with places left counting
->   `quota − covered`; the detail keeps `Información` and `Inscriptos` and
->   gains `Tipo de seminario` and `Seña (%)`, both read-only while any row is
->   covered; there is no prices tab. Seminar prices are edited in the
->   `Seminarios` tab of `Precios`. Money for a seminar lives under `Finanzas`
->   (`finances.md`, "Surfaces").
+  instructor, date, time and quota with the places left on it
+  (`quota − coveredCount`); a create page; a detail with two tabs, `Información`
+  (the form and the picture) and `Inscriptos` (a flat table of name, type and
+  academy, where the name opens the removal confirmation). The form carries
+  `Tipo de seminario` and `Seña (%)`, both read-only while any inscription of the
+  seminar is covered, and there is **no prices tab**: seminar prices are edited
+  in the `Seminarios` tab of `Precios` (#890), and money for a seminar lives
+  under `Finanzas` (`finances.md`, "Surfaces").

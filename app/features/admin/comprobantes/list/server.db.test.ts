@@ -1,5 +1,7 @@
 import { describe, expect, test } from "vitest";
 
+import { db } from "@/db";
+import { seminars } from "@/db/schema";
 import { createSignedInAdminRequest } from "@/lib/admin/test-support/db";
 import {
   createChoreographyRecord,
@@ -14,7 +16,7 @@ import {
 } from "@/lib/comprobantes/comprobantes.server";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
-import { choreographyAnchor } from "@/lib/comprobantes/anchor";
+import { choreographyAnchor, seminarAnchor } from "@/lib/comprobantes/anchor";
 
 installDatabaseTestHooks();
 
@@ -46,6 +48,42 @@ function facturaCInput(
 }
 
 type EventCatalog = Awaited<ReturnType<typeof createEventCatalog>>;
+
+/**
+ * A seminar of the event with one academy's comprobante on it. The unit is the
+ * pair, so the academy travels on the anchor and not on a choreography.
+ */
+async function seedSeminarComprobante(input: {
+  academyName: string;
+  email: string;
+  eventId: string;
+  instructorName: string;
+}) {
+  const academy = await createAcademyRecord({
+    academyName: input.academyName,
+    email: input.email,
+  });
+  const [seminar] = await db
+    .insert(seminars)
+    .values({
+      eventId: input.eventId,
+      instructorName: input.instructorName,
+      kind: "regular",
+      quota: 20,
+      requiredDepositPercentage: 50,
+      scheduledDate: "2030-10-10",
+      startTime: "18:30",
+    })
+    .returning();
+  const comprobante = await recordComprobante({
+    ...facturaCInput({ choreographyId: "unused", eventId: input.eventId }),
+    anchor: seminarAnchor(seminar.id, academy.id),
+    cbteNro: 77,
+    impTotal: 12000,
+  });
+
+  return { academy, comprobante, seminar };
+}
 
 async function seedChoreography(input: {
   academyName: string;
@@ -142,8 +180,12 @@ describe("loadComprobantesList", () => {
       cbteNro: 7,
       cbteTipo: 11,
       impTotal: 25000,
-      choreographyName: "Coreografía Alfa",
       academyName: "Academia Alfa",
+    });
+    expect(facturaAlfaRow?.anchor).toEqual({
+      kind: "choreography",
+      choreographyId: alfa.choreography.id,
+      choreographyName: "Coreografía Alfa",
     });
 
     const notaCreditoRow = data.rows.find((row) => row.cbteTipo === 13);
@@ -297,6 +339,61 @@ describe("loadComprobantesList", () => {
       await signedInAdminRequest("?busqueda=0001-00000002"),
     );
     expect(porNumero.rows.map((row) => row.id)).toEqual([facturaBeta.id]);
+  });
+
+  test("reads a seminar comprobante by its anchor and finds it by instructor name", async () => {
+    const event = await createEventRecord({ active: true });
+    const catalog = await createEventCatalog(event.id);
+    const alfa = await seedChoreography({
+      academyName: "Academia Alfa",
+      catalog,
+      email: `alfa.${crypto.randomUUID()}@example.com`,
+      eventId: event.id,
+      name: "Tango",
+    });
+    const facturaCoreografia = await recordComprobante(
+      facturaCInput({
+        choreographyId: alfa.choreography.id,
+        eventId: event.id,
+        cbteNro: 1,
+      }),
+    );
+    const seminarUnit = await seedSeminarComprobante({
+      academyName: "Academia Seminario",
+      email: `seminario.${crypto.randomUUID()}@example.com`,
+      eventId: event.id,
+      instructorName: "Abril Sosa",
+    });
+
+    // Both kinds live in the same list, each with its own anchor reading.
+    const data = await loadComprobantesList(await signedInAdminRequest());
+    const seminarRow = data.rows.find(
+      (row) => row.id === seminarUnit.comprobante.id,
+    );
+    expect(seminarRow?.academyName).toBe("Academia Seminario");
+    expect(seminarRow?.academyId).toBe(seminarUnit.academy.id);
+    expect(seminarRow?.anchor).toEqual({
+      kind: "seminar",
+      seminarId: seminarUnit.seminar.id,
+      instructorName: "Abril Sosa",
+      scheduledDate: "2030-10-10",
+    });
+    expect(
+      data.rows.find((row) => row.id === facturaCoreografia.id)?.anchor,
+    ).toEqual({
+      kind: "choreography",
+      choreographyId: alfa.choreography.id,
+      choreographyName: "Tango",
+    });
+
+    // The instructor's name searches beside the choreography's.
+    const porInstructor = await loadComprobantesList(
+      await signedInAdminRequest("?busqueda=Abril"),
+    );
+    expect(porInstructor.rows.map((row) => row.id)).toEqual([
+      seminarUnit.comprobante.id,
+    ]);
+    expect(porInstructor.totalCount).toBe(1);
   });
 
   test("sorts by ascending number when asked to", async () => {
