@@ -254,7 +254,8 @@ de-allocating below it releases both.
   (all non-withdrawn rows) is a separate figure. Withdrawn rows are in neither.
   `coveredCount ≤ quota` always holds.
 - **When covered rows fill the quota**, the admin `(seminar, academy)` financial
-  detail and the portal seminar detail each carry a non-blocking notice: new
+  detail, the portal seminar detail and the portal `(seminar, academy)`
+  financial detail each carry a non-blocking notice: new
   inscriptions are accepted, but a new inscription's deposit cannot be covered
   until a place frees up. The portal's wording is
   `podés inscribir igual, pero la seña de una nueva inscripción no se cubre hasta que se libere un lugar`.
@@ -266,12 +267,6 @@ de-allocating below it releases both.
   already on it. `finances.md` names it beside the choreography band.
 - No bulk gesture over seminar inscriptions: the per-inscription dialog is the
   only money gesture for seminar money.
-
-> **Specified, not built.** The same notice is repeated by the one surface that
-> does not exist yet, the portal `(seminar, academy)` financial detail
-> ([#891](https://github.com/leomontigatti/en-escena/issues/891)), in the same
-> words the portal seminar detail uses. Owner: the PRD
-> [#906](https://github.com/leomontigatti/en-escena/issues/906).
 
 ## What a seminar does not do
 

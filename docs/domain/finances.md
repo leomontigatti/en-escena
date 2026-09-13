@@ -1019,12 +1019,22 @@ Seminar money is read on the same surfaces, split by kind where a unit is named:
   lose their place. Deletion never blocks, and removing money by any other
   gesture stays silent about the place.
 
-> **Specified, not built.** The portal's half of the same split
-> ([Portal surfaces](https://github.com/leomontigatti/en-escena/issues/891)):
-> `Resumen financiero` gains the same two tabs under the same rules, and a
-> read-only `(seminar, academy)` detail — the one place the portal shows
-> `Retirada` rows — writes nothing. That detail repeats the full-quota notice,
-> and the admin one gains `Emitir factura` with the fiscal anchor
+- The portal's `Resumen financiero` carries **the same two tabs under the same
+  rules**: the four threshold-and-owed metrics follow the active tab, `Saldo
+disponible` never moves, each tab keeps its own selection and the owed pair
+  narrows to it. The seminar tab lists the academy's `(seminar, academy)` units
+  with the instructor as the only link.
+- The portal **`(seminar, academy)` financial detail** is that page's twin and
+  the administrator's minus every write: titled by the instructor alone, the
+  five metrics with the academy's `Saldo disponible`, the inscriptions table
+  with `Precio` as the effective row's name, and the full-quota notice repeated.
+  **It is the one portal surface that lists `Retirada` rows**, badged with the
+  amount they retain. There is no money dialog and no comprobante on it. Both
+  sides read the same derivation, so they cannot disagree about an academy's
+  seminar money.
+
+> **Specified, not built.** The admin `(seminar, academy)` detail gains
+> `Emitir factura` with the fiscal anchor
 > ([#894](https://github.com/leomontigatti/en-escena/issues/894)). Owner: the PRD
 > [#906](https://github.com/leomontigatti/en-escena/issues/906).
 

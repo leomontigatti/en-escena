@@ -120,15 +120,19 @@ describe("PortalAcademyFinancesRouteView", () => {
             choreographyNumber: 1,
             id: "choreography_1",
             name: "Aire",
+            depositAmount: { amount: 9000, status: "complete" },
             owedBalanceAmount: { amount: 12000, status: "complete" },
             owedDepositAmount: { amount: 3000, status: "complete" },
+            totalAmount: { amount: 30000, status: "complete" },
           }),
           choreographyFinanceRowFixture({
             choreographyNumber: 2,
             id: "choreography_2",
             name: "Tango",
+            depositAmount: { amount: 9000, status: "complete" },
             owedBalanceAmount: { amount: 9000, status: "complete" },
             owedDepositAmount: { amount: 4000, status: "complete" },
+            totalAmount: { amount: 30000, status: "complete" },
           }),
         ],
         summary: {
@@ -162,10 +166,80 @@ describe("PortalAcademyFinancesRouteView", () => {
     expect(metricCardText("Saldo adeudado")).toContain("$ 21.000");
   });
 
+  // The tabs are the panel's, with the panel's rules: the four figures follow
+  // the active tab, the pool above them does not, and each tab keeps its own
+  // selection so coming back does not find it emptied.
+  test("splits the list into `Coreografías` and `Seminarios`", async () => {
+    await renderPortalFinances(renderer, portalFinancesLoaderDataFixture());
+
+    expect(headerLabels()).toContain("Nombre");
+    expect(headerLabels()).not.toContain("Seminario");
+
+    await clickTab("Seminarios");
+
+    // The unit's own columns, then the shared money ones, then the status.
+    expect(headerLabels()).toEqual([
+      "",
+      "Seminario",
+      "Fecha",
+      "Inscriptos",
+      "Seña",
+      "Total",
+      "Saldo adeudado",
+      "Estado",
+    ]);
+    expect(columnValues("Seminario")).toEqual(["Abril Sosa"]);
+    expect(columnValues("Inscriptos")).toEqual(["2"]);
+    // The instructor is the only link out of the row.
+    expect(
+      [...document.querySelectorAll("tbody a")].map((link) => [
+        (link.textContent ?? "").trim(),
+        link.getAttribute("href"),
+      ]),
+    ).toEqual([["Abril Sosa", "/portal/finanzas/seminarios/seminar_1"]]);
+  });
+
+  test("moves the four metrics with the tab and leaves the pool where it is", async () => {
+    await renderPortalFinances(renderer, portalFinancesLoaderDataFixture());
+
+    // The choreography tab: the two rows of the fixture, summed.
+    expect(metricCardText("Seña total")).toContain("$ 6.000");
+    expect(metricCardText("Total")).toContain("$ 20.000");
+    expect(metricCardText("Saldo disponible")).toContain("$ 5.000");
+
+    await clickTab("Seminarios");
+
+    expect(metricCardText("Seña total")).toContain("$ 2.500");
+    expect(metricCardText("Seña adeudada")).toContain("$ 2.500");
+    expect(metricCardText("Total")).toContain("$ 5.000");
+    expect(metricCardText("Saldo adeudado")).toContain("$ 5.000");
+    // One pool for both kinds, so it never moves.
+    expect(metricCardText("Saldo disponible")).toContain("$ 5.000");
+  });
+
+  test("keeps one selection per tab", async () => {
+    await renderPortalFinances(renderer, portalFinancesLoaderDataFixture());
+
+    await clickCheckbox(getRenderedCheckboxes()[1]);
+
+    const owedAfterSelection = metricCardText("Saldo adeudado");
+
+    await clickTab("Seminarios");
+
+    // The seminar tab opens with nothing selected, so it shows its own total.
+    expect(metricCardText("Saldo adeudado")).toContain("$ 5.000");
+
+    await clickTab("Coreografías");
+
+    // And the choreography selection survived the round trip.
+    expect(metricCardText("Saldo adeudado")).toBe(owedAfterSelection);
+  });
+
   test("shows the empty state when there is no active event", async () => {
     await renderPortalFinances(renderer, {
       activeEvent: null,
       choreographyFinanceRows: [],
+      seminarFinanceRows: [],
       summary: emptyOperationalFinanceSummary(),
     });
 
@@ -179,6 +253,33 @@ function getRenderedCheckboxes() {
   return [...document.querySelectorAll('[role="checkbox"]')].filter(
     (element): element is HTMLElement => element instanceof HTMLElement,
   );
+}
+
+/** Clicks a tab trigger by its label, the way the academy switches sections. */
+async function clickTab(label: string) {
+  const tab = [...document.querySelectorAll('[role="tab"]')].find(
+    (candidate) => (candidate.textContent ?? "").trim() === label,
+  );
+
+  if (!(tab instanceof HTMLElement)) {
+    throw new Error(`Expected a "${label}" tab to be rendered.`);
+  }
+
+  // Radix activates a trigger on `mousedown`, so the click alone would leave
+  // the tab where it was.
+  await act(async () => {
+    tab.dispatchEvent(
+      new MouseEvent("mousedown", {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+      }),
+    );
+    tab.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true }),
+    );
+    await Promise.resolve();
+  });
 }
 
 async function clickCheckbox(checkbox: HTMLElement) {
@@ -271,6 +372,7 @@ function portalFinancesLoaderDataFixture(
         financialStatus: "depositPending",
       }),
     ],
+    seminarFinanceRows: [seminarFinanceRowFixture()],
     summary: {
       availableBalanceAmount: 5000,
       depositAmount: { amount: 9000, status: "complete" },
@@ -279,6 +381,28 @@ function portalFinancesLoaderDataFixture(
       owedDepositAmount: { amount: 3000, status: "complete" },
       totalPaidAmount: 5000,
     },
+    ...overrides,
+  };
+}
+
+function seminarFinanceRowFixture(
+  overrides: Partial<LoaderData["seminarFinanceRows"][number]> = {},
+): LoaderData["seminarFinanceRows"][number] {
+  return {
+    academyId: "academy_1",
+    allocatedAmount: 0,
+    anomalies: [],
+    basePriceAmount: { amount: 5000, status: "complete" },
+    depositAmount: { amount: 2500, status: "complete" },
+    financialStatus: "depositPending",
+    id: "seminar_1",
+    overAllocatedAmount: 0,
+    instructorName: "Abril Sosa",
+    owedBalanceAmount: { amount: 5000, status: "complete" },
+    owedDepositAmount: { amount: 2500, status: "complete" },
+    registrationCount: 2,
+    scheduledDate: "2026-10-10",
+    totalAmount: { amount: 5000, status: "complete" },
     ...overrides,
   };
 }

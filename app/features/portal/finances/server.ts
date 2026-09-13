@@ -13,6 +13,7 @@ export async function loadPortalAcademyFinances(request: Request) {
     return {
       activeEvent: null,
       choreographyFinanceRows: [],
+      seminarFinanceRows: [],
       summary: emptyOperationalFinanceSummary(),
     };
   }
@@ -25,6 +26,10 @@ export async function loadPortalAcademyFinances(request: Request) {
   return {
     activeEvent: eventContext.activeEvent,
     choreographyFinanceRows: financeDetail.choreographyFinanceRows,
+    // The academy's `(seminar, academy)` units. They are a second list and not a
+    // second summary: the tabs split the tables, and `Saldo disponible` above
+    // them stays the one pool both kinds are paid out of.
+    seminarFinanceRows: financeDetail.seminarFinanceRows,
     summary: financeDetail.summary,
   };
 }
