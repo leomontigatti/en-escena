@@ -29,6 +29,12 @@
  * picker there is offering to confirm a row that is going to be re-read anyway,
  * which is exactly what the rule intends.
  *
+ * The dialog is **one dialog for the two kinds of inscription**, not a shape
+ * per kind: a seminar inscription is funded from the same pool, against the same
+ * two thresholds, with the same price lock. What the caller passes is the target
+ * kind, which travels in the form so the action it posts to knows which writer to
+ * call.
+ *
  * The threshold is read here off the row's **effective** deposit, while the
  * write path tests the **stored** one. They agree wherever it matters: once the
  * stored row is crossed the effective row *is* the stored row. They can differ
@@ -65,33 +71,36 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 
-import { hasCrossedDepositThreshold } from "@/lib/finances/inscription-financial-status";
+import type { AllocationTargetKind } from "@/lib/finances/allocation-target.server";
 
 import { formatAmount, formatDancerName } from "@/lib/finances/formatters";
 import {
-  deriveOwedAgainstPrice,
   formatDialogPrice,
   formatOwedAmount,
+  isAmountOutOfRange,
   readInscriptionMoneyDialogShape,
-  selectPickedPrice,
+  resolveAllocationDialogFigures,
   type InscriptionRow,
   type OwedAgainstPrice,
   type PriceOption,
-} from "./inscription-money-figures";
+} from "./figures";
 import {
   allocateInscriptionIntent,
   releaseInscriptionExcessIntent,
   removeInscriptionMoneyIntent,
-} from "./shared";
+  targetKindFieldName,
+} from "./intents";
 
 export function InscriptionMoneyDialog({
   inscription,
   onOpenChange,
   priceOptions,
+  targetKind = "choreography",
 }: {
   inscription: InscriptionRow;
   onOpenChange: (open: boolean) => void;
   priceOptions: PriceOption[];
+  targetKind?: AllocationTargetKind;
 }) {
   const shape = readInscriptionMoneyDialogShape(inscription);
   const [removing, setRemoving] = useState(shape === "remove");
@@ -101,6 +110,7 @@ export function InscriptionMoneyDialog({
       <ReleaseExcessDialog
         inscription={inscription}
         onOpenChange={onOpenChange}
+        targetKind={targetKind}
       />
     );
   }
@@ -110,6 +120,7 @@ export function InscriptionMoneyDialog({
       <RemoveMoneyDialog
         inscription={inscription}
         onOpenChange={onOpenChange}
+        targetKind={targetKind}
       />
     );
   }
@@ -122,6 +133,7 @@ export function InscriptionMoneyDialog({
         inscription.allocatedAmount > 0 ? () => setRemoving(true) : null
       }
       priceOptions={priceOptions}
+      targetKind={targetKind}
     />
   );
 }
@@ -142,11 +154,13 @@ function AllocateMoneyDialog({
   onOpenChange,
   onRemoveMoney,
   priceOptions,
+  targetKind,
 }: {
   inscription: InscriptionRow;
   onOpenChange: (open: boolean) => void;
   onRemoveMoney: (() => void) | null;
   priceOptions: PriceOption[];
+  targetKind: AllocationTargetKind;
 }) {
   const fetcher = useMoneyWriteFetcher(onOpenChange);
   const [amount, setAmount] = useState("");
@@ -157,30 +171,14 @@ function AllocateMoneyDialog({
   // price as soon as the allocation covered the deposit.
   const [priceId, setPriceId] = useState(inscription.effectivePrice?.id ?? "");
   const isSaving = fetcher.state !== "idle";
-  // It locks where the rule locks it: on covering the deposit, not on the
-  // first peso.
-  const isPriceLocked = hasCrossedDepositThreshold({
-    allocatedAmount: inscription.allocatedAmount,
-    depositAmount: inscription.depositAmount,
-  });
-  // Every figure follows the **picked** price and not the row's, because
-  // confirming applies the pick: hinting the deposit of a price the administrator
-  // just moved away from asks them to type a figure this dialog is not about to
-  // charge. Below the threshold that is a live choice, so the figures are
+  // Below the threshold the price is a live choice, so every figure is
   // re-derived on each change rather than read off the loader.
-  const owed = deriveOwedAgainstPrice({
-    inscription,
-    price: selectPickedPrice({ inscription, priceId, priceOptions }),
-  });
-  const hintedAmount =
-    owed.owedDepositAmount === null || owed.owedDepositAmount > 0
-      ? owed.owedDepositAmount
-      : owed.owedBalanceAmount;
+  const { hintedAmount, isPriceLocked, ...owed } =
+    resolveAllocationDialogFigures({ inscription, priceId, priceOptions });
   // The ceiling is what the inscription owes, which is what the server refuses
   // against. The academy's pool is another ceiling, and that one is not known
   // here: it stays an alert.
   const owedBalanceAmount = owed.owedBalanceAmount;
-  const isOutOfRange = isAmountOutOfRange(amount, owedBalanceAmount);
 
   return (
     <MoneyDialog
@@ -191,11 +189,7 @@ function AllocateMoneyDialog({
     >
       <fetcher.Form method="post" className="flex flex-col gap-4">
         <input type="hidden" name="intent" value={allocateInscriptionIntent} />
-        <input
-          type="hidden"
-          name="inscriptionId"
-          value={inscription.inscriptionId ?? ""}
-        />
+        <MoneyTargetFields inscription={inscription} targetKind={targetKind} />
 
         <FieldGroup>
           <AllocationPriceField
@@ -228,7 +222,7 @@ function AllocateMoneyDialog({
           isSubmitDisabled={
             isSaving ||
             amount === "" ||
-            isOutOfRange ||
+            isAmountOutOfRange(amount, owedBalanceAmount) ||
             (!isPriceLocked && priceOptions.length === 0)
           }
           onRemoveMoney={onRemoveMoney}
@@ -392,19 +386,6 @@ function AllocationFooter({
 }
 
 /**
- * Out of range is `< 1` or above the ceiling, and an empty box is not out of
- * range — it is the state the field opens in. With no ceiling known there is
- * nothing to be outside of.
- */
-function isAmountOutOfRange(amount: string, maxAmount: number | null) {
-  return (
-    amount !== "" &&
-    maxAmount !== null &&
-    (Number(amount) < 1 || Number(amount) > maxAmount)
-  );
-}
-
-/**
  * The removal dialog: an amount **hinted** with everything the inscription holds,
  * which is the common case, and any smaller amount is accepted. The hint is a
  * placeholder rather than a prefilled value, like the allocation one — the two
@@ -425,9 +406,11 @@ function isAmountOutOfRange(amount: string, maxAmount: number | null) {
 function RemoveMoneyDialog({
   inscription,
   onOpenChange,
+  targetKind,
 }: {
   inscription: InscriptionRow;
   onOpenChange: (open: boolean) => void;
+  targetKind: AllocationTargetKind;
 }) {
   const fetcher = useMoneyWriteFetcher(onOpenChange);
   const [amount, setAmount] = useState("");
@@ -447,11 +430,7 @@ function RemoveMoneyDialog({
           name="intent"
           value={removeInscriptionMoneyIntent}
         />
-        <input
-          type="hidden"
-          name="inscriptionId"
-          value={inscription.inscriptionId ?? ""}
-        />
+        <MoneyTargetFields inscription={inscription} targetKind={targetKind} />
 
         <FieldGroup>
           <MoneyAmountField
@@ -494,9 +473,11 @@ function RemoveMoneyDialog({
 function ReleaseExcessDialog({
   inscription,
   onOpenChange,
+  targetKind,
 }: {
   inscription: InscriptionRow;
   onOpenChange: (open: boolean) => void;
+  targetKind: AllocationTargetKind;
 }) {
   const fetcher = useMoneyWriteFetcher(onOpenChange);
   const isSaving = fetcher.state !== "idle";
@@ -515,11 +496,7 @@ function ReleaseExcessDialog({
           name="intent"
           value={releaseInscriptionExcessIntent}
         />
-        <input
-          type="hidden"
-          name="inscriptionId"
-          value={inscription.inscriptionId ?? ""}
-        />
+        <MoneyTargetFields inscription={inscription} targetKind={targetKind} />
 
         <FetcherError data={fetcher.data} />
 
@@ -536,6 +513,32 @@ function ReleaseExcessDialog({
         </DialogFooter>
       </fetcher.Form>
     </MoneyDialog>
+  );
+}
+
+/**
+ * What every shape submits besides its intent: which inscription, and of which
+ * kind. The kind is a field rather than something the action infers from its own
+ * route because the dialog is shared, and a shared control that leaves half its
+ * meaning to the caller's URL is one refactor away from posting to the wrong
+ * writer.
+ */
+function MoneyTargetFields({
+  inscription,
+  targetKind,
+}: {
+  inscription: InscriptionRow;
+  targetKind: AllocationTargetKind;
+}) {
+  return (
+    <>
+      <input
+        type="hidden"
+        name="inscriptionId"
+        value={inscription.inscriptionId ?? ""}
+      />
+      <input type="hidden" name={targetKindFieldName} value={targetKind} />
+    </>
   );
 }
 

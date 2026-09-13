@@ -62,8 +62,10 @@ describe("AcademyFinancesRouteView", () => {
     expect(text).toContain("Total");
     expect(text).toContain("Saldo adeudado");
     expect(text).toContain("Saldo disponible");
-    expect(text).toContain("$ 9.000");
-    expect(text).toContain("$ 30.000");
+    // The thresholds are the active tab's, summed over its rows: two default
+    // choreographies of `$ 3.000` and `$ 10.000` each.
+    expect(text).toContain("$ 6.000");
+    expect(text).toContain("$ 20.000");
     expect(text).toContain("Aire");
     expect(text).not.toContain("Facturas de seña activas");
     expect(text).not.toContain("Facturas de saldo activas");
@@ -338,16 +340,20 @@ describe("AcademyFinancesRouteView", () => {
       loaderData: academyFinancesLoaderDataFixture({
         choreographyFinanceRows: [
           choreographyFinanceRowFixture({
+            depositAmount: { amount: 9000, status: "complete" },
             id: "choreography_1",
             name: "Aire",
             owedBalanceAmount: { amount: 12000, status: "complete" },
             owedDepositAmount: { amount: 3000, status: "complete" },
+            totalAmount: { amount: 30000, status: "complete" },
           }),
           choreographyFinanceRowFixture({
+            depositAmount: { amount: 9000, status: "complete" },
             id: "choreography_2",
             name: "Tango",
             owedBalanceAmount: { amount: 9000, status: "complete" },
             owedDepositAmount: { amount: 4000, status: "complete" },
+            totalAmount: { amount: 30000, status: "complete" },
           }),
         ],
         summary: {
@@ -376,8 +382,8 @@ describe("AcademyFinancesRouteView", () => {
     expect(metricCardText("Seña adeudada")).toContain("$ 7.000");
     expect(metricCardText("Saldo adeudado")).toContain("$ 21.000");
 
-    // The thresholds and the available balance are the whole academy's and do
-    // not move.
+    // The thresholds are the tab's and the available balance is the academy's:
+    // neither moves with the selection.
     expect(metricCardText("Seña total")).toContain("$ 18.000");
     expect(metricCardText("Total")).toContain("$ 60.000");
     expect(metricCardText("Saldo disponible")).toContain("$ 5.000");
@@ -604,6 +610,87 @@ describe("AcademyFinancesRouteView", () => {
     expect(dialogText).not.toContain("Solo cronograma 2");
   });
 
+  // The two kinds are one debt against one pool, split into two tables. What the
+  // tab may move is the four figures above its own table; `Saldo disponible` is
+  // the academy's and belongs to neither.
+  test("splits the tables by kind and moves the four figures with the tab", async () => {
+    await renderListIntoDocument({
+      loaderData: academyFinancesLoaderDataFixture({
+        seminarFinanceRows: [
+          seminarFinanceRowFixture({ id: "seminar_1" }),
+          seminarFinanceRowFixture({
+            id: "seminar_2",
+            instructorName: "Nicolás Prado",
+            scheduledDate: "2026-10-11",
+          }),
+        ],
+      }),
+    });
+
+    expect(document.body.textContent).toContain("Coreografías");
+    expect(document.body.textContent).toContain("Seminarios");
+    // The choreography tab is what the page opens on.
+    expect(columnValues("Nombre")).toEqual(["Aire", "Tango"]);
+    expect(metricCardText("Seña total")).toContain("$ 6.000");
+    expect(metricCardText("Saldo disponible")).toContain("$ 0");
+
+    await clickTab("Seminarios");
+
+    // The seminar tab's own columns, the instructor first and the academy's own
+    // count beside it.
+    expect(headerLabels()).toEqual([
+      "",
+      "Seminario",
+      "Fecha",
+      "Inscriptos",
+      "Seña",
+      "Total",
+      "Saldo adeudado",
+      "Estado",
+    ]);
+    expect(columnValues("Seminario")).toEqual(["Abril Sosa", "Nicolás Prado"]);
+    expect(columnValues("Inscriptos")).toEqual(["2", "2"]);
+
+    // Two seminars of `$ 5.000` and `$ 20.000`, which is what the four figures
+    // now read; the available balance did not move.
+    expect(metricCardText("Seña total")).toContain("$ 10.000");
+    expect(metricCardText("Total")).toContain("$ 40.000");
+    expect(metricCardText("Saldo adeudado")).toContain("$ 16.000");
+    expect(metricCardText("Saldo disponible")).toContain("$ 0");
+  });
+
+  test("keeps one selection per tab and narrows the owed pair to it", async () => {
+    await renderListIntoDocument({
+      loaderData: academyFinancesLoaderDataFixture({
+        seminarFinanceRows: [
+          seminarFinanceRowFixture({ id: "seminar_1" }),
+          seminarFinanceRowFixture({
+            id: "seminar_2",
+            instructorName: "Nicolás Prado",
+          }),
+        ],
+      }),
+    });
+
+    await clickCheckbox(getRenderedCheckboxes()[1]);
+    await clickTab("Seminarios");
+
+    // Nothing is selected here yet, so the owed pair is the whole tab's.
+    expect(metricCardText("Saldo adeudado")).toContain("$ 16.000");
+
+    await clickCheckbox(getRenderedCheckboxes()[1]);
+
+    expect(metricCardText("Saldo adeudado")).toContain("$ 8.000");
+
+    await clickTab("Coreografías");
+
+    // Back to the choreography selection, untouched by the round trip.
+    expect(metricCardText("Saldo adeudado")).toContain("$ 0");
+    expect(getRenderedCheckboxes()[1].getAttribute("data-state")).toBe(
+      "checked",
+    );
+  });
+
   async function renderListIntoDocument(
     props: {
       initialPresetStage?: "deposit" | "balance";
@@ -751,6 +838,7 @@ function academyFinancesLoaderDataFixture(
       choreography_2: "schedule_1",
     },
     selectedEventId: "event_1",
+    seminarFinanceRows: [],
     summary: {
       availableBalanceAmount: 0,
       depositAmount: { amount: 18000, status: "complete" },
@@ -784,6 +872,57 @@ function presetInscriptionFixture(
     withdrawn: false,
     ...overrides,
   };
+}
+
+/**
+ * One `(seminar, academy)` unit of the `Seminarios` tab. `registrationCount` is
+ * the academy's own active count and not the seminar's occupancy.
+ */
+function seminarFinanceRowFixture(
+  overrides: Partial<
+    AcademyFinancesLoaderData["seminarFinanceRows"][number]
+  > = {},
+): AcademyFinancesLoaderData["seminarFinanceRows"][number] {
+  return {
+    academyId: "academy_1",
+    allocatedAmount: 0,
+    anomalies: [],
+    basePriceAmount: { amount: 20000, status: "complete" },
+    depositAmount: { amount: 5000, status: "complete" },
+    financialStatus: "depositPending",
+    id: "seminar",
+    instructorName: "Abril Sosa",
+    overAllocatedAmount: 0,
+    owedBalanceAmount: { amount: 8000, status: "complete" },
+    owedDepositAmount: { amount: 5000, status: "complete" },
+    registrationCount: 2,
+    scheduledDate: "2026-10-10",
+    totalAmount: { amount: 20000, status: "complete" },
+    ...overrides,
+  };
+}
+
+/** Radix tabs answer a click on the trigger, which is a button by its label. */
+async function clickTab(label: string) {
+  const trigger = [...document.querySelectorAll('[role="tab"]')].find(
+    (candidate) => (candidate.textContent ?? "").trim() === label,
+  );
+
+  if (!trigger) {
+    throw new Error(`Expected a "${label}" tab to be rendered.`);
+  }
+
+  await act(async () => {
+    // Radix switches on `mousedown`, not on the click that follows it.
+    trigger.dispatchEvent(
+      new MouseEvent("mousedown", {
+        bubbles: true,
+        button: 0,
+        cancelable: true,
+      }),
+    );
+    await Promise.resolve();
+  });
 }
 
 function choreographyFinanceRowFixture(

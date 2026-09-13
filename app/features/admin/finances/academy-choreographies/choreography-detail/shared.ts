@@ -2,13 +2,6 @@ import type { ComprobanteContingency } from "@/lib/comprobantes/contingency-aler
 
 export const emitComprobanteIntent = "emit-comprobante";
 
-// The three money gestures of an inscription. All of them name an inscription
-// and an amount and never a payment: which payment the money comes from or goes
-// back to is the pool rules' answer.
-export const allocateInscriptionIntent = "allocate-inscription";
-export const removeInscriptionMoneyIntent = "remove-inscription-money";
-export const releaseInscriptionExcessIntent = "release-inscription-excess";
-
 // Re-verification of an emission left unresolved (#577): it queries ARCA again
 // for that sequence number, without retrying the authorization.
 export const recheckComprobanteIntent = "recheck-comprobante";

@@ -12,6 +12,8 @@ import { createDancer } from "@/features/portal/choreographies/test-support/db";
 import * as businessTimeZone from "@/lib/shared/business-time-zone";
 import { action as choreographyDetailAction } from "@/routes/administracion.finanzas_.$academyId_.coreografias_.$choreographyId";
 
+import { targetKindFieldName } from "@/features/admin/finances/inscription-money/intents";
+
 import { installDatabaseTestHooks } from "../../../../../../tests/db/harness";
 import {
   createAcademyFinanceChoreographyFixture,
@@ -101,6 +103,9 @@ async function postDetailAction(input: {
     requestUrl,
   });
   const formData = new FormData();
+  // The kind the shared dialog always names. Every case here is a choreography
+  // target; a case that named the other kind would be refused by this action.
+  formData.set(targetKindFieldName, "choreography");
   for (const [name, value] of Object.entries(input.fields)) {
     formData.set(name, value);
   }

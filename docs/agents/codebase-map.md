@@ -219,10 +219,12 @@ already point at either kind of inscription — a choreography one or a seminar
 one — through `app/lib/finances/allocation-target.server.ts`, which the pool
 module takes as its target, and a seminar inscription's figures are derived on
 read by `app/lib/finances/seminar-inscription-price.ts` and
-`app/lib/finances/seminar-inscription-thresholds.server.ts`. Specified, not
-built (PRD #906): seminar money is allocated from the academy's pool
-(`app/lib/finances/`) through a `(seminar, academy)` financial detail under
-`app/features/admin/finances/`; each slice adds its files here as it creates
+`app/lib/finances/seminar-inscription-thresholds.server.ts`. Seminar money is
+allocated from the academy's pool through the admin `(seminar, academy)`
+financial detail, which opens the same money dialog choreographies do
+(`app/features/admin/finances/inscription-money/`). Specified, not built (PRD
+#906): the quota at the crossing, removal with money, the portal's seminar
+surfaces and seminar invoicing; each slice adds its files here as it creates
 them.
 
 - Domain: `docs/domain/seminars.md`, `docs/domain/finances.md`
@@ -234,8 +236,10 @@ them.
 - Seminar money (price resolution, the two thresholds at the seminar's own rate, the covered predicate and the `(seminar, academy)` rollup): `app/lib/finances/seminar-inscription-price.ts`, `app/lib/finances/seminar-inscription-thresholds.server.ts`, `app/lib/finances/seminar-operational-summary.server.ts`, and the participation set reader `app/lib/participation/participation.server.ts`
 - The allocation target (the kind and id an allocation points at, the columns it writes and the predicate it reads): `app/lib/finances/allocation-target.server.ts`, consumed by `app/lib/finances/allocation-pool.server.ts` and `app/lib/finances/choreography-cobro-allocations.server.ts`
 - Seminar prices (the event-level list, its guards and its admin screens): routes `app/routes/administracion.precios_.seminarios_.nuevo.tsx` and `app/routes/administracion.precios_.seminarios_.$seminarPriceId.tsx`, feature modules `app/features/admin/seminar-prices/`, domain modules `app/lib/seminar-prices/repository.server.ts`, `app/lib/seminar-prices/participant-cells.ts`, `app/lib/seminar-prices/guard-messages.ts`, and the action handler `app/lib/admin/events/bases-action/seminar-prices.server.ts`
+- Seminar money allocation (the three gestures and the per-person price options of a `(seminar, academy)` unit): `app/lib/finances/seminar-inscription-allocation.server.ts`, `app/lib/finances/seminar-inscriptions.server.ts`, route `app/routes/administracion.finanzas_.$academyId_.seminarios_.$seminarId.tsx`, feature module `app/features/admin/finances/academy-seminars/seminar-detail/`
+- The shared money dialog (one dialog for both kinds of inscription, told which target it is about): `app/features/admin/finances/inscription-money/dialog.tsx`, `app/features/admin/finances/inscription-money/figures.ts`, `app/features/admin/finances/inscription-money/intents.ts`
 - Storage module: `app/lib/storage/seminar-pictures.server.ts`
-- Tests: `app/lib/finances/allocation-target.server.db.test.ts`, `app/lib/finances/seminar-inscription-price.test.ts`, `app/lib/finances/seminar-inscription-thresholds.server.db.test.ts`, `app/lib/seminars/active-inscription.db.test.ts`, `app/lib/seminar-prices/repository.server.db.test.ts`, `app/features/admin/seminar-prices/action.server.db.test.ts`, `app/features/admin/seminar-prices/view.test.tsx`, `app/lib/seminars/repository.server.db.test.ts`, `app/features/admin/seminars/action.server.db.test.ts`, `app/features/admin/seminars/action.server.picture.db.test.ts`, `app/features/admin/seminars/routes.adapter.test.tsx`, `app/features/admin/seminars/view.test.tsx`, `app/lib/storage/seminar-pictures.server.test.ts`
+- Tests: `app/lib/finances/seminar-inscription-allocation.server.db.test.ts`, `app/features/admin/finances/academy-seminars/seminar-detail/view.test.tsx`, `app/lib/finances/allocation-target.server.db.test.ts`, `app/lib/finances/seminar-inscription-price.test.ts`, `app/lib/finances/seminar-inscription-thresholds.server.db.test.ts`, `app/lib/seminars/active-inscription.db.test.ts`, `app/lib/seminar-prices/repository.server.db.test.ts`, `app/features/admin/seminar-prices/action.server.db.test.ts`, `app/features/admin/seminar-prices/view.test.tsx`, `app/lib/seminars/repository.server.db.test.ts`, `app/features/admin/seminars/action.server.db.test.ts`, `app/features/admin/seminars/action.server.picture.db.test.ts`, `app/features/admin/seminars/routes.adapter.test.tsx`, `app/features/admin/seminars/view.test.tsx`, `app/lib/storage/seminar-pictures.server.test.ts`
 
 ## Judging And Results
 

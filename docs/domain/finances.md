@@ -671,17 +671,15 @@ price, and the refusal is what catches it. It is the only path there:
 `applySelectedPrice` is reached from `allocateToInscription` alone, which this
 dialog is the only caller of. The presets have their own `applySelectedPrices`.
 
-> **Specified, not built.** A seminar inscription opens **the same dialog**,
-> with its three shapes and its overlay, from the `(seminar, academy)`
-> financial detail
-> ([Admin surfaces for seminar money](https://github.com/leomontigatti/en-escena/issues/890)).
-> Options and the locked readout read `{name} · {amount} · seña {deposit}`; the
-> picker offers only the `seminarPrice` rows already filtered to the seminar's
-> kind (then `regular`) and to the person's participant cell, with no date
-> filter and no participant readout, and the only write is `selectedPriceId`.
-> The quota refusal lands in the dialog's existing error alert, where every
-> server refusal lands. Owner: the PRD
-> [#906](https://github.com/leomontigatti/en-escena/issues/906).
+**A seminar inscription opens the same dialog**, with its three shapes and its
+overlay, from the `(seminar, academy)` financial detail. It is the one dialog
+told which kind of target it is about, not a twin: the kind travels in the form,
+and each detail's action owns one of the two writers. Options and the locked
+readout read `{name} · {amount} · seña {deposit}` through the same formatter; the
+picker offers only the `seminarPrice` rows already filtered to the seminar's kind
+(then `regular`) and to the person's participant cell, with no date filter and no
+participant readout, and the only write is `selectedPriceId`. Every server
+refusal lands in the dialog's error alert, where the choreography ones land.
 
 ### Per choreography
 
@@ -695,11 +693,11 @@ the administrator who sees an error can trust that nothing moved. A preset
 selects and stores a price row only for inscriptions that have not covered their
 deposit yet; anything already past that threshold keeps the price it holds.
 
-> **Specified, not built.** The presets act on **choreographies only**. There
-> is no preset over seminar inscriptions: a bulk all-or-nothing crossing against
-> a shared quota stops naming one row, and the volume does not ask for it
-> ([#888](https://github.com/leomontigatti/en-escena/issues/888)). The
-> per-inscription dialog is the only gesture for seminar money.
+The presets act on **choreographies only**, whichever tab of the academy's
+finances is open. There is no preset over seminar inscriptions: a bulk
+all-or-nothing crossing against a shared quota stops naming one row, and the
+volume does not ask for it. The per-inscription dialog is the only gesture for
+seminar money.
 
 ## Anomalies
 
@@ -1002,31 +1000,34 @@ and no request actions. The restriction is **permanent and role-based**.
   document is actionable by an academy, and the withdrawal signal already exists
   on the roster axis as the `Retirada` badge with the retained amount beside it.
 
-> **Specified, not built.** Seminar money is read on the same surfaces, split
-> by kind where a unit is named
-> ([Admin surfaces](https://github.com/leomontigatti/en-escena/issues/890),
-> [Portal surfaces](https://github.com/leomontigatti/en-escena/issues/891)):
->
-> - The admin academy list is unchanged and each academy's figures sum both
->   kinds. There is no separate seminars finance list.
-> - The admin academy finances and the portal `Resumen financiero` gain
->   `Coreografías` / `Seminarios` tabs. `Seña total`, `Seña adeudada`, `Total`
->   and `Saldo adeudado` follow the active tab; `Saldo disponible` never moves,
->   because unallocated money belongs to neither kind. Each tab keeps its own
->   selection and the owed pair narrows to it. The seminar tab lists the
->   `(seminar, academy)` units — instructor, date, inscriptos, the shared
->   figures and the status — each linking to its financial detail.
-> - A **`(seminar, academy)` financial detail** on each side, titled by the
->   instructor alone, twin of the choreography one: the five metrics, the
->   inscriptions table with `Precio` showing the effective row's name, and the
->   `Retirada` rows — the one place the portal shows them. The admin one holds
->   the money dialog and `Emitir factura`; the portal one writes nothing. Both
->   carry the full-quota notice.
-> - The `Eliminar pago` impact list gains seminar entries in the same list as
->   choreographies, each naming the money leaving it and how many of its
->   inscriptions lose their place. Deletion never blocks.
->
-> Owner: the PRD [#906](https://github.com/leomontigatti/en-escena/issues/906).
+Seminar money is read on the same surfaces, split by kind where a unit is named:
+
+- The admin academy list is unchanged and each academy's figures sum both kinds.
+  There is no separate seminars finance list.
+- The admin academy finances gains `Coreografías` / `Seminarios` tabs.
+  `Seña total`, `Seña adeudada`, `Total` and `Saldo adeudado` follow the active
+  tab; `Saldo disponible` never moves, because unallocated money belongs to
+  neither kind. Each tab keeps its own selection and the owed pair narrows to it.
+  The seminar tab lists the `(seminar, academy)` units — instructor, date,
+  inscriptos, the shared figures and the status — each linking to its financial
+  detail.
+- The admin **`(seminar, academy)` financial detail** is titled by the
+  instructor alone and is the choreography one's twin: the five metrics, the
+  inscriptions table with `Precio` showing the effective row's name and **no
+  `Tipo` column**, the `Retirada` rows with what they retained, and the money
+  dialog behind the person's name.
+
+> **Specified, not built.** The portal's half of the same split
+> ([Portal surfaces](https://github.com/leomontigatti/en-escena/issues/891)):
+> `Resumen financiero` gains the same two tabs under the same rules, and a
+> read-only `(seminar, academy)` detail — the one place the portal shows
+> `Retirada` rows — writes nothing. Both details carry the full-quota notice,
+> and the admin one gains `Emitir factura` with the fiscal anchor
+> ([#894](https://github.com/leomontigatti/en-escena/issues/894)). The
+> `Eliminar pago` impact list gains seminar entries in the same list as
+> choreographies, each naming the money leaving it and how many of its
+> inscriptions lose their place; deletion never blocks. Owner: the PRD
+> [#906](https://github.com/leomontigatti/en-escena/issues/906).
 
 ## Retired vocabulary
 

@@ -151,11 +151,11 @@ How a seminar inscription is priced from those rows:
   neither enter the `Descuento por bailarín` qualifying set nor receive it: the
   participant row is already the "you are also dancing" reduction.
 
-> **Specified, not built.** Nothing **writes** `selectedPriceId` yet: the column
-> is written only by the allocation dialog
-> ([#886](https://github.com/leomontigatti/en-escena/issues/886)), never at
-> creation and never refreshed, and that dialog is still ahead. Until it exists
-> every inscription resolves against the row that applies today.
+- `selectedPriceId` is written by **the allocation dialog alone**, on the admin
+  `(seminar, academy)` financial detail — never at creation and never refreshed.
+  An inscription nobody has put money on therefore stores nothing and resolves
+  against the row that applies today, which is exactly what makes the price
+  follow the deadline until somebody says otherwise.
 
 ## The inscription
 
