@@ -13,6 +13,7 @@ import {
   toRosterPersonStatus,
   type RosterPersonKind,
 } from "@/lib/roster/roster-person-status.shared";
+import { activeSeminarInscription } from "@/lib/seminars/active-inscription";
 import {
   seminarFullMessage,
   seminarStartedMessage,
@@ -275,9 +276,11 @@ async function findAcademyInscription(input: DeleteSeminarInscriptionInput) {
 }
 
 /**
- * Every inscription of one seminar, whichever academy made it. Administration
- * reads a flat table: there is no grouping and no occupancy line, so the two
- * halves are merged and sorted by academy, the order the table opens in.
+ * Every **active** inscription of one seminar, whichever academy made it.
+ * Administration reads a flat table: there is no grouping and no occupancy line,
+ * so the two halves are merged and sorted by academy, the order the table opens
+ * in. A withdrawn row is off the roster and holds no place, so it is not listed
+ * here; the money it retains is read on the finance surfaces instead.
  */
 export async function listSeminarInscriptions(
   seminarId: string,
@@ -293,7 +296,12 @@ export async function listSeminarInscriptions(
       .from(seminarInscriptions)
       .innerJoin(dancers, eq(dancers.id, seminarInscriptions.dancerId))
       .innerJoin(academies, eq(academies.id, dancers.academyId))
-      .where(eq(seminarInscriptions.seminarId, seminarId)),
+      .where(
+        and(
+          eq(seminarInscriptions.seminarId, seminarId),
+          activeSeminarInscription(),
+        ),
+      ),
     db
       .select({
         id: seminarInscriptions.id,
@@ -304,7 +312,12 @@ export async function listSeminarInscriptions(
       .from(seminarInscriptions)
       .innerJoin(professors, eq(professors.id, seminarInscriptions.professorId))
       .innerJoin(academies, eq(academies.id, professors.academyId))
-      .where(eq(seminarInscriptions.seminarId, seminarId)),
+      .where(
+        and(
+          eq(seminarInscriptions.seminarId, seminarId),
+          activeSeminarInscription(),
+        ),
+      ),
   ]);
 
   return [
@@ -345,9 +358,9 @@ export async function removeSeminarInscription(input: {
 }
 
 /**
- * The academy's own inscriptions on an event's seminars, dancers and professors
- * in one list. The academy is read through the person, which is why the two
- * halves are queried separately and merged here.
+ * The academy's own **active** inscriptions on an event's seminars, dancers and
+ * professors in one list. The academy is read through the person, which is why
+ * the two halves are queried separately and merged here.
  */
 export async function listSeminarInscriptionsForAcademy(input: {
   academyId: string;
@@ -375,6 +388,7 @@ export async function listSeminarInscriptionsForAcademy(input: {
         and(
           eq(dancers.academyId, input.academyId),
           inArray(seminarInscriptions.seminarId, eventSeminarIds),
+          activeSeminarInscription(),
         ),
       ),
     db
@@ -393,6 +407,7 @@ export async function listSeminarInscriptionsForAcademy(input: {
         and(
           eq(professors.academyId, input.academyId),
           inArray(seminarInscriptions.seminarId, eventSeminarIds),
+          activeSeminarInscription(),
         ),
       ),
   ]);

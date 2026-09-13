@@ -28,7 +28,7 @@ import {
 } from "@/db/schema";
 import { activeInscription } from "@/lib/choreographies/active-inscription";
 import {
-  deriveChoreographyFinancialStatus,
+  deriveMinimumFinancialStatus,
   deriveInscriptionFinancialStatus,
   hasUncrossedThreshold,
   type ChoreographyFinancialStatus,
@@ -183,7 +183,7 @@ function readChoreographyImpact(input: {
   return {
     resultingStatus:
       uncrossingInscriptionCount > 0
-        ? deriveChoreographyFinancialStatus(statusesAfter)
+        ? deriveMinimumFinancialStatus(statusesAfter)
         : null,
     uncrossingInscriptionCount,
   };

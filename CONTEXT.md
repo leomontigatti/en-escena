@@ -81,7 +81,7 @@ Administrative choreography view centered on presentations, program and evaluati
 _Avoid_: `choreographyOperationalList`, `choreographyFinancialList`
 
 **`participating`** — ui: "Participando"
-Operational indicator used in administration for academies, professors and dancers with an inscription in the active event. A `seminarInscription` never makes anyone `Participando`. **Specified, not built** (PRD #906): the same per-event predicate, read on the roster row alone, is what decides which `seminarPrice` rows price a seminar inscription (see `forParticipants`).
+Operational indicator used in administration for academies, professors and dancers with an inscription in the active event. A `seminarInscription` never makes anyone `Participando`. The same per-event predicate, read on the roster row alone, is what decides which `seminarPrice` rows price a seminar inscription (see `forParticipants`).
 _Avoid_: presented, `participationStatus`, seminar attendee
 
 **`adminSettings`** — ui: "Ajustes de administración"
@@ -161,7 +161,7 @@ The registration of exactly one roster person —a `dancer` or a `professor` of 
 _Avoid_: student, `academyRegistration`, `choreographyRegistration`, attendance, seminar payment
 
 **`seminarPrice`** — ui: "Precio de seminario"
-One named, dated, event-level price row for seminars, shared by every seminar of the event: a free-text `name`, a `seminarKind`, a `forParticipants` flag, a nullable `paymentDeadline` and one `amount`. At most one deadline-less row per `(kind, forParticipants)` cell of an event, the one that applies once every dated row has expired. Edited in a `Seminarios` tab of the event's `Precios`; the guards are the choreography `price` guards verbatim, and they show on the form before they refuse. **Specified, not built** (map #884, PRD #906): a seminar inscription resolves its price from the rows of its seminar's kind for the person's participant cell, falling back to the `regular` rows, and stores the row the administrator picked as its `selectedPrice`; the stored row's participant flag is what freezes the participant fact at the deposit crossing. The column is there and nothing writes it.
+One named, dated, event-level price row for seminars, shared by every seminar of the event: a free-text `name`, a `seminarKind`, a `forParticipants` flag, a nullable `paymentDeadline` and one `amount`. At most one deadline-less row per `(kind, forParticipants)` cell of an event, the one that applies once every dated row has expired. Edited in a `Seminarios` tab of the event's `Precios`; the guards are the choreography `price` guards verbatim, and they show on the form before they refuse. A seminar inscription resolves its price from the rows of its seminar's kind for the person's participant cell, falling back to the `regular` rows; the stored row's participant flag is what freezes the participant fact at the deposit crossing. **Specified, not built** (map #884, PRD #906): the `selectedPrice` column is written by the allocation dialog, which does not exist yet, so nothing writes it.
 _Avoid_: `price`, seminar tier, per-seminar price, `participantAmount`, `nonParticipantAmount`
 
 **`seminarKind`** — ui: "Tipo de seminario"
@@ -169,7 +169,7 @@ The kind of a seminar, an enum with the values `regular` (`Común`) and `special
 _Avoid_: special flag, `isSpecial`, exclusive, `groupType`, `modality`
 
 **`forParticipants`** — ui: "Para participantes"
-The flag on a `seminarPrice` that says which people the row prices: those `participating` in the seminar's event, or those who are not. **Specified, not built** (map #884, PRD #906) is the reading of it: a participant is whoever the existing per-event `Participando` predicate names on the roster row the inscription points at, regardless of the choreography's money; there is no fallback across the axis, so a participant is priced only by rows with the flag set. No surface shows whether a person is read as a participant: the effective price's `name` is the only carrier of the fact.
+The flag on a `seminarPrice` that says which people the row prices: those `participating` in the seminar's event, or those who are not. A participant is whoever the existing per-event `Participando` predicate names on the roster row the inscription points at, regardless of the choreography's money; there is no fallback across the axis, so a participant is priced only by rows with the flag set. No surface shows whether a person is read as a participant: the effective price's `name` is the only carrier of the fact.
 _Avoid_: `selectedAmountKind` (withdrawn), `Precio aplicado` (withdrawn), participant discount, `dancerDiscount`
 
 **`inscription`** — ui: "Inscripción"
@@ -177,7 +177,7 @@ The canonical economic unit: a link with economic identity and stable identity (
 _Avoid_: academy participation, account, `payment`, invoice, inactive inscription, bare `inscriptionId` for one kind
 
 **`activeInscription`** — ui: "Inscripción activa"
-Inscription that takes part in its choreography's current calculations, its pending amounts and its automatic discounts: every one that has not been withdrawn. The shared `activeInscription()` predicate and its raw-SQL twin exist so that no reader has to restate the rule, and no reader writes `isNull(withdrawnAt)` by hand. Four reads drop the predicate to show a withdrawn row as evidence: the money rollup behind the four finance surfaces, the roster the two financial details render, the threshold read that keeps the withdrawn row's deposit figure, and the comprobante emitter. Those four are not the whole list of queries without the predicate — several write-path and guard queries have no display to make and need no filter (see `docs/domain/finances.md`, "Withdrawal from the roster"). **Specified, not built** (PRD #906): the seminar kind gets a twin, `activeSeminarInscription()`, with the same rule and its own raw-SQL twin — no generic predicate over two tables — and it is the predicate the seminar roster surfaces and the covered count read.
+Inscription that takes part in its choreography's current calculations, its pending amounts and its automatic discounts: every one that has not been withdrawn. The shared `activeInscription()` predicate and its raw-SQL twin exist so that no reader has to restate the rule, and no reader writes `isNull(withdrawnAt)` by hand. Four reads drop the predicate to show a withdrawn row as evidence: the money rollup behind the four finance surfaces, the roster the two financial details render, the threshold read that keeps the withdrawn row's deposit figure, and the comprobante emitter. Those four are not the whole list of queries without the predicate — several write-path and guard queries have no display to make and need no filter (see `docs/domain/finances.md`, "Withdrawal from the roster"). The seminar kind has a twin, `activeSeminarInscription()`, with the same rule and its own raw-SQL twin — no generic predicate over two tables — and it is the predicate the seminar roster surfaces and the covered count read.
 _Avoid_: paid inscription, competitive participation
 
 **`withdrawnInscription`** — ui: "Retirada"

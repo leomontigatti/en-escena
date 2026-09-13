@@ -167,25 +167,29 @@ gone with the dateless resolution they excused.
 The superseded per-inscription `Saldo de inscripción` (`base − deposit −
 discount`) is **gone, not renamed**: both of its subtrahends moved.
 
-> **Specified, not built.** A seminar inscription's figures
-> ([Participant predicate](https://github.com/leomontigatti/en-escena/issues/887),
-> [Seminar prices as event-level rows](https://github.com/leomontigatti/en-escena/issues/904)):
->
-> ```
-> depositAmount = round(effectiveSeminarPrice.amount × seminar.requiredDepositPercentage / 100)
-> totalAmount   = effectiveSeminarPrice.amount
-> ```
->
-> The rate is the **seminar's own** (1 to 99, default 50), never the event's
-> `requiredDepositPercentage`. There is **no discount**: a seminar inscription
-> neither enters the `Descuento por bailarín` qualifying set nor receives it,
-> because the participant row already is the reduction for "also dancing". The
-> owed figures, the status table and `Sin precio` read exactly as above. The
-> academy scope's `owedDepositAmount`, `owedBalanceAmount` and
-> `totalPaidAmount` are **one figure each, summed over both kinds** — one debt
-> against one pool — and `availableBalanceAmount` is already pool-wide; a
-> surface may break a total down by kind, the read model does not
-> ([#886](https://github.com/leomontigatti/en-escena/issues/886)).
+A seminar inscription's figures:
+
+```
+depositAmount = round(effectiveSeminarPrice.amount × seminar.requiredDepositPercentage / 100)
+totalAmount   = effectiveSeminarPrice.amount
+```
+
+The rate is the **seminar's own** (1 to 99, default 50), never the event's
+`requiredDepositPercentage`. There is **no discount**: a seminar inscription
+neither enters the `Descuento por bailarín` qualifying set nor receives it,
+because the participant row already is the reduction for "also dancing". The
+owed figures, the status table and `Sin precio` read exactly as above. The
+academy scope's `owedDepositAmount`, `owedBalanceAmount` and `totalPaidAmount`
+are **one figure each, summed over both kinds** — one debt against one pool —
+and `availableBalanceAmount` is already pool-wide; a surface may break a total
+down by kind, the read model does not. The unit a seminar's money rolls up into
+is the `(seminar, academy)` pair, not the seminar: a seminar is shared by every
+academy while a debt belongs to one.
+
+**Covering the deposit** is the seminar's own reading of the crossing: it is
+what takes a place in the quota and what freezes the seminar's kind and rate. A
+withdrawn row is covered by nothing — it keeps its money and gives its place
+back. One predicate owns it, on the stored row's deposit, as everywhere else.
 
 ## `Descuento por bailarín`
 

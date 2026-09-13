@@ -51,6 +51,7 @@ import { paymentAllocations, payments } from "@/db/schema";
 import { deriveInscriptionFinancialFigures } from "@/lib/finances/inscription-financial-status";
 import { resolvePaymentAvailableAmount } from "@/lib/finances/payment-available-amount.server";
 import { readInscriptionThresholds } from "@/lib/finances/inscription-thresholds.server";
+import { readSeminarInscriptionThresholds } from "@/lib/finances/seminar-inscription-thresholds.server";
 import type { InscriptionThresholds } from "@/lib/finances/inscription-financial-status";
 
 import {
@@ -89,17 +90,7 @@ type ThresholdReader = (
 
 const thresholdReaders: Record<AllocationTargetKind, ThresholdReader> = {
   choreography: readInscriptionThresholds,
-  // The seat the seminar reader takes (PRD #906, slice 2). Seminar price
-  // resolution does not exist yet, so every seminar inscription comes back with
-  // no thresholds — which the guard below already has an answer for, and it is
-  // the true one: nothing can be allocated to a row whose price is unknown.
-  seminar: async (_executor, input) =>
-    new Map(
-      input.inscriptionIds.map((inscriptionId) => [
-        inscriptionId,
-        { depositAmount: null, totalAmount: null },
-      ]),
-    ),
+  seminar: readSeminarInscriptionThresholds,
 };
 
 /**

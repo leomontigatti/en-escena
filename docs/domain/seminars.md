@@ -122,41 +122,40 @@ rule fits; every difference is named.
   deadline-less `Común` row is missing. The seminar itself stays outside the
   bases and carries no price editor.
 
-> **Specified, not built.** What the rows are read by is still ahead
-> ([the allocation target](https://github.com/leomontigatti/en-escena/issues/886),
-> [resolution](https://github.com/leomontigatti/en-escena/issues/887)): today
-> nothing resolves a seminar inscription's price and nothing writes
-> `selectedPriceId`.
->
-> - **A participant** (`Participando`) is whoever the existing per-event
->   predicate says: a `dancer` with a non-withdrawn choreography inscription in
->   the seminar's event, or a `professor` linked to a choreography of that
->   event, **on the roster row the inscription names** and regardless of that
->   choreography's money. A person dancing for academy A and registered into a
->   seminar by academy B is a non-participant on B's inscription. The direction
->   is choreography → seminar only: a seminar still makes nobody
->   `Participando`.
-> - **Resolution.** The candidate rows for an inscription are the event's rows
->   of the seminar's kind for the person's participant cell, **falling back to
->   the `regular` rows** when the kind has none, as a schedule-specific
->   choreography price falls back to the general row. There is **no fallback on
->   the participant axis**: a participant is priced by `forParticipants = true`
->   rows only. Among the candidates the business date picks as it does for
->   choreographies. The effective row is `crossed ? stored : (current ?? stored)`
->   through the same owner as the choreography rule (`finances.md`, "Prices").
-> - **What the inscription stores** is `selectedPriceId` alone, written only by
->   the allocation dialog. The stored row carries its own participant flag, so
->   once the deposit is covered the row freezes both the tier and the
->   participant fact; nothing else is persisted. Below the crossing the
->   participant fact re-derives on every read, and a flip says nothing to
->   anyone: the academy is told nothing when its bill moves. A covered row
->   keeps its stored row with no anomaly when the person later leaves every
->   choreography, or joins one.
-> - **The deposit** is `round(effectiveRow.amount × seminar.requiredDepositPercentage / 100)`;
->   the **total** is the effective row's amount, full stop. Seminar
->   inscriptions neither enter the `Descuento por bailarín` qualifying set nor
->   receive it: the participant row is already the "you are also dancing"
->   reduction.
+How a seminar inscription is priced from those rows:
+
+- **A participant** (`Participando`) is whoever the existing per-event predicate
+  says: a `dancer` with a non-withdrawn choreography inscription in the
+  seminar's event, or a `professor` linked to a choreography of that event,
+  **on the roster row the inscription names** and regardless of that
+  choreography's money. A person dancing for academy A and registered into a
+  seminar by academy B is a non-participant on B's inscription. The direction is
+  choreography → seminar only: a seminar still makes nobody `Participando`.
+- **Resolution.** The candidate rows for an inscription are the event's rows of
+  the seminar's kind for the person's participant cell, **falling back to the
+  `regular` rows** when the kind has none, as a schedule-specific choreography
+  price falls back to the general row. There is **no fallback on the participant
+  axis**: a participant is priced by `forParticipants = true` rows only. Among
+  the candidates the business date picks as it does for choreographies. The
+  effective row is `crossed ? stored : (current ?? stored)` through the same
+  owner as the choreography rule (`finances.md`, "Prices").
+- **What the inscription stores** is `selectedPriceId` alone. The stored row
+  carries its own participant flag, so once the deposit is covered the row
+  freezes both the tier and the participant fact; nothing else is persisted.
+  Below the crossing the participant fact re-derives on every read, and a flip
+  says nothing to anyone: the academy is told nothing when its bill moves. A
+  covered row keeps its stored row with no anomaly when the person later leaves
+  every choreography, or joins one.
+- **The deposit** is `round(effectiveRow.amount × seminar.requiredDepositPercentage / 100)`;
+  the **total** is the effective row's amount, full stop. Seminar inscriptions
+  neither enter the `Descuento por bailarín` qualifying set nor receive it: the
+  participant row is already the "you are also dancing" reduction.
+
+> **Specified, not built.** Nothing **writes** `selectedPriceId` yet: the column
+> is written only by the allocation dialog
+> ([#886](https://github.com/leomontigatti/en-escena/issues/886)), never at
+> creation and never refreshed, and that dialog is still ahead. Until it exists
+> every inscription resolves against the row that applies today.
 
 ## The inscription
 

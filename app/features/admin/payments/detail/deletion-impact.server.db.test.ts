@@ -19,7 +19,7 @@ import {
 } from "@/features/portal/choreographies/test-support/db";
 import { spreadFromPool } from "@/lib/finances/allocation-pool.server";
 import {
-  deriveChoreographyFinancialStatus,
+  deriveMinimumFinancialStatus,
   deriveInscriptionFinancialStatus,
 } from "@/lib/finances/inscription-financial-status";
 import { readInscriptionThresholds } from "@/lib/finances/inscription-thresholds.server";
@@ -164,7 +164,7 @@ async function readChoreographyStatuses(input: {
   return new Map(
     input.choreographyIds.map((choreographyId) => [
       choreographyId,
-      deriveChoreographyFinancialStatus(
+      deriveMinimumFinancialStatus(
         inscriptions
           .filter(
             (inscription) => inscription.choreographyId === choreographyId,
