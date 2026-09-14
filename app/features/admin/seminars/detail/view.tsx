@@ -1,8 +1,5 @@
-import { InfoIcon } from "lucide-react";
-
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
-import { AlertStack } from "@/components/shared/alert-stack";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { GuardAlert } from "@/components/shared/guard-alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   coveredSeminarMessage,
@@ -67,14 +64,7 @@ export function SeminarDetailView({
           itself, so the reason reads the same from either tab. A covered
           inscription is always an inscription, so its sentence already names
           the delete and the two notices never show together. */}
-      <AlertStack>
-        {lockReason ? (
-          <Alert variant="info">
-            <InfoIcon aria-hidden="true" />
-            <AlertDescription>{lockReason}</AlertDescription>
-          </Alert>
-        ) : null}
-      </AlertStack>
+      <GuardAlert reason={lockReason} />
       <Tabs defaultValue="informacion">
         <TabsList variant="line">
           <TabsTrigger value="informacion">Información</TabsTrigger>

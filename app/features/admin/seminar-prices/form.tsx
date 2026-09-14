@@ -3,15 +3,7 @@ import { useEffect, useId, useMemo, type ReactNode } from "react";
 import { Controller, useForm, type UseFormReturn } from "react-hook-form";
 
 import { AdminResourceFormCard } from "@/components/admin/resource-layout";
-import { DateOnlyField } from "@/components/shared/date-only-field";
 import { SharedFieldLayout } from "@/components/shared/field-layout";
-import { IntegerInputField } from "@/components/shared/integer-input-field";
-import {
-  ReadOnlyDateField,
-  ReadOnlyField,
-  ReadOnlySelectField,
-} from "@/components/shared/read-only-field";
-import { SelectField } from "@/components/shared/select-field";
 import { FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -33,7 +25,11 @@ import {
 import { cn } from "@/lib/shared/utils";
 
 import { EventBasesFormActions } from "../events/bases-form-actions";
-import { openEndedDeadlineLabel } from "../prices/view-shared";
+import {
+  GuardedAmountField,
+  GuardedDeadlineField,
+  GuardedSelectField,
+} from "../prices/guarded-fields";
 import { seminarPricesListPath } from "./shared";
 import {
   participantsSwitchLabel,
@@ -134,129 +130,35 @@ export function SeminarPriceForm({
       {id ? <input type="hidden" name="id" value={id} /> : null}
       <FieldGroup>
         <NameField form={form} canEditStructure={guard.canEditStructure} />
-        <DeadlineField
+        <GuardedDeadlineField
           fieldId={`seminar-price-payment-deadline-${id ?? intent}`}
           form={form}
           guard={guard}
           isExistingRow={Boolean(id)}
-          values={values}
+          name="paymentDeadline"
+          value={values.paymentDeadline}
         />
         <FieldGroup className="grid gap-4 sm:grid-cols-2">
-          <KindField
+          <GuardedSelectField
             fieldId={`seminar-price-kind-${id ?? intent}`}
             form={form}
             guard={guard}
-            values={values}
+            label="Tipo de seminario"
+            name="kind"
+            options={seminarKindOptions}
+            placeholder="Elegí un tipo"
+            value={values.kind}
           />
-          <AmountField
+          <GuardedAmountField
             fieldId={`seminar-price-amount-${id ?? intent}`}
             form={form}
             guard={guard}
-            values={values}
+            name="amount"
+            value={values.amount}
           />
         </FieldGroup>
       </FieldGroup>
     </form>
-  );
-}
-
-/**
- * The three structural fields read the same way: the editable control while the
- * guard allows the change, the shared read-only look otherwise, with the value
- * still travelling in the body so a save of the fields that are open does not
- * blank the ones that are locked.
- */
-type GuardedFieldProps = {
-  fieldId: string;
-  form: SeminarPriceFormController;
-  guard: PriceGuard;
-  values: SeminarPriceFormValues;
-};
-
-/**
- * The deadline reads the guard like its siblings, and one thing more: what an
- * empty control means. On a new row it is a field still to fill in, on a saved
- * one it is the answer the row already gives — no deadline.
- */
-type DeadlineFieldProps = GuardedFieldProps & {
-  isExistingRow: boolean;
-};
-
-function DeadlineField({
-  fieldId,
-  form,
-  guard,
-  isExistingRow,
-  values,
-}: DeadlineFieldProps) {
-  if (!guard.canEditStructure) {
-    return (
-      <ReadOnlyDateField
-        id={fieldId}
-        label="Fecha límite de pago"
-        name="paymentDeadline"
-        emptyLabel={openEndedDeadlineLabel}
-        value={values.paymentDeadline || null}
-      />
-    );
-  }
-
-  return (
-    <DateOnlyField
-      clearable
-      control={form.control}
-      name="paymentDeadline"
-      id={fieldId}
-      label="Fecha límite de pago"
-      placeholder={isExistingRow ? openEndedDeadlineLabel : undefined}
-    />
-  );
-}
-
-function KindField({ fieldId, form, guard, values }: GuardedFieldProps) {
-  if (!guard.canEditStructure) {
-    return (
-      <ReadOnlySelectField
-        id={fieldId}
-        label="Tipo de seminario"
-        name="kind"
-        options={seminarKindOptions}
-        value={values.kind}
-      />
-    );
-  }
-
-  return (
-    <SelectField
-      control={form.control}
-      label="Tipo de seminario"
-      name="kind"
-      options={seminarKindOptions}
-      placeholder="Elegí un tipo"
-    />
-  );
-}
-
-function AmountField({ fieldId, form, guard, values }: GuardedFieldProps) {
-  if (!guard.canEditAmount) {
-    return (
-      <ReadOnlyField
-        id={fieldId}
-        label="Monto"
-        name="amount"
-        value={values.amount}
-      />
-    );
-  }
-
-  return (
-    <IntegerInputField
-      control={form.control}
-      label="Monto"
-      min="1"
-      name="amount"
-      step="1"
-    />
   );
 }
 

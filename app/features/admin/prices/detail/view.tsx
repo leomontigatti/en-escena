@@ -1,11 +1,11 @@
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
+import { GuardAlert } from "@/components/shared/guard-alert";
 import { readPriceGuard } from "@/lib/prices/guards";
 import { useServerActionToast } from "@/lib/shared/toasts";
 import type { PriceListItem } from "@/lib/events/bases.server";
 
 import { EmptyResourceState, PriceActions } from "../actions";
 import { PriceForm, PriceFormActions, PriceFormPanel } from "../form";
-import { PriceGuardAlerts } from "../guard-alerts";
 import type {
   EventPriceActionData,
   EventPriceDetailLoaderData,
@@ -50,7 +50,8 @@ export function EventPriceDetailView({
     >
       {price && guard ? (
         <div className="flex flex-col gap-6">
-          <PriceGuardAlerts reason={guard.reason} />
+          {/* Above the form card, never inside it. */}
+          <GuardAlert reason={guard.reason} />
           <PriceFormPanel>
             <PriceForm
               formId="update-price-form"

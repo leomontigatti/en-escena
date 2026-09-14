@@ -36,11 +36,7 @@ export function PriceActions({
 
   return (
     <>
-      <ResourceActionsMenu
-        contentClassName="w-48"
-        contentProps={{ forceMount: true }}
-        size="icon"
-      >
+      <ResourceActionsMenu contentClassName="w-48" size="icon">
         <DropdownMenuGroup>
           <DropdownMenuItem
             variant="destructive"
