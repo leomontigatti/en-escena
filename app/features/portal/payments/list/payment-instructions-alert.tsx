@@ -118,9 +118,7 @@ function CopyableCell({ label, value }: { label: string; value: string }) {
     <div className="flex flex-col gap-0.5">
       <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
       <dd className="flex items-center gap-1">
-        <span className="font-mono text-sm tabular-nums text-foreground">
-          {value}
-        </span>
+        <span className="text-sm tabular-nums text-foreground">{value}</span>
         <CopyIconButton label={label} value={value} />
       </dd>
     </div>
@@ -170,8 +168,9 @@ function CopyIconButton({ label, value }: { label: string; value: string }) {
 }
 
 /**
- * Paragraphs split on blank lines, single newlines preserved, and nothing else.
- * No markup language and no autolinking: a URL renders as the characters it is.
+ * Paragraphs split on blank lines, single newlines preserved, and `**bold**` —
+ * nothing else. No HTML and no autolinking: a URL renders as the characters it
+ * is, and the text never reaches the DOM as markup.
  */
 function InstructionsText({ text }: { text: string }) {
   const paragraphs = text.split(/\n\s*\n/);
@@ -180,9 +179,25 @@ function InstructionsText({ text }: { text: string }) {
     <div className="flex flex-col gap-2 text-sm leading-6">
       {paragraphs.map((paragraph, index) => (
         <p key={index} className="whitespace-pre-line">
-          {paragraph}
+          {renderBold(paragraph)}
         </p>
       ))}
     </div>
+  );
+}
+
+/**
+ * The capture group puts every `**…**` run at an odd index. An unpaired `**`
+ * matches nothing and stays as typed.
+ */
+function renderBold(paragraph: string): ReactNode[] {
+  return paragraph.split(/\*\*(.+?)\*\*/s).map((part, index) =>
+    index % 2 === 1 ? (
+      <strong key={index} className="font-semibold">
+        {part}
+      </strong>
+    ) : (
+      <Fragment key={index}>{part}</Fragment>
+    ),
   );
 }

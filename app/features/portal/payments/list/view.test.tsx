@@ -271,7 +271,6 @@ describe("PortalAcademyPaymentsRouteView payment instructions", () => {
     const value = document.querySelector("dd span");
 
     expect(value?.textContent).toBe("0070099330004512345678");
-    expect(value?.className).toContain("font-mono");
     expect(value?.className).toContain("tabular-nums");
     expect(value?.className).not.toContain("break-all");
   });
@@ -320,6 +319,27 @@ describe("PortalAcademyPaymentsRouteView payment instructions", () => {
     expect(paragraphs[0]?.className).toContain("whitespace-pre-line");
     expect(paragraphs[1]?.textContent).toContain("https://enescena.com.ar");
     expect(alert?.querySelector("a")).toBeNull();
+  });
+
+  test("bolds **runs**, leaves an unpaired ** as typed and never renders HTML", async () => {
+    await renderPortalPayments(
+      renderer,
+      portalPaymentsLoaderDataFixture({
+        paymentInstructions: paymentInstructionsFixture({
+          text: "Escribí a **pagos@enescena.com.ar** con <b>el comprobante</b> ** suelto",
+        }),
+      }),
+    );
+
+    const paragraph = document.querySelector('[data-slot="alert"] p');
+
+    expect(getReactDomTexts('[data-slot="alert"] strong')).toEqual([
+      "pagos@enescena.com.ar",
+    ]);
+    expect(paragraph?.querySelector("b")).toBeNull();
+    expect(paragraph?.textContent).toBe(
+      "Escribí a pagos@enescena.com.ar con <b>el comprobante</b> ** suelto",
+    );
   });
 });
 
