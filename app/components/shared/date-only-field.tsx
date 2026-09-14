@@ -1,6 +1,6 @@
 import { format } from "date-fns/format";
 import { es } from "date-fns/locale";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, XIcon } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import {
   Controller,
@@ -37,9 +37,17 @@ type DateOnlyFieldCalendarBounds = {
   latestSelectableDate?: Date;
 };
 
+/** The clear action inside the popover, named once for the callers' tests. */
+export const clearDateLabel = "Quitar fecha";
+
+/** What the trigger reads while no date is chosen. */
+const defaultPlaceholder = "Elegí fecha";
+
 type DateOnlyFieldBaseProps = {
   buttonClassName?: string;
   calendarBounds?: DateOnlyFieldCalendarBounds;
+  /** Offers the clear action, for a field whose empty value means something. */
+  clearable?: boolean;
   className?: string;
   disabled?: boolean;
   error?: string;
@@ -52,6 +60,7 @@ type DateOnlyFieldBaseProps = {
   onBlur?: () => void;
   onValueChange?: (value: string) => void;
   orientation?: SharedFieldOrientation;
+  placeholder?: string;
   value?: string;
 };
 
@@ -91,6 +100,7 @@ export function DateOnlyField<
 function DateOnlyFieldControl({
   buttonClassName,
   calendarBounds,
+  clearable,
   className,
   disabled = false,
   error,
@@ -103,6 +113,7 @@ function DateOnlyFieldControl({
   onBlur,
   onValueChange,
   orientation,
+  placeholder,
   value,
 }: DateOnlyFieldBaseProps) {
   const id = providedId ?? name;
@@ -127,6 +138,7 @@ function DateOnlyFieldControl({
             <DateOnlyFieldPicker
               buttonClassName={buttonClassName}
               calendarBounds={calendarBounds}
+              clearable={clearable}
               dateValue={dateValue}
               describedBy={describedBy}
               disabled={disabled}
@@ -134,6 +146,7 @@ function DateOnlyFieldControl({
               isInvalid={isInvalid}
               onBlur={onBlur}
               onValueChange={onValueChange}
+              placeholder={placeholder}
             />
             {disabled ? <FieldControlLockIcon /> : null}
           </div>
@@ -145,7 +158,13 @@ function DateOnlyFieldControl({
 
 type DateOnlyFieldPickerProps = Pick<
   DateOnlyFieldBaseProps,
-  "buttonClassName" | "calendarBounds" | "disabled" | "onBlur" | "onValueChange"
+  | "buttonClassName"
+  | "calendarBounds"
+  | "clearable"
+  | "disabled"
+  | "onBlur"
+  | "onValueChange"
+  | "placeholder"
 > & {
   dateValue: string;
   describedBy?: string;
@@ -156,6 +175,7 @@ type DateOnlyFieldPickerProps = Pick<
 function DateOnlyFieldPicker({
   buttonClassName,
   calendarBounds,
+  clearable,
   dateValue,
   describedBy,
   disabled,
@@ -163,6 +183,7 @@ function DateOnlyFieldPicker({
   isInvalid,
   onBlur,
   onValueChange,
+  placeholder,
 }: DateOnlyFieldPickerProps) {
   const [open, setOpen] = useState(false);
   const selectedDate = useMemo(
@@ -190,35 +211,82 @@ function DateOnlyFieldPicker({
           aria-describedby={describedBy}
           onBlur={onBlur}
         >
-          {getTriggerLabel(selectedDate)}
+          {getTriggerLabel(selectedDate, placeholder)}
           {disabled ? null : <CalendarIcon data-icon="inline-end" />}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
-        <Calendar
-          captionLayout="dropdown"
-          defaultMonth={calendarBounds?.defaultMonth}
-          startMonth={calendarBounds?.startMonth}
-          endMonth={calendarBounds?.endMonth}
-          disabled={toDisabledDays(calendarBounds?.latestSelectableDate)}
-          mode="single"
-          selected={selectedDate}
-          onSelect={(date) => {
-            onValueChange?.(date ? formatDateOnly(date) : "");
+        <DateOnlyFieldCalendar
+          calendarBounds={calendarBounds}
+          selectedDate={selectedDate}
+          onPick={(nextValue) => {
+            onValueChange?.(nextValue);
             setOpen(false);
           }}
-          locale={es}
         />
+        {clearable && selectedDate ? (
+          <DateOnlyFieldClearAction
+            onClear={() => {
+              onValueChange?.("");
+              setOpen(false);
+            }}
+          />
+        ) : null}
       </PopoverContent>
     </Popover>
   );
 }
 
-/** The trigger reads the chosen date, or invites the user to choose one. */
-function getTriggerLabel(selectedDate: Date | undefined) {
+/** The month grid of the popover, bounded by what the caller allows. */
+function DateOnlyFieldCalendar({
+  calendarBounds,
+  onPick,
+  selectedDate,
+}: {
+  calendarBounds: DateOnlyFieldCalendarBounds | undefined;
+  onPick: (value: string) => void;
+  selectedDate: Date | undefined;
+}) {
+  return (
+    <Calendar
+      captionLayout="dropdown"
+      defaultMonth={calendarBounds?.defaultMonth}
+      startMonth={calendarBounds?.startMonth}
+      endMonth={calendarBounds?.endMonth}
+      disabled={toDisabledDays(calendarBounds?.latestSelectableDate)}
+      mode="single"
+      selected={selectedDate}
+      onSelect={(date) => onPick(date ? formatDateOnly(date) : "")}
+      locale={es}
+    />
+  );
+}
+
+/** Empties the field from inside the popover, for a caller that opted in. */
+function DateOnlyFieldClearAction({ onClear }: { onClear: () => void }) {
+  return (
+    <div className="border-t p-2">
+      <Button
+        type="button"
+        variant="ghost"
+        className="w-full cursor-pointer justify-start font-normal"
+        onClick={onClear}
+      >
+        <XIcon aria-hidden="true" data-icon="inline-start" />
+        {clearDateLabel}
+      </Button>
+    </div>
+  );
+}
+
+/** The trigger reads the chosen date, or what the caller says an empty one means. */
+function getTriggerLabel(
+  selectedDate: Date | undefined,
+  placeholder: string | undefined,
+) {
   return selectedDate
     ? format(selectedDate, "d 'de' MMMM 'de' yyyy", { locale: es })
-    : "Elegí fecha";
+    : (placeholder ?? defaultPlaceholder);
 }
 
 /** A locked field keeps room on the right for the lock icon drawn over it. */
