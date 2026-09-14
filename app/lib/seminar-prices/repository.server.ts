@@ -361,9 +361,9 @@ function parseSeminarPriceInput(input: SeminarPriceInput):
   };
 }
 
-// An absent deadline makes the row open-ended, it is not a missing field: the
-// form gates that with its own switch, and the repository only rejects a
-// malformed date.
+// An absent deadline makes the row open-ended, it is not a missing field: a
+// blank `Fecha límite de pago` is how the form says so, and the repository only
+// rejects a malformed date.
 function readSeminarPricePaymentDeadline(
   paymentDeadline: string | null,
   fieldErrors: Record<string, string>,

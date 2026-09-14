@@ -204,7 +204,7 @@ describe.sequential("`/administracion/bases-del-evento` routes", () => {
     await expectPriceDeletedRedirect(deleteResponse);
   });
 
-  test("saves an open-ended price with no deadline and still requires one otherwise", async () => {
+  test("saves a blank deadline as a deadline-less price, on create and on update", async () => {
     const { event } = await createEventPriceAdminFixture();
     const basePriceRequest = await createPriceAdminRequest({
       email: "admin.precio.sin.vencimiento@example.com",
@@ -213,7 +213,6 @@ describe.sequential("`/administracion/bases-del-evento` routes", () => {
       intent: "create-price",
       price: {
         name: "Precio sin vencimiento",
-        isOpenEnded: "true",
         paymentDeadline: "",
       },
     });
@@ -233,22 +232,86 @@ describe.sequential("`/administracion/bases-del-evento` routes", () => {
       paymentDeadline: null,
     });
 
-    const missingDeadlineRequest = await createPriceAdminRequest({
+    const datedPriceRequest = await createPriceAdminRequest({
+      email: "admin.precio.con.vencimiento@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/precios/nuevo?evento=${event.id}`,
+      intent: "create-price",
+      price: {
+        name: "Precio con vencimiento",
+        groupType: "duo",
+        paymentDeadline: "2026-05-31",
+      },
+    });
+
+    await expectThrownResponse(
+      action(routeArgs(datedPriceRequest.request)),
+      302,
+    );
+
+    const dated = await findSavedPriceByScope({
+      groupType: "duo",
+      paymentDeadline: "2026-05-31",
+      scheduleId: null,
+    });
+
+    if (!dated) {
+      throw new Error("Expected the dated price to be saved.");
+    }
+
+    const emptiedRequest = await createPriceAdminRequest({
+      email: "admin.precio.vaciado@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/precios/${dated.id}`,
+      intent: "update-price",
+      priceId: dated.id,
+      price: {
+        name: "Precio con vencimiento",
+        groupType: "duo",
+        paymentDeadline: "",
+      },
+    });
+
+    await expectThrownResponse(action(routeArgs(emptiedRequest.request)), 302);
+    await expect(findSavedPriceById(dated.id)).resolves.toMatchObject({
+      paymentDeadline: null,
+    });
+  });
+
+  test("refuses a second deadline-less price of the same cell", async () => {
+    const { event } = await createEventPriceAdminFixture();
+    const basePriceRequest = await createPriceAdminRequest({
+      email: "admin.precio.sin.vencimiento.unico@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/precios/nuevo?evento=${event.id}`,
+      intent: "create-price",
+      price: {
+        name: "Precio sin vencimiento",
+        paymentDeadline: "",
+      },
+    });
+
+    await expectThrownResponse(
+      action(routeArgs(basePriceRequest.request)),
+      302,
+    );
+
+    const duplicateRequest = await createPriceAdminRequest({
       email: "admin.precio.sin.fecha@example.com",
       role: "admin",
       requestUrl: `http://localhost/administracion/precios/nuevo?evento=${event.id}`,
       intent: "create-price",
       price: {
-        name: "Precio con ladder",
+        name: "Otro precio sin vencimiento",
         paymentDeadline: "",
       },
     });
 
     await expect(
-      action(routeArgs(missingDeadlineRequest.request)),
+      action(routeArgs(duplicateRequest.request)),
     ).resolves.toMatchObject({
       status: "error",
-      fieldErrors: { paymentDeadline: "Este campo es obligatorio." },
+      message: "Ya existe un precio general para ese tipo de grupo.",
     });
   });
 
@@ -304,7 +367,6 @@ describe.sequential("`/administracion/bases-del-evento` routes", () => {
       values: {
         amount: "12000",
         groupType: "solo",
-        isOpenEnded: "",
         isSpecialPrice: "",
         name: "Precio base",
         paymentDeadline: "2026-05-31",

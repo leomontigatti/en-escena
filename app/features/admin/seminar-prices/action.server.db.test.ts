@@ -47,7 +47,6 @@ function seminarPriceBody(
     name: "Precio participantes",
     kind: "regular",
     forParticipants: "true",
-    isOpenEnded: "true",
     paymentDeadline: "",
     amount: "20000",
     ...overrides,
@@ -133,5 +132,72 @@ describe("administrative seminar price action", () => {
       message: "Confirmá el borrado del precio.",
     });
     await expect(listSeminarPrices(event.id)).resolves.toHaveLength(1);
+  });
+
+  test("refuses a second deadline-less row of the same cell", async () => {
+    const event = await createSavedEvent("Regional 2028", { activate: true });
+
+    await submit(newUrl, seminarPriceBody());
+
+    const { request } = await createSignedInAdminRequest({
+      body: seminarPriceBody({ name: "Otro precio participantes" }),
+      email: `${crypto.randomUUID()}@example.com`,
+      requestUrl: newUrl,
+      role: "admin",
+    });
+
+    await expect(
+      handleSeminarPriceAction(request, {
+        allowedIntents: ["create-seminar-price"],
+      }),
+    ).resolves.toMatchObject({
+      status: "error",
+      message:
+        "Ya existe un precio de seminario para ese tipo, esas personas y esa fecha límite.",
+    });
+    await expect(listSeminarPrices(event.id)).resolves.toHaveLength(1);
+  });
+
+  test("refuses a malformed deadline", async () => {
+    const event = await createSavedEvent("Regional 2029", { activate: true });
+
+    const { request } = await createSignedInAdminRequest({
+      body: seminarPriceBody({ paymentDeadline: "31/05/2026" }),
+      email: `${crypto.randomUUID()}@example.com`,
+      requestUrl: newUrl,
+      role: "admin",
+    });
+
+    await expect(
+      handleSeminarPriceAction(request, {
+        allowedIntents: ["create-seminar-price"],
+      }),
+    ).resolves.toMatchObject({
+      status: "error",
+      fieldErrors: { paymentDeadline: "Elegí una fecha válida." },
+    });
+    await expect(listSeminarPrices(event.id)).resolves.toEqual([]);
+  });
+
+  test("empties a deadline that had been picked", async () => {
+    const event = await createSavedEvent("Regional 2030", { activate: true });
+
+    await submit(newUrl, seminarPriceBody({ paymentDeadline: "2026-05-31" }));
+
+    const [saved] = await listSeminarPrices(event.id);
+
+    expect(saved.paymentDeadline).toBe("2026-05-31");
+
+    await submit(
+      `http://localhost/administracion/precios/seminarios/${saved.id}`,
+      seminarPriceBody(
+        { id: saved.id, paymentDeadline: "" },
+        "update-seminar-price",
+      ),
+    );
+
+    await expect(listSeminarPrices(event.id)).resolves.toMatchObject([
+      { id: saved.id, paymentDeadline: null },
+    ]);
   });
 });

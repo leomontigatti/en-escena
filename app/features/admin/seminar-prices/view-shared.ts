@@ -16,31 +16,20 @@ import type { SeminarPriceListItem } from "@/lib/seminar-prices/repository.serve
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import { seminarKindLabels } from "@/lib/seminars/seminar-kinds";
 
-export const seminarPriceFormSchema = z
-  .object({
-    name: z.string().trim().min(1, requiredFieldMessage),
-    forParticipants: z.boolean(),
-    isOpenEnded: z.boolean(),
-    kind: z.string().min(1, requiredFieldMessage),
-    amount: z
-      .string()
-      .min(1, requiredFieldMessage)
-      .refine((value) => {
-        const amount = Number(value);
+export const seminarPriceFormSchema = z.object({
+  name: z.string().trim().min(1, requiredFieldMessage),
+  forParticipants: z.boolean(),
+  kind: z.string().min(1, requiredFieldMessage),
+  amount: z
+    .string()
+    .min(1, requiredFieldMessage)
+    .refine((value) => {
+      const amount = Number(value);
 
-        return Number.isInteger(amount) && amount > 0;
-      }, "Ingresá un monto mayor a cero."),
-    paymentDeadline: z.string().trim(),
-  })
-  .superRefine((values, context) => {
-    if (!values.isOpenEnded && values.paymentDeadline.length === 0) {
-      context.addIssue({
-        code: "custom",
-        message: requiredFieldMessage,
-        path: ["paymentDeadline"],
-      });
-    }
-  });
+      return Number.isInteger(amount) && amount > 0;
+    }, "Ingresá un monto mayor a cero."),
+  paymentDeadline: z.string().trim(),
+});
 
 export type SeminarPriceFormValues = z.input<typeof seminarPriceFormSchema>;
 
@@ -156,7 +145,6 @@ function isSeminarPriceActionValues(
     "forParticipants" in values &&
     "amount" in values &&
     "paymentDeadline" in values &&
-    "name" in values &&
-    "isOpenEnded" in values
+    "name" in values
   );
 }

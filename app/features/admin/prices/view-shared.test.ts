@@ -17,7 +17,6 @@ function buildPriceFormValues(
   return {
     name: "Precio solo",
     isSpecialPrice: false,
-    isOpenEnded: false,
     groupType: "solo",
     amount: "12000",
     paymentDeadline: "2026-05-31",
@@ -27,31 +26,18 @@ function buildPriceFormValues(
 }
 
 describe("priceFormSchema", () => {
-  test("accepts an open-ended price with no payment deadline", () => {
+  test("accepts a blank payment deadline, which is what a deadline-less price is", () => {
     const result = priceFormSchema.safeParse(
-      buildPriceFormValues({ isOpenEnded: true, paymentDeadline: "" }),
+      buildPriceFormValues({ paymentDeadline: "" }),
     );
 
     expect(result.success).toBe(true);
     expect(result.data?.paymentDeadline).toBe("");
   });
 
-  test("still requires a payment deadline while the open-ended switch is off", () => {
-    const result = priceFormSchema.safeParse(
-      buildPriceFormValues({ paymentDeadline: "   " }),
-    );
-
-    expect(result.success).toBe(false);
-    expect(
-      result.error?.issues.find((issue) => issue.path[0] === "paymentDeadline")
-        ?.message,
-    ).toBe("Este campo es obligatorio.");
-  });
-
-  test("keeps requiring a schedule on a special open-ended price", () => {
+  test("keeps requiring a schedule on a special price with no deadline", () => {
     const result = priceFormSchema.safeParse(
       buildPriceFormValues({
-        isOpenEnded: true,
         isSpecialPrice: true,
         paymentDeadline: "",
       }),

@@ -173,7 +173,6 @@ describe.sequential("`/administracion/bases-del-evento` routes", () => {
       values: {
         name: "Precio duplicado",
         isSpecialPrice: "",
-        isOpenEnded: "",
         groupType: "solo",
         amount: "13000",
         paymentDeadline: "2026-05-31",
@@ -203,7 +202,6 @@ describe.sequential("`/administracion/bases-del-evento` routes", () => {
         name: "Este campo es obligatorio.",
         groupType: "Este campo es obligatorio.",
         amount: "Este campo es obligatorio.",
-        paymentDeadline: "Este campo es obligatorio.",
       },
       scope: {
         intent: "create-price",
@@ -211,7 +209,6 @@ describe.sequential("`/administracion/bases-del-evento` routes", () => {
       values: {
         name: "",
         isSpecialPrice: "",
-        isOpenEnded: "",
         groupType: "",
         amount: "",
         paymentDeadline: "",

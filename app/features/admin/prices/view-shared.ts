@@ -44,7 +44,6 @@ export const priceFormSchema = z
   .object({
     name: z.string().trim().min(1, requiredFieldMessage),
     isSpecialPrice: z.boolean(),
-    isOpenEnded: z.boolean(),
     groupType: z.string().min(1, requiredFieldMessage),
     amount: z
       .string()
@@ -66,14 +65,6 @@ export const priceFormSchema = z
         code: "custom",
         message: requiredFieldMessage,
         path: ["scheduleId"],
-      });
-    }
-
-    if (!values.isOpenEnded && values.paymentDeadline.length === 0) {
-      context.addIssue({
-        code: "custom",
-        message: requiredFieldMessage,
-        path: ["paymentDeadline"],
       });
     }
   });
@@ -142,7 +133,6 @@ function isPriceActionValues(
     "paymentDeadline" in values &&
     "name" in values &&
     "isSpecialPrice" in values &&
-    "isOpenEnded" in values &&
     "scheduleId" in values
   );
 }
