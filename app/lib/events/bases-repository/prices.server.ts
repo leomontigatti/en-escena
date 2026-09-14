@@ -3,6 +3,12 @@ import { and, asc, eq, inArray, isNull, ne } from "drizzle-orm";
 import { choreographies, choreographyDancers } from "@/db/schema";
 import { hasNeverExpiringPrice } from "@/lib/events/never-expiring-price";
 import {
+  frozenPriceDeleteError,
+  frozenPriceUpdateError,
+  uncoveredPriceDeleteError,
+  uncoveredPriceUpdateError,
+} from "@/lib/prices/guard-messages";
+import {
   created,
   db,
   groupTypeOrder,
@@ -24,22 +30,6 @@ import type {
   PriceListItem,
   ValidPriceInput,
 } from "@/lib/events/bases-repository/shared.server";
-
-const frozenPriceUpdateError =
-  "No se pueden editar monto, tipo de grupo, vencimiento ni cronograma porque hay inscripciones que congelaron este precio.";
-const frozenPriceDeleteError =
-  "No se puede borrar el precio porque hay inscripciones que congelaron este precio.";
-// The guard tests two things — that this is the group type's only row with no
-// deadline, and that the group type carries active inscriptions — but not that
-// those inscriptions read this row. A group type whose inscriptions have all
-// frozen onto another row is still refused, and correctly so: the roster admin
-// path skips the readiness gate, so nothing else would stop a later un-frozen
-// inscription from landing on an uncovered path. The copy therefore states the
-// two conditions without claiming a dependency that may not hold.
-const uncoveredPriceUpdateError =
-  "No se puede editar el precio porque es el único sin fecha límite de ese tipo de grupo, que tiene inscripciones activas. Podés cambiarle el monto.";
-const uncoveredPriceDeleteError =
-  "No se puede borrar el precio porque es el único sin fecha límite de ese tipo de grupo, que tiene inscripciones activas.";
 
 export async function listPrices(eventId: string): Promise<PriceListItem[]> {
   const eventPrices = await db.query.prices.findMany({
@@ -70,14 +60,74 @@ export async function listPrices(eventId: string): Promise<PriceListItem[]> {
     eventSchedules.map((schedule) => [schedule.id, schedule]),
   );
 
-  return eventPrices
-    .map((price) => ({
+  const [frozenPriceIds, inscribedGroupTypes] = await Promise.all([
+    findFrozenPriceIds(eventPrices.map((price) => price.id)),
+    findInscribedGroupTypes(eventId),
+  ]);
+
+  const listItems = await Promise.all(
+    eventPrices.map(async (price) => ({
       ...price,
       schedule: price.scheduleId
         ? (schedulesById.get(price.scheduleId) ?? null)
         : null,
-    }))
-    .sort(comparePrices);
+      isFrozen: frozenPriceIds.has(price.id),
+      keepsCoverage: await keepsNeverExpiringCoverage(
+        price,
+        () => otherGeneralPricesOf(price, eventPrices),
+        () => inscribedGroupTypes.has(price.groupType),
+      ),
+    })),
+  );
+
+  return listItems.sort(comparePrices);
+}
+
+// The whole event is already in hand, so the per-row question about the rest of
+// the general tier is answered without going back to the database.
+function otherGeneralPricesOf(
+  price: typeof prices.$inferSelect,
+  eventPrices: (typeof prices.$inferSelect)[],
+) {
+  return eventPrices.filter(
+    (candidate) =>
+      candidate.id !== price.id &&
+      candidate.groupType === price.groupType &&
+      candidate.scheduleId === null,
+  );
+}
+
+async function findFrozenPriceIds(priceIds: string[]) {
+  const rows = await db
+    .selectDistinct({ selectedPriceId: choreographyDancers.selectedPriceId })
+    .from(choreographyDancers)
+    .where(inArray(choreographyDancers.selectedPriceId, priceIds));
+
+  return new Set(
+    rows
+      .map((row) => row.selectedPriceId)
+      .filter((id): id is string => id !== null),
+  );
+}
+
+// The group types `hasActiveInscriptions` would answer `true` for, asked once
+// for the event instead of once per listed row.
+async function findInscribedGroupTypes(eventId: string) {
+  const rows = await db
+    .selectDistinct({ groupType: choreographies.groupType })
+    .from(choreographyDancers)
+    .innerJoin(
+      choreographies,
+      eq(choreographies.id, choreographyDancers.choreographyId),
+    )
+    .where(
+      and(
+        eq(choreographies.eventId, eventId),
+        isNull(choreographyDancers.withdrawnAt),
+      ),
+    );
+
+  return new Set(rows.map((row) => row.groupType));
 }
 
 export async function createPrice(
@@ -213,10 +263,6 @@ async function removesNeverExpiringCoverage(
   // What the row becomes, or `null` when it is being deleted.
   next: ValidPriceInput | null,
 ) {
-  if (existing.scheduleId !== null || existing.paymentDeadline !== null) {
-    return false;
-  }
-
   const staysTheGeneralTail =
     next !== null &&
     next.scheduleId === null &&
@@ -227,7 +273,42 @@ async function removesNeverExpiringCoverage(
     return false;
   }
 
-  const remainingGeneralPrices = await db
+  return keepsNeverExpiringCoverage(
+    existing,
+    () => readRemainingGeneralPrices(existing),
+    () => hasActiveInscriptions(existing.eventId, existing.groupType),
+  );
+}
+
+/**
+ * Whether the row is the one thing keeping its group type's general tier
+ * resolvable: the tier's tail, with no other deadline-less row behind it, on a
+ * group type that carries active inscriptions. `listPrices` asks it of every
+ * row so the form can lock what would be refused, and
+ * `removesNeverExpiringCoverage` asks it of the row about to move, so the flag
+ * and the refusal cannot drift. Both sources are read lazily, in the order
+ * that lets the cheapest answer stop first.
+ */
+async function keepsNeverExpiringCoverage(
+  price: Pick<typeof prices.$inferSelect, "paymentDeadline" | "scheduleId">,
+  readOtherGeneralPrices: () =>
+    | Promise<{ paymentDeadline: string | null }[]>
+    | { paymentDeadline: string | null }[],
+  readActiveInscriptions: () => Promise<boolean> | boolean,
+) {
+  if (price.scheduleId !== null || price.paymentDeadline !== null) {
+    return false;
+  }
+
+  if (hasNeverExpiringPrice(await readOtherGeneralPrices())) {
+    return false;
+  }
+
+  return readActiveInscriptions();
+}
+
+function readRemainingGeneralPrices(existing: typeof prices.$inferSelect) {
+  return db
     .select({ paymentDeadline: prices.paymentDeadline })
     .from(prices)
     .where(
@@ -238,12 +319,6 @@ async function removesNeverExpiringCoverage(
         ne(prices.id, existing.id),
       ),
     );
-
-  if (hasNeverExpiringPrice(remainingGeneralPrices)) {
-    return false;
-  }
-
-  return hasActiveInscriptions(existing.eventId, existing.groupType);
 }
 
 async function hasActiveInscriptions(eventId: string, groupType: GroupType) {

@@ -130,6 +130,8 @@ function price(id: string, name: string) {
     paymentDeadline: "2026-05-31",
     schedule: null,
     scheduleId: null,
+    isFrozen: false,
+    keepsCoverage: false,
   };
 }
 

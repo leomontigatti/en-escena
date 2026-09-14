@@ -237,11 +237,20 @@ export type PriceDependencies = {
   hasDependencies?: (priceId: string) => Promise<boolean> | boolean;
 };
 
+/**
+ * A row plus what the guards would answer about it, so the form can lock a
+ * field on sight instead of refusing after the save. The server refuses all the
+ * same, for the race.
+ */
 export type PriceListItem = typeof prices.$inferSelect & {
   schedule: Pick<
     typeof schedules.$inferSelect,
     "id" | "name" | "scheduledDate" | "startTime"
   > | null;
+  /** Some inscription stores this row, so it is frozen except for its name. */
+  isFrozen: boolean;
+  /** It is the tail that keeps its group type resolvable (see the guard). */
+  keepsCoverage: boolean;
 };
 
 export type PriceResolutionResult =

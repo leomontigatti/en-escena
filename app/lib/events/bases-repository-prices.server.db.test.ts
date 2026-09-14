@@ -417,6 +417,62 @@ describe("`Bases del evento` repository", () => {
     });
   });
 
+  test("reports on each listed row what the guards would refuse", async () => {
+    const { catalog, datedRung, event, inscription, openEnded } =
+      await createCoveredPathFixture({
+        academyName: "Academia Listado",
+        choreographyName: "Coreografía Listado",
+        email: "academia.listado@example.com",
+        eventName: "Regional 2040",
+      });
+    const scheduleTail = await createSavedPrice(event.id, {
+      amount: 25000,
+      name: "Sin fecha límite - Bloque",
+      paymentDeadline: null,
+      scheduleId: catalog.schedule.id,
+    });
+    // A group type with no inscription of its own: its tail covers nothing
+    // that could be refused.
+    const duoTail = await createSavedPrice(event.id, {
+      amount: 30000,
+      groupType: "duo",
+      name: "Dúo sin fecha límite",
+      paymentDeadline: null,
+    });
+
+    await db
+      .update(choreographyDancers)
+      .set({ selectedPriceId: datedRung.id })
+      .where(eq(choreographyDancers.id, inscription.id));
+
+    const listed = await listPrices(event.id);
+    const flagsById = new Map(
+      listed.map((price) => [
+        price.id,
+        { isFrozen: price.isFrozen, keepsCoverage: price.keepsCoverage },
+      ]),
+    );
+
+    expect(flagsById.get(datedRung.id)).toEqual({
+      isFrozen: true,
+      keepsCoverage: false,
+    });
+    expect(flagsById.get(openEnded.id)).toEqual({
+      isFrozen: false,
+      keepsCoverage: true,
+    });
+    // Only the general tier can break coverage, so a deadline-less schedule
+    // row never keeps it.
+    expect(flagsById.get(scheduleTail.id)).toEqual({
+      isFrozen: false,
+      keepsCoverage: false,
+    });
+    expect(flagsById.get(duoTail.id)).toEqual({
+      isFrozen: false,
+      keepsCoverage: false,
+    });
+  });
+
   test("keeps mutating a dated rung open while the group type keeps its open-ended price", async () => {
     const { event, catalog, datedRung } = await createCoveredPathFixture({
       academyName: "Academia Escalera",

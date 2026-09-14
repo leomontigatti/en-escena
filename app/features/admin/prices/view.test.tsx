@@ -373,5 +373,7 @@ function createPrice({
           startTime: "20:00",
         }
       : null,
+    isFrozen: false,
+    keepsCoverage: false,
   };
 }
