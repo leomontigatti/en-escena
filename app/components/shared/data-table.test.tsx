@@ -369,16 +369,15 @@ describe("DataTable fit layout", () => {
     ]);
   });
 
-  test("takes the selection column out of the row before sharing the rest", () => {
+  test("gives the selection column a weight so every width stays a percentage", () => {
     const markup = renderTable({ layout: "fit", selectableRows: true });
 
-    // The view never declared the checkbox, so the table is what has to account
-    // for it. Were it not taken out first, these columns would still claim the
-    // whole row and overflow it by exactly the checkbox's width.
+    // PROTOTYPE (#912): a `col` whose `calc` mixes a percentage and a length is
+    // read as auto, which spread every column evenly.
     expect(getColumnWidths(markup)).toEqual([
-      "2.5rem",
-      "calc((100% - 2.5rem) * 1 / 4)",
-      "calc((100% - 2.5rem) * 3 / 4)",
+      "calc(100% * 3 / 7)",
+      "calc(100% * 1 / 7)",
+      "calc(100% * 3 / 7)",
     ]);
   });
 

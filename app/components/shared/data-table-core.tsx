@@ -363,8 +363,8 @@ function createSelectionColumn<TData>(): ColumnDef<TData> {
     enableHiding: false,
     enableSorting: false,
     meta: {
-      className: "w-10",
-      headerClassName: "w-10",
+      className: "w-10 px-2",
+      headerClassName: "w-10 px-2",
     },
   };
 }

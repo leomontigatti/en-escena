@@ -51,6 +51,8 @@ export function buildColumns({
           id: "arrastrar",
           header: "",
           leading: true,
+          className: "px-1",
+          headerClassName: "px-1",
           width: 3,
           cell: () =>
             canDrag ? <DataTableDragHandle label="Mover presentación" /> : null,

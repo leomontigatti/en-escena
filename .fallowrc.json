@@ -15,6 +15,10 @@
       "exports": ["DataTableDragHandle"]
     },
     {
+      "file": "app/components/shared/data-table.shared.ts",
+      "exports": ["dataTableSelectionColumnWidth"]
+    },
+    {
       "file": "tests/db/fast-db.ts",
       "exports": ["closeTestDatabase"]
     },

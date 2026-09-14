@@ -57,7 +57,7 @@ export function ListNotices({
               ? "Existe 1 presentación con advertencias."
               : `Existen ${flaggedCount} presentaciones con advertencias.`}
           </AlertDescription>
-          <AlertAction>
+          <AlertAction className="top-1/2 -translate-y-1/2">
             <Button
               type="button"
               size="sm"
