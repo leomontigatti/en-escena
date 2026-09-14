@@ -103,7 +103,10 @@ export function EventPaymentInstructionsFields({
           <span className="flex justify-between gap-4">
             <span>Escribí **texto** para mostrarlo en negrita.</span>
             <span
-              className={cn("tabular-nums", isTooLong && "text-destructive")}
+              className={cn(
+                "shrink-0 whitespace-nowrap tabular-nums",
+                isTooLong && "text-destructive",
+              )}
             >
               {length} / {PAYMENT_INSTRUCTIONS_TEXT_MAX_LENGTH}
             </span>
