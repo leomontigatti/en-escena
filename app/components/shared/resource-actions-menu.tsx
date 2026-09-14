@@ -23,10 +23,6 @@ import {
 type ResourceActionsMenuProps = {
   children: ReactNode;
   contentClassName?: string;
-  contentProps?: Omit<
-    ComponentProps<typeof DropdownMenuContent>,
-    "align" | "children" | "className" | "onCloseAutoFocus"
-  >;
   label?: string;
   size?: ComponentProps<typeof Button>["size"];
   /**
@@ -40,7 +36,6 @@ type ResourceActionsMenuProps = {
 export function ResourceActionsMenu({
   children,
   contentClassName = "w-56",
-  contentProps,
   label = "Acciones",
   size = "icon-lg",
   tooltipSide = "left",
@@ -98,7 +93,6 @@ export function ResourceActionsMenu({
             align="end"
             className={contentClassName}
             onCloseAutoFocus={preventTriggerFocusAfterDropdownClose}
-            {...contentProps}
           >
             {children}
           </DropdownMenuContent>
