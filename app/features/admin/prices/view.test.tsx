@@ -13,10 +13,7 @@ import type {
   EventPricesLoaderData,
 } from "@/features/admin/prices/shared";
 import type { PriceListItem } from "@/lib/events/bases.server";
-import {
-  frozenPriceUpdateError,
-  uncoveredPriceUpdateError,
-} from "@/lib/prices/guards";
+import { frozenPriceNotice, uncoveredPriceNotice } from "@/lib/prices/guards";
 
 describe("EventPriceDetailRouteView", () => {
   let container: HTMLDivElement | null = null;
@@ -128,10 +125,10 @@ describe("EventPriceDetailRouteView", () => {
       EventPriceDetailRouteView,
     });
 
-    expect(container.textContent).toContain(frozenPriceUpdateError);
+    expect(container.textContent).toContain(frozenPriceNotice);
     // The alert sits above the card, not inside the form it explains.
     expect(container.querySelector("form")?.textContent).not.toContain(
-      frozenPriceUpdateError,
+      frozenPriceNotice,
     );
     expect(readInputTypes(container, "amount")).toEqual(["hidden"]);
     expect(
@@ -167,10 +164,46 @@ describe("EventPriceDetailRouteView", () => {
       EventPriceDetailRouteView,
     });
 
-    expect(container.textContent).toContain(uncoveredPriceUpdateError);
+    expect(container.textContent).toContain(uncoveredPriceNotice);
     expect(readInputTypes(container, "amount")).not.toContain("hidden");
     expect(readInputTypes(container, "paymentDeadline")).toEqual(["hidden"]);
   });
+
+  // The alert above the form is what says why, so the item can be disabled.
+  test.each([
+    { flags: { isReferenced: true }, disabled: true },
+    { flags: { keepsRegistrationOpen: true }, disabled: true },
+    { flags: {}, disabled: false },
+  ])(
+    "reads `Borrar precio` as disabled: $disabled for $flags",
+    async ({ flags, disabled }) => {
+      const price = {
+        ...createPrice({
+          amount: 12000,
+          groupType: "solo",
+          id: "price_1",
+          name: "Precio Solo",
+          paymentDeadline: "2026-05-31",
+          scheduleId: null,
+          scheduleName: null,
+        }),
+        ...flags,
+      };
+
+      container = document.createElement("div");
+      document.body.appendChild(container);
+      root = createRoot(container);
+
+      await renderPriceDetailRoute({
+        loaderData: createLoaderData({ prices: [price] }),
+        priceId: price.id,
+        root,
+        EventPriceDetailRouteView,
+      });
+
+      expect(await readMenuItemDisabled("Borrar precio")).toBe(disabled);
+    },
+  );
 
   test("formats the breadcrumb display name with group type, schedule and deadline", () => {
     const price = createPrice({
@@ -356,6 +389,37 @@ async function renderPricesRoute({
       </MemoryRouter>,
     );
   });
+}
+
+/**
+ * The actions menu only mounts its items once it opens, and the trigger opens
+ * on `pointerdown` rather than on `click`. Both live in a portal on the body.
+ */
+async function readMenuItemDisabled(label: string) {
+  const trigger = document.querySelector<HTMLButtonElement>(
+    'button[aria-label="Acciones"]',
+  );
+
+  if (!trigger) {
+    throw new Error("Expected the actions menu trigger to be rendered.");
+  }
+
+  await act(async () => {
+    trigger.dispatchEvent(
+      new MouseEvent("pointerdown", { bubbles: true, cancelable: true }),
+    );
+    await Promise.resolve();
+  });
+
+  const item = Array.from(
+    document.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+  ).find((candidate) => candidate.textContent === label);
+
+  if (!item) {
+    throw new Error(`Expected the ${label} menu item to be rendered.`);
+  }
+
+  return item.getAttribute("aria-disabled") === "true";
 }
 
 function readInputTypes(container: HTMLElement, name: string) {

@@ -19,6 +19,14 @@ export const uncoveredPriceUpdateError =
 export const uncoveredPriceDeleteError =
   "Este precio es necesario mientras haya inscripciones activas. No se puede borrar.";
 
+// The alert above the form names both limits, because `Borrar precio` is
+// disabled on sight and a disabled menu item cannot say why itself. Each
+// refusal above keeps naming only the action that was refused.
+export const frozenPriceNotice =
+  "Este precio está en uso. Solo podés cambiar el nombre y no se puede borrar.";
+export const uncoveredPriceNotice =
+  "Este precio es necesario mientras haya inscripciones activas. Solo podés cambiar el nombre y el monto, y no se puede borrar.";
+
 /** What a list item carries so a screen can read the guards on sight. */
 export type PriceGuardFlags = {
   /** Some inscription stores this row, so it is frozen except for its name. */
@@ -49,7 +57,7 @@ export function readPriceGuard(flags: PriceGuardFlags): PriceGuard {
     return {
       canEditAmount: false,
       canEditStructure: false,
-      reason: frozenPriceUpdateError,
+      reason: frozenPriceNotice,
     };
   }
 
@@ -57,7 +65,7 @@ export function readPriceGuard(flags: PriceGuardFlags): PriceGuard {
     return {
       canEditAmount: true,
       canEditStructure: false,
-      reason: uncoveredPriceUpdateError,
+      reason: uncoveredPriceNotice,
     };
   }
 

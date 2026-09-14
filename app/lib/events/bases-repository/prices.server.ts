@@ -1,7 +1,6 @@
 import { and, asc, eq, inArray, isNull, ne } from "drizzle-orm";
 
 import { choreographies, choreographyDancers } from "@/db/schema";
-import { hasNeverExpiringPrice } from "@/lib/events/never-expiring-price";
 import {
   created,
   db,
@@ -47,9 +46,7 @@ export async function listPrices(eventId: string): Promise<PriceListItem[]> {
   }
 
   // What the guards below would answer about each row, so the form can lock a
-  // field on sight instead of refusing after the save. The price general unique
-  // index keeps a single deadline-less general row per group type, so being
-  // that row is the whole of "the only one" the uncovered guard asks about.
+  // field on sight instead of refusing after the save.
   const [referencedIds, groupTypesWithInscriptions] = await Promise.all([
     findReferencedPriceIds(eventPrices.map((price) => price.id)),
     findGroupTypesWithActiveInscriptions(eventId),
@@ -80,9 +77,7 @@ export async function listPrices(eventId: string): Promise<PriceListItem[]> {
       ...price,
       isReferenced: referencedIds.has(price.id),
       keepsRegistrationOpen:
-        price.scheduleId === null &&
-        price.paymentDeadline === null &&
-        groupTypesWithInscriptions.has(price.groupType),
+        isGeneralTail(price) && groupTypesWithInscriptions.has(price.groupType),
       schedule: price.scheduleId
         ? (schedulesById.get(price.scheduleId) ?? null)
         : null,
@@ -256,7 +251,7 @@ async function removesNeverExpiringCoverage(
   // What the row becomes, or `null` when it is being deleted.
   next: ValidPriceInput | null,
 ) {
-  if (existing.scheduleId !== null || existing.paymentDeadline !== null) {
+  if (!isGeneralTail(existing)) {
     return false;
   }
 
@@ -270,23 +265,20 @@ async function removesNeverExpiringCoverage(
     return false;
   }
 
-  const remainingGeneralPrices = await db
-    .select({ paymentDeadline: prices.paymentDeadline })
-    .from(prices)
-    .where(
-      and(
-        eq(prices.eventId, existing.eventId),
-        eq(prices.groupType, existing.groupType),
-        isNull(prices.scheduleId),
-        ne(prices.id, existing.id),
-      ),
-    );
-
-  if (hasNeverExpiringPrice(remainingGeneralPrices)) {
-    return false;
-  }
-
   return hasActiveInscriptions(existing.eventId, existing.groupType);
+}
+
+/**
+ * Whether the row is its group type's deadline-less general row. It is the
+ * only one: `price_general_unique` is `NULLS NOT DISTINCT` on
+ * `(event_id, group_type, payment_deadline)`, so no other row can stand in for
+ * it. `listPrices` and `removesNeverExpiringCoverage` both ask it, so the flag
+ * the form locks on and the refusal cannot drift.
+ */
+function isGeneralTail(
+  price: Pick<typeof prices.$inferSelect, "paymentDeadline" | "scheduleId">,
+) {
+  return price.scheduleId === null && price.paymentDeadline === null;
 }
 
 async function hasActiveInscriptions(eventId: string, groupType: GroupType) {

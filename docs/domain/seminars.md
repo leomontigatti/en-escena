@@ -101,11 +101,12 @@ rule fits; every difference is named.
   `regular` row of a participant cell cannot be deleted or restructured while
   any active seminar inscription of the event exists, even unreferenced; its
   amount and name may change. On the form the guards show on sight — the locked
-  fields render through the shared read-only look, `Borrar precio` is disabled
-  and its dialog opens blocked, and an `info` alert above the form card says
-  why — and the server refuses all the same, for the race. The sentences are the
-  choreography list's, shared in `app/lib/prices/guards.ts`, and the
-  choreography price form shows its guards the same way.
+  fields render through the shared read-only look, `Borrar precio` is disabled,
+  and an `info` alert above the form card says why, naming both the locked
+  fields and the delete — and the server refuses all the same, for the race. The
+  delete dialog still opens blocked when reached straight from the URL. The
+  sentences are the choreography list's, shared in `app/lib/prices/guards.ts`,
+  and the choreography price form shows its guards the same way.
 - **Readiness.** A seminar's registration is closed while the event lacks a
   deadline-less `regular` row for **either** participant cell, beside the
   "started" closure — those two are the only ones; a full seminar closes

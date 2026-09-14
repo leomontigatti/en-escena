@@ -46,6 +46,37 @@ function buildSeminar(
   };
 }
 
+/**
+ * The actions menu only mounts its items once it opens, and the trigger opens
+ * on `pointerdown` rather than on `click`.
+ */
+async function readMenuItemDisabled(label: string) {
+  const trigger = document.querySelector<HTMLButtonElement>(
+    'button[aria-label="Acciones"]',
+  );
+
+  if (!trigger) {
+    throw new Error("Expected the actions menu trigger to be rendered.");
+  }
+
+  await act(async () => {
+    trigger.dispatchEvent(
+      new MouseEvent("pointerdown", { bubbles: true, cancelable: true }),
+    );
+    await Promise.resolve();
+  });
+
+  const item = Array.from(
+    document.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+  ).find((candidate) => candidate.textContent === label);
+
+  if (!item) {
+    throw new Error(`Expected the ${label} menu item to be rendered.`);
+  }
+
+  return item.getAttribute("aria-disabled") === "true";
+}
+
 async function renderAt(path: string, element: React.ReactElement) {
   const router = createMemoryRouter(
     [{ path, action: async () => null, element }],
@@ -207,6 +238,19 @@ describe("SeminarDetailView", () => {
 
     expect(document.body.textContent).toContain(seminarHasInscriptionsMessage);
     expect(document.body.textContent).not.toContain(coveredSeminarMessage);
+  });
+
+  // The alert above the tabs is what says why, so the item can be disabled.
+  test("disables `Eliminar` while an inscription stands", async () => {
+    await renderDetail(buildSeminar({ inscriptionCount: 1 }));
+
+    expect(await readMenuItemDisabled("Eliminar")).toBe(true);
+  });
+
+  test("offers `Eliminar` once nobody is registered", async () => {
+    await renderDetail(buildSeminar());
+
+    expect(await readMenuItemDisabled("Eliminar")).toBe(false);
   });
 
   test("shows only the covered reason once an inscription is covered", async () => {

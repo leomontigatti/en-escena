@@ -7,10 +7,10 @@ import { SeminarPriceDetailView } from "@/features/admin/seminar-prices/detail/v
 import { seminarPriceFacetedFilterIds } from "@/features/admin/seminar-prices/list-table";
 import {
   frozenPriceDeleteError,
-  frozenPriceUpdateError,
+  frozenPriceNotice,
   readPriceDeletionBlock,
   uncoveredPriceDeleteError,
-  uncoveredPriceUpdateError,
+  uncoveredPriceNotice,
 } from "@/lib/prices/guards";
 import type { SeminarPriceListItem } from "@/lib/seminar-prices/repository.server";
 
@@ -133,7 +133,7 @@ describe("seminar price detail", () => {
 
     expect(markup).toContain('name="amount"');
     expect(markup).toContain('name="kind"');
-    expect(markup).not.toContain(frozenPriceUpdateError);
+    expect(markup).not.toContain(frozenPriceNotice);
     expect(readPriceDeletionBlock(seminarPrice())).toBeNull();
   });
 
@@ -142,7 +142,7 @@ describe("seminar price detail", () => {
       seminarPrice({ paymentDeadline: "2026-06-30", isReferenced: true }),
     );
 
-    expect(markup).toContain(frozenPriceUpdateError);
+    expect(markup).toContain(frozenPriceNotice);
     // Every guarded field reads through the shared read-only look, so none of
     // them is an editable control any more.
     expect(markup).not.toContain('name="kind"><');
@@ -156,7 +156,7 @@ describe("seminar price detail", () => {
   test("keeps the amount of the row that holds the event's seminars open", () => {
     const markup = renderDetail(seminarPrice({ keepsRegistrationOpen: true }));
 
-    expect(markup).toContain(uncoveredPriceUpdateError);
+    expect(markup).toContain(uncoveredPriceNotice);
     expect(markup).toContain('name="amount"');
     expect(
       readPriceDeletionBlock(seminarPrice({ keepsRegistrationOpen: true })),
