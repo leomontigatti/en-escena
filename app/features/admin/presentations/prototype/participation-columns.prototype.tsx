@@ -21,20 +21,23 @@ import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
 
 import {
-  formatScheduleLabel,
   judges,
   type ParticipationRow,
   type PresentationWarning,
   type PrototypeJudge,
 } from "./participation-fixtures.prototype";
 
+/**
+ * Six data columns after the second review: modality is gone (it plays no part
+ * in the ordering), the warning rides in the number cell, the schedule is only
+ * its start time (the day is the tab) and the judges are a count.
+ */
 export function buildColumns({
   canDrag,
   canEditOrder,
   hasPresentations,
   maxOrderNumber,
   onCommitOrder,
-  showSchedule,
   warnings,
 }: {
   canDrag: boolean;
@@ -42,7 +45,7 @@ export function buildColumns({
   hasPresentations: boolean;
   maxOrderNumber: number;
   onCommitOrder: (rowId: string, toOrderNumber: number) => void;
-  showSchedule: boolean;
+  showSchedule?: boolean;
   warnings: Map<string, PresentationWarning[]>;
 }): DataTableColumn<ParticipationRow>[] {
   const columns: Array<DataTableColumn<ParticipationRow> | null> = [
@@ -61,21 +64,24 @@ export function buildColumns({
     {
       id: "orden",
       header: "N.º",
-      width: 7,
+      width: 10,
       cell: (row) => (
-        <OrderNumberCell
-          canEdit={canEditOrder}
-          max={maxOrderNumber}
-          onCommit={(value) => onCommitOrder(row.id, value)}
-          row={row}
-        />
+        <div className="flex items-center gap-2">
+          <OrderNumberCell
+            canEdit={canEditOrder}
+            max={maxOrderNumber}
+            onCommit={(value) => onCommitOrder(row.id, value)}
+            row={row}
+          />
+          <WarningsIndicator items={warnings.get(row.id) ?? []} />
+        </div>
       ),
       sortValue: (row) => row.orderNumber,
     },
     {
       id: "nombre",
       header: "Nombre",
-      width: 17,
+      width: 20,
       className: "font-medium",
       // The choreography number is not a column (map decision 8), so the name
       // is the way into the detail here.
@@ -93,29 +99,15 @@ export function buildColumns({
     {
       id: "academia",
       header: "Academia",
-      width: 14,
+      width: 18,
       className: "text-muted-foreground",
       cell: (row) => <DataTableTruncatedText value={row.academyName} />,
       sortValue: (row) => row.academyName,
     },
     {
-      id: "modalidadSubmodalidad",
-      header: "Modalidad / Submodalidad",
-      width: 14,
-      className: "text-muted-foreground",
-      cell: (row) => (
-        <DataTableTruncatedText
-          value={formatPrimaryAndSecondaryValue(
-            row.modalityName,
-            row.submodalityName,
-          )}
-        />
-      ),
-    },
-    {
       id: "categoriaTipoGrupo",
       header: "Categoría / Tipo de grupo",
-      width: 14,
+      width: 18,
       className: "text-muted-foreground",
       cell: (row) => (
         <DataTableTruncatedText
@@ -126,35 +118,25 @@ export function buildColumns({
         />
       ),
     },
-    showSchedule
-      ? {
-          id: "cronograma",
-          header: "Cronograma",
-          width: 14,
-          className: "text-muted-foreground",
-          cell: (row) => (
-            <DataTableTruncatedText value={formatScheduleLabel(row.schedule)} />
-          ),
-          sortValue: (row) =>
-            row.schedule
-              ? `${row.schedule.scheduledDate} ${row.schedule.startTime}`
-              : null,
-        }
-      : null,
+    {
+      id: "cronograma",
+      header: "Horario",
+      width: 8,
+      className: "text-muted-foreground tabular-nums",
+      cell: (row) => <ScheduleTimeCell row={row} />,
+      sortValue: (row) =>
+        row.schedule
+          ? `${row.schedule.scheduledDate} ${row.schedule.startTime}`
+          : null,
+    },
     {
       id: "jueces",
       header: "Jueces",
-      width: 12,
+      width: 10,
       cell: (row) =>
         row.presentationId === null ? null : (
           <JudgesCell judgeIds={row.judgeIds} />
         ),
-    },
-    {
-      id: "advertencias",
-      header: "Advertencias",
-      width: 11,
-      cell: (row) => <WarningsCell items={warnings.get(row.id) ?? []} />,
     },
   ];
 
@@ -234,6 +216,21 @@ function OrderNumberCell({
   );
 }
 
+function ScheduleTimeCell({ row }: { row: ParticipationRow }) {
+  if (!row.schedule) {
+    return <span>Sin cronograma</span>;
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span tabIndex={0}>{row.schedule.startTime}</span>
+      </TooltipTrigger>
+      <TooltipContent>{row.schedule.name}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 export function formatJudgeName(judge: PrototypeJudge) {
   if (judge.status === "suspended") {
     return `${judge.name} (Suspendido)`;
@@ -250,41 +247,32 @@ function JudgesCell({ judgeIds }: { judgeIds: string[] }) {
   const assigned = judgeIds
     .map((id) => judges.find((judge) => judge.id === id))
     .filter((judge): judge is PrototypeJudge => judge !== undefined);
-  const [first, ...rest] = assigned;
 
-  if (!first) {
+  if (assigned.length === 0) {
     return <span className="text-muted-foreground">Sin jueces</span>;
   }
 
   const isAnyFlagged = assigned.some((judge) => judge.status !== "active");
 
   return (
-    <div className="flex min-w-0 items-center gap-1">
-      <DataTableTruncatedText value={first.name} />
-      {rest.length > 0 || isAnyFlagged ? (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Badge
-              variant={isAnyFlagged ? "warning" : "secondary"}
-              tabIndex={0}
-            >
-              {rest.length > 0 ? `+${rest.length}` : "!"}
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent>
-            <ul className="flex flex-col gap-1">
-              {assigned.map((judge) => (
-                <li key={judge.id}>{formatJudgeName(judge)}</li>
-              ))}
-            </ul>
-          </TooltipContent>
-        </Tooltip>
-      ) : null}
-    </div>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Badge variant={isAnyFlagged ? "warning" : "secondary"} tabIndex={0}>
+          {assigned.length === 1 ? "1 juez" : `${assigned.length} jueces`}
+        </Badge>
+      </TooltipTrigger>
+      <TooltipContent>
+        <ul className="flex flex-col gap-1">
+          {assigned.map((judge) => (
+            <li key={judge.id}>{formatJudgeName(judge)}</li>
+          ))}
+        </ul>
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
-function WarningsCell({ items }: { items: PresentationWarning[] }) {
+function WarningsIndicator({ items }: { items: PresentationWarning[] }) {
   if (items.length === 0) {
     return null;
   }
@@ -292,9 +280,14 @@ function WarningsCell({ items }: { items: PresentationWarning[] }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Badge variant="warning" tabIndex={0}>
-          <AlertTriangle aria-hidden="true" data-icon="inline-start" />
-          {items.length === 1 ? "Advertencia" : `${items.length} advertencias`}
+        <Badge
+          variant="warning"
+          tabIndex={0}
+          aria-label={
+            items.length === 1 ? "Advertencia" : `${items.length} advertencias`
+          }
+        >
+          <AlertTriangle aria-hidden="true" />
         </Badge>
       </TooltipTrigger>
       <TooltipContent className="max-w-80">
