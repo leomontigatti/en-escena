@@ -52,6 +52,8 @@ export type DataTableColumn<TData> = {
   header: string;
   cell: (row: TData) => ReactNode;
   hidden?: boolean;
+  /** PROTOTYPE (#912): drawn before the selection checkbox. Leading columns come first. */
+  leading?: boolean;
   className?: string;
   headerClassName?: string;
   cellClassName?: (row: TData) => string | undefined;

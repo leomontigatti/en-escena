@@ -1,13 +1,8 @@
 // PROTOTYPE — throwaway, lives only on branch `prototype/912-participation-list`
 // (wayfinder ticket #912, map #907). The notices above the list, and the prototype's state card.
-import { AlertTriangle, Info } from "lucide-react";
+import { AlertTriangle, Info, SquareArrowOutUpRight } from "lucide-react";
 
-import {
-  Alert,
-  AlertAction,
-  AlertDescription,
-  AlertTitle,
-} from "@/components/ui/alert";
+import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -19,13 +14,17 @@ import {
 
 import type { PrototypeCaseId } from "./participation-fixtures.prototype";
 
+/**
+ * Each notice takes the variant of what it says: `info` for a state that hides
+ * the drag handles until the next ordering, `warning` for the rows that carry
+ * an `Advertencia`.
+ */
 export function ListNotices({
   canEditOrder,
   flaggedCount,
   hasPresentations,
   isSortedByOrder,
   onlyWarnings,
-  onOpenOrdering,
   onToggleOnlyWarnings,
   unorderedCount,
 }: {
@@ -34,51 +33,19 @@ export function ListNotices({
   hasPresentations: boolean;
   isSortedByOrder: boolean;
   onlyWarnings: boolean;
-  onOpenOrdering: () => void;
   onToggleOnlyWarnings: () => void;
   unorderedCount: number;
 }) {
   return (
     <div className="flex flex-col gap-3">
-      {!hasPresentations ? (
-        <Alert>
-          <Info aria-hidden="true" />
-          <AlertTitle>Todavía no hay orden de presentación</AlertTitle>
-          <AlertDescription>
-            Las coreografías se muestran por número. Ordenalas automáticamente
-            para numerar las presentaciones y poder asignar jueces.
-          </AlertDescription>
-          <AlertAction>
-            <Button type="button" size="sm" onClick={onOpenOrdering}>
-              Ordenar automáticamente
-            </Button>
-          </AlertAction>
-        </Alert>
-      ) : null}
-
       {hasPresentations && unorderedCount > 0 ? (
-        <Alert>
+        <Alert variant="info">
           <Info aria-hidden="true" />
-          <AlertTitle>
-            {unorderedCount === 1
-              ? "1 coreografía todavía no tiene número"
-              : `${unorderedCount} coreografías todavía no tienen número`}
-          </AlertTitle>
           <AlertDescription>
-            Llegaron después del último orden y aparecen al final. Mientras
-            falte su número no se pueden mover filas; ordená automáticamente
-            para sumarlas.
+            {unorderedCount === 1
+              ? "Existe 1 coreografía sin número de presentación."
+              : `Existen ${unorderedCount} coreografías sin número de presentación.`}
           </AlertDescription>
-          <AlertAction>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={onOpenOrdering}
-            >
-              Ordenar automáticamente
-            </Button>
-          </AlertAction>
         </Alert>
       ) : null}
 
@@ -87,17 +54,21 @@ export function ListNotices({
           <AlertTriangle aria-hidden="true" />
           <AlertDescription>
             {flaggedCount === 1
-              ? "1 presentación con advertencias"
-              : `${flaggedCount} presentaciones con advertencias`}
+              ? "Existe 1 presentación con advertencias."
+              : `Existen ${flaggedCount} presentaciones con advertencias.`}
           </AlertDescription>
           <AlertAction>
             <Button
               type="button"
               size="sm"
-              variant="outline"
+              variant="link"
               onClick={onToggleOnlyWarnings}
             >
-              {onlyWarnings ? "Ver todas" : "Ver sólo esas"}
+              <SquareArrowOutUpRight
+                aria-hidden="true"
+                data-icon="inline-start"
+              />
+              {onlyWarnings ? "Ver todas" : "Ver"}
             </Button>
           </AlertAction>
         </Alert>

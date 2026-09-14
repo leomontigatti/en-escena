@@ -1,6 +1,6 @@
 // PROTOTYPE — throwaway, lives only on branch `prototype/912-participation-list`
 // (wayfinder ticket #912, map #907). The ordering confirmation and the judge assignment dialogs.
-import { AlertTriangle, Check, ListOrdered } from "lucide-react";
+import { AlertTriangle, Check } from "lucide-react";
 import { useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
@@ -49,9 +49,6 @@ export function OrderingDialog({
   const [isPending, setIsPending] = useState(false);
   const refusal = checkAutomaticOrdering(rows);
   const preview = refusal ? null : runAutomaticOrdering(rows);
-  const hasPresentations = rows.some((row) => row.orderNumber !== null);
-  const orderedCount =
-    preview?.rows.filter((row) => row.orderNumber !== null).length ?? 0;
   const isBlocked = refusal !== null;
 
   return (
@@ -71,7 +68,7 @@ export function OrderingDialog({
               ? refusal.reason === "missingCategory"
                 ? "Hay coreografías con la seña cubierta que no tienen categoría. Asignales una y volvé a ordenar."
                 : "Hay coreografías con la seña cubierta que no tienen cronograma. Asignales uno y volvé a ordenar."
-              : `Se van a numerar ${orderedCount} presentaciones por cronograma, categoría y tipo de grupo, desempatando por número de coreografía y separando a los bailarines que se repiten.`}
+              : "Las coreografías elegibles se ordenan por defecto y se les asigna un número de presentación nuevo."}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
@@ -84,15 +81,15 @@ export function OrderingDialog({
                 : `${refusal.rows.length} coreografías impiden ordenar.`}
             </AlertDescription>
           </Alert>
-        ) : hasPresentations ? (
+        ) : (
           <Alert variant="destructive">
             <AlertTriangle aria-hidden="true" />
             <AlertDescription>
-              Se pierde el orden manual: cada presentación recibe un número
-              nuevo. Las asignaciones de juez se mantienen.
+              Esta acción es irreversible y modifica cualquier orden manual
+              realizado.
             </AlertDescription>
           </Alert>
-        ) : null}
+        )}
 
         {isBlocked ? (
           <ul className="flex min-h-0 flex-col gap-1 overflow-y-auto text-sm">
@@ -108,30 +105,25 @@ export function OrderingDialog({
         ) : preview &&
           (preview.removedPresentationCount > 0 ||
             preview.removedAssignmentCount > 0) ? (
-          <ul className="flex flex-col gap-1 text-sm">
-            {preview.removedPresentationCount > 0 ? (
-              <li>
-                Se quitarán{" "}
-                {formatCount(
+          <Alert variant="warning">
+            <AlertTriangle aria-hidden="true" />
+            <AlertDescription>
+              {[
+                formatRemoval(
                   preview.removedPresentationCount,
                   "presentación con seña pendiente",
                   "presentaciones con seña pendiente",
-                )}
-                .
-              </li>
-            ) : null}
-            {preview.removedAssignmentCount > 0 ? (
-              <li>
-                Se quitarán{" "}
-                {formatCount(
+                ),
+                formatRemoval(
                   preview.removedAssignmentCount,
                   "asignación de juez",
                   "asignaciones de juez",
-                )}
-                .
-              </li>
-            ) : null}
-          </ul>
+                ),
+              ]
+                .filter((sentence) => sentence.length > 0)
+                .join(" ")}
+            </AlertDescription>
+          </Alert>
         ) : null}
 
         <AlertDialogFooter>
@@ -153,7 +145,7 @@ export function OrderingDialog({
               {isPending ? (
                 <Spinner aria-hidden="true" data-icon="inline-start" />
               ) : (
-                <ListOrdered aria-hidden="true" data-icon="inline-start" />
+                <Check aria-hidden="true" data-icon="inline-start" />
               )}
               Ordenar
             </Button>
@@ -162,6 +154,16 @@ export function OrderingDialog({
       </AlertDialogContent>
     </AlertDialog>
   );
+}
+
+function formatRemoval(count: number, singular: string, plural: string) {
+  if (count === 0) {
+    return "";
+  }
+
+  return count === 1
+    ? `Se quitará 1 ${singular}.`
+    : `Se quitarán ${count} ${plural}.`;
 }
 
 /** On the `preset-dialog.tsx` shape: a dialog over the list, acting on the selection. */

@@ -186,8 +186,13 @@ export function createDataTableColumns<TData>(
     },
   }));
 
+  const leadingColumnCount = columns.filter((column) => column.leading).length;
   const visibleTableColumns = options.selectableRows
-    ? [createSelectionColumn<TData>(), ...tableColumns]
+    ? [
+        ...tableColumns.slice(0, leadingColumnCount),
+        createSelectionColumn<TData>(),
+        ...tableColumns.slice(leadingColumnCount),
+      ]
     : tableColumns;
 
   if (columns.some((column) => column.id === dataTableFacetedFilterColumnId)) {

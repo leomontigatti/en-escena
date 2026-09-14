@@ -138,9 +138,9 @@ const operationNavigationItems = [
     to: "/administracion/coreografias",
     icon: Music2,
   },
-  // PROTOTYPE (#912): variants B and C give the participation list its own entry.
+  // PROTOTYPE (#912): the presentation list has its own entry.
   {
-    label: "Participación",
+    label: "Presentación",
     to: "/prototipo/lista-de-participacion",
     icon: ListOrdered,
   },

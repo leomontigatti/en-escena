@@ -1,28 +1,24 @@
 // PROTOTYPE — throwaway, lives only on branch `prototype/912-participation-list`
-// (wayfinder ticket #912, map #907). The admin participation list in three
-// variants, on the shared `ServerDataTable` with three branch-only seams
-// (`canSelectRow`, `reorder`, `getRowGroup`). Every write lands in memory.
+// (wayfinder ticket #912, map #907). The admin presentation list as the first
+// review chose it: its own page, tabs by day, warnings as a notice, every action
+// in the actions menu. On the shared `ServerDataTable` with branch-only seams
+// (`canSelectRow`, `reorder`, `leading`). Every write lands in memory.
 import { Check, ListOrdered, UserMinus } from "lucide-react";
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router";
 
 import {
   AdminEmptyState,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
-import {
-  ServerDataTable,
-  type DataTableFacetedFilter,
-} from "@/components/shared/data-table";
-import { MetricCard } from "@/components/shared/metric-card";
+import { ServerDataTable } from "@/components/shared/data-table";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { formatDate } from "@/features/admin/schedules/view-shared";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { showToastMessage } from "@/lib/shared/toasts";
 
@@ -35,7 +31,6 @@ import {
 import {
   buildCaseRows,
   derivePresentationWarnings,
-  formatScheduleLabel,
   judges,
   movePresentation,
   runAutomaticOrdering,
@@ -45,48 +40,33 @@ import {
 } from "./participation-fixtures.prototype";
 import { ListNotices, PrototypeState } from "./participation-notices.prototype";
 
-export const participationVariants = {
-  A: "Pestaña dentro de Coreografías, cronograma como columna",
-  B: "Página propia con cifras, cronograma como encabezado de grupo",
-  C: "Página propia, pestañas por cronograma, advertencias como filtro",
-} as const;
-
-export type ParticipationVariant = keyof typeof participationVariants;
-
 export type ParticipationQuery = {
+  day: string;
   onlyWarnings: boolean;
   page: number;
-  scheduleTab: string;
   search: string;
   sort: { columnId: string; direction: "asc" | "desc" } | null;
 };
 
 const pageSize = 50;
 
-const warningsFacetedFilters: DataTableFacetedFilter[] = [
-  {
-    id: "advertencias",
-    label: "Advertencias",
-    options: [{ label: "Con advertencias", value: "con" }],
-  },
-];
+const eventDays = [
+  ...new Set(schedules.map((schedule) => schedule.scheduledDate)),
+].sort();
 
 export function ParticipationListPrototype({
   caseId,
   conflict,
   onToggleOnlyWarnings,
   query,
-  setScheduleTab,
-  variant,
+  setDay,
 }: {
   caseId: PrototypeCaseId;
   conflict: boolean;
   onToggleOnlyWarnings: () => void;
   query: ParticipationQuery;
-  setScheduleTab: (tab: string) => void;
-  variant: ParticipationVariant;
+  setDay: (day: string) => void;
 }) {
-  const navigate = useNavigate();
   const [rows, setRows] = useState(() => buildCaseRows(caseId));
   const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
   const [dialog, setDialog] = useState<"ordering" | "assign" | "remove" | null>(
@@ -124,9 +104,7 @@ export function ParticipationListPrototype({
       (row) =>
         matchesSearch(row, query.search) &&
         (!query.onlyWarnings || (warnings.get(row.id)?.length ?? 0) > 0) &&
-        (variant !== "C" ||
-          query.scheduleTab === "todos" ||
-          row.schedule?.id === query.scheduleTab),
+        (query.day === "todos" || row.schedule?.scheduledDate === query.day),
     ),
     sort,
   );
@@ -134,14 +112,6 @@ export function ParticipationListPrototype({
   const pageRows = visibleRows.slice(
     (query.page - 1) * pageSize,
     query.page * pageSize,
-  );
-  const initialFacetedFilterValues = useMemo(
-    () => ({
-      filters: query.onlyWarnings
-        ? { advertencias: "con" }
-        : ({} as Record<string, string>),
-    }),
-    [query.onlyWarnings],
   );
 
   function moveTo(rowId: string, toOrderNumber: number) {
@@ -175,150 +145,60 @@ export function ParticipationListPrototype({
     hasPresentations,
     maxOrderNumber: presentationCount,
     onCommitOrder: moveTo,
-    showSchedule: variant !== "B",
+    showSchedule: true,
     warnings,
   });
-
-  const actionsMenu = (
-    <ResourceActionsMenu contentClassName="w-56">
-      {variant !== "B" ? (
-        <>
-          <DropdownMenuItem
-            disabled={eligibleCount === 0}
-            onSelect={(event) => {
-              event.preventDefault();
-              setDialog("ordering");
-            }}
-          >
-            <ListOrdered aria-hidden="true" />
-            Ordenar automáticamente
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-        </>
-      ) : null}
-      <DropdownMenuItem
-        disabled={selectedRows.length === 0}
-        onSelect={(event) => {
-          event.preventDefault();
-          setDialog("assign");
-        }}
-      >
-        <Check aria-hidden="true" />
-        Asignar jueces
-      </DropdownMenuItem>
-      <DropdownMenuItem
-        disabled={selectedRows.length === 0 || removableJudgeCount === 0}
-        onSelect={(event) => {
-          event.preventDefault();
-          setDialog("remove");
-        }}
-      >
-        <UserMinus aria-hidden="true" />
-        Quitar jueces
-      </DropdownMenuItem>
-    </ResourceActionsMenu>
-  );
-
-  const headerAction =
-    variant === "B" ? (
-      <div className="flex items-center gap-2">
-        <Button
-          type="button"
-          disabled={eligibleCount === 0}
-          onClick={() => setDialog("ordering")}
-        >
-          <ListOrdered aria-hidden="true" data-icon="inline-start" />
-          Ordenar automáticamente
-        </Button>
-        {actionsMenu}
-      </div>
-    ) : (
-      actionsMenu
-    );
-
-  const table = (
-    <ServerDataTable
-      rows={pageRows}
-      columns={columns}
-      getRowKey={(row) => row.id}
-      layout="fit"
-      searchPlaceholder="Buscar por número de coreografía, nombre o academia"
-      initialSearchValue={query.search}
-      initialSort={sort}
-      facetedFilters={variant === "C" ? warningsFacetedFilters : undefined}
-      initialFacetedFilterValues={
-        variant === "C" ? initialFacetedFilterValues : undefined
-      }
-      selectableRows
-      canSelectRow={(row) => row.presentationId !== null}
-      selectedRowIds={selectedRowIds}
-      onSelectedRowIdsChange={setSelectedRowIds}
-      reorder={
-        hasPresentations
-          ? {
-              enabled: canDrag,
-              onMove: (activeRowKey, overRowKey) => {
-                const over = rows.find((row) => row.id === overRowKey);
-
-                if (over?.orderNumber) {
-                  moveTo(activeRowKey, over.orderNumber);
-                }
-              },
-            }
-          : undefined
-      }
-      getRowGroup={
-        variant === "B" && isSortedByOrder
-          ? (row) =>
-              row.orderNumber === null
-                ? { key: "sin-numero", label: "Sin número de presentación" }
-                : {
-                    key: row.schedule?.id ?? "sin-cronograma",
-                    label: formatScheduleLabel(row.schedule),
-                  }
-          : undefined
-      }
-      emptyMessage="No hay coreografías que coincidan con la búsqueda o los filtros."
-      currentPage={query.page}
-      totalPages={totalPages}
-      totalRows={rows.length}
-    />
-  );
 
   return (
     <AdminResourceLayout
       selectedEventId={caseId === "sin-evento" ? null : "evento-prototipo"}
-      title={variant === "A" ? "Coreografías" : "Lista de participación"}
-      description={
-        variant === "A"
-          ? "Revisá las coreografías registradas para el evento activo y su estado operativo."
-          : "Ordená las presentaciones del evento activo y asigná jueces."
-      }
+      title="Presentación"
+      description="Ordená las presentaciones del evento activo y asigná jueces."
       eventRequiredEmptyState={{
-        title: "Elegí un evento activo para ordenar la participación",
+        title: "Elegí un evento activo para ordenar la presentación",
         description:
           "Activá un evento para numerar sus presentaciones y asignar jueces.",
       }}
-      headerAction={rows.length > 0 ? headerAction : undefined}
+      headerAction={
+        rows.length > 0 ? (
+          <ResourceActionsMenu contentClassName="w-56">
+            <DropdownMenuItem
+              disabled={eligibleCount === 0}
+              onSelect={(event) => {
+                event.preventDefault();
+                setDialog("ordering");
+              }}
+            >
+              <ListOrdered aria-hidden="true" />
+              Ordenar automáticamente
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              disabled={selectedRows.length === 0}
+              onSelect={(event) => {
+                event.preventDefault();
+                setDialog("assign");
+              }}
+            >
+              <Check aria-hidden="true" />
+              Asignar jueces
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={selectedRows.length === 0 || removableJudgeCount === 0}
+              onSelect={(event) => {
+                event.preventDefault();
+                setDialog("remove");
+              }}
+            >
+              <UserMinus aria-hidden="true" />
+              Quitar jueces
+            </DropdownMenuItem>
+          </ResourceActionsMenu>
+        ) : undefined
+      }
     >
       <TooltipProvider>
         <div className="flex flex-col gap-6">
-          {variant === "A" ? (
-            <Tabs
-              value="participacion"
-              onValueChange={(value) => {
-                if (value === "operativa") {
-                  void navigate("/administracion/coreografias");
-                }
-              }}
-            >
-              <TabsList variant="line">
-                <TabsTrigger value="operativa">Operativa</TabsTrigger>
-                <TabsTrigger value="participacion">Participación</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          ) : null}
-
           {rows.length === 0 ? (
             <AdminEmptyState
               icon={ListOrdered}
@@ -327,54 +207,60 @@ export function ParticipationListPrototype({
             />
           ) : (
             <>
-              {variant === "B" ? (
-                <section className="grid gap-4 sm:grid-cols-3">
-                  <MetricCard
-                    title="Con número"
-                    value={`${presentationCount} de ${eligibleCount}`}
-                  />
-                  <MetricCard
-                    title="Con advertencias"
-                    value={String(flaggedCount)}
-                  />
-                  <MetricCard
-                    title="Sin jueces"
-                    value={String(
-                      rows.filter(
-                        (row) =>
-                          row.presentationId !== null &&
-                          row.judgeIds.length === 0,
-                      ).length,
-                    )}
-                  />
-                </section>
-              ) : null}
-
               <ListNotices
                 canEditOrder={canEditOrder}
-                flaggedCount={variant === "C" ? 0 : flaggedCount}
+                flaggedCount={flaggedCount}
                 hasPresentations={hasPresentations}
                 isSortedByOrder={isSortedByOrder}
                 onlyWarnings={query.onlyWarnings}
-                onOpenOrdering={() => setDialog("ordering")}
                 onToggleOnlyWarnings={onToggleOnlyWarnings}
                 unorderedCount={unorderedCount}
               />
 
-              {variant === "C" ? (
-                <Tabs value={query.scheduleTab} onValueChange={setScheduleTab}>
-                  <TabsList variant="line">
-                    <TabsTrigger value="todos">Todos</TabsTrigger>
-                    {schedules.map((schedule) => (
-                      <TabsTrigger key={schedule.id} value={schedule.id}>
-                        {formatScheduleLabel(schedule)}
-                      </TabsTrigger>
-                    ))}
-                  </TabsList>
-                </Tabs>
-              ) : null}
+              <Tabs value={query.day} onValueChange={setDay}>
+                <TabsList variant="line">
+                  <TabsTrigger value="todos">Todos</TabsTrigger>
+                  {eventDays.map((day) => (
+                    <TabsTrigger key={day} value={day}>
+                      {formatDate(day)}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </Tabs>
 
-              {table}
+              <ServerDataTable
+                rows={pageRows}
+                columns={columns}
+                getRowKey={(row) => row.id}
+                layout="fit"
+                searchPlaceholder="Buscar por número de coreografía, nombre o academia"
+                initialSearchValue={query.search}
+                initialSort={sort}
+                selectableRows
+                canSelectRow={(row) => row.presentationId !== null}
+                selectedRowIds={selectedRowIds}
+                onSelectedRowIdsChange={setSelectedRowIds}
+                reorder={
+                  hasPresentations
+                    ? {
+                        enabled: canDrag,
+                        onMove: (activeRowKey, overRowKey) => {
+                          const over = rows.find(
+                            (row) => row.id === overRowKey,
+                          );
+
+                          if (over?.orderNumber) {
+                            moveTo(activeRowKey, over.orderNumber);
+                          }
+                        },
+                      }
+                    : undefined
+                }
+                emptyMessage="No hay coreografías que coincidan con la búsqueda o los filtros."
+                currentPage={query.page}
+                totalPages={totalPages}
+                totalRows={rows.length}
+              />
             </>
           )}
 
