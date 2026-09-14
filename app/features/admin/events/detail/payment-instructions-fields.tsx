@@ -94,19 +94,19 @@ export function EventPaymentInstructionsFields({
         label="Cómo pagar"
         name="paymentInstructionsText"
         rows={6}
-        // The counter rides the existing description slot, under the control:
+        // The bold hint and the counter ride the existing description slot, under the control:
         // no new component, no new token.
         description={
           // `FieldDescription` sets its own muted colour, so the field's
           // `data-invalid` never reaches the counter — it names the number that
           // is over the cap, so it is told separately.
-          <span
-            className={cn(
-              "block text-right tabular-nums",
-              isTooLong && "text-destructive",
-            )}
-          >
-            {length} / {PAYMENT_INSTRUCTIONS_TEXT_MAX_LENGTH}
+          <span className="flex justify-between gap-4">
+            <span>Escribí **texto** para mostrarlo en negrita.</span>
+            <span
+              className={cn("tabular-nums", isTooLong && "text-destructive")}
+            >
+              {length} / {PAYMENT_INSTRUCTIONS_TEXT_MAX_LENGTH}
+            </span>
           </span>
         }
         placeholder="Poné el nombre de tu academia en la referencia de la transferencia."
