@@ -1,7 +1,6 @@
 import { and, asc, eq, inArray, isNull, ne } from "drizzle-orm";
 
 import { choreographies, choreographyDancers } from "@/db/schema";
-import { hasNeverExpiringPrice } from "@/lib/events/never-expiring-price";
 import {
   frozenPriceDeleteError,
   frozenPriceUpdateError,
@@ -65,36 +64,17 @@ export async function listPrices(eventId: string): Promise<PriceListItem[]> {
     findInscribedGroupTypes(eventId),
   ]);
 
-  const listItems = await Promise.all(
-    eventPrices.map(async (price) => ({
-      ...price,
-      schedule: price.scheduleId
-        ? (schedulesById.get(price.scheduleId) ?? null)
-        : null,
-      isFrozen: frozenPriceIds.has(price.id),
-      keepsCoverage: await keepsNeverExpiringCoverage(
-        price,
-        () => otherGeneralPricesOf(price, eventPrices),
-        () => inscribedGroupTypes.has(price.groupType),
-      ),
-    })),
-  );
+  const listItems = eventPrices.map((price) => ({
+    ...price,
+    schedule: price.scheduleId
+      ? (schedulesById.get(price.scheduleId) ?? null)
+      : null,
+    isFrozen: frozenPriceIds.has(price.id),
+    keepsCoverage:
+      isGeneralTail(price) && inscribedGroupTypes.has(price.groupType),
+  }));
 
   return listItems.sort(comparePrices);
-}
-
-// The whole event is already in hand, so the per-row question about the rest of
-// the general tier is answered without going back to the database.
-function otherGeneralPricesOf(
-  price: typeof prices.$inferSelect,
-  eventPrices: (typeof prices.$inferSelect)[],
-) {
-  return eventPrices.filter(
-    (candidate) =>
-      candidate.id !== price.id &&
-      candidate.groupType === price.groupType &&
-      candidate.scheduleId === null,
-  );
 }
 
 async function findFrozenPriceIds(priceIds: string[]) {
@@ -269,56 +249,24 @@ async function removesNeverExpiringCoverage(
     next.groupType === existing.groupType &&
     next.paymentDeadline === null;
 
-  if (staysTheGeneralTail) {
+  if (staysTheGeneralTail || !isGeneralTail(existing)) {
     return false;
   }
 
-  return keepsNeverExpiringCoverage(
-    existing,
-    () => readRemainingGeneralPrices(existing),
-    () => hasActiveInscriptions(existing.eventId, existing.groupType),
-  );
+  return hasActiveInscriptions(existing.eventId, existing.groupType);
 }
 
 /**
- * Whether the row is the one thing keeping its group type's general tier
- * resolvable: the tier's tail, with no other deadline-less row behind it, on a
- * group type that carries active inscriptions. `listPrices` asks it of every
- * row so the form can lock what would be refused, and
- * `removesNeverExpiringCoverage` asks it of the row about to move, so the flag
- * and the refusal cannot drift. Both sources are read lazily, in the order
- * that lets the cheapest answer stop first.
+ * Whether the row is its group type's deadline-less general row. It is the
+ * only one: `price_general_unique` is `NULLS NOT DISTINCT` on
+ * `(event_id, group_type, payment_deadline)`, so no other row can stand in for
+ * it. `listPrices` and `removesNeverExpiringCoverage` both ask it, so the flag
+ * the form locks on and the refusal cannot drift.
  */
-async function keepsNeverExpiringCoverage(
+function isGeneralTail(
   price: Pick<typeof prices.$inferSelect, "paymentDeadline" | "scheduleId">,
-  readOtherGeneralPrices: () =>
-    | Promise<{ paymentDeadline: string | null }[]>
-    | { paymentDeadline: string | null }[],
-  readActiveInscriptions: () => Promise<boolean> | boolean,
 ) {
-  if (price.scheduleId !== null || price.paymentDeadline !== null) {
-    return false;
-  }
-
-  if (hasNeverExpiringPrice(await readOtherGeneralPrices())) {
-    return false;
-  }
-
-  return readActiveInscriptions();
-}
-
-function readRemainingGeneralPrices(existing: typeof prices.$inferSelect) {
-  return db
-    .select({ paymentDeadline: prices.paymentDeadline })
-    .from(prices)
-    .where(
-      and(
-        eq(prices.eventId, existing.eventId),
-        eq(prices.groupType, existing.groupType),
-        isNull(prices.scheduleId),
-        ne(prices.id, existing.id),
-      ),
-    );
+  return price.scheduleId === null && price.paymentDeadline === null;
 }
 
 async function hasActiveInscriptions(eventId: string, groupType: GroupType) {

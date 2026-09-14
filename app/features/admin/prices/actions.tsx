@@ -26,9 +26,10 @@ export function PriceActions({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(
     initialDeleteDialogOpen,
   );
-  // The guard is read before the menu opens, so a protected row shows a
-  // disabled item and a dialog that explains instead of a refusal after the
-  // submission. The server refuses all the same, for the race.
+  // The guard is read before the menu opens, so a protected row opens a dialog
+  // that explains why instead of refusing after the submission. The item stays
+  // selectable: a disabled one would leave that explanation unreachable. The
+  // server refuses all the same, for the race.
   const deletionBlock = readPriceDeletionBlock(price);
 
   return (
@@ -41,7 +42,6 @@ export function PriceActions({
         <DropdownMenuGroup>
           <DropdownMenuItem
             variant="destructive"
-            disabled={Boolean(deletionBlock)}
             onSelect={() => setDeleteDialogOpen(true)}
           >
             Borrar precio

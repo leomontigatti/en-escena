@@ -86,9 +86,12 @@ describe("guarded price detail", () => {
   });
 });
 
+// The item stays selectable on a guarded row, because the dialog it opens is
+// the only place that says why the price cannot be deleted.
 describe("guarded price deletion", () => {
   test("opens the delete dialog blocked for a frozen row", async () => {
-    await renderDetail({ isFrozen: true }, { initialDeleteDialogOpen: true });
+    await renderDetail({ isFrozen: true });
+    await selectDeleteMenuItem();
 
     const dialog = getDeleteDialog();
 
@@ -96,16 +99,11 @@ describe("guarded price deletion", () => {
       "No se puede borrar el precio porque hay inscripciones que congelaron este precio.",
     );
     expect(dialog.querySelector("form")).toBeNull();
-    expect((await getDeleteMenuItem()).getAttribute("aria-disabled")).toBe(
-      "true",
-    );
   });
 
   test("opens the delete dialog blocked for the row that keeps coverage", async () => {
-    await renderDetail(
-      { keepsCoverage: true, paymentDeadline: null },
-      { initialDeleteDialogOpen: true },
-    );
+    await renderDetail({ keepsCoverage: true, paymentDeadline: null });
+    await selectDeleteMenuItem();
 
     const dialog = getDeleteDialog();
 
@@ -113,28 +111,20 @@ describe("guarded price deletion", () => {
       "No se puede borrar el precio porque es el único sin fecha límite de ese tipo de grupo, que tiene inscripciones activas.",
     );
     expect(dialog.querySelector("form")).toBeNull();
-    expect((await getDeleteMenuItem()).getAttribute("aria-disabled")).toBe(
-      "true",
-    );
   });
 
   test("offers the delete form on an unguarded row", async () => {
-    await renderDetail({}, { initialDeleteDialogOpen: true });
+    await renderDetail();
+    await selectDeleteMenuItem();
 
     const dialog = getDeleteDialog();
 
     expect(dialog.textContent).not.toContain("No se puede borrar el precio");
     expect(dialog.querySelector("form")).not.toBeNull();
-    expect((await getDeleteMenuItem()).getAttribute("aria-disabled")).not.toBe(
-      "true",
-    );
   });
 });
 
-async function renderDetail(
-  overrides: Partial<PriceListItem> = {},
-  { initialDeleteDialogOpen = false } = {},
-) {
+async function renderDetail(overrides: Partial<PriceListItem> = {}) {
   const price = buildPrice(overrides);
   const path = `/administracion/precios/${price.id}`;
   const router = createMemoryRouter(
@@ -144,7 +134,6 @@ async function renderDetail(
         action: async () => null,
         element: (
           <EventPriceDetailView
-            initialDeleteDialogOpen={initialDeleteDialogOpen}
             loaderData={buildLoaderData(price)}
             priceId={price.id}
           />
@@ -238,18 +227,23 @@ async function openActionsMenu() {
   });
 }
 
-async function getDeleteMenuItem() {
+async function selectDeleteMenuItem() {
   await openActionsMenu();
 
-  const item = Array.from(document.querySelectorAll('[role="menuitem"]')).find(
-    (candidate) => candidate.textContent === "Borrar precio",
-  );
+  const item = Array.from(
+    document.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+  ).find((candidate) => candidate.textContent === "Borrar precio");
 
   if (!item) {
     throw new Error("Expected the delete menu item to be rendered.");
   }
 
-  return item;
+  expect(item.getAttribute("aria-disabled")).not.toBe("true");
+
+  await act(async () => {
+    item.click();
+    await Promise.resolve();
+  });
 }
 
 function readHiddenValue(name: string) {

@@ -99,8 +99,8 @@ rule fits; every difference is named.
   `regular` row of a participant cell cannot be deleted or restructured while
   any active seminar inscription of the event exists, even unreferenced; its
   amount and name may change. On the form the guards show on sight — the locked
-  fields render through the shared read-only look, `Borrar precio` is disabled
-  and its dialog opens blocked, and an `info` alert says why — and the server
+  fields render through the shared read-only look, `Borrar precio` opens its
+  dialog blocked with the reason, and an `info` alert says why — and the server
   refuses all the same, for the race.
 - **Readiness.** A seminar's registration is closed while the event lacks a
   deadline-less `regular` row for **either** participant cell, beside the

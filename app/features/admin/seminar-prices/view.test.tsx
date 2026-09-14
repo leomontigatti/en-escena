@@ -144,8 +144,8 @@ describe("seminar price detail", () => {
     // Every guarded field reads through the shared read-only look, so none of
     // them is an editable control any more.
     expect(markup).not.toContain('name="kind"><');
-    // `Borrar precio` is disabled on sight, and its dialog opens blocked,
-    // rather than refusing after the submission.
+    // `Borrar precio` opens its dialog blocked, with the reason, rather than
+    // refusing after the submission.
     expect(
       readSeminarPriceDeletionBlock(seminarPrice({ isReferenced: true })),
     ).toContain("no se puede borrar");
