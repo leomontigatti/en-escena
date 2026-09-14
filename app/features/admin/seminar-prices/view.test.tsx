@@ -5,7 +5,13 @@ import { renderRouteView } from "@/features/admin/test-support/render-route-view
 import { EventPricesListView } from "@/features/admin/prices/list/view";
 import { SeminarPriceDetailView } from "@/features/admin/seminar-prices/detail/view";
 import { seminarPriceFacetedFilterIds } from "@/features/admin/seminar-prices/list-table";
-import { readSeminarPriceDeletionBlock } from "@/features/admin/seminar-prices/view-shared";
+import {
+  frozenPriceDeleteError,
+  frozenPriceNotice,
+  readPriceDeletionBlock,
+  uncoveredPriceDeleteError,
+  uncoveredPriceNotice,
+} from "@/lib/prices/guards";
 import type { SeminarPriceListItem } from "@/lib/seminar-prices/repository.server";
 
 function seminarPrice(
@@ -100,14 +106,12 @@ describe("`Precios` with its seminar tab", () => {
     ]);
   });
 
-  test("warns about the participant cell whose deadline-less `Común` row is missing", () => {
-    const markup = renderList(
-      [seminarPrice()],
-      "/administracion/precios?lista=seminarios",
-    );
+  test("warns above both tabs while a participant cell lacks its deadline-less `Común` row", () => {
+    const warning = "Existen combinaciones de seminario sin un precio general";
 
-    expect(markup).toContain("no participantes");
-    expect(markup).not.toContain("para participantes y no participantes");
+    expect(renderList([seminarPrice()], "/administracion/precios")).toContain(
+      warning,
+    );
 
     const covered = renderList(
       [
@@ -117,7 +121,7 @@ describe("`Precios` with its seminar tab", () => {
       "/administracion/precios?lista=seminarios",
     );
 
-    expect(covered).not.toContain("Falta el precio");
+    expect(covered).not.toContain(warning);
   });
 });
 
@@ -129,8 +133,8 @@ describe("seminar price detail", () => {
 
     expect(markup).toContain('name="amount"');
     expect(markup).toContain('name="kind"');
-    expect(markup).not.toContain("congelaron este precio");
-    expect(readSeminarPriceDeletionBlock(seminarPrice())).toBeNull();
+    expect(markup).not.toContain(frozenPriceNotice);
+    expect(readPriceDeletionBlock(seminarPrice())).toBeNull();
   });
 
   test("locks a referenced row down to its name and explains why", () => {
@@ -138,28 +142,24 @@ describe("seminar price detail", () => {
       seminarPrice({ paymentDeadline: "2026-06-30", isReferenced: true }),
     );
 
-    expect(markup).toContain(
-      "Hay inscripciones que congelaron este precio, así que solo podés cambiarle el nombre.",
-    );
+    expect(markup).toContain(frozenPriceNotice);
     // Every guarded field reads through the shared read-only look, so none of
     // them is an editable control any more.
     expect(markup).not.toContain('name="kind"><');
     // `Borrar precio` is disabled on sight, and its dialog opens blocked,
     // rather than refusing after the submission.
-    expect(
-      readSeminarPriceDeletionBlock(seminarPrice({ isReferenced: true })),
-    ).toContain("no se puede borrar");
+    expect(readPriceDeletionBlock(seminarPrice({ isReferenced: true }))).toBe(
+      frozenPriceDeleteError,
+    );
   });
 
   test("keeps the amount of the row that holds the event's seminars open", () => {
     const markup = renderDetail(seminarPrice({ keepsRegistrationOpen: true }));
 
-    expect(markup).toContain("Podés cambiarle el monto.");
+    expect(markup).toContain(uncoveredPriceNotice);
     expect(markup).toContain('name="amount"');
     expect(
-      readSeminarPriceDeletionBlock(
-        seminarPrice({ keepsRegistrationOpen: true }),
-      ),
-    ).toContain("No se puede borrar el precio");
+      readPriceDeletionBlock(seminarPrice({ keepsRegistrationOpen: true })),
+    ).toBe(uncoveredPriceDeleteError);
   });
 });

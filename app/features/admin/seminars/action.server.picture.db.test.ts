@@ -318,7 +318,7 @@ describe.sequential("the seminar instructor picture", () => {
     expect(registered.ok).toBe(true);
     await expect(deleteSeminarRequest(seminar.id)).resolves.toMatchObject({
       status: "error",
-      message: "No se puede borrar el seminario porque tiene inscripciones.",
+      message: "Este seminario tiene inscripciones. No podés eliminarlo.",
     });
     expect(await readdir(pictureFolder(event.id, seminar.id))).toEqual([
       "instructor.jpg",

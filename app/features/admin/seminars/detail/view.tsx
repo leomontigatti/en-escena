@@ -1,5 +1,13 @@
+import { InfoIcon } from "lucide-react";
+
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
+import { AlertStack } from "@/components/shared/alert-stack";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  coveredSeminarMessage,
+  seminarHasInscriptionsMessage,
+} from "@/lib/seminars/registration-refusals";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import { SeminarActions } from "../actions";
@@ -37,6 +45,11 @@ export function SeminarDetailView({
     intent: updateSeminarIntent,
     values: loaderData.values,
   });
+  const lockReason = loaderData.hasCoveredInscription
+    ? coveredSeminarMessage
+    : seminar.inscriptionCount > 0
+      ? seminarHasInscriptionsMessage
+      : null;
 
   return (
     <AdminResourceLayout
@@ -50,6 +63,18 @@ export function SeminarDetailView({
         />
       }
     >
+      {/* Above the tabs, never inside one: what is locked is the seminar
+          itself, so the reason reads the same from either tab. A covered
+          inscription is always an inscription, so its sentence already names
+          the delete and the two notices never show together. */}
+      <AlertStack>
+        {lockReason ? (
+          <Alert variant="info">
+            <InfoIcon aria-hidden="true" />
+            <AlertDescription>{lockReason}</AlertDescription>
+          </Alert>
+        ) : null}
+      </AlertStack>
       <Tabs defaultValue="informacion">
         <TabsList variant="line">
           <TabsTrigger value="informacion">Información</TabsTrigger>

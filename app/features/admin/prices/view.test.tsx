@@ -13,6 +13,7 @@ import type {
   EventPricesLoaderData,
 } from "@/features/admin/prices/shared";
 import type { PriceListItem } from "@/lib/events/bases.server";
+import { frozenPriceNotice, uncoveredPriceNotice } from "@/lib/prices/guards";
 
 describe("EventPriceDetailRouteView", () => {
   let container: HTMLDivElement | null = null;
@@ -98,6 +99,111 @@ describe("EventPriceDetailRouteView", () => {
     expect(readInputValue(container, "paymentDeadline")).toBe("2026-06-30");
     expect(readInputValue(container, "scheduleId")).toBe("block_2");
   });
+
+  test("locks a price inscriptions stored down to its name and says why above the form", async () => {
+    const price = {
+      ...createPrice({
+        amount: 12000,
+        groupType: "solo",
+        id: "price_1",
+        name: "Precio Solo",
+        paymentDeadline: "2026-05-31",
+        scheduleId: null,
+        scheduleName: null,
+      }),
+      isReferenced: true,
+    };
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await renderPriceDetailRoute({
+      loaderData: createLoaderData({ prices: [price] }),
+      priceId: price.id,
+      root,
+      EventPriceDetailRouteView,
+    });
+
+    expect(container.textContent).toContain(frozenPriceNotice);
+    // The alert sits above the card, not inside the form it explains.
+    expect(container.querySelector("form")?.textContent).not.toContain(
+      frozenPriceNotice,
+    );
+    expect(readInputTypes(container, "amount")).toEqual(["hidden"]);
+    expect(
+      container
+        .querySelector('button[role="switch"]')
+        ?.hasAttribute("disabled"),
+    ).toBe(true);
+  });
+
+  test("keeps the amount of the deadline-less price that holds registration open", async () => {
+    const price = {
+      ...createPrice({
+        amount: 12000,
+        groupType: "solo",
+        id: "price_1",
+        name: "Precio Solo",
+        paymentDeadline: "",
+        scheduleId: null,
+        scheduleName: null,
+      }),
+      paymentDeadline: null,
+      keepsRegistrationOpen: true,
+    };
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await renderPriceDetailRoute({
+      loaderData: createLoaderData({ prices: [price] }),
+      priceId: price.id,
+      root,
+      EventPriceDetailRouteView,
+    });
+
+    expect(container.textContent).toContain(uncoveredPriceNotice);
+    expect(readInputTypes(container, "amount")).not.toContain("hidden");
+    expect(readInputTypes(container, "paymentDeadline")).toEqual(["hidden"]);
+  });
+
+  // The alert above the form is what says why, so the item can be disabled.
+  test.each([
+    { flags: { isReferenced: true }, disabled: true },
+    { flags: { keepsRegistrationOpen: true }, disabled: true },
+    { flags: {}, disabled: false },
+  ])(
+    "reads `Borrar precio` as disabled: $disabled for $flags",
+    async ({ flags, disabled }) => {
+      const price = {
+        ...createPrice({
+          amount: 12000,
+          groupType: "solo",
+          id: "price_1",
+          name: "Precio Solo",
+          paymentDeadline: "2026-05-31",
+          scheduleId: null,
+          scheduleName: null,
+        }),
+        ...flags,
+      };
+
+      container = document.createElement("div");
+      document.body.appendChild(container);
+      root = createRoot(container);
+
+      await renderPriceDetailRoute({
+        loaderData: createLoaderData({ prices: [price] }),
+        priceId: price.id,
+        root,
+        EventPriceDetailRouteView,
+      });
+
+      expect(await readMenuItemDisabled("Borrar precio")).toBe(disabled);
+    },
+  );
 
   test("formats the breadcrumb display name with group type, schedule and deadline", () => {
     const price = createPrice({
@@ -285,6 +391,43 @@ async function renderPricesRoute({
   });
 }
 
+/**
+ * The actions menu only mounts its items once it opens, and the trigger opens
+ * on `pointerdown` rather than on `click`. Both live in a portal on the body.
+ */
+async function readMenuItemDisabled(label: string) {
+  const trigger = document.querySelector<HTMLButtonElement>(
+    'button[aria-label="Acciones"]',
+  );
+
+  if (!trigger) {
+    throw new Error("Expected the actions menu trigger to be rendered.");
+  }
+
+  await act(async () => {
+    trigger.dispatchEvent(
+      new MouseEvent("pointerdown", { bubbles: true, cancelable: true }),
+    );
+    await Promise.resolve();
+  });
+
+  const item = Array.from(
+    document.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+  ).find((candidate) => candidate.textContent === label);
+
+  if (!item) {
+    throw new Error(`Expected the ${label} menu item to be rendered.`);
+  }
+
+  return item.getAttribute("aria-disabled") === "true";
+}
+
+function readInputTypes(container: HTMLElement, name: string) {
+  return Array.from(
+    container.querySelectorAll<HTMLInputElement>(`input[name="${name}"]`),
+  ).map((input) => input.type);
+}
+
 function readInputValue(container: HTMLElement, name: string) {
   const input = container.querySelector<HTMLInputElement>(
     `input[name="${name}"]`,
@@ -365,6 +508,8 @@ function createPrice({
     paymentDeadline,
     scheduleId,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    isReferenced: false,
+    keepsRegistrationOpen: false,
     schedule: scheduleId
       ? {
           id: scheduleId,

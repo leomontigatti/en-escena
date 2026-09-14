@@ -12,6 +12,10 @@ import {
   toSeminarFormValues,
 } from "@/features/admin/seminars/shared";
 import type { SeminarInscriptionRow } from "@/lib/seminars/inscription-rosters.server";
+import {
+  coveredSeminarMessage,
+  seminarHasInscriptionsMessage,
+} from "@/lib/seminars/registration-refusals";
 import type { SeminarListItem } from "@/lib/seminars/repository.server";
 import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 
@@ -40,6 +44,37 @@ function buildSeminar(
     inscriptionCount: 0,
     ...overrides,
   };
+}
+
+/**
+ * The actions menu only mounts its items once it opens, and the trigger opens
+ * on `pointerdown` rather than on `click`.
+ */
+async function readMenuItemDisabled(label: string) {
+  const trigger = document.querySelector<HTMLButtonElement>(
+    'button[aria-label="Acciones"]',
+  );
+
+  if (!trigger) {
+    throw new Error("Expected the actions menu trigger to be rendered.");
+  }
+
+  await act(async () => {
+    trigger.dispatchEvent(
+      new MouseEvent("pointerdown", { bubbles: true, cancelable: true }),
+    );
+    await Promise.resolve();
+  });
+
+  const item = Array.from(
+    document.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+  ).find((candidate) => candidate.textContent === label);
+
+  if (!item) {
+    throw new Error(`Expected the ${label} menu item to be rendered.`);
+  }
+
+  return item.getAttribute("aria-disabled") === "true";
 }
 
 async function renderAt(path: string, element: React.ReactElement) {
@@ -178,6 +213,58 @@ describe("SeminarDetailView", () => {
     expect(
       document.querySelector<HTMLInputElement>("#instructorName")?.readOnly,
     ).toBe(false);
+    // The reason is said above the card, not inside the form it explains.
+    expect(document.body.textContent).toContain(coveredSeminarMessage);
+    expect(document.querySelector("form")?.textContent).not.toContain(
+      coveredSeminarMessage,
+    );
+  });
+
+  test("says nothing about locked fields while no inscription is covered", async () => {
+    await renderDetail(buildSeminar());
+
+    expect(document.body.textContent).not.toContain(coveredSeminarMessage);
+    expect(document.body.textContent).not.toContain(
+      seminarHasInscriptionsMessage,
+    );
+  });
+
+  // An inscription that has not covered its deposit locks no field, but it
+  // still keeps the seminar from being deleted, so it gets its own reason.
+  test("says the seminar cannot be deleted while an uncovered inscription stands", async () => {
+    await renderDetail(
+      buildSeminar({ inscriptionCount: 1, registeredCount: 1 }),
+    );
+
+    expect(document.body.textContent).toContain(seminarHasInscriptionsMessage);
+    expect(document.body.textContent).not.toContain(coveredSeminarMessage);
+  });
+
+  // The alert above the tabs is what says why, so the item can be disabled.
+  test("disables `Eliminar` while an inscription stands", async () => {
+    await renderDetail(buildSeminar({ inscriptionCount: 1 }));
+
+    expect(await readMenuItemDisabled("Eliminar")).toBe(true);
+  });
+
+  test("offers `Eliminar` once nobody is registered", async () => {
+    await renderDetail(buildSeminar());
+
+    expect(await readMenuItemDisabled("Eliminar")).toBe(false);
+  });
+
+  test("shows only the covered reason once an inscription is covered", async () => {
+    await renderDetail(
+      buildSeminar({ inscriptionCount: 1, registeredCount: 1 }),
+      null,
+      [],
+      true,
+    );
+
+    expect(document.body.textContent).toContain(coveredSeminarMessage);
+    expect(document.body.textContent).not.toContain(
+      seminarHasInscriptionsMessage,
+    );
   });
 
   test("keeps `Guardar` disabled until the form is dirty", async () => {
@@ -393,7 +480,7 @@ describe("SeminarDetailView delete dialog", () => {
     const dialog = document.querySelector('[role="alertdialog"]');
 
     expect(dialog?.textContent).toContain(
-      "No se puede borrar el seminario porque tiene inscripciones.",
+      "Este seminario tiene inscripciones. No podés eliminarlo.",
     );
     expect(dialog?.querySelector("form")).toBeNull();
   });
@@ -422,7 +509,7 @@ describe("SeminarDetailView delete dialog", () => {
     const dialog = document.querySelector('[role="alertdialog"]');
 
     expect(dialog?.textContent).toContain(
-      "No se puede borrar el seminario porque tiene inscripciones.",
+      "Este seminario tiene inscripciones. No podés eliminarlo.",
     );
     expect(dialog?.querySelector("form")).toBeNull();
   });

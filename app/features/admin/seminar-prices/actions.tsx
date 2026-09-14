@@ -6,9 +6,8 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
+import { readPriceDeletionBlock } from "@/lib/prices/guards";
 import type { SeminarPriceListItem } from "@/lib/seminar-prices/repository.server";
-
-import { readSeminarPriceDeletionBlock } from "./view-shared";
 
 export function SeminarPriceActions({
   seminarPrice,
@@ -21,9 +20,11 @@ export function SeminarPriceActions({
     initialDeleteDialogOpen,
   );
   // The guard is read before the menu opens, so a protected row shows a
-  // disabled item and a dialog that explains instead of a refusal after the
-  // submission. The server refuses all the same, for the race.
-  const deletionBlock = readSeminarPriceDeletionBlock(seminarPrice);
+  // disabled item instead of a refusal after the submission. The alert above
+  // the form already says the price cannot be deleted; the blocked dialog is
+  // for when it opens straight from the URL. The server refuses all the same,
+  // for the race.
+  const deletionBlock = readPriceDeletionBlock(seminarPrice);
 
   return (
     <>
