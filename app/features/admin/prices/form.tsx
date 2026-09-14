@@ -153,6 +153,11 @@ export function PriceForm({
         ) : (
           <input type="hidden" name="scheduleId" value="" />
         )}
+        {/*
+          An empty deadline reads differently on each form: a field still to
+          fill in while the price is being created, the row's own answer once it
+          is saved.
+        */}
         <DateOnlyField
           clearable
           control={form.control}

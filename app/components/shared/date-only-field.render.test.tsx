@@ -3,10 +3,7 @@
 import { useForm } from "react-hook-form";
 import { afterEach, describe, expect, test } from "vitest";
 
-import {
-  clearDateLabel,
-  DateOnlyField,
-} from "@/components/shared/date-only-field";
+import { DateOnlyField } from "@/components/shared/date-only-field";
 import {
   clickReactDomButton,
   createReactDomTestRenderer,
@@ -155,7 +152,7 @@ function readDateOnlyFieldValue() {
 
 function findClearButton() {
   return Array.from(document.querySelectorAll("button")).find(
-    (candidate) => candidate.textContent?.trim() === clearDateLabel,
+    (candidate) => candidate.textContent?.trim() === "Quitar fecha",
   );
 }
 
@@ -168,10 +165,21 @@ describe("DateOnlyField clear action", () => {
     await renderer.renderAsync(<TestClearableDateOnlyField clearable />);
 
     await clickReactDomButton("2 de julio de 2026");
-    await clickReactDomButton(clearDateLabel);
+    await clickReactDomButton("Quitar fecha");
 
     expect(readDateOnlyFieldValue()).toBe("");
-    expect(findClearButton()).toBeUndefined();
+    expect(document.querySelector("table")).toBeNull();
+  });
+
+  test("offers the clear action on a value the calendar cannot read back", async () => {
+    await renderer.renderAsync(
+      <TestClearableDateOnlyField clearable defaultValue="31/07/2026" />,
+    );
+
+    await clickReactDomButton("Elegí fecha");
+    await clickReactDomButton("Quitar fecha");
+
+    expect(readDateOnlyFieldValue()).toBe("");
   });
 
   test("offers no clear action without the opt-in prop", async () => {
@@ -192,7 +200,7 @@ describe("DateOnlyField clear action", () => {
     expect(findClearButton()).toBeUndefined();
   });
 
-  test("reads the placeholder on the empty trigger, defaulting to `Elegí fecha`", async () => {
+  test("reads the placeholder on the empty trigger", async () => {
     await renderer.renderAsync(
       <TestClearableDateOnlyField
         defaultValue=""
@@ -203,8 +211,9 @@ describe("DateOnlyField clear action", () => {
     expect(document.querySelector("#birth-date")?.textContent).toContain(
       "Sin fecha límite",
     );
+  });
 
-    renderer.cleanup();
+  test("falls back to `Elegí fecha` with no placeholder", async () => {
     await renderer.renderAsync(<TestClearableDateOnlyField defaultValue="" />);
 
     expect(document.querySelector("#birth-date")?.textContent).toContain(

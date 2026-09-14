@@ -1,7 +1,7 @@
 import { format } from "date-fns/format";
 import { es } from "date-fns/locale";
 import { CalendarIcon, XIcon } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 import {
   Controller,
   type Control,
@@ -37,8 +37,7 @@ type DateOnlyFieldCalendarBounds = {
   latestSelectableDate?: Date;
 };
 
-/** The clear action inside the popover, named once for the callers' tests. */
-export const clearDateLabel = "Quitar fecha";
+const clearDateLabel = "Quitar fecha";
 
 /** What the trigger reads while no date is chosen. */
 const defaultPlaceholder = "Elegí fecha";
@@ -54,7 +53,6 @@ type DateOnlyFieldBaseProps = {
   errorClassName?: string;
   id?: string;
   label: string;
-  labelAdornment?: ReactNode;
   labelClassName?: string;
   name: string;
   onBlur?: () => void;
@@ -107,7 +105,6 @@ function DateOnlyFieldControl({
   errorClassName,
   id: providedId,
   label,
-  labelAdornment,
   labelClassName,
   name,
   onBlur,
@@ -127,7 +124,6 @@ function DateOnlyFieldControl({
       errorClassName={errorClassName}
       id={id}
       label={label}
-      labelAdornment={labelAdornment}
       labelClassName={labelClassName}
       orientation={orientation}
     >
@@ -224,7 +220,13 @@ function DateOnlyFieldPicker({
             setOpen(false);
           }}
         />
-        {clearable && selectedDate ? (
+        {/*
+          The action is offered on the stored value, not on the parsed date: a
+          value the calendar cannot read back — a malformed deadline the action
+          refused and echoed into the form — is exactly the one the field has no
+          other way out of.
+        */}
+        {clearable && dateValue ? (
           <DateOnlyFieldClearAction
             onClear={() => {
               onValueChange?.("");

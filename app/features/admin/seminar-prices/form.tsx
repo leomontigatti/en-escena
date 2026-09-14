@@ -197,13 +197,22 @@ type GuardedFieldProps = {
   values: SeminarPriceFormValues;
 };
 
+/**
+ * The deadline reads the guard like its siblings, and one thing more: what an
+ * empty control means. On a new row it is a field still to fill in, on a saved
+ * one it is the answer the row already gives — no deadline.
+ */
+type DeadlineFieldProps = GuardedFieldProps & {
+  isExistingRow: boolean;
+};
+
 function DeadlineField({
   fieldId,
   form,
   guard,
   isExistingRow,
   values,
-}: GuardedFieldProps & { isExistingRow: boolean }) {
+}: DeadlineFieldProps) {
   if (!guard.canEditStructure) {
     return (
       <ReadOnlyDateField

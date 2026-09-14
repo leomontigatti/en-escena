@@ -204,7 +204,7 @@ describe.sequential("`/administracion/bases-del-evento` routes", () => {
     await expectPriceDeletedRedirect(deleteResponse);
   });
 
-  test("saves a price with a blank deadline as a deadline-less one", async () => {
+  test("saves a blank deadline as a deadline-less price, on create and on update", async () => {
     const { event } = await createEventPriceAdminFixture();
     const basePriceRequest = await createPriceAdminRequest({
       email: "admin.precio.sin.vencimiento@example.com",
@@ -231,6 +231,70 @@ describe.sequential("`/administracion/bases-del-evento` routes", () => {
       name: "Precio sin vencimiento",
       paymentDeadline: null,
     });
+
+    const datedPriceRequest = await createPriceAdminRequest({
+      email: "admin.precio.con.vencimiento@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/precios/nuevo?evento=${event.id}`,
+      intent: "create-price",
+      price: {
+        name: "Precio con vencimiento",
+        groupType: "duo",
+        paymentDeadline: "2026-05-31",
+      },
+    });
+
+    await expectThrownResponse(
+      action(routeArgs(datedPriceRequest.request)),
+      302,
+    );
+
+    const dated = await findSavedPriceByScope({
+      groupType: "duo",
+      paymentDeadline: "2026-05-31",
+      scheduleId: null,
+    });
+
+    if (!dated) {
+      throw new Error("Expected the dated price to be saved.");
+    }
+
+    const emptiedRequest = await createPriceAdminRequest({
+      email: "admin.precio.vaciado@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/precios/${dated.id}`,
+      intent: "update-price",
+      priceId: dated.id,
+      price: {
+        name: "Precio con vencimiento",
+        groupType: "duo",
+        paymentDeadline: "",
+      },
+    });
+
+    await expectThrownResponse(action(routeArgs(emptiedRequest.request)), 302);
+    await expect(findSavedPriceById(dated.id)).resolves.toMatchObject({
+      paymentDeadline: null,
+    });
+  });
+
+  test("refuses a second deadline-less price of the same cell", async () => {
+    const { event } = await createEventPriceAdminFixture();
+    const basePriceRequest = await createPriceAdminRequest({
+      email: "admin.precio.sin.vencimiento.unico@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/precios/nuevo?evento=${event.id}`,
+      intent: "create-price",
+      price: {
+        name: "Precio sin vencimiento",
+        paymentDeadline: "",
+      },
+    });
+
+    await expectThrownResponse(
+      action(routeArgs(basePriceRequest.request)),
+      302,
+    );
 
     const duplicateRequest = await createPriceAdminRequest({
       email: "admin.precio.sin.fecha@example.com",
