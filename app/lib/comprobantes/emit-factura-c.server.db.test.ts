@@ -730,6 +730,61 @@ describe("emitFacturaC", () => {
     expect(outcome).toMatchObject({ ok: false, reason: "not-found" });
     expect(deps.billing.getLastVoucher).not.toHaveBeenCalled();
   });
+
+  /**
+   * The unit is serialised by a transaction-scoped advisory lock keyed on the
+   * anchor, so two operators pressing `Emitir` at once do not each read the same
+   * `collected − already billed` and each authorize a comprobante for it. The
+   * second emission runs after the first has committed, sees the delta already
+   * billed, and stops before ARCA.
+   *
+   * ARCA answers slowly on purpose: without the lock the second derivation would
+   * land inside that window. Under PGlite the single connection serialises the
+   * two transactions on its own, so the assertion that only one comprobante
+   * exists is exercised for real on the Postgres backend.
+   */
+  test("serialises two concurrent emissions of one unit into a single comprobante", async () => {
+    const { academy, choreography, inscriptions } =
+      await seedChoreographyWithInscriptions(
+        `concurrencia.${crypto.randomUUID()}@example.com`,
+        1,
+      );
+    await allocatePayment({
+      academyId: academy.id,
+      eventId: choreography.eventId,
+      inscriptionId: inscriptions[0].id,
+      amount: 6000,
+    });
+
+    const deps = emissionDeps(
+      fakeBilling({
+        createVoucher: vi.fn(async (): Promise<CreateVoucherResultDto> => {
+          await new Promise((resolve) => setTimeout(resolve, 50));
+
+          return facturaCAprobada;
+        }),
+      }),
+    );
+    const emission = () =>
+      emitFacturaC(
+        {
+          anchor: choreographyAnchor(choreography.id),
+          eventId: choreography.eventId,
+        },
+        deps,
+      );
+
+    const outcomes = await Promise.all([emission(), emission()]);
+
+    expect(outcomes.filter((outcome) => outcome.ok)).toHaveLength(1);
+    expect(outcomes.filter((outcome) => !outcome.ok)).toMatchObject([
+      { ok: false, reason: "nothing-to-bill" },
+    ]);
+    expect(deps.billing.createVoucher).toHaveBeenCalledTimes(1);
+    await expect(
+      listAnchorComprobantes(choreographyAnchor(choreography.id)),
+    ).resolves.toMatchObject([{ cbteNro: 43, impTotal: 6000 }]);
+  });
 });
 
 // ARCA does not respond (ADR-0012): the failure is classified by phase and, if

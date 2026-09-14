@@ -33,6 +33,10 @@ import type { ServiceDates } from "./arca/factura-c";
 import type { ArcaMessage } from "./arca/responses";
 import type { ComprobanteAnchor } from "./anchor";
 import {
+  lockComprobanteAnchor,
+  type ComprobanteExecutor,
+} from "./anchor-lock.server";
+import {
   listAnchorComprobantes,
   recordComprobante,
   type ComprobanteLineInput,
@@ -128,15 +132,40 @@ export async function emitFacturaC(
   input: FacturaCEmissionInput,
   deps: FacturaCEmissionDeps,
 ): Promise<FacturaCEmissionOutcome> {
-  const resolved = await resolveFacturaCChoreography(input, deps);
+  return await underAnchorLock(input.anchor, async (tx) => {
+    const resolved = await resolveFacturaCChoreography(input, deps, tx);
 
-  if (!resolved.ok) {
-    return resolved;
-  }
+    if (!resolved.ok) {
+      return resolved;
+    }
 
-  const emission = await emitWithContingency(resolved.choreography);
+    const emission = await emitWithContingency(resolved.choreography);
 
-  return toFacturaCOutcome(emission);
+    return toFacturaCOutcome(emission);
+  });
+}
+
+/**
+ * Runs one emission with the unit serialised: a transaction that takes the
+ * anchor's advisory lock before anything reads the billable, so the derivation
+ * and the insert that follows it are one indivisible decision about the same
+ * unbilled delta (`anchor-lock.server.ts`).
+ *
+ * ARCA is called from inside the transaction, which is the price of the lock
+ * covering the authorization too: the alternative is holding the lock only
+ * around the read, which lets a second emission authorize the same delta while
+ * the first is still waiting on ARCA. The client's own timeouts bound how long
+ * the transaction can stay open.
+ */
+async function underAnchorLock(
+  anchor: ComprobanteAnchor,
+  run: (tx: ComprobanteExecutor) => Promise<FacturaCEmissionOutcome>,
+): Promise<FacturaCEmissionOutcome> {
+  return await db.transaction(async (tx) => {
+    await lockComprobanteAnchor(tx, anchor);
+
+    return await run(tx);
+  });
 }
 
 /**
@@ -150,18 +179,20 @@ export async function recheckFacturaC(
   input: FacturaCEmissionInput & { cbteNro: number },
   deps: FacturaCEmissionDeps,
 ): Promise<FacturaCEmissionOutcome> {
-  const resolved = await resolveFacturaCChoreography(input, deps);
+  return await underAnchorLock(input.anchor, async (tx) => {
+    const resolved = await resolveFacturaCChoreography(input, deps, tx);
 
-  if (!resolved.ok) {
-    return resolved;
-  }
+    if (!resolved.ok) {
+      return resolved;
+    }
 
-  const emission = await recheckWithContingency(
-    resolved.choreography,
-    input.cbteNro,
-  );
+    const emission = await recheckWithContingency(
+      resolved.choreography,
+      input.cbteNro,
+    );
 
-  return toFacturaCOutcome(emission);
+    return toFacturaCOutcome(emission);
+  });
 }
 
 function toFacturaCOutcome(
@@ -187,17 +218,18 @@ function toFacturaCOutcome(
 async function resolveFacturaCChoreography(
   input: FacturaCEmissionInput,
   deps: FacturaCEmissionDeps,
+  executor: ComprobanteExecutor,
 ): Promise<
   | { ok: true; choreography: ArcaEmissionChoreography<ComprobanteRow> }
   | Extract<FacturaCEmissionOutcome, { ok: false }>
 > {
-  const anchorContext = await resolveAnchorContext(input);
+  const anchorContext = await resolveAnchorContext(input, executor);
 
   if (!anchorContext.ok) {
     return anchorContext;
   }
 
-  const { lines, total } = await resolveAnchorBillable(input.anchor);
+  const { lines, total } = await resolveAnchorBillable(input.anchor, executor);
 
   if (total <= 0) {
     return {
@@ -236,26 +268,31 @@ async function resolveFacturaCChoreography(
         ...serviceDates(request.cbteFch),
       }),
     persist: (authorized, request): Promise<ComprobanteRow> =>
-      recordComprobante({
-        anchor: input.anchor,
-        eventId: input.eventId,
-        cbteTipo: FACTURA_C_CBTE_TIPO,
-        ptoVta: deps.ptoVta,
-        cbteNro: authorized.cbteNro,
-        cbteFch: authorized.cbteFch,
-        // Service dates DERIVED and FROZEN: reallocating a payment after
-        // emission does not alter what this comprobante says (ADR-0011, #479).
-        ...serviceDates(request.cbteFch),
-        impTotal: total,
-        issuerCuit: deps.issuerCuit,
-        issuerIvaCondition: ISSUER_IVA_CONDITION,
-        receptorDocTipo: DOC_TIPO_CONSUMIDOR_FINAL,
-        receptorDocNro: String(DOC_NRO_CONSUMIDOR_FINAL),
-        receptorIvaConditionId: deps.receptorIvaConditionId,
-        cae: authorized.cae,
-        caeVto: authorized.caeVto,
-        lines,
-      }),
+      recordComprobante(
+        {
+          anchor: input.anchor,
+          eventId: input.eventId,
+          cbteTipo: FACTURA_C_CBTE_TIPO,
+          ptoVta: deps.ptoVta,
+          cbteNro: authorized.cbteNro,
+          cbteFch: authorized.cbteFch,
+          // Service dates DERIVED and FROZEN: reallocating a payment after
+          // emission does not alter what this comprobante says (ADR-0011, #479).
+          ...serviceDates(request.cbteFch),
+          impTotal: total,
+          issuerCuit: deps.issuerCuit,
+          issuerIvaCondition: ISSUER_IVA_CONDITION,
+          receptorDocTipo: DOC_TIPO_CONSUMIDOR_FINAL,
+          receptorDocNro: String(DOC_NRO_CONSUMIDOR_FINAL),
+          receptorIvaConditionId: deps.receptorIvaConditionId,
+          cae: authorized.cae,
+          caeVto: authorized.caeVto,
+          lines,
+        },
+        // Inside the lock's transaction: a row inserted outside it would exist
+        // after the lock that protects its derivation was already released.
+        executor,
+      ),
   };
 
   return { ok: true, choreography: choreographyCall };
@@ -277,9 +314,10 @@ type AnchorContext = {
  */
 async function resolveAnchorContext(
   input: FacturaCEmissionInput,
+  executor: ComprobanteExecutor,
 ): Promise<AnchorContext | Extract<FacturaCEmissionOutcome, { ok: false }>> {
   if (input.anchor.kind === "choreography") {
-    const [choreography] = await db
+    const [choreography] = await executor
       .select({
         eventId: choreographies.eventId,
         eventStartsAt: events.startsAt,
@@ -306,7 +344,7 @@ async function resolveAnchorContext(
     };
   }
 
-  const [seminar] = await db
+  const [seminar] = await executor
     .select({
       eventId: seminars.eventId,
       scheduledDate: seminars.scheduledDate,
@@ -345,9 +383,10 @@ export type AnchorBillable = {
  */
 export async function resolveAnchorBillable(
   anchor: ComprobanteAnchor,
+  executor: ComprobanteExecutor = db,
 ): Promise<AnchorBillable> {
-  const inscriptionIds = await readAnchorInscriptionIds(anchor);
-  const lines = await resolveBillableLines(anchor, inscriptionIds);
+  const inscriptionIds = await readAnchorInscriptionIds(anchor, executor);
+  const lines = await resolveBillableLines(anchor, inscriptionIds, executor);
   const total = lines.reduce((sum, line) => sum + line.amount, 0);
 
   return { lines, total };
@@ -364,9 +403,10 @@ export async function resolveAnchorBillable(
  */
 async function readAnchorInscriptionIds(
   anchor: ComprobanteAnchor,
+  executor: ComprobanteExecutor,
 ): Promise<string[]> {
   if (anchor.kind === "choreography") {
-    const rows = await db
+    const rows = await executor
       .select({ id: choreographyDancers.id })
       .from(choreographyDancers)
       .where(eq(choreographyDancers.choreographyId, anchor.choreographyId));
@@ -375,7 +415,7 @@ async function readAnchorInscriptionIds(
   }
 
   const academyId = sql<string>`coalesce(${dancers.academyId}, ${professors.academyId})`;
-  const rows = await db
+  const rows = await executor
     .select({ id: seminarInscriptions.id })
     .from(seminarInscriptions)
     .leftJoin(dancers, eq(dancers.id, seminarInscriptions.dancerId))
@@ -400,6 +440,7 @@ async function readAnchorInscriptionIds(
 async function resolveBillableLines(
   anchor: ComprobanteAnchor,
   inscriptionIds: string[],
+  executor: ComprobanteExecutor,
 ): Promise<ComprobanteLineInput[]> {
   if (inscriptionIds.length === 0) {
     return [];
@@ -408,8 +449,9 @@ async function resolveBillableLines(
   const paidByInscription = await sumAllocationsByInscription(
     anchor,
     inscriptionIds,
+    executor,
   );
-  const billedByInscription = await sumBilledByInscription(anchor);
+  const billedByInscription = await sumBilledByInscription(anchor, executor);
 
   return inscriptionIds.flatMap((inscriptionId) => {
     const paid = paidByInscription.get(inscriptionId) ?? 0;
@@ -437,12 +479,13 @@ function buildLine(
 async function sumAllocationsByInscription(
   anchor: ComprobanteAnchor,
   inscriptionIds: string[],
+  executor: ComprobanteExecutor,
 ): Promise<Map<string, number>> {
   const targetColumn =
     anchor.kind === "choreography"
       ? restrictedChoreographyInscriptionId
       : paymentAllocations.seminarInscriptionId;
-  const rows = await db
+  const rows = await executor
     .select({
       inscriptionId: targetColumn,
       amount: paymentAllocations.amount,
@@ -475,8 +518,9 @@ async function sumAllocationsByInscription(
  */
 async function sumBilledByInscription(
   anchor: ComprobanteAnchor,
+  executor: ComprobanteExecutor,
 ): Promise<Map<string, number>> {
-  const existing = await listAnchorComprobantes(anchor);
+  const existing = await listAnchorComprobantes(anchor, executor);
   const billed = new Map<string, number>();
 
   for (const comprobante of existing) {

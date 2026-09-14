@@ -885,6 +885,13 @@ settled model:
   deletion only, not roster editing. The seminar reference on the root carries no
   cascade for exactly this reason: the block is the application's to state, in
   Spanish, not the database's to resolve by destroying the evidence.
+- **Emission is serialised per unit.** Before it reads `cobrado − ya facturado`,
+  an emission takes a transaction-scoped Postgres advisory lock keyed on the
+  anchor — the choreography, or the `(seminar, academy)` pair — and holds it
+  through the authorization and the insert. Two operators pressing `Emitir` at
+  once therefore cannot each see the same unbilled delta and each obtain a CAE
+  for it; the second one finds nothing left to bill. Two academies emitting in
+  the same seminar take different keys and never wait on each other.
 - **The service period is the unit's own.** A choreography bills the event's
   span; a seminar is taught on one day, so both ends read the seminar's date.
   `FchVtoPago` is the comprobante's own date on both, because what is billed was

@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -12,6 +12,7 @@ import {
   comprobanteAnchorFilter,
   type ComprobanteAnchor,
 } from "./anchor";
+import type { ComprobanteExecutor } from "./anchor-lock.server";
 import {
   deriveComprobanteStatus,
   type ComprobanteStatus,
@@ -62,10 +63,17 @@ export type ComprobanteWithLines = ComprobanteRow & {
   lines: ComprobanteInscriptionRow[];
 };
 
+/**
+ * `executor` is the transaction the emission already holds the anchor's
+ * advisory lock in, when there is one: the insert has to land inside it, or the
+ * lock would be released before the row it protects exists. On its own it opens
+ * its own transaction, which is what every other writer gets.
+ */
 export async function recordComprobante(
   input: RecordComprobanteInput,
+  executor: ComprobanteExecutor = db,
 ): Promise<ComprobanteRow> {
-  return await db.transaction(async (tx) => {
+  return await executor.transaction(async (tx) => {
     const academyId = await resolveComprobanteAcademyId(tx, input.anchor);
     const [comprobante] = await tx
       .insert(comprobantes)
@@ -114,7 +122,7 @@ export async function recordComprobante(
  * the two kinds from disagreeing about what the column means.
  */
 async function resolveComprobanteAcademyId(
-  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  tx: ComprobanteExecutor,
   anchor: ComprobanteAnchor,
 ): Promise<string> {
   if (anchor.kind === "seminar") {
@@ -177,25 +185,33 @@ export async function seminarHasComprobantes(
  */
 export async function listAnchorComprobantes(
   anchor: ComprobanteAnchor,
+  executor: ComprobanteExecutor = db,
 ): Promise<ComprobanteWithLines[]> {
-  const rows = await db
+  const rows = await executor
     .select()
     .from(comprobantes)
     .where(comprobanteAnchorFilter(anchor))
     .orderBy(asc(comprobantes.createdAt));
 
-  const lines = await Promise.all(
-    rows.map((row) =>
-      db
-        .select()
-        .from(comprobanteInscriptions)
-        .where(eq(comprobanteInscriptions.comprobanteId, row.id)),
-    ),
-  );
+  // One query for every row's lines rather than one per row: the executor may
+  // be an open transaction, and a transaction is one connection — fanning out
+  // over it would queue anyway.
+  const lineRows =
+    rows.length === 0
+      ? []
+      : await executor
+          .select()
+          .from(comprobanteInscriptions)
+          .where(
+            inArray(
+              comprobanteInscriptions.comprobanteId,
+              rows.map((row) => row.id),
+            ),
+          );
 
-  return rows.map((row, index) => ({
+  return rows.map((row) => ({
     ...row,
     status: deriveComprobanteStatus(row, rows),
-    lines: lines[index],
+    lines: lineRows.filter((line) => line.comprobanteId === row.id),
   }));
 }
