@@ -449,10 +449,7 @@ function EventActions({
 
   return (
     <>
-      <ResourceActionsMenu
-        contentClassName="w-48"
-        contentProps={{ forceMount: true }}
-      >
+      <ResourceActionsMenu contentClassName="w-48">
         <DropdownMenuGroup>
           <EventActionItem
             action={eventActionPath(event.id)}

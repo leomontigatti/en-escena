@@ -128,6 +128,8 @@ function price(id: string, name: string) {
     id,
     name,
     paymentDeadline: "2026-05-31",
+    isReferenced: false,
+    keepsRegistrationOpen: false,
     schedule: null,
     scheduleId: null,
   };
@@ -140,6 +142,7 @@ function loaderData(
     prices: [],
     schedules: [],
     seminarPrices: [],
+    hasSeminars: false,
     selectedEventId: "evento_1",
     ...overrides,
   };

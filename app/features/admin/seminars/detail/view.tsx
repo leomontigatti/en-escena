@@ -1,5 +1,10 @@
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
+import { GuardAlert } from "@/components/shared/guard-alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  coveredSeminarMessage,
+  seminarHasInscriptionsMessage,
+} from "@/lib/seminars/registration-refusals";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import { SeminarActions } from "../actions";
@@ -37,6 +42,11 @@ export function SeminarDetailView({
     intent: updateSeminarIntent,
     values: loaderData.values,
   });
+  const lockReason = loaderData.hasCoveredInscription
+    ? coveredSeminarMessage
+    : seminar.inscriptionCount > 0
+      ? seminarHasInscriptionsMessage
+      : null;
 
   return (
     <AdminResourceLayout
@@ -50,6 +60,11 @@ export function SeminarDetailView({
         />
       }
     >
+      {/* Above the tabs, never inside one: what is locked is the seminar
+          itself, so the reason reads the same from either tab. A covered
+          inscription is always an inscription, so its sentence already names
+          the delete and the two notices never show together. */}
+      <GuardAlert reason={lockReason} />
       <Tabs defaultValue="informacion">
         <TabsList variant="line">
           <TabsTrigger value="informacion">Información</TabsTrigger>

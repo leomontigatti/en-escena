@@ -291,7 +291,7 @@ export function renderPreciosRoute(loaderData: EventBasesLoaderData) {
     // The seminar tab of `Precios` has a list of its own, which these
     // `Bases del evento` helpers never load: they render the choreography tab.
     element: createElement(EventPricesListView, {
-      loaderData: { ...loaderData, seminarPrices: [] },
+      loaderData: { ...loaderData, seminarPrices: [], hasSeminars: false },
     }),
   });
 }

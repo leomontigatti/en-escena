@@ -48,9 +48,10 @@ what runs today.
 - **Both are refused while any inscription of the seminar is covered** — while
   any has reached the deposit of its stored price row — because both move the
   threshold that took a place. On the form both show the shared read-only look,
-  so the refusal is read on sight and not after the save; the server refuses all
-  the same, for the race. Nothing is covered until seminar money exists, so
-  today the pair edits freely
+  and an `info` alert above the tabs says why, in the same sentence the server
+  refuses with, so the refusal is read on sight and not after the save; the
+  server refuses all the same, for the race. An inscription is covered once its
+  allocations reach that deposit
   (`app/lib/seminars/covered-inscriptions.server.ts`).
 - The instructor's picture is optional at creation and uploaded from the
   seminar's detail, like an `eventDocument`. Until then the portal shows a
@@ -59,8 +60,9 @@ what runs today.
   behind, and removing it or the seminar removes the object. Deleting the event
   orphans it on the volume, as event documents are orphaned today.
 - Administration edits every other field at any time, including after
-  inscriptions exist, with two refusals, both after the submission: a seminar
-  cannot be deleted while it has inscriptions, and the quota cannot drop below
+  inscriptions exist, with two refusals: a seminar cannot be deleted while it
+  has inscriptions (`Eliminar` is disabled on sight and an alert above the tabs
+  says why), and, after the submission, the quota cannot drop below
   the **covered** count — an inscription that has not covered its deposit holds
   no place, so it does not hold the floor up either, and raising the quota is
   always free. Moving a seminar's date into the past simply closes its
@@ -99,9 +101,12 @@ rule fits; every difference is named.
   `regular` row of a participant cell cannot be deleted or restructured while
   any active seminar inscription of the event exists, even unreferenced; its
   amount and name may change. On the form the guards show on sight — the locked
-  fields render through the shared read-only look, `Borrar precio` is disabled
-  and its dialog opens blocked, and an `info` alert says why — and the server
-  refuses all the same, for the race.
+  fields render through the shared read-only look, `Borrar precio` is disabled,
+  and an `info` alert above the form card says why, naming both the locked
+  fields and the delete — and the server refuses all the same, for the race. The
+  delete dialog still opens blocked when reached straight from the URL. The
+  sentences are the choreography list's, shared in `app/lib/prices/guards.ts`,
+  and the choreography price form shows its guards the same way.
 - **Readiness.** A seminar's registration is closed while the event lacks a
   deadline-less `regular` row for **either** participant cell, beside the
   "started" closure — those two are the only ones; a full seminar closes
