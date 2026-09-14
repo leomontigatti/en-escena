@@ -1,11 +1,13 @@
 import { eq, sql } from "drizzle-orm";
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { events, seminarInscriptions, seminars } from "@/db/schema";
 import { createDancer } from "@/lib/choreographies/registration-test-fixtures.server.db";
 import { createSavedEvent } from "@/lib/events/bases-test-fixtures.server.db";
 import { registerSeminarInscription } from "@/lib/seminars/inscriptions.server";
+import { coverSeminarInscriptionDeposit } from "@/lib/seminars/test-fixtures.server.db";
+import { createSeminarRegistrationPrices } from "@/lib/seminar-prices/test-fixtures.server.db";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import {
   createSeminar,
@@ -22,40 +24,10 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 installDatabaseTestHooks();
 
 // The seminar guards read what the money says: whether any inscription covered
-// its deposit, and how many did. Both come from one module, and mocking it is
-// what lets this suite state the guards without seeding a price list and a pool
-// — the real readings are exercised in
-// `app/lib/finances/seminar-inscription-allocation.server.db.test.ts`.
-vi.mock("@/lib/seminars/covered-inscriptions.server", () => ({
-  countCoveredSeminarInscriptions: vi.fn(async () => 0),
-  countCoveredSeminarInscriptionsBySeminar: vi.fn(async () => new Map()),
-  hasCoveredSeminarInscription: vi.fn(async () => false),
-  holdsCoveredDeposit: vi.fn(async () => false),
-}));
-
-const {
-  countCoveredSeminarInscriptions,
-  countCoveredSeminarInscriptionsBySeminar,
-  hasCoveredSeminarInscription,
-} = vi.mocked(await import("@/lib/seminars/covered-inscriptions.server"));
-
-/**
- * The gallery reads the covered count in one batched query and the detail reads
- * it one seminar at a time, so a test that stands a count up has to stand up
- * both readings of it.
- */
-function stubCoveredCount(seminarId: string, coveredCount: number) {
-  countCoveredSeminarInscriptions.mockResolvedValue(coveredCount);
-  countCoveredSeminarInscriptionsBySeminar.mockResolvedValue(
-    new Map([[seminarId, coveredCount]]),
-  );
-}
-
-afterEach(() => {
-  countCoveredSeminarInscriptions.mockResolvedValue(0);
-  countCoveredSeminarInscriptionsBySeminar.mockResolvedValue(new Map());
-  hasCoveredSeminarInscription.mockResolvedValue(false);
-});
+// its deposit, and how many did. Both are read off the database here rather than
+// stubbed — `covered-inscriptions.server` is ours, and a suite that mocks it
+// stops seeing the rule it is guarding against. A place is taken with real
+// money, through `coverSeminarInscriptionDeposit`.
 
 const seminarInput: SeminarInput = {
   instructorName: "Abril Sosa",
@@ -279,17 +251,17 @@ describe("seminar repository", () => {
   });
 
   test("refuses to move the kind or the deposit rate while an inscription is covered, and lets the rest through", async () => {
-    const event = await createSavedEvent("Regional 2026");
-    const seminar = expectSaved(await createSeminar(event.id, seminarInput));
+    const registration = await createRegistration();
+    const { seminarId } = registration;
 
-    hasCoveredSeminarInscription.mockResolvedValue(true);
+    await coverPlaces(registration, 1);
 
     for (const structuralChange of [
       { kind: "special" as const },
       { requiredDepositPercentage: 40 },
     ]) {
       await expect(
-        updateSeminar(seminar.id, { ...seminarInput, ...structuralChange }),
+        updateSeminar(seminarId, { ...seminarInput, ...structuralChange }),
       ).resolves.toMatchObject({
         ok: false,
         code: "covered-inscriptions",
@@ -302,7 +274,7 @@ describe("seminar repository", () => {
     // the instructor, the moment and the quota keep editing under money.
     expect(
       expectSaved(
-        await updateSeminar(seminar.id, {
+        await updateSeminar(seminarId, {
           ...seminarInput,
           instructorName: "Nicolás Prado",
         }),
@@ -310,9 +282,8 @@ describe("seminar repository", () => {
     ).toMatchObject({ instructorName: "Nicolás Prado" });
   });
 
-  // Nothing covers a deposit yet: seminar money arrives with the allocation
-  // target, and until then the predicate answers `false` for every seminar, so
-  // the guard above blocks nobody.
+  // The guard above reads the money, so with none allocated it blocks nobody:
+  // a roster of uncovered rows leaves both facts editable.
   test("moves both facts freely while no inscription is covered", async () => {
     const event = await createSavedEvent("Regional 2026");
     const seminar = expectSaved(await createSeminar(event.id, seminarInput));
@@ -346,9 +317,10 @@ describe("seminar repository", () => {
   });
 
   test("refuses a quota below the covered count, naming the floor", async () => {
-    const { seminarId } = await createRegistration();
+    const registration = await createRegistration();
+    const { seminarId } = registration;
 
-    countCoveredSeminarInscriptions.mockResolvedValue(2);
+    await coverPlaces(registration, 2);
 
     await expect(
       updateSeminar(seminarId, { ...seminarInput, quota: 0 }),
@@ -394,9 +366,10 @@ describe("seminar repository", () => {
   });
 
   test("reads the places off the covered count and the roster off the inscriptions", async () => {
-    const { eventId, seminarId } = await createRegistration();
+    const registration = await createRegistration();
+    const { eventId, seminarId } = registration;
 
-    stubCoveredCount(seminarId, 1);
+    await coverPlaces(registration, 1);
 
     await expect(getSeminar(seminarId)).resolves.toMatchObject({
       quota: 20,
@@ -453,14 +426,21 @@ describe("seminar repository", () => {
   });
 });
 
-/** A seminar with two dancers of one academy on it, before it starts. */
+/**
+ * A seminar with two dancers of one academy on it, before it starts, on an
+ * event whose seminar price list is seeded: covering a deposit needs a price
+ * row, and it is what takes a place.
+ */
 async function createRegistration() {
   const event = await createSavedEvent("Regional 2026");
+  await createSeminarRegistrationPrices(event.id);
   const seminar = expectSaved(await createSeminar(event.id, seminarInput));
   const { academy } = await createAcademyUser({
     academyName: "Academia Inscripciones",
     email: `${crypto.randomUUID()}@example.com`,
   });
+  const inscriptionIds: string[] = [];
+
   for (const firstName of ["Abril", "Beto"]) {
     const dancer = await createDancer(academy.id, {
       firstName,
@@ -478,7 +458,29 @@ async function createRegistration() {
     if (!registered.ok) {
       throw new Error(`Expected the inscription: ${registered.error}`);
     }
+
+    inscriptionIds.push(registered.inscriptionId);
   }
 
-  return { eventId: event.id, seminarId: seminar.id };
+  return {
+    academyId: academy.id,
+    eventId: event.id,
+    inscriptionIds,
+    seminarId: seminar.id,
+  };
+}
+
+/** Takes `count` places of the registration with real money. */
+async function coverPlaces(
+  registration: Awaited<ReturnType<typeof createRegistration>>,
+  count: number,
+) {
+  for (const inscriptionId of registration.inscriptionIds.slice(0, count)) {
+    await coverSeminarInscriptionDeposit({
+      academyId: registration.academyId,
+      eventId: registration.eventId,
+      inscriptionId,
+      seminarId: registration.seminarId,
+    });
+  }
 }

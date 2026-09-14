@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { events } from "@/db/schema";
@@ -12,6 +12,8 @@ import { createDancer } from "@/lib/choreographies/registration-test-fixtures.se
 import { registerSeminarInscription } from "@/lib/seminars/inscriptions.server";
 import { listSeminarInscriptions } from "@/lib/seminars/inscription-rosters.server";
 import { createSeminar, listSeminars } from "@/lib/seminars/repository.server";
+import { coverSeminarInscriptionDeposit } from "@/lib/seminars/test-fixtures.server.db";
+import { createSeminarRegistrationPrices } from "@/lib/seminar-prices/test-fixtures.server.db";
 import { defaultSeminarFacts } from "@/lib/test-support/seminars";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
@@ -27,24 +29,9 @@ import { loadSeminarDetailData, loadSeminarsListData } from "./server";
 installDatabaseTestHooks();
 
 // The quota floor is the number of inscriptions that **covered their deposit**,
-// which is money this suite does not seed: the count is mocked so the action's
-// job — turning that refusal into a toast rather than a field error — can be
-// stated on its own. The count itself is exercised in
-// `app/lib/finances/seminar-inscription-allocation.server.db.test.ts`.
-vi.mock("@/lib/seminars/covered-inscriptions.server", () => ({
-  countCoveredSeminarInscriptions: vi.fn(async () => 0),
-  countCoveredSeminarInscriptionsBySeminar: vi.fn(async () => new Map()),
-  hasCoveredSeminarInscription: vi.fn(async () => false),
-  holdsCoveredDeposit: vi.fn(async () => false),
-}));
-
-const { countCoveredSeminarInscriptions } = vi.mocked(
-  await import("@/lib/seminars/covered-inscriptions.server"),
-);
-
-afterEach(() => {
-  countCoveredSeminarInscriptions.mockResolvedValue(0);
-});
+// so the suite seeds the money rather than stubbing the count:
+// `covered-inscriptions.server` is ours, and mocking it would leave the action's
+// refusal standing on a stub instead of on a taken place.
 
 const seminarFields = {
   instructorName: "Abril Sosa",
@@ -81,6 +68,19 @@ async function buildSignedRequest(
     headers: { cookie: signedIn.request.headers.get("cookie") ?? "" },
   });
 }
+
+/**
+ * The kind and the deposit rate the seminar fixture is actually saved with —
+ * `createSavedSeminar` overrides the form's pair with the defaults. Both freeze
+ * once a place is taken, so a form that posted the other pair would be refused
+ * by the structural guard before the quota is ever read.
+ */
+const savedSeminarFactFields = {
+  kind: defaultSeminarFacts.kind,
+  requiredDepositPercentage: String(
+    defaultSeminarFacts.requiredDepositPercentage,
+  ),
+};
 
 async function createSavedSeminar(eventId: string) {
   const created = await createSeminar(eventId, {
@@ -333,15 +333,24 @@ describe.sequential("admin seminars", () => {
   // The floor is a refusal the reader can only act on by removing someone, so
   // it is a toast about the seminar and not an error under the quota field.
   test("refuses a quota below the covered count as a message, not a field error", async () => {
-    const { seminarId } = await createRegistration();
+    const registration = await createRegistration();
+    const { seminarId } = registration;
 
-    countCoveredSeminarInscriptions.mockResolvedValue(2);
+    for (const inscriptionId of registration.inscriptionIds) {
+      await coverSeminarInscriptionDeposit({
+        academyId: registration.academyId,
+        eventId: registration.eventId,
+        inscriptionId,
+        seminarId,
+      });
+    }
 
     await expect(
       handleSeminarDetailAction(
         await buildSignedRequest(seminarUrl(seminarId), {
           intent: "update-seminar",
           ...seminarFields,
+          ...savedSeminarFactFields,
           quota: "0",
         }),
         seminarId,
@@ -355,6 +364,7 @@ describe.sequential("admin seminars", () => {
       await buildSignedRequest(seminarUrl(seminarId), {
         intent: "update-seminar",
         ...seminarFields,
+        ...savedSeminarFactFields,
         instructorName: "Nicolás Prado",
         quota: "1",
       }),
@@ -376,6 +386,7 @@ describe.sequential("admin seminars", () => {
         await buildSignedRequest(seminarUrl(seminarId), {
           intent: "update-seminar",
           ...seminarFields,
+          ...savedSeminarFactFields,
           instructorName: "Nicolás Prado",
           scheduledDate: "2020-01-01",
           quota: "2",
@@ -456,6 +467,9 @@ function seminarUrl(seminarId: string) {
 /** A seminar of the active event with one dancer per given name on it. */
 async function createRegistration(firstNames = ["Abril", "Beto"]) {
   const event = await createSavedEvent();
+  // Covering a deposit needs a price row to be charged against, and covering is
+  // what takes a place.
+  await createSeminarRegistrationPrices(event.id);
   const seminarId = await createSavedSeminar(event.id);
   const { academy } = await createAcademyUser({
     academyName: "Academia Inscripciones",
@@ -484,7 +498,12 @@ async function createRegistration(firstNames = ["Abril", "Beto"]) {
     inscriptionIds.push(registered.inscriptionId);
   }
 
-  return { eventId: event.id, seminarId, inscriptionIds };
+  return {
+    academyId: academy.id,
+    eventId: event.id,
+    seminarId,
+    inscriptionIds,
+  };
 }
 
 async function readEventReadiness(eventId: string) {
