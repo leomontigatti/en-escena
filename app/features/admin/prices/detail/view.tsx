@@ -50,7 +50,6 @@ export function EventPriceDetailView({
     >
       {price && guard ? (
         <div className="flex flex-col gap-6">
-          {/* Above the form card, never inside it. */}
           <GuardAlert reason={guard.reason} />
           <PriceFormPanel>
             <PriceForm

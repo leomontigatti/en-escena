@@ -59,7 +59,6 @@ export function SeminarPriceDetailView({
     >
       {seminarPrice && guard ? (
         <>
-          {/* Above the form card, never inside it. */}
           <GuardAlert reason={guard.reason} />
           <SeminarPriceFormPanel>
             <SeminarPriceForm

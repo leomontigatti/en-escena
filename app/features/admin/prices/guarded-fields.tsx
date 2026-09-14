@@ -126,9 +126,4 @@ function GuardedSelectField<TFieldValues extends FieldValues>({
   );
 }
 
-export {
-  GuardedAmountField,
-  GuardedDeadlineField,
-  GuardedSelectField,
-  type GuardedFieldProps,
-};
+export { GuardedAmountField, GuardedDeadlineField, GuardedSelectField };
