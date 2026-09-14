@@ -131,7 +131,7 @@ export function ComprobantePrintDocument({
             <h2>Receptor</h2>
             <p>Condición frente al IVA: {model.receptorCondicionIva}</p>
             <p>
-              {model.academyName} — {model.choreographyName}
+              {model.academyName} — {model.anchorLabel}
             </p>
           </div>
 

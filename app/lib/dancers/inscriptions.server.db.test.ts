@@ -99,7 +99,7 @@ async function seedDancerWithTwoPriceRows(input: { allocatedAmount: number }) {
       academyId: academy.academy.id,
       amount: input.allocatedAmount,
       eventId: event.id,
-      inscriptionId: inscription.id,
+      choreographyInscriptionId: inscription.id,
       paymentId: payment.id,
     });
   }

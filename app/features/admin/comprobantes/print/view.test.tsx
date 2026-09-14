@@ -17,7 +17,9 @@ function printRecord(
 ): ComprobantePrintRecord {
   return {
     id: "comprobante_1",
+    academyId: "academy_1",
     choreographyId: "choreo_1",
+    seminarId: null,
     eventId: "event_1",
     cbteTipo: 11,
     ptoVta: 3,
@@ -41,21 +43,60 @@ function printRecord(
       {
         id: "line_1",
         comprobanteId: "comprobante_1",
-        inscriptionId: "insc_1",
+        choreographyInscriptionId: "insc_1",
+        seminarInscriptionId: null,
         amount: 15000,
       },
       {
         id: "line_2",
         comprobanteId: "comprobante_1",
-        inscriptionId: "insc_2",
+        choreographyInscriptionId: "insc_2",
+        seminarInscriptionId: null,
         amount: 10000,
       },
     ],
-    choreographyName: "Coreografía Alfa",
+    anchor: {
+      kind: "choreography",
+      choreographyId: "choreo_1",
+      choreographyName: "Coreografía Alfa",
+    },
     academyName: "Academia Alfa",
     eventName: "Certamen 2026",
     ...overrides,
   };
+}
+
+/**
+ * The same snapshot anchored at a `(seminar, academy)` unit: the seminar's own
+ * date on both ends of the service period and the payment due date equal to the
+ * issue date, which is what the emitter freezes for a seminar.
+ */
+function seminarPrintRecord(
+  overrides: Partial<ComprobantePrintRecord> = {},
+): ComprobantePrintRecord {
+  return printRecord({
+    choreographyId: null,
+    seminarId: "seminar_1",
+    anchor: {
+      kind: "seminar",
+      seminarId: "seminar_1",
+      instructorName: "Abril Sosa",
+      scheduledDate: "2030-10-10",
+    },
+    fchServDesde: "20301010",
+    fchServHasta: "20301010",
+    fchVtoPago: "20260722",
+    lines: [
+      {
+        id: "line_1",
+        comprobanteId: "comprobante_1",
+        choreographyInscriptionId: null,
+        seminarInscriptionId: "seminar_insc_1",
+        amount: 25000,
+      },
+    ],
+    ...overrides,
+  });
 }
 
 describe("buildComprobantePrintViewModel", () => {
@@ -123,6 +164,21 @@ describe("buildComprobantePrintViewModel", () => {
     expect(model.receptorCondicionIva).toBe("Consumidor Final");
   });
 
+  test("reads a seminar unit as the instructor and the date beside the academy", () => {
+    const model = buildComprobantePrintViewModel(seminarPrintRecord());
+
+    expect(model.anchorLabel).toBe("Seminario Abril Sosa, 10/10/2030");
+    expect(model.academyName).toBe("Academia Alfa");
+    // The single line is the same constant on both kinds.
+    expect(model.lines).toHaveLength(1);
+    expect(model.lines[0].descripcion).toBe("Inscripción");
+    // The seminar is taught on one day, so the period collapses to it, and what
+    // is billed was already collected.
+    expect(model.periodoDesde).toBe("10/10/2030");
+    expect(model.periodoHasta).toBe("10/10/2030");
+    expect(model.vencimientoPago).toBe(model.fechaEmision);
+  });
+
   test("uses the credit note heading for type 13", () => {
     const model = buildComprobantePrintViewModel(
       printRecord({ cbteTipo: 13, status: "anulada" }),
@@ -161,6 +217,19 @@ describe("renderComprobantePrintDocument", () => {
     // are already named, which is why the cell does not repeat them.
     expect(html).toContain("<td>Inscripción</td>");
     expect(html).toContain("<p>Academia Alfa — Coreografía Alfa</p>");
+  });
+
+  test("prints the seminar's receptor block and keeps the constant line", () => {
+    const html = renderComprobantePrintDocument({
+      model: buildComprobantePrintViewModel(seminarPrintRecord()),
+      qrCodeSvg: QR_SVG_STUB,
+    });
+
+    expect(html).toContain(
+      "<p>Academia Alfa — Seminario Abril Sosa, 10/10/2030</p>",
+    );
+    expect(html).toContain("<td>Inscripción</td>");
+    expect(html).toContain("10/10/2030 — 10/10/2030");
   });
 
   test("shows the billed period and payment due date when they exist", () => {

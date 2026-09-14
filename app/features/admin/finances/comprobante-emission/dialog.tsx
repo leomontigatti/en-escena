@@ -25,7 +25,7 @@ import {
   emitComprobanteConfirmValue,
   emitComprobanteIntent,
   recheckComprobanteIntent,
-  type ChoreographyFinanceActionData,
+  type ComprobanteEmissionActionData,
 } from "./shared";
 
 /**
@@ -50,7 +50,7 @@ export function EmissionDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const fetcher = useFetcher<ChoreographyFinanceActionData>();
+  const fetcher = useFetcher<ComprobanteEmissionActionData>();
   const isSaving = fetcher.state !== "idle";
   const contingency =
     fetcher.data?.status === "contingency" ? fetcher.data.contingency : null;

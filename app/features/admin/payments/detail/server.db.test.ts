@@ -122,7 +122,7 @@ describe.sequential("admin payment detail", () => {
       academyId: academy.academy.id,
       amount: allocatedAmount,
       eventId: event.id,
-      inscriptionId: inscription.id,
+      choreographyInscriptionId: inscription.id,
       paymentId: payment.id,
     });
 
@@ -235,7 +235,7 @@ describe.sequential("admin payment detail", () => {
       academyId: academy.academy.id,
       amount: 3000,
       eventId: event.id,
-      inscriptionId: inscription.id,
+      choreographyInscriptionId: inscription.id,
       paymentId: payment.id,
     });
 
@@ -316,14 +316,14 @@ describe.sequential("admin payment detail", () => {
         academyId: academy.academy.id,
         amount: 3000,
         eventId: event.id,
-        inscriptionId: inscription.id,
+        choreographyInscriptionId: inscription.id,
         paymentId: depositPayment.id,
       },
       {
         academyId: academy.academy.id,
         amount: 7000,
         eventId: event.id,
-        inscriptionId: inscription.id,
+        choreographyInscriptionId: inscription.id,
         paymentId: balancePayment.id,
       },
     ]);

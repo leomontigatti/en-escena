@@ -3,6 +3,7 @@ import { redirect } from "react-router";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 import { listPrices } from "@/lib/prices/repository.server";
+import { listSeminarPrices } from "@/lib/seminar-prices/repository.server";
 import { listSchedules } from "@/lib/schedules/repository.server";
 
 async function loadEventPriceContext(request: Request) {
@@ -21,10 +22,16 @@ export async function loadEventPricesListData(request: Request) {
   const eventContext = await loadEventPriceContext(request);
   const selectedEventId = eventContext.selectedEventId;
 
-  return {
-    selectedEventId,
-    prices: selectedEventId ? await listPrices(selectedEventId) : [],
-  };
+  if (!selectedEventId) {
+    return { selectedEventId, prices: [], seminarPrices: [] };
+  }
+
+  const [prices, seminarPrices] = await Promise.all([
+    listPrices(selectedEventId),
+    listSeminarPrices(selectedEventId),
+  ]);
+
+  return { selectedEventId, prices, seminarPrices };
 }
 
 export async function loadEventPriceFormOptions(request: Request) {

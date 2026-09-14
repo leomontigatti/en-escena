@@ -194,7 +194,7 @@ describe.sequential("`/administracion/finanzas` choreography detail", () => {
       academyId: academy.academy.id,
       amount: 3000,
       eventId: event.id,
-      inscriptionId: inscription.id,
+      choreographyInscriptionId: inscription.id,
       paymentId: payment.id,
     });
 
@@ -275,7 +275,7 @@ describe.sequential("`/administracion/finanzas` choreography detail", () => {
       academyId: academy.academy.id,
       amount: 10000,
       eventId: event.id,
-      inscriptionId: inscription.id,
+      choreographyInscriptionId: inscription.id,
       paymentId: payment.id,
     });
 
@@ -351,7 +351,7 @@ describe.sequential("`/administracion/finanzas` choreography detail", () => {
       academyId: academy.academy.id,
       amount: 3000,
       eventId: event.id,
-      inscriptionId: inscription.id,
+      choreographyInscriptionId: inscription.id,
       paymentId: payment.id,
     });
 
@@ -426,7 +426,7 @@ describe.sequential("`/administracion/finanzas` choreography detail", () => {
       academyId: academy.academy.id,
       amount: 3000,
       eventId: event.id,
-      inscriptionId: withdrawnInscription.id,
+      choreographyInscriptionId: withdrawnInscription.id,
       paymentId: payment.id,
     });
 

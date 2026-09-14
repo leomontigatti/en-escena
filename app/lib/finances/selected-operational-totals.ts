@@ -52,3 +52,43 @@ export function resolveSelectedOperationalTotals<
     selectedRows,
   };
 }
+
+/**
+ * The four figures of a kind's tab: each of them summed over that tab's rows
+ * alone. `Saldo disponible` is not here on purpose — it is the academy's pool,
+ * one for both kinds, and it never moves with the tab.
+ *
+ * The tabs sum on the client rather than asking the loader for a per-kind
+ * summary because the summary the loader builds is the academy's one debt over
+ * both kinds (`OperationalFinanceSummary`), and splitting it is a surface
+ * concern. Summing here with the same owner the selection uses is what keeps a
+ * tab's heading and its table from disagreeing.
+ */
+export function sumOperationalFinanceRows(
+  rows: readonly {
+    depositAmount: OperationalFinanceAmount;
+    owedBalanceAmount: OperationalFinanceAmount;
+    owedDepositAmount: OperationalFinanceAmount;
+    totalAmount: OperationalFinanceAmount;
+  }[],
+): {
+  depositAmount: OperationalFinanceAmount;
+  owedBalanceAmount: OperationalFinanceAmount;
+  owedDepositAmount: OperationalFinanceAmount;
+  totalAmount: OperationalFinanceAmount;
+} {
+  return {
+    depositAmount: sumOperationalFinanceAmounts(
+      rows.map((row) => row.depositAmount),
+    ),
+    owedBalanceAmount: sumOperationalFinanceAmounts(
+      rows.map((row) => row.owedBalanceAmount),
+    ),
+    owedDepositAmount: sumOperationalFinanceAmounts(
+      rows.map((row) => row.owedDepositAmount),
+    ),
+    totalAmount: sumOperationalFinanceAmounts(
+      rows.map((row) => row.totalAmount),
+    ),
+  };
+}

@@ -42,6 +42,10 @@ import { type ChoreographyGroupType } from "@/lib/finances/operational-summary-c
 import { resolveEffectiveBasePriceRow } from "@/lib/finances/inscription-price";
 
 import {
+  choreographyTarget,
+  restrictedChoreographyInscriptionId,
+} from "./allocation-target.server";
+import {
   readInscriptionAllocatedAmount,
   spreadFromPool,
   unwindToPool,
@@ -189,12 +193,12 @@ export async function readInscriptionEffectivePrices(input: {
       : await db
           .select({
             amount: paymentAllocations.amount,
-            inscriptionId: paymentAllocations.inscriptionId,
+            inscriptionId: restrictedChoreographyInscriptionId,
           })
           .from(paymentAllocations)
           .where(
             inArray(
-              paymentAllocations.inscriptionId,
+              paymentAllocations.choreographyInscriptionId,
               inscriptionRows.map((row) => row.id),
             ),
           );
@@ -265,7 +269,7 @@ export async function allocateToInscription(
 
     const allocatedAmount = await readInscriptionAllocatedAmount(
       tx,
-      input.inscriptionId,
+      choreographyTarget(input.inscriptionId),
     );
     const priced = await applySelectedPrice(tx, {
       allocatedAmount,
@@ -282,7 +286,7 @@ export async function allocateToInscription(
       academyId: input.academyId,
       amount: input.amount,
       eventId: input.eventId,
-      inscriptionId: input.inscriptionId,
+      target: choreographyTarget(input.inscriptionId),
     });
   });
 }
@@ -334,7 +338,7 @@ export async function releaseInscriptionExcess(
     const figures = deriveInscriptionFinancialFigures({
       allocatedAmount: await readInscriptionAllocatedAmount(
         tx,
-        input.inscriptionId,
+        choreographyTarget(input.inscriptionId),
       ),
       thresholds: inscriptionThresholds,
     });
@@ -366,7 +370,7 @@ async function unwindInscription(
     academyId: input.academyId,
     amount: input.amount,
     eventId: input.eventId,
-    inscriptionId: input.inscriptionId,
+    target: choreographyTarget(input.inscriptionId),
   });
 }
 

@@ -1,5 +1,9 @@
 import { formatAmount } from "@/lib/finances/formatters";
 import { buildComprobanteQrUrl } from "@/lib/comprobantes/arca/qr";
+import {
+  formatComprobanteAnchorLabel,
+  type ComprobanteAnchorReading,
+} from "@/lib/comprobantes/anchor-reading";
 import type { ComprobanteStatus } from "@/lib/comprobantes/comprobante-status.server";
 import type { ComprobanteWithLines } from "@/lib/comprobantes/comprobantes.server";
 import {
@@ -16,10 +20,11 @@ import {
   type ComprobanteImpresoHeader,
 } from "@/lib/comprobantes/impreso";
 
-// The choreography/academy/event context anchoring the comprobante in the
-// printout.
+// The anchor/academy/event context anchoring the comprobante in the printout.
+// The anchor travels as its reading and not as a choreography name, because the
+// receptor block names one of two units.
 export type ComprobantePrintContext = {
-  choreographyName: string;
+  anchor: ComprobanteAnchorReading;
   academyName: string;
   eventName: string;
 };
@@ -50,7 +55,9 @@ export type ComprobantePrintViewModel = {
   emisorCondicionIva: string;
   receptorCondicionIva: string;
   academyName: string;
-  choreographyName: string;
+  // The unit the receptor block names beside the academy: the choreography's
+  // name, or `Seminario {instructor}, {fecha}`.
+  anchorLabel: string;
   eventName: string;
   lines: ComprobantePrintLine[];
   importeTotal: string;
@@ -79,10 +86,11 @@ export type ComprobantePrintViewModel = {
  * It carries no right-hand side, per #554 decision 3 and the owner's ruling on
  * the #723 review. The choreography name was tried there and declined for the
  * reason the decision gives: the receptor block a few lines above already prints
- * `{academia} — {coreografía}` (`view.tsx`), so repeating it under `Descripción`
- * describes no additional service. The noun is singular because it names the
- * concept, not a count of dancers, so it reads correctly for a solo and for a
- * group.
+ * `{academia} — {unidad}` (`view.tsx`), so repeating it under `Descripción`
+ * describes no additional service. A seminar comprobante keeps the same constant
+ * for the same reason: its receptor block already names the seminar. The noun is
+ * singular because it names the concept, not a count of dancers, so it reads
+ * correctly for a solo and for a group.
  *
  * It is also the noun ADR-0014 §5 gives the settled per-dancer line,
  * `Inscripción — {bailarín}`. That line is #657's, and needs one line per
@@ -106,7 +114,7 @@ export function buildComprobantePrintViewModel(
     emisorCondicionIva: EMISOR_CONDICION_IVA_LABEL,
     receptorCondicionIva: RECEPTOR_CONDICION_IVA_LABEL,
     academyName: record.academyName,
-    choreographyName: record.choreographyName,
+    anchorLabel: formatComprobanteAnchorLabel(record.anchor),
     eventName: record.eventName,
     lines: [
       {

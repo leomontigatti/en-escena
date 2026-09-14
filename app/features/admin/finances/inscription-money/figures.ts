@@ -3,27 +3,52 @@
  * opens on, which price the figures are derived against, what the inscription
  * owes against that price, and how the two read on screen.
  *
- * It sits beside `inscription-money-dialog.tsx` rather than inside it because
- * none of it is UI: every function here is a pure reading of a loader row, which
- * is what makes the dialog's arithmetic testable without mounting a dialog.
+ * It sits beside `dialog.tsx` rather than inside it because none of it is UI:
+ * every function here is a pure reading of a row, which is what makes the
+ * dialog's arithmetic testable without mounting a dialog.
  */
 
 import {
   calculateTotalAmount,
   deriveInscriptionFinancialFigures,
+  hasCrossedDepositThreshold,
 } from "@/lib/finances/inscription-financial-status";
 
 import { formatAmount } from "@/lib/finances/formatters";
-import type { loadChoreographyFinanceDetail } from "./server";
 
-type ChoreographyFinanceDetailLoaderData = Awaited<
-  ReturnType<typeof loadChoreographyFinanceDetail>
->;
+/**
+ * A price row as the dialog reads it — name, amount and the `Seña` it implies.
+ * The shape is structural rather than a loader's slice because **both kinds of
+ * inscription open the same dialog**: the choreography detail and the
+ * `(seminar, academy)` one each build their options from their own price list,
+ * and what the dialog needs of a row is the same three figures either way.
+ */
+export type PriceOption = {
+  amount: number;
+  depositAmount: number;
+  id: string;
+  name: string;
+};
 
-export type InscriptionRow =
-  ChoreographyFinanceDetailLoaderData["inscriptions"][number];
-export type PriceOption =
-  ChoreographyFinanceDetailLoaderData["priceOptions"][number];
+/**
+ * The row the dialog is about, of either kind. `dancerDiscountAmount` is a
+ * constant zero on the seminar side — a seminar has no `Descuento por
+ * bailarín` — and travels all the same, because the owed figures are derived
+ * through the one owner that takes it as an input.
+ */
+export type InscriptionRow = {
+  allocatedAmount: number;
+  dancerDiscountAmount: number;
+  depositAmount: number | null;
+  effectivePrice: PriceOption | null;
+  firstName: string;
+  /** `null` for a roster person with no inscription yet: nothing to fund. */
+  inscriptionId: string | null;
+  lastName: string;
+  overAllocatedAmount: number | null;
+  owedBalanceAmount: number | null;
+  owedDepositAmount: number | null;
+};
 
 export type InscriptionMoneyDialogShape =
   | "releaseExcess"
@@ -62,7 +87,7 @@ export function readInscriptionMoneyDialogShape(
  * shape — a row whose effective price is not among the offered options would
  * leave the picker empty, and the figures still have to come from somewhere.
  */
-export function selectPickedPrice(input: {
+function selectPickedPrice(input: {
   inscription: InscriptionRow;
   priceId: string;
   priceOptions: PriceOption[];
@@ -82,7 +107,7 @@ export function selectPickedPrice(input: {
  * With no price there is no threshold to owe against, and the loader's own
  * figures —both `null` in that case— are what the dialog keeps saying.
  */
-export function deriveOwedAgainstPrice(input: {
+function deriveOwedAgainstPrice(input: {
   inscription: InscriptionRow;
   price: PriceOption | null;
 }): OwedAgainstPrice {
@@ -127,4 +152,56 @@ export function formatDialogPrice(price: PriceOption | null) {
 
 export function formatOwedAmount(amount: number | null) {
   return amount === null ? "Sin precio" : formatAmount(amount);
+}
+
+/** Every figure the allocation shape reads, against the price currently picked. */
+export type AllocationDialogFigures = OwedAgainstPrice & {
+  /** The figure that finishes the next thing: the deposit while that threshold
+   * is unmet, the balance once it is met. */
+  hintedAmount: number | null;
+  /** The picker locks where the rule locks it: on covering the deposit, not on
+   * the first peso. */
+  isPriceLocked: boolean;
+};
+
+/**
+ * The allocation shape's arithmetic in one call. Every figure follows the
+ * **picked** price and not the row's, because confirming applies the pick:
+ * hinting the deposit of a price the administrator just moved away from asks
+ * them to type a figure the dialog is not about to charge.
+ */
+export function resolveAllocationDialogFigures(input: {
+  inscription: InscriptionRow;
+  priceId: string;
+  priceOptions: PriceOption[];
+}): AllocationDialogFigures {
+  const owed = deriveOwedAgainstPrice({
+    inscription: input.inscription,
+    price: selectPickedPrice(input),
+  });
+
+  return {
+    ...owed,
+    hintedAmount:
+      owed.owedDepositAmount === null || owed.owedDepositAmount > 0
+        ? owed.owedDepositAmount
+        : owed.owedBalanceAmount,
+    isPriceLocked: hasCrossedDepositThreshold({
+      allocatedAmount: input.inscription.allocatedAmount,
+      depositAmount: input.inscription.depositAmount,
+    }),
+  };
+}
+
+/**
+ * Out of range is `< 1` or above the ceiling, and an empty box is not out of
+ * range — it is the state the field opens in. With no ceiling known there is
+ * nothing to be outside of.
+ */
+export function isAmountOutOfRange(amount: string, maxAmount: number | null) {
+  return (
+    amount !== "" &&
+    maxAmount !== null &&
+    (Number(amount) < 1 || Number(amount) > maxAmount)
+  );
 }

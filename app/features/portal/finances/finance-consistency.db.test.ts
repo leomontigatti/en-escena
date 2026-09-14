@@ -145,7 +145,7 @@ describe.sequential(
         academyId: owner.academyId,
         amount: 3600,
         eventId: event.id,
-        inscriptionId: pendingInscription.id,
+        choreographyInscriptionId: pendingInscription.id,
         paymentId: payment.id,
       });
 
@@ -160,7 +160,7 @@ describe.sequential(
         academyId: owner.academyId,
         amount: 12000,
         eventId: event.id,
-        inscriptionId: paidInscription.id,
+        choreographyInscriptionId: paidInscription.id,
         paymentId: payment.id,
       });
 

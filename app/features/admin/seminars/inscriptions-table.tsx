@@ -5,9 +5,10 @@ import {
   type DataTableColumn,
 } from "@/components/shared/data-table";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
+import { WithdrawDialog } from "@/components/shared/withdraw-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { SeminarInscriptionRow } from "@/lib/seminars/inscriptions.server";
+import type { SeminarInscriptionRow } from "@/lib/seminars/inscription-rosters.server";
 
 import { deleteSeminarInscriptionIntent } from "./shared";
 
@@ -77,17 +78,53 @@ export function SeminarInscriptionsTable({
         initialSort={{ columnId: "academyName", direction: "asc" }}
       />
       {removingInscription ? (
-        <DeleteDialog
-          title={removingInscription.fullName}
-          description="Esta acción da de baja la inscripción del seminario y libera su lugar. No se puede deshacer."
-          intentValue={deleteSeminarInscriptionIntent}
-          recordId={removingInscription.id}
-          open
-          onOpenChange={(nextOpen) =>
-            nextOpen ? null : setRemovingInscriptionId(null)
-          }
+        <RemovalDialog
+          inscription={removingInscription}
+          onClose={() => setRemovingInscriptionId(null)}
         />
       ) : null}
     </>
+  );
+}
+
+/**
+ * The two confirmations of one gesture. A row holding money or a comprobante
+ * line is not deleted but withdrawn, so it gets the dialog that says so: the
+ * shared delete dialog's "Esta acción es irreversible." would be false of a row
+ * that keeps everything it has.
+ */
+function RemovalDialog({
+  inscription,
+  onClose,
+}: {
+  inscription: SeminarInscriptionRow;
+  onClose: () => void;
+}) {
+  const onOpenChange = (nextOpen: boolean) => (nextOpen ? null : onClose());
+
+  if (inscription.hasMoney) {
+    return (
+      <WithdrawDialog
+        confirmLabel="Retirar inscripción"
+        consequence="El dinero asignado sigue en la inscripción y el lugar que tenía queda libre. Si la academia vuelve a inscribir a la persona, la inscripción se reactiva con su dinero."
+        description={`Esta inscripción tiene dinero asignado o un comprobante emitido, así que no se borra: ${inscription.fullName} queda retirada del seminario.`}
+        intentValue={deleteSeminarInscriptionIntent}
+        onOpenChange={onOpenChange}
+        open
+        recordId={inscription.id}
+        title={inscription.fullName}
+      />
+    );
+  }
+
+  return (
+    <DeleteDialog
+      title={inscription.fullName}
+      description="Esta acción da de baja la inscripción del seminario y libera su lugar. No se puede deshacer."
+      intentValue={deleteSeminarInscriptionIntent}
+      recordId={inscription.id}
+      open
+      onOpenChange={onOpenChange}
+    />
   );
 }

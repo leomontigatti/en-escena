@@ -2,12 +2,15 @@ import { asc, and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
-  academies,
   choreographies,
   events,
   prices,
   scheduleCapacities,
 } from "@/db/schema";
+import {
+  readFinanceAcademy,
+  readFinanceAcademyId,
+} from "@/features/admin/finances/academy.server";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { calculateDepositAmount } from "@/lib/finances/inscription-financial-status";
 import { resolveChoreographyPricingScheduleId } from "@/lib/finances/choreography-pricing-schedule";
@@ -40,7 +43,7 @@ export async function loadAcademyFinances(input: {
 }) {
   await requireInternalUser(input.request, ["admin", "auditor"]);
   const eventContext = await loadEventContext(input.request);
-  const academy = await readAcademy(readAcademyId(input.params));
+  const academy = await readFinanceAcademy(readFinanceAcademyId(input.params));
 
   const [
     financeDetail,
@@ -52,6 +55,7 @@ export async function loadAcademyFinances(input: {
           {
             choreographyFinanceRows: [],
             inscriptions: [],
+            seminarFinanceRows: [],
             summary: emptyOperationalFinanceSummary(),
           },
           {} as Record<string, PresetPriceOption[]>,
@@ -76,6 +80,10 @@ export async function loadAcademyFinances(input: {
     priceOptionsByGroupType,
     pricingScheduleIdByChoreography,
     selectedEventId: eventContext.selectedEventId,
+    // The academy's `(seminar, academy)` units, the `Seminarios` tab's rows.
+    // They are a second list and not a second summary: the tabs split the
+    // tables, and the figures the summary carries are one debt against one pool.
+    seminarFinanceRows: financeDetail.seminarFinanceRows,
     summary: financeDetail.summary,
   };
 }
@@ -91,7 +99,7 @@ export async function handleAcademyFinancesAction(input: {
   request: Request;
 }): Promise<AcademyFinancesActionData | never> {
   await requireAdminUser(input.request);
-  const academyId = readAcademyId(input.params);
+  const academyId = readFinanceAcademyId(input.params);
   const eventContext = await loadEventContext(input.request);
 
   if (eventContext.selectedEventId === null) {
@@ -269,30 +277,4 @@ async function readPricingScheduleIdByChoreography(input: {
   }
 
   return scheduleIdByChoreography;
-}
-
-async function readAcademy(academyId: string) {
-  const academy = await db.query.academies.findFirst({
-    columns: {
-      id: true,
-      name: true,
-      contactName: true,
-      phone: true,
-    },
-    where: eq(academies.id, academyId),
-  });
-
-  if (!academy) {
-    throw new Response("No encontramos esa academia.", { status: 404 });
-  }
-
-  return academy;
-}
-
-function readAcademyId(params: { academyId?: string }) {
-  if (!params.academyId) {
-    throw new Response("No encontramos esa academia.", { status: 404 });
-  }
-
-  return params.academyId;
 }

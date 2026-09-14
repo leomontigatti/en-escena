@@ -9,10 +9,10 @@ import {
   getButton,
 } from "@/lib/test-support/react-dom";
 
-import { EmissionDialog } from "./comprobante-emission";
+import { EmissionDialog } from "./dialog";
 import {
   recheckComprobanteIntent,
-  type ChoreographyFinanceActionData,
+  type ComprobanteEmissionActionData,
 } from "./shared";
 
 describe("EmissionDialog", () => {
@@ -25,7 +25,7 @@ describe("EmissionDialog", () => {
     open: boolean;
     action?: (args: {
       request: Request;
-    }) => Promise<ChoreographyFinanceActionData>;
+    }) => Promise<ComprobanteEmissionActionData>;
   }) {
     const router = createMemoryRouter(
       [
@@ -50,10 +50,10 @@ describe("EmissionDialog", () => {
   // It answers by intent: the first submit leaves the requested contingency and
   // the re-verification answers `recovered`.
   function contingencyAction(
-    contingency: ChoreographyFinanceActionData["status"] extends never
+    contingency: ComprobanteEmissionActionData["status"] extends never
       ? never
       : Extract<
-          ChoreographyFinanceActionData,
+          ComprobanteEmissionActionData,
           { status: "contingency" }
         >["contingency"],
   ) {
@@ -65,7 +65,7 @@ describe("EmissionDialog", () => {
         request,
       }: {
         request: Request;
-      }): Promise<ChoreographyFinanceActionData> {
+      }): Promise<ComprobanteEmissionActionData> {
         const formData = await request.formData();
         const entries = Object.fromEntries(formData) as Record<string, string>;
 

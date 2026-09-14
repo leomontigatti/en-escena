@@ -15,6 +15,10 @@ import type { DataTableFacetedFilterValue } from "@/components/shared/data-table
 import { Badge } from "@/components/ui/badge";
 import { formatAmount } from "@/lib/finances/formatters";
 import {
+  comprobanteAnchorHref,
+  formatComprobanteAnchorLabel,
+} from "@/lib/comprobantes/anchor-reading";
+import {
   FACTURA_C_CBTE_TIPO,
   NOTA_CREDITO_C_CBTE_TIPO,
 } from "@/lib/comprobantes/arca/factura-c";
@@ -35,11 +39,11 @@ type ComprobantesListRouteViewProps = {
 
 // A read-only global list, paginated/sorted/filtered on the server (ADR-0011,
 // #483). Fixed column order:
-// `# · Tipo · Academia · Coreografía · Estado · Fecha · Importe`. Only
-// `Comprobante` (the number) and `Fecha` are sortable (`sortValue` enables the
-// header). The number links to the comprobante detail and the choreography to
-// its financial detail; there is no CAE column and no inline actions
-// (print/annul live in the detail).
+// `# · Tipo · Academia · Coreografía o seminario · Estado · Fecha · Importe`.
+// Only `Comprobante` (the number) and `Fecha` are sortable (`sortValue` enables
+// the header). The number links to the comprobante detail and the anchor to its
+// financial detail — the choreography's or the `(seminar, academy)` unit's;
+// there is no CAE column and no inline actions (print/annul live in the detail).
 export const comprobanteColumns: DataTableColumn<ComprobantesListRow>[] = [
   {
     id: "numero",
@@ -74,19 +78,30 @@ export const comprobanteColumns: DataTableColumn<ComprobantesListRow>[] = [
     cell: (row) => <DataTableTruncatedText value={row.academyName} />,
   },
   {
-    id: "coreografia",
-    header: "Coreografía",
+    id: "unidad",
+    // One column for both anchors: a choreography reads as its name, a seminar
+    // as `Seminario {instructor}, {fecha}`. There is no kind facet — the reading
+    // already says which it is, and a two-value filter over a list scoped to one
+    // event earns nothing.
+    header: "Coreografía o seminario",
     width: 24,
     className: "text-muted-foreground",
-    cell: (row) => (
-      <DataTableTruncatedText value={row.choreographyName}>
-        <DataTableLink
-          to={`/administracion/finanzas/${row.academyId}/coreografias/${row.choreographyId}`}
-        >
-          {row.choreographyName}
-        </DataTableLink>
-      </DataTableTruncatedText>
-    ),
+    cell: (row) => {
+      const label = formatComprobanteAnchorLabel(row.anchor);
+
+      return (
+        <DataTableTruncatedText value={label}>
+          <DataTableLink
+            to={comprobanteAnchorHref({
+              academyId: row.academyId,
+              reading: row.anchor,
+            })}
+          >
+            {label}
+          </DataTableLink>
+        </DataTableTruncatedText>
+      );
+    },
   },
   {
     id: "estado",
@@ -178,7 +193,7 @@ export function ComprobantesListRouteView({
           // Seven columns is the widest list here; sharing the row out among
           // them is what keeps it inside the page.
           layout="fit"
-          searchPlaceholder="Buscar por academia, coreografía o número"
+          searchPlaceholder="Buscar por academia, coreografía, instructor o número"
           initialSort={loaderData.filters.order}
           emptyMessage="No hay comprobantes que coincidan con la búsqueda o los filtros."
           currentPage={loaderData.filters.page}

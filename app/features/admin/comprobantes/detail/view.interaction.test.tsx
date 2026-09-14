@@ -37,8 +37,11 @@ function comprobanteFixture(
     fchServHasta: "20260803",
     fchVtoPago: "20260722",
     status: "vigente",
-    choreographyId: "choreography_1",
-    choreographyName: "Aire",
+    anchor: {
+      kind: "choreography",
+      choreographyId: "choreography_1",
+      choreographyName: "Aire",
+    },
     academyId: "academy_1",
     academyName: "Academia Centro",
     eventName: "En Escena 2026",
@@ -232,6 +235,30 @@ describe("ComprobanteDetailRouteView", () => {
 
     // The annulment dialog is not mounted until it is opened.
     expect(document.querySelector('[role="alertdialog"]')).toBeNull();
+  });
+
+  test("a seminar comprobante names its unit under `Seminario`, linked to the `(seminar, academy)` detail", async () => {
+    await mount({
+      comprobante: {
+        anchor: {
+          kind: "seminar",
+          seminarId: "seminar_1",
+          instructorName: "Abril Sosa",
+          scheduledDate: "2030-10-10",
+        },
+      },
+    });
+
+    expect(document.body.textContent).toContain("Seminario");
+    expect(document.body.textContent).toContain(
+      "Seminario Abril Sosa, 10/10/2030",
+    );
+    expect(document.body.textContent).not.toContain("Coreografía");
+    expect(
+      document.querySelector(
+        'a[href="/administracion/finanzas/academy_1/seminarios/seminar_1"]',
+      ),
+    ).not.toBeNull();
   });
 
   test("confirms annulment through an alertdialog without a checkbox", async () => {

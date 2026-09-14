@@ -1,7 +1,12 @@
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
-import { SeminarForm, SeminarFormActions, SeminarFormPanel } from "../form";
+import {
+  SeminarForm,
+  SeminarFormActions,
+  SeminarFormPanel,
+  useSeminarForm,
+} from "../form";
 import {
   createSeminarIntent,
   type SeminarActionData,
@@ -21,11 +26,17 @@ export function SeminarCreateView({
 }: SeminarCreateViewProps) {
   useServerActionToast(actionData);
 
+  const controller = useSeminarForm({
+    actionData,
+    intent: createSeminarIntent,
+    values: loaderData.values,
+  });
+
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
       title="Nuevo seminario"
-      description="Definí el instructor, la fecha, la hora y el cupo del seminario."
+      description="Definí el instructor, el tipo, la fecha, la hora, el cupo y la seña del seminario."
       eventRequiredEmptyState={{
         title: "Elegí un evento activo para crear seminarios",
         description: "Activá un evento para ofrecer seminarios en él.",
@@ -33,12 +44,12 @@ export function SeminarCreateView({
     >
       <SeminarFormPanel>
         <SeminarForm
-          actionData={actionData}
+          controller={controller}
           formId={createSeminarFormId}
           intent={createSeminarIntent}
-          values={loaderData.values}
         />
         <SeminarFormActions
+          controller={controller}
           formId={createSeminarFormId}
           pendingScope={{ intent: createSeminarIntent }}
           selectedEventId={loaderData.selectedEventId}

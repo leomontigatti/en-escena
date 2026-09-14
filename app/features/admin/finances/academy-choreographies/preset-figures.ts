@@ -4,7 +4,7 @@
  * picker opens on.
  *
  * It sits beside `preset-dialog.tsx` rather than inside it because none of it is
- * UI, exactly as `inscription-money-figures.ts` sits beside the single
+ * UI, exactly as `inscription-money/figures.ts` sits beside the single
  * inscription's dialog: every function here is a pure reading of loader rows,
  * which is what makes the dialog's arithmetic testable without mounting a dialog.
  */

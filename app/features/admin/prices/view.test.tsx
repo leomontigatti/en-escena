@@ -8,7 +8,10 @@ import { afterEach, beforeAll, describe, expect, test } from "vitest";
 import type { EventPriceDetailView as EventPriceDetailRouteViewType } from "@/features/admin/prices/detail/view";
 import type { EventPricesListView as EventPricesRouteViewType } from "@/features/admin/prices/list/view";
 import type { getPriceDisplayName as GetPriceDisplayName } from "@/features/admin/prices/view-shared";
-import type { EventPriceDetailLoaderData } from "@/features/admin/prices/shared";
+import type {
+  EventPriceDetailLoaderData,
+  EventPricesLoaderData,
+} from "@/features/admin/prices/shared";
 import type { PriceListItem } from "@/lib/events/bases.server";
 
 describe("EventPriceDetailRouteView", () => {
@@ -270,7 +273,7 @@ async function renderPricesRoute({
   root,
 }: {
   EventPricesRouteView: typeof EventPricesRouteViewType;
-  loaderData: EventPriceDetailLoaderData;
+  loaderData: EventPricesLoaderData;
   root: ReturnType<typeof createRoot>;
 }) {
   await act(async () => {
@@ -298,9 +301,10 @@ function createLoaderData({
   prices,
 }: {
   prices: PriceListItem[];
-}): EventPriceDetailLoaderData {
+}): EventPricesLoaderData {
   return {
     selectedEventId: "event_1",
+    seminarPrices: [],
     schedules: [
       {
         id: "block_1",

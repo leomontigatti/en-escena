@@ -9,11 +9,12 @@ import {
   createSignedInRequest,
 } from "@/lib/admin/finances/finances.test-support";
 import { createDancer } from "@/lib/choreographies/registration-test-fixtures.server.db";
-import {
-  listSeminarInscriptions,
-  registerSeminarInscription,
-} from "@/lib/seminars/inscriptions.server";
+import { registerSeminarInscription } from "@/lib/seminars/inscriptions.server";
+import { listSeminarInscriptions } from "@/lib/seminars/inscription-rosters.server";
 import { createSeminar, listSeminars } from "@/lib/seminars/repository.server";
+import { coverSeminarInscriptionDeposit } from "@/lib/seminars/test-fixtures.server.db";
+import { createSeminarRegistrationPrices } from "@/lib/seminar-prices/test-fixtures.server.db";
+import { defaultSeminarFacts } from "@/lib/test-support/seminars";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 
@@ -27,11 +28,18 @@ import { loadSeminarDetailData, loadSeminarsListData } from "./server";
 
 installDatabaseTestHooks();
 
+// The quota floor is the number of inscriptions that **covered their deposit**,
+// so the suite seeds the money rather than stubbing the count:
+// `covered-inscriptions.server` is ours, and mocking it would leave the action's
+// refusal standing on a stub instead of on a taken place.
+
 const seminarFields = {
   instructorName: "Abril Sosa",
   scheduledDate: "2026-10-10",
   startTime: "18:30",
   quota: "20",
+  kind: "special",
+  requiredDepositPercentage: "40",
 };
 
 async function buildSignedRequest(
@@ -61,8 +69,25 @@ async function buildSignedRequest(
   });
 }
 
+/**
+ * The kind and the deposit rate the seminar fixture is actually saved with —
+ * `createSavedSeminar` overrides the form's pair with the defaults. Both freeze
+ * once a place is taken, so a form that posted the other pair would be refused
+ * by the structural guard before the quota is ever read.
+ */
+const savedSeminarFactFields = {
+  kind: defaultSeminarFacts.kind,
+  requiredDepositPercentage: String(
+    defaultSeminarFacts.requiredDepositPercentage,
+  ),
+};
+
 async function createSavedSeminar(eventId: string) {
-  const created = await createSeminar(eventId, { ...seminarFields, quota: 20 });
+  const created = await createSeminar(eventId, {
+    ...seminarFields,
+    ...defaultSeminarFacts,
+    quota: 20,
+  });
 
   if (!created.ok) {
     throw new Error(
@@ -106,6 +131,8 @@ describe.sequential("admin seminars", () => {
       startTime: "18:30",
       quota: 20,
       availablePlaces: 20,
+      kind: "special",
+      requiredDepositPercentage: 40,
     });
     await expectFlashRedirect(
       response,
@@ -165,10 +192,13 @@ describe.sequential("admin seminars", () => {
       `http://localhost/administracion/seminarios/${seminarId}`,
       {
         intent: "update-seminar",
+        ...seminarFields,
         instructorName: "Nicolás Prado",
         scheduledDate: "2026-10-11",
         startTime: "09:00",
         quota: "8",
+        kind: "regular",
+        requiredDepositPercentage: "25",
       },
     );
 
@@ -185,6 +215,8 @@ describe.sequential("admin seminars", () => {
         scheduledDate: "2026-10-11",
         startTime: "09:00",
         quota: 8,
+        kind: "regular",
+        requiredDepositPercentage: 25,
       },
     ]);
   });
@@ -300,14 +332,25 @@ describe.sequential("admin seminars", () => {
 
   // The floor is a refusal the reader can only act on by removing someone, so
   // it is a toast about the seminar and not an error under the quota field.
-  test("refuses a quota below the inscription count as a message, not a field error", async () => {
-    const { seminarId } = await createRegistration();
+  test("refuses a quota below the covered count as a message, not a field error", async () => {
+    const registration = await createRegistration();
+    const { seminarId } = registration;
+
+    for (const inscriptionId of registration.inscriptionIds) {
+      await coverSeminarInscriptionDeposit({
+        academyId: registration.academyId,
+        eventId: registration.eventId,
+        inscriptionId,
+        seminarId,
+      });
+    }
 
     await expect(
       handleSeminarDetailAction(
         await buildSignedRequest(seminarUrl(seminarId), {
           intent: "update-seminar",
           ...seminarFields,
+          ...savedSeminarFactFields,
           quota: "0",
         }),
         seminarId,
@@ -321,6 +364,7 @@ describe.sequential("admin seminars", () => {
       await buildSignedRequest(seminarUrl(seminarId), {
         intent: "update-seminar",
         ...seminarFields,
+        ...savedSeminarFactFields,
         instructorName: "Nicolás Prado",
         quota: "1",
       }),
@@ -331,7 +375,7 @@ describe.sequential("admin seminars", () => {
       status: "error",
       intent: "update-seminar",
       message:
-        "No se puede bajar el cupo a menos de 2: es la cantidad de inscriptos.",
+        "No se puede bajar el cupo a menos de 2: es la cantidad de inscripciones con la seña cubierta.",
     });
     expect(refused.fieldErrors).toBeUndefined();
 
@@ -342,6 +386,7 @@ describe.sequential("admin seminars", () => {
         await buildSignedRequest(seminarUrl(seminarId), {
           intent: "update-seminar",
           ...seminarFields,
+          ...savedSeminarFactFields,
           instructorName: "Nicolás Prado",
           scheduledDate: "2020-01-01",
           quota: "2",
@@ -422,6 +467,9 @@ function seminarUrl(seminarId: string) {
 /** A seminar of the active event with one dancer per given name on it. */
 async function createRegistration(firstNames = ["Abril", "Beto"]) {
   const event = await createSavedEvent();
+  // Covering a deposit needs a price row to be charged against, and covering is
+  // what takes a place.
+  await createSeminarRegistrationPrices(event.id);
   const seminarId = await createSavedSeminar(event.id);
   const { academy } = await createAcademyUser({
     academyName: "Academia Inscripciones",
@@ -450,7 +498,12 @@ async function createRegistration(firstNames = ["Abril", "Beto"]) {
     inscriptionIds.push(registered.inscriptionId);
   }
 
-  return { eventId: event.id, seminarId, inscriptionIds };
+  return {
+    academyId: academy.id,
+    eventId: event.id,
+    seminarId,
+    inscriptionIds,
+  };
 }
 
 async function readEventReadiness(eventId: string) {

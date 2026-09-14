@@ -21,7 +21,7 @@ import {
 } from "@/lib/finances/inscription-financial-status";
 import {
   buildChoreographyOperationalFinanceRow,
-  buildOperationalFinanceSummaryFromChoreographyRows,
+  buildOperationalFinanceSummaryFromRows,
   type ChoreographyGroupType,
   type ChoreographyOperationalFinanceRow,
   computeDancerDiscountAmounts,
@@ -31,6 +31,10 @@ import {
   type ResolvedInscription,
 } from "@/lib/finances/operational-summary-calculations.server";
 import { resolveEffectiveBasePriceRow } from "@/lib/finances/inscription-price";
+import {
+  readAcademySeminarFinance,
+  type SeminarOperationalFinanceRow,
+} from "@/lib/finances/seminar-operational-summary.server";
 
 type InscriptionRow = {
   id: string;
@@ -43,6 +47,10 @@ type InscriptionRow = {
 export type AcademyEventOperationalFinanceDetail = {
   choreographyFinanceRows: ChoreographyOperationalFinanceRow[];
   inscriptions: ResolvedInscription[];
+  // The `(seminar, academy)` units of the same academy. They are a second list
+  // and not a second summary: the tabs split the tables, the figures above them
+  // are one debt against one pool.
+  seminarFinanceRows: SeminarOperationalFinanceRow[];
   summary: OperationalFinanceSummary;
 };
 
@@ -71,11 +79,14 @@ export async function readAcademyEventOperationalFinanceSummaries(input: {
 
     summaries.set(
       academyId,
-      buildOperationalFinanceSummaryFromChoreographyRows({
+      buildOperationalFinanceSummaryFromRows({
         availableBalanceAmount:
           (finance.paidByAcademy.get(academyId) ?? 0) -
           (finance.allocatedByAcademy.get(academyId) ?? 0),
-        choreographyFinanceRows: academyRows ?? [],
+        financeRows: [
+          ...(academyRows ?? []),
+          ...(finance.seminarFinanceRowsByAcademy.get(academyId) ?? []),
+        ],
         totalPaidAmount: finance.paidByAcademy.get(academyId) ?? 0,
       }),
     );
@@ -97,6 +108,8 @@ export async function readAcademyEventOperationalFinanceDetail(input: {
     totalPaidAmount - (finance.allocatedByAcademy.get(input.academyId) ?? 0);
   const choreographyFinanceRows =
     finance.choreographyFinanceRowsByAcademy.get(input.academyId) ?? [];
+  const seminarFinanceRows =
+    finance.seminarFinanceRowsByAcademy.get(input.academyId) ?? [];
 
   return {
     choreographyFinanceRows,
@@ -105,9 +118,10 @@ export async function readAcademyEventOperationalFinanceDetail(input: {
         finance.choreographyAcademyById.get(inscription.choreographyId) ===
         input.academyId,
     ),
-    summary: buildOperationalFinanceSummaryFromChoreographyRows({
+    seminarFinanceRows,
+    summary: buildOperationalFinanceSummaryFromRows({
       availableBalanceAmount,
-      choreographyFinanceRows,
+      financeRows: [...choreographyFinanceRows, ...seminarFinanceRows],
       totalPaidAmount,
     }),
   };
@@ -122,43 +136,49 @@ type AcademyEventFinance = {
   >;
   inscriptions: ResolvedInscription[];
   paidByAcademy: Map<string, number>;
+  seminarFinanceRowsByAcademy: Map<string, SeminarOperationalFinanceRow[]>;
 };
 
 async function readAcademyEventFinance(input: {
   academyIds: string[];
   eventId: string;
 }): Promise<AcademyEventFinance> {
-  const [event, choreographyRows, priceRows] = await Promise.all([
-    db.query.events.findFirst({
-      columns: { requiredDepositPercentage: true },
-      where: eq(events.id, input.eventId),
-    }),
-    db
-      .select({
-        academyId: choreographies.academyId,
-        choreographyNumber: choreographies.choreographyNumber,
-        choreographyScheduleId: choreographies.scheduleId,
-        groupType: choreographies.groupType,
-        id: choreographies.id,
-        name: choreographies.name,
-        scheduleCapacityScheduleId: scheduleCapacities.scheduleId,
-      })
-      .from(choreographies)
-      .leftJoin(
-        scheduleCapacities,
-        eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
-      )
-      .where(
-        and(
-          eq(choreographies.eventId, input.eventId),
-          inArray(choreographies.academyId, input.academyIds),
-        ),
-      )
-      .orderBy(asc(choreographies.name), asc(choreographies.createdAt)),
-    db.query.prices.findMany({
-      where: eq(prices.eventId, input.eventId),
-    }),
-  ]);
+  const [event, choreographyRows, priceRows, seminarFinance] =
+    await Promise.all([
+      db.query.events.findFirst({
+        columns: { requiredDepositPercentage: true },
+        where: eq(events.id, input.eventId),
+      }),
+      db
+        .select({
+          academyId: choreographies.academyId,
+          choreographyNumber: choreographies.choreographyNumber,
+          choreographyScheduleId: choreographies.scheduleId,
+          groupType: choreographies.groupType,
+          id: choreographies.id,
+          name: choreographies.name,
+          scheduleCapacityScheduleId: scheduleCapacities.scheduleId,
+        })
+        .from(choreographies)
+        .leftJoin(
+          scheduleCapacities,
+          eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
+        )
+        .where(
+          and(
+            eq(choreographies.eventId, input.eventId),
+            inArray(choreographies.academyId, input.academyIds),
+          ),
+        )
+        .orderBy(asc(choreographies.name), asc(choreographies.createdAt)),
+      db.query.prices.findMany({
+        where: eq(prices.eventId, input.eventId),
+      }),
+      readAcademySeminarFinance({
+        academyIds: input.academyIds,
+        eventId: input.eventId,
+      }),
+    ]);
 
   if (!event) {
     throw new Error("Expected event to exist for finance summary.");
@@ -211,7 +231,7 @@ async function readAcademyEventFinance(input: {
     db
       .select({
         academyId: paymentAllocations.academyId,
-        inscriptionId: paymentAllocations.inscriptionId,
+        inscriptionId: paymentAllocations.choreographyInscriptionId,
         amount: paymentAllocations.amount,
       })
       .from(paymentAllocations)
@@ -234,11 +254,17 @@ async function readAcademyEventFinance(input: {
   const allocatedByAcademy = new Map<string, number>();
 
   for (const allocation of allocationRows) {
-    allocationByInscription.set(
-      allocation.inscriptionId,
-      (allocationByInscription.get(allocation.inscriptionId) ?? 0) +
-        allocation.amount,
-    );
+    // The academy total takes every allocation of the event, whatever kind of
+    // inscription it sits on — it is one pool. The per-inscription map is the
+    // choreography rollup, so a seminar allocation contributes to the first and
+    // is skipped by the second.
+    if (allocation.inscriptionId !== null) {
+      allocationByInscription.set(
+        allocation.inscriptionId,
+        (allocationByInscription.get(allocation.inscriptionId) ?? 0) +
+          allocation.amount,
+      );
+    }
     allocatedByAcademy.set(
       allocation.academyId,
       (allocatedByAcademy.get(allocation.academyId) ?? 0) + allocation.amount,
@@ -355,6 +381,7 @@ async function readAcademyEventFinance(input: {
     choreographyFinanceRowsByAcademy,
     inscriptions,
     paidByAcademy,
+    seminarFinanceRowsByAcademy: seminarFinance,
   };
 }
 

@@ -3,9 +3,11 @@
  *
  * Deletion **always succeeds** — money is fungible and the allocations fall by
  * the foreign key's cascade — so this is not a guard. It is what the dialog
- * says: every choreography the payment reaches, the amount it takes out of it,
- * and how many of its inscriptions drop back below a threshold they had
- * crossed.
+ * says: every unit the payment reaches — choreographies and seminars in **one
+ * list** — the amount it takes out of it, and what its inscriptions lose. A
+ * choreography names the threshold they drop back below; a seminar names the
+ * **places** they lose, because on that side covering the deposit is what took
+ * the place (docs/domain/seminars.md, "The place").
  *
  * Two things the reading has to be honest about:
  *
@@ -17,34 +19,148 @@
  *   unchanged one would read as a consequence of the deletion.
  */
 
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/db";
+import { restrictedChoreographyInscriptionId } from "@/lib/finances/allocation-target.server";
 import {
   choreographies,
   choreographyDancers,
   paymentAllocations,
+  seminarInscriptions,
+  seminarPrices,
+  seminars,
 } from "@/db/schema";
 import { activeInscription } from "@/lib/choreographies/active-inscription";
 import {
-  deriveChoreographyFinancialStatus,
+  deriveMinimumFinancialStatus,
   deriveInscriptionFinancialStatus,
   hasUncrossedThreshold,
   type ChoreographyFinancialStatus,
 } from "@/lib/finances/inscription-financial-status";
 import { readInscriptionThresholds } from "@/lib/finances/inscription-thresholds.server";
+import { deriveSeminarInscriptionThresholds } from "@/lib/finances/seminar-inscription-price";
+import { isSeminarInscriptionCovered } from "@/lib/finances/seminar-inscription-thresholds.server";
 
-export type PaymentDeletionImpact = {
-  /** What this payment has allocated to the choreography, and takes with it. */
+/** What this payment has allocated to one unit, and takes with it. */
+type PaymentDeletionImpactBase = {
   allocatedAmount: number;
   id: string;
   name: string;
-  /** Named only when at least one inscription un-crosses. */
-  resultingStatus: ChoreographyFinancialStatus | null;
-  uncrossingInscriptionCount: number;
 };
 
+type SeminarUnitImpact = Extract<PaymentDeletionImpact, { kind: "seminar" }>;
+
+export type PaymentDeletionImpact =
+  | (PaymentDeletionImpactBase & {
+      kind: "choreography";
+      /** Named only when at least one inscription un-crosses. */
+      resultingStatus: ChoreographyFinancialStatus | null;
+      uncrossingInscriptionCount: number;
+    })
+  | (PaymentDeletionImpactBase & {
+      kind: "seminar";
+      /** How many of the seminar's inscriptions drop below the deposit of their
+       * stored price row, and so lose the place they had taken. */
+      losingPlaceCount: number;
+    });
+
 export async function readPaymentDeletionImpact(input: {
+  academyId: string;
+  eventId: string;
+  paymentId: string;
+}): Promise<PaymentDeletionImpact[]> {
+  const [choreographyImpacts, seminarImpacts] = await Promise.all([
+    readChoreographyImpacts(input),
+    readSeminarImpacts(input.paymentId),
+  ]);
+
+  return [...choreographyImpacts, ...seminarImpacts].sort((left, right) =>
+    left.name.localeCompare(right.name, "es"),
+  );
+}
+
+/**
+ * The seminar half of the list. Only the inscriptions this payment funds can
+ * lose a place, so those are the rows read, each with what it holds in total and
+ * the deposit of the row it **stored** — the same threshold the crossing was
+ * judged by. A withdrawn row holds money but no place, so it is out.
+ */
+async function readSeminarImpacts(
+  paymentId: string,
+): Promise<PaymentDeletionImpact[]> {
+  const affected = await db
+    .select({
+      allocatedAmount: sql<number>`coalesce((
+        select sum(${paymentAllocations.amount})
+        from ${paymentAllocations}
+        where ${paymentAllocations.seminarInscriptionId} = ${seminarInscriptions.id}
+      ), 0)`,
+      instructorName: seminars.instructorName,
+      releasedAmount: paymentAllocations.amount,
+      requiredDepositPercentage: seminars.requiredDepositPercentage,
+      seminarId: seminars.id,
+      storedPriceAmount: seminarPrices.amount,
+      withdrawnAt: seminarInscriptions.withdrawnAt,
+    })
+    .from(paymentAllocations)
+    .innerJoin(
+      seminarInscriptions,
+      eq(paymentAllocations.seminarInscriptionId, seminarInscriptions.id),
+    )
+    .innerJoin(seminars, eq(seminars.id, seminarInscriptions.seminarId))
+    .leftJoin(
+      seminarPrices,
+      eq(seminarPrices.id, seminarInscriptions.selectedPriceId),
+    )
+    // Every row the payment funds, withdrawn ones included: the money leaves a
+    // withdrawn row exactly as it leaves an active one, so hiding it here would
+    // delete money the impact list never named. Only the place is active-only,
+    // which the predicate below reads off `withdrawnAt`.
+    .where(eq(paymentAllocations.paymentId, paymentId));
+
+  const impacts = new Map<string, SeminarUnitImpact>();
+
+  for (const row of affected) {
+    const storedDepositAmount = deriveSeminarInscriptionThresholds({
+      priceAmount: row.storedPriceAmount,
+      requiredDepositPercentage: row.requiredDepositPercentage,
+    }).depositAmount;
+    const allocatedAmount = Number(row.allocatedAmount);
+    const withdrawn = row.withdrawnAt !== null;
+    // A withdrawn row holds no place, so it has none to lose: the predicate
+    // answers `false` on both sides of the subtraction and the row contributes
+    // its money to the entry without inflating the count.
+    const losesPlace =
+      isSeminarInscriptionCovered({
+        allocatedAmount,
+        storedDepositAmount,
+        withdrawn,
+      }) &&
+      !isSeminarInscriptionCovered({
+        allocatedAmount: allocatedAmount - row.releasedAmount,
+        storedDepositAmount,
+        withdrawn,
+      });
+    const impact = impacts.get(row.seminarId) ?? {
+      allocatedAmount: 0,
+      id: row.seminarId,
+      kind: "seminar" as const,
+      losingPlaceCount: 0,
+      name: row.instructorName,
+    };
+
+    impacts.set(row.seminarId, {
+      ...impact,
+      allocatedAmount: impact.allocatedAmount + row.releasedAmount,
+      losingPlaceCount: impact.losingPlaceCount + (losesPlace ? 1 : 0),
+    });
+  }
+
+  return [...impacts.values()];
+}
+
+async function readChoreographyImpacts(input: {
   academyId: string;
   eventId: string;
   paymentId: string;
@@ -54,12 +170,12 @@ export async function readPaymentDeletionImpact(input: {
       amount: paymentAllocations.amount,
       choreographyId: choreographyDancers.choreographyId,
       choreographyName: choreographies.name,
-      inscriptionId: paymentAllocations.inscriptionId,
+      inscriptionId: restrictedChoreographyInscriptionId,
     })
     .from(paymentAllocations)
     .innerJoin(
       choreographyDancers,
-      eq(paymentAllocations.inscriptionId, choreographyDancers.id),
+      eq(paymentAllocations.choreographyInscriptionId, choreographyDancers.id),
     )
     .innerJoin(
       choreographies,
@@ -120,21 +236,20 @@ export async function readPaymentDeletionImpact(input: {
     affected.map((row) => [row.choreographyId, row.choreographyName]),
   );
 
-  return choreographyIds
-    .map((choreographyId) => ({
-      ...readChoreographyImpact({
-        allocatedByInscription,
-        inscriptions: activeInscriptions.filter(
-          (inscription) => inscription.choreographyId === choreographyId,
-        ),
-        releasedByInscription,
-        thresholds,
-      }),
-      allocatedAmount: releasedByChoreography.get(choreographyId) ?? 0,
-      id: choreographyId,
-      name: nameByChoreography.get(choreographyId) ?? "",
-    }))
-    .sort((left, right) => left.name.localeCompare(right.name, "es"));
+  return choreographyIds.map((choreographyId) => ({
+    ...readChoreographyImpact({
+      allocatedByInscription,
+      inscriptions: activeInscriptions.filter(
+        (inscription) => inscription.choreographyId === choreographyId,
+      ),
+      releasedByInscription,
+      thresholds,
+    }),
+    allocatedAmount: releasedByChoreography.get(choreographyId) ?? 0,
+    id: choreographyId,
+    kind: "choreography" as const,
+    name: nameByChoreography.get(choreographyId) ?? "",
+  }));
 }
 
 /**
@@ -148,7 +263,7 @@ function readChoreographyImpact(input: {
   releasedByInscription: Map<string, number>;
   thresholds: Awaited<ReturnType<typeof readInscriptionThresholds>>;
 }): Pick<
-  PaymentDeletionImpact,
+  Extract<PaymentDeletionImpact, { kind: "choreography" }>,
   "resultingStatus" | "uncrossingInscriptionCount"
 > {
   let uncrossingInscriptionCount = 0;
@@ -182,7 +297,7 @@ function readChoreographyImpact(input: {
   return {
     resultingStatus:
       uncrossingInscriptionCount > 0
-        ? deriveChoreographyFinancialStatus(statusesAfter)
+        ? deriveMinimumFinancialStatus(statusesAfter)
         : null,
     uncrossingInscriptionCount,
   };
@@ -200,10 +315,12 @@ async function readAllocatedByInscription(
   const rows = await db
     .select({
       amount: paymentAllocations.amount,
-      inscriptionId: paymentAllocations.inscriptionId,
+      inscriptionId: restrictedChoreographyInscriptionId,
     })
     .from(paymentAllocations)
-    .where(inArray(paymentAllocations.inscriptionId, inscriptionIds));
+    .where(
+      inArray(paymentAllocations.choreographyInscriptionId, inscriptionIds),
+    );
 
   for (const row of rows) {
     allocatedByInscription.set(

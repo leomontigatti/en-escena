@@ -134,6 +134,34 @@
       "when": 1788990793936,
       "tag": "0018_add_event_payment_instructions",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1789242230811,
+      "tag": "0019_add_seminar_kind_and_deposit_rate",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1789243211725,
+      "tag": "0020_add_seminar_price",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1789330000000,
+      "tag": "0021_add_seminar_allocation_target",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1789420000000,
+      "tag": "0022_add_comprobante_seminar_anchor",
+      "breakpoints": true
     }
   ]
 }

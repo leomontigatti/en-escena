@@ -22,6 +22,8 @@ const seminarFormValues = {
   scheduledDate: "2026-10-10",
   startTime: "18:30",
   quota: "20",
+  kind: "regular" as const,
+  requiredDepositPercentage: "50",
   instructorPictureKept: "" as const,
 };
 
@@ -36,6 +38,7 @@ const createLoaderResult = {
 };
 
 const detailLoaderResult = {
+  hasCoveredInscription: false,
   inscriptions: [],
   instructorPictureUrl: null,
   selectedEventId: "evento_1",
@@ -47,8 +50,11 @@ const detailLoaderResult = {
     scheduledDate: "2026-10-10",
     startTime: "18:30",
     quota: 20,
+    kind: "regular" as const,
+    requiredDepositPercentage: 50,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     availablePlaces: 20,
+    registeredCount: 0,
     inscriptionCount: 0,
   },
   values: seminarFormValues,

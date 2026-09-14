@@ -20,8 +20,9 @@ import {
   ISSUER_IVA_CONDITION,
   type FacturaCEmissionDeps,
 } from "./emit-factura-c.server";
+import { readComprobanteAnchor } from "./anchor";
 import {
-  listChoreographyComprobantes,
+  listAnchorComprobantes,
   recordComprobante,
   type ComprobanteWithLines,
 } from "./comprobantes.server";
@@ -198,7 +199,10 @@ async function resolveNotaCreditoChoreography(
       }),
     persist: (authorized): Promise<ComprobanteRow> =>
       recordComprobante({
-        choreographyId: target.choreographyId,
+        // The mirror anchors where the annulled comprobante does — that is what
+        // makes an annulment readable from the unit and keeps a seminar's
+        // credit note out of a choreography's scope.
+        anchor: readComprobanteAnchor(target),
         eventId: target.eventId,
         cbteTipo: NOTA_CREDITO_C_CBTE_TIPO,
         ptoVta: deps.ptoVta,
@@ -215,7 +219,8 @@ async function resolveNotaCreditoChoreography(
         associatedComprobanteId: target.id,
         // Replica of the annulled comprobante's internal lines, frozen.
         lines: target.lines.map((line) => ({
-          inscriptionId: line.inscriptionId,
+          choreographyInscriptionId: line.choreographyInscriptionId,
+          seminarInscriptionId: line.seminarInscriptionId,
           amount: line.amount,
         })),
       }),
@@ -225,13 +230,18 @@ async function resolveNotaCreditoChoreography(
 }
 
 // Loads the target comprobante with its derived state and its internal lines.
-// The state is derived over the set of its anchor choreography, which is
-// self-contained (the mirror credit note anchors to the same choreography).
+// The state is derived over the set of its ANCHOR, which is self-contained: the
+// mirror credit note anchors to the same unit, so a comprobante can only ever be
+// annulled by another of its own.
 async function loadComprobanteWithStatus(
   comprobanteId: string,
 ): Promise<ComprobanteWithLines | null> {
   const [row] = await db
-    .select({ choreographyId: comprobantes.choreographyId })
+    .select({
+      academyId: comprobantes.academyId,
+      choreographyId: comprobantes.choreographyId,
+      seminarId: comprobantes.seminarId,
+    })
     .from(comprobantes)
     .where(eq(comprobantes.id, comprobanteId));
 
@@ -239,6 +249,6 @@ async function loadComprobanteWithStatus(
     return null;
   }
 
-  const scope = await listChoreographyComprobantes(row.choreographyId);
+  const scope = await listAnchorComprobantes(readComprobanteAnchor(row));
   return scope.find((comprobante) => comprobante.id === comprobanteId) ?? null;
 }

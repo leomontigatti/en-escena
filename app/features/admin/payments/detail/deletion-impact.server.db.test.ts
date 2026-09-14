@@ -3,10 +3,17 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import {
+  choreographyTarget,
+  restrictedChoreographyInscriptionId,
+} from "@/lib/finances/allocation-target.server";
+import {
   choreographyDancers,
   paymentAllocations,
   payments,
   prices,
+  seminarInscriptions,
+  seminarPrices,
+  seminars,
 } from "@/db/schema";
 import { readPaymentDeletionImpact } from "@/features/admin/payments/detail/deletion-impact.server";
 import {
@@ -14,8 +21,10 @@ import {
   createDancer,
 } from "@/features/portal/choreographies/test-support/db";
 import { spreadFromPool } from "@/lib/finances/allocation-pool.server";
+import { allocateToSeminarInscription } from "@/lib/finances/seminar-inscription-allocation.server";
+import { countCoveredSeminarInscriptions } from "@/lib/seminars/covered-inscriptions.server";
 import {
-  deriveChoreographyFinancialStatus,
+  deriveMinimumFinancialStatus,
   deriveInscriptionFinancialStatus,
 } from "@/lib/finances/inscription-financial-status";
 import { readInscriptionThresholds } from "@/lib/finances/inscription-thresholds.server";
@@ -133,12 +142,12 @@ async function readChoreographyStatuses(input: {
   const allocations = await db
     .select({
       amount: paymentAllocations.amount,
-      inscriptionId: paymentAllocations.inscriptionId,
+      inscriptionId: restrictedChoreographyInscriptionId,
     })
     .from(paymentAllocations)
     .where(
       inArray(
-        paymentAllocations.inscriptionId,
+        paymentAllocations.choreographyInscriptionId,
         inscriptions.map((inscription) => inscription.id),
       ),
     );
@@ -160,7 +169,7 @@ async function readChoreographyStatuses(input: {
   return new Map(
     input.choreographyIds.map((choreographyId) => [
       choreographyId,
-      deriveChoreographyFinancialStatus(
+      deriveMinimumFinancialStatus(
         inscriptions
           .filter(
             (inscription) => inscription.choreographyId === choreographyId,
@@ -179,6 +188,53 @@ async function readChoreographyStatuses(input: {
   );
 }
 
+/**
+ * A seminar of the same event with one inscription of the same academy, priced
+ * by a non-participant `Común` row of 4000 at the seminar's own 50 %: its
+ * deposit is 2000, which is what the payment about to be deleted covers.
+ */
+async function seedSeminarInscription(fixture: {
+  academyId: string;
+  eventId: string;
+}) {
+  const [seminar] = await db
+    .insert(seminars)
+    .values({
+      eventId: fixture.eventId,
+      instructorName: "Abril Sosa",
+      quota: 5,
+      requiredDepositPercentage: 50,
+      scheduledDate: "2026-10-10",
+      startTime: "18:30",
+    })
+    .returning();
+  const [price] = await db
+    .insert(seminarPrices)
+    .values({
+      amount: 4000,
+      eventId: fixture.eventId,
+      forParticipants: false,
+      kind: "regular",
+      name: "General",
+      paymentDeadline: null,
+    })
+    .returning();
+  const dancer = await createDancer(fixture.academyId, {
+    firstName: "Seminarista",
+    lastName: "Borrado",
+  });
+  const [inscription] = await db
+    .insert(seminarInscriptions)
+    .values({ dancerId: dancer.id, seminarId: seminar.id })
+    .returning();
+
+  return {
+    inscriptionId: inscription.id,
+    priceId: price.id,
+    seminarId: seminar.id,
+  };
+}
+
 describe("readPaymentDeletionImpact", () => {
   test("names each choreography with its amount and the un-cross count the deletion produces", async () => {
     const fixture = await seedDeletionFixture();
@@ -190,13 +246,13 @@ describe("readPaymentDeletionImpact", () => {
       academyId: fixture.academyId,
       amount: 3000,
       eventId: fixture.eventId,
-      inscriptionId: fixture.inscriptionIds[0],
+      target: choreographyTarget(fixture.inscriptionIds[0]),
     });
     await spreadFromPool(db, {
       academyId: fixture.academyId,
       amount: 3000,
       eventId: fixture.eventId,
-      inscriptionId: fixture.inscriptionIds[1],
+      target: choreographyTarget(fixture.inscriptionIds[1]),
     });
 
     const impact = await readPaymentDeletionImpact({
@@ -209,6 +265,7 @@ describe("readPaymentDeletionImpact", () => {
       {
         allocatedAmount: 3000,
         id: fixture.choreographyIds[0],
+        kind: "choreography",
         name: "Aire",
         resultingStatus: "depositPending",
         uncrossingInscriptionCount: 1,
@@ -238,7 +295,7 @@ describe("readPaymentDeletionImpact", () => {
       academyId: fixture.academyId,
       amount: 1000,
       eventId: fixture.eventId,
-      inscriptionId: fixture.inscriptionIds[0],
+      target: choreographyTarget(fixture.inscriptionIds[0]),
     });
 
     const impact = await readPaymentDeletionImpact({
@@ -251,9 +308,91 @@ describe("readPaymentDeletionImpact", () => {
       {
         allocatedAmount: 1000,
         id: fixture.choreographyIds[0],
+        kind: "choreography",
         name: "Aire",
         resultingStatus: null,
         uncrossingInscriptionCount: 0,
+      },
+    ]);
+  });
+
+  test("names the seminar by its instructor with the places its inscriptions lose", async () => {
+    const fixture = await seedDeletionFixture();
+    const doomedPayment = fixture.paymentRows[0];
+    const seminar = await seedSeminarInscription(fixture);
+
+    // Exactly the deposit of the stored row, so the inscription holds a place —
+    // and the money comes out of the payment about to be deleted.
+    await expect(
+      allocateToSeminarInscription({
+        academyId: fixture.academyId,
+        amount: 2000,
+        eventId: fixture.eventId,
+        inscriptionId: seminar.inscriptionId,
+        priceId: seminar.priceId,
+        seminarId: seminar.seminarId,
+      }),
+    ).resolves.toEqual({ ok: true });
+
+    expect(
+      await readPaymentDeletionImpact({
+        academyId: fixture.academyId,
+        eventId: fixture.eventId,
+        paymentId: doomedPayment.id,
+      }),
+    ).toEqual([
+      {
+        allocatedAmount: 2000,
+        id: seminar.seminarId,
+        kind: "seminar",
+        losingPlaceCount: 1,
+        name: "Abril Sosa",
+      },
+    ]);
+
+    // The deletion never blocks, and the place the money held comes back.
+    await db.delete(payments).where(eq(payments.id, doomedPayment.id));
+
+    expect(await countCoveredSeminarInscriptions(seminar.seminarId)).toBe(0);
+  });
+
+  test("names a withdrawn seminar row's money while counting no place for it", async () => {
+    const fixture = await seedDeletionFixture();
+    const doomedPayment = fixture.paymentRows[0];
+    const seminar = await seedSeminarInscription(fixture);
+
+    await expect(
+      allocateToSeminarInscription({
+        academyId: fixture.academyId,
+        amount: 2000,
+        eventId: fixture.eventId,
+        inscriptionId: seminar.inscriptionId,
+        priceId: seminar.priceId,
+        seminarId: seminar.seminarId,
+      }),
+    ).resolves.toEqual({ ok: true });
+
+    // Withdrawal keeps the money on the row and gives the place back, so the
+    // deletion still takes 2000 out of a row nobody would otherwise be warned
+    // about — and there is no place left for it to lose.
+    await db
+      .update(seminarInscriptions)
+      .set({ withdrawnAt: new Date("2026-10-01T12:00:00.000Z") })
+      .where(eq(seminarInscriptions.id, seminar.inscriptionId));
+
+    expect(
+      await readPaymentDeletionImpact({
+        academyId: fixture.academyId,
+        eventId: fixture.eventId,
+        paymentId: doomedPayment.id,
+      }),
+    ).toEqual([
+      {
+        allocatedAmount: 2000,
+        id: seminar.seminarId,
+        kind: "seminar",
+        losingPlaceCount: 0,
+        name: "Abril Sosa",
       },
     ]);
   });

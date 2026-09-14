@@ -288,7 +288,11 @@ export function renderPreciosRoute(loaderData: EventBasesLoaderData) {
     path: "precios",
     url: "/administracion/precios",
     handle: preciosHandle,
-    element: createElement(EventPricesListView, { loaderData }),
+    // The seminar tab of `Precios` has a list of its own, which these
+    // `Bases del evento` helpers never load: they render the choreography tab.
+    element: createElement(EventPricesListView, {
+      loaderData: { ...loaderData, seminarPrices: [] },
+    }),
   });
 }
 

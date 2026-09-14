@@ -125,15 +125,13 @@ export function PaymentDetailRouteView({
       {loaderData.canDelete ? (
         <DeleteDialog
           description={
-            loaderData.affectedChoreographies.length > 0
+            loaderData.affectedUnits.length > 0
               ? "El pago y sus asignaciones se eliminan juntos. Ese dinero sale del pool: no vuelve al saldo disponible de la academia."
               : "El pago sale del pool: el saldo disponible de la academia baja por su monto."
           }
           details={
-            loaderData.affectedChoreographies.length > 0 ? (
-              <AffectedChoreographiesList
-                choreographies={loaderData.affectedChoreographies}
-              />
+            loaderData.affectedUnits.length > 0 ? (
+              <AffectedUnitsList units={loaderData.affectedUnits} />
             ) : undefined
           }
           intentValue={deletePaymentIntent}
@@ -148,43 +146,64 @@ export function PaymentDetailRouteView({
 }
 
 /**
- * Every choreography the payment reaches, with what it takes out of it and how
- * many inscriptions stop meeting a threshold they had crossed. None of it
+ * Every unit the payment reaches — choreographies and seminars in one list,
+ * named by the choreography's name and by the seminar's instructor — with what
+ * the deletion takes out of it and what its inscriptions lose. None of it
  * blocks: the deletion always proceeds, so the list informs rather than warns.
  *
- * The resulting status is named only when something actually un-crosses. With
+ * The two kinds lose different things. A choreography names the threshold its
+ * inscriptions stop meeting, and only when something actually un-crosses: with
  * nothing un-crossing there is no new state to announce, and naming the one it
- * already had would read as a consequence of deleting the payment.
+ * already had would read as a consequence of deleting the payment. A seminar
+ * names the **places** it gives back, because there covering the deposit is what
+ * took the place.
  */
-function AffectedChoreographiesList({
-  choreographies,
-}: {
-  choreographies: LoaderData["affectedChoreographies"];
-}) {
+function AffectedUnitsList({ units }: { units: LoaderData["affectedUnits"] }) {
   return (
     <ul className="divide-y divide-border rounded-md border text-sm">
-      {choreographies.map((choreography) => (
-        <li key={choreography.id} className="flex flex-col gap-0.5 px-3 py-2">
+      {units.map((unit) => (
+        <li
+          key={`${unit.kind}:${unit.id}`}
+          className="flex flex-col gap-0.5 px-3 py-2"
+        >
           <div className="flex items-baseline justify-between gap-3">
-            <span className="font-medium">{choreography.name}</span>
+            <span className="font-medium">{unit.name}</span>
             <span className="tabular-nums">
-              {formatAmount(choreography.allocatedAmount)}
+              {formatAmount(unit.allocatedAmount)}
             </span>
           </div>
-          {choreography.uncrossingInscriptionCount > 0 &&
-          choreography.resultingStatus !== null ? (
-            <span className="text-xs text-muted-foreground">
-              {choreography.uncrossingInscriptionCount === 1
-                ? "1 inscripción deja de cumplir un umbral"
-                : `${choreography.uncrossingInscriptionCount} inscripciones dejan de cumplir un umbral`}
-              {" · queda "}
-              {formatInscriptionFinancialStatus(choreography.resultingStatus)}
-            </span>
-          ) : null}
+          <AffectedUnitConsequence unit={unit} />
         </li>
       ))}
     </ul>
   );
+}
+
+function AffectedUnitConsequence({
+  unit,
+}: {
+  unit: LoaderData["affectedUnits"][number];
+}) {
+  if (unit.kind === "seminar") {
+    return unit.losingPlaceCount > 0 ? (
+      <span className="text-xs text-muted-foreground">
+        {unit.losingPlaceCount === 1
+          ? "1 inscripción pierde su lugar"
+          : `${unit.losingPlaceCount} inscripciones pierden su lugar`}
+      </span>
+    ) : null;
+  }
+
+  return unit.uncrossingInscriptionCount > 0 &&
+    unit.resultingStatus !== null ? (
+    <span className="text-xs text-muted-foreground">
+      {unit.uncrossingInscriptionCount === 1
+        ? "1 inscripción deja de cumplir un umbral"
+        : `${unit.uncrossingInscriptionCount} inscripciones dejan de cumplir un umbral`}
+      {" · queda "}
+      {formatInscriptionFinancialStatus(unit.resultingStatus)}
+    </span>
+  ) : null;
 }
 
 export function getPaymentDisplayName(

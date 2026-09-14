@@ -4,7 +4,12 @@ import { useServerActionToast } from "@/lib/shared/toasts";
 
 import { SeminarActions } from "../actions";
 import { SeminarInscriptionsTable } from "../inscriptions-table";
-import { SeminarForm, SeminarFormActions, SeminarFormPanel } from "../form";
+import {
+  SeminarForm,
+  SeminarFormActions,
+  SeminarFormPanel,
+  useSeminarForm,
+} from "../form";
 import {
   updateSeminarIntent,
   type SeminarActionData,
@@ -27,12 +32,17 @@ export function SeminarDetailView({
   useServerActionToast(actionData);
 
   const seminar = loaderData.seminar;
+  const controller = useSeminarForm({
+    actionData,
+    intent: updateSeminarIntent,
+    values: loaderData.values,
+  });
 
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
       title="Editar seminario"
-      description="Editá el instructor, su foto, la fecha, la hora y el cupo del seminario."
+      description="Editá el instructor, su foto, el tipo, la fecha, la hora, el cupo y la seña del seminario."
       headerAction={
         <SeminarActions
           seminar={seminar}
@@ -48,8 +58,9 @@ export function SeminarDetailView({
         <TabsContent value="informacion" className="pt-2">
           <SeminarFormPanel>
             <SeminarForm
-              actionData={actionData}
+              controller={controller}
               formId={updateSeminarFormId}
+              hasCoveredInscription={loaderData.hasCoveredInscription}
               instructorPictureUrl={loaderData.instructorPictureUrl}
               intent={updateSeminarIntent}
               occupancy={{
@@ -57,9 +68,9 @@ export function SeminarDetailView({
                 quota: seminar.quota,
               }}
               showInstructorPicture
-              values={loaderData.values}
             />
             <SeminarFormActions
+              controller={controller}
               formId={updateSeminarFormId}
               pendingScope={{ intent: updateSeminarIntent }}
               selectedEventId={loaderData.selectedEventId}

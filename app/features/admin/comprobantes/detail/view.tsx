@@ -24,6 +24,10 @@ import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
 import { formatAmount } from "@/lib/finances/formatters";
 import {
+  comprobanteAnchorHref,
+  formatComprobanteAnchorLabel,
+} from "@/lib/comprobantes/anchor-reading";
+import {
   ContingencyAlert,
   contingencyCancelLabel,
   resolveContingencySubmitState,
@@ -156,13 +160,20 @@ function ComprobanteDetailCard({
         />
         <DetailRow label="Academia" value={comprobante.academyName} />
         <DetailRow
-          label="Coreografía"
+          label={
+            comprobante.anchor.kind === "choreography"
+              ? "Coreografía"
+              : "Seminario"
+          }
           value={
             <Link
               className="text-primary underline-offset-4 hover:underline"
-              to={`/administracion/finanzas/${comprobante.academyId}/coreografias/${comprobante.choreographyId}`}
+              to={comprobanteAnchorHref({
+                academyId: comprobante.academyId,
+                reading: comprobante.anchor,
+              })}
             >
-              {comprobante.choreographyName}
+              {formatComprobanteAnchorLabel(comprobante.anchor)}
             </Link>
           }
         />

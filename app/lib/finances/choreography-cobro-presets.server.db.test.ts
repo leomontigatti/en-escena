@@ -2,6 +2,7 @@ import { asc, eq, inArray } from "drizzle-orm";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
+import { restrictedChoreographyInscriptionId } from "@/lib/finances/allocation-target.server";
 import {
   choreographyDancers,
   paymentAllocations,
@@ -105,10 +106,12 @@ async function readAllocations(inscriptionIds: string[]) {
   return await db
     .select({
       amount: paymentAllocations.amount,
-      inscriptionId: paymentAllocations.inscriptionId,
+      inscriptionId: restrictedChoreographyInscriptionId,
     })
     .from(paymentAllocations)
-    .where(inArray(paymentAllocations.inscriptionId, inscriptionIds));
+    .where(
+      inArray(paymentAllocations.choreographyInscriptionId, inscriptionIds),
+    );
 }
 
 function sumByInscription(
@@ -322,7 +325,7 @@ describe("payChoreographiesPreset", () => {
       academyId: fixture.academyId,
       amount: 1000,
       eventId: fixture.eventId,
-      inscriptionId,
+      choreographyInscriptionId: inscriptionId,
       paymentId: payment.id,
     });
 

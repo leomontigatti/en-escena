@@ -31,6 +31,7 @@ import { resolveChoreographyPricingScheduleId } from "@/lib/finances/choreograph
 import { deriveInscriptionFinancialFigures } from "@/lib/finances/inscription-financial-status";
 import { readInscriptionThresholds } from "@/lib/finances/inscription-thresholds.server";
 
+import { choreographyTarget } from "./allocation-target.server";
 import {
   readInscriptionAllocatedAmount,
   spreadFromPool,
@@ -158,7 +159,10 @@ async function fundOwedThreshold(
     }
 
     const figures = deriveInscriptionFinancialFigures({
-      allocatedAmount: await readInscriptionAllocatedAmount(tx, inscriptionId),
+      allocatedAmount: await readInscriptionAllocatedAmount(
+        tx,
+        choreographyTarget(inscriptionId),
+      ),
       thresholds: resolution,
     });
     const owedAmount =
@@ -182,7 +186,7 @@ async function fundOwedThreshold(
       academyId: input.academyId,
       amount: owedAmount,
       eventId: input.eventId,
-      inscriptionId,
+      target: choreographyTarget(inscriptionId),
     });
 
     if (!result.ok) {
@@ -270,7 +274,10 @@ async function applySelectedPrices(
     }
 
     const crossed = await hasCrossedStoredDepositThreshold(tx, {
-      allocatedAmount: await readInscriptionAllocatedAmount(tx, inscription.id),
+      allocatedAmount: await readInscriptionAllocatedAmount(
+        tx,
+        choreographyTarget(inscription.id),
+      ),
       selectedPriceId: inscription.selectedPriceId,
     });
 

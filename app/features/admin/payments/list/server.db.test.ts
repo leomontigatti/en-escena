@@ -159,14 +159,14 @@ async function buildPaymentsFixture() {
       academyId: academy.academy.id,
       amount: 10000,
       eventId: event.id,
-      inscriptionId: inscription.id,
+      choreographyInscriptionId: inscription.id,
       paymentId: byNumber.get(1)!.id,
     },
     {
       academyId: academy.academy.id,
       amount: 5000,
       eventId: event.id,
-      inscriptionId: inscription.id,
+      choreographyInscriptionId: inscription.id,
       paymentId: byNumber.get(2)!.id,
     },
   ]);

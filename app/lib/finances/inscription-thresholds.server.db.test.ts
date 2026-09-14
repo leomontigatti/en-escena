@@ -279,7 +279,7 @@ async function seedPriceLockFixture(input: {
       academyId: academy.academy.id,
       amount: allocatedAmount,
       eventId: event.id,
-      inscriptionId: inscription.id,
+      choreographyInscriptionId: inscription.id,
       paymentId: payment.id,
     });
   }
