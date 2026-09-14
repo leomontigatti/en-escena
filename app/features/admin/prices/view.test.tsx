@@ -448,6 +448,7 @@ function createLoaderData({
   return {
     selectedEventId: "event_1",
     seminarPrices: [],
+    hasSeminars: false,
     schedules: [
       {
         id: "block_1",

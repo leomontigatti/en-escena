@@ -5,6 +5,7 @@ import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 import { listPrices } from "@/lib/prices/repository.server";
 import { listSeminarPrices } from "@/lib/seminar-prices/repository.server";
 import { listSchedules } from "@/lib/schedules/repository.server";
+import { hasEventSeminars } from "@/lib/seminars/repository.server";
 
 async function loadEventPriceContext(request: Request) {
   await requireAdminPanelUser(request);
@@ -23,15 +24,21 @@ export async function loadEventPricesListData(request: Request) {
   const selectedEventId = eventContext.selectedEventId;
 
   if (!selectedEventId) {
-    return { selectedEventId, prices: [], seminarPrices: [] };
+    return {
+      selectedEventId,
+      prices: [],
+      seminarPrices: [],
+      hasSeminars: false,
+    };
   }
 
-  const [prices, seminarPrices] = await Promise.all([
+  const [prices, seminarPrices, hasSeminars] = await Promise.all([
     listPrices(selectedEventId),
     listSeminarPrices(selectedEventId),
+    hasEventSeminars(selectedEventId),
   ]);
 
-  return { selectedEventId, prices, seminarPrices };
+  return { selectedEventId, prices, seminarPrices, hasSeminars };
 }
 
 export async function loadEventPriceFormOptions(request: Request) {

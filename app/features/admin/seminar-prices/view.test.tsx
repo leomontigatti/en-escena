@@ -32,13 +32,18 @@ function seminarPrice(
   };
 }
 
-function renderList(seminarPrices: SeminarPriceListItem[], url: string) {
+function renderList(
+  seminarPrices: SeminarPriceListItem[],
+  url: string,
+  hasSeminars = true,
+) {
   return renderRouteView(
     createElement(EventPricesListView, {
       loaderData: {
         selectedEventId: "event_1",
         prices: [],
         seminarPrices,
+        hasSeminars,
       },
     }),
     url,
@@ -122,6 +127,14 @@ describe("`Precios` with its seminar tab", () => {
     );
 
     expect(covered).not.toContain(warning);
+  });
+
+  test("does not warn while the event has no seminars", () => {
+    const warning = "Existen combinaciones de seminario sin un precio general";
+
+    expect(renderList([], "/administracion/precios", false)).not.toContain(
+      warning,
+    );
   });
 });
 
