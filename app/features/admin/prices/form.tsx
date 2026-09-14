@@ -3,14 +3,7 @@ import { useEffect, useId, useMemo, type ReactNode } from "react";
 import { Controller, useForm, type UseFormReturn } from "react-hook-form";
 
 import { AdminResourceFormCard } from "@/components/admin/resource-layout";
-import { DateOnlyField } from "@/components/shared/date-only-field";
 import { SharedFieldLayout } from "@/components/shared/field-layout";
-import { IntegerInputField } from "@/components/shared/integer-input-field";
-import {
-  ReadOnlyDateField,
-  ReadOnlyField,
-  ReadOnlySelectField,
-} from "@/components/shared/read-only-field";
 import { FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -31,11 +24,14 @@ import {
   useOptionalFormAction,
   useOptionalSubmit,
 } from "@/lib/shared/forms";
-import { SelectField } from "@/components/shared/select-field";
 
 import { EventBasesFormActions } from "../events/bases-form-actions";
 import {
-  openEndedDeadlineLabel,
+  GuardedAmountField,
+  GuardedDeadlineField,
+  GuardedSelectField,
+} from "./guarded-fields";
+import {
   EMPTY_SCHEDULE_VALUE,
   priceFormSchema,
   type PriceFormValues,
@@ -137,6 +133,10 @@ export function PriceForm({
 
   const values = form.watch();
   const fieldIdSuffix = id ?? intent;
+  const scheduleOptions = schedules.map((schedule) => ({
+    label: schedule.name,
+    value: schedule.id,
+  }));
 
   return (
     <form
@@ -150,169 +150,48 @@ export function PriceForm({
       <FieldGroup>
         <NameField form={form} canEditStructure={guard.canEditStructure} />
         {values.isSpecialPrice ? (
-          <ScheduleField
+          <GuardedSelectField
             fieldId={`price-schedule-${fieldIdSuffix}`}
             form={form}
             guard={guard}
-            schedules={schedules}
-            values={values}
+            label="Cronograma"
+            name="scheduleId"
+            options={scheduleOptions}
+            placeholder="Elegí un cronograma"
+            value={values.scheduleId}
           />
         ) : (
           <input type="hidden" name="scheduleId" value="" />
         )}
-        <DeadlineField
+        <GuardedDeadlineField
           fieldId={`price-payment-deadline-${fieldIdSuffix}`}
           form={form}
           guard={guard}
           isExistingRow={Boolean(id)}
-          values={values}
+          name="paymentDeadline"
+          value={values.paymentDeadline}
         />
         <FieldGroup className="grid gap-4 sm:grid-cols-2">
-          <GroupTypeField
+          <GuardedSelectField
             fieldId={`price-group-type-${fieldIdSuffix}`}
             form={form}
             guard={guard}
-            values={values}
+            label="Tipo de grupo"
+            name="groupType"
+            options={groupTypeOptions}
+            placeholder="Elegí un tipo"
+            value={values.groupType}
           />
-          <AmountField
+          <GuardedAmountField
             fieldId={`price-amount-${fieldIdSuffix}`}
             form={form}
             guard={guard}
-            values={values}
+            name="amount"
+            value={values.amount}
           />
         </FieldGroup>
       </FieldGroup>
     </form>
-  );
-}
-
-/**
- * The structural fields read the same way as on the seminar price form: the
- * editable control while the guard allows the change, the shared read-only look
- * otherwise, with the value still travelling in the body so a save of the
- * fields that are open does not blank the ones that are locked.
- */
-type GuardedFieldProps = {
-  fieldId: string;
-  form: PriceFormController;
-  guard: PriceGuard;
-  values: PriceFormValues;
-};
-
-function ScheduleField({
-  fieldId,
-  form,
-  guard,
-  schedules,
-  values,
-}: GuardedFieldProps & { schedules: ScheduleListItem[] }) {
-  const options = schedules.map((schedule) => ({
-    label: schedule.name,
-    value: schedule.id,
-  }));
-
-  if (!guard.canEditStructure) {
-    return (
-      <ReadOnlySelectField
-        id={fieldId}
-        label="Cronograma"
-        name="scheduleId"
-        options={options}
-        value={values.scheduleId}
-      />
-    );
-  }
-
-  return (
-    <SelectField
-      control={form.control}
-      label="Cronograma"
-      name="scheduleId"
-      options={options}
-      placeholder="Elegí un cronograma"
-    />
-  );
-}
-
-/**
- * An empty deadline reads differently on each form: a field still to fill in
- * while the price is being created, the row's own answer once it is saved.
- */
-function DeadlineField({
-  fieldId,
-  form,
-  guard,
-  isExistingRow,
-  values,
-}: GuardedFieldProps & { isExistingRow: boolean }) {
-  if (!guard.canEditStructure) {
-    return (
-      <ReadOnlyDateField
-        id={fieldId}
-        label="Fecha límite de pago"
-        name="paymentDeadline"
-        emptyLabel={openEndedDeadlineLabel}
-        value={values.paymentDeadline || null}
-      />
-    );
-  }
-
-  return (
-    <DateOnlyField
-      clearable
-      control={form.control}
-      name="paymentDeadline"
-      id={fieldId}
-      label="Fecha límite de pago"
-      placeholder={isExistingRow ? openEndedDeadlineLabel : undefined}
-    />
-  );
-}
-
-function GroupTypeField({ fieldId, form, guard, values }: GuardedFieldProps) {
-  if (!guard.canEditStructure) {
-    return (
-      <ReadOnlySelectField
-        id={fieldId}
-        label="Tipo de grupo"
-        name="groupType"
-        options={groupTypeOptions}
-        value={values.groupType}
-      />
-    );
-  }
-
-  return (
-    <SelectField
-      control={form.control}
-      label="Tipo de grupo"
-      name="groupType"
-      options={groupTypeOptions}
-      placeholder="Elegí un tipo"
-    />
-  );
-}
-
-function AmountField({ fieldId, form, guard, values }: GuardedFieldProps) {
-  if (!guard.canEditAmount) {
-    return (
-      <ReadOnlyField
-        id={fieldId}
-        label="Monto"
-        name="amount"
-        value={values.amount}
-      />
-    );
-  }
-
-  return (
-    <IntegerInputField
-      control={form.control}
-      label="Monto"
-      min="1"
-      name="amount"
-      step="1"
-    />
   );
 }
 

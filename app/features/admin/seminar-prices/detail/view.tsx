@@ -1,10 +1,10 @@
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
+import { GuardAlert } from "@/components/shared/guard-alert";
 import { readPriceGuard } from "@/lib/prices/guards";
 import { useServerActionToast } from "@/lib/shared/toasts";
 import type { SeminarPriceListItem } from "@/lib/seminar-prices/repository.server";
 
 import { EmptyResourceState } from "../../prices/actions";
-import { PriceGuardAlerts } from "../../prices/guard-alerts";
 import { SeminarPriceActions } from "../actions";
 import {
   SeminarPriceForm,
@@ -59,7 +59,7 @@ export function SeminarPriceDetailView({
     >
       {seminarPrice && guard ? (
         <>
-          <PriceGuardAlerts reason={guard.reason} />
+          <GuardAlert reason={guard.reason} />
           <SeminarPriceFormPanel>
             <SeminarPriceForm
               formId="update-seminar-price-form"
