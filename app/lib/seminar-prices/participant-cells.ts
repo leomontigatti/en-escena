@@ -17,19 +17,12 @@ export function getParticipantCellLabel(forParticipants: boolean) {
   return participantCellLabels[forParticipants ? "true" : "false"];
 }
 
-/** The same cell inside a sentence, where it names the people it prices. */
-export function getParticipantCellPhrase(forParticipants: boolean) {
-  return forParticipants ? "participantes" : "no participantes";
-}
-
 /**
  * The cells whose deadline-less `regular` row is missing, in the order they are
  * shown. While the list is not empty every seminar of the event is closed to
  * registration: an inscription of that cell would resolve to no price at all.
- * The same reading feeds the warning above the admin table and the portal's
- * closed reason, so the two cannot disagree.
  */
-export function findUncoveredParticipantCells(
+function findUncoveredParticipantCells(
   rows: Array<{
     kind: SeminarKind;
     forParticipants: boolean;

@@ -26,12 +26,12 @@ export const seminarPricesMissingMessage =
   "Las inscripciones a este seminario todavía no están abiertas.";
 
 /**
- * Said twice as well: the admin delete dialog warns with it before the
- * submission, and the repository refuses with it when an inscription appeared
- * in between.
+ * Said twice as well: the admin seminar detail explains with it above the tabs
+ * while `Eliminar` is disabled, and the repository refuses with it when an
+ * inscription appeared in between.
  */
 export const seminarHasInscriptionsMessage =
-  "No se puede borrar el seminario porque tiene inscripciones.";
+  "Este seminario tiene inscripciones. No podés eliminarlo.";
 
 /**
  * The one refusal of the delete that is **permanent**: a comprobante is
@@ -51,3 +51,11 @@ export const seminarHasComprobantesMessage =
  * place is the whole of what it may know (docs/domain/seminars.md, "The place").
  */
 export const seminarNoPlacesForRevivalMessage = "Sin lugares disponibles.";
+
+/**
+ * Said twice as well: the admin seminar detail explains with it above the tabs
+ * while the delete, the kind and the deposit rate are locked, and the
+ * repository refuses with it when a deposit was covered in between.
+ */
+export const coveredSeminarMessage =
+  "Este seminario tiene inscripciones con la seña cubierta. No podés eliminarlo ni cambiar el tipo de seminario o la seña.";

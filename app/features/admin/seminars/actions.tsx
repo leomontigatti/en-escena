@@ -21,6 +21,11 @@ export function SeminarActions({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(
     initialDeleteDialogOpen,
   );
+  // The inscriptions are what the seminar owes, and the alert above the tabs
+  // already says it cannot be deleted while any stands, so the item is disabled
+  // on sight. The count is the withdrawn-inclusive one, because that is what
+  // `deleteSeminar` refuses on.
+  const hasInscriptions = seminar.inscriptionCount > 0;
 
   return (
     <>
@@ -28,6 +33,7 @@ export function SeminarActions({
         <DropdownMenuGroup>
           <DropdownMenuItem
             variant="destructive"
+            disabled={hasInscriptions}
             onSelect={() => setDeleteDialogOpen(true)}
           >
             Eliminar
@@ -37,13 +43,9 @@ export function SeminarActions({
       <DeleteDialog
         title="Eliminar seminario"
         description={`Esta acción borra el seminario de ${seminar.instructorName}. No se puede deshacer.`}
-        // The inscriptions are what the seminar owes: while any row stands, the
-        // dialog only explains itself and offers no destructive button.
-        // Administration removes them from `Inscriptos` first. The count is the
-        // withdrawn-inclusive one, because that is what `deleteSeminar` refuses
-        // on — a seminar holding only withdrawn rows would otherwise offer a
-        // button that always fails.
-        isBlocked={seminar.inscriptionCount > 0}
+        // Still blocked when opened straight from the URL: the dialog then only
+        // explains itself and offers no destructive button.
+        isBlocked={hasInscriptions}
         blockedDescription={seminarHasInscriptionsMessage}
         intentValue={deleteSeminarIntent}
         recordId={seminar.id}

@@ -13,6 +13,10 @@ import type {
   EventPricesLoaderData,
 } from "@/features/admin/prices/shared";
 import type { PriceListItem } from "@/lib/events/bases.server";
+import {
+  frozenPriceUpdateError,
+  uncoveredPriceUpdateError,
+} from "@/lib/prices/guards";
 
 describe("EventPriceDetailRouteView", () => {
   let container: HTMLDivElement | null = null;
@@ -97,6 +101,75 @@ describe("EventPriceDetailRouteView", () => {
     expect(readInputValue(container, "amount")).toBe("18000");
     expect(readInputValue(container, "paymentDeadline")).toBe("2026-06-30");
     expect(readInputValue(container, "scheduleId")).toBe("block_2");
+  });
+
+  test("locks a price inscriptions stored down to its name and says why above the form", async () => {
+    const price = {
+      ...createPrice({
+        amount: 12000,
+        groupType: "solo",
+        id: "price_1",
+        name: "Precio Solo",
+        paymentDeadline: "2026-05-31",
+        scheduleId: null,
+        scheduleName: null,
+      }),
+      isReferenced: true,
+    };
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await renderPriceDetailRoute({
+      loaderData: createLoaderData({ prices: [price] }),
+      priceId: price.id,
+      root,
+      EventPriceDetailRouteView,
+    });
+
+    expect(container.textContent).toContain(frozenPriceUpdateError);
+    // The alert sits above the card, not inside the form it explains.
+    expect(container.querySelector("form")?.textContent).not.toContain(
+      frozenPriceUpdateError,
+    );
+    expect(readInputTypes(container, "amount")).toEqual(["hidden"]);
+    expect(
+      container
+        .querySelector('button[role="switch"]')
+        ?.hasAttribute("disabled"),
+    ).toBe(true);
+  });
+
+  test("keeps the amount of the deadline-less price that holds registration open", async () => {
+    const price = {
+      ...createPrice({
+        amount: 12000,
+        groupType: "solo",
+        id: "price_1",
+        name: "Precio Solo",
+        paymentDeadline: "",
+        scheduleId: null,
+        scheduleName: null,
+      }),
+      paymentDeadline: null,
+      keepsRegistrationOpen: true,
+    };
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await renderPriceDetailRoute({
+      loaderData: createLoaderData({ prices: [price] }),
+      priceId: price.id,
+      root,
+      EventPriceDetailRouteView,
+    });
+
+    expect(container.textContent).toContain(uncoveredPriceUpdateError);
+    expect(readInputTypes(container, "amount")).not.toContain("hidden");
+    expect(readInputTypes(container, "paymentDeadline")).toEqual(["hidden"]);
   });
 
   test("formats the breadcrumb display name with group type, schedule and deadline", () => {
@@ -285,6 +358,12 @@ async function renderPricesRoute({
   });
 }
 
+function readInputTypes(container: HTMLElement, name: string) {
+  return Array.from(
+    container.querySelectorAll<HTMLInputElement>(`input[name="${name}"]`),
+  ).map((input) => input.type);
+}
+
 function readInputValue(container: HTMLElement, name: string) {
   const input = container.querySelector<HTMLInputElement>(
     `input[name="${name}"]`,
@@ -365,6 +444,8 @@ function createPrice({
     paymentDeadline,
     scheduleId,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    isReferenced: false,
+    keepsRegistrationOpen: false,
     schedule: scheduleId
       ? {
           id: scheduleId,

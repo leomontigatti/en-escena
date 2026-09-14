@@ -71,6 +71,8 @@ function buildPriceListItem(
     paymentDeadline: "2026-05-31",
     scheduleId: null,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    isReferenced: false,
+    keepsRegistrationOpen: false,
     schedule: null,
     ...overrides,
   };

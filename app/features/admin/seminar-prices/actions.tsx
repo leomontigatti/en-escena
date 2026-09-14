@@ -6,9 +6,8 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
+import { readPriceDeletionBlock } from "@/lib/prices/guards";
 import type { SeminarPriceListItem } from "@/lib/seminar-prices/repository.server";
-
-import { readSeminarPriceDeletionBlock } from "./view-shared";
 
 export function SeminarPriceActions({
   seminarPrice,
@@ -23,7 +22,7 @@ export function SeminarPriceActions({
   // The guard is read before the menu opens, so a protected row shows a
   // disabled item and a dialog that explains instead of a refusal after the
   // submission. The server refuses all the same, for the race.
-  const deletionBlock = readSeminarPriceDeletionBlock(seminarPrice);
+  const deletionBlock = readPriceDeletionBlock(seminarPrice);
 
   return (
     <>

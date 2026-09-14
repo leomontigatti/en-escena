@@ -24,23 +24,19 @@ import type {
   PriceListItem,
   ValidPriceInput,
 } from "@/lib/events/bases-repository/shared.server";
+import {
+  frozenPriceDeleteError,
+  frozenPriceUpdateError,
+  uncoveredPriceDeleteError,
+  uncoveredPriceUpdateError,
+} from "@/lib/prices/guards";
 
-const frozenPriceUpdateError =
-  "No se pueden editar monto, tipo de grupo, vencimiento ni cronograma porque hay inscripciones que congelaron este precio.";
-const frozenPriceDeleteError =
-  "No se puede borrar el precio porque hay inscripciones que congelaron este precio.";
-// The guard tests two things — that this is the group type's only row with no
-// deadline, and that the group type carries active inscriptions — but not that
-// those inscriptions read this row. A group type whose inscriptions have all
-// frozen onto another row is still refused, and correctly so: the roster admin
-// path skips the readiness gate, so nothing else would stop a later un-frozen
-// inscription from landing on an uncovered path. The copy therefore states the
-// two conditions without claiming a dependency that may not hold.
-const uncoveredPriceUpdateError =
-  "No se puede editar el precio porque es el único sin fecha límite de ese tipo de grupo, que tiene inscripciones activas. Podés cambiarle el monto.";
-const uncoveredPriceDeleteError =
-  "No se puede borrar el precio porque es el único sin fecha límite de ese tipo de grupo, que tiene inscripciones activas.";
-
+// The uncovered guard tests two things — that this is the group type's only row
+// with no deadline, and that the group type carries active inscriptions — but
+// not that those inscriptions read this row. A group type whose inscriptions
+// have all frozen onto another row is still refused, and correctly so: the
+// roster admin path skips the readiness gate, so nothing else would stop a later
+// un-frozen inscription from landing on an uncovered path.
 export async function listPrices(eventId: string): Promise<PriceListItem[]> {
   const eventPrices = await db.query.prices.findMany({
     where: eq(prices.eventId, eventId),
@@ -49,6 +45,15 @@ export async function listPrices(eventId: string): Promise<PriceListItem[]> {
   if (eventPrices.length === 0) {
     return [];
   }
+
+  // What the guards below would answer about each row, so the form can lock a
+  // field on sight instead of refusing after the save. The price general unique
+  // index keeps a single deadline-less general row per group type, so being
+  // that row is the whole of "the only one" the uncovered guard asks about.
+  const [referencedIds, groupTypesWithInscriptions] = await Promise.all([
+    findReferencedPriceIds(eventPrices.map((price) => price.id)),
+    findGroupTypesWithActiveInscriptions(eventId),
+  ]);
 
   const scheduleIds = uniqueValues(
     eventPrices
@@ -73,6 +78,11 @@ export async function listPrices(eventId: string): Promise<PriceListItem[]> {
   return eventPrices
     .map((price) => ({
       ...price,
+      isReferenced: referencedIds.has(price.id),
+      keepsRegistrationOpen:
+        price.scheduleId === null &&
+        price.paymentDeadline === null &&
+        groupTypesWithInscriptions.has(price.groupType),
       schedule: price.scheduleId
         ? (schedulesById.get(price.scheduleId) ?? null)
         : null,
@@ -199,6 +209,39 @@ async function priceHasOperationalDependencies(priceId: string) {
     .limit(1);
 
   return Boolean(dependency);
+}
+
+async function findReferencedPriceIds(priceIds: string[]) {
+  const rows = await db
+    .selectDistinct({ selectedPriceId: choreographyDancers.selectedPriceId })
+    .from(choreographyDancers)
+    .where(inArray(choreographyDancers.selectedPriceId, priceIds));
+
+  return new Set(
+    rows
+      .map((row) => row.selectedPriceId)
+      .filter((id): id is string => id !== null),
+  );
+}
+
+// The list-side twin of `hasActiveInscriptions`: every group type of the event
+// that carries a non-withdrawn inscription, in one query.
+async function findGroupTypesWithActiveInscriptions(eventId: string) {
+  const rows = await db
+    .selectDistinct({ groupType: choreographies.groupType })
+    .from(choreographyDancers)
+    .innerJoin(
+      choreographies,
+      eq(choreographies.id, choreographyDancers.choreographyId),
+    )
+    .where(
+      and(
+        eq(choreographies.eventId, eventId),
+        isNull(choreographyDancers.withdrawnAt),
+      ),
+    );
+
+  return new Set(rows.map((row) => row.groupType));
 }
 
 // The write-side of readiness' demand: a reachable group type must keep a row

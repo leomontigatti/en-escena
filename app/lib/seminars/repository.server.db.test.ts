@@ -266,7 +266,7 @@ describe("seminar repository", () => {
         ok: false,
         code: "covered-inscriptions",
         error:
-          "No se puede cambiar el tipo de seminario ni la seña: ya hay inscripciones con la seña cubierta.",
+          "Este seminario tiene inscripciones con la seña cubierta. No podés eliminarlo ni cambiar el tipo de seminario o la seña.",
       });
     }
 
@@ -305,7 +305,7 @@ describe("seminar repository", () => {
     await expect(deleteSeminar(seminarId)).resolves.toMatchObject({
       ok: false,
       code: "has-inscriptions",
-      error: "No se puede borrar el seminario porque tiene inscripciones.",
+      error: "Este seminario tiene inscripciones. No podés eliminarlo.",
     });
     await expect(listSeminars(eventId)).resolves.toHaveLength(1);
 

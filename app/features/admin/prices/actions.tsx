@@ -13,6 +13,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import type { PriceListItem } from "@/lib/events/bases.server";
+import { readPriceDeletionBlock } from "@/lib/prices/guards";
 
 import { getPriceDisplayName } from "./view-shared";
 
@@ -26,6 +27,10 @@ export function PriceActions({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(
     initialDeleteDialogOpen,
   );
+  // The guard is read before the menu opens, so a protected row shows a
+  // disabled item and a dialog that explains instead of a refusal after the
+  // submission. The server refuses all the same, for the race.
+  const deletionBlock = readPriceDeletionBlock(price);
 
   return (
     <>
@@ -37,6 +42,7 @@ export function PriceActions({
         <DropdownMenuGroup>
           <DropdownMenuItem
             variant="destructive"
+            disabled={Boolean(deletionBlock)}
             onSelect={() => setDeleteDialogOpen(true)}
           >
             Borrar precio
@@ -46,6 +52,8 @@ export function PriceActions({
       <DeleteDialog
         title="Eliminar precio"
         description={`Esta acción borra ${getPriceDisplayName(price)} si no tiene dependencias asociadas. No se puede deshacer.`}
+        blockedDescription={deletionBlock}
+        isBlocked={Boolean(deletionBlock)}
         intentValue="delete-price"
         recordId={price.id}
         open={deleteDialogOpen}

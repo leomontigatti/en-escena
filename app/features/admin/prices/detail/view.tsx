@@ -1,9 +1,11 @@
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
+import { readPriceGuard } from "@/lib/prices/guards";
 import { useServerActionToast } from "@/lib/shared/toasts";
 import type { PriceListItem } from "@/lib/events/bases.server";
 
 import { EmptyResourceState, PriceActions } from "../actions";
 import { PriceForm, PriceFormActions, PriceFormPanel } from "../form";
+import { PriceGuardAlerts } from "../guard-alerts";
 import type {
   EventPriceActionData,
   EventPriceDetailLoaderData,
@@ -26,6 +28,7 @@ export function EventPriceDetailView({
   useServerActionToast(actionData);
 
   const price = loaderData.prices.find((item) => item.id === priceId);
+  const guard = price ? readPriceGuard(price) : null;
 
   return (
     <AdminResourceLayout
@@ -45,11 +48,13 @@ export function EventPriceDetailView({
         ) : null
       }
     >
-      {price ? (
+      {price && guard ? (
         <div className="flex flex-col gap-6">
+          <PriceGuardAlerts reason={guard.reason} />
           <PriceFormPanel>
             <PriceForm
               formId="update-price-form"
+              guard={guard}
               id={price.id}
               intent="update-price"
               schedules={loaderData.schedules}

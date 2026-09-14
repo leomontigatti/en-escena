@@ -357,8 +357,7 @@ describe.sequential("`/administracion/bases-del-evento` routes", () => {
       action(routeArgs(updatePriceRequest.request)),
     ).resolves.toEqual({
       status: "error",
-      message:
-        "No se pueden editar monto, tipo de grupo, vencimiento ni cronograma porque hay inscripciones que congelaron este precio.",
+      message: "Este precio está en uso. Solo podés cambiar el nombre.",
       fieldErrors: {},
       scope: {
         intent: "update-price",
@@ -386,8 +385,7 @@ describe.sequential("`/administracion/bases-del-evento` routes", () => {
       action(routeArgs(deletePriceRequest.request)),
     ).resolves.toEqual({
       status: "error",
-      message:
-        "No se puede borrar el precio porque hay inscripciones que congelaron este precio.",
+      message: "Este precio está en uso. No se puede borrar.",
       fieldErrors: {},
       scope: {
         intent: "delete-price",

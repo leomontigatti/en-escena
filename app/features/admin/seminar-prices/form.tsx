@@ -1,7 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useId, useMemo, type ReactNode } from "react";
 import { Controller, useForm, type UseFormReturn } from "react-hook-form";
-import { InfoIcon } from "lucide-react";
 
 import { AdminResourceFormCard } from "@/components/admin/resource-layout";
 import { DateOnlyField } from "@/components/shared/date-only-field";
@@ -13,7 +12,6 @@ import {
   ReadOnlySelectField,
 } from "@/components/shared/read-only-field";
 import { SelectField } from "@/components/shared/select-field";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -24,6 +22,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { SeminarPriceActionValues } from "@/lib/admin/events/bases-action/shared.server";
+import { openPriceGuard, type PriceGuard } from "@/lib/prices/guards";
 import { seminarKindOptions } from "@/lib/seminars/seminar-kinds";
 import {
   createValidatedRouteSubmitHandler,
@@ -40,24 +39,16 @@ import {
   participantsSwitchLabel,
   seminarPriceFormSchema,
   type SeminarPriceFormValues,
-  type SeminarPriceGuard,
 } from "./view-shared";
 
 type SeminarPriceFormController = UseFormReturn<SeminarPriceFormValues>;
-
-const openGuard: SeminarPriceGuard = {
-  canEditAmount: true,
-  canEditStructure: true,
-  canDelete: true,
-  reason: null,
-};
 
 type SeminarPriceFormProps = {
   amount?: number;
   forParticipants?: boolean;
   formId?: string;
   /** What the guards would refuse; a row being created is never guarded. */
-  guard?: SeminarPriceGuard;
+  guard?: PriceGuard;
   id?: string;
   intent: string;
   kind?: string;
@@ -97,7 +88,7 @@ export function SeminarPriceForm({
   amount,
   forParticipants,
   formId,
-  guard = openGuard,
+  guard = openPriceGuard,
   id,
   intent,
   kind,
@@ -141,7 +132,6 @@ export function SeminarPriceForm({
     >
       <input type="hidden" name="intent" value={intent} />
       {id ? <input type="hidden" name="id" value={id} /> : null}
-      <GuardAlert reason={guard.reason} />
       <FieldGroup>
         <NameField form={form} canEditStructure={guard.canEditStructure} />
         <DeadlineField
@@ -170,20 +160,6 @@ export function SeminarPriceForm({
   );
 }
 
-/** Why a field is locked, above the fields it locks. */
-function GuardAlert({ reason }: { reason: string | null }) {
-  if (!reason) {
-    return null;
-  }
-
-  return (
-    <Alert variant="info">
-      <InfoIcon aria-hidden="true" />
-      <AlertDescription>{reason}</AlertDescription>
-    </Alert>
-  );
-}
-
 /**
  * The three structural fields read the same way: the editable control while the
  * guard allows the change, the shared read-only look otherwise, with the value
@@ -193,7 +169,7 @@ function GuardAlert({ reason }: { reason: string | null }) {
 type GuardedFieldProps = {
   fieldId: string;
   form: SeminarPriceFormController;
-  guard: SeminarPriceGuard;
+  guard: PriceGuard;
   values: SeminarPriceFormValues;
 };
 

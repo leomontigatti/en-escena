@@ -16,6 +16,7 @@ import {
   submodalities,
 } from "@/db/schema";
 import { activeInscription } from "@/lib/choreographies/active-inscription";
+import type { PriceGuardFlags } from "@/lib/prices/guards";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import { toTitleCase } from "@/lib/shared/text-normalization";
 import {
@@ -237,12 +238,13 @@ export type PriceDependencies = {
   hasDependencies?: (priceId: string) => Promise<boolean> | boolean;
 };
 
-export type PriceListItem = typeof prices.$inferSelect & {
-  schedule: Pick<
-    typeof schedules.$inferSelect,
-    "id" | "name" | "scheduledDate" | "startTime"
-  > | null;
-};
+export type PriceListItem = typeof prices.$inferSelect &
+  PriceGuardFlags & {
+    schedule: Pick<
+      typeof schedules.$inferSelect,
+      "id" | "name" | "scheduledDate" | "startTime"
+    > | null;
+  };
 
 export type PriceResolutionResult =
   | { ok: true; price: typeof prices.$inferSelect }

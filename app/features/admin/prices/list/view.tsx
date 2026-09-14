@@ -5,6 +5,7 @@ import {
   AdminEmptyState,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
+import { AlertStack } from "@/components/shared/alert-stack";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ActionData } from "@/lib/admin/events/bases-action/shared.server";
@@ -60,6 +61,16 @@ export function EventPricesListView({
         ),
       }}
     >
+      {/* Above the tabs, never inside one: the alerts are about the event's
+          price lists as a whole, so they read the same from either tab. */}
+      <AlertStack>
+        {missingCellsWarning ? (
+          <Alert variant="warning">
+            <AlertCircleIcon aria-hidden="true" />
+            <AlertDescription>{missingCellsWarning}</AlertDescription>
+          </Alert>
+        ) : null}
+      </AlertStack>
       <Tabs
         value={activeTab}
         onValueChange={(value) => {
@@ -96,16 +107,7 @@ export function EventPricesListView({
             />
           )}
         </TabsContent>
-        <TabsContent
-          value={seminarPricesTabValue}
-          className="flex flex-col gap-4 pt-2"
-        >
-          {missingCellsWarning ? (
-            <Alert variant="warning">
-              <AlertCircleIcon aria-hidden="true" />
-              <AlertDescription>{missingCellsWarning}</AlertDescription>
-            </Alert>
-          ) : null}
+        <TabsContent value={seminarPricesTabValue} className="pt-2">
           {loaderData.seminarPrices.length > 0 ? (
             <SeminarPriceListTable
               seminarPrices={loaderData.seminarPrices}
