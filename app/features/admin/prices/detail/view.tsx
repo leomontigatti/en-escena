@@ -8,7 +8,11 @@ import type {
   EventPriceActionData,
   EventPriceDetailLoaderData,
 } from "../shared";
-import { getPriceDisplayName, getPriceSubmittedValues } from "../view-shared";
+import {
+  getPriceDisplayName,
+  getPriceSubmittedValues,
+  readPriceGuard,
+} from "../view-shared";
 
 export type EventPriceDetailViewProps = {
   actionData?: EventPriceActionData;
@@ -50,6 +54,7 @@ export function EventPriceDetailView({
           <PriceFormPanel>
             <PriceForm
               formId="update-price-form"
+              guard={readPriceGuard(price)}
               id={price.id}
               intent="update-price"
               schedules={loaderData.schedules}

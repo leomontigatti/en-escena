@@ -6,6 +6,12 @@ import type {
 } from "@/lib/admin/events/bases-action/shared.server";
 import type { PriceListItem } from "@/lib/events/bases.server";
 import { groupTypeLabels } from "@/lib/events/group-types";
+import {
+  frozenPriceDeleteError,
+  frozenPriceUpdateError,
+  uncoveredPriceDeleteError,
+  uncoveredPriceUpdateError,
+} from "@/lib/prices/guard-messages";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 
 export const EMPTY_SCHEDULE_VALUE = "__empty_schedule__";
@@ -70,6 +76,63 @@ export const priceFormSchema = z
   });
 
 export type PriceFormValues = z.infer<typeof priceFormSchema>;
+
+/**
+ * What the guards would refuse on a row, read from the row itself so the form
+ * locks a field on sight instead of refusing after the save. A frozen row is
+ * editable down to its name; the tail that keeps its group type resolvable also
+ * keeps its amount. The server refuses all the same, for the race.
+ */
+export type PriceGuard = {
+  canEditAmount: boolean;
+  canEditStructure: boolean;
+  canDelete: boolean;
+  reason: string | null;
+};
+
+export function readPriceGuard(
+  price: Pick<PriceListItem, "isFrozen" | "keepsCoverage">,
+): PriceGuard {
+  if (price.isFrozen) {
+    return {
+      canEditAmount: false,
+      canEditStructure: false,
+      canDelete: false,
+      reason: frozenPriceUpdateError,
+    };
+  }
+
+  if (price.keepsCoverage) {
+    return {
+      canEditAmount: true,
+      canEditStructure: false,
+      canDelete: false,
+      reason: uncoveredPriceUpdateError,
+    };
+  }
+
+  return {
+    canEditAmount: true,
+    canEditStructure: true,
+    canDelete: true,
+    reason: null,
+  };
+}
+
+/** Why the delete dialog opens blocked, or `null` when it does not. */
+export function readPriceDeletionBlock(
+  price: Pick<PriceListItem, "isFrozen" | "keepsCoverage">,
+) {
+  if (price.isFrozen) {
+    return frozenPriceDeleteError;
+  }
+
+  if (price.keepsCoverage) {
+    return uncoveredPriceDeleteError;
+  }
+
+  return null;
+}
 
 export function getGroupTypeLabel(groupType: string) {
   return groupTypeLabels[groupType] ?? groupType;

@@ -1,11 +1,11 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useId, useMemo, type ReactNode } from "react";
 import { Controller, useForm, type UseFormReturn } from "react-hook-form";
-import { InfoIcon } from "lucide-react";
 
 import { AdminResourceFormCard } from "@/components/admin/resource-layout";
 import { DateOnlyField } from "@/components/shared/date-only-field";
 import { SharedFieldLayout } from "@/components/shared/field-layout";
+import { GuardAlert } from "@/components/shared/guard-alert";
 import { IntegerInputField } from "@/components/shared/integer-input-field";
 import {
   ReadOnlyDateField,
@@ -13,7 +13,6 @@ import {
   ReadOnlySelectField,
 } from "@/components/shared/read-only-field";
 import { SelectField } from "@/components/shared/select-field";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -167,20 +166,6 @@ export function SeminarPriceForm({
         </FieldGroup>
       </FieldGroup>
     </form>
-  );
-}
-
-/** Why a field is locked, above the fields it locks. */
-function GuardAlert({ reason }: { reason: string | null }) {
-  if (!reason) {
-    return null;
-  }
-
-  return (
-    <Alert variant="info">
-      <InfoIcon aria-hidden="true" />
-      <AlertDescription>{reason}</AlertDescription>
-    </Alert>
   );
 }
 

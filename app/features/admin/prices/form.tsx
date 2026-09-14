@@ -5,7 +5,13 @@ import { Controller, useForm, type UseFormReturn } from "react-hook-form";
 import { AdminResourceFormCard } from "@/components/admin/resource-layout";
 import { DateOnlyField } from "@/components/shared/date-only-field";
 import { SharedFieldLayout } from "@/components/shared/field-layout";
+import { GuardAlert } from "@/components/shared/guard-alert";
 import { IntegerInputField } from "@/components/shared/integer-input-field";
+import {
+  ReadOnlyDateField,
+  ReadOnlyField,
+  ReadOnlySelectField,
+} from "@/components/shared/read-only-field";
 import { FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -33,13 +39,24 @@ import {
   EMPTY_SCHEDULE_VALUE,
   priceFormSchema,
   type PriceFormValues,
+  type PriceGuard,
 } from "./view-shared";
 import { basePath } from "./shared";
 
 type PriceFormController = UseFormReturn<PriceFormValues>;
+
+const openGuard: PriceGuard = {
+  canEditAmount: true,
+  canEditStructure: true,
+  canDelete: true,
+  reason: null,
+};
+
 type PriceFormProps = {
   amount?: number;
   formId?: string;
+  /** What the guards would refuse; a row being created is never guarded. */
+  guard?: PriceGuard;
   groupType?: string;
   id?: string;
   intent: string;
@@ -93,6 +110,7 @@ function getPriceFormDefaultValues({
 export function PriceForm({
   amount,
   formId,
+  guard = openGuard,
   groupType,
   id,
   intent,
@@ -126,7 +144,7 @@ export function PriceForm({
     form.reset(defaultValues);
   }, [defaultValues, form]);
 
-  const isSpecialPrice = form.watch("isSpecialPrice");
+  const values = form.watch();
 
   return (
     <form
@@ -137,53 +155,197 @@ export function PriceForm({
     >
       <input type="hidden" name="intent" value={intent} />
       {id ? <input type="hidden" name="id" value={id} /> : null}
-      <FieldGroup>
-        <NameField form={form} />
-        {isSpecialPrice ? (
-          <SelectField
-            control={form.control}
-            label="Cronograma"
-            name="scheduleId"
-            options={schedules.map((schedule) => ({
-              label: schedule.name,
-              value: schedule.id,
-            }))}
-            placeholder="Elegí un cronograma"
-          />
-        ) : (
-          <input type="hidden" name="scheduleId" value="" />
-        )}
-        {/*
-          An empty deadline reads differently on each form: a field still to
-          fill in while the price is being created, the row's own answer once it
-          is saved.
-        */}
-        <DateOnlyField
-          clearable
-          control={form.control}
-          name="paymentDeadline"
-          id={`price-payment-deadline-${id ?? intent}`}
-          label="Fecha límite de pago"
-          placeholder={id ? openEndedDeadlineLabel : undefined}
-        />
-        <FieldGroup className="grid gap-4 sm:grid-cols-2">
-          <SelectField
-            control={form.control}
-            label="Tipo de grupo"
-            name="groupType"
-            options={groupTypeOptions}
-            placeholder="Elegí un tipo"
-          />
-          <IntegerInputField
-            control={form.control}
-            label="Monto"
-            min="1"
-            name="amount"
-            step="1"
-          />
-        </FieldGroup>
-      </FieldGroup>
+      <GuardAlert reason={guard.reason} />
+      <PriceFields
+        fieldPrefix={id ?? intent}
+        form={form}
+        guard={guard}
+        isExistingRow={Boolean(id)}
+        schedules={schedules}
+        values={values}
+      />
     </form>
+  );
+}
+
+function PriceFields({
+  fieldPrefix,
+  form,
+  guard,
+  isExistingRow,
+  schedules,
+  values,
+}: {
+  fieldPrefix: string;
+  form: PriceFormController;
+  guard: PriceGuard;
+  isExistingRow: boolean;
+  schedules: ScheduleListItem[];
+  values: PriceFormValues;
+}) {
+  const fieldProps = { form, guard, values };
+
+  return (
+    <FieldGroup>
+      <NameField form={form} canEditStructure={guard.canEditStructure} />
+      <ScheduleField
+        {...fieldProps}
+        fieldId={`price-schedule-${fieldPrefix}`}
+        schedules={schedules}
+      />
+      <DeadlineField
+        {...fieldProps}
+        fieldId={`price-payment-deadline-${fieldPrefix}`}
+        isExistingRow={isExistingRow}
+      />
+      <FieldGroup className="grid gap-4 sm:grid-cols-2">
+        <GroupTypeField
+          {...fieldProps}
+          fieldId={`price-group-type-${fieldPrefix}`}
+        />
+        <AmountField {...fieldProps} fieldId={`price-amount-${fieldPrefix}`} />
+      </FieldGroup>
+    </FieldGroup>
+  );
+}
+
+/**
+ * The guarded fields read the same way: the editable control while the guard
+ * allows the change, the shared read-only look otherwise, with the value still
+ * travelling in the body so a save of the fields that are open does not blank
+ * the ones that are locked.
+ */
+type GuardedFieldProps = {
+  fieldId: string;
+  form: PriceFormController;
+  guard: PriceGuard;
+  values: PriceFormValues;
+};
+
+/**
+ * The schedule only exists while the row is a special price, so a locked row
+ * with no schedule keeps saying so through the same empty hidden input the
+ * open form uses.
+ */
+function ScheduleField({
+  fieldId,
+  form,
+  guard,
+  schedules,
+  values,
+}: GuardedFieldProps & { schedules: ScheduleListItem[] }) {
+  const scheduleOptions = schedules.map((schedule) => ({
+    label: schedule.name,
+    value: schedule.id,
+  }));
+
+  if (!values.isSpecialPrice) {
+    return <input type="hidden" name="scheduleId" value="" />;
+  }
+
+  if (!guard.canEditStructure) {
+    return (
+      <ReadOnlySelectField
+        id={fieldId}
+        label="Cronograma"
+        name="scheduleId"
+        options={scheduleOptions}
+        value={values.scheduleId}
+      />
+    );
+  }
+
+  return (
+    <SelectField
+      control={form.control}
+      label="Cronograma"
+      name="scheduleId"
+      options={scheduleOptions}
+      placeholder="Elegí un cronograma"
+    />
+  );
+}
+
+/**
+ * The deadline reads the guard like its siblings, and one thing more: what an
+ * empty control means. On a new row it is a field still to fill in, on a saved
+ * one it is the answer the row already gives — no deadline.
+ */
+function DeadlineField({
+  fieldId,
+  form,
+  guard,
+  isExistingRow,
+  values,
+}: GuardedFieldProps & { isExistingRow: boolean }) {
+  if (!guard.canEditStructure) {
+    return (
+      <ReadOnlyDateField
+        id={fieldId}
+        label="Fecha límite de pago"
+        name="paymentDeadline"
+        emptyLabel={openEndedDeadlineLabel}
+        value={values.paymentDeadline || null}
+      />
+    );
+  }
+
+  return (
+    <DateOnlyField
+      clearable
+      control={form.control}
+      name="paymentDeadline"
+      id={fieldId}
+      label="Fecha límite de pago"
+      placeholder={isExistingRow ? openEndedDeadlineLabel : undefined}
+    />
+  );
+}
+
+function GroupTypeField({ fieldId, form, guard, values }: GuardedFieldProps) {
+  if (!guard.canEditStructure) {
+    return (
+      <ReadOnlySelectField
+        id={fieldId}
+        label="Tipo de grupo"
+        name="groupType"
+        options={groupTypeOptions}
+        value={values.groupType}
+      />
+    );
+  }
+
+  return (
+    <SelectField
+      control={form.control}
+      label="Tipo de grupo"
+      name="groupType"
+      options={groupTypeOptions}
+      placeholder="Elegí un tipo"
+    />
+  );
+}
+
+function AmountField({ fieldId, form, guard, values }: GuardedFieldProps) {
+  if (!guard.canEditAmount) {
+    return (
+      <ReadOnlyField
+        id={fieldId}
+        label="Monto"
+        name="amount"
+        value={values.amount}
+      />
+    );
+  }
+
+  return (
+    <IntegerInputField
+      control={form.control}
+      label="Monto"
+      min="1"
+      name="amount"
+      step="1"
+    />
   );
 }
 
@@ -207,7 +369,13 @@ export function PriceFormPanel({ children }: { children: ReactNode }) {
   return <AdminResourceFormCard>{children}</AdminResourceFormCard>;
 }
 
-function NameField({ form }: { form: PriceFormController }) {
+function NameField({
+  canEditStructure,
+  form,
+}: {
+  canEditStructure: boolean;
+  form: PriceFormController;
+}) {
   const id = useId();
   const error = form.formState.errors.name?.message;
 
@@ -228,7 +396,7 @@ function NameField({ form }: { form: PriceFormController }) {
                 {...field}
               />
               <div className="absolute top-1/2 right-3 flex -translate-y-1/2 items-center">
-                <SpecialPriceSwitch form={form} />
+                <SpecialPriceSwitch form={form} disabled={!canEditStructure} />
               </div>
             </div>
           )}
@@ -243,6 +411,7 @@ function NameField({ form }: { form: PriceFormController }) {
 // governs. `onToggle` receives the new state, because clearing the partner
 // field only makes sense on one edge.
 type PriceFormSwitchProps = {
+  disabled?: boolean;
   form: PriceFormController;
   label: string;
   name: "isSpecialPrice";
@@ -250,6 +419,7 @@ type PriceFormSwitchProps = {
 };
 
 function PriceFormSwitch({
+  disabled = false,
   form,
   label,
   name,
@@ -279,6 +449,7 @@ function PriceFormSwitch({
                     field.value ? "!bg-primary" : "!bg-muted",
                   )}
                   checked={field.value}
+                  disabled={disabled}
                   onBlur={field.onBlur}
                   onCheckedChange={(checked) => {
                     field.onChange(checked);
@@ -295,9 +466,16 @@ function PriceFormSwitch({
   );
 }
 
-function SpecialPriceSwitch({ form }: { form: PriceFormController }) {
+function SpecialPriceSwitch({
+  disabled,
+  form,
+}: {
+  disabled: boolean;
+  form: PriceFormController;
+}) {
   return (
     <PriceFormSwitch
+      disabled={disabled}
       form={form}
       label="Precio especial"
       name="isSpecialPrice"
