@@ -5,7 +5,32 @@ import {
   type Row,
   type Table as TanStackTable,
 } from "@tanstack/react-table";
-import { Search, X } from "lucide-react";
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { GripVertical, Search, X } from "lucide-react";
+import {
+  createContext,
+  Fragment,
+  useContext,
+  useId,
+  type ReactNode,
+} from "react";
 import { Link } from "react-router";
 
 import { Button } from "@/components/ui/button";
@@ -21,6 +46,8 @@ import type {
   DataTableFacetedFilter,
   DataTableFacetedFilterValue,
   DataTableLayout,
+  DataTableReorder,
+  DataTableRowGroup,
   DataTableSortDirection,
 } from "@/components/shared/data-table.shared";
 import {
@@ -99,14 +126,90 @@ type DataTableServerSortProps = {
 type DataTableShellProps<TData> = {
   emptyMessage: string;
   filters: DataTableFiltersProps;
+  getRowGroup?: (row: TData) => DataTableRowGroup | undefined;
   getRowProps?: (row: TData) => React.ComponentProps<"tr">;
   isLoading: boolean;
   layout: DataTableLayout;
   pagination: DataTablePaginationProps;
+  reorder?: DataTableReorder;
   search: DataTableSearchProps;
   serverSort?: DataTableServerSortProps;
   table: TanStackTable<TData>;
 };
+
+type DataTableSortableRowHandle = Pick<
+  ReturnType<typeof useSortable>,
+  "attributes" | "listeners" | "setActivatorNodeRef"
+>;
+
+const DataTableSortableRowContext =
+  createContext<DataTableSortableRowHandle | null>(null);
+
+/** PROTOTYPE (#912): the grip a reorderable row is dragged by. */
+export function DataTableDragHandle({ label }: { label: string }) {
+  const sortable = useContext(DataTableSortableRowContext);
+
+  if (!sortable) {
+    return null;
+  }
+
+  return (
+    <Button
+      ref={sortable.setActivatorNodeRef}
+      type="button"
+      variant="ghost"
+      size="icon-xs"
+      aria-label={label}
+      className="cursor-grab touch-none text-muted-foreground"
+      {...sortable.attributes}
+      {...sortable.listeners}
+    >
+      <GripVertical aria-hidden="true" />
+    </Button>
+  );
+}
+
+function DataTableReorderProvider<TData>({
+  children,
+  reorder,
+  table,
+}: {
+  children: ReactNode;
+  reorder: DataTableReorder;
+  table: TanStackTable<TData>;
+}) {
+  const id = useId();
+  const sensors = useSensors(
+    useSensor(MouseSensor),
+    useSensor(TouchSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+  const itemIds = table.getRowModel().rows.map((row) => row.id);
+
+  return (
+    <DndContext
+      id={id}
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      modifiers={[restrictToVerticalAxis]}
+      onDragEnd={(event: DragEndEvent) => {
+        if (event.over && event.active.id !== event.over.id) {
+          reorder.onMove(String(event.active.id), String(event.over.id));
+        }
+      }}
+    >
+      <SortableContext
+        items={itemIds}
+        strategy={verticalListSortingStrategy}
+        disabled={!reorder.enabled}
+      >
+        {children}
+      </SortableContext>
+    </DndContext>
+  );
+}
 
 /**
  * Everything both tables draw, given a built TanStack table. It owns no state
@@ -121,14 +224,30 @@ type DataTableShellProps<TData> = {
 export function DataTableShell<TData>({
   emptyMessage,
   filters,
+  getRowGroup,
   getRowProps,
   isLoading,
   layout,
   pagination,
+  reorder,
   search,
   serverSort,
   table,
 }: DataTableShellProps<TData>) {
+  const tableElement = (
+    <Table className={layout === "fit" ? "table-fixed" : undefined}>
+      {layout === "fit" ? <DataTableColumnGroup table={table} /> : null}
+      <DataTableHead serverSort={serverSort} table={table} />
+      <DataTableBody
+        emptyMessage={emptyMessage}
+        getRowGroup={getRowGroup}
+        getRowProps={getRowProps}
+        isReorderable={Boolean(reorder?.enabled)}
+        table={table}
+      />
+    </Table>
+  );
+
   return (
     <div className="flex flex-col gap-3">
       <DataTableToolbar filters={filters} search={search} />
@@ -138,15 +257,13 @@ export function DataTableShell<TData>({
           isLoading && "opacity-75",
         )}
       >
-        <Table className={layout === "fit" ? "table-fixed" : undefined}>
-          {layout === "fit" ? <DataTableColumnGroup table={table} /> : null}
-          <DataTableHead serverSort={serverSort} table={table} />
-          <DataTableBody
-            emptyMessage={emptyMessage}
-            getRowProps={getRowProps}
-            table={table}
-          />
-        </Table>
+        {reorder ? (
+          <DataTableReorderProvider reorder={reorder} table={table}>
+            {tableElement}
+          </DataTableReorderProvider>
+        ) : (
+          tableElement
+        )}
       </div>
       {!pagination.hidden ? (
         <DataTableFooter isLoading={isLoading} pagination={pagination} />
@@ -380,21 +497,50 @@ function DataTableHeaderContent<TData>({
 /** The rows, or the one cell that says why there are none. */
 function DataTableBody<TData>({
   emptyMessage,
+  getRowGroup,
   getRowProps,
+  isReorderable,
   table,
 }: {
   emptyMessage: string;
+  getRowGroup?: (row: TData) => DataTableRowGroup | undefined;
   getRowProps?: (row: TData) => React.ComponentProps<"tr">;
+  isReorderable: boolean;
   table: TanStackTable<TData>;
 }) {
   const visibleRows = table.getRowModel().rows;
+  const columnCount = table.getVisibleLeafColumns().length;
 
   return (
     <TableBody>
       {visibleRows.length > 0 ? (
-        visibleRows.map((row) => (
-          <DataTableBodyRow key={row.id} getRowProps={getRowProps} row={row} />
-        ))
+        visibleRows.map((row, index) => {
+          const group = getRowGroup?.(row.original);
+          const previousRow = visibleRows[index - 1];
+          const previousGroup = previousRow
+            ? getRowGroup?.(previousRow.original)
+            : undefined;
+
+          return (
+            <Fragment key={row.id}>
+              {group && group.key !== previousGroup?.key ? (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell
+                    colSpan={columnCount}
+                    className="bg-muted/50 px-3 py-2 text-xs font-medium text-muted-foreground"
+                  >
+                    {group.label}
+                  </TableCell>
+                </TableRow>
+              ) : null}
+              <DataTableBodyRow
+                getRowProps={getRowProps}
+                isReorderable={isReorderable}
+                row={row}
+              />
+            </Fragment>
+          );
+        })
       ) : (
         <TableRow>
           <TableCell
@@ -411,13 +557,74 @@ function DataTableBody<TData>({
 
 function DataTableBodyRow<TData>({
   getRowProps,
+  isReorderable,
+  row,
+}: {
+  getRowProps?: (row: TData) => React.ComponentProps<"tr">;
+  isReorderable: boolean;
+  row: Row<TData>;
+}) {
+  if (isReorderable) {
+    return <DataTableSortableBodyRow getRowProps={getRowProps} row={row} />;
+  }
+
+  return (
+    <DataTableBodyRowCells
+      row={row}
+      rowProps={getRowProps?.(row.original) ?? {}}
+    />
+  );
+}
+
+function DataTableSortableBodyRow<TData>({
+  getRowProps,
   row,
 }: {
   getRowProps?: (row: TData) => React.ComponentProps<"tr">;
   row: Row<TData>;
 }) {
+  const sortable = useSortable({ id: row.id });
+  const rowProps = getRowProps?.(row.original) ?? {};
+
   return (
-    <TableRow {...(getRowProps?.(row.original) ?? {})}>
+    <DataTableSortableRowContext.Provider
+      value={{
+        attributes: sortable.attributes,
+        listeners: sortable.listeners,
+        setActivatorNodeRef: sortable.setActivatorNodeRef,
+      }}
+    >
+      <DataTableBodyRowCells
+        row={row}
+        rowProps={{
+          ...rowProps,
+          ref: sortable.setNodeRef,
+          "data-dragging": sortable.isDragging || undefined,
+          style: {
+            ...rowProps.style,
+            position: "relative",
+            transform: CSS.Translate.toString(sortable.transform),
+            transition: sortable.transition,
+            zIndex: sortable.isDragging ? 1 : undefined,
+          },
+        }}
+      />
+    </DataTableSortableRowContext.Provider>
+  );
+}
+
+function DataTableBodyRowCells<TData>({
+  row,
+  rowProps,
+}: {
+  row: Row<TData>;
+  rowProps: React.ComponentProps<"tr"> & { "data-dragging"?: boolean };
+}) {
+  return (
+    <TableRow
+      {...rowProps}
+      className={cn(rowProps.className, "data-[dragging=true]:bg-muted")}
+    >
       {row.getVisibleCells().map((cell) => (
         <TableCell
           key={cell.id}

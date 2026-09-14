@@ -107,6 +107,7 @@ export function ServerDataTable<TData>(props: ServerDataTableProps<TData>) {
     sorting,
     tableColumns,
     totalPages: props.totalPages,
+    canSelectRow: props.canSelectRow,
   });
   const isLoading = getServerTableLoading({
     loading: props.loading,
@@ -133,7 +134,9 @@ export function ServerDataTable<TData>(props: ServerDataTableProps<TData>) {
         groups: facetedFilters,
         onChange: setFacetedFilterValue,
       }}
+      getRowGroup={props.getRowGroup}
       getRowProps={props.getRowProps}
+      reorder={props.reorder}
       isLoading={isLoading}
       layout={props.layout ?? "auto"}
       pagination={{
@@ -215,6 +218,7 @@ function useServerDataTableColumns<TData>(
 }
 
 function useServerReactTable<TData>({
+  canSelectRow,
   columnVisibility,
   columns,
   currentPage,
@@ -233,6 +237,7 @@ function useServerReactTable<TData>({
   currentPage: number;
   getRowKey: ServerDataTableProps<TData>["getRowKey"];
   rows: TData[];
+  canSelectRow?: (row: TData) => boolean;
   rowSelection: RowSelectionState;
   selectableRows: boolean;
   setRowSelection: OnChangeFn<RowSelectionState>;
@@ -257,7 +262,10 @@ function useServerReactTable<TData>({
     },
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
-    enableRowSelection: selectableRows,
+    enableRowSelection:
+      selectableRows && canSelectRow
+        ? (row) => canSelectRow(row.original)
+        : selectableRows,
     getCoreRowModel: getCoreRowModel(),
     getRowId: getRowKey,
     manualSorting: true,

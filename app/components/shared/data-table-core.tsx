@@ -320,7 +320,9 @@ function createSelectionColumn<TData>(): ColumnDef<TData> {
   return {
     id: dataTableSelectionColumnId,
     header: ({ table }) => {
-      const selectableRows = table.getFilteredRowModel().rows;
+      const selectableRows = table
+        .getFilteredRowModel()
+        .rows.filter((row) => row.getCanSelect());
       const hasRows = selectableRows.length > 0;
       const selectedRowCount = selectableRows.filter((row) =>
         row.getIsSelected(),
@@ -349,6 +351,7 @@ function createSelectionColumn<TData>(): ColumnDef<TData> {
       <Checkbox
         aria-label="Seleccionar fila"
         checked={row.getIsSelected()}
+        disabled={!row.getCanSelect()}
         onCheckedChange={(checked) => row.toggleSelected(checked === true)}
       />
     ),

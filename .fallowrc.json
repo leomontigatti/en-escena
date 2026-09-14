@@ -4,10 +4,16 @@
   "ignorePatterns": [
     "tests/db/setup-fast.ts",
     "tests/db/setup.ts",
-    "tests/setup/react-test-env.ts"
+    "tests/setup/react-test-env.ts",
+    "app/features/**/prototype/*.prototype.{ts,tsx}",
+    "app/routes/prototipo.*.tsx"
   ],
   "ignoreDependencies": ["isbot"],
   "ignoreExports": [
+    {
+      "file": "app/components/shared/data-table-shell.tsx",
+      "exports": ["DataTableDragHandle"]
+    },
     {
       "file": "tests/db/fast-db.ts",
       "exports": ["closeTestDatabase"]

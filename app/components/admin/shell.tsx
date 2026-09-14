@@ -16,6 +16,7 @@ import {
   HandCoins,
   ReceiptText,
   Presentation,
+  ListOrdered,
 } from "lucide-react";
 import { Link, useLocation, type UIMatch } from "react-router";
 
@@ -136,6 +137,12 @@ const operationNavigationItems = [
     label: "Coreografías",
     to: "/administracion/coreografias",
     icon: Music2,
+  },
+  // PROTOTYPE (#912): variants B and C give the participation list its own entry.
+  {
+    label: "Participación",
+    to: "/prototipo/lista-de-participacion",
+    icon: ListOrdered,
   },
   {
     label: "Profesores",

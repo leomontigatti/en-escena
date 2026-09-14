@@ -165,8 +165,23 @@ export type ClientDataTableProps<TData> = DataTableBaseProps<TData> &
     initialSort?: DataTableSort;
   };
 
+/** PROTOTYPE (#912): a header row drawn before each run of rows sharing a key. */
+export type DataTableRowGroup = {
+  key: string;
+  label: ReactNode;
+};
+
+/** PROTOTYPE (#912): drag-and-drop reordering within the rows on screen. */
+export type DataTableReorder = {
+  enabled: boolean;
+  onMove: (activeRowKey: string, overRowKey: string) => void;
+};
+
 export type ServerDataTableProps<TData> = DataTableBaseProps<TData> &
   DataTableRowSelectionProps & {
+    canSelectRow?: (row: TData) => boolean;
+    getRowGroup?: (row: TData) => DataTableRowGroup | undefined;
+    reorder?: DataTableReorder;
     currentPage: number;
     totalPages: number;
     totalRows: number;
