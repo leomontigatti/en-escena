@@ -107,8 +107,8 @@ reviewer's job.
 Make improvements + new tests, commit as a single squashed commit _(reference message prefix:
 `RALPH: Review -`)_. Before committing, validate **once**: `pnpm typecheck`, `pnpm lint`,
 `pnpm test:unit`, and `pnpm test:db <path>` for the DB test files you touched. Don't run the
-full `pnpm test` — it takes ~13 min of your 30 min budget and CI runs the complete suite in
-parallel anyway. That list is exhaustive; don't invent commands. See
+full `pnpm test` — it takes ~13 min of your wall-clock budget ({{WALL_CLOCK_BUDGET}}) and CI
+runs the complete suite in parallel anyway. That list is exhaustive; don't invent commands. See
 `.sandcastle/VALIDATION.md`. Don't leave the branch broken. If the code is already clean and
 there's nothing to answer, make no commit.
 

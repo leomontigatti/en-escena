@@ -148,14 +148,16 @@ jobs:
 
       - name: Run implement runner
         if: steps.preflight.outputs.proceed == 'true'
-        timeout-minutes: 30 # guardrail: an agent hang must not burn the whole run
+        timeout-minutes: 60 # guardrail: an agent hang must not burn the whole run
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           BRANCH: ${{ steps.branch.outputs.branch }}
           # Internal deadline, below the step's `timeout-minutes`: the runner aborts
           # the agent and fails with a real reason instead of being killed without
           # leaving one (#512).
-          AGENT_BUDGET_MINUTES: 25
+          # 50, not the usual 25: implementing an issue regularly outgrows 25 min
+          # (run 34715632348). See docs/agents/afk-setup.md.
+          AGENT_BUDGET_MINUTES: 50
         run: pnpm exec tsx .sandcastle/agent-implement/implement.mts
 
       # --- On runner failure (e.g. the runner timeout): bank any green commits

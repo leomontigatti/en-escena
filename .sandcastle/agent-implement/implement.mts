@@ -13,6 +13,7 @@ import { run } from "@ai-hero/sandcastle";
 import {
   createAgent,
   createSandboxProvider,
+  describeBudget,
   requireEnv,
   runMain,
   streamingLog,
@@ -20,7 +21,7 @@ import {
 
 const MAX_ITERATIONS = 100;
 
-await runMain(async ({ signal }) => {
+await runMain(async ({ signal, completion }) => {
   const issueNumber = requireEnv("ISSUE_NUMBER");
   const issueTitle = requireEnv("ISSUE_TITLE");
   const branch = requireEnv("BRANCH");
@@ -31,7 +32,8 @@ await runMain(async ({ signal }) => {
     name: "implement",
     agent: createAgent(),
     sandbox: createSandboxProvider(),
-    logging: streamingLog("implement"),
+    // Its whole result is its commits, so a completion after the budget counts.
+    logging: streamingLog("implement", completion),
     signal,
     maxIterations: MAX_ITERATIONS,
     promptFile: "./.sandcastle/agent-implement/prompt.md",
@@ -40,6 +42,7 @@ await runMain(async ({ signal }) => {
       ISSUE_TITLE: issueTitle,
       ISSUE_BODY: issueBody,
       BRANCH: branch,
+      WALL_CLOCK_BUDGET: describeBudget(),
     },
   });
 });

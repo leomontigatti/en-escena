@@ -49,6 +49,13 @@ are only concrete references to this repo:
   the timeout into an ordinary throw) and the `*.agent.log` upload artifact, whose tail the
   `failure()` steps read before falling back to the spec's message. Both are documented in
   [`afk-setup.md`](./afk-setup.md) → "Wall-clock guardrails".
+- **A completion after the budget counts, and the implement passes get 60 / 50.** The budget's
+  abort cannot stop an agent under `noSandbox()`, so an agent close to done finishes past the
+  deadline and `run()` still rejects — run 34715632348 reported a committed #917 as failed.
+  `runMain` treats that case as success when the completion signal was seen and the tree is
+  clean (opt-in, `implement` and `implement-prd` only), the two implement passes move to 60 / 50,
+  and their prompts state the budget and ask for checkpoint commits. Details in
+  [`afk-setup.md`](./afk-setup.md) → "Wall-clock guardrails".
 - **Typecheck gate on §4.6's clean-merge path.** The spec invokes the update-branch agent only
   when `git merge` conflicts, so a textually clean merge is pushed without anything compiling
   the result — and a semantic conflict (the base reshapes a signature, the branch adds a caller

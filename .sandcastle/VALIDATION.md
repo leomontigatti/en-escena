@@ -74,9 +74,10 @@ about 13 minutes. Measured on this repo, pinned to 2 cores:
 | `pnpm test:db`     | ~10 min     |
 | `pnpm test` (both) | ~13 min     |
 
-The runner's step budget is 30 minutes. A prompt that asks for `pnpm test` before
-*and* after the edits spends ~26 of those 30 minutes waiting, which is what
-exhausted the budget on PR #512 and lost an entire review's findings.
+Most runner steps get 30 minutes; the implement passes get 60, with a 50-minute
+budget (the table is in `docs/agents/afk-setup.md`). A prompt that asks for
+`pnpm test` before *and* after the edits spends ~26 minutes waiting, which is what
+exhausted a 30-minute budget on PR #512 and lost an entire review's findings.
 
 CI never does this: `checks` and `db-gate` run on two parallel runners and finish
 in ~4-5 minutes. Duplicating that serially inside the agent buys nothing.

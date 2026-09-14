@@ -14,6 +14,7 @@ import { Output } from "@ai-hero/sandcastle";
 import {
   createAgent,
   createSandboxProvider,
+  describeBudget,
   requireEnv,
   revokeGitHubToken,
   runMain,
@@ -82,6 +83,7 @@ await runMain(async ({ signal }) => {
     promptArgs: {
       PR_NUMBER: prNumber,
       BRANCH: branch,
+      WALL_CLOCK_BUDGET: describeBudget(),
       ISSUE_NUMBER: linkedIssue.number,
       ISSUE_TITLE: context.issueTitle,
       ISSUE_BODY: linkedIssue.body,
