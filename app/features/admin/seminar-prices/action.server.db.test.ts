@@ -47,7 +47,6 @@ function seminarPriceBody(
     name: "Precio participantes",
     kind: "regular",
     forParticipants: "true",
-    isOpenEnded: "true",
     paymentDeadline: "",
     amount: "20000",
     ...overrides,
@@ -131,6 +130,46 @@ describe("administrative seminar price action", () => {
     ).resolves.toMatchObject({
       status: "error",
       message: "Confirmá el borrado del precio.",
+    });
+    await expect(listSeminarPrices(event.id)).resolves.toHaveLength(1);
+  });
+
+  test("refuses a second deadline-less row of the cell, and a malformed deadline", async () => {
+    const event = await createSavedEvent("Regional 2028", { activate: true });
+
+    await submit(newUrl, seminarPriceBody());
+
+    const { request: duplicateRequest } = await createSignedInAdminRequest({
+      body: seminarPriceBody({ name: "Otro precio participantes" }),
+      email: `${crypto.randomUUID()}@example.com`,
+      requestUrl: newUrl,
+      role: "admin",
+    });
+
+    await expect(
+      handleSeminarPriceAction(duplicateRequest, {
+        allowedIntents: ["create-seminar-price"],
+      }),
+    ).resolves.toMatchObject({
+      status: "error",
+      message:
+        "Ya existe un precio de seminario para ese tipo, esas personas y esa fecha límite.",
+    });
+
+    const { request: malformedRequest } = await createSignedInAdminRequest({
+      body: seminarPriceBody({ paymentDeadline: "31/05/2026" }),
+      email: `${crypto.randomUUID()}@example.com`,
+      requestUrl: newUrl,
+      role: "admin",
+    });
+
+    await expect(
+      handleSeminarPriceAction(malformedRequest, {
+        allowedIntents: ["create-seminar-price"],
+      }),
+    ).resolves.toMatchObject({
+      status: "error",
+      fieldErrors: { paymentDeadline: "Elegí una fecha válida." },
     });
     await expect(listSeminarPrices(event.id)).resolves.toHaveLength(1);
   });

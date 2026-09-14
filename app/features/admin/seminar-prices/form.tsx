@@ -78,7 +78,6 @@ function getSeminarPriceFormDefaultValues({
     return {
       name: submittedValues.name,
       forParticipants: submittedValues.forParticipants === "true",
-      isOpenEnded: submittedValues.isOpenEnded === "true",
       kind: submittedValues.kind,
       amount: submittedValues.amount,
       paymentDeadline: submittedValues.paymentDeadline,
@@ -88,7 +87,6 @@ function getSeminarPriceFormDefaultValues({
   return {
     name: name ?? "",
     forParticipants: forParticipants ?? true,
-    isOpenEnded: paymentDeadline === null,
     kind: kind ?? "",
     amount: amount ? String(amount) : "",
     paymentDeadline: paymentDeadline ?? "",
@@ -150,6 +148,7 @@ export function SeminarPriceForm({
           fieldId={`seminar-price-payment-deadline-${id ?? intent}`}
           form={form}
           guard={guard}
+          isExistingRow={Boolean(id)}
           values={values}
         />
         <FieldGroup className="grid gap-4 sm:grid-cols-2">
@@ -198,34 +197,33 @@ type GuardedFieldProps = {
   values: SeminarPriceFormValues;
 };
 
-function DeadlineField({ fieldId, form, guard, values }: GuardedFieldProps) {
+function DeadlineField({
+  fieldId,
+  form,
+  guard,
+  isExistingRow,
+  values,
+}: GuardedFieldProps & { isExistingRow: boolean }) {
   if (!guard.canEditStructure) {
     return (
-      <>
-        <ReadOnlyDateField
-          id={fieldId}
-          label="Fecha límite de pago"
-          name="paymentDeadline"
-          emptyLabel={openEndedDeadlineLabel}
-          value={values.paymentDeadline || null}
-        />
-        <input
-          type="hidden"
-          name="isOpenEnded"
-          value={values.isOpenEnded ? "true" : "false"}
-        />
-      </>
+      <ReadOnlyDateField
+        id={fieldId}
+        label="Fecha límite de pago"
+        name="paymentDeadline"
+        emptyLabel={openEndedDeadlineLabel}
+        value={values.paymentDeadline || null}
+      />
     );
   }
 
   return (
     <DateOnlyField
+      clearable
       control={form.control}
       name="paymentDeadline"
-      disabled={values.isOpenEnded}
       id={fieldId}
       label="Fecha límite de pago"
-      labelAdornment={<OpenEndedSwitch form={form} />}
+      placeholder={isExistingRow ? openEndedDeadlineLabel : undefined}
     />
   );
 }
@@ -342,15 +340,13 @@ function NameField({
   );
 }
 
-// One switch shape for both toggles of the form, as on the choreography price
-// form: a hidden input so the boolean reaches the action, a tooltip on the
-// control, and the field the toggle governs cleared on the edge that needs it.
+// The switch shape of the form, as on the choreography price form: a hidden
+// input so the boolean reaches the action, and a tooltip on the control.
 type SeminarPriceSwitchProps = {
   disabled?: boolean;
   form: SeminarPriceFormController;
   label: string;
-  name: "forParticipants" | "isOpenEnded";
-  onToggle?: (checked: boolean) => void;
+  name: "forParticipants";
 };
 
 function SeminarPriceSwitch({
@@ -358,7 +354,6 @@ function SeminarPriceSwitch({
   form,
   label,
   name,
-  onToggle,
 }: SeminarPriceSwitchProps) {
   const id = useId();
 
@@ -386,10 +381,7 @@ function SeminarPriceSwitch({
                   checked={field.value}
                   disabled={disabled}
                   onBlur={field.onBlur}
-                  onCheckedChange={(checked) => {
-                    field.onChange(checked);
-                    onToggle?.(checked);
-                  }}
+                  onCheckedChange={field.onChange}
                 />
               </TooltipTrigger>
               <TooltipContent>{label}</TooltipContent>
@@ -397,24 +389,6 @@ function SeminarPriceSwitch({
           </TooltipProvider>
         </>
       )}
-    />
-  );
-}
-
-function OpenEndedSwitch({ form }: { form: SeminarPriceFormController }) {
-  return (
-    <SeminarPriceSwitch
-      form={form}
-      label={openEndedDeadlineLabel}
-      name="isOpenEnded"
-      onToggle={(checked) => {
-        if (checked) {
-          form.setValue("paymentDeadline", "", {
-            shouldDirty: true,
-            shouldValidate: true,
-          });
-        }
-      }}
     />
   );
 }

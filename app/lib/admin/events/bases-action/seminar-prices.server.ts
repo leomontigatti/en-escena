@@ -48,7 +48,6 @@ type SeminarPriceActionInput = EventBasesActionBaseInput & {
   kind: string;
   forParticipants: boolean;
   amount: number;
-  isOpenEnded: boolean;
   paymentDeadline: string;
 };
 
@@ -90,21 +89,15 @@ function getSeminarPriceRequiredFieldErrors(
     return null;
   }
 
-  // An open-ended row carries no deadline on purpose, so the field only joins
-  // the required set while the switch is off.
-  const requiredFields: Record<string, FormDataEntryValue | null> = {
-    name: formData.get("name"),
-    kind: formData.get("kind"),
-    amount: formData.get("amount"),
-  };
-
-  if (!input.isOpenEnded) {
-    requiredFields.paymentDeadline = formData.get("paymentDeadline");
-  }
-
+  // A blank deadline is what a row with no deadline looks like, so the field
+  // never joins the required set.
   return buildRequiredFieldError(
     "Revisá los datos del precio de seminario.",
-    getRequiredErrors(requiredFields),
+    getRequiredErrors({
+      name: formData.get("name"),
+      kind: formData.get("kind"),
+      amount: formData.get("amount"),
+    }),
   );
 }
 
@@ -189,7 +182,6 @@ function readSeminarPriceActionInput(
     kind: String(formData.get("kind") ?? ""),
     forParticipants: String(formData.get("forParticipants") ?? "") === "true",
     amount: Number.parseInt(String(formData.get("amount") ?? ""), 10),
-    isOpenEnded: String(formData.get("isOpenEnded") ?? "") === "true",
     paymentDeadline: String(formData.get("paymentDeadline") ?? ""),
   };
 }
@@ -200,7 +192,6 @@ function readSeminarPriceActionValues(
   return {
     name: String(formData.get("name") ?? ""),
     forParticipants: String(formData.get("forParticipants") ?? ""),
-    isOpenEnded: String(formData.get("isOpenEnded") ?? ""),
     kind: String(formData.get("kind") ?? ""),
     amount: String(formData.get("amount") ?? ""),
     paymentDeadline: String(formData.get("paymentDeadline") ?? ""),
@@ -215,6 +206,6 @@ function getSeminarPriceInput(
     kind: input.kind,
     forParticipants: input.forParticipants,
     amount: input.amount,
-    paymentDeadline: input.isOpenEnded ? null : input.paymentDeadline,
+    paymentDeadline: input.paymentDeadline || null,
   };
 }

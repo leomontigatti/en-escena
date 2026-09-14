@@ -73,7 +73,6 @@ function getPriceFormDefaultValues({
       isSpecialPrice:
         submittedValues.isSpecialPrice === "true" ||
         submittedValues.scheduleId.length > 0,
-      isOpenEnded: submittedValues.isOpenEnded === "true",
       groupType: submittedValues.groupType,
       amount: submittedValues.amount,
       paymentDeadline: submittedValues.paymentDeadline,
@@ -84,7 +83,6 @@ function getPriceFormDefaultValues({
   return {
     name: name ?? "",
     isSpecialPrice: Boolean(scheduleId),
-    isOpenEnded: paymentDeadline === null,
     groupType: groupType ?? "",
     amount: amount ? String(amount) : "",
     paymentDeadline: paymentDeadline ?? "",
@@ -129,7 +127,6 @@ export function PriceForm({
   }, [defaultValues, form]);
 
   const isSpecialPrice = form.watch("isSpecialPrice");
-  const isOpenEnded = form.watch("isOpenEnded");
 
   return (
     <form
@@ -157,12 +154,12 @@ export function PriceForm({
           <input type="hidden" name="scheduleId" value="" />
         )}
         <DateOnlyField
+          clearable
           control={form.control}
           name="paymentDeadline"
-          disabled={isOpenEnded}
           id={`price-payment-deadline-${id ?? intent}`}
           label="Fecha límite de pago"
-          labelAdornment={<OpenEndedSwitch form={form} />}
+          placeholder={id ? openEndedDeadlineLabel : undefined}
         />
         <FieldGroup className="grid gap-4 sm:grid-cols-2">
           <SelectField
@@ -236,14 +233,14 @@ function NameField({ form }: { form: PriceFormController }) {
   );
 }
 
-// One switch shape for both price toggles: hidden input so the boolean reaches
-// the action, tooltip on the control, and a side effect on the field the toggle
-// governs. `onToggle` receives the new state, because the two switches clear
-// their partner field on opposite edges.
+// The shape of the form's switch: a hidden input so the boolean reaches the
+// action, a tooltip on the control, and a side effect on the field the toggle
+// governs. `onToggle` receives the new state, because clearing the partner
+// field only makes sense on one edge.
 type PriceFormSwitchProps = {
   form: PriceFormController;
   label: string;
-  name: "isOpenEnded" | "isSpecialPrice";
+  name: "isSpecialPrice";
   onToggle: (checked: boolean) => void;
 };
 
@@ -289,28 +286,6 @@ function PriceFormSwitch({
           </TooltipProvider>
         </>
       )}
-    />
-  );
-}
-
-// Turns the row open-ended: no deadline, so it applies once every dated row has
-// expired. It sits in the label row rather than inside the control, because
-// `DateOnlyField`'s right edge already carries the calendar icon and, once
-// disabled, the lock icon.
-function OpenEndedSwitch({ form }: { form: PriceFormController }) {
-  return (
-    <PriceFormSwitch
-      form={form}
-      label={openEndedDeadlineLabel}
-      name="isOpenEnded"
-      onToggle={(checked) => {
-        if (checked) {
-          form.setValue("paymentDeadline", "", {
-            shouldDirty: true,
-            shouldValidate: true,
-          });
-        }
-      }}
     />
   );
 }

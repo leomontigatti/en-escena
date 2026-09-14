@@ -22,7 +22,6 @@ import {
 type PriceDraft = {
   amount: string;
   groupType: string;
-  isOpenEnded?: string;
   isSpecialPrice?: string;
   name: string;
   paymentDeadline: string;
@@ -68,7 +67,6 @@ export async function createEventPriceAdminFixture() {
 function buildPriceDraft(overrides: Partial<PriceDraft> = {}): PriceDraft {
   return {
     name: "Precio base",
-    isOpenEnded: "",
     isSpecialPrice: "",
     groupType: "solo",
     amount: "12000",
@@ -178,7 +176,6 @@ function formDataWithPrice(
     intent,
     name: price.name,
     isSpecialPrice: price.isSpecialPrice ?? "",
-    isOpenEnded: price.isOpenEnded ?? "",
     groupType: price.groupType,
     amount: price.amount,
     paymentDeadline: price.paymentDeadline,
