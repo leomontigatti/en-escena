@@ -5,7 +5,7 @@ import {
   DEFAULT_SEMINAR_DEPOSIT_PERCENTAGE,
   invalidSeminarDepositPercentageMessage,
   isValidSeminarDepositPercentage,
-} from "@/lib/seminars/deposit-percentage";
+} from "@/lib/events/deposit-percentage";
 import {
   defaultSeminarKind,
   isSeminarKind,

@@ -1,5 +1,4 @@
 import { useCallback, useMemo, useState } from "react";
-import { useSearchParams } from "react-router";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import {
@@ -20,9 +19,10 @@ import {
 import type { CobroStage } from "@/lib/finances/choreography-cobro-presets.server";
 import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
 import {
-  resolveSelectedOperationalTotals,
-  sumOperationalFinanceRows,
-} from "@/lib/finances/selected-operational-totals";
+  choreographiesTabValue,
+  seminarsTabValue,
+  useFinanceTabs,
+} from "@/lib/finances/finance-tabs";
 import { operationalFinanceColumns } from "@/lib/finances/operational-finance-columns";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
@@ -37,11 +37,6 @@ type ChoreographyFinanceRow =
 
 type SeminarFinanceRow =
   AcademyFinancesLoaderData["seminarFinanceRows"][number];
-
-/** The tab the page opens on, and the one the URL does not have to name. */
-const choreographiesTabValue = "coreografias";
-const seminarsTabValue = "seminarios";
-const financeTabParam = "seccion";
 
 export const academyChoreographyFinanceFacetedFilterIds = ["estado"] as const;
 
@@ -65,19 +60,20 @@ export function AcademyFinancesRouteView({
   initialPresetStage = null,
   loaderData,
 }: AcademyFinancesRouteViewProps) {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab =
-    searchParams.get(financeTabParam) === seminarsTabValue
-      ? seminarsTabValue
-      : choreographiesTabValue;
-  // **One selection per tab, kept side by side.** They are not one state
-  // narrowed by the active tab: switching tabs and coming back would then have
-  // silently dropped what was selected, and the two presets read the
-  // choreography one whichever tab is open.
-  const [selectedChoreographyIds, setSelectedChoreographyIds] = useState<
-    string[]
-  >([]);
-  const [selectedSeminarIds, setSelectedSeminarIds] = useState<string[]>([]);
+  // The tabs, their two selections and the figures that follow them are the
+  // portal summary's as well (`useFinanceTabs`); the two presets below read the
+  // choreography selection whichever tab is open, and are this page's alone.
+  const {
+    activeTab,
+    activeThresholds,
+    activeTotals,
+    choreographyTotals,
+    onTabChange,
+    selectedChoreographyIds,
+    selectedSeminarIds,
+    setSelectedChoreographyIds,
+    setSelectedSeminarIds,
+  } = useFinanceTabs(loaderData);
   const [presetStage, setPresetStage] = useState<CobroStage | null>(
     initialPresetStage,
   );
@@ -89,33 +85,6 @@ export function AcademyFinancesRouteView({
     () => buildSeminarFinanceColumns(loaderData.academy.id),
     [loaderData.academy.id],
   );
-  // The four threshold-and-owed figures follow the active tab: they are that
-  // kind's debt, summed over that kind's rows. `Saldo disponible` never moves —
-  // it is the academy's pool, one for both kinds.
-  const choreographyThresholds = sumOperationalFinanceRows(
-    loaderData.choreographyFinanceRows,
-  );
-  const seminarThresholds = sumOperationalFinanceRows(
-    loaderData.seminarFinanceRows,
-  );
-  // The collection operates on the selection, so the two owed figures follow it:
-  // leaving them at the tab's total forces adding up from memory how much is
-  // about to be collected.
-  const choreographyTotals = resolveSelectedOperationalTotals({
-    rows: loaderData.choreographyFinanceRows,
-    selectedRowIds: selectedChoreographyIds,
-    summary: choreographyThresholds,
-  });
-  const seminarTotals = resolveSelectedOperationalTotals({
-    rows: loaderData.seminarFinanceRows,
-    selectedRowIds: selectedSeminarIds,
-    summary: seminarThresholds,
-  });
-  const isSeminarsTab = activeTab === seminarsTabValue;
-  const activeTotals = isSeminarsTab ? seminarTotals : choreographyTotals;
-  const activeThresholds = isSeminarsTab
-    ? seminarThresholds
-    : choreographyThresholds;
   // Stable so the dialog can close itself from an effect when the write
   // succeeds without the effect re-running on every render of the list.
   const handlePresetOpenChange = useCallback((next: boolean) => {
@@ -174,25 +143,7 @@ export function AcademyFinancesRouteView({
           totalAmount={activeThresholds.totalAmount}
         />
 
-        <Tabs
-          value={activeTab}
-          onValueChange={(value) => {
-            setSearchParams(
-              (current) => {
-                const next = new URLSearchParams(current);
-
-                if (value === seminarsTabValue) {
-                  next.set(financeTabParam, seminarsTabValue);
-                } else {
-                  next.delete(financeTabParam);
-                }
-
-                return next;
-              },
-              { preventScrollReset: true, replace: true },
-            );
-          }}
-        >
+        <Tabs value={activeTab} onValueChange={onTabChange}>
           <TabsList variant="line">
             <TabsTrigger value={choreographiesTabValue}>
               Coreografías

@@ -1,6 +1,4 @@
 import { WalletCards } from "lucide-react";
-import { useState } from "react";
-import { useSearchParams } from "react-router";
 
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import {
@@ -25,9 +23,10 @@ import {
 } from "@/lib/finances/choreography-financial-status";
 import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
 import {
-  resolveSelectedOperationalTotals,
-  sumOperationalFinanceRows,
-} from "@/lib/finances/selected-operational-totals";
+  choreographiesTabValue,
+  seminarsTabValue,
+  useFinanceTabs,
+} from "@/lib/finances/finance-tabs";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 
 type PortalAcademyFinancesLoaderData = Awaited<
@@ -39,11 +38,6 @@ type ChoreographyFinanceRow =
 
 type SeminarFinanceRow =
   PortalAcademyFinancesLoaderData["seminarFinanceRows"][number];
-
-/** The tab the page opens on, and the one the URL does not have to name. */
-const choreographiesTabValue = "coreografias";
-const seminarsTabValue = "seminarios";
-const financeTabParam = "seccion";
 
 export const portalFinanceFacetedFilterIds = ["estado"] as const;
 
@@ -184,45 +178,19 @@ export function PortalAcademyFinancesRouteView({
 }: {
   loaderData: PortalAcademyFinancesLoaderData;
 }) {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab =
-    searchParams.get(financeTabParam) === seminarsTabValue
-      ? seminarsTabValue
-      : choreographiesTabValue;
-  // **One selection per tab, kept side by side**, exactly as on the panel's
-  // academy page: one state narrowed by the active tab would silently drop what
-  // was selected on the other one when the academy comes back to it.
-  //
-  // The academy selects to read and not to act — the collections are the
+  // The same tab state the panel's academy page keeps (`useFinanceTabs`). The
+  // academy selects to read and not to act — the collections are the
   // administrator's — but reading how much *those* rows owe is the whole point.
-  const [selectedChoreographyIds, setSelectedChoreographyIds] = useState<
-    string[]
-  >([]);
-  const [selectedSeminarIds, setSelectedSeminarIds] = useState<string[]>([]);
-  // The four threshold-and-owed figures follow the active tab: they are that
-  // kind's debt, summed over that kind's rows. `Saldo disponible` never moves —
-  // it is the academy's pool, one for both kinds.
-  const choreographyThresholds = sumOperationalFinanceRows(
-    loaderData.choreographyFinanceRows,
-  );
-  const seminarThresholds = sumOperationalFinanceRows(
-    loaderData.seminarFinanceRows,
-  );
-  const choreographyTotals = resolveSelectedOperationalTotals({
-    rows: loaderData.choreographyFinanceRows,
-    selectedRowIds: selectedChoreographyIds,
-    summary: choreographyThresholds,
-  });
-  const seminarTotals = resolveSelectedOperationalTotals({
-    rows: loaderData.seminarFinanceRows,
-    selectedRowIds: selectedSeminarIds,
-    summary: seminarThresholds,
-  });
-  const isSeminarsTab = activeTab === seminarsTabValue;
-  const activeTotals = isSeminarsTab ? seminarTotals : choreographyTotals;
-  const activeThresholds = isSeminarsTab
-    ? seminarThresholds
-    : choreographyThresholds;
+  const {
+    activeTab,
+    activeThresholds,
+    activeTotals,
+    onTabChange,
+    selectedChoreographyIds,
+    selectedSeminarIds,
+    setSelectedChoreographyIds,
+    setSelectedSeminarIds,
+  } = useFinanceTabs(loaderData);
 
   if (!loaderData.activeEvent) {
     return (
@@ -256,25 +224,7 @@ export function PortalAcademyFinancesRouteView({
         totalAmount={activeThresholds.totalAmount}
       />
 
-      <Tabs
-        value={activeTab}
-        onValueChange={(value) => {
-          setSearchParams(
-            (current) => {
-              const next = new URLSearchParams(current);
-
-              if (value === seminarsTabValue) {
-                next.set(financeTabParam, seminarsTabValue);
-              } else {
-                next.delete(financeTabParam);
-              }
-
-              return next;
-            },
-            { preventScrollReset: true, replace: true },
-          );
-        }}
-      >
+      <Tabs value={activeTab} onValueChange={onTabChange}>
         <TabsList variant="line">
           <TabsTrigger value={choreographiesTabValue}>Coreografías</TabsTrigger>
           <TabsTrigger value={seminarsTabValue}>Seminarios</TabsTrigger>

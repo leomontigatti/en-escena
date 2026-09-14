@@ -31,7 +31,7 @@ import {
 import {
   MAX_SEMINAR_DEPOSIT_PERCENTAGE,
   MIN_SEMINAR_DEPOSIT_PERCENTAGE,
-} from "@/lib/seminars/deposit-percentage";
+} from "@/lib/events/deposit-percentage";
 import { seminarKindOptions } from "@/lib/seminars/seminar-kinds";
 import {
   createValidatedRouteSubmitHandler,

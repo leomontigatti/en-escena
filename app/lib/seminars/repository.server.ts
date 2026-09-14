@@ -11,7 +11,7 @@ import {
 import {
   invalidSeminarDepositPercentageMessage,
   isValidSeminarDepositPercentage,
-} from "@/lib/seminars/deposit-percentage";
+} from "@/lib/events/deposit-percentage";
 import { isSeminarKind, type SeminarKind } from "@/lib/seminars/seminar-kinds";
 import { seminarHasComprobantes } from "@/lib/comprobantes/comprobantes.server";
 import {

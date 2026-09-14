@@ -1,4 +1,4 @@
-import { DEFAULT_SEMINAR_DEPOSIT_PERCENTAGE } from "@/lib/seminars/deposit-percentage";
+import { DEFAULT_SEMINAR_DEPOSIT_PERCENTAGE } from "@/lib/events/deposit-percentage";
 import { defaultSeminarKind } from "@/lib/seminars/seminar-kinds";
 
 /**
