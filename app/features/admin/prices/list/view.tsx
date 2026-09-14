@@ -46,6 +46,7 @@ export function EventPricesListView({
   const isSeminarTab = activeTab === seminarPricesTabValue;
   const missingCellsWarning = readMissingSeminarPriceCellsWarning(
     loaderData.seminarPrices,
+    loaderData.hasSeminars,
   );
 
   return (

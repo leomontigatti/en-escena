@@ -101,6 +101,16 @@ const duplicateSeminarFieldError =
 const seminarNotFoundError = "No encontramos ese seminario.";
 const requiredSeminarFieldError = "Este campo es obligatorio.";
 
+/** Whether the event has any seminar at all, for warnings that only matter then. */
+export async function hasEventSeminars(eventId: string) {
+  const row = await db.query.seminars.findFirst({
+    columns: { id: true },
+    where: eq(seminars.eventId, eventId),
+  });
+
+  return row !== undefined;
+}
+
 export async function listSeminars(
   eventId: string,
 ): Promise<SeminarListItem[]> {

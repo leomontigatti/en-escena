@@ -142,6 +142,7 @@ function loaderData(
     prices: [],
     schedules: [],
     seminarPrices: [],
+    hasSeminars: false,
     selectedEventId: "evento_1",
     ...overrides,
   };

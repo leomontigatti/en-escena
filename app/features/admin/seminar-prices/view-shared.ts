@@ -32,12 +32,14 @@ export const participantsSwitchLabel = "Para participantes";
  * deadline-less `Común` row, every seminar of the event is closed to
  * registration, which is not something the seminar list itself can say. It
  * names no cell, because it sits above both tabs and the table already shows
- * which rows exist.
+ * which rows exist. An event without seminars has nothing to close, so it is
+ * not warned about.
  */
 export function readMissingSeminarPriceCellsWarning(
   seminarPrices: SeminarPriceListItem[],
+  hasSeminars: boolean,
 ) {
-  if (hasCompleteSeminarPriceCells(seminarPrices)) {
+  if (!hasSeminars || hasCompleteSeminarPriceCells(seminarPrices)) {
     return null;
   }
 
