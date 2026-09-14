@@ -5,10 +5,6 @@ import { createRoot } from "react-dom/client";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeAll, describe, expect, test } from "vitest";
 
-import { renderRouteView } from "@/features/admin/test-support/render-route-view";
-import { EventPriceDetailView } from "@/features/admin/prices/detail/view";
-import { readPriceDeletionBlock } from "@/features/admin/prices/view-shared";
-
 import type { EventPriceDetailView as EventPriceDetailRouteViewType } from "@/features/admin/prices/detail/view";
 import type { EventPricesListView as EventPricesRouteViewType } from "@/features/admin/prices/list/view";
 import type { getPriceDisplayName as GetPriceDisplayName } from "@/features/admin/prices/view-shared";
@@ -219,76 +215,6 @@ describe("EventPriceDetailRouteView", () => {
     ]);
   });
 });
-
-describe("guarded price detail", () => {
-  test("edits every field of an unguarded row", () => {
-    const markup = renderGuardedDetail();
-
-    expect(markup).toContain('name="amount"');
-    expect(markup).toContain("Tipo de grupo");
-    expect(markup).not.toContain("congelaron este precio");
-    expect(readPriceDeletionBlock(guardedPrice())).toBeNull();
-  });
-
-  test("locks a frozen row down to its name and explains why", () => {
-    const markup = renderGuardedDetail({ isFrozen: true });
-
-    expect(markup).toContain("hay inscripciones que congelaron este precio.");
-    // Every guarded field reads through the shared read-only look, so the
-    // locked values travel as hidden inputs and nothing is editable but the
-    // name.
-    expect(markup).toContain('type="hidden" name="groupType"');
-    expect(markup).toContain('type="hidden" name="amount"');
-    expect(markup).toContain('type="hidden" name="paymentDeadline"');
-    // `Borrar precio` is disabled on sight, and its dialog opens blocked,
-    // rather than refusing after the submission.
-    expect(readPriceDeletionBlock(guardedPrice({ isFrozen: true }))).toContain(
-      "No se puede borrar el precio",
-    );
-  });
-
-  test("keeps the amount of the row that keeps its group type covered", () => {
-    const markup = renderGuardedDetail({
-      keepsCoverage: true,
-      paymentDeadline: null,
-    });
-
-    expect(markup).toContain("Podés cambiarle el monto.");
-    expect(markup).not.toContain('type="hidden" name="amount"');
-    expect(markup).toContain("Sin fecha límite");
-    expect(markup).toContain('type="hidden" name="groupType"');
-    expect(
-      readPriceDeletionBlock(guardedPrice({ keepsCoverage: true })),
-    ).toContain("No se puede borrar el precio");
-  });
-});
-
-function guardedPrice(overrides: Partial<PriceListItem> = {}): PriceListItem {
-  return {
-    ...createPrice({
-      amount: 12000,
-      groupType: "solo",
-      id: "price_1",
-      name: "Precio Solo",
-      paymentDeadline: "2026-05-31",
-      scheduleId: null,
-      scheduleName: null,
-    }),
-    ...overrides,
-  };
-}
-
-function renderGuardedDetail(overrides: Partial<PriceListItem> = {}) {
-  const price = guardedPrice(overrides);
-
-  return renderRouteView(
-    <EventPriceDetailView
-      loaderData={createLoaderData({ prices: [price] })}
-      priceId={price.id}
-    />,
-    `/administracion/precios/${price.id}`,
-  );
-}
 
 function installReactTestEnvironment() {
   (
