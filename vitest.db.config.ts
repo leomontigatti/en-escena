@@ -53,7 +53,15 @@ export default mergeConfig(
       server: {
         deps: {
           fallbackCJS: true,
-          inline: true,
+          // `inline: true` pushed every dependency through Vite for each of the
+          // 112 files; the three patterns `vitest.config.ts` inlines are the
+          // ones that actually need it (see the comment there). Halved this
+          // suite's `collect` phase (issue #961).
+          inline: [
+            /@opentelemetry\/semantic-conventions/,
+            /(^|\/)better-auth/,
+            /@better-auth\//,
+          ],
         },
       },
       hookTimeout: 30_000,
