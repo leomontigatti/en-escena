@@ -1,7 +1,13 @@
 // PROTOTYPE — throwaway, lives only on branch `prototype/912-participation-list`
 // (wayfinder ticket #912, map #907). The notices above the list, and the prototype's state card.
-import { AlertTriangle, Info, SquareArrowOutUpRight } from "lucide-react";
+import {
+  AlertTriangle,
+  Info,
+  ListOrdered,
+  SquareArrowOutUpRight,
+} from "lucide-react";
 
+import { AlertStack } from "@/components/shared/alert-stack";
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +31,7 @@ export function ListNotices({
   hasPresentations,
   isSortedByOrder,
   onlyWarnings,
+  onOrderAutomatically,
   onToggleOnlyWarnings,
   unorderedCount,
 }: {
@@ -33,53 +40,79 @@ export function ListNotices({
   hasPresentations: boolean;
   isSortedByOrder: boolean;
   onlyWarnings: boolean;
+  onOrderAutomatically: () => void;
   onToggleOnlyWarnings: () => void;
   unorderedCount: number;
 }) {
+  // `AlertStack` renders nothing without alerts, so an empty stack does not
+  // add a second gap above the tabs.
   return (
-    <div className="flex flex-col gap-3">
-      {hasPresentations && unorderedCount > 0 ? (
-        <Alert variant="info">
-          <Info aria-hidden="true" />
-          <AlertDescription>
-            {unorderedCount === 1
-              ? "Existe 1 coreografía sin número de presentación."
-              : `Existen ${unorderedCount} coreografías sin número de presentación.`}
-          </AlertDescription>
-        </Alert>
-      ) : null}
+    <>
+      <AlertStack>
+        {!hasPresentations ? (
+          <Alert variant="info">
+            <Info aria-hidden="true" />
+            <AlertDescription>
+              Las coreografías todavía no tienen un número de presentación
+              asignado.
+            </AlertDescription>
+            <AlertAction className="top-1/2 -translate-y-1/2">
+              <Button
+                type="button"
+                size="sm"
+                variant="link"
+                onClick={onOrderAutomatically}
+              >
+                <ListOrdered aria-hidden="true" data-icon="inline-start" />
+                Ordenar automáticamente
+              </Button>
+            </AlertAction>
+          </Alert>
+        ) : null}
 
-      {flaggedCount > 0 ? (
-        <Alert variant="warning">
-          <AlertTriangle aria-hidden="true" />
-          <AlertDescription>
-            {flaggedCount === 1
-              ? "Existe 1 presentación con advertencias."
-              : `Existen ${flaggedCount} presentaciones con advertencias.`}
-          </AlertDescription>
-          <AlertAction className="top-1/2 -translate-y-1/2">
-            <Button
-              type="button"
-              size="sm"
-              variant="link"
-              onClick={onToggleOnlyWarnings}
-            >
-              <SquareArrowOutUpRight
-                aria-hidden="true"
-                data-icon="inline-start"
-              />
-              {onlyWarnings ? "Ver todas" : "Ver"}
-            </Button>
-          </AlertAction>
-        </Alert>
-      ) : null}
+        {hasPresentations && unorderedCount > 0 ? (
+          <Alert variant="info">
+            <Info aria-hidden="true" />
+            <AlertDescription>
+              {unorderedCount === 1
+                ? "Existe 1 coreografía sin número de presentación."
+                : `Existen ${unorderedCount} coreografías sin número de presentación.`}
+            </AlertDescription>
+          </Alert>
+        ) : null}
+
+        {flaggedCount > 0 ? (
+          <Alert variant="warning">
+            <AlertTriangle aria-hidden="true" />
+            <AlertDescription>
+              {flaggedCount === 1
+                ? "Existe 1 presentación con advertencias."
+                : `Existen ${flaggedCount} presentaciones con advertencias.`}
+            </AlertDescription>
+            <AlertAction className="top-1/2 -translate-y-1/2">
+              <Button
+                type="button"
+                size="sm"
+                variant="link"
+                onClick={onToggleOnlyWarnings}
+              >
+                <SquareArrowOutUpRight
+                  aria-hidden="true"
+                  data-icon="inline-start"
+                />
+                {onlyWarnings ? "Ver todas" : "Ver"}
+              </Button>
+            </AlertAction>
+          </Alert>
+        ) : null}
+      </AlertStack>
 
       {canEditOrder && !isSortedByOrder ? (
         <p className="text-sm text-muted-foreground">
           Ordená por número para arrastrar.
         </p>
       ) : null}
-    </div>
+    </>
   );
 }
 

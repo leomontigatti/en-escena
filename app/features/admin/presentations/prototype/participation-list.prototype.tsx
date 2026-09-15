@@ -216,6 +216,7 @@ export function ParticipationListPrototype({
                 hasPresentations={hasPresentations}
                 isSortedByOrder={isSortedByOrder}
                 onlyWarnings={query.onlyWarnings}
+                onOrderAutomatically={() => setDialog("ordering")}
                 onToggleOnlyWarnings={onToggleOnlyWarnings}
                 unorderedCount={unorderedCount}
               />

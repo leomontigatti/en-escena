@@ -8,6 +8,7 @@ import {
 } from "@/components/shared/data-table";
 import { DataTableDragHandle } from "@/components/shared/data-table-shell";
 import { DataTableLink } from "@/components/shared/data-table-link";
+import { ReadOnlyField } from "@/components/shared/read-only-field";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
@@ -165,8 +166,18 @@ function OrderNumberCell({
     setError(null);
   }, [row.orderNumber]);
 
-  if (!canEdit && row.orderNumber !== null) {
-    return <span className="font-medium tabular-nums">{row.orderNumber}</span>;
+  // Locked until the first automatic ordering, or while the row lacks the
+  // category or schedule its block needs.
+  if (!canEdit) {
+    return (
+      <ReadOnlyField
+        className="w-20"
+        inputClassName="tabular-nums"
+        label={`Número de presentación de ${row.name}`}
+        labelClassName="sr-only"
+        value={String(row.orderNumber ?? "")}
+      />
+    );
   }
 
   const commit = () => {
@@ -198,7 +209,6 @@ function OrderNumberCell({
         aria-label={`Número de presentación de ${row.name}`}
         aria-invalid={error ? true : undefined}
         className="w-16 tabular-nums"
-        disabled={!canEdit}
         inputMode="numeric"
         value={draft}
         onBlur={commit}
