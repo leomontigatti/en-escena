@@ -138,7 +138,9 @@ export function buildColumns({
       id: "estado",
       header: "Estado",
       width: 11,
-      cell: (row) => <StatusBadge items={warnings.get(row.id) ?? []} />,
+      cell: (row) => (
+        <StatusBadge items={warnings.get(row.id) ?? []} row={row} />
+      ),
     },
   ];
 
@@ -242,7 +244,8 @@ export function formatJudgeName(judge: PrototypeJudge) {
   return judge.name;
 }
 
-// Triage order: what blocks the ordering first, then what hides the
+// Triage order: what blocks the ordering first, then `Sin número` (see
+// `StatusBadge`), then what hides the
 // presentation from the public, then what hurts the dancers, then placement.
 const warningTriage: Array<{
   kind: PresentationWarning["kind"];
@@ -263,14 +266,24 @@ const triageRank = (kind: PresentationWarning["kind"]) =>
  * Only the most relevant warning is a badge; the tooltip still lists every
  * warning on the row, most relevant first.
  */
-function StatusBadge({ items }: { items: PresentationWarning[] }) {
+function StatusBadge({
+  items,
+  row,
+}: {
+  items: PresentationWarning[];
+  row: ParticipationRow;
+}) {
   const sorted = [...items].sort(
     (a, b) => triageRank(a.kind) - triageRank(b.kind),
   );
   const top = warningTriage.find((entry) => entry.kind === sorted[0]?.kind);
 
+  // `Sin número` sits after the two blocking warnings in the triage and before
+  // the rest, which only exist on numbered rows, so one badge is still enough.
   if (!top) {
-    return null;
+    return row.orderNumber === null ? (
+      <Badge variant="info">Sin número</Badge>
+    ) : null;
   }
 
   return (

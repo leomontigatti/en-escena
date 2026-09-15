@@ -484,7 +484,9 @@ export function derivePresentationWarnings(
     .sort(byOrderNumber);
 
   for (const row of rows) {
-    if (row.orderNumber === null && !row.isBelowDeposit) {
+    // Numbered rows too: a presentation whose choreography lost its category
+    // or schedule blocks the next ordering just the same.
+    if (!row.isBelowDeposit) {
       if (!row.category) {
         push(row.id, {
           kind: "missingCategory",
