@@ -3,15 +3,11 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { PGlite } from "@electric-sql/pglite";
-import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 
 import { pgliteSchema } from "./pglite-schema";
 import { runPgliteSchemaMigrate } from "./pglite-schema-runner";
-
-function quoteIdentifier(identifier: string) {
-  return `"${identifier.replaceAll('"', '""')}"`;
-}
+import { resetDatabaseTables } from "./reset";
 
 export async function createPgliteTestDatabase() {
   const dataDir = await mkdtemp(path.join(tmpdir(), "en-escena-pglite-"));
@@ -32,26 +28,5 @@ export async function destroyPgliteTestDatabase(
 export async function resetPgliteTestDatabase(
   db: Awaited<ReturnType<typeof createPgliteTestDatabase>>["db"],
 ) {
-  const existingTables = await db.execute<{ tablename: string }>(
-    sql.raw(`
-      select tablename
-      from pg_tables
-      where schemaname = 'public'
-        and tablename like 'en\\_escena\\_%' escape '\\'
-      order by tablename
-    `),
-  );
-  const tablesToTruncate = existingTables.rows.map((table) => table.tablename);
-
-  if (tablesToTruncate.length === 0) {
-    return;
-  }
-
-  await db.execute(
-    sql.raw(
-      `truncate table ${tablesToTruncate
-        .map(quoteIdentifier)
-        .join(", ")} restart identity cascade`,
-    ),
-  );
+  await resetDatabaseTables(db);
 }
