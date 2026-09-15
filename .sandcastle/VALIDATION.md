@@ -79,8 +79,10 @@ budget (the table is in `docs/agents/afk-setup.md`). A prompt that asks for
 `pnpm test` before *and* after the edits spends ~26 minutes waiting, which is what
 exhausted a 30-minute budget on PR #512 and lost an entire review's findings.
 
-CI never does this: `checks` and `db-gate` run on two parallel runners and finish
-in ~4-5 minutes. Duplicating that serially inside the agent buys nothing.
+CI never does this: `checks` runs on its own runner and the DB suite is split
+across the `db-shard` matrix behind the `db-gate` aggregator (#962), so the whole
+pipeline finishes in the time of its slowest job. Duplicating that serially
+inside the agent buys nothing.
 
 ## Why still run the full unit suite
 

@@ -69,6 +69,31 @@ Recommended final validation after code changes:
 6. `pnpm build` when the change touches routing, server rendering, bundling,
    CSS, or deployment behavior
 
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on every PR to `master`. Its charter comment is
+the canonical description; the shape is three required contexts:
+
+- `checks`: `format:check`, `lint`, the `check:*` scripts, the migration
+  drift/order/immutability checks, `typecheck`, `test:unit` and `build`, with no
+  database.
+- `db-gate`: the full `*.db.test.ts` suite against real Postgres 17. The tests
+  run in the `db-shard` matrix — four runners, each with its own Postgres
+  service container, each running
+  `pnpm db:test:reset && pnpm exec vitest --config vitest.db.config.ts --run --shard=<i>/4`
+  (#962). `db-gate` itself runs nothing: it `needs` the matrix and fails unless
+  every shard succeeded. There is no `package.json` script for the sharded
+  command, because only CI passes `--shard`; locally the DB suite is still
+  `pnpm test:db` (PGlite) or `pnpm test:db:postgres` (real Postgres).
+- `docs-gate`: mapped code changed, so its current-state document must change
+  too (`pnpm check:doc-map`).
+
+`--shard` splits by file, so a shard always runs whole files and never shares a
+database with another shard; the serial-within-a-runner isolation model of
+`docs/adr/0007-db-test-isolation-model.md` is unchanged. Required contexts are a
+repo setting, not part of this file: renaming a job does not update branch
+protection, which is why the aggregator is named exactly `db-gate`.
+
 ## Linting
 
 `pnpm lint` is [oxlint](https://oxc.rs), configured in `.oxlintrc.json`. It runs

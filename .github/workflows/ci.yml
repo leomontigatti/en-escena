@@ -1,12 +1,17 @@
 # CI pipeline — implements the decision in #305 (full charter of the workflow).
-# PR-only: issue -> branch -> PR -> merge. Three jobs, all meant to be required:
+# PR-only: issue -> branch -> PR -> merge. Three gates, all meant to be required:
 #   - checks   : lint / typecheck / non-DB tests / build, with no database (@/db is lazy, #308).
-#   - db-gate  : full `*.db.test.ts` suite against real Postgres 17 (mirrors production).
+#   - db-gate  : full `*.db.test.ts` suite against real Postgres 17 (mirrors production),
+#                split across the `db-shard` matrix (#962). Each shard is a runner with its
+#                own Postgres service, so no shard shares a database with another and the
+#                serial-within-a-runner isolation model of ADR-0007 is unchanged. `db-gate`
+#                itself runs no tests: it is the aggregator that fails unless every shard
+#                succeeded, and it exists so the required-context name stays stable.
 #   - docs-gate: mapped code changed => its current-state document must change too (#630).
-# Branch protection on `master` is live: direct pushes are forbidden and `checks` and
-# `db-gate` are required contexts, with `strict: true`. Required contexts are a repo
-# setting, not a file here, so adding a job does not make it binding — `docs-gate` has to
-# be added to that list by hand once its first run has created the context.
+# Branch protection on `master` is live: direct pushes are forbidden and `checks`,
+# `db-gate` and `docs-gate` are required contexts, with `strict: true`. Required contexts
+# are a repo setting, not a file here, so renaming or adding a job does not update them —
+# that is a human step outside the repo.
 name: CI
 
 on:
@@ -108,9 +113,22 @@ jobs:
           git fetch --no-tags origin master
           node scripts/check-doc-map.mjs origin/master
 
-  db-gate:
-    name: db-gate
+  # Sharded by file with vitest's `--shard` (#962). `vitest.db.config.ts` stays serial
+  # (`fileParallelism: false`, `maxWorkers: 1`): that constraint is about sharing one
+  # database inside a runner, and each matrix job gets its own service container. Shards
+  # are whole files, so a file never straddles two databases.
+  # Shard count: each shard pays ~35 s of fixed setup (container init, checkout, install),
+  # so the target is 1-2 min of tests per shard; see the #962 amendment in
+  # docs/agents/test-suite-speed-plan.md for the measured split.
+  db-shard:
+    name: db-shard ${{ matrix.shard }}/4
     runs-on: ubuntu-latest
+    strategy:
+      # One failing shard must not cancel the others: a red `db-gate` should report every
+      # failure in the suite, not just the first shard to hit one.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     services:
       postgres:
         image: postgres:17-alpine # mirrors production
@@ -138,6 +156,27 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Resets and applies the versioned schema (the #305/#391 path), then runs
-      # the whole DB suite against a real Postgres.
-      - run: pnpm test:db:postgres
+      # Resets and applies the versioned schema (the #305/#391 path) against this shard's
+      # own service container, then runs this shard's slice of the DB suite. Spelled out
+      # rather than reusing `pnpm test:db:postgres` because only CI passes `--shard`.
+      - name: db suite (shard ${{ matrix.shard }} of 4)
+        run: pnpm db:test:reset && pnpm exec vitest --config vitest.db.config.ts --run --shard=${{ matrix.shard }}/4
+
+  # The required status check. Named exactly `db-gate` because branch protection on
+  # `master` requires that context by name; the tests themselves moved to `db-shard`.
+  # No checkout and no install — it only reads the matrix result.
+  db-gate:
+    name: db-gate
+    runs-on: ubuntu-latest
+    needs: [db-shard]
+    # `always()` so a cancelled or failed shard still produces a red `db-gate` instead of
+    # a skipped context, which branch protection would wait on forever.
+    if: always()
+    steps:
+      - name: every DB shard succeeded
+        run: |
+          if [ "${{ needs.db-shard.result }}" != "success" ]; then
+            echo "::error::db-gate: the db-shard matrix reported '${{ needs.db-shard.result }}'. See the failing shard job for the tests."
+            exit 1
+          fi
+          echo "All DB shards succeeded."
