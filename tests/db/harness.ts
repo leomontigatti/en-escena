@@ -3,11 +3,9 @@ import { sql } from "drizzle-orm";
 
 import { db } from "@/db";
 
-const testDatabaseLockKey = "en-escena-test-database";
+import { resetDatabaseTables } from "./reset";
 
-function quoteIdentifier(identifier: string) {
-  return `"${identifier.replaceAll('"', '""')}"`;
-}
+const testDatabaseLockKey = "en-escena-test-database";
 
 async function resetTestDatabase() {
   await db.transaction(async (tx) => {
@@ -17,30 +15,10 @@ async function resetTestDatabase() {
       );
     }
 
-    const existingTablesResult = await tx.execute<{ tablename: string }>(
-      sql.raw(`
-        select tablename
-        from pg_tables
-        where schemaname = 'public'
-          and tablename like 'en\\_escena\\_%' escape '\\'
-        order by tablename
-      `),
-    );
-    const tablesToTruncate = readRows(existingTablesResult).map(
-      (table) => table.tablename,
-    );
-
-    if (tablesToTruncate.length === 0) {
-      return;
-    }
-
-    await tx.execute(
-      sql.raw(
-        `truncate table ${tablesToTruncate
-          .map(quoteIdentifier)
-          .join(", ")} restart identity cascade`,
-      ),
-    );
+    // The reset deletes from (and rewinds the sequences of) only the objects
+    // the previous test dirtied, instead of truncating all 29 tables; see the
+    // rationale and the measurements at the top of `./reset.ts`.
+    await resetDatabaseTables(tx, db);
   });
 }
 
@@ -52,8 +30,4 @@ export function installDatabaseTestHooks() {
 
 function getDatabaseTestBackend() {
   return process.env.DB_TEST_BACKEND === "pglite" ? "pglite" : "postgres";
-}
-
-function readRows<Row extends object>(result: { rows: Row[] } | Row[]) {
-  return Array.isArray(result) ? result : result.rows;
 }

@@ -448,3 +448,55 @@ Start with a PGlite-plus-snapshot proof of concept on 1 or 2 small DB files. If 
 fidelity incompatibility with Postgres shows up, shift focus to real Postgres per
 worker. It is not worth starting directly by parallelizing the current suite:
 today the serial harness and the shared Postgres are part of the isolation.
+
+## Operational amendment 2026-09-15 (issue #961)
+
+The CI `db-gate` job took ~7 m 45 s, of which `pnpm test:db:postgres` was 424 s
+(run 34905655961, 2026-09-14): vitest reported `collect 131.6 s` and
+`tests 266.3 s` for 112 files / 823 tests on one worker. The cost was not in the
+fixtures — net of the per-test reset a test averaged ~0.14 s — but in the reset
+itself, which ran `truncate table <all 29 en_escena_ tables> restart identity
+cascade` before **every** test.
+
+Measured on the local `postgres:17-alpine` container, per reset, inside the same
+transaction and advisory lock the harness already used:
+
+| Reset                                                               | Empty database | After a test that wrote one table |
+| ------------------------------------------------------------------- | -------------: | --------------------------------: |
+| `truncate` over all 29 tables (previous)                            |          85 ms |                             85 ms |
+| `truncate ... restart identity cascade` limited to the dirty tables |              — |                             49 ms |
+| probe + `delete from` the dirty tables (current)                    |     **3.1 ms** |                        **4.1 ms** |
+
+The issue's own earlier measurements on a different machine put the all-table
+truncate at 130-260 ms, unchanged by `fsync=off synchronous_commit=off
+full_page_writes=off`: the cost is catalog work per table, not disk I/O. That
+also explains why truncating only the dirty tables barely helps — `cascade` still
+walks the catalog.
+
+Chosen reset (`tests/db/reset.ts`, shared by `tests/db/harness.ts` and
+`tests/db/pglite.ts`):
+
+1. one round trip that returns the `en_escena_%` tables holding at least one row
+   (`exists (select 1 from t)` per table, unioned) and the `public` sequences
+   whose `pg_sequences.last_value` is not null, i.e. that have been advanced;
+2. `delete from` each dirty table in child-before-parent order, computed once per
+   database from `pg_constraint`;
+3. `alter sequence ... restart` for each advanced sequence, which covers the test
+   that inserted and then deleted its own rows.
+
+The isolation model of ADR-0007 is unchanged — still a full reset before each
+test against one shared database per run — only the statements that implement it.
+The schema currently declares no sequences, so step 3 is normally a no-op; it is
+kept so a future `serial`/identity column cannot silently leak across tests.
+
+Also in `vitest.db.config.ts`: `server.deps.inline: true` transformed every
+dependency through Vite once per file. It is now narrowed to the same three
+patterns `vitest.config.ts` inlines, which is what the stubs actually require.
+
+Validation on this branch: `pnpm test:unit` (1551 tests), `pnpm test:db` (113
+files, 825 tests) and the full `vitest --config vitest.db.config.ts --run` (113
+files, 827 tests) all green. The wall-clock figures of that local run are not
+comparable to CI's — the three suites shared one runner — so the per-reset
+numbers above, measured in isolation, are the meaningful ones; the `db-gate`
+figure to compare against the 424 s baseline is the one the PR's own CI run
+reports.
