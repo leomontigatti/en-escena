@@ -555,10 +555,27 @@ Two caveats on the headline number, so the next reader does not over-read it:
   post-#961 CI wall time of the unsharded suite was never recorded on its own, so
   the gain attributable to sharding alone cannot be read off these two numbers,
   and neither can a clean speed-up ratio.
-- Because of that, the before/after the acceptance criteria ask for is still
-  owed: the per-shard durations and the `db-gate` wall time from this PR's own CI
-  run have to be back-filled here once it has run. If the slowest shard lands
-  above ~2 m 30 s, the next step is 6.
+- Because of that, the before/after the acceptance criteria ask for comes from
+  the PR's own CI run, recorded below, not from the two numbers above.
+
+### Measured on the PR's own CI run (35024332458, 2026-09-15)
+
+| Job            | Files | Vitest `Duration`                  |                       Job wall clock |
+| -------------- | ----: | ---------------------------------- | -----------------------------------: |
+| `db-shard 1/4` |    29 | 102.7 s (collect 32.9, tests 64.7) |                             2 m 33 s |
+| `db-shard 2/4` |    29 | 91.2 s (collect 33.5, tests 52.4)  |                             2 m 18 s |
+| `db-shard 3/4` |    29 | 94.1 s (collect 51.5, tests 36.1)  |                             2 m 15 s |
+| `db-shard 4/4` |    26 | 95.4 s (collect 35.0, tests 54.5)  |                             2 m 17 s |
+| `db-gate`      |     — | aggregator only                    | green 2 m 38 s after the run started |
+
+Against the last unsharded run on `master` after #961 (PR #963's run 34968689946:
+`db-gate` 6 m 52 s, vitest 366.8 s), the gate's wall clock fell to 2 m 38 s. The
+slowest shard's job wall clock (2 m 33 s) sits right at the 2 m 30 s mark, but
+only 103 s of it is vitest; the rest is the fixed setup a fifth or sixth runner
+would pay again. Going to 6 shards would cut about 25 s of test time per shard
+for another 35 s of setup each, so 4 stays. The whole CI run now finishes in
+3 m 11 s and its long pole is `checks` (3 m 07 s, mostly `test:unit`), not the DB
+suite.
 
 Out of scope here, in order of what to try next if this is not enough: parallel
 workers inside one runner with a template database per `VITEST_POOL_ID`
