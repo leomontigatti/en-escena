@@ -90,7 +90,7 @@ async function loadResetPlan(executor: Executor): Promise<ResetPlan> {
 
 type ForeignKey = { child: string; parent: string };
 
-function mapParents(tableNames: string[], foreignKeys: ForeignKey[]) {
+function buildParentsOf(tableNames: string[], foreignKeys: ForeignKey[]) {
   const parentsOf = new Map(tableNames.map((name) => [name, [] as string[]]));
 
   for (const { child, parent } of foreignKeys) {
@@ -145,7 +145,7 @@ function orderChildrenFirst(
   tableNames: string[],
   foreignKeys: ForeignKey[],
 ): string[] {
-  const parentsOf = mapParents(tableNames, foreignKeys);
+  const parentsOf = buildParentsOf(tableNames, foreignKeys);
   const depthOf = new Map<string, number>();
 
   for (const tableName of tableNames) {
@@ -181,23 +181,43 @@ function buildProbeQuery(tableNames: string[]) {
 }
 
 /**
+ * The cached plan is dropped again if the catalog read fails, so a connection
+ * lost mid-reset does not leave a rejected promise poisoning every later reset
+ * against the same database.
+ */
+function readResetPlan(executor: Executor, planOwner: object) {
+  const cached = resetPlanByDatabase.get(planOwner);
+
+  if (cached) {
+    return cached;
+  }
+
+  const plan = loadResetPlan(executor).catch((error: unknown) => {
+    resetPlanByDatabase.delete(planOwner);
+    throw error;
+  });
+  resetPlanByDatabase.set(planOwner, plan);
+
+  return plan;
+}
+
+/**
  * Empties every `en_escena_%` table and rewinds every sequence, touching only
  * the objects a test actually dirtied. Statements run on `executor`, which may
- * be a database or an open transaction; `cacheKey` identifies the database the
- * executor belongs to, so a per-test transaction does not re-read the catalog.
+ * be a database or an open transaction; `planOwner` is the database that
+ * executor belongs to, so a per-test transaction reuses the catalog read rather
+ * than repeating it. It is required on purpose: passing the transaction by
+ * omission would key the cache on a throwaway object and silently re-read the
+ * catalog on every test, which no assertion would catch.
  */
 export async function resetDatabaseTables(
   executor: Executor,
-  cacheKey: object = executor,
+  planOwner: object,
 ) {
-  let plan = resetPlanByDatabase.get(cacheKey);
-
-  if (!plan) {
-    plan = loadResetPlan(executor);
-    resetPlanByDatabase.set(cacheKey, plan);
-  }
-
-  const { deletionOrder, probeQuery } = await plan;
+  const { deletionOrder, probeQuery } = await readResetPlan(
+    executor,
+    planOwner,
+  );
 
   const dirtyResult = await executor.execute(sql.raw(probeQuery));
   const dirty = readRows<{ kind: string; name: string }>(dirtyResult);

@@ -28,5 +28,5 @@ export async function destroyPgliteTestDatabase(
 export async function resetPgliteTestDatabase(
   db: Awaited<ReturnType<typeof createPgliteTestDatabase>>["db"],
 ) {
-  await resetDatabaseTables(db);
+  await resetDatabaseTables(db, db);
 }

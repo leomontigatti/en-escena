@@ -494,8 +494,8 @@ dependency through Vite once per file. It is now narrowed to the same three
 patterns `vitest.config.ts` inlines, which is what the stubs actually require.
 
 Validation on this branch: `pnpm test:unit` (1551 tests), `pnpm test:db` (113
-files, 824 tests) and the full `vitest --config vitest.db.config.ts --run` (113
-files, 826 tests) all green. The wall-clock figures of that local run are not
+files, 825 tests) and the full `vitest --config vitest.db.config.ts --run` (113
+files, 827 tests) all green. The wall-clock figures of that local run are not
 comparable to CI's — the three suites shared one runner — so the per-reset
 numbers above, measured in isolation, are the meaningful ones; the `db-gate`
 figure to compare against the 424 s baseline is the one the PR's own CI run

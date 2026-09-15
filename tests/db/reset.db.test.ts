@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
@@ -11,6 +12,9 @@ installDatabaseTestHooks();
 
 const probeSequenceName = "en_escena_reset_probe_seq";
 
+// Deliberately re-derives the probe instead of reusing `buildProbeQuery`, so
+// the assertions are an independent oracle rather than a restatement of the
+// code under test.
 async function countRowsInEnEscenaTables() {
   const result = await db.execute<{ dirty: string }>(
     sql.raw(`
@@ -57,7 +61,7 @@ describe("the per-test database reset", () => {
       email: "academia@example.com",
     });
 
-    await resetDatabaseTables(db);
+    await resetDatabaseTables(db, db);
 
     expect(await countRowsInEnEscenaTables()).toEqual([]);
   });
@@ -70,7 +74,7 @@ describe("the per-test database reset", () => {
 
       expect(await readSequenceLastValue()).not.toBeNull();
 
-      await resetDatabaseTables(db);
+      await resetDatabaseTables(db, db);
 
       expect(await readSequenceLastValue()).toBeNull();
     } finally {
@@ -79,8 +83,32 @@ describe("the per-test database reset", () => {
   });
 
   test("is a no-op on an already empty database", async () => {
-    await resetDatabaseTables(db);
+    await resetDatabaseTables(db, db);
 
     expect(await countRowsInEnEscenaTables()).toEqual([]);
+  });
+
+  test("reads the catalog again after a reset that failed mid-plan", async () => {
+    const planOwner = {};
+    let attempts = 0;
+    const flaky = {
+      execute: async (query: SQL) => {
+        attempts += 1;
+
+        if (attempts === 1) {
+          throw new Error("connection lost");
+        }
+
+        return db.execute(query);
+      },
+    };
+
+    await expect(resetDatabaseTables(flaky, planOwner)).rejects.toThrow(
+      "connection lost",
+    );
+
+    await expect(
+      resetDatabaseTables(flaky, planOwner),
+    ).resolves.toBeUndefined();
   });
 });

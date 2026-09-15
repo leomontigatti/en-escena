@@ -15,6 +15,9 @@ async function resetTestDatabase() {
       );
     }
 
+    // The reset deletes from (and rewinds the sequences of) only the objects
+    // the previous test dirtied, instead of truncating all 29 tables; see the
+    // rationale and the measurements at the top of `./reset.ts`.
     await resetDatabaseTables(tx, db);
   });
 }
