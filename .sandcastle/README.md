@@ -67,8 +67,8 @@ pnpm test:db app/lib/example.db.test.ts
 Focused DB tests use the fast in-process PGlite harness. Run `pnpm test` before
 finishing database-backed work; it covers the unit suite and the full PGlite DB
 suite with no local Postgres. `pnpm test:db:postgres` is the high-fidelity
-real-Postgres path, reserved for the CI gate on the PR (`ci.yml`, issues
-#305/#342).
+real-Postgres path; CI runs the same suite sharded across `db-shard` behind the
+`db-gate` context (`ci.yml`, issues #305/#342/#962).
 
 Do not use `pnpm exec tsc` directly in this repo. `pnpm typecheck` generates
 React Router route types before running TypeScript.
