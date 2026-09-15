@@ -10,7 +10,8 @@
 //     `sin-elegibles`, `sin-evento`
 //   `conflicto`: `si` makes the next move fail its stale check
 // The table's own `busqueda`, `orden` and `pagina` stay as the shared table
-// writes them; `advertencias` is the warnings notice's filter and `dia` the tab.
+// writes them; `advertencias` is the notices' filter (`con` or `bloqueantes`)
+// and `dia` the tab.
 import { useSearchParams } from "react-router";
 
 import { AdminShell } from "@/components/admin/shell";
@@ -75,14 +76,18 @@ export default function ParticipationListPrototypeRoute() {
           conflict={conflict}
           query={{
             day: searchParams.get("dia") ?? "todos",
-            onlyWarnings: searchParams.get("advertencias") === "con",
+            warningFilter: readOption(searchParams.get("advertencias"), [
+              "con",
+              "bloqueantes",
+            ] as const),
             page: Math.max(1, Number(searchParams.get("pagina") ?? 1) || 1),
             search: searchParams.get("busqueda") ?? "",
             sort,
           }}
-          onToggleOnlyWarnings={() =>
+          onToggleWarningFilter={(filter) =>
             setParams({
-              advertencias: searchParams.get("advertencias") ? null : "con",
+              advertencias:
+                searchParams.get("advertencias") === filter ? null : filter,
               pagina: null,
             })
           }

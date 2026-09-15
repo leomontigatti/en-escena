@@ -458,6 +458,20 @@ export function isPlaceable(row: ParticipationRow) {
   );
 }
 
+/** Whether a row stops `runAutomaticOrdering`: it lacks category or schedule. */
+export function blocksOrdering(row: ParticipationRow) {
+  return (
+    !row.isBelowDeposit && (row.category === null || row.schedule === null)
+  );
+}
+
+/** The warnings that do not block the ordering. */
+export function isBlockingWarning(warning: PresentationWarning) {
+  return (
+    warning.kind === "missingCategory" || warning.kind === "missingSchedule"
+  );
+}
+
 /** Stand-in for `derivePresentationWarnings`. */
 export function derivePresentationWarnings(
   rows: ParticipationRow[],

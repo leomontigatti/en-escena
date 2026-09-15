@@ -29,7 +29,9 @@ import {
   OrderingDialog,
 } from "./participation-dialogs.prototype";
 import {
+  blocksOrdering,
   buildCaseRows,
+  isBlockingWarning,
   derivePresentationWarnings,
   judges,
   movePresentation,
@@ -40,9 +42,11 @@ import {
 } from "./participation-fixtures.prototype";
 import { ListNotices, PrototypeState } from "./participation-notices.prototype";
 
+export type WarningFilter = "con" | "bloqueantes";
+
 export type ParticipationQuery = {
   day: string;
-  onlyWarnings: boolean;
+  warningFilter: WarningFilter | null;
   page: number;
   search: string;
   sort: { columnId: string; direction: "asc" | "desc" } | null;
@@ -57,13 +61,13 @@ const eventDays = [
 export function ParticipationListPrototype({
   caseId,
   conflict,
-  onToggleOnlyWarnings,
+  onToggleWarningFilter,
   query,
   setDay,
 }: {
   caseId: PrototypeCaseId;
   conflict: boolean;
-  onToggleOnlyWarnings: () => void;
+  onToggleWarningFilter: (filter: WarningFilter) => void;
   query: ParticipationQuery;
   setDay: (day: string) => void;
 }) {
@@ -90,9 +94,12 @@ export function ParticipationListPrototype({
   // Late rows no longer lock the order (third review): they can be placed.
   const canEditOrder = hasPresentations;
   const canDrag = canEditOrder && isSortedByOrder;
-  const flaggedCount = rows.filter(
-    (row) => (warnings.get(row.id)?.length ?? 0) > 0,
-  ).length;
+  // The rows that stop the automatic ordering get their own notice; the
+  // warnings notice counts only the rest (fourth review).
+  const blockingCount = rows.filter(blocksOrdering).length;
+  const hasOtherWarnings = (row: ParticipationRow) =>
+    (warnings.get(row.id) ?? []).some((warning) => !isBlockingWarning(warning));
+  const flaggedCount = rows.filter(hasOtherWarnings).length;
   const selectedRows = rows.filter(
     (row) => selectedRowIds.includes(row.id) && row.presentationId !== null,
   );
@@ -104,7 +111,8 @@ export function ParticipationListPrototype({
     rows.filter(
       (row) =>
         matchesSearch(row, query.search) &&
-        (!query.onlyWarnings || (warnings.get(row.id)?.length ?? 0) > 0) &&
+        (query.warningFilter !== "con" || hasOtherWarnings(row)) &&
+        (query.warningFilter !== "bloqueantes" || blocksOrdering(row)) &&
         (query.day === "todos" || row.schedule?.scheduledDate === query.day),
     ),
     sort,
@@ -166,7 +174,7 @@ export function ParticipationListPrototype({
         rows.length > 0 ? (
           <ResourceActionsMenu contentClassName="w-56">
             <DropdownMenuItem
-              disabled={eligibleCount === 0}
+              disabled={eligibleCount === 0 || blockingCount > 0}
               onSelect={(event) => {
                 event.preventDefault();
                 setDialog("ordering");
@@ -215,9 +223,10 @@ export function ParticipationListPrototype({
                 flaggedCount={flaggedCount}
                 hasPresentations={hasPresentations}
                 isSortedByOrder={isSortedByOrder}
-                onlyWarnings={query.onlyWarnings}
+                blockingCount={blockingCount}
+                warningFilter={query.warningFilter}
                 onOrderAutomatically={() => setDialog("ordering")}
-                onToggleOnlyWarnings={onToggleOnlyWarnings}
+                onToggleWarningFilter={onToggleWarningFilter}
                 unorderedCount={unorderedCount}
               />
 

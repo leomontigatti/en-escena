@@ -19,37 +19,57 @@ import {
 } from "@/components/ui/card";
 
 import type { PrototypeCaseId } from "./participation-fixtures.prototype";
+import type { WarningFilter } from "./participation-list.prototype";
 
 /**
- * Each notice takes the variant of what it says: `info` for a state that hides
- * the drag handles until the next ordering, `warning` for the rows that carry
- * an `Advertencia`.
+ * Each notice takes the variant of what it says. A choreography that stops the
+ * automatic ordering replaces the two ordering notices with a destructive one,
+ * and the warnings notice counts only what does not block (fourth review).
  */
 export function ListNotices({
+  blockingCount,
   canEditOrder,
   flaggedCount,
   hasPresentations,
   isSortedByOrder,
-  onlyWarnings,
   onOrderAutomatically,
-  onToggleOnlyWarnings,
+  onToggleWarningFilter,
   unorderedCount,
+  warningFilter,
 }: {
+  blockingCount: number;
   canEditOrder: boolean;
   flaggedCount: number;
   hasPresentations: boolean;
   isSortedByOrder: boolean;
-  onlyWarnings: boolean;
   onOrderAutomatically: () => void;
-  onToggleOnlyWarnings: () => void;
+  onToggleWarningFilter: (filter: WarningFilter) => void;
   unorderedCount: number;
+  warningFilter: WarningFilter | null;
 }) {
+  const isBlocked = blockingCount > 0;
+
   // `AlertStack` renders nothing without alerts, so an empty stack does not
   // add a second gap above the tabs.
   return (
     <>
       <AlertStack>
-        {!hasPresentations ? (
+        {isBlocked ? (
+          <Alert variant="destructive">
+            <AlertTriangle aria-hidden="true" />
+            <AlertDescription>
+              {blockingCount === 1
+                ? "Existe 1 coreografía que necesita atención antes de poder ordenar las presentaciones."
+                : `Existen ${blockingCount} coreografías que necesitan atención antes de poder ordenar las presentaciones.`}
+            </AlertDescription>
+            <FilterAction
+              isActive={warningFilter === "bloqueantes"}
+              onToggle={() => onToggleWarningFilter("bloqueantes")}
+            />
+          </Alert>
+        ) : null}
+
+        {!isBlocked && !hasPresentations ? (
           <Alert variant="info">
             <Info aria-hidden="true" />
             <AlertDescription>
@@ -70,7 +90,7 @@ export function ListNotices({
           </Alert>
         ) : null}
 
-        {hasPresentations && unorderedCount > 0 ? (
+        {!isBlocked && hasPresentations && unorderedCount > 0 ? (
           <Alert variant="info">
             <Info aria-hidden="true" />
             <AlertDescription>
@@ -89,20 +109,10 @@ export function ListNotices({
                 ? "Existe 1 presentación con advertencias."
                 : `Existen ${flaggedCount} presentaciones con advertencias.`}
             </AlertDescription>
-            <AlertAction className="top-1/2 -translate-y-1/2">
-              <Button
-                type="button"
-                size="sm"
-                variant="link"
-                onClick={onToggleOnlyWarnings}
-              >
-                <SquareArrowOutUpRight
-                  aria-hidden="true"
-                  data-icon="inline-start"
-                />
-                {onlyWarnings ? "Ver todas" : "Ver"}
-              </Button>
-            </AlertAction>
+            <FilterAction
+              isActive={warningFilter === "con"}
+              onToggle={() => onToggleWarningFilter("con")}
+            />
           </Alert>
         ) : null}
       </AlertStack>
@@ -113,6 +123,23 @@ export function ListNotices({
         </p>
       ) : null}
     </>
+  );
+}
+
+function FilterAction({
+  isActive,
+  onToggle,
+}: {
+  isActive: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <AlertAction className="top-1/2 -translate-y-1/2">
+      <Button type="button" size="sm" variant="link" onClick={onToggle}>
+        <SquareArrowOutUpRight aria-hidden="true" data-icon="inline-start" />
+        {isActive ? "Ver todas" : "Ver"}
+      </Button>
+    </AlertAction>
   );
 }
 
