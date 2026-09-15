@@ -3,22 +3,16 @@
 // to see the public program for wayfinder ticket #913 (map #907). No loader, no
 // auth, no database: in-memory fixtures inside the first unauthenticated shell.
 //
-// The bar at the bottom writes:
-//   `variante`: `A` (table + day tabs), `B` (sections per schedule, printable),
-//     `C` (compact list); ← and → cycle it too
+// The first review kept one layout, aligned with the admin list of #912. The bar
+// at the bottom switches the case:
 //   `caso`: `publicado`, `oculto` (`programVisible` off), `sin-evento`
 //   `sesion`: `anonima`, `academia` (only the topbar action changes)
-import { useEffect } from "react";
 import { useSearchParams } from "react-router";
 
-import {
-  prototypeVariants,
-  readPublicProgramRows,
-  type PrototypeVariantId,
-} from "@/features/public/program/prototype/program-fixtures.prototype";
+import { readPublicProgramRows } from "@/features/public/program/prototype/program-fixtures.prototype";
 import {
   NoPublishedProgram,
-  ProgramVariant,
+  ProgramList,
   PrototypeBar,
   PublicProgramHeader,
   PublicShell,
@@ -46,41 +40,8 @@ export function readOption<TOption extends string>(
     : (options[0] as TOption);
 }
 
-export function useVariantKeys(
-  variant: PrototypeVariantId,
-  setVariant: (variant: PrototypeVariantId) => void,
-) {
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-
-      if (
-        target?.closest("input, textarea, [contenteditable], [role=tab]") ||
-        (event.key !== "ArrowLeft" && event.key !== "ArrowRight")
-      ) {
-        return;
-      }
-
-      const ids = prototypeVariants.map((option) => option.id);
-      const step = event.key === "ArrowLeft" ? -1 : 1;
-      const next = ids[(ids.indexOf(variant) + step + ids.length) % ids.length];
-
-      if (next) {
-        setVariant(next);
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [variant, setVariant]);
-}
-
 export default function ProgramPrototypeRoute() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const variant = readOption(
-    searchParams.get("variante"),
-    prototypeVariants.map((option) => option.id),
-  );
   const caseId = readOption(
     searchParams.get("caso"),
     caseOptions.map((option) => option.id),
@@ -95,33 +56,23 @@ export default function ProgramPrototypeRoute() {
     params.set(key, value);
     setSearchParams(params, { preventScrollReset: true, replace: true });
   };
-  const setVariant = (next: PrototypeVariantId) => setParam("variante", next);
-
-  useVariantKeys(variant, setVariant);
 
   return (
     <PublicShell session={session}>
-      <div className="flex flex-col gap-6 pb-40">
+      <div className="flex flex-col gap-6 pb-40 print:pb-0">
         {caseId === "publicado" ? (
           <>
             <PublicProgramHeader />
-            <ProgramVariant
-              key={variant}
-              variant={variant}
-              rows={readPublicProgramRows()}
-              showAcademy
-            />
+            <ProgramList rows={readPublicProgramRows()} showAcademy />
           </>
         ) : (
-          // `oculto` and `sin-evento` read the same on purpose: the public
-          // page does not say whether an event exists.
+          // `oculto` and `sin-evento` read the same on purpose: the public page
+          // does not say whether an event exists.
           <NoPublishedProgram />
         )}
       </div>
 
       <PrototypeBar
-        variant={variant}
-        onVariant={setVariant}
         rows={[
           {
             label: "Caso",

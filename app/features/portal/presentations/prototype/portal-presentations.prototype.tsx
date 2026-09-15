@@ -1,19 +1,17 @@
 // PROTOTYPE — throwaway, lives only on branch `prototype/913-program-pages`
 // (wayfinder ticket #913, map #907). The academy's read-only presentations page:
-// the same layouts as `/programa` without the academy column, plus the notices
-// only the portal can give (what the program hides, and why).
-import { CircleAlert, ExternalLink, Info } from "lucide-react";
+// the same list as `/programa` without the academy column, plus the notices only
+// the portal can give (what the program hides, and why). Notice copy and the
+// `Estado` badge follow the admin participation list of #912.
+import { Info, SquareArrowOutUpRight, TriangleAlert } from "lucide-react";
 import { Link } from "react-router";
 
 import { PortalEmptyState, PortalListPage } from "@/components/portal/ui";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { ProgramVariant } from "@/features/public/program/prototype/program-views.prototype";
-import {
-  readOwnAcademyRows,
-  type PrototypeVariantId,
-} from "@/features/public/program/prototype/program-fixtures.prototype";
+import { readOwnAcademyRows } from "@/features/public/program/prototype/program-fixtures.prototype";
+import { ProgramList } from "@/features/public/program/prototype/program-views.prototype";
 
 export const portalCaseIds = [
   "publicado",
@@ -33,27 +31,18 @@ export const portalCaseLabels: Record<PortalCaseId, string> = {
   "sin-evento": "Sin evento activo",
 };
 
-function pluralize(count: number, singular: string, plural: string) {
-  return count === 1 ? singular : plural;
-}
-
 export function PortalPresentationsPrototype({
   caseId,
-  variant,
   withNotices,
 }: {
   caseId: PortalCaseId;
-  variant: PrototypeVariantId;
   withNotices: boolean;
 }) {
   const allRows = readOwnAcademyRows({ withNotices });
-  const shownRows = allRows.filter(
-    (row) => row.orderNumber !== null && !row.isBelowDeposit,
-  );
-  const belowDepositCount = allRows.filter((row) => row.isBelowDeposit).length;
-  const unplacedCount = allRows.filter(
-    (row) => row.orderNumber === null,
-  ).length;
+  // Below `Señada` is the only thing the list hides: a late choreography stays,
+  // with the `Sin número` badge of #912.
+  const shownRows = allRows.filter((row) => !row.isBelowDeposit);
+  const belowDepositCount = allRows.length - shownRows.length;
   const programVisible = caseId === "publicado";
   const hasRows =
     (caseId === "publicado" || caseId === "oculto") && shownRows.length > 0;
@@ -67,7 +56,10 @@ export function PortalPresentationsPrototype({
         programVisible ? (
           <Button asChild variant="outline">
             <Link to="/prototipo/programa">
-              <ExternalLink aria-hidden="true" data-icon="inline-start" />
+              <SquareArrowOutUpRight
+                aria-hidden="true"
+                data-icon="inline-start"
+              />
               Ver programa completo
             </Link>
           </Button>
@@ -77,52 +69,43 @@ export function PortalPresentationsPrototype({
       {hasRows ? (
         <>
           <AlertStack>
-            {caseId === "oculto" ? (
+            {programVisible ? null : (
               <Alert variant="info">
                 <Info aria-hidden="true" />
                 <AlertDescription>
-                  La organización todavía no publicó el programa. Los números
-                  pueden cambiar hasta que lo haga.
+                  El programa del evento todavía no se publicó. Los números
+                  pueden cambiar hasta que la organización lo publique.
                 </AlertDescription>
               </Alert>
-            ) : null}
+            )}
+
             {belowDepositCount > 0 ? (
               <Alert variant="warning">
-                <CircleAlert aria-hidden="true" />
+                <TriangleAlert aria-hidden="true" />
                 <AlertDescription>
-                  {belowDepositCount}{" "}
-                  {pluralize(
-                    belowDepositCount,
-                    "coreografía no aparece en el programa porque tiene la seña pendiente.",
-                    "coreografías no aparecen en el programa porque tienen la seña pendiente.",
-                  )}
+                  {belowDepositCount === 1
+                    ? "Existe 1 coreografía que no aparece en el programa porque tiene la seña pendiente."
+                    : `Existen ${belowDepositCount} coreografías que no aparecen en el programa porque tienen la seña pendiente.`}
                 </AlertDescription>
                 <AlertAction className="top-1/2 -translate-y-1/2">
-                  <Button asChild variant="link" size="sm">
-                    <Link to="/portal/finanzas">Ver finanzas</Link>
+                  <Button asChild size="sm" variant="link">
+                    <Link to="/portal/finanzas">
+                      <SquareArrowOutUpRight
+                        aria-hidden="true"
+                        data-icon="inline-start"
+                      />
+                      Ver finanzas
+                    </Link>
                   </Button>
                 </AlertAction>
               </Alert>
             ) : null}
-            {unplacedCount > 0 ? (
-              <Alert variant="info">
-                <Info aria-hidden="true" />
-                <AlertDescription>
-                  {unplacedCount}{" "}
-                  {pluralize(
-                    unplacedCount,
-                    "coreografía todavía no tiene número de presentación. La organización se lo va a asignar.",
-                    "coreografías todavía no tienen número de presentación. La organización se los va a asignar.",
-                  )}
-                </AlertDescription>
-              </Alert>
-            ) : null}
           </AlertStack>
-          <ProgramVariant
-            key={variant}
-            variant={variant}
+
+          <ProgramList
             rows={shownRows}
             showAcademy={false}
+            choreographyPath={(row) => `/portal/coreografias/${row.id}`}
           />
         </>
       ) : (
@@ -150,7 +133,7 @@ function emptyStateCopy(caseId: PortalCaseId) {
       return {
         title: "Tu academia no tiene presentaciones",
         description:
-          "Una coreografía recibe su número cuando tiene la seña registrada y la organización ordena el evento.",
+          "Una coreografía entra en el programa cuando cubre su seña y tiene categoría.",
       };
   }
 }

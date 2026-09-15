@@ -22,6 +22,8 @@ export type ProgramRow = {
   categoryName: string;
   groupType: ChoreographyGroupType;
   scheduleId: string;
+  /** The choreography's own number, unrelated to the order number. */
+  choreographyNumber: number;
   /** Below `Señada` after ordering: keeps its number, hidden outside admin. */
   isBelowDeposit: boolean;
 };
@@ -151,6 +153,8 @@ function buildRows(): ProgramRow[] {
           categoryName,
           groupType,
           scheduleId: schedule.id,
+          // Registered in a different order than they dance, as in a real event.
+          choreographyNumber: ((orderNumber * 7) % 24) + 3,
           // "Tormenta" (own) and "Ciudad" dropped below `Señada` after the
           // ordering: their numbers stay, so the public program shows a gap.
           isBelowDeposit: name === "Tormenta" || name === "Ciudad",
@@ -173,6 +177,7 @@ const lateOwnRow: ProgramRow = {
   categoryName: "Juvenil",
   groupType: "grupal",
   scheduleId: "s2",
+  choreographyNumber: 231,
   isBelowDeposit: false,
 };
 
@@ -193,11 +198,3 @@ export function readOwnAcademyRows({ withNotices }: { withNotices: boolean }) {
     ? [...own, lateOwnRow]
     : own.filter((row) => !row.isBelowDeposit);
 }
-
-export const prototypeVariants = [
-  { id: "A", label: "Tabla con pestañas por día" },
-  { id: "B", label: "Secciones por cronograma" },
-  { id: "C", label: "Lista compacta" },
-] as const;
-
-export type PrototypeVariantId = (typeof prototypeVariants)[number]["id"];

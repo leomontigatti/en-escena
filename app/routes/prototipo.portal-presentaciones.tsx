@@ -4,11 +4,10 @@
 // wayfinder ticket #913 (map #907), inside the real portal shell. No loader, no
 // auth, no database.
 //
-// The bar at the bottom writes:
-//   `variante`: `A`, `B`, `C` (the same layouts as `/prototipo/programa`)
+// The bar at the bottom switches:
 //   `caso`: `publicado`, `oculto`, `sin-ordenar`, `sin-elegibles`, `sin-evento`
-//   `avisos`: `si` adds a choreography below `Señada` (hidden) and a late one
-//     without a number; `no` removes both
+//   `avisos`: `si` adds a choreography below `Señada` (hidden from the program)
+//     and a late one without a number; `no` removes both
 import { useSearchParams } from "react-router";
 
 import { PortalShell } from "@/components/portal/ui";
@@ -17,14 +16,10 @@ import {
   portalCaseLabels,
   PortalPresentationsPrototype,
 } from "@/features/portal/presentations/prototype/portal-presentations.prototype";
-import {
-  prototypeEvent,
-  prototypeVariants,
-  type PrototypeVariantId,
-} from "@/features/public/program/prototype/program-fixtures.prototype";
+import { prototypeEvent } from "@/features/public/program/prototype/program-fixtures.prototype";
 import { PrototypeBar } from "@/features/public/program/prototype/program-views.prototype";
 
-import { readOption, useVariantKeys } from "./prototipo.programa";
+import { readOption } from "./prototipo.programa";
 
 export const meta = () => [
   { title: "Prototipo · Presentaciones | Portal de academias | En Escena" },
@@ -37,10 +32,6 @@ const noticeOptions = [
 
 export default function PortalPresentationsPrototypeRoute() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const variant = readOption(
-    searchParams.get("variante"),
-    prototypeVariants.map((option) => option.id),
-  );
   const caseId = readOption(searchParams.get("caso"), portalCaseIds);
   const notices = readOption(
     searchParams.get("avisos"),
@@ -52,9 +43,6 @@ export default function PortalPresentationsPrototypeRoute() {
     params.set(key, value);
     setSearchParams(params, { preventScrollReset: true, replace: true });
   };
-  const setVariant = (next: PrototypeVariantId) => setParam("variante", next);
-
-  useVariantKeys(variant, setVariant);
 
   return (
     <PortalShell
@@ -80,14 +68,11 @@ export default function PortalPresentationsPrototypeRoute() {
       <div className="pb-40">
         <PortalPresentationsPrototype
           caseId={caseId}
-          variant={variant}
           withNotices={notices === "si"}
         />
       </div>
 
       <PrototypeBar
-        variant={variant}
-        onVariant={setVariant}
         rows={[
           {
             label: "Caso",
