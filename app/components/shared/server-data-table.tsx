@@ -492,8 +492,12 @@ function createServerSortHrefBuilder({
     });
 }
 
+// As in `useOptionalNavigation` in `app/lib/shared/forms.ts`: the `try`/`catch`
+// lets the table render outside a router context, and oxlint 1.83 reads the hook
+// inside the `try` as a conditional call.
 function useOptionalNavigation() {
   try {
+    // oxlint-disable-next-line react-hooks/rules-of-hooks
     return useNavigation();
   } catch {
     return { state: "idle" } as ReturnType<typeof useNavigation>;
