@@ -500,3 +500,52 @@ comparable to CI's — the three suites shared one runner — so the per-reset
 numbers above, measured in isolation, are the meaningful ones; the `db-gate`
 figure to compare against the 424 s baseline is the one the PR's own CI run
 reports.
+
+## Operational amendment 2026-09-15 (issue #962)
+
+After #961 the DB suite was still CI's long pole: one runner, one worker, 113
+`*.db.test.ts` files serially against one Postgres service. The serial config
+(`fileParallelism: false`, `maxWorkers: 1`, `singleThread` in
+`vitest.db.config.ts`) is a constraint **within** a runner — every file shares one
+database and the harness resets it before each test. It says nothing about
+running several runners: the repo is public, GitHub-hosted minutes are free, and
+up to 20 jobs run concurrently.
+
+`.github/workflows/ci.yml` now splits the suite with vitest's `--shard`, which
+divides by file:
+
+- `db-shard`, a `strategy.matrix` of 4 jobs (`fail-fast: false`), each with its
+  own `postgres:17-alpine` service, each running `pnpm db:test:reset` against
+  that container and then
+  `pnpm exec vitest --config vitest.db.config.ts --run --shard=<i>/4`;
+- `db-gate`, an aggregator with `needs: [db-shard]` and `if: always()`, no
+  checkout, that fails unless `needs.db-shard.result == 'success'`. The name is
+  load-bearing: branch protection on `master` requires the `db-gate` context, and
+  editing required contexts is a human step outside the repo.
+
+No shard shares a database with another, and a shard always runs whole files, so
+the isolation model of `docs/adr/0007-db-test-isolation-model.md` is unchanged —
+still a full reset before each test against one database per runner.
+
+### Choosing 4 shards
+
+Measured on this branch, locally, against the `postgres:17-alpine` container
+(one shard run in isolation, `pnpm db:test:reset` included in the wall clock):
+
+| Run           | Files | Tests | Vitest `Duration`                  | Wall clock |
+| ------------- | ----: | ----: | ---------------------------------- | ---------: |
+| `--shard=1/4` |    29 |   211 | 100.1 s (collect 45.2, tests 48.2) |   1 m 44 s |
+
+`collect` is a per-file cost, so it divides with the shard count just as the test
+time does. Against the pre-#961 CI baseline of 424 s for the whole suite, four
+shards put each one near 100 s of vitest plus the ~35 s of fixed setup every
+shard pays (service container init ~20 s, checkout, `pnpm install` ~5 s) — the
+1-2 minutes per shard the split was aimed at, and roughly a 3x cut in the gate's
+wall time. Going to 6 or 8 shards would buy less each time, because the fixed 35 s
+becomes the dominant term. The numbers to check are the per-shard durations of
+the PR's own CI run; if a shard lands above ~2 m 30 s there, the next step is 6.
+
+Out of scope here, in order of what to try next if this is not enough: parallel
+workers inside one runner with a template database per `VITEST_POOL_ID`
+("Phase 3B" above), and third-party runners. `isolate: false` stays rejected
+(#128).
