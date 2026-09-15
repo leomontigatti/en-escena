@@ -71,8 +71,9 @@ Recommended final validation after code changes:
 
 ## Continuous integration
 
-`.github/workflows/ci.yml` runs on every PR to `master`. Its charter comment is
-the canonical description; the shape is three required contexts:
+`.github/workflows/ci.yml` runs on every PR to `master`, as three required
+contexts. The rationale for each job lives in that file's comments; what follows
+is the shape a reader needs before running anything locally:
 
 - `checks`: `format:check`, `lint`, the `check:*` scripts, the migration
   drift/order/immutability checks, `typecheck`, `test:unit` and `build`, with no
@@ -204,8 +205,8 @@ changed before running the broader final checks:
 `pnpm test` and `pnpm test:db` run on in-process PGlite and need no local
 Postgres, so the AFK implementer and reviewer can run them on a GHA runner with
 no Postgres service. Real Postgres is the high-fidelity path
-`pnpm test:db:postgres`, reserved for the CI gate on the PR (#305) and manual
-fidelity checks. For Codex sessions inside the managed sandbox, that path still
+`pnpm test:db:postgres`, for manual fidelity checks; CI covers the same suite
+and the same config, sharded across `db-shard` (#305, #962). For Codex sessions inside the managed sandbox, that path still
 needs elevated local permission because `TEST_DATABASE_URL` points at Postgres
 over TCP on `localhost:5433`. When requesting persistent approval, use these
 scoped prefixes:

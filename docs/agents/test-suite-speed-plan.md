@@ -536,14 +536,29 @@ Measured on this branch, locally, against the `postgres:17-alpine` container
 | ------------- | ----: | ----: | ---------------------------------- | ---------: |
 | `--shard=1/4` |    29 |   211 | 100.1 s (collect 45.2, tests 48.2) |   1 m 44 s |
 
+`--shard` splits by a hash of the file path, so it equalises **file count**, not
+duration: 113 files over 4 shards is 29/28/28/28, and a shard that happens to
+collect the slowest files runs longer than the rest. Only shard 1 was timed, so
+100 s is one sample, not the slowest shard.
+
 `collect` is a per-file cost, so it divides with the shard count just as the test
-time does. Against the pre-#961 CI baseline of 424 s for the whole suite, four
-shards put each one near 100 s of vitest plus the ~35 s of fixed setup every
-shard pays (service container init ~20 s, checkout, `pnpm install` ~5 s) — the
-1-2 minutes per shard the split was aimed at, and roughly a 3x cut in the gate's
-wall time. Going to 6 or 8 shards would buy less each time, because the fixed 35 s
-becomes the dominant term. The numbers to check are the per-shard durations of
-the PR's own CI run; if a shard lands above ~2 m 30 s there, the next step is 6.
+time does. Four shards put each one near 100 s of vitest plus the ~35 s of fixed
+setup every shard pays (service container init ~20 s, checkout ~10 s,
+`pnpm install` ~5 s) — the 1-2 minutes per shard the split was aimed at. Going to
+6 or 8 shards would buy less each time, because the fixed 35 s becomes the
+dominant term.
+
+Two caveats on the headline number, so the next reader does not over-read it:
+
+- The 424 s baseline above is **pre-#961**, measured on CI; the 100 s shard is
+  **post-#961**, measured locally. Different change, different hardware. The
+  post-#961 CI wall time of the unsharded suite was never recorded on its own, so
+  the gain attributable to sharding alone cannot be read off these two numbers,
+  and neither can a clean speed-up ratio.
+- Because of that, the before/after the acceptance criteria ask for is still
+  owed: the per-shard durations and the `db-gate` wall time from this PR's own CI
+  run have to be back-filled here once it has run. If the slowest shard lands
+  above ~2 m 30 s, the next step is 6.
 
 Out of scope here, in order of what to try next if this is not enough: parallel
 workers inside one runner with a template database per `VITEST_POOL_ID`

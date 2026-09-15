@@ -118,8 +118,9 @@ jobs:
   # database inside a runner, and each matrix job gets its own service container. Shards
   # are whole files, so a file never straddles two databases.
   # Shard count: each shard pays ~35 s of fixed setup (container init, checkout, install),
-  # so the target is 1-2 min of tests per shard; see the #962 amendment in
-  # docs/agents/test-suite-speed-plan.md for the measured split.
+  # so the target is 1-2 min of tests per shard. 4 is the starting guess, timed on one
+  # shard locally; the #962 amendment in docs/agents/test-suite-speed-plan.md records what
+  # was measured and what has to be re-read off this PR's own CI run.
   db-shard:
     name: db-shard ${{ matrix.shard }}/4
     runs-on: ubuntu-latest
@@ -169,8 +170,10 @@ jobs:
     name: db-gate
     runs-on: ubuntu-latest
     needs: [db-shard]
-    # `always()` so a cancelled or failed shard still produces a red `db-gate` instead of
-    # a skipped context, which branch protection would wait on forever.
+    # Without `always()` a failed shard leaves this job skipped, and a skipped required
+    # context never reports, so branch protection would wait on it forever. The cost is
+    # that a cancelled run also publishes a red `db-gate`; that is the run being
+    # superseded, and protection reads the newest one.
     if: always()
     steps:
       - name: every DB shard succeeded
