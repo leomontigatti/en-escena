@@ -40,7 +40,8 @@ export default function ParticipationListPrototypeRoute() {
     ":",
   );
   const sort =
-    sortColumnId && (sortDirection === "asc" || sortDirection === "desc")
+    sortColumnId === "orden" &&
+    (sortDirection === "asc" || sortDirection === "desc")
       ? { columnId: sortColumnId, direction: sortDirection as "asc" | "desc" }
       : null;
 

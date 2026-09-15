@@ -351,34 +351,20 @@ function matchesSearch(row: ParticipationRow, search: string) {
   ].some((value) => value.toLowerCase().includes(query));
 }
 
+/** Only the presentation number sorts (third review). */
 function sortRows(
   rows: ParticipationRow[],
   sort: { columnId: string; direction: "asc" | "desc" },
 ) {
   const factor = sort.direction === "asc" ? 1 : -1;
-  const text = (row: ParticipationRow) =>
-    sort.columnId === "nombre"
-      ? row.name
-      : sort.columnId === "academia"
-        ? row.academyName
-        : row.schedule
-          ? `${row.schedule.scheduledDate} ${row.schedule.startTime}`
-          : "~";
 
   return [...rows].sort((a, b) => {
-    if (sort.columnId === "orden") {
-      // Map decision 3: numbered rows first, the rest after by choreography number.
-      const aKey = a.orderNumber ?? Number.MAX_SAFE_INTEGER;
-      const bKey = b.orderNumber ?? Number.MAX_SAFE_INTEGER;
-
-      return (
-        factor * (aKey - bKey) || a.choreographyNumber - b.choreographyNumber
-      );
-    }
+    // Map decision 3: numbered rows first, the rest after by choreography number.
+    const aKey = a.orderNumber ?? Number.MAX_SAFE_INTEGER;
+    const bKey = b.orderNumber ?? Number.MAX_SAFE_INTEGER;
 
     return (
-      factor * text(a).localeCompare(text(b)) ||
-      a.choreographyNumber - b.choreographyNumber
+      factor * (aKey - bKey) || a.choreographyNumber - b.choreographyNumber
     );
   });
 }

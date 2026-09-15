@@ -27,8 +27,9 @@ import {
 
 /**
  * Columns after the third review, in block order: number, then what the
- * automatic ordering groups by, then who and what. The status column carries
- * the warnings as plain badges and leaves room for other states later.
+ * automatic ordering groups by, then who and what. Only the number sorts. The
+ * status column carries the most relevant warning and leaves room for other
+ * states later.
  */
 export function buildColumns({
   canDrag,
@@ -54,6 +55,8 @@ export function buildColumns({
           leading: true,
           className: "px-1",
           headerClassName: "px-1",
+          // Weights add up to 100 with the selection column's 3, sized against
+          // the 1152 px content width with real event data (third review).
           width: 3,
           cell: () =>
             canDrag ? <DataTableDragHandle label="Mover presentación" /> : null,
@@ -62,7 +65,7 @@ export function buildColumns({
     {
       id: "orden",
       header: "N.º",
-      width: 8,
+      width: 9,
       cell: (row) => (
         <OrderNumberCell
           canEdit={canEditOrder}
@@ -76,7 +79,7 @@ export function buildColumns({
     {
       id: "categoriaTipoGrupo",
       header: "Categoría / Tipo de grupo",
-      width: 19,
+      width: 16,
       className: "text-muted-foreground",
       cell: (row) => (
         <DataTableTruncatedText
@@ -90,7 +93,7 @@ export function buildColumns({
     {
       id: "modalidadSubmodalidad",
       header: "Modalidad / Submodalidad",
-      width: 19,
+      width: 20,
       className: "text-muted-foreground",
       cell: (row) => (
         <DataTableTruncatedText
@@ -104,10 +107,9 @@ export function buildColumns({
     {
       id: "academia",
       header: "Academia",
-      width: 17,
+      width: 19,
       className: "text-muted-foreground",
       cell: (row) => <DataTableTruncatedText value={row.academyName} />,
-      sortValue: (row) => row.academyName,
     },
     {
       id: "nombre",
@@ -126,13 +128,12 @@ export function buildColumns({
           </DataTableLink>
         </DataTableTruncatedText>
       ),
-      sortValue: (row) => row.name,
     },
     {
       id: "estado",
       header: "Estado",
-      width: 15,
-      cell: (row) => <StatusBadges items={warnings.get(row.id) ?? []} />,
+      width: 11,
+      cell: (row) => <StatusBadge items={warnings.get(row.id) ?? []} />,
     },
   ];
 
@@ -224,46 +225,51 @@ export function formatJudgeName(judge: PrototypeJudge) {
   return judge.name;
 }
 
-const warningBadges: Record<
-  PresentationWarning["kind"],
-  { label: string; variant: "destructive" | "warning" }
-> = {
-  dancerSpacing: { label: "Separación", variant: "warning" },
-  outOfBlock: { label: "Fuera de bloque", variant: "warning" },
-  belowDeposit: { label: "Seña pendiente", variant: "warning" },
-  // These two block the automatic ordering, so they read as errors.
-  missingCategory: { label: "Sin categoría", variant: "destructive" },
-  missingSchedule: { label: "Sin cronograma", variant: "destructive" },
-};
+// Triage order: what blocks the ordering first, then what hides the
+// presentation from the public, then what hurts the dancers, then placement.
+const warningTriage: Array<{
+  kind: PresentationWarning["kind"];
+  label: string;
+  variant: "destructive" | "warning";
+}> = [
+  { kind: "missingSchedule", label: "Sin cronograma", variant: "destructive" },
+  { kind: "missingCategory", label: "Sin categoría", variant: "destructive" },
+  { kind: "belowDeposit", label: "Seña pendiente", variant: "warning" },
+  { kind: "dancerSpacing", label: "Separación", variant: "warning" },
+  { kind: "outOfBlock", label: "Fuera de bloque", variant: "warning" },
+];
 
-/** One badge per warning kind; the tooltip holds each occurrence's detail. */
-function StatusBadges({ items }: { items: PresentationWarning[] }) {
-  if (items.length === 0) {
+const triageRank = (kind: PresentationWarning["kind"]) =>
+  warningTriage.findIndex((entry) => entry.kind === kind);
+
+/**
+ * Only the most relevant warning is a badge; the tooltip still lists every
+ * warning on the row, most relevant first.
+ */
+function StatusBadge({ items }: { items: PresentationWarning[] }) {
+  const sorted = [...items].sort(
+    (a, b) => triageRank(a.kind) - triageRank(b.kind),
+  );
+  const top = warningTriage.find((entry) => entry.kind === sorted[0]?.kind);
+
+  if (!top) {
     return null;
   }
 
-  const kinds = [...new Set(items.map((item) => item.kind))];
-
   return (
-    <div className="flex flex-wrap gap-1">
-      {kinds.map((kind) => (
-        <Tooltip key={kind}>
-          <TooltipTrigger asChild>
-            <Badge variant={warningBadges[kind].variant} tabIndex={0}>
-              {warningBadges[kind].label}
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent className="max-w-80">
-            <ul className="flex flex-col gap-1">
-              {items
-                .filter((item) => item.kind === kind)
-                .map((item, index) => (
-                  <li key={`${kind}-${index}`}>{item.label}</li>
-                ))}
-            </ul>
-          </TooltipContent>
-        </Tooltip>
-      ))}
-    </div>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Badge variant={top.variant} tabIndex={0}>
+          {top.label}
+        </Badge>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-80">
+        <ul className="flex flex-col gap-1">
+          {sorted.map((item, index) => (
+            <li key={`${item.kind}-${index}`}>{item.label}</li>
+          ))}
+        </ul>
+      </TooltipContent>
+    </Tooltip>
   );
 }
