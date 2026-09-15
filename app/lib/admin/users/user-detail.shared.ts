@@ -38,9 +38,7 @@ export type ResetPasswordFormValues = {
 
 export type DetailUserRole = "academy" | "admin" | "auditor" | "judge";
 export type DetailUserState =
-  | "active"
-  | "mandatory-password-change"
-  | "suspended";
+  "active" | "mandatory-password-change" | "suspended";
 export type DetailUserType = "academy" | "internal";
 
 export type DetailUserRow = {

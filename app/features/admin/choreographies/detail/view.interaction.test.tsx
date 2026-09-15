@@ -399,8 +399,7 @@ function findTriggerByText(text: string) {
   return Array.from(
     document.querySelectorAll('[data-slot="select-trigger"]'),
   ).find((candidate) => candidate.textContent?.includes(text)) as
-    | HTMLElement
-    | undefined;
+    HTMLElement | undefined;
 }
 
 const trackedFieldLabels = [

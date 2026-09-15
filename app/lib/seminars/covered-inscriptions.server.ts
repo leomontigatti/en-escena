@@ -17,8 +17,7 @@ import { activeSeminarInscription } from "@/lib/seminars/active-inscription";
  * feeds.
  */
 export type SeminarInscriptionExecutor =
-  | typeof db
-  | Parameters<Parameters<typeof db.transaction>[0]>[0];
+  typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /**
  * Whether any inscription of the seminar has **covered its deposit**: the sum

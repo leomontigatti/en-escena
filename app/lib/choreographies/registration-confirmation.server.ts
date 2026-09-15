@@ -78,8 +78,7 @@ type CreateChoreographyRegistrationSuccess = {
 };
 
 export type CreateChoreographyRegistrationResult =
-  | CreateChoreographyRegistrationFailure
-  | CreateChoreographyRegistrationSuccess;
+  CreateChoreographyRegistrationFailure | CreateChoreographyRegistrationSuccess;
 
 export async function createChoreographyRegistration(
   input: CreateChoreographyRegistrationInput,

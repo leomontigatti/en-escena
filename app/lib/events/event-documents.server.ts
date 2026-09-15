@@ -27,8 +27,7 @@ export type EventDocumentSummaries = Record<
 >;
 
 export type EventDocumentMutationResult =
-  | { ok: true }
-  | { ok: false; message: string };
+  { ok: true } | { ok: false; message: string };
 
 /**
  * The one event-document read path. It always answers for every kind, so a

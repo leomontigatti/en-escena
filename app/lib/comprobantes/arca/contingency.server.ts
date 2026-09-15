@@ -35,8 +35,7 @@ export type ArcaCallFailure = {
 };
 
 export type ArcaAttempt<T> =
-  | { ok: true; value: T }
-  | { ok: false; failure: ArcaCallFailure };
+  { ok: true; value: T } | { ok: false; failure: ArcaCallFailure };
 
 /**
  * Runs a call to ARCA, classifying its failure by phase instead of letting the

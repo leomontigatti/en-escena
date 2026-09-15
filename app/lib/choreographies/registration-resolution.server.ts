@@ -175,8 +175,7 @@ type OperationSuccess = {
 };
 
 export type ChoreographyRegistrationOperationResult =
-  | OperationFailure
-  | OperationSuccess;
+  OperationFailure | OperationSuccess;
 
 export async function resolveChoreographyRegistrationOperation(
   input: ChoreographyRegistrationOperationInput,

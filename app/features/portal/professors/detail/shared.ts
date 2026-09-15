@@ -43,8 +43,7 @@ export type PortalProfessorFieldErrors = Partial<
   Record<keyof ProfessorFormValues, string>
 >;
 export type ProfessorStatusIntent =
-  | typeof archiveProfessorIntent
-  | typeof reactivateProfessorIntent;
+  typeof archiveProfessorIntent | typeof reactivateProfessorIntent;
 
 export type PortalProfessorDetailLoaderData = {
   professor: PortalProfessorListItem;

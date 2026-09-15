@@ -113,9 +113,8 @@ describe("emitWithContingency", () => {
   });
 
   test("the sequence number to emit comes from the last-authorized lookup", async () => {
-    const emit = vi.fn(
-      async (): Promise<FacturaCEmissionResult> =>
-        parseCreateVoucherResult(facturaCAprobada),
+    const emit = vi.fn(async (): Promise<FacturaCEmissionResult> =>
+      parseCreateVoucherResult(facturaCAprobada),
     );
 
     await emitWithContingency(choreography({ emit }));
@@ -124,9 +123,8 @@ describe("emitWithContingency", () => {
   });
 
   test("with the sequence lookup cut off, nothing was emitted and nothing is authorized", async () => {
-    const emit = vi.fn(
-      async (): Promise<FacturaCEmissionResult> =>
-        parseCreateVoucherResult(facturaCAprobada),
+    const emit = vi.fn(async (): Promise<FacturaCEmissionResult> =>
+      parseCreateVoucherResult(facturaCAprobada),
     );
 
     const outcome = await emitWithContingency(
@@ -238,9 +236,8 @@ describe("emitWithContingency", () => {
     // 01:30 UTC on the 23rd → still the 22nd in Córdoba (UTC-3).
     vi.setSystemTime(new Date("2026-07-23T01:30:00Z"));
 
-    const emit = vi.fn(
-      async (): Promise<FacturaCEmissionResult> =>
-        parseCreateVoucherResult(facturaCAprobada),
+    const emit = vi.fn(async (): Promise<FacturaCEmissionResult> =>
+      parseCreateVoucherResult(facturaCAprobada),
     );
 
     const outcome = await emitWithContingency(

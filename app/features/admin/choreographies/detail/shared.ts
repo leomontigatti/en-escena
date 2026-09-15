@@ -152,8 +152,7 @@ export function toChoreographyDetailViewActionData(
  * that no destination would reprice is not a reason for an alert.
  */
 export type ChoreographyScheduleCapacityBlockerCode =
-  | "no-price-preserving-option"
-  | "price-filtered-options";
+  "no-price-preserving-option" | "price-filtered-options";
 
 /**
  * What the price did to the schedule-capacity reassignment — narrow it or close
@@ -235,9 +234,7 @@ export function canCorrectChoreographyModality(input: {
 }
 
 export type ChoreographyDeleteBlockerCode =
-  | "comprobantes"
-  | "presentation"
-  | "scores";
+  "comprobantes" | "presentation" | "scores";
 
 export type ChoreographyDeleteBlocker = {
   code: ChoreographyDeleteBlockerCode;

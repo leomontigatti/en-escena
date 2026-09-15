@@ -25,8 +25,7 @@ export const handle = {
     { label: "Eventos", to: "/administracion/eventos" },
     (match) => {
       const data = match.data as
-        | EventDetailRouteProps["loaderData"]
-        | undefined;
+        EventDetailRouteProps["loaderData"] | undefined;
       return data ? { label: data.event.name } : null;
     },
   ],

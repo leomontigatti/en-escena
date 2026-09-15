@@ -8,9 +8,7 @@
  */
 
 export type InscriptionFinancialStatus =
-  | "depositPending"
-  | "depositMet"
-  | "paidInFull";
+  "depositPending" | "depositMet" | "paidInFull";
 
 /** A choreography's rollup lives on the same scale as its inscriptions. */
 export type ChoreographyFinancialStatus = InscriptionFinancialStatus;

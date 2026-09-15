@@ -89,15 +89,13 @@ function approvedAt(cbteNro: number, cae: string): CreateVoucherResultDto {
 
 function nextInSeries(cbteNro: number, cae: string): ArcaBillingPort {
   return fakeBilling({
-    createVoucher: vi.fn(
-      async (): Promise<CreateVoucherResultDto> => approvedAt(cbteNro, cae),
+    createVoucher: vi.fn(async (): Promise<CreateVoucherResultDto> =>
+      approvedAt(cbteNro, cae),
     ),
-    getLastVoucher: vi.fn(
-      async (): Promise<LastVoucherResultDto> => ({
-        ...ultimoAutorizado,
-        cbteNro: cbteNro - 1,
-      }),
-    ),
+    getLastVoucher: vi.fn(async (): Promise<LastVoucherResultDto> => ({
+      ...ultimoAutorizado,
+      cbteNro: cbteNro - 1,
+    })),
   });
 }
 

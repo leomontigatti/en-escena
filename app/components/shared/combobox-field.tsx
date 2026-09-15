@@ -184,12 +184,10 @@ function ComboboxFieldControl<TOption extends ComboboxFieldOption>({
   // is one entry per section carrying its own values, and it is what hides a
   // section whose options the search has all filtered out.
   const items = groups
-    ? groups.map(
-        (group): ComboboxGroupItem => ({
-          items: group.options.map((option) => option.value),
-          value: group.label,
-        }),
-      )
+    ? groups.map((group): ComboboxGroupItem => ({
+        items: group.options.map((option) => option.value),
+        value: group.label,
+      }))
     : flatOptions.map((option) => option.value);
   const value = typeof field.value === "string" ? field.value : "";
 

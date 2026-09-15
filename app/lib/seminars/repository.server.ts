@@ -29,8 +29,7 @@ export type SeminarRow = typeof seminars.$inferSelect;
  * run on.
  */
 type SeminarExecutor =
-  | typeof db
-  | Parameters<Parameters<typeof db.transaction>[0]>[0];
+  typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /**
  * A seminar as every surface reads it: the row plus the two counts that are not
@@ -88,8 +87,7 @@ export type SeminarFailure = {
 };
 
 export type SeminarMutationResult =
-  | { ok: true; seminar: SeminarRow }
-  | SeminarFailure;
+  { ok: true; seminar: SeminarRow } | SeminarFailure;
 
 export type SeminarDeleteResult = { ok: true } | SeminarFailure;
 
