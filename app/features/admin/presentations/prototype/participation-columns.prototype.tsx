@@ -1,6 +1,5 @@
 // PROTOTYPE — throwaway, lives only on branch `prototype/912-participation-list`
 // (wayfinder ticket #912, map #907). The participation list's columns and cells.
-import { AlertTriangle } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import {
@@ -21,16 +20,15 @@ import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
 
 import {
-  judges,
   type ParticipationRow,
   type PresentationWarning,
   type PrototypeJudge,
 } from "./participation-fixtures.prototype";
 
 /**
- * Six data columns after the second review: modality is gone (it plays no part
- * in the ordering), the warning rides in the number cell, the schedule is only
- * its start time (the day is the tab) and the judges are a count.
+ * Columns after the third review, in block order: number, then what the
+ * automatic ordering groups by, then who and what. The status column carries
+ * the warnings as plain badges and leaves room for other states later.
  */
 export function buildColumns({
   canDrag,
@@ -64,50 +62,21 @@ export function buildColumns({
     {
       id: "orden",
       header: "N.º",
-      width: 10,
+      width: 8,
       cell: (row) => (
-        <div className="flex items-center gap-2">
-          <OrderNumberCell
-            canEdit={canEditOrder}
-            max={maxOrderNumber}
-            onCommit={(value) => onCommitOrder(row.id, value)}
-            row={row}
-          />
-          <WarningsIndicator items={warnings.get(row.id) ?? []} />
-        </div>
+        <OrderNumberCell
+          canEdit={canEditOrder}
+          max={maxOrderNumber}
+          onCommit={(value) => onCommitOrder(row.id, value)}
+          row={row}
+        />
       ),
       sortValue: (row) => row.orderNumber,
     },
     {
-      id: "nombre",
-      header: "Nombre",
-      width: 20,
-      className: "font-medium",
-      // The choreography number is not a column (map decision 8), so the name
-      // is the way into the detail here.
-      cell: (row) => (
-        <DataTableLink to={`/administracion/coreografias/${row.id}`}>
-          <DataTableTruncatedText
-            value={`${row.name} · ${formatEventSequenceNumber(row.choreographyNumber)}`}
-          >
-            {row.name}
-          </DataTableTruncatedText>
-        </DataTableLink>
-      ),
-      sortValue: (row) => row.name,
-    },
-    {
-      id: "academia",
-      header: "Academia",
-      width: 18,
-      className: "text-muted-foreground",
-      cell: (row) => <DataTableTruncatedText value={row.academyName} />,
-      sortValue: (row) => row.academyName,
-    },
-    {
       id: "categoriaTipoGrupo",
       header: "Categoría / Tipo de grupo",
-      width: 18,
+      width: 19,
       className: "text-muted-foreground",
       cell: (row) => (
         <DataTableTruncatedText
@@ -119,24 +88,51 @@ export function buildColumns({
       ),
     },
     {
-      id: "cronograma",
-      header: "Horario",
-      width: 8,
-      className: "text-muted-foreground tabular-nums",
-      cell: (row) => <ScheduleTimeCell row={row} />,
-      sortValue: (row) =>
-        row.schedule
-          ? `${row.schedule.scheduledDate} ${row.schedule.startTime}`
-          : null,
+      id: "modalidadSubmodalidad",
+      header: "Modalidad / Submodalidad",
+      width: 19,
+      className: "text-muted-foreground",
+      cell: (row) => (
+        <DataTableTruncatedText
+          value={formatPrimaryAndSecondaryValue(
+            row.modalityName,
+            row.submodalityName,
+          )}
+        />
+      ),
     },
     {
-      id: "jueces",
-      header: "Jueces",
-      width: 10,
-      cell: (row) =>
-        row.presentationId === null ? null : (
-          <JudgesCell judgeIds={row.judgeIds} />
-        ),
+      id: "academia",
+      header: "Academia",
+      width: 17,
+      className: "text-muted-foreground",
+      cell: (row) => <DataTableTruncatedText value={row.academyName} />,
+      sortValue: (row) => row.academyName,
+    },
+    {
+      id: "nombre",
+      header: "Nombre",
+      width: 19,
+      className: "font-medium",
+      // The choreography number is not a column (map decision 8), so the name
+      // is the way into the detail here. The cut wraps the link, not the other
+      // way round: the link button shrinks to its content and would cut early.
+      cell: (row) => (
+        <DataTableTruncatedText
+          value={`${row.name} · ${formatEventSequenceNumber(row.choreographyNumber)}`}
+        >
+          <DataTableLink to={`/administracion/coreografias/${row.id}`}>
+            {row.name}
+          </DataTableLink>
+        </DataTableTruncatedText>
+      ),
+      sortValue: (row) => row.name,
+    },
+    {
+      id: "estado",
+      header: "Estado",
+      width: 15,
+      cell: (row) => <StatusBadges items={warnings.get(row.id) ?? []} />,
     },
   ];
 
@@ -216,21 +212,6 @@ function OrderNumberCell({
   );
 }
 
-function ScheduleTimeCell({ row }: { row: ParticipationRow }) {
-  if (!row.schedule) {
-    return <span>Sin cronograma</span>;
-  }
-
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span tabIndex={0}>{row.schedule.startTime}</span>
-      </TooltipTrigger>
-      <TooltipContent>{row.schedule.name}</TooltipContent>
-    </Tooltip>
-  );
-}
-
 export function formatJudgeName(judge: PrototypeJudge) {
   if (judge.status === "suspended") {
     return `${judge.name} (Suspendido)`;
@@ -243,60 +224,46 @@ export function formatJudgeName(judge: PrototypeJudge) {
   return judge.name;
 }
 
-function JudgesCell({ judgeIds }: { judgeIds: string[] }) {
-  const assigned = judgeIds
-    .map((id) => judges.find((judge) => judge.id === id))
-    .filter((judge): judge is PrototypeJudge => judge !== undefined);
+const warningBadges: Record<
+  PresentationWarning["kind"],
+  { label: string; variant: "destructive" | "warning" }
+> = {
+  dancerSpacing: { label: "Separación", variant: "warning" },
+  outOfBlock: { label: "Fuera de bloque", variant: "warning" },
+  belowDeposit: { label: "Seña pendiente", variant: "warning" },
+  // These two block the automatic ordering, so they read as errors.
+  missingCategory: { label: "Sin categoría", variant: "destructive" },
+  missingSchedule: { label: "Sin cronograma", variant: "destructive" },
+};
 
-  if (assigned.length === 0) {
-    return <span className="text-muted-foreground">Sin jueces</span>;
-  }
-
-  const isAnyFlagged = assigned.some((judge) => judge.status !== "active");
-
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Badge variant={isAnyFlagged ? "warning" : "secondary"} tabIndex={0}>
-          {assigned.length === 1 ? "1 juez" : `${assigned.length} jueces`}
-        </Badge>
-      </TooltipTrigger>
-      <TooltipContent>
-        <ul className="flex flex-col gap-1">
-          {assigned.map((judge) => (
-            <li key={judge.id}>{formatJudgeName(judge)}</li>
-          ))}
-        </ul>
-      </TooltipContent>
-    </Tooltip>
-  );
-}
-
-function WarningsIndicator({ items }: { items: PresentationWarning[] }) {
+/** One badge per warning kind; the tooltip holds each occurrence's detail. */
+function StatusBadges({ items }: { items: PresentationWarning[] }) {
   if (items.length === 0) {
     return null;
   }
 
+  const kinds = [...new Set(items.map((item) => item.kind))];
+
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Badge
-          variant="warning"
-          tabIndex={0}
-          aria-label={
-            items.length === 1 ? "Advertencia" : `${items.length} advertencias`
-          }
-        >
-          <AlertTriangle aria-hidden="true" />
-        </Badge>
-      </TooltipTrigger>
-      <TooltipContent className="max-w-80">
-        <ul className="flex flex-col gap-1">
-          {items.map((item, index) => (
-            <li key={`${item.kind}-${index}`}>{item.label}</li>
-          ))}
-        </ul>
-      </TooltipContent>
-    </Tooltip>
+    <div className="flex flex-wrap gap-1">
+      {kinds.map((kind) => (
+        <Tooltip key={kind}>
+          <TooltipTrigger asChild>
+            <Badge variant={warningBadges[kind].variant} tabIndex={0}>
+              {warningBadges[kind].label}
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-80">
+            <ul className="flex flex-col gap-1">
+              {items
+                .filter((item) => item.kind === kind)
+                .map((item, index) => (
+                  <li key={`${kind}-${index}`}>{item.label}</li>
+                ))}
+            </ul>
+          </TooltipContent>
+        </Tooltip>
+      ))}
+    </div>
   );
 }
