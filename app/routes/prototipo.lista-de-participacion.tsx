@@ -24,6 +24,8 @@ import {
 
 export const meta = () => [{ title: "Prototipo · Presentación | En Escena" }];
 
+const warningFilters = ["con", "bloqueantes"] as const;
+
 function readOption<TOption extends string>(
   value: string | null,
   options: readonly TOption[],
@@ -76,10 +78,12 @@ export default function ParticipationListPrototypeRoute() {
           conflict={conflict}
           query={{
             day: searchParams.get("dia") ?? "todos",
-            warningFilter: readOption(searchParams.get("advertencias"), [
-              "con",
-              "bloqueantes",
-            ] as const),
+            // No filter unless the param names one: `readOption` would fall
+            // back to the first option.
+            warningFilter:
+              warningFilters.find(
+                (filter) => filter === searchParams.get("advertencias"),
+              ) ?? null,
             page: Math.max(1, Number(searchParams.get("pagina") ?? 1) || 1),
             search: searchParams.get("busqueda") ?? "",
             sort,
