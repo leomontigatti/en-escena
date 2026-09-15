@@ -1,4 +1,4 @@
-import { useEffect, useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   useForm,
   useFormState,
@@ -72,6 +72,18 @@ type SeminarQuotaOccupancy = {
 export type SeminarFormController = {
   form: UseFormReturn<SeminarFormValues>;
   handleSubmit: (event: React.SubmitEvent<HTMLFormElement>) => void;
+  /**
+   * A chosen picture is browser state the upload field owns, never a form
+   * value, so `isDirty` cannot see it and the page has to be told.
+   */
+  hasSelectedPicture: boolean;
+  /**
+   * Changes on every reset, so the picture field is rebuilt and the native file
+   * input lets go of what it held. Nothing else can clear it, and a stale file
+   * would ride along on the next save.
+   */
+  pictureFieldKey: number;
+  setHasSelectedPicture: (isSelected: boolean) => void;
 };
 
 export function useSeminarForm({
@@ -95,9 +107,13 @@ export function useSeminarForm({
   const formAction = useOptionalFormAction();
   const submit = useOptionalSubmit();
   const { reset, setError } = form;
+  const [hasSelectedPicture, setHasSelectedPicture] = useState(false);
+  const [pictureFieldKey, setPictureFieldKey] = useState(0);
 
   useEffect(() => {
     reset(defaultValues);
+    setHasSelectedPicture(false);
+    setPictureFieldKey((key) => key + 1);
   }, [defaultValues, reset]);
 
   // Documented exception to the style guide's "server errors are toasts, never
@@ -125,6 +141,9 @@ export function useSeminarForm({
   return {
     form,
     handleSubmit: createValidatedRouteSubmitHandler(form, submit, formAction),
+    hasSelectedPicture,
+    pictureFieldKey,
+    setHasSelectedPicture,
   };
 }
 
@@ -243,8 +262,10 @@ export function SeminarForm({
         )}
         {showInstructorPicture ? (
           <InstructorPictureField
+            key={controller.pictureFieldKey}
             control={form.control}
             downloadUrl={instructorPictureUrl ?? undefined}
+            onSelectedPictureChange={controller.setHasSelectedPicture}
           />
         ) : null}
       </FieldGroup>
@@ -261,9 +282,11 @@ export function SeminarForm({
 function InstructorPictureField({
   control,
   downloadUrl,
+  onSelectedPictureChange,
 }: {
   control: Control<SeminarFormValues>;
   downloadUrl?: string;
+  onSelectedPictureChange: (isSelected: boolean) => void;
 }) {
   return (
     <div className="sm:col-span-2">
@@ -288,6 +311,7 @@ function InstructorPictureField({
         placeholder={getAssetKindHelperText("seminarInstructorPicture")}
         {...getAssetUploadFieldProps("seminarInstructorPicture")}
         previewSelectedFile={false}
+        onSelectedFileChange={(file) => onSelectedPictureChange(file !== null)}
         removeLabel="Quitar la foto del instructor"
         replaceRequiresRemoval
         variant="compact"
@@ -310,13 +334,18 @@ export function SeminarFormActions({
   const navigation = useOptionalNavigation();
   const isPending = isRouteFormPending(navigation, pendingScope);
   // Nothing changed is nothing to save: the button only wakes up once the form
-  // is dirty, so a save is always a save of something.
+  // is dirty or a picture is chosen, so a save is always a save of something.
   const { isDirty } = useFormState({ control: controller.form.control });
+  const hasChanges = isDirty || controller.hasSelectedPicture;
 
   return (
     <div className="flex items-center justify-between gap-2">
       <BackButton to={buildListPath(basePath, selectedEventId)} />
-      <SubmitButton disabled={!isDirty} form={formId} isPending={isPending} />
+      <SubmitButton
+        disabled={!hasChanges}
+        form={formId}
+        isPending={isPending}
+      />
     </div>
   );
 }
