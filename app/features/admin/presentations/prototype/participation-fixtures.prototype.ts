@@ -417,23 +417,18 @@ export function movePresentation(
   rowId: string,
   toOrderNumber: number,
 ): ParticipationRow[] {
-  const ordered = rows
-    .filter((row) => row.orderNumber !== null)
-    .sort(byOrderNumber);
-  const moving = ordered.find((row) => row.id === rowId);
+  const moving = rows.find((row) => row.id === rowId);
 
-  if (!moving) {
+  if (!moving || !isPlaceable(moving)) {
     return rows;
   }
 
-  const rest = ordered.filter((row) => row.id !== rowId);
-  const targetIndex = Math.min(
-    Math.max(
-      ordered.findIndex((row) => (row.orderNumber ?? 0) >= toOrderNumber),
-      0,
-    ),
-    rest.length,
-  );
+  // An unnumbered row is inserted (third review): it gets a presentation and
+  // everything from its number on shifts down one, so 1..N stays contiguous.
+  const rest = rows
+    .filter((row) => row.orderNumber !== null && row.id !== rowId)
+    .sort(byOrderNumber);
+  const targetIndex = Math.min(Math.max(toOrderNumber - 1, 0), rest.length);
   const next = [
     ...rest.slice(0, targetIndex),
     moving,
@@ -443,8 +438,23 @@ export function movePresentation(
 
   return rows.map((row) =>
     orderById.has(row.id)
-      ? { ...row, orderNumber: orderById.get(row.id) ?? null }
+      ? {
+          ...row,
+          orderNumber: orderById.get(row.id) ?? null,
+          presentationId: row.presentationId ?? `p-${row.id}`,
+        }
       : row,
+  );
+}
+
+/**
+ * Whether a row can take a number by hand: any numbered row, or an unnumbered
+ * one that is `Señada` and has the category and schedule its block needs.
+ */
+export function isPlaceable(row: ParticipationRow) {
+  return (
+    row.orderNumber !== null ||
+    (!row.isBelowDeposit && row.category !== null && row.schedule !== null)
   );
 }
 

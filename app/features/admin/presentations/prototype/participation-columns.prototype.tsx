@@ -20,6 +20,7 @@ import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
 
 import {
+  isPlaceable,
   type ParticipationRow,
   type PresentationWarning,
   type PrototypeJudge,
@@ -58,8 +59,10 @@ export function buildColumns({
           // Weights add up to 100 with the selection column's 3, sized against
           // the 1152 px content width with real event data (third review).
           width: 3,
-          cell: () =>
-            canDrag ? <DataTableDragHandle label="Mover presentación" /> : null,
+          cell: (row) =>
+            canDrag && isPlaceable(row) ? (
+              <DataTableDragHandle label="Mover presentación" />
+            ) : null,
         }
       : null,
     {
@@ -68,8 +71,9 @@ export function buildColumns({
       width: 9,
       cell: (row) => (
         <OrderNumberCell
-          canEdit={canEditOrder}
-          max={maxOrderNumber}
+          canEdit={canEditOrder && isPlaceable(row)}
+          // An unnumbered row can also go last, after the current N.
+          max={row.orderNumber === null ? maxOrderNumber + 1 : maxOrderNumber}
           onCommit={(value) => onCommitOrder(row.id, value)}
           row={row}
         />
@@ -161,15 +165,17 @@ function OrderNumberCell({
     setError(null);
   }, [row.orderNumber]);
 
-  if (row.orderNumber === null) {
-    return <Badge variant="outline">Sin número</Badge>;
-  }
-
-  if (!canEdit) {
+  if (!canEdit && row.orderNumber !== null) {
     return <span className="font-medium tabular-nums">{row.orderNumber}</span>;
   }
 
   const commit = () => {
+    if (draft.trim() === "") {
+      setDraft(String(row.orderNumber ?? ""));
+      setError(null);
+      return;
+    }
+
     const value = Number(draft);
 
     if (value === row.orderNumber) {
@@ -192,6 +198,7 @@ function OrderNumberCell({
         aria-label={`Número de presentación de ${row.name}`}
         aria-invalid={error ? true : undefined}
         className="w-16 tabular-nums"
+        disabled={!canEdit}
         inputMode="numeric"
         value={draft}
         onBlur={commit}
@@ -203,7 +210,7 @@ function OrderNumberCell({
           }
 
           if (event.key === "Escape") {
-            setDraft(String(row.orderNumber));
+            setDraft(String(row.orderNumber ?? ""));
             setError(null);
           }
         }}

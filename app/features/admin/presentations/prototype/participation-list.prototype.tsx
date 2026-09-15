@@ -87,7 +87,8 @@ export function ParticipationListPrototype({
   const hasPresentations = presentationCount > 0;
   const sort = query.sort ?? { columnId: "orden", direction: "asc" as const };
   const isSortedByOrder = sort.columnId === "orden" && sort.direction === "asc";
-  const canEditOrder = hasPresentations && unorderedCount === 0;
+  // Late rows no longer lock the order (third review): they can be placed.
+  const canEditOrder = hasPresentations;
   const canDrag = canEditOrder && isSortedByOrder;
   const flaggedCount = rows.filter(
     (row) => (warnings.get(row.id)?.length ?? 0) > 0,
@@ -117,7 +118,7 @@ export function ParticipationListPrototype({
   function moveTo(rowId: string, toOrderNumber: number) {
     const row = rows.find((candidate) => candidate.id === rowId);
 
-    if (!row?.orderNumber || row.orderNumber === toOrderNumber) {
+    if (!row || row.orderNumber === toOrderNumber) {
       return;
     }
 
@@ -135,7 +136,9 @@ export function ParticipationListPrototype({
 
     setRows((current) => movePresentation(current, rowId, toOrderNumber));
     record(
-      `movePresentation(${row.presentationId}, ${row.orderNumber} → ${toOrderNumber}) → renumerado 1..${presentationCount}`,
+      row.orderNumber === null
+        ? `movePresentation(nueva ${row.id}, → ${toOrderNumber}) → creada, renumerado 1..${presentationCount + 1}`
+        : `movePresentation(${row.presentationId}, ${row.orderNumber} → ${toOrderNumber}) → renumerado 1..${presentationCount}`,
     );
   }
 
