@@ -416,8 +416,7 @@ describe("SeminarDetailView", () => {
 });
 
 let updateSeminarDetailLoaderData:
-  | ((loaderData: SeminarDetailLoaderData) => void)
-  | null = null;
+  ((loaderData: SeminarDetailLoaderData) => void) | null = null;
 
 /**
  * Stands in for the route: the page keeps its state while the loader answers
