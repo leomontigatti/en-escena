@@ -11,6 +11,7 @@ import {
   EventPricesListView,
   type EventPricesListViewProps,
 } from "@/features/admin/prices/list/view";
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 
 import type { Route } from "./+types/administracion.precios";
 
@@ -24,6 +25,10 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 export async function action({ request }: Route.ActionArgs) {
   return updateAdministrativeEventPricesList(request);
+}
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
 }
 
 export const shouldRevalidate = createDataTableShouldRevalidate({

@@ -12,6 +12,7 @@ import {
   toChoreographyDetailViewActionData,
 } from "@/features/admin/choreographies/detail/shared";
 import { ChoreographyDetailRouteView as ChoreographyDetailView } from "@/features/admin/choreographies/detail/view";
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 
 import type { Route } from "./+types/administracion.coreografias_.$choreographyId";
 
@@ -55,6 +56,10 @@ export async function action({
     request,
     params,
   });
+}
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
 }
 
 export const shouldRevalidate: ShouldRevalidateFunction = (arg) =>

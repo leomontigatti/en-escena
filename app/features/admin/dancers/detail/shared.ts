@@ -13,6 +13,10 @@ import {
   notificationToasts,
   type NotificationKey,
 } from "@/lib/shared/notification-toasts";
+import {
+  isUnexpectedActionError,
+  type UnexpectedActionError,
+} from "@/lib/shared/recoverable-client-action";
 
 export type { DancerEditConsequence };
 
@@ -250,7 +254,7 @@ export function getInitialDialogIntent({
   shouldConfirmSave,
   statusIntent,
 }: {
-  actionData: DancerActionError | undefined;
+  actionData: DancerActionError | UnexpectedActionError | undefined;
   shouldConfirmSave: boolean;
   statusIntent: DancerStatusAction["intent"];
 }): DancerDialogIntent | null {
@@ -258,15 +262,23 @@ export function getInitialDialogIntent({
     return null;
   }
 
-  if (isDancerUpdateValues(actionData.values) && shouldConfirmSave) {
-    return "save";
+  const submittedValues =
+    "values" in actionData ? actionData.values : undefined;
+
+  if (isDancerUpdateValues(submittedValues)) {
+    return shouldConfirmSave ? "save" : null;
   }
 
-  if (!isDancerUpdateValues(actionData.values)) {
-    return statusIntent;
+  // Carrying no update `values` is how a failed status change comes back, and
+  // that is what re-opens the archive/reactivate dialog. The generic error from
+  // `recoverableClientAction` carries none either, but it may just as well come
+  // from `Guardar`: the toast already reports it and the form stays mounted, so
+  // opening a dialog the admin never asked for would be wrong.
+  if (isUnexpectedActionError(actionData) && submittedValues === undefined) {
+    return null;
   }
 
-  return null;
+  return statusIntent;
 }
 
 function hasDancerVerificationMinimumData(

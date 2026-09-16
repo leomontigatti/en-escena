@@ -4,6 +4,8 @@ import type { AdminRouteHandle } from "@/components/admin/shell";
 import { action, loader } from "@/features/admin/users/create/server";
 import { NewInternalUserRouteView } from "@/features/admin/users/create/view";
 
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
+
 import type { Route } from "./+types/administracion.usuarios_.nuevo";
 
 export const meta: Route.MetaFunction = () => [
@@ -19,6 +21,10 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export { action, loader, NewInternalUserRouteView };
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
+}
 
 export default function NewInternalUserRoute() {
   const actionData = useActionData<typeof action>();

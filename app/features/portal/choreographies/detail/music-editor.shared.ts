@@ -18,6 +18,11 @@ export type PortalChoreographyMusicActionData =
       status: "success";
       message: string;
     }
+  // What `recoverableClientAction` returns when the submit fails unexpectedly.
+  | {
+      status: "error";
+      message: string;
+    }
   | undefined;
 
 export type PortalChoreographyDetailChoreography = PortalChoreographyDetail & {

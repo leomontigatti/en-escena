@@ -10,6 +10,7 @@ import {
   type SeminarDetailViewProps,
 } from "@/features/admin/seminars/detail/view";
 import type { SeminarDetailLoaderData } from "@/features/admin/seminars/shared";
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 
 import type { Route } from "./+types/administracion.seminarios_.$seminarId";
 
@@ -30,6 +31,10 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 
 export async function action({ params, request }: Route.ActionArgs) {
   return updateAdministrativeSeminar(request, params.seminarId ?? "");
+}
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
 }
 
 export function SeminarDetailRouteView({

@@ -4,6 +4,10 @@ import type { UseFormReturn } from "react-hook-form";
 
 import type { ResolveChoreographyDancersResult } from "@/lib/choreographies/choreography-roster.server";
 import { isRouteFormPending } from "@/lib/shared/forms";
+import {
+  isUnexpectedActionError,
+  type UnexpectedActionError,
+} from "@/lib/shared/recoverable-client-action";
 
 import {
   getPersistedRosterResolutionState,
@@ -46,7 +50,9 @@ export function useRosterForm({
   loaderData: ChoreographyDetailLoaderData;
 }) {
   const choreography = loaderData.choreography;
-  const resolutionFetcher = useFetcher<ChoreographyRosterResolutionData>();
+  const resolutionFetcher = useFetcher<
+    ChoreographyRosterResolutionData | UnexpectedActionError
+  >();
   const navigation = useNavigation();
 
   const persistedResolution = useMemo(
@@ -135,11 +141,23 @@ export function useRosterForm({
   useEffect(() => {
     const data = resolutionFetcher.data;
 
-    if (
-      !data ||
-      data.intent !== resolveChoreographyRosterIntent ||
-      submittedSelectionKeyRef.current === null
-    ) {
+    if (!data || submittedSelectionKeyRef.current === null) {
+      return;
+    }
+
+    // This fetcher has no toast of its own, so the generic error
+    // `recoverableClientAction` returns has to land on the field or the user
+    // sees nothing at all. Marking the selection as resolved is what stops the
+    // resolution effect from submitting it again on the next render.
+    if (isUnexpectedActionError(data)) {
+      setResolution(null);
+      setResolvedSelectionKey(submittedSelectionKeyRef.current);
+      form.setError("dancerIds", { message: data.message, type: "manual" });
+      form.setValue("scheduleCapacityId", "", { shouldDirty: true });
+      return;
+    }
+
+    if (data.intent !== resolveChoreographyRosterIntent) {
       return;
     }
 

@@ -8,6 +8,7 @@ import {
   AcademyFinancesRouteView,
   academyChoreographyFinanceFacetedFilterIds,
 } from "@/features/admin/finances/academy-choreographies/view";
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 
 import type { Route } from "./+types/administracion.finanzas_.$academyId";
 
@@ -37,6 +38,10 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 
 export async function action({ request, params }: Route.ActionArgs) {
   return await handleAcademyFinancesAction({ request, params });
+}
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
 }
 
 export const shouldRevalidate = createDataTableShouldRevalidate({

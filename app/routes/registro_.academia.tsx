@@ -22,6 +22,7 @@ import {
   getEmptyFieldErrors,
   getFieldErrors,
 } from "@/lib/shared/form-validation";
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import type { Route } from "./+types/registro_.academia";
@@ -98,6 +99,10 @@ export async function action({ request }: Route.ActionArgs) {
   }
 
   throw redirect("/portal", { headers: result.headers });
+}
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
 }
 
 export default function AcademyOnboardingRoute() {

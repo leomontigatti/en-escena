@@ -1,5 +1,7 @@
 import { redirect } from "react-router";
 
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
+
 import type { Route } from "./+types/recuperar-acceso_.nueva";
 
 export async function loader({ request }: Route.LoaderArgs) {
@@ -8,6 +10,10 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 export async function action({ request }: Route.ActionArgs) {
   throw redirectToChangePassword(request);
+}
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
 }
 
 export default function RecuperarAccesoNuevaRedirectRoute() {

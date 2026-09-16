@@ -10,6 +10,7 @@ import {
   type CategoryDetailViewProps,
 } from "@/features/admin/categories/detail/view";
 import type { CategoryDetailLoaderData } from "@/features/admin/categories/shared";
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 
 import type { Route } from "./+types/administracion.categorias_.$categoryId";
 
@@ -31,6 +32,10 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 
 export async function action({ request, params }: Route.ActionArgs) {
   return updateCategory(request, params.categoryId ?? "");
+}
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
 }
 
 export function CategoryDetailRouteView({

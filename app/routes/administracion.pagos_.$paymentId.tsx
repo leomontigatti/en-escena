@@ -9,6 +9,7 @@ import {
   handlePaymentDetailAction,
   loadPaymentDetail,
 } from "@/features/admin/payments/detail/server";
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 
 import type { Route } from "./+types/administracion.pagos_.$paymentId";
 
@@ -41,6 +42,10 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 
 export async function action({ request, params }: Route.ActionArgs) {
   return await handlePaymentDetailAction(request, params.paymentId ?? "");
+}
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
 }
 
 export default function PaymentDetailRoute({

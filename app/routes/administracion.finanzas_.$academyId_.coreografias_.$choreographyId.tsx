@@ -5,6 +5,7 @@ import {
   loadChoreographyFinanceDetail,
 } from "@/features/admin/finances/academy-choreographies/choreography-detail/server";
 import { ChoreographyFinanceDetailView } from "@/features/admin/finances/academy-choreographies/choreography-detail/view";
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 
 import type { Route } from "./+types/administracion.finanzas_.$academyId_.coreografias_.$choreographyId";
 
@@ -49,6 +50,10 @@ export async function action({ request, params }: Route.ActionArgs) {
     request,
     params,
   });
+}
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
 }
 
 export const shouldRevalidate = createDataTableShouldRevalidate();

@@ -14,6 +14,7 @@ import {
   type InscriptionsSectionProps,
   InscriptionsSection,
 } from "@/features/admin/dancers/detail/view";
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 
 import type { Route } from "./+types/administracion.bailarines_.$dancerId";
 
@@ -51,6 +52,10 @@ export async function action({
   params,
 }: Route.ActionArgs): Promise<DancerDetailActionData> {
   return await handleDancerDetailAction({ request, params });
+}
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
 }
 
 export function DancerDetailRouteView({

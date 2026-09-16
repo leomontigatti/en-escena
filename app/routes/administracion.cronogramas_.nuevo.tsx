@@ -10,6 +10,7 @@ import {
   type EventScheduleCreateViewProps,
 } from "@/features/admin/schedules/create/view";
 import type { EventScheduleActionData } from "@/features/admin/schedules/shared";
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 
 import type { Route } from "./+types/administracion.cronogramas_.nuevo";
 
@@ -31,6 +32,10 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 export async function action({ request }: Route.ActionArgs) {
   return createAdministrativeEventSchedule(request);
+}
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
 }
 
 export function NewEventScheduleRouteView({

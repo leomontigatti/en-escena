@@ -5,6 +5,7 @@ import {
 } from "@/features/admin/events/detail/server";
 import type { EventDetailActionData } from "@/features/admin/events/detail/shared";
 import { EventDetailView } from "@/features/admin/events/detail/view";
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 import { useActionData } from "react-router";
 
 import type { Route } from "./+types/administracion.eventos_.$eventId";
@@ -37,6 +38,10 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 
 export async function action({ request, params }: Route.ActionArgs) {
   return updateAdministrativeEvent(request, params.eventId);
+}
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
 }
 
 export function EventDetailRouteView({
