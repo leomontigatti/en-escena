@@ -25,6 +25,14 @@ import {
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { EnEscenaAvatar } from "@/components/shared/en-escena-avatar";
 import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDate } from "@/features/admin/schedules/view-shared";
@@ -105,7 +113,7 @@ export function PublicShell({
             )}
           </div>
         </header>
-        <main id="contenido-principal" className="flex-1 px-4 py-6">
+        <main id="contenido-principal" className="flex-1 px-4 py-6 print:p-0">
           <div className="mx-auto flex max-w-6xl flex-col gap-6">
             {children}
           </div>
@@ -248,15 +256,7 @@ function buildColumns({
       header: "Bailarines",
       width: 17,
       className: "text-muted-foreground",
-      // Names only for solos and duos: a group's list would outgrow the row.
-      cell: (row) =>
-        row.groupType === "solo" || row.groupType === "duo" ? (
-          <div className="flex flex-col">
-            {row.dancerNames.map((dancerName) => (
-              <DataTableTruncatedText key={dancerName} value={dancerName} />
-            ))}
-          </div>
-        ) : null,
+      cell: (row) => <DancerNames row={row} />,
     },
     // The academy's own page keeps #912's `Estado` column, with the one badge
     // that can reach it: a late choreography the admin has not placed yet.
@@ -275,6 +275,27 @@ function buildColumns({
 
   return columns.filter(
     (column): column is DataTableColumn<ProgramRow> => column !== null,
+  );
+}
+
+/** Names only for solos and duos: a group's list would outgrow the row. */
+function listsDancers(row: ProgramRow) {
+  return row.groupType === "solo" || row.groupType === "duo";
+}
+
+/**
+ * Always two lines tall, whatever it holds, so a duo does not make its row
+ * taller than the rest of the program.
+ */
+function DancerNames({ row }: { row: ProgramRow }) {
+  return (
+    <div className="flex h-10 flex-col justify-center">
+      {listsDancers(row)
+        ? row.dancerNames.map((dancerName) => (
+            <DataTableTruncatedText key={dancerName} value={dancerName} />
+          ))
+        : null}
+    </div>
   );
 }
 
@@ -332,6 +353,130 @@ export function ProgramList({
         initialSort={{ columnId: "orden", direction: "asc" }}
         emptyMessage="No hay presentaciones que coincidan con la búsqueda."
       />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// The printed program: its own layout, not the screen's.
+
+const printColumns = [
+  { header: "N.º", width: 9 },
+  { header: "Categoría", width: 16 },
+  { header: "Modalidad", width: 20 },
+  { header: "Academia", width: 19 },
+  { header: "Nombre", width: 19 },
+  { header: "Bailarines", width: 17 },
+];
+
+/**
+ * Landscape, one page run per day, headers once per day rather than on every
+ * page. A zero `@page` margin is what leaves the browser no room for its own
+ * header and footer; the spacer rows of the outer table put the margin back on
+ * every page, since a table repeats its `thead` and `tfoot` wherever it breaks.
+ */
+export function PrintableProgram({ rows }: { rows: ProgramRow[] }) {
+  const days = [
+    ...new Set(programSchedules.map((schedule) => schedule.scheduledDate)),
+  ];
+
+  return (
+    <div className="hidden print:block">
+      <style>{"@page { size: A4 landscape; margin: 0; }"}</style>
+      {days.map((day, index) => {
+        const dayRows = rows
+          .filter((row) =>
+            programSchedules.some(
+              (schedule) =>
+                schedule.id === row.scheduleId &&
+                schedule.scheduledDate === day,
+            ),
+          )
+          .sort(
+            (left, right) => (left.orderNumber ?? 0) - (right.orderNumber ?? 0),
+          );
+
+        return (
+          <table
+            key={day}
+            className={index > 0 ? "w-full break-before-page" : "w-full"}
+          >
+            <thead>
+              <tr>
+                <td className="h-[12mm]" />
+              </tr>
+            </thead>
+            <tfoot>
+              <tr>
+                <td className="h-[12mm]" />
+              </tr>
+            </tfoot>
+            <tbody>
+              <tr>
+                <td className="px-[12mm]">
+                  <h2 className="mb-3 text-base font-semibold">
+                    {prototypeEvent.name} · {formatDate(day)}
+                  </h2>
+                  <Table className="table-fixed">
+                    <colgroup>
+                      {printColumns.map((column) => (
+                        <col
+                          key={column.header}
+                          style={{ width: `${column.width}%` }}
+                        />
+                      ))}
+                    </colgroup>
+                    {/* A row group, not a header group: printed once per day. */}
+                    <TableHeader className="[display:table-row-group]">
+                      <TableRow>
+                        {printColumns.map((column) => (
+                          <TableHead key={column.header}>
+                            {column.header}
+                          </TableHead>
+                        ))}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {dayRows.map((row) => (
+                        <TableRow key={row.id} className="break-inside-avoid">
+                          <TableCell className="font-medium tabular-nums">
+                            {formatOrderNumber(row)}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            <DataTableTruncatedText
+                              value={formatPrimaryAndSecondaryValue(
+                                row.categoryName,
+                                formatGroupTypeLabel(row.groupType),
+                              )}
+                            />
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            <DataTableTruncatedText
+                              value={formatPrimaryAndSecondaryValue(
+                                row.modalityName,
+                                row.submodalityName,
+                              )}
+                            />
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            <DataTableTruncatedText value={row.academyName} />
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            <DataTableTruncatedText value={row.name} />
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            <DancerNames row={row} />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        );
+      })}
     </div>
   );
 }

@@ -12,6 +12,7 @@ import { useSearchParams } from "react-router";
 import { readPublicProgramRows } from "@/features/public/program/prototype/program-fixtures.prototype";
 import {
   NoPublishedProgram,
+  PrintableProgram,
   ProgramList,
   PrototypeBar,
   PublicProgramHeader,
@@ -62,8 +63,11 @@ export default function ProgramPrototypeRoute() {
       <div className="flex flex-col gap-6 pb-40 print:pb-0">
         {caseId === "publicado" ? (
           <>
-            <PublicProgramHeader />
-            <ProgramList rows={readPublicProgramRows()} showAcademy />
+            <div className="flex flex-col gap-6 print:hidden">
+              <PublicProgramHeader />
+              <ProgramList rows={readPublicProgramRows()} showAcademy />
+            </div>
+            <PrintableProgram rows={readPublicProgramRows()} />
           </>
         ) : (
           // `oculto` and `sin-evento` read the same on purpose: the public page
