@@ -24,6 +24,8 @@ export type ProgramRow = {
   scheduleId: string;
   /** The choreography's own number, unrelated to the order number. */
   choreographyNumber: number;
+  /** Filled for every group type; only the list decides to show solos and duos. */
+  dancerNames: string[];
   /** Below `Señada` after ordering: keeps its number, hidden outside admin. */
   isBelowDeposit: boolean;
 };
@@ -127,6 +129,35 @@ const seeds: Record<string, Seed[]> = {
   ],
 };
 
+const dancerPool = [
+  "Valentina Ríos",
+  "Martina Gómez",
+  "Sofía Acosta",
+  "Camila Herrera",
+  "Julieta Morales",
+  "Tomás Ferreyra",
+  "Catalina Suárez",
+  "Mía Villalba",
+  "Lucas Benítez",
+  "Emilia Castro",
+  "Renata Domínguez",
+  "Joaquín Paredes",
+];
+
+const dancerCounts: Record<ChoreographyGroupType, number> = {
+  solo: 1,
+  duo: 2,
+  trio: 3,
+  grupal: 6,
+};
+
+function dancersFor(seed: number, groupType: ChoreographyGroupType) {
+  return Array.from(
+    { length: dancerCounts[groupType] },
+    (_, index) => dancerPool[(seed * 5 + index) % dancerPool.length]!,
+  );
+}
+
 /** Numbered 1..n across the event, in schedule order, as the ordering does. */
 function buildRows(): ProgramRow[] {
   let orderNumber = 0;
@@ -155,6 +186,7 @@ function buildRows(): ProgramRow[] {
           scheduleId: schedule.id,
           // Registered in a different order than they dance, as in a real event.
           choreographyNumber: ((orderNumber * 7) % 24) + 3,
+          dancerNames: dancersFor(orderNumber, groupType),
           // "Tormenta" (own) and "Ciudad" dropped below `Señada` after the
           // ordering: their numbers stay, so the public program shows a gap.
           isBelowDeposit: name === "Tormenta" || name === "Ciudad",
@@ -178,6 +210,7 @@ const lateOwnRow: ProgramRow = {
   groupType: "grupal",
   scheduleId: "s2",
   choreographyNumber: 231,
+  dancerNames: dancersFor(99, "grupal"),
   isBelowDeposit: false,
 };
 

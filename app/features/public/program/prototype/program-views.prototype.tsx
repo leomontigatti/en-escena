@@ -36,7 +36,6 @@ import {
   programSchedules,
   prototypeEvent,
   type ProgramRow,
-  type ProgramSchedule,
 } from "./program-fixtures.prototype";
 
 type ProgramViewProps = {
@@ -47,14 +46,6 @@ type ProgramViewProps = {
 
 // ---------------------------------------------------------------------------
 // Formatting
-
-function scheduleOf(row: ProgramRow): ProgramSchedule {
-  return programSchedules.find((schedule) => schedule.id === row.scheduleId)!;
-}
-
-export function formatScheduleMoment(schedule: ProgramSchedule) {
-  return `${formatDate(schedule.scheduledDate)} · ${schedule.startTime} h`;
-}
 
 export function formatEventDates() {
   return `del ${formatDate(prototypeEvent.startsAt)} al ${formatDate(prototypeEvent.endsAt)}`;
@@ -166,15 +157,12 @@ export function NoPublishedProgram() {
 /**
  * Columns in #912's block order — number, what the ordering groups by, then who
  * and what — with its weights minus the columns this surface does not have.
- * `Cronograma` only exists on the "Todos" tab: a schedule tab already names it.
  */
 function buildColumns({
   showAcademy,
-  showSchedule,
   choreographyPath,
 }: {
   showAcademy: boolean;
-  showSchedule: boolean;
   choreographyPath: ((row: ProgramRow) => string) | null;
 }): DataTableColumn<ProgramRow>[] {
   const columns: Array<DataTableColumn<ProgramRow> | null> = [
@@ -255,22 +243,21 @@ function buildColumns({
           .filter(Boolean)
           .join(" "),
     },
-    showSchedule
-      ? {
-          id: "cronograma",
-          header: "Cronograma",
-          width: 17,
-          className: "text-muted-foreground",
-          cell: (row) => (
-            <DataTableTruncatedText
-              value={formatPrimaryAndSecondaryValue(
-                scheduleOf(row).name,
-                `${scheduleOf(row).startTime} h`,
-              )}
-            />
-          ),
-        }
-      : null,
+    {
+      id: "bailarines",
+      header: "Bailarines",
+      width: 17,
+      className: "text-muted-foreground",
+      // Names only for solos and duos: a group's list would outgrow the row.
+      cell: (row) =>
+        row.groupType === "solo" || row.groupType === "duo" ? (
+          <div className="flex flex-col">
+            {row.dancerNames.map((dancerName) => (
+              <DataTableTruncatedText key={dancerName} value={dancerName} />
+            ))}
+          </div>
+        ) : null,
+    },
     // The academy's own page keeps #912's `Estado` column, with the one badge
     // that can reach it: a late choreography the admin has not placed yet.
     !showAcademy
@@ -298,41 +285,37 @@ export function ProgramList({
 }: ProgramViewProps & {
   choreographyPath?: ((row: ProgramRow) => string) | null;
 }) {
-  // One tab per schedule, not per day as in #912: a schedule is the block the
-  // audience reads by, and both days here carry more than one.
-  const [scheduleId, setScheduleId] = useState("todos");
+  // One tab per day, as on the admin list of #912.
+  const [day, setDay] = useState("todos");
+  const days = [
+    ...new Set(programSchedules.map((schedule) => schedule.scheduledDate)),
+  ];
   const visibleRows = rows.filter(
-    (row) => scheduleId === "todos" || row.scheduleId === scheduleId,
-  );
-  const selectedSchedule = programSchedules.find(
-    (schedule) => schedule.id === scheduleId,
+    (row) =>
+      day === "todos" ||
+      programSchedules.some(
+        (schedule) =>
+          schedule.id === row.scheduleId && schedule.scheduledDate === day,
+      ),
   );
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
-        <Tabs value={scheduleId} onValueChange={setScheduleId}>
-          <TabsList variant="line">
-            <TabsTrigger value="todos">Todos</TabsTrigger>
-            {programSchedules.map((schedule) => (
-              <TabsTrigger key={schedule.id} value={schedule.id}>
-                {schedule.name}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-        {selectedSchedule ? (
-          <p className="text-sm text-muted-foreground">
-            {formatScheduleMoment(selectedSchedule)}
-          </p>
-        ) : null}
-      </div>
+      <Tabs value={day} onValueChange={setDay}>
+        <TabsList variant="line">
+          <TabsTrigger value="todos">Todos</TabsTrigger>
+          {days.map((eventDay) => (
+            <TabsTrigger key={eventDay} value={eventDay}>
+              {formatDate(eventDay)}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
 
       <ClientDataTable
         rows={visibleRows}
         columns={buildColumns({
           showAcademy,
-          showSchedule: scheduleId === "todos",
           choreographyPath,
         })}
         getRowKey={(row) => row.id}
