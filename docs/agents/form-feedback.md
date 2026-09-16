@@ -126,7 +126,21 @@ Two consequences for a view:
 - **Read the generic shape.** A view whose result type is narrower than
   `{ status: "error", message }` — an intent-tagged result, a `status:
 "update-error"` variant — has to accept the generic error as well, or the
-  failure is silent.
+  failure is silent. `isUnexpectedActionError` is the predicate for that test;
+  plain `status === "error"` narrowing is enough only where the result is a
+  closed union that already carries a `status`.
+- **Mind the fetchers with no toast.** A `useFetcher` that drops anything not
+  tagged with its own intent — the roster and modality resolutions of the
+  choreography detail — drops the generic error too, and there the user sees
+  nothing at all. Handle it before the intent guard, put the message on the
+  field, and mark the submission as answered so the effect does not resubmit in
+  a loop.
+- **A dialog re-opened by the shape of the result needs the intent too.** The
+  generic error carries no `values` and no `intent`, so "no `values`" or "not my
+  intent" no longer identifies which form failed: the delete dialog of the
+  payment detail keys its re-open on the intent that was in flight
+  (`shouldOpenPaymentDeleteDialog`), and the dancer detail opens no dialog at
+  all for a generic error.
 
 Resource routes with an `action` and no UI (`$`, `api.auth.$`, `salir`) export no
 `clientAction`: there is no mounted view to keep, and a returned error result

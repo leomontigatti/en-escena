@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useSubmit } from "react-router";
 import { Trash2 } from "lucide-react";
@@ -42,7 +42,11 @@ import {
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import type { PaymentDetailActionData, loadPaymentDetail } from "./server";
-import { deletePaymentIntent, updatePaymentIntent } from "./shared";
+import {
+  deletePaymentIntent,
+  shouldOpenPaymentDeleteDialog,
+  updatePaymentIntent,
+} from "./shared";
 
 type LoaderData = Awaited<ReturnType<typeof loadPaymentDetail>>;
 
@@ -52,15 +56,72 @@ type PaymentDetailRouteViewProps = {
   loaderData: LoaderData;
 };
 
+/**
+ * Keeps the delete dialog on screen across a submit that failed. A result of the
+ * delete intent re-opens it as before; the generic error from
+ * `recoverableClientAction` carries no intent, so which form was in flight is
+ * tracked here and handed to `shouldOpenPaymentDeleteDialog`.
+ */
+function usePaymentDeleteDialog({
+  actionData,
+  initialOpen,
+  paymentId,
+}: {
+  actionData?: PaymentDetailActionData;
+  initialOpen: boolean;
+  paymentId: string;
+}) {
+  const navigation = useOptionalNavigation();
+  const [isOpen, setIsOpen] = useState(
+    initialOpen ||
+      shouldOpenPaymentDeleteDialog({ actionData, submittedIntent: null }),
+  );
+  const submittedIntentRef = useRef<string | null>(null);
+  const isDeleting = isRouteFormPending(navigation, {
+    intent: deletePaymentIntent,
+    fields: { id: paymentId },
+  });
+  const isUpdating = isRouteFormPending(navigation, {
+    intent: updatePaymentIntent,
+  });
+
+  useEffect(() => {
+    if (isDeleting) {
+      submittedIntentRef.current = deletePaymentIntent;
+      return;
+    }
+
+    if (isUpdating) {
+      submittedIntentRef.current = updatePaymentIntent;
+    }
+  }, [isDeleting, isUpdating]);
+
+  useEffect(() => {
+    if (
+      shouldOpenPaymentDeleteDialog({
+        actionData,
+        submittedIntent: submittedIntentRef.current,
+      })
+    ) {
+      setIsOpen(true);
+    }
+  }, [actionData]);
+
+  return { isOpen, setIsOpen };
+}
+
 export function PaymentDetailRouteView({
   actionData,
   initialDeleteDialogOpen = false,
   loaderData,
 }: PaymentDetailRouteViewProps) {
   const payment = loaderData.payment;
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(
-    initialDeleteDialogOpen || actionData?.intent === deletePaymentIntent,
-  );
+  const { isOpen: isDeleteDialogOpen, setIsOpen: setIsDeleteDialogOpen } =
+    usePaymentDeleteDialog({
+      actionData,
+      initialOpen: initialDeleteDialogOpen,
+      paymentId: payment.id,
+    });
 
   const errorData = actionData?.status === "error" ? actionData : undefined;
   const successData = actionData?.status === "success" ? actionData : undefined;
@@ -71,12 +132,6 @@ export function PaymentDetailRouteView({
   useServerActionToast(successData, {
     toastId: "admin-payment-detail:success",
   });
-
-  useEffect(() => {
-    if (actionData?.intent === deletePaymentIntent) {
-      setIsDeleteDialogOpen(true);
-    }
-  }, [actionData]);
 
   return (
     <>
