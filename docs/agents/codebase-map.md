@@ -10,6 +10,9 @@ only list stable entry points, coordination modules and high-signal tests.
 
 - `app/routes` files are thin React Router entrypoints. Keep long-lived table,
   form, modal and loader/action implementation in feature or lib modules.
+  A route with an `action` and a UI also exports a `clientAction` delegating to
+  `recoverableClientAction`, so an unexpected failure keeps the view mounted; see
+  [form-feedback.md](form-feedback.md#unexpected-failures-during-a-submit).
 - Feature folders under `app/features` own product experiences:
   route-level views, route loaders/actions, request and form parsing, redirects,
   pending state, UI copy and flow-specific tests. Prefer surface-first folders
