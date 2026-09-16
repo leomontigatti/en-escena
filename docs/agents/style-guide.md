@@ -291,10 +291,18 @@ Rules:
   - Error confirmed by the server, with or without `fieldErrors`: `toast.error`.
     Do not duplicate those errors in inline fields; inline validation belongs to
     the RHF/Zod client schema.
-  - For successes after a redirect, use a centralized route notification through
-    a search parameter (`notificacion`) or the shared mechanism replacing it.
-    Keep the messages, IDs and `success | error` variants in a common map. Do not
-    use `toast.info` until there is a concrete product case that needs it.
+  - For successes after a redirect, carry the message in the flash session
+    (`app/lib/shared/flash-notification.server.ts`). The `notificacion` search
+    parameter was removed in #416 — see
+    [form-feedback.md](form-feedback.md). Keep the messages, IDs and
+    `success | error` variants in a common map
+    (`app/lib/shared/notification-toasts.ts`). Do not use `toast.info` until
+    there is a concrete product case that needs it.
+  - A submit that fails unexpectedly (a service throwing, the network dropping)
+    also arrives as an error result, because every route module with an `action`
+    exports the `clientAction` that produces it. The view stays mounted, so it
+    must read that generic `{ status: "error", message }` as well as its own
+    result shapes — see [form-feedback.md](form-feedback.md).
   - Do not use inline `Alert` or `Notice` for server confirmations or errors
     unless the message must remain as a persistent screen state. Use inline
     alerts only for current conditions, warnings before acting or visible screen
