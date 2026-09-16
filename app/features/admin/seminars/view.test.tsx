@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 
-import { act } from "react";
+import { act, useState } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 
@@ -11,6 +11,7 @@ import {
   defaultSeminarFormValues,
   toSeminarFormValues,
 } from "@/features/admin/seminars/shared";
+import type { SeminarDetailLoaderData } from "@/features/admin/seminars/shared";
 import type { SeminarInscriptionRow } from "@/lib/seminars/inscription-rosters.server";
 import {
   coveredSeminarMessage,
@@ -326,7 +327,121 @@ describe("SeminarDetailView", () => {
       )?.value,
     ).toBe("kept");
   });
+
+  // A chosen picture is a change on its own: nothing else has to be edited for
+  // "Guardar" to upload it.
+  test("wakes `Guardar` once a picture is chosen", async () => {
+    await renderDetail(buildSeminar());
+
+    const save = Array.from(
+      document.querySelectorAll<HTMLButtonElement>('button[type="submit"]'),
+    ).find((button) => button.textContent?.includes("Guardar"));
+    const fileInput = document.querySelector<HTMLInputElement>(
+      'input[name="instructorPictureFile"]',
+    );
+
+    expect(save?.disabled).toBe(true);
+
+    await act(async () => {
+      Object.defineProperty(fileInput, "files", {
+        configurable: true,
+        value: [new File(["x"], "instructor.jpeg", { type: "image/jpeg" })],
+      });
+      fileInput?.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    expect(document.body.textContent).toContain("instructor.jpeg");
+    expect(save?.disabled).toBe(false);
+  });
+
+  // The save that lands is what the field now holds, so the native input has to
+  // let go of the file it carried: keeping it would upload the same picture
+  // again on the next unrelated save.
+  test("lets go of the chosen picture once the save lands", async () => {
+    const seminar = buildSeminar();
+
+    await renderAt(
+      "/administracion/seminarios/seminar_1",
+      <SeminarDetailHarness
+        initialLoaderData={{
+          hasCoveredInscription: false,
+          inscriptions: [],
+          instructorPictureUrl: null,
+          selectedEventId: "event_1",
+          seminar,
+          values: toSeminarFormValues(seminar),
+        }}
+      />,
+    );
+
+    await act(async () => {
+      selectPicture(
+        document.querySelector<HTMLInputElement>(
+          'input[name="instructorPictureFile"]',
+        ),
+      );
+    });
+
+    expect(document.body.textContent).toContain("instructor.jpeg");
+
+    const savedSeminar = buildSeminar({
+      instructorPictureStorageKey:
+        "events/event_1/seminars/seminar_1/instructor.jpg",
+    });
+
+    // The loader answers again once the action has run, which is the only
+    // signal the page gets that the picture is now stored.
+    await act(async () => {
+      updateSeminarDetailLoaderData?.({
+        hasCoveredInscription: false,
+        inscriptions: [],
+        instructorPictureUrl: "https://example.test/signed/instructor",
+        selectedEventId: "event_1",
+        seminar: savedSeminar,
+        values: toSeminarFormValues(savedSeminar),
+      });
+    });
+
+    const fileInput = document.querySelector<HTMLInputElement>(
+      'input[name="instructorPictureFile"]',
+    );
+    const save = Array.from(
+      document.querySelectorAll<HTMLButtonElement>('button[type="submit"]'),
+    ).find((button) => button.textContent?.includes("Guardar"));
+
+    expect(fileInput?.files).toHaveLength(0);
+    expect(document.body.textContent).not.toContain("instructor.jpeg");
+    expect(save?.disabled).toBe(true);
+  });
 });
+
+let updateSeminarDetailLoaderData:
+  ((loaderData: SeminarDetailLoaderData) => void) | null = null;
+
+/**
+ * Stands in for the route: the page keeps its state while the loader answers
+ * again, which is what a save looks like from the form's side.
+ */
+function SeminarDetailHarness({
+  initialLoaderData,
+}: {
+  initialLoaderData: SeminarDetailLoaderData;
+}) {
+  const [loaderData, setLoaderData] = useState(initialLoaderData);
+
+  updateSeminarDetailLoaderData = setLoaderData;
+
+  return <SeminarDetailView loaderData={loaderData} />;
+}
+
+/** Chooses a picture the way the browser hands one to the file input. */
+function selectPicture(input: HTMLInputElement | null) {
+  Object.defineProperty(input, "files", {
+    configurable: true,
+    value: [new File(["x"], "instructor.jpeg", { type: "image/jpeg" })],
+  });
+  input?.dispatchEvent(new Event("change", { bubbles: true }));
+}
 
 function buildInscription(
   overrides: Partial<SeminarInscriptionRow> = {},
