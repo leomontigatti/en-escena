@@ -44,8 +44,7 @@ export type ProfessorActionSuccess = {
 };
 
 export type ProfessorDetailActionData =
-  | ProfessorActionError
-  | ProfessorActionSuccess;
+  ProfessorActionError | ProfessorActionSuccess;
 
 export type ProfessorRouteNotification = Extract<
   NotificationKey,
@@ -53,9 +52,7 @@ export type ProfessorRouteNotification = Extract<
 >;
 
 export type ProfessorDialogIntent =
-  | "archive-professor"
-  | "reactivate-professor"
-  | "update-professor";
+  "archive-professor" | "reactivate-professor" | "update-professor";
 
 export type ProfessorConfirmationAction = {
   confirmLabel: string;

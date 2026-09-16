@@ -17,10 +17,7 @@ import type { InternalUserRole } from "@/lib/auth/internal-user-roles";
 
 type AppRole = "academy" | InternalUserRole;
 type LandingPath =
-  | "/portal"
-  | "/administracion"
-  | "/auditoria"
-  | "/juzgamiento";
+  "/portal" | "/administracion" | "/auditoria" | "/juzgamiento";
 
 const landingPaths = {
   academy: "/portal",

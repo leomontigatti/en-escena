@@ -1,2 +1,10 @@
 allowBuilds:
   esbuild: true
+
+# jsdom resolves its CSS selector engine to whatever `nwsapi@^2.2.x` gives it,
+# and 2.2.26 makes every jsdom React interaction test hang: the render never
+# settles inside `act()`, so the menu and dialog tests time out instead of
+# failing (#968). 2.2.25 is the last good version. jsdom is dev-only, so this
+# pin does not reach production. Drop it once nwsapi ships a fix.
+overrides:
+  nwsapi: 2.2.25

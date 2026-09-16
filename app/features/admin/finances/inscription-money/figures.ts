@@ -51,9 +51,7 @@ export type InscriptionRow = {
 };
 
 export type InscriptionMoneyDialogShape =
-  | "releaseExcess"
-  | "remove"
-  | "allocate";
+  "releaseExcess" | "remove" | "allocate";
 
 export type OwedAgainstPrice = {
   owedBalanceAmount: number | null;

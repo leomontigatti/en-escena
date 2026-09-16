@@ -14,8 +14,7 @@ export const priceDivergenceScheduleCapacityMessage =
   "No se puede cambiar el cupo de cronograma: hay inscripciones con dinero asignado cuyo precio cambiaría.";
 
 export type ScheduleCapacityLockFailureCode =
-  | "invalid-schedule-capacity"
-  | "schedule-capacity-full";
+  "invalid-schedule-capacity" | "schedule-capacity-full";
 
 export type ScheduleCapacityLockResult =
   | {
@@ -30,8 +29,7 @@ export type ScheduleCapacityLockResult =
     };
 
 export type ScheduleCapacityMoveFailureCode =
-  | ScheduleCapacityLockFailureCode
-  | "price-divergence";
+  ScheduleCapacityLockFailureCode | "price-divergence";
 
 export type ScheduleCapacityMoveResult =
   | {

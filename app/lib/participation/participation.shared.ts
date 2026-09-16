@@ -3,9 +3,7 @@
  * the state the same way and name it the same way.
  */
 export type ParticipationStatus =
-  | "participating"
-  | "not-participating"
-  | "no-event";
+  "participating" | "not-participating" | "no-event";
 
 /**
  * The states that are actually shown. With no active event there is nothing to

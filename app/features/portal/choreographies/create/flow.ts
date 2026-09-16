@@ -69,9 +69,7 @@ export type CreateChoreographyFormValues = z.infer<
 export type CreateChoreographyForm =
   UseFormReturn<CreateChoreographyFormValues>;
 export type ManualRequiredFieldName =
-  | "experienceLevelId"
-  | "scheduleCapacityId"
-  | "submodalityId";
+  "experienceLevelId" | "scheduleCapacityId" | "submodalityId";
 
 export const emptyCreateChoreographyValues: CreateChoreographyFormValues = {
   name: "",

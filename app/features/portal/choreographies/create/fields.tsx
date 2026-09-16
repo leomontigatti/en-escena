@@ -11,10 +11,7 @@ import type {
 } from "@/features/portal/choreographies/create/shared";
 
 type CreateChoreographyFieldName =
-  | "modalityId"
-  | "submodalityId"
-  | "experienceLevelId"
-  | "scheduleCapacityId";
+  "modalityId" | "submodalityId" | "experienceLevelId" | "scheduleCapacityId";
 
 type SelectOption = {
   value: string;

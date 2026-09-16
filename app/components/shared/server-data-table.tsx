@@ -15,7 +15,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import { useLocation, useNavigate, useNavigation } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 
 import {
   buildDataTableFilterHref,
@@ -47,6 +47,7 @@ import {
   dataTableFacetedFilterColumnId,
   dataTableSearchDebounceMs,
 } from "@/components/shared/data-table.shared";
+import { useOptionalNavigation } from "@/lib/shared/forms";
 
 export function ServerDataTable<TData>(props: ServerDataTableProps<TData>) {
   const location = useLocation();
@@ -435,7 +436,7 @@ function getServerTableLoading({
 }: {
   loading?: boolean;
   location: ReturnType<typeof useLocation>;
-  navigation: ReturnType<typeof useNavigation>;
+  navigation: ReturnType<typeof useOptionalNavigation>;
 }) {
   if (loading !== undefined) {
     return loading;
@@ -490,12 +491,4 @@ function createServerSortHrefBuilder({
       pageParamName,
       sortParamName,
     });
-}
-
-function useOptionalNavigation() {
-  try {
-    return useNavigation();
-  } catch {
-    return { state: "idle" } as ReturnType<typeof useNavigation>;
-  }
 }

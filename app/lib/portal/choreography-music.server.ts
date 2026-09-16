@@ -10,8 +10,7 @@ import { formatUploadRejection } from "@/lib/storage/asset-kinds";
 import type { ChoreographyMusicStorage } from "@/lib/storage/choreography-music.server";
 
 export type UpdateChoreographyMusicResult =
-  | { ok: true }
-  | { ok: false; message: string };
+  { ok: true } | { ok: false; message: string };
 
 export async function updateChoreographyMusic(input: {
   academyId: string;

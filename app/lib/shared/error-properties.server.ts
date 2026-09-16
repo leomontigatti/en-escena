@@ -1,8 +1,5 @@
 export type ErrorPropertyKey =
-  | "code"
-  | "constraint_name"
-  | "detail"
-  | "message";
+  "code" | "constraint_name" | "detail" | "message";
 
 export function readErrorProperty(error: unknown, key: ErrorPropertyKey) {
   let current: unknown = error;

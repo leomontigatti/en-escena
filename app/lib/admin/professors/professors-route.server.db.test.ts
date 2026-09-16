@@ -956,8 +956,7 @@ function renderRouteInAdminLayout({
   parentLoaderData,
 }: {
   childComponent:
-    | typeof ProfessorsListRouteView
-    | typeof ProfessorDetailRouteView;
+    typeof ProfessorsListRouteView | typeof ProfessorDetailRouteView;
   childHandle: unknown;
   childId: string;
   childLoaderData: unknown;

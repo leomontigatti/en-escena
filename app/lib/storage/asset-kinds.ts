@@ -100,8 +100,7 @@ export type UploadRejection =
   | { kind: AssetKind; reason: "file-too-large"; sizeBytes: number };
 
 export type UploadResult =
-  | { ok: false; rejection: UploadRejection }
-  | { ok: true; storageKey: string };
+  { ok: false; rejection: UploadRejection } | { ok: true; storageKey: string };
 
 export function getAssetKindPolicy(kind: AssetKind): AssetKindPolicy {
   return assetKindPolicies[kind];
@@ -142,8 +141,7 @@ export function getAssetExtensionForContentType(
  * ever being built for a content type the policy has no extension for.
  */
 export type AssetUploadResolution =
-  | { extension: string; ok: true }
-  | { ok: false; rejection: UploadRejection };
+  { extension: string; ok: true } | { ok: false; rejection: UploadRejection };
 
 /**
  * The one gate every upload passes through. Returns the rejection rather than
