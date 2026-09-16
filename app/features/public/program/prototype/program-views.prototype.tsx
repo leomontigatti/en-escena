@@ -44,6 +44,7 @@ import {
   programSchedules,
   prototypeEvent,
   type ProgramRow,
+  type ProgramSchedule,
 } from "./program-fixtures.prototype";
 
 type ProgramViewProps = {
@@ -369,36 +370,42 @@ const printColumns = [
   { header: "Bailarines", width: 17 },
 ];
 
+const printWeekdayAndDate = new Intl.DateTimeFormat("es-AR", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  timeZone: "UTC",
+});
+
+/** "En Escena 2026 · sábado 17 de octubre 10:00 hs · Sábado mañana" */
+function formatPrintHeading(schedule: ProgramSchedule) {
+  const date = printWeekdayAndDate
+    .format(new Date(`${schedule.scheduledDate}T00:00:00Z`))
+    .replace(",", "");
+
+  return `${prototypeEvent.name} · ${date} ${schedule.startTime} hs · ${schedule.name}`;
+}
+
 /**
- * Landscape, one page run per day, headers once per day rather than on every
+ * Landscape, one page run per schedule, headers once per schedule rather than on every
  * page. A zero `@page` margin is what leaves the browser no room for its own
  * header and footer; the spacer rows of the outer table put the margin back on
  * every page, since a table repeats its `thead` and `tfoot` wherever it breaks.
  */
 export function PrintableProgram({ rows }: { rows: ProgramRow[] }) {
-  const days = [
-    ...new Set(programSchedules.map((schedule) => schedule.scheduledDate)),
-  ];
-
   return (
     <div className="hidden print:block">
       <style>{"@page { size: A4 landscape; margin: 0; }"}</style>
-      {days.map((day, index) => {
-        const dayRows = rows
-          .filter((row) =>
-            programSchedules.some(
-              (schedule) =>
-                schedule.id === row.scheduleId &&
-                schedule.scheduledDate === day,
-            ),
-          )
+      {programSchedules.map((schedule, index) => {
+        const scheduleRows = rows
+          .filter((row) => row.scheduleId === schedule.id)
           .sort(
             (left, right) => (left.orderNumber ?? 0) - (right.orderNumber ?? 0),
           );
 
         return (
           <table
-            key={day}
+            key={schedule.id}
             className={index > 0 ? "w-full break-before-page" : "w-full"}
           >
             <thead>
@@ -414,8 +421,8 @@ export function PrintableProgram({ rows }: { rows: ProgramRow[] }) {
             <tbody>
               <tr>
                 <td className="px-[12mm]">
-                  <h2 className="mb-3 text-base font-semibold">
-                    {prototypeEvent.name} · {formatDate(day)}
+                  <h2 className="mb-4 text-center text-lg font-semibold">
+                    {formatPrintHeading(schedule)}
                   </h2>
                   <Table className="table-fixed">
                     <colgroup>
@@ -426,7 +433,7 @@ export function PrintableProgram({ rows }: { rows: ProgramRow[] }) {
                         />
                       ))}
                     </colgroup>
-                    {/* A row group, not a header group: printed once per day. */}
+                    {/* A row group, not a header group: printed once per schedule. */}
                     <TableHeader className="[display:table-row-group]">
                       <TableRow>
                         {printColumns.map((column) => (
@@ -437,7 +444,7 @@ export function PrintableProgram({ rows }: { rows: ProgramRow[] }) {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {dayRows.map((row) => (
+                      {scheduleRows.map((row) => (
                         <TableRow key={row.id} className="break-inside-avoid">
                           <TableCell className="font-medium tabular-nums">
                             {formatOrderNumber(row)}
