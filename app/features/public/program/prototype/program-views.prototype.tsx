@@ -266,10 +266,15 @@ function buildColumns({
           id: "estado",
           header: "Estado",
           width: 11,
-          cell: (row) =>
-            row.orderNumber === null ? (
+          cell: (row) => {
+            if (row.isBelowDeposit) {
+              return <Badge variant="warning">Seña pendiente</Badge>;
+            }
+
+            return row.orderNumber === null ? (
               <Badge variant="info">Sin número</Badge>
-            ) : null,
+            ) : null;
+          },
         }
       : null,
   ];

@@ -220,8 +220,7 @@ export function readPublicProgramRows() {
 }
 
 /**
- * The academy's rows before the portal filters them, so the page can count what
- * it hides. `withNotices` adds the late unplaced row and keeps the below-deposit
+ * The academy's rows, including the ones the public program hides. `withNotices` adds the late unplaced row and keeps the below-deposit
  * one; without it, the academy has neither.
  */
 export function readOwnAcademyRows({ withNotices }: { withNotices: boolean }) {

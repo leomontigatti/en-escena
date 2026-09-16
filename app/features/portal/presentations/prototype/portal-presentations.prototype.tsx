@@ -2,7 +2,7 @@
 // (wayfinder ticket #913, map #907). The academy's read-only presentations page:
 // the same list as `/programa` without the academy column, plus the notices only
 // the portal can give (what the program hides, and why). Notice copy and the
-// `Estado` badge follow the admin participation list of #912.
+// `Estado` badges follow the admin participation list of #912.
 import { Info, SquareArrowOutUpRight, TriangleAlert } from "lucide-react";
 import { Link } from "react-router";
 
@@ -38,14 +38,13 @@ export function PortalPresentationsPrototype({
   caseId: PortalCaseId;
   withNotices: boolean;
 }) {
-  const allRows = readOwnAcademyRows({ withNotices });
-  // Below `Señada` is the only thing the list hides: a late choreography stays,
-  // with the `Sin número` badge of #912.
-  const shownRows = allRows.filter((row) => !row.isBelowDeposit);
-  const belowDepositCount = allRows.length - shownRows.length;
+  const rows = readOwnAcademyRows({ withNotices });
+  // The portal lists every row: what the public program hides below `Señada`
+  // stays here with its `Seña pendiente` badge, so the academy can fix it.
+  const belowDepositCount = rows.filter((row) => row.isBelowDeposit).length;
   const programVisible = caseId === "publicado";
   const hasRows =
-    (caseId === "publicado" || caseId === "oculto") && shownRows.length > 0;
+    (caseId === "publicado" || caseId === "oculto") && rows.length > 0;
 
   return (
     <PortalListPage
@@ -84,8 +83,8 @@ export function PortalPresentationsPrototype({
                 <TriangleAlert aria-hidden="true" />
                 <AlertDescription>
                   {belowDepositCount === 1
-                    ? "Existe 1 coreografía que no aparece en el programa porque tiene la seña pendiente."
-                    : `Existen ${belowDepositCount} coreografías que no aparecen en el programa porque tienen la seña pendiente.`}
+                    ? "Existe 1 coreografía con la seña pendiente que no aparece en el programa publicado."
+                    : `Existen ${belowDepositCount} coreografías con la seña pendiente que no aparecen en el programa publicado.`}
                 </AlertDescription>
                 <AlertAction className="top-1/2 -translate-y-1/2">
                   <Button asChild size="sm" variant="link">
@@ -103,7 +102,7 @@ export function PortalPresentationsPrototype({
           </AlertStack>
 
           <ProgramList
-            rows={shownRows}
+            rows={rows}
             showAcademy={false}
             choreographyPath={(row) => `/portal/coreografias/${row.id}`}
           />
