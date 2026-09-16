@@ -52,6 +52,17 @@ decide _when_ each item runs by adding the label by hand after publishing it.
 - **Blocked item** you want to queue: put **`agent:queued`**; it auto-promotes to implementable
   when its declared blockers close (native deps).
 
+### PR feedback round: the `/review-triage` skill
+
+Dispatching `agent:implement` **on a PR** is the same human call, with one extra lever: Implement
+PR only sees **unresolved** threads (plus every top-level comment and review summary, forever),
+so resolving a thread hides both the question and your answer to it. Resolve what is settled,
+leave a decision reply on what is not, then label.
+
+`/review-triage` (`.claude/skills/review-triage/`) does that pass: it classifies each item, puts
+the calls that are yours to you with options and a recommendation, and only then replies,
+resolves and labels. User-invoked — type it, nothing fires it for you.
+
 ### With the `to-spec` / `to-tickets` skills
 
 These are global HITL skills; they run in your session, not in GHA, and by default they label
