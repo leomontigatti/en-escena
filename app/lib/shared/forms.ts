@@ -106,10 +106,11 @@ export function createValidatedReactRouterSubmitHandler<
 }
 
 // The `try`/`catch` is the point of these wrappers: React Router's hooks throw
-// synchronously when there is no router context, which is how a component can be
-// rendered outside a router (see the `render`-only tests). oxlint 1.83 started
-// reading a hook inside a `try` block as a conditional call, so each call is
-// suppressed individually rather than turning the rule off for the file.
+// synchronously when their context is missing — outside a router at all, and for
+// `useNavigation` also inside a non-data router such as the `MemoryRouter` the
+// render-only tests use. oxlint 1.83 started reading a hook inside a `try` block
+// as a conditional call, so each call is suppressed individually rather than
+// turning the rule off for the file.
 export function useOptionalFormAction() {
   try {
     // oxlint-disable-next-line react-hooks/rules-of-hooks

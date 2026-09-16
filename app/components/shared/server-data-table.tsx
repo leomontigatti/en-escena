@@ -15,7 +15,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import { useLocation, useNavigate, useNavigation } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 
 import {
   buildDataTableFilterHref,
@@ -47,6 +47,7 @@ import {
   dataTableFacetedFilterColumnId,
   dataTableSearchDebounceMs,
 } from "@/components/shared/data-table.shared";
+import { useOptionalNavigation } from "@/lib/shared/forms";
 
 export function ServerDataTable<TData>(props: ServerDataTableProps<TData>) {
   const location = useLocation();
@@ -435,7 +436,7 @@ function getServerTableLoading({
 }: {
   loading?: boolean;
   location: ReturnType<typeof useLocation>;
-  navigation: ReturnType<typeof useNavigation>;
+  navigation: ReturnType<typeof useOptionalNavigation>;
 }) {
   if (loading !== undefined) {
     return loading;
@@ -490,16 +491,4 @@ function createServerSortHrefBuilder({
       pageParamName,
       sortParamName,
     });
-}
-
-// As in `useOptionalNavigation` in `app/lib/shared/forms.ts`: the `try`/`catch`
-// lets the table render outside a router context, and oxlint 1.83 reads the hook
-// inside the `try` as a conditional call.
-function useOptionalNavigation() {
-  try {
-    // oxlint-disable-next-line react-hooks/rules-of-hooks
-    return useNavigation();
-  } catch {
-    return { state: "idle" } as ReturnType<typeof useNavigation>;
-  }
 }
