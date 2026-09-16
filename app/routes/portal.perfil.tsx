@@ -6,6 +6,9 @@ import {
   loadPortalProfile,
 } from "@/features/portal/profile/server";
 import { PortalProfileRouteView } from "@/features/portal/profile/view";
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
+
+import type { Route } from "./+types/portal.perfil";
 
 type PortalProfileRouteProps = {
   loaderData: Awaited<ReturnType<typeof loader>>;
@@ -25,6 +28,10 @@ export async function loader({ request }: { request: Request }) {
 
 export async function action({ request }: { request: Request }) {
   return await handlePortalProfileAction(request);
+}
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
 }
 
 export default function PortalPerfilRoute({

@@ -10,8 +10,10 @@ import {
   type EventModalityDetailViewProps,
 } from "@/features/admin/modalities/detail/view";
 import type { EventModalitiesLoaderData } from "@/features/admin/modalities/shared";
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 
 import type { Route } from "./+types/administracion.modalidades_.$modalityId";
+
 type LoaderData = EventModalitiesLoaderData;
 
 export const handle = {
@@ -33,6 +35,10 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 export async function action({ request }: Route.ActionArgs) {
   return updateAdministrativeEventModality(request);
+}
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
 }
 
 export function ModalityDetailRouteView({

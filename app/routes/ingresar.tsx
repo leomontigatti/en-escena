@@ -45,6 +45,7 @@ import { isInternalUserRole } from "@/lib/auth/internal-user-roles";
 import { getPostLoginPathForUserId } from "@/lib/auth/internal-navigation.server";
 import { getEmptyFieldErrors } from "@/lib/shared/form-validation";
 import { normalizeEmail } from "@/lib/shared/email-normalization";
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 import { showToastMessage, useServerActionToast } from "@/lib/shared/toasts";
 
 import type { Route } from "./+types/ingresar";
@@ -137,6 +138,10 @@ export async function action({ request }: Route.ActionArgs) {
 
     return genericLoginError(formResult.values);
   }
+}
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
 }
 
 /**

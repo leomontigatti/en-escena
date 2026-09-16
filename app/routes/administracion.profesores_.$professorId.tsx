@@ -10,6 +10,7 @@ import type {
   ProfessorDetailLoaderData,
 } from "@/features/admin/professors/detail/shared";
 import { ProfessorDetailRouteView as ProfessorDetailView } from "@/features/admin/professors/detail/view";
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 
 import type { Route } from "./+types/administracion.profesores_.$professorId";
 
@@ -50,6 +51,10 @@ export async function action({
   params,
 }: Route.ActionArgs): Promise<ProfessorDetailActionData> {
   return await handleProfessorDetailAction({ request, params });
+}
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
 }
 
 export function ProfessorDetailRouteView({

@@ -9,6 +9,7 @@ import {
   CategoryCreateView,
   type CategoryCreateViewProps,
 } from "@/features/admin/categories/create/view";
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 
 import type { Route } from "./+types/administracion.categorias_.nueva";
 
@@ -25,6 +26,10 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 export async function action({ request }: Route.ActionArgs) {
   return createCategory(request);
+}
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
 }
 
 export function NewCategoryRouteView({
