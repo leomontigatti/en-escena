@@ -10,14 +10,10 @@ import {
 export type UserListRole = "academy" | InternalUserRole;
 
 export type UserListState =
-  | "active"
-  | "mandatory-password-change"
-  | "suspended";
+  "active" | "mandatory-password-change" | "suspended";
 
 export type UserListStateFilter =
-  | "active"
-  | "mandatory-password-change"
-  | "suspended";
+  "active" | "mandatory-password-change" | "suspended";
 
 export type UserListType = "academy" | "internal";
 

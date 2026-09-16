@@ -24,12 +24,7 @@ export type DataTableSort = {
 };
 
 export type DataTableSortValue =
-  | string
-  | number
-  | Date
-  | boolean
-  | null
-  | undefined;
+  string | number | Date | boolean | null | undefined;
 
 /**
  * How a table sizes its columns.

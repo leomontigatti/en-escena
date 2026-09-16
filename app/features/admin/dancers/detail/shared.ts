@@ -49,10 +49,7 @@ export type DancerActionError = {
 };
 
 export type DancerDialogIntent =
-  | "archive-dancer"
-  | "reactivate-dancer"
-  | "save"
-  | "verify";
+  "archive-dancer" | "reactivate-dancer" | "save" | "verify";
 
 export type DancerActionSuccess = {
   status: "success";

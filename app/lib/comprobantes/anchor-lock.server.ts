@@ -10,8 +10,7 @@ import type { ComprobanteAnchor } from "./anchor";
  * lock instead of opening a second connection outside it.
  */
 export type ComprobanteExecutor =
-  | typeof db
-  | Parameters<Parameters<typeof db.transaction>[0]>[0];
+  typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /**
  * The lock key of one unit. A choreography is its own unit; a seminar's unit is

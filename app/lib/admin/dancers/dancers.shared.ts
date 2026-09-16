@@ -6,14 +6,9 @@ export const dancerNotFoundMessage = "No encontramos ese Bailarín.";
 export type DancerParticipationFilter = "yes" | "no" | "all";
 export type DancerNameOrder = "asc" | "desc";
 export type DancerIdentificationFilter =
-  | "incomplete"
-  | "unverified"
-  | "verified"
-  | "all";
+  "incomplete" | "unverified" | "verified" | "all";
 export type DancerIdentificationStatus =
-  | "incomplete"
-  | "unverified"
-  | "verified";
+  "incomplete" | "unverified" | "verified";
 
 export type DancerListFilters = {
   nameOrder: DancerNameOrder;

@@ -4,8 +4,7 @@ import { useId } from "react";
 import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 
 export type DocumentImageFieldName =
-  | "documentBackImageStorageKey"
-  | "documentFrontImageStorageKey";
+  "documentBackImageStorageKey" | "documentFrontImageStorageKey";
 
 export function ReadOnlyDocumentImageField({
   label,

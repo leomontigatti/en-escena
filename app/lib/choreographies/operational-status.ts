@@ -1,8 +1,5 @@
 export type ChoreographyOperationalPendingItem =
-  | "music"
-  | "category"
-  | "experienceLevel"
-  | "professors";
+  "music" | "category" | "experienceLevel" | "professors";
 
 export type ChoreographyOperationalStatus = {
   code: "complete" | "incomplete";

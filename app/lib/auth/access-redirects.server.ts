@@ -20,8 +20,7 @@ const BETTER_AUTH_SECURE_SESSION_COOKIE_NAME =
   "__Secure-better-auth.session_token";
 
 export type LoginRedirectReason =
-  | typeof CONTINUE_REASON
-  | typeof EXPIRED_REASON;
+  typeof CONTINUE_REASON | typeof EXPIRED_REASON;
 
 export function redirectToLoginForRequest(request: Request): never {
   const reason = hasAccessSessionCookie(request)

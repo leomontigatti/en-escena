@@ -17,6 +17,7 @@ import { seminarHasComprobantes } from "@/lib/comprobantes/comprobantes.server";
 import {
   seminarHasComprobantesMessage,
   seminarHasInscriptionsMessage,
+  coveredSeminarMessage,
 } from "@/lib/seminars/registration-refusals";
 import { isDateOnly } from "@/lib/shared/date-only";
 
@@ -28,8 +29,7 @@ export type SeminarRow = typeof seminars.$inferSelect;
  * run on.
  */
 type SeminarExecutor =
-  | typeof db
-  | Parameters<Parameters<typeof db.transaction>[0]>[0];
+  typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /**
  * A seminar as every surface reads it: the row plus the two counts that are not
@@ -87,8 +87,7 @@ export type SeminarFailure = {
 };
 
 export type SeminarMutationResult =
-  | { ok: true; seminar: SeminarRow }
-  | SeminarFailure;
+  { ok: true; seminar: SeminarRow } | SeminarFailure;
 
 export type SeminarDeleteResult = { ok: true } | SeminarFailure;
 
@@ -99,8 +98,16 @@ const duplicateSeminarFieldError =
   "Cambiá el instructor, la fecha o la hora del seminario.";
 const seminarNotFoundError = "No encontramos ese seminario.";
 const requiredSeminarFieldError = "Este campo es obligatorio.";
-const coveredSeminarError =
-  "No se puede cambiar el tipo de seminario ni la seña: ya hay inscripciones con la seña cubierta.";
+
+/** Whether the event has any seminar at all, for warnings that only matter then. */
+export async function hasEventSeminars(eventId: string) {
+  const row = await db.query.seminars.findFirst({
+    columns: { id: true },
+    where: eq(seminars.eventId, eventId),
+  });
+
+  return row !== undefined;
+}
 
 export async function listSeminars(
   eventId: string,
@@ -310,7 +317,7 @@ export async function updateSeminar(
       return {
         ok: false,
         code: "covered-inscriptions",
-        error: coveredSeminarError,
+        error: coveredSeminarMessage,
       };
     }
 

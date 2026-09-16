@@ -448,3 +448,136 @@ Start with a PGlite-plus-snapshot proof of concept on 1 or 2 small DB files. If 
 fidelity incompatibility with Postgres shows up, shift focus to real Postgres per
 worker. It is not worth starting directly by parallelizing the current suite:
 today the serial harness and the shared Postgres are part of the isolation.
+
+## Operational amendment 2026-09-15 (issue #961)
+
+The CI `db-gate` job took ~7 m 45 s, of which `pnpm test:db:postgres` was 424 s
+(run 34905655961, 2026-09-14): vitest reported `collect 131.6 s` and
+`tests 266.3 s` for 112 files / 823 tests on one worker. The cost was not in the
+fixtures — net of the per-test reset a test averaged ~0.14 s — but in the reset
+itself, which ran `truncate table <all 29 en_escena_ tables> restart identity
+cascade` before **every** test.
+
+Measured on the local `postgres:17-alpine` container, per reset, inside the same
+transaction and advisory lock the harness already used:
+
+| Reset                                                               | Empty database | After a test that wrote one table |
+| ------------------------------------------------------------------- | -------------: | --------------------------------: |
+| `truncate` over all 29 tables (previous)                            |          85 ms |                             85 ms |
+| `truncate ... restart identity cascade` limited to the dirty tables |              — |                             49 ms |
+| probe + `delete from` the dirty tables (current)                    |     **3.1 ms** |                        **4.1 ms** |
+
+The issue's own earlier measurements on a different machine put the all-table
+truncate at 130-260 ms, unchanged by `fsync=off synchronous_commit=off
+full_page_writes=off`: the cost is catalog work per table, not disk I/O. That
+also explains why truncating only the dirty tables barely helps — `cascade` still
+walks the catalog.
+
+Chosen reset (`tests/db/reset.ts`, shared by `tests/db/harness.ts` and
+`tests/db/pglite.ts`):
+
+1. one round trip that returns the `en_escena_%` tables holding at least one row
+   (`exists (select 1 from t)` per table, unioned) and the `public` sequences
+   whose `pg_sequences.last_value` is not null, i.e. that have been advanced;
+2. `delete from` each dirty table in child-before-parent order, computed once per
+   database from `pg_constraint`;
+3. `alter sequence ... restart` for each advanced sequence, which covers the test
+   that inserted and then deleted its own rows.
+
+The isolation model of ADR-0007 is unchanged — still a full reset before each
+test against one shared database per run — only the statements that implement it.
+The schema currently declares no sequences, so step 3 is normally a no-op; it is
+kept so a future `serial`/identity column cannot silently leak across tests.
+
+Also in `vitest.db.config.ts`: `server.deps.inline: true` transformed every
+dependency through Vite once per file. It is now narrowed to the same three
+patterns `vitest.config.ts` inlines, which is what the stubs actually require.
+
+Validation on this branch: `pnpm test:unit` (1551 tests), `pnpm test:db` (113
+files, 825 tests) and the full `vitest --config vitest.db.config.ts --run` (113
+files, 827 tests) all green. The wall-clock figures of that local run are not
+comparable to CI's — the three suites shared one runner — so the per-reset
+numbers above, measured in isolation, are the meaningful ones; the `db-gate`
+figure to compare against the 424 s baseline is the one the PR's own CI run
+reports.
+
+## Operational amendment 2026-09-15 (issue #962)
+
+After #961 the DB suite was still CI's long pole: one runner, one worker, 113
+`*.db.test.ts` files serially against one Postgres service. The serial config
+(`fileParallelism: false`, `maxWorkers: 1`, `singleThread` in
+`vitest.db.config.ts`) is a constraint **within** a runner — every file shares one
+database and the harness resets it before each test. It says nothing about
+running several runners: the repo is public, GitHub-hosted minutes are free, and
+up to 20 jobs run concurrently.
+
+`.github/workflows/ci.yml` now splits the suite with vitest's `--shard`, which
+divides by file:
+
+- `db-shard`, a `strategy.matrix` of 4 jobs (`fail-fast: false`), each with its
+  own `postgres:17-alpine` service, each running `pnpm db:test:reset` against
+  that container and then
+  `pnpm exec vitest --config vitest.db.config.ts --run --shard=<i>/4`;
+- `db-gate`, an aggregator with `needs: [db-shard]` and `if: always()`, no
+  checkout, that fails unless `needs.db-shard.result == 'success'`. The name is
+  load-bearing: branch protection on `master` requires the `db-gate` context, and
+  editing required contexts is a human step outside the repo.
+
+No shard shares a database with another, and a shard always runs whole files, so
+the isolation model of `docs/adr/0007-db-test-isolation-model.md` is unchanged —
+still a full reset before each test against one database per runner.
+
+### Choosing 4 shards
+
+Measured on this branch, locally, against the `postgres:17-alpine` container
+(one shard run in isolation, `pnpm db:test:reset` included in the wall clock):
+
+| Run           | Files | Tests | Vitest `Duration`                  | Wall clock |
+| ------------- | ----: | ----: | ---------------------------------- | ---------: |
+| `--shard=1/4` |    29 |   211 | 100.1 s (collect 45.2, tests 48.2) |   1 m 44 s |
+
+`--shard` splits by a hash of the file path, so it equalises **file count**, not
+duration: 113 files over 4 shards is 29/28/28/28, and a shard that happens to
+collect the slowest files runs longer than the rest. Only shard 1 was timed, so
+100 s is one sample, not the slowest shard.
+
+`collect` is a per-file cost, so it divides with the shard count just as the test
+time does. Four shards put each one near 100 s of vitest plus the ~35 s of fixed
+setup every shard pays (service container init ~20 s, checkout ~10 s,
+`pnpm install` ~5 s) — the 1-2 minutes per shard the split was aimed at. Going to
+6 or 8 shards would buy less each time, because the fixed 35 s becomes the
+dominant term.
+
+Two caveats on the headline number, so the next reader does not over-read it:
+
+- The 424 s baseline above is **pre-#961**, measured on CI; the 100 s shard is
+  **post-#961**, measured locally. Different change, different hardware. The
+  post-#961 CI wall time of the unsharded suite was never recorded on its own, so
+  the gain attributable to sharding alone cannot be read off these two numbers,
+  and neither can a clean speed-up ratio.
+- Because of that, the before/after the acceptance criteria ask for comes from
+  the PR's own CI run, recorded below, not from the two numbers above.
+
+### Measured on the PR's own CI run (35024332458, 2026-09-15)
+
+| Job            | Files | Vitest `Duration`                  |                       Job wall clock |
+| -------------- | ----: | ---------------------------------- | -----------------------------------: |
+| `db-shard 1/4` |    29 | 102.7 s (collect 32.9, tests 64.7) |                             2 m 33 s |
+| `db-shard 2/4` |    29 | 91.2 s (collect 33.5, tests 52.4)  |                             2 m 18 s |
+| `db-shard 3/4` |    29 | 94.1 s (collect 51.5, tests 36.1)  |                             2 m 15 s |
+| `db-shard 4/4` |    26 | 95.4 s (collect 35.0, tests 54.5)  |                             2 m 17 s |
+| `db-gate`      |     — | aggregator only                    | green 2 m 38 s after the run started |
+
+Against the last unsharded run on `master` after #961 (PR #963's run 34968689946:
+`db-gate` 6 m 52 s, vitest 366.8 s), the gate's wall clock fell to 2 m 38 s. The
+slowest shard's job wall clock (2 m 33 s) sits right at the 2 m 30 s mark, but
+only 103 s of it is vitest; the rest is the fixed setup a fifth or sixth runner
+would pay again. Going to 6 shards would cut about 25 s of test time per shard
+for another 35 s of setup each, so 4 stays. The whole CI run now finishes in
+3 m 11 s and its long pole is `checks` (3 m 07 s, mostly `test:unit`), not the DB
+suite.
+
+Out of scope here, in order of what to try next if this is not enough: parallel
+workers inside one runner with a template database per `VITEST_POOL_ID`
+("Phase 3B" above), and third-party runners. `isolate: false` stays rejected
+(#128).

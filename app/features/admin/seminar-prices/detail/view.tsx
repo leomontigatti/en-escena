@@ -1,4 +1,6 @@
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
+import { GuardAlert } from "@/components/shared/guard-alert";
+import { readPriceGuard } from "@/lib/prices/guards";
 import { useServerActionToast } from "@/lib/shared/toasts";
 import type { SeminarPriceListItem } from "@/lib/seminar-prices/repository.server";
 
@@ -13,10 +15,7 @@ import type {
   SeminarPriceActionData,
   SeminarPricesListLoaderData,
 } from "../shared";
-import {
-  getSeminarPriceSubmittedValues,
-  readSeminarPriceGuard,
-} from "../view-shared";
+import { getSeminarPriceSubmittedValues } from "../view-shared";
 
 export type SeminarPriceDetailViewProps = {
   actionData?: SeminarPriceActionData;
@@ -36,6 +35,7 @@ export function SeminarPriceDetailView({
   const seminarPrice = loaderData.seminarPrices.find(
     (item) => item.id === seminarPriceId,
   );
+  const guard = seminarPrice ? readPriceGuard(seminarPrice) : null;
 
   return (
     <AdminResourceLayout
@@ -57,32 +57,35 @@ export function SeminarPriceDetailView({
         ) : null
       }
     >
-      {seminarPrice ? (
-        <SeminarPriceFormPanel>
-          <SeminarPriceForm
-            formId="update-seminar-price-form"
-            guard={readSeminarPriceGuard(seminarPrice)}
-            id={seminarPrice.id}
-            intent="update-seminar-price"
-            name={seminarPrice.name}
-            kind={seminarPrice.kind}
-            forParticipants={seminarPrice.forParticipants}
-            amount={seminarPrice.amount}
-            paymentDeadline={seminarPrice.paymentDeadline}
-            submittedValues={getSeminarPriceSubmittedValues(
-              actionData,
-              "update-seminar-price",
-              seminarPrice.id,
-            )}
-          />
-          <SeminarPriceFormActions
-            formId="update-seminar-price-form"
-            pendingScope={{
-              intent: "update-seminar-price",
-              fields: { id: seminarPrice.id },
-            }}
-          />
-        </SeminarPriceFormPanel>
+      {seminarPrice && guard ? (
+        <>
+          <GuardAlert reason={guard.reason} />
+          <SeminarPriceFormPanel>
+            <SeminarPriceForm
+              formId="update-seminar-price-form"
+              guard={guard}
+              id={seminarPrice.id}
+              intent="update-seminar-price"
+              name={seminarPrice.name}
+              kind={seminarPrice.kind}
+              forParticipants={seminarPrice.forParticipants}
+              amount={seminarPrice.amount}
+              paymentDeadline={seminarPrice.paymentDeadline}
+              submittedValues={getSeminarPriceSubmittedValues(
+                actionData,
+                "update-seminar-price",
+                seminarPrice.id,
+              )}
+            />
+            <SeminarPriceFormActions
+              formId="update-seminar-price-form"
+              pendingScope={{
+                intent: "update-seminar-price",
+                fields: { id: seminarPrice.id },
+              }}
+            />
+          </SeminarPriceFormPanel>
+        </>
       ) : (
         <EmptyResourceState>
           No encontramos ese precio. Volvé a la lista para elegir otro registro.

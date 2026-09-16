@@ -54,8 +54,7 @@ export type DeleteSeminarInscriptionInput = {
 };
 
 export type DeleteSeminarInscriptionFailureCode =
-  | "inscription-not-found"
-  | "started";
+  "inscription-not-found" | "started";
 
 /** Administration's removal, which has no cut-off and no reason to refuse but
  * a row that is not there. */

@@ -69,6 +69,32 @@ Recommended final validation after code changes:
 6. `pnpm build` when the change touches routing, server rendering, bundling,
    CSS, or deployment behavior
 
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on every PR to `master`, as three required
+contexts. The rationale for each job lives in that file's comments; what follows
+is the shape a reader needs before running anything locally:
+
+- `checks`: `format:check`, `lint`, the `check:*` scripts, the migration
+  drift/order/immutability checks, `typecheck`, `test:unit` and `build`, with no
+  database.
+- `db-gate`: the full `*.db.test.ts` suite against real Postgres 17. The tests
+  run in the `db-shard` matrix — four runners, each with its own Postgres
+  service container, each running
+  `pnpm db:test:reset && pnpm exec vitest --config vitest.db.config.ts --run --shard=<i>/4`
+  (#962). `db-gate` itself runs nothing: it `needs` the matrix and fails unless
+  every shard succeeded. There is no `package.json` script for the sharded
+  command, because only CI passes `--shard`; locally the DB suite is still
+  `pnpm test:db` (PGlite) or `pnpm test:db:postgres` (real Postgres).
+- `docs-gate`: mapped code changed, so its current-state document must change
+  too (`pnpm check:doc-map`).
+
+`--shard` splits by file, so a shard always runs whole files and never shares a
+database with another shard; the serial-within-a-runner isolation model of
+`docs/adr/0007-db-test-isolation-model.md` is unchanged. Required contexts are a
+repo setting, not part of this file: renaming a job does not update branch
+protection, which is why the aggregator is named exactly `db-gate`.
+
 ## Linting
 
 `pnpm lint` is [oxlint](https://oxc.rs), configured in `.oxlintrc.json`. It runs
@@ -179,8 +205,8 @@ changed before running the broader final checks:
 `pnpm test` and `pnpm test:db` run on in-process PGlite and need no local
 Postgres, so the AFK implementer and reviewer can run them on a GHA runner with
 no Postgres service. Real Postgres is the high-fidelity path
-`pnpm test:db:postgres`, reserved for the CI gate on the PR (#305) and manual
-fidelity checks. For Codex sessions inside the managed sandbox, that path still
+`pnpm test:db:postgres`, for manual fidelity checks; CI covers the same suite
+and the same config, sharded across `db-shard` (#305, #962). For Codex sessions inside the managed sandbox, that path still
 needs elevated local permission because `TEST_DATABASE_URL` points at Postgres
 over TCP on `localhost:5433`. When requesting persistent approval, use these
 scoped prefixes:

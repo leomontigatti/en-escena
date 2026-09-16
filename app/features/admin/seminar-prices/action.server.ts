@@ -3,9 +3,7 @@ import { seminarPriceActionHandler } from "@/lib/admin/events/bases-action/semin
 import { type ActionData } from "@/lib/admin/events/bases-action/shared.server";
 
 type SeminarPriceIntent =
-  | "create-seminar-price"
-  | "update-seminar-price"
-  | "delete-seminar-price";
+  "create-seminar-price" | "update-seminar-price" | "delete-seminar-price";
 
 type HandleSeminarPriceActionOptions = {
   allowedIntents?: SeminarPriceIntent[];

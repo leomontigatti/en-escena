@@ -571,13 +571,11 @@ describe.sequential("financial detail — comprobante emission axis", () => {
             createVoucher: vi.fn(() =>
               Promise.reject(new Error("socket hang up")),
             ),
-            getVoucherInfo: vi.fn(
-              async (): Promise<VoucherInfoResultDto> => ({
-                ...facturaCConsultada,
-                impTotal: 3000,
-                cbteFch: "20260722",
-              }),
-            ),
+            getVoucherInfo: vi.fn(async (): Promise<VoucherInfoResultDto> => ({
+              ...facturaCConsultada,
+              impTotal: 3000,
+              cbteFch: "20260722",
+            })),
           }),
         ),
     }).catch((thrown) => thrown);
@@ -606,15 +604,13 @@ describe.sequential("financial detail — comprobante emission axis", () => {
     });
 
     const billing = fakeBilling({
-      getVoucherInfo: vi.fn(
-        async (): Promise<VoucherInfoResultDto> => ({
-          ...facturaCConsultada,
-          cbteDesde: 43,
-          cbteHasta: 43,
-          impTotal: 3000,
-          cbteFch: "20260722",
-        }),
-      ),
+      getVoucherInfo: vi.fn(async (): Promise<VoucherInfoResultDto> => ({
+        ...facturaCConsultada,
+        cbteDesde: 43,
+        cbteHasta: 43,
+        impTotal: 3000,
+        cbteFch: "20260722",
+      })),
     });
 
     const result = await handleChoreographyFinanceAction({
@@ -670,15 +666,13 @@ describe.sequential("financial detail — comprobante emission axis", () => {
       resolveEmissionDeps: () =>
         emissionDeps(
           fakeBilling({
-            getVoucherInfo: vi.fn(
-              async (): Promise<VoucherInfoResultDto> => ({
-                ...facturaCConsultada,
-                cbteDesde: 999,
-                cbteHasta: 999,
-                impTotal: 999999,
-                cbteFch: "20260722",
-              }),
-            ),
+            getVoucherInfo: vi.fn(async (): Promise<VoucherInfoResultDto> => ({
+              ...facturaCConsultada,
+              cbteDesde: 999,
+              cbteHasta: 999,
+              impTotal: 999999,
+              cbteFch: "20260722",
+            })),
           }),
         ),
     });

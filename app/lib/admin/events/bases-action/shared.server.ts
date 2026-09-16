@@ -91,8 +91,7 @@ export type EventBasesActionBaseInput = {
 };
 
 export type EventBasesActionResult =
-  | EventBasesDeleteResult
-  | EventBasesMutationResult;
+  EventBasesDeleteResult | EventBasesMutationResult;
 
 export type RequiredFieldErrorResult = {
   message: string;

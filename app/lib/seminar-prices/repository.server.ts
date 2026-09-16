@@ -9,11 +9,12 @@ import type {
 } from "@/lib/events/bases-repository/shared.server";
 import { hasNeverExpiringPrice } from "@/lib/events/never-expiring-price";
 import {
-  frozenSeminarPriceDeleteError,
-  frozenSeminarPriceUpdateError,
-  uncoveredSeminarPriceDeleteError,
-  uncoveredSeminarPriceUpdateError,
-} from "@/lib/seminar-prices/guard-messages";
+  frozenPriceDeleteError,
+  frozenPriceUpdateError,
+  type PriceGuardFlags,
+  uncoveredPriceDeleteError,
+  uncoveredPriceUpdateError,
+} from "@/lib/prices/guards";
 import { hasCompleteSeminarPriceCells } from "@/lib/seminar-prices/participant-cells";
 import { activeSeminarInscription } from "@/lib/seminars/active-inscription";
 import { isSeminarKind, type SeminarKind } from "@/lib/seminars/seminar-kinds";
@@ -41,12 +42,7 @@ type ValidSeminarPriceInput = {
  * a field on sight instead of refusing after the save. The server refuses all
  * the same, for the race.
  */
-export type SeminarPriceListItem = SeminarPriceRow & {
-  /** Some inscription stores this row, so it is frozen except for its name. */
-  isReferenced: boolean;
-  /** It is the tail that keeps the event's seminars open (see the guard). */
-  keepsRegistrationOpen: boolean;
-};
+export type SeminarPriceListItem = SeminarPriceRow & PriceGuardFlags;
 
 export type SeminarPriceDependencies = {
   hasDependencies?: (seminarPriceId: string) => Promise<boolean> | boolean;
@@ -149,7 +145,7 @@ export async function updateSeminarPrice(
       return {
         ok: false,
         code: "event-bases-has-dependencies",
-        error: frozenSeminarPriceUpdateError,
+        error: frozenPriceUpdateError,
       };
     }
 
@@ -157,7 +153,7 @@ export async function updateSeminarPrice(
       return {
         ok: false,
         code: "event-bases-has-dependencies",
-        error: uncoveredSeminarPriceUpdateError(existing.forParticipants),
+        error: uncoveredPriceUpdateError,
       };
     }
   }
@@ -190,7 +186,7 @@ export async function deleteSeminarPrice(
     return {
       ok: false,
       code: "event-bases-has-dependencies",
-      error: frozenSeminarPriceDeleteError,
+      error: frozenPriceDeleteError,
     };
   }
 
@@ -198,7 +194,7 @@ export async function deleteSeminarPrice(
     return {
       ok: false,
       code: "event-bases-has-dependencies",
-      error: uncoveredSeminarPriceDeleteError(existing.forParticipants),
+      error: uncoveredPriceDeleteError,
     };
   }
 

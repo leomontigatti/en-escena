@@ -39,12 +39,12 @@ use when a script has operational risk.
 
 ## Database Tests
 
-| Script                            | Purpose                                                                                                                          |
-| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm test:db`                    | Run the full DB suite on the in-process PGlite harness. No local Postgres. Included in `pnpm test`.                              |
-| `pnpm test:db <archivo>`          | Run one focused DB test file on the PGlite harness.                                                                              |
-| `pnpm test:db:postgres`           | Push schema to `TEST_DATABASE_URL` and run the DB Vitest suite against real Postgres. Reserved for the CI gate on the PR (#305). |
-| `pnpm test:db:postgres <archivo>` | Run one focused DB test file against real Postgres.                                                                              |
+| Script                            | Purpose                                                                                                                                                          |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm test:db`                    | Run the full DB suite on the in-process PGlite harness. No local Postgres. Included in `pnpm test`.                                                              |
+| `pnpm test:db <archivo>`          | Run one focused DB test file on the PGlite harness.                                                                                                              |
+| `pnpm test:db:postgres`           | Push schema to `TEST_DATABASE_URL` and run the DB Vitest suite against real Postgres. The local high-fidelity path; CI runs the same suite sharded (#305, #962). |
+| `pnpm test:db:postgres <archivo>` | Run one focused DB test file against real Postgres.                                                                                                              |
 
 ## Backups
 

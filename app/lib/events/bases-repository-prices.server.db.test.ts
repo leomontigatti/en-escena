@@ -363,15 +363,13 @@ describe("`Bases del evento` repository", () => {
       ),
     ).resolves.toMatchObject({
       ok: false,
-      error:
-        "No se pueden editar monto, tipo de grupo, vencimiento ni cronograma porque hay inscripciones que congelaron este precio.",
+      error: "Este precio está en uso. Solo podés cambiar el nombre.",
     });
     await expect(
       deletePrice(general.id, { hasDependencies: async () => true }),
     ).resolves.toMatchObject({
       ok: false,
-      error:
-        "No se puede borrar el precio porque hay inscripciones que congelaron este precio.",
+      error: "Este precio está en uso. No se puede borrar.",
     });
   });
 
@@ -407,13 +405,11 @@ describe("`Bases del evento` repository", () => {
       }),
     ).resolves.toMatchObject({
       ok: false,
-      error:
-        "No se pueden editar monto, tipo de grupo, vencimiento ni cronograma porque hay inscripciones que congelaron este precio.",
+      error: "Este precio está en uso. Solo podés cambiar el nombre.",
     });
     await expect(deletePrice(price.id)).resolves.toMatchObject({
       ok: false,
-      error:
-        "No se puede borrar el precio porque hay inscripciones que congelaron este precio.",
+      error: "Este precio está en uso. No se puede borrar.",
     });
   });
 
@@ -695,16 +691,56 @@ describe("`Bases del evento` repository", () => {
       ok: true,
     });
   });
+
+  test("reports on each listed price what the guards would refuse", async () => {
+    const { academy, choreography, datedRung, event, openEnded } =
+      await createCoveredPathFixture({
+        academyName: "Academia Guardas",
+        choreographyName: "Coreografía Guardas",
+        email: "academia.guardas@example.com",
+        eventName: "Regional 2032",
+      });
+
+    const readFlags = async (priceId: string) => {
+      const listed = (await listPrices(event.id)).find(
+        (price) => price.id === priceId,
+      );
+
+      return {
+        isReferenced: listed?.isReferenced,
+        keepsRegistrationOpen: listed?.keepsRegistrationOpen,
+      };
+    };
+
+    await expect(readFlags(openEnded.id)).resolves.toEqual({
+      isReferenced: false,
+      keepsRegistrationOpen: true,
+    });
+    await expect(readFlags(datedRung.id)).resolves.toEqual({
+      isReferenced: false,
+      keepsRegistrationOpen: false,
+    });
+
+    await createSelectedPriceInscriptionForTest({
+      academyId: academy.academy.id,
+      choreographyId: choreography.id,
+      selectedPriceId: datedRung.id,
+    });
+
+    await expect(readFlags(datedRung.id)).resolves.toEqual({
+      isReferenced: true,
+      keepsRegistrationOpen: false,
+    });
+  });
 });
 
 const frozenUpdateError =
-  "No se pueden editar monto, tipo de grupo, vencimiento ni cronograma porque hay inscripciones que congelaron este precio.";
-const frozenDeleteError =
-  "No se puede borrar el precio porque hay inscripciones que congelaron este precio.";
+  "Este precio está en uso. Solo podés cambiar el nombre.";
+const frozenDeleteError = "Este precio está en uso. No se puede borrar.";
 const uncoveredUpdateError =
-  "No se puede editar el precio porque es el único sin fecha límite de ese tipo de grupo, que tiene inscripciones activas. Podés cambiarle el monto.";
+  "Este precio es necesario mientras haya inscripciones activas. Solo podés cambiar el nombre y el monto.";
 const uncoveredDeleteError =
-  "No se puede borrar el precio porque es el único sin fecha límite de ese tipo de grupo, que tiene inscripciones activas.";
+  "Este precio es necesario mientras haya inscripciones activas. No se puede borrar.";
 
 // A `solo` path with one active un-frozen inscription: the state the guard has
 // to see. The catalog seeds the dated rung, and the open-ended row is the tail

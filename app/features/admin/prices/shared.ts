@@ -12,6 +12,8 @@ export type EventPricesListLoaderData = {
   prices: PriceListItem[];
   // The `Seminarios` tab of this same screen: one list, two tabs, one loader.
   seminarPrices: SeminarPriceListItem[];
+  // Without a seminar there is no registration to close, so no warning.
+  hasSeminars: boolean;
 };
 
 export type EventPriceFormLoaderData = {

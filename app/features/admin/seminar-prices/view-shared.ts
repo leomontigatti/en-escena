@@ -4,17 +4,9 @@ import type {
   ActionData,
   SeminarPriceActionValues,
 } from "@/lib/admin/events/bases-action/shared.server";
-import {
-  findUncoveredParticipantCells,
-  getParticipantCellPhrase,
-} from "@/lib/seminar-prices/participant-cells";
-import {
-  uncoveredSeminarPriceDeleteError,
-  uncoveredSeminarPriceUpdateError,
-} from "@/lib/seminar-prices/guard-messages";
+import { hasCompleteSeminarPriceCells } from "@/lib/seminar-prices/participant-cells";
 import type { SeminarPriceListItem } from "@/lib/seminar-prices/repository.server";
 import { requiredFieldMessage } from "@/lib/shared/forms";
-import { seminarKindLabels } from "@/lib/seminars/seminar-kinds";
 
 export const seminarPriceFormSchema = z.object({
   name: z.string().trim().min(1, requiredFieldMessage),
@@ -36,88 +28,22 @@ export type SeminarPriceFormValues = z.input<typeof seminarPriceFormSchema>;
 export const participantsSwitchLabel = "Para participantes";
 
 /**
- * What the guards would refuse on a row, read from the row itself so the form
- * locks a field on sight instead of refusing after the save. A referenced row
- * is frozen except for its name; the tail that keeps the event's seminars open
- * also keeps its amount. The server refuses all the same, for the race.
- */
-export type SeminarPriceGuard = {
-  canEditAmount: boolean;
-  canEditStructure: boolean;
-  canDelete: boolean;
-  reason: string | null;
-};
-
-export function readSeminarPriceGuard(
-  seminarPrice: Pick<
-    SeminarPriceListItem,
-    "isReferenced" | "keepsRegistrationOpen" | "forParticipants"
-  >,
-): SeminarPriceGuard {
-  if (seminarPrice.isReferenced) {
-    return {
-      canEditAmount: false,
-      canEditStructure: false,
-      canDelete: false,
-      reason:
-        "Hay inscripciones que congelaron este precio, así que solo podés cambiarle el nombre.",
-    };
-  }
-
-  if (seminarPrice.keepsRegistrationOpen) {
-    return {
-      canEditAmount: true,
-      canEditStructure: false,
-      canDelete: false,
-      reason: uncoveredSeminarPriceUpdateError(seminarPrice.forParticipants),
-    };
-  }
-
-  return {
-    canEditAmount: true,
-    canEditStructure: true,
-    canDelete: true,
-    reason: null,
-  };
-}
-
-/** Why the delete dialog opens blocked, or `null` when it does not. */
-export function readSeminarPriceDeletionBlock(
-  seminarPrice: Pick<
-    SeminarPriceListItem,
-    "isReferenced" | "keepsRegistrationOpen" | "forParticipants"
-  >,
-) {
-  if (seminarPrice.isReferenced) {
-    return "Hay inscripciones que congelaron este precio, así que no se puede borrar.";
-  }
-
-  if (seminarPrice.keepsRegistrationOpen) {
-    return uncoveredSeminarPriceDeleteError(seminarPrice.forParticipants);
-  }
-
-  return null;
-}
-
-/**
- * The warning above the table: while a participant cell has no deadline-less
- * `Común` row, every seminar of the event is closed to registration, which is
- * not something the seminar list itself can say.
+ * The warning above the `Precios` tabs: while a participant cell has no
+ * deadline-less `Común` row, every seminar of the event is closed to
+ * registration, which is not something the seminar list itself can say. It
+ * names no cell, because it sits above both tabs and the table already shows
+ * which rows exist. An event without seminars has nothing to close, so it is
+ * not warned about.
  */
 export function readMissingSeminarPriceCellsWarning(
   seminarPrices: SeminarPriceListItem[],
+  hasSeminars: boolean,
 ) {
-  const uncoveredCells = findUncoveredParticipantCells(seminarPrices);
-
-  if (uncoveredCells.length === 0) {
+  if (!hasSeminars || hasCompleteSeminarPriceCells(seminarPrices)) {
     return null;
   }
 
-  const cells = uncoveredCells
-    .map((forParticipants) => getParticipantCellPhrase(forParticipants))
-    .join(" y ");
-
-  return `Falta el precio ${seminarKindLabels.regular} sin fecha límite para ${cells}. Hasta que exista, ninguna academia puede inscribir en los seminarios del evento.`;
+  return "Existen combinaciones de seminario sin un precio general sin fecha límite. Agregalas para habilitar las inscripciones.";
 }
 
 export function getSeminarPriceSubmittedValues(

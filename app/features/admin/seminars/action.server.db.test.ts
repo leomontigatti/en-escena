@@ -259,7 +259,7 @@ describe.sequential("admin seminars", () => {
     ).resolves.toMatchObject({
       status: "error",
       intent: "delete-seminar",
-      message: "No se puede borrar el seminario porque tiene inscripciones.",
+      message: "Este seminario tiene inscripciones. No podés eliminarlo.",
     });
     await expect(listSeminars(eventId)).resolves.toHaveLength(1);
 

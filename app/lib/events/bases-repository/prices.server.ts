@@ -1,7 +1,6 @@
 import { and, asc, eq, inArray, isNull, ne } from "drizzle-orm";
 
 import { choreographies, choreographyDancers } from "@/db/schema";
-import { hasNeverExpiringPrice } from "@/lib/events/never-expiring-price";
 import {
   created,
   db,
@@ -24,23 +23,19 @@ import type {
   PriceListItem,
   ValidPriceInput,
 } from "@/lib/events/bases-repository/shared.server";
+import {
+  frozenPriceDeleteError,
+  frozenPriceUpdateError,
+  uncoveredPriceDeleteError,
+  uncoveredPriceUpdateError,
+} from "@/lib/prices/guards";
 
-const frozenPriceUpdateError =
-  "No se pueden editar monto, tipo de grupo, vencimiento ni cronograma porque hay inscripciones que congelaron este precio.";
-const frozenPriceDeleteError =
-  "No se puede borrar el precio porque hay inscripciones que congelaron este precio.";
-// The guard tests two things — that this is the group type's only row with no
-// deadline, and that the group type carries active inscriptions — but not that
-// those inscriptions read this row. A group type whose inscriptions have all
-// frozen onto another row is still refused, and correctly so: the roster admin
-// path skips the readiness gate, so nothing else would stop a later un-frozen
-// inscription from landing on an uncovered path. The copy therefore states the
-// two conditions without claiming a dependency that may not hold.
-const uncoveredPriceUpdateError =
-  "No se puede editar el precio porque es el único sin fecha límite de ese tipo de grupo, que tiene inscripciones activas. Podés cambiarle el monto.";
-const uncoveredPriceDeleteError =
-  "No se puede borrar el precio porque es el único sin fecha límite de ese tipo de grupo, que tiene inscripciones activas.";
-
+// The uncovered guard tests two things — that this is the group type's only row
+// with no deadline, and that the group type carries active inscriptions — but
+// not that those inscriptions read this row. A group type whose inscriptions
+// have all frozen onto another row is still refused, and correctly so: the
+// roster admin path skips the readiness gate, so nothing else would stop a later
+// un-frozen inscription from landing on an uncovered path.
 export async function listPrices(eventId: string): Promise<PriceListItem[]> {
   const eventPrices = await db.query.prices.findMany({
     where: eq(prices.eventId, eventId),
@@ -49,6 +44,13 @@ export async function listPrices(eventId: string): Promise<PriceListItem[]> {
   if (eventPrices.length === 0) {
     return [];
   }
+
+  // What the guards below would answer about each row, so the form can lock a
+  // field on sight instead of refusing after the save.
+  const [referencedIds, groupTypesWithInscriptions] = await Promise.all([
+    findReferencedPriceIds(eventPrices.map((price) => price.id)),
+    findGroupTypesWithActiveInscriptions(eventId),
+  ]);
 
   const scheduleIds = uniqueValues(
     eventPrices
@@ -73,6 +75,9 @@ export async function listPrices(eventId: string): Promise<PriceListItem[]> {
   return eventPrices
     .map((price) => ({
       ...price,
+      isReferenced: referencedIds.has(price.id),
+      keepsRegistrationOpen:
+        isGeneralTail(price) && groupTypesWithInscriptions.has(price.groupType),
       schedule: price.scheduleId
         ? (schedulesById.get(price.scheduleId) ?? null)
         : null,
@@ -201,6 +206,39 @@ async function priceHasOperationalDependencies(priceId: string) {
   return Boolean(dependency);
 }
 
+async function findReferencedPriceIds(priceIds: string[]) {
+  const rows = await db
+    .selectDistinct({ selectedPriceId: choreographyDancers.selectedPriceId })
+    .from(choreographyDancers)
+    .where(inArray(choreographyDancers.selectedPriceId, priceIds));
+
+  return new Set(
+    rows
+      .map((row) => row.selectedPriceId)
+      .filter((id): id is string => id !== null),
+  );
+}
+
+// The list-side twin of `hasActiveInscriptions`: every group type of the event
+// that carries a non-withdrawn inscription, in one query.
+async function findGroupTypesWithActiveInscriptions(eventId: string) {
+  const rows = await db
+    .selectDistinct({ groupType: choreographies.groupType })
+    .from(choreographyDancers)
+    .innerJoin(
+      choreographies,
+      eq(choreographies.id, choreographyDancers.choreographyId),
+    )
+    .where(
+      and(
+        eq(choreographies.eventId, eventId),
+        isNull(choreographyDancers.withdrawnAt),
+      ),
+    );
+
+  return new Set(rows.map((row) => row.groupType));
+}
+
 // The write-side of readiness' demand: a reachable group type must keep a row
 // with no deadline in its general tier. Two-tier resolution falls through to
 // the general tier whenever the schedule tier yields nothing, so a path
@@ -213,7 +251,7 @@ async function removesNeverExpiringCoverage(
   // What the row becomes, or `null` when it is being deleted.
   next: ValidPriceInput | null,
 ) {
-  if (existing.scheduleId !== null || existing.paymentDeadline !== null) {
+  if (!isGeneralTail(existing)) {
     return false;
   }
 
@@ -227,23 +265,20 @@ async function removesNeverExpiringCoverage(
     return false;
   }
 
-  const remainingGeneralPrices = await db
-    .select({ paymentDeadline: prices.paymentDeadline })
-    .from(prices)
-    .where(
-      and(
-        eq(prices.eventId, existing.eventId),
-        eq(prices.groupType, existing.groupType),
-        isNull(prices.scheduleId),
-        ne(prices.id, existing.id),
-      ),
-    );
-
-  if (hasNeverExpiringPrice(remainingGeneralPrices)) {
-    return false;
-  }
-
   return hasActiveInscriptions(existing.eventId, existing.groupType);
+}
+
+/**
+ * Whether the row is its group type's deadline-less general row. It is the
+ * only one: `price_general_unique` is `NULLS NOT DISTINCT` on
+ * `(event_id, group_type, payment_deadline)`, so no other row can stand in for
+ * it. `listPrices` and `removesNeverExpiringCoverage` both ask it, so the flag
+ * the form locks on and the refusal cannot drift.
+ */
+function isGeneralTail(
+  price: Pick<typeof prices.$inferSelect, "paymentDeadline" | "scheduleId">,
+) {
+  return price.scheduleId === null && price.paymentDeadline === null;
 }
 
 async function hasActiveInscriptions(eventId: string, groupType: GroupType) {

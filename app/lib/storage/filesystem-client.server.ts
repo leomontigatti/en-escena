@@ -6,8 +6,7 @@ import { dirname, join } from "node:path";
 // live byte store is this local volume; B2 is relegated to backups. Keys stay
 // intact (`academies/...`) so a re-seed from the B2 backup is a plain copy.
 type FilesystemStorageEnvName =
-  | "STORAGE_URL_SIGNING_SECRET"
-  | "STORAGE_VOLUME_DIR";
+  "STORAGE_URL_SIGNING_SECRET" | "STORAGE_VOLUME_DIR";
 
 const STORAGE_SERVE_ROUTE_PATH = "/almacenamiento";
 

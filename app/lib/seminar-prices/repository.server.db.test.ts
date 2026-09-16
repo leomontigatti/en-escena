@@ -6,9 +6,9 @@ import { events, seminarInscriptions } from "@/db/schema";
 import { createDancer } from "@/lib/choreographies/registration-test-fixtures.server.db";
 import { createSavedEvent } from "@/lib/events/bases-test-fixtures.server.db";
 import {
-  uncoveredSeminarPriceDeleteError,
-  uncoveredSeminarPriceUpdateError,
-} from "@/lib/seminar-prices/guard-messages";
+  uncoveredPriceDeleteError,
+  uncoveredPriceUpdateError,
+} from "@/lib/prices/guards";
 import {
   createSeminarPrice,
   deleteSeminarPrice,
@@ -27,9 +27,8 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 installDatabaseTestHooks();
 
 const frozenUpdateError =
-  "No se pueden editar monto, tipo de seminario, participantes ni fecha límite porque hay inscripciones que congelaron este precio.";
-const frozenDeleteError =
-  "No se puede borrar el precio porque hay inscripciones que congelaron este precio.";
+  "Este precio está en uso. Solo podés cambiar el nombre.";
+const frozenDeleteError = "Este precio está en uso. No se puede borrar.";
 
 const participantTail: SeminarPriceInput = {
   name: "Precio participantes",
@@ -192,7 +191,7 @@ describe("seminar price repository", () => {
     await expect(deleteSeminarPrice(tail.id)).resolves.toMatchObject({
       ok: false,
       code: "event-bases-has-dependencies",
-      error: uncoveredSeminarPriceDeleteError(true),
+      error: uncoveredPriceDeleteError,
     });
 
     for (const restructuring of [
@@ -204,7 +203,7 @@ describe("seminar price repository", () => {
         updateSeminarPrice(tail.id, { ...participantTail, ...restructuring }),
       ).resolves.toMatchObject({
         ok: false,
-        error: uncoveredSeminarPriceUpdateError(true),
+        error: uncoveredPriceUpdateError,
       });
     }
 

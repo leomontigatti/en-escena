@@ -57,8 +57,7 @@ type NormalizedUpdateDancerInput = DancerNameInput & {
 };
 
 type DancerImageField =
-  | "documentFrontImageStorageKey"
-  | "documentBackImageStorageKey";
+  "documentFrontImageStorageKey" | "documentBackImageStorageKey";
 
 export type CreateDancerResult =
   | { ok: true; dancer: typeof dancers.$inferSelect }

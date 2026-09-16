@@ -410,6 +410,8 @@ function buildLoaderData(): EventBasesLoaderData {
         paymentDeadline: "2026-04-30",
         scheduleId: null,
         createdAt,
+        isReferenced: false,
+        keepsRegistrationOpen: false,
         schedule: null,
       },
     ],
