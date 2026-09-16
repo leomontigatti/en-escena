@@ -1,7 +1,41 @@
 import { redirect } from "react-router";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
-import { recoverableClientAction } from "./recoverable-client-action";
+import {
+  isUnexpectedActionError,
+  recoverableClientAction,
+} from "./recoverable-client-action";
+
+describe("isUnexpectedActionError", () => {
+  test("reads the result recoverableClientAction returns", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const result = await recoverableClientAction(async () => {
+      throw new Error("connection terminated unexpectedly");
+    });
+
+    vi.restoreAllMocks();
+
+    expect(isUnexpectedActionError(result)).toBe(true);
+  });
+
+  test.each([
+    ["nothing submitted yet", undefined],
+    ["null", null],
+    ["a success result", { status: "success", message: "Pago registrado." }],
+    [
+      "an intent-tagged refusal",
+      { intent: "create-choreography", result: { ok: false, error: "No." } },
+    ],
+    [
+      "a narrower error variant",
+      { status: "update-error", message: "No pudimos guardar la música." },
+    ],
+    ["an error result with no message", { status: "error" }],
+  ])("leaves %s alone", (_label, data) => {
+    expect(isUnexpectedActionError(data)).toBe(false);
+  });
+});
 
 describe("recoverableClientAction", () => {
   beforeEach(() => {

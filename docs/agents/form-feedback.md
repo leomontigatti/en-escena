@@ -132,7 +132,11 @@ Resource routes with an `action` and no UI (`$`, `api.auth.$`, `salir`) export n
 `clientAction`: there is no mounted view to keep, and a returned error result
 would have nowhere to go.
 
-A new route with an `action` exports the `clientAction` too.
+A new route with an `action` exports the `clientAction` too — including when it
+re-exports the handler (`export { action, loader };`) rather than declaring it,
+the shape that hid the three `administracion.usuarios_*` routes from the first
+sweep. `app/lib/shared/route-client-action.test.ts` holds the rule over
+`app/routes/`, with those three resource routes as its declared exceptions.
 
 ## Outside the matrix: auth flows
 

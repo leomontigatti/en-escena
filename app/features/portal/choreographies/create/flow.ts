@@ -10,7 +10,10 @@ import {
 import type { ChoreographyRegistrationOperationResult } from "@/lib/choreographies/registration-resolution.server";
 import { isEveryScheduleCapacityOptionFull } from "@/lib/choreographies/schedule-capacity-options";
 import { requiredFieldMessage } from "@/lib/shared/forms";
-import type { UnexpectedActionError } from "@/lib/shared/recoverable-client-action";
+import {
+  isUnexpectedActionError,
+  type UnexpectedActionError,
+} from "@/lib/shared/recoverable-client-action";
 
 export const RESOLVE_CHOREOGRAPHY_REGISTRATION_INTENT =
   "resolve-choreography-registration";
@@ -168,7 +171,7 @@ export function setRequiredFieldError(
 export function getSubmissionError(
   data: CreateActionData | UnexpectedActionError | undefined,
 ) {
-  if (data && "status" in data) {
+  if (isUnexpectedActionError(data)) {
     return data.message;
   }
 
