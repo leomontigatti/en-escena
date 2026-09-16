@@ -10,6 +10,7 @@ import {
 import type { ChoreographyRegistrationOperationResult } from "@/lib/choreographies/registration-resolution.server";
 import { isEveryScheduleCapacityOptionFull } from "@/lib/choreographies/schedule-capacity-options";
 import { requiredFieldMessage } from "@/lib/shared/forms";
+import type { UnexpectedActionError } from "@/lib/shared/recoverable-client-action";
 
 export const RESOLVE_CHOREOGRAPHY_REGISTRATION_INTENT =
   "resolve-choreography-registration";
@@ -158,7 +159,19 @@ export function setRequiredFieldError(
   });
 }
 
-export function getSubmissionError(data: CreateActionData | undefined) {
+/**
+ * The wizard stays open while there is an error to show, so an unexpected
+ * failure — which `recoverableClientAction` returns as a generic error result —
+ * has to surface here too. Otherwise the dialog reads it as a success and
+ * closes over every step the academy filled in.
+ */
+export function getSubmissionError(
+  data: CreateActionData | UnexpectedActionError | undefined,
+) {
+  if (data && "status" in data) {
+    return data.message;
+  }
+
   return data?.intent === CREATE_CHOREOGRAPHY_INTENT ? data.result.error : null;
 }
 
