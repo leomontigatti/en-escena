@@ -104,17 +104,36 @@ function FlashToast({ toast }: { toast: ToastMessage | null }) {
   return null;
 }
 
-export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-  let title = "Ocurrió un error";
-  let description = "La aplicación no pudo completar la solicitud.";
+const genericErrorDescription = "La aplicación no pudo completar la solicitud.";
 
+/**
+ * Picks the copy the root boundary shows for a thrown value. A `Response`
+ * thrown by a loader or an action reaches us as an error response whose body
+ * is in `data` and whose `statusText` is usually empty, so that body — the
+ * refusal the user is meant to read — comes first. A non-string `data` (a
+ * JSON body) is skipped rather than printed as `[object Object]`.
+ */
+export function getErrorBoundaryCopy(error: unknown) {
   if (isRouteErrorResponse(error)) {
-    title =
-      error.status === 404 ? "Página no encontrada" : `Error ${error.status}`;
-    description = error.statusText || description;
-  } else if (error instanceof Error) {
-    description = error.message;
+    return {
+      title:
+        error.status === 404 ? "Página no encontrada" : `Error ${error.status}`,
+      description:
+        (typeof error.data === "string" ? error.data : "") ||
+        error.statusText ||
+        genericErrorDescription,
+    };
   }
+
+  return {
+    title: "Ocurrió un error",
+    description:
+      (error instanceof Error ? error.message : "") || genericErrorDescription,
+  };
+}
+
+export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
+  const { title, description } = getErrorBoundaryCopy(error);
 
   return (
     <main className="grid min-h-screen place-items-center px-6">
