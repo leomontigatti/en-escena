@@ -1,5 +1,6 @@
 import {
   data,
+  type ErrorResponse,
   isRouteErrorResponse,
   Links,
   Meta,
@@ -107,29 +108,50 @@ function FlashToast({ toast }: { toast: ToastMessage | null }) {
 const genericErrorDescription = "La aplicación no pudo completar la solicitud.";
 
 /**
- * Picks the copy the root boundary shows for a thrown value. A `Response`
- * thrown by a loader or an action reaches us as an error response whose body
- * is in `data` and whose `statusText` is usually empty, so that body — the
- * refusal the user is meant to read — comes first. A non-string `data` (a
- * JSON body) is skipped rather than printed as `[object Object]`.
+ * Whether React Router built this error response itself instead of a loader or
+ * an action throwing one. `isRouteErrorResponse` requires the `internal` flag
+ * at runtime but narrows to `ErrorResponse`, which does not declare it, so it
+ * is read through a local type. Should the flag ever go away, this reads as
+ * "not internal" and the internal-404 test fails loudly.
+ */
+function isBuiltByRouter(error: ErrorResponse) {
+  return (error as { internal?: boolean }).internal === true;
+}
+
+/**
+ * Picks the copy the root boundary shows for a thrown value.
+ *
+ * A `Response` thrown by a loader or an action reaches us as an error response
+ * whose body is in `data` and whose `statusText` is empty, so that body — the
+ * refusal the user is meant to read — comes first.
+ *
+ * Two kinds of `data` are deliberately skipped. A non-string body (a JSON
+ * `data(...)`) would print as `[object Object]`. And React Router builds its
+ * own error responses with `internal: true` and an `Error` whose message it
+ * stringifies into `data`, so an unknown URL arrives carrying `Error: No route
+ * matches URL "/..."` — English developer text naming route ids and paths,
+ * never copy for a user. Both fall through to `statusText`, which is what the
+ * boundary showed before it read `data` at all.
  */
 export function getErrorBoundaryCopy(error: unknown) {
   if (isRouteErrorResponse(error)) {
+    const thrownMessage =
+      !isBuiltByRouter(error) && typeof error.data === "string"
+        ? error.data
+        : "";
+
     return {
       title:
         error.status === 404 ? "Página no encontrada" : `Error ${error.status}`,
-      description:
-        (typeof error.data === "string" ? error.data : "") ||
-        error.statusText ||
-        genericErrorDescription,
+      description: thrownMessage || error.statusText || genericErrorDescription,
     };
   }
 
-  return {
-    title: "Ocurrió un error",
-    description:
-      (error instanceof Error ? error.message : "") || genericErrorDescription,
-  };
+  if (error instanceof Error) {
+    return { title: "Ocurrió un error", description: error.message };
+  }
+
+  return { title: "Ocurrió un error", description: genericErrorDescription };
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
