@@ -6,6 +6,7 @@ import {
   loadPaymentCreate,
 } from "@/features/admin/payments/create/server";
 import { NewPaymentRouteView } from "@/features/admin/payments/create/view";
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 
 import type { Route } from "./+types/administracion.pagos_.nuevo";
 
@@ -34,6 +35,10 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 export async function action({ request }: Route.ActionArgs) {
   return await handlePaymentCreateAction(request);
+}
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
 }
 
 export default function NewPaymentRoute({ loaderData }: NewPaymentRouteProps) {

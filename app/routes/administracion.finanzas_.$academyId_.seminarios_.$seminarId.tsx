@@ -5,6 +5,7 @@ import {
   loadSeminarFinanceDetail,
 } from "@/features/admin/finances/academy-seminars/seminar-detail/server";
 import { SeminarFinanceDetailView } from "@/features/admin/finances/academy-seminars/seminar-detail/view";
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 
 import type { Route } from "./+types/administracion.finanzas_.$academyId_.seminarios_.$seminarId";
 
@@ -45,6 +46,10 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 
 export async function action({ request, params }: Route.ActionArgs) {
   return await handleSeminarFinanceAction({ request, params });
+}
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
 }
 
 export const shouldRevalidate = createDataTableShouldRevalidate();

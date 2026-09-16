@@ -12,6 +12,7 @@ import {
 } from "@/features/admin/seminar-prices/detail/view";
 import type { SeminarPricesListLoaderData } from "@/features/admin/seminar-prices/shared";
 import { seminarPricesListPath } from "@/features/admin/seminar-prices/shared";
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 
 import type { Route } from "./+types/administracion.precios_.seminarios_.$seminarPriceId";
 
@@ -37,6 +38,10 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 export async function action({ request }: Route.ActionArgs) {
   return updateAdministrativeSeminarPrice(request);
+}
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
 }
 
 export function SeminarPriceDetailRouteView({

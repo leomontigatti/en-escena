@@ -6,6 +6,7 @@ import {
 } from "@/features/admin/comprobantes/detail/server";
 import { ComprobanteDetailRouteView } from "@/features/admin/comprobantes/detail/view";
 import { formatComprobanteNumber } from "@/lib/comprobantes/format";
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 
 import type { Route } from "./+types/administracion.comprobantes_.$comprobanteId";
 
@@ -40,6 +41,10 @@ export async function action({ request, params }: Route.ActionArgs) {
     request,
     comprobanteId: params.comprobanteId ?? "",
   });
+}
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
 }
 
 export default function ComprobanteDetailRoute({

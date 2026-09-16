@@ -31,6 +31,7 @@ import {
   getEmptyFieldErrors,
   getFieldErrors,
 } from "@/lib/shared/form-validation";
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import type { Route } from "./+types/cambiar-contrasena";
@@ -200,6 +201,10 @@ export async function action({ request }: Route.ActionArgs) {
   }
 
   throw redirect(result.redirectTo);
+}
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
 }
 
 export default function CambiarContrasenaRoute() {

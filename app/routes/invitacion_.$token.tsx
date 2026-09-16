@@ -25,6 +25,7 @@ import {
   completeInternalUserInvitation,
   getInternalInvitationTokenStatus,
 } from "@/lib/admin/users/user-invitation.server";
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 
 import type { Route } from "./+types/invitacion_.$token";
 
@@ -109,6 +110,10 @@ export async function action({ request, params }: Route.ActionArgs) {
   throw redirect(await getLandingPathForUserId(result.userId), {
     headers: result.headers,
   });
+}
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
 }
 
 export default function CompletarInvitacionRoute() {

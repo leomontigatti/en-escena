@@ -7,6 +7,9 @@ import {
   handlePortalChoreographyDetailRouteAction,
   loadPortalChoreographyDetail,
 } from "@/features/portal/choreographies/detail/server";
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
+
+import type { Route } from "./+types/portal.coreografias_.$choreographyId";
 
 type PortalChoreographyDetailRouteProps = {
   loaderData: Awaited<ReturnType<typeof loader>>;
@@ -47,6 +50,10 @@ export async function action({
   params: { choreographyId?: string };
 }) {
   return await handlePortalChoreographyDetailRouteAction({ request, params });
+}
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
 }
 
 export default function PortalChoreographyDetailRoute({

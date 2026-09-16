@@ -25,6 +25,7 @@ import type {
   CreateChoreographyFormValues,
 } from "@/features/portal/choreographies/create/flow";
 import type { ActiveProfessor } from "@/features/portal/choreographies/create/shared";
+import type { UnexpectedActionError } from "@/lib/shared/recoverable-client-action";
 
 export function useCreateChoreographyDialog({
   baseOptions,
@@ -38,7 +39,9 @@ export function useCreateChoreographyDialog({
   onClose: () => void;
 }) {
   const calculationFetcher = useFetcher<CalculationActionData>();
-  const submissionFetcher = useFetcher<CreateActionData>();
+  const submissionFetcher = useFetcher<
+    CreateActionData | UnexpectedActionError
+  >();
   const fieldIds = {
     experienceLevel: useId(),
     modality: useId(),

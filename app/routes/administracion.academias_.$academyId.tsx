@@ -10,6 +10,7 @@ import type {
   AcademyDetailLoaderData,
 } from "@/features/admin/academies/detail/shared";
 import { AcademyDetailRouteView as AcademyDetailView } from "@/features/admin/academies/detail/view";
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 
 import type { Route } from "./+types/administracion.academias_.$academyId";
 
@@ -41,6 +42,10 @@ export async function action({
   params,
 }: Route.ActionArgs): Promise<AcademyDetailActionData> {
   return await handleAcademyDetailAction({ request, params });
+}
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
 }
 
 export function AcademyDetailRouteView({

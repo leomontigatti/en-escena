@@ -10,6 +10,9 @@ import {
   type PortalProfessorDetailRouteViewProps,
 } from "@/features/portal/professors/detail/view";
 import { type PortalProfessorDetailLoaderData } from "@/features/portal/professors/detail/shared";
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
+
+import type { Route } from "./+types/portal.profesores_.$professorId";
 
 type LoaderData = PortalProfessorDetailRouteViewProps["loaderData"];
 
@@ -53,6 +56,10 @@ export async function action({
   params: { professorId?: string };
 }) {
   return await handlePortalProfessorDetailAction({ request, params });
+}
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
 }
 
 export default function PortalProfesorRoute({

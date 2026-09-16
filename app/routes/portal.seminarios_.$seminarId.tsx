@@ -6,6 +6,9 @@ import {
   loadPortalSeminarDetail,
 } from "@/features/portal/seminars/detail/server";
 import { PortalSeminarDetailRouteView } from "@/features/portal/seminars/detail/view";
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
+
+import type { Route } from "./+types/portal.seminarios_.$seminarId";
 
 type PortalSeminarDetailRouteProps = {
   loaderData: Awaited<ReturnType<typeof loader>>;
@@ -46,6 +49,10 @@ export async function action({
   params: { seminarId?: string };
 }) {
   return await handlePortalSeminarDetailAction({ params, request });
+}
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
 }
 
 export default function PortalSeminarDetailRoute({
