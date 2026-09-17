@@ -163,13 +163,64 @@ are only concrete references to this repo:
   this repo does **not** use that library (nor reducers today), so the "Reducer choice" section
   was left library-neutral, preserving the principle (state logic in a pure, testable module).
 
+## Matt Pocock skills
+
+The skills this repo uses from [`mattpocock/skills`](https://github.com/mattpocock/skills) are
+vendored under `.agents/skills/<name>/`, symlinked from `.claude/skills/<name>` and recorded in
+`skills-lock.json`, the same layout as the `shadcn` skill ([`shadcn.md`](./shadcn.md)). They
+replace the user-scope `mattpocock-skills@claude-plugins-official` plugin, which did not keep
+itself current and made local sessions and the runners use different skill versions (#965).
+Vendored skills load unprefixed: `/grilling`, not `/mattpocock-skills:grilling`.
+
+| Skill                       | Upstream path                                  |
+| --------------------------- | ---------------------------------------------- |
+| `code-review`               | `skills/engineering/code-review`               |
+| `codebase-design`           | `skills/engineering/codebase-design`           |
+| `domain-modeling`           | `skills/engineering/domain-modeling`           |
+| `prototype`                 | `skills/engineering/prototype`                 |
+| `research`                  | `skills/engineering/research`                  |
+| `resolving-merge-conflicts` | `skills/engineering/resolving-merge-conflicts` |
+| `wayfinder`                 | `skills/engineering/wayfinder`                 |
+| `grilling`                  | `skills/productivity/grilling`                 |
+| `handoff`                   | `skills/productivity/handoff`                  |
+| `writing-for-agents`        | `skills/productivity/writing-for-agents`       |
+
+**Pin.** Vendored from `mattpocock/skills` at commit `959a8e9f1edc3adbe2f7e3054bb6fbefa6696260`
+(2026-09-15, after tag `v1.2.3`), with `skills@1.6.0`. `skills-lock.json` holds each skill's
+content hash.
+
+**No local edits.** The files are byte-identical to upstream, so the hashes stay true.
+`.agents/skills` is in `.prettierignore`, `check:comment-language` skips `.agents`, and each
+skill's `agents/openai.yaml` is listed in its `excludedYamlFiles`. A repo-specific instruction
+goes in the prompt or doc that invokes the skill, never in the skill.
+
+**Not vendored**: `setup-matt-pocock-skills` (its output, [`issue-tracker.md`](./issue-tracker.md),
+[`triage-labels.md`](./triage-labels.md) and [`domain.md`](./domain.md), already exists), and
+`to-spec`, `to-tickets`, `triage`, `grill-me` and `tdd` (rarely or never used). `code-review` and
+`wayfinder` still say "tell the user to run `/setup-matt-pocock-skills`", but only when
+`docs/agents/issue-tracker.md` is missing, which does not happen here.
+`.sandcastle/agent-review/prompt.md` overrides that path for the runner anyway.
+
+**Sync.** Read the upstream diff since the pinned commit first. If it is wanted, re-run from the
+repo root with a pinned CLI version:
+
+```sh
+pnpm dlx skills@<version> add mattpocock/skills -a claude-code -y --copy \
+  -s code-review -s codebase-design -s domain-modeling -s prototype -s research \
+  -s resolving-merge-conflicts -s wayfinder -s grilling -s handoff -s writing-for-agents
+```
+
+It installs into `.claude/skills/`: move each directory to `.agents/skills/`, restore the
+symlink, then commit the changed hashes and update the commit above. Adding a skill means adding
+it to the table, the command and `excludedYamlFiles`.
+
 ## What was **retired**
 
 - **`to-prd` / `to-issues`** (removed): they were the AFK-native variants of the global HITL
   `to-spec` / `to-tickets`, vendored from the source's `to-prd-project` / `to-issues-project`.
-  They are gone now that Matt Pocock's set is installed as the official
-  [`mattpocock-skills` plugin](https://github.com/mattpocock/skills), which ships `to-spec` and
-  `to-tickets` as a managed, always-current bundle — the local copies could only drift from it.
+  They were removed when Matt Pocock's set was installed as the `mattpocock-skills` plugin,
+  which shipped `to-spec` and `to-tickets`. That plugin is gone too, replaced by the vendored
+  subset below, which does not include those two.
   [`afk-setup.md`](./afk-setup.md) → "With the `to-spec` / `to-tickets` skills" already describes
   the supported HITL path under the human-gated model: let the global skills publish with
   `ready-for-agent`, then add the matching `agent:*` label by hand to dispatch.

@@ -78,12 +78,23 @@ const yamlFilePattern = /\.(yml|yaml)$/;
 
 // Generated, not written: a lockfile is 330 KB of resolution output that no
 // contributor reads as prose, and nobody may rewrite by hand anyway.
-// `openai.yml` is vendored with the shadcn skill, on the same argument as
-// `.agents` above. This list is file-by-file rather than by directory on
-// purpose: a second vendored YAML should fail the scan-root test on arrival and
-// be recorded here deliberately, not be absorbed by a prefix nobody revisits.
+// The `agents/openai.y*ml` files are vendored with the skills under `.agents`,
+// on the same argument as `.agents` above. This list is file-by-file rather
+// than by directory on purpose: a newly vendored YAML should fail the scan-root
+// test on arrival and be recorded here deliberately, not be absorbed by a
+// prefix nobody revisits.
 export const excludedYamlFiles = [
+  ".agents/skills/code-review/agents/openai.yaml",
+  ".agents/skills/codebase-design/agents/openai.yaml",
+  ".agents/skills/domain-modeling/agents/openai.yaml",
+  ".agents/skills/grilling/agents/openai.yaml",
+  ".agents/skills/handoff/agents/openai.yaml",
+  ".agents/skills/prototype/agents/openai.yaml",
+  ".agents/skills/research/agents/openai.yaml",
+  ".agents/skills/resolving-merge-conflicts/agents/openai.yaml",
   ".agents/skills/shadcn/agents/openai.yml",
+  ".agents/skills/wayfinder/agents/openai.yaml",
+  ".agents/skills/writing-for-agents/agents/openai.yaml",
   "pnpm-lock.yaml",
 ];
 

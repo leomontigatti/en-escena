@@ -7,3 +7,6 @@ build
 package-lock.json
 pnpm-lock.yaml
 docs/agents/vendor
+# Vendored skills: kept byte-identical to upstream so `skills-lock.json` hashes
+# stay true and a re-run of `skills add` produces no diff.
+.agents/skills
