@@ -23,6 +23,8 @@ type QueryExecutor = typeof db | DatabaseExecutor;
 
 type EligibleChoreographyRow = {
   choreographyId: string;
+  choreographyNumber: number;
+  name: string;
   eventId: string;
   startsAt: Date;
   modalityId: string;
@@ -49,11 +51,38 @@ type ChoreographyCompetitivePlacement = {
   dancerCompetitiveAge: number;
 };
 
+export type DancerBirthDateCorrectionChoreography = {
+  choreographyNumber: number;
+  name: string;
+};
+
+/**
+ * The correction reports no warning today: leaving a required experience level
+ * empty is a documented, legitimate outcome (#694 adds the message). The result
+ * carries the array so that adding one later needs no signature change.
+ */
+export type DancerBirthDateCorrectionWarning = never;
+
+export type DancerBirthDateCorrectionResult =
+  | { ok: true; warnings: DancerBirthDateCorrectionWarning[] }
+  | {
+      ok: false;
+      code: "no-compatible-category";
+      choreographiesWithoutCategory: DancerBirthDateCorrectionChoreography[];
+      warnings: DancerBirthDateCorrectionWarning[];
+    };
+
+type ChoreographyCorrectionWrite = {
+  choreography: EligibleChoreographyRow;
+  placement: ChoreographyCompetitivePlacement;
+  resolvedDancers: ResolvedRegistrationDancer[];
+};
+
 export async function recalculateLinkedChoreographiesForDancerBirthDateCorrection(input: {
   dancerId: string;
   executor?: QueryExecutor;
   eventBasesByEventId?: Map<string, EventBases>;
-}): Promise<void> {
+}): Promise<DancerBirthDateCorrectionResult> {
   const executor = input.executor ?? db;
   const eligibleChoreographies = await listEligibleChoreographies(
     executor,
@@ -61,7 +90,7 @@ export async function recalculateLinkedChoreographiesForDancerBirthDateCorrectio
   );
 
   if (eligibleChoreographies.length === 0) {
-    return;
+    return { ok: true, warnings: [] };
   }
 
   const choreographyIds = eligibleChoreographies.map(
@@ -88,6 +117,8 @@ export async function recalculateLinkedChoreographiesForDancerBirthDateCorrectio
 
   const linkedDancersByChoreographyId =
     groupLinkedDancersByChoreographyId(linkedDancers);
+
+  const writes: ChoreographyCorrectionWrite[] = [];
 
   for (const choreography of eligibleChoreographies) {
     const choreographyLinkedDancers =
@@ -124,23 +155,97 @@ export async function recalculateLinkedChoreographiesForDancerBirthDateCorrectio
       continue;
     }
 
-    await persistResolvedDancers({
-      choreographyId: choreography.choreographyId,
-      executor,
+    writes.push({
+      choreography,
+      placement: afterPlacement,
       resolvedDancers,
+    });
+  }
+
+  // Every choreography is resolved before anything is written: a correction
+  // that would leave one of them without a category is refused whole, so the
+  // administrator never has to undo a half-applied recalculation.
+  const choreographiesWithoutCategory = writes
+    .filter((write) => write.placement.categoryId === null)
+    .map((write) => toCorrectionChoreography(write.choreography));
+
+  if (choreographiesWithoutCategory.length > 0) {
+    return {
+      ok: false,
+      code: "no-compatible-category",
+      choreographiesWithoutCategory,
+      warnings: [],
+    };
+  }
+
+  for (const write of writes) {
+    await persistResolvedDancers({
+      choreographyId: write.choreography.choreographyId,
+      executor,
+      resolvedDancers: write.resolvedDancers,
     });
     await executor
       .update(choreographies)
       .set({
-        categoryId: afterPlacement.categoryId,
-        categoryCalculationMode: afterPlacement.categoryCalculationMode,
-        categoryAgeBasis: afterPlacement.categoryAgeBasis,
+        categoryId: write.placement.categoryId,
+        categoryCalculationMode: write.placement.categoryCalculationMode,
+        categoryAgeBasis: write.placement.categoryAgeBasis,
         experienceLevelId: toExperienceLevelValue(
-          afterPlacement.experienceLevelId,
+          write.placement.experienceLevelId,
         ),
       })
-      .where(eq(choreographies.id, choreography.choreographyId));
+      .where(eq(choreographies.id, write.choreography.choreographyId));
   }
+
+  return { ok: true, warnings: [] };
+}
+
+/**
+ * Thrown by a caller inside its own transaction, so that the dancer row rolls
+ * back together with the recalculation. Both dancer forms catch it and surface
+ * the message on the birth date field.
+ */
+export class DancerBirthDateCorrectionRefusalError extends Error {
+  constructor(
+    choreographiesWithoutCategory: DancerBirthDateCorrectionChoreography[],
+  ) {
+    super(
+      buildDancerBirthDateCorrectionRefusalMessage(
+        choreographiesWithoutCategory,
+      ),
+    );
+    this.name = "DancerBirthDateCorrectionRefusalError";
+  }
+}
+
+/**
+ * Names the choreographies a birth-date correction would leave without a
+ * category, for the birth date field of both dancer forms.
+ */
+export function buildDancerBirthDateCorrectionRefusalMessage(
+  choreographiesWithoutCategory: DancerBirthDateCorrectionChoreography[],
+): string {
+  const names = [...choreographiesWithoutCategory]
+    .sort((a, b) => a.choreographyNumber - b.choreographyNumber)
+    .map(
+      (choreography) =>
+        `n.º ${choreography.choreographyNumber} «${choreography.name}»`,
+    );
+  const isSingular = names.length === 1;
+  const subject = isSingular
+    ? `la coreografía ${names[0]}`
+    : `las coreografías ${names.slice(0, -1).join(", ")} y ${names[names.length - 1]}`;
+
+  return `Con esta fecha de nacimiento, ${subject} ${isSingular ? "queda" : "quedan"} sin categoría.`;
+}
+
+function toCorrectionChoreography(
+  choreography: EligibleChoreographyRow,
+): DancerBirthDateCorrectionChoreography {
+  return {
+    choreographyNumber: choreography.choreographyNumber,
+    name: choreography.name,
+  };
 }
 
 export async function loadLinkedChoreographyEventBasesForDancerBirthDateCorrection(input: {
@@ -169,6 +274,8 @@ async function listEligibleChoreographies(
   return executor
     .select({
       choreographyId: choreographies.id,
+      choreographyNumber: choreographies.choreographyNumber,
+      name: choreographies.name,
       eventId: choreographies.eventId,
       startsAt: events.startsAt,
       modalityId: choreographies.modalityId,

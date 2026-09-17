@@ -7,6 +7,7 @@ import {
   toDancerSnapshot,
 } from "@/lib/admin/dancers/dancers.server.shared";
 import {
+  DancerBirthDateCorrectionRefusalError,
   loadLinkedChoreographyEventBasesForDancerBirthDateCorrection,
   recalculateLinkedChoreographiesForDancerBirthDateCorrection,
 } from "@/lib/choreographies/dancer-birthdate-correction.server";
@@ -89,36 +90,63 @@ export async function updateAdministrativeDancer(input: {
         dancerId: existingDancer.id,
       })
     : undefined;
-  const updatedDancer = await db.transaction(async (tx) => {
-    const [savedDancer] = await tx
-      .update(dancers)
-      .set({
-        firstName: normalizedValues.firstName,
-        lastName: normalizedValues.lastName,
-        birthDate: normalizedValues.birthDate,
-        documentType: normalizedDocument.documentType,
-        documentNumber: normalizedDocument.documentNumber,
-        documentFrontImageStorageKey:
-          existingDancer.documentFrontImageStorageKey,
-        documentBackImageStorageKey: existingDancer.documentBackImageStorageKey,
-        identityVerifiedAt: existingDancer.identityVerifiedAt
-          ? null
-          : undefined,
-        updatedAt: new Date(),
-      })
-      .where(eq(dancers.id, existingDancer.id))
-      .returning();
+  let updatedDancer;
 
-    if (birthDateChanged) {
-      await recalculateLinkedChoreographiesForDancerBirthDateCorrection({
-        dancerId: existingDancer.id,
-        executor: tx,
-        eventBasesByEventId: linkedChoreographyEventBases,
-      });
+  try {
+    updatedDancer = await db.transaction(async (tx) => {
+      const [savedDancer] = await tx
+        .update(dancers)
+        .set({
+          firstName: normalizedValues.firstName,
+          lastName: normalizedValues.lastName,
+          birthDate: normalizedValues.birthDate,
+          documentType: normalizedDocument.documentType,
+          documentNumber: normalizedDocument.documentNumber,
+          documentFrontImageStorageKey:
+            existingDancer.documentFrontImageStorageKey,
+          documentBackImageStorageKey:
+            existingDancer.documentBackImageStorageKey,
+          identityVerifiedAt: existingDancer.identityVerifiedAt
+            ? null
+            : undefined,
+          updatedAt: new Date(),
+        })
+        .where(eq(dancers.id, existingDancer.id))
+        .returning();
+
+      if (birthDateChanged) {
+        const recalculation =
+          await recalculateLinkedChoreographiesForDancerBirthDateCorrection({
+            dancerId: existingDancer.id,
+            executor: tx,
+            eventBasesByEventId: linkedChoreographyEventBases,
+          });
+
+        // The dancer update and the recalculation share one transaction, so a
+        // correction that leaves a choreography without a category rolls the
+        // dancer row back as well.
+        if (!recalculation.ok) {
+          throw new DancerBirthDateCorrectionRefusalError(
+            recalculation.choreographiesWithoutCategory,
+          );
+        }
+      }
+
+      return savedDancer;
+    });
+  } catch (error) {
+    if (error instanceof DancerBirthDateCorrectionRefusalError) {
+      return {
+        ok: false,
+        message: "Revisá los campos marcados.",
+        fieldErrors: { birthDate: error.message },
+        values,
+      };
     }
 
-    return savedDancer;
-  });
+    throw error;
+  }
+
   const savedSnapshot = toDancerSnapshot(updatedDancer);
 
   return {
