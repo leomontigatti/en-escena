@@ -88,11 +88,18 @@ TypeScript program. They catch the bug class `tsc` cannot see — a promise noth
 awaits, which silently drops whatever it would have rejected with.
 
 **The `void` policy.** `void` on a promise is a claim that its rejection cannot
-carry information, and the only case this repo treats as settled is a React Router
-`submit`, `fetcher.submit`, `fetcher.load` or `navigate` call: the router routes
-loader and action failures to the nearest `ErrorBoundary`, so those promises reject
-only on a framework invariant. `void` on **any other** promise needs a reason in the
-code, and a reviewer should ask for one — `await` it, or handle the rejection.
+carry information, and this repo treats exactly two cases as settled:
+
+- A React Router `submit`, `fetcher.submit`, `fetcher.load` or `navigate` call:
+  the router routes loader and action failures to the nearest `ErrorBoundary`, so
+  those promises reject only on a framework invariant.
+- A react-hook-form `handleSubmit(onValid)(event)` call — including a hook's
+  `save()` wrapper around one. It rethrows whatever `onValid` threw, and in this
+  repo every `onValid` is synchronous and only builds a `FormData` and submits it,
+  so a rejection there is a programming error, not a runtime outcome to handle.
+
+`void` on **any other** promise needs a reason in the code, and a reviewer should
+ask for one — `await` it, or handle the rejection.
 
 It is **not** a style checker. It has no opinion on formatting (Prettier's), on
 unused code (`tsc`'s) or on this repo's conventions (the `check:*` scripts').

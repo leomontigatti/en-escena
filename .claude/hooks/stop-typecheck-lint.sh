@@ -4,8 +4,8 @@
 #
 # A turn may not end on a red typecheck. Decided in #936, built in #982.
 #
-# The gate is `pnpm typecheck && pnpm lint` (~6.2 s measured: 5.1 s + 1.05 s;
-# ~11.6 s once #986 makes `pnpm lint` type-aware). Tests are not in it — the
+# The gate is `pnpm typecheck && pnpm lint` (~11.6 s measured: 5.1 s typecheck +
+# ~6.5 s lint, type-aware since #986). Tests are not in it — the
 # suite is 81 s — and neither are the `check:*` scripts, which gate staged
 # source and belong to pre-commit.
 #
@@ -20,7 +20,9 @@
 #   `.ts`/`.tsx`/`.mts`/`.cts` and `tsconfig*.json`/`package.json` for typecheck,
 #   `.js`/`.jsx`/`.mjs`/`.cjs` and `.oxlintrc.json` for lint. The filter has to
 #   cover both halves of the gate, or a turn that edits only `scripts/*.mjs`
-#   ends without oxlint ever running (#1014).
+#   ends without oxlint ever running (#1014). Since #986 lint is type-aware and
+#   reads `.ts`/`.tsx` too; those are already in the union for typecheck, so do
+#   not split this pattern per half.
 #
 # The filter reads the working tree only. Committed work has already passed
 # `.husky/pre-commit`, which runs `pnpm typecheck` on every commit (#934,
