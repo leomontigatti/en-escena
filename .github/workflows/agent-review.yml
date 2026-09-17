@@ -14,7 +14,7 @@ name: AFK Review
 # same-repo guard on the job (#635) is the control, and it already refuses every
 # run whose PR head branch is not in this repository.
 on:
-  pull_request_target: # zizmor: ignore[dangerous-triggers]
+  pull_request_target: # zizmor: ignore[dangerous-triggers] — same-repo guard on the job, #635
     types: [labeled]
 
 concurrency:

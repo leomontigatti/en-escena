@@ -9,20 +9,18 @@ rules:
   # is one `path: .` away from publishing it. The fix is `persist-credentials: false`
   # plus explicit token grants on the steps that push — which is the whole subject of
   # #956 (Agent workflows: keep AGENT_PAT out of .git/config). Turning it on here first
-  # would break every agent workflow's push, so the gate ships ignoring it. #956 is
-  # scoped to the agent workflows, so it clears every entry below except `ci.yml` and
-  # `architecture-review.yml` — those two push nothing and only need
-  # `persist-credentials: false`, which is a follow-up to do while here.
+  # would break every agent workflow's push, so the gate ships ignoring it. #956 owns
+  # every entry below: they are exactly the agent workflows. `ci.yml` and
+  # `architecture-review.yml` push nothing, so they already carry
+  # `persist-credentials: false` and are not listed.
   artipacked:
     ignore:
-      - ci.yml
       - agent-implement.yml
       - agent-implement-pr.yml
       - agent-implement-prd.yml
       - agent-review.yml
       - agent-to-issues-prd.yml
       - agent-update-branch.yml
-      - architecture-review.yml
 
   # `npm install -g @anthropic-ai/claude-code` and `npx skills@latest` are unpinned on
   # purpose today: the agent runners are meant to track the current CLI. Pinning them

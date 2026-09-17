@@ -163,7 +163,9 @@ Marketplace:
   over `run:` blocks. Shellcheck runs at `--severity=warning`: at `info`/`style`
   the gate is a wall of SC2016 pointing at correct `jq '...'` filters.
 
-There is no pinact step in CI. Pins are rewritten one-shot with `pinact run`;
+There is no pinact step in CI. Pins are rewritten one-shot with `pinact run`
+(not a repo dependency — grab the release binary from `suzuki-shunsuke/pinact`,
+or `go install github.com/suzuki-shunsuke/pinact/cmd/pinact@latest`);
 zizmor's `unpinned-uses` is what keeps them that way.
 
 Two suppressions live in `.github/zizmor.yml` instead of next to the code, both
