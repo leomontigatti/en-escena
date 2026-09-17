@@ -25,7 +25,7 @@ import {
 import { runWithExtraction } from "../lib/run-with-extraction.mjs";
 import { buildReviewContext, type ReviewContext } from "./context.mjs";
 import { isAnchorInDiff, parseDiffAnchors } from "./diff-anchors.mjs";
-import { SPEC_FINDINGS_FILE } from "./outcome.mjs";
+import { formatSpecFindings, SPEC_FINDINGS_FILE } from "./outcome.mjs";
 import { reviewSchema, type ReviewOutput } from "./output.mjs";
 
 const EXTRACTION_PROMPT = [
@@ -131,5 +131,5 @@ await runMain(async ({ signal }) => {
   // Half of the outcome label the orchestrator applies next (#1021). `unknown`
   // when the agent didn't answer: `outcome.mts` reads anything but `true`/`false`
   // as unknown and hands the PR to a human rather than calling it ready.
-  writeOutput(SPEC_FINDINGS_FILE, specFindings === null ? "unknown" : String(specFindings));
+  writeOutput(SPEC_FINDINGS_FILE, formatSpecFindings(specFindings));
 });

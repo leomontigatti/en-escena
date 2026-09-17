@@ -42,11 +42,27 @@ export function reviewOutcomeLabel(outcome: ReviewOutcome): ReviewOutcomeLabel {
   return nothingLeft ? READY_LABEL : NEEDS_DECISION_LABEL;
 }
 
+/**
+ * What the caller prints instead of a count when it could only see part of the
+ * PR's threads. Shared with the reader below so the two cannot drift: a
+ * truncated answer has to come back as unknown, never as `0`.
+ */
+export const TRUNCATED_THREAD_COUNT = "truncated";
+
 /** A non-negative integer count, or `null` for anything else. */
 export function parseUnresolvedThreads(raw: string): number | null {
   const text = raw.trim();
   if (!/^\d+$/.test(text)) return null;
   return Number.parseInt(text, 10);
+}
+
+/**
+ * The flag as the runner writes it to `SPEC_FINDINGS_FILE`. Paired with
+ * `parseSpecFindings` so the writer's vocabulary and the reader's stay one
+ * thing: `"unknown"` is what an unanswered flag has to round-trip back to.
+ */
+export function formatSpecFindings(specFindings: boolean | null): string {
+  return specFindings === null ? "unknown" : String(specFindings);
 }
 
 /** `"true"` / `"false"`, or `null` for anything else. */

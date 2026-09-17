@@ -710,7 +710,9 @@ in-progress.)
 
 **Step sequence.**
 
-1. Transition labels: remove `agent:review` + `agent:blocked`, add `agent:in-progress`.
+1. Transition labels: remove `agent:review` + `agent:blocked` + both outcome labels
+   (`agent:ready`, `agent:needs-decision` — they classify the review this run supersedes),
+   add `agent:in-progress`.
 2. Checkout `github.event.pull_request.head.sha` (`fetch-depth: 0`); `git fetch origin master:master`;
    check out the branch by name. Capture pre-run HEAD.
 3. Node + deps + agent runner; git identity.

@@ -85,6 +85,15 @@ describe("agent-review.yml labels the outcome", () => {
       expect(failureStep.body).not.toContain(label);
     }
   });
+
+  it("drops the previous round's classification when it starts", () => {
+    // A round that then fails would otherwise leave the old `agent:ready` — a
+    // merge cue — sitting next to the `agent:blocked` its failure adds.
+    const transition = stepWith(steps, '--add-label "agent:in-progress"');
+    for (const label of OUTCOME_LABELS) {
+      expect(transition.body).toContain(`--remove-label "${label}"`);
+    }
+  });
 });
 
 describe("agent-implement-pr.yml un-classifies the PR it accepts", () => {

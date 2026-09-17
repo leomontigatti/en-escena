@@ -14,7 +14,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { gh } from "../lib/gh.mjs";
-import { outputDir, requireEnv } from "../lib/runner.mjs";
+import { outputDir, requireEnv, writeFailure } from "../lib/runner.mjs";
 
 import {
   parseSpecFindings,
@@ -22,16 +22,31 @@ import {
   REVIEW_OUTCOME_LABELS,
   reviewOutcomeLabel,
   SPEC_FINDINGS_FILE,
+  TRUNCATED_THREAD_COUNT,
 } from "./outcome.mjs";
 
 const UNRESOLVED_THREADS_QUERY = `
   query ($owner: String!, $repo: String!, $number: Int!) {
     repository(owner: $owner, name: $repo) {
       pullRequest(number: $number) {
-        reviewThreads(first: 100) { nodes { isResolved } }
+        reviewThreads(first: 100) {
+          pageInfo { hasNextPage }
+          nodes { isResolved }
+        }
       }
     }
   }`;
+
+// One page is not the whole PR. The only unresolved thread on it can sit on a
+// second page, and a `0` counted from the first page alone would then label the
+// PR `agent:ready` — the reading `outcome.mts` deliberately reaches only when the
+// PR is *known* to be empty. So a truncated answer prints a word instead of a
+// number, and `parseUnresolvedThreads` reads it as unknown.
+const UNRESOLVED_THREADS_JQ = [
+  ".data.repository.pullRequest.reviewThreads",
+  `| if .pageInfo.hasNextPage then "${TRUNCATED_THREAD_COUNT}"`,
+  "  else ([.nodes[] | select(.isResolved == false)] | length) end",
+].join("\n");
 
 const repo = requireEnv("GH_REPO");
 const prNumber = requireEnv("PR_NUMBER");
@@ -56,7 +71,7 @@ function countUnresolvedThreads(): number | null {
         "-F",
         `number=${prNumber}`,
         "--jq",
-        "[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length",
+        UNRESOLVED_THREADS_JQ,
       ]),
     );
   } catch (error) {
@@ -87,5 +102,18 @@ const removals = REVIEW_OUTCOME_LABELS.filter((other) => other !== label).flatMa
   "--remove-label",
   other,
 ]);
-execFileSync("gh", ["pr", "edit", prNumber, "--add-label", label, ...removals], { stdio: "inherit" });
+try {
+  execFileSync("gh", ["pr", "edit", prNumber, "--add-label", label, ...removals], { stdio: "inherit" });
+} catch (error) {
+  // Fail loudly — an unclassified PR must not read as a reviewed one — but say
+  // what failed. Without a `failure_reason.txt` the orchestrator falls back to
+  // the tail of the *agent* log, which describes the review that went fine and
+  // says nothing about the label (spec §3.7).
+  writeFailure(
+    `The review posted, but labelling its outcome \`${label}\` failed: ${String(error)}\n\n` +
+      "The review, the thread replies and the ready transition all landed; only the outcome " +
+      "label is missing. Add it by hand, or re-add `agent:review` to redo the run.",
+  );
+  process.exit(1);
+}
 console.log(`Review outcome: ${label}`);

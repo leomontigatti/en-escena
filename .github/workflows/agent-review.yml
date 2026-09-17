@@ -90,9 +90,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          # The outcome labels come off here for the same reason Implement PR
+          # takes them off (#1021): they classify the *previous* review, and this
+          # run supersedes it. Leaving them would let a round that then fails
+          # carry `agent:ready` — a merge cue — next to `agent:blocked`.
           gh pr edit "$PR_NUMBER" \
             --remove-label "agent:review" \
             --remove-label "agent:blocked" \
+            --remove-label "agent:ready" \
+            --remove-label "agent:needs-decision" \
             --add-label "agent:in-progress"
 
       - name: Checkout PR head

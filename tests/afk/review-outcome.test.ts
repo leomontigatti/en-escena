@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  formatSpecFindings,
   NEEDS_DECISION_LABEL,
   parseSpecFindings,
   parseUnresolvedThreads,
   READY_LABEL,
   reviewOutcomeLabel,
+  TRUNCATED_THREAD_COUNT,
 } from "../../.sandcastle/agent-review/outcome.mjs";
 
 // Coverage for #1021: after posting, Review says which kind of hand-off it is.
@@ -53,6 +55,20 @@ describe("parseUnresolvedThreads", () => {
       expect(parseUnresolvedThreads(raw)).toBeNull();
     }
   });
+
+  it("reads a truncated page as unknown, not as zero", () => {
+    // A PR with more than 100 threads: the first page can be all-resolved while
+    // the unresolved one sits on the next. `agent:ready` must not be reachable
+    // from a count that only saw part of the PR.
+    const raw = `${TRUNCATED_THREAD_COUNT}\n`;
+    expect(parseUnresolvedThreads(raw)).toBeNull();
+    expect(
+      reviewOutcomeLabel({
+        unresolvedThreads: parseUnresolvedThreads(raw),
+        specFindings: false,
+      }),
+    ).toBe(NEEDS_DECISION_LABEL);
+  });
 });
 
 describe("parseSpecFindings", () => {
@@ -64,6 +80,12 @@ describe("parseSpecFindings", () => {
   it("refuses anything else rather than guessing", () => {
     for (const raw of ["", "maybe", "1"]) {
       expect(parseSpecFindings(raw)).toBeNull();
+    }
+  });
+
+  it("round-trips what the runner wrote, unknown included", () => {
+    for (const flag of [true, false, null]) {
+      expect(parseSpecFindings(formatSpecFindings(flag))).toBe(flag);
     }
   });
 });
