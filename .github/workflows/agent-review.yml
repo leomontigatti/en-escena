@@ -294,6 +294,18 @@ jobs:
             gh api -X POST "repos/$GH_REPO/pulls/$PR_NUMBER/comments/$rest_id/replies" -f body="$body"
           done
 
+      # Say which kind of hand-off this is (#1021): `agent:ready` when the posted
+      # review left nothing for a human — zero unresolved threads and no spec
+      # finding in the summary — else `agent:needs-decision`, the cue to run
+      # `/review-triage`. Last of the posting steps, because the thread count it
+      # reads must include the threads this review just opened. The label
+      # authorises nothing on Actions; §3.9 stands, no workflow merges.
+      - name: Label the review outcome
+        if: steps.preflight.outputs.proceed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: pnpm exec tsx .sandcastle/agent-review/label-outcome.mts
+
       # `!= 'false'`, not `== 'true'`: a preflight that *itself* fails leaves
       # `proceed` unset, and `== 'true'` would swallow that — a red run with no
       # `agent:blocked` and no comment, which is the one failure mode this

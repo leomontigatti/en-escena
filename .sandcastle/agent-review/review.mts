@@ -3,7 +3,8 @@
 // Two-pass (produce improvements + commit, then extract structured output).
 // Pre-fetches PR context, embeds it in the prompt, then validates the agent's
 // output (drops hallucinated anchors/replies) and writes the files the
-// orchestrator posts: review_payload.json, replies.json, summary.md, verdict.txt.
+// orchestrator posts: review_payload.json, replies.json, summary.md, verdict.txt,
+// spec_findings.txt.
 //
 // Env: PR_NUMBER, BRANCH, GH_REPO, OUTPUT_DIR.
 
@@ -24,6 +25,7 @@ import {
 import { runWithExtraction } from "../lib/run-with-extraction.mjs";
 import { buildReviewContext, type ReviewContext } from "./context.mjs";
 import { isAnchorInDiff, parseDiffAnchors } from "./diff-anchors.mjs";
+import { SPEC_FINDINGS_FILE } from "./outcome.mjs";
 import { reviewSchema, type ReviewOutput } from "./output.mjs";
 
 const EXTRACTION_PROMPT = [
@@ -31,7 +33,8 @@ const EXTRACTION_PROMPT = [
   "review output. Change no code and make no further commits — only report.",
   "",
   "Emit a single `<output>` block as the last thing in your response, exactly as the",
-  "OUTPUT section of the review prompt described (summary, inlineComments, replies).",
+  "OUTPUT section of the review prompt described (summary, inlineComments, replies,",
+  "specFindings).",
 ].join("\n");
 
 /**
@@ -96,7 +99,7 @@ await runMain(async ({ signal }) => {
     output: Output.object({ tag: "output", schema: reviewSchema }),
   });
 
-  const { summary, inlineComments, replies }: ReviewOutput = result.output;
+  const { summary, inlineComments, replies, specFindings }: ReviewOutput = result.output;
 
   // Drop hallucinated anchors (path:line not in the diff) and replies to
   // commentIds we never showed the agent (spec §3.8).
@@ -125,4 +128,8 @@ await runMain(async ({ signal }) => {
   writeOutput("replies.json", JSON.stringify(keptReplies, null, 2));
   writeOutput("summary.md", summary);
   writeOutput("verdict.txt", improved ? "improved" : "clean");
+  // Half of the outcome label the orchestrator applies next (#1021). `unknown`
+  // when the agent didn't answer: `outcome.mts` reads anything but `true`/`false`
+  // as unknown and hands the PR to a human rather than calling it ready.
+  writeOutput(SPEC_FINDINGS_FILE, specFindings === null ? "unknown" : String(specFindings));
 });

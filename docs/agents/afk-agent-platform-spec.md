@@ -720,7 +720,10 @@ in-progress.)
 6. Post the review: `POST repos/{owner}/{repo}/pulls/{PR}/reviews` with `review_payload.json`.
 7. `gh pr ready "$PR"` (un-draft).
 8. Post thread replies (see "node-id → REST id" below).
-9. `always()`: remove `agent:in-progress`.
+9. Label the outcome: `agent:ready` or `agent:needs-decision` (see "Chaining"), adding one and
+   removing the other in the same edit. Last of the posting steps — the unresolved-thread count
+   it reads has to include the threads this review just opened.
+10. `always()`: remove `agent:in-progress`.
 
 **Agent-runner contract.**
 
