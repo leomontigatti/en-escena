@@ -65,12 +65,14 @@ resolves and labels. User-invoked — type it, nothing fires it for you.
 
 ### With the `to-spec` / `to-tickets` skills
 
-These are global HITL skills; they run in your session, not in GHA, and by default they label
+These are HITL skills from Matt Pocock's set; they run in your session, not in GHA. They are
+**not vendored** (see [`afk-vendored-assets.md`](./afk-vendored-assets.md) → "Matt Pocock
+skills"): vendor them the same way before using this path. By default they label
 what they publish as `ready-for-agent` (and `to-tickets` suggests working the frontier with
 `/implement`, a local command **already retired** in #347). Under the human-gated model that is
 correct: **let them publish with `ready-for-agent`, ask them not to use `/implement` when they
 finish, and then you add the matching `agent:*` label** to dispatch. There is no need to adapt
-the global skills.
+the skills.
 
 ## Secrets
 
