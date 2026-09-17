@@ -31,7 +31,7 @@ The scripts that exist and what owns what:
 
 | Command                     | Owns                                                      |
 | --------------------------- | --------------------------------------------------------- |
-| `pnpm typecheck`            | Types, unused locals and parameters, unreachable code, implicit returns, switch fallthrough, missing `override`, unresolved side-effect imports (flags in `tsconfig.json`) — also run by the `Stop` hook |
+| `pnpm typecheck`            | Types, unused locals and parameters, unused labels, unreachable code, implicit returns, switch fallthrough, missing `override`, unresolved side-effect imports (not asset globs such as `*.css`, which `vite/client` declares) — flags in `tsconfig.json` — also run by the `Stop` hook |
 | `pnpm lint`                 | React hook mistakes, import cycles and un-awaited promises — **only** these; also run by the `Stop` hook |
 | `pnpm format` / `:check`    | All formatting — also applied per file by the `PostToolUse` hook |
 | `pnpm test:unit`            | Unit and React suites                                      |

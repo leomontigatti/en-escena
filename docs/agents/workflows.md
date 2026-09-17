@@ -206,12 +206,12 @@ difference.
 **It is deliberately not a style checker**, and rules must not be added to it
 casually. The scope rule is that every concern already has exactly one owner:
 
-| Concern                                                                                                                                     | Owner                                                       |
-| ------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| Formatting                                                                                                                                  | Prettier (`pnpm format`)                                    |
-| Types, unused locals/parameters, unreachable code, implicit returns, switch fallthrough, missing `override`, unresolved side-effect imports | `tsc` (`pnpm typecheck`; the flags live in `tsconfig.json`) |
-| Repo conventions                                                                                                                            | the `check:*` scripts                                       |
-| Hook mistakes, import cycles, un-awaited promises                                                                                           | `pnpm lint`                                                 |
+| Concern                                                                                                                                                                                                                    | Owner                                                       |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| Formatting                                                                                                                                                                                                                 | Prettier (`pnpm format`)                                    |
+| Types, unused locals/parameters, unused labels, unreachable code, implicit returns, switch fallthrough, missing `override`, unresolved side-effect imports (not asset globs such as `*.css`, which `vite/client` declares) | `tsc` (`pnpm typecheck`; the flags live in `tsconfig.json`) |
+| Repo conventions                                                                                                                                                                                                           | the `check:*` scripts                                       |
+| Hook mistakes, import cycles, un-awaited promises                                                                                                                                                                          | `pnpm lint`                                                 |
 
 A rule that duplicates another owner turns the linter into a chore and gets
 ignored, so it does not go in. What justifies the ones that are in is that
