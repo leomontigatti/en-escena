@@ -234,7 +234,7 @@ export function useCreateChoreographyDialog({
   }
 
   function handleResolveStep() {
-    calculationFetcher.submit(
+    void calculationFetcher.submit(
       buildResolveChoreographyFormData({
         eventId,
         modalityId: selectedModalityId,
@@ -279,7 +279,7 @@ export function useCreateChoreographyDialog({
 
   function handleConfirm() {
     hasSubmittedChoreographyRef.current = true;
-    submissionFetcher.submit(
+    void submissionFetcher.submit(
       buildCreateChoreographyFormData({
         eventId,
         name: watchedValues.name,

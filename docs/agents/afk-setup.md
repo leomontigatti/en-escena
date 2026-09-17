@@ -31,6 +31,14 @@ gh label create "agent:update-branch" --color d93f0b --description "AFK: el PR d
 gh label create "source:architecture-review" --color 5a5a5a --description "Procedencia: PRD propuesto por el workflow Architecture Review"
 ```
 
+Two **outcome labels** were added on 2026-09-17 (spec §4.4 amendment; Review applies them once
+#1021 lands, a `/review-triage` session may apply them by hand until then):
+
+```bash
+gh label create "agent:ready"          --color 0e8a16 --description "AFK: the review left nothing for a human; arm auto-merge or merge on green"
+gh label create "agent:needs-decision" --color e99695 --description "AFK: the review left a call for a human; pick it up with /review-triage"
+```
+
 Verify with: `gh label list --limit 100 | grep -E 'agent:|source:architecture'`.
 
 > For `source:architecture-review` the spec says the Architecture Review workflow creates it
@@ -61,16 +69,50 @@ leave a decision reply on what is not, then label.
 
 `/review-triage` (`.claude/skills/review-triage/`) does that pass: it classifies each item, puts
 the calls that are yours to you with options and a recommendation, and only then replies,
-resolves and labels. User-invoked — type it, nothing fires it for you.
+resolves and labels. User-invoked — type it, nothing fires it for you. The cue to type it is
+**`agent:needs-decision`** on the PR; **`agent:ready`** means the review left nothing to decide,
+so the pass is skipped and the PR is merged or armed for auto-merge (`gh pr merge --squash
+--auto`, once #1022 enables it on the repo). Arming is the session's act on your standing
+instruction; no workflow merges (spec §3.9). Between merges, a PR that falls behind `master`
+gets `agent:update-branch` from the push-to-master trigger (#1020) instead of from you.
+
+### The one trigger you never apply: `agent:update-branch` ([#1020](https://github.com/leomontigatti/en-escena/issues/1020))
+
+Branch protection requires an up-to-date branch, so every open `agent/*` PR is behind the moment
+the one below it merges. `.github/workflows/agent-label-behind-prs.yml` runs on **`push` to
+`master`** and applies `agent:update-branch` to each of them; `agent-update-branch` then does the
+merge exactly as it does for a label you applied by hand (spec §4.6). Nothing to dispatch, and
+nothing to wait on — the driving session neither runs `gh pr update-branch` nor labels.
+
+What it deliberately leaves alone:
+
+- A PR **not** on an `agent/*` branch.
+- A PR whose base is **not** `master` — one stacked on another `agent/*` branch. This is the
+  intended behaviour, not a gap: such a PR is behind _its own_ base, not behind `master`, and
+  merging `master` into it would be wrong. The cost is that a stacked chain is picked up one link
+  at a time, as each link merges and the next PR's base flips to `master`.
+- A PR carrying **`agent:in-progress`**: a run holds its lock (spec §3.5) and its own push is
+  what settles the branch. If it is still behind afterwards, the next push to `master` labels it.
+- A PR already carrying **`agent:update-branch`**: the previous pass labelled it and the run has
+  not started; re-adding triggers nothing.
+- A PR whose `mergeStateStatus` never resolved. GitHub computes it in a background job that the
+  query itself kicks off, so for the first seconds after a push every PR answers `UNKNOWN`. The
+  workflow re-asks (ten times, six seconds apart) and then gives up **without failing** — an
+  unresolved PR costs only itself, and the next push asks again.
+
+Without `AGENT_PAT` this degrades the usual way (see [Degradation without a PAT](#degradation-without-a-pat)):
+the label lands, `agent-update-branch` does not start on its own, and re-adding it by hand resumes.
 
 ### With the `to-spec` / `to-tickets` skills
 
-These are global HITL skills; they run in your session, not in GHA, and by default they label
+These are HITL skills from Matt Pocock's set; they run in your session, not in GHA. They are
+**not vendored** (see [`afk-vendored-assets.md`](./afk-vendored-assets.md) → "Matt Pocock
+skills"): vendor them the same way before using this path. By default they label
 what they publish as `ready-for-agent` (and `to-tickets` suggests working the frontier with
 `/implement`, a local command **already retired** in #347). Under the human-gated model that is
 correct: **let them publish with `ready-for-agent`, ask them not to use `/implement` when they
 finish, and then you add the matching `agent:*` label** to dispatch. There is no need to adapt
-the global skills.
+the skills.
 
 ## Secrets
 
@@ -144,8 +186,9 @@ nothing about code executing in the job, upstream of the agent. The three workfl
 (`agent-review`, `agent-implement-pr`, `agent-update-branch`) run on `pull_request_target`,
 which evaluates the workflow from the base branch but runs with this repo's secrets, and each
 checks out `pull_request.head.sha`. On a fork PR that would put contributor-controlled code on
-disk with `AGENT_PAT` persisted into `.git/config`, then feed it to `pnpm install` lifecycle
-scripts and to the runner script itself.
+disk inside a job that holds `AGENT_PAT`, then feed it to `pnpm install` lifecycle scripts and
+to the runner script itself. (Until #956 the checkout also persisted that PAT into
+`.git/config`; see [Where the PAT is during a run](#where-the-pat-is-during-a-run).)
 
 So each of those three jobs carries a provenance condition alongside its label check:
 
@@ -171,11 +214,105 @@ Do not "fix" any of this by switching to `pull_request`: `pull_request_target` i
 (spec §3.3) — the labeled event must fire even when the PR is out-of-date or conflicting, which
 is exactly when `agent:update-branch` is needed.
 
+## Where the PAT is during a run ([#956](https://github.com/leomontigatti/en-escena/issues/956))
+
+The agent never holds a GitHub credential (spec §3, and `revokeGitHubToken()` for the runners
+that prefetch). That rule used to have a hole below the environment: every `actions/checkout`
+in the agent workflows took `token: ${{ secrets.AGENT_PAT || github.token }}` and, by default,
+persisted it into `.git/config` as an `http.https://github.com/.extraheader`, so a session that
+ran `git config --get-all http.https://github.com/.extraheader` — or a `pnpm install` lifecycle
+script — could read a `repo`+`workflow` PAT. The push at the end of the job was what needed it.
+
+Now the credential exists in exactly one place per push:
+
+- **Every checkout** in `.github/workflows/` sets `persist-credentials: false`. The repo is
+  public, so the fetches the jobs do afterwards (`git fetch origin master:master`, the
+  resume fetch in `agent-implement-prd`, the base fetch inside the update-branch runner) need
+  no token at all.
+- **The "Configure git identity" step**, which runs right before every agent session, fails the
+  job if an `extraheader` is nonetheless present in `.git/config`. That is the acceptance
+  criterion of #956 turned into a step, so a future checkout that forgets the flag is caught
+  by the run itself rather than by someone reading YAML.
+- **Every push step** (the final push, the bank-on-failure push, and the race-safe pushes of
+  the three PR workflows) authenticates per command, with
+  `PUSH_TOKEN: ${{ secrets.AGENT_PAT || github.token }}` scoped to that step's `env:`:
+
+  ```bash
+  auth=$(printf 'x-access-token:%s' "$PUSH_TOKEN" | base64 -w0)
+  echo "::add-mask::$auth"
+  git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" push …
+  ```
+
+  `actions/checkout` masks the header it builds; this one is ours to mask, because nothing
+  else registers it as a secret. A push that fails for anything other than a lost lease fails
+  its step, rather than exiting 0 with nothing pushed — only the race patterns were matched
+  before, and an unpushed branch is the one outcome an AFK run cannot report on itself.
+  Nothing is written to any git config, so the agent that runs _after_ a push
+  (`write-pr` in `agent-implement`, `write-prd-pr` in `agent-implement-prd`) inherits nothing
+  either. The PAT-first order is what lets a branch that touches `.github/workflows/**` be
+  pushed; the `github.token` fallback keeps the no-PAT degradation contract above.
+
+The `GITHUB_TOKEN` grants were audited against real use at the same time: `contents: write`
+serves the `github.token` push fallback, `issues: write` the label and comment calls on issues,
+`pull-requests: write` the label, comment, reply and review calls on PRs, and the three
+`contents: read` workflows need no more than that (`agent-to-issues-prd` and
+`architecture-review` only check out; `ci`'s `actions-gate` also reads this repo through
+`GH_TOKEN` for zizmor's online audits). No key was found without a use, so none was dropped.
+
+`tests/afk/checkout-credentials.test.ts` holds the first bullet in place across every workflow
+in the directory, listed or not; zizmor's `artipacked` audit in `actions-gate` is the second
+line, and the suppression that #955 had to ship for it is gone.
+
 ## Per-workflow permissions matrix
 
 **Recorded in spec §3.1** → "Per-workflow permissions matrix" (8 rows, columns `contents` /
 `issues` / `pull-requests`). It is not duplicated here: each workflow (#344+) declares its
 minimum `permissions:` from that table as it is implemented.
+
+The one workflow outside that table is the local `agent-label-behind-prs` (#1020): it writes a
+label and reads nothing else, so it declares `pull-requests: write` and no `contents` at all.
+
+## What a runner starts from ([#966](https://github.com/leomontigatti/en-escena/issues/966))
+
+Three inputs used to drift from run to run. All three are pinned now.
+
+**The Claude Code CLI.** Every workflow that runs an agent installs it the same way:
+
+```sh
+pnpm add -g --global-bin-dir "$PNPM_HOME" --allow-build=@anthropic-ai/claude-code @anthropic-ai/claude-code@stable
+claude --version
+```
+
+`stable` rather than an exact version: the CLI ships almost daily, so a pin would be a bump
+chore that gets skipped, while `stable` lags `latest` by weeks and moves on its own. The
+`--allow-build` is not optional — without it pnpm reports a successful install but skips the
+CLI's `postinstall`, and `claude` then fails mid-run with "native binary not installed". The
+`claude --version` right after is what turns that into a loud install-time failure; it also
+**logs the resolved version**, so the exact CLI a run used is in the `Install deps + agent
+runner` step of that run's log.
+
+`--global-bin-dir "$PNPM_HOME"` is not optional either, and not what you would guess:
+`pnpm/action-setup` exports `PNPM_HOME` and puts **that** directory on `PATH`, but pnpm's
+default global bin directory is `$PNPM_HOME/bin`, which is not on it. pnpm refuses a global
+add whose bin directory is off `PATH`, so a bare `pnpm add -g` exits 1 on the runner with
+`The configured global bin directory "…/bin" is not in PATH` before it installs anything.
+Pointing the global bin directory at `$PNPM_HOME` itself is what puts `claude` on `PATH` for
+the install step _and_ for the later runner step, which spawns a bare `claude`.
+
+**The `code-review` skill** (`agent-review.yml` only). Copied per run from the vendored
+`.agents/skills/code-review` **as it stands on `origin/master`** into `~/.claude/skills/`
+— outside the work tree, so the runner's commit step cannot sweep it into the PR branch.
+Reading it from the checked-out tree would be a hole: `pull_request_target` puts `head.sha`
+on disk, so a PR could edit the skill that reviews it.
+
+**The CI verdict** (`agent-review.yml` only). A `Wait for CI on the reviewed head` step polls
+the `CI` workflow run on `BRANCH_HEAD_SHA` — that workflow specifically, not "all checks",
+which would include the review's own run — and writes a block into `OUTPUT_DIR/ci_results.md`:
+`success`, `failure` with the failed job names and the tail of `gh run view --log-failed`, or
+`not finished`. The runner embeds it in the prompt, and the reviewer treats a CI failure as a
+correctness finding to fix in its commit: CI is the only place the full DB suite, `pnpm build`,
+`pnpm format:check` and the `check:*` scripts run. The wait gives up after **10 minutes** (CI
+takes ~3) and **never fails the review** — every error degrades to `not finished`.
 
 ## Wall-clock guardrails: `timeout-minutes` + `AGENT_BUDGET_MINUTES`
 

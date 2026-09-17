@@ -1,0 +1,23 @@
+# zizmor configuration for the `actions-gate` job in .github/workflows/ci.yml (#955).
+#
+# Suppressions live here only when a workflow cannot justify them on its own;
+# everything else carries an inline `# zizmor: ignore[...]` with the reason next
+# to the code it excuses. An entry that is a deferral names the issue that
+# removes it; one that is a decision says which issue decided it.
+rules:
+  # Decided in #966 (formerly #944), not deferred: the agent runners install
+  # Claude Code as `@anthropic-ai/claude-code@stable`, a moving tag rather than an
+  # exact version. The CLI ships almost daily, so a version pin would be a bump
+  # chore that gets skipped, while `stable` lags `latest` by weeks and moves
+  # without upkeep. The runs are reproducible after the fact instead: every
+  # install step prints `claude --version`. `npx skills@latest` is gone — the
+  # `code-review` skill is vendored and copied from `origin/master` (#965, #966).
+  adhoc-packages:
+    ignore:
+      - agent-implement.yml
+      - agent-implement-pr.yml
+      - agent-implement-prd.yml
+      - agent-review.yml
+      - agent-to-issues-prd.yml
+      - agent-update-branch.yml
+      - architecture-review.yml

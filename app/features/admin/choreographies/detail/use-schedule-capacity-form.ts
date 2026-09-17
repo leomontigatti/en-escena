@@ -79,7 +79,7 @@ export function useScheduleCapacityForm({
       return;
     }
 
-    submit(toScheduleCapacityFormData(selectedScheduleCapacityId), {
+    void submit(toScheduleCapacityFormData(selectedScheduleCapacityId), {
       method: "post",
     });
   };

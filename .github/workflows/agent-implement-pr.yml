@@ -10,8 +10,11 @@
 
 name: AFK Implement PR
 
+# `dangerous-triggers` is ignored inline below rather than restructured: the
+# same-repo guard on the job (#635) is the control, and it already refuses every
+# run whose PR head branch is not in this repository.
 on:
-  pull_request_target:
+  pull_request_target: # zizmor: ignore[dangerous-triggers] — same-repo guard on the job, #635
     types: [labeled]
 
 concurrency:
@@ -52,7 +55,10 @@ jobs:
         id: preflight
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
+        # The `github-env` ignore on the `run:` below: the only thing this step
+        # writes to $GITHUB_ENV is the static "$RUNNER_TEMP/afk-output" path. No
+        # issue or PR body reaches it, which is what the audit is looking for.
+        run: | # zizmor: ignore[github-env]
           set -euo pipefail
           echo "OUTPUT_DIR=$RUNNER_TEMP/afk-output" >> "$GITHUB_ENV"
           mkdir -p "$RUNNER_TEMP/afk-output"
@@ -101,11 +107,14 @@ jobs:
 
       - name: Checkout PR head
         if: steps.preflight.outputs.proceed == 'true'
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
-          token: ${{ secrets.AGENT_PAT || github.token }}
+          # No credential in `.git/config`: the agent session reads PR text and
+          # runs `pnpm install` scripts, so nothing it can reach may hold a token
+          # (#956). The push step authenticates per command instead.
+          persist-credentials: false
 
       - name: Prepare branch refs
         if: steps.preflight.outputs.proceed == 'true'
@@ -118,10 +127,10 @@ jobs:
 
       - name: Setup pnpm
         if: steps.preflight.outputs.proceed == 'true'
-        uses: pnpm/action-setup@v5
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
       - name: Setup Node
         if: steps.preflight.outputs.proceed == 'true'
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 22
           cache: pnpm
@@ -129,13 +138,37 @@ jobs:
         if: steps.preflight.outputs.proceed == 'true'
         run: |
           pnpm install --frozen-lockfile
-          npm install -g @anthropic-ai/claude-code
+          # `--allow-build`: without it pnpm reports success but skips the CLI's
+          # postinstall, and `claude` then fails at run time with "native binary not
+          # installed". `--version` is the guard that turns that into an install-time
+          # failure, and it logs the resolved `stable` version for the run.
+          #
+          # `--global-bin-dir "$PNPM_HOME"`: `pnpm/action-setup` puts `$PNPM_HOME` on
+          # PATH but not pnpm's default global bin dir (`$PNPM_HOME/bin`), and pnpm
+          # refuses a global add whose bin dir is not on PATH — a bare `pnpm add -g`
+          # exits 1 here with "The configured global bin directory ... is not in PATH".
+          # Installing into `$PNPM_HOME` itself is what puts `claude` on PATH for this
+          # step *and* for the later runner step, which spawns a bare `claude`.
+          if [ -z "${PNPM_HOME-}" ]; then
+            echo "PNPM_HOME is unset: pnpm/action-setup must run before this step." >&2
+            exit 1
+          fi
+          pnpm add -g --global-bin-dir "$PNPM_HOME" --allow-build=@anthropic-ai/claude-code @anthropic-ai/claude-code@stable
+          claude --version
 
       - name: Configure git identity
         if: steps.preflight.outputs.proceed == 'true'
         run: |
+          set -euo pipefail
           git config user.name "claude-code[bot]"
           git config user.email "claude-code[bot]@users.noreply.github.com"
+          # The agent session starts after this step: nothing may have stored a
+          # credential in the tree (#956). `persist-credentials: false` on the
+          # checkout is what makes this hold; the assertion keeps it honest.
+          if git config --get-all http.https://github.com/.extraheader >/dev/null; then
+            echo "A credential is persisted in .git/config; refusing to start the agent." >&2
+            exit 1
+          fi
 
       - name: Run implement-pr runner
         if: steps.preflight.outputs.proceed == 'true'
@@ -155,7 +188,7 @@ jobs:
 
       - name: Upload agent log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: implement-pr-agent-log
           path: ${{ env.OUTPUT_DIR }}/*.agent.log
@@ -164,15 +197,33 @@ jobs:
 
       - name: Race-safe push (if the agent committed)
         if: steps.preflight.outputs.proceed == 'true'
+        env:
+          # Explicit push credential, `AGENT_PAT` first so pushes that touch
+          # `.github/workflows/**` carry the `workflow` scope, `github.token`
+          # as the no-PAT fallback (docs/agents/afk-setup.md).
+          PUSH_TOKEN: ${{ secrets.AGENT_PAT || github.token }}
         run: |
           set -euo pipefail
           [ "$(cat "$OUTPUT_DIR/has_commits.txt" 2>/dev/null || echo false)" = "true" ] || {
             echo "No commit; nothing to push."
             exit 0
           }
-          git push --force-with-lease="refs/heads/$BRANCH:$BRANCH_HEAD_SHA" origin "$BRANCH" 2> push_err.txt || true
-          if grep -qiE "non-fast-forward|rejected|fetch first|stale info" push_err.txt; then
-            echo "Branch advanced during implement-pr run." > "$OUTPUT_DIR/failure_reason.txt"
+          # Per-command auth (#956): the checkout persisted nothing, so this is the
+          # one place a push credential exists — and only for this command.
+          auth=$(printf 'x-access-token:%s' "$PUSH_TOKEN" | base64 -w0)
+          # `actions/checkout` masks the header it builds; this one is ours to mask.
+          echo "::add-mask::$auth"
+          if ! git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" \
+            push --force-with-lease="refs/heads/$BRANCH:$BRANCH_HEAD_SHA" origin "$BRANCH" 2> push_err.txt; then
+            cat push_err.txt >&2
+            # A lost lease is the expected race. Anything else — a token without
+            # the `workflow` scope, a network fault — used to leave the step green
+            # with nothing pushed, because only the race patterns were matched.
+            if grep -qiE "non-fast-forward|rejected|fetch first|stale info" push_err.txt; then
+              echo "Branch advanced during implement-pr run." > "$OUTPUT_DIR/failure_reason.txt"
+            else
+              echo "Push failed; git's output is in the step log." > "$OUTPUT_DIR/failure_reason.txt"
+            fi
             exit 1
           fi
 

@@ -35,22 +35,39 @@ jobs:
           mkdir -p "$RUNNER_TEMP/afk-output"
 
       - name: Checkout master
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           ref: master
           fetch-depth: 1
+          persist-credentials: false
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v5
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
       - name: Setup Node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 22
           cache: pnpm
       - name: Install deps + agent runner
         run: |
           pnpm install --frozen-lockfile
-          npm install -g @anthropic-ai/claude-code
+          # `--allow-build`: without it pnpm reports success but skips the CLI's
+          # postinstall, and `claude` then fails at run time with "native binary not
+          # installed". `--version` is the guard that turns that into an install-time
+          # failure, and it logs the resolved `stable` version for the run.
+          #
+          # `--global-bin-dir "$PNPM_HOME"`: `pnpm/action-setup` puts `$PNPM_HOME` on
+          # PATH but not pnpm's default global bin dir (`$PNPM_HOME/bin`), and pnpm
+          # refuses a global add whose bin dir is not on PATH — a bare `pnpm add -g`
+          # exits 1 here with "The configured global bin directory ... is not in PATH".
+          # Installing into `$PNPM_HOME` itself is what puts `claude` on PATH for this
+          # step *and* for the later runner step, which spawns a bare `claude`.
+          if [ -z "${PNPM_HOME-}" ]; then
+            echo "PNPM_HOME is unset: pnpm/action-setup must run before this step." >&2
+            exit 1
+          fi
+          pnpm add -g --global-bin-dir "$PNPM_HOME" --allow-build=@anthropic-ai/claude-code @anthropic-ai/claude-code@stable
+          claude --version
 
       - name: Run architecture-review runner
         timeout-minutes: 20 # spec §4.8 guardrail
@@ -66,7 +83,7 @@ jobs:
 
       - name: Upload agent log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: architecture-review-agent-log
           path: ${{ env.OUTPUT_DIR }}/*.agent.log
@@ -102,16 +119,21 @@ jobs:
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
+          # Through `env:`, never interpolated into the script: the title the agent
+          # proposed ends up in the issue URL, so `steps.publish.outputs.*` is agent
+          # text and must not be expanded into the shell (zizmor `template-injection`).
+          PUBLISH_STATUS: ${{ steps.publish.outputs.status }}
+          PUBLISH_URL: ${{ steps.publish.outputs.url }}
         run: |
           set -euo pipefail
           out="$OUTPUT_DIR/architecture_review_output.json"
           {
             echo "# Architecture Review"
             echo
-            status="${{ steps.publish.outputs.status }}"
+            status="$PUBLISH_STATUS"
             case "$status" in
               proposed)
-                echo "**Proposed a PRD:** ${{ steps.publish.outputs.url }}"
+                echo "**Proposed a PRD:** $PUBLISH_URL"
                 echo
                 summary=$(jq -r '.oneLineSummary // ""' "$out" 2>/dev/null || echo "")
                 [ -n "$summary" ] && echo "> $summary"

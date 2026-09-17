@@ -77,7 +77,7 @@ export function SubmodalityField({
         const formData = new FormData();
         formData.set("intent", updateChoreographySubmodalityIntent);
         formData.set("submodalityId", value);
-        submit(formData, { method: "post" });
+        void submit(formData, { method: "post" });
       }}
       options={loaderData.submodalityOptions.map((option) => ({
         label: option.name,
@@ -140,7 +140,7 @@ export function ExperienceLevelField({
         const formData = new FormData();
         formData.set("intent", updateChoreographyExperienceLevelIntent);
         formData.set(assignedExperienceLevelFieldName, value);
-        submit(formData, { method: "post" });
+        void submit(formData, { method: "post" });
       }}
       options={options}
       placeholder="Elegí el nivel"

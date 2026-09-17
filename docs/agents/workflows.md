@@ -4,6 +4,30 @@ Project-local workflows for agents working on En Escena.
 
 These workflows adapt useful ideas from `mattpocock/course-video-manager` to this repo. They are repo instructions for Claude Code and other agents that read `CLAUDE.md`.
 
+## Where work starts
+
+Implementation runs on the AFK platform by default (`docs/agents/afk-setup.md`):
+work arrives as an issue, a label dispatches it, and a local session builds
+only what it was asked to build in that session (a docs change, a skill, a
+fix the user wants done in front of them). Three entry points, by how much is
+still unknown:
+
+- **Small and clear** (a bug, a UI tweak, a one-slice feature): write the
+  issue with what to build and its acceptance criteria, then label it
+  `agent:implement`. No PRD, no map.
+- **Clear but big** (known shape, several slices): write one PRD with the
+  [PRD workflow](#prd-workflow), label it `agent:to-issues`, then
+  `agent:implement`. Implement PRD chains the sub-issues onto one PR, and one
+  review covers the whole.
+- **Foggy** (decisions nobody has made yet): `/wayfinder`. The map's tickets
+  are grilling, research, prototype or task; a prototype is a throwaway
+  artifact whose result is a decision on its ticket, never another PRD. The map
+  ends with one or more PRDs, per the exit shapes in
+  [issue-tracker.md](./issue-tracker.md#wayfinding-operations).
+
+After the review, the PR carries `agent:ready` or `agent:needs-decision`; the
+second is the cue for `/review-triage`, which also lands the PR.
+
 ## Investigate before implementing
 
 When the user asks to investigate, review, diagnose, audit, analyze, or explain
@@ -13,6 +37,23 @@ user to explicitly ask for implementation before editing files.
 
 Start implementing right away only when the user clearly asks to implement, fix,
 apply changes, or make the change.
+
+## Delegating to subagents
+
+A subagent costs a full orientation and returns only its summary, so delegate
+by the size of the read, not the size of the task:
+
+- Reading one to three files to decide or verify something is inline work.
+- Understanding that needs four or more files is one narrow mapping subagent,
+  which returns the conclusion, not the file dumps.
+- Bulk output (a long diff, a log, a rendered page) is read by a subagent when
+  only its conclusion is needed in the main thread.
+- Bash for state (`git`, `gh`) stays inline.
+
+Brief a subagent with the exact paths and skill files to read, never a digest
+of them, and ask for its report as text with a fixed shape: status, one-line
+summary, artifacts touched, next step, risks. A subagent whose last action is a
+tool call returns the tool result instead of its report.
 
 ## Investigate before recommending
 
@@ -111,8 +152,9 @@ checkout's `master` current. It only runs when that checkout is clean and on
 
 ## Continuous integration
 
-`.github/workflows/ci.yml` runs on every PR to `master`, as three required
-contexts. The rationale for each job lives in that file's comments; what follows
+`.github/workflows/ci.yml` runs on every PR to `master`, as four required
+contexts: `checks`, `db-gate`, `docs-gate` and `actions-gate`.
+The rationale for each job lives in that file's comments; what follows
 is the shape a reader needs before running anything locally:
 
 - `checks`: `format:check`, `lint`, the `check:*` scripts, the migration
@@ -128,6 +170,11 @@ is the shape a reader needs before running anything locally:
   `pnpm test:db` (PGlite) or `pnpm test:db:postgres` (real Postgres).
 - `docs-gate`: mapped code changed, so its current-state document must change
   too (`pnpm check:doc-map`).
+- `actions-gate`: [zizmor](https://docs.zizmor.sh) and
+  [actionlint](https://github.com/rhysd/actionlint) over every file in
+  `.github/workflows/`. Neither has a `package.json` script — they are Actions
+  tooling, they only ever look at that directory, and CI is the only place they
+  run. See below for what they own and how to bump them.
 
 `--shard` splits by file, so a shard always runs whole files and never shares a
 database with another shard; the serial-within-a-runner isolation model of
@@ -135,30 +182,110 @@ database with another shard; the serial-within-a-runner isolation model of
 repo setting, not part of this file: renaming a job does not update branch
 protection, which is why the aggregator is named exactly `db-gate`.
 
+### Waiting on AFK runs and CI from a session
+
+A session that drives AFK work (a reviewed PR to land, a chain of issues) never
+polls by hand. `pnpm afk:watch pr <n> --until <review|implement|checks|merged>`
+(or `issue <n> --until <pr|closed|label:<name>>`) blocks until the event happens,
+prints one JSON line and exits; run it as a background command and act when it
+returns. It reads labels, reviews, threads and the four required contexts, and
+ignores workflow runs on purpose: every `agent:implement` label also fires
+`agent-implement-prd.yml`, which skips when the issue has no sub-issues, and a
+watcher on runs would wake on that noise. The `review-triage` skill is its
+caller.
+
+### The actions gate
+
+Two tools, both version-pinned in `ci.yml`, neither installed from the
+Marketplace:
+
+- **zizmor** (`pipx run zizmor==<version>` — `pipx` is on the runner image and
+  `uv` is not), default persona, configured by
+  `.github/zizmor.yml`. It owns the Actions security posture: unpinned `uses:`,
+  dangerous triggers, template injection, over-broad `permissions:` and
+  `$GITHUB_ENV` writes. **Online audits are on**, with
+  `GH_TOKEN: ${{ github.token }}` — `known-vulnerable-actions`, `impostor-commit` and
+  `ref-version-mismatch` only exist with a token, and they are the whole reason
+  the SHA pins can be manual: a pin that goes stale, or that no longer matches
+  the tag its comment claims, turns the gate red on the next PR instead of
+  rotting quietly.
+- **actionlint**, installed by its own release-pinned download script. It owns
+  workflow syntax, `${{ }}` expression types, job/step references and shellcheck
+  over `run:` blocks. Shellcheck runs at `--severity=warning`: at `info`/`style`
+  the gate is a wall of SC2016 pointing at correct `jq '...'` filters.
+
+There is no pinact step in CI. Pins are rewritten one-shot with `pinact run`
+(not a repo dependency — grab the release binary from `suzuki-shunsuke/pinact`,
+or `go install github.com/suzuki-shunsuke/pinact/cmd/pinact@latest`);
+zizmor's `unpinned-uses` is what keeps them that way.
+
+One suppression lives in `.github/zizmor.yml` instead of next to the code,
+temporary and naming the issue that deletes it: `adhoc-packages` (#966, which
+pins the agent CLI installs; the `artipacked` one #955 shipped with was removed
+by #956). Everything else a workflow can justify on its own carries an inline `# zizmor: ignore[<audit>]` with the reason written next to it
+— that is the preferred form, because the excuse and the code it excuses stay
+together.
+
+#### Bumping the pins
+
+All of it is a manual edit; nothing here opens update PRs.
+
+1. `pinact run --update` rewrites every `uses:` in `.github/workflows/` to the
+   newest release of that action, SHA plus a `# vN` comment.
+2. Bump `zizmor==<version>` and the two actionlint version strings in the
+   `actions-gate` job by hand, and `GITLEAKS_VERSION` **together with**
+   `GITLEAKS_SHA256` in the `checks` job — the two are one pin, and the
+   checksum comes from `gitleaks_<version>_checksums.txt` on the release page.
+   The install snippet under "Hook guidance" names the same version; bump it too
+   so a local install keeps matching CI.
+3. `pnpm format` (Prettier owns the YAML), then push and read the gate. Its
+   online audits are the confirmation step: they are what tells you a rewritten
+   pin really points at the tag its comment names, which is something you cannot
+   check offline.
+
+Adding or renaming a job here does not update branch protection — required
+contexts are a repo setting, so making a new job required (as `actions-gate` was
+made, by hand, once #955 merged) is a human step outside the repo.
+
 ## Linting
 
-`pnpm lint` is [oxlint](https://oxc.rs), configured in `.oxlintrc.json`. It runs
-over the whole repo in about a second and enables exactly three rules:
-
-- `react-hooks/rules-of-hooks`
-- `react-hooks/exhaustive-deps`
-- `import/no-cycle`
+`pnpm lint` is [oxlint](https://oxc.rs), configured in `.oxlintrc.json`, which is
+the list — do not restate it here. What it owns is React hook mistakes, import
+cycles and un-awaited promises. It runs over the whole repo in about six and a
+half seconds; the un-awaited-promise rules are type-aware (`oxlint-tsgolint`), so
+the run builds a TypeScript program, which is the whole of the 1.5 s → 6.5 s
+difference.
 
 **It is deliberately not a style checker**, and rules must not be added to it
 casually. The scope rule is that every concern already has exactly one owner:
 
-| Concern                         | Owner                                            |
-| ------------------------------- | ------------------------------------------------ |
-| Formatting                      | Prettier (`pnpm format`)                         |
-| Types, unused locals/parameters | `tsc` (`pnpm typecheck`, `strict` + `noUnused*`) |
-| Repo conventions                | the `check:*` scripts                            |
-| Hook mistakes, import cycles    | `pnpm lint`                                      |
+| Concern                                                                                                                                                                                                                    | Owner                                                       |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| Formatting                                                                                                                                                                                                                 | Prettier (`pnpm format`)                                    |
+| Types, unused locals/parameters, unused labels, unreachable code, implicit returns, switch fallthrough, missing `override`, unresolved side-effect imports (not asset globs such as `*.css`, which `vite/client` declares) | `tsc` (`pnpm typecheck`; the flags live in `tsconfig.json`) |
+| Repo conventions                                                                                                                                                                                                           | the `check:*` scripts                                       |
+| Hook mistakes, import cycles, un-awaited promises                                                                                                                                                                          | `pnpm lint`                                                 |
 
 A rule that duplicates another owner turns the linter into a chore and gets
-ignored, so it does not go in. What justifies these three is that nothing else
-can see them: a stale closure in `useEffect` type-checks perfectly and misbehaves
-at runtime, and TypeScript tolerates import cycles until a module reads
-`undefined` during initialisation.
+ignored, so it does not go in. What justifies the ones that are in is that
+nothing else can see them: a stale closure in `useEffect` type-checks perfectly
+and misbehaves at runtime, TypeScript tolerates import cycles until a module
+reads `undefined` during initialisation, and a promise nothing awaits type-checks
+too while silently dropping whatever it would have rejected with.
+
+Two options on those promise rules are load-bearing, and neither is legible from
+the rule name:
+
+- `no-floating-promises` runs with `checkThenables: true`. Without it tsgolint
+  only flags values typed as the global `Promise`, and Drizzle's query builders
+  are thenables — a floating `db.insert(...).values(...)` inside an action would
+  go unreported, which is most of the point of the rule here.
+- `no-misused-promises` runs with `checksVoidReturn.attributes: false`, which
+  exempts async functions passed to JSX props (`onClick={async () => …}`), normal
+  in React. Object-property and argument positions stay checked.
+
+When a promise legitimately goes unawaited, the mark is `void`, and which promises
+may carry one is the `void` policy in `.sandcastle/VALIDATION.md`.
 
 Fourteen files are exempt from `exhaustive-deps` via `overrides` in
 `.oxlintrc.json`. They use a deliberate `resetKey = JSON.stringify(values)` idiom
@@ -186,10 +313,36 @@ Hook guidance:
 
 - Keep pre-commit hooks fast and deterministic. Formatting staged files through
   `lint-staged` is appropriate.
-- The pre-commit hook runs `lint-staged`, `pnpm check:comment-language`,
-  `pnpm typecheck`, `pnpm check:file-tokens` and `pnpm check:fallow`. Treat that
-  as the minimum commit gate, not as the only validation path for agent work.
-  Hooks can be skipped and may not run in every environment.
+- The pre-commit hook runs `gitleaks git --pre-commit --staged`, `lint-staged`,
+  `pnpm check:comment-language`, `pnpm typecheck`, `pnpm check:file-tokens` and
+  `pnpm check:fallow`. Treat that as the minimum commit gate, not as the only
+  validation path for agent work. Hooks can be skipped and may not run in every
+  environment.
+- The gitleaks line is the secrets gate (#978) and runs first: nothing else
+  matters if the commit carries a credential. It reads `.gitleaks.toml` (the
+  upstream ruleset plus three rules for what this repo can leak and the default
+  set misses — passwords inside connection URLs, Resend `re_` keys and
+  Backblaze `K00` application keys), costs about a second, and **warns instead of
+  failing when the binary is not on `PATH`**:
+  `gitleaks not installed, secret scan skipped; CI still runs it`. gitleaks is
+  not a pnpm dependency, so that is the normal state of a fresh clone and of the
+  AFK runners, which hold only tokens GitHub push protection already blocks.
+  Installing it locally is optional but recommended; pin the version CI uses
+  (8.30.1), for example:
+
+  ```sh
+  curl -fsSL -o /tmp/gitleaks.tar.gz \
+    https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
+  tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks && sudo mv /tmp/gitleaks /usr/local/bin/
+  ```
+
+  macOS: `brew install gitleaks`, which tracks the latest release rather than the
+  pin — close enough locally, since CI's pinned copy is the one that decides.
+  The blocking half is the `gitleaks` step in the `checks` job, which downloads a
+  checksum-verified 8.30.1 and scans `origin/master..HEAD`. Bumping it is a manual
+  edit, and the procedure is the one in ["Bumping the pins"](#bumping-the-pins)
+  above, alongside zizmor and actionlint.
+
 - `pnpm check:comment-language` fails on Spanish prose in a comment or a test
   name anywhere under `.sandcastle/`, `app/`, `scripts/` or `tests/`, plus the
   repo-root configs (#592), and on Spanish in the `.md` under `.claude/`,
@@ -210,9 +363,49 @@ Hook guidance:
 - Prefer running `pnpm typecheck` explicitly before finishing. This command
   must stay as `pnpm typecheck`, not `pnpm exec tsc`, because it generates React
   Router route types before TypeScript runs.
+- Two Claude Code hooks run inside the session itself (#982), and they fire in
+  the AFK implement runners too — hooks are configuration, not a terminal
+  feature, so a headless runner reads the same `.claude/settings.json` (#930):
+  - **`PostToolUse` on `Write|Edit`** → `.claude/hooks/format-edited-file.sh`
+    runs `node_modules/.bin/prettier --write --ignore-unknown` over the file the
+    tool just wrote. It calls the binary directly rather than through
+    `pnpm exec`, which costs 0.9 s wall against 93 ms of actual Prettier, and it
+    always exits 0 without writing to stderr: `PostToolUse` stderr is fed back to
+    Claude, and a reformat is not something to react to. An unsupported path — a
+    `.png` — is a silent no-op. The matcher is exact-string alternation, so it
+    does not cover `NotebookEdit`; this repo has no notebooks.
+  - **`Stop`** → `.claude/hooks/stop-typecheck-lint.sh` runs
+    `pnpm typecheck && pnpm lint` and **blocks** with exit 2, putting the failing
+    output in front of the agent. It costs ~11.6 s (5.1 s typecheck + ~6.5 s
+    lint, type-aware since #986). It exits 0 without running
+    anything when `SKIP_STOP_CHECKS` is set, when `GITHUB_WORKFLOW` is any
+    workflow outside `AFK Implement`, `AFK Implement PRD` and `AFK Implement PR`,
+    or when no changed path — tracked or untracked — matches what either half
+    of the gate reads: `.ts`/`.tsx`/`.mts`/`.cts` plus `tsconfig*.json` and
+    `package.json` for typecheck, and `.js`/`.jsx`/`.mjs`/`.cjs` plus
+    `.oxlintrc.json` for lint — type-aware lint reads `.ts`/`.tsx` as well, which
+    the typecheck half of the union already covers. It reads the working tree only, on purpose:
+    committed work has already passed `.husky/pre-commit`, which runs
+    `pnpm typecheck` on every commit (#934, in the AFK runners too), so this gate
+    owns the uncommitted remainder of a turn — the one thing that leaves
+    uncovered is lint on committed changes, which CI's `checks` job owns. The
+    allowlist is by
+    workflow name rather than by `CI` so the exclusion stays explicit and
+    greppable; `AFK Review` is the case it protects, since the reviewer authors
+    no app code and would spend its budget on a red typecheck it cannot fix.
+    There is no `SubagentStop` hook: it is a distinct event, and `research`,
+    `Explore` and `Plan` do not author app code.
+
+  `SKIP_STOP_CHECKS` is the documented local bypass: set to any value, it turns
+  the gate off — `SKIP_STOP_CHECKS=1 claude`, or export it for the session. The gate keeps blocking while the failure
+  persists; Claude Code force-closes the turn after 8 consecutive blocks, which is
+  the backstop, so the wording of the last instruction is all `stop_hook_active`
+  decides.
 
 During the development loop, prefer focused validation for the area being
-changed before running the broader final checks:
+changed before running the broader final checks. The `Stop` gate above is the
+backstop, not the plan: it catches a turn that would have ended red, but it runs
+once at the end and knows nothing about which area you touched. Prefer:
 
 - Run `pnpm check:repo-styles` when the change adds or edits app UI code.
   This repo-style check blocks hardcoded Tailwind color scales and `space-x/y-*`

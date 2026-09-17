@@ -19,3 +19,6 @@ Edit the right-hand column to match whatever vocabulary you actually use.
 > human adds by hand to dispatch (PRD → `agent:to-issues`, single issue →
 > `agent:implement`). Detail in
 > [afk-setup.md → Dispatch](afk-setup.md#dispatch-from-ready-for-agent-triage-to-the-agent-trigger).
+> On a reviewed PR, two outcome labels tell you what kind of attention it needs:
+> `agent:needs-decision` (a call is yours; run `/review-triage`) and `agent:ready`
+> (nothing to decide; merge or arm auto-merge).

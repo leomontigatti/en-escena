@@ -52,9 +52,9 @@ takes ~13 min of your wall-clock budget ({{WALL_CLOCK_BUDGET}}) and CI runs the 
 in parallel anyway.
 
 **That list of four is exhaustive. Do not invent commands** — check `package.json` before
-running anything else, not after it fails. `pnpm lint` is oxlint with three rules (hook
-mistakes and import cycles); it is not a style checker and reporting nothing is the normal
-result. See `.sandcastle/VALIDATION.md`.
+running anything else, not after it fails. `pnpm lint` is oxlint over what `.oxlintrc.json`
+enables — React hook mistakes, import cycles and un-awaited promises; it is not a style checker
+and reporting nothing is the normal result. See `.sandcastle/VALIDATION.md`.
 
 # COMMIT
 

@@ -56,7 +56,7 @@ type ReactRouterSubmitOptions = {
 export type ReactRouterFormSubmit = (
   target: HTMLFormElement | FormData,
   options?: ReactRouterSubmitOptions,
-) => void;
+) => Promise<void>;
 
 function createReactRouterFormSubmission<TFieldValues extends FieldValues>(
   formElement: HTMLFormElement,
@@ -95,7 +95,7 @@ export function createValidatedReactRouterSubmitHandler<
   return (event) => {
     const formElement = event.currentTarget;
     const submitRouterForm: SubmitHandler<TTransformedValues> = (values) => {
-      submit(
+      void submit(
         createReactRouterFormSubmission(formElement, values),
         submitOptions,
       );
@@ -157,7 +157,7 @@ export function createValidatedRouteSubmitHandler<
     const submitTarget = getRouteSubmitTarget(event);
 
     const submitRouteForm: SubmitHandler<TFieldValues> = () => {
-      submit(submitTarget, {
+      void submit(submitTarget, {
         action: action ?? getFormActionPath(formElement),
         encType: formElement.enctype as FormEncType,
         method: formElement.method as HTMLFormMethod,
@@ -184,7 +184,7 @@ export function createValidatedRouteFormDataSubmitHandler<
 
     const formElement = event.currentTarget;
     const submitRouteForm: SubmitHandler<TTransformedValues> = (values) => {
-      submit(createReactRouterFormSubmission(formElement, values), {
+      void submit(createReactRouterFormSubmission(formElement, values), {
         action: action ?? getFormActionPath(formElement),
         encType: formElement.enctype as FormEncType,
         method: formElement.method as HTMLFormMethod,
