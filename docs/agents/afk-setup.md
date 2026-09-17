@@ -194,18 +194,30 @@ Now the credential exists in exactly one place per push:
   criterion of #956 turned into a step, so a future checkout that forgets the flag is caught
   by the run itself rather than by someone reading YAML.
 - **Every push step** (the final push, the bank-on-failure push, and the race-safe pushes of
-  the three PR workflows) authenticates per command: `git -c
-http.https://github.com/.extraheader="AUTHORIZATION: basic <x-access-token:$PUSH_TOKEN>"
-push …`, with `PUSH_TOKEN: ${{ secrets.AGENT_PAT || github.token }}` scoped to that step's
-  `env:`. Nothing is written to any git config, so the agent that runs _after_ a push
+  the three PR workflows) authenticates per command, with
+  `PUSH_TOKEN: ${{ secrets.AGENT_PAT || github.token }}` scoped to that step's `env:`:
+
+  ```bash
+  auth=$(printf 'x-access-token:%s' "$PUSH_TOKEN" | base64 -w0)
+  echo "::add-mask::$auth"
+  git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" push …
+  ```
+
+  `actions/checkout` masks the header it builds; this one is ours to mask, because nothing
+  else registers it as a secret. A push that fails for anything other than a lost lease fails
+  its step, rather than exiting 0 with nothing pushed — only the race patterns were matched
+  before, and an unpushed branch is the one outcome an AFK run cannot report on itself.
+  Nothing is written to any git config, so the agent that runs _after_ a push
   (`write-pr` in `agent-implement`, `write-prd-pr` in `agent-implement-prd`) inherits nothing
   either. The PAT-first order is what lets a branch that touches `.github/workflows/**` be
   pushed; the `github.token` fallback keeps the no-PAT degradation contract above.
 
 The `GITHUB_TOKEN` grants were audited against real use at the same time: `contents: write`
 serves the `github.token` push fallback, `issues: write` the label and comment calls on issues,
-`pull-requests: write` the label, comment, reply and review calls on PRs, and the two
-`contents: read` workflows only check out. No key was found without a use, so none was dropped.
+`pull-requests: write` the label, comment, reply and review calls on PRs, and the three
+`contents: read` workflows need no more than that (`agent-to-issues-prd` and
+`architecture-review` only check out; `ci`'s `actions-gate` also reads this repo through
+`GH_TOKEN` for zizmor's online audits). No key was found without a use, so none was dropped.
 
 `tests/afk/checkout-credentials.test.ts` holds the first bullet in place across every workflow
 in the directory, listed or not; zizmor's `artipacked` audit in `actions-gate` is the second

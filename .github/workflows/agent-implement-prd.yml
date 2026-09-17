@@ -212,6 +212,7 @@ jobs:
       - name: Configure git identity
         if: steps.preflight.outputs.proceed == 'true'
         run: |
+          set -euo pipefail
           git config user.name "claude-code[bot]"
           git config user.email "claude-code[bot]@users.noreply.github.com"
           # The agent session starts after this step: nothing may have stored a
@@ -275,6 +276,8 @@ jobs:
           # Per-command auth (#956): the checkout persisted nothing, so this is the
           # one place a push credential exists — and only for this command.
           auth=$(printf 'x-access-token:%s' "$PUSH_TOKEN" | base64 -w0)
+          # `actions/checkout` masks the header it builds; this one is ours to mask.
+          echo "::add-mask::$auth"
           git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" \
             push origin "$BRANCH"
           echo "Banked $new new commit(s) to $BRANCH."
@@ -295,6 +298,8 @@ jobs:
           # Per-command auth (#956): the checkout persisted nothing, so this is the
           # one place a push credential exists — and only for this command.
           auth=$(printf 'x-access-token:%s' "$PUSH_TOKEN" | base64 -w0)
+          # `actions/checkout` masks the header it builds; this one is ours to mask.
+          echo "::add-mask::$auth"
           git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" \
             push origin "$BRANCH"
 

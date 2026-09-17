@@ -163,6 +163,19 @@ export function workflowText(file: string): string {
   return readFileSync(`${repoRoot}${file}`, "utf8");
 }
 
+/**
+ * Every workflow in `.github/workflows/`, as repo-relative paths, sorted. The
+ * directory is read rather than listed so an audit that scans "every workflow"
+ * covers one added later without anyone extending a table.
+ */
+export function workflowFiles(): string[] {
+  const dir = ".github/workflows";
+  return readdirSync(`${repoRoot}${dir}`)
+    .filter((name) => name.endsWith(".yml") || name.endsWith(".yaml"))
+    .map((name) => `${dir}/${name}`)
+    .sort();
+}
+
 /** The top-level block under a key, i.e. every line indented beneath it. */
 function topLevelBlock(file: string, key: string): string | undefined {
   const block = new RegExp(`^${key}:\\n((?:[ \\t]+.*\\n?|\\n)+)`, "m").exec(
@@ -179,10 +192,7 @@ function topLevelBlock(file: string, key: string): string | undefined {
  * shape is covered by #635's guard test the moment it lands.
  */
 export function forkExposedWorkflows(): string[] {
-  const dir = ".github/workflows";
-  return readdirSync(`${repoRoot}${dir}`)
-    .filter((name) => name.endsWith(".yml") || name.endsWith(".yaml"))
-    .map((name) => `${dir}/${name}`)
+  return workflowFiles()
     .filter((file) => {
       // Scoped to the `on:` block: the string also appears in prose comments
       // about workflows that merely *trigger* one of these (agent-implement.yml).
@@ -255,14 +265,9 @@ export function workflowSteps(file: string): WorkflowStep[] {
  * to extend a table.
  */
 export function workflowsWithPreflight(): string[] {
-  const dir = ".github/workflows";
-  return readdirSync(`${repoRoot}${dir}`)
-    .filter((name) => name.endsWith(".yml") || name.endsWith(".yaml"))
-    .map((name) => `${dir}/${name}`)
-    .filter((file) =>
-      workflowSteps(file).some((step) => step.id === "preflight"),
-    )
-    .sort();
+  return workflowFiles().filter((file) =>
+    workflowSteps(file).some((step) => step.id === "preflight"),
+  );
 }
 
 function concurrencyBlock(file: string): string {

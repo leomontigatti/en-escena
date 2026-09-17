@@ -167,10 +167,9 @@ or `go install github.com/suzuki-shunsuke/pinact/cmd/pinact@latest`);
 zizmor's `unpinned-uses` is what keeps them that way.
 
 One suppression lives in `.github/zizmor.yml` instead of next to the code,
-temporary and naming the issue that deletes it: `adhoc-packages` (#966, which
+temporary and naming the issue that deletes it: `adhoc-packages` (#944, which
 pins the agent CLI installs; the `artipacked` one #955 shipped with was removed
-by #956). Everything else a workflow can justify on its own
-carries an inline `# zizmor: ignore[<audit>]` with the reason written next to it
+by #956). Everything else a workflow can justify on its own carries an inline `# zizmor: ignore[<audit>]` with the reason written next to it
 — that is the preferred form, because the excuse and the code it excuses stay
 together.
 

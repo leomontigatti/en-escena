@@ -98,6 +98,7 @@ jobs:
 
       - name: Configure git identity
         run: |
+          set -euo pipefail
           git config user.name "claude-code[bot]"
           git config user.email "claude-code[bot]@users.noreply.github.com"
           # The agent session starts after this step: nothing may have stored a
@@ -149,10 +150,19 @@ jobs:
           # Per-command auth (#956): the checkout persisted nothing, so this is the
           # one place a push credential exists — and only for this command.
           auth=$(printf 'x-access-token:%s' "$PUSH_TOKEN" | base64 -w0)
-          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" \
-            push --force-with-lease="refs/heads/$BRANCH:$BRANCH_HEAD_SHA" origin "$BRANCH" 2> push_err.txt || true
-          if grep -qiE "non-fast-forward|rejected|fetch first|stale info" push_err.txt; then
-            echo "Branch advanced during update-branch run." > "$OUTPUT_DIR/failure_reason.txt"
+          # `actions/checkout` masks the header it builds; this one is ours to mask.
+          echo "::add-mask::$auth"
+          if ! git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" \
+            push --force-with-lease="refs/heads/$BRANCH:$BRANCH_HEAD_SHA" origin "$BRANCH" 2> push_err.txt; then
+            cat push_err.txt >&2
+            # A lost lease is the expected race. Anything else — a token without
+            # the `workflow` scope, a network fault — used to leave the step green
+            # with nothing pushed, because only the race patterns were matched.
+            if grep -qiE "non-fast-forward|rejected|fetch first|stale info" push_err.txt; then
+              echo "Branch advanced during update-branch run." > "$OUTPUT_DIR/failure_reason.txt"
+            else
+              echo "Push failed; git's output is in the step log." > "$OUTPUT_DIR/failure_reason.txt"
+            fi
             exit 1
           fi
 
