@@ -199,6 +199,7 @@ Rules for roster links, choreography registration, locks and `Bases del evento`.
 - Category applies to one or more group types and either all modalities or selected modalities.
 - Category duplication uses exact competitive identity: same minimum age, maximum age, group type set and modality set. It ignores category name and experience levels.
 - Category ranges cannot overlap for the same group type and modality.
+- A category's age range and its experience level set cannot change while any choreography references it, withdrawn inscriptions included: moving the range would drop those choreographies into a gap and editing the levels would invalidate the level they hold. Renaming stays allowed, and so does every edit to a category no choreography references.
 - Solo, duo and trio use oldest dancer age.
 - Grupal allows up to 20% older dancers; above that, it uses average age.
 - Category calculation returns one category or refuses the write.

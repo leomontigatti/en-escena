@@ -145,12 +145,21 @@ export async function updateCategory(
     return validation;
   }
 
+  const competitiveEditRefusal = await refuseCompetitiveEditUnderChoreographies(
+    category,
+    validation.input,
+  );
+
+  if (competitiveEditRefusal) {
+    return competitiveEditRefusal;
+  }
+
   if (await removesOccupiedRegistrationPaths(category, validation.input)) {
     return {
       ok: false,
       code: "event-bases-has-dependencies",
       error:
-        "No se pueden quitar tipos de grupo, modalidades ni niveles de experiencia que las coreografías de la categoría todavía usan.",
+        "No se pueden quitar tipos de grupo ni modalidades que las coreografías de la categoría todavía usan.",
     };
   }
 
@@ -203,15 +212,63 @@ export async function deleteCategory(
 }
 
 /**
- * Whether the edit drops a registration path a choreography of the category
- * still sits on: a group type, a modality link or an experience level it no
- * longer offers. Readiness only walks the paths still reachable, so an orphaned
- * choreography stops having a price demanded for it while the finance screens
- * keep resolving one.
+ * The age range and the experience level set decide what a category means for
+ * the choreographies already on it, so neither can move while any choreography
+ * references it.
  *
- * Only removals count. A rename leaves every path standing, and so does an
- * age-range edit: a choreography stores its own age basis and calculation mode,
- * so an age edit re-categorises rather than orphans.
+ * Moving the range opens a gap under those choreographies: a choreography
+ * stores its own age basis, so the next recalculation lands it on no category
+ * at all, and every write that would do that is refused. Editing the level set
+ * turns a stored level into a violation at once — adding levels leaves the
+ * choreography without one, removing the level it holds leaves it invalid.
+ *
+ * The breadth is the deletion guard's, withdrawn inscriptions included: a
+ * withdrawn inscription still preserves the category the choreography competed
+ * in. Renaming, and any edit to a category no choreography references, stay
+ * allowed.
+ */
+async function refuseCompetitiveEditUnderChoreographies(
+  category: typeof categories.$inferSelect,
+  input: ValidCategoryInput,
+): Promise<EventBaseFailure | null> {
+  const changesAgeRange =
+    category.minAge !== input.minAge || category.maxAge !== input.maxAge;
+  const changesExperienceLevels = !haveSameValues(
+    category.experienceLevels,
+    input.experienceLevels,
+  );
+
+  if (!changesAgeRange && !changesExperienceLevels) {
+    return null;
+  }
+
+  if (
+    !(await hasReferencingChoreographies(
+      eq(choreographies.categoryId, category.id),
+    ))
+  ) {
+    return null;
+  }
+
+  return {
+    ok: false,
+    code: "event-bases-has-dependencies",
+    error: changesAgeRange
+      ? "No se puede cambiar el rango de edad de una categoría que tiene coreografías relacionadas."
+      : "No se pueden cambiar los niveles de experiencia de una categoría que tiene coreografías relacionadas.",
+  };
+}
+
+/**
+ * Whether the edit drops a registration path a choreography of the category
+ * still sits on: a group type or a modality link it no longer offers.
+ * Readiness only walks the paths still reachable, so an orphaned choreography
+ * stops having a price demanded for it while the finance screens keep resolving
+ * one.
+ *
+ * Only removals count, and a rename leaves every path standing. Experience
+ * levels are not asked about here: the guard above already refuses every edit
+ * to the set under a referencing choreography, which is the broader population.
  */
 async function removesOccupiedRegistrationPaths(
   category: typeof categories.$inferSelect,
@@ -227,18 +284,12 @@ async function removesOccupiedRegistrationPaths(
   const removedModalityIds = existingModalityIds
     .map((relation) => relation.modalityId)
     .filter((modalityId) => !input.modalityIds.includes(modalityId));
-  const removedExperienceLevels = category.experienceLevels.filter(
-    (experienceLevel) => !input.experienceLevels.includes(experienceLevel),
-  );
   const removedPaths = [
     removedGroupTypes.length > 0
       ? inArray(choreographies.groupType, removedGroupTypes)
       : null,
     removedModalityIds.length > 0
       ? inArray(choreographies.modalityId, removedModalityIds)
-      : null,
-    removedExperienceLevels.length > 0
-      ? inArray(choreographies.experienceLevelId, removedExperienceLevels)
       : null,
   ].filter((path): path is SQL => path !== null);
 
