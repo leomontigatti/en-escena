@@ -236,7 +236,7 @@ Three inputs used to drift from run to run. All three are pinned now.
 **The Claude Code CLI.** Every workflow that runs an agent installs it the same way:
 
 ```sh
-pnpm add -g --allow-build=@anthropic-ai/claude-code @anthropic-ai/claude-code@stable
+pnpm add -g --global-bin-dir "$PNPM_HOME" --allow-build=@anthropic-ai/claude-code @anthropic-ai/claude-code@stable
 claude --version
 ```
 
@@ -246,8 +246,15 @@ chore that gets skipped, while `stable` lags `latest` by weeks and moves on its 
 CLI's `postinstall`, and `claude` then fails mid-run with "native binary not installed". The
 `claude --version` right after is what turns that into a loud install-time failure; it also
 **logs the resolved version**, so the exact CLI a run used is in the `Install deps + agent
-runner` step of that run's log. pnpm's global bin directory is on `PATH` because
-`pnpm/action-setup` puts it there, in every job.
+runner` step of that run's log.
+
+`--global-bin-dir "$PNPM_HOME"` is not optional either, and not what you would guess:
+`pnpm/action-setup` exports `PNPM_HOME` and puts **that** directory on `PATH`, but pnpm's
+default global bin directory is `$PNPM_HOME/bin`, which is not on it. pnpm refuses a global
+add whose bin directory is off `PATH`, so a bare `pnpm add -g` exits 1 on the runner with
+`The configured global bin directory "…/bin" is not in PATH` before it installs anything.
+Pointing the global bin directory at `$PNPM_HOME` itself is what puts `claude` on `PATH` for
+the install step _and_ for the later runner step, which spawns a bare `claude`.
 
 **The `code-review` skill** (`agent-review.yml` only). Copied per run from the vendored
 `.agents/skills/code-review` **as it stands on `origin/master`** into `~/.claude/skills/`

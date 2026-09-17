@@ -145,7 +145,18 @@ jobs:
           # postinstall, and `claude` then fails at run time with "native binary not
           # installed". `--version` is the guard that turns that into an install-time
           # failure, and it logs the resolved `stable` version for the run.
-          pnpm add -g --allow-build=@anthropic-ai/claude-code @anthropic-ai/claude-code@stable
+          #
+          # `--global-bin-dir "$PNPM_HOME"`: `pnpm/action-setup` puts `$PNPM_HOME` on
+          # PATH but not pnpm's default global bin dir (`$PNPM_HOME/bin`), and pnpm
+          # refuses a global add whose bin dir is not on PATH — a bare `pnpm add -g`
+          # exits 1 here with "The configured global bin directory ... is not in PATH".
+          # Installing into `$PNPM_HOME` itself is what puts `claude` on PATH for this
+          # step *and* for the later runner step, which spawns a bare `claude`.
+          if [ -z "${PNPM_HOME-}" ]; then
+            echo "PNPM_HOME is unset: pnpm/action-setup must run before this step." >&2
+            exit 1
+          fi
+          pnpm add -g --global-bin-dir "$PNPM_HOME" --allow-build=@anthropic-ai/claude-code @anthropic-ai/claude-code@stable
           claude --version
 
       - name: Configure git identity

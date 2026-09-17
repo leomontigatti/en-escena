@@ -8,18 +8,15 @@
 //
 // Never exits non-zero. A timeout, a missing run or a broken `gh` all degrade to
 // `not finished`; nothing here may turn a green branch into a blocked PR.
+//
+// Env: GH_REPO, BRANCH_HEAD_SHA, OUTPUT_DIR.
 
 import { gh } from "../lib/gh.mjs";
-import { CI_RESULTS_FILE } from "./context.mjs";
-import { formatCiBlock, waitForCi } from "./ci-status.mjs";
-
+import { sleepSync } from "../lib/sleep.mjs";
 import { writeOutput } from "../lib/runner.mjs";
 
-/** Block the synchronous poller for `ms` without a busy-loop. */
-function sleepSync(ms: number): void {
-  if (ms <= 0) return;
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
-}
+import { CI_RESULTS_FILE } from "./context.mjs";
+import { formatCiBlock, waitForCi } from "./ci-status.mjs";
 
 const repo = process.env.GH_REPO ?? "";
 const sha = process.env.BRANCH_HEAD_SHA ?? "";

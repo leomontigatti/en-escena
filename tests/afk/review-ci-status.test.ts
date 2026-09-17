@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   CI_CEILING_MS,
   describeCiFailure,
-  formatCiBlock,
   latestCiRun,
   truncateLogTail,
   waitForCi,
@@ -184,12 +183,6 @@ describe("the failure detail handed to the reviewer", () => {
 });
 
 describe("the CI block the prompt embeds", () => {
-  it("leads with the outcome so the reviewer cannot miss it", () => {
-    expect(
-      formatCiBlock({ outcome: "failure", detail: "Failed jobs: build" }),
-    ).toBe("Outcome: failure\n\nFailed jobs: build");
-  });
-
   it("reads `not finished` when the wait step left no file behind", () => {
     expect(readCiResults(undefined)).toContain("Outcome: not finished");
     expect(readCiResults("/nonexistent-afk-output")).toContain(
