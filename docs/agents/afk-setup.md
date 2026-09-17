@@ -76,6 +76,33 @@ so the pass is skipped and the PR is merged or armed for auto-merge (`gh pr merg
 instruction; no workflow merges (spec §3.9). Between merges, a PR that falls behind `master`
 gets `agent:update-branch` from the push-to-master trigger (#1020) instead of from you.
 
+### The one trigger you never apply: `agent:update-branch` ([#1020](https://github.com/leomontigatti/en-escena/issues/1020))
+
+Branch protection requires an up-to-date branch, so every open `agent/*` PR is behind the moment
+the one below it merges. `.github/workflows/agent-label-behind-prs.yml` runs on **`push` to
+`master`** and applies `agent:update-branch` to each of them; `agent-update-branch` then does the
+merge exactly as it does for a label you applied by hand (spec §4.6). Nothing to dispatch, and
+nothing to wait on — the driving session neither runs `gh pr update-branch` nor labels.
+
+What it deliberately leaves alone:
+
+- A PR **not** on an `agent/*` branch.
+- A PR whose base is **not** `master` — one stacked on another `agent/*` branch. This is the
+  intended behaviour, not a gap: such a PR is behind _its own_ base, not behind `master`, and
+  merging `master` into it would be wrong. The cost is that a stacked chain is picked up one link
+  at a time, as each link merges and the next PR's base flips to `master`.
+- A PR carrying **`agent:in-progress`**: a run holds its lock (spec §3.5) and its own push is
+  what settles the branch. If it is still behind afterwards, the next push to `master` labels it.
+- A PR already carrying **`agent:update-branch`**: the previous pass labelled it and the run has
+  not started; re-adding triggers nothing.
+- A PR whose `mergeStateStatus` never resolved. GitHub computes it in a background job that the
+  query itself kicks off, so for the first seconds after a push every PR answers `UNKNOWN`. The
+  workflow re-asks (ten times, six seconds apart) and then gives up **without failing** — an
+  unresolved PR costs only itself, and the next push asks again.
+
+Without `AGENT_PAT` this degrades the usual way (see [Degradation without a PAT](#degradation-without-a-pat)):
+the label lands, `agent-update-branch` does not start on its own, and re-adding it by hand resumes.
+
 ### With the `to-spec` / `to-tickets` skills
 
 These are HITL skills from Matt Pocock's set; they run in your session, not in GHA. They are
@@ -241,6 +268,9 @@ line, and the suppression that #955 had to ship for it is gone.
 **Recorded in spec §3.1** → "Per-workflow permissions matrix" (8 rows, columns `contents` /
 `issues` / `pull-requests`). It is not duplicated here: each workflow (#344+) declares its
 minimum `permissions:` from that table as it is implemented.
+
+The one workflow outside that table is the local `agent-label-behind-prs` (#1020): it writes a
+label and reads nothing else, so it declares `pull-requests: write` and no `contents` at all.
 
 ## What a runner starts from ([#966](https://github.com/leomontigatti/en-escena/issues/966))
 

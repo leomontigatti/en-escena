@@ -64,6 +64,11 @@ Eight workflows. Each gets a full section in [Part 4](#part-4--the-workflows).
 Workflows 2 and 3 share the **same trigger label** (`agent:implement` on an issue) and
 disambiguate by issue _shape_ (does it have sub-issues?). See [§3.2](#32-the-label-state-machine).
 
+One **local addition** sits beside the eight rather than among them: `agent-label-behind-prs.yml`
+(#1020) runs on `push` to `master` and does nothing but apply `agent:update-branch` to the open
+`agent/*` PRs that fell behind, feeding workflow 6. It has no agent and no section of its own —
+it is described where the label it applies is consumed, in [§4.6](#46-update-branch).
+
 ---
 
 ## 2. End-to-end lifecycle
@@ -878,6 +883,22 @@ applied by a human, or (_amended 2026-09-17, built by #1020_) by a small workflo
 `master` that labels every open `agent/*` PR whose merge state is `BEHIND` and that is not
 `agent:in-progress`. Branch protection requires an up-to-date branch, so without that push
 trigger every merge to `master` would leave the other open PRs waiting for a hand.
+
+> **The push trigger** is `.github/workflows/agent-label-behind-prs.yml` — a local addition, no
+> agent and no checkout. It labels and nothing else; everything below stays here, so a
+> human-applied label and a push-applied one take the identical path. What it skips, and why:
+> a PR already carrying `agent:in-progress` (a run holds the lock, §3.5, and its own push is
+> what settles the branch — the next push picks it up if it is still behind), and one already
+> carrying `agent:update-branch` (the pass before labelled it; re-adding triggers nothing).
+> `mergeStateStatus` is computed in the background and reads `UNKNOWN` for the first seconds
+> after a push, so the workflow re-asks — bounded, and a PR whose state never resolves is left
+> for the next push rather than failing the run. The label add takes the §3.4 PAT-or-fallback
+> path: only `AGENT_PAT` starts this workflow.
+> **Its concurrency** is `agent-label-behind-prs`, no cancel — one labelling pass at a time, so
+> two merges landing back to back cannot leave the second push's PRs unlabelled. **Its
+> permissions** are `pull-requests: write` and nothing else: it writes a label and reads no
+> contents.
+
 **Concurrency.** `agent-mutate-pr-${PR_NUMBER}`, no cancel.
 **Permissions.** `contents: write`, `pull-requests: write`.
 
