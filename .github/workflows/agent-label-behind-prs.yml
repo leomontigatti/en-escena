@@ -1,0 +1,127 @@
+# AFK — Label Behind PRs. Feeds Update Branch (spec §4.6).
+#
+# push to `master` → every open `agent/*` PR whose merge state is `BEHIND` gets
+# `agent:update-branch`, which is what starts `agent-update-branch.yml`. Branch
+# protection here is strict, so a stacked PR is behind the moment the one below
+# it merges; without this the label is a hand a human (or a driving session) has
+# to lend per PR, on a decision that needs no judgement (#1020).
+#
+# This workflow only labels. The merge itself, the conflict agent, the push and
+# the comment all stay in Update Branch — one place does the work, whether the
+# label came from a person or from here.
+#
+# No agent, no runner, no checkout: nothing but `gh`.
+
+name: AFK Label Behind PRs
+
+on:
+  push:
+    branches: [master]
+
+concurrency:
+  # One labelling pass at a time, and no cancelling: two merges landing back to
+  # back must not leave the second push's PRs unlabelled because its run was
+  # cancelled, and serialising means the later pass reads state the earlier one
+  # already wrote (the `agent:update-branch` skip below is what uses it).
+  group: agent-label-behind-prs
+  cancel-in-progress: false
+
+permissions:
+  pull-requests: write
+
+jobs:
+  label-behind:
+    # Same-repo guard, the push-trigger form of the one the three
+    # workflows-over-a-PR carry (#635, docs/agents/afk-setup.md). Nothing here
+    # checks out a contributor's tree, but a fork that inherits this workflow
+    # would label its own PRs with `AGENT_PAT` in scope on every push to its
+    # `master`. The labels are this repo's state machine; they mean nothing
+    # there.
+    if: github.event.repository.fork == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_REPO: ${{ github.repository }}
+      BASE_REF: ${{ github.ref_name }}
+      # Mergeability is computed in the background (see below). Ten attempts six
+      # seconds apart is a minute of waiting — enough for a repo this size, and
+      # bounded so a stuck computation cannot hold the job to its timeout.
+      MERGE_STATE_ATTEMPTS: 10
+      MERGE_STATE_DELAY_SECONDS: 6
+    steps:
+      - name: Label every behind agent/* PR
+        env:
+          # Per-command auth (#956): each `gh` call below is handed exactly the
+          # token it needs, and only `gh` ever sees one — there is no checkout
+          # for a credential to be persisted into.
+          AGENT_PAT: ${{ secrets.AGENT_PAT }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          # GitHub computes `mergeStateStatus` lazily, in a background job kicked
+          # off by the query itself. For the first seconds after a push every PR
+          # answers UNKNOWN, and a run that believed that first answer would
+          # label nothing at all — the one moment this workflow exists for. Ask
+          # again until no agent/* PR is UNKNOWN, or the attempts run out.
+          attempt=1
+          while :; do
+            prs=$(GH_TOKEN="$GITHUB_TOKEN" gh pr list --state open --base "$BASE_REF" --limit 100 \
+              --json number,headRefName,mergeStateStatus,labels)
+            agent_prs=$(printf '%s' "$prs" | jq '[.[] | select(.headRefName | startswith("agent/"))]')
+            unknown=$(printf '%s' "$agent_prs" | jq '[.[] | select(.mergeStateStatus == "UNKNOWN")] | length')
+            if [ "$unknown" -eq 0 ] || [ "$attempt" -ge "$MERGE_STATE_ATTEMPTS" ]; then
+              break
+            fi
+            echo "$unknown agent/* PR(s) still report UNKNOWN mergeability; retrying ($attempt/$MERGE_STATE_ATTEMPTS)."
+            sleep "$MERGE_STATE_DELAY_SECONDS"
+            attempt=$((attempt + 1))
+          done
+
+          # Never fail the job over this: an unresolved PR is simply not labelled,
+          # and the next push to $BASE_REF asks again.
+          if [ "$unknown" -gt 0 ]; then
+            echo "Gave up on $unknown PR(s) whose mergeability never resolved; the next push retries them."
+          fi
+
+          # BEHIND is the only state this acts on. CONFLICTING is Update Branch's
+          # agent path, but it is reached by a human reading the conflict, not by
+          # a push; BLOCKED/UNSTABLE/CLEAN are all up to date with the base.
+          #
+          # `agent:in-progress` means a run holds the PR's lock (§3.5) — its merge
+          # is in flight and its own push is what settles the branch. Skipped, and
+          # picked up on the next push if it is still behind afterwards.
+          # `agent:update-branch` already present means the previous pass labelled
+          # it and the run has not started yet: re-adding is a no-op that would
+          # not re-trigger anything anyway.
+          behind=$(printf '%s' "$agent_prs" | jq -r '
+            .[]
+            | select(.mergeStateStatus == "BEHIND")
+            | select([.labels[].name] | index("agent:in-progress") == null)
+            | select([.labels[].name] | index("agent:update-branch") == null)
+            | .number')
+
+          if [ -z "$behind" ]; then
+            echo "No open agent/* PR is behind $BASE_REF."
+            exit 0
+          fi
+
+          for pr in $behind; do
+            # PAT-or-fallback (§3.4): a label added with `github.token` does not
+            # start another workflow, so only AGENT_PAT actually wakes Update
+            # Branch. Without it the label still lands and a human starts the run.
+            set +e
+            labeled=1
+            if [ -n "${AGENT_PAT:-}" ]; then
+              GH_TOKEN="$AGENT_PAT" gh pr edit "$pr" --add-label "agent:update-branch"
+              labeled=$?
+              if [ "$labeled" -ne 0 ]; then
+                echo "AGENT_PAT label add failed for #$pr; falling back (Update Branch won't auto-start)."
+              fi
+            fi
+            if [ "$labeled" -ne 0 ]; then
+              GH_TOKEN="$GITHUB_TOKEN" gh pr edit "$pr" --add-label "agent:update-branch"
+            fi
+            set -e
+            echo "Labeled #$pr agent:update-branch (behind $BASE_REF)."
+          done
