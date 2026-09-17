@@ -1145,6 +1145,75 @@ describe.sequential("`/administracion/bailarines` route", () => {
     });
   });
 
+  test("refuses a birth date correction that leaves a linked choreography without a category", async () => {
+    const event = await createSavedEvent();
+    const academy = await createAcademyUser({
+      email: "admin.sincategoria.bailarines.academia@example.com",
+      academyName: "Academia Sin Categoría",
+      contactName: "Sara Sin",
+      phone: "1414-1414",
+    });
+    const dancer = await createDancer({
+      academyId: academy.academy.id,
+      firstName: "Nina",
+      lastName: "Sin",
+      birthDate: "2014-05-01",
+    });
+    const catalog = await createAdministrativeCorrectionCatalog(event.id, {
+      olderCategoryKeepsLevel: false,
+    });
+    const choreography = await createAdministrativeLinkedChoreography({
+      eventId: event.id,
+      academyId: academy.academy.id,
+      categoryId: catalog.youngerCategory.id,
+      choreographyName: "Sin repuesto",
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+    });
+    await db.insert(choreographyDancers).values({
+      choreographyId: choreography.id,
+      dancerId: dancer.id,
+      ageAtEventStart: 12,
+    });
+    const { request } = await createSignedInRequest({
+      email: "admin.sincategoria.bailarines@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}&modo=editar`,
+    });
+
+    const result = await detailAction(
+      detailActionArgs(
+        createPostRequest(request.url, request.headers.get("cookie") ?? "", {
+          intent: "update-dancer",
+          firstName: "Nina",
+          lastName: "Sin",
+          birthDate: "1995-05-01",
+          documentType: "",
+          documentNumber: "",
+        }),
+        dancer.id,
+      ),
+    );
+
+    expect(result).toMatchObject({
+      status: "error",
+      fieldErrors: {
+        birthDate: `Con esta fecha de nacimiento, la coreografía n.º ${choreography.choreographyNumber} «Sin repuesto» queda sin categoría.`,
+      },
+    });
+    await expectPersistedDancer(dancer.id, { birthDate: "2014-05-01" });
+    await expect(
+      db.query.choreographies.findFirst({
+        columns: { categoryId: true, categoryAgeBasis: true },
+        where: eq(choreographies.id, choreography.id),
+      }),
+    ).resolves.toMatchObject({
+      categoryId: catalog.youngerCategory.id,
+      categoryAgeBasis: 12,
+    });
+  });
+
   test("leaves persisted choreography data unchanged when a birth date correction does not move the competitive placement", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({

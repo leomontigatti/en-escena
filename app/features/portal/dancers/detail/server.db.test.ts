@@ -232,6 +232,96 @@ describe.sequential("handlePortalDancerDetailAction", () => {
     });
   });
 
+  test("refuses a birth date correction that leaves a linked choreography without a category", async () => {
+    const session = await createAcademySession({
+      email: "bailarines.birthdate.refusal@example.com",
+      academyName: "Academia Sin Categoría",
+    });
+    const event = await createSavedEvent({
+      name: "Regional Sin Categoría",
+      startsAt: date("2026-05-01T12:00:00Z"),
+      endsAt: date("2026-05-03T12:00:00Z"),
+    });
+    const modality = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
+    const level = fixedExperienceLevel(event.id);
+    const youngerCategory = await expectCreated(
+      createCategory(event.id, {
+        name: "Menor",
+        minAge: 8,
+        maxAge: 12,
+        groupTypes: ["solo"],
+        modalityIds: [modality.id],
+        experienceLevels: [level.id],
+      }),
+    );
+    const [dancer] = await db
+      .insert(dancers)
+      .values({
+        academyId: session.academyId,
+        firstName: "Ana",
+        lastName: "Sin",
+        birthDate: "2014-05-01",
+      })
+      .returning();
+    const choreographyNumber = await allocateChoreographyNumberForTest(
+      event.id,
+    );
+    const [choreography] = await db
+      .insert(choreographies)
+      .values({
+        choreographyNumber,
+        academyId: session.academyId,
+        eventId: event.id,
+        name: "Solo sin repuesto",
+        groupType: "solo",
+        modalityId: modality.id,
+        categoryId: youngerCategory.id,
+        categoryCalculationMode: "oldest",
+        categoryAgeBasis: 12,
+        experienceLevelId: level.id,
+      })
+      .returning();
+    await db.insert(choreographyDancers).values({
+      choreographyId: choreography.id,
+      dancerId: dancer.id,
+      ageAtEventStart: 12,
+    });
+
+    const result = await handlePortalDancerDetailAction({
+      request: createPortalPostRequest(
+        `http://localhost/portal/bailarines/${dancer.id}`,
+        session.cookie,
+        dancerEditFormData({
+          firstName: "Ana",
+          lastName: "Sin",
+          birthDate: "1995-05-01",
+          documentType: "",
+          documentNumber: "",
+        }),
+      ),
+      params: { dancerId: dancer.id },
+    });
+
+    expect(result).toMatchObject({
+      status: "error",
+      fieldErrors: {
+        birthDate: `Con esta fecha de nacimiento, la coreografía n.º ${choreographyNumber} «Solo sin repuesto» queda sin categoría.`,
+      },
+    });
+    await expectPersistedDancer(dancer.id, { birthDate: "2014-05-01" });
+    await expect(
+      db.query.choreographies.findFirst({
+        columns: { categoryId: true, categoryAgeBasis: true },
+        where: eq(choreographies.id, choreography.id),
+      }),
+    ).resolves.toMatchObject({
+      categoryId: youngerCategory.id,
+      categoryAgeBasis: 12,
+    });
+  });
+
   test("uploads dancer document images and stores their canonical keys", async () => {
     const session = await createAcademySession({
       email: "bailarines.imagenes@example.com",

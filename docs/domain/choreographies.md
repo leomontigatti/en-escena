@@ -22,6 +22,7 @@ Rules for roster links, choreography registration, locks and `Bases del evento`.
 - Dancer verification does not block participation and does not affect choreography operational state.
 - Academy cannot edit identity data or document images after a dancer is verified; later corrections are administrative.
 - Correcting dancer birth date can recalculate categories for signed or paid choreographies while their presentation is still pending; it does not change financial state.
+- A birth-date correction is refused when it would leave a linked choreography without a category: nothing is written, and the message names each choreography by number and name.
 
 ### `Estado de alta` for roster people
 
@@ -200,6 +201,6 @@ Rules for roster links, choreography registration, locks and `Bases del evento`.
 - Category ranges cannot overlap for the same group type and modality.
 - Solo, duo and trio use oldest dancer age.
 - Grupal allows up to 20% older dancers; above that, it uses average age.
-- Category calculation returns one category or leaves choreography unassigned.
+- Category calculation returns one category or refuses the write.
 - If recalculation changes category and new category has levels, choreography becomes incomplete until academy chooses level.
 - `Nivel de experiencia` is selected only when calculated category has levels.
