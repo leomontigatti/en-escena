@@ -1,6 +1,8 @@
 # CI pipeline — implements the decision in #305 (full charter of the workflow).
 # PR-only: issue -> branch -> PR -> merge. Four gates, all meant to be required:
-#   - checks   : lint / typecheck / non-DB tests / build, with no database (@/db is lazy, #308).
+#   - checks   : secrets scan / lint / typecheck / non-DB tests / build, with no
+#                database (@/db is lazy, #308). The secrets scan is gitleaks over the
+#                PR's own commits (#978); `.husky/pre-commit` is its local half.
 #   - db-gate  : full `*.db.test.ts` suite against real Postgres 17 (mirrors production),
 #                split across the `db-shard` matrix (#962). Each shard is a runner with its
 #                own Postgres service, so no shard shares a database with another and the
@@ -42,6 +44,34 @@ jobs:
           # nor the history to attribute against.
           fetch-depth: 0
           persist-credentials: false
+      # Secrets gate (#978), first because nothing else matters if the branch
+      # carries a credential. The rules are in `.gitleaks.toml`, which gitleaks
+      # picks up from the repository root; `.husky/pre-commit` runs the same scan
+      # over the staged diff, warning instead of failing when the binary is absent.
+      # Here it is blocking, and the binary is pinned the same way actionlint is in
+      # `actions-gate` — an exactly-pinned release fetched inline, no Marketplace
+      # action to keep fresh — but by checksum as well as by version, because there
+      # is no official install script to delegate that to. Not `gitleaks-action`,
+      # which would open a second PR-comment channel next to the job log.
+      # Scope is `origin/master..HEAD`: the PR's own commits. History before the
+      # merge base is master's problem, and rescanning it on every PR would turn
+      # any pre-existing finding into a permanently red gate.
+      - name: gitleaks (secrets in this PR's commits)
+        env:
+          # Bumping this means bumping the checksum with it: the two are one pin.
+          # `gitleaks_<version>_checksums.txt` on the release page is the source.
+          GITLEAKS_VERSION: 8.30.1
+          GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/gitleaks.tar.gz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  /tmp/gitleaks.tar.gz" | sha256sum --check --strict -
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          # `fetch-depth: 0` brings the history but not necessarily the
+          # `origin/master` remote-tracking ref the log range is written against.
+          git fetch --no-tags origin +refs/heads/master:refs/remotes/origin/master
+          /tmp/gitleaks git --no-banner --redact --verbose --log-opts="origin/master..HEAD"
       # The pnpm version comes from the `packageManager` field (pnpm 11.9.0)
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
