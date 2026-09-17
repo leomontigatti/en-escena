@@ -97,6 +97,7 @@ jobs:
         with:
           ref: master
           fetch-depth: 1
+          persist-credentials: false
 
       - name: Setup pnpm
         if: steps.preflight.outputs.proceed == 'true'

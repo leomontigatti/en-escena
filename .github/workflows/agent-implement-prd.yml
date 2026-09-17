@@ -169,8 +169,10 @@ jobs:
         with:
           ref: master
           fetch-depth: 0
-          # PAT lets the later push include any .github/workflows/** changes.
-          token: ${{ secrets.AGENT_PAT || github.token }}
+          # No credential in `.git/config`: the agent session reads issue text and
+          # runs `pnpm install` scripts, so nothing it can reach may hold a token
+          # (#956). The push steps authenticate per command instead.
+          persist-credentials: false
 
       - name: Compute branch and resume-or-create it
         id: branch
@@ -183,13 +185,26 @@ jobs:
             | cut -c1-50 | sed -E 's/-+$//')
           branch="agent/prd-${ISSUE_NUMBER}-${slug}"
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
-          git fetch origin "$branch" || true
-          if git rev-parse --verify "origin/$branch" >/dev/null 2>&1; then
-            # Resume: the branch accumulates commits across sub-issue runs.
-            git checkout -B "$branch" "origin/$branch"
-          else
-            git checkout -b "$branch"
-          fi
+          # Anonymous: the checkout persisted no credential (#956), and this
+          # repo is public, so reading `origin` needs none. Ask the remote
+          # whether the branch exists instead of fetching and swallowing the
+          # error: a fetch that fails for any other reason (network, a repo
+          # gone private) must fail the run, not restart the PRD from master
+          # as if the shared branch had never existed.
+          exists=0
+          git ls-remote --exit-code --heads origin "$branch" >/dev/null || exists=$?
+          case "$exists" in
+            0)
+              # Resume: the branch accumulates commits across sub-issue runs.
+              git fetch origin "$branch"
+              git checkout -B "$branch" "origin/$branch"
+              ;;
+            2) git checkout -b "$branch" ;;
+            *)
+              echo "Could not read origin to look for $branch (exit $exists)." >&2
+              exit "$exists"
+              ;;
+          esac
 
       - name: Setup pnpm
         if: steps.preflight.outputs.proceed == 'true'
@@ -210,8 +225,16 @@ jobs:
       - name: Configure git identity
         if: steps.preflight.outputs.proceed == 'true'
         run: |
+          set -euo pipefail
           git config user.name "claude-code[bot]"
           git config user.email "claude-code[bot]@users.noreply.github.com"
+          # The agent session starts after this step: nothing may have stored a
+          # credential in the tree (#956). `persist-credentials: false` on the
+          # checkout is what makes this hold; the assertion keeps it honest.
+          if git config --get-all http.https://github.com/.extraheader >/dev/null; then
+            echo "A credential is persisted in .git/config; refusing to start the agent." >&2
+            exit 1
+          fi
 
       - name: Run implement-prd runner
         if: steps.preflight.outputs.proceed == 'true'
@@ -240,6 +263,10 @@ jobs:
         if: failure() && steps.preflight.outputs.proceed != 'false'
         env:
           BRANCH: ${{ steps.branch.outputs.branch }}
+          # Explicit push credential, `AGENT_PAT` first so pushes that touch
+          # `.github/workflows/**` carry the `workflow` scope, `github.token`
+          # as the no-PAT fallback (docs/agents/afk-setup.md).
+          PUSH_TOKEN: ${{ secrets.AGENT_PAT || github.token }}
         run: |
           set -euo pipefail
           # A crashed preflight (not a refusal) reaches here with no checkout on
@@ -259,7 +286,13 @@ jobs:
             echo "No new commits to bank."
             exit 0
           fi
-          git push origin "$BRANCH"
+          # Per-command auth (#956): the checkout persisted nothing, so this is the
+          # one place a push credential exists — and only for this command.
+          auth=$(printf 'x-access-token:%s' "$PUSH_TOKEN" | base64 -w0)
+          # `actions/checkout` masks the header it builds; this one is ours to mask.
+          echo "::add-mask::$auth"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" \
+            push origin "$BRANCH"
           echo "Banked $new new commit(s) to $BRANCH."
           echo "BANKED_BRANCH=$BRANCH" >> "$GITHUB_ENV"
 
@@ -269,7 +302,19 @@ jobs:
         if: steps.preflight.outputs.proceed == 'true'
         env:
           BRANCH: ${{ steps.branch.outputs.branch }}
-        run: git push origin "$BRANCH"
+          # Explicit push credential, `AGENT_PAT` first so pushes that touch
+          # `.github/workflows/**` carry the `workflow` scope, `github.token`
+          # as the no-PAT fallback (docs/agents/afk-setup.md).
+          PUSH_TOKEN: ${{ secrets.AGENT_PAT || github.token }}
+        run: |
+          set -euo pipefail
+          # Per-command auth (#956): the checkout persisted nothing, so this is the
+          # one place a push credential exists — and only for this command.
+          auth=$(printf 'x-access-token:%s' "$PUSH_TOKEN" | base64 -w0)
+          # `actions/checkout` masks the header it builds; this one is ours to mask.
+          echo "::add-mask::$auth"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" \
+            push origin "$BRANCH"
 
       # Mark, do not close: the commit is on the shared branch, not on `master`.
       # The comment keeps the sub-issue → commit trail and is what the next run
