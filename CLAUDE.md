@@ -10,6 +10,9 @@ Index of the repo's conventions. Every operative rule lives in its own file unde
   than after it fails.** `pnpm lint` is oxlint with three rules (hook mistakes and
   import cycles) and is not a style checker; formatting is Prettier's, unused code
   is `tsc`'s, and repo conventions belong to the `check:*` scripts.
+- **Branches, worktrees and T3 Code threads** (each thread works in its own T3
+  worktree, `agent/` branches are reserved for GHA, link every PR to the thread):
+  see the section of the same name in [docs/agents/workflows.md](docs/agents/workflows.md).
 - **Investigate before implementing**: see the section of the same name in
   [docs/agents/workflows.md](docs/agents/workflows.md).
 - **Coding standards**: [.sandcastle/CODING_STANDARDS.md](.sandcastle/CODING_STANDARDS.md)

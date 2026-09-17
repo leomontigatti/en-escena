@@ -69,6 +69,46 @@ Recommended final validation after code changes:
 6. `pnpm build` when the change touches routing, server rendering, bundling,
    CSS, or deployment behavior
 
+## Branches, worktrees and T3 Code threads
+
+Local sessions run inside [T3 Code](https://github.com/pingdotgg/t3code). Every
+T3 thread gets its own git worktree and branch: `t3.json` at the repo root sets
+`defaultThreadEnvMode` to `worktree`, and its `runOnWorktreeCreate` script links
+`.env` from the main checkout, installs and generates route types before the
+agent starts. The main checkout stays on `master` and is nobody's working
+directory.
+
+Rules for a session:
+
+- **Work where you started.** The thread's worktree is the working directory.
+  Never `git checkout` or `git switch` in the main checkout, and never create a
+  worktree of your own (`git worktree add`, Claude's `EnterWorktree`): T3 only
+  tracks the branch and pull request of the worktree it created, so a private
+  worktree loses the PR badge and the automatic settling of the thread.
+- **Branch prefixes.** T3 names the worktree's branch when it creates the
+  thread; when a session renames it or creates one, human-driven work uses
+  `feat/`, `fix/`, `docs/`, `chore/`, `refactor/`, `research/` or
+  `prototype/`. The `agent/` prefix is
+  reserved for the AFK workflows on GitHub Actions (`agent/issue-<n>-<slug>`,
+  `agent/prd-<n>-<slug>`, spec §3.9); a local session never creates one.
+- **One thread, one branch, one PR.** After `gh pr create`, register the PR with
+  the thread through the `link_pull_request` tool so T3 shows its status and
+  settles the thread when it merges. To keep working on an existing PR, start
+  the thread on that branch (or link the PR) instead of checking it out in
+  another worktree.
+- **Read-only threads** (writing issues, triage, reviewing a PR without editing
+  code) can be started with the "local" workspace mode to skip the install; they
+  must not change branches.
+- **Leaving a worktree behind is fine; abandoning a branch is not.** Push the
+  branch or delete it. Remove stale worktrees with `git worktree remove <path>`
+  and confirm with `git worktree list`; the `/tmp/fallow-audit-base-cache-*`
+  entries are caches `pnpm check:fallow` recreates on demand and can be removed
+  at any time.
+
+The Automatically pull option in T3's Source Control settings keeps the main
+checkout's `master` current. It only runs when that checkout is clean and on
+`master`, which the rules above guarantee.
+
 ## Continuous integration
 
 `.github/workflows/ci.yml` runs on every PR to `master`, as three required
