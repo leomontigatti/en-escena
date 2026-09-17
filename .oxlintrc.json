@@ -1,7 +1,12 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "categories": { "correctness": "off" },
-  "plugins": ["react", "import"],
+  "categories": {
+    "correctness": "off"
+  },
+  "plugins": ["react", "import", "typescript"],
+  "options": {
+    "typeAware": true
+  },
   "ignorePatterns": [
     "build/**",
     ".react-router/**",
@@ -11,7 +16,16 @@
   "rules": {
     "react-hooks/rules-of-hooks": "error",
     "react-hooks/exhaustive-deps": "error",
-    "import/no-cycle": "error"
+    "import/no-cycle": "error",
+    "typescript/no-floating-promises": "error",
+    "typescript/no-misused-promises": [
+      "error",
+      {
+        "checksVoidReturn": {
+          "attributes": false
+        }
+      }
+    ]
   },
   "overrides": [
     {

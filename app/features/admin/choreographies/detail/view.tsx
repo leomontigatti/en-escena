@@ -183,7 +183,7 @@ function ChoreographyDetailForm({
       formData.set("scheduleCapacityId", values.scheduleCapacityId);
     }
 
-    submit(formData, { method: "post" });
+    void submit(formData, { method: "post" });
   });
 
   return (
@@ -204,7 +204,7 @@ function ChoreographyDetailForm({
           // their own: the confirmation dialog enumerates roster consequences
           // neither of them has.
           if (pendingSave === "modality") {
-            modality.save();
+            void modality.save();
             return;
           }
 

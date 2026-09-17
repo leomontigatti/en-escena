@@ -124,7 +124,7 @@ export function useRosterForm({
       formData.append("dancerIds", dancerId);
     }
 
-    resolutionFetcher.submit(formData, { method: "post" });
+    void resolutionFetcher.submit(formData, { method: "post" });
     submittedSelectionKeyRef.current = selectionKey;
   }, [
     canEditRoster,
