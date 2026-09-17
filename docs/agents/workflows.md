@@ -183,7 +183,11 @@ All of it is a manual edit; nothing here opens update PRs.
 1. `pinact run --update` rewrites every `uses:` in `.github/workflows/` to the
    newest release of that action, SHA plus a `# vN` comment.
 2. Bump `zizmor==<version>` and the two actionlint version strings in the
-   `actions-gate` job by hand.
+   `actions-gate` job by hand, and `GITLEAKS_VERSION` **together with**
+   `GITLEAKS_SHA256` in the `checks` job — the two are one pin, and the
+   checksum comes from `gitleaks_<version>_checksums.txt` on the release page.
+   The install snippet under "Hook guidance" names the same version; bump it too
+   so a local install keeps matching CI.
 3. `pnpm format` (Prettier owns the YAML), then push and read the gate. Its
    online audits are the confirmation step: they are what tells you a rewritten
    pin really points at the tag its comment names, which is something you cannot
@@ -244,10 +248,36 @@ Hook guidance:
 
 - Keep pre-commit hooks fast and deterministic. Formatting staged files through
   `lint-staged` is appropriate.
-- The pre-commit hook runs `lint-staged`, `pnpm check:comment-language`,
-  `pnpm typecheck`, `pnpm check:file-tokens` and `pnpm check:fallow`. Treat that
-  as the minimum commit gate, not as the only validation path for agent work.
-  Hooks can be skipped and may not run in every environment.
+- The pre-commit hook runs `gitleaks git --pre-commit --staged`, `lint-staged`,
+  `pnpm check:comment-language`, `pnpm typecheck`, `pnpm check:file-tokens` and
+  `pnpm check:fallow`. Treat that as the minimum commit gate, not as the only
+  validation path for agent work. Hooks can be skipped and may not run in every
+  environment.
+- The gitleaks line is the secrets gate (#978) and runs first: nothing else
+  matters if the commit carries a credential. It reads `.gitleaks.toml` (the
+  upstream ruleset plus three rules for what this repo can leak and the default
+  set misses — passwords inside connection URLs, Resend `re_` keys and
+  Backblaze `K00` application keys), costs about a second, and **warns instead of
+  failing when the binary is not on `PATH`**:
+  `gitleaks not installed, secret scan skipped; CI still runs it`. gitleaks is
+  not a pnpm dependency, so that is the normal state of a fresh clone and of the
+  AFK runners, which hold only tokens GitHub push protection already blocks.
+  Installing it locally is optional but recommended; pin the version CI uses
+  (8.30.1), for example:
+
+  ```sh
+  curl -fsSL -o /tmp/gitleaks.tar.gz \
+    https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
+  tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks && sudo mv /tmp/gitleaks /usr/local/bin/
+  ```
+
+  macOS: `brew install gitleaks`, which tracks the latest release rather than the
+  pin — close enough locally, since CI's pinned copy is the one that decides.
+  The blocking half is the `gitleaks` step in the `checks` job, which downloads a
+  checksum-verified 8.30.1 and scans `origin/master..HEAD`. Bumping it is a manual
+  edit, and the procedure is the one in ["Bumping the pins"](#bumping-the-pins)
+  above, alongside zizmor and actionlint.
+
 - `pnpm check:comment-language` fails on Spanish prose in a comment or a test
   name anywhere under `.sandcastle/`, `app/`, `scripts/` or `tests/`, plus the
   repo-root configs (#592), and on Spanish in the `.md` under `.claude/`,
