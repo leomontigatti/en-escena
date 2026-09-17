@@ -66,7 +66,7 @@ Rules for roster links, choreography registration, locks and `Bases del evento`.
 - `Coreografía` belongs to one academy and one event; it is not reusable between events.
 - It is registered with modality, dancers, calculated group type, category, optional experience level and schedule capacity.
 - It can be created without professors, but needs at least one linked professor to be operationally complete.
-- It can be confirmed without category when no category rule applies; then it is operationally incomplete.
+- It is never confirmed without category: when no category of the modality covers the dancers' ages for the calculated group type, registration is refused and nothing is created.
 - Academy cannot delete a Choreography after registration; removal is an administrative action.
 - An administrator can delete a choreography only when it has no presentation and no scores.
 - An administrator can rename a choreography at any time, including when it has presentation or scores.
@@ -128,7 +128,6 @@ Rules for roster links, choreography registration, locks and `Bases del evento`.
 - Looking up available schedule capacities does not reserve capacity.
 - Schedule resolution prefers a schedule capacity for the calculated group type. If a compatible schedule has no specific capacity for that group type, the schedule total capacity is a global fallback option.
 - Submodality step exists only when selected modality has submodalities.
-- If no category is assigned, level step is skipped and level remains empty until recalculation.
 - If category requires level, registration cannot advance or confirm until academy chooses one.
 - Professors are selected after schedule and level, before summary; empty professors are allowed and make choreography incomplete.
 - Registration summary shows operational data only, not price or financial info.
