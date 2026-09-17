@@ -4,7 +4,10 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, test } from "vitest";
 
-import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
+import {
+  choreographyNotFoundMessage,
+  getNoCompatibleCategoryRegistrationMessage,
+} from "@/lib/choreographies/choreography-messages";
 
 const currentFilePath = fileURLToPath(import.meta.url);
 const repositoryRoot = path.resolve(path.dirname(currentFilePath), "../../../");
@@ -53,6 +56,34 @@ describe("choreography messages", () => {
       "No encontramos esa coreografía dentro de la lista financiera de la academia.";
 
     expect(containsNotFoundCopy(financeListCopy)).toBe(false);
+  });
+});
+
+describe("no compatible category registration message", () => {
+  test("names the modality the academy chose", () => {
+    expect(
+      getNoCompatibleCategoryRegistrationMessage({
+        modalityName: "Jazz",
+        groupType: "solo",
+      }),
+    ).toBe(
+      "No hay una categoría de Jazz para Solo con las edades de estos bailarines. Revisá los bailarines o la modalidad.",
+    );
+  });
+
+  // The name is read from a list the modality is guaranteed to be in, so this
+  // is the fallback for a lookup that came back empty: the sentence has to
+  // survive it rather than render "una categoría de  para …".
+  test("drops the modality clause instead of leaving a hole in the sentence", () => {
+    const message = getNoCompatibleCategoryRegistrationMessage({
+      modalityName: null,
+      groupType: "solo",
+    });
+
+    expect(message).toBe(
+      "No hay una categoría para Solo con las edades de estos bailarines. Revisá los bailarines o la modalidad.",
+    );
+    expect(message).not.toContain("  ");
   });
 });
 

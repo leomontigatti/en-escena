@@ -72,7 +72,7 @@ export function useCreateChoreographyDialog({
   const selectedModalityName =
     baseOptions.modalities.find(
       (modality) => modality.id === selectedModalityId,
-    )?.name ?? "";
+    )?.name ?? null;
   const selectedSubmodalities = useMemo(
     () =>
       baseOptions.submodalities.filter(

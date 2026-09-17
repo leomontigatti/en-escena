@@ -56,20 +56,12 @@ export type DancerBirthDateCorrectionChoreography = {
   name: string;
 };
 
-/**
- * The correction reports no warning today: leaving a required experience level
- * empty is a documented, legitimate outcome (#694 adds the message). The result
- * carries the array so that adding one later needs no signature change.
- */
-export type DancerBirthDateCorrectionWarning = never;
-
 export type DancerBirthDateCorrectionResult =
-  | { ok: true; warnings: DancerBirthDateCorrectionWarning[] }
+  | { ok: true }
   | {
       ok: false;
       code: "no-compatible-category";
       choreographiesWithoutCategory: DancerBirthDateCorrectionChoreography[];
-      warnings: DancerBirthDateCorrectionWarning[];
     };
 
 type ChoreographyCorrectionWrite = {
@@ -90,7 +82,7 @@ export async function recalculateLinkedChoreographiesForDancerBirthDateCorrectio
   );
 
   if (eligibleChoreographies.length === 0) {
-    return { ok: true, warnings: [] };
+    return { ok: true };
   }
 
   const choreographyIds = eligibleChoreographies.map(
@@ -192,7 +184,6 @@ export async function recalculateLinkedChoreographiesForDancerBirthDateCorrectio
       ok: false,
       code: "no-compatible-category",
       choreographiesWithoutCategory,
-      warnings: [],
     };
   }
 
@@ -215,24 +206,68 @@ export async function recalculateLinkedChoreographiesForDancerBirthDateCorrectio
       .where(eq(choreographies.id, write.choreography.choreographyId));
   }
 
-  return { ok: true, warnings: [] };
+  return { ok: true };
 }
 
 /**
- * Thrown by a caller inside its own transaction, so that the dancer row rolls
- * back together with the recalculation. Both dancer forms catch it and surface
- * the message on the birth date field.
+ * A refusal raised from inside a dancer-write transaction. Returning a failure
+ * from a Drizzle transaction callback **commits**, so the dancer row would keep
+ * the birth date that leaves a choreography without a category. Throwing rolls
+ * both back; `runDancerWriteWithBirthDateCorrection` turns it back into the
+ * structured failure the forms expect.
+ *
+ * Deliberately not named `…Error`: it carries a user's refusal, not engineering
+ * prose. See the `CobroRefusal` precedent in
+ * `.sandcastle/CODING_STANDARDS.md`.
  */
-export class DancerBirthDateCorrectionRefusalError extends Error {
-  constructor(
-    choreographiesWithoutCategory: DancerBirthDateCorrectionChoreography[],
-  ) {
-    super(
+class DancerBirthDateCorrectionRefusal extends Error {
+  constructor(readonly reason: string) {
+    super(reason);
+    this.name = "DancerBirthDateCorrectionRefusal";
+  }
+}
+
+/**
+ * The recalculation as a transaction step: it either applies, or aborts the
+ * transaction with the refusal the runner below catches. Both dancer forms go
+ * through this pair rather than each deciding how a refusal crosses the
+ * transaction boundary.
+ */
+export async function applyDancerBirthDateCorrection(input: {
+  dancerId: string;
+  executor: QueryExecutor;
+  eventBasesByEventId?: Map<string, EventBases>;
+}): Promise<void> {
+  const recalculation =
+    await recalculateLinkedChoreographiesForDancerBirthDateCorrection(input);
+
+  if (!recalculation.ok) {
+    throw new DancerBirthDateCorrectionRefusal(
       buildDancerBirthDateCorrectionRefusalMessage(
-        choreographiesWithoutCategory,
+        recalculation.choreographiesWithoutCategory,
       ),
     );
-    this.name = "DancerBirthDateCorrectionRefusalError";
+  }
+}
+
+/**
+ * Runs a dancer write whose transaction may refuse a birth-date correction.
+ * The refusal comes back as the sentence for the `birthDate` field, leaving
+ * each form to word its own summary; anything else keeps propagating.
+ */
+export async function runDancerWriteWithBirthDateCorrection<TDancer>(
+  write: (executor: DatabaseExecutor) => Promise<TDancer>,
+): Promise<
+  { ok: true; dancer: TDancer } | { ok: false; birthDateMessage: string }
+> {
+  try {
+    return { ok: true, dancer: await db.transaction(write) };
+  } catch (error) {
+    if (error instanceof DancerBirthDateCorrectionRefusal) {
+      return { ok: false, birthDateMessage: error.reason };
+    }
+
+    throw error;
   }
 }
 

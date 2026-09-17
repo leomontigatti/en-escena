@@ -170,7 +170,7 @@ export function canAdvanceFromScheduleStep(input: {
  */
 export function resolveRegistrationCategory(input: {
   resolution: RegistrationResolution;
-  modalityName: string;
+  modalityName: string | null;
 }):
   | { refused: true; message: string }
   | { refused: false; resolution: ResolvedRegistrationResolution } {

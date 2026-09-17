@@ -14,9 +14,9 @@ import {
   type DancerNameInput,
 } from "@/lib/dancers/dancer-records.server";
 import {
-  DancerBirthDateCorrectionRefusalError,
+  applyDancerBirthDateCorrection,
   loadLinkedChoreographyEventBasesForDancerBirthDateCorrection,
-  recalculateLinkedChoreographiesForDancerBirthDateCorrection,
+  runDancerWriteWithBirthDateCorrection,
 } from "@/lib/choreographies/dancer-birthdate-correction.server";
 import { buildDancerEventParticipationSql } from "@/lib/participation/participation.server";
 import { activeRosterPerson } from "@/lib/roster/roster-person-status.server";
@@ -190,62 +190,49 @@ export async function updateDancerForAcademy(
         dancerId: dancer.id,
       })
     : undefined;
-  let updatedDancer;
+  // The dancer update and the recalculation share one transaction, so a
+  // correction that leaves a choreography without a category rolls the dancer
+  // row back as well.
+  const write = await runDancerWriteWithBirthDateCorrection(async (tx) => {
+    const [savedDancer] = await tx
+      .update(dancers)
+      .set({
+        firstName: validation.input.firstName,
+        lastName: validation.input.lastName,
+        birthDate: validation.input.birthDate,
+        documentType: validation.input.documentType,
+        documentNumber: validation.input.documentNumber,
+        documentFrontImageStorageKey:
+          validation.input.documentFrontImageStorageKey,
+        documentBackImageStorageKey:
+          validation.input.documentBackImageStorageKey,
+        identityVerifiedAt: null,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(dancers.id, dancerId), eq(dancers.academyId, academyId)))
+      .returning();
 
-  try {
-    updatedDancer = await db.transaction(async (tx) => {
-      const [savedDancer] = await tx
-        .update(dancers)
-        .set({
-          firstName: validation.input.firstName,
-          lastName: validation.input.lastName,
-          birthDate: validation.input.birthDate,
-          documentType: validation.input.documentType,
-          documentNumber: validation.input.documentNumber,
-          documentFrontImageStorageKey:
-            validation.input.documentFrontImageStorageKey,
-          documentBackImageStorageKey:
-            validation.input.documentBackImageStorageKey,
-          identityVerifiedAt: null,
-          updatedAt: new Date(),
-        })
-        .where(and(eq(dancers.id, dancerId), eq(dancers.academyId, academyId)))
-        .returning();
-
-      if (birthDateChanged) {
-        const recalculation =
-          await recalculateLinkedChoreographiesForDancerBirthDateCorrection({
-            dancerId: dancer.id,
-            executor: tx,
-            eventBasesByEventId: linkedChoreographyEventBases,
-          });
-
-        // The dancer update and the recalculation share one transaction, so a
-        // correction that leaves a choreography without a category rolls the
-        // dancer row back as well.
-        if (!recalculation.ok) {
-          throw new DancerBirthDateCorrectionRefusalError(
-            recalculation.choreographiesWithoutCategory,
-          );
-        }
-      }
-
-      return savedDancer;
-    });
-  } catch (error) {
-    if (error instanceof DancerBirthDateCorrectionRefusalError) {
-      return {
-        ok: false,
-        error: "Revisá los datos del Bailarín.",
-        fieldErrors: { birthDate: error.message },
-        values: input,
-      };
+    if (birthDateChanged) {
+      await applyDancerBirthDateCorrection({
+        dancerId: dancer.id,
+        executor: tx,
+        eventBasesByEventId: linkedChoreographyEventBases,
+      });
     }
 
-    throw error;
+    return savedDancer;
+  });
+
+  if (!write.ok) {
+    return {
+      ok: false,
+      error: "Revisá los datos del Bailarín.",
+      fieldErrors: { birthDate: write.birthDateMessage },
+      values: input,
+    };
   }
 
-  return { ok: true, dancer: updatedDancer };
+  return { ok: true, dancer: write.dancer };
 }
 
 function validateCreateDancerInput(

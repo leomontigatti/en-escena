@@ -820,7 +820,7 @@ describe.sequential("`/administracion/bailarines` route", () => {
       status: "error",
       fieldErrors: {
         birthDate:
-          "El Bailarín debe tener al menos 1 año cumplido cuando empieza el evento.",
+          "El bailarín debe tener al menos 1 año cumplido cuando empieza el evento.",
       },
     });
     await expectPersistedDancer(dancer.id, { birthDate: "2013-01-10" });

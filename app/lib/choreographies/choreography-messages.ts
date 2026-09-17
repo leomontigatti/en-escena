@@ -17,10 +17,17 @@ export const invalidExperienceLevelMessage =
  * the sentence names both: the modality and the group type its roster derives.
  */
 export function getNoCompatibleCategoryRegistrationMessage(input: {
-  modalityName: string;
+  modalityName: string | null;
   groupType: GroupType;
 }) {
-  return `No hay una categoría de ${input.modalityName} para ${groupTypeLabels[input.groupType]} con las edades de estos bailarines. Revisá los bailarines o la modalidad.`;
+  // Both callers read the name from a list the modality is guaranteed to be
+  // in, so the second wording is a fallback rather than a case: it keeps a
+  // lookup that came back empty from rendering "una categoría de  para …".
+  const subject = input.modalityName
+    ? `una categoría de ${input.modalityName}`
+    : "una categoría";
+
+  return `No hay ${subject} para ${groupTypeLabels[input.groupType]} con las edades de estos bailarines. Revisá los bailarines o la modalidad.`;
 }
 
 /**

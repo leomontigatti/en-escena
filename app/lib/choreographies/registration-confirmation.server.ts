@@ -319,7 +319,7 @@ async function getModalityName(modalityId: string) {
     columns: { name: true },
   });
 
-  return modality?.name ?? "";
+  return modality?.name ?? null;
 }
 
 async function resolveProfessorIds(input: {

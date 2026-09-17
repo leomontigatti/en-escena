@@ -113,7 +113,7 @@ describe.sequential("dancer birth date choreography correction", () => {
         dancerId: correctedDancer.id,
       });
 
-    expect(result).toEqual({ ok: true, warnings: [] });
+    expect(result).toEqual({ ok: true });
     await expectChoreographyState(preserveChoreography.id, {
       categoryId: preserveCatalog.olderCategory?.id ?? null,
       categoryCalculationMode: "oldest",
@@ -191,7 +191,6 @@ describe.sequential("dancer birth date choreography correction", () => {
           name: "Solo sin repuesto",
         },
       ],
-      warnings: [],
     });
     expect(
       buildDancerBirthDateCorrectionRefusalMessage(

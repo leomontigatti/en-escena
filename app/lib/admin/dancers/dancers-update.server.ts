@@ -1,15 +1,14 @@
 import { eq } from "drizzle-orm";
 
-import { db } from "@/db";
 import { dancers } from "@/db/schema";
 import {
   findDancerForMutation,
   toDancerSnapshot,
 } from "@/lib/admin/dancers/dancers.server.shared";
 import {
-  DancerBirthDateCorrectionRefusalError,
+  applyDancerBirthDateCorrection,
   loadLinkedChoreographyEventBasesForDancerBirthDateCorrection,
-  recalculateLinkedChoreographiesForDancerBirthDateCorrection,
+  runDancerWriteWithBirthDateCorrection,
 } from "@/lib/choreographies/dancer-birthdate-correction.server";
 import type {
   DancerFieldErrors,
@@ -90,64 +89,50 @@ export async function updateAdministrativeDancer(input: {
         dancerId: existingDancer.id,
       })
     : undefined;
-  let updatedDancer;
+  // The dancer update and the recalculation share one transaction, so a
+  // correction that leaves a choreography without a category rolls the dancer
+  // row back as well.
+  const write = await runDancerWriteWithBirthDateCorrection(async (tx) => {
+    const [savedDancer] = await tx
+      .update(dancers)
+      .set({
+        firstName: normalizedValues.firstName,
+        lastName: normalizedValues.lastName,
+        birthDate: normalizedValues.birthDate,
+        documentType: normalizedDocument.documentType,
+        documentNumber: normalizedDocument.documentNumber,
+        documentFrontImageStorageKey:
+          existingDancer.documentFrontImageStorageKey,
+        documentBackImageStorageKey: existingDancer.documentBackImageStorageKey,
+        identityVerifiedAt: existingDancer.identityVerifiedAt
+          ? null
+          : undefined,
+        updatedAt: new Date(),
+      })
+      .where(eq(dancers.id, existingDancer.id))
+      .returning();
 
-  try {
-    updatedDancer = await db.transaction(async (tx) => {
-      const [savedDancer] = await tx
-        .update(dancers)
-        .set({
-          firstName: normalizedValues.firstName,
-          lastName: normalizedValues.lastName,
-          birthDate: normalizedValues.birthDate,
-          documentType: normalizedDocument.documentType,
-          documentNumber: normalizedDocument.documentNumber,
-          documentFrontImageStorageKey:
-            existingDancer.documentFrontImageStorageKey,
-          documentBackImageStorageKey:
-            existingDancer.documentBackImageStorageKey,
-          identityVerifiedAt: existingDancer.identityVerifiedAt
-            ? null
-            : undefined,
-          updatedAt: new Date(),
-        })
-        .where(eq(dancers.id, existingDancer.id))
-        .returning();
-
-      if (birthDateChanged) {
-        const recalculation =
-          await recalculateLinkedChoreographiesForDancerBirthDateCorrection({
-            dancerId: existingDancer.id,
-            executor: tx,
-            eventBasesByEventId: linkedChoreographyEventBases,
-          });
-
-        // The dancer update and the recalculation share one transaction, so a
-        // correction that leaves a choreography without a category rolls the
-        // dancer row back as well.
-        if (!recalculation.ok) {
-          throw new DancerBirthDateCorrectionRefusalError(
-            recalculation.choreographiesWithoutCategory,
-          );
-        }
-      }
-
-      return savedDancer;
-    });
-  } catch (error) {
-    if (error instanceof DancerBirthDateCorrectionRefusalError) {
-      return {
-        ok: false,
-        message: "Revisá los campos marcados.",
-        fieldErrors: { birthDate: error.message },
-        values,
-      };
+    if (birthDateChanged) {
+      await applyDancerBirthDateCorrection({
+        dancerId: existingDancer.id,
+        executor: tx,
+        eventBasesByEventId: linkedChoreographyEventBases,
+      });
     }
 
-    throw error;
+    return savedDancer;
+  });
+
+  if (!write.ok) {
+    return {
+      ok: false,
+      message: "Revisá los campos marcados.",
+      fieldErrors: { birthDate: write.birthDateMessage },
+      values,
+    };
   }
 
-  const savedSnapshot = toDancerSnapshot(updatedDancer);
+  const savedSnapshot = toDancerSnapshot(write.dancer);
 
   return {
     ok: true,

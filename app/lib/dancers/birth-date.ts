@@ -18,8 +18,8 @@ const maximumDancerAgeAtEventStart = 100;
 export const invalidBirthDateMessage = "Usá una fecha válida.";
 export const futureBirthDateMessage =
   "La fecha de nacimiento no puede ser futura.";
-export const underageBirthDateMessage = `El Bailarín debe tener al menos ${minimumDancerAgeAtEventStart} año cumplido cuando empieza el evento.`;
-export const overageBirthDateMessage = `El Bailarín no puede tener más de ${maximumDancerAgeAtEventStart} años cuando empieza el evento.`;
+export const underageBirthDateMessage = `El bailarín debe tener al menos ${minimumDancerAgeAtEventStart} año cumplido cuando empieza el evento.`;
+export const overageBirthDateMessage = `El bailarín no puede tener más de ${maximumDancerAgeAtEventStart} años cuando empieza el evento.`;
 
 /**
  * The newest birth date that still leaves a dancer old enough at `eventStartDate`.
