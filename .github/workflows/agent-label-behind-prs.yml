@@ -64,9 +64,14 @@ jobs:
           # answers UNKNOWN, and a run that believed that first answer would
           # label nothing at all — the one moment this workflow exists for. Ask
           # again until no agent/* PR is UNKNOWN, or the attempts run out.
+
+          # One page. A repo with more open PRs than this against $BASE_REF would
+          # leave some of them unseen, and nothing else in the run would say so.
+          page_limit=100
+
           attempt=1
           while :; do
-            prs=$(GH_TOKEN="$GITHUB_TOKEN" gh pr list --state open --base "$BASE_REF" --limit 100 \
+            prs=$(GH_TOKEN="$GITHUB_TOKEN" gh pr list --state open --base "$BASE_REF" --limit "$page_limit" \
               --json number,headRefName,mergeStateStatus,labels)
             agent_prs=$(printf '%s' "$prs" | jq '[.[] | select(.headRefName | startswith("agent/"))]')
             unknown=$(printf '%s' "$agent_prs" | jq '[.[] | select(.mergeStateStatus == "UNKNOWN")] | length')
@@ -82,6 +87,10 @@ jobs:
           # and the next push to $BASE_REF asks again.
           if [ "$unknown" -gt 0 ]; then
             echo "Gave up on $unknown PR(s) whose mergeability never resolved; the next push retries them."
+          fi
+
+          if [ "$(printf '%s' "$prs" | jq 'length')" -ge "$page_limit" ]; then
+            echo "::warning::gh pr list filled its page of $page_limit; some open PR against $BASE_REF was not considered."
           fi
 
           # BEHIND is the only state this acts on. CONFLICTING is Update Branch's
@@ -106,6 +115,7 @@ jobs:
             exit 0
           fi
 
+          unlabelled=""
           for pr in $behind; do
             # PAT-or-fallback (§3.4): a label added with `github.token` does not
             # start another workflow, so only AGENT_PAT actually wakes Update
@@ -121,7 +131,26 @@ jobs:
             fi
             if [ "$labeled" -ne 0 ]; then
               GH_TOKEN="$GITHUB_TOKEN" gh pr edit "$pr" --add-label "agent:update-branch"
+              labeled=$?
             fi
             set -e
+
+            # Both tokens refused. This is the one outcome the loop cannot
+            # recover from on its own: the PR stays behind, and because it ends
+            # up carrying neither label, every later push reads it as fresh work
+            # and fails the same way. A green run claiming "Labeled #N" would
+            # hide that for as long as it keeps happening — so name the PR, keep
+            # going for the others, and fail the run at the end.
+            if [ "$labeled" -ne 0 ]; then
+              echo "::error::Could not label #$pr agent:update-branch; it stays behind $BASE_REF."
+              unlabelled="$unlabelled $pr"
+              continue
+            fi
+
             echo "Labeled #$pr agent:update-branch (behind $BASE_REF)."
           done
+
+          if [ -n "$unlabelled" ]; then
+            echo "Could not label:$unlabelled"
+            exit 1
+          fi

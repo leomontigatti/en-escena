@@ -894,8 +894,13 @@ trigger every merge to `master` would leave the other open PRs waiting for a han
 > after a push, so the workflow re-asks — bounded, and a PR whose state never resolves is left
 > for the next push rather than failing the run. The label add takes the §3.4 PAT-or-fallback
 > path: only `AGENT_PAT` starts this workflow.
-> **Concurrency.** `agent-mutate-pr-${PR_NUMBER}`, no cancel.
-> **Permissions.** `contents: write`, `pull-requests: write`.
+> **Its concurrency** is `agent-label-behind-prs`, no cancel — one labelling pass at a time, so
+> two merges landing back to back cannot leave the second push's PRs unlabelled. **Its
+> permissions** are `pull-requests: write` and nothing else: it writes a label and reads no
+> contents.
+
+**Concurrency.** `agent-mutate-pr-${PR_NUMBER}`, no cancel.
+**Permissions.** `contents: write`, `pull-requests: write`.
 
 **Preconditions & refusals.** None at the workflow level; the runner script itself short-circuits
 (see below).

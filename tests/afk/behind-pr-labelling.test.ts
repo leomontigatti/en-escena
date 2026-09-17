@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import {
   chmodSync,
   mkdtempSync,
@@ -100,10 +100,15 @@ beforeEach(() => {
       '  cat "$f"',
       "  exit 0",
       "fi",
-      'if [ -n "${GH_STUB_REJECT_TOKEN:-}" ] && [ "${GH_TOKEN:-}" = "$GH_STUB_REJECT_TOKEN" ]; then',
+      'if [ -n "${GH_STUB_REJECT_PR:-}" ] && [ "${3:-}" = "$GH_STUB_REJECT_PR" ]; then',
       '  echo "gh: Resource not accessible by integration (HTTP 403)" >&2',
       "  exit 1",
       "fi",
+      "for rejected in ${GH_STUB_REJECT_TOKENS:-}; do",
+      '  [ "${GH_TOKEN:-}" = "$rejected" ] || continue',
+      '  echo "gh: Resource not accessible by integration (HTTP 403)" >&2',
+      "  exit 1",
+      "done",
       "exit 0",
     ].join("\n"),
   );
@@ -118,9 +123,13 @@ interface RunOptions {
   /** One `gh pr list` answer per call; the last one repeats for further calls. */
   answers: Pr[][];
   agentPat?: string;
-  /** Make `gh pr edit` fail for this token, to exercise the fallback. */
-  rejectToken?: string;
+  /** Make `gh pr edit` fail for these tokens, to exercise the fallback. */
+  rejectTokens?: string[];
   attempts?: number;
+  /** Make every `gh pr edit` for this PR fail, whichever token is used. */
+  rejectPr?: number;
+  /** The exit status the step is expected to end on. */
+  expectStatus?: number;
 }
 
 interface RunResult {
@@ -143,14 +152,15 @@ function runLabelling(options: RunOptions): RunResult {
   const log = join(dir, "gh.log");
   writeFileSync(log, "");
 
-  const stdout = execFileSync("bash", ["-c", script], {
+  const run = spawnSync("bash", ["-c", script], {
     encoding: "utf8",
     env: {
       ...process.env,
       PATH: `${dir}:${process.env.PATH ?? ""}`,
       GH_STUB_DIR: dir,
       GH_STUB_LOG: log,
-      GH_STUB_REJECT_TOKEN: options.rejectToken ?? "",
+      GH_STUB_REJECT_TOKENS: (options.rejectTokens ?? []).join(" "),
+      GH_STUB_REJECT_PR: options.rejectPr ? String(options.rejectPr) : "",
       GITHUB_TOKEN: "github-token",
       AGENT_PAT: options.agentPat ?? "",
       GH_REPO: "leomontigatti/en-escena",
@@ -161,6 +171,11 @@ function runLabelling(options: RunOptions): RunResult {
     },
   });
 
+  expect(run.status, `step stderr: ${run.stderr}`).toBe(
+    options.expectStatus ?? 0,
+  );
+
+  const { stdout } = run;
   const calls = readFileSync(log, "utf8").split("\n").filter(Boolean);
 
   return {
@@ -396,7 +411,7 @@ describe("the push-to-master labelling step (#1020)", () => {
         ],
       ],
       agentPat: "the-pat",
-      rejectToken: "the-pat",
+      rejectTokens: ["the-pat"],
     });
 
     expect(result.labelled.map(({ token }) => token)).toEqual([
@@ -404,6 +419,90 @@ describe("the push-to-master labelling step (#1020)", () => {
       "github-token",
     ]);
     expect(result.stdout).toContain("AGENT_PAT label add failed for #11");
+  });
+
+  it("never claims a PR it could not label, and fails the run", () => {
+    // Both tokens refused. The PR ends up carrying neither label, so every
+    // later push reads it as fresh work and fails the same way — a green run
+    // printing "Labeled #11" would hide that indefinitely.
+    const result = runLabelling({
+      answers: [
+        [
+          {
+            number: 11,
+            headRefName: "agent/issue-1",
+            mergeStateStatus: "BEHIND",
+          },
+        ],
+      ],
+      agentPat: "the-pat",
+      rejectTokens: ["the-pat", "github-token"],
+      expectStatus: 1,
+    });
+
+    expect(result.stdout).not.toContain("Labeled #11");
+    expect(result.stdout).toContain("::error::Could not label #11");
+    expect(result.stdout).toContain("Could not label: 11");
+  });
+
+  it("keeps labelling the rest of the list past a PR it cannot label", () => {
+    // Every write aimed at #11 is refused, whichever token carries it. The
+    // loop must not abandon #12 — one unlabellable PR costs only itself.
+    const result = runLabelling({
+      answers: [
+        [
+          {
+            number: 11,
+            headRefName: "agent/issue-1",
+            mergeStateStatus: "BEHIND",
+          },
+          {
+            number: 12,
+            headRefName: "agent/issue-2",
+            mergeStateStatus: "BEHIND",
+          },
+        ],
+      ],
+      agentPat: "the-pat",
+      rejectPr: 11,
+      expectStatus: 1,
+    });
+
+    expect(result.stdout).toContain("::error::Could not label #11");
+    expect(result.stdout).toContain("Labeled #12 agent:update-branch");
+    expect(result.stdout).toContain("Could not label: 11");
+  });
+
+  it("warns when the PR page filled, instead of silently truncating", () => {
+    const result = runLabelling({
+      answers: [
+        Array.from({ length: 100 }, (_, i) => ({
+          number: i + 1,
+          headRefName: `fix/humano-${i + 1}`,
+          mergeStateStatus: "CLEAN",
+        })),
+      ],
+      agentPat: "the-pat",
+    });
+
+    expect(result.stdout).toContain("::warning::gh pr list filled its page");
+  });
+
+  it("does not warn about the page when it came back short", () => {
+    const result = runLabelling({
+      answers: [
+        [
+          {
+            number: 11,
+            headRefName: "agent/issue-1",
+            mergeStateStatus: "BEHIND",
+          },
+        ],
+      ],
+      agentPat: "the-pat",
+    });
+
+    expect(result.stdout).not.toContain("::warning::");
   });
 
   it("hands each gh call exactly one token (#956)", () => {
