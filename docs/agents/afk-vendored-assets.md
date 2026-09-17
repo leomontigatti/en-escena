@@ -100,8 +100,13 @@ GITHUB_TOKEN` (PAT lets the push include workflow changes)", which relies on
   `<sub-issues>` list (state included, so an open sub-issue's code still reads as a scope
   violation); and `.sandcastle/agent-review/context.mts` keeps fetching the **full** patch even
   though the prompt only shows `--stat`, because `diff-anchors.mts` validates the agent's inline
-  anchors against it. The skill is installed per run at `latest`, globally (outside the work tree, so
-  the commit step cannot sweep it into the PR branch), exactly as upstream does.
+  anchors against it. The skill is installed per run globally (outside the work tree, so the
+  commit step cannot sweep it into the PR branch) as upstream does, but **from this repo's
+  vendored copy on `origin/master`** rather than from the network: since
+  [#965](https://github.com/leomontigatti/en-escena/issues/965) the skill lives in
+  `.agents/skills/code-review`, and reading it from the checked-out tree would let a
+  `pull_request_target` PR edit the reviewer that reviews it
+  ([#966](https://github.com/leomontigatti/en-escena/issues/966)).
   **`agent-implement-pr` embeds `--stat` too** (#789), which keeps rather than widens this
   deviation: spec §4.5 defines its inputs as _"identical to Review"_
   ([line 829](./afk-agent-platform-spec.md)), so the two runners drifting apart on the diff

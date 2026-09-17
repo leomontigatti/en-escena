@@ -229,6 +229,41 @@ line, and the suppression that #955 had to ship for it is gone.
 `issues` / `pull-requests`). It is not duplicated here: each workflow (#344+) declares its
 minimum `permissions:` from that table as it is implemented.
 
+## What a runner starts from ([#966](https://github.com/leomontigatti/en-escena/issues/966))
+
+Three inputs used to drift from run to run. All three are pinned now.
+
+**The Claude Code CLI.** Every workflow that runs an agent installs it the same way:
+
+```sh
+pnpm add -g --allow-build=@anthropic-ai/claude-code @anthropic-ai/claude-code@stable
+claude --version
+```
+
+`stable` rather than an exact version: the CLI ships almost daily, so a pin would be a bump
+chore that gets skipped, while `stable` lags `latest` by weeks and moves on its own. The
+`--allow-build` is not optional — without it pnpm reports a successful install but skips the
+CLI's `postinstall`, and `claude` then fails mid-run with "native binary not installed". The
+`claude --version` right after is what turns that into a loud install-time failure; it also
+**logs the resolved version**, so the exact CLI a run used is in the `Install deps + agent
+runner` step of that run's log. pnpm's global bin directory is on `PATH` because
+`pnpm/action-setup` puts it there, in every job.
+
+**The `code-review` skill** (`agent-review.yml` only). Copied per run from the vendored
+`.agents/skills/code-review` **as it stands on `origin/master`** into `~/.claude/skills/`
+— outside the work tree, so the runner's commit step cannot sweep it into the PR branch.
+Reading it from the checked-out tree would be a hole: `pull_request_target` puts `head.sha`
+on disk, so a PR could edit the skill that reviews it.
+
+**The CI verdict** (`agent-review.yml` only). A `Wait for CI on the reviewed head` step polls
+the `CI` workflow run on `BRANCH_HEAD_SHA` — that workflow specifically, not "all checks",
+which would include the review's own run — and writes a block into `OUTPUT_DIR/ci_results.md`:
+`success`, `failure` with the failed job names and the tail of `gh run view --log-failed`, or
+`not finished`. The runner embeds it in the prompt, and the reviewer treats a CI failure as a
+correctness finding to fix in its commit: CI is the only place the full DB suite, `pnpm build`,
+`pnpm format:check` and the `check:*` scripts run. The wait gives up after **10 minutes** (CI
+takes ~3) and **never fails the review** — every error degrades to `not finished`.
+
 ## Wall-clock guardrails: `timeout-minutes` + `AGENT_BUDGET_MINUTES`
 
 Every runner step carries **two** ceilings, and the order between them is load-bearing:

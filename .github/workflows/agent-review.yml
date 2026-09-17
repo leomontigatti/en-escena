@@ -110,7 +110,12 @@ jobs:
         if: steps.preflight.outputs.proceed == 'true'
         run: |
           set -euo pipefail
-          git fetch origin master:master
+          # Both refs are named later: `master` by the diff the review reads, and
+          # `origin/master` by the skill copy below — which must come from the base
+          # branch, never from the PR head. An explicit refspec guarantees the
+          # remote-tracking ref exists rather than relying on the checkout's fetch.
+          git fetch --no-tags origin +refs/heads/master:refs/remotes/origin/master
+          git branch -f master origin/master
           # Point the local branch at the checked-out head sha so the race-safe
           # push has a named branch to lease against.
           git checkout -B "$BRANCH" "$BRANCH_HEAD_SHA"
@@ -128,17 +133,31 @@ jobs:
         if: steps.preflight.outputs.proceed == 'true'
         run: |
           pnpm install --frozen-lockfile
-          npm install -g @anthropic-ai/claude-code
+          # `--allow-build`: without it pnpm reports success but skips the CLI's
+          # postinstall, and `claude` then fails at run time with "native binary not
+          # installed". `--version` is the guard that turns that into an install-time
+          # failure, and it logs the resolved `stable` version for the run.
+          pnpm add -g --allow-build=@anthropic-ai/claude-code @anthropic-ai/claude-code@stable
+          claude --version
 
       # The `code-review` skill the review prompt delegates its analysis to.
+      # Copied from the vendored tree (`.agents/skills/code-review`) as it stands
+      # on **`origin/master`**, never from the checked-out work tree:
+      # `pull_request_target` puts `head.sha` on disk, so reading the skill from
+      # there would let a PR rewrite the reviewer that reviews it (#966).
       # Installed globally (~/.claude/skills), deliberately outside the git work
       # tree so the runner's commit step can never sweep it into the PR branch.
-      # Tracked at `latest` on purpose — the skill is Matt Pocock's managed
-      # bundle and every run exercises its current version. Scoped to the
-      # claude-code agent so the step exits 0.
       - name: Install code-review skill
         if: steps.preflight.outputs.proceed == 'true'
-        run: npx --yes skills@latest add mattpocock/skills -g -s code-review -a claude-code -y --copy
+        run: |
+          set -euo pipefail
+          skill="$HOME/.claude/skills/code-review"
+          rm -rf "$skill"
+          mkdir -p "$skill"
+          # `--strip-components=3` drops the `.agents/skills/code-review/` prefix.
+          git archive origin/master .agents/skills/code-review \
+            | tar -x --strip-components=3 -C "$skill"
+          test -f "$skill/SKILL.md"
 
       - name: Configure git identity
         if: steps.preflight.outputs.proceed == 'true'
@@ -153,6 +172,21 @@ jobs:
             echo "A credential is persisted in .git/config; refusing to start the agent." >&2
             exit 1
           fi
+
+      # CI is the only place the full DB suite, `build`, `format:check` and the
+      # `check:*` scripts run, so a reviewer without its verdict can call a
+      # red branch clean (#966). Waits on the `CI` workflow specifically rather
+      # than on all checks — this run posts checks of its own and would
+      # otherwise wait on itself. `continue-on-error` + the step timeout are the
+      # belt and braces on "a CI wait never fails the review": the script
+      # already degrades every failure to `not finished`.
+      - name: Wait for CI on the reviewed head
+        if: steps.preflight.outputs.proceed == 'true'
+        continue-on-error: true
+        timeout-minutes: 12 # the script's own ceiling is 10
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: pnpm exec tsx .sandcastle/agent-review/wait-for-ci.mts
 
       - name: Run review runner
         if: steps.preflight.outputs.proceed == 'true'

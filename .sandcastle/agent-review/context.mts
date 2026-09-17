@@ -12,9 +12,13 @@
 //     "implements this one";
 //   - the diff, in two shapes: the full patch (used locally to validate inline
 //     anchors) and `--stat` (the only shape embedded in the prompt);
-//   - PR_COMMENTS_JSON: issue_comments, review_summaries, unresolved review_threads.
+//   - PR_COMMENTS_JSON: issue_comments, review_summaries, unresolved review_threads;
+//   - the `CI` verdict on the head under review, produced by the `wait-for-ci`
+//     step before this runs and read off disk here (see `ci-status.mts`).
 
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import { gh } from "../lib/gh.mjs";
 
@@ -35,7 +39,30 @@ export interface ReviewContext {
   readonly prCommentsJson: string;
   /** GraphQL commentIds shown to the agent — replies to any other id are dropped. */
   readonly knownCommentIds: ReadonlySet<string>;
+  /** The `CI` block (`Outcome: …` plus detail) embedded verbatim in the prompt. */
+  readonly ciResults: string;
 }
+
+/** Name of the file the `wait-for-ci` step leaves in `OUTPUT_DIR`. */
+export const CI_RESULTS_FILE = "ci_results.md";
+
+/**
+ * The CI block the `wait-for-ci` step wrote, or a `not finished` stand-in when
+ * there is no file — a review started without that step (locally, say) still
+ * gets a well-formed block rather than an empty section the agent has to guess at.
+ */
+export function readCiResults(outputDir: string | undefined): string {
+  if (outputDir === undefined) return NO_CI_RESULTS;
+  try {
+    const block = readFileSync(join(outputDir, CI_RESULTS_FILE), "utf8").trim();
+    return block === "" ? NO_CI_RESULTS : block;
+  } catch {
+    return NO_CI_RESULTS;
+  }
+}
+
+const NO_CI_RESULTS =
+  "Outcome: not finished\n\nNo CI verdict was recorded for this head.";
 
 function git(args: string[]): string {
   return execFileSync("git", args, { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
@@ -167,5 +194,6 @@ export function buildReviewContext(repo: string, prNumber: string): ReviewContex
     subIssues,
     prCommentsJson,
     knownCommentIds,
+    ciResults: readCiResults(process.env.OUTPUT_DIR),
   };
 }

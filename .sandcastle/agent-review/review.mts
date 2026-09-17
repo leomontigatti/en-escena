@@ -90,6 +90,7 @@ await runMain(async ({ signal }) => {
       SUB_ISSUES: context.subIssues || "(none — this issue has no sub-issues)",
       DIFF_STAT: context.diffStat,
       PR_COMMENTS_JSON: context.prCommentsJson,
+      CI_RESULTS: context.ciResults,
     },
     extractionPrompt: EXTRACTION_PROMPT,
     output: Output.object({ tag: "output", schema: reviewSchema }),
