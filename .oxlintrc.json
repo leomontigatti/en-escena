@@ -17,7 +17,12 @@
     "react-hooks/rules-of-hooks": "error",
     "react-hooks/exhaustive-deps": "error",
     "import/no-cycle": "error",
-    "typescript/no-floating-promises": "error",
+    "typescript/no-floating-promises": [
+      "error",
+      {
+        "checkThenables": true
+      }
+    ],
     "typescript/no-misused-promises": [
       "error",
       {
