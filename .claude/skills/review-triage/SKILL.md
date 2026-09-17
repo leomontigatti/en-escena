@@ -127,15 +127,17 @@ stop after step 3 and report.
 3. **Anything new?** A run may reply with a question or add a comment. New items go through
    Phases 1 to 3 again. When every surface is settled or answered, land.
 4. **Land.** Arming is the session's act on the user's standing instruction; no workflow
-   merges (spec §3.9). Once the repo allows auto-merge (#1022), arm it and stop waiting:
+   merges (spec §3.9). Auto-merge is enabled on the repo (#1022): arm it and stop waiting:
 
    ```bash
    gh pr merge <PR> --squash --auto --delete-branch
    ```
 
    GitHub merges when the four contexts are green and the branch is up to date; a branch that
-   falls behind gets `agent:update-branch` from the push-to-master trigger (#1020). Until
-   #1022, the path is manual and the session waits:
+   falls behind gets `agent:update-branch` from the push-to-master trigger (#1020); until
+   #1020 lands, apply that label yourself when the watcher reports `mergeState: BEHIND`.
+   If arming is refused (a PR with no pending requirement merges at once instead, which is
+   fine), or when you need the merge now, the manual path is:
 
    ```bash
    gh pr update-branch <PR>                # no-op when already current

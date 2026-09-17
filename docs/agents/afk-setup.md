@@ -71,9 +71,9 @@ leave a decision reply on what is not, then label.
 the calls that are yours to you with options and a recommendation, and only then replies,
 resolves and labels. User-invoked — type it, nothing fires it for you. The cue to type it is
 **`agent:needs-decision`** on the PR; **`agent:ready`** means the review left nothing to decide,
-so the pass is skipped and the PR is merged or armed for auto-merge (`gh pr merge --squash
---auto`, once #1022 enables it on the repo). Arming is the session's act on your standing
-instruction; no workflow merges (spec §3.9). Between merges, a PR that falls behind `master`
+so the pass is skipped and the PR is armed for auto-merge (`gh pr merge --squash --auto`;
+the repo setting was enabled on 2026-09-17, #1022). Arming is the session's act on your
+standing instruction; no workflow merges (spec §3.9). Between merges, a PR that falls behind `master`
 gets `agent:update-branch` from the push-to-master trigger (#1020) instead of from you.
 
 ### With the `to-spec` / `to-tickets` skills
