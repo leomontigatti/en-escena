@@ -7,9 +7,10 @@ Index of the repo's conventions. Every operative rule lives in its own file unde
   Use `pnpm typecheck` (not `pnpm exec tsc`); a hook enforces it. Do not run
   `pnpm typecheck` in parallel with `pnpm build`. **The commands listed there are
   the whole surface — check `package.json` before running one that is not, rather
-  than after it fails.** `pnpm lint` is oxlint with three rules (hook mistakes and
-  import cycles) and is not a style checker; formatting is Prettier's, unused code
-  is `tsc`'s, and repo conventions belong to the `check:*` scripts.
+  than after it fails.** `pnpm lint` is oxlint over what `.oxlintrc.json` enables
+  — React hook mistakes, import cycles and un-awaited promises — and is not a style
+  checker; formatting is Prettier's, unused code is `tsc`'s, and repo conventions
+  belong to the `check:*` scripts.
 - **Branches, worktrees and T3 Code threads** (each thread works in its own T3
   worktree, `agent/` branches are reserved for GHA, link every PR to the thread):
   see the section of the same name in [docs/agents/workflows.md](docs/agents/workflows.md).

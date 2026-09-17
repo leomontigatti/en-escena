@@ -135,7 +135,7 @@ export function useModalityForm({
     formData.set("intent", resolveChoreographyModalityIntent);
     formData.set(modalityFieldNames.modalityId, selectedModalityId);
 
-    resolutionFetcher.submit(formData, { method: "post" });
+    void resolutionFetcher.submit(formData, { method: "post" });
     submittedModalityIdRef.current = selectedModalityId;
   }, [
     canCorrectModality,
@@ -215,7 +215,7 @@ export function useModalityForm({
       values.modalityScheduleCapacityId,
     );
 
-    submit(formData, { method: "post" });
+    void submit(formData, { method: "post" });
   });
 
   return {

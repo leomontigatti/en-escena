@@ -335,7 +335,7 @@ function CreateChoreographyDialogLoader({
       return;
     }
 
-    fetcher.load("/portal/coreografias/crear");
+    void fetcher.load("/portal/coreografias/crear");
   }, [fetcher]);
 
   if (!fetcher.data) {

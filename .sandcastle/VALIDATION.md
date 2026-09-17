@@ -8,7 +8,7 @@ mistakes cheaply, not to reproduce CI.
 
 ```sh
 pnpm typecheck
-pnpm lint                # ~1 s over the whole repo
+pnpm lint                # ~6.5 s over the whole repo
 pnpm test:unit
 pnpm test:db <path>...   # only the DB test files your change touches
 ```
@@ -32,7 +32,7 @@ The scripts that exist and what owns what:
 | Command                     | Owns                                                      |
 | --------------------------- | --------------------------------------------------------- |
 | `pnpm typecheck`            | Types, unused locals and parameters — also run by the `Stop` hook |
-| `pnpm lint`                 | React hook mistakes and import cycles — **only** these; also run by the `Stop` hook |
+| `pnpm lint`                 | React hook mistakes, import cycles and un-awaited promises — **only** these; also run by the `Stop` hook |
 | `pnpm format` / `:check`    | All formatting — also applied per file by the `PostToolUse` hook |
 | `pnpm test:unit`            | Unit and React suites                                      |
 | `pnpm test:db <path>`       | DB suite on in-process PGlite                              |
@@ -78,9 +78,28 @@ and how to bump its pins is in `docs/agents/workflows.md`.
 
 ## About `pnpm lint`
 
-`oxlint`, configured in `.oxlintrc.json`, with exactly three rules:
-`react-hooks/rules-of-hooks`, `react-hooks/exhaustive-deps` and
-`import/no-cycle`.
+`oxlint`, configured in `.oxlintrc.json` — that file is the list of rules, read it
+there rather than trusting a count written down here. What `pnpm lint` owns is
+React hook mistakes, import cycles and un-awaited promises.
+
+The un-awaited-promise rules are type-aware (`oxlint-tsgolint`), which is why the
+run costs ~6.5 s instead of the ~1.5 s it cost before: type-aware linting builds a
+TypeScript program. They catch the bug class `tsc` cannot see — a promise nothing
+awaits, which silently drops whatever it would have rejected with.
+
+**The `void` policy.** `void` on a promise is a claim that its rejection cannot
+carry information, and this repo treats exactly two cases as settled:
+
+- A React Router `submit`, `fetcher.submit`, `fetcher.load` or `navigate` call:
+  the router routes loader and action failures to the nearest `ErrorBoundary`, so
+  those promises reject only on a framework invariant.
+- A react-hook-form `handleSubmit(onValid)(event)` call — including a hook's
+  `save()` wrapper around one. It rethrows whatever `onValid` threw, and in this
+  repo every `onValid` is synchronous and only builds a `FormData` and submits it,
+  so a rejection there is a programming error, not a runtime outcome to handle.
+
+`void` on **any other** promise needs a reason in the code, and a reviewer should
+ask for one — `await` it, or handle the rejection.
 
 It is **not** a style checker. It has no opinion on formatting (Prettier's), on
 unused code (`tsc`'s) or on this repo's conventions (the `check:*` scripts').

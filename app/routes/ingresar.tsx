@@ -314,7 +314,7 @@ function useLoginNoticeToast(loginNotice: LoginNotice | null) {
     searchParams.delete("sesion");
     const nextSearch = searchParams.toString();
 
-    navigate(
+    void navigate(
       `${location.pathname}${nextSearch ? `?${nextSearch}` : ""}${location.hash}`,
       { replace: true },
     );

@@ -196,28 +196,43 @@ made, by hand, once #955 merged) is a human step outside the repo.
 
 ## Linting
 
-`pnpm lint` is [oxlint](https://oxc.rs), configured in `.oxlintrc.json`. It runs
-over the whole repo in about a second and enables exactly three rules:
-
-- `react-hooks/rules-of-hooks`
-- `react-hooks/exhaustive-deps`
-- `import/no-cycle`
+`pnpm lint` is [oxlint](https://oxc.rs), configured in `.oxlintrc.json`, which is
+the list — do not restate it here. What it owns is React hook mistakes, import
+cycles and un-awaited promises. It runs over the whole repo in about six and a
+half seconds; the un-awaited-promise rules are type-aware (`oxlint-tsgolint`), so
+the run builds a TypeScript program, which is the whole of the 1.5 s → 6.5 s
+difference.
 
 **It is deliberately not a style checker**, and rules must not be added to it
 casually. The scope rule is that every concern already has exactly one owner:
 
-| Concern                         | Owner                                            |
-| ------------------------------- | ------------------------------------------------ |
-| Formatting                      | Prettier (`pnpm format`)                         |
-| Types, unused locals/parameters | `tsc` (`pnpm typecheck`, `strict` + `noUnused*`) |
-| Repo conventions                | the `check:*` scripts                            |
-| Hook mistakes, import cycles    | `pnpm lint`                                      |
+| Concern                                           | Owner                                            |
+| ------------------------------------------------- | ------------------------------------------------ |
+| Formatting                                        | Prettier (`pnpm format`)                         |
+| Types, unused locals/parameters                   | `tsc` (`pnpm typecheck`, `strict` + `noUnused*`) |
+| Repo conventions                                  | the `check:*` scripts                            |
+| Hook mistakes, import cycles, un-awaited promises | `pnpm lint`                                      |
 
 A rule that duplicates another owner turns the linter into a chore and gets
-ignored, so it does not go in. What justifies these three is that nothing else
-can see them: a stale closure in `useEffect` type-checks perfectly and misbehaves
-at runtime, and TypeScript tolerates import cycles until a module reads
-`undefined` during initialisation.
+ignored, so it does not go in. What justifies the ones that are in is that
+nothing else can see them: a stale closure in `useEffect` type-checks perfectly
+and misbehaves at runtime, TypeScript tolerates import cycles until a module
+reads `undefined` during initialisation, and a promise nothing awaits type-checks
+too while silently dropping whatever it would have rejected with.
+
+Two options on those promise rules are load-bearing, and neither is legible from
+the rule name:
+
+- `no-floating-promises` runs with `checkThenables: true`. Without it tsgolint
+  only flags values typed as the global `Promise`, and Drizzle's query builders
+  are thenables — a floating `db.insert(...).values(...)` inside an action would
+  go unreported, which is most of the point of the rule here.
+- `no-misused-promises` runs with `checksVoidReturn.attributes: false`, which
+  exempts async functions passed to JSX props (`onClick={async () => …}`), normal
+  in React. Object-property and argument positions stay checked.
+
+When a promise legitimately goes unawaited, the mark is `void`, and which promises
+may carry one is the `void` policy in `.sandcastle/VALIDATION.md`.
 
 Fourteen files are exempt from `exhaustive-deps` via `overrides` in
 `.oxlintrc.json`. They use a deliberate `resetKey = JSON.stringify(values)` idiom
@@ -308,14 +323,15 @@ Hook guidance:
     does not cover `NotebookEdit`; this repo has no notebooks.
   - **`Stop`** → `.claude/hooks/stop-typecheck-lint.sh` runs
     `pnpm typecheck && pnpm lint` and **blocks** with exit 2, putting the failing
-    output in front of the agent. It costs ~6.2 s (5.1 s + 1.05 s), and ~11.6 s
-    once #986 makes `pnpm lint` type-aware (~6.5 s). It exits 0 without running
+    output in front of the agent. It costs ~11.6 s (5.1 s typecheck + ~6.5 s
+    lint, type-aware since #986). It exits 0 without running
     anything when `SKIP_STOP_CHECKS` is set, when `GITHUB_WORKFLOW` is any
     workflow outside `AFK Implement`, `AFK Implement PRD` and `AFK Implement PR`,
     or when no changed path — tracked or untracked — matches what either half
     of the gate reads: `.ts`/`.tsx`/`.mts`/`.cts` plus `tsconfig*.json` and
     `package.json` for typecheck, and `.js`/`.jsx`/`.mjs`/`.cjs` plus
-    `.oxlintrc.json` for lint. It reads the working tree only, on purpose:
+    `.oxlintrc.json` for lint — type-aware lint reads `.ts`/`.tsx` as well, which
+    the typecheck half of the union already covers. It reads the working tree only, on purpose:
     committed work has already passed `.husky/pre-commit`, which runs
     `pnpm typecheck` on every commit (#934, in the AFK runners too), so this gate
     owns the uncommitted remainder of a turn — the one thing that leaves
