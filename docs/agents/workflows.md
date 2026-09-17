@@ -14,6 +14,23 @@ user to explicitly ask for implementation before editing files.
 Start implementing right away only when the user clearly asks to implement, fix,
 apply changes, or make the change.
 
+## Delegating to subagents
+
+A subagent costs a full orientation and returns only its summary, so delegate
+by the size of the read, not the size of the task:
+
+- Reading one to three files to decide or verify something is inline work.
+- Understanding that needs four or more files is one narrow mapping subagent,
+  which returns the conclusion, not the file dumps.
+- Bulk output (a long diff, a log, a rendered page) is read by a subagent when
+  only its conclusion is needed in the main thread.
+- Bash for state (`git`, `gh`) stays inline.
+
+Brief a subagent with the exact paths and skill files to read, never a digest
+of them, and ask for its report as text with a fixed shape: status, one-line
+summary, artifacts touched, next step, risks. A subagent whose last action is a
+tool call returns the tool result instead of its report.
+
 ## Investigate before recommending
 
 The rule above is about not editing too early. This one is upstream of it: do
@@ -140,6 +157,18 @@ database with another shard; the serial-within-a-runner isolation model of
 `docs/adr/0007-db-test-isolation-model.md` is unchanged. Required contexts are a
 repo setting, not part of this file: renaming a job does not update branch
 protection, which is why the aggregator is named exactly `db-gate`.
+
+### Waiting on AFK runs and CI from a session
+
+A session that drives AFK work (a reviewed PR to land, a chain of issues) never
+polls by hand. `pnpm afk:watch pr <n> --until <review|implement|checks|merged>`
+(or `issue <n> --until <pr|closed|label:<name>>`) blocks until the event happens,
+prints one JSON line and exits; run it as a background command and act when it
+returns. It reads labels, reviews, threads and the four required contexts, and
+ignores workflow runs on purpose: every `agent:implement` label also fires
+`agent-implement-prd.yml`, which skips when the issue has no sub-issues, and a
+watcher on runs would wake on that noise. The `review-triage` skill is its
+caller.
 
 ### The actions gate
 

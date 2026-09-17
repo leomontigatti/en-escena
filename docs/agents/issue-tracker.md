@@ -119,3 +119,48 @@ Create a GitHub issue.
 ## When a skill says "fetch the relevant ticket"
 
 Run `gh issue view <number> --comments`.
+
+## Wayfinding operations
+
+The `wayfinder` skill (vendored, `.agents/skills/wayfinder`) asks for this section: how
+_this_ tracker expresses the map, its tickets, blocking and the frontier, and what shape
+the destination takes when the map is reached.
+
+- **The map** is an issue labelled `wayfinder:map`. **Tickets** are native sub-issues of it:
+  `gh issue create --parent <map> --label wayfinder:<type> ...`.
+- **Blocking** is GitHub's native dependency relation:
+  `gh issue edit <ticket> --add-blocked-by <other>`. Never a "Blocked by #N" line in the
+  body; `agent-promote-queued.yml` reads only the native relation.
+- **The frontier** is the open, unassigned, unblocked children. List the children with
+  `gh issue view <map> --json subIssues`, keep the open ones, then drop any whose
+  `gh issue view <n> --json assignees,blockedBy` shows an assignee or a blocker still `OPEN`.
+- **Claiming** is `gh issue edit <ticket> --add-assignee @me`, before any work.
+
+### Exit shapes
+
+Close the map by choosing how the destination is filed. The choice decides how much the AFK
+platform costs to build it, because every PR pays a review run, a triage pass, an
+update-branch and a merge, while a PRD pays one review for the whole chain
+(`agent-implement-prd.yml`, spec §4.3). Measured on this repo: the seminars PRD #875 ran five
+sub-issues in under an hour onto one PR; the guardrails map #929 filed eleven blocked
+standalone issues and paid eleven review-and-merge cycles for the same serial order.
+
+| Shape                                    | Use when                                                                                                                                                                         | Cost                                             |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| **One PRD with flat sub-issues**         | The slices are sequential, touch the same files, or none would be merged or reverted alone. **The default.**                                                                     | N implement runs, one review, one merge.         |
+| **Independent, unblocked issues**        | Each slice can merge and revert alone, and reviewing them in parallel is wanted.                                                                                                 | N of everything, in parallel.                    |
+| **A chain of blocked standalone issues** | Only when a later issue must observe merged `master` (a docs pass describing gates that have to exist first). Then it is a PRD for the code plus **one** trailing blocked issue. | N of everything, serialised: the shape to avoid. |
+
+A large map may cut into two or three PRDs by theme, chained by blockers between the PRDs,
+when one diff would be too big to review well. The PRD is written per the
+[PRD workflow](./workflows.md#prd-workflow) and decomposed by `agent:to-issues` or by hand
+with `--parent`; either way the sub-issues stay flat, since Implement PRD refuses nested ones.
+
+### Driving what the map produced
+
+A PRD needs nobody until its single review lands; then `review-triage` runs once. A chain of
+standalone issues needs `review-triage` once per PR, and its
+[Driving a chain](../../.claude/skills/review-triage/SKILL.md#driving-a-chain) section is the
+loop. Either way, the map issue is the durable state: post a two-line "State" comment on it at
+each merge (what landed, what is next and its label) so a fresh session, on any machine, starts
+from the record instead of from a summary.
