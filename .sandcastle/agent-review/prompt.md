@@ -3,7 +3,8 @@
   skeleton docs/agents/prompts/review.prompt.md. Two-pass: the produce pass
   improves the code + commits; a separate extract pass emits the <output> block.
   The runner embeds the linked issue (title AND body — the spec), its sub-issues
-  when it is a PRD, a --stat summary of the diff, and PR_COMMENTS_JSON below. The full patch is deliberately not
+  when it is a PRD, a --stat summary of the diff, PR_COMMENTS_JSON and the CI
+  verdict on this head below. The full patch is deliberately not
   embedded: the agent reads it per-file with git, and the runner keeps the full
   patch only to validate inline anchors.
 -->
@@ -55,6 +56,20 @@ The PR conversation (`PR_COMMENTS_JSON`), tagged by surface — `issue_comments`
 <pr-comments>
 {{PR_COMMENTS_JSON}}
 </pr-comments>
+
+What the `CI` workflow said about this exact head — `success`, `failure` (with the failed job
+names and the tail of their logs), or `not finished` when CI was still running when the review
+started:
+
+<ci-results>
+{{CI_RESULTS}}
+</ci-results>
+
+**A CI failure is a correctness finding, and fixing it is part of this review** — treat it with
+the same weight as anything the `code-review` skill reports, and land the fix in your commit.
+Your own validation (`pnpm typecheck`, `pnpm lint`, `pnpm test:unit`) does not cover what CI
+covers: the full DB suite, `pnpm build`, `pnpm format:check` and the `check:*` scripts run only
+there. `not finished` is not a pass — say so in the summary rather than implying CI was green.
 
 # REVIEW PROCESS
 

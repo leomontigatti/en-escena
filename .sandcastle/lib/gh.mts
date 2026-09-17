@@ -13,6 +13,8 @@
 
 import { execFileSync } from "node:child_process";
 
+import { sleepSync } from "./sleep.mjs";
+
 /**
  * Signals in a `gh`/network error that mark it safely retryable. Matched
  * against the error's captured `stderr`/`stdout` and its `code` — `gh` writes
@@ -110,12 +112,6 @@ function runGh(args: string[]): string {
     encoding: "utf8",
     maxBuffer: 64 * 1024 * 1024,
   });
-}
-
-/** Block the synchronous runner for `ms` without a busy-loop. */
-function sleepSync(ms: number): void {
-  if (ms <= 0) return;
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }
 
 /**
