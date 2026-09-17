@@ -98,6 +98,7 @@ jobs:
             exit 0
           fi
 
+          unpromoted=""
           for Y in $deps; do
             info=$(GH_TOKEN="$GITHUB_TOKEN" gh api graphql -f query='
               query ($owner: String!, $repo: String!, $num: Int!) {
@@ -147,7 +148,7 @@ jobs:
             # PAT-or-fallback: only AGENT_PAT re-triggers the Implement workflow (§3.4).
             set +e
             promoted=1
-            if [ -n "$AGENT_PAT" ]; then
+            if [ -n "${AGENT_PAT:-}" ]; then
               GH_TOKEN="$AGENT_PAT" gh issue edit "$Y" --add-label "agent:implement"
               promoted=$?
               if [ "$promoted" -ne 0 ]; then
@@ -156,7 +157,25 @@ jobs:
             fi
             if [ "$promoted" -ne 0 ]; then
               GH_TOKEN="$GITHUB_TOKEN" gh issue edit "$Y" --add-label "agent:implement"
+              promoted=$?
             fi
             set -e
+
+            # Both tokens refused, and `agent:queued` is already off: the issue
+            # now carries neither label, so the state machine reads it as fresh
+            # work and the next trigger hits the same refusal. A green run
+            # printing "Promoted #Y" would hide that for as long as it lasts —
+            # so name the issue, keep going for the rest, and fail at the end.
+            if [ "$promoted" -ne 0 ]; then
+              echo "::error::Could not label #$Y agent:implement; it now carries neither label."
+              unpromoted="$unpromoted $Y"
+              continue
+            fi
+
             echo "Promoted #$Y to agent:implement."
           done
+
+          if [ -n "$unpromoted" ]; then
+            echo "Could not promote:$unpromoted"
+            exit 1
+          fi

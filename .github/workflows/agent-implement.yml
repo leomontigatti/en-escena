@@ -302,7 +302,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ steps.pr.outputs.number }}
         run: |
-          set +e
+          set -euo pipefail
           # Use the REST labels endpoint, not `gh pr edit`: the latter issues a
           # GraphQL query touching org fields (needs `read:org`), which the
           # classic `repo`+`workflow` AGENT_PAT lacks — it fails and we lose the
@@ -312,11 +312,31 @@ jobs:
             gh api -X POST "repos/$GH_REPO/issues/$PR_NUMBER/labels" \
               -f "labels[]=agent:review" > /dev/null
           }
-          if [ -n "$AGENT_PAT" ]; then
-            GH_TOKEN="$AGENT_PAT" add_review_label && exit 0
-            echo "AGENT_PAT label add failed; falling back to GITHUB_TOKEN (Review won't auto-start)."
+
+          # PAT-or-fallback (§3.4): only AGENT_PAT re-triggers Review.
+          set +e
+          labelled=1
+          if [ -n "${AGENT_PAT:-}" ]; then
+            GH_TOKEN="$AGENT_PAT" add_review_label
+            labelled=$?
+            if [ "$labelled" -ne 0 ]; then
+              echo "AGENT_PAT label add failed for #$PR_NUMBER; falling back (Review won't auto-start)."
+            fi
           fi
-          GH_TOKEN="$GITHUB_TOKEN" add_review_label
+          if [ "$labelled" -ne 0 ]; then
+            GH_TOKEN="$GITHUB_TOKEN" add_review_label
+            labelled=$?
+          fi
+          set -e
+
+          # Both tokens refused: the PR carries no `agent:review`, so nothing —
+          # not even a human reading the run — is told the chain stopped. Say it.
+          if [ "$labelled" -ne 0 ]; then
+            echo "::error::Could not label #$PR_NUMBER agent:review; Review will not start."
+            exit 1
+          fi
+
+          echo "Labeled #$PR_NUMBER agent:review."
 
       # --- Failure: mark blocked + comment (§3.7). ---
       # `!= 'false'`, not `== 'true'`: a preflight that *itself* fails leaves
