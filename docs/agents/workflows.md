@@ -295,9 +295,48 @@ Hook guidance:
 - Prefer running `pnpm typecheck` explicitly before finishing. This command
   must stay as `pnpm typecheck`, not `pnpm exec tsc`, because it generates React
   Router route types before TypeScript runs.
+- Two Claude Code hooks run inside the session itself (#982), and they fire in
+  the AFK implement runners too — hooks are configuration, not a terminal
+  feature, so a headless runner reads the same `.claude/settings.json` (#930):
+  - **`PostToolUse` on `Write|Edit`** → `.claude/hooks/format-edited-file.sh`
+    runs `node_modules/.bin/prettier --write --ignore-unknown` over the file the
+    tool just wrote. It calls the binary directly rather than through
+    `pnpm exec`, which costs 0.9 s wall against 93 ms of actual Prettier, and it
+    always exits 0 without writing to stderr: `PostToolUse` stderr is fed back to
+    Claude, and a reformat is not something to react to. An unsupported path — a
+    `.png` — is a silent no-op. The matcher is exact-string alternation, so it
+    does not cover `NotebookEdit`; this repo has no notebooks.
+  - **`Stop`** → `.claude/hooks/stop-typecheck-lint.sh` runs
+    `pnpm typecheck && pnpm lint` and **blocks** with exit 2, putting the failing
+    output in front of the agent. It costs ~6.2 s (5.1 s + 1.05 s), and ~11.6 s
+    once #986 makes `pnpm lint` type-aware (~6.5 s). It exits 0 without running
+    anything when `SKIP_STOP_CHECKS` is set, when `GITHUB_WORKFLOW` is any
+    workflow outside `AFK Implement`, `AFK Implement PRD` and `AFK Implement PR`,
+    or when no changed path — tracked or untracked — matches what either half
+    of the gate reads: `.ts`/`.tsx`/`.mts`/`.cts` plus `tsconfig*.json` and
+    `package.json` for typecheck, and `.js`/`.jsx`/`.mjs`/`.cjs` plus
+    `.oxlintrc.json` for lint. It reads the working tree only, on purpose:
+    committed work has already passed `.husky/pre-commit`, which runs
+    `pnpm typecheck` on every commit (#934, in the AFK runners too), so this gate
+    owns the uncommitted remainder of a turn — the one thing that leaves
+    uncovered is lint on committed changes, which CI's `checks` job owns. The
+    allowlist is by
+    workflow name rather than by `CI` so the exclusion stays explicit and
+    greppable; `AFK Review` is the case it protects, since the reviewer authors
+    no app code and would spend its budget on a red typecheck it cannot fix.
+    There is no `SubagentStop` hook: it is a distinct event, and `research`,
+    `Explore` and `Plan` do not author app code.
+
+  `SKIP_STOP_CHECKS` is the documented local bypass: set to any value, it turns
+  the gate off — `SKIP_STOP_CHECKS=1 claude`, or export it for the session. The gate keeps blocking while the failure
+  persists; Claude Code force-closes the turn after 8 consecutive blocks, which is
+  the backstop, so the wording of the last instruction is all `stop_hook_active`
+  decides.
 
 During the development loop, prefer focused validation for the area being
-changed before running the broader final checks:
+changed before running the broader final checks. The `Stop` gate above is the
+backstop, not the plan: it catches a turn that would have ended red, but it runs
+once at the end and knows nothing about which area you touched. Prefer:
 
 - Run `pnpm check:repo-styles` when the change adds or edits app UI code.
   This repo-style check blocks hardcoded Tailwind color scales and `space-x/y-*`
