@@ -11,13 +11,135 @@ ADR-0013 records.
 
 - **VPS**: Hostinger, `72.60.59.2`, reachable as `rylai` over SSH. Its firewall
   is default-deny; see [DNS and email](./dns-and-email.md) for the Cloudflare-only
-  `443` rules.
-- **Platform**: Coolify.
+  `443` rules. `ufw` is **inactive** on the host, so that filtering is
+  Hostinger's network firewall (group `default`), configured in hPanel —
+  reading the host's own rules will tell you nothing. SSH is accepted only from
+  the control plane and the operator's current IP, `80` from anywhere, `443`
+  only from Cloudflare's IPv4 ranges, and there is no UDP rule at all.
+- **Platform**: Coolify, but `rylai` runs only the agent side of it:
+  `coolify-sentinel` and the `coolify-proxy` Traefik container. The dashboard is
+  on a different machine — see [Coolify control plane](#coolify-control-plane).
 - **Application**: Coolify resource `x1383fsxfsixpgmvd9quv7tj`, served at
   `sistema.enescena.com.ar`.
 - Migrations run from the container entrypoint before the app serves, so a
   failed migration is a container that will not start. See
   [Database migrations](../db/migrations.md).
+
+### Coolify control plane
+
+The Coolify dashboard does **not** run on `rylai`. It is a second Hostinger VPS,
+`2.25.160.145` (`srv1723917.hstgr.cloud`), and `rylai` is a server it manages.
+Anything that means "open Coolify" — triggering a deploy, restarting the proxy,
+calling the API — happens there; everything the application serves happens on
+`rylai`.
+
+The control plane is not specific to En Escena: it is meant to host other
+projects too, which is why its domain is not under `enescena.com.ar`.
+
+Two consequences, both easy to get wrong:
+
+- **Losing the control plane does not take the site down.** `rylai` keeps
+  serving on its own. What is lost is every way to deploy, restart or inspect it
+  from the UI, which makes the control plane an availability dependency for
+  _changing_ production, not for running it.
+- **There are two firewalls, not one.** Each VPS carries its own hPanel rule
+  set, and a change made for one does not apply to the other.
+
+#### Dashboard domain
+
+The dashboard is served at `https://panel.underthing.dev`, the instance URL
+under `Settings > Configuration > General > URL`. The `underthing.dev` zone
+lives in a **different Cloudflare account** from `enescena.com.ar`, on purpose:
+the business's domain stays with the business, and the platform's stays with
+its operator. An API token from one account cannot see the other's zone.
+
+`panel` is an `A` record to `2.25.160.145`, **DNS only**, and the control
+plane's own `coolify-proxy` (Traefik, `3.7.13` as of 2026-09-17) terminates TLS
+with a Let's Encrypt certificate. Realtime updates (`/app`) and the web terminal
+(`/terminal/ws`) are routed through that same `443`, which is what lets `6001`
+and `6002` stay closed.
+
+API tokens issued while the dashboard was plain HTTP were rotated on
+2026-09-17, after the move.
+
+#### Control plane firewall
+
+The group is `coolify-server`, attached on 2026-09-16; until then the VPS had no
+network firewall at all. It accepts:
+
+| Port        | From                      |
+| ----------- | ------------------------- |
+| `22`        | the operator's current IP |
+| `80`, `443` | anywhere                  |
+
+Nothing else is open. Coolify documents `8000`, `6001` and `6002` for a
+dashboard reached by IP; with the domain in place they have been closed since
+2026-09-17. Nothing in the platform needs UDP.
+
+**A change of the operator's IP locks out SSH and the REST API, not the
+dashboard**: `443` is open to anywhere, and the Coolify MCP endpoint is not
+gated by the API allowlist. Recovery is in hPanel, which does not go through
+this firewall — update the `coolify-server` SSH rule — plus the instance's
+`Allowed IPs for API Access` under `Settings > Configuration > Advanced`.
+
+#### Sentinel follows its own URL, not the instance URL
+
+`coolify-sentinel` on a managed server pushes to that server's
+`sentinel_custom_url`, and Coolify **saves** the value the first time it
+generates it. Changing the instance URL afterwards does not move the agents: in
+Coolify `4.3.21`, `ServerSetting::ensureSentinelUrl()` only regenerates the URL
+when it is blank. Set it per server with
+`PATCH /api/v1/servers/{uuid}/sentinel` and a new `sentinel_custom_url`; Coolify
+restarts the agent when that value changes.
+
+`rylai` pushes to `https://panel.underthing.dev`. Check it from the host:
+
+```bash
+ssh rylai 'docker inspect coolify-sentinel --format "{{range .Config.Env}}{{println .}}{{end}}" | grep PUSH_ENDPOINT'
+```
+
+The control plane's own agent pushes to `http://host.docker.internal:8000`,
+which stays on the Docker network and never meets the firewall.
+
+#### Known gaps
+
+- **The login page is public.** `443` is open to anywhere, so the gate is the
+  Coolify login itself. Putting `panel` behind Cloudflare's proxy with a WAF
+  rule that admits only the operator's IP would narrow it; that is not done.
+- **The GitHub App's webhook URL is most likely stale.** The private
+  `en-escena` GitHub App was set up while the dashboard was reached by IP, so
+  its webhook presumably still targets `http://2.25.160.145:8000`, which is now
+  closed. This is not verified — the setting lives on GitHub. Deploys are
+  manual, so nothing depends on it; update it before turning on automatic
+  deployments or pull request previews.
+
+### Proxy
+
+On `rylai`, `coolify-proxy` is Traefik, pinned in
+`/data/coolify/proxy/docker-compose.yml`
+to the **floating** `traefik:v3.7` tag. A patch update is a pull and a recreate
+with no file edit; the flip side is that the compose file does not record which
+patch is running, so read it from the container rather than the config:
+
+```bash
+ssh rylai 'docker exec coolify-proxy traefik version'
+```
+
+Running `3.7.13` as of 2026-09-16, updated from `3.7.10` for the CVEs fixed
+across `3.7.11`, `3.7.12` and `3.7.13`.
+
+Coolify regenerates that compose file, so proxy flags belong in the dashboard
+under `Servers > <server> > Proxy > Configuration`, never in a hand edit on the
+host — the next regeneration would silently drop it.
+`/data/coolify/proxy/backups/` keeps the previously generated copies, and
+`acme.json` sits on the same bind mount, which is why recreating the proxy does
+not re-issue certificates.
+
+The `https` entrypoint has HTTP/3 enabled (`--entrypoints.https.http3`, with
+`443:443/udp` published). In practice nothing should arrive on it: Cloudflare
+does not speak HTTP/3 to an origin, so the only client that could reach it is
+one addressing the IP directly — and `rylai`'s firewall has no UDP rule, so
+that client is dropped before it reaches Traefik.
 
 ## Deployment
 
