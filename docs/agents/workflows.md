@@ -196,22 +196,22 @@ made, by hand, once #955 merged) is a human step outside the repo.
 
 ## Linting
 
-`pnpm lint` is [oxlint](https://oxc.rs), configured in `.oxlintrc.json`. It runs
-over the whole repo in about a second and enables exactly three rules:
-
-- `react-hooks/rules-of-hooks`
-- `react-hooks/exhaustive-deps`
-- `import/no-cycle`
+`pnpm lint` is [oxlint](https://oxc.rs), configured in `.oxlintrc.json`, which is
+the list — do not restate it here. What it owns is React hook mistakes, import
+cycles and un-awaited promises. It runs over the whole repo in about six and a
+half seconds; the un-awaited-promise rules are type-aware (`oxlint-tsgolint`), so
+the run builds a TypeScript program, which is the whole of the 1.5 s → 6.5 s
+difference.
 
 **It is deliberately not a style checker**, and rules must not be added to it
 casually. The scope rule is that every concern already has exactly one owner:
 
-| Concern                         | Owner                                            |
-| ------------------------------- | ------------------------------------------------ |
-| Formatting                      | Prettier (`pnpm format`)                         |
-| Types, unused locals/parameters | `tsc` (`pnpm typecheck`, `strict` + `noUnused*`) |
-| Repo conventions                | the `check:*` scripts                            |
-| Hook mistakes, import cycles    | `pnpm lint`                                      |
+| Concern                                           | Owner                                            |
+| ------------------------------------------------- | ------------------------------------------------ |
+| Formatting                                        | Prettier (`pnpm format`)                         |
+| Types, unused locals/parameters                   | `tsc` (`pnpm typecheck`, `strict` + `noUnused*`) |
+| Repo conventions                                  | the `check:*` scripts                            |
+| Hook mistakes, import cycles, un-awaited promises | `pnpm lint`                                      |
 
 A rule that duplicates another owner turns the linter into a chore and gets
 ignored, so it does not go in. What justifies these three is that nothing else
