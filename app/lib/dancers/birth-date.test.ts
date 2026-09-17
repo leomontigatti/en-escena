@@ -7,9 +7,12 @@ import {
   getBirthDatePickerBounds,
   futureBirthDateMessage,
   getLatestEligibleBirthDate,
+  getOverageDancersMessage,
   getUnderageDancersMessage,
   invalidBirthDateMessage,
   isOldEnoughAtEventStart,
+  isYoungEnoughAtEventStart,
+  overageBirthDateMessage,
   underageBirthDateMessage,
 } from "@/lib/dancers/birth-date";
 
@@ -34,8 +37,18 @@ describe("birth date refinement", () => {
     expect(parseBirthDate("2025-09-25")).toEqual([]);
   });
 
+  test("rejects a dancer who would be over a hundred at the event's start", () => {
+    expect(parseBirthDate("1925-09-25")).toEqual([overageBirthDateMessage]);
+    expect(parseBirthDate("1905-01-15")).toEqual([overageBirthDateMessage]);
+  });
+
+  test("accepts a dancer who turns a hundred exactly on the event's start", () => {
+    expect(parseBirthDate("1926-09-25")).toEqual([]);
+  });
+
   test("applies only the date checks without an event start", () => {
     expect(parseBirthDate("2026-01-15", null)).toEqual([]);
+    expect(parseBirthDate("1905-01-15", null)).toEqual([]);
     expect(parseBirthDate("2026-02-30", null)).toEqual([
       invalidBirthDateMessage,
     ]);
@@ -52,9 +65,18 @@ describe("registration age guard", () => {
     expect(isOldEnoughAtEventStart(0)).toBe(false);
   });
 
+  test("admits an age of exactly a hundred and refuses anything over it", () => {
+    expect(isYoungEnoughAtEventStart(100)).toBe(true);
+    expect(isYoungEnoughAtEventStart(101)).toBe(false);
+  });
+
   test("names every dancer that blocks the registration", () => {
     expect(getUnderageDancersMessage(["Nina Ríos"])).toContain("Nina Ríos");
     expect(getUnderageDancersMessage(["Nina Ríos", "Lía Paz"])).toContain(
+      "Nina Ríos, Lía Paz",
+    );
+    expect(getOverageDancersMessage(["Nina Ríos"])).toContain("Nina Ríos");
+    expect(getOverageDancersMessage(["Nina Ríos", "Lía Paz"])).toContain(
       "Nina Ríos, Lía Paz",
     );
   });

@@ -3,6 +3,7 @@ import { expect } from "vitest";
 import {
   futureBirthDateMessage,
   invalidBirthDateMessage,
+  overageBirthDateMessage,
   underageBirthDateMessage,
 } from "@/lib/dancers/birth-date";
 
@@ -50,9 +51,16 @@ export function expectSharedBirthDateRules(input: {
   // The boundary is the whole point: exactly one year old at the start passes.
   expect(readMessages("2025-09-25", eventStartDate)).toEqual([]);
 
+  expect(readMessages("1925-09-25", eventStartDate)).toEqual([
+    overageBirthDateMessage,
+  ]);
+  // The ceiling's boundary, read the same way: exactly a hundred passes.
+  expect(readMessages("1926-09-25", eventStartDate)).toEqual([]);
+
   // Without an active event the age is unmeasurable, so only the date checks
   // survive.
   expect(readMessages("no-es-fecha", null)).toEqual([invalidBirthDateMessage]);
   expect(readMessages("2999-01-01", null)).toEqual([futureBirthDateMessage]);
   expect(readMessages("2026-01-15", null)).toEqual([]);
+  expect(readMessages("1925-09-25", null)).toEqual([]);
 }
