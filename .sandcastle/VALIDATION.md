@@ -31,9 +31,9 @@ The scripts that exist and what owns what:
 
 | Command                     | Owns                                                      |
 | --------------------------- | --------------------------------------------------------- |
-| `pnpm typecheck`            | Types, unused locals and parameters                        |
-| `pnpm lint`                 | React hook mistakes and import cycles — **only** these     |
-| `pnpm format` / `:check`    | All formatting                                             |
+| `pnpm typecheck`            | Types, unused locals and parameters — also run by the `Stop` hook |
+| `pnpm lint`                 | React hook mistakes and import cycles — **only** these; also run by the `Stop` hook |
+| `pnpm format` / `:check`    | All formatting — also applied per file by the `PostToolUse` hook |
 | `pnpm test:unit`            | Unit and React suites                                      |
 | `pnpm test:db <path>`       | DB suite on in-process PGlite                              |
 | `pnpm check:doc-map`        | Mapped code changed in step with its doc                   |
@@ -48,6 +48,18 @@ The scripts that exist and what owns what:
 | gitleaks (pre-commit + CI)  | Secrets in commits — `.gitleaks.toml` rules over the staged diff, then over `origin/master..HEAD` |
 
 CI runs the `check:*` scripts and `pnpm build` for you. You do not need to.
+
+Two of those rows have an automatic enforcement point inside the session, and
+they fire in this runner too (#982). `PostToolUse` on `Write|Edit` formats every
+file you write, silently, so `pnpm format` is not yours to remember. `Stop` runs
+`pnpm typecheck && pnpm lint` and **blocks the end of the turn** with exit 2 and
+the failing output when either is red — it is a backstop, not a substitute for
+running them yourself, since it reports once at the end with no idea what you
+changed. It skips a turn that touched no `.ts`/`.tsx`/`.mts`/`.cts`,
+`tsconfig*.json` or `package.json`, and it skips every workflow outside the three
+implement runners, `AFK Review` included. `SKIP_STOP_CHECKS=1` is the bypass, and
+it is for local work, not for getting a red branch committed here. Both hooks are
+described in `docs/agents/workflows.md`.
 
 gitleaks has no `check:*` script either: it runs from `.husky/pre-commit`, where
 it warns and continues if the binary is missing, and blocking from the `checks`
