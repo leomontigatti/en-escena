@@ -43,13 +43,22 @@ if [ -n "${GITHUB_WORKFLOW:-}" ]; then
   esac
 fi
 
+# Every failure below is fail-open on purpose: this hook blocks the end of a
+# turn, so a broken project dir or a non-repo checkout must not wedge the
+# session. That is also why `set -e` is absent — the `output="$(...)"` capture
+# under `if` is the whole point, and a non-zero exit there is a result, not a
+# crash.
 cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0
 
 # `--untracked-files=all` because the default collapses an untracked directory to
-# `app/`, which hides every extension under it. `-z` so paths arrive unquoted and a rename's two paths arrive as two entries;
-# the status prefix in front of each is harmless to a suffix match.
-changed="$(git status --porcelain --untracked-files=all -z 2>/dev/null | tr '\0' '\n')"
-if ! printf '%s\n' "$changed" | grep -Eq '\.(ts|tsx|mts|cts)$|(^|/| )tsconfig[^/]*\.json$|(^|/| )package\.json$'; then
+# `app/`, which hides every extension under it. `-z` so paths arrive unquoted and
+# a rename's two paths arrive as two entries; the status prefix in front of each
+# is harmless to a suffix match.
+#
+# These are status lines, not bare paths — `?? app/routes/home.tsx` — hence the
+# leading-space alternative in the pattern below.
+changed_status_lines="$(git status --porcelain --untracked-files=all -z 2>/dev/null | tr '\0' '\n')"
+if ! printf '%s\n' "$changed_status_lines" | grep -Eq '\.(ts|tsx|mts|cts)$|(^|/| )tsconfig[^/]*\.json$|(^|/| )package\.json$'; then
   exit 0
 fi
 

@@ -49,7 +49,7 @@ The scripts that exist and what owns what:
 
 CI runs the `check:*` scripts and `pnpm build` for you. You do not need to.
 
-Two of those rows have an automatic enforcement point inside the session, and
+Three of those rows have an automatic enforcement point inside the session, and
 they fire in this runner too (#982). `PostToolUse` on `Write|Edit` formats every
 file you write, silently, so `pnpm format` is not yours to remember. `Stop` runs
 `pnpm typecheck && pnpm lint` and **blocks the end of the turn** with exit 2 and

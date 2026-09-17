@@ -155,18 +155,18 @@ describe("stop-typecheck-lint.sh", () => {
     expect(pnpmCalls()).toEqual([]);
   });
 
-  it("runs for a change to tsconfig.json or package.json alone", () => {
-    change("tsconfig.json", "{}\n");
+  // One `it` per file, because a single test that writes both leaves the first
+  // one on disk while it asserts the second: the `package.json` arm of the
+  // filter then rides on `tsconfig.json` and is never actually exercised.
+  it.each(["tsconfig.json", "package.json"])(
+    "runs for a change to %s alone",
+    (configFile) => {
+      change(configFile, "{}\n");
 
-    expect(runHook().status).toBe(0);
-    expect(pnpmCalls()).toEqual(["typecheck", "lint"]);
-
-    rmSync(pnpmLog);
-    change("package.json", "{}\n");
-
-    expect(runHook().status).toBe(0);
-    expect(pnpmCalls()).toEqual(["typecheck", "lint"]);
-  });
+      expect(runHook().status).toBe(0);
+      expect(pnpmCalls()).toEqual(["typecheck", "lint"]);
+    },
+  );
 
   it("sees a tracked and modified file, not only untracked ones", () => {
     change("app/routes/home.tsx", "export const home = 1;\n");
