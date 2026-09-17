@@ -30,3 +30,12 @@ export function getNoCompatibleCategoryRegistrationMessage(input: {
  */
 export const noCompatibleCategoryRosterMessage =
   "Con este elenco no existe una categoría válida. Ajustá los bailarines para poder guardar.";
+
+/**
+ * The modality correction's rejection when the destination modality resolves no
+ * category. The only lever the administrator has here is the select they just
+ * used — the roster is not part of this correction — so the sentence points
+ * back at it.
+ */
+export const noCompatibleCategoryModalityMessage =
+  "Con esta modalidad no hay categoría compatible. Elegí otra modalidad.";
