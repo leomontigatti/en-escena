@@ -101,7 +101,10 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
-          token: ${{ secrets.AGENT_PAT || github.token }}
+          # No credential in `.git/config`: the agent session reads PR text and
+          # runs `pnpm install` scripts, so nothing it can reach may hold a token
+          # (#956). The push step authenticates per command instead.
+          persist-credentials: false
 
       - name: Prepare branch refs
         if: steps.preflight.outputs.proceed == 'true'
@@ -142,6 +145,13 @@ jobs:
         run: |
           git config user.name "claude-code[bot]"
           git config user.email "claude-code[bot]@users.noreply.github.com"
+          # The agent session starts after this step: nothing may have stored a
+          # credential in the tree (#956). `persist-credentials: false` on the
+          # checkout is what makes this hold; the assertion keeps it honest.
+          if git config --get-all http.https://github.com/.extraheader >/dev/null; then
+            echo "A credential is persisted in .git/config; refusing to start the agent." >&2
+            exit 1
+          fi
 
       - name: Run review runner
         if: steps.preflight.outputs.proceed == 'true'
@@ -174,13 +184,22 @@ jobs:
 
       - name: Race-safe push (if the agent committed)
         if: steps.preflight.outputs.proceed == 'true'
+        env:
+          # Explicit push credential, `AGENT_PAT` first so pushes that touch
+          # `.github/workflows/**` carry the `workflow` scope, `github.token`
+          # as the no-PAT fallback (docs/agents/afk-setup.md).
+          PUSH_TOKEN: ${{ secrets.AGENT_PAT || github.token }}
         run: |
           set -euo pipefail
           if [ "$(git rev-parse HEAD)" = "$BRANCH_HEAD_SHA" ]; then
             echo "No new commit; nothing to push."
             exit 0
           fi
-          git push --force-with-lease="refs/heads/$BRANCH:$BRANCH_HEAD_SHA" origin "$BRANCH" 2> push_err.txt || true
+          # Per-command auth (#956): the checkout persisted nothing, so this is the
+          # one place a push credential exists — and only for this command.
+          auth=$(printf 'x-access-token:%s' "$PUSH_TOKEN" | base64 -w0)
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" \
+            push --force-with-lease="refs/heads/$BRANCH:$BRANCH_HEAD_SHA" origin "$BRANCH" 2> push_err.txt || true
           if grep -qiE "non-fast-forward|rejected|fetch first|stale info" push_err.txt; then
             echo "Branch advanced during review run." > "$OUTPUT_DIR/failure_reason.txt"
             exit 1

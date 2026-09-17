@@ -10,10 +10,10 @@ import {
 // Coverage for #635: the three workflows-over-a-PR run on `pull_request_target`,
 // which evaluates the workflow from the base branch but runs with this repo's
 // secrets — and each then checks out `pull_request.head.sha`. On a PR from a
-// fork that puts contributor-controlled code on disk with `AGENT_PAT` reachable
-// (persisted into `.git/config`, then fed to `pnpm install` lifecycle scripts
-// and to the runner script itself). The `agent:*` label was the only gate, and a
-// label says nothing about provenance.
+// fork that puts contributor-controlled code on disk inside a job that holds
+// `AGENT_PAT` (and, before #956, persisted it into `.git/config`), then feeds it
+// to `pnpm install` lifecycle scripts and to the runner script itself. The
+// `agent:*` label was the only gate, and a label says nothing about provenance.
 //
 // The guard is a job-level `if:`, which is the only form that keeps the
 // untrusted tree from ever being checked out — a step-level refusal would run

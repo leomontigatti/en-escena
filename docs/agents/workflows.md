@@ -111,10 +111,8 @@ checkout's `master` current. It only runs when that checkout is clean and on
 
 ## Continuous integration
 
-`.github/workflows/ci.yml` runs on every PR to `master`, as four gates. Three of
-them — `checks`, `db-gate` and `docs-gate` — are required contexts on `master`;
-`actions-gate` is not one yet, because required contexts are a repo setting and
-adding a job does not update them (see "Bumping the pins" below).
+`.github/workflows/ci.yml` runs on every PR to `master`, as four required
+contexts: `checks`, `db-gate`, `docs-gate` and `actions-gate`.
 The rationale for each job lives in that file's comments; what follows
 is the shape a reader needs before running anything locally:
 
@@ -168,10 +166,10 @@ There is no pinact step in CI. Pins are rewritten one-shot with `pinact run`
 or `go install github.com/suzuki-shunsuke/pinact/cmd/pinact@latest`);
 zizmor's `unpinned-uses` is what keeps them that way.
 
-Two suppressions live in `.github/zizmor.yml` instead of next to the code, both
-temporary and both naming the issue that deletes them: `artipacked` (#956, which
-takes `AGENT_PAT` out of `.git/config`) and `adhoc-packages` (#944, which pins
-the agent CLI installs). Everything else a workflow can justify on its own
+One suppression lives in `.github/zizmor.yml` instead of next to the code,
+temporary and naming the issue that deletes it: `adhoc-packages` (#966, which
+pins the agent CLI installs; the `artipacked` one #955 shipped with was removed
+by #956). Everything else a workflow can justify on its own
 carries an inline `# zizmor: ignore[<audit>]` with the reason written next to it
 — that is the preferred form, because the excuse and the code it excuses stay
 together.
@@ -190,8 +188,8 @@ All of it is a manual edit; nothing here opens update PRs.
    check offline.
 
 Adding or renaming a job here does not update branch protection — required
-contexts are a repo setting, so `actions-gate` becoming required is a human step
-outside the repo.
+contexts are a repo setting, so making a new job required (as `actions-gate` was
+made, by hand, once #955 merged) is a human step outside the repo.
 
 ## Linting
 
