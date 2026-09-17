@@ -161,7 +161,8 @@ export type ChoreographyRegistrationOperationFailureCode =
   | "experience-level-required"
   | "invalid-experience-level"
   | "invalid-dancers"
-  | "dancer-under-minimum-age";
+  | "dancer-under-minimum-age"
+  | "no-compatible-category";
 
 export type OperationFailure = {
   ok: false;

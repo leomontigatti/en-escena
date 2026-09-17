@@ -5,6 +5,7 @@ import {
   choreographies,
   choreographyDancers,
   choreographyProfessors,
+  modalities,
   professors,
 } from "@/db/schema";
 import { allocateChoreographyNumber } from "@/lib/choreographies/choreography-number.server";
@@ -20,7 +21,10 @@ import {
   type ChoreographyRegistrationOperationInput,
   type ChoreographyRegistrationOperationResolution,
 } from "@/lib/choreographies/registration-resolution.server";
-import { invalidExperienceLevelMessage } from "@/lib/choreographies/choreography-messages";
+import {
+  getNoCompatibleCategoryRegistrationMessage,
+  invalidExperienceLevelMessage,
+} from "@/lib/choreographies/choreography-messages";
 import {
   classifyRosterPersonSelection,
   getRosterPersonRejectionMessage,
@@ -135,6 +139,22 @@ export async function createChoreographyRegistration(
     return scheduleSelection.failure;
   }
 
+  // Beside the schedule check and before anything is written: a choreography
+  // that resolves to no category cannot compete, so it is never inserted. The
+  // resolver still reports the category as pending — turning that into a
+  // refusal is the writer's call, not the resolver's.
+  const { category } = operation.resolution;
+
+  if (category.status !== "resolved") {
+    return createFailure(
+      "no-compatible-category",
+      getNoCompatibleCategoryRegistrationMessage({
+        modalityName: await getModalityName(input.modalityId),
+        groupType: operation.resolution.groupType,
+      }),
+    );
+  }
+
   const validProfessorIds = await resolveProfessorIds({
     academyId: input.academyId,
     professorIds: uniqueProfessorIds,
@@ -178,10 +198,7 @@ export async function createChoreographyRegistration(
           modalityId: input.modalityId,
           submodalityId: input.submodalityId,
           groupType: operation.resolution.groupType,
-          categoryId:
-            operation.resolution.category.status === "resolved"
-              ? operation.resolution.category.id
-              : null,
+          categoryId: category.id,
           categoryCalculationMode: operation.resolution.categoryCalculationMode,
           categoryAgeBasis: operation.resolution.categoryAgeBasis,
           experienceLevelId: experienceLevelId.value,
@@ -290,6 +307,19 @@ function capitalizeFirstCharacter(value: string) {
   }
 
   return `${firstCharacter.toLocaleUpperCase("es-AR")}${rest.join("")}`;
+}
+
+/**
+ * Only the refusal needs it: the resolver already validated the modality, so
+ * the name is read on the one path that puts it in front of the academy.
+ */
+async function getModalityName(modalityId: string) {
+  const modality = await db.query.modalities.findFirst({
+    where: eq(modalities.id, modalityId),
+    columns: { name: true },
+  });
+
+  return modality?.name ?? "";
 }
 
 async function resolveProfessorIds(input: {

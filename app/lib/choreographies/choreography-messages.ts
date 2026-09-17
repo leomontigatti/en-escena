@@ -1,3 +1,5 @@
+import { groupTypeLabels, type GroupType } from "@/lib/events/group-types";
+
 export const choreographyNotFoundMessage = "No encontramos esa coreografía.";
 
 /**
@@ -8,3 +10,15 @@ export const choreographyNotFoundMessage = "No encontramos esa coreografía.";
  */
 export const invalidExperienceLevelMessage =
   "Elegí un nivel de experiencia válido para esta coreografía.";
+
+/**
+ * The registration rejection when the dancers' ages resolve to no category of
+ * the modality. The academy can only fix it from the two inputs it chose, so
+ * the sentence names both: the modality and the group type its roster derives.
+ */
+export function getNoCompatibleCategoryRegistrationMessage(input: {
+  modalityName: string;
+  groupType: GroupType;
+}) {
+  return `No hay una categoría de ${input.modalityName} para ${groupTypeLabels[input.groupType]} con las edades de estos bailarines. Revisá los bailarines o la modalidad.`;
+}
