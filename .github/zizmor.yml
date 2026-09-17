@@ -1,0 +1,37 @@
+# zizmor configuration for the `actions-gate` job in .github/workflows/ci.yml (#955).
+#
+# Only *temporary* suppressions live here; everything a workflow can justify on
+# its own carries an inline `# zizmor: ignore[...]` with the reason next to the
+# code it excuses. Each entry below names the issue that removes it, so an empty
+# `rules:` block is the end state, not an aspiration.
+rules:
+  # Every checkout leaves the job's token in `.git/config`, and `actions/upload-artifact`
+  # is one `path: .` away from publishing it. The fix is `persist-credentials: false`
+  # plus explicit token grants on the steps that push — which is the whole subject of
+  # #956 (Agent workflows: keep AGENT_PAT out of .git/config). Turning it on here first
+  # would break every agent workflow's push, so the gate ships ignoring it. #956 owns
+  # every entry below: they are exactly the agent workflows. `ci.yml` and
+  # `architecture-review.yml` push nothing, so they already carry
+  # `persist-credentials: false` and are not listed.
+  artipacked:
+    ignore:
+      - agent-implement.yml
+      - agent-implement-pr.yml
+      - agent-implement-prd.yml
+      - agent-review.yml
+      - agent-to-issues-prd.yml
+      - agent-update-branch.yml
+
+  # `npm install -g @anthropic-ai/claude-code` and `npx skills@latest` are unpinned on
+  # purpose today: the agent runners are meant to track the current CLI. Pinning them
+  # (and deciding the bump cadence) is owned by #944, the Reviewer-inputs ticket, and
+  # is explicitly out of scope for #955.
+  adhoc-packages:
+    ignore:
+      - agent-implement.yml
+      - agent-implement-pr.yml
+      - agent-implement-prd.yml
+      - agent-review.yml
+      - agent-to-issues-prd.yml
+      - agent-update-branch.yml
+      - architecture-review.yml

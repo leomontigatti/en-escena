@@ -43,8 +43,15 @@ The scripts that exist and what owns what:
 | `pnpm check:migration-order`| New migrations postdate `master`                           |
 | `pnpm check:comment-language`| Spanish prose in comments, test names, thrown error messages, docs and YAML |
 | `pnpm check:fallow`         | Fallow's `new-only` gate on what the branch adds           |
+| zizmor (CI only)            | Actions security posture and pin freshness — `.github/workflows/**` |
+| actionlint (CI only)        | Workflow syntax and expressions — `.github/workflows/**` |
 
 CI runs the `check:*` scripts and `pnpm build` for you. You do not need to.
+
+The last two rows are the `actions-gate` job (#955) and have no local script on
+purpose: they only ever read `.github/workflows/**`, and both are pinned inside
+`ci.yml`. If you edited a workflow, the gate is what tells you; how it is set up
+and how to bump its pins is in `docs/agents/workflows.md`.
 
 ## About `pnpm lint`
 

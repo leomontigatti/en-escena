@@ -111,8 +111,11 @@ checkout's `master` current. It only runs when that checkout is clean and on
 
 ## Continuous integration
 
-`.github/workflows/ci.yml` runs on every PR to `master`, as three required
-contexts. The rationale for each job lives in that file's comments; what follows
+`.github/workflows/ci.yml` runs on every PR to `master`, as four gates. Three of
+them — `checks`, `db-gate` and `docs-gate` — are required contexts on `master`;
+`actions-gate` is not one yet, because required contexts are a repo setting and
+adding a job does not update them (see "Bumping the pins" below).
+The rationale for each job lives in that file's comments; what follows
 is the shape a reader needs before running anything locally:
 
 - `checks`: `format:check`, `lint`, the `check:*` scripts, the migration
@@ -128,12 +131,67 @@ is the shape a reader needs before running anything locally:
   `pnpm test:db` (PGlite) or `pnpm test:db:postgres` (real Postgres).
 - `docs-gate`: mapped code changed, so its current-state document must change
   too (`pnpm check:doc-map`).
+- `actions-gate`: [zizmor](https://docs.zizmor.sh) and
+  [actionlint](https://github.com/rhysd/actionlint) over every file in
+  `.github/workflows/`. Neither has a `package.json` script — they are Actions
+  tooling, they only ever look at that directory, and CI is the only place they
+  run. See below for what they own and how to bump them.
 
 `--shard` splits by file, so a shard always runs whole files and never shares a
 database with another shard; the serial-within-a-runner isolation model of
 `docs/adr/0007-db-test-isolation-model.md` is unchanged. Required contexts are a
 repo setting, not part of this file: renaming a job does not update branch
 protection, which is why the aggregator is named exactly `db-gate`.
+
+### The actions gate
+
+Two tools, both version-pinned in `ci.yml`, neither installed from the
+Marketplace:
+
+- **zizmor** (`pipx run zizmor==<version>` — `pipx` is on the runner image and
+  `uv` is not), default persona, configured by
+  `.github/zizmor.yml`. It owns the Actions security posture: unpinned `uses:`,
+  dangerous triggers, template injection, over-broad `permissions:` and
+  `$GITHUB_ENV` writes. **Online audits are on**, with
+  `GH_TOKEN: ${{ github.token }}` — `known-vulnerable-actions`, `impostor-commit` and
+  `ref-version-mismatch` only exist with a token, and they are the whole reason
+  the SHA pins can be manual: a pin that goes stale, or that no longer matches
+  the tag its comment claims, turns the gate red on the next PR instead of
+  rotting quietly.
+- **actionlint**, installed by its own release-pinned download script. It owns
+  workflow syntax, `${{ }}` expression types, job/step references and shellcheck
+  over `run:` blocks. Shellcheck runs at `--severity=warning`: at `info`/`style`
+  the gate is a wall of SC2016 pointing at correct `jq '...'` filters.
+
+There is no pinact step in CI. Pins are rewritten one-shot with `pinact run`
+(not a repo dependency — grab the release binary from `suzuki-shunsuke/pinact`,
+or `go install github.com/suzuki-shunsuke/pinact/cmd/pinact@latest`);
+zizmor's `unpinned-uses` is what keeps them that way.
+
+Two suppressions live in `.github/zizmor.yml` instead of next to the code, both
+temporary and both naming the issue that deletes them: `artipacked` (#956, which
+takes `AGENT_PAT` out of `.git/config`) and `adhoc-packages` (#944, which pins
+the agent CLI installs). Everything else a workflow can justify on its own
+carries an inline `# zizmor: ignore[<audit>]` with the reason written next to it
+— that is the preferred form, because the excuse and the code it excuses stay
+together.
+
+#### Bumping the pins
+
+All of it is a manual edit; nothing here opens update PRs.
+
+1. `pinact run --update` rewrites every `uses:` in `.github/workflows/` to the
+   newest release of that action, SHA plus a `# vN` comment.
+2. Bump `zizmor==<version>` and the two actionlint version strings in the
+   `actions-gate` job by hand.
+3. `pnpm format` (Prettier owns the YAML), then push and read the gate. Its
+   online audits are the confirmation step: they are what tells you a rewritten
+   pin really points at the tag its comment names, which is something you cannot
+   check offline.
+
+Adding or renaming a job here does not update branch protection — required
+contexts are a repo setting, so `actions-gate` becoming required is a human step
+outside the repo.
 
 ## Linting
 
