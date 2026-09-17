@@ -56,6 +56,14 @@ are only concrete references to this repo:
   clean (opt-in, `implement` and `implement-prd` only), the two implement passes move to 60 / 50,
   and their prompts state the budget and ask for checkpoint commits. Details in
   [`afk-setup.md`](./afk-setup.md) → "Wall-clock guardrails".
+- **A local workflow beside the eight, feeding the sixth (#1020).** The spec has Update Branch triggered by a
+  human applying `agent:update-branch` (§4.6). Branch protection here is strict, so every open
+  `agent/*` PR is behind `master` the moment the one below it merges, and in practice that hand
+  was the driving session's, once per PR, on a decision needing no judgement.
+  `agent-label-behind-prs.yml` applies the label on `push` to `master` instead. It is a local
+  addition kept deliberately thin — no agent, no runner, no checkout, no section of its own in
+  the spec — so §4.6 stays the single description of what the label _does_; the trigger is
+  recorded there and in [`afk-setup.md`](./afk-setup.md) → "The one trigger you never apply".
 - **No credential persisted by the checkout (#956).** The spec's runner steps (§4.2 step 2,
   §4.3 step 3, §4.5 step 2 and their siblings) read "Checkout … with `AGENT_PAT ||
 GITHUB_TOKEN` (PAT lets the push include workflow changes)", which relies on

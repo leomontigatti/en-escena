@@ -137,10 +137,17 @@ stop after step 3 and report.
    #1022, the path is manual and the session waits:
 
    ```bash
-   gh pr update-branch <PR>                # no-op when already current
    pnpm afk:watch pr <PR> --until checks   # background; returns checks-green or checks-red
    gh pr merge <PR> --squash --delete-branch
    ```
+
+   **Do not run `gh pr update-branch` yourself** (#1020). The push to `master` already labelled
+   every behind `agent/*` PR, and Update Branch's push is a `--force-with-lease` against the head
+   it checked out: a manual update moves that head under the run, the push is rejected and the PR
+   flips to `agent:blocked`. When the PR is behind, read its labels — `agent:update-branch` or
+   `agent:in-progress` means the run has it, so wait (`pnpm afk:watch pr <PR> --until implement`
+   fires on the merge commit it pushes). Only a PR that is behind with **neither** label is yours
+   to update by hand, and that means the trigger missed it: say so.
 
    GitHub reports "Head branch is out of date" for a minute or two after an update while it
    recomputes; retry the merge, do not update again. `checks-red` means read the failing job,

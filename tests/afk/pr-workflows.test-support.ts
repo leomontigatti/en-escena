@@ -346,3 +346,56 @@ export function jobConditions(file: string): JobCondition[] {
   if (conditions.length === 0) throw new Error(`${file}: no jobs found`);
   return conditions;
 }
+
+/**
+ * The indices of the lines from `from` that are indented at least `indent`
+ * columns, blank lines included and normalised to empty. A step's own block and
+ * a `run: |` body are the same shape, so both are read with this.
+ */
+function indentedRun(lines: string[], from: number, indent: number): number[] {
+  const found: number[] = [];
+  for (let i = from; i < lines.length; i++) {
+    if (lines[i].trim() !== "" && !lines[i].startsWith(" ".repeat(indent)))
+      break;
+    found.push(i);
+  }
+  return found;
+}
+
+/**
+ * The `run: |` body of the step named `stepName`, dedented to column zero.
+ *
+ * Several tests execute the bash that *ships* — lifted out of the workflow file
+ * rather than copied into the test, so the copy cannot drift green. This is the
+ * reader they share. The step is found by its `name:` the way `workflowSteps()`
+ * does it, not by a literal indented line: a re-indent must not turn a
+ * behaviour test into "no step named …".
+ */
+export function stepRunBody(file: string, stepName: string): string {
+  const lines = workflowText(file).split("\n");
+
+  for (let i = 0; i < lines.length; i++) {
+    if (!/^ {6}- /.test(lines[i])) continue;
+
+    // A step ends where the indentation does: the next `- ` step, or any key of
+    // the job around it, is outdented past the step's own keys.
+    const step = indentedRun(lines, i + 1, 8);
+    const block = [
+      lines[i].replace(/^ {6}- /, "        "),
+      ...step.map((n) => lines[n]),
+    ].join("\n");
+    if (/^ {8}name:[ \t]*(.*)$/m.exec(block)?.[1].trim() !== stepName) continue;
+
+    const run = step.find((n) => /^ {8,}run: \|\s*$/.test(lines[n]));
+    if (run === undefined)
+      throw new Error(`${file}: step \`${stepName}\` has no \`run: |\` block`);
+
+    // The body is what is indented under the `run:` key — two columns deeper.
+    const indent = lines[run].length - lines[run].trimStart().length + 2;
+    return indentedRun(lines, run + 1, indent)
+      .map((n) => (lines[n].trim() === "" ? "" : lines[n].slice(indent)))
+      .join("\n");
+  }
+
+  throw new Error(`${file}: no step named \`${stepName}\``);
+}
