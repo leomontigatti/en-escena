@@ -8,6 +8,11 @@ function redirectFor(cookie: string | null): Response {
     headers: cookie ? { cookie } : undefined,
   });
 
+  // No trailing `throw` after the `try`, unlike the sibling helpers in the action
+  // tests: `redirectToLoginForRequest` returns `never`, so the end of the `try` is
+  // unreachable and `allowUnreachableCode: false` rejects any statement there. If
+  // that return type ever widens, this helper fails to compile (TS2366) instead of
+  // silently returning `undefined`.
   try {
     redirectToLoginForRequest(request);
   } catch (thrown) {
