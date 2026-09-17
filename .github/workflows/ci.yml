@@ -48,9 +48,11 @@ jobs:
       # carries a credential. The rules are in `.gitleaks.toml`, which gitleaks
       # picks up from the repository root; `.husky/pre-commit` runs the same scan
       # over the staged diff, warning instead of failing when the binary is absent.
-      # Here it is blocking and the binary is pinned by version *and* checksum, the
-      # same shape as actionlint in `actions-gate` — not `gitleaks-action`, which
-      # would open a second PR-comment channel next to the job log.
+      # Here it is blocking, and the binary is pinned the same way actionlint is in
+      # `actions-gate` — an exactly-pinned release fetched inline, no Marketplace
+      # action to keep fresh — but by checksum as well as by version, because there
+      # is no official install script to delegate that to. Not `gitleaks-action`,
+      # which would open a second PR-comment channel next to the job log.
       # Scope is `origin/master..HEAD`: the PR's own commits. History before the
       # merge base is master's problem, and rescanning it on every PR would turn
       # any pre-existing finding into a permanently red gate.

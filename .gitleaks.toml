@@ -30,7 +30,9 @@ commits = ["ce1e706c00a5eae02a575ed0a5ad0c93f97dbd48"]
 [[rules]]
 id = "connection-url-password"
 description = "Password embedded in a connection URL"
-regex = '''\b(?i:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis(?:s)?|amqps?|ftp|smtps?|https?)://[^\s:/@]+:([^\s:/@]{4,})@[^\s/]+'''
+# The username is optional: `redis://:password@host` is Redis's own canonical
+# URL shape, and every scheme here accepts it.
+regex = '''\b(?i:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis(?:s)?|amqps?|ftp|smtps?|https?)://[^\s:/@]*:([^\s:/@]{4,})@[^\s/]+'''
 secretGroup = 1
 keywords = [
   "postgres://",
@@ -52,15 +54,27 @@ keywords = [
   [[rules.allowlists]]
   description = "Local, container and documentation hosts carry no real password"
   regexTarget = "match"
-  regexes = ['''@(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]|host\.docker\.internal|postgres|db|[^\s/]*example[^\s/]*)(?::\d+)?(?:[/?]|$)''']
+  # Only hosts that cannot name a real server. `example` is matched as a label,
+  # not as a substring: `example`, `example.com|net|org` and subdomains of those.
+  # A bare substring test would have let a real host like
+  # `db.prod.example-host.net` through.
+  # The bare container names `postgres` and `db` are deliberately *not* here:
+  # nothing in this repo writes a URL against them, and they are plausible enough
+  # as real hostnames that exempting them would hide `postgres://admin:pw@db/app`.
+  regexes = ['''@(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]|host\.docker\.internal|(?:[^\s/@]+\.)?example(?:\.(?:com|net|org))?)(?::\d+)?(?:[/?]|$)''']
 
   [[rules.allowlists]]
   description = "Placeholders and variable interpolation are not passwords"
   regexes = [
     '''^[<\[{(].*[>\]})]$''',
-    '''^\$''',
+    '''^\$\{?[A-Za-z_][A-Za-z0-9_]*\}?$''',
     '''^%[A-Za-z0-9_]+%$''',
-    '''^(?i:password|pass|passwd|secret|changeme|your[-_]?password|xxx+|\*+|\.\.\.+)$''',
+    # `postgres` is the docker-image default, and the whole
+    # `postgres://postgres:postgres@...` shape is a local default, not a
+    # credential. Exempting the *password* keeps the host free to be anything —
+    # exempting the bare hosts `postgres`/`db` instead would have hidden a real
+    # `postgres://admin:pw@db/app`.
+    '''^(?i:postgres|password|pass|passwd|secret|changeme|your[-_]?password|xxx+|\*+|\.\.\.+)$''',
   ]
 
 # Outbound email (Resend). Today the defaults only catch these through

@@ -183,7 +183,11 @@ All of it is a manual edit; nothing here opens update PRs.
 1. `pinact run --update` rewrites every `uses:` in `.github/workflows/` to the
    newest release of that action, SHA plus a `# vN` comment.
 2. Bump `zizmor==<version>` and the two actionlint version strings in the
-   `actions-gate` job by hand.
+   `actions-gate` job by hand, and `GITLEAKS_VERSION` **together with**
+   `GITLEAKS_SHA256` in the `checks` job — the two are one pin, and the
+   checksum comes from `gitleaks_<version>_checksums.txt` on the release page.
+   The install snippet under "Hook guidance" names the same version; bump it too
+   so a local install keeps matching CI.
 3. `pnpm format` (Prettier owns the YAML), then push and read the gate. Its
    online audits are the confirmation step: they are what tells you a rewritten
    pin really points at the tag its comment names, which is something you cannot
@@ -270,9 +274,9 @@ Hook guidance:
   macOS: `brew install gitleaks`, which tracks the latest release rather than the
   pin — close enough locally, since CI's pinned copy is the one that decides.
   The blocking half is the `gitleaks` step in the `checks` job, which downloads a
-  checksum-verified 8.30.1 and scans `origin/master..HEAD`; bumping it is a manual
-  edit of both `GITLEAKS_VERSION` and `GITLEAKS_SHA256` in `ci.yml`, the same way
-  the zizmor and actionlint pins are bumped.
+  checksum-verified 8.30.1 and scans `origin/master..HEAD`. Bumping it is a manual
+  edit, and the procedure is the one in ["Bumping the pins"](#bumping-the-pins)
+  above, alongside zizmor and actionlint.
 
 - `pnpm check:comment-language` fails on Spanish prose in a comment or a test
   name anywhere under `.sandcastle/`, `app/`, `scripts/` or `tests/`, plus the
