@@ -63,7 +63,9 @@ export function truncateLogTail(text: string): string {
   if (tail.length > LOG_TAIL_CHARS) {
     tail = tail.slice(tail.length - LOG_TAIL_CHARS);
     // The slice lands mid-line; drop the partial one so the block starts clean.
-    tail = tail.slice(tail.indexOf("\n") + 1);
+    // A single line longer than the cap has no newline to cut at: keep it whole,
+    // truncated, rather than emitting an empty block.
+    if (tail.includes("\n")) tail = tail.slice(tail.indexOf("\n") + 1);
     elided = lines.length - tail.split("\n").length;
   }
 

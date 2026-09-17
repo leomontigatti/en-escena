@@ -180,6 +180,16 @@ describe("the failure detail handed to the reviewer", () => {
 
     expect(truncateLogTail(log).length).toBeLessThan(9000);
   });
+
+  it("keeps a single over-long line whole rather than emptying the block", () => {
+    const log = "x".repeat(20000);
+
+    const tail = truncateLogTail(log);
+
+    expect(tail.length).toBeGreaterThan(0);
+    expect(tail.length).toBeLessThan(9000);
+    expect(tail).toContain("x");
+  });
 });
 
 describe("the CI block the prompt embeds", () => {
