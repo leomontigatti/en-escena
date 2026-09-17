@@ -8,6 +8,7 @@ import {
   events,
 } from "@/db/schema";
 import { activeInscription } from "@/lib/choreographies/active-inscription";
+import { formatChoreographyReferences } from "@/lib/choreographies/choreography-messages";
 import {
   getAgeAtDate,
   getEventLocalDateParts,
@@ -278,16 +279,11 @@ export async function runDancerWriteWithBirthDateCorrection<TDancer>(
 export function buildDancerBirthDateCorrectionRefusalMessage(
   choreographiesWithoutCategory: DancerBirthDateCorrectionChoreography[],
 ): string {
-  const names = [...choreographiesWithoutCategory]
-    .sort((a, b) => a.choreographyNumber - b.choreographyNumber)
-    .map(
-      (choreography) =>
-        `n.º ${choreography.choreographyNumber} «${choreography.name}»`,
-    );
-  const isSingular = names.length === 1;
+  const isSingular = choreographiesWithoutCategory.length === 1;
+  const list = formatChoreographyReferences(choreographiesWithoutCategory);
   const subject = isSingular
-    ? `la coreografía ${names[0]}`
-    : `las coreografías ${names.slice(0, -1).join(", ")} y ${names[names.length - 1]}`;
+    ? `la coreografía ${list}`
+    : `las coreografías ${list}`;
 
   return `Con esta fecha de nacimiento, ${subject} ${isSingular ? "queda" : "quedan"} sin categoría.`;
 }

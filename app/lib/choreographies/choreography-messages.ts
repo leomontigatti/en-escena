@@ -46,3 +46,44 @@ export const noCompatibleCategoryRosterMessage =
  */
 export const noCompatibleCategoryModalityMessage =
   "Con esta modalidad no hay categoría compatible. Elegí otra modalidad.";
+
+export type ChoreographyReference = {
+  choreographyNumber: number;
+  name: string;
+};
+
+/**
+ * The choreographies a refusal names, as a sentence fragment: sorted by number,
+ * each one as `n.º {number} «{name}»`, joined with commas and a final `y`.
+ * `limit` caps how many are named and closes the list with `y N más`, so a
+ * refusal over a category a hundred choreographies reference still reads.
+ *
+ * Shared rather than duplicated: the birth-date correction and the category
+ * edit guard both name their blockers, and an admin who reads one sentence
+ * should recognise the other.
+ */
+export function formatChoreographyReferences(
+  references: ChoreographyReference[],
+  options?: { limit?: number },
+) {
+  const sorted = [...references].sort(
+    (a, b) => a.choreographyNumber - b.choreographyNumber,
+  );
+  const limit = options?.limit ?? sorted.length;
+  const remaining = Math.max(sorted.length - limit, 0);
+  const parts = sorted
+    .slice(0, limit)
+    .map(
+      (reference) => `n.º ${reference.choreographyNumber} «${reference.name}»`,
+    );
+
+  if (remaining > 0) {
+    parts.push(`${remaining} más`);
+  }
+
+  if (parts.length <= 1) {
+    return parts.join("");
+  }
+
+  return `${parts.slice(0, -1).join(", ")} y ${parts[parts.length - 1]}`;
+}

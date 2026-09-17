@@ -6,6 +6,7 @@ import { describe, expect, test } from "vitest";
 
 import {
   choreographyNotFoundMessage,
+  formatChoreographyReferences,
   getNoCompatibleCategoryRegistrationMessage,
 } from "@/lib/choreographies/choreography-messages";
 
@@ -84,6 +85,34 @@ describe("no compatible category registration message", () => {
       "No hay una categoría para Solo con las edades de estos bailarines. Revisá los bailarines o la modalidad.",
     );
     expect(message).not.toContain("  ");
+  });
+});
+
+describe("choreography reference list", () => {
+  test("sorts by number and joins the last one with `y`", () => {
+    expect(
+      formatChoreographyReferences([
+        { choreographyNumber: 7, name: "Sombra" },
+        { choreographyNumber: 3, name: "Luz" },
+      ]),
+    ).toBe("n.º 3 «Luz» y n.º 7 «Sombra»");
+  });
+
+  test("names a single choreography without a connector", () => {
+    expect(
+      formatChoreographyReferences([{ choreographyNumber: 3, name: "Luz" }]),
+    ).toBe("n.º 3 «Luz»");
+  });
+
+  test("stops at the limit and counts what it left out", () => {
+    const references = [1, 2, 3, 4, 5, 6, 7].map((choreographyNumber) => ({
+      choreographyNumber,
+      name: `Coreografía ${choreographyNumber}`,
+    }));
+
+    expect(formatChoreographyReferences(references, { limit: 5 })).toBe(
+      "n.º 1 «Coreografía 1», n.º 2 «Coreografía 2», n.º 3 «Coreografía 3», n.º 4 «Coreografía 4», n.º 5 «Coreografía 5» y 2 más",
+    );
   });
 });
 

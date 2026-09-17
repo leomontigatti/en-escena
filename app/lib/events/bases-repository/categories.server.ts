@@ -1,5 +1,6 @@
 import { and, asc, eq, inArray, ne, or, sql, type SQL } from "drizzle-orm";
 
+import { formatChoreographyReferences } from "@/lib/choreographies/choreography-messages";
 import {
   categories,
   categoryModalities,
@@ -145,13 +146,13 @@ export async function updateCategory(
     return validation;
   }
 
-  const competitiveEditRefusal = await refuseCompetitiveEditUnderChoreographies(
+  const ageOrLevelEditRefusal = await refuseAgeOrLevelEditUnderChoreographies(
     category,
     validation.input,
   );
 
-  if (competitiveEditRefusal) {
-    return competitiveEditRefusal;
+  if (ageOrLevelEditRefusal) {
+    return ageOrLevelEditRefusal;
   }
 
   if (await removesOccupiedRegistrationPaths(category, validation.input)) {
@@ -227,7 +228,7 @@ export async function deleteCategory(
  * in. Renaming, and any edit to a category no choreography references, stay
  * allowed.
  */
-async function refuseCompetitiveEditUnderChoreographies(
+async function refuseAgeOrLevelEditUnderChoreographies(
   category: typeof categories.$inferSelect,
   input: ValidCategoryInput,
 ): Promise<EventBaseFailure | null> {
@@ -242,21 +243,56 @@ async function refuseCompetitiveEditUnderChoreographies(
     return null;
   }
 
-  if (
-    !(await hasReferencingChoreographies(
-      eq(choreographies.categoryId, category.id),
-    ))
-  ) {
+  const referencingChoreographies = await listReferencingChoreographies(
+    category.id,
+  );
+
+  if (referencingChoreographies.length === 0) {
     return null;
   }
+
+  // Telling the administrator the edit is impossible without saying what stands
+  // in the way leaves them nothing to act on, so the refusal names the
+  // choreographies the way the birth-date correction names its own.
+  const relatedChoreographies =
+    referencingChoreographies.length === 1
+      ? "una coreografía relacionada"
+      : "coreografías relacionadas";
+  const list = formatChoreographyReferences(referencingChoreographies, {
+    limit: refusalChoreographyLimit,
+  });
+  const subject = `una categoría que tiene ${relatedChoreographies}: ${list}`;
 
   return {
     ok: false,
     code: "event-bases-has-dependencies",
     error: changesAgeRange
-      ? "No se puede cambiar el rango de edad de una categoría que tiene coreografías relacionadas."
-      : "No se pueden cambiar los niveles de experiencia de una categoría que tiene coreografías relacionadas.",
+      ? `No se puede cambiar el rango de edad de ${subject}.`
+      : `No se pueden cambiar los niveles de experiencia de ${subject}.`,
   };
+}
+
+/**
+ * How many choreographies a refusal names before it stops enumerating. Enough
+ * for the administrator to recognise the ones in the way; past that the count
+ * says more than another twenty numbers would.
+ */
+const refusalChoreographyLimit = 5;
+
+/**
+ * The choreographies the edit guard refuses over: the deletion guard's breadth,
+ * withdrawn inscriptions included, but reported by number and name rather than
+ * as a yes or no.
+ */
+async function listReferencingChoreographies(categoryId: string) {
+  return db
+    .select({
+      choreographyNumber: choreographies.choreographyNumber,
+      name: choreographies.name,
+    })
+    .from(choreographies)
+    .where(eq(choreographies.categoryId, categoryId))
+    .orderBy(asc(choreographies.choreographyNumber));
 }
 
 /**
