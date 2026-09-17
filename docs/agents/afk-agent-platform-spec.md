@@ -86,12 +86,12 @@ flowchart TD
     QUEUED -->|"blockers all clear → agent:implement"| IMPL
 
     PRD_REVIEW -->|"agent:review"| REVIEW["④ Review"]
-    REVIEW -->|"improves code, posts review,<br/>marks PR ready"| HUMAN["Human reads review"]
+    REVIEW -->|"improves code, posts review,<br/>marks PR ready, labels<br/>agent:ready or agent:needs-decision"| HUMAN["Human (or /review-triage session)<br/>reads the outcome"]
     HUMAN -->|"leaves comments,<br/>label agent:implement"| IMPLPR["⑤ Implement PR"]
     IMPLPR -->|"addresses feedback"| HUMAN
-    HUMAN -->|"PR conflicts with base,<br/>label agent:update-branch"| UPDATE["⑥ Update Branch"]
+    HUMAN -->|"PR behind base:<br/>label agent:update-branch<br/>(or the push-to-master trigger does)"| UPDATE["⑥ Update Branch"]
     UPDATE --> HUMAN
-    HUMAN -->|"approve + merge (manual)"| MERGED["Merged to master"]
+    HUMAN -->|"merge, or arm auto-merge<br/>(never a workflow)"| MERGED["Merged to master"]
     MERGED -->|"Closes #N fires issue-closed"| BLOCKER
 
     SCHED["weekday schedule"] -->|"⑧ Architecture Review"| PRD
@@ -176,6 +176,8 @@ The state machine assumes these labels exist. Create them once.
 | `agent:review`               | PR         | PR is ready for the automated review workflow.                                                                     |
 | `agent:blocked`              | issue + PR | A run failed or was refused; needs human attention before retry.                                                   |
 | `agent:update-branch`        | PR         | PR should be merged up to its base.                                                                                |
+| `agent:ready`                | PR         | The posted review left nothing for a human: merge or arm auto-merge. Applied by Review (§4.4, 2026-09-17).         |
+| `agent:needs-decision`       | PR         | The posted review left a call for a human: run `/review-triage`. Applied by Review (§4.4, 2026-09-17).             |
 | `source:architecture-review` | issue      | Provenance: PRD was proposed by the Architecture Review workflow. (Created on demand by that workflow if missing.) |
 
 ### Per-workflow permissions matrix
@@ -459,8 +461,14 @@ choice** (safe to extend later). Do not "fix" the invariants.
 
 **Non-goals**
 
-- **No auto-merge / no approval.** Review marks a PR _ready for review_ and posts a review with
-  `event: "COMMENT"` — never `APPROVE`. A human approves and merges.
+- **No approval, and no workflow merges.** Review marks a PR _ready for review_ and posts a
+  review with `event: "COMMENT"` — never `APPROVE`. No workflow runs `gh pr merge`, with or
+  without `--auto`. _Amended 2026-09-17 (#1022):_ a human, or a local session acting on the
+  human's standing instruction, may arm GitHub auto-merge (`gh pr merge --squash --auto`)
+  once the PR is triaged; GitHub then merges when the required contexts are green and the
+  branch is up to date. The decision to merge stays outside Actions; only the waiting moves.
+  Letting a workflow arm auto-merge on `agent:ready` is a trial tracked separately, not part
+  of this spec.
 - **No cross-repo orchestration.** Single repository.
 - **No prose-based dependency parsing.** Blockers come only from GitHub's native dependency
   relation, never from "Blocked by #N" text. The sub-issue/parent relation is _not_ a blocking
@@ -786,7 +794,14 @@ marked ready.
 **Failure handling.** [§3.7](#37-failure-handling). A race-detected push failure writes its own
 `failure_reason.txt` ("Branch advanced during review run.").
 
-**Chaining.** None automatic — hands back to a human.
+**Chaining.** None automatic — hands back to a human, and says which kind of hand-off it is
+(_amended 2026-09-17, built by #1021_): after posting, the workflow labels the PR
+**`agent:ready`** when the posted review leaves nothing for a human (zero unresolved threads
+and no spec finding in the summary), else **`agent:needs-decision`**. Findings the reviewer
+fixed in its own commit are reported in the summary, not as inline threads, so a thread always
+means "someone has to decide". `agent:ready` is the cue to merge or arm auto-merge (§3.9);
+`agent:needs-decision` is the cue for the `/review-triage` pass. Implement PR removes both
+when it runs, since a new round means the PR is no longer classified.
 
 **Prompt skeleton:** [`prompts/review.prompt.md`](./prompts/review.prompt.md).
 
@@ -858,7 +873,11 @@ top-level comments.
 **Purpose.** Bring a PR branch up to date with its base. The **orchestrator does the
 deterministic merge first**; the agent is invoked **only when there are conflicts**.
 
-**Trigger.** `pull_request_target: [labeled]`, gated on `agent:update-branch`.
+**Trigger.** `pull_request_target: [labeled]`, gated on `agent:update-branch`. The label is
+applied by a human, or (_amended 2026-09-17, built by #1020_) by a small workflow on `push` to
+`master` that labels every open `agent/*` PR whose merge state is `BEHIND` and that is not
+`agent:in-progress`. Branch protection requires an up-to-date branch, so without that push
+trigger every merge to `master` would leave the other open PRs waiting for a hand.
 **Concurrency.** `agent-mutate-pr-${PR_NUMBER}`, no cancel.
 **Permissions.** `contents: write`, `pull-requests: write`.
 

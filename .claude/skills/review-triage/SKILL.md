@@ -66,6 +66,12 @@ watcher in the background and act when it returns:
 pnpm afk:watch pr <PR> --until review
 ```
 
+The review's outcome label says how much of this skill applies. `agent:needs-decision` is the
+normal case: a call is the human's, run every phase. `agent:ready` means the posted review left
+zero unresolved threads and no spec finding: skip to [Phase 4](#phase-4--land). Until #1021
+makes Review apply them, apply the right one yourself after Phase 1, so the PR list reads the
+same either way.
+
 Fetch all three surfaces, read the diff for every path a thread hangs off, and build a ledger of
 every item. Done when every unresolved thread, every top-level comment and every review summary
 sits in the ledger with a verb against it.
@@ -97,7 +103,8 @@ In order:
 2. Resolve each **settle** thread.
 3. Post one top-level comment briefing anything that came from a top-level comment or a review
    summary — those surfaces have no threads to reply into.
-4. `gh pr edit <n> --add-label "agent:implement"`.
+4. `gh pr edit <n> --add-label "agent:implement" --remove-label "agent:needs-decision"`: the
+   decision has been made, so the cue comes off with the same edit.
 
 Then tell the user what went where, and that the label is consumed by the run — re-add it for
 the next round.
@@ -119,11 +126,19 @@ stop after step 3 and report.
    yours to resolve now. An unresolved briefed thread feeds itself into the next run.
 3. **Anything new?** A run may reply with a question or add a comment. New items go through
    Phases 1 to 3 again. When every surface is settled or answered, land.
-4. **Land.** Branch protection is strict, so a PR behind `master` cannot merge until it is
-   updated. Today's path:
+4. **Land.** Arming is the session's act on the user's standing instruction; no workflow
+   merges (spec §3.9). Once the repo allows auto-merge (#1022), arm it and stop waiting:
 
    ```bash
-   gh pr update-branch <PR>            # no-op when already current
+   gh pr merge <PR> --squash --auto --delete-branch
+   ```
+
+   GitHub merges when the four contexts are green and the branch is up to date; a branch that
+   falls behind gets `agent:update-branch` from the push-to-master trigger (#1020). Until
+   #1022, the path is manual and the session waits:
+
+   ```bash
+   gh pr update-branch <PR>                # no-op when already current
    pnpm afk:watch pr <PR> --until checks   # background; returns checks-green or checks-red
    gh pr merge <PR> --squash --delete-branch
    ```
@@ -132,8 +147,6 @@ stop after step 3 and report.
    recomputes; retry the merge, do not update again. `checks-red` means read the failing job,
    then brief or ask; never retry a red job blind. If a commit subject or the PR body is in
    Spanish, pass an English `--body-file` to the squash merge (#1016 tracks fixing the prompts).
-   Once auto-merge is enabled on the repo, arming it replaces the last two lines:
-   `gh pr merge <PR> --squash --auto` merges on green without a session waiting.
 
 5. **Confirm the hand-off.** A merged `Closes #N` closes the issue and fires Promote Queued.
    Check the next issue in the chain moved: `gh issue view <next> --json labels`. It should

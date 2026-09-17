@@ -4,6 +4,30 @@ Project-local workflows for agents working on En Escena.
 
 These workflows adapt useful ideas from `mattpocock/course-video-manager` to this repo. They are repo instructions for Claude Code and other agents that read `CLAUDE.md`.
 
+## Where work starts
+
+Implementation runs on the AFK platform by default (`docs/agents/afk-setup.md`):
+work arrives as an issue, a label dispatches it, and a local session builds
+only what it was asked to build in that session (a docs change, a skill, a
+fix the user wants done in front of them). Three entry points, by how much is
+still unknown:
+
+- **Small and clear** (a bug, a UI tweak, a one-slice feature): write the
+  issue with what to build and its acceptance criteria, then label it
+  `agent:implement`. No PRD, no map.
+- **Clear but big** (known shape, several slices): write one PRD with the
+  [PRD workflow](#prd-workflow), label it `agent:to-issues`, then
+  `agent:implement`. Implement PRD chains the sub-issues onto one PR, and one
+  review covers the whole.
+- **Foggy** (decisions nobody has made yet): `/wayfinder`. The map's tickets
+  are grilling, research, prototype or task; a prototype is a throwaway
+  artifact whose result is a decision on its ticket, never another PRD. The map
+  ends with one or more PRDs, per the exit shapes in
+  [issue-tracker.md](./issue-tracker.md#wayfinding-operations).
+
+After the review, the PR carries `agent:ready` or `agent:needs-decision`; the
+second is the cue for `/review-triage`, which also lands the PR.
+
 ## Investigate before implementing
 
 When the user asks to investigate, review, diagnose, audit, analyze, or explain
