@@ -17,8 +17,6 @@ function redirectFor(cookie: string | null): Response {
 
     return thrown;
   }
-
-  throw new Error("Expected redirectToLoginForRequest to throw a redirect.");
 }
 
 function motivoFor(cookie: string | null): string | null {
