@@ -7,6 +7,7 @@ import {
 } from "@/features/admin/modalities/create/server";
 import type { EventModalityActionData } from "@/features/admin/modalities/shared";
 import { EventModalityCreateView } from "@/features/admin/modalities/create/view";
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 
 import type { Route } from "./+types/administracion.modalidades_.nueva";
 
@@ -28,6 +29,10 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 export async function action({ request }: Route.ActionArgs) {
   return createAdministrativeEventModality(request);
+}
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
 }
 
 export function NewModalityRouteView({

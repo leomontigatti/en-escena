@@ -5,6 +5,10 @@ import { useFetcher, useNavigation, useSubmit } from "react-router";
 import { z } from "zod";
 
 import { isRouteFormPending, requiredFieldMessage } from "@/lib/shared/forms";
+import {
+  isUnexpectedActionError,
+  type UnexpectedActionError,
+} from "@/lib/shared/recoverable-client-action";
 
 import {
   getResolvedModalityFieldState,
@@ -72,7 +76,9 @@ export function useModalityForm({
     resolver: zodResolver(modalityFormSchema),
   });
   const { clearErrors, reset, setError, setValue, watch } = form;
-  const resolutionFetcher = useFetcher<ChoreographyModalityResolutionData>();
+  const resolutionFetcher = useFetcher<
+    ChoreographyModalityResolutionData | UnexpectedActionError
+  >();
   const navigation = useNavigation();
   const submit = useSubmit();
 
@@ -143,11 +149,22 @@ export function useModalityForm({
   useEffect(() => {
     const data = resolutionFetcher.data;
 
-    if (
-      !data ||
-      data.intent !== resolveChoreographyModalityIntent ||
-      submittedModalityIdRef.current === null
-    ) {
+    if (!data || submittedModalityIdRef.current === null) {
+      return;
+    }
+
+    // This fetcher has no toast of its own, so the generic error
+    // `recoverableClientAction` returns has to land on the field or the user
+    // sees nothing at all. Marking the modality as resolved is what stops the
+    // resolution effect from submitting it again on the next render.
+    if (isUnexpectedActionError(data)) {
+      setResolvedModalityId(submittedModalityIdRef.current);
+      setResolution(null);
+      setError("modalityId", { message: data.message, type: "manual" });
+      return;
+    }
+
+    if (data.intent !== resolveChoreographyModalityIntent) {
       return;
     }
 

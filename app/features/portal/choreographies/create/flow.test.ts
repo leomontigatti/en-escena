@@ -2,9 +2,11 @@ import { describe, expect, test } from "vitest";
 
 import {
   canAdvanceFromScheduleStep,
+  CREATE_CHOREOGRAPHY_INTENT,
   createChoreographySchema,
   getCreateChoreographySteps,
   getFirstPostResolutionStepIndex,
+  getSubmissionError,
   type RegistrationResolution,
 } from "@/features/portal/choreographies/create/flow";
 
@@ -218,3 +220,31 @@ function buildScheduleResolution(
     },
   };
 }
+
+describe("getSubmissionError", () => {
+  test("reads the refusal the create action returned", () => {
+    expect(
+      getSubmissionError({
+        intent: CREATE_CHOREOGRAPHY_INTENT,
+        result: {
+          ok: false,
+          code: "invalid-name",
+          error: "Ese nombre ya está en uso.",
+        },
+      }),
+    ).toBe("Ese nombre ya está en uso.");
+  });
+
+  test("surfaces an unexpected failure so the wizard stays open", () => {
+    expect(
+      getSubmissionError({
+        status: "error",
+        message: "No pudimos completar la acción. Intentá nuevamente.",
+      }),
+    ).toBe("No pudimos completar la acción. Intentá nuevamente.");
+  });
+
+  test("reports no error while there is no submission yet", () => {
+    expect(getSubmissionError(undefined)).toBeNull();
+  });
+});

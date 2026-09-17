@@ -4,6 +4,7 @@ import type { AdminRouteHandle } from "@/components/admin/shell";
 import { createAdministrativeEvent } from "@/features/admin/events/create/server";
 import type { EventCreateActionData } from "@/features/admin/events/create/shared";
 import { EventCreateView } from "@/features/admin/events/create/view";
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 
 import type { Route } from "./+types/administracion.eventos_.nuevo";
 
@@ -24,6 +25,10 @@ export const handle = {
 
 export async function action({ request }: Route.ActionArgs) {
   return createAdministrativeEvent(request);
+}
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
 }
 
 export function NewEventRouteView({ actionData }: NewEventRouteProps) {

@@ -9,6 +9,9 @@ import {
   type PortalDancerDetailRouteViewProps,
 } from "@/features/portal/dancers/detail/view";
 import type { PortalRouteHandle } from "@/components/portal/ui";
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
+
+import type { Route } from "./+types/portal.bailarines_.$dancerId";
 
 type LoaderData = PortalDancerDetailRouteViewProps["loaderData"];
 
@@ -52,6 +55,10 @@ export async function action({
   params: { dancerId?: string };
 }) {
   return await handlePortalDancerDetailAction({ request, params });
+}
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
 }
 
 export default function PortalBailarinDetalleRoute({

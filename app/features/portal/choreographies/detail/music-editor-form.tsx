@@ -53,7 +53,10 @@ export function ChoreographyMusicEditorForm({
   }, [selectedMusicStorageKey]);
 
   useEffect(() => {
-    if (actionData?.status === "update-error") {
+    if (
+      actionData?.status === "update-error" ||
+      actionData?.status === "error"
+    ) {
       toast.error(actionData.message, {
         id: choreographyMusicUploadErrorToastId,
       });

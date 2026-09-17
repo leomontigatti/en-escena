@@ -5,6 +5,8 @@ import { action, loader } from "@/features/admin/users/detail/server";
 import { InternalUserDetailRouteView } from "@/features/admin/users/detail/view";
 import type { UserDetailLoaderData } from "@/lib/admin/users/user-detail.shared";
 
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
+
 import type { Route } from "./+types/administracion.usuarios_.$userId";
 
 type LoaderData = UserDetailLoaderData;
@@ -31,6 +33,10 @@ export const handle = {
 } satisfies AdminRouteHandle;
 
 export { action, loader, InternalUserDetailRouteView };
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
+}
 
 export default function InternalUserDetailRoute({
   loaderData,

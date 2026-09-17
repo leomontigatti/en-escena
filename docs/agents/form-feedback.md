@@ -95,6 +95,63 @@ in `app/lib/shared/notification-toasts.ts` and feeds both the flash flow and the
 `actionData` one. For a new form: use the flash session (redirect) or direct
 `actionData` (stay), never a URL param.
 
+## Unexpected failures during a submit
+
+The matrix above covers what an `action` **decides**. What it does not decide —
+a service throwing, the request failing at the network level — used to reach the
+root `ErrorBoundary`, which replaced the whole screen: the navigation, the open
+dialog and everything the user had typed, with no toast.
+
+Every route module with an `action` therefore also exports a `clientAction` that
+delegates to `recoverableClientAction` (`app/lib/shared/recoverable-client-action.ts`):
+
+```ts
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
+}
+```
+
+It returns the server result untouched on success. On a throw it logs
+`[action:unexpected]` and returns `{ status: "error", message }` with generic
+copy, which lands in `actionData` / `fetcher.data` like any other result — so the
+view stays mounted and shows a toast. **Deliberate refusals are unaffected:** a
+thrown `Response` (a `redirect`, a 403, a 404) is rethrown, so redirects still
+navigate and thrown route errors still render the boundary.
+
+Two consequences for a view:
+
+- **Close a dialog on success, not on submit.** A dialog that closes on "the
+  fetcher went idle without its own error shape" now closes over an unexpected
+  failure too. Key the close on `status === "success"`.
+- **Read the generic shape.** A view whose result type is narrower than
+  `{ status: "error", message }` — an intent-tagged result, a `status:
+"update-error"` variant — has to accept the generic error as well, or the
+  failure is silent. `isUnexpectedActionError` is the predicate for that test;
+  plain `status === "error"` narrowing is enough only where the result is a
+  closed union that already carries a `status`.
+- **Mind the fetchers with no toast.** A `useFetcher` that drops anything not
+  tagged with its own intent — the roster and modality resolutions of the
+  choreography detail — drops the generic error too, and there the user sees
+  nothing at all. Handle it before the intent guard, put the message on the
+  field, and mark the submission as answered so the effect does not resubmit in
+  a loop.
+- **A dialog re-opened by the shape of the result needs the intent too.** The
+  generic error carries no `values` and no `intent`, so "no `values`" or "not my
+  intent" no longer identifies which form failed: the delete dialog of the
+  payment detail keys its re-open on the intent that was in flight
+  (`shouldOpenPaymentDeleteDialog`), and the dancer detail opens no dialog at
+  all for a generic error.
+
+Resource routes with an `action` and no UI (`$`, `api.auth.$`, `salir`) export no
+`clientAction`: there is no mounted view to keep, and a returned error result
+would have nowhere to go.
+
+A new route with an `action` exports the `clientAction` too — including when it
+re-exports the handler (`export { action, loader };`) rather than declaring it,
+the shape that hid the three `administracion.usuarios_*` routes from the first
+sweep. `app/lib/shared/route-client-action.test.ts` holds the rule over
+`app/routes/`, with those three resource routes as its declared exceptions.
+
 ## Outside the matrix: auth flows
 
 Authentication flows do **not** follow this matrix and do **not** migrate to the flash

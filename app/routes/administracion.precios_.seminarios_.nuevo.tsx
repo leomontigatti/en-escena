@@ -10,6 +10,7 @@ import {
   type SeminarPriceCreateViewProps,
 } from "@/features/admin/seminar-prices/create/view";
 import { seminarPricesListPath } from "@/features/admin/seminar-prices/shared";
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 
 import type { Route } from "./+types/administracion.precios_.seminarios_.nuevo";
 
@@ -26,6 +27,10 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 export async function action({ request }: Route.ActionArgs) {
   return createAdministrativeSeminarPrice(request);
+}
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
 }
 
 export function NewSeminarPriceRouteView({

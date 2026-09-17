@@ -11,6 +11,7 @@ import {
   updateAdministrativeEventPrice,
 } from "@/features/admin/prices/detail/server";
 import type { EventPricesLoaderData } from "@/features/admin/prices/shared";
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 
 import type { Route } from "./+types/administracion.precios_.$priceId";
 
@@ -35,6 +36,10 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 export async function action({ request }: Route.ActionArgs) {
   return updateAdministrativeEventPrice(request);
+}
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
 }
 
 export function PriceDetailRouteView({

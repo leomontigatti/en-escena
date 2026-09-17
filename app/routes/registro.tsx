@@ -24,6 +24,7 @@ import {
   isPublicAccessFormSubmitting,
   parsePublicAccessForm,
 } from "@/lib/auth/public-access-route.shared";
+import { recoverableClientAction } from "@/lib/shared/recoverable-client-action";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import type { Route } from "./+types/registro";
@@ -82,6 +83,10 @@ export async function action({ request }: Route.ActionArgs) {
     values: formResult.values,
     headers: result.headers,
   });
+}
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return await recoverableClientAction(serverAction);
 }
 
 export default function RegistroRoute() {
