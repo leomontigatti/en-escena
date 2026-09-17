@@ -86,7 +86,11 @@ nothing to wait on — the driving session neither runs `gh pr update-branch` no
 
 What it deliberately leaves alone:
 
-- A PR **not** on an `agent/*` branch, and one whose base is not the branch that was pushed.
+- A PR **not** on an `agent/*` branch.
+- A PR whose base is **not** `master` — one stacked on another `agent/*` branch. This is the
+  intended behaviour, not a gap: such a PR is behind _its own_ base, not behind `master`, and
+  merging `master` into it would be wrong. The cost is that a stacked chain is picked up one link
+  at a time, as each link merges and the next PR's base flips to `master`.
 - A PR carrying **`agent:in-progress`**: a run holds its lock (spec §3.5) and its own push is
   what settles the branch. If it is still behind afterwards, the next push to `master` labels it.
 - A PR already carrying **`agent:update-branch`**: the previous pass labelled it and the run has

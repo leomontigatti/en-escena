@@ -8,11 +8,15 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { evalGha, jobConditions } from "./pr-workflows.test-support";
+import {
+  evalGha,
+  jobConditions,
+  stepRunBody,
+  workflowText,
+} from "./pr-workflows.test-support";
 
 // Coverage for #1020: branch protection is strict, so every open `agent/*` PR is
 // behind `master` the moment the one below it merges. `agent-label-behind-prs.yml`
@@ -26,39 +30,9 @@ import { evalGha, jobConditions } from "./pr-workflows.test-support";
 // `failure-reason-fallback.test.ts` does, with a stub `gh` on PATH — a copy of
 // the script here could drift away from what ships and still be green.
 
-const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
 const WORKFLOW = ".github/workflows/agent-label-behind-prs.yml";
-const STEP = "      - name: Label every behind agent/* PR";
 
-/** The step's `run:` body, dedented to column zero. */
-function extractLabellingScript(): string {
-  const lines = readFileSync(join(repoRoot, WORKFLOW), "utf8").split("\n");
-
-  const step = lines.indexOf(STEP);
-  expect(step, `${WORKFLOW}: no step named ${STEP.trim()}`).toBeGreaterThan(-1);
-
-  const run = lines.findIndex(
-    (line, i) => i > step && /^\s*run: \|\s*$/.test(line),
-  );
-  expect(run, `${WORKFLOW}: the step has no \`run: |\` block`).toBeGreaterThan(
-    step,
-  );
-
-  const indent = lines[run].length - lines[run].trimStart().length + 2;
-  const body: string[] = [];
-  for (let i = run + 1; i < lines.length; i++) {
-    if (lines[i].trim() === "") {
-      body.push("");
-      continue;
-    }
-    if (!lines[i].startsWith(" ".repeat(indent))) break;
-    body.push(lines[i].slice(indent));
-  }
-
-  return body.join("\n");
-}
-
-const script = extractLabellingScript();
+const script = stepRunBody(WORKFLOW, "Label every behind agent/* PR");
 
 interface Pr {
   number: number;
@@ -526,7 +500,7 @@ describe("the push-to-master labelling step (#1020)", () => {
 });
 
 describe("the push-to-master trigger itself", () => {
-  const text = readFileSync(join(repoRoot, WORKFLOW), "utf8");
+  const text = workflowText(WORKFLOW);
 
   it("fires on pushes to master only", () => {
     expect(text).toMatch(/^on:\n {2}push:\n {4}branches: \[master\]$/m);

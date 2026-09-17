@@ -1,16 +1,15 @@
 import { execFileSync } from "node:child_process";
-import {
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  utimesSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
+import {
+  stepRunBody,
+  workflowSteps,
+  workflowText,
+} from "./pr-workflows.test-support";
 
 // Regression coverage for the diagnosis-less timeout on #512. When a runner step
 // hits its `timeout-minutes`, Actions kills the process tree: `runMain`'s catch
@@ -23,8 +22,6 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 // and the `find | sort | head` pipeline is genuinely risky under
 // `set -euo pipefail`. The cases below run the *shipped* snippet, lifted out of
 // the workflow files, rather than a copy that could drift away from them.
-
-const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
 
 /**
  * The workflows carrying the fallback. The six label-triggered ones report by
@@ -41,33 +38,37 @@ const WORKFLOWS = [
   ".github/workflows/architecture-review.yml",
 ];
 
-const BLOCK_START = /^\s*reason=\$\(cat "\$OUTPUT_DIR\/failure_reason\.txt"/;
+const BLOCK_START = /^reason=\$\(cat "\$OUTPUT_DIR\/failure_reason\.txt"/;
 
 /**
- * Lift the reason-resolution block out of a workflow's `failure()` step.
+ * Lift the reason-resolution block out of a workflow's `failure()` step — the
+ * step's `run:` body comes from `stepRunBody`, and this narrows it to the block
+ * under test.
  *
  * Deliberately text-based: the repo has no YAML parser, and a raw slice is what
  * keeps this test honest — it runs the exact lines that ship.
  */
 function extractReasonBlock(workflow: string): string {
-  const lines = readFileSync(join(repoRoot, workflow), "utf8").split("\n");
+  // Six workflows report a failure by labelling + commenting; architecture-review
+  // is scheduled and reports into the run summary, so its step is named
+  // differently. Match the prefix rather than tabulating both names.
+  const step = workflowSteps(workflow).find((candidate) =>
+    candidate.name.startsWith("On failure"),
+  );
+  expect(step, `no \`On failure\` step in ${workflow}`).toBeDefined();
+
+  const lines = stepRunBody(workflow, step!.name).split("\n");
   const start = lines.findIndex((line) => BLOCK_START.test(line));
   expect(start, `no reason block found in ${workflow}`).toBeGreaterThan(-1);
 
-  const indent = lines[start].length - lines[start].trimStart().length;
   // The block ends at the `fi` closing the `if [ -z "$reason" ]`, the first one
-  // back at the block's own indentation.
-  const end = lines.findIndex(
-    (line, i) => i > start && line === `${" ".repeat(indent)}fi`,
-  );
+  // back at the block's own indentation — column zero, in a dedented body.
+  const end = lines.findIndex((line, i) => i > start && line === "fi");
   expect(end, `unterminated reason block in ${workflow}`).toBeGreaterThan(
     start,
   );
 
-  return lines
-    .slice(start, end + 1)
-    .map((line) => line.slice(indent))
-    .join("\n");
+  return lines.slice(start, end + 1).join("\n");
 }
 
 /** Executable lines only — the surrounding comments are workflow-specific. */
@@ -222,7 +223,7 @@ interface RunnerStep {
  * agent to budget, so they are not held to this.
  */
 function runnerSteps(workflow: string): RunnerStep[] {
-  const text = readFileSync(join(repoRoot, workflow), "utf8");
+  const text = workflowText(workflow);
   const chunks = text.split(/^ {6}- name: /m).slice(1);
 
   return chunks
