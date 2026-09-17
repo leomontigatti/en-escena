@@ -22,3 +22,11 @@ export function getNoCompatibleCategoryRegistrationMessage(input: {
 }) {
   return `No hay una categoría de ${input.modalityName} para ${groupTypeLabels[input.groupType]} con las edades de estos bailarines. Revisá los bailarines o la modalidad.`;
 }
+
+/**
+ * The roster rejection when the edited roster resolves to no category. Unlike
+ * registration, the administrator did not choose a modality here — the only
+ * lever is the roster — so the sentence names just that.
+ */
+export const noCompatibleCategoryRosterMessage =
+  "Con este elenco no existe una categoría válida. Ajustá los bailarines para poder guardar.";

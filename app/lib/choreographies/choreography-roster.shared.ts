@@ -40,18 +40,23 @@ export type UpdateChoreographyProfessorsResult =
     };
 
 /**
- * `code: "schedule-capacity"` marks the two new guards on the capacity axis
- * (capacity lock, price-divergence guard): unlike the other dancers-section
- * failures, these are not swallowed behind the roster section's own error
- * channel — the route surfaces them as a plain `status: "error"` instead. See
- * `updateChoreographyRosterAction` in `server.ts`.
+ * `code` marks the dancers-section failures that must reach the page: the two
+ * guards on the capacity axis (capacity lock, price-divergence guard) and the
+ * refusal of a roster that resolves to no category. Unlike the other
+ * dancers-section failures, they are not swallowed behind the roster section's
+ * own error channel — the route surfaces them as a plain `status: "error"`
+ * instead. Visibility is decided by code, not by the failure being a roster
+ * failure. See `updateChoreographyRosterAction` in `server.ts`.
  */
+export type ChoreographyRosterFailureCode =
+  "schedule-capacity" | "no-compatible-category";
+
 export type UpdateChoreographyDancersResult =
   | { ok: true }
   | {
       ok: false;
       message: string;
-      code?: "schedule-capacity";
+      code?: ChoreographyRosterFailureCode;
       fieldErrors?: {
         experienceLevelId?: string;
         scheduleCapacityId?: string;
@@ -64,7 +69,7 @@ export type UpdateChoreographyResult =
       ok: false;
       message: string;
       section: "dancers" | "professors";
-      code?: "schedule-capacity";
+      code?: ChoreographyRosterFailureCode;
       fieldErrors?: {
         experienceLevelId?: string;
         scheduleCapacityId?: string;
