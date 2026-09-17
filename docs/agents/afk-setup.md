@@ -31,6 +31,14 @@ gh label create "agent:update-branch" --color d93f0b --description "AFK: el PR d
 gh label create "source:architecture-review" --color 5a5a5a --description "Procedencia: PRD propuesto por el workflow Architecture Review"
 ```
 
+Two **outcome labels** were added on 2026-09-17 (spec §4.4 amendment; Review applies them once
+#1021 lands, a `/review-triage` session may apply them by hand until then):
+
+```bash
+gh label create "agent:ready"          --color 0e8a16 --description "AFK: the review left nothing for a human; arm auto-merge or merge on green"
+gh label create "agent:needs-decision" --color e99695 --description "AFK: the review left a call for a human; pick it up with /review-triage"
+```
+
 Verify with: `gh label list --limit 100 | grep -E 'agent:|source:architecture'`.
 
 > For `source:architecture-review` the spec says the Architecture Review workflow creates it
@@ -61,7 +69,12 @@ leave a decision reply on what is not, then label.
 
 `/review-triage` (`.claude/skills/review-triage/`) does that pass: it classifies each item, puts
 the calls that are yours to you with options and a recommendation, and only then replies,
-resolves and labels. User-invoked — type it, nothing fires it for you.
+resolves and labels. User-invoked — type it, nothing fires it for you. The cue to type it is
+**`agent:needs-decision`** on the PR; **`agent:ready`** means the review left nothing to decide,
+so the pass is skipped and the PR is merged or armed for auto-merge (`gh pr merge --squash
+--auto`, once #1022 enables it on the repo). Arming is the session's act on your standing
+instruction; no workflow merges (spec §3.9). Between merges, a PR that falls behind `master`
+gets `agent:update-branch` from the push-to-master trigger (#1020) instead of from you.
 
 ### With the `to-spec` / `to-tickets` skills
 
