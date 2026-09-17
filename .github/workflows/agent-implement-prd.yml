@@ -458,7 +458,7 @@ jobs:
           # issues/{n}/labels` needs only `repo` and fires the chain. PRs share
           # the issues namespace, so the same endpoint covers both kinds.
           add_label() { # <kind: issue|pr, ignored> <number> <label>
-            local number="$2" label="$3"
+            local number="$2" label="$3" labelled
 
             set +e
             labelled=1

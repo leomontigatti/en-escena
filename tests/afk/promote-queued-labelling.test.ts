@@ -161,8 +161,13 @@ interface RunResult {
   stdout: string;
   /** Every `gh` invocation, as `<token>|<argv>`. */
   calls: string[];
-  /** The issues that received `agent:implement`, with the token used. */
-  promoted: { issue: string; token: string }[];
+  /**
+   * Every `--add-label agent:implement` call the step *made*, with the token
+   * it carried. The stub logs a call before deciding whether to refuse it, so
+   * a refused add appears here too: this says what was attempted, never what
+   * succeeded. Only the step's own output can say that.
+   */
+  labelAttempts: { issue: string; token: string }[];
 }
 
 function runPromotion(options: RunOptions): RunResult {
@@ -208,7 +213,7 @@ function runPromotion(options: RunOptions): RunResult {
   return {
     stdout: run.stdout,
     calls,
-    promoted: calls
+    labelAttempts: calls
       .map((call) =>
         /^(.*)\|issue edit (\d+) --add-label agent:implement$/.exec(call),
       )
@@ -217,9 +222,9 @@ function runPromotion(options: RunOptions): RunResult {
   };
 }
 
-/** The issues promoted, deduplicated — a retried add is still one issue. */
-function promotedNumbers(result: RunResult): string[] {
-  return [...new Set(result.promoted.map(({ issue }) => issue))].sort();
+/** The issues the step tried to label, deduplicated — a retried add is one. */
+function attemptedNumbers(result: RunResult): string[] {
+  return [...new Set(result.labelAttempts.map(({ issue }) => issue))].sort();
 }
 
 const queued = (number: number): Dependent => ({
@@ -234,7 +239,7 @@ describe("promoting an unblocked dependent (#1027)", () => {
       agentPat: "the-pat",
     });
 
-    expect(result.promoted).toEqual([{ issue: "11", token: "the-pat" }]);
+    expect(result.labelAttempts).toEqual([{ issue: "11", token: "the-pat" }]);
     expect(result.stdout).toContain("Promoted #11 to agent:implement.");
   });
 
@@ -245,7 +250,7 @@ describe("promoting an unblocked dependent (#1027)", () => {
       rejectTokens: ["the-pat"],
     });
 
-    expect(result.promoted.map(({ token }) => token)).toEqual([
+    expect(result.labelAttempts.map(({ token }) => token)).toEqual([
       "the-pat",
       "github-token",
     ]);
@@ -281,7 +286,9 @@ describe("promoting an unblocked dependent (#1027)", () => {
 
     expect(result.stdout).toContain("::error::Could not label #11");
     expect(result.stdout).toContain("Promoted #12 to agent:implement.");
-    expect(promotedNumbers(result)).toEqual(["11", "12"]);
+    // #11 was *attempted* and refused, #12 attempted and promoted: the loop
+    // reached both, which is the thing `continue` is here to guarantee.
+    expect(attemptedNumbers(result)).toEqual(["11", "12"]);
     expect(result.stdout).toContain("Could not promote: 11");
   });
 
@@ -291,7 +298,7 @@ describe("promoting an unblocked dependent (#1027)", () => {
       agentPat: "the-pat",
     });
 
-    expect(promotedNumbers(result)).toEqual([]);
+    expect(attemptedNumbers(result)).toEqual([]);
     expect(result.stdout).toContain("#11 not labeled agent:queued");
   });
 
@@ -301,7 +308,7 @@ describe("promoting an unblocked dependent (#1027)", () => {
       agentPat: "the-pat",
     });
 
-    expect(promotedNumbers(result)).toEqual(["12"]);
+    expect(attemptedNumbers(result)).toEqual(["12"]);
     expect(result.stdout).toContain("#11 still has 2 open blocker(s)");
   });
 
@@ -316,11 +323,15 @@ describe("promoting an unblocked dependent (#1027)", () => {
     }
   });
 });
-
 /**
- * Every workflow carrying a PAT-or-fallback block, found by the one sentence
- * only that block prints. Discovery rather than a list: a fourth copy added
- * later is held to the shape without anyone remembering to enrol it here.
+ * Every workflow carrying a PAT-or-fallback label block, found by the line that
+ * makes one what it is: a `gh` write explicitly tokened with `AGENT_PAT`. Keyed
+ * on code rather than on the prose the block prints, so a fourth copy that
+ * words its fallback notice differently is still caught.
+ *
+ * The `toEqual` below pins the result, so enrolling a fourth copy is a
+ * deliberate edit here — but an unenrolled one fails loudly rather than
+ * silently shrinking the reach of the drift assertions.
  */
 function workflowsWithTheBlock(): string[] {
   const dir = ".github/workflows";
@@ -329,7 +340,7 @@ function workflowsWithTheBlock(): string[] {
     .map((file) => `${dir}/${file}`)
     .filter((workflow) =>
       readFileSync(join(repoRoot, workflow), "utf8").includes(
-        "AGENT_PAT label add failed",
+        'GH_TOKEN="$AGENT_PAT"',
       ),
     )
     .sort();
@@ -343,7 +354,7 @@ function extractFallbackBlock(workflow: string): {
   const lines = readFileSync(join(repoRoot, workflow), "utf8").split("\n");
 
   const marker = lines.findIndex((line) =>
-    line.includes("AGENT_PAT label add failed"),
+    line.includes('GH_TOKEN="$AGENT_PAT"'),
   );
   let start = marker;
   while (start >= 0 && lines[start].trim() !== "set +e") start--;
@@ -362,12 +373,8 @@ function extractFallbackBlock(workflow: string): {
   };
 }
 
-/**
- * The block's control flow, with everything workflow-specific replaced: the
- * `gh` call, the messages and the name of the status variable. What is left is
- * exactly the part #1027 is about — whether each status is read at all.
- */
-function skeleton(lines: string[]): string[] {
+/** The block's lines, continuations rejoined, blanks and comments dropped. */
+function statements(lines: string[]): string[] {
   const joined: string[] = [];
   for (const line of lines) {
     const trimmed = line.trim();
@@ -379,11 +386,29 @@ function skeleton(lines: string[]): string[] {
     joined.push(trimmed);
   }
 
-  const body = joined.filter((line) => line !== "" && !line.startsWith("#"));
-  const status = /^(\w+)=1$/.exec(body[1] ?? "")?.[1];
-  expect(status, `no \`<status>=1\` initialiser: ${body[1]}`).toBeDefined();
+  return joined.filter((line) => line !== "" && !line.startsWith("#"));
+}
 
-  return body.map((line) =>
+/** The name of the variable the block holds each `gh` call's exit status in. */
+function statusVariable(block: string[]): string {
+  const initialiser = statements(block)[1] ?? "";
+  const name = /^(\w+)=1$/.exec(initialiser)?.[1];
+  expect(
+    name,
+    `no \`<status>=1\` initialiser, so no status is being tracked: ${initialiser}`,
+  ).toBeDefined();
+  return name as string;
+}
+
+/**
+ * The block's control flow, with everything workflow-specific replaced: the
+ * `gh` call, the messages and the name of the status variable. What is left is
+ * exactly the part #1027 is about — whether each status is read at all.
+ */
+function skeleton(block: string[]): string[] {
+  const status = statusVariable(block);
+
+  return statements(block).map((line) =>
     line
       .replace(new RegExp(`\\b${status}\\b`, "g"), "status")
       .replace(/^(GH_TOKEN="\$(?:AGENT_PAT|GITHUB_TOKEN)") .*$/, "$1 <call>")
@@ -391,13 +416,29 @@ function skeleton(lines: string[]): string[] {
   );
 }
 
+/**
+ * The two statements that must follow the block: the guard on the status, and
+ * the `::error::` naming the item. Read as statements, not as free text, so a
+ * bare unguarded `echo "::error::"` cannot satisfy them.
+ */
+function failureReport(workflow: string): { guard: string; error: string } {
+  const { block, after } = extractFallbackBlock(workflow);
+  const status = statusVariable(block);
+  const [guard = "", error = ""] = statements(after);
+
+  return {
+    guard: guard.replace(new RegExp(`\\b${status}\\b`, "g"), "status"),
+    error,
+  };
+}
+
 describe("the PAT-or-fallback block is the same in every workflow that has it", () => {
   const workflows = workflowsWithTheBlock();
 
-  it("finds the copies, so the comparison below is not vacuous", () => {
+  it("finds the copies, so the comparisons below are not vacuous", () => {
     // Three today: the Implement → Review chain, the PRD chain, and the
     // queued → implement promotion. A copy dropped from a workflow should be
-    // noticed here rather than quietly shrinking the assertion's reach.
+    // noticed here rather than quietly shrinking the assertions' reach.
     expect(workflows).toEqual([
       ".github/workflows/agent-implement-prd.yml",
       ".github/workflows/agent-implement.yml",
@@ -405,22 +446,54 @@ describe("the PAT-or-fallback block is the same in every workflow that has it", 
     ]);
   });
 
-  it.each(workflows)("%s reads both exit statuses", (workflow) => {
-    // The block is duplicated on purpose: these steps run with a write token on
-    // `pull_request_target`, where the checkout is the PR head, so calling a
-    // script from the repo would execute PR-controlled code. Inline `run:` bash
-    // comes from the base ref instead. This test is what keeps the copies from
-    // drifting — fixing one and not another fails here (#1027).
-    expect(skeleton(extractFallbackBlock(workflow).block)).toEqual(
-      skeleton(extractFallbackBlock(workflows[0]).block),
-    );
+  it("reads the exit status of both the PAT call and the fallback", () => {
+    // The absolute half of the check. Drift alone would be satisfied by every
+    // copy regressing together, so pin the shape itself: one `status=$?` after
+    // the `AGENT_PAT` call, one after the `github.token` fallback.
+    expect(skeleton(extractFallbackBlock(workflows[0]).block)).toEqual([
+      "set +e",
+      "status=1",
+      'if [ -n "${AGENT_PAT:-}" ]; then',
+      'GH_TOKEN="$AGENT_PAT" <call>',
+      "status=$?",
+      'if [ "$status" -ne 0 ]; then',
+      "echo <message>",
+      "fi",
+      "fi",
+      'if [ "$status" -ne 0 ]; then',
+      'GH_TOKEN="$GITHUB_TOKEN" <call>',
+      "status=$?",
+      "fi",
+      "set -e",
+    ]);
   });
 
+  it.each(workflows.slice(1))(
+    "%s has not drifted from the others",
+    (workflow) => {
+      // The relative half: fixing one copy and not another fails here. The
+      // copies are inline `run:` bash in three separate workflows and differ in
+      // endpoint, label and target; whether they should instead be one shared
+      // script is an open design question (#1027), and until it is answered this
+      // is what holds them together.
+      expect(
+        skeleton(extractFallbackBlock(workflow).block),
+        `${workflow} drifted from ${workflows[0]}`,
+      ).toEqual(skeleton(extractFallbackBlock(workflows[0]).block));
+    },
+  );
+
   it.each(workflows)("%s names the item both tokens refused", (workflow) => {
-    // A block whose status is read but never acted on is the same silence.
-    expect(
-      extractFallbackBlock(workflow).after.join("\n"),
-      `${workflow} must report the item it could not label`,
-    ).toMatch(/::error::/);
+    // A block whose status is read but never acted on is the same silence: the
+    // `::error::` has to be guarded by the status, and has to name the item
+    // (`#$something`) rather than just announcing that something went wrong.
+    const { guard, error } = failureReport(workflow);
+
+    expect(guard, `${workflow} must act on the status it read`).toBe(
+      'if [ "$status" -ne 0 ]; then',
+    );
+    expect(error, `${workflow} must name the item it could not label`).toMatch(
+      /^echo "::error::[^"]*#\$\w+/,
+    );
   });
 });
