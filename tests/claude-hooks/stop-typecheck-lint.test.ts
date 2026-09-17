@@ -155,18 +155,25 @@ describe("stop-typecheck-lint.sh", () => {
     expect(pnpmCalls()).toEqual([]);
   });
 
-  // One `it` per file, because a single test that writes both leaves the first
-  // one on disk while it asserts the second: the `package.json` arm of the
-  // filter then rides on `tsconfig.json` and is never actually exercised.
-  it.each(["tsconfig.json", "package.json"])(
-    "runs for a change to %s alone",
-    (configFile) => {
-      change(configFile, "{}\n");
+  // One `it` per path, because a single test that writes several leaves the
+  // earlier ones on disk while it asserts the next: every arm but the first
+  // would ride on them and never be exercised. `scripts/x.mjs` and
+  // `.oxlintrc.json` are the lint half of the filter (#1014) — the gate runs
+  // `pnpm lint`, so the filter has to cover what oxlint reads.
+  it.each([
+    "tsconfig.json",
+    "package.json",
+    ".oxlintrc.json",
+    "scripts/x.mjs",
+    "scripts/x.cjs",
+    "app/legacy.js",
+    "app/legacy.jsx",
+  ])("runs for a change to %s alone", (changedPath) => {
+    change(changedPath, "{}\n");
 
-      expect(runHook().status).toBe(0);
-      expect(pnpmCalls()).toEqual(["typecheck", "lint"]);
-    },
-  );
+    expect(runHook().status).toBe(0);
+    expect(pnpmCalls()).toEqual(["typecheck", "lint"]);
+  });
 
   it("sees a tracked and modified file, not only untracked ones", () => {
     change("app/routes/home.tsx", "export const home = 1;\n");

@@ -55,10 +55,13 @@ file you write, silently, so `pnpm format` is not yours to remember. `Stop` runs
 `pnpm typecheck && pnpm lint` and **blocks the end of the turn** with exit 2 and
 the failing output when either is red — it is a backstop, not a substitute for
 running them yourself, since it reports once at the end with no idea what you
-changed. It skips a turn that touched no `.ts`/`.tsx`/`.mts`/`.cts`,
-`tsconfig*.json` or `package.json`, and it skips every workflow outside the three
-implement runners, `AFK Review` included. `SKIP_STOP_CHECKS=1` is the bypass, and
-it is for local work, not for getting a red branch committed here. Both hooks are
+changed. It skips a turn that touched nothing either half of the gate reads —
+`.ts`/`.tsx`/`.mts`/`.cts`, `tsconfig*.json` and `package.json` for typecheck,
+`.js`/`.jsx`/`.mjs`/`.cjs` and `.oxlintrc.json` for lint — and it skips every
+workflow outside the three implement runners, `AFK Review` included. It looks at
+the working tree only; committed work was already typechecked by pre-commit.
+`SKIP_STOP_CHECKS` set to any value is the bypass (`SKIP_STOP_CHECKS=1`), and it
+is for local work, not for getting a red branch committed here. Both hooks are
 described in `docs/agents/workflows.md`.
 
 gitleaks has no `check:*` script either: it runs from `.husky/pre-commit`, where

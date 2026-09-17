@@ -16,7 +16,18 @@
 #   workflow name rather than by `CI` keeps the exclusion explicit and greppable.
 #   `AFK Review` is the case this protects: the reviewer authors no app code, so
 #   blocking it spends its budget on a red typecheck it cannot fix.
-# - No changed path — tracked or untracked — that typecheck or lint could read.
+# - No changed path — tracked or untracked — that typecheck or lint could read:
+#   `.ts`/`.tsx`/`.mts`/`.cts` and `tsconfig*.json`/`package.json` for typecheck,
+#   `.js`/`.jsx`/`.mjs`/`.cjs` and `.oxlintrc.json` for lint. The filter has to
+#   cover both halves of the gate, or a turn that edits only `scripts/*.mjs`
+#   ends without oxlint ever running (#1014).
+#
+# The filter reads the working tree only. Committed work has already passed
+# `.husky/pre-commit`, which runs `pnpm typecheck` on every commit (#934,
+# including in the AFK runners), so this gate owns the uncommitted remainder of a
+# turn; unioning it with `master...HEAD` would re-run the gate on every turn of
+# any branch that ever committed a `.ts` file, which is the per-turn cost the
+# design avoids. Lint on committed changes is CI's `checks` job.
 #
 # On failure it exits 2 with the failing output on stderr, which is what Claude
 # Code feeds back to the agent. It keeps blocking while the failure persists;
@@ -58,7 +69,7 @@ cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0
 # These are status lines, not bare paths — `?? app/routes/home.tsx` — hence the
 # leading-space alternative in the pattern below.
 changed_status_lines="$(git status --porcelain --untracked-files=all -z 2>/dev/null | tr '\0' '\n')"
-if ! printf '%s\n' "$changed_status_lines" | grep -Eq '\.(ts|tsx|mts|cts)$|(^|/| )tsconfig[^/]*\.json$|(^|/| )package\.json$'; then
+if ! printf '%s\n' "$changed_status_lines" | grep -Eq '\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$|(^|/| )tsconfig[^/]*\.json$|(^|/| )package\.json$|(^|/| )\.oxlintrc\.json$'; then
   exit 0
 fi
 

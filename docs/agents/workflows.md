@@ -315,16 +315,23 @@ Hook guidance:
     once #986 makes `pnpm lint` type-aware (~6.5 s). It exits 0 without running
     anything when `SKIP_STOP_CHECKS` is set, when `GITHUB_WORKFLOW` is any
     workflow outside `AFK Implement`, `AFK Implement PRD` and `AFK Implement PR`,
-    or when no changed path — tracked or untracked — matches `.ts`/`.tsx`/
-    `.mts`/`.cts`, `tsconfig*.json` or `package.json`. The allowlist is by
+    or when no changed path — tracked or untracked — matches what either half
+    of the gate reads: `.ts`/`.tsx`/`.mts`/`.cts` plus `tsconfig*.json` and
+    `package.json` for typecheck, and `.js`/`.jsx`/`.mjs`/`.cjs` plus
+    `.oxlintrc.json` for lint. It reads the working tree only, on purpose:
+    committed work has already passed `.husky/pre-commit`, which runs
+    `pnpm typecheck` on every commit (#934, in the AFK runners too), so this gate
+    owns the uncommitted remainder of a turn — the one thing that leaves
+    uncovered is lint on committed changes, which CI's `checks` job owns. The
+    allowlist is by
     workflow name rather than by `CI` so the exclusion stays explicit and
     greppable; `AFK Review` is the case it protects, since the reviewer authors
     no app code and would spend its budget on a red typecheck it cannot fix.
     There is no `SubagentStop` hook: it is a distinct event, and `research`,
     `Explore` and `Plan` do not author app code.
 
-  `SKIP_STOP_CHECKS=1` is the documented local bypass — `SKIP_STOP_CHECKS=1 claude`,
-  or export it for the session. The gate keeps blocking while the failure
+  `SKIP_STOP_CHECKS` is the documented local bypass: set to any value, it turns
+  the gate off — `SKIP_STOP_CHECKS=1 claude`, or export it for the session. The gate keeps blocking while the failure
   persists; Claude Code force-closes the turn after 8 consecutive blocks, which is
   the backstop, so the wording of the last instruction is all `stop_hook_active`
   decides.
