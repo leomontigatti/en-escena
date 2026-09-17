@@ -207,6 +207,7 @@ export async function createProfessor(
 export async function createChoreographyRecord(
   overrides: Partial<typeof choreographies.$inferInsert> & {
     academyId: string;
+    categoryId: string;
     eventId: string;
     modalityId: string;
     scheduleCapacityId: string;
@@ -229,7 +230,7 @@ export async function createChoreographyRecord(
       modalityId: overrides.modalityId,
       submodalityId: overrides.submodalityId ?? null,
       groupType: overrides.groupType ?? "solo",
-      categoryId: overrides.categoryId ?? null,
+      categoryId: overrides.categoryId,
       categoryAgeBasis: overrides.categoryAgeBasis ?? 13,
       categoryCalculationMode: overrides.categoryCalculationMode ?? "oldest",
       experienceLevelId: overrides.experienceLevelId ?? null,

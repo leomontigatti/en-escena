@@ -128,6 +128,7 @@ async function seedChoreographyWithInscription(email: string) {
     academyId: academy.id,
     eventId: event.id,
     modalityId: catalog.modality.id,
+    categoryId: catalog.categoryWithoutLevel.id,
     scheduleCapacityId: catalog.scheduleCapacity.id,
     name: "Coreografía a anular",
   });

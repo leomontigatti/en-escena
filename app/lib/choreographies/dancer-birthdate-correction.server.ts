@@ -165,9 +165,27 @@ export async function recalculateLinkedChoreographiesForDancerBirthDateCorrectio
   // Every choreography is resolved before anything is written: a correction
   // that would leave one of them without a category is refused whole, so the
   // administrator never has to undo a half-applied recalculation.
-  const choreographiesWithoutCategory = writes
-    .filter((write) => write.placement.categoryId === null)
-    .map((write) => toCorrectionChoreography(write.choreography));
+  const choreographiesWithoutCategory: DancerBirthDateCorrectionChoreography[] =
+    [];
+  // The category a write is about to persist, carried beside the write so the
+  // column's `NOT NULL` is honoured by the type and not only by the refusal.
+  const categorisedWrites: {
+    write: ChoreographyCorrectionWrite;
+    categoryId: string;
+  }[] = [];
+
+  for (const write of writes) {
+    const categoryId = write.placement.categoryId;
+
+    if (categoryId === null) {
+      choreographiesWithoutCategory.push(
+        toCorrectionChoreography(write.choreography),
+      );
+      continue;
+    }
+
+    categorisedWrites.push({ write, categoryId });
+  }
 
   if (choreographiesWithoutCategory.length > 0) {
     return {
@@ -178,7 +196,7 @@ export async function recalculateLinkedChoreographiesForDancerBirthDateCorrectio
     };
   }
 
-  for (const write of writes) {
+  for (const { write, categoryId } of categorisedWrites) {
     await persistResolvedDancers({
       choreographyId: write.choreography.choreographyId,
       executor,
@@ -187,7 +205,7 @@ export async function recalculateLinkedChoreographiesForDancerBirthDateCorrectio
     await executor
       .update(choreographies)
       .set({
-        categoryId: write.placement.categoryId,
+        categoryId,
         categoryCalculationMode: write.placement.categoryCalculationMode,
         categoryAgeBasis: write.placement.categoryAgeBasis,
         experienceLevelId: toExperienceLevelValue(

@@ -1803,7 +1803,7 @@ async function createAdministrativeLinkedChoreography(input: {
   academyId: string;
   choreographyName: string;
   modalityId: string;
-  categoryId: string | null;
+  categoryId: string;
   experienceLevelId: string | null;
   scheduleCapacityId: string;
 }) {

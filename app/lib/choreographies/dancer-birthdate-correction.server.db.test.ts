@@ -503,7 +503,7 @@ async function createLinkedChoreography(input: {
   eventId: string;
   name: string;
   modalityId: string;
-  categoryId: string | null;
+  categoryId: string;
   experienceLevelId: string | null;
   scheduleCapacityId: string;
   hasPresentation: boolean;

@@ -166,6 +166,7 @@ async function seedChoreographiesByDay() {
     academyId: academy.id,
     eventId: event.id,
     modalityId: catalog.modality.id,
+    categoryId: catalog.categoryWithoutLevel.id,
     scheduleCapacityId: catalog.scheduleCapacity.id,
     name: "Coreografía sin cronograma",
   });
@@ -202,6 +203,7 @@ async function createScheduledChoreography(input: {
     academyId: input.academyId,
     eventId: input.eventId,
     modalityId: input.catalog.modality.id,
+    categoryId: input.catalog.categoryWithoutLevel.id,
     scheduleCapacityId: input.catalog.scheduleCapacity.id,
     name: input.name,
   });

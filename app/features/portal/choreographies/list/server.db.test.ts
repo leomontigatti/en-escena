@@ -286,27 +286,6 @@ describe.sequential("handlePortalChoreographiesListAction", () => {
       professorId: ownerProfessor.id,
     });
 
-    const missingCategory = await createChoreographyRecord({
-      academyId: owner.academyId,
-      categoryId: null,
-      eventId: selectedEvent.id,
-      experienceLevelId: null,
-      modalityId: selectedCatalog.modality.id,
-      musicStorageKey: "music/category.mp3",
-      name: "Sin Categoría",
-      scheduleCapacityId: selectedCatalog.scheduleCapacity.id,
-      submodalityId: null,
-    });
-    await db.insert(choreographyDancers).values({
-      choreographyId: missingCategory.id,
-      dancerId: ownerDancer.id,
-      ageAtEventStart: 13,
-    });
-    await db.insert(choreographyProfessors).values({
-      choreographyId: missingCategory.id,
-      professorId: ownerProfessor.id,
-    });
-
     const missingLevel = await createChoreographyRecord({
       academyId: owner.academyId,
       categoryId: selectedCatalog.categoryWithLevel.id,
@@ -397,7 +376,6 @@ describe.sequential("handlePortalChoreographiesListAction", () => {
     expect(loaderData.choreographies.map((row) => row.name)).toEqual([
       "Sin Profesores",
       "Sin Nivel",
-      "Sin Categoría",
       "Sin Música",
       "Final Completa",
     ]);
@@ -414,13 +392,6 @@ describe.sequential("handlePortalChoreographiesListAction", () => {
         operationalStatus: {
           code: "incomplete",
           pendingItems: ["experienceLevel"],
-        },
-      },
-      {
-        name: "Sin Categoría",
-        operationalStatus: {
-          code: "incomplete",
-          pendingItems: ["category"],
         },
       },
       {

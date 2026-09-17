@@ -18,7 +18,6 @@ import {
 import {
   compatibleScheduleSelectionRequiredMessage,
   getDancerEditingEligibility,
-  getResolvedChoreographyCategory,
   haveSameIds,
   type UpdateChoreographyDancersResult,
   type UpdateChoreographyResult,
@@ -276,6 +275,7 @@ async function planRosterWrite(input: {
 
   return {
     ok: true,
+    categoryId: resolution.category.id,
     choreography,
     experienceLevelId: resolvedExperienceLevelId.value,
     resolution,
@@ -293,6 +293,9 @@ function refuse(
 type RosterWritePlan =
   | {
       ok: true;
+      // Read off the resolution once the refusal above has ruled the pending
+      // category out, so the write below has an id the column can take.
+      categoryId: string;
       choreography: ResolvedDancerUpdateContext["choreography"];
       experienceLevelId: SelectedExperienceLevelId;
       resolution: ResolvedDancerUpdateContext["resolution"];
@@ -320,6 +323,7 @@ async function updateChoreographyDancers(input: {
   }
 
   const {
+    categoryId,
     choreography,
     experienceLevelId,
     resolution,
@@ -387,7 +391,7 @@ async function updateChoreographyDancers(input: {
       .update(choreographies)
       .set({
         groupType: resolution.groupType,
-        categoryId: getResolvedChoreographyCategory(resolution).id,
+        categoryId,
         categoryCalculationMode: resolution.categoryCalculationMode,
         categoryAgeBasis: resolution.categoryAgeBasis,
         experienceLevelId,
