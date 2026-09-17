@@ -7,8 +7,8 @@
 rules:
   # `npm install -g @anthropic-ai/claude-code` and `npx skills@latest` are unpinned on
   # purpose today: the agent runners are meant to track the current CLI. Pinning them
-  # (and deciding the bump cadence) is owned by #944, the Reviewer-inputs ticket, and
-  # is explicitly out of scope for #955.
+  # (and deciding the bump cadence) is owned by #966, the Reviewer-inputs ticket
+  # (formerly #944), and is explicitly out of scope for #955.
   adhoc-packages:
     ignore:
       - agent-implement.yml
