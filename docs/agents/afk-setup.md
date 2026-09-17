@@ -146,8 +146,9 @@ nothing about code executing in the job, upstream of the agent. The three workfl
 (`agent-review`, `agent-implement-pr`, `agent-update-branch`) run on `pull_request_target`,
 which evaluates the workflow from the base branch but runs with this repo's secrets, and each
 checks out `pull_request.head.sha`. On a fork PR that would put contributor-controlled code on
-disk with `AGENT_PAT` persisted into `.git/config`, then feed it to `pnpm install` lifecycle
-scripts and to the runner script itself.
+disk inside a job that holds `AGENT_PAT`, then feed it to `pnpm install` lifecycle scripts and
+to the runner script itself. (Until #956 the checkout also persisted that PAT into
+`.git/config`; see [Where the PAT is during a run](#where-the-pat-is-during-a-run).)
 
 So each of those three jobs carries a provenance condition alongside its label check:
 
@@ -172,6 +173,55 @@ until it is guarded, rather than going uncovered because nobody extended a table
 Do not "fix" any of this by switching to `pull_request`: `pull_request_target` is deliberate
 (spec §3.3) — the labeled event must fire even when the PR is out-of-date or conflicting, which
 is exactly when `agent:update-branch` is needed.
+
+## Where the PAT is during a run ([#956](https://github.com/leomontigatti/en-escena/issues/956))
+
+The agent never holds a GitHub credential (spec §3, and `revokeGitHubToken()` for the runners
+that prefetch). That rule used to have a hole below the environment: every `actions/checkout`
+in the agent workflows took `token: ${{ secrets.AGENT_PAT || github.token }}` and, by default,
+persisted it into `.git/config` as an `http.https://github.com/.extraheader`, so a session that
+ran `git config --get-all http.https://github.com/.extraheader` — or a `pnpm install` lifecycle
+script — could read a `repo`+`workflow` PAT. The push at the end of the job was what needed it.
+
+Now the credential exists in exactly one place per push:
+
+- **Every checkout** in `.github/workflows/` sets `persist-credentials: false`. The repo is
+  public, so the fetches the jobs do afterwards (`git fetch origin master:master`, the
+  resume fetch in `agent-implement-prd`, the base fetch inside the update-branch runner) need
+  no token at all.
+- **The "Configure git identity" step**, which runs right before every agent session, fails the
+  job if an `extraheader` is nonetheless present in `.git/config`. That is the acceptance
+  criterion of #956 turned into a step, so a future checkout that forgets the flag is caught
+  by the run itself rather than by someone reading YAML.
+- **Every push step** (the final push, the bank-on-failure push, and the race-safe pushes of
+  the three PR workflows) authenticates per command, with
+  `PUSH_TOKEN: ${{ secrets.AGENT_PAT || github.token }}` scoped to that step's `env:`:
+
+  ```bash
+  auth=$(printf 'x-access-token:%s' "$PUSH_TOKEN" | base64 -w0)
+  echo "::add-mask::$auth"
+  git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" push …
+  ```
+
+  `actions/checkout` masks the header it builds; this one is ours to mask, because nothing
+  else registers it as a secret. A push that fails for anything other than a lost lease fails
+  its step, rather than exiting 0 with nothing pushed — only the race patterns were matched
+  before, and an unpushed branch is the one outcome an AFK run cannot report on itself.
+  Nothing is written to any git config, so the agent that runs _after_ a push
+  (`write-pr` in `agent-implement`, `write-prd-pr` in `agent-implement-prd`) inherits nothing
+  either. The PAT-first order is what lets a branch that touches `.github/workflows/**` be
+  pushed; the `github.token` fallback keeps the no-PAT degradation contract above.
+
+The `GITHUB_TOKEN` grants were audited against real use at the same time: `contents: write`
+serves the `github.token` push fallback, `issues: write` the label and comment calls on issues,
+`pull-requests: write` the label, comment, reply and review calls on PRs, and the three
+`contents: read` workflows need no more than that (`agent-to-issues-prd` and
+`architecture-review` only check out; `ci`'s `actions-gate` also reads this repo through
+`GH_TOKEN` for zizmor's online audits). No key was found without a use, so none was dropped.
+
+`tests/afk/checkout-credentials.test.ts` holds the first bullet in place across every workflow
+in the directory, listed or not; zizmor's `artipacked` audit in `actions-gate` is the second
+line, and the suppression that #955 had to ship for it is gone.
 
 ## Per-workflow permissions matrix
 

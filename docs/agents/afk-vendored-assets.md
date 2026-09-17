@@ -56,6 +56,16 @@ are only concrete references to this repo:
   clean (opt-in, `implement` and `implement-prd` only), the two implement passes move to 60 / 50,
   and their prompts state the budget and ask for checkpoint commits. Details in
   [`afk-setup.md`](./afk-setup.md) → "Wall-clock guardrails".
+- **No credential persisted by the checkout (#956).** The spec's runner steps (§4.2 step 2,
+  §4.3 step 3, §4.5 step 2 and their siblings) read "Checkout … with `AGENT_PAT ||
+GITHUB_TOKEN` (PAT lets the push include workflow changes)", which relies on
+  `actions/checkout` persisting that token into `.git/config` for the push at the end of the
+  job. Here every checkout sets `persist-credentials: false` and takes no `token:`; the push
+  steps authenticate per command with `PUSH_TOKEN: ${{ secrets.AGENT_PAT || github.token }}`
+  scoped to that step, and the identity step refuses to start the agent over a persisted
+  credential. The spec's fallback order and the no-PAT degradation are unchanged; only where
+  the token lives during the run is. Details in [`afk-setup.md`](./afk-setup.md) → "Where the
+  PAT is during a run".
 - **Typecheck gate on §4.6's clean-merge path.** The spec invokes the update-branch agent only
   when `git merge` conflicts, so a textually clean merge is pushed without anything compiling
   the result — and a semantic conflict (the base reshapes a signature, the branch adds a caller

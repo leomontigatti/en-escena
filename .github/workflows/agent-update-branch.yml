@@ -72,7 +72,10 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
-          token: ${{ secrets.AGENT_PAT || github.token }}
+          # No credential in `.git/config`: the agent session reads PR text and
+          # runs `pnpm install` scripts, so nothing it can reach may hold a token
+          # (#956). The push step authenticates per command instead.
+          persist-credentials: false
 
       - name: Prepare branch refs
         run: |
@@ -95,8 +98,16 @@ jobs:
 
       - name: Configure git identity
         run: |
+          set -euo pipefail
           git config user.name "claude-code[bot]"
           git config user.email "claude-code[bot]@users.noreply.github.com"
+          # The agent session starts after this step: nothing may have stored a
+          # credential in the tree (#956). `persist-credentials: false` on the
+          # checkout is what makes this hold; the assertion keeps it honest.
+          if git config --get-all http.https://github.com/.extraheader >/dev/null; then
+            echo "A credential is persisted in .git/config; refusing to start the agent." >&2
+            exit 1
+          fi
 
       - name: Run update-branch runner
         timeout-minutes: 30 # guardrail: an agent hang must not burn the whole run
@@ -123,6 +134,11 @@ jobs:
           retention-days: 14
 
       - name: Race-safe push (if the merge produced anything)
+        env:
+          # Explicit push credential, `AGENT_PAT` first so pushes that touch
+          # `.github/workflows/**` carry the `workflow` scope, `github.token`
+          # as the no-PAT fallback (docs/agents/afk-setup.md).
+          PUSH_TOKEN: ${{ secrets.AGENT_PAT || github.token }}
         run: |
           set -euo pipefail
           [ "$(cat "$OUTPUT_DIR/should_push.txt" 2>/dev/null || echo false)" = "true" ] || {
@@ -131,9 +147,22 @@ jobs:
           }
           # The lease tolerates the rewritten history of a merge commit as long as
           # the remote head is unchanged (§3.6).
-          git push --force-with-lease="refs/heads/$BRANCH:$BRANCH_HEAD_SHA" origin "$BRANCH" 2> push_err.txt || true
-          if grep -qiE "non-fast-forward|rejected|fetch first|stale info" push_err.txt; then
-            echo "Branch advanced during update-branch run." > "$OUTPUT_DIR/failure_reason.txt"
+          # Per-command auth (#956): the checkout persisted nothing, so this is the
+          # one place a push credential exists — and only for this command.
+          auth=$(printf 'x-access-token:%s' "$PUSH_TOKEN" | base64 -w0)
+          # `actions/checkout` masks the header it builds; this one is ours to mask.
+          echo "::add-mask::$auth"
+          if ! git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" \
+            push --force-with-lease="refs/heads/$BRANCH:$BRANCH_HEAD_SHA" origin "$BRANCH" 2> push_err.txt; then
+            cat push_err.txt >&2
+            # A lost lease is the expected race. Anything else — a token without
+            # the `workflow` scope, a network fault — used to leave the step green
+            # with nothing pushed, because only the race patterns were matched.
+            if grep -qiE "non-fast-forward|rejected|fetch first|stale info" push_err.txt; then
+              echo "Branch advanced during update-branch run." > "$OUTPUT_DIR/failure_reason.txt"
+            else
+              echo "Push failed; git's output is in the step log." > "$OUTPUT_DIR/failure_reason.txt"
+            fi
             exit 1
           fi
 
