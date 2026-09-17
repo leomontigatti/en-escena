@@ -111,8 +111,11 @@ checkout's `master` current. It only runs when that checkout is clean and on
 
 ## Continuous integration
 
-`.github/workflows/ci.yml` runs on every PR to `master`, as four required
-contexts. The rationale for each job lives in that file's comments; what follows
+`.github/workflows/ci.yml` runs on every PR to `master`, as four gates. Three of
+them — `checks`, `db-gate` and `docs-gate` — are required contexts on `master`;
+`actions-gate` is not one yet, because required contexts are a repo setting and
+adding a job does not update them (see "Bumping the pins" below).
+The rationale for each job lives in that file's comments; what follows
 is the shape a reader needs before running anything locally:
 
 - `checks`: `format:check`, `lint`, the `check:*` scripts, the migration
@@ -145,11 +148,12 @@ protection, which is why the aggregator is named exactly `db-gate`.
 Two tools, both version-pinned in `ci.yml`, neither installed from the
 Marketplace:
 
-- **zizmor** (`uvx zizmor@<version>`), default persona, configured by
+- **zizmor** (`pipx run zizmor==<version>` — `pipx` is on the runner image and
+  `uv` is not), default persona, configured by
   `.github/zizmor.yml`. It owns the Actions security posture: unpinned `uses:`,
   dangerous triggers, template injection, over-broad `permissions:` and
-  `$GITHUB_ENV` writes. **Online audits are on**, with `GH_TOKEN:
-${{ github.token }}` — `known-vulnerable-actions`, `impostor-commit` and
+  `$GITHUB_ENV` writes. **Online audits are on**, with
+  `GH_TOKEN: ${{ github.token }}` — `known-vulnerable-actions`, `impostor-commit` and
   `ref-version-mismatch` only exist with a token, and they are the whole reason
   the SHA pins can be manual: a pin that goes stale, or that no longer matches
   the tag its comment claims, turns the gate red on the next PR instead of
@@ -176,7 +180,7 @@ All of it is a manual edit; nothing here opens update PRs.
 
 1. `pinact run --update` rewrites every `uses:` in `.github/workflows/` to the
    newest release of that action, SHA plus a `# vN` comment.
-2. Bump `zizmor@<version>` and the two actionlint version strings in the
+2. Bump `zizmor==<version>` and the two actionlint version strings in the
    `actions-gate` job by hand.
 3. `pnpm format` (Prettier owns the YAML), then push and read the gate. Its
    online audits are the confirmation step: they are what tells you a rewritten
