@@ -1,5 +1,5 @@
 # CI pipeline — implements the decision in #305 (full charter of the workflow).
-# PR-only: issue -> branch -> PR -> merge. Three gates, all meant to be required:
+# PR-only: issue -> branch -> PR -> merge. Four gates, all meant to be required:
 #   - checks   : lint / typecheck / non-DB tests / build, with no database (@/db is lazy, #308).
 #   - db-gate  : full `*.db.test.ts` suite against real Postgres 17 (mirrors production),
 #                split across the `db-shard` matrix (#962). Each shard is a runner with its
@@ -8,6 +8,7 @@
 #                itself runs no tests: it is the aggregator that fails unless every shard
 #                succeeded, and it exists so the required-context name stays stable.
 #   - docs-gate: mapped code changed => its current-state document must change too (#630).
+#   - actions-gate: zizmor + actionlint over every workflow in this directory (#955).
 # Branch protection on `master` is live: direct pushes are forbidden and `checks`,
 # `db-gate` and `docs-gate` are required contexts, with `strict: true`. Required contexts
 # are a repo setting, not a file here, so renaming or adding a job does not update them —
@@ -19,6 +20,12 @@ on:
     branches: [master]
   workflow_dispatch:
 
+# Every job here only reads the repository: no job comments, labels or pushes.
+# Declared at the top level so each job inherits it and none silently gets the
+# default write-all token (zizmor `excessive-permissions`).
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -28,14 +35,15 @@ jobs:
     name: checks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           # Full history: `check:fallow` attributes findings against the merge
           # base with `origin/master`, and a shallow clone has neither the ref
           # nor the history to attribute against.
           fetch-depth: 0
-      - uses: pnpm/action-setup@v5 # version comes from the `packageManager` field (pnpm 11.9.0)
-      - uses: actions/setup-node@v5
+      # The pnpm version comes from the `packageManager` field (pnpm 11.9.0)
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 22
           cache: pnpm
@@ -96,6 +104,47 @@ jobs:
       - run: pnpm test:unit
       - run: pnpm build
 
+  # The Actions security gate (#955): every workflow in `.github/workflows/` goes
+  # through zizmor (posture: pin freshness, trigger safety, permissions, template
+  # injection) and actionlint (syntax, expressions, shellcheck over `run:` blocks).
+  # No `paths:` filter — like the other three it has to report on every PR to be a
+  # required context, and it is seconds of runner time.
+  # Online audits are on deliberately. `known-vulnerable-actions`, `impostor-commit`
+  # and `ref-version-mismatch` only exist with a token, and they are how the SHA pins
+  # stay honest without a bot opening update PRs: a pin that goes stale or points at
+  # something that is no longer the tag it claims turns the gate red. `github.token`
+  # is read-only here (see the top-level `permissions:`) and is used for nothing else.
+  # Both tools are version-pinned; bumping them is a manual edit, documented in
+  # docs/agents/workflows.md alongside the `pinact run --update` pin bump.
+  # No pinact in CI: zizmor's `unpinned-uses` already fails on anything not SHA-pinned.
+  actions-gate:
+    name: actions-gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 1
+      - name: zizmor (Actions security posture, pin freshness)
+        env:
+          # Online audits; read-only, and scoped to this run.
+          GH_TOKEN: ${{ github.token }}
+        run: uvx zizmor@1.30.1 --config .github/zizmor.yml --format plain .github/workflows/
+      - name: actionlint (workflow syntax and expressions)
+        env:
+          # actionlint runs shellcheck over every `run:` block. Only `warning` and
+          # above is actionable here: at `info`/`style` the gate is a wall of SC2016
+          # ("expressions don't expand in single quotes") pointing at correct `jq '...'`
+          # filters, which would train everyone to stop reading the job.
+          SHELLCHECK_OPTS: --severity=warning
+        run: |
+          set -euo pipefail
+          # The official download script, pinned to the release it installs — not the
+          # Marketplace action, which would be one more third-party pin to keep fresh.
+          curl -fsSL -o /tmp/download-actionlint.bash \
+            https://raw.githubusercontent.com/rhysd/actionlint/v1.7.12/scripts/download-actionlint.bash
+          bash /tmp/download-actionlint.bash 1.7.12 /tmp
+          /tmp/actionlint -color
+
   # Its own job rather than a step inside `checks`: with this gate the *message*
   # is the point, and inside `checks` a doc-gate failure is visually identical to
   # a lint failure and gets buried in a long log. Checkout plus `node`, no
@@ -105,7 +154,7 @@ jobs:
     name: docs-gate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
       - name: docs-gate (mapped code changes must touch their current-state doc)
@@ -132,7 +181,7 @@ jobs:
         shard: [1, 2, 3, 4]
     services:
       postgres:
-        image: postgres:17-alpine # mirrors production
+        image: postgres:17-alpine@sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73 # mirrors production
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -150,9 +199,9 @@ jobs:
       # through to drizzle-kit as DATABASE_URL.
       TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/en-escena-test
     steps:
-      - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 22
           cache: pnpm
