@@ -45,11 +45,19 @@ The scripts that exist and what owns what:
 | `pnpm check:fallow`         | Fallow's `new-only` gate on what the branch adds           |
 | zizmor (CI only)            | Actions security posture and pin freshness — `.github/workflows/**` |
 | actionlint (CI only)        | Workflow syntax and expressions — `.github/workflows/**` |
+| gitleaks (pre-commit + CI)  | Secrets in commits — `.gitleaks.toml` rules over the staged diff, then over `origin/master..HEAD` |
 
 CI runs the `check:*` scripts and `pnpm build` for you. You do not need to.
 
-The last two rows are the `actions-gate` job (#955) and have no local script on
-purpose: they only ever read `.github/workflows/**`, and both are pinned inside
+gitleaks has no `check:*` script either: it runs from `.husky/pre-commit`, where
+it warns and continues if the binary is missing, and blocking from the `checks`
+job. It is only the client-side half of the secrets gate — GitHub secret scanning
+with **push protection** is the server-side owner for provider tokens, and it
+blocks the push itself, so the custom rules in `.gitleaks.toml` deliberately cover
+only what this repo can leak that push protection does not (#978).
+
+The zizmor and actionlint rows are the `actions-gate` job (#955) and have no local
+script on purpose: they only ever read `.github/workflows/**`, and both are pinned inside
 `ci.yml`. If you edited a workflow, the gate is what tells you; how it is set up
 and how to bump its pins is in `docs/agents/workflows.md`.
 

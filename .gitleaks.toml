@@ -1,0 +1,83 @@
+# Secret detection for this repo (#978), decided in #940. It runs in two places:
+# `.husky/pre-commit` over the staged diff, and the `checks` job in ci.yml over
+# `origin/master..HEAD`. Both read this file; there is no second configuration.
+#
+# gitleaks is the client-side half of the gate. The server-side half is GitHub
+# secret scanning with push protection, which owns provider tokens (its patterns
+# are validated against the providers and it blocks the push itself). What is
+# here is what this repo can leak that push protection does not cover.
+
+title = "En Escena"
+
+# The upstream ruleset is the baseline; the rules below only add to it.
+[extend]
+useDefault = true
+
+# The one false positive in the full history: an entropy match on a filename
+# inside a prototype form that was deleted long ago. Scoped to that single
+# commit on purpose — no path-wide and no rule-wide exemption, so the same
+# string in new code still fails.
+[[allowlists]]
+description = "Entropy match on a filename in a deleted prototype form (#978)"
+commits = ["ce1e706c00a5eae02a575ed0a5ad0c93f97dbd48"]
+
+# --- Custom rules: gaps in the default ruleset, verified against 8.30.1 ------
+
+# The defaults have no rule for a password embedded in a connection URL, and
+# this repo's DATABASE_URL is exactly that shape. Local and documentation hosts
+# are allowlisted so `postgres://postgres:postgres@localhost:5432/...` — which
+# is in ci.yml, in the test config and in the docs — stays quiet.
+[[rules]]
+id = "connection-url-password"
+description = "Password embedded in a connection URL"
+regex = '''\b(?i:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis(?:s)?|amqps?|ftp|smtps?|https?)://[^\s:/@]+:([^\s:/@]{4,})@[^\s/]+'''
+secretGroup = 1
+keywords = [
+  "postgres://",
+  "postgresql://",
+  "mysql://",
+  "mongodb://",
+  "mongodb+srv://",
+  "redis://",
+  "rediss://",
+  "amqp://",
+  "amqps://",
+  "ftp://",
+  "smtp://",
+  "smtps://",
+  "http://",
+  "https://",
+]
+
+  [[rules.allowlists]]
+  description = "Local, container and documentation hosts carry no real password"
+  regexTarget = "match"
+  regexes = ['''@(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]|host\.docker\.internal|postgres|db|[^\s/]*example[^\s/]*)(?::\d+)?(?:[/?]|$)''']
+
+  [[rules.allowlists]]
+  description = "Placeholders and variable interpolation are not passwords"
+  regexes = [
+    '''^[<\[{(].*[>\]})]$''',
+    '''^\$''',
+    '''^%[A-Za-z0-9_]+%$''',
+    '''^(?i:password|pass|passwd|secret|changeme|your[-_]?password|xxx+|\*+|\.\.\.+)$''',
+  ]
+
+# Outbound email (Resend). Today the defaults only catch these through
+# `generic-api-key`, which needs the variable name to contain KEY or SECRET —
+# so the key survives in a URL, a JSON payload or a bare assignment.
+[[rules]]
+id = "resend-api-key"
+description = "Resend API key"
+regex = '''\bre_[A-Za-z0-9]{8,}_[A-Za-z0-9]{16,}\b'''
+keywords = ["re_"]
+
+# Object storage (Backblaze B2). Same `generic-api-key` gap, and GitHub has no
+# Backblaze pattern at all, so push protection will not catch it either.
+[[rules]]
+id = "backblaze-b2-application-key"
+description = "Backblaze B2 application key"
+regex = '''\bK00[A-Za-z0-9+/]{25,35}\b'''
+# gitleaks lowercases the haystack before the keyword prefilter, so the keyword
+# must be lowercase even though the prefix it stands for is not.
+keywords = ["k00"]

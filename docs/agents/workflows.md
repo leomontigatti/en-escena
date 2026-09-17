@@ -244,10 +244,36 @@ Hook guidance:
 
 - Keep pre-commit hooks fast and deterministic. Formatting staged files through
   `lint-staged` is appropriate.
-- The pre-commit hook runs `lint-staged`, `pnpm check:comment-language`,
-  `pnpm typecheck`, `pnpm check:file-tokens` and `pnpm check:fallow`. Treat that
-  as the minimum commit gate, not as the only validation path for agent work.
-  Hooks can be skipped and may not run in every environment.
+- The pre-commit hook runs `gitleaks git --pre-commit --staged`, `lint-staged`,
+  `pnpm check:comment-language`, `pnpm typecheck`, `pnpm check:file-tokens` and
+  `pnpm check:fallow`. Treat that as the minimum commit gate, not as the only
+  validation path for agent work. Hooks can be skipped and may not run in every
+  environment.
+- The gitleaks line is the secrets gate (#978) and runs first: nothing else
+  matters if the commit carries a credential. It reads `.gitleaks.toml` (the
+  upstream ruleset plus three rules for what this repo can leak and the default
+  set misses — passwords inside connection URLs, Resend `re_` keys and
+  Backblaze `K00` application keys), costs about a second, and **warns instead of
+  failing when the binary is not on `PATH`**:
+  `gitleaks not installed, secret scan skipped; CI still runs it`. gitleaks is
+  not a pnpm dependency, so that is the normal state of a fresh clone and of the
+  AFK runners, which hold only tokens GitHub push protection already blocks.
+  Installing it locally is optional but recommended; pin the version CI uses
+  (8.30.1), for example:
+
+  ```sh
+  curl -fsSL -o /tmp/gitleaks.tar.gz \
+    https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
+  tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks && sudo mv /tmp/gitleaks /usr/local/bin/
+  ```
+
+  macOS: `brew install gitleaks`, which tracks the latest release rather than the
+  pin — close enough locally, since CI's pinned copy is the one that decides.
+  The blocking half is the `gitleaks` step in the `checks` job, which downloads a
+  checksum-verified 8.30.1 and scans `origin/master..HEAD`; bumping it is a manual
+  edit of both `GITLEAKS_VERSION` and `GITLEAKS_SHA256` in `ci.yml`, the same way
+  the zizmor and actionlint pins are bumped.
+
 - `pnpm check:comment-language` fails on Spanish prose in a comment or a test
   name anywhere under `.sandcastle/`, `app/`, `scripts/` or `tests/`, plus the
   repo-root configs (#592), and on Spanish in the `.md` under `.claude/`,
