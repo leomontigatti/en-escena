@@ -209,6 +209,13 @@ export function getDancerEditingEligibility(input: {
   };
 }
 
+/**
+ * The category of a resolution as the roster form reads it, which is the only
+ * thing left that may report none: a saved choreography always has a category,
+ * and every writer refuses the pending resolution before it reaches the column.
+ * What this still answers is the *draft* the academy is editing, where a roster
+ * that fits no category is exactly what the client blocks the save on.
+ */
 export function getResolvedChoreographyCategory(
   resolution: ChoreographyRegistrationOperationResolution,
 ): ResolvedChoreographyCategory {

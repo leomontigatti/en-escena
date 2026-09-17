@@ -544,7 +544,7 @@ describe.sequential("`/administracion/bailarines` route", () => {
         id: activeEventChoreography.id,
         choreographyName: "Finale",
         choreographyNumber: activeEventChoreography.choreographyNumber,
-        categoryName: null,
+        categoryName: "Finale Cat",
         groupType: "duo",
         basePriceAmount: 1250000,
         dancerDiscountAmount: 0,

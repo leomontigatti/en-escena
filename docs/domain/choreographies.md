@@ -68,6 +68,7 @@ Rules for roster links, choreography registration, locks and `Bases del evento`.
 - It is registered with modality, dancers, calculated group type, category, optional experience level and schedule capacity.
 - It can be created without professors, but needs at least one linked professor to be operationally complete.
 - It is never confirmed without category: when no category of the modality covers the dancers' ages for the calculated group type, registration is refused and nothing is created.
+- A choreography always has a category, and the database holds the invariant: `choreography.category_id` is not nullable. Every write that would resolve one to no category — registration, roster change, modality correction, birth-date correction — is refused before it is written, so there is no category-less choreography to read, to filter for or to report as incomplete.
 - Academy cannot delete a Choreography after registration; removal is an administrative action.
 - An administrator can delete a choreography only when it has no presentation and no scores.
 - An administrator can rename a choreography at any time, including when it has presentation or scores.
