@@ -73,13 +73,18 @@ describe("classifySquawkFindings", () => {
 
 describe("formatSquawkFinding", () => {
   it("reports the line one-based, since squawk counts from zero", () => {
-    expect(formatSquawkFinding(finding("ban-drop-column", { line: 4 }))).toBe(
+    expect(
+      formatSquawkFinding(
+        finding("ban-drop-column", { line: 4 }),
+        (path) => path,
+      ),
+    ).toBe(
       "/repo/app/db/migrations/0023_new.sql:5 " +
         "[ban-drop-column] Something about the statement.",
     );
   });
 
-  it("appends squawk's help when there is one, and takes a display path", () => {
+  it("appends squawk's help when there is one, and shortens the path", () => {
     expect(
       formatSquawkFinding(
         finding("constraint-missing-not-valid", {

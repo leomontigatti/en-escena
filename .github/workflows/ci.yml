@@ -129,7 +129,7 @@ jobs:
       # the branch *adds* — a drop or a rename breaks the old container, which
       # Coolify keeps serving while the new one migrates, and lock hazards warn.
       # One step, because all three need the same fetch.
-      - name: migration-order and immutability (vs. master)
+      - name: migration-order, immutability and safety (vs. master)
         run: |
           git fetch --no-tags --depth=1 origin master
           pnpm check:migration-order

@@ -77,10 +77,10 @@ export function classifySquawkFindings(findings) {
  * annotation both read. squawk counts lines from zero.
  *
  * @param {SquawkFinding} finding
- * @param {(absolutePath: string) => string} [toDisplayPath]
+ * @param {(reportedPath: string) => string} toDisplayPath
  * @returns {string}
  */
-export function formatSquawkFinding(finding, toDisplayPath = (path) => path) {
+export function formatSquawkFinding(finding, toDisplayPath) {
   const help = finding.help === null ? "" : ` ${finding.help}`;
 
   return (

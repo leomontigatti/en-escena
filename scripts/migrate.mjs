@@ -32,7 +32,7 @@ const connectRetryBudgetMs = 45_000;
 const initialRetryDelayMs = 500;
 const maxRetryDelayMs = 5_000;
 const advisoryLockTimeoutMs = 60_000;
-const migrationLockTimeout = "5s";
+const tableLockTimeout = "5s";
 
 // The app and Postgres are co-located containers with no start ordering, so a
 // refused connection right after a host reboot is expected rather than
@@ -155,7 +155,7 @@ async function withMigrationLockTimeout(sql, run) {
   `;
   const previousLockTimeout = String(previous?.lock_timeout ?? "0");
 
-  await sql`select set_config('lock_timeout', ${migrationLockTimeout}, false)`;
+  await sql`select set_config('lock_timeout', ${tableLockTimeout}, false)`;
 
   try {
     await run();

@@ -107,7 +107,9 @@ production. Fix the drift **in the schema**, regenerate the baseline, and repeat
 files a branch **adds** under `app/db/migrations`, against `origin/master`. It
 runs in the `checks` job of `.github/workflows/ci.yml`, alongside the ordering
 and immutability checks (same fetch), and is not in pre-commit. A branch that
-adds no migration passes without running squawk at all.
+adds no migration passes without running squawk at all. It reads the working
+tree, so a migration `pnpm db:generate` has just written is already checked,
+staged or not.
 
 There are two tiers, and the split is about _when_ the hazard bites.
 

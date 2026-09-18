@@ -76,7 +76,7 @@ function runSquawk(paths) {
 const changes = readMigrationChanges(baseRef);
 
 if (changes === undefined) {
-  console.log(`No migrations on ${baseRef}; nothing to compare against.`);
+  console.log(`${baseRef} could not be resolved; nothing to compare against.`);
   process.exit(0);
 }
 
@@ -93,14 +93,19 @@ const { blocking, warnings } = classifySquawkFindings(runSquawk(addedPaths));
 
 // squawk echoes back the paths it was given, which are already relative to the
 // repo root; the display step exists for the absolute paths it reports when a
-// caller passes one.
-const toDisplayPath = (/** @type {string} */ path) =>
-  path.slice(path.indexOf(migrationsPath));
+// caller passes one, and leaves anything else untouched.
+const toDisplayPath = (/** @type {string} */ path) => {
+  const start = path.indexOf(migrationsPath);
+
+  return start === -1 ? path : path.slice(start);
+};
 
 for (const finding of warnings) {
   console.warn(
     `${warningPrefix}${formatSquawkFinding(finding, toDisplayPath)} ` +
-      `This lock hazard is harmless at today's table sizes; it merges anyway.`,
+      `Not blocking: lock hazards are harmless at today's table sizes, and a rule ` +
+      `new to squawk warns rather than failing a branch that never asked for it. ` +
+      `See docs/db/migrations.md.`,
   );
 }
 

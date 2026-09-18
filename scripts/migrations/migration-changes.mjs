@@ -16,7 +16,8 @@ export const migrationsPath = "app/db/migrations";
  * fetches master at depth 1 and checks out a merge commit, so no merge base is
  * available to resolve — and none is needed, since that merge commit already
  * carries master's own migrations. Reading the working tree rather than a
- * commit also catches the change locally, before it is committed.
+ * commit also catches the change locally, before it is committed — including a
+ * migration still untracked, which `git diff` alone would never list.
  *
  * `undefined` when the base ref cannot be resolved, which every caller reads as
  * "nothing to compare against yet".
@@ -35,7 +36,15 @@ export function readMigrationChanges(baseRef) {
     return undefined;
   }
 
-  return result.stdout
+  return [...parseNameStatus(result.stdout), ...readUntrackedMigrations()];
+}
+
+/**
+ * @param {string} nameStatus
+ * @returns {MigrationFileChange[]}
+ */
+function parseNameStatus(nameStatus) {
+  return nameStatus
     .split("\n")
     .filter((line) => line.trim() !== "")
     .flatMap((line) => {
@@ -49,6 +58,32 @@ export function readMigrationChanges(baseRef) {
 
       return [{ path, status: changeStatusOf(status) }];
     });
+}
+
+/**
+ * `git diff` never lists an untracked file, so a migration that
+ * `pnpm db:generate` has just written would read as "nothing added" until it is
+ * staged — a false green for the check that exists precisely for that file.
+ * Reading them separately is what makes "the working tree, not a range" true
+ * for an addition too.
+ *
+ * @returns {MigrationFileChange[]}
+ */
+function readUntrackedMigrations() {
+  const result = spawnSync(
+    "git",
+    ["ls-files", "--others", "--exclude-standard", "--", migrationsPath],
+    { encoding: "utf8" },
+  );
+
+  if (result.status !== 0) {
+    return [];
+  }
+
+  return result.stdout
+    .split("\n")
+    .filter((path) => path.endsWith(".sql"))
+    .map((path) => ({ path, status: /** @type {const} */ ("added") }));
 }
 
 /**
