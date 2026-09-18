@@ -42,3 +42,6 @@ Emit a single `<output>` block as the **last thing** in your response:
 
 - `prTitle`: single line, < 70 chars, conventional-commit style.
 - `prDescription`: must include `Closes #{{ISSUE_NUMBER}}` so the PR closes the issue on merge.
+- Both are written in **English**, per `.sandcastle/CODING_STANDARDS.md` § Code Language.
+  Spanish appears only inside backticks, as data (UI copy, route segments, `CONTEXT.md`
+  vocabulary).

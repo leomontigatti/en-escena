@@ -59,7 +59,9 @@ and reporting nothing is the normal result. See `.sandcastle/VALIDATION.md`.
 # COMMIT
 
 Make one or more commits on `{{BRANCH}}` with conventional-commit messages (`feat:`, `fix:`,
-`refactor:`, `test:`, `docs:`). Include `Part of #{{PRD_NUMBER}}` in each commit body.
+`refactor:`, `test:`, `docs:`). Include `Part of #{{PRD_NUMBER}}` in each commit body. Write the
+subject and body in **English**, per `.sandcastle/CODING_STANDARDS.md` § Code Language —
+Spanish only inside backticks, as data (UI copy, route segments, `CONTEXT.md` vocabulary).
 
 **Commit as you go.** Your wall-clock budget is {{WALL_CLOCK_BUDGET}}, and the run is stopped
 when it runs out. Each time a coherent part of the sub-issue is green — `pnpm typecheck` plus

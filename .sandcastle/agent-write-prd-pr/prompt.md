@@ -52,3 +52,6 @@ Emit a single `<output>` block as the **last thing** in your response:
 - `prTitle`: single line, < 70 chars, conventional-commit style, framed around the PRD.
 - `prDescription`: restate the PRD's goal, list **every** sub-issue (number + title from the
   embedded list above), and end with `Closes #{{PRD_NUMBER}}` so the PR closes the PRD on merge.
+- Both are written in **English**, per `.sandcastle/CODING_STANDARDS.md` § Code Language.
+  Spanish appears only inside backticks, as data (UI copy, route segments, `CONTEXT.md`
+  vocabulary).
