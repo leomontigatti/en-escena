@@ -57,7 +57,9 @@ clearly in the comment.
 # COMMIT
 
 Stage everything and finish the merge with a single commit (conventional-commit style, e.g.
-`chore: merge origin/{{BASE_REF}} into {{BRANCH}}`). The workflow pushes whatever you commit.
+`chore: merge origin/{{BASE_REF}} into {{BRANCH}}`), written in **English** per
+`.sandcastle/CODING_STANDARDS.md` § Code Language — Spanish only inside backticks, as data (UI
+copy, route segments, `CONTEXT.md` vocabulary). The workflow pushes whatever you commit.
 Leave **no** unresolved files (`git diff --name-only --diff-filter=U` must be empty) — the run
 fails otherwise.
 
