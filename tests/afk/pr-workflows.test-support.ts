@@ -212,6 +212,8 @@ export interface WorkflowStep {
   id: string;
   /** The step's `uses:`, or `""` when it runs a script. */
   uses: string;
+  /** The step's whole YAML block, dedented to its own indentation. */
+  body: string;
   /** The step-level `if:`, or `""` when it has none. */
   condition: string;
 }
@@ -248,6 +250,7 @@ export function workflowSteps(file: string): WorkflowStep[] {
         .trim() ?? "";
 
     steps.push({
+      body: block.join("\n"),
       name: key("name") || key("uses"),
       id: key("id"),
       uses: key("uses"),
