@@ -312,11 +312,19 @@ jobs:
             gh api -X POST "repos/$GH_REPO/issues/$PR_NUMBER/labels" \
               -f "labels[]=agent:review" > /dev/null
           }
-          if [ -n "$AGENT_PAT" ]; then
+          if [ -n "${AGENT_PAT:-}" ]; then
             GH_TOKEN="$AGENT_PAT" add_review_label && exit 0
             echo "AGENT_PAT label add failed; falling back to GITHUB_TOKEN (Review won't auto-start)."
           fi
           GH_TOKEN="$GITHUB_TOKEN" add_review_label
+          labeled=$?
+          # Both tokens refused: the PR carries no `agent:review` and nothing
+          # will start Review for it. The step's own exit status already fails
+          # the run, but only this names the PR it happened to.
+          if [ "$labeled" -ne 0 ]; then
+            echo "::error::Could not label #$PR_NUMBER agent:review; Review will not start."
+            exit 1
+          fi
 
       # --- Failure: mark blocked + comment (§3.7). ---
       # `!= 'false'`, not `== 'true'`: a preflight that *itself* fails leaves
