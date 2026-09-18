@@ -20,6 +20,10 @@ on:
     types: [closed]
 
 permissions:
+  # `contents: read` is the checkout's, not the label write's: a declared
+  # block sets every scope it omits to `none`, so without this line
+  # `actions/checkout` cannot clone the tree the label script ships in (#1029).
+  contents: read
   issues: write
 
 jobs:
@@ -30,6 +34,16 @@ jobs:
       GH_REPO: ${{ github.repository }}
       CLOSED_NUMBER: ${{ github.event.issue.number }}
     steps:
+      # The promote step runs `scripts/afk-add-label.sh` (#1029), so the repo has
+      # to be on disk. An `issues` event checks out the default branch, never a
+      # contributor's tree, and nothing here needs history.
+      - name: Check out the repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          # Per-command auth (#956): every `gh` call below is handed exactly the
+          # token it needs, so no credential belongs in `.git/config`.
+          persist-credentials: false
+
       # A not-planned close unblocks nothing — deliberately (a decision that was
       # deferred or rejected did not deliver what the dependent waits for). But
       # under the closure convention (docs/agents/issue-tracker.md) that is now
@@ -145,32 +159,17 @@ jobs:
             GH_TOKEN="$GITHUB_TOKEN" gh issue edit "$Y" --remove-label "agent:queued"
             GH_TOKEN="$GITHUB_TOKEN" gh issue comment "$Y" --body "Unblocked by #$CLOSED_NUMBER closing — promoting to \`agent:implement\`."
 
-            # PAT-or-fallback (§3.4): a label added with `github.token` does not
-            # start another workflow, so only AGENT_PAT actually wakes Implement.
-            # Without it the label still lands and a human starts the run.
-            set +e
-            promoted=1
-            if [ -n "${AGENT_PAT:-}" ]; then
-              GH_TOKEN="$AGENT_PAT" gh issue edit "$Y" --add-label "agent:implement"
-              promoted=$?
-              if [ "$promoted" -ne 0 ]; then
-                echo "AGENT_PAT label add failed for #$Y; falling back (Implement won't auto-start)."
-              fi
-            fi
-            if [ "$promoted" -ne 0 ]; then
-              GH_TOKEN="$GITHUB_TOKEN" gh issue edit "$Y" --add-label "agent:implement"
-              promoted=$?
-            fi
-            set -e
-
-            # Both tokens refused. `agent:queued` is already off the issue, so it
-            # now carries neither label — which the state machine reads as fresh
-            # work, hitting the same refusal on every later trigger. A green run
-            # claiming "Promoted #N" would hide that for as long as it keeps
-            # happening, so name the issue, keep going for the others, and fail
-            # the run at the end.
-            if [ "$promoted" -ne 0 ]; then
-              echo "::error::Could not label #$Y agent:implement; it is now unlabelled and will not start."
+            # PAT-or-fallback (§3.4), in the one place it lives: the script
+            # tries AGENT_PAT — the only token whose events wake Implement —
+            # falls back to `github.token`, and names a wholly refused add with
+            # `::error::` before exiting non-zero (#1029).
+            #
+            # Accumulate and carry on: `agent:queued` is already off this issue,
+            # so a refused add leaves it carrying neither label, but that costs
+            # only itself. The rest of the list is still promotable, and the job
+            # exits non-zero at the end with every stranded issue named.
+            if ! scripts/afk-add-label.sh "$Y" "agent:implement" "Implement" \
+              "it is now unlabelled and will not start."; then
               unpromoted="$unpromoted $Y"
               continue
             fi
