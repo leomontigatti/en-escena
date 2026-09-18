@@ -50,11 +50,40 @@ const reply = z.object({
   body: z.string().min(1),
 });
 
-export const reviewSchema = z.object({
-  summary: z.string().min(1),
-  inlineComments: z.array(inlineComment).default([]),
-  replies: z.array(reply).default([]),
-});
+/** Truthy/falsy however the model spelled it; `null` when it is not an answer. */
+const SPEC_FINDINGS_WORDS: Record<string, boolean> = {
+  true: true,
+  yes: true,
+  y: true,
+  false: false,
+  no: false,
+  n: false,
+  none: false,
+};
+
+function coerceSpecFindings(raw: unknown): boolean | null {
+  if (typeof raw === "boolean") return raw;
+  if (typeof raw !== "string") return null;
+  return SPEC_FINDINGS_WORDS[raw.trim().toLowerCase()] ?? null;
+}
+
+export const reviewSchema = z
+  .object({
+    summary: z.string().min(1),
+    inlineComments: z.array(inlineComment).default([]),
+    replies: z.array(reply).default([]),
+    // Half of the outcome label (#1021): the reviewer reports spec findings
+    // instead of fixing them, so a summary that carries one is a hand-off to a
+    // human. `hasSpecFindings` is the alias the model drifts to. Unreadable or
+    // absent stays `null` — unknown, never a `false` that would label the PR
+    // `agent:ready` (see `outcome.mts`).
+    specFindings: z.unknown().optional(),
+    hasSpecFindings: z.unknown().optional(),
+  })
+  .transform(({ specFindings, hasSpecFindings, ...rest }) => ({
+    ...rest,
+    specFindings: coerceSpecFindings(specFindings ?? hasSpecFindings),
+  }));
 
 export type ReviewOutput = z.infer<typeof reviewSchema>;
 export type ReviewInlineComment = ReviewOutput["inlineComments"][number];
