@@ -172,6 +172,31 @@ describe("no checkout persists a credential (#956)", () => {
   });
 });
 
+describe("every checkout can actually clone what it checks out (#1029)", () => {
+  // `permissions:` is deny-by-default once declared: a block that names any
+  // scope sets every scope it *omits* to `none`. A workflow that lists only the
+  // write it makes — `issues: write`, `pull-requests: write` — therefore hands
+  // `actions/checkout` a token with `contents: none`, and the clone 403s before
+  // the step that needed the tree ever runs. #1029 added a checkout to two such
+  // workflows to put `scripts/afk-add-label.sh` on disk, which is how the rule
+  // earned a test rather than a review comment.
+  it("declares contents: in every workflow that checks out", () => {
+    const offenders = workflowFiles().filter((file) => {
+      if (checkoutBlocks(file).length === 0) return false;
+      const text = workflowText(file);
+      const declared = /^permissions:\n((?: {2}.*\n)+)/m.exec(text)?.[1];
+      // No block at all means the default token, which carries `contents: read`.
+      if (declared === undefined) return false;
+      return !/^ {2}contents:/m.test(declared);
+    });
+
+    expect(
+      offenders,
+      "a declared `permissions:` block omitting `contents:` gives actions/checkout no read access",
+    ).toEqual([]);
+  });
+});
+
 describe("the pre-session guard shipped in the workflows", () => {
   // One representative copy drives the behaviour cases; the suite below pins
   // every workflow's copy to it, so covering one covers all of them.

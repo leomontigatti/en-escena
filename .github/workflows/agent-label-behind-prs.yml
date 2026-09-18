@@ -28,6 +28,10 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
+  # `contents: read` is the checkout's, not the label write's: a declared
+  # block sets every scope it omits to `none`, so without this line
+  # `actions/checkout` cannot clone the tree the label script ships in (#1029).
+  contents: read
   pull-requests: write
 
 jobs:

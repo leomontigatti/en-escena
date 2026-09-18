@@ -511,10 +511,17 @@ describe("the push-to-master trigger itself", () => {
     expect(text).toMatch(/^on:\n {2}push:\n {4}branches: \[master\]$/m);
   });
 
-  it("asks for no more than the label write it makes", () => {
-    expect(/^permissions:\n((?: {2}.*\n)+)/m.exec(text)?.[1]).toBe(
-      "  pull-requests: write\n",
-    );
+  it("asks for no more than the label write and the checkout need", () => {
+    // Two scopes, each earning its place: `pull-requests: write` for the label
+    // add, and `contents: read` for the `actions/checkout` the shared label
+    // script needs to be on disk (#1029). A declared block sets every scope it
+    // omits to `none`, so leaving `contents` out 403s the clone.
+    const declared = /^permissions:\n((?: {2}(?:#.*|\S.*)\n)+)/m
+      .exec(text)?.[1]
+      .split("\n")
+      .filter((line) => line.trim() !== "" && !line.trim().startsWith("#"));
+
+    expect(declared).toEqual(["  contents: read", "  pull-requests: write"]);
   });
 
   it("refuses to run on a fork that inherited it (#635)", () => {
