@@ -49,6 +49,13 @@ export function createValidatedNativeSubmitHandler<
   };
 }
 
+// The only two options any caller of the handlers below actually sets. Derived
+// from React Router's own `SubmitOptions` rather than mirrored, so it cannot
+// drift, and kept narrow on purpose: two callers pass `fetcher.submit`, which
+// silently ignores the navigation-only options (`replace`, `state`, `navigate`,
+// `fetcherKey`, `viewTransition`) that the full type would advertise here.
+type ReactRouterSubmitOptions = Pick<SubmitOptions, "encType" | "method">;
+
 function createReactRouterFormSubmission<TFieldValues extends FieldValues>(
   formElement: HTMLFormElement,
   values: TFieldValues,
@@ -81,7 +88,7 @@ export function createValidatedReactRouterSubmitHandler<
     "handleSubmit"
   >,
   submit: SubmitFunction,
-  submitOptions?: SubmitOptions,
+  submitOptions?: ReactRouterSubmitOptions,
 ): SubmitEventHandler<HTMLFormElement> {
   return (event) => {
     const formElement = event.currentTarget;

@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useId } from "react";
 import { useForm } from "react-hook-form";
-import type { SubmitFunction } from "react-router";
+import type { FetcherSubmitFunction } from "react-router";
 
 import { SubmitButton } from "@/components/shared/action-buttons";
 import { DateOnlyField } from "@/components/shared/date-only-field";
@@ -40,7 +40,7 @@ export function CreateDancerDialog({
   isOpen: boolean;
   isSubmitting: boolean;
   onOpenChange: (nextOpen: boolean) => void;
-  submit: SubmitFunction;
+  submit: FetcherSubmitFunction;
 }) {
   const birthDateId = useId();
   const form = useForm<CreateDancerFormValues>({

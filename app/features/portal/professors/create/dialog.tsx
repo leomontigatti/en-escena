@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
-import type { SubmitFunction } from "react-router";
+import type { FetcherSubmitFunction } from "react-router";
 
 import { SubmitButton } from "@/components/shared/action-buttons";
 import { TextInputField } from "@/components/shared/text-input-field";
@@ -36,7 +36,7 @@ export function CreateProfessorDialog({
   isOpen: boolean;
   isSubmitting: boolean;
   onOpenChange: (nextOpen: boolean) => void;
-  submit: SubmitFunction;
+  submit: FetcherSubmitFunction;
 }) {
   const form = useForm<CreateProfessorFormValues>({
     resolver: zodResolver(createProfessorSchema),
