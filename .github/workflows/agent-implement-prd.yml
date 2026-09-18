@@ -174,6 +174,28 @@ jobs:
           # (#956). The push steps authenticate per command instead.
           persist-credentials: false
 
+      # Snapshot the label script from `master`, before the agent session exists.
+      # The chaining step at the end of the job carries `AGENT_PAT`, and by then
+      # the session has had write access to the tree and the job sits on an
+      # unreviewed `agent/` branch — so running `scripts/afk-add-label.sh` from
+      # the tree there would hand the session's own version a `repo`+`workflow`
+      # PAT in the same run. That is the exposure #956 exists to rule out
+      # (docs/agents/afk-setup.md → "Where the PAT is during a run"); the inline
+      # block this script replaced came from `master` and could not be changed
+      # mid-run, so the extraction has to keep that property.
+      #
+      # The digest goes to a step output, which is the one place the session
+      # cannot write: the copy itself lives in `$RUNNER_TEMP`, which an
+      # unsandboxed session can reach, so a copy on its own would prove nothing.
+      - name: Snapshot the label script
+        id: label_script
+        if: steps.preflight.outputs.proceed == 'true'
+        run: |
+          set -euo pipefail
+          cp scripts/afk-add-label.sh "$RUNNER_TEMP/afk-add-label.sh"
+          chmod +x "$RUNNER_TEMP/afk-add-label.sh"
+          echo "digest=$(sha256sum scripts/afk-add-label.sh | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
       - name: Compute branch and resume-or-create it
         id: branch
         if: steps.preflight.outputs.proceed == 'true'
@@ -435,8 +457,20 @@ jobs:
           AGENT_PAT: ${{ secrets.AGENT_PAT }}
           GITHUB_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ steps.existing_pr.outputs.number || steps.new_pr.outputs.number }}
+          LABEL_SCRIPT_DIGEST: ${{ steps.label_script.outputs.digest }}
         run: |
           set -euo pipefail
+          # Run the pre-session snapshot, never `scripts/afk-add-label.sh` from
+          # the tree: this step holds the PAT and the agent session could have
+          # rewritten the tree's copy. The digest comes from a step output the
+          # session cannot write, so the comparison is what makes the copy
+          # trustworthy. `tests/afk/checkout-credentials.test.ts` holds the rule.
+          script="$RUNNER_TEMP/afk-add-label.sh"
+          if [ "$(sha256sum "$script" | cut -d' ' -f1)" != "$LABEL_SCRIPT_DIGEST" ]; then
+            echo "::error::$script does not match the digest taken before the agent session; refusing to run it with AGENT_PAT."
+            exit 1
+          fi
+
           # Remaining = open sub-issues without the implemented marker (same rule
           # as the preflight; the run just marked the one it did). Counting open
           # sub-issues alone would loop forever: nothing closes them until merge.
@@ -450,45 +484,23 @@ jobs:
                 echo "$n"
               done | wc -l)
 
-          # Use the REST labels endpoint, not `gh {issue,pr} edit`: the latter
-          # issues a GraphQL query touching org fields (needs `read:org`), which
-          # the classic `repo`+`workflow` AGENT_PAT lacks — it fails and we lose
-          # the PAT-triggered chain (the fallback then labels via GITHUB_TOKEN,
-          # whose events don't fire `labeled` triggers). REST `POST
-          # issues/{n}/labels` needs only `repo` and fires the chain. PRs share
-          # the issues namespace, so the same endpoint covers both kinds.
-          add_label() { # <kind: issue|pr, ignored> <number> <label>
-            # `labeled` is declared, not initialised: every path out of here
-            # either returns before the fallback or assigns its exit status, so a
-            # default would only be there to be believed.
-            local number="$2" label="$3" labeled
-            set +e
-            if [ -n "${AGENT_PAT:-}" ]; then
-              GH_TOKEN="$AGENT_PAT" gh api -X POST \
-                "repos/$GH_REPO/issues/$number/labels" -f "labels[]=$label" > /dev/null
-              if [ $? -eq 0 ]; then set -e; return 0; fi
-              echo "AGENT_PAT label add failed; falling back to GITHUB_TOKEN (chain won't auto-start)."
-            fi
-            GH_TOKEN="$GITHUB_TOKEN" gh api -X POST \
-              "repos/$GH_REPO/issues/$number/labels" -f "labels[]=$label" > /dev/null
-            labeled=$?
-            set -e
-            # Both tokens refused. The chain stops here whatever we do; the only
-            # choice is whether it stops loudly. `set -e` returning 0 used to end
-            # this function — a green run that labelled nothing, and the PRD sits
-            # with no `agent:implement` waiting for a trigger that never comes.
-            if [ "$labeled" -ne 0 ]; then
-              echo "::error::Could not label #$number $label; the chain stops here."
-              return 1
-            fi
-          }
-
+          # PAT-or-fallback (§3.4) in the one place it lives (#1029): AGENT_PAT
+          # first because only its events fire the `labeled` trigger the chain
+          # rides on, `github.token` as the fallback that at least lands the
+          # label, and an `::error::` naming the item before a non-zero exit when
+          # both refuse. The chain stops there whatever we do; the only choice is
+          # whether it stops loudly, and under `set -e` that exit is the step's.
+          #
+          # A PR and an issue are labelled the same way: they share the issues
+          # namespace, which is the endpoint the script uses.
           if [ "$remaining" -gt 0 ]; then
             echo "$remaining sub-issue(s) remaining — re-firing the chain."
-            add_label issue "$ISSUE_NUMBER" "agent:implement"
+            "$script" "$ISSUE_NUMBER" "agent:implement" "the chain" \
+              "the chain stops here."
           else
             echo "All sub-issues implemented — handing off to Review. They close when the PR merges."
-            add_label pr "$PR_NUMBER" "agent:review"
+            "$script" "$PR_NUMBER" "agent:review" "the chain" \
+              "the chain stops here."
           fi
 
       # --- Failure: mark blocked + comment on BOTH the PRD and the sub-issue (§4.3). ---

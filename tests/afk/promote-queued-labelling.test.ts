@@ -23,7 +23,10 @@ import { stepRunBody } from "./pr-workflows.test-support";
 // As in `behind-pr-labelling.test.ts` and `failure-reason-fallback.test.ts`, the
 // cases below run the *shipped* bash lifted out of the workflow file, with a stub
 // `gh` on PATH: a copy of the script here could drift away from what ships and
-// still be green.
+// still be green. Since #1029 the add itself is `scripts/afk-add-label.sh`, which
+// the step invokes and which these cases therefore exercise too — the unit's own
+// cases live in `add-label.test.ts`; what is asserted here is how the *loop*
+// treats a refusal.
 
 const WORKFLOW = ".github/workflows/agent-promote-queued.yml";
 
@@ -96,9 +99,11 @@ beforeEach(() => {
       "  exit 0",
       "fi",
       // Only the promotion write can be refused: the `agent:queued` removal and
-      // the comment that precede it are not what is under test.
-      'case "$*" in *"--add-label agent:implement"*) ;; *) exit 0 ;; esac',
-      'if [ "${3:-}" = "${GH_STUB_REJECT_ISSUE:-}" ]; then',
+      // the comment that precede it are not what is under test. Since #1029 the
+      // write is the REST labels endpoint, made by `scripts/afk-add-label.sh`.
+      'case "$*" in *"labels[]=agent:implement"*) ;; *) exit 0 ;; esac',
+      'target=$(printf "%s" "$*" | sed -n "s|.*/issues/\\([0-9]*\\)/labels.*|\\1|p")',
+      'if [ "$target" = "${GH_STUB_REJECT_ISSUE:-}" ]; then',
       '  echo "gh: Resource not accessible by integration (HTTP 403)" >&2',
       "  exit 1",
       "fi",
@@ -133,7 +138,7 @@ interface RunResult {
   /** Every `gh` invocation, as `<token>|<argv>`. */
   calls: string[];
   /**
-   * Every `--add-label agent:implement` the step *attempted*, with the token it
+   * Every `agent:implement` label add the step *attempted*, with the token it
    * used — a refused add is an attempt too, which is what lets a case assert
    * that the fallback was tried at all.
    */
@@ -187,7 +192,9 @@ function runPromotion(options: RunOptions): RunResult {
     calls,
     addAttempts: calls
       .map((call) =>
-        /^(.*)\|issue edit (\d+) --add-label agent:implement$/.exec(call),
+        /^(.*)\|api -X POST repos\/[^/]+\/[^/]+\/issues\/(\d+)\/labels -f labels\[\]=agent:implement$/.exec(
+          call,
+        ),
       )
       .filter((match): match is RegExpExecArray => match !== null)
       .map((match) => ({ issue: match[2], token: match[1] })),
