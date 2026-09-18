@@ -31,7 +31,8 @@ const migrationLockName = "enescena-migrations";
 const connectRetryBudgetMs = 45_000;
 const initialRetryDelayMs = 500;
 const maxRetryDelayMs = 5_000;
-const lockTimeoutMs = 60_000;
+const advisoryLockTimeoutMs = 60_000;
+const migrationLockTimeout = "5s";
 
 // The app and Postgres are co-located containers with no start ordering, so a
 // refused connection right after a host reboot is expected rather than
@@ -109,9 +110,10 @@ async function waitForDatabase(sql) {
  * is what makes the lock necessary — without it two overlapping container starts
  * act on the same stale watermark and the second re-runs committed DDL.
  *
- * The timeout bounds the wait for the lock only. It is restored afterwards
- * rather than zeroed, so whatever `statement_timeout` the role carries still
- * governs the migrations themselves.
+ * The timeout bounds the wait for the advisory lock only. It is restored
+ * afterwards rather than zeroed, so whatever `statement_timeout` the role
+ * carries still governs the migrations themselves; the table locks the DDL
+ * itself takes are bounded separately, by `withMigrationLockTimeout`.
  *
  * @param {ReturnType<typeof postgres>} sql
  */
@@ -121,12 +123,44 @@ async function acquireMigrationLock(sql) {
   `;
   const previousStatementTimeout = String(previous?.statement_timeout ?? "0");
 
-  await sql`select set_config('statement_timeout', ${String(lockTimeoutMs)}, false)`;
+  await sql`select set_config('statement_timeout', ${String(advisoryLockTimeoutMs)}, false)`;
 
   try {
     await sql`select pg_advisory_lock(hashtext(${migrationLockName}))`;
   } finally {
     await sql`select set_config('statement_timeout', ${previousStatementTimeout}, false)`;
+  }
+}
+
+/**
+ * Bounds how long the migration DDL waits for a *table* lock. Without it an
+ * `ALTER TABLE` blocked behind a long-running query waits forever, and every
+ * query that arrives afterwards queues behind the lock request it is holding —
+ * the whole table stops answering while nothing visibly fails.
+ *
+ * Session level, which `max: 1` makes exactly the migrator's connection, and
+ * restored afterwards like the advisory lock's `statement_timeout`.
+ *
+ * Failure mode when the timeout fires: the statement errors, Drizzle's
+ * transaction rolls back and this script exits non-zero, so the container does
+ * not start. Coolify keeps the old container serving and a redeploy retries —
+ * a deploy that waits rather than a schema half-applied.
+ *
+ * @param {ReturnType<typeof postgres>} sql
+ * @param {() => Promise<void>} run
+ */
+async function withMigrationLockTimeout(sql, run) {
+  const [previous] = await sql`
+    select current_setting('lock_timeout') as lock_timeout
+  `;
+  const previousLockTimeout = String(previous?.lock_timeout ?? "0");
+
+  await sql`select set_config('lock_timeout', ${migrationLockTimeout}, false)`;
+
+  try {
+    await run();
+  } finally {
+    await sql`select set_config('lock_timeout', ${previousLockTimeout}, false)`;
   }
 }
 
@@ -202,7 +236,9 @@ async function main() {
 
     try {
       await assertJournalIsConsistent(sql);
-      await migrate(drizzle(sql), { migrationsFolder });
+      await withMigrationLockTimeout(sql, () =>
+        migrate(drizzle(sql), { migrationsFolder }),
+      );
       console.log("[migrate] migrations up to date.");
     } finally {
       await releaseMigrationLock(sql);
