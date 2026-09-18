@@ -74,7 +74,10 @@ beforeEach(() => {
       '  cat "$f"',
       "  exit 0",
       "fi",
-      'if [ -n "${GH_STUB_REJECT_PR:-}" ] && [ "${3:-}" = "$GH_STUB_REJECT_PR" ]; then',
+      // Since #1029 the add is the REST labels endpoint, made by
+      // `scripts/afk-add-label.sh`; the PR number is in the path it posts to.
+      'target=$(printf "%s" "$*" | sed -n "s|.*/issues/\\([0-9]*\\)/labels.*|\\1|p")',
+      'if [ -n "${GH_STUB_REJECT_PR:-}" ] && [ "$target" = "$GH_STUB_REJECT_PR" ]; then',
       '  echo "gh: Resource not accessible by integration (HTTP 403)" >&2',
       "  exit 1",
       "fi",
@@ -157,7 +160,9 @@ function runLabelling(options: RunOptions): RunResult {
     calls,
     labelled: calls
       .map((call) =>
-        /^(.*)\|pr edit (\d+) --add-label agent:update-branch$/.exec(call),
+        /^(.*)\|api -X POST repos\/[^/]+\/[^/]+\/issues\/(\d+)\/labels -f labels\[\]=agent:update-branch$/.exec(
+          call,
+        ),
       )
       .filter((match): match is RegExpExecArray => match !== null)
       .map((match) => ({ pr: match[2], token: match[1] })),
@@ -506,10 +511,17 @@ describe("the push-to-master trigger itself", () => {
     expect(text).toMatch(/^on:\n {2}push:\n {4}branches: \[master\]$/m);
   });
 
-  it("asks for no more than the label write it makes", () => {
-    expect(/^permissions:\n((?: {2}.*\n)+)/m.exec(text)?.[1]).toBe(
-      "  pull-requests: write\n",
-    );
+  it("asks for no more than the label write and the checkout need", () => {
+    // Two scopes, each earning its place: `pull-requests: write` for the label
+    // add, and `contents: read` for the `actions/checkout` the shared label
+    // script needs to be on disk (#1029). A declared block sets every scope it
+    // omits to `none`, so leaving `contents` out 403s the clone.
+    const declared = /^permissions:\n((?: {2}(?:#.*|\S.*)\n)+)/m
+      .exec(text)?.[1]
+      .split("\n")
+      .filter((line) => line.trim() !== "" && !line.trim().startsWith("#"));
+
+    expect(declared).toEqual(["  contents: read", "  pull-requests: write"]);
   });
 
   it("refuses to run on a fork that inherited it (#635)", () => {
