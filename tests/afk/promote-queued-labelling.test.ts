@@ -132,8 +132,12 @@ interface RunResult {
   stdout: string;
   /** Every `gh` invocation, as `<token>|<argv>`. */
   calls: string[];
-  /** The issues that received `agent:implement`, with the token used. */
-  promoted: { issue: string; token: string }[];
+  /**
+   * Every `--add-label agent:implement` the step *attempted*, with the token it
+   * used — a refused add is an attempt too, which is what lets a case assert
+   * that the fallback was tried at all.
+   */
+  addAttempts: { issue: string; token: string }[];
 }
 
 function runPromotion(options: RunOptions): RunResult {
@@ -181,7 +185,7 @@ function runPromotion(options: RunOptions): RunResult {
   return {
     stdout: run.stdout,
     calls,
-    promoted: calls
+    addAttempts: calls
       .map((call) =>
         /^(.*)\|issue edit (\d+) --add-label agent:implement$/.exec(call),
       )
@@ -190,9 +194,13 @@ function runPromotion(options: RunOptions): RunResult {
   };
 }
 
-/** The issues promoted, deduplicated — a retried add is still one issue. */
-function promotedNumbers(result: RunResult): string[] {
-  return [...new Set(result.promoted.map(({ issue }) => issue))].sort();
+/**
+ * The issues the step tried to label, deduplicated — the PAT attempt and the
+ * fallback that follows it are one issue. Whether the attempt *succeeded* is not
+ * in here: that is what the stdout assertions are for.
+ */
+function attemptedNumbers(result: RunResult): string[] {
+  return [...new Set(result.addAttempts.map(({ issue }) => issue))].sort();
 }
 
 describe("the promote step's PAT-or-fallback (#1027)", () => {
@@ -202,14 +210,16 @@ describe("the promote step's PAT-or-fallback (#1027)", () => {
       agentPat: "the-pat",
     });
 
-    expect(result.promoted).toEqual([{ issue: "11", token: "the-pat" }]);
+    expect(result.addAttempts).toEqual([{ issue: "11", token: "the-pat" }]);
     expect(result.stdout).toContain("Promoted #11 to agent:implement.");
   });
 
   it("falls back to github.token when there is no PAT", () => {
     const result = runPromotion({ dependents: [{ number: 11 }] });
 
-    expect(result.promoted).toEqual([{ issue: "11", token: "github-token" }]);
+    expect(result.addAttempts).toEqual([
+      { issue: "11", token: "github-token" },
+    ]);
   });
 
   it("falls back to github.token when the PAT is refused", () => {
@@ -219,7 +229,7 @@ describe("the promote step's PAT-or-fallback (#1027)", () => {
       rejectTokens: ["the-pat"],
     });
 
-    expect(result.promoted.map(({ token }) => token)).toEqual([
+    expect(result.addAttempts.map(({ token }) => token)).toEqual([
       "the-pat",
       "github-token",
     ]);
@@ -255,9 +265,12 @@ describe("the promote step's PAT-or-fallback (#1027)", () => {
     });
 
     expect(result.stdout).toContain("::error::Could not label #11");
+    expect(result.stdout).not.toContain("Promoted #11");
     expect(result.stdout).toContain("Promoted #12 to agent:implement.");
-    expect(result.stdout).toContain("Could not promote: 11");
-    expect(promotedNumbers(result)).toEqual(["11", "12"]);
+    // Only #11 is named at the end: carrying on must not enlist #12 in the list
+    // of failures, and must not clear #11 from it either.
+    expect(result.stdout).toContain("Could not promote: 11\n");
+    expect(attemptedNumbers(result)).toEqual(["11", "12"]);
   });
 
   it("promotes nothing when the dependent still has an open blocker", () => {
@@ -266,7 +279,7 @@ describe("the promote step's PAT-or-fallback (#1027)", () => {
       agentPat: "the-pat",
     });
 
-    expect(promotedNumbers(result)).toEqual([]);
+    expect(attemptedNumbers(result)).toEqual([]);
     expect(result.stdout).toContain("#11 still has 2 open blocker(s)");
   });
 
@@ -276,7 +289,7 @@ describe("the promote step's PAT-or-fallback (#1027)", () => {
       agentPat: "the-pat",
     });
 
-    expect(promotedNumbers(result)).toEqual([]);
+    expect(attemptedNumbers(result)).toEqual([]);
     expect(result.stdout).toContain("a sibling run won");
   });
 

@@ -24,8 +24,10 @@ import {
 //    it. Its two copies differ in the endpoint they call, so they are held to the
 //    properties instead.
 //
-// Everything is discovered from disk: a fifth copy added later lands in the
-// table by existing, not by someone remembering to extend it.
+// Both the census of copies and the shape each one belongs to are read off disk,
+// so a fifth copy is held to the assertions of its own shape without anyone
+// remembering to register it. The two `toEqual` censuses below are the exception,
+// and are meant to be: adding a copy should make somebody say so out loud.
 
 /** The step-level marker: the block is exactly the code that tries `AGENT_PAT`. */
 const PAT_WRITE = 'GH_TOKEN="$AGENT_PAT"';
@@ -55,11 +57,41 @@ function patFallbackCopies(): Copy[] {
   });
 }
 
+/** Where the fallback block starts: the `set +e` that makes a refusal survivable. */
+function blockStart(lines: string[]): number {
+  const start = lines.indexOf("set +e");
+  expect(start, "no `set +e` opening the fallback block").toBeGreaterThan(-1);
+  return start;
+}
+
 /**
- * The copies that walk a list. `continue` is what distinguishes them: only a
- * loop can choose to carry on past an item it failed to write.
+ * Whether the block sits inside a `for`/`while` loop, by counting the `do`s the
+ * script has left open by the time it reaches the block.
+ *
+ * Asking the shell's own nesting is what makes the classification independent of
+ * how the copy *handles* a refusal: a new loop copy that forgot to `continue` —
+ * the #1027 bug in its loop half — is still recognised as loop-shaped, and so
+ * still faces the assertions that would catch it. Keying on `continue` instead
+ * would let exactly that copy slip into the single-item bucket.
+ *
+ * The prose openers are `…; do` and a `do` on its own line; `done` closes,
+ * whatever trails it (`done | wc -l)`).
  */
-const LOOP_SHAPED = [
+function insideLoop(lines: string[]): boolean {
+  let depth = 0;
+  for (const line of lines.slice(0, blockStart(lines))) {
+    if (/(^|;)\s*do$/.test(line)) depth++;
+    if (line.startsWith("done")) depth--;
+  }
+  return depth > 0;
+}
+
+function isLoopShaped(body: string): boolean {
+  return insideLoop(body.split("\n").map((line) => line.trim()));
+}
+
+/** The loop-shaped copies expected on disk today — a census, not the classifier. */
+const EXPECTED_LOOP_SHAPED = [
   ".github/workflows/agent-label-behind-prs.yml",
   ".github/workflows/agent-promote-queued.yml",
 ];
@@ -75,11 +107,9 @@ const LOOP_SHAPED = [
  */
 function skeleton(body: string): string[] {
   const lines = body.split("\n").map((line) => line.trim());
-  const start = lines.indexOf("set +e");
-  expect(start, "no `set +e` opening the fallback block").toBeGreaterThan(-1);
 
   return lines
-    .slice(start)
+    .slice(blockStart(lines))
     .filter((line) => line !== "" && !line.startsWith("#"))
     .map((line) => {
       if (line.startsWith("echo ")) {
@@ -92,6 +122,24 @@ function skeleton(body: string): string[] {
         .replace(/\b(labeled|promoted)\b/g, "status")
         .replace(/\b(unlabelled|unpromoted)\b/g, "failed");
     });
+}
+
+/**
+ * Whether the PAT write's exit status is read at all. Three spellings ship, and
+ * all three are honest: `… && exit 0` reads it inline, while the others read
+ * `$?` on one of the lines that follow — the `gh` call itself is wrapped across
+ * two lines in some copies, so the read is not always the very next one.
+ */
+function readsPatStatus(body: string): boolean {
+  const lines = body.split("\n").map((line) => line.trim());
+  const write = lines.findIndex((line) => line.includes(PAT_WRITE));
+
+  if (lines[write].includes("&&")) return true;
+  return lines
+    .slice(write + 1, write + 4)
+    .some(
+      (line) => /^\w+=\$\?$/.test(line) || /^if \[ \$\? -eq 0 \]/.test(line),
+    );
 }
 
 describe("the PAT-or-fallback block shipped in the AFK workflows", () => {
@@ -113,9 +161,7 @@ describe("the PAT-or-fallback block shipped in the AFK workflows", () => {
   )("%s reads the status of the PAT write", (_label, copy) => {
     // `set +e` is what makes the refusal survivable; without reading `$?`
     // afterwards it is also what makes it invisible.
-    expect(copy.body).toMatch(
-      /GH_TOKEN="\$AGENT_PAT"[^\n]*(\n[^\n]*)?\n\s*(\w+=\$\?|if \[ \$\? -eq 0 \])|GH_TOKEN="\$AGENT_PAT"[^\n]*&&/,
-    );
+    expect(readsPatStatus(copy.body)).toBe(true);
   });
 
   it.each(
@@ -145,13 +191,11 @@ describe("the PAT-or-fallback block shipped in the AFK workflows", () => {
 });
 
 describe("the loop-shaped copies do not drift apart", () => {
-  const copies = patFallbackCopies().filter((copy) =>
-    LOOP_SHAPED.includes(copy.workflow),
-  );
+  const copies = patFallbackCopies().filter((copy) => isLoopShaped(copy.body));
 
-  it("finds both of them", () => {
+  it("finds every loop-shaped copy", () => {
     expect(copies.map(({ workflow }) => workflow).sort()).toEqual(
-      [...LOOP_SHAPED].sort(),
+      [...EXPECTED_LOOP_SHAPED].sort(),
     );
   });
 
@@ -176,4 +220,38 @@ describe("the loop-shaped copies do not drift apart", () => {
       expect(skel.indexOf("echo ERROR")).toBeLessThan(skel.indexOf("continue"));
     },
   );
+
+  // The classifier is the part of this file a fifth copy depends on, so it gets
+  // tested on a copy that does not exist: the #1027 bug in its loop half, which
+  // reads both statuses and names the refusal but abandons the rest of the list.
+  // It has to land in the bucket above — reading `$?` is not what makes a loop
+  // copy correct, and a classifier keyed on `continue` would excuse it.
+  const regressedLoopCopy = [
+    "for item in $items; do",
+    "  set +e",
+    "  status=1",
+    '  if [ -n "${AGENT_PAT:-}" ]; then',
+    '    GH_TOKEN="$AGENT_PAT" gh issue edit "$item" --add-label "agent:implement"',
+    "    status=$?",
+    "  fi",
+    '  if [ "$status" -ne 0 ]; then',
+    '    GH_TOKEN="$GITHUB_TOKEN" gh issue edit "$item" --add-label "agent:implement"',
+    "    status=$?",
+    "  fi",
+    "  set -e",
+    '  if [ "$status" -ne 0 ]; then',
+    '    echo "::error::Could not label #$item."',
+    "    exit 1",
+    "  fi",
+    "done",
+  ].join("\n");
+
+  it("classifies a loop copy that abandons the list as loop-shaped", () => {
+    expect(isLoopShaped(regressedLoopCopy)).toBe(true);
+  });
+
+  it("would report such a copy as drifted", () => {
+    expect(skeleton(regressedLoopCopy)).not.toEqual(skeleton(copies[0].body));
+    expect(skeleton(regressedLoopCopy)).not.toContain("continue");
+  });
 });

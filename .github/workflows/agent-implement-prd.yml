@@ -458,7 +458,10 @@ jobs:
           # issues/{n}/labels` needs only `repo` and fires the chain. PRs share
           # the issues namespace, so the same endpoint covers both kinds.
           add_label() { # <kind: issue|pr, ignored> <number> <label>
-            local number="$2" label="$3" labeled=1
+            # `labeled` is declared, not initialised: every path out of here
+            # either returns before the fallback or assigns its exit status, so a
+            # default would only be there to be believed.
+            local number="$2" label="$3" labeled
             set +e
             if [ -n "${AGENT_PAT:-}" ]; then
               GH_TOKEN="$AGENT_PAT" gh api -X POST \
