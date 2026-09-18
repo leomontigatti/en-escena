@@ -37,8 +37,8 @@ are only concrete references to this repo:
   `.sandcastle/CODING_STANDARDS.md` § Code Language, which is what actually decides it, with the
   backtick exception for Spanish data. That is `write-pr` and `write-prd-pr` for `prTitle` and
   `prDescription`, and `implement`, `implement-prd`, `implement-pr`, `review` and `update-branch`
-  for the commit subject and body. The gate on the PR title lives in CI (#1007); the prompts are
-  the whole answer for the body and the commits.
+  for the commit subject and body. A gate on the PR title is tracked separately (#1007); until
+  it exists, and for the body and the commits regardless, the prompts are the whole answer.
 - **`gh` tracker** (GitHub Issues): the prompts use `gh issue view … --comments` instead of the
   source's "project-specific" placeholders.
 - **Appendix C** of the spec: `backlog.md` → [`issue-tracker.md`](./issue-tracker.md) (our

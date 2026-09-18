@@ -36,3 +36,9 @@ describe.each(PROMPTS_THAT_WRITE_PROSE)("%s/prompt.md", (prompt) => {
     expect(source).toMatch(/backticks/);
   });
 });
+
+it("points at a section of the standards that exists", () => {
+  const standards = readFileSync(".sandcastle/CODING_STANDARDS.md", "utf8");
+
+  expect(standards).toMatch(/^## Code Language$/m);
+});

@@ -135,12 +135,12 @@ reviewer's job.
 Make improvements + new tests, commit as a single squashed commit _(reference message prefix:
 `RALPH: Review -`)_. Write its subject and body in **English**, per
 `.sandcastle/CODING_STANDARDS.md` § Code Language — Spanish only inside backticks, as data (UI
-copy, route segments, `CONTEXT.md` vocabulary). Before committing, validate **once**: `pnpm typecheck`, `pnpm lint`,
-`pnpm test:unit`, and `pnpm test:db <path>` for the DB test files you touched. Don't run the
-full `pnpm test` — it takes ~13 min of your wall-clock budget ({{WALL_CLOCK_BUDGET}}) and CI
-runs the complete suite in parallel anyway. That list is exhaustive; don't invent commands. See
-`.sandcastle/VALIDATION.md`. Don't leave the branch broken. If the code is already clean and
-there's nothing to answer, make no commit.
+copy, route segments, `CONTEXT.md` vocabulary). Before committing, validate **once**:
+`pnpm typecheck`, `pnpm lint`, `pnpm test:unit`, and `pnpm test:db <path>` for the DB test
+files you touched. Don't run the full `pnpm test` — it takes ~13 min of your wall-clock budget
+({{WALL_CLOCK_BUDGET}}) and CI runs the complete suite in parallel anyway. That list is
+exhaustive; don't invent commands. See `.sandcastle/VALIDATION.md`. Don't leave the branch
+broken. If the code is already clean and there's nothing to answer, make no commit.
 
 When your review is finished and any improvement commit is made, output the literal completion
 signal on its own line to end this pass:

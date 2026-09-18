@@ -62,7 +62,8 @@ leave context, questions, and asides. Unresolved ≠ must-action.
    `.sandcastle/VALIDATION.md`). Don't leave the branch broken. Conventional-commit messages,
    **no `RALPH:` prefix**, subject and body in **English** per
    `.sandcastle/CODING_STANDARDS.md` § Code Language — Spanish only inside backticks, as data
-   (UI copy, route segments, `CONTEXT.md` vocabulary). Making no change is fine — only commit when there's a real diff.
+   (UI copy, route segments, `CONTEXT.md` vocabulary). Making no change is fine — only commit
+   when there's a real diff.
 3. **Reply only where a reply adds value** (confirm what you changed, explain a decline, answer
    a question). Silence is fine for context-only comments. You **cannot** resolve threads —
    that's the reviewer's job.
