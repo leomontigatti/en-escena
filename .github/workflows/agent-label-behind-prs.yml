@@ -10,7 +10,8 @@
 # the comment all stay in Update Branch — one place does the work, whether the
 # label came from a person or from here.
 #
-# No agent, no runner, no checkout: nothing but `gh`.
+# No agent, no runner: nothing but `gh` and the shared label script (#1029),
+# which is the only reason the repo is checked out at all.
 
 name: AFK Label Behind PRs
 
@@ -49,11 +50,20 @@ jobs:
       MERGE_STATE_ATTEMPTS: 10
       MERGE_STATE_DELAY_SECONDS: 6
     steps:
+      # The step below runs `scripts/afk-add-label.sh` (#1029), so the repo has to
+      # be on disk. This is a `push` to `master`, so the tree checked out is the
+      # one that just merged; nothing here needs history.
+      - name: Check out the repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          # Per-command auth (#956): no credential belongs in `.git/config`.
+          persist-credentials: false
+
       - name: Label every behind agent/* PR
         env:
           # Per-command auth (#956): each `gh` call below is handed exactly the
-          # token it needs, and only `gh` ever sees one — there is no checkout
-          # for a credential to be persisted into.
+          # token it needs, and only `gh` ever sees one — the checkout above
+          # persists none for it to inherit.
           AGENT_PAT: ${{ secrets.AGENT_PAT }}
           GITHUB_TOKEN: ${{ github.token }}
         run: |
@@ -117,32 +127,17 @@ jobs:
 
           unlabelled=""
           for pr in $behind; do
-            # PAT-or-fallback (§3.4): a label added with `github.token` does not
-            # start another workflow, so only AGENT_PAT actually wakes Update
-            # Branch. Without it the label still lands and a human starts the run.
-            set +e
-            labeled=1
-            if [ -n "${AGENT_PAT:-}" ]; then
-              GH_TOKEN="$AGENT_PAT" gh pr edit "$pr" --add-label "agent:update-branch"
-              labeled=$?
-              if [ "$labeled" -ne 0 ]; then
-                echo "AGENT_PAT label add failed for #$pr; falling back (Update Branch won't auto-start)."
-              fi
-            fi
-            if [ "$labeled" -ne 0 ]; then
-              GH_TOKEN="$GITHUB_TOKEN" gh pr edit "$pr" --add-label "agent:update-branch"
-              labeled=$?
-            fi
-            set -e
-
-            # Both tokens refused. This is the one outcome the loop cannot
-            # recover from on its own: the PR stays behind, and because it ends
-            # up carrying neither label, every later push reads it as fresh work
-            # and fails the same way. A green run claiming "Labeled #N" would
-            # hide that for as long as it keeps happening — so name the PR, keep
-            # going for the others, and fail the run at the end.
-            if [ "$labeled" -ne 0 ]; then
-              echo "::error::Could not label #$pr agent:update-branch; it stays behind $BASE_REF."
+            # PAT-or-fallback (§3.4) in the one place it lives (#1029): the
+            # script tries AGENT_PAT — the only token whose events wake Update
+            # Branch — falls back to `github.token`, and names a wholly refused
+            # add with `::error::` before exiting non-zero.
+            #
+            # Accumulate and carry on: a PR left unlabelled stays behind and
+            # every later push reads it as fresh work, but that costs only
+            # itself. The rest of the list is still labellable, and the job exits
+            # non-zero at the end with each stranded PR named.
+            if ! scripts/afk-add-label.sh "$pr" "agent:update-branch" "Update Branch" \
+              "it stays behind $BASE_REF."; then
               unlabelled="$unlabelled $pr"
               continue
             fi

@@ -302,29 +302,14 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ steps.pr.outputs.number }}
         run: |
-          set +e
-          # Use the REST labels endpoint, not `gh pr edit`: the latter issues a
-          # GraphQL query touching org fields (needs `read:org`), which the
-          # classic `repo`+`workflow` AGENT_PAT lacks — it fails and we lose the
-          # PAT-triggered chain. REST `POST issues/{n}/labels` needs only `repo`,
-          # and labelling a PR through it fires `pull_request_target: labeled`.
-          add_review_label() {
-            gh api -X POST "repos/$GH_REPO/issues/$PR_NUMBER/labels" \
-              -f "labels[]=agent:review" > /dev/null
-          }
-          if [ -n "${AGENT_PAT:-}" ]; then
-            GH_TOKEN="$AGENT_PAT" add_review_label && exit 0
-            echo "AGENT_PAT label add failed; falling back to GITHUB_TOKEN (Review won't auto-start)."
-          fi
-          GH_TOKEN="$GITHUB_TOKEN" add_review_label
-          labeled=$?
-          # Both tokens refused: the PR carries no `agent:review` and nothing
-          # will start Review for it. The step's own exit status already fails
-          # the run, but only this names the PR it happened to.
-          if [ "$labeled" -ne 0 ]; then
-            echo "::error::Could not label #$PR_NUMBER agent:review; Review will not start."
-            exit 1
-          fi
+          set -euo pipefail
+          # PAT-or-fallback (§3.4) in the one place it lives (#1029): AGENT_PAT
+          # first because only its events start Review, `github.token` as the
+          # fallback that at least lands the label, and an `::error::` naming the
+          # PR before a non-zero exit when both refuse. One write to make and
+          # nothing to carry on to, so its exit status is the step's.
+          scripts/afk-add-label.sh "$PR_NUMBER" "agent:review" "Review" \
+            "Review will not start."
 
       # --- Failure: mark blocked + comment (§3.7). ---
       # `!= 'false'`, not `== 'true'`: a preflight that *itself* fails leaves

@@ -74,7 +74,10 @@ beforeEach(() => {
       '  cat "$f"',
       "  exit 0",
       "fi",
-      'if [ -n "${GH_STUB_REJECT_PR:-}" ] && [ "${3:-}" = "$GH_STUB_REJECT_PR" ]; then',
+      // Since #1029 the add is the REST labels endpoint, made by
+      // `scripts/afk-add-label.sh`; the PR number is in the path it posts to.
+      'target=$(printf "%s" "$*" | sed -n "s|.*/issues/\\([0-9]*\\)/labels.*|\\1|p")',
+      'if [ -n "${GH_STUB_REJECT_PR:-}" ] && [ "$target" = "$GH_STUB_REJECT_PR" ]; then',
       '  echo "gh: Resource not accessible by integration (HTTP 403)" >&2',
       "  exit 1",
       "fi",
@@ -157,7 +160,9 @@ function runLabelling(options: RunOptions): RunResult {
     calls,
     labelled: calls
       .map((call) =>
-        /^(.*)\|pr edit (\d+) --add-label agent:update-branch$/.exec(call),
+        /^(.*)\|api -X POST repos\/[^/]+\/[^/]+\/issues\/(\d+)\/labels -f labels\[\]=agent:update-branch$/.exec(
+          call,
+        ),
       )
       .filter((match): match is RegExpExecArray => match !== null)
       .map((match) => ({ pr: match[2], token: match[1] })),

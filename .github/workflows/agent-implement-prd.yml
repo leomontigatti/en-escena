@@ -450,45 +450,23 @@ jobs:
                 echo "$n"
               done | wc -l)
 
-          # Use the REST labels endpoint, not `gh {issue,pr} edit`: the latter
-          # issues a GraphQL query touching org fields (needs `read:org`), which
-          # the classic `repo`+`workflow` AGENT_PAT lacks — it fails and we lose
-          # the PAT-triggered chain (the fallback then labels via GITHUB_TOKEN,
-          # whose events don't fire `labeled` triggers). REST `POST
-          # issues/{n}/labels` needs only `repo` and fires the chain. PRs share
-          # the issues namespace, so the same endpoint covers both kinds.
-          add_label() { # <kind: issue|pr, ignored> <number> <label>
-            # `labeled` is declared, not initialised: every path out of here
-            # either returns before the fallback or assigns its exit status, so a
-            # default would only be there to be believed.
-            local number="$2" label="$3" labeled
-            set +e
-            if [ -n "${AGENT_PAT:-}" ]; then
-              GH_TOKEN="$AGENT_PAT" gh api -X POST \
-                "repos/$GH_REPO/issues/$number/labels" -f "labels[]=$label" > /dev/null
-              if [ $? -eq 0 ]; then set -e; return 0; fi
-              echo "AGENT_PAT label add failed; falling back to GITHUB_TOKEN (chain won't auto-start)."
-            fi
-            GH_TOKEN="$GITHUB_TOKEN" gh api -X POST \
-              "repos/$GH_REPO/issues/$number/labels" -f "labels[]=$label" > /dev/null
-            labeled=$?
-            set -e
-            # Both tokens refused. The chain stops here whatever we do; the only
-            # choice is whether it stops loudly. `set -e` returning 0 used to end
-            # this function — a green run that labelled nothing, and the PRD sits
-            # with no `agent:implement` waiting for a trigger that never comes.
-            if [ "$labeled" -ne 0 ]; then
-              echo "::error::Could not label #$number $label; the chain stops here."
-              return 1
-            fi
-          }
-
+          # PAT-or-fallback (§3.4) in the one place it lives (#1029): AGENT_PAT
+          # first because only its events fire the `labeled` trigger the chain
+          # rides on, `github.token` as the fallback that at least lands the
+          # label, and an `::error::` naming the item before a non-zero exit when
+          # both refuse. The chain stops there whatever we do; the only choice is
+          # whether it stops loudly, and under `set -e` that exit is the step's.
+          #
+          # A PR and an issue are labelled the same way: they share the issues
+          # namespace, which is the endpoint the script uses.
           if [ "$remaining" -gt 0 ]; then
             echo "$remaining sub-issue(s) remaining — re-firing the chain."
-            add_label issue "$ISSUE_NUMBER" "agent:implement"
+            scripts/afk-add-label.sh "$ISSUE_NUMBER" "agent:implement" "the chain" \
+              "the chain stops here."
           else
             echo "All sub-issues implemented — handing off to Review. They close when the PR merges."
-            add_label pr "$PR_NUMBER" "agent:review"
+            scripts/afk-add-label.sh "$PR_NUMBER" "agent:review" "the chain" \
+              "the chain stops here."
           fi
 
       # --- Failure: mark blocked + comment on BOTH the PRD and the sub-issue (§4.3). ---

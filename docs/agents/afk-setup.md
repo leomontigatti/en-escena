@@ -393,6 +393,15 @@ next workflow **still lands the label** — the _state_ ends up correct — but 
 to `GITHUB_TOKEN` if absent or failing) is in §3.4 and **must** be implemented at every point
 where a workflow adds a label to trigger another.
 
+**One implementation of it ships: `scripts/afk-add-label.sh`** (#1029). It shipped inline in
+four workflows until then, and one copy was fixed while the others kept swallowing the same
+refusal (#1026, #1027) — so a new chain hop calls the script rather than pasting the block, and
+the workflow needs an `actions/checkout` for it to be on disk. The script's header says why the
+PAT goes first, why both exit statuses are read and why it posts to the REST labels endpoint
+instead of `gh {issue,pr} edit`; `tests/afk/add-label.test.ts` runs the shipped bash. Callers
+own the wording of success and decide what a refusal costs — the loop-shaped ones (Promote
+Queued, Label Behind PRs) accumulate and carry on, so one stranded item costs only itself.
+
 ### How it is tested (with the first chaining workflow, #344+)
 
 There is no chaining workflow yet, so there is no degradation to exercise. Once the first one
