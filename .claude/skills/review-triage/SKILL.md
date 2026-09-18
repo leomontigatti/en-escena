@@ -68,9 +68,8 @@ pnpm afk:watch pr <PR> --until review
 
 The review's outcome label says how much of this skill applies. `agent:needs-decision` is the
 normal case: a call is the human's, run every phase. `agent:ready` means the posted review left
-zero unresolved threads and no spec finding: skip to [Phase 4](#phase-4--land). Until #1021
-makes Review apply them, apply the right one yourself after Phase 1, so the PR list reads the
-same either way.
+zero unresolved threads and no spec finding: skip to [Phase 4](#phase-4--land). Review applies
+one of the two on every run it completes (#1021), so a PR carrying neither was never reviewed.
 
 Fetch all three surfaces, read the diff for every path a thread hangs off, and build a ledger of
 every item. Done when every unresolved thread, every top-level comment and every review summary

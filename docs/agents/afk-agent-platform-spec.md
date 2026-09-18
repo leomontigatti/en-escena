@@ -715,7 +715,9 @@ in-progress.)
 
 **Step sequence.**
 
-1. Transition labels: remove `agent:review` + `agent:blocked`, add `agent:in-progress`.
+1. Transition labels: remove `agent:review` + `agent:blocked` + both outcome labels
+   (`agent:ready`, `agent:needs-decision` — they classify the review this run supersedes),
+   add `agent:in-progress`.
 2. Checkout `github.event.pull_request.head.sha` (`fetch-depth: 0`); `git fetch origin master:master`;
    check out the branch by name. Capture pre-run HEAD.
 3. Node + deps + agent runner; git identity.
@@ -725,7 +727,10 @@ in-progress.)
 6. Post the review: `POST repos/{owner}/{repo}/pulls/{PR}/reviews` with `review_payload.json`.
 7. `gh pr ready "$PR"` (un-draft).
 8. Post thread replies (see "node-id → REST id" below).
-9. `always()`: remove `agent:in-progress`.
+9. Label the outcome: `agent:ready` or `agent:needs-decision` (see "Chaining"), adding one and
+   removing the other in the same edit. Last of the posting steps — the unresolved-thread count
+   it reads has to include the threads this review just opened.
+10. `always()`: remove `agent:in-progress`.
 
 **Agent-runner contract.**
 
