@@ -418,6 +418,12 @@ instead of `gh {issue,pr} edit`; `tests/afk/add-label.test.ts` runs the shipped 
 own the wording of success and decide what a refusal costs — the loop-shaped ones (Promote
 Queued, Label Behind PRs) accumulate and carry on, so one stranded item costs only itself.
 
+It is a script and not a composite action because of those loop-shaped callers: a composite
+action is a _step_, and a step cannot be invoked once per item from inside a `run:` loop, so
+Promote Queued and Label Behind PRs would have kept an inline copy each. Both shapes need the
+checkout, so the action saved nothing there; and a single file is what lets the test harness
+execute the shipped bash directly and the agent workflows snapshot and digest it.
+
 ### How it is tested (with the first chaining workflow, #344+)
 
 There is no chaining workflow yet, so there is no degradation to exercise. Once the first one
