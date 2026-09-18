@@ -47,7 +47,9 @@ check `package.json` first, not after a failure. See `.sandcastle/VALIDATION.md`
 # COMMIT
 
 Make one or more commits on `{{BRANCH}}` with conventional-commit messages
-(`feat:`, `fix:`, `refactor:`, `test:`, `docs:`).
+(`feat:`, `fix:`, `refactor:`, `test:`, `docs:`). Write the subject and body in **English**,
+per `.sandcastle/CODING_STANDARDS.md` § Code Language — Spanish only inside backticks, as
+data (UI copy, route segments, `CONTEXT.md` vocabulary).
 
 **Commit as you go.** Your wall-clock budget is {{WALL_CLOCK_BUDGET}}, and the run is stopped
 when it runs out. Each time a coherent part of the issue is green — `pnpm typecheck` plus the
