@@ -114,6 +114,28 @@ jobs:
           # (#956). The push steps authenticate per command instead.
           persist-credentials: false
 
+      # Snapshot the label script from `master`, before the agent session exists.
+      # The chaining step at the end of the job carries `AGENT_PAT`, and by then
+      # the session has had write access to the tree and the job sits on an
+      # unreviewed `agent/` branch — so running `scripts/afk-add-label.sh` from
+      # the tree there would hand the session's own version a `repo`+`workflow`
+      # PAT in the same run. That is the exposure #956 exists to rule out
+      # (docs/agents/afk-setup.md → "Where the PAT is during a run"); the inline
+      # block this script replaced came from `master` and could not be changed
+      # mid-run, so the extraction has to keep that property.
+      #
+      # The digest goes to a step output, which is the one place the session
+      # cannot write: the copy itself lives in `$RUNNER_TEMP`, which an
+      # unsandboxed session can reach, so a copy on its own would prove nothing.
+      - name: Snapshot the label script
+        id: label_script
+        if: steps.preflight.outputs.proceed == 'true'
+        run: |
+          set -euo pipefail
+          cp scripts/afk-add-label.sh "$RUNNER_TEMP/afk-add-label.sh"
+          chmod +x "$RUNNER_TEMP/afk-add-label.sh"
+          echo "digest=$(sha256sum scripts/afk-add-label.sh | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
       - name: Compute branch and create it
         id: branch
         if: steps.preflight.outputs.proceed == 'true'
@@ -301,14 +323,26 @@ jobs:
           AGENT_PAT: ${{ secrets.AGENT_PAT }}
           GITHUB_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ steps.pr.outputs.number }}
+          LABEL_SCRIPT_DIGEST: ${{ steps.label_script.outputs.digest }}
         run: |
           set -euo pipefail
+          # Run the pre-session snapshot, never `scripts/afk-add-label.sh` from
+          # the tree: this step holds the PAT and the agent session could have
+          # rewritten the tree's copy. The digest comes from a step output the
+          # session cannot write, so the comparison is what makes the copy
+          # trustworthy. `tests/afk/checkout-credentials.test.ts` holds the rule.
+          script="$RUNNER_TEMP/afk-add-label.sh"
+          if [ "$(sha256sum "$script" | cut -d' ' -f1)" != "$LABEL_SCRIPT_DIGEST" ]; then
+            echo "::error::$script does not match the digest taken before the agent session; refusing to run it with AGENT_PAT."
+            exit 1
+          fi
+
           # PAT-or-fallback (§3.4) in the one place it lives (#1029): AGENT_PAT
           # first because only its events start Review, `github.token` as the
           # fallback that at least lands the label, and an `::error::` naming the
           # PR before a non-zero exit when both refuse. One write to make and
           # nothing to carry on to, so its exit status is the step's.
-          scripts/afk-add-label.sh "$PR_NUMBER" "agent:review" "Review" \
+          "$script" "$PR_NUMBER" "agent:review" "Review" \
             "Review will not start."
 
       # --- Failure: mark blocked + comment (§3.7). ---

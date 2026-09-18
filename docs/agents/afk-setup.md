@@ -252,6 +252,18 @@ Now the credential exists in exactly one place per push:
   either. The PAT-first order is what lets a branch that touches `.github/workflows/**` be
   pushed; the `github.token` fallback keeps the no-PAT degradation contract above.
 
+- **Every step after an agent session that carries the PAT runs a pre-session snapshot**, never
+  a path in the work tree. The session has write access to the tree and the job sits on an
+  unreviewed `agent/` branch, so `scripts/afk-add-label.sh` there is not necessarily the file
+  that was reviewed by the time the chain hop at the end of the job needs it. The two workflows
+  that chain after a session (`agent-implement`, `agent-implement-prd`) therefore copy the
+  script to `$RUNNER_TEMP` right after `Checkout master` — before the branch is created or
+  resumed — and record its `sha256sum` in a **step output**. The chaining step takes the digest
+  in through `env:`, re-hashes the copy, fails with an `::error::` on a mismatch, and only then
+  runs the copy. The digest is what does the work: an unsandboxed session can reach
+  `$RUNNER_TEMP`, but it cannot write a step output. `tests/afk/checkout-credentials.test.ts`
+  holds the rule for every workflow that starts a `.sandcastle/**` runner, discovered by shape.
+
 The `GITHUB_TOKEN` grants were audited against real use at the same time: `contents: write`
 serves the `github.token` push fallback, `issues: write` the label and comment calls on issues,
 `pull-requests: write` the label, comment, reply and review calls on PRs, and the three
@@ -269,8 +281,10 @@ line, and the suppression that #955 had to ship for it is gone.
 `issues` / `pull-requests`). It is not duplicated here: each workflow (#344+) declares its
 minimum `permissions:` from that table as it is implemented.
 
-The one workflow outside that table is the local `agent-label-behind-prs` (#1020): it writes a
-label and reads nothing else, so it declares `pull-requests: write` and no `contents` at all.
+The one workflow outside that table is the local `agent-label-behind-prs` (#1020): it declares
+`contents: read` for the checkout that puts `scripts/afk-add-label.sh` on disk, and
+`pull-requests: write` for the label it adds. A declared `permissions:` block sets every scope
+it omits to `none`, so omitting `contents:` there would 403 the checkout the label script needs.
 
 ## What a runner starts from ([#966](https://github.com/leomontigatti/en-escena/issues/966))
 
@@ -396,7 +410,9 @@ where a workflow adds a label to trigger another.
 **One implementation of it ships: `scripts/afk-add-label.sh`** (#1029). It shipped inline in
 four workflows until then, and one copy was fixed while the others kept swallowing the same
 refusal (#1026, #1027) — so a new chain hop calls the script rather than pasting the block, and
-the workflow needs an `actions/checkout` for it to be on disk. The script's header says why the
+the workflow needs an `actions/checkout` for it to be on disk. When the workflow also runs an
+agent, the hop calls it **from the pre-session snapshot**, not from the tree: see
+[Where the PAT is during a run](#where-the-pat-is-during-a-run). The script's header says why the
 PAT goes first, why both exit statuses are read and why it posts to the REST labels endpoint
 instead of `gh {issue,pr} edit`; `tests/afk/add-label.test.ts` runs the shipped bash. Callers
 own the wording of success and decide what a refusal costs — the loop-shaped ones (Promote
