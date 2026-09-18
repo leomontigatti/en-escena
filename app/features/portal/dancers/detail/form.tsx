@@ -1,14 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useId } from "react";
 import { useForm, type UseFormReturn } from "react-hook-form";
+import type { SubmitFunction } from "react-router";
 
 import { DateOnlyField } from "@/components/shared/date-only-field";
 import { FileUploadField } from "@/components/shared/file-upload-field";
 import { TextInputField } from "@/components/shared/text-input-field";
-import {
-  createValidatedReactRouterSubmitHandler,
-  type ReactRouterFormSubmit,
-} from "@/lib/shared/forms";
+import { createValidatedReactRouterSubmitHandler } from "@/lib/shared/forms";
 
 import { getBirthDatePickerBounds } from "@/lib/dancers/birth-date";
 import { getAssetUploadFieldProps } from "@/lib/storage/asset-kinds";
@@ -39,7 +37,7 @@ export function usePortalDancerForm({
   values,
 }: {
   eventStartDate: string | null;
-  submit: ReactRouterFormSubmit;
+  submit: SubmitFunction;
   values: PortalDancerFormValues;
 }) {
   const form = useForm<PortalDancerFormValues, unknown, PortalDancerFormValues>(

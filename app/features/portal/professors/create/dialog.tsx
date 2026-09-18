@@ -1,6 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
+import type { SubmitFunction } from "react-router";
 
 import { SubmitButton } from "@/components/shared/action-buttons";
 import { TextInputField } from "@/components/shared/text-input-field";
@@ -15,10 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { FieldGroup } from "@/components/ui/field";
-import {
-  createValidatedReactRouterSubmitHandler,
-  type ReactRouterFormSubmit,
-} from "@/lib/shared/forms";
+import { createValidatedReactRouterSubmitHandler } from "@/lib/shared/forms";
 import {
   createProfessorIntent,
   createProfessorSchema,
@@ -38,7 +36,7 @@ export function CreateProfessorDialog({
   isOpen: boolean;
   isSubmitting: boolean;
   onOpenChange: (nextOpen: boolean) => void;
-  submit: ReactRouterFormSubmit;
+  submit: SubmitFunction;
 }) {
   const form = useForm<CreateProfessorFormValues>({
     resolver: zodResolver(createProfessorSchema),

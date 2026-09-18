@@ -9,6 +9,7 @@ import type {
   FormEncType,
   HTMLFormMethod,
   SubmitFunction,
+  SubmitOptions,
   SubmitTarget,
 } from "react-router";
 
@@ -48,16 +49,6 @@ export function createValidatedNativeSubmitHandler<
   };
 }
 
-type ReactRouterSubmitOptions = {
-  encType?: FormEncType;
-  method?: "delete" | "get" | "patch" | "post" | "put";
-};
-
-export type ReactRouterFormSubmit = (
-  target: HTMLFormElement | FormData,
-  options?: ReactRouterSubmitOptions,
-) => Promise<void>;
-
 function createReactRouterFormSubmission<TFieldValues extends FieldValues>(
   formElement: HTMLFormElement,
   values: TFieldValues,
@@ -89,8 +80,8 @@ export function createValidatedReactRouterSubmitHandler<
     UseFormReturn<TFieldValues, unknown, TTransformedValues>,
     "handleSubmit"
   >,
-  submit: ReactRouterFormSubmit,
-  submitOptions?: ReactRouterSubmitOptions,
+  submit: SubmitFunction,
+  submitOptions?: SubmitOptions,
 ): SubmitEventHandler<HTMLFormElement> {
   return (event) => {
     const formElement = event.currentTarget;

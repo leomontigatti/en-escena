@@ -4,7 +4,10 @@ import type { SubmitEventHandler } from "react";
 import type { SubmitHandler } from "react-hook-form";
 import { describe, expect, test, vi } from "vitest";
 
-import { createValidatedRouteFormDataSubmitHandler } from "./forms";
+import {
+  createValidatedReactRouterSubmitHandler,
+  createValidatedRouteFormDataSubmitHandler,
+} from "./forms";
 
 type ArrayFormValues = {
   choreographyIds: string[];
@@ -45,5 +48,40 @@ describe("createValidatedRouteFormDataSubmitHandler", () => {
       "choreography-1",
       "choreography-2",
     ]);
+  });
+});
+
+describe("createValidatedReactRouterSubmitHandler", () => {
+  test("submits the merged FormData with the given submit options", () => {
+    const htmlForm = document.createElement("form");
+    htmlForm.action = "http://localhost/portal/profesores";
+    htmlForm.method = "post";
+    htmlForm.innerHTML = '<input type="hidden" name="intent" value="create" />';
+
+    const submit = vi.fn();
+    const handler = createValidatedReactRouterSubmitHandler<ArrayFormValues>(
+      {
+        handleSubmit: (onValid: SubmitHandler<ArrayFormValues>) => async () => {
+          await onValid({
+            choreographyIds: ["choreography-1"],
+            issueDate: "2026-07-02",
+          });
+        },
+      },
+      submit,
+      { method: "post" },
+    );
+
+    handler({
+      currentTarget: htmlForm,
+      preventDefault: vi.fn(),
+    } as unknown as Parameters<SubmitEventHandler<HTMLFormElement>>[0]);
+
+    const [submission, submitOptions] = submit.mock.calls[0] ?? [];
+
+    expect(submission).toBeInstanceOf(FormData);
+    expect((submission as FormData).get("intent")).toBe("create");
+    expect((submission as FormData).get("issueDate")).toBe("2026-07-02");
+    expect(submitOptions).toEqual({ method: "post" });
   });
 });
