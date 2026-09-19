@@ -18,6 +18,7 @@
     "check:comment-language": "node --import tsx scripts/check-comment-language.ts",
     "check:file-tokens": "node --import tsx scripts/check-file-tokens.ts",
     "check:doc-map": "node scripts/check-doc-map.mjs",
+    "check:dependency-audit": "node scripts/check-dependency-audit.mjs",
     "check:migration-immutability": "node scripts/check-migration-immutability.mjs",
     "check:migration-safety": "node scripts/check-migration-safety.mjs",
     "check:migration-order": "node scripts/check-migration-order.mjs",

@@ -8,3 +8,31 @@ allowBuilds:
 # pin does not reach production. Drop it once nwsapi ships a fix.
 overrides:
   nwsapi: 2.2.25
+
+# A published version has to sit in the registry for three days before this repo
+# will resolve it. Most recent npm supply-chain compromises were caught and
+# unpublished well inside that window, so waiting it out costs nothing and keeps
+# a poisoned release from ever entering the lockfile. Set explicitly on purpose:
+# with a value here pnpm is strict, and a version too new fails resolution
+# instead of quietly falling back to an older one.
+#
+# The escape hatch for an urgent patch — a fix for an advisory that cannot wait
+# three days — is `minimumReleaseAgeExclude`, one entry per package, each with a
+# comment giving the reason and the date to remove it. It does not exist here
+# because nothing currently needs it; add it next to this block when something
+# does.
+minimumReleaseAge: 4320
+
+# Advisories accepted rather than fixed: `pnpm check:dependency-audit` stops
+# failing on any GHSA listed here, on this branch and on the base ref alike.
+# Every entry needs a comment with the reason it is acceptable and when to
+# recheck it, in the style of the `nwsapi` override above.
+#
+# Empty, and meant to stay that way: `pnpm audit --prod` currently reports three
+# moderate advisories (esbuild and vitest, both reached through `better-auth`'s
+# optional peers) and nothing high or critical, and the gate only fails at high.
+#
+# `auditConfig.ignoreGhsas` is the spelling pnpm 11.9.0 reads. Once
+# `packageManager` reaches pnpm >= 11.16.0, this moves to `audit.ignore`.
+auditConfig:
+  ignoreGhsas: []
