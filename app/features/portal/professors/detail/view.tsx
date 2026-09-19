@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Archive, RotateCcw, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm, type FieldPath, type UseFormReturn } from "react-hook-form";
-import { useNavigation, useSubmit } from "react-router";
+import { useNavigation, useSubmit, type SubmitFunction } from "react-router";
 
 import { BackButton, SubmitButton } from "@/components/shared/action-buttons";
 import { AlertStack } from "@/components/shared/alert-stack";
@@ -29,10 +29,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
-import {
-  createValidatedReactRouterSubmitHandler,
-  type ReactRouterFormSubmit,
-} from "@/lib/shared/forms";
+import { createValidatedReactRouterSubmitHandler } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 import { useRecordTitleDetailTransitionStyle } from "@/lib/shared/view-transitions";
 import {
@@ -249,7 +246,7 @@ function useProfessorForm({
   submit,
   values,
 }: {
-  submit: ReactRouterFormSubmit;
+  submit: SubmitFunction;
   values: ProfessorFormValues;
 }) {
   const form = useForm<ProfessorFormValues, unknown, ProfessorFormValues>({

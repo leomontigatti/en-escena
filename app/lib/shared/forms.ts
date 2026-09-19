@@ -9,6 +9,7 @@ import type {
   FormEncType,
   HTMLFormMethod,
   SubmitFunction,
+  SubmitOptions,
   SubmitTarget,
 } from "react-router";
 
@@ -48,15 +49,12 @@ export function createValidatedNativeSubmitHandler<
   };
 }
 
-type ReactRouterSubmitOptions = {
-  encType?: FormEncType;
-  method?: "delete" | "get" | "patch" | "post" | "put";
-};
-
-export type ReactRouterFormSubmit = (
-  target: HTMLFormElement | FormData,
-  options?: ReactRouterSubmitOptions,
-) => Promise<void>;
+// The only two options any caller of the handlers below actually sets. Derived
+// from React Router's own `SubmitOptions` rather than mirrored, so it cannot
+// drift, and kept narrow on purpose: two callers pass `fetcher.submit`, which
+// silently ignores the navigation-only options (`replace`, `state`, `navigate`,
+// `fetcherKey`, `viewTransition`) that the full type would advertise here.
+type ReactRouterSubmitOptions = Pick<SubmitOptions, "encType" | "method">;
 
 function createReactRouterFormSubmission<TFieldValues extends FieldValues>(
   formElement: HTMLFormElement,
@@ -89,7 +87,7 @@ export function createValidatedReactRouterSubmitHandler<
     UseFormReturn<TFieldValues, unknown, TTransformedValues>,
     "handleSubmit"
   >,
-  submit: ReactRouterFormSubmit,
+  submit: SubmitFunction,
   submitOptions?: ReactRouterSubmitOptions,
 ): SubmitEventHandler<HTMLFormElement> {
   return (event) => {
