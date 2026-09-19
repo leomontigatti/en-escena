@@ -40,18 +40,16 @@ download that CI runs anyway.
 ## 2. One owner per concern
 
 Every concern has exactly one owner, and a new rule enters only if it catches a
-bug class **no existing owner can see**. Formatting is Prettier's. Unused code
-and type-level mistakes are `tsc`'s. Repo conventions are the `check:*` scripts'.
-`pnpm lint` keeps what none of them can see: a stale closure that type-checks
-perfectly, an import cycle TypeScript tolerates until a module reads `undefined`,
-a promise nothing awaits.
+bug class **no existing owner can see**. Which owner holds what is the table in
+[docs/agents/workflows.md](../agents/workflows.md) § Linting, and it is the table
+that is current — this section records only why the split exists.
 
-A rule that duplicates another owner turns its linter into a chore and gets
-ignored wholesale, taking the rules that do matter with it. That is the whole
-justification test, and it is why the rule count is not a target in either
-direction: the count may grow, and the docs therefore point at `.oxlintrc.json`
-rather than counting. A written-down count is a fact that goes stale on the next
-PR; the config file cannot.
+The reason is that a rule duplicating another owner turns its linter into a
+chore and gets ignored wholesale, taking the rules that do matter with it. That
+is the whole justification test, and it is why the rule count is not a target in
+either direction: the count may grow, and the docs therefore point at
+`.oxlintrc.json` rather than counting. A written-down count is a fact that goes
+stale on the next PR; the config file cannot.
 
 ## 3. Pre-commit stays fast
 

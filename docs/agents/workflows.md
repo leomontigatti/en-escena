@@ -155,9 +155,9 @@ checkout's `master` current. It only runs when that checkout is clean and on
 `.github/workflows/ci.yml` runs on every PR to `master`, as four required
 contexts: `checks`, `db-gate`, `docs-gate` and `actions-gate`. Why the gates in
 this section and the next exist at all, and what was considered and rejected, is
-[ADR-0015](../adr/0015-deterministic-guardrails.md).
-The rationale for each job lives in that file's comments; what follows
-is the shape a reader needs before running anything locally:
+[ADR-0015](../adr/0015-deterministic-guardrails.md). The rationale for each job
+lives in that file's comments; what follows is the shape a reader needs before
+running anything locally:
 
 - `checks`: `format:check`, `lint`, the `check:*` scripts, the migration
   drift/order/immutability/safety checks, `typecheck`, `test:unit` and `build`,
@@ -286,11 +286,12 @@ casually. The scope rule is that every concern already has exactly one owner:
 
 A rule that duplicates another owner turns the linter into a chore and gets
 ignored, so it does not go in — the rationale is decision 2 of
-[ADR-0015](../adr/0015-deterministic-guardrails.md). What justifies the ones that are in is that
-nothing else can see them: a stale closure in `useEffect` type-checks perfectly
-and misbehaves at runtime, TypeScript tolerates import cycles until a module
-reads `undefined` during initialisation, and a promise nothing awaits type-checks
-too while silently dropping whatever it would have rejected with.
+[ADR-0015](../adr/0015-deterministic-guardrails.md). What justifies the ones
+that are in is that nothing else can see them: a stale closure in `useEffect`
+type-checks perfectly and misbehaves at runtime, TypeScript tolerates import
+cycles until a module reads `undefined` during initialisation, and a promise
+nothing awaits type-checks too while silently dropping whatever it would have
+rejected with.
 
 Two options on those promise rules are load-bearing, and neither is legible from
 the rule name:
@@ -339,11 +340,10 @@ Hook guidance:
   environment.
 - The gitleaks line is the secrets gate (#978) and runs first: nothing else
   matters if the commit carries a credential. It reads `.gitleaks.toml` (the
-  upstream ruleset plus three rules for what this repo can leak and the default
+  upstream ruleset plus the rules for what this repo can leak and the default
   set misses — passwords inside connection URLs, Resend `re_` keys and
   Backblaze `K00` application keys), adds roughly a second to a commit, and
-  **warns instead of
-  failing when the binary is not on `PATH`**:
+  **warns instead of failing when the binary is not on `PATH`**:
   `gitleaks not installed, secret scan skipped; CI still runs it`. gitleaks is
   not a pnpm dependency, so that is the normal state of a fresh clone and of the
   AFK runners, which hold only tokens GitHub push protection already blocks.
