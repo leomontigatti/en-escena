@@ -142,7 +142,9 @@ jobs:
       # nobody here touched, and the fix would belong to no branch in particular.
       # Dependabot alerts watch the full tree for that case, with security update
       # PRs off, so nothing is missed. Same `origin/master` the step above fetches,
-      # which is why this sits right after it.
+      # which is why this sits right after it — and if that fetch ever stops
+      # happening the script fails here rather than passing on a comparison it
+      # never made.
       - name: dependency audit (advisories this branch introduces)
         run: pnpm check:dependency-audit
       - run: pnpm typecheck

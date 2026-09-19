@@ -106,4 +106,20 @@ describe("formatAdvisory", () => {
       formatAdvisory(advisory("GHSA-aaaa-bbbb-cccc", { findings: [] })),
     ).toContain("Path: some-package.");
   });
+
+  it("falls back to the package name when the finding carries no path", () => {
+    const pathless = advisory("GHSA-aaaa-bbbb-cccc", {
+      findings: [
+        {
+          version: "1.2.3",
+          paths: [],
+          dev: false,
+          optional: false,
+          bundled: false,
+        },
+      ],
+    });
+
+    expect(formatAdvisory(pathless)).toContain("Path: some-package.");
+  });
 });

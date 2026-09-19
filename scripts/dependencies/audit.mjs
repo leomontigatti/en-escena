@@ -93,7 +93,11 @@ export function compareAdvisories(headAdvisories, baseAdvisories) {
  */
 export function formatAdvisory(advisory) {
   const [finding] = advisory.findings;
-  const path = finding === undefined ? advisory.module_name : finding.paths[0];
+  // An advisory with no finding, or a finding with no path, is not a shape
+  // `pnpm audit` emits — but this line is the only thing a human reads about a
+  // failure, so it degrades to the package name rather than printing
+  // "Path: undefined" and sending them to the raw report.
+  const path = finding?.paths[0] ?? advisory.module_name;
   const version = finding === undefined ? "" : `@${finding.version}`;
   // Advisory titles are written as sentences but only sometimes punctuated as
   // one, so the separator is added rather than assumed.

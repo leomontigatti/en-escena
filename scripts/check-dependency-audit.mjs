@@ -13,12 +13,9 @@ import {
  * Fails a branch on the high and critical advisories it *introduces*, by
  * auditing its tree and the base ref's and reporting the difference.
  *
- * Why the difference and not the whole tree: an advisory disclosed today
- * against a dependency nobody touched would otherwise redden every open PR at
- * once, AFK branches included, and the fix would have nothing to do with the
- * branch it blocks. Dependabot alerts watch the full tree for that case — they
- * are on, with security update PRs off — so nothing goes unseen; this gate is
- * about what a branch is responsible for.
+ * Why the difference and not the whole tree is explained once, in
+ * scripts/dependencies/audit.mjs, next to the comparison it justifies. This
+ * file is the I/O half: where the two trees come from and how a failure reads.
  *
  * Neither run installs anything: `pnpm audit` resolves the tree from the
  * lockfile and asks the registry, so the base side is just the base ref's
@@ -106,18 +103,34 @@ function checkoutBaseFiles() {
 const baseDirectory = checkoutBaseFiles();
 
 if (baseDirectory === undefined) {
+  // Under Actions the job fetches the base ref a step earlier, so failing to
+  // read it means the workflow broke, not that the checkout is shallow — and a
+  // gate that compared nothing must not report success, for the same reason a
+  // registry failure does not. Locally it is routine (a clone with no remote),
+  // and there is genuinely nothing to compare.
+  if (isGitHubActions) {
+    console.error(
+      `${errorPrefix}${baseRef} could not be read, so no advisory was ` +
+        `compared. The job is expected to fetch it — ` +
+        `\`git fetch --no-tags --depth=1 origin master\` — before this step.`,
+    );
+    process.exit(1);
+  }
+
   console.log(`${baseRef} could not be resolved; nothing to compare against.`);
   process.exit(0);
 }
 
-const headAdvisories = audit(process.cwd(), "this branch");
-let baseAdvisories;
-
-try {
-  baseAdvisories = audit(baseDirectory, baseRef);
-} finally {
+// `process.exit` does not unwind the stack, so a `finally` around the audits
+// would never run on the path that needs it most: the one where `audit` exits
+// on a registry failure. The exit event fires for every ending, and `rmSync` is
+// synchronous, which is all a handler there is allowed to be.
+process.on("exit", () => {
   rmSync(baseDirectory, { recursive: true, force: true });
-}
+});
+
+const headAdvisories = audit(process.cwd(), "this branch");
+const baseAdvisories = audit(baseDirectory, baseRef);
 
 const { introduced, inherited } = compareAdvisories(
   headAdvisories,

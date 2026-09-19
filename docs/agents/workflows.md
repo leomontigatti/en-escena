@@ -357,8 +357,9 @@ Hook guidance:
 - `pnpm check:fallow` is the Fallow audit on its `new-only` gate; see
   [fallow.md](fallow.md) for what it gates and what it costs.
 - `pnpm check:migration-safety` is squawk over the migrations a branch _adds_,
-  and is the only `check:*` script that reaches the network (`pnpm dlx`, pinned
-  version). A drop or a rename fails the branch, because Coolify keeps the old
+  and reaches the network (`pnpm dlx`, pinned version) — one of the two
+  `check:*` scripts that do, with `check:dependency-audit`. A drop or a rename
+  fails the branch, because Coolify keeps the old
   container serving while the new one migrates; lock hazards only warn. The two
   tiers and the `-- squawk-ignore` exception are in
   [../db/migrations.md](../db/migrations.md).
@@ -374,7 +375,10 @@ Hook guidance:
   (security update PRs off, and there is deliberately no
   `.github/dependabot.yml`). Along with `check:migration-safety` it is one of
   the two `check:*` scripts that reach the network, and a registry failure
-  fails the check rather than passing silently.
+  fails the check rather than passing silently. The base ref is read with
+  `git show`, so CI has to have fetched it: under Actions a base ref it cannot
+  read is an error, because a run that compared nothing must not read as clean.
+  Locally, where a clone may have no remote, that case just says so and passes.
   - **To accept an advisory** — no fix published, and the vulnerable path is
     unreachable from this app — add its GHSA to `auditConfig.ignoreGhsas` in
     `pnpm-workspace.yaml`, with a comment giving the reason and when to
