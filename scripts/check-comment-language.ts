@@ -811,6 +811,31 @@ function spanishMarkersIn(
 }
 
 /**
+ * The three instruments over a passage that is prose end to end and has no file
+ * around it — a PR title's subject (#1007). Everything a scanner would do first
+ * is already done here: the data spans are blanked the way a source comment's
+ * are, so a backticked name or a quoted UI term in a title is data, and the
+ * markers come back deduplicated and lowercased, the shape a violation carries.
+ *
+ * It exists so a caller with a single string in hand does not have to reach for
+ * the heuristics one at a time; there is no other entry point that takes prose
+ * rather than a file.
+ */
+export function findSpanishMarkersInText(input: {
+  /** Empty turns the vocabulary instrument off; say so rather than omit it. */
+  glossaryNouns: string[];
+  text: string;
+}): string[] {
+  return [
+    ...new Set(
+      spanishMarkersIn(blankDataSpans(input.text), input.glossaryNouns).map(
+        (match) => match[0].toLowerCase(),
+      ),
+    ),
+  ];
+}
+
+/**
  * Markdown is prose end to end, so there is no comment to find: the file is the
  * passage, and a line is the unit worth reporting. The only difference from a
  * source file is what counts as data — #792 chose the backtick, because that is
