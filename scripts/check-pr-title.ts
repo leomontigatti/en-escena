@@ -49,13 +49,16 @@ export const conventionalTypes = [
  * and the subject required to start on a non-space. The separator is exactly
  * `: ` — `feat:no space` and a trailing-space-only subject are both the shape
  * that reads as a bare sentence once it is on `master`.
+ *
+ * The subject is the one capture group, so the same grammar that decides where
+ * the prefix ends also decides where the subject begins: the two rules cannot
+ * disagree about a title. Finding the separator by hand instead would split
+ * `refactor(admin: finanzas): rename the helper` inside its scope, and hand the
+ * language rule a `finanzas)` the scope rule promises never to read.
  */
 const conventionalTitlePattern = new RegExp(
-  `^(?:${conventionalTypes.join("|")})(\\([^)]+\\))?!?: \\S`,
+  `^(?:${conventionalTypes.join("|")})(?:\\([^)]+\\))?!?: (\\S[\\s\\S]*)`,
 );
-
-/** The separator that ends the prefix, used to find where the subject starts. */
-const separator = ": ";
 
 export type PrTitleViolation = {
   message: string;
@@ -66,22 +69,19 @@ const acceptedExample =
   "feat(forms): keep views mounted when a submit fails unexpectedly";
 
 /**
- * The subject is everything after the first `: `, which is also why the scope is
- * never language-checked: it sits before the separator. Scopes are free-form
- * here on purpose — `feat(finanzas)` is live in the history, and a scope names a
- * part of the domain, which is the one place the repo's Spanish belongs.
+ * What the conventional grammar leaves after the prefix, which is also why the
+ * scope is never language-checked: it is outside the capture. Scopes are
+ * free-form here on purpose — `feat(finanzas)` is live in the history, and a
+ * scope names a part of the domain, which is the one place the repo's Spanish
+ * belongs.
  *
- * A title with no separator has no prefix to strip, so the whole of it is read
- * as the subject: `worktree shadcn upstream sync` should fail on the prefix
- * alone, and a Spanish title with no prefix at all should fail on both rules
- * rather than have the second one silently skipped.
+ * A title that is not a conventional commit has no prefix to strip, so the whole
+ * of it is the subject: `worktree shadcn upstream sync` fails on the prefix
+ * alone, and `Bailarín: agregar la vista` fails on both rules rather than have
+ * the second one silently skipped by a colon that was never a separator.
  */
 function subjectOf(title: string): string {
-  const separatorIndex = title.indexOf(separator);
-
-  return separatorIndex === -1
-    ? title
-    : title.slice(separatorIndex + separator.length);
+  return conventionalTitlePattern.exec(title)?.[1] ?? title;
 }
 
 export function checkPrTitle(input: {

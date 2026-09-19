@@ -90,6 +90,24 @@ describe("PR-title gate (#1007)", () => {
     expect(violation.message).toContain("feat(forms):");
   });
 
+  // The subject comes off the conventional grammar, not off the first `": "` in
+  // the string, so neither rule can be fooled by a colon that is not the
+  // separator: a scope may hold one, and a title with no prefix may hold one.
+  test("reads the subject past a colon inside the scope", () => {
+    expect(
+      rulesBrokenBy("refactor(admin: finanzas): rename the seed helper"),
+    ).toEqual([]);
+    expect(
+      rulesBrokenBy("refactor(admin: la vista de pagos): rename the helper"),
+    ).toEqual([]);
+  });
+
+  test("language-checks the whole of a title whose colon is not a separator", () => {
+    expect(
+      rulesBrokenBy("Bailarín: agregar la vista de inscripciones"),
+    ).toEqual(["conventional prefix", "english subject"]);
+  });
+
   test("reports both rules when a title breaks both", () => {
     expect(rulesBrokenBy("agregar la vista de inscripciones")).toEqual([
       "conventional prefix",
