@@ -42,6 +42,7 @@ The scripts that exist and what owns what:
 | `pnpm check:file-tokens`    | Staged `app` modules under the token ceiling               |
 | `pnpm check:migration-order`| New migrations postdate `master`                           |
 | `pnpm check:migration-safety`| squawk over migrations the branch adds: drops and renames block, lock hazards warn |
+| `pnpm check:dependency-audit`| High and critical advisories the branch introduces, against `master` |
 | `pnpm check:comment-language`| Spanish prose in comments, test names, thrown error messages, docs and YAML |
 | `pnpm check:fallow`         | Fallow's `new-only` gate on what the branch adds           |
 | zizmor (CI only)            | Actions security posture and pin freshness — `.github/workflows/**` |
