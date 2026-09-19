@@ -102,6 +102,7 @@ describe("`/administracion/coreografias` route", () => {
 
     await createChoreographyRecord({
       academyId: activeAcademy.academy.id,
+      categoryId: incompleteCatalog.category.id,
       eventId: event.id,
       modalityId: incompleteCatalog.modality.id,
       name: "Bosque Vivo",
@@ -169,7 +170,6 @@ describe("`/administracion/coreografias` route", () => {
     expect(markup).toContain("Jazz · Lyrical");
     expect(markup).toContain("Juvenil · Solo");
     expect(markup).toContain("Contemporáneo · Lyrical");
-    expect(markup).toContain("Sin asignar · Solo");
     expect(markup).toContain("Completa");
     expect(markup).toContain("Incompleta");
     expect(markup).toContain('data-variant="success"');
@@ -647,7 +647,7 @@ async function createEventCatalog(eventId: string, modalityName: string) {
 
 async function createChoreographyRecord(input: {
   academyId: string;
-  categoryId?: string;
+  categoryId: string;
   eventId: string;
   experienceLevelId?: string;
   modalityId: string;
@@ -666,7 +666,7 @@ async function createChoreographyRecord(input: {
       choreographyNumber,
       academyId: input.academyId,
       categoryCalculationMode: "oldest",
-      categoryId: input.categoryId ?? null,
+      categoryId: input.categoryId,
       eventId: input.eventId,
       experienceLevelId:
         input.experienceLevelId && isExperienceLevel(input.experienceLevelId)

@@ -22,6 +22,7 @@ Rules for roster links, choreography registration, locks and `Bases del evento`.
 - Dancer verification does not block participation and does not affect choreography operational state.
 - Academy cannot edit identity data or document images after a dancer is verified; later corrections are administrative.
 - Correcting dancer birth date can recalculate categories for signed or paid choreographies while their presentation is still pending; it does not change financial state.
+- A birth-date correction is refused when it would leave a linked choreography without a category: nothing is written, and the message names each choreography by number and name.
 
 ### `Estado de alta` for roster people
 
@@ -66,7 +67,8 @@ Rules for roster links, choreography registration, locks and `Bases del evento`.
 - `Coreografía` belongs to one academy and one event; it is not reusable between events.
 - It is registered with modality, dancers, calculated group type, category, optional experience level and schedule capacity.
 - It can be created without professors, but needs at least one linked professor to be operationally complete.
-- It can be confirmed without category when no category rule applies; then it is operationally incomplete.
+- It is never confirmed without category: when no category of the modality covers the dancers' ages for the calculated group type, registration is refused and nothing is created.
+- A choreography always has a category, and the database holds the invariant: `choreography.category_id` is not nullable. Every write that would resolve one to no category — registration, roster change, modality correction, birth-date correction — is refused before it is written, so there is no category-less choreography to read, to filter for or to report as incomplete.
 - Academy cannot delete a Choreography after registration; removal is an administrative action.
 - An administrator can delete a choreography only when it has no presentation and no scores.
 - An administrator can rename a choreography at any time, including when it has presentation or scores.
@@ -128,7 +130,6 @@ Rules for roster links, choreography registration, locks and `Bases del evento`.
 - Looking up available schedule capacities does not reserve capacity.
 - Schedule resolution prefers a schedule capacity for the calculated group type. If a compatible schedule has no specific capacity for that group type, the schedule total capacity is a global fallback option.
 - Submodality step exists only when selected modality has submodalities.
-- If no category is assigned, level step is skipped and level remains empty until recalculation.
 - If category requires level, registration cannot advance or confirm until academy chooses one.
 - Professors are selected after schedule and level, before summary; empty professors are allowed and make choreography incomplete.
 - Registration summary shows operational data only, not price or financial info.
@@ -173,7 +174,7 @@ Rules for roster links, choreography registration, locks and `Bases del evento`.
 - The correction offers every modality of the event, with the assigned one preselected rather than excluded. Re-selecting it is a successful no-op.
 - A modality no schedule of the event accepts is offered disabled, with the reason on the option: it is a structural dead end, because a choreography with no schedule cannot exist. A modality whose capacities merely happen to be full is not disabled — occupancy is a racing snapshot and is resolved at the capacity step, where full options are offered disabled and an entirely full set replaces the select with the reason.
 - When the destination modality resolves exactly one compatible capacity it is preselected and read-only, like registration. With several, choosing one is required and holds `Guardar` disabled until it is answered, like every other field the resolution leaves to be chosen and like the roster form's own schedule select.
-- The experience level survives when the resolved category does not change and is cleared when it does; when the resolved category declares levels, choosing one is required in the same correction. When no category resolves, the correction still saves and the choreography reads as operationally incomplete, exactly like registration.
+- The experience level survives when the resolved category does not change and is cleared when it does; when the resolved category declares levels, choosing one is required in the same correction. When no category resolves for the destination modality, the correction is refused: the form shows the reason beside the select, keeps the confirmation closed, and the server refuses it too and writes nothing.
 - Confirming re-resolves the correction against the current bases and rejects it when the outcome diverges from what was previewed, because the preview is older than the write by construction.
 - A registered deposit does not close the modality: it rejects the correction only when the correction would actually move `scheduleId`/`scheduleCapacityId`, since modality is not a price key and a destination modality that keeps the current schedule is financially inert. The rejection names the modality, not the capacity. The deposit is reported in the page alert as a blocker-in-waiting, also for the `auditor`.
 - The destination capacity is locked and re-counted on confirmation, excluding the choreography being corrected, exactly like the standalone reassignment.
@@ -199,8 +200,9 @@ Rules for roster links, choreography registration, locks and `Bases del evento`.
 - Category applies to one or more group types and either all modalities or selected modalities.
 - Category duplication uses exact competitive identity: same minimum age, maximum age, group type set and modality set. It ignores category name and experience levels.
 - Category ranges cannot overlap for the same group type and modality.
+- A category's age range and its experience level set cannot change while any choreography references it, withdrawn inscriptions included: moving the range would drop those choreographies into a gap and editing the levels would invalidate the level they hold. Renaming stays allowed, and so does every edit to a category no choreography references.
 - Solo, duo and trio use oldest dancer age.
 - Grupal allows up to 20% older dancers; above that, it uses average age.
-- Category calculation returns one category or leaves choreography unassigned.
+- Category calculation returns one category or refuses the write.
 - If recalculation changes category and new category has levels, choreography becomes incomplete until academy chooses level.
 - `Nivel de experiencia` is selected only when calculated category has levels.

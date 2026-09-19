@@ -262,12 +262,15 @@ function ChoreographyDetailForm({
                 <SubmodalityField disabled={disabled} loaderData={loaderData} />
               )}
             />
+            {/* A saved choreography always has a category; the field only
+                reads empty while an edit in progress resolves to none, and the
+                page alert says so and blocks the save. */}
             <ReadOnlyField
               label="Categoría"
               value={
                 modality.categoryLabel ??
                 roster.derivedResolution.categoryName ??
-                "Sin asignar"
+                ""
               }
             />
             <ReadOnlyField

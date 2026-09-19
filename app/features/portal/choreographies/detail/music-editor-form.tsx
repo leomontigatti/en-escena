@@ -143,7 +143,7 @@ export function ChoreographyMusicEditorForm({
             />
             <ReadOnlyField
               label="Categoría"
-              value={choreography.categoryName ?? "Sin asignar"}
+              value={choreography.categoryName}
             />
             <ReadOnlySelectField
               label="Tipo de grupo"

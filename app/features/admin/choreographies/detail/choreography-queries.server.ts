@@ -42,10 +42,10 @@ export type ChoreographyExperienceLevelOption = {
  * which ones it admits, so the list is built here and not queried.
  */
 function resolveChoreographyExperienceLevelOptions(input: {
-  categoryExperienceLevels: string[] | null;
+  categoryExperienceLevels: string[];
   experienceLevelId: string | null;
 }): ChoreographyExperienceLevelOption[] {
-  const options = (input.categoryExperienceLevels ?? []).map((level) => ({
+  const options = input.categoryExperienceLevels.map((level) => ({
     id: level,
     name: experienceLevelLabels[level] ?? level,
   }));
@@ -68,10 +68,10 @@ function resolveChoreographyExperienceLevelOptions(input: {
 type ChoreographyDetailRow = {
   academyId: string;
   academyName: string;
-  categoryExperienceLevels: string[] | null;
+  categoryExperienceLevels: string[];
   choreographyNumber: number;
-  categoryId: string | null;
-  categoryName: string | null;
+  categoryId: string;
+  categoryName: string;
   experienceLevelId: string | null;
   groupType: ChoreographyGroupType;
   hasPresentation: boolean;
@@ -92,9 +92,9 @@ type ChoreographyDetailRow = {
 export type ChoreographyDetail = {
   academyId: string;
   academyName: string;
-  categoryId: string | null;
+  categoryId: string;
   choreographyNumber: number;
-  categoryName: string | null;
+  categoryName: string;
   dancers: Array<{
     active: boolean;
     ageAtEventStart: number;
@@ -170,7 +170,7 @@ export async function findChoreographyDetail(input: {
     .innerJoin(academies, eq(choreographies.academyId, academies.id))
     .innerJoin(modalities, eq(choreographies.modalityId, modalities.id))
     .leftJoin(submodalities, eq(choreographies.submodalityId, submodalities.id))
-    .leftJoin(categories, eq(choreographies.categoryId, categories.id))
+    .innerJoin(categories, eq(choreographies.categoryId, categories.id))
     .leftJoin(
       scheduleCapacities,
       eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
@@ -203,9 +203,7 @@ export async function findChoreographyDetail(input: {
     }),
   ]);
 
-  const requiresExperienceLevel =
-    row.categoryExperienceLevels !== null &&
-    row.categoryExperienceLevels.length > 0;
+  const requiresExperienceLevel = row.categoryExperienceLevels.length > 0;
 
   return {
     academyId: row.academyId,
@@ -229,7 +227,6 @@ export async function findChoreographyDetail(input: {
     musicStorageKey: row.musicStorageKey,
     name: row.name,
     operationalStatus: deriveChoreographyOperationalStatus({
-      categoryId: row.categoryId,
       experienceLevelId: row.experienceLevelId,
       hasMusic: row.musicStorageKey !== null,
       hasProfessors: professorRows.length > 0,

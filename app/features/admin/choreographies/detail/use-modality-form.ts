@@ -222,12 +222,11 @@ export function useModalityForm({
     canCorrectModality,
     /**
      * The category the slot shows while the correction is pending. `null`
-     * leaves the persisted value in place.
+     * leaves the persisted value in place — including when the destination
+     * modality resolves none, which is a refusal explained beside the select
+     * rather than a category to preview.
      */
-    categoryLabel:
-      isDirty && resolution
-        ? (resolution.category?.name ?? "Sin asignar")
-        : null,
+    categoryLabel: isDirty ? (resolution?.category?.name ?? null) : null,
     form,
     isDirty,
     isResolving,

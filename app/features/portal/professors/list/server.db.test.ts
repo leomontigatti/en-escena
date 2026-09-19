@@ -8,6 +8,7 @@ import {
 } from "@/db/schema";
 import { createAcademySession } from "@/features/portal/test-support/db";
 import { expectCreated } from "@/lib/events/bases-test-fixtures.server.db";
+import { createCategory } from "@/lib/categories/repository.server";
 import { createModality } from "@/lib/modalities/repository.server";
 import { activateEvent } from "@/lib/events/management.server";
 import { createPortalSavedEvent as createSavedEvent } from "@/lib/events/saved-event-test-support.server";
@@ -111,6 +112,16 @@ describe.sequential("loadPortalProfessorsList", () => {
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
     );
+    const category = await expectCreated(
+      createCategory(event.id, {
+        name: "Única",
+        minAge: 1,
+        maxAge: 100,
+        groupTypes: ["solo"],
+        modalityIds: [modality.id],
+        experienceLevels: [],
+      }),
+    );
     const [professor] = await db
       .insert(professors)
       .values({
@@ -131,6 +142,7 @@ describe.sequential("loadPortalProfessorsList", () => {
         name: "Solo activo",
         groupType: "solo",
         modalityId: modality.id,
+        categoryId: category.id,
         categoryCalculationMode: "oldest",
       })
       .returning();

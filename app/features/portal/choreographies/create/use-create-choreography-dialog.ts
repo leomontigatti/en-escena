@@ -16,7 +16,8 @@ import {
   getCreateChoreographySteps,
   getFirstPostResolutionStepIndex,
   getSubmissionError,
-  type RegistrationResolution,
+  resolveRegistrationCategory,
+  type ResolvedRegistrationResolution,
   setRequiredFieldError,
 } from "@/features/portal/choreographies/create/flow";
 import type {
@@ -50,9 +51,8 @@ export function useCreateChoreographyDialog({
     submodality: useId(),
   };
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [resolution, setResolution] = useState<RegistrationResolution | null>(
-    null,
-  );
+  const [resolution, setResolution] =
+    useState<ResolvedRegistrationResolution | null>(null);
   const hasSubmittedChoreographyRef = useRef(false);
   const processedCalculationDataRef = useRef<CalculationActionData | undefined>(
     undefined,
@@ -69,6 +69,10 @@ export function useCreateChoreographyDialog({
   const selectedProfessorIds = watchedValues.professorIds;
   const selectedExperienceLevelId = watchedValues.experienceLevelId ?? "";
   const selectedScheduleCapacityId = watchedValues.scheduleCapacityId ?? "";
+  const selectedModalityName =
+    baseOptions.modalities.find(
+      (modality) => modality.id === selectedModalityId,
+    )?.name ?? null;
   const selectedSubmodalities = useMemo(
     () =>
       baseOptions.submodalities.filter(
@@ -112,7 +116,20 @@ export function useCreateChoreographyDialog({
       return;
     }
 
-    const nextResolution = calculationData.result.resolution;
+    const categoryResolution = resolveRegistrationCategory({
+      resolution: calculationData.result.resolution,
+      modalityName: selectedModalityName,
+    });
+
+    if (categoryResolution.refused) {
+      setResolution(null);
+      toast.error(categoryResolution.message, {
+        id: CREATE_CHOREOGRAPHY_RESOLUTION_ERROR_TOAST_ID,
+      });
+      return;
+    }
+
+    const nextResolution = categoryResolution.resolution;
     const currentExperienceLevelId = form.getValues("experienceLevelId") ?? "";
     const currentScheduleCapacityId =
       form.getValues("scheduleCapacityId") ?? "";
@@ -161,7 +178,7 @@ export function useCreateChoreographyDialog({
         resolution: nextResolution,
       }),
     );
-  }, [calculationData, canChooseSubmodality, form]);
+  }, [calculationData, canChooseSubmodality, form, selectedModalityName]);
 
   useEffect(() => {
     if (!hasSubmittedChoreographyRef.current) {

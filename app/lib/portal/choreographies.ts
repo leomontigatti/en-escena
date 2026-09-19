@@ -22,7 +22,7 @@ export type PortalChoreographyListItem = {
   modalityName: string;
   submodalityName: string | null;
   groupType: ChoreographyGroupType;
-  categoryName: string | null;
+  categoryName: string;
   experienceLevelName: string | null;
   musicStorageKey?: string | null;
   operationalStatus: ChoreographyOperationalStatus;

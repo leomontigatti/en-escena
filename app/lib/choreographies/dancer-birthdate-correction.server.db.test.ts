@@ -15,7 +15,10 @@ import {
   schedules,
   dancers,
 } from "@/db/schema";
-import { recalculateLinkedChoreographiesForDancerBirthDateCorrection } from "@/lib/choreographies/dancer-birthdate-correction.server";
+import {
+  buildDancerBirthDateCorrectionRefusalMessage,
+  recalculateLinkedChoreographiesForDancerBirthDateCorrection,
+} from "@/lib/choreographies/dancer-birthdate-correction.server";
 import { createAcademySession } from "@/lib/choreographies/registration-test-fixtures.server.db";
 import {
   experienceLevelLabels,
@@ -46,11 +49,6 @@ describe.sequential("dancer birth date choreography correction", () => {
       categoryRequiresLevelOnOlderRange: false,
       eventName: "Limpia nivel",
     });
-    const noCategoryCatalog = await createCorrectionCatalog({
-      categoryRequiresLevelOnOlderRange: false,
-      eventName: "Sin categoría",
-      includeOlderCategory: false,
-    });
     const presentedCatalog = await createCorrectionCatalog({
       categoryRequiresLevelOnOlderRange: true,
       eventName: "Presentada",
@@ -76,16 +74,6 @@ describe.sequential("dancer birth date choreography correction", () => {
       name: "Limpia",
       scheduleCapacityId: clearCatalog.scheduleCapacity.id,
     });
-    const noCategoryChoreography = await createLinkedChoreography({
-      academyId: academy.academyId,
-      categoryId: noCategoryCatalog.youngerCategory.id,
-      eventId: noCategoryCatalog.event.id,
-      experienceLevelId: noCategoryCatalog.level.id,
-      hasPresentation: false,
-      modalityId: noCategoryCatalog.modality.id,
-      name: "Sin categoría",
-      scheduleCapacityId: noCategoryCatalog.scheduleCapacity.id,
-    });
     const presentedChoreography = await createLinkedChoreography({
       academyId: academy.academyId,
       categoryId: presentedCatalog.youngerCategory.id,
@@ -109,11 +97,6 @@ describe.sequential("dancer birth date choreography correction", () => {
         ageAtEventStart: 12,
       },
       {
-        choreographyId: noCategoryChoreography.id,
-        dancerId: correctedDancer.id,
-        ageAtEventStart: 12,
-      },
-      {
         choreographyId: presentedChoreography.id,
         dancerId: correctedDancer.id,
         ageAtEventStart: 12,
@@ -125,10 +108,12 @@ describe.sequential("dancer birth date choreography correction", () => {
       .set({ birthDate: "2011-05-01" })
       .where(eq(dancers.id, correctedDancer.id));
 
-    await recalculateLinkedChoreographiesForDancerBirthDateCorrection({
-      dancerId: correctedDancer.id,
-    });
+    const result =
+      await recalculateLinkedChoreographiesForDancerBirthDateCorrection({
+        dancerId: correctedDancer.id,
+      });
 
+    expect(result).toEqual({ ok: true });
     await expectChoreographyState(preserveChoreography.id, {
       categoryId: preserveCatalog.olderCategory?.id ?? null,
       categoryCalculationMode: "oldest",
@@ -137,12 +122,6 @@ describe.sequential("dancer birth date choreography correction", () => {
     });
     await expectChoreographyState(clearChoreography.id, {
       categoryId: clearCatalog.olderCategory?.id ?? null,
-      categoryCalculationMode: "oldest",
-      categoryAgeBasis: 15,
-      experienceLevelId: null,
-    });
-    await expectChoreographyState(noCategoryChoreography.id, {
-      categoryId: null,
       categoryCalculationMode: "oldest",
       categoryAgeBasis: 15,
       experienceLevelId: null,
@@ -156,26 +135,18 @@ describe.sequential("dancer birth date choreography correction", () => {
 
     await expectDancerAgeLink(preserveChoreography.id, correctedDancer.id, 15);
     await expectDancerAgeLink(clearChoreography.id, correctedDancer.id, 15);
-    await expectDancerAgeLink(
-      noCategoryChoreography.id,
-      correctedDancer.id,
-      15,
-    );
     await expectDancerAgeLink(presentedChoreography.id, correctedDancer.id, 12);
   });
 
-  test("moves a solo out of the uncategorised state once an age of zero is corrected", async () => {
+  test("refuses a correction that would leave the solo without a category", async () => {
     const academy = await createAcademySession({
       academyName: "Academia Cero",
       email: "admin.birthdate.zero@example.com",
     });
-    // The defect the guard now blocks: a birth date in the event's own year
-    // makes the dancer 0, which no ladder admits, so the solo was registered
-    // with no category at all.
     const correctedDancer = await createDancer(academy.academyId, {
       firstName: "Cero",
       lastName: "Corrección",
-      birthDate: "2026-04-10",
+      birthDate: "2016-04-10",
     });
     const catalog = await createCorrectionCatalog({
       categoryRequiresLevelOnOlderRange: false,
@@ -183,31 +154,51 @@ describe.sequential("dancer birth date choreography correction", () => {
     });
     const choreography = await createLinkedChoreography({
       academyId: academy.academyId,
-      categoryId: null,
-      categoryAgeBasis: 0,
+      categoryId: catalog.youngerCategory.id,
+      categoryAgeBasis: 10,
       eventId: catalog.event.id,
       experienceLevelId: null,
       hasPresentation: false,
       modalityId: catalog.modality.id,
-      name: "Sin categoría por edad cero",
+      name: "Solo sin repuesto",
       scheduleCapacityId: catalog.scheduleCapacity.id,
     });
 
     await db.insert(choreographyDancers).values({
       choreographyId: choreography.id,
       dancerId: correctedDancer.id,
-      ageAtEventStart: 0,
+      ageAtEventStart: 10,
     });
 
+    // The defect the refusal now blocks: a birth date in the event's own year
+    // makes the dancer 0, which no ladder admits.
     await db
       .update(dancers)
-      .set({ birthDate: "2016-04-10" })
+      .set({ birthDate: "2026-04-10" })
       .where(eq(dancers.id, correctedDancer.id));
 
-    await recalculateLinkedChoreographiesForDancerBirthDateCorrection({
-      dancerId: correctedDancer.id,
-    });
+    const result =
+      await recalculateLinkedChoreographiesForDancerBirthDateCorrection({
+        dancerId: correctedDancer.id,
+      });
 
+    expect(result).toEqual({
+      ok: false,
+      code: "no-compatible-category",
+      choreographiesWithoutCategory: [
+        {
+          choreographyNumber: choreography.choreographyNumber,
+          name: "Solo sin repuesto",
+        },
+      ],
+    });
+    expect(
+      buildDancerBirthDateCorrectionRefusalMessage(
+        result.ok ? [] : result.choreographiesWithoutCategory,
+      ),
+    ).toBe(
+      `Con esta fecha de nacimiento, la coreografía n.º ${choreography.choreographyNumber} «Solo sin repuesto» queda sin categoría.`,
+    );
     await expectChoreographyState(choreography.id, {
       categoryId: catalog.youngerCategory.id,
       categoryCalculationMode: "oldest",
@@ -215,6 +206,78 @@ describe.sequential("dancer birth date choreography correction", () => {
       experienceLevelId: null,
     });
     await expectDancerAgeLink(choreography.id, correctedDancer.id, 10);
+  });
+
+  test("names every refused choreography in the plural and writes none of them", async () => {
+    const academy = await createAcademySession({
+      academyName: "Academia Plural",
+      email: "admin.birthdate.plural@example.com",
+    });
+    const correctedDancer = await createDancer(academy.academyId, {
+      firstName: "Plural",
+      lastName: "Corrección",
+      birthDate: "2016-04-10",
+    });
+    const catalog = await createCorrectionCatalog({
+      categoryRequiresLevelOnOlderRange: false,
+      eventName: "Plural",
+    });
+    const firstChoreography = await createLinkedChoreography({
+      academyId: academy.academyId,
+      categoryId: catalog.youngerCategory.id,
+      categoryAgeBasis: 10,
+      eventId: catalog.event.id,
+      experienceLevelId: null,
+      hasPresentation: false,
+      modalityId: catalog.modality.id,
+      name: "Primera",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+    });
+    const secondChoreography = await createLinkedChoreography({
+      academyId: academy.academyId,
+      categoryId: catalog.youngerCategory.id,
+      categoryAgeBasis: 10,
+      eventId: catalog.event.id,
+      experienceLevelId: null,
+      hasPresentation: false,
+      modalityId: catalog.modality.id,
+      name: "Segunda",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+    });
+
+    await db.insert(choreographyDancers).values([
+      {
+        choreographyId: firstChoreography.id,
+        dancerId: correctedDancer.id,
+        ageAtEventStart: 10,
+      },
+      {
+        choreographyId: secondChoreography.id,
+        dancerId: correctedDancer.id,
+        ageAtEventStart: 10,
+      },
+    ]);
+
+    await db
+      .update(dancers)
+      .set({ birthDate: "2026-04-10" })
+      .where(eq(dancers.id, correctedDancer.id));
+
+    const result =
+      await recalculateLinkedChoreographiesForDancerBirthDateCorrection({
+        dancerId: correctedDancer.id,
+      });
+
+    expect(result.ok).toBe(false);
+    expect(
+      buildDancerBirthDateCorrectionRefusalMessage(
+        result.ok ? [] : result.choreographiesWithoutCategory,
+      ),
+    ).toBe(
+      `Con esta fecha de nacimiento, las coreografías n.º ${firstChoreography.choreographyNumber} «Primera» y n.º ${secondChoreography.choreographyNumber} «Segunda» quedan sin categoría.`,
+    );
+    await expectDancerAgeLink(firstChoreography.id, correctedDancer.id, 10);
+    await expectDancerAgeLink(secondChoreography.id, correctedDancer.id, 10);
   });
 
   test("re-places a group whose average crosses a band boundary", async () => {
@@ -439,7 +502,7 @@ async function createLinkedChoreography(input: {
   eventId: string;
   name: string;
   modalityId: string;
-  categoryId: string | null;
+  categoryId: string;
   experienceLevelId: string | null;
   scheduleCapacityId: string;
   hasPresentation: boolean;

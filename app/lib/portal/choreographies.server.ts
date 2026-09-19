@@ -20,7 +20,7 @@ import type { PortalChoreographyListItem } from "@/lib/portal/choreographies";
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
 
 export type PortalChoreographyDetail = PortalChoreographyListItem & {
-  categoryId: string | null;
+  categoryId: string;
   experienceLevelId: string | null;
   hasPresentation?: boolean;
   /**
@@ -53,13 +53,13 @@ type ChoreographyRow = {
   choreographyNumber: number;
   name: string;
   groupType: "solo" | "duo" | "trio" | "grupal";
-  categoryId: string | null;
+  categoryId: string;
   experienceLevelId: string | null;
   musicStorageKey: string | null;
   modalityName: string;
   submodalityName: string | null;
-  categoryName: string | null;
-  categoryExperienceLevels: string[] | null;
+  categoryName: string;
+  categoryExperienceLevels: string[];
 };
 
 type ChoreographyDetailRow = ChoreographyRow & {
@@ -92,7 +92,7 @@ export async function listChoreographiesForAcademyEvent(
     .from(choreographies)
     .innerJoin(modalities, eq(choreographies.modalityId, modalities.id))
     .leftJoin(submodalities, eq(choreographies.submodalityId, submodalities.id))
-    .leftJoin(categories, eq(choreographies.categoryId, categories.id))
+    .innerJoin(categories, eq(choreographies.categoryId, categories.id))
     .where(
       and(
         eq(choreographies.academyId, academyId),
@@ -132,7 +132,7 @@ export async function findChoreographyForAcademyEvent(
     .from(choreographies)
     .innerJoin(modalities, eq(choreographies.modalityId, modalities.id))
     .leftJoin(submodalities, eq(choreographies.submodalityId, submodalities.id))
-    .leftJoin(categories, eq(choreographies.categoryId, categories.id))
+    .innerJoin(categories, eq(choreographies.categoryId, categories.id))
     .leftJoin(
       scheduleCapacities,
       eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
@@ -200,9 +200,7 @@ export async function findChoreographyForAcademyEvent(
     experienceLevelId: row.experienceLevelId,
     hasPresentation: row.hasPresentation,
     musicStorageKey: row.musicStorageKey,
-    requiresExperienceLevel:
-      row.categoryExperienceLevels !== null &&
-      row.categoryExperienceLevels.length > 0,
+    requiresExperienceLevel: row.categoryExperienceLevels.length > 0,
     scheduleCapacityId:
       row.scheduleCapacityId ??
       getGlobalScheduleCapacityOptionId(row.scheduleId),
@@ -270,13 +268,10 @@ async function hydrateChoreographyRows(
     experienceLevelName: formatExperienceLevelName(row.experienceLevelId),
     musicStorageKey: row.musicStorageKey,
     operationalStatus: deriveChoreographyOperationalStatus({
-      categoryId: row.categoryId,
       experienceLevelId: row.experienceLevelId,
       hasMusic: row.musicStorageKey !== null,
       hasProfessors: choreographyIdsWithProfessors.has(row.id),
-      requiresExperienceLevel:
-        row.categoryExperienceLevels !== null &&
-        row.categoryExperienceLevels.length > 0,
+      requiresExperienceLevel: row.categoryExperienceLevels.length > 0,
     }),
   }));
 }

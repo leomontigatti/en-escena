@@ -2,6 +2,7 @@ import { asc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { choreographies, modalities } from "@/db/schema";
+import { noCompatibleCategoryModalityMessage } from "@/lib/choreographies/choreography-messages";
 import {
   validateExperienceLevelSelection,
   validateSubmodalitySelection,
@@ -259,8 +260,16 @@ export async function updateChoreographyModality(input: {
     modalityId: selectedModality.id,
   });
   const category = context.classification.category;
-  const resolvedCategoryId =
-    category.status === "resolved" ? category.id : null;
+
+  // A choreography always has a category, so a destination modality that
+  // resolves none is a dead end and not an incomplete save: nothing is written
+  // and the administrator is sent back to the select. The client refuses too,
+  // but the resolution it read is older than this write by construction.
+  if (category.status !== "resolved") {
+    return { message: noCompatibleCategoryModalityMessage, status: "error" };
+  }
+
+  const resolvedCategoryId = category.id;
 
   if (
     resolvedCategoryId !==

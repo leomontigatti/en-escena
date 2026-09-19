@@ -172,14 +172,14 @@ function ChoreographyTable({
         <DataTableTruncatedText
           className="text-muted-foreground"
           value={formatPrimaryAndSecondaryValue(
-            choreography.categoryName ?? "Sin asignar",
+            choreography.categoryName,
             formatChoreographyGroupTypeLabel(choreography.groupType),
           )}
         />
       ),
       filterValue: (choreography) =>
         [
-          choreography.categoryName ?? "Sin asignar",
+          choreography.categoryName,
           formatChoreographyGroupTypeLabel(choreography.groupType),
         ].join(" "),
     },
@@ -195,7 +195,7 @@ function ChoreographyTable({
       filterValues: (choreography) => [
         choreography.operationalStatus.code,
         choreography.modalityName,
-        choreography.categoryName ?? "pending-category",
+        choreography.categoryName,
         choreography.groupType,
       ],
     },
@@ -251,8 +251,8 @@ function buildChoreographyFacetedFilters(
       label: "Categoría",
       options: getUniqueSortedOptions(
         choreographies.map((choreography) => ({
-          label: choreography.categoryName ?? "Sin asignar",
-          value: choreography.categoryName ?? "pending-category",
+          label: choreography.categoryName,
+          value: choreography.categoryName,
         })),
       ),
     },

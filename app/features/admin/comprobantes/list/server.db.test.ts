@@ -100,6 +100,7 @@ async function seedChoreography(input: {
     academyId: academy.id,
     eventId: input.eventId,
     modalityId: input.catalog.modality.id,
+    categoryId: input.catalog.categoryWithoutLevel.id,
     scheduleCapacityId: input.catalog.scheduleCapacity.id,
     name: input.name,
   });

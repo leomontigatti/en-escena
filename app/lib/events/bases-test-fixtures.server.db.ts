@@ -13,6 +13,7 @@ import {
   type ExperienceLevel,
 } from "@/lib/events/experience-levels";
 import type { GroupType } from "@/lib/events/group-types";
+import { createCategory } from "@/lib/categories/repository.server";
 import { createModality } from "@/lib/modalities/repository.server";
 import { createPrice } from "@/lib/prices/repository.server";
 import {
@@ -216,12 +217,19 @@ export async function createEventChoreographyFixture({
       capacity: 10,
     }),
   );
+  const category = await createFixtureCategory({
+    eventId,
+    modalityId: modality.id,
+    groupType,
+    name: `${name} Cat`,
+  });
   const choreography = await insertChoreography({
     eventId,
     academyId,
     name,
     modalityId: modality.id,
     groupType,
+    categoryId: category.id,
     scheduleCapacityId: entry.id,
   });
 
@@ -261,6 +269,29 @@ type ChoreographyOnBasesFixtureInput = {
 };
 
 /**
+ * The category a fixture falls back to when the caller names none: it admits
+ * every age, so the row it is attached to never depends on the ages of its
+ * dancers.
+ */
+async function createFixtureCategory(input: {
+  eventId: string;
+  modalityId: string;
+  groupType: GroupType;
+  name: string;
+}) {
+  return await expectCreated(
+    createCategory(input.eventId, {
+      name: input.name,
+      minAge: 1,
+      maxAge: 100,
+      groupTypes: [input.groupType],
+      modalityIds: [input.modalityId],
+      experienceLevels: [],
+    }),
+  );
+}
+
+/**
  * A choreography sitting on the bases the caller names, with the inscription
  * state the bases guards read: none at all, one active, or one withdrawn.
  * Unlike `createEventChoreographyFixture` it invents no modality and no
@@ -285,7 +316,19 @@ export async function createChoreographyOnBases({
     name,
     modalityId,
     groupType,
-    categoryId,
+    // A choreography always has a category, so a caller that does not name one
+    // gets a category of its own: the guards under test count the categories
+    // the caller built, and this one is not among them.
+    categoryId:
+      categoryId ??
+      (
+        await createFixtureCategory({
+          eventId,
+          modalityId,
+          groupType,
+          name: `${name} Cat`,
+        })
+      ).id,
     experienceLevelId,
     scheduleId,
     scheduleCapacityId,

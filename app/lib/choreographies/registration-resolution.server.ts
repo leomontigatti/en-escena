@@ -4,8 +4,10 @@ import { db } from "@/db";
 import { dancers, events } from "@/db/schema";
 import { BUSINESS_TIME_ZONE } from "@/lib/shared/business-time-zone";
 import {
+  getOverageDancersMessage,
   getUnderageDancersMessage,
   isOldEnoughAtEventStart,
+  isYoungEnoughAtEventStart,
 } from "@/lib/dancers/birth-date";
 import { invalidExperienceLevelMessage } from "@/lib/choreographies/choreography-messages";
 import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
@@ -161,7 +163,9 @@ export type ChoreographyRegistrationOperationFailureCode =
   | "experience-level-required"
   | "invalid-experience-level"
   | "invalid-dancers"
-  | "dancer-under-minimum-age";
+  | "dancer-under-minimum-age"
+  | "dancer-over-maximum-age"
+  | "no-compatible-category";
 
 export type OperationFailure = {
   ok: false;
@@ -370,6 +374,21 @@ async function resolveRegistrationFromResolvedDancers(input: {
       "dancer-under-minimum-age",
       getUnderageDancersMessage(
         underageDancers.map(
+          (dancer) => `${dancer.firstName} ${dancer.lastName}`,
+        ),
+      ),
+    );
+  }
+
+  const overageDancers = input.dancers.filter(
+    (dancer) => !isYoungEnoughAtEventStart(dancer.ageAtEventStart),
+  );
+
+  if (overageDancers.length > 0) {
+    return failure(
+      "dancer-over-maximum-age",
+      getOverageDancersMessage(
+        overageDancers.map(
           (dancer) => `${dancer.firstName} ${dancer.lastName}`,
         ),
       ),

@@ -57,7 +57,7 @@ export function DancerInscriptionsTable({
               </TableCell>
               <TableCell className="px-3 text-muted-foreground">
                 {formatPrimaryAndSecondaryValue(
-                  inscription.categoryName ?? "Sin asignar",
+                  inscription.categoryName,
                   formatGroupTypeLabel(inscription.groupType),
                 )}
               </TableCell>

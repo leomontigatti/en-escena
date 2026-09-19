@@ -49,7 +49,7 @@ describe("ChoreographiesListRouteView", () => {
         },
         {
           academyName: "Academia Sur",
-          categoryName: null,
+          categoryName: "Juvenil",
           choreographyNumber: 2,
           groupType: "solo",
           id: "choreo_2",
@@ -89,7 +89,7 @@ describe("ChoreographiesListRouteView", () => {
     expect(markup).toContain("Jazz · Lyrical");
     expect(markup).toContain("Contemporáneo");
     expect(markup).toContain("Juvenil · Dúo");
-    expect(markup).toContain("Sin asignar · Solo");
+    expect(markup).toContain("Juvenil · Solo");
     expect(markup).toContain("Completa");
     expect(markup).toContain("Incompleta");
     expect(markup).toContain('data-variant="success"');
@@ -129,7 +129,7 @@ describe("ChoreographiesListRouteView", () => {
       facets: {
         categories: [
           { label: "Adulto", value: "categoria_1" },
-          { label: "Sin asignar", value: "sin-asignar" },
+          { label: "Juvenil", value: "categoria_2" },
         ],
         modalities: [{ label: "Contemporáneo", value: "modalidad_1" }],
         scheduleDates: [
