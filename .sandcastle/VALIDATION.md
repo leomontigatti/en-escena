@@ -45,7 +45,7 @@ The scripts that exist and what owns what:
 | `pnpm check:migration-safety`| squawk over migrations the branch adds: drops and renames block, lock hazards warn |
 | `pnpm check:dependency-audit`| High and critical advisories the branch introduces, against `master` |
 | `pnpm check:comment-language`| Spanish prose in comments, test names, thrown error messages, docs and YAML |
-| `pnpm check:pr-title "<title>"`| A PR title is a conventional commit with an English subject — CI only, from `pr-title.yml` |
+| `pnpm check:pr-title "<title>"`| A PR title is a conventional commit with an English subject — CI only, from `pr-title.yml`, a required context on `master` |
 | `pnpm check:fallow`         | Fallow's `new-only` gate on what the branch adds           |
 | zizmor (CI only)            | Actions security posture and pin freshness — `.github/workflows/**` |
 | actionlint (CI only)        | Workflow syntax and expressions — `.github/workflows/**` |

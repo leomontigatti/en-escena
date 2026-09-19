@@ -153,7 +153,9 @@ checkout's `master` current. It only runs when that checkout is clean and on
 ## Continuous integration
 
 `.github/workflows/ci.yml` runs on every PR to `master`, as four required
-contexts: `checks`, `db-gate`, `docs-gate` and `actions-gate`. Why the gates in
+contexts: `checks`, `db-gate`, `docs-gate` and `actions-gate`. `pr-title`, from
+`pr-title.yml` and described below, is the fifth required context on `master`.
+Why the gates in
 this section and the next exist at all, and what was considered and rejected, is
 [ADR-0015](../adr/0015-deterministic-guardrails.md). The rationale for each job
 lives in that file's comments; what follows is the shape a reader needs before
@@ -191,8 +193,8 @@ the `edited` event — renaming a title has to re-run the gate — and `edited` 
 on the body too, so putting it in `ci.yml` would re-run build and the four
 Postgres shards every time an AFK runner edits a PR description. The title
 reaches the script through `env: PR_TITLE`, never interpolated into a `run:`
-block. Like the other four it is meant to be a required context, which is a repo
-setting outside the repo.
+block. Like the other four it is a required context on `master`, which is a repo
+setting outside the repo: this file does not add the requirement.
 
 ### Waiting on AFK runs and CI from a session
 
@@ -200,7 +202,8 @@ A session that drives AFK work (a reviewed PR to land, a chain of issues) never
 polls by hand. `pnpm afk:watch pr <n> --until <review|implement|checks|merged>`
 (or `issue <n> --until <pr|closed|label:<name>>`) blocks until the event happens,
 prints one JSON line and exits; run it as a background command and act when it
-returns. It reads labels, reviews, threads and the four required contexts, and
+returns. It reads labels, reviews, threads and the five required contexts
+(`checks`, `db-gate`, `docs-gate`, `actions-gate` and `pr-title`), and
 ignores workflow runs on purpose: every `agent:implement` label also fires
 `agent-implement-prd.yml`, which skips when the issue has no sub-issues, and a
 watcher on runs would wake on that noise. The `review-triage` skill is its
