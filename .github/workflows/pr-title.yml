@@ -14,9 +14,9 @@
 # for it, but every PR here is opened by a human or by an AFK runner under a
 # user token, and a skip nobody needs is a hole nobody checks.
 #
-# Branch protection: `pr-title` is meant to be a required context on `master`,
-# which is a repo setting outside this repo — adding this file does not add the
-# requirement (same as the four in `ci.yml`).
+# Branch protection: `pr-title` is a required context on `master`, the fifth
+# alongside the four from `ci.yml`. That is a repo setting outside this repo —
+# this file does not add the requirement, it only produces the check.
 name: PR title
 
 on:
