@@ -15,7 +15,7 @@ You decide and you write comments. You never edit code — `agent:implement` doe
 ## The inbox
 
 **Unresolved review threads are the implementer's inbox.** Implement PR builds its prompt
-from exactly three surfaces (`.sandcastle/agent-review/context.mts`):
+from three surfaces (`.sandcastle/agent-review/context.mts`):
 
 - **unresolved threads** — the whole thread, each comment tagged with its author. Resolved
   threads are filtered out before the prompt exists, so a resolved thread is invisible: the

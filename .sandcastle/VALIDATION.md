@@ -41,6 +41,7 @@ The scripts that exist and what owns what:
 | `pnpm check:banned-imports` | Retired dependencies stay retired                          |
 | `pnpm check:file-tokens`    | Staged `app` modules under the token ceiling               |
 | `pnpm check:migration-order`| New migrations postdate `master`                           |
+| `pnpm check:migration-immutability`| Migrations already on `master` are never edited     |
 | `pnpm check:migration-safety`| squawk over migrations the branch adds: drops and renames block, lock hazards warn |
 | `pnpm check:dependency-audit`| High and critical advisories the branch introduces, against `master` |
 | `pnpm check:comment-language`| Spanish prose in comments, test names, thrown error messages, docs and YAML |
@@ -51,6 +52,9 @@ The scripts that exist and what owns what:
 | gitleaks (pre-commit + CI)  | Secrets in commits — `.gitleaks.toml` rules over the staged diff, then over `origin/master..HEAD` |
 
 CI runs the `check:*` scripts and `pnpm build` for you. You do not need to.
+
+Why the table has this shape — one owner per concern, gates scoped to what a
+PR adds — is `docs/adr/0015-deterministic-guardrails.md`.
 
 Three of those rows have an automatic enforcement point inside the session, and
 they fire in this runner too (#982). `PostToolUse` on `Write|Edit` formats every
