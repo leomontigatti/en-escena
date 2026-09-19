@@ -15,7 +15,7 @@ You decide and you write comments. You never edit code — `agent:implement` doe
 ## The inbox
 
 **Unresolved review threads are the implementer's inbox.** Implement PR builds its prompt
-from exactly three surfaces (`.sandcastle/agent-review/context.mts`):
+from these three surfaces and no others (`.sandcastle/agent-review/context.mts`):
 
 - **unresolved threads** — the whole thread, each comment tagged with its author. Resolved
   threads are filtered out before the prompt exists, so a resolved thread is invisible: the
@@ -132,7 +132,7 @@ stop after step 3 and report.
    gh pr merge <PR> --squash --auto --delete-branch
    ```
 
-   GitHub merges when the four contexts are green and the branch is up to date; a branch that
+   GitHub merges when the required contexts are green and the branch is up to date; a branch that
    falls behind gets `agent:update-branch` from the push-to-master trigger (#1020). Until
    #1022, the path is manual and the session waits:
 

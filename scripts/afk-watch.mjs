@@ -17,7 +17,7 @@ import { spawnSync } from "node:child_process";
  *
  * Options: --interval <seconds> (default 150), --timeout <seconds> (default
  * 10800, 0 disables), --contexts <a,b,c> (the required CI contexts; default is
- * the four on `master`).
+ * the five required on `master`: the four from `ci.yml` plus `pr-title`).
  *
  * Exit codes: 0 event met, 2 timeout, 1 usage or `gh` failure. On every exit
  * the last line on stdout is a JSON object with `event` and the snapshot.
@@ -28,6 +28,7 @@ export const REQUIRED_CONTEXTS = [
   "db-gate",
   "docs-gate",
   "actions-gate",
+  "pr-title",
 ];
 const RUN_LABELS = ["agent:in-progress", "agent:review", "agent:implement"];
 const PENDING_CHECK_STATES = ["missing", "queued", "in_progress", "pending"];

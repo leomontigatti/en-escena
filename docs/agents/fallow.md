@@ -7,7 +7,7 @@ runs in the pre-commit hook and in the `checks` job of CI. This reverses the
 earlier decision that Fallow was audit-only: an audit nobody was obliged to run
 kept filing its findings as issues after the merge — #757, #758, #765, #766 are
 all findings a gate would have raised while the branch was still open. The audit
-takes about a second and a half on a normal changeset, which is noise next to the
+takes roughly a second and a half on a normal changeset, which is noise next to the
 `pnpm typecheck` already in the hook.
 
 What the gate costs is worth knowing before it fires on you: the `new-only`
