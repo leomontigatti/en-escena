@@ -182,6 +182,16 @@ database with another shard; the serial-within-a-runner isolation model of
 repo setting, not part of this file: renaming a job does not update branch
 protection, which is why the aggregator is named exactly `db-gate`.
 
+`.github/workflows/pr-title.yml` is a fifth gate, in its own file (#1007): one
+job, `pr-title`, running `pnpm check:pr-title` over
+`github.event.pull_request.title`. It is separate from `ci.yml` because it needs
+the `edited` event — renaming a title has to re-run the gate — and `edited` fires
+on the body too, so putting it in `ci.yml` would re-run build and the four
+Postgres shards every time an AFK runner edits a PR description. The title
+reaches the script through `env: PR_TITLE`, never interpolated into a `run:`
+block. Like the other four it is meant to be a required context, which is a repo
+setting outside the repo.
+
 ### Waiting on AFK runs and CI from a session
 
 A session that drives AFK work (a reviewed PR to land, a chain of issues) never
@@ -356,6 +366,15 @@ Hook guidance:
   of `.sandcastle/CODING_STANDARDS.md`.
 - `pnpm check:fallow` is the Fallow audit on its `new-only` gate; see
   [fallow.md](fallow.md) for what it gates and what it costs.
+- `pnpm check:pr-title "<title>"` is the same language rule applied to a PR
+  title, plus a conventional-commit prefix (#1007). PRs are squash-merged, so
+  the title lands on `master` as the commit subject. The prefix is one of the
+  ten types the history uses, an optional `(scope)`, an optional `!`, then `: `
+  and the subject; the subject — not the scope, which is free-form and holds
+  Spanish domain names like `feat(finanzas)` — goes through the
+  `check:comment-language` detector, glossary included. It runs from
+  `pr-title.yml` rather than from `ci.yml`; locally it takes the title as its
+  first argument, or reads `PR_TITLE`.
 - `pnpm check:migration-safety` is squawk over the migrations a branch _adds_,
   and reaches the network (`pnpm dlx`, pinned version) — one of the two
   `check:*` scripts that do, with `check:dependency-audit`. A drop or a rename
