@@ -158,8 +158,8 @@ The rationale for each job lives in that file's comments; what follows
 is the shape a reader needs before running anything locally:
 
 - `checks`: `format:check`, `lint`, the `check:*` scripts, the migration
-  drift/order/immutability checks, `typecheck`, `test:unit` and `build`, with no
-  database.
+  drift/order/immutability/safety checks, `typecheck`, `test:unit` and `build`,
+  with no database.
 - `db-gate`: the full `*.db.test.ts` suite against real Postgres 17. The tests
   run in the `db-shard` matrix — four runners, each with its own Postgres
   service container, each running
@@ -356,6 +356,12 @@ Hook guidance:
   of `.sandcastle/CODING_STANDARDS.md`.
 - `pnpm check:fallow` is the Fallow audit on its `new-only` gate; see
   [fallow.md](fallow.md) for what it gates and what it costs.
+- `pnpm check:migration-safety` is squawk over the migrations a branch _adds_,
+  and is the only `check:*` script that reaches the network (`pnpm dlx`, pinned
+  version). A drop or a rename fails the branch, because Coolify keeps the old
+  container serving while the new one migrates; lock hazards only warn. The two
+  tiers and the `-- squawk-ignore` exception are in
+  [../db/migrations.md](../db/migrations.md).
 - `pnpm check:file-tokens` is a staged-source commit gate, not a required
   validation command after every implementation. Run it before committing
   staged application source, before a PR handoff that depends on staged files,
