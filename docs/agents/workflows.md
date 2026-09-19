@@ -362,6 +362,33 @@ Hook guidance:
   container serving while the new one migrates; lock hazards only warn. The two
   tiers and the `-- squawk-ignore` exception are in
   [../db/migrations.md](../db/migrations.md).
+- `pnpm check:dependency-audit` runs `pnpm audit --prod --audit-level=high`
+  twice — over this branch's tree, and over the base ref's `package.json`,
+  `pnpm-lock.yaml` and `pnpm-workspace.yaml` read with `git show` into a temp
+  directory. Neither run installs anything, so the pair costs a couple of
+  seconds. It fails on the high and critical advisories, keyed by GHSA, that
+  the branch **introduces**; one the base already carries is printed as
+  information and inherited. Auditing the whole tree would instead redden every
+  open PR — AFK branches included — the day a CVE is disclosed against a
+  dependency nobody touched, which is what Dependabot alerts are on for
+  (security update PRs off, and there is deliberately no
+  `.github/dependabot.yml`). Along with `check:migration-safety` it is one of
+  the two `check:*` scripts that reach the network, and a registry failure
+  fails the check rather than passing silently.
+  - **To accept an advisory** — no fix published, and the vulnerable path is
+    unreachable from this app — add its GHSA to `auditConfig.ignoreGhsas` in
+    `pnpm-workspace.yaml`, with a comment giving the reason and when to
+    recheck, in the style of the `nwsapi` override. Both runs read that file,
+    so the entry applies to the base side too. (The key becomes `audit.ignore`
+    once `packageManager` reaches pnpm >= 11.16.0.)
+  - **`minimumReleaseAge: 4320`**, also in `pnpm-workspace.yaml`, makes a
+    published version wait three days before this repo will resolve it — the
+    window most recent npm supply-chain compromises were caught and unpublished
+    in. It is set explicitly so pnpm is strict about it: a version too new
+    fails resolution instead of quietly falling back to an older one. The
+    escape hatch for an urgent patch is a `minimumReleaseAgeExclude` entry for
+    that one package, with a reason and a date to remove it — never a lower
+    `minimumReleaseAge`.
 - `pnpm check:file-tokens` is a staged-source commit gate, not a required
   validation command after every implementation. Run it before committing
   staged application source, before a PR handoff that depends on staged files,
