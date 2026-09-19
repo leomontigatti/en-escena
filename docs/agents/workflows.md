@@ -153,9 +153,11 @@ checkout's `master` current. It only runs when that checkout is clean and on
 ## Continuous integration
 
 `.github/workflows/ci.yml` runs on every PR to `master`, as four required
-contexts: `checks`, `db-gate`, `docs-gate` and `actions-gate`.
-The rationale for each job lives in that file's comments; what follows
-is the shape a reader needs before running anything locally:
+contexts: `checks`, `db-gate`, `docs-gate` and `actions-gate`. Why the gates in
+this section and the next exist at all, and what was considered and rejected, is
+[ADR-0015](../adr/0015-deterministic-guardrails.md). The rationale for each job
+lives in that file's comments; what follows is the shape a reader needs before
+running anything locally:
 
 - `checks`: `format:check`, `lint`, the `check:*` scripts, the migration
   drift/order/immutability/safety checks, `typecheck`, `test:unit` and `build`,
@@ -269,19 +271,27 @@ difference.
 **It is deliberately not a style checker**, and rules must not be added to it
 casually. The scope rule is that every concern already has exactly one owner:
 
-| Concern                                                                                                                                                                                                                    | Owner                                                       |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| Formatting                                                                                                                                                                                                                 | Prettier (`pnpm format`)                                    |
-| Types, unused locals/parameters, unused labels, unreachable code, implicit returns, switch fallthrough, missing `override`, unresolved side-effect imports (not asset globs such as `*.css`, which `vite/client` declares) | `tsc` (`pnpm typecheck`; the flags live in `tsconfig.json`) |
-| Repo conventions                                                                                                                                                                                                           | the `check:*` scripts                                       |
-| Hook mistakes, import cycles, un-awaited promises                                                                                                                                                                          | `pnpm lint`                                                 |
+| Concern                                                                                                                                                                                                                    | Owner                                                                           |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Formatting                                                                                                                                                                                                                 | Prettier (`pnpm format`)                                                        |
+| Types, unused locals/parameters, unused labels, unreachable code, implicit returns, switch fallthrough, missing `override`, unresolved side-effect imports (not asset globs such as `*.css`, which `vite/client` declares) | `tsc` (`pnpm typecheck`; the flags live in `tsconfig.json`)                     |
+| Hook mistakes, import cycles, un-awaited promises                                                                                                                                                                          | `pnpm lint`                                                                     |
+| Repo conventions — doc map, repo styles, banned imports, file tokens, comment language, migration order and immutability, Fallow                                                                                           | the `check:*` scripts                                                           |
+| Destructive or lock-hazardous DDL in migrations the branch adds                                                                                                                                                            | squawk (`pnpm check:migration-safety`)                                          |
+| Secrets in commits                                                                                                                                                                                                         | gitleaks (`.husky/pre-commit` + the `checks` job), under GitHub push protection |
+| High and critical advisories the branch introduces                                                                                                                                                                         | `pnpm audit` (`pnpm check:dependency-audit`)                                    |
+| PR title — conventional-commit prefix, English subject                                                                                                                                                                     | `pnpm check:pr-title`, from `pr-title.yml`                                      |
+| Workflow syntax and Actions security posture                                                                                                                                                                               | actionlint and zizmor (`actions-gate`)                                          |
+| Judgement — design, naming, whether a test proves anything                                                                                                                                                                 | the reviewer, once every rule above has already been applied                    |
 
 A rule that duplicates another owner turns the linter into a chore and gets
-ignored, so it does not go in. What justifies the ones that are in is that
-nothing else can see them: a stale closure in `useEffect` type-checks perfectly
-and misbehaves at runtime, TypeScript tolerates import cycles until a module
-reads `undefined` during initialisation, and a promise nothing awaits type-checks
-too while silently dropping whatever it would have rejected with.
+ignored, so it does not go in — the rationale is decision 2 of
+[ADR-0015](../adr/0015-deterministic-guardrails.md). What justifies the ones
+that are in is that nothing else can see them: a stale closure in `useEffect`
+type-checks perfectly and misbehaves at runtime, TypeScript tolerates import
+cycles until a module reads `undefined` during initialisation, and a promise
+nothing awaits type-checks too while silently dropping whatever it would have
+rejected with.
 
 Two options on those promise rules are load-bearing, and neither is legible from
 the rule name:
@@ -330,10 +340,10 @@ Hook guidance:
   environment.
 - The gitleaks line is the secrets gate (#978) and runs first: nothing else
   matters if the commit carries a credential. It reads `.gitleaks.toml` (the
-  upstream ruleset plus three rules for what this repo can leak and the default
+  upstream ruleset plus the rules for what this repo can leak and the default
   set misses — passwords inside connection URLs, Resend `re_` keys and
-  Backblaze `K00` application keys), costs about a second, and **warns instead of
-  failing when the binary is not on `PATH`**:
+  Backblaze `K00` application keys), adds roughly a second to a commit, and
+  **warns instead of failing when the binary is not on `PATH`**:
   `gitleaks not installed, secret scan skipped; CI still runs it`. gitleaks is
   not a pnpm dependency, so that is the normal state of a fresh clone and of the
   AFK runners, which hold only tokens GitHub push protection already blocks.
