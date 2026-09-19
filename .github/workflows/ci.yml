@@ -12,7 +12,9 @@
 #   - docs-gate: mapped code changed => its current-state document must change too (#630).
 #   - actions-gate: zizmor + actionlint over every workflow in this directory (#955).
 # Branch protection on `master` is live: direct pushes are forbidden and `checks`,
-# `db-gate`, `docs-gate` and `actions-gate` are required contexts, with `strict: true`. Required contexts
+# `db-gate`, `docs-gate` and `actions-gate` are required contexts, with `strict: true`.
+# `pr-title`, from `pr-title.yml`, is required on `master` too, so the required list is five
+# names and only four of them come from this file. Required contexts
 # are a repo setting, not a file here, so renaming or adding a job does not update them —
 # that is a human step outside the repo.
 name: CI

@@ -15,6 +15,7 @@ explicit supersedes or conflict notes inside the ADR.
 - Uploaded assets: `0013-exit-supabase.md`, `superseded/0008-use-supabase-storage-for-uploaded-assets.md`
 - Choreography music storage: `superseded/0010-choreography-music-storage-contract.md` (live contract in `docs/operations/infrastructure.md`)
 - Infrastructure and hosting: `0013-exit-supabase.md`
+- Tooling and guardrails: `0015-deterministic-guardrails.md`
 - Finances: `0014-arbitrary-amount-allocation-and-comprobante-amendments.md`, `0009-inscription-based-finances.md`, `superseded/0011-invoicing-concept-portion-and-surfaces.md`, `superseded/0012-arca-unreachable-contingency-and-recovery.md`
 
 ## Decisions
@@ -26,6 +27,7 @@ explicit supersedes or conflict notes inside the ADR.
 - [ADR-0009: Inscription-based finances](./0009-inscription-based-finances.md) - models finances around inscriptions and payment assignments as the single operational source of truth (ratified, not superseded, by ADR-0014).
 - [ADR-0013: Exit Supabase](./0013-exit-supabase.md) - records the rationale for leaving Supabase across auth, storage and database, and points at `docs/operations/infrastructure.md` for what runs today (supersedes ADR-0001, ADR-0005, ADR-0006, ADR-0008, ADR-0010).
 - [ADR-0014: Arbitrary-amount allocation, the live discount, and the comprobante amendment star](./0014-arbitrary-amount-allocation-and-comprobante-amendments.md) - records the rationale of finance map #547 and points at `docs/domain/finances.md` for the model itself (supersedes ADR-0011, ADR-0012; ratifies ADR-0009).
+- [ADR-0015: Deterministic guardrails before judgement](./0015-deterministic-guardrails.md) - records why the gates of map #929 exist, what a lint rule has to justify to enter, and what was rejected; points at `docs/agents/workflows.md` and `.sandcastle/VALIDATION.md` for the setup itself.
 
 ## Superseded
 
