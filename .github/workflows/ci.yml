@@ -118,19 +118,23 @@ jobs:
             git --no-pager diff -- app/db/migrations
             exit 1
           fi
-      # Two rules about migrations, both invisible to `db-gate` because a fresh
-      # database applies anything in folder order; scripts/migrations/journal.mjs
-      # explains both. Ordering (#593): a migration not newer than every one
-      # already on master merges green and then never runs in production, and the
-      # fix is a rebase plus `pnpm db:generate`. Immutability (the deploy #762
-      # broke, restored in #774): Drizzle hashes the whole .sql file, so editing
-      # even a comment in an applied migration makes the container refuse to
-      # start. One step, because both need the same fetch.
-      - name: migration-order and immutability (vs. master)
+      # Three rules about migrations, all invisible to `db-gate` because a fresh
+      # database applies anything in folder order against no running code;
+      # scripts/migrations/journal.mjs explains the first two. Ordering (#593): a
+      # migration not newer than every one already on master merges green and then
+      # never runs in production, and the fix is a rebase plus `pnpm db:generate`.
+      # Immutability (the deploy #762 broke, restored in #774): Drizzle hashes the
+      # whole .sql file, so editing even a comment in an applied migration makes
+      # the container refuse to start. Safety (#998): squawk over the .sql files
+      # the branch *adds* — a drop or a rename breaks the old container, which
+      # Coolify keeps serving while the new one migrates, and lock hazards warn.
+      # One step, because all three need the same fetch.
+      - name: migration-order, immutability and safety (vs. master)
         run: |
           git fetch --no-tags --depth=1 origin master
           pnpm check:migration-order
           pnpm check:migration-immutability
+          pnpm check:migration-safety
       - run: pnpm typecheck
       - run: pnpm test:unit
       - run: pnpm build
