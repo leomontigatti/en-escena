@@ -17,6 +17,7 @@ import {
   haveSameValues,
   isExperienceLevel,
   isGroupType,
+  listReferencingChoreographies,
   modalities,
   replaceCategoryRelations,
   toTitleCase,
@@ -26,6 +27,7 @@ import type {
   CategoryInput,
   EventBaseFailure,
   EventBasesDeleteResult,
+  EventBasesExecutor,
   EventBasesMutationResult,
   ValidCategoryInput,
 } from "@/lib/events/bases-repository/shared.server";
@@ -152,13 +154,18 @@ export async function updateCategory(
     return validation;
   }
 
-  const ageOrLevelEditRefusal = await refuseAgeOrLevelEditUnderChoreographies(
-    category,
-    validation.input,
-  );
+  const ageOrLevelEdit = describeAgeOrLevelEdit(category, validation.input);
 
-  if (ageOrLevelEditRefusal) {
-    return ageOrLevelEditRefusal;
+  if (ageOrLevelEdit) {
+    const refusal = await refuseAgeOrLevelEditUnderChoreographies(
+      db,
+      categoryId,
+      ageOrLevelEdit,
+    );
+
+    if (refusal) {
+      return refusal;
+    }
   }
 
   if (await removesReferencedRegistrationPaths(category, validation.input)) {
@@ -170,7 +177,27 @@ export async function updateCategory(
     };
   }
 
-  const [record] = await db.transaction(async (tx) => {
+  return db.transaction(async (tx): Promise<EventBasesMutationResult> => {
+    // The guard above read the referencing choreographies on the pool, before
+    // this transaction existed, so a registration that committed in between is
+    // invisible to it. Asking again here — on the transaction that writes, and
+    // only for the edits the guard actually refuses over — catches it, the way
+    // the modality correction re-resolves its category against the bases the
+    // write will see. It does not close the other half of the window: a
+    // registration that resolved against the old category and commits after
+    // this read still lands mis-filed, and that residue is detected elsewhere.
+    if (ageOrLevelEdit) {
+      const refusal = await refuseAgeOrLevelEditUnderChoreographies(
+        tx,
+        categoryId,
+        ageOrLevelEdit,
+      );
+
+      if (refusal) {
+        return refusal;
+      }
+    }
+
     const updated = await tx
       .update(categories)
       .set(categoryValues(validation.input))
@@ -179,10 +206,8 @@ export async function updateCategory(
 
     await replaceCategoryRelations(tx, categoryId, validation.input);
 
-    return updated;
+    return created(updated[0]);
   });
-
-  return created(record);
 }
 
 export async function deleteCategory(
@@ -240,6 +265,15 @@ function categoryHasChoreographies(): EventBaseFailure {
 }
 
 /**
+ * Which of the two properties that cannot move under a referencing
+ * choreography an edit moves, named rather than flagged so the refusal reads
+ * the case it words instead of the absence of the other one. `null` when the
+ * edit moves neither, which is the common path and the one that asks nothing
+ * of the database.
+ */
+type AgeOrLevelEdit = "age-range" | "experience-levels";
+
+/**
  * The age range and the experience level set decide what a category means for
  * the choreographies already on it, so neither can move while any choreography
  * references it.
@@ -256,11 +290,16 @@ function categoryHasChoreographies(): EventBaseFailure {
  * purpose, so no edit to a referenced category slips through one guard by
  * asking a narrower question than the other. Renaming, and any edit to a
  * category no choreography references, stay allowed.
+ *
+ * Split in two: this half decides from the row alone which property the edit
+ * moves, and the refusal below asks the database who stands in the way. Only
+ * the second half touches the database, so a caller can ask it more than once
+ * without re-deciding the first.
  */
-async function refuseAgeOrLevelEditUnderChoreographies(
+function describeAgeOrLevelEdit(
   category: typeof categories.$inferSelect,
   input: ValidCategoryInput,
-): Promise<EventBaseFailure | null> {
+): AgeOrLevelEdit | null {
   const changesAgeRange =
     category.minAge !== input.minAge || category.maxAge !== input.maxAge;
   // Both sides are sorted by `experienceLevelOrder` — the stored set because
@@ -272,12 +311,25 @@ async function refuseAgeOrLevelEditUnderChoreographies(
     input.experienceLevels,
   );
 
-  if (!changesAgeRange && !changesExperienceLevels) {
-    return null;
+  if (changesAgeRange) {
+    return "age-range";
   }
 
+  if (changesExperienceLevels) {
+    return "experience-levels";
+  }
+
+  return null;
+}
+
+async function refuseAgeOrLevelEditUnderChoreographies(
+  executor: EventBasesExecutor,
+  categoryId: string,
+  edit: AgeOrLevelEdit,
+): Promise<EventBaseFailure | null> {
   const referencingChoreographies = await listReferencingChoreographies(
-    category.id,
+    executor,
+    categoryId,
   );
 
   if (referencingChoreographies.length === 0) {
@@ -297,26 +349,11 @@ async function refuseAgeOrLevelEditUnderChoreographies(
   return {
     ok: false,
     code: "event-bases-has-dependencies",
-    error: changesAgeRange
-      ? `No se puede cambiar el rango de edad de ${subject}.`
-      : `No se pueden cambiar los niveles de experiencia de ${subject}.`,
+    error:
+      edit === "age-range"
+        ? `No se puede cambiar el rango de edad de ${subject}.`
+        : `No se pueden cambiar los niveles de experiencia de ${subject}.`,
   };
-}
-
-/**
- * The choreographies the edit guard refuses over: the deletion guard's breadth,
- * withdrawn inscriptions included, but reported by number and name rather than
- * as a yes or no. Ordering is left to `formatChoreographyReferences`, which
- * sorts by number as part of wording the refusal.
- */
-async function listReferencingChoreographies(categoryId: string) {
-  return db
-    .select({
-      choreographyNumber: choreographies.choreographyNumber,
-      name: choreographies.name,
-    })
-    .from(choreographies)
-    .where(eq(choreographies.categoryId, categoryId));
 }
 
 /**
