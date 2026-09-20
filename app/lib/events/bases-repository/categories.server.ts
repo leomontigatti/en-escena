@@ -1,6 +1,7 @@
 import { and, asc, eq, inArray, ne, or, sql, type SQL } from "drizzle-orm";
 
 import { formatChoreographyReferences } from "@/lib/choreographies/choreography-messages";
+import { readErrorProperty } from "@/lib/shared/error-properties.server";
 import {
   categories,
   categoryModalities,
@@ -12,7 +13,6 @@ import {
   experienceLevelOrder,
   groupRelationIdsByCategory,
   groupTypeOrder,
-  hasOccupyingChoreographies,
   hasReferencingChoreographies,
   haveSameValues,
   isExperienceLevel,
@@ -29,6 +29,9 @@ import type {
   EventBasesMutationResult,
   ValidCategoryInput,
 } from "@/lib/events/bases-repository/shared.server";
+
+// Postgres's `foreign_key_violation`.
+const FOREIGN_KEY_VIOLATION = "23503";
 
 export async function listCategories(eventId: string) {
   const [eventCategories, eventCategoryModalities] = await Promise.all([
@@ -155,7 +158,7 @@ export async function updateCategory(
     return ageOrLevelEditRefusal;
   }
 
-  if (await removesOccupiedRegistrationPaths(category, validation.input)) {
+  if (await removesReferencedRegistrationPaths(category, validation.input)) {
     return {
       ok: false,
       code: "event-bases-has-dependencies",
@@ -190,26 +193,48 @@ export async function deleteCategory(
     return categoryNotFound();
   }
 
-  // Broader than the update guard on purpose: `choreography.category_id` has no
-  // `on delete` behaviour, so the foreign key refuses the delete under any
-  // choreography, withdrawn inscriptions included. Reporting that as a typed
-  // failure is what this check adds; the refusal itself is the database's.
+  // The same notion of in-use the update guards hold, withdrawn inscriptions
+  // included, and here it is the database's too: `choreography.category_id` has
+  // no `on delete` behaviour, so the foreign key refuses the delete under any
+  // choreography. Reporting that as a typed failure is what this check adds;
+  // the refusal itself is the database's.
   if (
     await hasReferencingChoreographies(
       eq(choreographies.categoryId, categoryId),
     )
   ) {
-    return {
-      ok: false,
-      code: "event-bases-has-dependencies",
-      error:
-        "No se puede borrar la categoría porque tiene coreografías relacionadas.",
-    };
+    return categoryHasChoreographies();
   }
 
-  await db.delete(categories).where(eq(categories.id, categoryId));
+  try {
+    await db.delete(categories).where(eq(categories.id, categoryId));
+  } catch (error) {
+    // The check above runs outside this delete, so a choreography created in
+    // between is invisible to it and the foreign key is what refuses. Both
+    // paths report the same failure: the check is the cheap common case, not
+    // the only way this delete can be turned down. `category_modality`
+    // cascades, so the choreography's key is the only one that can violate.
+    if (!isCategoryReferenceViolation(error)) {
+      throw error;
+    }
+
+    return categoryHasChoreographies();
+  }
 
   return { ok: true };
+}
+
+function isCategoryReferenceViolation(error: unknown) {
+  return readErrorProperty(error, "code") === FOREIGN_KEY_VIOLATION;
+}
+
+function categoryHasChoreographies(): EventBaseFailure {
+  return {
+    ok: false,
+    code: "event-bases-has-dependencies",
+    error:
+      "No se puede borrar la categoría porque tiene coreografías relacionadas.",
+  };
 }
 
 /**
@@ -225,8 +250,10 @@ export async function deleteCategory(
  *
  * The breadth is the deletion guard's, withdrawn inscriptions included: a
  * withdrawn inscription still preserves the category the choreography competed
- * in. Renaming, and any edit to a category no choreography references, stay
- * allowed.
+ * in. `removesReferencedRegistrationPaths` shares that one notion of in-use on
+ * purpose, so no edit to a referenced category slips through one guard by
+ * asking a narrower question than the other. Renaming, and any edit to a
+ * category no choreography references, stay allowed.
  */
 async function refuseAgeOrLevelEditUnderChoreographies(
   category: typeof categories.$inferSelect,
@@ -297,11 +324,17 @@ async function listReferencingChoreographies(categoryId: string) {
  * stops having a price demanded for it while the finance screens keep resolving
  * one.
  *
+ * The breadth is the one the guard above uses, withdrawn inscriptions included,
+ * and the two share that notion of in-use on purpose: a withdrawn inscription
+ * preserves the path the choreography competed on just as it preserves the
+ * category, so dropping the modality link or the group type under it would
+ * leave the row pointing at a category that no longer offers either.
+ *
  * Only removals count, and a rename leaves every path standing. Experience
- * levels are not asked about here: the guard above already refuses every edit
- * to the set under a referencing choreography, which is the broader population.
+ * levels are not asked about here: with the breadths aligned, the guard above
+ * already refuses every edit to the set under the very same choreographies.
  */
-async function removesOccupiedRegistrationPaths(
+async function removesReferencedRegistrationPaths(
   category: typeof categories.$inferSelect,
   input: ValidCategoryInput,
 ) {
@@ -328,7 +361,7 @@ async function removesOccupiedRegistrationPaths(
     return false;
   }
 
-  return hasOccupyingChoreographies(
+  return hasReferencingChoreographies(
     and(eq(choreographies.categoryId, category.id), or(...removedPaths)),
   );
 }
