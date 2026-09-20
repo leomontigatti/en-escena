@@ -153,6 +153,12 @@ export async function activateEvent(
   }
 }
 
+/**
+ * The only path that may change an existing event's structural fields, the
+ * `requiredDepositPercentage` among them: a second writer of that column would
+ * write it past the dependency guard below. #1051 deleted the one that existed;
+ * `deposit-percentage-writers.test.ts` holds the decision.
+ */
 export async function updateEvent(
   eventId: string,
   input: CreateEventInput,
@@ -218,34 +224,6 @@ function paymentInstructionsValues(input: CreateEventInput) {
   return Object.fromEntries(
     paymentInstructionsColumns.map((column) => [column, input[column] ?? null]),
   ) as Record<(typeof paymentInstructionsColumns)[number], string | null>;
-}
-
-export async function updateEventRequiredDepositPercentage(
-  eventId: string,
-  requiredDepositPercentage: number,
-): Promise<EventMutationResult> {
-  if (!isValidRequiredDepositPercentage(requiredDepositPercentage)) {
-    return {
-      ok: false,
-      code: "invalid-event",
-      error: INVALID_EVENT_ERROR,
-      fieldErrors: {
-        requiredDepositPercentage: invalidRequiredDepositPercentageMessage,
-      },
-    };
-  }
-
-  const [updatedEvent] = await db
-    .update(events)
-    .set({ requiredDepositPercentage })
-    .where(eq(events.id, eventId))
-    .returning();
-
-  if (!updatedEvent) {
-    return eventNotFound();
-  }
-
-  return { ok: true, event: updatedEvent };
 }
 
 export async function deactivateEvent(
