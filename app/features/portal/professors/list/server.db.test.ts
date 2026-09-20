@@ -17,7 +17,10 @@ import {
   handlePortalProfessorsListAction,
   loadPortalProfessorsList,
 } from "@/features/portal/professors/list/server";
-import { allocateChoreographyNumberForTest } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import {
+  allocateChoreographyNumberForTest,
+  createScheduleForModalityFixture,
+} from "@/lib/choreographies/registration-test-fixtures.server.db";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -130,6 +133,10 @@ describe("loadPortalProfessorsList", () => {
         lastName: "Participa",
       })
       .returning();
+    const schedule = await createScheduleForModalityFixture({
+      eventId: event.id,
+      modalityId: modality.id,
+    });
     const choreographyNumber = await allocateChoreographyNumberForTest(
       event.id,
     );
@@ -142,6 +149,7 @@ describe("loadPortalProfessorsList", () => {
         name: "Solo activo",
         groupType: "solo",
         modalityId: modality.id,
+        scheduleId: schedule.id,
         categoryId: category.id,
         categoryCalculationMode: "oldest",
       })

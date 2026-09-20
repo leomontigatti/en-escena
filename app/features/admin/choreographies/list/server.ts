@@ -39,7 +39,7 @@ type ChoreographyRow = {
   modalityName: string;
   musicStorageKey: string | null;
   name: string;
-  scheduleDate: string | null;
+  scheduleDate: string;
   submodalityName: string | null;
 };
 
@@ -61,11 +61,11 @@ const CHOREOGRAPHY_STATUS_CODES = {
   completa: "complete",
   incompleta: "incomplete",
 } as const;
-type ChoreographyScheduleDateFilter = string | "sin-asignar" | null;
+type ChoreographyScheduleDateFilter = string | null;
 type HydratedChoreographyRow = ChoreographyListItem & {
   categoryId: string;
   modalityId: string;
-  scheduleDate: string | null;
+  scheduleDate: string;
 };
 
 type ChoreographySortColumn = "numero" | "academia" | "nombre";
@@ -175,7 +175,7 @@ export async function loadChoreographies(input: {
     .innerJoin(modalities, eq(choreographies.modalityId, modalities.id))
     .leftJoin(submodalities, eq(choreographies.submodalityId, submodalities.id))
     .innerJoin(categories, eq(choreographies.categoryId, categories.id))
-    .leftJoin(schedules, eq(choreographies.scheduleId, schedules.id))
+    .innerJoin(schedules, eq(choreographies.scheduleId, schedules.id))
     .where(eq(choreographies.eventId, selectedEventId));
   const hasAnyChoreography = rows.length > 0;
   const facets = buildChoreographyFacets(rows);
@@ -396,10 +396,6 @@ function readChoreographyStatusFilter(
 function readChoreographyScheduleDateFilter(
   value: string | null,
 ): ChoreographyScheduleDateFilter {
-  if (value === "sin-asignar") {
-    return value;
-  }
-
   const scheduleDate = readNonEmptySearchParam(value);
 
   return scheduleDate !== null && isDateOnly(scheduleDate)
@@ -446,25 +442,17 @@ function buildChoreographyFacets(rows: ChoreographyRow[]) {
 /**
  * The days the event's choreographies are actually spread over, in the order
  * they happen — a day is read as a point on the calendar and not as a word, so
- * these are the one facet not sorted by label. Choreographies still waiting for
- * a schedule are gathered at the end, where the rest of the list puts them.
+ * these are the one facet not sorted by label.
  */
 function getScheduleDateFilterOptions(rows: ChoreographyRow[]) {
   const scheduleDates = Array.from(
-    new Set(
-      rows
-        .map((row) => row.scheduleDate)
-        .filter((scheduleDate) => scheduleDate !== null),
-    ),
+    new Set(rows.map((row) => row.scheduleDate)),
   ).sort();
-  const options = scheduleDates.map((scheduleDate) => ({
+
+  return scheduleDates.map((scheduleDate) => ({
     label: formatScheduleDayLabel(scheduleDate),
     value: scheduleDate,
   }));
-
-  return rows.some((row) => row.scheduleDate === null)
-    ? [...options, { label: "Sin asignar", value: "sin-asignar" }]
-    : options;
 }
 
 function normalizeChoreographyFilters(
@@ -627,15 +615,11 @@ function matchesChoreographyCategory(
 }
 
 function matchesChoreographyScheduleDate(
-  scheduleDate: string | null,
+  scheduleDate: string,
   scheduleDateFilter: ChoreographyScheduleDateFilter,
 ) {
   if (scheduleDateFilter === null) {
     return true;
-  }
-
-  if (scheduleDateFilter === "sin-asignar") {
-    return scheduleDate === null;
   }
 
   return scheduleDate === scheduleDateFilter;

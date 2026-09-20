@@ -132,10 +132,7 @@ describe("ChoreographiesListRouteView", () => {
           { label: "Juvenil", value: "categoria_2" },
         ],
         modalities: [{ label: "Contemporáneo", value: "modalidad_1" }],
-        scheduleDates: [
-          { label: "3 de octubre de 2026", value: "2026-10-03" },
-          { label: "Sin asignar", value: "sin-asignar" },
-        ],
+        scheduleDates: [{ label: "3 de octubre de 2026", value: "2026-10-03" }],
       },
       filters: {
         category: "categoria_1",

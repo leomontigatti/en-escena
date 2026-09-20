@@ -1,11 +1,10 @@
-import { and, asc, eq, or, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
   categories,
   choreographies,
   choreographyDancers,
-  scheduleCapacities,
   schedules,
 } from "@/db/schema";
 import type { DancerInscription } from "@/lib/dancers/inscriptions";
@@ -44,17 +43,7 @@ export async function findDancerInscriptions(input: {
       eq(choreographies.id, choreographyDancers.choreographyId),
     )
     .innerJoin(categories, eq(choreographies.categoryId, categories.id))
-    .leftJoin(
-      scheduleCapacities,
-      eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
-    )
-    .innerJoin(
-      schedules,
-      or(
-        eq(choreographies.scheduleId, schedules.id),
-        eq(scheduleCapacities.scheduleId, schedules.id),
-      ),
-    )
+    .innerJoin(schedules, eq(choreographies.scheduleId, schedules.id))
     .where(
       and(
         eq(choreographyDancers.dancerId, input.dancerId),

@@ -12,7 +12,7 @@ import {
 const choreography: FinanceChoreographyRow = {
   academyId: "academy_1",
   choreographyNumber: 1,
-  choreographyScheduleId: null,
+  choreographyScheduleId: "schedule_1",
   groupType: "solo",
   id: "choreography_1",
   name: "Aire",

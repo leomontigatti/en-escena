@@ -162,7 +162,7 @@ export type ResolvedChoreographyDancerUpdateContext =
         submodalityId: string | null;
         categoryId: string | null;
         experienceLevelId: string | null;
-        scheduleId: string | null;
+        scheduleId: string;
         scheduleCapacityId: string | null;
         hasPresentation: boolean;
       };

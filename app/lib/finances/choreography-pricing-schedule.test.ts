@@ -20,13 +20,4 @@ describe("resolveChoreographyPricingScheduleId", () => {
       }),
     ).toBe("own-schedule");
   });
-
-  test("is null when the choreography has no schedule at all", () => {
-    expect(
-      resolveChoreographyPricingScheduleId({
-        scheduleCapacityScheduleId: null,
-        choreographyScheduleId: null,
-      }),
-    ).toBeNull();
-  });
 });

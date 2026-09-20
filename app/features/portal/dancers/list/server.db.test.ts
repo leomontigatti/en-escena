@@ -24,7 +24,10 @@ import {
   createAcademySession,
   createPortalPostRequest,
 } from "@/features/portal/test-support/db";
-import { allocateChoreographyNumberForTest } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import {
+  allocateChoreographyNumberForTest,
+  createScheduleForModalityFixture,
+} from "@/lib/choreographies/registration-test-fixtures.server.db";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -251,6 +254,10 @@ describe("loadPortalDancersList", () => {
         birthDate: "2014-02-01",
       })
       .returning();
+    const schedule = await createScheduleForModalityFixture({
+      eventId: event.id,
+      modalityId: modality.id,
+    });
     const choreographyNumber = await allocateChoreographyNumberForTest(
       event.id,
     );
@@ -263,6 +270,7 @@ describe("loadPortalDancersList", () => {
         name: "Solo activo",
         groupType: "solo",
         modalityId: modality.id,
+        scheduleId: schedule.id,
         categoryId: category.id,
         categoryCalculationMode: "oldest",
       })

@@ -26,7 +26,10 @@ import {
 } from "@/features/portal/test-support/db";
 import { expectPersistedDancer } from "@/lib/test-support/person-detail-db-assertions";
 import { createFormData } from "@/lib/test-support/form-data";
-import { allocateChoreographyNumberForTest } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import {
+  allocateChoreographyNumberForTest,
+  createScheduleForModalityFixture,
+} from "@/lib/choreographies/registration-test-fixtures.server.db";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -170,6 +173,10 @@ describe("handlePortalDancerDetailAction", () => {
         birthDate: "2014-05-01",
       })
       .returning();
+    const schedule = await createScheduleForModalityFixture({
+      eventId: event.id,
+      modalityId: modality.id,
+    });
     const choreographyNumber = await allocateChoreographyNumberForTest(
       event.id,
     );
@@ -182,6 +189,7 @@ describe("handlePortalDancerDetailAction", () => {
         name: "Solo con recálculo",
         groupType: "solo",
         modalityId: modality.id,
+        scheduleId: schedule.id,
         categoryId: youngerCategory.id,
         categoryCalculationMode: "oldest",
         categoryAgeBasis: 12,
@@ -265,6 +273,10 @@ describe("handlePortalDancerDetailAction", () => {
         birthDate: "2014-05-01",
       })
       .returning();
+    const schedule = await createScheduleForModalityFixture({
+      eventId: event.id,
+      modalityId: modality.id,
+    });
     const choreographyNumber = await allocateChoreographyNumberForTest(
       event.id,
     );
@@ -277,6 +289,7 @@ describe("handlePortalDancerDetailAction", () => {
         name: "Solo sin repuesto",
         groupType: "solo",
         modalityId: modality.id,
+        scheduleId: schedule.id,
         categoryId: youngerCategory.id,
         categoryCalculationMode: "oldest",
         categoryAgeBasis: 12,

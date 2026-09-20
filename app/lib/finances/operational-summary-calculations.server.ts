@@ -54,7 +54,7 @@ export type FinanceChoreographyRow = {
   groupType: ChoreographyGroupType;
   id: string;
   name: string;
-  choreographyScheduleId: string | null;
+  choreographyScheduleId: string;
   scheduleCapacityScheduleId: string | null;
 };
 

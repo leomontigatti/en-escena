@@ -36,12 +36,12 @@ async function seedChoreographyComprobantes(db: Database) {
     insert into "en_escena_choreography"
       ("id", "event_id", "academy_id", "choreography_number", "name",
        "modality_id", "group_type", "category_id", "category_calculation_mode",
-       "has_presentation")
+       "schedule_id", "has_presentation")
     values
       ('choreography_aire', 'event_1', 'academy_bailando', 1, 'Aire',
-       'modality_1', 'solo', 'category_1', 'oldest', false),
+       'modality_1', 'solo', 'category_1', 'oldest', 'schedule_1', false),
       ('choreography_tierra', 'event_1', 'academy_mirando', 2, 'Tierra',
-       'modality_1', 'solo', 'category_1', 'oldest', false)
+       'modality_1', 'solo', 'category_1', 'oldest', 'schedule_1', false)
   `);
   await db.execute(sql`
     insert into "en_escena_comprobante"

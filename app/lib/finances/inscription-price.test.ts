@@ -160,12 +160,12 @@ describe("selectApplicableInscriptionPrice", () => {
     ).toBe("general");
   });
 
-  test("uses the general row alone when the choreography has no schedule", () => {
+  test("uses the general row alone when the schedule has no row of its own", () => {
     expect(
       selectApplicableInscriptionPrice({
         businessDate: today,
         key: {
-          choreographyScheduleId: null,
+          choreographyScheduleId: "schedule_3",
           groupType: "solo",
           scheduleCapacityScheduleId: null,
         },
@@ -288,7 +288,7 @@ describe("resolveEffectiveBasePriceRow", () => {
     paymentDeadline: "2026-06-30",
   });
   const key = {
-    choreographyScheduleId: null,
+    choreographyScheduleId: "schedule_1",
     groupType: "solo",
     scheduleCapacityScheduleId: null,
   };
