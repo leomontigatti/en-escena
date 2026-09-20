@@ -75,6 +75,10 @@ been researched as thoroughly as the one you are arguing _for_.
 
 ## Command Guardrail
 
+This section covers validation only. The complete list of `pnpm` scripts — the
+database, backup and AFK commands included — is
+[Package Scripts](../operations/scripts.md), which links each one to its runbook.
+
 Use `pnpm typecheck` for type validation.
 
 Do not run `pnpm exec tsc` directly. `pnpm typecheck` runs `react-router typegen && tsc --noEmit`, so generated route types are present before TypeScript checks the app. A PreToolUse hook (`.claude/hooks/block-npx-tsc.sh`, wired in `.claude/settings.json`) enforces this: it blocks `npx tsc` / `pnpm exec tsc` / `pnpm dlx tsc` and points back here.
