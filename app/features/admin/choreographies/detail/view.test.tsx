@@ -398,6 +398,36 @@ describe("ChoreographyDetailRouteView", () => {
     expect(markup).toContain("Elegí uno para completarla");
   });
 
+  test("announces a placement the category no longer admits", () => {
+    const markup = renderDetail({
+      loaderData: buildLoaderData({
+        choreography: buildChoreography({
+          operationalStatus: {
+            code: "incomplete",
+            pendingItems: ["categoryAgeMismatch", "experienceLevelMismatch"],
+          },
+        }),
+      }),
+    });
+
+    expect(markup).toContain("La categoría no coincide con las edades");
+    expect(markup).toContain(
+      "El nivel de experiencia no pertenece a la categoría",
+    );
+    expect(markup).toContain("Elegí uno de los que la categoría admite hoy");
+  });
+
+  test("keeps a well-placed choreography free of mismatch alerts", () => {
+    const markup = renderDetail({
+      loaderData: buildLoaderData({ choreography: buildChoreography() }),
+    });
+
+    expect(markup).not.toContain("La categoría no coincide con las edades");
+    expect(markup).not.toContain(
+      "El nivel de experiencia no pertenece a la categoría",
+    );
+  });
+
   // The same rule as #619's financial alert: it reports a state of the data, not
   // an action, so it is not suppressed for the auditor.
   test("shows the missing-level alert to auditors too", () => {

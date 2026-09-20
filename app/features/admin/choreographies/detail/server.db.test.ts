@@ -1660,8 +1660,9 @@ describe("administrative choreography detail server", () => {
   });
 
   // If the category stopped admitting the saved level, it stays in view instead
-  // of disappearing from the select without explanation.
-  test("keeps a drifted assigned level in the options", async () => {
+  // of disappearing from the select without explanation — but it is reported as
+  // a mismatch, so it is never an ordinary option offered in silence.
+  test("keeps a drifted assigned level in the options and reports it", async () => {
     const scenario = await createExperienceLevelScenario({
       academyName: "Academia Nivel Derivado",
       categoryExperienceLevels: ["profesional"],
@@ -1679,6 +1680,56 @@ describe("administrative choreography detail server", () => {
       { id: "profesional", name: "Profesional" },
       { id: "amateur", name: "Amateur" },
     ]);
+    expect(detail.choreography.operationalStatus).toMatchObject({
+      code: "incomplete",
+    });
+    expect(detail.choreography.operationalStatus.pendingItems).toContain(
+      "experienceLevelMismatch",
+    );
+  });
+
+  // A category edited after the choreography was filed leaves it competing in a
+  // range it no longer belongs to, and nothing else in the app re-checks it.
+  test("reports a stored age the category no longer contains", async () => {
+    const scenario = await createExperienceLevelScenario({
+      academyName: "Academia Edad Ajena",
+      categoryAgeBasis: 25,
+      slug: "edad.ajena",
+    });
+
+    const detail = await loadDetail({
+      choreographyId: scenario.choreography.id,
+      email: "admin.coreografias.edad.ajena@example.com",
+      role: "admin",
+    });
+
+    expect(detail.choreography.operationalStatus).toMatchObject({
+      code: "incomplete",
+    });
+    expect(detail.choreography.operationalStatus.pendingItems).toContain(
+      "categoryAgeMismatch",
+    );
+  });
+
+  test("leaves a choreography that still fits its category unflagged", async () => {
+    const scenario = await createExperienceLevelScenario({
+      academyName: "Academia Edad Propia",
+      categoryAgeBasis: 17,
+      slug: "edad.propia",
+    });
+
+    const detail = await loadDetail({
+      choreographyId: scenario.choreography.id,
+      email: "admin.coreografias.edad.propia@example.com",
+      role: "admin",
+    });
+
+    expect(detail.choreography.operationalStatus.pendingItems).not.toContain(
+      "categoryAgeMismatch",
+    );
+    expect(detail.choreography.operationalStatus.pendingItems).not.toContain(
+      "experienceLevelMismatch",
+    );
   });
 
   test("blocks auditors from reassigning the experience level", async () => {
@@ -1778,6 +1829,7 @@ async function createCategoryWithLevels(input: {
 
 async function createExperienceLevelScenario(input: {
   academyName: string;
+  categoryAgeBasis?: number | null;
   categoryExperienceLevels?: ExperienceLevel[];
   experienceLevelId?: ExperienceLevel | null;
   hasPresentation?: boolean;
@@ -1803,6 +1855,8 @@ async function createExperienceLevelScenario(input: {
   });
   const choreography = await createChoreographyRecord({
     academyId: owner.academyId,
+    categoryAgeBasis:
+      input.categoryAgeBasis === undefined ? 13 : input.categoryAgeBasis,
     categoryId: category.id,
     eventId: event.id,
     experienceLevelId:

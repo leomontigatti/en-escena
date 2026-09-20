@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { choreographies, schedules } from "@/db/schema";
+import { choreographies, choreographyProfessors, schedules } from "@/db/schema";
 import { createSignedInAdminRequest as createSignedInRequest } from "@/lib/admin/test-support/db";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import {
@@ -12,6 +12,7 @@ import {
 import {
   createChoreographyRecord,
   createEventCatalog,
+  createProfessor,
 } from "@/features/portal/choreographies/test-support/db";
 import { createAcademyRecord } from "@/features/portal/test-support/db";
 
@@ -86,6 +87,34 @@ describe("loadChoreographies", () => {
     expect(result.choreographies.map((row) => row.name)).toEqual([
       unscheduledChoreography.name,
     ]);
+  });
+
+  // A mis-filed choreography competes against the wrong people, so it belongs on
+  // the same fix list as an incomplete one: no new filter value, the existing
+  // `incompleta` gathers it.
+  test("gathers the mis-filed choreographies under the incomplete filter", async () => {
+    const { event, misfiled, wellFiled } = await seedMisfiledChoreographies();
+
+    const result = await loadChoreographies({
+      filters: buildFilters({ status: "incompleta" }),
+      selectedEventId: event.id,
+    });
+    const misfiledRow = result.choreographies.find(
+      (row) => row.name === misfiled.name,
+    );
+    const strayLevelRow = result.choreographies.find(
+      (row) => row.name === "Coreografía con nivel ajeno",
+    );
+
+    expect(misfiledRow?.operationalStatus.pendingItems).toContain(
+      "categoryAgeMismatch",
+    );
+    expect(strayLevelRow?.operationalStatus.pendingItems).toContain(
+      "experienceLevelMismatch",
+    );
+    expect(result.choreographies.map((row) => row.name)).not.toContain(
+      wellFiled.name,
+    );
   });
 
   test("drops a day the event does not hold", async () => {
@@ -176,6 +205,58 @@ async function seedChoreographiesByDay() {
     scheduledChoreographies: { evening, morning },
     unscheduledChoreography,
   };
+}
+
+/**
+ * Three choreographies in the level-bearing category (1 to 17, `amateur`): one
+ * filed under an age it no longer contains, one carrying a level it does not
+ * admit, and one that still fits and has everything else loaded.
+ */
+async function seedMisfiledChoreographies() {
+  const event = await createSavedEvent();
+  const catalog = await createEventCatalog(event.id);
+  const academy = await createAcademyRecord({
+    academyName: "Academia Mal Ubicada",
+    email: `coreografias.ubicacion.${crypto.randomUUID()}@example.com`,
+  });
+  const misfiled = await createChoreographyRecord({
+    academyId: academy.id,
+    categoryAgeBasis: 40,
+    categoryId: catalog.categoryWithLevel.id,
+    eventId: event.id,
+    experienceLevelId: catalog.level.id,
+    modalityId: catalog.modality.id,
+    name: "Coreografía fuera de rango",
+    scheduleCapacityId: catalog.scheduleCapacity.id,
+  });
+  await createChoreographyRecord({
+    academyId: academy.id,
+    categoryAgeBasis: 13,
+    categoryId: catalog.categoryWithLevel.id,
+    eventId: event.id,
+    experienceLevelId: "elite",
+    modalityId: catalog.modality.id,
+    name: "Coreografía con nivel ajeno",
+    scheduleCapacityId: catalog.scheduleCapacity.id,
+  });
+  const wellFiled = await createChoreographyRecord({
+    academyId: academy.id,
+    categoryAgeBasis: 13,
+    categoryId: catalog.categoryWithLevel.id,
+    eventId: event.id,
+    experienceLevelId: catalog.level.id,
+    modalityId: catalog.modality.id,
+    musicStorageKey: "musica/ubicacion.mp3",
+    name: "Coreografía bien ubicada",
+    scheduleCapacityId: catalog.scheduleCapacity.id,
+  });
+  const professor = await createProfessor(academy.id);
+  await db.insert(choreographyProfessors).values({
+    choreographyId: wellFiled.id,
+    professorId: professor.id,
+  });
+
+  return { event, misfiled, wellFiled };
 }
 
 async function createScheduleOnDay(input: {
