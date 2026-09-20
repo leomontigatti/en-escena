@@ -455,7 +455,7 @@ describe.sequential("seminar inscription allocation", () => {
    * proven on the Postgres backend.
    */
   describe.skipIf(isPgliteTestBackend())(
-    "the last place under real contention",
+    "seminar quota under real contention",
     () => {
       test("lets exactly one of two crossings for the last place through", async () => {
         const fixture = await seedFixture();

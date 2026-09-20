@@ -12,6 +12,7 @@ import { migrate as migratePostgres } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { isPgliteTestBackend } from "../../tests/db/backend";
 import { getTestDatabaseUrl } from "../../tests/db/config";
 
 import {
@@ -20,7 +21,6 @@ import {
 } from "./journal.mjs";
 
 const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
-const isPglite = process.env.DB_TEST_BACKEND === "pglite";
 
 type SyntheticMigration = { tag: string; when: number; sql: string };
 
@@ -200,7 +200,7 @@ describe("drizzle's migration watermark", () => {
  *
  * Real Postgres only — drizzle-kit has no PGlite driver.
  */
-describe.skipIf(isPglite)(
+describe.skipIf(isPgliteTestBackend())(
   "drizzle-kit and drizzle-orm agree on the journal",
   () => {
     const databaseUrl = getTestDatabaseUrl();
