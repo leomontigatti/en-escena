@@ -253,8 +253,9 @@ All of it is a manual edit; nothing here opens update PRs.
    with** their `ACTIONLINT_SHA256` / `GITLEAKS_SHA256` — version and checksum
    are one pin in both, and the checksum comes from
    `<tool>_<version>_checksums.txt` on the release page.
-   The install snippet under "Hook guidance" names the same version; bump it too
-   so a local install keeps matching CI.
+   The gitleaks install snippet under "Hook guidance" names that same version
+   (there is no local actionlint install); bump it too so a local install keeps
+   matching CI.
 3. `pnpm format` (Prettier owns the YAML), then push and read the gate. Its
    online audits are the confirmation step: they are what tells you a rewritten
    pin really points at the tag its comment names, which is something you cannot

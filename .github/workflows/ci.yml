@@ -204,8 +204,8 @@ jobs:
           # download in `checks` and deliberately so: no Marketplace action to keep
           # fresh, and no install script fetched and executed to delegate the
           # checksum to. Retries because a reset mid-transfer is the one failure
-          # mode here, and inside the upstream script it could not be retried at
-          # all (#1039).
+          # mode here, and while the upstream script owned the request there was
+          # no way to give that fetch retry flags at all (#1039).
           curl -fsSL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 10 \
             -o /tmp/actionlint.tar.gz \
             "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
