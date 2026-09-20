@@ -224,7 +224,8 @@ Marketplace:
   the SHA pins can be manual: a pin that goes stale, or that no longer matches
   the tag its comment claims, turns the gate red on the next PR instead of
   rotting quietly.
-- **actionlint**, installed by its own release-pinned download script. It owns
+- **actionlint**, installed from its release tarball, pinned by version and by
+  checksum — the same inline pattern as gitleaks in `checks`. It owns
   workflow syntax, `${{ }}` expression types, job/step references and shellcheck
   over `run:` blocks. Shellcheck runs at `--severity=warning`: at `info`/`style`
   the gate is a wall of SC2016 pointing at correct `jq '...'` filters.
@@ -247,12 +248,14 @@ All of it is a manual edit; nothing here opens update PRs.
 
 1. `pinact run --update` rewrites every `uses:` in `.github/workflows/` to the
    newest release of that action, SHA plus a `# vN` comment.
-2. Bump `zizmor==<version>` and the two actionlint version strings in the
-   `actions-gate` job by hand, and `GITLEAKS_VERSION` **together with**
-   `GITLEAKS_SHA256` in the `checks` job — the two are one pin, and the
-   checksum comes from `gitleaks_<version>_checksums.txt` on the release page.
-   The install snippet under "Hook guidance" names the same version; bump it too
-   so a local install keeps matching CI.
+2. Bump `zizmor==<version>` by hand, and `ACTIONLINT_VERSION` in the
+   `actions-gate` job and `GITLEAKS_VERSION` in the `checks` job **together
+   with** their `ACTIONLINT_SHA256` / `GITLEAKS_SHA256` — version and checksum
+   are one pin in both, and the checksum comes from
+   `<tool>_<version>_checksums.txt` on the release page.
+   The gitleaks install snippet under "Hook guidance" names that same version
+   (there is no local actionlint install); bump it too so a local install keeps
+   matching CI.
 3. `pnpm format` (Prettier owns the YAML), then push and read the gate. Its
    online audits are the confirmation step: they are what tells you a rewritten
    pin really points at the tag its comment names, which is something you cannot
