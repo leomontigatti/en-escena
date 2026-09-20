@@ -1,7 +1,7 @@
 import { AccessNotice } from "@/components/auth/access-ui";
 import { FieldLabel } from "@/components/ui/field";
 import type { ChoreographyRegistrationBaseOptions } from "@/lib/events/bases.server";
-import type { ResolvedRegistrationResolution } from "@/features/portal/choreographies/create/flow";
+import type { PortalResolvedRegistrationResolution } from "@/features/portal/choreographies/create/flow";
 
 import {
   formatCategoryAndGroupTypeSummary,
@@ -24,7 +24,7 @@ export function ChoreographyCreationSummary({
 }: {
   baseOptions: ChoreographyRegistrationBaseOptions;
   name: string;
-  resolution: ResolvedRegistrationResolution;
+  resolution: PortalResolvedRegistrationResolution;
   selectedExperienceLevelId: string;
   selectedModalityId: string;
   selectedProfessors: ActiveProfessor[];

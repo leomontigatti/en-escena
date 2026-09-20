@@ -234,6 +234,10 @@ async function refuseAgeOrLevelEditUnderChoreographies(
 ): Promise<EventBaseFailure | null> {
   const changesAgeRange =
     category.minAge !== input.minAge || category.maxAge !== input.maxAge;
+  // Both sides are sorted by `experienceLevelOrder` — the stored set because
+  // `validateCategoryInput` sorted it on the way in, the input because it is
+  // sorting it right now — so an order-sensitive comparison is an equality of
+  // sets here. A write that stored the set unsorted would break that.
   const changesExperienceLevels = !haveSameValues(
     category.experienceLevels,
     input.experienceLevels,
@@ -258,9 +262,7 @@ async function refuseAgeOrLevelEditUnderChoreographies(
     referencingChoreographies.length === 1
       ? "una coreografía relacionada"
       : "coreografías relacionadas";
-  const list = formatChoreographyReferences(referencingChoreographies, {
-    limit: refusalChoreographyLimit,
-  });
+  const list = formatChoreographyReferences(referencingChoreographies);
   const subject = `una categoría que tiene ${relatedChoreographies}: ${list}`;
 
   return {
@@ -273,16 +275,10 @@ async function refuseAgeOrLevelEditUnderChoreographies(
 }
 
 /**
- * How many choreographies a refusal names before it stops enumerating. Enough
- * for the administrator to recognise the ones in the way; past that the count
- * says more than another twenty numbers would.
- */
-const refusalChoreographyLimit = 5;
-
-/**
  * The choreographies the edit guard refuses over: the deletion guard's breadth,
  * withdrawn inscriptions included, but reported by number and name rather than
- * as a yes or no.
+ * as a yes or no. Ordering is left to `formatChoreographyReferences`, which
+ * sorts by number as part of wording the refusal.
  */
 async function listReferencingChoreographies(categoryId: string) {
   return db
@@ -291,8 +287,7 @@ async function listReferencingChoreographies(categoryId: string) {
       name: choreographies.name,
     })
     .from(choreographies)
-    .where(eq(choreographies.categoryId, categoryId))
-    .orderBy(asc(choreographies.choreographyNumber));
+    .where(eq(choreographies.categoryId, categoryId));
 }
 
 /**

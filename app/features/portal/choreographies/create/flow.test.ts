@@ -8,7 +8,7 @@ import {
   getFirstPostResolutionStepIndex,
   getSubmissionError,
   type RegistrationResolution,
-  resolveRegistrationCategory,
+  resolvePortalRegistrationCategory,
 } from "@/features/portal/choreographies/create/flow";
 
 describe("choreography create flow helpers", () => {
@@ -250,14 +250,14 @@ describe("getSubmissionError", () => {
   });
 });
 
-describe("resolveRegistrationCategory", () => {
+describe("resolvePortalRegistrationCategory", () => {
   test("refuses a resolution with no compatible category, naming the modality and the group type", () => {
     const resolution = buildScheduleResolution([
       { id: "capacity_1", isFull: false },
     ]);
 
     expect(
-      resolveRegistrationCategory({
+      resolvePortalRegistrationCategory({
         resolution: {
           ...resolution,
           groupType: "trio",
@@ -278,7 +278,7 @@ describe("resolveRegistrationCategory", () => {
     ]);
 
     expect(
-      resolveRegistrationCategory({ resolution, modalityName: "Jazz" }),
+      resolvePortalRegistrationCategory({ resolution, modalityName: "Jazz" }),
     ).toEqual({ refused: false, resolution });
   });
 });

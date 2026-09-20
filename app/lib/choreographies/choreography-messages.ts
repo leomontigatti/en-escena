@@ -53,26 +53,31 @@ export type ChoreographyReference = {
 };
 
 /**
+ * How many choreographies a refusal names before it stops enumerating. Enough
+ * for the reader to recognise the ones in the way; past that the count says
+ * more than another twenty numbers would.
+ */
+const namedChoreographyLimit = 5;
+
+/**
  * The choreographies a refusal names, as a sentence fragment: sorted by number,
- * each one as `n.º {number} «{name}»`, joined with commas and a final `y`.
- * `limit` caps how many are named and closes the list with `y N más`, so a
- * refusal over a category a hundred choreographies reference still reads.
+ * each one as `n.º {number} «{name}»`, joined with commas and a final `y`. At
+ * most `namedChoreographyLimit` are named and the rest close the list as
+ * `y N más`, so a refusal over a hundred choreographies still reads.
  *
- * Shared rather than duplicated: the birth-date correction and the category
- * edit guard both name their blockers, and an admin who reads one sentence
- * should recognise the other.
+ * The cap is the formatter's rather than each caller's: the birth-date
+ * correction and the category edit guard both name their blockers, and an
+ * admin who reads one sentence should recognise the other.
  */
 export function formatChoreographyReferences(
   references: ChoreographyReference[],
-  options?: { limit?: number },
 ) {
   const sorted = [...references].sort(
     (a, b) => a.choreographyNumber - b.choreographyNumber,
   );
-  const limit = options?.limit ?? sorted.length;
-  const remaining = Math.max(sorted.length - limit, 0);
+  const remaining = Math.max(sorted.length - namedChoreographyLimit, 0);
   const parts = sorted
-    .slice(0, limit)
+    .slice(0, namedChoreographyLimit)
     .map(
       (reference) => `n.º ${reference.choreographyNumber} «${reference.name}»`,
     );

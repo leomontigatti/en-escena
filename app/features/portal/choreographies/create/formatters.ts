@@ -2,7 +2,7 @@ import type { ChoreographyRegistrationBaseOptions } from "@/lib/events/bases.ser
 import {
   formatGroupTypeLabel,
   type RegistrationResolution,
-  type ResolvedRegistrationResolution,
+  type PortalResolvedRegistrationResolution,
 } from "@/features/portal/choreographies/create/flow";
 import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
 
@@ -36,7 +36,7 @@ export function formatModalitySummary(
 }
 
 export function formatCategoryAndGroupTypeSummary(
-  resolution: ResolvedRegistrationResolution,
+  resolution: PortalResolvedRegistrationResolution,
 ) {
   return `${resolution.category.name} - ${formatGroupTypeLabel(resolution.groupType)}`;
 }

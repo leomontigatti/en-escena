@@ -8,7 +8,10 @@ import {
   events,
 } from "@/db/schema";
 import { activeInscription } from "@/lib/choreographies/active-inscription";
-import { formatChoreographyReferences } from "@/lib/choreographies/choreography-messages";
+import {
+  formatChoreographyReferences,
+  type ChoreographyReference,
+} from "@/lib/choreographies/choreography-messages";
 import {
   getAgeAtDate,
   getEventLocalDateParts,
@@ -52,10 +55,11 @@ type ChoreographyCompetitivePlacement = {
   dancerCompetitiveAge: number;
 };
 
-export type DancerBirthDateCorrectionChoreography = {
-  choreographyNumber: number;
-  name: string;
-};
+/**
+ * A blocking choreography as the refusal names it. The same shape the shared
+ * formatter reads, so the sentence and the failure never drift apart.
+ */
+export type DancerBirthDateCorrectionChoreography = ChoreographyReference;
 
 export type DancerBirthDateCorrectionResult =
   | { ok: true }

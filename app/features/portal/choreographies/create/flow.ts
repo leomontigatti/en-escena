@@ -35,7 +35,7 @@ export type RegistrationResolution = Extract<
  * a pending one on the server, so the steps after the resolution — and the
  * summary above all — never have to word a category that does not exist.
  */
-export type ResolvedRegistrationResolution = RegistrationResolution & {
+export type PortalResolvedRegistrationResolution = RegistrationResolution & {
   category: Extract<RegistrationResolution["category"], { status: "resolved" }>;
 };
 
@@ -168,12 +168,12 @@ export function canAdvanceFromScheduleStep(input: {
  * it — on its dancers or its modality — instead of walking it to a summary the
  * confirmation would reject.
  */
-export function resolveRegistrationCategory(input: {
+export function resolvePortalRegistrationCategory(input: {
   resolution: RegistrationResolution;
   modalityName: string | null;
 }):
   | { refused: true; message: string }
-  | { refused: false; resolution: ResolvedRegistrationResolution } {
+  | { refused: false; resolution: PortalResolvedRegistrationResolution } {
   const { category } = input.resolution;
 
   if (category.status !== "resolved") {

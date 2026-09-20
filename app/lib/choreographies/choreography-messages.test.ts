@@ -104,13 +104,13 @@ describe("choreography reference list", () => {
     ).toBe("n.º 3 «Luz»");
   });
 
-  test("stops at the limit and counts what it left out", () => {
+  test("stops at five and counts what it left out", () => {
     const references = [1, 2, 3, 4, 5, 6, 7].map((choreographyNumber) => ({
       choreographyNumber,
       name: `Coreografía ${choreographyNumber}`,
     }));
 
-    expect(formatChoreographyReferences(references, { limit: 5 })).toBe(
+    expect(formatChoreographyReferences(references)).toBe(
       "n.º 1 «Coreografía 1», n.º 2 «Coreografía 2», n.º 3 «Coreografía 3», n.º 4 «Coreografía 4», n.º 5 «Coreografía 5» y 2 más",
     );
   });

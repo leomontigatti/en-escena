@@ -16,8 +16,8 @@ import {
   getCreateChoreographySteps,
   getFirstPostResolutionStepIndex,
   getSubmissionError,
-  resolveRegistrationCategory,
-  type ResolvedRegistrationResolution,
+  resolvePortalRegistrationCategory,
+  type PortalResolvedRegistrationResolution,
   setRequiredFieldError,
 } from "@/features/portal/choreographies/create/flow";
 import type {
@@ -52,7 +52,7 @@ export function useCreateChoreographyDialog({
   };
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [resolution, setResolution] =
-    useState<ResolvedRegistrationResolution | null>(null);
+    useState<PortalResolvedRegistrationResolution | null>(null);
   const hasSubmittedChoreographyRef = useRef(false);
   const processedCalculationDataRef = useRef<CalculationActionData | undefined>(
     undefined,
@@ -116,7 +116,7 @@ export function useCreateChoreographyDialog({
       return;
     }
 
-    const categoryResolution = resolveRegistrationCategory({
+    const categoryResolution = resolvePortalRegistrationCategory({
       resolution: calculationData.result.resolution,
       modalityName: selectedModalityName,
     });
