@@ -2,8 +2,10 @@ import { TriangleAlert } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
+  type ChoreographyMissingPendingItem,
   type ChoreographyOperationalStatus,
   formatChoreographyOperationalPendingItemLabel,
+  isChoreographyMissingPendingItem,
 } from "@/lib/choreographies/operational-status";
 
 export function OperationalStatusSummary({
@@ -11,9 +13,14 @@ export function OperationalStatusSummary({
 }: {
   operationalStatus: ChoreographyOperationalStatus;
 }) {
-  const { pendingItems } = operationalStatus;
+  // Only the missing half of the union is rendered here. The academy is not told
+  // about a mis-filed placement — it has no lever to repair one — and the sentence
+  // this alert builds could not carry it anyway: nothing is missing.
+  const missingItems = operationalStatus.pendingItems.filter(
+    isChoreographyMissingPendingItem,
+  );
 
-  if (pendingItems.length === 0) {
+  if (missingItems.length === 0) {
     return null;
   }
 
@@ -21,16 +28,14 @@ export function OperationalStatusSummary({
     <Alert variant="warning">
       <TriangleAlert aria-hidden="true" />
       <AlertDescription>
-        {pendingItems.length === 1 ? "Falta" : "Faltan"} cargar{" "}
-        {formatPendingItems(pendingItems)}.
+        {missingItems.length === 1 ? "Falta" : "Faltan"} cargar{" "}
+        {formatPendingItems(missingItems)}.
       </AlertDescription>
     </Alert>
   );
 }
 
-function formatPendingItems(
-  pendingItems: ChoreographyOperationalStatus["pendingItems"],
-) {
+function formatPendingItems(pendingItems: ChoreographyMissingPendingItem[]) {
   return formatList(
     pendingItems.map((pendingItem) => {
       if (pendingItem === "music") {

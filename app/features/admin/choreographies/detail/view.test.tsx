@@ -417,6 +417,43 @@ describe("ChoreographyDetailRouteView", () => {
     expect(markup).toContain("Elegí uno de los que la categoría admite hoy");
   });
 
+  // The roster is where an age mismatch is normally repaired, but a presentation
+  // blocks it — so the alert must not send the organiser to a field that refuses
+  // the edit, and an auditor is offered nothing at all.
+  test("names only the repair the age mismatch actually leaves open", () => {
+    const misplaced = {
+      code: "incomplete" as const,
+      pendingItems: ["categoryAgeMismatch" as const],
+    };
+
+    const repairable = renderDetail({
+      loaderData: buildLoaderData({
+        choreography: buildChoreography({ operationalStatus: misplaced }),
+      }),
+    });
+    const withPresentation = renderDetail({
+      loaderData: buildLoaderData({
+        choreography: buildChoreography({
+          hasPresentation: true,
+          operationalStatus: misplaced,
+        }),
+      }),
+    });
+    const forAuditor = renderDetail({
+      loaderData: buildLoaderData({
+        canEdit: false,
+        choreography: buildChoreography({ operationalStatus: misplaced }),
+      }),
+    });
+
+    expect(repairable).toContain("Revisá el elenco o la categoría");
+    expect(withPresentation).not.toContain("Revisá el elenco");
+    expect(withPresentation).toContain("la corrección es sobre la categoría");
+    expect(forAuditor).toContain("La categoría no coincide con las edades");
+    expect(forAuditor).not.toContain("Revisá el elenco");
+    expect(forAuditor).not.toContain("la corrección es sobre la categoría");
+  });
+
   test("keeps a well-placed choreography free of mismatch alerts", () => {
     const markup = renderDetail({
       loaderData: buildLoaderData({ choreography: buildChoreography() }),

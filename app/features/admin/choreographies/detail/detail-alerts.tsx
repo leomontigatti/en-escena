@@ -8,6 +8,28 @@ import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import type { ChoreographyDetailLoaderData } from "./server";
 
 /**
+ * The alert names the action that is actually available, the way the neighbouring
+ * ones gate their closing sentence on `canReassign`. A choreography with a
+ * presentation has its roster blocked, so pointing the organiser at the roster
+ * would send them to a field that refuses the edit; the category's own age range
+ * is still theirs to correct. An auditor gets no sentence at all.
+ */
+function formatCategoryAgeMismatchAction(input: {
+  canEdit: boolean;
+  hasPresentation: boolean;
+}) {
+  if (!input.canEdit) {
+    return "";
+  }
+
+  if (input.hasPresentation) {
+    return " La presentación bloquea el elenco, así que la corrección es sobre la categoría.";
+  }
+
+  return " Revisá el elenco o la categoría.";
+}
+
+/**
  * The choreography conditions the page enumerates before the fields. None is
  * suppressed for the auditor: they are states of the data, not of the viewer's
  * permission.
@@ -71,8 +93,11 @@ export function ChoreographyDetailAlerts({
           <AlertTitle>La categoría no coincide con las edades</AlertTitle>
           <AlertDescription>
             La edad con la que se ubicó esta coreografía quedó fuera del rango
-            que admite {choreography.categoryName}. Revisá el elenco o la
-            categoría.
+            que admite {choreography.categoryName}.
+            {formatCategoryAgeMismatchAction({
+              canEdit: loaderData.canEdit,
+              hasPresentation: choreography.hasPresentation,
+            })}
           </AlertDescription>
         </Alert>
       ) : null}

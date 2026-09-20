@@ -1,9 +1,23 @@
+/**
+ * What the choreography does not have yet. These are the only items the portal
+ * renders, and it renders them under a single `Falta cargar …` frame, so each
+ * label below is written to complete that sentence.
+ */
+export type ChoreographyMissingPendingItem =
+  "music" | "experienceLevel" | "professors";
+
+/**
+ * What the choreography has wrong: a stored placement the category it sits in no
+ * longer admits. Nothing is missing, so these do not fit the portal's frame — and
+ * the portal is not told about them anyway, since an academy has no lever to fix
+ * one. The admin surfaces word each of them itself, which is why there is no
+ * label function for this half of the union.
+ */
+export type ChoreographyMisfiledPendingItem =
+  "categoryAgeMismatch" | "experienceLevelMismatch";
+
 export type ChoreographyOperationalPendingItem =
-  | "music"
-  | "experienceLevel"
-  | "professors"
-  | "categoryAgeMismatch"
-  | "experienceLevelMismatch";
+  ChoreographyMissingPendingItem | ChoreographyMisfiledPendingItem;
 
 export type ChoreographyOperationalStatus = {
   code: "complete" | "incomplete";
@@ -11,10 +25,12 @@ export type ChoreographyOperationalStatus = {
 };
 
 /**
- * The category's own bounds, handed in only by the surfaces that re-validate the
- * stored placement — the admin ones. `null` turns both mismatch clauses off: the
- * portal derives the same status, and an academy has no lever to fix a mis-filed
- * placement, so telling it produces a phone call and not a repair.
+ * Everything the two mismatch clauses need to re-validate a stored placement: the
+ * age the choreography was filed under, and the bounds its category admits today.
+ * Handed in only by the surfaces that do that re-validation — the admin ones.
+ * `null` turns both clauses off: the portal derives the same status, and an
+ * academy has no lever to fix a mis-filed placement, so telling it produces a
+ * phone call and not a repair.
  */
 export type ChoreographyCategoryPlacementCheck = {
   /**
@@ -90,8 +106,18 @@ function isCategoryAgeMismatch(
   );
 }
 
-export function formatChoreographyOperationalPendingItemLabel(
+export function isChoreographyMissingPendingItem(
   pendingItem: ChoreographyOperationalPendingItem,
+): pendingItem is ChoreographyMissingPendingItem {
+  return (
+    pendingItem === "music" ||
+    pendingItem === "experienceLevel" ||
+    pendingItem === "professors"
+  );
+}
+
+export function formatChoreographyOperationalPendingItemLabel(
+  pendingItem: ChoreographyMissingPendingItem,
 ) {
   switch (pendingItem) {
     case "music":
@@ -100,10 +126,6 @@ export function formatChoreographyOperationalPendingItemLabel(
       return "Nivel de experiencia";
     case "professors":
       return "Profesores";
-    case "categoryAgeMismatch":
-      return "Categoría fuera del rango de edad";
-    case "experienceLevelMismatch":
-      return "Nivel de experiencia ajeno a la categoría";
   }
 }
 

@@ -5,6 +5,7 @@ import {
   formatChoreographyOperationalPendingItemLabel,
   formatChoreographyOperationalStatusLabel,
   getChoreographyOperationalStatusBadgeVariant,
+  isChoreographyMissingPendingItem,
 } from "@/lib/choreographies/operational-status";
 
 type StatusInput = Parameters<typeof deriveChoreographyOperationalStatus>[0];
@@ -87,9 +88,6 @@ describe("choreography operational status", () => {
       pendingItems: ["categoryAgeMismatch"],
     });
     expect(aboveRange.pendingItems).toEqual(["categoryAgeMismatch"]);
-    expect(
-      formatChoreographyOperationalPendingItemLabel("categoryAgeMismatch"),
-    ).toBe("Categoría fuera del rango de edad");
   });
 
   test("keeps a choreography the category still contains out of the fix list", () => {
@@ -146,9 +144,6 @@ describe("choreography operational status", () => {
       pendingItems: ["experienceLevelMismatch"],
     });
     expect(levelsDropped.pendingItems).toEqual(["experienceLevelMismatch"]);
-    expect(
-      formatChoreographyOperationalPendingItemLabel("experienceLevelMismatch"),
-    ).toBe("Nivel de experiencia ajeno a la categoría");
   });
 
   // A missing level and a stray one are different states: a category that
@@ -174,5 +169,28 @@ describe("choreography operational status", () => {
     );
 
     expect(status).toEqual({ code: "complete", pendingItems: [] });
+  });
+
+  // The portal renders its pending items under one `Falta cargar …` sentence,
+  // which a mis-filed placement cannot complete — nothing is missing. The split
+  // is what keeps that sentence buildable from any status, whatever a future
+  // caller hands the deriver.
+  test("separates what is missing from what is mis-filed", () => {
+    const misfiled = deriveChoreographyOperationalStatus(
+      buildStatusInput({
+        categoryExperienceLevels: ["profesional"],
+        experienceLevelId: "amateur",
+        hasMusic: false,
+        placementCheck: {
+          categoryAgeBasis: 18,
+          categoryMaxAge: 17,
+          categoryMinAge: 12,
+        },
+      }),
+    );
+
+    expect(
+      misfiled.pendingItems.filter(isChoreographyMissingPendingItem),
+    ).toEqual(["music"]);
   });
 });
