@@ -35,6 +35,7 @@ import {
   validateInlineScheduleCapacityDependencies,
 } from "@/lib/events/bases-repository/schedule-capacities.server";
 import {
+  resolveOccupiedCounts,
   resolveScheduleCapacityOccupancies,
   toScheduleCapacityOccupancyKey,
   type ScheduleCapacityOccupancy,
@@ -256,19 +257,14 @@ export async function updateSchedule(
     return validation;
   }
 
-  const hasDependencies =
-    dependencies.hasDependencies ?? scheduleHasOperationalDependencies;
+  const structuralFailure = await validateStructuralScheduleChanges(
+    existing,
+    input,
+    dependencies.hasDependencies ?? scheduleHasOperationalDependencies,
+  );
 
-  if (
-    (await hasDependencies(scheduleId)) &&
-    hasStructuralScheduleChanges(existing, input)
-  ) {
-    return {
-      ok: false,
-      code: "schedule-has-dependencies",
-      error:
-        "No se pueden editar fecha, hora, cupo total ni modalidades aceptadas porque el cronograma tiene dependencias.",
-    };
+  if (structuralFailure) {
+    return structuralFailure;
   }
 
   return db.transaction(async (tx): Promise<EventBasesMutationResult> => {
@@ -315,19 +311,14 @@ export async function updateScheduleWithEntries(
     return validation;
   }
 
-  const hasDependencies =
-    dependencies.hasDependencies ?? scheduleHasOperationalDependencies;
+  const structuralFailure = await validateStructuralScheduleChanges(
+    existing,
+    input,
+    dependencies.hasDependencies ?? scheduleHasOperationalDependencies,
+  );
 
-  if (
-    (await hasDependencies(scheduleId)) &&
-    hasStructuralScheduleChanges(existing, input)
-  ) {
-    return {
-      ok: false,
-      code: "schedule-has-dependencies",
-      error:
-        "No se pueden editar fecha, hora, cupo total ni modalidades aceptadas porque el cronograma tiene dependencias.",
-    };
+  if (structuralFailure) {
+    return structuralFailure;
   }
 
   const existingEntries = await db.query.scheduleCapacities.findMany({
@@ -576,14 +567,65 @@ async function scheduleHasScheduleCapacities(scheduleId: string) {
   return Boolean(scheduleCapacity);
 }
 
-function hasStructuralScheduleChanges(
-  existing: typeof schedules.$inferSelect & { modalityIds: string[] },
+/**
+ * Date, time and accepted modalities freeze once the schedule has dependencies:
+ * choreographies were placed and priced against them. The total capacity does
+ * not — it may move freely as long as it still holds what already occupies the
+ * schedule, which is the only thing a smaller number could break.
+ */
+async function validateStructuralScheduleChanges(
+  existing: ExistingSchedule,
+  input: ScheduleInput,
+  hasDependencies: (scheduleId: string) => boolean | Promise<boolean>,
+): Promise<EventBaseFailure | null> {
+  if (
+    hasFrozenScheduleChanges(existing, input) &&
+    (await hasDependencies(existing.id))
+  ) {
+    return {
+      ok: false,
+      code: "schedule-has-dependencies",
+      error:
+        "No se pueden editar fecha, hora ni modalidades aceptadas porque el cronograma tiene dependencias.",
+    };
+  }
+
+  if (existing.totalCapacity === input.totalCapacity) {
+    return null;
+  }
+
+  const occupiedCount = await getScheduleOccupiedCount(existing.id);
+
+  if (input.totalCapacity < occupiedCount) {
+    return {
+      ok: false,
+      code: "schedule-has-dependencies",
+      error: `El cupo total no puede ser menor a los ${occupiedCount} lugares ya ocupados del cronograma.`,
+      fieldErrors: { totalCapacity: "Ajustá el cupo." },
+    };
+  }
+
+  return null;
+}
+
+async function getScheduleOccupiedCount(scheduleId: string) {
+  const target = { scheduleCapacityId: null, scheduleId };
+  const readOccupiedCount = await resolveOccupiedCounts([target]);
+
+  return readOccupiedCount(target);
+}
+
+type ExistingSchedule = typeof schedules.$inferSelect & {
+  modalityIds: string[];
+};
+
+function hasFrozenScheduleChanges(
+  existing: ExistingSchedule,
   input: ScheduleInput,
 ) {
   return (
     existing.scheduledDate !== input.scheduledDate ||
     existing.startTime !== normalizeTime(input.startTime) ||
-    existing.totalCapacity !== input.totalCapacity ||
     sortedIds(existing.modalityIds).join("\0") !==
       sortedIds(input.modalityIds).join("\0")
   );

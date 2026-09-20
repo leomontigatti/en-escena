@@ -152,7 +152,7 @@ describe("`Bases del evento` repository", () => {
     ).resolves.toMatchObject({
       ok: false,
       error:
-        "No se pueden editar fecha, hora, cupo total ni modalidades aceptadas porque el cronograma tiene dependencias.",
+        "No se pueden editar fecha, hora ni modalidades aceptadas porque el cronograma tiene dependencias.",
     });
     await expect(
       deleteSchedule(block.id, { hasDependencies: async () => true }),
@@ -324,7 +324,7 @@ describe("`Bases del evento` repository", () => {
       modalityIds: [jazz.id],
       totalCapacity: 20,
     });
-    await createChoreographyOnBases({
+    const first = await createChoreographyOnBases({
       eventId: event.id,
       academyId: academy.id,
       modalityId: jazz.id,
@@ -342,7 +342,7 @@ describe("`Bases del evento` repository", () => {
     ).resolves.toMatchObject({
       ok: false,
       error:
-        "No se pueden editar fecha, hora, cupo total ni modalidades aceptadas porque el cronograma tiene dependencias.",
+        "No se pueden editar fecha, hora ni modalidades aceptadas porque el cronograma tiene dependencias.",
     });
     await expect(
       updateSchedule(occupiedBlock.id, {
@@ -353,6 +353,37 @@ describe("`Bases del evento` repository", () => {
         modalityIds: [jazz.id],
       }),
     ).resolves.toMatchObject({ ok: true, record: { name: "Sábado Temprano" } });
+    await createChoreographyOnBases({
+      eventId: event.id,
+      academyId: academy.id,
+      modalityId: jazz.id,
+      name: "Segunda",
+      categoryId: first.categoryId,
+      scheduleId: occupiedBlock.id,
+    });
+    await expect(
+      updateSchedule(occupiedBlock.id, {
+        name: "Sábado temprano",
+        scheduledDate: "2026-05-02",
+        startTime: "09:00",
+        totalCapacity: 1,
+        modalityIds: [jazz.id],
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      error:
+        "El cupo total no puede ser menor a los 2 lugares ya ocupados del cronograma.",
+      fieldErrors: { totalCapacity: "Ajustá el cupo." },
+    });
+    await expect(
+      updateSchedule(occupiedBlock.id, {
+        name: "Sábado temprano",
+        scheduledDate: "2026-05-02",
+        startTime: "09:00",
+        totalCapacity: 30,
+        modalityIds: [jazz.id],
+      }),
+    ).resolves.toMatchObject({ ok: true, record: { totalCapacity: 30 } });
     await expect(
       updateSchedule(freeBlock.id, {
         name: "Sábado tarde",
@@ -428,7 +459,7 @@ describe("`Bases del evento` repository", () => {
     ).resolves.toMatchObject({
       ok: false,
       error:
-        "No se pueden editar fecha, hora, cupo total ni modalidades aceptadas porque el cronograma tiene dependencias.",
+        "No se pueden editar fecha, hora ni modalidades aceptadas porque el cronograma tiene dependencias.",
     });
   });
 });

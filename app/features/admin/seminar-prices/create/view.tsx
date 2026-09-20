@@ -5,6 +5,7 @@ import {
   SeminarPriceForm,
   SeminarPriceFormActions,
   SeminarPriceFormPanel,
+  useSeminarPriceForm,
 } from "../form";
 import type {
   SeminarPriceActionData,
@@ -25,6 +26,13 @@ export function SeminarPriceCreateView({
 }: SeminarPriceCreateViewProps) {
   useServerActionToast(actionData);
 
+  const form = useSeminarPriceForm({
+    submittedValues: getSeminarPriceSubmittedValues(
+      actionData,
+      "create-seminar-price",
+    ),
+  });
+
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
@@ -33,14 +41,12 @@ export function SeminarPriceCreateView({
     >
       <SeminarPriceFormPanel>
         <SeminarPriceForm
+          form={form}
           formId={createSeminarPriceFormId}
           intent="create-seminar-price"
-          submittedValues={getSeminarPriceSubmittedValues(
-            actionData,
-            "create-seminar-price",
-          )}
         />
         <SeminarPriceFormActions
+          form={form}
           formId={createSeminarPriceFormId}
           pendingScope={{ intent: "create-seminar-price" }}
         />

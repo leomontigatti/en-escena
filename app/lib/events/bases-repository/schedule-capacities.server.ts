@@ -26,6 +26,7 @@ import type {
   ScheduleCapacityListItem,
   ValidInlineScheduleCapacityInput,
 } from "@/lib/events/bases-repository/shared.server";
+import { resolveOccupiedCounts } from "@/lib/choreographies/schedule-capacity-occupancy.server";
 
 export async function createScheduleCapacity(
   scheduleId: string,
@@ -72,22 +73,21 @@ export async function updateScheduleCapacity(
     return validation;
   }
 
-  const hasDependencies =
-    dependencies.hasDependencies ?? scheduleCapacityHasOperationalDependencies;
+  const readOccupiedCount = await resolveOccupiedCounts([
+    toOccupancyTarget(existing),
+  ]);
+  const structuralFailure = await validateStructuralScheduleCapacityChanges({
+    capacityFieldName: "capacity",
+    existing,
+    hasDependencies:
+      dependencies.hasDependencies ??
+      scheduleCapacityHasOperationalDependencies,
+    next: { groupType: validation.groupType, capacity: input.capacity },
+    occupiedCount: readOccupiedCount(toOccupancyTarget(existing)),
+  });
 
-  if (
-    (await hasDependencies(scheduleCapacityId)) &&
-    hasStructuralScheduleCapacityChanges(existing, {
-      groupType: validation.groupType,
-      capacity: input.capacity,
-    })
-  ) {
-    return {
-      ok: false,
-      code: "invalid-schedule-capacity",
-      error:
-        "No se pueden editar tipos de grupo ni cupo porque el cupo de cronograma tiene dependencias.",
-    };
+  if (structuralFailure) {
+    return structuralFailure;
   }
 
   const [record] = await db
@@ -328,6 +328,9 @@ export async function validateInlineScheduleCapacityDependencies({
   const nextEntryById = new Map(
     nextEntries.filter(hasScheduleCapacityId).map((entry) => [entry.id, entry]),
   );
+  const readOccupiedCount = await resolveOccupiedCounts(
+    existingEntries.map(toOccupancyTarget),
+  );
 
   for (const existingEntry of existingEntries) {
     const nextEntry = nextEntryById.get(existingEntry.id);
@@ -345,19 +348,16 @@ export async function validateInlineScheduleCapacityDependencies({
       continue;
     }
 
-    if (
-      (await scheduleCapacityHasOperationalDependencies(existingEntry.id)) &&
-      hasStructuralScheduleCapacityChanges(existingEntry, {
-        groupType: nextEntry.groupType,
-        capacity: nextEntry.capacity,
-      })
-    ) {
-      return {
-        ok: false,
-        code: "invalid-schedule-capacity",
-        error:
-          "No se pueden editar tipos de grupo ni cupo porque el cupo de cronograma tiene dependencias.",
-      };
+    const structuralFailure = await validateStructuralScheduleCapacityChanges({
+      capacityFieldName: `scheduleCapacities.${nextEntry.index}.capacity`,
+      existing: existingEntry,
+      hasDependencies: scheduleCapacityHasOperationalDependencies,
+      next: nextEntry,
+      occupiedCount: readOccupiedCount(toOccupancyTarget(existingEntry)),
+    });
+
+    if (structuralFailure) {
+      return structuralFailure;
     }
   }
 
@@ -587,12 +587,53 @@ async function getReservedScheduleCapacityCapacity(
   return result?.total ?? 0;
 }
 
-function hasStructuralScheduleCapacityChanges(
-  existing: typeof scheduleCapacities.$inferSelect,
-  input: { groupType: GroupType; capacity: number },
+function toOccupancyTarget(
+  scheduleCapacity: typeof scheduleCapacities.$inferSelect,
 ) {
-  return (
-    existing.groupType !== input.groupType ||
-    existing.capacity !== input.capacity
-  );
+  return {
+    scheduleCapacityId: scheduleCapacity.id,
+    scheduleId: scheduleCapacity.scheduleId,
+  };
+}
+
+/**
+ * The group type freezes once the entry is occupied: the choreographies in it
+ * were placed by that type. The capacity does not — it may move freely as long
+ * as it still holds what already occupies the entry.
+ */
+async function validateStructuralScheduleCapacityChanges({
+  capacityFieldName,
+  existing,
+  hasDependencies,
+  next,
+  occupiedCount,
+}: {
+  capacityFieldName: string;
+  existing: typeof scheduleCapacities.$inferSelect;
+  hasDependencies: (scheduleCapacityId: string) => boolean | Promise<boolean>;
+  next: { groupType: GroupType; capacity: number };
+  occupiedCount: number;
+}): Promise<EventBaseFailure | null> {
+  if (
+    existing.groupType !== next.groupType &&
+    (await hasDependencies(existing.id))
+  ) {
+    return {
+      ok: false,
+      code: "invalid-schedule-capacity",
+      error:
+        "No se puede editar el tipo de grupo porque el cupo de cronograma tiene dependencias.",
+    };
+  }
+
+  if (existing.capacity !== next.capacity && next.capacity < occupiedCount) {
+    return {
+      ok: false,
+      code: "invalid-schedule-capacity",
+      error: `El cupo no puede ser menor a los ${occupiedCount} lugares ya ocupados.`,
+      fieldErrors: { [capacityFieldName]: "Ajustá el cupo." },
+    };
+  }
+
+  return null;
 }

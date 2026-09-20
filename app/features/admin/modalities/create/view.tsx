@@ -5,6 +5,7 @@ import {
   getNameSubmittedValues,
   ModalityForm,
   ModalityFormActions,
+  useEventModalityForm,
   ModalityFormPanel,
 } from "../form";
 import type {
@@ -23,6 +24,10 @@ export function EventModalityCreateView({
 }: EventModalityCreateViewProps) {
   useServerActionToast(actionData);
 
+  const form = useEventModalityForm({
+    submittedValues: getNameSubmittedValues(actionData, "create-modality"),
+  });
+
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
@@ -31,15 +36,12 @@ export function EventModalityCreateView({
     >
       <ModalityFormPanel>
         <ModalityForm
+          form={form}
           formId="create-modality-form"
           intent="create-modality"
-          submodalities={[]}
-          submittedValues={getNameSubmittedValues(
-            actionData,
-            "create-modality",
-          )}
         />
         <ModalityFormActions
+          form={form}
           formId="create-modality-form"
           pendingScope={{ intent: "create-modality" }}
         />

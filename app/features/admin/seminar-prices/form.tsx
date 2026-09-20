@@ -39,18 +39,22 @@ import {
 
 type SeminarPriceFormController = UseFormReturn<SeminarPriceFormValues>;
 
-type SeminarPriceFormProps = {
+type SeminarPriceFormDefaultValueProps = {
   amount?: number;
   forParticipants?: boolean;
+  kind?: string;
+  name?: string | null;
+  paymentDeadline?: string | null;
+  submittedValues?: SeminarPriceActionValues;
+};
+
+type SeminarPriceFormProps = {
+  form: SeminarPriceFormController;
   formId?: string;
   /** What the guards would refuse; a row being created is never guarded. */
   guard?: PriceGuard;
   id?: string;
   intent: string;
-  kind?: string;
-  name?: string | null;
-  paymentDeadline?: string | null;
-  submittedValues?: SeminarPriceActionValues;
 };
 
 function getSeminarPriceFormDefaultValues({
@@ -60,7 +64,7 @@ function getSeminarPriceFormDefaultValues({
   name,
   paymentDeadline,
   submittedValues,
-}: Omit<SeminarPriceFormProps, "formId" | "guard" | "id" | "intent">) {
+}: SeminarPriceFormDefaultValueProps) {
   if (submittedValues) {
     return {
       name: submittedValues.name,
@@ -80,18 +84,19 @@ function getSeminarPriceFormDefaultValues({
   } satisfies SeminarPriceFormValues;
 }
 
-export function SeminarPriceForm({
+/**
+ * The form's state, owned by the page rather than by the fields, because
+ * "Guardar" lives outside the `<form>` and stays disabled until something
+ * actually changed.
+ */
+export function useSeminarPriceForm({
   amount,
   forParticipants,
-  formId,
-  guard = openPriceGuard,
-  id,
-  intent,
   kind,
   name,
   paymentDeadline,
   submittedValues,
-}: SeminarPriceFormProps) {
+}: SeminarPriceFormDefaultValueProps): SeminarPriceFormController {
   const defaultValues = useMemo(
     () =>
       getSeminarPriceFormDefaultValues({
@@ -109,14 +114,24 @@ export function SeminarPriceForm({
     mode: "onSubmit",
     resolver: zodResolver(seminarPriceFormSchema),
   });
-  const formAction = useOptionalFormAction();
-  const submit = useOptionalSubmit();
   const { reset } = form;
 
   useEffect(() => {
     reset(defaultValues);
   }, [defaultValues, reset]);
 
+  return form;
+}
+
+export function SeminarPriceForm({
+  form,
+  formId,
+  guard = openPriceGuard,
+  id,
+  intent,
+}: SeminarPriceFormProps) {
+  const formAction = useOptionalFormAction();
+  const submit = useOptionalSubmit();
   const values = form.watch();
 
   return (
@@ -163,9 +178,11 @@ export function SeminarPriceForm({
 }
 
 export function SeminarPriceFormActions({
+  form,
   formId,
   pendingScope,
 }: {
+  form: SeminarPriceFormController;
   formId: string;
   pendingScope: RouteFormPendingScope;
 }) {
@@ -175,6 +192,7 @@ export function SeminarPriceFormActions({
       // these rows are read on: `/administracion/precios/seminarios` is a
       // prefix of the form routes, not a screen.
       basePath={seminarPricesListPath}
+      control={form.control}
       formId={formId}
       pendingScope={pendingScope}
     />

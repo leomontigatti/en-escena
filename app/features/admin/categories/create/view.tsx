@@ -8,6 +8,7 @@ import {
   CategoryForm,
   CategoryFormActions,
   getCategorySubmittedValues,
+  useCategoryForm,
 } from "../form";
 import type { CategoryActionData, CategoryFormLoaderData } from "../shared";
 
@@ -22,6 +23,10 @@ export function CategoryCreateView({
 }: CategoryCreateViewProps) {
   useServerActionToast(actionData);
 
+  const form = useCategoryForm({
+    submittedValues: getCategorySubmittedValues(actionData, "create-category"),
+  });
+
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
@@ -30,15 +35,13 @@ export function CategoryCreateView({
     >
       <AdminResourceFormCard>
         <CategoryForm
+          form={form}
           formId="create-category-form"
           intent="create-category"
           modalities={loaderData.modalities}
-          submittedValues={getCategorySubmittedValues(
-            actionData,
-            "create-category",
-          )}
         />
         <CategoryFormActions
+          form={form}
           formId="create-category-form"
           pendingScope={{ intent: "create-category" }}
         />
