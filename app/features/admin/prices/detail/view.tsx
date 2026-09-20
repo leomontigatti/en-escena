@@ -5,7 +5,12 @@ import { useServerActionToast } from "@/lib/shared/toasts";
 import type { PriceListItem } from "@/lib/events/bases.server";
 
 import { EmptyResourceState, PriceActions } from "../actions";
-import { PriceForm, PriceFormActions, PriceFormPanel } from "../form";
+import {
+  PriceForm,
+  PriceFormActions,
+  PriceFormPanel,
+  usePriceForm,
+} from "../form";
 import type {
   EventPriceActionData,
   EventPriceDetailLoaderData,
@@ -29,6 +34,18 @@ export function EventPriceDetailView({
 
   const price = loaderData.prices.find((item) => item.id === priceId);
   const guard = price ? readPriceGuard(price) : null;
+  const form = usePriceForm({
+    amount: price?.amount,
+    groupType: price?.groupType,
+    name: price?.name,
+    paymentDeadline: price?.paymentDeadline,
+    scheduleId: price?.scheduleId,
+    submittedValues: getPriceSubmittedValues(
+      actionData,
+      "update-price",
+      priceId,
+    ),
+  });
 
   return (
     <AdminResourceLayout
@@ -53,23 +70,15 @@ export function EventPriceDetailView({
           <GuardAlert reason={guard.reason} />
           <PriceFormPanel>
             <PriceForm
+              form={form}
               formId="update-price-form"
               guard={guard}
               id={price.id}
               intent="update-price"
               schedules={loaderData.schedules}
-              name={price.name}
-              groupType={price.groupType}
-              amount={price.amount}
-              paymentDeadline={price.paymentDeadline}
-              scheduleId={price.scheduleId}
-              submittedValues={getPriceSubmittedValues(
-                actionData,
-                "update-price",
-                price.id,
-              )}
             />
             <PriceFormActions
+              form={form}
               formId="update-price-form"
               pendingScope={{
                 intent: "update-price",

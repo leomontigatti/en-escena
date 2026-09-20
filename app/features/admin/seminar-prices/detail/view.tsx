@@ -10,6 +10,7 @@ import {
   SeminarPriceForm,
   SeminarPriceFormActions,
   SeminarPriceFormPanel,
+  useSeminarPriceForm,
 } from "../form";
 import type {
   SeminarPriceActionData,
@@ -36,6 +37,18 @@ export function SeminarPriceDetailView({
     (item) => item.id === seminarPriceId,
   );
   const guard = seminarPrice ? readPriceGuard(seminarPrice) : null;
+  const form = useSeminarPriceForm({
+    amount: seminarPrice?.amount,
+    forParticipants: seminarPrice?.forParticipants,
+    kind: seminarPrice?.kind,
+    name: seminarPrice?.name,
+    paymentDeadline: seminarPrice?.paymentDeadline,
+    submittedValues: getSeminarPriceSubmittedValues(
+      actionData,
+      "update-seminar-price",
+      seminarPriceId,
+    ),
+  });
 
   return (
     <AdminResourceLayout
@@ -62,22 +75,14 @@ export function SeminarPriceDetailView({
           <GuardAlert reason={guard.reason} />
           <SeminarPriceFormPanel>
             <SeminarPriceForm
+              form={form}
               formId="update-seminar-price-form"
               guard={guard}
               id={seminarPrice.id}
               intent="update-seminar-price"
-              name={seminarPrice.name}
-              kind={seminarPrice.kind}
-              forParticipants={seminarPrice.forParticipants}
-              amount={seminarPrice.amount}
-              paymentDeadline={seminarPrice.paymentDeadline}
-              submittedValues={getSeminarPriceSubmittedValues(
-                actionData,
-                "update-seminar-price",
-                seminarPrice.id,
-              )}
             />
             <SeminarPriceFormActions
+              form={form}
               formId="update-seminar-price-form"
               pendingScope={{
                 intent: "update-seminar-price",

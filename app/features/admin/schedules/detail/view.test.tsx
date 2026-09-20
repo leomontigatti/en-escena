@@ -9,6 +9,8 @@ import type { EventScheduleDetailLoaderData } from "@/features/admin/schedules/s
 import {
   createReactDomTestRenderer,
   getButton,
+  setInputValue,
+  updateReactDomForm,
 } from "@/lib/test-support/react-dom";
 
 const useNavigationMock = vi.hoisted(() => vi.fn());
@@ -82,6 +84,58 @@ describe("EventScheduleDetailView", () => {
     expect(
       document.querySelector("#totalCapacity")?.getAttribute("aria-label"),
     ).toBe("Cupo total. Quedan 4 de 10 lugares.");
+  });
+
+  // The suffix plans against the number being typed, not the saved one: the
+  // occupied places stay put, so raising or lowering the capacity moves what
+  // is left before anything is saved.
+  test("follows the typed capacity with the lugares that would be left", async () => {
+    useNavigationMock.mockReturnValue({ state: "idle" });
+
+    await renderDetail({
+      initialDeleteDialogOpen: false,
+      loaderData: buildOccupiedLoaderData(),
+    });
+
+    const capacity = document.querySelector<HTMLInputElement>(
+      "#schedule-capacity-capacity-0",
+    )!;
+
+    await updateReactDomForm(() => setInputValue(capacity, "9"));
+
+    expect(capacity.closest('[data-slot="field"]')?.textContent).toContain(
+      " / 5 disponibles",
+    );
+
+    await updateReactDomForm(() => setInputValue(capacity, "4"));
+
+    expect(capacity.closest('[data-slot="field"]')?.textContent).toContain(
+      " / sin lugares",
+    );
+
+    await updateReactDomForm(() => setInputValue(capacity, ""));
+
+    expect(capacity.closest('[data-slot="field"]')?.textContent).not.toContain(
+      " / ",
+    );
+  });
+
+  test("keeps Guardar disabled until something changes", async () => {
+    useNavigationMock.mockReturnValue({ state: "idle" });
+
+    await renderDetail({ initialDeleteDialogOpen: false });
+
+    expect(getButton("Guardar").disabled).toBe(true);
+
+    const name = document.querySelector<HTMLInputElement>("#name")!;
+
+    await updateReactDomForm(() => setInputValue(name, "Tarde"));
+
+    expect(getButton("Guardar").disabled).toBe(false);
+
+    await updateReactDomForm(() => setInputValue(name, "Mañana"));
+
+    expect(getButton("Guardar").disabled).toBe(true);
   });
 
   test("leads the footer with Volver and its chevron, opposite Guardar", async () => {

@@ -39,6 +39,7 @@ import {
   describeAvailablePlaces,
   emptyScheduleCapacities,
   formatAvailablePlacesSuffix,
+  resolveLiveAvailablePlaces,
   emptySelection,
   getAvailableScheduleCapacityGroupTypeOptions,
   scheduleFormSchema,
@@ -49,12 +50,12 @@ import { basePath, type EventScheduleModalityRow } from "./shared";
 
 type ScheduleFormController = UseFormReturn<ScheduleFormValues>;
 
-export function ScheduleForm({
-  availablePlaces,
-  formId,
-  id,
-  intent,
-  modalities,
+/**
+ * The form's state, owned by the page rather than by the fields, because
+ * "Guardar" lives outside the `<form>` and stays disabled until something
+ * actually changed.
+ */
+export function useScheduleForm({
   modalityIds = emptySelection,
   name,
   scheduleCapacities = emptyScheduleCapacities,
@@ -63,11 +64,6 @@ export function ScheduleForm({
   submittedValues,
   totalCapacity,
 }: {
-  availablePlaces?: number;
-  formId?: string;
-  id?: string;
-  intent: string;
-  modalities: EventScheduleModalityRow[];
   modalityIds?: string[];
   name?: string;
   scheduleCapacities?: ScheduleListItem["scheduleCapacities"];
@@ -75,15 +71,7 @@ export function ScheduleForm({
   startTime?: string;
   submittedValues?: ScheduleActionValues;
   totalCapacity?: number;
-}) {
-  const modalityOptions = useMemo(
-    () =>
-      modalities.map((modality) => ({
-        value: modality.id,
-        label: modality.name,
-      })),
-    [modalities],
-  );
+}): ScheduleFormController {
   const defaultValues = useMemo(
     () =>
       submittedValues ?? {
@@ -106,29 +94,56 @@ export function ScheduleForm({
       totalCapacity,
     ],
   );
-  const availablePlacesByScheduleCapacityId = useMemo(
-    () =>
-      new Map(
-        scheduleCapacities.map((scheduleCapacity) => [
-          scheduleCapacity.id,
-          {
-            availablePlaces: scheduleCapacity.availablePlaces,
-            capacity: scheduleCapacity.capacity,
-          },
-        ]),
-      ),
-    [scheduleCapacities],
-  );
   const form = useForm<ScheduleFormValues>({
     resolver: zodResolver(scheduleFormSchema),
     defaultValues,
   });
-  const formAction = useOptionalFormAction();
-  const submit = useOptionalSubmit();
 
   useEffect(() => {
     form.reset(defaultValues);
   }, [defaultValues, form]);
+
+  return form;
+}
+
+export function ScheduleForm({
+  form,
+  formId,
+  id,
+  intent,
+  modalities,
+  occupiedCount,
+  scheduleCapacities = emptyScheduleCapacities,
+}: {
+  form: ScheduleFormController;
+  formId?: string;
+  id?: string;
+  intent: string;
+  modalities: EventScheduleModalityRow[];
+  /** Absent on the create form, where nothing can occupy the schedule yet. */
+  occupiedCount?: number;
+  scheduleCapacities?: ScheduleListItem["scheduleCapacities"];
+}) {
+  const modalityOptions = useMemo(
+    () =>
+      modalities.map((modality) => ({
+        value: modality.id,
+        label: modality.name,
+      })),
+    [modalities],
+  );
+  const occupiedCountByScheduleCapacityId = useMemo(
+    () =>
+      new Map(
+        scheduleCapacities.map((scheduleCapacity) => [
+          scheduleCapacity.id,
+          scheduleCapacity.occupiedCount,
+        ]),
+      ),
+    [scheduleCapacities],
+  );
+  const formAction = useOptionalFormAction();
+  const submit = useOptionalSubmit();
 
   return (
     <form
@@ -141,17 +156,7 @@ export function ScheduleForm({
       {id ? <input type="hidden" name="id" value={id} /> : null}
       <FieldGroup className="grid gap-4 sm:grid-cols-2">
         <ScheduleTextField form={form} label="Nombre" name="name" />
-        <ScheduleTextField
-          availablePlaces={
-            totalCapacity === undefined ? undefined : availablePlaces
-          }
-          capacity={totalCapacity}
-          form={form}
-          label="Cupo total"
-          min={1}
-          name="totalCapacity"
-          step={1}
-        />
+        <ScheduleTotalCapacityField form={form} occupiedCount={occupiedCount} />
         <DateOnlyField
           control={form.control}
           name="scheduledDate"
@@ -169,25 +174,26 @@ export function ScheduleForm({
         />
       </FieldGroup>
       <ScheduleCapacitiesInlineFieldArray
-        availablePlacesByScheduleCapacityId={
-          availablePlacesByScheduleCapacityId
-        }
         form={form}
+        occupiedCountByScheduleCapacityId={occupiedCountByScheduleCapacityId}
       />
     </form>
   );
 }
 
 export function ScheduleFormActions({
+  form,
   formId,
   pendingScope,
 }: {
+  form: ScheduleFormController;
   formId: string;
   pendingScope: RouteFormPendingScope;
 }) {
   return (
     <EventBasesFormActions
       basePath={basePath}
+      control={form.control}
       formId={formId}
       pendingScope={pendingScope}
     />
@@ -199,56 +205,16 @@ export function ScheduleFormPanel({ children }: { children: ReactNode }) {
 }
 
 function ScheduleTextField({
-  availablePlaces,
-  capacity,
-  className,
   form,
   label,
-  min,
   name,
-  step,
 }: {
-  availablePlaces?: number;
-  capacity?: number;
-  className?: string;
   form: ScheduleFormController;
   label: string;
-  min?: number;
-  name: "name" | "startTime" | "totalCapacity";
-  step?: number;
+  name: "name";
 }) {
-  if (name === "totalCapacity") {
-    const hasAvailablePlaces =
-      availablePlaces !== undefined && capacity !== undefined;
-
-    return (
-      <IntegerInputField
-        className={className}
-        control={form.control}
-        id={name}
-        // The visible label stays just the label; the accessible name carries
-        // the count that the decorative suffix cannot.
-        aria-label={
-          hasAvailablePlaces
-            ? `${label}. ${describeAvailablePlaces({ availablePlaces, capacity })}`
-            : undefined
-        }
-        label={label}
-        min={min}
-        name={name}
-        step={step}
-        suffix={
-          hasAvailablePlaces
-            ? formatAvailablePlacesSuffix(availablePlaces)
-            : undefined
-        }
-      />
-    );
-  }
-
   return (
     <TextInputField
-      className={className}
       control={form.control}
       id={name}
       label={label}
@@ -257,17 +223,53 @@ function ScheduleTextField({
   );
 }
 
-type AvailablePlacesByScheduleCapacityId = Map<
-  string,
-  { availablePlaces: number; capacity: number }
->;
+function ScheduleTotalCapacityField({
+  form,
+  occupiedCount,
+}: {
+  form: ScheduleFormController;
+  occupiedCount?: number;
+}) {
+  const label = "Cupo total";
+  const typedCapacity = useWatch({
+    control: form.control,
+    name: "totalCapacity",
+  });
+  const availablePlaces = resolveLiveAvailablePlaces({
+    occupiedCount,
+    typedCapacity,
+  });
+
+  return (
+    <IntegerInputField
+      control={form.control}
+      id="totalCapacity"
+      // The visible label stays just the label; the accessible name carries
+      // the count that the decorative suffix cannot.
+      aria-label={
+        availablePlaces
+          ? `${label}. ${describeAvailablePlaces(availablePlaces)}`
+          : undefined
+      }
+      label={label}
+      min={1}
+      name="totalCapacity"
+      step={1}
+      suffix={
+        availablePlaces
+          ? formatAvailablePlacesSuffix(availablePlaces.availablePlaces)
+          : undefined
+      }
+    />
+  );
+}
 
 function ScheduleCapacitiesInlineFieldArray({
-  availablePlacesByScheduleCapacityId,
   form,
+  occupiedCountByScheduleCapacityId,
 }: {
-  availablePlacesByScheduleCapacityId: AvailablePlacesByScheduleCapacityId;
   form: ScheduleFormController;
+  occupiedCountByScheduleCapacityId: Map<string, number>;
 }) {
   const { append, fields, remove } = useFieldArray({
     control: form.control,
@@ -293,9 +295,9 @@ function ScheduleCapacitiesInlineFieldArray({
       onRemove={remove}
       renderItem={(field, index, removeItem) => (
         <ScheduleCapacityInlineFields
-          availablePlaces={
+          occupiedCount={
             field.id
-              ? availablePlacesByScheduleCapacityId.get(field.id)
+              ? occupiedCountByScheduleCapacityId.get(field.id)
               : undefined
           }
           field={field}
@@ -369,23 +371,31 @@ function InlineFieldArray<TField extends { fieldId: string }>({
 }
 
 function ScheduleCapacityInlineFields({
-  availablePlaces,
   field,
   form,
   index,
+  occupiedCount,
   options,
   onRemove,
 }: {
-  availablePlaces?: { availablePlaces: number; capacity: number };
   field: { id?: string };
   form: ScheduleFormController;
   index: number;
+  occupiedCount?: number;
   options: Array<{ value: string; label: string }>;
   onRemove: () => void;
 }) {
   const idFieldName = `scheduleCapacities.${index}.id` as const;
   const groupTypeFieldName = `scheduleCapacities.${index}.groupType` as const;
   const capacityFieldName = `scheduleCapacities.${index}.capacity` as const;
+  const typedCapacity = useWatch({
+    control: form.control,
+    name: capacityFieldName,
+  });
+  const availablePlaces = resolveLiveAvailablePlaces({
+    occupiedCount,
+    typedCapacity,
+  });
 
   return (
     <FieldGroup className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_14rem_2rem] sm:items-start">

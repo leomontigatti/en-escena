@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
@@ -19,6 +19,7 @@ import {
   getModalitySubmittedValues,
   ModalityForm,
   ModalityFormActions,
+  useEventModalityForm,
   ModalityFormPanel,
 } from "../form";
 import type {
@@ -45,9 +46,22 @@ export function EventModalityDetailView({
   const modality = loaderData.modalities.find(
     (record) => record.id === modalityId,
   );
-  const modalitySubmodalities = loaderData.submodalities.filter(
-    (submodality) => submodality.modalityId === modalityId,
+  const modalitySubmodalities = useMemo(
+    () =>
+      loaderData.submodalities.filter(
+        (submodality) => submodality.modalityId === modalityId,
+      ),
+    [loaderData.submodalities, modalityId],
   );
+  const submittedValues = useMemo(
+    () => getModalitySubmittedValues(actionData, modalityId),
+    [actionData, modalityId],
+  );
+  const form = useEventModalityForm({
+    name: modality?.name,
+    submodalities: modalitySubmodalities,
+    submittedValues,
+  });
 
   return (
     <AdminResourceLayout
@@ -70,17 +84,13 @@ export function EventModalityDetailView({
       {modality ? (
         <ModalityFormPanel>
           <ModalityForm
+            form={form}
             formId="update-modality-form"
             id={modality.id}
             intent="update-modality"
-            name={modality.name}
-            submodalities={modalitySubmodalities}
-            submittedValues={getModalitySubmittedValues(
-              actionData,
-              modality.id,
-            )}
           />
           <ModalityFormActions
+            form={form}
             formId="update-modality-form"
             pendingScope={{
               intent: "update-modality",
