@@ -177,7 +177,7 @@ export async function updateCategory(
     };
   }
 
-  return db.transaction(async (tx) => {
+  return db.transaction(async (tx): Promise<EventBasesMutationResult> => {
     // The guard above read the referencing choreographies on the pool, before
     // this transaction existed, so a registration that committed in between is
     // invisible to it. Asking again here — on the transaction that writes, and
@@ -265,11 +265,13 @@ function categoryHasChoreographies(): EventBaseFailure {
 }
 
 /**
- * What an edit changes, of the two properties that cannot move under a
- * referencing choreography. `null` when it moves neither, which is the common
- * path and the one that asks nothing of the database.
+ * Which of the two properties that cannot move under a referencing
+ * choreography an edit moves, named rather than flagged so the refusal reads
+ * the case it words instead of the absence of the other one. `null` when the
+ * edit moves neither, which is the common path and the one that asks nothing
+ * of the database.
  */
-type AgeOrLevelEdit = { changesAgeRange: boolean };
+type AgeOrLevelEdit = "age-range" | "experience-levels";
 
 /**
  * The age range and the experience level set decide what a category means for
@@ -289,11 +291,10 @@ type AgeOrLevelEdit = { changesAgeRange: boolean };
  * asking a narrower question than the other. Renaming, and any edit to a
  * category no choreography references, stay allowed.
  *
- * Split in two: `describeAgeOrLevelEdit` decides whether the edit is one of
- * those at all, from the row alone, and the refusal below asks the database who
- * stands in the way. `updateCategory` asks the second part twice, once outside
- * the transaction and once inside it, and the split is what keeps the second
- * ask from re-deciding the first.
+ * Split in two: this half decides from the row alone which property the edit
+ * moves, and the refusal below asks the database who stands in the way. Only
+ * the second half touches the database, so a caller can ask it more than once
+ * without re-deciding the first.
  */
 function describeAgeOrLevelEdit(
   category: typeof categories.$inferSelect,
@@ -310,11 +311,15 @@ function describeAgeOrLevelEdit(
     input.experienceLevels,
   );
 
-  if (!changesAgeRange && !changesExperienceLevels) {
-    return null;
+  if (changesAgeRange) {
+    return "age-range";
   }
 
-  return { changesAgeRange };
+  if (changesExperienceLevels) {
+    return "experience-levels";
+  }
+
+  return null;
 }
 
 async function refuseAgeOrLevelEditUnderChoreographies(
@@ -344,9 +349,10 @@ async function refuseAgeOrLevelEditUnderChoreographies(
   return {
     ok: false,
     code: "event-bases-has-dependencies",
-    error: edit.changesAgeRange
-      ? `No se puede cambiar el rango de edad de ${subject}.`
-      : `No se pueden cambiar los niveles de experiencia de ${subject}.`,
+    error:
+      edit === "age-range"
+        ? `No se puede cambiar el rango de edad de ${subject}.`
+        : `No se pueden cambiar los niveles de experiencia de ${subject}.`,
   };
 }
 
