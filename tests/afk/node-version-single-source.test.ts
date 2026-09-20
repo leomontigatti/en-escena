@@ -36,7 +36,7 @@ describe("the Node version the project targets (#981)", () => {
     );
   });
 
-  it("is the floor of `engines.node`, so a stale local Node is refused", () => {
+  it("is the floor of `engines.node`, so a stale local Node is warned about", () => {
     expect(packageJson.engines?.node).toBe(`^${nvmrc}`);
   });
 

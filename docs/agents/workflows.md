@@ -203,8 +203,12 @@ else states it independently (#981):
 
 - every `actions/setup-node` step in `.github/workflows/` uses
   `node-version-file: .nvmrc`, never a literal `node-version:`;
-- `package.json`'s `engines.node` is `^<that version>`, which is what refuses a
-  stale local Node before a tool that needs the newer one fails obscurely;
+- `package.json`'s `engines.node` is `^<that version>`, so pnpm warns on install
+  (`Unsupported engine: wanted … current …`) when the local Node sits below the
+  floor. It only warns: no `engineStrict` is set in `pnpm-workspace.yaml`, so
+  nothing is refused. The floor is deliberately the exact `.nvmrc` patch rather
+  than the looser `^22.x` #981 sketched, so that a local Node tracks the one CI
+  runs; after a patch bump, `nvm install` clears the warning;
 - the Dockerfile's base is `FROM node:<that version>-bookworm-slim`. It repeats
   the number because `FROM` cannot read a file, and an `ARG` defaulted from one
   would still need the default written here; `tests/afk/node-version-single-source.test.ts`
