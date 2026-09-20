@@ -630,6 +630,46 @@ describe("comment-language guardrail, shell (#947)", () => {
     expect(shellKindsIn('label="necesita revisión"\n')).toEqual([]);
   });
 
+  test("catches a single-quoted message written to stderr", () => {
+    expect(shellKindsIn("  echo 'Usá pnpm typecheck.' >&2\n")).toEqual([
+      "error message",
+    ]);
+  });
+
+  // `stop-typecheck-lint.sh`'s shape, and the reason the scan does not stop at
+  // the redirect line: the sentence the agent reads is assembled several lines
+  // above the `>&2` that prints it.
+  test("catches a message assembled into a variable stderr reads", () => {
+    const hook = [
+      'instruction="Arreglá esto antes de terminar el turno."',
+      `printf '%s\\n' "$instruction" >&2`,
+      "",
+    ].join("\n");
+
+    expect(shellKindsIn(hook)).toEqual(["error message"]);
+    expect(
+      shellKindsIn(
+        hook.replace(
+          "Arreglá esto antes de terminar el turno.",
+          "Fix this before ending the turn.",
+        ),
+      ),
+    ).toEqual([]);
+  });
+
+  // A command substitution is the command's output, not prose this file wrote.
+  test("leaves a captured command's output alone", () => {
+    expect(
+      shellKindsIn(
+        [
+          'output="$(pnpm typecheck 2>&1)"',
+          `printf '%s' "$output" >&2`,
+          "",
+        ].join("\n"),
+      ),
+    ).toEqual([]);
+  });
+
   // A `#` only opens a comment at line start or after whitespace, the same rule
   // the YAML scan reads it by.
   test("does not read a `#` inside a value as a comment", () => {

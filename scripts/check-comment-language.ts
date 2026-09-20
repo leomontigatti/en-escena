@@ -30,11 +30,12 @@ import { collectSourceFiles } from "./source-files";
 // ADR. Everything else the glossary names is a violation, and naming it is done
 // the way the identifier rule already does it, by quoting or backticking it.
 //
-// The scopes it reads are comments, test names and the argument of a
-// `new …Error(…)`. Arbitrary string literals are left alone on purpose — Spanish
-// UI copy lives in literals — but an error message is engineering prose by the
-// same test #592 applied, and eleven Spanish ones outlived that sweep. See
-// `findErrorMessages` for why the predicate is exactly this narrow.
+// The scopes it reads are comments, test names, the argument of a
+// `new …Error(…)` and what a shell script writes to stderr. Arbitrary string
+// literals are left alone on purpose — Spanish UI copy lives in literals — but
+// an error message is engineering prose by the same test #592 applied, and
+// eleven Spanish ones outlived that sweep. See `findErrorMessages` and
+// `stderrMessagesIn` for why each predicate is exactly this narrow.
 
 // Every directory in the repo that holds `.ts`/`.tsx`/`.mts`/`.mjs`, plus the
 // root-level configs `collectScannedFiles` adds. `.sandcastle` is here because
@@ -991,10 +992,23 @@ export function findSpanishProseInYaml(input: {
  * engineering prose a `new Error(…)` message is, and the reason #947 was opened
  * was that `block-npx-tsc.sh` carried it in Spanish.
  *
- * The scope is the double-quoted strings on a line that redirects to `>&2`,
- * which is narrow the way `findErrorMessages` is narrow: every other literal in
- * a shell script is data — a label, a path, a `jq` filter — and reading those as
- * prose would report `label="necesita revisión"` as a violation.
+ * The scope is the quoted strings a line hands to stderr, which is narrow the
+ * way `findErrorMessages` is narrow: every other literal in a shell script is
+ * data — a label, a path, a `jq` filter — and reading those as prose would
+ * report `label="necesita revisión"` as a violation.
+ *
+ * A line redirecting to `>&2` is only half of that. The repo's other
+ * agent-facing hook writes `printf '%s\n\n%s\n' "$output" "$instruction" >&2`
+ * and assembles the sentence three lines earlier in `instruction="…"`, so
+ * reading the redirect line alone would have let a Spanish `instruction` through
+ * the gate the day #947 closed it. `stderrVariableNamesIn` is what closes that:
+ * a variable this file interpolates into stderr carries a message, so its
+ * literal assignments are read as one wherever they sit.
+ *
+ * Two shapes stay out of reach, both absent from the tree and both a miss rather
+ * than a spurious failure: a heredoc body redirected to stderr, and a message
+ * built across a line break, since `hashCommentAt` reads quoting one line at a
+ * time. This is `decodePem`'s gap in the error-message scan, one language over.
  */
 export function findSpanishProseInShell(input: {
   contents: string;
@@ -1002,16 +1016,22 @@ export function findSpanishProseInShell(input: {
   /** Empty turns the vocabulary instrument off; say so rather than omit it. */
   glossaryNouns: string[];
 }): CommentLanguageViolation[] {
-  return input.contents.split("\n").flatMap((line, index) => {
+  const lines = input.contents.split("\n");
+  const messageVariables = stderrVariableNamesIn(lines);
+
+  return lines.flatMap((line, index) => {
     const comment = hashCommentAt(line);
+    const code =
+      comment === null ? line : line.slice(0, line.length - comment.length);
     const passages: { kind: CommentLanguageViolation["kind"]; text: string }[] =
       [
         ...(comment === null
           ? []
           : [{ kind: "comment" as const, text: comment }]),
-        ...stderrMessagesIn(
-          comment === null ? line : line.slice(0, line.length - comment.length),
-        ).map((text) => ({ kind: "error message" as const, text })),
+        ...stderrMessagesIn(code, messageVariables).map((text) => ({
+          kind: "error message" as const,
+          text,
+        })),
       ];
 
     return passages.flatMap(({ kind, text }) => {
@@ -1038,17 +1058,61 @@ export function findSpanishProseInShell(input: {
 }
 
 /**
- * The contents of the double-quoted strings on a line that redirects to stderr.
- * The inner text rather than the literal, because `blankDataSpans` blanks a
- * `"…"` span as data — which is right for a comment quoting UI copy and wrong
- * for the message itself.
+ * The messages a line of shell hands to stderr: every quoted string on a line
+ * that redirects to it, and the literal assigned to a variable the file later
+ * interpolates into such a line.
+ *
+ * A command substitution is excluded from the assignment half — `output="$(pnpm
+ * typecheck 2>&1)"` is the command's output, not prose written here.
  */
-function stderrMessagesIn(line: string): string[] {
-  if (!line.includes(">&2")) {
+function stderrMessagesIn(
+  line: string,
+  messageVariables: Set<string>,
+): string[] {
+  if (line.includes(">&2")) {
+    return quotedRunsIn(line);
+  }
+
+  const assignment = line.match(/^\s*([A-Za-z_]\w*)=(.*)$/u);
+
+  if (
+    assignment === null ||
+    !messageVariables.has(assignment[1]) ||
+    assignment[2].includes("$(")
+  ) {
     return [];
   }
 
-  return Array.from(line.matchAll(/"([^"\n]*)"/gu), (match) => match[1]);
+  return quotedRunsIn(assignment[2]);
+}
+
+/**
+ * Single quotes as well as double, because shell reads both as a string and
+ * `echo 'Usá pnpm typecheck' >&2` is the same sentence as its double-quoted
+ * twin. The inner text rather than the literal, because `blankDataSpans` blanks
+ * a `"…"` span as data — right for a comment quoting UI copy, wrong for the
+ * message itself.
+ */
+function quotedRunsIn(text: string): string[] {
+  return Array.from(
+    text.matchAll(/"([^"\n]*)"|'([^'\n]*)'/gu),
+    (match) => match[1] ?? match[2],
+  );
+}
+
+/**
+ * The variables a file interpolates into a line that redirects to stderr. Names
+ * only: which assignment wins at runtime is not something a scanner can know, so
+ * every literal assigned to the name is read as a message.
+ */
+function stderrVariableNamesIn(lines: string[]): Set<string> {
+  return new Set(
+    lines
+      .filter((line) => line.includes(">&2"))
+      .flatMap((line) =>
+        Array.from(line.matchAll(/\$\{?([A-Za-z_]\w*)/gu), (match) => match[1]),
+      ),
+  );
 }
 
 export function findSpanishProseInSource(input: {
