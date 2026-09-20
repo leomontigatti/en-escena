@@ -1,0 +1,140 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { MemoryRouter } from "react-router";
+import { describe, expect, test } from "vitest";
+
+import { PresentationsListView } from "@/features/admin/presentations/list/view";
+
+import type { PresentationListItem, PresentationListResult } from "./server";
+
+describe("PresentationsListView", () => {
+  test("shows the event-required empty state when there is no active event", () => {
+    const markup = renderView({ selectedEventId: null });
+
+    expect(markup).toContain(
+      "Elegí un evento activo para ordenar la presentación",
+    );
+  });
+
+  test("shows the empty state when the event has nothing to order", () => {
+    const markup = renderView({ hasAnyRow: false, presentations: [] });
+
+    expect(markup).toContain("Todavía no hay coreografías para ordenar.");
+  });
+
+  test("invites the administrator to order when nothing is numbered yet", () => {
+    const markup = renderView({
+      hasPresentations: false,
+      presentations: [buildItem({ orderNumber: null })],
+      unorderedCount: 1,
+    });
+
+    expect(markup).toContain(
+      "Las coreografías todavía no tienen un número de presentación asignado.",
+    );
+    expect(markup).toContain("Ordenar automáticamente");
+  });
+
+  test("counts the late rows and the warned ones in singular and plural", () => {
+    const singular = renderView({
+      presentations: [buildItem({ orderNumber: 1 })],
+      unorderedCount: 1,
+      warnedCount: 1,
+    });
+
+    expect(singular).toContain(
+      "Existe 1 coreografía sin número de presentación.",
+    );
+    expect(singular).toContain("Existe 1 presentación con advertencias.");
+
+    const plural = renderView({
+      presentations: [buildItem({ orderNumber: 1 })],
+      unorderedCount: 3,
+      warnedCount: 2,
+    });
+
+    expect(plural).toContain(
+      "Existen 3 coreografías sin número de presentación.",
+    );
+    expect(plural).toContain("Existen 2 presentaciones con advertencias.");
+  });
+
+  test("badges an unnumbered row and triages a numbered one by its warnings", () => {
+    const markup = renderView({
+      presentations: [
+        buildItem({ id: "late", orderNumber: null }),
+        buildItem({
+          id: "flagged",
+          orderNumber: 1,
+          warnings: [
+            { kind: "outOfBlock", message: "Fuera de su bloque" },
+            { kind: "belowDeposit", message: "Seña pendiente" },
+          ],
+        }),
+      ],
+      unorderedCount: 1,
+      warnedCount: 1,
+    });
+
+    expect(markup).toContain("Sin número");
+    expect(markup).toContain("Seña pendiente");
+    expect(markup).not.toContain(">Fuera de bloque<");
+  });
+
+  test("keeps the actions menu out of an auditor's header", () => {
+    const markup = renderView({ canOrder: false });
+
+    expect(markup).not.toContain("Ordenar automáticamente");
+  });
+});
+
+function buildItem(
+  overrides: Partial<PresentationListItem> = {},
+): PresentationListItem {
+  return {
+    academyName: "Academia Sur",
+    categoryName: "Infantil",
+    choreographyNumber: 12,
+    financialStatus: "depositMet",
+    groupType: "solo",
+    id: "choreography-1",
+    modalityName: "Jazz",
+    name: "Pieza",
+    orderNumber: 1,
+    scheduledDate: "2026-05-01",
+    submodalityName: null,
+    warnings: [],
+    ...overrides,
+  };
+}
+
+function renderView(overrides: Partial<PresentationListResult> = {}) {
+  const loaderData: PresentationListResult = {
+    canOrder: true,
+    days: ["2026-05-01"],
+    filters: {
+      day: null,
+      order: { columnId: "orden", direction: "asc" },
+      page: 1,
+      query: "",
+      warnings: null,
+    },
+    hasAnyRow: true,
+    hasPresentations: true,
+    presentations: [buildItem()],
+    selectedEventId: "event-1",
+    totalCount: 1,
+    totalPages: 1,
+    unorderedCount: 0,
+    warnedCount: 0,
+    ...overrides,
+  };
+
+  return renderToStaticMarkup(
+    createElement(
+      MemoryRouter,
+      null,
+      createElement(PresentationsListView, { loaderData }),
+    ),
+  );
+}

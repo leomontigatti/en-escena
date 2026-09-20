@@ -7,6 +7,7 @@ import {
   seminarInscriptions,
   seminars,
 } from "@/db/schema";
+import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
 import {
   type OperationalFinanceRollup,
   rollUpInscriptionFinanceFigures,
@@ -64,15 +65,18 @@ function seminarUnitKey(input: {
 export async function readAcademySeminarFinance(input: {
   academyIds: string[];
   eventId: string;
+  // The executor, so a caller reading inside a transaction stays inside it.
+  executor?: Executor;
 }): Promise<Map<string, SeminarOperationalFinanceRow[]>> {
+  const executor = input.executor ?? db;
   const rowsByAcademy = new Map<string, SeminarOperationalFinanceRow[]>();
 
   for (const academyId of input.academyIds) {
     rowsByAcademy.set(academyId, []);
   }
 
-  const unitRows = await readSeminarUnitRows(input);
-  const resolutions = await resolveSeminarInscriptions(db, {
+  const unitRows = await readSeminarUnitRows({ ...input, executor });
+  const resolutions = await resolveSeminarInscriptions(executor, {
     eventId: input.eventId,
     rows: unitRows,
   });
@@ -137,6 +141,7 @@ function buildSeminarOperationalFinanceRow(
 async function readSeminarUnitRows(input: {
   academyIds: string[];
   eventId: string;
+  executor?: Executor;
 }): Promise<SeminarUnitRow[]> {
   if (input.academyIds.length === 0) {
     return [];
@@ -144,7 +149,7 @@ async function readSeminarUnitRows(input: {
 
   const academyId = sql<string>`coalesce(${dancers.academyId}, ${professors.academyId})`;
 
-  return db
+  return (input.executor ?? db)
     .select({
       academyId,
       dancerId: seminarInscriptions.dancerId,
