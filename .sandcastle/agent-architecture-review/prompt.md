@@ -39,6 +39,13 @@ Prior `source:architecture-review` proposals (do not re-propose these):
 - **One PRD per run.** If every reasonable candidate is already covered by a prior proposal,
   emit a `skipped` output and stop.
 - Make the call yourself — there is no user to consult.
+- **Report documentation drift you run into.** While exploring you read docs and code side by
+  side. When a current-state document (`docs/domain/`, `docs/operations/`, `docs/agents/`,
+  `CONTEXT.md`, `docs/local-auth.md`) states something the code you read contradicts, list it —
+  document, the claim, the file that contradicts it — under a `### Documentation drift` heading
+  at the end of **Further Notes**, or appended to `reason` on a `skipped` run. Do not go hunting
+  for it, and do not let it displace the PRD. ADRs, superseded ADRs and finished plans are
+  historical records: a file they name that no longer exists is not drift.
 
 # PRD BODY TEMPLATE
 
