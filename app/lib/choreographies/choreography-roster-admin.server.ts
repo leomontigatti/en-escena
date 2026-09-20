@@ -23,6 +23,10 @@ import {
   type UpdateChoreographyResult,
 } from "@/lib/choreographies/choreography-roster.shared";
 import {
+  normaliseActiveInscriptionAges,
+  refreshActiveInscriptionAges,
+} from "@/lib/choreographies/inscription-age.server";
+import {
   removeInscriptionsFromRoster,
   reviveWithdrawnInscriptions,
 } from "@/lib/choreographies/inscription-withdrawal.server";
@@ -109,6 +113,7 @@ export async function updateAdministrativeChoreographyRoster(input: {
 
   if (!dancerIdsChanged && !professorIdsChanged) {
     await renameChoreographyIfNeeded(input);
+    await normaliseActiveInscriptionAges(input);
 
     return { ok: true };
   }
@@ -162,6 +167,7 @@ export async function updateAdministrativeChoreographyRoster(input: {
 
   if (!dancerIdsChanged) {
     await renameChoreographyIfNeeded(input);
+    await normaliseActiveInscriptionAges(input);
   }
 
   return { ok: true };
@@ -498,6 +504,19 @@ async function syncRosterInscriptions(input: {
       })),
     );
   }
+
+  // The rows that stay are the only ones nothing above has written an age
+  // onto, and the placement this same save persists was resolved from these
+  // very ages: without this they would keep whatever was stored when the
+  // dancer was first added, and the two would disagree.
+  await refreshActiveInscriptionAges(tx, {
+    choreographyId: input.choreographyId,
+    ageByDancerId: new Map(
+      resolvedDancers
+        .filter((dancer) => currentDancerIds.has(dancer.id))
+        .map((dancer) => [dancer.id, dancer.ageAtEventStart]),
+    ),
+  });
 }
 
 async function readRosterHardLock(
