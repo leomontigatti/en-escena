@@ -5,6 +5,7 @@ import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import {
+  movePresentation,
   readParticipationRows,
   runAutomaticOrdering,
   type ParticipationRow,
@@ -24,6 +25,14 @@ import type { ChoreographyFinancialStatus } from "@/lib/finances/inscription-fin
 
 const participationPageSize = 50;
 export const orderAutomaticallyIntent = "order-automatically";
+export const movePresentationIntent = "move-presentation";
+
+/**
+ * A move says nothing when it works — the refreshed list is the answer — so it
+ * has a status of its own that carries no message to show.
+ */
+export type PresentationListActionData =
+  { message: string; status: "error" | "success" } | { status: "moved" };
 
 export type PresentationListItem = {
   academyName: string;
@@ -60,6 +69,8 @@ export type PresentationListResult = {
   hasAnyRow: boolean;
   hasPresentations: boolean;
   presentations: PresentationListItem[];
+  /** How many presentations the event has, which is the highest number free. */
+  presentationCount: number;
   selectedEventId: string | null;
   totalCount: number;
   totalPages: number;
@@ -102,6 +113,7 @@ async function loadPresentationList(input: {
       hasAnyRow: false,
       hasPresentations: false,
       presentations: [],
+      presentationCount: 0,
       selectedEventId: null,
       totalCount: 0,
       totalPages: 1,
@@ -136,6 +148,7 @@ async function loadPresentationList(input: {
       (page - 1) * participationPageSize,
       page * participationPageSize,
     ),
+    presentationCount: items.filter((item) => item.orderNumber !== null).length,
     selectedEventId: input.selectedEventId,
     totalCount,
     totalPages,
@@ -149,25 +162,32 @@ async function loadPresentationList(input: {
  * loader's revalidation and the count travels in `actionData`, per
  * docs/agents/form-feedback.md.
  */
-export async function handlePresentationListAction(request: Request) {
+export async function handlePresentationListAction(
+  request: Request,
+): Promise<PresentationListActionData | ReturnType<typeof data>> {
   await requireInternalUser(request, ["admin"]);
   const eventContext = await loadEventContext(request);
   const formData = await request.formData();
+  const intent = formData.get("intent");
 
-  if (formData.get("intent") !== orderAutomaticallyIntent) {
+  if (!eventContext.selectedEventId) {
     return data(
       {
-        message: "No se reconoció la acción solicitada.",
+        message: "Elegí un evento activo para ordenar la presentación.",
         status: "error" as const,
       },
       { status: 400 },
     );
   }
 
-  if (!eventContext.selectedEventId) {
+  if (intent === movePresentationIntent) {
+    return await runMovePresentation(eventContext.selectedEventId, formData);
+  }
+
+  if (intent !== orderAutomaticallyIntent) {
     return data(
       {
-        message: "Elegí un evento activo para ordenar la presentación.",
+        message: "No se reconoció la acción solicitada.",
         status: "error" as const,
       },
       { status: 400 },
@@ -193,6 +213,59 @@ export async function handlePresentationListAction(request: Request) {
     message: `Se ordenaron ${result.orderedCount} presentaciones.`,
     status: "success" as const,
   };
+}
+
+/**
+ * The move the drag and the number input both submit. `desde` is the number the
+ * client believed the row had, `null` for a row it is placing for the first
+ * time; a move that works answers with nothing to say.
+ */
+async function runMovePresentation(eventId: string, formData: FormData) {
+  const choreographyId = String(formData.get("coreografia") ?? "");
+  const from = formData.get("desde");
+  const to = Number(formData.get("hasta"));
+
+  if (choreographyId.length === 0 || !Number.isInteger(to) || to < 1) {
+    return data(
+      { message: "No se reconoció el movimiento.", status: "error" as const },
+      { status: 400 },
+    );
+  }
+
+  const result = await movePresentation({
+    choreographyId,
+    eventId,
+    fromOrderNumber: from === null || from === "" ? null : Number(from),
+    toOrderNumber: to,
+  });
+
+  if (result.ok) {
+    return { status: "moved" as const };
+  }
+
+  return data(
+    {
+      message: movePresentationRefusal(result.reason),
+      status: "error" as const,
+    },
+    { status: 400 },
+  );
+}
+
+function movePresentationRefusal(
+  reason: Exclude<
+    Awaited<ReturnType<typeof movePresentation>>,
+    { ok: true }
+  >["reason"],
+) {
+  switch (reason) {
+    case "stale":
+      return "El orden cambió mientras movías la fila; se actualizó la lista.";
+    case "notOrdered":
+      return "Ordená automáticamente el evento antes de mover una presentación.";
+    case "notFound":
+      return "La coreografía ya no forma parte de la lista de presentación.";
+  }
 }
 
 function readPresentationFilters(

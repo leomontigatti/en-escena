@@ -1,6 +1,5 @@
-import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { MemoryRouter } from "react-router";
+import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, test } from "vitest";
 
 import { PresentationsListView } from "@/features/admin/presentations/list/view";
@@ -122,6 +121,7 @@ function renderView(overrides: Partial<PresentationListResult> = {}) {
     hasAnyRow: true,
     hasPresentations: true,
     presentations: [buildItem()],
+    presentationCount: 1,
     selectedEventId: "event-1",
     totalCount: 1,
     totalPages: 1,
@@ -130,11 +130,18 @@ function renderView(overrides: Partial<PresentationListResult> = {}) {
     ...overrides,
   };
 
-  return renderToStaticMarkup(
-    createElement(
-      MemoryRouter,
-      null,
-      createElement(PresentationsListView, { loaderData }),
-    ),
+  // The list moves a presentation through a fetcher, which needs a data
+  // router: `MemoryRouter` is not one.
+  const router = createMemoryRouter(
+    [
+      {
+        path: "/administracion/presentacion",
+        action: async () => null,
+        element: <PresentationsListView loaderData={loaderData} />,
+      },
+    ],
+    { initialEntries: ["/administracion/presentacion"] },
   );
+
+  return renderToStaticMarkup(<RouterProvider router={router} />);
 }

@@ -180,8 +180,19 @@ export type ClientDataTableProps<TData> = DataTableBaseProps<TData> &
     initialSort?: DataTableSort;
   };
 
+/**
+ * Drag-and-drop reordering of the rows on screen. The table moves nothing on
+ * its own: it reports the row that was dragged and the one it was dropped on,
+ * and the view decides what that means for the order it owns.
+ */
+export type DataTableReorder = {
+  enabled: boolean;
+  onMove: (activeRowKey: string, overRowKey: string) => void;
+};
+
 export type ServerDataTableProps<TData> = DataTableBaseProps<TData> &
   DataTableRowSelectionProps<TData> & {
+    reorder?: DataTableReorder;
     currentPage: number;
     totalPages: number;
     totalRows: number;

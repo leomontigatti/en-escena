@@ -33,7 +33,10 @@ export default function PresentationsListRoute({
   actionData,
   loaderData,
 }: Route.ComponentProps) {
-  useServerActionToast(actionData);
+  // A move answers with nothing to say, and the list itself is the feedback.
+  useServerActionToast(
+    actionData && "message" in actionData ? actionData : undefined,
+  );
 
   return <PresentationsListView loaderData={loaderData} />;
 }
