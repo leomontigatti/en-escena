@@ -48,6 +48,9 @@ export default mergeConfig(
       maxWorkers: 1,
       setupFiles: ["./tests/db/setup.ts"],
       sequence: {
+        // Vitest 5 removed `describe.sequential`/`test.sequential`, so this is
+        // now the only thing keeping the tests *within* a file ordered. It was
+        // already the repo's setting — do not drop it as a redundant default.
         concurrent: false,
       },
       server: {

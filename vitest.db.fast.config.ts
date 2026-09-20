@@ -48,9 +48,15 @@ export default mergeConfig(
       fileParallelism: true,
       include: ["**/*.db.test.ts"],
       maxConcurrency: 1,
+      // Vitest 5 dropped `minWorkers`; this path wants the workers anyway, so
+      // there is nothing to replace it with (see `vitest.db.config.ts` for the
+      // serial path, which is the one the removal mattered to).
       maxWorkers: "50%",
       setupFiles: ["./tests/db/setup-fast.ts"],
       sequence: {
+        // As in `vitest.db.config.ts`: load-bearing since Vitest 5 removed
+        // `describe.sequential`. Each file still owns its database here, but
+        // the tests inside one must not overlap.
         concurrent: false,
       },
       server: {
