@@ -7,6 +7,7 @@ import {
 } from "@/db/schema";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { allocateChoreographyNumber } from "@/lib/choreographies/choreography-number.server";
+import { readFixtureCapacityScheduleId } from "@/lib/choreographies/registration-test-fixtures.server.db";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import {
   experienceLevelLabels,
@@ -230,6 +231,7 @@ export async function createEventChoreographyFixture({
     modalityId: modality.id,
     groupType,
     categoryId: category.id,
+    scheduleId: block.id,
     scheduleCapacityId: entry.id,
   });
 
@@ -292,11 +294,49 @@ async function createFixtureCategory(input: {
 }
 
 /**
+ * The schedule a fixture choreography sits on. A choreography always has one,
+ * so the caller that names only a capacity gets the capacity's schedule, and
+ * the caller that names neither gets one invented here. That invented schedule
+ * is a real row accepting the modality, so a guard test that counts the
+ * schedules a modality has — the last-compatible-schedule refusals — has to
+ * name its own instead of letting this one appear behind it.
+ */
+async function resolveFixtureScheduleId({
+  eventId,
+  modalityId,
+  name,
+  scheduleId,
+  scheduleCapacityId,
+}: {
+  eventId: string;
+  modalityId: string;
+  name: string;
+  scheduleId?: string;
+  scheduleCapacityId?: string;
+}) {
+  if (scheduleId) {
+    return scheduleId;
+  }
+
+  if (scheduleCapacityId) {
+    return await readFixtureCapacityScheduleId(scheduleCapacityId);
+  }
+
+  return (
+    await createSavedSchedule(eventId, {
+      modalityIds: [modalityId],
+      name: `${name} Bloque`,
+    })
+  ).id;
+}
+
+/**
  * A choreography sitting on the bases the caller names, with the inscription
  * state the bases guards read: none at all, one active, or one withdrawn.
- * Unlike `createEventChoreographyFixture` it invents no modality and no
- * schedule, because a guard test needs the choreography on the very rows it is
- * about to edit.
+ * Unlike `createEventChoreographyFixture` it invents no modality, because a
+ * guard test needs the choreography on the very rows it is about to edit; it
+ * does invent a schedule when the caller names none, because a choreography
+ * always has one.
  */
 export async function createChoreographyOnBases({
   eventId,
@@ -330,7 +370,13 @@ export async function createChoreographyOnBases({
         })
       ).id,
     experienceLevelId,
-    scheduleId,
+    scheduleId: await resolveFixtureScheduleId({
+      eventId,
+      modalityId,
+      name,
+      scheduleId,
+      scheduleCapacityId,
+    }),
     scheduleCapacityId,
   });
 

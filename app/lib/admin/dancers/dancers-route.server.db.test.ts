@@ -51,7 +51,10 @@ import {
   handle as bailarinDetalleHandle,
   loader as detailLoader,
 } from "@/routes/administracion.bailarines_.$dancerId";
-import { allocateChoreographyNumberForTest } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import {
+  allocateChoreographyNumberForTest,
+  readFixtureCapacityScheduleId,
+} from "@/lib/choreographies/registration-test-fixtures.server.db";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
@@ -1826,6 +1829,7 @@ async function createAdministrativeLinkedChoreography(input: {
         input.experienceLevelId && isExperienceLevel(input.experienceLevelId)
           ? input.experienceLevelId
           : null,
+      scheduleId: await readFixtureCapacityScheduleId(input.scheduleCapacityId),
       scheduleCapacityId: input.scheduleCapacityId,
     })
     .returning();

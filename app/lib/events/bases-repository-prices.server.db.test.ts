@@ -28,6 +28,11 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
+// A schedule the event has no price row for. Every choreography has a schedule,
+// so the fall-through to the general tier is what a schedule with no row of its
+// own gets, not what a caller with no schedule gets.
+const SCHEDULE_WITHOUT_ROW = "schedule-without-price-row";
+
 afterEach(() => {
   vi.restoreAllMocks();
 });
@@ -129,7 +134,7 @@ describe("`Bases del evento` repository", () => {
       resolveApplicableInscriptionPrice(db, {
         eventId: event.id,
         groupType: "solo",
-        scheduleId: null,
+        scheduleId: SCHEDULE_WITHOUT_ROW,
       }),
     ).resolves.toMatchObject({
       ok: true,
@@ -141,7 +146,7 @@ describe("`Bases del evento` repository", () => {
       resolveApplicableInscriptionPrice(db, {
         eventId: event.id,
         groupType: "solo",
-        scheduleId: null,
+        scheduleId: SCHEDULE_WITHOUT_ROW,
       }),
     ).resolves.toMatchObject({
       ok: true,
@@ -270,7 +275,7 @@ describe("`Bases del evento` repository", () => {
       resolveApplicableInscriptionPrice(db, {
         eventId: event.id,
         groupType: "solo",
-        scheduleId: null,
+        scheduleId: SCHEDULE_WITHOUT_ROW,
       }),
     ).resolves.toMatchObject({ ok: true, price: { id: dated.id } });
     onBusinessDate("2026-06-01");
@@ -278,7 +283,7 @@ describe("`Bases del evento` repository", () => {
       resolveApplicableInscriptionPrice(db, {
         eventId: event.id,
         groupType: "solo",
-        scheduleId: null,
+        scheduleId: SCHEDULE_WITHOUT_ROW,
       }),
     ).resolves.toMatchObject({ ok: true, price: { id: generalBase.id } });
 

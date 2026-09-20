@@ -23,7 +23,7 @@ export async function resolveApplicableInscriptionPrice(
   input: {
     eventId: string;
     groupType: string;
-    scheduleId: string | null;
+    scheduleId: string;
   },
 ): Promise<PriceResolutionResult> {
   if (!isGroupType(input.groupType)) {

@@ -1,8 +1,7 @@
-import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { choreographies, choreographyProfessors, schedules } from "@/db/schema";
+import { choreographyProfessors, schedules } from "@/db/schema";
 import { createSignedInAdminRequest as createSignedInRequest } from "@/lib/admin/test-support/db";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import {
@@ -61,7 +60,7 @@ describe("loadChoreographies", () => {
     ]);
   });
 
-  test("offers the days in calendar order and the unscheduled ones last", async () => {
+  test("offers the days in calendar order", async () => {
     const { event } = await seedChoreographiesByDay();
 
     const result = await loadChoreographies({
@@ -72,20 +71,6 @@ describe("loadChoreographies", () => {
     expect(result.facets.scheduleDates).toEqual([
       { label: "1 de mayo de 2026", value: "2026-05-01" },
       { label: "2 de mayo de 2026", value: "2026-05-02" },
-      { label: "Sin asignar", value: "sin-asignar" },
-    ]);
-  });
-
-  test("keeps the choreographies still waiting for a schedule apart", async () => {
-    const { event, unscheduledChoreography } = await seedChoreographiesByDay();
-
-    const result = await loadChoreographies({
-      filters: buildFilters({ scheduleDate: "sin-asignar" }),
-      selectedEventId: event.id,
-    });
-
-    expect(result.choreographies.map((row) => row.name)).toEqual([
-      unscheduledChoreography.name,
     ]);
   });
 
@@ -117,17 +102,22 @@ describe("loadChoreographies", () => {
     );
   });
 
-  test("drops a day the event does not hold", async () => {
-    const { event } = await seedChoreographiesByDay();
+  // `sin-asignar` was a day of its own while a choreography could go without a
+  // schedule; it is now just another day the event does not hold.
+  test.each(["2026-05-09", "sin-asignar"])(
+    "drops the day `%s`, which the event does not hold",
+    async (scheduleDate) => {
+      const { event } = await seedChoreographiesByDay();
 
-    const result = await loadChoreographies({
-      filters: buildFilters({ scheduleDate: "2026-05-09" }),
-      selectedEventId: event.id,
-    });
+      const result = await loadChoreographies({
+        filters: buildFilters({ scheduleDate }),
+        selectedEventId: event.id,
+      });
 
-    expect(result.filters.scheduleDate).toBeNull();
-    expect(result.choreographies).toHaveLength(4);
-  });
+      expect(result.filters.scheduleDate).toBeNull();
+      expect(result.choreographies).toHaveLength(3);
+    },
+  );
 });
 
 type ChoreographyFilters = Parameters<typeof loadChoreographies>[0]["filters"];
@@ -191,19 +181,10 @@ async function seedChoreographiesByDay() {
     name: "Coreografía del día anterior",
     scheduleId: catalog.schedule.id,
   });
-  const unscheduledChoreography = await createChoreographyRecord({
-    academyId: academy.id,
-    eventId: event.id,
-    modalityId: catalog.modality.id,
-    categoryId: catalog.categoryWithoutLevel.id,
-    scheduleCapacityId: catalog.scheduleCapacity.id,
-    name: "Coreografía sin cronograma",
-  });
 
   return {
     event,
     scheduledChoreographies: { evening, morning },
-    unscheduledChoreography,
   };
 }
 
@@ -280,21 +261,15 @@ async function createScheduledChoreography(input: {
   name: string;
   scheduleId: string;
 }) {
-  const choreography = await createChoreographyRecord({
+  return await createChoreographyRecord({
     academyId: input.academyId,
     eventId: input.eventId,
     modalityId: input.catalog.modality.id,
     categoryId: input.catalog.categoryWithoutLevel.id,
     scheduleCapacityId: input.catalog.scheduleCapacity.id,
+    scheduleId: input.scheduleId,
     name: input.name,
   });
-
-  await db
-    .update(choreographies)
-    .set({ scheduleId: input.scheduleId })
-    .where(eq(choreographies.id, choreography.id));
-
-  return choreography;
 }
 
 async function createSavedEvent() {

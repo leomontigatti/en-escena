@@ -80,7 +80,7 @@ export async function loadCandidatePriceRow(
     eventId: string;
     groupType: string;
     priceId: string;
-    scheduleId: string | null;
+    scheduleId: string;
   },
 ): Promise<FinancePriceRow | null> {
   const price = await tx.query.prices.findFirst({
