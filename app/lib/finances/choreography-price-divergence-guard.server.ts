@@ -153,7 +153,14 @@ export async function loadPriceDivergenceCheck(input: {
       resolveChoreographyPricingScheduleId(destinationKey);
 
     return inscriptions.some(({ allocatedAmount, selectedPriceId }) => {
-      const resolveAgainst = (choreographyKey: typeof currentKey) =>
+      // Both keys read as a pricing key: the current one carries the
+      // choreography's own schedule, which is not nullable, and the
+      // destination's is the synthetic key's, which may be empty.
+      const resolveAgainst = (choreographyKey: {
+        choreographyScheduleId: string | null;
+        groupType: ChoreographyGroupType;
+        scheduleCapacityScheduleId: string | null;
+      }) =>
         resolveEffectiveBasePriceRow({
           allocatedAmount,
           choreography: choreographyKey,

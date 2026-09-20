@@ -897,7 +897,7 @@ describe("administrative choreography detail server", () => {
       .update(choreographies)
       .set({
         scheduleCapacityId: drifted.scheduleCapacity.id,
-        scheduleId: null,
+        scheduleId: drifted.schedule.id,
       })
       .where(eq(choreographies.id, scenario.choreography.id));
 
@@ -929,7 +929,7 @@ describe("administrative choreography detail server", () => {
       .update(choreographies)
       .set({
         scheduleCapacityId: drifted.scheduleCapacity.id,
-        scheduleId: null,
+        scheduleId: drifted.schedule.id,
       })
       .where(eq(choreographies.id, scenario.choreography.id));
     // Every compatible schedule is gone: the select is left with the assignment
@@ -988,7 +988,7 @@ describe("administrative choreography detail server", () => {
       .update(choreographies)
       .set({
         scheduleCapacityId: drifted.scheduleCapacity.id,
-        scheduleId: null,
+        scheduleId: drifted.schedule.id,
       })
       .where(eq(choreographies.id, scenario.choreography.id));
 
@@ -1158,8 +1158,6 @@ describe("administrative choreography detail server", () => {
     const offeredIds = new Set(
       detail.scheduleCapacity.options.map((option) => option.id),
     );
-    const original = await scenario.readAssignment();
-
     // Every capacity of the event, offered or omitted, put to the intent: the
     // invariant `resolveScheduleCapacityCandidates` documents is that the two
     // sets coincide, so an id the select omits has to be refused and every id
@@ -1184,13 +1182,14 @@ describe("administrative choreography detail server", () => {
         accepted.push(candidateId);
       }
 
-      // Put the choreography back where it started, so each candidate is asked
-      // of the same assignment the loader was asked of.
+      // Put the choreography back on the catalogue's capacity, where the
+      // scenario starts it, so each candidate is asked of the same assignment
+      // the loader was asked of.
       await db
         .update(choreographies)
         .set({
-          scheduleCapacityId: original?.scheduleCapacityId ?? null,
-          scheduleId: original?.scheduleId ?? null,
+          scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
+          scheduleId: scenario.catalog.schedule.id,
         })
         .where(eq(choreographies.id, scenario.choreography.id));
     }
@@ -1235,7 +1234,7 @@ describe("administrative choreography detail server", () => {
       .update(choreographies)
       .set({
         scheduleCapacityId: drifted.scheduleCapacity.id,
-        scheduleId: null,
+        scheduleId: drifted.schedule.id,
       })
       .where(eq(choreographies.id, scenario.choreography.id));
 

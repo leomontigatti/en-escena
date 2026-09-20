@@ -24,7 +24,10 @@ import {
   experienceLevelLabels,
   isExperienceLevel,
 } from "@/lib/events/experience-levels";
-import { allocateChoreographyNumberForTest } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import {
+  allocateChoreographyNumberForTest,
+  readScheduleIdOfCapacityFixture,
+} from "@/lib/choreographies/registration-test-fixtures.server.db";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -544,7 +547,9 @@ async function createLinkedChoreography(input: {
         input.experienceLevelId && isExperienceLevel(input.experienceLevelId)
           ? input.experienceLevelId
           : null,
-      scheduleId: null,
+      scheduleId: await readScheduleIdOfCapacityFixture(
+        input.scheduleCapacityId,
+      ),
       scheduleCapacityId: input.scheduleCapacityId,
       hasPresentation: input.hasPresentation,
     })

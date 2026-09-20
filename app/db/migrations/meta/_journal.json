@@ -169,6 +169,13 @@
       "when": 1789621180937,
       "tag": "0023_category_not_null",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1789928659151,
+      "tag": "0024_schedule_not_null",
+      "breakpoints": true
     }
   ]
 }

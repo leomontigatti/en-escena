@@ -62,7 +62,7 @@ export const choreographies = createTable(
       "category_calculation_mode",
     ).notNull(),
     experienceLevelId: experienceLevel("experience_level"),
-    scheduleId: varchar("schedule_id", { length: 255 }),
+    scheduleId: varchar("schedule_id", { length: 255 }).notNull(),
     scheduleCapacityId: varchar("schedule_capacity_id", {
       length: 255,
     }),

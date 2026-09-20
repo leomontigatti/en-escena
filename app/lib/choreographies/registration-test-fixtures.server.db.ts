@@ -282,6 +282,26 @@ export async function createGrupalOnlyModalityFixture(eventId: string) {
   return { modality, category, schedule };
 }
 
+// A choreography always has a schedule, and a fixture that inserts one by hand
+// already names the capacity it sits on. Reading the schedule back from that
+// capacity is what the writers do, and it keeps the two columns in agreement.
+export async function readScheduleIdOfCapacityFixture(
+  scheduleCapacityId: string,
+) {
+  const [capacity] = await db
+    .select({ scheduleId: scheduleCapacities.scheduleId })
+    .from(scheduleCapacities)
+    .where(eq(scheduleCapacities.id, scheduleCapacityId));
+
+  if (!capacity) {
+    throw new Error(
+      `The fixture capacity ${scheduleCapacityId} does not exist`,
+    );
+  }
+
+  return capacity.scheduleId;
+}
+
 export async function createScheduleForModalityFixture(input: {
   eventId: string;
   modalityId: string;
