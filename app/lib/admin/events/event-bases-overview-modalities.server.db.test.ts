@@ -31,7 +31,7 @@ import {
 
 installDatabaseTestHooks();
 
-describe.sequential("`/administracion/bases-del-evento` routes", () => {
+describe("`/administracion/bases-del-evento` routes", () => {
   test("requires admin access and renders direct administration section links", async () => {
     const event = await createSavedEvent("Regional 2026");
 

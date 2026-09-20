@@ -63,7 +63,7 @@ async function readAllocations(inscriptionId: string) {
   });
 }
 
-describe.sequential("applyAllocationDelta", () => {
+describe("applyAllocationDelta", () => {
   test("sums onto the pair's row instead of creating a second one", async () => {
     const fixture = await seedAllocationFixture();
 

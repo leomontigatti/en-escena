@@ -8,7 +8,7 @@ import { installDatabaseTestHooks } from "../db/harness";
 
 installDatabaseTestHooks();
 
-describe.sequential("critical request performance baseline", () => {
+describe("critical request performance baseline", () => {
   test("measures the critical admin and portal loaders/actions by phase", async () => {
     const results = await measureCriticalRequestBaseline();
 

@@ -243,7 +243,7 @@ async function annulRequest(input: {
   });
 }
 
-describe.sequential("loadComprobanteDetail", () => {
+describe("loadComprobanteDetail", () => {
   test("loads a seminar comprobante with its `(seminar, academy)` anchor", async () => {
     const seeded = await seedSeminarComprobante();
 
@@ -299,7 +299,7 @@ describe.sequential("loadComprobanteDetail", () => {
   });
 });
 
-describe.sequential("handleComprobanteDetailAction — anular", () => {
+describe("handleComprobanteDetailAction — anular", () => {
   test("emits the mirroring credit note and redirects to the detail", async () => {
     const seeded = await seedComprobante({
       academyName: "Academia Anular",

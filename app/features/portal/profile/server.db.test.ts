@@ -16,7 +16,7 @@ import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-describe.sequential("portal profile server", () => {
+describe("portal profile server", () => {
   test("loads the current academy profile for the signed-in academy", async () => {
     const session = await createAcademySession({
       email: "perfil.loader@example.com",

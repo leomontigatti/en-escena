@@ -44,7 +44,7 @@ async function seedPayment(input: {
   return payment;
 }
 
-describe.sequential("loadPortalAcademyPayments", () => {
+describe("loadPortalAcademyPayments", () => {
   test("lists only the academy's payments, without the internal note", async () => {
     const owner = await createAcademySession({
       email: "portal.pagos.owner@example.com",
