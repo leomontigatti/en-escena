@@ -48,7 +48,10 @@ import {
 } from "@/lib/comprobantes/comprobantes.server";
 import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 
-import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
+import {
+  installDatabaseTestHooks,
+  isPgliteTestBackend,
+} from "../../../../../tests/db/harness";
 import { choreographyAnchor } from "@/lib/comprobantes/anchor";
 
 installDatabaseTestHooks();
@@ -788,52 +791,70 @@ describe("administrative choreography detail server", () => {
     });
   });
 
-  test("lets a single choreography into a capacity with one slot when two are reassigned at once", async () => {
-    const scenario = await createScheduleCapacityScenario({
-      academyName: "Academia Cronograma Concurrente",
-      slug: "cronograma.concurrente",
-      targetCapacity: 1,
-    });
-    const rival = await createChoreographyRecord({
-      academyId: scenario.owner.academyId,
-      categoryId: scenario.catalog.categoryWithLevel.id,
-      eventId: scenario.event.id,
-      experienceLevelId: scenario.catalog.level.id,
-      modalityId: scenario.catalog.modality.id,
-      name: "Rival",
-      scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
-      submodalityId: scenario.catalog.submodality.id,
-    });
+  /**
+   * The reassignment locks the destination capacity with
+   * `lockScheduleCapacityForAssignment` before it counts its occupants, so two
+   * reassignments aiming at the same free slot are serialised: one wins it and
+   * the other is refused.
+   *
+   * The fast suite runs both through a single PGlite connection, which
+   * serialises the transactions on its own — the lock is never contended, and
+   * the assertion would hold even without it. So this proves the lock on the
+   * Postgres backend only.
+   */
+  describe.skipIf(isPgliteTestBackend())(
+    "schedule capacity reassignment under real contention",
+    () => {
+      test("lets a single choreography into a capacity with one slot when two are reassigned at once", async () => {
+        const scenario = await createScheduleCapacityScenario({
+          academyName: "Academia Cronograma Concurrente",
+          slug: "cronograma.concurrente",
+          targetCapacity: 1,
+        });
+        const rival = await createChoreographyRecord({
+          academyId: scenario.owner.academyId,
+          categoryId: scenario.catalog.categoryWithLevel.id,
+          eventId: scenario.event.id,
+          experienceLevelId: scenario.catalog.level.id,
+          modalityId: scenario.catalog.modality.id,
+          name: "Rival",
+          scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
+          submodalityId: scenario.catalog.submodality.id,
+        });
 
-    const results = await Promise.all([
-      scenario.reassignTo(scenario.target.scheduleCapacity.id, {
-        sessionKey: "primera",
-      }),
-      scenario.reassignTo(scenario.target.scheduleCapacity.id, {
-        choreographyId: rival.id,
-        sessionKey: "segunda",
-      }),
-    ]);
+        const results = await Promise.all([
+          scenario.reassignTo(scenario.target.scheduleCapacity.id, {
+            sessionKey: "primera",
+          }),
+          scenario.reassignTo(scenario.target.scheduleCapacity.id, {
+            choreographyId: rival.id,
+            sessionKey: "segunda",
+          }),
+        ]);
 
-    const statuses = results.map((result) =>
-      result instanceof Response || !("status" in result)
-        ? "unexpected"
-        : result.status,
-    );
-    expect(statuses.filter((status) => status === "success")).toHaveLength(1);
-    expect(statuses.filter((status) => status === "error")).toHaveLength(1);
+        const statuses = results.map((result) =>
+          result instanceof Response || !("status" in result)
+            ? "unexpected"
+            : result.status,
+        );
+        expect(statuses.filter((status) => status === "success")).toHaveLength(
+          1,
+        );
+        expect(statuses.filter((status) => status === "error")).toHaveLength(1);
 
-    const occupants = await db
-      .select({ id: choreographies.id })
-      .from(choreographies)
-      .where(
-        eq(
-          choreographies.scheduleCapacityId,
-          scenario.target.scheduleCapacity.id,
-        ),
-      );
-    expect(occupants).toHaveLength(1);
-  });
+        const occupants = await db
+          .select({ id: choreographies.id })
+          .from(choreographies)
+          .where(
+            eq(
+              choreographies.scheduleCapacityId,
+              scenario.target.scheduleCapacity.id,
+            ),
+          );
+        expect(occupants).toHaveLength(1);
+      });
+    },
+  );
 
   test("keeps the assigned capacity in the options and locks the field with a single compatible one", async () => {
     const scenario = await createScheduleCapacityScenario({

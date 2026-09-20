@@ -39,7 +39,10 @@ import { noCompatibleCategoryRosterMessage } from "@/lib/choreographies/choreogr
 import { createSignedInAdminRequest } from "@/lib/admin/test-support/db";
 import { recordComprobante } from "@/lib/comprobantes/comprobantes.server";
 
-import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
+import {
+  installDatabaseTestHooks,
+  isPgliteTestBackend,
+} from "../../../../../tests/db/harness";
 import { choreographyAnchor } from "@/lib/comprobantes/anchor";
 
 installDatabaseTestHooks();
@@ -1056,63 +1059,89 @@ describe("schedule capacity guard on the roster path", () => {
     );
   });
 
-  test("locks the destination capacity across two concurrent roster saves competing for the last slot", async () => {
-    const event = await createEventRecord({ active: true, name: "Regional" });
-    const catalog = await createEventCatalog(event.id);
-    await db
-      .update(scheduleCapacities)
-      .set({ capacity: 1 })
-      .where(eq(scheduleCapacities.id, catalog.duoScheduleCapacity.id));
+  /**
+   * `lockScheduleCapacityForAssignment` takes `FOR UPDATE` on the schedule and
+   * the capacity before it counts the occupants, so two roster saves competing
+   * for the same last slot are serialised: the second one counts after the first
+   * has committed, sees the capacity full, and is refused.
+   *
+   * That is only observable where the two saves really do overlap. The fast
+   * suite runs them through a single PGlite connection, which serialises the
+   * transactions on its own — the lock is never contended, and the assertion
+   * would hold even if `FOR UPDATE` were dropped. So this proves the lock on the
+   * Postgres backend and is skipped on PGlite rather than passing for free.
+   */
+  describe.skipIf(isPgliteTestBackend())(
+    "schedule capacity under real contention",
+    () => {
+      test("locks the destination capacity across two concurrent roster saves competing for the last slot", async () => {
+        const event = await createEventRecord({
+          active: true,
+          name: "Regional",
+        });
+        const catalog = await createEventCatalog(event.id);
+        await db
+          .update(scheduleCapacities)
+          .set({ capacity: 1 })
+          .where(eq(scheduleCapacities.id, catalog.duoScheduleCapacity.id));
 
-    const [scenarioX, scenarioY] = await Promise.all([
-      createSoloScenarioInCatalog({
-        academyName: "Academia Roster Cupo Concurrente X",
-        catalog,
-        email: "roster.cupo.concurrente.x@example.com",
-        event,
-      }),
-      createSoloScenarioInCatalog({
-        academyName: "Academia Roster Cupo Concurrente Y",
-        catalog,
-        email: "roster.cupo.concurrente.y@example.com",
-        event,
-      }),
-    ]);
+        const [scenarioX, scenarioY] = await Promise.all([
+          createSoloScenarioInCatalog({
+            academyName: "Academia Roster Cupo Concurrente X",
+            catalog,
+            email: "roster.cupo.concurrente.x@example.com",
+            event,
+          }),
+          createSoloScenarioInCatalog({
+            academyName: "Academia Roster Cupo Concurrente Y",
+            catalog,
+            email: "roster.cupo.concurrente.y@example.com",
+            event,
+          }),
+        ]);
 
-    const [resultX, resultY] = await Promise.all([
-      submitRoster({
-        choreographyId: scenarioX.choreography.id,
-        dancerIds: [scenarioX.dancerA.id, scenarioX.dancerB.id],
-      }),
-      submitRoster({
-        choreographyId: scenarioY.choreography.id,
-        dancerIds: [scenarioY.dancerA.id, scenarioY.dancerB.id],
-      }),
-    ]);
+        const [resultX, resultY] = await Promise.all([
+          submitRoster({
+            choreographyId: scenarioX.choreography.id,
+            dancerIds: [scenarioX.dancerA.id, scenarioX.dancerB.id],
+          }),
+          submitRoster({
+            choreographyId: scenarioY.choreography.id,
+            dancerIds: [scenarioY.dancerA.id, scenarioY.dancerB.id],
+          }),
+        ]);
 
-    const outcomes = [resultX, resultY].map((result) => {
-      if (!result || result instanceof Response || !("status" in result)) {
-        throw new Error("Expected a roster action result.");
-      }
-      return result.status;
-    });
+        const outcomes = [resultX, resultY].map((result) => {
+          if (!result || result instanceof Response || !("status" in result)) {
+            throw new Error("Expected a roster action result.");
+          }
+          return result.status;
+        });
 
-    // Both choreographies target the same capacity, which has exactly one free
-    // slot: the lock must let exactly one of the two concurrent saves win it,
-    // never both and never neither.
-    expect(outcomes.filter((status) => status === "success")).toHaveLength(1);
-    expect(outcomes.filter((status) => status === "error")).toHaveLength(1);
+        // Both choreographies target the same capacity, which has exactly one free
+        // slot: the lock must let exactly one of the two concurrent saves win it,
+        // never both and never neither.
+        expect(outcomes.filter((status) => status === "success")).toHaveLength(
+          1,
+        );
+        expect(outcomes.filter((status) => status === "error")).toHaveLength(1);
 
-    const savedX = await db.query.choreographies.findFirst({
-      where: eq(choreographies.id, scenarioX.choreography.id),
-    });
-    const savedY = await db.query.choreographies.findFirst({
-      where: eq(choreographies.id, scenarioY.choreography.id),
-    });
-    const savedGroupTypes = [savedX?.groupType, savedY?.groupType];
-    expect(savedGroupTypes.filter((value) => value === "duo")).toHaveLength(1);
-    expect(savedGroupTypes.filter((value) => value === "solo")).toHaveLength(1);
-  });
+        const savedX = await db.query.choreographies.findFirst({
+          where: eq(choreographies.id, scenarioX.choreography.id),
+        });
+        const savedY = await db.query.choreographies.findFirst({
+          where: eq(choreographies.id, scenarioY.choreography.id),
+        });
+        const savedGroupTypes = [savedX?.groupType, savedY?.groupType];
+        expect(savedGroupTypes.filter((value) => value === "duo")).toHaveLength(
+          1,
+        );
+        expect(
+          savedGroupTypes.filter((value) => value === "solo"),
+        ).toHaveLength(1);
+      });
+    },
+  );
 });
 
 /**

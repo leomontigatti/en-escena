@@ -44,7 +44,10 @@ import {
   recordComprobante,
 } from "@/lib/comprobantes/comprobantes.server";
 
-import { installDatabaseTestHooks } from "../../../tests/db/harness";
+import {
+  installDatabaseTestHooks,
+  isPgliteTestBackend,
+} from "../../../tests/db/harness";
 import { choreographyAnchor } from "@/lib/comprobantes/anchor";
 
 installDatabaseTestHooks();
@@ -740,52 +743,59 @@ describe("emitFacturaC", () => {
    * billed, and stops before ARCA.
    *
    * ARCA answers slowly on purpose: without the lock the second derivation would
-   * land inside that window. Under PGlite the single connection serialises the
-   * two transactions on its own, so the assertion that only one comprobante
-   * exists is exercised for real on the Postgres backend.
+   * land inside that window. That window only exists where the two emissions
+   * really do overlap — under PGlite the single connection serialises the two
+   * transactions on its own, so the assertion that a single comprobante exists
+   * would hold even without the advisory lock. The test is therefore gated to
+   * the Postgres backend instead of passing for free on the fast suite.
    */
-  test("serialises two concurrent emissions of one unit into a single comprobante", async () => {
-    const { academy, choreography, inscriptions } =
-      await seedChoreographyWithInscriptions(
-        `concurrencia.${crypto.randomUUID()}@example.com`,
-        1,
-      );
-    await allocatePayment({
-      academyId: academy.id,
-      eventId: choreography.eventId,
-      inscriptionId: inscriptions[0].id,
-      amount: 6000,
-    });
-
-    const deps = emissionDeps(
-      fakeBilling({
-        createVoucher: vi.fn(async (): Promise<CreateVoucherResultDto> => {
-          await new Promise((resolve) => setTimeout(resolve, 50));
-
-          return facturaCAprobada;
-        }),
-      }),
-    );
-    const emission = () =>
-      emitFacturaC(
-        {
-          anchor: choreographyAnchor(choreography.id),
+  describe.skipIf(isPgliteTestBackend())(
+    "comprobante emission under real contention",
+    () => {
+      test("serialises two concurrent emissions of one unit into a single comprobante", async () => {
+        const { academy, choreography, inscriptions } =
+          await seedChoreographyWithInscriptions(
+            `concurrencia.${crypto.randomUUID()}@example.com`,
+            1,
+          );
+        await allocatePayment({
+          academyId: academy.id,
           eventId: choreography.eventId,
-        },
-        deps,
-      );
+          inscriptionId: inscriptions[0].id,
+          amount: 6000,
+        });
 
-    const outcomes = await Promise.all([emission(), emission()]);
+        const deps = emissionDeps(
+          fakeBilling({
+            createVoucher: vi.fn(async (): Promise<CreateVoucherResultDto> => {
+              await new Promise((resolve) => setTimeout(resolve, 50));
 
-    expect(outcomes.filter((outcome) => outcome.ok)).toHaveLength(1);
-    expect(outcomes.filter((outcome) => !outcome.ok)).toMatchObject([
-      { ok: false, reason: "nothing-to-bill" },
-    ]);
-    expect(deps.billing.createVoucher).toHaveBeenCalledTimes(1);
-    await expect(
-      listAnchorComprobantes(choreographyAnchor(choreography.id)),
-    ).resolves.toMatchObject([{ cbteNro: 43, impTotal: 6000 }]);
-  });
+              return facturaCAprobada;
+            }),
+          }),
+        );
+        const emission = () =>
+          emitFacturaC(
+            {
+              anchor: choreographyAnchor(choreography.id),
+              eventId: choreography.eventId,
+            },
+            deps,
+          );
+
+        const outcomes = await Promise.all([emission(), emission()]);
+
+        expect(outcomes.filter((outcome) => outcome.ok)).toHaveLength(1);
+        expect(outcomes.filter((outcome) => !outcome.ok)).toMatchObject([
+          { ok: false, reason: "nothing-to-bill" },
+        ]);
+        expect(deps.billing.createVoucher).toHaveBeenCalledTimes(1);
+        await expect(
+          listAnchorComprobantes(choreographyAnchor(choreography.id)),
+        ).resolves.toMatchObject([{ cbteNro: 43, impTotal: 6000 }]);
+      });
+    },
+  );
 });
 
 // ARCA does not respond (ADR-0012): the failure is classified by phase and, if
