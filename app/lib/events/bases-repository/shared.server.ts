@@ -547,6 +547,10 @@ export async function hasOccupyingChoreographies(filter: SQL | undefined) {
  * drop a base under a choreography whose inscriptions were all withdrawn too.
  * Reporting that refusal as a typed failure is what the guard adds — asking the
  * narrower question would let the raw driver error through.
+ *
+ * The category guards ask it for their edits as well: a withdrawn inscription
+ * preserves the category and the registration path the choreography competed
+ * on, so neither may move underneath it.
  */
 export async function hasReferencingChoreographies(filter: SQL | undefined) {
   const [choreography] = await db
