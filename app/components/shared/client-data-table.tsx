@@ -114,6 +114,7 @@ export function ClientDataTable<TData>(props: ClientDataTableProps<TData>) {
   });
 
   const table = useClientReactTable({
+    canSelectRow: props.canSelectRow,
     columnFilters,
     columnVisibility,
     columns: props.columns,
@@ -230,6 +231,7 @@ function useClientDataTableColumns<TData>(
 }
 
 function useClientReactTable<TData>({
+  canSelectRow,
   columnFilters,
   columnVisibility,
   columns,
@@ -247,6 +249,7 @@ function useClientReactTable<TData>({
   tableColumns,
   textFilterColumnId,
 }: {
+  canSelectRow?: (row: TData) => boolean;
   columnFilters: ColumnFiltersState;
   columnVisibility: Record<string, boolean>;
   columns: ClientDataTableProps<TData>["columns"];
@@ -303,7 +306,13 @@ function useClientReactTable<TData>({
         setSort(nextSort);
       }
     },
-    enableRowSelection: selectableRows,
+    // Without a predicate the flag alone is the answer, which keeps the row
+    // model out of TanStack's per-row path for every table that selects all of
+    // its rows or none of them.
+    enableRowSelection:
+      selectableRows && canSelectRow
+        ? (row) => canSelectRow(row.original)
+        : selectableRows,
     // The address bar owns when the page resets: the shared href builders drop
     // the page whenever the search, the filters or the sort change. Left on,
     // the engine would also reset the page on its own and overwrite it.

@@ -26,7 +26,7 @@ import type {
 import {
   dataTableFacetedFilterColumnId,
   dataTableSelectionColumnId,
-  dataTableSelectionColumnWidth,
+  dataTableSelectionColumnWeight,
 } from "@/components/shared/data-table.shared";
 import {
   Table,
@@ -176,15 +176,9 @@ function DataTableColumnGroup<TData>({
 }) {
   const columns = table.getVisibleLeafColumns();
   const totalWeight = columns.reduce(
-    (total, column) => total + (column.columnDef.meta?.width ?? 0),
+    (total, column) => total + resolveDataTableColumnWeight(column),
     0,
   );
-  const hasSelectionColumn = columns.some(
-    (column) => column.id === dataTableSelectionColumnId,
-  );
-  const shareable = hasSelectionColumn
-    ? `(100% - ${dataTableSelectionColumnWidth})`
-    : "100%";
 
   return (
     <colgroup>
@@ -192,11 +186,7 @@ function DataTableColumnGroup<TData>({
         <col
           key={column.id}
           style={{
-            width: resolveDataTableColumnWidth({
-              column,
-              shareable,
-              totalWeight,
-            }),
+            width: resolveDataTableColumnWidth({ column, totalWeight }),
           }}
         />
       ))}
@@ -204,20 +194,25 @@ function DataTableColumnGroup<TData>({
   );
 }
 
+/**
+ * The selection column's weight is the table's own; every other column's is
+ * what the view declared. Sharing the row by weight alone is what keeps each
+ * width a plain percentage — see `dataTableSelectionColumnWeight`.
+ */
+function resolveDataTableColumnWeight<TData>(column: Column<TData, unknown>) {
+  return column.id === dataTableSelectionColumnId
+    ? dataTableSelectionColumnWeight
+    : (column.columnDef.meta?.width ?? 0);
+}
+
 function resolveDataTableColumnWidth<TData>({
   column,
-  shareable,
   totalWeight,
 }: {
   column: Column<TData, unknown>;
-  shareable: string;
   totalWeight: number;
 }) {
-  if (column.id === dataTableSelectionColumnId) {
-    return dataTableSelectionColumnWidth;
-  }
-
-  const weight = column.columnDef.meta?.width;
+  const weight = resolveDataTableColumnWeight(column);
 
   if (!weight || totalWeight <= 0) {
     return undefined;
@@ -225,7 +220,7 @@ function resolveDataTableColumnWidth<TData>({
 
   // Kept as a division rather than a percentage worked out here: the browser
   // divides exactly, and a weight stays the number the view wrote.
-  return `calc(${shareable} * ${weight} / ${totalWeight})`;
+  return `calc(100% * ${weight} / ${totalWeight})`;
 }
 
 /**

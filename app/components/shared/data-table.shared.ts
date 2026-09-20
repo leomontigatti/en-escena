@@ -47,6 +47,13 @@ export type DataTableColumn<TData> = {
   header: string;
   cell: (row: TData) => ReactNode;
   hidden?: boolean;
+  /**
+   * Whether the column is drawn before the selection checkbox rather than
+   * after it. The checkbox is the table's own column and the view cannot place
+   * it, so this is how a view puts something to its left — a drag handle, a
+   * row number — instead of having the checkbox open every row.
+   */
+  leading?: boolean;
   className?: string;
   headerClassName?: string;
   cellClassName?: (row: TData) => string | undefined;
@@ -58,8 +65,8 @@ export type DataTableColumn<TData> = {
    * total, so `7/23/23/18/19/10` and `1/3/3/2/3/1` both describe a row, and
    * widening one column does not mean finding the width back somewhere else.
    * Nothing has to add up to 100, which is the point — the selection checkbox
-   * is a fixed column the view never declares, and a budget that had to total
-   * 100% would silently overflow the row by exactly its width.
+   * is a column the view never declares and whose weight the table adds to the
+   * total, and a budget that had to total 100% would leave it no room.
    */
   width?: number;
   filterValue?: (row: TData) => string;
@@ -71,13 +78,20 @@ export const dataTableFacetedFilterColumnId = "filters";
 
 /**
  * The selection checkbox column, which the table adds rather than the view. A
- * `fit` table takes its width out of the row before sharing the rest, so it is
- * named here for both sides to agree on.
+ * `fit` table shares the row out by weight, so it is named here for both sides
+ * to agree on.
  */
 export const dataTableSelectionColumnId = "select";
 
-/** What the selection column takes, wide enough for the checkbox and no wider. */
-export const dataTableSelectionColumnWidth = "2.5rem";
+/**
+ * The selection column's share of a `fit` row. It is a weight like any other
+ * column's and not a fixed length on purpose: a `col` whose width mixes a
+ * percentage with a length —`calc(100% - 2.5rem)`— is read as `auto`, and one
+ * such column makes the browser drop the declared widths and spread the whole
+ * table evenly. Three parts against the column weights the views write is
+ * about the width of the checkbox.
+ */
+export const dataTableSelectionColumnWeight = 3;
 
 export type DataTableFacetedFilter<TId extends string = string> =
   DataTableFacetedFilterGroup<TId>;
@@ -127,8 +141,14 @@ export type DataTableBaseProps<TData> = {
  * On the server table the checkbox reaches the current page only: the rows are
  * the ones the loader sent, and there is nothing else on the client to select.
  */
-export type DataTableRowSelectionProps = {
+export type DataTableRowSelectionProps<TData> = {
   selectableRows?: boolean;
+  /**
+   * Which rows can be selected, defaulting to all of them. An unselectable row
+   * shows a disabled checkbox and select-all passes over it, so a bulk action
+   * can only ever reach the rows it applies to.
+   */
+  canSelectRow?: (row: TData) => boolean;
   /**
    * Row selection, lifted. Pass both to control it from outside — needed when
    * the selection drives anything beyond the table, such as a header actions
@@ -147,7 +167,7 @@ export type DataTableRowSelectionProps = {
 export const defaultClientDataTablePageSize = 10;
 
 export type ClientDataTableProps<TData> = DataTableBaseProps<TData> &
-  DataTableRowSelectionProps & {
+  DataTableRowSelectionProps<TData> & {
     textFilterColumnId?: string;
     hideSearch?: boolean;
     hidePagination?: boolean;
@@ -161,7 +181,7 @@ export type ClientDataTableProps<TData> = DataTableBaseProps<TData> &
   };
 
 export type ServerDataTableProps<TData> = DataTableBaseProps<TData> &
-  DataTableRowSelectionProps & {
+  DataTableRowSelectionProps<TData> & {
     currentPage: number;
     totalPages: number;
     totalRows: number;
