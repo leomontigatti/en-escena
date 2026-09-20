@@ -51,7 +51,7 @@ import {
   type PresentationListActionData,
   type PresentationListItem,
   type PresentationListResult,
-} from "./server";
+} from "./shared";
 
 export type PresentationsListViewProps = {
   loaderData: PresentationListResult;
