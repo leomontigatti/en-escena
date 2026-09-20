@@ -1426,7 +1426,144 @@ describe("`Estado de alta` on the administrative roster editor", () => {
     });
     expect(updated?.name).toBe("Duo Corregido");
   });
+  test("refreshes the stored age of the inscriptions it keeps, and leaves the withdrawn ones alone", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Edad Vigente",
+      email: "roster.edad.vigente.academia@example.com",
+    });
+    const event = await createEventRecord({ active: true, name: "Regional" });
+    const catalog = await createEventCatalog(event.id);
+    const [keptDancer, addedDancer, withdrawnDancer] = await Promise.all([
+      createDancer(owner.academyId, {
+        birthDate: "2010-01-10",
+        firstName: "Ana",
+        lastName: "Queda",
+      }),
+      createDancer(owner.academyId, {
+        birthDate: "2009-01-10",
+        firstName: "Bea",
+        lastName: "Entra",
+      }),
+      createDancer(owner.academyId, {
+        birthDate: "2008-01-10",
+        firstName: "Cami",
+        lastName: "Retirada",
+      }),
+    ]);
+    const choreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.teenCategory.id,
+      eventId: event.id,
+      groupType: "solo",
+      modalityId: catalog.modality.id,
+      name: "Solo",
+      scheduleCapacityId: catalog.soloScheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+    await db.insert(choreographyDancers).values([
+      {
+        // Deliberately stale: the dancer was 11 when the inscription was
+        // first written, and nothing refreshed it since.
+        ageAtEventStart: 11,
+        choreographyId: choreography.id,
+        dancerId: keptDancer.id,
+      },
+      {
+        ageAtEventStart: 11,
+        choreographyId: choreography.id,
+        dancerId: withdrawnDancer.id,
+        withdrawnAt: new Date(),
+      },
+    ]);
+
+    const response = await submitRoster({
+      choreographyId: choreography.id,
+      dancerIds: [keptDancer.id, addedDancer.id],
+    });
+
+    expect(response).toMatchObject({ status: "success" });
+
+    const ageByDancerId = await readAgesByDancerId(choreography.id);
+    expect(ageByDancerId).toEqual(
+      new Map([
+        [keptDancer.id, 16],
+        [addedDancer.id, 17],
+        [withdrawnDancer.id, 11],
+      ]),
+    );
+
+    const stored = await db.query.choreographies.findFirst({
+      columns: { categoryId: true, groupType: true },
+      where: eq(choreographies.id, choreography.id),
+    });
+    expect(stored).toMatchObject({
+      categoryId: catalog.teenCategory.id,
+      groupType: "duo",
+    });
+  });
+
+  test("normalizes a stale stored age on a save that changes nothing about the roster", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Edad Sin Cambios",
+      email: "roster.edad.sin.cambios.academia@example.com",
+    });
+    const event = await createEventRecord({ active: true, name: "Regional" });
+    const catalog = await createEventCatalog(event.id);
+    const dancer = await createDancer(owner.academyId, {
+      birthDate: "2010-01-10",
+      firstName: "Ana",
+      lastName: "Queda",
+    });
+    const choreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.teenCategory.id,
+      eventId: event.id,
+      groupType: "solo",
+      modalityId: catalog.modality.id,
+      name: "Solo",
+      scheduleCapacityId: catalog.soloScheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+    await db.insert(choreographyDancers).values({
+      ageAtEventStart: 11,
+      choreographyId: choreography.id,
+      dancerId: dancer.id,
+    });
+
+    const response = await submitRoster({
+      choreographyId: choreography.id,
+      dancerIds: [dancer.id],
+    });
+
+    expect(response).toMatchObject({ status: "success" });
+
+    const ageByDancerId = await readAgesByDancerId(choreography.id);
+    expect(ageByDancerId).toEqual(new Map([[dancer.id, 16]]));
+
+    // The normalization deliberately stops at the inscriptions: a save that
+    // resolves no roster writes no placement, so the choreography is left
+    // exactly as it was.
+    const stored = await db.query.choreographies.findFirst({
+      columns: { categoryId: true, groupType: true },
+      where: eq(choreographies.id, choreography.id),
+    });
+    expect(stored).toMatchObject({
+      categoryId: catalog.teenCategory.id,
+      groupType: "solo",
+    });
+  });
 });
+
+async function readAgesByDancerId(choreographyId: string) {
+  const inscriptions = await db.query.choreographyDancers.findMany({
+    columns: { ageAtEventStart: true, dancerId: true },
+    where: eq(choreographyDancers.choreographyId, choreographyId),
+  });
+
+  return new Map(
+    inscriptions.map((row) => [row.dancerId, row.ageAtEventStart]),
+  );
+}
 
 async function createArchivedRosterScenario(input: {
   academyName: string;

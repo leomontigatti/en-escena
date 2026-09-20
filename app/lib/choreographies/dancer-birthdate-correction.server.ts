@@ -12,6 +12,7 @@ import {
   formatChoreographyReferences,
   type ChoreographyReference,
 } from "@/lib/choreographies/choreography-messages";
+import { refreshActiveInscriptionAges } from "@/lib/choreographies/inscription-age.server";
 import {
   getAgeAtDate,
   getEventLocalDateParts,
@@ -430,19 +431,15 @@ async function persistResolvedDancers(input: {
   executor: QueryExecutor;
   resolvedDancers: ResolvedRegistrationDancer[];
 }) {
-  for (const dancer of input.resolvedDancers) {
-    await input.executor
-      .update(choreographyDancers)
-      .set({
-        ageAtEventStart: dancer.ageAtEventStart,
-      })
-      .where(
-        and(
-          eq(choreographyDancers.choreographyId, input.choreographyId),
-          eq(choreographyDancers.dancerId, dancer.id),
-        ),
-      );
-  }
+  await refreshActiveInscriptionAges(input.executor, {
+    choreographyId: input.choreographyId,
+    ageByDancerId: new Map(
+      input.resolvedDancers.map((dancer) => [
+        dancer.id,
+        dancer.ageAtEventStart,
+      ]),
+    ),
+  });
 }
 
 function toResolvedDancers(
