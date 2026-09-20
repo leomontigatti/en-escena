@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { events } from "@/db/schema";
+import { createChoreographyOnNewBases } from "@/lib/events/bases-test-fixtures.server.db";
 import {
   activateEvent,
   createEvent,
@@ -13,13 +14,7 @@ import {
   updateEvent,
   updateEventRequiredDepositPercentage,
 } from "@/lib/events/management.server";
-import {
-  createChoreographyOnBases,
-  createSavedAcademy,
-  expectCreated,
-} from "@/lib/events/bases-test-fixtures.server.db";
 import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
-import { createModality } from "@/lib/modalities/repository.server";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -475,14 +470,8 @@ async function createEventWithChoreography(
   inscriptions: "none" | "active" | "withdrawn" = "none",
 ) {
   const event = await createSavedEvent("Con coreografías");
-  const academy = await createSavedAcademy("Academia dependencias");
-  const modality = await expectCreated(
-    createModality(event.id, { name: "Jazz" }),
-  );
-  const choreography = await createChoreographyOnBases({
+  const choreography = await createChoreographyOnNewBases({
     eventId: event.id,
-    academyId: academy.id,
-    modalityId: modality.id,
     inscriptions,
   });
 

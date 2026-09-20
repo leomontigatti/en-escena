@@ -4,21 +4,18 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import { events } from "@/db/schema";
 import { updateAdministrativeEvent } from "@/features/admin/events/detail/server";
-import { eventFormValues } from "@/lib/admin/events/form-values";
-import { createSignedInAdminRequest } from "@/lib/admin/test-support/db";
 import {
-  createChoreographyOnBases,
-  createSavedAcademy,
-  expectCreated,
-} from "@/lib/events/bases-test-fixtures.server.db";
+  createAdminRequest,
+  eventFormBody,
+  type EventRow,
+} from "@/features/admin/events/detail/server.test-support";
+import type { EventFormValues } from "@/lib/admin/events/form-values";
+import { createChoreographyOnNewBases } from "@/lib/events/bases-test-fixtures.server.db";
 import { createAdminSavedEvent } from "@/lib/events/saved-event-test-support.server";
-import { createModality } from "@/lib/modalities/repository.server";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
 installDatabaseTestHooks();
-
-type EventRow = Awaited<ReturnType<typeof createAdminSavedEvent>>;
 
 const DEPENDENT_EDIT_ERROR =
   "No se pueden editar fechas ni seña con dependencias operativas.";
@@ -117,16 +114,8 @@ async function createFormSavedEvent() {
 
 async function createDependentEvent() {
   const event = await createFormSavedEvent();
-  const academy = await createSavedAcademy("Academia dependencias");
-  const modality = await expectCreated(
-    createModality(event.id, { name: "Jazz" }),
-  );
 
-  await createChoreographyOnBases({
-    eventId: event.id,
-    academyId: academy.id,
-    modalityId: modality.id,
-  });
+  await createChoreographyOnNewBases({ eventId: event.id });
 
   return event;
 }
@@ -135,31 +124,9 @@ async function readEvent(eventId: string) {
   return await db.query.events.findFirst({ where: eq(events.id, eventId) });
 }
 
-async function createAdminRequest(eventId: string, body: FormData) {
-  const { request } = await createSignedInAdminRequest({
-    body,
-    email: `dependencias.${crypto.randomUUID()}@example.com`,
-    requestUrl: `http://localhost/administracion/eventos/${eventId}`,
-    role: "admin",
-  });
-
-  return request;
-}
-
-async function save(event: EventRow, changes: Record<string, string>) {
-  const body = new FormData();
-
-  body.set("intent", "update");
-
-  for (const [field, value] of Object.entries({
-    ...eventFormValues(event),
-    ...changes,
-  })) {
-    body.set(field, value);
-  }
-
+async function save(event: EventRow, changes: Partial<EventFormValues>) {
   return await updateAdministrativeEvent(
-    await createAdminRequest(event.id, body),
+    await createAdminRequest(event.id, eventFormBody(event, changes)),
     event.id,
   );
 }
