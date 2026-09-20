@@ -505,8 +505,9 @@ reports.
 
 After #961 the DB suite was still CI's long pole: one runner, one worker, 113
 `*.db.test.ts` files serially against one Postgres service. The serial config
-(`fileParallelism: false`, `maxWorkers: 1`, `singleThread` in
-`vitest.db.config.ts`) is a constraint **within** a runner — every file shares one
+(`fileParallelism: false`, `maxWorkers: 1` in `vitest.db.config.ts` — it also
+set `poolOptions.threads.singleThread` until the Vitest 5 upgrade removed that
+option) is a constraint **within** a runner — every file shares one
 database and the harness resets it before each test. It says nothing about
 running several runners: the repo is public, GitHub-hosted minutes are free, and
 up to 20 jobs run concurrently.
