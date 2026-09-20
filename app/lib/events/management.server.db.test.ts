@@ -14,6 +14,7 @@ import {
   updateEvent,
 } from "@/lib/events/management.server";
 import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
+import { isUniqueViolation } from "@/lib/shared/error-properties.server";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -286,18 +287,30 @@ describe("event management", () => {
       ...eventDates(),
     });
 
-    await expect(
-      db.insert(events).values({
+    let rejection: unknown = null;
+
+    try {
+      await db.insert(events).values({
         name: "Final 2026",
         active: true,
         ...eventDates(),
-      }),
-    ).rejects.toMatchObject({
-      cause: {
-        code: "23505",
-        constraint_name: "event_single_active_unique",
-      },
+      });
+    } catch (error) {
+      rejection = error;
+    }
+
+    if (rejection === null) {
+      throw new Error("Expected the second active event to be refused");
+    }
+
+    // The predicate walks the `cause` chain, so pin the shape it walks too:
+    // otherwise a normalization that moved the field would leave this green.
+    expect(rejection).toMatchObject({
+      cause: { constraint_name: "event_single_active_unique" },
     });
+    expect(isUniqueViolation(rejection, "event_single_active_unique")).toBe(
+      true,
+    );
   });
 
   test("deactivation leaves event data and visibility flags intact", async () => {

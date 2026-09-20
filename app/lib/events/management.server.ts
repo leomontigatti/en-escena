@@ -7,6 +7,7 @@ import {
   isValidRequiredDepositPercentage,
   invalidRequiredDepositPercentageMessage,
 } from "@/lib/events/deposit-percentage";
+import { isUniqueViolation } from "@/lib/shared/error-properties.server";
 
 const ACTIVE_EVENT_UNIQUE_CONSTRAINT = "event_single_active_unique";
 
@@ -388,29 +389,7 @@ function eventNotFound(): EventMutationFailure {
 }
 
 function isActiveUniqueConstraintViolation(error: unknown) {
-  const databaseError = getDatabaseError(error);
-
-  return (
-    typeof databaseError === "object" &&
-    databaseError !== null &&
-    "code" in databaseError &&
-    databaseError.code === "23505" &&
-    "constraint_name" in databaseError &&
-    databaseError.constraint_name === ACTIVE_EVENT_UNIQUE_CONSTRAINT
-  );
-}
-
-function getDatabaseError(error: unknown) {
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    "cause" in error &&
-    error.cause
-  ) {
-    return error.cause;
-  }
-
-  return error;
+  return isUniqueViolation(error, ACTIVE_EVENT_UNIQUE_CONSTRAINT);
 }
 
 function hasStructuralEventChanges(
