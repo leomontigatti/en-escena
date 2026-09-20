@@ -621,7 +621,7 @@ describe("administrative choreography detail server", () => {
     expect(result).toMatchObject({ status: "error" });
     await expect(scenario.readAssignment()).resolves.toEqual({
       scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
-      scheduleId: null,
+      scheduleId: scenario.catalog.schedule.id,
     });
   });
 
@@ -639,7 +639,7 @@ describe("administrative choreography detail server", () => {
     expect(result).toMatchObject({ status: "error" });
     await expect(scenario.readAssignment()).resolves.toEqual({
       scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
-      scheduleId: null,
+      scheduleId: scenario.catalog.schedule.id,
     });
   });
 
@@ -689,7 +689,7 @@ describe("administrative choreography detail server", () => {
     });
     await expect(scenario.readAssignment()).resolves.toEqual({
       scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
-      scheduleId: null,
+      scheduleId: scenario.catalog.schedule.id,
     });
   });
 
@@ -732,7 +732,7 @@ describe("administrative choreography detail server", () => {
     });
     await expect(scenario.readAssignment()).resolves.toEqual({
       scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
-      scheduleId: null,
+      scheduleId: scenario.catalog.schedule.id,
     });
   });
 
@@ -764,7 +764,7 @@ describe("administrative choreography detail server", () => {
     });
     await expect(scenario.readAssignment()).resolves.toEqual({
       scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
-      scheduleId: null,
+      scheduleId: scenario.catalog.schedule.id,
     });
   });
 
@@ -1088,7 +1088,7 @@ describe("administrative choreography detail server", () => {
     });
     await expect(scenario.readAssignment()).resolves.toEqual({
       scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
-      scheduleId: null,
+      scheduleId: scenario.catalog.schedule.id,
     });
   });
 
@@ -1337,7 +1337,7 @@ describe("administrative choreography detail server", () => {
     expect(result).toMatchObject({ status: "error" });
     await expect(scenario.readAssignment()).resolves.toEqual({
       scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
-      scheduleId: null,
+      scheduleId: scenario.catalog.schedule.id,
     });
     const inscription = await db.query.choreographyDancers.findFirst({
       columns: { selectedPriceId: true },
@@ -1474,7 +1474,7 @@ describe("administrative choreography detail server", () => {
     );
     await expect(scenario.readAssignment()).resolves.toEqual({
       scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
-      scheduleId: null,
+      scheduleId: scenario.catalog.schedule.id,
     });
   });
 
