@@ -18,9 +18,15 @@ import {
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 // What the race defeats is the pre-check: a choreography created after it runs
-// is invisible to it, and the delete goes on to meet the foreign key. Blinding
-// the check is how the window is reproduced without depending on timing; it
-// lives in its own file because the stub is module-wide.
+// is invisible to it, and the delete goes on to meet the foreign key. Losing
+// the race for real needs a second connection holding an uncommitted insert,
+// which the default `pglite` backend cannot give (one in-process connection, so
+// the blocked delete would never be released). Blinding the check is the
+// timing-free stand-in, and it is the only stub here: the delete, the foreign
+// key and the failure it is mapped to are all real. The unstubbed pre-check
+// path is covered by "reports deleting a category with choreographies as a
+// dependency failure" in `bases-repository-catalog.server.db.test.ts`. The file
+// is its own because the stub is module-wide.
 vi.mock(
   "@/lib/events/bases-repository/shared.server",
   async (importOriginal) => {
@@ -36,7 +42,7 @@ vi.mock(
 installDatabaseTestHooks();
 
 describe("deleting a category under a racing choreography", () => {
-  test("reports the foreign key's refusal as the dependency failure the pre-check reports", async () => {
+  test("refuses the delete with the same dependency failure a seen choreography gets", async () => {
     const event = await createSavedEvent("Regional 2026");
     const academy = await createSavedAcademy();
     const jazz = await expectCreated(

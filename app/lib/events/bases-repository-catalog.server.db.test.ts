@@ -523,6 +523,57 @@ describe("`Bases del evento` repository", () => {
     ).resolves.toMatchObject({ ok: true, record: { name: "Infantil A" } });
   });
 
+  test("refuses removing the modality a withdrawn-only choreography competed in", async () => {
+    const { academy, category, event, jazz } = await createOccupiableCategory();
+    const urbanas = await expectCreated(
+      createModality(event.id, { name: "Danzas urbanas" }),
+    );
+    await expect(
+      updateCategory(category.id, {
+        name: "Infantil",
+        minAge: 8,
+        maxAge: 12,
+        groupTypes: ["solo", "duo"],
+        modalityIds: [jazz.id, urbanas.id],
+        experienceLevels: [],
+      }),
+    ).resolves.toMatchObject({ ok: true });
+    await createChoreographyOnBases({
+      eventId: event.id,
+      academyId: academy.id,
+      modalityId: jazz.id,
+      categoryId: category.id,
+      groupType: "solo",
+      inscriptions: "withdrawn",
+    });
+
+    await expect(
+      updateCategory(category.id, {
+        name: "Infantil",
+        minAge: 8,
+        maxAge: 12,
+        groupTypes: ["solo", "duo"],
+        modalityIds: [urbanas.id],
+        experienceLevels: [],
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      code: "event-bases-has-dependencies",
+      error:
+        "No se pueden quitar tipos de grupo ni modalidades que las coreografías de la categoría todavía usan.",
+    });
+    await expect(
+      updateCategory(category.id, {
+        name: "Infantil",
+        minAge: 8,
+        maxAge: 12,
+        groupTypes: ["solo", "duo"],
+        modalityIds: [jazz.id],
+        experienceLevels: [],
+      }),
+    ).resolves.toMatchObject({ ok: true });
+  });
+
   test("keeps the registration paths of a category whose choreography carries no inscription", async () => {
     const { academy, category, event, jazz } = await createOccupiableCategory();
     await createChoreographyOnBases({

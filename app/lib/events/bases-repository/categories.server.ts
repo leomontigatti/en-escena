@@ -30,8 +30,12 @@ import type {
   ValidCategoryInput,
 } from "@/lib/events/bases-repository/shared.server";
 
-// Postgres's `foreign_key_violation`.
+// Postgres's `foreign_key_violation`, and the only key that can raise it on a
+// category delete: `category_modality` cascades, so a choreography's
+// `category_id` is the one left to refuse.
 const FOREIGN_KEY_VIOLATION = "23503";
+const CHOREOGRAPHY_CATEGORY_FOREIGN_KEY =
+  "en_escena_choreography_category_id_en_escena_category_id_fk";
 
 export async function listCategories(eventId: string) {
   const [eventCategories, eventCategoryModalities] = await Promise.all([
@@ -212,9 +216,8 @@ export async function deleteCategory(
     // The check above runs outside this delete, so a choreography created in
     // between is invisible to it and the foreign key is what refuses. Both
     // paths report the same failure: the check is the cheap common case, not
-    // the only way this delete can be turned down. `category_modality`
-    // cascades, so the choreography's key is the only one that can violate.
-    if (!isCategoryReferenceViolation(error)) {
+    // the only way this delete can be turned down.
+    if (!isChoreographyCategoryViolation(error)) {
       throw error;
     }
 
@@ -224,8 +227,12 @@ export async function deleteCategory(
   return { ok: true };
 }
 
-function isCategoryReferenceViolation(error: unknown) {
-  return readErrorProperty(error, "code") === FOREIGN_KEY_VIOLATION;
+function isChoreographyCategoryViolation(error: unknown) {
+  return (
+    readErrorProperty(error, "code") === FOREIGN_KEY_VIOLATION &&
+    readErrorProperty(error, "constraint_name") ===
+      CHOREOGRAPHY_CATEGORY_FOREIGN_KEY
+  );
 }
 
 function categoryHasChoreographies(): EventBaseFailure {
