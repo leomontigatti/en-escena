@@ -1,7 +1,7 @@
 import { and, eq, ne } from "drizzle-orm";
 
 import { db } from "@/db";
-import { events } from "@/db/schema";
+import { choreographies, events } from "@/db/schema";
 import {
   DEFAULT_REQUIRED_DEPOSIT_PERCENTAGE,
   isValidRequiredDepositPercentage,
@@ -311,8 +311,20 @@ export async function deleteEvent(
   return { ok: true };
 }
 
-export async function eventHasOperationalDependencies(_eventId: string) {
-  return false;
+/**
+ * What makes an event's dates and deposit untouchable: a choreography inscribed
+ * on it. Every inscription hangs off a choreography — `choreographyDancers`
+ * cascades from it — so one query over the choreographies answers for both, and
+ * a withdrawn inscription counts for the same reason #1008 settled on for the
+ * category guards: it still preserves what the choreography competed in.
+ */
+export async function eventHasOperationalDependencies(eventId: string) {
+  const choreography = await db.query.choreographies.findFirst({
+    columns: { id: true },
+    where: eq(choreographies.eventId, eventId),
+  });
+
+  return choreography !== undefined;
 }
 
 function validateEventInput(input: CreateEventInput) {

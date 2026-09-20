@@ -356,6 +356,31 @@ export async function createChoreographyOnBases({
   return choreography;
 }
 
+/**
+ * The smallest operational dependency an event can carry: one choreography on
+ * bases of its own, with the inscription state the caller names. The guard
+ * suites all build these same four rows, so the recipe lives here.
+ */
+export async function createChoreographyOnNewBases({
+  eventId,
+  inscriptions,
+}: {
+  eventId: string;
+  inscriptions?: InscriptionsFixtureState;
+}) {
+  const academy = await createSavedAcademy("Academia dependencias");
+  const modality = await expectCreated(
+    createModality(eventId, { name: "Jazz" }),
+  );
+
+  return await createChoreographyOnBases({
+    eventId,
+    academyId: academy.id,
+    modalityId: modality.id,
+    inscriptions,
+  });
+}
+
 let createdAcademyOffset = 0;
 
 export async function createSavedAcademy(name = "Academia") {

@@ -3,11 +3,13 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { events } from "@/db/schema";
+import { createChoreographyOnNewBases } from "@/lib/events/bases-test-fixtures.server.db";
 import {
   activateEvent,
   createEvent,
   deactivateEvent,
   deleteEvent,
+  eventHasOperationalDependencies,
   setEventVisibility,
   updateEvent,
   updateEventRequiredDepositPercentage,
@@ -410,7 +412,71 @@ describe("event management", () => {
       { name: "Con dependencias" },
     ]);
   });
+
+  describe("operational dependencies", () => {
+    test("counts a choreography on the event", async () => {
+      const { event } = await createEventWithChoreography();
+
+      await expect(eventHasOperationalDependencies(event.id)).resolves.toBe(
+        true,
+      );
+    });
+
+    // A withdrawn inscription still preserves what the choreography competed
+    // in, so it holds the dates just as an active one does (#1008).
+    test("counts an event whose only inscriptions are withdrawn", async () => {
+      const { event } = await createEventWithChoreography("withdrawn");
+
+      await expect(eventHasOperationalDependencies(event.id)).resolves.toBe(
+        true,
+      );
+    });
+
+    test("does not count an event without choreographies", async () => {
+      const event = await createSavedEvent("Sin coreografías");
+
+      await expect(eventHasOperationalDependencies(event.id)).resolves.toBe(
+        false,
+      );
+    });
+
+    test("refuses a structural edit and the delete with no injected double", async () => {
+      const { event } = await createEventWithChoreography();
+
+      await expect(
+        updateEvent(
+          event.id,
+          eventInput({
+            name: event.name,
+            startsAt: date("2026-05-02T12:00:00Z"),
+          }),
+        ),
+      ).resolves.toMatchObject({
+        ok: false,
+        code: "event-has-operational-dependencies",
+        error:
+          "No se pueden editar fechas ni seña con dependencias operativas.",
+      });
+
+      await expect(deleteEvent(event.id)).resolves.toMatchObject({
+        ok: false,
+        code: "event-has-operational-dependencies",
+      });
+    });
+  });
 });
+
+async function createEventWithChoreography(
+  inscriptions: "none" | "active" | "withdrawn" = "none",
+) {
+  const event = await createSavedEvent("Con coreografías");
+  const choreography = await createChoreographyOnNewBases({
+    eventId: event.id,
+    inscriptions,
+  });
+
+  return { choreography, event };
+}
 
 async function createSavedEvent(name: string) {
   const result = await createEvent(eventInput({ name }));

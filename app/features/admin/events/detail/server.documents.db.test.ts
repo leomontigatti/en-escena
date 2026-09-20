@@ -13,13 +13,16 @@ import {
   eventDocumentsPresentField,
   keptEventDocumentValue,
 } from "@/features/admin/events/detail/shared";
-import { eventFormValues } from "@/lib/admin/events/form-values";
+import {
+  createAdminRequest,
+  eventFormBody,
+  type EventRow,
+} from "@/features/admin/events/detail/server.test-support";
 import {
   eventDocumentKinds,
   type EventDocumentKind,
 } from "@/lib/events/event-documents";
 import { createAdminSavedEvent } from "@/lib/events/saved-event-test-support.server";
-import { createSignedInAdminRequest } from "@/lib/admin/test-support/db";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -67,8 +70,6 @@ beforeEach(() => {
     },
   );
 });
-
-type EventRow = Awaited<ReturnType<typeof createAdminSavedEvent>>;
 
 /** What the detail form stages for one document before "Guardar" is pressed. */
 type DocumentChange = "keep" | "remove" | "upload";
@@ -212,29 +213,6 @@ async function readDocumentRows(eventId: string) {
     .select()
     .from(eventDocuments)
     .where(eq(eventDocuments.eventId, eventId));
-}
-
-async function createAdminRequest(eventId: string, body?: FormData) {
-  const { request } = await createSignedInAdminRequest({
-    body,
-    email: `documentos.${crypto.randomUUID()}@example.com`,
-    requestUrl: `http://localhost/administracion/eventos/${eventId}`,
-    role: "admin",
-  });
-
-  return request;
-}
-
-function eventFormBody(event: EventRow) {
-  const body = new FormData();
-
-  body.set("intent", "update");
-
-  for (const [field, value] of Object.entries(eventFormValues(event))) {
-    body.set(field, value);
-  }
-
-  return body;
 }
 
 /**
