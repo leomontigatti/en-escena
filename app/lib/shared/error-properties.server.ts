@@ -34,7 +34,7 @@ const FOREIGN_KEY_VIOLATION = "23503";
 // driver refused, others need to tell one constraint apart from another.
 function isSqlStateViolation(
   error: unknown,
-  sqlState: string,
+  sqlState: typeof UNIQUE_VIOLATION | typeof FOREIGN_KEY_VIOLATION,
   constraintName?: string,
 ) {
   if (readErrorProperty(error, "code") !== sqlState) {
