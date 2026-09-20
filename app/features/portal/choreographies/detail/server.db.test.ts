@@ -22,7 +22,7 @@ import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-describe.sequential("portal choreographies reads", () => {
+describe("portal choreographies reads", () => {
   test("shows detail only for the authenticated academy inside the selected event and includes archived linked roster", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Dueña",
@@ -176,7 +176,7 @@ describe.sequential("portal choreographies reads", () => {
   });
 });
 
-describe.sequential("portal choreographies music-only editing", () => {
+describe("portal choreographies music-only editing", () => {
   test("keeps the linked roster untouched when the portal update submits dancer ids", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Music Only",

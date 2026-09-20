@@ -21,7 +21,7 @@ Rules for roster links, choreography registration, locks and `Bases del evento`.
 - A partial document pair is not a saved state: it is a form validation error.
 - Dancer verification does not block participation and does not affect choreography operational state.
 - Academy cannot edit identity data or document images after a dancer is verified; later corrections are administrative.
-- Correcting dancer birth date can recalculate categories for signed or paid choreographies while their presentation is still pending; it does not change financial state.
+- Correcting dancer birth date can recalculate categories for signed or paid choreographies until they are evaluated; it does not change financial state.
 - A birth-date correction is refused when it would leave a linked choreography without a category: nothing is written, and the message names each choreography by number and name.
 
 ### `Estado de alta` for roster people
@@ -70,8 +70,8 @@ Rules for roster links, choreography registration, locks and `Bases del evento`.
 - It is never confirmed without category: when no category of the modality covers the dancers' ages for the calculated group type, registration is refused and nothing is created.
 - A choreography always has a category, and the database holds the invariant: `choreography.category_id` is not nullable. Every write that would resolve one to no category — registration, roster change, modality correction, birth-date correction — is refused before it is written, so there is no category-less choreography to read, to filter for or to report as incomplete.
 - Academy cannot delete a Choreography after registration; removal is an administrative action.
-- An administrator can delete a choreography only when it has no presentation and no scores.
-- An administrator can rename a choreography at any time, including when it has presentation or scores.
+- An administrator can delete a choreography only until it is evaluated (see "Choreography Locks"). Having a presentation does not block the deletion: the presentation and its judge assignments go with it, the dialog says so with its number (`Tiene la presentación n.º {orden}; se quitará del orden`), and the number stays a gap until the order is next changed (`docs/domain/judging.md`).
+- An administrator can rename a choreography at any time, including when it is evaluated.
 - Administrative renaming changes only the Choreography name; it does not recalculate price, capacity, category, schedule or competitive state.
 - Deleting a choreography releases schedule capacity and leaves no visible domain entity.
 - The dancer roster is never academy-editable; changing it is an administrative action (see Choreography Locks). Once signed, academy also cannot edit other blocked data until admin removes the active financial link.
@@ -102,8 +102,8 @@ Rules for roster links, choreography registration, locks and `Bases del evento`.
 - The administrative action to delete a choreography is shown in the instance
   view; if the choreography is not deletable, the dialog reports the blocking
   reason instead of hiding the action.
-- The blocked-deletion dialog lists the choreography's concrete blocks:
-  presentation and/or scores.
+- The blocked-deletion dialog lists the choreography's concrete blocks: the
+  evaluation and/or its comprobantes.
 - The operational list shows only choreographies of the active event and does
   not act as a historical archive of other events.
 - If there is no active event, the screen must show a specific empty state
@@ -122,6 +122,20 @@ Rules for roster links, choreography registration, locks and `Bases del evento`.
   state.
 - The financial choreography list and the participation choreography list are
   separate administrative views, not implicit variants of the operational list.
+- The participation list is `Presentación` in the administration sidebar, a
+  sibling of the operational list. It lists the active event's choreographies
+  that have a presentation or are at least `Señada`: numbered rows by order
+  number, then the ones without a number by choreography number. It is where the
+  administrator runs `Ordenar automáticamente`, moves presentations and assigns
+  judges; the rules are in `docs/domain/judging.md`.
+- Its rows are grouped by event day through tabs, not by a schedule column. Its
+  `Estado` column shows one badge per row, the most relevant of `Sin número`,
+  `Seña pendiente`, `Separación` and `Fuera de bloque`, with every `Advertencia`
+  of the row in the tooltip. It carries no operational, financial or
+  `Estado de participación` badge, and no judges column: assignments are read
+  and changed through the assign and remove dialogs.
+- Only numbered rows can be selected, because a judge is assigned to a
+  presentation.
 
 ## Choreography Registration
 
@@ -143,16 +157,17 @@ Rules for roster links, choreography registration, locks and `Bases del evento`.
 ## Choreography Locks
 
 - `Datos bloqueados de coreografía` include name, modality, submodality, group type and category. Modality, schedule capacity and experience level are not academy-editable either, but they are not fully blocked: the administrator can correct or reassign each of them under the conditions below.
-- Delete and register again is the last resort for an unpaid choreography without presentation, not the ordinary correction path: modality, submodality, experience level, schedule capacity and the roster all have their own administrative correction. It remains the answer when what has to change is none of those.
-- The presentation lock covers the scores transitively: a Score belongs to a judge assignment on a presentation, and a presentation is 1:1 with a choreography, so a scored choreography always has one. No correction needs a separate scores check.
+- Delete and register again is the last resort for an unpaid choreography that is not evaluated, not the ordinary correction path: modality, submodality, experience level, schedule capacity and the roster all have their own administrative correction. It remains the answer when what has to change is none of those.
+- The evaluation lock is the one hard lock of judging: a choreography is evaluated when its presentation has a score or a disqualification. Having a presentation locks nothing. Until then every administrative correction below stays open, the choreography keeps its order number, and a correction that leaves it out of place shows as an `Advertencia` on the participation list (`docs/domain/judging.md`).
+- An evaluated choreography shows one alert, `Esta coreografía ya fue evaluada y no puede modificarse.`, and its locked fields read-only; the server refuses a save with the same sentence. A numbered choreography that is not evaluated shows an informational alert instead, `Esta coreografía tiene número de presentación y modificarla puede necesitar atención en esa lista.`, and stays editable, with no confirmation on save.
 - Administrative renaming is not a structural correction and is allowed even when structural data is otherwise blocked.
-- Admin structural correction is exceptional, instance-level, and is allowed only without presentation.
+- Admin structural correction is exceptional, instance-level, and is allowed only until the choreography is evaluated.
 - Structural correction that changes modality, submodality or dancers recalculates group type, category, level and schedule.
 - If recalculation needs a level, admin must choose it in same correction.
 - Active financial document blocks academy edits, dancer changes and deletion, even without imputations.
 - If financial docs are canceled/accredited, choreography can become editable/deletable again.
 - Academy cannot change choreography dancers after registration. The roster is chosen once, at creation, and from then on only the administrator can change it. This is a permanent, role-based restriction, not an inscription-window rule (see `docs/domain/finances.md` → "Roster editing and deletion").
-- Even the administrator cannot change the roster while the choreography has a presentation (hard lock, like the deletion lock).
+- Even the administrator cannot change the roster once the choreography is evaluated (hard lock, like the deletion lock).
 - A choreography roster change must keep at least one dancer before confirmation.
 - Level clears when recalculation changes category. It is editable whenever the resolved category declares levels, not only after a recalculation: with no pending roster change the administrator reassigns it standalone, and a single available level still leaves the field open, because that is the only way to resolve a missing level that leaves the choreography incomplete.
 - Reassigning the experience level of a registered choreography is a standalone administrative correction in the instance view, like the schedule capacity. It carries no financial guard: the level is not a price key, so changing it cannot move an amount.
@@ -163,9 +178,9 @@ Rules for roster links, choreography registration, locks and `Bases del evento`.
 - Roster change can recalculate price on confirmation, but the administrative roster edit flow remains operational and does not show price amounts before confirming.
 - Reassigning the schedule capacity of a registered choreography is a standalone administrative correction in the instance view, one choreography at a time. It is not an edit of the capacity's declared capacity and it is not a side effect of a roster change.
 - The reassignment offers only compatible capacities (same event, modality and calculated group type), plus the currently assigned one, so an assignment that drifted out of compatibility stays visible instead of disappearing from the list.
-- The administrator can reassign only when all of these hold: the user is `admin` (the `auditor` sees the field read-only), the choreography has no presentation, no active inscription has a registered deposit, and there is more than one compatible capacity to choose from. Otherwise the schedule is shown read-only.
+- The administrator can reassign only when all of these hold: the user is `admin` (the `auditor` sees the field read-only), the choreography is not evaluated, no active inscription has a registered deposit, and there is more than one compatible capacity to choose from. Otherwise the schedule is shown read-only.
 - A registered deposit blocks the whole field, never single options: schedule capacity is an input of price selection, so every option offered moves the price of the choreography, and there is no financially inert reassignment to exempt. The reason is reported in the page alert, also for the `auditor`.
-- The presentation lock is a hard lock for the schedule capacity too, like the roster and the deletion; renaming stays allowed.
+- The evaluation lock is a hard lock for the schedule capacity too, like the roster and the deletion; renaming stays allowed.
 - Reassignment enforces capacity capacity on confirmation: a capacity that filled up in the meantime is rejected, and re-selecting the capacity the choreography already occupies is a no-op that is never reported as full.
 - When there is a pending roster change, the roster form's schedule select wins over the standalone reassignment: a group type change clears the capacity and the replacement must be chosen together with the confirmation.
 - The roster save path enforces the same two guards as the standalone reassignment, on the capacity axis only: it locks and re-counts the destination capacity (excluding the choreography being saved) and rejects when any inscription of the choreography holds money, using the same message. Both fire only when the save would actually change `scheduleId`/`scheduleCapacityId` from their current value — a roster edit that keeps the same capacity (e.g. a same-count dancer swap, or a name-only save) is never blocked by either check, even on a choreography that has money on it. A dancer add/remove that recalculates group type and, with it, lands on a different capacity of the same schedule is a change on this axis and is guarded like any other move.
@@ -178,15 +193,15 @@ Rules for roster links, choreography registration, locks and `Bases del evento`.
 - Confirming re-resolves the correction against the current bases and rejects it when the outcome diverges from what was previewed, because the preview is older than the write by construction.
 - A registered deposit does not close the modality: it rejects the correction only when the correction would actually move `scheduleId`/`scheduleCapacityId`, since modality is not a price key and a destination modality that keeps the current schedule is financially inert. The rejection names the modality, not the capacity. The deposit is reported in the page alert as a blocker-in-waiting, also for the `auditor`.
 - The destination capacity is locked and re-counted on confirmation, excluding the choreography being corrected, exactly like the standalone reassignment.
-- The presentation lock is a hard lock for the modality too, and the `auditor` sees the field read-only.
+- The evaluation lock is a hard lock for the modality too, and the `auditor` sees the field read-only.
 - **Known gap**: group type is also a price key, and the roster save path recalculates and writes it unconditionally, with no financial guard of its own. Guarding it directly would block ordinary dancer add/remove on choreographies that already have money on them — the most common roster operation on exactly the choreographies most likely to have paid — so it is deliberately left unguarded pending a dedicated decision with its own business case.
 - `Datos operativos pendientes de coreografía` include music and professors. They do not change calculation, capacity or competitive placement.
-- Music and professor links can be edited while presentation is pending, even if registration is closed or the choreography has an active financial link.
-- Music/professor links stop being editable once presentation is no longer pending.
+- Music and professor links can be edited until the choreography is evaluated, even if registration is closed or the choreography has an active financial link.
+- Music/professor links stop being editable once the choreography is evaluated.
 - `Archivo de música` is stored as a private audio file for a choreography and is not uploaded during initial registration.
 - A choreography can have at most one current `Archivo de música`.
 - Replacing the `Archivo de música` uploads the new file first, then removes the previous object when the upload succeeds.
-- Removing the `Archivo de música` is allowed while presentation is pending and makes music pending again for operational status.
+- Removing the `Archivo de música` is allowed until the choreography is evaluated and makes music pending again for operational status.
 - V1 accepts MP3, M4A/AAC, WAV and OGG audio files up to 50 MB.
 - The `Portal de academias` exposes the current `Archivo de música` through a short-lived signed download URL, not a public URL.
 

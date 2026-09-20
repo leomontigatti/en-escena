@@ -19,7 +19,7 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-describe.sequential("schedule capacity occupancy", () => {
+describe("schedule capacity occupancy", () => {
   test("counts the choreographies assigned to each capacity", async () => {
     const scenario = await createOccupiedCupo({
       academyName: "Academia Ocupación",

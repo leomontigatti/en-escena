@@ -86,7 +86,7 @@ beforeEach(() => {
   );
 });
 
-describe.sequential("handlePortalDancerDetailAction", () => {
+describe("handlePortalDancerDetailAction", () => {
   test("updates a dancer in place and normalizes DNI documents", async () => {
     const session = await createAcademySession({
       email: "bailarines.edit@example.com",

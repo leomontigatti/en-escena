@@ -15,7 +15,7 @@ import { loadPaymentsList } from "./server";
 
 installDatabaseTestHooks();
 
-describe.sequential("admin payments list", () => {
+describe("admin payments list", () => {
   // Three payments in the state the pool leaves them in: drained oldest-first,
   // so one is spent, one is partly drawn and the newest is untouched.
   test("reads what is still free on each payment and over the event", async () => {

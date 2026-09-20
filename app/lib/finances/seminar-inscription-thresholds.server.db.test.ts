@@ -161,7 +161,7 @@ async function allocate(input: {
   });
 }
 
-describe.sequential("seminar inscription thresholds", () => {
+describe("seminar inscription thresholds", () => {
   test("prices each person from the rows of their own cell, at the seminar's own rate", async () => {
     const fixture = await seedSeminarPricingFixture();
 
@@ -273,7 +273,7 @@ describe.sequential("seminar inscription thresholds", () => {
   });
 });
 
-describe.sequential("the academy's figures over both kinds", () => {
+describe("the academy's figures over both kinds", () => {
   test("sums the seminar unit into the owed figures and leaves the balance available alone", async () => {
     const fixture = await seedSeminarPricingFixture({
       seminarKind: "regular",

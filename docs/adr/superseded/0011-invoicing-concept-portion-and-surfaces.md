@@ -8,7 +8,7 @@ ADR's own title — no longer exists: the column, the pgEnum, `derivePorcion`,
 one-synthesized-line print contract is replaced by one line per inscription, and
 decision 5's binary `vigente` / `desactualizada` currency by a three-valued
 status derived from amounts.
-[ADR-0014](./0014-arbitrary-amount-allocation-and-comprobante-amendments.md)
+[ADR-0014](../0014-arbitrary-amount-allocation-and-comprobante-amendments.md)
 records why, and restates in its §8 what is still live here — `Concepto: 2`, the
 service-date mapping, one factura per choreography and the `AlertDialog`
 convention — so none of it has to be retrieved from this file.
@@ -141,7 +141,7 @@ and refines the portion axis of #326 (derived and frozen, not chosen).
 Appended, not edited in place: `docs/adr/` is append-only, so the status note
 stays where it was made and this is the record that its ground was wrong. The
 matching correction on the other side is in
-[ADR-0014](./0014-arbitrary-amount-allocation-and-comprobante-amendments.md).
+[ADR-0014](../0014-arbitrary-amount-allocation-and-comprobante-amendments.md).
 
 The status note at the top of this file gives, as the reason for superseding it
 whole, that `porción` "no longer exists: the column, the pgEnum, `derivePorcion`,

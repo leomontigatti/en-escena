@@ -186,6 +186,14 @@ GITHUB_TOKEN` (PAT lets the push include workflow changes)", which relies on
   rule makes the cadence load-bearing in a second way: each run must find a target "not already
   proposed", so a faster cadence pushes it toward ever more marginal candidates. Nothing else
   about §4.8 changes — same runner contract, same read-only agent, same single publisher.
+- **Architecture Review also reports documentation drift (§4.8).** The runtime prompt adds one
+  rule the skeleton does not have: a contradiction between a current-state document and the code
+  the agent happened to read is listed under `### Documentation drift` in the PRD's Further
+  Notes (or in `reason` on a skip). It rides the existing output fields, so the schema and the
+  publisher are untouched. This is a trial of whether a scheduled docs-staleness pass would earn
+  its own workflow: the deterministic side is already covered (`check:doc-map`, and the link and
+  path self-checks in `app/lib/shared/domain-docs.test.ts`), and what is left is semantic drift
+  only a reader catches. If the heading keeps coming back empty, drop the rule.
 - **`FRONTEND-TDD.md`**: the source mandates using `useEffectReducer` from `use-effect-reducer`;
   this repo does **not** use that library (nor reducers today), so the "Reducer choice" section
   was left library-neutral, preserving the principle (state logic in a pure, testable module).

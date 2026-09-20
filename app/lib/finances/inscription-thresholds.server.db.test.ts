@@ -113,7 +113,7 @@ function ascending(values: number[]) {
   return [...values].sort((a, b) => a - b);
 }
 
-describe.sequential("readInscriptionThresholds on a withdrawn sibling", () => {
+describe("readInscriptionThresholds on a withdrawn sibling", () => {
   test("leaves the withdrawn inscription out of the discount qualifying set", async () => {
     const fixture = await seedWithdrawnDiscountFixture();
 
@@ -333,7 +333,7 @@ async function readBothPaths(fixture: {
   };
 }
 
-describe.sequential("the price lock at the deposit threshold", () => {
+describe("the price lock at the deposit threshold", () => {
   test("follows the price list while the inscription is below its deposit", async () => {
     // 1000 against a stored deposit of 3600: below it, so the stored row is not
     // authoritative and the read re-derives from the row that applies today.

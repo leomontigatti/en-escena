@@ -74,7 +74,7 @@ beforeEach(() => {
 /** What the detail form stages for one document before "Guardar" is pressed. */
 type DocumentChange = "keep" | "remove" | "upload";
 
-describe.sequential("event documents on the event detail action", () => {
+describe("event documents on the event detail action", () => {
   test("an upload creates the row the detail view then offers", async () => {
     const event = await createAdminSavedEvent();
 

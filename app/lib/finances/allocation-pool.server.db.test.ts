@@ -119,7 +119,7 @@ async function readAllocationIdentities(inscriptionId: string) {
     .orderBy(asc(payments.paymentNumber));
 }
 
-describe.sequential("the pool funding rule and its inverse", () => {
+describe("the pool funding rule and its inverse", () => {
   test("funds oldest-first by payment number, filling each payment before the next", async () => {
     const fixture = await seedPoolFixture([1000, 2000, 3000]);
 

@@ -26,7 +26,7 @@ import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-describe.sequential("loadPortalProfessorsList", () => {
+describe("loadPortalProfessorsList", () => {
   test("creates normalized professors and loads active plus archived rows for client filtering", async () => {
     const owner = await createAcademySession({
       email: "profesores.owner@example.com",

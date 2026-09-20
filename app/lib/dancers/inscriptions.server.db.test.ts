@@ -158,62 +158,59 @@ function moneyFigures(row: {
   };
 }
 
-describe.sequential(
-  "the dancer detail prices through the finance read model",
-  () => {
-    test("excludes a row whose deadline has passed, matching the finance surfaces", async () => {
-      // Below the deposit, so the stored (expired) row is not authoritative: the
-      // price is the row on offer today. The dateless resolver used to quote the
-      // expired 10000 here.
-      const fixture = await seedDancerWithTwoPriceRows({ allocatedAmount: 0 });
+describe("the dancer detail prices through the finance read model", () => {
+  test("excludes a row whose deadline has passed, matching the finance surfaces", async () => {
+    // Below the deposit, so the stored (expired) row is not authoritative: the
+    // price is the row on offer today. The dateless resolver used to quote the
+    // expired 10000 here.
+    const fixture = await seedDancerWithTwoPriceRows({ allocatedAmount: 0 });
 
-      const read = await readBothSurfaces(fixture);
+    const read = await readBothSurfaces(fixture);
 
-      expect(read.dancer).toEqual({
-        basePriceAmount: 12000,
-        dancerDiscountAmount: 0,
-        totalAmount: 12000,
-      });
-      expect(read.finance).toEqual(read.dancer);
+    expect(read.dancer).toEqual({
+      basePriceAmount: 12000,
+      dancerDiscountAmount: 0,
+      totalAmount: 12000,
+    });
+    expect(read.finance).toEqual(read.dancer);
+  });
+
+  test("shows the stored row once the deposit is covered, like the finance surfaces", async () => {
+    // 3000 is the stored row's deposit at 30 %, so the price is fixed on it
+    // even though a dearer row is the one on offer today.
+    const fixture = await seedDancerWithTwoPriceRows({
+      allocatedAmount: 3000,
     });
 
-    test("shows the stored row once the deposit is covered, like the finance surfaces", async () => {
-      // 3000 is the stored row's deposit at 30 %, so the price is fixed on it
-      // even though a dearer row is the one on offer today.
-      const fixture = await seedDancerWithTwoPriceRows({
-        allocatedAmount: 3000,
-      });
+    const read = await readBothSurfaces(fixture);
 
-      const read = await readBothSurfaces(fixture);
-
-      expect(read.dancer).toEqual({
-        basePriceAmount: 10000,
-        dancerDiscountAmount: 0,
-        totalAmount: 10000,
-      });
-      expect(read.finance).toEqual(read.dancer);
+    expect(read.dancer).toEqual({
+      basePriceAmount: 10000,
+      dancerDiscountAmount: 0,
+      totalAmount: 10000,
     });
+    expect(read.finance).toEqual(read.dancer);
+  });
 
-    test("reads `Sin precio` when no row applies and nothing is stored", async () => {
-      const fixture = await seedDancerWithTwoPriceRows({ allocatedAmount: 0 });
-      await db
-        .update(choreographyDancers)
-        .set({ selectedPriceId: null })
-        .where(eq(choreographyDancers.id, fixture.inscriptionId));
-      // Past both deadlines: nothing is on offer and there is no stored row to
-      // fall back to.
-      vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
-        "2026-07-01",
-      );
+  test("reads `Sin precio` when no row applies and nothing is stored", async () => {
+    const fixture = await seedDancerWithTwoPriceRows({ allocatedAmount: 0 });
+    await db
+      .update(choreographyDancers)
+      .set({ selectedPriceId: null })
+      .where(eq(choreographyDancers.id, fixture.inscriptionId));
+    // Past both deadlines: nothing is on offer and there is no stored row to
+    // fall back to.
+    vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
+      "2026-07-01",
+    );
 
-      const read = await readBothSurfaces(fixture);
+    const read = await readBothSurfaces(fixture);
 
-      expect(read.dancer).toEqual({
-        basePriceAmount: null,
-        dancerDiscountAmount: 0,
-        totalAmount: null,
-      });
-      expect(read.finance).toEqual(read.dancer);
+    expect(read.dancer).toEqual({
+      basePriceAmount: null,
+      dancerDiscountAmount: 0,
+      totalAmount: null,
     });
-  },
-);
+    expect(read.finance).toEqual(read.dancer);
+  });
+});

@@ -33,7 +33,7 @@ import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-describe.sequential("loadPortalDancersList", () => {
+describe("loadPortalDancersList", () => {
   test("creates normalized dancers and loads active plus archived rows for client filtering", async () => {
     const ownerSession = await createAcademySession({
       email: "bailarines.owner@example.com",

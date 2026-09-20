@@ -165,7 +165,7 @@ function pictureFolder(eventId: string, seminarId: string) {
   );
 }
 
-describe.sequential("the seminar instructor picture", () => {
+describe("the seminar instructor picture", () => {
   test("an upload stores one object and records its key on the row", async () => {
     const event = await createSavedEvent();
     const seminar = await createSavedSeminar(event.id);
