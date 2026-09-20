@@ -196,6 +196,26 @@ reaches the script through `env: PR_TITLE`, never interpolated into a `run:`
 block. Like the other four it is a required context on `master`, which is a repo
 setting outside the repo: this file does not add the requirement.
 
+### The Node version
+
+`.nvmrc` is where the Node version lives, as an exact patch (`22.23.2`). Nothing
+else states it independently (#981):
+
+- every `actions/setup-node` step in `.github/workflows/` uses
+  `node-version-file: .nvmrc`, never a literal `node-version:`;
+- `package.json`'s `engines.node` is `^<that version>`, which is what refuses a
+  stale local Node before a tool that needs the newer one fails obscurely;
+- the Dockerfile's base is `FROM node:<that version>-bookworm-slim`. It repeats
+  the number because `FROM` cannot read a file, and an `ARG` defaulted from one
+  would still need the default written here; `tests/afk/node-version-single-source.test.ts`
+  is what keeps it in step. The tag is deliberately not pinned by digest —
+  images-by-digest is the actions gate's decision (#955), not this one.
+
+Bumping Node is therefore two edits: `.nvmrc`, and `@types/node`'s range in
+`package.json` whenever the major moves (the types have to describe the runtime
+that runs). Everything else follows, and the test above fails on whichever copy
+was forgotten.
+
 ### Waiting on AFK runs and CI from a session
 
 A session that drives AFK work (a reviewed PR to land, a chain of issues) never
