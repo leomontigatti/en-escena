@@ -146,7 +146,7 @@ describe("`Bases del evento` repository", () => {
     ).resolves.toMatchObject({
       ok: false,
       error:
-        "No se pueden editar tipos de grupo ni cupo porque el cupo de cronograma tiene dependencias.",
+        "No se puede editar el tipo de grupo porque el cupo de cronograma tiene dependencias.",
     });
     await expect(
       deleteScheduleCapacity(soloSchedule.id, {
@@ -164,7 +164,7 @@ describe("`Bases del evento` repository", () => {
     expect(savedSchedule).toMatchObject({ capacity: 6, groupType: "solo" });
   });
 
-  test("refuses editing a schedule capacity that choreographies occupy", async () => {
+  test("holds an occupied schedule capacity to its group type and its occupied places", async () => {
     const { event, jazz } = await createEventModalitiesFixture();
     const academy = await createSavedAcademy();
     const block = await createSavedSchedule(event.id, {
@@ -177,24 +177,55 @@ describe("`Bases del evento` repository", () => {
     const freeEntry = await expectCreated(
       createScheduleCapacity(block.id, { groupType: "duo", capacity: 4 }),
     );
-    await createChoreographyOnBases({
+    const first = await createChoreographyOnBases({
       eventId: event.id,
       academyId: academy.id,
       modalityId: jazz.id,
       scheduleId: block.id,
       scheduleCapacityId: occupiedEntry.id,
     });
+    await createChoreographyOnBases({
+      eventId: event.id,
+      academyId: academy.id,
+      modalityId: jazz.id,
+      name: "Segunda",
+      categoryId: first.categoryId,
+      scheduleId: block.id,
+      scheduleCapacityId: occupiedEntry.id,
+    });
 
     await expect(
       updateScheduleCapacity(occupiedEntry.id, {
-        groupType: "solo",
-        capacity: 5,
+        groupType: "trio",
+        capacity: 6,
       }),
     ).resolves.toMatchObject({
       ok: false,
       error:
-        "No se pueden editar tipos de grupo ni cupo porque el cupo de cronograma tiene dependencias.",
+        "No se puede editar el tipo de grupo porque el cupo de cronograma tiene dependencias.",
     });
+    await expect(
+      updateScheduleCapacity(occupiedEntry.id, {
+        groupType: "solo",
+        capacity: 1,
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      error: "El cupo no puede ser menor a los 2 lugares ya ocupados.",
+      fieldErrors: { capacity: "Ajustá el cupo." },
+    });
+    await expect(
+      updateScheduleCapacity(occupiedEntry.id, {
+        groupType: "solo",
+        capacity: 2,
+      }),
+    ).resolves.toMatchObject({ ok: true, record: { capacity: 2 } });
+    await expect(
+      updateScheduleCapacity(occupiedEntry.id, {
+        groupType: "solo",
+        capacity: 6,
+      }),
+    ).resolves.toMatchObject({ ok: true, record: { capacity: 6 } });
     await expect(
       updateScheduleCapacity(freeEntry.id, { groupType: "duo", capacity: 3 }),
     ).resolves.toMatchObject({ ok: true, record: { capacity: 3 } });
@@ -233,19 +264,19 @@ describe("`Bases del evento` repository", () => {
 
     await expect(
       updateScheduleCapacity(withdrawnEntry.id, {
-        groupType: "solo",
-        capacity: 3,
+        groupType: "trio",
+        capacity: 4,
       }),
-    ).resolves.toMatchObject({ ok: true, record: { capacity: 3 } });
+    ).resolves.toMatchObject({ ok: true, record: { groupType: "trio" } });
     await expect(
       updateScheduleCapacity(emptyRosterEntry.id, {
-        groupType: "duo",
-        capacity: 3,
+        groupType: "grupal",
+        capacity: 4,
       }),
     ).resolves.toMatchObject({
       ok: false,
       error:
-        "No se pueden editar tipos de grupo ni cupo porque el cupo de cronograma tiene dependencias.",
+        "No se puede editar el tipo de grupo porque el cupo de cronograma tiene dependencias.",
     });
   });
 
@@ -262,10 +293,18 @@ describe("`Bases del evento` repository", () => {
     const freeEntry = await expectCreated(
       createScheduleCapacity(block.id, { groupType: "duo", capacity: 4 }),
     );
+    const first = await createChoreographyOnBases({
+      eventId: event.id,
+      academyId: academy.id,
+      modalityId: jazz.id,
+      scheduleCapacityId: occupiedEntry.id,
+    });
     await createChoreographyOnBases({
       eventId: event.id,
       academyId: academy.id,
       modalityId: jazz.id,
+      name: "Segunda",
+      categoryId: first.categoryId,
       scheduleCapacityId: occupiedEntry.id,
     });
 
@@ -289,15 +328,37 @@ describe("`Bases del evento` repository", () => {
       validateInlineScheduleCapacityDependencies({
         existingEntries,
         nextEntries: [
-          { id: occupiedEntry.id, index: 0, groupType: "solo", capacity: 5 },
+          { id: occupiedEntry.id, index: 0, groupType: "grupal", capacity: 6 },
           { id: freeEntry.id, index: 1, groupType: "trio", capacity: 4 },
         ],
       }),
     ).resolves.toMatchObject({
       ok: false,
       error:
-        "No se pueden editar tipos de grupo ni cupo porque el cupo de cronograma tiene dependencias.",
+        "No se puede editar el tipo de grupo porque el cupo de cronograma tiene dependencias.",
     });
+    await expect(
+      validateInlineScheduleCapacityDependencies({
+        existingEntries,
+        nextEntries: [
+          { id: freeEntry.id, index: 0, groupType: "duo", capacity: 4 },
+          { id: occupiedEntry.id, index: 1, groupType: "solo", capacity: 1 },
+        ],
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      error: "El cupo no puede ser menor a los 2 lugares ya ocupados.",
+      fieldErrors: { "scheduleCapacities.1.capacity": "Ajustá el cupo." },
+    });
+    await expect(
+      validateInlineScheduleCapacityDependencies({
+        existingEntries,
+        nextEntries: [
+          { id: occupiedEntry.id, index: 0, groupType: "solo", capacity: 9 },
+          { id: freeEntry.id, index: 1, groupType: "duo", capacity: 1 },
+        ],
+      }),
+    ).resolves.toEqual({ ok: true });
     await expect(
       validateInlineScheduleCapacityDependencies({
         existingEntries,

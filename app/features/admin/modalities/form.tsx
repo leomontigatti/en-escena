@@ -31,29 +31,29 @@ import { modalityFormSchema, type ModalityFormValues } from "./view-shared";
 
 type ModalityFormController = UseFormReturn<ModalityFormValues>;
 
-function ModalityForm({
-  formId,
-  id,
-  intent,
+const emptySubmodalities: EventSubmodalityRow[] = [];
+
+/**
+ * The form's state, owned by the page rather than by the fields, because
+ * "Guardar" lives outside the `<form>` and stays disabled until something
+ * actually changed.
+ */
+function useEventModalityForm({
   name,
-  submodalities,
+  submodalities = emptySubmodalities,
   submittedValues,
 }: {
-  formId: string;
-  id?: string;
-  intent: string;
   name?: string;
   submodalities?: EventSubmodalityRow[];
   submittedValues?: NameActionValues | ModalityActionValues;
-}) {
-  const includeSubmodalities = submodalities !== undefined;
+}): ModalityFormController {
   const defaultValues = useMemo(
     (): ModalityFormValues => ({
       name: submittedValues?.name ?? name ?? "",
       submodalities:
         submittedValues && "submodalities" in submittedValues
           ? submittedValues.submodalities
-          : (submodalities ?? []).map(toSubmodalityFormValues),
+          : submodalities.map(toSubmodalityFormValues),
     }),
     [name, submodalities, submittedValues],
   );
@@ -62,12 +62,27 @@ function ModalityForm({
     mode: "onSubmit",
     resolver: zodResolver(modalityFormSchema),
   });
-  const formAction = useOptionalFormAction();
-  const submit = useOptionalSubmit();
 
   useEffect(() => {
     form.reset(defaultValues);
   }, [defaultValues, form]);
+
+  return form;
+}
+
+function ModalityForm({
+  form,
+  formId,
+  id,
+  intent,
+}: {
+  form: ModalityFormController;
+  formId: string;
+  id?: string;
+  intent: string;
+}) {
+  const formAction = useOptionalFormAction();
+  const submit = useOptionalSubmit();
 
   return (
     <form
@@ -78,13 +93,9 @@ function ModalityForm({
     >
       <input type="hidden" name="intent" value={intent} />
       {id ? <input type="hidden" name="id" value={id} /> : null}
-      {includeSubmodalities ? (
-        <input type="hidden" name="submodalitiesMode" value="replace" />
-      ) : null}
+      <input type="hidden" name="submodalitiesMode" value="replace" />
       <NameField form={form} id="modality-name" />
-      {includeSubmodalities ? (
-        <SubmodalitiesInlineFieldArray form={form} />
-      ) : null}
+      <SubmodalitiesInlineFieldArray form={form} />
     </form>
   );
 }
@@ -96,15 +107,18 @@ function NameField({ form, id }: { form: ModalityFormController; id: string }) {
 }
 
 function ModalityFormActions({
+  form,
   formId,
   pendingScope,
 }: {
+  form: ModalityFormController;
   formId: string;
   pendingScope: RouteFormPendingScope;
 }) {
   return (
     <EventBasesFormActions
       basePath={basePath}
+      control={form.control}
       formId={formId}
       pendingScope={pendingScope}
     />
@@ -272,4 +286,5 @@ export {
   ModalityForm,
   ModalityFormActions,
   ModalityFormPanel,
+  useEventModalityForm,
 };

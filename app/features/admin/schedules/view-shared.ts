@@ -154,6 +154,31 @@ function formatAvailablePlaces({
 }
 
 /**
+ * The places left for a capacity that is still being typed, so the suffix
+ * follows the field instead of the saved number. Nothing while the field holds
+ * no whole number, and nothing on a row that was never saved: there is no
+ * occupancy to subtract from.
+ */
+export function resolveLiveAvailablePlaces({
+  occupiedCount,
+  typedCapacity,
+}: {
+  occupiedCount?: number;
+  typedCapacity: string;
+}) {
+  if (occupiedCount === undefined || !/^\d+$/.test(typedCapacity.trim())) {
+    return undefined;
+  }
+
+  const capacity = Number.parseInt(typedCapacity, 10);
+
+  return {
+    availablePlaces: Math.max(capacity - occupiedCount, 0),
+    capacity,
+  };
+}
+
+/**
  * Read-only text shown right after the capacity, both in the list and inside
  * the field being edited: the capacity is already there, so the suffix only
  * adds what is left of it. One source, so the two surfaces cannot word the

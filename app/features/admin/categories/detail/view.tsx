@@ -17,6 +17,7 @@ import {
   CategoryForm,
   CategoryFormActions,
   getCategorySubmittedValues,
+  useCategoryForm,
 } from "../form";
 import type {
   CategoryActionData,
@@ -36,6 +37,19 @@ function CategoryDetailView({
   useServerActionToast(actionData);
 
   const category = loaderData.category;
+  const form = useCategoryForm({
+    experienceLevels: category?.experienceLevels,
+    groupTypes: category?.groupTypes,
+    maxAge: category?.maxAge,
+    minAge: category?.minAge,
+    modalityIds: category?.modalityIds,
+    name: category?.name,
+    submittedValues: getCategorySubmittedValues(
+      actionData,
+      "update-category",
+      category?.id,
+    ),
+  });
 
   return (
     <AdminResourceLayout
@@ -51,23 +65,14 @@ function CategoryDetailView({
       {category ? (
         <AdminResourceFormCard>
           <CategoryForm
+            form={form}
             formId="update-category-form"
             id={category.id}
             intent="update-category"
             modalities={loaderData.modalities}
-            name={category.name}
-            minAge={category.minAge}
-            maxAge={category.maxAge}
-            groupTypes={category.groupTypes}
-            modalityIds={category.modalityIds}
-            experienceLevels={category.experienceLevels}
-            submittedValues={getCategorySubmittedValues(
-              actionData,
-              "update-category",
-              category.id,
-            )}
           />
           <CategoryFormActions
+            form={form}
             formId="update-category-form"
             pendingScope={{
               intent: "update-category",

@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useMemo } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type UseFormReturn } from "react-hook-form";
 import { z } from "zod";
 
 import { IntegerInputField } from "@/components/shared/integer-input-field";
@@ -70,31 +70,30 @@ type CategoryFormValues = z.infer<typeof categoryFormSchema>;
 
 const emptyCategorySelection: string[] = [];
 
-function CategoryForm({
+type CategoryFormController = UseFormReturn<CategoryFormValues>;
+
+/**
+ * The form's state, owned by the page rather than by the fields, because
+ * "Guardar" lives outside the `<form>` and stays disabled until something
+ * actually changed.
+ */
+function useCategoryForm({
   experienceLevels = emptyCategorySelection,
-  formId,
   groupTypes = emptyCategorySelection,
-  id,
-  intent,
   maxAge,
   minAge,
-  modalities,
   modalityIds = emptyCategorySelection,
   name,
   submittedValues,
 }: {
   experienceLevels?: string[];
-  formId: string;
   groupTypes?: string[];
-  id?: string;
-  intent: string;
   maxAge?: number;
   minAge?: number;
-  modalities: ModalityRow[];
   modalityIds?: string[];
   name?: string;
   submittedValues?: CategoryActionValues;
-}) {
+}): CategoryFormController {
   const defaultValues = useMemo(
     () =>
       submittedValues ?? {
@@ -120,12 +119,29 @@ function CategoryForm({
     mode: "onSubmit",
     resolver: zodResolver(categoryFormSchema),
   });
-  const formAction = useOptionalFormAction();
-  const submit = useOptionalSubmit();
 
   useEffect(() => {
     form.reset(defaultValues);
   }, [defaultValues, form]);
+
+  return form;
+}
+
+function CategoryForm({
+  form,
+  formId,
+  id,
+  intent,
+  modalities,
+}: {
+  form: CategoryFormController;
+  formId: string;
+  id?: string;
+  intent: string;
+  modalities: ModalityRow[];
+}) {
+  const formAction = useOptionalFormAction();
+  const submit = useOptionalSubmit();
 
   return (
     <form
@@ -191,15 +207,18 @@ function CategoryForm({
 }
 
 function CategoryFormActions({
+  form,
   formId,
   pendingScope,
 }: {
+  form: CategoryFormController;
   formId: string;
   pendingScope: RouteFormPendingScope;
 }) {
   return (
     <EventBasesFormActions
       basePath={basePath}
+      control={form.control}
       formId={formId}
       pendingScope={pendingScope}
     />
@@ -234,4 +253,9 @@ function isCategoryActionValues(
   );
 }
 
-export { CategoryForm, getCategorySubmittedValues, CategoryFormActions };
+export {
+  CategoryForm,
+  CategoryFormActions,
+  getCategorySubmittedValues,
+  useCategoryForm,
+};

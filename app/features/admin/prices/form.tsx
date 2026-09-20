@@ -39,29 +39,23 @@ import {
 import { basePath } from "./shared";
 
 type PriceFormController = UseFormReturn<PriceFormValues>;
-type PriceFormProps = {
+type PriceFormDefaultValueProps = {
   amount?: number;
-  formId?: string;
   groupType?: string;
+  name?: string | null;
+  paymentDeadline?: string | null;
+  scheduleId?: string | null;
+  submittedValues?: PriceActionValues;
+};
+type PriceFormProps = {
+  form: PriceFormController;
+  formId?: string;
   /** What the guards would refuse; a row being created is never guarded. */
   guard?: PriceGuard;
   id?: string;
   intent: string;
-  name?: string | null;
-  paymentDeadline?: string | null;
-  scheduleId?: string | null;
   schedules: ScheduleListItem[];
-  submittedValues?: PriceActionValues;
 };
-type PriceFormDefaultValueProps = Pick<
-  PriceFormProps,
-  | "amount"
-  | "groupType"
-  | "name"
-  | "paymentDeadline"
-  | "scheduleId"
-  | "submittedValues"
->;
 
 function getPriceFormDefaultValues({
   amount,
@@ -94,19 +88,19 @@ function getPriceFormDefaultValues({
   };
 }
 
-export function PriceForm({
+/**
+ * The form's state, owned by the page rather than by the fields, because
+ * "Guardar" lives outside the `<form>` and stays disabled until something
+ * actually changed.
+ */
+export function usePriceForm({
   amount,
-  formId,
   groupType,
-  guard = openPriceGuard,
-  id,
-  intent,
   name,
   paymentDeadline,
   scheduleId,
-  schedules,
   submittedValues,
-}: PriceFormProps) {
+}: PriceFormDefaultValueProps): PriceFormController {
   const defaultValues = useMemo(
     () =>
       getPriceFormDefaultValues({
@@ -124,13 +118,24 @@ export function PriceForm({
     mode: "onSubmit",
     resolver: zodResolver(priceFormSchema),
   });
-  const formAction = useOptionalFormAction();
-  const submit = useOptionalSubmit();
 
   useEffect(() => {
     form.reset(defaultValues);
   }, [defaultValues, form]);
 
+  return form;
+}
+
+export function PriceForm({
+  form,
+  formId,
+  guard = openPriceGuard,
+  id,
+  intent,
+  schedules,
+}: PriceFormProps) {
+  const formAction = useOptionalFormAction();
+  const submit = useOptionalSubmit();
   const values = form.watch();
   const fieldIdSuffix = id ?? intent;
   const scheduleOptions = schedules.map((schedule) => ({
@@ -196,15 +201,18 @@ export function PriceForm({
 }
 
 export function PriceFormActions({
+  form,
   formId,
   pendingScope,
 }: {
+  form: PriceFormController;
   formId: string;
   pendingScope: RouteFormPendingScope;
 }) {
   return (
     <EventBasesFormActions
       basePath={basePath}
+      control={form.control}
       formId={formId}
       pendingScope={pendingScope}
     />

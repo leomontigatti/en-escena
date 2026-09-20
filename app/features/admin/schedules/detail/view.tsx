@@ -2,7 +2,12 @@ import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import { EmptyResourceState, ScheduleActions } from "../dialogs";
-import { ScheduleForm, ScheduleFormActions, ScheduleFormPanel } from "../form";
+import {
+  ScheduleForm,
+  ScheduleFormActions,
+  ScheduleFormPanel,
+  useScheduleForm,
+} from "../form";
 import type {
   EventScheduleActionData,
   EventScheduleDetailLoaderData,
@@ -28,6 +33,19 @@ export function EventScheduleDetailView({
     (candidate) => candidate.id === scheduleId,
   );
   const scheduleName = schedule?.name ?? "Cronograma";
+  const form = useScheduleForm({
+    modalityIds: schedule?.modalityIds,
+    name: schedule?.name,
+    scheduleCapacities: schedule?.scheduleCapacities,
+    scheduledDate: schedule?.scheduledDate,
+    startTime: schedule?.startTime,
+    submittedValues: getScheduleSubmittedValues(
+      actionData,
+      "update-schedule",
+      scheduleId,
+    ),
+    totalCapacity: schedule?.totalCapacity,
+  });
 
   return (
     <AdminResourceLayout
@@ -50,24 +68,16 @@ export function EventScheduleDetailView({
       {schedule ? (
         <ScheduleFormPanel>
           <ScheduleForm
-            availablePlaces={schedule.availablePlaces}
+            form={form}
             formId="update-schedule-form"
             id={schedule.id}
             intent="update-schedule"
             modalities={loaderData.modalities}
-            name={schedule.name}
-            scheduledDate={schedule.scheduledDate}
-            startTime={schedule.startTime}
-            totalCapacity={schedule.totalCapacity}
-            modalityIds={schedule.modalityIds}
+            occupiedCount={schedule.occupiedCount}
             scheduleCapacities={schedule.scheduleCapacities}
-            submittedValues={getScheduleSubmittedValues(
-              actionData,
-              "update-schedule",
-              schedule.id,
-            )}
           />
           <ScheduleFormActions
+            form={form}
             formId="update-schedule-form"
             pendingScope={{
               intent: "update-schedule",
