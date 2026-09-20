@@ -536,12 +536,19 @@ attaches** the sub-issues deterministically.
 
   ```bash
   # 1. create the issue with a rendered body (see below); capture its number from the URL
-  url=$(gh issue create --title "$TITLE" --body "$BODY")          # body has no "Closes"
+  url=$(gh issue create --title "$TITLE" --body "$BODY" "${INHERITED[@]}")  # body has no "Closes"
   sub_number=$(basename "$url")
   # 2. resolve the new issue's GraphQL/REST node id, then attach as a native sub-issue
   sub_id=$(gh api "repos/$GH_REPO/issues/$sub_number" --jq .id)   # numeric id
   gh api -X POST "repos/$GH_REPO/issues/$PRD_NUMBER/sub_issues" -F "sub_issue_id=$sub_id"
   ```
+
+  `INHERITED` is the PRD's triage, read once before the loop: its `priority:*` label, its
+  type labels (`bug`, `enhancement`, `refactor`, `chore`) and its milestone, per
+  [triage-labels.md](./triage-labels.md). A slice is therefore never untriaged, and it shows
+  up in the milestone its PRD belongs to. Nothing else is inherited: `question` marks a
+  decision and a slice is work, while `ready-for-*` and `agent:*` describe the PRD's own
+  state.
 
   Rendered sub-issue body:
 
