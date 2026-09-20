@@ -21,14 +21,16 @@ matters. Triage also gives every issue exactly one priority label and at least o
 label, and removes `needs-triage` on the way out. An issue with no `priority:*` label has
 not been triaged.
 
-| Priority label    | Meaning                                                 | Test                                   |
-| ----------------- | ------------------------------------------------------- | -------------------------------------- |
-| `priority:urgent` | Breaks money, data or the live event                    | Would I drop what I am doing for this? |
-| `priority:next`   | The short list to pull from next. Keep it to about 15   | Will I start this within two weeks?    |
-| `priority:later`  | Worth doing, no blocker, not scheduled                  | Would I be sad to close it?            |
-| `priority:parked` | Deliberately not now, and the issue names what wakes it | Is there a condition that reopens it?  |
+| Priority label    | Meaning                                                                       | Test                                   |
+| ----------------- | ----------------------------------------------------------------------------- | -------------------------------------- |
+| `priority:urgent` | Breaks money, data or the live event, or the next event cannot run without it | Would I drop what I am doing for this? |
+| `priority:next`   | The short list to pull from next. Keep it to about 15                         | Will I start this within two weeks?    |
+| `priority:later`  | Worth doing, no blocker, not scheduled                                        | Would I be sad to close it?            |
+| `priority:parked` | Deliberately not now, and the issue names what wakes it                       | Is there a condition that reopens it?  |
 
-`priority:urgent` is normally empty. A parked issue carries a comment stating its wake-up
+`priority:urgent` is empty outside the run-up to an event. Dated work also goes in a milestone
+("Before the next event"), which is what carries the deadline; the label only says it comes
+first. A parked issue carries a comment stating its wake-up
 trigger ("the first slice of #739 lands"); without one it is `priority:later`. `wontfix` is a
 different thing: parked will be done when the trigger fires, `wontfix` was decided against.
 
