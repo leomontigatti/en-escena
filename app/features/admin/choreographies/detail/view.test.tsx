@@ -414,12 +414,12 @@ describe("ChoreographyDetailRouteView", () => {
     expect(markup).toContain(
       "El nivel de experiencia no pertenece a la categoría",
     );
-    expect(markup).toContain("Elegí uno de los que la categoría admite hoy");
+    expect(markup).toContain("ya no admite el nivel de experiencia guardado");
   });
 
   // The roster is where an age mismatch is normally repaired, but a presentation
-  // blocks it — so the alert must not send the organiser to a field that refuses
-  // the edit, and an auditor is offered nothing at all.
+  // blocks it — so the alert must not send the reader to a field that refuses the
+  // edit. The wording does not depend on who is looking.
   test("names only the repair the age mismatch actually leaves open", () => {
     const misplaced = {
       code: "incomplete" as const,
@@ -446,12 +446,17 @@ describe("ChoreographyDetailRouteView", () => {
       }),
     });
 
-    expect(repairable).toContain("Revisá el elenco o la categoría");
-    expect(withPresentation).not.toContain("Revisá el elenco");
-    expect(withPresentation).toContain("la corrección es sobre la categoría");
+    expect(repairable).toContain(
+      "Por favor, revisá la categoría y/o el elenco",
+    );
+    expect(withPresentation).not.toContain("y/o el elenco");
+    expect(withPresentation).toContain(
+      "La presentación bloquea el elenco, así que la corrección es sobre la categoría. Por favor, revisala.",
+    );
     expect(forAuditor).toContain("La categoría no coincide con las edades");
-    expect(forAuditor).not.toContain("Revisá el elenco");
-    expect(forAuditor).not.toContain("la corrección es sobre la categoría");
+    expect(forAuditor).toContain(
+      "Por favor, revisá la categoría y/o el elenco",
+    );
   });
 
   test("keeps a well-placed choreography free of mismatch alerts", () => {

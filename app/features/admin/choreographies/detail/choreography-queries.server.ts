@@ -33,40 +33,20 @@ export type ChoreographyExperienceLevelOption = {
 
 /**
  * The options the view offers are exactly the ones the intent accepts: the levels
- * the resolved category declares, plus the level assigned today. That addition is
- * for visibility only — if the category stopped admitting the saved level, it has
- * to stay in view rather than disappear from the select without explanation —
- * and re-picking it is a write identical to what is already there.
- *
- * Carrying a stray level along is not tolerating it: the operational status
- * reports it as `experienceLevelMismatch` and the detail says so in an alert, so
- * the option is there to be read and replaced, never as an ordinary choice.
+ * the resolved category admits today, and nothing else. A level the category
+ * stopped admitting is therefore not offered and cannot be re-saved; what makes
+ * the stored value legible is the mismatch alert on the detail, which names it.
  *
  * There is no levels table: they are a global enum and the category declares
  * which ones it admits, so the list is built here and not queried.
  */
 function resolveChoreographyExperienceLevelOptions(input: {
   categoryExperienceLevels: string[];
-  experienceLevelId: string | null;
 }): ChoreographyExperienceLevelOption[] {
-  const options = input.categoryExperienceLevels.map((level) => ({
+  return input.categoryExperienceLevels.map((level) => ({
     id: level,
     name: experienceLevelLabels[level] ?? level,
   }));
-
-  if (
-    input.experienceLevelId !== null &&
-    !options.some((option) => option.id === input.experienceLevelId)
-  ) {
-    options.push({
-      id: input.experienceLevelId,
-      name:
-        experienceLevelLabels[input.experienceLevelId] ??
-        input.experienceLevelId,
-    });
-  }
-
-  return options;
 }
 
 type ChoreographyDetailRow = {
@@ -113,8 +93,8 @@ export type ChoreographyDetail = {
   experienceLevelId: string | null;
   experienceLevelName: string | null;
   /**
-   * The levels the resolved category admits, plus the one assigned today. It is
-   * the list the select offers and the one the intent accepts.
+   * The levels the resolved category admits today. It is the list the select
+   * offers and the one the intent accepts.
    */
   experienceLevelOptions: ChoreographyExperienceLevelOption[];
   groupType: ChoreographyGroupType;
@@ -133,9 +113,9 @@ export type ChoreographyDetail = {
     lastName: string;
   }>;
   /**
-   * Whether the resolved category declares levels. Different from having options:
-   * a category that stopped admitting levels still carries the saved level along
-   * as a visible option, but no longer requires it.
+   * Whether the resolved category declares levels. A category that stopped
+   * declaring them keeps whatever is stored on the choreography, but no longer
+   * requires it and offers no option for it.
    */
   requiresExperienceLevel: boolean;
   scheduleCapacityId: string;
@@ -226,7 +206,6 @@ export async function findChoreographyDetail(input: {
     experienceLevelName: formatExperienceLevelName(row.experienceLevelId),
     experienceLevelOptions: resolveChoreographyExperienceLevelOptions({
       categoryExperienceLevels: row.categoryExperienceLevels,
-      experienceLevelId: row.experienceLevelId,
     }),
     groupType: row.groupType,
     hasPresentation: row.hasPresentation,

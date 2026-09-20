@@ -1659,10 +1659,10 @@ describe("administrative choreography detail server", () => {
     ]);
   });
 
-  // If the category stopped admitting the saved level, it stays in view instead
-  // of disappearing from the select without explanation — but it is reported as
-  // a mismatch, so it is never an ordinary option offered in silence.
-  test("keeps a drifted assigned level in the options and reports it", async () => {
+  // The options carry only what the category admits today, so a drifted level
+  // cannot be re-saved from the select. The mismatch alert is what keeps the
+  // stored value legible.
+  test("drops a drifted assigned level from the options and reports it", async () => {
     const scenario = await createExperienceLevelScenario({
       academyName: "Academia Nivel Derivado",
       categoryExperienceLevels: ["profesional"],
@@ -1678,14 +1678,26 @@ describe("administrative choreography detail server", () => {
 
     expect(detail.choreography.experienceLevelOptions).toEqual([
       { id: "profesional", name: "Profesional" },
-      { id: "amateur", name: "Amateur" },
     ]);
+    expect(detail.choreography.experienceLevelId).toBe("amateur");
     expect(detail.choreography.operationalStatus).toMatchObject({
       code: "incomplete",
     });
     expect(detail.choreography.operationalStatus.pendingItems).toContain(
       "experienceLevelMismatch",
     );
+
+    const response = await submitDetailAction({
+      body: experienceLevelFormData("amateur"),
+      choreographyId: scenario.choreography.id,
+      email: "admin.coreografias.nivel.derivado.guardar@example.com",
+      role: "admin",
+    });
+
+    expect(response).toMatchObject({
+      message: "Elegí un nivel de experiencia válido para esta coreografía.",
+      status: "error",
+    });
   });
 
   // A category edited after the choreography was filed leaves it competing in a

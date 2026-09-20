@@ -8,25 +8,17 @@ import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import type { ChoreographyDetailLoaderData } from "./server";
 
 /**
- * The alert names the action that is actually available, the way the neighbouring
- * ones gate their closing sentence on `canReassign`. A choreography with a
- * presentation has its roster blocked, so pointing the organiser at the roster
- * would send them to a field that refuses the edit; the category's own age range
- * is still theirs to correct. An auditor gets no sentence at all.
+ * The alert names the repair that is actually open: a choreography with a
+ * presentation has its roster blocked, so pointing at the roster would send the
+ * reader to a field that refuses the edit. The sentence does not depend on who is
+ * looking — an auditor reads the same state of the data as everyone else.
  */
-function formatCategoryAgeMismatchAction(input: {
-  canEdit: boolean;
-  hasPresentation: boolean;
-}) {
-  if (!input.canEdit) {
-    return "";
+function formatCategoryAgeMismatchAction(hasPresentation: boolean) {
+  if (hasPresentation) {
+    return " La presentación bloquea el elenco, así que la corrección es sobre la categoría. Por favor, revisala.";
   }
 
-  if (input.hasPresentation) {
-    return " La presentación bloquea el elenco, así que la corrección es sobre la categoría.";
-  }
-
-  return " Revisá el elenco o la categoría.";
+  return " Por favor, revisá la categoría y/o el elenco.";
 }
 
 /**
@@ -94,10 +86,7 @@ export function ChoreographyDetailAlerts({
           <AlertDescription>
             La edad con la que se ubicó esta coreografía quedó fuera del rango
             que admite {choreography.categoryName}.
-            {formatCategoryAgeMismatchAction({
-              canEdit: loaderData.canEdit,
-              hasPresentation: choreography.hasPresentation,
-            })}
+            {formatCategoryAgeMismatchAction(choreography.hasPresentation)}
           </AlertDescription>
         </Alert>
       ) : null}
@@ -111,14 +100,12 @@ export function ChoreographyDetailAlerts({
             El nivel de experiencia no pertenece a la categoría
           </AlertTitle>
           <AlertDescription>
-            {choreography.categoryName} dejó de admitir el nivel guardado
+            {choreography.categoryName} ya no admite el nivel de experiencia
+            guardado
             {choreography.experienceLevelName === null
               ? ""
               : ` (${choreography.experienceLevelName})`}
-            , que sigue a la vista para que se pueda leer lo que está guardado.
-            {loaderData.experienceLevel.canReassign
-              ? " Elegí uno de los que la categoría admite hoy."
-              : ""}
+            . Por favor, revisalo.
           </AlertDescription>
         </Alert>
       ) : null}
