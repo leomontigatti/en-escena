@@ -266,7 +266,10 @@ portal and the public program at `/programa`.
 
 - Domain: `docs/domain/judging.md` ("Participation And Judging", and the program rules under "Ranking And Results"), `docs/domain/choreographies.md` ("Administrative Choreography Lists", "Choreography Locks")
 - Glossary: `presentation`, `dancerSpacing`, `presentationWarning`, `judgeAssignment`, `choreographyParticipationList`, `eventProgram` in `CONTEXT.md`
-- Current state: specified, not implemented. The rules above are documented ahead of the code; the decisions and their rationale are in wayfinder map #907, and the presentation lists PRD linked from it is the implementation plan. Its slices fill in this slot's routes, modules and tests as they land.
+- Schema: `app/db/schema/presentations.ts` (the `presentation` table; its unique constraint on event plus order number is `DEFERRABLE INITIALLY DEFERRED`, hand-written in `app/db/migrations/0025_cuddly_hairball.sql`)
+- Modules: `app/lib/presentations/ordering.ts` (the pure block order, the dancer gap and moving a row by hand), `app/lib/presentations/warnings.ts` (the pure `Advertencia` derivation)
+- Current state: specified, partly implemented. The rules above are documented ahead of the code; the decisions and their rationale are in wayfinder map #907, and the presentation lists PRD linked from it is the implementation plan. Its slices fill in this slot's routes, modules and tests as they land.
+- Tests: `app/lib/presentations/presentation-table.db.test.ts`, `app/lib/presentations/ordering.test.ts`, `app/lib/presentations/warnings.test.ts`
 - What exists today: the `hasPresentation` stub column on `choreography` (`app/db/schema/choreographies.ts`), which nothing sets and the PRD retires, and the event's `programVisible` flag (`app/db/schema/events.ts`), toggled on the event detail and read by nothing yet.
 
 ## Judging And Results
