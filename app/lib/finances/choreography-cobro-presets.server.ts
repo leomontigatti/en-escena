@@ -61,7 +61,7 @@ export type PresetPriceSelection = Record<string, string>;
 type PresetChoreography = {
   groupType: string;
   id: string;
-  scheduleId: string | null;
+  scheduleId: string;
 };
 
 export async function payChoreographiesPreset(input: {

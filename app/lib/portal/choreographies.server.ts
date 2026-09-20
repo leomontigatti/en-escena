@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, or } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -137,13 +137,7 @@ export async function findChoreographyForAcademyEvent(
       scheduleCapacities,
       eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
     )
-    .innerJoin(
-      schedules,
-      or(
-        eq(choreographies.scheduleId, schedules.id),
-        eq(scheduleCapacities.scheduleId, schedules.id),
-      ),
-    )
+    .innerJoin(schedules, eq(choreographies.scheduleId, schedules.id))
     .where(
       and(
         eq(choreographies.id, choreographyId),

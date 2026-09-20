@@ -144,8 +144,11 @@ export async function loadPriceDivergenceCheck(input: {
     // The destination arrives already resolved to a single schedule, so it is
     // fed in through the choreography's own source and leaves the capacity's
     // empty; `resolveChoreographyPricingScheduleId` reads the pair the same way.
+    // A synthetic key that names no schedule — the roster path, which moves the
+    // group type alone — leaves the choreography on the one it already has.
     const destinationKey = {
-      choreographyScheduleId: destination.scheduleId,
+      choreographyScheduleId:
+        destination.scheduleId ?? choreography.choreographyScheduleId,
       groupType: destination.groupType,
       scheduleCapacityScheduleId: null,
     };
@@ -154,10 +157,10 @@ export async function loadPriceDivergenceCheck(input: {
 
     return inscriptions.some(({ allocatedAmount, selectedPriceId }) => {
       // Both keys read as a pricing key: the current one carries the
-      // choreography's own schedule, which is not nullable, and the
-      // destination's is the synthetic key's, which may be empty.
+      // choreography's own schedule and the destination's the synthetic key's,
+      // and neither is empty.
       const resolveAgainst = (choreographyKey: {
-        choreographyScheduleId: string | null;
+        choreographyScheduleId: string;
         groupType: ChoreographyGroupType;
         scheduleCapacityScheduleId: string | null;
       }) =>
@@ -196,7 +199,7 @@ export async function loadPriceDivergenceCheck(input: {
  */
 function isSchedulePinnedFrozenRow(input: {
   allocatedAmount: number;
-  destinationScheduleId: string | null;
+  destinationScheduleId: string;
   priceRows: Array<typeof prices.$inferSelect>;
   requiredDepositPercentage: number;
   selectedPriceId: string | null;
