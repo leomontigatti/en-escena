@@ -18,7 +18,7 @@ import { experienceLevelLabels } from "@/lib/events/experience-levels";
 import {
   allocateChoreographyNumberForTest,
   createScheduleForModalityFixture,
-  readScheduleIdOfCapacityFixture,
+  readFixtureCapacityScheduleId,
 } from "@/lib/choreographies/registration-test-fixtures.server.db";
 import {
   createAcademyRecord as createPortalAcademyRecord,
@@ -226,7 +226,7 @@ export async function createChoreographyRecord(
   // callers do not have to repeat it.
   const scheduleId =
     overrides.scheduleId ??
-    (await readScheduleIdOfCapacityFixture(overrides.scheduleCapacityId));
+    (await readFixtureCapacityScheduleId(overrides.scheduleCapacityId));
   const [choreography] = await db
     .insert(choreographies)
     .values({

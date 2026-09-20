@@ -7,7 +7,7 @@ import {
 } from "@/db/schema";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { allocateChoreographyNumber } from "@/lib/choreographies/choreography-number.server";
-import { readScheduleIdOfCapacityFixture } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import { readFixtureCapacityScheduleId } from "@/lib/choreographies/registration-test-fixtures.server.db";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import {
   experienceLevelLabels,
@@ -296,8 +296,10 @@ async function createFixtureCategory(input: {
 /**
  * The schedule a fixture choreography sits on. A choreography always has one,
  * so the caller that names only a capacity gets the capacity's schedule, and
- * the caller that names neither gets a schedule of its own: the guards under
- * test count the schedules the caller built, and this one is not among them.
+ * the caller that names neither gets one invented here. That invented schedule
+ * is a real row accepting the modality, so a guard test that counts the
+ * schedules a modality has — the last-compatible-schedule refusals — has to
+ * name its own instead of letting this one appear behind it.
  */
 async function resolveFixtureScheduleId({
   eventId,
@@ -317,7 +319,7 @@ async function resolveFixtureScheduleId({
   }
 
   if (scheduleCapacityId) {
-    return await readScheduleIdOfCapacityFixture(scheduleCapacityId);
+    return await readFixtureCapacityScheduleId(scheduleCapacityId);
   }
 
   return (

@@ -34,7 +34,7 @@ import {
 } from "@/routes/administracion.coreografias";
 import {
   allocateChoreographyNumberForTest,
-  readScheduleIdOfCapacityFixture,
+  readFixtureCapacityScheduleId,
 } from "@/lib/choreographies/registration-test-fixtures.server.db";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
@@ -679,9 +679,7 @@ async function createChoreographyRecord(input: {
       modalityId: input.modalityId,
       musicStorageKey: input.musicStorageKey ?? null,
       name: input.name,
-      scheduleId: await readScheduleIdOfCapacityFixture(
-        input.scheduleCapacityId,
-      ),
+      scheduleId: await readFixtureCapacityScheduleId(input.scheduleCapacityId),
       scheduleCapacityId: input.scheduleCapacityId,
       submodalityId: input.submodalityId ?? null,
     })

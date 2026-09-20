@@ -53,7 +53,7 @@ import {
 } from "@/routes/administracion.bailarines_.$dancerId";
 import {
   allocateChoreographyNumberForTest,
-  readScheduleIdOfCapacityFixture,
+  readFixtureCapacityScheduleId,
 } from "@/lib/choreographies/registration-test-fixtures.server.db";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
@@ -1829,9 +1829,7 @@ async function createAdministrativeLinkedChoreography(input: {
         input.experienceLevelId && isExperienceLevel(input.experienceLevelId)
           ? input.experienceLevelId
           : null,
-      scheduleId: await readScheduleIdOfCapacityFixture(
-        input.scheduleCapacityId,
-      ),
+      scheduleId: await readFixtureCapacityScheduleId(input.scheduleCapacityId),
       scheduleCapacityId: input.scheduleCapacityId,
     })
     .returning();

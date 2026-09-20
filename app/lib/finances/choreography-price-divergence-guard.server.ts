@@ -23,11 +23,13 @@ import { resolveChoreographyPricingScheduleId } from "./choreography-pricing-sch
  * Where a move would leave the choreography on the price key: the pricing
  * schedule **and** the group type. Modality is not part of the key — it only
  * decides which schedules accept the choreography — but the group type is, and
- * the roster path moves it without moving any schedule at all.
+ * the roster path moves it without moving any schedule at all. The destination
+ * still names a schedule there, the one the choreography stays on: every move
+ * lands on one, so the key never carries an empty schedule.
  */
 export type DestinationPriceKey = {
   groupType: ChoreographyGroupType;
-  scheduleId: string | null;
+  scheduleId: string;
 };
 
 /**
@@ -144,11 +146,8 @@ export async function loadPriceDivergenceCheck(input: {
     // The destination arrives already resolved to a single schedule, so it is
     // fed in through the choreography's own source and leaves the capacity's
     // empty; `resolveChoreographyPricingScheduleId` reads the pair the same way.
-    // A synthetic key that names no schedule — the roster path, which moves the
-    // group type alone — leaves the choreography on the one it already has.
     const destinationKey = {
-      choreographyScheduleId:
-        destination.scheduleId ?? choreography.choreographyScheduleId,
+      choreographyScheduleId: destination.scheduleId,
       groupType: destination.groupType,
       scheduleCapacityScheduleId: null,
     };
@@ -156,14 +155,7 @@ export async function loadPriceDivergenceCheck(input: {
       resolveChoreographyPricingScheduleId(destinationKey);
 
     return inscriptions.some(({ allocatedAmount, selectedPriceId }) => {
-      // Both keys read as a pricing key: the current one carries the
-      // choreography's own schedule and the destination's the synthetic key's,
-      // and neither is empty.
-      const resolveAgainst = (choreographyKey: {
-        choreographyScheduleId: string;
-        groupType: ChoreographyGroupType;
-        scheduleCapacityScheduleId: string | null;
-      }) =>
+      const resolveAgainst = (choreographyKey: typeof currentKey) =>
         resolveEffectiveBasePriceRow({
           allocatedAmount,
           choreography: choreographyKey,

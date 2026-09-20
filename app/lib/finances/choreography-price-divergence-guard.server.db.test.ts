@@ -100,17 +100,14 @@ async function createGuardScenario(slug: string) {
     async diverges(
       destination: {
         groupType?: "solo" | "duo";
-        scheduleId?: string | null;
+        scheduleId?: string;
       } = {},
     ) {
       return await hasPriceDivergentInscription({
         choreographyId: choreography.id,
         destination: {
           groupType: destination.groupType ?? "solo",
-          scheduleId:
-            destination.scheduleId === undefined
-              ? destinationSchedule.id
-              : destination.scheduleId,
+          scheduleId: destination.scheduleId ?? destinationSchedule.id,
         },
         executor: db,
       });

@@ -285,7 +285,7 @@ export async function createGrupalOnlyModalityFixture(eventId: string) {
 // A choreography always has a schedule, and a fixture that inserts one by hand
 // already names the capacity it sits on. Reading the schedule back from that
 // capacity is what the writers do, and it keeps the two columns in agreement.
-export async function readScheduleIdOfCapacityFixture(
+export async function readFixtureCapacityScheduleId(
   scheduleCapacityId: string,
 ) {
   const [capacity] = await db
