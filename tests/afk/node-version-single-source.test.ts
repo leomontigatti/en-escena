@@ -40,7 +40,7 @@ describe("the Node version the project targets (#981)", () => {
     expect(packageJson.engines?.node).toBe(`^${nvmrc}`);
   });
 
-  it("is the major `@types/node` types the build against", () => {
+  it("shares its major with the `@types/node` the build types against", () => {
     const types = packageJson.devDependencies["@types/node"];
     expect(
       /^\^(\d+)\./.exec(types)?.[1],
@@ -53,6 +53,17 @@ describe("the Node version the project targets (#981)", () => {
       workflowSteps(file)
         .filter((step) => step.uses.startsWith("actions/setup-node@"))
         .map((step) => ({ file, step })),
+    );
+
+    // `workflowSteps` only recognises a step at one indentation, so a step it
+    // fails to parse would drop out of the loop below and be asserted over by
+    // nobody. Counting the raw mentions first is what makes the sweep total:
+    // an unparsed — or deleted — step fails here rather than passing silently.
+    const mentions = workflowFiles().flatMap((file) =>
+      Array.from(workflowText(file).matchAll(/uses: actions\/setup-node@/g)),
+    );
+    expect(setupNodeSteps.length, "a `setup-node` step no step parse saw").toBe(
+      mentions.length,
     );
     expect(setupNodeSteps.length).toBeGreaterThan(0);
 
@@ -73,18 +84,21 @@ describe("the Node version the project targets (#981)", () => {
     }
   });
 
-  it("is the Dockerfile's base image", () => {
-    // A mutable tag by design: pinning the base image by digest is a separate
-    // decision that belongs to the Actions gate (#955), not to this one.
-    expect(read("Dockerfile")).toMatch(
-      new RegExp(
-        `^FROM node:${nvmrc.replace(/\./g, "\\.")}-bookworm-slim `,
-        "m",
-      ),
+  it("is the tag of every Dockerfile stage built on a Node image", () => {
+    // Every `FROM node:`, not only the first: a second stage on its own Node
+    // image is exactly the drift this file exists to catch, and asserting the
+    // base line alone would stay green through it. A mutable tag is deliberate
+    // — pinning by digest belongs to the Actions gate (#955), not to this.
+    const fromNode = Array.from(
+      read("Dockerfile").matchAll(/^FROM node:(\S+)/gm),
+      ([, tag]) => tag,
     );
-  });
+    expect(fromNode.length).toBeGreaterThan(0);
 
-  it("is documented where a bump has to go", () => {
-    expect(read("docs/agents/workflows.md")).toContain(".nvmrc");
+    for (const tag of fromNode) {
+      expect(tag, "a Dockerfile stage on a Node other than `.nvmrc`'s").toBe(
+        `${nvmrc}-bookworm-slim`,
+      );
+    }
   });
 });

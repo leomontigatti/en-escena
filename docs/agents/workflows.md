@@ -211,10 +211,12 @@ else states it independently (#981):
   is what keeps it in step. The tag is deliberately not pinned by digest —
   images-by-digest is the actions gate's decision (#955), not this one.
 
-Bumping Node is therefore two edits: `.nvmrc`, and `@types/node`'s range in
-`package.json` whenever the major moves (the types have to describe the runtime
-that runs). Everything else follows, and the test above fails on whichever copy
-was forgotten.
+Bumping Node is therefore four edits, not one: `.nvmrc`, `engines.node` and the
+`FROM` line spell the same patch out — only the workflows read the file — plus
+`@types/node`'s range whenever the major moves (the types have to describe the
+runtime that runs). The point is not that one edit suffices; it is that the test
+above names every copy you forgot, instead of a runner and a container quietly
+disagreeing months later.
 
 ### Waiting on AFK runs and CI from a session
 
