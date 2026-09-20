@@ -24,7 +24,10 @@ import {
 import { updateSeminar } from "@/lib/seminars/repository.server";
 import { createAcademyUser } from "@/lib/test-support/academies";
 
-import { installDatabaseTestHooks } from "../../../tests/db/harness";
+import {
+  installDatabaseTestHooks,
+  isPgliteTestBackend,
+} from "../../../tests/db/harness";
 import {
   createAcademyFinanceChoreographyFixture,
   createSavedEvent,
@@ -440,26 +443,44 @@ describe.sequential("seminar inscription allocation", () => {
     });
   });
 
-  test("lets exactly one of two crossings for the last place through", async () => {
-    const fixture = await seedFixture();
-    await setQuota(fixture, 1);
+  /**
+   * `loadSeminarMoneyContext` takes the seminar row `FOR UPDATE` before it
+   * counts the covered inscriptions, so two crossings racing for the last place
+   * are serialised: the second counts after the first has committed, finds the
+   * quota full, and is refused.
+   *
+   * The fast suite runs both allocations through a single PGlite connection,
+   * which serialises the transactions on its own — nothing contends for the
+   * lock, and the assertion would hold even without it. So the race is only
+   * proven on the Postgres backend.
+   */
+  describe.skipIf(isPgliteTestBackend())(
+    "seminar quota under real contention",
+    () => {
+      test("lets exactly one of two crossings for the last place through", async () => {
+        const fixture = await seedFixture();
+        await setQuota(fixture, 1);
 
-    const results = await Promise.all([
-      allocate(fixture, {
-        amount: outsiderDeposit,
-        inscriptionId: fixture.secondInscriptionId,
-        priceId: fixture.priceIds.get("specialOutsider")!,
-      }),
-      allocate(fixture, {
-        amount: outsiderDeposit,
-        inscriptionId: fixture.thirdInscriptionId,
-        priceId: fixture.priceIds.get("specialOutsider")!,
-      }),
-    ]);
+        const results = await Promise.all([
+          allocate(fixture, {
+            amount: outsiderDeposit,
+            inscriptionId: fixture.secondInscriptionId,
+            priceId: fixture.priceIds.get("specialOutsider")!,
+          }),
+          allocate(fixture, {
+            amount: outsiderDeposit,
+            inscriptionId: fixture.thirdInscriptionId,
+            priceId: fixture.priceIds.get("specialOutsider")!,
+          }),
+        ]);
 
-    expect(results.filter((result) => result.ok)).toHaveLength(1);
-    expect(await countCoveredSeminarInscriptions(fixture.seminarId)).toBe(1);
-  });
+        expect(results.filter((result) => result.ok)).toHaveLength(1);
+        expect(await countCoveredSeminarInscriptions(fixture.seminarId)).toBe(
+          1,
+        );
+      });
+    },
+  );
 
   test("allows money after the seminar has started", async () => {
     const fixture = await seedFixture();

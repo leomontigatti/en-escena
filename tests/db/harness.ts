@@ -3,13 +3,16 @@ import { sql } from "drizzle-orm";
 
 import { db } from "@/db";
 
+import { isPgliteTestBackend } from "./backend";
 import { resetDatabaseTables } from "./reset";
+
+export { isPgliteTestBackend };
 
 const testDatabaseLockKey = "en-escena-test-database";
 
 async function resetTestDatabase() {
   await db.transaction(async (tx) => {
-    if (getDatabaseTestBackend() === "postgres") {
+    if (!isPgliteTestBackend()) {
       await tx.execute(
         sql`select pg_advisory_xact_lock(hashtext(${testDatabaseLockKey}))`,
       );
@@ -26,8 +29,4 @@ export function installDatabaseTestHooks() {
   beforeEach(async () => {
     await resetTestDatabase();
   });
-}
-
-function getDatabaseTestBackend() {
-  return process.env.DB_TEST_BACKEND === "pglite" ? "pglite" : "postgres";
 }

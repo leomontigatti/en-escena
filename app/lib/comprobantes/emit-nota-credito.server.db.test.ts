@@ -396,6 +396,10 @@ describe("annulComprobante", () => {
   // unique index on `associated_comprobante_id` is the safety net: the second
   // write fails instead of leaving two valid mirror credit notes and an
   // ambiguous derived state.
+  //
+  // Nothing here is run concurrently: the loser of the race is simulated with a
+  // direct write after the winner has committed, which is what makes the index
+  // observable on either backend. The test needs no gate on `DB_TEST_BACKEND`.
   test("the database rejects a second credit note against the same comprobante", async () => {
     const { academy, choreography, inscription } =
       await seedChoreographyWithInscription(
