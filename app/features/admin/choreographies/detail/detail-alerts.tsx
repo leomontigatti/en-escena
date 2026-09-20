@@ -8,6 +8,20 @@ import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import type { ChoreographyDetailLoaderData } from "./server";
 
 /**
+ * The alert names the repair that is actually open: a choreography with a
+ * presentation has its roster blocked, so pointing at the roster would send the
+ * reader to a field that refuses the edit. The sentence does not depend on who is
+ * looking — an auditor reads the same state of the data as everyone else.
+ */
+function formatCategoryAgeMismatchAction(hasPresentation: boolean) {
+  if (hasPresentation) {
+    return " La presentación bloquea el elenco, así que la corrección es sobre la categoría. Por favor, revisala.";
+  }
+
+  return " Por favor, revisá la categoría y/o el elenco.";
+}
+
+/**
  * The choreography conditions the page enumerates before the fields. None is
  * suppressed for the auditor: they are states of the data, not of the viewer's
  * permission.
@@ -54,6 +68,44 @@ export function ChoreographyDetailAlerts({
             {loaderData.experienceLevel.canReassign
               ? " Elegí uno para completarla."
               : ""}
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      {/* A mis-filed placement: the choreography is still stored in a category
+          that no longer admits it, which changes who competes against whom. The
+          cause is stored nowhere — a concurrent category edit, a birth-date
+          correction the presentation blocked — so the alert names the state and
+          not the reason. Admin-only: the portal has no lever to repair it. */}
+      {choreography.operationalStatus.pendingItems.includes(
+        "categoryAgeMismatch",
+      ) ? (
+        <Alert variant="warning">
+          <TriangleAlert aria-hidden="true" />
+          <AlertTitle>La categoría no coincide con las edades</AlertTitle>
+          <AlertDescription>
+            La edad con la que se ubicó esta coreografía quedó fuera del rango
+            que admite {choreography.categoryName}.
+            {formatCategoryAgeMismatchAction(choreography.hasPresentation)}
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      {choreography.operationalStatus.pendingItems.includes(
+        "experienceLevelMismatch",
+      ) ? (
+        <Alert variant="warning">
+          <TriangleAlert aria-hidden="true" />
+          <AlertTitle>
+            El nivel de experiencia no pertenece a la categoría
+          </AlertTitle>
+          <AlertDescription>
+            {choreography.categoryName} ya no admite el nivel de experiencia
+            guardado
+            {choreography.experienceLevelName === null
+              ? ""
+              : ` (${choreography.experienceLevelName})`}
+            . Por favor, revisalo.
           </AlertDescription>
         </Alert>
       ) : null}

@@ -25,7 +25,10 @@ import { isDateOnly } from "@/lib/shared/date-only";
 
 type ChoreographyRow = {
   academyName: string;
+  categoryAgeBasis: number | null;
   categoryId: string;
+  categoryMaxAge: number;
+  categoryMinAge: number;
   choreographyNumber: number;
   categoryName: string;
   experienceLevelId: string | null;
@@ -150,7 +153,10 @@ export async function loadChoreographies(input: {
   const rows = await db
     .select({
       academyName: academies.name,
+      categoryAgeBasis: choreographies.categoryAgeBasis,
       categoryId: choreographies.categoryId,
+      categoryMaxAge: categories.maxAge,
+      categoryMinAge: categories.minAge,
       choreographyNumber: choreographies.choreographyNumber,
       categoryName: categories.name,
       experienceLevelId: choreographies.experienceLevelId,
@@ -355,10 +361,15 @@ async function hydrateChoreographies(
     name: row.name,
     scheduleDate: row.scheduleDate,
     operationalStatus: deriveChoreographyOperationalStatus({
+      categoryExperienceLevels: row.categoryExperienceLevels,
       experienceLevelId: row.experienceLevelId,
       hasMusic: row.musicStorageKey !== null,
       hasProfessors: choreographyIdsWithProfessors.has(row.id),
-      requiresExperienceLevel: row.categoryExperienceLevels.length > 0,
+      placementCheck: {
+        categoryAgeBasis: row.categoryAgeBasis,
+        categoryMaxAge: row.categoryMaxAge,
+        categoryMinAge: row.categoryMinAge,
+      },
     }),
     submodalityName: row.submodalityName,
   }));

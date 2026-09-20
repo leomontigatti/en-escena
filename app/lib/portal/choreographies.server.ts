@@ -268,10 +268,14 @@ async function hydrateChoreographyRows(
     experienceLevelName: formatExperienceLevelName(row.experienceLevelId),
     musicStorageKey: row.musicStorageKey,
     operationalStatus: deriveChoreographyOperationalStatus({
+      categoryExperienceLevels: row.categoryExperienceLevels,
       experienceLevelId: row.experienceLevelId,
       hasMusic: row.musicStorageKey !== null,
       hasProfessors: choreographyIdsWithProfessors.has(row.id),
-      requiresExperienceLevel: row.categoryExperienceLevels.length > 0,
+      // The portal is told nothing about a mis-filed placement: the academy has
+      // no lever to fix one — the repair is a roster change or an admin
+      // correction — so the check is left to the admin surfaces.
+      placementCheck: null,
     }),
   }));
 }
