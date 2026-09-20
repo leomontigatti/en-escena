@@ -258,6 +258,17 @@ choreography's.
 - Storage module: `app/lib/storage/seminar-pictures.server.ts`
 - Tests: `app/lib/comprobantes/anchor-reading.test.ts`, `app/features/admin/comprobantes/print/server.db.test.ts`, `app/features/admin/comprobantes/print/view.test.tsx`, `app/features/admin/comprobantes/list/server.db.test.ts`, `app/features/admin/comprobantes/list/view.test.tsx`, `app/features/admin/comprobantes/detail/server.db.test.ts`, `app/features/admin/comprobantes/detail/view.interaction.test.tsx`, `app/lib/comprobantes/emit-factura-c.seminar.server.db.test.ts`, `app/features/admin/finances/academy-seminars/seminar-detail/view.interaction.test.tsx`, `app/features/admin/finances/comprobante-emission/dialog.interaction.test.tsx`, `app/lib/seminars/inscription-withdrawal.server.db.test.ts`, `app/lib/finances/seminar-inscription-allocation.server.db.test.ts`, `app/features/admin/payments/detail/deletion-impact.server.db.test.ts`, `app/lib/seminars/inscriptions.server.db.test.ts`, `app/features/portal/seminars/list/server.db.test.ts`, `app/features/admin/finances/academy-seminars/seminar-detail/view.test.tsx`, `app/features/portal/finances/seminar-detail/view.test.tsx`, `app/features/portal/finances/seminar-detail/server.db.test.ts`, `app/features/portal/finances/view.test.tsx`, `app/lib/finances/allocation-target.server.db.test.ts`, `app/lib/finances/seminar-inscription-price.test.ts`, `app/lib/finances/seminar-inscription-thresholds.server.db.test.ts`, `app/lib/seminars/active-inscription.db.test.ts`, `app/lib/seminar-prices/repository.server.db.test.ts`, `app/features/admin/seminar-prices/action.server.db.test.ts`, `app/features/admin/seminar-prices/view.test.tsx`, `app/lib/seminars/repository.server.db.test.ts`, `app/features/admin/seminars/action.server.db.test.ts`, `app/features/admin/seminars/action.server.picture.db.test.ts`, `app/features/admin/seminars/routes.adapter.test.tsx`, `app/features/admin/seminars/view.test.tsx`, `app/lib/storage/seminar-pictures.server.test.ts`
 
+## Presentations
+
+Use for the presentation order, the administrative participation list
+(`Presentación`), judge assignment, the academy's presentations page on the
+portal and the public program at `/programa`.
+
+- Domain: `docs/domain/judging.md` ("Participation And Judging", and the program rules under "Ranking And Results"), `docs/domain/choreographies.md` ("Administrative Choreography Lists", "Choreography Locks")
+- Glossary: `presentation`, `dancerSpacing`, `presentationWarning`, `judgeAssignment`, `choreographyParticipationList`, `eventProgram` in `CONTEXT.md`
+- Current state: specified, not implemented. The rules above are documented ahead of the code; the decisions and their rationale are in wayfinder map #907, and the presentation lists PRD linked from it is the implementation plan. Its slices fill in this slot's routes, modules and tests as they land.
+- What exists today: the `hasPresentation` stub column on `choreography` (`app/db/schema/choreographies.ts`), which nothing sets and the PRD retires, and the event's `programVisible` flag (`app/db/schema/events.ts`), toggled on the event detail and read by nothing yet.
+
 ## Judging And Results
 
 Use for judge panel access, presentations, scores, disqualifications, ranking,
