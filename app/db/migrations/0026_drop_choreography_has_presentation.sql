@@ -1,0 +1,11 @@
+-- The choreography lock moved from "has a presentation" to "is evaluated"
+-- (PRD #1076): a number is only a place in the order and can be moved, so it
+-- locks nothing. The lock now reads the evaluation seam,
+-- app/lib/presentations/evaluation-lock.server.ts, and the column goes.
+-- reason: contract step of #1082, shipped with its own expand because there is
+-- nothing to expand — nothing ever wrote the column, it was `false` on every
+-- row since it was added, and no data moves out of it. The old container's
+-- selects of it fail for the length of the deploy; what they would have read
+-- is the constant `false` the seam now returns without asking the database.
+-- squawk-ignore ban-drop-column
+ALTER TABLE "en_escena_choreography" DROP COLUMN "has_presentation";

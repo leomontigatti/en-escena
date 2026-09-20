@@ -93,12 +93,12 @@ describe("PortalChoreographyDetailRouteView", () => {
     );
   });
 
-  test("keeps the music field disabled when the choreography has a presentation", () => {
+  test("keeps the music field disabled once the choreography was evaluated", () => {
     const markup = renderChoreographyDetail({
       loaderData: choreographyDetailLoaderData({
         eventContext: portalEventContext({ isRegistrationOpen: false }),
         choreography: choreographyDetailRow({
-          hasPresentation: true,
+          isEvaluated: true,
         }),
       }),
     });
@@ -192,7 +192,7 @@ function choreographyDetailRow(
       },
     ],
     professors: [],
-    hasPresentation: false,
+    isEvaluated: false,
     ...overrides,
   };
 }

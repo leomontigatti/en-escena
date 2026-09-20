@@ -3,6 +3,7 @@ import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { choreographies, submodalities } from "@/db/schema";
 import { validateSubmodalitySelection } from "@/lib/choreographies/registration-resolution.server";
+import { evaluatedChoreographyMessage } from "@/lib/choreographies/choreography-messages";
 
 import type { ChoreographyDetail } from "./server";
 import {
@@ -32,14 +33,10 @@ export async function updateChoreographySubmodality(input: {
   choreography: ChoreographyDetail;
   formData: FormData;
 }): Promise<ChoreographyFieldUpdateErrorData | ChoreographySuccessData> {
-  // A choreography with a presentation keeps the submodality read-only, just like
-  // the roster: the intent rejects it even if the form sends it.
-  if (input.choreography.hasPresentation) {
-    return {
-      message:
-        "No se puede cambiar la submodalidad: la coreografía ya tiene presentación.",
-      status: "error",
-    };
+  // An evaluated choreography keeps the submodality read-only, just like the
+  // roster: the intent rejects it even if the form sends it.
+  if (input.choreography.isEvaluated) {
+    return { message: evaluatedChoreographyMessage, status: "error" };
   }
 
   const availableSubmodalities = await listSubmodalitiesForModality(

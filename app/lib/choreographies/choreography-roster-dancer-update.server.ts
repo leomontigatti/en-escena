@@ -34,6 +34,7 @@ import {
   isSelectableForRoster,
   toRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.shared";
+import { hasEvaluatedPresentation } from "@/lib/presentations/evaluation-lock.server";
 
 export async function resolveChoreographyDancers(input: {
   academyId: string;
@@ -80,14 +81,13 @@ export async function resolveChoreographyDancerUpdateContext(input: {
         experienceLevelId: true,
         scheduleId: true,
         scheduleCapacityId: true,
-        hasPresentation: true,
       },
       where: portalOwnedChoreographyWhere(input),
     }),
   );
 
   const eligibility = getDancerEditingEligibility({
-    hasPresentation: choreography.hasPresentation,
+    isEvaluated: await hasEvaluatedPresentation(choreography.id),
   });
 
   if (!eligibility.canEdit) {

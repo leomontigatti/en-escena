@@ -18,7 +18,7 @@ export type ChoreographyDancerOption = {
   active: boolean;
 };
 
-export type DancerEditingBlockReason = "presentation";
+export type DancerEditingBlockReason = "evaluated";
 
 export type DancerEditingEligibility =
   | {
@@ -164,7 +164,6 @@ export type ResolvedChoreographyDancerUpdateContext =
         experienceLevelId: string | null;
         scheduleId: string;
         scheduleCapacityId: string | null;
-        hasPresentation: boolean;
       };
       resolvedDancers: ResolvedRegistrationDancer[];
       resolution: ChoreographyRegistrationOperationResolution;
@@ -191,14 +190,14 @@ type ResolvedChoreographyCategory = {
 };
 
 export function getDancerEditingEligibility(input: {
-  hasPresentation: boolean;
+  isEvaluated: boolean;
 }): DancerEditingEligibility {
-  if (input.hasPresentation) {
+  if (input.isEvaluated) {
     return {
       canEdit: false,
-      reasonCode: "presentation",
+      reasonCode: "evaluated",
       reasonText:
-        "No podés editar los bailarines de esta coreografía porque ya tiene una presentación asociada.",
+        "No podés editar los bailarines de esta coreografía porque ya fue evaluada.",
     };
   }
 

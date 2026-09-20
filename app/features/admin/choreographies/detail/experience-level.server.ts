@@ -2,7 +2,10 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { choreographies } from "@/db/schema";
-import { invalidExperienceLevelMessage } from "@/lib/choreographies/choreography-messages";
+import {
+  evaluatedChoreographyMessage,
+  invalidExperienceLevelMessage,
+} from "@/lib/choreographies/choreography-messages";
 import { validateExperienceLevelSelection } from "@/lib/choreographies/registration-resolution.server";
 import { isExperienceLevel } from "@/lib/events/experience-levels";
 
@@ -18,14 +21,10 @@ export async function updateChoreographyExperienceLevel(input: {
   choreography: ChoreographyDetail;
   formData: FormData;
 }): Promise<ChoreographyFieldUpdateErrorData | ChoreographySuccessData> {
-  // The same hard block as the roster, the submodality and the capacity: with a
-  // presentation the level is not touched, even if the form sends one.
-  if (input.choreography.hasPresentation) {
-    return {
-      message:
-        "No se puede cambiar el nivel de experiencia: la coreografía ya tiene presentación.",
-      status: "error",
-    };
+  // The same hard block as every other field: an evaluated choreography is not
+  // touched, even if the form sends a level.
+  if (input.choreography.isEvaluated) {
+    return { message: evaluatedChoreographyMessage, status: "error" };
   }
 
   // The same condition that closes the field in the loader, revalidated against

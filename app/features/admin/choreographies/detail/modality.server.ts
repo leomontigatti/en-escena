@@ -2,7 +2,10 @@ import { asc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { choreographies, modalities } from "@/db/schema";
-import { noCompatibleCategoryModalityMessage } from "@/lib/choreographies/choreography-messages";
+import {
+  evaluatedChoreographyMessage,
+  noCompatibleCategoryModalityMessage,
+} from "@/lib/choreographies/choreography-messages";
 import {
   validateExperienceLevelSelection,
   validateSubmodalitySelection,
@@ -63,9 +66,6 @@ export type ChoreographyModalityResolution = {
 export type ChoreographyModalityResolutionResult =
   | { ok: true; resolution: ChoreographyModalityResolution }
   | { ok: false; message: string };
-
-const presentationLockMessage =
-  "No se puede cambiar la modalidad: la coreografía ya tiene presentación.";
 
 const invalidModalityMessage = "Elegí una modalidad válida del evento activo.";
 
@@ -209,11 +209,11 @@ export async function updateChoreographyModality(input: {
   eventId: string;
   formData: FormData;
 }): Promise<ChoreographyFieldUpdateErrorData | ChoreographySuccessData> {
-  // Same hard lock as the roster, the capacity and the deletion. It also covers the
-  // scores: a score belongs to a judge assignment on a presentation, so
-  // there is no scored choreography without one.
-  if (input.choreography.hasPresentation) {
-    return { message: presentationLockMessage, status: "error" };
+  // The same hard lock as every other field: an evaluated choreography is
+  // closed as a whole, and speaks with one sentence rather than naming the
+  // field the form happened to send.
+  if (input.choreography.isEvaluated) {
+    return { message: evaluatedChoreographyMessage, status: "error" };
   }
 
   const requestedModalityId = readNonEmptyFormValue(

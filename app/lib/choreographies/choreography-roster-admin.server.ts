@@ -32,6 +32,7 @@ import {
 } from "@/lib/choreographies/inscription-withdrawal.server";
 import type { ResolvedRegistrationDancer } from "@/lib/choreographies/registration-resolution.server";
 import { guardAndLockScheduleCapacityMove } from "@/lib/choreographies/schedule-capacity-lock.server";
+import { hasEvaluatedPresentation } from "@/lib/presentations/evaluation-lock.server";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -522,13 +523,8 @@ async function syncRosterInscriptions(input: {
 async function readRosterHardLock(
   choreographyId: string,
 ): Promise<string | null> {
-  const choreography = await db.query.choreographies.findFirst({
-    columns: { hasPresentation: true },
-    where: eq(choreographies.id, choreographyId),
-  });
-
   const eligibility = getDancerEditingEligibility({
-    hasPresentation: choreography?.hasPresentation ?? false,
+    isEvaluated: await hasEvaluatedPresentation(choreographyId),
   });
 
   return eligibility.canEdit ? null : eligibility.reasonText;
