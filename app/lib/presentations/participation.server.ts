@@ -22,6 +22,7 @@ import { findEvaluatedChoreographyIds } from "@/lib/presentations/evaluation-loc
 import {
   computeAutomaticOrder,
   isPresentationEligible,
+  movePosition,
   type PresentationOrderingRow,
 } from "@/lib/presentations/ordering";
 import type { PresentationWarningRow } from "@/lib/presentations/warnings";
@@ -42,6 +43,14 @@ export type ParticipationRow = PresentationOrderingRow &
     presentationId: string | null;
     submodalityName: string | null;
   };
+
+/**
+ * `notOrdered`: the event has no presentation yet, so there is no order to move
+ * within. `stale`: the row's number is not the one the client moved it from.
+ */
+export type MovePresentationResult =
+  | { ok: true; movedToOrderNumber: number }
+  | { ok: false; reason: "notFound" | "notOrdered" | "stale" };
 
 export type AutomaticOrderingResult =
   | { ok: true; orderedCount: number }
@@ -264,4 +273,108 @@ async function readActiveDancers(
   }
 
   return byChoreography;
+}
+
+/**
+ * One presentation placed by hand, under the same event lock as the automatic
+ * ordering. `fromOrderNumber` is what the client believed the row's number was:
+ * when it no longer holds the move is refused and nothing is written, so two
+ * administrators dragging at once never silently overwrite each other.
+ *
+ * A move always renumbers the whole event contiguously from 1, which is also
+ * how the gaps left by a deleted choreography are closed.
+ */
+export async function movePresentation(input: {
+  choreographyId: string;
+  eventId: string;
+  fromOrderNumber: number | null;
+  toOrderNumber: number;
+}): Promise<MovePresentationResult> {
+  return await db.transaction(async (tx) => {
+    const [lockedEvent] = await tx
+      .select({ id: events.id })
+      .from(events)
+      .where(eq(events.id, input.eventId))
+      .for("update");
+
+    if (!lockedEvent) {
+      return { ok: false, reason: "notFound" };
+    }
+
+    const rows = await readParticipationRows(input.eventId, tx);
+    const numbered = rows
+      .filter(
+        (row): row is ParticipationRow & { orderNumber: number } =>
+          row.orderNumber !== null,
+      )
+      .sort((left, right) => left.orderNumber - right.orderNumber);
+
+    // Placing by hand is only offered once the event has been ordered: before
+    // that there is no order for a number to mean anything against.
+    if (numbered.length === 0) {
+      return { ok: false, reason: "notOrdered" };
+    }
+
+    // A row below its deposit that was never numbered is not in the list at
+    // all, so a late row that cannot be placed is refused by not being found.
+    const row = rows.find(
+      (candidate) => candidate.choreographyId === input.choreographyId,
+    );
+
+    if (!row) {
+      return { ok: false, reason: "notFound" };
+    }
+
+    if (row.orderNumber !== input.fromOrderNumber) {
+      return { ok: false, reason: "stale" };
+    }
+
+    const orderedIds = movePosition(
+      numbered.map((candidate) => candidate.choreographyId),
+      input.choreographyId,
+      input.toOrderNumber - 1,
+    );
+    const presentationIdByChoreography = new Map(
+      rows.map((candidate) => [
+        candidate.choreographyId,
+        candidate.presentationId,
+      ]),
+    );
+    const currentNumberByChoreography = new Map(
+      rows.map((candidate) => [
+        candidate.choreographyId,
+        candidate.orderNumber,
+      ]),
+    );
+
+    // The unique constraint is deferred, so the intermediate states this walks
+    // through are never checked — only the contiguous one it commits.
+    let orderNumber = 0;
+
+    for (const choreographyId of orderedIds) {
+      orderNumber += 1;
+      const presentationId = presentationIdByChoreography.get(choreographyId);
+
+      if (presentationId) {
+        if (currentNumberByChoreography.get(choreographyId) === orderNumber) {
+          continue;
+        }
+
+        await tx
+          .update(presentations)
+          .set({ orderNumber, updatedAt: new Date() })
+          .where(eq(presentations.id, presentationId));
+        continue;
+      }
+
+      await tx
+        .insert(presentations)
+        .values({ choreographyId, eventId: input.eventId, orderNumber });
+    }
+
+    return {
+      ok: true,
+      movedToOrderNumber: orderedIds.indexOf(input.choreographyId) + 1,
+    };
+  });
 }

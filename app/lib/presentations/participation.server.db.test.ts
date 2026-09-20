@@ -15,6 +15,7 @@ import {
 } from "@/lib/admin/finances/finances.test-support";
 import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
 import {
+  movePresentation,
   readParticipationRows,
   runAutomaticOrdering,
 } from "@/lib/presentations/participation.server";
@@ -202,6 +203,125 @@ describe("runAutomaticOrdering", () => {
       ok: false,
       reason: "nothingToOrder",
     });
+    expect(await readOrder(event.id)).toEqual([]);
+  });
+});
+
+describe("movePresentation", () => {
+  test("renumbers the event contiguously and closes the gaps it finds", async () => {
+    const { addChoreography, event } = await seedEvent();
+    const first = await addChoreography({ name: "Primera", orderNumber: 1 });
+    const second = await addChoreography({ name: "Segunda", orderNumber: 5 });
+    const third = await addChoreography({ name: "Tercera", orderNumber: 9 });
+
+    const result = await movePresentation({
+      choreographyId: third.id,
+      eventId: event.id,
+      fromOrderNumber: 9,
+      toOrderNumber: 1,
+    });
+
+    expect(result).toEqual({ ok: true, movedToOrderNumber: 1 });
+    expect(await readOrder(event.id)).toEqual([
+      expect.objectContaining({ choreographyId: third.id, orderNumber: 1 }),
+      expect.objectContaining({ choreographyId: first.id, orderNumber: 2 }),
+      expect.objectContaining({ choreographyId: second.id, orderNumber: 3 }),
+    ]);
+  });
+
+  test("keeps the presentation id of every row it renumbers", async () => {
+    const { addChoreography, event } = await seedEvent();
+    await addChoreography({ name: "Primera", orderNumber: 1 });
+    const second = await addChoreography({ name: "Segunda", orderNumber: 2 });
+    const before = await readOrder(event.id);
+
+    await movePresentation({
+      choreographyId: second.id,
+      eventId: event.id,
+      fromOrderNumber: 2,
+      toOrderNumber: 1,
+    });
+
+    const after = await readOrder(event.id);
+
+    for (const row of before) {
+      expect(
+        after.find((current) => current.choreographyId === row.choreographyId)
+          ?.id,
+      ).toBe(row.id);
+    }
+  });
+
+  test("refuses a stale from-number and writes nothing", async () => {
+    const { addChoreography, event } = await seedEvent();
+    const first = await addChoreography({ name: "Primera", orderNumber: 1 });
+    await addChoreography({ name: "Segunda", orderNumber: 2 });
+
+    const result = await movePresentation({
+      choreographyId: first.id,
+      eventId: event.id,
+      fromOrderNumber: 2,
+      toOrderNumber: 2,
+    });
+
+    expect(result).toEqual({ ok: false, reason: "stale" });
+    expect((await readOrder(event.id)).map((row) => row.orderNumber)).toEqual([
+      1, 2,
+    ]);
+  });
+
+  test("places a late row by creating its presentation and shifting the rest down", async () => {
+    const { addChoreography, event } = await seedEvent();
+    const first = await addChoreography({ name: "Primera", orderNumber: 1 });
+    const second = await addChoreography({ name: "Segunda", orderNumber: 2 });
+    const late = await addChoreography({ name: "Tardía" });
+
+    const result = await movePresentation({
+      choreographyId: late.id,
+      eventId: event.id,
+      fromOrderNumber: null,
+      toOrderNumber: 2,
+    });
+
+    expect(result).toEqual({ ok: true, movedToOrderNumber: 2 });
+    expect(await readOrder(event.id)).toEqual([
+      expect.objectContaining({ choreographyId: first.id, orderNumber: 1 }),
+      expect.objectContaining({ choreographyId: late.id, orderNumber: 2 }),
+      expect.objectContaining({ choreographyId: second.id, orderNumber: 3 }),
+    ]);
+  });
+
+  test("refuses a late row that is below its deposit", async () => {
+    const { addChoreography, event } = await seedEvent();
+    await addChoreography({ name: "Primera", orderNumber: 1 });
+    const late = await addChoreography({
+      belowDeposit: true,
+      name: "Sin seña",
+    });
+
+    const result = await movePresentation({
+      choreographyId: late.id,
+      eventId: event.id,
+      fromOrderNumber: null,
+      toOrderNumber: 1,
+    });
+
+    expect(result).toEqual({ ok: false, reason: "notFound" });
+    expect((await readOrder(event.id)).length).toBe(1);
+  });
+
+  test("refuses every move before the event's first automatic ordering", async () => {
+    const { addChoreography, event } = await seedEvent();
+    const only = await addChoreography({ name: "Primera" });
+
+    const result = await movePresentation({
+      choreographyId: only.id,
+      eventId: event.id,
+      fromOrderNumber: null,
+      toOrderNumber: 1,
+    });
+
+    expect(result).toEqual({ ok: false, reason: "notOrdered" });
     expect(await readOrder(event.id)).toEqual([]);
   });
 });
