@@ -371,9 +371,12 @@ Hook guidance:
 
 - `pnpm check:comment-language` fails on Spanish prose in a comment or a test
   name anywhere under `.sandcastle/`, `app/`, `scripts/` or `tests/`, plus the
-  repo-root configs (#592), and on Spanish in the `.md` under `.claude/`,
+  repo-root configs (#592); on Spanish in the `.md` under `.claude/`,
   `.sandcastle/` and `docs/` — `docs/adr/` and `docs/research/` excepted,
-  because both are records of something external (#792). It reads three
+  because both are records of something external (#792); on the `#` comments in
+  the YAML under `.github/` and at the repo root (#793); and on the `#` comments
+  and the stderr messages of the `.sh` under `.claude/` and `scripts/`, the hooks
+  included (#947). It reads three
   instruments: Spanish function words, any word carrying an accent or `ñ`, and
   every Spanish noun `CONTEXT.md` names. Prose is governed like an identifier,
   so `comprobante` is the only Spanish that survives bare; naming the Spanish
