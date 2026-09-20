@@ -12,7 +12,6 @@ import {
   eventHasOperationalDependencies,
   setEventVisibility,
   updateEvent,
-  updateEventRequiredDepositPercentage,
 } from "@/lib/events/management.server";
 import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
 
@@ -255,44 +254,6 @@ describe("event management", () => {
     }
   });
 
-  test("updates only the event deposit percentage without touching other events", async () => {
-    const event = await createSavedEvent("Regional 2026");
-    const otherEvent = await createSavedEvent("Nacional 2026");
-
-    await expect(
-      updateEventRequiredDepositPercentage(event.id, 45),
-    ).resolves.toMatchObject({
-      ok: true,
-      event: { id: event.id, requiredDepositPercentage: 45 },
-    });
-    await expect(
-      updateEventRequiredDepositPercentage(otherEvent.id, 0),
-    ).resolves.toMatchObject({
-      ok: false,
-      code: "invalid-event",
-      fieldErrors: {
-        requiredDepositPercentage:
-          "La seña de coreografía debe ser un entero entre 1 y 100.",
-      },
-    });
-    await expect(
-      db.query.events.findFirst({
-        columns: { requiredDepositPercentage: true },
-        where: eq(events.id, event.id),
-      }),
-    ).resolves.toMatchObject({
-      requiredDepositPercentage: 45,
-    });
-    await expect(
-      db.query.events.findFirst({
-        columns: { requiredDepositPercentage: true },
-        where: eq(events.id, otherEvent.id),
-      }),
-    ).resolves.toMatchObject({
-      requiredDepositPercentage: 30,
-    });
-  });
-
   test("activates only when no other event is active", async () => {
     const firstEvent = await createSavedEvent("Regional 2026");
     const secondEvent = await createSavedEvent("Final 2026");
@@ -457,6 +418,30 @@ describe("event management", () => {
         error:
           "No se pueden editar fechas ni seña con dependencias operativas.",
       });
+
+      // The deposit percentage on its own, through the only writer left after
+      // #1051 deleted the unguarded one.
+      await expect(
+        updateEvent(
+          event.id,
+          eventInput({
+            name: event.name,
+            requiredDepositPercentage: 45,
+          }),
+        ),
+      ).resolves.toMatchObject({
+        ok: false,
+        code: "event-has-operational-dependencies",
+        error:
+          "No se pueden editar fechas ni seña con dependencias operativas.",
+      });
+
+      await expect(
+        db.query.events.findFirst({
+          columns: { requiredDepositPercentage: true },
+          where: eq(events.id, event.id),
+        }),
+      ).resolves.toMatchObject({ requiredDepositPercentage: 30 });
 
       await expect(deleteEvent(event.id)).resolves.toMatchObject({
         ok: false,
