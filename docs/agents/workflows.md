@@ -196,6 +196,32 @@ reaches the script through `env: PR_TITLE`, never interpolated into a `run:`
 block. Like the other four it is a required context on `master`, which is a repo
 setting outside the repo: this file does not add the requirement.
 
+### The Node version
+
+`.nvmrc` is where the Node version lives, as an exact patch (`22.23.2`). Nothing
+else states it independently (#981):
+
+- every `actions/setup-node` step in `.github/workflows/` uses
+  `node-version-file: .nvmrc`, never a literal `node-version:`;
+- `package.json`'s `engines.node` is `^<that version>`, so pnpm warns on install
+  (`Unsupported engine: wanted … current …`) when the local Node sits below the
+  floor. It only warns: no `engineStrict` is set in `pnpm-workspace.yaml`, so
+  nothing is refused. The floor is deliberately the exact `.nvmrc` patch rather
+  than the looser `^22.x` #981 sketched, so that a local Node tracks the one CI
+  runs; after a patch bump, `nvm install` clears the warning;
+- the Dockerfile's base is `FROM node:<that version>-bookworm-slim`. It repeats
+  the number because `FROM` cannot read a file, and an `ARG` defaulted from one
+  would still need the default written here; `tests/afk/node-version-single-source.test.ts`
+  is what keeps it in step. The tag is deliberately not pinned by digest —
+  images-by-digest is the actions gate's decision (#955), not this one.
+
+Bumping Node is therefore four edits, not one: `.nvmrc`, `engines.node` and the
+`FROM` line spell the same patch out — only the workflows read the file — plus
+`@types/node`'s range whenever the major moves (the types have to describe the
+runtime that runs). The point is not that one edit suffices; it is that the test
+above names every copy you forgot, instead of a runner and a container quietly
+disagreeing months later.
+
 ### Waiting on AFK runs and CI from a session
 
 A session that drives AFK work (a reviewed PR to land, a chain of issues) never
