@@ -1,7 +1,7 @@
 import { and, asc, eq, inArray, ne, or, sql, type SQL } from "drizzle-orm";
 
 import { formatChoreographyReferences } from "@/lib/choreographies/choreography-messages";
-import { readErrorProperty } from "@/lib/shared/error-properties.server";
+import { isForeignKeyViolation } from "@/lib/shared/error-properties.server";
 import {
   categories,
   categoryModalities,
@@ -30,10 +30,9 @@ import type {
   ValidCategoryInput,
 } from "@/lib/events/bases-repository/shared.server";
 
-// Postgres's `foreign_key_violation`, and the only key that can raise it on a
-// category delete: `category_modality` cascades, so a choreography's
-// `category_id` is the one left to refuse.
-const FOREIGN_KEY_VIOLATION = "23503";
+// The only key that can raise a foreign-key violation on a category delete:
+// `category_modality` cascades, so a choreography's `category_id` is the one
+// left to refuse.
 const CHOREOGRAPHY_CATEGORY_FOREIGN_KEY =
   "en_escena_choreography_category_id_en_escena_category_id_fk";
 
@@ -228,11 +227,7 @@ export async function deleteCategory(
 }
 
 function isChoreographyCategoryViolation(error: unknown) {
-  return (
-    readErrorProperty(error, "code") === FOREIGN_KEY_VIOLATION &&
-    readErrorProperty(error, "constraint_name") ===
-      CHOREOGRAPHY_CATEGORY_FOREIGN_KEY
-  );
+  return isForeignKeyViolation(error, CHOREOGRAPHY_CATEGORY_FOREIGN_KEY);
 }
 
 function categoryHasChoreographies(): EventBaseFailure {

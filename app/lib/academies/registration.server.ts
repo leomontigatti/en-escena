@@ -4,7 +4,10 @@ import { db } from "@/db";
 import { user } from "@/db/schema";
 import { startAcademyUserSignUp } from "@/lib/academies/registration-auth.server";
 import { PUBLIC_REGISTRATION_CONFIRMATION_PATH } from "@/lib/auth/access-paths.shared";
-import { readErrorProperty } from "@/lib/shared/error-properties.server";
+import {
+  isUniqueViolation,
+  readErrorProperty,
+} from "@/lib/shared/error-properties.server";
 import { normalizeEmail } from "@/lib/shared/email-normalization";
 
 const REGISTRATION_START_MESSAGE =
@@ -90,7 +93,7 @@ function isRegistrationEmailConflict(error: unknown): boolean {
   const message = readErrorProperty(error, "message");
 
   return (
-    code === "23505" &&
+    isUniqueViolation(error) &&
     (constraintName === "en_escena_user_email_unique" ||
       detail?.includes("(email)=") === true ||
       message?.includes("email") === true)
