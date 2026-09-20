@@ -35,6 +35,7 @@ import {
   validateInlineScheduleCapacityDependencies,
 } from "@/lib/events/bases-repository/schedule-capacities.server";
 import {
+  resolveOccupiedCounts,
   resolveScheduleCapacityOccupancies,
   toScheduleCapacityOccupancyKey,
   type ScheduleCapacityOccupancy,
@@ -609,13 +610,9 @@ async function validateStructuralScheduleChanges(
 
 async function getScheduleOccupiedCount(scheduleId: string) {
   const target = { scheduleCapacityId: null, scheduleId };
-  const occupancies = await resolveScheduleCapacityOccupancies({
-    targets: [target],
-  });
+  const readOccupiedCount = await resolveOccupiedCounts([target]);
 
-  return (
-    occupancies.get(toScheduleCapacityOccupancyKey(target))?.occupiedCount ?? 0
-  );
+  return readOccupiedCount(target);
 }
 
 type ExistingSchedule = typeof schedules.$inferSelect & {

@@ -26,10 +26,7 @@ import type {
   ScheduleCapacityListItem,
   ValidInlineScheduleCapacityInput,
 } from "@/lib/events/bases-repository/shared.server";
-import {
-  resolveScheduleCapacityOccupancies,
-  toScheduleCapacityOccupancyKey,
-} from "@/lib/choreographies/schedule-capacity-occupancy.server";
+import { resolveOccupiedCounts } from "@/lib/choreographies/schedule-capacity-occupancy.server";
 
 export async function createScheduleCapacity(
   scheduleId: string,
@@ -76,6 +73,9 @@ export async function updateScheduleCapacity(
     return validation;
   }
 
+  const readOccupiedCount = await resolveOccupiedCounts([
+    toOccupancyTarget(existing),
+  ]);
   const structuralFailure = await validateStructuralScheduleCapacityChanges({
     capacityFieldName: "capacity",
     existing,
@@ -83,6 +83,7 @@ export async function updateScheduleCapacity(
       dependencies.hasDependencies ??
       scheduleCapacityHasOperationalDependencies,
     next: { groupType: validation.groupType, capacity: input.capacity },
+    occupiedCount: readOccupiedCount(toOccupancyTarget(existing)),
   });
 
   if (structuralFailure) {
@@ -327,6 +328,9 @@ export async function validateInlineScheduleCapacityDependencies({
   const nextEntryById = new Map(
     nextEntries.filter(hasScheduleCapacityId).map((entry) => [entry.id, entry]),
   );
+  const readOccupiedCount = await resolveOccupiedCounts(
+    existingEntries.map(toOccupancyTarget),
+  );
 
   for (const existingEntry of existingEntries) {
     const nextEntry = nextEntryById.get(existingEntry.id);
@@ -349,6 +353,7 @@ export async function validateInlineScheduleCapacityDependencies({
       existing: existingEntry,
       hasDependencies: scheduleCapacityHasOperationalDependencies,
       next: nextEntry,
+      occupiedCount: readOccupiedCount(toOccupancyTarget(existingEntry)),
     });
 
     if (structuralFailure) {
@@ -582,6 +587,15 @@ async function getReservedScheduleCapacityCapacity(
   return result?.total ?? 0;
 }
 
+function toOccupancyTarget(
+  scheduleCapacity: typeof scheduleCapacities.$inferSelect,
+) {
+  return {
+    scheduleCapacityId: scheduleCapacity.id,
+    scheduleId: scheduleCapacity.scheduleId,
+  };
+}
+
 /**
  * The group type freezes once the entry is occupied: the choreographies in it
  * were placed by that type. The capacity does not — it may move freely as long
@@ -592,11 +606,13 @@ async function validateStructuralScheduleCapacityChanges({
   existing,
   hasDependencies,
   next,
+  occupiedCount,
 }: {
   capacityFieldName: string;
   existing: typeof scheduleCapacities.$inferSelect;
   hasDependencies: (scheduleCapacityId: string) => boolean | Promise<boolean>;
   next: { groupType: GroupType; capacity: number };
+  occupiedCount: number;
 }): Promise<EventBaseFailure | null> {
   if (
     existing.groupType !== next.groupType &&
@@ -610,21 +626,7 @@ async function validateStructuralScheduleCapacityChanges({
     };
   }
 
-  if (existing.capacity === next.capacity) {
-    return null;
-  }
-
-  const target = {
-    scheduleCapacityId: existing.id,
-    scheduleId: existing.scheduleId,
-  };
-  const occupancies = await resolveScheduleCapacityOccupancies({
-    targets: [target],
-  });
-  const occupiedCount =
-    occupancies.get(toScheduleCapacityOccupancyKey(target))?.occupiedCount ?? 0;
-
-  if (next.capacity < occupiedCount) {
+  if (existing.capacity !== next.capacity && next.capacity < occupiedCount) {
     return {
       ok: false,
       code: "invalid-schedule-capacity",
