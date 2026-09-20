@@ -8,6 +8,17 @@ import {
   invalidRequiredDepositPercentageMessage,
 } from "@/lib/events/deposit-percentage";
 
+/**
+ * `updateEvent` is the only writer of an event's `requiredDepositPercentage`,
+ * and #1051 is the decision that keeps it that way. The field is structural —
+ * `hasStructuralEventChanges` lists it — so writing it anywhere else means
+ * writing it past the dependency guard #1042 made reachable. That is what
+ * `updateEventRequiredDepositPercentage` did: a second writer with no guard,
+ * reached by nothing but its own tests, so it was deleted rather than guarded.
+ * A new deposit-percentage screen edits the field through `updateEvent`;
+ * `deposit-percentage-writers.test.ts` fails on any other writer.
+ */
+
 const ACTIVE_EVENT_UNIQUE_CONSTRAINT = "event_single_active_unique";
 
 const ACTIVE_EVENT_EXISTS_ERROR =
@@ -217,34 +228,6 @@ function paymentInstructionsValues(input: CreateEventInput) {
   return Object.fromEntries(
     paymentInstructionsColumns.map((column) => [column, input[column] ?? null]),
   ) as Record<(typeof paymentInstructionsColumns)[number], string | null>;
-}
-
-export async function updateEventRequiredDepositPercentage(
-  eventId: string,
-  requiredDepositPercentage: number,
-): Promise<EventMutationResult> {
-  if (!isValidRequiredDepositPercentage(requiredDepositPercentage)) {
-    return {
-      ok: false,
-      code: "invalid-event",
-      error: INVALID_EVENT_ERROR,
-      fieldErrors: {
-        requiredDepositPercentage: invalidRequiredDepositPercentageMessage,
-      },
-    };
-  }
-
-  const [updatedEvent] = await db
-    .update(events)
-    .set({ requiredDepositPercentage })
-    .where(eq(events.id, eventId))
-    .returning();
-
-  if (!updatedEvent) {
-    return eventNotFound();
-  }
-
-  return { ok: true, event: updatedEvent };
 }
 
 export async function deactivateEvent(
