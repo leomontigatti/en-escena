@@ -112,7 +112,8 @@ jobs:
           title=$(head -c 256 "$OUTPUT_DIR/prd_title.txt")
           url=$(gh issue create --title "$title" \
             --body-file "$OUTPUT_DIR/prd_body.md" \
-            --label source:architecture-review)
+            --label source:architecture-review \
+            --label needs-triage)
           echo "url=$url" >> "$GITHUB_OUTPUT"
 
       - name: Run summary
