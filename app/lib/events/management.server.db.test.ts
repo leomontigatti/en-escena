@@ -15,6 +15,7 @@ import {
   updateEventRequiredDepositPercentage,
 } from "@/lib/events/management.server";
 import { getEventRegistrationReadiness } from "@/lib/events/registration-readiness.server";
+import { isUniqueViolation } from "@/lib/shared/error-properties.server";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -325,18 +326,19 @@ describe("event management", () => {
       ...eventDates(),
     });
 
-    await expect(
-      db.insert(events).values({
+    const error = await db
+      .insert(events)
+      .values({
         name: "Final 2026",
         active: true,
         ...eventDates(),
-      }),
-    ).rejects.toMatchObject({
-      cause: {
-        code: "23505",
-        constraint_name: "event_single_active_unique",
-      },
-    });
+      })
+      .then(
+        () => null,
+        (rejection: unknown) => rejection,
+      );
+
+    expect(isUniqueViolation(error, "event_single_active_unique")).toBe(true);
   });
 
   test("deactivation leaves event data and visibility flags intact", async () => {

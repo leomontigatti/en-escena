@@ -9,7 +9,10 @@ import {
   invalidArgentinePhoneMessage,
   isValidArgentinePhone,
 } from "@/lib/shared/argentine-phone";
-import { readErrorProperty } from "@/lib/shared/error-properties.server";
+import {
+  isUniqueViolation,
+  readErrorProperty,
+} from "@/lib/shared/error-properties.server";
 import { toTitleCase } from "@/lib/shared/text-normalization";
 
 const ACADEMY_ONBOARDING_CONFLICT_ERROR =
@@ -96,9 +99,7 @@ export async function completeAcademyOnboarding(input: {
 }
 
 function isAcademyOnboardingConflict(error: unknown) {
-  const code = readErrorProperty(error, "code");
-
-  if (code !== "23505") {
+  if (!isUniqueViolation(error)) {
     return false;
   }
 

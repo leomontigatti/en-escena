@@ -24,7 +24,7 @@ import type {
   SubmodalityInput,
   ValidInlineSubmodalityInput,
 } from "@/lib/events/bases-repository/shared.server";
-import { readErrorProperty } from "@/lib/shared/error-properties.server";
+import { isUniqueViolation } from "@/lib/shared/error-properties.server";
 
 export async function createModality(
   eventId: string,
@@ -465,11 +465,7 @@ function validateInlineSubmodalitiesInput({
 }
 
 function isSubmodalityNameConflict(error: unknown) {
-  return (
-    readErrorProperty(error, "code") === "23505" &&
-    readErrorProperty(error, "constraint_name") ===
-      SUBMODALITY_NAME_UNIQUE_CONSTRAINT
-  );
+  return isUniqueViolation(error, SUBMODALITY_NAME_UNIQUE_CONSTRAINT);
 }
 
 async function findDuplicateSubmodalityName(input: {
