@@ -220,6 +220,23 @@ comment above it. One exclusion: `pnpm-lock.yaml` is generated, not written.
 It was gated because leaving it on review is what let six Spanish comments across
 four workflow files outlive #592's sweep.
 
+**Shell is covered too** ([#947](https://github.com/leomontigatti/en-escena/issues/947)):
+`.sh` under `.claude/` and `scripts/`, plus the repo root. Its `#` comments are
+read by YAML's rule, the same one a `run: |` block already went through. Its
+**stderr is read like a thrown `Error`**, because that is what it is: a Claude
+Code hook's stderr is the sentence the agent is handed back, so nobody but an
+agent or an operator ever reads it. `block-npx-tsc.sh` shipped that sentence in
+Spanish through #592's sweep and #793's, because the gate reached only the `.md`
+under `.claude/`.
+
+The predicate reads the quoted strings on a line that redirects to `>&2`, and the
+literals assigned to a variable the file interpolates into one — `instruction="…"`
+three lines above `printf … "$instruction" >&2` is how `stop-typecheck-lint.sh`
+writes it, and reading the redirect line alone would miss it. A command
+substitution is excluded: `output="$(pnpm typecheck 2>&1)"` is the command's
+output, not prose. A heredoc body redirected to stderr is not read yet; none
+exists in the tree.
+
 One file type is exempt from every direction of this rule: **an applied migration under
 `app/db/migrations/` is frozen, comments included.** Drizzle hashes the whole
 `.sql` file, so translating a comment inside one stops the production container
