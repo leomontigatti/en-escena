@@ -49,6 +49,11 @@ An Architecture Review PRD that documents a confirmed defect carries `bug` next 
 The dispatch queue is `priority:next` plus `ready-for-agent`:
 `gh issue list --label priority:next --label ready-for-agent`.
 
+Sub-issues are not triaged on their own. `agent-to-issues-prd.yml` creates each slice with
+its PRD's priority, type and milestone, and a hand-written slice should carry the same. That
+multiplies a PRD in any priority list, so add `no:parent-issue` for the PRD-level view:
+`gh issue list --label priority:next --search "no:parent-issue"`.
+
 > **`ready-for-agent` does not trigger the AFK workflows.** It is a triage state
 > ("specified and grabbable"). Agents trigger on the `agent:*` labels, which a
 > human adds by hand to dispatch (PRD → `agent:to-issues`, single issue →

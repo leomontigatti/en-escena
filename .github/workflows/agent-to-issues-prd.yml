@@ -171,13 +171,28 @@ jobs:
             echo "to-issues runner produced zero slices." > "$OUTPUT_DIR/failure_reason.txt"
             exit 1
           fi
+          # A slice inherits the PRD's triage (docs/agents/triage-labels.md): its
+          # priority, its type and its milestone, so a slice never reads as untriaged
+          # and shows up in the milestone its PRD belongs to. Not `question` — a slice
+          # is work, not a decision — and never `ready-for-*` or `agent:*`, which
+          # describe the PRD's own state. Read once: the PRD is `agent:in-progress`
+          # for the whole loop. Passed as an array, so a label is never word-split.
+          inherited=()
+          while IFS= read -r label; do
+            inherited+=(--label "$label")
+          done < <(gh issue view "$ISSUE_NUMBER" --json labels --jq \
+            '.labels[].name | select(startswith("priority:") or . == "bug" or . == "enhancement" or . == "refactor" or . == "chore")')
+          milestone=$(gh issue view "$ISSUE_NUMBER" --json milestone --jq '.milestone.title // empty')
+          if [ -n "$milestone" ]; then
+            inherited+=(--milestone "$milestone")
+          fi
           for i in $(seq 0 $((count - 1))); do
             title=$(jq -r ".slices[$i].title" "$slices")
             what=$(jq -r ".slices[$i].whatToBuild" "$slices")
             criteria=$(jq -r ".slices[$i].acceptanceCriteria[] | \"- [ ] \" + ." "$slices")
             body=$(printf '## Parent PRD\n\n#%s\n\n## What to build\n\n%s\n\n## Acceptance criteria\n\n%s\n' \
               "$ISSUE_NUMBER" "$what" "$criteria")
-            url=$(gh issue create --title "$title" --body "$body")
+            url=$(gh issue create --title "$title" --body "$body" "${inherited[@]}")
             sub_number=$(basename "$url")
             sub_id=$(gh api "repos/$GH_REPO/issues/$sub_number" --jq .id)
             gh api -X POST "repos/$GH_REPO/issues/$ISSUE_NUMBER/sub_issues" -F "sub_issue_id=$sub_id" >/dev/null
