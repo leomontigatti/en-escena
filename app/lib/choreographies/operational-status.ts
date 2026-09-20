@@ -1,5 +1,5 @@
 export type ChoreographyOperationalPendingItem =
-  "music" | "category" | "experienceLevel" | "professors";
+  "music" | "experienceLevel" | "professors";
 
 export type ChoreographyOperationalStatus = {
   code: "complete" | "incomplete";
@@ -7,7 +7,6 @@ export type ChoreographyOperationalStatus = {
 };
 
 export function deriveChoreographyOperationalStatus(input: {
-  categoryId: string | null;
   experienceLevelId: string | null;
   hasMusic: boolean;
   hasProfessors: boolean;
@@ -19,15 +18,9 @@ export function deriveChoreographyOperationalStatus(input: {
     pendingItems.push("music");
   }
 
-  if (input.categoryId === null) {
-    pendingItems.push("category");
-  }
-
-  if (
-    input.categoryId !== null &&
-    input.requiresExperienceLevel &&
-    input.experienceLevelId === null
-  ) {
+  // No category branch: a choreography always has one, so the only thing the
+  // level check needs is whether the category it already has declares levels.
+  if (input.requiresExperienceLevel && input.experienceLevelId === null) {
     pendingItems.push("experienceLevel");
   }
 
@@ -47,8 +40,6 @@ export function formatChoreographyOperationalPendingItemLabel(
   switch (pendingItem) {
     case "music":
       return "Música";
-    case "category":
-      return "Categoría";
     case "experienceLevel":
       return "Nivel de experiencia";
     case "professors":

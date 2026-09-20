@@ -25,11 +25,11 @@ import { isDateOnly } from "@/lib/shared/date-only";
 
 type ChoreographyRow = {
   academyName: string;
-  categoryId: string | null;
+  categoryId: string;
   choreographyNumber: number;
-  categoryName: string | null;
+  categoryName: string;
   experienceLevelId: string | null;
-  categoryExperienceLevels: string[] | null;
+  categoryExperienceLevels: string[];
   groupType: ChoreographyGroupType;
   id: string;
   modalityId: string;
@@ -41,7 +41,7 @@ type ChoreographyRow = {
 };
 
 type ChoreographyListFilters = {
-  category: ChoreographyCategoryFilter;
+  category: string | null;
   groupType: ChoreographyGroupType | null;
   modalityId: string | null;
   order: ChoreographyOrder;
@@ -58,10 +58,9 @@ const CHOREOGRAPHY_STATUS_CODES = {
   completa: "complete",
   incompleta: "incomplete",
 } as const;
-type ChoreographyCategoryFilter = string | "sin-asignar" | null;
 type ChoreographyScheduleDateFilter = string | "sin-asignar" | null;
 type HydratedChoreographyRow = ChoreographyListItem & {
-  categoryId: string | null;
+  categoryId: string;
   modalityId: string;
   scheduleDate: string | null;
 };
@@ -75,7 +74,7 @@ type ChoreographyOrder = {
 
 export type ChoreographyListItem = {
   academyName: string;
-  categoryName: string | null;
+  categoryName: string;
   choreographyNumber: number;
   groupType: ChoreographyGroupType;
   id: string;
@@ -116,7 +115,7 @@ function readChoreographyFilters(
   searchParams: URLSearchParams,
 ): ChoreographyListFilters {
   return {
-    category: readChoreographyCategoryFilter(searchParams.get("categoria")),
+    category: readNonEmptySearchParam(searchParams.get("categoria")),
     groupType: readChoreographyGroupTypeFilter(searchParams.get("tipo-grupo")),
     modalityId: readNonEmptySearchParam(searchParams.get("modalidad")),
     order: readChoreographyOrder(searchParams.get("orden")),
@@ -169,7 +168,7 @@ export async function loadChoreographies(input: {
     .innerJoin(academies, eq(choreographies.academyId, academies.id))
     .innerJoin(modalities, eq(choreographies.modalityId, modalities.id))
     .leftJoin(submodalities, eq(choreographies.submodalityId, submodalities.id))
-    .leftJoin(categories, eq(choreographies.categoryId, categories.id))
+    .innerJoin(categories, eq(choreographies.categoryId, categories.id))
     .leftJoin(schedules, eq(choreographies.scheduleId, schedules.id))
     .where(eq(choreographies.eventId, selectedEventId));
   const hasAnyChoreography = rows.length > 0;
@@ -356,13 +355,10 @@ async function hydrateChoreographies(
     name: row.name,
     scheduleDate: row.scheduleDate,
     operationalStatus: deriveChoreographyOperationalStatus({
-      categoryId: row.categoryId,
       experienceLevelId: row.experienceLevelId,
       hasMusic: row.musicStorageKey !== null,
       hasProfessors: choreographyIdsWithProfessors.has(row.id),
-      requiresExperienceLevel:
-        row.categoryExperienceLevels !== null &&
-        row.categoryExperienceLevels.length > 0,
+      requiresExperienceLevel: row.categoryExperienceLevels.length > 0,
     }),
     submodalityName: row.submodalityName,
   }));
@@ -378,16 +374,6 @@ function readChoreographyStatusFilter(
     default:
       return null;
   }
-}
-
-function readChoreographyCategoryFilter(
-  value: string | null,
-): ChoreographyCategoryFilter {
-  if (value === "sin-asignar") {
-    return value;
-  }
-
-  return readNonEmptySearchParam(value);
 }
 
 /**
@@ -432,8 +418,8 @@ function buildChoreographyFacets(rows: ChoreographyRow[]) {
   return {
     categories: getUniqueSortedFilterOptions(
       rows.map((row) => ({
-        label: row.categoryName ?? "Sin asignar",
-        value: row.categoryId ?? "sin-asignar",
+        label: row.categoryName,
+        value: row.categoryId,
       })),
     ),
     modalities: getUniqueSortedFilterOptions(
@@ -619,15 +605,11 @@ function keepKnownFacetValue(
 }
 
 function matchesChoreographyCategory(
-  categoryId: string | null,
-  categoryFilter: ChoreographyCategoryFilter,
+  categoryId: string,
+  categoryFilter: string | null,
 ) {
   if (categoryFilter === null) {
     return true;
-  }
-
-  if (categoryFilter === "sin-asignar") {
-    return categoryId === null;
   }
 
   return categoryId === categoryFilter;

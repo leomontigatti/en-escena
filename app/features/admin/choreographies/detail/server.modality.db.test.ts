@@ -227,7 +227,7 @@ describe("administrative choreography modality correction", () => {
     });
   });
 
-  test("saves incomplete when no category resolves for the destination modality", async () => {
+  test("refuses the correction when no category resolves for the destination modality", async () => {
     const scenario = await createModalityScenario({
       slug: "sin-categoria",
       targetCategoryMaxAge: 12,
@@ -236,16 +236,18 @@ describe("administrative choreography modality correction", () => {
 
     const response = await scenario.saveModality(scenario.target.modality.id);
 
-    expect(response).toMatchObject({ status: "success" });
-    await expect(scenario.readChoreography()).resolves.toMatchObject({
-      categoryId: null,
-      experienceLevelId: null,
-      modalityId: scenario.target.modality.id,
+    expect(response).toMatchObject({
+      message:
+        "Con esta modalidad no hay categoría compatible. Elegí otra modalidad.",
+      status: "error",
     });
-
-    const detail = await scenario.loadDetail();
-
-    expect(detail.choreography.operationalStatus.code).not.toBe("complete");
+    await expect(scenario.readChoreography()).resolves.toMatchObject({
+      categoryId: scenario.catalog.categoryWithLevel.id,
+      experienceLevelId: scenario.catalog.level.id,
+      modalityId: scenario.catalog.modality.id,
+      scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
+      submodalityId: scenario.catalog.submodality.id,
+    });
   });
 
   test("moves the capacity when the current one stops being compatible", async () => {

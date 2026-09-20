@@ -5,7 +5,7 @@ import { afterEach, describe, expect, test } from "vitest";
 import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 
 import { ChoreographyCreationSummary } from "@/features/portal/choreographies/create/summary";
-import type { RegistrationResolution } from "@/features/portal/choreographies/create/flow";
+import type { PortalResolvedRegistrationResolution } from "@/features/portal/choreographies/create/flow";
 
 const renderer = createReactDomTestRenderer();
 
@@ -72,7 +72,7 @@ describe("choreography creation summary", () => {
   });
 });
 
-function buildResolution(): RegistrationResolution {
+function buildResolution(): PortalResolvedRegistrationResolution {
   return {
     categoryAgeBasis: 14,
     category: {

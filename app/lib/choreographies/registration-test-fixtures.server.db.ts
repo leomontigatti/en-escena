@@ -234,10 +234,10 @@ export async function createEventCatalog(eventId: string) {
 }
 
 /**
- * A modality that offers grupal and nothing else. Now that readiness refuses a
- * ladder with a hole, a modality declaring no category for a group type is the
- * remaining way a registration legitimately resolves to no category — the
- * documented incomplete state, rather than a gap in the bases.
+ * A modality that offers grupal and nothing else. Readiness exempts a modality
+ * that declares no category for a group type — not offering the combination is
+ * a valid event decision — so this is the bases' own shape, not a gap in them,
+ * and it is where a registration resolves to no category and is refused.
  */
 export async function createGrupalOnlyModalityFixture(eventId: string) {
   const [modality] = await db

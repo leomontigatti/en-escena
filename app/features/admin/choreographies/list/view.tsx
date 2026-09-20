@@ -100,7 +100,7 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
     cell: (choreography) => (
       <DataTableTruncatedText
         value={formatPrimaryAndSecondaryValue(
-          choreography.categoryName ?? "Sin asignar",
+          choreography.categoryName,
           formatGroupTypeLabel(choreography.groupType),
         )}
       />

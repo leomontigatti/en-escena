@@ -30,8 +30,12 @@ import {
   createDancer,
   createEventCatalog,
   createEventRecord,
+  createGrupalOnlyModalityFixture,
+  createOpenEventCatalog,
   createProfessor,
 } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import { createChoreographyRegistration } from "@/lib/choreographies/registration-confirmation.server";
+import { noCompatibleCategoryRosterMessage } from "@/lib/choreographies/choreography-messages";
 import { createSignedInAdminRequest } from "@/lib/admin/test-support/db";
 import { recordComprobante } from "@/lib/comprobantes/comprobantes.server";
 
@@ -1474,6 +1478,80 @@ async function loadRosterDetail(choreographyId: string) {
     request,
   });
 }
+
+test("refuses a roster change that resolves to no category, writing nothing", async () => {
+  const owner = await createAcademySession({
+    academyName: "Academia Elenco Sin Categoría",
+    email: "roster.sin-categoria.academia@example.com",
+  });
+  const { event } = await createOpenEventCatalog();
+  // The modality offers grupal and nothing else, so dropping a dancer from a
+  // grupal roster lands the choreography on a trio no category covers.
+  const grupalOnly = await createGrupalOnlyModalityFixture(event.id);
+  const dancers = await Promise.all([
+    createDancer(owner.academyId, { birthDate: "2012-01-10" }),
+    createDancer(owner.academyId, { birthDate: "2012-03-20" }),
+    createDancer(owner.academyId, { birthDate: "2012-07-05" }),
+    createDancer(owner.academyId, { birthDate: "2012-09-15" }),
+  ]);
+  const professor = await createProfessor(owner.academyId);
+  const registration = await createChoreographyRegistration({
+    academyId: owner.academyId,
+    eventId: event.id,
+    modalityId: grupalOnly.modality.id,
+    submodalityId: null,
+    name: "Grupal completo",
+    dancerIds: dancers.map((dancer) => dancer.id),
+    professorIds: [professor.id],
+    experienceLevelId: null,
+    scheduleCapacityId: `schedule:${grupalOnly.schedule.id}:global`,
+  });
+
+  if (!registration.ok) {
+    throw new Error("Expected the grupal registration to succeed.");
+  }
+
+  const response = await submitRoster({
+    choreographyId: registration.choreography.id,
+    dancerIds: dancers.slice(0, 3).map((dancer) => dancer.id),
+    professorIds: [professor.id],
+  });
+
+  // A plain `status: "error"`, not the roster section's own swallowed
+  // channel: the code, not the section, decides that it reaches the page.
+  expect(response).toMatchObject({
+    message: noCompatibleCategoryRosterMessage,
+    status: "error",
+  });
+  if (!response || response instanceof Response) {
+    throw new Error("Expected a blocked roster action.");
+  }
+  expect(toChoreographyDetailViewActionData(response)).toBe(response);
+
+  const stored = await db.query.choreographies.findFirst({
+    columns: { categoryId: true, groupType: true },
+    where: eq(choreographies.id, registration.choreography.id),
+  });
+  expect(stored).toMatchObject({
+    categoryId: grupalOnly.category.id,
+    groupType: "grupal",
+  });
+
+  const inscriptions = await db.query.choreographyDancers.findMany({
+    where: eq(choreographyDancers.choreographyId, registration.choreography.id),
+  });
+  expect(inscriptions.map((row) => row.dancerId).sort()).toEqual(
+    dancers.map((dancer) => dancer.id).sort(),
+  );
+
+  const professorLinks = await db.query.choreographyProfessors.findMany({
+    where: eq(
+      choreographyProfessors.choreographyId,
+      registration.choreography.id,
+    ),
+  });
+  expect(professorLinks).toHaveLength(1);
+});
 
 async function submitRoster(input: {
   choreographyId: string;

@@ -438,12 +438,16 @@ async function updateChoreographyRosterAction(input: {
   });
 
   if (!result.ok) {
-    // The two schedule-capacity guards (#659) reject a save that the roster
-    // section's own error channel would otherwise swallow (see
-    // `toChoreographyDetailViewActionData` in `shared.ts`): they surface as a
-    // plain `status: "error"` instead of `"roster-error"` so the rejection
-    // actually reaches the rendered page.
-    if (result.code === "schedule-capacity") {
+    // The two schedule-capacity guards (#659) and the no-category refusal
+    // (#996) reject a save that the roster section's own error channel would
+    // otherwise swallow (see `toChoreographyDetailViewActionData` in
+    // `shared.ts`): they surface as a plain `status: "error"` instead of
+    // `"roster-error"` so the rejection actually reaches the rendered page.
+    // Visibility is decided by the code, not by the failure being a roster one.
+    if (
+      result.code === "schedule-capacity" ||
+      result.code === "no-compatible-category"
+    ) {
       return {
         message: result.message,
         status: "error",

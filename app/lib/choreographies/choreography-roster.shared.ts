@@ -40,18 +40,23 @@ export type UpdateChoreographyProfessorsResult =
     };
 
 /**
- * `code: "schedule-capacity"` marks the two new guards on the capacity axis
- * (capacity lock, price-divergence guard): unlike the other dancers-section
- * failures, these are not swallowed behind the roster section's own error
- * channel — the route surfaces them as a plain `status: "error"` instead. See
- * `updateChoreographyRosterAction` in `server.ts`.
+ * `code` marks the dancers-section failures that must reach the page: the two
+ * guards on the capacity axis (capacity lock, price-divergence guard) and the
+ * refusal of a roster that resolves to no category. Unlike the other
+ * dancers-section failures, they are not swallowed behind the roster section's
+ * own error channel — the route surfaces them as a plain `status: "error"`
+ * instead. Visibility is decided by code, not by the failure being a roster
+ * failure. See `updateChoreographyRosterAction` in `server.ts`.
  */
+export type ChoreographyRosterFailureCode =
+  "schedule-capacity" | "no-compatible-category";
+
 export type UpdateChoreographyDancersResult =
   | { ok: true }
   | {
       ok: false;
       message: string;
-      code?: "schedule-capacity";
+      code?: ChoreographyRosterFailureCode;
       fieldErrors?: {
         experienceLevelId?: string;
         scheduleCapacityId?: string;
@@ -64,7 +69,7 @@ export type UpdateChoreographyResult =
       ok: false;
       message: string;
       section: "dancers" | "professors";
-      code?: "schedule-capacity";
+      code?: ChoreographyRosterFailureCode;
       fieldErrors?: {
         experienceLevelId?: string;
         scheduleCapacityId?: string;
@@ -204,6 +209,13 @@ export function getDancerEditingEligibility(input: {
   };
 }
 
+/**
+ * The category of a resolution as the roster form reads it, which is the only
+ * thing left that may report none: a saved choreography always has a category,
+ * and every writer refuses the pending resolution before it reaches the column.
+ * What this still answers is the *draft* the academy is editing, where a roster
+ * that fits no category is exactly what the client blocks the save on.
+ */
 export function getResolvedChoreographyCategory(
   resolution: ChoreographyRegistrationOperationResolution,
 ): ResolvedChoreographyCategory {

@@ -7,6 +7,7 @@ import {
   hasChoreographyNameContent,
   invalidChoreographyNameMessage,
 } from "@/lib/choreographies/choreography-name";
+import { getNoCompatibleCategoryRegistrationMessage } from "@/lib/choreographies/choreography-messages";
 import type { ChoreographyRegistrationOperationResult } from "@/lib/choreographies/registration-resolution.server";
 import { isEveryScheduleCapacityOptionFull } from "@/lib/choreographies/schedule-capacity-options";
 import { requiredFieldMessage } from "@/lib/shared/forms";
@@ -28,6 +29,15 @@ export type RegistrationResolution = Extract<
   ChoreographyRegistrationOperationResult,
   { ok: true }
 >["resolution"];
+
+/**
+ * A resolution the wizard accepted: the category resolved. Registration refuses
+ * a pending one on the server, so the steps after the resolution — and the
+ * summary above all — never have to word a category that does not exist.
+ */
+export type PortalResolvedRegistrationResolution = RegistrationResolution & {
+  category: Extract<RegistrationResolution["category"], { status: "resolved" }>;
+};
 
 export type CalculationActionData = {
   intent: typeof RESOLVE_CHOREOGRAPHY_REGISTRATION_INTENT;
@@ -150,6 +160,36 @@ export function canAdvanceFromScheduleStep(input: {
   }
 
   return selectedScheduleCapacityId.length > 0;
+}
+
+/**
+ * The wizard's half of the server refusal: with no compatible category there is
+ * nothing to register, so the resolution step keeps the academy where it can fix
+ * it — on its dancers or its modality — instead of walking it to a summary the
+ * confirmation would reject.
+ */
+export function resolvePortalRegistrationCategory(input: {
+  resolution: RegistrationResolution;
+  modalityName: string | null;
+}):
+  | { refused: true; message: string }
+  | { refused: false; resolution: PortalResolvedRegistrationResolution } {
+  const { category } = input.resolution;
+
+  if (category.status !== "resolved") {
+    return {
+      refused: true,
+      message: getNoCompatibleCategoryRegistrationMessage({
+        modalityName: input.modalityName,
+        groupType: input.resolution.groupType,
+      }),
+    };
+  }
+
+  return {
+    refused: false,
+    resolution: { ...input.resolution, category },
+  };
 }
 
 export function setRequiredFieldError(

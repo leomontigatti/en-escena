@@ -1,14 +1,14 @@
 import { eq } from "drizzle-orm";
 
-import { db } from "@/db";
 import { dancers } from "@/db/schema";
 import {
   findDancerForMutation,
   toDancerSnapshot,
 } from "@/lib/admin/dancers/dancers.server.shared";
 import {
+  applyDancerBirthDateCorrection,
   loadLinkedChoreographyEventBasesForDancerBirthDateCorrection,
-  recalculateLinkedChoreographiesForDancerBirthDateCorrection,
+  runDancerWriteWithBirthDateCorrection,
 } from "@/lib/choreographies/dancer-birthdate-correction.server";
 import type {
   DancerFieldErrors,
@@ -89,7 +89,10 @@ export async function updateAdministrativeDancer(input: {
         dancerId: existingDancer.id,
       })
     : undefined;
-  const updatedDancer = await db.transaction(async (tx) => {
+  // The dancer update and the recalculation share one transaction, so a
+  // correction that leaves a choreography without a category rolls the dancer
+  // row back as well.
+  const write = await runDancerWriteWithBirthDateCorrection(async (tx) => {
     const [savedDancer] = await tx
       .update(dancers)
       .set({
@@ -110,7 +113,7 @@ export async function updateAdministrativeDancer(input: {
       .returning();
 
     if (birthDateChanged) {
-      await recalculateLinkedChoreographiesForDancerBirthDateCorrection({
+      await applyDancerBirthDateCorrection({
         dancerId: existingDancer.id,
         executor: tx,
         eventBasesByEventId: linkedChoreographyEventBases,
@@ -119,7 +122,17 @@ export async function updateAdministrativeDancer(input: {
 
     return savedDancer;
   });
-  const savedSnapshot = toDancerSnapshot(updatedDancer);
+
+  if (!write.ok) {
+    return {
+      ok: false,
+      message: "Revisá los campos marcados.",
+      fieldErrors: { birthDate: write.birthDateMessage },
+      values,
+    };
+  }
+
+  const savedSnapshot = toDancerSnapshot(write.dancer);
 
   return {
     ok: true,

@@ -8,6 +8,7 @@ import {
   getFirstPostResolutionStepIndex,
   getSubmissionError,
   type RegistrationResolution,
+  resolvePortalRegistrationCategory,
 } from "@/features/portal/choreographies/create/flow";
 
 describe("choreography create flow helpers", () => {
@@ -246,5 +247,38 @@ describe("getSubmissionError", () => {
 
   test("reports no error while there is no submission yet", () => {
     expect(getSubmissionError(undefined)).toBeNull();
+  });
+});
+
+describe("resolvePortalRegistrationCategory", () => {
+  test("refuses a resolution with no compatible category, naming the modality and the group type", () => {
+    const resolution = buildScheduleResolution([
+      { id: "capacity_1", isFull: false },
+    ]);
+
+    expect(
+      resolvePortalRegistrationCategory({
+        resolution: {
+          ...resolution,
+          groupType: "trio",
+          category: { status: "pending", reason: "no-compatible-category" },
+        },
+        modalityName: "Jazz",
+      }),
+    ).toEqual({
+      refused: true,
+      message:
+        "No hay una categoría de Jazz para Trío con las edades de estos bailarines. Revisá los bailarines o la modalidad.",
+    });
+  });
+
+  test("hands the wizard a resolution whose category is resolved", () => {
+    const resolution = buildScheduleResolution([
+      { id: "capacity_1", isFull: false },
+    ]);
+
+    expect(
+      resolvePortalRegistrationCategory({ resolution, modalityName: "Jazz" }),
+    ).toEqual({ refused: false, resolution });
   });
 });

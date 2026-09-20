@@ -4,6 +4,7 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import { choreographies, choreographyDancers, dancers } from "@/db/schema";
 import { expectCreated } from "@/lib/events/bases-test-fixtures.server.db";
+import { createCategory } from "@/lib/categories/repository.server";
 import { createModality } from "@/lib/modalities/repository.server";
 import { activateEvent } from "@/lib/events/management.server";
 import {
@@ -231,6 +232,16 @@ describe.sequential("loadPortalDancersList", () => {
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
     );
+    const category = await expectCreated(
+      createCategory(event.id, {
+        name: "Única",
+        minAge: 1,
+        maxAge: 100,
+        groupTypes: ["solo"],
+        modalityIds: [modality.id],
+        experienceLevels: [],
+      }),
+    );
     const [dancer] = await db
       .insert(dancers)
       .values({
@@ -252,6 +263,7 @@ describe.sequential("loadPortalDancersList", () => {
         name: "Solo activo",
         groupType: "solo",
         modalityId: modality.id,
+        categoryId: category.id,
         categoryCalculationMode: "oldest",
       })
       .returning();

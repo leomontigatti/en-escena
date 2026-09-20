@@ -43,7 +43,7 @@ export async function findDancerInscriptions(input: {
       choreographies,
       eq(choreographies.id, choreographyDancers.choreographyId),
     )
-    .leftJoin(categories, eq(choreographies.categoryId, categories.id))
+    .innerJoin(categories, eq(choreographies.categoryId, categories.id))
     .leftJoin(
       scheduleCapacities,
       eq(choreographies.scheduleCapacityId, scheduleCapacities.id),

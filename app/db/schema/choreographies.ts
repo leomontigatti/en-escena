@@ -54,9 +54,9 @@ export const choreographies = createTable(
       .references(() => modalities.id),
     submodalityId: varchar("submodality_id", { length: 255 }),
     groupType: groupType("group_type").notNull(),
-    categoryId: varchar("category_id", { length: 255 }).references(
-      () => categories.id,
-    ),
+    categoryId: varchar("category_id", { length: 255 })
+      .notNull()
+      .references(() => categories.id),
     categoryAgeBasis: integer("category_age_basis"),
     categoryCalculationMode: categoryCalculationMode(
       "category_calculation_mode",

@@ -91,26 +91,6 @@ describe("InscriptionsSection", () => {
       "Los importes son estimados y no reemplazan comprobantes financieros.",
     );
   });
-
-  test("falls back to an unassigned label when the choreography has no category", () => {
-    const markup = renderSection({
-      selectedEventId: "event-1",
-      inscriptions: [
-        {
-          id: "choreo-1",
-          choreographyName: "Finale",
-          choreographyNumber: 12,
-          categoryName: null,
-          groupType: "solo",
-          basePriceAmount: 35000,
-          dancerDiscountAmount: 0,
-          totalAmount: 35000,
-        },
-      ],
-    });
-
-    expect(markup).toContain("Sin asignar · Solo");
-  });
 });
 
 function renderSection(props: InscriptionsSectionProps) {

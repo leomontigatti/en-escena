@@ -19,11 +19,11 @@ describe("PortalChoreographyDetailRouteView", () => {
         }),
         choreography: choreographyDetailRow({
           name: "Mi Pieza",
-          categoryName: null,
+          categoryName: "Juvenil",
           experienceLevelName: null,
           operationalStatus: {
             code: "incomplete",
-            pendingItems: ["category", "professors"],
+            pendingItems: ["experienceLevel", "professors"],
           },
           dancers: [
             {
@@ -51,8 +51,10 @@ describe("PortalChoreographyDetailRouteView", () => {
     expect(markup).toContain("Nombre");
     expect(markup).toContain("Modalidad");
     expect(markup).toContain("Tipo de grupo");
-    expect(markup).toContain("Sin asignar");
-    expect(markup).toContain("Faltan cargar categoría y profesores.");
+    expect(markup).toContain("Juvenil");
+    expect(markup).toContain(
+      "Faltan cargar nivel de experiencia y profesores.",
+    );
     expect(markup).toContain("Ana Paz");
     expect(markup).toContain("Luz Suárez");
     expect(markup).not.toContain("Buscar bailarines");

@@ -160,9 +160,10 @@ export function getResolvedRosterFieldState({
 }
 
 /**
- * `categoryId: null` with `ok: true` is how the server says "there is no
- * category compatible with this roster". It is not a resolution error, so
- * blocking the save is the client's responsibility.
+ * `categoryId: null` with `ok: true` is how the resolution says "there is no
+ * category compatible with this roster". The server refuses such a save too
+ * (`updateAdministrativeChoreographyRoster`); this block keeps the refusal in
+ * front of the administrator before the submit, next to the roster it names.
  */
 export function hasNoCompatibleCategory({
   derivedResolution,

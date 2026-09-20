@@ -10,14 +10,12 @@ import {
 describe("choreography operational status", () => {
   test("derives labels and badge variants from shared operational semantics", () => {
     const completeStatus = deriveChoreographyOperationalStatus({
-      categoryId: "category_1",
       experienceLevelId: "experience-level_1",
       hasMusic: true,
       hasProfessors: true,
       requiresExperienceLevel: true,
     });
     const incompleteStatus = deriveChoreographyOperationalStatus({
-      categoryId: null,
       experienceLevelId: null,
       hasMusic: false,
       hasProfessors: false,
@@ -37,9 +35,8 @@ describe("choreography operational status", () => {
 
     expect(incompleteStatus).toEqual({
       code: "incomplete",
-      pendingItems: ["music", "category", "professors"],
+      pendingItems: ["music", "experienceLevel", "professors"],
     });
-    expect(incompleteStatus.pendingItems).not.toContain("experienceLevel");
     expect(formatChoreographyOperationalStatusLabel(incompleteStatus)).toBe(
       "Incompleta",
     );
