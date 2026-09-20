@@ -33,7 +33,7 @@ import {
 
 installDatabaseTestHooks();
 
-describe.sequential("`/administracion/bases-del-evento` routes", () => {
+describe("`/administracion/bases-del-evento` routes", () => {
   test("creates modalities, submodalities and categories from list actions", async () => {
     const event = await createSavedEvent("Regional 2026");
     const modalityRequest = await createSignedInRequest({

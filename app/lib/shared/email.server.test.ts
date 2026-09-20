@@ -3,11 +3,16 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 const sendEmailMock = vi.hoisted(() => vi.fn());
 
 vi.mock("resend", () => ({
-  Resend: vi.fn(() => ({
-    emails: {
-      send: sendEmailMock,
-    },
-  })),
+  // Vitest 5 calls a `vi.fn()` implementation with `new` as-is, so an arrow
+  // function throws "is not a constructor" when `email.server.ts` does
+  // `new Resend(...)`. A `function` expression is constructible.
+  Resend: vi.fn(function ResendMock() {
+    return {
+      emails: {
+        send: sendEmailMock,
+      },
+    };
+  }),
 }));
 
 const originalNodeEnv = process.env.NODE_ENV;

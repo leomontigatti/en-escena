@@ -466,4 +466,51 @@ describe("domain documentation", () => {
       await expect(stat(path), path).resolves.toBeTruthy();
     }
   });
+
+  // Links only, not backticked paths or `pnpm` commands: ADRs and finished
+  // plans legitimately name files and scripts that no longer exist, so checking
+  // those repo-wide is mostly noise. A relative link has no such reading — it
+  // either resolves or it rotted, usually because the document moved (every hit
+  // when this was added was an ADR rehomed into `superseded/`).
+  test("keeps every relative markdown link pointed at an existing file", async () => {
+    const roots = ["docs", ".sandcastle", ".claude"];
+    const documents = [
+      "CLAUDE.md",
+      "CONTEXT.md",
+      ...(
+        await Promise.all(
+          roots.map((root) =>
+            readdir(root, { recursive: true, withFileTypes: true }),
+          ),
+        )
+      )
+        .flat()
+        .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
+        .map((entry) => `${entry.parentPath}/${entry.name}`),
+    ];
+
+    expect(documents.length).toBeGreaterThan(50);
+
+    for (const document of documents) {
+      const contents = await readFile(document, "utf8");
+      const directory = document.includes("/")
+        ? document.slice(0, document.lastIndexOf("/"))
+        : ".";
+
+      for (const [, target] of contents.matchAll(
+        /\]\(([^)#\s]+)(?:#[^)]*)?\)/g,
+      )) {
+        if (/^[a-z][a-z0-9+.-]*:/i.test(target)) continue;
+
+        const resolved = target.startsWith("/")
+          ? target.slice(1)
+          : `${directory}/${target}`;
+
+        await expect(
+          stat(decodeURI(resolved)),
+          `${document} links to ${target}`,
+        ).resolves.toBeTruthy();
+      }
+    }
+  });
 });

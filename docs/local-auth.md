@@ -136,7 +136,7 @@ The main local auth routes are:
 
 ## Local Email
 
-In non-production environments, `app/lib/email.server.ts` logs messages to the
+In non-production environments, `app/lib/shared/email.server.ts` logs messages to the
 server console with an `[email:dev]` prefix and does not require provider
 credentials.
 

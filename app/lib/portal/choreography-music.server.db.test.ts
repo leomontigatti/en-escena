@@ -20,7 +20,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe.sequential("portal choreography music", () => {
+describe("portal choreography music", () => {
   test("uploads new music, stores the key, and removes the previous object", async () => {
     const { choreography, event, owner } = await createMusicChoreographyFixture(
       {

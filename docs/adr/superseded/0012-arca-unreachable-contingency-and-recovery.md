@@ -8,7 +8,7 @@ repaired by reserving the correlative before the ARCA round-trip — both premis
 of its defence were removed by the new finance model — and decision 5's rule that
 unresolved attempts persist nothing was reversed. Decisions 1, 2, 3 and 6 stand
 and are **restated in
-[ADR-0014](./0014-arbitrary-amount-allocation-and-comprobante-amendments.md) §8**,
+[ADR-0014](../0014-arbitrary-amount-allocation-and-comprobante-amendments.md) §8**,
 so a live ADR carrying two contradicted decisions does not stay in retrieval
 range beside them.
 

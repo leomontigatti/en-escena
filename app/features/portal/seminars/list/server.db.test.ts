@@ -43,7 +43,7 @@ function loadList(cookie: string) {
   );
 }
 
-describe.sequential("portal seminars list", () => {
+describe("portal seminars list", () => {
   test("reads a poster per seminar of the active event, with the academy's own count on it", async () => {
     const session = await createAcademySession({
       academyName: "Academia Seminarios",

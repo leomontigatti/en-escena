@@ -42,7 +42,7 @@ describe("deriveGroupType", () => {
   });
 });
 
-describe.sequential("choreography registration resolution", () => {
+describe("choreography registration resolution", () => {
   test("resolves a valid solo registration using the event local start date, required experience levels, and compatible schedule capacities", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Dueña",

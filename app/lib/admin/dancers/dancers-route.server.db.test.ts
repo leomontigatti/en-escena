@@ -77,7 +77,7 @@ beforeEach(() => {
   );
 });
 
-describe.sequential("`/administracion/bailarines` route", () => {
+describe("`/administracion/bailarines` route", () => {
   test("allows admin access and renders an empty readonly dancers list", async () => {
     const { request } = await createSignedInRequest({
       email: "admin.bailarines@example.com",

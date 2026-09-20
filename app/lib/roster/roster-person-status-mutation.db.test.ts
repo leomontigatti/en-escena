@@ -68,7 +68,7 @@ function readInscription(inscriptionId: string) {
     .then((rows) => rows[0] ?? null);
 }
 
-describe.sequential("setRosterPersonStatus", () => {
+describe("setRosterPersonStatus", () => {
   test("archives a dancer with an active inscription in the current event without touching the inscription", async () => {
     const fixture = await seedInscribedDancer();
     const inscriptionBefore = await readInscription(fixture.inscriptionId);

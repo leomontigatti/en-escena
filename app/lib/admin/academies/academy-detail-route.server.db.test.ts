@@ -96,7 +96,7 @@ async function buildFormRequest(input: {
   });
 }
 
-describe.sequential("`/administracion/academias` detail", () => {
+describe("`/administracion/academias` detail", () => {
   test("renders the academy contact data with save and back actions", async () => {
     const academy = await createAcademyUser({
       email: "academia.detalle@example.com",
