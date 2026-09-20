@@ -93,7 +93,9 @@ Invoke it with everything it needs, so that it does **not** run its own discover
   calls fail; everything the skill needs is already embedded above.
 - **Standards:** `.sandcastle/CODING_STANDARDS.md` is this repo's documented standard — feed it
   as the standards source, with `docs/agents/style-guide.md` for frontend/UI. The skill's
-  built-in smell baseline applies on top, but a documented repo standard always wins.
+  built-in smell baseline applies on top, but a documented repo standard always wins. The
+  `Command` → `Owns` table in `.sandcastle/VALIDATION.md` is the definition of "tooling
+  enforces": nothing a row of that table owns is to be reported as a finding.
 
 The skill is read-only and produces a report; it does not edit code. That report is your
 worklist for the step below.
