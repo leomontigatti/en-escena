@@ -38,6 +38,10 @@ export type ChoreographyExperienceLevelOption = {
  * to stay in view rather than disappear from the select without explanation —
  * and re-picking it is a write identical to what is already there.
  *
+ * Carrying a stray level along is not tolerating it: the operational status
+ * reports it as `experienceLevelMismatch` and the detail says so in an alert, so
+ * the option is there to be read and replaced, never as an ordinary choice.
+ *
  * There is no levels table: they are a global enum and the category declares
  * which ones it admits, so the list is built here and not queried.
  */
@@ -68,9 +72,12 @@ function resolveChoreographyExperienceLevelOptions(input: {
 type ChoreographyDetailRow = {
   academyId: string;
   academyName: string;
+  categoryAgeBasis: number | null;
   categoryExperienceLevels: string[];
   choreographyNumber: number;
   categoryId: string;
+  categoryMaxAge: number;
+  categoryMinAge: number;
   categoryName: string;
   experienceLevelId: string | null;
   groupType: ChoreographyGroupType;
@@ -146,8 +153,11 @@ export async function findChoreographyDetail(input: {
     .select({
       academyId: choreographies.academyId,
       academyName: academies.name,
+      categoryAgeBasis: choreographies.categoryAgeBasis,
       categoryExperienceLevels: categories.experienceLevels,
       categoryId: choreographies.categoryId,
+      categoryMaxAge: categories.maxAge,
+      categoryMinAge: categories.minAge,
       choreographyNumber: choreographies.choreographyNumber,
       categoryName: categories.name,
       experienceLevelId: choreographies.experienceLevelId,
@@ -227,10 +237,15 @@ export async function findChoreographyDetail(input: {
     musicStorageKey: row.musicStorageKey,
     name: row.name,
     operationalStatus: deriveChoreographyOperationalStatus({
+      categoryExperienceLevels: row.categoryExperienceLevels,
       experienceLevelId: row.experienceLevelId,
       hasMusic: row.musicStorageKey !== null,
       hasProfessors: professorRows.length > 0,
-      requiresExperienceLevel,
+      placementCheck: {
+        categoryAgeBasis: row.categoryAgeBasis,
+        categoryMaxAge: row.categoryMaxAge,
+        categoryMinAge: row.categoryMinAge,
+      },
     }),
     professors: professorRows,
     requiresExperienceLevel,

@@ -58,6 +58,46 @@ export function ChoreographyDetailAlerts({
         </Alert>
       ) : null}
 
+      {/* A mis-filed placement: the choreography is still stored in a category
+          that no longer admits it, which changes who competes against whom. The
+          cause is stored nowhere — a concurrent category edit, a birth-date
+          correction the presentation blocked — so the alert names the state and
+          not the reason. Admin-only: the portal has no lever to repair it. */}
+      {choreography.operationalStatus.pendingItems.includes(
+        "categoryAgeMismatch",
+      ) ? (
+        <Alert variant="warning">
+          <TriangleAlert aria-hidden="true" />
+          <AlertTitle>La categoría no coincide con las edades</AlertTitle>
+          <AlertDescription>
+            La edad con la que se ubicó esta coreografía quedó fuera del rango
+            que admite {choreography.categoryName}. Revisá el elenco o la
+            categoría.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      {choreography.operationalStatus.pendingItems.includes(
+        "experienceLevelMismatch",
+      ) ? (
+        <Alert variant="warning">
+          <TriangleAlert aria-hidden="true" />
+          <AlertTitle>
+            El nivel de experiencia no pertenece a la categoría
+          </AlertTitle>
+          <AlertDescription>
+            {choreography.categoryName} dejó de admitir el nivel guardado
+            {choreography.experienceLevelName === null
+              ? ""
+              : ` (${choreography.experienceLevelName})`}
+            , que sigue a la vista para que se pueda leer lo que está guardado.
+            {loaderData.experienceLevel.canReassign
+              ? " Elegí uno de los que la categoría admite hoy."
+              : ""}
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
       {/* The financial alert is not suppressed for the auditor: the reason for
           the block belongs to the choreography, not to the permissions of
           whoever is looking. One block per line, with no title and no list: the
