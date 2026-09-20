@@ -22,7 +22,7 @@ const DEPENDENT_EDIT_ERROR =
 
 // The guard runs through the real action, with no injected double: the bug it
 // covers was a stub predicate that the production path silently took.
-describe.sequential("event dependencies on the event detail action", () => {
+describe("event dependencies on the event detail action", () => {
   test.each([
     ["startsAt", { startsAt: "2026-05-02" }],
     ["endsAt", { endsAt: "2026-06-05" }],

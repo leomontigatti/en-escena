@@ -52,7 +52,7 @@ async function createSingleSlotRegistration(input: {
   return { catalog, choreography: registration.choreography, event };
 }
 
-describe.sequential("schedule capacity lock", () => {
+describe("schedule capacity lock", () => {
   test("keeps the capacity available for the choreography that already occupies it", async () => {
     const { catalog, choreography } = await createSingleSlotRegistration({
       academyName: "Academia Cupo Excluido",

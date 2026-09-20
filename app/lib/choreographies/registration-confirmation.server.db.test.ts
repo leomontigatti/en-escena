@@ -24,7 +24,7 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-describe.sequential("choreography registration confirmation", () => {
+describe("choreography registration confirmation", () => {
   test("creates a choreography with dancer age snapshots, professors, and normalized Spanish title case on final confirmation", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Confirmación",

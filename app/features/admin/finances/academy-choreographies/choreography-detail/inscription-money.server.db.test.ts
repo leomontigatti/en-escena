@@ -191,7 +191,7 @@ async function readAllocations(inscriptionId: string) {
     .where(eq(paymentAllocations.choreographyInscriptionId, inscriptionId));
 }
 
-describe.sequential("money on an inscription through the route action", () => {
+describe("money on an inscription through the route action", () => {
   test("allocates an arbitrary amount and leaves the row deposit pending with its shortfall", async () => {
     const fixture = await seedInscription();
 

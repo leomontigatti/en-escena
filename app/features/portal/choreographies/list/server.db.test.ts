@@ -54,7 +54,7 @@ function daysFromNow(days: number): Date {
   return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 }
 
-describe.sequential("handlePortalChoreographiesListAction", () => {
+describe("handlePortalChoreographiesListAction", () => {
   test("exposes when there is no active event even if there are events to consult", async () => {
     const session = await createAcademySession({
       email: "coreografias.no-active-event@example.com",

@@ -106,7 +106,7 @@ async function seedSignedInscription(input: {
   return inscription;
 }
 
-describe.sequential("loadPortalAcademyFinances", () => {
+describe("loadPortalAcademyFinances", () => {
   test("shows only the authenticated academy active-event financial records", async () => {
     vi.spyOn(businessTimeZone, "getBusinessDateOnly").mockReturnValue(
       "2026-03-27",

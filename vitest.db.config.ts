@@ -1,5 +1,7 @@
 import { fileURLToPath } from "node:url";
 
+import type { UserConfig } from "vite";
+
 import { mergeConfig } from "vitest/config";
 import { configDefaults, defineConfig } from "vitest/config";
 
@@ -16,7 +18,7 @@ const standardWebhooksStub = fileURLToPath(
 );
 
 export default mergeConfig(
-  viteConfig,
+  viteConfig as UserConfig,
   defineConfig({
     resolve: {
       alias: [
@@ -39,13 +41,11 @@ export default mergeConfig(
       fileParallelism: false,
       include: ["**/*.db.test.ts"],
       maxConcurrency: 1,
+      // Vitest 5 dropped `minWorkers` and `poolOptions`; `fileParallelism:
+      // false` plus `maxWorkers: 1` is what keeps the suite serial within a
+      // runner — every file shares one database (see
+      // `docs/agents/test-suite-speed-plan.md`).
       maxWorkers: 1,
-      minWorkers: 1,
-      poolOptions: {
-        threads: {
-          singleThread: true,
-        },
-      },
       setupFiles: ["./tests/db/setup.ts"],
       sequence: {
         concurrent: false,

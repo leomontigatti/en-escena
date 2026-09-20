@@ -94,7 +94,7 @@ function deleteRequest(
   });
 }
 
-describe.sequential("portal seminar detail", () => {
+describe("portal seminar detail", () => {
   test("reads the seminar, the academy's own inscriptions and the people it may still register", async () => {
     const session = await createAcademySession({
       academyName: "Academia Seminarios",

@@ -1,5 +1,7 @@
 import { fileURLToPath } from "node:url";
 
+import type { UserConfig } from "vite";
+
 import { mergeConfig } from "vitest/config";
 import { configDefaults, defineConfig } from "vitest/config";
 
@@ -19,7 +21,7 @@ const fastDatabaseModule = fileURLToPath(
 );
 
 export default mergeConfig(
-  viteConfig,
+  viteConfig as UserConfig,
   defineConfig({
     resolve: {
       alias: [
@@ -47,7 +49,6 @@ export default mergeConfig(
       include: ["**/*.db.test.ts"],
       maxConcurrency: 1,
       maxWorkers: "50%",
-      minWorkers: 1,
       setupFiles: ["./tests/db/setup-fast.ts"],
       sequence: {
         concurrent: false,

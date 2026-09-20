@@ -28,7 +28,7 @@ import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-describe.sequential("portal loader event active", () => {
+describe("portal loader event active", () => {
   test("uses the active event in the shell summary", async () => {
     await createSavedEvent({
       name: "Regional 2025",
@@ -125,7 +125,7 @@ describe.sequential("portal loader event active", () => {
   });
 });
 
-describe.sequential("portal roster list loaders", () => {
+describe("portal roster list loaders", () => {
   test.each([
     ["Perfil", perfilLoader, "http://localhost/portal/perfil"],
     ["Finanzas", finanzasLoader, "http://localhost/portal/finanzas"],

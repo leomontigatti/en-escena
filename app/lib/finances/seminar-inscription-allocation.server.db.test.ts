@@ -202,7 +202,7 @@ async function readSelectedPriceId(inscriptionId: string) {
   return thresholds?.selectedPriceId ?? null;
 }
 
-describe.sequential("seminar inscription allocation", () => {
+describe("seminar inscription allocation", () => {
   test("offers each person only their own cell of the seminar's kind", async () => {
     const fixture = await seedFixture();
 
