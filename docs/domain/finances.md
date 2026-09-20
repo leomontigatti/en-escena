@@ -971,9 +971,9 @@ and no request actions. The restriction is **permanent and role-based**.
   financial views, because the minimum rollup pulls the choreography's status
   down. The save confirmation is a generic notice, with no amounts and no price
   selection.
-- **Hard blocks.** A choreography with an associated presentation cannot have its
-  roster edited. Deletion is blocked by an associated presentation and by any
-  comprobante. There is no `has_active_financial_link` column and no editing gate
+- **Hard blocks.** An evaluated choreography (its presentation has a score or a
+  disqualification) cannot have its roster edited. Deletion is blocked by the
+  evaluation and by any comprobante. There is no `has_active_financial_link` column and no editing gate
   derived from financial state.
 
 ## No auditing in finances

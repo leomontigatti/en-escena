@@ -77,7 +77,7 @@ Administrative choreography view centered on financial state.
 _Avoid_: `choreographyOperationalList`, `academyAccountBalance`
 
 **`choreographyParticipationList`** — ui: "Lista de participación de coreografías"
-Administrative choreography view centered on presentations, program and evaluation.
+Administrative choreography view centered on presentations, program and evaluation, shown as `Presentación` in the sidebar: where the administrator orders the presentations of the active event and assigns judges. It lists the choreographies that have a `presentation` or are at least `Señada`.
 _Avoid_: `choreographyOperationalList`, `choreographyFinancialList`
 
 **`participating`** — ui: "Participando"
@@ -297,15 +297,23 @@ Financial situation of a choreography: the **minimum** `inscriptionFinancialStat
 _Avoid_: `choreographyOperationalStatus`, `eventStatus`, watermark, needs attention
 
 **`presentation`** — ui: "Presentación"
-Ordered instance of a choreography for the event day.
-_Avoid_: `choreography`, `choreographyOperationalStatus`, `choreographyFinancialStatus`
+Ordered instance of a choreography for the event day: a row of its own, one-to-one with the choreography, holding its order number (`N.º`) within the event. A choreography needs to be at least `Señada` to get one and nothing to keep it. Created only by the automatic ordering or by placing a late choreography by hand.
+_Avoid_: `choreography`, `choreographyNumber` (the number a choreography is searched by, not its place in the order), `choreographyOperationalStatus`, `choreographyFinancialStatus`
+
+**`dancerSpacing`** — ui: "Separación de bailarines"
+The minimum of four presentations between two that share an active dancer, counted within one schedule. The automatic ordering enforces it inside a block, and a clash it could not avoid, or one a manual move or a roster change created, shows as a `presentationWarning` (`Separación`).
+_Avoid_: costume change, gap setting, professor spacing
+
+**`presentationWarning`** — ui: "Advertencia"
+Derived, informational flag on a row of the `choreographyParticipationList`: never stored, blocks nothing. Its kinds are `belowDeposit` (`Seña pendiente`), `dancerSpacing` (`Separación`) and `outOfBlock` (`Fuera de bloque`: placed outside the block its schedule, category and group type put it in). Only `belowDeposit` reaches the portal; none reaches the `eventProgram`.
+_Avoid_: error, validation, lock
 
 **`participationStatus`** — ui: "Estado de participación"
 State derived from a choreography's presentation at the event.
 _Avoid_: `choreographyOperationalStatus`, `choreographyFinancialStatus`
 
 **`judgeAssignment`** — ui: "Asignación de juez"
-Relation between a judge and the presentations they must evaluate.
+Relation between one judge and one `presentation` they must evaluate, unique per pair. Assigned and removed in bulk from the `choreographyParticipationList`; it survives a reordering, and the judge's suspension or change of role.
 _Avoid_: `presentation`, `score`
 
 **`ranking`** — ui: "Ranking"
@@ -317,7 +325,7 @@ Public results view released manually by administration.
 _Avoid_: `preliminaryRanking`, `feedbackAudio`
 
 **`eventProgram`** — ui: "Programa del evento"
-Public view of an event's chronological presentation order.
+Public view of the active event's presentations in order, at `/programa`, without login and only while the event's program is visible. It lists every `presentation`, with non-competitive data only.
 _Avoid_: `publishedResults`, `ranking`
 
 **`academyResults`** — ui: "Resultados de academia"
