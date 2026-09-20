@@ -1,7 +1,12 @@
 import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
-import { choreographyDancers, dancers, events } from "@/db/schema";
+import {
+  choreographies,
+  choreographyDancers,
+  dancers,
+  events,
+} from "@/db/schema";
 import { activeInscription } from "@/lib/choreographies/active-inscription";
 import {
   getAgeAtDate,
@@ -22,9 +27,8 @@ type Executor = Transaction | typeof db;
  * their stored age is the record of what that dancer competed with, not a
  * value to keep current.
  *
- * The ages arrive already computed, grouped into one update per distinct age:
- * a 312-dancer roster spans a handful of them, so this never grows into a
- * write per row.
+ * The ages arrive already computed, grouped into one update per distinct age
+ * rather than one per row: a roster spans far fewer ages than dancers.
  */
 export async function refreshActiveInscriptionAges(
   executor: Executor,
@@ -56,44 +60,46 @@ export async function refreshActiveInscriptionAges(
 /**
  * The same refresh for a save that never resolves the roster —a rename, or a
  * professors-only edit— and therefore has no computed ages in hand. It derives
- * them here, from the dancers' birth dates against the event's current start,
- * and touches nothing else: the placement a save like that leaves on the
- * choreography is not this function's business.
+ * them here, from the dancers' birth dates against the start of the
+ * choreography's own event, and touches nothing else: the placement a save like
+ * that leaves on the choreography is not this function's business.
+ *
+ * One read: the event is reached through the choreography rather than taken
+ * from the caller, so there is no second lookup and no way to normalize against
+ * the wrong event's start date.
  */
-export async function normaliseActiveInscriptionAges(input: {
+export async function normalizeActiveInscriptionAges(input: {
   choreographyId: string;
-  eventId: string;
 }): Promise<void> {
-  const event = await db.query.events.findFirst({
-    columns: { startsAt: true },
-    where: eq(events.id, input.eventId),
-  });
-
-  if (!event) {
-    return;
-  }
-
   const links = await db
     .select({
       birthDate: dancers.birthDate,
       dancerId: choreographyDancers.dancerId,
+      eventStartsAt: events.startsAt,
     })
     .from(choreographyDancers)
     .innerJoin(dancers, eq(dancers.id, choreographyDancers.dancerId))
+    .innerJoin(
+      choreographies,
+      eq(choreographies.id, choreographyDancers.choreographyId),
+    )
+    .innerJoin(events, eq(events.id, choreographies.eventId))
     .where(
       and(
         eq(choreographyDancers.choreographyId, input.choreographyId),
         activeInscription(),
       ),
     );
-  const eventLocalStartDate = getEventLocalDateParts(event.startsAt);
 
   await refreshActiveInscriptionAges(db, {
     choreographyId: input.choreographyId,
     ageByDancerId: new Map(
       links.map((link) => [
         link.dancerId,
-        getAgeAtDate(link.birthDate, eventLocalStartDate),
+        getAgeAtDate(
+          link.birthDate,
+          getEventLocalDateParts(link.eventStartsAt),
+        ),
       ]),
     ),
   });

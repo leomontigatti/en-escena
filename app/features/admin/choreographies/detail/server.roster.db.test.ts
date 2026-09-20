@@ -1473,7 +1473,7 @@ describe("`Estado de alta` on the administrative roster editor", () => {
     });
   });
 
-  test("normalises a stale stored age on a save that changes nothing about the roster", async () => {
+  test("normalizes a stale stored age on a save that changes nothing about the roster", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Edad Sin Cambios",
       email: "roster.edad.sin.cambios.academia@example.com",
@@ -1510,6 +1510,18 @@ describe("`Estado de alta` on the administrative roster editor", () => {
 
     const ageByDancerId = await readAgesByDancerId(choreography.id);
     expect(ageByDancerId).toEqual(new Map([[dancer.id, 16]]));
+
+    // The normalization deliberately stops at the inscriptions: a save that
+    // resolves no roster writes no placement, so the choreography is left
+    // exactly as it was.
+    const stored = await db.query.choreographies.findFirst({
+      columns: { categoryId: true, groupType: true },
+      where: eq(choreographies.id, choreography.id),
+    });
+    expect(stored).toMatchObject({
+      categoryId: catalog.teenCategory.id,
+      groupType: "solo",
+    });
   });
 });
 

@@ -23,7 +23,7 @@ import {
   type UpdateChoreographyResult,
 } from "@/lib/choreographies/choreography-roster.shared";
 import {
-  normaliseActiveInscriptionAges,
+  normalizeActiveInscriptionAges,
   refreshActiveInscriptionAges,
 } from "@/lib/choreographies/inscription-age.server";
 import {
@@ -113,7 +113,7 @@ export async function updateAdministrativeChoreographyRoster(input: {
 
   if (!dancerIdsChanged && !professorIdsChanged) {
     await renameChoreographyIfNeeded(input);
-    await normaliseActiveInscriptionAges(input);
+    await normalizeActiveInscriptionAges(input);
 
     return { ok: true };
   }
@@ -167,7 +167,7 @@ export async function updateAdministrativeChoreographyRoster(input: {
 
   if (!dancerIdsChanged) {
     await renameChoreographyIfNeeded(input);
-    await normaliseActiveInscriptionAges(input);
+    await normalizeActiveInscriptionAges(input);
   }
 
   return { ok: true };
