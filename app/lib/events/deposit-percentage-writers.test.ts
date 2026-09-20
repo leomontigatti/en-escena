@@ -9,27 +9,33 @@ import { collectSourceFiles } from "../../../scripts/source-files";
 // `requiredDepositPercentage` is structural: `hasStructuralEventChanges` lists
 // it, so `updateEvent` refuses to write it once the event has choreographies
 // (#1042). That guard only covers the field while `updateEvent` is the only
-// writer of it — #1051 found a second one,
+// path that updates it — #1051 found a second one,
 // `updateEventRequiredDepositPercentage`, which wrote the column with no guard
 // at all and was reached by nothing but its own tests. Deleting it closed the
 // hole; this guardrail is what keeps the next writer from reopening it
 // silently, because a new `.set({ requiredDepositPercentage })` anywhere else
-// fails here rather than shipping unnoticed.
-const guardedWriter = {
-  filePath: "app/lib/events/management.server.ts",
-  functionName: "updateEvent",
-};
+// fails here rather than shipping unnoticed. (`createEvent`'s insert is not a
+// writer in this sense: a brand-new event has no choreographies to guard.)
+const guardedWriterFile = "app/lib/events/management.server.ts";
 
 const repositoryRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../../../",
 );
+// Every directory that ships code able to reach the database, so a writer added
+// outside `app/` is not invisible to the sweep.
+const scannedDirectories = ["app", "scripts"];
 const sourceFilePattern = /\.(ts|tsx)$/;
 const testFilePattern = /\.(test|test-support|db)\.(ts|tsx)$/;
 
 describe("deposit percentage writers", () => {
   test("only the guarded update writes the event deposit percentage", () => {
-    expect(findDepositPercentageWriters()).toEqual([guardedWriter]);
+    const writers = findDepositPercentageWriters();
+
+    expect(
+      writers.map(({ filePath }) => filePath),
+      describeWriters(writers),
+    ).toEqual([guardedWriterFile]);
   });
 });
 
@@ -38,19 +44,31 @@ type DepositPercentageWriter = {
   functionName: string;
 };
 
+/**
+ * The enclosing function name is reported but deliberately not asserted:
+ * renaming `updateEvent` changes no behaviour and must not fail this test. It
+ * is here so a failure names the offending function instead of only its file.
+ */
+function describeWriters(writers: DepositPercentageWriter[]) {
+  return `Writers found: ${writers
+    .map(({ filePath, functionName }) => `${filePath} → ${functionName}`)
+    .join(", ")}`;
+}
+
 function findDepositPercentageWriters(): DepositPercentageWriter[] {
-  return collectSourceFiles({
-    directoryPath: path.join(repositoryRoot, "app"),
-    keeps: (fileName) =>
-      sourceFilePattern.test(fileName) && !testFilePattern.test(fileName),
-  })
+  return scannedDirectories
+    .flatMap((directory) =>
+      collectSourceFiles({
+        directoryPath: path.join(repositoryRoot, directory),
+        keeps: (fileName) =>
+          sourceFilePattern.test(fileName) && !testFilePattern.test(fileName),
+      }),
+    )
     .flatMap((filePath) => {
       const source = readFileSync(filePath, "utf8");
 
       return findUpdateArguments(source)
-        .filter((update) =>
-          update.argument.includes("requiredDepositPercentage"),
-        )
+        .filter((update) => writesDepositPercentage(source, update.argument))
         .map((update) => ({
           filePath: path
             .relative(repositoryRoot, filePath)
@@ -59,6 +77,31 @@ function findDepositPercentageWriters(): DepositPercentageWriter[] {
         }));
     })
     .sort((first, second) => first.filePath.localeCompare(second.filePath));
+}
+
+/**
+ * Hoisting the update values into a variable — `const values = {
+ * requiredDepositPercentage }; …set(values)` — is the cheapest way to write the
+ * column without the name appearing at the call site, so an argument that is a
+ * bare identifier is resolved against its declaration in the same file before
+ * being judged.
+ */
+function writesDepositPercentage(source: string, argument: string): boolean {
+  if (argument.includes("requiredDepositPercentage")) {
+    return true;
+  }
+
+  const identifier = argument.trim();
+
+  if (!/^[A-Za-z0-9_$]+$/.test(identifier)) {
+    return false;
+  }
+
+  const declaration = new RegExp(
+    `(?:const|let|var)\\s+${identifier}\\s*(?::[^=]*)?=([^;]*)`,
+  ).exec(source);
+
+  return declaration?.[1]?.includes("requiredDepositPercentage") ?? false;
 }
 
 /**
@@ -99,9 +142,14 @@ function findClosingParenthesis(source: string, start: number) {
   return source.length;
 }
 
+/**
+ * Covers both shapes a writer can take — a `function` declaration and a
+ * `const name = (…) =>` — so the failure message names something a reader can
+ * search for rather than falling back to the file.
+ */
 function enclosingFunctionName(source: string, index: number) {
   const declarationPattern =
-    /^(?:export )?(?:async )?function ([A-Za-z0-9_$]+)/gm;
+    /^(?:export )?(?:async )?(?:function ([A-Za-z0-9_$]+)|(?:const|let) ([A-Za-z0-9_$]+)\s*(?::[^=]*)?=\s*(?:async\s*)?[(<])/gm;
   let name = "<module>";
   let match: RegExpExecArray | null;
 
@@ -110,7 +158,7 @@ function enclosingFunctionName(source: string, index: number) {
       break;
     }
 
-    name = match[1] ?? name;
+    name = match[1] ?? match[2] ?? name;
   }
 
   return name;

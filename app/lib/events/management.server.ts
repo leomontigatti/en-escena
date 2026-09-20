@@ -8,17 +8,6 @@ import {
   invalidRequiredDepositPercentageMessage,
 } from "@/lib/events/deposit-percentage";
 
-/**
- * `updateEvent` is the only writer of an event's `requiredDepositPercentage`,
- * and #1051 is the decision that keeps it that way. The field is structural —
- * `hasStructuralEventChanges` lists it — so writing it anywhere else means
- * writing it past the dependency guard #1042 made reachable. That is what
- * `updateEventRequiredDepositPercentage` did: a second writer with no guard,
- * reached by nothing but its own tests, so it was deleted rather than guarded.
- * A new deposit-percentage screen edits the field through `updateEvent`;
- * `deposit-percentage-writers.test.ts` fails on any other writer.
- */
-
 const ACTIVE_EVENT_UNIQUE_CONSTRAINT = "event_single_active_unique";
 
 const ACTIVE_EVENT_EXISTS_ERROR =
@@ -163,6 +152,12 @@ export async function activateEvent(
   }
 }
 
+/**
+ * The only path that may change an existing event's structural fields, the
+ * `requiredDepositPercentage` among them: a second writer of that column would
+ * write it past the dependency guard below. #1051 deleted the one that existed;
+ * `deposit-percentage-writers.test.ts` holds the decision.
+ */
 export async function updateEvent(
   eventId: string,
   input: CreateEventInput,
