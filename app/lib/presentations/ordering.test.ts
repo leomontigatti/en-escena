@@ -22,6 +22,7 @@ function row({
     category: { maxAge: 12, minAge: 1, name: "Infantil" },
     choreographyId,
     choreographyNumber,
+    experienceLevel: null,
     financialStatus: "depositMet",
     groupType: "solo",
     orderNumber: null,
@@ -213,6 +214,150 @@ describe("computeAutomaticOrder", () => {
     ]);
   });
 
+  test("blocks by experience level before category, within one schedule", () => {
+    const rows = [
+      row({
+        choreographyId: "amateur-child",
+        choreographyNumber: 1,
+        experienceLevel: "amateur",
+      }),
+      row({
+        choreographyId: "nudo-teen",
+        choreographyNumber: 2,
+        category: { maxAge: 100, minAge: 13, name: "Juvenil" },
+        experienceLevel: "nudo",
+      }),
+      row({
+        choreographyId: "elite-child",
+        choreographyNumber: 3,
+        experienceLevel: "elite",
+      }),
+      row({
+        choreographyId: "nudo-child",
+        choreographyNumber: 4,
+        experienceLevel: "nudo",
+      }),
+      row({
+        choreographyId: "pre-elite-child",
+        choreographyNumber: 5,
+        experienceLevel: "pre_elite",
+      }),
+      row({
+        choreographyId: "profesional-child",
+        choreographyNumber: 6,
+        experienceLevel: "profesional",
+      }),
+      row({
+        choreographyId: "pro-am-child",
+        choreographyNumber: 7,
+        experienceLevel: "pro_am",
+      }),
+      row({ choreographyId: "no-level-child", choreographyNumber: 8 }),
+    ];
+
+    expect(orderOf(rows)).toEqual([
+      "nudo-child",
+      "nudo-teen",
+      "amateur-child",
+      "profesional-child",
+      "pre-elite-child",
+      "elite-child",
+      "pro-am-child",
+      "no-level-child",
+    ]);
+  });
+
+  test("keeps the schedule as the outermost key, above the experience level", () => {
+    const evening = {
+      id: "s2",
+      name: "Sala A",
+      scheduledDate: "2026-05-01",
+      startTime: "18:00",
+    };
+    const rows = [
+      row({
+        choreographyId: "evening-nudo",
+        choreographyNumber: 1,
+        experienceLevel: "nudo",
+        schedule: evening,
+      }),
+      row({
+        choreographyId: "morning-elite",
+        choreographyNumber: 2,
+        experienceLevel: "elite",
+      }),
+    ];
+
+    expect(orderOf(rows)).toEqual(["morning-elite", "evening-nudo"]);
+  });
+
+  test("orders a schedule with no level at all exactly as before", () => {
+    const rows = [
+      row({
+        choreographyId: "teen",
+        choreographyNumber: 1,
+        category: { maxAge: 100, minAge: 13, name: "Juvenil" },
+      }),
+      row({
+        choreographyId: "child-duo",
+        choreographyNumber: 2,
+        groupType: "duo",
+      }),
+      row({ choreographyId: "child-solo", choreographyNumber: 3 }),
+    ];
+
+    expect(orderOf(rows)).toEqual(["child-solo", "child-duo", "teen"]);
+  });
+
+  test("keeps the age and group type order inside one experience level", () => {
+    const teen = { maxAge: 100, minAge: 13, name: "Juvenil" };
+    const rows = [
+      row({
+        choreographyId: "nudo-teen",
+        choreographyNumber: 1,
+        category: teen,
+        experienceLevel: "nudo",
+      }),
+      row({
+        choreographyId: "amateur-child",
+        choreographyNumber: 2,
+        experienceLevel: "amateur",
+      }),
+      row({
+        choreographyId: "nudo-child-grupal",
+        choreographyNumber: 3,
+        experienceLevel: "nudo",
+        groupType: "grupal",
+      }),
+      row({
+        choreographyId: "nudo-child-duo",
+        choreographyNumber: 4,
+        experienceLevel: "nudo",
+        groupType: "duo",
+      }),
+      row({
+        choreographyId: "nudo-child-trio",
+        choreographyNumber: 5,
+        experienceLevel: "nudo",
+        groupType: "trio",
+      }),
+      row({
+        choreographyId: "nudo-child-solo",
+        choreographyNumber: 6,
+        experienceLevel: "nudo",
+      }),
+    ];
+
+    expect(orderOf(rows)).toEqual([
+      "nudo-child-solo",
+      "nudo-child-duo",
+      "nudo-child-trio",
+      "nudo-child-grupal",
+      "nudo-teen",
+      "amateur-child",
+    ]);
+  });
+
   test("is deterministic under a shuffled input", () => {
     const rows = [
       row({
@@ -319,6 +464,34 @@ describe("computeAutomaticOrder", () => {
       ];
 
       expect(orderOf(rows)).toEqual(["child", "teen-free", "teen-shared"]);
+    });
+
+    test("never moves a row out of its experience level block", () => {
+      const rows = [
+        row({
+          choreographyId: "nudo-shared",
+          choreographyNumber: 1,
+          activeDancerIds: ["ana"],
+          experienceLevel: "nudo",
+        }),
+        row({
+          choreographyId: "nudo-other",
+          choreographyNumber: 2,
+          activeDancerIds: ["ana"],
+          experienceLevel: "nudo",
+        }),
+        row({
+          choreographyId: "amateur-free",
+          choreographyNumber: 3,
+          experienceLevel: "amateur",
+        }),
+      ];
+
+      expect(orderOf(rows)).toEqual([
+        "nudo-shared",
+        "nudo-other",
+        "amateur-free",
+      ]);
     });
 
     test("starts the gap over at a new schedule", () => {

@@ -9,6 +9,21 @@ const experienceLevelValues = [
 
 type ExperienceLevel = (typeof experienceLevelValues)[number];
 
+/**
+ * The levels from the least to the most experienced, as the presentation order
+ * runs through them. It is written out instead of derived from
+ * `experienceLevelValues` because that one is the pg enum's declaration order,
+ * which cannot be reordered without recreating the type.
+ */
+const experienceLevelOrder: readonly ExperienceLevel[] = [
+  "nudo",
+  "amateur",
+  "profesional",
+  "pre_elite",
+  "elite",
+  "pro_am",
+];
+
 const experienceLevelLabels: Record<string, string> = {
   amateur: "Amateur",
   profesional: "Profesional",
@@ -32,6 +47,7 @@ function isExperienceLevel(value: string): value is ExperienceLevel {
 export {
   experienceLevelLabels,
   experienceLevelOptions,
+  experienceLevelOrder,
   experienceLevelValues,
   isExperienceLevel,
 };
