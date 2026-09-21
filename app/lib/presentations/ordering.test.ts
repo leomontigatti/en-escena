@@ -309,6 +309,55 @@ describe("computeAutomaticOrder", () => {
     expect(orderOf(rows)).toEqual(["child-solo", "child-duo", "teen"]);
   });
 
+  test("keeps the age and group type order inside one experience level", () => {
+    const teen = { maxAge: 100, minAge: 13, name: "Juvenil" };
+    const rows = [
+      row({
+        choreographyId: "nudo-teen",
+        choreographyNumber: 1,
+        category: teen,
+        experienceLevel: "nudo",
+      }),
+      row({
+        choreographyId: "amateur-child",
+        choreographyNumber: 2,
+        experienceLevel: "amateur",
+      }),
+      row({
+        choreographyId: "nudo-child-grupal",
+        choreographyNumber: 3,
+        experienceLevel: "nudo",
+        groupType: "grupal",
+      }),
+      row({
+        choreographyId: "nudo-child-duo",
+        choreographyNumber: 4,
+        experienceLevel: "nudo",
+        groupType: "duo",
+      }),
+      row({
+        choreographyId: "nudo-child-trio",
+        choreographyNumber: 5,
+        experienceLevel: "nudo",
+        groupType: "trio",
+      }),
+      row({
+        choreographyId: "nudo-child-solo",
+        choreographyNumber: 6,
+        experienceLevel: "nudo",
+      }),
+    ];
+
+    expect(orderOf(rows)).toEqual([
+      "nudo-child-solo",
+      "nudo-child-duo",
+      "nudo-child-trio",
+      "nudo-child-grupal",
+      "nudo-teen",
+      "amateur-child",
+    ]);
+  });
+
   test("is deterministic under a shuffled input", () => {
     const rows = [
       row({
