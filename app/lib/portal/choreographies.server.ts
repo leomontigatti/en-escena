@@ -17,12 +17,13 @@ import { activeInscription } from "@/lib/choreographies/active-inscription";
 import { deriveChoreographyOperationalStatus } from "@/lib/choreographies/operational-status";
 import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
 import type { PortalChoreographyListItem } from "@/lib/portal/choreographies";
+import { hasEvaluatedPresentation } from "@/lib/presentations/evaluation-lock.server";
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
 
 export type PortalChoreographyDetail = PortalChoreographyListItem & {
   categoryId: string;
   experienceLevelId: string | null;
-  hasPresentation?: boolean;
+  isEvaluated: boolean;
   /**
    * Whether the resolved category declares levels. The academy does not edit the
    * level, but it does need to tell "not applicable" from "missing": two kinds of
@@ -63,7 +64,6 @@ type ChoreographyRow = {
 };
 
 type ChoreographyDetailRow = ChoreographyRow & {
-  hasPresentation: boolean;
   scheduleId: string;
   scheduleName: string;
   scheduleDate: string;
@@ -117,7 +117,6 @@ export async function findChoreographyForAcademyEvent(
       groupType: choreographies.groupType,
       categoryId: choreographies.categoryId,
       experienceLevelId: choreographies.experienceLevelId,
-      hasPresentation: choreographies.hasPresentation,
       musicStorageKey: choreographies.musicStorageKey,
       modalityName: modalities.name,
       submodalityName: submodalities.name,
@@ -152,7 +151,8 @@ export async function findChoreographyForAcademyEvent(
   }
 
   const [base] = await hydrateChoreographyRows([row]);
-  const [dancerRows, professorRows] = await Promise.all([
+  const [isEvaluated, dancerRows, professorRows] = await Promise.all([
+    hasEvaluatedPresentation(choreographyId),
     db
       .select({
         id: dancers.id,
@@ -192,7 +192,7 @@ export async function findChoreographyForAcademyEvent(
     ...base,
     categoryId: row.categoryId,
     experienceLevelId: row.experienceLevelId,
-    hasPresentation: row.hasPresentation,
+    isEvaluated,
     musicStorageKey: row.musicStorageKey,
     requiresExperienceLevel: row.categoryExperienceLevels.length > 0,
     scheduleCapacityId:

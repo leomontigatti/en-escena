@@ -33,7 +33,7 @@ export function ChoreographyMusicEditorForm({
 }) {
   const choreography = loaderData.choreography;
   const canEditMusic =
-    !loaderData.eventContext.isReadOnly && !choreography.hasPresentation;
+    !loaderData.eventContext.isReadOnly && !choreography.isEvaluated;
   const [musicHasValidationError, setMusicHasValidationError] = useState(false);
   const [selectedMusicFileName, setSelectedMusicFileName] = useState<
     string | null

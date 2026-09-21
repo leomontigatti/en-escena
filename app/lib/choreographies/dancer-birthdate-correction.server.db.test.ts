@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { describe, expect, test } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import {
@@ -30,6 +30,20 @@ import {
 } from "@/lib/choreographies/registration-test-fixtures.server.db";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
+import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
+
+// The evaluated lock is a seam with no body yet (evaluation-lock.server.ts), so
+// a test that needs a closed choreography declares it here.
+vi.mock(
+  "@/lib/presentations/evaluation-lock.server",
+  async () =>
+    (await import("@/lib/presentations/evaluation-lock.test-support"))
+      .evaluationLockStub,
+);
+
+beforeEach(() => {
+  evaluatedChoreographyIds.clear();
+});
 
 installDatabaseTestHooks();
 
@@ -62,7 +76,6 @@ describe("dancer birth date choreography correction", () => {
       categoryId: preserveCatalog.youngerCategory.id,
       eventId: preserveCatalog.event.id,
       experienceLevelId: preserveCatalog.level.id,
-      hasPresentation: false,
       modalityId: preserveCatalog.modality.id,
       name: "Preserva",
       scheduleCapacityId: preserveCatalog.scheduleCapacity.id,
@@ -72,7 +85,6 @@ describe("dancer birth date choreography correction", () => {
       categoryId: clearCatalog.youngerCategory.id,
       eventId: clearCatalog.event.id,
       experienceLevelId: clearCatalog.level.id,
-      hasPresentation: false,
       modalityId: clearCatalog.modality.id,
       name: "Limpia",
       scheduleCapacityId: clearCatalog.scheduleCapacity.id,
@@ -82,7 +94,7 @@ describe("dancer birth date choreography correction", () => {
       categoryId: presentedCatalog.youngerCategory.id,
       eventId: presentedCatalog.event.id,
       experienceLevelId: presentedCatalog.level.id,
-      hasPresentation: true,
+      isEvaluated: true,
       modalityId: presentedCatalog.modality.id,
       name: "Presentada",
       scheduleCapacityId: presentedCatalog.scheduleCapacity.id,
@@ -161,7 +173,6 @@ describe("dancer birth date choreography correction", () => {
       categoryAgeBasis: 10,
       eventId: catalog.event.id,
       experienceLevelId: null,
-      hasPresentation: false,
       modalityId: catalog.modality.id,
       name: "Solo sin repuesto",
       scheduleCapacityId: catalog.scheduleCapacity.id,
@@ -231,7 +242,6 @@ describe("dancer birth date choreography correction", () => {
       categoryAgeBasis: 10,
       eventId: catalog.event.id,
       experienceLevelId: null,
-      hasPresentation: false,
       modalityId: catalog.modality.id,
       name: "Primera",
       scheduleCapacityId: catalog.scheduleCapacity.id,
@@ -242,7 +252,6 @@ describe("dancer birth date choreography correction", () => {
       categoryAgeBasis: 10,
       eventId: catalog.event.id,
       experienceLevelId: null,
-      hasPresentation: false,
       modalityId: catalog.modality.id,
       name: "Segunda",
       scheduleCapacityId: catalog.scheduleCapacity.id,
@@ -331,7 +340,6 @@ describe("dancer birth date choreography correction", () => {
       eventId: catalog.event.id,
       experienceLevelId: null,
       groupType: "grupal",
-      hasPresentation: false,
       modalityId: catalog.modality.id,
       name: "Promedio envenenado",
       scheduleCapacityId: catalog.scheduleCapacity.id,
@@ -522,7 +530,7 @@ async function createLinkedChoreography(input: {
   categoryId: string;
   experienceLevelId: string | null;
   scheduleCapacityId: string;
-  hasPresentation: boolean;
+  isEvaluated?: boolean;
   groupType?: "solo" | "grupal";
   categoryCalculationMode?: "oldest" | "group_average";
   categoryAgeBasis?: number;
@@ -549,9 +557,12 @@ async function createLinkedChoreography(input: {
           : null,
       scheduleId: await readFixtureCapacityScheduleId(input.scheduleCapacityId),
       scheduleCapacityId: input.scheduleCapacityId,
-      hasPresentation: input.hasPresentation,
     })
     .returning();
+
+  if (input.isEvaluated) {
+    evaluatedChoreographyIds.add(choreography.id);
+  }
 
   return choreography;
 }

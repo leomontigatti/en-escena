@@ -89,7 +89,7 @@ export function useRosterForm({
     getSelectionKey(persistedProfessorIds);
   const hasNameChanged = watchedName.trim() !== choreography.name;
 
-  const canEditRoster = loaderData.canEdit && !choreography.hasPresentation;
+  const canEditRoster = loaderData.canEdit && !choreography.isEvaluated;
   const isResolving = resolutionFetcher.state !== "idle";
   const isSubmitting = isRouteFormPending(navigation, {
     intent: updateChoreographyRosterIntent,

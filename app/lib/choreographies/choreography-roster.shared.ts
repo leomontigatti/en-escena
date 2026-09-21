@@ -1,3 +1,4 @@
+import { evaluatedChoreographyMessage } from "@/lib/choreographies/choreography-messages";
 import type {
   ChoreographyRegistrationOperationResolution,
   ResolvedRegistrationDancer,
@@ -18,7 +19,7 @@ export type ChoreographyDancerOption = {
   active: boolean;
 };
 
-export type DancerEditingBlockReason = "presentation";
+export type DancerEditingBlockReason = "evaluated";
 
 export type DancerEditingEligibility =
   | {
@@ -164,7 +165,6 @@ export type ResolvedChoreographyDancerUpdateContext =
         experienceLevelId: string | null;
         scheduleId: string;
         scheduleCapacityId: string | null;
-        hasPresentation: boolean;
       };
       resolvedDancers: ResolvedRegistrationDancer[];
       resolution: ChoreographyRegistrationOperationResolution;
@@ -191,14 +191,15 @@ type ResolvedChoreographyCategory = {
 };
 
 export function getDancerEditingEligibility(input: {
-  hasPresentation: boolean;
+  isEvaluated: boolean;
 }): DancerEditingEligibility {
-  if (input.hasPresentation) {
+  if (input.isEvaluated) {
     return {
       canEdit: false,
-      reasonCode: "presentation",
-      reasonText:
-        "No podés editar los bailarines de esta coreografía porque ya tiene una presentación asociada.",
+      reasonCode: "evaluated",
+      // The evaluated lock speaks with one sentence everywhere, roster
+      // included: the choreography is closed as a whole, not field by field.
+      reasonText: evaluatedChoreographyMessage,
     };
   }
 

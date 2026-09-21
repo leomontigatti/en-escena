@@ -1,6 +1,5 @@
 import { sql } from "drizzle-orm";
 import {
-  boolean,
   foreignKey,
   index,
   integer,
@@ -67,7 +66,6 @@ export const choreographies = createTable(
       length: 255,
     }),
     musicStorageKey: text("music_storage_key"),
-    hasPresentation: boolean("has_presentation").notNull().default(false),
     createdAt: timestamp("created_at", {
       mode: "date",
       withTimezone: true,

@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { describe, expect, test } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import {
@@ -44,6 +44,20 @@ import {
   isPgliteTestBackend,
 } from "../../../../../tests/db/harness";
 import { choreographyAnchor } from "@/lib/comprobantes/anchor";
+import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
+
+// The evaluated lock is a seam with no body yet (evaluation-lock.server.ts), so
+// a test that needs a closed choreography declares it here.
+vi.mock(
+  "@/lib/presentations/evaluation-lock.server",
+  async () =>
+    (await import("@/lib/presentations/evaluation-lock.test-support"))
+      .evaluationLockStub,
+);
+
+beforeEach(() => {
+  evaluatedChoreographyIds.clear();
+});
 
 installDatabaseTestHooks();
 
@@ -369,7 +383,7 @@ describe("administrative choreography roster editing", () => {
     expect(afterDeallocation?.withdrawnAt).toEqual(withdrawn?.withdrawnAt);
   });
 
-  test("hard-locks roster editing when the choreography has a presentation", async () => {
+  test("hard-locks roster editing once the choreography was evaluated", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Roster Lock",
       email: "roster.lock.academia@example.com",
@@ -385,12 +399,12 @@ describe("administrative choreography roster editing", () => {
       categoryId: catalog.teenCategory.id,
       eventId: event.id,
       groupType: "solo",
-      hasPresentation: true,
       modalityId: catalog.modality.id,
       name: "Solo",
       scheduleCapacityId: catalog.soloScheduleCapacity.id,
       submodalityId: catalog.submodality.id,
     });
+    evaluatedChoreographyIds.add(choreography.id);
     await db.insert(choreographyDancers).values({
       ageAtEventStart: 14,
       choreographyId: choreography.id,

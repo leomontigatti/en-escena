@@ -22,6 +22,7 @@ import {
 } from "@/lib/choreographies/registration-resolution.server";
 import { getEventBases, type EventBases } from "@/lib/events/bases.server";
 import { isExperienceLevel } from "@/lib/events/experience-levels";
+import { findEvaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.server";
 
 type DatabaseExecutor = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type QueryExecutor = typeof db | DatabaseExecutor;
@@ -321,11 +322,18 @@ export async function loadLinkedChoreographyEventBasesForDancerBirthDateCorrecti
   return new Map(eventBasesEntries);
 }
 
+/**
+ * The choreographies a birth-date correction may re-place the dancer in: the
+ * active inscriptions they belong to, minus the ones already evaluated. The
+ * evaluated ones are filtered in memory and not in the `where`, because being
+ * evaluated is not a column of the choreography any more but an answer the
+ * seam gives — see evaluation-lock.server.ts.
+ */
 async function listEligibleChoreographies(
   executor: QueryExecutor,
   dancerId: string,
 ) {
-  return executor
+  const rows = await executor
     .select({
       choreographyId: choreographies.id,
       choreographyNumber: choreographies.choreographyNumber,
@@ -346,12 +354,14 @@ async function listEligibleChoreographies(
     )
     .innerJoin(events, eq(choreographies.eventId, events.id))
     .where(
-      and(
-        eq(choreographyDancers.dancerId, dancerId),
-        eq(choreographies.hasPresentation, false),
-        activeInscription(),
-      ),
+      and(eq(choreographyDancers.dancerId, dancerId), activeInscription()),
     );
+  const evaluatedIds = await findEvaluatedChoreographyIds(
+    rows.map((row) => row.choreographyId),
+    executor,
+  );
+
+  return rows.filter((row) => !evaluatedIds.has(row.choreographyId));
 }
 
 function toCompetitivePlacementFromChoreography(

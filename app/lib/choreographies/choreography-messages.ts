@@ -3,6 +3,19 @@ import { groupTypeLabels, type GroupType } from "@/lib/events/group-types";
 export const choreographyNotFoundMessage = "No encontramos esa coreografía.";
 
 /**
+ * The one sentence the evaluated lock speaks with: the alert the detail renders
+ * and every refusal the server returns. The lock is not per field — an
+ * evaluated choreography is closed as a whole, so naming the field the form
+ * happened to send would suggest the others are open.
+ *
+ * It lives here rather than beside the seam
+ * (app/lib/presentations/evaluation-lock.server.ts) because the alert is a
+ * client component and cannot import a server module.
+ */
+export const evaluatedChoreographyMessage =
+  "Esta coreografía ya fue evaluada y no puede modificarse.";
+
+/**
  * A single text for the experience-level rejection. It lives here and not in the
  * roster module because portal sign-up, roster saving and the detail's standalone
  * reassignment all share it, and the validator the three of them use cannot

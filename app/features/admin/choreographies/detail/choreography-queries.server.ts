@@ -15,6 +15,8 @@ import { deriveChoreographyOperationalStatus } from "@/lib/choreographies/operat
 import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
+import { hasEvaluatedPresentation } from "@/lib/presentations/evaluation-lock.server";
+import { findPresentationOrderNumber } from "@/lib/presentations/presentation-queries.server";
 
 import {
   createDefaultChoreographyMusicStorage,
@@ -61,7 +63,6 @@ type ChoreographyDetailRow = {
   categoryName: string;
   experienceLevelId: string | null;
   groupType: ChoreographyGroupType;
-  hasPresentation: boolean;
   id: string;
   modalityId: string;
   modalityName: string;
@@ -98,7 +99,11 @@ export type ChoreographyDetail = {
    */
   experienceLevelOptions: ChoreographyExperienceLevelOption[];
   groupType: ChoreographyGroupType;
-  hasPresentation: boolean;
+  /**
+   * Whether the choreography is closed for correction. The number it presents
+   * with is not what closes it — see evaluation-lock.server.ts.
+   */
+  isEvaluated: boolean;
   id: string;
   modalityId: string;
   modalityName: string;
@@ -106,6 +111,12 @@ export type ChoreographyDetail = {
   musicStorageKey: string | null;
   name: string;
   operationalStatus: ReturnType<typeof deriveChoreographyOperationalStatus>;
+  /**
+   * The number the choreography presents with, or `null` while it has none. It
+   * closes nothing: it only tells the administrator that a correction here may
+   * need attention on the participation list.
+   */
+  presentationOrderNumber: number | null;
   professors: Array<{
     active: boolean;
     firstName: string;
@@ -142,7 +153,6 @@ export async function findChoreographyDetail(input: {
       categoryName: categories.name,
       experienceLevelId: choreographies.experienceLevelId,
       groupType: choreographies.groupType,
-      hasPresentation: choreographies.hasPresentation,
       id: choreographies.id,
       modalityId: choreographies.modalityId,
       modalityName: modalities.name,
@@ -178,13 +188,21 @@ export async function findChoreographyDetail(input: {
     return null;
   }
 
-  const [dancerRows, professorRows, musicDownloadUrl] = await Promise.all([
+  const [
+    dancerRows,
+    professorRows,
+    musicDownloadUrl,
+    isEvaluated,
+    presentationOrderNumber,
+  ] = await Promise.all([
     listChoreographyDancers(input.choreographyId),
     listChoreographyProfessors(input.choreographyId),
     loadChoreographyMusicDownloadUrl({
       storage: createDefaultChoreographyMusicStorage(),
       storageKey: row.musicStorageKey,
     }),
+    hasEvaluatedPresentation(input.choreographyId),
+    findPresentationOrderNumber(input.choreographyId),
   ]);
 
   const requiresExperienceLevel = row.categoryExperienceLevels.length > 0;
@@ -202,7 +220,7 @@ export async function findChoreographyDetail(input: {
       categoryExperienceLevels: row.categoryExperienceLevels,
     }),
     groupType: row.groupType,
-    hasPresentation: row.hasPresentation,
+    isEvaluated,
     id: row.id,
     modalityId: row.modalityId,
     modalityName: row.modalityName,
@@ -220,6 +238,7 @@ export async function findChoreographyDetail(input: {
         categoryMinAge: row.categoryMinAge,
       },
     }),
+    presentationOrderNumber,
     professors: professorRows,
     requiresExperienceLevel,
     scheduleCapacityId:

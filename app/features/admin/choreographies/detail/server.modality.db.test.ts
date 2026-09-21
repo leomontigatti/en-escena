@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { describe, expect, test } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import {
@@ -39,6 +39,20 @@ import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters
 import type { ExperienceLevel } from "@/lib/events/experience-levels";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
+import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
+
+// The evaluated lock is a seam with no body yet (evaluation-lock.server.ts), so
+// a test that needs a closed choreography declares it here.
+vi.mock(
+  "@/lib/presentations/evaluation-lock.server",
+  async () =>
+    (await import("@/lib/presentations/evaluation-lock.test-support"))
+      .evaluationLockStub,
+);
+
+beforeEach(() => {
+  evaluatedChoreographyIds.clear();
+});
 
 installDatabaseTestHooks();
 
@@ -365,10 +379,10 @@ describe("administrative choreography modality correction", () => {
     });
   });
 
-  test("hard-locks the correction once the choreography has a presentation", async () => {
+  test("hard-locks the correction once the choreography was evaluated", async () => {
     const scenario = await createModalityScenario({
-      hasPresentation: true,
-      slug: "presentacion",
+      isEvaluated: true,
+      slug: "evaluada",
     });
 
     const detail = await scenario.loadDetail();
@@ -378,8 +392,7 @@ describe("administrative choreography modality correction", () => {
     const response = await scenario.saveModality(scenario.target.modality.id);
 
     expect(response).toMatchObject({
-      message:
-        "No se puede cambiar la modalidad: la coreografía ya tiene presentación.",
+      message: "Esta coreografía ya fue evaluada y no puede modificarse.",
       status: "error",
     });
     await expect(scenario.readChoreography()).resolves.toMatchObject({
@@ -497,7 +510,7 @@ describe("administrative choreography modality correction", () => {
  */
 async function createModalityScenario(input: {
   allocatedAmount?: number;
-  hasPresentation?: boolean;
+  isEvaluated?: boolean;
   slug: string;
   targetCategoryLevels?: ExperienceLevel[];
   targetCategoryMaxAge?: number;
@@ -544,12 +557,15 @@ async function createModalityScenario(input: {
     categoryId: catalog.categoryWithLevel.id,
     eventId: event.id,
     experienceLevelId: catalog.level.id,
-    hasPresentation: input.hasPresentation ?? false,
     modalityId: catalog.modality.id,
     name: "Con modalidad",
     scheduleCapacityId: catalog.scheduleCapacity.id,
     submodalityId: catalog.submodality.id,
   });
+
+  if (input.isEvaluated) {
+    evaluatedChoreographyIds.add(choreography.id);
+  }
   // Deadline-less rows, so they are the ones that apply whatever day the suite
   // runs on, and the destination schedule carries a dearer one: with money on
   // the choreography, moving the schedule is what changes the price.

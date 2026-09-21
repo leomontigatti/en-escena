@@ -88,7 +88,7 @@ function buildLoaderData(
           active: true,
         },
       ],
-      hasPresentation: false,
+      isEvaluated: false,
     },
     eventContext: {
       selectedEvent: eventSummary,

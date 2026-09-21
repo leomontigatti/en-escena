@@ -305,6 +305,120 @@ describe("DataTable", () => {
       "false",
     ]);
   });
+
+  test("draws the leading columns before the selection checkbox", () => {
+    const markup = renderToStaticMarkup(
+      <MemoryRouter initialEntries={["/administracion/presentacion"]}>
+        <ServerDataTable
+          rows={[
+            {
+              id: "choreography_1",
+              academy: "Academia Norte",
+              name: "Aire",
+              status: "active",
+            },
+          ]}
+          columns={[
+            {
+              id: "order",
+              header: "N.º",
+              leading: true,
+              cell: () => "1",
+            },
+            ...columns,
+          ]}
+          getRowKey={(row) => row.id}
+          searchPlaceholder="Buscar coreografía por nombre"
+          selectableRows
+          currentPage={1}
+          totalPages={1}
+          totalRows={1}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(markup.indexOf("N.º")).toBeLessThan(
+      markup.indexOf("Seleccionar todas las filas"),
+    );
+    expect(markup.indexOf("Seleccionar todas las filas")).toBeLessThan(
+      markup.indexOf("Nombre"),
+    );
+  });
+
+  test("disables the checkbox of a row the view cannot select", async () => {
+    await renderer.renderAsync(
+      <MemoryRouter initialEntries={["/administracion/presentacion"]}>
+        <ClientDataTable
+          rows={[
+            {
+              id: "choreography_1",
+              academy: "Academia Norte",
+              name: "Aire",
+              status: "active",
+            },
+            {
+              id: "choreography_2",
+              academy: "Academia Norte",
+              name: "Tango",
+              status: "archived",
+            },
+          ]}
+          canSelectRow={(row) => row.status === "active"}
+          columns={columns}
+          getRowKey={(row) => row.id}
+          searchPlaceholder="Buscar coreografía por nombre"
+          selectableRows
+          textFilterColumnId="name"
+        />
+      </MemoryRouter>,
+    );
+
+    const checkboxes = getRenderedCheckboxes();
+    expect(checkboxes).toHaveLength(3);
+    expect(checkboxes[1].hasAttribute("disabled")).toBe(false);
+    expect(checkboxes[2].hasAttribute("disabled")).toBe(true);
+  });
+
+  test("leaves an unselectable row out of select-all, both in the count and in the toggle", async () => {
+    const selections: string[][] = [];
+
+    await renderer.renderAsync(
+      <MemoryRouter initialEntries={["/administracion/presentacion"]}>
+        <ClientDataTable
+          rows={[
+            {
+              id: "choreography_1",
+              academy: "Academia Norte",
+              name: "Aire",
+              status: "active",
+            },
+            {
+              id: "choreography_2",
+              academy: "Academia Norte",
+              name: "Tango",
+              status: "archived",
+            },
+          ]}
+          canSelectRow={(row) => row.status === "active"}
+          columns={columns}
+          getRowKey={(row) => row.id}
+          searchPlaceholder="Buscar coreografía por nombre"
+          selectableRows
+          selectedRowIds={[]}
+          onSelectedRowIdsChange={(ids) => selections.push(ids)}
+          textFilterColumnId="name"
+        />
+      </MemoryRouter>,
+    );
+
+    const checkboxes = getRenderedCheckboxes();
+
+    await clickCheckbox(checkboxes[0]);
+
+    // Only the selectable row is toggled, and the header reads "all selected"
+    // off that same row alone rather than waiting for one it can never reach.
+    expect(selections.at(-1)).toEqual(["choreography_1"]);
+  });
 });
 
 describe("DataTable fit layout", () => {
@@ -369,16 +483,17 @@ describe("DataTable fit layout", () => {
     ]);
   });
 
-  test("takes the selection column out of the row before sharing the rest", () => {
+  test("gives the selection column a weight so every width stays a percentage", () => {
     const markup = renderTable({ layout: "fit", selectableRows: true });
 
-    // The view never declared the checkbox, so the table is what has to account
-    // for it. Were it not taken out first, these columns would still claim the
-    // whole row and overflow it by exactly the checkbox's width.
+    // A `col` whose `calc` mixes a percentage with a length is read as `auto`
+    // by the browser, which spread every column evenly the moment a selection
+    // column was there. The checkbox takes a weight of its own instead, so no
+    // width leaves the percentage space.
     expect(getColumnWidths(markup)).toEqual([
-      "2.5rem",
-      "calc((100% - 2.5rem) * 1 / 4)",
-      "calc((100% - 2.5rem) * 3 / 4)",
+      "calc(100% * 3 / 7)",
+      "calc(100% * 1 / 7)",
+      "calc(100% * 3 / 7)",
     ]);
   });
 

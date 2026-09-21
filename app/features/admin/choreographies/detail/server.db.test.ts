@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { describe, expect, test } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import {
@@ -9,6 +9,7 @@ import {
   choreographyProfessors,
   modalities,
   prices,
+  presentations,
   scheduleCapacities,
   schedules,
   submodalities,
@@ -53,6 +54,21 @@ import {
   isPgliteTestBackend,
 } from "../../../../../tests/db/harness";
 import { choreographyAnchor } from "@/lib/comprobantes/anchor";
+import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
+
+// The evaluated lock is the seam the judging effort will fill; until then it
+// answers `false` for everything, so a test that needs a closed choreography
+// declares it here.
+vi.mock(
+  "@/lib/presentations/evaluation-lock.server",
+  async () =>
+    (await import("@/lib/presentations/evaluation-lock.test-support"))
+      .evaluationLockStub,
+);
+
+beforeEach(() => {
+  evaluatedChoreographyIds.clear();
+});
 
 installDatabaseTestHooks();
 
@@ -143,7 +159,7 @@ describe("administrative choreography detail server", () => {
     );
   });
 
-  test("renames active-event choreographies for admins even when presentation blockers exist", async () => {
+  test("renames active-event choreographies for admins even once evaluated", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Renombre",
       email: "admin.coreografias.renombre.academia@example.com",
@@ -158,7 +174,6 @@ describe("administrative choreography detail server", () => {
       categoryId: catalog.categoryWithLevel.id,
       eventId: event.id,
       experienceLevelId: catalog.level.id,
-      hasPresentation: true,
       modalityId: catalog.modality.id,
       name: "Nombre anterior",
       scheduleCapacityId: catalog.scheduleCapacity.id,
@@ -273,45 +288,66 @@ describe("administrative choreography detail server", () => {
     ).resolves.toEqual([]);
   });
 
-  test("blocks admin deletion with concrete presentation reasons", async () => {
+  // A presentation is not a blocker: it goes with the choreography, in the same
+  // transaction, and the number it held stays a gap so that no other
+  // choreography is renumbered behind the academies' backs.
+  test("deletes the presentation of a numbered choreography and leaves its number as a gap", async () => {
     const owner = await createAcademySession({
-      academyName: "Academia Bloqueos",
-      email: "admin.coreografias.bloqueos.academia@example.com",
+      academyName: "Academia Numerada",
+      email: "admin.coreografias.numerada.academia@example.com",
     });
     const event = await createEventRecord({
       active: true,
       name: "Regional 2026",
     });
     const catalog = await createEventCatalog(event.id);
-    const presentationBlocked = await createChoreographyRecord({
+    const numbered = await createChoreographyRecord({
       academyId: owner.academyId,
       categoryId: catalog.categoryWithLevel.id,
       eventId: event.id,
       experienceLevelId: catalog.level.id,
-      hasPresentation: true,
       modalityId: catalog.modality.id,
-      name: "Presentada",
+      name: "Numerada",
       scheduleCapacityId: catalog.scheduleCapacity.id,
       submodalityId: catalog.submodality.id,
     });
-
-    await expect(loadDeleteBlockers(presentationBlocked.id)).resolves.toEqual([
-      "presentation",
+    const neighbour = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      name: "Vecina",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+    await db.insert(presentations).values([
+      { choreographyId: numbered.id, eventId: event.id, orderNumber: 1 },
+      { choreographyId: neighbour.id, eventId: event.id, orderNumber: 2 },
     ]);
-    await expectThrownResponse(
-      submitDetailAction({
-        body: deleteFormData(),
-        choreographyId: presentationBlocked.id,
-        email: "admin.coreografias.bloqueo.presentacion@example.com",
-        role: "admin",
-      }),
-      409,
-    );
+
+    await expect(loadDeleteBlockers(numbered.id)).resolves.toEqual([]);
+
+    const response = await submitDetailAction({
+      body: deleteFormData(),
+      choreographyId: numbered.id,
+      email: "admin.coreografias.numerada@example.com",
+      role: "admin",
+    });
+
+    expect(response).toBeInstanceOf(Response);
     await expect(
       db.query.choreographies.findFirst({
-        where: eq(choreographies.id, presentationBlocked.id),
+        where: eq(choreographies.id, numbered.id),
       }),
-    ).resolves.toBeDefined();
+    ).resolves.toBeUndefined();
+    await expect(
+      db.query.presentations.findMany({
+        where: eq(presentations.eventId, event.id),
+      }),
+    ).resolves.toMatchObject([
+      { choreographyId: neighbour.id, orderNumber: 2 },
+    ]);
   });
 
   test("blocks admin deletion of a choreography with ARCA comprobantes, even once annulled by a credit note", async () => {
@@ -540,12 +576,12 @@ describe("administrative choreography detail server", () => {
       categoryId: catalog.categoryWithLevel.id,
       eventId: event.id,
       experienceLevelId: catalog.level.id,
-      hasPresentation: true,
       modalityId: catalog.modality.id,
-      name: "Presentada",
+      name: "Evaluada",
       scheduleCapacityId: catalog.scheduleCapacity.id,
       submodalityId: catalog.submodality.id,
     });
+    evaluatedChoreographyIds.add(choreography.id);
 
     const result = await submitDetailAction({
       body: submodalityFormData(otherSubmodality.id),
@@ -625,11 +661,11 @@ describe("administrative choreography detail server", () => {
     });
   });
 
-  test("blocks the reassignment when the choreography has a presentation", async () => {
+  test("blocks the reassignment when the choreography was evaluated", async () => {
     const scenario = await createScheduleCapacityScenario({
-      academyName: "Academia Cronograma Presentada",
-      hasPresentation: true,
-      slug: "cronograma.presentada",
+      academyName: "Academia Cronograma Evaluada",
+      isEvaluated: true,
+      slug: "cronograma.evaluada",
     });
 
     const result = await scenario.reassignTo(
@@ -1584,11 +1620,11 @@ describe("administrative choreography detail server", () => {
     await expect(scenario.readExperienceLevel()).resolves.toBe("amateur");
   });
 
-  test("blocks the reassignment when the choreography has a presentation", async () => {
+  test("blocks the reassignment when the choreography was evaluated", async () => {
     const scenario = await createExperienceLevelScenario({
-      academyName: "Academia Nivel Presentación",
-      hasPresentation: true,
-      slug: "nivel.presentacion",
+      academyName: "Academia Nivel Evaluada",
+      isEvaluated: true,
+      slug: "nivel.evaluada",
     });
 
     const response = await submitDetailAction({
@@ -1599,8 +1635,7 @@ describe("administrative choreography detail server", () => {
     });
 
     expect(response).toMatchObject({
-      message:
-        "No se puede cambiar el nivel de experiencia: la coreografía ya tiene presentación.",
+      message: "Esta coreografía ya fue evaluada y no puede modificarse.",
       status: "error",
     });
     await expect(scenario.readExperienceLevel()).resolves.toBe("amateur");
@@ -1843,7 +1878,7 @@ async function createExperienceLevelScenario(input: {
   categoryAgeBasis?: number | null;
   categoryExperienceLevels?: ExperienceLevel[];
   experienceLevelId?: ExperienceLevel | null;
-  hasPresentation?: boolean;
+  isEvaluated?: boolean;
   slug: string;
   updatedAt?: Date;
 }) {
@@ -1874,13 +1909,16 @@ async function createExperienceLevelScenario(input: {
       input.experienceLevelId === undefined
         ? "amateur"
         : input.experienceLevelId,
-    hasPresentation: input.hasPresentation ?? false,
     modalityId: catalog.modality.id,
     name: `Nivel ${input.slug}`,
     scheduleCapacityId: catalog.scheduleCapacity.id,
     submodalityId: catalog.submodality.id,
     updatedAt: input.updatedAt,
   });
+
+  if (input.isEvaluated) {
+    evaluatedChoreographyIds.add(choreography.id);
+  }
 
   return {
     catalog,
@@ -1976,7 +2014,7 @@ async function createScheduleWithSoloCapacity(input: {
  */
 async function createScheduleCapacityScenario(input: {
   academyName: string;
-  hasPresentation?: boolean;
+  isEvaluated?: boolean;
   slug: string;
   targetCapacity?: number;
 }) {
@@ -1999,12 +2037,15 @@ async function createScheduleCapacityScenario(input: {
     categoryId: catalog.categoryWithLevel.id,
     eventId: event.id,
     experienceLevelId: catalog.level.id,
-    hasPresentation: input.hasPresentation ?? false,
     modalityId: catalog.modality.id,
     name: "Con cronograma",
     scheduleCapacityId: catalog.scheduleCapacity.id,
     submodalityId: catalog.submodality.id,
   });
+
+  if (input.isEvaluated) {
+    evaluatedChoreographyIds.add(choreography.id);
+  }
 
   return {
     catalog,
