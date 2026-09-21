@@ -789,3 +789,59 @@ The current state — which anchor column exists, what the receptor block prints
 where `Emitir factura` lives — is in `docs/domain/finances.md`, "Invoicing",
 marked as specified until the PRD
 [#906](https://github.com/leomontigatti/en-escena/issues/906) ships it.
+
+## Correction (2026-09-21): a choreography with money is withdrawn, not deleted, and §8's permanent deletion block is withdrawn
+
+Appended, not edited in place. §6 made roster removal a conditional soft
+withdrawal because "the previous hard delete destroyed, by the very act that
+required it, the evidence needed to emit the NC". It left the choreography
+delete as it was: a physical delete that cascades the inscriptions and their
+allocations, blocked only by a comprobante, the "permanent deletion block" §8
+carries from #340. Allocated money that was not yet invoiced blocked nothing. On
+2026-09-17 an administrator deleted a choreography holding a deposit, and the
+deposit went back to the academy's `Saldo disponible` with no trace left. That
+is the exact destruction §6 was written to prevent, one level up. The
+decision, recorded here because it contradicts §8 and the sentence "a
+choreography is not withdrawn —inscriptions are—" that the financial list's
+filter was built on:
+
+- **Deleting a choreography chooses once between a physical delete and a
+  withdrawal**, with §6's condition applied to the whole roster: it deletes when
+  no inscription holds an allocation or a `comprobante_inscription` line, and
+  withdraws otherwise. It is never refused because of money.
+- **A withdrawn choreography is a thing of its own.** It carries its own
+  `withdrawnAt`, and every inscription still active is withdrawn with the same
+  timestamp, in the same transaction, money or not, so restoring brings back
+  exactly what the withdrawal took. Like the inscription's, `withdrawnAt` is
+  roster state, not financial state, so **ADR-0009 is still untouched**, and
+  the choice is never revisited: deallocating everything afterwards does not
+  make the choreography deletable. It keeps its number, stops occupying
+  schedule capacity, reads `Retirada` in place of its statuses, stays in the
+  money rollup and out of the status rollup and the counts.
+- **§8's permanent deletion block is withdrawn.** A comprobante no longer
+  refuses the delete; it is one of the two things that turn it into a
+  withdrawal. The block existed to keep fiscal history anchored, and a
+  withdrawn choreography keeps it anchored while letting the action succeed.
+  The only hard lock left on deletion is the evaluated presentation that #909
+  decided, and it locks withdrawal too.
+
+Rejected:
+
+- **Refusing the delete while any inscription holds money**, as a seminar's
+  delete is refused while it has any inscription. The case that caused this
+  correction is an academy dropping a choreography, and the administrator needs
+  it off the lists first and the money settled afterwards; making them
+  deallocate before deleting reverses that order and invites the full return
+  that inaction was supposed to avoid.
+- **Deriving the withdrawn choreography from "no active inscription"**. It
+  cannot tell dancers withdrawn with the choreography from dancers removed
+  individually before, so restoring would revive the wrong set.
+- **Applying §6 per inscription**, deleting the dancers without money and
+  withdrawing the rest. Restoring would then bring back a partial roster.
+
+The build, the list and capacity rules and the glossary term
+(`withdrawnChoreography`, replacing `choreographyWithoutActiveInscriptions`)
+are specified in
+[#1092](https://github.com/leomontigatti/en-escena/issues/1092); the domain docs
+describe them once it ships. The deleted choreography is restored from backup
+by [#1093](https://github.com/leomontigatti/en-escena/issues/1093).
