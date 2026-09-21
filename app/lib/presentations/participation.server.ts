@@ -80,6 +80,7 @@ export async function readParticipationRows(
         categoryName: categories.name,
         choreographyId: choreographies.id,
         choreographyNumber: choreographies.choreographyNumber,
+        experienceLevel: choreographies.experienceLevelId,
         groupType: choreographies.groupType,
         modalityName: modalities.name,
         name: choreographies.name,
@@ -134,6 +135,7 @@ export async function readParticipationRows(
         },
         choreographyId: row.choreographyId,
         choreographyNumber: row.choreographyNumber,
+        experienceLevel: row.experienceLevel,
         financialStatus:
           financialStatuses.get(row.choreographyId) ??
           ("depositPending" as ChoreographyFinancialStatus),

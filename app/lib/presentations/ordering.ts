@@ -1,3 +1,7 @@
+import {
+  experienceLevelOrder,
+  type ExperienceLevel,
+} from "@/lib/events/experience-levels";
 import { groupTypeValues, type GroupType } from "@/lib/events/group-types";
 import type { ChoreographyFinancialStatus } from "@/lib/finances/inscription-financial-status";
 
@@ -18,6 +22,8 @@ export const dancerSpacingGap = 4;
 /** What puts a choreography in one block of the order, and nothing else. */
 export type PresentationBlock = {
   category: { maxAge: number; minAge: number; name: string };
+  /** `null` when the choreography declares no level; it sorts last. */
+  experienceLevel: ExperienceLevel | null;
   groupType: GroupType;
   schedule: {
     id: string;
@@ -52,9 +58,10 @@ export function isPresentationEligible(row: {
 }
 
 /**
- * The block order: schedule (date, time, name), then category age order, then
- * group type. Modality plays no part — a schedule already restricts the
- * modalities it accepts.
+ * The block order: schedule (date, time, name), then experience level from
+ * `nudo` to `pro_am` and no level last, then category age order, then group
+ * type. Modality plays no part — a schedule already restricts the modalities
+ * it accepts.
  */
 export function comparePresentationBlocks(
   left: PresentationBlock,
@@ -65,6 +72,10 @@ export function comparePresentationBlocks(
     compare(left.schedule.startTime, right.schedule.startTime) ||
     compare(left.schedule.name, right.schedule.name) ||
     compare(left.schedule.id, right.schedule.id) ||
+    compare(
+      experienceLevelRank(left.experienceLevel),
+      experienceLevelRank(right.experienceLevel),
+    ) ||
     compare(left.category.minAge, right.category.minAge) ||
     compare(left.category.maxAge, right.category.maxAge) ||
     compare(left.category.name, right.category.name) ||
@@ -168,6 +179,15 @@ function splitIntoBlocks(sorted: PresentationOrderingRow[]) {
   }
 
   return blocks;
+}
+
+/** No level ranks after every level, so it lands at the end of its schedule. */
+function experienceLevelRank(experienceLevel: ExperienceLevel | null) {
+  if (experienceLevel === null) {
+    return experienceLevelOrder.length;
+  }
+
+  return experienceLevelOrder.indexOf(experienceLevel);
 }
 
 function compare(left: number | string, right: number | string) {
