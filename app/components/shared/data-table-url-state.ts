@@ -18,6 +18,7 @@ import {
   dataTableSearchParamName,
   dataTableSortParamName,
 } from "@/components/shared/data-table.shared";
+import { useOptionalNavigation } from "@/lib/shared/forms";
 
 /**
  * The mapping between a browser-paginated list's state and the query string.
@@ -50,10 +51,19 @@ export function useDataTableUrlState({
 }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const currentHref = `${location.pathname}${location.search}`;
+  const navigation = useOptionalNavigation();
+  // The address bar only moves once the loader answers, so while a navigation
+  // within the list is in flight the search is read from where it is heading:
+  // clearing a search still on its way has to cancel it, not lose to it.
+  const headingSearch =
+    "location" in navigation &&
+    navigation.location?.pathname === location.pathname
+      ? navigation.location.search
+      : location.search;
+  const headingHref = `${location.pathname}${headingSearch}`;
 
   const replaceHref = (nextHref: string) => {
-    if (nextHref === currentHref) {
+    if (nextHref === headingHref) {
       return;
     }
 
@@ -70,7 +80,7 @@ export function useDataTableUrlState({
       replaceHref(
         buildDataTableFilterHref({
           basePath,
-          currentSearch: location.search,
+          currentSearch: headingSearch,
           groups: facetedFilters,
           pageParamName,
           values,
@@ -82,20 +92,20 @@ export function useDataTableUrlState({
       replaceHref(
         buildDataTablePageHref({
           basePath,
-          currentSearch: location.search,
+          currentSearch: headingSearch,
           page,
           pageParamName,
         }),
       );
     },
     search:
-      new URLSearchParams(location.search).get(searchParamName) ??
+      new URLSearchParams(headingSearch).get(searchParamName) ??
       initialSearchValue,
     setSearch: (searchValue: string) => {
       replaceHref(
         buildDataTableSearchHref({
           basePath,
-          currentSearch: location.search,
+          currentSearch: headingSearch,
           pageParamName,
           searchParamName,
           searchValue,
@@ -108,7 +118,7 @@ export function useDataTableUrlState({
         buildDataTableSortHref({
           basePath,
           columnId: sort.columnId,
-          currentSearch: location.search,
+          currentSearch: headingSearch,
           direction: sort.direction,
           pageParamName,
           sortParamName,

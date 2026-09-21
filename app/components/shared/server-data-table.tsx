@@ -63,6 +63,13 @@ export function ServerDataTable<TData>(props: ServerDataTableProps<TData>) {
     selectableRows,
   } = resolveServerDataTableDefaults(props, location.pathname);
   const currentHref = `${location.pathname}${location.search}`;
+  // The address bar only moves once the loader answers, so while a navigation
+  // is in flight the href to compare a new search against is the one it is
+  // heading to: clearing a search still on its way has to cancel it.
+  const headingHref =
+    "location" in navigation && navigation.location
+      ? `${navigation.location.pathname}${navigation.location.search}`
+      : currentHref;
   const { columnVisibility, tableColumns } = useServerDataTableColumns(
     props.columns,
     selectableRows,
@@ -82,7 +89,7 @@ export function ServerDataTable<TData>(props: ServerDataTableProps<TData>) {
           searchValue,
         });
 
-        if (nextHref !== currentHref) {
+        if (nextHref !== headingHref) {
           void navigate(nextHref, { replace: true });
         }
       },
@@ -117,7 +124,7 @@ export function ServerDataTable<TData>(props: ServerDataTableProps<TData>) {
   });
   const setFacetedFilterValue = createServerFacetedFilterHandler({
     columnFilters,
-    currentHref,
+    currentHref: headingHref,
     currentSearch: location.search,
     facetedFilters,
     navigate,
