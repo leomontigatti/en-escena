@@ -89,6 +89,7 @@ export async function handlePortalDancerDetailAction(input: {
     return {
       status: "success" as const,
       message: notificationToasts["bailarin-archivado"].message,
+      recategorisedChoreographies: [],
     };
   }
 
@@ -109,6 +110,7 @@ export async function handlePortalDancerDetailAction(input: {
     return {
       status: "success" as const,
       message: notificationToasts["bailarin-reactivado"].message,
+      recategorisedChoreographies: [],
     };
   }
 
@@ -179,6 +181,7 @@ export async function handlePortalDancerDetailAction(input: {
   return {
     status: "success" as const,
     message: notificationToasts["bailarin-guardado"].message,
+    recategorisedChoreographies: result.recategorisedChoreographies,
   };
 }
 

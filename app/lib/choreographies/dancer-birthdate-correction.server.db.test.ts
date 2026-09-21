@@ -128,7 +128,25 @@ describe("dancer birth date choreography correction", () => {
         dancerId: correctedDancer.id,
       });
 
-    expect(result).toEqual({ ok: true });
+    expect(result).toEqual({
+      ok: true,
+      recategorisedChoreographies: [
+        {
+          choreographyId: preserveChoreography.id,
+          name: "Preserva",
+          categoryName: "Preserva nivel Mayor",
+          experienceLevelCleared: false,
+        },
+        {
+          choreographyId: clearChoreography.id,
+          name: "Limpia",
+          categoryName: "Limpia nivel Mayor",
+          experienceLevelCleared: true,
+        },
+      ],
+    });
+    await expectChoreographyUpdatedAtChanged(preserveChoreography);
+    await expectChoreographyUpdatedAtChanged(clearChoreography);
     await expectChoreographyState(preserveChoreography.id, {
       categoryId: preserveCatalog.olderCategory?.id ?? null,
       categoryCalculationMode: "oldest",
@@ -565,6 +583,20 @@ async function createLinkedChoreography(input: {
   }
 
   return choreography;
+}
+
+async function expectChoreographyUpdatedAtChanged(choreography: {
+  id: string;
+  updatedAt: Date | null;
+}) {
+  const stored = await db.query.choreographies.findFirst({
+    columns: { updatedAt: true },
+    where: eq(choreographies.id, choreography.id),
+  });
+
+  expect(stored?.updatedAt?.getTime()).toBeGreaterThan(
+    choreography.updatedAt?.getTime() ?? 0,
+  );
 }
 
 async function expectChoreographyState(

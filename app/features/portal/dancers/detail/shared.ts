@@ -9,6 +9,7 @@ import type {
   DancerIdentificationPendingItem,
   DancerVerificationStatus,
 } from "@/lib/dancers/verification";
+import type { RecategorisedChoreography } from "@/lib/choreographies/recategorisation-report";
 import { buildBirthDateRefinement } from "@/lib/dancers/birth-date";
 import { getArchiveKeepsRosterMessage } from "@/lib/roster/roster-person-status.shared";
 import { requiredFieldMessage } from "@/lib/shared/forms";
@@ -74,6 +75,7 @@ export type PortalDancerDetailActionData =
   | {
       status: "success";
       message: string;
+      recategorisedChoreographies: RecategorisedChoreography[];
     };
 
 export type PortalDancerFormValues = z.infer<

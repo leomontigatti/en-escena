@@ -112,15 +112,15 @@ export async function updateAdministrativeDancer(input: {
       .where(eq(dancers.id, existingDancer.id))
       .returning();
 
-    if (birthDateChanged) {
-      await applyDancerBirthDateCorrection({
-        dancerId: existingDancer.id,
-        executor: tx,
-        eventBasesByEventId: linkedChoreographyEventBases,
-      });
-    }
+    const recategorisedChoreographies = birthDateChanged
+      ? await applyDancerBirthDateCorrection({
+          dancerId: existingDancer.id,
+          executor: tx,
+          eventBasesByEventId: linkedChoreographyEventBases,
+        })
+      : [];
 
-    return savedDancer;
+    return { savedDancer, recategorisedChoreographies };
   });
 
   if (!write.ok) {
@@ -132,11 +132,12 @@ export async function updateAdministrativeDancer(input: {
     };
   }
 
-  const savedSnapshot = toDancerSnapshot(write.dancer);
+  const savedSnapshot = toDancerSnapshot(write.result.savedDancer);
 
   return {
     ok: true,
     dancer: savedSnapshot,
+    recategorisedChoreographies: write.result.recategorisedChoreographies,
     verificationInvalidated: existingDancer.identityVerifiedAt !== null,
   };
 }

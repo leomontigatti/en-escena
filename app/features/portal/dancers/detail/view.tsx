@@ -5,6 +5,8 @@ import { useNavigation, useSubmit } from "react-router";
 import { PortalEmptyState } from "@/components/portal/ui";
 import { BackButton, SubmitButton } from "@/components/shared/action-buttons";
 import { AlertStack } from "@/components/shared/alert-stack";
+import { RecategorisedChoreographiesAlert } from "@/components/shared/recategorised-choreographies-alert";
+import type { RecategorisedChoreography } from "@/lib/choreographies/recategorisation-report";
 import { ArchivedPersonAlert } from "@/components/shared/archived-person-alert";
 import {
   documentTypeEmptyLabel,
@@ -153,6 +155,9 @@ export function PortalDancerDetailRouteView({
           showsIdentificationAlert={viewModel.showsIdentificationAlert}
           showsPendingVerificationAlert={
             viewModel.showsPendingVerificationAlert
+          }
+          recategorisedChoreographies={
+            successData?.recategorisedChoreographies ?? []
           }
           showsVerifiedIdentityAlert={viewModel.showsVerifiedIdentityAlert}
         />
@@ -318,6 +323,7 @@ function PortalDancerAlertsSection({
   dancerActive,
   identificationPendingItems,
   onReactivate,
+  recategorisedChoreographies,
   showsIdentificationAlert,
   showsPendingVerificationAlert,
   showsVerifiedIdentityAlert,
@@ -325,6 +331,7 @@ function PortalDancerAlertsSection({
   dancerActive: boolean;
   identificationPendingItems: DancerIdentificationPendingItem[];
   onReactivate: () => void;
+  recategorisedChoreographies: RecategorisedChoreography[];
   showsIdentificationAlert: boolean;
   showsPendingVerificationAlert: boolean;
   showsVerifiedIdentityAlert: boolean;
@@ -338,6 +345,10 @@ function PortalDancerAlertsSection({
         Alertas de la ficha del bailarín
       </h2>
       <AlertStack>
+        <RecategorisedChoreographiesAlert
+          audience="academy"
+          choreographies={recategorisedChoreographies}
+        />
         {!dancerActive ? (
           <ArchivedPersonAlert
             personLabel="bailarín"

@@ -774,6 +774,8 @@ describe("`/administracion/bailarines` route", () => {
     expect(result).toMatchObject({
       status: "success",
       message: "Bailarín guardado.",
+      // The dancer belongs to no choreography, so the correction moved none.
+      recategorisedChoreographies: [],
     });
     await expectPersistedDancer(dancer.id, {
       firstName: "María del Carmen",
