@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import {
-  buildRecategorisationSentence,
+  buildRecategorisationSuffix,
   getRecategorisationReportVariant,
   type RecategorisedChoreography,
 } from "./recategorisation-report";
@@ -18,37 +18,37 @@ function choreography(
   };
 }
 
-describe("buildRecategorisationSentence", () => {
+describe("buildRecategorisationSuffix", () => {
   test("names the new category when the level survived", () => {
-    for (const audience of ["academy", "admin"] as const) {
+    for (const surface of ["admin", "portal"] as const) {
       expect(
-        buildRecategorisationSentence({
-          audience,
+        buildRecategorisationSuffix({
           choreography: choreography(),
+          surface,
         }),
-      ).toBe(" pasó a la categoría Juvenil I.");
+      ).toBe("pasó a la categoría Juvenil I.");
     }
   });
 
   test("points the administrator at the detail when the level was cleared", () => {
     expect(
-      buildRecategorisationSentence({
-        audience: "admin",
+      buildRecategorisationSuffix({
         choreography: choreography({ experienceLevelCleared: true }),
+        surface: "admin",
       }),
     ).toBe(
-      " pasó a la categoría Juvenil I y quedó sin nivel de experiencia. Podés elegirlo desde el detalle.",
+      "pasó a la categoría Juvenil I y quedó sin nivel de experiencia. Podés elegirlo desde el detalle.",
     );
   });
 
   test("asks the academy to get in touch when the level was cleared", () => {
     expect(
-      buildRecategorisationSentence({
-        audience: "academy",
+      buildRecategorisationSuffix({
         choreography: choreography({ experienceLevelCleared: true }),
+        surface: "portal",
       }),
     ).toBe(
-      " pasó a la categoría Juvenil I y quedó sin nivel de experiencia. Comunicate con nosotros para poder solucionarlo.",
+      "pasó a la categoría Juvenil I y quedó sin nivel de experiencia. Comunicate con nosotros para poder solucionarlo.",
     );
   });
 });

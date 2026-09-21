@@ -25,7 +25,7 @@ export async function withdrawChoreographyForTest(
   await db.transaction(async (tx) => {
     await tx
       .update(choreographies)
-      .set({ withdrawnAt })
+      .set({ withdrawnAt, updatedAt: withdrawnAt })
       .where(eq(choreographies.id, choreographyId));
     await tx
       .update(choreographyDancers)

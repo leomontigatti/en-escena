@@ -346,8 +346,8 @@ function PortalDancerAlertsSection({
       </h2>
       <AlertStack>
         <RecategorisedChoreographiesAlert
-          audience="academy"
           choreographies={recategorisedChoreographies}
+          surface="portal"
         />
         {!dancerActive ? (
           <ArchivedPersonAlert

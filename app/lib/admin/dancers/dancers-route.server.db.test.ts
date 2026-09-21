@@ -1113,7 +1113,19 @@ describe("`/administracion/bailarines` route", () => {
       ),
     );
 
-    expect(ninaResult).toMatchObject({ status: "success" });
+    // The payload carries what the page reports back: the choreography moved
+    // to a category that admits no level, so the stored one was cleared.
+    expect(ninaResult).toMatchObject({
+      status: "success",
+      recategorisedChoreographies: [
+        {
+          choreographyId: choreography.id,
+          name: "Umbral",
+          categoryName: catalog.olderCategory.name,
+          experienceLevelCleared: true,
+        },
+      ],
+    });
 
     await expect(
       db.query.choreographyDancers.findFirst({

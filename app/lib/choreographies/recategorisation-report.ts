@@ -1,7 +1,7 @@
 /**
  * What a birth-date correction reports back: the choreographies it moved to
  * another category, and whether the move left one without an experience level.
- * The wording differs by audience because only the administrator can pick the
+ * The wording differs by surface because only the administrator can pick the
  * level again — see docs/domain/choreographies.md, "Birthdate Correction".
  */
 
@@ -13,7 +13,8 @@ export type RecategorisedChoreography = {
   experienceLevelCleared: boolean;
 };
 
-export type RecategorisationAudience = "academy" | "admin";
+/** The surface reading the report, named as `setRosterPersonStatus` names it. */
+export type RecategorisationSurface = "admin" | "portal";
 
 export const recategorisationReportTitle = "Coreografías recategorizadas";
 
@@ -32,22 +33,23 @@ export function getRecategorisationReportVariant(
 }
 
 /**
- * The sentence that follows the choreography's name, which the surface renders
- * as a link to its detail.
+ * What the line says after the choreography's name, which the surface renders
+ * as a link to its detail. The name and this are separated by the surface, so
+ * the returned text neither opens nor expects a space.
  */
-export function buildRecategorisationSentence(input: {
-  audience: RecategorisationAudience;
+export function buildRecategorisationSuffix(input: {
   choreography: RecategorisedChoreography;
+  surface: RecategorisationSurface;
 }) {
-  const { audience, choreography } = input;
-  const moved = ` pasó a la categoría ${choreography.categoryName}`;
+  const { choreography, surface } = input;
+  const moved = `pasó a la categoría ${choreography.categoryName}`;
 
   if (!choreography.experienceLevelCleared) {
     return `${moved}.`;
   }
 
   const repair =
-    audience === "admin"
+    surface === "admin"
       ? "Podés elegirlo desde el detalle."
       : "Comunicate con nosotros para poder solucionarlo.";
 

@@ -3,17 +3,17 @@ import { Link } from "react-router";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
-  buildRecategorisationSentence,
+  buildRecategorisationSuffix,
   getRecategorisationReportVariant,
   recategorisationReportTitle,
-  type RecategorisationAudience,
+  type RecategorisationSurface,
   type RecategorisedChoreography,
 } from "@/lib/choreographies/recategorisation-report";
 
 const choreographyDetailBasePath = {
-  academy: "/portal/coreografias",
   admin: "/administracion/coreografias",
-} as const satisfies Record<RecategorisationAudience, string>;
+  portal: "/portal/coreografias",
+} as const satisfies Record<RecategorisationSurface, string>;
 
 /**
  * What a birth-date correction changed beyond the dancer, one line per
@@ -21,11 +21,11 @@ const choreographyDetailBasePath = {
  * the action's payload without asking first.
  */
 export function RecategorisedChoreographiesAlert({
-  audience,
   choreographies,
+  surface,
 }: {
-  audience: RecategorisationAudience;
   choreographies: RecategorisedChoreography[];
+  surface: RecategorisationSurface;
 }) {
   if (choreographies.length === 0) {
     return null;
@@ -46,12 +46,11 @@ export function RecategorisedChoreographiesAlert({
           {choreographies.map((choreography) => (
             <li key={choreography.choreographyId}>
               <Link
-                className="underline underline-offset-4"
-                to={`${choreographyDetailBasePath[audience]}/${choreography.choreographyId}`}
+                to={`${choreographyDetailBasePath[surface]}/${choreography.choreographyId}`}
               >
                 {choreography.name}
-              </Link>
-              {buildRecategorisationSentence({ audience, choreography })}
+              </Link>{" "}
+              {buildRecategorisationSuffix({ choreography, surface })}
             </li>
           ))}
         </ul>

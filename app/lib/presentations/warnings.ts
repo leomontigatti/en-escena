@@ -62,6 +62,7 @@ export function derivePresentationWarnings(rows: PresentationWarningRow[]) {
         compareText(left.choreographyId, right.choreographyId),
     );
 
+  // The two per-row kinds, which hold numbered and unnumbered rows alike.
   for (const row of rows) {
     if (!isPresentationEligible(row)) {
       add(row.choreographyId, {
@@ -69,11 +70,9 @@ export function derivePresentationWarnings(rows: PresentationWarningRow[]) {
         message: "Seña pendiente",
       });
     }
-  }
 
-  // A category that admits levels and a row without one: the ordering sorts it
-  // last and only the administrator can repair it. Numbered or not.
-  for (const row of rows) {
+    // A category that admits levels and a row without one: the ordering sorts
+    // it last and only the administrator can repair it.
     if (
       row.category.experienceLevels.length > 0 &&
       row.experienceLevel === null

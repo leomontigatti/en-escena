@@ -150,7 +150,9 @@ export function buildModeHref(
 // toast directly from `actionData`. See docs/agents/form-feedback.md.
 export function buildDancerActionSuccess(
   notification: DancerRouteNotification,
-  recategorisedChoreographies: RecategorisedChoreography[] = [],
+  // Explicit at every call site: an intent that forgets it would silently
+  // report no recategorisation rather than the one it just caused.
+  recategorisedChoreographies: RecategorisedChoreography[],
 ): DancerActionSuccess {
   return {
     status: "success",

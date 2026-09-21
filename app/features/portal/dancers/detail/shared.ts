@@ -13,6 +13,7 @@ import type { RecategorisedChoreography } from "@/lib/choreographies/recategoris
 import { buildBirthDateRefinement } from "@/lib/dancers/birth-date";
 import { getArchiveKeepsRosterMessage } from "@/lib/roster/roster-person-status.shared";
 import { requiredFieldMessage } from "@/lib/shared/forms";
+import { notificationToasts } from "@/lib/shared/notification-toasts";
 
 export const portalDancerNotFoundMessage = "No encontramos ese Bailarín.";
 export const portalDancerFormId = "portal-bailarin-form";
@@ -77,6 +78,23 @@ export type PortalDancerDetailActionData =
       message: string;
       recategorisedChoreographies: RecategorisedChoreography[];
     };
+
+/**
+ * The portal's success payload. Every intent names its recategorisation report
+ * explicitly, even the ones that cannot cause one — see the admin twin in
+ * `app/features/admin/dancers/detail/shared.ts`.
+ */
+export function buildPortalDancerActionSuccess(
+  notification:
+    "bailarin-archivado" | "bailarin-guardado" | "bailarin-reactivado",
+  recategorisedChoreographies: RecategorisedChoreography[],
+): PortalDancerDetailActionData {
+  return {
+    status: "success",
+    message: notificationToasts[notification].message,
+    recategorisedChoreographies,
+  };
+}
 
 export type PortalDancerFormValues = z.infer<
   ReturnType<typeof buildPortalDancerSchema>

@@ -14,7 +14,6 @@ import {
   getEventStartDateOnly,
 } from "@/lib/events/active-event.server";
 import { getPortalActiveEventContext } from "@/lib/portal/event-context.server";
-import { notificationToasts } from "@/lib/shared/notification-toasts";
 import {
   findDancerForAcademy,
   updateDancerForAcademy,
@@ -26,6 +25,7 @@ import {
 } from "@/lib/roster/roster-person-status.server";
 
 import {
+  buildPortalDancerActionSuccess,
   buildPortalDancerSchema,
   getClientDocumentImageValidationMessage,
   portalDancerInvalidValuesMessage,
@@ -86,11 +86,7 @@ export async function handlePortalDancerDetailAction(input: {
         status: 404,
       });
     }
-    return {
-      status: "success" as const,
-      message: notificationToasts["bailarin-archivado"].message,
-      recategorisedChoreographies: [],
-    };
+    return buildPortalDancerActionSuccess("bailarin-archivado", []);
   }
 
   if (intent === "reactivate-dancer") {
@@ -107,11 +103,7 @@ export async function handlePortalDancerDetailAction(input: {
         status: 404,
       });
     }
-    return {
-      status: "success" as const,
-      message: notificationToasts["bailarin-reactivado"].message,
-      recategorisedChoreographies: [],
-    };
+    return buildPortalDancerActionSuccess("bailarin-reactivado", []);
   }
 
   if (intent !== "" && intent !== "update-dancer") {
@@ -178,11 +170,10 @@ export async function handlePortalDancerDetailAction(input: {
     };
   }
 
-  return {
-    status: "success" as const,
-    message: notificationToasts["bailarin-guardado"].message,
-    recategorisedChoreographies: result.recategorisedChoreographies,
-  };
+  return buildPortalDancerActionSuccess(
+    "bailarin-guardado",
+    result.recategorisedChoreographies,
+  );
 }
 
 function getPortalDancerFieldErrors(

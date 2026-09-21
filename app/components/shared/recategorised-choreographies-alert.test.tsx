@@ -6,14 +6,14 @@ import { RecategorisedChoreographiesAlert } from "@/components/shared/recategori
 import type { RecategorisedChoreography } from "@/lib/choreographies/recategorisation-report";
 
 function render(
-  audience: "academy" | "admin",
+  surface: "admin" | "portal",
   choreographies: RecategorisedChoreography[],
 ) {
   return renderToStaticMarkup(
     <MemoryRouter>
       <RecategorisedChoreographiesAlert
-        audience={audience}
         choreographies={choreographies}
+        surface={surface}
       />
     </MemoryRouter>,
   );
@@ -41,7 +41,7 @@ describe("RecategorisedChoreographiesAlert", () => {
     expect(render("admin", [moved])).toContain(
       'href="/administracion/coreografias/choreography-1"',
     );
-    expect(render("academy", [moved])).toContain(
+    expect(render("portal", [moved])).toContain(
       'href="/portal/coreografias/choreography-1"',
     );
   });
@@ -56,7 +56,7 @@ describe("RecategorisedChoreographiesAlert", () => {
   });
 
   test("asks the academy to get in touch about the missing level", () => {
-    expect(render("academy", [cleared])).toContain(
+    expect(render("portal", [cleared])).toContain(
       "pasó a la categoría Juvenil I y quedó sin nivel de experiencia. Comunicate con nosotros para poder solucionarlo.",
     );
   });

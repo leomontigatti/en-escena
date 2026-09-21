@@ -108,8 +108,8 @@ export function DancerDetailAlerts({
   return (
     <AlertStack>
       <RecategorisedChoreographiesAlert
-        audience="admin"
         choreographies={recategorisedChoreographies}
+        surface="admin"
       />
       {!active ? (
         <ArchivedPersonAlert
