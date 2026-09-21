@@ -1,4 +1,4 @@
-import { isNull, type SQL } from "drizzle-orm";
+import { isNull, sql, type SQL } from "drizzle-orm";
 
 import { choreographies } from "@/db/schema";
 
@@ -12,4 +12,16 @@ import { choreographies } from "@/db/schema";
  */
 export function notWithdrawnChoreography(): SQL {
   return isNull(choreographies.withdrawnAt);
+}
+
+/**
+ * The raw-SQL twin, for the queries that build their `exists` by hand and give
+ * `choreography` an alias of their own (the participation predicates do). Same
+ * condition as `notWithdrawnChoreography()`, mirroring the pair
+ * `activeInscription()` / `activeInscriptionSql()`.
+ */
+export function notWithdrawnChoreographySql(
+  choreographyTableAlias: string,
+): SQL {
+  return sql`${sql.identifier(choreographyTableAlias)}.${sql.identifier("withdrawn_at")} is null`;
 }

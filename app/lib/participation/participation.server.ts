@@ -2,6 +2,7 @@ import { inArray, sql } from "drizzle-orm";
 
 import { dancers, professors } from "@/db/schema";
 import { activeInscriptionSql } from "@/lib/choreographies/active-inscription";
+import { notWithdrawnChoreographySql } from "@/lib/choreographies/withdrawn-choreography";
 import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
 
 /**
@@ -12,6 +13,7 @@ import type { Executor } from "@/lib/finances/choreography-cobro-support.server"
  * the predicate and pass it the alias they gave the table.
  */
 const participationInscriptionAlias = "participation_choreography_dancer";
+const participationChoreographyAlias = "participation_choreography";
 
 export function buildDancerEventParticipationSql(
   selectedEventId: string | null,
@@ -31,6 +33,12 @@ export function buildDancerEventParticipationSql(
   )`;
 }
 
+/**
+ * The dancer side needs no `withdrawn_at` check on the choreography: withdrawing
+ * one withdraws every inscription it holds, so the active-inscription condition
+ * already answers `false` for its dancers. The professor side does need it,
+ * because `choreography_professor` carries no withdrawal of its own.
+ */
 export function buildDancerAnyEventParticipationSql() {
   return sql<boolean>`exists (
     select 1
@@ -54,6 +62,7 @@ export function buildProfessorEventParticipationSql(
       on participation_choreography.id = participation_choreography_professor.choreography_id
     where participation_choreography_professor.professor_id = ${sql.identifier("en_escena_professor")}.${sql.identifier("id")}
       and participation_choreography.event_id = ${selectedEventId}
+      and ${notWithdrawnChoreographySql(participationChoreographyAlias)}
   )`;
 }
 
@@ -61,7 +70,10 @@ export function buildProfessorAnyEventParticipationSql() {
   return sql<boolean>`exists (
     select 1
     from ${sql.identifier("en_escena_choreography_professor")} participation_choreography_professor
+    inner join ${sql.identifier("en_escena_choreography")} participation_choreography
+      on participation_choreography.id = participation_choreography_professor.choreography_id
     where participation_choreography_professor.professor_id = ${sql.identifier("en_escena_professor")}.${sql.identifier("id")}
+      and ${notWithdrawnChoreographySql(participationChoreographyAlias)}
   )`;
 }
 

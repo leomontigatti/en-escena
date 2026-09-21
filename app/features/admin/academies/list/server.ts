@@ -1,9 +1,10 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies, choreographies } from "@/db/schema";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
+import { notWithdrawnChoreography } from "@/lib/choreographies/withdrawn-choreography";
 
 export async function loadAcademiesList(request: Request) {
   await requireInternalUser(request, ["admin", "auditor"]);
@@ -22,7 +23,12 @@ export async function loadAcademiesList(request: Request) {
           await db
             .selectDistinct({ academyId: choreographies.academyId })
             .from(choreographies)
-            .where(eq(choreographies.eventId, eventContext.selectedEventId))
+            .where(
+              and(
+                eq(choreographies.eventId, eventContext.selectedEventId),
+                notWithdrawnChoreography(),
+              ),
+            )
         ).map((row) => row.academyId),
       )
     : new Set<string>();
