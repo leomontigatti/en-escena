@@ -235,6 +235,58 @@ describe("PortalAcademyFinancesRouteView", () => {
     expect(metricCardText("Saldo adeudado")).toBe(owedAfterSelection);
   });
 
+  // The academy's own money: a withdrawn choreography still holds the deposit it
+  // was withdrawn with, so the list shows it from the start and the badge says
+  // why the figures are frozen.
+  test("shows a withdrawn choreography with no filter applied, badged `Retirada`", async () => {
+    await renderPortalFinances(
+      renderer,
+      portalFinancesLoaderDataFixture({
+        choreographyFinanceRows: [
+          choreographyFinanceRowFixture({
+            financialStatus: "depositMet",
+            id: "choreography_1",
+            name: "Aire",
+          }),
+          choreographyFinanceRowFixture({
+            choreographyNumber: 2,
+            financialStatus: "depositMet",
+            id: "choreography_2",
+            name: "Tango",
+            withdrawn: true,
+          }),
+        ],
+      }),
+    );
+
+    expect(columnValues("Nombre")).toEqual(["Aire", "Tango"]);
+    // In place of the financial status, not beside it.
+    expect(columnValues("Estado")).toEqual(["Señada", "Retirada"]);
+  });
+
+  test("filters the list down to the withdrawn choreographies on `Retirada`", async () => {
+    await renderPortalFinances(
+      renderer,
+      portalFinancesLoaderDataFixture({
+        choreographyFinanceRows: [
+          choreographyFinanceRowFixture({
+            id: "choreography_1",
+            name: "Aire",
+          }),
+          choreographyFinanceRowFixture({
+            choreographyNumber: 2,
+            id: "choreography_2",
+            name: "Tango",
+            withdrawn: true,
+          }),
+        ],
+      }),
+      "/portal/finanzas?estado=withdrawn",
+    );
+
+    expect(columnValues("Nombre")).toEqual(["Tango"]);
+  });
+
   test("shows the empty state when there is no active event", async () => {
     await renderPortalFinances(renderer, {
       activeEvent: null,
@@ -331,6 +383,7 @@ function columnValues(header: string) {
 async function renderPortalFinances(
   renderer: ReactDomTestRenderer,
   loaderData: LoaderData,
+  initialEntry = "/portal/finanzas",
 ) {
   const router = createMemoryRouter(
     [
@@ -339,7 +392,7 @@ async function renderPortalFinances(
         element: <PortalAcademyFinancesRouteView loaderData={loaderData} />,
       },
     ],
-    { initialEntries: ["/portal/finanzas"] },
+    { initialEntries: [initialEntry] },
   );
 
   await renderer.renderAsync(<RouterProvider router={router} />);
@@ -425,6 +478,7 @@ function choreographyFinanceRowFixture(
     owedDepositAmount: { amount: 3000, status: "complete" },
     registrationCount: 1,
     totalAmount: { amount: 10000, status: "complete" },
+    withdrawn: false,
     ...overrides,
   };
 }

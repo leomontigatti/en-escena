@@ -56,6 +56,11 @@ export type FinanceChoreographyRow = {
   name: string;
   choreographyScheduleId: string;
   scheduleCapacityScheduleId: string | null;
+  // Roster state of the choreography itself, not of its inscriptions. The money
+  // rollup does not read it —a withdrawn choreography's retained money is still
+  // the academy's— but the financial lists do: it is what badges the row
+  // `Retirada` in place of its financial status.
+  withdrawn: boolean;
 };
 
 /**
@@ -91,6 +96,9 @@ export type ChoreographyOperationalFinanceRow = OperationalFinanceRollup & {
   groupType: ChoreographyGroupType;
   id: string;
   name: string;
+  // Travels beside the figures rather than replacing them: the money is real
+  // and the lists show it. What the flag decides is the badge.
+  withdrawn: boolean;
 };
 
 /**
@@ -238,6 +246,7 @@ export function buildChoreographyOperationalFinanceRow(input: {
     groupType: input.choreography.groupType,
     id: input.choreography.id,
     name: input.choreography.name,
+    withdrawn: input.choreography.withdrawn,
   };
 }
 

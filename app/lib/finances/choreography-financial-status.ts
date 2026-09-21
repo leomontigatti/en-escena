@@ -43,12 +43,6 @@ export function formatInscriptionFinancialStatus(
   return inscriptionFinancialStatusLabels[value];
 }
 
-export function getInscriptionFinancialStatusBadgeVariant(
-  value: InscriptionFinancialStatus,
-) {
-  return inscriptionFinancialStatusBadgeVariants[value];
-}
-
 /**
  * `Retirada` is a separate derived axis —like `Facturada`—, not a fourth value
  * of the status enum, so it has its own label and its own variant. Neutral on
@@ -105,25 +99,34 @@ export function formatInscriptionStatusBadge(
 }
 
 /**
+ * The `Retirada` option, shared by every `Estado` filter that can badge a row
+ * with it. Its `value` is the badge's, so the filter and the cell cannot drift.
+ */
+export const withdrawnStatusFilterOption = {
+  label: withdrawnInscriptionLabel,
+  value: "withdrawn",
+} as const satisfies { label: string; value: string };
+
+/**
  * The options of the financial list's `Estado` filter: exactly the badges that
  * column can show. Filtering by what is visible is the only possible reading of
  * a filter over a column, and a row badged `Sobreasignada` that turned up under
  * `Señada` would be a contradiction on screen.
  *
- * `Retirada` is not there: a choreography is not withdrawn —inscriptions are—,
- * and offering an option that can never match is offering an empty list.
+ * `Retirada` is among them: a choreography **is** withdrawn —it carries its own
+ * `withdrawnAt`—, the financial lists always show it so its retained money stays
+ * in sight, and the badge replaces its financial status there.
  */
 export const choreographyStatusFilterOptions = [
   ...inscriptionFinancialStatusOptions,
   { label: inscriptionAnomalyLabels.overAllocated, value: "overAllocated" },
+  withdrawnStatusFilterOption,
 ] as const satisfies ReadonlyArray<{ label: string; value: string }>;
 
 /**
- * The same options for the `Estado` column of a list of inscriptions, plus
- * `Retirada`: the withdrawal axis belongs to the inscription, and there the
- * option does have rows it can find.
+ * The `Estado` column of a list of inscriptions badges the same three axes as a
+ * list of choreographies, so it offers the same options. The two names are kept
+ * apart because the two columns are: what they share is that both are
+ * `formatInscriptionStatusBadge`'s whole range.
  */
-export const inscriptionStatusFilterOptions = [
-  ...choreographyStatusFilterOptions,
-  { label: withdrawnInscriptionLabel, value: "withdrawn" },
-] as const satisfies ReadonlyArray<{ label: string; value: string }>;
+export const inscriptionStatusFilterOptions = choreographyStatusFilterOptions;

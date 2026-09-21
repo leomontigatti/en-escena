@@ -17,6 +17,7 @@ const choreography: FinanceChoreographyRow = {
   id: "choreography_1",
   name: "Aire",
   scheduleCapacityScheduleId: null,
+  withdrawn: false,
 };
 
 /**

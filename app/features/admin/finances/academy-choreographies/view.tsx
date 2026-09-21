@@ -336,6 +336,9 @@ function buildChoreographyFinanceColumns(
  * An anomaly **replaces** the status badge, it does not accompany it: the two
  * compete for the same glance, and `Señada` next to `Sobreasignada` reads as two
  * facts of the same weight when only one of them asks anybody to do anything.
+ * `Retirada` replaces both, for the same reason and with more right to: a
+ * withdrawn choreography is not going to happen, so no reading of its money
+ * answers *can it happen as registered?*.
  *
  * The precedence between axes lives in `resolveInscriptionStatusBadge` and is
  * explicit, not positional: a new derived axis stacks on top by declaring
@@ -347,6 +350,7 @@ function formatChoreographyStatusBadge(row: ChoreographyFinanceRow) {
     resolveInscriptionStatusBadge({
       anomalies: row.anomalies,
       financialStatus: row.financialStatus,
+      withdrawn: row.withdrawn,
     }),
   );
 }

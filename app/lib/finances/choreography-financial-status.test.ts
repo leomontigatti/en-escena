@@ -69,6 +69,11 @@ describe("choreographyStatusFilterOptions", () => {
           financialStatus: "depositMet",
         }),
       ),
+      resolveInscriptionStatusBadge({
+        anomalies: [],
+        financialStatus: "depositMet",
+        withdrawn: true,
+      }),
     ].map((badge) => formatInscriptionStatusBadge(badge).value);
 
     expect(
@@ -76,9 +81,11 @@ describe("choreographyStatusFilterOptions", () => {
     ).toEqual(new Set(reachable));
   });
 
-  test("does not offer `Retirada`, which no choreography can be", () => {
+  test("offers `Retirada`, which a choreography can be", () => {
+    // The financial lists never hide a withdrawn choreography, so the option
+    // narrows the list to the money that was retained instead of revealing it.
     expect(
       choreographyStatusFilterOptions.map((option) => option.value),
-    ).not.toContain("withdrawn");
+    ).toContain("withdrawn");
   });
 });

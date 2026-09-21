@@ -691,8 +691,62 @@ describe("AcademyFinancesRouteView", () => {
     );
   });
 
+  // The financial list never hides a withdrawn choreography: the money it holds
+  // is still the academy's, and hiding it is how a retained deposit gets
+  // forgotten. What withdrawal changes is the badge, not the row's presence.
+  test("shows a withdrawn choreography with no filter applied, badged `Retirada`", async () => {
+    await renderListIntoDocument({
+      loaderData: academyFinancesLoaderDataFixture({
+        choreographyFinanceRows: [
+          choreographyFinanceRowFixture({
+            financialStatus: "depositMet",
+            id: "choreography_1",
+            name: "Aire",
+          }),
+          choreographyFinanceRowFixture({
+            choreographyNumber: 2,
+            financialStatus: "depositMet",
+            id: "choreography_2",
+            name: "Tango",
+            withdrawn: true,
+          }),
+        ],
+      }),
+    });
+
+    expect(columnValues("Nombre")).toEqual(["Aire", "Tango"]);
+    // It replaces the financial status, it does not accompany it.
+    expect(statusBadges()).toEqual([
+      [{ text: "Señada", destructive: false }],
+      [{ text: "Retirada", destructive: false }],
+    ]);
+  });
+
+  test("filters the list down to the withdrawn choreographies on `Retirada`", async () => {
+    await renderListIntoDocument({
+      initialEntry: "/administracion/finanzas/academy_1?estado=withdrawn",
+      loaderData: academyFinancesLoaderDataFixture({
+        choreographyFinanceRows: [
+          choreographyFinanceRowFixture({
+            id: "choreography_1",
+            name: "Aire",
+          }),
+          choreographyFinanceRowFixture({
+            choreographyNumber: 2,
+            id: "choreography_2",
+            name: "Tango",
+            withdrawn: true,
+          }),
+        ],
+      }),
+    });
+
+    expect(columnValues("Nombre")).toEqual(["Tango"]);
+  });
+
   async function renderListIntoDocument(
     props: {
+      initialEntry?: string;
       initialPresetStage?: "deposit" | "balance";
       loaderData?: AcademyFinancesLoaderData;
     } = {},
@@ -712,7 +766,11 @@ describe("AcademyFinancesRouteView", () => {
           ),
         },
       ],
-      { initialEntries: ["/administracion/finanzas/academy_1"] },
+      {
+        initialEntries: [
+          props.initialEntry ?? "/administracion/finanzas/academy_1",
+        ],
+      },
     );
 
     await renderer.renderAsync(<RouterProvider router={router} />);
@@ -945,6 +1003,7 @@ function choreographyFinanceRowFixture(
     owedDepositAmount: { amount: 3000, status: "complete" },
     registrationCount: 1,
     totalAmount: { amount: 10000, status: "complete" },
+    withdrawn: false,
     ...overrides,
   };
 }
