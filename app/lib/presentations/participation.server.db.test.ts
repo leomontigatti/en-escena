@@ -19,6 +19,7 @@ import {
   withdrawChoreographyForTest,
 } from "@/lib/choreographies/withdrawn-choreography.test-support";
 import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
+import { derivePresentationWarnings } from "@/lib/presentations/warnings";
 import {
   movePresentation,
   readParticipationRows,
@@ -68,7 +69,7 @@ async function seedEvent() {
    */
   const addChoreography = async (input: {
     belowDeposit?: boolean;
-    experienceLevelId?: ExperienceLevel;
+    experienceLevelId?: ExperienceLevel | null;
     name: string;
     orderNumber?: number;
   }) => {
@@ -76,7 +77,10 @@ async function seedEvent() {
       academyId: academy.academy.id,
       categoryId: catalog.categoryWithLevel.id,
       eventId: event.id,
-      experienceLevelId: input.experienceLevelId ?? catalog.level.id,
+      experienceLevelId:
+        input.experienceLevelId === undefined
+          ? catalog.level.id
+          : input.experienceLevelId,
       modalityId: catalog.modality.id,
       name: input.name,
       scheduleCapacityId: catalog.scheduleCapacity.id,
@@ -166,6 +170,24 @@ describe("readParticipationRows", () => {
     const rows = await readParticipationRows(event.id);
 
     expect(rows.map((row) => row.choreographyId)).toEqual([performing.id]);
+  });
+
+  test("carries the category's levels, so a row without one is warned", async () => {
+    const { addChoreography, event } = await seedEvent();
+    const levelless = await addChoreography({
+      experienceLevelId: null,
+      name: "Sin nivel",
+      orderNumber: 1,
+    });
+
+    const rows = await readParticipationRows(event.id);
+
+    expect(rows[0].category.experienceLevels.length).toBeGreaterThan(0);
+    expect(
+      derivePresentationWarnings(rows)
+        .get(levelless.id)
+        ?.map((warning) => warning.kind),
+    ).toContain("missingLevel");
   });
 
   test("lists a withdrawn choreography again once it is restored", async () => {

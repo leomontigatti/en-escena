@@ -6,7 +6,8 @@ import {
   type PresentationWarningRow,
 } from "./warnings";
 
-type RowOverrides = Partial<PresentationWarningRow> & {
+type RowOverrides = Partial<Omit<PresentationWarningRow, "category">> & {
+  category?: Partial<PresentationWarningRow["category"]>;
   choreographyId: string;
   orderNumber: number | null;
 };
@@ -18,20 +19,27 @@ function row({
 }: RowOverrides): PresentationWarningRow {
   return {
     activeDancers: [],
-    category: { maxAge: 12, minAge: 1, name: "Infantil" },
     choreographyId,
     choreographyNumber: orderNumber ?? 1,
     experienceLevel: null,
     financialStatus: "depositMet",
     groupType: "solo",
     orderNumber,
+    ...overrides,
+    category: {
+      experienceLevels: [],
+      maxAge: 12,
+      minAge: 1,
+      name: "Infantil",
+      ...overrides.category,
+    },
     schedule: {
       id: "schedule-1",
       name: "Sala A",
       scheduledDate: "2026-05-01",
       startTime: "10:00",
+      ...overrides.schedule,
     },
-    ...overrides,
   };
 }
 
@@ -45,6 +53,38 @@ function messagesOf(
 const ana = { id: "ana", name: "Ana Díaz" };
 
 describe("derivePresentationWarnings", () => {
+  test("marks a row without a level in a category that admits one", () => {
+    const juvenil = { maxAge: 17, minAge: 13, name: "Juvenil I" };
+    const warnings = derivePresentationWarnings([
+      row({
+        category: { ...juvenil, experienceLevels: ["amateur"] },
+        choreographyId: "levelled",
+        experienceLevel: "amateur",
+        orderNumber: 1,
+      }),
+      row({
+        category: { ...juvenil, experienceLevels: ["amateur"] },
+        choreographyId: "numbered",
+        orderNumber: 2,
+      }),
+      row({
+        category: { ...juvenil, experienceLevels: [] },
+        choreographyId: "levelless-category",
+        orderNumber: 3,
+      }),
+      row({
+        category: { ...juvenil, experienceLevels: ["amateur"] },
+        choreographyId: "unnumbered",
+        orderNumber: null,
+      }),
+    ]);
+
+    expect(messagesOf(warnings, "numbered")).toEqual(["Sin nivel"]);
+    expect(messagesOf(warnings, "unnumbered")).toEqual(["Sin nivel"]);
+    expect(messagesOf(warnings, "levelled")).toEqual([]);
+    expect(messagesOf(warnings, "levelless-category")).toEqual([]);
+  });
+
   test("marks a choreography below `Señada`, numbered or not", () => {
     const warnings = derivePresentationWarnings([
       row({
