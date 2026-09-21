@@ -63,13 +63,21 @@ title), then `Closes #<PRD>`. The PRD holds the rest.
 ## UI evidence
 
 A PR that changes what a screen looks like carries before and after images. A
-change to motion or interaction carries a short video instead.
+change to motion or interaction carries a short GIF instead.
 
 - Capture against seed data, never a database refreshed from production:
   screenshots show names and payments.
-- `gh` cannot upload attachments. Until #1115 decides otherwise, a session
-  captures the files (the T3 preview screenshot and recording tools), puts their
-  paths in its final message, and the human drags them into the PR.
+- Name the files `<what>-before.png` and `<what>-after.png`, then run
+  `pnpm pr:evidence <pr> <files...>`. It uploads them to the `pr-assets`
+  prerelease (`gh` has no attachment upload, and a release asset renders inline)
+  and prints the markdown, pairs already laid out as a Before/After table. Paste
+  it under the fix. Running it again with the same file names replaces the
+  assets.
+- Motion goes in as a short GIF through the same command. GitHub only gives its
+  video player to files uploaded through the browser, so a real video is put in
+  the session's final message as a path, and the human drags it into the PR.
+- **The repository is public, and so is every asset.** Remove one with
+  `gh release delete-asset pr-assets <name>`.
 - Never commit PR-only evidence to the repo.
 - AFK runners have no browser and are exempt.
 

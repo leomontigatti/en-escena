@@ -20,6 +20,7 @@
     "check:banned-imports": "node --import tsx scripts/check-banned-imports.ts",
     "check:comment-language": "node --import tsx scripts/check-comment-language.ts",
     "check:pr-title": "node --import tsx scripts/check-pr-title.ts",
+    "pr:evidence": "node --import tsx scripts/pr-evidence.ts",
     "check:file-tokens": "node --import tsx scripts/check-file-tokens.ts",
     "check:doc-map": "node scripts/check-doc-map.mjs",
     "check:dependency-audit": "node scripts/check-dependency-audit.mjs",

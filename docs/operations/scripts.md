@@ -86,6 +86,12 @@ workflow does.
 | `pnpm agent:write-pr`   | Sandcastle runner that writes the PR body for a branch. Invoked by the workflow.                                                                                  |
 | `pnpm agent:review`     | Sandcastle runner that reviews a PR. Invoked by the workflow.                                                                                                     |
 
+## Pull Requests
+
+| Script                | Purpose                                                                                                                                                                                                                                           |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ⚠️ `pnpm pr:evidence` | `pnpm pr:evidence <pr> <image>...` uploads screenshots or GIFs to the public `pr-assets` prerelease and prints the markdown to paste in the PR body. Publishes to a public repo: seed data only. See [Pull requests](../agents/pull-requests.md). |
+
 ## Git Hooks
 
 | Script         | Purpose                                            |
