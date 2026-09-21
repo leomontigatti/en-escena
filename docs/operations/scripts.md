@@ -22,26 +22,27 @@ None of these reach outside the repo; only `pnpm format` writes to it. The
 recommended order for a final pass is in
 [Workflows](../agents/workflows.md#command-guardrail).
 
-| Script                              | Purpose                                                                                                                                                     |
-| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm format`                       | Format the repo with Prettier. Changes files in place.                                                                                                      |
-| `pnpm format:check`                 | Check Prettier formatting without changing files.                                                                                                           |
-| `pnpm lint`                         | Run oxlint over what `.oxlintrc.json` enables: React hook mistakes, import cycles, un-awaited promises. Not a style checker — formatting is Prettier's.     |
-| `pnpm typecheck`                    | Generate React Router route types and run TypeScript. Use this instead of `pnpm exec tsc`.                                                                  |
-| `pnpm test`                         | Run the full pre-commit suite: unit/react plus the DB suite on in-process PGlite. No local Postgres.                                                        |
-| `pnpm test:unit`                    | Run only the non-database (unit/react) Vitest suite.                                                                                                        |
-| `pnpm test:watch`                   | Run Vitest in watch mode. Stays up until you quit it.                                                                                                       |
-| `pnpm check:repo-styles`            | Enforce app UI style guardrails.                                                                                                                            |
-| `pnpm check:file-tokens`            | Check staged application source file size before commit or PR handoff.                                                                                      |
-| `pnpm check:comment-language`       | Fail on Spanish in engineering prose — comments and test names. See [Coding Standards](../../.sandcastle/CODING_STANDARDS.md). Runs in the pre-commit hook. |
-| `pnpm check:banned-imports`         | Fail when a retired dependency is imported again. The reason each one was retired travels with the rule and is printed at the failure.                      |
-| `pnpm check:fallow`                 | The commit gate: fail on code left unreachable by the branch. See [Fallow](../agents/fallow.md). Runs in the pre-commit hook.                               |
-| `pnpm check:doc-map`                | Fail when mapped code changed without its current-state document (`app/lib/shared/doc-map.json`). Runs in CI as `docs-gate`; needs `origin/master` fetched. |
-| `pnpm check:pr-title`               | Fail a PR title that lacks a conventional prefix or whose subject is not English. The title is the subject line squash-merge lands on `master`.             |
-| `pnpm check:dependency-audit`       | Fail a branch on the high and critical advisories it _introduces_, by auditing its tree against the base ref's. Runs in CI; needs `origin/master` fetched.  |
-| `pnpm check:migration-order`        | Fail when a new migration predates the newest one on `master`. Runs in CI; needs `origin/master` fetched.                                                   |
-| `pnpm check:migration-immutability` | Fail when an already-applied migration or its journal entry was edited. See [Database Migrations](../db/migrations.md).                                     |
-| `pnpm check:migration-safety`       | Lint the migrations a branch _adds_ with squawk, splitting blocking findings from advisory ones. See [Database Migrations](../db/migrations.md).            |
+| Script                              | Purpose                                                                                                                                                                 |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm format`                       | Format the repo with Prettier. Changes files in place.                                                                                                                  |
+| `pnpm format:check`                 | Check Prettier formatting without changing files.                                                                                                                       |
+| `pnpm lint`                         | Run oxlint over what `.oxlintrc.json` enables: React hook mistakes, import cycles, un-awaited promises. Not a style checker — formatting is Prettier's.                 |
+| `pnpm typecheck`                    | Generate React Router route types and run TypeScript. Use this instead of `pnpm exec tsc`.                                                                              |
+| `pnpm test`                         | Run the full pre-commit suite: unit/react plus the DB suite on in-process PGlite. No local Postgres.                                                                    |
+| `pnpm test:unit`                    | Run only the non-database (unit/react) Vitest suite.                                                                                                                    |
+| `pnpm test:watch`                   | Run Vitest in watch mode. Stays up until you quit it.                                                                                                                   |
+| `pnpm check:repo-styles`            | Enforce app UI style guardrails.                                                                                                                                        |
+| `pnpm check:file-tokens`            | Check staged application source file size before commit or PR handoff.                                                                                                  |
+| `pnpm check:comment-language`       | Fail on Spanish in engineering prose — comments and test names. See [Coding Standards](../../.sandcastle/CODING_STANDARDS.md). Runs in the pre-commit hook.             |
+| `pnpm check:banned-imports`         | Fail when a retired dependency is imported again. The reason each one was retired travels with the rule and is printed at the failure.                                  |
+| `pnpm check:labels`                 | Fail when a workflow, Sandcastle runner, script or local skill names a label that `.github/labels.json` does not hold. See [Triage labels](../agents/triage-labels.md). |
+| `pnpm check:fallow`                 | The commit gate: fail on code left unreachable by the branch. See [Fallow](../agents/fallow.md). Runs in the pre-commit hook.                                           |
+| `pnpm check:doc-map`                | Fail when mapped code changed without its current-state document (`app/lib/shared/doc-map.json`). Runs in CI as `docs-gate`; needs `origin/master` fetched.             |
+| `pnpm check:pr-title`               | Fail a PR title that lacks a conventional prefix or whose subject is not English. The title is the subject line squash-merge lands on `master`.                         |
+| `pnpm check:dependency-audit`       | Fail a branch on the high and critical advisories it _introduces_, by auditing its tree against the base ref's. Runs in CI; needs `origin/master` fetched.              |
+| `pnpm check:migration-order`        | Fail when a new migration predates the newest one on `master`. Runs in CI; needs `origin/master` fetched.                                                               |
+| `pnpm check:migration-immutability` | Fail when an already-applied migration or its journal entry was edited. See [Database Migrations](../db/migrations.md).                                                 |
+| `pnpm check:migration-safety`       | Lint the migrations a branch _adds_ with squawk, splitting blocking findings from advisory ones. See [Database Migrations](../db/migrations.md).                        |
 
 ## Database
 
@@ -91,6 +92,12 @@ workflow does.
 | Script                | Purpose                                                                                                                                                                                                                                           |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | ⚠️ `pnpm pr:evidence` | `pnpm pr:evidence <pr> <image>...` uploads screenshots or GIFs to the public `pr-assets` prerelease and prints the markdown to paste in the PR body. Publishes to a public repo: seed data only. See [Pull requests](../agents/pull-requests.md). |
+
+## Labels
+
+| Script                | Purpose                                                                                                                                                                                                                          |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ⚠️ `pnpm labels:sync` | Create or update the repo's GitHub labels from `.github/labels.json`. Never deletes: labels the file does not hold are listed and left alone. `--dry-run` prints the plan only. See [Triage labels](../agents/triage-labels.md). |
 
 ## Git Hooks
 

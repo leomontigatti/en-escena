@@ -96,6 +96,10 @@ jobs:
       # manifest does not keep it out, and typecheck has no opinion once it is
       # re-added. The rule carries its own reason and prints it on failure.
       - run: pnpm check:banned-imports
+      # Every label the automation names exists (#1116). The AFK state machine
+      # runs on exact label strings, and a typo in an `--add-label` otherwise
+      # surfaces only as a refused edit in the middle of the run that needs it.
+      - run: pnpm check:labels
       # Engineering prose stays English (#592). The sweep took the tree to zero
       # Spanish comments and test names; this is what keeps it there, since the
       # rule had been living in CODING_STANDARDS alone and losing every review
