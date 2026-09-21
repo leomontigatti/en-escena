@@ -9,6 +9,7 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 
+import { user } from "./access";
 import { choreographies } from "./choreographies";
 import { createTable, uuidPrimaryKey } from "./core";
 import { events } from "./events";
@@ -64,5 +65,45 @@ export const presentations = createTable(
       table.orderNumber,
     ),
     index("presentation_event_order_idx").on(table.eventId, table.orderNumber),
+  ],
+).enableRLS();
+
+/**
+ * A judge put on a presentation. It holds the pair and nothing else: no event
+ * — the presentation names it — and no record of who assigned, which nobody
+ * has asked to read. See docs/domain/judging.md, "Participation And Judging".
+ *
+ * No cascade, matching its neighbours: deleting a choreography deletes its
+ * presentation's assignments explicitly, in the same transaction.
+ */
+export const judgeAssignments = createTable(
+  "judge_assignment",
+  {
+    id: uuidPrimaryKey(),
+    presentationId: varchar("presentation_id", { length: 255 }).notNull(),
+    userId: varchar("user_id", { length: 255 }).notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.presentationId],
+      foreignColumns: [presentations.id],
+      name: "judge_assignment_presentation_fk",
+    }),
+    foreignKey({
+      columns: [table.userId],
+      foreignColumns: [user.id],
+      name: "judge_assignment_user_fk",
+    }),
+    uniqueIndex("judge_assignment_presentation_user_unique").on(
+      table.presentationId,
+      table.userId,
+    ),
+    index("judge_assignment_user_idx").on(table.userId),
   ],
 ).enableRLS();

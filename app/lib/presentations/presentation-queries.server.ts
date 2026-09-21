@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { presentations } from "@/db/schema";
 import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
+import { deleteChoreographyJudgeAssignments } from "@/lib/presentations/judge-assignments.server";
 
 /**
  * The number a choreography presents with, or `null` when it has none yet. It
@@ -29,12 +30,15 @@ export async function findPresentationOrderNumber(
  *
  * Takes the executor because deleting a choreography deletes its presentation
  * in the same transaction: there is no cascade, matching every other reference
- * to a choreography.
+ * to a choreography. The judge assignments hanging off the presentation go
+ * first, in that same transaction.
  */
 export async function deleteChoreographyPresentation(
   executor: Executor,
   choreographyId: string,
 ): Promise<void> {
+  await deleteChoreographyJudgeAssignments(executor, choreographyId);
+
   await executor
     .delete(presentations)
     .where(eq(presentations.choreographyId, choreographyId));
