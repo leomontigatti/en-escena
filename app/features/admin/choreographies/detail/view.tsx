@@ -203,7 +203,10 @@ function ChoreographyRemovalDialog({
               presentationOrderNumber:
                 loaderData.choreography.presentationOrderNumber,
             })
-          : "Su presentación ya fue evaluada, así que no puede eliminarse ni retirarse."
+          : // The reason itself is left to `BlockedDeleteReasons`, which lists it
+            // right below: saying it here as well reads as two findings and not
+            // as one.
+            "Esta coreografía no puede eliminarse ni retirarse: la historia competitiva no se pierde."
       }
       intentValue={deleteChoreographyIntent}
       isBlocked={!loaderData.deletion.canDelete}

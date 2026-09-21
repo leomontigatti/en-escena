@@ -1,7 +1,6 @@
 import type { ChoreographyOperationalStatus } from "@/lib/choreographies/operational-status";
 
 export type { ChoreographyOperationalStatus } from "@/lib/choreographies/operational-status";
-export { formatChoreographyOperationalStatusLabel as formatOperationalStatusLabel } from "@/lib/choreographies/operational-status";
 
 export type ChoreographyGroupType = "solo" | "duo" | "trio" | "grupal";
 

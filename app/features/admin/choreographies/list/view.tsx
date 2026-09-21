@@ -11,9 +11,7 @@ import {
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import {
-  formatChoreographyOperationalStatusLabel,
-  getChoreographyOperationalStatusBadgeVariant,
-  withdrawnChoreographyStatusBadgeVariant,
+  resolveChoreographyStatusBadge,
   withdrawnChoreographyStatusFilterValue,
   withdrawnChoreographyStatusLabel,
 } from "@/lib/choreographies/operational-status";
@@ -128,30 +126,17 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
 /**
  * `Retirada` **replaces** the readiness badge rather than sitting next to it: a
  * choreography that is not taking part is not half-loaded, it is out, and what
- * it still lacks is no longer anyone's task.
+ * it still lacks is no longer anyone's task. Which of the two it is comes from
+ * the shared resolver, so this cell and the portal's read the same way.
  */
 function ChoreographyStatusBadge({
   choreography,
 }: {
   choreography: ChoreographyRow;
 }) {
-  if (choreography.isWithdrawn) {
-    return (
-      <Badge variant={withdrawnChoreographyStatusBadgeVariant}>
-        {withdrawnChoreographyStatusLabel}
-      </Badge>
-    );
-  }
+  const badge = resolveChoreographyStatusBadge(choreography);
 
-  return (
-    <Badge
-      variant={getChoreographyOperationalStatusBadgeVariant(
-        choreography.operationalStatus,
-      )}
-    >
-      {formatChoreographyOperationalStatusLabel(choreography.operationalStatus)}
-    </Badge>
-  );
+  return <Badge variant={badge.variant}>{badge.label}</Badge>;
 }
 
 export function ChoreographiesListRouteView({

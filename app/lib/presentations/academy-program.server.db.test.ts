@@ -1,7 +1,7 @@
 import { beforeEach, afterEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
-import { choreographies, events, presentations } from "@/db/schema";
+import { events, presentations } from "@/db/schema";
 import {
   createChoreographyRecord,
   createDancer,
@@ -12,6 +12,10 @@ import {
   createAcademyUser,
   createSavedEvent,
 } from "@/lib/admin/finances/finances.test-support";
+import {
+  restoreChoreographyForTest,
+  withdrawChoreographyForTest,
+} from "@/lib/choreographies/withdrawn-choreography.test-support";
 import {
   hasEventPresentations,
   isEventProgramVisible,
@@ -95,15 +99,7 @@ async function seedEvent() {
     return { academy: academy.academy, addChoreography };
   };
 
-  /** Stamps the choreography the way `removeChoreography` withdraws it. */
-  const withdrawChoreography = async (choreographyId: string) => {
-    await db
-      .update(choreographies)
-      .set({ withdrawnAt: new Date("2026-09-17T12:00:00Z") })
-      .where(eq(choreographies.id, choreographyId));
-  };
-
-  return { addAcademy, catalog, event, withdrawChoreography };
+  return { addAcademy, catalog, event };
 }
 
 describe("readAcademyPresentations", () => {
@@ -153,7 +149,7 @@ describe("readAcademyPresentations", () => {
   });
 
   test("leaves out the academy's withdrawn choreographies", async () => {
-    const { addAcademy, event, withdrawChoreography } = await seedEvent();
+    const { addAcademy, event } = await seedEvent();
     const { academy, addChoreography } = await addAcademy();
     const performing = await addChoreography({
       name: "En escena",
@@ -165,8 +161,8 @@ describe("readAcademyPresentations", () => {
     });
     const withdrawnLate = await addChoreography({ name: "Retirada" });
 
-    await withdrawChoreography(withdrawnNumbered.id);
-    await withdrawChoreography(withdrawnLate.id);
+    await withdrawChoreographyForTest(withdrawnNumbered.id);
+    await withdrawChoreographyForTest(withdrawnLate.id);
 
     const rows = await readAcademyPresentations({
       academyId: academy.id,
@@ -175,10 +171,7 @@ describe("readAcademyPresentations", () => {
 
     expect(rows.map((row) => row.choreographyId)).toEqual([performing.id]);
 
-    await db
-      .update(choreographies)
-      .set({ withdrawnAt: null })
-      .where(eq(choreographies.id, withdrawnLate.id));
+    await restoreChoreographyForTest(withdrawnLate.id);
 
     const restored = await readAcademyPresentations({
       academyId: academy.id,

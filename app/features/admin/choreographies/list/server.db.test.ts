@@ -1,10 +1,9 @@
 import { describe, expect, test } from "vitest";
 
-import { eq } from "drizzle-orm";
-
 import { db } from "@/db";
-import { choreographies, choreographyProfessors, schedules } from "@/db/schema";
+import { choreographyProfessors, schedules } from "@/db/schema";
 import { createSignedInAdminRequest as createSignedInRequest } from "@/lib/admin/test-support/db";
+import { withdrawChoreographyForTest } from "@/lib/choreographies/withdrawn-choreography.test-support";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import {
   loadChoreographies,
@@ -323,10 +322,7 @@ async function seedWithdrawnChoreography() {
     }),
   );
 
-  await db
-    .update(choreographies)
-    .set({ withdrawnAt: new Date("2026-09-17T12:00:00Z") })
-    .where(eq(choreographies.id, withdrawn.id));
+  await withdrawChoreographyForTest(withdrawn.id);
 
   return { event, performing, withdrawn };
 }

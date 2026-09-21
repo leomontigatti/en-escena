@@ -16,9 +16,8 @@ import { CreateChoreographyDialog } from "@/features/portal/choreographies/creat
 import type { CreateChoreographyDialogLoaderData } from "@/features/portal/choreographies/create/server";
 import type { loadPortalChoreographiesList } from "@/features/portal/choreographies/list/server";
 import {
-  getChoreographyOperationalStatusBadgeVariant,
   notWithdrawnChoreographyStatusFilterValue,
-  withdrawnChoreographyStatusBadgeVariant,
+  resolveChoreographyStatusBadge,
   withdrawnChoreographyStatusFilterValue,
   withdrawnChoreographyStatusLabel,
 } from "@/lib/choreographies/operational-status";
@@ -26,7 +25,6 @@ import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { getPortalChoreographyCreationAvailability } from "@/lib/portal/choreography-creation-availability";
 import {
   formatGroupTypeLabel as formatChoreographyGroupTypeLabel,
-  formatOperationalStatusLabel,
   type PortalChoreographyListItem,
 } from "@/lib/portal/choreographies";
 import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
@@ -307,30 +305,17 @@ function getUniqueSortedOptions(
 /**
  * `Retirada` **replaces** the readiness badge rather than sitting next to it: a
  * choreography that is not taking part is not half-loaded, it is out, and what
- * it still lacks is no longer anyone's task.
+ * it still lacks is no longer anyone's task. Which of the two it is comes from
+ * the shared resolver, so this cell and the administrator's read the same way.
  */
 function ChoreographyStatusBadge({
   choreography,
 }: {
   choreography: PortalChoreographyListItem;
 }) {
-  if (choreography.isWithdrawn) {
-    return (
-      <Badge variant={withdrawnChoreographyStatusBadgeVariant}>
-        {withdrawnChoreographyStatusLabel}
-      </Badge>
-    );
-  }
+  const badge = resolveChoreographyStatusBadge(choreography);
 
-  return (
-    <Badge
-      variant={getChoreographyOperationalStatusBadgeVariant(
-        choreography.operationalStatus,
-      )}
-    >
-      {formatOperationalStatusLabel(choreography.operationalStatus)}
-    </Badge>
-  );
+  return <Badge variant={badge.variant}>{badge.label}</Badge>;
 }
 
 function getChoreographiesEmptyTitle(

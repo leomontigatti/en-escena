@@ -260,12 +260,16 @@ export function buildChoreographyOperationalFinanceRow(input: {
   inscriptions: ResolvedInscription[];
 }): ChoreographyOperationalFinanceRow {
   const rollup = rollUpInscriptionFinanceFigures(input.inscriptions);
+  const figures = input.choreography.withdrawn
+    ? {
+        ...rollup,
+        financialStatus: "paidInFull" as const,
+        registrationCount: 0,
+      }
+    : rollup;
 
   return {
-    ...rollup,
-    ...(input.choreography.withdrawn
-      ? { financialStatus: "paidInFull" as const, registrationCount: 0 }
-      : {}),
+    ...figures,
     choreographyNumber: input.choreography.choreographyNumber,
     groupType: input.choreography.groupType,
     id: input.choreography.id,

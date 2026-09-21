@@ -2,7 +2,7 @@ import { asc, eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
-import { choreographies, presentations } from "@/db/schema";
+import { presentations } from "@/db/schema";
 import {
   createChoreographyRecord,
   createDancer,
@@ -13,6 +13,10 @@ import {
   createAcademyUser,
   createSavedEvent,
 } from "@/lib/admin/finances/finances.test-support";
+import {
+  restoreChoreographyForTest,
+  withdrawChoreographyForTest,
+} from "@/lib/choreographies/withdrawn-choreography.test-support";
 import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
 import {
   movePresentation,
@@ -96,15 +100,7 @@ async function seedEvent() {
     return choreography;
   };
 
-  /** Stamps the choreography the way `removeChoreography` withdraws it. */
-  const withdrawChoreography = async (choreographyId: string) => {
-    await db
-      .update(choreographies)
-      .set({ withdrawnAt: new Date("2026-09-17T12:00:00Z") })
-      .where(eq(choreographies.id, choreographyId));
-  };
-
-  return { academy, addChoreography, catalog, event, withdrawChoreography };
+  return { academy, addChoreography, catalog, event };
 }
 
 async function readOrder(eventId: string) {
@@ -154,7 +150,7 @@ describe("readParticipationRows", () => {
   });
 
   test("leaves out a withdrawn choreography, numbered or not", async () => {
-    const { addChoreography, event, withdrawChoreography } = await seedEvent();
+    const { addChoreography, event } = await seedEvent();
     const performing = await addChoreography({ name: "En escena" });
     const withdrawnLate = await addChoreography({ name: "Retirada" });
     const withdrawnNumbered = await addChoreography({
@@ -162,8 +158,8 @@ describe("readParticipationRows", () => {
       orderNumber: 2,
     });
 
-    await withdrawChoreography(withdrawnLate.id);
-    await withdrawChoreography(withdrawnNumbered.id);
+    await withdrawChoreographyForTest(withdrawnLate.id);
+    await withdrawChoreographyForTest(withdrawnNumbered.id);
 
     const rows = await readParticipationRows(event.id);
 
@@ -171,14 +167,11 @@ describe("readParticipationRows", () => {
   });
 
   test("lists a withdrawn choreography again once it is restored", async () => {
-    const { addChoreography, event, withdrawChoreography } = await seedEvent();
+    const { addChoreography, event } = await seedEvent();
     const choreography = await addChoreography({ name: "Restaurada" });
 
-    await withdrawChoreography(choreography.id);
-    await db
-      .update(choreographies)
-      .set({ withdrawnAt: null })
-      .where(eq(choreographies.id, choreography.id));
+    await withdrawChoreographyForTest(choreography.id);
+    await restoreChoreographyForTest(choreography.id);
 
     const rows = await readParticipationRows(event.id);
 
@@ -188,11 +181,11 @@ describe("readParticipationRows", () => {
 
 describe("runAutomaticOrdering", () => {
   test("gives no number to a withdrawn choreography", async () => {
-    const { addChoreography, event, withdrawChoreography } = await seedEvent();
+    const { addChoreography, event } = await seedEvent();
     const performing = await addChoreography({ name: "En escena" });
     const withdrawn = await addChoreography({ name: "Retirada" });
 
-    await withdrawChoreography(withdrawn.id);
+    await withdrawChoreographyForTest(withdrawn.id);
 
     const result = await runAutomaticOrdering(event.id);
 

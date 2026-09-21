@@ -1,4 +1,4 @@
-import { isNull, sql, type SQL } from "drizzle-orm";
+import { isNotNull, isNull, sql, type SQL } from "drizzle-orm";
 
 import { choreographies } from "@/db/schema";
 
@@ -12,6 +12,16 @@ import { choreographies } from "@/db/schema";
  */
 export function notWithdrawnChoreography(): SQL {
   return isNull(choreographies.withdrawnAt);
+}
+
+/**
+ * The complement, for the writes that must reach withdrawn choreographies and
+ * only them: releasing the capacity references of the rows left pointing at a
+ * capacity about to be deleted is the one such write. Narrowing it matters —
+ * touching a choreography that is taking part would strip a live assignment.
+ */
+export function withdrawnChoreography(): SQL {
+  return isNotNull(choreographies.withdrawnAt);
 }
 
 /**

@@ -11,6 +11,7 @@ import {
   professors,
 } from "@/db/schema";
 import { createCategory } from "@/lib/categories/repository.server";
+import { withdrawChoreographyForTest } from "@/lib/choreographies/withdrawn-choreography.test-support";
 import {
   createModality,
   createSubmodality,
@@ -488,10 +489,7 @@ describe("handlePortalChoreographiesListAction", () => {
       scheduleCapacityId: catalog.scheduleCapacity.id,
       submodalityId: null,
     });
-    await db
-      .update(choreographies)
-      .set({ withdrawnAt: new Date("2026-09-17T12:00:00Z") })
-      .where(eq(choreographies.id, withdrawn.id));
+    await withdrawChoreographyForTest(withdrawn.id);
 
     const loaderData = await loadPortalChoreographiesList(
       new Request(`http://localhost/portal/coreografias?evento=${event.id}`, {

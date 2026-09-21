@@ -1,5 +1,6 @@
 import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 
+import { withdrawnChoreography } from "@/lib/choreographies/withdrawn-choreography";
 import {
   choreographies,
   created,
@@ -153,7 +154,11 @@ async function scheduleCapacityHasOperationalDependencies(
  * Releases the capacity references of the withdrawn choreographies still
  * pointing at the capacities about to be deleted. They are the only ones that
  * can be left —the guards refuse while an occupying choreography points at the
- * capacity— and `choreography.schedule_capacity_id` carries no `on delete`
+ * capacity— and the filter says so rather than trusting it: a choreography
+ * assigned between the guard and the delete has the foreign key refuse for it
+ * instead of silently losing the capacity it had just taken.
+ *
+ * `choreography.schedule_capacity_id` carries no `on delete`
  * behaviour, so without this the foreign key would refuse the delete with a raw
  * driver error. Their own `schedule_id` stays: it is what still prices the
  * money they hold, and a restore refuses on the null capacity rather than
@@ -166,7 +171,12 @@ export async function releaseScheduleCapacityReferences(
   await executor
     .update(choreographies)
     .set({ scheduleCapacityId: null })
-    .where(inArray(choreographies.scheduleCapacityId, scheduleCapacityIds));
+    .where(
+      and(
+        inArray(choreographies.scheduleCapacityId, scheduleCapacityIds),
+        withdrawnChoreography(),
+      ),
+    );
 }
 
 export async function resolveCompatibleScheduleCapacities(input: {

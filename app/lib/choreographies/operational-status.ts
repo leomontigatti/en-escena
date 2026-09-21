@@ -153,7 +153,32 @@ export function getChoreographyOperationalStatusBadgeVariant(
  * rather than joining `ChoreographyOperationalStatus`.
  */
 export const withdrawnChoreographyStatusLabel = "Retirada";
-export const withdrawnChoreographyStatusBadgeVariant = "secondary" as const;
+const withdrawnChoreographyStatusBadgeVariant = "secondary" as const;
+
+/**
+ * What the `Estado` cell shows, on whichever of the two choreography lists is
+ * asking: the withdrawal axis first, because it replaces the readiness one, and
+ * the readiness answer otherwise. Both lists ask this rather than each writing
+ * the branch out, so the two cells cannot drift apart on either label or colour.
+ */
+export function resolveChoreographyStatusBadge(input: {
+  isWithdrawn: boolean;
+  operationalStatus: ChoreographyOperationalStatus;
+}): { label: string; variant: "secondary" | "success" | "warning" } {
+  if (input.isWithdrawn) {
+    return {
+      label: withdrawnChoreographyStatusLabel,
+      variant: withdrawnChoreographyStatusBadgeVariant,
+    };
+  }
+
+  return {
+    label: formatChoreographyOperationalStatusLabel(input.operationalStatus),
+    variant: getChoreographyOperationalStatusBadgeVariant(
+      input.operationalStatus,
+    ),
+  };
+}
 
 /** What the `Estado` filter of both choreography lists calls a withdrawn row. */
 export const withdrawnChoreographyStatusFilterValue = "retirada";

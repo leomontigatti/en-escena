@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { choreographies, events, presentations, schedules } from "@/db/schema";
+import { events, presentations, schedules } from "@/db/schema";
 import {
   createChoreographyRecord,
   createDancer,
@@ -13,6 +13,10 @@ import {
   createAcademyUser,
   createSavedEvent,
 } from "@/lib/admin/finances/finances.test-support";
+import {
+  restoreChoreographyForTest,
+  withdrawChoreographyForTest,
+} from "@/lib/choreographies/withdrawn-choreography.test-support";
 import {
   findPublishedProgramEvent,
   readEventProgram,
@@ -78,15 +82,7 @@ async function seedEvent() {
     return { academy, addChoreography };
   };
 
-  /** Stamps the choreography the way `removeChoreography` withdraws it. */
-  const withdrawChoreography = async (choreographyId: string) => {
-    await db
-      .update(choreographies)
-      .set({ withdrawnAt: new Date("2026-09-17T12:00:00Z") })
-      .where(eq(choreographies.id, choreographyId));
-  };
-
-  return { addAcademy, catalog, event, withdrawChoreography };
+  return { addAcademy, catalog, event };
 }
 
 describe("readEventProgram", () => {
@@ -123,7 +119,7 @@ describe("readEventProgram", () => {
   });
 
   test("leaves out a withdrawn choreography, and lists it again once restored", async () => {
-    const { addAcademy, event, withdrawChoreography } = await seedEvent();
+    const { addAcademy, event } = await seedEvent();
     const { addChoreography } = await addAcademy("Academia Norte");
     const performing = await addChoreography({
       name: "En escena",
@@ -136,16 +132,13 @@ describe("readEventProgram", () => {
       orderNumber: 2,
     });
 
-    await withdrawChoreography(withdrawn.id);
+    await withdrawChoreographyForTest(withdrawn.id);
 
     expect(
       (await readEventProgram(event.id)).rows.map((row) => row.choreographyId),
     ).toEqual([performing.id]);
 
-    await db
-      .update(choreographies)
-      .set({ withdrawnAt: null })
-      .where(eq(choreographies.id, withdrawn.id));
+    await restoreChoreographyForTest(withdrawn.id);
 
     expect(
       (await readEventProgram(event.id)).rows.map((row) => row.choreographyId),

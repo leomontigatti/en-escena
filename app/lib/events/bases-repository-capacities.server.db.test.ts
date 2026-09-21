@@ -9,7 +9,10 @@ import {
   resolveCompatibleScheduleCapacities,
   updateScheduleCapacity,
 } from "@/lib/schedules/repository.server";
-import { validateInlineScheduleCapacityDependencies } from "@/lib/events/bases-repository/schedule-capacities.server";
+import {
+  releaseScheduleCapacityReferences,
+  validateInlineScheduleCapacityDependencies,
+} from "@/lib/events/bases-repository/schedule-capacities.server";
 import {
   createChoreographyOnBases,
   createEventModalitiesFixture,
@@ -424,6 +427,55 @@ describe("`Bases del evento` repository", () => {
       scheduleCapacityId: null,
       scheduleId: block.id,
     });
+  });
+
+  // The release is the one write that reaches choreographies the caller never
+  // named, so it is narrowed to the withdrawn ones rather than trusting the
+  // guard that ran before it: a choreography assigned in between has the
+  // foreign key refuse for it instead of silently losing its place.
+  test("releases the capacity reference of the withdrawn choreographies only", async () => {
+    const { event, jazz } = await createEventModalitiesFixture();
+    const academy = await createSavedAcademy();
+    const block = await createSavedSchedule(event.id, {
+      modalityIds: [jazz.id],
+      totalCapacity: 10,
+    });
+    const entry = await expectCreated(
+      createScheduleCapacity(block.id, { groupType: "solo", capacity: 6 }),
+    );
+    const withdrawnChoreography = await createChoreographyOnBases({
+      eventId: event.id,
+      academyId: academy.id,
+      modalityId: jazz.id,
+      name: "Retirada",
+      scheduleCapacityId: entry.id,
+      withdrawn: true,
+    });
+    const performingChoreography = await createChoreographyOnBases({
+      eventId: event.id,
+      academyId: academy.id,
+      modalityId: jazz.id,
+      // Another group type, so the fixture's own category does not overlap the
+      // one the withdrawn choreography got.
+      groupType: "duo",
+      name: "En pie",
+      scheduleCapacityId: entry.id,
+    });
+
+    await releaseScheduleCapacityReferences(db, [entry.id]);
+
+    await expect(
+      db.query.choreographies.findFirst({
+        columns: { scheduleCapacityId: true },
+        where: eq(choreographies.id, withdrawnChoreography.id),
+      }),
+    ).resolves.toEqual({ scheduleCapacityId: null });
+    await expect(
+      db.query.choreographies.findFirst({
+        columns: { scheduleCapacityId: true },
+        where: eq(choreographies.id, performingChoreography.id),
+      }),
+    ).resolves.toEqual({ scheduleCapacityId: entry.id });
   });
 
   test("removes a schedule capacity a withdrawn choreography points at from the inline path", async () => {
