@@ -229,7 +229,10 @@ export function canCorrectChoreographyModality(input: {
   return input.canEdit && !input.isEvaluated;
 }
 
-export type ChoreographyDeleteBlockerCode = "comprobantes" | "scores";
+// A comprobante no longer refuses the removal — it is a reason to withdraw,
+// not a blocker (#340 reversed). The evaluated presentation is the only lock
+// left, and it blocks the withdrawal too.
+export type ChoreographyDeleteBlockerCode = "scores";
 
 export type ChoreographyDeleteBlocker = {
   code: ChoreographyDeleteBlockerCode;

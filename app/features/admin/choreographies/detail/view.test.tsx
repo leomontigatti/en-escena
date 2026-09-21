@@ -550,10 +550,7 @@ describe("ChoreographyDetailRouteView", () => {
       loaderData: buildLoaderData({
         deletion: {
           canDelete: false,
-          blockers: [
-            { code: "scores", label: "puntajes" },
-            { code: "comprobantes", label: "comprobantes" },
-          ],
+          blockers: [{ code: "scores", label: "puntajes" }],
         },
       }),
     });
@@ -561,7 +558,6 @@ describe("ChoreographyDetailRouteView", () => {
     expect(document.body.textContent).toContain(
       "No se puede eliminar esta coreografía",
     );
-    expect(document.body.textContent).toContain("comprobantes");
     expect(document.body.textContent).toContain("puntajes");
     expect(document.body.textContent).toContain("Cerrar");
     expect(document.body.textContent).not.toContain(

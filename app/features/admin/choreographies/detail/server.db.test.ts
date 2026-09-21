@@ -47,6 +47,7 @@ import {
   recordComprobante,
   type RecordComprobanteInput,
 } from "@/lib/comprobantes/comprobantes.server";
+import { readAcademyAvailableBalance } from "@/lib/finances/allocation-pool.server";
 import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 
 import {
@@ -350,7 +351,10 @@ describe("administrative choreography detail server", () => {
     ]);
   });
 
-  test("blocks admin deletion of a choreography with ARCA comprobantes, even once annulled by a credit note", async () => {
+  // A comprobante no longer refuses the removal (#340's permanent block is
+  // reversed): the fiscal history is exactly what has to survive, so the
+  // choreography is withdrawn instead of deleted.
+  test("withdraws a choreography whose inscription carries a comprobante line, with no money allocated", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Fiscal",
       email: "admin.coreografias.fiscal.academia@example.com",
@@ -370,54 +374,205 @@ describe("administrative choreography detail server", () => {
       scheduleCapacityId: catalog.scheduleCapacity.id,
       submodalityId: catalog.submodality.id,
     });
+    const inscription = await createSelectedPriceInscriptionForTest({
+      academyId: owner.academyId,
+      choreographyId: invoiced.id,
+    });
 
-    const factura = await recordComprobante(
-      facturaCInput({ choreographyId: invoiced.id, eventId: event.id }),
-    );
-
-    // The mere existence of the `Factura C` already blocks the physical delete.
-    await expect(loadDeleteBlockers(invoiced.id)).resolves.toEqual([
-      "comprobantes",
-    ]);
-    await expectThrownResponse(
-      submitDetailAction({
-        body: deleteFormData(),
-        choreographyId: invoiced.id,
-        email: "admin.coreografias.bloqueo.comprobantes@example.com",
-        role: "admin",
-      }),
-      409,
-    );
-
-    // Annulling with a credit note does not lift the block: the fiscal history
-    // remains (the annulled invoice + the NC are still anchored to the
-    // choreography).
     await recordComprobante(
       facturaCInput({
         choreographyId: invoiced.id,
         eventId: event.id,
-        cbteTipo: 13,
-        cbteNro: 1,
-        associatedComprobanteId: factura.id,
+        lines: [{ amount: 10000, choreographyInscriptionId: inscription.id }],
       }),
     );
 
-    await expectThrownResponse(
-      submitDetailAction({
-        body: deleteFormData(),
-        choreographyId: invoiced.id,
-        email: "admin.coreografias.bloqueo.comprobantes.nc@example.com",
-        role: "admin",
+    // Nothing left to resolve before removing it: the comprobante is a reason
+    // to withdraw, not a blocker.
+    await expect(loadDeleteBlockers(invoiced.id)).resolves.toEqual([]);
+
+    const response = await submitDetailAction({
+      body: deleteFormData(),
+      choreographyId: invoiced.id,
+      email: "admin.coreografias.retiro.comprobantes@example.com",
+      role: "admin",
+    });
+
+    expect(response).toBeInstanceOf(Response);
+    if (!(response instanceof Response)) {
+      throw new Error("Expected redirect response.");
+    }
+    await expectFlashRedirect(response, "/administracion/coreografias", {
+      id: "route-notification:coreografia-retirada",
+      message: "Coreografía retirada. Su dinero sigue asignado.",
+      variant: "success",
+    });
+
+    const withdrawn = await db.query.choreographies.findFirst({
+      where: eq(choreographies.id, invoiced.id),
+    });
+    expect(withdrawn?.withdrawnAt).toBeInstanceOf(Date);
+    // The number is kept: a withdrawn choreography is still found by it.
+    expect(withdrawn?.choreographyNumber).toBe(invoiced.choreographyNumber);
+    await expect(
+      db.query.choreographyDancers.findFirst({
+        columns: { withdrawnAt: true },
+        where: eq(choreographyDancers.id, inscription.id),
       }),
-      409,
+    ).resolves.toEqual({ withdrawnAt: withdrawn?.withdrawnAt });
+  });
+
+  test("withdraws a choreography holding money, keeps every allocation and leaves the available balance untouched", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Con Dinero",
+      email: "admin.coreografias.dinero.academia@example.com",
+    });
+    const event = await createEventRecord({
+      active: true,
+      name: "Regional 2026",
+    });
+    const catalog = await createEventCatalog(event.id);
+    const funded = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      name: "Con seña",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+    // One inscription holds the deposit; the other holds nothing and is
+    // withdrawn all the same, with the very same timestamp.
+    const paid = await createSelectedPriceInscriptionForTest({
+      academyId: owner.academyId,
+      allocatedAmount: 5000,
+      choreographyId: funded.id,
+      eventId: event.id,
+    });
+    const unpaid = await createSelectedPriceInscriptionForTest({
+      academyId: owner.academyId,
+      choreographyId: funded.id,
+    });
+    // A dancer taken off the roster beforehand: their own earlier stamp is not
+    // overwritten, so restoring can tell the two removals apart.
+    const removedEarlier = await createSelectedPriceInscriptionForTest({
+      academyId: owner.academyId,
+      allocatedAmount: 1000,
+      choreographyId: funded.id,
+      eventId: event.id,
+    });
+    const earlierWithdrawal = date("2026-03-01T10:00:00.000Z");
+    await db
+      .update(choreographyDancers)
+      .set({ withdrawnAt: earlierWithdrawal })
+      .where(eq(choreographyDancers.id, removedEarlier.id));
+
+    const balanceBefore = await readAcademyAvailableBalance(db, {
+      academyId: owner.academyId,
+      eventId: event.id,
+    });
+
+    await submitDetailAction({
+      body: deleteFormData(),
+      choreographyId: funded.id,
+      email: "admin.coreografias.retiro.dinero@example.com",
+      role: "admin",
+    });
+
+    const withdrawn = await db.query.choreographies.findFirst({
+      where: eq(choreographies.id, funded.id),
+    });
+    expect(withdrawn?.withdrawnAt).toBeInstanceOf(Date);
+
+    const inscriptions = await db.query.choreographyDancers.findMany({
+      where: eq(choreographyDancers.choreographyId, funded.id),
+    });
+    expect(
+      inscriptions
+        .filter((inscription) => inscription.id !== removedEarlier.id)
+        .map((inscription) => inscription.withdrawnAt?.toISOString()),
+    ).toEqual([
+      withdrawn?.withdrawnAt?.toISOString(),
+      withdrawn?.withdrawnAt?.toISOString(),
+    ]);
+    expect(
+      inscriptions.find((inscription) => inscription.id === removedEarlier.id)
+        ?.withdrawnAt,
+    ).toEqual(earlierWithdrawal);
+    expect(inscriptions.map((inscription) => inscription.id).sort()).toEqual(
+      [paid.id, unpaid.id, removedEarlier.id].sort(),
     );
 
-    // The choreography was never deleted, despite the two attempts.
+    // No money moved: the allocations stay on their inscriptions instead of
+    // flowing back into `Saldo disponible`.
+    const allocations = await db.query.paymentAllocations.findMany();
+    expect(
+      allocations
+        .map((allocation) => allocation.choreographyInscriptionId)
+        .sort(),
+    ).toEqual([paid.id, removedEarlier.id].sort());
+    await expect(
+      readAcademyAvailableBalance(db, {
+        academyId: owner.academyId,
+        eventId: event.id,
+      }),
+    ).resolves.toBe(balanceBefore);
+  });
+
+  // The dialog was rendered while the choreography was still empty; the money
+  // arrives before the click. The outcome is decided inside the write's
+  // transaction, so the allocation is preserved rather than cascaded away.
+  test("withdraws when money is allocated between the dialog and the confirmation", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Carrera",
+      email: "admin.coreografias.carrera.academia@example.com",
+    });
+    const event = await createEventRecord({
+      active: true,
+      name: "Regional 2026",
+    });
+    const catalog = await createEventCatalog(event.id);
+    const choreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      name: "Carrera",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+
+    await expect(loadDeleteBlockers(choreography.id)).resolves.toEqual([]);
+
+    const inscription = await createSelectedPriceInscriptionForTest({
+      academyId: owner.academyId,
+      allocatedAmount: 3000,
+      choreographyId: choreography.id,
+      eventId: event.id,
+    });
+
+    await submitDetailAction({
+      body: deleteFormData(),
+      choreographyId: choreography.id,
+      email: "admin.coreografias.carrera@example.com",
+      role: "admin",
+    });
+
     await expect(
       db.query.choreographies.findFirst({
-        where: eq(choreographies.id, invoiced.id),
+        columns: { id: true },
+        where: eq(choreographies.id, choreography.id),
       }),
-    ).resolves.toBeDefined();
+    ).resolves.toEqual({ id: choreography.id });
+    await expect(
+      db.query.paymentAllocations.findMany({
+        columns: { amount: true, choreographyInscriptionId: true },
+      }),
+    ).resolves.toEqual([
+      { amount: 3000, choreographyInscriptionId: inscription.id },
+    ]);
   });
 
   test("updates the submodality within the same modality for admins and bumps updatedAt", async () => {

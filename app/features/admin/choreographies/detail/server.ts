@@ -9,7 +9,7 @@ import {
   requireAdminUser,
   requireInternalUser,
 } from "@/lib/auth/internal-access.server";
-import { choreographyHasComprobantes } from "@/lib/comprobantes/comprobantes.server";
+import { removeChoreography } from "@/lib/choreographies/choreography-removal.server";
 import { updateAdministrativeChoreographyRoster } from "@/lib/choreographies/choreography-roster-admin.server";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import {
@@ -21,7 +21,6 @@ import type {
   ChoreographyDancerOption,
   ChoreographyProfessorOption,
 } from "@/lib/choreographies/choreography-roster.shared";
-import { deleteChoreographyPresentation } from "@/lib/presentations/presentation-queries.server";
 import { getFieldErrors } from "@/lib/shared/form-validation";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
@@ -288,10 +287,12 @@ export async function handleChoreographyDetailAction(input: {
   }
 
   if (intent === deleteChoreographyIntent) {
-    await deleteChoreography(choreography);
+    const outcome = await deleteChoreography(choreography);
     return redirectWithFlashNotification(
       "/administracion/coreografias",
-      "coreografia-eliminada",
+      outcome === "withdrawn"
+        ? "coreografia-retirada"
+        : "coreografia-eliminada",
     );
   }
 
@@ -470,6 +471,10 @@ async function updateChoreographyRosterAction(input: {
  * the same transaction and without a cascade, and the number it held stays a
  * gap in the order. What the academies were told about every other number does
  * not change because one choreography left.
+ *
+ * Money is not a blocker either. The action is never refused because of it: it
+ * picks between deleting and withdrawing inside the write's transaction, so the
+ * outcome the dialog announced can only improve into the conservative one.
  */
 async function deleteChoreography(choreography: ChoreographyDetail) {
   const blockers = await getChoreographyDeleteBlockers(choreography);
@@ -480,33 +485,16 @@ async function deleteChoreography(choreography: ChoreographyDetail) {
     });
   }
 
-  await db.transaction(async (tx) => {
-    await deleteChoreographyPresentation(tx, choreography.id);
-    await tx
-      .delete(choreographies)
-      .where(eq(choreographies.id, choreography.id));
-  });
+  return await removeChoreography(choreography.id);
 }
 
 async function getChoreographyDeleteBlockers(
   choreography: Pick<ChoreographyDetail, "id">,
 ): Promise<ChoreographyDeleteBlocker[]> {
-  const [hasScores, hasComprobantes] = await Promise.all([
-    hasScoresForChoreography(choreography.id),
-    choreographyHasComprobantes(choreography.id),
-  ]);
   const blockers: ChoreographyDeleteBlocker[] = [];
 
-  if (hasScores) {
+  if (await hasScoresForChoreography(choreography.id)) {
     blockers.push({ code: "scores", label: "puntajes" });
-  }
-
-  // Fiscal history: any ARCA comprobante (in force, annulled or an NC) anchors
-  // the choreography irreversibly. It is #340's server-side guard, evaluated here
-  // just before the delete in case one was emitted between the render and the
-  // click.
-  if (hasComprobantes) {
-    blockers.push({ code: "comprobantes", label: "comprobantes" });
   }
 
   return blockers;
