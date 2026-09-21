@@ -10,6 +10,7 @@ import {
   schedules,
   submodalities,
 } from "@/db/schema";
+import { notWithdrawnChoreography } from "@/lib/choreographies/withdrawn-choreography";
 import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
 import { readEventChoreographyFinancialStatuses } from "@/lib/finances/operational-summary.server";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
@@ -48,7 +49,7 @@ export type AcademyPresentationRow = {
 /**
  * Every choreography of the academy that is part of the order or can enter it:
  * one that has a presentation, whatever its money says, and one that is at
- * least `Señada`. Numbered rows come first by their number, the rest after them
+ * least `Señada`. A withdrawn one is never listed, numbered or not. Numbered rows come first by their number, the rest after them
  * by choreography number, which is the reading order of the list.
  */
 export async function readAcademyPresentations(
@@ -87,6 +88,7 @@ export async function readAcademyPresentations(
         and(
           eq(choreographies.eventId, input.eventId),
           eq(choreographies.academyId, input.academyId),
+          notWithdrawnChoreography(),
         ),
       ),
     // The status is the same rollup the finance surfaces show. It is read for

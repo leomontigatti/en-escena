@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { events, presentations, schedules } from "@/db/schema";
+import { choreographies, events, presentations, schedules } from "@/db/schema";
 import {
   createChoreographyRecord,
   createDancer,
@@ -78,7 +78,15 @@ async function seedEvent() {
     return { academy, addChoreography };
   };
 
-  return { addAcademy, catalog, event };
+  /** Stamps the choreography the way `removeChoreography` withdraws it. */
+  const withdrawChoreography = async (choreographyId: string) => {
+    await db
+      .update(choreographies)
+      .set({ withdrawnAt: new Date("2026-09-17T12:00:00Z") })
+      .where(eq(choreographies.id, choreographyId));
+  };
+
+  return { addAcademy, catalog, event, withdrawChoreography };
 }
 
 describe("readEventProgram", () => {
@@ -112,6 +120,36 @@ describe("readEventProgram", () => {
     expect(program.rows.map((row) => row.orderNumber)).toEqual([1, 2, 3]);
     expect(program.rows[0].academyName).toBe("Academia Sur");
     expect(program.rows.every((row) => row.isBelowDeposit)).toBe(false);
+  });
+
+  test("leaves out a withdrawn choreography, and lists it again once restored", async () => {
+    const { addAcademy, event, withdrawChoreography } = await seedEvent();
+    const { addChoreography } = await addAcademy("Academia Norte");
+    const performing = await addChoreography({
+      name: "En escena",
+      orderNumber: 1,
+    });
+    // A withdrawal drops the presentation, but the program never leans on that
+    // to keep a choreography that will not be performed out of print.
+    const withdrawn = await addChoreography({
+      name: "Retirada",
+      orderNumber: 2,
+    });
+
+    await withdrawChoreography(withdrawn.id);
+
+    expect(
+      (await readEventProgram(event.id)).rows.map((row) => row.choreographyId),
+    ).toEqual([performing.id]);
+
+    await db
+      .update(choreographies)
+      .set({ withdrawnAt: null })
+      .where(eq(choreographies.id, withdrawn.id));
+
+    expect(
+      (await readEventProgram(event.id)).rows.map((row) => row.choreographyId),
+    ).toEqual([performing.id, withdrawn.id]);
   });
 
   test("names the dancers of a solo and a duo and of nothing else", async () => {

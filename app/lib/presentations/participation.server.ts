@@ -14,6 +14,7 @@ import {
   submodalities,
 } from "@/db/schema";
 import { activeInscription } from "@/lib/choreographies/active-inscription";
+import { notWithdrawnChoreography } from "@/lib/choreographies/withdrawn-choreography";
 import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
 import type { ChoreographyFinancialStatus } from "@/lib/finances/inscription-financial-status";
 import { readEventChoreographyFinancialStatuses } from "@/lib/finances/operational-summary.server";
@@ -59,7 +60,9 @@ export type AutomaticOrderingResult =
 /**
  * Every choreography that is part of the order or can enter it: one that has a
  * presentation, whatever its money says, and one that is at least `Señada`.
- * A choreography below the deposit that was never numbered is not listed.
+ * A choreography below the deposit that was never numbered is not listed, and
+ * neither is a withdrawn one — it will not be performed, so no filter of this
+ * list brings it back.
  *
  * The result is the reading order of the list: the numbered rows by their
  * number, the rest after them by choreography number.
@@ -104,7 +107,9 @@ export async function readParticipationRows(
         presentations,
         eq(presentations.choreographyId, choreographies.id),
       )
-      .where(eq(choreographies.eventId, eventId)),
+      .where(
+        and(eq(choreographies.eventId, eventId), notWithdrawnChoreography()),
+      ),
     readEventChoreographyFinancialStatuses(eventId, executor),
   ]);
 
