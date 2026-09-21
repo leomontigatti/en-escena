@@ -29,6 +29,7 @@
     "check:repo-styles": "node --import tsx scripts/repo-style-guardrail.ts",
     "check:fallow": "fallow audit --quiet --gate-marker agent --base origin/master",
     "afk:watch": "node scripts/afk-watch.mjs",
+    "pr:evidence": "node --import tsx scripts/pr-evidence.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky || true",

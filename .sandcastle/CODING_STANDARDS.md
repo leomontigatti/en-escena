@@ -172,8 +172,8 @@ directory in the repo holding a file of those extensions, which is the point:
 and `.sandcastle/` was the next one waiting. A test derives the expected roots
 from `git ls-files`, so the next gap of that shape fails rather than hides.
 
-**Markdown is covered too** (#792): `.md` under `.claude/`, `.sandcastle/` and
-`docs/`, plus the repo root. Two directories are exempt, for one reason — a record
+**Markdown is covered too** (#792): `.md` under `.claude/`, `.github/`,
+`.sandcastle/` and `docs/`, plus the repo root. Two directories are exempt, for one reason — a record
 of something external may not be rewritten. `docs/adr/` is the decision as it was
 taken. `docs/research/` cites Argentine tax law by the titles the regulations
 actually carry, and `RG 1415/2003 — Régimen de emisión de comprobantes` is the

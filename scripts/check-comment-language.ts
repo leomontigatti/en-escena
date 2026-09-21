@@ -47,7 +47,14 @@ const sourceFilePattern = /\.(ts|tsx|mts|mjs)$/;
 // The docs are engineering prose too, and #592's argument does not stop at the
 // file extension: a design note read by a contributor is not something a user
 // reads (#792 Q7).
-export const scannedDocDirectories = [".claude", ".sandcastle", "docs"];
+// `.github` joined with the PR template (#1114): prose a contributor reads, on
+// the same rule as the rest.
+export const scannedDocDirectories = [
+  ".claude",
+  ".github",
+  ".sandcastle",
+  "docs",
+];
 const docFilePattern = /\.md$/;
 
 // Records of something external, which a sweep may not rewrite. An ADR is the

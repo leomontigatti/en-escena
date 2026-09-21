@@ -40,11 +40,14 @@ Emit a single `<output>` block as the **last thing** in your response:
 <output>
 {
   "prTitle": "feat: short imperative summary",
-  "prDescription": "## Summary\n\n- bullet 1\n- bullet 2\n\nCloses #{{ISSUE_NUMBER}}"
+  "prDescription": "The problem, in one or two sentences.\n\nThe fix, in a short paragraph or a few bullets.\n\nCloses #{{ISSUE_NUMBER}}"
 }
 </output>
 ```
 
 - `prTitle`: single line, < 70 chars, conventional-commit style, in English
   (`CODING_STANDARDS.md` § Code Language).
-- `prDescription`: must include `Closes #{{ISSUE_NUMBER}}` so the PR closes the issue on merge.
+- `prDescription`: read `docs/agents/pull-requests.md` § Body and write it in that shape. One
+  rule is yours alone: you ran nothing, so a `Validation:` line may only report what the commit
+  messages say was run; with nothing to report, leave the line out. End with
+  `Closes #{{ISSUE_NUMBER}}` so the PR closes the issue on merge.

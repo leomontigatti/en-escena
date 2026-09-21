@@ -39,6 +39,12 @@ are only concrete references to this repo:
   `prDescription`, and `implement`, `implement-prd`, `implement-pr`, `review` and `update-branch`
   for the commit subject and body. A gate on the PR title is tracked separately (#1007); until
   it exists, and for the body and the commits regardless, the prompts are the whole answer.
+- **Short PR bodies.** The source's `prDescription` skeleton is a `## Summary` heading over
+  bullets with no guidance on length, and on this repo it produced bodies that restated the
+  issue. `write-pr` and `write-prd-pr` now follow [`pull-requests.md`](./pull-requests.md):
+  problem, then fix, no headings on a single-issue PR, one paragraph over the sub-issue list on a
+  PRD PR. The single-pass writer ran nothing, so it may only report validation that the commit
+  messages state (#1114).
 - **`gh` tracker** (GitHub Issues): the prompts use `gh issue view … --comments` instead of the
   source's "project-specific" placeholders.
 - **Appendix C** of the spec: `backlog.md` → [`issue-tracker.md`](./issue-tracker.md) (our

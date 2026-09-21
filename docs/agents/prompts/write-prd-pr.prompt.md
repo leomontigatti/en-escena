@@ -31,12 +31,13 @@ Emit a single `<output>` block as the **last thing** in your response:
 <output>
 {
   "prTitle": "feat: short imperative summary of the PRD as a whole",
-  "prDescription": "## Summary\n\nWhat the PRD delivers (1-3 paragraphs).\n\n## Sub-issues\n\n- #N — title\n- #M — title\n\nCloses #{{PRD_NUMBER}}"
+  "prDescription": "## Summary\n\nWhat the PRD delivers (one paragraph).\n\n## Sub-issues\n\n- #N — title\n- #M — title\n\nCloses #{{PRD_NUMBER}}"
 }
 </output>
 ```
 
 - `prTitle`: single line, < 70 chars, conventional-commit style, framed around the PRD, in
   English (`CODING_STANDARDS.md` § Code Language).
-- `prDescription`: restate the PRD's goal, list **every** sub-issue (number + title), and end
-  with `Closes #{{PRD_NUMBER}}`.
+- `prDescription` follows `docs/agents/pull-requests.md` § PRD PRs: **one paragraph** saying what
+  the PRD delivers (the PRD holds the rest; do not restate it), then **every** sub-issue (number +
+  title), and end with `Closes #{{PRD_NUMBER}}`.
