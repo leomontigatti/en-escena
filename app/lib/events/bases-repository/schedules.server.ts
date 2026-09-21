@@ -455,18 +455,7 @@ export async function deleteSchedule(
  * findable.
  */
 async function scheduleIsHeldOnlyByWithdrawnChoreographies(scheduleId: string) {
-  const price = await db.query.prices.findFirst({
-    columns: { id: true },
-    where: eq(prices.scheduleId, scheduleId),
-  });
-
-  if (price) {
-    return false;
-  }
-
-  if (
-    await hasOccupyingChoreographies(eq(choreographies.scheduleId, scheduleId))
-  ) {
+  if (await scheduleHasOperationalDependencies(scheduleId)) {
     return false;
   }
 

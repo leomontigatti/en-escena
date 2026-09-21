@@ -100,9 +100,17 @@ export async function restoreChoreography(
       };
     }
 
-    const scheduleCapacityId =
+    // Where it returns to: the capacity it still names, or the place resolved
+    // again on its own schedule when it names none.
+    const restoredScheduleCapacityId =
       locked.scheduleCapacityId ??
       (await resolveScheduleCapacityForRestore(tx, locked));
+    // The row only has to be told where it landed when it was holding no
+    // reference and the place resolved to a specific capacity. A choreography
+    // that kept its reference returns to the very capacity it already names.
+    const scheduleCapacityIdToWrite = locked.scheduleCapacityId
+      ? null
+      : restoredScheduleCapacityId;
 
     // No `excludeChoreographyId`: the choreography is arriving, not staying.
     // Being withdrawn it is not counted by the lock either way, so the count it
@@ -110,7 +118,7 @@ export async function restoreChoreography(
     const place = await lockScheduleCapacityForAssignment({
       tx,
       scheduleId: locked.scheduleId,
-      scheduleCapacityId,
+      scheduleCapacityId: restoredScheduleCapacityId,
     });
 
     if (!place.ok) {
@@ -135,9 +143,9 @@ export async function restoreChoreography(
     await tx
       .update(choreographies)
       .set({
-        // Only ever written when the reference was missing and the place
-        // resolved to a specific capacity: the row has to say where it landed.
-        ...(scheduleCapacityId ? { scheduleCapacityId } : {}),
+        ...(scheduleCapacityIdToWrite
+          ? { scheduleCapacityId: scheduleCapacityIdToWrite }
+          : {}),
         updatedAt: new Date(),
         withdrawnAt: null,
       })
