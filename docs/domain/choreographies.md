@@ -251,6 +251,7 @@ What the dialog announced is advisory.
 - `Registro de coreografía` works with temporary data and creates the choreography only on final confirmation.
 - Before final confirmation it does not consume capacity, generate financial state, or leave abandoned incomplete choreographies.
 - Looking up available schedule capacities does not reserve capacity.
+- A schedule is compatible with a choreography when it accepts its modality **and** its accepted categories are either empty —which accepts every category— or contain the choreography's category. That is the whole rule, and every path that assigns or reassigns a schedule resolves it through the same place, so a modality run as two shows —one for the younger categories, one for the older ones— resolves each choreography to exactly one of them and the academy is never asked to choose.
 - Schedule resolution prefers a schedule capacity for the calculated group type. If a compatible schedule has no specific capacity for that group type, the schedule total capacity is a global fallback option.
 - Submodality step exists only when selected modality has submodalities.
 - If category requires level, registration cannot advance or confirm until academy chooses one.
@@ -285,7 +286,7 @@ What the dialog announced is advisory.
 - When roster change clears schedule capacity, confirmation follows registration schedule semantics: no compatible option blocks confirmation, one compatible option is assigned automatically, and multiple compatible options require choosing one.
 - Roster change can recalculate price on confirmation, but the administrative roster edit flow remains operational and does not show price amounts before confirming.
 - Reassigning the schedule capacity of a registered choreography is a standalone administrative correction in the instance view, one choreography at a time. It is not an edit of the capacity's declared capacity and it is not a side effect of a roster change.
-- The reassignment offers only compatible capacities (same event, modality and calculated group type), plus the currently assigned one, so an assignment that drifted out of compatibility stays visible instead of disappearing from the list.
+- The reassignment offers only compatible capacities (same event, modality, accepted category and calculated group type), plus the currently assigned one, so an assignment that drifted out of compatibility stays visible instead of disappearing from the list.
 - The administrator can reassign only when all of these hold: the user is `admin` (the `auditor` sees the field read-only), the choreography is not evaluated, no active inscription has a registered deposit, and there is more than one compatible capacity to choose from. Otherwise the schedule is shown read-only.
 - A registered deposit blocks the whole field, never single options: schedule capacity is an input of price selection, so every option offered moves the price of the choreography, and there is no financially inert reassignment to exempt. The reason is reported in the page alert, also for the `auditor`.
 - The evaluation lock is a hard lock for the schedule capacity too, like the roster and the removal; renaming stays allowed.
