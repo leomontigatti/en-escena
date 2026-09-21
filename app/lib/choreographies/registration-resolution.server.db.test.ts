@@ -7,6 +7,7 @@ import {
   categoryModalities,
   events,
   modalities,
+  scheduleCategories,
   scheduleModalities,
   schedules,
   scheduleCapacities,
@@ -94,6 +95,80 @@ describe("choreography registration resolution", () => {
             ageAtEventStart: 12,
           },
         ],
+      },
+    });
+  });
+
+  test("resolves each side of a modality split into two shows by category", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Dos Funciones",
+      email: "registro.coreografia.funciones@example.com",
+    });
+    const { event, catalog } = await createOpenEventCatalog({ active: true });
+    const [secondShow] = await db
+      .insert(schedules)
+      .values({
+        eventId: event.id,
+        name: "Función 2",
+        scheduledDate: "2026-05-01",
+        startTime: "16:00",
+        totalCapacity: 10,
+      })
+      .returning();
+    await db.insert(scheduleModalities).values({
+      scheduleId: secondShow.id,
+      modalityId: catalog.modality.id,
+    });
+    await db.insert(scheduleCategories).values([
+      {
+        scheduleId: catalog.schedule.id,
+        categoryId: catalog.childCategory.id,
+      },
+      { scheduleId: secondShow.id, categoryId: catalog.teenCategory.id },
+    ]);
+    const teenDancer = await createDancer(owner.academyId, {
+      birthDate: "2010-05-01",
+    });
+    const childDancer = await createDancer(owner.academyId, {
+      birthDate: "2018-05-01",
+    });
+
+    await expect(
+      resolveChoreographyRegistrationOperation({
+        academyId: owner.academyId,
+        eventId: event.id,
+        modalityId: catalog.modality.id,
+        submodalityId: catalog.submodality.id,
+        dancerIds: [teenDancer.id],
+      }),
+    ).resolves.toMatchObject({
+      ok: true,
+      resolution: {
+        category: { id: catalog.teenCategory.id },
+        schedule: {
+          status: "auto",
+          canConfirm: true,
+          options: [{ scheduleId: secondShow.id }],
+        },
+      },
+    });
+    await expect(
+      resolveChoreographyRegistrationOperation({
+        academyId: owner.academyId,
+        eventId: event.id,
+        modalityId: catalog.modality.id,
+        submodalityId: catalog.submodality.id,
+        dancerIds: [childDancer.id],
+      }),
+    ).resolves.toMatchObject({
+      ok: true,
+      resolution: {
+        category: { id: catalog.childCategory.id },
+        schedule: {
+          status: "auto",
+          canConfirm: true,
+          options: [{ scheduleId: catalog.schedule.id }],
+        },
       },
     });
   });
