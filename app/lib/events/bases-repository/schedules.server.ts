@@ -31,6 +31,7 @@ import type {
 } from "@/lib/events/bases-repository/shared.server";
 import {
   groupScheduleCapacities,
+  releaseScheduleCapacityReferences,
   validateInlineScheduleCapacitiesInput,
   validateInlineScheduleCapacityDependencies,
 } from "@/lib/events/bases-repository/schedule-capacities.server";
@@ -379,6 +380,7 @@ export async function updateScheduleWithEntries(
       .filter((entryId) => !nextIds.has(entryId));
 
     if (entryIdsToDelete.length > 0) {
+      await releaseScheduleCapacityReferences(tx, entryIdsToDelete);
       await tx
         .delete(scheduleCapacities)
         .where(inArray(scheduleCapacities.id, entryIdsToDelete));
@@ -458,10 +460,12 @@ async function scheduleHasOperationalDependencies(scheduleId: string) {
 
 /**
  * The delete counterpart of the guard above. Restructuring only has to refuse
- * while the schedule is occupied, but a delete has to refuse whenever any
- * choreography points at it: `choreography.schedule_id` carries no `on delete`
- * behaviour, so the database would refuse anyway and the caller would get a raw
- * driver error instead of a typed failure.
+ * while the schedule is occupied —a withdrawn choreography holds no place— but
+ * a delete has to refuse whenever any choreography points at it, withdrawn
+ * included: `choreography.schedule_id` carries no `on delete` behaviour and is
+ * not nullable either, so unlike the capacity reference it cannot be released
+ * before the delete, and without this guard the caller would get a raw driver
+ * error instead of a typed failure.
  */
 async function scheduleIsReferenced(scheduleId: string) {
   const price = await db.query.prices.findFirst({

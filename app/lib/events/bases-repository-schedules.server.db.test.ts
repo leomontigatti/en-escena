@@ -412,11 +412,13 @@ describe("`Bases del evento` repository", () => {
       academyId: academy.id,
       modalityId: jazz.id,
       scheduleId: withdrawnBlock.id,
-      inscriptions: "withdrawn",
+      withdrawn: true,
     });
 
-    // Restructuring the block is free —every inscription on it was withdrawn—
-    // but deleting it is not: the foreign key refuses, so the guard reports it.
+    // Restructuring the block is free —the choreography on it is withdrawn, so
+    // it holds no place— but deleting it is not: `choreography.schedule_id` is
+    // not nullable, so the reference cannot be released the way the capacity's
+    // is, the foreign key refuses, and the guard reports that.
     await expect(
       updateSchedule(withdrawnBlock.id, {
         name: "Sábado mañana",

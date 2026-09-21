@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { schedules, scheduleCapacities } from "@/db/schema";
+import { choreographies, schedules, scheduleCapacities } from "@/db/schema";
 import { createChoreographyRegistration } from "@/lib/choreographies/registration-confirmation.server";
 import { lockScheduleCapacityForAssignment } from "@/lib/choreographies/schedule-capacity-lock.server";
 import {
@@ -93,6 +93,33 @@ describe("schedule capacity lock", () => {
       ok: false,
       code: "schedule-capacity-full",
       error: "El cupo de cronograma seleccionado ya no tiene cupo disponible.",
+    });
+  });
+
+  // The place a withdrawn choreography used to fill is free for anybody else,
+  // with no exclusion asked for: the row is simply not counted.
+  test("frees the place a withdrawn choreography used to fill", async () => {
+    const { catalog, choreography } = await createSingleSlotRegistration({
+      academyName: "Academia Cupo Retirada",
+      email: "cupo.cronograma.retirada@example.com",
+    });
+    await db
+      .update(choreographies)
+      .set({ withdrawnAt: new Date() })
+      .where(eq(choreographies.id, choreography.id));
+
+    const result = await db.transaction((tx) =>
+      lockScheduleCapacityForAssignment({
+        tx,
+        scheduleId: catalog.schedule.id,
+        scheduleCapacityId: catalog.soloScheduleCapacity.id,
+      }),
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      scheduleId: catalog.schedule.id,
+      scheduleCapacityId: catalog.soloScheduleCapacity.id,
     });
   });
 

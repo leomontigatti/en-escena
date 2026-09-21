@@ -5,7 +5,6 @@ import {
   created,
   db,
   hasOccupyingChoreographies,
-  hasReferencingChoreographies,
   isGroupType,
   requiredFieldMessage,
   scheduleCapacities,
@@ -19,6 +18,7 @@ import type {
   CompatibleScheduleRow,
   EventBaseFailure,
   EventBasesDeleteResult,
+  EventBasesExecutor,
   EventBasesMutationResult,
   GroupType,
   ScheduleCapacityDependencies,
@@ -115,7 +115,7 @@ export async function deleteScheduleCapacity(
   }
 
   const hasDependencies =
-    dependencies.hasDependencies ?? scheduleCapacityIsReferenced;
+    dependencies.hasDependencies ?? scheduleCapacityHasOperationalDependencies;
 
   if (await hasDependencies(scheduleCapacityId)) {
     return {
@@ -126,9 +126,17 @@ export async function deleteScheduleCapacity(
     };
   }
 
-  await db
-    .delete(scheduleCapacities)
-    .where(eq(scheduleCapacities.id, scheduleCapacityId));
+  // The withdrawn choreographies left pointing at the capacity keep no place in
+  // it, but the foreign key would still refuse the delete, so the reference is
+  // released first and in the same transaction. Their own `schedule_id` stays,
+  // which is what still prices the money they hold; a restore refuses on the
+  // null capacity instead of landing somewhere that no longer exists.
+  await db.transaction(async (tx) => {
+    await releaseScheduleCapacityReferences(tx, [scheduleCapacityId]);
+    await tx
+      .delete(scheduleCapacities)
+      .where(eq(scheduleCapacities.id, scheduleCapacityId));
+  });
 
   return { ok: true };
 }
@@ -142,16 +150,23 @@ async function scheduleCapacityHasOperationalDependencies(
 }
 
 /**
- * The delete counterpart of the guard above. A structural edit only has to
- * refuse while the entry is occupied, but a delete has to refuse whenever any
- * choreography points at it: `choreography.schedule_capacity_id` carries no
- * `on delete` behaviour, so the database would refuse anyway and the caller
- * would get a raw driver error instead of a typed failure.
+ * Releases the capacity references of the withdrawn choreographies still
+ * pointing at the capacities about to be deleted. They are the only ones that
+ * can be left —the guards refuse while an occupying choreography points at the
+ * capacity— and `choreography.schedule_capacity_id` carries no `on delete`
+ * behaviour, so without this the foreign key would refuse the delete with a raw
+ * driver error. Their own `schedule_id` stays: it is what still prices the
+ * money they hold, and a restore refuses on the null capacity rather than
+ * landing on a capacity that no longer exists.
  */
-async function scheduleCapacityIsReferenced(scheduleCapacityId: string) {
-  return hasReferencingChoreographies(
-    eq(choreographies.scheduleCapacityId, scheduleCapacityId),
-  );
+export async function releaseScheduleCapacityReferences(
+  executor: EventBasesExecutor,
+  scheduleCapacityIds: string[],
+) {
+  await executor
+    .update(choreographies)
+    .set({ scheduleCapacityId: null })
+    .where(inArray(choreographies.scheduleCapacityId, scheduleCapacityIds));
 }
 
 export async function resolveCompatibleScheduleCapacities(input: {
@@ -336,7 +351,7 @@ export async function validateInlineScheduleCapacityDependencies({
     const nextEntry = nextEntryById.get(existingEntry.id);
 
     if (!nextEntry) {
-      if (await scheduleCapacityIsReferenced(existingEntry.id)) {
+      if (await scheduleCapacityHasOperationalDependencies(existingEntry.id)) {
         return {
           ok: false,
           code: "invalid-schedule-capacity",

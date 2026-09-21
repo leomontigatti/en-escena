@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { scheduleCapacities } from "@/db/schema";
+import { choreographies, scheduleCapacities } from "@/db/schema";
 import {
   createScheduleCapacity,
   deleteScheduleCapacity,
@@ -231,7 +231,7 @@ describe("`Bases del evento` repository", () => {
     ).resolves.toMatchObject({ ok: true, record: { capacity: 3 } });
   });
 
-  test("counts a choreography as occupying unless every inscription was withdrawn", async () => {
+  test("counts a choreography as occupying unless it was withdrawn", async () => {
     const { event, jazz } = await createEventModalitiesFixture();
     const academy = await createSavedAcademy();
     const block = await createSavedSchedule(event.id, {
@@ -250,8 +250,10 @@ describe("`Bases del evento` repository", () => {
       modalityId: jazz.id,
       name: "Retirada",
       scheduleCapacityId: withdrawnEntry.id,
-      inscriptions: "withdrawn",
+      withdrawn: true,
     });
+    // Not withdrawn itself, only emptied of dancers: it still holds its place,
+    // which is what the single rule now says.
     await createChoreographyOnBases({
       eventId: event.id,
       academyId: academy.id,
@@ -259,7 +261,7 @@ describe("`Bases del evento` repository", () => {
       name: "Sin bailarines",
       groupType: "duo",
       scheduleCapacityId: emptyRosterEntry.id,
-      inscriptions: "none",
+      inscriptions: "withdrawn",
     });
 
     await expect(
@@ -377,7 +379,7 @@ describe("`Bases del evento` repository", () => {
       }),
     ).resolves.toEqual({ ok: true });
   });
-  test("reports deleting a schedule capacity any choreography points at as a dependency failure", async () => {
+  test("deletes a schedule capacity only withdrawn choreographies point at and releases their reference", async () => {
     const { event, jazz } = await createEventModalitiesFixture();
     const academy = await createSavedAcademy();
     const block = await createSavedSchedule(event.id, {
@@ -390,17 +392,17 @@ describe("`Bases del evento` repository", () => {
     const freeEntry = await expectCreated(
       createScheduleCapacity(block.id, { groupType: "duo", capacity: 4 }),
     );
-    await createChoreographyOnBases({
+    const withdrawnChoreography = await createChoreographyOnBases({
       eventId: event.id,
       academyId: academy.id,
       modalityId: jazz.id,
       scheduleCapacityId: withdrawnEntry.id,
-      inscriptions: "withdrawn",
+      withdrawn: true,
     });
 
-    // The entry is free to restructure —every inscription on it was withdrawn—
-    // but not to delete: the foreign key still refuses, so the guard has to
-    // report that rather than let the driver error through.
+    // The entry is free to restructure and free to delete: a withdrawn
+    // choreography holds no place in it. The foreign key would still refuse the
+    // delete, so the write releases the reference itself.
     await expect(
       updateScheduleCapacity(withdrawnEntry.id, {
         groupType: "solo",
@@ -408,17 +410,23 @@ describe("`Bases del evento` repository", () => {
       }),
     ).resolves.toMatchObject({ ok: true });
     await expect(deleteScheduleCapacity(withdrawnEntry.id)).resolves.toEqual({
-      ok: false,
-      code: "invalid-schedule-capacity",
-      error:
-        "No se puede borrar el cupo de cronograma porque tiene dependencias.",
+      ok: true,
     });
     await expect(deleteScheduleCapacity(freeEntry.id)).resolves.toEqual({
       ok: true,
     });
+    await expect(
+      db.query.choreographies.findFirst({
+        columns: { scheduleCapacityId: true, scheduleId: true },
+        where: eq(choreographies.id, withdrawnChoreography.id),
+      }),
+    ).resolves.toEqual({
+      scheduleCapacityId: null,
+      scheduleId: block.id,
+    });
   });
 
-  test("refuses removing a schedule capacity a withdrawn choreography points at from the inline path", async () => {
+  test("removes a schedule capacity a withdrawn choreography points at from the inline path", async () => {
     const { event, jazz } = await createEventModalitiesFixture();
     const academy = await createSavedAcademy();
     const block = await createSavedSchedule(event.id, {
@@ -433,7 +441,7 @@ describe("`Bases del evento` repository", () => {
       academyId: academy.id,
       modalityId: jazz.id,
       scheduleCapacityId: withdrawnEntry.id,
-      inscriptions: "withdrawn",
+      withdrawn: true,
     });
 
     const existingEntries = await db.query.scheduleCapacities.findMany({
@@ -445,11 +453,7 @@ describe("`Bases del evento` repository", () => {
         existingEntries,
         nextEntries: [],
       }),
-    ).resolves.toMatchObject({
-      ok: false,
-      error:
-        "No se puede borrar el cupo de cronograma porque tiene dependencias.",
-    });
+    ).resolves.toEqual({ ok: true });
     await expect(
       validateInlineScheduleCapacityDependencies({
         existingEntries,

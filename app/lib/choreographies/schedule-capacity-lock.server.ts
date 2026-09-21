@@ -2,6 +2,7 @@ import { and, eq, ne, or, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { choreographies, schedules, scheduleCapacities } from "@/db/schema";
+import { notWithdrawnChoreography } from "@/lib/choreographies/withdrawn-choreography";
 import { hasPriceDivergentInscription } from "@/lib/finances/choreography-price-divergence-guard.server";
 import type { ChoreographyGroupType } from "@/lib/finances/operational-summary-calculations.server";
 
@@ -98,6 +99,8 @@ export async function guardAndLockScheduleCapacityMove(input: {
  * cannot overshoot the capacity. `excludeChoreographyId` keeps a choreography
  * from counting against the capacity it already occupies, which is what makes
  * re-selecting the current assignment a no-op instead of a full-capacity error.
+ * Withdrawn choreographies are never counted: their place is free until a
+ * restore takes this same lock to claim it back.
  *
  * `scheduleCapacityId`, when given, must belong to `scheduleId`; a pair that
  * disagrees is rejected as an invalid selection.
@@ -156,6 +159,7 @@ export async function lockScheduleCapacityForAssignment(input: {
       .where(
         and(
           eq(choreographies.scheduleCapacityId, lockedScheduleCapacity.id),
+          notWithdrawnChoreography(),
           excludedChoreographyFilter,
         ),
       );
@@ -187,6 +191,7 @@ export async function lockScheduleCapacityForAssignment(input: {
           eq(choreographies.scheduleId, lockedSchedule.id),
           eq(scheduleCapacities.scheduleId, lockedSchedule.id),
         ),
+        notWithdrawnChoreography(),
         excludedChoreographyFilter,
       ),
     );

@@ -2,6 +2,7 @@ import { and, eq, inArray, isNotNull, ne, or, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { choreographies, schedules, scheduleCapacities } from "@/db/schema";
+import { notWithdrawnChoreography } from "@/lib/choreographies/withdrawn-choreography";
 
 export type ScheduleCapacityOccupancy = {
   capacity: number;
@@ -147,7 +148,10 @@ export function toScheduleCapacityOccupancyKey(
 
 /**
  * A choreography occupies the schedule whether it is assigned to it directly or
- * reached it through its capacity, exactly as in the lock's count.
+ * reached it through its capacity, exactly as in the lock's count. A withdrawn
+ * one occupies nothing: it keeps its references so a restore knows where to
+ * return, but its place is free meanwhile, and the restore takes the capacity
+ * lock again before claiming it back.
  *
  * Attribution here is one-to-one: the `or` reaches the row by either of the two
  * paths, but the `group by coalesce(...)` adds it to a single schedule. The lock
@@ -179,6 +183,7 @@ async function countChoreographiesBySchedule(input: {
           inArray(choreographies.scheduleId, input.scheduleIds),
           inArray(scheduleCapacities.scheduleId, input.scheduleIds),
         ),
+        notWithdrawnChoreography(),
         input.excludedChoreographyFilter,
       ),
     )
@@ -203,6 +208,7 @@ async function countChoreographiesByScheduleCapacity(input: {
       and(
         isNotNull(choreographies.scheduleCapacityId),
         inArray(choreographies.scheduleCapacityId, input.scheduleCapacityIds),
+        notWithdrawnChoreography(),
         input.excludedChoreographyFilter,
       ),
     )
