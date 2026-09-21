@@ -1,8 +1,10 @@
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Check } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo } from "react";
+import { useForm } from "react-hook-form";
 import { useFetcher } from "react-router";
 
-import { MultiCombobox } from "@/components/shared/multi-combobox";
+import { MultiComboboxField } from "@/components/shared/multi-combobox-field";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,17 +15,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { FieldGroup } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import type { AssignableJudge } from "@/lib/presentations/judge-assignments.server";
+import { createValidatedReactRouterSubmitHandler } from "@/lib/shared/forms";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
 import {
   assignJudgesIntent,
+  judgeAssignmentSchema,
   judgeIdFieldName,
   presentationChoreographyIdFieldName,
   removeJudgesIntent,
   selectRemovableJudges,
+  type JudgeAssignmentFormValues,
+  type JudgeAssignmentSubmissionValues,
   type PresentationListActionData,
   type PresentationListItem,
 } from "./shared";
@@ -83,7 +89,6 @@ export function JudgeAssignmentDialog({
   selectedRows: PresentationListItem[];
 }) {
   const fetcher = useFetcher<PresentationListActionData>();
-  const [judgeIds, setJudgeIds] = useState<string[]>([]);
   const isSaving = fetcher.state !== "idle";
   const copy = judgeDialogCopy[mode];
   const options = (
@@ -91,6 +96,39 @@ export function JudgeAssignmentDialog({
       ? assignableJudges
       : selectRemovableJudges(assignedJudges, selectedRows)
   ).map((judge) => ({ label: judge.name, value: judge.id }));
+
+  // The chosen rows ride along as a form value, so they need an identity that
+  // survives a render of the list: `selectedRows` is rebuilt from the selection
+  // every time, and depending on it directly would reset the form forever.
+  const selectionKey = selectedRows.map((row) => row.id).join(" ");
+  const selectedChoreographyIds = useMemo(
+    () => (selectionKey === "" ? [] : selectionKey.split(" ")),
+    [selectionKey],
+  );
+
+  const form = useForm<
+    JudgeAssignmentFormValues,
+    unknown,
+    JudgeAssignmentSubmissionValues
+  >({
+    defaultValues: {
+      intent: copy.intent,
+      [presentationChoreographyIdFieldName]: selectedChoreographyIds,
+      [judgeIdFieldName]: [],
+    },
+    resolver: zodResolver(judgeAssignmentSchema),
+  });
+  const { reset } = form;
+
+  // The picks belong to one opening of the dialog: the selection they were
+  // made against, and the direction they were made in, are gone by the next.
+  useEffect(() => {
+    reset({
+      intent: copy.intent,
+      [presentationChoreographyIdFieldName]: selectedChoreographyIds,
+      [judgeIdFieldName]: [],
+    });
+  }, [copy.intent, open, reset, selectedChoreographyIds]);
 
   // The list's action data is a union with the silent answer of a move, which
   // this dialog never receives but the type still admits.
@@ -107,13 +145,6 @@ export function JudgeAssignmentDialog({
     }
   }, [isDone, onOpenChange]);
 
-  const closeDialog = () => {
-    // The picks belong to one opening of the dialog: the selection they were
-    // made against is gone by the next one.
-    setJudgeIds([]);
-    onOpenChange(false);
-  };
-
   return (
     <Dialog
       open={open}
@@ -122,12 +153,7 @@ export function JudgeAssignmentDialog({
           return;
         }
 
-        if (next) {
-          onOpenChange(true);
-          return;
-        }
-
-        closeDialog();
+        onOpenChange(next);
       }}
     >
       <DialogContent overlayClassName="backdrop-blur-sm">
@@ -138,31 +164,27 @@ export function JudgeAssignmentDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <fetcher.Form method="post" className="flex flex-col gap-4">
-          <input type="hidden" name="intent" value={copy.intent} />
-          {selectedRows.map((row) => (
-            <input
-              key={row.id}
-              type="hidden"
-              name={presentationChoreographyIdFieldName}
-              value={row.id}
-            />
-          ))}
-
-          <Field>
-            <FieldLabel htmlFor="jueces">Jueces</FieldLabel>
-            <MultiCombobox
+        <form
+          method="post"
+          onSubmit={createValidatedReactRouterSubmitHandler(
+            form,
+            fetcher.submit,
+            { method: "post" },
+          )}
+          className="flex flex-col gap-4"
+        >
+          <FieldGroup>
+            <MultiComboboxField
+              control={form.control}
               disabled={isSaving}
               emptyMessage={copy.emptyMessage}
-              id="jueces"
+              label="Jueces"
               name={judgeIdFieldName}
-              onValueChange={setJudgeIds}
               options={options}
               placeholder="Elegí uno o más jueces"
               searchable
-              value={judgeIds}
             />
-          </Field>
+          </FieldGroup>
 
           <DialogFooter>
             <DialogClose asChild>
@@ -172,7 +194,7 @@ export function JudgeAssignmentDialog({
             </DialogClose>
             <Button
               type="submit"
-              disabled={isSaving || judgeIds.length === 0}
+              disabled={isSaving}
               variant={copy.submitVariant}
             >
               {isSaving ? (
@@ -183,7 +205,7 @@ export function JudgeAssignmentDialog({
               {copy.submitLabel}
             </Button>
           </DialogFooter>
-        </fetcher.Form>
+        </form>
       </DialogContent>
     </Dialog>
   );

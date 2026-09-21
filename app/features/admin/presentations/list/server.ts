@@ -25,6 +25,7 @@ import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import {
   assignJudgesIntent,
   formatJudgeAssignmentMessage,
+  judgeAssignmentSchema,
   judgeIdFieldName,
   movePresentationIntent,
   orderAutomaticallyIntent,
@@ -212,16 +213,17 @@ async function runJudgeAssignment(
   intent: typeof assignJudgesIntent | typeof removeJudgesIntent,
   formData: FormData,
 ) {
-  const choreographyIds = formData
-    .getAll(presentationChoreographyIdFieldName)
-    .map(String)
-    .filter((value) => value.length > 0);
-  const judgeIds = formData
-    .getAll(judgeIdFieldName)
-    .map(String)
-    .filter((value) => value.length > 0);
+  const parsed = judgeAssignmentSchema.safeParse({
+    intent,
+    [presentationChoreographyIdFieldName]: formData.getAll(
+      presentationChoreographyIdFieldName,
+    ),
+    [judgeIdFieldName]: formData.getAll(judgeIdFieldName),
+  });
 
-  if (choreographyIds.length === 0 || judgeIds.length === 0) {
+  if (!parsed.success) {
+    // The dialog holds the same schema, so a submission that gets this far is
+    // a request the form never made: a toast, not a field error.
     return data(
       {
         message: "Elegí al menos una presentación y un juez.",
@@ -230,6 +232,9 @@ async function runJudgeAssignment(
       { status: 400 },
     );
   }
+
+  const choreographyIds = parsed.data[presentationChoreographyIdFieldName];
+  const judgeIds = parsed.data[judgeIdFieldName];
 
   const result =
     intent === assignJudgesIntent

@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import {
   assignJudgesIntent,
   formatJudgeAssignmentMessage,
+  judgeAssignmentSchema,
   removeJudgesIntent,
   selectRemovableJudges,
   type PresentationListItem,
@@ -47,6 +48,51 @@ describe("selectRemovableJudges", () => {
 
   test("offers nothing when no chosen row has a judge", () => {
     expect(selectRemovableJudges([ana, bruno], [buildItem()])).toEqual([]);
+  });
+});
+
+describe("judgeAssignmentSchema", () => {
+  test("accepts a direction with at least one presentation and one judge", () => {
+    const parsed = judgeAssignmentSchema.safeParse({
+      coreografia: ["choreography-1", "choreography-2"],
+      intent: assignJudgesIntent,
+      juez: [ana.id],
+    });
+
+    expect(parsed.success).toBe(true);
+    expect(parsed.data?.juez).toEqual([ana.id]);
+  });
+
+  test("asks for a judge when none was chosen", () => {
+    const parsed = judgeAssignmentSchema.safeParse({
+      coreografia: ["choreography-1"],
+      intent: removeJudgesIntent,
+      juez: [],
+    });
+
+    expect(
+      parsed.error?.issues.map((issue) => [issue.path, issue.message]),
+    ).toEqual([[["juez"], "Este campo es obligatorio."]]);
+  });
+
+  test("refuses an empty selection, which the dialog never submits", () => {
+    const parsed = judgeAssignmentSchema.safeParse({
+      coreografia: [],
+      intent: assignJudgesIntent,
+      juez: [ana.id],
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
+  test("refuses an intent that is not one of the two directions", () => {
+    const parsed = judgeAssignmentSchema.safeParse({
+      coreografia: ["choreography-1"],
+      intent: "order-automatically",
+      juez: [ana.id],
+    });
+
+    expect(parsed.success).toBe(false);
   });
 });
 
