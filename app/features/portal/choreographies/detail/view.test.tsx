@@ -125,6 +125,25 @@ describe("PortalChoreographyDetailRouteView", () => {
     expect(withdrawn).toContain("Archivo de música");
   });
 
+  // The alert asks the academy to load what is missing, and a withdrawn
+  // choreography accepts nothing: only an administrator brings it back.
+  test("hides the pending-items alert while the choreography is withdrawn", () => {
+    const markup = renderChoreographyDetail({
+      loaderData: choreographyDetailLoaderData({
+        choreography: choreographyDetailRow({
+          isWithdrawn: true,
+          operationalStatus: {
+            code: "incomplete",
+            pendingItems: ["experienceLevel", "professors"],
+          },
+        }),
+      }),
+    });
+
+    expect(markup).not.toContain("Faltan cargar");
+    expect(markup).not.toContain("Falta cargar");
+  });
+
   test("does not expose academy deletion from the portal detail", () => {
     const markup = renderChoreographyDetail({
       loaderData: choreographyDetailLoaderData({
