@@ -16,6 +16,7 @@ Rules for event context, `Bases del evento`, administration and portal behavior.
 - A `Cupo de cronograma` can be deleted under a `Coreografía retirada` — the reference is released — while a `Cronograma` cannot be deleted while any choreography, withdrawn or not, is assigned to it. The asymmetry and its refusal are stated in [choreographies.md](choreographies.md#a-withdrawn-choreography).
 - `Bases del evento` includes modalities, submodalities, categories, experience levels, schedules, schedule capacities and prices. It does not include Events.
 - An event cannot open its `Período de inscripción` while its categories leave an age uncovered: for every `Modalidad` and `Tipo de grupo` its categories reach, ages 1 to 100 must be covered by exactly one `Categoría`. A gap is a choreography that cannot be placed; an overlap makes the `Categoría` depend on the order the `Bases del evento` load in. A `Modalidad` that declares no `Categoría` at all for a `Tipo de grupo` is offering nothing there and is not asked for coverage; a choreography never lands on that pair either, because registration refuses a choreography that resolves to no category.
+- Registration readiness resolves a schedule the same way registration does, categories included: a `Categoría` that no `Cronograma` accepts for a `Modalidad` and `Tipo de grupo` it reaches is reported as a missing compatible schedule capacity, so a category left out of every show surfaces in the readiness instead of blocking a registration.
 
 ## Administration and portal
 

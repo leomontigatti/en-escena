@@ -119,6 +119,80 @@ describe("event registration readiness", () => {
     });
   });
 
+  test("reports a category no schedule accepts, and stops once a schedule accepts it", async () => {
+    const event = await createSavedEvent("Funciones 2026");
+    const jazz = await expectCreated(
+      createModality(event.id, { name: "Jazz" }),
+    );
+    const baby = await expectCreated(
+      createCategory(event.id, {
+        name: "Baby",
+        minAge: 1,
+        maxAge: 10,
+        groupTypes: ["solo"],
+        modalityIds: [jazz.id],
+        experienceLevels: [],
+      }),
+    );
+    const juvenil = await expectCreated(
+      createCategory(event.id, {
+        name: "Juvenil",
+        minAge: 11,
+        maxAge: 100,
+        groupTypes: ["solo"],
+        modalityIds: [jazz.id],
+        experienceLevels: [],
+      }),
+    );
+    await expectCreated(
+      createPrice(event.id, {
+        groupType: "solo",
+        amount: 14000,
+        paymentDeadline: null,
+        scheduleId: null,
+      }),
+    );
+    await expectCreated(
+      createSchedule(event.id, {
+        name: "Función 1",
+        scheduledDate: "2026-06-07",
+        startTime: "10:00",
+        totalCapacity: 20,
+        modalityIds: [jazz.id],
+        categoryIds: [baby.id],
+      }),
+    );
+
+    await expect(
+      getEventRegistrationReadiness(event.id),
+    ).resolves.toMatchObject({
+      isReady: false,
+      missingItems: [
+        expect.objectContaining({
+          code: "schedule-compatibility",
+          detail:
+            "Falta un cupo de cronograma compatible para categoría Juvenil, modalidad Jazz, tipo de grupo solo.",
+        }),
+      ],
+    });
+
+    await expectCreated(
+      createSchedule(event.id, {
+        name: "Función 2",
+        scheduledDate: "2026-06-07",
+        startTime: "16:00",
+        totalCapacity: 20,
+        modalityIds: [jazz.id],
+        categoryIds: [juvenil.id],
+      }),
+    );
+    await markEventRegistrationReadinessDirty(event.id);
+
+    await expect(
+      getEventRegistrationReadiness(event.id),
+    ).resolves.toMatchObject({ isReady: true, missingItems: [] });
+  });
+
   test("marks an event as ready when every registration path has schedule capacity and price, and keeps ignoring seminars", async () => {
     const event = await createSavedEvent("Final 2026");
     const jazz = await expectCreated(
@@ -427,7 +501,7 @@ describe("event registration readiness", () => {
         expect.objectContaining({
           code: "price-coverage",
           detail:
-            "El último precio general para Categoría Juvenil, Modalidad Jazz, Tipo de grupo Solo venció el 31 de enero de 2020 y no hay uno sin fecha límite.",
+            "El último precio general para categoría Juvenil, modalidad Jazz, tipo de grupo solo venció el 31 de enero de 2020 y no hay uno sin fecha límite.",
         }),
       ],
     });

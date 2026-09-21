@@ -36,6 +36,7 @@ describe("event registration readiness from loaded bases", () => {
           createdAt,
           modalityIds: ["modality_jazz"],
           modalities: [{ id: "modality_jazz", name: "Jazz" }],
+          categoryIds: [],
           availablePlaces: 8,
           occupiedCount: 12,
           scheduleCapacities: [
@@ -79,7 +80,7 @@ describe("event registration readiness from loaded bases", () => {
       missingItems: [
         expect.objectContaining({
           code: "price-coverage",
-          detail: expect.stringContaining("Tipo de grupo Dúo"),
+          detail: expect.stringContaining("tipo de grupo dúo"),
         }),
       ],
     });
@@ -111,6 +112,7 @@ describe("event registration readiness from loaded bases", () => {
           createdAt,
           modalityIds: ["modality_jazz"],
           modalities: [{ id: "modality_jazz", name: "Jazz" }],
+          categoryIds: [],
           availablePlaces: 20,
           occupiedCount: 0,
           scheduleCapacities: [],
@@ -164,7 +166,7 @@ describe("event registration readiness from loaded bases", () => {
         expect.objectContaining({
           code: "price-coverage",
           detail:
-            "El último precio general para Categoría Infantil, Modalidad Jazz, Tipo de grupo Solo venció el 31 de mayo de 2026 y no hay uno sin fecha límite.",
+            "El último precio general para categoría Infantil, modalidad Jazz, tipo de grupo solo venció el 31 de mayo de 2026 y no hay uno sin fecha límite.",
         }),
       ],
     });
@@ -279,7 +281,7 @@ describe("event registration readiness from loaded bases", () => {
         expect.objectContaining({
           code: "price-coverage",
           detail:
-            "El último precio general para Categoría Infantil, Modalidad Jazz, Tipo de grupo Solo vence el 31 de mayo de 2026 y no hay uno sin fecha límite.",
+            "El último precio general para categoría Infantil, modalidad Jazz, tipo de grupo solo vence el 31 de mayo de 2026 y no hay uno sin fecha límite.",
         }),
       ],
     });
@@ -510,6 +512,84 @@ describe("category age coverage from loaded bases", () => {
     ).resolves.toMatchObject({ isReady: true, missingItems: [] });
   });
 
+  test("reports the categories no schedule accepts", async () => {
+    const eventBases = buildTwoShowEventBases({
+      funcion1CategoryIds: ["category_baby"],
+      funcion2CategoryIds: ["category_infantil"],
+    });
+
+    await expect(
+      getEventRegistrationReadinessForBases("event_2026", eventBases, {
+        referenceDate: "2026-05-01",
+      }),
+    ).resolves.toMatchObject({
+      isReady: false,
+      missingItems: [
+        expect.objectContaining({
+          code: "schedule-compatibility",
+          detail:
+            "Falta un cupo de cronograma compatible para categoría Juvenil, modalidad Jazz, tipo de grupo solo.",
+        }),
+      ],
+    });
+  });
+
+  test("keeps every category satisfied when each one is accepted by a schedule", async () => {
+    const eventBases = buildTwoShowEventBases({
+      funcion1CategoryIds: ["category_baby", "category_infantil"],
+      funcion2CategoryIds: ["category_juvenil"],
+    });
+
+    await expect(
+      getEventRegistrationReadinessForBases("event_2026", eventBases, {
+        referenceDate: "2026-05-01",
+      }),
+    ).resolves.toMatchObject({ isReady: true, missingItems: [] });
+  });
+
+  test("keeps a schedule that accepts no categories in particular satisfying every category", async () => {
+    const eventBases = buildTwoShowEventBases({
+      funcion1CategoryIds: [],
+      funcion2CategoryIds: ["category_juvenil"],
+    });
+
+    await expect(
+      getEventRegistrationReadinessForBases("event_2026", eventBases, {
+        referenceDate: "2026-05-01",
+      }),
+    ).resolves.toMatchObject({ isReady: true, missingItems: [] });
+  });
+
+  test("writes the registration path of a category that needs a submodality in lowercase", async () => {
+    const eventBases = buildTwoShowEventBases({
+      funcion1CategoryIds: ["category_baby", "category_infantil"],
+      funcion2CategoryIds: ["category_baby"],
+      submodalities: [
+        {
+          id: "submodality_jazz_funk",
+          name: "Jazz funk",
+          modalityId: "modality_jazz",
+        },
+      ],
+      experienceLevels: ["amateur"],
+    });
+
+    await expect(
+      getEventRegistrationReadinessForBases("event_2026", eventBases, {
+        referenceDate: "2026-05-01",
+      }),
+    ).resolves.toMatchObject({
+      isReady: false,
+      missingItems: [
+        expect.objectContaining({
+          code: "schedule-compatibility",
+          detail:
+            "Falta un cupo de cronograma compatible para categoría Juvenil, modalidad Jazz, tipo de grupo solo, requiere submodalidad, requiere nivel de experiencia.",
+        }),
+      ],
+    });
+  });
+
   test("does not ask for coverage of a group type no category of the modality declares", async () => {
     const eventBases = buildLadderEventBases([
       { name: "Todas", minAge: 1, maxAge: 100 },
@@ -550,6 +630,7 @@ function buildLadderEventBases(
         createdAt,
         modalityIds: ["modality_jazz"],
         modalities: [{ id: "modality_jazz", name: "Jazz" }],
+        categoryIds: [],
         availablePlaces: 20,
         occupiedCount: 0,
         scheduleCapacities: [],
@@ -596,11 +677,80 @@ function buildSoloEventBases(prices: unknown[]) {
         createdAt,
         modalityIds: ["modality_jazz"],
         modalities: [{ id: "modality_jazz", name: "Jazz" }],
+        categoryIds: [],
         availablePlaces: 20,
         occupiedCount: 0,
         scheduleCapacities: [],
       },
     ],
     prices,
+  } as unknown as EventBases;
+}
+
+// Two shows of the same modality, each accepting part of the age ladder — the
+// split this readiness check exists to keep honest.
+function buildTwoShowEventBases(input: {
+  funcion1CategoryIds: string[];
+  funcion2CategoryIds: string[];
+  submodalities?: unknown[];
+  experienceLevels?: string[];
+}) {
+  const createdAt = new Date("2026-01-01T00:00:00Z");
+  const bands = [
+    { id: "category_baby", name: "Baby", minAge: 1, maxAge: 6 },
+    { id: "category_infantil", name: "Infantil", minAge: 7, maxAge: 13 },
+    { id: "category_juvenil", name: "Juvenil", minAge: 14, maxAge: 100 },
+  ];
+
+  return {
+    modalities: [{ id: "modality_jazz", name: "Jazz" }],
+    submodalities: input.submodalities ?? [],
+    categories: bands.map((band) => ({
+      ...band,
+      groupTypes: ["solo"],
+      modalityIds: ["modality_jazz"],
+      experienceLevels: input.experienceLevels ?? [],
+    })),
+    schedules: [
+      {
+        id: "schedule_funcion_1",
+        name: "Función 1",
+        scheduledDate: "2026-05-02",
+        startTime: "09:00",
+        totalCapacity: 20,
+        createdAt,
+        modalityIds: ["modality_jazz"],
+        modalities: [{ id: "modality_jazz", name: "Jazz" }],
+        categoryIds: input.funcion1CategoryIds,
+        availablePlaces: 20,
+        occupiedCount: 0,
+        scheduleCapacities: [],
+      },
+      {
+        id: "schedule_funcion_2",
+        name: "Función 2",
+        scheduledDate: "2026-05-02",
+        startTime: "15:00",
+        totalCapacity: 20,
+        createdAt,
+        modalityIds: ["modality_jazz"],
+        modalities: [{ id: "modality_jazz", name: "Jazz" }],
+        categoryIds: input.funcion2CategoryIds,
+        availablePlaces: 20,
+        occupiedCount: 0,
+        scheduleCapacities: [],
+      },
+    ],
+    prices: [
+      {
+        id: "price_solo",
+        eventId: "event_2026",
+        groupType: "solo",
+        amount: 14000,
+        paymentDeadline: null,
+        scheduleId: null,
+        schedule: null,
+      },
+    ],
   } as unknown as EventBases;
 }

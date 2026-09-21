@@ -260,6 +260,7 @@ export async function getEventRegistrationReadinessForBases(
           requiresExperienceLevel,
         });
         const scheduleResolution = resolveScheduleOptionsFromBases(eventBases, {
+          categoryId: category.id,
           modalityId,
           groupType,
         });
@@ -498,7 +499,7 @@ function countSubmodalitiesByModalityId(
 
 function resolveScheduleOptionsFromBases(
   eventBases: EventBases,
-  input: { modalityId: string; groupType: string },
+  input: { categoryId: string; modalityId: string; groupType: string },
 ) {
   if (!isGroupType(input.groupType)) {
     return { status: "none" as const, options: [] };
@@ -508,6 +509,15 @@ function resolveScheduleOptionsFromBases(
   const options: ReadinessScheduleOption[] = eventBases.schedules.flatMap(
     (schedule): ReadinessScheduleOption[] => {
       if (!schedule.modalityIds.includes(input.modalityId)) {
+        return [];
+      }
+
+      // Same rule as the resolver: an empty category list accepts every
+      // category, a non-empty one only the categories it names.
+      if (
+        schedule.categoryIds.length > 0 &&
+        !schedule.categoryIds.includes(input.categoryId)
+      ) {
         return [];
       }
 
@@ -608,18 +618,20 @@ function findLatestDeadline(candidates: EventBases["prices"]) {
 }
 
 function describeRegistrationPath(input: RegistrationPathDescriptor) {
+  // Domain terms go lowercase inside the sentence (docs/agents/style-guide.md);
+  // only the category and modality names keep their own casing.
   const details = [
-    `Categoría ${input.categoryName}`,
-    `Modalidad ${input.modalityName}`,
-    `Tipo de grupo ${formatGroupType(input.groupType)}`,
+    `categoría ${input.categoryName}`,
+    `modalidad ${input.modalityName}`,
+    `tipo de grupo ${formatGroupType(input.groupType).toLocaleLowerCase("es-AR")}`,
   ];
 
   if (input.requiresSubmodality) {
-    details.push("requiere Submodalidad");
+    details.push("requiere submodalidad");
   }
 
   if (input.requiresExperienceLevel) {
-    details.push("requiere Nivel de experiencia");
+    details.push("requiere nivel de experiencia");
   }
 
   return details.join(", ");
