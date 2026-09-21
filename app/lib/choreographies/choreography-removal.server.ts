@@ -3,13 +3,14 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { choreographies, choreographyDancers } from "@/db/schema";
 import { choreographyHasComprobantes } from "@/lib/comprobantes/comprobantes.server";
+import { hasEvaluatedPresentation } from "@/lib/presentations/evaluation-lock.server";
 import { deleteChoreographyPresentation } from "@/lib/presentations/presentation-queries.server";
 
 import { findInscriptionsWithEvidence } from "./inscription-withdrawal.server";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-export type ChoreographyRemovalOutcome = "deleted" | "withdrawn";
+export type ChoreographyRemovalOutcome = "deleted" | "evaluated" | "withdrawn";
 
 /**
  * Removing a choreography is one administrative action with two outcomes, the
@@ -21,6 +22,11 @@ export type ChoreographyRemovalOutcome = "deleted" | "withdrawn";
  * on the choreography row, and not from what the dialog was rendered with:
  * money allocated between the render and the click still leads to a withdrawal
  * instead of destroying the allocations through the cascade.
+ *
+ * The evaluated presentation is the only refusal left, and it refuses both
+ * outcomes: `"evaluated"` is returned without writing anything. It is read
+ * inside the transaction because a caller that answered it from outside the
+ * `FOR UPDATE` would not be covered by the lock it took.
  */
 export async function removeChoreography(
   choreographyId: string,
@@ -43,8 +49,18 @@ export async function removeChoreography(
       return "withdrawn";
     }
 
+    // Competitive history is never lost: a scored or disqualified presentation
+    // leaves the choreography neither deletable nor withdrawable.
+    if (await hasEvaluatedPresentation(choreographyId, tx)) {
+      return "evaluated";
+    }
+
+    // The presentation goes with either outcome: a choreography that will not
+    // be performed must not stay programmed. The number it held stays a gap —
+    // every other number is what the academies were told.
+    await deleteChoreographyPresentation(tx, choreographyId);
+
     if (!(await hasEvidenceToPreserve(tx, choreographyId))) {
-      await deleteChoreographyPresentation(tx, choreographyId);
       await tx
         .delete(choreographies)
         .where(eq(choreographies.id, choreographyId));

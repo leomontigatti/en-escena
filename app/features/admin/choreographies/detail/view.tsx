@@ -122,7 +122,7 @@ export function ChoreographyDetailRouteView({
               ? formatChoreographyDeleteDescription(
                   loaderData.choreography.presentationOrderNumber,
                 )
-              : "Esta coreografía tiene registros asociados que conservan trazabilidad."
+              : "Su presentación ya fue evaluada, así que no puede eliminarse ni retirarse."
           }
           intentValue={deleteChoreographyIntent}
           isBlocked={!loaderData.deletion.canDelete}
@@ -488,10 +488,10 @@ function toPersonOption(person: {
 }
 
 /**
- * A presentation does not block the deletion — it is deleted with the
- * choreography — so the number is named as a consequence and not as a reason to
- * stop. The gap it leaves stays: every other number is what the academies were
- * told.
+ * An unevaluated presentation does not block the removal — it is deleted with
+ * the choreography, whether it ends up deleted or withdrawn — so the number is
+ * named as a consequence and not as a reason to stop. The gap it leaves stays:
+ * every other number is what the academies were told.
  */
 function formatChoreographyDeleteDescription(
   presentationOrderNumber: number | null,
@@ -512,7 +512,7 @@ function BlockedDeleteReasons({
 }) {
   return (
     <div>
-      <p>Resolvé estos bloqueos antes de eliminarla:</p>
+      <p>{blockers.length === 1 ? "Motivo:" : "Motivos:"}</p>
       <ul className="mt-2 list-disc pl-5">
         {blockers.map((blocker) => (
           <li key={blocker.code}>{blocker.label}</li>

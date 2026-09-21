@@ -467,41 +467,54 @@ async function updateChoreographyRosterAction(input: {
 }
 
 /**
- * The presentation is not a blocker: it is deleted with the choreography, in
- * the same transaction and without a cascade, and the number it held stays a
- * gap in the order. What the academies were told about every other number does
- * not change because one choreography left.
+ * An unevaluated presentation is not a blocker: it is deleted with the
+ * choreography —whether the outcome is a delete or a withdrawal— in the same
+ * transaction and without a cascade, and the number it held stays a gap in the
+ * order. What the academies were told about every other number does not change
+ * because one choreography left.
  *
  * Money is not a blocker either. The action is never refused because of it: it
  * picks between deleting and withdrawing inside the write's transaction, so the
  * outcome the dialog announced can only improve into the conservative one.
+ *
+ * The one refusal left is the evaluated presentation, and it refuses both
+ * outcomes: competitive history is never lost. It is re-read inside the
+ * transaction, under the choreography's row lock, so the blockers the loader
+ * rendered the dialog with cannot go stale between the render and the click.
  */
 async function deleteChoreography(choreography: ChoreographyDetail) {
-  const blockers = await getChoreographyDeleteBlockers(choreography);
-
-  if (blockers.length > 0) {
-    throw new Response("No se puede eliminar esta coreografía.", {
-      status: 409,
-    });
+  if (getChoreographyDeleteBlockers(choreography).length > 0) {
+    throw evaluatedPresentationResponse();
   }
 
-  return await removeChoreography(choreography.id);
-}
+  const outcome = await removeChoreography(choreography.id);
 
-async function getChoreographyDeleteBlockers(
-  choreography: Pick<ChoreographyDetail, "id">,
-): Promise<ChoreographyDeleteBlocker[]> {
-  const blockers: ChoreographyDeleteBlocker[] = [];
-
-  if (await hasScoresForChoreography(choreography.id)) {
-    blockers.push({ code: "scores", label: "puntajes" });
+  if (outcome === "evaluated") {
+    throw evaluatedPresentationResponse();
   }
 
-  return blockers;
+  return outcome;
 }
 
-async function hasScoresForChoreography(_choreographyId: string) {
-  return false;
+function evaluatedPresentationResponse() {
+  return new Response("No se puede eliminar esta coreografía.", {
+    status: 409,
+  });
+}
+
+function getChoreographyDeleteBlockers(
+  choreography: Pick<ChoreographyDetail, "isEvaluated">,
+): ChoreographyDeleteBlocker[] {
+  if (!choreography.isEvaluated) {
+    return [];
+  }
+
+  return [
+    {
+      code: "evaluated-presentation",
+      label: "la presentación ya fue evaluada",
+    },
+  ];
 }
 
 function readChoreographyId(params: { choreographyId?: string }) {

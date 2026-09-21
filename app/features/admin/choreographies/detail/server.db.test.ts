@@ -422,6 +422,163 @@ describe("administrative choreography detail server", () => {
     ).resolves.toEqual({ withdrawnAt: withdrawn?.withdrawnAt });
   });
 
+  // The presentation is removed on a withdrawal too: a choreography that will
+  // not be performed must not stay programmed. Its number stays a gap, exactly
+  // as on a delete.
+  test("removes the unevaluated presentation of a withdrawn choreography and leaves its number as a gap", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Retirada Numerada",
+      email: "admin.coreografias.retirada.numerada.academia@example.com",
+    });
+    const event = await createEventRecord({
+      active: true,
+      name: "Regional 2026",
+    });
+    const catalog = await createEventCatalog(event.id);
+    const withdrawing = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      name: "Retirada numerada",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+    const neighbour = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      name: "Vecina numerada",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+    await createSelectedPriceInscriptionForTest({
+      academyId: owner.academyId,
+      allocatedAmount: 4000,
+      choreographyId: withdrawing.id,
+      eventId: event.id,
+    });
+    await db.insert(presentations).values([
+      { choreographyId: withdrawing.id, eventId: event.id, orderNumber: 3 },
+      { choreographyId: neighbour.id, eventId: event.id, orderNumber: 4 },
+    ]);
+
+    // An unevaluated presentation refuses nothing.
+    await expect(loadDeleteBlockers(withdrawing.id)).resolves.toEqual([]);
+
+    await submitDetailAction({
+      body: deleteFormData(),
+      choreographyId: withdrawing.id,
+      email: "admin.coreografias.retirada.numerada@example.com",
+      role: "admin",
+    });
+
+    const withdrawn = await db.query.choreographies.findFirst({
+      where: eq(choreographies.id, withdrawing.id),
+    });
+    expect(withdrawn?.withdrawnAt).toBeInstanceOf(Date);
+    await expect(
+      db.query.presentations.findMany({
+        where: eq(presentations.eventId, event.id),
+      }),
+    ).resolves.toMatchObject([
+      { choreographyId: neighbour.id, orderNumber: 4 },
+    ]);
+  });
+
+  // The one refusal left, and it refuses both outcomes: with money on the
+  // choreography the action would have withdrawn it, and it is refused all the
+  // same.
+  test("refuses to delete or withdraw a choreography whose presentation was evaluated", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Evaluada",
+      email: "admin.coreografias.evaluada.academia@example.com",
+    });
+    const event = await createEventRecord({
+      active: true,
+      name: "Regional 2026",
+    });
+    const catalog = await createEventCatalog(event.id);
+    const empty = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      name: "Evaluada sin dinero",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+    const funded = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      name: "Evaluada con dinero",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+    await createSelectedPriceInscriptionForTest({
+      academyId: owner.academyId,
+      allocatedAmount: 6000,
+      choreographyId: funded.id,
+      eventId: event.id,
+    });
+    await db.insert(presentations).values({
+      choreographyId: empty.id,
+      eventId: event.id,
+      orderNumber: 7,
+    });
+    evaluatedChoreographyIds.add(empty.id);
+    evaluatedChoreographyIds.add(funded.id);
+
+    await expect(loadDeleteBlockers(empty.id)).resolves.toEqual([
+      "evaluated-presentation",
+    ]);
+
+    await expectThrownResponse(
+      submitDetailAction({
+        body: deleteFormData(),
+        choreographyId: empty.id,
+        email: "admin.coreografias.evaluada.vacia@example.com",
+        role: "admin",
+      }),
+      409,
+    );
+    await expectThrownResponse(
+      submitDetailAction({
+        body: deleteFormData(),
+        choreographyId: funded.id,
+        email: "admin.coreografias.evaluada.dinero@example.com",
+        role: "admin",
+      }),
+      409,
+    );
+
+    // Neither outcome happened: both rows are there, neither is withdrawn, and
+    // the evaluated presentation keeps its place in the order.
+    const rows = await db.query.choreographies.findMany({
+      where: eq(choreographies.eventId, event.id),
+    });
+    expect(
+      rows.map((row) => ({ id: row.id, withdrawnAt: row.withdrawnAt })).sort(),
+    ).toEqual(
+      [
+        { id: empty.id, withdrawnAt: null },
+        { id: funded.id, withdrawnAt: null },
+      ].sort(),
+    );
+    await expect(
+      db.query.presentations.findMany({
+        where: eq(presentations.eventId, event.id),
+      }),
+    ).resolves.toMatchObject([{ choreographyId: empty.id, orderNumber: 7 }]);
+  });
+
   test("withdraws a choreography holding money, keeps every allocation and leaves the available balance untouched", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Con Dinero",
