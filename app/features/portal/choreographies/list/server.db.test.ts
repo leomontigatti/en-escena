@@ -458,6 +458,57 @@ describe("handlePortalChoreographiesListAction", () => {
     ]);
   });
 
+  // The list keeps the withdrawn choreography: it is the view that hides it
+  // behind `Retirada`, and it can only do that once it is told which rows are.
+  test("reports which of the academy's choreographies are withdrawn", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Retirada",
+      email: "coreografias.retirada@example.com",
+    });
+    const event = await createEventRecord({
+      active: true,
+      name: "Regional Retirada",
+    });
+    const catalog = await createEventCatalog(event.id);
+    const withdrawn = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithoutLevel.id,
+      eventId: event.id,
+      modalityId: catalog.modality.id,
+      name: "Pieza Retirada",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+      submodalityId: null,
+    });
+    await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithoutLevel.id,
+      eventId: event.id,
+      modalityId: catalog.modality.id,
+      name: "Pieza en Pie",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+      submodalityId: null,
+    });
+    await db
+      .update(choreographies)
+      .set({ withdrawnAt: new Date("2026-09-17T12:00:00Z") })
+      .where(eq(choreographies.id, withdrawn.id));
+
+    const loaderData = await loadPortalChoreographiesList(
+      new Request(`http://localhost/portal/coreografias?evento=${event.id}`, {
+        headers: { cookie: owner.cookie },
+      }),
+    );
+
+    expect(
+      Object.fromEntries(
+        loaderData.choreographies.map((choreography) => [
+          choreography.name,
+          choreography.isWithdrawn,
+        ]),
+      ),
+    ).toEqual({ "Pieza Retirada": true, "Pieza en Pie": false });
+  });
+
   test("creates a choreography and redirects back to the active-event list", async () => {
     const ownerSession = await createAcademySession({
       email: "coreografias.create.owner@example.com",

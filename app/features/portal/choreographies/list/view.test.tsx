@@ -211,6 +211,61 @@ describe("PortalChoreographiesListRouteView", () => {
     expect(text).not.toContain("Mi Pieza");
   });
 
+  // The academy's list is about what its choreographies still need before the
+  // event; one that is not taking part has nothing left to need.
+  test("leaves a withdrawn choreography out until `Retirada` is picked", () => {
+    const loaderData = choreographiesLoaderData({
+      choreographies: [
+        choreographyListItem({ id: "choreo_1", name: "Mi Pieza" }),
+        choreographyListItem({
+          id: "choreo_2",
+          choreographyNumber: 2,
+          isWithdrawn: true,
+          name: "Pieza Retirada",
+        }),
+      ],
+    });
+
+    const unfiltered = renderChoreographiesList({ loaderData });
+    const withdrawnOnly = renderChoreographiesList(
+      { loaderData },
+      "/portal/coreografias?estado=retirada",
+    );
+    const complete = renderChoreographiesList(
+      { loaderData },
+      "/portal/coreografias?estado=complete",
+    );
+
+    expect(unfiltered).toContain("Mi Pieza");
+    expect(unfiltered).not.toContain("Pieza Retirada");
+    expect(withdrawnOnly).toContain("Pieza Retirada");
+    expect(withdrawnOnly).not.toContain("Mi Pieza");
+    // The withdrawal axis wins over the readiness one: the withdrawn row is
+    // complete, and `Completa` still does not turn it up.
+    expect(complete).toContain("Mi Pieza");
+    expect(complete).not.toContain("Pieza Retirada");
+  });
+
+  test("badges a withdrawn row `Retirada` in place of its operational status", () => {
+    const markup = renderChoreographiesList(
+      {
+        loaderData: choreographiesLoaderData({
+          choreographies: [
+            choreographyListItem({
+              id: "choreo_2",
+              isWithdrawn: true,
+              name: "Pieza Retirada",
+            }),
+          ],
+        }),
+      },
+      "/portal/coreografias?estado=retirada",
+    );
+
+    expect(markup).toContain("Retirada");
+    expect(markup).not.toContain("Completa");
+  });
+
   test("shows the enabled `Nueva coreografía` button for the active editable event", () => {
     const markup = renderChoreographiesList();
 
@@ -224,14 +279,16 @@ describe("PortalChoreographiesListRouteView", () => {
 
 function renderChoreographiesList(
   input: Partial<ChoreographiesListViewProps> = {},
+  initialEntry = "/portal/coreografias",
 ) {
   return renderToStaticMarkup(
-    <RouterProvider router={buildChoreographiesRouter(input)} />,
+    <RouterProvider router={buildChoreographiesRouter(input, initialEntry)} />,
   );
 }
 
 function buildChoreographiesRouter(
   input: Partial<ChoreographiesListViewProps> = {},
+  initialEntry = "/portal/coreografias",
 ) {
   const loaderData = input.loaderData ?? choreographiesLoaderData();
   const router = createMemoryRouter(
@@ -267,7 +324,7 @@ function buildChoreographiesRouter(
         element: null,
       },
     ],
-    { initialEntries: ["/portal/coreografias"] },
+    { initialEntries: [initialEntry] },
   );
 
   return router;
