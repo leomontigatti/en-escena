@@ -431,7 +431,8 @@ describe("`Bases del evento` repository", () => {
     await expect(deleteSchedule(withdrawnBlock.id)).resolves.toEqual({
       ok: false,
       code: "schedule-has-dependencies",
-      error: "No se puede borrar el cronograma porque tiene dependencias.",
+      error:
+        "No se puede borrar el cronograma porque tiene coreografías retiradas asignadas.",
     });
     await expect(deleteSchedule(freeBlock.id)).resolves.toEqual({ ok: true });
   });

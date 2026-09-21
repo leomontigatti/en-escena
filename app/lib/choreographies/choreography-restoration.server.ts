@@ -6,16 +6,23 @@ import {
   choreographyDancers,
   dancers,
   events,
+  scheduleCapacities,
 } from "@/db/schema";
 import {
   getAgeAtDate,
   getEventLocalDateParts,
 } from "@/lib/choreographies/registration-resolution.server";
-import { lockScheduleCapacityForAssignment } from "@/lib/choreographies/schedule-capacity-lock.server";
+import { selectScheduleCapacityForGroupType } from "@/lib/choreographies/schedule-capacity-options";
+import {
+  lockScheduleCapacityForAssignment,
+  type ScheduleCapacityFullLimit,
+} from "@/lib/choreographies/schedule-capacity-lock.server";
 
 import { reviveWithdrawnInscriptions } from "./inscription-withdrawal.server";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+type ChoreographyGroupType = (typeof choreographies.$inferSelect)["groupType"];
 
 export type ChoreographyRestorationFailureCode =
   "not-withdrawn" | "schedule-capacity";
@@ -31,8 +38,18 @@ export type ChoreographyRestorationResult =
 const notWithdrawnChoreographyMessage =
   "Esta coreografía no está retirada, así que no hay nada que restaurar.";
 
-const deletedScheduleCapacityMessage =
-  "No se puede restaurar: el cupo de cronograma que ocupaba ya no existe.";
+/**
+ * Restoring words its own full-capacity refusals. The lock's messages were
+ * written for the assignment forms, where an admin picked the place and can
+ * pick another; here nothing was selected, so the refusal has to name the place
+ * it tried and the two levers that open it.
+ */
+const restoreFullPlaceMessages: Record<ScheduleCapacityFullLimit, string> = {
+  "schedule-capacity":
+    "No se puede restaurar: el cupo de cronograma que ocupaba no tiene lugar disponible. Liberá un lugar o ampliá el cupo en las bases del evento.",
+  "schedule-total":
+    "No se puede restaurar: el cronograma no tiene lugar disponible. Liberá un lugar o ampliá el cupo total en las bases del evento.",
+};
 
 /**
  * Brings a withdrawn choreography back: the stamp goes, and with it exactly the
@@ -45,7 +62,9 @@ const deletedScheduleCapacityMessage =
  * assignment path takes, and with the choreography counting as arriving: while
  * it was withdrawn its place was free, so another choreography may have taken
  * it. That makes the restore refusable, which is the point — restoring must
- * never overshoot a capacity.
+ * never overshoot a capacity. The place is always on the choreography's **own**
+ * schedule; when it holds no capacity reference the placement inside that
+ * schedule is resolved again, never the schedule itself.
  *
  * Nothing else is re-resolved. The price is already frozen by the money the
  * choreography holds, and an evaluated presentation cannot exist on a withdrawn
@@ -60,6 +79,7 @@ export async function restoreChoreography(
   return await db.transaction(async (tx) => {
     const [locked] = await tx
       .select({
+        groupType: choreographies.groupType,
         scheduleCapacityId: choreographies.scheduleCapacityId,
         scheduleId: choreographies.scheduleId,
         withdrawnAt: choreographies.withdrawnAt,
@@ -80,17 +100,17 @@ export async function restoreChoreography(
       };
     }
 
-    // A withdrawn choreography does not block deleting the capacity it points
-    // at, so the reference is released when that happens (#1099) and there is
-    // nowhere left to return to. Refusing here is deliberate: landing the
-    // choreography on its schedule at large instead would silently move it.
-    if (!locked.scheduleCapacityId) {
-      return {
-        ok: false,
-        code: "schedule-capacity",
-        error: deletedScheduleCapacityMessage,
-      };
-    }
+    // Where it returns to: the capacity it still names, or the place resolved
+    // again on its own schedule when it names none.
+    const restoredScheduleCapacityId =
+      locked.scheduleCapacityId ??
+      (await resolveScheduleCapacityForRestore(tx, locked));
+    // The row only has to be told where it landed when it was holding no
+    // reference and the place resolved to a specific capacity. A choreography
+    // that kept its reference returns to the very capacity it already names.
+    const scheduleCapacityIdToWrite = locked.scheduleCapacityId
+      ? null
+      : restoredScheduleCapacityId;
 
     // No `excludeChoreographyId`: the choreography is arriving, not staying.
     // Being withdrawn it is not counted by the lock either way, so the count it
@@ -98,11 +118,18 @@ export async function restoreChoreography(
     const place = await lockScheduleCapacityForAssignment({
       tx,
       scheduleId: locked.scheduleId,
-      scheduleCapacityId: locked.scheduleCapacityId,
+      scheduleCapacityId: restoredScheduleCapacityId,
     });
 
     if (!place.ok) {
-      return { ok: false, code: "schedule-capacity", error: place.error };
+      return {
+        ok: false,
+        code: "schedule-capacity",
+        error:
+          place.code === "schedule-capacity-full"
+            ? restoreFullPlaceMessages[place.limit]
+            : place.error,
+      };
     }
 
     await reviveWithdrawnInscriptions(
@@ -115,11 +142,42 @@ export async function restoreChoreography(
 
     await tx
       .update(choreographies)
-      .set({ updatedAt: new Date(), withdrawnAt: null })
+      .set({
+        ...(scheduleCapacityIdToWrite
+          ? { scheduleCapacityId: scheduleCapacityIdToWrite }
+          : {}),
+        updatedAt: new Date(),
+        withdrawnAt: null,
+      })
       .where(eq(choreographies.id, choreographyId));
 
     return { ok: true };
   });
+}
+
+/**
+ * Where a choreography holding no `scheduleCapacityId` returns to — it never had
+ * one and uses the schedule total as a global allowance, or the capacity it
+ * pointed at was deleted while it was withdrawn (#1099). The place is resolved
+ * again on its **own** schedule, by the same rule registration follows, so
+ * restoring never moves a choreography to another schedule.
+ */
+async function resolveScheduleCapacityForRestore(
+  tx: Transaction,
+  choreography: { groupType: ChoreographyGroupType; scheduleId: string },
+): Promise<string | null> {
+  const capacities = await tx
+    .select({
+      id: scheduleCapacities.id,
+      groupType: scheduleCapacities.groupType,
+    })
+    .from(scheduleCapacities)
+    .where(eq(scheduleCapacities.scheduleId, choreography.scheduleId));
+
+  return (
+    selectScheduleCapacityForGroupType(capacities, choreography.groupType)
+      ?.id ?? null
+  );
 }
 
 /**

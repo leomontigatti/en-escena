@@ -89,9 +89,12 @@ describe("schedule capacity lock", () => {
       }),
     );
 
+    // `limit` is what tells a caller which of the two limits refused it —
+    // restoring words its own refusal from it instead of reading the message.
     expect(result).toMatchObject({
       ok: false,
       code: "schedule-capacity-full",
+      limit: "schedule-capacity",
       error: "El cupo de cronograma seleccionado ya no tiene cupo disponible.",
     });
   });
@@ -145,6 +148,7 @@ describe("schedule capacity lock", () => {
     ).resolves.toMatchObject({
       ok: false,
       code: "schedule-capacity-full",
+      limit: "schedule-total",
       error: "El cronograma seleccionado ya no tiene cupo disponible.",
     });
 
