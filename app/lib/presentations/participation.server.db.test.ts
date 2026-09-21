@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import { presentations } from "@/db/schema";
+import type { ExperienceLevel } from "@/lib/events/experience-levels";
 import {
   createChoreographyRecord,
   createDancer,
@@ -67,6 +68,7 @@ async function seedEvent() {
    */
   const addChoreography = async (input: {
     belowDeposit?: boolean;
+    experienceLevelId?: ExperienceLevel;
     name: string;
     orderNumber?: number;
   }) => {
@@ -74,7 +76,7 @@ async function seedEvent() {
       academyId: academy.academy.id,
       categoryId: catalog.categoryWithLevel.id,
       eventId: event.id,
-      experienceLevelId: catalog.level.id,
+      experienceLevelId: input.experienceLevelId ?? catalog.level.id,
       modalityId: catalog.modality.id,
       name: input.name,
       scheduleCapacityId: catalog.scheduleCapacity.id,
@@ -229,6 +231,27 @@ describe("runAutomaticOrdering", () => {
           ?.id,
       ).toBe(row.id);
     }
+  });
+
+  test("orders by experience level before anything inside the schedule", async () => {
+    const { addChoreography, event } = await seedEvent();
+    const amateur = await addChoreography({
+      experienceLevelId: "amateur",
+      name: "Amateur",
+    });
+    const nudo = await addChoreography({
+      experienceLevelId: "nudo",
+      name: "Nudo",
+    });
+
+    const result = await runAutomaticOrdering(event.id);
+
+    expect(result).toEqual({ ok: true, orderedCount: 2 });
+    expect(
+      (await readOrder(event.id)).map(
+        (presentation) => presentation.choreographyId,
+      ),
+    ).toEqual([nudo.id, amateur.id]);
   });
 
   test("refuses when a presentation was already evaluated", async () => {

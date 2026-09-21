@@ -21,6 +21,7 @@ function row({
     category: { maxAge: 12, minAge: 1, name: "Infantil" },
     choreographyId,
     choreographyNumber: orderNumber ?? 1,
+    experienceLevel: null,
     financialStatus: "depositMet",
     groupType: "solo",
     orderNumber,
@@ -124,6 +125,64 @@ describe("derivePresentationWarnings", () => {
 
     expect(messagesOf(warnings, "teen-early")).toEqual(["Fuera de su bloque"]);
     expect(warnings.size).toBe(1);
+  });
+
+  test("flags a presentation moved across an experience level boundary", () => {
+    const warnings = derivePresentationWarnings([
+      row({
+        choreographyId: "nudo-1",
+        experienceLevel: "nudo",
+        orderNumber: 1,
+      }),
+      row({
+        choreographyId: "amateur-early",
+        experienceLevel: "amateur",
+        orderNumber: 2,
+      }),
+      row({
+        choreographyId: "nudo-2",
+        experienceLevel: "nudo",
+        orderNumber: 3,
+      }),
+      row({
+        choreographyId: "nudo-3",
+        experienceLevel: "nudo",
+        orderNumber: 4,
+      }),
+      row({
+        choreographyId: "amateur-1",
+        experienceLevel: "amateur",
+        orderNumber: 5,
+      }),
+    ]);
+
+    expect(messagesOf(warnings, "amateur-early")).toEqual([
+      "Fuera de su bloque",
+    ]);
+    expect(warnings.size).toBe(1);
+  });
+
+  test("flags nothing when the levels run in their own order", () => {
+    const warnings = derivePresentationWarnings([
+      row({
+        choreographyId: "nudo-1",
+        experienceLevel: "nudo",
+        orderNumber: 1,
+      }),
+      row({
+        choreographyId: "nudo-2",
+        experienceLevel: "nudo",
+        orderNumber: 2,
+      }),
+      row({
+        choreographyId: "amateur-1",
+        experienceLevel: "amateur",
+        orderNumber: 3,
+      }),
+      row({ choreographyId: "no-level", orderNumber: 4 }),
+    ]);
+
+    expect(warnings.size).toBe(0);
   });
 
   test("flags the higher choreography number when the displaced set ties", () => {
