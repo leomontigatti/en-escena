@@ -58,8 +58,8 @@ export type FinanceChoreographyRow = {
   scheduleCapacityScheduleId: string | null;
   // Roster state of the choreography itself, not of its inscriptions. The money
   // rollup does not read it —a withdrawn choreography's retained money is still
-  // the academy's— but the financial lists do: it is what badges the row
-  // `Retirada` in place of its financial status.
+  // the academy's—; the status rollup and the count do, and so do the financial
+  // lists, which badge the row `Retirada` in place of its financial status.
   withdrawn: boolean;
 };
 
@@ -236,12 +236,36 @@ export function computeDancerDiscountAmounts(
   return discounts;
 }
 
+/**
+ * The choreography's row. The withdrawal of the **choreography** cuts it the
+ * same way the withdrawal of an inscription cuts an inscription, one level up:
+ * the money stays —it is the retained deposit, and it is the academy's— and the
+ * status and the count go, because both answer *can this happen as registered?*
+ * and a withdrawn choreography is no longer part of that answer.
+ *
+ * The status it carries while withdrawn is `paidInFull` for the same reason
+ * `deriveWithdrawnInscriptionFigures` gives it to a withdrawn inscription: no
+ * surface shows it —`Retirada` replaces it— and it is the maximum of a minimum
+ * rollup, so leaking it into one could not drag anything down. The reading a
+ * withdrawn choreography used to have, `Seña pendiente` with 0 `Inscriptos`
+ * —the empty active set falling through `deriveMinimumFinancialStatus`— is gone
+ * with it.
+ *
+ * Withdrawal withdraws every inscription, so the count is already zero by the
+ * time it gets here; it is stated rather than derived because the rule is the
+ * choreography's own, not a consequence of how its roster happens to look.
+ */
 export function buildChoreographyOperationalFinanceRow(input: {
   choreography: FinanceChoreographyRow;
   inscriptions: ResolvedInscription[];
 }): ChoreographyOperationalFinanceRow {
+  const rollup = rollUpInscriptionFinanceFigures(input.inscriptions);
+
   return {
-    ...rollUpInscriptionFinanceFigures(input.inscriptions),
+    ...rollup,
+    ...(input.choreography.withdrawn
+      ? { financialStatus: "paidInFull" as const, registrationCount: 0 }
+      : {}),
     choreographyNumber: input.choreography.choreographyNumber,
     groupType: input.choreography.groupType,
     id: input.choreography.id,

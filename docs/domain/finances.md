@@ -109,9 +109,16 @@ move under an academy when a sibling roster changes a discount tier.
 - It is a minimum and **not a watermark**. The watermark it replaced let a
   choreography with a straggler read `Señada`, and `deriveChoreographyNeedsAttention`
   existed only to compensate for that; both are gone.
-- A choreography with no active inscriptions reads `Seña pendiente`.
+- A choreography with no active inscriptions reads `Seña pendiente` — unless it
+  is itself withdrawn, which is the only way it gets there.
 - Withdrawn inscriptions are excluded from this rollup and from the
   choreography's `registrationCount`. They stay in the money rollup.
+- A **withdrawn choreography** is cut the same way one level up: its retained
+  money stays in its own rollup and in its academy's totals, and it is out of
+  the status rollup and out of every count, so its `registrationCount` is `0`
+  and no surface reads a financial status off it — `Retirada` replaces it. The
+  status the row carries while withdrawn is `paidInFull`, the harmless maximum
+  of a minimum rollup, for the same reason a withdrawn inscription carries it.
 - It is not persisted, and it sorts and filters like any derived column.
 - It **may drop back**: a roster change or a de-allocation can un-stick `Pagada`.
   That is accepted; nothing prevents it and nothing records that it happened.

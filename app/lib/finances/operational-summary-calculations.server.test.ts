@@ -280,6 +280,47 @@ describe("buildChoreographyOperationalFinanceRow", () => {
     expect(row.financialStatus).toBe("paidInFull");
   });
 
+  test("keeps a withdrawn choreography in the money rollup and out of the status one", () => {
+    const row = buildChoreographyOperationalFinanceRow({
+      choreography: { ...choreography, withdrawn: true },
+      // Withdrawal takes every inscription with it, each holding what was
+      // retained on it.
+      inscriptions: [
+        resolvedInscription({
+          allocatedAmount: 3000,
+          financialStatus: "paidInFull",
+          id: "i1",
+          overAllocatedAmount: 0,
+          owedBalanceAmount: 0,
+          owedDepositAmount: 0,
+          totalAmount: 3000,
+          withdrawn: true,
+        }),
+      ],
+    });
+
+    // The retained deposit is still the academy's money, so it stays in.
+    expect(row.allocatedAmount).toBe(3000);
+    expect(row.totalAmount).toEqual({ amount: 3000, status: "complete" });
+    // `Seña pendiente` with 0 `Inscriptos` was the old reading; the status is
+    // now the harmless one no minimum rollup can be dragged down by.
+    expect(row.financialStatus).toBe("paidInFull");
+    expect(row.registrationCount).toBe(0);
+    expect(row.withdrawn).toBe(true);
+  });
+
+  test("keeps a withdrawn choreography out of the count even with an active inscription left", () => {
+    const row = buildChoreographyOperationalFinanceRow({
+      choreography: { ...choreography, withdrawn: true },
+      // Cannot happen —withdrawal withdraws every inscription— and is pinned
+      // anyway: the rule belongs to the choreography, not to its roster.
+      inscriptions: [resolvedInscription({ id: "i1" })],
+    });
+
+    expect(row.financialStatus).toBe("paidInFull");
+    expect(row.registrationCount).toBe(0);
+  });
+
   test("reports incomplete amounts when an inscription has no price", () => {
     const row = buildChoreographyOperationalFinanceRow({
       choreography,
