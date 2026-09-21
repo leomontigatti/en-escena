@@ -13,33 +13,16 @@ Originating issue: [#343](https://github.com/leomontigatti/en-escena/issues/343)
 
 ## `agent:*` + `source:*` labels
 
-The state machine (§3.2) assumes these 8 labels exist. They **have already been created** with
-the commands below (idempotent-ish: `gh label create` fails if one already exists, with no
-effect). The canonical meaning of each: spec §3.1 → "Labels (pre-create all of these)".
+The state machine (§3.2) assumes these labels exist. They are listed, with colour and
+description, in the `agent` and `provenance` groups of
+[`.github/labels.json`](../../.github/labels.json), and `pnpm labels:sync` creates or updates
+them in the repo ([#1116](https://github.com/leomontigatti/en-escena/issues/1116); it never
+deletes). The canonical meaning of each: spec §3.1 → "Labels (pre-create all of these)".
+`pnpm check:labels` fails CI when a workflow or a Sandcastle runner names a label the file does
+not hold, which is how a typo in an `--add-label` is caught before the run that needs it.
 
-The label descriptions below are quoted verbatim from the 2026-07-18 run, so this block matches
-the labels actually present in the repo.
-
-```bash
-gh label create "agent:to-issues"    --color 1d76db --description "AFK: PRD listo para descomponerse en sub-issues"
-gh label create "agent:implement"    --color 0e8a16 --description "AFK: listo para una corrida de implement"
-gh label create "agent:queued"       --color fbca04 --description "AFK: listo pero esperando blockers declarados; auto-promueve. Solo humano."
-gh label create "agent:in-progress"  --color 0052cc --description "AFK: corrida activa (actúa como lock)"
-gh label create "agent:review"       --color 5319e7 --description "AFK: PR listo para el workflow de review automatico"
-gh label create "agent:blocked"      --color b60205 --description "AFK: corrida fallo o fue rechazada; necesita atencion humana antes de reintentar"
-gh label create "agent:update-branch" --color d93f0b --description "AFK: el PR debe mergearse hacia arriba con su base"
-gh label create "source:architecture-review" --color 5a5a5a --description "Procedencia: PRD propuesto por el workflow Architecture Review"
-```
-
-Two **outcome labels** were added on 2026-09-17 (spec §4.4 amendment; Review applies them once
-#1021 lands, a `/review-triage` session may apply them by hand until then):
-
-```bash
-gh label create "agent:ready"          --color 0e8a16 --description "AFK: the review left nothing for a human; arm auto-merge or merge on green"
-gh label create "agent:needs-decision" --color e99695 --description "AFK: the review left a call for a human; pick it up with /review-triage"
-```
-
-Verify with: `gh label list --limit 100 | grep -E 'agent:|source:architecture'`.
+Two of them are **outcome labels**, added on 2026-09-17 (spec §4.4 amendment): `agent:ready`
+and `agent:needs-decision`, which Review puts on a PR it has finished with.
 
 > For `source:architecture-review` the spec says the Architecture Review workflow creates it
 > on-demand if missing; we pre-create it anyway so provenance is consistent from day zero.

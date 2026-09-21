@@ -39,6 +39,7 @@ The scripts that exist and what owns what:
 | `pnpm check:doc-map`        | Mapped code changed in step with its doc                   |
 | `pnpm check:repo-styles`    | Hardcoded colour scales, `space-x/y-*`                     |
 | `pnpm check:banned-imports` | Retired dependencies stay retired                          |
+| `pnpm check:labels`        | Every label a workflow, runner or local skill names is in `.github/labels.json` |
 | `pnpm check:file-tokens`    | Staged `app` modules under the token ceiling               |
 | `pnpm check:migration-order`| New migrations postdate `master`                           |
 | `pnpm check:migration-immutability`| Migrations already on `master` are never edited     |

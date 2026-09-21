@@ -91,12 +91,9 @@ gh issue close 712 --reason "not planned" \
   --comment "Closure: deferred to #715 — the threshold rewrite lands there."
 ```
 
-**Relation to the `wontfix` label.** [`triage-labels.md`](./triage-labels.md)
-keeps `wontfix` ("will not be actioned") as a **triage** label: it says what the
-maintainer decided about an _open_ issue. Once the issue is closed, `stateReason`
-plus the `Closure:` comment carry the outcome, and the label adds nothing —
-"decided against" and "out of scope" subsume it. Do not apply it on the way out;
-there is no need to remove it if it is already there.
+**No `wontfix` label.** It was retired in #1116: the decision it recorded is made
+by closing, and `stateReason` plus the `Closure:` comment carry it. Issues closed
+before then may still mention it in their history.
 
 ### Reading a closed issue
 

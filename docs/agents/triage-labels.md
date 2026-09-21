@@ -1,22 +1,30 @@
 # Triage Labels
 
-The skills speak in terms of five canonical triage roles. This file maps those roles to the actual label strings used in this repo's issue tracker.
+The list of labels — name, colour, description — is [`.github/labels.json`](../../.github/labels.json).
+This file says what they mean. Add or change a label in the JSON, run `pnpm labels:sync`, then
+describe it here; `pnpm check:labels` fails CI when a workflow names a label the file does not
+hold ([scripts](../operations/scripts.md#validation)).
 
-| Label in mattpocock/skills | Label in our tracker | Meaning                                                            |
-| -------------------------- | -------------------- | ------------------------------------------------------------------ |
-| `needs-triage`             | `needs-triage`       | Maintainer needs to evaluate this issue                            |
-| `needs-info`               | `needs-info`         | Waiting on reporter for more information                           |
-| `ready-for-agent`          | `ready-for-agent`    | Fully specified & grabbable — triage state, **not** an AFK trigger |
-| `ready-for-human`          | `ready-for-human`    | Requires human implementation                                      |
-| `wontfix`                  | `wontfix`            | Will not be actioned                                               |
+The skills speak in terms of five canonical triage roles. Three map to a label here; the other two map to what replaced them:
+
+| Label in mattpocock/skills | Label in our tracker           | Meaning                                                                                                 |
+| -------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| `needs-triage`             | `needs-triage`                 | Maintainer needs to evaluate this issue                                                                 |
+| `needs-info`               | `question` + `ready-for-human` | Not specified enough to act on; a person has to decide first                                            |
+| `ready-for-agent`          | `ready-for-agent`              | Fully specified & grabbable — triage state, **not** an AFK trigger                                      |
+| `ready-for-human`          | `ready-for-human`              | Needs a human: a decision to settle or work an agent cannot do                                          |
+| `wontfix`                  | none: close it                 | Close `not planned` with a `Closure:` comment ([issue-tracker.md](./issue-tracker.md#closing-an-issue)) |
 
 When a skill mentions a role (e.g. "apply the AFK-ready triage label"), use the corresponding label string from this table.
 
-Edit the right-hand column to match whatever vocabulary you actually use.
+`needs-info` and `wontfix` were retired in #1116. With one maintainer there is no reporter to
+wait on, so "needs more information" is a decision the maintainer owes, which is what
+`question` + `ready-for-human` already say. And a decision not to do something is made by
+closing: an open issue labelled "will not be actioned" is a closure that did not happen.
 
 ## Priority and type
 
-The five roles above say whether an issue can be picked up. They do not say how much it
+The roles above say whether an issue can be picked up. They do not say how much it
 matters. Triage also gives every issue exactly one priority label and at least one type
 label, and removes `needs-triage` on the way out. An issue with no `priority:*` label has
 not been triaged.
@@ -31,8 +39,8 @@ not been triaged.
 `priority:urgent` is empty outside the run-up to an event. Dated work also goes in a milestone
 ("Before the next event"), which is what carries the deadline; the label only says it comes
 first. A parked issue carries a comment stating its wake-up
-trigger ("the first slice of #739 lands"); without one it is `priority:later`. `wontfix` is a
-different thing: parked will be done when the trigger fires, `wontfix` was decided against.
+trigger ("the first slice of #739 lands"); without one it is `priority:later`. Deciding against
+is a different thing: parked will be done when the trigger fires, a rejected issue is closed.
 
 | Type label    | Meaning                                                                   |
 | ------------- | ------------------------------------------------------------------------- |
