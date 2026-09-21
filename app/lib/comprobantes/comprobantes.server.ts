@@ -144,14 +144,16 @@ async function resolveComprobanteAcademyId(
 }
 
 // Does the choreography have fiscal history? It counts any associated
-// comprobante — `Factura C` or credit note, in force or annulled — because the
-// existence of a single row already blocks the physical delete (#340) and is
-// never released. A light check (LIMIT 1) for the server-side guard, independent
-// of the UI.
+// comprobante — `Factura C` or credit note, in force or annulled — because a
+// single row is already evidence the choreography has to survive for: it no
+// longer refuses the removal (#340's permanent block is reversed) but turns it
+// into a withdrawal. A light check (LIMIT 1), independent of the UI, and it
+// takes the removal's transaction so the answer comes from inside its lock.
 export async function choreographyHasComprobantes(
   choreographyId: string,
+  executor: ComprobanteExecutor = db,
 ): Promise<boolean> {
-  const rows = await db
+  const rows = await executor
     .select({ id: comprobantes.id })
     .from(comprobantes)
     .where(eq(comprobantes.choreographyId, choreographyId))

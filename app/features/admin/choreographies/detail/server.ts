@@ -9,7 +9,11 @@ import {
   requireAdminUser,
   requireInternalUser,
 } from "@/lib/auth/internal-access.server";
-import { choreographyHasComprobantes } from "@/lib/comprobantes/comprobantes.server";
+import {
+  previewChoreographyRemovalOutcome,
+  removeChoreography,
+} from "@/lib/choreographies/choreography-removal.server";
+import { restoreChoreography } from "@/lib/choreographies/choreography-restoration.server";
 import { updateAdministrativeChoreographyRoster } from "@/lib/choreographies/choreography-roster-admin.server";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import {
@@ -21,7 +25,6 @@ import type {
   ChoreographyDancerOption,
   ChoreographyProfessorOption,
 } from "@/lib/choreographies/choreography-roster.shared";
-import { deleteChoreographyPresentation } from "@/lib/presentations/presentation-queries.server";
 import { getFieldErrors } from "@/lib/shared/form-validation";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
@@ -53,6 +56,9 @@ import {
   canCorrectChoreographyModality,
   canReassignExperienceLevel,
   canReassignScheduleCapacity,
+  canRestoreChoreography,
+  choreographyRestoredSuccess,
+  restoreChoreographyIntent,
   choreographyFieldNames,
   deleteChoreographyIntent,
   modalityFieldNames,
@@ -69,6 +75,7 @@ import {
   type ChoreographyDeleteBlocker,
   type ChoreographyFieldUpdateErrorData,
   type ChoreographyModalityBlocker,
+  type ChoreographyRemovalPreview,
   type ChoreographyRosterErrorData,
   type ChoreographySuccessData,
 } from "./shared";
@@ -86,6 +93,7 @@ export type ChoreographyDetailLoaderData = {
   deletion: {
     blockers: ChoreographyDeleteBlocker[];
     canDelete: boolean;
+    outcome: ChoreographyRemovalPreview;
   };
   experienceLevel: {
     canReassign: boolean;
@@ -94,6 +102,9 @@ export type ChoreographyDetailLoaderData = {
     blockers: ChoreographyModalityBlocker[];
     canCorrect: boolean;
     options: ChoreographyModalityOption[];
+  };
+  restoration: {
+    canRestore: boolean;
   };
   scheduleCapacity: ChoreographyScheduleCapacityReassignment;
   selectedEventId: string | null;
@@ -105,6 +116,31 @@ const renameChoreographySchema = z.object({
 });
 
 const unsupportedActionMessage = "Acción no soportada.";
+
+const withdrawnChoreographyIsReadOnlyMessage =
+  "Esta coreografía está retirada: restaurala para poder editarla.";
+
+/**
+ * The hidden controls are not the rule: a withdrawn choreography accepts
+ * nothing but being restored, whoever posts to it. Its money is handled from
+ * the finance surfaces, which write against the inscriptions and not here.
+ */
+function assertChoreographyAcceptsIntent(input: {
+  choreography: ChoreographyDetail;
+  intent: FormDataEntryValue | null;
+}) {
+  if (!input.choreography.isWithdrawn) {
+    return;
+  }
+
+  if (input.intent === restoreChoreographyIntent) {
+    return;
+  }
+
+  throw new Response(withdrawnChoreographyIsReadOnlyMessage, {
+    status: 403,
+  });
+}
 
 export async function loadChoreographyDetailRouteData(input: {
   request: Request;
@@ -132,7 +168,12 @@ export async function loadChoreographyDetailRouteData(input: {
     });
   }
 
-  const canEdit = user.role === "admin";
+  // Two different questions on a withdrawn choreography: who the user is, and
+  // whether the choreography accepts edits at all. `canEdit` answers the second,
+  // so every field the view gates on it goes read-only while the stamp is there;
+  // restoring is asked of the first, because it is the one action left.
+  const isAdmin = user.role === "admin";
+  const canEdit = isAdmin && !choreography.isWithdrawn;
   const [
     blockers,
     availableDancers,
@@ -141,6 +182,7 @@ export async function loadChoreographyDetailRouteData(input: {
     scheduleCapacityOptions,
     modalityBlockers,
     modalityOptions,
+    removalOutcome,
   ] = await Promise.all([
     getChoreographyDeleteBlockers(choreography),
     listDancerOptionsForChoreography(
@@ -161,6 +203,7 @@ export async function loadChoreographyDetailRouteData(input: {
       eventId: selectedEventId,
     }),
     listChoreographyModalityOptions(selectedEventId),
+    previewChoreographyRemovalOutcome(choreographyId),
   ]);
   // Both alerts are chosen from what the price does to a destination, and no
   // longer from one blanket money read shared between them: the capacity one
@@ -180,6 +223,10 @@ export async function loadChoreographyDetailRouteData(input: {
     deletion: {
       blockers,
       canDelete: blockers.length === 0,
+      // What the dialog announces, and only that: the write re-decides under
+      // the choreography's row lock, so money landing between the render and
+      // the click still leads to a withdrawal.
+      outcome: removalOutcome,
     },
     experienceLevel: {
       // No blockers to list: the level is not a price key, so the only underlying
@@ -201,6 +248,14 @@ export async function loadChoreographyDetailRouteData(input: {
         isEvaluated: choreography.isEvaluated,
       }),
       options: modalityOptions,
+    },
+    restoration: {
+      // The only action a withdrawn choreography still offers. Everything else
+      // on the page is read-only while the stamp is there.
+      canRestore: canRestoreChoreography({
+        isAdmin,
+        isWithdrawn: choreography.isWithdrawn,
+      }),
     },
     scheduleCapacity: {
       // The reasons go to the view even when the field is already closed by
@@ -280,6 +335,8 @@ export async function handleChoreographyDetailAction(input: {
   const formData = await input.request.formData();
   const intent = formData.get("intent");
 
+  assertChoreographyAcceptsIntent({ choreography, intent });
+
   if (intent === renameChoreographyIntent) {
     return await renameChoreography({
       choreographyId,
@@ -288,11 +345,17 @@ export async function handleChoreographyDetailAction(input: {
   }
 
   if (intent === deleteChoreographyIntent) {
-    await deleteChoreography(choreography);
+    const outcome = await deleteChoreography(choreography);
     return redirectWithFlashNotification(
       "/administracion/coreografias",
-      "coreografia-eliminada",
+      outcome === "withdrawn"
+        ? "coreografia-retirada"
+        : "coreografia-eliminada",
     );
+  }
+
+  if (intent === restoreChoreographyIntent) {
+    return await restoreChoreographyAction(choreography);
   }
 
   if (intent === resolveChoreographyRosterIntent) {
@@ -466,54 +529,76 @@ async function updateChoreographyRosterAction(input: {
 }
 
 /**
- * The presentation is not a blocker: it is deleted with the choreography, in
- * the same transaction and without a cascade, and the number it held stays a
- * gap in the order. What the academies were told about every other number does
- * not change because one choreography left.
+ * An unevaluated presentation is not a blocker: it is deleted with the
+ * choreography —whether the outcome is a delete or a withdrawal— in the same
+ * transaction and without a cascade, and the number it held stays a gap in the
+ * order. What the academies were told about every other number does not change
+ * because one choreography left.
+ *
+ * Money is not a blocker either. The action is never refused because of it: it
+ * picks between deleting and withdrawing inside the write's transaction, so the
+ * outcome the dialog announced can only improve into the conservative one.
+ *
+ * The one refusal left is the evaluated presentation, and it refuses both
+ * outcomes: competitive history is never lost. It is re-read inside the
+ * transaction, under the choreography's row lock, so the blockers the loader
+ * rendered the dialog with cannot go stale between the render and the click.
  */
 async function deleteChoreography(choreography: ChoreographyDetail) {
-  const blockers = await getChoreographyDeleteBlockers(choreography);
-
-  if (blockers.length > 0) {
-    throw new Response("No se puede eliminar esta coreografía.", {
-      status: 409,
-    });
+  if (getChoreographyDeleteBlockers(choreography).length > 0) {
+    throw evaluatedPresentationResponse();
   }
 
-  await db.transaction(async (tx) => {
-    await deleteChoreographyPresentation(tx, choreography.id);
-    await tx
-      .delete(choreographies)
-      .where(eq(choreographies.id, choreography.id));
+  const outcome = await removeChoreography(choreography.id);
+
+  if (outcome === "evaluated") {
+    throw evaluatedPresentationResponse();
+  }
+
+  return outcome;
+}
+
+/**
+ * Restoring answers in place: on success the loader revalidates and the page the
+ * admin is already on stops being read-only, so there is nothing to redirect to.
+ * A refusal —the capacity filled up while the choreography was out, or the
+ * capacity it pointed at was deleted— comes back as a plain `error` so the reason
+ * actually reaches the page instead of being swallowed.
+ */
+async function restoreChoreographyAction(
+  choreography: ChoreographyDetail,
+): Promise<ChoreographyFieldUpdateErrorData | ChoreographySuccessData> {
+  const result = await restoreChoreography(choreography.id);
+
+  if (!result.ok) {
+    return {
+      message: result.error,
+      status: "error",
+    };
+  }
+
+  return choreographyRestoredSuccess();
+}
+
+function evaluatedPresentationResponse() {
+  return new Response("No se puede eliminar esta coreografía.", {
+    status: 409,
   });
 }
 
-async function getChoreographyDeleteBlockers(
-  choreography: Pick<ChoreographyDetail, "id">,
-): Promise<ChoreographyDeleteBlocker[]> {
-  const [hasScores, hasComprobantes] = await Promise.all([
-    hasScoresForChoreography(choreography.id),
-    choreographyHasComprobantes(choreography.id),
-  ]);
-  const blockers: ChoreographyDeleteBlocker[] = [];
-
-  if (hasScores) {
-    blockers.push({ code: "scores", label: "puntajes" });
+function getChoreographyDeleteBlockers(
+  choreography: Pick<ChoreographyDetail, "isEvaluated">,
+): ChoreographyDeleteBlocker[] {
+  if (!choreography.isEvaluated) {
+    return [];
   }
 
-  // Fiscal history: any ARCA comprobante (in force, annulled or an NC) anchors
-  // the choreography irreversibly. It is #340's server-side guard, evaluated here
-  // just before the delete in case one was emitted between the render and the
-  // click.
-  if (hasComprobantes) {
-    blockers.push({ code: "comprobantes", label: "comprobantes" });
-  }
-
-  return blockers;
-}
-
-async function hasScoresForChoreography(_choreographyId: string) {
-  return false;
+  return [
+    {
+      code: "evaluated-presentation",
+      label: "la presentación ya fue evaluada",
+    },
+  ];
 }
 
 function readChoreographyId(params: { choreographyId?: string }) {

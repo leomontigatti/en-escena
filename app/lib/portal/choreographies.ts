@@ -1,7 +1,6 @@
 import type { ChoreographyOperationalStatus } from "@/lib/choreographies/operational-status";
 
 export type { ChoreographyOperationalStatus } from "@/lib/choreographies/operational-status";
-export { formatChoreographyOperationalStatusLabel as formatOperationalStatusLabel } from "@/lib/choreographies/operational-status";
 
 export type ChoreographyGroupType = "solo" | "duo" | "trio" | "grupal";
 
@@ -24,6 +23,12 @@ export type PortalChoreographyListItem = {
   groupType: ChoreographyGroupType;
   categoryName: string;
   experienceLevelName: string | null;
+  /**
+   * A withdrawn choreography is not taking part, so it is out of the list until
+   * the academy picks `Retirada`, and it reads with that badge in place of its
+   * operational status.
+   */
+  isWithdrawn: boolean;
   musicStorageKey?: string | null;
   operationalStatus: ChoreographyOperationalStatus;
 };

@@ -1,4 +1,4 @@
-import { Check, Trash2 } from "lucide-react";
+import { Check, RotateCcw, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useSubmit } from "react-router";
 
@@ -47,6 +47,9 @@ import { RosterExperienceLevelSlot, RosterScheduleSlot } from "./roster-fields";
 import { getWithdrawnDancers } from "./roster-form-state";
 import {
   deleteChoreographyIntent,
+  formatChoreographyRemovalDescription,
+  restoreChoreographyDescription,
+  restoreChoreographyIntent,
   updateChoreographyRosterIntent,
   type ChoreographyDeleteBlocker,
   type ChoreographyViewActionData,
@@ -58,12 +61,14 @@ import type { ChoreographyDetailLoaderData } from "./server";
 type ChoreographyDetailRouteViewProps = {
   actionData?: ChoreographyViewActionData;
   initialDeleteDialogOpen?: boolean;
+  initialRestoreDialogOpen?: boolean;
   loaderData: ChoreographyDetailLoaderData;
 };
 
 export function ChoreographyDetailRouteView({
   actionData,
   initialDeleteDialogOpen = false,
+  initialRestoreDialogOpen = false,
   loaderData,
 }: ChoreographyDetailRouteViewProps) {
   const errorData = actionData?.status === "error" ? actionData : undefined;
@@ -79,6 +84,9 @@ export function ChoreographyDetailRouteView({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(
     initialDeleteDialogOpen,
   );
+  const [isRestoreDialogOpen, setIsRestoreDialogOpen] = useState(
+    initialRestoreDialogOpen,
+  );
 
   return (
     <AdminResourceLayout
@@ -89,50 +97,171 @@ export function ChoreographyDetailRouteView({
       )}`}
       description="Revisá la coreografía registrada para el evento activo."
       headerAction={
-        loaderData.canEdit ? (
-          <ResourceActionsMenu contentClassName="w-52">
-            <DropdownMenuGroup>
-              <DropdownMenuItem
-                variant="destructive"
-                onSelect={(event) => {
-                  event.preventDefault();
-                  setIsDeleteDialogOpen(true);
-                }}
-              >
-                <Trash2 aria-hidden="true" />
-                Eliminar coreografía
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-          </ResourceActionsMenu>
+        // The menu survives the withdrawal even though `canEdit` does not: it
+        // is where `Restaurar coreografía` lives, the one action left.
+        loaderData.canEdit || loaderData.restoration.canRestore ? (
+          <ChoreographyDetailActionsMenu
+            canRestore={loaderData.restoration.canRestore}
+            onDelete={() => setIsDeleteDialogOpen(true)}
+            onRestore={() => setIsRestoreDialogOpen(true)}
+          />
         ) : null
       }
     >
       <ChoreographyDetailForm actionData={actionData} loaderData={loaderData} />
 
-      {loaderData.canEdit ? (
-        <DeleteDialog
-          blockedDescription={
-            loaderData.deletion.canDelete ? undefined : (
-              <BlockedDeleteReasons blockers={loaderData.deletion.blockers} />
-            )
-          }
-          blockedTitle="No se puede eliminar esta coreografía"
-          description={
-            loaderData.deletion.canDelete
-              ? formatChoreographyDeleteDescription(
-                  loaderData.choreography.presentationOrderNumber,
-                )
-              : "Esta coreografía tiene registros asociados que conservan trazabilidad."
-          }
-          intentValue={deleteChoreographyIntent}
-          isBlocked={!loaderData.deletion.canDelete}
+      {loaderData.restoration.canRestore ? (
+        <RestoreChoreographyDialog
+          choreographyId={loaderData.choreography.id}
+          onOpenChange={setIsRestoreDialogOpen}
+          open={isRestoreDialogOpen}
+        />
+      ) : null}
+
+      {loaderData.canEdit && !loaderData.restoration.canRestore ? (
+        <ChoreographyRemovalDialog
+          loaderData={loaderData}
           onOpenChange={setIsDeleteDialogOpen}
           open={isDeleteDialogOpen}
-          recordId={loaderData.choreography.id}
-          title="Eliminar coreografía"
         />
       ) : null}
     </AdminResourceLayout>
+  );
+}
+
+/**
+ * The header offers one of the two removal-axis actions, never both: a withdrawn
+ * choreography is not removed again —there is no second outcome left for it— and
+ * one that is taking part has nothing to restore.
+ */
+function ChoreographyDetailActionsMenu({
+  canRestore,
+  onDelete,
+  onRestore,
+}: {
+  canRestore: boolean;
+  onDelete: () => void;
+  onRestore: () => void;
+}) {
+  return (
+    <ResourceActionsMenu contentClassName="w-52">
+      <DropdownMenuGroup>
+        {canRestore ? (
+          <DropdownMenuItem
+            onSelect={(event) => {
+              event.preventDefault();
+              onRestore();
+            }}
+          >
+            <RotateCcw aria-hidden="true" />
+            Restaurar coreografía
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem
+            variant="destructive"
+            onSelect={(event) => {
+              event.preventDefault();
+              onDelete();
+            }}
+          >
+            <Trash2 aria-hidden="true" />
+            Eliminar coreografía
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuGroup>
+    </ResourceActionsMenu>
+  );
+}
+
+/**
+ * `Eliminar coreografía` is one action with two outcomes, and the dialog names
+ * the one that will happen before the admin confirms. The evaluated presentation
+ * is the only thing that blocks it, and then the dialog explains itself instead
+ * of offering the button.
+ */
+function ChoreographyRemovalDialog({
+  loaderData,
+  onOpenChange,
+  open,
+}: {
+  loaderData: ChoreographyDetailLoaderData;
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
+}) {
+  return (
+    <DeleteDialog
+      blockedDescription={
+        loaderData.deletion.canDelete ? undefined : (
+          <BlockedDeleteReasons blockers={loaderData.deletion.blockers} />
+        )
+      }
+      blockedTitle="No se puede eliminar esta coreografía"
+      description={
+        loaderData.deletion.canDelete
+          ? formatChoreographyRemovalDescription({
+              outcome: loaderData.deletion.outcome,
+              presentationOrderNumber:
+                loaderData.choreography.presentationOrderNumber,
+            })
+          : // The reason itself is left to `BlockedDeleteReasons`, which lists it
+            // right below: saying it here as well reads as two findings and not
+            // as one.
+            "Esta coreografía no puede eliminarse ni retirarse: la historia competitiva no se pierde."
+      }
+      intentValue={deleteChoreographyIntent}
+      isBlocked={!loaderData.deletion.canDelete}
+      onOpenChange={onOpenChange}
+      open={open}
+      recordId={loaderData.choreography.id}
+      title="Eliminar coreografía"
+    />
+  );
+}
+
+/**
+ * `Restaurar coreografía` is confirmed like every other correction that changes
+ * what the lists show, and it is submitted as an ordinary intent: the place in
+ * the schedule is asked for again on the server, so the refusal it may bring
+ * back arrives by toast rather than being predicted here.
+ */
+function RestoreChoreographyDialog({
+  choreographyId,
+  onOpenChange,
+  open,
+}: {
+  choreographyId: string;
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
+}) {
+  const submit = useSubmit();
+
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Restaurar coreografía</AlertDialogTitle>
+          <AlertDialogDescription>
+            {restoreChoreographyDescription}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => {
+              onOpenChange(false);
+
+              const formData = new FormData();
+              formData.set("intent", restoreChoreographyIntent);
+              formData.set("recordId", choreographyId);
+
+              void submit(formData, { method: "post" });
+            }}
+          >
+            Restaurar coreografía
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
@@ -487,24 +616,6 @@ function toPersonOption(person: {
   };
 }
 
-/**
- * A presentation does not block the deletion — it is deleted with the
- * choreography — so the number is named as a consequence and not as a reason to
- * stop. The gap it leaves stays: every other number is what the academies were
- * told.
- */
-function formatChoreographyDeleteDescription(
-  presentationOrderNumber: number | null,
-) {
-  const base = "La eliminación es definitiva y libera el cupo de cronograma.";
-
-  if (presentationOrderNumber === null) {
-    return base;
-  }
-
-  return `${base} Tiene la presentación n.º ${presentationOrderNumber}; se quitará del orden.`;
-}
-
 function BlockedDeleteReasons({
   blockers,
 }: {
@@ -512,7 +623,7 @@ function BlockedDeleteReasons({
 }) {
   return (
     <div>
-      <p>Resolvé estos bloqueos antes de eliminarla:</p>
+      <p>{blockers.length === 1 ? "Motivo:" : "Motivos:"}</p>
       <ul className="mt-2 list-disc pl-5">
         {blockers.map((blocker) => (
           <li key={blocker.code}>{blocker.label}</li>

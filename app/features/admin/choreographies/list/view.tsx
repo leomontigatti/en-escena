@@ -11,8 +11,9 @@ import {
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
 import {
-  formatChoreographyOperationalStatusLabel,
-  getChoreographyOperationalStatusBadgeVariant,
+  resolveChoreographyStatusBadge,
+  withdrawnChoreographyStatusFilterValue,
+  withdrawnChoreographyStatusLabel,
 } from "@/lib/choreographies/operational-status";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
@@ -30,6 +31,12 @@ type ChoreographiesListRouteViewProps = {
 const choreographyStatusFilterOptions = [
   { label: "Completa", value: "completa" },
   { label: "Incompleta", value: "incompleta" },
+  // Last, after the two readiness answers: it is the other axis, and it is what
+  // the withdrawn choreographies —hidden until it is picked— are reached by.
+  {
+    label: withdrawnChoreographyStatusLabel,
+    value: withdrawnChoreographyStatusFilterValue,
+  },
 ];
 
 const choreographyGroupTypeFilterOptions = [
@@ -111,18 +118,26 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
     header: "Estado",
     width: 10,
     cell: (choreography) => (
-      <Badge
-        variant={getChoreographyOperationalStatusBadgeVariant(
-          choreography.operationalStatus,
-        )}
-      >
-        {formatChoreographyOperationalStatusLabel(
-          choreography.operationalStatus,
-        )}
-      </Badge>
+      <ChoreographyStatusBadge choreography={choreography} />
     ),
   },
 ];
+
+/**
+ * `Retirada` **replaces** the readiness badge rather than sitting next to it: a
+ * choreography that is not taking part is not half-loaded, it is out, and what
+ * it still lacks is no longer anyone's task. Which of the two it is comes from
+ * the shared resolver, so this cell and the portal's read the same way.
+ */
+function ChoreographyStatusBadge({
+  choreography,
+}: {
+  choreography: ChoreographyRow;
+}) {
+  const badge = resolveChoreographyStatusBadge(choreography);
+
+  return <Badge variant={badge.variant}>{badge.label}</Badge>;
+}
 
 export function ChoreographiesListRouteView({
   loaderData,

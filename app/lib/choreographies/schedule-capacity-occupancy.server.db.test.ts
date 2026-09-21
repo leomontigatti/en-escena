@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { schedules, scheduleCapacities } from "@/db/schema";
+import { choreographies, schedules, scheduleCapacities } from "@/db/schema";
 import { createChoreographyRegistration } from "@/lib/choreographies/registration-confirmation.server";
 import {
   resolveScheduleCapacityOccupancies,
@@ -75,6 +75,38 @@ describe("schedule capacity occupancy", () => {
       isFull: true,
       occupiedCount: 1,
     });
+  });
+
+  // The withdrawn choreography keeps both references so a restore knows where
+  // to return, and the count has to ignore them all the same.
+  test("leaves a withdrawn choreography out of its capacity and its schedule", async () => {
+    const scenario = await createOccupiedCupo({
+      academyName: "Academia Retirada",
+      email: "cupo.ocupacion.retirada@example.com",
+    });
+    await db
+      .update(choreographies)
+      .set({ withdrawnAt: new Date() })
+      .where(eq(choreographies.id, scenario.choreographyId));
+
+    const occupancy = await readOccupancy(scenario);
+    const scheduleOccupancies = await resolveScheduleCapacityOccupancies({
+      targets: [{ scheduleCapacityId: null, scheduleId: scenario.scheduleId }],
+    });
+
+    expect(occupancy).toEqual({
+      capacity: 5,
+      isFull: false,
+      occupiedCount: 0,
+    });
+    expect(
+      scheduleOccupancies.get(
+        toScheduleCapacityOccupancyKey({
+          scheduleCapacityId: null,
+          scheduleId: scenario.scheduleId,
+        }),
+      ),
+    ).toEqual({ capacity: 10, isFull: false, occupiedCount: 0 });
   });
 
   test("falls back to the schedule capacity when the option declares no capacity", async () => {

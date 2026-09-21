@@ -61,6 +61,7 @@ type ChoreographyRow = {
   submodalityName: string | null;
   categoryName: string;
   categoryExperienceLevels: string[];
+  withdrawnAt: Date | null;
 };
 
 type ChoreographyDetailRow = ChoreographyRow & {
@@ -88,6 +89,7 @@ export async function listChoreographiesForAcademyEvent(
       submodalityName: submodalities.name,
       categoryName: categories.name,
       categoryExperienceLevels: categories.experienceLevels,
+      withdrawnAt: choreographies.withdrawnAt,
     })
     .from(choreographies)
     .innerJoin(modalities, eq(choreographies.modalityId, modalities.id))
@@ -127,6 +129,7 @@ export async function findChoreographyForAcademyEvent(
       scheduleDate: schedules.scheduledDate,
       scheduleCapacityId: scheduleCapacities.id,
       scheduleTime: schedules.startTime,
+      withdrawnAt: choreographies.withdrawnAt,
     })
     .from(choreographies)
     .innerJoin(modalities, eq(choreographies.modalityId, modalities.id))
@@ -260,6 +263,7 @@ async function hydrateChoreographyRows(
     groupType: row.groupType,
     categoryName: row.categoryName,
     experienceLevelName: formatExperienceLevelName(row.experienceLevelId),
+    isWithdrawn: row.withdrawnAt !== null,
     musicStorageKey: row.musicStorageKey,
     operationalStatus: deriveChoreographyOperationalStatus({
       categoryExperienceLevels: row.categoryExperienceLevels,

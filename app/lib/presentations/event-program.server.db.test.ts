@@ -14,6 +14,10 @@ import {
   createSavedEvent,
 } from "@/lib/admin/finances/finances.test-support";
 import {
+  restoreChoreographyForTest,
+  withdrawChoreographyForTest,
+} from "@/lib/choreographies/withdrawn-choreography.test-support";
+import {
   findPublishedProgramEvent,
   readEventProgram,
 } from "@/lib/presentations/event-program.server";
@@ -112,6 +116,33 @@ describe("readEventProgram", () => {
     expect(program.rows.map((row) => row.orderNumber)).toEqual([1, 2, 3]);
     expect(program.rows[0].academyName).toBe("Academia Sur");
     expect(program.rows.every((row) => row.isBelowDeposit)).toBe(false);
+  });
+
+  test("leaves out a withdrawn choreography, and lists it again once restored", async () => {
+    const { addAcademy, event } = await seedEvent();
+    const { addChoreography } = await addAcademy("Academia Norte");
+    const performing = await addChoreography({
+      name: "En escena",
+      orderNumber: 1,
+    });
+    // A withdrawal drops the presentation, but the program never leans on that
+    // to keep a choreography that will not be performed out of print.
+    const withdrawn = await addChoreography({
+      name: "Retirada",
+      orderNumber: 2,
+    });
+
+    await withdrawChoreographyForTest(withdrawn.id);
+
+    expect(
+      (await readEventProgram(event.id)).rows.map((row) => row.choreographyId),
+    ).toEqual([performing.id]);
+
+    await restoreChoreographyForTest(withdrawn.id);
+
+    expect(
+      (await readEventProgram(event.id)).rows.map((row) => row.choreographyId),
+    ).toEqual([performing.id, withdrawn.id]);
   });
 
   test("names the dancers of a solo and a duo and of nothing else", async () => {

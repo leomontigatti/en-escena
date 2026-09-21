@@ -66,6 +66,16 @@ export const choreographies = createTable(
       length: 255,
     }),
     musicStorageKey: text("music_storage_key"),
+    // Soft withdrawal of the whole choreography: it is withdrawn if and only if
+    // this is set. Stamped when removal finds evidence to preserve —allocated
+    // money or a comprobante— together with every inscription still active, all
+    // carrying this very value so that restoring revives exactly what the
+    // withdrawal took. It is roster state, not financial state, so the
+    // inscription-based finances model (ADR-0009) is untouched.
+    withdrawnAt: timestamp("withdrawn_at", {
+      mode: "date",
+      withTimezone: true,
+    }),
     createdAt: timestamp("created_at", {
       mode: "date",
       withTimezone: true,

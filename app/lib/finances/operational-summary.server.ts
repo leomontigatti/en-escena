@@ -164,6 +164,7 @@ async function readAcademyEventFinance(input: {
           id: choreographies.id,
           name: choreographies.name,
           scheduleCapacityScheduleId: scheduleCapacities.scheduleId,
+          withdrawnAt: choreographies.withdrawnAt,
         })
         .from(choreographies)
         .leftJoin(
@@ -202,6 +203,7 @@ async function readAcademyEventFinance(input: {
         id: row.id,
         name: row.name,
         scheduleCapacityScheduleId: row.scheduleCapacityScheduleId,
+        withdrawn: row.withdrawnAt !== null,
       } satisfies FinanceChoreographyRow,
     ]),
   );

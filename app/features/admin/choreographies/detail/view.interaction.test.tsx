@@ -449,6 +449,7 @@ function buildLoaderData(): ChoreographyDetailLoaderData {
       ],
       groupType: "solo",
       isEvaluated: false,
+      isWithdrawn: false,
       id: "choreo_1",
       presentationOrderNumber: null,
       modalityId: "modality_1",
@@ -472,8 +473,9 @@ function buildLoaderData(): ChoreographyDetailLoaderData {
       submodalityId: "submodality_1",
       submodalityName: "Lyrical",
     },
-    deletion: { canDelete: true, blockers: [] },
+    deletion: { canDelete: true, blockers: [], outcome: "deleted" },
     experienceLevel: { canReassign: true },
+    restoration: { canRestore: false },
     modality: {
       blockers: [],
       canCorrect: true,

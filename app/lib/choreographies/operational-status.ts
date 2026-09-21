@@ -144,3 +144,49 @@ export function getChoreographyOperationalStatusBadgeVariant(
 ) {
   return operationalStatus.code === "complete" ? "success" : "warning";
 }
+
+/**
+ * `Retirada` **replaces** the operational status in the `Estado` column, the
+ * way the inscription's does in the financial one: the roster-withdrawal axis
+ * and the readiness axis do not share a cell. It is a derived axis and not a
+ * third value of the status enum, so it carries its own label and variant here
+ * rather than joining `ChoreographyOperationalStatus`.
+ */
+export const withdrawnChoreographyStatusLabel = "Retirada";
+const withdrawnChoreographyStatusBadgeVariant = "secondary" as const;
+
+/**
+ * What the `Estado` cell shows, on whichever of the two choreography lists is
+ * asking: the withdrawal axis first, because it replaces the readiness one, and
+ * the readiness answer otherwise. Both lists ask this rather than each writing
+ * the branch out, so the two cells cannot drift apart on either label or colour.
+ */
+export function resolveChoreographyStatusBadge(input: {
+  isWithdrawn: boolean;
+  operationalStatus: ChoreographyOperationalStatus;
+}): { label: string; variant: "secondary" | "success" | "warning" } {
+  if (input.isWithdrawn) {
+    return {
+      label: withdrawnChoreographyStatusLabel,
+      variant: withdrawnChoreographyStatusBadgeVariant,
+    };
+  }
+
+  return {
+    label: formatChoreographyOperationalStatusLabel(input.operationalStatus),
+    variant: getChoreographyOperationalStatusBadgeVariant(
+      input.operationalStatus,
+    ),
+  };
+}
+
+/** What the `Estado` filter of both choreography lists calls a withdrawn row. */
+export const withdrawnChoreographyStatusFilterValue = "retirada";
+
+/**
+ * The counterpart the rows taking part carry, and which the portal list pins as
+ * the base selection of its `Estado` filter: with nothing picked the list shows
+ * only these, and picking any option —`Retirada` included— lifts the pin. It is
+ * never offered on the panel, so the reader never reads it as a status.
+ */
+export const notWithdrawnChoreographyStatusFilterValue = "no-retirada";

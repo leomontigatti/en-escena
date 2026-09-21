@@ -2,7 +2,11 @@ import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { choreographyDancers, choreographyProfessors } from "@/db/schema";
+import {
+  choreographies,
+  choreographyDancers,
+  choreographyProfessors,
+} from "@/db/schema";
 import {
   handlePortalChoreographyDetailRouteAction as choreographyDetailAction,
   loadPortalChoreographyDetail as choreographyDetailLoader,
@@ -239,6 +243,66 @@ describe("portal choreographies music-only editing", () => {
       .where(eq(choreographyDancers.choreographyId, choreography.id));
 
     expect(linkedDancerIds).toEqual([{ dancerId: linkedDancer.id }]);
+  });
+
+  // The academy reads a withdrawn choreography and edits nothing on it: it is
+  // not taking part, and bringing it back is an administrator's call.
+  test("refuses a music update on a withdrawn choreography and keeps the file it had", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Retirada",
+      email: "coreografias.detail.retirada@example.com",
+    });
+    const event = await createEventRecord({
+      active: true,
+      name: "Regional 2026",
+    });
+    const catalog = await createEventCatalog(event.id);
+    const choreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      musicStorageKey: "music/current.mp3",
+      name: "Retirada",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+    await db
+      .update(choreographies)
+      .set({ withdrawnAt: new Date("2026-04-10T12:00:00Z") })
+      .where(eq(choreographies.id, choreography.id));
+
+    await expect(
+      choreographyDetailLoader({
+        params: { choreographyId: choreography.id },
+        request: new Request(
+          `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
+          { headers: { cookie: owner.cookie } },
+        ),
+      }).then((data) => data.choreography.isWithdrawn),
+    ).resolves.toBe(true);
+
+    await expect(
+      choreographyDetailAction({
+        params: { choreographyId: choreography.id },
+        request: createPortalPostRequest(
+          `http://localhost/portal/coreografias/${choreography.id}?evento=${event.id}`,
+          owner.cookie,
+          musicUpdateFormData({ musicStorageKey: "" }),
+        ),
+      }),
+    ).resolves.toMatchObject({
+      status: "update-error",
+      message: "No podés editar la música porque la coreografía está retirada.",
+    });
+
+    await expect(
+      db.query.choreographies.findFirst({
+        columns: { musicStorageKey: true },
+        where: eq(choreographies.id, choreography.id),
+      }),
+    ).resolves.toEqual({ musicStorageKey: "music/current.mp3" });
   });
 
   test("rejects an unsupported intent from the portal detail action", async () => {

@@ -13,6 +13,10 @@ import {
   createAcademyUser,
   createSavedEvent,
 } from "@/lib/admin/finances/finances.test-support";
+import {
+  restoreChoreographyForTest,
+  withdrawChoreographyForTest,
+} from "@/lib/choreographies/withdrawn-choreography.test-support";
 import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
 import {
   movePresentation,
@@ -144,9 +148,56 @@ describe("readParticipationRows", () => {
     expect(rows.map((row) => row.choreographyId)).toEqual([numbered.id]);
     expect(rows[0].financialStatus).toBe("depositPending");
   });
+
+  test("leaves out a withdrawn choreography, numbered or not", async () => {
+    const { addChoreography, event } = await seedEvent();
+    const performing = await addChoreography({ name: "En escena" });
+    const withdrawnLate = await addChoreography({ name: "Retirada" });
+    const withdrawnNumbered = await addChoreography({
+      name: "Retirada numerada",
+      orderNumber: 2,
+    });
+
+    await withdrawChoreographyForTest(withdrawnLate.id);
+    await withdrawChoreographyForTest(withdrawnNumbered.id);
+
+    const rows = await readParticipationRows(event.id);
+
+    expect(rows.map((row) => row.choreographyId)).toEqual([performing.id]);
+  });
+
+  test("lists a withdrawn choreography again once it is restored", async () => {
+    const { addChoreography, event } = await seedEvent();
+    const choreography = await addChoreography({ name: "Restaurada" });
+
+    await withdrawChoreographyForTest(choreography.id);
+    await restoreChoreographyForTest(choreography.id);
+
+    const rows = await readParticipationRows(event.id);
+
+    expect(rows.map((row) => row.choreographyId)).toEqual([choreography.id]);
+  });
 });
 
 describe("runAutomaticOrdering", () => {
+  test("gives no number to a withdrawn choreography", async () => {
+    const { addChoreography, event } = await seedEvent();
+    const performing = await addChoreography({ name: "En escena" });
+    const withdrawn = await addChoreography({ name: "Retirada" });
+
+    await withdrawChoreographyForTest(withdrawn.id);
+
+    const result = await runAutomaticOrdering(event.id);
+
+    expect(result).toEqual({ ok: true, orderedCount: 1 });
+    expect(await readOrder(event.id)).toEqual([
+      expect.objectContaining({
+        choreographyId: performing.id,
+        orderNumber: 1,
+      }),
+    ]);
+  });
+
   test("keeps the ids of the existing presentations, inserts the late ones and deletes nothing", async () => {
     const { addChoreography, event } = await seedEvent();
     const numbered = await addChoreography({

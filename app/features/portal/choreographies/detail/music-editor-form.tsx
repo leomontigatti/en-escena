@@ -32,8 +32,12 @@ export function ChoreographyMusicEditorForm({
   loaderData: PortalChoreographyMusicLoaderData;
 }) {
   const choreography = loaderData.choreography;
+  // A withdrawn choreography is read-only for the academy, music included: it
+  // is not taking part, and only an administrator can bring it back.
   const canEditMusic =
-    !loaderData.eventContext.isReadOnly && !choreography.isEvaluated;
+    !loaderData.eventContext.isReadOnly &&
+    !choreography.isEvaluated &&
+    !choreography.isWithdrawn;
   const [musicHasValidationError, setMusicHasValidationError] = useState(false);
   const [selectedMusicFileName, setSelectedMusicFileName] = useState<
     string | null

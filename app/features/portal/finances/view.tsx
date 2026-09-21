@@ -16,10 +16,9 @@ import type { loadPortalAcademyFinances } from "@/features/portal/finances/serve
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import {
   choreographyStatusFilterOptions,
-  formatInscriptionFinancialStatus,
   formatInscriptionStatusBadge,
-  getInscriptionFinancialStatusBadgeVariant,
   inscriptionFinancialStatusOptions,
+  withdrawnStatusFilterOption,
 } from "@/lib/finances/choreography-financial-status";
 import { resolveInscriptionStatusBadge } from "@/lib/finances/inscription-financial-status";
 import {
@@ -55,13 +54,23 @@ const seminarFinanceFacetedFilters: DataTableFacetedFiltersOf<
   },
 ];
 
+/**
+ * The academy's `Estado` options are the three statuses plus `Retirada`, and
+ * never `Sobreasignada`: an over-allocation is the administration's to sort
+ * out, a withdrawal is the academy's money sitting still. Withdrawn
+ * choreographies are in the list from the start —that money is theirs to see—
+ * so the option narrows to them rather than revealing them.
+ */
 const choreographyFinanceFacetedFilters: DataTableFacetedFiltersOf<
   typeof portalFinanceFacetedFilterIds
 > = [
   {
     id: "estado",
     label: "Estado",
-    options: [...inscriptionFinancialStatusOptions],
+    options: [
+      ...inscriptionFinancialStatusOptions,
+      withdrawnStatusFilterOption,
+    ],
   },
 ];
 
@@ -104,16 +113,32 @@ const choreographyFinanceColumns: DataTableColumn<ChoreographyFinanceRow>[] = [
   {
     id: "financialStatus",
     header: "Estado",
-    cell: (row) => (
-      <Badge
-        variant={getInscriptionFinancialStatusBadgeVariant(row.financialStatus)}
-      >
-        {formatInscriptionFinancialStatus(row.financialStatus)}
-      </Badge>
-    ),
-    filterValue: (row) => row.financialStatus,
+    cell: (row) => {
+      const badge = formatChoreographyStatusBadge(row);
+
+      return <Badge variant={badge.variant}>{badge.label}</Badge>;
+    },
+    // The filter comes from the same badge the cell shows, for the same reason
+    // it does on the seminar tab.
+    filterValue: (row) => formatChoreographyStatusBadge(row).value,
   },
 ];
+
+/**
+ * `Retirada` **replaces** the financial status, it does not accompany it: a
+ * withdrawn choreography is not taking part, and the two badges side by side
+ * would read as two facts of equal weight. The anomalies are left out on
+ * purpose — the academy is not shown `Sobreasignada`.
+ */
+function formatChoreographyStatusBadge(row: ChoreographyFinanceRow) {
+  return formatInscriptionStatusBadge(
+    resolveInscriptionStatusBadge({
+      anomalies: [],
+      financialStatus: row.financialStatus,
+      withdrawn: row.withdrawn,
+    }),
+  );
+}
 
 /**
  * The `Seminarios` tab's rows: one `(seminar, academy)` unit each, the same

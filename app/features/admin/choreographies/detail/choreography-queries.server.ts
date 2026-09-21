@@ -75,6 +75,7 @@ type ChoreographyDetailRow = {
   scheduleTime: string;
   submodalityId: string | null;
   submodalityName: string | null;
+  withdrawnAt: Date | null;
 };
 
 export type ChoreographyDetail = {
@@ -104,6 +105,13 @@ export type ChoreographyDetail = {
    * with is not what closes it — see evaluation-lock.server.ts.
    */
   isEvaluated: boolean;
+  /**
+   * Whether the choreography was withdrawn: it survives with its money
+   * allocated, its number and the schedule references a restore returns to, but
+   * it is not taking part. It is what closes the detail to editing and what puts
+   * `Restaurar coreografía` in reach.
+   */
+  isWithdrawn: boolean;
   id: string;
   modalityId: string;
   modalityName: string;
@@ -165,6 +173,7 @@ export async function findChoreographyDetail(input: {
       scheduleTime: schedules.startTime,
       submodalityId: choreographies.submodalityId,
       submodalityName: submodalities.name,
+      withdrawnAt: choreographies.withdrawnAt,
     })
     .from(choreographies)
     .innerJoin(academies, eq(choreographies.academyId, academies.id))
@@ -221,6 +230,7 @@ export async function findChoreographyDetail(input: {
     }),
     groupType: row.groupType,
     isEvaluated,
+    isWithdrawn: row.withdrawnAt !== null,
     id: row.id,
     modalityId: row.modalityId,
     modalityName: row.modalityName,

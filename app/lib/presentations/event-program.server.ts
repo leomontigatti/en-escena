@@ -1,4 +1,4 @@
-import { asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -11,6 +11,7 @@ import {
   schedules,
   submodalities,
 } from "@/db/schema";
+import { notWithdrawnChoreography } from "@/lib/choreographies/withdrawn-choreography";
 import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import {
@@ -90,6 +91,10 @@ export async function findPublishedProgramEvent(
 /**
  * Every presentation of the event in the order it dances, and the schedules
  * those rows belong to, in the day and time order the printed program runs in.
+ *
+ * A withdrawn choreography is never printed. Withdrawing one already drops its
+ * presentation, so the filter is belt and braces — but the program is what the
+ * public is told will be danced, and it must not depend on that.
  */
 export async function readEventProgram(
   eventId: string,
@@ -126,7 +131,9 @@ export async function readEventProgram(
       // through `scheduleCapacityId`, which stays nullable.
       .innerJoin(categories, eq(choreographies.categoryId, categories.id))
       .innerJoin(schedules, eq(choreographies.scheduleId, schedules.id))
-      .where(eq(presentations.eventId, eventId))
+      .where(
+        and(eq(presentations.eventId, eventId), notWithdrawnChoreography()),
+      )
       .orderBy(asc(presentations.orderNumber)),
     executor
       .select({

@@ -13,6 +13,10 @@ import {
   createSavedEvent,
 } from "@/lib/admin/finances/finances.test-support";
 import {
+  restoreChoreographyForTest,
+  withdrawChoreographyForTest,
+} from "@/lib/choreographies/withdrawn-choreography.test-support";
+import {
   hasEventPresentations,
   isEventProgramVisible,
   readAcademyPresentations,
@@ -142,6 +146,42 @@ describe("readAcademyPresentations", () => {
     });
 
     expect(rows.map((row) => row.choreographyId)).toEqual([own.id]);
+  });
+
+  test("leaves out the academy's withdrawn choreographies", async () => {
+    const { addAcademy, event } = await seedEvent();
+    const { academy, addChoreography } = await addAcademy();
+    const performing = await addChoreography({
+      name: "En escena",
+      orderNumber: 1,
+    });
+    const withdrawnNumbered = await addChoreography({
+      name: "Retirada numerada",
+      orderNumber: 2,
+    });
+    const withdrawnLate = await addChoreography({ name: "Retirada" });
+
+    await withdrawChoreographyForTest(withdrawnNumbered.id);
+    await withdrawChoreographyForTest(withdrawnLate.id);
+
+    const rows = await readAcademyPresentations({
+      academyId: academy.id,
+      eventId: event.id,
+    });
+
+    expect(rows.map((row) => row.choreographyId)).toEqual([performing.id]);
+
+    await restoreChoreographyForTest(withdrawnLate.id);
+
+    const restored = await readAcademyPresentations({
+      academyId: academy.id,
+      eventId: event.id,
+    });
+
+    expect(restored.map((row) => row.choreographyId)).toEqual([
+      performing.id,
+      withdrawnLate.id,
+    ]);
   });
 
   test("names the dancers of a solo and a duo and of nothing else", async () => {

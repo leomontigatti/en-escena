@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import {
+  choreographies,
   choreographyDancers,
   paymentAllocations,
   payments,
@@ -468,6 +469,48 @@ describe("money on an inscription through the route action", () => {
     expect(await readAllocations(fixture.inscriptionId)).toEqual([
       { amount: 4000, paymentId: fixture.payments[0].id },
     ]);
+  });
+
+  // Handling the money is the reason a withdrawn choreography survives, so the
+  // finance surface keeps writing on it while the operational one is closed.
+  test("keeps removing money from the inscription of a withdrawn choreography", async () => {
+    const fixture = await seedInscription([4000, 4000]);
+
+    await postDetailAction({
+      academyId: fixture.academyId,
+      choreographyId: fixture.choreographyId,
+      eventId: fixture.eventId,
+      fields: {
+        intent: "allocate-inscription",
+        inscriptionId: fixture.inscriptionId,
+        priceId: fixture.priceId,
+        amount: "6000",
+      },
+    });
+
+    const withdrawnAt = new Date("2026-04-10T12:00:00Z");
+    await db
+      .update(choreographies)
+      .set({ withdrawnAt })
+      .where(eq(choreographies.id, fixture.choreographyId));
+    await db
+      .update(choreographyDancers)
+      .set({ withdrawnAt })
+      .where(eq(choreographyDancers.id, fixture.inscriptionId));
+
+    const response = await postDetailAction({
+      academyId: fixture.academyId,
+      choreographyId: fixture.choreographyId,
+      eventId: fixture.eventId,
+      fields: {
+        intent: "remove-inscription-money",
+        inscriptionId: fixture.inscriptionId,
+        amount: "6000",
+      },
+    });
+
+    expect(response).toMatchObject({ status: 302 });
+    expect(await readAllocations(fixture.inscriptionId)).toEqual([]);
   });
 
   test("keeps the fixed price when only part of the money is removed", async () => {

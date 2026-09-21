@@ -16,14 +16,15 @@ import { CreateChoreographyDialog } from "@/features/portal/choreographies/creat
 import type { CreateChoreographyDialogLoaderData } from "@/features/portal/choreographies/create/server";
 import type { loadPortalChoreographiesList } from "@/features/portal/choreographies/list/server";
 import {
-  getChoreographyOperationalStatusBadgeVariant,
-  type ChoreographyOperationalStatus,
+  notWithdrawnChoreographyStatusFilterValue,
+  resolveChoreographyStatusBadge,
+  withdrawnChoreographyStatusFilterValue,
+  withdrawnChoreographyStatusLabel,
 } from "@/lib/choreographies/operational-status";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { getPortalChoreographyCreationAvailability } from "@/lib/portal/choreography-creation-availability";
 import {
   formatGroupTypeLabel as formatChoreographyGroupTypeLabel,
-  formatOperationalStatusLabel,
   type PortalChoreographyListItem,
 } from "@/lib/portal/choreographies";
 import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
@@ -188,12 +189,18 @@ function ChoreographyTable({
       header: "Estado",
       width: 13,
       cell: (choreography) => (
-        <OperationalStatusBadge
-          operationalStatus={choreography.operationalStatus}
-        />
+        <ChoreographyStatusBadge choreography={choreography} />
       ),
+      // The readiness codes travel only on the rows taking part, so `Completa`
+      // never turns up a withdrawn choreography either: what the cell shows and
+      // what the filter matches on are the same badge.
       filterValues: (choreography) => [
-        choreography.operationalStatus.code,
+        ...(choreography.isWithdrawn
+          ? [withdrawnChoreographyStatusFilterValue]
+          : [
+              choreography.operationalStatus.code,
+              notWithdrawnChoreographyStatusFilterValue,
+            ]),
         choreography.modalityName,
         choreography.categoryName,
         choreography.groupType,
@@ -211,11 +218,23 @@ function ChoreographyTable({
       searchPlaceholder="Buscar coreografía por número, nombre, modalidad o categoría"
       textFilterColumnId="name"
       facetedFilters={buildChoreographyFacetedFilters(choreographies)}
+      baseFacetedFilterValues={baseChoreographyFilters}
       emptyMessage="No hay coreografías que coincidan con la búsqueda o los filtros."
       initialSort={{ columnId: "number", direction: "asc" }}
     />
   );
 }
+
+/**
+ * The list opens on what is going to be performed. The pin sits on `estado`,
+ * which is the group that offers `Retirada`, so picking any answer there —that
+ * one included— lifts it and the academy reaches its withdrawn choreographies.
+ */
+const baseChoreographyFilters = {
+  filters: {
+    estado: notWithdrawnChoreographyStatusFilterValue,
+  },
+};
 
 export const portalChoreographyFacetedFilterIds = [
   "estado",
@@ -234,6 +253,10 @@ function buildChoreographyFacetedFilters(
       options: [
         { label: "Completa", value: "complete" },
         { label: "Incompleta", value: "incomplete" },
+        {
+          label: withdrawnChoreographyStatusLabel,
+          value: withdrawnChoreographyStatusFilterValue,
+        },
       ],
     },
     {
@@ -279,18 +302,20 @@ function getUniqueSortedOptions(
   );
 }
 
-function OperationalStatusBadge({
-  operationalStatus,
+/**
+ * `Retirada` **replaces** the readiness badge rather than sitting next to it: a
+ * choreography that is not taking part is not half-loaded, it is out, and what
+ * it still lacks is no longer anyone's task. Which of the two it is comes from
+ * the shared resolver, so this cell and the administrator's read the same way.
+ */
+function ChoreographyStatusBadge({
+  choreography,
 }: {
-  operationalStatus: ChoreographyOperationalStatus;
+  choreography: PortalChoreographyListItem;
 }) {
-  return (
-    <Badge
-      variant={getChoreographyOperationalStatusBadgeVariant(operationalStatus)}
-    >
-      {formatOperationalStatusLabel(operationalStatus)}
-    </Badge>
-  );
+  const badge = resolveChoreographyStatusBadge(choreography);
+
+  return <Badge variant={badge.variant}>{badge.label}</Badge>;
 }
 
 function getChoreographiesEmptyTitle(

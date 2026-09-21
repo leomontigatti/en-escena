@@ -13,6 +13,27 @@ import type { ChoreographyMusicStorage } from "@/lib/storage/choreography-music.
 export type UpdateChoreographyMusicResult =
   { ok: true } | { ok: false; message: string };
 
+/**
+ * The two states that close the music for the academy. A withdrawn
+ * choreography is not taking part, so only an administrator restoring it opens
+ * it again; an evaluated one is history. The withdrawal is asked first because
+ * it is free, and the two cannot coexist anyway.
+ */
+async function findMusicEditingLock(input: {
+  choreographyId: string;
+  withdrawnAt: Date | null;
+}): Promise<string | null> {
+  if (input.withdrawnAt) {
+    return "No podés editar la música porque la coreografía está retirada.";
+  }
+
+  if (await hasEvaluatedPresentation(input.choreographyId)) {
+    return "No podés editar la música porque la coreografía ya fue evaluada.";
+  }
+
+  return null;
+}
+
 export async function updateChoreographyMusic(input: {
   academyId: string;
   choreographyId: string;
@@ -25,6 +46,7 @@ export async function updateChoreographyMusic(input: {
     await db.query.choreographies.findFirst({
       columns: {
         musicStorageKey: true,
+        withdrawnAt: true,
       },
       where: portalOwnedChoreographyWhere(input),
     }),
@@ -38,12 +60,13 @@ export async function updateChoreographyMusic(input: {
     return { ok: true };
   }
 
-  if (await hasEvaluatedPresentation(input.choreographyId)) {
-    return {
-      ok: false,
-      message:
-        "No podés editar la música porque la coreografía ya fue evaluada.",
-    };
+  const lockMessage = await findMusicEditingLock({
+    choreographyId: input.choreographyId,
+    withdrawnAt: choreography.withdrawnAt,
+  });
+
+  if (lockMessage) {
+    return { ok: false, message: lockMessage };
   }
 
   let nextStorageKey = input.submittedStorageKey;

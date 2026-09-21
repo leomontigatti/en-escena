@@ -42,8 +42,7 @@ this document is a bug — file it, do not fix one side silently.
   peso with `Math.round` (half up, toward `+∞`) at the point they are derived.
 - `Administrador` mutates financial records; `Auditor` reads them.
 - Out of scope and deliberately undefined: `Descuento administrativo` (see
-  "`Descuento administrativo`") and the lifecycle of a choreography with no active
-  inscriptions.
+  "`Descuento administrativo`").
 
 ## The model in one statement
 
@@ -109,9 +108,16 @@ move under an academy when a sibling roster changes a discount tier.
 - It is a minimum and **not a watermark**. The watermark it replaced let a
   choreography with a straggler read `Señada`, and `deriveChoreographyNeedsAttention`
   existed only to compensate for that; both are gone.
-- A choreography with no active inscriptions reads `Seña pendiente`.
+- A choreography with no active inscriptions reads `Seña pendiente` — unless it
+  is itself withdrawn, which is the only way it gets there.
 - Withdrawn inscriptions are excluded from this rollup and from the
   choreography's `registrationCount`. They stay in the money rollup.
+- A **withdrawn choreography** is cut the same way one level up: its retained
+  money stays in its own rollup and in its academy's totals, and it is out of
+  the status rollup and out of every count, so its `registrationCount` is `0`
+  and no surface reads a financial status off it — `Retirada` replaces it. The
+  status the row carries while withdrawn is `paidInFull`, the harmless maximum
+  of a minimum rollup, for the same reason a withdrawn inscription carries it.
 - It is not persisted, and it sorts and filters like any derived column.
 - It **may drop back**: a roster change or a de-allocation can un-stick `Pagada`.
   That is accepted; nothing prevents it and nothing records that it happened.
@@ -786,6 +792,26 @@ read path derives the withdrawn figures; an allocation write against a withdrawn
 inscription still computes its thresholds from the price row, so the write-path
 over-allocation guard measures against a `Total` the read side does not show.
 
+**Removing a whole choreography goes through the same chooser**, one level up
+(`docs/domain/choreographies.md`, "Removing a choreography"). `Eliminar
+coreografía` is never refused because of money: with no allocation and no
+`comprobante_inscription` line anywhere on it the choreography is deleted, and
+otherwise it is **withdrawn** — `choreographies.withdrawnAt` and every still
+active inscription stamped with the same timestamp value, in one transaction, no
+money moved. The choice is made under the choreography's row lock and, like the
+per-dancer one, is **never revisited**: de-allocating every peso on a withdrawn
+choreography does not make it deletable. `Restaurar coreografía` undoes it,
+reviving exactly the inscriptions carrying that timestamp.
+
+A withdrawn choreography is cut like a withdrawn inscription: its retained money
+**stays in** its own and its academy's rollup, and it is **out of** the status
+rollup and out of every count, with `Retirada` replacing the financial status
+badge (see "Choreography financial status"). Its inscriptions are ordinary
+withdrawn inscriptions, so de-allocating, `Emitir factura` and the eventual
+partial NC all keep working on them — handling that money is the reason the
+choreography survives. The only hard lock on either outcome is an evaluated
+presentation; a comprobante is a reason to withdraw, never a reason to refuse.
+
 **Removing a seminar inscription goes through the same chooser**, on both sides
 (`app/lib/seminars/inscription-withdrawal.server.ts`): the academy keeps its
 removal until the seminar starts and administration keeps its removal at any
@@ -972,9 +998,11 @@ and no request actions. The restriction is **permanent and role-based**.
   down. The save confirmation is a generic notice, with no amounts and no price
   selection.
 - **Hard blocks.** An evaluated choreography (its presentation has a score or a
-  disqualification) cannot have its roster edited. Deletion is blocked by the
-  evaluation and by any comprobante. There is no `has_active_financial_link` column and no editing gate
-  derived from financial state.
+  disqualification) cannot have its roster edited, and can be neither deleted nor
+  withdrawn. That evaluation is the **only** block on removal: a comprobante does
+  not block it, it makes it a withdrawal instead of a delete (see "Withdrawal
+  from the roster"). There is no `has_active_financial_link` column and no editing
+  gate derived from financial state.
 
 ## No auditing in finances
 
@@ -984,8 +1012,11 @@ and no request actions. The restriction is **permanent and role-based**.
 - Roles: a single `Administrador` who edits and a single `Auditor` who reads.
 - Financial records carry **no** annulment fields and **no** actor attribution.
   With a single administrator they distinguish nothing.
-- Destructive actions — deleting a payment, deleting a choreography, removing an
+- Destructive actions — deleting a payment, removing a choreography, removing an
   inscription, taking money off one — run without a reason and leave no entry.
+  The reason a choreography holding money is withdrawn rather than deleted is
+  precisely this: with no audit trail, a cascade would leave only a database
+  backup to reconstruct the allocations from.
 
 ## Surfaces
 

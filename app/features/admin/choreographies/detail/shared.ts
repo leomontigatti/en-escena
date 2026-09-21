@@ -3,6 +3,7 @@ import { notificationToasts } from "@/lib/shared/notification-toasts";
 
 export const renameChoreographyIntent = "rename-choreography";
 export const deleteChoreographyIntent = "delete-choreography";
+export const restoreChoreographyIntent = "restore-choreography";
 export const resolveChoreographyRosterIntent = "resolve-roster";
 export const updateChoreographyRosterIntent = "update-roster";
 export const updateChoreographySubmodalityIntent = "update-submodality";
@@ -100,6 +101,30 @@ export type ChoreographySuccessData = {
 export function choreographySavedSuccess(): ChoreographySuccessData {
   return {
     message: notificationToasts["coreografia-guardada"].message,
+    status: "success",
+  };
+}
+
+/**
+ * Restoring is the one thing a withdrawn choreography still accepts, and it is
+ * an administrative correction: `admin` only, and only while the choreography is
+ * actually withdrawn. The auditor sees the state and never undoes it.
+ *
+ * It is asked of the role and not of `canEdit`, which is false for the whole
+ * page while the choreography is withdrawn — that is the point of the state.
+ */
+export function canRestoreChoreography(input: {
+  isAdmin: boolean;
+  isWithdrawn: boolean;
+}) {
+  return input.isAdmin && input.isWithdrawn;
+}
+
+// Restoring reports back in place, like every other correction on the detail:
+// the choreography is still the page the admin is on, only no longer withdrawn.
+export function choreographyRestoredSuccess(): ChoreographySuccessData {
+  return {
+    message: notificationToasts["coreografia-restaurada"].message,
     status: "success",
   };
 }
@@ -229,9 +254,54 @@ export function canCorrectChoreographyModality(input: {
   return input.canEdit && !input.isEvaluated;
 }
 
-export type ChoreographyDeleteBlockerCode = "comprobantes" | "scores";
+// A comprobante no longer refuses the removal — it is a reason to withdraw,
+// not a blocker (#340 reversed). The evaluated presentation is the only lock
+// left, and it blocks the withdrawal too.
+export type ChoreographyDeleteBlockerCode = "evaluated-presentation";
 
 export type ChoreographyDeleteBlocker = {
   code: ChoreographyDeleteBlockerCode;
   label: string;
 };
+
+/**
+ * Which of the two outcomes the removal will produce, as the loader read it.
+ * It is advisory: the write re-decides under the choreography's row lock, so a
+ * dialog that announced a delete can still end in a withdrawal.
+ */
+export type ChoreographyRemovalPreview = "deleted" | "withdrawn";
+
+/**
+ * What restoring does, said before the admin confirms: it is the withdrawal
+ * undone, not a re-registration. The place in the schedule is the one thing that
+ * may refuse it, and it is asked for again at the click, so the dialog announces
+ * it as a condition rather than as a certainty.
+ */
+export const restoreChoreographyDescription =
+  "Vuelve a la lista con las inscripciones que tenía al retirarse y ocupa de nuevo su cupo de cronograma. Los bailarines dados de baja antes del retiro siguen de baja.";
+
+/**
+ * The dialog names the outcome before the admin confirms, because the two are
+ * not the same act: one leaves nothing behind, the other keeps the choreography
+ * with its money exactly where it was allocated.
+ *
+ * An unevaluated presentation does not block either outcome — it is deleted
+ * with the choreography — so the number is named as a consequence and not as a
+ * reason to stop. The gap it leaves stays: every other number is what the
+ * academies were told.
+ */
+export function formatChoreographyRemovalDescription(input: {
+  outcome: ChoreographyRemovalPreview;
+  presentationOrderNumber: number | null;
+}) {
+  const base =
+    input.outcome === "withdrawn"
+      ? "Tiene dinero asignado o comprobantes emitidos, así que no se elimina: queda retirada. No se mueve dinero y libera el cupo de cronograma."
+      : "No tiene dinero asignado ni comprobantes, así que se elimina por completo y no queda nada. Libera el cupo de cronograma.";
+
+  if (input.presentationOrderNumber === null) {
+    return base;
+  }
+
+  return `${base} Tiene la presentación n.º ${input.presentationOrderNumber}; se quitará del orden.`;
+}

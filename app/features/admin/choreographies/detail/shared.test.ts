@@ -4,6 +4,7 @@ import {
   canCorrectChoreographyModality,
   canReassignExperienceLevel,
   canReassignScheduleCapacity,
+  formatChoreographyRemovalDescription,
   renameChoreographyIntent,
   resolveChoreographyModalityIntent,
   resolveChoreographyRosterIntent,
@@ -204,3 +205,36 @@ function buildFormData(intent: string) {
 
   return formData;
 }
+
+describe("formatChoreographyRemovalDescription", () => {
+  test("announces a withdrawal that moves no money", () => {
+    const description = formatChoreographyRemovalDescription({
+      outcome: "withdrawn",
+      presentationOrderNumber: null,
+    });
+
+    expect(description).toContain("queda retirada");
+    expect(description).toContain("No se mueve dinero");
+  });
+
+  test("announces an outright removal that leaves nothing behind", () => {
+    const description = formatChoreographyRemovalDescription({
+      outcome: "deleted",
+      presentationOrderNumber: null,
+    });
+
+    expect(description).toContain("se elimina por completo");
+    expect(description).not.toContain("retirada");
+  });
+
+  test("names the presentation it will pull out of the order in both outcomes", () => {
+    for (const outcome of ["deleted", "withdrawn"] as const) {
+      expect(
+        formatChoreographyRemovalDescription({
+          outcome,
+          presentationOrderNumber: 7,
+        }),
+      ).toContain("presentación n.º 7");
+    }
+  });
+});

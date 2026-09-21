@@ -120,6 +120,29 @@ describe("ChoreographyDetailRouteView", () => {
     expect(markup).not.toContain("Eliminar coreografía");
   });
 
+  // The withdrawal closes the page, not the role: the fields read like an
+  // auditor's, and the one action left is offered all the same.
+  test("renders every field read-only while the choreography is withdrawn", () => {
+    const markup = renderDetail({
+      loaderData: buildLoaderData({
+        canEdit: false,
+        choreography: buildChoreography({ isWithdrawn: true }),
+        experienceLevel: { canReassign: false },
+        modality: { blockers: [], canCorrect: false, options: [] },
+        restoration: { canRestore: true },
+        scheduleCapacity: { blockers: [], canReassign: false, options: [] },
+      }),
+    });
+
+    expect(markup).not.toContain("Guardar");
+    expect(markup).not.toContain('name="submodalityId"');
+    expect(markup).not.toContain('name="assignedScheduleCapacityId"');
+    expect(markup).not.toContain('name="modalityId"');
+    expect(markup).not.toContain("Buscar bailarines");
+    expect(markup).not.toContain("Buscar profesores");
+    expect(markup).not.toContain("Eliminar coreografía");
+  });
+
   test("renders an editable submodality select for admins", () => {
     const markup = renderDetail({ loaderData: buildLoaderData() });
 
@@ -544,15 +567,46 @@ describe("ChoreographyDetailRouteView", () => {
     ).toBe(true);
   });
 
+  // The dialog names the outcome before the admin confirms: the two are not
+  // the same act, and only one of them keeps the money where it is.
+  test("announces a withdrawal when the choreography holds money or comprobantes", async () => {
+    await renderDetailIntoDocument({
+      initialDeleteDialogOpen: true,
+      loaderData: buildLoaderData({
+        deletion: { blockers: [], canDelete: true, outcome: "withdrawn" },
+      }),
+    });
+
+    expect(document.body.textContent).toContain("Eliminar coreografía");
+    expect(document.body.textContent).toContain("queda retirada");
+    expect(document.body.textContent).toContain("No se mueve dinero");
+  });
+
+  test("announces an outright removal when there is nothing to preserve", async () => {
+    await renderDetailIntoDocument({
+      initialDeleteDialogOpen: true,
+      loaderData: buildLoaderData({
+        deletion: { blockers: [], canDelete: true, outcome: "deleted" },
+      }),
+    });
+
+    expect(document.body.textContent).toContain("Eliminar coreografía");
+    expect(document.body.textContent).toContain("se elimina por completo");
+    expect(document.body.textContent).not.toContain("queda retirada");
+  });
+
   test("opens a blocked delete dialog with concrete blocker reasons", async () => {
     await renderDetailIntoDocument({
       initialDeleteDialogOpen: true,
       loaderData: buildLoaderData({
         deletion: {
           canDelete: false,
+          outcome: "deleted",
           blockers: [
-            { code: "scores", label: "puntajes" },
-            { code: "comprobantes", label: "comprobantes" },
+            {
+              code: "evaluated-presentation",
+              label: "la presentación ya fue evaluada",
+            },
           ],
         },
       }),
@@ -561,8 +615,9 @@ describe("ChoreographyDetailRouteView", () => {
     expect(document.body.textContent).toContain(
       "No se puede eliminar esta coreografía",
     );
-    expect(document.body.textContent).toContain("comprobantes");
-    expect(document.body.textContent).toContain("puntajes");
+    expect(document.body.textContent).toContain(
+      "la presentación ya fue evaluada",
+    );
     expect(document.body.textContent).toContain("Cerrar");
     expect(document.body.textContent).not.toContain(
       "Esta acción es irreversible.",
@@ -609,9 +664,32 @@ describe("ChoreographyDetailRouteView", () => {
     ]);
   });
 
+  // The two actions are mutually exclusive: a withdrawn choreography is not
+  // removed again, and the only thing it still accepts is coming back.
+  test("offers restoring instead of removing while the choreography is withdrawn", async () => {
+    await renderDetailIntoDocument({
+      loaderData: buildLoaderData({
+        choreography: buildChoreography({ isWithdrawn: true }),
+        restoration: { canRestore: true },
+      }),
+    });
+
+    await openActionsMenu();
+    expect(document.body.textContent).toContain("Restaurar coreografía");
+    expect(document.body.textContent).not.toContain("Eliminar coreografía");
+
+    await clickMenuItem("Restaurar coreografía");
+
+    expect(document.body.textContent).toContain(
+      "Vuelve a la lista con las inscripciones que tenía al retirarse",
+    );
+    expect(document.body.textContent).toContain("siguen de baja");
+  });
+
   async function renderDetailIntoDocument(
     input: Partial<DetailViewProps> & {
       initialDeleteDialogOpen?: boolean;
+      initialRestoreDialogOpen?: boolean;
       rosterResolution?: ChoreographyRosterResolutionData;
     } = {},
   ) {
@@ -625,6 +703,7 @@ describe("ChoreographyDetailRouteView", () => {
             <ChoreographyDetailRouteView
               actionData={input.actionData}
               initialDeleteDialogOpen={input.initialDeleteDialogOpen}
+              initialRestoreDialogOpen={input.initialRestoreDialogOpen}
               loaderData={loaderData}
             />
           ),
@@ -679,9 +758,13 @@ function buildLoaderData(
     deletion: {
       canDelete: true,
       blockers: [],
+      outcome: "deleted",
     },
     experienceLevel: {
       canReassign: true,
+    },
+    restoration: {
+      canRestore: false,
     },
     modality: {
       blockers: [],
@@ -818,6 +901,7 @@ function buildChoreography(
     ],
     groupType: "solo",
     isEvaluated: false,
+    isWithdrawn: false,
     id: "choreo_1",
     presentationOrderNumber: null,
     modalityId: "modality_1",

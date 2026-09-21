@@ -268,6 +268,8 @@ type ChoreographyOnBasesFixtureInput = {
   scheduleId?: string;
   scheduleCapacityId?: string;
   inscriptions?: InscriptionsFixtureState;
+  /** Stamps `choreographies.withdrawnAt`, so the row occupies nothing. */
+  withdrawn?: boolean;
 };
 
 /**
@@ -349,7 +351,9 @@ export async function createChoreographyOnBases({
   scheduleId,
   scheduleCapacityId,
   inscriptions = "active",
+  withdrawn = false,
 }: ChoreographyOnBasesFixtureInput) {
+  const withdrawnAt = withdrawn ? new Date() : null;
   const choreography = await insertChoreography({
     eventId,
     academyId,
@@ -378,6 +382,7 @@ export async function createChoreographyOnBases({
       scheduleCapacityId,
     }),
     scheduleCapacityId,
+    withdrawnAt,
   });
 
   if (inscriptions !== "none") {
@@ -395,7 +400,8 @@ export async function createChoreographyOnBases({
       choreographyId: choreography.id,
       dancerId: dancer.id,
       ageAtEventStart: 14,
-      withdrawnAt: inscriptions === "withdrawn" ? new Date() : null,
+      withdrawnAt:
+        withdrawnAt ?? (inscriptions === "withdrawn" ? new Date() : null),
     });
   }
 
