@@ -18,7 +18,7 @@ export async function loader({ request }: { request: Request }) {
   return await loadPortalPresentationsList(request);
 }
 
-export default function PortalPresentacionesRoute({
+export default function PortalPresentationsListRoute({
   loaderData,
 }: PortalPresentationsRouteProps) {
   return <PortalPresentationsListView loaderData={loaderData} />;

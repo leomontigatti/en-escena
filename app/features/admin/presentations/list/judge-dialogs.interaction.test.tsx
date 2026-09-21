@@ -1,9 +1,13 @@
 /** @vitest-environment jsdom */
 
+import type { ComponentProps } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
+import {
+  clickReactDomButton,
+  createReactDomTestRenderer,
+} from "@/lib/test-support/react-dom";
 
 import { JudgeAssignmentDialog } from "./judge-dialogs";
 import { PresentationsListView } from "./view";
@@ -93,6 +97,77 @@ describe("the bulk judge dialogs", () => {
     // Nothing picked yet, so there is no removal to confirm.
     expect(submit?.disabled).toBe(true);
   });
+
+  test("offers every assignable judge when assigning, not only the assigned ones", async () => {
+    await renderDialog({
+      mode: "assign",
+      selectedRows: [
+        buildItem({ assignedJudgeIds: [ana.id] }),
+        buildItem({ choreographyNumber: 2, id: "choreography-2" }),
+      ],
+    });
+
+    expect(document.body.textContent).toContain("Asignar jueces");
+    expect(document.body.textContent).toContain("2 presentaciones elegidas.");
+    expect(
+      [...document.querySelectorAll('input[name="coreografia"]')].map(
+        (input) => (input as HTMLInputElement).value,
+      ),
+    ).toEqual(["choreography-1", "choreography-2"]);
+
+    await clickReactDomButton("Elegí uno o más jueces");
+
+    // Assigning needs no prior relation, so Bruno is on offer even though
+    // nobody in the selection has him.
+    const options = [...document.querySelectorAll('[role="option"]')].map(
+      (option) => option.textContent,
+    );
+
+    expect(options).toContain(ana.name);
+    expect(options).toContain(bruno.name);
+  });
+
+  test("offers only the judges the selection actually has when removing", async () => {
+    await renderDialog({
+      mode: "remove",
+      selectedRows: [buildItem({ assignedJudgeIds: [ana.id] })],
+    });
+
+    await clickReactDomButton("Elegí uno o más jueces");
+
+    const options = [...document.querySelectorAll('[role="option"]')].map(
+      (option) => option.textContent,
+    );
+
+    expect(options).toEqual([ana.name]);
+  });
+
+  async function renderDialog(
+    props: Partial<ComponentProps<typeof JudgeAssignmentDialog>>,
+  ) {
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/administracion/presentacion",
+          action: async () => null,
+          element: (
+            <JudgeAssignmentDialog
+              assignableJudges={[ana, bruno]}
+              assignedJudges={[ana]}
+              mode="assign"
+              open
+              onOpenChange={() => {}}
+              selectedRows={[buildItem()]}
+              {...props}
+            />
+          ),
+        },
+      ],
+      { initialEntries: ["/administracion/presentacion"] },
+    );
+
+    await renderer.renderAsync(<RouterProvider router={router} />);
+  }
 });
 
 function buildItem(

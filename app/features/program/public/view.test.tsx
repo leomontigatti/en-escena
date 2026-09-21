@@ -105,6 +105,27 @@ describe("PublicProgramView", () => {
     expect(markup).toContain("@page { size: A4 landscape; margin: 0; }");
     expect(countOccurrences(markup, "12mm")).toBeGreaterThanOrEqual(4);
   });
+
+  // A date that is a shape and not a day —`2026-13-40`— throws when formatted,
+  // and on the only unauthenticated route in the product that would take the
+  // whole page down rather than one heading.
+  test("keeps printing when a schedule's date is not a day", () => {
+    const markup = renderView({
+      rows: [buildRow({ scheduledDate: "2026-13-40" })],
+      schedules: [
+        {
+          id: "schedule-1",
+          name: "Sábado mañana",
+          scheduledDate: "2026-13-40",
+          startTime: "10:00",
+        },
+      ],
+    });
+
+    expect(markup).toContain(
+      "En Escena 2026 · 2026-13-40 10:00 hs · Sábado mañana",
+    );
+  });
 });
 
 function countOccurrences(markup: string, needle: string) {

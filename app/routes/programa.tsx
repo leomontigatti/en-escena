@@ -1,7 +1,7 @@
 import { loadPublicProgram } from "@/features/program/public/server";
 import { PublicProgramView } from "@/features/program/public/view";
 
-type ProgramaRouteProps = {
+type ProgramRouteProps = {
   loaderData: Awaited<ReturnType<typeof loader>>;
 };
 
@@ -11,6 +11,6 @@ export async function loader({ request }: { request: Request }) {
   return await loadPublicProgram(request);
 }
 
-export default function ProgramaRoute({ loaderData }: ProgramaRouteProps) {
+export default function ProgramRoute({ loaderData }: ProgramRouteProps) {
   return <PublicProgramView loaderData={loaderData} />;
 }

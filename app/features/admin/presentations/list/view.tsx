@@ -16,6 +16,7 @@ import { DataTableLink } from "@/components/shared/data-table-link";
 import { FieldControlLockIcon } from "@/components/shared/field-lock-icon";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { Badge } from "@/components/ui/badge";
+import { FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenuItem,
@@ -82,7 +83,10 @@ function buildPresentationColumns({
             id: "arrastrar",
             header: "",
             leading: true,
-            width: 4,
+            // The weights are the prototype's (#912), where they were settled
+            // against the 1152 px content width with real event data. With the
+            // selection column's own weight the row comes to 100.
+            width: 3,
             className: "px-1",
             headerClassName: "px-1",
             cell: () => <DataTableDragHandle label="Mover la presentación" />,
@@ -135,7 +139,7 @@ function buildPresentationColumns({
     {
       id: "nombre",
       header: "Nombre",
-      width: 22,
+      width: 19,
       className: "font-medium",
       // The choreography number is not a column of this list, so it travels in
       // the truncation title: it stays searchable and the admin can still name
@@ -335,7 +339,7 @@ function PresentationOrderCell({
         }}
         value={value}
       />
-      {error ? <span className="text-xs text-destructive">{error}</span> : null}
+      <FieldError className="text-xs">{error}</FieldError>
     </div>
   );
 }
@@ -540,7 +544,7 @@ function moveDraggedRow({
       ...withoutActive.slice(0, overIndex).map((row) => row.id),
       active.id,
       ...withoutActive.slice(overIndex).map((row) => row.id),
-    ].slice(0, rows.length),
+    ],
     toOrderNumber: over.orderNumber,
   });
 }

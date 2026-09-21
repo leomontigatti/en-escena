@@ -12,6 +12,7 @@ import type {
   EventProgramRow,
   EventProgramSchedule,
 } from "@/lib/presentations/event-program.server";
+import { isDateOnly } from "@/lib/shared/date-only";
 import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
 
 import { formatProgramOrderNumber } from "../shared";
@@ -50,9 +51,15 @@ function formatProgramPrintHeading(
   eventName: string,
   schedule: EventProgramSchedule,
 ) {
-  const day = printWeekdayAndDate
-    .format(new Date(`${schedule.scheduledDate}T00:00:00Z`))
-    .replace(",", "");
+  // Shape alone is not enough: `2026-13-40` splits into three parts and is
+  // still no date at all, and formatting one throws rather than answering —
+  // which on the public program would take the whole route down. The heading
+  // falls back to the stored value, the way `formatScheduleDayLabel` does.
+  const day = isDateOnly(schedule.scheduledDate)
+    ? printWeekdayAndDate
+        .format(new Date(`${schedule.scheduledDate}T00:00:00Z`))
+        .replace(",", "")
+    : schedule.scheduledDate;
 
   return `${eventName} · ${day} ${schedule.startTime} hs · ${schedule.name}`;
 }

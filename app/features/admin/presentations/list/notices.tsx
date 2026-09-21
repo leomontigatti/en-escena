@@ -1,4 +1,5 @@
 import { AlertTriangle, Info, ListOrdered } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { useSearchParams } from "react-router";
 
 import { AlertStack } from "@/components/shared/alert-stack";
@@ -13,8 +14,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatScheduleDayLabel } from "@/lib/choreographies/schedule-formatters";
+import { isRouteFormPending, useOptionalNavigation } from "@/lib/shared/forms";
 
 import {
   orderAutomaticallyIntent,
@@ -181,6 +184,29 @@ export function OrderingConfirmationDialog({
   onOpenChange: (open: boolean) => void;
   open: boolean;
 }) {
+  const navigation = useOptionalNavigation();
+  const isPending = isRouteFormPending(navigation, {
+    intent: orderAutomaticallyIntent,
+  });
+  // The ordering stays on the list, so nothing navigates the dialog away: it
+  // closes itself once its own submission settles. Leaving it open would sit an
+  // enabled `Ordenar` in front of the administrator after the order was already
+  // written, and a second press would throw away the manual moves the first one
+  // just made.
+  const wasPending = useRef(false);
+
+  useEffect(() => {
+    if (isPending) {
+      wasPending.current = true;
+      return;
+    }
+
+    if (wasPending.current) {
+      wasPending.current = false;
+      onOpenChange(false);
+    }
+  }, [isPending, onOpenChange]);
+
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent
@@ -204,14 +230,19 @@ export function OrderingConfirmationDialog({
           </AlertDescription>
         </Alert>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
           <form method="post">
             <input
               type="hidden"
               name="intent"
               value={orderAutomaticallyIntent}
             />
-            <Button type="submit">Ordenar</Button>
+            <Button type="submit" disabled={isPending}>
+              {isPending ? (
+                <Spinner aria-hidden="true" data-icon="inline-start" />
+              ) : null}
+              Ordenar
+            </Button>
           </form>
         </AlertDialogFooter>
       </AlertDialogContent>

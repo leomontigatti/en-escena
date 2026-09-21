@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
@@ -109,4 +109,32 @@ describe("loadPublicProgram", () => {
       false,
     );
   });
+
+  // The product's first unauthenticated content route: reading the program is
+  // not a reason to be given a session, so an anonymous load leaves the session
+  // table exactly as it found it.
+  test("creates no session for an anonymous reader", async () => {
+    await seedPublishedProgram();
+
+    const before = await countAccessSessions();
+
+    await loadPublicProgram(new Request(programUrl));
+
+    expect(await countAccessSessions()).toBe(before);
+  });
 });
+
+async function countAccessSessions() {
+  const result = await db.execute<{ count: number }>(
+    sql`select count(*)::int as count from "en_escena_access_session"`,
+  );
+
+  return readRows(result)[0].count;
+}
+
+// `db.execute` hands back a bare array on postgres.js and a `{ rows }` envelope
+// on PGlite, which is what the fast config runs. Same shape as the helper in
+// `tests/db/schema-security.db.test.ts`.
+function readRows<Row extends object>(result: { rows: Row[] } | Row[]) {
+  return Array.isArray(result) ? result : result.rows;
+}

@@ -1,3 +1,4 @@
+import { evaluatedChoreographyMessage } from "@/lib/choreographies/choreography-messages";
 import type {
   ChoreographyRegistrationOperationResolution,
   ResolvedRegistrationDancer,
@@ -196,8 +197,9 @@ export function getDancerEditingEligibility(input: {
     return {
       canEdit: false,
       reasonCode: "evaluated",
-      reasonText:
-        "No podés editar los bailarines de esta coreografía porque ya fue evaluada.",
+      // The evaluated lock speaks with one sentence everywhere, roster
+      // included: the choreography is closed as a whole, not field by field.
+      reasonText: evaluatedChoreographyMessage,
     };
   }
 
