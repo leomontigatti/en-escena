@@ -18,6 +18,7 @@ const EventScheduleDetailView = vi.fn(() =>
 );
 
 const loaderResult = {
+  categories: [],
   modalities: [],
   schedules: [],
   selectedEventId: "evento_1",

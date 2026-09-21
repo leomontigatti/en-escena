@@ -70,6 +70,7 @@ export type ScheduleActionValues = {
   startTime: string;
   totalCapacity: string;
   modalityIds: string[];
+  categoryIds: string[];
   scheduleCapacities: ScheduleCapacityActionValues[];
 };
 

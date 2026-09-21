@@ -34,6 +34,7 @@ export function EventScheduleDetailView({
   );
   const scheduleName = schedule?.name ?? "Cronograma";
   const form = useScheduleForm({
+    categoryIds: schedule?.categoryIds,
     modalityIds: schedule?.modalityIds,
     name: schedule?.name,
     scheduleCapacities: schedule?.scheduleCapacities,
@@ -53,7 +54,7 @@ export function EventScheduleDetailView({
       title={schedule ? "Editar cronograma" : scheduleName}
       description={
         schedule
-          ? "Editá fecha, hora, cupo total y modalidades aceptadas."
+          ? "Editá fecha, hora, cupo total, y modalidades y categorías aceptadas."
           : "No encontramos ese cronograma para este Evento."
       }
       headerAction={
@@ -68,6 +69,7 @@ export function EventScheduleDetailView({
       {schedule ? (
         <ScheduleFormPanel>
           <ScheduleForm
+            categories={loaderData.categories}
             form={form}
             formId="update-schedule-form"
             id={schedule.id}

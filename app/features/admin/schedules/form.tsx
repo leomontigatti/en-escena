@@ -42,11 +42,17 @@ import {
   resolveLiveAvailablePlaces,
   emptySelection,
   getAvailableScheduleCapacityGroupTypeOptions,
+  getScheduleCategoryOptions,
+  scheduleCategoriesDescription,
   scheduleFormSchema,
   toScheduleCapacityFormValues,
   type ScheduleFormValues,
 } from "./view-shared";
-import { basePath, type EventScheduleModalityRow } from "./shared";
+import {
+  basePath,
+  type EventScheduleCategoryRow,
+  type EventScheduleModalityRow,
+} from "./shared";
 
 type ScheduleFormController = UseFormReturn<ScheduleFormValues>;
 
@@ -56,6 +62,7 @@ type ScheduleFormController = UseFormReturn<ScheduleFormValues>;
  * actually changed.
  */
 export function useScheduleForm({
+  categoryIds = emptySelection,
   modalityIds = emptySelection,
   name,
   scheduleCapacities = emptyScheduleCapacities,
@@ -64,6 +71,7 @@ export function useScheduleForm({
   submittedValues,
   totalCapacity,
 }: {
+  categoryIds?: string[];
   modalityIds?: string[];
   name?: string;
   scheduleCapacities?: ScheduleListItem["scheduleCapacities"];
@@ -80,11 +88,13 @@ export function useScheduleForm({
         startTime: startTime ?? "",
         totalCapacity: totalCapacity?.toString() ?? "",
         modalityIds,
+        categoryIds,
         scheduleCapacities: scheduleCapacities.map(
           toScheduleCapacityFormValues,
         ),
       },
     [
+      categoryIds,
       modalityIds,
       name,
       scheduleCapacities,
@@ -107,6 +117,7 @@ export function useScheduleForm({
 }
 
 export function ScheduleForm({
+  categories,
   form,
   formId,
   id,
@@ -115,6 +126,7 @@ export function ScheduleForm({
   occupiedCount,
   scheduleCapacities = emptyScheduleCapacities,
 }: {
+  categories: EventScheduleCategoryRow[];
   form: ScheduleFormController;
   formId?: string;
   id?: string;
@@ -171,6 +183,11 @@ export function ScheduleForm({
           name="modalityIds"
           options={modalityOptions}
           title="Modalidades"
+        />
+        <ScheduleCategoriesField
+          className="sm:col-span-2"
+          categories={categories}
+          form={form}
         />
       </FieldGroup>
       <ScheduleCapacitiesInlineFieldArray
@@ -440,6 +457,45 @@ function ScheduleCapacityInlineFields({
         <Trash aria-hidden="true" />
       </Button>
     </FieldGroup>
+  );
+}
+
+/**
+ * The categories the schedule accepts. Optional: leaving it empty is the
+ * schedule accepting every category, which is what the description says. Only
+ * the categories sharing a modality with the modalities currently selected are
+ * offered, so the field follows the modalities field as it changes.
+ */
+function ScheduleCategoriesField({
+  categories,
+  className,
+  form,
+}: {
+  categories: EventScheduleCategoryRow[];
+  className?: string;
+  form: ScheduleFormController;
+}) {
+  const selectedModalityIds = useWatch({
+    control: form.control,
+    name: "modalityIds",
+  });
+  const categoryOptions = useMemo(
+    () => getScheduleCategoryOptions(categories, selectedModalityIds ?? []),
+    [categories, selectedModalityIds],
+  );
+
+  return (
+    <MultiComboboxField
+      className={className}
+      control={form.control}
+      description={scheduleCategoriesDescription}
+      emptyMessage="Sin categorías disponibles"
+      inputName="categoryIds"
+      label="Categorías"
+      name="categoryIds"
+      options={categoryOptions}
+      placeholder="Seleccioná categorías"
+    />
   );
 }
 

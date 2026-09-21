@@ -2,6 +2,7 @@ import { redirect } from "react-router";
 
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
+import { listCategories } from "@/lib/categories/repository.server";
 import { listModalities } from "@/lib/modalities/repository.server";
 import { listSchedules } from "@/lib/schedules/repository.server";
 
@@ -31,10 +32,16 @@ export async function loadEventScheduleFormOptions(request: Request) {
   const eventContext = await loadEventScheduleContext(request);
   const selectedEventId = eventContext.selectedEventId;
 
-  return {
-    selectedEventId,
-    modalities: selectedEventId ? await listModalities(selectedEventId) : [],
-  };
+  if (!selectedEventId) {
+    return { selectedEventId, modalities: [], categories: [] };
+  }
+
+  const [modalities, categories] = await Promise.all([
+    listModalities(selectedEventId),
+    listCategories(selectedEventId),
+  ]);
+
+  return { selectedEventId, modalities, categories };
 }
 
 export async function loadEventScheduleDetailData(request: Request) {
@@ -45,18 +52,21 @@ export async function loadEventScheduleDetailData(request: Request) {
     return {
       selectedEventId,
       modalities: [],
+      categories: [],
       schedules: [],
     };
   }
 
-  const [modalities, schedules] = await Promise.all([
+  const [modalities, categories, schedules] = await Promise.all([
     listModalities(selectedEventId),
+    listCategories(selectedEventId),
     listSchedules(selectedEventId),
   ]);
 
   return {
     selectedEventId,
     modalities,
+    categories,
     schedules,
   };
 }

@@ -74,8 +74,10 @@ describe("EventScheduleDetailView", () => {
     // Never as a field description: that slot sits between the label and the
     // control, and pushed every capacity out of line with its group type select.
     expect(
-      document.querySelectorAll('[data-slot="field-description"]'),
-    ).toHaveLength(0);
+      Array.from(
+        document.querySelectorAll('[data-slot="field-description"]'),
+      ).map((description) => description.textContent),
+    ).not.toContainEqual(expect.stringContaining("lugares"));
     // The suffix is aria-hidden, so the accessible name spells the count out.
     expect(
       document.querySelector('label[for="schedule-capacity-capacity-0"]')
@@ -154,6 +156,27 @@ describe("EventScheduleDetailView", () => {
     expect(actions?.firstElementChild?.textContent).toContain("Volver");
   });
 
+  // The schedule's accepted categories are the field itself: the chips are what
+  // it accepts, and the description is what an empty selection means.
+  test("shows the accepted categories and what choosing none means", async () => {
+    useNavigationMock.mockReturnValue({ state: "idle" });
+
+    await renderDetail({ initialDeleteDialogOpen: false });
+
+    expect(document.body.textContent).toContain("Categorías");
+    expect(document.body.textContent).toContain(
+      "Si no elegís ninguna, el cronograma acepta todas las categorías.",
+    );
+    expect(document.body.textContent).toContain("Baby · 4–6 · solo, dúo");
+    expect(
+      Array.from(
+        document.querySelectorAll<HTMLInputElement>(
+          'input[name="categoryIds"]',
+        ),
+      ).map((input) => input.value),
+    ).toEqual(["category_baby"]);
+  });
+
   async function renderDetail(
     props: Partial<ComponentProps<typeof EventScheduleDetailView>> = {},
   ) {
@@ -182,7 +205,32 @@ describe("EventScheduleDetailView", () => {
 function buildLoaderData(): EventScheduleDetailLoaderData {
   return {
     selectedEventId: "event_1",
-    modalities: [],
+    modalities: [
+      {
+        id: "modality_1",
+        eventId: "event_1",
+        name: "Jazz",
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      },
+    ],
+    categories: [
+      {
+        id: "category_baby",
+        name: "Baby",
+        minAge: 4,
+        maxAge: 6,
+        groupTypes: ["solo", "duo"],
+        modalityIds: ["modality_1"],
+      },
+      {
+        id: "category_juvenil",
+        name: "Juvenil",
+        minAge: 13,
+        maxAge: 17,
+        groupTypes: ["grupal"],
+        modalityIds: ["modality_2"],
+      },
+    ],
     schedules: [
       {
         id: "schedule_1",
@@ -192,9 +240,17 @@ function buildLoaderData(): EventScheduleDetailLoaderData {
         startTime: "10:00",
         totalCapacity: 10,
         createdAt: new Date("2026-01-01T00:00:00.000Z"),
-        modalityIds: [],
-        categories: [],
-        categoryIds: [],
+        modalityIds: ["modality_1"],
+        categories: [
+          {
+            id: "category_baby",
+            name: "Baby",
+            minAge: 4,
+            maxAge: 6,
+            groupTypes: ["solo", "duo"],
+          },
+        ],
+        categoryIds: ["category_baby"],
         modalities: [],
         availablePlaces: 10,
         occupiedCount: 0,
