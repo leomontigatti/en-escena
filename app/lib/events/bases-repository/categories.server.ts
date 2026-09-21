@@ -20,6 +20,7 @@ import {
   listReferencingChoreographies,
   modalities,
   replaceCategoryRelations,
+  scheduleCategories,
   toTitleCase,
   uniqueValues,
 } from "@/lib/events/bases-repository/shared.server";
@@ -32,11 +33,12 @@ import type {
   ValidCategoryInput,
 } from "@/lib/events/bases-repository/shared.server";
 
-// The only key that can raise a foreign-key violation on a category delete:
-// `category_modality` cascades, so a choreography's `category_id` is the one
-// left to refuse.
+// The keys that can raise a foreign-key violation on a category delete:
+// `category_modality` cascades, so a choreography's `category_id` and the
+// accepted categories of a schedule are the ones left to refuse.
 const CHOREOGRAPHY_CATEGORY_FOREIGN_KEY =
   "en_escena_choreography_category_id_en_escena_category_id_fk";
+const SCHEDULE_CATEGORY_FOREIGN_KEY = "schedule_category_category_fk";
 
 export async function listCategories(eventId: string) {
   const [eventCategories, eventCategoryModalities] = await Promise.all([
@@ -234,6 +236,13 @@ export async function deleteCategory(
     return categoryHasChoreographies();
   }
 
+  // A cascade here would quietly empty a schedule's accepted categories and
+  // turn a schedule that takes one show's categories into one that takes every
+  // category, so the delete is refused while any schedule lists it.
+  if (await categoryIsAcceptedBySchedule(categoryId)) {
+    return categoryHasSchedules();
+  }
+
   try {
     await db.delete(categories).where(eq(categories.id, categoryId));
   } catch (error) {
@@ -241,6 +250,10 @@ export async function deleteCategory(
     // between is invisible to it and the foreign key is what refuses. Both
     // paths report the same failure: the check is the cheap common case, not
     // the only way this delete can be turned down.
+    if (isForeignKeyViolation(error, SCHEDULE_CATEGORY_FOREIGN_KEY)) {
+      return categoryHasSchedules();
+    }
+
     if (!isChoreographyCategoryViolation(error)) {
       throw error;
     }
@@ -249,6 +262,24 @@ export async function deleteCategory(
   }
 
   return { ok: true };
+}
+
+async function categoryIsAcceptedBySchedule(categoryId: string) {
+  const accepted = await db.query.scheduleCategories.findFirst({
+    columns: { scheduleId: true },
+    where: eq(scheduleCategories.categoryId, categoryId),
+  });
+
+  return Boolean(accepted);
+}
+
+function categoryHasSchedules(): EventBaseFailure {
+  return {
+    ok: false,
+    code: "event-bases-has-dependencies",
+    error:
+      "No se puede borrar la categoría porque tiene cronogramas relacionados.",
+  };
 }
 
 function isChoreographyCategoryViolation(error: unknown) {

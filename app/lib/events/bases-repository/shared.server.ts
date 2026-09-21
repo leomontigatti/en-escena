@@ -9,6 +9,7 @@ import {
   modalities,
   prices,
   scheduleCapacities,
+  scheduleCategories,
   scheduleModalities,
   schedules,
   seminarPrices,
@@ -38,6 +39,7 @@ export {
   prices,
   requiredFieldMessage,
   scheduleCapacities,
+  scheduleCategories,
   scheduleModalities,
   schedules,
   submodalities,
@@ -137,6 +139,12 @@ export type ScheduleInput = EventBaseNameInput & {
   startTime: string;
   totalCapacity: number;
   modalityIds: string[];
+  /**
+   * The categories the schedule accepts. Optional, and an empty list is the
+   * meaningful default: the schedule accepts every category, which is what
+   * every schedule did before schedules could name categories at all.
+   */
+  categoryIds?: string[];
 };
 
 export type ScheduleCapacityInput = {
@@ -173,10 +181,17 @@ export type ScheduleOccupancy = {
   occupiedCount: number;
 };
 
+export type ScheduleAcceptedCategory = Pick<
+  typeof categories.$inferSelect,
+  "id" | "name" | "minAge" | "maxAge" | "groupTypes"
+>;
+
 export type ScheduleListItem = typeof schedules.$inferSelect &
   ScheduleOccupancy & {
     modalities: Array<Pick<typeof modalities.$inferSelect, "id" | "name">>;
     modalityIds: string[];
+    categories: ScheduleAcceptedCategory[];
+    categoryIds: string[];
     scheduleCapacities: ScheduleCapacityWithOccupancy[];
   };
 
