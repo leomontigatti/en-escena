@@ -1,4 +1,5 @@
 import type { ChoreographyFinancialStatus } from "@/lib/finances/inscription-financial-status";
+import type { AssignableJudge } from "@/lib/presentations/judge-assignments.server";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import type { PresentationWarning } from "@/lib/presentations/warnings";
 
@@ -11,6 +12,10 @@ import type { PresentationWarning } from "@/lib/presentations/warnings";
 
 export const orderAutomaticallyIntent = "order-automatically";
 export const movePresentationIntent = "move-presentation";
+export const assignJudgesIntent = "assign-judges";
+export const removeJudgesIntent = "remove-judges";
+export const judgeIdFieldName = "juez";
+export const presentationChoreographyIdFieldName = "coreografia";
 
 /**
  * A move says nothing when it works — the refreshed list is the answer — so it
@@ -29,6 +34,8 @@ export type PresentationListItem = {
   modalityName: string;
   name: string;
   orderNumber: number | null;
+  /** Who already judges the row, which is what the removal dialog offers. */
+  assignedJudgeIds: string[];
   scheduledDate: string;
   submodalityName: string | null;
   warnings: PresentationWarning[];
@@ -48,6 +55,10 @@ export type PresentationOrder = {
 };
 
 export type PresentationListResult = {
+  /** Every judge the assignment dialog may offer: the role, minus suspended. */
+  assignableJudges: AssignableJudge[];
+  /** The judges on the listed rows, named, for the removal dialog. */
+  assignedJudges: AssignableJudge[];
   canOrder: boolean;
   days: string[];
   filters: PresentationListFilters;
@@ -62,3 +73,47 @@ export type PresentationListResult = {
   unorderedCount: number;
   warnedCount: number;
 };
+
+/**
+ * Which judges the removal dialog offers: the ones at least one of the chosen
+ * rows actually has, in the order the loader named them. Offering a judge
+ * nobody in the selection carries would be offering to remove nothing.
+ */
+export function selectRemovableJudges(
+  assignedJudges: AssignableJudge[],
+  selectedRows: PresentationListItem[],
+): AssignableJudge[] {
+  const judgeIds = new Set(selectedRows.flatMap((row) => row.assignedJudgeIds));
+
+  return assignedJudges.filter((judge) => judgeIds.has(judge.id));
+}
+
+/**
+ * What each dialog says when it closes. It names what was reached rather than
+ * what was asked for: an already assigned pair is skipped and a judge nobody
+ * had is a removal of nothing, so both counts are of rows actually touched.
+ */
+export function formatJudgeAssignmentMessage(input: {
+  intent: typeof assignJudgesIntent | typeof removeJudgesIntent;
+  judgeCount: number;
+  presentationCount: number;
+}) {
+  const isAssigning = input.intent === assignJudgesIntent;
+  // The verb agrees with the judges and the preposition with the direction:
+  // a judge is assigned *to* a presentation and taken *off* one.
+  const verb = isAssigning
+    ? input.judgeCount === 1
+      ? "Se asignó"
+      : "Se asignaron"
+    : input.judgeCount === 1
+      ? "Se quitó"
+      : "Se quitaron";
+  const judges =
+    input.judgeCount === 1 ? "1 juez" : `${input.judgeCount} jueces`;
+  const presentations =
+    input.presentationCount === 1
+      ? "1 presentación"
+      : `${input.presentationCount} presentaciones`;
+
+  return `${verb} ${judges} ${isAssigning ? "a" : "de"} ${presentations}.`;
+}

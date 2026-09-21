@@ -17,7 +17,7 @@ import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.te
 import {
   assignJudges,
   readAssignableJudges,
-  readAssignedJudgeIds,
+  readAssignedJudges,
   removeJudges,
 } from "@/lib/presentations/judge-assignments.server";
 import {
@@ -231,7 +231,7 @@ describe("removeJudges", () => {
   });
 });
 
-describe("readAssignedJudgeIds", () => {
+describe("readAssignedJudges", () => {
   test("names the judges of each choreography that has any", async () => {
     const { addChoreography } = await seedEvent();
     const first = await addChoreography({ name: "Una", orderNumber: 1 });
@@ -240,10 +240,11 @@ describe("readAssignedJudgeIds", () => {
 
     await assignJudges({ choreographyIds: [first.id], judgeIds: [judge.id] });
 
-    const assigned = await readAssignedJudgeIds([first.id, second.id]);
+    const assigned = await readAssignedJudges([first.id, second.id]);
 
-    expect(assigned.get(first.id)).toEqual([judge.id]);
-    expect(assigned.get(second.id)).toBeUndefined();
+    expect(assigned.byChoreography.get(first.id)).toEqual([judge.id]);
+    expect(assigned.byChoreography.get(second.id)).toBeUndefined();
+    expect(assigned.judges).toEqual([{ id: judge.id, name: "Ana Juez" }]);
   });
 });
 

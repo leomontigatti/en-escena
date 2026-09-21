@@ -37,24 +37,34 @@ export async function readAssignableJudges(
     .orderBy(asc(user.name));
 }
 
+export type AssignedJudges = {
+  /** The judges of each choreography that has any, keyed by choreography. */
+  byChoreography: Map<string, string[]>;
+  /** Everyone assigned to at least one of them, named, in reading order. */
+  judges: AssignableJudge[];
+};
+
 /**
- * The judges already on each of the given choreographies, keyed by
- * choreography. It is what the removal dialog narrows its options to: only a
- * judge somebody in the selection actually has is worth offering to remove.
+ * The judges already on the given choreographies. It is what the removal
+ * dialog narrows its options to: only a judge somebody in the selection
+ * actually has is worth offering to remove. A judge who has since been
+ * suspended or changed role is still named here — they are still on the
+ * presentation, and taking them off is exactly what the dialog is for.
  */
-export async function readAssignedJudgeIds(
+export async function readAssignedJudges(
   choreographyIds: string[],
   executor: Executor = db,
-): Promise<Map<string, string[]>> {
+): Promise<AssignedJudges> {
   const byChoreography = new Map<string, string[]>();
 
   if (choreographyIds.length === 0) {
-    return byChoreography;
+    return { byChoreography, judges: [] };
   }
 
   const rows = await executor
     .select({
       choreographyId: presentations.choreographyId,
+      name: user.name,
       userId: judgeAssignments.userId,
     })
     .from(judgeAssignments)
@@ -62,15 +72,20 @@ export async function readAssignedJudgeIds(
       presentations,
       eq(judgeAssignments.presentationId, presentations.id),
     )
-    .where(inArray(presentations.choreographyId, choreographyIds));
+    .innerJoin(user, eq(judgeAssignments.userId, user.id))
+    .where(inArray(presentations.choreographyId, choreographyIds))
+    .orderBy(asc(user.name));
+
+  const judgesById = new Map<string, AssignableJudge>();
 
   for (const row of rows) {
     const bucket = byChoreography.get(row.choreographyId) ?? [];
     bucket.push(row.userId);
     byChoreography.set(row.choreographyId, bucket);
+    judgesById.set(row.userId, { id: row.userId, name: row.name });
   }
 
-  return byChoreography;
+  return { byChoreography, judges: [...judgesById.values()] };
 }
 
 /**

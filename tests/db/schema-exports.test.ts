@@ -26,6 +26,7 @@ const schemaExportNames = [
   "paymentMethod",
   "groupType",
   "internalUserInvitations",
+  "judgeAssignments",
   "modalities",
   "prices",
   "professors",

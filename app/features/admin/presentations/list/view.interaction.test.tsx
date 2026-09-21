@@ -312,6 +312,7 @@ function buildItem(
 ): PresentationListItem {
   return {
     academyName: "Academia Sur",
+    assignedJudgeIds: [],
     categoryName: "Infantil",
     choreographyNumber: 1,
     financialStatus: "paidInFull",
@@ -331,6 +332,8 @@ function buildLoaderData(
   overrides: Partial<PresentationListResult> = {},
 ): PresentationListResult {
   return {
+    assignableJudges: [],
+    assignedJudges: [],
     canOrder: true,
     days: ["2026-05-01"],
     filters: {

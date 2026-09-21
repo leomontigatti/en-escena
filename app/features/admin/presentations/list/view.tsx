@@ -1,12 +1,11 @@
-import { AlertTriangle, Info, ListOrdered } from "lucide-react";
+import { ListOrdered, UserMinus, UserPlus } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useFetcher, useSearchParams } from "react-router";
+import { useFetcher } from "react-router";
 
 import {
   AdminEmptyState,
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
-import { AlertStack } from "@/components/shared/alert-stack";
 import {
   DataTableDragHandle,
   DataTableTruncatedText,
@@ -16,28 +15,18 @@ import {
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { FieldControlLockIcon } from "@/components/shared/field-lock-icon";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
-import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { formatScheduleDayLabel } from "@/lib/choreographies/schedule-formatters";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import type { PresentationWarningKind } from "@/lib/presentations/warnings";
@@ -45,9 +34,14 @@ import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-
 
 import { showToastMessage } from "@/lib/shared/toasts";
 
+import { JudgeAssignmentDialog } from "./judge-dialogs";
+import {
+  OrderingConfirmationDialog,
+  PresentationDayTabs,
+  PresentationNotices,
+} from "./notices";
 import {
   movePresentationIntent,
-  orderAutomaticallyIntent,
   type PresentationListActionData,
   type PresentationListItem,
   type PresentationListResult,
@@ -56,8 +50,6 @@ import {
 export type PresentationsListViewProps = {
   loaderData: PresentationListResult;
 };
-
-const allDaysTabValue = "todos";
 
 /**
  * The row's one badge, most relevant first. `Sin número` is a state and not a
@@ -352,9 +344,16 @@ export function PresentationsListView({
   loaderData,
 }: PresentationsListViewProps) {
   const [isOrderingDialogOpen, setIsOrderingDialogOpen] = useState(false);
+  const [judgeDialogMode, setJudgeDialogMode] = useState<
+    "assign" | "remove" | null
+  >(null);
+  const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
   const { isSortedByNumberAscending, moving, rows } =
     usePresentationMoving(loaderData);
   const columns = buildPresentationColumns({ moving });
+  // The selection lives on the page it was made on, so the rows it names are
+  // read out of the page rather than out of the whole event.
+  const selectedRows = rows.filter((row) => selectedRowIds.includes(row.id));
 
   return (
     <AdminResourceLayout
@@ -377,6 +376,27 @@ export function PresentationsListView({
             >
               <ListOrdered aria-hidden="true" />
               Ordenar automáticamente
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              disabled={selectedRows.length === 0}
+              onSelect={(event) => {
+                event.preventDefault();
+                setJudgeDialogMode("assign");
+              }}
+            >
+              <UserPlus aria-hidden="true" />
+              Asignar jueces
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={selectedRows.length === 0}
+              onSelect={(event) => {
+                event.preventDefault();
+                setJudgeDialogMode("remove");
+              }}
+            >
+              <UserMinus aria-hidden="true" />
+              Quitar jueces
             </DropdownMenuItem>
           </ResourceActionsMenu>
         ) : undefined
@@ -403,6 +423,13 @@ export function PresentationsListView({
               }}
               getRowKey={(row) => row.id}
               layout="fit"
+              selectableRows={loaderData.canOrder}
+              // Only a numbered row can carry a judge: there is nothing to
+              // hang the assignment off until the choreography has a
+              // presentation.
+              canSelectRow={(row) => row.orderNumber !== null}
+              selectedRowIds={selectedRowIds}
+              onSelectedRowIdsChange={setSelectedRowIds}
               searchPlaceholder="Buscar por número de coreografía, nombre o academia"
               initialSearchValue={loaderData.filters.query}
               initialSort={loaderData.filters.order}
@@ -424,6 +451,20 @@ export function PresentationsListView({
         <OrderingConfirmationDialog
           open={isOrderingDialogOpen}
           onOpenChange={setIsOrderingDialogOpen}
+        />
+      ) : null}
+      {loaderData.canOrder && judgeDialogMode !== null ? (
+        <JudgeAssignmentDialog
+          assignableJudges={loaderData.assignableJudges}
+          assignedJudges={loaderData.assignedJudges}
+          mode={judgeDialogMode}
+          open
+          onOpenChange={(next) => {
+            if (!next) {
+              setJudgeDialogMode(null);
+            }
+          }}
+          selectedRows={selectedRows}
         />
       ) : null}
     </AdminResourceLayout>
@@ -502,193 +543,4 @@ function moveDraggedRow({
     ].slice(0, rows.length),
     toOrderNumber: over.orderNumber,
   });
-}
-
-function PresentationNotices({
-  loaderData,
-  needsNumberSortToDrag,
-  onOrderAutomatically,
-}: {
-  loaderData: PresentationListResult;
-  needsNumberSortToDrag: boolean;
-  onOrderAutomatically: () => void;
-}) {
-  return (
-    <AlertStack>
-      {loaderData.hasPresentations ? null : (
-        <Alert variant="info">
-          <Info aria-hidden="true" />
-          <AlertDescription>
-            Las coreografías todavía no tienen un número de presentación
-            asignado.
-          </AlertDescription>
-          {loaderData.canOrder ? (
-            <AlertAction className="top-1/2 -translate-y-1/2">
-              <Button
-                type="button"
-                size="sm"
-                variant="link"
-                onClick={onOrderAutomatically}
-              >
-                <ListOrdered aria-hidden="true" data-icon="inline-start" />
-                Ordenar automáticamente
-              </Button>
-            </AlertAction>
-          ) : null}
-        </Alert>
-      )}
-      {loaderData.hasPresentations && loaderData.unorderedCount > 0 ? (
-        <Alert variant="info">
-          <Info aria-hidden="true" />
-          <AlertDescription>
-            {loaderData.unorderedCount === 1
-              ? "Existe 1 coreografía sin número de presentación."
-              : `Existen ${loaderData.unorderedCount} coreografías sin número de presentación.`}
-          </AlertDescription>
-        </Alert>
-      ) : null}
-      {needsNumberSortToDrag ? (
-        <Alert variant="info">
-          <Info aria-hidden="true" />
-          <AlertDescription>Ordená por número para arrastrar.</AlertDescription>
-        </Alert>
-      ) : null}
-      {loaderData.warnedCount > 0 ? (
-        <PresentationWarningsNotice loaderData={loaderData} />
-      ) : null}
-    </AlertStack>
-  );
-}
-
-/** The warnings count, and the filter that narrows the list down to them. */
-function PresentationWarningsNotice({
-  loaderData,
-}: {
-  loaderData: PresentationListResult;
-}) {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const isFilteredToWarnings = loaderData.filters.warnings === "con";
-
-  const toggleWarningFilter = () => {
-    const next = new URLSearchParams(searchParams);
-
-    if (isFilteredToWarnings) {
-      next.delete("advertencias");
-    } else {
-      next.set("advertencias", "con");
-    }
-
-    next.delete("pagina");
-    setSearchParams(next);
-  };
-
-  return (
-    <Alert variant="warning">
-      <AlertTriangle aria-hidden="true" />
-      <AlertDescription>
-        {loaderData.warnedCount === 1
-          ? "Existe 1 presentación con advertencias."
-          : `Existen ${loaderData.warnedCount} presentaciones con advertencias.`}
-      </AlertDescription>
-      <AlertAction className="top-1/2 -translate-y-1/2">
-        <Button
-          type="button"
-          size="sm"
-          variant="link"
-          onClick={toggleWarningFilter}
-        >
-          {isFilteredToWarnings ? "Ver todas" : "Ver"}
-        </Button>
-      </AlertAction>
-    </Alert>
-  );
-}
-
-function PresentationDayTabs({
-  loaderData,
-}: {
-  loaderData: PresentationListResult;
-}) {
-  const [searchParams, setSearchParams] = useSearchParams();
-
-  const selectDay = (day: string) => {
-    const next = new URLSearchParams(searchParams);
-
-    if (day === allDaysTabValue) {
-      next.delete("dia");
-    } else {
-      next.set("dia", day);
-    }
-
-    next.delete("pagina");
-    setSearchParams(next);
-  };
-
-  return (
-    <Tabs value={loaderData.filters.day ?? allDaysTabValue}>
-      <TabsList variant="line">
-        <TabsTrigger
-          value={allDaysTabValue}
-          onClick={() => selectDay(allDaysTabValue)}
-        >
-          Todos
-        </TabsTrigger>
-        {loaderData.days.map((day) => (
-          <TabsTrigger key={day} value={day} onClick={() => selectDay(day)}>
-            {formatScheduleDayLabel(day)}
-          </TabsTrigger>
-        ))}
-      </TabsList>
-    </Tabs>
-  );
-}
-
-/**
- * On the `delete-dialog.tsx` shape: the description, one always-shown
- * destructive alert and the confirmation. The action is never disabled by the
- * data — what cannot be ordered is answered by the server, not by the menu.
- */
-function OrderingConfirmationDialog({
-  onOpenChange,
-  open,
-}: {
-  onOpenChange: (open: boolean) => void;
-  open: boolean;
-}) {
-  return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent
-        className="max-h-[calc(100dvh-2rem)]"
-        onEscapeKeyDown={(event) => {
-          event.preventDefault();
-        }}
-      >
-        <AlertDialogHeader>
-          <AlertDialogTitle>Ordenar automáticamente</AlertDialogTitle>
-          <AlertDialogDescription>
-            Las coreografías elegibles se ordenan por defecto y se les asigna un
-            número de presentación nuevo.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <Alert variant="destructive">
-          <AlertTriangle aria-hidden="true" />
-          <AlertDescription>
-            Esta acción es irreversible y modifica cualquier orden manual
-            realizado.
-          </AlertDescription>
-        </Alert>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-          <form method="post">
-            <input
-              type="hidden"
-              name="intent"
-              value={orderAutomaticallyIntent}
-            />
-            <Button type="submit">Ordenar</Button>
-          </form>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
 }

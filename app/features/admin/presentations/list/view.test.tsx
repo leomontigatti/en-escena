@@ -80,6 +80,29 @@ describe("PresentationsListView", () => {
     expect(markup).not.toContain(">Fuera de bloque<");
   });
 
+  test("lets a numbered row be chosen and leaves an unnumbered one out", () => {
+    const markup = renderView({
+      presentations: [
+        buildItem({ id: "choreography-1", orderNumber: 1 }),
+        buildItem({ id: "choreography-2", orderNumber: null }),
+      ],
+      unorderedCount: 1,
+    });
+    const checkboxes = [
+      ...markup.matchAll(/<button[^>]*aria-label="Seleccionar fila"[^>]*>/g),
+    ].map((match) => match[0]);
+
+    expect(checkboxes).toHaveLength(2);
+    expect(checkboxes[0]).not.toContain('disabled=""');
+    expect(checkboxes[1]).toContain('disabled=""');
+  });
+
+  test("keeps the selection column out of an auditor's list", () => {
+    const markup = renderView({ canOrder: false });
+
+    expect(markup).not.toContain('aria-label="Seleccionar fila"');
+  });
+
   test("keeps the actions menu out of an auditor's header", () => {
     const markup = renderView({ canOrder: false });
 
@@ -92,6 +115,7 @@ function buildItem(
 ): PresentationListItem {
   return {
     academyName: "Academia Sur",
+    assignedJudgeIds: [],
     categoryName: "Infantil",
     choreographyNumber: 12,
     financialStatus: "depositMet",
@@ -109,6 +133,8 @@ function buildItem(
 
 function renderView(overrides: Partial<PresentationListResult> = {}) {
   const loaderData: PresentationListResult = {
+    assignableJudges: [],
+    assignedJudges: [],
     canOrder: true,
     days: ["2026-05-01"],
     filters: {

@@ -5,6 +5,12 @@ import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import {
+  assignJudges,
+  readAssignableJudges,
+  readAssignedJudges,
+  removeJudges,
+} from "@/lib/presentations/judge-assignments.server";
+import {
   movePresentation,
   readParticipationRows,
   runAutomaticOrdering,
@@ -17,8 +23,13 @@ import {
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 
 import {
+  assignJudgesIntent,
+  formatJudgeAssignmentMessage,
+  judgeIdFieldName,
   movePresentationIntent,
   orderAutomaticallyIntent,
+  presentationChoreographyIdFieldName,
+  removeJudgesIntent,
   type PresentationListActionData,
   type PresentationListFilters,
   type PresentationListItem,
@@ -64,6 +75,8 @@ async function loadPresentationList(input: {
 }): Promise<PresentationListResult> {
   if (input.selectedEventId === null) {
     return {
+      assignableJudges: [],
+      assignedJudges: [],
       canOrder: input.canOrder,
       days: [],
       filters: input.filters,
@@ -81,7 +94,18 @@ async function loadPresentationList(input: {
 
   const rows = await readParticipationRows(input.selectedEventId);
   const warnings = derivePresentationWarnings(rows);
-  const items = rows.map((row) => buildPresentationListItem(row, warnings));
+  // The assignments of every row of the event, not only of the page: the
+  // removal dialog offers the judges of the selection, and a selection is made
+  // on one page at a time, so the page's rows are all it can ever need — but
+  // the read is one query either way, and scoping it to the page would have to
+  // wait for the page to be resolved.
+  const [assignableJudges, assigned] = await Promise.all([
+    readAssignableJudges(),
+    readAssignedJudges(rows.map((row) => row.choreographyId)),
+  ]);
+  const items = rows.map((row) =>
+    buildPresentationListItem(row, warnings, assigned.byChoreography),
+  );
   const days = [...new Set(items.map((item) => item.scheduledDate))].sort();
   const filters = {
     ...input.filters,
@@ -96,6 +120,8 @@ async function loadPresentationList(input: {
   const page = Math.min(filters.page, totalPages);
 
   return {
+    assignableJudges,
+    assignedJudges: assigned.judges,
     canOrder: input.canOrder,
     days,
     filters: { ...filters, page },
@@ -141,6 +167,10 @@ export async function handlePresentationListAction(
     return await runMovePresentation(eventContext.selectedEventId, formData);
   }
 
+  if (intent === assignJudgesIntent || intent === removeJudgesIntent) {
+    return await runJudgeAssignment(intent, formData);
+  }
+
   if (intent !== orderAutomaticallyIntent) {
     return data(
       {
@@ -168,6 +198,50 @@ export async function handlePresentationListAction(
 
   return {
     message: `Se ordenaron ${result.orderedCount} presentaciones.`,
+    status: "success" as const,
+  };
+}
+
+/**
+ * The two bulk dialogs, which differ only in which way the pair goes. Both
+ * answer with what they reached and not with what was asked for: an already
+ * assigned pair is skipped and a judge nobody in the selection has is a
+ * removal of nothing, so the counts name presentations actually touched.
+ */
+async function runJudgeAssignment(
+  intent: typeof assignJudgesIntent | typeof removeJudgesIntent,
+  formData: FormData,
+) {
+  const choreographyIds = formData
+    .getAll(presentationChoreographyIdFieldName)
+    .map(String)
+    .filter((value) => value.length > 0);
+  const judgeIds = formData
+    .getAll(judgeIdFieldName)
+    .map(String)
+    .filter((value) => value.length > 0);
+
+  if (choreographyIds.length === 0 || judgeIds.length === 0) {
+    return data(
+      {
+        message: "Elegí al menos una presentación y un juez.",
+        status: "error" as const,
+      },
+      { status: 400 },
+    );
+  }
+
+  const result =
+    intent === assignJudgesIntent
+      ? await assignJudges({ choreographyIds, judgeIds })
+      : await removeJudges({ choreographyIds, judgeIds });
+
+  return {
+    message: formatJudgeAssignmentMessage({
+      intent,
+      judgeCount: result.judgeCount,
+      presentationCount: result.presentationCount,
+    }),
     status: "success" as const,
   };
 }
@@ -240,9 +314,11 @@ function readPresentationFilters(
 function buildPresentationListItem(
   row: ParticipationRow,
   warnings: Map<string, PresentationWarning[]>,
+  assignedJudgeIds: Map<string, string[]>,
 ): PresentationListItem {
   return {
     academyName: row.academyName,
+    assignedJudgeIds: assignedJudgeIds.get(row.choreographyId) ?? [],
     categoryName: row.category.name,
     choreographyNumber: row.choreographyNumber,
     financialStatus: row.financialStatus,
