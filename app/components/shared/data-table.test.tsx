@@ -6,6 +6,7 @@ import {
   createMemoryRouter,
   MemoryRouter,
   RouterProvider,
+  useLoaderData,
   useLocation,
 } from "react-router";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -781,6 +782,90 @@ describe("ServerDataTable search while the loader is answering", () => {
   });
 });
 
+describe("ServerDataTable search behind a real loader", () => {
+  const renderer = createReactDomTestRenderer();
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    renderer.cleanup();
+    vi.useRealTimers();
+  });
+
+  test("clears a search whose loader has not answered yet", async () => {
+    const router = createLoaderBackedServerListRouter(
+      "/administracion/profesores",
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+    await advanceTimers(serverLoaderDelayMs);
+
+    await typeSearch("mar");
+    await advanceSearchDebounce();
+
+    // The loader is still answering "mar" when the reader clears the box.
+    await clickReactDomButton("Limpiar búsqueda");
+    await advanceTimers(serverLoaderDelayMs * 2);
+    await advanceTimers(serverLoaderDelayMs * 2);
+
+    expect(getSearchInput().value).toBe("");
+    expect(router.state.location.search).toBe("");
+  });
+  test("keeps a filter whose loader has not answered yet when a search follows it", async () => {
+    const router = createLoaderBackedServerListRouter(
+      "/administracion/profesores",
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+    await advanceTimers(serverLoaderDelayMs);
+
+    await act(async () => {
+      void router.navigate("/administracion/profesores?estado=archived");
+      await Promise.resolve();
+    });
+
+    // The loader is still answering the filter when the reader searches.
+    await typeSearch("mar");
+    await advanceSearchDebounce();
+    await advanceTimers(serverLoaderDelayMs * 2);
+
+    expect(router.state.location.search).toBe("?estado=archived&busqueda=mar");
+  });
+});
+
+describe("ClientDataTable search behind a real loader", () => {
+  const renderer = createReactDomTestRenderer();
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    renderer.cleanup();
+    vi.useRealTimers();
+  });
+
+  test("clears a search whose loader has not answered yet", async () => {
+    const router = createLoaderBackedClientListRouter(
+      "/administracion/profesores",
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+    await advanceTimers(serverLoaderDelayMs);
+
+    await typeSearch("mar");
+    await advanceSearchDebounce();
+
+    // The loader is still answering "mar" when the reader clears the box.
+    await clickReactDomButton("Limpiar búsqueda");
+    await advanceSearchDebounce();
+    await advanceTimers(serverLoaderDelayMs * 2);
+    await advanceTimers(serverLoaderDelayMs * 2);
+
+    expect(getSearchInput().value).toBe("");
+    expect(router.state.location.search).toBe("");
+  });
+});
+
 describe("ClientDataTable filters in the address bar", () => {
   const renderer = createReactDomTestRenderer();
 
@@ -1146,6 +1231,94 @@ function SlowServerList() {
       totalPages={1}
       totalRows={1}
     />
+  );
+}
+
+/**
+ * The same list behind a loader that takes its time, so the address bar only
+ * moves once the loader answers — what the reader's browser actually does.
+ */
+function LoaderBackedServerList() {
+  const { query } = useLoaderData<{ query: string }>();
+
+  return (
+    <ServerDataTable
+      rows={[
+        {
+          id: "professor_1",
+          academy: "Academia Norte",
+          name: "Marianela Torres",
+          status: "active",
+        },
+      ]}
+      columns={columns}
+      getRowKey={(row) => row.id}
+      searchPlaceholder="Buscar profesor por nombre"
+      initialSearchValue={query}
+      currentPage={1}
+      totalPages={1}
+      totalRows={1}
+    />
+  );
+}
+
+function createLoaderBackedServerListRouter(entry: string) {
+  const [path] = entry.split("?");
+
+  return createMemoryRouter(
+    [
+      {
+        path,
+        element: <LoaderBackedServerList />,
+        loader: async ({ request }) => {
+          await new Promise((resolve) => {
+            window.setTimeout(resolve, serverLoaderDelayMs);
+          });
+
+          return {
+            query: new URL(request.url).searchParams.get("busqueda") ?? "",
+          };
+        },
+        HydrateFallback: () => null,
+      },
+    ],
+    { initialEntries: [entry] },
+  );
+}
+
+function createLoaderBackedClientListRouter(entry: string) {
+  const [path] = entry.split("?");
+
+  return createMemoryRouter(
+    [
+      {
+        path,
+        element: (
+          <ClientDataTable
+            rows={[
+              {
+                id: "professor_1",
+                academy: "Academia Norte",
+                name: "Marianela Torres",
+                status: "active",
+              },
+            ]}
+            columns={columns}
+            getRowKey={(row) => row.id}
+            searchPlaceholder="Buscar profesor por nombre"
+          />
+        ),
+        loader: async () => {
+          await new Promise((resolve) => {
+            window.setTimeout(resolve, serverLoaderDelayMs);
+          });
+
+          return null;
+        },
+        HydrateFallback: () => null,
+      },
+    ],
+    { initialEntries: [entry] },
   );
 }
 

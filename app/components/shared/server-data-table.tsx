@@ -38,6 +38,7 @@ import {
   useDataTableSortingState,
 } from "@/components/shared/data-table-core";
 import { DataTableShell } from "@/components/shared/data-table-shell";
+import { useDataTableHeadingSearch } from "@/components/shared/data-table-url-state";
 import type {
   DataTableFacetedFilter,
   DataTableFacetedFilterValue,
@@ -62,7 +63,8 @@ export function ServerDataTable<TData>(props: ServerDataTableProps<TData>) {
     resolvedBasePath,
     selectableRows,
   } = resolveServerDataTableDefaults(props, location.pathname);
-  const currentHref = `${location.pathname}${location.search}`;
+  const headingSearch = useDataTableHeadingSearch();
+  const headingHref = `${location.pathname}${headingSearch}`;
   const { columnVisibility, tableColumns } = useServerDataTableColumns(
     props.columns,
     selectableRows,
@@ -76,13 +78,13 @@ export function ServerDataTable<TData>(props: ServerDataTableProps<TData>) {
       applySearch: (searchValue) => {
         const nextHref = buildDataTableSearchHref({
           basePath: resolvedBasePath,
-          currentSearch: location.search,
+          currentSearch: headingSearch,
           pageParamName: props.pageParamName,
           searchParamName: props.searchParamName,
           searchValue,
         });
 
-        if (nextHref !== currentHref) {
+        if (nextHref !== headingHref) {
           void navigate(nextHref, { replace: true });
         }
       },
@@ -117,9 +119,9 @@ export function ServerDataTable<TData>(props: ServerDataTableProps<TData>) {
   });
   const setFacetedFilterValue = createServerFacetedFilterHandler({
     columnFilters,
-    currentHref,
-    currentSearch: location.search,
     facetedFilters,
+    headingHref,
+    headingSearch,
     navigate,
     pageParamName: props.pageParamName,
     resolvedBasePath,
@@ -392,18 +394,18 @@ function applyServerSearch({
 
 function createServerFacetedFilterHandler({
   columnFilters,
-  currentHref,
-  currentSearch,
   facetedFilters,
+  headingHref,
+  headingSearch,
   navigate,
   pageParamName,
   resolvedBasePath,
   setColumnFilters,
 }: {
   columnFilters: ColumnFiltersState;
-  currentHref: string;
-  currentSearch: string;
   facetedFilters: DataTableFacetedFilter[];
+  headingHref: string;
+  headingSearch: string;
   navigate: ReturnType<typeof useNavigate>;
   pageParamName?: string;
   resolvedBasePath: string;
@@ -418,13 +420,13 @@ function createServerFacetedFilterHandler({
     setColumnFilters(nextFilters);
     const nextHref = buildDataTableFilterHref({
       basePath: resolvedBasePath,
-      currentSearch,
+      currentSearch: headingSearch,
       groups: facetedFilters,
       pageParamName,
       values,
     });
 
-    if (nextHref !== currentHref) {
+    if (nextHref !== headingHref) {
       void navigate(nextHref);
     }
   };
