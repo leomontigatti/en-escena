@@ -13,6 +13,9 @@ import { Badge } from "@/components/ui/badge";
 import {
   formatChoreographyOperationalStatusLabel,
   getChoreographyOperationalStatusBadgeVariant,
+  withdrawnChoreographyStatusBadgeVariant,
+  withdrawnChoreographyStatusFilterValue,
+  withdrawnChoreographyStatusLabel,
 } from "@/lib/choreographies/operational-status";
 import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
@@ -30,6 +33,12 @@ type ChoreographiesListRouteViewProps = {
 const choreographyStatusFilterOptions = [
   { label: "Completa", value: "completa" },
   { label: "Incompleta", value: "incompleta" },
+  // Last, after the two readiness answers: it is the other axis, and it is what
+  // the withdrawn choreographies —hidden until it is picked— are reached by.
+  {
+    label: withdrawnChoreographyStatusLabel,
+    value: withdrawnChoreographyStatusFilterValue,
+  },
 ];
 
 const choreographyGroupTypeFilterOptions = [
@@ -111,18 +120,39 @@ const choreographyColumns: DataTableColumn<ChoreographyRow>[] = [
     header: "Estado",
     width: 10,
     cell: (choreography) => (
-      <Badge
-        variant={getChoreographyOperationalStatusBadgeVariant(
-          choreography.operationalStatus,
-        )}
-      >
-        {formatChoreographyOperationalStatusLabel(
-          choreography.operationalStatus,
-        )}
-      </Badge>
+      <ChoreographyStatusBadge choreography={choreography} />
     ),
   },
 ];
+
+/**
+ * `Retirada` **replaces** the readiness badge rather than sitting next to it: a
+ * choreography that is not taking part is not half-loaded, it is out, and what
+ * it still lacks is no longer anyone's task.
+ */
+function ChoreographyStatusBadge({
+  choreography,
+}: {
+  choreography: ChoreographyRow;
+}) {
+  if (choreography.isWithdrawn) {
+    return (
+      <Badge variant={withdrawnChoreographyStatusBadgeVariant}>
+        {withdrawnChoreographyStatusLabel}
+      </Badge>
+    );
+  }
+
+  return (
+    <Badge
+      variant={getChoreographyOperationalStatusBadgeVariant(
+        choreography.operationalStatus,
+      )}
+    >
+      {formatChoreographyOperationalStatusLabel(choreography.operationalStatus)}
+    </Badge>
+  );
+}
 
 export function ChoreographiesListRouteView({
   loaderData,

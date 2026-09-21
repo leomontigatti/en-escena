@@ -24,6 +24,12 @@ export type PortalChoreographyListItem = {
   groupType: ChoreographyGroupType;
   categoryName: string;
   experienceLevelName: string | null;
+  /**
+   * A withdrawn choreography is not taking part, so it is out of the list until
+   * the academy picks `Retirada`, and it reads with that badge in place of its
+   * operational status.
+   */
+  isWithdrawn: boolean;
   musicStorageKey?: string | null;
   operationalStatus: ChoreographyOperationalStatus;
 };

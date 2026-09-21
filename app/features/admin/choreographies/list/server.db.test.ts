@@ -1,7 +1,9 @@
 import { describe, expect, test } from "vitest";
 
+import { eq } from "drizzle-orm";
+
 import { db } from "@/db";
-import { choreographyProfessors, schedules } from "@/db/schema";
+import { choreographies, choreographyProfessors, schedules } from "@/db/schema";
 import { createSignedInAdminRequest as createSignedInRequest } from "@/lib/admin/test-support/db";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import {
@@ -100,6 +102,55 @@ describe("loadChoreographies", () => {
     expect(result.choreographies.map((row) => row.name)).not.toContain(
       wellFiled.name,
     );
+  });
+
+  // The list answers "what is going to be performed", so a choreography that
+  // was withdrawn is out of it until the reader asks for it by name.
+  test("hides the withdrawn choreographies until `Retirada` is picked", async () => {
+    const { event, withdrawn, performing } = await seedWithdrawnChoreography();
+
+    const [unfiltered, withdrawnOnly, complete] = await Promise.all([
+      loadChoreographies({
+        filters: buildFilters(),
+        selectedEventId: event.id,
+      }),
+      loadChoreographies({
+        filters: buildFilters({ status: "retirada" }),
+        selectedEventId: event.id,
+      }),
+      loadChoreographies({
+        filters: buildFilters({ status: "completa" }),
+        selectedEventId: event.id,
+      }),
+    ]);
+
+    expect(unfiltered.choreographies.map((row) => row.name)).toEqual([
+      performing.name,
+    ]);
+    expect(withdrawnOnly.choreographies.map((row) => row.name)).toEqual([
+      withdrawn.name,
+    ]);
+    expect(withdrawnOnly.choreographies[0]?.isWithdrawn).toBe(true);
+    // The withdrawal axis wins over the readiness one: the withdrawn row is
+    // complete, and `Completa` still does not turn it up.
+    expect(complete.choreographies.map((row) => row.name)).not.toContain(
+      withdrawn.name,
+    );
+  });
+
+  test("keeps `retirada` in the canonical list URL", async () => {
+    const { event } = await seedWithdrawnChoreography();
+    const { request } = await createSignedInRequest({
+      email: "admin.coreografias.retiradas@example.com",
+      role: "admin",
+      requestUrl:
+        `http://localhost/administracion/coreografias?evento=${event.id}` +
+        "&estado=retirada",
+    });
+
+    const result = await loadChoreographyListRouteData(request);
+
+    expect(result.filters.status).toBe("retirada");
   });
 
   // `sin-asignar` was a day of its own while a choreography could go without a
@@ -238,6 +289,46 @@ async function seedMisfiledChoreographies() {
   });
 
   return { event, misfiled, wellFiled };
+}
+
+/**
+ * One withdrawn choreography and one still taking part, both complete, so the
+ * two axes of the `Estado` filter are told apart by the withdrawal alone.
+ */
+async function seedWithdrawnChoreography() {
+  const event = await createSavedEvent();
+  const catalog = await createEventCatalog(event.id);
+  const academy = await createAcademyRecord({
+    academyName: "Academia Retirada",
+    email: `coreografias.retirada.${crypto.randomUUID()}@example.com`,
+  });
+  const professor = await createProfessor(academy.id);
+  const [withdrawn, performing] = await Promise.all(
+    ["Coreografía retirada", "Coreografía en pie"].map(async (name) => {
+      const choreography = await createChoreographyRecord({
+        academyId: academy.id,
+        categoryId: catalog.categoryWithoutLevel.id,
+        eventId: event.id,
+        modalityId: catalog.modality.id,
+        musicStorageKey: `musica/${crypto.randomUUID()}.mp3`,
+        name,
+        scheduleCapacityId: catalog.scheduleCapacity.id,
+      });
+
+      await db
+        .insert(choreographyProfessors)
+        .values({ choreographyId: choreography.id, professorId: professor.id });
+
+      return choreography;
+    }),
+  );
+
+  await db
+    .update(choreographies)
+    .set({ withdrawnAt: new Date("2026-09-17T12:00:00Z") })
+    .where(eq(choreographies.id, withdrawn.id));
+
+  return { event, performing, withdrawn };
 }
 
 async function createScheduleOnDay(input: {

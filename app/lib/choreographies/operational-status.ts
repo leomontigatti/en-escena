@@ -144,3 +144,24 @@ export function getChoreographyOperationalStatusBadgeVariant(
 ) {
   return operationalStatus.code === "complete" ? "success" : "warning";
 }
+
+/**
+ * `Retirada` **replaces** the operational status in the `Estado` column, the
+ * way the inscription's does in the financial one: the roster-withdrawal axis
+ * and the readiness axis do not share a cell. It is a derived axis and not a
+ * third value of the status enum, so it carries its own label and variant here
+ * rather than joining `ChoreographyOperationalStatus`.
+ */
+export const withdrawnChoreographyStatusLabel = "Retirada";
+export const withdrawnChoreographyStatusBadgeVariant = "secondary" as const;
+
+/** What the `Estado` filter of both choreography lists calls a withdrawn row. */
+export const withdrawnChoreographyStatusFilterValue = "retirada";
+
+/**
+ * The counterpart the rows taking part carry, and which the portal list pins as
+ * the base selection of its `Estado` filter: with nothing picked the list shows
+ * only these, and picking any option —`Retirada` included— lifts the pin. It is
+ * never offered on the panel, so the reader never reads it as a status.
+ */
+export const notWithdrawnChoreographyStatusFilterValue = "no-retirada";

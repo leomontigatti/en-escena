@@ -39,6 +39,7 @@ describe("ChoreographiesListRouteView", () => {
           choreographyNumber: 1,
           groupType: "duo",
           id: "choreo_1",
+          isWithdrawn: false,
           modalityName: "Jazz",
           name: "Pieza Visible",
           operationalStatus: {
@@ -53,6 +54,7 @@ describe("ChoreographiesListRouteView", () => {
           choreographyNumber: 2,
           groupType: "solo",
           id: "choreo_2",
+          isWithdrawn: false,
           modalityName: "Contemporáneo",
           name: "Borrador",
           operationalStatus: {
@@ -94,6 +96,45 @@ describe("ChoreographiesListRouteView", () => {
     expect(markup).toContain("Incompleta");
     expect(markup).toContain('data-variant="success"');
     expect(markup).toContain('data-variant="warning"');
+  });
+
+  test("badges a withdrawn row `Retirada` in place of its operational status", () => {
+    const markup = renderRoute({
+      choreographies: [
+        {
+          academyName: "Academia Norte",
+          categoryName: "Juvenil",
+          choreographyNumber: 3,
+          groupType: "solo",
+          id: "choreo_3",
+          isWithdrawn: true,
+          modalityName: "Jazz",
+          name: "Pieza Retirada",
+          // Complete on the readiness axis, so the badge that shows proves the
+          // withdrawal replaced it rather than merely joined it.
+          operationalStatus: {
+            code: "complete",
+            pendingItems: [],
+          },
+          submodalityName: null,
+        },
+      ],
+      filters: {
+        category: null,
+        groupType: null,
+        modalityId: null,
+        order: { columnId: "academia", direction: "asc" },
+        page: 1,
+        query: "",
+        scheduleDate: null,
+        status: "retirada",
+      },
+      hasAnyChoreography: true,
+    });
+
+    expect(markup).toContain("Retirada");
+    expect(markup).not.toContain("Completa");
+    expect(markup).toContain('aria-label="Filtros: Estado: Retirada"');
   });
 
   test("keeps filtered empty results inside the table when the active event has coreographies", () => {

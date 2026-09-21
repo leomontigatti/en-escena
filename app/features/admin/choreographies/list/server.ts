@@ -17,6 +17,7 @@ import { formatEventSequenceNumber } from "@/lib/events/sequence-number";
 import { formatScheduleDayLabel } from "@/lib/choreographies/schedule-formatters";
 import {
   deriveChoreographyOperationalStatus,
+  withdrawnChoreographyStatusFilterValue,
   type ChoreographyOperationalStatus,
 } from "@/lib/choreographies/operational-status";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
@@ -41,6 +42,7 @@ type ChoreographyRow = {
   name: string;
   scheduleDate: string;
   submodalityName: string | null;
+  withdrawnAt: Date | null;
 };
 
 type ChoreographyListFilters = {
@@ -54,13 +56,27 @@ type ChoreographyListFilters = {
   status: ChoreographyStatusFilter;
 };
 
-type ChoreographyStatusFilter = "completa" | "incompleta" | null;
+/**
+ * `retirada` is a fourth answer and not a third operational status: it is the
+ * withdrawal axis, and picking it is the only way a withdrawn choreography
+ * reaches this list. With nothing picked, and under either operational value,
+ * the list holds what is going to be performed.
+ */
+type ChoreographyStatusFilter =
+  | ChoreographyOperationalStatusFilter
+  | typeof withdrawnChoreographyStatusFilterValue
+  | null;
+
+type ChoreographyOperationalStatusFilter = "completa" | "incompleta";
 
 /** What each status the reader can pick is called on an operational status. */
 const CHOREOGRAPHY_STATUS_CODES = {
   completa: "complete",
   incompleta: "incomplete",
-} as const;
+} as const satisfies Record<
+  ChoreographyOperationalStatusFilter,
+  ChoreographyOperationalStatus["code"]
+>;
 type ChoreographyScheduleDateFilter = string | null;
 type HydratedChoreographyRow = ChoreographyListItem & {
   categoryId: string;
@@ -81,6 +97,8 @@ export type ChoreographyListItem = {
   choreographyNumber: number;
   groupType: ChoreographyGroupType;
   id: string;
+  /** A withdrawn row reads `Retirada` in place of its operational status. */
+  isWithdrawn: boolean;
   modalityName: string;
   name: string;
   operationalStatus: ChoreographyOperationalStatus;
@@ -169,6 +187,7 @@ export async function loadChoreographies(input: {
       name: choreographies.name,
       scheduleDate: schedules.scheduledDate,
       submodalityName: submodalities.name,
+      withdrawnAt: choreographies.withdrawnAt,
     })
     .from(choreographies)
     .innerJoin(academies, eq(choreographies.academyId, academies.id))
@@ -356,6 +375,7 @@ async function hydrateChoreographies(
     choreographyNumber: row.choreographyNumber,
     groupType: row.groupType,
     id: row.id,
+    isWithdrawn: row.withdrawnAt !== null,
     modalityId: row.modalityId,
     modalityName: row.modalityName,
     name: row.name,
@@ -381,6 +401,7 @@ function readChoreographyStatusFilter(
   switch (value) {
     case "completa":
     case "incompleta":
+    case withdrawnChoreographyStatusFilterValue:
       return value;
     default:
       return null;
@@ -490,10 +511,7 @@ function matchesChoreographyFacets(
   row: HydratedChoreographyRow,
   filters: ChoreographyListFilters,
 ) {
-  if (
-    filters.status !== null &&
-    row.operationalStatus.code !== CHOREOGRAPHY_STATUS_CODES[filters.status]
-  ) {
+  if (!matchesChoreographyStatus(row, filters.status)) {
     return false;
   }
 
@@ -508,6 +526,31 @@ function matchesChoreographyFacets(
   return (
     matchesChoreographyCategory(row.categoryId, filters.category) &&
     matchesChoreographyScheduleDate(row.scheduleDate, filters.scheduleDate)
+  );
+}
+
+/**
+ * The `Estado` group, which answers on two axes at once. Withdrawal comes
+ * first and is exclusive: `Retirada` gathers the withdrawn choreographies and
+ * nothing else, and every other answer —including no answer at all— is about
+ * what is taking part, so a withdrawn one never turns up under `Completa` or
+ * in the unfiltered list.
+ */
+function matchesChoreographyStatus(
+  row: HydratedChoreographyRow,
+  status: ChoreographyStatusFilter,
+) {
+  if (status === withdrawnChoreographyStatusFilterValue) {
+    return row.isWithdrawn;
+  }
+
+  if (row.isWithdrawn) {
+    return false;
+  }
+
+  return (
+    status === null ||
+    row.operationalStatus.code === CHOREOGRAPHY_STATUS_CODES[status]
   );
 }
 

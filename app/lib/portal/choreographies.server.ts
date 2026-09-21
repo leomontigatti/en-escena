@@ -25,11 +25,6 @@ export type PortalChoreographyDetail = PortalChoreographyListItem & {
   experienceLevelId: string | null;
   isEvaluated: boolean;
   /**
-   * A withdrawn choreography is not taking part, so the academy reads it and
-   * edits nothing on it, music included.
-   */
-  isWithdrawn: boolean;
-  /**
    * Whether the resolved category declares levels. The academy does not edit the
    * level, but it does need to tell "not applicable" from "missing": two kinds of
    * empty with opposite meanings.
@@ -66,6 +61,7 @@ type ChoreographyRow = {
   submodalityName: string | null;
   categoryName: string;
   categoryExperienceLevels: string[];
+  withdrawnAt: Date | null;
 };
 
 type ChoreographyDetailRow = ChoreographyRow & {
@@ -74,7 +70,6 @@ type ChoreographyDetailRow = ChoreographyRow & {
   scheduleDate: string;
   scheduleCapacityId: string | null;
   scheduleTime: string;
-  withdrawnAt: Date | null;
 };
 
 export async function listChoreographiesForAcademyEvent(
@@ -94,6 +89,7 @@ export async function listChoreographiesForAcademyEvent(
       submodalityName: submodalities.name,
       categoryName: categories.name,
       categoryExperienceLevels: categories.experienceLevels,
+      withdrawnAt: choreographies.withdrawnAt,
     })
     .from(choreographies)
     .innerJoin(modalities, eq(choreographies.modalityId, modalities.id))
@@ -200,7 +196,6 @@ export async function findChoreographyForAcademyEvent(
     categoryId: row.categoryId,
     experienceLevelId: row.experienceLevelId,
     isEvaluated,
-    isWithdrawn: row.withdrawnAt !== null,
     musicStorageKey: row.musicStorageKey,
     requiresExperienceLevel: row.categoryExperienceLevels.length > 0,
     scheduleCapacityId:
@@ -268,6 +263,7 @@ async function hydrateChoreographyRows(
     groupType: row.groupType,
     categoryName: row.categoryName,
     experienceLevelName: formatExperienceLevelName(row.experienceLevelId),
+    isWithdrawn: row.withdrawnAt !== null,
     musicStorageKey: row.musicStorageKey,
     operationalStatus: deriveChoreographyOperationalStatus({
       categoryExperienceLevels: row.categoryExperienceLevels,

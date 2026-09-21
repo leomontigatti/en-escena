@@ -303,6 +303,7 @@ function choreographyListItem(
     groupType: "solo" as const,
     categoryName: "Juvenil",
     experienceLevelName: "Inicial",
+    isWithdrawn: false,
     operationalStatus: {
       code: "complete" as const,
       pendingItems: [],
