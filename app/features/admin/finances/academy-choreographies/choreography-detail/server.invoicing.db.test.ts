@@ -8,6 +8,7 @@ import { describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import {
+  choreographies,
   choreographyDancers,
   comprobantes,
   paymentAllocations,
@@ -491,6 +492,50 @@ describe("financial detail — comprobante emission axis", () => {
       .where(eq(comprobantes.choreographyId, seeded.choreographyId));
     expect(stored).toHaveLength(1);
     expect(stored[0]).toMatchObject({ impTotal: 3000, cbteTipo: 11 });
+  });
+
+  // Invoicing what a withdrawn choreography still holds is the reason it
+  // survives at all, so the emission axis does not read the withdrawal.
+  test("emits for a withdrawn choreography, whose retained money is still billable", async () => {
+    const seeded = await seedChoreographyWithPaidInscription({
+      academyName: "Academia Retirada",
+      choreographyName: "Coreografía retirada",
+      email: "academia.retirada.factura@example.com",
+      paidAmount: 3000,
+    });
+    const withdrawnAt = new Date("2026-04-10T12:00:00Z");
+    await db
+      .update(choreographies)
+      .set({ withdrawnAt })
+      .where(eq(choreographies.id, seeded.choreographyId));
+    await db
+      .update(choreographyDancers)
+      .set({ withdrawnAt })
+      .where(eq(choreographyDancers.id, seeded.inscriptionId));
+
+    const request = await buildActionRequest({
+      ...seeded,
+      formData: {
+        intent: emitComprobanteIntent,
+        confirm: emitComprobanteConfirmValue,
+      },
+    });
+    const redirect = await handleChoreographyFinanceAction({
+      params: {
+        academyId: seeded.academyId,
+        choreographyId: seeded.choreographyId,
+      },
+      request,
+      resolveEmissionDeps: () => emissionDeps(fakeBilling()),
+    }).catch((thrown) => thrown);
+
+    expect((redirect as Response).status).toBe(302);
+    await expect(
+      db
+        .select()
+        .from(comprobantes)
+        .where(eq(comprobantes.choreographyId, seeded.choreographyId)),
+    ).resolves.toMatchObject([{ impTotal: 3000, cbteTipo: 11 }]);
   });
 
   test("surfaces ARCA contingency without persisting anything", async () => {
