@@ -19,6 +19,13 @@ export type Label = {
 
 const colourPattern = /^[0-9a-f]{6}$/i;
 
+// A name the reference scanner can read back. `check-labels.ts` reads a label
+// out of a `--label` flag or a prefixed family, and both stop at whitespace, so
+// a name holding a space would sit in this file and never be matched against
+// anything — the check would pass while the label went unguarded. Refusing the
+// name here is what keeps the two halves talking about the same strings.
+const namePattern = /^[A-Za-z0-9][\w:-]*$/;
+
 /**
  * Validate the file's shape. Groups only organise the file; the result is flat.
  */
@@ -39,25 +46,43 @@ export function parseLabelFile(json: unknown): {
     };
   }
 
-  const labels = Object.values(groups as Record<string, Label[]>).flat();
+  const entries = Object.values(groups as Record<string, unknown[]>).flat();
+  const labels: Label[] = [];
+  const problems: string[] = [];
   const seen = new Set<string>();
-  const problems = labels.flatMap((label) => {
-    const found: string[] = [];
+
+  entries.forEach((entry, index) => {
+    // An entry that is not an object, or whose name is unusable, is reported
+    // and dropped: everything below reads `name` to say which label it is
+    // about, so there is nothing useful left to say about this one.
+    const label = entry as Partial<Label> | null;
+    const position = `entry ${index + 1}`;
+
+    if (typeof label !== "object" || label === null) {
+      problems.push(`${position}: not a label object, got ${String(entry)}`);
+      return;
+    }
+    if (typeof label.name !== "string" || !namePattern.test(label.name)) {
+      problems.push(
+        `${position}: name must be a word of letters, digits, \`-\` and \`:\`, got ${JSON.stringify(label.name)}`,
+      );
+      return;
+    }
 
     if (!colourPattern.test(label.color ?? "")) {
-      found.push(
+      problems.push(
         `${label.name}: colour must be six hex digits without #, got ${label.color}`,
       );
     }
     if (!label.description?.trim()) {
-      found.push(`${label.name}: description is empty`);
+      problems.push(`${label.name}: description is empty`);
     }
     if (seen.has(label.name)) {
-      found.push(`${label.name}: listed more than once`);
+      problems.push(`${label.name}: listed more than once`);
     }
     seen.add(label.name);
 
-    return found;
+    labels.push(label as Label);
   });
 
   return { labels, problems };

@@ -17,7 +17,11 @@ import { collectSourceFiles } from "./source-files";
 // It reads the forms the repo actually uses rather than grepping for every
 // name, because `bug` and `chore` are English words all over the prose. A bare
 // label string in TypeScript that no form below matches is not seen; keep label
-// names in a prefixed family or behind a `--label` flag and it will be.
+// names in a prefixed family or behind a `--label` flag and it will be. In
+// markdown only the code — fenced or backticked — is read, for the reason
+// `keepOnlyMarkdownCode` gives. A value is one shell word, so `--label
+// "bug, chore"` (a space after the comma, which `gh` does not accept either) is
+// read as no label at all rather than as two.
 
 const scanned: { directory: string; keeps: RegExp }[] = [
   { directory: ".github/workflows", keeps: /\.ya?ml$/ },
@@ -60,14 +64,62 @@ export type LabelReference = {
   lineNumber: number;
 };
 
+/**
+ * Blank everything a markdown file says in prose, keeping its code — fenced
+ * blocks and inline spans — where it stands.
+ *
+ * Prose is not a command line, and the flag patterns above cannot tell the two
+ * apart: "pass `--label` when you need it" written without the backticks reads
+ * as the label `when`, and CI then fails a doc edit over a word in a sentence.
+ * Inside a code span the same text is a command, so the backtick the repo
+ * already puts around every label name and every `gh` line is the signal. Blanks
+ * are spaces, one per character, so offsets and line numbers still line up.
+ */
+function keepOnlyMarkdownCode(contents: string): string {
+  let insideFence = false;
+
+  return contents
+    .split("\n")
+    .map((line) => {
+      if (/^\s*(```|~~~)/.test(line)) {
+        insideFence = !insideFence;
+        return " ".repeat(line.length);
+      }
+      if (insideFence) {
+        return line;
+      }
+
+      let kept = "";
+      let index = 0;
+
+      while (index < line.length) {
+        const open = line.indexOf("`", index);
+        const close = open === -1 ? -1 : line.indexOf("`", open + 1);
+
+        if (close === -1) {
+          return kept + " ".repeat(line.length - index);
+        }
+        // The backticks themselves are blanked with the prose around them.
+        kept += `${" ".repeat(open - index + 1)}${line.slice(open + 1, close)} `;
+        index = close + 1;
+      }
+
+      return kept;
+    })
+    .join("\n");
+}
+
 export function findLabelReferencesInSource(input: {
   contents: string;
   filePath: string;
 }): LabelReference[] {
   const byOffset = new Map<number, string>();
+  const searched = input.filePath.endsWith(".md")
+    ? keepOnlyMarkdownCode(input.contents)
+    : input.contents;
 
   for (const pattern of referencePatterns) {
-    for (const match of input.contents.matchAll(pattern)) {
+    for (const match of searched.matchAll(pattern)) {
       let offset = match.indices?.[1]?.[0] ?? 0;
 
       for (const label of match[1].split(",")) {
@@ -84,7 +136,7 @@ export function findLabelReferencesInSource(input: {
     .map(([offset, label]) => ({
       filePath: input.filePath,
       label,
-      lineNumber: input.contents.slice(0, offset).split("\n").length,
+      lineNumber: searched.slice(0, offset).split("\n").length,
     }));
 }
 

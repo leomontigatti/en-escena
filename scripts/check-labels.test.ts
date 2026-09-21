@@ -59,6 +59,35 @@ describe("label references (#1116)", () => {
     ]);
   });
 
+  test("in markdown, reads the code and not the prose around it", () => {
+    const markdown = ".claude/skills/example/SKILL.md";
+    const read = (contents: string) =>
+      findLabelReferencesInSource({ contents, filePath: markdown }).map(
+        (reference) => reference.label,
+      );
+
+    // A sentence that mentions the flag is not a command: without this the word
+    // after it reads as a label and a doc edit fails CI over English.
+    expect(
+      read(`Use --label to filter, or pass --label when you need it.`),
+    ).toEqual([]);
+    expect(
+      read("Reconstruct state from `gh issue list --label agent:queued`."),
+    ).toEqual(["agent:queued"]);
+    expect(
+      read(
+        "Then run it:\n\n```bash\ngh issue edit 1 --add-label needs-triage\n```\n",
+      ),
+    ).toEqual(["needs-triage"]);
+    // Prose still reports the line the code sits on.
+    expect(
+      findLabelReferencesInSource({
+        contents: "Some prose about labels.\nThe run adds `agent:review` here.",
+        filePath: markdown,
+      }),
+    ).toEqual([{ filePath: markdown, label: "agent:review", lineNumber: 2 }]);
+  });
+
   // Each of these reads like a label to a naive grep and is not one.
   test("ignores variables, placeholders, families and pnpm scripts", () => {
     expect(labelsIn(`--add-label "$label"`)).toEqual([]);
@@ -119,6 +148,43 @@ describe("label file (#1116)", () => {
       "bug: colour must be six hex digits without #, got #d73a4a",
       "bug: description is empty",
       "bug: listed more than once",
+    ]);
+  });
+
+  // The file is read by a script that then calls `gh` with whatever it holds,
+  // so a malformed entry has to come back as a problem, not as a crash or as a
+  // label named `undefined`.
+  test("rejects an entry that is not a label, or has no usable name", () => {
+    expect(parseLabelFile({ groups: { a: [null] } })).toEqual({
+      labels: [],
+      problems: ["entry 1: not a label object, got null"],
+    });
+    expect(
+      parseLabelFile({
+        groups: { a: [{ color: "d73a4a", description: "No name" }] },
+      }).problems,
+    ).toEqual([
+      "entry 1: name must be a word of letters, digits, `-` and `:`, got undefined",
+    ]);
+  });
+
+  // `check-labels.ts` reads a label as one shell word, so a name holding a
+  // space could never be matched against the automation that uses it.
+  test("rejects a name the reference scanner could not read back", () => {
+    expect(
+      parseLabelFile({
+        groups: {
+          a: [
+            {
+              color: "7057ff",
+              description: "Good for newcomers",
+              name: "good first issue",
+            },
+          ],
+        },
+      }).problems,
+    ).toEqual([
+      'entry 1: name must be a word of letters, digits, `-` and `:`, got "good first issue"',
     ]);
   });
 
