@@ -544,12 +544,41 @@ describe("ChoreographyDetailRouteView", () => {
     ).toBe(true);
   });
 
+  // The dialog names the outcome before the admin confirms: the two are not
+  // the same act, and only one of them keeps the money where it is.
+  test("announces a withdrawal when the choreography holds money or comprobantes", async () => {
+    await renderDetailIntoDocument({
+      initialDeleteDialogOpen: true,
+      loaderData: buildLoaderData({
+        deletion: { blockers: [], canDelete: true, outcome: "withdrawn" },
+      }),
+    });
+
+    expect(document.body.textContent).toContain("Eliminar coreografía");
+    expect(document.body.textContent).toContain("queda retirada");
+    expect(document.body.textContent).toContain("No se mueve dinero");
+  });
+
+  test("announces an outright removal when there is nothing to preserve", async () => {
+    await renderDetailIntoDocument({
+      initialDeleteDialogOpen: true,
+      loaderData: buildLoaderData({
+        deletion: { blockers: [], canDelete: true, outcome: "deleted" },
+      }),
+    });
+
+    expect(document.body.textContent).toContain("Eliminar coreografía");
+    expect(document.body.textContent).toContain("se elimina por completo");
+    expect(document.body.textContent).not.toContain("queda retirada");
+  });
+
   test("opens a blocked delete dialog with concrete blocker reasons", async () => {
     await renderDetailIntoDocument({
       initialDeleteDialogOpen: true,
       loaderData: buildLoaderData({
         deletion: {
           canDelete: false,
+          outcome: "deleted",
           blockers: [
             {
               code: "evaluated-presentation",
@@ -682,6 +711,7 @@ function buildLoaderData(
     deletion: {
       canDelete: true,
       blockers: [],
+      outcome: "deleted",
     },
     experienceLevel: {
       canReassign: true,

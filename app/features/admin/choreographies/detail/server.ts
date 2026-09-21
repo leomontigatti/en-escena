@@ -9,7 +9,10 @@ import {
   requireAdminUser,
   requireInternalUser,
 } from "@/lib/auth/internal-access.server";
-import { removeChoreography } from "@/lib/choreographies/choreography-removal.server";
+import {
+  previewChoreographyRemovalOutcome,
+  removeChoreography,
+} from "@/lib/choreographies/choreography-removal.server";
 import { updateAdministrativeChoreographyRoster } from "@/lib/choreographies/choreography-roster-admin.server";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import {
@@ -68,6 +71,7 @@ import {
   type ChoreographyDeleteBlocker,
   type ChoreographyFieldUpdateErrorData,
   type ChoreographyModalityBlocker,
+  type ChoreographyRemovalPreview,
   type ChoreographyRosterErrorData,
   type ChoreographySuccessData,
 } from "./shared";
@@ -85,6 +89,7 @@ export type ChoreographyDetailLoaderData = {
   deletion: {
     blockers: ChoreographyDeleteBlocker[];
     canDelete: boolean;
+    outcome: ChoreographyRemovalPreview;
   };
   experienceLevel: {
     canReassign: boolean;
@@ -140,6 +145,7 @@ export async function loadChoreographyDetailRouteData(input: {
     scheduleCapacityOptions,
     modalityBlockers,
     modalityOptions,
+    removalOutcome,
   ] = await Promise.all([
     getChoreographyDeleteBlockers(choreography),
     listDancerOptionsForChoreography(
@@ -160,6 +166,7 @@ export async function loadChoreographyDetailRouteData(input: {
       eventId: selectedEventId,
     }),
     listChoreographyModalityOptions(selectedEventId),
+    previewChoreographyRemovalOutcome(choreographyId),
   ]);
   // Both alerts are chosen from what the price does to a destination, and no
   // longer from one blanket money read shared between them: the capacity one
@@ -179,6 +186,10 @@ export async function loadChoreographyDetailRouteData(input: {
     deletion: {
       blockers,
       canDelete: blockers.length === 0,
+      // What the dialog announces, and only that: the write re-decides under
+      // the choreography's row lock, so money landing between the render and
+      // the click still leads to a withdrawal.
+      outcome: removalOutcome,
     },
     experienceLevel: {
       // No blockers to list: the level is not a price key, so the only underlying

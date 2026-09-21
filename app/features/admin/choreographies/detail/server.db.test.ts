@@ -328,6 +328,7 @@ describe("administrative choreography detail server", () => {
     ]);
 
     await expect(loadDeleteBlockers(numbered.id)).resolves.toEqual([]);
+    await expect(loadRemovalOutcome(numbered.id)).resolves.toBe("deleted");
 
     const response = await submitDetailAction({
       body: deleteFormData(),
@@ -388,8 +389,9 @@ describe("administrative choreography detail server", () => {
     );
 
     // Nothing left to resolve before removing it: the comprobante is a reason
-    // to withdraw, not a blocker.
+    // to withdraw, not a blocker, and the dialog says so before the click.
     await expect(loadDeleteBlockers(invoiced.id)).resolves.toEqual([]);
+    await expect(loadRemovalOutcome(invoiced.id)).resolves.toBe("withdrawn");
 
     const response = await submitDetailAction({
       body: deleteFormData(),
@@ -468,6 +470,7 @@ describe("administrative choreography detail server", () => {
 
     // An unevaluated presentation refuses nothing.
     await expect(loadDeleteBlockers(withdrawing.id)).resolves.toEqual([]);
+    await expect(loadRemovalOutcome(withdrawing.id)).resolves.toBe("withdrawn");
 
     await submitDetailAction({
       body: deleteFormData(),
@@ -2445,6 +2448,21 @@ function submodalityFormData(submodalityId: string) {
   formData.set("intent", updateChoreographySubmodalityIntent);
   formData.set("submodalityId", submodalityId);
   return formData;
+}
+
+/**
+ * What the dialog would announce for this choreography: the loader reads the
+ * outcome so the admin knows before confirming whether it goes or survives as
+ * a withdrawn one.
+ */
+async function loadRemovalOutcome(choreographyId: string) {
+  const data = await loadDetail({
+    choreographyId,
+    email: `admin.coreografias.desenlace.${choreographyId}@example.com`,
+    role: "admin",
+  });
+
+  return data.deletion.outcome;
 }
 
 async function loadDeleteBlockers(choreographyId: string) {

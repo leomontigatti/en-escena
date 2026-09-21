@@ -472,7 +472,7 @@ function buildLoaderData(): ChoreographyDetailLoaderData {
       submodalityId: "submodality_1",
       submodalityName: "Lyrical",
     },
-    deletion: { canDelete: true, blockers: [] },
+    deletion: { canDelete: true, blockers: [], outcome: "deleted" },
     experienceLevel: { canReassign: true },
     modality: {
       blockers: [],

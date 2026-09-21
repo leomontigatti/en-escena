@@ -9,6 +9,7 @@ import { deleteChoreographyPresentation } from "@/lib/presentations/presentation
 import { findInscriptionsWithEvidence } from "./inscription-withdrawal.server";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type Executor = Transaction | typeof db;
 
 export type ChoreographyRemovalOutcome = "deleted" | "evaluated" | "withdrawn";
 
@@ -93,6 +94,25 @@ export async function removeChoreography(
 }
 
 /**
+ * The outcome the removal would produce right now, read without a lock and
+ * without writing: it is what the dialog announces so the admin knows before
+ * confirming whether the choreography goes or survives as a withdrawn one.
+ *
+ * It is advisory, and deliberately so. The write re-decides inside its own
+ * transaction, so an announced delete can still end in a withdrawal when money
+ * lands between the render and the click — never the other way round, which is
+ * the direction that would destroy something.
+ */
+export async function previewChoreographyRemovalOutcome(
+  choreographyId: string,
+  executor: Executor = db,
+): Promise<"deleted" | "withdrawn"> {
+  return (await hasEvidenceToPreserve(executor, choreographyId))
+    ? "withdrawn"
+    : "deleted";
+}
+
+/**
  * What makes the choreography worth keeping: allocated money or a comprobante,
  * on any of its inscriptions —active or already withdrawn— or on the
  * choreography itself, which a comprobante is anchored to. A comprobante is no
@@ -100,7 +120,7 @@ export async function removeChoreography(
  * reason to withdraw.
  */
 async function hasEvidenceToPreserve(
-  tx: Transaction,
+  tx: Executor,
   choreographyId: string,
 ): Promise<boolean> {
   const [inscriptions, hasComprobantes] = await Promise.all([

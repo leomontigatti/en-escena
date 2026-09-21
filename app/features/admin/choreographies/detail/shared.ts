@@ -238,3 +238,36 @@ export type ChoreographyDeleteBlocker = {
   code: ChoreographyDeleteBlockerCode;
   label: string;
 };
+
+/**
+ * Which of the two outcomes the removal will produce, as the loader read it.
+ * It is advisory: the write re-decides under the choreography's row lock, so a
+ * dialog that announced a delete can still end in a withdrawal.
+ */
+export type ChoreographyRemovalPreview = "deleted" | "withdrawn";
+
+/**
+ * The dialog names the outcome before the admin confirms, because the two are
+ * not the same act: one leaves nothing behind, the other keeps the choreography
+ * with its money exactly where it was allocated.
+ *
+ * An unevaluated presentation does not block either outcome — it is deleted
+ * with the choreography — so the number is named as a consequence and not as a
+ * reason to stop. The gap it leaves stays: every other number is what the
+ * academies were told.
+ */
+export function formatChoreographyRemovalDescription(input: {
+  outcome: ChoreographyRemovalPreview;
+  presentationOrderNumber: number | null;
+}) {
+  const base =
+    input.outcome === "withdrawn"
+      ? "Tiene dinero asignado o comprobantes emitidos, así que no se elimina: queda retirada. No se mueve dinero y libera el cupo de cronograma."
+      : "No tiene dinero asignado ni comprobantes, así que se elimina por completo y no queda nada. Libera el cupo de cronograma.";
+
+  if (input.presentationOrderNumber === null) {
+    return base;
+  }
+
+  return `${base} Tiene la presentación n.º ${input.presentationOrderNumber}; se quitará del orden.`;
+}
