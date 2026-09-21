@@ -26,6 +26,10 @@ Read the repo's domain/architecture docs and ADRs before proposing: `CONTEXT.md`
 `docs/agents/domain.md`, and `.sandcastle/CODING_STANDARDS.md`. Treat recorded decisions (the
 ADRs) as **binding** — do not propose anything that contradicts one.
 
+Call the Skill tool with "codebase-design" before exploring: it is the vocabulary (module,
+interface, depth, seam, leverage, locality) the candidates are judged and the PRD is written in.
+When a candidate is a glossary alignment, call it with "domain-modeling" too.
+
 Prior `source:architecture-review` proposals (do not re-propose these):
 
 <prior-proposals>
@@ -79,8 +83,9 @@ reducer, schema, type shape), trimmed to the decision-rich parts.
 
 ## Testing Decisions
 
-What makes a good test here (external behaviour, not implementation details); which modules will
-be tested; prior art (similar tests in the codebase).
+What makes a good test here (external behaviour, not implementation details); the **test seams**
+(the public interfaces each module is tested through), since the implement agent tests at these
+and has nobody to confirm them with; prior art (similar tests in the codebase).
 
 ## Out of Scope
 

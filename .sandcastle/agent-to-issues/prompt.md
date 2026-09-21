@@ -42,6 +42,13 @@ layer (schema → API → UI → tests), not a horizontal slice of one layer.
 - **List order is execution order.** Order so dependencies are satisfied (if B builds on A's
   schema, A comes first).
 - Each slice must be completable in a single agent session.
+- **Name each slice's test seams**: the public interfaces its behaviour is tested through (a
+  service function, a route's loader or action, a pure state module), taken from the PRD's
+  **Testing Decisions** where it names them. The implement agent tests at these and nowhere else,
+  and nobody is there to confirm a guess. When where a seam belongs is itself unclear, call the
+  Skill tool with "codebase-design".
+- Use the vocabulary of `CONTEXT.md` in titles and bodies; when a slice would coin or rename a
+  domain term, call the Skill tool with "domain-modeling".
 
 When the breakdown is drafted, output the literal completion signal on its own line to end this
 pass:
@@ -65,7 +72,7 @@ schema:
   "slices": [
     {
       "title": "short imperative title (no feat:/fix: prefix)",
-      "whatToBuild": "1-3 short paragraphs on end-to-end behaviour. Prose, no file paths. Separate paragraphs with a blank line.",
+      "whatToBuild": "1-3 short paragraphs on end-to-end behaviour, then a last paragraph starting 'Test seams:' naming the interfaces to test through. Prose, no file paths. Separate paragraphs with a blank line.",
       "acceptanceCriteria": ["checkable outcome 1", "checkable outcome 2", "Tests cover the new behaviour"]
     }
   ]
