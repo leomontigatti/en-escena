@@ -51,15 +51,7 @@ export function useDataTableUrlState({
 }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const navigation = useOptionalNavigation();
-  // The address bar only moves once the loader answers, so while a navigation
-  // within the list is in flight the search is read from where it is heading:
-  // clearing a search still on its way has to cancel it, not lose to it.
-  const headingSearch =
-    "location" in navigation &&
-    navigation.location?.pathname === location.pathname
-      ? navigation.location.search
-      : location.search;
+  const headingSearch = useDataTableHeadingSearch();
   const headingHref = `${location.pathname}${headingSearch}`;
 
   const replaceHref = (nextHref: string) => {
@@ -126,6 +118,23 @@ export function useDataTableUrlState({
       );
     },
   };
+}
+
+/**
+ * The query string a list is heading to. The address bar only moves once the
+ * loader answers, so while a navigation within the list is in flight its query
+ * string is the one the next change has to be compared against and built on:
+ * clearing a search still on its way has to cancel it, not lose to it, and a
+ * search typed over a filter still on its way has to keep that filter.
+ */
+export function useDataTableHeadingSearch() {
+  const location = useLocation();
+  const navigation = useOptionalNavigation();
+
+  return "location" in navigation &&
+    navigation.location?.pathname === location.pathname
+    ? navigation.location.search
+    : location.search;
 }
 
 /**

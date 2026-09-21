@@ -812,6 +812,25 @@ describe("ServerDataTable search behind a real loader", () => {
     expect(getSearchInput().value).toBe("");
     expect(router.state.location.search).toBe("");
   });
+  test("keeps a filter whose loader has not answered yet when a search follows it", async () => {
+    const router = createLoaderBackedServerListRouter(
+      "/administracion/profesores",
+    );
+    await renderer.renderAsync(<RouterProvider router={router} />);
+    await advanceTimers(serverLoaderDelayMs);
+
+    await act(async () => {
+      void router.navigate("/administracion/profesores?estado=archived");
+      await Promise.resolve();
+    });
+
+    // The loader is still answering the filter when the reader searches.
+    await typeSearch("mar");
+    await advanceSearchDebounce();
+    await advanceTimers(serverLoaderDelayMs * 2);
+
+    expect(router.state.location.search).toBe("?estado=archived&busqueda=mar");
+  });
 });
 
 describe("ClientDataTable search behind a real loader", () => {
