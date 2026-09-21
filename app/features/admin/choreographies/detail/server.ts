@@ -13,6 +13,7 @@ import {
   previewChoreographyRemovalOutcome,
   removeChoreography,
 } from "@/lib/choreographies/choreography-removal.server";
+import { restoreChoreography } from "@/lib/choreographies/choreography-restoration.server";
 import { updateAdministrativeChoreographyRoster } from "@/lib/choreographies/choreography-roster-admin.server";
 import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
 import {
@@ -55,6 +56,9 @@ import {
   canCorrectChoreographyModality,
   canReassignExperienceLevel,
   canReassignScheduleCapacity,
+  canRestoreChoreography,
+  choreographyRestoredSuccess,
+  restoreChoreographyIntent,
   choreographyFieldNames,
   deleteChoreographyIntent,
   modalityFieldNames,
@@ -98,6 +102,9 @@ export type ChoreographyDetailLoaderData = {
     blockers: ChoreographyModalityBlocker[];
     canCorrect: boolean;
     options: ChoreographyModalityOption[];
+  };
+  restoration: {
+    canRestore: boolean;
   };
   scheduleCapacity: ChoreographyScheduleCapacityReassignment;
   selectedEventId: string | null;
@@ -212,6 +219,14 @@ export async function loadChoreographyDetailRouteData(input: {
       }),
       options: modalityOptions,
     },
+    restoration: {
+      // The only action a withdrawn choreography still offers. Everything else
+      // on the page is read-only while the stamp is there.
+      canRestore: canRestoreChoreography({
+        canEdit,
+        isWithdrawn: choreography.isWithdrawn,
+      }),
+    },
     scheduleCapacity: {
       // The reasons go to the view even when the field is already closed by
       // another cause: the page's alert lists them for the auditor too.
@@ -305,6 +320,10 @@ export async function handleChoreographyDetailAction(input: {
         ? "coreografia-retirada"
         : "coreografia-eliminada",
     );
+  }
+
+  if (intent === restoreChoreographyIntent) {
+    return await restoreChoreographyAction(choreography);
   }
 
   if (intent === resolveChoreographyRosterIntent) {
@@ -505,6 +524,28 @@ async function deleteChoreography(choreography: ChoreographyDetail) {
   }
 
   return outcome;
+}
+
+/**
+ * Restoring answers in place: on success the loader revalidates and the page the
+ * admin is already on stops being read-only, so there is nothing to redirect to.
+ * A refusal —the capacity filled up while the choreography was out, or the
+ * capacity it pointed at was deleted— comes back as a plain `error` so the reason
+ * actually reaches the page instead of being swallowed.
+ */
+async function restoreChoreographyAction(
+  choreography: ChoreographyDetail,
+): Promise<ChoreographyFieldUpdateErrorData | ChoreographySuccessData> {
+  const result = await restoreChoreography(choreography.id);
+
+  if (!result.ok) {
+    return {
+      message: result.error,
+      status: "error",
+    };
+  }
+
+  return choreographyRestoredSuccess();
 }
 
 function evaluatedPresentationResponse() {

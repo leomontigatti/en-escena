@@ -22,6 +22,7 @@ export const notificationToastIds = {
   "coreografia-guardada": "route-notification:coreografia-guardada",
   "coreografia-eliminada": "route-notification:coreografia-eliminada",
   "coreografia-retirada": "route-notification:coreografia-retirada",
+  "coreografia-restaurada": "route-notification:coreografia-restaurada",
   "user-form-error": "route-notification:user-form-error",
   "evento-activado": "route-notification:evento-activado",
   "evento-desactivado": "route-notification:evento-desactivado",
@@ -135,6 +136,11 @@ export const notificationToasts = {
   "coreografia-retirada": {
     id: notificationToastIds["coreografia-retirada"],
     message: "Coreografía retirada. Su dinero sigue asignado.",
+    variant: "success",
+  },
+  "coreografia-restaurada": {
+    id: notificationToastIds["coreografia-restaurada"],
+    message: "Coreografía restaurada.",
     variant: "success",
   },
   "evento-activado": {

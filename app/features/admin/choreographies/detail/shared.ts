@@ -3,6 +3,7 @@ import { notificationToasts } from "@/lib/shared/notification-toasts";
 
 export const renameChoreographyIntent = "rename-choreography";
 export const deleteChoreographyIntent = "delete-choreography";
+export const restoreChoreographyIntent = "restore-choreography";
 export const resolveChoreographyRosterIntent = "resolve-roster";
 export const updateChoreographyRosterIntent = "update-roster";
 export const updateChoreographySubmodalityIntent = "update-submodality";
@@ -100,6 +101,27 @@ export type ChoreographySuccessData = {
 export function choreographySavedSuccess(): ChoreographySuccessData {
   return {
     message: notificationToasts["coreografia-guardada"].message,
+    status: "success",
+  };
+}
+
+/**
+ * Restoring is the one thing a withdrawn choreography still accepts, and it is
+ * an administrative correction: `admin` only, and only while the choreography is
+ * actually withdrawn. The auditor sees the state and never undoes it.
+ */
+export function canRestoreChoreography(input: {
+  canEdit: boolean;
+  isWithdrawn: boolean;
+}) {
+  return input.canEdit && input.isWithdrawn;
+}
+
+// Restoring reports back in place, like every other correction on the detail:
+// the choreography is still the page the admin is on, only no longer withdrawn.
+export function choreographyRestoredSuccess(): ChoreographySuccessData {
+  return {
+    message: notificationToasts["coreografia-restaurada"].message,
     status: "success",
   };
 }
@@ -245,6 +267,15 @@ export type ChoreographyDeleteBlocker = {
  * dialog that announced a delete can still end in a withdrawal.
  */
 export type ChoreographyRemovalPreview = "deleted" | "withdrawn";
+
+/**
+ * What restoring does, said before the admin confirms: it is the withdrawal
+ * undone, not a re-registration. The place in the schedule is the one thing that
+ * may refuse it, and it is asked for again at the click, so the dialog announces
+ * it as a condition rather than as a certainty.
+ */
+export const restoreChoreographyDescription =
+  "Vuelve a la lista con las inscripciones que tenía al retirarse y ocupa de nuevo su cupo de cronograma. Los bailarines dados de baja antes del retiro siguen de baja.";
 
 /**
  * The dialog names the outcome before the admin confirms, because the two are

@@ -641,9 +641,32 @@ describe("ChoreographyDetailRouteView", () => {
     ]);
   });
 
+  // The two actions are mutually exclusive: a withdrawn choreography is not
+  // removed again, and the only thing it still accepts is coming back.
+  test("offers restoring instead of removing while the choreography is withdrawn", async () => {
+    await renderDetailIntoDocument({
+      loaderData: buildLoaderData({
+        choreography: buildChoreography({ isWithdrawn: true }),
+        restoration: { canRestore: true },
+      }),
+    });
+
+    await openActionsMenu();
+    expect(document.body.textContent).toContain("Restaurar coreografía");
+    expect(document.body.textContent).not.toContain("Eliminar coreografía");
+
+    await clickMenuItem("Restaurar coreografía");
+
+    expect(document.body.textContent).toContain(
+      "Vuelve a la lista con las inscripciones que tenía al retirarse",
+    );
+    expect(document.body.textContent).toContain("siguen de baja");
+  });
+
   async function renderDetailIntoDocument(
     input: Partial<DetailViewProps> & {
       initialDeleteDialogOpen?: boolean;
+      initialRestoreDialogOpen?: boolean;
       rosterResolution?: ChoreographyRosterResolutionData;
     } = {},
   ) {
@@ -657,6 +680,7 @@ describe("ChoreographyDetailRouteView", () => {
             <ChoreographyDetailRouteView
               actionData={input.actionData}
               initialDeleteDialogOpen={input.initialDeleteDialogOpen}
+              initialRestoreDialogOpen={input.initialRestoreDialogOpen}
               loaderData={loaderData}
             />
           ),
@@ -715,6 +739,9 @@ function buildLoaderData(
     },
     experienceLevel: {
       canReassign: true,
+    },
+    restoration: {
+      canRestore: false,
     },
     modality: {
       blockers: [],
@@ -851,6 +878,7 @@ function buildChoreography(
     ],
     groupType: "solo",
     isEvaluated: false,
+    isWithdrawn: false,
     id: "choreo_1",
     presentationOrderNumber: null,
     modalityId: "modality_1",

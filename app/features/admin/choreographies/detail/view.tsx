@@ -1,4 +1,4 @@
-import { Check, Trash2 } from "lucide-react";
+import { Check, RotateCcw, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useSubmit } from "react-router";
 
@@ -48,6 +48,8 @@ import { getWithdrawnDancers } from "./roster-form-state";
 import {
   deleteChoreographyIntent,
   formatChoreographyRemovalDescription,
+  restoreChoreographyDescription,
+  restoreChoreographyIntent,
   updateChoreographyRosterIntent,
   type ChoreographyDeleteBlocker,
   type ChoreographyViewActionData,
@@ -59,12 +61,14 @@ import type { ChoreographyDetailLoaderData } from "./server";
 type ChoreographyDetailRouteViewProps = {
   actionData?: ChoreographyViewActionData;
   initialDeleteDialogOpen?: boolean;
+  initialRestoreDialogOpen?: boolean;
   loaderData: ChoreographyDetailLoaderData;
 };
 
 export function ChoreographyDetailRouteView({
   actionData,
   initialDeleteDialogOpen = false,
+  initialRestoreDialogOpen = false,
   loaderData,
 }: ChoreographyDetailRouteViewProps) {
   const errorData = actionData?.status === "error" ? actionData : undefined;
@@ -80,6 +84,9 @@ export function ChoreographyDetailRouteView({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(
     initialDeleteDialogOpen,
   );
+  const [isRestoreDialogOpen, setIsRestoreDialogOpen] = useState(
+    initialRestoreDialogOpen,
+  );
 
   return (
     <AdminResourceLayout
@@ -91,51 +98,165 @@ export function ChoreographyDetailRouteView({
       description="Revisá la coreografía registrada para el evento activo."
       headerAction={
         loaderData.canEdit ? (
-          <ResourceActionsMenu contentClassName="w-52">
-            <DropdownMenuGroup>
-              <DropdownMenuItem
-                variant="destructive"
-                onSelect={(event) => {
-                  event.preventDefault();
-                  setIsDeleteDialogOpen(true);
-                }}
-              >
-                <Trash2 aria-hidden="true" />
-                Eliminar coreografía
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-          </ResourceActionsMenu>
+          <ChoreographyDetailActionsMenu
+            canRestore={loaderData.restoration.canRestore}
+            onDelete={() => setIsDeleteDialogOpen(true)}
+            onRestore={() => setIsRestoreDialogOpen(true)}
+          />
         ) : null
       }
     >
       <ChoreographyDetailForm actionData={actionData} loaderData={loaderData} />
 
-      {loaderData.canEdit ? (
-        <DeleteDialog
-          blockedDescription={
-            loaderData.deletion.canDelete ? undefined : (
-              <BlockedDeleteReasons blockers={loaderData.deletion.blockers} />
-            )
-          }
-          blockedTitle="No se puede eliminar esta coreografía"
-          description={
-            loaderData.deletion.canDelete
-              ? formatChoreographyRemovalDescription({
-                  outcome: loaderData.deletion.outcome,
-                  presentationOrderNumber:
-                    loaderData.choreography.presentationOrderNumber,
-                })
-              : "Su presentación ya fue evaluada, así que no puede eliminarse ni retirarse."
-          }
-          intentValue={deleteChoreographyIntent}
-          isBlocked={!loaderData.deletion.canDelete}
+      {loaderData.restoration.canRestore ? (
+        <RestoreChoreographyDialog
+          choreographyId={loaderData.choreography.id}
+          onOpenChange={setIsRestoreDialogOpen}
+          open={isRestoreDialogOpen}
+        />
+      ) : null}
+
+      {loaderData.canEdit && !loaderData.restoration.canRestore ? (
+        <ChoreographyRemovalDialog
+          loaderData={loaderData}
           onOpenChange={setIsDeleteDialogOpen}
           open={isDeleteDialogOpen}
-          recordId={loaderData.choreography.id}
-          title="Eliminar coreografía"
         />
       ) : null}
     </AdminResourceLayout>
+  );
+}
+
+/**
+ * The header offers one of the two removal-axis actions, never both: a withdrawn
+ * choreography is not removed again —there is no second outcome left for it— and
+ * one that is taking part has nothing to restore.
+ */
+function ChoreographyDetailActionsMenu({
+  canRestore,
+  onDelete,
+  onRestore,
+}: {
+  canRestore: boolean;
+  onDelete: () => void;
+  onRestore: () => void;
+}) {
+  return (
+    <ResourceActionsMenu contentClassName="w-52">
+      <DropdownMenuGroup>
+        {canRestore ? (
+          <DropdownMenuItem
+            onSelect={(event) => {
+              event.preventDefault();
+              onRestore();
+            }}
+          >
+            <RotateCcw aria-hidden="true" />
+            Restaurar coreografía
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem
+            variant="destructive"
+            onSelect={(event) => {
+              event.preventDefault();
+              onDelete();
+            }}
+          >
+            <Trash2 aria-hidden="true" />
+            Eliminar coreografía
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuGroup>
+    </ResourceActionsMenu>
+  );
+}
+
+/**
+ * `Eliminar coreografía` is one action with two outcomes, and the dialog names
+ * the one that will happen before the admin confirms. The evaluated presentation
+ * is the only thing that blocks it, and then the dialog explains itself instead
+ * of offering the button.
+ */
+function ChoreographyRemovalDialog({
+  loaderData,
+  onOpenChange,
+  open,
+}: {
+  loaderData: ChoreographyDetailLoaderData;
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
+}) {
+  return (
+    <DeleteDialog
+      blockedDescription={
+        loaderData.deletion.canDelete ? undefined : (
+          <BlockedDeleteReasons blockers={loaderData.deletion.blockers} />
+        )
+      }
+      blockedTitle="No se puede eliminar esta coreografía"
+      description={
+        loaderData.deletion.canDelete
+          ? formatChoreographyRemovalDescription({
+              outcome: loaderData.deletion.outcome,
+              presentationOrderNumber:
+                loaderData.choreography.presentationOrderNumber,
+            })
+          : "Su presentación ya fue evaluada, así que no puede eliminarse ni retirarse."
+      }
+      intentValue={deleteChoreographyIntent}
+      isBlocked={!loaderData.deletion.canDelete}
+      onOpenChange={onOpenChange}
+      open={open}
+      recordId={loaderData.choreography.id}
+      title="Eliminar coreografía"
+    />
+  );
+}
+
+/**
+ * `Restaurar coreografía` is confirmed like every other correction that changes
+ * what the lists show, and it is submitted as an ordinary intent: the place in
+ * the schedule is asked for again on the server, so the refusal it may bring
+ * back arrives by toast rather than being predicted here.
+ */
+function RestoreChoreographyDialog({
+  choreographyId,
+  onOpenChange,
+  open,
+}: {
+  choreographyId: string;
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
+}) {
+  const submit = useSubmit();
+
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Restaurar coreografía</AlertDialogTitle>
+          <AlertDialogDescription>
+            {restoreChoreographyDescription}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => {
+              onOpenChange(false);
+
+              const formData = new FormData();
+              formData.set("intent", restoreChoreographyIntent);
+              formData.set("recordId", choreographyId);
+
+              void submit(formData, { method: "post" });
+            }}
+          >
+            Restaurar coreografía
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
