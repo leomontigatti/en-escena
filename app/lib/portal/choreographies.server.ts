@@ -25,6 +25,11 @@ export type PortalChoreographyDetail = PortalChoreographyListItem & {
   experienceLevelId: string | null;
   isEvaluated: boolean;
   /**
+   * A withdrawn choreography is not taking part, so the academy reads it and
+   * edits nothing on it, music included.
+   */
+  isWithdrawn: boolean;
+  /**
    * Whether the resolved category declares levels. The academy does not edit the
    * level, but it does need to tell "not applicable" from "missing": two kinds of
    * empty with opposite meanings.
@@ -69,6 +74,7 @@ type ChoreographyDetailRow = ChoreographyRow & {
   scheduleDate: string;
   scheduleCapacityId: string | null;
   scheduleTime: string;
+  withdrawnAt: Date | null;
 };
 
 export async function listChoreographiesForAcademyEvent(
@@ -127,6 +133,7 @@ export async function findChoreographyForAcademyEvent(
       scheduleDate: schedules.scheduledDate,
       scheduleCapacityId: scheduleCapacities.id,
       scheduleTime: schedules.startTime,
+      withdrawnAt: choreographies.withdrawnAt,
     })
     .from(choreographies)
     .innerJoin(modalities, eq(choreographies.modalityId, modalities.id))
@@ -193,6 +200,7 @@ export async function findChoreographyForAcademyEvent(
     categoryId: row.categoryId,
     experienceLevelId: row.experienceLevelId,
     isEvaluated,
+    isWithdrawn: row.withdrawnAt !== null,
     musicStorageKey: row.musicStorageKey,
     requiresExperienceLevel: row.categoryExperienceLevels.length > 0,
     scheduleCapacityId:

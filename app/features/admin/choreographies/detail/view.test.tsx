@@ -120,6 +120,29 @@ describe("ChoreographyDetailRouteView", () => {
     expect(markup).not.toContain("Eliminar coreografía");
   });
 
+  // The withdrawal closes the page, not the role: the fields read like an
+  // auditor's, and the one action left is offered all the same.
+  test("renders every field read-only while the choreography is withdrawn", () => {
+    const markup = renderDetail({
+      loaderData: buildLoaderData({
+        canEdit: false,
+        choreography: buildChoreography({ isWithdrawn: true }),
+        experienceLevel: { canReassign: false },
+        modality: { blockers: [], canCorrect: false, options: [] },
+        restoration: { canRestore: true },
+        scheduleCapacity: { blockers: [], canReassign: false, options: [] },
+      }),
+    });
+
+    expect(markup).not.toContain("Guardar");
+    expect(markup).not.toContain('name="submodalityId"');
+    expect(markup).not.toContain('name="assignedScheduleCapacityId"');
+    expect(markup).not.toContain('name="modalityId"');
+    expect(markup).not.toContain("Buscar bailarines");
+    expect(markup).not.toContain("Buscar profesores");
+    expect(markup).not.toContain("Eliminar coreografía");
+  });
+
   test("renders an editable submodality select for admins", () => {
     const markup = renderDetail({ loaderData: buildLoaderData() });
 

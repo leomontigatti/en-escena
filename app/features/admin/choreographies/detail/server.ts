@@ -117,6 +117,31 @@ const renameChoreographySchema = z.object({
 
 const unsupportedActionMessage = "Acción no soportada.";
 
+const withdrawnChoreographyIsReadOnlyMessage =
+  "Esta coreografía está retirada: restaurala para poder editarla.";
+
+/**
+ * The hidden controls are not the rule: a withdrawn choreography accepts
+ * nothing but being restored, whoever posts to it. Its money is handled from
+ * the finance surfaces, which write against the inscriptions and not here.
+ */
+function assertChoreographyAcceptsIntent(input: {
+  choreography: ChoreographyDetail;
+  intent: FormDataEntryValue | null;
+}) {
+  if (!input.choreography.isWithdrawn) {
+    return;
+  }
+
+  if (input.intent === restoreChoreographyIntent) {
+    return;
+  }
+
+  throw new Response(withdrawnChoreographyIsReadOnlyMessage, {
+    status: 403,
+  });
+}
+
 export async function loadChoreographyDetailRouteData(input: {
   request: Request;
   params: { choreographyId?: string };
@@ -143,7 +168,12 @@ export async function loadChoreographyDetailRouteData(input: {
     });
   }
 
-  const canEdit = user.role === "admin";
+  // Two different questions on a withdrawn choreography: who the user is, and
+  // whether the choreography accepts edits at all. `canEdit` answers the second,
+  // so every field the view gates on it goes read-only while the stamp is there;
+  // restoring is asked of the first, because it is the one action left.
+  const isAdmin = user.role === "admin";
+  const canEdit = isAdmin && !choreography.isWithdrawn;
   const [
     blockers,
     availableDancers,
@@ -223,7 +253,7 @@ export async function loadChoreographyDetailRouteData(input: {
       // The only action a withdrawn choreography still offers. Everything else
       // on the page is read-only while the stamp is there.
       canRestore: canRestoreChoreography({
-        canEdit,
+        isAdmin,
         isWithdrawn: choreography.isWithdrawn,
       }),
     },
@@ -304,6 +334,8 @@ export async function handleChoreographyDetailAction(input: {
 
   const formData = await input.request.formData();
   const intent = formData.get("intent");
+
+  assertChoreographyAcceptsIntent({ choreography, intent });
 
   if (intent === renameChoreographyIntent) {
     return await renameChoreography({

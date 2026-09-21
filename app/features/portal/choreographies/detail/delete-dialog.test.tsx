@@ -89,6 +89,7 @@ function buildLoaderData(
         },
       ],
       isEvaluated: false,
+      isWithdrawn: false,
     },
     eventContext: {
       selectedEvent: eventSummary,

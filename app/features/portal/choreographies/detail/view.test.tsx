@@ -108,6 +108,23 @@ describe("PortalChoreographyDetailRouteView", () => {
     expect(markup).not.toContain("Eliminar coreografía");
   });
 
+  // The academy sees a withdrawn choreography and edits nothing on it, music
+  // included: only an administrator brings it back.
+  test("keeps the music field disabled while the choreography is withdrawn", () => {
+    const withdrawn = renderChoreographyDetail({
+      loaderData: choreographyDetailLoaderData({
+        choreography: choreographyDetailRow({ isWithdrawn: true }),
+      }),
+    });
+    const takingPart = renderChoreographyDetail();
+
+    // A disabled upload hides the actions on the stored file, so the choreography
+    // that is taking part is the one offering them.
+    expect(takingPart).toContain("Borrar música");
+    expect(withdrawn).not.toContain("Borrar música");
+    expect(withdrawn).toContain("Archivo de música");
+  });
+
   test("does not expose academy deletion from the portal detail", () => {
     const markup = renderChoreographyDetail({
       loaderData: choreographyDetailLoaderData({
@@ -193,6 +210,7 @@ function choreographyDetailRow(
     ],
     professors: [],
     isEvaluated: false,
+    isWithdrawn: false,
     ...overrides,
   };
 }

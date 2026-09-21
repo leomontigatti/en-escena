@@ -25,6 +25,7 @@ import {
   renameChoreographyIntent,
   restoreChoreographyIntent,
   updateChoreographyExperienceLevelIntent,
+  updateChoreographyRosterIntent,
   updateChoreographyScheduleCapacityIntent,
   updateChoreographySubmodalityIntent,
 } from "@/features/admin/choreographies/detail/shared";
@@ -2506,6 +2507,105 @@ describe("administrative choreography detail server", () => {
         "Esta coreografía no está retirada, así que no hay nada que restaurar.",
       status: "error",
     });
+  });
+
+  // A withdrawn choreography is not taking part, so nothing about it is edited
+  // while the stamp is there. The hidden controls are not the rule: every write
+  // is refused on the server, and only restoring gets through.
+  test("refuses every write but the restore while the choreography is withdrawn", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Solo Lectura",
+      email: "admin.coreografias.retirada.solo-lectura.academia@example.com",
+    });
+    const event = await createEventRecord({
+      active: true,
+      name: "Regional 2026",
+    });
+    const catalog = await createEventCatalog(event.id);
+    const withdrawn = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      name: "Retirada",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+    const funded = await createSelectedPriceInscriptionForTest({
+      academyId: owner.academyId,
+      allocatedAmount: 4000,
+      choreographyId: withdrawn.id,
+      eventId: event.id,
+    });
+
+    await submitDetailAction({
+      body: deleteFormData(),
+      choreographyId: withdrawn.id,
+      email: "admin.coreografias.retirada.solo-lectura.retiro@example.com",
+      role: "admin",
+    });
+
+    const detail = await loadDetail({
+      choreographyId: withdrawn.id,
+      email: "admin.coreografias.retirada.solo-lectura.detalle@example.com",
+      role: "admin",
+    });
+    expect(detail.canEdit).toBe(false);
+    expect(detail.modality.canCorrect).toBe(false);
+    expect(detail.experienceLevel.canReassign).toBe(false);
+    expect(detail.scheduleCapacity.canReassign).toBe(false);
+    // The one action left, and it is an administrator's: the page is read-only
+    // around it, not closed.
+    expect(detail.restoration.canRestore).toBe(true);
+
+    const rosterFormData = new FormData();
+    rosterFormData.set("intent", updateChoreographyRosterIntent);
+    rosterFormData.set("name", "Retirada");
+    rosterFormData.append("dancerIds", funded.dancerId);
+    rosterFormData.set("experienceLevelId", catalog.level.id);
+    rosterFormData.set("scheduleCapacityId", catalog.scheduleCapacity.id);
+
+    const refusedWrites: Array<[string, FormData]> = [
+      ["rename", renameFormData("Nombre nuevo")],
+      ["roster", rosterFormData],
+      ["submodality", submodalityFormData(catalog.submodality.id)],
+      [
+        "schedule-capacity",
+        scheduleCapacityFormData(catalog.scheduleCapacity.id),
+      ],
+      ["experience-level", experienceLevelFormData(catalog.level.id)],
+      // A withdrawn choreography is never removed again: there is no second
+      // outcome left for it.
+      ["delete", deleteFormData()],
+    ];
+
+    for (const [label, body] of refusedWrites) {
+      await expectThrownResponse(
+        submitDetailAction({
+          body,
+          choreographyId: withdrawn.id,
+          email: `admin.coreografias.retirada.solo-lectura.${label}@example.com`,
+          role: "admin",
+        }),
+        403,
+      );
+    }
+
+    // Nothing moved: not the name the rename aimed at, not the roster, and not
+    // the withdrawal itself.
+    await expect(
+      db.query.choreographies.findFirst({
+        columns: { name: true },
+        where: eq(choreographies.id, withdrawn.id),
+      }),
+    ).resolves.toEqual({ name: "Retirada" });
+    await expect(
+      db.query.choreographyDancers.findFirst({
+        columns: { withdrawnAt: true },
+        where: eq(choreographyDancers.id, funded.id),
+      }),
+    ).resolves.toMatchObject({ withdrawnAt: expect.any(Date) });
   });
 });
 

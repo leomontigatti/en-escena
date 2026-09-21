@@ -97,7 +97,9 @@ export function ChoreographyDetailRouteView({
       )}`}
       description="Revisá la coreografía registrada para el evento activo."
       headerAction={
-        loaderData.canEdit ? (
+        // The menu survives the withdrawal even though `canEdit` does not: it
+        // is where `Restaurar coreografía` lives, the one action left.
+        loaderData.canEdit || loaderData.restoration.canRestore ? (
           <ChoreographyDetailActionsMenu
             canRestore={loaderData.restoration.canRestore}
             onDelete={() => setIsDeleteDialogOpen(true)}

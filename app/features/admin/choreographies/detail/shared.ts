@@ -109,12 +109,15 @@ export function choreographySavedSuccess(): ChoreographySuccessData {
  * Restoring is the one thing a withdrawn choreography still accepts, and it is
  * an administrative correction: `admin` only, and only while the choreography is
  * actually withdrawn. The auditor sees the state and never undoes it.
+ *
+ * It is asked of the role and not of `canEdit`, which is false for the whole
+ * page while the choreography is withdrawn — that is the point of the state.
  */
 export function canRestoreChoreography(input: {
-  canEdit: boolean;
+  isAdmin: boolean;
   isWithdrawn: boolean;
 }) {
-  return input.canEdit && input.isWithdrawn;
+  return input.isAdmin && input.isWithdrawn;
 }
 
 // Restoring reports back in place, like every other correction on the detail:
