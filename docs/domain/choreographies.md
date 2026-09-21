@@ -124,8 +124,14 @@ What the dialog announced is advisory.
   `scheduleCapacityId`, so a restore knows where to return.
 - It **occupies no schedule capacity** — not in the displayed occupancy, not in
   the locking count, and not in the event's bases guard, which asks "not
-  withdrawn". Because it blocks nothing, deleting the schedule or the capacity it
-  points at nulls its references, and a restore is then refused.
+  withdrawn". Its two references are not deleted alike, and this is the one
+  place that says so: deleting the `Cupo de cronograma` it points at **releases**
+  its `scheduleCapacityId`, and the restore resolves the place again; the
+  `Cronograma` cannot be deleted at all while **any** choreography, withdrawn or
+  not, is assigned to it, because `choreographies.schedule_id` is not nullable
+  and so cannot be released the same way. When withdrawn choreographies are the
+  only thing holding it, the refusal says so
+  (`No se puede borrar el cronograma porque tiene coreografías retiradas asignadas.`).
 - It is **never revisited**: de-allocating every peso on it does not make it
   deletable, and there is no hard-delete path for it. Evidence is never destroyed
   through a side door.
@@ -160,8 +166,19 @@ What the dialog announced is advisory.
   the choreography was stay withdrawn.
 - It **re-checks the schedule capacity** under the same lock every assignment
   path takes, counting the choreography as arriving, and is **refused with a
-  reason** when that capacity is full or when the schedule capacity reference was
-  nulled by a deletion. There is no inline reassignment.
+  reason** only when the place it returns to is full. There is no inline
+  reassignment.
+- It **never moves the choreography to another `Cronograma`**. When the
+  choreography holds no `scheduleCapacityId` — because it never had one and uses
+  the schedule total as a global allowance, or because the capacity it pointed at
+  was deleted — the place is resolved again on its **own** schedule exactly as
+  registration resolves one: the `Cupo de cronograma` for its `Tipo de grupo` if
+  one exists now, otherwise the schedule's total as a global allowance. A
+  capacity resolved this way is written back to the choreography.
+- The two full-capacity refusals name the place and what to do:
+  `No se puede restaurar: el cupo de cronograma que ocupaba no tiene lugar disponible. Liberá un lugar o ampliá el cupo en las bases del evento.`
+  and
+  `No se puede restaurar: el cronograma no tiene lugar disponible. Liberá un lugar o ampliá el cupo total en las bases del evento.`
 - Nothing else is re-resolved: the price is already frozen by the money held, and
   an evaluated presentation cannot exist on a withdrawn choreography. The one
   recomputed figure is each revived inscription's `ageAtEventStart`.

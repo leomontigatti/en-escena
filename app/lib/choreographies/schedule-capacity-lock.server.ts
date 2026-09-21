@@ -14,8 +14,25 @@ export const invalidScheduleEntryMessage =
 export const priceDivergenceScheduleCapacityMessage =
   "No se puede cambiar el cupo de cronograma: hay inscripciones con dinero asignado cuyo precio cambiaría.";
 
-export type ScheduleCapacityLockFailureCode =
-  "invalid-schedule-capacity" | "schedule-capacity-full";
+/**
+ * Which of the two limits the assignment ran into. The forms show the lock's
+ * own message either way, but restoring words its refusal itself — nothing was
+ * selected there — and it has to tell the two apart without reading the text.
+ */
+export type ScheduleCapacityFullLimit = "schedule-capacity" | "schedule-total";
+
+export type ScheduleCapacityLockFailure =
+  | {
+      ok: false;
+      code: "invalid-schedule-capacity";
+      error: string;
+    }
+  | {
+      ok: false;
+      code: "schedule-capacity-full";
+      limit: ScheduleCapacityFullLimit;
+      error: string;
+    };
 
 export type ScheduleCapacityLockResult =
   | {
@@ -23,14 +40,7 @@ export type ScheduleCapacityLockResult =
       scheduleId: string;
       scheduleCapacityId: string | null;
     }
-  | {
-      ok: false;
-      code: ScheduleCapacityLockFailureCode;
-      error: string;
-    };
-
-export type ScheduleCapacityMoveFailureCode =
-  ScheduleCapacityLockFailureCode | "price-divergence";
+  | ScheduleCapacityLockFailure;
 
 export type ScheduleCapacityMoveResult =
   | {
@@ -38,9 +48,10 @@ export type ScheduleCapacityMoveResult =
       scheduleId: string;
       scheduleCapacityId: string | null;
     }
+  | ScheduleCapacityLockFailure
   | {
       ok: false;
-      code: ScheduleCapacityMoveFailureCode;
+      code: "price-divergence";
       error: string;
     };
 
@@ -169,10 +180,13 @@ export async function lockScheduleCapacityForAssignment(input: {
     );
 
     if (specificOccupiedCount >= lockedScheduleCapacity.capacity) {
-      return failure(
-        "schedule-capacity-full",
-        "El cupo de cronograma seleccionado ya no tiene cupo disponible.",
-      );
+      return {
+        ok: false,
+        code: "schedule-capacity-full",
+        limit: "schedule-capacity",
+        error:
+          "El cupo de cronograma seleccionado ya no tiene cupo disponible.",
+      };
     }
   }
 
@@ -201,10 +215,12 @@ export async function lockScheduleCapacityForAssignment(input: {
   );
 
   if (scheduleOccupiedCount >= lockedSchedule.totalCapacity) {
-    return failure(
-      "schedule-capacity-full",
-      "El cronograma seleccionado ya no tiene cupo disponible.",
-    );
+    return {
+      ok: false,
+      code: "schedule-capacity-full",
+      limit: "schedule-total",
+      error: "El cronograma seleccionado ya no tiene cupo disponible.",
+    };
   }
 
   return {
@@ -215,7 +231,7 @@ export async function lockScheduleCapacityForAssignment(input: {
 }
 
 function failure(
-  code: ScheduleCapacityLockFailureCode,
+  code: "invalid-schedule-capacity",
   error: string,
 ): ScheduleCapacityLockResult {
   return { ok: false, code, error };

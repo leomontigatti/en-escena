@@ -1,6 +1,7 @@
 import { eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
+import { selectScheduleCapacityForGroupType } from "@/lib/choreographies/schedule-capacity-options";
 import { events } from "@/db/schema";
 import { getEventBases, type EventBases } from "@/lib/events/bases.server";
 import { hasNeverExpiringPrice } from "@/lib/events/never-expiring-price";
@@ -510,8 +511,9 @@ function resolveScheduleOptionsFromBases(
         return [];
       }
 
-      const specificCapacity = schedule.scheduleCapacities.find(
-        (capacity) => capacity.groupType === groupType,
+      const specificCapacity = selectScheduleCapacityForGroupType(
+        schedule.scheduleCapacities,
+        groupType,
       );
 
       if (specificCapacity) {

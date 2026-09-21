@@ -2329,7 +2329,7 @@ describe("administrative choreography detail server", () => {
       }),
     ).resolves.toEqual({
       message:
-        "El cupo de cronograma seleccionado ya no tiene cupo disponible.",
+        "No se puede restaurar: el cupo de cronograma que ocupaba no tiene lugar disponible. Liberá un lugar o ampliá el cupo en las bases del evento.",
       status: "error",
     });
 
@@ -2349,10 +2349,11 @@ describe("administrative choreography detail server", () => {
   });
 
   // A withdrawn choreography does not block deleting the capacity it points at,
-  // so that delete releases the reference and there is nowhere left to return
-  // to. The restore says so instead of landing the choreography on the schedule
-  // at large.
-  test("refuses to restore when the schedule capacity it pointed at was deleted", async () => {
+  // so that delete releases the reference. The restore does not give up over
+  // it: it resolves the place again on the very same schedule, the way
+  // registration resolves one, and lands on the schedule total when the
+  // schedule declares no capacity for the group type.
+  test("restores onto the schedule total when the capacity it pointed at was deleted", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Restaurada Sin Destino",
       email: "admin.coreografias.restaurada.sindestino.academia@example.com",
@@ -2372,7 +2373,7 @@ describe("administrative choreography detail server", () => {
       scheduleCapacityId: catalog.scheduleCapacity.id,
       submodalityId: catalog.submodality.id,
     });
-    await createSelectedPriceInscriptionForTest({
+    const inscription = await createSelectedPriceInscriptionForTest({
       academyId: owner.academyId,
       allocatedAmount: 4000,
       choreographyId: choreography.id,
@@ -2404,8 +2405,261 @@ describe("administrative choreography detail server", () => {
         role: "admin",
       }),
     ).resolves.toEqual({
+      message: "Coreografía restaurada.",
+      status: "success",
+    });
+    await expect(
+      db.query.choreographies.findFirst({
+        columns: { scheduleCapacityId: true, withdrawnAt: true },
+        where: eq(choreographies.id, choreography.id),
+      }),
+    ).resolves.toEqual({ scheduleCapacityId: null, withdrawnAt: null });
+    await expect(
+      db.query.choreographyDancers.findFirst({
+        columns: { withdrawnAt: true },
+        where: eq(choreographyDancers.id, inscription.id),
+      }),
+    ).resolves.toEqual({ withdrawnAt: null });
+
+    // It counts against the schedule total now, which is the place it took.
+    const occupiedCount = await resolveOccupiedCounts([
+      { scheduleCapacityId: null, scheduleId: catalog.schedule.id },
+    ]);
+    expect(
+      occupiedCount({
+        scheduleCapacityId: null,
+        scheduleId: catalog.schedule.id,
+      }),
+    ).toBe(1);
+  });
+
+  // The bases may have gained a capacity for the group type while the
+  // choreography was away. Resolving the place again is what finds it: the
+  // restore writes the reference the deleted capacity left empty.
+  test("restores onto a capacity for its group type created after the delete", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Restaurada Cupo Nuevo",
+      email: "admin.coreografias.restaurada.cuponuevo.academia@example.com",
+    });
+    const event = await createEventRecord({
+      active: true,
+      name: "Regional 2026",
+    });
+    const catalog = await createEventCatalog(event.id);
+    const choreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      name: "Cupo nuevo",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+    await createSelectedPriceInscriptionForTest({
+      academyId: owner.academyId,
+      allocatedAmount: 4000,
+      choreographyId: choreography.id,
+      eventId: event.id,
+    });
+
+    await submitDetailAction({
+      body: deleteFormData(),
+      choreographyId: choreography.id,
+      email: "admin.coreografias.restaurada.cuponuevo.retiro@example.com",
+      role: "admin",
+    });
+
+    await db
+      .update(choreographies)
+      .set({ scheduleCapacityId: null })
+      .where(eq(choreographies.id, choreography.id));
+    await db
+      .delete(scheduleCapacities)
+      .where(eq(scheduleCapacities.id, catalog.scheduleCapacity.id));
+    const [rebuiltScheduleCapacity] = await db
+      .insert(scheduleCapacities)
+      .values({
+        scheduleId: catalog.schedule.id,
+        groupType: "solo",
+        capacity: 3,
+      })
+      .returning();
+
+    await expect(
+      submitDetailAction({
+        body: restoreFormData(),
+        choreographyId: choreography.id,
+        email: "admin.coreografias.restaurada.cuponuevo.accion@example.com",
+        role: "admin",
+      }),
+    ).resolves.toEqual({
+      message: "Coreografía restaurada.",
+      status: "success",
+    });
+    await expect(
+      db.query.choreographies.findFirst({
+        columns: { scheduleCapacityId: true, withdrawnAt: true },
+        where: eq(choreographies.id, choreography.id),
+      }),
+    ).resolves.toEqual({
+      scheduleCapacityId: rebuiltScheduleCapacity.id,
+      withdrawnAt: null,
+    });
+  });
+
+  // A choreography that never had a capacity of its own: its schedule declares
+  // none for its group type, so the schedule total is its allowance, and that
+  // is the place the restore measures and takes.
+  test("restores a choreography holding no specific capacity against the schedule total", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Restaurada Cupo Global",
+      email: "admin.coreografias.restaurada.global.academia@example.com",
+    });
+    const event = await createEventRecord({
+      active: true,
+      name: "Regional 2026",
+    });
+    const catalog = await createEventCatalog(event.id);
+    // A second schedule of the same modality, with no capacity of any group
+    // type: the choreography on it uses the total as a global allowance.
+    const globalSchedule = await createScheduleForModalityFixture({
+      eventId: event.id,
+      modalityId: catalog.modality.id,
+    });
+    const choreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      name: "Cupo global",
+      scheduleCapacityId: null,
+      scheduleId: globalSchedule.id,
+      submodalityId: catalog.submodality.id,
+    });
+    await createSelectedPriceInscriptionForTest({
+      academyId: owner.academyId,
+      allocatedAmount: 4000,
+      choreographyId: choreography.id,
+      eventId: event.id,
+    });
+
+    await submitDetailAction({
+      body: deleteFormData(),
+      choreographyId: choreography.id,
+      email: "admin.coreografias.restaurada.global.retiro@example.com",
+      role: "admin",
+    });
+
+    await expect(
+      submitDetailAction({
+        body: restoreFormData(),
+        choreographyId: choreography.id,
+        email: "admin.coreografias.restaurada.global.accion@example.com",
+        role: "admin",
+      }),
+    ).resolves.toEqual({
+      message: "Coreografía restaurada.",
+      status: "success",
+    });
+    await expect(
+      db.query.choreographies.findFirst({
+        columns: {
+          scheduleCapacityId: true,
+          scheduleId: true,
+          withdrawnAt: true,
+        },
+        where: eq(choreographies.id, choreography.id),
+      }),
+    ).resolves.toEqual({
+      scheduleCapacityId: null,
+      // Never moved to another schedule.
+      scheduleId: globalSchedule.id,
+      withdrawnAt: null,
+    });
+
+    const occupiedCount = await resolveOccupiedCounts([
+      { scheduleCapacityId: null, scheduleId: globalSchedule.id },
+    ]);
+    expect(
+      occupiedCount({
+        scheduleCapacityId: null,
+        scheduleId: globalSchedule.id,
+      }),
+    ).toBe(1);
+  });
+
+  // The other half of the refusal: no capacity was selected here either, so the
+  // message names the schedule and the lever that opens it.
+  test("refuses to restore when the schedule total filled up while the choreography was withdrawn", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Restaurada Cronograma Lleno",
+      email:
+        "admin.coreografias.restaurada.cronogramalleno.academia@example.com",
+    });
+    const event = await createEventRecord({
+      active: true,
+      name: "Regional 2026",
+    });
+    const catalog = await createEventCatalog(event.id);
+    const globalSchedule = await createScheduleForModalityFixture({
+      eventId: event.id,
+      modalityId: catalog.modality.id,
+    });
+    await db
+      .update(schedules)
+      .set({ totalCapacity: 1 })
+      .where(eq(schedules.id, globalSchedule.id));
+    const choreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      name: "Cupo global lleno",
+      scheduleCapacityId: null,
+      scheduleId: globalSchedule.id,
+      submodalityId: catalog.submodality.id,
+    });
+    await createSelectedPriceInscriptionForTest({
+      academyId: owner.academyId,
+      allocatedAmount: 4000,
+      choreographyId: choreography.id,
+      eventId: event.id,
+    });
+
+    await submitDetailAction({
+      body: deleteFormData(),
+      choreographyId: choreography.id,
+      email: "admin.coreografias.restaurada.cronogramalleno.retiro@example.com",
+      role: "admin",
+    });
+
+    // The one place the schedule holds was taken while it was away.
+    await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      name: "Ocupante del total",
+      scheduleCapacityId: null,
+      scheduleId: globalSchedule.id,
+      submodalityId: catalog.submodality.id,
+    });
+
+    await expect(
+      submitDetailAction({
+        body: restoreFormData(),
+        choreographyId: choreography.id,
+        email:
+          "admin.coreografias.restaurada.cronogramalleno.accion@example.com",
+        role: "admin",
+      }),
+    ).resolves.toEqual({
       message:
-        "No se puede restaurar: el cupo de cronograma que ocupaba ya no existe.",
+        "No se puede restaurar: el cronograma no tiene lugar disponible. Liberá un lugar o ampliá el cupo total en las bases del evento.",
       status: "error",
     });
     await expect(

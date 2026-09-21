@@ -427,7 +427,9 @@ export async function deleteSchedule(
     return {
       ok: false,
       code: "schedule-has-dependencies",
-      error: "No se puede borrar el cronograma porque tiene dependencias.",
+      error: (await scheduleIsHeldOnlyByWithdrawnChoreographies(scheduleId))
+        ? "No se puede borrar el cronograma porque tiene coreografías retiradas asignadas."
+        : "No se puede borrar el cronograma porque tiene dependencias.",
     };
   }
 
@@ -443,6 +445,23 @@ export async function deleteSchedule(
   await db.delete(schedules).where(eq(schedules.id, scheduleId));
 
   return { ok: true };
+}
+
+/**
+ * Whether the refusal above is about withdrawn choreographies and nothing else.
+ * A withdrawn choreography holds no place, so an admin who freed the schedule
+ * would otherwise read "tiene dependencias" over a block that looks empty
+ * everywhere else; naming them is the only way the refusal points at something
+ * findable.
+ */
+async function scheduleIsHeldOnlyByWithdrawnChoreographies(scheduleId: string) {
+  if (await scheduleHasOperationalDependencies(scheduleId)) {
+    return false;
+  }
+
+  return hasReferencingChoreographies(
+    eq(choreographies.scheduleId, scheduleId),
+  );
 }
 
 async function scheduleHasOperationalDependencies(scheduleId: string) {

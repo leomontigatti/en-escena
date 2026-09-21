@@ -211,7 +211,7 @@ export async function createChoreographyRecord(
     categoryId: string;
     eventId: string;
     modalityId: string;
-    scheduleCapacityId: string;
+    scheduleCapacityId: string | null;
     name: string;
   },
 ) {
@@ -221,12 +221,22 @@ export async function createChoreographyRecord(
   const choreographyNumber =
     overrides.choreographyNumber ??
     (await allocateChoreographyNumberForTest(overrides.eventId));
-  // A choreography always has a schedule, and every caller already names the
-  // capacity it sits on: the schedule is read back from that capacity so the
-  // callers do not have to repeat it.
+  // A choreography always has a schedule, and most callers already name the
+  // capacity it sits on: the schedule is read back from that capacity so they
+  // do not have to repeat it. One on no specific capacity —the schedule total
+  // as a global allowance— names the schedule itself.
   const scheduleId =
     overrides.scheduleId ??
-    (await readFixtureCapacityScheduleId(overrides.scheduleCapacityId));
+    (overrides.scheduleCapacityId
+      ? await readFixtureCapacityScheduleId(overrides.scheduleCapacityId)
+      : null);
+
+  if (!scheduleId) {
+    throw new Error(
+      "A choreography on no specific capacity has to name its schedule.",
+    );
+  }
+
   const [choreography] = await db
     .insert(choreographies)
     .values({

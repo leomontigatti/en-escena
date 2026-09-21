@@ -16,7 +16,10 @@ export function PortalChoreographyDetailRouteView({
   loaderData,
   actionData,
 }: PortalChoreographyDetailRouteViewProps) {
+  // A withdrawn choreography is read-only in the portal, music included, so the
+  // `Falta cargar …` alert would ask the academy for something it cannot do.
   const hasOperationalStatusAlert =
+    !loaderData.choreography.isWithdrawn &&
     loaderData.choreography.operationalStatus.pendingItems.length > 0;
 
   return (
