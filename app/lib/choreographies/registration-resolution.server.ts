@@ -405,6 +405,7 @@ async function resolveRegistrationFromResolvedDancers(input: {
     eventId: input.eventId,
     modalityId: modality.id,
     groupType: classification.groupType,
+    categoryId: getResolvedCategoryId(classification.category),
   });
   const schedule = await mapScheduleResolution(compatibleScheduleCapacities);
 
@@ -420,6 +421,15 @@ async function resolveRegistrationFromResolvedDancers(input: {
       dancers: classification.dancers,
     },
   };
+}
+
+/**
+ * The category the schedule resolution filters by, or nothing to filter by when
+ * no category resolved — a flow category resolution already blocks before a
+ * schedule matters.
+ */
+function getResolvedCategoryId(category: CategoryResolution): string | null {
+  return category.status === "resolved" ? category.id : null;
 }
 
 export function deriveGroupType(dancerCount: number): GroupType {

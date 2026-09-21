@@ -47,6 +47,8 @@ type EventChoreographyFixtureInput = {
 
 type SavedScheduleFixtureInput = {
   modalityIds: string[];
+  /** Left out, the schedule accepts every category. */
+  categoryIds?: string[];
   name?: string;
   scheduledDate?: string;
   startTime?: string;
@@ -111,6 +113,7 @@ export async function createEventModalitiesFixture(name = "Regional 2026") {
 export async function createSavedSchedule(
   eventId: string,
   {
+    categoryIds,
     modalityIds,
     name = "Sábado mañana",
     scheduledDate = "2026-05-02",
@@ -125,6 +128,7 @@ export async function createSavedSchedule(
       startTime,
       totalCapacity,
       modalityIds,
+      categoryIds,
     }),
   );
 }

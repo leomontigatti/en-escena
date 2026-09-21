@@ -1,4 +1,14 @@
-import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  eq,
+  exists,
+  inArray,
+  ne,
+  notExists,
+  or,
+  sql,
+} from "drizzle-orm";
 
 import { withdrawnChoreography } from "@/lib/choreographies/withdrawn-choreography";
 import {
@@ -10,6 +20,7 @@ import {
   requiredFieldMessage,
   scheduleCapacities,
   scheduleCapacityNotFound,
+  scheduleCategories,
   scheduleModalities,
   schedules,
 } from "@/lib/events/bases-repository/shared.server";
@@ -179,10 +190,22 @@ export async function releaseScheduleCapacityReferences(
     );
 }
 
+/**
+ * The one place the schedule compatibility rule lives: a schedule takes a
+ * choreography when it accepts its modality **and** its accepted categories are
+ * either empty —which means every category— or contain the choreography's.
+ * Every path that assigns or reassigns a schedule reaches the rule through
+ * here, so a modality split into two shows resolves each side on its own.
+ *
+ * `categoryId` is nullable because a category is not always resolved; there is
+ * then nothing to filter by, and category resolution already blocks those flows
+ * before a schedule matters.
+ */
 export async function resolveCompatibleScheduleCapacities(input: {
   eventId: string;
   modalityId: string;
   groupType: string;
+  categoryId: string | null;
 }): Promise<CompatibleScheduleCapacityResolution> {
   if (!isGroupType(input.groupType)) {
     return {
@@ -196,6 +219,7 @@ export async function resolveCompatibleScheduleCapacities(input: {
     eventId: input.eventId,
     modalityId: input.modalityId,
     groupType: input.groupType,
+    categoryId: input.categoryId,
   });
 
   if (compatibleOptions.length === 0) {
@@ -481,6 +505,7 @@ async function findCompatibleScheduleCapacities(input: {
   eventId: string;
   modalityId: string;
   groupType: GroupType;
+  categoryId: string | null;
 }): Promise<CompatibleScheduleCapacity[]> {
   const compatibleSchedules = await db
     .select({
@@ -500,6 +525,7 @@ async function findCompatibleScheduleCapacities(input: {
       and(
         eq(schedules.eventId, input.eventId),
         eq(scheduleModalities.modalityId, input.modalityId),
+        acceptsCategory(input.categoryId),
       ),
     )
     .orderBy(asc(schedules.scheduledDate), asc(schedules.startTime));
@@ -528,6 +554,36 @@ async function findCompatibleScheduleCapacities(input: {
       ? toSpecificCompatibleScheduleCapacity(schedule, specificCapacity)
       : toGlobalCompatibleScheduleCapacity(schedule, input.groupType);
   });
+}
+
+/**
+ * The category half of the compatibility rule, as a predicate over
+ * `schedule`: no accepted category at all, or the one asked about among them.
+ */
+function acceptsCategory(categoryId: string | null) {
+  if (!categoryId) {
+    return undefined;
+  }
+
+  return or(
+    notExists(
+      db
+        .select({ scheduleId: scheduleCategories.scheduleId })
+        .from(scheduleCategories)
+        .where(eq(scheduleCategories.scheduleId, schedules.id)),
+    ),
+    exists(
+      db
+        .select({ scheduleId: scheduleCategories.scheduleId })
+        .from(scheduleCategories)
+        .where(
+          and(
+            eq(scheduleCategories.scheduleId, schedules.id),
+            eq(scheduleCategories.categoryId, categoryId),
+          ),
+        ),
+    ),
+  );
 }
 
 function toSpecificCompatibleScheduleCapacity(

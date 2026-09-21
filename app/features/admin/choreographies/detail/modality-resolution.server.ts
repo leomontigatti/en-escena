@@ -96,6 +96,10 @@ export async function resolveModalityCorrectionContext(input: {
       eventId: input.eventId,
       groupType: classification.groupType,
       modalityId: input.modalityId,
+      categoryId:
+        classification.category.status === "resolved"
+          ? classification.category.id
+          : null,
     }),
     loadPriceDivergenceCheck({
       choreographyId: input.choreography.id,

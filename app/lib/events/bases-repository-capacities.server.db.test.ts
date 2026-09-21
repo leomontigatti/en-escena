@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
 import { choreographies, scheduleCapacities } from "@/db/schema";
+import { createCategory } from "@/lib/categories/repository.server";
 import {
   createScheduleCapacity,
   deleteScheduleCapacity,
@@ -107,6 +108,7 @@ describe("`Bases del evento` repository", () => {
         eventId: event.id,
         modalityId: urbanas.id,
         groupType: "solo",
+        categoryId: null,
       }),
     ).resolves.toMatchObject({
       status: "none",
@@ -118,12 +120,148 @@ describe("`Bases del evento` repository", () => {
         eventId: event.id,
         modalityId: jazz.id,
         groupType: "solo",
+        categoryId: null,
       }),
     ).resolves.toMatchObject({
       status: "multiple",
       options: expect.arrayContaining([
         expect.objectContaining({ id: soloSchedule.id }),
       ]),
+    });
+  });
+
+  test("filters compatible schedule capacities by the categories the schedule accepts", async () => {
+    const { event, jazz } = await createEventModalitiesFixture();
+    const baby = await expectCreated(
+      createCategory(event.id, {
+        name: "Baby",
+        minAge: 4,
+        maxAge: 6,
+        groupTypes: ["solo"],
+        modalityIds: [jazz.id],
+        experienceLevels: [],
+      }),
+    );
+    const juvenil = await expectCreated(
+      createCategory(event.id, {
+        name: "Juvenil",
+        minAge: 13,
+        maxAge: 17,
+        groupTypes: ["solo"],
+        modalityIds: [jazz.id],
+        experienceLevels: [],
+      }),
+    );
+    const everyCategory = await createSavedSchedule(event.id, {
+      modalityIds: [jazz.id],
+    });
+
+    await expect(
+      resolveCompatibleScheduleCapacities({
+        eventId: event.id,
+        modalityId: jazz.id,
+        groupType: "solo",
+        categoryId: juvenil.id,
+      }),
+    ).resolves.toMatchObject({
+      status: "auto",
+      scheduleCapacity: expect.objectContaining({
+        scheduleId: everyCategory.id,
+      }),
+    });
+
+    const firstShow = await createSavedSchedule(event.id, {
+      name: "Función 1",
+      startTime: "10:00",
+      modalityIds: [jazz.id],
+      categoryIds: [baby.id],
+    });
+
+    await expect(
+      resolveCompatibleScheduleCapacities({
+        eventId: event.id,
+        modalityId: jazz.id,
+        groupType: "solo",
+        categoryId: juvenil.id,
+      }),
+    ).resolves.toMatchObject({
+      status: "auto",
+      scheduleCapacity: expect.objectContaining({
+        scheduleId: everyCategory.id,
+      }),
+    });
+    await expect(
+      resolveCompatibleScheduleCapacities({
+        eventId: event.id,
+        modalityId: jazz.id,
+        groupType: "solo",
+        categoryId: baby.id,
+      }),
+    ).resolves.toMatchObject({
+      status: "multiple",
+      options: expect.arrayContaining([
+        expect.objectContaining({ scheduleId: firstShow.id }),
+        expect.objectContaining({ scheduleId: everyCategory.id }),
+      ]),
+    });
+  });
+
+  test("resolves each side of a modality split into two shows on its own", async () => {
+    const { event, jazz } = await createEventModalitiesFixture();
+    const baby = await expectCreated(
+      createCategory(event.id, {
+        name: "Baby",
+        minAge: 4,
+        maxAge: 6,
+        groupTypes: ["solo"],
+        modalityIds: [jazz.id],
+        experienceLevels: [],
+      }),
+    );
+    const juvenil = await expectCreated(
+      createCategory(event.id, {
+        name: "Juvenil",
+        minAge: 13,
+        maxAge: 17,
+        groupTypes: ["solo"],
+        modalityIds: [jazz.id],
+        experienceLevels: [],
+      }),
+    );
+    const firstShow = await createSavedSchedule(event.id, {
+      name: "Función 1",
+      startTime: "10:00",
+      modalityIds: [jazz.id],
+      categoryIds: [baby.id],
+    });
+    const secondShow = await createSavedSchedule(event.id, {
+      name: "Función 2",
+      startTime: "16:00",
+      modalityIds: [jazz.id],
+      categoryIds: [juvenil.id],
+    });
+
+    await expect(
+      resolveCompatibleScheduleCapacities({
+        eventId: event.id,
+        modalityId: jazz.id,
+        groupType: "solo",
+        categoryId: baby.id,
+      }),
+    ).resolves.toMatchObject({
+      status: "auto",
+      scheduleCapacity: expect.objectContaining({ scheduleId: firstShow.id }),
+    });
+    await expect(
+      resolveCompatibleScheduleCapacities({
+        eventId: event.id,
+        modalityId: jazz.id,
+        groupType: "solo",
+        categoryId: juvenil.id,
+      }),
+    ).resolves.toMatchObject({
+      status: "auto",
+      scheduleCapacity: expect.objectContaining({ scheduleId: secondShow.id }),
     });
   });
 

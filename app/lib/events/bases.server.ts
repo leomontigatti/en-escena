@@ -102,6 +102,7 @@ export async function resolveEventBasesScheduleOptions(input: {
   eventId: string;
   modalityId: string;
   groupType: string;
+  categoryId: string | null;
 }): Promise<CompatibleScheduleCapacityResolution> {
   return resolveCompatibleScheduleCapacities(input);
 }
