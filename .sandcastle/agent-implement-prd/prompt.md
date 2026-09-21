@@ -39,17 +39,29 @@ what is ahead — but **only implement #{{SUB_ISSUE_NUMBER}}** in this session.
 Read the repo's domain/architecture docs before starting: `CONTEXT.md`, `docs/adr/`, and
 `docs/agents/domain.md`. Follow the coding standards in `.sandcastle/CODING_STANDARDS.md`
 (and `docs/agents/style-guide.md` for frontend/UI). Explore the parts of the repo relevant to
-this sub-issue — especially nearby test files. Follow the `do-work` workflow
-(`.claude/skills/do-work/SKILL.md`); for DB or complex frontend state, its `DB-TDD.md` /
-`FRONTEND-TDD.md` sub-workflows apply.
+this sub-issue — especially nearby test files.
 
 # EXECUTION
 
-Use red-green-refactor where applicable (RED → GREEN → REPEAT → REFACTOR). Before your final
-commit, run `pnpm typecheck`, `pnpm lint`, `pnpm test:unit`, and `pnpm test:db <path>` for the
-DB test files you touched, and fix anything they surface. Don't run the full `pnpm test` — it
-takes ~13 min of your wall-clock budget ({{WALL_CLOCK_BUDGET}}) and CI runs the complete suite
-in parallel anyway.
+Follow the `implement` workflow (`.claude/skills/implement/SKILL.md`) through its validation
+step; the review and the PR are separate workflows, so stop there and commit.
+
+- **Test-first.** Call the Skill tool with "tdd" and follow its loop: one failing test, the
+  minimal code to pass it, repeat. For DB code or complex frontend state, the workflow's
+  `DB-TDD.md` / `FRONTEND-TDD.md` apply too.
+- **Seams.** Test at the sub-issue's **Test seams**, or the PRD's **Testing Decisions** when the
+  sub-issue lists none. There is no user to confirm with: when neither names them, choose the
+  seams yourself and state them in the commit body.
+- When where a seam or module boundary belongs is itself the question, call the Skill tool with
+  "codebase-design". When the change renames a domain term or edits `CONTEXT.md` or an ADR, call
+  it with "domain-modeling".
+- **As you go**, run `pnpm typecheck` and the single test file for the slice each time it goes
+  green.
+
+Before your final commit, run `pnpm typecheck`, `pnpm lint`, `pnpm test:unit`, and `pnpm test:db
+<path>` for the DB test files you touched, and fix anything they surface. Don't run the full
+`pnpm test` — it takes ~13 min of your wall-clock budget ({{WALL_CLOCK_BUDGET}}) and CI runs the
+complete suite in parallel anyway.
 
 **That list of four is exhaustive. Do not invent commands** — check `package.json` before
 running anything else, not after it fails. `pnpm lint` is oxlint over what `.oxlintrc.json`

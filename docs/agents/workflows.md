@@ -55,6 +55,14 @@ of them, and ask for its report as text with a fixed shape: status, one-line
 summary, artifacts touched, next step, risks. A subagent whose last action is a
 tool call returns the tool result instead of its report.
 
+Reading outside the repo goes to the `research` agent (`.claude/agents/research.md`). It
+fetches with `curl` and with the `firecrawl` CLI through the `firecrawl-search` and
+`firecrawl-scrape` skills, and those two are **installed per machine**
+(`~/.claude/skills`, `npm i -g firecrawl-cli`, then `firecrawl login`), not vendored here:
+the built-in web tools are denied in the user settings, so firecrawl is the only way an agent
+can search. On a machine without it the agent degrades to `curl` on plain-text sources and
+says so.
+
 ## Investigate before recommending
 
 The rule above is about not editing too early. This one is upstream of it: do
@@ -728,21 +736,20 @@ Do not reintroduce `administracion.eventos.$eventId.tsx`,
 an `<Outlet />`; otherwise React Router will match the child URL while the
 screen keeps rendering the list.
 
-## Do Work
+## Implement
 
-Use this workflow when implementing a feature, fixing a bug, or changing code.
+Implementing a feature, fixing a bug or changing code in a local session follows the
+`implement` skill ([`.claude/skills/implement/SKILL.md`](../../.claude/skills/implement/SKILL.md)):
+call the Skill tool with "implement" before editing. It is the same workflow the AFK implement
+runners follow from their prompts — test-first through the `tdd` skill at the ticket's **Test
+seams**, typecheck and single test files as you go, the list in
+[`.sandcastle/VALIDATION.md`](../../.sandcastle/VALIDATION.md) once at the end, then `code-review`.
 
-1. Explore the relevant code before editing.
-2. Read `CONTEXT.md` and relevant ADRs under `docs/adr/` when domain behavior is involved.
-3. Keep the change scoped to the requested behavior.
-4. Prefer existing project patterns over new abstractions.
-5. Add focused tests when runtime behavior, business rules, or shared interfaces change.
-6. Run the validation commands listed above.
-7. Do not commit unless the user explicitly asks for a commit.
+Two rules sit on top of it for a local session: keep the change scoped to the requested
+behaviour, and do not commit unless the user explicitly asks for a commit.
 
-When the change touches database behavior, follow the DB TDD workflow below.
-
-When the change touches complex frontend state, follow the Frontend State TDD workflow below.
+The DB TDD and Frontend State TDD sections below are this repo's detail for the skill's two
+sub-workflows.
 
 ## DB TDD
 
@@ -885,6 +892,11 @@ PRD template:
 ## Further Notes
 ```
 
+**Testing Decisions** names the **test seams**: the public interfaces the behaviour is tested
+through (a service function, a route's loader or action, a pure state module). The `tdd` skill
+tests only at seams agreed up front, and the AFK implement agent has nobody to agree them with, so
+the PRD is where that agreement is recorded.
+
 The PRD should be concrete enough for a later agent to break into implementation issues without re-deriving core decisions.
 
 ## Issue Breakdown Workflow
@@ -904,6 +916,7 @@ Slice rules:
 - Prefer vertical slices over horizontal layer-only tasks.
 - Put prefactoring first when it makes later slices simpler.
 - Keep each issue small enough for one focused agent session.
+- Name each issue's test seams, taken from the PRD's **Testing Decisions**.
 
 Issue body template:
 
@@ -918,6 +931,8 @@ Issue body template:
 
 - [ ] Concrete, checkable outcome
 - [ ] Tests cover the new behavior
+
+## Test seams
 
 ## Depends on
 ```

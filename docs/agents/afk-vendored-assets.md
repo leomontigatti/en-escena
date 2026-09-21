@@ -10,11 +10,11 @@ ticket [Vendor the AFK spec + prompts + do-work skill](https://github.com/leomon
 
 ## What was brought over
 
-| Asset                                           | Local                                                        | Source                                                  |
-| ----------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------- |
-| Spec of the 8 workflows                         | [`afk-agent-platform-spec.md`](./afk-agent-platform-spec.md) | `docs/agents/afk-agent-platform-spec.md`                |
-| Base runner prompts (9)                         | [`prompts/`](./prompts/)                                     | `docs/agents/prompts/*.prompt.md`                       |
-| `do-work` skill (SKILL + DB-TDD + FRONTEND-TDD) | [`.claude/skills/do-work/`](../../.claude/skills/do-work/)   | `.claude/skills/do-work/{SKILL,DB-TDD,FRONTEND-TDD}.md` |
+| Asset                                    | Local                                                          | Source                                                  |
+| ---------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------- |
+| Spec of the 8 workflows                  | [`afk-agent-platform-spec.md`](./afk-agent-platform-spec.md)   | `docs/agents/afk-agent-platform-spec.md`                |
+| Base runner prompts (9)                  | [`prompts/`](./prompts/)                                       | `docs/agents/prompts/*.prompt.md`                       |
+| `implement` skill, vendored as `do-work` | [`.claude/skills/implement/`](../../.claude/skills/implement/) | `.claude/skills/do-work/{SKILL,DB-TDD,FRONTEND-TDD}.md` |
 
 ## What was adapted vs. the source
 
@@ -198,11 +198,32 @@ GITHUB_TOKEN` (PAT lets the push include workflow changes)", which relies on
   this repo does **not** use that library (nor reducers today), so the "Reducer choice" section
   was left library-neutral, preserving the principle (state logic in a pure, testable module).
 
+- **`do-work` became `implement`, and test-first became the `tdd` skill.** The source's
+  `do-work` names red-green only for DB code and complex frontend state, and the skeleton
+  prompts say "use red-green-refactor where applicable" with nothing behind the phrase. Locally
+  the skill is renamed after `implement` in `mattpocock/skills` and reshaped like it: it calls
+  the vendored `tdd` skill for every change, keeps `DB-TDD.md` / `FRONTEND-TDD.md` as this repo's
+  detail on top, and ends on `code-review`. The two runtime implement prompts follow the same
+  workflow up to validation (review is its own workflow, §4.4). One thing had to bend: `tdd`
+  tests only at seams **confirmed with the user**, and a runner has no user, so the seams are
+  agreed upstream instead: the PRD's **Testing Decisions**, a **Test seams** paragraph on every
+  slice `agent-to-issues` drafts, and the wayfinder ticket that decided them
+  ([`issue-tracker.md`](./issue-tracker.md#test-seams)). A runner that finds none chooses them
+  and says so in the commit body. The validation cadence is the same in both places: typecheck
+  and single test files as you go, the [`VALIDATION.md`](../../.sandcastle/VALIDATION.md) list
+  once at the end.
+- **The runtime prompts route to `codebase-design` and `domain-modeling`.** Nothing invoked
+  either skill outside a wayfinder session, and a runner has nobody to type the slash command.
+  `implement`, `implement-prd` and `to-issues` call `codebase-design` when where a seam belongs
+  is the question and `domain-modeling` when a domain term, `CONTEXT.md` or an ADR changes;
+  `architecture-review` calls `codebase-design` up front, since its candidates are judged in
+  that vocabulary.
+
 ## Matt Pocock skills
 
 The skills this repo uses from [`mattpocock/skills`](https://github.com/mattpocock/skills) are
 vendored under `.agents/skills/<name>/`, symlinked from `.claude/skills/<name>` and recorded in
-`skills-lock.json`, the same layout as the `shadcn` skill ([`shadcn.md`](./shadcn.md)). They
+`skills-lock.json`. They
 replace the user-scope `mattpocock-skills@claude-plugins-official` plugin, which did not keep
 itself current and made local sessions and the runners use different skill versions (#965).
 Vendored skills load unprefixed: `/grilling`, not `/mattpocock-skills:grilling`.
@@ -213,15 +234,16 @@ Vendored skills load unprefixed: `/grilling`, not `/mattpocock-skills:grilling`.
 | `codebase-design`           | `skills/engineering/codebase-design`           |
 | `domain-modeling`           | `skills/engineering/domain-modeling`           |
 | `prototype`                 | `skills/engineering/prototype`                 |
-| `research`                  | `skills/engineering/research`                  |
 | `resolving-merge-conflicts` | `skills/engineering/resolving-merge-conflicts` |
+| `tdd`                       | `skills/engineering/tdd`                       |
 | `wayfinder`                 | `skills/engineering/wayfinder`                 |
 | `grilling`                  | `skills/productivity/grilling`                 |
 | `handoff`                   | `skills/productivity/handoff`                  |
 | `writing-for-agents`        | `skills/productivity/writing-for-agents`       |
 
 **Pin.** Vendored from `mattpocock/skills` at commit `959a8e9f1edc3adbe2f7e3054bb6fbefa6696260`
-(2026-09-15, after tag `v1.2.3`), with `skills@1.6.0`. `skills-lock.json` holds each skill's
+(2026-09-15, after tag `v1.2.3`), with `skills@1.6.0`. `tdd` was added on 2026-09-21 from
+`c55ee460`, where its files are identical to the pinned commit's. `skills-lock.json` holds each skill's
 content hash.
 
 **No local edits.** The files are byte-identical to upstream, so the hashes stay true.
@@ -231,7 +253,10 @@ goes in the prompt or doc that invokes the skill, never in the skill.
 
 **Not vendored**: `setup-matt-pocock-skills` (its output, [`issue-tracker.md`](./issue-tracker.md),
 [`triage-labels.md`](./triage-labels.md) and [`domain.md`](./domain.md), already exists), and
-`to-spec`, `to-tickets`, `triage`, `grill-me` and `tdd` (rarely or never used). `code-review` and
+`to-spec`, `to-tickets`, `triage` and `grill-me` (rarely or never used). `research` was vendored
+and then dropped: the `research` agent (`.claude/agents/research.md`) does that job, and
+[`issue-tracker.md`](./issue-tracker.md#research-tickets) tells `wayfinder` to spawn it where the
+skill's text says to call the `research` skill. `code-review` and
 `wayfinder` still say "tell the user to run `/setup-matt-pocock-skills`", but only when
 `docs/agents/issue-tracker.md` is missing, which does not happen here.
 `.sandcastle/agent-review/prompt.md` overrides that path for the runner anyway.
@@ -241,7 +266,7 @@ repo root with a pinned CLI version:
 
 ```sh
 pnpm dlx skills@<version> add mattpocock/skills -a claude-code -y --copy \
-  -s code-review -s codebase-design -s domain-modeling -s prototype -s research \
+  -s code-review -s codebase-design -s domain-modeling -s prototype -s tdd \
   -s resolving-merge-conflicts -s wayfinder -s grilling -s handoff -s writing-for-agents
 ```
 

@@ -2,29 +2,15 @@
 
 The visual base is shadcn/ui `radix-nova` on the Radix primitives. What each
 component should look like is [`style-guide.md`](./style-guide.md); this file is
-about the _tooling_: the vendored skill, how to sync with upstream, and which
-local divergences are deliberate.
+about the _tooling_: how to sync with upstream, and which local divergences are
+deliberate.
 
-## The vendored `shadcn` skill
-
-`.agents/skills/shadcn/` holds the official skill from `shadcn-ui/ui`, installed
-with `pnpm dlx skills add shadcn/ui` and pinned by content hash in
-`skills-lock.json`. `.claude/skills/shadcn` is a symlink into it, so Claude Code
-loads it automatically; the `.agents/` layout is what makes the same skill
-readable by other agents.
-
-It runs `shadcn info --json` on every activation, so it always sees the real
-`components.json` — framework, base library, aliases, installed components. That
-is the point of having it: an agent that would otherwise guess at a component's
-API reads the resolved config instead.
-
-`skills add shadcn/ui` also offers `migrate-radix-to-base`. It is **deliberately
-not installed**: this repo stays on the Radix base (see below), and a skill whose
-whole purpose is to migrate off it is a standing invitation to do the wrong
-thing. Do not add it back without a decision to switch bases.
-
-To update the skill, re-run `pnpm dlx skills add shadcn/ui` and commit the
-changed hash in `skills-lock.json`.
+There is no shadcn agent skill here. The official one (`skills add shadcn/ui`)
+was vendored and then removed: its default move is to apply upstream through the
+CLI, which is what the sections below say not to do, and nothing invoked it. For
+the resolved config, run `pnpm exec shadcn info --json`, which reads
+`components.json`. Its sibling `migrate-radix-to-base` stays out for the same
+reason it always did: this repo stays on the Radix base.
 
 ## Radix, not Base UI
 

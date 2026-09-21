@@ -136,6 +136,29 @@ the destination takes when the map is reached.
   `gh issue view <n> --json assignees,blockedBy` shows an assignee or a blocker still `OPEN`.
 - **Claiming** is `gh issue edit <ticket> --add-assignee @me`, before any work.
 
+### Research tickets
+
+The skill says a research ticket is "resolved by a subagent that calls the Skill tool with
+`research`". Here that subagent is the **`research` agent** (`.claude/agents/research.md`): spawn
+it with `subagent_type: "research"` and the ticket's question, one per research ticket, in
+parallel. Its definition carries the rules (primary sources with a URL beside every claim,
+firecrawl or `curl` for fetching, a tool-call budget, a fixed report shape), and the `research`
+skill is not vendored.
+
+The agent reports back as text and leaves git and the tracker alone, so the session that spawned
+it does the capture: post the findings on the ticket as its resolution, and only when they are a
+durable primary source worth keeping, name a `docs/research/<kebab-name>.md` path in the brief
+and commit that file on the session's own branch. There is no throwaway `research/<name>` branch.
+
+### Test seams
+
+A ticket that settles how something is built records its **test seams** (the public interfaces
+the behaviour will be tested through) in its resolution, and the map gists them under
+Decisions-so-far. They land in the exit PRD's **Testing Decisions**
+([PRD workflow](./workflows.md#prd-workflow)), which is where `agent:to-issues` and the implement
+agent read them: the `tdd` skill tests only at seams agreed up front, and a grilling session is
+the last point where a human can agree them.
+
 ### Exit shapes
 
 Close the map by choosing how the destination is filed. The choice decides how much the AFK
