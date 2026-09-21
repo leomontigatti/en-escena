@@ -6,3 +6,4 @@ export * from "./schema/events";
 export * from "./schema/choreographies";
 export * from "./schema/finances";
 export * from "./schema/comprobantes";
+export * from "./schema/presentations";

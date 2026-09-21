@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { describe, expect, test } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import {
@@ -30,13 +30,34 @@ import {
   createDancer,
   createEventCatalog,
   createEventRecord,
+  createGrupalOnlyModalityFixture,
+  createOpenEventCatalog,
   createProfessor,
 } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import { createChoreographyRegistration } from "@/lib/choreographies/registration-confirmation.server";
+import { noCompatibleCategoryRosterMessage } from "@/lib/choreographies/choreography-messages";
 import { createSignedInAdminRequest } from "@/lib/admin/test-support/db";
 import { recordComprobante } from "@/lib/comprobantes/comprobantes.server";
 
-import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
+import {
+  installDatabaseTestHooks,
+  isPgliteTestBackend,
+} from "../../../../../tests/db/harness";
 import { choreographyAnchor } from "@/lib/comprobantes/anchor";
+import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
+
+// The evaluated lock is a seam with no body yet (evaluation-lock.server.ts), so
+// a test that needs a closed choreography declares it here.
+vi.mock(
+  "@/lib/presentations/evaluation-lock.server",
+  async () =>
+    (await import("@/lib/presentations/evaluation-lock.test-support"))
+      .evaluationLockStub,
+);
+
+beforeEach(() => {
+  evaluatedChoreographyIds.clear();
+});
 
 installDatabaseTestHooks();
 
@@ -362,7 +383,7 @@ describe("administrative choreography roster editing", () => {
     expect(afterDeallocation?.withdrawnAt).toEqual(withdrawn?.withdrawnAt);
   });
 
-  test("hard-locks roster editing when the choreography has a presentation", async () => {
+  test("hard-locks roster editing once the choreography was evaluated", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Roster Lock",
       email: "roster.lock.academia@example.com",
@@ -378,12 +399,12 @@ describe("administrative choreography roster editing", () => {
       categoryId: catalog.teenCategory.id,
       eventId: event.id,
       groupType: "solo",
-      hasPresentation: true,
       modalityId: catalog.modality.id,
       name: "Solo",
       scheduleCapacityId: catalog.soloScheduleCapacity.id,
       submodalityId: catalog.submodality.id,
     });
+    evaluatedChoreographyIds.add(choreography.id);
     await db.insert(choreographyDancers).values({
       ageAtEventStart: 14,
       choreographyId: choreography.id,
@@ -1052,63 +1073,89 @@ describe("schedule capacity guard on the roster path", () => {
     );
   });
 
-  test("locks the destination capacity across two concurrent roster saves competing for the last slot", async () => {
-    const event = await createEventRecord({ active: true, name: "Regional" });
-    const catalog = await createEventCatalog(event.id);
-    await db
-      .update(scheduleCapacities)
-      .set({ capacity: 1 })
-      .where(eq(scheduleCapacities.id, catalog.duoScheduleCapacity.id));
+  /**
+   * `lockScheduleCapacityForAssignment` takes `FOR UPDATE` on the schedule and
+   * the capacity before it counts the occupants, so two roster saves competing
+   * for the same last slot are serialised: the second one counts after the first
+   * has committed, sees the capacity full, and is refused.
+   *
+   * That is only observable where the two saves really do overlap. The fast
+   * suite runs them through a single PGlite connection, which serialises the
+   * transactions on its own — the lock is never contended, and the assertion
+   * would hold even if `FOR UPDATE` were dropped. So this proves the lock on the
+   * Postgres backend and is skipped on PGlite rather than passing for free.
+   */
+  describe.skipIf(isPgliteTestBackend())(
+    "schedule capacity under real contention",
+    () => {
+      test("locks the destination capacity across two concurrent roster saves competing for the last slot", async () => {
+        const event = await createEventRecord({
+          active: true,
+          name: "Regional",
+        });
+        const catalog = await createEventCatalog(event.id);
+        await db
+          .update(scheduleCapacities)
+          .set({ capacity: 1 })
+          .where(eq(scheduleCapacities.id, catalog.duoScheduleCapacity.id));
 
-    const [scenarioX, scenarioY] = await Promise.all([
-      createSoloScenarioInCatalog({
-        academyName: "Academia Roster Cupo Concurrente X",
-        catalog,
-        email: "roster.cupo.concurrente.x@example.com",
-        event,
-      }),
-      createSoloScenarioInCatalog({
-        academyName: "Academia Roster Cupo Concurrente Y",
-        catalog,
-        email: "roster.cupo.concurrente.y@example.com",
-        event,
-      }),
-    ]);
+        const [scenarioX, scenarioY] = await Promise.all([
+          createSoloScenarioInCatalog({
+            academyName: "Academia Roster Cupo Concurrente X",
+            catalog,
+            email: "roster.cupo.concurrente.x@example.com",
+            event,
+          }),
+          createSoloScenarioInCatalog({
+            academyName: "Academia Roster Cupo Concurrente Y",
+            catalog,
+            email: "roster.cupo.concurrente.y@example.com",
+            event,
+          }),
+        ]);
 
-    const [resultX, resultY] = await Promise.all([
-      submitRoster({
-        choreographyId: scenarioX.choreography.id,
-        dancerIds: [scenarioX.dancerA.id, scenarioX.dancerB.id],
-      }),
-      submitRoster({
-        choreographyId: scenarioY.choreography.id,
-        dancerIds: [scenarioY.dancerA.id, scenarioY.dancerB.id],
-      }),
-    ]);
+        const [resultX, resultY] = await Promise.all([
+          submitRoster({
+            choreographyId: scenarioX.choreography.id,
+            dancerIds: [scenarioX.dancerA.id, scenarioX.dancerB.id],
+          }),
+          submitRoster({
+            choreographyId: scenarioY.choreography.id,
+            dancerIds: [scenarioY.dancerA.id, scenarioY.dancerB.id],
+          }),
+        ]);
 
-    const outcomes = [resultX, resultY].map((result) => {
-      if (!result || result instanceof Response || !("status" in result)) {
-        throw new Error("Expected a roster action result.");
-      }
-      return result.status;
-    });
+        const outcomes = [resultX, resultY].map((result) => {
+          if (!result || result instanceof Response || !("status" in result)) {
+            throw new Error("Expected a roster action result.");
+          }
+          return result.status;
+        });
 
-    // Both choreographies target the same capacity, which has exactly one free
-    // slot: the lock must let exactly one of the two concurrent saves win it,
-    // never both and never neither.
-    expect(outcomes.filter((status) => status === "success")).toHaveLength(1);
-    expect(outcomes.filter((status) => status === "error")).toHaveLength(1);
+        // Both choreographies target the same capacity, which has exactly one free
+        // slot: the lock must let exactly one of the two concurrent saves win it,
+        // never both and never neither.
+        expect(outcomes.filter((status) => status === "success")).toHaveLength(
+          1,
+        );
+        expect(outcomes.filter((status) => status === "error")).toHaveLength(1);
 
-    const savedX = await db.query.choreographies.findFirst({
-      where: eq(choreographies.id, scenarioX.choreography.id),
-    });
-    const savedY = await db.query.choreographies.findFirst({
-      where: eq(choreographies.id, scenarioY.choreography.id),
-    });
-    const savedGroupTypes = [savedX?.groupType, savedY?.groupType];
-    expect(savedGroupTypes.filter((value) => value === "duo")).toHaveLength(1);
-    expect(savedGroupTypes.filter((value) => value === "solo")).toHaveLength(1);
-  });
+        const savedX = await db.query.choreographies.findFirst({
+          where: eq(choreographies.id, scenarioX.choreography.id),
+        });
+        const savedY = await db.query.choreographies.findFirst({
+          where: eq(choreographies.id, scenarioY.choreography.id),
+        });
+        const savedGroupTypes = [savedX?.groupType, savedY?.groupType];
+        expect(savedGroupTypes.filter((value) => value === "duo")).toHaveLength(
+          1,
+        );
+        expect(
+          savedGroupTypes.filter((value) => value === "solo"),
+        ).toHaveLength(1);
+      });
+    },
+  );
 });
 
 /**
@@ -1393,7 +1440,144 @@ describe("`Estado de alta` on the administrative roster editor", () => {
     });
     expect(updated?.name).toBe("Duo Corregido");
   });
+  test("refreshes the stored age of the inscriptions it keeps, and leaves the withdrawn ones alone", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Edad Vigente",
+      email: "roster.edad.vigente.academia@example.com",
+    });
+    const event = await createEventRecord({ active: true, name: "Regional" });
+    const catalog = await createEventCatalog(event.id);
+    const [keptDancer, addedDancer, withdrawnDancer] = await Promise.all([
+      createDancer(owner.academyId, {
+        birthDate: "2010-01-10",
+        firstName: "Ana",
+        lastName: "Queda",
+      }),
+      createDancer(owner.academyId, {
+        birthDate: "2009-01-10",
+        firstName: "Bea",
+        lastName: "Entra",
+      }),
+      createDancer(owner.academyId, {
+        birthDate: "2008-01-10",
+        firstName: "Cami",
+        lastName: "Retirada",
+      }),
+    ]);
+    const choreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.teenCategory.id,
+      eventId: event.id,
+      groupType: "solo",
+      modalityId: catalog.modality.id,
+      name: "Solo",
+      scheduleCapacityId: catalog.soloScheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+    await db.insert(choreographyDancers).values([
+      {
+        // Deliberately stale: the dancer was 11 when the inscription was
+        // first written, and nothing refreshed it since.
+        ageAtEventStart: 11,
+        choreographyId: choreography.id,
+        dancerId: keptDancer.id,
+      },
+      {
+        ageAtEventStart: 11,
+        choreographyId: choreography.id,
+        dancerId: withdrawnDancer.id,
+        withdrawnAt: new Date(),
+      },
+    ]);
+
+    const response = await submitRoster({
+      choreographyId: choreography.id,
+      dancerIds: [keptDancer.id, addedDancer.id],
+    });
+
+    expect(response).toMatchObject({ status: "success" });
+
+    const ageByDancerId = await readAgesByDancerId(choreography.id);
+    expect(ageByDancerId).toEqual(
+      new Map([
+        [keptDancer.id, 16],
+        [addedDancer.id, 17],
+        [withdrawnDancer.id, 11],
+      ]),
+    );
+
+    const stored = await db.query.choreographies.findFirst({
+      columns: { categoryId: true, groupType: true },
+      where: eq(choreographies.id, choreography.id),
+    });
+    expect(stored).toMatchObject({
+      categoryId: catalog.teenCategory.id,
+      groupType: "duo",
+    });
+  });
+
+  test("normalizes a stale stored age on a save that changes nothing about the roster", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Edad Sin Cambios",
+      email: "roster.edad.sin.cambios.academia@example.com",
+    });
+    const event = await createEventRecord({ active: true, name: "Regional" });
+    const catalog = await createEventCatalog(event.id);
+    const dancer = await createDancer(owner.academyId, {
+      birthDate: "2010-01-10",
+      firstName: "Ana",
+      lastName: "Queda",
+    });
+    const choreography = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.teenCategory.id,
+      eventId: event.id,
+      groupType: "solo",
+      modalityId: catalog.modality.id,
+      name: "Solo",
+      scheduleCapacityId: catalog.soloScheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+    await db.insert(choreographyDancers).values({
+      ageAtEventStart: 11,
+      choreographyId: choreography.id,
+      dancerId: dancer.id,
+    });
+
+    const response = await submitRoster({
+      choreographyId: choreography.id,
+      dancerIds: [dancer.id],
+    });
+
+    expect(response).toMatchObject({ status: "success" });
+
+    const ageByDancerId = await readAgesByDancerId(choreography.id);
+    expect(ageByDancerId).toEqual(new Map([[dancer.id, 16]]));
+
+    // The normalization deliberately stops at the inscriptions: a save that
+    // resolves no roster writes no placement, so the choreography is left
+    // exactly as it was.
+    const stored = await db.query.choreographies.findFirst({
+      columns: { categoryId: true, groupType: true },
+      where: eq(choreographies.id, choreography.id),
+    });
+    expect(stored).toMatchObject({
+      categoryId: catalog.teenCategory.id,
+      groupType: "solo",
+    });
+  });
 });
+
+async function readAgesByDancerId(choreographyId: string) {
+  const inscriptions = await db.query.choreographyDancers.findMany({
+    columns: { ageAtEventStart: true, dancerId: true },
+    where: eq(choreographyDancers.choreographyId, choreographyId),
+  });
+
+  return new Map(
+    inscriptions.map((row) => [row.dancerId, row.ageAtEventStart]),
+  );
+}
 
 async function createArchivedRosterScenario(input: {
   academyName: string;
@@ -1474,6 +1658,80 @@ async function loadRosterDetail(choreographyId: string) {
     request,
   });
 }
+
+test("refuses a roster change that resolves to no category, writing nothing", async () => {
+  const owner = await createAcademySession({
+    academyName: "Academia Elenco Sin Categoría",
+    email: "roster.sin-categoria.academia@example.com",
+  });
+  const { event } = await createOpenEventCatalog();
+  // The modality offers grupal and nothing else, so dropping a dancer from a
+  // grupal roster lands the choreography on a trio no category covers.
+  const grupalOnly = await createGrupalOnlyModalityFixture(event.id);
+  const dancers = await Promise.all([
+    createDancer(owner.academyId, { birthDate: "2012-01-10" }),
+    createDancer(owner.academyId, { birthDate: "2012-03-20" }),
+    createDancer(owner.academyId, { birthDate: "2012-07-05" }),
+    createDancer(owner.academyId, { birthDate: "2012-09-15" }),
+  ]);
+  const professor = await createProfessor(owner.academyId);
+  const registration = await createChoreographyRegistration({
+    academyId: owner.academyId,
+    eventId: event.id,
+    modalityId: grupalOnly.modality.id,
+    submodalityId: null,
+    name: "Grupal completo",
+    dancerIds: dancers.map((dancer) => dancer.id),
+    professorIds: [professor.id],
+    experienceLevelId: null,
+    scheduleCapacityId: `schedule:${grupalOnly.schedule.id}:global`,
+  });
+
+  if (!registration.ok) {
+    throw new Error("Expected the grupal registration to succeed.");
+  }
+
+  const response = await submitRoster({
+    choreographyId: registration.choreography.id,
+    dancerIds: dancers.slice(0, 3).map((dancer) => dancer.id),
+    professorIds: [professor.id],
+  });
+
+  // A plain `status: "error"`, not the roster section's own swallowed
+  // channel: the code, not the section, decides that it reaches the page.
+  expect(response).toMatchObject({
+    message: noCompatibleCategoryRosterMessage,
+    status: "error",
+  });
+  if (!response || response instanceof Response) {
+    throw new Error("Expected a blocked roster action.");
+  }
+  expect(toChoreographyDetailViewActionData(response)).toBe(response);
+
+  const stored = await db.query.choreographies.findFirst({
+    columns: { categoryId: true, groupType: true },
+    where: eq(choreographies.id, registration.choreography.id),
+  });
+  expect(stored).toMatchObject({
+    categoryId: grupalOnly.category.id,
+    groupType: "grupal",
+  });
+
+  const inscriptions = await db.query.choreographyDancers.findMany({
+    where: eq(choreographyDancers.choreographyId, registration.choreography.id),
+  });
+  expect(inscriptions.map((row) => row.dancerId).sort()).toEqual(
+    dancers.map((dancer) => dancer.id).sort(),
+  );
+
+  const professorLinks = await db.query.choreographyProfessors.findMany({
+    where: eq(
+      choreographyProfessors.choreographyId,
+      registration.choreography.id,
+    ),
+  });
+  expect(professorLinks).toHaveLength(1);
+});
 
 async function submitRoster(input: {
   choreographyId: string;

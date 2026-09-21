@@ -19,11 +19,11 @@ describe("PortalChoreographyDetailRouteView", () => {
         }),
         choreography: choreographyDetailRow({
           name: "Mi Pieza",
-          categoryName: null,
+          categoryName: "Juvenil",
           experienceLevelName: null,
           operationalStatus: {
             code: "incomplete",
-            pendingItems: ["category", "professors"],
+            pendingItems: ["experienceLevel", "professors"],
           },
           dancers: [
             {
@@ -51,8 +51,10 @@ describe("PortalChoreographyDetailRouteView", () => {
     expect(markup).toContain("Nombre");
     expect(markup).toContain("Modalidad");
     expect(markup).toContain("Tipo de grupo");
-    expect(markup).toContain("Sin asignar");
-    expect(markup).toContain("Faltan cargar categoría y profesores.");
+    expect(markup).toContain("Juvenil");
+    expect(markup).toContain(
+      "Faltan cargar nivel de experiencia y profesores.",
+    );
     expect(markup).toContain("Ana Paz");
     expect(markup).toContain("Luz Suárez");
     expect(markup).not.toContain("Buscar bailarines");
@@ -91,12 +93,12 @@ describe("PortalChoreographyDetailRouteView", () => {
     );
   });
 
-  test("keeps the music field disabled when the choreography has a presentation", () => {
+  test("keeps the music field disabled once the choreography was evaluated", () => {
     const markup = renderChoreographyDetail({
       loaderData: choreographyDetailLoaderData({
         eventContext: portalEventContext({ isRegistrationOpen: false }),
         choreography: choreographyDetailRow({
-          hasPresentation: true,
+          isEvaluated: true,
         }),
       }),
     });
@@ -190,7 +192,7 @@ function choreographyDetailRow(
       },
     ],
     professors: [],
-    hasPresentation: false,
+    isEvaluated: false,
     ...overrides,
   };
 }

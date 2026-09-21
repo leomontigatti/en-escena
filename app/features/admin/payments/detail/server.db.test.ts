@@ -22,7 +22,7 @@ import { deletePaymentIntent, updatePaymentIntent } from "./shared";
 
 installDatabaseTestHooks();
 
-describe.sequential("admin payment detail", () => {
+describe("admin payment detail", () => {
   test("updates an existing payment", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({

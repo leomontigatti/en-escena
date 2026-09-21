@@ -3,6 +3,7 @@ import { and, eq, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
 import { choreographies, choreographyDancers } from "@/db/schema";
 import { activeInscription } from "@/lib/choreographies/active-inscription";
+import { noCompatibleCategoryRosterMessage } from "@/lib/choreographies/choreography-messages";
 import {
   getScheduleSelectionId,
   isCompatibleScheduleCapacity,
@@ -17,16 +18,38 @@ import {
 import {
   compatibleScheduleSelectionRequiredMessage,
   getDancerEditingEligibility,
-  getResolvedChoreographyCategory,
   haveSameIds,
   type UpdateChoreographyDancersResult,
   type UpdateChoreographyResult,
 } from "@/lib/choreographies/choreography-roster.shared";
 import {
+  normalizeActiveInscriptionAges,
+  refreshActiveInscriptionAges,
+} from "@/lib/choreographies/inscription-age.server";
+import {
   removeInscriptionsFromRoster,
   reviveWithdrawnInscriptions,
 } from "@/lib/choreographies/inscription-withdrawal.server";
+import type { ResolvedRegistrationDancer } from "@/lib/choreographies/registration-resolution.server";
 import { guardAndLockScheduleCapacityMove } from "@/lib/choreographies/schedule-capacity-lock.server";
+import { hasEvaluatedPresentation } from "@/lib/presentations/evaluation-lock.server";
+
+type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+type ResolvedDancerUpdateContext = Extract<
+  Awaited<ReturnType<typeof resolveChoreographyDancerUpdateContext>>,
+  { ok: true }
+>;
+
+type SelectedExperienceLevelId = Extract<
+  ReturnType<typeof resolveSelectedExperienceLevelId>,
+  { ok: true }
+>["value"];
+
+type SelectedSchedule = Extract<
+  ReturnType<typeof resolveSelectedScheduleCapacityIdForDancerUpdate>,
+  { ok: true }
+>["value"];
 
 /**
  * administration edits the roster (dancers and professors) of an
@@ -91,6 +114,7 @@ export async function updateAdministrativeChoreographyRoster(input: {
 
   if (!dancerIdsChanged && !professorIdsChanged) {
     await renameChoreographyIfNeeded(input);
+    await normalizeActiveInscriptionAges(input);
 
     return { ok: true };
   }
@@ -144,6 +168,7 @@ export async function updateAdministrativeChoreographyRoster(input: {
 
   if (!dancerIdsChanged) {
     await renameChoreographyIfNeeded(input);
+    await normalizeActiveInscriptionAges(input);
   }
 
   return { ok: true };
@@ -163,23 +188,41 @@ async function renameChoreographyIfNeeded(input: {
     .where(eq(choreographies.id, input.choreographyId));
 }
 
-async function updateChoreographyDancers(input: {
+/**
+ * Everything a roster save has to settle before it may open a transaction: the
+ * re-resolution of the edited roster, and the three refusals that read from it
+ * (no compatible category, experience level, schedule capacity). None of them
+ * writes, so they are all cheaper outside the transaction than inside it — and
+ * keeping them together leaves the write itself with nothing to decide.
+ */
+async function planRosterWrite(input: {
   academyId: string;
   eventId: string;
   choreographyId: string;
   dancerIds: string[];
   experienceLevelId: string | null;
-  name?: string;
   scheduleCapacityId?: string | null;
-}): Promise<UpdateChoreographyDancersResult> {
+}): Promise<RosterWritePlan> {
   const resolvedUpdate = await resolveChoreographyDancerUpdateContext(input);
 
   if (!resolvedUpdate.ok) {
-    return resolvedUpdate;
+    return refuse(resolvedUpdate);
   }
 
   const { choreography, resolvedDancers, resolution, scheduleResolution } =
     resolvedUpdate;
+
+  // Beside the experience level and schedule checks, and before the
+  // transaction: a roster that resolves to no category leaves a choreography
+  // that cannot compete, so nothing is written. The resolver still reports the
+  // category as pending — turning that into a refusal is the writer's call.
+  if (resolution.category.status !== "resolved") {
+    return refuse({
+      ok: false,
+      code: "no-compatible-category",
+      message: noCompatibleCategoryRosterMessage,
+    });
+  }
 
   const resolvedExperienceLevelId = resolveSelectedExperienceLevelId({
     currentCategoryId: choreography.categoryId,
@@ -189,11 +232,11 @@ async function updateChoreographyDancers(input: {
   });
 
   if (!resolvedExperienceLevelId.ok) {
-    return {
+    return refuse({
       ok: false,
       message: resolvedExperienceLevelId.message,
       fieldErrors: resolvedExperienceLevelId.fieldErrors,
-    };
+    });
   }
 
   const resolvedScheduleCapacityId =
@@ -203,11 +246,11 @@ async function updateChoreographyDancers(input: {
     });
 
   if (!resolvedScheduleCapacityId.ok) {
-    return {
+    return refuse({
       ok: false,
       message: resolvedScheduleCapacityId.message,
       fieldErrors: resolvedScheduleCapacityId.fieldErrors,
-    };
+    });
   }
 
   const selectedSchedule = resolvedScheduleCapacityId.value;
@@ -230,12 +273,70 @@ async function updateChoreographyDancers(input: {
       resolution,
     )
   ) {
-    return {
+    return refuse({
       ok: false,
       code: "schedule-capacity",
       message: compatibleScheduleSelectionRequiredMessage,
-    };
+    });
   }
+
+  return {
+    ok: true,
+    categoryId: resolution.category.id,
+    choreography,
+    experienceLevelId: resolvedExperienceLevelId.value,
+    resolution,
+    resolvedDancers,
+    selectedSchedule,
+  };
+}
+
+function refuse(
+  failure: Extract<UpdateChoreographyDancersResult, { ok: false }>,
+): RosterWritePlan {
+  return { ok: false, failure };
+}
+
+type RosterWritePlan =
+  | {
+      ok: true;
+      // Read off the resolution once the refusal above has ruled the pending
+      // category out, so the write below has an id the column can take.
+      categoryId: string;
+      choreography: ResolvedDancerUpdateContext["choreography"];
+      experienceLevelId: SelectedExperienceLevelId;
+      resolution: ResolvedDancerUpdateContext["resolution"];
+      resolvedDancers: ResolvedRegistrationDancer[];
+      selectedSchedule: SelectedSchedule;
+    }
+  | {
+      ok: false;
+      failure: Extract<UpdateChoreographyDancersResult, { ok: false }>;
+    };
+
+async function updateChoreographyDancers(input: {
+  academyId: string;
+  eventId: string;
+  choreographyId: string;
+  dancerIds: string[];
+  experienceLevelId: string | null;
+  name?: string;
+  scheduleCapacityId?: string | null;
+}): Promise<UpdateChoreographyDancersResult> {
+  const plan = await planRosterWrite(input);
+
+  if (!plan.ok) {
+    return plan.failure;
+  }
+
+  const {
+    categoryId,
+    choreography,
+    experienceLevelId,
+    resolution,
+    resolvedDancers,
+    selectedSchedule,
+  } = plan;
 
   const requestedDancerIds = new Set(
     resolvedDancers.map((dancer) => dancer.id),
@@ -286,83 +387,21 @@ async function updateChoreographyDancers(input: {
       }
     }
 
-    const [currentLinks, withdrawnLinks] = await Promise.all([
-      tx
-        .select({
-          id: choreographyDancers.id,
-          dancerId: choreographyDancers.dancerId,
-        })
-        .from(choreographyDancers)
-        .where(
-          and(
-            eq(choreographyDancers.choreographyId, input.choreographyId),
-            activeInscription(),
-          ),
-        ),
-      // The withdrawn ones are read on purpose: they are the candidates for
-      // revival, and until they are revived they take part in nothing else.
-      tx
-        .select({
-          id: choreographyDancers.id,
-          dancerId: choreographyDancers.dancerId,
-        })
-        .from(choreographyDancers)
-        .where(
-          and(
-            eq(choreographyDancers.choreographyId, input.choreographyId),
-            isNotNull(choreographyDancers.withdrawnAt),
-          ),
-        ),
-    ]);
-    const currentDancerIds = new Set(currentLinks.map((row) => row.dancerId));
-    const withdrawnInscriptionIdByDancerId = new Map(
-      withdrawnLinks.map((row) => [row.dancerId, row.id]),
-    );
-
-    await removeInscriptionsFromRoster(
+    await syncRosterInscriptions({
+      choreographyId: input.choreographyId,
+      requestedDancerIds,
+      resolvedDancers,
       tx,
-      currentLinks
-        .filter((link) => !requestedDancerIds.has(link.dancerId))
-        .map((link) => link.id),
-    );
-
-    const addedDancers = resolvedDancers.filter(
-      (dancer) => !currentDancerIds.has(dancer.id),
-    );
-
-    await reviveWithdrawnInscriptions(
-      tx,
-      addedDancers.flatMap((dancer) => {
-        const inscriptionId = withdrawnInscriptionIdByDancerId.get(dancer.id);
-
-        return inscriptionId
-          ? [{ ageAtEventStart: dancer.ageAtEventStart, id: inscriptionId }]
-          : [];
-      }),
-    );
-
-    const insertedDancers = addedDancers.filter(
-      (dancer) => !withdrawnInscriptionIdByDancerId.has(dancer.id),
-    );
-
-    if (insertedDancers.length > 0) {
-      await tx.insert(choreographyDancers).values(
-        insertedDancers.map((dancer) => ({
-          choreographyId: input.choreographyId,
-          dancerId: dancer.id,
-          ageAtEventStart: dancer.ageAtEventStart,
-        })),
-      );
-    }
+    });
 
     await tx
       .update(choreographies)
       .set({
         groupType: resolution.groupType,
-        categoryId: getResolvedChoreographyCategory(resolution).id,
+        categoryId,
         categoryCalculationMode: resolution.categoryCalculationMode,
         categoryAgeBasis: resolution.categoryAgeBasis,
-        experienceLevelId: resolvedExperienceLevelId.value,
+        experienceLevelId,
         scheduleId: selectedSchedule.scheduleId,
         scheduleCapacityId: selectedSchedule.scheduleCapacityId,
         ...(input.name === undefined ? {} : { name: input.name }),
@@ -384,16 +423,108 @@ async function updateChoreographyDancers(input: {
   return { ok: true };
 }
 
+/**
+ * The inscription side of a roster save: it removes what left the roster,
+ * revives the withdrawn inscription of a dancer who comes back and inserts the
+ * rest. It runs inside the caller's transaction, after the capacity guard, so a
+ * rejected move leaves none of it persisted.
+ */
+async function syncRosterInscriptions(input: {
+  choreographyId: string;
+  requestedDancerIds: Set<string>;
+  resolvedDancers: ResolvedRegistrationDancer[];
+  tx: Transaction;
+}) {
+  const { requestedDancerIds, resolvedDancers, tx } = input;
+
+  const [currentLinks, withdrawnLinks] = await Promise.all([
+    tx
+      .select({
+        id: choreographyDancers.id,
+        dancerId: choreographyDancers.dancerId,
+      })
+      .from(choreographyDancers)
+      .where(
+        and(
+          eq(choreographyDancers.choreographyId, input.choreographyId),
+          activeInscription(),
+        ),
+      ),
+    // The withdrawn ones are read on purpose: they are the candidates for
+    // revival, and until they are revived they take part in nothing else.
+    tx
+      .select({
+        id: choreographyDancers.id,
+        dancerId: choreographyDancers.dancerId,
+      })
+      .from(choreographyDancers)
+      .where(
+        and(
+          eq(choreographyDancers.choreographyId, input.choreographyId),
+          isNotNull(choreographyDancers.withdrawnAt),
+        ),
+      ),
+  ]);
+  const currentDancerIds = new Set(currentLinks.map((row) => row.dancerId));
+  const withdrawnInscriptionIdByDancerId = new Map(
+    withdrawnLinks.map((row) => [row.dancerId, row.id]),
+  );
+
+  await removeInscriptionsFromRoster(
+    tx,
+    currentLinks
+      .filter((link) => !requestedDancerIds.has(link.dancerId))
+      .map((link) => link.id),
+  );
+
+  const addedDancers = resolvedDancers.filter(
+    (dancer) => !currentDancerIds.has(dancer.id),
+  );
+
+  await reviveWithdrawnInscriptions(
+    tx,
+    addedDancers.flatMap((dancer) => {
+      const inscriptionId = withdrawnInscriptionIdByDancerId.get(dancer.id);
+
+      return inscriptionId
+        ? [{ ageAtEventStart: dancer.ageAtEventStart, id: inscriptionId }]
+        : [];
+    }),
+  );
+
+  const insertedDancers = addedDancers.filter(
+    (dancer) => !withdrawnInscriptionIdByDancerId.has(dancer.id),
+  );
+
+  if (insertedDancers.length > 0) {
+    await tx.insert(choreographyDancers).values(
+      insertedDancers.map((dancer) => ({
+        choreographyId: input.choreographyId,
+        dancerId: dancer.id,
+        ageAtEventStart: dancer.ageAtEventStart,
+      })),
+    );
+  }
+
+  // The rows that stay are the only ones nothing above has written an age
+  // onto, and the placement this same save persists was resolved from these
+  // very ages: without this they would keep whatever was stored when the
+  // dancer was first added, and the two would disagree.
+  await refreshActiveInscriptionAges(tx, {
+    choreographyId: input.choreographyId,
+    ageByDancerId: new Map(
+      resolvedDancers
+        .filter((dancer) => currentDancerIds.has(dancer.id))
+        .map((dancer) => [dancer.id, dancer.ageAtEventStart]),
+    ),
+  });
+}
+
 async function readRosterHardLock(
   choreographyId: string,
 ): Promise<string | null> {
-  const choreography = await db.query.choreographies.findFirst({
-    columns: { hasPresentation: true },
-    where: eq(choreographies.id, choreographyId),
-  });
-
   const eligibility = getDancerEditingEligibility({
-    hasPresentation: choreography?.hasPresentation ?? false,
+    isEvaluated: await hasEvaluatedPresentation(choreographyId),
   });
 
   return eligibility.canEdit ? null : eligibility.reasonText;

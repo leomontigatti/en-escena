@@ -253,14 +253,14 @@ describe("canSubmitModalityCorrection", () => {
     ).toBe(false);
   });
 
-  // A destination modality with no compatible category saves all the same:
-  // the choreography stays operationally incomplete, as it does on creation.
-  test("saves when no category resolves for the destination modality", () => {
+  // A choreography always has a category, so the destination modality that
+  // resolves none is a dead end: the server refuses it and the button is closed.
+  test("blocks the save when no category resolves for the destination modality", () => {
     expect(
       canSubmitModalityCorrection(
         buildInput({ resolution: buildResolution({ category: null }) }),
       ),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   // Only `multiple` leaves a capacity to choose; the default resolution is `auto`,

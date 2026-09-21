@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, or } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -17,12 +17,13 @@ import { activeInscription } from "@/lib/choreographies/active-inscription";
 import { deriveChoreographyOperationalStatus } from "@/lib/choreographies/operational-status";
 import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
 import type { PortalChoreographyListItem } from "@/lib/portal/choreographies";
+import { hasEvaluatedPresentation } from "@/lib/presentations/evaluation-lock.server";
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
 
 export type PortalChoreographyDetail = PortalChoreographyListItem & {
-  categoryId: string | null;
+  categoryId: string;
   experienceLevelId: string | null;
-  hasPresentation?: boolean;
+  isEvaluated: boolean;
   /**
    * Whether the resolved category declares levels. The academy does not edit the
    * level, but it does need to tell "not applicable" from "missing": two kinds of
@@ -53,17 +54,16 @@ type ChoreographyRow = {
   choreographyNumber: number;
   name: string;
   groupType: "solo" | "duo" | "trio" | "grupal";
-  categoryId: string | null;
+  categoryId: string;
   experienceLevelId: string | null;
   musicStorageKey: string | null;
   modalityName: string;
   submodalityName: string | null;
-  categoryName: string | null;
-  categoryExperienceLevels: string[] | null;
+  categoryName: string;
+  categoryExperienceLevels: string[];
 };
 
 type ChoreographyDetailRow = ChoreographyRow & {
-  hasPresentation: boolean;
   scheduleId: string;
   scheduleName: string;
   scheduleDate: string;
@@ -92,7 +92,7 @@ export async function listChoreographiesForAcademyEvent(
     .from(choreographies)
     .innerJoin(modalities, eq(choreographies.modalityId, modalities.id))
     .leftJoin(submodalities, eq(choreographies.submodalityId, submodalities.id))
-    .leftJoin(categories, eq(choreographies.categoryId, categories.id))
+    .innerJoin(categories, eq(choreographies.categoryId, categories.id))
     .where(
       and(
         eq(choreographies.academyId, academyId),
@@ -117,7 +117,6 @@ export async function findChoreographyForAcademyEvent(
       groupType: choreographies.groupType,
       categoryId: choreographies.categoryId,
       experienceLevelId: choreographies.experienceLevelId,
-      hasPresentation: choreographies.hasPresentation,
       musicStorageKey: choreographies.musicStorageKey,
       modalityName: modalities.name,
       submodalityName: submodalities.name,
@@ -132,18 +131,12 @@ export async function findChoreographyForAcademyEvent(
     .from(choreographies)
     .innerJoin(modalities, eq(choreographies.modalityId, modalities.id))
     .leftJoin(submodalities, eq(choreographies.submodalityId, submodalities.id))
-    .leftJoin(categories, eq(choreographies.categoryId, categories.id))
+    .innerJoin(categories, eq(choreographies.categoryId, categories.id))
     .leftJoin(
       scheduleCapacities,
       eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
     )
-    .innerJoin(
-      schedules,
-      or(
-        eq(choreographies.scheduleId, schedules.id),
-        eq(scheduleCapacities.scheduleId, schedules.id),
-      ),
-    )
+    .innerJoin(schedules, eq(choreographies.scheduleId, schedules.id))
     .where(
       and(
         eq(choreographies.id, choreographyId),
@@ -158,7 +151,8 @@ export async function findChoreographyForAcademyEvent(
   }
 
   const [base] = await hydrateChoreographyRows([row]);
-  const [dancerRows, professorRows] = await Promise.all([
+  const [isEvaluated, dancerRows, professorRows] = await Promise.all([
+    hasEvaluatedPresentation(choreographyId),
     db
       .select({
         id: dancers.id,
@@ -198,11 +192,9 @@ export async function findChoreographyForAcademyEvent(
     ...base,
     categoryId: row.categoryId,
     experienceLevelId: row.experienceLevelId,
-    hasPresentation: row.hasPresentation,
+    isEvaluated,
     musicStorageKey: row.musicStorageKey,
-    requiresExperienceLevel:
-      row.categoryExperienceLevels !== null &&
-      row.categoryExperienceLevels.length > 0,
+    requiresExperienceLevel: row.categoryExperienceLevels.length > 0,
     scheduleCapacityId:
       row.scheduleCapacityId ??
       getGlobalScheduleCapacityOptionId(row.scheduleId),
@@ -270,13 +262,14 @@ async function hydrateChoreographyRows(
     experienceLevelName: formatExperienceLevelName(row.experienceLevelId),
     musicStorageKey: row.musicStorageKey,
     operationalStatus: deriveChoreographyOperationalStatus({
-      categoryId: row.categoryId,
+      categoryExperienceLevels: row.categoryExperienceLevels,
       experienceLevelId: row.experienceLevelId,
       hasMusic: row.musicStorageKey !== null,
       hasProfessors: choreographyIdsWithProfessors.has(row.id),
-      requiresExperienceLevel:
-        row.categoryExperienceLevels !== null &&
-        row.categoryExperienceLevels.length > 0,
+      // The portal is told nothing about a mis-filed placement: the academy has
+      // no lever to fix one — the repair is a roster change or an admin
+      // correction — so the check is left to the admin surfaces.
+      placementCheck: null,
     }),
   }));
 }

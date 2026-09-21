@@ -1,0 +1,61 @@
+# PR-title gate (#1007). PRs here are squash-merged, so the title becomes the
+# commit subject on `master`: it has to be a conventional commit written in
+# English. `pnpm check:pr-title` is the whole rule; this file only feeds it the
+# title. The two rules and why they are exactly these two are in
+# `scripts/check-pr-title.ts`.
+#
+# Its own workflow rather than a job in `ci.yml`, for one reason: it needs
+# `edited`, so renaming a title re-runs the gate instead of leaving a red check
+# on a title that is now fine. `edited` fires on the body too, and adding it to
+# `ci.yml` would re-run the full suite — build, four Postgres shards — every time
+# an AFK runner edits a PR description, which they do.
+#
+# No bot skip. `github.event.pull_request.user.type == 'Bot'` would be the place
+# for it, but every PR here is opened by a human or by an AFK runner under a
+# user token, and a skip nobody needs is a hole nobody checks.
+#
+# Branch protection: `pr-title` is a required context on `master`, the fifth
+# alongside the four from `ci.yml`. That is a repo setting outside this repo —
+# this file does not add the requirement, it only produces the check.
+name: PR title
+
+on:
+  pull_request:
+    branches: [master]
+    # `synchronize` and `reopened` keep the check present on every PR event that
+    # produces one, so the required context is never missing; `edited` is the
+    # reason this workflow exists.
+    types: [opened, edited, reopened, synchronize]
+
+# Reads the repository and nothing else (zizmor `excessive-permissions`).
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-title-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  pr-title:
+    name: pr-title
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      # The pnpm version comes from the `packageManager` field (pnpm 11.9.0).
+      # The install is needed: the script is TypeScript and runs under `tsx`.
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: check:pr-title (conventional prefix, English subject)
+        env:
+          # Through the environment, never interpolated into `run:`: the title is
+          # attacker-controlled text and `${{ … }}` inside a shell script is the
+          # `template-injection` zizmor fails on.
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: pnpm check:pr-title

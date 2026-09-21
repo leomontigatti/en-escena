@@ -16,7 +16,7 @@ import { handlePaymentCreateAction } from "./server";
 
 installDatabaseTestHooks();
 
-describe.sequential("admin payment create", () => {
+describe("admin payment create", () => {
   test("registers a payment and redirects to its detail with a flash toast", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({

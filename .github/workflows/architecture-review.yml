@@ -46,7 +46,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: pnpm
       - name: Install deps + agent runner
         run: |
@@ -112,7 +112,8 @@ jobs:
           title=$(head -c 256 "$OUTPUT_DIR/prd_title.txt")
           url=$(gh issue create --title "$title" \
             --body-file "$OUTPUT_DIR/prd_body.md" \
-            --label source:architecture-review)
+            --label source:architecture-review \
+            --label needs-triage)
           echo "url=$url" >> "$GITHUB_OUTPUT"
 
       - name: Run summary

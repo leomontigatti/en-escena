@@ -54,7 +54,7 @@ function daysFromNow(days: number): Date {
   return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 }
 
-describe.sequential("handlePortalChoreographiesListAction", () => {
+describe("handlePortalChoreographiesListAction", () => {
   test("exposes when there is no active event even if there are events to consult", async () => {
     const session = await createAcademySession({
       email: "coreografias.no-active-event@example.com",
@@ -286,27 +286,6 @@ describe.sequential("handlePortalChoreographiesListAction", () => {
       professorId: ownerProfessor.id,
     });
 
-    const missingCategory = await createChoreographyRecord({
-      academyId: owner.academyId,
-      categoryId: null,
-      eventId: selectedEvent.id,
-      experienceLevelId: null,
-      modalityId: selectedCatalog.modality.id,
-      musicStorageKey: "music/category.mp3",
-      name: "Sin Categoría",
-      scheduleCapacityId: selectedCatalog.scheduleCapacity.id,
-      submodalityId: null,
-    });
-    await db.insert(choreographyDancers).values({
-      choreographyId: missingCategory.id,
-      dancerId: ownerDancer.id,
-      ageAtEventStart: 13,
-    });
-    await db.insert(choreographyProfessors).values({
-      choreographyId: missingCategory.id,
-      professorId: ownerProfessor.id,
-    });
-
     const missingLevel = await createChoreographyRecord({
       academyId: owner.academyId,
       categoryId: selectedCatalog.categoryWithLevel.id,
@@ -397,7 +376,6 @@ describe.sequential("handlePortalChoreographiesListAction", () => {
     expect(loaderData.choreographies.map((row) => row.name)).toEqual([
       "Sin Profesores",
       "Sin Nivel",
-      "Sin Categoría",
       "Sin Música",
       "Final Completa",
     ]);
@@ -417,13 +395,6 @@ describe.sequential("handlePortalChoreographiesListAction", () => {
         },
       },
       {
-        name: "Sin Categoría",
-        operationalStatus: {
-          code: "incomplete",
-          pendingItems: ["category"],
-        },
-      },
-      {
         name: "Sin Música",
         operationalStatus: {
           code: "incomplete",
@@ -436,6 +407,53 @@ describe.sequential("handlePortalChoreographiesListAction", () => {
           code: "complete",
           pendingItems: [],
         },
+      },
+    ]);
+  });
+
+  // A mis-filed placement is an admin matter: the academy has no lever to fix it
+  // — the repair is a roster change or an admin correction — so the portal is
+  // told nothing and the choreography reads as complete.
+  test("keeps a mis-filed choreography off the academy's pending items", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Mal Ubicada",
+      email: "coreografias.malubicada@example.com",
+    });
+    const event = await createEventRecord({
+      active: true,
+      name: "Regional Mal Ubicada",
+    });
+    const catalog = await createEventCatalog(event.id);
+    const professor = await createProfessor(owner.academyId);
+    const misfiled = await createChoreographyRecord({
+      academyId: owner.academyId,
+      // Outside the category's range (1 to 17) and carrying a level it does not
+      // admit: both mismatches at once.
+      categoryAgeBasis: 40,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: "elite",
+      modalityId: catalog.modality.id,
+      musicStorageKey: "music/malubicada.mp3",
+      name: "Mal Ubicada",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+      submodalityId: null,
+    });
+    await db.insert(choreographyProfessors).values({
+      choreographyId: misfiled.id,
+      professorId: professor.id,
+    });
+
+    const loaderData = await loadPortalChoreographiesList(
+      new Request(`http://localhost/portal/coreografias?evento=${event.id}`, {
+        headers: { cookie: owner.cookie },
+      }),
+    );
+
+    expect(loaderData.choreographies).toMatchObject([
+      {
+        name: "Mal Ubicada",
+        operationalStatus: { code: "complete", pendingItems: [] },
       },
     ]);
   });

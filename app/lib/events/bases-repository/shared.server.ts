@@ -271,6 +271,13 @@ export type EventBasesTransaction = Parameters<
   Parameters<typeof db.transaction>[0]
 >[0];
 
+/**
+ * Either connection a bases query can run on: the pool for the reads that
+ * stand alone, the open transaction for the ones whose answer has to be that
+ * transaction's.
+ */
+export type EventBasesExecutor = EventBasesTransaction | typeof db;
+
 export const eventBaseCopy = {
   modality: {
     label: "modalidad",
@@ -547,6 +554,10 @@ export async function hasOccupyingChoreographies(filter: SQL | undefined) {
  * drop a base under a choreography whose inscriptions were all withdrawn too.
  * Reporting that refusal as a typed failure is what the guard adds — asking the
  * narrower question would let the raw driver error through.
+ *
+ * The category guards ask it for their edits as well: a withdrawn inscription
+ * preserves the category and the registration path the choreography competed
+ * on, so neither may move underneath it.
  */
 export async function hasReferencingChoreographies(filter: SQL | undefined) {
   const [choreography] = await db
@@ -556,6 +567,30 @@ export async function hasReferencingChoreographies(filter: SQL | undefined) {
     .limit(1);
 
   return Boolean(choreography);
+}
+
+/**
+ * The choreographies the category edit guard refuses over: the same breadth
+ * `hasReferencingChoreographies` asks about, withdrawn inscriptions included,
+ * but reported by number and name rather than as a yes or no. Ordering is left
+ * to `formatChoreographyReferences`, which sorts by number as part of wording
+ * the refusal.
+ *
+ * It takes its executor because `updateCategory` asks it twice: once as a
+ * pre-check and again inside the transaction that writes, where the answer has
+ * to be the transaction's own.
+ */
+export async function listReferencingChoreographies(
+  executor: EventBasesExecutor,
+  categoryId: string,
+) {
+  return executor
+    .select({
+      choreographyNumber: choreographies.choreographyNumber,
+      name: choreographies.name,
+    })
+    .from(choreographies)
+    .where(eq(choreographies.categoryId, categoryId));
 }
 
 function isOccupyingChoreography() {

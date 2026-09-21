@@ -5,7 +5,26 @@ import {
   type Row,
   type Table as TanStackTable,
 } from "@tanstack/react-table";
-import { Search, X } from "lucide-react";
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { GripVertical, Search, X } from "lucide-react";
+import { createContext, useContext, useId, type ReactNode } from "react";
 import { Link } from "react-router";
 
 import { Button } from "@/components/ui/button";
@@ -21,12 +40,13 @@ import type {
   DataTableFacetedFilter,
   DataTableFacetedFilterValue,
   DataTableLayout,
+  DataTableReorder,
   DataTableSortDirection,
 } from "@/components/shared/data-table.shared";
 import {
   dataTableFacetedFilterColumnId,
   dataTableSelectionColumnId,
-  dataTableSelectionColumnWidth,
+  dataTableSelectionColumnWeight,
 } from "@/components/shared/data-table.shared";
 import {
   Table,
@@ -103,10 +123,95 @@ type DataTableShellProps<TData> = {
   isLoading: boolean;
   layout: DataTableLayout;
   pagination: DataTablePaginationProps;
+  reorder?: DataTableReorder;
   search: DataTableSearchProps;
   serverSort?: DataTableServerSortProps;
   table: TanStackTable<TData>;
 };
+
+type DataTableSortableRowHandle = Pick<
+  ReturnType<typeof useSortable>,
+  "attributes" | "listeners" | "setActivatorNodeRef"
+>;
+
+const DataTableSortableRowContext =
+  createContext<DataTableSortableRowHandle | null>(null);
+
+/**
+ * The grip a reorderable row is dragged by, rendered from a `leading` column.
+ * It draws nothing while the table is not reorderable, which is how a view
+ * hides the handles without changing its column list.
+ */
+export function DataTableDragHandle({ label }: { label: string }) {
+  const sortable = useContext(DataTableSortableRowContext);
+
+  if (!sortable) {
+    return null;
+  }
+
+  return (
+    <Button
+      ref={sortable.setActivatorNodeRef}
+      type="button"
+      variant="ghost"
+      size="icon-xs"
+      aria-label={label}
+      className="cursor-grab touch-none text-muted-foreground"
+      {...sortable.attributes}
+      {...sortable.listeners}
+    >
+      <GripVertical aria-hidden="true" />
+    </Button>
+  );
+}
+
+/**
+ * The drag context around the rows on screen. `useId` gives it an id that is
+ * the same on the server and on the client, which is what keeps the table
+ * hydratable; the keyboard sensor is what makes a move reachable without a
+ * pointer at all.
+ */
+function DataTableReorderProvider<TData>({
+  children,
+  reorder,
+  table,
+}: {
+  children: ReactNode;
+  reorder: DataTableReorder;
+  table: TanStackTable<TData>;
+}) {
+  const id = useId();
+  const sensors = useSensors(
+    useSensor(MouseSensor),
+    useSensor(TouchSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+  const itemIds = table.getRowModel().rows.map((row) => row.id);
+
+  return (
+    <DndContext
+      id={id}
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      modifiers={[restrictToVerticalAxis]}
+      onDragEnd={(event: DragEndEvent) => {
+        if (event.over && event.active.id !== event.over.id) {
+          reorder.onMove(String(event.active.id), String(event.over.id));
+        }
+      }}
+    >
+      <SortableContext
+        items={itemIds}
+        strategy={verticalListSortingStrategy}
+        disabled={!reorder.enabled}
+      >
+        {children}
+      </SortableContext>
+    </DndContext>
+  );
+}
 
 /**
  * Everything both tables draw, given a built TanStack table. It owns no state
@@ -125,10 +230,24 @@ export function DataTableShell<TData>({
   isLoading,
   layout,
   pagination,
+  reorder,
   search,
   serverSort,
   table,
 }: DataTableShellProps<TData>) {
+  const tableElement = (
+    <Table className={layout === "fit" ? "table-fixed" : undefined}>
+      {layout === "fit" ? <DataTableColumnGroup table={table} /> : null}
+      <DataTableHead serverSort={serverSort} table={table} />
+      <DataTableBody
+        emptyMessage={emptyMessage}
+        getRowProps={getRowProps}
+        isReorderable={Boolean(reorder?.enabled)}
+        table={table}
+      />
+    </Table>
+  );
+
   return (
     <div className="flex flex-col gap-3">
       <DataTableToolbar filters={filters} search={search} />
@@ -138,15 +257,13 @@ export function DataTableShell<TData>({
           isLoading && "opacity-75",
         )}
       >
-        <Table className={layout === "fit" ? "table-fixed" : undefined}>
-          {layout === "fit" ? <DataTableColumnGroup table={table} /> : null}
-          <DataTableHead serverSort={serverSort} table={table} />
-          <DataTableBody
-            emptyMessage={emptyMessage}
-            getRowProps={getRowProps}
-            table={table}
-          />
-        </Table>
+        {reorder ? (
+          <DataTableReorderProvider reorder={reorder} table={table}>
+            {tableElement}
+          </DataTableReorderProvider>
+        ) : (
+          tableElement
+        )}
       </div>
       {!pagination.hidden ? (
         <DataTableFooter isLoading={isLoading} pagination={pagination} />
@@ -176,15 +293,9 @@ function DataTableColumnGroup<TData>({
 }) {
   const columns = table.getVisibleLeafColumns();
   const totalWeight = columns.reduce(
-    (total, column) => total + (column.columnDef.meta?.width ?? 0),
+    (total, column) => total + resolveDataTableColumnWeight(column),
     0,
   );
-  const hasSelectionColumn = columns.some(
-    (column) => column.id === dataTableSelectionColumnId,
-  );
-  const shareable = hasSelectionColumn
-    ? `(100% - ${dataTableSelectionColumnWidth})`
-    : "100%";
 
   return (
     <colgroup>
@@ -192,11 +303,7 @@ function DataTableColumnGroup<TData>({
         <col
           key={column.id}
           style={{
-            width: resolveDataTableColumnWidth({
-              column,
-              shareable,
-              totalWeight,
-            }),
+            width: resolveDataTableColumnWidth({ column, totalWeight }),
           }}
         />
       ))}
@@ -204,20 +311,25 @@ function DataTableColumnGroup<TData>({
   );
 }
 
+/**
+ * The selection column's weight is the table's own; every other column's is
+ * what the view declared. Sharing the row by weight alone is what keeps each
+ * width a plain percentage — see `dataTableSelectionColumnWeight`.
+ */
+function resolveDataTableColumnWeight<TData>(column: Column<TData, unknown>) {
+  return column.id === dataTableSelectionColumnId
+    ? dataTableSelectionColumnWeight
+    : (column.columnDef.meta?.width ?? 0);
+}
+
 function resolveDataTableColumnWidth<TData>({
   column,
-  shareable,
   totalWeight,
 }: {
   column: Column<TData, unknown>;
-  shareable: string;
   totalWeight: number;
 }) {
-  if (column.id === dataTableSelectionColumnId) {
-    return dataTableSelectionColumnWidth;
-  }
-
-  const weight = column.columnDef.meta?.width;
+  const weight = resolveDataTableColumnWeight(column);
 
   if (!weight || totalWeight <= 0) {
     return undefined;
@@ -225,7 +337,7 @@ function resolveDataTableColumnWidth<TData>({
 
   // Kept as a division rather than a percentage worked out here: the browser
   // divides exactly, and a weight stays the number the view wrote.
-  return `calc(${shareable} * ${weight} / ${totalWeight})`;
+  return `calc(100% * ${weight} / ${totalWeight})`;
 }
 
 /**
@@ -381,10 +493,12 @@ function DataTableHeaderContent<TData>({
 function DataTableBody<TData>({
   emptyMessage,
   getRowProps,
+  isReorderable,
   table,
 }: {
   emptyMessage: string;
   getRowProps?: (row: TData) => React.ComponentProps<"tr">;
+  isReorderable: boolean;
   table: TanStackTable<TData>;
 }) {
   const visibleRows = table.getRowModel().rows;
@@ -393,7 +507,12 @@ function DataTableBody<TData>({
     <TableBody>
       {visibleRows.length > 0 ? (
         visibleRows.map((row) => (
-          <DataTableBodyRow key={row.id} getRowProps={getRowProps} row={row} />
+          <DataTableBodyRow
+            key={row.id}
+            getRowProps={getRowProps}
+            isReorderable={isReorderable}
+            row={row}
+          />
         ))
       ) : (
         <TableRow>
@@ -411,13 +530,79 @@ function DataTableBody<TData>({
 
 function DataTableBodyRow<TData>({
   getRowProps,
+  isReorderable,
+  row,
+}: {
+  getRowProps?: (row: TData) => React.ComponentProps<"tr">;
+  isReorderable: boolean;
+  row: Row<TData>;
+}) {
+  if (isReorderable) {
+    return <DataTableSortableBodyRow getRowProps={getRowProps} row={row} />;
+  }
+
+  return (
+    <DataTableBodyRowCells
+      row={row}
+      rowProps={getRowProps?.(row.original) ?? {}}
+    />
+  );
+}
+
+/**
+ * A row that can be dragged. The grip itself is a cell the view declares, so
+ * the handle reaches its row's sortable through a context rather than through
+ * a prop every column would have to carry.
+ */
+function DataTableSortableBodyRow<TData>({
+  getRowProps,
   row,
 }: {
   getRowProps?: (row: TData) => React.ComponentProps<"tr">;
   row: Row<TData>;
 }) {
+  const sortable = useSortable({ id: row.id });
+  const rowProps = getRowProps?.(row.original) ?? {};
+
   return (
-    <TableRow {...(getRowProps?.(row.original) ?? {})}>
+    <DataTableSortableRowContext.Provider
+      value={{
+        attributes: sortable.attributes,
+        listeners: sortable.listeners,
+        setActivatorNodeRef: sortable.setActivatorNodeRef,
+      }}
+    >
+      <DataTableBodyRowCells
+        row={row}
+        rowProps={{
+          ...rowProps,
+          ref: sortable.setNodeRef,
+          "data-dragging": sortable.isDragging || undefined,
+          style: {
+            ...rowProps.style,
+            position: "relative",
+            transform: CSS.Translate.toString(sortable.transform),
+            transition: sortable.transition,
+            zIndex: sortable.isDragging ? 1 : undefined,
+          },
+        }}
+      />
+    </DataTableSortableRowContext.Provider>
+  );
+}
+
+function DataTableBodyRowCells<TData>({
+  row,
+  rowProps,
+}: {
+  row: Row<TData>;
+  rowProps: React.ComponentProps<"tr"> & { "data-dragging"?: boolean };
+}) {
+  return (
+    <TableRow
+      {...rowProps}
+      className={cn(rowProps.className, "data-[dragging=true]:bg-muted")}
+    >
       {row.getVisibleCells().map((cell) => (
         <TableCell
           key={cell.id}

@@ -25,23 +25,26 @@ import { isDateOnly } from "@/lib/shared/date-only";
 
 type ChoreographyRow = {
   academyName: string;
-  categoryId: string | null;
+  categoryAgeBasis: number | null;
+  categoryId: string;
+  categoryMaxAge: number;
+  categoryMinAge: number;
   choreographyNumber: number;
-  categoryName: string | null;
+  categoryName: string;
   experienceLevelId: string | null;
-  categoryExperienceLevels: string[] | null;
+  categoryExperienceLevels: string[];
   groupType: ChoreographyGroupType;
   id: string;
   modalityId: string;
   modalityName: string;
   musicStorageKey: string | null;
   name: string;
-  scheduleDate: string | null;
+  scheduleDate: string;
   submodalityName: string | null;
 };
 
 type ChoreographyListFilters = {
-  category: ChoreographyCategoryFilter;
+  category: string | null;
   groupType: ChoreographyGroupType | null;
   modalityId: string | null;
   order: ChoreographyOrder;
@@ -58,12 +61,11 @@ const CHOREOGRAPHY_STATUS_CODES = {
   completa: "complete",
   incompleta: "incomplete",
 } as const;
-type ChoreographyCategoryFilter = string | "sin-asignar" | null;
-type ChoreographyScheduleDateFilter = string | "sin-asignar" | null;
+type ChoreographyScheduleDateFilter = string | null;
 type HydratedChoreographyRow = ChoreographyListItem & {
-  categoryId: string | null;
+  categoryId: string;
   modalityId: string;
-  scheduleDate: string | null;
+  scheduleDate: string;
 };
 
 type ChoreographySortColumn = "numero" | "academia" | "nombre";
@@ -75,7 +77,7 @@ type ChoreographyOrder = {
 
 export type ChoreographyListItem = {
   academyName: string;
-  categoryName: string | null;
+  categoryName: string;
   choreographyNumber: number;
   groupType: ChoreographyGroupType;
   id: string;
@@ -116,7 +118,7 @@ function readChoreographyFilters(
   searchParams: URLSearchParams,
 ): ChoreographyListFilters {
   return {
-    category: readChoreographyCategoryFilter(searchParams.get("categoria")),
+    category: readNonEmptySearchParam(searchParams.get("categoria")),
     groupType: readChoreographyGroupTypeFilter(searchParams.get("tipo-grupo")),
     modalityId: readNonEmptySearchParam(searchParams.get("modalidad")),
     order: readChoreographyOrder(searchParams.get("orden")),
@@ -151,7 +153,10 @@ export async function loadChoreographies(input: {
   const rows = await db
     .select({
       academyName: academies.name,
+      categoryAgeBasis: choreographies.categoryAgeBasis,
       categoryId: choreographies.categoryId,
+      categoryMaxAge: categories.maxAge,
+      categoryMinAge: categories.minAge,
       choreographyNumber: choreographies.choreographyNumber,
       categoryName: categories.name,
       experienceLevelId: choreographies.experienceLevelId,
@@ -169,8 +174,8 @@ export async function loadChoreographies(input: {
     .innerJoin(academies, eq(choreographies.academyId, academies.id))
     .innerJoin(modalities, eq(choreographies.modalityId, modalities.id))
     .leftJoin(submodalities, eq(choreographies.submodalityId, submodalities.id))
-    .leftJoin(categories, eq(choreographies.categoryId, categories.id))
-    .leftJoin(schedules, eq(choreographies.scheduleId, schedules.id))
+    .innerJoin(categories, eq(choreographies.categoryId, categories.id))
+    .innerJoin(schedules, eq(choreographies.scheduleId, schedules.id))
     .where(eq(choreographies.eventId, selectedEventId));
   const hasAnyChoreography = rows.length > 0;
   const facets = buildChoreographyFacets(rows);
@@ -356,13 +361,15 @@ async function hydrateChoreographies(
     name: row.name,
     scheduleDate: row.scheduleDate,
     operationalStatus: deriveChoreographyOperationalStatus({
-      categoryId: row.categoryId,
+      categoryExperienceLevels: row.categoryExperienceLevels,
       experienceLevelId: row.experienceLevelId,
       hasMusic: row.musicStorageKey !== null,
       hasProfessors: choreographyIdsWithProfessors.has(row.id),
-      requiresExperienceLevel:
-        row.categoryExperienceLevels !== null &&
-        row.categoryExperienceLevels.length > 0,
+      placementCheck: {
+        categoryAgeBasis: row.categoryAgeBasis,
+        categoryMaxAge: row.categoryMaxAge,
+        categoryMinAge: row.categoryMinAge,
+      },
     }),
     submodalityName: row.submodalityName,
   }));
@@ -380,16 +387,6 @@ function readChoreographyStatusFilter(
   }
 }
 
-function readChoreographyCategoryFilter(
-  value: string | null,
-): ChoreographyCategoryFilter {
-  if (value === "sin-asignar") {
-    return value;
-  }
-
-  return readNonEmptySearchParam(value);
-}
-
 /**
  * A day is written in the URL as the schedule's own `YYYY-MM-DD`, so the link is
  * readable and survives a schedule being renamed or moved by an hour. Anything
@@ -399,10 +396,6 @@ function readChoreographyCategoryFilter(
 function readChoreographyScheduleDateFilter(
   value: string | null,
 ): ChoreographyScheduleDateFilter {
-  if (value === "sin-asignar") {
-    return value;
-  }
-
   const scheduleDate = readNonEmptySearchParam(value);
 
   return scheduleDate !== null && isDateOnly(scheduleDate)
@@ -432,8 +425,8 @@ function buildChoreographyFacets(rows: ChoreographyRow[]) {
   return {
     categories: getUniqueSortedFilterOptions(
       rows.map((row) => ({
-        label: row.categoryName ?? "Sin asignar",
-        value: row.categoryId ?? "sin-asignar",
+        label: row.categoryName,
+        value: row.categoryId,
       })),
     ),
     modalities: getUniqueSortedFilterOptions(
@@ -449,25 +442,17 @@ function buildChoreographyFacets(rows: ChoreographyRow[]) {
 /**
  * The days the event's choreographies are actually spread over, in the order
  * they happen — a day is read as a point on the calendar and not as a word, so
- * these are the one facet not sorted by label. Choreographies still waiting for
- * a schedule are gathered at the end, where the rest of the list puts them.
+ * these are the one facet not sorted by label.
  */
 function getScheduleDateFilterOptions(rows: ChoreographyRow[]) {
   const scheduleDates = Array.from(
-    new Set(
-      rows
-        .map((row) => row.scheduleDate)
-        .filter((scheduleDate) => scheduleDate !== null),
-    ),
+    new Set(rows.map((row) => row.scheduleDate)),
   ).sort();
-  const options = scheduleDates.map((scheduleDate) => ({
+
+  return scheduleDates.map((scheduleDate) => ({
     label: formatScheduleDayLabel(scheduleDate),
     value: scheduleDate,
   }));
-
-  return rows.some((row) => row.scheduleDate === null)
-    ? [...options, { label: "Sin asignar", value: "sin-asignar" }]
-    : options;
 }
 
 function normalizeChoreographyFilters(
@@ -619,30 +604,22 @@ function keepKnownFacetValue(
 }
 
 function matchesChoreographyCategory(
-  categoryId: string | null,
-  categoryFilter: ChoreographyCategoryFilter,
+  categoryId: string,
+  categoryFilter: string | null,
 ) {
   if (categoryFilter === null) {
     return true;
-  }
-
-  if (categoryFilter === "sin-asignar") {
-    return categoryId === null;
   }
 
   return categoryId === categoryFilter;
 }
 
 function matchesChoreographyScheduleDate(
-  scheduleDate: string | null,
+  scheduleDate: string,
   scheduleDateFilter: ChoreographyScheduleDateFilter,
 ) {
   if (scheduleDateFilter === null) {
     return true;
-  }
-
-  if (scheduleDateFilter === "sin-asignar") {
-    return scheduleDate === null;
   }
 
   return scheduleDate === scheduleDateFilter;

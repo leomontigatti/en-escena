@@ -112,7 +112,7 @@ async function expectThrownResponse(action: Promise<unknown>) {
   throw new Error("Expected the seminar action to throw a response.");
 }
 
-describe.sequential("admin seminars", () => {
+describe("admin seminars", () => {
   test("creates a seminar on the active event and redirects to its detail", async () => {
     const event = await createSavedEvent();
     const request = await buildSignedRequest(

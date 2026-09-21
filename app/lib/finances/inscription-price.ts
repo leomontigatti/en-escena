@@ -111,16 +111,13 @@ export function selectApplicableInscriptionPrice<
   const ofGroupType = input.priceRows.filter(
     (price) => price.groupType === input.key.groupType,
   );
+  const schedulePrice = selectApplicablePriceCandidate(
+    ofGroupType.filter((price) => price.scheduleId === scheduleId),
+    input.businessDate,
+  );
 
-  if (scheduleId !== null) {
-    const schedulePrice = selectApplicablePriceCandidate(
-      ofGroupType.filter((price) => price.scheduleId === scheduleId),
-      input.businessDate,
-    );
-
-    if (schedulePrice) {
-      return schedulePrice;
-    }
+  if (schedulePrice) {
+    return schedulePrice;
   }
 
   return selectApplicablePriceCandidate(

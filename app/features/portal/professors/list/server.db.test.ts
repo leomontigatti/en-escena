@@ -8,6 +8,7 @@ import {
 } from "@/db/schema";
 import { createAcademySession } from "@/features/portal/test-support/db";
 import { expectCreated } from "@/lib/events/bases-test-fixtures.server.db";
+import { createCategory } from "@/lib/categories/repository.server";
 import { createModality } from "@/lib/modalities/repository.server";
 import { activateEvent } from "@/lib/events/management.server";
 import { createPortalSavedEvent as createSavedEvent } from "@/lib/events/saved-event-test-support.server";
@@ -16,13 +17,16 @@ import {
   handlePortalProfessorsListAction,
   loadPortalProfessorsList,
 } from "@/features/portal/professors/list/server";
-import { allocateChoreographyNumberForTest } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import {
+  allocateChoreographyNumberForTest,
+  createScheduleForModalityFixture,
+} from "@/lib/choreographies/registration-test-fixtures.server.db";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-describe.sequential("loadPortalProfessorsList", () => {
+describe("loadPortalProfessorsList", () => {
   test("creates normalized professors and loads active plus archived rows for client filtering", async () => {
     const owner = await createAcademySession({
       email: "profesores.owner@example.com",
@@ -111,6 +115,16 @@ describe.sequential("loadPortalProfessorsList", () => {
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
     );
+    const category = await expectCreated(
+      createCategory(event.id, {
+        name: "Única",
+        minAge: 1,
+        maxAge: 100,
+        groupTypes: ["solo"],
+        modalityIds: [modality.id],
+        experienceLevels: [],
+      }),
+    );
     const [professor] = await db
       .insert(professors)
       .values({
@@ -119,6 +133,10 @@ describe.sequential("loadPortalProfessorsList", () => {
         lastName: "Participa",
       })
       .returning();
+    const schedule = await createScheduleForModalityFixture({
+      eventId: event.id,
+      modalityId: modality.id,
+    });
     const choreographyNumber = await allocateChoreographyNumberForTest(
       event.id,
     );
@@ -131,6 +149,8 @@ describe.sequential("loadPortalProfessorsList", () => {
         name: "Solo activo",
         groupType: "solo",
         modalityId: modality.id,
+        scheduleId: schedule.id,
+        categoryId: category.id,
         categoryCalculationMode: "oldest",
       })
       .returning();

@@ -4,6 +4,7 @@ import { describe, expect, test } from "vitest";
 import { db } from "@/db";
 import { choreographies, choreographyDancers, dancers } from "@/db/schema";
 import { expectCreated } from "@/lib/events/bases-test-fixtures.server.db";
+import { createCategory } from "@/lib/categories/repository.server";
 import { createModality } from "@/lib/modalities/repository.server";
 import { activateEvent } from "@/lib/events/management.server";
 import {
@@ -23,13 +24,16 @@ import {
   createAcademySession,
   createPortalPostRequest,
 } from "@/features/portal/test-support/db";
-import { allocateChoreographyNumberForTest } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import {
+  allocateChoreographyNumberForTest,
+  createScheduleForModalityFixture,
+} from "@/lib/choreographies/registration-test-fixtures.server.db";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-describe.sequential("loadPortalDancersList", () => {
+describe("loadPortalDancersList", () => {
   test("creates normalized dancers and loads active plus archived rows for client filtering", async () => {
     const ownerSession = await createAcademySession({
       email: "bailarines.owner@example.com",
@@ -231,6 +235,16 @@ describe.sequential("loadPortalDancersList", () => {
     const modality = await expectCreated(
       createModality(event.id, { name: "Jazz" }),
     );
+    const category = await expectCreated(
+      createCategory(event.id, {
+        name: "Única",
+        minAge: 1,
+        maxAge: 100,
+        groupTypes: ["solo"],
+        modalityIds: [modality.id],
+        experienceLevels: [],
+      }),
+    );
     const [dancer] = await db
       .insert(dancers)
       .values({
@@ -240,6 +254,10 @@ describe.sequential("loadPortalDancersList", () => {
         birthDate: "2014-02-01",
       })
       .returning();
+    const schedule = await createScheduleForModalityFixture({
+      eventId: event.id,
+      modalityId: modality.id,
+    });
     const choreographyNumber = await allocateChoreographyNumberForTest(
       event.id,
     );
@@ -252,6 +270,8 @@ describe.sequential("loadPortalDancersList", () => {
         name: "Solo activo",
         groupType: "solo",
         modalityId: modality.id,
+        scheduleId: schedule.id,
+        categoryId: category.id,
         categoryCalculationMode: "oldest",
       })
       .returning();

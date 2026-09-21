@@ -29,14 +29,17 @@ import {
   handle,
   loader,
 } from "@/routes/administracion.coreografias";
-import { allocateChoreographyNumberForTest } from "@/lib/choreographies/registration-test-fixtures.server.db";
+import {
+  allocateChoreographyNumberForTest,
+  readFixtureCapacityScheduleId,
+} from "@/lib/choreographies/registration-test-fixtures.server.db";
 
 import { installDatabaseTestHooks } from "../../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
 describe("`/administracion/coreografias` route filters", () => {
-  test("supports operational filters, event-wide facets, sin-asignar, and invalid URL canonicalization", async () => {
+  test("supports operational filters, event-wide facets, and invalid URL canonicalization", async () => {
     const event = await createSavedEvent();
     const otherEvent = await createInactiveEvent("Regional 2025");
     const academyNorth = await createAcademyUser({
@@ -95,10 +98,11 @@ describe("`/administracion/coreografias` route filters", () => {
     });
     await createChoreographyRecord({
       academyId: academySouth.academy.id,
+      categoryId: urbanCatalog.category.id,
       eventId: event.id,
       groupType: "trio",
       modalityId: urbanCatalog.modality.id,
-      name: "Sin Categoría Trio",
+      name: "Trio Urbano",
       scheduleCapacityId: urbanCatalog.scheduleCapacity.id,
       submodalityId: urbanCatalog.submodality.id,
     });
@@ -144,7 +148,7 @@ describe("`/administracion/coreografias` route filters", () => {
     expect(filteredData.facets.categories).toEqual([
       { label: "Adulto", value: contemporaryCatalog.category.id },
       { label: "Juvenil", value: jazzCatalog.category.id },
-      { label: "Sin asignar", value: "sin-asignar" },
+      { label: "Senior", value: urbanCatalog.category.id },
     ]);
     expect(filteredMarkup).toContain(
       'aria-label="Filtros: Estado: Incompleta, Modalidad: Contemporáneo, Categoría: Adulto, Tipo de grupo: Dúo"',
@@ -162,7 +166,7 @@ describe("`/administracion/coreografias` route filters", () => {
     await expectChoreographyNamesForSearch({
       email: "admin.coreografias.filtro-modalidad@example.com",
       eventId: event.id,
-      expectedNames: ["Sin Categoría Trio"],
+      expectedNames: ["Trio Urbano"],
       search: `&modalidad=${urbanCatalog.modality.id}`,
     });
     await expectChoreographyNamesForSearch({
@@ -174,7 +178,7 @@ describe("`/administracion/coreografias` route filters", () => {
     await expectChoreographyNamesForSearch({
       email: "admin.coreografias.filtro-tipo-grupo@example.com",
       eventId: event.id,
-      expectedNames: ["Sin Categoría Trio"],
+      expectedNames: ["Trio Urbano"],
       search: "&tipo-grupo=trio",
     });
 
@@ -190,20 +194,9 @@ describe("`/administracion/coreografias` route filters", () => {
     await expectChoreographyNamesForSearch({
       email: "admin.coreografias.busqueda-numero-corto@example.com",
       eventId: event.id,
-      expectedNames: ["Sin Categoría Trio"],
+      expectedNames: ["Trio Urbano"],
       search: "&busqueda=3",
     });
-
-    const missingCategoryData = await loadRouteData({
-      email: "admin.coreografias.sin-categoria@example.com",
-      requestUrl:
-        `http://localhost/administracion/coreografias?evento=${event.id}` +
-        "&categoria=sin-asignar",
-    });
-
-    expect(missingCategoryData.choreographies.map((row) => row.name)).toEqual([
-      "Sin Categoría Trio",
-    ]);
 
     const invalidResponse = await expectThrownResponse(
       loadRouteData({
@@ -344,7 +337,7 @@ async function createEventCatalog(
 
 async function createChoreographyRecord(input: {
   academyId: string;
-  categoryId?: string;
+  categoryId: string;
   eventId: string;
   experienceLevelId?: string;
   groupType: "solo" | "duo" | "trio" | "grupal";
@@ -364,7 +357,7 @@ async function createChoreographyRecord(input: {
       choreographyNumber,
       academyId: input.academyId,
       categoryCalculationMode: "oldest",
-      categoryId: input.categoryId ?? null,
+      categoryId: input.categoryId,
       eventId: input.eventId,
       experienceLevelId:
         input.experienceLevelId && isExperienceLevel(input.experienceLevelId)
@@ -374,6 +367,7 @@ async function createChoreographyRecord(input: {
       modalityId: input.modalityId,
       musicStorageKey: input.musicStorageKey ?? null,
       name: input.name,
+      scheduleId: await readFixtureCapacityScheduleId(input.scheduleCapacityId),
       scheduleCapacityId: input.scheduleCapacityId,
       submodalityId: input.submodalityId ?? null,
     })

@@ -505,9 +505,13 @@ reports.
 
 After #961 the DB suite was still CI's long pole: one runner, one worker, 113
 `*.db.test.ts` files serially against one Postgres service. The serial config
-(`fileParallelism: false`, `maxWorkers: 1`, `singleThread` in
-`vitest.db.config.ts`) is a constraint **within** a runner — every file shares one
-database and the harness resets it before each test. It says nothing about
+(`fileParallelism: false`, `maxWorkers: 1` in `vitest.db.config.ts` — it also
+set `poolOptions.threads.singleThread` until the Vitest 5 upgrade removed that
+option) is a constraint **within** a runner — every file shares one
+database and the harness resets it before each test. The same upgrade removed
+`describe.sequential`, so ordering _inside_ a file now rests entirely on
+`sequence.concurrent: false` in the two DB configs rather than on per-suite
+markers. It says nothing about
 running several runners: the repo is public, GitHub-hosted minutes are free, and
 up to 20 jobs run concurrently.
 
@@ -581,3 +585,23 @@ Out of scope here, in order of what to try next if this is not enough: parallel
 workers inside one runner with a template database per `VITEST_POOL_ID`
 ("Phase 3B" above), and third-party runners. `isolate: false` stays rejected
 (#128).
+
+## Operational amendment 2026-09-20 (issue #970, Vitest 5)
+
+CI never runs the `PGlite` path — `db-shard` uses `vitest.db.config.ts` against a
+Postgres service — so the 2026-07-18 amendment's "no longer reproduces with
+`@electric-sql/pglite@0.5.3` and `vitest@3.2.x`" was the newest evidence for it,
+and the Vitest 5 upgrade made that version string stale. Re-measured on
+`vitest@5.0.1`, `pnpm test:db` (`vitest.db.fast.config.ts`, `fileParallelism:
+true`, `maxWorkers: 50%`): 117 files, 853 passed and 6 skipped, 366.8 s of wall
+clock on a 4-core runner, with no `PGlite failed to initialize properly` and no
+worker-init failures. The instability still does not reproduce.
+
+`pnpm test:unit` on the same runner: 239 files, 1829 tests, 78 s. The upgrade
+commit measured it at 252 s → 223 s (−12 %) before and after, on its own runner.
+
+Neither figure re-measures `.sandcastle/VALIDATION.md`'s timing table, which is
+pinned to 2 cores; both runs above had 4. The table's rows are unchanged on
+purpose — the upgrade moved the suite faster, not slower, so the budgets it
+justifies still hold. Re-measure it on 2 cores if a change ever moves them the
+other way.

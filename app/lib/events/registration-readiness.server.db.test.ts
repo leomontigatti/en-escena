@@ -35,6 +35,10 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
+// A schedule the event has no price row for, which is what makes the general
+// tier the one that answers.
+const SCHEDULE_WITHOUT_ROW = "schedule-without-price-row";
+
 afterEach(() => {
   vi.restoreAllMocks();
 });
@@ -506,13 +510,13 @@ describe("event registration readiness", () => {
     });
 
     // The point of the check: no reachable path can fall into `missing-price`,
-    // at any date the finance screens may ask for. A choreography with no
-    // schedule of its own resolves through the general tier alone, so the null
-    // scheduleId is part of the guarantee a general base price makes.
+    // at any date the finance screens may ask for. A schedule with no row of
+    // its own resolves through the general tier alone, so it is part of the
+    // guarantee a general base price makes.
     for (const groupType of ["solo", "duo"]) {
       for (const businessDate of ["2026-05-01", "2030-01-01"]) {
         onBusinessDate(businessDate);
-        for (const scheduleId of [block.id, null]) {
+        for (const scheduleId of [block.id, SCHEDULE_WITHOUT_ROW]) {
           await expect(
             resolveApplicableInscriptionPrice(db, {
               eventId: event.id,
@@ -584,14 +588,14 @@ describe("event registration readiness", () => {
       ],
     });
 
-    // Why the schedule tier cannot stand alone: a caller with no schedule of
-    // its own goes straight to the general tier, whose last row expired.
+    // Why the schedule tier cannot stand alone: a schedule with no row of its
+    // own goes straight to the general tier, whose last row expired.
     onBusinessDate("2026-06-01");
     await expect(
       resolveApplicableInscriptionPrice(db, {
         eventId: event.id,
         groupType: "solo",
-        scheduleId: null,
+        scheduleId: SCHEDULE_WITHOUT_ROW,
       }),
     ).resolves.toMatchObject({ ok: false, code: "missing-price" });
   });

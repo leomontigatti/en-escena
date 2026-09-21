@@ -116,7 +116,7 @@ describe("canReassignScheduleCapacity", () => {
 
   test.each([
     ["the user is not an admin", { canEdit: false }],
-    ["the choreography has a presentation", { hasPresentation: true }],
+    ["the choreography was evaluated", { isEvaluated: true }],
     [
       "no alternative survived the options",
       { hasSelectableAlternative: false },
@@ -130,7 +130,7 @@ describe("canReassignScheduleCapacity", () => {
   ) {
     return {
       canEdit: true,
-      hasPresentation: false,
+      isEvaluated: false,
       hasSelectableAlternative: true,
       ...overrides,
     };
@@ -144,7 +144,7 @@ describe("canReassignExperienceLevel", () => {
 
   test.each([
     ["the user is not an admin", { canEdit: false }],
-    ["the choreography has a presentation", { hasPresentation: true }],
+    ["the choreography was evaluated", { isEvaluated: true }],
     [
       "the resolved category declares no levels",
       { requiresExperienceLevel: false },
@@ -166,7 +166,7 @@ describe("canReassignExperienceLevel", () => {
   ) {
     return {
       canEdit: true,
-      hasPresentation: false,
+      isEvaluated: false,
       requiresExperienceLevel: true,
       ...overrides,
     };
@@ -174,13 +174,13 @@ describe("canReassignExperienceLevel", () => {
 });
 
 describe("canCorrectChoreographyModality", () => {
-  test("opens the modality for an admin on a choreography without presentation", () => {
+  test("opens the modality for an admin on a choreography not evaluated", () => {
     expect(canCorrectChoreographyModality(buildInput())).toBe(true);
   });
 
   test.each([
     ["the user is not an admin", { canEdit: false }],
-    ["the choreography has a presentation", { hasPresentation: true }],
+    ["the choreography was evaluated", { isEvaluated: true }],
   ])("keeps it read-only when %s", (_cause, overrides) => {
     expect(canCorrectChoreographyModality(buildInput(overrides))).toBe(false);
   });
@@ -192,7 +192,7 @@ describe("canCorrectChoreographyModality", () => {
   ) {
     return {
       canEdit: true,
-      hasPresentation: false,
+      isEvaluated: false,
       ...overrides,
     };
   }

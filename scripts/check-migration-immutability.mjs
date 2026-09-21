@@ -7,6 +7,10 @@ import {
   findRewrittenJournalEntries,
   parseJournalEntries,
 } from "./migrations/journal.mjs";
+import {
+  migrationsPath,
+  readMigrationChanges,
+} from "./migrations/migration-changes.mjs";
 
 /**
  * Fails a branch that edits, deletes or renames a migration already on the base
@@ -20,64 +24,9 @@ import {
  * Usage: node scripts/check-migration-immutability.mjs [base-ref]
  */
 
-const migrationsPath = "app/db/migrations";
 const journalPath = `${migrationsPath}/meta/_journal.json`;
 const baseRef = process.argv[2] ?? "origin/master";
 const errorPrefix = process.env.GITHUB_ACTIONS === "true" ? "::error::" : "";
-
-/**
- * Diffs the base tip against the working tree, not a `base...HEAD` range: CI
- * fetches master at depth 1 and checks out a merge commit, so no merge base is
- * available to resolve — and none is needed, since that merge commit already
- * carries master's own migrations. Reading the working tree rather than a
- * commit also catches the edit locally, before it is committed.
- *
- * @returns {import("./migrations/journal.mjs").MigrationFileChange[] | undefined}
- */
-function readMigrationChanges() {
-  const result = spawnSync(
-    "git",
-    ["diff", "--name-status", baseRef, "--", migrationsPath],
-    { encoding: "utf8" },
-  );
-
-  if (result.status !== 0) {
-    return undefined;
-  }
-
-  return result.stdout
-    .split("\n")
-    .filter((line) => line.trim() !== "")
-    .flatMap((line) => {
-      // Tab-separated, and a rename carries two paths: `R100 old new`. The old
-      // path is the one that was already applied, so it is the one to report.
-      const [status, path] = line.split("\t");
-
-      if (!path.endsWith(".sql")) {
-        return [];
-      }
-
-      return [{ path, status: changeStatusOf(status) }];
-    });
-}
-
-/**
- * @param {string} nameStatus
- * @returns {import("./migrations/journal.mjs").MigrationFileChangeStatus}
- */
-function changeStatusOf(nameStatus) {
-  if (nameStatus.startsWith("A")) {
-    return "added";
-  }
-
-  if (nameStatus.startsWith("D")) {
-    return "removed";
-  }
-
-  // A rename carries a similarity score (`R100`), so the prefix is what
-  // identifies it. Everything left is a modification of some kind.
-  return nameStatus.startsWith("R") ? "renamed" : "modified";
-}
 
 /**
  * @returns {import("./migrations/journal.mjs").JournalEntry[] | undefined}
@@ -90,7 +39,7 @@ function readBaseJournalEntries() {
   return result.status === 0 ? parseJournalEntries(result.stdout) : undefined;
 }
 
-const changes = readMigrationChanges();
+const changes = readMigrationChanges(baseRef);
 const baseEntries = readBaseJournalEntries();
 
 if (changes === undefined || baseEntries === undefined) {

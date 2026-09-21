@@ -18,13 +18,13 @@ import {
   createProfessor,
 } from "@/lib/choreographies/registration-test-fixtures.server.db";
 import { createChoreographyRegistration } from "@/lib/choreographies/registration-confirmation.server";
-import { deriveChoreographyOperationalStatus } from "@/lib/choreographies/operational-status";
+import { getNoCompatibleCategoryRegistrationMessage } from "@/lib/choreographies/choreography-messages";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
 installDatabaseTestHooks();
 
-describe.sequential("choreography registration confirmation", () => {
+describe("choreography registration confirmation", () => {
   test("creates a choreography with dancer age snapshots, professors, and normalized Spanish title case on final confirmation", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Confirmación",
@@ -573,16 +573,18 @@ describe.sequential("choreography registration confirmation", () => {
     expect(storedChoreographies).toHaveLength(0);
   });
 
-  test("registers a dancer whose age matches no category band, leaving the choreography operationally incomplete", async () => {
+  test("refuses a trio in a modality that offers no trio category, before inserting anything", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Sin Categoría",
       email: "registro.coreografia.sin-categoria@example.com",
     });
     const { event } = await createOpenEventCatalog();
     const grupalOnly = await createGrupalOnlyModalityFixture(event.id);
-    const adultDancer = await createDancer(owner.academyId, {
-      birthDate: "1990-01-01",
-    });
+    const dancers = await Promise.all([
+      createDancer(owner.academyId, { birthDate: "2012-01-10" }),
+      createDancer(owner.academyId, { birthDate: "2012-03-20" }),
+      createDancer(owner.academyId, { birthDate: "2012-07-05" }),
+    ]);
     const professor = await createProfessor(owner.academyId);
 
     const result = await createChoreographyRegistration({
@@ -591,37 +593,25 @@ describe.sequential("choreography registration confirmation", () => {
       modalityId: grupalOnly.modality.id,
       submodalityId: null,
       name: "Sin bracket",
-      dancerIds: [adultDancer.id],
+      dancerIds: dancers.map((dancer) => dancer.id),
       professorIds: [professor.id],
       experienceLevelId: null,
       scheduleCapacityId: `schedule:${grupalOnly.schedule.id}:global`,
     });
 
     expect(result).toMatchObject({
-      ok: true,
-      choreography: expect.objectContaining({
-        categoryId: null,
-        experienceLevelId: null,
+      ok: false,
+      code: "no-compatible-category",
+      error: getNoCompatibleCategoryRegistrationMessage({
+        modalityName: grupalOnly.modality.name,
+        groupType: "trio",
       }),
     });
 
-    const storedChoreography = await db.query.choreographies.findFirst({
+    const storedChoreographies = await db.query.choreographies.findMany({
       where: eq(choreographies.academyId, owner.academyId),
     });
-    expect(storedChoreography).toMatchObject({ categoryId: null });
-
-    expect(
-      deriveChoreographyOperationalStatus({
-        categoryId: storedChoreography?.categoryId ?? null,
-        experienceLevelId: storedChoreography?.experienceLevelId ?? null,
-        hasMusic: false,
-        hasProfessors: true,
-        requiresExperienceLevel: false,
-      }),
-    ).toMatchObject({
-      code: "incomplete",
-      pendingItems: expect.arrayContaining(["category"]),
-    });
+    expect(storedChoreographies).toHaveLength(0);
   });
 });
 

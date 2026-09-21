@@ -2,23 +2,23 @@
 #
 # PreToolUse hook (matcher: Bash).
 #
-# Bloquea invocaciones directas del compilador de TypeScript
-# (`npx tsc`, `pnpm exec tsc`, `pnpm dlx tsc`) y sugiere `pnpm typecheck`.
+# Blocks the TypeScript compiler called directly (`npx tsc`, `pnpm exec tsc`,
+# `pnpm dlx tsc`) and points at `pnpm typecheck` instead.
 #
-# `pnpm typecheck` corre `react-router typegen` primero, así los tipos de rutas
-# generados existen antes de que TypeScript chequee la app. Invocar `tsc` directo
-# type-checkea contra tipos de rutas viejos y produce errores espurios.
+# `pnpm typecheck` runs `react-router typegen` first, so the generated route
+# types exist before TypeScript checks the app. Calling `tsc` directly
+# type-checks against stale route types and reports spurious errors.
 #
-# Ver docs/agents/workflows.md.
+# See docs/agents/workflows.md.
 
 set -euo pipefail
 
 input="$(cat)"
 command="$(printf '%s' "$input" | jq -r '.tool_input.command // ""')"
 
-# npx tsc | pnpm exec tsc | pnpm dlx tsc (con o sin flags a continuación)
+# npx tsc | pnpm exec tsc | pnpm dlx tsc (with or without flags after it)
 if printf '%s' "$command" | grep -Eq '(^|[[:space:]]|[&|;])(npx|pnpm[[:space:]]+(exec|dlx))[[:space:]]+tsc([[:space:]]|$)'; then
-  echo "Usá 'pnpm typecheck', no 'tsc' directo. 'pnpm typecheck' corre 'react-router typegen' antes que tsc, así existen los tipos de rutas de React Router al chequear. Ver docs/agents/workflows.md." >&2
+  echo "Use 'pnpm typecheck', not 'tsc' directly. 'pnpm typecheck' runs 'react-router typegen' before tsc, so the React Router route types exist when it checks. See docs/agents/workflows.md." >&2
   exit 2
 fi
 

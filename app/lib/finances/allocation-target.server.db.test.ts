@@ -188,7 +188,7 @@ async function recordComprobanteRoot(
   return comprobante;
 }
 
-describe.sequential("the allocation target", () => {
+describe("the allocation target", () => {
   test("refuses a row naming neither inscription and one naming both", async () => {
     const fixture = await seedSeminarTarget();
 
@@ -299,7 +299,7 @@ describe.sequential("the allocation target", () => {
   });
 });
 
-describe.sequential("the seminar inscription price lock", () => {
+describe("the seminar inscription price lock", () => {
   test("lets the stored price move on a row with no money", async () => {
     const fixture = await seedSeminarTarget();
 
@@ -378,7 +378,7 @@ describe.sequential("the seminar inscription price lock", () => {
   });
 });
 
-describe.sequential("the comprobante line target", () => {
+describe("the comprobante line target", () => {
   test("accepts a line naming nobody and refuses one naming both", async () => {
     const fixture = await seedSeminarTarget();
     const choreographyId = await seedChoreographyId(fixture.eventId);

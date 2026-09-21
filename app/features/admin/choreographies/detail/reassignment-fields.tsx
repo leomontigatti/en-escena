@@ -51,7 +51,7 @@ export function SubmodalityField({
   // separate compound correction, which owns this field while it is pending.
   const isEditable =
     loaderData.canEdit &&
-    !choreography.hasPresentation &&
+    !choreography.isEvaluated &&
     loaderData.submodalityOptions.length > 0;
 
   if (!isEditable) {

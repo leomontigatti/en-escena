@@ -355,7 +355,7 @@ describe("`Bases del evento` repository", () => {
       experienceLevels: ["amateur", "profesional"],
     };
     const occupiedPathError =
-      "No se pueden quitar tipos de grupo, modalidades ni niveles de experiencia que las coreografías de la categoría todavía usan.";
+      "No se pueden quitar tipos de grupo ni modalidades que las coreografías de la categoría todavía usan.";
 
     await expect(
       updateCategory(category.id, { ...categoryInput, groupTypes: ["duo"] }),
@@ -369,31 +369,130 @@ describe("`Bases del evento` repository", () => {
     await expect(
       updateCategory(category.id, {
         ...categoryInput,
-        experienceLevels: ["profesional"],
-      }),
-    ).resolves.toMatchObject({ ok: false, error: occupiedPathError });
-    await expect(
-      updateCategory(category.id, {
-        ...categoryInput,
         name: "Infantil A",
-        minAge: 7,
-        maxAge: 13,
         groupTypes: ["solo"],
-        experienceLevels: ["amateur"],
       }),
     ).resolves.toMatchObject({
       ok: true,
-      record: { name: "Infantil A", minAge: 7 },
+      record: { name: "Infantil A", groupTypes: ["solo"] },
     });
   });
 
-  test("frees the registration paths of a category once every inscription is withdrawn", async () => {
+  test("refuses moving the age range or the experience levels of a referenced category, naming the one choreography in the way", async () => {
+    const { academy, category, event, jazz } = await createOccupiableCategory();
+    const choreography = await createChoreographyOnBases({
+      eventId: event.id,
+      academyId: academy.id,
+      modalityId: jazz.id,
+      categoryId: category.id,
+      name: "Luz",
+      inscriptions: "withdrawn",
+    });
+    const blocker = `n.º ${choreography.choreographyNumber} «Luz»`;
+
+    const categoryInput = {
+      name: "Infantil",
+      minAge: 8,
+      maxAge: 12,
+      groupTypes: ["solo", "duo"],
+      modalityIds: [jazz.id],
+      experienceLevels: [],
+    };
+
+    await expect(
+      updateCategory(category.id, { ...categoryInput, minAge: 7 }),
+    ).resolves.toMatchObject({
+      ok: false,
+      code: "event-bases-has-dependencies",
+      error: `No se puede cambiar el rango de edad de una categoría que tiene una coreografía relacionada: ${blocker}.`,
+    });
+    await expect(
+      updateCategory(category.id, { ...categoryInput, maxAge: 13 }),
+    ).resolves.toMatchObject({
+      ok: false,
+      code: "event-bases-has-dependencies",
+      error: `No se puede cambiar el rango de edad de una categoría que tiene una coreografía relacionada: ${blocker}.`,
+    });
+    await expect(
+      updateCategory(category.id, {
+        ...categoryInput,
+        experienceLevels: ["amateur", "profesional"],
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      code: "event-bases-has-dependencies",
+      error: `No se pueden cambiar los niveles de experiencia de una categoría que tiene una coreografía relacionada: ${blocker}.`,
+    });
+    await expect(
+      updateCategory(category.id, { ...categoryInput, name: "Infantil A" }),
+    ).resolves.toMatchObject({ ok: true, record: { name: "Infantil A" } });
+  });
+
+  test("names at most five blocking choreographies and counts the rest", async () => {
+    const { academy, category, event, jazz } = await createOccupiableCategory();
+    const blockers = [];
+
+    for (const name of ["Luz", "Sombra", "Agua", "Fuego", "Aire", "Tierra"]) {
+      const choreography = await createChoreographyOnBases({
+        eventId: event.id,
+        academyId: academy.id,
+        modalityId: jazz.id,
+        categoryId: category.id,
+        name,
+        inscriptions: "withdrawn",
+      });
+
+      blockers.push(`n.º ${choreography.choreographyNumber} «${name}»`);
+    }
+
+    const [first, second, third, fourth, fifth] = blockers;
+
+    await expect(
+      updateCategory(category.id, {
+        name: "Infantil",
+        minAge: 7,
+        maxAge: 12,
+        groupTypes: ["solo", "duo"],
+        modalityIds: [jazz.id],
+        experienceLevels: [],
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      code: "event-bases-has-dependencies",
+      error: `No se puede cambiar el rango de edad de una categoría que tiene coreografías relacionadas: ${first}, ${second}, ${third}, ${fourth}, ${fifth} y 1 más.`,
+    });
+  });
+
+  test("allows moving the age range and the experience levels of a category no choreography references", async () => {
+    const { category, jazz } = await createOccupiableCategory();
+
+    await expect(
+      updateCategory(category.id, {
+        name: "Infantil",
+        minAge: 7,
+        maxAge: 13,
+        groupTypes: ["solo", "duo"],
+        modalityIds: [jazz.id],
+        experienceLevels: ["amateur", "profesional"],
+      }),
+    ).resolves.toMatchObject({
+      ok: true,
+      record: {
+        minAge: 7,
+        maxAge: 13,
+        experienceLevels: ["amateur", "profesional"],
+      },
+    });
+  });
+
+  test("keeps the registration paths of a category whose choreography only has withdrawn inscriptions", async () => {
     const { academy, category, event, jazz } = await createOccupiableCategory();
     await createChoreographyOnBases({
       eventId: event.id,
       academyId: academy.id,
       modalityId: jazz.id,
       categoryId: category.id,
+      groupType: "solo",
       inscriptions: "withdrawn",
     });
 
@@ -403,6 +502,72 @@ describe("`Bases del evento` repository", () => {
         minAge: 8,
         maxAge: 12,
         groupTypes: ["duo"],
+        modalityIds: [jazz.id],
+        experienceLevels: [],
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      code: "event-bases-has-dependencies",
+      error:
+        "No se pueden quitar tipos de grupo ni modalidades que las coreografías de la categoría todavía usan.",
+    });
+    await expect(
+      updateCategory(category.id, {
+        name: "Infantil A",
+        minAge: 8,
+        maxAge: 12,
+        groupTypes: ["solo", "duo"],
+        modalityIds: [jazz.id],
+        experienceLevels: [],
+      }),
+    ).resolves.toMatchObject({ ok: true, record: { name: "Infantil A" } });
+  });
+
+  test("refuses removing the modality a withdrawn-only choreography competed in", async () => {
+    const { academy, category, event, jazz } = await createOccupiableCategory();
+    const urbanas = await expectCreated(
+      createModality(event.id, { name: "Danzas urbanas" }),
+    );
+    await expect(
+      updateCategory(category.id, {
+        name: "Infantil",
+        minAge: 8,
+        maxAge: 12,
+        groupTypes: ["solo", "duo"],
+        modalityIds: [jazz.id, urbanas.id],
+        experienceLevels: [],
+      }),
+    ).resolves.toMatchObject({ ok: true });
+    await createChoreographyOnBases({
+      eventId: event.id,
+      academyId: academy.id,
+      modalityId: jazz.id,
+      categoryId: category.id,
+      groupType: "solo",
+      inscriptions: "withdrawn",
+    });
+
+    await expect(
+      updateCategory(category.id, {
+        name: "Infantil",
+        minAge: 8,
+        maxAge: 12,
+        groupTypes: ["solo", "duo"],
+        modalityIds: [urbanas.id],
+        experienceLevels: [],
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      code: "event-bases-has-dependencies",
+      error:
+        "No se pueden quitar tipos de grupo ni modalidades que las coreografías de la categoría todavía usan.",
+    });
+    await expect(
+      updateCategory(category.id, {
+        name: "Infantil",
+        minAge: 8,
+        maxAge: 12,
+        groupTypes: ["solo", "duo"],
         modalityIds: [jazz.id],
         experienceLevels: [],
       }),
@@ -431,7 +596,7 @@ describe("`Bases del evento` repository", () => {
     ).resolves.toMatchObject({
       ok: false,
       error:
-        "No se pueden quitar tipos de grupo, modalidades ni niveles de experiencia que las coreografías de la categoría todavía usan.",
+        "No se pueden quitar tipos de grupo ni modalidades que las coreografías de la categoría todavía usan.",
     });
   });
 

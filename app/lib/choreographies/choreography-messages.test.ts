@@ -4,7 +4,11 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, test } from "vitest";
 
-import { choreographyNotFoundMessage } from "@/lib/choreographies/choreography-messages";
+import {
+  choreographyNotFoundMessage,
+  formatChoreographyReferences,
+  getNoCompatibleCategoryRegistrationMessage,
+} from "@/lib/choreographies/choreography-messages";
 
 const currentFilePath = fileURLToPath(import.meta.url);
 const repositoryRoot = path.resolve(path.dirname(currentFilePath), "../../../");
@@ -53,6 +57,62 @@ describe("choreography messages", () => {
       "No encontramos esa coreografía dentro de la lista financiera de la academia.";
 
     expect(containsNotFoundCopy(financeListCopy)).toBe(false);
+  });
+});
+
+describe("no compatible category registration message", () => {
+  test("names the modality the academy chose", () => {
+    expect(
+      getNoCompatibleCategoryRegistrationMessage({
+        modalityName: "Jazz",
+        groupType: "solo",
+      }),
+    ).toBe(
+      "No hay una categoría de Jazz para Solo con las edades de estos bailarines. Revisá los bailarines o la modalidad.",
+    );
+  });
+
+  // The name is read from a list the modality is guaranteed to be in, so this
+  // is the fallback for a lookup that came back empty: the sentence has to
+  // survive it rather than render "una categoría de  para …".
+  test("drops the modality clause instead of leaving a hole in the sentence", () => {
+    const message = getNoCompatibleCategoryRegistrationMessage({
+      modalityName: null,
+      groupType: "solo",
+    });
+
+    expect(message).toBe(
+      "No hay una categoría para Solo con las edades de estos bailarines. Revisá los bailarines o la modalidad.",
+    );
+    expect(message).not.toContain("  ");
+  });
+});
+
+describe("choreography reference list", () => {
+  test("sorts by number and joins the last one with `y`", () => {
+    expect(
+      formatChoreographyReferences([
+        { choreographyNumber: 7, name: "Sombra" },
+        { choreographyNumber: 3, name: "Luz" },
+      ]),
+    ).toBe("n.º 3 «Luz» y n.º 7 «Sombra»");
+  });
+
+  test("names a single choreography without a connector", () => {
+    expect(
+      formatChoreographyReferences([{ choreographyNumber: 3, name: "Luz" }]),
+    ).toBe("n.º 3 «Luz»");
+  });
+
+  test("stops at five and counts what it left out", () => {
+    const references = [1, 2, 3, 4, 5, 6, 7].map((choreographyNumber) => ({
+      choreographyNumber,
+      name: `Coreografía ${choreographyNumber}`,
+    }));
+
+    expect(formatChoreographyReferences(references)).toBe(
+      "n.º 1 «Coreografía 1», n.º 2 «Coreografía 2», n.º 3 «Coreografía 3», n.º 4 «Coreografía 4», n.º 5 «Coreografía 5» y 2 más",
+    );
   });
 });
 

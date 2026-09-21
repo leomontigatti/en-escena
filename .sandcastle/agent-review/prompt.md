@@ -93,7 +93,9 @@ Invoke it with everything it needs, so that it does **not** run its own discover
   calls fail; everything the skill needs is already embedded above.
 - **Standards:** `.sandcastle/CODING_STANDARDS.md` is this repo's documented standard — feed it
   as the standards source, with `docs/agents/style-guide.md` for frontend/UI. The skill's
-  built-in smell baseline applies on top, but a documented repo standard always wins.
+  built-in smell baseline applies on top, but a documented repo standard always wins. The
+  `Command` → `Owns` table in `.sandcastle/VALIDATION.md` is the definition of "tooling
+  enforces": nothing a row of that table owns is to be reported as a finding.
 
 The skill is read-only and produces a report; it does not edit code. That report is your
 worklist for the step below.
@@ -110,6 +112,19 @@ worklist for the step below.
   silently fix it by writing the missing feature yourself — call it out in the `summary` and,
   where line-anchored, in the inline comments, for the human reviewer to decide.
 
+### Where a finding goes: summary or inline comment
+
+**A finding you fixed yourself belongs in the `summary`, never in an inline comment.** Your
+commit is the answer to it; a thread on it only asks a human to confirm against the branch what
+you already did, and settling those threads was the bulk of the triage cost on past reviews.
+List what you fixed in the summary instead, **with the path** of each fix (`app/lib/x.ts`), so a
+reader can go straight to it in the diff.
+
+An **inline comment is a request**: it is for what someone else — a human, or the next
+implementer run — has to **decide or do**. Every thread you open is read as "this is still
+open", so open one only when that is true. A review that fixed everything it found therefore
+posts **no** inline comments and one summary of the fixes.
+
 ## 3. Respond to human comments
 
 For each unresolved `review_thread` / directed `issue_comment`, choose: **Address** (change
@@ -120,12 +135,14 @@ reviewer's job.
 # EXECUTION
 
 Make improvements + new tests, commit as a single squashed commit _(reference message prefix:
-`RALPH: Review -`)_. Before committing, validate **once**: `pnpm typecheck`, `pnpm lint`,
-`pnpm test:unit`, and `pnpm test:db <path>` for the DB test files you touched. Don't run the
-full `pnpm test` — it takes ~13 min of your wall-clock budget ({{WALL_CLOCK_BUDGET}}) and CI
-runs the complete suite in parallel anyway. That list is exhaustive; don't invent commands. See
-`.sandcastle/VALIDATION.md`. Don't leave the branch broken. If the code is already clean and
-there's nothing to answer, make no commit.
+`RALPH: Review -`)_. Write its subject and body in **English**, per
+`.sandcastle/CODING_STANDARDS.md` § Code Language — Spanish only inside backticks, as data (UI
+copy, route segments, `CONTEXT.md` vocabulary). Before committing, validate **once**:
+`pnpm typecheck`, `pnpm lint`, `pnpm test:unit`, and `pnpm test:db <path>` for the DB test
+files you touched. Don't run the full `pnpm test` — it takes ~13 min of your wall-clock budget
+({{WALL_CLOCK_BUDGET}}) and CI runs the complete suite in parallel anyway. That list is
+exhaustive; don't invent commands. See `.sandcastle/VALIDATION.md`. Don't leave the branch
+broken. If the code is already clean and there's nothing to answer, make no commit.
 
 When your review is finished and any improvement commit is made, output the literal completion
 signal on its own line to end this pass:
@@ -145,13 +162,20 @@ Emit a single `<output>` block as the **last thing** in your response:
 ```
 <output>
 {
-  "summary": "1-3 paragraphs; explain even a clean review",
+  "summary": "1-3 paragraphs; explain even a clean review, and list what you fixed with paths",
   "inlineComments": [ { "path": "rel/path.ts", "line": 87, "body": "markdown" } ],
-  "replies":        [ { "commentId": "<from a shown review_thread>", "body": "markdown" } ]
+  "replies":        [ { "commentId": "<from a shown review_thread>", "body": "markdown" } ],
+  "specFindings": false
 }
 ```
 
+- `summary`: includes every finding you fixed in your own commit, with its path — those are
+  **not** inline comments (see "Where a finding goes").
 - `inlineComments[].line`: a single integer in current HEAD. Anchors not in the diff are
   silently dropped.
 - `replies[].commentId`: must be a `commentId` you were shown. Do not invent IDs.
+- `specFindings`: `true` when the summary reports a spec finding you deliberately did **not**
+  fix (missing coverage, scope creep, misinterpretation), `false` when it reports none. Answer
+  it: the workflow labels the PR `agent:ready` only when this is `false` and no thread is left
+  open; anything else sends the PR to a human triage pass.
 - Do not add fields beyond those listed; the JSON is machine-parsed.

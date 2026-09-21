@@ -29,6 +29,10 @@
       "exports": ["*"]
     },
     {
+      "file": "app/lib/presentations/evaluation-lock.test-support.ts",
+      "exports": ["*"]
+    },
+    {
       "file": "app/components/ui/alert-dialog.tsx",
       "exports": ["*"]
     },

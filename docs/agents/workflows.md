@@ -75,6 +75,10 @@ been researched as thoroughly as the one you are arguing _for_.
 
 ## Command Guardrail
 
+This section covers validation only. The complete list of `pnpm` scripts — the
+database, backup and AFK commands included — is
+[Package Scripts](../operations/scripts.md), which links each one to its runbook.
+
 Use `pnpm typecheck` for type validation.
 
 Do not run `pnpm exec tsc` directly. `pnpm typecheck` runs `react-router typegen && tsc --noEmit`, so generated route types are present before TypeScript checks the app. A PreToolUse hook (`.claude/hooks/block-npx-tsc.sh`, wired in `.claude/settings.json`) enforces this: it blocks `npx tsc` / `pnpm exec tsc` / `pnpm dlx tsc` and points back here.
@@ -153,13 +157,17 @@ checkout's `master` current. It only runs when that checkout is clean and on
 ## Continuous integration
 
 `.github/workflows/ci.yml` runs on every PR to `master`, as four required
-contexts: `checks`, `db-gate`, `docs-gate` and `actions-gate`.
-The rationale for each job lives in that file's comments; what follows
-is the shape a reader needs before running anything locally:
+contexts: `checks`, `db-gate`, `docs-gate` and `actions-gate`. `pr-title`, from
+`pr-title.yml` and described below, is the fifth required context on `master`.
+Why the gates in
+this section and the next exist at all, and what was considered and rejected, is
+[ADR-0015](../adr/0015-deterministic-guardrails.md). The rationale for each job
+lives in that file's comments; what follows is the shape a reader needs before
+running anything locally:
 
 - `checks`: `format:check`, `lint`, the `check:*` scripts, the migration
-  drift/order/immutability checks, `typecheck`, `test:unit` and `build`, with no
-  database.
+  drift/order/immutability/safety checks, `typecheck`, `test:unit` and `build`,
+  with no database.
 - `db-gate`: the full `*.db.test.ts` suite against real Postgres 17. The tests
   run in the `db-shard` matrix — four runners, each with its own Postgres
   service container, each running
@@ -182,13 +190,50 @@ database with another shard; the serial-within-a-runner isolation model of
 repo setting, not part of this file: renaming a job does not update branch
 protection, which is why the aggregator is named exactly `db-gate`.
 
+`.github/workflows/pr-title.yml` is a fifth gate, in its own file (#1007): one
+job, `pr-title`, running `pnpm check:pr-title` over
+`github.event.pull_request.title`. It is separate from `ci.yml` because it needs
+the `edited` event — renaming a title has to re-run the gate — and `edited` fires
+on the body too, so putting it in `ci.yml` would re-run build and the four
+Postgres shards every time an AFK runner edits a PR description. The title
+reaches the script through `env: PR_TITLE`, never interpolated into a `run:`
+block. Like the other four it is a required context on `master`, which is a repo
+setting outside the repo: this file does not add the requirement.
+
+### The Node version
+
+`.nvmrc` is where the Node version lives, as an exact patch (`22.23.2`). Nothing
+else states it independently (#981):
+
+- every `actions/setup-node` step in `.github/workflows/` uses
+  `node-version-file: .nvmrc`, never a literal `node-version:`;
+- `package.json`'s `engines.node` is `^<that version>`, so pnpm warns on install
+  (`Unsupported engine: wanted … current …`) when the local Node sits below the
+  floor. It only warns: no `engineStrict` is set in `pnpm-workspace.yaml`, so
+  nothing is refused. The floor is deliberately the exact `.nvmrc` patch rather
+  than the looser `^22.x` #981 sketched, so that a local Node tracks the one CI
+  runs; after a patch bump, `nvm install` clears the warning;
+- the Dockerfile's base is `FROM node:<that version>-bookworm-slim`. It repeats
+  the number because `FROM` cannot read a file, and an `ARG` defaulted from one
+  would still need the default written here; `tests/afk/node-version-single-source.test.ts`
+  is what keeps it in step. The tag is deliberately not pinned by digest —
+  images-by-digest is the actions gate's decision (#955), not this one.
+
+Bumping Node is therefore four edits, not one: `.nvmrc`, `engines.node` and the
+`FROM` line spell the same patch out — only the workflows read the file — plus
+`@types/node`'s range whenever the major moves (the types have to describe the
+runtime that runs). The point is not that one edit suffices; it is that the test
+above names every copy you forgot, instead of a runner and a container quietly
+disagreeing months later.
+
 ### Waiting on AFK runs and CI from a session
 
 A session that drives AFK work (a reviewed PR to land, a chain of issues) never
 polls by hand. `pnpm afk:watch pr <n> --until <review|implement|checks|merged>`
 (or `issue <n> --until <pr|closed|label:<name>>`) blocks until the event happens,
 prints one JSON line and exits; run it as a background command and act when it
-returns. It reads labels, reviews, threads and the four required contexts, and
+returns. It reads labels, reviews, threads and the five required contexts
+(`checks`, `db-gate`, `docs-gate`, `actions-gate` and `pr-title`), and
 ignores workflow runs on purpose: every `agent:implement` label also fires
 `agent-implement-prd.yml`, which skips when the issue has no sub-issues, and a
 watcher on runs would wake on that noise. The `review-triage` skill is its
@@ -209,7 +254,8 @@ Marketplace:
   the SHA pins can be manual: a pin that goes stale, or that no longer matches
   the tag its comment claims, turns the gate red on the next PR instead of
   rotting quietly.
-- **actionlint**, installed by its own release-pinned download script. It owns
+- **actionlint**, installed from its release tarball, pinned by version and by
+  checksum — the same inline pattern as gitleaks in `checks`. It owns
   workflow syntax, `${{ }}` expression types, job/step references and shellcheck
   over `run:` blocks. Shellcheck runs at `--severity=warning`: at `info`/`style`
   the gate is a wall of SC2016 pointing at correct `jq '...'` filters.
@@ -232,12 +278,14 @@ All of it is a manual edit; nothing here opens update PRs.
 
 1. `pinact run --update` rewrites every `uses:` in `.github/workflows/` to the
    newest release of that action, SHA plus a `# vN` comment.
-2. Bump `zizmor==<version>` and the two actionlint version strings in the
-   `actions-gate` job by hand, and `GITLEAKS_VERSION` **together with**
-   `GITLEAKS_SHA256` in the `checks` job — the two are one pin, and the
-   checksum comes from `gitleaks_<version>_checksums.txt` on the release page.
-   The install snippet under "Hook guidance" names the same version; bump it too
-   so a local install keeps matching CI.
+2. Bump `zizmor==<version>` by hand, and `ACTIONLINT_VERSION` in the
+   `actions-gate` job and `GITLEAKS_VERSION` in the `checks` job **together
+   with** their `ACTIONLINT_SHA256` / `GITLEAKS_SHA256` — version and checksum
+   are one pin in both, and the checksum comes from
+   `<tool>_<version>_checksums.txt` on the release page.
+   The gitleaks install snippet under "Hook guidance" names that same version
+   (there is no local actionlint install); bump it too so a local install keeps
+   matching CI.
 3. `pnpm format` (Prettier owns the YAML), then push and read the gate. Its
    online audits are the confirmation step: they are what tells you a rewritten
    pin really points at the tag its comment names, which is something you cannot
@@ -259,19 +307,27 @@ difference.
 **It is deliberately not a style checker**, and rules must not be added to it
 casually. The scope rule is that every concern already has exactly one owner:
 
-| Concern                                                                                                                                                                                                                    | Owner                                                       |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| Formatting                                                                                                                                                                                                                 | Prettier (`pnpm format`)                                    |
-| Types, unused locals/parameters, unused labels, unreachable code, implicit returns, switch fallthrough, missing `override`, unresolved side-effect imports (not asset globs such as `*.css`, which `vite/client` declares) | `tsc` (`pnpm typecheck`; the flags live in `tsconfig.json`) |
-| Repo conventions                                                                                                                                                                                                           | the `check:*` scripts                                       |
-| Hook mistakes, import cycles, un-awaited promises                                                                                                                                                                          | `pnpm lint`                                                 |
+| Concern                                                                                                                                                                                                                    | Owner                                                                           |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Formatting                                                                                                                                                                                                                 | Prettier (`pnpm format`)                                                        |
+| Types, unused locals/parameters, unused labels, unreachable code, implicit returns, switch fallthrough, missing `override`, unresolved side-effect imports (not asset globs such as `*.css`, which `vite/client` declares) | `tsc` (`pnpm typecheck`; the flags live in `tsconfig.json`)                     |
+| Hook mistakes, import cycles, un-awaited promises                                                                                                                                                                          | `pnpm lint`                                                                     |
+| Repo conventions — doc map, repo styles, banned imports, file tokens, comment language, migration order and immutability, Fallow                                                                                           | the `check:*` scripts                                                           |
+| Destructive or lock-hazardous DDL in migrations the branch adds                                                                                                                                                            | squawk (`pnpm check:migration-safety`)                                          |
+| Secrets in commits                                                                                                                                                                                                         | gitleaks (`.husky/pre-commit` + the `checks` job), under GitHub push protection |
+| High and critical advisories the branch introduces                                                                                                                                                                         | `pnpm audit` (`pnpm check:dependency-audit`)                                    |
+| PR title — conventional-commit prefix, English subject                                                                                                                                                                     | `pnpm check:pr-title`, from `pr-title.yml`                                      |
+| Workflow syntax and Actions security posture                                                                                                                                                                               | actionlint and zizmor (`actions-gate`)                                          |
+| Judgement — design, naming, whether a test proves anything                                                                                                                                                                 | the reviewer, once every rule above has already been applied                    |
 
 A rule that duplicates another owner turns the linter into a chore and gets
-ignored, so it does not go in. What justifies the ones that are in is that
-nothing else can see them: a stale closure in `useEffect` type-checks perfectly
-and misbehaves at runtime, TypeScript tolerates import cycles until a module
-reads `undefined` during initialisation, and a promise nothing awaits type-checks
-too while silently dropping whatever it would have rejected with.
+ignored, so it does not go in — the rationale is decision 2 of
+[ADR-0015](../adr/0015-deterministic-guardrails.md). What justifies the ones
+that are in is that nothing else can see them: a stale closure in `useEffect`
+type-checks perfectly and misbehaves at runtime, TypeScript tolerates import
+cycles until a module reads `undefined` during initialisation, and a promise
+nothing awaits type-checks too while silently dropping whatever it would have
+rejected with.
 
 Two options on those promise rules are load-bearing, and neither is legible from
 the rule name:
@@ -320,10 +376,10 @@ Hook guidance:
   environment.
 - The gitleaks line is the secrets gate (#978) and runs first: nothing else
   matters if the commit carries a credential. It reads `.gitleaks.toml` (the
-  upstream ruleset plus three rules for what this repo can leak and the default
+  upstream ruleset plus the rules for what this repo can leak and the default
   set misses — passwords inside connection URLs, Resend `re_` keys and
-  Backblaze `K00` application keys), costs about a second, and **warns instead of
-  failing when the binary is not on `PATH`**:
+  Backblaze `K00` application keys), adds roughly a second to a commit, and
+  **warns instead of failing when the binary is not on `PATH`**:
   `gitleaks not installed, secret scan skipped; CI still runs it`. gitleaks is
   not a pnpm dependency, so that is the normal state of a fresh clone and of the
   AFK runners, which hold only tokens GitHub push protection already blocks.
@@ -345,17 +401,67 @@ Hook guidance:
 
 - `pnpm check:comment-language` fails on Spanish prose in a comment or a test
   name anywhere under `.sandcastle/`, `app/`, `scripts/` or `tests/`, plus the
-  repo-root configs (#592), and on Spanish in the `.md` under `.claude/`,
+  repo-root configs (#592); on Spanish in the `.md` under `.claude/`,
   `.sandcastle/` and `docs/` — `docs/adr/` and `docs/research/` excepted,
-  because both are records of something external (#792). It reads three
-  instruments: Spanish function words, any word carrying an accent or `ñ`, and
-  every Spanish noun `CONTEXT.md` names. Prose is governed like an identifier,
+  because both are records of something external (#792); on the `#` comments in
+  the YAML under `.github/` and at the repo root (#793); and on the `#` comments
+  and the stderr messages of the `.sh` under `.claude/` and `scripts/`, the hooks
+  included (#947) — a hook's stderr is the sentence the agent reads back, so it
+  is governed like a thrown error, whether it sits on the `>&2` line or in the
+  variable that line prints. It reads three instruments: Spanish function words,
+  any word carrying an accent or `ñ`, and every Spanish noun `CONTEXT.md` names. Prose is governed like an identifier,
   so `comprobante` is the only Spanish that survives bare; naming the Spanish
   term is still fine, marked as data. In code, quoted copy and backticked names
   are data; in markdown, only backticked ones are. See the Code Language section
   of `.sandcastle/CODING_STANDARDS.md`.
 - `pnpm check:fallow` is the Fallow audit on its `new-only` gate; see
   [fallow.md](fallow.md) for what it gates and what it costs.
+- `pnpm check:pr-title "<title>"` is the same language rule applied to a PR
+  title, plus a conventional-commit prefix (#1007). PRs are squash-merged, so
+  the title lands on `master` as the commit subject. The prefix is one of the
+  ten types the history uses, an optional `(scope)`, an optional `!`, then `: `
+  and the subject; the subject — not the scope, which is free-form and holds
+  Spanish domain names like `feat(finanzas)` — goes through the
+  `check:comment-language` detector, glossary included. It runs from
+  `pr-title.yml` rather than from `ci.yml`; locally it takes the title as its
+  first argument, or reads `PR_TITLE`.
+- `pnpm check:migration-safety` is squawk over the migrations a branch _adds_,
+  and reaches the network (`pnpm dlx`, pinned version) — one of the two
+  `check:*` scripts that do, with `check:dependency-audit`. A drop or a rename
+  fails the branch, because Coolify keeps the old
+  container serving while the new one migrates; lock hazards only warn. The two
+  tiers and the `-- squawk-ignore` exception are in
+  [../db/migrations.md](../db/migrations.md).
+- `pnpm check:dependency-audit` runs `pnpm audit --prod --audit-level=high`
+  twice — over this branch's tree, and over the base ref's `package.json`,
+  `pnpm-lock.yaml` and `pnpm-workspace.yaml` read with `git show` into a temp
+  directory. Neither run installs anything, so the pair costs a couple of
+  seconds. It fails on the high and critical advisories, keyed by GHSA, that
+  the branch **introduces**; one the base already carries is printed as
+  information and inherited. Auditing the whole tree would instead redden every
+  open PR — AFK branches included — the day a CVE is disclosed against a
+  dependency nobody touched, which is what Dependabot alerts are on for
+  (security update PRs off, and there is deliberately no
+  `.github/dependabot.yml`). Along with `check:migration-safety` it is one of
+  the two `check:*` scripts that reach the network, and a registry failure
+  fails the check rather than passing silently. The base ref is read with
+  `git show`, so CI has to have fetched it: under Actions a base ref it cannot
+  read is an error, because a run that compared nothing must not read as clean.
+  Locally, where a clone may have no remote, that case just says so and passes.
+  - **To accept an advisory** — no fix published, and the vulnerable path is
+    unreachable from this app — add its GHSA to `auditConfig.ignoreGhsas` in
+    `pnpm-workspace.yaml`, with a comment giving the reason and when to
+    recheck, in the style of the `nwsapi` override. Both runs read that file,
+    so the entry applies to the base side too. (The key becomes `audit.ignore`
+    once `packageManager` reaches pnpm >= 11.16.0.)
+  - **`minimumReleaseAge: 4320`**, also in `pnpm-workspace.yaml`, makes a
+    published version wait three days before this repo will resolve it — the
+    window most recent npm supply-chain compromises were caught and unpublished
+    in. It is set explicitly so pnpm is strict about it: a version too new
+    fails resolution instead of quietly falling back to an older one. The
+    escape hatch for an urgent patch is a `minimumReleaseAgeExclude` entry for
+    that one package, with a reason and a date to remove it — never a lower
+    `minimumReleaseAge`.
 - `pnpm check:file-tokens` is a staged-source commit gate, not a required
   validation command after every implementation. Run it before committing
   staged application source, before a PR handoff that depends on staged files,

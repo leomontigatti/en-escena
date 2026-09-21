@@ -1,6 +1,5 @@
 import { sql } from "drizzle-orm";
 import {
-  boolean,
   foreignKey,
   index,
   integer,
@@ -54,20 +53,19 @@ export const choreographies = createTable(
       .references(() => modalities.id),
     submodalityId: varchar("submodality_id", { length: 255 }),
     groupType: groupType("group_type").notNull(),
-    categoryId: varchar("category_id", { length: 255 }).references(
-      () => categories.id,
-    ),
+    categoryId: varchar("category_id", { length: 255 })
+      .notNull()
+      .references(() => categories.id),
     categoryAgeBasis: integer("category_age_basis"),
     categoryCalculationMode: categoryCalculationMode(
       "category_calculation_mode",
     ).notNull(),
     experienceLevelId: experienceLevel("experience_level"),
-    scheduleId: varchar("schedule_id", { length: 255 }),
+    scheduleId: varchar("schedule_id", { length: 255 }).notNull(),
     scheduleCapacityId: varchar("schedule_capacity_id", {
       length: 255,
     }),
     musicStorageKey: text("music_storage_key"),
-    hasPresentation: boolean("has_presentation").notNull().default(false),
     createdAt: timestamp("created_at", {
       mode: "date",
       withTimezone: true,

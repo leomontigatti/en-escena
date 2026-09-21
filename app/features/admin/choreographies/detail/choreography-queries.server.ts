@@ -1,4 +1,4 @@
-import { and, eq, or } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -15,6 +15,8 @@ import { deriveChoreographyOperationalStatus } from "@/lib/choreographies/operat
 import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
 import { experienceLevelLabels } from "@/lib/events/experience-levels";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
+import { hasEvaluatedPresentation } from "@/lib/presentations/evaluation-lock.server";
+import { findPresentationOrderNumber } from "@/lib/presentations/presentation-queries.server";
 
 import {
   createDefaultChoreographyMusicStorage,
@@ -33,48 +35,34 @@ export type ChoreographyExperienceLevelOption = {
 
 /**
  * The options the view offers are exactly the ones the intent accepts: the levels
- * the resolved category declares, plus the level assigned today. That addition is
- * for visibility only — if the category stopped admitting the saved level, it has
- * to stay in view rather than disappear from the select without explanation —
- * and re-picking it is a write identical to what is already there.
+ * the resolved category admits today, and nothing else. A level the category
+ * stopped admitting is therefore not offered and cannot be re-saved; what makes
+ * the stored value legible is the mismatch alert on the detail, which names it.
  *
  * There is no levels table: they are a global enum and the category declares
  * which ones it admits, so the list is built here and not queried.
  */
 function resolveChoreographyExperienceLevelOptions(input: {
-  categoryExperienceLevels: string[] | null;
-  experienceLevelId: string | null;
+  categoryExperienceLevels: string[];
 }): ChoreographyExperienceLevelOption[] {
-  const options = (input.categoryExperienceLevels ?? []).map((level) => ({
+  return input.categoryExperienceLevels.map((level) => ({
     id: level,
     name: experienceLevelLabels[level] ?? level,
   }));
-
-  if (
-    input.experienceLevelId !== null &&
-    !options.some((option) => option.id === input.experienceLevelId)
-  ) {
-    options.push({
-      id: input.experienceLevelId,
-      name:
-        experienceLevelLabels[input.experienceLevelId] ??
-        input.experienceLevelId,
-    });
-  }
-
-  return options;
 }
 
 type ChoreographyDetailRow = {
   academyId: string;
   academyName: string;
-  categoryExperienceLevels: string[] | null;
+  categoryAgeBasis: number | null;
+  categoryExperienceLevels: string[];
   choreographyNumber: number;
-  categoryId: string | null;
-  categoryName: string | null;
+  categoryId: string;
+  categoryMaxAge: number;
+  categoryMinAge: number;
+  categoryName: string;
   experienceLevelId: string | null;
   groupType: ChoreographyGroupType;
-  hasPresentation: boolean;
   id: string;
   modalityId: string;
   modalityName: string;
@@ -92,9 +80,9 @@ type ChoreographyDetailRow = {
 export type ChoreographyDetail = {
   academyId: string;
   academyName: string;
-  categoryId: string | null;
+  categoryId: string;
   choreographyNumber: number;
-  categoryName: string | null;
+  categoryName: string;
   dancers: Array<{
     active: boolean;
     ageAtEventStart: number;
@@ -106,12 +94,16 @@ export type ChoreographyDetail = {
   experienceLevelId: string | null;
   experienceLevelName: string | null;
   /**
-   * The levels the resolved category admits, plus the one assigned today. It is
-   * the list the select offers and the one the intent accepts.
+   * The levels the resolved category admits today. It is the list the select
+   * offers and the one the intent accepts.
    */
   experienceLevelOptions: ChoreographyExperienceLevelOption[];
   groupType: ChoreographyGroupType;
-  hasPresentation: boolean;
+  /**
+   * Whether the choreography is closed for correction. The number it presents
+   * with is not what closes it — see evaluation-lock.server.ts.
+   */
+  isEvaluated: boolean;
   id: string;
   modalityId: string;
   modalityName: string;
@@ -119,6 +111,12 @@ export type ChoreographyDetail = {
   musicStorageKey: string | null;
   name: string;
   operationalStatus: ReturnType<typeof deriveChoreographyOperationalStatus>;
+  /**
+   * The number the choreography presents with, or `null` while it has none. It
+   * closes nothing: it only tells the administrator that a correction here may
+   * need attention on the participation list.
+   */
+  presentationOrderNumber: number | null;
   professors: Array<{
     active: boolean;
     firstName: string;
@@ -126,9 +124,9 @@ export type ChoreographyDetail = {
     lastName: string;
   }>;
   /**
-   * Whether the resolved category declares levels. Different from having options:
-   * a category that stopped admitting levels still carries the saved level along
-   * as a visible option, but no longer requires it.
+   * Whether the resolved category declares levels. A category that stopped
+   * declaring them keeps whatever is stored on the choreography, but no longer
+   * requires it and offers no option for it.
    */
   requiresExperienceLevel: boolean;
   scheduleCapacityId: string;
@@ -146,13 +144,15 @@ export async function findChoreographyDetail(input: {
     .select({
       academyId: choreographies.academyId,
       academyName: academies.name,
+      categoryAgeBasis: choreographies.categoryAgeBasis,
       categoryExperienceLevels: categories.experienceLevels,
       categoryId: choreographies.categoryId,
+      categoryMaxAge: categories.maxAge,
+      categoryMinAge: categories.minAge,
       choreographyNumber: choreographies.choreographyNumber,
       categoryName: categories.name,
       experienceLevelId: choreographies.experienceLevelId,
       groupType: choreographies.groupType,
-      hasPresentation: choreographies.hasPresentation,
       id: choreographies.id,
       modalityId: choreographies.modalityId,
       modalityName: modalities.name,
@@ -170,18 +170,12 @@ export async function findChoreographyDetail(input: {
     .innerJoin(academies, eq(choreographies.academyId, academies.id))
     .innerJoin(modalities, eq(choreographies.modalityId, modalities.id))
     .leftJoin(submodalities, eq(choreographies.submodalityId, submodalities.id))
-    .leftJoin(categories, eq(choreographies.categoryId, categories.id))
+    .innerJoin(categories, eq(choreographies.categoryId, categories.id))
     .leftJoin(
       scheduleCapacities,
       eq(choreographies.scheduleCapacityId, scheduleCapacities.id),
     )
-    .innerJoin(
-      schedules,
-      or(
-        eq(choreographies.scheduleId, schedules.id),
-        eq(scheduleCapacities.scheduleId, schedules.id),
-      ),
-    )
+    .innerJoin(schedules, eq(choreographies.scheduleId, schedules.id))
     .where(
       and(
         eq(choreographies.id, input.choreographyId),
@@ -194,18 +188,24 @@ export async function findChoreographyDetail(input: {
     return null;
   }
 
-  const [dancerRows, professorRows, musicDownloadUrl] = await Promise.all([
+  const [
+    dancerRows,
+    professorRows,
+    musicDownloadUrl,
+    isEvaluated,
+    presentationOrderNumber,
+  ] = await Promise.all([
     listChoreographyDancers(input.choreographyId),
     listChoreographyProfessors(input.choreographyId),
     loadChoreographyMusicDownloadUrl({
       storage: createDefaultChoreographyMusicStorage(),
       storageKey: row.musicStorageKey,
     }),
+    hasEvaluatedPresentation(input.choreographyId),
+    findPresentationOrderNumber(input.choreographyId),
   ]);
 
-  const requiresExperienceLevel =
-    row.categoryExperienceLevels !== null &&
-    row.categoryExperienceLevels.length > 0;
+  const requiresExperienceLevel = row.categoryExperienceLevels.length > 0;
 
   return {
     academyId: row.academyId,
@@ -218,10 +218,9 @@ export async function findChoreographyDetail(input: {
     experienceLevelName: formatExperienceLevelName(row.experienceLevelId),
     experienceLevelOptions: resolveChoreographyExperienceLevelOptions({
       categoryExperienceLevels: row.categoryExperienceLevels,
-      experienceLevelId: row.experienceLevelId,
     }),
     groupType: row.groupType,
-    hasPresentation: row.hasPresentation,
+    isEvaluated,
     id: row.id,
     modalityId: row.modalityId,
     modalityName: row.modalityName,
@@ -229,12 +228,17 @@ export async function findChoreographyDetail(input: {
     musicStorageKey: row.musicStorageKey,
     name: row.name,
     operationalStatus: deriveChoreographyOperationalStatus({
-      categoryId: row.categoryId,
+      categoryExperienceLevels: row.categoryExperienceLevels,
       experienceLevelId: row.experienceLevelId,
       hasMusic: row.musicStorageKey !== null,
       hasProfessors: professorRows.length > 0,
-      requiresExperienceLevel,
+      placementCheck: {
+        categoryAgeBasis: row.categoryAgeBasis,
+        categoryMaxAge: row.categoryMaxAge,
+        categoryMinAge: row.categoryMinAge,
+      },
     }),
+    presentationOrderNumber,
     professors: professorRows,
     requiresExperienceLevel,
     scheduleCapacityId:

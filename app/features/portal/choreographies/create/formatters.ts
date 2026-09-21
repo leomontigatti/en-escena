@@ -2,6 +2,7 @@ import type { ChoreographyRegistrationBaseOptions } from "@/lib/events/bases.ser
 import {
   formatGroupTypeLabel,
   type RegistrationResolution,
+  type PortalResolvedRegistrationResolution,
 } from "@/features/portal/choreographies/create/flow";
 import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
 
@@ -35,14 +36,9 @@ export function formatModalitySummary(
 }
 
 export function formatCategoryAndGroupTypeSummary(
-  resolution: RegistrationResolution,
+  resolution: PortalResolvedRegistrationResolution,
 ) {
-  const categoryName =
-    resolution.category.status === "resolved"
-      ? resolution.category.name
-      : "Sin confirmar";
-
-  return `${categoryName} - ${formatGroupTypeLabel(resolution.groupType)}`;
+  return `${resolution.category.name} - ${formatGroupTypeLabel(resolution.groupType)}`;
 }
 
 export function formatExperienceLevelSummary(

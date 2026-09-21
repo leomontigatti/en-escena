@@ -23,11 +23,13 @@ import { resolveChoreographyPricingScheduleId } from "./choreography-pricing-sch
  * Where a move would leave the choreography on the price key: the pricing
  * schedule **and** the group type. Modality is not part of the key — it only
  * decides which schedules accept the choreography — but the group type is, and
- * the roster path moves it without moving any schedule at all.
+ * the roster path moves it without moving any schedule at all. The destination
+ * still names a schedule there, the one the choreography stays on: every move
+ * lands on one, so the key never carries an empty schedule.
  */
 export type DestinationPriceKey = {
   groupType: ChoreographyGroupType;
-  scheduleId: string | null;
+  scheduleId: string;
 };
 
 /**
@@ -189,7 +191,7 @@ export async function loadPriceDivergenceCheck(input: {
  */
 function isSchedulePinnedFrozenRow(input: {
   allocatedAmount: number;
-  destinationScheduleId: string | null;
+  destinationScheduleId: string;
   priceRows: Array<typeof prices.$inferSelect>;
   requiredDepositPercentage: number;
   selectedPriceId: string | null;

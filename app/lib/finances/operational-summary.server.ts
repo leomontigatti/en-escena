@@ -15,6 +15,7 @@ import {
   type OperationalFinanceSummary,
 } from "@/lib/finances/operational-summary";
 import {
+  type ChoreographyFinancialStatus,
   calculateDepositAmount,
   calculateTotalAmount,
   deriveInscriptionFinancialFigures,
@@ -30,6 +31,7 @@ import {
   type FinancePriceRow,
   type ResolvedInscription,
 } from "@/lib/finances/operational-summary-calculations.server";
+import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
 import { resolveEffectiveBasePriceRow } from "@/lib/finances/inscription-price";
 import {
   readAcademySeminarFinance,
@@ -142,14 +144,18 @@ type AcademyEventFinance = {
 async function readAcademyEventFinance(input: {
   academyIds: string[];
   eventId: string;
+  // The executor, so a caller that already holds a transaction reads inside it
+  // instead of opening a second connection the transaction would block on.
+  executor?: Executor;
 }): Promise<AcademyEventFinance> {
+  const executor = input.executor ?? db;
   const [event, choreographyRows, priceRows, seminarFinance] =
     await Promise.all([
-      db.query.events.findFirst({
+      executor.query.events.findFirst({
         columns: { requiredDepositPercentage: true },
         where: eq(events.id, input.eventId),
       }),
-      db
+      executor
         .select({
           academyId: choreographies.academyId,
           choreographyNumber: choreographies.choreographyNumber,
@@ -171,12 +177,13 @@ async function readAcademyEventFinance(input: {
           ),
         )
         .orderBy(asc(choreographies.name), asc(choreographies.createdAt)),
-      db.query.prices.findMany({
+      executor.query.prices.findMany({
         where: eq(prices.eventId, input.eventId),
       }),
       readAcademySeminarFinance({
         academyIds: input.academyIds,
         eventId: input.eventId,
+        executor,
       }),
     ]);
 
@@ -205,7 +212,7 @@ async function readAcademyEventFinance(input: {
   const [inscriptionRows, allocationRows, paymentRows] = await Promise.all([
     choreographyRows.length === 0
       ? Promise.resolve<InscriptionRow[]>([])
-      : db
+      : executor
           .select({
             id: choreographyDancers.id,
             choreographyId: choreographyDancers.choreographyId,
@@ -228,7 +235,7 @@ async function readAcademyEventFinance(input: {
               choreographyRows.map((row) => row.id),
             ),
           ),
-    db
+    executor
       .select({
         academyId: paymentAllocations.academyId,
         inscriptionId: paymentAllocations.choreographyInscriptionId,
@@ -241,7 +248,7 @@ async function readAcademyEventFinance(input: {
           inArray(paymentAllocations.academyId, input.academyIds),
         ),
       ),
-    db.query.payments.findMany({
+    executor.query.payments.findMany({
       columns: { academyId: true, amount: true },
       where: and(
         eq(payments.eventId, input.eventId),
@@ -432,4 +439,36 @@ function buildDancerDiscounts(input: {
   }
 
   return discounts;
+}
+
+/**
+ * Every choreography of the event with its financial status, in one read. The
+ * status is the same rollup every finance surface shows — this only widens the
+ * scope from one academy to the whole event, for the readers that need the
+ * status beside something that is not money, like the presentation order.
+ */
+export async function readEventChoreographyFinancialStatuses(
+  eventId: string,
+  executor: Executor = db,
+): Promise<Map<string, ChoreographyFinancialStatus>> {
+  const academyRows = await executor
+    .selectDistinct({ academyId: choreographies.academyId })
+    .from(choreographies)
+    .where(eq(choreographies.eventId, eventId));
+
+  if (academyRows.length === 0) {
+    return new Map();
+  }
+
+  const finance = await readAcademyEventFinance({
+    academyIds: academyRows.map((row) => row.academyId),
+    eventId,
+    executor,
+  });
+
+  return new Map(
+    [...finance.choreographyFinanceRowsByAcademy.values()].flatMap((rows) =>
+      rows.map((row) => [row.id, row.financialStatus] as const),
+    ),
+  );
 }

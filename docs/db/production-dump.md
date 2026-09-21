@@ -15,6 +15,43 @@ replaces the local `en-escena` database with it, prints the migration journal an
 basic row counts, and removes the local copy. Pass `-- --keep-dump` when you need
 to inspect the artifact after the restore.
 
+At a terminal it asks for confirmation — type `en-escena` — because there the
+command may be a slip. Run non-interactively (an agent, a script, a piped shell)
+it goes ahead without asking: the request was already explicit, and there is
+nobody to answer a prompt. No flag is needed either way. `en-escena-test` is
+never touched.
+
+## Choosing which dump
+
+| Variable        | Purpose                                                                                               |
+| --------------- | ----------------------------------------------------------------------------------------------------- |
+| `BACKUP_ON`     | Restore the newest artifact written on a given day, `YYYY-MM-DD`, by mtime in the server's time zone. |
+| `BACKUP_FILE`   | Restore one named artifact: an absolute path on the remote host, or a dump already on this machine.   |
+| `PROD_SSH_HOST` | The SSH host to fetch from. Defaults to `rylai`.                                                      |
+| `BACKUP_DIR`    | Where to search on that host. Defaults to `/data/coolify/backups/databases`.                          |
+
+With none of them set, the newest artifact there is wins.
+
+```sh
+BACKUP_ON=2026-09-12 pnpm db:refresh:prod
+```
+
+When no artifact was written that day, the error lists the days that do have
+one, so a second guess needs no digging around on the server. Retention is 7
+days of artifacts on the VPS; older days are gone unless the dump is still
+somewhere on this machine.
+
+A `BACKUP_FILE` that exists locally is restored where it lies — no `scp`, no
+second copy of production data on the disk, and the file is left in place
+afterwards whether or not `--keep-dump` was passed. This is how a dump kept from
+an earlier run gets reused:
+
+```sh
+BACKUP_FILE=tmp/db-dumps/pg-dump-enescena-1785985203.dmp pnpm db:refresh:prod
+```
+
+A path that does **not** exist locally is treated as a remote one and fetched.
+
 The manual commands below are kept as a fallback and as documentation of what
 the script does.
 
@@ -31,13 +68,8 @@ retention. It is a custom-format `pg_dump` of the whole `enescena` database —
 every schema, `public` and `drizzle` alike. See
 [Backups](../operations/backups.md#database-backup-coolify-native).
 
-Overrides, when the default is not what you want:
-
-| Variable        | Purpose                                                                            |
-| --------------- | ---------------------------------------------------------------------------------- |
-| `PROD_SSH_HOST` | The SSH host to fetch from. Defaults to `rylai`.                                   |
-| `BACKUP_DIR`    | Where to search on that host. Defaults to `/data/coolify/backups/databases`.       |
-| `BACKUP_FILE`   | Fetch a specific artifact — an absolute path on that host, not under `BACKUP_DIR`. |
+The overrides that pick a different one are in
+[Choosing which dump](#choosing-which-dump) above.
 
 Only custom-format (`.dmp`) artifacts are accepted. The gzipped `pg_dumpall`
 files predating #594 are refused: `pg_restore` cannot read them, and their

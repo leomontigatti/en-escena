@@ -186,8 +186,16 @@ export function createDataTableColumns<TData>(
     },
   }));
 
+  // A leading column is drawn before the checkbox, and the views declare them
+  // first, so the checkbox slots in after the run of them rather than opening
+  // the row.
+  const leadingColumnCount = columns.filter((column) => column.leading).length;
   const visibleTableColumns = options.selectableRows
-    ? [createSelectionColumn<TData>(), ...tableColumns]
+    ? [
+        ...tableColumns.slice(0, leadingColumnCount),
+        createSelectionColumn<TData>(),
+        ...tableColumns.slice(leadingColumnCount),
+      ]
     : tableColumns;
 
   if (columns.some((column) => column.id === dataTableFacetedFilterColumnId)) {
@@ -277,7 +285,7 @@ export function useDataTableRowSelection({
   onSelectedRowIdsChange,
   selectedRowIds,
 }: Pick<
-  DataTableRowSelectionProps,
+  DataTableRowSelectionProps<unknown>,
   "onSelectedRowIdsChange" | "selectedRowIds"
 >) {
   const [uncontrolledRowSelection, setUncontrolledRowSelection] =
@@ -320,7 +328,9 @@ function createSelectionColumn<TData>(): ColumnDef<TData> {
   return {
     id: dataTableSelectionColumnId,
     header: ({ table }) => {
-      const selectableRows = table.getFilteredRowModel().rows;
+      const selectableRows = table
+        .getFilteredRowModel()
+        .rows.filter((row) => row.getCanSelect());
       const hasRows = selectableRows.length > 0;
       const selectedRowCount = selectableRows.filter((row) =>
         row.getIsSelected(),
@@ -349,6 +359,7 @@ function createSelectionColumn<TData>(): ColumnDef<TData> {
       <Checkbox
         aria-label="Seleccionar fila"
         checked={row.getIsSelected()}
+        disabled={!row.getCanSelect()}
         onCheckedChange={(checked) => row.toggleSelected(checked === true)}
       />
     ),

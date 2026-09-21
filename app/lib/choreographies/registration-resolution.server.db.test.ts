@@ -42,7 +42,7 @@ describe("deriveGroupType", () => {
   });
 });
 
-describe.sequential("choreography registration resolution", () => {
+describe("choreography registration resolution", () => {
   test("resolves a valid solo registration using the event local start date, required experience levels, and compatible schedule capacities", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Dueña",
@@ -772,6 +772,34 @@ describe.sequential("choreography registration resolution", () => {
     ).resolves.toMatchObject({
       ok: false,
       code: "dancer-under-minimum-age",
+      error: expect.stringContaining("Nina Ríos"),
+    });
+  });
+
+  test("rejects a dancer who would be over a hundred at the event start, naming them", async () => {
+    const owner = await createAcademySession({
+      academyName: "Academia Centenaria",
+      email: "registro.coreografia.centenaria@example.com",
+    });
+    const { event, catalog } = await createOpenEventCatalog();
+    // A year typed a century off: the birth date, not the catalog, is the fault.
+    const centenarianDancer = await createDancer(owner.academyId, {
+      birthDate: "1905-01-10",
+      firstName: "Nina",
+      lastName: "Ríos",
+    });
+
+    await expect(
+      resolveChoreographyRegistrationOperation({
+        academyId: owner.academyId,
+        eventId: event.id,
+        modalityId: catalog.modality.id,
+        submodalityId: catalog.submodality.id,
+        dancerIds: [centenarianDancer.id],
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      code: "dancer-over-maximum-age",
       error: expect.stringContaining("Nina Ríos"),
     });
   });

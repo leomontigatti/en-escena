@@ -3,14 +3,22 @@
 Index of the repo's conventions. Every operative rule lives in its own file under
 `docs/agents/` (or `.sandcastle/`); this file only routes.
 
-- **Commands and validation**: [docs/agents/workflows.md](docs/agents/workflows.md).
+- **Validation**: [docs/agents/workflows.md](docs/agents/workflows.md).
   Use `pnpm typecheck` (not `pnpm exec tsc`); a hook enforces it. Do not run
   `pnpm typecheck` in parallel with `pnpm build`. **The commands listed there are
-  the whole surface — check `package.json` before running one that is not, rather
-  than after it fails.** `pnpm lint` is oxlint over what `.oxlintrc.json` enables
-  — React hook mistakes, import cycles and un-awaited promises — and is not a style
-  checker; formatting is Prettier's, unused code is `tsc`'s, and repo conventions
-  belong to the `check:*` scripts.
+  the whole validation surface — check the script index below before running one
+  that is not, rather than after it fails.** `pnpm lint` is oxlint over what
+  `.oxlintrc.json` enables — React hook mistakes, import cycles and un-awaited
+  promises — and is not a style checker; formatting is Prettier's, unused code is
+  `tsc`'s, and repo conventions belong to the `check:*` scripts.
+- **Every other command**: [docs/operations/scripts.md](docs/operations/scripts.md)
+  is the complete index of `pnpm` scripts — databases, backups, the AFK runners —
+  each with a link to its runbook. A command that is not there is not a script of
+  this repo. Rows marked ⚠️ reach outside the repo or destroy local state; read
+  the runbook before running one. Mind the neighbours: `pnpm db:refresh:prod`
+  replaces the local **development** database from a production backup artifact,
+  while `pnpm db:test:reset` resets the separate **test** database — "refresh the
+  local db" means the first.
 - **Branches, worktrees and T3 Code threads** (each thread works in its own T3
   worktree, `agent/` branches are reserved for GHA, link every PR to the thread):
   see the section of the same name in [docs/agents/workflows.md](docs/agents/workflows.md).

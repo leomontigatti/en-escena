@@ -16,6 +16,7 @@ import {
   loadPriceDivergenceCheck,
   partitionPriceDivergentOptions,
 } from "@/lib/finances/choreography-price-divergence-guard.server";
+import { evaluatedChoreographyMessage } from "@/lib/choreographies/choreography-messages";
 
 import type { ChoreographyDetail } from "./server";
 import {
@@ -203,14 +204,10 @@ export async function updateChoreographyScheduleCapacity(input: {
   eventId: string;
   formData: FormData;
 }): Promise<ChoreographyFieldUpdateErrorData | ChoreographySuccessData> {
-  // The same hard block as the roster and deletion: with a presentation the
-  // schedule is not touched, even if the form sends a capacity.
-  if (input.choreography.hasPresentation) {
-    return {
-      message:
-        "No se puede cambiar el cupo de cronograma: la coreografía ya tiene presentación.",
-      status: "error",
-    };
+  // The same hard block as the roster: an evaluated choreography keeps its
+  // schedule, even if the form sends a capacity.
+  if (input.choreography.isEvaluated) {
+    return { message: evaluatedChoreographyMessage, status: "error" };
   }
 
   const { hasSelectableAlternative, options, priceDivergentOptionIds } =

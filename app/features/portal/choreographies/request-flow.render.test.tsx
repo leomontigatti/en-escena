@@ -211,7 +211,7 @@ function buildDetailLoaderData() {
         code: "complete",
         pendingItems: [],
       },
-      hasPresentation: false,
+      isEvaluated: false,
     },
     availableDancers: [
       {

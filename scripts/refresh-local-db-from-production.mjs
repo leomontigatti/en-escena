@@ -1,5 +1,5 @@
-import { mkdir, rm } from "node:fs/promises";
-import { basename, join, resolve } from "node:path";
+import { mkdir, rm, stat } from "node:fs/promises";
+import { basename, dirname, join, resolve } from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import readline from "node:readline/promises";
@@ -20,46 +20,52 @@ const REMOTE_BACKUP_DIR =
   process.env.BACKUP_DIR ?? "/data/coolify/backups/databases";
 
 async function main() {
-  // On a closed stdin the confirmation prompt never resolves and the process
-  // would exit 0 having done nothing — a success that refreshed no database.
-  if (!process.stdin.isTTY) {
-    throw new Error(
-      "db:refresh:prod needs an interactive terminal to confirm.",
-    );
-  }
-
   console.log("This will replace the local en-escena database.");
-  console.log(
-    `Source: the newest Coolify backup artifact on ${SSH_HOST}, fetched over scp.`,
-  );
   console.log("No production credentials and no live database access.");
   console.log("");
 
-  const confirmed = await promptLine(
-    `Type ${LOCAL_DATABASE} to recreate the local database: `,
-  );
+  // The prompt guards a human at a terminal, for whom this command may be a
+  // slip: it drops and recreates the local database. A non-interactive run —
+  // an agent asked for the refresh, a script, a piped shell — already said what
+  // it wanted and has nobody to answer, so it proceeds instead of hanging on a
+  // question no one will read.
+  if (process.stdin.isTTY) {
+    const confirmed = await promptLine(
+      `Type ${LOCAL_DATABASE} to recreate the local database: `,
+    );
 
-  if (confirmed !== LOCAL_DATABASE) {
-    throw new Error("Confirmation did not match. Aborting.");
+    if (confirmed !== LOCAL_DATABASE) {
+      throw new Error("Confirmation did not match. Aborting.");
+    }
   }
 
-  const remotePath = await resolveRemoteArtifact();
+  const artifact = await resolveArtifact();
 
-  console.log(`\nArtifact: ${SSH_HOST}:${remotePath}`);
+  console.log(
+    artifact.origin === "local"
+      ? `\nArtifact: ${artifact.path} (already local)`
+      : `\nArtifact: ${SSH_HOST}:${artifact.path}`,
+  );
 
-  await mkdir(DUMP_DIR, { recursive: true });
+  const dumpPath =
+    artifact.origin === "local"
+      ? artifact.path
+      : join(DUMP_DIR, basename(artifact.path));
 
-  const dumpFile = basename(remotePath);
-  const dumpPath = join(DUMP_DIR, dumpFile);
+  const dumpFile = basename(dumpPath);
 
   try {
-    await run("scp", [remoteScpSource(SSH_HOST, remotePath), dumpPath]);
+    if (artifact.origin === "remote") {
+      await mkdir(DUMP_DIR, { recursive: true });
+      await run("scp", [remoteScpSource(SSH_HOST, artifact.path), dumpPath]);
+    }
 
     await run("docker", [
       "run",
       "--rm",
       "-v",
-      `${DUMP_DIR}:/dumps`,
+      // Not DUMP_DIR: a dump named by BACKUP_FILE can sit anywhere on disk.
+      `${dirname(dumpPath)}:/dumps`,
       POSTGRES_IMAGE,
       "sh",
       "-lc",
@@ -190,10 +196,15 @@ order by table_name;
     console.log("");
     console.log("Local database refreshed from production.");
   } finally {
-    if (!KEEP_DUMP) {
-      await rm(dumpPath, { force: true });
-    } else {
+    // Only the copy this run fetched is this run's to delete. A dump that was
+    // already on disk belongs to whoever put it there, and removing it would
+    // make "restore from this file again" a one-shot.
+    if (artifact.origin === "local") {
+      console.log(`Left ${dumpPath} where it was.`);
+    } else if (KEEP_DUMP) {
       console.log(`Kept dump at ${dumpPath}`);
+    } else {
+      await rm(dumpPath, { force: true });
     }
   }
 }
@@ -211,14 +222,49 @@ async function promptLine(question) {
   }
 }
 
-// Picks the newest custom-format artifact under REMOTE_BACKUP_DIR, unless
-// BACKUP_FILE names one. Assumes GNU find (-printf), as on rylai — the same
-// assumption scripts/restore-drill-database.sh makes.
-async function resolveRemoteArtifact() {
+// Which dump to restore, in order: BACKUP_FILE names one outright, BACKUP_ON
+// picks the newest of a given day, and the default is the newest there is.
+// Assumes GNU find (-printf, -newermt), as on rylai — the same assumption
+// scripts/restore-drill-database.sh makes.
+async function resolveArtifact() {
   const explicit = process.env.BACKUP_FILE;
 
   if (explicit) {
-    return assertCustomFormat(explicit);
+    const path = assertCustomFormat(explicit);
+
+    // A path that exists here is restored where it lies: no scp, and no second
+    // copy of production data on the disk. Everything else is a remote path —
+    // including a local one that is missing, which fails at the fetch with the
+    // path in the message rather than silently meaning something else.
+    // Absolute, because `docker run -v` rejects a relative source.
+    return (await isFile(path))
+      ? { origin: "local", path: resolve(path) }
+      : { origin: "remote", path };
+  }
+
+  const on = process.env.BACKUP_ON;
+
+  if (on) {
+    const match = await capture("ssh", [
+      SSH_HOST,
+      artifactOnDateCommand(REMOTE_BACKUP_DIR, assertIsoDate(on)),
+    ]);
+
+    if (!match) {
+      const dates = await capture("ssh", [
+        SSH_HOST,
+        availableDatesCommand(REMOTE_BACKUP_DIR),
+      ]);
+
+      throw new Error(
+        `No artifact written on ${on} under ${SSH_HOST}:${REMOTE_BACKUP_DIR}.` +
+          (dates
+            ? ` Available: ${dates.split("\n").join(", ")}.`
+            : " There are none at all; run Backup Now on the Coolify Postgres resource."),
+      );
+    }
+
+    return { origin: "remote", path: assertCustomFormat(match) };
   }
 
   const newest = await capture("ssh", [
@@ -233,7 +279,15 @@ async function resolveRemoteArtifact() {
     );
   }
 
-  return assertCustomFormat(newest);
+  return { origin: "remote", path: assertCustomFormat(newest) };
+}
+
+async function isFile(path) {
+  try {
+    return (await stat(path)).isFile();
+  } catch {
+    return false;
+  }
 }
 
 // The remote path must NOT be quoted. Since OpenSSH 9.0 `scp` speaks the SFTP
@@ -252,6 +306,31 @@ export function remoteScpSource(host, remotePath) {
 // `cut`'s.
 export function newestArtifactCommand(remoteBackupDir) {
   return `find '${remoteBackupDir}' -type f -name 'pg-dump-*.dmp' -printf '%T@ %p\\n' | sort -rn | head -1 | cut -d' ' -f2-`;
+}
+
+// The newest artifact written on a single day, by mtime in the server's time
+// zone. `-newermt <date> ! -newermt <date+1>` is a half-open day: `find` reads
+// both through GNU date, so "2026-09-12 + 1 day" needs no calendar arithmetic
+// here and gets month and year ends right.
+export function artifactOnDateCommand(remoteBackupDir, isoDate) {
+  return `find '${remoteBackupDir}' -type f -name 'pg-dump-*.dmp' -newermt '${isoDate}' ! -newermt '${isoDate} + 1 day' -printf '%T@ %p\\n' | sort -rn | head -1 | cut -d' ' -f2-`;
+}
+
+// Every day that has an artifact, newest first — what the failed lookup above
+// shows instead of just saying no.
+export function availableDatesCommand(remoteBackupDir) {
+  return `find '${remoteBackupDir}' -type f -name 'pg-dump-*.dmp' -printf '%TY-%Tm-%Td\\n' | sort -ru`;
+}
+
+// BACKUP_ON reaches a remote shell inside single quotes, so a stray quote would
+// end the argument and the rest would run as its own command. Only a calendar
+// date gets through, and the shape is also what GNU date can read.
+export function assertIsoDate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw new Error(`BACKUP_ON must be a YYYY-MM-DD date, got: ${value}`);
+  }
+
+  return value;
 }
 
 // Artifacts predating #594 are gzipped `pg_dumpall` output: plain SQL that

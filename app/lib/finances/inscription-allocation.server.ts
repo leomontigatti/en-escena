@@ -387,7 +387,7 @@ async function applySelectedPrice(
   tx: Transaction,
   input: {
     allocatedAmount: number;
-    choreography: { groupType: string; scheduleId: string | null };
+    choreography: { groupType: string; scheduleId: string };
     eventId: string;
     inscription: { id: string; selectedPriceId: string | null };
     priceId: string | null;
@@ -452,7 +452,7 @@ type InscriptionMoneyContext =
   | { ok: false; message: string }
   | {
       ok: true;
-      choreography: { groupType: string; scheduleId: string | null };
+      choreography: { groupType: string; scheduleId: string };
       inscription: { id: string; selectedPriceId: string | null };
     };
 

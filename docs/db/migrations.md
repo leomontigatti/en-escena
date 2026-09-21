@@ -101,6 +101,56 @@ If `db:generate` produces a migration, `app/db/schema.ts` has drifted from
 production. Fix the drift **in the schema**, regenerate the baseline, and repeat
 — never hand-patch the baseline SQL.
 
+## Migration safety gate
+
+`pnpm check:migration-safety` runs [squawk](https://squawkhq.com) over the `.sql`
+files a branch **adds** under `app/db/migrations`, against `origin/master`. It
+runs in the `checks` job of `.github/workflows/ci.yml`, alongside the ordering
+and immutability checks (same fetch), and is not in pre-commit. A branch that
+adds no migration passes without running squawk at all. It reads the working
+tree, so a migration `pnpm db:generate` has just written is already checked,
+staged or not.
+
+There are two tiers, and the split is about _when_ the hazard bites.
+
+**Blocking** — `ban-drop-column`, `ban-drop-table`, `renaming-column`,
+`renaming-table`, `identifier-too-long`. Coolify keeps the old container serving
+while the new one migrates, so for the length of the deploy the old code's
+queries run against the new schema: a dropped or renamed object breaks them
+immediately. `identifier-too-long` is the same break by another route — Postgres
+truncates an identifier over 63 characters silently, so the object no longer
+answers to the name `schema.ts` uses.
+
+**Warning** — everything else squawk reports: `adding-foreign-key-constraint`,
+`constraint-missing-not-valid`, `adding-not-nullable-field`,
+`disallowed-unique-constraint`, `ban-drop-not-null` and the rest. These are lock
+hazards — a table scan or an exclusive lock taken while writes queue behind it.
+Harmless at this repo's table sizes and expensive at scale, so they are reported
+and merge anyway.
+
+Several rules are excluded from the run entirely, each for a reason that makes
+the finding unactionable rather than merely tolerable; they are listed with
+their reason in `scripts/migrations/squawk.mjs`.
+
+### The exception mechanism
+
+A drop or a rename is not forbidden — it is the _contract_ step of expand and
+contract, and it is correct once no running code reads the object any more.
+Mark the statement in the generated `.sql`:
+
+```sql
+-- reason: contract step of #123; no running code has read "nota" since #120.
+-- squawk-ignore ban-drop-column
+ALTER TABLE "event" DROP COLUMN "nota";
+```
+
+The `-- reason:` line is for the reviewer and the `-- squawk-ignore` line is for
+squawk, which only honours it on the line immediately before the statement. Both
+go in **before the PR merges**: the gate reads only added files, so an applied
+migration is never re-judged, and `pnpm check:migration-immutability` then
+freezes the file — comment included — as a permanent record of why the drop was
+safe on the day it shipped.
+
 ## Production migrations
 
 The application container migrates itself at start, through
@@ -126,7 +176,14 @@ devDependencies stripped by `pnpm prune --prod`, while `drizzle-orm` and
    hash and timestamp. This catches the out-of-order merge (a migration Drizzle
    will skip forever) and a `.sql` file edited after being applied, neither of
    which Drizzle reports.
-4. Applies pending migrations and exits.
+4. **Applies pending migrations with a `lock_timeout` of 5s**, set at session
+   level (`max: 1` makes that session the migrator's connection) and restored
+   afterwards. Without it, an `ALTER TABLE` blocked behind a long-running query
+   waits forever while every query arriving after it queues behind the lock
+   request — the table stops answering and nothing visibly fails. When the
+   timeout fires the statement errors, Drizzle's transaction rolls back and the
+   container refuses to start: Coolify keeps the old container serving, and a
+   redeploy retries.
 
 A failed migration therefore shows up as a container that will not start, not as
 a half-migrated schema. Roll back to the previous image from Coolify's Rollback

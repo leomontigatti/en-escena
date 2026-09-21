@@ -18,6 +18,7 @@ import { experienceLevelLabels } from "@/lib/events/experience-levels";
 import {
   allocateChoreographyNumberForTest,
   createScheduleForModalityFixture,
+  readFixtureCapacityScheduleId,
 } from "@/lib/choreographies/registration-test-fixtures.server.db";
 import {
   createAcademyRecord as createPortalAcademyRecord,
@@ -207,6 +208,7 @@ export async function createProfessor(
 export async function createChoreographyRecord(
   overrides: Partial<typeof choreographies.$inferInsert> & {
     academyId: string;
+    categoryId: string;
     eventId: string;
     modalityId: string;
     scheduleCapacityId: string;
@@ -219,6 +221,12 @@ export async function createChoreographyRecord(
   const choreographyNumber =
     overrides.choreographyNumber ??
     (await allocateChoreographyNumberForTest(overrides.eventId));
+  // A choreography always has a schedule, and every caller already names the
+  // capacity it sits on: the schedule is read back from that capacity so the
+  // callers do not have to repeat it.
+  const scheduleId =
+    overrides.scheduleId ??
+    (await readFixtureCapacityScheduleId(overrides.scheduleCapacityId));
   const [choreography] = await db
     .insert(choreographies)
     .values({
@@ -229,13 +237,13 @@ export async function createChoreographyRecord(
       modalityId: overrides.modalityId,
       submodalityId: overrides.submodalityId ?? null,
       groupType: overrides.groupType ?? "solo",
-      categoryId: overrides.categoryId ?? null,
+      categoryId: overrides.categoryId,
       categoryAgeBasis: overrides.categoryAgeBasis ?? 13,
       categoryCalculationMode: overrides.categoryCalculationMode ?? "oldest",
       experienceLevelId: overrides.experienceLevelId ?? null,
+      scheduleId,
       scheduleCapacityId: overrides.scheduleCapacityId,
       musicStorageKey: overrides.musicStorageKey ?? null,
-      hasPresentation: overrides.hasPresentation ?? false,
       createdAt: overrides.createdAt,
       updatedAt: overrides.updatedAt,
     })

@@ -14,8 +14,9 @@ import {
   type DancerNameInput,
 } from "@/lib/dancers/dancer-records.server";
 import {
+  applyDancerBirthDateCorrection,
   loadLinkedChoreographyEventBasesForDancerBirthDateCorrection,
-  recalculateLinkedChoreographiesForDancerBirthDateCorrection,
+  runDancerWriteWithBirthDateCorrection,
 } from "@/lib/choreographies/dancer-birthdate-correction.server";
 import { buildDancerEventParticipationSql } from "@/lib/participation/participation.server";
 import { activeRosterPerson } from "@/lib/roster/roster-person-status.server";
@@ -189,7 +190,10 @@ export async function updateDancerForAcademy(
         dancerId: dancer.id,
       })
     : undefined;
-  const updatedDancer = await db.transaction(async (tx) => {
+  // The dancer update and the recalculation share one transaction, so a
+  // correction that leaves a choreography without a category rolls the dancer
+  // row back as well.
+  const write = await runDancerWriteWithBirthDateCorrection(async (tx) => {
     const [savedDancer] = await tx
       .update(dancers)
       .set({
@@ -209,7 +213,7 @@ export async function updateDancerForAcademy(
       .returning();
 
     if (birthDateChanged) {
-      await recalculateLinkedChoreographiesForDancerBirthDateCorrection({
+      await applyDancerBirthDateCorrection({
         dancerId: dancer.id,
         executor: tx,
         eventBasesByEventId: linkedChoreographyEventBases,
@@ -219,7 +223,16 @@ export async function updateDancerForAcademy(
     return savedDancer;
   });
 
-  return { ok: true, dancer: updatedDancer };
+  if (!write.ok) {
+    return {
+      ok: false,
+      error: "Revisá los datos del Bailarín.",
+      fieldErrors: { birthDate: write.birthDateMessage },
+      values: input,
+    };
+  }
+
+  return { ok: true, dancer: write.dancer };
 }
 
 function validateCreateDancerInput(

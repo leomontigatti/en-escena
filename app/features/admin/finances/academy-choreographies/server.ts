@@ -269,7 +269,7 @@ async function readPricingScheduleIdByChoreography(input: {
       ),
     );
 
-  const scheduleIdByChoreography: Record<string, string | null> = {};
+  const scheduleIdByChoreography: Record<string, string> = {};
 
   for (const row of rows) {
     scheduleIdByChoreography[row.id] =

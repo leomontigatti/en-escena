@@ -68,24 +68,42 @@ describe("ChoreographyDetailRouteView", () => {
     expect(markup).not.toContain('aria-disabled="true"');
   });
 
-  test("hard-locks the roster when the choreography already has a presentation", () => {
+  test("hard-locks the roster once the choreography was evaluated", () => {
     const markup = renderDetail({
       loaderData: buildLoaderData({
-        choreography: buildChoreography({ hasPresentation: true }),
+        choreography: buildChoreography({ isEvaluated: true }),
       }),
     });
 
-    expect(markup).toContain("La presentación bloquea esta coreografía");
-    expect(markup).toContain("Esta coreografía ya tiene una presentación");
-    expect(markup).toContain("no la modalidad, los bailarines, los profesores");
-    expect(markup).toContain("cupo de cronograma");
+    expect(markup).toContain("Esta coreografía ya fue evaluada");
+    expect(markup).toContain(
+      "Esta coreografía ya fue evaluada y no puede modificarse.",
+    );
     expect(markup).toContain('aria-disabled="true"');
   });
 
-  test("does not announce the presentation hard lock when there is no presentation", () => {
+  // Holding a number is not a lock: the administrator keeps correcting the
+  // choreography, and the alert only says where the correction may echo.
+  test("announces the presentation number without locking anything", () => {
+    const markup = renderDetail({
+      loaderData: buildLoaderData({
+        choreography: buildChoreography({ presentationOrderNumber: 7 }),
+      }),
+    });
+
+    expect(markup).toContain("Tiene la presentación n.º 7");
+    expect(markup).toContain(
+      "tiene número de presentación y modificarla puede necesitar atención",
+    );
+    expect(markup).not.toContain("Esta coreografía ya fue evaluada");
+    expect(markup).not.toContain('aria-disabled="true"');
+  });
+
+  test("announces neither alert on a choreography that is neither numbered nor evaluated", () => {
     const markup = renderDetail({ loaderData: buildLoaderData() });
 
-    expect(markup).not.toContain("La presentación bloquea esta coreografía");
+    expect(markup).not.toContain("Esta coreografía ya fue evaluada");
+    expect(markup).not.toContain("Tiene la presentación n.º");
   });
 
   test("renders name and actions as read-only for auditors", () => {
@@ -109,10 +127,10 @@ describe("ChoreographyDetailRouteView", () => {
     expect(markup).toContain('name="submodalityId"');
   });
 
-  test("keeps the submodality read-only when the choreography has a presentation", () => {
+  test("keeps the submodality read-only once the choreography was evaluated", () => {
     const markup = renderDetail({
       loaderData: buildLoaderData({
-        choreography: buildChoreography({ hasPresentation: true }),
+        choreography: buildChoreography({ isEvaluated: true }),
       }),
     });
 
@@ -293,8 +311,8 @@ describe("ChoreographyDetailRouteView", () => {
   test.each([
     ["the user is not an admin", { canEdit: false }],
     [
-      "the choreography has a presentation",
-      { choreography: buildChoreography({ hasPresentation: true }) },
+      "the choreography was evaluated",
+      { choreography: buildChoreography({ isEvaluated: true }) },
     ],
     [
       "the resolved category declares no levels",
@@ -345,7 +363,7 @@ describe("ChoreographyDetailRouteView", () => {
         choreography: buildChoreography({
           experienceLevelId: null,
           experienceLevelName: null,
-          hasPresentation: true,
+          isEvaluated: true,
           operationalStatus: {
             code: "incomplete",
             pendingItems: ["experienceLevel"],
@@ -365,7 +383,7 @@ describe("ChoreographyDetailRouteView", () => {
         choreography: buildChoreography({
           experienceLevelId: null,
           experienceLevelName: null,
-          hasPresentation: true,
+          isEvaluated: true,
           operationalStatus: {
             code: "incomplete",
             pendingItems: ["experienceLevel"],
@@ -396,6 +414,78 @@ describe("ChoreographyDetailRouteView", () => {
 
     expect(markup).toContain("Falta el nivel de experiencia");
     expect(markup).toContain("Elegí uno para completarla");
+  });
+
+  test("announces a placement the category no longer admits", () => {
+    const markup = renderDetail({
+      loaderData: buildLoaderData({
+        choreography: buildChoreography({
+          operationalStatus: {
+            code: "incomplete",
+            pendingItems: ["categoryAgeMismatch", "experienceLevelMismatch"],
+          },
+        }),
+      }),
+    });
+
+    expect(markup).toContain("La categoría no coincide con las edades");
+    expect(markup).toContain(
+      "El nivel de experiencia no pertenece a la categoría",
+    );
+    expect(markup).toContain("ya no admite el nivel de experiencia guardado");
+  });
+
+  // The roster is where an age mismatch is normally repaired, but a presentation
+  // blocks it — so the alert must not send the reader to a field that refuses the
+  // edit. The wording does not depend on who is looking.
+  test("names only the repair the age mismatch actually leaves open", () => {
+    const misplaced = {
+      code: "incomplete" as const,
+      pendingItems: ["categoryAgeMismatch" as const],
+    };
+
+    const repairable = renderDetail({
+      loaderData: buildLoaderData({
+        choreography: buildChoreography({ operationalStatus: misplaced }),
+      }),
+    });
+    const whenEvaluated = renderDetail({
+      loaderData: buildLoaderData({
+        choreography: buildChoreography({
+          isEvaluated: true,
+          operationalStatus: misplaced,
+        }),
+      }),
+    });
+    const forAuditor = renderDetail({
+      loaderData: buildLoaderData({
+        canEdit: false,
+        choreography: buildChoreography({ operationalStatus: misplaced }),
+      }),
+    });
+
+    expect(repairable).toContain(
+      "Por favor, revisá la categoría y/o el elenco",
+    );
+    expect(whenEvaluated).not.toContain("y/o el elenco");
+    expect(whenEvaluated).toContain(
+      "La evaluación bloquea el elenco, así que la corrección es sobre la categoría. Por favor, revisala.",
+    );
+    expect(forAuditor).toContain("La categoría no coincide con las edades");
+    expect(forAuditor).toContain(
+      "Por favor, revisá la categoría y/o el elenco",
+    );
+  });
+
+  test("keeps a well-placed choreography free of mismatch alerts", () => {
+    const markup = renderDetail({
+      loaderData: buildLoaderData({ choreography: buildChoreography() }),
+    });
+
+    expect(markup).not.toContain("La categoría no coincide con las edades");
+    expect(markup).not.toContain(
+      "El nivel de experiencia no pertenece a la categoría",
+    );
   });
 
   // The same rule as #619's financial alert: it reports a state of the data, not
@@ -461,8 +551,8 @@ describe("ChoreographyDetailRouteView", () => {
         deletion: {
           canDelete: false,
           blockers: [
-            { code: "presentation", label: "presentación" },
             { code: "scores", label: "puntajes" },
+            { code: "comprobantes", label: "comprobantes" },
           ],
         },
       }),
@@ -471,7 +561,7 @@ describe("ChoreographyDetailRouteView", () => {
     expect(document.body.textContent).toContain(
       "No se puede eliminar esta coreografía",
     );
-    expect(document.body.textContent).toContain("presentación");
+    expect(document.body.textContent).toContain("comprobantes");
     expect(document.body.textContent).toContain("puntajes");
     expect(document.body.textContent).toContain("Cerrar");
     expect(document.body.textContent).not.toContain(
@@ -727,8 +817,9 @@ function buildChoreography(
       { id: "profesional", name: "Profesional" },
     ],
     groupType: "solo",
-    hasPresentation: false,
+    isEvaluated: false,
     id: "choreo_1",
+    presentationOrderNumber: null,
     modalityId: "modality_1",
     modalityName: "Jazz",
     musicDownloadUrl: null,

@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { describe, expect, test } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import {
@@ -9,6 +9,7 @@ import {
   choreographyProfessors,
   modalities,
   prices,
+  presentations,
   scheduleCapacities,
   schedules,
   submodalities,
@@ -48,8 +49,26 @@ import {
 } from "@/lib/comprobantes/comprobantes.server";
 import { expectFlashRedirect } from "@/lib/shared/flash-notification.test-support";
 
-import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
+import {
+  installDatabaseTestHooks,
+  isPgliteTestBackend,
+} from "../../../../../tests/db/harness";
 import { choreographyAnchor } from "@/lib/comprobantes/anchor";
+import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
+
+// The evaluated lock is the seam the judging effort will fill; until then it
+// answers `false` for everything, so a test that needs a closed choreography
+// declares it here.
+vi.mock(
+  "@/lib/presentations/evaluation-lock.server",
+  async () =>
+    (await import("@/lib/presentations/evaluation-lock.test-support"))
+      .evaluationLockStub,
+);
+
+beforeEach(() => {
+  evaluatedChoreographyIds.clear();
+});
 
 installDatabaseTestHooks();
 
@@ -140,7 +159,7 @@ describe("administrative choreography detail server", () => {
     );
   });
 
-  test("renames active-event choreographies for admins even when presentation blockers exist", async () => {
+  test("renames active-event choreographies for admins even once evaluated", async () => {
     const owner = await createAcademySession({
       academyName: "Academia Renombre",
       email: "admin.coreografias.renombre.academia@example.com",
@@ -155,7 +174,6 @@ describe("administrative choreography detail server", () => {
       categoryId: catalog.categoryWithLevel.id,
       eventId: event.id,
       experienceLevelId: catalog.level.id,
-      hasPresentation: true,
       modalityId: catalog.modality.id,
       name: "Nombre anterior",
       scheduleCapacityId: catalog.scheduleCapacity.id,
@@ -270,45 +288,66 @@ describe("administrative choreography detail server", () => {
     ).resolves.toEqual([]);
   });
 
-  test("blocks admin deletion with concrete presentation reasons", async () => {
+  // A presentation is not a blocker: it goes with the choreography, in the same
+  // transaction, and the number it held stays a gap so that no other
+  // choreography is renumbered behind the academies' backs.
+  test("deletes the presentation of a numbered choreography and leaves its number as a gap", async () => {
     const owner = await createAcademySession({
-      academyName: "Academia Bloqueos",
-      email: "admin.coreografias.bloqueos.academia@example.com",
+      academyName: "Academia Numerada",
+      email: "admin.coreografias.numerada.academia@example.com",
     });
     const event = await createEventRecord({
       active: true,
       name: "Regional 2026",
     });
     const catalog = await createEventCatalog(event.id);
-    const presentationBlocked = await createChoreographyRecord({
+    const numbered = await createChoreographyRecord({
       academyId: owner.academyId,
       categoryId: catalog.categoryWithLevel.id,
       eventId: event.id,
       experienceLevelId: catalog.level.id,
-      hasPresentation: true,
       modalityId: catalog.modality.id,
-      name: "Presentada",
+      name: "Numerada",
       scheduleCapacityId: catalog.scheduleCapacity.id,
       submodalityId: catalog.submodality.id,
     });
-
-    await expect(loadDeleteBlockers(presentationBlocked.id)).resolves.toEqual([
-      "presentation",
+    const neighbour = await createChoreographyRecord({
+      academyId: owner.academyId,
+      categoryId: catalog.categoryWithLevel.id,
+      eventId: event.id,
+      experienceLevelId: catalog.level.id,
+      modalityId: catalog.modality.id,
+      name: "Vecina",
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+      submodalityId: catalog.submodality.id,
+    });
+    await db.insert(presentations).values([
+      { choreographyId: numbered.id, eventId: event.id, orderNumber: 1 },
+      { choreographyId: neighbour.id, eventId: event.id, orderNumber: 2 },
     ]);
-    await expectThrownResponse(
-      submitDetailAction({
-        body: deleteFormData(),
-        choreographyId: presentationBlocked.id,
-        email: "admin.coreografias.bloqueo.presentacion@example.com",
-        role: "admin",
-      }),
-      409,
-    );
+
+    await expect(loadDeleteBlockers(numbered.id)).resolves.toEqual([]);
+
+    const response = await submitDetailAction({
+      body: deleteFormData(),
+      choreographyId: numbered.id,
+      email: "admin.coreografias.numerada@example.com",
+      role: "admin",
+    });
+
+    expect(response).toBeInstanceOf(Response);
     await expect(
       db.query.choreographies.findFirst({
-        where: eq(choreographies.id, presentationBlocked.id),
+        where: eq(choreographies.id, numbered.id),
       }),
-    ).resolves.toBeDefined();
+    ).resolves.toBeUndefined();
+    await expect(
+      db.query.presentations.findMany({
+        where: eq(presentations.eventId, event.id),
+      }),
+    ).resolves.toMatchObject([
+      { choreographyId: neighbour.id, orderNumber: 2 },
+    ]);
   });
 
   test("blocks admin deletion of a choreography with ARCA comprobantes, even once annulled by a credit note", async () => {
@@ -537,12 +576,12 @@ describe("administrative choreography detail server", () => {
       categoryId: catalog.categoryWithLevel.id,
       eventId: event.id,
       experienceLevelId: catalog.level.id,
-      hasPresentation: true,
       modalityId: catalog.modality.id,
-      name: "Presentada",
+      name: "Evaluada",
       scheduleCapacityId: catalog.scheduleCapacity.id,
       submodalityId: catalog.submodality.id,
     });
+    evaluatedChoreographyIds.add(choreography.id);
 
     const result = await submitDetailAction({
       body: submodalityFormData(otherSubmodality.id),
@@ -618,15 +657,15 @@ describe("administrative choreography detail server", () => {
     expect(result).toMatchObject({ status: "error" });
     await expect(scenario.readAssignment()).resolves.toEqual({
       scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
-      scheduleId: null,
+      scheduleId: scenario.catalog.schedule.id,
     });
   });
 
-  test("blocks the reassignment when the choreography has a presentation", async () => {
+  test("blocks the reassignment when the choreography was evaluated", async () => {
     const scenario = await createScheduleCapacityScenario({
-      academyName: "Academia Cronograma Presentada",
-      hasPresentation: true,
-      slug: "cronograma.presentada",
+      academyName: "Academia Cronograma Evaluada",
+      isEvaluated: true,
+      slug: "cronograma.evaluada",
     });
 
     const result = await scenario.reassignTo(
@@ -636,7 +675,7 @@ describe("administrative choreography detail server", () => {
     expect(result).toMatchObject({ status: "error" });
     await expect(scenario.readAssignment()).resolves.toEqual({
       scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
-      scheduleId: null,
+      scheduleId: scenario.catalog.schedule.id,
     });
   });
 
@@ -686,7 +725,7 @@ describe("administrative choreography detail server", () => {
     });
     await expect(scenario.readAssignment()).resolves.toEqual({
       scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
-      scheduleId: null,
+      scheduleId: scenario.catalog.schedule.id,
     });
   });
 
@@ -729,7 +768,7 @@ describe("administrative choreography detail server", () => {
     });
     await expect(scenario.readAssignment()).resolves.toEqual({
       scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
-      scheduleId: null,
+      scheduleId: scenario.catalog.schedule.id,
     });
   });
 
@@ -761,7 +800,7 @@ describe("administrative choreography detail server", () => {
     });
     await expect(scenario.readAssignment()).resolves.toEqual({
       scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
-      scheduleId: null,
+      scheduleId: scenario.catalog.schedule.id,
     });
   });
 
@@ -788,52 +827,70 @@ describe("administrative choreography detail server", () => {
     });
   });
 
-  test("lets a single choreography into a capacity with one slot when two are reassigned at once", async () => {
-    const scenario = await createScheduleCapacityScenario({
-      academyName: "Academia Cronograma Concurrente",
-      slug: "cronograma.concurrente",
-      targetCapacity: 1,
-    });
-    const rival = await createChoreographyRecord({
-      academyId: scenario.owner.academyId,
-      categoryId: scenario.catalog.categoryWithLevel.id,
-      eventId: scenario.event.id,
-      experienceLevelId: scenario.catalog.level.id,
-      modalityId: scenario.catalog.modality.id,
-      name: "Rival",
-      scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
-      submodalityId: scenario.catalog.submodality.id,
-    });
+  /**
+   * The reassignment locks the destination capacity with
+   * `lockScheduleCapacityForAssignment` before it counts its occupants, so two
+   * reassignments aiming at the same free slot are serialised: one wins it and
+   * the other is refused.
+   *
+   * The fast suite runs both through a single PGlite connection, which
+   * serialises the transactions on its own — the lock is never contended, and
+   * the assertion would hold even without it. So this proves the lock on the
+   * Postgres backend only.
+   */
+  describe.skipIf(isPgliteTestBackend())(
+    "schedule capacity reassignment under real contention",
+    () => {
+      test("lets a single choreography into a capacity with one slot when two are reassigned at once", async () => {
+        const scenario = await createScheduleCapacityScenario({
+          academyName: "Academia Cronograma Concurrente",
+          slug: "cronograma.concurrente",
+          targetCapacity: 1,
+        });
+        const rival = await createChoreographyRecord({
+          academyId: scenario.owner.academyId,
+          categoryId: scenario.catalog.categoryWithLevel.id,
+          eventId: scenario.event.id,
+          experienceLevelId: scenario.catalog.level.id,
+          modalityId: scenario.catalog.modality.id,
+          name: "Rival",
+          scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
+          submodalityId: scenario.catalog.submodality.id,
+        });
 
-    const results = await Promise.all([
-      scenario.reassignTo(scenario.target.scheduleCapacity.id, {
-        sessionKey: "primera",
-      }),
-      scenario.reassignTo(scenario.target.scheduleCapacity.id, {
-        choreographyId: rival.id,
-        sessionKey: "segunda",
-      }),
-    ]);
+        const results = await Promise.all([
+          scenario.reassignTo(scenario.target.scheduleCapacity.id, {
+            sessionKey: "primera",
+          }),
+          scenario.reassignTo(scenario.target.scheduleCapacity.id, {
+            choreographyId: rival.id,
+            sessionKey: "segunda",
+          }),
+        ]);
 
-    const statuses = results.map((result) =>
-      result instanceof Response || !("status" in result)
-        ? "unexpected"
-        : result.status,
-    );
-    expect(statuses.filter((status) => status === "success")).toHaveLength(1);
-    expect(statuses.filter((status) => status === "error")).toHaveLength(1);
+        const statuses = results.map((result) =>
+          result instanceof Response || !("status" in result)
+            ? "unexpected"
+            : result.status,
+        );
+        expect(statuses.filter((status) => status === "success")).toHaveLength(
+          1,
+        );
+        expect(statuses.filter((status) => status === "error")).toHaveLength(1);
 
-    const occupants = await db
-      .select({ id: choreographies.id })
-      .from(choreographies)
-      .where(
-        eq(
-          choreographies.scheduleCapacityId,
-          scenario.target.scheduleCapacity.id,
-        ),
-      );
-    expect(occupants).toHaveLength(1);
-  });
+        const occupants = await db
+          .select({ id: choreographies.id })
+          .from(choreographies)
+          .where(
+            eq(
+              choreographies.scheduleCapacityId,
+              scenario.target.scheduleCapacity.id,
+            ),
+          );
+        expect(occupants).toHaveLength(1);
+      });
+    },
+  );
 
   test("keeps the assigned capacity in the options and locks the field with a single compatible one", async () => {
     const scenario = await createScheduleCapacityScenario({
@@ -876,7 +933,7 @@ describe("administrative choreography detail server", () => {
       .update(choreographies)
       .set({
         scheduleCapacityId: drifted.scheduleCapacity.id,
-        scheduleId: null,
+        scheduleId: drifted.schedule.id,
       })
       .where(eq(choreographies.id, scenario.choreography.id));
 
@@ -908,7 +965,7 @@ describe("administrative choreography detail server", () => {
       .update(choreographies)
       .set({
         scheduleCapacityId: drifted.scheduleCapacity.id,
-        scheduleId: null,
+        scheduleId: drifted.schedule.id,
       })
       .where(eq(choreographies.id, scenario.choreography.id));
     // Every compatible schedule is gone: the select is left with the assignment
@@ -967,7 +1024,7 @@ describe("administrative choreography detail server", () => {
       .update(choreographies)
       .set({
         scheduleCapacityId: drifted.scheduleCapacity.id,
-        scheduleId: null,
+        scheduleId: drifted.schedule.id,
       })
       .where(eq(choreographies.id, scenario.choreography.id));
 
@@ -1067,7 +1124,7 @@ describe("administrative choreography detail server", () => {
     });
     await expect(scenario.readAssignment()).resolves.toEqual({
       scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
-      scheduleId: null,
+      scheduleId: scenario.catalog.schedule.id,
     });
   });
 
@@ -1137,8 +1194,6 @@ describe("administrative choreography detail server", () => {
     const offeredIds = new Set(
       detail.scheduleCapacity.options.map((option) => option.id),
     );
-    const original = await scenario.readAssignment();
-
     // Every capacity of the event, offered or omitted, put to the intent: the
     // invariant `resolveScheduleCapacityCandidates` documents is that the two
     // sets coincide, so an id the select omits has to be refused and every id
@@ -1163,13 +1218,14 @@ describe("administrative choreography detail server", () => {
         accepted.push(candidateId);
       }
 
-      // Put the choreography back where it started, so each candidate is asked
-      // of the same assignment the loader was asked of.
+      // Put the choreography back on the catalogue's capacity, where the
+      // scenario starts it, so each candidate is asked of the same assignment
+      // the loader was asked of.
       await db
         .update(choreographies)
         .set({
-          scheduleCapacityId: original?.scheduleCapacityId ?? null,
-          scheduleId: original?.scheduleId ?? null,
+          scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
+          scheduleId: scenario.catalog.schedule.id,
         })
         .where(eq(choreographies.id, scenario.choreography.id));
     }
@@ -1214,7 +1270,7 @@ describe("administrative choreography detail server", () => {
       .update(choreographies)
       .set({
         scheduleCapacityId: drifted.scheduleCapacity.id,
-        scheduleId: null,
+        scheduleId: drifted.schedule.id,
       })
       .where(eq(choreographies.id, scenario.choreography.id));
 
@@ -1317,7 +1373,7 @@ describe("administrative choreography detail server", () => {
     expect(result).toMatchObject({ status: "error" });
     await expect(scenario.readAssignment()).resolves.toEqual({
       scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
-      scheduleId: null,
+      scheduleId: scenario.catalog.schedule.id,
     });
     const inscription = await db.query.choreographyDancers.findFirst({
       columns: { selectedPriceId: true },
@@ -1454,7 +1510,7 @@ describe("administrative choreography detail server", () => {
     );
     await expect(scenario.readAssignment()).resolves.toEqual({
       scheduleCapacityId: scenario.catalog.scheduleCapacity.id,
-      scheduleId: null,
+      scheduleId: scenario.catalog.schedule.id,
     });
   });
 
@@ -1564,11 +1620,11 @@ describe("administrative choreography detail server", () => {
     await expect(scenario.readExperienceLevel()).resolves.toBe("amateur");
   });
 
-  test("blocks the reassignment when the choreography has a presentation", async () => {
+  test("blocks the reassignment when the choreography was evaluated", async () => {
     const scenario = await createExperienceLevelScenario({
-      academyName: "Academia Nivel Presentación",
-      hasPresentation: true,
-      slug: "nivel.presentacion",
+      academyName: "Academia Nivel Evaluada",
+      isEvaluated: true,
+      slug: "nivel.evaluada",
     });
 
     const response = await submitDetailAction({
@@ -1579,8 +1635,7 @@ describe("administrative choreography detail server", () => {
     });
 
     expect(response).toMatchObject({
-      message:
-        "No se puede cambiar el nivel de experiencia: la coreografía ya tiene presentación.",
+      message: "Esta coreografía ya fue evaluada y no puede modificarse.",
       status: "error",
     });
     await expect(scenario.readExperienceLevel()).resolves.toBe("amateur");
@@ -1638,9 +1693,10 @@ describe("administrative choreography detail server", () => {
     ]);
   });
 
-  // If the category stopped admitting the saved level, it stays in view instead
-  // of disappearing from the select without explanation.
-  test("keeps a drifted assigned level in the options", async () => {
+  // The options carry only what the category admits today, so a drifted level
+  // cannot be re-saved from the select. The mismatch alert is what keeps the
+  // stored value legible.
+  test("drops a drifted assigned level from the options and reports it", async () => {
     const scenario = await createExperienceLevelScenario({
       academyName: "Academia Nivel Derivado",
       categoryExperienceLevels: ["profesional"],
@@ -1656,8 +1712,70 @@ describe("administrative choreography detail server", () => {
 
     expect(detail.choreography.experienceLevelOptions).toEqual([
       { id: "profesional", name: "Profesional" },
-      { id: "amateur", name: "Amateur" },
     ]);
+    expect(detail.choreography.experienceLevelId).toBe("amateur");
+    expect(detail.choreography.operationalStatus).toMatchObject({
+      code: "incomplete",
+    });
+    expect(detail.choreography.operationalStatus.pendingItems).toContain(
+      "experienceLevelMismatch",
+    );
+
+    const response = await submitDetailAction({
+      body: experienceLevelFormData("amateur"),
+      choreographyId: scenario.choreography.id,
+      email: "admin.coreografias.nivel.derivado.guardar@example.com",
+      role: "admin",
+    });
+
+    expect(response).toMatchObject({
+      message: "Elegí un nivel de experiencia válido para esta coreografía.",
+      status: "error",
+    });
+  });
+
+  // A category edited after the choreography was filed leaves it competing in a
+  // range it no longer belongs to, and nothing else in the app re-checks it.
+  test("reports a stored age the category no longer contains", async () => {
+    const scenario = await createExperienceLevelScenario({
+      academyName: "Academia Edad Ajena",
+      categoryAgeBasis: 25,
+      slug: "edad.ajena",
+    });
+
+    const detail = await loadDetail({
+      choreographyId: scenario.choreography.id,
+      email: "admin.coreografias.edad.ajena@example.com",
+      role: "admin",
+    });
+
+    expect(detail.choreography.operationalStatus).toMatchObject({
+      code: "incomplete",
+    });
+    expect(detail.choreography.operationalStatus.pendingItems).toContain(
+      "categoryAgeMismatch",
+    );
+  });
+
+  test("leaves a choreography that still fits its category unflagged", async () => {
+    const scenario = await createExperienceLevelScenario({
+      academyName: "Academia Edad Propia",
+      categoryAgeBasis: 17,
+      slug: "edad.propia",
+    });
+
+    const detail = await loadDetail({
+      choreographyId: scenario.choreography.id,
+      email: "admin.coreografias.edad.propia@example.com",
+      role: "admin",
+    });
+
+    expect(detail.choreography.operationalStatus.pendingItems).not.toContain(
+      "categoryAgeMismatch",
+    );
+    expect(detail.choreography.operationalStatus.pendingItems).not.toContain(
+      "experienceLevelMismatch",
+    );
   });
 
   test("blocks auditors from reassigning the experience level", async () => {
@@ -1757,9 +1875,10 @@ async function createCategoryWithLevels(input: {
 
 async function createExperienceLevelScenario(input: {
   academyName: string;
+  categoryAgeBasis?: number | null;
   categoryExperienceLevels?: ExperienceLevel[];
   experienceLevelId?: ExperienceLevel | null;
-  hasPresentation?: boolean;
+  isEvaluated?: boolean;
   slug: string;
   updatedAt?: Date;
 }) {
@@ -1782,19 +1901,24 @@ async function createExperienceLevelScenario(input: {
   });
   const choreography = await createChoreographyRecord({
     academyId: owner.academyId,
+    categoryAgeBasis:
+      input.categoryAgeBasis === undefined ? 13 : input.categoryAgeBasis,
     categoryId: category.id,
     eventId: event.id,
     experienceLevelId:
       input.experienceLevelId === undefined
         ? "amateur"
         : input.experienceLevelId,
-    hasPresentation: input.hasPresentation ?? false,
     modalityId: catalog.modality.id,
     name: `Nivel ${input.slug}`,
     scheduleCapacityId: catalog.scheduleCapacity.id,
     submodalityId: catalog.submodality.id,
     updatedAt: input.updatedAt,
   });
+
+  if (input.isEvaluated) {
+    evaluatedChoreographyIds.add(choreography.id);
+  }
 
   return {
     catalog,
@@ -1890,7 +2014,7 @@ async function createScheduleWithSoloCapacity(input: {
  */
 async function createScheduleCapacityScenario(input: {
   academyName: string;
-  hasPresentation?: boolean;
+  isEvaluated?: boolean;
   slug: string;
   targetCapacity?: number;
 }) {
@@ -1913,12 +2037,15 @@ async function createScheduleCapacityScenario(input: {
     categoryId: catalog.categoryWithLevel.id,
     eventId: event.id,
     experienceLevelId: catalog.level.id,
-    hasPresentation: input.hasPresentation ?? false,
     modalityId: catalog.modality.id,
     name: "Con cronograma",
     scheduleCapacityId: catalog.scheduleCapacity.id,
     submodalityId: catalog.submodality.id,
   });
+
+  if (input.isEvaluated) {
+    evaluatedChoreographyIds.add(choreography.id);
+  }
 
   return {
     catalog,

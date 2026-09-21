@@ -21,6 +21,7 @@ import type {
   ChoreographyDancerOption,
   ChoreographyProfessorOption,
 } from "@/lib/choreographies/choreography-roster.shared";
+import { deleteChoreographyPresentation } from "@/lib/presentations/presentation-queries.server";
 import { getFieldErrors } from "@/lib/shared/form-validation";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
@@ -182,11 +183,11 @@ export async function loadChoreographyDetailRouteData(input: {
     },
     experienceLevel: {
       // No blockers to list: the level is not a price key, so the only underlying
-      // condition is that the category declares it. The reason a presentation
+      // condition is that the category declares it. The reason an evaluation
       // closes it goes in the alert that already lists it.
       canReassign: canReassignExperienceLevel({
         canEdit,
-        hasPresentation: choreography.hasPresentation,
+        isEvaluated: choreography.isEvaluated,
         requiresExperienceLevel: choreography.requiresExperienceLevel,
       }),
     },
@@ -197,7 +198,7 @@ export async function loadChoreographyDetailRouteData(input: {
       blockers: modalityBlockers,
       canCorrect: canCorrectChoreographyModality({
         canEdit,
-        hasPresentation: choreography.hasPresentation,
+        isEvaluated: choreography.isEvaluated,
       }),
       options: modalityOptions,
     },
@@ -205,15 +206,14 @@ export async function loadChoreographyDetailRouteData(input: {
       // The reasons go to the view even when the field is already closed by
       // another cause: the page's alert lists them for the auditor too.
       blockers: scheduleCapacityBlockers,
-      // Reassigning is an administrative correction: `admin` only, never with a
-      // presentation, and only when the options left something to move to. A
-      // choreography already presented has its schedule as closed as its
-      // roster. Money is not consulted here: it already spoke by omitting the
+      // Reassigning is an administrative correction: `admin` only, never once
+      // evaluated, and only when the options left something to move to. An
+      // evaluated choreography has its schedule as closed as its roster. Money is not consulted here: it already spoke by omitting the
       // destinations it would reprice, and asking it twice would close the
       // field on a choreography whose surviving alternatives are all valid.
       canReassign: canReassignScheduleCapacity({
         canEdit,
-        hasPresentation: choreography.hasPresentation,
+        isEvaluated: choreography.isEvaluated,
         hasSelectableAlternative:
           scheduleCapacityOptions.hasSelectableAlternative,
       }),
@@ -438,12 +438,16 @@ async function updateChoreographyRosterAction(input: {
   });
 
   if (!result.ok) {
-    // The two schedule-capacity guards (#659) reject a save that the roster
-    // section's own error channel would otherwise swallow (see
-    // `toChoreographyDetailViewActionData` in `shared.ts`): they surface as a
-    // plain `status: "error"` instead of `"roster-error"` so the rejection
-    // actually reaches the rendered page.
-    if (result.code === "schedule-capacity") {
+    // The two schedule-capacity guards (#659) and the no-category refusal
+    // (#996) reject a save that the roster section's own error channel would
+    // otherwise swallow (see `toChoreographyDetailViewActionData` in
+    // `shared.ts`): they surface as a plain `status: "error"` instead of
+    // `"roster-error"` so the rejection actually reaches the rendered page.
+    // Visibility is decided by the code, not by the failure being a roster one.
+    if (
+      result.code === "schedule-capacity" ||
+      result.code === "no-compatible-category"
+    ) {
       return {
         message: result.message,
         status: "error",
@@ -461,6 +465,12 @@ async function updateChoreographyRosterAction(input: {
   return choreographySavedSuccess();
 }
 
+/**
+ * The presentation is not a blocker: it is deleted with the choreography, in
+ * the same transaction and without a cascade, and the number it held stays a
+ * gap in the order. What the academies were told about every other number does
+ * not change because one choreography left.
+ */
 async function deleteChoreography(choreography: ChoreographyDetail) {
   const blockers = await getChoreographyDeleteBlockers(choreography);
 
@@ -470,21 +480,22 @@ async function deleteChoreography(choreography: ChoreographyDetail) {
     });
   }
 
-  await db.delete(choreographies).where(eq(choreographies.id, choreography.id));
+  await db.transaction(async (tx) => {
+    await deleteChoreographyPresentation(tx, choreography.id);
+    await tx
+      .delete(choreographies)
+      .where(eq(choreographies.id, choreography.id));
+  });
 }
 
 async function getChoreographyDeleteBlockers(
-  choreography: Pick<ChoreographyDetail, "hasPresentation" | "id">,
+  choreography: Pick<ChoreographyDetail, "id">,
 ): Promise<ChoreographyDeleteBlocker[]> {
   const [hasScores, hasComprobantes] = await Promise.all([
     hasScoresForChoreography(choreography.id),
     choreographyHasComprobantes(choreography.id),
   ]);
   const blockers: ChoreographyDeleteBlocker[] = [];
-
-  if (choreography.hasPresentation) {
-    blockers.push({ code: "presentation", label: "presentación" });
-  }
 
   if (hasScores) {
     blockers.push({ code: "scores", label: "puntajes" });

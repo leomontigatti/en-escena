@@ -125,6 +125,20 @@ export async function resolveScheduleCapacityOccupancies(input: {
   return occupancies;
 }
 
+/**
+ * The occupied places of every target in one round trip, read back per target.
+ * For the guards that only need the floor a capacity may not drop under: a
+ * target nothing occupies, or one that no longer exists, reads zero.
+ */
+export async function resolveOccupiedCounts(
+  targets: readonly ScheduleCapacityOccupancyTarget[],
+) {
+  const occupancies = await resolveScheduleCapacityOccupancies({ targets });
+
+  return (target: ScheduleCapacityOccupancyTarget) =>
+    occupancies.get(toScheduleCapacityOccupancyKey(target))?.occupiedCount ?? 0;
+}
+
 export function toScheduleCapacityOccupancyKey(
   target: ScheduleCapacityOccupancyTarget,
 ) {

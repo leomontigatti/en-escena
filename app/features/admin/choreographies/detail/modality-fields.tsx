@@ -7,6 +7,7 @@ import {
 } from "@/components/shared/read-only-field";
 import { SelectField } from "@/components/shared/select-field";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { noCompatibleCategoryModalityMessage } from "@/lib/choreographies/choreography-messages";
 import { toScheduleCapacitySelectOptions } from "@/lib/choreographies/schedule-capacity-options";
 import { formatScheduleDateTime } from "@/lib/choreographies/schedule-formatters";
 
@@ -60,9 +61,6 @@ export function DependentFieldSlot({
     : saved(modality.isDirty);
 }
 
-const noCompatibleCategoryDescription =
-  "Con esta modalidad no hay categoría compatible. Se puede guardar igual y la coreografía queda incompleta.";
-
 export function ModalityField({ loaderData, modality }: ModalityFieldProps) {
   const choreography = loaderData.choreography;
 
@@ -72,19 +70,31 @@ export function ModalityField({ loaderData, modality }: ModalityFieldProps) {
     );
   }
 
+  // The select keeps its choice on screen while the dead end is explained
+  // beside it: the modality is not disabled —the category depends on the
+  // roster too— and the reason has to be readable without undoing the choice.
+  const hasNoCompatibleCategory =
+    modality.isDirty && modality.resolution?.category === null;
+
   return (
-    <SelectField
-      control={modality.form.control}
-      description={
-        modality.isDirty && modality.resolution?.category === null
-          ? noCompatibleCategoryDescription
-          : undefined
-      }
-      label="Modalidad"
-      name="modalityId"
-      options={getModalitySelectOptions(loaderData.modality.options)}
-      placeholder="Elegí la modalidad"
-    />
+    <>
+      <SelectField
+        control={modality.form.control}
+        label="Modalidad"
+        name="modalityId"
+        options={getModalitySelectOptions(loaderData.modality.options)}
+        placeholder="Elegí la modalidad"
+      />
+      {hasNoCompatibleCategory ? (
+        <Alert variant="warning">
+          <TriangleAlert aria-hidden="true" />
+          <AlertTitle>No hay categoría compatible</AlertTitle>
+          <AlertDescription>
+            {noCompatibleCategoryModalityMessage}
+          </AlertDescription>
+        </Alert>
+      ) : null}
+    </>
   );
 }
 

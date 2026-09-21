@@ -139,7 +139,7 @@ function allocate(fixture: Fixture, inscriptionId: string, amount: number) {
   });
 }
 
-describe.sequential("portal seminar financial detail", () => {
+describe("portal seminar financial detail", () => {
   test("reports the same figures the administrator reads for the same unit", async () => {
     const fixture = await seedFixture();
     const allocated = await allocate(

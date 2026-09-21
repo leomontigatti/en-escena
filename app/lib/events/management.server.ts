@@ -1,12 +1,13 @@
 import { and, eq, ne } from "drizzle-orm";
 
 import { db } from "@/db";
-import { events } from "@/db/schema";
+import { choreographies, events } from "@/db/schema";
 import {
   DEFAULT_REQUIRED_DEPOSIT_PERCENTAGE,
   isValidRequiredDepositPercentage,
   invalidRequiredDepositPercentageMessage,
 } from "@/lib/events/deposit-percentage";
+import { isUniqueViolation } from "@/lib/shared/error-properties.server";
 
 const ACTIVE_EVENT_UNIQUE_CONSTRAINT = "event_single_active_unique";
 
@@ -152,6 +153,12 @@ export async function activateEvent(
   }
 }
 
+/**
+ * The only path that may change an existing event's structural fields, the
+ * `requiredDepositPercentage` among them: a second writer of that column would
+ * write it past the dependency guard below. #1051 deleted the one that existed;
+ * `deposit-percentage-writers.test.ts` holds the decision.
+ */
 export async function updateEvent(
   eventId: string,
   input: CreateEventInput,
@@ -219,34 +226,6 @@ function paymentInstructionsValues(input: CreateEventInput) {
   ) as Record<(typeof paymentInstructionsColumns)[number], string | null>;
 }
 
-export async function updateEventRequiredDepositPercentage(
-  eventId: string,
-  requiredDepositPercentage: number,
-): Promise<EventMutationResult> {
-  if (!isValidRequiredDepositPercentage(requiredDepositPercentage)) {
-    return {
-      ok: false,
-      code: "invalid-event",
-      error: INVALID_EVENT_ERROR,
-      fieldErrors: {
-        requiredDepositPercentage: invalidRequiredDepositPercentageMessage,
-      },
-    };
-  }
-
-  const [updatedEvent] = await db
-    .update(events)
-    .set({ requiredDepositPercentage })
-    .where(eq(events.id, eventId))
-    .returning();
-
-  if (!updatedEvent) {
-    return eventNotFound();
-  }
-
-  return { ok: true, event: updatedEvent };
-}
-
 export async function deactivateEvent(
   eventId: string,
 ): Promise<EventMutationResult> {
@@ -311,8 +290,20 @@ export async function deleteEvent(
   return { ok: true };
 }
 
-export async function eventHasOperationalDependencies(_eventId: string) {
-  return false;
+/**
+ * What makes an event's dates and deposit untouchable: a choreography inscribed
+ * on it. Every inscription hangs off a choreography — `choreographyDancers`
+ * cascades from it — so one query over the choreographies answers for both, and
+ * a withdrawn inscription counts for the same reason #1008 settled on for the
+ * category guards: it still preserves what the choreography competed in.
+ */
+export async function eventHasOperationalDependencies(eventId: string) {
+  const choreography = await db.query.choreographies.findFirst({
+    columns: { id: true },
+    where: eq(choreographies.eventId, eventId),
+  });
+
+  return choreography !== undefined;
 }
 
 function validateEventInput(input: CreateEventInput) {
@@ -398,29 +389,7 @@ function eventNotFound(): EventMutationFailure {
 }
 
 function isActiveUniqueConstraintViolation(error: unknown) {
-  const databaseError = getDatabaseError(error);
-
-  return (
-    typeof databaseError === "object" &&
-    databaseError !== null &&
-    "code" in databaseError &&
-    databaseError.code === "23505" &&
-    "constraint_name" in databaseError &&
-    databaseError.constraint_name === ACTIVE_EVENT_UNIQUE_CONSTRAINT
-  );
-}
-
-function getDatabaseError(error: unknown) {
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    "cause" in error &&
-    error.cause
-  ) {
-    return error.cause;
-  }
-
-  return error;
+  return isUniqueViolation(error, ACTIVE_EVENT_UNIQUE_CONSTRAINT);
 }
 
 function hasStructuralEventChanges(

@@ -1,7 +1,14 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -169,6 +176,110 @@ describe("no checkout persists a credential (#956)", () => {
     // The audit is only meaningful if it saw every checkout there is.
     expect(mentioned).toBeGreaterThan(0);
     expect(seen).toBe(mentioned);
+  });
+});
+
+describe("every checkout can actually clone what it checks out (#1029)", () => {
+  // `permissions:` is deny-by-default once declared: a block that names any
+  // scope sets every scope it *omits* to `none`. A workflow that lists only the
+  // write it makes — `issues: write`, `pull-requests: write` — therefore hands
+  // `actions/checkout` a token with `contents: none`, and the clone 403s before
+  // the step that needed the tree ever runs. #1029 added a checkout to two such
+  // workflows to put `scripts/afk-add-label.sh` on disk, which is how the rule
+  // earned a test rather than a review comment.
+  it("declares contents: in every workflow that checks out", () => {
+    const offenders = workflowFiles().filter((file) => {
+      if (checkoutBlocks(file).length === 0) return false;
+      const text = workflowText(file);
+      const declared = /^permissions:\n((?: {2}.*\n)+)/m.exec(text)?.[1];
+      // No block at all means the default token, which carries `contents: read`.
+      if (declared === undefined) return false;
+      return !/^ {2}contents:/m.test(declared);
+    });
+
+    expect(
+      offenders,
+      "a declared `permissions:` block omitting `contents:` gives actions/checkout no read access",
+    ).toEqual([]);
+  });
+});
+
+const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
+
+/** Every step of every job, as `{ name, text }` — the whole block, `env:` included. */
+function stepBlocks(file: string): { name: string; text: string }[] {
+  const lines = workflowText(file).split("\n");
+  const blocks: { name: string; text: string }[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (!/^ {6}- /.test(lines[i])) continue;
+    const text = [lines[i], stepBody(lines, i)].join("\n");
+    blocks.push({
+      name: /^\s+(?:- )?name:[ \t]*(.*)$/m.exec(text)?.[1].trim() ?? "",
+      text,
+    });
+  }
+  return blocks;
+}
+
+/** Whether the step hands a step-scoped variable the `AGENT_PAT` secret. */
+function carriesThePat(step: string): boolean {
+  // Matched on the *value*, not the variable name: the same secret ships as
+  // `AGENT_PAT`, as `PUSH_TOKEN` and as `GH_TOKEN` depending on the step, and a
+  // fourth spelling must not slip past this guard.
+  return /^\s+[A-Z_]+:.*secrets\.AGENT_PAT/m.test(step);
+}
+
+/**
+ * Every path the step executes that is a file in the checked-out tree. Anything
+ * under `$RUNNER_TEMP` is by construction outside it, and a path that does not
+ * exist on disk is a `.txt` argument or a comment rather than a command.
+ */
+function treePathsRun(step: string): string[] {
+  const found = new Set<string>();
+  const pattern =
+    /(?:^|[\s"'(=])((?:\.\/)?(?:[A-Za-z0-9_.-]+\/)+[A-Za-z0-9_.-]+\.(?:sh|mts|ts|mjs|cjs|js|py))/g;
+  for (const [, path] of step.matchAll(pattern)) {
+    const relative = path.replace(/^\.\//, "");
+    if (existsSync(join(repoRoot, relative))) found.add(relative);
+  }
+  return [...found];
+}
+
+describe("no post-session step runs the tree with the PAT (#1029)", () => {
+  // The agent session has write access to the tree it was checked out into, and
+  // runs on an `agent/` branch nobody has reviewed yet. So every step *after* it
+  // that holds `AGENT_PAT` has to execute something the session could not have
+  // rewritten — a `$RUNNER_TEMP` snapshot taken before the session, checked
+  // against a digest kept in a step output. Executing `scripts/afk-add-label.sh`
+  // from the tree there would hand the session's own version a `repo`+`workflow`
+  // PAT in the same run (docs/agents/afk-setup.md → "Where the PAT is during a
+  // run"). Discovered by shape: any workflow that starts a `.sandcastle/**`
+  // runner is covered the moment it lands.
+  it("keeps every PAT-carrying step after the first runner off tree paths", () => {
+    const offenders: string[] = [];
+    let covered = 0;
+
+    for (const file of workflowFiles()) {
+      const steps = stepBlocks(file);
+      const runner = steps.findIndex((step) =>
+        /run:[\s\S]*\.sandcastle\//.test(step.text),
+      );
+      if (runner === -1) continue;
+      covered += 1;
+
+      for (const step of steps.slice(runner + 1)) {
+        if (!carriesThePat(step.text)) continue;
+        for (const path of treePathsRun(step.text)) {
+          offenders.push(`${file}: step \`${step.name}\` runs ${path}`);
+        }
+      }
+    }
+
+    expect(covered, "no workflow with a runner was found").toBeGreaterThan(0);
+    expect(
+      offenders,
+      "a step holding AGENT_PAT must run a pre-session snapshot, not a file the agent session could have rewritten",
+    ).toEqual([]);
   });
 });
 

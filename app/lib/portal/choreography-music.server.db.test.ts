@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { db } from "@/db";
 import { choreographies } from "@/db/schema";
@@ -13,6 +13,20 @@ import {
 } from "@/features/portal/choreographies/test-support/db";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
+import { evaluatedChoreographyIds } from "@/lib/presentations/evaluation-lock.test-support";
+
+// The evaluated lock is a seam with no body yet (evaluation-lock.server.ts), so
+// a test that needs a closed choreography declares it here.
+vi.mock(
+  "@/lib/presentations/evaluation-lock.server",
+  async () =>
+    (await import("@/lib/presentations/evaluation-lock.test-support"))
+      .evaluationLockStub,
+);
+
+beforeEach(() => {
+  evaluatedChoreographyIds.clear();
+});
 
 installDatabaseTestHooks();
 
@@ -20,7 +34,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe.sequential("portal choreography music", () => {
+describe("portal choreography music", () => {
   test("uploads new music, stores the key, and removes the previous object", async () => {
     const { choreography, event, owner } = await createMusicChoreographyFixture(
       {
@@ -236,14 +250,14 @@ describe.sequential("portal choreography music", () => {
     });
   });
 
-  test("blocks music changes once the choreography has a presentation", async () => {
+  test("blocks music changes once the choreography was evaluated", async () => {
     const { choreography, event, owner } = await createMusicChoreographyFixture(
       {
-        academyName: "Academia Presentada",
-        email: "music.presentation@example.com",
-        hasPresentation: true,
+        academyName: "Academia Evaluada",
+        email: "music.evaluated@example.com",
+        isEvaluated: true,
         musicStorageKey: "academies/music/current.mp3",
-        name: "Presentada",
+        name: "Evaluada",
       },
     );
     const storage = {
@@ -269,7 +283,7 @@ describe.sequential("portal choreography music", () => {
     ).resolves.toEqual({
       ok: false,
       message:
-        "No podés editar la música porque la coreografía ya tiene una presentación asociada.",
+        "No podés editar la música porque la coreografía ya fue evaluada.",
     });
     await expect(
       db.query.choreographies.findFirst({
@@ -283,7 +297,7 @@ describe.sequential("portal choreography music", () => {
 async function createMusicChoreographyFixture(input: {
   academyName: string;
   email: string;
-  hasPresentation?: boolean;
+  isEvaluated?: boolean;
   musicStorageKey: string;
   name: string;
 }) {
@@ -298,13 +312,16 @@ async function createMusicChoreographyFixture(input: {
     categoryId: catalog.categoryWithLevel.id,
     eventId: event.id,
     experienceLevelId: catalog.level.id,
-    hasPresentation: input.hasPresentation,
     modalityId: catalog.modality.id,
     musicStorageKey: input.musicStorageKey,
     name: input.name,
     scheduleCapacityId: catalog.scheduleCapacity.id,
     submodalityId: catalog.submodality.id,
   });
+
+  if (input.isEvaluated) {
+    evaluatedChoreographyIds.add(choreography.id);
+  }
 
   return { choreography, event, owner };
 }

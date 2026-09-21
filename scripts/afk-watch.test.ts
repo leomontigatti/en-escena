@@ -172,4 +172,45 @@ describe("summarizeChecks", () => {
     );
     expect(red).toMatchObject({ terminal: true, green: false });
   });
+
+  it("holds while `pr-title` is pending and goes red when it fails", () => {
+    const fromCi = ["checks", "db-gate", "docs-gate", "actions-gate"].map(
+      (name) => ({ name, conclusion: "SUCCESS" }),
+    );
+    const baseline = openPr();
+
+    const pending = summarizeChecks(
+      [...fromCi, { name: "pr-title", status: "IN_PROGRESS" }],
+      REQUIRED_CONTEXTS,
+    );
+    expect(pending).toMatchObject({ terminal: false, green: false });
+    expect(
+      prEvent(
+        "checks",
+        baseline,
+        openPr({
+          checks: pending.byName,
+          checksTerminal: pending.terminal,
+          checksGreen: pending.green,
+        }),
+      ),
+    ).toBeNull();
+
+    const failed = summarizeChecks(
+      [...fromCi, { name: "pr-title", conclusion: "FAILURE" }],
+      REQUIRED_CONTEXTS,
+    );
+    expect(failed).toMatchObject({ terminal: true, green: false });
+    expect(
+      prEvent(
+        "checks",
+        baseline,
+        openPr({
+          checks: failed.byName,
+          checksTerminal: failed.terminal,
+          checksGreen: failed.green,
+        }),
+      ),
+    ).toBe("checks-red");
+  });
 });

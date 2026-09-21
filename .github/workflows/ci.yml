@@ -12,7 +12,9 @@
 #   - docs-gate: mapped code changed => its current-state document must change too (#630).
 #   - actions-gate: zizmor + actionlint over every workflow in this directory (#955).
 # Branch protection on `master` is live: direct pushes are forbidden and `checks`,
-# `db-gate`, `docs-gate` and `actions-gate` are required contexts, with `strict: true`. Required contexts
+# `db-gate`, `docs-gate` and `actions-gate` are required contexts, with `strict: true`.
+# `pr-title`, from `pr-title.yml`, is required on `master` too, so the required list is five
+# names and only four of them come from this file. Required contexts
 # are a repo setting, not a file here, so renaming or adding a job does not update them —
 # that is a human step outside the repo.
 name: CI
@@ -49,10 +51,12 @@ jobs:
       # picks up from the repository root; `.husky/pre-commit` runs the same scan
       # over the staged diff, warning instead of failing when the binary is absent.
       # Here it is blocking, and the binary is pinned the same way actionlint is in
-      # `actions-gate` — an exactly-pinned release fetched inline, no Marketplace
-      # action to keep fresh — but by checksum as well as by version, because there
-      # is no official install script to delegate that to. Not `gitleaks-action`,
-      # which would open a second PR-comment channel next to the job log.
+      # `actions-gate`: the two downloads are deliberately one pattern — an exactly
+      # pinned release tarball fetched inline, no Marketplace action to keep fresh,
+      # verified by checksum as well as by version. Version and checksum are one pin
+      # to bump together: the version says which release to ask for, the checksum
+      # says that what arrived is that release. Not `gitleaks-action`, which would
+      # open a second PR-comment channel next to the job log.
       # Scope is `origin/master..HEAD`: the PR's own commits. History before the
       # merge base is master's problem, and rescanning it on every PR would turn
       # any pre-existing finding into a permanently red gate.
@@ -64,7 +68,10 @@ jobs:
           GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
         run: |
           set -euo pipefail
-          curl -fsSL -o /tmp/gitleaks.tar.gz \
+          # Retries: a reset mid-transfer is the one failure mode here, and it would
+          # otherwise turn a required context red with nothing to fix (#1039).
+          curl -fsSL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 10 \
+            -o /tmp/gitleaks.tar.gz \
             "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
           echo "${GITLEAKS_SHA256}  /tmp/gitleaks.tar.gz" | sha256sum --check --strict -
           tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
@@ -76,7 +83,7 @@ jobs:
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm format:check
@@ -118,19 +125,35 @@ jobs:
             git --no-pager diff -- app/db/migrations
             exit 1
           fi
-      # Two rules about migrations, both invisible to `db-gate` because a fresh
-      # database applies anything in folder order; scripts/migrations/journal.mjs
-      # explains both. Ordering (#593): a migration not newer than every one
-      # already on master merges green and then never runs in production, and the
-      # fix is a rebase plus `pnpm db:generate`. Immutability (the deploy #762
-      # broke, restored in #774): Drizzle hashes the whole .sql file, so editing
-      # even a comment in an applied migration makes the container refuse to
-      # start. One step, because both need the same fetch.
-      - name: migration-order and immutability (vs. master)
+      # Three rules about migrations, all invisible to `db-gate` because a fresh
+      # database applies anything in folder order against no running code;
+      # scripts/migrations/journal.mjs explains the first two. Ordering (#593): a
+      # migration not newer than every one already on master merges green and then
+      # never runs in production, and the fix is a rebase plus `pnpm db:generate`.
+      # Immutability (the deploy #762 broke, restored in #774): Drizzle hashes the
+      # whole .sql file, so editing even a comment in an applied migration makes
+      # the container refuse to start. Safety (#998): squawk over the .sql files
+      # the branch *adds* — a drop or a rename breaks the old container, which
+      # Coolify keeps serving while the new one migrates, and lock hazards warn.
+      # One step, because all three need the same fetch.
+      - name: migration-order, immutability and safety (vs. master)
         run: |
           git fetch --no-tags --depth=1 origin master
           pnpm check:migration-order
           pnpm check:migration-immutability
+          pnpm check:migration-safety
+      # Dependency hygiene (#999): `pnpm audit --prod` over this branch's tree and
+      # over master's, failing only on the high and critical advisories the branch
+      # *introduces*. Auditing the whole tree instead would redden every open PR —
+      # AFK branches included — the day a CVE is disclosed against a dependency
+      # nobody here touched, and the fix would belong to no branch in particular.
+      # Dependabot alerts watch the full tree for that case, with security update
+      # PRs off, so nothing is missed. Same `origin/master` the step above fetches,
+      # which is why this sits right after it — and if that fetch ever stops
+      # happening the script fails here rather than passing on a comparison it
+      # never made.
+      - name: dependency audit (advisories this branch introduces)
+        run: pnpm check:dependency-audit
       - run: pnpm typecheck
       - run: pnpm test:unit
       - run: pnpm build
@@ -171,13 +194,23 @@ jobs:
           # ("expressions don't expand in single quotes") pointing at correct `jq '...'`
           # filters, which would train everyone to stop reading the job.
           SHELLCHECK_OPTS: --severity=warning
+          # Bumping this means bumping the checksum with it: the two are one pin.
+          # `actionlint_<version>_checksums.txt` on the release page is the source.
+          ACTIONLINT_VERSION: 1.7.12
+          ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
         run: |
           set -euo pipefail
-          # The official download script, pinned to the release it installs — not the
-          # Marketplace action, which would be one more third-party pin to keep fresh.
-          curl -fsSL -o /tmp/download-actionlint.bash \
-            https://raw.githubusercontent.com/rhysd/actionlint/v1.7.12/scripts/download-actionlint.bash
-          bash /tmp/download-actionlint.bash 1.7.12 /tmp
+          # The release tarball fetched inline, the same pattern as the gitleaks
+          # download in `checks` and deliberately so: no Marketplace action to keep
+          # fresh, and no install script fetched and executed to delegate the
+          # checksum to. Retries because a reset mid-transfer is the one failure
+          # mode here, and while the upstream script owned the request there was
+          # no way to give that fetch retry flags at all (#1039).
+          curl -fsSL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 10 \
+            -o /tmp/actionlint.tar.gz \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          echo "${ACTIONLINT_SHA256}  /tmp/actionlint.tar.gz" | sha256sum --check --strict -
+          tar -xzf /tmp/actionlint.tar.gz -C /tmp actionlint
           /tmp/actionlint -color
 
   # Its own job rather than a step inside `checks`: with this gate the *message*
@@ -241,7 +274,7 @@ jobs:
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       # Resets and applies the versioned schema (the #305/#391 path) against this shard's

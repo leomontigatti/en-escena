@@ -119,7 +119,9 @@ export function ChoreographyDetailRouteView({
           blockedTitle="No se puede eliminar esta coreografía"
           description={
             loaderData.deletion.canDelete
-              ? "La eliminación es definitiva y libera el cupo de cronograma."
+              ? formatChoreographyDeleteDescription(
+                  loaderData.choreography.presentationOrderNumber,
+                )
               : "Esta coreografía tiene registros asociados que conservan trazabilidad."
           }
           intentValue={deleteChoreographyIntent}
@@ -262,12 +264,15 @@ function ChoreographyDetailForm({
                 <SubmodalityField disabled={disabled} loaderData={loaderData} />
               )}
             />
+            {/* A saved choreography always has a category; the field only
+                reads empty while an edit in progress resolves to none, and the
+                page alert says so and blocks the save. */}
             <ReadOnlyField
               label="Categoría"
               value={
                 modality.categoryLabel ??
                 roster.derivedResolution.categoryName ??
-                "Sin asignar"
+                ""
               }
             />
             <ReadOnlyField
@@ -480,6 +485,24 @@ function toPersonOption(person: {
     label: `${person.firstName} ${person.lastName}`,
     value: person.id,
   };
+}
+
+/**
+ * A presentation does not block the deletion — it is deleted with the
+ * choreography — so the number is named as a consequence and not as a reason to
+ * stop. The gap it leaves stays: every other number is what the academies were
+ * told.
+ */
+function formatChoreographyDeleteDescription(
+  presentationOrderNumber: number | null,
+) {
+  const base = "La eliminación es definitiva y libera el cupo de cronograma.";
+
+  if (presentationOrderNumber === null) {
+    return base;
+  }
+
+  return `${base} Tiene la presentación n.º ${presentationOrderNumber}; se quitará del orden.`;
 }
 
 function BlockedDeleteReasons({

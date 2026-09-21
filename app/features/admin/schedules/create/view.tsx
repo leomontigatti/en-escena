@@ -1,7 +1,12 @@
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
-import { ScheduleForm, ScheduleFormActions, ScheduleFormPanel } from "../form";
+import {
+  ScheduleForm,
+  ScheduleFormActions,
+  ScheduleFormPanel,
+  useScheduleForm,
+} from "../form";
 import type {
   EventScheduleActionData,
   EventScheduleFormLoaderData,
@@ -21,6 +26,10 @@ export function EventScheduleCreateView({
 }: EventScheduleCreateViewProps) {
   useServerActionToast(actionData);
 
+  const form = useScheduleForm({
+    submittedValues: getScheduleSubmittedValues(actionData, "create-schedule"),
+  });
+
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
@@ -29,15 +38,13 @@ export function EventScheduleCreateView({
     >
       <ScheduleFormPanel>
         <ScheduleForm
+          form={form}
           formId={createScheduleFormId}
           intent="create-schedule"
           modalities={loaderData.modalities}
-          submittedValues={getScheduleSubmittedValues(
-            actionData,
-            "create-schedule",
-          )}
         />
         <ScheduleFormActions
+          form={form}
           formId={createScheduleFormId}
           pendingScope={{ intent: "create-schedule" }}
         />

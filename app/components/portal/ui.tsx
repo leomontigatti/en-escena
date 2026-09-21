@@ -9,6 +9,7 @@ import {
   Home,
   Inbox,
   Info,
+  ListOrdered,
   LogOut,
   Presentation,
   TriangleAlert,
@@ -202,6 +203,11 @@ const primaryNavigationItems = [
     label: "Coreografías",
     to: "/portal/coreografias",
     icon: AudioLines,
+  },
+  {
+    label: "Presentaciones",
+    to: "/portal/presentaciones",
+    icon: ListOrdered,
   },
   {
     label: "Seminarios",

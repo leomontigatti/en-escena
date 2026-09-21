@@ -96,6 +96,7 @@ export function ServerDataTable<TData>(props: ServerDataTableProps<TData>) {
   const serverSort = sorting[0];
 
   const table = useServerReactTable({
+    canSelectRow: props.canSelectRow,
     columnVisibility,
     columns: props.columns,
     currentPage: props.currentPage,
@@ -137,6 +138,7 @@ export function ServerDataTable<TData>(props: ServerDataTableProps<TData>) {
       getRowProps={props.getRowProps}
       isLoading={isLoading}
       layout={props.layout ?? "auto"}
+      reorder={props.reorder}
       pagination={{
         basePath: resolvedBasePath,
         canNextPage: props.currentPage < props.totalPages,
@@ -216,6 +218,7 @@ function useServerDataTableColumns<TData>(
 }
 
 function useServerReactTable<TData>({
+  canSelectRow,
   columnVisibility,
   columns,
   currentPage,
@@ -229,6 +232,7 @@ function useServerReactTable<TData>({
   tableColumns,
   totalPages,
 }: {
+  canSelectRow?: (row: TData) => boolean;
   columnVisibility: Record<string, boolean>;
   columns: ServerDataTableProps<TData>["columns"];
   currentPage: number;
@@ -258,7 +262,13 @@ function useServerReactTable<TData>({
     },
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
-    enableRowSelection: selectableRows,
+    // Without a predicate the flag alone is the answer, which keeps the row
+    // model out of TanStack's per-row path for every table that selects all of
+    // its rows or none of them.
+    enableRowSelection:
+      selectableRows && canSelectRow
+        ? (row) => canSelectRow(row.original)
+        : selectableRows,
     getCoreRowModel: getCoreRowModel(),
     getRowId: getRowKey,
     manualSorting: true,

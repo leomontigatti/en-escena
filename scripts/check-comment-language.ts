@@ -30,11 +30,12 @@ import { collectSourceFiles } from "./source-files";
 // ADR. Everything else the glossary names is a violation, and naming it is done
 // the way the identifier rule already does it, by quoting or backticking it.
 //
-// The scopes it reads are comments, test names and the argument of a
-// `new …Error(…)`. Arbitrary string literals are left alone on purpose — Spanish
-// UI copy lives in literals — but an error message is engineering prose by the
-// same test #592 applied, and eleven Spanish ones outlived that sweep. See
-// `findErrorMessages` for why the predicate is exactly this narrow.
+// The scopes it reads are comments, test names, the argument of a
+// `new …Error(…)` and what a shell script writes to stderr. Arbitrary string
+// literals are left alone on purpose — Spanish UI copy lives in literals — but
+// an error message is engineering prose by the same test #592 applied, and
+// eleven Spanish ones outlived that sweep. See `findErrorMessages` and
+// `stderrMessagesIn` for why each predicate is exactly this narrow.
 
 // Every directory in the repo that holds `.ts`/`.tsx`/`.mts`/`.mjs`, plus the
 // root-level configs `collectScannedFiles` adds. `.sandcastle` is here because
@@ -75,6 +76,19 @@ export const excludedDocDirectories = [".agents", "docs/adr", "docs/research"];
 // the same way.
 export const scannedYamlDirectories = [".github"];
 const yamlFilePattern = /\.(yml|yaml)$/;
+
+// Shell is on the rule for the same reason YAML is, and it drifted the same way:
+// `.claude/hooks/block-npx-tsc.sh` kept its Spanish comments and a Spanish
+// stderr message through #592 because the scan reached only the `.md` under
+// `.claude/` (#947). A hook's output is read by an agent, not by a user, so it
+// is engineering prose end to end.
+//
+// `scripts/` is in the list even though the issue only named `.claude/`: it
+// holds eight tracked `.sh` files, all English today, and leaving them out would
+// mean the scan-root test below has to carry an exemption for a directory whose
+// `.ts` is already scanned.
+export const scannedShellDirectories = [".claude", "scripts"];
+const shellFilePattern = /\.sh$/;
 
 // Generated, not written: a lockfile is 330 KB of resolution output that no
 // contributor reads as prose, and nobody may rewrite by hand anyway.
@@ -307,6 +321,8 @@ type CheckCommentLanguageOptions = {
   /** Markdown files to scan. Defaults to every scanned doc directory. */
   docs?: string[];
   rootDirectory?: string;
+  /** Shell files to scan. Defaults to every scanned shell directory. */
+  shell?: string[];
   /** YAML files to scan. Defaults to every scanned YAML directory. */
   yaml?: string[];
 };
@@ -811,6 +827,31 @@ function spanishMarkersIn(
 }
 
 /**
+ * The three instruments over a passage that is prose end to end and has no file
+ * around it — a PR title's subject (#1007). Everything a scanner would do first
+ * is already done here: the data spans are blanked the way a source comment's
+ * are, so a backticked name or a quoted UI term in a title is data, and the
+ * markers come back deduplicated and lowercased, the shape a violation carries.
+ *
+ * It exists so a caller with a single string in hand does not have to reach for
+ * the heuristics one at a time; there is no other entry point that takes prose
+ * rather than a file.
+ */
+export function findSpanishMarkersInText(input: {
+  /** Empty turns the vocabulary instrument off; say so rather than omit it. */
+  glossaryNouns: string[];
+  text: string;
+}): string[] {
+  return [
+    ...new Set(
+      spanishMarkersIn(blankDataSpans(input.text), input.glossaryNouns).map(
+        (match) => match[0].toLowerCase(),
+      ),
+    ),
+  ];
+}
+
+/**
  * Markdown is prose end to end, so there is no comment to find: the file is the
  * passage, and a line is the unit worth reporting. The only difference from a
  * source file is what counts as data — #792 chose the backtick, because that is
@@ -873,11 +914,13 @@ function blankMarkdownDataSpans(contents: string): string {
  * what keep `#` inside a value out of it — a colour, a URL fragment, or the
  * `#305/#391` an issue reference carries.
  *
- * It reads a `#` inside a `run: |` block as a comment too. That is deliberate:
- * a shell comment in a workflow step is read by the same contributor as the
- * YAML comment above it, so the rule has no reason to stop at the block scalar.
+ * It is shell's rule too, which is why this is not named for YAML: a `#` inside
+ * a `run: |` block was already being read as a comment — deliberately, since a
+ * shell comment in a workflow step is read by the same contributor as the YAML
+ * comment above it — and a `.sh` file is that same block without the workflow
+ * around it (#947).
  */
-function yamlCommentAt(line: string): string | null {
+function hashCommentAt(line: string): string | null {
   let quote: string | null = null;
 
   for (let index = 0; index < line.length; index += 1) {
@@ -916,7 +959,7 @@ export function findSpanishProseInYaml(input: {
   glossaryNouns: string[];
 }): CommentLanguageViolation[] {
   return input.contents.split("\n").flatMap((line, index) => {
-    const comment = yamlCommentAt(line);
+    const comment = hashCommentAt(line);
 
     if (comment === null) {
       return [];
@@ -941,6 +984,135 @@ export function findSpanishProseInYaml(input: {
       },
     ];
   });
+}
+
+/**
+ * Shell is the YAML scope plus one more: what the script writes to stderr. A
+ * hook's stderr is the sentence Claude Code feeds back to the agent — the same
+ * engineering prose a `new Error(…)` message is, and the reason #947 was opened
+ * was that `block-npx-tsc.sh` carried it in Spanish.
+ *
+ * The scope is the quoted strings a line hands to stderr, which is narrow the
+ * way `findErrorMessages` is narrow: every other literal in a shell script is
+ * data — a label, a path, a `jq` filter — and reading those as prose would
+ * report `label="necesita revisión"` as a violation.
+ *
+ * A line redirecting to `>&2` is only half of that. The repo's other
+ * agent-facing hook writes `printf '%s\n\n%s\n' "$output" "$instruction" >&2`
+ * and assembles the sentence three lines earlier in `instruction="…"`, so
+ * reading the redirect line alone would have let a Spanish `instruction` through
+ * the gate the day #947 closed it. `stderrVariableNamesIn` is what closes that:
+ * a variable this file interpolates into stderr carries a message, so its
+ * literal assignments are read as one wherever they sit.
+ *
+ * Two shapes stay out of reach, both absent from the tree and both a miss rather
+ * than a spurious failure: a heredoc body redirected to stderr, and a message
+ * built across a line break, since `hashCommentAt` reads quoting one line at a
+ * time. This is `decodePem`'s gap in the error-message scan, one language over.
+ */
+export function findSpanishProseInShell(input: {
+  contents: string;
+  filePath: string;
+  /** Empty turns the vocabulary instrument off; say so rather than omit it. */
+  glossaryNouns: string[];
+}): CommentLanguageViolation[] {
+  const lines = input.contents.split("\n");
+  const messageVariables = stderrVariableNamesIn(lines);
+
+  return lines.flatMap((line, index) => {
+    const comment = hashCommentAt(line);
+    const code =
+      comment === null ? line : line.slice(0, line.length - comment.length);
+    const passages: { kind: CommentLanguageViolation["kind"]; text: string }[] =
+      [
+        ...(comment === null
+          ? []
+          : [{ kind: "comment" as const, text: comment }]),
+        ...stderrMessagesIn(code, messageVariables).map((text) => ({
+          kind: "error message" as const,
+          text,
+        })),
+      ];
+
+    return passages.flatMap(({ kind, text }) => {
+      const matches = spanishMarkersIn(
+        blankDataSpans(text),
+        input.glossaryNouns,
+      );
+
+      if (matches.length === 0) {
+        return [];
+      }
+
+      return [
+        {
+          filePath: input.filePath,
+          kind,
+          lineNumber: index + 1,
+          markers: [...new Set(matches.map((match) => match[0].toLowerCase()))],
+          text: text.trim().slice(0, 120),
+        },
+      ];
+    });
+  });
+}
+
+/**
+ * The messages a line of shell hands to stderr: every quoted string on a line
+ * that redirects to it, and the literal assigned to a variable the file later
+ * interpolates into such a line.
+ *
+ * A command substitution is excluded from the assignment half — `output="$(pnpm
+ * typecheck 2>&1)"` is the command's output, not prose written here.
+ */
+function stderrMessagesIn(
+  line: string,
+  messageVariables: Set<string>,
+): string[] {
+  if (line.includes(">&2")) {
+    return quotedRunsIn(line);
+  }
+
+  const assignment = line.match(/^\s*([A-Za-z_]\w*)=(.*)$/u);
+
+  if (
+    assignment === null ||
+    !messageVariables.has(assignment[1]) ||
+    assignment[2].includes("$(")
+  ) {
+    return [];
+  }
+
+  return quotedRunsIn(assignment[2]);
+}
+
+/**
+ * Single quotes as well as double, because shell reads both as a string and
+ * `echo 'Usá pnpm typecheck' >&2` is the same sentence as its double-quoted
+ * twin. The inner text rather than the literal, because `blankDataSpans` blanks
+ * a `"…"` span as data — right for a comment quoting UI copy, wrong for the
+ * message itself.
+ */
+function quotedRunsIn(text: string): string[] {
+  return Array.from(
+    text.matchAll(/"([^"\n]*)"|'([^'\n]*)'/gu),
+    (match) => match[1] ?? match[2],
+  );
+}
+
+/**
+ * The variables a file interpolates into a line that redirects to stderr. Names
+ * only: which assignment wins at runtime is not something a scanner can know, so
+ * every literal assigned to the name is read as a message.
+ */
+function stderrVariableNamesIn(lines: string[]): Set<string> {
+  return new Set(
+    lines
+      .filter((line) => line.includes(">&2"))
+      .flatMap((line) =>
+        Array.from(line.matchAll(/\$\{?([A-Za-z_]\w*)/gu), (match) => match[1]),
+      ),
+  );
 }
 
 export function findSpanishProseInSource(input: {
@@ -995,6 +1167,7 @@ export async function checkCommentLanguage(
   const glossaryNouns = readGlossaryNouns(rootDirectory);
   const files = options.files ?? collectScannedFiles(rootDirectory);
   const docs = options.docs ?? collectScannedDocs(rootDirectory);
+  const shell = options.shell ?? collectScannedShell(rootDirectory);
   const yaml = options.yaml ?? collectScannedYaml(rootDirectory);
 
   return [
@@ -1011,6 +1184,15 @@ export async function checkCommentLanguage(
       const absolutePath = path.resolve(rootDirectory, filePath);
 
       return findSpanishProseInMarkdown({
+        contents: readFileSync(absolutePath, "utf8"),
+        filePath: path.relative(rootDirectory, absolutePath),
+        glossaryNouns,
+      });
+    }),
+    ...shell.flatMap((filePath) => {
+      const absolutePath = path.resolve(rootDirectory, filePath);
+
+      return findSpanishProseInShell({
         contents: readFileSync(absolutePath, "utf8"),
         filePath: path.relative(rootDirectory, absolutePath),
         glossaryNouns,
@@ -1054,6 +1236,27 @@ function collectScannedDocs(rootDirectory: string): string[] {
         relativePath === excluded || relativePath.startsWith(`${excluded}/`),
     );
   });
+}
+
+/**
+ * The shell directories plus any `.sh` sitting at the repo root. There is none
+ * today; picking them up is what keeps the scan-root test's "at the repo root"
+ * exemption honest.
+ */
+function collectScannedShell(rootDirectory: string): string[] {
+  const rootShell = readdirSync(rootDirectory, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && shellFilePattern.test(entry.name))
+    .map((entry) => path.join(rootDirectory, entry.name));
+
+  return [
+    ...rootShell,
+    ...scannedShellDirectories.flatMap((directory) =>
+      collectSourceFiles({
+        directoryPath: path.join(rootDirectory, directory),
+        keeps: (fileName) => shellFilePattern.test(fileName),
+      }),
+    ),
+  ];
 }
 
 /**

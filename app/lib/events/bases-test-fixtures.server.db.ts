@@ -7,12 +7,14 @@ import {
 } from "@/db/schema";
 import { createAcademyUser } from "@/lib/test-support/academies";
 import { allocateChoreographyNumber } from "@/lib/choreographies/choreography-number.server";
+import { readFixtureCapacityScheduleId } from "@/lib/choreographies/registration-test-fixtures.server.db";
 import { activateEvent, createEvent } from "@/lib/events/management.server";
 import {
   experienceLevelLabels,
   type ExperienceLevel,
 } from "@/lib/events/experience-levels";
 import type { GroupType } from "@/lib/events/group-types";
+import { createCategory } from "@/lib/categories/repository.server";
 import { createModality } from "@/lib/modalities/repository.server";
 import { createPrice } from "@/lib/prices/repository.server";
 import {
@@ -216,12 +218,20 @@ export async function createEventChoreographyFixture({
       capacity: 10,
     }),
   );
+  const category = await createFixtureCategory({
+    eventId,
+    modalityId: modality.id,
+    groupType,
+    name: `${name} Cat`,
+  });
   const choreography = await insertChoreography({
     eventId,
     academyId,
     name,
     modalityId: modality.id,
     groupType,
+    categoryId: category.id,
+    scheduleId: block.id,
     scheduleCapacityId: entry.id,
   });
 
@@ -261,11 +271,72 @@ type ChoreographyOnBasesFixtureInput = {
 };
 
 /**
+ * The category a fixture falls back to when the caller names none: it admits
+ * every age, so the row it is attached to never depends on the ages of its
+ * dancers.
+ */
+async function createFixtureCategory(input: {
+  eventId: string;
+  modalityId: string;
+  groupType: GroupType;
+  name: string;
+}) {
+  return await expectCreated(
+    createCategory(input.eventId, {
+      name: input.name,
+      minAge: 1,
+      maxAge: 100,
+      groupTypes: [input.groupType],
+      modalityIds: [input.modalityId],
+      experienceLevels: [],
+    }),
+  );
+}
+
+/**
+ * The schedule a fixture choreography sits on. A choreography always has one,
+ * so the caller that names only a capacity gets the capacity's schedule, and
+ * the caller that names neither gets one invented here. That invented schedule
+ * is a real row accepting the modality, so a guard test that counts the
+ * schedules a modality has — the last-compatible-schedule refusals — has to
+ * name its own instead of letting this one appear behind it.
+ */
+async function resolveFixtureScheduleId({
+  eventId,
+  modalityId,
+  name,
+  scheduleId,
+  scheduleCapacityId,
+}: {
+  eventId: string;
+  modalityId: string;
+  name: string;
+  scheduleId?: string;
+  scheduleCapacityId?: string;
+}) {
+  if (scheduleId) {
+    return scheduleId;
+  }
+
+  if (scheduleCapacityId) {
+    return await readFixtureCapacityScheduleId(scheduleCapacityId);
+  }
+
+  return (
+    await createSavedSchedule(eventId, {
+      modalityIds: [modalityId],
+      name: `${name} Bloque`,
+    })
+  ).id;
+}
+
+/**
  * A choreography sitting on the bases the caller names, with the inscription
  * state the bases guards read: none at all, one active, or one withdrawn.
- * Unlike `createEventChoreographyFixture` it invents no modality and no
- * schedule, because a guard test needs the choreography on the very rows it is
- * about to edit.
+ * Unlike `createEventChoreographyFixture` it invents no modality, because a
+ * guard test needs the choreography on the very rows it is about to edit; it
+ * does invent a schedule when the caller names none, because a choreography
+ * always has one.
  */
 export async function createChoreographyOnBases({
   eventId,
@@ -285,9 +356,27 @@ export async function createChoreographyOnBases({
     name,
     modalityId,
     groupType,
-    categoryId,
+    // A choreography always has a category, so a caller that does not name one
+    // gets a category of its own: the guards under test count the categories
+    // the caller built, and this one is not among them.
+    categoryId:
+      categoryId ??
+      (
+        await createFixtureCategory({
+          eventId,
+          modalityId,
+          groupType,
+          name: `${name} Cat`,
+        })
+      ).id,
     experienceLevelId,
-    scheduleId,
+    scheduleId: await resolveFixtureScheduleId({
+      eventId,
+      modalityId,
+      name,
+      scheduleId,
+      scheduleCapacityId,
+    }),
     scheduleCapacityId,
   });
 
@@ -311,6 +400,31 @@ export async function createChoreographyOnBases({
   }
 
   return choreography;
+}
+
+/**
+ * The smallest operational dependency an event can carry: one choreography on
+ * bases of its own, with the inscription state the caller names. The guard
+ * suites all build these same four rows, so the recipe lives here.
+ */
+export async function createChoreographyOnNewBases({
+  eventId,
+  inscriptions,
+}: {
+  eventId: string;
+  inscriptions?: InscriptionsFixtureState;
+}) {
+  const academy = await createSavedAcademy("Academia dependencias");
+  const modality = await expectCreated(
+    createModality(eventId, { name: "Jazz" }),
+  );
+
+  return await createChoreographyOnBases({
+    eventId,
+    academyId: academy.id,
+    modalityId: modality.id,
+    inscriptions,
+  });
 }
 
 let createdAcademyOffset = 0;

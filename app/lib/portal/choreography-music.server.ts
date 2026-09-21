@@ -6,6 +6,7 @@ import {
   assertPortalChoreographyFound,
   portalOwnedChoreographyWhere,
 } from "@/lib/choreographies/choreography-access.server";
+import { hasEvaluatedPresentation } from "@/lib/presentations/evaluation-lock.server";
 import { formatUploadRejection } from "@/lib/storage/asset-kinds";
 import type { ChoreographyMusicStorage } from "@/lib/storage/choreography-music.server";
 
@@ -23,7 +24,6 @@ export async function updateChoreographyMusic(input: {
   const choreography = assertPortalChoreographyFound(
     await db.query.choreographies.findFirst({
       columns: {
-        hasPresentation: true,
         musicStorageKey: true,
       },
       where: portalOwnedChoreographyWhere(input),
@@ -38,11 +38,11 @@ export async function updateChoreographyMusic(input: {
     return { ok: true };
   }
 
-  if (choreography.hasPresentation) {
+  if (await hasEvaluatedPresentation(input.choreographyId)) {
     return {
       ok: false,
       message:
-        "No podés editar la música porque la coreografía ya tiene una presentación asociada.",
+        "No podés editar la música porque la coreografía ya fue evaluada.",
     };
   }
 

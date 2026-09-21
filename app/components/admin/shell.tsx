@@ -13,6 +13,7 @@ import {
   DollarSign,
   Music2,
   ClipboardList,
+  ListOrdered,
   HandCoins,
   ReceiptText,
   Presentation,
@@ -136,6 +137,11 @@ const operationNavigationItems = [
     label: "Coreografías",
     to: "/administracion/coreografias",
     icon: Music2,
+  },
+  {
+    label: "Presentación",
+    to: "/administracion/presentacion",
+    icon: ListOrdered,
   },
   {
     label: "Profesores",

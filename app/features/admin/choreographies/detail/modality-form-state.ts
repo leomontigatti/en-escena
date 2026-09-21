@@ -179,6 +179,12 @@ export function canSubmitModalityCorrection(input: CanSubmitModalityInput) {
     return false;
   }
 
+  // A destination modality with no compatible category is refused by the
+  // server, so the button stays closed and the reason is on screen instead.
+  if (resolution.category === null) {
+    return false;
+  }
+
   // With no eligible capacity there is no possible correction: the select has
   // already been replaced by the reason, so leaving the button live would ask
   // for a field that is not there. Same rule the view renders, read once.

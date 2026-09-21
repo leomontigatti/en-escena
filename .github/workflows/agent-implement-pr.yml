@@ -100,9 +100,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          # The two outcome labels come off as well (#1021): they classify the
+          # review that has just been superseded, and a new feedback round leaves
+          # the PR unclassified until the next Review run says otherwise.
           gh pr edit "$PR_NUMBER" \
             --remove-label "agent:implement" \
             --remove-label "agent:blocked" \
+            --remove-label "agent:ready" \
+            --remove-label "agent:needs-decision" \
             --add-label "agent:in-progress"
 
       - name: Checkout PR head
@@ -132,7 +137,7 @@ jobs:
         if: steps.preflight.outputs.proceed == 'true'
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: pnpm
       - name: Install deps + agent runner
         if: steps.preflight.outputs.proceed == 'true'

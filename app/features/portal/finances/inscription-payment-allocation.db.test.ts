@@ -72,7 +72,7 @@ async function createInscriptionFixture() {
   return { owner, event, inscription, payment };
 }
 
-describe.sequential("inscription identity and payment allocations", () => {
+describe("inscription identity and payment allocations", () => {
   test("gives inscriptions a stable id and preserves the dancer pair uniqueness", async () => {
     const { inscription } = await createInscriptionFixture();
 

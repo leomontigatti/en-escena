@@ -1,7 +1,12 @@
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
-import { PriceForm, PriceFormActions, PriceFormPanel } from "../form";
+import {
+  PriceForm,
+  PriceFormActions,
+  PriceFormPanel,
+  usePriceForm,
+} from "../form";
 import type { EventPriceActionData, EventPriceFormLoaderData } from "../shared";
 import { getPriceSubmittedValues } from "../view-shared";
 
@@ -18,6 +23,10 @@ export function EventPriceCreateView({
 }: EventPriceCreateViewProps) {
   useServerActionToast(actionData);
 
+  const form = usePriceForm({
+    submittedValues: getPriceSubmittedValues(actionData, "create-price"),
+  });
+
   return (
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
@@ -26,12 +35,13 @@ export function EventPriceCreateView({
     >
       <PriceFormPanel>
         <PriceForm
+          form={form}
           formId={createPriceFormId}
           intent="create-price"
           schedules={loaderData.schedules}
-          submittedValues={getPriceSubmittedValues(actionData, "create-price")}
         />
         <PriceFormActions
+          form={form}
           formId={createPriceFormId}
           pendingScope={{ intent: "create-price" }}
         />

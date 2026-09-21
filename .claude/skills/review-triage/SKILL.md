@@ -15,7 +15,7 @@ You decide and you write comments. You never edit code — `agent:implement` doe
 ## The inbox
 
 **Unresolved review threads are the implementer's inbox.** Implement PR builds its prompt
-from exactly three surfaces (`.sandcastle/agent-review/context.mts`):
+from these three surfaces and no others (`.sandcastle/agent-review/context.mts`):
 
 - **unresolved threads** — the whole thread, each comment tagged with its author. Resolved
   threads are filtered out before the prompt exists, so a resolved thread is invisible: the
@@ -68,9 +68,8 @@ pnpm afk:watch pr <PR> --until review
 
 The review's outcome label says how much of this skill applies. `agent:needs-decision` is the
 normal case: a call is the human's, run every phase. `agent:ready` means the posted review left
-zero unresolved threads and no spec finding: skip to [Phase 4](#phase-4--land). Until #1021
-makes Review apply them, apply the right one yourself after Phase 1, so the PR list reads the
-same either way.
+zero unresolved threads and no spec finding: skip to [Phase 4](#phase-4--land). Review applies
+one of the two on every run it completes (#1021), so a PR carrying neither was never reviewed.
 
 Fetch all three surfaces, read the diff for every path a thread hangs off, and build a ledger of
 every item. Done when every unresolved thread, every top-level comment and every review summary
@@ -133,7 +132,7 @@ stop after step 3 and report.
    gh pr merge <PR> --squash --auto --delete-branch
    ```
 
-   GitHub merges when the four contexts are green and the branch is up to date; a branch that
+   GitHub merges when the required contexts are green and the branch is up to date; a branch that
    falls behind gets `agent:update-branch` from the push-to-master trigger (#1020). Until
    #1022, the path is manual and the session waits:
 

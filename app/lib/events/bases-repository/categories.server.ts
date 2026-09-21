@@ -1,5 +1,7 @@
 import { and, asc, eq, inArray, ne, or, sql, type SQL } from "drizzle-orm";
 
+import { formatChoreographyReferences } from "@/lib/choreographies/choreography-messages";
+import { isForeignKeyViolation } from "@/lib/shared/error-properties.server";
 import {
   categories,
   categoryModalities,
@@ -11,11 +13,11 @@ import {
   experienceLevelOrder,
   groupRelationIdsByCategory,
   groupTypeOrder,
-  hasOccupyingChoreographies,
   hasReferencingChoreographies,
   haveSameValues,
   isExperienceLevel,
   isGroupType,
+  listReferencingChoreographies,
   modalities,
   replaceCategoryRelations,
   toTitleCase,
@@ -25,9 +27,16 @@ import type {
   CategoryInput,
   EventBaseFailure,
   EventBasesDeleteResult,
+  EventBasesExecutor,
   EventBasesMutationResult,
   ValidCategoryInput,
 } from "@/lib/events/bases-repository/shared.server";
+
+// The only key that can raise a foreign-key violation on a category delete:
+// `category_modality` cascades, so a choreography's `category_id` is the one
+// left to refuse.
+const CHOREOGRAPHY_CATEGORY_FOREIGN_KEY =
+  "en_escena_choreography_category_id_en_escena_category_id_fk";
 
 export async function listCategories(eventId: string) {
   const [eventCategories, eventCategoryModalities] = await Promise.all([
@@ -145,16 +154,50 @@ export async function updateCategory(
     return validation;
   }
 
-  if (await removesOccupiedRegistrationPaths(category, validation.input)) {
+  const ageOrLevelEdit = describeAgeOrLevelEdit(category, validation.input);
+
+  if (ageOrLevelEdit) {
+    const refusal = await refuseAgeOrLevelEditUnderChoreographies(
+      db,
+      categoryId,
+      ageOrLevelEdit,
+    );
+
+    if (refusal) {
+      return refusal;
+    }
+  }
+
+  if (await removesReferencedRegistrationPaths(category, validation.input)) {
     return {
       ok: false,
       code: "event-bases-has-dependencies",
       error:
-        "No se pueden quitar tipos de grupo, modalidades ni niveles de experiencia que las coreografías de la categoría todavía usan.",
+        "No se pueden quitar tipos de grupo ni modalidades que las coreografías de la categoría todavía usan.",
     };
   }
 
-  const [record] = await db.transaction(async (tx) => {
+  return db.transaction(async (tx): Promise<EventBasesMutationResult> => {
+    // The guard above read the referencing choreographies on the pool, before
+    // this transaction existed, so a registration that committed in between is
+    // invisible to it. Asking again here — on the transaction that writes, and
+    // only for the edits the guard actually refuses over — catches it, the way
+    // the modality correction re-resolves its category against the bases the
+    // write will see. It does not close the other half of the window: a
+    // registration that resolved against the old category and commits after
+    // this read still lands mis-filed, and that residue is detected elsewhere.
+    if (ageOrLevelEdit) {
+      const refusal = await refuseAgeOrLevelEditUnderChoreographies(
+        tx,
+        categoryId,
+        ageOrLevelEdit,
+      );
+
+      if (refusal) {
+        return refusal;
+      }
+    }
+
     const updated = await tx
       .update(categories)
       .set(categoryValues(validation.input))
@@ -163,10 +206,8 @@ export async function updateCategory(
 
     await replaceCategoryRelations(tx, categoryId, validation.input);
 
-    return updated;
+    return created(updated[0]);
   });
-
-  return created(record);
 }
 
 export async function deleteCategory(
@@ -180,40 +221,159 @@ export async function deleteCategory(
     return categoryNotFound();
   }
 
-  // Broader than the update guard on purpose: `choreography.category_id` has no
-  // `on delete` behaviour, so the foreign key refuses the delete under any
-  // choreography, withdrawn inscriptions included. Reporting that as a typed
-  // failure is what this check adds; the refusal itself is the database's.
+  // The same notion of in-use the update guards hold, withdrawn inscriptions
+  // included, and here it is the database's too: `choreography.category_id` has
+  // no `on delete` behaviour, so the foreign key refuses the delete under any
+  // choreography. Reporting that as a typed failure is what this check adds;
+  // the refusal itself is the database's.
   if (
     await hasReferencingChoreographies(
       eq(choreographies.categoryId, categoryId),
     )
   ) {
-    return {
-      ok: false,
-      code: "event-bases-has-dependencies",
-      error:
-        "No se puede borrar la categoría porque tiene coreografías relacionadas.",
-    };
+    return categoryHasChoreographies();
   }
 
-  await db.delete(categories).where(eq(categories.id, categoryId));
+  try {
+    await db.delete(categories).where(eq(categories.id, categoryId));
+  } catch (error) {
+    // The check above runs outside this delete, so a choreography created in
+    // between is invisible to it and the foreign key is what refuses. Both
+    // paths report the same failure: the check is the cheap common case, not
+    // the only way this delete can be turned down.
+    if (!isChoreographyCategoryViolation(error)) {
+      throw error;
+    }
+
+    return categoryHasChoreographies();
+  }
 
   return { ok: true };
 }
 
+function isChoreographyCategoryViolation(error: unknown) {
+  return isForeignKeyViolation(error, CHOREOGRAPHY_CATEGORY_FOREIGN_KEY);
+}
+
+function categoryHasChoreographies(): EventBaseFailure {
+  return {
+    ok: false,
+    code: "event-bases-has-dependencies",
+    error:
+      "No se puede borrar la categoría porque tiene coreografías relacionadas.",
+  };
+}
+
+/**
+ * Which of the two properties that cannot move under a referencing
+ * choreography an edit moves, named rather than flagged so the refusal reads
+ * the case it words instead of the absence of the other one. `null` when the
+ * edit moves neither, which is the common path and the one that asks nothing
+ * of the database.
+ */
+type AgeOrLevelEdit = "age-range" | "experience-levels";
+
+/**
+ * The age range and the experience level set decide what a category means for
+ * the choreographies already on it, so neither can move while any choreography
+ * references it.
+ *
+ * Moving the range opens a gap under those choreographies: a choreography
+ * stores its own age basis, so the next recalculation lands it on no category
+ * at all, and every write that would do that is refused. Editing the level set
+ * turns a stored level into a violation at once — adding levels leaves the
+ * choreography without one, removing the level it holds leaves it invalid.
+ *
+ * The breadth is the deletion guard's, withdrawn inscriptions included: a
+ * withdrawn inscription still preserves the category the choreography competed
+ * in. `removesReferencedRegistrationPaths` shares that one notion of in-use on
+ * purpose, so no edit to a referenced category slips through one guard by
+ * asking a narrower question than the other. Renaming, and any edit to a
+ * category no choreography references, stay allowed.
+ *
+ * Split in two: this half decides from the row alone which property the edit
+ * moves, and the refusal below asks the database who stands in the way. Only
+ * the second half touches the database, so a caller can ask it more than once
+ * without re-deciding the first.
+ */
+function describeAgeOrLevelEdit(
+  category: typeof categories.$inferSelect,
+  input: ValidCategoryInput,
+): AgeOrLevelEdit | null {
+  const changesAgeRange =
+    category.minAge !== input.minAge || category.maxAge !== input.maxAge;
+  // Both sides are sorted by `experienceLevelOrder` — the stored set because
+  // `validateCategoryInput` sorted it on the way in, the input because it is
+  // sorting it right now — so an order-sensitive comparison is an equality of
+  // sets here. A write that stored the set unsorted would break that.
+  const changesExperienceLevels = !haveSameValues(
+    category.experienceLevels,
+    input.experienceLevels,
+  );
+
+  if (changesAgeRange) {
+    return "age-range";
+  }
+
+  if (changesExperienceLevels) {
+    return "experience-levels";
+  }
+
+  return null;
+}
+
+async function refuseAgeOrLevelEditUnderChoreographies(
+  executor: EventBasesExecutor,
+  categoryId: string,
+  edit: AgeOrLevelEdit,
+): Promise<EventBaseFailure | null> {
+  const referencingChoreographies = await listReferencingChoreographies(
+    executor,
+    categoryId,
+  );
+
+  if (referencingChoreographies.length === 0) {
+    return null;
+  }
+
+  // Telling the administrator the edit is impossible without saying what stands
+  // in the way leaves them nothing to act on, so the refusal names the
+  // choreographies the way the birth-date correction names its own.
+  const relatedChoreographies =
+    referencingChoreographies.length === 1
+      ? "una coreografía relacionada"
+      : "coreografías relacionadas";
+  const list = formatChoreographyReferences(referencingChoreographies);
+  const subject = `una categoría que tiene ${relatedChoreographies}: ${list}`;
+
+  return {
+    ok: false,
+    code: "event-bases-has-dependencies",
+    error:
+      edit === "age-range"
+        ? `No se puede cambiar el rango de edad de ${subject}.`
+        : `No se pueden cambiar los niveles de experiencia de ${subject}.`,
+  };
+}
+
 /**
  * Whether the edit drops a registration path a choreography of the category
- * still sits on: a group type, a modality link or an experience level it no
- * longer offers. Readiness only walks the paths still reachable, so an orphaned
- * choreography stops having a price demanded for it while the finance screens
- * keep resolving one.
+ * still sits on: a group type or a modality link it no longer offers.
+ * Readiness only walks the paths still reachable, so an orphaned choreography
+ * stops having a price demanded for it while the finance screens keep resolving
+ * one.
  *
- * Only removals count. A rename leaves every path standing, and so does an
- * age-range edit: a choreography stores its own age basis and calculation mode,
- * so an age edit re-categorises rather than orphans.
+ * The breadth is the one the guard above uses, withdrawn inscriptions included,
+ * and the two share that notion of in-use on purpose: a withdrawn inscription
+ * preserves the path the choreography competed on just as it preserves the
+ * category, so dropping the modality link or the group type under it would
+ * leave the row pointing at a category that no longer offers either.
+ *
+ * Only removals count, and a rename leaves every path standing. Experience
+ * levels are not asked about here: with the breadths aligned, the guard above
+ * already refuses every edit to the set under the very same choreographies.
  */
-async function removesOccupiedRegistrationPaths(
+async function removesReferencedRegistrationPaths(
   category: typeof categories.$inferSelect,
   input: ValidCategoryInput,
 ) {
@@ -227,9 +387,6 @@ async function removesOccupiedRegistrationPaths(
   const removedModalityIds = existingModalityIds
     .map((relation) => relation.modalityId)
     .filter((modalityId) => !input.modalityIds.includes(modalityId));
-  const removedExperienceLevels = category.experienceLevels.filter(
-    (experienceLevel) => !input.experienceLevels.includes(experienceLevel),
-  );
   const removedPaths = [
     removedGroupTypes.length > 0
       ? inArray(choreographies.groupType, removedGroupTypes)
@@ -237,16 +394,13 @@ async function removesOccupiedRegistrationPaths(
     removedModalityIds.length > 0
       ? inArray(choreographies.modalityId, removedModalityIds)
       : null,
-    removedExperienceLevels.length > 0
-      ? inArray(choreographies.experienceLevelId, removedExperienceLevels)
-      : null,
   ].filter((path): path is SQL => path !== null);
 
   if (removedPaths.length === 0) {
     return false;
   }
 
-  return hasOccupyingChoreographies(
+  return hasReferencingChoreographies(
     and(eq(choreographies.categoryId, category.id), or(...removedPaths)),
   );
 }

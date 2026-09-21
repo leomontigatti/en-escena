@@ -273,7 +273,7 @@ function detailUrl(input: {
   return `http://localhost/administracion/finanzas/${input.academyId}/coreografias/${input.choreographyId}?evento=${input.eventId}`;
 }
 
-describe.sequential("financial detail — comprobante emission axis", () => {
+describe("financial detail — comprobante emission axis", () => {
   test("has the whole cobro billable when no comprobante covers it yet", async () => {
     const seeded = await seedChoreographyWithPaidInscription({
       academyName: "Academia Sin Factura",

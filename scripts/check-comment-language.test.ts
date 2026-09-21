@@ -7,11 +7,13 @@ import {
   excludedDocDirectories,
   excludedYamlFiles,
   findSpanishProseInMarkdown,
+  findSpanishProseInShell,
   findSpanishProseInSource,
   findSpanishProseInYaml,
   readGlossaryNouns,
   scannedDirectories,
   scannedDocDirectories,
+  scannedShellDirectories,
   scannedYamlDirectories,
 } from "./check-comment-language";
 
@@ -578,6 +580,119 @@ describe("comment-language guardrail, YAML (#793)", () => {
           repoRelativePath.startsWith(`${directory}/`),
         ) &&
         !excludedYamlFiles.includes(repoRelativePath),
+    );
+
+    expect(unaccounted).toEqual([]);
+  });
+});
+
+describe("comment-language guardrail, shell (#947)", () => {
+  const shellPath = ".claude/hooks/block-npx-tsc.sh";
+
+  function shellKindsIn(contents: string): string[] {
+    return findSpanishProseInShell({
+      contents,
+      filePath: shellPath,
+      glossaryNouns,
+    }).map((violation) => violation.kind);
+  }
+
+  test("catches a Spanish comment, on its own line or trailing a command", () => {
+    expect(shellKindsIn("# Bloquea el compilador directo.\n")).toEqual([
+      "comment",
+    ]);
+    expect(shellKindsIn("exit 2 # así el agente lo lee\n")).toEqual([
+      "comment",
+    ]);
+  });
+
+  test("stays quiet on an English comment and on ordinary shell", () => {
+    expect(
+      shellKindsIn("# Blocks the compiler called directly.\nexit 2\n"),
+    ).toEqual([]);
+  });
+
+  // The hook's whole output is the message it hands back to the agent, which is
+  // the scope #947 was opened over: the comments were swept in #592 and the
+  // stderr line was not.
+  test("catches a Spanish message written to stderr", () => {
+    expect(shellKindsIn("  echo \"Usá 'pnpm typecheck'.\" >&2\n")).toEqual([
+      "error message",
+    ]);
+    expect(
+      shellKindsIn("  echo \"Use 'pnpm typecheck' instead.\" >&2\n"),
+    ).toEqual([]);
+  });
+
+  // Spanish in a string that is not the hook's output is data, the way a quoted
+  // literal is in source.
+  test("leaves a quoted string that is not written to stderr alone", () => {
+    expect(shellKindsIn('label="necesita revisión"\n')).toEqual([]);
+  });
+
+  test("catches a single-quoted message written to stderr", () => {
+    expect(shellKindsIn("  echo 'Usá pnpm typecheck.' >&2\n")).toEqual([
+      "error message",
+    ]);
+  });
+
+  // `stop-typecheck-lint.sh`'s shape, and the reason the scan does not stop at
+  // the redirect line: the sentence the agent reads is assembled several lines
+  // above the `>&2` that prints it.
+  test("catches a message assembled into a variable stderr reads", () => {
+    const hook = [
+      'instruction="Arreglá esto antes de terminar el turno."',
+      `printf '%s\\n' "$instruction" >&2`,
+      "",
+    ].join("\n");
+
+    expect(shellKindsIn(hook)).toEqual(["error message"]);
+    expect(
+      shellKindsIn(
+        hook.replace(
+          "Arreglá esto antes de terminar el turno.",
+          "Fix this before ending the turn.",
+        ),
+      ),
+    ).toEqual([]);
+  });
+
+  // A command substitution is the command's output, not prose this file wrote.
+  test("leaves a captured command's output alone", () => {
+    expect(
+      shellKindsIn(
+        [
+          'output="$(pnpm typecheck 2>&1)"',
+          `printf '%s' "$output" >&2`,
+          "",
+        ].join("\n"),
+      ),
+    ).toEqual([]);
+  });
+
+  // A `#` only opens a comment at line start or after whitespace, the same rule
+  // the YAML scan reads it by.
+  test("does not read a `#` inside a value as a comment", () => {
+    expect(shellKindsIn('issue="#305 la suite"\n')).toEqual([]);
+  });
+
+  // The same argument as the other scan roots: a clean run says nothing about a
+  // directory nobody walks.
+  test("every directory holding tracked shell is scanned", () => {
+    const tracked = execFileSync("git", ["ls-files", "*.sh"], {
+      cwd: process.cwd(),
+      encoding: "utf8",
+    })
+      .split("\n")
+      .filter(Boolean);
+
+    const unaccounted = tracked.filter(
+      (repoRelativePath) =>
+        // At the repo root, which `collectScannedShell` picks up directly.
+        repoRelativePath.includes("/") &&
+        !scannedShellDirectories.some((directory) =>
+          repoRelativePath.startsWith(`${directory}/`),
+        ),
     );
 
     expect(unaccounted).toEqual([]);
