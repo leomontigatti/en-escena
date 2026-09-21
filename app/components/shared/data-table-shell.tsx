@@ -397,11 +397,13 @@ function DataTableSearchField({ search }: { search: DataTableSearchProps }) {
         className="pr-8 pl-8"
       />
       {search.query.length > 0 ? (
+        // Centered with auto margins, not a translate: the button's own pressed
+        // nudge is a translate too, and would replace the centering mid-click.
         <Button
           type="button"
           variant="ghost"
           size="icon-xs"
-          className="absolute top-1/2 right-1 -translate-y-1/2"
+          className="absolute inset-y-0 right-1 my-auto"
           onClick={() => (search.onClear ?? (() => search.onChange("")))()}
         >
           <X aria-hidden="true" data-icon />
