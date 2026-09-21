@@ -256,6 +256,7 @@ describe("`/administracion/bases-del-evento` routes", () => {
         startTime: "",
         totalCapacity: "",
         modalityIds: [],
+        categoryIds: [],
         scheduleCapacities: [],
       },
     });

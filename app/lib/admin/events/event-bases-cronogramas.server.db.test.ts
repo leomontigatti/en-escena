@@ -591,6 +591,7 @@ describe("`/administracion/bases-del-evento` schedule routes", () => {
         startTime: "15:00",
         totalCapacity: "12",
         modalityIds: [modality.id],
+        categoryIds: [],
         scheduleCapacities: [
           { groupType: "", capacity: "" },
           { groupType: "grupal", capacity: "7" },
