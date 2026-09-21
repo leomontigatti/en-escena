@@ -358,6 +358,7 @@ async function listEligibleChoreographies(
     );
   const evaluatedIds = await findEvaluatedChoreographyIds(
     rows.map((row) => row.choreographyId),
+    executor,
   );
 
   return rows.filter((row) => !evaluatedIds.has(row.choreographyId));

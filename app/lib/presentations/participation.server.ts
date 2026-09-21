@@ -179,6 +179,7 @@ export async function runAutomaticOrdering(
       rows
         .filter((row) => row.presentationId !== null)
         .map((row) => row.choreographyId),
+      tx,
     );
 
     if (evaluatedChoreographyIds.size > 0) {

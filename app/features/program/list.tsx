@@ -85,16 +85,16 @@ export function ProgramList({
         textFilterColumnId="nombre"
         // The whole program is worth reading at once, and it has to print.
         hidePagination
-        pageSize={programPageSize}
+        // `hidePagination` only hides the control, so the page size is what
+        // decides whether a large event is truncated on screen: the program
+        // holds one page, whatever the event's size.
+        pageSize={Math.max(visibleRows.length, 1)}
         initialSort={{ columnId: "orden", direction: "asc" }}
         emptyMessage="No hay presentaciones que coincidan con la búsqueda."
       />
     </div>
   );
 }
-
-/** High enough that no event pages, which is what `hidePagination` means. */
-const programPageSize = 1000;
 
 /**
  * The participation list's column order — the number, what the order groups by,
@@ -178,9 +178,6 @@ function buildProgramColumns({
           formatEventSequenceNumber(row.choreographyNumber),
           row.name,
           showAcademy ? row.academyName : "",
-          row.modalityName,
-          row.submodalityName,
-          row.categoryName,
         ]
           .filter(Boolean)
           .join(" "),
