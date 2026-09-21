@@ -1,22 +1,23 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
   categories,
   choreographies,
-  choreographyDancers,
-  dancers,
   events,
   modalities,
   presentations,
   schedules,
   submodalities,
 } from "@/db/schema";
-import { activeInscription } from "@/lib/choreographies/active-inscription";
 import type { Executor } from "@/lib/finances/choreography-cobro-support.server";
 import { readEventChoreographyFinancialStatuses } from "@/lib/finances/operational-summary.server";
 import type { ChoreographyGroupType } from "@/lib/portal/choreographies";
 import { isPresentationEligible } from "@/lib/presentations/ordering";
+import {
+  listsDancerNames,
+  readProgramDancerNames,
+} from "@/lib/presentations/program-dancer-names.server";
 
 /**
  * What one academy is told about the order: the rows of its own choreographies,
@@ -102,7 +103,7 @@ export async function readAcademyPresentations(
           financialStatuses.get(row.choreographyId) ?? "depositPending",
       }),
   );
-  const dancerNamesByChoreography = await readDancerNames(
+  const dancerNamesByChoreography = await readProgramDancerNames(
     executor,
     listed
       .filter((row) => listsDancerNames(row.groupType as ChoreographyGroupType))
@@ -128,11 +129,6 @@ export async function readAcademyPresentations(
     .sort(compareAcademyPresentationRows);
 }
 
-/** A solo dances alone and a duo in two; past that the names stop fitting. */
-function listsDancerNames(groupType: ChoreographyGroupType) {
-  return groupType === "solo" || groupType === "duo";
-}
-
 function compareAcademyPresentationRows(
   left: AcademyPresentationRow,
   right: AcademyPresentationRow,
@@ -146,40 +142,6 @@ function compareAcademyPresentationRows(
   }
 
   return left.choreographyNumber - right.choreographyNumber;
-}
-
-async function readDancerNames(
-  executor: Executor,
-  choreographyIds: string[],
-): Promise<Map<string, string[]>> {
-  const byChoreography = new Map<string, string[]>();
-
-  if (choreographyIds.length === 0) {
-    return byChoreography;
-  }
-
-  const rows = await executor
-    .select({
-      choreographyId: choreographyDancers.choreographyId,
-      firstName: dancers.firstName,
-      lastName: dancers.lastName,
-    })
-    .from(choreographyDancers)
-    .innerJoin(dancers, eq(choreographyDancers.dancerId, dancers.id))
-    .where(
-      and(
-        inArray(choreographyDancers.choreographyId, choreographyIds),
-        activeInscription(),
-      ),
-    );
-
-  for (const row of rows) {
-    const bucket = byChoreography.get(row.choreographyId) ?? [];
-    bucket.push(`${row.firstName} ${row.lastName}`);
-    byChoreography.set(row.choreographyId, bucket);
-  }
-
-  return byChoreography;
 }
 
 /** Whether the organisation published the event's program. */
