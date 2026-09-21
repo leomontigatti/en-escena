@@ -119,6 +119,31 @@ export function evidenceFileProblem(
 }
 
 /**
+ * The name is built from the base name alone, so `admin/list-before.png` and
+ * `portal/list-before.png` would land on one asset and the second would replace
+ * the first without a word.
+ */
+export function evidenceNameCollision(
+  prNumber: number,
+  files: string[],
+): string | undefined {
+  const fileByName = new Map<string, string>();
+
+  for (const file of files) {
+    const name = evidenceAssetName(prNumber, file);
+    const earlier = fileByName.get(name);
+
+    if (earlier !== undefined) {
+      return `${earlier} and ${file} would both be uploaded as ${name}. Rename one.`;
+    }
+
+    fileByName.set(name, file);
+  }
+
+  return undefined;
+}
+
+/**
  * gh names the asset after the file (`<path>#<text>` only sets a display
  * label), so the rename happens on disk, in a directory of its own.
  */
@@ -172,9 +197,11 @@ function runPrEvidence() {
     return fail("Usage: pnpm pr:evidence <pr-number> <image> [<image>...]");
   }
 
-  const problem = files
-    .map((file) => evidenceFileProblem(file))
-    .find((found) => found !== undefined);
+  const problem =
+    files
+      .map((file) => evidenceFileProblem(file))
+      .find((found) => found !== undefined) ??
+    evidenceNameCollision(prNumber, files);
 
   if (problem) {
     return fail(problem);

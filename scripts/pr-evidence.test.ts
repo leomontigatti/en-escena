@@ -4,6 +4,7 @@ import {
   evidenceAssetName,
   evidenceAssetUrl,
   evidenceFileProblem,
+  evidenceNameCollision,
   renderEvidenceMarkdown,
 } from "./pr-evidence";
 
@@ -57,5 +58,19 @@ describe("PR evidence (#1115)", () => {
     expect(evidenceFileProblem("/tmp/missing.png", () => false)).toBe(
       "No such file: /tmp/missing.png",
     );
+  });
+
+  test("refuses two files that would land on the same asset", () => {
+    expect(
+      evidenceNameCollision(7, [
+        "admin/list-before.png",
+        "portal/list-before.png",
+      ]),
+    ).toBe(
+      "admin/list-before.png and portal/list-before.png would both be uploaded as pr-7-list-before.png. Rename one.",
+    );
+    expect(
+      evidenceNameCollision(7, ["list-before.png", "list-after.png"]),
+    ).toBeUndefined();
   });
 });

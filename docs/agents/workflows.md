@@ -148,7 +148,8 @@ Rules for a session:
   the thread through the `link_pull_request` tool so T3 shows its status and
   settles the thread when it merges. To keep working on an existing PR, start
   the thread on that branch (or link the PR) instead of checking it out in
-  another worktree.
+  another worktree. What goes in the PR body, and how UI evidence is attached,
+  is in [pull-requests.md](./pull-requests.md).
 - **Read-only threads** (writing issues, triage, reviewing a PR without editing
   code) can be started with the "local" workspace mode to skip the install; they
   must not change branches.
@@ -410,7 +411,7 @@ Hook guidance:
 - `pnpm check:comment-language` fails on Spanish prose in a comment or a test
   name anywhere under `.sandcastle/`, `app/`, `scripts/` or `tests/`, plus the
   repo-root configs (#592); on Spanish in the `.md` under `.claude/`,
-  `.sandcastle/` and `docs/` — `docs/adr/` and `docs/research/` excepted,
+  `.github/`, `.sandcastle/` and `docs/` — `docs/adr/` and `docs/research/` excepted,
   because both are records of something external (#792); on the `#` comments in
   the YAML under `.github/` and at the repo root (#793); and on the `#` comments
   and the stderr messages of the `.sh` under `.claude/` and `scripts/`, the hooks
