@@ -35,13 +35,20 @@ Emit a single `<output>` block as the **last thing** in your response:
 <output>
 {
   "prTitle": "feat: short imperative summary",
-  "prDescription": "## Summary\n\n- bullet 1\n- bullet 2\n\nCloses #{{ISSUE_NUMBER}}"
+  "prDescription": "The problem, in one or two sentences.\n\nThe fix, in a short paragraph or a few bullets.\n\nCloses #{{ISSUE_NUMBER}}"
 }
 </output>
 ```
 
 - `prTitle`: single line, < 70 chars, conventional-commit style.
-- `prDescription`: must include `Closes #{{ISSUE_NUMBER}}` so the PR closes the issue on merge.
+- `prDescription` follows `docs/agents/pull-requests.md` § Body. The reviewer has the diff and
+  the issue open, so:
+  - open with the problem in one or two sentences, then the fix in a short paragraph or a few
+    bullets. No `## Summary` heading, no subsections;
+  - do not restate the issue: its investigation, alternatives and domain reasoning stay there;
+  - add a `Validation:` line only for what the commit messages say was run. You ran nothing, so
+    never claim a command yourself; with nothing to report, leave the line out;
+  - end with `Closes #{{ISSUE_NUMBER}}` so the PR closes the issue on merge.
 - Both are written in **English**, per `.sandcastle/CODING_STANDARDS.md` § Code Language.
   Spanish appears only inside backticks, as data (UI copy, route segments, `CONTEXT.md`
   vocabulary).

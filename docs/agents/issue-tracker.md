@@ -15,6 +15,28 @@ the source of truth for issue and pull request operations.
 
 Infer the repo from `git remote -v` - `gh` does this automatically when run inside a clone.
 
+## Filing an issue from an investigation
+
+When a session files an issue out of something it investigated (a bug it hit, a
+finding from a review, a comparison), the body carries what the next reader
+cannot rebuild cheaply, in this order:
+
+1. **What happened**, or what is missing, as the user or maintainer sees it.
+2. **Diagnosis**, grounded in source: `path:line`, the command and its output,
+   the PR or commit. A guess is labelled as a guess.
+3. **Steps to reproduce**, for a bug, when a deterministic path was found.
+4. **Evidence**: only the relevant log lines or output, never a dump, and
+   nothing from a database refreshed from production.
+5. **Related issues**, and why this one is not a duplicate of them.
+6. **What to build** and **acceptance criteria**, when the issue is meant to be
+   `ready-for-agent`; an open decision is said to be one and the issue is
+   `question` + `ready-for-human` instead.
+
+One problem per issue. Triage it on the way out
+([triage-labels.md](./triage-labels.md)) or leave `needs-triage` on it. PRDs and
+their sub-issues keep their own templates
+([workflows.md](./workflows.md#prd-workflow)).
+
 ## Closing an issue
 
 Closing means **a decision was made**. It does not mean the code changed. Five

@@ -37,6 +37,8 @@ Index of the repo's conventions. Every operative rule lives in its own file unde
   re-adding a component the CLI would overwrite.
 - **Form feedback and redirection** (stay/redirect matrix, flash session vs. direct
   `actionData`): [docs/agents/form-feedback.md](docs/agents/form-feedback.md).
+- **Pull requests** (short body shape, UI evidence, babysitting a PR):
+  [docs/agents/pull-requests.md](docs/agents/pull-requests.md).
 - **Issue tracker** (GitHub Issues via `gh`): [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md).
 - **Triage labels**: [docs/agents/triage-labels.md](docs/agents/triage-labels.md).
 - **Domain docs** (single-context layout): [docs/agents/domain.md](docs/agents/domain.md).
