@@ -52,10 +52,22 @@ Rules for roster links, choreography registration, locks and `Bases del evento`.
   told another academy's record exists. The rejection names no one: the roster
   stores no gender, so the sentence agrees with the person-kind noun
   (`Reactivá este bailarín…`) instead of with an interpolated name.
-- **Archiving is never refused.** There is no guard: archiving a dancer
-  registered in the `Evento activo` succeeds and the inscription is untouched. The
-  archive confirmation says so before the academy confirms; the sentence is
-  static and queries nothing.
+- **Archiving is refused while the person is participating in the
+  `Evento activo`.** Someone dancing in the event that is running now is still
+  being worked with, so the roster cannot let them go: both surfaces refuse it,
+  for both person kinds, with one sentence per kind
+  (`Este bailarín no puede archivarse porque está participando del evento
+activo.`) and no confirm-anyway escape hatch. Participating means, for the
+  `Evento activo` only: a live inscription on a choreography that is itself not
+  withdrawn, a professor linked to such a choreography, or a live seminar
+  inscription. Both withdrawal axes exclude — a person whose commitments are
+  all withdrawn can be archived — and a link in a past event never blocks. With
+  no `Evento activo` nothing is live and nothing is protected. The refusal names
+  no choreography: the `Inscripciones` tab already lists them.
+- The refusal is not the grandfather rule. An archived person already on a
+  choreography stays on it, and archiving still changes no inscription: the
+  archive confirmation still says so before the academy confirms, and its
+  readers are now exactly the people it was written for.
 - Archiving is reversible and lossless. Reactivating always succeeds, puts the
   person back in the pickers immediately and requires nothing else. There is no
   hard delete, no archive date and no archive reason.
