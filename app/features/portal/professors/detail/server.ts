@@ -5,6 +5,7 @@ import {
   updateAcademyProfessor,
   type UpdateProfessorInput,
 } from "@/lib/portal/professors.server";
+import { findActiveEventParticipation } from "@/lib/roster/active-event-participation.server";
 import {
   getRosterPersonNotFoundMessage,
   setRosterPersonStatus,
@@ -28,6 +29,10 @@ export async function loadPortalProfessorDetail({
   const professor = await requireProfessor(academy.id, professorId);
 
   return {
+    isParticipatingInActiveEvent: await findActiveEventParticipation({
+      kind: "professor",
+      personId: professorId,
+    }),
     professor,
   };
 }

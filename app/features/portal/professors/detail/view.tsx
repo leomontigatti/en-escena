@@ -11,8 +11,8 @@ import {
   documentTypeEmptyLabel,
   documentTypeOptions,
 } from "@/components/shared/document-type-options";
-import { getArchiveKeepsRosterMessage } from "@/lib/roster/roster-person-status.shared";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
+import { RosterPersonParticipatingAlert } from "@/components/shared/roster-person-participating-alert";
 import { SelectField } from "@/components/shared/select-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -34,6 +34,8 @@ import { useServerActionToast } from "@/lib/shared/toasts";
 import { useRecordTitleDetailTransitionStyle } from "@/lib/shared/view-transitions";
 import {
   archiveProfessorIntent,
+  buildPortalProfessorDetailViewModel,
+  portalProfessorStatusActions,
   professorDetailFormId,
   professorSchema,
   reactivateProfessorIntent,
@@ -51,35 +53,6 @@ type ProfessorFormReturn = UseFormReturn<
   unknown,
   ProfessorFormValues
 >;
-type ProfessorStatusAction = {
-  intent: ProfessorStatusIntent;
-  label: string;
-  confirmTitle: string;
-  confirmDescription: string;
-  confirmButtonLabel: string;
-  confirmButtonVariant: "default" | "destructive";
-};
-
-const professorStatusActions = {
-  [archiveProfessorIntent]: {
-    intent: archiveProfessorIntent,
-    label: "Archivar",
-    confirmTitle: "¿Archivar profesor?",
-    confirmDescription: `El profesor dejará de aparecer en listas activas y en próximas selecciones de coreografías. ${getArchiveKeepsRosterMessage("professor")}`,
-    confirmButtonLabel: "Archivar",
-    confirmButtonVariant: "destructive",
-  },
-  [reactivateProfessorIntent]: {
-    intent: reactivateProfessorIntent,
-    label: "Reactivar",
-    confirmTitle: "¿Reactivar profesor?",
-    confirmDescription:
-      "El profesor volverá a aparecer en listas activas y en próximas selecciones de coreografías. Sus coreografías existentes no se modifican.",
-    confirmButtonLabel: "Reactivar",
-    confirmButtonVariant: "default",
-  },
-} as const satisfies Record<ProfessorStatusIntent, ProfessorStatusAction>;
-
 export type PortalProfessorDetailRouteViewProps = {
   loaderData: LoaderData;
   actionData?: ActionData;
@@ -107,7 +80,11 @@ export function PortalProfessorDetailRouteView({
   });
   const [statusDialogIntent, setStatusDialogIntent] =
     useState<ProfessorStatusIntent | null>(initialStatusDialogIntent);
-  const statusAction = getProfessorStatusAction(loaderData.professor.active);
+  const { participatingAlert, statusAction } =
+    buildPortalProfessorDetailViewModel({
+      active: loaderData.professor.active,
+      isParticipatingInActiveEvent: loaderData.isParticipatingInActiveEvent,
+    });
   const isSubmitting =
     navigation.state !== "idle" &&
     navigation.formData?.get("intent") === updateProfessorIntent;
@@ -149,6 +126,7 @@ export function PortalProfessorDetailRouteView({
           </div>
           <ResourceActionsMenu contentClassName="w-40">
             <DropdownMenuItem
+              disabled={statusAction.disabled}
               variant={statusAction.confirmButtonVariant}
               onSelect={(event) => {
                 event.preventDefault();
@@ -168,6 +146,9 @@ export function PortalProfessorDetailRouteView({
                 setStatusDialogIntent(reactivateProfessorIntent);
               }}
             />
+          ) : null}
+          {participatingAlert ? (
+            <RosterPersonParticipatingAlert message={participatingAlert} />
           ) : null}
           {loaderData.professor.isIncomplete ? (
             <Alert variant="warning">
@@ -301,7 +282,7 @@ function ProfessorStatusDialog({
   intent: ProfessorStatusIntent | null;
   onOpenChange: (open: boolean) => void;
 }) {
-  const action = intent ? professorStatusActions[intent] : null;
+  const action = intent ? portalProfessorStatusActions[intent] : null;
   const isOpen = action !== null;
   const dialogFormId = getProfessorStatusFormId(intent);
 
@@ -352,14 +333,6 @@ function ProfessorStatusActionIcon({
   }
 
   return <RotateCcw aria-hidden="true" data-icon="inline-start" />;
-}
-
-function getProfessorStatusAction(isActive: boolean) {
-  if (isActive) {
-    return professorStatusActions[archiveProfessorIntent];
-  }
-
-  return professorStatusActions[reactivateProfessorIntent];
 }
 
 function getProfessorFieldAutoComplete(name: FieldPath<ProfessorFormValues>) {

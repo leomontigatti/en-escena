@@ -192,6 +192,7 @@ function buildDancerDetailLoaderData() {
 
 function buildProfessorDetailLoaderData() {
   return {
+    isParticipatingInActiveEvent: false,
     professor: {
       id: "professor_1",
       firstName: "Luz",

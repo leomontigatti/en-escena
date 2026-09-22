@@ -12,6 +12,7 @@ describe("PortalProfessorDetailRouteView", () => {
   test("renders the editable ficha", () => {
     const markup = renderProfessorDetail({
       loaderData: {
+        isParticipatingInActiveEvent: false,
         professor: professorListItem({
           id: "profesor_1",
           firstName: "Ana",
@@ -73,6 +74,7 @@ describe("PortalProfessorDetailRouteView", () => {
   test("shows saved target state without incomplete alerts", () => {
     const markup = renderProfessorDetail({
       loaderData: {
+        isParticipatingInActiveEvent: false,
         professor: professorListItem({
           documentType: "dni",
           documentNumber: "12345678",
@@ -88,6 +90,7 @@ describe("PortalProfessorDetailRouteView", () => {
   test("shows archived alerts and reactivate action", () => {
     const markup = renderProfessorDetail({
       loaderData: {
+        isParticipatingInActiveEvent: false,
         professor: professorListItem({
           active: false,
           isIncomplete: false,
@@ -107,6 +110,7 @@ describe("PortalProfessorDetailRouteView", () => {
   test("shows the reactivation confirmation", () => {
     const markup = renderProfessorDetail({
       loaderData: {
+        isParticipatingInActiveEvent: false,
         professor: professorListItem({
           active: false,
         }),
@@ -130,7 +134,12 @@ function renderProfessorDetail(input: Partial<ProfessorDetailViewProps> = {}) {
         action: async () => null,
         element: (
           <PortalProfessorDetailRouteView
-            loaderData={input.loaderData ?? { professor: professorListItem() }}
+            loaderData={
+              input.loaderData ?? {
+                isParticipatingInActiveEvent: false,
+                professor: professorListItem(),
+              }
+            }
             actionData={input.actionData}
             initialStatusDialogIntent={input.initialStatusDialogIntent}
           />
