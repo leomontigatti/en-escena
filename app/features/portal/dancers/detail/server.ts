@@ -1,5 +1,6 @@
 import type { z } from "zod";
 
+import { withDancerBirthDateScheduleMoveFeedback } from "@/lib/choreographies/dancer-birthdate-messages";
 import { formatUploadRejection } from "@/lib/storage/asset-kinds";
 import {
   type DancerDocumentSide,
@@ -178,7 +179,10 @@ export async function handlePortalDancerDetailAction(input: {
 
   return {
     status: "success" as const,
-    message: notificationToasts["bailarin-guardado"].message,
+    message: withDancerBirthDateScheduleMoveFeedback(
+      notificationToasts["bailarin-guardado"].message,
+      result.scheduleMoves,
+    ),
   };
 }
 

@@ -18,6 +18,7 @@ export type {
   CompatibleScheduleCapacity,
   CompatibleScheduleCapacityResolution,
   EventBasesDeleteResult,
+  EventBasesExecutor,
   EventBasesMutationResult,
   ScheduleCapacityInput,
   ScheduleInput,

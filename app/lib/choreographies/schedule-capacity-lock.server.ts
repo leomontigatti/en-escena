@@ -8,6 +8,14 @@ import type { ChoreographyGroupType } from "@/lib/finances/operational-summary-c
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
+/**
+ * The connection the lock runs on. Every caller that writes opens a
+ * transaction — `FOR UPDATE` outside one is released immediately and guards
+ * nothing — but the birth-date correction reaches this pair through an
+ * executor it is handed, so the pool is part of the type.
+ */
+type ScheduleCapacityLockExecutor = Transaction | typeof db;
+
 export const invalidScheduleEntryMessage =
   "Elegí un cupo de cronograma compatible para confirmar la coreografía.";
 
@@ -70,7 +78,7 @@ export type ScheduleCapacityMoveResult =
  * into a duo moves the price key with no schedule moving at all.
  */
 export async function guardAndLockScheduleCapacityMove(input: {
-  tx: Transaction;
+  tx: ScheduleCapacityLockExecutor;
   choreographyId: string;
   destinationGroupType: ChoreographyGroupType;
   scheduleId: string;
@@ -117,7 +125,7 @@ export async function guardAndLockScheduleCapacityMove(input: {
  * disagrees is rejected as an invalid selection.
  */
 export async function lockScheduleCapacityForAssignment(input: {
-  tx: Transaction;
+  tx: ScheduleCapacityLockExecutor;
   scheduleId: string;
   scheduleCapacityId: string | null;
   excludeChoreographyId?: string;

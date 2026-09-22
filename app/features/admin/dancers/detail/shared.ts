@@ -6,6 +6,10 @@ import type {
   DancerEditConsequence,
   findDancer,
 } from "@/lib/admin/dancers/dancers.server";
+import {
+  withDancerBirthDateScheduleMoveFeedback,
+  type DancerBirthDateScheduleMove,
+} from "@/lib/choreographies/dancer-birthdate-messages";
 import { buildBirthDateRefinement } from "@/lib/dancers/birth-date";
 import { getArchiveKeepsRosterMessage } from "@/lib/roster/roster-person-status.shared";
 import { requiredFieldMessage } from "@/lib/shared/forms";
@@ -148,10 +152,14 @@ export function buildModeHref(
 // toast directly from `actionData`. See docs/agents/form-feedback.md.
 export function buildDancerActionSuccess(
   notification: DancerRouteNotification,
+  scheduleMoves: DancerBirthDateScheduleMove[] = [],
 ): DancerActionSuccess {
   return {
     status: "success",
-    message: notificationToasts[notification].message,
+    message: withDancerBirthDateScheduleMoveFeedback(
+      notificationToasts[notification].message,
+      scheduleMoves,
+    ),
   };
 }
 

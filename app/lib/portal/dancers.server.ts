@@ -17,6 +17,7 @@ import {
   applyDancerBirthDateCorrection,
   loadLinkedChoreographyEventBasesForDancerBirthDateCorrection,
   runDancerWriteWithBirthDateCorrection,
+  type DancerBirthDateScheduleMove,
 } from "@/lib/choreographies/dancer-birthdate-correction.server";
 import { buildDancerEventParticipationSql } from "@/lib/participation/participation.server";
 import { activeRosterPerson } from "@/lib/roster/roster-person-status.server";
@@ -71,7 +72,13 @@ export type CreateDancerResult =
 
 export type UpdateDancerField = keyof UpdateDancerInput;
 export type UpdateDancerResult =
-  | { ok: true; dancer: typeof dancers.$inferSelect }
+  | {
+      ok: true;
+      dancer: typeof dancers.$inferSelect;
+      // What the birth-date correction moved to another schedule, for the
+      // success feedback to name.
+      scheduleMoves: DancerBirthDateScheduleMove[];
+    }
   | {
       ok: false;
       error: string;
@@ -193,6 +200,7 @@ export async function updateDancerForAcademy(
   // The dancer update and the recalculation share one transaction, so a
   // correction that leaves a choreography without a category rolls the dancer
   // row back as well.
+  const scheduleMoves: DancerBirthDateScheduleMove[] = [];
   const write = await runDancerWriteWithBirthDateCorrection(async (tx) => {
     const [savedDancer] = await tx
       .update(dancers)
@@ -213,11 +221,13 @@ export async function updateDancerForAcademy(
       .returning();
 
     if (birthDateChanged) {
-      await applyDancerBirthDateCorrection({
-        dancerId: dancer.id,
-        executor: tx,
-        eventBasesByEventId: linkedChoreographyEventBases,
-      });
+      scheduleMoves.push(
+        ...(await applyDancerBirthDateCorrection({
+          dancerId: dancer.id,
+          executor: tx,
+          eventBasesByEventId: linkedChoreographyEventBases,
+        })),
+      );
     }
 
     return savedDancer;
@@ -232,7 +242,7 @@ export async function updateDancerForAcademy(
     };
   }
 
-  return { ok: true, dancer: write.dancer };
+  return { ok: true, dancer: write.dancer, scheduleMoves };
 }
 
 function validateCreateDancerInput(

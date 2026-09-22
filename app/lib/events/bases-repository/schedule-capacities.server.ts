@@ -206,6 +206,10 @@ export async function resolveCompatibleScheduleCapacities(input: {
   modalityId: string;
   groupType: string;
   categoryId: string | null;
+  // The connection to read the bases on. The birth-date correction resolves
+  // schedules from inside its own transaction and has to see what that
+  // transaction sees.
+  executor?: EventBasesExecutor;
 }): Promise<CompatibleScheduleCapacityResolution> {
   if (!isGroupType(input.groupType)) {
     return {
@@ -220,6 +224,7 @@ export async function resolveCompatibleScheduleCapacities(input: {
     modalityId: input.modalityId,
     groupType: input.groupType,
     categoryId: input.categoryId,
+    executor: input.executor ?? db,
   });
 
   if (compatibleOptions.length === 0) {
@@ -506,8 +511,9 @@ async function findCompatibleScheduleCapacities(input: {
   modalityId: string;
   groupType: GroupType;
   categoryId: string | null;
+  executor: EventBasesExecutor;
 }): Promise<CompatibleScheduleCapacity[]> {
-  const compatibleSchedules = await db
+  const compatibleSchedules = await input.executor
     .select({
       id: schedules.id,
       name: schedules.name,
@@ -534,15 +540,16 @@ async function findCompatibleScheduleCapacities(input: {
     return [];
   }
 
-  const specificCapacities = await db.query.scheduleCapacities.findMany({
-    where: and(
-      inArray(
-        scheduleCapacities.scheduleId,
-        compatibleSchedules.map((schedule) => schedule.id),
+  const specificCapacities =
+    await input.executor.query.scheduleCapacities.findMany({
+      where: and(
+        inArray(
+          scheduleCapacities.scheduleId,
+          compatibleSchedules.map((schedule) => schedule.id),
+        ),
+        eq(scheduleCapacities.groupType, input.groupType),
       ),
-      eq(scheduleCapacities.groupType, input.groupType),
-    ),
-  });
+    });
   const specificCapacityByScheduleId = new Map(
     specificCapacities.map((capacity) => [capacity.scheduleId, capacity]),
   );

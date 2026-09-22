@@ -23,6 +23,9 @@ Rules for roster links, choreography registration, locks and `Bases del evento`.
 - Academy cannot edit identity data or document images after a dancer is verified; later corrections are administrative.
 - Correcting dancer birth date can recalculate categories for signed or paid choreographies until they are evaluated; it does not change financial state.
 - A birth-date correction is refused when it would leave a linked choreography without a category: nothing is written, and the message names each choreography by number and name.
+- A birth-date correction also re-resolves each linked choreography's schedule with its new category. The choreography stays where it is when its schedule still accepts the category; when it does not, and exactly one schedule of the event accepts it, has room and does not change the price of money already assigned, the choreography moves there in the same transaction.
+- The correction is refused whole when a choreography would be left in a schedule that does not accept its new category and there is no single schedule to move it to — none, several, one already full, or one that would change a held price. Nothing is written, the dancer's birth date included, and the message names each choreography by number and name.
+- A correction that moved choreographies reports it on success, naming each choreography and the schedule it moved to.
 
 ### `Estado de alta` for roster people
 

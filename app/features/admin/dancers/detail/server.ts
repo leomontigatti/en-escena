@@ -163,6 +163,7 @@ export async function handleDancerDetailAction(input: {
     result.verificationInvalidated
       ? "bailarin-guardado-requiere-verificacion"
       : "bailarin-guardado",
+    result.scheduleMoves,
   );
 }
 
