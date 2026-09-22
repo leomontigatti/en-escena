@@ -6,6 +6,10 @@ import type {
   DancerEditConsequence,
   findDancer,
 } from "@/lib/admin/dancers/dancers.server";
+import {
+  withDancerBirthDateScheduleMoveFeedback,
+  type DancerBirthDateScheduleMove,
+} from "@/lib/choreographies/dancer-birthdate-messages";
 import type { RecategorisedChoreography } from "@/lib/choreographies/recategorisation-report";
 import { buildBirthDateRefinement } from "@/lib/dancers/birth-date";
 import { getArchiveKeepsRosterMessage } from "@/lib/roster/roster-person-status.shared";
@@ -153,10 +157,14 @@ export function buildDancerActionSuccess(
   // Explicit at every call site: an intent that forgets it would silently
   // report no recategorisation rather than the one it just caused.
   recategorisedChoreographies: RecategorisedChoreography[],
+  scheduleMoves: DancerBirthDateScheduleMove[] = [],
 ): DancerActionSuccess {
   return {
     status: "success",
-    message: notificationToasts[notification].message,
+    message: withDancerBirthDateScheduleMoveFeedback(
+      notificationToasts[notification].message,
+      scheduleMoves,
+    ),
     recategorisedChoreographies,
   };
 }

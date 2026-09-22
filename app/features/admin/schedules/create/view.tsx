@@ -34,10 +34,11 @@ export function EventScheduleCreateView({
     <AdminResourceLayout
       selectedEventId={loaderData.selectedEventId}
       title="Nuevo cronograma"
-      description="Definí fecha, hora, cupo total y modalidades aceptadas para este cronograma."
+      description="Definí fecha, hora, cupo total, y modalidades y categorías aceptadas para este cronograma."
     >
       <ScheduleFormPanel>
         <ScheduleForm
+          categories={loaderData.categories}
           form={form}
           formId={createScheduleFormId}
           intent="create-schedule"

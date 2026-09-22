@@ -11,6 +11,7 @@ import {
   prices,
   presentations,
   scheduleCapacities,
+  scheduleCategories,
   schedules,
   submodalities,
 } from "@/db/schema";
@@ -1551,6 +1552,39 @@ describe("administrative choreography detail server", () => {
     }
 
     expect(new Set(accepted)).toEqual(offeredIds);
+  });
+
+  test("omits a schedule that does not accept the choreography's category", async () => {
+    const scenario = await createScheduleCapacityScenario({
+      academyName: "Academia Cronograma Por Categoría",
+      slug: "cronograma.categoria",
+    });
+    // The alternative becomes the other show: it takes the modality, but only
+    // for a category this choreography does not have.
+    await db.insert(scheduleCategories).values({
+      scheduleId: scenario.target.schedule.id,
+      categoryId: scenario.catalog.categoryWithoutLevel.id,
+    });
+
+    const detail = await loadDetail({
+      choreographyId: scenario.choreography.id,
+      email: "admin.coreografias.cronograma.categoria.detalle@example.com",
+      role: "admin",
+    });
+
+    expect(detail.scheduleCapacity.options.map((option) => option.id)).toEqual([
+      scenario.catalog.scheduleCapacity.id,
+    ]);
+    expect(detail.scheduleCapacity.canReassign).toBe(false);
+
+    // The intent refuses exactly what the field never offered.
+    await expect(
+      scenario.reassignTo(scenario.target.scheduleCapacity.id),
+    ).resolves.toMatchObject({
+      message:
+        "No se puede cambiar el cupo de cronograma: no hay otro cronograma compatible con esta coreografía.",
+      status: "error",
+    });
   });
 
   test("keeps an assignment that fell outside compatibility even when every alternative reprices", async () => {

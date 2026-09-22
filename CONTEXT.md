@@ -45,7 +45,7 @@ Condition indicating whether an event's results are visible or hidden.
 _Avoid_: `eventStatus`, active
 
 **`schedule`** — ui: "Cronograma"
-A programming slot of an event, with name, local date, local time, accepted modalities and total choreography capacity. When no specific schedule capacity exists for a choreography's group type, the choreography may consume the schedule's total capacity as a global allowance.
+A programming slot of an event, with name, local date, local time, accepted modalities, optionally accepted categories, and total choreography capacity. Listing no category means it accepts every category, which is how a schedule that names none behaves. When no specific schedule capacity exists for a choreography's group type, the choreography may consume the schedule's total capacity as a global allowance.
 _Avoid_: time block, loose time slot, full agenda
 
 **`scheduleCapacity`** — ui: "Cupo de cronograma"

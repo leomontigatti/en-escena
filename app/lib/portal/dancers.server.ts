@@ -16,9 +16,12 @@ import {
 import type { RecategorisedChoreography } from "@/lib/choreographies/recategorisation-report";
 import {
   applyDancerBirthDateCorrection,
+  emptyDancerBirthDateCorrectionReport,
   loadLinkedChoreographyEventBasesForDancerBirthDateCorrection,
   runDancerWriteWithBirthDateCorrection,
+  type DancerBirthDateScheduleMove,
 } from "@/lib/choreographies/dancer-birthdate-correction.server";
+import type { EventBases } from "@/lib/events/bases.server";
 import { buildDancerEventParticipationSql } from "@/lib/participation/participation.server";
 import { activeRosterPerson } from "@/lib/roster/roster-person-status.server";
 import {
@@ -75,6 +78,9 @@ export type UpdateDancerResult =
   | {
       ok: true;
       dancer: typeof dancers.$inferSelect;
+      // What the birth-date correction moved to another schedule, for the
+      // success feedback to name.
+      scheduleMoves: DancerBirthDateScheduleMove[];
       recategorisedChoreographies: RecategorisedChoreography[];
     }
   | {
@@ -190,11 +196,14 @@ export async function updateDancerForAcademy(
   }
 
   const birthDateChanged = dancer.birthDate !== validation.input.birthDate;
-  const linkedChoreographyEventBases = birthDateChanged
+  // Read before the transaction opens: the correction requires the bases, and
+  // reading them from the pool inside its transaction would hold two
+  // connections at once.
+  const linkedChoreographyEventBases: Map<string, EventBases> = birthDateChanged
     ? await loadLinkedChoreographyEventBasesForDancerBirthDateCorrection({
         dancerId: dancer.id,
       })
-    : undefined;
+    : new Map();
   // The dancer update and the recalculation share one transaction, so a
   // correction that leaves a choreography without a category rolls the dancer
   // row back as well.
@@ -217,15 +226,15 @@ export async function updateDancerForAcademy(
       .where(and(eq(dancers.id, dancerId), eq(dancers.academyId, academyId)))
       .returning();
 
-    const recategorisedChoreographies = birthDateChanged
+    const correction = birthDateChanged
       ? await applyDancerBirthDateCorrection({
           dancerId: dancer.id,
           executor: tx,
           eventBasesByEventId: linkedChoreographyEventBases,
         })
-      : [];
+      : emptyDancerBirthDateCorrectionReport;
 
-    return { savedDancer, recategorisedChoreographies };
+    return { savedDancer, ...correction };
   });
 
   if (!write.ok) {
@@ -240,6 +249,7 @@ export async function updateDancerForAcademy(
   return {
     ok: true,
     dancer: write.result.savedDancer,
+    scheduleMoves: write.result.scheduleMoves,
     recategorisedChoreographies: write.result.recategorisedChoreographies,
   };
 }

@@ -126,6 +126,7 @@ async function resolveScheduleCapacityCandidates(input: {
       eventId: input.eventId,
       groupType: input.choreography.groupType,
       modalityId: input.choreography.modalityId,
+      categoryId: input.choreography.categoryId,
     }),
     loadPriceDivergenceCheck({
       choreographyId: input.choreography.id,

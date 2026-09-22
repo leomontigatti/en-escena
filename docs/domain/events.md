@@ -10,11 +10,13 @@ Rules for event context, `Bases del evento`, administration and portal behavior.
 - `Visibilidad de resultados` is controlled by publish/unpublish actions and is independent from active status and temporal state.
 - `Cronograma` dates and times are local business dates/times, without their own timezone.
 - A `Cupo de cronograma` consumes capacity inside a `Cronograma`; the sum of its capacities cannot exceed the `Cronograma` capacity.
+- A `Cronograma` accepts modalities, and optionally categories: listing no category means it accepts every one of them. A listed category has to belong to the event and share a modality with the schedule's accepted modalities, re-checked on every save, and cannot be deleted while a `Cronograma` lists it.
 - A choreography first uses a `Cupo de cronograma` when schedule modality and capacity group type are compatible.
 - If a compatible `Cronograma` has no `Cupo de cronograma` for the choreography group type, the choreography falls back to the `Cronograma` total capacity as global capacity.
 - A `Cupo de cronograma` can be deleted under a `Coreografía retirada` — the reference is released — while a `Cronograma` cannot be deleted while any choreography, withdrawn or not, is assigned to it. The asymmetry and its refusal are stated in [choreographies.md](choreographies.md#a-withdrawn-choreography).
 - `Bases del evento` includes modalities, submodalities, categories, experience levels, schedules, schedule capacities and prices. It does not include Events.
 - An event cannot open its `Período de inscripción` while its categories leave an age uncovered: for every `Modalidad` and `Tipo de grupo` its categories reach, ages 1 to 100 must be covered by exactly one `Categoría`. A gap is a choreography that cannot be placed; an overlap makes the `Categoría` depend on the order the `Bases del evento` load in. A `Modalidad` that declares no `Categoría` at all for a `Tipo de grupo` is offering nothing there and is not asked for coverage; a choreography never lands on that pair either, because registration refuses a choreography that resolves to no category.
+- Registration readiness resolves a schedule the same way registration does, categories included: a `Categoría` that no `Cronograma` accepts for a `Modalidad` and `Tipo de grupo` it reaches is reported as a missing compatible schedule capacity, so a category left out of every show surfaces in the readiness instead of blocking a registration.
 
 ## Administration and portal
 

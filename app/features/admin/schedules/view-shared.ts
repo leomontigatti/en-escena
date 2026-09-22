@@ -6,7 +6,7 @@ import type {
 } from "@/lib/admin/events/bases-action/shared.server";
 import type { DataTableFacetedFiltersOf } from "@/components/shared/data-table";
 import type { ScheduleListItem } from "@/lib/events/bases.server";
-import { groupTypeOptions } from "@/lib/events/group-types";
+import { groupTypeLabels, groupTypeOptions } from "@/lib/events/group-types";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 
 const scheduleDateFormatter = new Intl.DateTimeFormat("es-AR", {
@@ -40,6 +40,8 @@ export const scheduleFormSchema = z
       .min(1, requiredFieldMessage)
       .refine(isPositiveIntegerString, "Ingresá un cupo total mayor a cero."),
     modalityIds: z.array(z.string()).min(1, requiredFieldMessage),
+    // Optional: an empty selection is the schedule accepting every category.
+    categoryIds: z.array(z.string()),
     scheduleCapacities: z.array(inlineScheduleCapacityFormSchema),
   })
   .superRefine((values, context) => {
@@ -75,6 +77,52 @@ export const scheduleFormSchema = z
 export type ScheduleFormValues = z.infer<typeof scheduleFormSchema>;
 
 export const emptySelection: string[] = [];
+
+export const scheduleCategoriesDescription =
+  "Si no elegís ninguna, el cronograma acepta todas las categorías.";
+
+type ScheduleCategoryOptionSource = {
+  id: string;
+  name: string;
+  minAge: number;
+  maxAge: number;
+  groupTypes: readonly string[];
+  modalityIds: string[];
+};
+
+/**
+ * The categories a schedule could ever place: the ones sharing a modality with
+ * the modalities selected on the form, in the order the categories come in.
+ * Labelled with the age range and the group types because category names repeat
+ * inside an event, and the name alone would offer the same option twice.
+ */
+export function getScheduleCategoryOptions(
+  categories: ScheduleCategoryOptionSource[],
+  modalityIds: string[],
+) {
+  const selectedModalityIds = new Set(modalityIds);
+
+  return categories
+    .filter((category) =>
+      category.modalityIds.some((modalityId) =>
+        selectedModalityIds.has(modalityId),
+      ),
+    )
+    .map((category) => ({
+      value: category.id,
+      label: formatScheduleCategoryOptionLabel(category),
+    }));
+}
+
+function formatScheduleCategoryOptionLabel(
+  category: ScheduleCategoryOptionSource,
+) {
+  const groupTypes = category.groupTypes
+    .map((groupType) => (groupTypeLabels[groupType] ?? groupType).toLowerCase())
+    .join(", ");
+
+  return `${category.name} · ${category.minAge}–${category.maxAge} · ${groupTypes}`;
+}
 export const emptyScheduleCapacities: ScheduleListItem["scheduleCapacities"] =
   [];
 
@@ -262,6 +310,7 @@ function isScheduleActionValues(
     "startTime" in values &&
     "totalCapacity" in values &&
     "modalityIds" in values &&
+    "categoryIds" in values &&
     "scheduleCapacities" in values
   );
 }

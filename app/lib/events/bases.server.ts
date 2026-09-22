@@ -12,6 +12,7 @@ import {
   resolveCompatibleScheduleCapacities,
   type CompatibleScheduleCapacity,
   type CompatibleScheduleCapacityResolution,
+  type EventBasesExecutor,
   type ScheduleListItem,
 } from "@/lib/schedules/repository.server";
 
@@ -102,6 +103,8 @@ export async function resolveEventBasesScheduleOptions(input: {
   eventId: string;
   modalityId: string;
   groupType: string;
+  categoryId: string | null;
+  executor?: EventBasesExecutor;
 }): Promise<CompatibleScheduleCapacityResolution> {
   return resolveCompatibleScheduleCapacities(input);
 }

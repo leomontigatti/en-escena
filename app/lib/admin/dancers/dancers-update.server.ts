@@ -7,9 +7,11 @@ import {
 } from "@/lib/admin/dancers/dancers.server.shared";
 import {
   applyDancerBirthDateCorrection,
+  emptyDancerBirthDateCorrectionReport,
   loadLinkedChoreographyEventBasesForDancerBirthDateCorrection,
   runDancerWriteWithBirthDateCorrection,
 } from "@/lib/choreographies/dancer-birthdate-correction.server";
+import type { EventBases } from "@/lib/events/bases.server";
 import type {
   DancerFieldErrors,
   DancerMutationResult,
@@ -84,11 +86,14 @@ export async function updateAdministrativeDancer(input: {
 
   const birthDateChanged =
     existingDancer.birthDate !== normalizedValues.birthDate;
-  const linkedChoreographyEventBases = birthDateChanged
+  // Read before the transaction opens: the correction requires the bases, and
+  // reading them from the pool inside its transaction would hold two
+  // connections at once.
+  const linkedChoreographyEventBases: Map<string, EventBases> = birthDateChanged
     ? await loadLinkedChoreographyEventBasesForDancerBirthDateCorrection({
         dancerId: existingDancer.id,
       })
-    : undefined;
+    : new Map();
   // The dancer update and the recalculation share one transaction, so a
   // correction that leaves a choreography without a category rolls the dancer
   // row back as well.
@@ -112,15 +117,15 @@ export async function updateAdministrativeDancer(input: {
       .where(eq(dancers.id, existingDancer.id))
       .returning();
 
-    const recategorisedChoreographies = birthDateChanged
+    const correction = birthDateChanged
       ? await applyDancerBirthDateCorrection({
           dancerId: existingDancer.id,
           executor: tx,
           eventBasesByEventId: linkedChoreographyEventBases,
         })
-      : [];
+      : emptyDancerBirthDateCorrectionReport;
 
-    return { savedDancer, recategorisedChoreographies };
+    return { savedDancer, ...correction };
   });
 
   if (!write.ok) {
@@ -137,6 +142,7 @@ export async function updateAdministrativeDancer(input: {
   return {
     ok: true,
     dancer: savedSnapshot,
+    scheduleMoves: write.result.scheduleMoves,
     recategorisedChoreographies: write.result.recategorisedChoreographies,
     verificationInvalidated: existingDancer.identityVerifiedAt !== null,
   };

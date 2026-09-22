@@ -441,6 +441,37 @@ export const scheduleModalities = createTable(
   ],
 ).enableRLS();
 
+/**
+ * The categories a schedule accepts, alongside the modalities it accepts.
+ * Optional: no row for a schedule means it accepts every category, which is
+ * what every schedule did before this table existed. See CONTEXT.md `schedule`.
+ */
+export const scheduleCategories = createTable(
+  "schedule_category",
+  {
+    scheduleId: varchar("schedule_id", { length: 255 }).notNull(),
+    categoryId: varchar("category_id", { length: 255 }).notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.scheduleId],
+      foreignColumns: [schedules.id],
+      name: "schedule_category_schedule_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.categoryId],
+      foreignColumns: [categories.id],
+      name: "schedule_category_category_fk",
+    }),
+    index("schedule_category_schedule_id_idx").on(table.scheduleId),
+    index("schedule_category_category_id_idx").on(table.categoryId),
+    uniqueIndex("schedule_category_unique").on(
+      table.scheduleId,
+      table.categoryId,
+    ),
+  ],
+).enableRLS();
+
 export const prices = createTable(
   "price",
   {

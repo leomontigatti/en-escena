@@ -1,5 +1,9 @@
 import { describe, expect, test } from "vitest";
 
+import {
+  createCategory,
+  deleteCategory,
+} from "@/lib/categories/repository.server";
 import { createModality } from "@/lib/modalities/repository.server";
 import {
   createSchedule,
@@ -79,6 +83,181 @@ describe("`Bases del evento` repository", () => {
       fieldErrors: {
         modalityIds: "Elegí modalidades del evento activo.",
       },
+    });
+  });
+
+  test("accepts categories that share a modality with the schedule, and none at all", async () => {
+    const { event, jazz, urbanas } = await createEventModalitiesFixture();
+    const otherEvent = await createSavedEvent("Final 2026");
+    const otherEventModality = await expectCreated(
+      createModality(otherEvent.id, { name: "Jazz" }),
+    );
+    const babyJazz = await createSavedCategory(event.id, {
+      name: "Baby",
+      modalityIds: [jazz.id],
+    });
+    const juvenilUrbanas = await createSavedCategory(event.id, {
+      name: "Juvenil",
+      modalityIds: [urbanas.id],
+    });
+    const otherEventCategory = await createSavedCategory(otherEvent.id, {
+      name: "Baby",
+      modalityIds: [otherEventModality.id],
+    });
+
+    const unrestricted = await expectCreated(
+      createSchedule(event.id, {
+        name: "Función única",
+        scheduledDate: "2026-05-02",
+        startTime: "09:00",
+        totalCapacity: 20,
+        modalityIds: [jazz.id],
+      }),
+    );
+    const firstShow = await expectCreated(
+      createSchedule(event.id, {
+        name: "Función 1",
+        scheduledDate: "2026-05-02",
+        startTime: "11:00",
+        totalCapacity: 20,
+        modalityIds: [jazz.id],
+        categoryIds: [babyJazz.id],
+      }),
+    );
+
+    await expect(
+      createSchedule(event.id, {
+        name: "Función 2",
+        scheduledDate: "2026-05-02",
+        startTime: "13:00",
+        totalCapacity: 20,
+        modalityIds: [jazz.id],
+        categoryIds: [juvenilUrbanas.id],
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      fieldErrors: {
+        categoryIds:
+          "Elegí categorías que compartan una modalidad con el cronograma.",
+      },
+    });
+    await expect(
+      createSchedule(event.id, {
+        name: "Función 2",
+        scheduledDate: "2026-05-02",
+        startTime: "13:00",
+        totalCapacity: 20,
+        modalityIds: [jazz.id],
+        categoryIds: [otherEventCategory.id],
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      fieldErrors: {
+        categoryIds:
+          "Elegí categorías que compartan una modalidad con el cronograma.",
+      },
+    });
+
+    await expect(listSchedules(event.id)).resolves.toMatchObject([
+      expect.objectContaining({ id: unrestricted.id, categoryIds: [] }),
+      expect.objectContaining({
+        id: firstShow.id,
+        categoryIds: [babyJazz.id],
+        categories: [expect.objectContaining({ name: "Baby" })],
+      }),
+    ]);
+  });
+
+  // The categories of a schedule are validated against the modalities being
+  // saved, not the ones that were saved before: narrowing the modalities has to
+  // re-check the categories that are already listed.
+  test("re-validates the accepted categories when the schedule's modalities change", async () => {
+    const { event, jazz, urbanas } = await createEventModalitiesFixture();
+    const babyJazz = await createSavedCategory(event.id, {
+      name: "Baby",
+      modalityIds: [jazz.id],
+    });
+    const schedule = await expectCreated(
+      createSchedule(event.id, {
+        name: "Función 1",
+        scheduledDate: "2026-05-02",
+        startTime: "09:00",
+        totalCapacity: 20,
+        modalityIds: [jazz.id, urbanas.id],
+        categoryIds: [babyJazz.id],
+      }),
+    );
+
+    await expect(
+      updateSchedule(schedule.id, {
+        name: "Función 1",
+        scheduledDate: "2026-05-02",
+        startTime: "09:00",
+        totalCapacity: 20,
+        modalityIds: [urbanas.id],
+        categoryIds: [babyJazz.id],
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      fieldErrors: {
+        categoryIds:
+          "Elegí categorías que compartan una modalidad con el cronograma.",
+      },
+    });
+    await expect(
+      updateScheduleWithEntries(schedule.id, {
+        name: "Función 1",
+        scheduledDate: "2026-05-02",
+        startTime: "09:00",
+        totalCapacity: 20,
+        modalityIds: [jazz.id],
+        categoryIds: [],
+        scheduleCapacities: [],
+      }),
+    ).resolves.toMatchObject({ ok: true });
+    await expect(listSchedules(event.id)).resolves.toMatchObject([
+      expect.objectContaining({ id: schedule.id, categoryIds: [] }),
+    ]);
+  });
+
+  // A cascade would empty the list and silently turn a restricted schedule into
+  // one that accepts every category, so the delete is refused instead.
+  test("refuses to delete a category that a schedule lists", async () => {
+    const { event, jazz } = await createEventModalitiesFixture();
+    const babyJazz = await createSavedCategory(event.id, {
+      name: "Baby",
+      modalityIds: [jazz.id],
+    });
+    const schedule = await expectCreated(
+      createSchedule(event.id, {
+        name: "Función 1",
+        scheduledDate: "2026-05-02",
+        startTime: "09:00",
+        totalCapacity: 20,
+        modalityIds: [jazz.id],
+        categoryIds: [babyJazz.id],
+      }),
+    );
+
+    await expect(deleteCategory(babyJazz.id)).resolves.toMatchObject({
+      ok: false,
+      error:
+        "No se puede borrar la categoría porque tiene cronogramas relacionados.",
+    });
+
+    await expectCreated(
+      updateSchedule(schedule.id, {
+        name: "Función 1",
+        scheduledDate: "2026-05-02",
+        startTime: "09:00",
+        totalCapacity: 20,
+        modalityIds: [jazz.id],
+        categoryIds: [],
+      }),
+    );
+
+    await expect(deleteCategory(babyJazz.id)).resolves.toMatchObject({
+      ok: true,
     });
   });
 
@@ -394,6 +573,93 @@ describe("`Bases del evento` repository", () => {
       }),
     ).resolves.toMatchObject({ ok: true, record: { totalCapacity: 18 } });
   });
+  // Accepted categories follow the total capacity precedent rather than the
+  // frozen date, time and modalities: they may change freely as long as the
+  // schedule still accepts what occupies it. That is what lets an administrator
+  // turn an existing schedule into "Función 1" after moving the older
+  // choreographies to the second show.
+  test("refuses excluding a category an occupying choreography has", async () => {
+    const { event, jazz } = await createEventModalitiesFixture();
+    const academy = await createSavedAcademy();
+    const baby = await createSavedCategory(event.id, {
+      name: "Baby",
+      modalityIds: [jazz.id],
+      minAge: 4,
+      maxAge: 6,
+    });
+    const juvenil = await createSavedCategory(event.id, {
+      name: "Juvenil",
+      modalityIds: [jazz.id],
+      minAge: 13,
+      maxAge: 17,
+    });
+    const show = await createSavedSchedule(event.id, {
+      modalityIds: [jazz.id],
+    });
+    const narrowTo = (categoryIds: string[]) =>
+      updateSchedule(show.id, {
+        name: "Función 1",
+        scheduledDate: "2026-05-02",
+        startTime: "09:00",
+        totalCapacity: 20,
+        modalityIds: [jazz.id],
+        categoryIds,
+      });
+
+    await createChoreographyOnBases({
+      eventId: event.id,
+      academyId: academy.id,
+      modalityId: jazz.id,
+      categoryId: juvenil.id,
+      scheduleId: show.id,
+    });
+    await createChoreographyOnBases({
+      eventId: event.id,
+      academyId: academy.id,
+      modalityId: jazz.id,
+      name: "Retirada",
+      categoryId: baby.id,
+      scheduleId: show.id,
+      withdrawn: true,
+    });
+
+    // The date, the time and the modalities are frozen by the occupying
+    // choreography, but the categories are not: listing both, or listing only
+    // the occupant's, goes through.
+    await expect(narrowTo([baby.id, juvenil.id])).resolves.toMatchObject({
+      ok: true,
+    });
+    await expect(narrowTo([juvenil.id])).resolves.toMatchObject({ ok: true });
+    await expect(listSchedules(event.id)).resolves.toMatchObject([
+      expect.objectContaining({ id: show.id, categoryIds: [juvenil.id] }),
+    ]);
+
+    // The withdrawn choreography's category is left out without a word; the
+    // occupying one's cannot be.
+    await expect(narrowTo([baby.id])).resolves.toMatchObject({
+      ok: false,
+      code: "schedule-has-dependencies",
+      error:
+        "No se pueden excluir categorías con coreografías asignadas al cronograma: Juvenil.",
+    });
+    await expect(narrowTo([])).resolves.toMatchObject({ ok: true });
+    await expect(
+      updateScheduleWithEntries(show.id, {
+        name: "Función 1",
+        scheduledDate: "2026-05-02",
+        startTime: "09:00",
+        totalCapacity: 20,
+        modalityIds: [jazz.id],
+        categoryIds: [baby.id],
+        scheduleCapacities: [],
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      error:
+        "No se pueden excluir categorías con coreografías asignadas al cronograma: Juvenil.",
+    });
+  });
+
   test("reports deleting a schedule any choreography points at as a dependency failure", async () => {
     const { event, jazz } = await createEventModalitiesFixture();
     const academy = await createSavedAcademy();
@@ -466,3 +732,29 @@ describe("`Bases del evento` repository", () => {
     });
   });
 });
+
+async function createSavedCategory(
+  eventId: string,
+  {
+    name,
+    modalityIds,
+    minAge = 1,
+    maxAge = 100,
+  }: {
+    name: string;
+    modalityIds: string[];
+    minAge?: number;
+    maxAge?: number;
+  },
+) {
+  return await expectCreated(
+    createCategory(eventId, {
+      name,
+      minAge,
+      maxAge,
+      groupTypes: ["solo"],
+      modalityIds,
+      experienceLevels: [],
+    }),
+  );
+}

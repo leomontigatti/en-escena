@@ -30,6 +30,14 @@ import type {
   ScheduleWithEntriesInput,
 } from "@/lib/events/bases-repository/shared.server";
 import {
+  everyCategorySharesAModality,
+  groupScheduleCategories,
+  insertScheduleCategories,
+  listAcceptedCategories,
+  listExcludedOccupiedCategories,
+  replaceScheduleCategories,
+} from "@/lib/events/bases-repository/schedule-categories.server";
+import {
   groupScheduleCapacities,
   releaseScheduleCapacityReferences,
   validateInlineScheduleCapacitiesInput,
@@ -59,27 +67,30 @@ export async function listSchedules(
   }
 
   const scheduleIds = eventSchedules.map((schedule) => schedule.id);
-  const [acceptedModalities, eventScheduleCapacities] = await Promise.all([
-    db
-      .select({
-        scheduleId: scheduleModalities.scheduleId,
-        modalityId: modalities.id,
-        modalityName: modalities.name,
-      })
-      .from(scheduleModalities)
-      .innerJoin(modalities, eq(scheduleModalities.modalityId, modalities.id))
-      .where(inArray(scheduleModalities.scheduleId, scheduleIds))
-      .orderBy(asc(modalities.name)),
-    db.query.scheduleCapacities.findMany({
-      where: inArray(scheduleCapacities.scheduleId, scheduleIds),
-      orderBy: [
-        asc(scheduleCapacities.groupType),
-        asc(scheduleCapacities.capacity),
-      ],
-    }),
-  ]);
+  const [acceptedModalities, acceptedCategories, eventScheduleCapacities] =
+    await Promise.all([
+      db
+        .select({
+          scheduleId: scheduleModalities.scheduleId,
+          modalityId: modalities.id,
+          modalityName: modalities.name,
+        })
+        .from(scheduleModalities)
+        .innerJoin(modalities, eq(scheduleModalities.modalityId, modalities.id))
+        .where(inArray(scheduleModalities.scheduleId, scheduleIds))
+        .orderBy(asc(modalities.name)),
+      listAcceptedCategories(scheduleIds),
+      db.query.scheduleCapacities.findMany({
+        where: inArray(scheduleCapacities.scheduleId, scheduleIds),
+        orderBy: [
+          asc(scheduleCapacities.groupType),
+          asc(scheduleCapacities.capacity),
+        ],
+      }),
+    ]);
 
   const modalitiesByScheduleId = groupScheduleModalities(acceptedModalities);
+  const categoriesByScheduleId = groupScheduleCategories(acceptedCategories);
   const capacitiesByScheduleId = groupScheduleCapacities(
     eventScheduleCapacities,
   );
@@ -98,12 +109,16 @@ export async function listSchedules(
 
   return eventSchedules.map((schedule) => {
     const scheduleEntries = modalitiesByScheduleId.get(schedule.id) ?? [];
+    const scheduleCategoryEntries =
+      categoriesByScheduleId.get(schedule.id) ?? [];
     const capacitiesForSchedule = capacitiesByScheduleId.get(schedule.id) ?? [];
 
     return {
       ...schedule,
       modalities: scheduleEntries,
       modalityIds: scheduleEntries.map((modality) => modality.id),
+      categories: scheduleCategoryEntries,
+      categoryIds: scheduleCategoryEntries.map((category) => category.id),
       ...toScheduleOccupancy(
         occupancies.get(
           toScheduleCapacityOccupancyKey({
@@ -178,6 +193,7 @@ export async function createSchedule(
     await tx
       .insert(scheduleModalities)
       .values(getScheduleModalityValues(record.id, input.modalityIds));
+    await insertScheduleCategories(tx, record.id, input.categoryIds);
 
     return created(record);
   });
@@ -226,6 +242,7 @@ export async function createScheduleWithEntries(
     await tx
       .insert(scheduleModalities)
       .values(getScheduleModalityValues(record.id, input.modalityIds));
+    await insertScheduleCategories(tx, record.id, input.categoryIds);
 
     if (scheduleCapacityValidation.entries.length > 0) {
       await tx.insert(scheduleCapacities).values(
@@ -290,6 +307,7 @@ export async function updateSchedule(
     await tx
       .insert(scheduleModalities)
       .values(getScheduleModalityValues(scheduleId, input.modalityIds));
+    await replaceScheduleCategories(tx, scheduleId, input.categoryIds);
 
     return created(record);
   });
@@ -368,6 +386,7 @@ export async function updateScheduleWithEntries(
     await tx
       .insert(scheduleModalities)
       .values(getScheduleModalityValues(scheduleId, input.modalityIds));
+    await replaceScheduleCategories(tx, scheduleId, input.categoryIds);
 
     const nextEntries = scheduleCapacityValidation.entries;
     const nextIds = new Set(
@@ -549,6 +568,16 @@ async function validateScheduleInput(
     }
   }
 
+  const categoryIds = uniqueValues(input.categoryIds ?? []);
+
+  if (
+    categoryIds.length > 0 &&
+    !(await everyCategorySharesAModality({ categoryIds, eventId, modalityIds }))
+  ) {
+    fieldErrors.categoryIds =
+      "Elegí categorías que compartan una modalidad con el cronograma.";
+  }
+
   if (Object.keys(fieldErrors).length > 0) {
     return {
       ok: false,
@@ -594,7 +623,11 @@ async function scheduleHasScheduleCapacities(scheduleId: string) {
  * Date, time and accepted modalities freeze once the schedule has dependencies:
  * choreographies were placed and priced against them. The total capacity does
  * not — it may move freely as long as it still holds what already occupies the
- * schedule, which is the only thing a smaller number could break.
+ * schedule, which is the only thing a smaller number could break. The accepted
+ * categories follow that same precedent: narrowing them is what turns an
+ * existing schedule into "Función 1" once the older choreographies were moved
+ * away, so it is refused only when a choreography still occupying the schedule
+ * would be left out.
  */
 async function validateStructuralScheduleChanges(
   existing: ExistingSchedule,
@@ -610,6 +643,20 @@ async function validateStructuralScheduleChanges(
       code: "schedule-has-dependencies",
       error:
         "No se pueden editar fecha, hora ni modalidades aceptadas porque el cronograma tiene dependencias.",
+    };
+  }
+
+  const excludedCategoryNames = await listExcludedOccupiedCategories(
+    existing.id,
+    uniqueValues(input.categoryIds ?? []),
+  );
+
+  if (excludedCategoryNames.length > 0) {
+    return {
+      ok: false,
+      code: "schedule-has-dependencies",
+      error: `No se pueden excluir categorías con coreografías asignadas al cronograma: ${excludedCategoryNames.join(", ")}.`,
+      fieldErrors: { categoryIds: "Ajustá las categorías aceptadas." },
     };
   }
 

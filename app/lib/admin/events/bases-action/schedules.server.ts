@@ -53,6 +53,7 @@ type ScheduleActionInput = EventBasesActionBaseInput & {
   formValues: ScheduleActionValues;
   groupType: string;
   modalityIds: string[];
+  categoryIds: string[];
   name: string;
   scheduleCapacities: Array<ScheduleCapacityInput & { id?: string }>;
   scheduleId: string;
@@ -82,6 +83,7 @@ function readScheduleActionInput(
     formValues: readScheduleActionValues(formData),
     groupType: String(formData.get("groupType") ?? ""),
     modalityIds: formData.getAll("modalityIds").map(String),
+    categoryIds: formData.getAll("categoryIds").map(String),
     name: String(formData.get("name") ?? ""),
     scheduleCapacities: readScheduleCapacityInputList(formData),
     scheduleId: String(formData.get("scheduleId") ?? ""),
@@ -326,6 +328,7 @@ function readScheduleActionValues(formData: FormData): ScheduleActionValues {
     startTime: String(formData.get("startTime") ?? ""),
     totalCapacity: String(formData.get("totalCapacity") ?? ""),
     modalityIds: formData.getAll("modalityIds").map(String),
+    categoryIds: formData.getAll("categoryIds").map(String),
     scheduleCapacities: readScheduleCapacityActionValuesList(formData),
   };
 }
@@ -437,6 +440,7 @@ function getScheduleInput(input: ScheduleActionInput): ScheduleInput {
     startTime: input.startTime,
     totalCapacity: input.totalCapacity,
     modalityIds: input.modalityIds,
+    categoryIds: input.categoryIds,
   };
 }
 

@@ -42,6 +42,18 @@ export type ScheduleCapacityLockResult =
     }
   | ScheduleCapacityLockFailure;
 
+/**
+ * A place this same pass already granted but has not written yet. The lock
+ * counts occupancy from the choreography rows, so a caller that resolves
+ * several moves before writing any of them —the birth-date correction, which
+ * has to refuse whole— must declare what it already holds, or two
+ * choreographies both pass a lock over the last free place.
+ */
+export type ReservedSchedulePlace = {
+  scheduleId: string;
+  scheduleCapacityId: string | null;
+};
+
 export type ScheduleCapacityMoveResult =
   | {
       ok: true;
@@ -75,6 +87,7 @@ export async function guardAndLockScheduleCapacityMove(input: {
   destinationGroupType: ChoreographyGroupType;
   scheduleId: string;
   scheduleCapacityId: string | null;
+  reservedPlaces?: ReservedSchedulePlace[];
 }): Promise<ScheduleCapacityMoveResult> {
   const diverges = await hasPriceDivergentInscription({
     choreographyId: input.choreographyId,
@@ -101,6 +114,7 @@ export async function guardAndLockScheduleCapacityMove(input: {
     scheduleId: input.scheduleId,
     scheduleCapacityId: input.scheduleCapacityId,
     excludeChoreographyId: input.choreographyId,
+    reservedPlaces: input.reservedPlaces,
   });
 }
 
@@ -115,14 +129,20 @@ export async function guardAndLockScheduleCapacityMove(input: {
  *
  * `scheduleCapacityId`, when given, must belong to `scheduleId`; a pair that
  * disagrees is rejected as an invalid selection.
+ *
+ * `reservedPlaces` are the places the same pass already granted and has not
+ * written yet; they count as occupied, because the choreography rows cannot
+ * speak for them.
  */
 export async function lockScheduleCapacityForAssignment(input: {
   tx: Transaction;
   scheduleId: string;
   scheduleCapacityId: string | null;
   excludeChoreographyId?: string;
+  reservedPlaces?: ReservedSchedulePlace[];
 }): Promise<ScheduleCapacityLockResult> {
   const { tx, excludeChoreographyId } = input;
+  const reservedPlaces = input.reservedPlaces ?? [];
   const excludedChoreographyFilter = excludeChoreographyId
     ? ne(choreographies.id, excludeChoreographyId)
     : undefined;
@@ -175,9 +195,11 @@ export async function lockScheduleCapacityForAssignment(input: {
         ),
       );
 
-    const specificOccupiedCount = Number(
-      specificOccupancyRow?.occupiedCount ?? 0,
-    );
+    const specificOccupiedCount =
+      Number(specificOccupancyRow?.occupiedCount ?? 0) +
+      reservedPlaces.filter(
+        (place) => place.scheduleCapacityId === lockedScheduleCapacity.id,
+      ).length;
 
     if (specificOccupiedCount >= lockedScheduleCapacity.capacity) {
       return {
@@ -210,9 +232,10 @@ export async function lockScheduleCapacityForAssignment(input: {
       ),
     );
 
-  const scheduleOccupiedCount = Number(
-    scheduleOccupancyRow?.occupiedCount ?? 0,
-  );
+  const scheduleOccupiedCount =
+    Number(scheduleOccupancyRow?.occupiedCount ?? 0) +
+    reservedPlaces.filter((place) => place.scheduleId === lockedSchedule.id)
+      .length;
 
   if (scheduleOccupiedCount >= lockedSchedule.totalCapacity) {
     return {

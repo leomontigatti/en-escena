@@ -11,14 +11,20 @@ import {
   modalities,
   prices,
   scheduleCapacities,
+  scheduleCategories,
   scheduleModalities,
   schedules,
   dancers,
 } from "@/db/schema";
 import {
+  applyDancerBirthDateCorrection,
   buildDancerBirthDateCorrectionRefusalMessage,
+  loadLinkedChoreographyEventBasesForDancerBirthDateCorrection,
   recalculateLinkedChoreographiesForDancerBirthDateCorrection,
+  runDancerWriteWithBirthDateCorrection,
+  type DancerBirthDateCorrectionResult,
 } from "@/lib/choreographies/dancer-birthdate-correction.server";
+import { buildDancerBirthDateScheduleMoveMessages } from "@/lib/choreographies/dancer-birthdate-messages";
 import { createAcademySession } from "@/lib/choreographies/registration-test-fixtures.server.db";
 import {
   experienceLevelLabels,
@@ -123,13 +129,11 @@ describe("dancer birth date choreography correction", () => {
       .set({ birthDate: "2011-05-01" })
       .where(eq(dancers.id, correctedDancer.id));
 
-    const result =
-      await recalculateLinkedChoreographiesForDancerBirthDateCorrection({
-        dancerId: correctedDancer.id,
-      });
+    const result = await recalculateInTransaction(correctedDancer.id);
 
     expect(result).toEqual({
       ok: true,
+      scheduleMoves: [],
       recategorisedChoreographies: [
         {
           choreographyId: preserveChoreography.id,
@@ -209,10 +213,7 @@ describe("dancer birth date choreography correction", () => {
       .set({ birthDate: "2026-04-10" })
       .where(eq(dancers.id, correctedDancer.id));
 
-    const result =
-      await recalculateLinkedChoreographiesForDancerBirthDateCorrection({
-        dancerId: correctedDancer.id,
-      });
+    const result = await recalculateInTransaction(correctedDancer.id);
 
     expect(result).toEqual({
       ok: false,
@@ -226,7 +227,7 @@ describe("dancer birth date choreography correction", () => {
     });
     expect(
       buildDancerBirthDateCorrectionRefusalMessage(
-        result.ok ? [] : result.choreographiesWithoutCategory,
+        readChoreographiesWithoutCategory(result),
       ),
     ).toBe(
       `Con esta fecha de nacimiento, la coreografía n.º ${choreography.choreographyNumber} «Solo sin repuesto» queda sin categoría.`,
@@ -293,15 +294,12 @@ describe("dancer birth date choreography correction", () => {
       .set({ birthDate: "2026-04-10" })
       .where(eq(dancers.id, correctedDancer.id));
 
-    const result =
-      await recalculateLinkedChoreographiesForDancerBirthDateCorrection({
-        dancerId: correctedDancer.id,
-      });
+    const result = await recalculateInTransaction(correctedDancer.id);
 
     expect(result.ok).toBe(false);
     expect(
       buildDancerBirthDateCorrectionRefusalMessage(
-        result.ok ? [] : result.choreographiesWithoutCategory,
+        readChoreographiesWithoutCategory(result),
       ),
     ).toBe(
       `Con esta fecha de nacimiento, las coreografías n.º ${firstChoreography.choreographyNumber} «Primera» y n.º ${secondChoreography.choreographyNumber} «Segunda» quedan sin categoría.`,
@@ -381,9 +379,7 @@ describe("dancer birth date choreography correction", () => {
       .set({ birthDate: "2018-05-01" })
       .where(eq(dancers.id, correctedDancer.id));
 
-    await recalculateLinkedChoreographiesForDancerBirthDateCorrection({
-      dancerId: correctedDancer.id,
-    });
+    await recalculateInTransaction(correctedDancer.id);
 
     // Ages {8, 14, 14, 14} average to 13, one band up.
     await expectChoreographyState(choreography.id, {
@@ -519,6 +515,14 @@ async function createCorrectionCatalog(input: {
   };
 }
 
+function readChoreographiesWithoutCategory(
+  result: DancerBirthDateCorrectionResult,
+) {
+  return result.ok || result.code !== "no-compatible-category"
+    ? []
+    : result.choreographiesWithoutCategory;
+}
+
 async function createDancer(
   academyId: string,
   input: {
@@ -635,4 +639,366 @@ async function expectDancerAgeLink(
       ),
     }),
   ).resolves.toMatchObject({ ageAtEventStart: expectedAge });
+}
+
+describe("birth date correction schedule move", () => {
+  test("leaves the schedule untouched when it still accepts the new category", async () => {
+    const scenario = await createScheduleMoveScenario({
+      eventName: "Sin división",
+      firstShowCategories: "both",
+    });
+
+    const write = await correctBirthDate(scenario.dancerId, "2011-05-01");
+
+    expect(write.ok).toBe(true);
+    await expectChoreographySchedule(scenario.choreographyId, {
+      scheduleId: scenario.firstShow.scheduleId,
+      scheduleCapacityId: scenario.firstShow.scheduleCapacityId,
+    });
+  });
+
+  test("moves the choreography to the only show that accepts its new category", async () => {
+    const scenario = await createScheduleMoveScenario({
+      eventName: "Dos funciones",
+      firstShowCategories: "younger",
+      secondShow: { accepts: "older" },
+    });
+
+    const write = await correctBirthDate(scenario.dancerId, "2011-05-01");
+
+    expect(write).toMatchObject({ ok: true });
+    await expectChoreographySchedule(scenario.choreographyId, {
+      scheduleId: scenario.secondShow?.scheduleId ?? null,
+      scheduleCapacityId: scenario.secondShow?.scheduleCapacityId ?? null,
+    });
+  });
+
+  test("reports the choreography that moved and the schedule it moved to", async () => {
+    const scenario = await createScheduleMoveScenario({
+      eventName: "Informe",
+      firstShowCategories: "younger",
+      secondShow: { accepts: "older" },
+    });
+
+    const moves = await readScheduleMoves(scenario.dancerId, "2011-05-01");
+
+    expect(moves).toEqual([
+      {
+        choreography: {
+          choreographyNumber: scenario.choreographyNumber,
+          name: "Coreografía móvil",
+        },
+        scheduleName: "Informe Función 2",
+      },
+    ]);
+    expect(buildDancerBirthDateScheduleMoveMessages(moves)).toEqual([
+      `La coreografía n.º ${scenario.choreographyNumber} «Coreografía móvil» pasó al cronograma Informe Función 2.`,
+    ]);
+  });
+
+  test("refuses the whole correction when no schedule accepts the new category", async () => {
+    const scenario = await createScheduleMoveScenario({
+      eventName: "Sin destino",
+      firstShowCategories: "younger",
+    });
+
+    const write = await correctBirthDate(scenario.dancerId, "2011-05-01");
+
+    expect(write).toEqual({
+      ok: false,
+      birthDateMessage: `Con esta fecha de nacimiento, la coreografía n.º ${scenario.choreographyNumber} «Coreografía móvil» queda sin cronograma compatible.`,
+    });
+    await expectChoreographySchedule(scenario.choreographyId, {
+      scheduleId: scenario.firstShow.scheduleId,
+      scheduleCapacityId: scenario.firstShow.scheduleCapacityId,
+    });
+    await expectDancerBirthDate(scenario.dancerId, "2016-05-01");
+  });
+
+  test("refuses the whole correction when the only compatible show is full", async () => {
+    const scenario = await createScheduleMoveScenario({
+      eventName: "Función llena",
+      firstShowCategories: "younger",
+      secondShow: { accepts: "older", totalCapacity: 1, fill: true },
+    });
+
+    const write = await correctBirthDate(scenario.dancerId, "2011-05-01");
+
+    expect(write).toMatchObject({ ok: false });
+    await expectChoreographySchedule(scenario.choreographyId, {
+      scheduleId: scenario.firstShow.scheduleId,
+      scheduleCapacityId: scenario.firstShow.scheduleCapacityId,
+    });
+    await expectDancerBirthDate(scenario.dancerId, "2016-05-01");
+  });
+
+  test("refuses the whole correction when the only compatible show cannot take every choreography", async () => {
+    const scenario = await createScheduleMoveScenario({
+      eventName: "Una sola plaza",
+      firstShowCategories: "younger",
+      linkedChoreographies: 2,
+      secondShow: { accepts: "older", totalCapacity: 1 },
+    });
+
+    const write = await correctBirthDate(scenario.dancerId, "2011-05-01");
+
+    expect(write).toMatchObject({ ok: false });
+
+    for (const choreography of scenario.linkedChoreographies) {
+      await expectChoreographySchedule(choreography.id, {
+        scheduleId: scenario.firstShow.scheduleId,
+        scheduleCapacityId: scenario.firstShow.scheduleCapacityId,
+      });
+    }
+
+    await expectDancerBirthDate(scenario.dancerId, "2016-05-01");
+  });
+
+  test("refuses the whole correction when several shows accept the new category", async () => {
+    const scenario = await createScheduleMoveScenario({
+      eventName: "Dos destinos",
+      firstShowCategories: "younger",
+      secondShow: { accepts: "older" },
+      thirdShow: { accepts: "older" },
+    });
+
+    const write = await correctBirthDate(scenario.dancerId, "2011-05-01");
+
+    expect(write).toMatchObject({ ok: false });
+    await expectChoreographySchedule(scenario.choreographyId, {
+      scheduleId: scenario.firstShow.scheduleId,
+      scheduleCapacityId: scenario.firstShow.scheduleCapacityId,
+    });
+    await expectDancerBirthDate(scenario.dancerId, "2016-05-01");
+  });
+});
+
+type ShowInput = {
+  accepts: "older";
+  totalCapacity?: number;
+  fill?: boolean;
+};
+
+type Show = {
+  scheduleId: string;
+  scheduleCapacityId: string;
+};
+
+/**
+ * A modality run as one or two shows, with a choreography whose dancer is
+ * about to age out of the younger category. The scenario is described by which
+ * categories each show accepts, because that is the only axis these tests vary.
+ */
+async function createScheduleMoveScenario(input: {
+  eventName: string;
+  firstShowCategories: "both" | "younger";
+  secondShow?: ShowInput;
+  thirdShow?: ShowInput;
+  linkedChoreographies?: number;
+}) {
+  const academy = await createAcademySession({
+    academyName: `Academia ${input.eventName}`,
+    email: `admin.birthdate.${crypto.randomUUID()}@example.com`,
+  });
+  const catalog = await createCorrectionCatalog({
+    categoryRequiresLevelOnOlderRange: false,
+    eventName: input.eventName,
+  });
+  const olderCategoryId = catalog.olderCategory?.id ?? "";
+  const firstShowScheduleId = await readFixtureCapacityScheduleId(
+    catalog.scheduleCapacity.id,
+  );
+
+  await db.insert(scheduleCategories).values([
+    {
+      scheduleId: firstShowScheduleId,
+      categoryId: catalog.youngerCategory.id,
+    },
+    ...(input.firstShowCategories === "both"
+      ? [{ scheduleId: firstShowScheduleId, categoryId: olderCategoryId }]
+      : []),
+  ]);
+
+  const secondShow = input.secondShow
+    ? await createShow({
+        academyId: academy.academyId,
+        catalog,
+        name: `${input.eventName} Función 2`,
+        show: input.secondShow,
+      })
+    : null;
+  const thirdShow = input.thirdShow
+    ? await createShow({
+        academyId: academy.academyId,
+        catalog,
+        name: `${input.eventName} Función 3`,
+        show: input.thirdShow,
+      })
+    : null;
+
+  const dancer = await createDancer(academy.academyId, {
+    firstName: "Móvil",
+    lastName: "Corrección",
+    birthDate: "2016-05-01",
+  });
+  const linkedChoreographies = [];
+
+  for (let index = 0; index < (input.linkedChoreographies ?? 1); index += 1) {
+    const choreography = await createLinkedChoreography({
+      academyId: academy.academyId,
+      categoryId: catalog.youngerCategory.id,
+      categoryAgeBasis: 10,
+      eventId: catalog.event.id,
+      experienceLevelId: null,
+      modalityId: catalog.modality.id,
+      name:
+        index === 0 ? "Coreografía móvil" : `Coreografía móvil ${index + 1}`,
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+    });
+
+    await db.insert(choreographyDancers).values({
+      choreographyId: choreography.id,
+      dancerId: dancer.id,
+      ageAtEventStart: 10,
+    });
+    linkedChoreographies.push(choreography);
+  }
+
+  const [choreography] = linkedChoreographies;
+
+  return {
+    choreographyId: choreography.id,
+    choreographyNumber: choreography.choreographyNumber,
+    linkedChoreographies,
+    dancerId: dancer.id,
+    firstShow: {
+      scheduleId: firstShowScheduleId,
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+    },
+    secondShow,
+    thirdShow,
+  };
+}
+
+async function createShow(input: {
+  academyId: string;
+  catalog: Awaited<ReturnType<typeof createCorrectionCatalog>>;
+  name: string;
+  show: ShowInput;
+}): Promise<Show> {
+  const olderCategoryId = input.catalog.olderCategory?.id ?? "";
+  const [schedule] = await db
+    .insert(schedules)
+    .values({
+      eventId: input.catalog.event.id,
+      name: input.name,
+      scheduledDate: "2026-05-02",
+      startTime: "10:00",
+      totalCapacity: input.show.totalCapacity ?? 10,
+    })
+    .returning();
+
+  await db.insert(scheduleModalities).values({
+    scheduleId: schedule.id,
+    modalityId: input.catalog.modality.id,
+  });
+  await db.insert(scheduleCategories).values({
+    scheduleId: schedule.id,
+    categoryId: olderCategoryId,
+  });
+
+  const [scheduleCapacity] = await db
+    .insert(scheduleCapacities)
+    .values({
+      scheduleId: schedule.id,
+      groupType: "solo",
+      capacity: input.show.totalCapacity ?? 5,
+    })
+    .returning();
+
+  if (input.show.fill) {
+    await createLinkedChoreography({
+      academyId: input.academyId,
+      categoryId: olderCategoryId,
+      categoryAgeBasis: 15,
+      eventId: input.catalog.event.id,
+      experienceLevelId: null,
+      modalityId: input.catalog.modality.id,
+      name: `${input.name} ocupante`,
+      scheduleCapacityId: scheduleCapacity.id,
+    });
+  }
+
+  return { scheduleId: schedule.id, scheduleCapacityId: scheduleCapacity.id };
+}
+
+/**
+ * The recalculation on its own, in the transaction it requires: the capacity
+ * lock a schedule move takes guards nothing outside one. The bases are loaded
+ * before the transaction opens, exactly as both dancer forms do it.
+ */
+async function recalculateInTransaction(dancerId: string) {
+  const eventBasesByEventId =
+    await loadLinkedChoreographyEventBasesForDancerBirthDateCorrection({
+      dancerId,
+    });
+
+  return await db.transaction(
+    async (tx) =>
+      await recalculateLinkedChoreographiesForDancerBirthDateCorrection({
+        dancerId,
+        eventBasesByEventId,
+        executor: tx,
+      }),
+  );
+}
+
+async function correctBirthDate(dancerId: string, birthDate: string) {
+  // The bases are loaded before the transaction opens, exactly as both dancer
+  // forms do it.
+  const eventBasesByEventId =
+    await loadLinkedChoreographyEventBasesForDancerBirthDateCorrection({
+      dancerId,
+    });
+
+  return await runDancerWriteWithBirthDateCorrection(async (tx) => {
+    await tx.update(dancers).set({ birthDate }).where(eq(dancers.id, dancerId));
+
+    return await applyDancerBirthDateCorrection({
+      dancerId,
+      eventBasesByEventId,
+      executor: tx,
+    });
+  });
+}
+
+async function readScheduleMoves(dancerId: string, birthDate: string) {
+  const write = await correctBirthDate(dancerId, birthDate);
+
+  if (!write.ok) {
+    throw new Error(write.birthDateMessage);
+  }
+
+  return write.result.scheduleMoves;
+}
+
+async function expectChoreographySchedule(
+  choreographyId: string,
+  expected: { scheduleId: string | null; scheduleCapacityId: string | null },
+) {
+  await expect(
+    db.query.choreographies.findFirst({
+      columns: { scheduleId: true, scheduleCapacityId: true },
+      where: eq(choreographies.id, choreographyId),
+    }),
+  ).resolves.toMatchObject(expected);
+}
+
+async function expectDancerBirthDate(dancerId: string, expected: string) {
+  await expect(
+    db.query.dancers.findFirst({
+      columns: { birthDate: true },
+      where: eq(dancers.id, dancerId),
+    }),
+  ).resolves.toMatchObject({ birthDate: expected });
 }

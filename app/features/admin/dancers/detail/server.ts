@@ -165,6 +165,7 @@ export async function handleDancerDetailAction(input: {
       ? "bailarin-guardado-requiere-verificacion"
       : "bailarin-guardado",
     result.recategorisedChoreographies,
+    result.scheduleMoves,
   );
 }
 

@@ -13,6 +13,10 @@ import type { RecategorisedChoreography } from "@/lib/choreographies/recategoris
 import { buildBirthDateRefinement } from "@/lib/dancers/birth-date";
 import { getArchiveKeepsRosterMessage } from "@/lib/roster/roster-person-status.shared";
 import { requiredFieldMessage } from "@/lib/shared/forms";
+import {
+  withDancerBirthDateScheduleMoveFeedback,
+  type DancerBirthDateScheduleMove,
+} from "@/lib/choreographies/dancer-birthdate-messages";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
 
 export const portalDancerNotFoundMessage = "No encontramos ese Bailarín.";
@@ -88,10 +92,14 @@ export function buildPortalDancerActionSuccess(
   notification:
     "bailarin-archivado" | "bailarin-guardado" | "bailarin-reactivado",
   recategorisedChoreographies: RecategorisedChoreography[],
+  scheduleMoves: DancerBirthDateScheduleMove[] = [],
 ): PortalDancerDetailActionData {
   return {
     status: "success",
-    message: notificationToasts[notification].message,
+    message: withDancerBirthDateScheduleMoveFeedback(
+      notificationToasts[notification].message,
+      scheduleMoves,
+    ),
     recategorisedChoreographies,
   };
 }

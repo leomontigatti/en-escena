@@ -385,6 +385,8 @@ function buildLoaderData(): EventBasesLoaderData {
         createdAt,
         modalities: [{ id: "modality_1", name: "Jazz" }],
         modalityIds: ["modality_1"],
+        categories: [],
+        categoryIds: [],
         availablePlaces: 20,
         occupiedCount: 0,
         scheduleCapacities: [

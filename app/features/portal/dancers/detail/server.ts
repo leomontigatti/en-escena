@@ -173,6 +173,7 @@ export async function handlePortalDancerDetailAction(input: {
   return buildPortalDancerActionSuccess(
     "bailarin-guardado",
     result.recategorisedChoreographies,
+    result.scheduleMoves,
   );
 }
 
