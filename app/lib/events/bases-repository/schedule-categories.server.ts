@@ -1,8 +1,10 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, notInArray } from "drizzle-orm";
 
+import { notWithdrawnChoreography } from "@/lib/choreographies/withdrawn-choreography";
 import {
   categories,
   categoryModalities,
+  choreographies,
   db,
   scheduleCategories,
   uniqueValues,
@@ -68,6 +70,38 @@ export async function acceptsEveryCategory({
     );
 
   return compatibleCategories.length === categoryIds.length;
+}
+
+/**
+ * The categories of the schedule's occupying choreographies that `categoryIds`
+ * would leave out, by name. An empty list of accepted categories accepts every
+ * one of them, so it never excludes anything and is not asked about.
+ *
+ * Withdrawn choreographies are absent on purpose: like every other schedule
+ * restructuring guard, this one only protects what still holds a place.
+ */
+export async function listExcludedOccupiedCategories(
+  scheduleId: string,
+  categoryIds: string[],
+) {
+  if (categoryIds.length === 0) {
+    return [];
+  }
+
+  const excluded = await db
+    .selectDistinct({ name: categories.name })
+    .from(choreographies)
+    .innerJoin(categories, eq(choreographies.categoryId, categories.id))
+    .where(
+      and(
+        eq(choreographies.scheduleId, scheduleId),
+        notInArray(choreographies.categoryId, categoryIds),
+        notWithdrawnChoreography(),
+      ),
+    )
+    .orderBy(asc(categories.name));
+
+  return excluded.map((category) => category.name);
 }
 
 export async function insertScheduleCategories(

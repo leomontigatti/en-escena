@@ -34,6 +34,7 @@ import {
   groupScheduleCategories,
   insertScheduleCategories,
   listAcceptedCategories,
+  listExcludedOccupiedCategories,
   replaceScheduleCategories,
 } from "@/lib/events/bases-repository/schedule-categories.server";
 import {
@@ -622,7 +623,11 @@ async function scheduleHasScheduleCapacities(scheduleId: string) {
  * Date, time and accepted modalities freeze once the schedule has dependencies:
  * choreographies were placed and priced against them. The total capacity does
  * not — it may move freely as long as it still holds what already occupies the
- * schedule, which is the only thing a smaller number could break.
+ * schedule, which is the only thing a smaller number could break. The accepted
+ * categories follow that same precedent: narrowing them is what turns an
+ * existing schedule into "Función 1" once the older choreographies were moved
+ * away, so it is refused only when a choreography still occupying the schedule
+ * would be left out.
  */
 async function validateStructuralScheduleChanges(
   existing: ExistingSchedule,
@@ -638,6 +643,20 @@ async function validateStructuralScheduleChanges(
       code: "schedule-has-dependencies",
       error:
         "No se pueden editar fecha, hora ni modalidades aceptadas porque el cronograma tiene dependencias.",
+    };
+  }
+
+  const excludedCategoryNames = await listExcludedOccupiedCategories(
+    existing.id,
+    uniqueValues(input.categoryIds ?? []),
+  );
+
+  if (excludedCategoryNames.length > 0) {
+    return {
+      ok: false,
+      code: "schedule-has-dependencies",
+      error: `No se pueden excluir categorías con coreografías asignadas al cronograma: ${excludedCategoryNames.join(", ")}.`,
+      fieldErrors: { categoryIds: "Ajustá las categorías aceptadas." },
     };
   }
 
