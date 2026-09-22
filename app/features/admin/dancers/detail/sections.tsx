@@ -23,6 +23,7 @@ import {
   ReadOnlySelectField,
 } from "@/components/shared/read-only-field";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
+import { RosterPersonParticipatingAlert } from "@/components/shared/roster-person-participating-alert";
 import { SelectField } from "@/components/shared/select-field";
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -74,6 +75,7 @@ export function DancerDetailHeaderActions({
         </DropdownMenuItem>
       ) : null}
       <DropdownMenuItem
+        disabled={statusAction.disabled}
         variant={
           statusAction.intent === "archive-dancer" ? "destructive" : "default"
         }
@@ -95,6 +97,7 @@ export function DancerDetailAlerts({
   identificationAlert,
   identificationAlertVariant,
   onSelectIntent,
+  participatingAlert,
   recategorisedChoreographies,
 }: {
   active: boolean;
@@ -103,6 +106,7 @@ export function DancerDetailAlerts({
   identificationAlert: string | null;
   identificationAlertVariant: "info" | "warning";
   onSelectIntent: (intent: DancerDialogIntent) => void;
+  participatingAlert: string | null;
   recategorisedChoreographies: RecategorisedChoreography[];
 }) {
   return (
@@ -118,6 +122,9 @@ export function DancerDetailAlerts({
             canEdit ? () => onSelectIntent("reactivate-dancer") : undefined
           }
         />
+      ) : null}
+      {participatingAlert ? (
+        <RosterPersonParticipatingAlert message={participatingAlert} />
       ) : null}
       {identificationAlert ? (
         <DancerAlert

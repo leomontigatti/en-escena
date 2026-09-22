@@ -70,6 +70,7 @@ export function DancerDetailRouteView({
     actionData: errorData,
     canEdit: loaderData.canEdit,
     dancer,
+    isParticipatingInActiveEvent: loaderData.isParticipatingInActiveEvent,
     requestedEditMode: loaderData.isEditing,
     watchedBirthDate,
   });
@@ -117,6 +118,7 @@ export function DancerDetailRouteView({
           identificationAlert={viewState.identificationAlert}
           identificationAlertVariant={viewState.identificationAlertVariant}
           onSelectIntent={setDialogIntent}
+          participatingAlert={viewState.participatingAlert}
           recategorisedChoreographies={
             successData?.recategorisedChoreographies ?? []
           }

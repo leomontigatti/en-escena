@@ -12,7 +12,10 @@ import {
 } from "@/lib/choreographies/dancer-birthdate-messages";
 import type { RecategorisedChoreography } from "@/lib/choreographies/recategorisation-report";
 import { buildBirthDateRefinement } from "@/lib/dancers/birth-date";
-import { getArchiveKeepsRosterMessage } from "@/lib/roster/roster-person-status.shared";
+import {
+  getArchiveKeepsRosterMessage,
+  getRosterPersonParticipatingMessage,
+} from "@/lib/roster/roster-person-status.shared";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import {
   notificationToasts,
@@ -47,6 +50,12 @@ export type DancerDetailLoaderData = {
   };
   editHref: string;
   isEditing: boolean;
+  /**
+   * Answered by `findActiveEventParticipation`, the same reader the guard in
+   * `setRosterPersonStatus` asks. One reader for both, so the screen cannot
+   * grey out a button the server would honour — or offer one it would refuse.
+   */
+  isParticipatingInActiveEvent: boolean;
   selectedEventId: string | null;
 };
 
@@ -83,6 +92,12 @@ export type DancerRouteNotification = Extract<
 >;
 
 export type DancerStatusAction = {
+  /**
+   * A courtesy in front of the guard, never the rule: the server refuses the
+   * archive whether or not this is honoured. Reactivating is never refused, so
+   * only the archive intent is ever disabled.
+   */
+  disabled: boolean;
   description: string;
   intent: "archive-dancer" | "reactivate-dancer";
   label: string;
@@ -95,6 +110,11 @@ export type DancerDetailViewState = {
   identificationAlert: string | null;
   identificationAlertVariant: "info" | "warning";
   isEditing: boolean;
+  /**
+   * Why the archive action is unavailable, or `null` when it is available.
+   * Informational: nothing is wrong when it shows.
+   */
+  participatingAlert: string | null;
   shouldConfirmSave: boolean;
   statusAction: DancerStatusAction;
 };
@@ -253,14 +273,22 @@ export function getDancerEditValues({
   };
 }
 
-function getDancerStatusAction(active: boolean): DancerStatusAction {
+function getDancerStatusAction({
+  active,
+  isParticipatingInActiveEvent,
+}: {
+  active: boolean;
+  isParticipatingInActiveEvent: boolean;
+}): DancerStatusAction {
   return active
     ? {
+        disabled: isParticipatingInActiveEvent,
         description: `Archivá este Bailarín para que deje de aparecer en futuras selecciones del portal. ${getArchiveKeepsRosterMessage("dancer")}`,
         intent: "archive-dancer",
         label: "Archivar",
       }
     : {
+        disabled: false,
         description:
           "Reactivá este Bailarín para que vuelva a aparecer en futuras selecciones del portal.",
         intent: "reactivate-dancer",
@@ -319,12 +347,14 @@ export function buildDancerDetailViewState({
   actionData,
   canEdit,
   dancer,
+  isParticipatingInActiveEvent,
   requestedEditMode,
   watchedBirthDate,
 }: {
   actionData: DancerActionError | undefined;
   canEdit: boolean;
   dancer: DancerDetailLoaderData["dancer"];
+  isParticipatingInActiveEvent: boolean;
   requestedEditMode: boolean;
   watchedBirthDate: string;
 }): DancerDetailViewState {
@@ -333,7 +363,10 @@ export function buildDancerDetailViewState({
   // read mode, with the dialog and the toast doing the reporting.
   const isEditing =
     canEdit && (requestedEditMode || isDancerUpdateValues(actionData?.values));
-  const statusAction = getDancerStatusAction(dancer.active);
+  const statusAction = getDancerStatusAction({
+    active: dancer.active,
+    isParticipatingInActiveEvent,
+  });
   const canVerifyIdentity =
     canEdit &&
     hasDancerVerificationMinimumData(dancer) &&
@@ -355,6 +388,12 @@ export function buildDancerDetailViewState({
     identificationAlert,
     identificationAlertVariant,
     isEditing,
+    // Only beside a disabled archive: an archived participant is offered
+    // `Reactivar`, which this rule never refuses, and an alert there would
+    // explain an unavailability that is not happening.
+    participatingAlert: statusAction.disabled
+      ? getRosterPersonParticipatingMessage("dancer")
+      : null,
     shouldConfirmSave:
       dancer.editConsequence !== null || birthDateMayNeedRecalculation,
     statusAction,

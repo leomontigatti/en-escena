@@ -184,6 +184,7 @@ function createLoaderData({
     },
     editHref: "/administracion/bailarines/dancer-1?modo=editar",
     isEditing,
+    isParticipatingInActiveEvent: false,
     selectedEventId: null,
   };
 }

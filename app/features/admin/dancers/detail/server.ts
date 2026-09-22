@@ -12,6 +12,7 @@ import {
   setRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.server";
 import { updateAdministrativeDancer } from "@/lib/admin/dancers/dancers-update.server";
+import { findActiveEventParticipation } from "@/lib/roster/active-event-participation.server";
 import { findActiveEventStartDateOnly } from "@/lib/events/active-event.server";
 import {
   requireAdminUser,
@@ -70,6 +71,10 @@ export async function loadDancerDetail(input: {
     cancelHref: buildModeHref(url, dancerId, null),
     isEditing:
       user.role === "admin" && url.searchParams.get("modo") === "editar",
+    isParticipatingInActiveEvent: await findActiveEventParticipation({
+      kind: "dancer",
+      personId: dancerId,
+    }),
   };
 }
 

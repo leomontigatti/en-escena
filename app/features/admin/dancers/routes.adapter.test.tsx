@@ -121,6 +121,7 @@ describe("`administracion.bailarines` route adapters", () => {
       },
       editHref: "/administracion/bailarines/dancer-1?modo=editar",
       isEditing: false,
+      isParticipatingInActiveEvent: false,
       selectedEventId: null,
     };
     const actionResult = {

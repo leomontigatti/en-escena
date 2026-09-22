@@ -2,7 +2,12 @@ import { describe, expect, test } from "vitest";
 
 import { expectSharedBirthDateRules } from "@/lib/test-support/dancer-birth-date-schema";
 
-import { buildDancerUpdateSchema, getInitialDialogIntent } from "./shared";
+import {
+  buildDancerDetailViewState,
+  buildDancerUpdateSchema,
+  getInitialDialogIntent,
+  type DancerDetailLoaderData,
+} from "./shared";
 
 describe("admin dancer update schema", () => {
   test("applies the shared birth-date rules", () => {
@@ -89,5 +94,66 @@ describe("getInitialDialogIntent", () => {
         statusIntent: "archive-dancer",
       }),
     ).toBeNull();
+  });
+});
+
+const dancer = {
+  active: true,
+  birthDate: "2010-01-01",
+  documentBackImageStorageKey: null,
+  documentFrontImageStorageKey: null,
+  documentNumber: null,
+  documentType: null,
+  editConsequence: null,
+  identificationStatus: "incomplete",
+  participatedInAnyEvent: false,
+} as unknown as DancerDetailLoaderData["dancer"];
+
+function buildViewState(
+  overrides: {
+    dancer?: Partial<DancerDetailLoaderData["dancer"]>;
+    isParticipatingInActiveEvent?: boolean;
+  } = {},
+) {
+  return buildDancerDetailViewState({
+    actionData: undefined,
+    canEdit: true,
+    dancer: { ...dancer, ...overrides.dancer },
+    isParticipatingInActiveEvent:
+      overrides.isParticipatingInActiveEvent ?? false,
+    requestedEditMode: false,
+    watchedBirthDate: "2010-01-01",
+  });
+}
+
+describe("buildDancerDetailViewState", () => {
+  test("disables archiving and explains it for a participant of the active event", () => {
+    const viewState = buildViewState({ isParticipatingInActiveEvent: true });
+
+    expect(viewState.statusAction.intent).toBe("archive-dancer");
+    expect(viewState.statusAction.disabled).toBe(true);
+    expect(viewState.participatingAlert).toBe(
+      "Este bailarín no puede archivarse porque está participando del evento activo.",
+    );
+  });
+
+  test("leaves archiving alone when the dancer participates in nothing live", () => {
+    const viewState = buildViewState();
+
+    expect(viewState.statusAction.disabled).toBe(false);
+    expect(viewState.participatingAlert).toBeNull();
+  });
+
+  // Reactivating is never refused, so the archived participant —the one row the
+  // rule grandfathers— keeps her action and gets no alert about it.
+  test("never disables reactivating an archived participant", () => {
+    const viewState = buildViewState({
+      dancer: { active: false },
+      isParticipatingInActiveEvent: true,
+    });
+
+    expect(viewState.statusAction.intent).toBe("reactivate-dancer");
+    expect(viewState.statusAction.disabled).toBe(false);
+    expect(viewState.participatingAlert).toBeNull();
   });
 });
