@@ -36,12 +36,15 @@ export async function listAcceptedCategories(scheduleIds: string[]) {
 }
 
 /**
- * A listed category has to be one the schedule could ever place: of the same
- * event, and sharing at least one modality with the modalities being saved.
+ * Whether every listed category is one the schedule could ever place: of the
+ * same event, and sharing at least one modality with the modalities being saved.
  * Read against the input's modalities rather than the stored ones, so narrowing
  * a schedule's modalities re-checks the categories it already lists.
+ *
+ * A schedule with no modalities places nothing, so no category can share one
+ * with it.
  */
-export async function acceptsEveryCategory({
+export async function everyCategorySharesAModality({
   categoryIds,
   eventId,
   modalityIds,

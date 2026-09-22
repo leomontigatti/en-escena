@@ -428,7 +428,14 @@ async function resolveRegistrationFromResolvedDancers(input: {
  * no category resolved — a flow category resolution already blocks before a
  * schedule matters.
  */
-function getResolvedCategoryId(category: CategoryResolution): string | null {
+/**
+ * The category id a classification settled on, or `null` while it has not: the
+ * shape every caller that has to feed a resolved category to a column or to the
+ * schedule resolver needs.
+ */
+export function getResolvedCategoryId(
+  category: CategoryResolution,
+): string | null {
   return category.status === "resolved" ? category.id : null;
 }
 

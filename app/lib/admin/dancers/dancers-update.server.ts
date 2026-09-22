@@ -9,7 +9,6 @@ import {
   applyDancerBirthDateCorrection,
   loadLinkedChoreographyEventBasesForDancerBirthDateCorrection,
   runDancerWriteWithBirthDateCorrection,
-  type DancerBirthDateScheduleMove,
 } from "@/lib/choreographies/dancer-birthdate-correction.server";
 import type {
   DancerFieldErrors,
@@ -93,7 +92,6 @@ export async function updateAdministrativeDancer(input: {
   // The dancer update and the recalculation share one transaction, so a
   // correction that leaves a choreography without a category rolls the dancer
   // row back as well.
-  const scheduleMoves: DancerBirthDateScheduleMove[] = [];
   const write = await runDancerWriteWithBirthDateCorrection(async (tx) => {
     const [savedDancer] = await tx
       .update(dancers)
@@ -114,17 +112,16 @@ export async function updateAdministrativeDancer(input: {
       .where(eq(dancers.id, existingDancer.id))
       .returning();
 
-    if (birthDateChanged) {
-      scheduleMoves.push(
-        ...(await applyDancerBirthDateCorrection({
-          dancerId: existingDancer.id,
-          executor: tx,
-          eventBasesByEventId: linkedChoreographyEventBases,
-        })),
-      );
-    }
-
-    return savedDancer;
+    return {
+      dancer: savedDancer,
+      scheduleMoves: birthDateChanged
+        ? await applyDancerBirthDateCorrection({
+            dancerId: existingDancer.id,
+            executor: tx,
+            eventBasesByEventId: linkedChoreographyEventBases,
+          })
+        : [],
+    };
   });
 
   if (!write.ok) {
@@ -141,7 +138,7 @@ export async function updateAdministrativeDancer(input: {
   return {
     ok: true,
     dancer: savedSnapshot,
-    scheduleMoves,
+    scheduleMoves: write.scheduleMoves,
     verificationInvalidated: existingDancer.identityVerifiedAt !== null,
   };
 }

@@ -129,10 +129,7 @@ describe("dancer birth date choreography correction", () => {
       .set({ birthDate: "2011-05-01" })
       .where(eq(dancers.id, correctedDancer.id));
 
-    const result =
-      await recalculateLinkedChoreographiesForDancerBirthDateCorrection({
-        dancerId: correctedDancer.id,
-      });
+    const result = await recalculateInTransaction(correctedDancer.id);
 
     expect(result).toEqual({ ok: true, scheduleMoves: [] });
     await expectChoreographyState(preserveChoreography.id, {
@@ -197,10 +194,7 @@ describe("dancer birth date choreography correction", () => {
       .set({ birthDate: "2026-04-10" })
       .where(eq(dancers.id, correctedDancer.id));
 
-    const result =
-      await recalculateLinkedChoreographiesForDancerBirthDateCorrection({
-        dancerId: correctedDancer.id,
-      });
+    const result = await recalculateInTransaction(correctedDancer.id);
 
     expect(result).toEqual({
       ok: false,
@@ -281,10 +275,7 @@ describe("dancer birth date choreography correction", () => {
       .set({ birthDate: "2026-04-10" })
       .where(eq(dancers.id, correctedDancer.id));
 
-    const result =
-      await recalculateLinkedChoreographiesForDancerBirthDateCorrection({
-        dancerId: correctedDancer.id,
-      });
+    const result = await recalculateInTransaction(correctedDancer.id);
 
     expect(result.ok).toBe(false);
     expect(
@@ -369,9 +360,7 @@ describe("dancer birth date choreography correction", () => {
       .set({ birthDate: "2018-05-01" })
       .where(eq(dancers.id, correctedDancer.id));
 
-    await recalculateLinkedChoreographiesForDancerBirthDateCorrection({
-      dancerId: correctedDancer.id,
-    });
+    await recalculateInTransaction(correctedDancer.id);
 
     // Ages {8, 14, 14, 14} average to 13, one band up.
     await expectChoreographyState(choreography.id, {
@@ -710,6 +699,28 @@ describe("birth date correction schedule move", () => {
     await expectDancerBirthDate(scenario.dancerId, "2016-05-01");
   });
 
+  test("refuses the whole correction when the only compatible show cannot take every choreography", async () => {
+    const scenario = await createScheduleMoveScenario({
+      eventName: "Una sola plaza",
+      firstShowCategories: "younger",
+      linkedChoreographies: 2,
+      secondShow: { accepts: "older", totalCapacity: 1 },
+    });
+
+    const write = await correctBirthDate(scenario.dancerId, "2011-05-01");
+
+    expect(write).toMatchObject({ ok: false });
+
+    for (const choreography of scenario.linkedChoreographies) {
+      await expectChoreographySchedule(choreography.id, {
+        scheduleId: scenario.firstShow.scheduleId,
+        scheduleCapacityId: scenario.firstShow.scheduleCapacityId,
+      });
+    }
+
+    await expectDancerBirthDate(scenario.dancerId, "2016-05-01");
+  });
+
   test("refuses the whole correction when several shows accept the new category", async () => {
     const scenario = await createScheduleMoveScenario({
       eventName: "Dos destinos",
@@ -750,6 +761,7 @@ async function createScheduleMoveScenario(input: {
   firstShowCategories: "both" | "younger";
   secondShow?: ShowInput;
   thirdShow?: ShowInput;
+  linkedChoreographies?: number;
 }) {
   const academy = await createAcademySession({
     academyName: `Academia ${input.eventName}`,
@@ -796,26 +808,35 @@ async function createScheduleMoveScenario(input: {
     lastName: "Corrección",
     birthDate: "2016-05-01",
   });
-  const choreography = await createLinkedChoreography({
-    academyId: academy.academyId,
-    categoryId: catalog.youngerCategory.id,
-    categoryAgeBasis: 10,
-    eventId: catalog.event.id,
-    experienceLevelId: null,
-    modalityId: catalog.modality.id,
-    name: "Coreografía móvil",
-    scheduleCapacityId: catalog.scheduleCapacity.id,
-  });
+  const linkedChoreographies = [];
 
-  await db.insert(choreographyDancers).values({
-    choreographyId: choreography.id,
-    dancerId: dancer.id,
-    ageAtEventStart: 10,
-  });
+  for (let index = 0; index < (input.linkedChoreographies ?? 1); index += 1) {
+    const choreography = await createLinkedChoreography({
+      academyId: academy.academyId,
+      categoryId: catalog.youngerCategory.id,
+      categoryAgeBasis: 10,
+      eventId: catalog.event.id,
+      experienceLevelId: null,
+      modalityId: catalog.modality.id,
+      name:
+        index === 0 ? "Coreografía móvil" : `Coreografía móvil ${index + 1}`,
+      scheduleCapacityId: catalog.scheduleCapacity.id,
+    });
+
+    await db.insert(choreographyDancers).values({
+      choreographyId: choreography.id,
+      dancerId: dancer.id,
+      ageAtEventStart: 10,
+    });
+    linkedChoreographies.push(choreography);
+  }
+
+  const [choreography] = linkedChoreographies;
 
   return {
     choreographyId: choreography.id,
     choreographyNumber: choreography.choreographyNumber,
+    linkedChoreographies,
     dancerId: dancer.id,
     firstShow: {
       scheduleId: firstShowScheduleId,
@@ -878,6 +899,27 @@ async function createShow(input: {
   return { scheduleId: schedule.id, scheduleCapacityId: scheduleCapacity.id };
 }
 
+/**
+ * The recalculation on its own, in the transaction it requires: the capacity
+ * lock a schedule move takes guards nothing outside one. The bases are loaded
+ * before the transaction opens, exactly as both dancer forms do it.
+ */
+async function recalculateInTransaction(dancerId: string) {
+  const eventBasesByEventId =
+    await loadLinkedChoreographyEventBasesForDancerBirthDateCorrection({
+      dancerId,
+    });
+
+  return await db.transaction(
+    async (tx) =>
+      await recalculateLinkedChoreographiesForDancerBirthDateCorrection({
+        dancerId,
+        eventBasesByEventId,
+        executor: tx,
+      }),
+  );
+}
+
 async function correctBirthDate(dancerId: string, birthDate: string) {
   // The bases are loaded before the transaction opens, exactly as both dancer
   // forms do it.
@@ -889,11 +931,14 @@ async function correctBirthDate(dancerId: string, birthDate: string) {
   return await runDancerWriteWithBirthDateCorrection(async (tx) => {
     await tx.update(dancers).set({ birthDate }).where(eq(dancers.id, dancerId));
 
-    return await applyDancerBirthDateCorrection({
-      dancerId,
-      eventBasesByEventId,
-      executor: tx,
-    });
+    return {
+      dancer: null,
+      scheduleMoves: await applyDancerBirthDateCorrection({
+        dancerId,
+        eventBasesByEventId,
+        executor: tx,
+      }),
+    };
   });
 }
 
@@ -904,7 +949,7 @@ async function readScheduleMoves(dancerId: string, birthDate: string) {
     throw new Error(write.birthDateMessage);
   }
 
-  return write.dancer;
+  return write.scheduleMoves;
 }
 
 async function expectChoreographySchedule(

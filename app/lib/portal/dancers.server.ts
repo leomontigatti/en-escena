@@ -200,7 +200,6 @@ export async function updateDancerForAcademy(
   // The dancer update and the recalculation share one transaction, so a
   // correction that leaves a choreography without a category rolls the dancer
   // row back as well.
-  const scheduleMoves: DancerBirthDateScheduleMove[] = [];
   const write = await runDancerWriteWithBirthDateCorrection(async (tx) => {
     const [savedDancer] = await tx
       .update(dancers)
@@ -220,17 +219,16 @@ export async function updateDancerForAcademy(
       .where(and(eq(dancers.id, dancerId), eq(dancers.academyId, academyId)))
       .returning();
 
-    if (birthDateChanged) {
-      scheduleMoves.push(
-        ...(await applyDancerBirthDateCorrection({
-          dancerId: dancer.id,
-          executor: tx,
-          eventBasesByEventId: linkedChoreographyEventBases,
-        })),
-      );
-    }
-
-    return savedDancer;
+    return {
+      dancer: savedDancer,
+      scheduleMoves: birthDateChanged
+        ? await applyDancerBirthDateCorrection({
+            dancerId: dancer.id,
+            executor: tx,
+            eventBasesByEventId: linkedChoreographyEventBases,
+          })
+        : [],
+    };
   });
 
   if (!write.ok) {
@@ -242,7 +240,11 @@ export async function updateDancerForAcademy(
     };
   }
 
-  return { ok: true, dancer: write.dancer, scheduleMoves };
+  return {
+    ok: true,
+    dancer: write.dancer,
+    scheduleMoves: write.scheduleMoves,
+  };
 }
 
 function validateCreateDancerInput(

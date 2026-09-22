@@ -191,11 +191,14 @@ export async function releaseScheduleCapacityReferences(
 }
 
 /**
- * The one place the schedule compatibility rule lives: a schedule takes a
- * choreography when it accepts its modality **and** its accepted categories are
- * either empty —which means every category— or contain the choreography's.
- * Every path that assigns or reassigns a schedule reaches the rule through
- * here, so a modality split into two shows resolves each side on its own.
+ * The schedule compatibility rule, in SQL: a schedule takes a choreography when
+ * it accepts its modality **and** its accepted categories are either empty
+ * —which means every category— or contain the choreography's. Every path that
+ * assigns or reassigns a schedule reaches the rule through here, so a modality
+ * split into two shows resolves each side on its own. The only other statement
+ * of it is `resolveScheduleOptionsFromBases` in
+ * `registration-readiness.server.ts`, which answers the same question in memory
+ * over already-loaded bases; the two are meant to agree, and its tests say so.
  *
  * `categoryId` is nullable because a category is not always resolved; there is
  * then nothing to filter by, and category resolution already blocks those flows

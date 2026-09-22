@@ -30,7 +30,7 @@ import type {
   ScheduleWithEntriesInput,
 } from "@/lib/events/bases-repository/shared.server";
 import {
-  acceptsEveryCategory,
+  everyCategorySharesAModality,
   groupScheduleCategories,
   insertScheduleCategories,
   listAcceptedCategories,
@@ -572,7 +572,7 @@ async function validateScheduleInput(
 
   if (
     categoryIds.length > 0 &&
-    !(await acceptsEveryCategory({ categoryIds, eventId, modalityIds }))
+    !(await everyCategorySharesAModality({ categoryIds, eventId, modalityIds }))
   ) {
     fieldErrors.categoryIds =
       "Elegí categorías que compartan una modalidad con el cronograma.";
