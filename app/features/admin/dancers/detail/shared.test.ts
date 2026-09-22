@@ -46,7 +46,6 @@ describe("getInitialDialogIntent", () => {
           values: updateValues,
         },
         shouldConfirmSave: true,
-        statusIntent: "archive-dancer",
       }),
     ).toBe("save");
   });
@@ -64,12 +63,14 @@ describe("getInitialDialogIntent", () => {
           values: updateValues,
         },
         shouldConfirmSave: false,
-        statusIntent: "archive-dancer",
       }),
     ).toBeNull();
   });
 
-  test("re-opens the status dialog for an archive the server refused", () => {
+  // A refused status change carries no `values`, and re-opens no dialog: the
+  // reloaded page already has `Archivar` disabled and the participation alert
+  // showing, so the dialog would offer a confirm the server refuses again.
+  test("opens no dialog for an archive the server refused", () => {
     expect(
       getInitialDialogIntent({
         actionData: {
@@ -79,13 +80,10 @@ describe("getInitialDialogIntent", () => {
           fieldErrors: {},
         },
         shouldConfirmSave: false,
-        statusIntent: "archive-dancer",
       }),
-    ).toBe("archive-dancer");
+    ).toBeNull();
   });
 
-  // The generic error carries no `values` either, and it may well come from
-  // "Guardar": opening the archive dialog would be an action nobody asked for.
   test("opens no dialog for an unexpected failure", () => {
     expect(
       getInitialDialogIntent({
@@ -94,7 +92,6 @@ describe("getInitialDialogIntent", () => {
           message: "No pudimos completar la acción. Intentá nuevamente.",
         },
         shouldConfirmSave: true,
-        statusIntent: "archive-dancer",
       }),
     ).toBeNull();
   });

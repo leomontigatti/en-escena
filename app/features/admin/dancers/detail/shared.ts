@@ -22,10 +22,7 @@ import {
   notificationToasts,
   type NotificationKey,
 } from "@/lib/shared/notification-toasts";
-import {
-  isUnexpectedActionError,
-  type UnexpectedActionError,
-} from "@/lib/shared/recoverable-client-action";
+import type { UnexpectedActionError } from "@/lib/shared/recoverable-client-action";
 
 export type { DancerEditConsequence };
 
@@ -62,8 +59,8 @@ export type DancerDetailLoaderData = {
 
 /**
  * `values` is absent when the failure was not a rejected edit: a refused
- * archive has no form to repopulate, and that absence is what re-opens the
- * confirmation dialog in `getInitialDialogIntent`.
+ * archive has no form to repopulate, and its presence is what tells
+ * `getInitialDialogIntent` there is a save confirmation to re-open.
  */
 export type DancerActionError = {
   status: "error";
@@ -297,11 +294,9 @@ function getDancerStatusAction({
 export function getInitialDialogIntent({
   actionData,
   shouldConfirmSave,
-  statusIntent,
 }: {
   actionData: DancerActionError | UnexpectedActionError | undefined;
   shouldConfirmSave: boolean;
-  statusIntent: DancerStatusAction["intent"];
 }): DancerDialogIntent | null {
   if (!actionData) {
     return null;
@@ -310,23 +305,17 @@ export function getInitialDialogIntent({
   const submittedValues =
     "values" in actionData ? actionData.values : undefined;
 
-  if (isDancerUpdateValues(submittedValues)) {
-    return shouldConfirmSave ? "save" : null;
-  }
-
-  // Carrying no update `values` is how a failed status change comes back —a
-  // refused archive, for one— and that is what re-opens the
-  // archive/reactivate dialog. The generic error from
-  // `recoverableClientAction` carries none either, but it may just as well
-  // come from `Guardar`: the toast already reports it and the form stays
-  // mounted, so opening a dialog the admin never asked for would be wrong.
-  // `fieldErrors` is what tells the two apart: every failure this feature
-  // builds carries the key, and the generic one carries nothing but a message.
-  if (isUnexpectedActionError(actionData) && !("fieldErrors" in actionData)) {
-    return null;
-  }
-
-  return statusIntent;
+  // Only a rejected `Guardar` carries `values`, and only an edit whose save
+  // needs confirming has a dialog to go back to. Everything else re-opens
+  // nothing: a refused status change is reported by its toast, and by the
+  // time it lands the page has reloaded with `Archivar` already disabled and
+  // the participation alert showing, so a re-opened dialog would offer only a
+  // confirm the server refuses again. The generic error from
+  // `recoverableClientAction` carries no `values` either and is left alone for
+  // the same reason.
+  return shouldConfirmSave && isDancerUpdateValues(submittedValues)
+    ? "save"
+    : null;
 }
 
 function hasDancerVerificationMinimumData(

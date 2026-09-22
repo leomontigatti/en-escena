@@ -1505,15 +1505,15 @@ describe("`/administracion/bailarines` route", () => {
       message:
         "Este bailarín no puede archivarse porque está participando del evento activo.",
     });
-    // No submitted values: that absence is what re-opens the confirmation
-    // dialog rather than the edit form.
+    // A refused status change carries no submitted values, and re-opens no
+    // dialog: the toast reports it, and the reloaded page already shows
+    // `Archivar` disabled with the participation alert.
     expect(
       getInitialDialogIntent({
         actionData: archiveResult as DancerActionError,
         shouldConfirmSave: false,
-        statusIntent: "archive-dancer",
       }),
-    ).toBe("archive-dancer");
+    ).toBeNull();
     await expectPersistedDancer(dancer.id, { active: true });
 
     await expect(
