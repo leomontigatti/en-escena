@@ -32,7 +32,7 @@ import type { RosterPersonKind } from "@/lib/roster/roster-person-status.shared"
  * is not participating: the rows survive to hold their money and their
  * comprobante line, not to claim the person is still in the event.
  */
-export async function findActiveEventParticipation(input: {
+export async function hasActiveEventParticipation(input: {
   kind: RosterPersonKind;
   personId: string;
 }): Promise<boolean> {
@@ -47,14 +47,14 @@ export async function findActiveEventParticipation(input: {
 
   const onChoreography =
     input.kind === "dancer"
-      ? await findDancerChoreographyLink(activeEvent.id, input.personId)
-      : await findProfessorChoreographyLink(activeEvent.id, input.personId);
+      ? await hasDancerChoreographyLink(activeEvent.id, input.personId)
+      : await hasProfessorChoreographyLink(activeEvent.id, input.personId);
 
   if (onChoreography) {
     return true;
   }
 
-  return await findSeminarInscription(activeEvent.id, input);
+  return await hasSeminarInscription(activeEvent.id, input);
 }
 
 /**
@@ -63,7 +63,7 @@ export async function findActiveEventParticipation(input: {
  * dancers on its own — but a row stamped on only one of the two must never
  * read as a live commitment, and the second condition costs nothing to state.
  */
-async function findDancerChoreographyLink(eventId: string, dancerId: string) {
+async function hasDancerChoreographyLink(eventId: string, dancerId: string) {
   const [link] = await db
     .select({ id: choreographyDancers.id })
     .from(choreographyDancers)
@@ -89,7 +89,7 @@ async function findDancerChoreographyLink(eventId: string, dancerId: string) {
  * many-to-many with no withdrawal of its own —removal is a physical delete— so
  * the choreography's own withdrawal is all there is to check.
  */
-async function findProfessorChoreographyLink(
+async function hasProfessorChoreographyLink(
   eventId: string,
   professorId: string,
 ) {
@@ -117,7 +117,7 @@ async function findProfessorChoreographyLink(
  * table, so this one is written once with the column chosen by kind rather
  * than twice.
  */
-async function findSeminarInscription(
+async function hasSeminarInscription(
   eventId: string,
   person: { kind: RosterPersonKind; personId: string },
 ) {

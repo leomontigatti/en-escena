@@ -127,12 +127,10 @@ describe("setRosterPersonStatus", () => {
       firstName: "Luz",
       lastName: "Dicta",
     });
-    await db
-      .insert(choreographyProfessors)
-      .values({
-        choreographyId: fixture.choreography.id,
-        professorId: professor.id,
-      });
+    await db.insert(choreographyProfessors).values({
+      choreographyId: fixture.choreography.id,
+      professorId: professor.id,
+    });
 
     await expect(
       setRosterPersonStatus({
@@ -329,5 +327,73 @@ describe("setRosterPersonStatus", () => {
       .from(dancers)
       .where(eq(dancers.id, fixture.dancer.id));
     expect(row?.active).toBe(true);
+  });
+
+  // The other two cells of the kind x surface matrix: the guard is written once
+  // for both, so a cell that regressed would mean a surface had grown a rule of
+  // its own.
+  test("refuses to archive a dancer from the admin panel, which writes any academy's people", async () => {
+    const fixture = await seedInscribedDancer();
+
+    await expect(
+      setRosterPersonStatus({
+        academyId: null,
+        kind: "dancer",
+        next: "archived",
+        personId: fixture.dancer.id,
+        surface: "admin",
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      cause: "participating",
+      message:
+        "Este bailarín no puede archivarse porque está participando del evento activo.",
+    });
+    expect(await readRosterStatus(dancers, fixture.dancer.id)).toBe(true);
+  });
+
+  test("refuses to archive a professor from the portal, and archives one whose choreography link is gone", async () => {
+    const fixture = await seedInscribedDancer();
+    const professor = await createProfessor(fixture.academyId, {
+      firstName: "Nara",
+      lastName: "Portal",
+    });
+    await db.insert(choreographyProfessors).values({
+      choreographyId: fixture.choreography.id,
+      professorId: professor.id,
+    });
+
+    await expect(
+      setRosterPersonStatus({
+        academyId: fixture.academyId,
+        kind: "professor",
+        next: "archived",
+        personId: professor.id,
+        surface: "portal",
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      cause: "participating",
+      message:
+        "Este profesor no puede archivarse porque está participando del evento activo.",
+    });
+    expect(await readRosterStatus(professors, professor.id)).toBe(true);
+
+    // `choreography_professor` has no withdrawal: removal is a physical delete,
+    // so that is how a professor stops participating.
+    await db
+      .delete(choreographyProfessors)
+      .where(eq(choreographyProfessors.professorId, professor.id));
+
+    const archived = await setRosterPersonStatus({
+      academyId: fixture.academyId,
+      kind: "professor",
+      next: "archived",
+      personId: professor.id,
+      surface: "portal",
+    });
+
+    expect(archived).toMatchObject({ ok: true });
+    expect(await readRosterStatus(professors, professor.id)).toBe(false);
   });
 });

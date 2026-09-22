@@ -139,3 +139,43 @@ const participatingMessages: Record<RosterPersonKind, string> = {
 export function getRosterPersonParticipatingMessage(kind: RosterPersonKind) {
   return participatingMessages[kind];
 }
+
+export type RosterPersonArchiveAvailability = {
+  /**
+   * Whether the `Archivar` action is offered disabled. A courtesy in front of
+   * the guard, never the rule: `setRosterPersonStatus` refuses the archive
+   * whether or not a screen honours this.
+   */
+  disabled: boolean;
+  /**
+   * Why the action is unavailable, or `null` when it is available. It is
+   * `null` whenever `disabled` is `false`, so the two fields are one fact and
+   * a screen cannot show the sentence beside an enabled button.
+   */
+  participatingAlert: string | null;
+};
+
+/**
+ * The one place the archive half of the screen rule is written, for both
+ * person kinds and both surfaces: whether the four detail screens offer
+ * `Archivar` disabled, and the sentence that explains it.
+ *
+ * Only an **active** person is ever refused. An archived participant is
+ * offered `Reactivar`, which this rule never refuses, and an alert beside it
+ * would explain an unavailability that is not happening.
+ */
+export function getRosterPersonArchiveAvailability(input: {
+  isParticipatingInActiveEvent: boolean;
+  kind: RosterPersonKind;
+  status: RosterPersonStatus;
+}): RosterPersonArchiveAvailability {
+  const disabled =
+    input.status === "active" && input.isParticipatingInActiveEvent;
+
+  return {
+    disabled,
+    participatingAlert: disabled
+      ? getRosterPersonParticipatingMessage(input.kind)
+      : null,
+  };
+}

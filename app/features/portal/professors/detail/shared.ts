@@ -3,7 +3,8 @@ import { z } from "zod";
 import type { PortalProfessorListItem } from "@/lib/portal/professors.server";
 import {
   getArchiveKeepsRosterMessage,
-  getRosterPersonParticipatingMessage,
+  getRosterPersonArchiveAvailability,
+  toRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.shared";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 
@@ -51,7 +52,7 @@ export type ProfessorStatusIntent =
 
 export type PortalProfessorDetailLoaderData = {
   /**
-   * Answered by `findActiveEventParticipation`, the same reader the guard in
+   * Answered by `hasActiveEventParticipation`, the same reader the guard in
    * `setRosterPersonStatus` asks — see the dancer twin. It is the whole event
    * context this screen needs: the reader resolves the active event itself, so
    * the loader stays free of a selected event it shows nothing of.
@@ -123,10 +124,15 @@ export function buildPortalProfessorDetailViewModel({
   active: boolean;
   isParticipatingInActiveEvent: boolean;
 }): PortalProfessorDetailViewModel {
+  const archiveAvailability = getRosterPersonArchiveAvailability({
+    isParticipatingInActiveEvent,
+    kind: "professor",
+    status: toRosterPersonStatus(active),
+  });
   const statusAction: PortalProfessorStatusAction = active
     ? {
         ...portalProfessorStatusActions[archiveProfessorIntent],
-        disabled: isParticipatingInActiveEvent,
+        disabled: archiveAvailability.disabled,
       }
     : {
         ...portalProfessorStatusActions[reactivateProfessorIntent],
@@ -134,11 +140,7 @@ export function buildPortalProfessorDetailViewModel({
       };
 
   return {
-    // Only beside a disabled archive: an archived participant is offered
-    // `Reactivar`, which this rule never refuses.
-    participatingAlert: statusAction.disabled
-      ? getRosterPersonParticipatingMessage("professor")
-      : null,
+    participatingAlert: archiveAvailability.participatingAlert,
     statusAction,
   };
 }

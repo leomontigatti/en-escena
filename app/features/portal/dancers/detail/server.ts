@@ -19,7 +19,7 @@ import {
   updateDancerForAcademy,
   type UpdateDancerField,
 } from "@/lib/portal/dancers.server";
-import { findActiveEventParticipation } from "@/lib/roster/active-event-participation.server";
+import { hasActiveEventParticipation } from "@/lib/roster/active-event-participation.server";
 import {
   getRosterPersonNotFoundMessage,
   setRosterPersonStatus,
@@ -60,7 +60,7 @@ export async function loadPortalDancerDetail(input: {
       storage: createDefaultDancerDocumentStorage(),
     }),
     inscriptions,
-    isParticipatingInActiveEvent: await findActiveEventParticipation({
+    isParticipatingInActiveEvent: await hasActiveEventParticipation({
       kind: "dancer",
       personId: dancerId,
     }),

@@ -2,7 +2,7 @@ import { and, eq, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
 import { dancers, professors } from "@/db/schema";
-import { findActiveEventParticipation } from "@/lib/roster/active-event-participation.server";
+import { hasActiveEventParticipation } from "@/lib/roster/active-event-participation.server";
 
 import {
   getRosterPersonParticipatingMessage,
@@ -75,7 +75,7 @@ export function rosterPersonStatusCondition(
  * event: someone dancing in the event that is running now is, by definition,
  * still being worked with, and archiving means the academy no longer works with
  * them. The predicate is not written here — it is
- * `findActiveEventParticipation`, the same reader the detail screens call to
+ * `hasActiveEventParticipation`, the same reader the detail screens call to
  * grey the button out, so the server and the screen cannot answer the question
  * differently.
  *
@@ -128,7 +128,7 @@ export async function setRosterPersonStatus<
 
   if (
     input.next === "archived" &&
-    (await findActiveEventParticipation({
+    (await hasActiveEventParticipation({
       kind: input.kind,
       personId: input.personId,
     }))

@@ -17,7 +17,7 @@ import {
   createEventChoreographyFixture,
   createSavedEvent,
 } from "@/lib/events/bases-test-fixtures.server.db";
-import { findActiveEventParticipation } from "@/lib/roster/active-event-participation.server";
+import { hasActiveEventParticipation } from "@/lib/roster/active-event-participation.server";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -189,10 +189,10 @@ describe("active event participation reader", () => {
 });
 
 function participationOf(
-  kind: Parameters<typeof findActiveEventParticipation>[0]["kind"],
+  kind: Parameters<typeof hasActiveEventParticipation>[0]["kind"],
   personId: string,
 ) {
-  return findActiveEventParticipation({ kind, personId });
+  return hasActiveEventParticipation({ kind, personId });
 }
 
 async function createRoster(academyName: string) {

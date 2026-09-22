@@ -13,7 +13,8 @@ import type { RecategorisedChoreography } from "@/lib/choreographies/recategoris
 import { buildBirthDateRefinement } from "@/lib/dancers/birth-date";
 import {
   getArchiveKeepsRosterMessage,
-  getRosterPersonParticipatingMessage,
+  getRosterPersonArchiveAvailability,
+  toRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.shared";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import {
@@ -71,7 +72,7 @@ export type PortalDancerDetailLoaderData = {
   documentImageUrls: PortalDancerDocumentImageUrls;
   inscriptions: DancerInscription[];
   /**
-   * Answered by `findActiveEventParticipation`, the same reader the guard in
+   * Answered by `hasActiveEventParticipation`, the same reader the guard in
    * `setRosterPersonStatus` asks — see the panel twin. It resolves the active
    * event itself rather than reading `selectedEventId`, because the rule is
    * about a commitment that is live now.
@@ -279,15 +280,15 @@ export function getGeneralActionError(
 
 function getPortalDancerStatusAction({
   isActive,
-  isParticipatingInActiveEvent,
+  isArchiveDisabled,
 }: {
   isActive: boolean;
-  isParticipatingInActiveEvent: boolean;
+  isArchiveDisabled: boolean;
 }): PortalDancerStatusAction {
   if (isActive) {
     return {
       ...portalDancerStatusActions["archive-dancer"],
-      disabled: isParticipatingInActiveEvent,
+      disabled: isArchiveDisabled,
     };
   }
 
@@ -312,9 +313,14 @@ export function buildPortalDancerDetailViewModel(input: {
     verificationStatus,
   } = input;
   const isIdentityVerified = verificationStatus === "verified";
+  const archiveAvailability = getRosterPersonArchiveAvailability({
+    isParticipatingInActiveEvent,
+    kind: "dancer",
+    status: toRosterPersonStatus(dancer.active),
+  });
   const statusAction = getPortalDancerStatusAction({
     isActive: dancer.active,
-    isParticipatingInActiveEvent,
+    isArchiveDisabled: archiveAvailability.disabled,
   });
 
   return {
@@ -344,12 +350,7 @@ export function buildPortalDancerDetailViewModel(input: {
     showsIdentificationAlert: verificationStatus === "incomplete",
     showsPendingVerificationAlert: verificationStatus === "unverified",
     showsVerifiedIdentityAlert: verificationStatus === "verified",
-    // Only beside a disabled archive: an archived participant is offered
-    // `Reactivar`, which this rule never refuses, and an alert there would
-    // explain an unavailability that is not happening.
-    participatingAlert: statusAction.disabled
-      ? getRosterPersonParticipatingMessage("dancer")
-      : null,
+    participatingAlert: archiveAvailability.participatingAlert,
     statusAction,
     title: `${dancer.firstName} ${dancer.lastName}`,
     verificationStatus,

@@ -51,19 +51,22 @@ describe("getInitialDialogIntent", () => {
     ).toBe("save");
   });
 
-  test("re-opens the status dialog for a failure carrying no update values", () => {
+  // Carrying `values` is what marks a failure as a rejected edit, and an edit
+  // that needs no confirmation re-opens no dialog at all: the form is already
+  // mounted with the submitted values back in it.
+  test("opens no dialog for a rejected update that needs no confirmation", () => {
     expect(
       getInitialDialogIntent({
         actionData: {
           status: "error",
-          message: "No se pudo archivar.",
+          message: "Revisá los campos marcados.",
           fieldErrors: {},
-          values: { firstName: "Ana" } as never,
+          values: updateValues,
         },
         shouldConfirmSave: false,
         statusIntent: "archive-dancer",
       }),
-    ).toBe("archive-dancer");
+    ).toBeNull();
   });
 
   test("re-opens the status dialog for an archive the server refused", () => {

@@ -14,7 +14,8 @@ import type { RecategorisedChoreography } from "@/lib/choreographies/recategoris
 import { buildBirthDateRefinement } from "@/lib/dancers/birth-date";
 import {
   getArchiveKeepsRosterMessage,
-  getRosterPersonParticipatingMessage,
+  getRosterPersonArchiveAvailability,
+  toRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.shared";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import {
@@ -51,7 +52,7 @@ export type DancerDetailLoaderData = {
   editHref: string;
   isEditing: boolean;
   /**
-   * Answered by `findActiveEventParticipation`, the same reader the guard in
+   * Answered by `hasActiveEventParticipation`, the same reader the guard in
    * `setRosterPersonStatus` asks. One reader for both, so the screen cannot
    * grey out a button the server would honour — or offer one it would refuse.
    */
@@ -225,19 +226,16 @@ export function buildDancerActionError(
   };
 }
 
+/**
+ * Whether a failure carried the submitted edit. Only a rejected `Guardar`
+ * builds `values`, so its presence is the discriminant between the two
+ * failures this feature returns: an edit to repopulate, or a refused status
+ * change with no form behind it.
+ */
 function isDancerUpdateValues(
   values: DancerActionError["values"] | undefined,
 ): values is DancerUpdateInput {
-  return (
-    values !== undefined &&
-    "firstName" in values &&
-    "lastName" in values &&
-    "birthDate" in values &&
-    "documentType" in values &&
-    "documentNumber" in values &&
-    "documentFrontImageStorageKey" in values &&
-    "documentBackImageStorageKey" in values
-  );
+  return values !== undefined;
 }
 
 export function getSubmittedDancerUpdateValues(
@@ -275,14 +273,14 @@ export function getDancerEditValues({
 
 function getDancerStatusAction({
   active,
-  isParticipatingInActiveEvent,
+  isArchiveDisabled,
 }: {
   active: boolean;
-  isParticipatingInActiveEvent: boolean;
+  isArchiveDisabled: boolean;
 }): DancerStatusAction {
   return active
     ? {
-        disabled: isParticipatingInActiveEvent,
+        disabled: isArchiveDisabled,
         description: `Archivá este Bailarín para que deje de aparecer en futuras selecciones del portal. ${getArchiveKeepsRosterMessage("dancer")}`,
         intent: "archive-dancer",
         label: "Archivar",
@@ -363,9 +361,14 @@ export function buildDancerDetailViewState({
   // read mode, with the dialog and the toast doing the reporting.
   const isEditing =
     canEdit && (requestedEditMode || isDancerUpdateValues(actionData?.values));
+  const archiveAvailability = getRosterPersonArchiveAvailability({
+    isParticipatingInActiveEvent,
+    kind: "dancer",
+    status: toRosterPersonStatus(dancer.active),
+  });
   const statusAction = getDancerStatusAction({
     active: dancer.active,
-    isParticipatingInActiveEvent,
+    isArchiveDisabled: archiveAvailability.disabled,
   });
   const canVerifyIdentity =
     canEdit &&
@@ -388,12 +391,7 @@ export function buildDancerDetailViewState({
     identificationAlert,
     identificationAlertVariant,
     isEditing,
-    // Only beside a disabled archive: an archived participant is offered
-    // `Reactivar`, which this rule never refuses, and an alert there would
-    // explain an unavailability that is not happening.
-    participatingAlert: statusAction.disabled
-      ? getRosterPersonParticipatingMessage("dancer")
-      : null,
+    participatingAlert: archiveAvailability.participatingAlert,
     shouldConfirmSave:
       dancer.editConsequence !== null || birthDateMayNeedRecalculation,
     statusAction,
