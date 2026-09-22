@@ -113,7 +113,7 @@ describe("`Bases del evento` repository", () => {
     ).resolves.toMatchObject({
       status: "none",
       error:
-        "No hay cupos de cronograma compatibles para la modalidad y el tipo de grupo seleccionados.",
+        "No hay cupos de cronograma compatibles para la modalidad, la categoría y el tipo de grupo seleccionados.",
     });
     await expect(
       resolveCompatibleScheduleCapacities({

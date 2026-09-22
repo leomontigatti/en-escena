@@ -6,6 +6,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { EventScheduleDetailView } from "@/features/admin/schedules/detail/view";
 import type { EventScheduleDetailLoaderData } from "@/features/admin/schedules/shared";
+import { scheduleCategoriesDescription } from "@/features/admin/schedules/view-shared";
 import {
   createReactDomTestRenderer,
   getButton,
@@ -72,12 +73,14 @@ describe("EventScheduleDetailView", () => {
     expect(document.body.textContent).toContain(" / 4 disponibles");
     expect(document.body.textContent).toContain(" / 2 disponibles");
     // Never as a field description: that slot sits between the label and the
-    // control, and pushed every capacity out of line with its group type select.
+    // control, and pushed every capacity out of line with its group type
+    // select. The categories description is the only one this panel expects,
+    // so any other one appearing here fails.
     expect(
       Array.from(
         document.querySelectorAll('[data-slot="field-description"]'),
       ).map((description) => description.textContent),
-    ).not.toContainEqual(expect.stringContaining("lugares"));
+    ).toEqual([scheduleCategoriesDescription]);
     // The suffix is aria-hidden, so the accessible name spells the count out.
     expect(
       document.querySelector('label[for="schedule-capacity-capacity-0"]')

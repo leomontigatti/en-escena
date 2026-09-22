@@ -109,7 +109,7 @@ export async function recalculateLinkedChoreographiesForDancerBirthDateCorrectio
   // move below takes a `FOR UPDATE` lock, which guards nothing outside one, and
   // a refusal has to roll the dancer row back with it.
   executor: DatabaseExecutor;
-  eventBasesByEventId?: Map<string, EventBases>;
+  eventBasesByEventId: Map<string, EventBases>;
 }): Promise<DancerBirthDateCorrectionResult> {
   const executor = input.executor;
   const eligibleChoreographies = await listEligibleChoreographies(
@@ -170,7 +170,7 @@ export async function recalculateLinkedChoreographiesForDancerBirthDateCorrectio
 async function resolveCorrectionWrites(input: {
   correctedDancerId: string;
   eligibleChoreographies: EligibleChoreographyRow[];
-  eventBasesByEventId?: Map<string, EventBases>;
+  eventBasesByEventId: Map<string, EventBases>;
   executor: QueryExecutor;
 }): Promise<ChoreographyCorrectionWrite[]> {
   const linkedDancers = await input.executor
@@ -205,9 +205,17 @@ async function resolveCorrectionWrites(input: {
       linkedDancersByChoreographyId.get(choreography.choreographyId) ?? [],
       getEventLocalDateParts(choreography.startsAt),
     );
-    const eventBases =
-      input.eventBasesByEventId?.get(choreography.eventId) ??
-      (await getEventBases(choreography.eventId));
+    // Loaded before the transaction opened, covering every eligible
+    // choreography's event: a miss is a caller that built the map some other
+    // way, and reading the bases here would be a pool read inside the
+    // transaction the correction runs in.
+    const eventBases = input.eventBasesByEventId.get(choreography.eventId);
+
+    if (!eventBases) {
+      throw new Error(
+        `Missing event bases for event ${choreography.eventId} while correcting a birth date.`,
+      );
+    }
     const correctedResolvedDancer = resolvedDancers.find(
       (dancer) => dancer.id === input.correctedDancerId,
     );
@@ -383,7 +391,7 @@ class DancerBirthDateCorrectionRefusal extends Error {
 export async function applyDancerBirthDateCorrection(input: {
   dancerId: string;
   executor: DatabaseExecutor;
-  eventBasesByEventId?: Map<string, EventBases>;
+  eventBasesByEventId: Map<string, EventBases>;
 }): Promise<DancerBirthDateScheduleMove[]> {
   const recalculation =
     await recalculateLinkedChoreographiesForDancerBirthDateCorrection(input);

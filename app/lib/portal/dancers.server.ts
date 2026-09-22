@@ -19,6 +19,7 @@ import {
   runDancerWriteWithBirthDateCorrection,
   type DancerBirthDateScheduleMove,
 } from "@/lib/choreographies/dancer-birthdate-correction.server";
+import type { EventBases } from "@/lib/events/bases.server";
 import { buildDancerEventParticipationSql } from "@/lib/participation/participation.server";
 import { activeRosterPerson } from "@/lib/roster/roster-person-status.server";
 import {
@@ -192,11 +193,14 @@ export async function updateDancerForAcademy(
   }
 
   const birthDateChanged = dancer.birthDate !== validation.input.birthDate;
-  const linkedChoreographyEventBases = birthDateChanged
+  // Read before the transaction opens: the correction requires the bases, and
+  // reading them from the pool inside its transaction would hold two
+  // connections at once.
+  const linkedChoreographyEventBases: Map<string, EventBases> = birthDateChanged
     ? await loadLinkedChoreographyEventBasesForDancerBirthDateCorrection({
         dancerId: dancer.id,
       })
-    : undefined;
+    : new Map();
   // The dancer update and the recalculation share one transaction, so a
   // correction that leaves a choreography without a category rolls the dancer
   // row back as well.
