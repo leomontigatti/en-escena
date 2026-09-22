@@ -1,4 +1,5 @@
 import type { dancers } from "@/db/schema";
+import type { RecategorisedChoreography } from "@/lib/choreographies/recategorisation-report";
 import type { DancerEditConsequence } from "@/lib/admin/dancers/dancers.server.shared";
 import type {
   DancerIdentificationStatus,
@@ -83,6 +84,7 @@ export type DancerMutationResult =
   | {
       ok: true;
       dancer: DancerEditableSnapshot;
+      recategorisedChoreographies: RecategorisedChoreography[];
       verificationInvalidated: boolean;
     }
   | {

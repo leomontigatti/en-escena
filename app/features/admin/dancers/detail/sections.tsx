@@ -8,6 +8,8 @@ import {
 } from "@/components/admin/resource-layout";
 import { BackButton } from "@/components/shared/action-buttons";
 import { AlertStack } from "@/components/shared/alert-stack";
+import { RecategorisedChoreographiesAlert } from "@/components/shared/recategorised-choreographies-alert";
+import type { RecategorisedChoreography } from "@/lib/choreographies/recategorisation-report";
 import { ArchivedPersonAlert } from "@/components/shared/archived-person-alert";
 import { DancerInscriptionsTable } from "@/components/shared/dancer-inscriptions-table";
 import {
@@ -93,6 +95,7 @@ export function DancerDetailAlerts({
   identificationAlert,
   identificationAlertVariant,
   onSelectIntent,
+  recategorisedChoreographies,
 }: {
   active: boolean;
   canEdit: boolean;
@@ -100,9 +103,14 @@ export function DancerDetailAlerts({
   identificationAlert: string | null;
   identificationAlertVariant: "info" | "warning";
   onSelectIntent: (intent: DancerDialogIntent) => void;
+  recategorisedChoreographies: RecategorisedChoreography[];
 }) {
   return (
     <AlertStack>
+      <RecategorisedChoreographiesAlert
+        choreographies={recategorisedChoreographies}
+        surface="admin"
+      />
       {!active ? (
         <ArchivedPersonAlert
           personLabel="bailarín"

@@ -64,6 +64,7 @@ const warningTriage: {
   { kind: "belowDeposit", label: "Seña pendiente" },
   { kind: "dancerSpacing", label: "Separación" },
   { kind: "outOfBlock", label: "Fuera de bloque" },
+  { kind: "missingLevel", label: "Sin nivel" },
 ];
 
 /**

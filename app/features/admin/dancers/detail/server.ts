@@ -115,6 +115,7 @@ export async function handleDancerDetailAction(input: {
       intent === "archive-dancer"
         ? "bailarin-archivado"
         : "bailarin-reactivado",
+      [],
     );
   }
 
@@ -124,7 +125,7 @@ export async function handleDancerDetailAction(input: {
       selectedEventId: eventContext.selectedEventId,
     });
 
-    return buildDancerActionSuccess("bailarin-verificado");
+    return buildDancerActionSuccess("bailarin-verificado", []);
   }
 
   const submittedValues = readDancerUpdateValues(formData);
@@ -163,6 +164,7 @@ export async function handleDancerDetailAction(input: {
     result.verificationInvalidated
       ? "bailarin-guardado-requiere-verificacion"
       : "bailarin-guardado",
+    result.recategorisedChoreographies,
   );
 }
 

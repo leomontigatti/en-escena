@@ -217,7 +217,19 @@ describe("handlePortalDancerDetailAction", () => {
       params: { dancerId: dancer.id },
     });
 
-    expect(result).toMatchObject({ status: "success" });
+    // The move to `Mayor`, which admits no level, cleared the stored one, and
+    // the action reports it so the page can say so.
+    expect(result).toMatchObject({
+      status: "success",
+      recategorisedChoreographies: [
+        {
+          choreographyId: choreography.id,
+          name: "Solo con recálculo",
+          categoryName: "Mayor",
+          experienceLevelCleared: true,
+        },
+      ],
+    });
     await expect(
       db.query.choreographies.findFirst({
         where: eq(choreographies.id, choreography.id),

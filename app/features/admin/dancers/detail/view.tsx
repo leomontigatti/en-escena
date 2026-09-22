@@ -117,6 +117,9 @@ export function DancerDetailRouteView({
           identificationAlert={viewState.identificationAlert}
           identificationAlertVariant={viewState.identificationAlertVariant}
           onSelectIntent={setDialogIntent}
+          recategorisedChoreographies={
+            successData?.recategorisedChoreographies ?? []
+          }
         />
 
         <DancerDetailCard

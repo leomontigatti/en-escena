@@ -23,6 +23,9 @@ Rules for roster links, choreography registration, locks and `Bases del evento`.
 - Academy cannot edit identity data or document images after a dancer is verified; later corrections are administrative.
 - Correcting dancer birth date can recalculate categories for signed or paid choreographies until they are evaluated; it does not change financial state.
 - A birth-date correction is refused when it would leave a linked choreography without a category: nothing is written, and the message names each choreography by number and name.
+- A birth-date correction that moves a choreography to a category which does not admit its experience level goes through and clears the level: the correction is not refused and the dancer form does not ask for a new level, because a wrong birth date is the worse problem and no level is the only safe value. The missing level is then an `Advertencia` on the participation list (`docs/domain/judging.md`) and only administration can fill it in.
+- The correction reports back what it changed beyond the dancer: every choreography whose **category** changed is listed on the dancer detail as an inline alert, one line per choreography linking to its detail, naming the new category and saying when the level was cleared. A choreography whose competitive age moved inside the same category is not listed. Administration reads that it can pick the level from the choreography detail; an academy reads that it has to get in touch, since the level is administration's to set.
+- Every choreography the correction rewrites gets a fresh `updatedAt`, as does a withdrawn choreography.
 
 ### `Estado de alta` for roster people
 
