@@ -18,6 +18,7 @@ import {
   type ScheduleDestination,
 } from "@/lib/choreographies/dancer-birthdate-schedule-move.server";
 import { refreshActiveInscriptionAges } from "@/lib/choreographies/inscription-age.server";
+import type { RecategorisedChoreography } from "@/lib/choreographies/recategorisation-report";
 import type { ReservedSchedulePlace } from "@/lib/choreographies/schedule-capacity-lock.server";
 import {
   getAgeAtDate,
@@ -75,8 +76,25 @@ export type DancerBirthDateCorrectionChoreography = ChoreographyReference;
 
 export type { DancerBirthDateScheduleMove };
 
+/**
+ * What a correction that went through moved: the choreographies it sent to
+ * another show, and the ones it left in another category. Both dancer forms
+ * read the same report, each wording its own feedback.
+ */
+export type DancerBirthDateCorrectionReport = {
+  scheduleMoves: DancerBirthDateScheduleMove[];
+  recategorisedChoreographies: RecategorisedChoreography[];
+};
+
+/** A report of a correction that moved nothing, for the callers that skip it. */
+export const emptyDancerBirthDateCorrectionReport: DancerBirthDateCorrectionReport =
+  {
+    scheduleMoves: [],
+    recategorisedChoreographies: [],
+  };
+
 export type DancerBirthDateCorrectionResult =
-  | { ok: true; scheduleMoves: DancerBirthDateScheduleMove[] }
+  | ({ ok: true } & DancerBirthDateCorrectionReport)
   | {
       ok: false;
       code: "no-compatible-category";
@@ -90,6 +108,8 @@ export type DancerBirthDateCorrectionResult =
 
 type ChoreographyCorrectionWrite = {
   choreography: EligibleChoreographyRow;
+  /** `null` when the correction leaves the choreography without a category. */
+  categoryName: string | null;
   placement: ChoreographyCompetitivePlacement;
   resolvedDancers: ResolvedRegistrationDancer[];
 };
@@ -97,6 +117,7 @@ type ChoreographyCorrectionWrite = {
 type CategorisedCorrectionWrite = {
   write: ChoreographyCorrectionWrite;
   categoryId: string;
+  categoryName: string;
 };
 
 type ScheduledCorrectionWrite = CategorisedCorrectionWrite & {
@@ -118,7 +139,7 @@ export async function recalculateLinkedChoreographiesForDancerBirthDateCorrectio
   );
 
   if (eligibleChoreographies.length === 0) {
-    return { ok: true, scheduleMoves: [] };
+    return { ok: true, ...emptyDancerBirthDateCorrectionReport };
   }
 
   const writes = await resolveCorrectionWrites({
@@ -156,10 +177,10 @@ export async function recalculateLinkedChoreographiesForDancerBirthDateCorrectio
 
   return {
     ok: true,
-    scheduleMoves: await persistCorrectionWrites({
+    ...(await persistCorrectionWrites({
       executor,
       scheduledWrites: scheduled.scheduledWrites,
-    }),
+    })),
   };
 }
 
@@ -226,14 +247,15 @@ async function resolveCorrectionWrites(input: {
 
     const beforePlacement =
       toCompetitivePlacementFromChoreography(choreography);
+    const resolution = resolveChoreographyClassificationForResolvedDancers({
+      eventBases,
+      modalityId: choreography.modalityId,
+      dancers: resolvedDancers,
+    });
     const afterPlacement = toCompetitivePlacementFromResolution({
       correctedDancer: correctedResolvedDancer,
       currentExperienceLevelId: beforePlacement.experienceLevelId,
-      resolution: resolveChoreographyClassificationForResolvedDancers({
-        eventBases,
-        modalityId: choreography.modalityId,
-        dancers: resolvedDancers,
-      }),
+      resolution,
     });
 
     if (!hasCompetitivePlacementChanged(beforePlacement, afterPlacement)) {
@@ -242,6 +264,10 @@ async function resolveCorrectionWrites(input: {
 
     writes.push({
       choreography,
+      categoryName:
+        resolution.category.status === "resolved"
+          ? resolution.category.name
+          : null,
       placement: afterPlacement,
       resolvedDancers,
     });
@@ -262,15 +288,16 @@ function categoriseCorrectionWrites(writes: ChoreographyCorrectionWrite[]) {
 
   for (const write of writes) {
     const categoryId = write.placement.categoryId;
+    const categoryName = write.categoryName;
 
-    if (categoryId === null) {
+    if (categoryId === null || categoryName === null) {
       choreographiesWithoutCategory.push(
         toCorrectionChoreography(write.choreography),
       );
       continue;
     }
 
-    categorisedWrites.push({ write, categoryId });
+    categorisedWrites.push({ write, categoryId, categoryName });
   }
 
   return { categorisedWrites, choreographiesWithoutCategory };
@@ -292,7 +319,7 @@ async function scheduleCorrectionWrites(input: {
   // They travel with each resolution instead.
   const reservedPlaces: ReservedSchedulePlace[] = [];
 
-  for (const { write, categoryId } of input.categorisedWrites) {
+  for (const { write, categoryId, categoryName } of input.categorisedWrites) {
     const destination = await resolveDancerBirthDateScheduleDestination({
       categoryId,
       choreography: write.choreography,
@@ -314,22 +341,34 @@ async function scheduleCorrectionWrites(input: {
       });
     }
 
-    scheduledWrites.push({ write, categoryId, move: destination.move });
+    scheduledWrites.push({
+      write,
+      categoryId,
+      categoryName,
+      move: destination.move,
+    });
   }
 
   return { choreographiesWithoutSchedule, scheduledWrites };
 }
 
 /**
- * The writes, applied, reporting the choreographies that changed show.
+ * The writes, applied, reporting the choreographies that changed show and the
+ * ones that changed category.
  */
 async function persistCorrectionWrites(input: {
   executor: QueryExecutor;
   scheduledWrites: ScheduledCorrectionWrite[];
-}): Promise<DancerBirthDateScheduleMove[]> {
+}): Promise<DancerBirthDateCorrectionReport> {
   const scheduleMoves: DancerBirthDateScheduleMove[] = [];
+  const recategorisedChoreographies: RecategorisedChoreography[] = [];
 
-  for (const { write, categoryId, move } of input.scheduledWrites) {
+  for (const {
+    write,
+    categoryId,
+    categoryName,
+    move,
+  } of input.scheduledWrites) {
     await persistResolvedDancers({
       choreographyId: write.choreography.choreographyId,
       executor: input.executor,
@@ -344,6 +383,7 @@ async function persistCorrectionWrites(input: {
         experienceLevelId: toExperienceLevelValue(
           write.placement.experienceLevelId,
         ),
+        updatedAt: new Date(),
         ...(move
           ? {
               scheduleId: move.scheduleId,
@@ -359,9 +399,22 @@ async function persistCorrectionWrites(input: {
         scheduleName: move.scheduleName,
       });
     }
+
+    // Only a category change is reported: a row whose competitive age moved
+    // inside the same category reads the same to the user.
+    if (write.choreography.categoryId !== categoryId) {
+      recategorisedChoreographies.push({
+        choreographyId: write.choreography.choreographyId,
+        name: write.choreography.name,
+        categoryName,
+        experienceLevelCleared:
+          write.choreography.experienceLevelId !== null &&
+          write.placement.experienceLevelId === null,
+      });
+    }
   }
 
-  return scheduleMoves;
+  return { scheduleMoves, recategorisedChoreographies };
 }
 
 /**
@@ -392,7 +445,7 @@ export async function applyDancerBirthDateCorrection(input: {
   dancerId: string;
   executor: DatabaseExecutor;
   eventBasesByEventId: Map<string, EventBases>;
-}): Promise<DancerBirthDateScheduleMove[]> {
+}): Promise<DancerBirthDateCorrectionReport> {
   const recalculation =
     await recalculateLinkedChoreographiesForDancerBirthDateCorrection(input);
 
@@ -408,7 +461,10 @@ export async function applyDancerBirthDateCorrection(input: {
     );
   }
 
-  return recalculation.scheduleMoves;
+  return {
+    scheduleMoves: recalculation.scheduleMoves,
+    recategorisedChoreographies: recalculation.recategorisedChoreographies,
+  };
 }
 
 /**
@@ -416,22 +472,17 @@ export async function applyDancerBirthDateCorrection(input: {
  * The refusal comes back as the sentence for the `birthDate` field, leaving
  * each form to word its own summary; anything else keeps propagating.
  *
- * What the correction moved crosses the transaction boundary here, so neither
- * caller has to smuggle it out of its own closure.
+ * Whatever the write returns — the dancer row and what the correction moved —
+ * crosses the transaction boundary here, so neither caller has to smuggle it
+ * out of its own closure.
  */
-export async function runDancerWriteWithBirthDateCorrection<TDancer>(
-  write: (executor: DatabaseExecutor) => Promise<{
-    dancer: TDancer;
-    scheduleMoves: DancerBirthDateScheduleMove[];
-  }>,
+export async function runDancerWriteWithBirthDateCorrection<TResult>(
+  write: (executor: DatabaseExecutor) => Promise<TResult>,
 ): Promise<
-  | { ok: true; dancer: TDancer; scheduleMoves: DancerBirthDateScheduleMove[] }
-  | { ok: false; birthDateMessage: string }
+  { ok: true; result: TResult } | { ok: false; birthDateMessage: string }
 > {
   try {
-    const { dancer, scheduleMoves } = await db.transaction(write);
-
-    return { ok: true, dancer, scheduleMoves };
+    return { ok: true, result: await db.transaction(write) };
   } catch (error) {
     if (error instanceof DancerBirthDateCorrectionRefusal) {
       return { ok: false, birthDateMessage: error.reason };

@@ -13,8 +13,10 @@ import {
   type DancerDocumentType,
   type DancerNameInput,
 } from "@/lib/dancers/dancer-records.server";
+import type { RecategorisedChoreography } from "@/lib/choreographies/recategorisation-report";
 import {
   applyDancerBirthDateCorrection,
+  emptyDancerBirthDateCorrectionReport,
   loadLinkedChoreographyEventBasesForDancerBirthDateCorrection,
   runDancerWriteWithBirthDateCorrection,
   type DancerBirthDateScheduleMove,
@@ -79,6 +81,7 @@ export type UpdateDancerResult =
       // What the birth-date correction moved to another schedule, for the
       // success feedback to name.
       scheduleMoves: DancerBirthDateScheduleMove[];
+      recategorisedChoreographies: RecategorisedChoreography[];
     }
   | {
       ok: false;
@@ -223,16 +226,15 @@ export async function updateDancerForAcademy(
       .where(and(eq(dancers.id, dancerId), eq(dancers.academyId, academyId)))
       .returning();
 
-    return {
-      dancer: savedDancer,
-      scheduleMoves: birthDateChanged
-        ? await applyDancerBirthDateCorrection({
-            dancerId: dancer.id,
-            executor: tx,
-            eventBasesByEventId: linkedChoreographyEventBases,
-          })
-        : [],
-    };
+    const correction = birthDateChanged
+      ? await applyDancerBirthDateCorrection({
+          dancerId: dancer.id,
+          executor: tx,
+          eventBasesByEventId: linkedChoreographyEventBases,
+        })
+      : emptyDancerBirthDateCorrectionReport;
+
+    return { savedDancer, ...correction };
   });
 
   if (!write.ok) {
@@ -246,8 +248,9 @@ export async function updateDancerForAcademy(
 
   return {
     ok: true,
-    dancer: write.dancer,
-    scheduleMoves: write.scheduleMoves,
+    dancer: write.result.savedDancer,
+    scheduleMoves: write.result.scheduleMoves,
+    recategorisedChoreographies: write.result.recategorisedChoreographies,
   };
 }
 

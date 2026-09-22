@@ -131,7 +131,26 @@ describe("dancer birth date choreography correction", () => {
 
     const result = await recalculateInTransaction(correctedDancer.id);
 
-    expect(result).toEqual({ ok: true, scheduleMoves: [] });
+    expect(result).toEqual({
+      ok: true,
+      scheduleMoves: [],
+      recategorisedChoreographies: [
+        {
+          choreographyId: preserveChoreography.id,
+          name: "Preserva",
+          categoryName: "Preserva nivel Mayor",
+          experienceLevelCleared: false,
+        },
+        {
+          choreographyId: clearChoreography.id,
+          name: "Limpia",
+          categoryName: "Limpia nivel Mayor",
+          experienceLevelCleared: true,
+        },
+      ],
+    });
+    await expectChoreographyUpdatedAtChanged(preserveChoreography);
+    await expectChoreographyUpdatedAtChanged(clearChoreography);
     await expectChoreographyState(preserveChoreography.id, {
       categoryId: preserveCatalog.olderCategory?.id ?? null,
       categoryCalculationMode: "oldest",
@@ -570,6 +589,20 @@ async function createLinkedChoreography(input: {
   return choreography;
 }
 
+async function expectChoreographyUpdatedAtChanged(choreography: {
+  id: string;
+  updatedAt: Date | null;
+}) {
+  const stored = await db.query.choreographies.findFirst({
+    columns: { updatedAt: true },
+    where: eq(choreographies.id, choreography.id),
+  });
+
+  expect(stored?.updatedAt?.getTime()).toBeGreaterThan(
+    choreography.updatedAt?.getTime() ?? 0,
+  );
+}
+
 async function expectChoreographyState(
   choreographyId: string,
   expected: {
@@ -931,14 +964,11 @@ async function correctBirthDate(dancerId: string, birthDate: string) {
   return await runDancerWriteWithBirthDateCorrection(async (tx) => {
     await tx.update(dancers).set({ birthDate }).where(eq(dancers.id, dancerId));
 
-    return {
-      dancer: null,
-      scheduleMoves: await applyDancerBirthDateCorrection({
-        dancerId,
-        eventBasesByEventId,
-        executor: tx,
-      }),
-    };
+    return await applyDancerBirthDateCorrection({
+      dancerId,
+      eventBasesByEventId,
+      executor: tx,
+    });
   });
 }
 
@@ -949,7 +979,7 @@ async function readScheduleMoves(dancerId: string, birthDate: string) {
     throw new Error(write.birthDateMessage);
   }
 
-  return write.scheduleMoves;
+  return write.result.scheduleMoves;
 }
 
 async function expectChoreographySchedule(

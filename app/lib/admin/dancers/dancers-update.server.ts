@@ -7,6 +7,7 @@ import {
 } from "@/lib/admin/dancers/dancers.server.shared";
 import {
   applyDancerBirthDateCorrection,
+  emptyDancerBirthDateCorrectionReport,
   loadLinkedChoreographyEventBasesForDancerBirthDateCorrection,
   runDancerWriteWithBirthDateCorrection,
 } from "@/lib/choreographies/dancer-birthdate-correction.server";
@@ -116,16 +117,15 @@ export async function updateAdministrativeDancer(input: {
       .where(eq(dancers.id, existingDancer.id))
       .returning();
 
-    return {
-      dancer: savedDancer,
-      scheduleMoves: birthDateChanged
-        ? await applyDancerBirthDateCorrection({
-            dancerId: existingDancer.id,
-            executor: tx,
-            eventBasesByEventId: linkedChoreographyEventBases,
-          })
-        : [],
-    };
+    const correction = birthDateChanged
+      ? await applyDancerBirthDateCorrection({
+          dancerId: existingDancer.id,
+          executor: tx,
+          eventBasesByEventId: linkedChoreographyEventBases,
+        })
+      : emptyDancerBirthDateCorrectionReport;
+
+    return { savedDancer, ...correction };
   });
 
   if (!write.ok) {
@@ -137,12 +137,13 @@ export async function updateAdministrativeDancer(input: {
     };
   }
 
-  const savedSnapshot = toDancerSnapshot(write.dancer);
+  const savedSnapshot = toDancerSnapshot(write.result.savedDancer);
 
   return {
     ok: true,
     dancer: savedSnapshot,
-    scheduleMoves: write.scheduleMoves,
+    scheduleMoves: write.result.scheduleMoves,
+    recategorisedChoreographies: write.result.recategorisedChoreographies,
     verificationInvalidated: existingDancer.identityVerifiedAt !== null,
   };
 }

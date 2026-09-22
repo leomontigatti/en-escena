@@ -77,7 +77,7 @@ export async function removeChoreography(
 
     await tx
       .update(choreographies)
-      .set({ withdrawnAt })
+      .set({ withdrawnAt, updatedAt: withdrawnAt })
       .where(eq(choreographies.id, choreographyId));
     await tx
       .update(choreographyDancers)

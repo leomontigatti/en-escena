@@ -10,6 +10,7 @@ import {
   withDancerBirthDateScheduleMoveFeedback,
   type DancerBirthDateScheduleMove,
 } from "@/lib/choreographies/dancer-birthdate-messages";
+import type { RecategorisedChoreography } from "@/lib/choreographies/recategorisation-report";
 import { buildBirthDateRefinement } from "@/lib/dancers/birth-date";
 import { getArchiveKeepsRosterMessage } from "@/lib/roster/roster-person-status.shared";
 import { requiredFieldMessage } from "@/lib/shared/forms";
@@ -62,6 +63,7 @@ export type DancerDialogIntent =
 export type DancerActionSuccess = {
   status: "success";
   message: string;
+  recategorisedChoreographies: RecategorisedChoreography[];
 };
 
 export type DancerDetailActionData = DancerActionError | DancerActionSuccess;
@@ -152,6 +154,9 @@ export function buildModeHref(
 // toast directly from `actionData`. See docs/agents/form-feedback.md.
 export function buildDancerActionSuccess(
   notification: DancerRouteNotification,
+  // Explicit at every call site: an intent that forgets it would silently
+  // report no recategorisation rather than the one it just caused.
+  recategorisedChoreographies: RecategorisedChoreography[],
   scheduleMoves: DancerBirthDateScheduleMove[] = [],
 ): DancerActionSuccess {
   return {
@@ -160,6 +165,7 @@ export function buildDancerActionSuccess(
       notificationToasts[notification].message,
       scheduleMoves,
     ),
+    recategorisedChoreographies,
   };
 }
 

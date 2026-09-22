@@ -418,6 +418,8 @@ describe("administrative choreography detail server", () => {
       where: eq(choreographies.id, invoiced.id),
     });
     expect(withdrawn?.withdrawnAt).toBeInstanceOf(Date);
+    // The withdrawal is a write like any other, so it stamps `updatedAt` too.
+    expect(withdrawn?.updatedAt).toEqual(withdrawn?.withdrawnAt);
     // The number is kept: a withdrawn choreography is still found by it.
     expect(withdrawn?.choreographyNumber).toBe(invoiced.choreographyNumber);
     await expect(

@@ -75,6 +75,7 @@ export async function readParticipationRows(
     executor
       .select({
         academyName: academies.name,
+        categoryExperienceLevels: categories.experienceLevels,
         categoryMaxAge: categories.maxAge,
         categoryMinAge: categories.minAge,
         categoryName: categories.name,
@@ -129,6 +130,7 @@ export async function readParticipationRows(
         activeDancerIds: activeDancers.map((dancer) => dancer.id),
         activeDancers,
         category: {
+          experienceLevels: row.categoryExperienceLevels,
           maxAge: row.categoryMaxAge,
           minAge: row.categoryMinAge,
           name: row.categoryName,

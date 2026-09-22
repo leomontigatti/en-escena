@@ -1,3 +1,4 @@
+import type { ExperienceLevel } from "@/lib/events/experience-levels";
 import type { ChoreographyFinancialStatus } from "@/lib/finances/inscription-financial-status";
 
 import {
@@ -14,7 +15,7 @@ import {
  */
 
 export type PresentationWarningKind =
-  "belowDeposit" | "dancerSpacing" | "outOfBlock";
+  "belowDeposit" | "dancerSpacing" | "missingLevel" | "outOfBlock";
 
 export type PresentationWarning = {
   kind: PresentationWarningKind;
@@ -23,6 +24,8 @@ export type PresentationWarning = {
 
 export type PresentationWarningRow = PresentationBlock & {
   activeDancers: { id: string; name: string }[];
+  /** The levels the row's category admits; empty when it admits none. */
+  category: { experienceLevels: ExperienceLevel[] };
   choreographyId: string;
   choreographyNumber: number;
   financialStatus: ChoreographyFinancialStatus;
@@ -38,6 +41,7 @@ const warningKindPrecedence: readonly PresentationWarningKind[] = [
   "belowDeposit",
   "dancerSpacing",
   "outOfBlock",
+  "missingLevel",
 ];
 
 /** Every warning of every row, keyed by choreography; rows with none are absent. */
@@ -58,12 +62,22 @@ export function derivePresentationWarnings(rows: PresentationWarningRow[]) {
         compareText(left.choreographyId, right.choreographyId),
     );
 
+  // The two per-row kinds, which hold numbered and unnumbered rows alike.
   for (const row of rows) {
     if (!isPresentationEligible(row)) {
       add(row.choreographyId, {
         kind: "belowDeposit",
         message: "Seña pendiente",
       });
+    }
+
+    // A category that admits levels and a row without one: the ordering sorts
+    // it last and only the administrator can repair it.
+    if (
+      row.category.experienceLevels.length > 0 &&
+      row.experienceLevel === null
+    ) {
+      add(row.choreographyId, { kind: "missingLevel", message: "Sin nivel" });
     }
   }
 

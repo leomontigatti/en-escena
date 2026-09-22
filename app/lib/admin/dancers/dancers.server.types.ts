@@ -1,5 +1,6 @@
 import type { dancers } from "@/db/schema";
 import type { DancerBirthDateScheduleMove } from "@/lib/choreographies/dancer-birthdate-messages";
+import type { RecategorisedChoreography } from "@/lib/choreographies/recategorisation-report";
 import type { DancerEditConsequence } from "@/lib/admin/dancers/dancers.server.shared";
 import type {
   DancerIdentificationStatus,
@@ -87,6 +88,7 @@ export type DancerMutationResult =
       // What the birth-date correction moved to another schedule, for the
       // success feedback to name.
       scheduleMoves: DancerBirthDateScheduleMove[];
+      recategorisedChoreographies: RecategorisedChoreography[];
       verificationInvalidated: boolean;
     }
   | {
