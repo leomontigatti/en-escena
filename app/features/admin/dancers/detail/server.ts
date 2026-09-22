@@ -106,6 +106,13 @@ export async function handleDancerDetailAction(input: {
     });
 
     if (!result.ok) {
+      // Two causes, two channels: a missing id is a URL error and keeps its
+      // 404, while a refused archive is the academy's own doing and comes back
+      // as `actionData` — a toast, and the dialog re-opened.
+      if (result.cause === "participating") {
+        return buildDancerActionError(result.message, {});
+      }
+
       throw new Response(getRosterPersonNotFoundMessage("dancer"), {
         status: 404,
       });

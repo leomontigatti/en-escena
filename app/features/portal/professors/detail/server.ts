@@ -55,6 +55,15 @@ export async function handlePortalProfessorDetailAction({
     });
 
     if (!result.ok) {
+      // Two causes, two channels — see the dancer twin.
+      if (result.cause === "participating") {
+        return {
+          status: "error" as const,
+          message: result.message,
+          fieldErrors: {},
+        };
+      }
+
       throw new Response(getRosterPersonNotFoundMessage("professor"), {
         status: 404,
       });

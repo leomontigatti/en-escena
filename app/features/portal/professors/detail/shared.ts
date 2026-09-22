@@ -54,7 +54,9 @@ export type PortalProfessorDetailActionData =
       status: "error";
       message: string;
       fieldErrors: PortalProfessorFieldErrors;
-      values: ProfessorFormValues;
+      // Absent when the failure was not a rejected edit: a refused archive has
+      // no form to repopulate.
+      values?: ProfessorFormValues;
     }
   | {
       status: "success";

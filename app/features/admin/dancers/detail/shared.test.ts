@@ -61,6 +61,21 @@ describe("getInitialDialogIntent", () => {
     ).toBe("archive-dancer");
   });
 
+  test("re-opens the status dialog for an archive the server refused", () => {
+    expect(
+      getInitialDialogIntent({
+        actionData: {
+          status: "error",
+          message:
+            "Este bailarín no puede archivarse porque está participando del evento activo.",
+          fieldErrors: {},
+        },
+        shouldConfirmSave: false,
+        statusIntent: "archive-dancer",
+      }),
+    ).toBe("archive-dancer");
+  });
+
   // The generic error carries no `values` either, and it may well come from
   // "Guardar": opening the archive dialog would be an action nobody asked for.
   test("opens no dialog for an unexpected failure", () => {

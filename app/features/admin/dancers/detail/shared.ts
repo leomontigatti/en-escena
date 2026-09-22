@@ -50,11 +50,16 @@ export type DancerDetailLoaderData = {
   selectedEventId: string | null;
 };
 
+/**
+ * `values` is absent when the failure was not a rejected edit: a refused
+ * archive has no form to repopulate, and that absence is what re-opens the
+ * confirmation dialog in `getInitialDialogIntent`.
+ */
 export type DancerActionError = {
   status: "error";
   message: string;
   fieldErrors: DancerFieldErrors;
-  values: DancerUpdateInput;
+  values?: DancerUpdateInput;
 };
 
 export type DancerDialogIntent =
@@ -190,7 +195,7 @@ export function readDancerUpdateValues(formData: FormData): DancerUpdateInput {
 export function buildDancerActionError(
   message: string,
   fieldErrors: DancerActionError["fieldErrors"],
-  values: DancerActionError["values"],
+  values?: DancerActionError["values"],
 ): DancerActionError {
   return {
     status: "error",
@@ -283,12 +288,15 @@ export function getInitialDialogIntent({
     return shouldConfirmSave ? "save" : null;
   }
 
-  // Carrying no update `values` is how a failed status change comes back, and
-  // that is what re-opens the archive/reactivate dialog. The generic error from
-  // `recoverableClientAction` carries none either, but it may just as well come
-  // from `Guardar`: the toast already reports it and the form stays mounted, so
-  // opening a dialog the admin never asked for would be wrong.
-  if (isUnexpectedActionError(actionData) && submittedValues === undefined) {
+  // Carrying no update `values` is how a failed status change comes back —a
+  // refused archive, for one— and that is what re-opens the
+  // archive/reactivate dialog. The generic error from
+  // `recoverableClientAction` carries none either, but it may just as well
+  // come from `Guardar`: the toast already reports it and the form stays
+  // mounted, so opening a dialog the admin never asked for would be wrong.
+  // `fieldErrors` is what tells the two apart: every failure this feature
+  // builds carries the key, and the generic one carries nothing but a message.
+  if (isUnexpectedActionError(actionData) && !("fieldErrors" in actionData)) {
     return null;
   }
 
@@ -320,7 +328,11 @@ export function buildDancerDetailViewState({
   requestedEditMode: boolean;
   watchedBirthDate: string;
 }): DancerDetailViewState {
-  const isEditing = canEdit && (requestedEditMode || Boolean(actionData));
+  // A failure only re-opens the edit form when it was an edit that failed: a
+  // refused archive carries no submitted values and must leave the screen in
+  // read mode, with the dialog and the toast doing the reporting.
+  const isEditing =
+    canEdit && (requestedEditMode || isDancerUpdateValues(actionData?.values));
   const statusAction = getDancerStatusAction(dancer.active);
   const canVerifyIdentity =
     canEdit &&

@@ -43,9 +43,12 @@ export function ProfessorDetailRouteView({
 
   const professor = loaderData.professor;
   const isConsequential = professor.editConsequence !== null;
-  const isEditing =
-    loaderData.canEdit && (loaderData.isEditing || Boolean(errorData));
   const submittedUpdateValues = getSubmittedProfessorUpdateValues(errorData);
+  // Only a failed edit re-opens the form: a refused archive carries no
+  // submitted values and leaves the screen in read mode.
+  const isEditing =
+    loaderData.canEdit &&
+    (loaderData.isEditing || Boolean(submittedUpdateValues));
   const editValues = getProfessorEditValues({
     actionData: errorData,
     professor,

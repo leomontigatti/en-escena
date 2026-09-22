@@ -31,11 +31,15 @@ export type ProfessorDetailLoaderData = {
 
 export type ProfessorEditFormValues = ProfessorUpdateInput;
 
+/**
+ * `values` is absent when the failure was not a rejected edit: a refused
+ * archive has no form to repopulate. See the dancer twin.
+ */
 export type ProfessorActionError = {
   status: "error";
   message: string;
   fieldErrors: ProfessorFieldErrors;
-  values: ProfessorUpdateInput;
+  values?: ProfessorUpdateInput;
 };
 
 export type ProfessorActionSuccess = {
@@ -168,7 +172,7 @@ export function readProfessorUpdateValues(
 export function buildProfessorActionError(
   message: string,
   fieldErrors: ProfessorActionError["fieldErrors"],
-  values: ProfessorActionError["values"],
+  values?: ProfessorActionError["values"],
 ): ProfessorActionError {
   return {
     status: "error",

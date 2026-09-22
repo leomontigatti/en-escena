@@ -94,6 +94,11 @@ export async function handleProfessorDetailAction(input: {
     });
 
     if (!result.ok) {
+      // Two causes, two channels — see the dancer twin.
+      if (result.cause === "participating") {
+        return buildProfessorActionError(result.message, {});
+      }
+
       throw new Response(getRosterPersonNotFoundMessage("professor"), {
         status: 404,
       });

@@ -11,7 +11,11 @@ import {
   invalidBirthDateMessage,
   underageBirthDateMessage,
 } from "@/lib/dancers/birth-date";
-import { fixedExperienceLevel } from "@/lib/events/bases-test-fixtures.server.db";
+import {
+  createEventChoreographyFixture,
+  createSavedEvent as createActiveEventFixture,
+  fixedExperienceLevel,
+} from "@/lib/events/bases-test-fixtures.server.db";
 import {
   createPortalSavedEvent as createSavedEvent,
   testEventDate as date,
@@ -1013,6 +1017,47 @@ describe("handlePortalDancerDetailAction", () => {
       }),
       404,
     );
+  });
+
+  test("returns the refusal as action data, without a 404, for a dancer participating in the active event", async () => {
+    const session = await createAcademySession({
+      email: "bailarines.archive.participante@example.com",
+      academyName: "Academia Participante",
+    });
+    const activeEvent = await createActiveEventFixture("En Escena Activo", {
+      activate: true,
+    });
+    const [dancer] = await db
+      .insert(dancers)
+      .values({
+        academyId: session.academyId,
+        firstName: "Ana",
+        lastName: "Participa",
+        birthDate: "2014-02-01",
+      })
+      .returning();
+    await createEventChoreographyFixture({
+      academyId: session.academyId,
+      dancerIds: [dancer.id],
+      eventId: activeEvent.id,
+      name: "Fragmentada",
+    });
+
+    const result = await handlePortalDancerDetailAction({
+      request: createPortalPostRequest(
+        `http://localhost/portal/bailarines/${dancer.id}`,
+        session.cookie,
+        createFormData({ intent: "archive-dancer" }),
+      ),
+      params: { dancerId: dancer.id },
+    });
+
+    expect(result).toMatchObject({
+      status: "error",
+      message:
+        "Este bailarín no puede archivarse porque está participando del evento activo.",
+    });
+    await expectPersistedDancer(dancer.id, { active: true });
   });
 
   test("archives and reactivates a dancer while keeping direct URL access", async () => {

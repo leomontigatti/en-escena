@@ -75,7 +75,9 @@ export type PortalDancerDetailActionData =
       status: "error";
       message: string;
       fieldErrors: Partial<Record<UpdateDancerField, string>>;
-      values: PortalDancerFormValues;
+      // Absent when the failure was not a rejected edit: a refused archive has
+      // no form to repopulate.
+      values?: PortalDancerFormValues;
     }
   | {
       status: "success";

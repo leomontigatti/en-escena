@@ -30,6 +30,10 @@ import {
   createSignedInAdminRequest as createSignedInRequest,
   expectThrownResponse,
 } from "@/lib/admin/test-support/db";
+import {
+  getInitialDialogIntent,
+  type DancerActionError,
+} from "@/features/admin/dancers/detail/shared";
 import { renderAdminChildRoute } from "@/lib/admin/test-support/render-admin-child-route";
 import { renderInDataRouter } from "@/lib/test-support/data-router";
 import { expectPersistedDancer } from "@/lib/test-support/person-detail-db-assertions";
@@ -1461,7 +1465,7 @@ describe("`/administracion/bailarines` route", () => {
     );
   });
 
-  test("archives and reactivates a participating dancer without a correction reason", async () => {
+  test("refuses to archive a dancer participating in the active event, as action data rather than a 404", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "admin.archivo.bailarines.academia@example.com",
@@ -1497,6 +1501,59 @@ describe("`/administracion/bailarines` route", () => {
     );
 
     expect(archiveResult).toMatchObject({
+      status: "error",
+      message:
+        "Este bailarín no puede archivarse porque está participando del evento activo.",
+    });
+    // No submitted values: that absence is what re-opens the confirmation
+    // dialog rather than the edit form.
+    expect(
+      getInitialDialogIntent({
+        actionData: archiveResult as DancerActionError,
+        shouldConfirmSave: false,
+        statusIntent: "archive-dancer",
+      }),
+    ).toBe("archive-dancer");
+    await expectPersistedDancer(dancer.id, { active: true });
+
+    await expect(
+      db
+        .select()
+        .from(choreographyDancers)
+        .where(eq(choreographyDancers.dancerId, dancer.id)),
+    ).resolves.toHaveLength(1);
+  });
+
+  test("archives and reactivates a dancer with no live commitment in the active event", async () => {
+    const event = await createSavedEvent();
+    const academy = await createAcademyUser({
+      email: "admin.archivo.libre.academia@example.com",
+      academyName: "Academia Archivo Libre",
+      contactName: "Ada Libre",
+      phone: "1111-0001",
+    });
+    const dancer = await createDancer({
+      academyId: academy.academy.id,
+      firstName: "Lila",
+      lastName: "Libre",
+      birthDate: "2014-01-20",
+    });
+    const { request } = await createSignedInRequest({
+      email: "admin.archivo.libre@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}&modo=editar`,
+    });
+
+    const archiveResult = await detailAction(
+      detailActionArgs(
+        createPostRequest(request.url, request.headers.get("cookie") ?? "", {
+          intent: "archive-dancer",
+        }),
+        dancer.id,
+      ),
+    );
+
+    expect(archiveResult).toMatchObject({
       status: "success",
       message: "Bailarín archivado.",
     });
@@ -1506,25 +1563,12 @@ describe("`/administracion/bailarines` route", () => {
       detailRouteArgs(request, dancer.id),
     );
     expect(archivedDetail.dancer.active).toBe(false);
-    expect(archivedDetail.dancer.participationStatus).toBe("participating");
-    expect(archivedDetail.dancer.choreographyNames).toEqual(["Persistencia"]);
-
-    await expect(
-      db
-        .select()
-        .from(choreographyDancers)
-        .where(eq(choreographyDancers.dancerId, dancer.id)),
-    ).resolves.toHaveLength(1);
 
     const reactivateResult = await detailAction(
       detailActionArgs(
-        createPostRequest(
-          `http://localhost/administracion/bailarines/${dancer.id}?evento=${event.id}&modo=editar`,
-          request.headers.get("cookie") ?? "",
-          {
-            intent: "reactivate-dancer",
-          },
-        ),
+        createPostRequest(request.url, request.headers.get("cookie") ?? "", {
+          intent: "reactivate-dancer",
+        }),
         dancer.id,
       ),
     );
