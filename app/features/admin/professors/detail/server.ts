@@ -7,6 +7,7 @@ import {
   findProfessor,
   updateAdministrativeProfessor,
 } from "@/lib/admin/professors/professors.server";
+import { findActiveEventParticipation } from "@/lib/roster/active-event-participation.server";
 import {
   getRosterPersonNotFoundMessage,
   setRosterPersonStatus,
@@ -58,6 +59,10 @@ export async function loadProfessorDetail(input: {
     cancelHref: buildModeHref(url, null),
     isEditing:
       user.role === "admin" && url.searchParams.get("modo") === "editar",
+    isParticipatingInActiveEvent: await findActiveEventParticipation({
+      kind: "professor",
+      personId: professorId,
+    }),
   };
 }
 

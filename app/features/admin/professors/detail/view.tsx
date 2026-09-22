@@ -11,6 +11,7 @@ import {
   ProfessorDetailHeaderActions,
 } from "./sections";
 import {
+  buildProfessorDetailViewState,
   getInitialDialogIntent,
   getProfessorConfirmationAction,
   getProfessorEditValues,
@@ -78,6 +79,10 @@ export function ProfessorDetailRouteView({
     }
   }, [errorData, isConsequential, submittedUpdateValues]);
 
+  const viewState = buildProfessorDetailViewState({
+    active: professor.active,
+    isParticipatingInActiveEvent: loaderData.isParticipatingInActiveEvent,
+  });
   const confirmationAction = getProfessorConfirmationAction({
     active: professor.active,
     intent: dialogIntent,
@@ -117,9 +122,9 @@ export function ProfessorDetailRouteView({
       description="Revisá la información administrativa de este profesor."
       headerAction={
         <ProfessorDetailHeaderActions
-          active={professor.active}
           canEdit={loaderData.canEdit}
           onSelectIntent={openStatusDialog}
+          statusAction={viewState.statusAction}
         />
       }
     >
@@ -129,6 +134,7 @@ export function ProfessorDetailRouteView({
           canEdit={loaderData.canEdit}
           isIncomplete={professor.isIncomplete}
           onSelectIntent={openStatusDialog}
+          participatingAlert={viewState.participatingAlert}
         />
 
         <ProfessorDetailCard

@@ -73,6 +73,7 @@ function createLoaderData({
     canEdit: true,
     editHref: "/administracion/profesores/profesor_1?modo=editar",
     isEditing,
+    isParticipatingInActiveEvent: false,
     professor: {
       academy: {
         contactName: "Contacto Test",

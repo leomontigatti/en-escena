@@ -35,6 +35,7 @@ describe("ProfessorDetailRouteView", () => {
         canEdit: true,
         editHref: "/administracion/profesores/profesor_1?modo=editar",
         isEditing: false,
+        isParticipatingInActiveEvent: false,
         professor: professorDetail({
           active: false,
           editConsequence: "participated",
@@ -79,6 +80,7 @@ describe("ProfessorDetailRouteView", () => {
         canEdit: true,
         editHref: "/administracion/profesores/profesor_1?modo=editar",
         isEditing: true,
+        isParticipatingInActiveEvent: false,
         professor: professorDetail({
           editConsequence: "participated",
           firstName: "Julia",
@@ -110,6 +112,7 @@ function renderProfessorDetail(input: Partial<ProfessorDetailViewProps> = {}) {
                 canEdit: false,
                 editHref: "/administracion/profesores/profesor_1?modo=editar",
                 isEditing: false,
+                isParticipatingInActiveEvent: false,
                 professor: professorDetail(),
                 selectedEventId: "evento_1",
               }

@@ -6,6 +6,7 @@ import { AdminResourceFormCard } from "@/components/admin/resource-layout";
 import { BackButton } from "@/components/shared/action-buttons";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { ArchivedPersonAlert } from "@/components/shared/archived-person-alert";
+import { RosterPersonParticipatingAlert } from "@/components/shared/roster-person-participating-alert";
 import {
   documentTypeEmptyLabel,
   documentTypeOptions,
@@ -27,24 +28,30 @@ import {
 import {
   type ProfessorDetailLoaderData,
   type ProfessorDialogIntent,
+  type ProfessorStatusAction,
 } from "./shared";
 
 type ProfessorStatusIntent = Exclude<ProfessorDialogIntent, "update-professor">;
 
 export function ProfessorDetailHeaderActions({
-  active,
   canEdit,
   onSelectIntent,
+  statusAction,
 }: {
-  active: boolean;
   canEdit: boolean;
   onSelectIntent: (intent: ProfessorStatusIntent) => void;
+  statusAction: ProfessorStatusAction;
 }) {
   if (!canEdit) {
     return null;
   }
 
-  return <ProfessorActionsMenu active={active} onSelect={onSelectIntent} />;
+  return (
+    <ProfessorActionsMenu
+      onSelect={onSelectIntent}
+      statusAction={statusAction}
+    />
+  );
 }
 
 export function ProfessorDetailAlerts({
@@ -52,11 +59,13 @@ export function ProfessorDetailAlerts({
   canEdit,
   isIncomplete,
   onSelectIntent,
+  participatingAlert,
 }: {
   active: boolean;
   canEdit: boolean;
   isIncomplete: boolean;
   onSelectIntent: (intent: ProfessorStatusIntent) => void;
+  participatingAlert: string | null;
 }) {
   return (
     <AlertStack>
@@ -67,6 +76,9 @@ export function ProfessorDetailAlerts({
             canEdit ? () => onSelectIntent("reactivate-professor") : undefined
           }
         />
+      ) : null}
+      {participatingAlert ? (
+        <RosterPersonParticipatingAlert message={participatingAlert} />
       ) : null}
       {isIncomplete ? (
         <Alert variant="warning">
