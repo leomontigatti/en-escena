@@ -2,11 +2,13 @@ import { and, eq, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
 import { dancers, professors } from "@/db/schema";
+import { findActiveEventParticipation } from "@/lib/roster/active-event-participation.server";
 
-import type {
-  RosterPersonKind,
-  RosterPersonStatus,
-  RosterPersonStatusFilter,
+import {
+  getRosterPersonParticipatingMessage,
+  type RosterPersonKind,
+  type RosterPersonStatus,
+  type RosterPersonStatusFilter,
 } from "@/lib/roster/roster-person-status.shared";
 
 /** Which surface is writing: the panel writes any person, the portal its own. */
@@ -24,12 +26,17 @@ type RosterPersonRowByKind = {
 export type RosterPersonTable = typeof dancers | typeof professors;
 
 /**
- * The outcome of a write. `"not-found"` is the person the scope did not reach:
- * a missing id, or —from the portal— a person of another academy.
+ * The outcome of a write, and the two causes travel by two different channels.
+ * `"not-found"` is the person the scope did not reach: a missing id, or —from
+ * the portal— a person of another academy, which the route turns into a 404
+ * because it is a URL or a programming error. `"participating"` is a refusal
+ * the user caused and can act on, so it returns through `actionData` as a toast
+ * like every other user-caused error on those screens.
  */
 export type RosterPersonStatusWriteResult<Kind extends RosterPersonKind> =
   | { ok: true; person: RosterPersonRowByKind[Kind] }
-  | { ok: false; cause: "not-found" };
+  | { ok: false; cause: "not-found" }
+  | { ok: false; cause: "participating"; message: string };
 
 /**
  * The one place the `active` comparison lives: no reader writes
@@ -64,13 +71,19 @@ export function rosterPersonStatusCondition(
  * which shared a name and differed only in whether they scoped by academy —
  * so that a future rule about archiving is written once instead of four times.
  *
- * There is no guard: archiving is never refused, not even for a dancer with an
- * active inscription in the current event, and it touches no inscription. The
- * mutation
- * reads no inscription and runs no active-inscription query; it is an
- * existence check and a boolean write. Reactivating always succeeds and puts
- * the person back in the pickers immediately, because the pickers read the
- * column through `isSelectableForRoster` and nothing else.
+ * Archiving is refused while the person is participating in the **active**
+ * event: someone dancing in the event that is running now is, by definition,
+ * still being worked with, and archiving means the academy no longer works with
+ * them. The predicate is not written here — it is
+ * `findActiveEventParticipation`, the same reader the detail screens call to
+ * grey the button out, so the server and the screen cannot answer the question
+ * differently.
+ *
+ * The refusal writes nothing: the `active` column is left exactly as it was,
+ * and no inscription is read or touched beyond the guard's own query.
+ * Reactivating is never refused and puts the person back in the pickers
+ * immediately, because the pickers read the column through
+ * `isSelectableForRoster` and nothing else.
  *
  * The scope is a runtime value rather than a type — `null` for the admin panel,
  * which may write any person — so the module asserts it: a portal caller that
@@ -102,6 +115,30 @@ export async function setRosterPersonStatus<
     input.academyId === null
       ? eq(table.id, input.personId)
       : and(eq(table.id, input.personId), eq(table.academyId, input.academyId));
+
+  // The scope is checked before the guard, so a person of another academy is
+  // reported as `"not-found"` whatever they are doing in the event: the
+  // participating sentence would otherwise confirm to one academy that another
+  // academy's person exists and is dancing.
+  const [person] = await db.select({ id: table.id }).from(table).where(scope);
+
+  if (!person) {
+    return { ok: false, cause: "not-found" };
+  }
+
+  if (
+    input.next === "archived" &&
+    (await findActiveEventParticipation({
+      kind: input.kind,
+      personId: input.personId,
+    }))
+  ) {
+    return {
+      ok: false,
+      cause: "participating",
+      message: getRosterPersonParticipatingMessage(input.kind),
+    };
+  }
 
   const [updatedPerson] = await db
     .update(table)

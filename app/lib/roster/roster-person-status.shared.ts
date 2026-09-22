@@ -79,8 +79,10 @@ export function getRosterPersonStatusBadgeVariant(status: RosterPersonStatus) {
  * The one eligibility rule: a roster person can be picked for a choreography
  * when they are active, or when they are already on that choreography. The
  * grandfather half is what keeps archiving from stranding a record — an
- * archived person who is already linked stays offered, stays saveable, and
- * archiving is never refused because of them.
+ * archived person who is already linked stays offered and stays saveable. It
+ * says nothing about whether archiving may happen: that is the guard in
+ * `roster-person-status.server.ts`, which refuses while the person is
+ * participating in the active event.
  *
  * `isAlreadyLinked` means linked to **this** choreography — not to any
  * choreography of the current event, and not to any choreography ever. A wider
@@ -99,11 +101,13 @@ export function isSelectableForRoster(input: {
 }
 
 /**
- * What the archive confirmation tells the academy before it confirms, and the
- * reason archiving needs no guard: it is roster hygiene, so the choreographies
- * the person is already on keep them. The sentence is static — it queries
- * nothing — and it lives here so that the four archive confirmations cannot
- * promise four different things.
+ * What the archive confirmation tells the academy before it confirms: archiving
+ * is roster hygiene, so the choreographies the person is already on keep them.
+ * It stays true now that the guard refuses a participant — its readers are
+ * exactly the people it was written for, whose remaining links are all in past
+ * events or withdrawn. The sentence is static — it queries nothing — and it
+ * lives here so that the four archive confirmations cannot promise four
+ * different things.
  */
 export function getArchiveKeepsRosterMessage(kind: RosterPersonKind) {
   switch (kind) {
@@ -112,4 +116,26 @@ export function getArchiveKeepsRosterMessage(kind: RosterPersonKind) {
     case "professor":
       return "Las coreografías existentes no cambian: seguirá en las que ya está.";
   }
+}
+
+const participatingMessages: Record<RosterPersonKind, string> = {
+  dancer:
+    "Este bailarín no puede archivarse porque está participando del evento activo.",
+  professor:
+    "Este profesor no puede archivarse porque está participando del evento activo.",
+};
+
+/**
+ * Why archiving was refused, and the mirror image of the archived rejection in
+ * `roster-person-rejection.ts`: that one says to reactivate before adding a
+ * person to a choreography, this one says the person cannot leave the roster
+ * while they are on one.
+ *
+ * The sentence names no one and lists no choreography. It agrees with the
+ * person-kind noun rather than a name, because the roster stores no gender; and
+ * it stays fixed rather than enumerating the commitments, which the
+ * `Inscripciones` tab already lists and which a toast would only let go stale.
+ */
+export function getRosterPersonParticipatingMessage(kind: RosterPersonKind) {
+  return participatingMessages[kind];
 }
