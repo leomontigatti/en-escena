@@ -247,6 +247,7 @@ function dancerDetailLoaderData(
     },
     dancer: dancerDetailRow(),
     inscriptions: [],
+    isParticipatingInActiveEvent: false,
     selectedEventId: "event_1",
     ...overrides,
   } satisfies DancerDetailViewProps["loaderData"];

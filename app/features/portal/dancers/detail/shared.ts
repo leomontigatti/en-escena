@@ -11,7 +11,10 @@ import type {
 } from "@/lib/dancers/verification";
 import type { RecategorisedChoreography } from "@/lib/choreographies/recategorisation-report";
 import { buildBirthDateRefinement } from "@/lib/dancers/birth-date";
-import { getArchiveKeepsRosterMessage } from "@/lib/roster/roster-person-status.shared";
+import {
+  getArchiveKeepsRosterMessage,
+  getRosterPersonParticipatingMessage,
+} from "@/lib/roster/roster-person-status.shared";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import {
   withDancerBirthDateScheduleMoveFeedback,
@@ -67,6 +70,13 @@ export type PortalDancerDetailLoaderData = {
   dancer: NonNullable<Awaited<ReturnType<typeof findDancerForAcademy>>>;
   documentImageUrls: PortalDancerDocumentImageUrls;
   inscriptions: DancerInscription[];
+  /**
+   * Answered by `findActiveEventParticipation`, the same reader the guard in
+   * `setRosterPersonStatus` asks — see the panel twin. It resolves the active
+   * event itself rather than reading `selectedEventId`, because the rule is
+   * about a commitment that is live now.
+   */
+  isParticipatingInActiveEvent: boolean;
   selectedEventId: string | null;
 };
 
@@ -131,17 +141,31 @@ export type PortalDancerDetailViewModel = {
   showsIdentificationAlert: boolean;
   showsPendingVerificationAlert: boolean;
   showsVerifiedIdentityAlert: boolean;
+  /**
+   * Why the archive action is unavailable, or `null` when it is available.
+   * Informational: nothing is wrong when it shows.
+   */
+  participatingAlert: string | null;
   statusAction: PortalDancerStatusAction;
   title: string;
   verificationStatus: DancerVerificationStatus;
 };
-type PortalDancerStatusAction = {
+type PortalDancerStatusActionCopy = {
   intent: PortalDancerStatusIntent;
   label: string;
   confirmTitle: string;
   confirmDescription: string;
   confirmButtonLabel: string;
   confirmButtonVariant: "default" | "destructive";
+};
+
+type PortalDancerStatusAction = PortalDancerStatusActionCopy & {
+  /**
+   * A courtesy in front of the guard, never the rule: the server refuses the
+   * archive whether or not this is honoured. Reactivating is never refused, so
+   * only the archive intent is ever disabled.
+   */
+  disabled: boolean;
 };
 
 export const portalDancerStatusActions = {
@@ -162,7 +186,10 @@ export const portalDancerStatusActions = {
     confirmButtonLabel: "Reactivar",
     confirmButtonVariant: "default",
   },
-} as const satisfies Record<PortalDancerStatusIntent, PortalDancerStatusAction>;
+} as const satisfies Record<
+  PortalDancerStatusIntent,
+  PortalDancerStatusActionCopy
+>;
 
 export function readPortalDancerId(params: { dancerId?: string }) {
   if (!params.dancerId) {
@@ -250,23 +277,45 @@ export function getGeneralActionError(
   };
 }
 
-function getPortalDancerStatusAction(isActive: boolean) {
+function getPortalDancerStatusAction({
+  isActive,
+  isParticipatingInActiveEvent,
+}: {
+  isActive: boolean;
+  isParticipatingInActiveEvent: boolean;
+}): PortalDancerStatusAction {
   if (isActive) {
-    return portalDancerStatusActions["archive-dancer"];
+    return {
+      ...portalDancerStatusActions["archive-dancer"],
+      disabled: isParticipatingInActiveEvent,
+    };
   }
 
-  return portalDancerStatusActions["reactivate-dancer"];
+  return {
+    ...portalDancerStatusActions["reactivate-dancer"],
+    disabled: false,
+  };
 }
 
 export function buildPortalDancerDetailViewModel(input: {
   dancer: PortalDancerDetailLoaderData["dancer"];
   formValues: PortalDancerFormValues;
   identificationPendingItems: PortalDancerDetailViewModel["identificationPendingItems"];
+  isParticipatingInActiveEvent: boolean;
   verificationStatus: PortalDancerDetailViewModel["verificationStatus"];
 }): PortalDancerDetailViewModel {
-  const { dancer, formValues, identificationPendingItems, verificationStatus } =
-    input;
+  const {
+    dancer,
+    formValues,
+    identificationPendingItems,
+    isParticipatingInActiveEvent,
+    verificationStatus,
+  } = input;
   const isIdentityVerified = verificationStatus === "verified";
+  const statusAction = getPortalDancerStatusAction({
+    isActive: dancer.active,
+    isParticipatingInActiveEvent,
+  });
 
   return {
     detailHref: `/portal/bailarines/${dancer.id}`,
@@ -295,7 +344,13 @@ export function buildPortalDancerDetailViewModel(input: {
     showsIdentificationAlert: verificationStatus === "incomplete",
     showsPendingVerificationAlert: verificationStatus === "unverified",
     showsVerifiedIdentityAlert: verificationStatus === "verified",
-    statusAction: getPortalDancerStatusAction(dancer.active),
+    // Only beside a disabled archive: an archived participant is offered
+    // `Reactivar`, which this rule never refuses, and an alert there would
+    // explain an unavailability that is not happening.
+    participatingAlert: statusAction.disabled
+      ? getRosterPersonParticipatingMessage("dancer")
+      : null,
+    statusAction,
     title: `${dancer.firstName} ${dancer.lastName}`,
     verificationStatus,
   };
