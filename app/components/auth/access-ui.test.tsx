@@ -44,12 +44,21 @@ describe("AccessTextLink", () => {
 });
 
 describe("PrivateAccessHeader", () => {
-  test("renders the signed-in email and a POST logout action", () => {
+  test("renders the signed-in account and a POST logout action", () => {
     const markup = renderToStaticMarkup(
-      <PrivateAccessHeader email="usuario@example.com" />,
+      <PrivateAccessHeader
+        account={{
+          name: "Juana Juez",
+          roleLabel: "Juez",
+          username: "juana.juez",
+        }}
+      />,
     );
 
-    expect(markup).toContain("usuario@example.com");
+    expect(markup).toContain("Juana Juez");
+    expect(markup).toContain("Juez");
+    expect(markup).toContain("Usuario: juana.juez");
+    expect(markup).not.toContain("@");
     expect(markup).toContain("<span>Salir</span>");
     expect(markup).toContain('action="/salir"');
     expect(markup).toContain('method="post"');

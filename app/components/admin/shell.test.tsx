@@ -16,7 +16,9 @@ describe("AdminShell", () => {
   test("renders administration navigation and the signed-in user context", () => {
     const markup = renderAdminShell();
 
-    expect(markup).toContain("admin@example.com");
+    expect(markup).toContain("Ada Admin");
+    expect(markup).toContain("Administrador");
+    expect(markup).not.toContain("admin@example.com");
     expect(markup).toContain("Inicio");
     expect(markup).not.toContain("Sesión activa para");
     expect(markup).toContain("text-brand");
@@ -148,7 +150,11 @@ function renderAdminShell(
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={[options.initialEntry ?? "/administracion"]}>
       <AdminShell
-        email="admin@example.com"
+        account={{
+          name: "Ada Admin",
+          roleLabel: "Administrador",
+          username: "ada.admin",
+        }}
         events={[{ id: "evento_2026", name: "Evento 2026", active: true }]}
         selectedEventId="evento_2026"
         {...props}

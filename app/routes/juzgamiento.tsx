@@ -3,6 +3,7 @@ import {
   AccessPage,
   PrivateAccessHeader,
 } from "@/components/auth/access-ui";
+import { buildInternalAccount } from "@/lib/auth/internal-account";
 import { requireJudgePanelUser } from "@/lib/auth/internal-navigation.server";
 
 import type { Route } from "./+types/juzgamiento";
@@ -16,13 +17,13 @@ export const meta: Route.MetaFunction = () => [
 export async function loader({ request }: Route.LoaderArgs) {
   const user = await requireJudgePanelUser(request);
 
-  return { email: user.email };
+  return { account: buildInternalAccount(user) };
 }
 
 export function JuzgamientoRouteView({ loaderData }: JuzgamientoRouteProps) {
   return (
     <AccessPage width="xl">
-      <PrivateAccessHeader email={loaderData.email} />
+      <PrivateAccessHeader account={loaderData.account} />
       <AccessHeader
         eyebrow="Juzgamiento"
         title="Panel de evaluación"

@@ -21,6 +21,10 @@ import {
 import { Link, useLocation, type UIMatch } from "react-router";
 
 import type { EventOption } from "@/lib/admin/event-context.shared";
+import {
+  getInternalAccountInitials,
+  type InternalAccount,
+} from "@/lib/auth/internal-account";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { EnEscenaAvatar } from "@/components/shared/en-escena-avatar";
 import {
@@ -67,7 +71,7 @@ import {
 // Unmarked = admin rule, not outstanding debt. See
 // .sandcastle/CODING_STANDARDS.md § Surface Prefix Rule.
 type AdminShellProps = {
-  email: string;
+  account: InternalAccount;
   events: EventOption[];
   selectedEventId: string | null;
   children?: ReactNode;
@@ -217,7 +221,7 @@ const navigationGroups = [
 ] satisfies SidebarNavigationGroup[];
 
 export function AdminShell({
-  email,
+  account,
   events,
   selectedEventId,
   children,
@@ -265,14 +269,16 @@ export function AdminShell({
                       <SidebarMenuButton size="lg">
                         <Avatar className="rounded-lg after:rounded-lg">
                           <AvatarFallback className="rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                            {getUserInitials(email)}
+                            {getInternalAccountInitials(account.name)}
                           </AvatarFallback>
                         </Avatar>
                         <div className="grid flex-1 text-left text-sm leading-tight">
                           <span className="truncate font-medium">
-                            Usuario interno
+                            {account.name}
                           </span>
-                          <span className="truncate text-xs">{email}</span>
+                          <span className="truncate text-xs">
+                            {account.roleLabel}
+                          </span>
                         </div>
                         <ChevronsUpDown aria-hidden="true" />
                       </SidebarMenuButton>
@@ -283,7 +289,9 @@ export function AdminShell({
                       className="w-(--radix-dropdown-menu-trigger-width)"
                     >
                       <DropdownMenuGroup>
-                        <DropdownMenuItem disabled>{email}</DropdownMenuItem>
+                        <DropdownMenuItem disabled>
+                          Usuario: {account.username}
+                        </DropdownMenuItem>
                       </DropdownMenuGroup>
                       <DropdownMenuSeparator />
                       <DropdownMenuGroup>
@@ -436,10 +444,6 @@ function AdminActiveEventSummary({
       </SidebarMenuItem>
     </SidebarMenu>
   );
-}
-
-function getUserInitials(email: string) {
-  return email.slice(0, 2).toUpperCase();
 }
 
 function AdminBrandLink() {

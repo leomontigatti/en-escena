@@ -9,6 +9,10 @@ import {
   loadShellEventContext,
   type AdminShellEventContext,
 } from "@/lib/admin/event-context.server";
+import {
+  buildInternalAccount,
+  type InternalAccount,
+} from "@/lib/auth/internal-account";
 import { requireAdminPanelUser } from "@/lib/auth/internal-navigation.server";
 
 import type { Route } from "./+types/administracion";
@@ -24,11 +28,11 @@ export async function loader({ request }: Route.LoaderArgs) {
   const eventContext = await loadShellEventContext();
 
   return {
-    email: user.email,
+    account: buildInternalAccount(user),
     events: eventContext.events,
     selectedEventId: eventContext.selectedEventId,
   } satisfies {
-    email: string;
+    account: InternalAccount;
     events: AdminShellEventContext["events"];
     selectedEventId: AdminShellEventContext["selectedEventId"];
   };
@@ -40,7 +44,7 @@ export function AdminShellRouteView({ loaderData }: AdminShellRouteProps) {
 
   return (
     <AdminShell
-      email={loaderData.email}
+      account={loaderData.account}
       events={loaderData.events}
       selectedEventId={loaderData.selectedEventId}
       breadcrumbItems={getAdminBreadcrumbItems(matches)}
