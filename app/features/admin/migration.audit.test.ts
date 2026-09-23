@@ -140,6 +140,7 @@ const expectedAdminComponentFiles = [
   "events/form.tsx",
   "resource-layout.test.tsx",
   "resource-layout.tsx",
+  "shell.interaction.test.tsx",
   "shell.test.tsx",
   "shell.tsx",
 ];

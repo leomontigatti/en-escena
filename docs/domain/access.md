@@ -13,7 +13,9 @@ Rules for public academy registration, users, sessions and internal invitations.
 - A `Usuario` has one main permission: `academy`, `admin`, `auditor` or `judge`.
 - Academy users sign in with a verified email and password.
 - Internal users sign in with a `Nombre de usuario interno` and password.
-- `Nombre de usuario interno` is unique ignoring case, normalized to lowercase, 3 to 32 characters, and only accepts lowercase letters, numbers, dot, hyphen and underscore. It cannot contain spaces, accents or email-like values.
+- `Nombre de usuario interno` is unique ignoring case, normalized to lowercase, 3 to 32 characters, and only accepts lowercase letters, numbers, dot, hyphen and underscore. It cannot contain spaces, accents or email-like values. `acceso` and `dmarc` are refused: they are real routed addresses on `enescena.com.ar` (`docs/operations/dns-and-email.md`) and `acceso@` is the outbound sender.
+- Internal users have no email in the application: it is asked for nowhere, shown nowhere and nothing is ever sent to one. The access auth provider keys the password on a unique `user.email`, so an internal user gets a made-up credential email, `<username>@enescena.com.ar`, set once at creation from the username, which cannot be edited; an update never rewrites it. `/ingresar` resolves the typed username to that address, so nobody types it or sees it.
+- Where an internal user's identity is shown — the `Panel de administración` sidebar footer and the `Juzgamiento` and `Auditoría` headers — the app shows their name, their `Permiso principal` and their `Nombre de usuario interno`. The users list finds an internal user by name or username, and an academy by name or email.
 - A `Usuario` auditor is read-only and cannot create, edit, publish, unpublish, cancel, correct or annul.
 - Session inactivity limit is 8 hours for all permissions; logout affects only current session.
 - Admins create internal users directly with a temporary password; the first internal login requires a `Cambio obligatorio de contraseña`.
