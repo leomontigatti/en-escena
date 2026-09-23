@@ -157,6 +157,7 @@ export const userStatusIntentSchema = z.enum([
   "suspend-user",
   "reactivate-user",
 ]);
+export const updateInternalUserIntent = "update-internal-user";
 export const resetPasswordIntent = "reset-password";
 export const resetPasswordSchema = z.object({
   temporaryPassword: requiredTextField().refine(
