@@ -2,23 +2,19 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { TriangleAlert } from "lucide-react";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { useNavigation, useSubmit } from "react-router";
 
-import {
-  AdminResourceFormCard,
-  AdminResourceLayout,
-} from "@/components/admin/resource-layout";
-import { BackButton } from "@/components/shared/action-buttons";
+import { AdminResourceLayout } from "@/components/admin/resource-layout";
+import { BackButton, SubmitButton } from "@/components/shared/action-buttons";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { SelectField } from "@/components/shared/select-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { FieldGroup } from "@/components/ui/field";
-import { Spinner } from "@/components/ui/spinner";
+import { UserFormCard } from "@/lib/admin/users/user-detail-cards";
 import {
-  createValidatedRouteSubmitHandler,
+  createValidatedRouteFormDataSubmitHandler,
   isRouteFormPending,
+  useOptionalNavigation,
+  useOptionalSubmit,
 } from "@/lib/shared/forms";
 import { notificationToastIds } from "@/lib/shared/notification-toasts";
 import { useServerActionToast } from "@/lib/shared/toasts";
@@ -51,15 +47,14 @@ export function NewInternalUserRouteView({
     CreateInternalUserFormValues
   >({
     defaultValues: formValues,
-    mode: "onSubmit",
     resolver: zodResolver(createInternalUserSchema),
   });
+  const { control, reset } = form;
 
   useEffect(() => {
-    form.reset(formValues);
+    reset(formValues);
   }, [
-    form,
-    formValues.email,
+    reset,
     formValues.internalUsername,
     formValues.name,
     formValues.role,
@@ -70,12 +65,12 @@ export function NewInternalUserRouteView({
     toastId: notificationToastIds["user-form-error"],
   });
 
-  const submit = useSubmit();
-  const navigation = useNavigation();
+  const submit = useOptionalSubmit();
+  const navigation = useOptionalNavigation();
   const isCreatingUser = isRouteFormPending(navigation, {
     intent: createInternalUserIntent,
   });
-  const handleSubmit = createValidatedRouteSubmitHandler(form, submit);
+  const handleSubmit = createValidatedRouteFormDataSubmitHandler(form, submit);
 
   return (
     <AdminResourceLayout
@@ -98,68 +93,47 @@ export function NewInternalUserRouteView({
 
         <form method="post" noValidate onSubmit={handleSubmit}>
           <input type="hidden" name="intent" value={createInternalUserIntent} />
-          <AdminResourceFormCard
+          <UserFormCard
             footer={
               <>
-                <BackButton to="/administracion" />
-                <Button type="submit" disabled={isCreatingUser}>
-                  {isCreatingUser ? (
-                    <Spinner aria-hidden="true" data-icon />
-                  ) : null}
-                  Nuevo usuario
-                </Button>
+                <BackButton to="/administracion/usuarios" />
+                <SubmitButton isPending={isCreatingUser} />
               </>
             }
           >
-            <FieldGroup>
-              <TextInputField
-                autoComplete="name"
-                control={form.control}
-                label="Nombre visible"
-                name="name"
-                orientation="responsive"
-              />
+            <TextInputField
+              autoComplete="name"
+              control={control}
+              label="Nombre"
+              name="name"
+            />
 
-              <TextInputField
-                autoComplete="username"
-                control={form.control}
-                description="Usá solo letras minúsculas, números, punto, guion o guion bajo."
-                label="Nombre de usuario interno"
-                name="internalUsername"
-                orientation="responsive"
-                spellCheck={false}
-              />
+            <TextInputField
+              autoComplete="username"
+              control={control}
+              label="Nombre de usuario interno"
+              name="internalUsername"
+              placeholder="Solo minúsculas, números, puntos, guion o guion bajo"
+              spellCheck={false}
+            />
 
-              <SelectField
-                control={form.control}
-                label="Permiso principal"
-                name="role"
-                options={createInternalUserRoleOptions}
-                orientation="responsive"
-                placeholder="Elegí un permiso"
-              />
+            <SelectField
+              control={control}
+              label="Permiso principal"
+              name="role"
+              options={createInternalUserRoleOptions}
+              placeholder="Elegí un permiso"
+            />
 
-              <TextInputField
-                autoComplete="new-password"
-                control={form.control}
-                description="Debe tener al menos 8 caracteres."
-                label="Contraseña temporal"
-                name="temporaryPassword"
-                orientation="responsive"
-                type="password"
-              />
-
-              <TextInputField
-                autoComplete="email"
-                control={form.control}
-                description="Opcional. No se verifica ni se usa para ingresar."
-                label="Correo"
-                name="email"
-                orientation="responsive"
-                type="email"
-              />
-            </FieldGroup>
-          </AdminResourceFormCard>
+            <TextInputField
+              autoComplete="new-password"
+              control={control}
+              label="Contraseña temporal"
+              name="temporaryPassword"
+              placeholder="Mínimo 8 caracteres"
+              type="password"
+            />
+          </UserFormCard>
         </form>
       </div>
     </AdminResourceLayout>

@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Form, Link } from "react-router";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
@@ -15,10 +16,13 @@ import { InternalUserResetPasswordCard } from "@/lib/admin/users/user-detail-pas
 import {
   getDetailDescription,
   type DetailActionData,
+  type DetailSuccessData,
   type DetailUser,
+  reactivateUserIntent,
   type DetailViewActionData,
   type UserDetailLoaderData,
 } from "@/lib/admin/users/user-detail.shared";
+import { SuspendUserDialog } from "@/features/admin/users/detail/suspend-user-dialog";
 import { notificationToastIds } from "@/lib/shared/notification-toasts";
 import { useServerActionToast } from "@/lib/shared/toasts";
 
@@ -58,6 +62,7 @@ export function InternalUserDetailRouteView({
         canManageInternalUser ? (
           <UserActionsMenu
             resetPasswordHref={loaderData.resetPasswordHref}
+            successData={successData}
             user={savedUser}
           />
         ) : null
@@ -119,44 +124,78 @@ function UserDetailBody({
 
 function UserActionsMenu({
   resetPasswordHref,
+  successData,
   user,
 }: {
   resetPasswordHref: string;
+  successData?: DetailSuccessData;
   user: DetailUser;
 }) {
+  // The confirmation lives outside the menu: choosing the item closes the menu,
+  // which unmounts everything the menu content holds.
+  const [isSuspendDialogOpen, setIsSuspendDialogOpen] = useState(false);
+
+  // The suspension keeps the user on the detail, so nothing unmounts the
+  // confirmation when it succeeds. Close it on the success result rather than
+  // on the submit: a refusal — the last active administrator, oneself — has to
+  // leave the dialog standing behind its toast. See docs/agents/form-feedback.md.
+  useEffect(() => {
+    if (successData) {
+      setIsSuspendDialogOpen(false);
+    }
+  }, [successData]);
+
   return (
-    <ResourceActionsMenu contentClassName="w-56">
-      <DropdownMenuGroup>
-        <DropdownMenuItem asChild>
-          <Link to={resetPasswordHref}>Restablecer contraseña</Link>
-        </DropdownMenuItem>
-        <StatusActionItem user={user} />
-      </DropdownMenuGroup>
-    </ResourceActionsMenu>
+    <>
+      <ResourceActionsMenu contentClassName="w-56">
+        <DropdownMenuGroup>
+          <DropdownMenuItem asChild>
+            <Link to={resetPasswordHref}>Restablecer contraseña</Link>
+          </DropdownMenuItem>
+          <StatusActionItem
+            onSuspend={() => setIsSuspendDialogOpen(true)}
+            user={user}
+          />
+        </DropdownMenuGroup>
+      </ResourceActionsMenu>
+      <SuspendUserDialog
+        open={isSuspendDialogOpen}
+        onOpenChange={setIsSuspendDialogOpen}
+        userName={user.name}
+      />
+    </>
   );
 }
 
-function StatusActionItem({ user }: { user: DetailUser }) {
-  const isSuspended = user.state === "suspended";
+function StatusActionItem({
+  onSuspend,
+  user,
+}: {
+  onSuspend: () => void;
+  user: DetailUser;
+}) {
+  // Reactivation is the undo of a suspension and costs the user nothing, so it
+  // stays one click; only the suspension, which closes the sessions at once,
+  // asks first.
+  if (user.state === "suspended") {
+    return (
+      <Form method="post">
+        <input type="hidden" name="intent" value={reactivateUserIntent} />
+        <DropdownMenuItem asChild>
+          <button
+            type="submit"
+            className="w-full justify-start whitespace-nowrap"
+          >
+            Reactivar usuario
+          </button>
+        </DropdownMenuItem>
+      </Form>
+    );
+  }
 
   return (
-    <Form method="post">
-      <input
-        type="hidden"
-        name="intent"
-        value={isSuspended ? "reactivate-user" : "suspend-user"}
-      />
-      <DropdownMenuItem
-        asChild
-        variant={isSuspended ? undefined : "destructive"}
-      >
-        <button
-          type="submit"
-          className="w-full justify-start whitespace-nowrap"
-        >
-          {isSuspended ? "Reactivar usuario" : "Suspender usuario"}
-        </button>
-      </DropdownMenuItem>
-    </Form>
+    <DropdownMenuItem variant="destructive" onSelect={onSuspend}>
+      Suspender usuario
+    </DropdownMenuItem>
   );
 }

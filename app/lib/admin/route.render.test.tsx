@@ -30,7 +30,11 @@ describe("`/administracion` layout route", () => {
         Component: () => (
           <AdminShellRouteView
             loaderData={{
-              email: "admin@example.com",
+              account: {
+                name: "Ada Admin",
+                roleLabel: "Administrador",
+                username: "ada.admin",
+              },
               events: [
                 { id: "evento_2026", name: "Evento 2026", active: true },
               ],
@@ -55,7 +59,7 @@ describe("`/administracion` layout route", () => {
     );
 
     expect(markup).toContain("Nuevo usuario");
-    expect(markup).toContain("admin@example.com");
+    expect(markup).toContain("Ada Admin");
     expect(markup).toContain("Saltar al contenido principal");
     expect(markup).toContain('href="/administracion/usuarios"');
     expect(markup).toContain("En Escena");
@@ -83,7 +87,11 @@ describe("`/administracion` layout route", () => {
         hydrationData: {
           loaderData: {
             "0": {
-              email: "admin@example.com",
+              account: {
+                name: "Ada Admin",
+                roleLabel: "Administrador",
+                username: "ada.admin",
+              },
               events: [
                 { id: "evento_2026", name: "Evento 2026", active: true },
               ],

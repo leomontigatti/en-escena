@@ -3,6 +3,7 @@ import {
   AccessPage,
   PrivateAccessHeader,
 } from "@/components/auth/access-ui";
+import { buildInternalAccount } from "@/lib/auth/internal-account";
 import { requireAuditorPanelUser } from "@/lib/auth/internal-navigation.server";
 import { Link } from "react-router";
 
@@ -35,13 +36,13 @@ export const meta: Route.MetaFunction = () => [
 export async function loader({ request }: Route.LoaderArgs) {
   const user = await requireAuditorPanelUser(request);
 
-  return { email: user.email };
+  return { account: buildInternalAccount(user) };
 }
 
 export function AuditoriaRouteView({ loaderData }: AuditoriaRouteProps) {
   return (
     <AccessPage width="xl">
-      <PrivateAccessHeader email={loaderData.email} />
+      <PrivateAccessHeader account={loaderData.account} />
       <AccessHeader
         eyebrow="Auditoría"
         title="Consulta interna"

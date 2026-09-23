@@ -4,8 +4,15 @@ import { createRoutesStub } from "react-router";
 
 import { AdminShellRouteView } from "@/routes/administracion";
 
+// Every admin route renders the shell around it, and the shell only shows who
+// is signed in: one fixed internal account keeps that out of each route's test.
+const adminAccount = {
+  name: "Ada Admin",
+  roleLabel: "Administrador",
+  username: "ada.admin",
+};
+
 type ParentLoaderData = {
-  email: string;
   events: Array<{ active: boolean; id: string; name: string }>;
   selectedEventId: string | null;
 };
@@ -46,7 +53,7 @@ export function renderAdminChildRoute(input: RenderAdminChildRouteInput) {
       initialEntries: [input.initialEntry],
       hydrationData: {
         loaderData: {
-          admin: input.parentLoaderData,
+          admin: { account: adminAccount, ...input.parentLoaderData },
           [input.childId]: input.childLoaderData,
         },
       },

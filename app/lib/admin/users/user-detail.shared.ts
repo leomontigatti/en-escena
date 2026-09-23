@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { isInternalCredentialEmail } from "@/lib/admin/users/internal-user-credentials.shared";
+import { internalUserRoleLabels } from "@/lib/auth/internal-user-roles";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import {
   getEmptyFieldErrors,
@@ -13,7 +13,7 @@ import {
 
 const temporaryPasswordMinLength = 8;
 
-const updateInternalUserFieldNames = ["name", "email", "role"] as const;
+const updateInternalUserFieldNames = ["name", "role"] as const;
 const resetPasswordFieldNames = ["temporaryPassword"] as const;
 
 export type UpdateInternalUserField =
@@ -28,7 +28,6 @@ export type ResetPasswordFieldErrors = Partial<
 
 export type UpdateInternalUserFormValues = {
   name: string;
-  email: string;
   role: string;
 };
 
@@ -78,9 +77,9 @@ export type UserDetailLoaderData = {
 };
 
 export const detailUserRoleOptions = [
-  { value: "admin", label: "Administrador" },
-  { value: "auditor", label: "Auditor" },
-  { value: "judge", label: "Juez" },
+  { value: "admin", label: internalUserRoleLabels.admin },
+  { value: "auditor", label: internalUserRoleLabels.auditor },
+  { value: "judge", label: internalUserRoleLabels.judge },
   { value: "academy", label: "Academia" },
 ] as const satisfies ReadonlyArray<{ value: DetailUserRole; label: string }>;
 
@@ -113,7 +112,6 @@ export type DetailViewActionData = DetailActionData | DetailSuccessData;
 
 const emptyEditValues: UpdateInternalUserFormValues = {
   name: "",
-  email: "",
   role: "judge",
 };
 
@@ -126,14 +124,6 @@ const emptyUpdateInternalUserFieldErrors =
 const emptyResetPasswordFieldErrors = getEmptyFieldErrors<ResetPasswordField>();
 
 const requiredTextField = () => z.string().trim().min(1, requiredFieldMessage);
-
-const optionalEmailField = z
-  .string()
-  .trim()
-  .refine(
-    (value) => value === "" || z.email().safeParse(value).success,
-    "Ingresá un correo válido o dejalo vacío.",
-  );
 
 function isInternalUserRole(
   value: string,
@@ -149,14 +139,16 @@ const roleField = z
 
 export const updateInternalUserSchema = z.object({
   name: requiredTextField(),
-  email: optionalEmailField,
   role: roleField,
 });
 
+export const suspendUserIntent = "suspend-user";
+export const reactivateUserIntent = "reactivate-user";
 export const userStatusIntentSchema = z.enum([
-  "suspend-user",
-  "reactivate-user",
+  suspendUserIntent,
+  reactivateUserIntent,
 ]);
+export const updateInternalUserIntent = "update-internal-user";
 export const resetPasswordIntent = "reset-password";
 export const resetPasswordSchema = z.object({
   temporaryPassword: requiredTextField().refine(
@@ -179,7 +171,7 @@ export function buildDetailUser(row: DetailUserRow): DetailUser {
   return {
     academyId: isAcademyUser ? row.academyId : null,
     academyName: isAcademyUser ? row.academyName : null,
-    email: getDetailEmail(row, isAcademyUser),
+    email: isAcademyUser ? row.email : null,
     identifier: row.internalUsername ?? row.email,
     id: row.id,
     mainRole: row.role,
@@ -255,7 +247,6 @@ export function readUpdateInternalUserFormValues(
 ): UpdateInternalUserFormValues {
   return {
     name: String(formData.get("name") ?? ""),
-    email: String(formData.get("email") ?? ""),
     role: String(formData.get("role") ?? ""),
   };
 }
@@ -273,7 +264,6 @@ export function buildUpdateInternalUserFormValues(
 ): UpdateInternalUserFormValues {
   return {
     name: user.name,
-    email: user.email ?? "",
     role: user.mainRole === "academy" ? "judge" : user.mainRole,
   };
 }
@@ -304,11 +294,7 @@ export function buildDetailActionError({
   };
 }
 
-export function getUpdateInternalUserServerFieldErrors(error: string) {
-  if (error === "Ese correo ya tiene un usuario en En Escena.") {
-    return { email: error };
-  }
-
+export function getUpdateInternalUserServerFieldErrors() {
   return getEmptyFieldErrors<UpdateInternalUserField>();
 }
 
@@ -318,14 +304,6 @@ export function getUpdateInternalUserFieldErrors(error: z.ZodError) {
 
 export function getResetPasswordFieldErrors(error: z.ZodError) {
   return getFieldErrors(error, resetPasswordFieldNames);
-}
-
-function getDetailEmail(row: DetailUserRow, isAcademyUser: boolean) {
-  if (isAcademyUser) {
-    return row.email;
-  }
-
-  return isInternalCredentialEmail(row.email) ? null : row.email;
 }
 
 function getDetailName(row: DetailUserRow, isAcademyUser: boolean) {

@@ -3,7 +3,12 @@ import { CircleAlert, CircleCheck, Info, LogOut } from "lucide-react";
 import { Link } from "react-router";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  getInternalAccountInitials,
+  type InternalAccount,
+} from "@/lib/auth/internal-account";
 import { cn } from "@/lib/shared/utils";
 
 const accessTextLinkClassName =
@@ -85,20 +90,29 @@ export function AccessHeader({
 }
 
 type PrivateAccessHeaderProps = {
-  email: string;
+  account: InternalAccount;
 };
 
-export function PrivateAccessHeader({ email }: PrivateAccessHeaderProps) {
+export function PrivateAccessHeader({ account }: PrivateAccessHeaderProps) {
   return (
     <div className="mb-8 flex flex-col gap-4 border-b pb-5 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <p className="text-sm font-semibold text-foreground">En Escena</p>
-        <p className="mt-1 text-sm leading-5 text-muted-foreground">
-          Sesión activa para{" "}
-          <span className="break-words font-medium text-foreground">
-            {email}
-          </span>
-        </p>
+      <div className="flex items-center gap-3">
+        <Avatar className="rounded-lg after:rounded-lg">
+          <AvatarFallback className="rounded-lg bg-primary text-primary-foreground">
+            {getInternalAccountInitials(account.name)}
+          </AvatarFallback>
+        </Avatar>
+        <div>
+          <p className="text-sm font-semibold text-foreground">
+            {account.name}
+          </p>
+          <p className="text-sm leading-5 text-muted-foreground">
+            {account.roleLabel}
+          </p>
+          <p className="text-sm leading-5 text-muted-foreground">
+            Usuario: {account.username}
+          </p>
+        </div>
       </div>
       <form action="/salir" method="post">
         <Button type="submit" variant="outline">

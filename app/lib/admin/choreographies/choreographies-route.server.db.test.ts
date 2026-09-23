@@ -136,7 +136,6 @@ describe("`/administracion/coreografias` route", () => {
       childLoaderData: loaderData,
       initialEntry: "/administracion/coreografias",
       parentLoaderData: {
-        email: "admin.coreografias@example.com",
         events: [{ id: event.id, name: event.name, active: true }],
         selectedEventId: event.id,
       },
@@ -236,7 +235,6 @@ describe("`/administracion/coreografias` route", () => {
       childLoaderData: nameData,
       initialEntry: `/administracion/coreografias?busqueda=Luna`,
       parentLoaderData: {
-        email: "admin.coreografias.nombre@example.com",
         events: [{ id: event.id, name: event.name, active: true }],
         selectedEventId: event.id,
       },
@@ -270,7 +268,6 @@ describe("`/administracion/coreografias` route", () => {
       childLoaderData: emptyData,
       initialEntry: `/administracion/coreografias?busqueda=Tap`,
       parentLoaderData: {
-        email: "admin.coreografias.vacia@example.com",
         events: [{ id: event.id, name: event.name, active: true }],
         selectedEventId: event.id,
       },
@@ -483,7 +480,6 @@ describe("`/administracion/coreografias` route", () => {
       childLoaderData: loaderData,
       initialEntry: `/administracion/coreografias?busqueda=Pieza&orden=nombre:asc&pagina=2`,
       parentLoaderData: {
-        email: "admin.coreografias.urls@example.com",
         events: [{ id: event.id, name: event.name, active: true }],
         selectedEventId: event.id,
       },
@@ -559,7 +555,6 @@ function renderRoute(input: {
   childLoaderData: Awaited<ReturnType<typeof loader>>;
   initialEntry: string;
   parentLoaderData: {
-    email: string;
     events: Array<{ active: boolean; id: string; name: string }>;
     selectedEventId: string | null;
   };

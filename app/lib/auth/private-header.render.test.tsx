@@ -20,6 +20,18 @@ import { AdminShellRouteView } from "@/routes/administracion";
 import { AuditoriaRouteView } from "@/routes/auditoria";
 import { JuzgamientoRouteView } from "@/routes/juzgamiento";
 
+const auditorAccount = {
+  name: "Ariel Auditor",
+  roleLabel: "Auditor",
+  username: "ariel.auditor",
+};
+
+const judgeAccount = {
+  name: "Juana Juez",
+  roleLabel: "Juez",
+  username: "juana.juez",
+};
+
 describe("private route headers", () => {
   test.each([
     [
@@ -31,28 +43,27 @@ describe("private route headers", () => {
     [
       "auditoría",
       renderPrivateRoute(
-        <AuditoriaRouteView loaderData={{ email: "auditoria@example.com" }} />,
+        <AuditoriaRouteView loaderData={{ account: auditorAccount }} />,
       ),
-      "auditoria@example.com",
+      "Usuario: ariel.auditor",
       true,
     ],
     [
       "juzgamiento",
       renderPrivateRoute(
-        <JuzgamientoRouteView
-          loaderData={{ email: "juzgamiento@example.com" }}
-        />,
+        <JuzgamientoRouteView loaderData={{ account: judgeAccount }} />,
       ),
-      "juzgamiento@example.com",
+      "Usuario: juana.juez",
       true,
     ],
   ])(
     "%s renders the expected signed-in session context",
-    (_name, markup, sessionLabel, usesLegacyHeader) => {
+    (_name, markup, sessionLabel, usesInternalAccountHeader) => {
       expect(markup).toContain(sessionLabel);
 
-      if (usesLegacyHeader) {
-        expect(markup).toContain("Sesión activa para");
+      if (usesInternalAccountHeader) {
+        expect(markup).not.toContain("Sesión activa para");
+        expect(markup).not.toContain("@example.com");
         expect(markup).toContain("Salir");
         expect(markup).toContain('action="/salir"');
         expect(markup).toContain('method="post"');
@@ -67,14 +78,15 @@ describe("private route headers", () => {
   test("admin panel renders session context in the sidebar dropdown trigger", () => {
     const markup = renderAdminRoute();
 
-    expect(markup).toContain("admin@example.com");
-    expect(markup).toContain("Usuario interno");
+    expect(markup).toContain("Ada Admin");
+    expect(markup).toContain("Administrador");
+    expect(markup).not.toContain("admin@example.com");
     expect(markup).not.toContain("Sesión activa para");
   });
 
   test("`auditoria` renders shared readonly consultation links", () => {
     const markup = renderPrivateRoute(
-      <AuditoriaRouteView loaderData={{ email: "auditoria@example.com" }} />,
+      <AuditoriaRouteView loaderData={{ account: auditorAccount }} />,
     );
 
     expect(markup).toContain("Consulta interna");
@@ -93,7 +105,7 @@ describe("private route headers", () => {
   test("admin, `auditoria` and root error use semantic tokens on their shared surfaces", () => {
     const adminMarkup = renderAdminRoute();
     const auditoriaMarkup = renderPrivateRoute(
-      <AuditoriaRouteView loaderData={{ email: "auditoria@example.com" }} />,
+      <AuditoriaRouteView loaderData={{ account: auditorAccount }} />,
     );
     const rootSource = readFileSync("app/root.tsx", "utf8");
 
@@ -180,7 +192,11 @@ function renderAdminRoute() {
       hydrationData: {
         loaderData: {
           "0": {
-            email: "admin@example.com",
+            account: {
+              name: "Ada Admin",
+              roleLabel: "Administrador",
+              username: "ada.admin",
+            },
             events: [{ id: "evento_2026", name: "Evento 2026", active: true }],
             selectedEventId: "evento_2026",
           },

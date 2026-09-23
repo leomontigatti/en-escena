@@ -129,7 +129,11 @@ type ChildRouteFixture = {
 
 function adminLoaderData(loaderData: EventBasesLoaderData) {
   return {
-    email: "admin@example.com",
+    account: {
+      name: "Ada Admin",
+      roleLabel: "Administrador",
+      username: "ada.admin",
+    },
     events: [{ active: true, id: "event_1", name: "Evento 2026" }],
     selectedEventId: loaderData.selectedEventId,
   };

@@ -217,6 +217,60 @@ describe("`/administracion/usuarios` route", () => {
       bySuspendedStatusData.users.map((savedUser) => savedUser.identifier),
     ).toEqual(["susana.suspendida"]);
   });
+
+  test("finds an academy by email and never an internal user by their credential email", async () => {
+    await createSignedInRequest({
+      email: "juez.correo@enescena.com.ar",
+      role: "judge",
+      requiresPasswordChange: false,
+      requestUrl: "http://localhost/administracion/usuarios",
+      userName: "Juan Juez",
+      internalUsername: "juez.correo",
+    });
+    await createAcademyUser({
+      email: "contacto@academia-sur.com",
+      academyName: "Academia Sur",
+      contactName: "Sara Sur",
+    });
+
+    const byInternalEmail = await loader(
+      routeArgs(
+        (
+          await createSignedInRequest({
+            email: "admin.correo.interno@enescena.com.ar",
+            role: "admin",
+            requiresPasswordChange: false,
+            requestUrl:
+              "http://localhost/administracion/usuarios?busqueda=juez.correo%40enescena.com.ar",
+            userName: "Admin Correo Interno",
+            internalUsername: "admin.correo.interno",
+          })
+        ).request,
+      ),
+    );
+
+    expect(byInternalEmail.users).toEqual([]);
+
+    const byAcademyEmail = await loader(
+      routeArgs(
+        (
+          await createSignedInRequest({
+            email: "admin.correo.academia@enescena.com.ar",
+            role: "admin",
+            requiresPasswordChange: false,
+            requestUrl:
+              "http://localhost/administracion/usuarios?busqueda=contacto%40academia-sur.com",
+            userName: "Admin Correo Academia",
+            internalUsername: "admin.correo.academia",
+          })
+        ).request,
+      ),
+    );
+
+    expect(byAcademyEmail.users.map((savedUser) => savedUser.name)).toEqual([
+      "Sara Sur",
+    ]);
+  });
 });
 
 function renderRoute(

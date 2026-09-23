@@ -20,7 +20,6 @@ describe("create internal user", () => {
       internalUsername: " Jurado.Principal ",
       role: "judge",
       temporaryPassword: "temporal-segura",
-      email: "",
       createdByUserId: adminUser.id,
     });
 
@@ -48,7 +47,7 @@ describe("create internal user", () => {
       requiresPasswordChange: true,
       emailVerified: false,
     });
-    expect(savedUser?.email).toContain("jurado.principal");
+    expect(savedUser?.email).toBe("jurado.principal@enescena.com.ar");
 
     const loginResponse = await expectThrownResponse(
       submitSignInAction("Jurado.Principal", "temporal-segura"),
@@ -57,33 +56,47 @@ describe("create internal user", () => {
     expect(loginResponse.headers.get("location")).toBe("/cambiar-contrasena");
   });
 
-  test("saves an optional email as unverified without requiring it", async () => {
-    const adminUser = await createAdminUser("admin.optional@example.com");
+  test("refuses a reserved internal username", async () => {
+    const adminUser = await createAdminUser("admin.reservado@example.com");
 
-    const result = await createInternalUser({
-      name: "Auditor Interno",
-      internalUsername: "auditor.interno",
-      role: "auditor",
-      temporaryPassword: "temporal-segura",
-      email: " Auditor.Interno@Example.COM ",
-      createdByUserId: adminUser.id,
-    });
-
-    if (!result.ok) {
-      throw new Error(
-        `Expected internal user creation to succeed: ${result.error}`,
-      );
+    for (const reservedUsername of ["acceso", "dmarc"]) {
+      await expect(
+        createInternalUser({
+          name: "Usuario Reservado",
+          internalUsername: reservedUsername,
+          role: "judge",
+          temporaryPassword: "temporal-segura",
+          createdByUserId: adminUser.id,
+        }),
+      ).resolves.toEqual({
+        ok: false,
+        error: "Ese nombre de usuario interno está reservado.",
+      });
     }
+  });
 
-    const savedUser = await db.query.user.findFirst({
-      where: eq(user.id, result.userId),
+  test("refuses a username whose credential email is already taken", async () => {
+    const adminUser = await createAdminUser("admin.ocupado@example.com");
+
+    await db.insert(user).values({
+      email: "auditor.interno@enescena.com.ar",
+      emailVerified: false,
+      name: "Otro Usuario",
+      role: "academy",
     });
 
-    expect(savedUser).toMatchObject({
-      email: "auditor.interno@example.com",
-      emailVerified: false,
-      internalUsername: "auditor.interno",
-      role: "auditor",
+    await expect(
+      createInternalUser({
+        name: "Auditor Interno",
+        internalUsername: "auditor.interno",
+        role: "auditor",
+        temporaryPassword: "temporal-segura",
+        createdByUserId: adminUser.id,
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      error:
+        "No pudimos reservar el acceso interno. Intentá con otro nombre de usuario.",
     });
   });
 });

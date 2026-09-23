@@ -164,8 +164,9 @@ Rules:
 
 ## Forms
 
-Forms use visible labels above the field. The placeholder can show an example,
-but it never replaces the label.
+Forms use visible labels above the field. The placeholder can show an example or
+a short rule — `Opcional`, `Mínimo 8 caracteres` — but it never replaces the
+label.
 
 Rules:
 
@@ -180,7 +181,9 @@ Rules:
   error comes from client validation, so label, input and message share the
   visual state.
 - Show errors with `FieldError` and `destructive` states.
-- Show help with `FieldDescription`.
+- Show help with `FieldDescription`, and reserve it for explanation that must
+  stay on screen while the field is being filled in. A rule short enough to fit
+  the input goes in the placeholder instead.
 - Do not rely only on an asterisk to indicate a required field; use clear copy
   when the context requires it.
 - In React Hook Form forms, use the shared fields before defining local fields

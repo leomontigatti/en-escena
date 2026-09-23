@@ -211,7 +211,11 @@ async function renderShellWithTable() {
   await renderer.renderAsync(
     <MemoryRouter initialEntries={["/administracion/eventos"]}>
       <AdminShell
-        email="admin@example.com"
+        account={{
+          name: "Ada Admin",
+          roleLabel: "Administrador",
+          username: "ada.admin",
+        }}
         events={[{ id: "evento_2026", name: "Evento 2026", active: true }]}
         selectedEventId="evento_2026"
       >

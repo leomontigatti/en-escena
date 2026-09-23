@@ -18,6 +18,7 @@ import {
 export type AppUser = {
   id: string;
   email: string;
+  internalUsername: string | null;
   name: string | null;
   role: "academy" | InternalUserRole;
   requiresPasswordChange: boolean;
@@ -53,6 +54,7 @@ export async function requireSignedInAccessState(
     columns: {
       id: true,
       email: true,
+      internalUsername: true,
       name: true,
       role: true,
       requiresPasswordChange: true,
@@ -157,7 +159,8 @@ export async function requireInternalUser(
     throwForbidden();
   }
 
-  return appUser;
+  // The guard above narrows the role, and the account menu needs it narrowed.
+  return { ...appUser, role: appUser.role };
 }
 
 export async function requireAdminUser(request: Request) {

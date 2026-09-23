@@ -131,7 +131,6 @@ describe("`/administracion/coreografias` route filters", () => {
         `/administracion/coreografias?estado=incompleta&modalidad=${contemporaryCatalog.modality.id}` +
         `&categoria=${contemporaryCatalog.category.id}&tipo-grupo=duo`,
       parentLoaderData: {
-        email: "admin.coreografias.filtros@example.com",
         events: [{ id: event.id, name: event.name, active: true }],
         selectedEventId: event.id,
       },
@@ -239,7 +238,6 @@ function renderRoute(input: {
   childLoaderData: Awaited<ReturnType<typeof loader>>;
   initialEntry: string;
   parentLoaderData: {
-    email: string;
     events: Array<{ active: boolean; id: string; name: string }>;
     selectedEventId: string | null;
   };

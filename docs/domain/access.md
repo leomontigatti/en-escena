@@ -13,13 +13,16 @@ Rules for public academy registration, users, sessions and internal invitations.
 - A `Usuario` has one main permission: `academy`, `admin`, `auditor` or `judge`.
 - Academy users sign in with a verified email and password.
 - Internal users sign in with a `Nombre de usuario interno` and password.
-- `Nombre de usuario interno` is unique ignoring case, normalized to lowercase, 3 to 32 characters, and only accepts lowercase letters, numbers, dot, hyphen and underscore. It cannot contain spaces, accents or email-like values.
+- `Nombre de usuario interno` is unique ignoring case, normalized to lowercase, 3 to 32 characters, and only accepts lowercase letters, numbers, dot, hyphen and underscore. It cannot contain spaces, accents or email-like values. `acceso` and `dmarc` are refused: they are real routed addresses on `enescena.com.ar` (`docs/operations/dns-and-email.md`) and `acceso@` is the outbound sender.
+- Internal users have no email in the application: it is asked for nowhere, shown nowhere and nothing is ever sent to one. The access auth provider keys the password on a unique `user.email`, so an internal user gets a made-up credential email, `<username>@enescena.com.ar`, set once at creation from the username, which cannot be edited; an update never rewrites it. `/ingresar` resolves the typed username to that address, so nobody types it or sees it.
+- Where an internal user's identity is shown — the `Panel de administración` sidebar footer and the `Juzgamiento` and `Auditoría` headers — the app shows their name, their `Permiso principal` and their `Nombre de usuario interno`. The users list finds an internal user by name or username, and an academy by name or email.
 - A `Usuario` auditor is read-only and cannot create, edit, publish, unpublish, cancel, correct or annul.
 - Session inactivity limit is 8 hours for all permissions; logout affects only current session.
 - Admins create internal users directly with a temporary password; the first internal login requires a `Cambio obligatorio de contraseña`.
 - Academy users recover access by email through the access auth provider and define the new password on `Cambio de contraseña`.
 - Internal password recovery is an administrative reset that assigns a temporary password and requires a `Cambio obligatorio de contraseña`.
 - Admins can create, edit, suspend, reactivate, reset passwords and change permissions for internal users; auditors can view users read-only.
+- An administrator's main permission cannot be changed from the application: the edit form locks it and the server refuses any change away from `admin` on an account that already holds it. Promoting another internal user to `admin` is allowed; demoting one is a database-only operation.
 - Creating internal users, changing permissions, suspending or reactivating users, administrative password resets and completing mandatory password changes leave no administrative audit trail: there is no record of who changed what. Raw passwords and password hashes are never persisted outside the credential store.
 - Internal users use the app-owned credential store and the same 8-hour session policy as academy users.
 - Better Auth owns production academy credentials, public registration email confirmation, academy password recovery and academy sessions; app code owns academy onboarding, invitations and the local test harness. Pre-cutover `sb-*` cookies are only expired by a migration shim (`app/lib/auth/legacy-session-cookies.server.ts`), not read by any provider.

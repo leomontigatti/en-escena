@@ -21,7 +21,6 @@ export function InternalUserDetailCard({ user }: { user: DetailUser }) {
         label="Nombre de usuario interno"
         value={user.identifier}
       />
-      <ReadOnlyField label="Correo" value={user.email ?? ""} />
       <ReadOnlySelectField
         label="Permiso principal"
         options={detailUserRoleOptions}

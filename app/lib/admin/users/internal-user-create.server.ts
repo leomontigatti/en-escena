@@ -3,7 +3,10 @@ import { eq, or } from "drizzle-orm";
 import { db } from "@/db";
 import { user } from "@/db/schema";
 import { buildInternalCredentialEmail } from "@/lib/admin/users/internal-user-credentials.server";
-import { assertValidInternalUsername } from "@/lib/auth/internal-username.server";
+import {
+  assertValidInternalUsername,
+  isReservedInternalUsername,
+} from "@/lib/auth/internal-username.server";
 import {
   createInternalCredentialUser,
   deleteInternalCredentialUser,
@@ -12,7 +15,6 @@ import {
   isInternalUserRole,
   type InternalUserRole,
 } from "@/lib/auth/internal-user-roles";
-import { normalizeEmail } from "@/lib/shared/email-normalization";
 
 const TEMPORARY_PASSWORD_MIN_LENGTH = 8;
 
@@ -21,7 +23,6 @@ type CreateInternalUserInput = {
   internalUsername: string;
   role: InternalUserRole;
   temporaryPassword: string;
-  email?: string;
   createdByUserId: string;
 };
 
@@ -71,11 +72,11 @@ export async function createInternalUser(
     return creationError("Ingresá un nombre de usuario interno válido.");
   }
 
-  const normalizedOptionalEmail = input.email?.trim()
-    ? normalizeEmail(input.email)
-    : null;
-  const credentialEmail =
-    normalizedOptionalEmail ?? buildInternalCredentialEmail(internalUsername);
+  if (isReservedInternalUsername(internalUsername)) {
+    return creationError("Ese nombre de usuario interno está reservado.");
+  }
+
+  const credentialEmail = buildInternalCredentialEmail(internalUsername);
   const existingUser = await db.query.user.findFirst({
     columns: { id: true, email: true, internalUsername: true },
     where: or(
@@ -90,7 +91,7 @@ export async function createInternalUser(
 
   if (existingUser?.email === credentialEmail) {
     return creationError(
-      getCredentialEmailConflictMessage(normalizedOptionalEmail),
+      "No pudimos reservar el acceso interno. Intentá con otro nombre de usuario.",
     );
   }
 
@@ -155,12 +156,4 @@ export async function createInternalUser(
 
 function creationError(error: string): CreateInternalUserResult {
   return { ok: false, error };
-}
-
-function getCredentialEmailConflictMessage(email: string | null) {
-  if (email) {
-    return "Ese correo ya tiene un usuario en En Escena.";
-  }
-
-  return "No pudimos reservar el acceso interno. Intentá con otro nombre de usuario.";
 }

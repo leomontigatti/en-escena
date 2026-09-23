@@ -1,5 +1,3 @@
-import { Plus } from "lucide-react";
-
 import {
   AdminEmptyState,
   AdminResourceLayout,
@@ -10,7 +8,6 @@ import {
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import type {
   UserListFilters,
   UserListItem,
@@ -53,13 +50,10 @@ export function InternalUsersListRouteView({
       requireSelectedEvent={false}
       title="Usuarios"
       description="Consultá accesos internos y de academia con filtros por tipo, estado y archivo."
-      headerAction={
-        loaderData.canManage ? (
-          <Button type="button" disabled>
-            <Plus aria-hidden="true" data-icon />
-            Nuevo usuario
-          </Button>
-        ) : undefined
+      action={
+        loaderData.canManage
+          ? { label: "Nuevo usuario", to: "/administracion/usuarios/nuevo" }
+          : undefined
       }
     >
       {loaderData.users.length > 0 ||

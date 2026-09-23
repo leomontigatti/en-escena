@@ -200,7 +200,6 @@ describe("`/administracion/usuarios/:userId` route", () => {
           adminRequest.headers.get("cookie") ?? "",
           {
             name: "  Julia Actualizada  ",
-            email: " Julia.Actualizada@Example.COM ",
             role: "auditor",
           },
         ),
@@ -218,7 +217,7 @@ describe("`/administracion/usuarios/:userId` route", () => {
       }),
     ).resolves.toMatchObject({
       name: "Julia Actualizada",
-      email: "julia.actualizada@example.com",
+      email: "usuario.interno.original@example.com",
       internalUsername: "julia.original",
       role: "auditor",
     });
@@ -313,7 +312,7 @@ describe("`/administracion/usuarios/:userId` route", () => {
     });
   });
 
-  test("blocks non-admin mutations and prevents self-demotion of the only admin", async () => {
+  test("blocks non-admin mutations and refuses a crafted role change on an administrator", async () => {
     const targetUser = await createSignedInRequest({
       email: "usuario.bloqueado@example.com",
       role: "judge",
@@ -393,12 +392,46 @@ describe("`/administracion/usuarios/:userId` route", () => {
 
     expect(selfResult).toMatchObject({
       status: "error",
-      message: "No podés cambiar tu propio permiso de Administrador.",
+      message: "No se puede cambiar el permiso de un Administrador.",
     });
     await expect(
       db.query.user.findFirst({
         columns: { role: true },
         where: eq(user.id, selfAdmin.userId),
+      }),
+    ).resolves.toMatchObject({ role: "admin" });
+
+    const otherAdmin = await createSignedInRequest({
+      email: "admin.otro@example.com",
+      role: "admin",
+      requiresPasswordChange: false,
+      requestUrl: "http://localhost/administracion/usuarios",
+      userName: "Admin Otro",
+      internalUsername: "admin.otro",
+    });
+    const craftedResult = await detailAction(
+      detailActionArgs(
+        createPostRequest(
+          `http://localhost/administracion/usuarios/${otherAdmin.userId}?modo=editar`,
+          selfAdmin.request.headers.get("cookie") ?? "",
+          {
+            name: "Admin Otro",
+            email: "",
+            role: "judge",
+          },
+        ),
+        otherAdmin.userId,
+      ),
+    );
+
+    expect(craftedResult).toMatchObject({
+      status: "error",
+      message: "No se puede cambiar el permiso de un Administrador.",
+    });
+    await expect(
+      db.query.user.findFirst({
+        columns: { role: true },
+        where: eq(user.id, otherAdmin.userId),
       }),
     ).resolves.toMatchObject({ role: "admin" });
   });
@@ -504,7 +537,8 @@ describe("`/administracion/usuarios/:userId` route", () => {
     expect(internalMarkup).toContain("Editar usuario");
     expect(internalMarkup).toContain("Ada Admin");
     expect(internalMarkup).toContain("ada.admin");
-    expect(internalMarkup).toContain("admin.detalle.usuario@example.com");
+    expect(internalMarkup).not.toContain("admin.detalle.usuario@example.com");
+    expect(internalMarkup).not.toContain("Correo");
     expect(internalMarkup).toContain("Permiso principal");
     expect(internalDetailData.user.mainRole).toBe("admin");
     expect(internalMarkup).toContain(

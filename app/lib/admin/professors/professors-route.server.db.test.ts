@@ -395,7 +395,6 @@ describe("`/administracion/profesores` route", () => {
       childHandle: profesoresHandle,
       initialEntry: "/administracion/profesores",
       parentLoaderData: {
-        email: "admin@example.com",
         events: [{ id: event.id, name: event.name, active: true }],
         selectedEventId: event.id,
       },
@@ -408,7 +407,6 @@ describe("`/administracion/profesores` route", () => {
       childHandle: profesorDetalleHandle,
       initialEntry: `/administracion/profesores/${professor.id}`,
       parentLoaderData: {
-        email: "admin@example.com",
         events: [{ id: event.id, name: event.name, active: true }],
         selectedEventId: event.id,
       },
@@ -991,7 +989,6 @@ function renderRouteInAdminLayout({
   childPath: string;
   initialEntry: string;
   parentLoaderData: {
-    email: string;
     events: Array<{ active: boolean; id: string; name: string }>;
     selectedEventId: string | null;
   };

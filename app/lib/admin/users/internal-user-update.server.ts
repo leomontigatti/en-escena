@@ -1,19 +1,16 @@
-import { and, eq, ne, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { accessSession, user } from "@/db/schema";
-import { buildInternalCredentialEmail } from "@/lib/admin/users/internal-user-credentials.server";
 import {
   isInternalUserRole,
   type InternalUserRole,
 } from "@/lib/auth/internal-user-roles";
-import { normalizeEmail } from "@/lib/shared/email-normalization";
 
 type UpdateInternalUserInput = {
   userId: string;
   name: string;
   role: InternalUserRole;
-  email?: string;
   updatedByUserId: string;
 };
 
@@ -65,50 +62,16 @@ export async function updateInternalUser(
     return updateError("Solo podés editar Usuarios internos.");
   }
 
-  const internalUsername = existingUser.internalUsername;
-
   const name = input.name.trim();
 
   if (!name) {
     return updateError("Ingresá el nombre visible.");
   }
 
-  const normalizedOptionalEmail = input.email?.trim()
-    ? normalizeEmail(input.email)
-    : null;
-  const nextEmail =
-    normalizedOptionalEmail ?? buildInternalCredentialEmail(internalUsername);
-
-  const emailConflict = await db.query.user.findFirst({
-    columns: { id: true },
-    where: and(eq(user.email, nextEmail), ne(user.id, existingUser.id)),
-  });
-
-  if (emailConflict) {
-    return updateError(
-      normalizedOptionalEmail
-        ? "Ese correo ya tiene un usuario en En Escena."
-        : "No pudimos reservar el acceso interno. Intentá más tarde.",
-    );
-  }
-
+  // An administrator's permission is locked: the application never demotes one,
+  // so this single rule subsumes the old self and last-active-admin checks.
   if (existingUser.role === "admin" && input.role !== "admin") {
-    if (existingUser.id === input.updatedByUserId) {
-      return updateError(
-        "No podés cambiar tu propio permiso de Administrador.",
-      );
-    }
-
-    const [{ count }] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(user)
-      .where(and(eq(user.role, "admin"), eq(user.suspended, false)));
-
-    if (Number(count) <= 1) {
-      return updateError(
-        "No podés cambiar el permiso del último Administrador activo.",
-      );
-    }
+    return updateError("No se puede cambiar el permiso de un Administrador.");
   }
 
   const roleChanged = existingUser.role !== input.role;
@@ -120,8 +83,6 @@ export async function updateInternalUser(
     await tx
       .update(user)
       .set({
-        email: nextEmail,
-        emailVerified: false,
         name,
         role: input.role,
         sessionInvalidBefore: invalidatedAt,

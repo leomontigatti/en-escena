@@ -101,11 +101,11 @@ Administrative operation available inside the form or detail view of one concret
 _Avoid_: `listAction`, bulk action
 
 **`user`** — ui: "Usuario"
-System access identity, with credentials and one main permission.
+System access identity, with credentials and one main permission. An academy user has a verified email; an internal user has only a name, a `Nombre de usuario interno` and a permission.
 _Avoid_: `academy`, `professor`, academy account
 
 **`internalUsername`** — ui: "Nombre de usuario interno"
-Access identifier for internal users, without depending on a valid email address.
+Access identifier for internal users, the only thing they type to sign in. Internal users have no email: the credential email the access auth provider needs is made up from this username as `<username>@enescena.com.ar` and nothing is ever sent to it.
 _Avoid_: internal email, alias, account
 
 **`accessRecovery`** — ui: "Recuperación de acceso"
