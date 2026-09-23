@@ -43,7 +43,7 @@ import {
   emptySelection,
   getAvailableScheduleCapacityGroupTypeOptions,
   getScheduleCategoryOptions,
-  scheduleCategoriesDescription,
+  scheduleCategoriesPlaceholder,
   scheduleFormSchema,
   toScheduleCapacityFormValues,
   type ScheduleFormValues,
@@ -462,7 +462,7 @@ function ScheduleCapacityInlineFields({
 
 /**
  * The categories the schedule accepts. Optional: leaving it empty is the
- * schedule accepting every category, which is what the description says. Only
+ * schedule accepting every category, which is what the placeholder says. Only
  * the categories sharing a modality with the modalities currently selected are
  * offered, so the field follows the modalities field as it changes.
  */
@@ -488,13 +488,12 @@ function ScheduleCategoriesField({
     <MultiComboboxField
       className={className}
       control={form.control}
-      description={scheduleCategoriesDescription}
       emptyMessage="Sin categorías disponibles"
       inputName="categoryIds"
       label="Categorías"
       name="categoryIds"
       options={categoryOptions}
-      placeholder="Seleccioná categorías"
+      placeholder={scheduleCategoriesPlaceholder}
     />
   );
 }
