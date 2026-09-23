@@ -1,4 +1,7 @@
-import type { InternalUserRole } from "@/lib/auth/internal-user-roles";
+import {
+  internalUserRoleLabels,
+  type InternalUserRole,
+} from "@/lib/auth/internal-user-roles";
 
 /**
  * What an internal user sees of themselves in the account menu: internal users
@@ -10,12 +13,6 @@ export type InternalAccount = {
   roleLabel: string;
   username: string;
 };
-
-const internalUserRoleLabels = {
-  admin: "Administrador",
-  auditor: "Auditor",
-  judge: "Juez",
-} satisfies Record<InternalUserRole, string>;
 
 export function buildInternalAccount(appUser: {
   internalUsername: string | null;

@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { internalUserRoleLabels } from "@/lib/auth/internal-user-roles";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import {
   getEmptyFieldErrors,
@@ -76,9 +77,9 @@ export type UserDetailLoaderData = {
 };
 
 export const detailUserRoleOptions = [
-  { value: "admin", label: "Administrador" },
-  { value: "auditor", label: "Auditor" },
-  { value: "judge", label: "Juez" },
+  { value: "admin", label: internalUserRoleLabels.admin },
+  { value: "auditor", label: internalUserRoleLabels.auditor },
+  { value: "judge", label: internalUserRoleLabels.judge },
   { value: "academy", label: "Academia" },
 ] as const satisfies ReadonlyArray<{ value: DetailUserRole; label: string }>;
 

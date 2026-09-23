@@ -35,7 +35,10 @@ vi.mock("react-router", async () => {
 
 import { InternalUserEditCard } from "@/lib/admin/users/user-detail-edit-form";
 import { updateInternalUserIntent } from "@/lib/admin/users/user-detail.shared";
-import type { DetailUser } from "@/lib/admin/users/user-detail.shared";
+import type {
+  DetailActionData,
+  DetailUser,
+} from "@/lib/admin/users/user-detail.shared";
 import {
   createReactDomTestRenderer,
   getButton,
@@ -146,6 +149,40 @@ describe("InternalUserEditCard", () => {
     expect(submitted.get("role")).toBe("admin");
   });
 
+  test("keeps Guardar enabled after the server refuses the save", () => {
+    renderIdleCard(vi.fn(), buildUser(), {
+      form: "edit",
+      status: "error",
+      message: "No se puede cambiar el permiso de un Administrador.",
+      fieldErrors: {},
+      resetPasswordFieldErrors: {},
+      editValues: { name: "Ana Jueza", role: "judge" },
+      resetPasswordValues: { temporaryPassword: "" },
+    });
+
+    // The refusal refills the form with what was typed, so nothing is dirty —
+    // but the retry has to stay available.
+    expect(getInput("name").value).toBe("Ana Jueza");
+    expect(getButton("Guardar").disabled).toBe(false);
+  });
+
+  test("keeps its own values when another intent on the route fails", () => {
+    renderIdleCard(vi.fn(), buildUser(), {
+      form: "status",
+      status: "error",
+      message: "No podés suspender al último administrador activo.",
+      fieldErrors: {},
+      resetPasswordFieldErrors: {},
+      editValues: { name: "", role: "judge" },
+      resetPasswordValues: { temporaryPassword: "" },
+    });
+
+    // A suspension refusal carries this form's empty `editValues`; adopting
+    // them blanked `Nombre` on a form the administrator never submitted.
+    expect(getInput("name").value).toBe("Ana Juez");
+    expect(getButton("Guardar").disabled).toBe(true);
+  });
+
   test("keeps the main permission editable for a non-administrator", () => {
     renderIdleCard();
 
@@ -153,7 +190,11 @@ describe("InternalUserEditCard", () => {
     expect(getLockedInputValues()).not.toContain("Juez");
   });
 
-  function renderIdleCard(submitSpy = vi.fn(), user = buildUser()) {
+  function renderIdleCard(
+    submitSpy = vi.fn(),
+    user = buildUser(),
+    actionData?: DetailActionData,
+  ) {
     reactRouterMocks.useFormAction.mockReturnValue(
       "/administracion/usuarios/user_1",
     );
@@ -162,6 +203,7 @@ describe("InternalUserEditCard", () => {
 
     renderer.render(
       <InternalUserEditCard
+        actionData={actionData}
         cancelHref="/administracion/usuarios"
         user={user}
       />,

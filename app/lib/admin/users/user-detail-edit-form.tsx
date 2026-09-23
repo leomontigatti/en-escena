@@ -31,8 +31,12 @@ export function InternalUserEditCard({
   cancelHref: string;
   user: DetailUser;
 }) {
+  // Only this form's own refusal refills it. The detail route answers every
+  // intent with one shape, so a suspension or a password-reset error also
+  // carries `editValues` — empty ones — and adopting those blanked `Nombre`.
+  const editError = actionData?.form === "edit" ? actionData : undefined;
   const formValues =
-    actionData?.editValues ?? buildUpdateInternalUserFormValues(user);
+    editError?.editValues ?? buildUpdateInternalUserFormValues(user);
   const form = useForm<
     UpdateInternalUserFormValues,
     unknown,
@@ -54,7 +58,9 @@ export function InternalUserEditCard({
   });
   const handleSubmit = createValidatedRouteFormDataSubmitHandler(form, submit);
   // Nothing changed is nothing to save: the button only wakes up once the form
-  // is dirty, so a save is always a save of something.
+  // is dirty, so a save is always a save of something. A refused save is the
+  // exception — it refills the form with what was typed, which clears `isDirty`,
+  // and the retry has to stay available.
   const { isDirty } = useFormState({ control });
 
   return (
@@ -64,7 +70,10 @@ export function InternalUserEditCard({
         footer={
           <>
             <BackButton to={cancelHref} />
-            <SubmitButton disabled={!isDirty} isPending={isSavingUser} />
+            <SubmitButton
+              disabled={!isDirty && !editError}
+              isPending={isSavingUser}
+            />
           </>
         }
       >
