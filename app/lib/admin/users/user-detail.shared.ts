@@ -153,9 +153,11 @@ export const updateInternalUserSchema = z.object({
   role: roleField,
 });
 
+export const suspendUserIntent = "suspend-user";
+export const reactivateUserIntent = "reactivate-user";
 export const userStatusIntentSchema = z.enum([
-  "suspend-user",
-  "reactivate-user",
+  suspendUserIntent,
+  reactivateUserIntent,
 ]);
 export const updateInternalUserIntent = "update-internal-user";
 export const resetPasswordIntent = "reset-password";

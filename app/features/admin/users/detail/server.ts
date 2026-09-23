@@ -17,6 +17,7 @@ import {
   readUpdateInternalUserFormValues,
   resetPasswordIntent,
   resetPasswordSchema,
+  suspendUserIntent,
   updateInternalUserSchema,
   userStatusIntentSchema,
   type DetailActionData,
@@ -84,7 +85,8 @@ export async function action({
 
   if (parsedIntent.success) {
     const result = await setInternalUserSuspendedState({
-      action: parsedIntent.data === "suspend-user" ? "suspend" : "reactivate",
+      action:
+        parsedIntent.data === suspendUserIntent ? "suspend" : "reactivate",
       targetUserId: userId,
       updatedByUserId: appUser.id,
       adminHeaders: request.headers,
@@ -98,7 +100,7 @@ export async function action({
     }
 
     return buildDetailActionSuccess(
-      parsedIntent.data === "suspend-user"
+      parsedIntent.data === suspendUserIntent
         ? "usuario-interno-suspendido"
         : "usuario-interno-reactivado",
     );

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Form, Link } from "react-router";
 
 import { AdminResourceLayout } from "@/components/admin/resource-layout";
@@ -16,7 +16,9 @@ import { InternalUserResetPasswordCard } from "@/lib/admin/users/user-detail-pas
 import {
   getDetailDescription,
   type DetailActionData,
+  type DetailSuccessData,
   type DetailUser,
+  reactivateUserIntent,
   type DetailViewActionData,
   type UserDetailLoaderData,
 } from "@/lib/admin/users/user-detail.shared";
@@ -60,6 +62,7 @@ export function InternalUserDetailRouteView({
         canManageInternalUser ? (
           <UserActionsMenu
             resetPasswordHref={loaderData.resetPasswordHref}
+            successData={successData}
             user={savedUser}
           />
         ) : null
@@ -121,14 +124,26 @@ function UserDetailBody({
 
 function UserActionsMenu({
   resetPasswordHref,
+  successData,
   user,
 }: {
   resetPasswordHref: string;
+  successData?: DetailSuccessData;
   user: DetailUser;
 }) {
   // The confirmation lives outside the menu: choosing the item closes the menu,
   // which unmounts everything the menu content holds.
   const [isSuspendDialogOpen, setIsSuspendDialogOpen] = useState(false);
+
+  // The suspension keeps the user on the detail, so nothing unmounts the
+  // confirmation when it succeeds. Close it on the success result rather than
+  // on the submit: a refusal — the last active administrator, oneself — has to
+  // leave the dialog standing behind its toast. See docs/agents/form-feedback.md.
+  useEffect(() => {
+    if (successData) {
+      setIsSuspendDialogOpen(false);
+    }
+  }, [successData]);
 
   return (
     <>
@@ -165,7 +180,7 @@ function StatusActionItem({
   if (user.state === "suspended") {
     return (
       <Form method="post">
-        <input type="hidden" name="intent" value="reactivate-user" />
+        <input type="hidden" name="intent" value={reactivateUserIntent} />
         <DropdownMenuItem asChild>
           <button
             type="submit"

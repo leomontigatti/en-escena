@@ -1,13 +1,19 @@
 /** @vitest-environment jsdom */
 
 import { act } from "react";
-import { createMemoryRouter, RouterProvider } from "react-router";
+import {
+  createMemoryRouter,
+  RouterProvider,
+  useActionData,
+} from "react-router";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { InternalUserDetailRouteView } from "@/features/admin/users/detail/view";
-import type {
-  DetailUser,
-  UserDetailLoaderData,
+import {
+  buildDetailActionSuccess,
+  type DetailUser,
+  type DetailViewActionData,
+  type UserDetailLoaderData,
 } from "@/lib/admin/users/user-detail.shared";
 import { createReactDomTestRenderer } from "@/lib/test-support/react-dom";
 
@@ -82,6 +88,43 @@ describe("InternalUserDetailRouteView suspension", () => {
     expect(getConfirmButton().disabled).toBe(true);
   });
 
+  test("closes the confirmation once the suspension succeeds", async () => {
+    await renderDetail({
+      action: async () =>
+        buildDetailActionSuccess("usuario-interno-suspendido"),
+    });
+    await chooseMenuItem("Suspender usuario");
+
+    await act(async () => {
+      getConfirmButton().click();
+      await Promise.resolve();
+    });
+
+    expect(document.querySelector('[role="alertdialog"]')).toBeNull();
+  });
+
+  test("leaves the confirmation open when the suspension is refused", async () => {
+    await renderDetail({
+      action: async () => ({
+        status: "error" as const,
+        message: "No se puede suspender al último administrador activo.",
+        form: "status" as const,
+        fieldErrors: {},
+        resetPasswordFieldErrors: {},
+        editValues: { name: "", email: "", role: "judge" as const },
+        resetPasswordValues: { temporaryPassword: "" },
+      }),
+    });
+    await chooseMenuItem("Suspender usuario");
+
+    await act(async () => {
+      getConfirmButton().click();
+      await Promise.resolve();
+    });
+
+    expect(document.querySelector('[role="alertdialog"]')).not.toBeNull();
+  });
+
   test("keeps reactivation a single click with no dialog", async () => {
     const action = vi.fn(async () => null);
 
@@ -100,7 +143,7 @@ describe("InternalUserDetailRouteView suspension", () => {
     navigation = { state: "idle" },
     user,
   }: {
-    action?: () => Promise<null>;
+    action?: () => Promise<DetailViewActionData | null>;
     navigation?: {
       formData?: FormData;
       formMethod?: string;
@@ -115,9 +158,7 @@ describe("InternalUserDetailRouteView suspension", () => {
         {
           path: "/administracion/usuarios/:userId",
           action,
-          element: (
-            <InternalUserDetailRouteView loaderData={buildLoaderData(user)} />
-          ),
+          element: <DetailRoute user={user} />,
         },
       ],
       { initialEntries: ["/administracion/usuarios/user_1"] },
@@ -126,6 +167,21 @@ describe("InternalUserDetailRouteView suspension", () => {
     await renderer.renderAsync(<RouterProvider router={router} />);
   }
 });
+
+/**
+ * The route element, reading `actionData` the way the real route module does,
+ * so a test can act on what the action returned.
+ */
+function DetailRoute({ user }: { user?: Partial<DetailUser> }) {
+  const actionData = useActionData() as DetailViewActionData | undefined;
+
+  return (
+    <InternalUserDetailRouteView
+      actionData={actionData}
+      loaderData={buildLoaderData(user)}
+    />
+  );
+}
 
 function getConfirmButton() {
   const button = Array.from(document.querySelectorAll("button")).find(

@@ -13,9 +13,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { suspendUserIntent } from "@/lib/admin/users/user-detail.shared";
 import { isRouteFormPending, useOptionalNavigation } from "@/lib/shared/forms";
-
-const suspendUserIntent = "suspend-user";
 
 /**
  * The confirmation in front of `Suspender usuario`. Shaped like the shared
