@@ -114,7 +114,9 @@ function buildUserWhere(filters: UserListFilters): SQL<unknown> | undefined {
     clauses.push(
       or(
         ilike(user.name, search),
-        ilike(user.email, search),
+        // Only an academy is found by email: an internal user's is a made-up
+        // credential nobody knows. See docs/domain/access.md.
+        and(eq(user.role, "academy"), ilike(user.email, search)),
         ilike(user.internalUsername, search),
         ilike(academies.contactName, search),
       ) ?? sql`false`,
