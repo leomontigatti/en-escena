@@ -130,7 +130,7 @@ describe("`/administracion/eventos` route", () => {
     const routeData = await loader(routeArgs(request));
 
     expect(shellData).toMatchObject({
-      email: "admin.shell.eventos@example.com",
+      account: { roleLabel: "Administrador" },
       events: [{ id: activeEvent.id, name: "Regional 2026", active: true }],
       selectedEventId: activeEvent.id,
     });
@@ -340,7 +340,11 @@ function renderRoute(
 
 function adminLoaderData() {
   return {
-    email: "admin@example.com",
+    account: {
+      name: "Ada Admin",
+      roleLabel: "Administrador",
+      username: "ada.admin",
+    },
     events: [{ id: "evento_2026", name: "Evento 2026", active: true }],
     selectedEventId: "evento_2026",
   };
