@@ -20,6 +20,7 @@ Rules for public academy registration, users, sessions and internal invitations.
 - Academy users recover access by email through the access auth provider and define the new password on `Cambio de contraseña`.
 - Internal password recovery is an administrative reset that assigns a temporary password and requires a `Cambio obligatorio de contraseña`.
 - Admins can create, edit, suspend, reactivate, reset passwords and change permissions for internal users; auditors can view users read-only.
+- An administrator's main permission cannot be changed from the application: the edit form locks it and the server refuses any change away from `admin` on an account that already holds it. Promoting another internal user to `admin` is allowed; demoting one is a database-only operation.
 - Creating internal users, changing permissions, suspending or reactivating users, administrative password resets and completing mandatory password changes leave no administrative audit trail: there is no record of who changed what. Raw passwords and password hashes are never persisted outside the credential store.
 - Internal users use the app-owned credential store and the same 8-hour session policy as academy users.
 - Better Auth owns production academy credentials, public registration email confirmation, academy password recovery and academy sessions; app code owns academy onboarding, invitations and the local test harness. Pre-cutover `sb-*` cookies are only expired by a migration shim (`app/lib/auth/legacy-session-cookies.server.ts`), not read by any provider.

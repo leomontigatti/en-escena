@@ -121,7 +121,38 @@ describe("InternalUserEditCard", () => {
     expect(getButton("Guardar").disabled).toBe(true);
   });
 
-  function renderIdleCard(submitSpy = vi.fn()) {
+  test("locks an administrator's main permission and still submits it", async () => {
+    const submitSpy = vi.fn();
+
+    renderIdleCard(
+      submitSpy,
+      buildUser({ mainRole: "admin", name: "Ada Admin" }),
+    );
+
+    expect(document.querySelector('[role="combobox"]')).toBeNull();
+    expect(getLockedInputValues()).toContain("Administrador");
+
+    await updateReactDomForm(() => {
+      setInputValue(getInput("name"), "Ada Administradora");
+    });
+
+    await updateReactDomForm(() => {
+      getForm().requestSubmit(getButton("Guardar"));
+    });
+
+    const [submitted] = submitSpy.mock.calls[0] as [FormData];
+
+    expect(submitted.get("role")).toBe("admin");
+  });
+
+  test("keeps the main permission editable for a non-administrator", () => {
+    renderIdleCard();
+
+    expect(document.querySelector('[role="combobox"]')).not.toBeNull();
+    expect(getLockedInputValues()).not.toContain("Juez");
+  });
+
+  function renderIdleCard(submitSpy = vi.fn(), user = buildUser()) {
     reactRouterMocks.useFormAction.mockReturnValue(
       "/administracion/usuarios/user_1",
     );
@@ -131,13 +162,13 @@ describe("InternalUserEditCard", () => {
     renderer.render(
       <InternalUserEditCard
         cancelHref="/administracion/usuarios"
-        user={buildUser()}
+        user={user}
       />,
     );
   }
 });
 
-function buildUser(): DetailUser {
+function buildUser(overrides: Partial<DetailUser> = {}): DetailUser {
   return {
     academyId: null,
     academyName: null,
@@ -148,7 +179,14 @@ function buildUser(): DetailUser {
     name: "Ana Juez",
     state: "active",
     userType: "internal",
+    ...overrides,
   };
+}
+
+function getLockedInputValues() {
+  return Array.from(document.querySelectorAll("input[readonly]")).map(
+    (input) => (input as HTMLInputElement).value,
+  );
 }
 
 function getInput(name: string) {

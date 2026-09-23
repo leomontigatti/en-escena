@@ -86,7 +86,7 @@ export function InternalUserEditCard({
           placeholder="Opcional"
           type="email"
         />
-        <InternalUserEditRoleField control={control} />
+        <InternalUserEditRoleField control={control} mainRole={user.mainRole} />
       </UserFormCard>
     </form>
   );

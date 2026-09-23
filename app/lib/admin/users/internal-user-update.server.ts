@@ -1,4 +1,4 @@
-import { and, eq, ne, sql } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 
 import { db } from "@/db";
 import { accessSession, user } from "@/db/schema";
@@ -92,23 +92,10 @@ export async function updateInternalUser(
     );
   }
 
+  // An administrator's permission is locked: the application never demotes one,
+  // so this single rule subsumes the old self and last-active-admin checks.
   if (existingUser.role === "admin" && input.role !== "admin") {
-    if (existingUser.id === input.updatedByUserId) {
-      return updateError(
-        "No podés cambiar tu propio permiso de Administrador.",
-      );
-    }
-
-    const [{ count }] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(user)
-      .where(and(eq(user.role, "admin"), eq(user.suspended, false)));
-
-    if (Number(count) <= 1) {
-      return updateError(
-        "No podés cambiar el permiso del último Administrador activo.",
-      );
-    }
+    return updateError("No se puede cambiar el permiso de un Administrador.");
   }
 
   const roleChanged = existingUser.role !== input.role;
