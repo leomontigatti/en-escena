@@ -45,7 +45,7 @@ export function InternalUserEditCard({
 
   useEffect(() => {
     reset(formValues);
-  }, [reset, formValues.email, formValues.name, formValues.role]);
+  }, [reset, formValues.name, formValues.role]);
 
   const submit = useOptionalSubmit();
   const navigation = useOptionalNavigation();
@@ -77,14 +77,6 @@ export function InternalUserEditCard({
         <ReadOnlyField
           label="Nombre de usuario interno"
           value={user.identifier}
-        />
-        <TextInputField
-          autoComplete="email"
-          control={control}
-          label="Correo"
-          name="email"
-          placeholder="Opcional"
-          type="email"
         />
         <InternalUserEditRoleField control={control} mainRole={user.mainRole} />
       </UserFormCard>

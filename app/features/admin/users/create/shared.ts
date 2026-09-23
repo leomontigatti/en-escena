@@ -11,14 +11,6 @@ const temporaryPasswordMinLength = 8;
 
 const requiredTextField = () => z.string().trim().min(1, requiredFieldMessage);
 
-const optionalEmailField = z
-  .string()
-  .trim()
-  .refine(
-    (value) => value === "" || z.email().safeParse(value).success,
-    "Ingresá un correo válido o dejalo vacío.",
-  );
-
 const roleField = z
   .string()
   .trim()
@@ -35,7 +27,6 @@ export const createInternalUserSchema = z.object({
     (value) => value.length >= temporaryPasswordMinLength,
     `La contraseña temporal debe tener al menos ${temporaryPasswordMinLength} caracteres.`,
   ),
-  email: optionalEmailField,
 });
 
 const createInternalUserFieldNames = [
@@ -43,7 +34,6 @@ const createInternalUserFieldNames = [
   "internalUsername",
   "role",
   "temporaryPassword",
-  "email",
 ] as const;
 
 export type CreateInternalUserField =
@@ -56,7 +46,6 @@ export type CreateInternalUserFormValues = {
   internalUsername: string;
   role: string;
   temporaryPassword: string;
-  email: string;
 };
 
 export type CreateInternalUserActionData = {
@@ -73,7 +62,6 @@ export const defaultCreateInternalUserFormValues: CreateInternalUserFormValues =
     internalUsername: "",
     role: "judge",
     temporaryPassword: "",
-    email: "",
   };
 
 export function readCreateInternalUserFormValues(
@@ -84,7 +72,6 @@ export function readCreateInternalUserFormValues(
     internalUsername: String(formData.get("internalUsername") ?? ""),
     role: String(formData.get("role") ?? ""),
     temporaryPassword: String(formData.get("temporaryPassword") ?? ""),
-    email: String(formData.get("email") ?? ""),
   };
 }
 
@@ -99,13 +86,10 @@ export function getCreateInternalUserServerFieldErrors(
 ): CreateInternalUserFieldErrors {
   if (
     error === "Ese nombre de usuario interno ya existe." ||
+    error === "Ese nombre de usuario interno está reservado." ||
     error === "Ingresá un nombre de usuario interno válido."
   ) {
     return { internalUsername: error };
-  }
-
-  if (error === "Ese correo ya tiene un usuario en En Escena.") {
-    return { email: error };
   }
 
   return getEmptyFieldErrors<CreateInternalUserField>();

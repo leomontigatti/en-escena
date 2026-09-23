@@ -66,10 +66,11 @@ describe("InternalUserEditCard", () => {
     expect(getButton("Guardar").disabled).toBe(false);
   });
 
-  test("marks the optional email with a placeholder", () => {
+  test("asks for no email", () => {
     renderIdleCard();
 
-    expect(getInput("email").placeholder).toBe("Opcional");
+    expect(document.querySelector('input[name="email"]')).toBeNull();
+    expect(document.body.textContent).not.toContain("Correo");
   });
 
   test("submits through React Router instead of the native form submit", async () => {
@@ -172,7 +173,7 @@ function buildUser(overrides: Partial<DetailUser> = {}): DetailUser {
   return {
     academyId: null,
     academyName: null,
-    email: "ana@example.com",
+    email: null,
     identifier: "ana.juez",
     id: "user_1",
     mainRole: "judge",

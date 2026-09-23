@@ -55,7 +55,6 @@ export function NewInternalUserRouteView({
     reset(formValues);
   }, [
     reset,
-    formValues.email,
     formValues.internalUsername,
     formValues.name,
     formValues.role,
@@ -116,15 +115,6 @@ export function NewInternalUserRouteView({
               name="internalUsername"
               placeholder="Solo minúsculas, números, puntos, guion o guion bajo"
               spellCheck={false}
-            />
-
-            <TextInputField
-              autoComplete="email"
-              control={control}
-              label="Correo"
-              name="email"
-              placeholder="Opcional"
-              type="email"
             />
 
             <SelectField

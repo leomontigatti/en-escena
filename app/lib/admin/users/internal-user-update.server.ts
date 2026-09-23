@@ -1,19 +1,16 @@
-import { and, eq, ne } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { accessSession, user } from "@/db/schema";
-import { buildInternalCredentialEmail } from "@/lib/admin/users/internal-user-credentials.server";
 import {
   isInternalUserRole,
   type InternalUserRole,
 } from "@/lib/auth/internal-user-roles";
-import { normalizeEmail } from "@/lib/shared/email-normalization";
 
 type UpdateInternalUserInput = {
   userId: string;
   name: string;
   role: InternalUserRole;
-  email?: string;
   updatedByUserId: string;
 };
 
@@ -65,31 +62,10 @@ export async function updateInternalUser(
     return updateError("Solo podés editar Usuarios internos.");
   }
 
-  const internalUsername = existingUser.internalUsername;
-
   const name = input.name.trim();
 
   if (!name) {
     return updateError("Ingresá el nombre visible.");
-  }
-
-  const normalizedOptionalEmail = input.email?.trim()
-    ? normalizeEmail(input.email)
-    : null;
-  const nextEmail =
-    normalizedOptionalEmail ?? buildInternalCredentialEmail(internalUsername);
-
-  const emailConflict = await db.query.user.findFirst({
-    columns: { id: true },
-    where: and(eq(user.email, nextEmail), ne(user.id, existingUser.id)),
-  });
-
-  if (emailConflict) {
-    return updateError(
-      normalizedOptionalEmail
-        ? "Ese correo ya tiene un usuario en En Escena."
-        : "No pudimos reservar el acceso interno. Intentá más tarde.",
-    );
   }
 
   // An administrator's permission is locked: the application never demotes one,
@@ -107,8 +83,6 @@ export async function updateInternalUser(
     await tx
       .update(user)
       .set({
-        email: nextEmail,
-        emailVerified: false,
         name,
         role: input.role,
         sessionInvalidBefore: invalidatedAt,

@@ -153,7 +153,6 @@ export async function action({
   const result = await updateInternalUser({
     userId,
     name: parsed.data.name,
-    email: parsed.data.email,
     role: parsed.data.role,
     updatedByUserId: appUser.id,
   });
@@ -162,7 +161,7 @@ export async function action({
     return buildDetailActionError({
       form: "edit",
       message: result.error,
-      fieldErrors: getUpdateInternalUserServerFieldErrors(result.error),
+      fieldErrors: getUpdateInternalUserServerFieldErrors(),
       editValues: values,
     });
   }

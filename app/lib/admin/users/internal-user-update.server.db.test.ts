@@ -56,15 +56,15 @@ describe("update internal user", () => {
     ).resolves.toMatchObject({ role: "admin" });
   });
 
-  test("keeps name and email edits working on an administrator account", async () => {
+  test("keeps name edits working on an administrator account without touching the credential email", async () => {
     const actingAdmin = await createInternalUserRow({
-      email: "admin.editor@example.com",
+      email: "admin.editor@enescena.com.ar",
       internalUsername: "admin.editor",
       name: "Admin Editor",
       role: "admin",
     });
     const targetAdmin = await createInternalUserRow({
-      email: "admin.editado@example.com",
+      email: "admin.editado@enescena.com.ar",
       internalUsername: "admin.editado",
       name: "Admin Editado",
       role: "admin",
@@ -75,18 +75,18 @@ describe("update internal user", () => {
         userId: targetAdmin.id,
         name: "Admin Renombrado",
         role: "admin",
-        email: "admin.renombrado@example.com",
         updatedByUserId: actingAdmin.id,
       }),
     ).resolves.toMatchObject({ ok: true });
 
     await expect(
       db.query.user.findFirst({
-        columns: { email: true, name: true, role: true },
+        columns: { email: true, emailVerified: true, name: true, role: true },
         where: eq(user.id, targetAdmin.id),
       }),
     ).resolves.toMatchObject({
-      email: "admin.renombrado@example.com",
+      email: "admin.editado@enescena.com.ar",
+      emailVerified: true,
       name: "Admin Renombrado",
       role: "admin",
     });
@@ -147,7 +147,7 @@ async function createInternalUserRow({
     .insert(user)
     .values({
       email,
-      emailVerified: false,
+      emailVerified: true,
       internalUsername,
       name,
       role,

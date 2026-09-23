@@ -61,8 +61,6 @@ describe("NewInternalUserRouteView interactions", () => {
     expect(getInput("temporaryPassword").placeholder).toBe(
       "Mínimo 8 caracteres",
     );
-    expect(getInput("email").placeholder).toBe("Opcional");
-
     expect(document.body.textContent).not.toContain(
       "Usá solo letras minúsculas",
     );
@@ -72,6 +70,13 @@ describe("NewInternalUserRouteView interactions", () => {
     expect(document.body.textContent).not.toContain(
       "No se verifica ni se usa para ingresar.",
     );
+  });
+
+  test("asks for no email", () => {
+    renderIdleView();
+
+    expect(document.querySelector('input[name="email"]')).toBeNull();
+    expect(document.body.textContent).not.toContain("Correo");
   });
 
   test("shows no error on blur before the first submit, then validates on submit and clears live", async () => {

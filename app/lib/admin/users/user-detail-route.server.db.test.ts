@@ -200,7 +200,6 @@ describe("`/administracion/usuarios/:userId` route", () => {
           adminRequest.headers.get("cookie") ?? "",
           {
             name: "  Julia Actualizada  ",
-            email: " Julia.Actualizada@Example.COM ",
             role: "auditor",
           },
         ),
@@ -218,7 +217,7 @@ describe("`/administracion/usuarios/:userId` route", () => {
       }),
     ).resolves.toMatchObject({
       name: "Julia Actualizada",
-      email: "julia.actualizada@example.com",
+      email: "usuario.interno.original@example.com",
       internalUsername: "julia.original",
       role: "auditor",
     });
@@ -538,7 +537,8 @@ describe("`/administracion/usuarios/:userId` route", () => {
     expect(internalMarkup).toContain("Editar usuario");
     expect(internalMarkup).toContain("Ada Admin");
     expect(internalMarkup).toContain("ada.admin");
-    expect(internalMarkup).toContain("admin.detalle.usuario@example.com");
+    expect(internalMarkup).not.toContain("admin.detalle.usuario@example.com");
+    expect(internalMarkup).not.toContain("Correo");
     expect(internalMarkup).toContain("Permiso principal");
     expect(internalDetailData.user.mainRole).toBe("admin");
     expect(internalMarkup).toContain(

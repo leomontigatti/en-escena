@@ -35,7 +35,6 @@ export async function action({ request }: { request: Request }) {
     internalUsername: parsed.data.internalUsername,
     role: parsed.data.role,
     temporaryPassword: parsed.data.temporaryPassword,
-    email: parsed.data.email,
     createdByUserId: appUser.id,
   });
 
