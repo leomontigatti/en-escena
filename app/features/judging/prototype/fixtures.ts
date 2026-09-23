@@ -17,7 +17,8 @@ export type Assignment = {
   name: string;
   categoryName: string;
   groupType: ChoreographyGroupType;
-  experienceLevelName: string;
+  /** Null when the category does not ask for a level. */
+  experienceLevelName: string | null;
   modalityName: string;
   submodalityName: string | null;
   /** `null` scores with a single 0–100 value; a list scores on a sheet. */
@@ -48,7 +49,7 @@ const acrobaticsCriteria: Criterion[] = [
   { id: "tiempo", name: "Tiempo excedido", max: 5, deducts: true },
 ];
 
-export const prototypeAssignments: Assignment[] = [
+const handWrittenAssignments: Assignment[] = [
   {
     id: "p41",
     orderNumber: 41,
@@ -165,7 +166,7 @@ export const prototypeAssignments: Assignment[] = [
     name: "La espera",
     categoryName: "Mayores",
     groupType: "solo",
-    experienceLevelName: "Elite",
+    experienceLevelName: null,
     modalityName: "Contemporáneo",
     submodalityName: null,
     criteria: null,
@@ -217,8 +218,100 @@ const silentFeedbackUrl = (() => {
   return `data:audio/wav;base64,${btoa(binary)}`;
 })();
 
+// A full show day around the hand-written rows: 1–40 already scored before
+// them, 53–80 still to come, so the list is as long as a real day.
+const generatedNames = [
+  "Brisa",
+  "Umbral",
+  "Latido",
+  "Orilla",
+  "Espiral",
+  "Cenizas",
+  "Alas",
+  "Silencio",
+  "Puente",
+  "Reflejo",
+  "Raíz",
+  "Horizonte",
+  "Sombra",
+  "Deriva",
+];
+const generatedCategories = ["Infantil", "Juvenil", "Mayores", "Adultos"];
+const generatedGroupTypes: ChoreographyGroupType[] = [
+  "solo",
+  "duo",
+  "trio",
+  "grupal",
+];
+const generatedLevels = ["Amateur", "Profesional", "Elite", null];
+const generatedModalities: [string, string | null][] = [
+  ["Folklore", "Estilizado"],
+  ["Clásico", "Repertorio"],
+  ["Contemporáneo", null],
+  ["Jazz", "Musical"],
+  ["Urbano", "Heels"],
+  ["Acrobacia", "Acro dance"],
+];
+
+function buildGeneratedAssignment(orderNumber: number): Assignment {
+  const pick = <T>(options: T[]) => options[orderNumber % options.length] as T;
+  const [modalityName, submodalityName] = pick(generatedModalities);
+
+  return {
+    id: `p${orderNumber}`,
+    orderNumber,
+    name: `${pick(generatedNames)} ${Math.ceil(orderNumber / generatedNames.length)}`,
+    categoryName: pick(generatedCategories),
+    groupType: pick(generatedGroupTypes),
+    experienceLevelName: pick(generatedLevels),
+    modalityName,
+    submodalityName,
+    criteria: modalityName === "Acrobacia" ? acrobaticsCriteria : null,
+  };
+}
+
+function buildGeneratedRange(from: number, to: number) {
+  return Array.from({ length: to - from + 1 }, (_, index) =>
+    buildGeneratedAssignment(from + index),
+  );
+}
+
+export const prototypeAssignments: Assignment[] = [
+  ...buildGeneratedRange(1, 40),
+  ...handWrittenAssignments,
+  ...buildGeneratedRange(53, 80),
+];
+
+/** A plausible saved score for a row scored before the hand-written ones. */
+function buildEarlierEvaluation(assignment: Assignment): Evaluation {
+  const audioUrl = assignment.orderNumber % 3 === 0 ? null : silentFeedbackUrl;
+
+  if (!assignment.criteria) {
+    const score = 60 + ((assignment.orderNumber * 7) % 35);
+    return {
+      values: { puntaje: String(score) },
+      score,
+      audioUrl,
+      disqualified: false,
+    };
+  }
+
+  const values = Object.fromEntries(
+    assignment.criteria.map((criterion) => [
+      criterion.id,
+      criterion.deducts ? "0" : String(criterion.max - 2),
+    ]),
+  );
+  return { values, score: 86, audioUrl, disqualified: false };
+}
+
 /** A show already under way: three rows carry each non-pending state. */
 export const prototypeInitialEvaluations: Record<string, Evaluation> = {
+  ...Object.fromEntries(
+    prototypeAssignments
+      .filter((assignment) => assignment.orderNumber <= 40)
+      .map((assignment) => [assignment.id, buildEarlierEvaluation(assignment)]),
+  ),
   p41: {
     values: { puntaje: "84,5" },
     score: 84.5,

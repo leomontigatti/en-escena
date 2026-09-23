@@ -1,57 +1,89 @@
-// PROTOTYPE (#223) — throwaway, never merge. The `Devolución` recorder every
-// variant of the judge scoring prototype shares.
+// PROTOTYPE (#223) — throwaway, never merge. The `Devolución` recorder the
+// judge scoring prototype shares between the dialog and the sheet.
 
-import { AlertCircleIcon, Mic, RotateCcw, Square, Trash2 } from "lucide-react";
+import { AlertCircleIcon, Check, Pause } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FieldDescription, FieldLegend, FieldSet } from "@/components/ui/field";
-import { Progress } from "@/components/ui/progress";
-import { Spinner } from "@/components/ui/spinner";
+import { FieldLegend, FieldSet } from "@/components/ui/field";
 
-const maxRecordingSeconds = 180;
+import { FeedbackPlayback } from "./playback";
+import { emptyLevels, formatDuration, MediaRow, Waveform } from "./waveform";
 
-function formatSeconds(totalSeconds: number) {
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
+const maxRecordingMs = 180_000;
+const tickMs = 100;
 
-  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+type Phase = "idle" | "requesting" | "recording" | "paused";
+
+/** What a live take needs torn down: the recorder, the mic and the analyser. */
+type Session = {
+  recorder: MediaRecorder;
+  stream: MediaStream;
+  audioContext: AudioContext;
+  analyser: AnalyserNode;
+  timer: number;
+  /** Time recorded before the current stretch, which pauses split. */
+  recordedMs: number;
+  /** When the current stretch started; null while paused. */
+  resumedAt: number | null;
+};
+
+function getRecordedMs(session: Session) {
+  return (
+    session.recordedMs +
+    (session.resumedAt === null ? 0 : Date.now() - session.resumedAt)
+  );
+}
+
+/** The mic's loudness right now, 0 to 1, from the analyser's waveform. */
+function readLevel(analyser: AnalyserNode) {
+  const samples = new Uint8Array(analyser.fftSize);
+  analyser.getByteTimeDomainData(samples);
+
+  let sumOfSquares = 0;
+  for (const sample of samples) {
+    const centered = (sample - 128) / 128;
+    sumOfSquares += centered * centered;
+  }
+
+  // Speech sits low in RMS terms; scale it so a normal voice fills the bars.
+  return Math.min(1, Math.sqrt(sumOfSquares / samples.length) * 4);
 }
 
 /**
- * Records the `Devolución` from the device mic with `MediaRecorder`
- * (webm/opus, Chrome only), with listen-back, re-record and delete.
+ * One take on the device mic with `MediaRecorder` (webm/opus, Chrome only):
+ * start, pause and resume, stop at will or at the cap. The finished audio goes
+ * to `onRecorded`.
  */
-export function FeedbackRecorder({
-  audioUrl,
-  onAudioUrlChange,
-  disabled = false,
-}: {
-  audioUrl: string | null;
-  onAudioUrlChange: (audioUrl: string | null) => void;
-  disabled?: boolean;
-}) {
-  const [phase, setPhase] = useState<"idle" | "requesting" | "recording">(
-    "idle",
-  );
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+function useFeedbackTake(onRecorded: (audioUrl: string) => void) {
+  const [phase, setPhase] = useState<Phase>("idle");
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const [levels, setLevels] = useState(emptyLevels);
   const [error, setError] = useState<string | null>(null);
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const timerRef = useRef<number | null>(null);
+  const sessionRef = useRef<Session | null>(null);
 
   useEffect(
     () => () => {
-      if (timerRef.current !== null) {
-        window.clearInterval(timerRef.current);
-      }
-      if (recorderRef.current?.state === "recording") {
-        recorderRef.current.stop();
+      const session = sessionRef.current;
+      if (session) {
+        // Unmounting mid-take drops it: nothing is left to hand the audio to.
+        session.recorder.onstop = null;
+        endSession(session);
       }
     },
     [],
   );
+
+  function endSession(session: Session) {
+    window.clearInterval(session.timer);
+    if (session.recorder.state !== "inactive") {
+      session.recorder.stop();
+    }
+    session.stream.getTracks().forEach((track) => track.stop());
+    void session.audioContext.close();
+    sessionRef.current = null;
+  }
 
   async function startRecording() {
     setError(null);
@@ -73,120 +105,229 @@ export function FeedbackRecorder({
       : "";
     const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
     const chunks: Blob[] = [];
+    const audioContext = new AudioContext();
+    const analyser = audioContext.createAnalyser();
+    analyser.fftSize = 1024;
+    audioContext.createMediaStreamSource(stream).connect(analyser);
 
     recorder.ondataavailable = (event) => {
       chunks.push(event.data);
     };
     recorder.onstop = () => {
-      stream.getTracks().forEach((track) => track.stop());
-      if (timerRef.current !== null) {
-        window.clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
       const blob = new Blob(chunks, { type: recorder.mimeType });
-      onAudioUrlChange(URL.createObjectURL(blob));
+      onRecorded(URL.createObjectURL(blob));
       setPhase("idle");
     };
 
-    recorder.start();
-    recorderRef.current = recorder;
-    setElapsedSeconds(0);
-    setPhase("recording");
+    const session: Session = {
+      recorder,
+      stream,
+      audioContext,
+      analyser,
+      recordedMs: 0,
+      resumedAt: Date.now(),
+      timer: window.setInterval(() => {
+        if (session.resumedAt === null) {
+          return;
+        }
+        const recordedMs = getRecordedMs(session);
+        setElapsedMs(Math.min(recordedMs, maxRecordingMs));
+        setLevels((current) => [...current.slice(1), readLevel(analyser)]);
+        if (recordedMs >= maxRecordingMs) {
+          endSession(session);
+        }
+      }, tickMs),
+    };
 
-    const startedAt = Date.now();
-    timerRef.current = window.setInterval(() => {
-      const seconds = Math.floor((Date.now() - startedAt) / 1000);
-      setElapsedSeconds(Math.min(seconds, maxRecordingSeconds));
-      if (seconds >= maxRecordingSeconds && recorder.state === "recording") {
-        recorder.stop();
-      }
-    }, 250);
+    recorder.start();
+    sessionRef.current = session;
+    setElapsedMs(0);
+    setLevels(emptyLevels());
+    setPhase("recording");
+  }
+
+  function togglePause() {
+    const session = sessionRef.current;
+    if (!session) {
+      return;
+    }
+
+    if (session.resumedAt === null) {
+      session.recorder.resume();
+      session.resumedAt = Date.now();
+      setPhase("recording");
+      return;
+    }
+
+    session.recorder.pause();
+    session.recordedMs = getRecordedMs(session);
+    session.resumedAt = null;
+    setPhase("paused");
   }
 
   function stopRecording() {
-    if (recorderRef.current?.state === "recording") {
-      recorderRef.current.stop();
+    if (sessionRef.current) {
+      endSession(sessionRef.current);
     }
   }
 
+  return {
+    phase,
+    elapsedMs,
+    levels,
+    error,
+    startRecording,
+    togglePause,
+    stopRecording,
+  };
+}
+
+/**
+ * Records the `Devolución`: pause and resume with a live waveform, then
+ * listen-back, re-record and delete.
+ */
+export function FeedbackRecorder({
+  audioUrl,
+  onAudioUrlChange,
+  disabled = false,
+}: {
+  audioUrl: string | null;
+  onAudioUrlChange: (audioUrl: string | null) => void;
+  disabled?: boolean;
+}) {
+  const take = useFeedbackTake(onAudioUrlChange);
+  const { phase } = take;
+
   return (
     <FieldSet>
-      <FieldLegend variant="label">Devolución</FieldLegend>
-      <FieldDescription>
-        Opcional. Hasta 3 minutos, con el micrófono del dispositivo.
-      </FieldDescription>
+      <FieldLegend variant="label">
+        Devolución{" "}
+        <span className="font-normal text-muted-foreground">(opcional)</span>
+      </FieldLegend>
 
-      {phase === "recording" ? (
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-3">
-            <Badge variant="destructive">Grabando</Badge>
-            <span className="text-sm tabular-nums text-muted-foreground">
-              {formatSeconds(elapsedSeconds)} de{" "}
-              {formatSeconds(maxRecordingSeconds)}
-            </span>
-            <Button
-              type="button"
-              variant="outline"
-              className="ml-auto"
-              onClick={stopRecording}
-            >
-              <Square aria-hidden="true" data-icon="inline-start" />
-              Detener
-            </Button>
-          </div>
-          <Progress value={(elapsedSeconds / maxRecordingSeconds) * 100} />
-        </div>
-      ) : audioUrl ? (
-        <div className="flex flex-col gap-3">
-          {/* The browser's own player: listen-back needs nothing more. */}
-          <audio controls src={audioUrl} className="w-full">
-            <track kind="captions" />
-          </audio>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={disabled}
-              onClick={() => void startRecording()}
-            >
-              <RotateCcw aria-hidden="true" data-icon="inline-start" />
-              Volver a grabar
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              disabled={disabled}
-              onClick={() => onAudioUrlChange(null)}
-            >
-              <Trash2 aria-hidden="true" data-icon="inline-start" />
-              Eliminar grabación
-            </Button>
-          </div>
-        </div>
+      {audioUrl && phase === "idle" ? (
+        <FeedbackPlayback
+          audioUrl={audioUrl}
+          disabled={disabled}
+          onDelete={() => onAudioUrlChange(null)}
+        />
       ) : (
-        <div>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={disabled || phase === "requesting"}
-            onClick={() => void startRecording()}
-          >
-            {phase === "requesting" ? (
-              <Spinner aria-hidden="true" data-icon />
-            ) : (
-              <Mic aria-hidden="true" data-icon="inline-start" />
-            )}
-            Grabar devolución
-          </Button>
-        </div>
+        <TakeBar take={take} disabled={disabled} />
       )}
 
-      {error ? (
+      {take.error ? (
         <Alert variant="destructive">
           <AlertCircleIcon aria-hidden="true" />
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>{take.error}</AlertDescription>
         </Alert>
       ) : null}
     </FieldSet>
+  );
+}
+
+/**
+ * The recorder in one row like the browser's own audio player. Before the
+ * take starts, the red dot where pause will be is what starts it.
+ */
+function TakeBar({
+  disabled,
+  take,
+}: {
+  disabled: boolean;
+  take: ReturnType<typeof useFeedbackTake>;
+}) {
+  const { phase, stopRecording } = take;
+  const isLive = phase === "recording" || phase === "paused";
+
+  return (
+    <MediaRow>
+      <TakeControlButton take={take} disabled={disabled} />
+      <span className="text-sm whitespace-nowrap text-muted-foreground tabular-nums">
+        {formatDuration(isLive ? take.elapsedMs : 0)} /{" "}
+        {formatDuration(maxRecordingMs)}
+      </span>
+      <Waveform
+        levels={isLive ? take.levels : emptyLevels()}
+        activeRatio={phase === "recording" ? 1 : 0}
+      />
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        aria-label="Terminar grabación"
+        disabled={!isLive}
+        onClick={stopRecording}
+      >
+        <Check aria-hidden="true" />
+      </Button>
+      {isLive ? (
+        <span className="sr-only" aria-live="polite">
+          {phase === "paused" ? "Grabación en pausa" : "Grabando"}
+        </span>
+      ) : null}
+    </MediaRow>
+  );
+}
+
+/** The red dot that starts or resumes a take, apart from playback's play. */
+function RecordDot() {
+  return (
+    <span aria-hidden="true" className="size-3 rounded-full bg-destructive" />
+  );
+}
+
+/**
+ * Where pause lives while recording. Otherwise a red dot, never a play icon,
+ * so it does not read as playback: it starts the take, or resumes it.
+ */
+function TakeControlButton({
+  disabled,
+  take,
+}: {
+  disabled: boolean;
+  take: ReturnType<typeof useFeedbackTake>;
+}) {
+  const { phase, startRecording, togglePause } = take;
+
+  if (phase === "recording") {
+    return (
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        aria-label="Pausar"
+        onClick={togglePause}
+      >
+        <Pause aria-hidden="true" />
+      </Button>
+    );
+  }
+
+  if (phase === "paused") {
+    return (
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        aria-label="Reanudar"
+        onClick={togglePause}
+      >
+        <RecordDot />
+      </Button>
+    );
+  }
+
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      aria-label="Empezar a grabar"
+      disabled={disabled || phase === "requesting"}
+      onClick={() => void startRecording()}
+    >
+      {/* Stays a dot while the mic opens: pause appears once it is live. */}
+      <RecordDot />
+    </Button>
   );
 }

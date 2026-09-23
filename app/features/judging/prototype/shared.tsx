@@ -4,19 +4,15 @@
 // variant's own.
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
-import { useForm, useWatch, type Control } from "react-hook-form";
+import { useId, useState } from "react";
+import { Controller, useForm, useWatch, type Control } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
-import { TextInputField } from "@/components/shared/text-input-field";
+import { SharedFieldLayout } from "@/components/shared/field-layout";
 import { Badge } from "@/components/ui/badge";
-import {
-  FieldDescription,
-  FieldGroup,
-  FieldLegend,
-  FieldSet,
-} from "@/components/ui/field";
+import { FieldGroup, FieldLegend, FieldSet } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 
 import {
@@ -86,6 +82,26 @@ export function useJudgingPrototypeStore() {
     }));
   }
 
+  /** Undoes a disqualification: the scores it kept count again. */
+  async function reinstate(assignment: Assignment) {
+    await wait(simulatedLatencyMs);
+
+    if (failSaves) {
+      throw new Error("Simulated failure");
+    }
+
+    setEvaluations((current) => {
+      const evaluation = current[assignment.id];
+
+      return evaluation
+        ? {
+            ...current,
+            [assignment.id]: { ...evaluation, disqualified: false },
+          }
+        : current;
+    });
+  }
+
   function reset() {
     setEvaluations(prototypeInitialEvaluations);
   }
@@ -97,6 +113,7 @@ export function useJudgingPrototypeStore() {
     setFailSaves,
     save,
     disqualify,
+    reinstate,
     reset,
   };
 }
@@ -127,6 +144,30 @@ export function findNextPendingAssignment(
       (assignment) =>
         isPending(assignment) &&
         assignment.orderNumber > (current?.orderNumber ?? 0),
+    ) ??
+    store.assignments.find(isPending) ??
+    null
+  );
+}
+
+/**
+ * Where the judge picks up on the list: the first pending presentation from
+ * the last one they opened on, so one left unsaved is still the place.
+ * Without one, or with nothing pending past it, the first pending of all.
+ */
+export function findResumeAssignment(
+  store: JudgingPrototypeStore,
+  lastOpenedId: string | null,
+) {
+  const isPending = (assignment: Assignment) =>
+    getAssignmentStatus(store.evaluations[assignment.id]) === "pendiente";
+  const lastOpened = store.assignments.find(({ id }) => id === lastOpenedId);
+
+  return (
+    store.assignments.find(
+      (assignment) =>
+        isPending(assignment) &&
+        assignment.orderNumber >= (lastOpened?.orderNumber ?? 0),
     ) ??
     store.assignments.find(isPending) ??
     null
@@ -189,8 +230,13 @@ export function countScored(store: JudgingPrototypeStore) {
 
 // --- Formatting -------------------------------------------------------------
 
+/**
+ * With a decimal point, not the es-AR comma: the number field only takes a
+ * point, so everything around it writes scores the way the judge types them.
+ * Scores are half points, so the plain string is exact.
+ */
 export function formatScore(value: number) {
-  return value.toLocaleString("es-AR", { maximumFractionDigits: 1 });
+  return String(value);
 }
 
 export function formatAssignmentTitle(assignment: Assignment) {
@@ -203,7 +249,9 @@ export function formatAssignmentDetails(assignment: Assignment) {
     formatGroupTypeLabel(assignment.groupType),
     assignment.experienceLevelName,
     assignment.submodalityName ?? assignment.modalityName,
-  ].join(" · ");
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 // --- Score form -------------------------------------------------------------
@@ -230,7 +278,7 @@ function isValidScore(value: string, max: number) {
 }
 
 function scoreValueSchema(max: number, isOptional: boolean) {
-  const rangeMessage = `Ingresá un valor de 0 a ${formatScore(max)}, en pasos de 0,5.`;
+  const rangeMessage = `Ingresá un valor de 0 a ${formatScore(max)}, de 0.5 en 0.5.`;
 
   return isOptional
     ? z
@@ -285,32 +333,25 @@ function getEmptyValues(assignment: Assignment): ScoreValues {
   );
 }
 
-export function summarizeSheet(
+/**
+ * The sheet's total as it stands. A value that would not pass validation
+ * counts as empty, so the total only ever shows what could be saved.
+ */
+export function computeSheetTotal(
   criteria: Criterion[],
   values: Partial<ScoreValues>,
 ) {
-  let additions = 0;
-  let deductions = 0;
-  let missing = 0;
+  let total = 0;
 
   for (const criterion of criteria) {
-    const parsed = parseScore(values[criterion.id]);
-
-    if (criterion.deducts) {
-      deductions += parsed ?? 0;
-    } else if (parsed === null) {
-      missing += 1;
-    } else {
-      additions += parsed;
-    }
+    const value = values[criterion.id] ?? "";
+    const parsed = isValidScore(value, criterion.max)
+      ? parseScore(value)
+      : null;
+    total += criterion.deducts ? -(parsed ?? 0) : (parsed ?? 0);
   }
 
-  return {
-    additions,
-    deductions,
-    missing,
-    total: Math.min(100, Math.max(0, additions - deductions)),
-  };
+  return Math.min(100, Math.max(0, total));
 }
 
 function computeScore(assignment: Assignment, values: ScoreValues) {
@@ -318,7 +359,7 @@ function computeScore(assignment: Assignment, values: ScoreValues) {
     return parseScore(values[singleScoreFieldName]);
   }
 
-  return summarizeSheet(assignment.criteria, values).total;
+  return computeSheetTotal(assignment.criteria, values);
 }
 
 /**
@@ -418,40 +459,69 @@ export function useScoreSubmit(
   };
 }
 
-export function ScoreInputField({
+/**
+ * A native number field, so the tablet opens its numeric keypad and the
+ * steppers move in half-point steps. The ceiling reads right after the typed
+ * value, like `Cupo total`'s suffix, but stays even while the field is empty:
+ * with the descriptions gone it is the only place the maximum shows.
+ */
+function ScoreInputField({
   autoFocus,
-  className,
   control,
-  description,
   disabled,
-  inputClassName,
   label,
-  labelClassName,
+  max,
   name,
 }: {
   autoFocus?: boolean;
-  className?: string;
   control: Control<ScoreValues>;
-  description?: string;
   disabled?: boolean;
-  inputClassName?: string;
   label: string;
-  labelClassName?: string;
+  max: number;
   name: string;
 }) {
+  const id = useId();
+
   return (
-    <TextInputField
-      autoComplete="off"
-      autoFocus={autoFocus}
-      className={className}
+    <Controller
       control={control}
-      description={description}
-      disabled={disabled}
-      inputClassName={inputClassName}
-      inputMode="decimal"
-      label={label}
-      labelClassName={labelClassName}
       name={name}
+      render={({ field, fieldState }) => (
+        <SharedFieldLayout
+          disabled={disabled}
+          error={fieldState.error?.message}
+          id={id}
+          label={label}
+        >
+          {({ describedBy, isInvalid }) => (
+            <div className="relative">
+              <Input
+                {...field}
+                id={id}
+                aria-describedby={describedBy || undefined}
+                aria-invalid={isInvalid ? true : undefined}
+                autoComplete="off"
+                autoFocus={autoFocus}
+                disabled={disabled}
+                inputMode="decimal"
+                max={max}
+                min={0}
+                step={0.5}
+                type="number"
+              />
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center whitespace-pre text-base md:text-sm"
+              >
+                <span className="invisible">{field.value}</span>
+                <span className="text-muted-foreground">
+                  {field.value ? " " : ""}/ {formatScore(max)}
+                </span>
+              </span>
+            </div>
+          )}
+        </SharedFieldLayout>
+      )}
     />
   );
 }
@@ -459,29 +529,20 @@ export function ScoreInputField({
 export function SingleScoreField({
   control,
   disabled,
-  inputClassName,
 }: {
   control: Control<ScoreValues>;
   disabled?: boolean;
-  inputClassName?: string;
 }) {
   return (
     <ScoreInputField
       autoFocus
       control={control}
-      description="De 0 a 100, en pasos de 0,5."
       disabled={disabled}
-      inputClassName={inputClassName}
       label="Puntaje"
+      max={100}
       name={singleScoreFieldName}
     />
   );
-}
-
-function describeCriterionMax(criterion: Criterion) {
-  return criterion.deducts
-    ? `Resta, hasta ${formatScore(criterion.max)}.`
-    : `Hasta ${formatScore(criterion.max)}.`;
 }
 
 /**
@@ -506,16 +567,15 @@ export function CriteriaFieldSets({
     <div className="flex flex-col gap-6">
       <FieldSet>
         <FieldLegend>Criterios</FieldLegend>
-        <FieldDescription>Suman hasta 100.</FieldDescription>
         <FieldGroup className={gridClassName}>
           {additions.map((criterion, index) => (
             <ScoreInputField
               key={criterion.id}
               autoFocus={index === 0}
               control={control}
-              description={describeCriterionMax(criterion)}
               disabled={disabled}
               label={criterion.name}
+              max={criterion.max}
               name={criterion.id}
             />
           ))}
@@ -523,17 +583,14 @@ export function CriteriaFieldSets({
       </FieldSet>
       <FieldSet>
         <FieldLegend>Deducciones</FieldLegend>
-        <FieldDescription>
-          Empiezan en 0. Se restan del total de los criterios.
-        </FieldDescription>
         <FieldGroup className={gridClassName}>
           {deductions.map((criterion) => (
             <ScoreInputField
               key={criterion.id}
               control={control}
-              description={describeCriterionMax(criterion)}
               disabled={disabled}
               label={criterion.name}
+              max={criterion.max}
               name={criterion.id}
             />
           ))}

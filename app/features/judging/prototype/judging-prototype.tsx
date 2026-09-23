@@ -1,12 +1,10 @@
 // PROTOTYPE (#223) — throwaway, never merge.
-// Variant A, "Tabla y diálogo": the design as the grilling decided it. The
-// assigned list is a table; a single-score row opens a dialog, a sheet row
-// goes to a full view at `?presentacion=` with prev/next.
+// "Tabla y diálogo", the design as the grilling decided it. The assigned list
+// is a table; a single-score row opens a dialog, a sheet row goes to a full
+// view at `?presentacion=`.
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Link,
   useBeforeUnload,
   useBlocker,
   useNavigate,
@@ -21,7 +19,7 @@ import {
 } from "@/components/shared/data-table";
 import { DataTableLink } from "@/components/shared/data-table-link";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -30,9 +28,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { FieldGroup, FieldSeparator } from "@/components/ui/field";
+import {
+  Field,
+  FieldGroup,
+  FieldLabel,
+  FieldSeparator,
+} from "@/components/ui/field";
+import { Switch } from "@/components/ui/switch";
 import { formatGroupTypeLabel } from "@/lib/portal/choreographies";
 import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
+import { cn } from "@/lib/shared/utils";
 
 import type { Assignment } from "./fixtures";
 import {
@@ -40,40 +45,45 @@ import {
   DisqualifiedNotice,
   DisqualifyAction,
   JudgeTopbar,
+  ReinstateAction,
 } from "./chrome";
 import { FeedbackRecorder } from "./recorder";
 import {
   AssignmentStatusBadge,
   countScored,
+  computeSheetTotal,
   CriteriaFieldSets,
   findNextPendingAssignment,
+  findResumeAssignment,
   formatAssignmentDetails,
   formatAssignmentTitle,
   formatScore,
   getAssignmentStatus,
   notifyAllScored,
   SingleScoreField,
-  summarizeSheet,
   useScoreSubmit,
   useScoreForm,
   type JudgingPrototypeStore,
 } from "./shared";
 
-type VariantProps = {
-  email: string;
-  isDark: boolean;
-  onDarkChange: (isDark: boolean) => void;
-  store: JudgingPrototypeStore;
-};
-
 const sheetParamName = "presentacion";
+const listHref = "/juzgamiento";
 
-export function VariantA({ email, isDark, onDarkChange, store }: VariantProps) {
+export function JudgingPrototype({
+  email,
+  store,
+}: {
+  email: string;
+  store: JudgingPrototypeStore;
+}) {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [dialogAssignmentId, setDialogAssignmentId] = useState<string | null>(
     null,
   );
+  // Up here and not in the list, which unmounts while a sheet is open.
+  const [lastOpenedId, setLastOpenedId] = useState<string | null>(null);
+  const [isPendingOnly, setIsPendingOnly] = useState(false);
   const sheetAssignment = store.assignments.find(
     (assignment) =>
       assignment.id === searchParams.get(sheetParamName) && assignment.criteria,
@@ -83,10 +93,11 @@ export function VariantA({ email, isDark, onDarkChange, store }: VariantProps) {
   );
 
   function sheetHref(assignment: Assignment) {
-    return `?variant=A&${sheetParamName}=${assignment.id}`;
+    return `?${sheetParamName}=${assignment.id}`;
   }
 
   function openAssignment(assignment: Assignment) {
+    setLastOpenedId(assignment.id);
     if (assignment.criteria) {
       setDialogAssignmentId(null);
       void navigate(sheetHref(assignment));
@@ -94,7 +105,7 @@ export function VariantA({ email, isDark, onDarkChange, store }: VariantProps) {
     }
 
     if (sheetAssignment) {
-      void navigate("?variant=A");
+      void navigate(listHref);
     }
     setDialogAssignmentId(assignment.id);
   }
@@ -106,7 +117,7 @@ export function VariantA({ email, isDark, onDarkChange, store }: VariantProps) {
       notifyAllScored();
       setDialogAssignmentId(null);
       if (sheetAssignment) {
-        void navigate("?variant=A");
+        void navigate(listHref);
       }
       return;
     }
@@ -116,7 +127,7 @@ export function VariantA({ email, isDark, onDarkChange, store }: VariantProps) {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <JudgeTopbar email={email} isDark={isDark} onDarkChange={onDarkChange} />
+      <JudgeTopbar email={email} />
       <main
         id="contenido-principal"
         className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-6 pb-24"
@@ -125,12 +136,17 @@ export function VariantA({ email, isDark, onDarkChange, store }: VariantProps) {
           <SheetView
             key={sheetAssignment.id}
             assignment={sheetAssignment}
-            sheetHref={sheetHref}
             store={store}
             onDone={advanceFrom}
           />
         ) : (
-          <AssignedList store={store} onOpen={openAssignment} />
+          <AssignedList
+            isPendingOnly={isPendingOnly}
+            lastOpenedId={lastOpenedId}
+            store={store}
+            onOpen={openAssignment}
+            onPendingOnlyChange={setIsPendingOnly}
+          />
         )}
       </main>
 
@@ -148,12 +164,28 @@ export function VariantA({ email, isDark, onDarkChange, store }: VariantProps) {
 }
 
 function AssignedList({
+  isPendingOnly,
+  lastOpenedId,
   onOpen,
+  onPendingOnlyChange,
   store,
 }: {
+  isPendingOnly: boolean;
+  lastOpenedId: string | null;
   onOpen: (assignment: Assignment) => void;
+  onPendingOnlyChange: (isPendingOnly: boolean) => void;
   store: JudgingPrototypeStore;
 }) {
+  const resumeId = findResumeAssignment(store, lastOpenedId)?.id ?? null;
+  const rows = isPendingOnly
+    ? store.assignments.filter(
+        (assignment) =>
+          getAssignmentStatus(store.evaluations[assignment.id]) === "pendiente",
+      )
+    : store.assignments;
+
+  useScrollToResumeRow(resumeId);
+
   const columns: DataTableColumn<Assignment>[] = [
     {
       id: "orden",
@@ -167,7 +199,7 @@ function AssignedList({
       className: "font-medium",
       cell: (assignment) =>
         assignment.criteria ? (
-          <DataTableLink to={`?variant=A&presentacion=${assignment.id}`}>
+          <DataTableLink to={`?${sheetParamName}=${assignment.id}`}>
             {assignment.name}
           </DataTableLink>
         ) : (
@@ -198,7 +230,7 @@ function AssignedList({
       id: "nivel",
       header: "Nivel",
       className: "text-muted-foreground",
-      cell: (assignment) => assignment.experienceLevelName,
+      cell: (assignment) => assignment.experienceLevelName ?? "No aplica",
     },
     {
       id: "modalidadSubmodalidad",
@@ -226,33 +258,74 @@ function AssignedList({
 
   return (
     <section className="flex flex-col gap-6" aria-labelledby="asignadas-title">
-      <header className="flex flex-col gap-1">
-        <h2 id="asignadas-title" className="text-xl font-semibold">
-          Presentaciones asignadas
-        </h2>
-        <p className="text-sm leading-6 text-muted-foreground">
-          {countScored(store)} de {store.assignments.length} evaluadas. Tocá una
-          presentación para puntuarla; podés corregir tus puntajes hasta las
-          03:00.
-        </p>
+      <header className="flex flex-wrap items-end gap-4">
+        <div className="flex flex-col gap-1">
+          <h2 id="asignadas-title" className="text-xl font-semibold">
+            Presentaciones asignadas
+          </h2>
+          <p className="text-sm leading-6 text-muted-foreground">
+            {countScored(store)} de {store.assignments.length} evaluadas. Tocá
+            una presentación para puntuarla.
+          </p>
+        </div>
+        <Field orientation="horizontal" className="ml-auto w-auto">
+          <Switch
+            id="solo-pendientes"
+            checked={isPendingOnly}
+            onCheckedChange={onPendingOnlyChange}
+          />
+          <FieldLabel htmlFor="solo-pendientes">Solo pendientes</FieldLabel>
+        </Field>
       </header>
 
       <ClientDataTable
-        rows={store.assignments}
+        rows={rows}
         columns={columns}
         getRowKey={(assignment) => assignment.id}
         getRowProps={(assignment) => ({
-          className: "cursor-pointer",
+          id: getRowId(assignment.id),
+          className: cn(
+            "cursor-pointer",
+            // Where the judge left off: the one row to find at a glance.
+            assignment.id === resumeId &&
+              "bg-primary/10 shadow-[inset_3px_0_0_var(--color-primary)] hover:bg-primary/15",
+          ),
           onClick: () => onOpen(assignment),
         })}
         hideSearch
         searchPlaceholder=""
         hidePagination
-        pageSize={store.assignments.length}
-        emptyMessage="No tenés presentaciones asignadas para hoy."
+        pageSize={Math.max(rows.length, 1)}
+        emptyMessage={
+          isPendingOnly
+            ? "No te quedan presentaciones pendientes."
+            : "No tenés presentaciones asignadas para hoy."
+        }
       />
     </section>
   );
+}
+
+function getRowId(assignmentId: string) {
+  return `presentacion-${assignmentId}`;
+}
+
+/**
+ * Brings the judge's place into view whenever the list mounts: on load and on
+ * the way back from a sheet. Only then, so a closing dialog leaves the scroll
+ * where the judge put it.
+ */
+function useScrollToResumeRow(resumeId: string | null) {
+  const resumeIdRef = useRef(resumeId);
+  resumeIdRef.current = resumeId;
+
+  useEffect(() => {
+    if (resumeIdRef.current) {
+      document
+        .getElementById(getRowId(resumeIdRef.current))
+        ?.scrollIntoView({ block: "center" });
+    }
+  }, []);
 }
 
 function ScoreDialog({
@@ -318,7 +391,7 @@ function ScoreDialog({
 
             <DialogFooter className="sm:justify-between">
               {score.isDisqualified ? (
-                <span />
+                <ReinstateAction assignment={assignment} store={store} />
               ) : (
                 <DisqualifyAction
                   assignment={assignment}
@@ -358,17 +431,14 @@ function ScoreDialog({
 function SheetView({
   assignment,
   onDone,
-  sheetHref,
   store,
 }: {
   assignment: Assignment;
   onDone: (assignmentId: string) => void;
-  sheetHref: (assignment: Assignment) => string;
   store: JudgingPrototypeStore;
 }) {
   const criteria = assignment.criteria ?? [];
   const score = useScoreForm(assignment, store.evaluations[assignment.id]);
-  const summary = summarizeSheet(criteria, score.values);
   // Set right before a save moves on, so the guard lets that one through.
   const allowNavigationRef = useRef(false);
   const blocker = useBlocker(
@@ -387,15 +457,6 @@ function SheetView({
     ),
   );
 
-  // Prev/next step through every assignment, scored or not, in program order.
-  const index = store.assignments.findIndex(({ id }) => id === assignment.id);
-  const previous = store.assignments[index - 1];
-  const next = store.assignments[index + 1];
-
-  function siblingHref(sibling: Assignment) {
-    return sibling.criteria ? sheetHref(sibling) : "?variant=A";
-  }
-
   function afterSave() {
     allowNavigationRef.current = true;
     onDone(assignment.id);
@@ -410,43 +471,26 @@ function SheetView({
 
   return (
     <section className="flex flex-col gap-6" aria-labelledby="planilla-title">
-      <div className="flex flex-wrap items-center gap-2">
-        <BackButton to="?variant=A" />
-        <div className="ml-auto flex gap-2">
-          {previous ? (
-            <Button asChild variant="outline">
-              <Link to={siblingHref(previous)}>
-                <ChevronLeft aria-hidden="true" data-icon="inline-start" />
-                N.º {previous.orderNumber}
-              </Link>
-            </Button>
-          ) : null}
-          {next ? (
-            <Button asChild variant="outline">
-              <Link to={siblingHref(next)}>
-                N.º {next.orderNumber}
-                <ChevronRight aria-hidden="true" data-icon="inline-end" />
-              </Link>
-            </Button>
-          ) : null}
+      <header className="flex items-start gap-4">
+        <div className="flex min-w-0 flex-col gap-1">
+          <div className="flex items-center gap-3">
+            <h2 id="planilla-title" className="text-xl font-semibold">
+              {formatAssignmentTitle(assignment)}
+            </h2>
+            <AssignmentStatusBadge
+              status={getAssignmentStatus(store.evaluations[assignment.id])}
+            />
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {formatAssignmentDetails(assignment)}
+          </p>
         </div>
-      </div>
-
-      <header className="flex flex-col gap-1">
-        <div className="flex items-center gap-3">
-          <h2 id="planilla-title" className="text-xl font-semibold">
-            {formatAssignmentTitle(assignment)}
-          </h2>
-          <AssignmentStatusBadge
-            status={getAssignmentStatus(store.evaluations[assignment.id])}
-          />
-        </div>
-        <p className="text-sm text-muted-foreground">
-          {formatAssignmentDetails(assignment)}
-        </p>
+        {score.isDisqualified ? null : (
+          <SheetTotal total={computeSheetTotal(criteria, score.values)} />
+        )}
       </header>
 
-      <form noValidate onSubmit={onSubmit} className="flex flex-col gap-6">
+      <form noValidate onSubmit={onSubmit}>
         <Card>
           <CardContent className="flex flex-col gap-6">
             {score.isDisqualified ? (
@@ -464,42 +508,23 @@ function SheetView({
               onAudioUrlChange={score.setAudioUrl}
             />
           </CardContent>
-        </Card>
-
-        {score.isDisqualified ? null : (
-          <div>
-            <DisqualifyAction
-              assignment={assignment}
-              audioUrl={score.audioUrl}
-              store={store}
-              onDisqualified={afterSave}
-            />
-          </div>
-        )}
-
-        <div className="sticky bottom-0 -mx-4 flex items-center gap-4 border-t bg-background px-4 py-3">
-          {score.isDisqualified ? (
-            <span className="text-sm text-muted-foreground">Descalificada</span>
-          ) : (
-            <div className="flex flex-col">
-              <span className="text-2xl font-semibold tabular-nums">
-                {formatScore(summary.total)}
-                <span className="text-base font-normal text-muted-foreground">
-                  {" "}
-                  / 100
-                </span>
-              </span>
-              <span className="text-xs text-muted-foreground">
-                {formatScore(summary.additions)} −{" "}
-                {formatScore(summary.deductions)}
-                {summary.missing > 0
-                  ? ` · faltan ${summary.missing} criterios`
-                  : ""}
-              </span>
+          <CardFooter className="flex-wrap justify-between gap-3 border-0 bg-transparent pt-0">
+            {score.isDisqualified ? (
+              <ReinstateAction assignment={assignment} store={store} />
+            ) : (
+              <DisqualifyAction
+                assignment={assignment}
+                audioUrl={score.audioUrl}
+                store={store}
+                onDisqualified={afterSave}
+              />
+            )}
+            <div className="flex gap-2">
+              <BackButton to={listHref} />
+              <SubmitButton isPending={isSaving} />
             </div>
-          )}
-          <SubmitButton className="ml-auto" isPending={isSaving} />
-        </div>
+          </CardFooter>
+        </Card>
       </form>
 
       <DiscardChangesDialog
@@ -508,5 +533,22 @@ function SheetView({
         onDiscard={() => blocker.proceed?.()}
       />
     </section>
+  );
+}
+
+/** The sheet's running total, live as the judge types. */
+function SheetTotal({ total }: { total: number }) {
+  return (
+    <p
+      aria-live="polite"
+      className="ml-auto shrink-0 text-2xl font-semibold whitespace-nowrap tabular-nums"
+    >
+      <span className="sr-only">Total: </span>
+      {formatScore(total)}
+      <span className="text-base font-normal text-muted-foreground">
+        {" "}
+        / 100
+      </span>
+    </p>
   );
 }
