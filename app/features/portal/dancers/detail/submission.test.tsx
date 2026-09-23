@@ -54,6 +54,7 @@ function buildDancerDetailLoaderData(): Parameters<
       front: null,
     },
     inscriptions: [],
+    isParticipatingInActiveEvent: false,
     selectedEventId: "event_1",
     dancer: {
       id: "dancer_1",

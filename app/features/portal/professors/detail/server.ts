@@ -5,6 +5,7 @@ import {
   updateAcademyProfessor,
   type UpdateProfessorInput,
 } from "@/lib/portal/professors.server";
+import { hasActiveEventParticipation } from "@/lib/roster/active-event-participation.server";
 import {
   getRosterPersonNotFoundMessage,
   setRosterPersonStatus,
@@ -28,6 +29,10 @@ export async function loadPortalProfessorDetail({
   const professor = await requireProfessor(academy.id, professorId);
 
   return {
+    isParticipatingInActiveEvent: await hasActiveEventParticipation({
+      kind: "professor",
+      personId: professorId,
+    }),
     professor,
   };
 }
@@ -55,6 +60,15 @@ export async function handlePortalProfessorDetailAction({
     });
 
     if (!result.ok) {
+      // Two causes, two channels — see the dancer twin.
+      if (result.cause === "participating") {
+        return {
+          status: "error" as const,
+          message: result.message,
+          fieldErrors: {},
+        };
+      }
+
       throw new Response(getRosterPersonNotFoundMessage("professor"), {
         status: 404,
       });

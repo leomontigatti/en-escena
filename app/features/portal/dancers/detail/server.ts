@@ -19,6 +19,7 @@ import {
   updateDancerForAcademy,
   type UpdateDancerField,
 } from "@/lib/portal/dancers.server";
+import { hasActiveEventParticipation } from "@/lib/roster/active-event-participation.server";
 import {
   getRosterPersonNotFoundMessage,
   setRosterPersonStatus,
@@ -59,6 +60,10 @@ export async function loadPortalDancerDetail(input: {
       storage: createDefaultDancerDocumentStorage(),
     }),
     inscriptions,
+    isParticipatingInActiveEvent: await hasActiveEventParticipation({
+      kind: "dancer",
+      personId: dancerId,
+    }),
     selectedEventId,
   };
 }
@@ -82,6 +87,17 @@ export async function handlePortalDancerDetailAction(input: {
     });
 
     if (!result.ok) {
+      // Two causes, two channels: a missing id —or a dancer of another
+      // academy— is a URL error and keeps its 404, while a refused archive
+      // comes back as `actionData` and reaches the academy as a toast.
+      if (result.cause === "participating") {
+        return {
+          status: "error" as const,
+          message: result.message,
+          fieldErrors: {},
+        };
+      }
+
       throw new Response(getRosterPersonNotFoundMessage("dancer"), {
         status: 404,
       });

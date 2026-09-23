@@ -12,6 +12,7 @@ import {
   setRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.server";
 import { updateAdministrativeDancer } from "@/lib/admin/dancers/dancers-update.server";
+import { hasActiveEventParticipation } from "@/lib/roster/active-event-participation.server";
 import { findActiveEventStartDateOnly } from "@/lib/events/active-event.server";
 import {
   requireAdminUser,
@@ -70,6 +71,10 @@ export async function loadDancerDetail(input: {
     cancelHref: buildModeHref(url, dancerId, null),
     isEditing:
       user.role === "admin" && url.searchParams.get("modo") === "editar",
+    isParticipatingInActiveEvent: await hasActiveEventParticipation({
+      kind: "dancer",
+      personId: dancerId,
+    }),
   };
 }
 
@@ -106,6 +111,13 @@ export async function handleDancerDetailAction(input: {
     });
 
     if (!result.ok) {
+      // Two causes, two channels: a missing id is a URL error and keeps its
+      // 404, while a refused archive is the academy's own doing and comes back
+      // as `actionData` — a toast, and the dialog re-opened.
+      if (result.cause === "participating") {
+        return buildDancerActionError(result.message, {});
+      }
+
       throw new Response(getRosterPersonNotFoundMessage("dancer"), {
         status: 404,
       });

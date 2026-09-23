@@ -20,6 +20,7 @@ import {
   ReadOnlySelectField,
 } from "@/components/shared/read-only-field";
 import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
+import { RosterPersonParticipatingAlert } from "@/components/shared/roster-person-participating-alert";
 import { SelectField } from "@/components/shared/select-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -95,6 +96,7 @@ export function PortalDancerDetailRouteView({
     dancer: loaderData.dancer,
     formValues,
     identificationPendingItems,
+    isParticipatingInActiveEvent: loaderData.isParticipatingInActiveEvent,
     verificationStatus,
   });
   const isSubmitting =
@@ -135,6 +137,7 @@ export function PortalDancerDetailRouteView({
           </div>
           <ResourceActionsMenu contentClassName="w-40">
             <DropdownMenuItem
+              disabled={viewModel.statusAction.disabled}
               variant={viewModel.statusAction.confirmButtonVariant}
               onSelect={(event) => {
                 event.preventDefault();
@@ -152,6 +155,7 @@ export function PortalDancerDetailRouteView({
           onReactivate={() => {
             setStatusDialogIntent("reactivate-dancer");
           }}
+          participatingAlert={viewModel.participatingAlert}
           showsIdentificationAlert={viewModel.showsIdentificationAlert}
           showsPendingVerificationAlert={
             viewModel.showsPendingVerificationAlert
@@ -323,6 +327,7 @@ function PortalDancerAlertsSection({
   dancerActive,
   identificationPendingItems,
   onReactivate,
+  participatingAlert,
   recategorisedChoreographies,
   showsIdentificationAlert,
   showsPendingVerificationAlert,
@@ -331,6 +336,7 @@ function PortalDancerAlertsSection({
   dancerActive: boolean;
   identificationPendingItems: DancerIdentificationPendingItem[];
   onReactivate: () => void;
+  participatingAlert: string | null;
   recategorisedChoreographies: RecategorisedChoreography[];
   showsIdentificationAlert: boolean;
   showsPendingVerificationAlert: boolean;
@@ -354,6 +360,9 @@ function PortalDancerAlertsSection({
             personLabel="bailarín"
             onReactivate={onReactivate}
           />
+        ) : null}
+        {participatingAlert ? (
+          <RosterPersonParticipatingAlert message={participatingAlert} />
         ) : null}
         {showsIdentificationAlert ? (
           <Alert variant="warning">

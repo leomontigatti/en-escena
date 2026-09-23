@@ -55,7 +55,6 @@ export function DancerDetailRouteView({
     getInitialDialogIntent({
       actionData: errorData,
       shouldConfirmSave: dancer.editConsequence !== null,
-      statusIntent: dancer.active ? "archive-dancer" : "reactivate-dancer",
     }),
   );
   const editFormId = "admin-dancer-edit-form";
@@ -70,6 +69,7 @@ export function DancerDetailRouteView({
     actionData: errorData,
     canEdit: loaderData.canEdit,
     dancer,
+    isParticipatingInActiveEvent: loaderData.isParticipatingInActiveEvent,
     requestedEditMode: loaderData.isEditing,
     watchedBirthDate,
   });
@@ -78,7 +78,6 @@ export function DancerDetailRouteView({
     const nextIntent = getInitialDialogIntent({
       actionData: errorData,
       shouldConfirmSave: viewState.shouldConfirmSave,
-      statusIntent: viewState.statusAction.intent,
     });
 
     if (!nextIntent) {
@@ -86,12 +85,7 @@ export function DancerDetailRouteView({
     }
 
     setDialogIntent(nextIntent);
-  }, [
-    errorData,
-    viewState.shouldConfirmSave,
-    submittedEditValues,
-    viewState.statusAction.intent,
-  ]);
+  }, [errorData, viewState.shouldConfirmSave, submittedEditValues]);
 
   return (
     <AdminResourceLayout
@@ -117,6 +111,7 @@ export function DancerDetailRouteView({
           identificationAlert={viewState.identificationAlert}
           identificationAlertVariant={viewState.identificationAlertVariant}
           onSelectIntent={setDialogIntent}
+          participatingAlert={viewState.participatingAlert}
           recategorisedChoreographies={
             successData?.recategorisedChoreographies ?? []
           }

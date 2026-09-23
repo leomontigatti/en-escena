@@ -11,6 +11,7 @@ import {
   ProfessorDetailHeaderActions,
 } from "./sections";
 import {
+  buildProfessorDetailViewState,
   getInitialDialogIntent,
   getProfessorConfirmationAction,
   getProfessorEditValues,
@@ -43,9 +44,12 @@ export function ProfessorDetailRouteView({
 
   const professor = loaderData.professor;
   const isConsequential = professor.editConsequence !== null;
-  const isEditing =
-    loaderData.canEdit && (loaderData.isEditing || Boolean(errorData));
   const submittedUpdateValues = getSubmittedProfessorUpdateValues(errorData);
+  // Only a failed edit re-opens the form: a refused archive carries no
+  // submitted values and leaves the screen in read mode.
+  const isEditing =
+    loaderData.canEdit &&
+    (loaderData.isEditing || Boolean(submittedUpdateValues));
   const editValues = getProfessorEditValues({
     actionData: errorData,
     professor,
@@ -75,6 +79,10 @@ export function ProfessorDetailRouteView({
     }
   }, [errorData, isConsequential, submittedUpdateValues]);
 
+  const viewState = buildProfessorDetailViewState({
+    active: professor.active,
+    isParticipatingInActiveEvent: loaderData.isParticipatingInActiveEvent,
+  });
   const confirmationAction = getProfessorConfirmationAction({
     active: professor.active,
     intent: dialogIntent,
@@ -114,9 +122,9 @@ export function ProfessorDetailRouteView({
       description="Revisá la información administrativa de este profesor."
       headerAction={
         <ProfessorDetailHeaderActions
-          active={professor.active}
           canEdit={loaderData.canEdit}
           onSelectIntent={openStatusDialog}
+          statusAction={viewState.statusAction}
         />
       }
     >
@@ -126,6 +134,7 @@ export function ProfessorDetailRouteView({
           canEdit={loaderData.canEdit}
           isIncomplete={professor.isIncomplete}
           onSelectIntent={openStatusDialog}
+          participatingAlert={viewState.participatingAlert}
         />
 
         <ProfessorDetailCard

@@ -5,7 +5,11 @@ import type {
   ProfessorUpdateInput,
   findProfessor,
 } from "@/lib/admin/professors/professors.server";
-import { getArchiveKeepsRosterMessage } from "@/lib/roster/roster-person-status.shared";
+import {
+  getArchiveKeepsRosterMessage,
+  getRosterPersonArchiveAvailability,
+  toRosterPersonStatus,
+} from "@/lib/roster/roster-person-status.shared";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import {
   notificationToasts,
@@ -25,17 +29,26 @@ export type ProfessorDetailLoaderData = {
   canEdit: boolean;
   editHref: string;
   isEditing: boolean;
+  /**
+   * Answered by `hasActiveEventParticipation`, the same reader the guard in
+   * `setRosterPersonStatus` asks — see the dancer twin.
+   */
+  isParticipatingInActiveEvent: boolean;
   professor: NonNullable<Awaited<ReturnType<typeof findProfessor>>>;
   selectedEventId: string | null;
 };
 
 export type ProfessorEditFormValues = ProfessorUpdateInput;
 
+/**
+ * `values` is absent when the failure was not a rejected edit: a refused
+ * archive has no form to repopulate. See the dancer twin.
+ */
 export type ProfessorActionError = {
   status: "error";
   message: string;
   fieldErrors: ProfessorFieldErrors;
-  values: ProfessorUpdateInput;
+  values?: ProfessorUpdateInput;
 };
 
 export type ProfessorActionSuccess = {
@@ -53,6 +66,61 @@ export type ProfessorRouteNotification = Extract<
 
 export type ProfessorDialogIntent =
   "archive-professor" | "reactivate-professor" | "update-professor";
+
+export type ProfessorStatusAction = {
+  /**
+   * A courtesy in front of the guard, never the rule: the server refuses the
+   * archive whether or not this is honoured. Reactivating is never refused, so
+   * only the archive intent is ever disabled.
+   */
+  disabled: boolean;
+  intent: Exclude<ProfessorDialogIntent, "update-professor">;
+  label: string;
+};
+
+export type ProfessorDetailViewState = {
+  /**
+   * Why the archive action is unavailable, or `null` when it is available.
+   * Informational: nothing is wrong when it shows.
+   */
+  participatingAlert: string | null;
+  statusAction: ProfessorStatusAction;
+};
+
+/**
+ * The status half of the screen's view model: which action the header offers,
+ * whether it is available, and the sentence that explains an unavailable one.
+ * The dancer twin is `buildDancerDetailViewState`.
+ */
+export function buildProfessorDetailViewState({
+  active,
+  isParticipatingInActiveEvent,
+}: {
+  active: boolean;
+  isParticipatingInActiveEvent: boolean;
+}): ProfessorDetailViewState {
+  const archiveAvailability = getRosterPersonArchiveAvailability({
+    isParticipatingInActiveEvent,
+    kind: "professor",
+    status: toRosterPersonStatus(active),
+  });
+  const statusAction: ProfessorStatusAction = active
+    ? {
+        disabled: archiveAvailability.disabled,
+        intent: "archive-professor",
+        label: "Archivar",
+      }
+    : {
+        disabled: false,
+        intent: "reactivate-professor",
+        label: "Reactivar",
+      };
+
+  return {
+    participatingAlert: archiveAvailability.participatingAlert,
+    statusAction,
+  };
+}
 
 export type ProfessorConfirmationAction = {
   confirmLabel: string;
@@ -168,7 +236,7 @@ export function readProfessorUpdateValues(
 export function buildProfessorActionError(
   message: string,
   fieldErrors: ProfessorActionError["fieldErrors"],
-  values: ProfessorActionError["values"],
+  values?: ProfessorActionError["values"],
 ): ProfessorActionError {
   return {
     status: "error",
@@ -178,16 +246,15 @@ export function buildProfessorActionError(
   };
 }
 
+/**
+ * Whether a failure carried the submitted edit — see the dancer twin. Only a
+ * rejected `Guardar` builds `values`, so its presence is what tells an edit to
+ * repopulate from a refused status change with no form behind it.
+ */
 function isProfessorUpdateValues(
   values: ProfessorActionError["values"] | undefined,
 ): values is ProfessorUpdateInput {
-  return (
-    values !== undefined &&
-    "firstName" in values &&
-    "lastName" in values &&
-    "documentType" in values &&
-    "documentNumber" in values
-  );
+  return values !== undefined;
 }
 
 export function getSubmittedProfessorUpdateValues(

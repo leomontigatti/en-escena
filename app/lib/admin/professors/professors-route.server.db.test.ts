@@ -815,7 +815,7 @@ describe("`/administracion/profesores` route", () => {
     });
   });
 
-  test("archives and reactivates a participating professor without unlinking choreographies", async () => {
+  test("refuses to archive a professor participating in the active event, as action data rather than a 404", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
       email: "admin.archivo.academia@example.com",
@@ -850,6 +850,49 @@ describe("`/administracion/profesores` route", () => {
     );
 
     expect(archiveResult).toMatchObject({
+      status: "error",
+      message:
+        "Este profesor no puede archivarse porque está participando del evento activo.",
+    });
+    await expectPersistedProfessor(professor.id, { active: true });
+
+    await expect(
+      db
+        .select()
+        .from(choreographyProfessors)
+        .where(eq(choreographyProfessors.professorId, professor.id)),
+    ).resolves.toHaveLength(1);
+  });
+
+  test("archives and reactivates a professor with no live commitment in the active event", async () => {
+    const event = await createSavedEvent();
+    const academy = await createAcademyUser({
+      email: "admin.archivo.libre.academia@example.com",
+      academyName: "Academia Archivo Libre",
+      contactName: "Ada Libre",
+      phone: "1111-0001",
+    });
+    const professor = await createProfessor({
+      academyId: academy.academy.id,
+      firstName: "Lila",
+      lastName: "Libre",
+    });
+    const { request } = await createSignedInRequest({
+      email: "admin.archivo.libre@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/profesores/${professor.id}?evento=${event.id}&modo=editar`,
+    });
+
+    const archiveResult = await detailAction(
+      detailActionArgs(
+        createPostRequest(request.url, request.headers.get("cookie") ?? "", {
+          intent: "archive-professor",
+        }),
+        professor.id,
+      ),
+    );
+
+    expect(archiveResult).toMatchObject({
       status: "success",
       message: "Profesor archivado.",
     });
@@ -859,27 +902,12 @@ describe("`/administracion/profesores` route", () => {
       detailRouteArgs(request, professor.id),
     );
     expect(archivedDetail.professor.active).toBe(false);
-    expect(archivedDetail.professor.participationStatus).toBe("participating");
-    expect(archivedDetail.professor.choreographyNames).toEqual([
-      "Persistencia",
-    ]);
-
-    await expect(
-      db
-        .select()
-        .from(choreographyProfessors)
-        .where(eq(choreographyProfessors.professorId, professor.id)),
-    ).resolves.toHaveLength(1);
 
     const reactivateResult = await detailAction(
       detailActionArgs(
-        createPostRequest(
-          `http://localhost/administracion/profesores/${professor.id}?evento=${event.id}&modo=editar`,
-          request.headers.get("cookie") ?? "",
-          {
-            intent: "reactivate-professor",
-          },
-        ),
+        createPostRequest(request.url, request.headers.get("cookie") ?? "", {
+          intent: "reactivate-professor",
+        }),
         professor.id,
       ),
     );

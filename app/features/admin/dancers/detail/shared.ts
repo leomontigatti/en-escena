@@ -12,16 +12,17 @@ import {
 } from "@/lib/choreographies/dancer-birthdate-messages";
 import type { RecategorisedChoreography } from "@/lib/choreographies/recategorisation-report";
 import { buildBirthDateRefinement } from "@/lib/dancers/birth-date";
-import { getArchiveKeepsRosterMessage } from "@/lib/roster/roster-person-status.shared";
+import {
+  getArchiveKeepsRosterMessage,
+  getRosterPersonArchiveAvailability,
+  toRosterPersonStatus,
+} from "@/lib/roster/roster-person-status.shared";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import {
   notificationToasts,
   type NotificationKey,
 } from "@/lib/shared/notification-toasts";
-import {
-  isUnexpectedActionError,
-  type UnexpectedActionError,
-} from "@/lib/shared/recoverable-client-action";
+import type { UnexpectedActionError } from "@/lib/shared/recoverable-client-action";
 
 export type { DancerEditConsequence };
 
@@ -47,14 +48,25 @@ export type DancerDetailLoaderData = {
   };
   editHref: string;
   isEditing: boolean;
+  /**
+   * Answered by `hasActiveEventParticipation`, the same reader the guard in
+   * `setRosterPersonStatus` asks. One reader for both, so the screen cannot
+   * grey out a button the server would honour — or offer one it would refuse.
+   */
+  isParticipatingInActiveEvent: boolean;
   selectedEventId: string | null;
 };
 
+/**
+ * `values` is absent when the failure was not a rejected edit: a refused
+ * archive has no form to repopulate, and its presence is what tells
+ * `getInitialDialogIntent` there is a save confirmation to re-open.
+ */
 export type DancerActionError = {
   status: "error";
   message: string;
   fieldErrors: DancerFieldErrors;
-  values: DancerUpdateInput;
+  values?: DancerUpdateInput;
 };
 
 export type DancerDialogIntent =
@@ -78,6 +90,12 @@ export type DancerRouteNotification = Extract<
 >;
 
 export type DancerStatusAction = {
+  /**
+   * A courtesy in front of the guard, never the rule: the server refuses the
+   * archive whether or not this is honoured. Reactivating is never refused, so
+   * only the archive intent is ever disabled.
+   */
+  disabled: boolean;
   description: string;
   intent: "archive-dancer" | "reactivate-dancer";
   label: string;
@@ -90,6 +108,11 @@ export type DancerDetailViewState = {
   identificationAlert: string | null;
   identificationAlertVariant: "info" | "warning";
   isEditing: boolean;
+  /**
+   * Why the archive action is unavailable, or `null` when it is available.
+   * Informational: nothing is wrong when it shows.
+   */
+  participatingAlert: string | null;
   shouldConfirmSave: boolean;
   statusAction: DancerStatusAction;
 };
@@ -190,7 +213,7 @@ export function readDancerUpdateValues(formData: FormData): DancerUpdateInput {
 export function buildDancerActionError(
   message: string,
   fieldErrors: DancerActionError["fieldErrors"],
-  values: DancerActionError["values"],
+  values?: DancerActionError["values"],
 ): DancerActionError {
   return {
     status: "error",
@@ -200,19 +223,16 @@ export function buildDancerActionError(
   };
 }
 
+/**
+ * Whether a failure carried the submitted edit. Only a rejected `Guardar`
+ * builds `values`, so its presence is the discriminant between the two
+ * failures this feature returns: an edit to repopulate, or a refused status
+ * change with no form behind it.
+ */
 function isDancerUpdateValues(
   values: DancerActionError["values"] | undefined,
 ): values is DancerUpdateInput {
-  return (
-    values !== undefined &&
-    "firstName" in values &&
-    "lastName" in values &&
-    "birthDate" in values &&
-    "documentType" in values &&
-    "documentNumber" in values &&
-    "documentFrontImageStorageKey" in values &&
-    "documentBackImageStorageKey" in values
-  );
+  return values !== undefined;
 }
 
 export function getSubmittedDancerUpdateValues(
@@ -248,14 +268,22 @@ export function getDancerEditValues({
   };
 }
 
-function getDancerStatusAction(active: boolean): DancerStatusAction {
+function getDancerStatusAction({
+  active,
+  isArchiveDisabled,
+}: {
+  active: boolean;
+  isArchiveDisabled: boolean;
+}): DancerStatusAction {
   return active
     ? {
+        disabled: isArchiveDisabled,
         description: `Archivá este Bailarín para que deje de aparecer en futuras selecciones del portal. ${getArchiveKeepsRosterMessage("dancer")}`,
         intent: "archive-dancer",
         label: "Archivar",
       }
     : {
+        disabled: false,
         description:
           "Reactivá este Bailarín para que vuelva a aparecer en futuras selecciones del portal.",
         intent: "reactivate-dancer",
@@ -266,11 +294,9 @@ function getDancerStatusAction(active: boolean): DancerStatusAction {
 export function getInitialDialogIntent({
   actionData,
   shouldConfirmSave,
-  statusIntent,
 }: {
   actionData: DancerActionError | UnexpectedActionError | undefined;
   shouldConfirmSave: boolean;
-  statusIntent: DancerStatusAction["intent"];
 }): DancerDialogIntent | null {
   if (!actionData) {
     return null;
@@ -279,20 +305,17 @@ export function getInitialDialogIntent({
   const submittedValues =
     "values" in actionData ? actionData.values : undefined;
 
-  if (isDancerUpdateValues(submittedValues)) {
-    return shouldConfirmSave ? "save" : null;
-  }
-
-  // Carrying no update `values` is how a failed status change comes back, and
-  // that is what re-opens the archive/reactivate dialog. The generic error from
-  // `recoverableClientAction` carries none either, but it may just as well come
-  // from `Guardar`: the toast already reports it and the form stays mounted, so
-  // opening a dialog the admin never asked for would be wrong.
-  if (isUnexpectedActionError(actionData) && submittedValues === undefined) {
-    return null;
-  }
-
-  return statusIntent;
+  // Only a rejected `Guardar` carries `values`, and only an edit whose save
+  // needs confirming has a dialog to go back to. Everything else re-opens
+  // nothing: a refused status change is reported by its toast, and by the
+  // time it lands the page has reloaded with `Archivar` already disabled and
+  // the participation alert showing, so a re-opened dialog would offer only a
+  // confirm the server refuses again. The generic error from
+  // `recoverableClientAction` carries no `values` either and is left alone for
+  // the same reason.
+  return shouldConfirmSave && isDancerUpdateValues(submittedValues)
+    ? "save"
+    : null;
 }
 
 function hasDancerVerificationMinimumData(
@@ -311,17 +334,31 @@ export function buildDancerDetailViewState({
   actionData,
   canEdit,
   dancer,
+  isParticipatingInActiveEvent,
   requestedEditMode,
   watchedBirthDate,
 }: {
   actionData: DancerActionError | undefined;
   canEdit: boolean;
   dancer: DancerDetailLoaderData["dancer"];
+  isParticipatingInActiveEvent: boolean;
   requestedEditMode: boolean;
   watchedBirthDate: string;
 }): DancerDetailViewState {
-  const isEditing = canEdit && (requestedEditMode || Boolean(actionData));
-  const statusAction = getDancerStatusAction(dancer.active);
+  // A failure only re-opens the edit form when it was an edit that failed: a
+  // refused archive carries no submitted values and must leave the screen in
+  // read mode, with the dialog and the toast doing the reporting.
+  const isEditing =
+    canEdit && (requestedEditMode || isDancerUpdateValues(actionData?.values));
+  const archiveAvailability = getRosterPersonArchiveAvailability({
+    isParticipatingInActiveEvent,
+    kind: "dancer",
+    status: toRosterPersonStatus(dancer.active),
+  });
+  const statusAction = getDancerStatusAction({
+    active: dancer.active,
+    isArchiveDisabled: archiveAvailability.disabled,
+  });
   const canVerifyIdentity =
     canEdit &&
     hasDancerVerificationMinimumData(dancer) &&
@@ -343,6 +380,7 @@ export function buildDancerDetailViewState({
     identificationAlert,
     identificationAlertVariant,
     isEditing,
+    participatingAlert: archiveAvailability.participatingAlert,
     shouldConfirmSave:
       dancer.editConsequence !== null || birthDateMayNeedRecalculation,
     statusAction,

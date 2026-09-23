@@ -170,6 +170,7 @@ function buildDancerDetailLoaderData() {
       front: null,
     },
     inscriptions: [],
+    isParticipatingInActiveEvent: false,
     selectedEventId: "event_1",
     dancer: {
       id: "dancer_1",
@@ -191,6 +192,7 @@ function buildDancerDetailLoaderData() {
 
 function buildProfessorDetailLoaderData() {
   return {
+    isParticipatingInActiveEvent: false,
     professor: {
       id: "professor_1",
       firstName: "Luz",

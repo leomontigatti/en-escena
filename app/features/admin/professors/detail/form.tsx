@@ -9,6 +9,7 @@ import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import {
   buildProfessorEditSchema,
   type ProfessorEditFormValues,
+  type ProfessorStatusAction,
 } from "./shared";
 
 type ProfessorEditFormReturn = UseFormReturn<
@@ -50,22 +51,27 @@ export function useProfessorEditForm({
 }
 
 export function ProfessorActionsMenu({
-  active,
   onSelect,
+  statusAction,
 }: {
-  active: boolean;
-  onSelect: (intent: "archive-professor" | "reactivate-professor") => void;
+  onSelect: (intent: ProfessorStatusAction["intent"]) => void;
+  statusAction: ProfessorStatusAction;
 }) {
   return (
     <ResourceActionsMenu contentClassName="w-40">
       <DropdownMenuItem
-        variant={active ? "destructive" : "default"}
+        disabled={statusAction.disabled}
+        variant={
+          statusAction.intent === "archive-professor"
+            ? "destructive"
+            : "default"
+        }
         onSelect={(event) => {
           event.preventDefault();
-          onSelect(active ? "archive-professor" : "reactivate-professor");
+          onSelect(statusAction.intent);
         }}
       >
-        {active ? "Archivar" : "Reactivar"}
+        {statusAction.label}
       </DropdownMenuItem>
     </ResourceActionsMenu>
   );

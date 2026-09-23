@@ -14,6 +14,10 @@ import {
 } from "@/features/portal/test-support/db";
 import { expectPersistedProfessor } from "@/lib/test-support/person-detail-db-assertions";
 import { createFormData } from "@/lib/test-support/form-data";
+import {
+  createEventChoreographyFixture,
+  createSavedEvent,
+} from "@/lib/events/bases-test-fixtures.server.db";
 
 import { installDatabaseTestHooks } from "../../../../../tests/db/harness";
 
@@ -298,6 +302,46 @@ describe("handlePortalProfessorDetailAction", () => {
       }),
       404,
     );
+  });
+
+  test("returns the refusal as action data, without a 404, for a professor participating in the active event", async () => {
+    const owner = await createAcademySession({
+      email: "profesores.archive.participante@example.com",
+      academyName: "Academia Participante",
+    });
+    const activeEvent = await createSavedEvent("En Escena Activo", {
+      activate: true,
+    });
+    const [professor] = await db
+      .insert(professors)
+      .values({
+        academyId: owner.academyId,
+        firstName: "Luz",
+        lastName: "Dicta",
+      })
+      .returning();
+    await createEventChoreographyFixture({
+      academyId: owner.academyId,
+      eventId: activeEvent.id,
+      name: "Fragmentada",
+      professorIds: [professor.id],
+    });
+
+    const result = await handlePortalProfessorDetailAction({
+      request: createPortalPostRequest(
+        `http://localhost/portal/profesores/${professor.id}`,
+        owner.cookie,
+        createFormData({ intent: "archive-professor" }),
+      ),
+      params: { professorId: professor.id },
+    });
+
+    expect(result).toMatchObject({
+      status: "error",
+      message:
+        "Este profesor no puede archivarse porque está participando del evento activo.",
+    });
+    await expectPersistedProfessor(professor.id, { active: true });
   });
 
   test("archives and reactivates a professor while keeping direct URL access", async () => {

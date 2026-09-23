@@ -2,7 +2,13 @@ import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
-import { choreographyDancers, dancers, prices, professors } from "@/db/schema";
+import {
+  choreographyDancers,
+  choreographyProfessors,
+  dancers,
+  prices,
+  professors,
+} from "@/db/schema";
 import {
   createAcademyRecord,
   createDancer,
@@ -22,9 +28,9 @@ import { installDatabaseTestHooks } from "../../../tests/db/harness";
 installDatabaseTestHooks();
 
 /**
- * One academy, one choreography of the current event and one dancer inscribed in
- * it at the catalogue price: the shape that would break if archiving ever grew
- * a guard or touched an inscription.
+ * One academy, one choreography of the active event and one dancer inscribed in
+ * it at the catalogue price: the shape the guard refuses to archive, and the
+ * one that would break if archiving ever touched an inscription.
  */
 async function seedInscribedDancer() {
   const event = await createSavedEvent();
@@ -68,10 +74,87 @@ function readInscription(inscriptionId: string) {
     .then((rows) => rows[0] ?? null);
 }
 
+function readRosterStatus(
+  table: typeof dancers | typeof professors,
+  personId: string,
+) {
+  return db
+    .select({ active: table.active })
+    .from(table)
+    .where(eq(table.id, personId))
+    .then((rows) => rows[0]?.active ?? null);
+}
+
+/**
+ * Withdraws the fixture's inscription so the dancer stops participating: every
+ * assertion about a *successful* archive needs a person the guard lets through.
+ */
+function withdrawInscription(inscriptionId: string) {
+  return db
+    .update(choreographyDancers)
+    .set({ withdrawnAt: new Date("2030-05-01T12:00:00Z") })
+    .where(eq(choreographyDancers.id, inscriptionId));
+}
+
 describe("setRosterPersonStatus", () => {
-  test("archives a dancer with an active inscription in the current event without touching the inscription", async () => {
+  test("refuses to archive a dancer participating in the active event, leaving the row and the inscription untouched", async () => {
     const fixture = await seedInscribedDancer();
     const inscriptionBefore = await readInscription(fixture.inscriptionId);
+
+    const refused = await setRosterPersonStatus({
+      academyId: fixture.academyId,
+      kind: "dancer",
+      next: "archived",
+      personId: fixture.dancer.id,
+      surface: "portal",
+    });
+
+    expect(refused).toEqual({
+      ok: false,
+      cause: "participating",
+      message:
+        "Este bailarín no puede archivarse porque está participando del evento activo.",
+    });
+    expect(await readRosterStatus(dancers, fixture.dancer.id)).toBe(true);
+    expect(await readInscription(fixture.inscriptionId)).toEqual(
+      inscriptionBefore,
+    );
+  });
+
+  test("refuses to archive a professor participating in the active event, from the admin panel", async () => {
+    const fixture = await seedInscribedDancer();
+    const professor = await createProfessor(fixture.academyId, {
+      firstName: "Luz",
+      lastName: "Dicta",
+    });
+    await db.insert(choreographyProfessors).values({
+      choreographyId: fixture.choreography.id,
+      professorId: professor.id,
+    });
+
+    await expect(
+      setRosterPersonStatus({
+        academyId: null,
+        kind: "professor",
+        next: "archived",
+        personId: professor.id,
+        surface: "admin",
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      cause: "participating",
+      message:
+        "Este profesor no puede archivarse porque está participando del evento activo.",
+    });
+    expect(await readRosterStatus(professors, professor.id)).toBe(true);
+  });
+
+  test("archives a dancer whose only inscription is withdrawn, and reactivates a participant", async () => {
+    const fixture = await seedInscribedDancer();
+    await db
+      .update(choreographyDancers)
+      .set({ withdrawnAt: new Date("2030-05-01T12:00:00Z") })
+      .where(eq(choreographyDancers.id, fixture.inscriptionId));
 
     const archived = await setRosterPersonStatus({
       academyId: fixture.academyId,
@@ -83,9 +166,23 @@ describe("setRosterPersonStatus", () => {
 
     expect(archived).toMatchObject({ ok: true });
     expect(archived.ok && archived.person.active).toBe(false);
-    expect(await readInscription(fixture.inscriptionId)).toEqual(
-      inscriptionBefore,
-    );
+
+    // Reactivating is never refused, so the live inscription coming back does
+    // not stand in the way of undoing the archive.
+    await db
+      .update(choreographyDancers)
+      .set({ withdrawnAt: null })
+      .where(eq(choreographyDancers.id, fixture.inscriptionId));
+
+    const reactivated = await setRosterPersonStatus({
+      academyId: fixture.academyId,
+      kind: "dancer",
+      next: "active",
+      personId: fixture.dancer.id,
+      surface: "portal",
+    });
+
+    expect(reactivated.ok && reactivated.person.active).toBe(true);
   });
 
   test("leaves the choreography's operational finance row identical before and after archiving", async () => {
@@ -100,6 +197,9 @@ describe("setRosterPersonStatus", () => {
         (row) => row.id === fixture.choreography.id,
       );
     };
+    // Withdrawn first: the guard refuses to archive a participant, and the
+    // snapshot has to be of the shape archiving actually runs against.
+    await withdrawInscription(fixture.inscriptionId);
     const before = await readFinanceRow();
 
     await setRosterPersonStatus({
@@ -116,6 +216,7 @@ describe("setRosterPersonStatus", () => {
 
   test("takes an archived dancer out of the pickers and puts them back on reactivation, with nothing else asked for", async () => {
     const fixture = await seedInscribedDancer();
+    await withdrawInscription(fixture.inscriptionId);
     const readOptionIds = async () =>
       (await listDancerOptionsForChoreography(fixture.academyId, [])).map(
         (option) => option.id,
@@ -226,5 +327,73 @@ describe("setRosterPersonStatus", () => {
       .from(dancers)
       .where(eq(dancers.id, fixture.dancer.id));
     expect(row?.active).toBe(true);
+  });
+
+  // The other two cells of the kind x surface matrix: the guard is written once
+  // for both, so a cell that regressed would mean a surface had grown a rule of
+  // its own.
+  test("refuses to archive a dancer from the admin panel, which writes any academy's people", async () => {
+    const fixture = await seedInscribedDancer();
+
+    await expect(
+      setRosterPersonStatus({
+        academyId: null,
+        kind: "dancer",
+        next: "archived",
+        personId: fixture.dancer.id,
+        surface: "admin",
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      cause: "participating",
+      message:
+        "Este bailarín no puede archivarse porque está participando del evento activo.",
+    });
+    expect(await readRosterStatus(dancers, fixture.dancer.id)).toBe(true);
+  });
+
+  test("refuses to archive a professor from the portal, and archives one whose choreography link is gone", async () => {
+    const fixture = await seedInscribedDancer();
+    const professor = await createProfessor(fixture.academyId, {
+      firstName: "Nara",
+      lastName: "Portal",
+    });
+    await db.insert(choreographyProfessors).values({
+      choreographyId: fixture.choreography.id,
+      professorId: professor.id,
+    });
+
+    await expect(
+      setRosterPersonStatus({
+        academyId: fixture.academyId,
+        kind: "professor",
+        next: "archived",
+        personId: professor.id,
+        surface: "portal",
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      cause: "participating",
+      message:
+        "Este profesor no puede archivarse porque está participando del evento activo.",
+    });
+    expect(await readRosterStatus(professors, professor.id)).toBe(true);
+
+    // `choreography_professor` has no withdrawal: removal is a physical delete,
+    // so that is how a professor stops participating.
+    await db
+      .delete(choreographyProfessors)
+      .where(eq(choreographyProfessors.professorId, professor.id));
+
+    const archived = await setRosterPersonStatus({
+      academyId: fixture.academyId,
+      kind: "professor",
+      next: "archived",
+      personId: professor.id,
+      surface: "portal",
+    });
+
+    expect(archived).toMatchObject({ ok: true });
+    expect(await readRosterStatus(professors, professor.id)).toBe(false);
   });
 });

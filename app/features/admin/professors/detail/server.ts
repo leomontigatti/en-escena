@@ -7,6 +7,7 @@ import {
   findProfessor,
   updateAdministrativeProfessor,
 } from "@/lib/admin/professors/professors.server";
+import { hasActiveEventParticipation } from "@/lib/roster/active-event-participation.server";
 import {
   getRosterPersonNotFoundMessage,
   setRosterPersonStatus,
@@ -58,6 +59,10 @@ export async function loadProfessorDetail(input: {
     cancelHref: buildModeHref(url, null),
     isEditing:
       user.role === "admin" && url.searchParams.get("modo") === "editar",
+    isParticipatingInActiveEvent: await hasActiveEventParticipation({
+      kind: "professor",
+      personId: professorId,
+    }),
   };
 }
 
@@ -94,6 +99,11 @@ export async function handleProfessorDetailAction(input: {
     });
 
     if (!result.ok) {
+      // Two causes, two channels — see the dancer twin.
+      if (result.cause === "participating") {
+        return buildProfessorActionError(result.message, {});
+      }
+
       throw new Response(getRosterPersonNotFoundMessage("professor"), {
         status: 404,
       });
