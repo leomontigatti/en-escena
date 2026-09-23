@@ -78,8 +78,11 @@ export type ScheduleFormValues = z.infer<typeof scheduleFormSchema>;
 
 export const emptySelection: string[] = [];
 
-export const scheduleCategoriesDescription =
-  "Si no elegís ninguna, el cronograma acepta todas las categorías.";
+/**
+ * What an empty selection means, read as the value it stands for. Shown only
+ * while nothing is chosen, which is the only moment it applies.
+ */
+export const scheduleCategoriesPlaceholder = "Todas las categorías";
 
 type ScheduleCategoryOptionSource = {
   id: string;

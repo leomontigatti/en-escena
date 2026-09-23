@@ -6,7 +6,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { EventScheduleDetailView } from "@/features/admin/schedules/detail/view";
 import type { EventScheduleDetailLoaderData } from "@/features/admin/schedules/shared";
-import { scheduleCategoriesDescription } from "@/features/admin/schedules/view-shared";
+import { scheduleCategoriesPlaceholder } from "@/features/admin/schedules/view-shared";
 import {
   createReactDomTestRenderer,
   getButton,
@@ -74,13 +74,11 @@ describe("EventScheduleDetailView", () => {
     expect(document.body.textContent).toContain(" / 2 disponibles");
     // Never as a field description: that slot sits between the label and the
     // control, and pushed every capacity out of line with its group type
-    // select. The categories description is the only one this panel expects,
-    // so any other one appearing here fails.
+    // select. No field of this panel carries a description, so any one
+    // appearing here fails.
     expect(
-      Array.from(
-        document.querySelectorAll('[data-slot="field-description"]'),
-      ).map((description) => description.textContent),
-    ).toEqual([scheduleCategoriesDescription]);
+      document.querySelectorAll('[data-slot="field-description"]'),
+    ).toHaveLength(0);
     // The suffix is aria-hidden, so the accessible name spells the count out.
     expect(
       document.querySelector('label[for="schedule-capacity-capacity-0"]')
@@ -160,17 +158,17 @@ describe("EventScheduleDetailView", () => {
   });
 
   // The schedule's accepted categories are the field itself: the chips are what
-  // it accepts, and the description is what an empty selection means.
-  test("shows the accepted categories and what choosing none means", async () => {
+  // it accepts, and nothing else explains them.
+  test("shows the accepted categories as the field's chips", async () => {
     useNavigationMock.mockReturnValue({ state: "idle" });
 
     await renderDetail({ initialDeleteDialogOpen: false });
 
     expect(document.body.textContent).toContain("Categorías");
-    expect(document.body.textContent).toContain(
-      "Si no elegís ninguna, el cronograma acepta todas las categorías.",
-    );
     expect(document.body.textContent).toContain("Baby · 4–6 · solo, dúo");
+    expect(document.body.textContent).not.toContain(
+      scheduleCategoriesPlaceholder,
+    );
     expect(
       Array.from(
         document.querySelectorAll<HTMLInputElement>(
@@ -178,6 +176,23 @@ describe("EventScheduleDetailView", () => {
         ),
       ).map((input) => input.value),
     ).toEqual(["category_baby"]);
+  });
+
+  // An empty selection is a value, not a gap: the schedule accepts every
+  // category. The placeholder says so while the field is empty, and only then,
+  // so there is no description repeating it once categories are chosen.
+  test("reads an empty selection as accepting every category", async () => {
+    useNavigationMock.mockReturnValue({ state: "idle" });
+
+    await renderDetail({
+      initialDeleteDialogOpen: false,
+      loaderData: buildUnrestrictedLoaderData(),
+    });
+
+    expect(document.body.textContent).toContain("Todas las categorías");
+    expect(document.querySelectorAll('input[name="categoryIds"]')).toHaveLength(
+      0,
+    );
   });
 
   async function renderDetail(
@@ -260,6 +275,16 @@ function buildLoaderData(): EventScheduleDetailLoaderData {
         scheduleCapacities: [],
       },
     ],
+  };
+}
+
+function buildUnrestrictedLoaderData(): EventScheduleDetailLoaderData {
+  const loaderData = buildLoaderData();
+  const [schedule] = loaderData.schedules;
+
+  return {
+    ...loaderData,
+    schedules: [{ ...schedule, categoryIds: [] }],
   };
 }
 
