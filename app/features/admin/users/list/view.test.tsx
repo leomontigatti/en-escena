@@ -52,6 +52,20 @@ describe("InternalUsersListRouteView", () => {
       'href="/administracion/usuarios/user-1?busqueda=Ana+Admin&amp;estado=suspended&amp;rol=admin&amp;tipo=internal&amp;archivado=si"',
     );
   });
+
+  test("links the header action to the create page for a managing user", () => {
+    const markup = renderRoute({ canManage: true });
+
+    expect(markup).toContain('href="/administracion/usuarios/nuevo"');
+    expect(markup).toContain("Nuevo usuario");
+  });
+
+  test("hides the header action when the user cannot manage users", () => {
+    const markup = renderRoute({ canManage: false });
+
+    expect(markup).not.toContain('href="/administracion/usuarios/nuevo"');
+    expect(markup).not.toContain("Nuevo usuario");
+  });
 });
 
 function renderRoute(

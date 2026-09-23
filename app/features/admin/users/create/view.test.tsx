@@ -25,4 +25,22 @@ describe("NewInternalUserRouteView", () => {
     expect(markup).toContain("canal seguro");
     expect(markup).not.toContain("Usuario interno creado");
   });
+
+  test("returns to the users list from the back button", () => {
+    const RoutesStub = createRoutesStub([
+      {
+        path: "/administracion/usuarios/nuevo",
+        Component: NewInternalUserRouteView,
+      },
+    ]);
+
+    const markup = renderToStaticMarkup(
+      createElement(RoutesStub, {
+        initialEntries: ["/administracion/usuarios/nuevo"],
+      }),
+    );
+
+    expect(markup).toContain('href="/administracion/usuarios"');
+    expect(markup).not.toContain('href="/administracion"');
+  });
 });
