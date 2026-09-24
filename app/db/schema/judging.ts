@@ -42,18 +42,24 @@ export const submodalityCriteria = createTable(
   "submodality_criterion",
   {
     id: uuidPrimaryKey(),
-    eventId: varchar("event_id", { length: 255 })
-      .notNull()
-      .references(() => events.id, { onDelete: "cascade" }),
-    submodalityId: varchar("submodality_id", { length: 255 })
-      .notNull()
-      .references(() => submodalities.id, { onDelete: "cascade" }),
+    eventId: varchar("event_id", { length: 255 }).notNull(),
+    submodalityId: varchar("submodality_id", { length: 255 }).notNull(),
     name: text("name").notNull(),
     maximum: integer("maximum").notNull(),
     kind: criterionKind("kind").notNull(),
     position: integer("position").notNull(),
   },
   (table) => [
+    foreignKey({
+      columns: [table.eventId],
+      foreignColumns: [events.id],
+      name: "submodality_criterion_event_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.submodalityId],
+      foreignColumns: [submodalities.id],
+      name: "submodality_criterion_submodality_fk",
+    }).onDelete("cascade"),
     index("submodality_criterion_submodality_idx").on(table.submodalityId),
     uniqueIndex("submodality_criterion_submodality_name_unique").on(
       table.submodalityId,
@@ -81,9 +87,9 @@ export const scores = createTable(
   "score",
   {
     id: uuidPrimaryKey(),
-    judgeAssignmentId: varchar("judge_assignment_id", { length: 255 })
-      .notNull()
-      .references(() => judgeAssignments.id, { onDelete: "restrict" }),
+    judgeAssignmentId: varchar("judge_assignment_id", {
+      length: 255,
+    }).notNull(),
     value: numeric("value", { mode: "string", precision: 4, scale: 1 }),
     feedbackAudioStorageKey: text("feedback_audio_storage_key"),
     annulled: boolean("annulled").notNull().default(false),
@@ -101,6 +107,11 @@ export const scores = createTable(
       .default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => [
+    foreignKey({
+      columns: [table.judgeAssignmentId],
+      foreignColumns: [judgeAssignments.id],
+      name: "score_judge_assignment_fk",
+    }).onDelete("restrict"),
     uniqueIndex("score_judge_assignment_unique").on(table.judgeAssignmentId),
     check(
       "score_value_range",

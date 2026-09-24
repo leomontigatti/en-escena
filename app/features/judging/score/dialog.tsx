@@ -34,6 +34,7 @@ import {
   buildJudgeScoreSubmission,
   judgeScoreFormSchema,
   type JudgeScoreFormValues,
+  useJudgeSavePending,
 } from "./form-shared";
 import { ScoreInputField } from "./score-input-field";
 
@@ -73,6 +74,9 @@ export function JudgeScoreDialog({
   const submit = useOptionalSubmit();
   const { setError } = form;
   const disqualified = presentation.status === "descalificada";
+  // A judge taps in the dark with the stage in front of them, so the button has
+  // to say it took the tap: without it the same score posts twice.
+  const isSaving = useJudgeSavePending(presentation.presentationId);
 
   // A value the client accepted and the server did not — a race against the
   // criteria of a submodality, a rule the form has not been taught — belongs on
@@ -168,7 +172,7 @@ export function JudgeScoreDialog({
               <Button type="button" variant="outline" onClick={requestClose}>
                 Cancelar
               </Button>
-              <Button type="submit" form="judge-score-form">
+              <Button disabled={isSaving} type="submit" form="judge-score-form">
                 Guardar
               </Button>
             </div>

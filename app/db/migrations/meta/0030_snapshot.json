@@ -1,5 +1,5 @@
 {
-  "id": "04abd500-7ff3-44f0-8de8-90c871597539",
+  "id": "0d120801-e7e7-443b-88ea-95613981b687",
   "prevId": "9b561988-ecf0-4f34-a1fb-ce22fc03c0b4",
   "version": "7",
   "dialect": "postgresql",
@@ -4259,8 +4259,8 @@
         }
       },
       "foreignKeys": {
-        "en_escena_score_judge_assignment_id_en_escena_judge_assignment_id_fk": {
-          "name": "en_escena_score_judge_assignment_id_en_escena_judge_assignment_id_fk",
+        "score_judge_assignment_fk": {
+          "name": "score_judge_assignment_fk",
           "tableFrom": "en_escena_score",
           "tableTo": "en_escena_judge_assignment",
           "columnsFrom": ["judge_assignment_id"],
@@ -4371,8 +4371,8 @@
         }
       },
       "foreignKeys": {
-        "en_escena_submodality_criterion_event_id_en_escena_event_id_fk": {
-          "name": "en_escena_submodality_criterion_event_id_en_escena_event_id_fk",
+        "submodality_criterion_event_fk": {
+          "name": "submodality_criterion_event_fk",
           "tableFrom": "en_escena_submodality_criterion",
           "tableTo": "en_escena_event",
           "columnsFrom": ["event_id"],
@@ -4380,8 +4380,8 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "en_escena_submodality_criterion_submodality_id_en_escena_submodality_id_fk": {
-          "name": "en_escena_submodality_criterion_submodality_id_en_escena_submodality_id_fk",
+        "submodality_criterion_submodality_fk": {
+          "name": "submodality_criterion_submodality_fk",
           "tableFrom": "en_escena_submodality_criterion",
           "tableTo": "en_escena_submodality",
           "columnsFrom": ["submodality_id"],

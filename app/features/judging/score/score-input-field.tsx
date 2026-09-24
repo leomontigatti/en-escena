@@ -96,6 +96,10 @@ function toScoreInputValue(value: string) {
  * The maximum sits right after the typed value and moves with it, laid over the
  * control on top of an invisible copy of that value — the same trick the integer
  * field uses, so no measurement is needed.
+ *
+ * It is there before anything is typed, too: the suffix is what tells the judge
+ * what this field is out of, and a sheet's lines are out of different maxima, so
+ * the empty state is exactly when it has the most to say.
  */
 function ScoreInputSuffix({
   maximum,
@@ -104,16 +108,12 @@ function ScoreInputSuffix({
   maximum: number;
   value?: string;
 }) {
-  if (!value) {
-    return null;
-  }
-
   return (
     <span
       aria-hidden="true"
       className="pointer-events-none absolute inset-y-0 left-2.5 flex max-w-[calc(100%-1.25rem)] items-center overflow-hidden whitespace-pre text-lg"
     >
-      <span className="invisible">{value}</span>
+      <span className="invisible">{value ?? ""}</span>
       <span className="text-muted-foreground">{` / ${maximum}`}</span>
     </span>
   );

@@ -24,6 +24,7 @@ import type { JudgeSheetCriterion } from "@/lib/judging/judge-list.server";
 import { medalLabels } from "@/lib/judging/medal";
 import type { PresentationJudgeScore } from "@/lib/judging/presentation-scores.server";
 import { singleScoreMaximum } from "@/lib/judging/score-value";
+import { isRouteFormPending } from "@/lib/shared/forms";
 import { sheetCriterionFieldPrefix } from "@/features/judging/score/form-shared";
 
 import type {
@@ -141,7 +142,9 @@ function ResultCard({
  * already on screen to undo it with.
  */
 function DisqualificationForm({ disqualified }: { disqualified: boolean }) {
-  const isSubmitting = useNavigation().state !== "idle";
+  const isSubmitting = isRouteFormPending(useNavigation(), {
+    intent: disqualified ? "reinstate" : "disqualify",
+  });
 
   return (
     <Form className="w-fit" method="post">
@@ -307,7 +310,7 @@ function SheetsCard({
                       <div className="flex items-center gap-2">
                         <ScoreValue value={judge.value} />
                         <span className="text-sm text-muted-foreground">
-                          / 100
+                          {`/ ${singleScoreMaximum}`}
                         </span>
                         {judge.annulled ? (
                           <Badge variant="outline">Anulado</Badge>
@@ -343,7 +346,10 @@ function SingleScoreForm({
   scoreId: string;
   value: string | null;
 }) {
-  const isSubmitting = useNavigation().state !== "idle";
+  const isSubmitting = isRouteFormPending(useNavigation(), {
+    fields: { scoreId },
+    intent: "edit-score",
+  });
 
   return (
     <Form className="flex flex-col gap-1" method="post">
@@ -387,7 +393,10 @@ function SheetForm({
   judge: PresentationJudgeScore;
   scoreId: string;
 }) {
-  const isSubmitting = useNavigation().state !== "idle";
+  const isSubmitting = isRouteFormPending(useNavigation(), {
+    fields: { scoreId },
+    intent: "edit-score",
+  });
 
   return (
     <Form className="flex flex-col gap-4" method="post">
@@ -442,7 +451,7 @@ function SheetForm({
             <TableCell>
               <div className="flex items-center gap-2">
                 <ScoreValue value={judge.value} />
-                <span className="text-sm text-muted-foreground">/ 100</span>
+                <span className="text-sm text-muted-foreground">{`/ ${singleScoreMaximum}`}</span>
               </div>
             </TableCell>
           </TableRow>
@@ -471,7 +480,10 @@ function AnnulSwitch({
   scoreId: string;
 }) {
   const submit = useSubmit();
-  const isSubmitting = useNavigation().state !== "idle";
+  const isSubmitting = isRouteFormPending(useNavigation(), {
+    fields: { scoreId },
+    intent: "annul-score",
+  });
   const id = `anular-${scoreId}`;
 
   return (

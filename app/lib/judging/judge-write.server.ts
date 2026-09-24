@@ -31,6 +31,8 @@ export type JudgeWriteTarget = {
   eventId: string;
   /** The judge's stored take, or null when they have saved none. */
   feedbackAudioStorageKey: string | null;
+  /** Whether the judge already has a score row, which a null take cannot tell apart. */
+  hasScore: boolean;
   judgeAssignmentId: string;
 };
 
@@ -59,6 +61,7 @@ export async function readJudgeWriteTarget(
     .select({
       feedbackAudioStorageKey: scores.feedbackAudioStorageKey,
       id: judgeAssignments.id,
+      scoreId: scores.id,
     })
     .from(judgeAssignments)
     .leftJoin(scores, eq(scores.judgeAssignmentId, judgeAssignments.id))
@@ -83,6 +86,7 @@ export async function readJudgeWriteTarget(
       disqualified: locked.disqualifiedAt !== null,
       eventId: locked.eventId,
       feedbackAudioStorageKey: assignment.feedbackAudioStorageKey,
+      hasScore: assignment.scoreId !== null,
       judgeAssignmentId: assignment.id,
     },
   };

@@ -1,6 +1,10 @@
 /** @vitest-environment jsdom */
 
-import { createMemoryRouter, RouterProvider } from "react-router";
+import {
+  createMemoryRouter,
+  RouterProvider,
+  useActionData,
+} from "react-router";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
 import { JudgePanelView } from "@/features/judging/list/view";
@@ -217,6 +221,69 @@ describe("scoring a submodality with criteria", () => {
 
     expect(document.body.textContent).not.toContain(discardChangesTitle);
     expect(router.state.location.search).toBe("?presentacion=b");
+  });
+
+  /**
+   * The same panel, but reading the answer off the route the way the real one
+   * does, so a test can put a refusal *after* the save rather than before it.
+   */
+  function PanelReadingItsAnswer({ rows }: { rows: JudgePresentationRow[] }) {
+    return (
+      <JudgePanelView
+        actionData={useActionData() as JudgePanelActionData | undefined}
+        loaderData={{
+          account: {
+            name: "Ana Juez",
+            roleLabel: "Jurado",
+            username: "ana.juez",
+          },
+          presentations: rows,
+        }}
+      />
+    );
+  }
+
+  async function mountAnswering(answer: JudgePanelActionData) {
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/juzgamiento",
+          action: async ({ request }) => {
+            submitted.push(await request.formData());
+
+            return answer;
+          },
+          element: <PanelReadingItsAnswer rows={presentations} />,
+        },
+      ],
+      { initialEntries: ["/juzgamiento?presentacion=a"] },
+    );
+
+    await renderer.renderAsync(<RouterProvider router={router} />);
+
+    return router;
+  }
+
+  test("still asks before throwing away a sheet whose save was refused", async () => {
+    const router = await mountAnswering({
+      intent: "save-score",
+      message: "La jornada ya cerró, no se pueden guardar puntajes.",
+      status: "error",
+    });
+
+    await type("tecnica", "50");
+    await type("interpretacion", "40");
+    await clickReactDomButton("Guardar");
+
+    // The save was refused, so the judge is still looking at their sheet: the
+    // pass it was let through on is spent and the guard has to be back.
+    expect(router.state.location.search).toBe("?presentacion=a");
+    expect(criterionInput("tecnica")?.value).toBe("50");
+
+    await clickReactDomButton("Volver");
+
+    expect(document.body.textContent).toContain(discardChangesTitle);
+    expect(router.state.location.search).toBe("?presentacion=a");
   });
 
   test("leaves a clean sheet without asking", async () => {

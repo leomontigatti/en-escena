@@ -99,7 +99,11 @@ export async function handlePresentationScoresAction(input: {
 
   if (intent === "disqualify" || intent === "reinstate") {
     return answer(
-      intent === "disqualify" ? disqualifiedMessage : reinstatedMessage,
+      {
+        message:
+          intent === "disqualify" ? disqualifiedMessage : reinstatedMessage,
+        notFound: presentationNotFoundMessage,
+      },
       await setPresentationDisqualified({
         disqualified: intent === "disqualify",
         presentationId,
@@ -111,9 +115,13 @@ export async function handlePresentationScoresAction(input: {
 
   if (intent === "annul-score") {
     return answer(
-      readFormString(formData, "annulled") === "true"
-        ? annulledMessage
-        : restoredMessage,
+      {
+        message:
+          readFormString(formData, "annulled") === "true"
+            ? annulledMessage
+            : restoredMessage,
+        notFound: unknownScoreMessage,
+      },
       await annulScore({
         annulled: readFormString(formData, "annulled") === "true",
         presentationId,
@@ -140,14 +148,20 @@ export async function handlePresentationScoresAction(input: {
   );
 }
 
+/**
+ * A settled write, or the 404 for the row it could not find. What is missing
+ * differs by intent — the presentation for a disqualification, the score for an
+ * annulment — and the message has to name the right one, or an administrator is
+ * told to look for a score when the link they followed is the broken part.
+ */
 function answer(
-  message: string,
+  outcome: { message: string; notFound: string },
   result: ScoreSettlementResult,
 ): PresentationScoresActionData | ReturnType<typeof data> {
   return result.ok
-    ? { message, status: "success" }
+    ? { message: outcome.message, status: "success" }
     : data(
-        { message: unknownScoreMessage, status: "error" as const },
+        { message: outcome.notFound, status: "error" as const },
         { status: 404 },
       );
 }

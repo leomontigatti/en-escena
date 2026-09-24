@@ -467,4 +467,50 @@ describe("saving on a presentation a colleague disqualified", () => {
       { feedbackAudioStorageKey: audio.uploaded[0], value: null },
     ]);
   });
+
+  test("writes no score at all for a judge who saves neither a value nor a take", async () => {
+    const { judge, presentation } = await seedOpenPresentation();
+
+    await disqualifyPresentation({
+      judgeId: judge.judgeId,
+      presentationId: presentation.presentationId,
+    });
+
+    const result = await saveJudgeScore({
+      judgeId: judge.judgeId,
+      presentationId: presentation.presentationId,
+      value: "80",
+    });
+
+    expect(result).toEqual({ disqualified: true, ok: true });
+    expect(await readScores(judge.judgeAssignmentId)).toEqual([]);
+  });
+
+  test("keeps a stored take a judge saves over without touching the recorder", async () => {
+    const { judge, presentation } = await seedOpenPresentation();
+    const audio = createAudioStorage();
+
+    await disqualifyPresentation({
+      judgeId: judge.judgeId,
+      presentationId: presentation.presentationId,
+    });
+    await saveJudgeScore({
+      audio: { file: webmTake(), intent: "replace" },
+      judgeId: judge.judgeId,
+      presentationId: presentation.presentationId,
+      storage: audio.storage,
+    });
+
+    const result = await saveJudgeScore({
+      judgeId: judge.judgeId,
+      presentationId: presentation.presentationId,
+      storage: audio.storage,
+    });
+
+    expect(result).toEqual({ disqualified: true, ok: true });
+    expect(await readScores(judge.judgeAssignmentId)).toMatchObject([
+      { feedbackAudioStorageKey: audio.uploaded[0], value: null },
+    ]);
+    expect(audio.removed).toEqual([]);
+  });
 });

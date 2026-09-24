@@ -241,6 +241,29 @@ describe("the scores route's writes", () => {
     expect(reopened.disqualifiedAt).toBeNull();
   });
 
+  test("names the presentation, not a score, when a disqualification finds nothing", async () => {
+    const presentation = await seedScoredPresentation();
+
+    const result = await submitAsAdmin(presentation.presentationId, {
+      intent: "annul-score",
+      annulled: "true",
+      scoreId: "00000000-0000-0000-0000-000000000000",
+    });
+
+    expect(result).toMatchObject({
+      data: { message: "No se encontró el puntaje que se quiso editar." },
+    });
+
+    const missing = await submitAsAdmin(
+      "00000000-0000-0000-0000-000000000000",
+      { intent: "disqualify" },
+    );
+
+    expect(missing).toMatchObject({
+      data: { message: "No se encontró la presentación buscada." },
+    });
+  });
+
   test("refuses a score that does not belong to the presentation", async () => {
     const presentation = await seedScoredPresentation();
     const other = await seedScoredPresentation();

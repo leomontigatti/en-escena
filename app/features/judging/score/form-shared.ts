@@ -1,8 +1,34 @@
+import { useNavigation } from "react-router";
 import { z } from "zod";
 
 import type { FeedbackAudioFieldSubmission } from "@/lib/judging/feedback-audio-field";
 import type { JudgeSheetCriterion } from "@/lib/judging/judge-list.server";
 import { parseScoreValue, scoreValueMessage } from "@/lib/judging/score-value";
+import { isRouteFormPending } from "@/lib/shared/forms";
+
+/**
+ * Whether this presentation's own save is in flight. A judge taps in a dark
+ * theatre with their eyes on the stage, so "Guardar" has to say it took the
+ * tap — otherwise the same score posts twice, and the second post lands on a
+ * presentation a colleague may have disqualified in between.
+ *
+ * It is scoped to the intent and the presentation rather than to the router's
+ * whole state, as the style guide requires: the revalidation that runs under
+ * the form after every save is not the form working.
+ */
+export function useJudgeSavePending(presentationId: string): boolean {
+  try {
+    // oxlint-disable-next-line react-hooks/rules-of-hooks
+    const navigation = useNavigation();
+
+    return isRouteFormPending(navigation, {
+      fields: { presentationId },
+      intent: "save-score",
+    });
+  } catch {
+    return false;
+  }
+}
 
 /**
  * The single-score form. An empty field and a bad one read the same message,

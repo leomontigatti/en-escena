@@ -90,7 +90,7 @@ export function JudgePanelView({
     return (
       <JudgeScoreSheet
         account={loaderData.account}
-        fieldErrors={actionData?.fieldErrors}
+        actionData={actionData}
         key={openPresentation.presentationId}
         onClose={() => setOpenPresentationId(null)}
         presentation={openPresentation}

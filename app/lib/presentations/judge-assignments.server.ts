@@ -169,6 +169,13 @@ export async function removeJudges(input: {
     // The chosen pairs, each told apart by whether its judge has saved a score.
     // The score is read here rather than left to the foreign key's `restrict`,
     // so one scored pair refuses itself instead of failing the whole removal.
+    //
+    // The assignments are locked as they are read, because that reading is what
+    // the delete then trusts. A judge saving a score mid-removal takes a key
+    // share of their assignment row through the score's foreign key, which this
+    // lock waits for: without it the score would land between the read and the
+    // delete, and `restrict` would raise and take down the removal of every
+    // other pair with it — the one outcome this seam exists to avoid.
     const chosen = await tx
       .select({
         id: judgeAssignments.id,
@@ -181,7 +188,8 @@ export async function removeJudges(input: {
           inArray(judgeAssignments.presentationId, presentationIds),
           inArray(judgeAssignments.userId, input.judgeIds),
         ),
-      );
+      )
+      .for("update", { of: judgeAssignments });
 
     const removableIds = chosen
       .filter((row) => !row.scored)

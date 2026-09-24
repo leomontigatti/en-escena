@@ -81,9 +81,19 @@ export async function saveJudgeScore(
   input: SaveJudgeScoreInput,
 ): Promise<SaveJudgeScoreResult> {
   const audio = input.audio ?? { intent: "keep" };
-  const committed = await db.transaction(
-    async (tx) => await saveScoreWithin(tx, input, audio),
-  );
+  // The upload runs inside the transaction, so a rollback after it leaves the
+  // object on the volume with no row pointing at it. What it cannot leave is no
+  // trace: this holder is what the log line below has to name it by.
+  const uploaded: UploadedTake = { storageKey: null };
+  const committed = await db
+    .transaction(
+      async (tx) => await saveScoreWithin(tx, input, audio, uploaded),
+    )
+    .catch((thrown: unknown) => {
+      logOrphanedTake(uploaded.storageKey, thrown);
+
+      throw thrown;
+    });
 
   if (committed.previousKey) {
     await removeReplacedFeedbackAudio({
@@ -104,8 +114,9 @@ async function saveScoreWithin(
   tx: Transaction,
   input: SaveJudgeScoreInput,
   audio: FeedbackAudioSubmission,
+  uploaded: UploadedTake,
 ): Promise<{ previousKey: string | null; result: SaveJudgeScoreResult }> {
-  const prepared = await prepareScoreWrite(tx, input, audio);
+  const prepared = await prepareScoreWrite(tx, input, audio, uploaded);
 
   if (!prepared.ok) {
     return { previousKey: null, result: prepared.result };
@@ -113,11 +124,13 @@ async function saveScoreWithin(
 
   const { sheet, storageKey, target } = prepared;
 
-  await writeScore(tx, {
-    judgeAssignmentId: target.judgeAssignmentId,
-    sheet,
-    storageKey,
-  });
+  if (carriesSomething({ sheet, storageKey, target })) {
+    await writeScore(tx, {
+      judgeAssignmentId: target.judgeAssignmentId,
+      sheet,
+      storageKey,
+    });
+  }
 
   return {
     previousKey:
@@ -150,6 +163,7 @@ async function prepareScoreWrite(
   tx: Transaction,
   input: SaveJudgeScoreInput,
   audio: FeedbackAudioSubmission,
+  uploaded: UploadedTake,
 ): Promise<PreparedScoreWrite> {
   const found = await readJudgeWriteTarget(tx, input);
 
@@ -166,6 +180,7 @@ async function prepareScoreWrite(
 
   const nextKey = await resolveFeedbackAudioKey({
     audio,
+    uploaded,
     eventId: target.eventId,
     judgeId: input.judgeId,
     presentationId: input.presentationId,
@@ -190,6 +205,25 @@ async function prepareScoreWrite(
     storageKey: nextKey.storageKey,
     target,
   };
+}
+
+/**
+ * Whether the save has anything to store. On a disqualified presentation the
+ * take is all a save may write, so a judge who taps "Guardar" there with an
+ * empty recorder and no score row of their own is asking to store nothing —
+ * and a row carrying neither a value nor a take is not harmless: its mere
+ * existence is what "evaluated" means, so it would lock the choreography and
+ * the submodality's criteria and refuse the assignment's removal for good,
+ * even after the panel reinstated the presentation.
+ */
+function carriesSomething(input: {
+  sheet: { total: number; values: SheetLine[] | null } | null;
+  storageKey: string | null;
+  target: JudgeWriteTarget;
+}): boolean {
+  return (
+    input.sheet !== null || input.storageKey !== null || input.target.hasScore
+  );
 }
 
 /**
@@ -246,6 +280,7 @@ async function resolveFeedbackAudioKey(input: {
   presentationId: string;
   storage?: FeedbackAudioStorage;
   storedKey: string | null;
+  uploaded: UploadedTake;
 }): Promise<FeedbackAudioKeyResolution> {
   if (input.audio.intent === "keep") {
     return { ok: true, storageKey: input.storedKey };
@@ -264,9 +299,32 @@ async function resolveFeedbackAudioKey(input: {
     presentationId: input.presentationId,
   });
 
-  return uploaded.ok
-    ? { ok: true, storageKey: uploaded.storageKey }
-    : { ok: false, rejection: uploaded.rejection };
+  if (!uploaded.ok) {
+    return { ok: false, rejection: uploaded.rejection };
+  }
+
+  input.uploaded.storageKey = uploaded.storageKey;
+
+  return { ok: true, storageKey: uploaded.storageKey };
+}
+
+/** The object this save put on the volume, so a rollback can still name it. */
+type UploadedTake = { storageKey: string | null };
+
+/**
+ * A take the transaction threw away, named in the log. There is nothing to undo
+ * here — the judge is about to be told their save failed, which is true — but an
+ * object nobody can find is worse than one a line in the log points at.
+ */
+function logOrphanedTake(storageKey: string | null, thrown: unknown) {
+  if (storageKey === null) {
+    return;
+  }
+
+  console.error("[storage:feedback-audio:orphan]", {
+    detail: thrown instanceof Error ? thrown.message : String(thrown),
+    storageKey,
+  });
 }
 
 /**

@@ -34,6 +34,7 @@ import { hasUnsavedChanges } from "@/lib/shared/discard-guard";
 import { useOptionalFormAction, useOptionalSubmit } from "@/lib/shared/forms";
 import { formatPrimaryAndSecondaryValue } from "@/lib/shared/format-primary-and-secondary-value";
 
+import type { JudgePanelActionData } from "./action.server";
 import { DisqualificationAction, DisqualifiedNotice } from "./disqualification";
 import { FeedbackRecorder } from "./feedback-recorder";
 import {
@@ -41,12 +42,16 @@ import {
   buildJudgeSheetSubmission,
   initialJudgeSheetValues,
   type JudgeSheetFormValues,
+  useJudgeSavePending,
 } from "./form-shared";
 import { ScoreInputField } from "./score-input-field";
 
 type JudgeScoreSheetProps = {
   account: InternalAccount;
-  fieldErrors?: Record<string, string>;
+  /** The last answer the route's action gave, which the sheet reads twice: for
+   * the fields the server refused, and to know its pass through the discard
+   * guard has been spent. */
+  actionData?: JudgePanelActionData;
   onClose: () => void;
   presentation: JudgePresentationRow;
 };
@@ -60,11 +65,12 @@ type JudgeScoreSheetProps = {
  */
 export function JudgeScoreSheet({
   account,
-  fieldErrors,
+  actionData,
   onClose,
   presentation,
 }: JudgeScoreSheetProps) {
   const { criteria } = presentation;
+  const fieldErrors = actionData?.fieldErrors;
   const form = useForm<JudgeSheetFormValues>({
     defaultValues: initialJudgeSheetValues(criteria),
     resolver: zodResolver(buildJudgeSheetFormSchema(criteria)),
@@ -80,7 +86,8 @@ export function JudgeScoreSheet({
     isAudioDirty: isFeedbackAudioFieldDirty(audio),
     isFormDirty: form.formState.isDirty,
   });
-  const blocker = useSheetDiscardGuard({ isDirty, isSaving });
+  const blocker = useSheetDiscardGuard({ actionData, isDirty, isSaving });
+  const isSavePending = useJudgeSavePending(presentation.presentationId);
   const disqualified = presentation.status === "descalificada";
 
   // A line the client accepted and the server did not — a criterion added to
@@ -191,7 +198,11 @@ export function JudgeScoreSheet({
             <Button type="button" variant="outline" onClick={onClose}>
               Volver
             </Button>
-            <Button type="submit" form="judge-sheet-form">
+            <Button
+              disabled={isSavePending}
+              type="submit"
+              form="judge-sheet-form"
+            >
               Guardar
             </Button>
           </div>
@@ -242,12 +253,16 @@ function SheetTotal({
  * because a form that closes because it was stored has nothing to lose.
  */
 function useSheetDiscardGuard({
+  actionData,
   isDirty,
   isSaving,
 }: {
+  actionData?: JudgePanelActionData;
   isDirty: boolean;
   isSaving: { current: boolean };
 }) {
+  useSpentPass({ actionData, isSaving });
+
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
       isDirty &&
@@ -276,4 +291,37 @@ function useSheetDiscardGuard({
   }, [isDirty, isSaving]);
 
   return blocker;
+}
+
+/**
+ * Hands the guard back once the post the pass was granted for has answered and
+ * left the judge looking at the same sheet — a day that closed, a take the
+ * policy refused, a disqualification settled from the footer. The pass is for
+ * one navigation, and without this it would outlive it: the sheet would keep
+ * its unsaved lines and let the next `Volver`, back button or closing tab throw
+ * them away without asking, which is the one thing the guard exists to stop.
+ *
+ * A save that did take the judge on is not one of those cases and needs no
+ * hand-back: it remounts the sheet on the next presentation, or closes it.
+ */
+function useSpentPass({
+  actionData,
+  isSaving,
+}: {
+  actionData?: JudgePanelActionData;
+  isSaving: { current: boolean };
+}) {
+  const answered = useRef<JudgePanelActionData | null>(null);
+
+  useEffect(() => {
+    if (!actionData || answered.current === actionData) {
+      return;
+    }
+
+    answered.current = actionData;
+
+    if (actionData.status === "error" || actionData.intent !== "save-score") {
+      isSaving.current = false;
+    }
+  }, [actionData, isSaving]);
 }
