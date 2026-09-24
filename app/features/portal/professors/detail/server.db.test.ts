@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
 import { db } from "@/db";
@@ -163,6 +164,77 @@ describe("handlePortalProfessorDetailAction", () => {
         documentNumber:
           "Ya existe un Profesor con ese documento en tu academia.",
       },
+    });
+  });
+
+  test("rejects the same number under another type, and names an archived match", async () => {
+    const owner = await createAcademySession({
+      email: "profesores.duplicate.number@example.com",
+      academyName: "Academia Dueña",
+    });
+    const [existing] = await db
+      .insert(professors)
+      .values({
+        academyId: owner.academyId,
+        firstName: "Ana",
+        lastName: "Perez",
+        documentType: "dni",
+        documentNumber: "30111222",
+      })
+      .returning();
+    const [professor] = await db
+      .insert(professors)
+      .values({
+        academyId: owner.academyId,
+        firstName: "Bea",
+        lastName: "Lopez",
+      })
+      .returning();
+
+    const editRequest = () =>
+      createPortalPostRequest(
+        `http://localhost/portal/profesores/${professor.id}`,
+        owner.cookie,
+        createFormData({
+          firstName: "Bea",
+          lastName: "Lopez",
+          documentType: "other",
+          documentNumber: "30111222",
+        }),
+      );
+
+    // The type differs, the number does not: one person, one row.
+    expect(
+      await handlePortalProfessorDetailAction({
+        request: editRequest(),
+        params: { professorId: professor.id },
+      }),
+    ).toMatchObject({
+      status: "error",
+      fieldErrors: {
+        documentNumber:
+          "Ya existe un Profesor con ese documento en tu academia.",
+      },
+      duplicateDocumentProfessorId: existing.id,
+    });
+
+    await db
+      .update(professors)
+      .set({ active: false })
+      .where(eq(professors.id, existing.id));
+
+    expect(
+      await handlePortalProfessorDetailAction({
+        request: editRequest(),
+        params: { professorId: professor.id },
+      }),
+    ).toMatchObject({
+      status: "error",
+      fieldErrors: {
+        documentNumber:
+          "Ya existe un Profesor archivado con ese documento en tu academia.",
+      },
+      duplicateDocumentProfessorId: existing.id,
     });
   });
 

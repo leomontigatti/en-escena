@@ -1027,6 +1027,57 @@ describe("`/administracion/bailarines` route", () => {
     });
   });
 
+  test("refuses the same number under another type from the panel", async () => {
+    const academy = await createAcademyUser({
+      email: "admin.documento.numero.academia@example.com",
+      academyName: "Academia Documento",
+      contactName: "Ana Documento",
+      phone: "1010-1010",
+    });
+    const existing = await createDancer({
+      academyId: academy.academy.id,
+      firstName: "Ana",
+      lastName: "Original",
+      birthDate: "2010-01-01",
+      documentType: "dni",
+      documentNumber: "30111222",
+    });
+    const dancer = await createDancer({
+      academyId: academy.academy.id,
+      firstName: "Bia",
+      lastName: "Nueva",
+      birthDate: "2011-02-02",
+    });
+    const { request } = await createSignedInRequest({
+      email: "admin.documento.numero@example.com",
+      role: "admin",
+      requestUrl: `http://localhost/administracion/bailarines/${dancer.id}?modo=editar`,
+    });
+
+    const result = await detailAction(
+      detailActionArgs(
+        createPostRequest(request.url, request.headers.get("cookie") ?? "", {
+          intent: "update-dancer",
+          firstName: "Bia",
+          lastName: "Nueva",
+          birthDate: "2011-02-02",
+          documentType: "other",
+          documentNumber: "30111222",
+        }),
+        dancer.id,
+      ),
+    );
+
+    expect(result).toMatchObject({
+      status: "error",
+      fieldErrors: {
+        documentNumber:
+          "Ya existe un Bailarín con ese documento en la academia.",
+      },
+      duplicateDocumentDancerId: existing.id,
+    });
+  });
+
   test("keeps birth date recalculation warning out of the inline edit form", async () => {
     const event = await createSavedEvent();
     const academy = await createAcademyUser({
