@@ -22,6 +22,8 @@ export async function handleCreateDancerAction({
     firstName: formValue(formData, "firstName"),
     lastName: formValue(formData, "lastName"),
     birthDate: formValue(formData, "birthDate"),
+    documentType: formValue(formData, "documentType"),
+    documentNumber: formValue(formData, "documentNumber"),
   };
   const parsed = buildCreateDancerSchema(
     await findActiveEventStartDateOnly(),
@@ -44,6 +46,9 @@ export async function handleCreateDancerAction({
       fieldErrors: result.fieldErrors,
       values: result.values,
       modalOpen: true,
+      ...(result.duplicateDocumentDancerId
+        ? { duplicateDocumentDancerId: result.duplicateDocumentDancerId }
+        : {}),
     };
   }
 
@@ -66,5 +71,7 @@ function getCreateDancerFieldErrors(error: z.ZodError<CreateDancerFormValues>) {
     firstName: fieldErrors.firstName?.[0],
     lastName: fieldErrors.lastName?.[0],
     birthDate: fieldErrors.birthDate?.[0],
+    documentType: fieldErrors.documentType?.[0],
+    documentNumber: fieldErrors.documentNumber?.[0],
   };
 }

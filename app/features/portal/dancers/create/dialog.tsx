@@ -5,6 +5,12 @@ import type { FetcherSubmitFunction } from "react-router";
 
 import { SubmitButton } from "@/components/shared/action-buttons";
 import { DateOnlyField } from "@/components/shared/date-only-field";
+import {
+  documentTypeEmptyLabel,
+  documentTypeOptions,
+} from "@/components/shared/document-type-options";
+import { useRosterDocumentConflictField } from "@/components/shared/roster-document-conflict";
+import { SelectField } from "@/components/shared/select-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { getBirthDatePickerBounds } from "@/lib/dancers/birth-date";
 import { Button } from "@/components/ui/button";
@@ -22,6 +28,7 @@ import { createValidatedReactRouterSubmitHandler } from "@/lib/shared/forms";
 import {
   buildCreateDancerSchema,
   createDancerIntent,
+  getCreateDancerDocumentConflict,
   emptyDancerValues,
   type CreateDancerActionData,
   type CreateDancerFormValues,
@@ -51,6 +58,13 @@ export function CreateDancerDialog({
   useEffect(() => {
     form.reset(actionData?.values ?? emptyDancerValues);
   }, [actionData?.values, form]);
+
+  const documentConflictDescription = useRosterDocumentConflictField({
+    actionData,
+    conflict: getCreateDancerDocumentConflict(actionData),
+    name: "documentNumber",
+    setError: form.setError,
+  });
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -91,6 +105,24 @@ export function CreateDancerDialog({
               id={birthDateId}
               label="Fecha de nacimiento"
               calendarBounds={getBirthDatePickerBounds(eventStartDate)}
+            />
+
+            <SelectField
+              allowEmpty
+              control={form.control}
+              emptyLabel={documentTypeEmptyLabel}
+              label="Tipo de documento"
+              name="documentType"
+              options={documentTypeOptions}
+              placeholder={documentTypeEmptyLabel}
+            />
+
+            <TextInputField
+              autoComplete="off"
+              control={form.control}
+              description={documentConflictDescription}
+              label="Número de documento"
+              name="documentNumber"
             />
           </FieldGroup>
 

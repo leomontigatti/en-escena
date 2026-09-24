@@ -46,18 +46,23 @@ export type CreateDancerInput = {
   firstName: string;
   lastName: string;
   birthDate: string;
+  // Optional, so the document rule acts from the first save without making a
+  // document required to load a dancer (PRD #1090).
+  documentType: string;
+  documentNumber: string;
 };
 
 export type UpdateDancerInput = CreateDancerInput & {
-  documentType: string;
-  documentNumber: string;
   documentFrontImageStorageKey: string;
   documentBackImageStorageKey: string;
 };
 
-type NormalizedUpdateDancerInput = DancerNameInput & {
+type NormalizedCreateDancerInput = DancerNameInput & {
   documentType: DancerDocumentType | null;
   documentNumber: string | null;
+};
+
+type NormalizedUpdateDancerInput = NormalizedCreateDancerInput & {
   documentFrontImageStorageKey: string | null;
   documentBackImageStorageKey: string | null;
 };
@@ -72,6 +77,9 @@ export type CreateDancerResult =
       error: string;
       fieldErrors: Partial<Record<keyof CreateDancerInput, string>>;
       values: CreateDancerInput;
+      // The dancer already holding the document number, so the form can link
+      // to them when the match is an archived one.
+      duplicateDocumentDancerId?: string;
     };
 
 export type UpdateDancerField = keyof UpdateDancerInput;
@@ -153,24 +161,50 @@ export async function createDancerForAcademy(
   academyId: string,
   input: CreateDancerInput,
 ): Promise<CreateDancerResult> {
-  const validation = validateCreateDancerInput(input);
+  const validation = await validateCreateDancerInput(academyId, input);
 
   if (!validation.ok) {
     return validation;
   }
 
-  const [dancer] = await db
-    .insert(dancers)
-    .values({
-      academyId,
-      firstName: validation.input.firstName,
-      lastName: validation.input.lastName,
-      birthDate: validation.input.birthDate,
-      active: true,
-    })
-    .returning();
+  const { documentType, documentNumber } = validation.input;
+  // The index can still refuse the number between the pre-check and the
+  // insert.
+  const guarded = await writeDancerGuardingDocument({
+    academyId,
+    documentNumber,
+    scope: "portal",
+    write: async () => {
+      const [dancer] = await db
+        .insert(dancers)
+        .values({
+          academyId,
+          firstName: validation.input.firstName,
+          lastName: validation.input.lastName,
+          birthDate: validation.input.birthDate,
+          documentType,
+          documentNumber,
+          active: true,
+        })
+        .returning();
 
-  return { ok: true, dancer };
+      return dancer;
+    },
+  });
+
+  if (!guarded.ok) {
+    return {
+      ok: false,
+      error: "Revisá los datos del Bailarín.",
+      fieldErrors: { documentNumber: guarded.conflict.message },
+      values: toCreateDancerValues(input),
+      ...(guarded.conflict.dancerId
+        ? { duplicateDocumentDancerId: guarded.conflict.dancerId }
+        : {}),
+    };
+  }
+
+  return { ok: true, dancer: guarded.result };
 }
 
 export async function findDancerForAcademy(
@@ -280,24 +314,59 @@ export async function updateDancerForAcademy(
   };
 }
 
-function validateCreateDancerInput(
+async function validateCreateDancerInput(
+  academyId: string,
   input: CreateDancerInput,
-):
-  | { ok: true; input: CreateDancerInput }
-  | Extract<CreateDancerResult, { ok: false }> {
+): Promise<
+  | { ok: true; input: NormalizedCreateDancerInput }
+  | Extract<CreateDancerResult, { ok: false }>
+> {
   const normalizedValues = normalizePortalDancerValues(input);
-  const values = {
-    firstName: input.firstName.trim(),
-    lastName: input.lastName.trim(),
-    birthDate: input.birthDate.trim(),
+  const values = toCreateDancerValues(input);
+  const fieldErrors: Partial<Record<keyof CreateDancerInput, string>> = {
+    ...normalizedValues.fieldErrors,
   };
+  const document = normalizeDancerDocumentPair(
+    values.documentType,
+    values.documentNumber,
+  );
 
-  if (hasFieldErrors(normalizedValues.fieldErrors)) {
+  if (!document.ok) {
     return {
       ok: false,
       error: "Revisá los datos del Bailarín.",
-      fieldErrors: normalizedValues.fieldErrors,
+      fieldErrors: { ...fieldErrors, ...document.fieldErrors },
       values,
+    };
+  }
+
+  if (hasFieldErrors(fieldErrors)) {
+    return {
+      ok: false,
+      error: "Revisá los datos del Bailarín.",
+      fieldErrors,
+      values,
+    };
+  }
+
+  const documentConflict =
+    document.documentNumber === null
+      ? null
+      : await findDancerDocumentConflict({
+          academyId,
+          documentNumber: document.documentNumber,
+          scope: "portal",
+        });
+
+  if (documentConflict) {
+    return {
+      ok: false,
+      error: "Revisá los datos del Bailarín.",
+      fieldErrors: { documentNumber: documentConflict.message },
+      values,
+      ...(documentConflict.dancerId
+        ? { duplicateDocumentDancerId: documentConflict.dancerId }
+        : {}),
     };
   }
 
@@ -307,7 +376,19 @@ function validateCreateDancerInput(
       firstName: normalizedValues.firstName,
       lastName: normalizedValues.lastName,
       birthDate: normalizedValues.birthDate,
+      documentType: document.documentType,
+      documentNumber: document.documentNumber,
     },
+  };
+}
+
+function toCreateDancerValues(input: CreateDancerInput): CreateDancerInput {
+  return {
+    firstName: input.firstName.trim(),
+    lastName: input.lastName.trim(),
+    birthDate: input.birthDate.trim(),
+    documentType: input.documentType.trim(),
+    documentNumber: input.documentNumber,
   };
 }
 

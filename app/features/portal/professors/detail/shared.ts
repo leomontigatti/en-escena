@@ -8,6 +8,7 @@ import {
   getRosterPersonArchiveAvailability,
   toRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.shared";
+import { refineDocumentPair } from "@/lib/roster/document-pair-schema";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 
 export const updateProfessorIntent = "update-professor";
@@ -23,27 +24,7 @@ export const professorSchema = z
     documentType: z.string().trim(),
     documentNumber: z.string().trim(),
   })
-  .superRefine((values, context) => {
-    if (!values.documentType && !values.documentNumber) {
-      return;
-    }
-
-    if (!values.documentType) {
-      context.addIssue({
-        code: "custom",
-        message: "Seleccioná el tipo de documento.",
-        path: ["documentType"],
-      });
-    }
-
-    if (!values.documentNumber) {
-      context.addIssue({
-        code: "custom",
-        message: "Ingresá el número de documento.",
-        path: ["documentNumber"],
-      });
-    }
-  });
+  .superRefine(refineDocumentPair);
 
 export type ProfessorFormValues = z.infer<typeof professorSchema>;
 export type PortalProfessorFieldErrors = Partial<

@@ -150,8 +150,12 @@ const dancerDocumentNumberUniqueIndex = "dancer_academy_document_number_unique";
 export type DancerDocumentScope = "portal" | "admin";
 
 export type DancerDocumentConflict = {
-  /** The dancer already holding the number, so the form can link to them. */
-  dancerId: string;
+  /**
+   * The dancer already holding the number, so the form can link to them.
+   * Absent only when the index refused a write whose holder the follow-up
+   * read could not name.
+   */
+  dancerId?: string;
   message: string;
 };
 
@@ -161,14 +165,15 @@ export type DancerDocumentConflict = {
  */
 async function findDuplicateDancerDocument(input: {
   academyId: string;
-  dancerId: string;
+  /** Absent while creating: there is no row to exclude yet. */
+  dancerId?: string;
   documentNumber: string;
 }) {
   return await db.query.dancers.findFirst({
     columns: { id: true, active: true },
     where: and(
       eq(dancers.academyId, input.academyId),
-      ne(dancers.id, input.dancerId),
+      input.dancerId ? ne(dancers.id, input.dancerId) : undefined,
       eq(dancers.documentNumber, input.documentNumber),
     ),
   });
@@ -176,7 +181,7 @@ async function findDuplicateDancerDocument(input: {
 
 export async function findDancerDocumentConflict(input: {
   academyId: string;
-  dancerId: string;
+  dancerId?: string;
   documentNumber: string;
   scope: DancerDocumentScope;
 }): Promise<DancerDocumentConflict | null> {
@@ -202,7 +207,7 @@ export async function findDancerDocumentConflict(input: {
  */
 export async function writeDancerGuardingDocument<T>(input: {
   academyId: string;
-  dancerId: string;
+  dancerId?: string;
   documentNumber: string | null;
   scope: DancerDocumentScope;
   write: () => Promise<T>;

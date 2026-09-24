@@ -18,6 +18,7 @@ import {
   getRosterPersonArchiveAvailability,
   toRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.shared";
+import { refineDocumentPair } from "@/lib/roster/document-pair-schema";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import {
   withDancerBirthDateScheduleMoveFeedback,
@@ -45,27 +46,7 @@ export function buildPortalDancerSchema(eventStartDate: string | null) {
       documentFrontImageStorageKey: z.string().trim(),
       documentBackImageStorageKey: z.string().trim(),
     })
-    .superRefine((values, context) => {
-      if (!values.documentType && !values.documentNumber) {
-        return;
-      }
-
-      if (!values.documentType) {
-        context.addIssue({
-          code: "custom",
-          message: "Seleccioná el tipo de documento.",
-          path: ["documentType"],
-        });
-      }
-
-      if (!values.documentNumber) {
-        context.addIssue({
-          code: "custom",
-          message: "Ingresá el número de documento.",
-          path: ["documentNumber"],
-        });
-      }
-    });
+    .superRefine(refineDocumentPair);
 }
 
 export type PortalDancerDetailLoaderData = {

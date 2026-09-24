@@ -134,8 +134,12 @@ const professorDocumentNumberUniqueIndex =
 export type ProfessorDocumentScope = "portal" | "admin";
 
 export type ProfessorDocumentConflict = {
-  /** The professor already holding the number, so the form can link to them. */
-  professorId: string;
+  /**
+   * The professor already holding the number, so the form can link to them.
+   * Absent only when the index refused a write whose holder the follow-up
+   * read could not name.
+   */
+  professorId?: string;
   message: string;
 };
 
@@ -146,14 +150,15 @@ export type ProfessorDocumentConflict = {
  */
 async function findDuplicateProfessorDocument(input: {
   academyId: string;
-  professorId: string;
+  /** Absent while creating: there is no row to exclude yet. */
+  professorId?: string;
   documentNumber: string;
 }) {
   return await db.query.professors.findFirst({
     columns: { id: true, active: true },
     where: and(
       eq(professors.academyId, input.academyId),
-      ne(professors.id, input.professorId),
+      input.professorId ? ne(professors.id, input.professorId) : undefined,
       eq(professors.documentNumber, input.documentNumber),
     ),
   });
@@ -161,7 +166,7 @@ async function findDuplicateProfessorDocument(input: {
 
 export async function findProfessorDocumentConflict(input: {
   academyId: string;
-  professorId: string;
+  professorId?: string;
   documentNumber: string;
   scope: ProfessorDocumentScope;
 }): Promise<ProfessorDocumentConflict | null> {
@@ -187,7 +192,7 @@ export async function findProfessorDocumentConflict(input: {
  */
 export async function writeProfessorGuardingDocument<T>(input: {
   academyId: string;
-  professorId: string;
+  professorId?: string;
   documentNumber: string | null;
   scope: ProfessorDocumentScope;
   write: () => Promise<T>;
