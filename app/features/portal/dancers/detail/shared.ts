@@ -1,4 +1,12 @@
 import { z } from "zod";
+import {
+  buildDancerBirthDateField,
+  rosterDocumentImageFields,
+  rosterDocumentPairFields,
+  rosterPersonNameFields,
+} from "@/lib/roster/roster-identity-fields";
+
+import type { RosterDocumentConflict } from "@/components/shared/roster-document-conflict";
 
 import type {
   findDancerForAcademy,
@@ -10,13 +18,13 @@ import type {
   DancerVerificationStatus,
 } from "@/lib/dancers/verification";
 import type { RecategorisedChoreography } from "@/lib/choreographies/recategorisation-report";
-import { buildBirthDateRefinement } from "@/lib/dancers/birth-date";
 import {
   getArchiveKeepsRosterMessage,
   getRosterPersonArchiveAvailability,
   toRosterPersonStatus,
 } from "@/lib/roster/roster-person-status.shared";
-import { requiredFieldMessage } from "@/lib/shared/forms";
+import { refineDocumentPair } from "@/lib/roster/document-pair-schema";
+import type { RosterNameWarning } from "@/lib/roster/roster-name-duplicates";
 import {
   withDancerBirthDateScheduleMoveFeedback,
   type DancerBirthDateScheduleMove,
@@ -31,39 +39,12 @@ export const portalDancerInvalidValuesMessage =
 export function buildPortalDancerSchema(eventStartDate: string | null) {
   return z
     .object({
-      firstName: z.string().trim().min(1, requiredFieldMessage),
-      lastName: z.string().trim().min(1, requiredFieldMessage),
-      birthDate: z
-        .string()
-        .trim()
-        .min(1, requiredFieldMessage)
-        .superRefine(buildBirthDateRefinement(eventStartDate)),
-      documentType: z.string().trim(),
-      documentNumber: z.string().trim(),
-      documentFrontImageStorageKey: z.string().trim(),
-      documentBackImageStorageKey: z.string().trim(),
+      ...rosterPersonNameFields,
+      birthDate: buildDancerBirthDateField(eventStartDate),
+      ...rosterDocumentPairFields,
+      ...rosterDocumentImageFields,
     })
-    .superRefine((values, context) => {
-      if (!values.documentType && !values.documentNumber) {
-        return;
-      }
-
-      if (!values.documentType) {
-        context.addIssue({
-          code: "custom",
-          message: "Seleccioná el tipo de documento.",
-          path: ["documentType"],
-        });
-      }
-
-      if (!values.documentNumber) {
-        context.addIssue({
-          code: "custom",
-          message: "Ingresá el número de documento.",
-          path: ["documentNumber"],
-        });
-      }
-    });
+    .superRefine(refineDocumentPair);
 }
 
 export type PortalDancerDetailLoaderData = {
@@ -89,6 +70,16 @@ export type PortalDancerDetailActionData =
       // Absent when the failure was not a rejected edit: a refused archive has
       // no form to repopulate.
       values?: PortalDancerFormValues;
+      // The dancer already holding the document number, so the form can link to
+      // them when the match is an archived one.
+      duplicateDocumentDancerId?: string;
+    }
+  | {
+      // Another dancer of the academy carries this name and birth date; the
+      // form shows who and re-submits with their ids.
+      status: "warning";
+      warning: RosterNameWarning;
+      values: PortalDancerFormValues;
     }
   | {
       status: "success";
@@ -231,8 +222,12 @@ export function getPortalDancerFormValues(input: {
   dancer: PortalDancerDetailLoaderData["dancer"];
 }): PortalDancerFormValues {
   const { actionData, dancer } = input;
+  // A warning keeps the form as it was submitted and asks the academy to
+  // confirm, so its values are shown back exactly as an error's are.
   const submittedValues =
-    actionData?.status === "error" ? actionData.values : undefined;
+    actionData?.status === "error" || actionData?.status === "warning"
+      ? actionData.values
+      : undefined;
 
   return (
     submittedValues ?? {
@@ -263,6 +258,26 @@ export function getClientDocumentImageValidationMessage(formData: FormData) {
   );
 
   return backError || null;
+}
+
+/**
+ * The document refusal the portal dancer action can answer with, read for the
+ * field it belongs to.
+ */
+export function getPortalDancerDocumentConflict(
+  actionData?: PortalDancerDetailActionData,
+): RosterDocumentConflict {
+  if (actionData?.status !== "error") {
+    return {};
+  }
+
+  const matchId = actionData.duplicateDocumentDancerId;
+
+  return {
+    matchHref: matchId ? `/portal/bailarines/${matchId}` : undefined,
+    matchLabel: "Ver la ficha del bailarín con ese documento",
+    message: actionData.fieldErrors.documentNumber,
+  };
 }
 
 export function getGeneralActionError(

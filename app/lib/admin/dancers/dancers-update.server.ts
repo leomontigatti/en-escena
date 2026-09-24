@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import { dancers } from "@/db/schema";
+import { findDancerNameWarning } from "@/lib/roster/roster-name-duplicates.server";
 import {
   findDancerForMutation,
   toDancerSnapshot,
@@ -18,12 +19,14 @@ import type {
   DancerUpdateInput,
 } from "@/lib/admin/dancers/dancers.server.types";
 import {
-  findDuplicateDancerDocument,
+  findDancerDocumentConflict,
+  writeDancerGuardingDocument,
   normalizeDancerDocumentPair,
   normalizeDancerValues,
 } from "@/lib/dancers/dancer-records.server";
 
 export async function updateAdministrativeDancer(input: {
+  acknowledgedDuplicateIds?: readonly string[];
   dancerId: string;
   selectedEventId: string | null;
   values: DancerUpdateInput;
@@ -60,28 +63,39 @@ export async function updateAdministrativeDancer(input: {
     };
   }
 
-  if (
-    normalizedDocument.documentType !== null &&
-    normalizedDocument.documentNumber !== null
-  ) {
-    const duplicateDancer = await findDuplicateDancerDocument({
-      academyId: existingDancer.academyId,
-      dancerId: existingDancer.id,
-      documentType: normalizedDocument.documentType,
-      documentNumber: normalizedDocument.documentNumber,
-    });
+  const documentConflict =
+    normalizedDocument.documentNumber === null
+      ? null
+      : await findDancerDocumentConflict({
+          academyId: existingDancer.academyId,
+          dancerId: existingDancer.id,
+          documentNumber: normalizedDocument.documentNumber,
+          scope: "admin",
+        });
 
-    if (duplicateDancer) {
-      return {
-        ok: false,
-        message: "Revisá los campos marcados.",
-        fieldErrors: {
-          documentNumber:
-            "Ya existe un Bailarín con ese documento en la academia.",
-        },
-        values,
-      };
-    }
+  if (documentConflict) {
+    return {
+      ok: false,
+      message: "Revisá los campos marcados.",
+      fieldErrors: { documentNumber: documentConflict.message },
+      values,
+      duplicateDocumentDancerId: documentConflict.dancerId,
+    };
+  }
+
+  // After the document pre-check, so a refusal always wins over a warning.
+  const nameWarning = await findDancerNameWarning({
+    academyId: existingDancer.academyId,
+    acknowledgedDuplicateIds: input.acknowledgedDuplicateIds ?? [],
+    birthDate: normalizedValues.birthDate,
+    dancerId: existingDancer.id,
+    firstName: normalizedValues.firstName,
+    lastName: normalizedValues.lastName,
+    scope: "admin",
+  });
+
+  if (nameWarning) {
+    return { ok: false, warning: nameWarning };
   }
 
   const birthDateChanged =
@@ -97,36 +111,57 @@ export async function updateAdministrativeDancer(input: {
   // The dancer update and the recalculation share one transaction, so a
   // correction that leaves a choreography without a category rolls the dancer
   // row back as well.
-  const write = await runDancerWriteWithBirthDateCorrection(async (tx) => {
-    const [savedDancer] = await tx
-      .update(dancers)
-      .set({
-        firstName: normalizedValues.firstName,
-        lastName: normalizedValues.lastName,
-        birthDate: normalizedValues.birthDate,
-        documentType: normalizedDocument.documentType,
-        documentNumber: normalizedDocument.documentNumber,
-        documentFrontImageStorageKey:
-          existingDancer.documentFrontImageStorageKey,
-        documentBackImageStorageKey: existingDancer.documentBackImageStorageKey,
-        identityVerifiedAt: existingDancer.identityVerifiedAt
-          ? null
-          : undefined,
-        updatedAt: new Date(),
-      })
-      .where(eq(dancers.id, existingDancer.id))
-      .returning();
+  // The index can still refuse the number between the pre-check and the write.
+  const guarded = await writeDancerGuardingDocument({
+    academyId: existingDancer.academyId,
+    dancerId: existingDancer.id,
+    documentNumber: normalizedDocument.documentNumber,
+    scope: "admin",
+    write: () =>
+      runDancerWriteWithBirthDateCorrection(async (tx) => {
+        const [savedDancer] = await tx
+          .update(dancers)
+          .set({
+            firstName: normalizedValues.firstName,
+            lastName: normalizedValues.lastName,
+            birthDate: normalizedValues.birthDate,
+            documentType: normalizedDocument.documentType,
+            documentNumber: normalizedDocument.documentNumber,
+            documentFrontImageStorageKey:
+              existingDancer.documentFrontImageStorageKey,
+            documentBackImageStorageKey:
+              existingDancer.documentBackImageStorageKey,
+            identityVerifiedAt: existingDancer.identityVerifiedAt
+              ? null
+              : undefined,
+            updatedAt: new Date(),
+          })
+          .where(eq(dancers.id, existingDancer.id))
+          .returning();
 
-    const correction = birthDateChanged
-      ? await applyDancerBirthDateCorrection({
-          dancerId: existingDancer.id,
-          executor: tx,
-          eventBasesByEventId: linkedChoreographyEventBases,
-        })
-      : emptyDancerBirthDateCorrectionReport;
+        const correction = birthDateChanged
+          ? await applyDancerBirthDateCorrection({
+              dancerId: existingDancer.id,
+              executor: tx,
+              eventBasesByEventId: linkedChoreographyEventBases,
+            })
+          : emptyDancerBirthDateCorrectionReport;
 
-    return { savedDancer, ...correction };
+        return { savedDancer, ...correction };
+      }),
   });
+
+  if (!guarded.ok) {
+    return {
+      ok: false,
+      message: "Revisá los campos marcados.",
+      fieldErrors: { documentNumber: guarded.conflict.message },
+      values,
+      duplicateDocumentDancerId: guarded.conflict.dancerId,
+    };
+  }
+
+  const write = guarded.result;
 
   if (!write.ok) {
     return {

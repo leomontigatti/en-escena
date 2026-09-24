@@ -31,10 +31,27 @@ const domainRuleRequirements = [
   "`Bailarín` document type and document number are treated as a pair",
   "both may be left empty",
   "If one is filled in and the other is empty, the record is invalid and is not saved",
-  "When the document pair is complete, its uniqueness is enforced within the same academy",
+  "The document **number** alone is unique among the professors of one academy",
+  "The document **number** alone is unique among the dancers of one academy",
+  "may hold the same number: the rule never crosses the two tables",
   "If any document field or image is missing, the dancer verification status is incompleto",
   "A partial document pair is not a saved state",
   "it is a form validation error",
+  "## Duplicate warnings",
+  "the same name **and** the same birth date is a **warning**",
+  "whose name already exists there is a **warning**",
+  "the same name **and** the same cast",
+  "accent-sensitive",
+];
+
+const warningMechanismRequirements = [
+  "acknowledgedDuplicateIds",
+  '{ status: "warning", warning: { kind, matches: [{ id, ... }] } }',
+  "Continuar de todos modos",
+  "re-runs the check",
+  "**Nothing is stored** about an acknowledgement",
+  "**A refusal always wins.**",
+  "accent-sensitive",
 ];
 
 const fastDbIsolationAdrRequirements = [
@@ -342,6 +359,14 @@ describe("domain documentation", () => {
     const rules = await readFile("docs/domain/choreographies.md", "utf8");
 
     for (const requirement of domainRuleRequirements) {
+      expect(rules).toContain(requirement);
+    }
+  });
+
+  test("describes the shared duplicate warning mechanism", async () => {
+    const rules = await readFile("docs/agents/form-feedback.md", "utf8");
+
+    for (const requirement of warningMechanismRequirements) {
       expect(rules).toContain(requirement);
     }
   });

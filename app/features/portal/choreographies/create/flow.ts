@@ -10,6 +10,7 @@ import {
 import { getNoCompatibleCategoryRegistrationMessage } from "@/lib/choreographies/choreography-messages";
 import type { ChoreographyRegistrationOperationResult } from "@/lib/choreographies/registration-resolution.server";
 import { isEveryScheduleCapacityOptionFull } from "@/lib/choreographies/schedule-capacity-options";
+import { acknowledgedDuplicateIdsField } from "@/lib/shared/duplicate-warning";
 import { requiredFieldMessage } from "@/lib/shared/forms";
 import {
   isUnexpectedActionError,
@@ -215,7 +216,45 @@ export function getSubmissionError(
     return data.message;
   }
 
-  return data?.intent === CREATE_CHOREOGRAPHY_INTENT ? data.result.error : null;
+  if (data?.intent !== CREATE_CHOREOGRAPHY_INTENT) {
+    return null;
+  }
+
+  // The duplicate refusal is the one the academy is allowed to overrule, so it
+  // is read as a warning instead — an error notice next to a continue action
+  // would say the opposite of what the action does.
+  return getDuplicateWarning(data.result) ? null : data.result.error;
+}
+
+export type CreateChoreographyDuplicateWarning = {
+  matchIds: string[];
+  message: string;
+};
+
+export function getSubmissionWarning(
+  data: CreateActionData | UnexpectedActionError | undefined,
+): CreateChoreographyDuplicateWarning | null {
+  if (
+    isUnexpectedActionError(data) ||
+    data?.intent !== CREATE_CHOREOGRAPHY_INTENT
+  ) {
+    return null;
+  }
+
+  const warning = getDuplicateWarning(data.result);
+
+  if (!warning) {
+    return null;
+  }
+
+  return {
+    matchIds: warning.matches.map((match) => match.id),
+    message: data.result.error,
+  };
+}
+
+function getDuplicateWarning(result: CreateActionData["result"]) {
+  return result.code === "duplicate-choreography" ? result.warning : null;
 }
 
 export function formatGroupTypeLabel(
@@ -255,6 +294,7 @@ export function buildResolveChoreographyFormData(input: {
 }
 
 export function buildCreateChoreographyFormData(input: {
+  acknowledgedDuplicateIds?: string[];
   eventId: string;
   name: string;
   modalityId: string;
@@ -279,6 +319,11 @@ export function buildCreateChoreographyFormData(input: {
   appendFormStringArray(formData, "professorIds", input.professorIds);
   setOptionalFormString(formData, "experienceLevelId", input.experienceLevelId);
   formData.set("scheduleCapacityId", input.scheduleCapacityId);
+  appendFormStringArray(
+    formData,
+    acknowledgedDuplicateIdsField,
+    input.acknowledgedDuplicateIds ?? [],
+  );
 
   return formData;
 }

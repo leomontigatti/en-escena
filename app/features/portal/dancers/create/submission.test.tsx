@@ -61,4 +61,111 @@ describe("dancer create submissions", () => {
 
     expect(document.querySelector('[role="dialog"]')).toBeNull();
   });
+
+  test("lands the duplicate-document refusal on the field and links to the match", async () => {
+    portalSubmissionRouterMocks.useFetcher.mockReturnValue({
+      data: undefined,
+      state: "idle",
+      submit: vi.fn(),
+    });
+    portalSubmissionRouterMocks.useNavigation.mockReturnValue({
+      formData: undefined,
+      state: "idle",
+    });
+    portalSubmissionRouterMocks.useSubmit.mockReturnValue(vi.fn());
+
+    await renderPortalSubmission(
+      <MemoryRouter initialEntries={["/portal/bailarines"]}>
+        <PortalDancersListRouteView
+          loaderData={{
+            activeEventStartDate: "2026-09-25",
+            dancers: [],
+            documentDownloadUrls: eventDocumentDownloadUrls(),
+          }}
+          actionData={{
+            status: "error",
+            fieldErrors: {
+              documentNumber:
+                "Ya existe un Bailarín archivado con ese documento en tu academia.",
+            },
+            values: {
+              firstName: "Ana",
+              lastName: "Paz",
+              birthDate: "2014-01-01",
+              documentType: "dni",
+              documentNumber: "30111222",
+            },
+            modalOpen: true,
+            duplicateDocumentDancerId: "dancer_archived_1",
+          }}
+        />
+      </MemoryRouter>,
+    );
+
+    const documentField = document.querySelector<HTMLInputElement>(
+      'input[name="documentNumber"]',
+    );
+
+    expect(documentField?.value).toBe("30111222");
+    expect(documentField?.getAttribute("aria-invalid")).toBe("true");
+    expect(document.body.textContent).toContain(
+      "Ya existe un Bailarín archivado con ese documento en tu academia.",
+    );
+    expect(
+      document.querySelector<HTMLAnchorElement>(
+        'a[href="/portal/bailarines/dancer_archived_1"]',
+      )?.textContent,
+    ).toBe("Ver la ficha del bailarín con ese documento");
+  });
+  test("shows the same-name warning with a continue submit carrying the ids", async () => {
+    portalSubmissionRouterMocks.useFetcher.mockReturnValue({
+      data: undefined,
+      state: "idle",
+      submit: vi.fn(),
+    });
+    portalSubmissionRouterMocks.useNavigation.mockReturnValue({
+      formData: undefined,
+      state: "idle",
+    });
+    portalSubmissionRouterMocks.useSubmit.mockReturnValue(vi.fn());
+
+    await renderPortalSubmission(
+      <MemoryRouter initialEntries={["/portal/bailarines"]}>
+        <PortalDancersListRouteView
+          loaderData={{
+            activeEventStartDate: "2026-09-25",
+            dancers: [],
+            documentDownloadUrls: eventDocumentDownloadUrls(),
+          }}
+          actionData={{
+            status: "warning",
+            warning: {
+              kind: "dancer-name",
+              matches: [{ id: "dancer_twin_1", label: "Ana Paz" }],
+              scope: "portal",
+            },
+            values: {
+              firstName: "Ana",
+              lastName: "Paz",
+              birthDate: "2014-01-01",
+              documentType: "",
+              documentNumber: "",
+            },
+            modalOpen: true,
+          }}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(document.body.textContent).toContain(
+      "Ya existe un Bailarín con el mismo nombre y fecha de nacimiento en tu academia: Ana Paz. ¿Es la misma persona?",
+    );
+    expect(
+      document.querySelector<HTMLInputElement>(
+        'input[name="acknowledgedDuplicateIds"]',
+      )?.value,
+    ).toBe("dancer_twin_1");
+    expect(document.body.textContent).toContain("Continuar de todos modos");
+    expect(document.body.textContent).not.toContain("Guardar cambios");
+  });
 });

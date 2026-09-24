@@ -36,6 +36,9 @@ export function DancerDetailRouteView({
   loaderData,
 }: DancerDetailRouteViewProps) {
   const errorData = actionData?.status === "error" ? actionData : undefined;
+  // A warning keeps the edit open with the submitted values and asks the
+  // administrator to confirm.
+  const nameWarning = actionData?.status === "warning" ? actionData : undefined;
   const successData = actionData?.status === "success" ? actionData : undefined;
 
   useServerActionToast(errorData, {
@@ -48,8 +51,11 @@ export function DancerDetailRouteView({
   const dancer = loaderData.dancer;
   const submittedEditValues = getSubmittedDancerUpdateValues(errorData);
   const editForm = useDancerEditForm({
+    actionData: errorData,
     eventStartDate: loaderData.activeEventStartDate,
-    values: getDancerEditValues({ actionData: errorData, dancer }),
+    values:
+      nameWarning?.values ??
+      getDancerEditValues({ actionData: errorData, dancer }),
   });
   const [dialogIntent, setDialogIntent] = useState<DancerDialogIntent | null>(
     getInitialDialogIntent({
@@ -126,7 +132,8 @@ export function DancerDetailRouteView({
           editForm={editForm}
           editFormId={editFormId}
           editHref={loaderData.editHref}
-          isEditing={viewState.isEditing}
+          isEditing={viewState.isEditing || Boolean(nameWarning)}
+          nameWarning={nameWarning?.warning}
           onConfirmSave={() => {
             setDialogIntent("save");
           }}

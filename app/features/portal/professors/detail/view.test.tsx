@@ -47,6 +47,60 @@ describe("PortalProfessorDetailRouteView", () => {
     expect(markup).not.toContain("Activo");
   });
 
+  // The document refusal is the exception: it lands on the field through an
+  // effect, which server rendering never runs, so only the link to the match
+  // shows up in this markup.
+  test("links to the professor already holding the document", () => {
+    const markup = renderProfessorDetail({
+      actionData: {
+        status: "error",
+        message: "Revisá los datos del Profesor.",
+        fieldErrors: {
+          documentNumber:
+            "Ya existe un Profesor archivado con ese documento en tu academia.",
+        },
+        values: {
+          firstName: "Ana",
+          lastName: "Perez",
+          documentType: "dni",
+          documentNumber: "30111222",
+        },
+        duplicateDocumentProfessorId: "professor_archived_1",
+      },
+    });
+
+    expect(markup).toContain('href="/portal/profesores/professor_archived_1"');
+    expect(markup).toContain("Ver la ficha del profesor con ese documento");
+  });
+
+  test("shows the same-name warning with the continue action and the ids", () => {
+    const markup = renderProfessorDetail({
+      actionData: {
+        status: "warning",
+        warning: {
+          kind: "professor-name",
+          matches: [{ id: "professor_twin_1", label: "Ana Paz" }],
+          scope: "portal",
+        },
+        values: {
+          firstName: "Ana",
+          lastName: "Paz",
+          documentType: "",
+          documentNumber: "",
+        },
+      },
+    });
+
+    expect(markup).toContain(
+      "Ya existe un Profesor con el mismo nombre en tu academia: Ana Paz. ¿Es la misma persona?",
+    );
+    expect(markup).toContain(
+      'name="acknowledgedDuplicateIds" value="professor_twin_1"',
+    );
+    expect(markup).toContain("Continuar de todos modos");
+    expect(markup).toContain('name="firstName" value="Ana"');
+  });
+
   test("does not render server field errors and preserves submitted values", () => {
     const markup = renderProfessorDetail({
       actionData: {
@@ -54,7 +108,6 @@ describe("PortalProfessorDetailRouteView", () => {
         message: "Revisá los campos marcados.",
         fieldErrors: {
           documentType: "Seleccioná el tipo de documento.",
-          documentNumber: "Ingresá el número de documento.",
         },
         values: {
           firstName: "Ana",
@@ -66,7 +119,7 @@ describe("PortalProfessorDetailRouteView", () => {
     });
 
     expect(markup).not.toContain("Seleccioná el tipo de documento.");
-    expect(markup).not.toContain("Ingresá el número de documento.");
+    expect(markup).not.toContain("Ver la ficha del profesor con ese documento");
     expect(markup).toContain('name="documentNumber" value="1234"');
     expect(markup).toContain('name="documentType" value=""');
   });

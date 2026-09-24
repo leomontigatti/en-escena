@@ -90,12 +90,11 @@ export function PortalDancersListRouteView({
   actionData?: ActionData;
 }) {
   const createDancerFetcher = useFetcher<ActionData>();
+  // A warning keeps the dialog open exactly as an error does: the values stay,
+  // and the academy answers the question the server asked.
   const actionData =
-    createDancerFetcher.data?.status === "error"
-      ? createDancerFetcher.data
-      : providedActionData?.status === "error"
-        ? providedActionData
-        : undefined;
+    keepsCreateDancerDialogOpen(createDancerFetcher.data) ??
+    keepsCreateDancerDialogOpen(providedActionData);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(
     actionData?.modalOpen === true,
   );
@@ -117,7 +116,7 @@ export function PortalDancersListRouteView({
     if (
       previousState !== "idle" &&
       createDancerFetcher.state === "idle" &&
-      createDancerFetcher.data?.status !== "error"
+      !keepsCreateDancerDialogOpen(createDancerFetcher.data)
     ) {
       setIsCreateDialogOpen(false);
       setDismissServerState(true);
@@ -312,4 +311,10 @@ function formatDocument(dancer: DancerRow) {
     default:
       return `Otro ${dancer.documentNumber}`;
   }
+}
+
+function keepsCreateDancerDialogOpen(actionData?: ActionData) {
+  return actionData?.status === "error" || actionData?.status === "warning"
+    ? actionData
+    : undefined;
 }

@@ -167,6 +167,8 @@ describe("PortalDancersListRouteView", () => {
           firstName: "",
           lastName: "López",
           birthDate: "2999-01-01",
+          documentType: "",
+          documentNumber: "",
         },
         modalOpen: true,
       },

@@ -6,6 +6,7 @@ import { requiredFieldMessage } from "@/lib/shared/forms";
 
 export const academyDetailFormId = "administracion-academia-detalle-form";
 export const updateAcademyIntent = "update-academy";
+export const deleteAcademyIntent = "delete-academy";
 export const academySavedMessage = "Academia guardada.";
 
 export const academyDetailSchema = z.object({
@@ -34,11 +35,18 @@ export type AcademyDetailFieldErrors = Partial<
 export type AcademyDetailActionData =
   | {
       status: "success";
+      intent: typeof updateAcademyIntent;
       message: string;
     }
   | {
       status: "error";
+      intent: typeof updateAcademyIntent;
       message: string;
       fieldErrors: AcademyDetailFieldErrors;
       values: AcademyDetailFormValues;
+    }
+  | {
+      status: "error";
+      intent: typeof deleteAcademyIntent;
+      message: string;
     };

@@ -1,5 +1,6 @@
 import type { z } from "zod";
 
+import { readAcknowledgedDuplicateIds } from "@/lib/shared/duplicate-warning";
 import { formatUploadRejection } from "@/lib/storage/asset-kinds";
 import {
   type DancerDocumentSide,
@@ -126,6 +127,26 @@ export async function handlePortalDancerDetailAction(input: {
     throw new Response("Acción no soportada.", { status: 400 });
   }
 
+  return await savePortalDancer({
+    academyId: academy.id,
+    dancerId,
+    formData,
+  });
+}
+
+/**
+ * The edit itself, apart from the status intents: what the academy submitted,
+ * validated, uploaded and written.
+ */
+async function savePortalDancer({
+  academyId,
+  dancerId,
+  formData,
+}: {
+  academyId: string;
+  dancerId: string;
+  formData: FormData;
+}) {
   const submittedValues = readPortalDancerFormValues(formData);
   const clientImageValidationMessage =
     getClientDocumentImageValidationMessage(formData);
@@ -156,7 +177,7 @@ export async function handlePortalDancerDetailAction(input: {
 
   const documentImageStorageKeys =
     await resolvePortalDancerDocumentImageStorageKeys({
-      academyId: academy.id,
+      academyId: academyId,
       dancerId,
       formData,
       storage: createDefaultDancerDocumentStorage(),
@@ -171,11 +192,24 @@ export async function handlePortalDancerDetailAction(input: {
     };
   }
 
-  const result = await updateDancerForAcademy(academy.id, dancerId, {
-    ...submittedValues,
-    documentFrontImageStorageKey: documentImageStorageKeys.keys.front,
-    documentBackImageStorageKey: documentImageStorageKeys.keys.back,
-  });
+  const result = await updateDancerForAcademy(
+    academyId,
+    dancerId,
+    {
+      ...submittedValues,
+      documentFrontImageStorageKey: documentImageStorageKeys.keys.front,
+      documentBackImageStorageKey: documentImageStorageKeys.keys.back,
+    },
+    { acknowledgedDuplicateIds: readAcknowledgedDuplicateIds(formData) },
+  );
+
+  if (!result.ok && "warning" in result) {
+    return {
+      status: "warning" as const,
+      warning: result.warning,
+      values: submittedValues,
+    };
+  }
 
   if (!result.ok) {
     return {
@@ -183,6 +217,7 @@ export async function handlePortalDancerDetailAction(input: {
       message: result.error,
       fieldErrors: result.fieldErrors,
       values: result.values,
+      duplicateDocumentDancerId: result.duplicateDocumentDancerId,
     };
   }
 

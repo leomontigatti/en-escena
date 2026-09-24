@@ -16,6 +16,7 @@ import {
   getCreateChoreographySteps,
   getFirstPostResolutionStepIndex,
   getSubmissionError,
+  getSubmissionWarning,
   resolvePortalRegistrationCategory,
   type PortalResolvedRegistrationResolution,
   setRequiredFieldError,
@@ -92,6 +93,7 @@ export function useCreateChoreographyDialog({
   const isResolving = calculationFetcher.state !== "idle";
   const isSubmitting = submissionFetcher.state !== "idle";
   const submissionError = getSubmissionError(submissionFetcher.data);
+  const submissionWarning = getSubmissionWarning(submissionFetcher.data);
   const registrationSteps = useMemo(
     () => getCreateChoreographySteps({ canChooseSubmodality, resolution }),
     [canChooseSubmodality, resolution],
@@ -189,13 +191,15 @@ export function useCreateChoreographyDialog({
       return;
     }
 
-    if (submissionError) {
+    // A warning is not a success: the wizard stays open on the summary with the
+    // piece it found and the continue action.
+    if (submissionError || submissionWarning) {
       return;
     }
 
     hasSubmittedChoreographyRef.current = false;
     onClose();
-  }, [onClose, submissionError, submissionFetcher.state]);
+  }, [onClose, submissionError, submissionFetcher.state, submissionWarning]);
 
   function resetResolutionState() {
     setResolution(null);
@@ -277,10 +281,11 @@ export function useCreateChoreographyDialog({
     setCurrentStepIndex((stepIndex) => stepIndex + 1);
   }
 
-  function handleConfirm() {
+  function handleConfirm(acknowledgedDuplicateIds: string[] = []) {
     hasSubmittedChoreographyRef.current = true;
     void submissionFetcher.submit(
       buildCreateChoreographyFormData({
+        acknowledgedDuplicateIds,
         eventId,
         name: watchedValues.name,
         modalityId: selectedModalityId,
@@ -359,6 +364,7 @@ export function useCreateChoreographyDialog({
     selectedSubmodalities,
     selectedSubmodalityId,
     submissionError,
+    submissionWarning,
     watchedValues,
   };
 }

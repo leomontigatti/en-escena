@@ -4,10 +4,12 @@ import { useNavigation, useSubmit } from "react-router";
 
 import { PortalEmptyState } from "@/components/portal/ui";
 import { BackButton, SubmitButton } from "@/components/shared/action-buttons";
+import { RosterNameWarningNotice } from "@/components/shared/roster-name-warning";
 import { AlertStack } from "@/components/shared/alert-stack";
 import { RecategorisedChoreographiesAlert } from "@/components/shared/recategorised-choreographies-alert";
 import type { RecategorisedChoreography } from "@/lib/choreographies/recategorisation-report";
 import { ArchivedPersonAlert } from "@/components/shared/archived-person-alert";
+import { useRosterDocumentConflictField } from "@/components/shared/roster-document-conflict";
 import {
   documentTypeEmptyLabel,
   documentTypeOptions,
@@ -55,6 +57,7 @@ import {
 import {
   buildPortalDancerDetailViewModel,
   getGeneralActionError,
+  getPortalDancerDocumentConflict,
   getPortalDancerFormValues,
   getPortalDancerStatusFormId,
   portalDancerFormId,
@@ -85,6 +88,13 @@ export function PortalDancerDetailRouteView({
     eventStartDate: loaderData.activeEventStartDate,
     submit,
     values: formValues,
+  });
+  const nameWarning = actionData?.status === "warning" ? actionData : undefined;
+  const documentConflictDescription = useRosterDocumentConflictField({
+    actionData,
+    conflict: getPortalDancerDocumentConflict(actionData),
+    name: "documentNumber",
+    setError: form.form.setError,
   });
   const [statusDialogIntent, setStatusDialogIntent] =
     useState<PortalDancerStatusIntent | null>(initialStatusDialogIntent);
@@ -221,79 +231,12 @@ export function PortalDancerDetailRouteView({
                   value="identificacion"
                   className="pt-2 data-[state=inactive]:hidden"
                 >
-                  <FieldGroup className="grid gap-5 md:grid-cols-2">
-                    {viewModel.isIdentityVerified ? (
-                      <ReadOnlyDateField
-                        label="Fecha de nacimiento"
-                        name="birthDate"
-                        value={viewModel.identityFieldValues.birthDate}
-                      />
-                    ) : (
-                      <PortalDancerBirthDateField
-                        eventStartDate={form.eventStartDate}
-                        form={form.form}
-                      />
-                    )}
-                    <div className="hidden md:block" aria-hidden="true" />
-                    {viewModel.isIdentityVerified ? (
-                      <ReadOnlySelectField
-                        label="Tipo de documento"
-                        name="documentType"
-                        options={documentTypeOptions}
-                        value={viewModel.identityFieldValues.documentType}
-                      />
-                    ) : (
-                      <SelectField
-                        allowEmpty
-                        control={form.form.control}
-                        emptyLabel={documentTypeEmptyLabel}
-                        label="Tipo de documento"
-                        name="documentType"
-                        options={documentTypeOptions}
-                        placeholder={documentTypeEmptyLabel}
-                      />
-                    )}
-                    {viewModel.isIdentityVerified ? (
-                      <ReadOnlyField
-                        label="Número de documento"
-                        name="documentNumber"
-                        value={viewModel.identityFieldValues.documentNumber}
-                      />
-                    ) : (
-                      <PortalDancerTextField
-                        form={form.form}
-                        label="Número de documento"
-                        name="documentNumber"
-                      />
-                    )}
-                    {viewModel.isIdentityVerified ? (
-                      <>
-                        <ReadOnlyDocumentImageField
-                          label="Imagen frente del documento"
-                          name="documentFrontImageStorageKey"
-                          storageKey={
-                            viewModel.identityFieldValues
-                              .documentFrontImageStorageKey
-                          }
-                          url={loaderData.documentImageUrls.front}
-                        />
-                        <ReadOnlyDocumentImageField
-                          label="Imagen dorso del documento"
-                          name="documentBackImageStorageKey"
-                          storageKey={
-                            viewModel.identityFieldValues
-                              .documentBackImageStorageKey
-                          }
-                          url={loaderData.documentImageUrls.back}
-                        />
-                      </>
-                    ) : (
-                      <PortalDancerDocumentImageFields
-                        form={form.form}
-                        imageUrls={loaderData.documentImageUrls}
-                      />
-                    )}
-                  </FieldGroup>
+                  <PortalDancerIdentificationFields
+                    documentConflictDescription={documentConflictDescription}
+                    documentImageUrls={loaderData.documentImageUrls}
+                    form={form}
+                    viewModel={viewModel}
+                  />
                 </TabsContent>
                 <TabsContent value="inscripciones" className="pt-2">
                   <PortalDancerInscriptionsSection
@@ -302,11 +245,20 @@ export function PortalDancerDetailRouteView({
                   />
                 </TabsContent>
               </Tabs>
+
+              {nameWarning ? (
+                <RosterNameWarningNotice warning={nameWarning.warning} />
+              ) : null}
             </form>
           </CardContent>
           <CardFooter className="justify-between gap-3 border-0 bg-transparent pt-0">
             <BackButton to="/portal/bailarines" viewTransition />
-            <SubmitButton form={portalDancerFormId} isPending={isSubmitting} />
+            {nameWarning ? null : (
+              <SubmitButton
+                form={portalDancerFormId}
+                isPending={isSubmitting}
+              />
+            )}
           </CardFooter>
         </PortalDancerFormSection>
       </section>
@@ -320,6 +272,97 @@ export function PortalDancerDetailRouteView({
         }}
       />
     </>
+  );
+}
+
+/**
+ * The identification panel: every field flips to read-only once the identity
+ * is verified, which is why the whole group lives apart from the route view.
+ */
+function PortalDancerIdentificationFields({
+  documentConflictDescription,
+  documentImageUrls,
+  form,
+  viewModel,
+}: {
+  documentConflictDescription: ReactNode;
+  documentImageUrls: PortalDancerDetailLoaderData["documentImageUrls"];
+  form: ReturnType<typeof usePortalDancerForm>;
+  viewModel: ReturnType<typeof buildPortalDancerDetailViewModel>;
+}) {
+  return (
+    <FieldGroup className="grid gap-5 md:grid-cols-2">
+      {viewModel.isIdentityVerified ? (
+        <ReadOnlyDateField
+          label="Fecha de nacimiento"
+          name="birthDate"
+          value={viewModel.identityFieldValues.birthDate}
+        />
+      ) : (
+        <PortalDancerBirthDateField
+          eventStartDate={form.eventStartDate}
+          form={form.form}
+        />
+      )}
+      <div className="hidden md:block" aria-hidden="true" />
+      {viewModel.isIdentityVerified ? (
+        <ReadOnlySelectField
+          label="Tipo de documento"
+          name="documentType"
+          options={documentTypeOptions}
+          value={viewModel.identityFieldValues.documentType}
+        />
+      ) : (
+        <SelectField
+          allowEmpty
+          control={form.form.control}
+          emptyLabel={documentTypeEmptyLabel}
+          label="Tipo de documento"
+          name="documentType"
+          options={documentTypeOptions}
+          placeholder={documentTypeEmptyLabel}
+        />
+      )}
+      {viewModel.isIdentityVerified ? (
+        <ReadOnlyField
+          label="Número de documento"
+          name="documentNumber"
+          value={viewModel.identityFieldValues.documentNumber}
+        />
+      ) : (
+        <PortalDancerTextField
+          description={documentConflictDescription}
+          form={form.form}
+          label="Número de documento"
+          name="documentNumber"
+        />
+      )}
+      {viewModel.isIdentityVerified ? (
+        <>
+          <ReadOnlyDocumentImageField
+            label="Imagen frente del documento"
+            name="documentFrontImageStorageKey"
+            storageKey={
+              viewModel.identityFieldValues.documentFrontImageStorageKey
+            }
+            url={documentImageUrls.front}
+          />
+          <ReadOnlyDocumentImageField
+            label="Imagen dorso del documento"
+            name="documentBackImageStorageKey"
+            storageKey={
+              viewModel.identityFieldValues.documentBackImageStorageKey
+            }
+            url={documentImageUrls.back}
+          />
+        </>
+      ) : (
+        <PortalDancerDocumentImageFields
+          form={form.form}
+          imageUrls={documentImageUrls}
+        />
+      )}
+    </FieldGroup>
   );
 }
 

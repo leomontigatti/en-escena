@@ -53,7 +53,7 @@ Distribution of choreography capacity within a schedule, tied to a single group 
 _Avoid_: `schedule`, time block
 
 **`academy`** — ui: "Academia"
-Participating entity that can register for events and load professors, dancers and choreographies.
+Participating entity that can register for events and load professors, dancers and choreographies. Its name is not unique, but it is guarded at both ends. At signup the onboarding **warns** when an academy of that name already exists, naming it and the date it registered and nothing else about the other account, and points the reader at logging in or recovering that password before offering to continue — a forgotten login is what forks a roster. At the other end administration can **delete an academy that holds nothing** — no dancer, no professor, no choreography (withdrawn ones included), no seminar inscription and no payment — together with its `user`, from the academy detail behind the shared delete confirmation; when it holds something the delete is refused naming what, so an abandoned or forked signup is one panel action instead of SQL.
 _Avoid_: `user`, `professor`, `escuela`, `delegación`
 
 **`academyRegistration`** — ui: "Registro público de academia"
@@ -149,7 +149,7 @@ Financial record managed by an administrator, such as an invoice or a credit not
 _Avoid_: `payment`, `imputación`, `choreographyFinancialStatus`
 
 **`professor`** — ui: "Profesor"
-Person associated with an academy and loaded by that academy as part of its data.
+Person associated with an academy and loaded by that academy as part of its data. Their document **number** alone identifies them within their academy, whatever `documentType` was chosen and archived professors included, so the same number cannot be loaded twice; the creation dialog asks for the pair, optionally, so the rule acts from the first save. A second professor of the same **name** in the academy is a warning the academy confirms, not a refusal. Neither rule crosses into **`dancer`**: one academy may hold the same number on a dancer and on a professor, because a teacher who also dances is one person on two rosters.
 _Avoid_: `user`, `admin`
 
 **`seminar`** — ui: "Seminario"
@@ -189,7 +189,7 @@ The date an inscription was registered, held on the inscription's own row and no
 _Avoid_: `choreography.createdAt`, `financialReferenceDate` (retired), payment date
 
 **`choreography`** — ui: "Coreografía"
-Choreography registered by an academy for a concrete event.
+Choreography registered by an academy for a concrete event. Nothing about its name is unique — two solos of different dancers share a piece name all the time — but confirming one **warns** when the academy already has a non-withdrawn choreography of the same name **and** the same cast in that event, naming it by **`choreographyNumber`** and name; same name with another cast and same cast with another name are both ordinary and pass unremarked.
 _Avoid_: reusable work, `inscription`, number
 
 **`choreographyNumber`** — ui: "#"
@@ -273,7 +273,7 @@ The set of dancers and professors a choreography currently carries: the **`chore
 _Avoid_: "Roster" as interface copy (retired), cast, lineup, plantel
 
 **`dancer`** — ui: "Bailarín"
-Person loaded by an academy to take part in choreographies.
+Person loaded by an academy to take part in choreographies. Their document **number** is unique within their academy on the same terms as a **`professor`**'s, and the creation dialog asks for the pair optionally too; a second dancer of the same **name and birth date** is a warning the academy confirms, since two children of one academy may share both.
 _Avoid_: `professor`, `user`
 
 **`dancerVerificationStatus`** — ui: "Estado de verificación de bailarín"

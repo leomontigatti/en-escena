@@ -5,6 +5,13 @@ import type { FetcherSubmitFunction } from "react-router";
 
 import { SubmitButton } from "@/components/shared/action-buttons";
 import { DateOnlyField } from "@/components/shared/date-only-field";
+import {
+  documentTypeEmptyLabel,
+  documentTypeOptions,
+} from "@/components/shared/document-type-options";
+import { useRosterDocumentConflictField } from "@/components/shared/roster-document-conflict";
+import { RosterNameWarningNotice } from "@/components/shared/roster-name-warning";
+import { SelectField } from "@/components/shared/select-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { getBirthDatePickerBounds } from "@/lib/dancers/birth-date";
 import { Button } from "@/components/ui/button";
@@ -22,6 +29,7 @@ import { createValidatedReactRouterSubmitHandler } from "@/lib/shared/forms";
 import {
   buildCreateDancerSchema,
   createDancerIntent,
+  getCreateDancerDocumentConflict,
   emptyDancerValues,
   type CreateDancerActionData,
   type CreateDancerFormValues,
@@ -35,7 +43,7 @@ export function CreateDancerDialog({
   onOpenChange,
   submit,
 }: {
-  actionData?: Extract<CreateDancerActionData, { status: "error" }>;
+  actionData?: Extract<CreateDancerActionData, { status: "error" | "warning" }>;
   eventStartDate: string | null;
   isOpen: boolean;
   isSubmitting: boolean;
@@ -51,6 +59,13 @@ export function CreateDancerDialog({
   useEffect(() => {
     form.reset(actionData?.values ?? emptyDancerValues);
   }, [actionData?.values, form]);
+
+  const documentConflictDescription = useRosterDocumentConflictField({
+    actionData: actionData?.status === "error" ? actionData : undefined,
+    conflict: getCreateDancerDocumentConflict(actionData),
+    name: "documentNumber",
+    setError: form.setError,
+  });
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -92,7 +107,29 @@ export function CreateDancerDialog({
               label="Fecha de nacimiento"
               calendarBounds={getBirthDatePickerBounds(eventStartDate)}
             />
+
+            <SelectField
+              allowEmpty
+              control={form.control}
+              emptyLabel={documentTypeEmptyLabel}
+              label="Tipo de documento"
+              name="documentType"
+              options={documentTypeOptions}
+              placeholder={documentTypeEmptyLabel}
+            />
+
+            <TextInputField
+              autoComplete="off"
+              control={form.control}
+              description={documentConflictDescription}
+              label="Número de documento"
+              name="documentNumber"
+            />
           </FieldGroup>
+
+          {actionData?.status === "warning" ? (
+            <RosterNameWarningNotice warning={actionData.warning} />
+          ) : null}
 
           <DialogFooter>
             <DialogClose asChild>
@@ -100,7 +137,9 @@ export function CreateDancerDialog({
                 Cancelar
               </Button>
             </DialogClose>
-            <SubmitButton isPending={isSubmitting} />
+            {actionData?.status === "warning" ? null : (
+              <SubmitButton isPending={isSubmitting} />
+            )}
           </DialogFooter>
         </form>
       </DialogContent>

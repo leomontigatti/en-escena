@@ -42,7 +42,73 @@ describe("dancer detail submissions", () => {
     expect(submitButton.disabled).toBe(true);
     expect(submitButton.querySelector("svg.animate-spin")).not.toBeNull();
   });
+
+  test("lands the duplicate-document refusal on the field and links to the match", async () => {
+    portalSubmissionRouterMocks.useFetcher.mockReturnValue({
+      data: undefined,
+      state: "idle",
+      submit: vi.fn(),
+    });
+    portalSubmissionRouterMocks.useNavigation.mockReturnValue({
+      formData: undefined,
+      state: "idle",
+    });
+    portalSubmissionRouterMocks.useSubmit.mockReturnValue(vi.fn());
+
+    await renderPortalSubmission(
+      <MemoryRouter initialEntries={["/portal/bailarines/dancer_1"]}>
+        <PortalDancerDetailRouteView
+          loaderData={buildDancerDetailLoaderData()}
+          actionData={{
+            status: "error",
+            message: "Revisá los datos del Bailarín.",
+            fieldErrors: {
+              documentNumber:
+                "Ya existe un Bailarín archivado con ese documento en tu academia.",
+            },
+            values: {
+              firstName: "Ana",
+              lastName: "Paz",
+              birthDate: "2014-01-01",
+              documentType: "dni",
+              documentNumber: "30111222",
+              documentFrontImageStorageKey: "",
+              documentBackImageStorageKey: "",
+            },
+            duplicateDocumentDancerId: "dancer_archived_1",
+          }}
+        />
+      </MemoryRouter>,
+    );
+
+    const documentField = getDocumentNumberField();
+
+    expect(documentField.getAttribute("aria-invalid")).toBe("true");
+    expect(document.body.textContent).toContain(
+      "Ya existe un Bailarín archivado con ese documento en tu academia.",
+    );
+
+    const matchLink = document.querySelector<HTMLAnchorElement>(
+      'a[href="/portal/bailarines/dancer_archived_1"]',
+    );
+
+    expect(matchLink?.textContent).toBe(
+      "Ver la ficha del bailarín con ese documento",
+    );
+  });
 });
+
+function getDocumentNumberField() {
+  const field = document.querySelector<HTMLInputElement>(
+    'input[name="documentNumber"]',
+  );
+
+  if (!field) {
+    throw new Error("The document number field is not in the DOM.");
+  }
+
+  return field;
+}
 
 function buildDancerDetailLoaderData(): Parameters<
   typeof PortalDancerDetailRouteView

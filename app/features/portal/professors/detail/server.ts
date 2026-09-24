@@ -1,4 +1,5 @@
 import { requireAcademyUser } from "@/lib/auth/internal-access.server";
+import { readAcknowledgedDuplicateIds } from "@/lib/shared/duplicate-warning";
 import { notificationToasts } from "@/lib/shared/notification-toasts";
 import {
   findAcademyProfessor,
@@ -103,12 +104,23 @@ export async function handlePortalProfessorDetailAction({
     throw new Response("Acción no soportada.", { status: 400 });
   }
 
-  const result = await updateAcademyProfessor(academy.id, professorId, {
+  const values = {
     firstName: readFormString(formData, "firstName"),
     lastName: readFormString(formData, "lastName"),
     documentType: readFormString(formData, "documentType"),
     documentNumber: readFormString(formData, "documentNumber"),
+  };
+  const result = await updateAcademyProfessor(academy.id, professorId, values, {
+    acknowledgedDuplicateIds: readAcknowledgedDuplicateIds(formData),
   });
+
+  if (!result.ok && "warning" in result) {
+    return {
+      status: "warning" as const,
+      warning: result.warning,
+      values,
+    };
+  }
 
   if (!result.ok) {
     return {
@@ -116,6 +128,7 @@ export async function handlePortalProfessorDetailAction({
       message: result.message,
       fieldErrors: result.fieldErrors,
       values: result.values,
+      duplicateDocumentProfessorId: result.duplicateDocumentProfessorId,
     };
   }
 

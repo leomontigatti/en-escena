@@ -95,6 +95,47 @@ describe("ProfessorDetailRouteView", () => {
     expect(markup).toContain('name="firstName" value="Mora"');
     expect(markup).toContain('name="lastName" value="Dialogo"');
   });
+
+  test("shows the same-name warning with the continue action and the ids", () => {
+    const markup = renderProfessorDetail({
+      actionData: {
+        status: "warning",
+        warning: {
+          kind: "professor-name",
+          matches: [{ id: "professor_twin_1", label: "Ana Paz" }],
+          scope: "admin",
+        },
+        values: {
+          documentNumber: "",
+          documentType: "",
+          firstName: "Ana",
+          lastName: "Paz",
+        },
+      },
+      loaderData: {
+        backToList: "/administracion/profesores?pagina=2",
+        cancelHref: "/administracion/profesores/profesor_1",
+        canEdit: true,
+        editHref: "/administracion/profesores/profesor_1?modo=editar",
+        isEditing: true,
+        isParticipatingInActiveEvent: false,
+        professor: professorDetail({
+          firstName: "Julia",
+          lastName: "Detalle",
+        }),
+        selectedEventId: "evento_1",
+      },
+    });
+
+    expect(markup).toContain(
+      "Ya existe un Profesor con el mismo nombre en la academia: Ana Paz. ¿Es la misma persona?",
+    );
+    expect(markup).toContain(
+      'name="acknowledgedDuplicateIds" value="professor_twin_1"',
+    );
+    expect(markup).toContain("Continuar de todos modos");
+    expect(markup).toContain('name="firstName" value="Ana"');
+  });
 });
 
 function renderProfessorDetail(input: Partial<ProfessorDetailViewProps> = {}) {

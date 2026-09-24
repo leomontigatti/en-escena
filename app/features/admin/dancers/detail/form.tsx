@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useId } from "react";
+import { useEffect, useId, type ReactNode } from "react";
 import { useForm, type UseFormReturn } from "react-hook-form";
 
 import { DateOnlyField } from "@/components/shared/date-only-field";
@@ -7,7 +7,14 @@ import { TextInputField } from "@/components/shared/text-input-field";
 import { getBirthDatePickerBounds } from "@/lib/dancers/birth-date";
 import { createValidatedNativeSubmitHandler } from "@/lib/shared/forms";
 
-import { buildDancerUpdateSchema, type DancerEditFormValues } from "./shared";
+import { useRosterDocumentConflictField } from "@/components/shared/roster-document-conflict";
+
+import {
+  buildDancerUpdateSchema,
+  getDancerDocumentConflict,
+  type DancerActionError,
+  type DancerEditFormValues,
+} from "./shared";
 
 type DancerEditFormReturn = UseFormReturn<
   DancerEditFormValues,
@@ -16,9 +23,11 @@ type DancerEditFormReturn = UseFormReturn<
 >;
 
 export function useDancerEditForm({
+  actionData,
   eventStartDate,
   values,
 }: {
+  actionData?: DancerActionError;
   eventStartDate: string | null;
   values: DancerEditFormValues;
 }) {
@@ -41,7 +50,15 @@ export function useDancerEditForm({
     values.lastName,
   ]);
 
+  const documentConflictDescription = useRosterDocumentConflictField({
+    actionData,
+    conflict: getDancerDocumentConflict(actionData),
+    name: "documentNumber",
+    setError: form.setError,
+  });
+
   return {
+    documentConflictDescription,
     eventStartDate,
     form,
     handleSubmit: createValidatedNativeSubmitHandler(form),
@@ -49,10 +66,12 @@ export function useDancerEditForm({
 }
 
 export function DancerTextField({
+  description,
   form,
   label,
   name,
 }: {
+  description?: ReactNode;
   form: DancerEditFormReturn;
   label: string;
   name:
@@ -66,6 +85,7 @@ export function DancerTextField({
     <TextInputField
       autoComplete="off"
       control={form.control}
+      description={description}
       label={label}
       name={name}
     />

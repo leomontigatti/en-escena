@@ -4,6 +4,13 @@ import { useForm } from "react-hook-form";
 import type { FetcherSubmitFunction } from "react-router";
 
 import { SubmitButton } from "@/components/shared/action-buttons";
+import {
+  documentTypeEmptyLabel,
+  documentTypeOptions,
+} from "@/components/shared/document-type-options";
+import { useRosterDocumentConflictField } from "@/components/shared/roster-document-conflict";
+import { RosterNameWarningNotice } from "@/components/shared/roster-name-warning";
+import { SelectField } from "@/components/shared/select-field";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,6 +26,7 @@ import { FieldGroup } from "@/components/ui/field";
 import { createValidatedReactRouterSubmitHandler } from "@/lib/shared/forms";
 import {
   createProfessorIntent,
+  getCreateProfessorDocumentConflict,
   createProfessorSchema,
   emptyProfessorValues,
   type CreateProfessorActionData,
@@ -32,7 +40,10 @@ export function CreateProfessorDialog({
   onOpenChange,
   submit,
 }: {
-  actionData?: Extract<CreateProfessorActionData, { status: "error" }>;
+  actionData?: Extract<
+    CreateProfessorActionData,
+    { status: "error" | "warning" }
+  >;
   isOpen: boolean;
   isSubmitting: boolean;
   onOpenChange: (nextOpen: boolean) => void;
@@ -46,6 +57,13 @@ export function CreateProfessorDialog({
   useEffect(() => {
     form.reset(actionData?.values ?? emptyProfessorValues);
   }, [actionData?.values, form]);
+
+  const documentConflictDescription = useRosterDocumentConflictField({
+    actionData: actionData?.status === "error" ? actionData : undefined,
+    conflict: getCreateProfessorDocumentConflict(actionData),
+    name: "documentNumber",
+    setError: form.setError,
+  });
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -79,7 +97,29 @@ export function CreateProfessorDialog({
               label="Apellido"
               name="lastName"
             />
+
+            <SelectField
+              allowEmpty
+              control={form.control}
+              emptyLabel={documentTypeEmptyLabel}
+              label="Tipo de documento"
+              name="documentType"
+              options={documentTypeOptions}
+              placeholder={documentTypeEmptyLabel}
+            />
+
+            <TextInputField
+              autoComplete="off"
+              control={form.control}
+              description={documentConflictDescription}
+              label="Número de documento"
+              name="documentNumber"
+            />
           </FieldGroup>
+
+          {actionData?.status === "warning" ? (
+            <RosterNameWarningNotice warning={actionData.warning} />
+          ) : null}
 
           <DialogFooter>
             <DialogClose asChild>
@@ -87,7 +127,9 @@ export function CreateProfessorDialog({
                 Cancelar
               </Button>
             </DialogClose>
-            <SubmitButton isPending={isSubmitting} />
+            {actionData?.status === "warning" ? null : (
+              <SubmitButton isPending={isSubmitting} />
+            )}
           </DialogFooter>
         </form>
       </DialogContent>

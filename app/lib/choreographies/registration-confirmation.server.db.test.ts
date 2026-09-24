@@ -19,6 +19,7 @@ import {
 } from "@/lib/choreographies/registration-test-fixtures.server.db";
 import { createChoreographyRegistration } from "@/lib/choreographies/registration-confirmation.server";
 import { getNoCompatibleCategoryRegistrationMessage } from "@/lib/choreographies/choreography-messages";
+import { withdrawChoreographyForTest } from "@/lib/choreographies/withdrawn-choreography.test-support";
 
 import { installDatabaseTestHooks } from "../../../tests/db/harness";
 
@@ -613,7 +614,125 @@ describe("choreography registration confirmation", () => {
     });
     expect(storedChoreographies).toHaveLength(0);
   });
+
+  test("warns with the number and name when the same piece with the same cast is already registered, and inserts nothing", async () => {
+    const scenario = await createSameCastScenario({
+      academyName: "Academia Repetida",
+      email: "registro.coreografia.repetida@example.com",
+    });
+
+    await expectRegistered(scenario.registrationInput({ name: "Luna Llena" }));
+
+    const result = await createChoreographyRegistration(
+      scenario.registrationInput({ name: "  luna   llena " }),
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      code: "duplicate-choreography",
+      error:
+        "Ya registraste «Luna Llena» (N.º 1) con los mismos bailarines en este evento.",
+      warning: {
+        kind: "choreography-cast",
+        matches: [{ choreographyNumber: 1, name: "Luna Llena" }],
+      },
+    });
+
+    const storedChoreographies = await db.query.choreographies.findMany({
+      where: eq(choreographies.academyId, scenario.academyId),
+    });
+    expect(storedChoreographies).toHaveLength(1);
+  });
+
+  test("leaves a different cast, a different name and a withdrawn twin alone", async () => {
+    const scenario = await createSameCastScenario({
+      academyName: "Academia Sin Repetición",
+      email: "registro.coreografia.sin-repeticion@example.com",
+    });
+    const otherDancer = await createDancer(scenario.academyId, {
+      birthDate: "2012-04-02",
+      firstName: "Sol",
+    });
+
+    const firstRegistration = await expectRegistered(
+      scenario.registrationInput({ name: "Luna Llena" }),
+    );
+
+    await expectRegistered(
+      scenario.registrationInput({
+        name: "Luna Llena",
+        dancerIds: [otherDancer.id],
+      }),
+    );
+    await expectRegistered(scenario.registrationInput({ name: "Otra Pieza" }));
+
+    await withdrawChoreographyForTest(firstRegistration.choreography.id);
+
+    await expectRegistered(scenario.registrationInput({ name: "Luna Llena" }));
+  });
+
+  test("registers the piece when the academy acknowledges the match it saw", async () => {
+    const scenario = await createSameCastScenario({
+      academyName: "Academia Confirmada",
+      email: "registro.coreografia.confirmada@example.com",
+    });
+
+    const firstRegistration = await expectRegistered(
+      scenario.registrationInput({ name: "Luna Llena" }),
+    );
+    const acknowledgedId = firstRegistration.choreography.id;
+
+    await expectRegistered(
+      scenario.registrationInput({
+        name: "Luna Llena",
+        acknowledgedDuplicateIds: [acknowledgedId],
+      }),
+    );
+
+    const storedChoreographies = await db.query.choreographies.findMany({
+      where: eq(choreographies.academyId, scenario.academyId),
+    });
+    expect(storedChoreographies).toHaveLength(2);
+  });
 });
+
+/**
+ * One academy, one event and one solo cast: everything the duplicate warning
+ * needs to see twice, so each case only says what it changes about the piece.
+ */
+async function createSameCastScenario(session: {
+  academyName: string;
+  email: string;
+}) {
+  const owner = await createAcademySession(session);
+  const { event, catalog } = await createOpenEventCatalog();
+  const dancer = await createDancer(owner.academyId, {
+    birthDate: "2014-05-01",
+  });
+  const professor = await createProfessor(owner.academyId);
+
+  return {
+    academyId: owner.academyId,
+    dancerId: dancer.id,
+    eventId: event.id,
+    registrationInput(
+      overrides: Partial<Parameters<typeof createChoreographyRegistration>[0]>,
+    ) {
+      return {
+        academyId: owner.academyId,
+        eventId: event.id,
+        name: "Luna Llena",
+        modalityId: catalog.modality.id,
+        submodalityId: catalog.submodality.id,
+        dancerIds: [dancer.id],
+        professorIds: [professor.id],
+        experienceLevelId: catalog.level.id,
+        scheduleCapacityId: catalog.soloScheduleCapacity.id,
+        ...overrides,
+      };
+    },
+  };
+}
 
 async function expectRegistered(
   input: Parameters<typeof createChoreographyRegistration>[0],
@@ -624,6 +743,10 @@ async function expectRegistered(
   // nothing" and the failure would point at the counter instead of the real
   // reason.
   expect(result).toMatchObject({ ok: true });
+
+  if (!result.ok) {
+    throw new Error(result.error);
+  }
 
   return result;
 }

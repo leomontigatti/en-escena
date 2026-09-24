@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigation, useSubmit } from "react-router";
 
@@ -8,7 +8,13 @@ import {
   AdminResourceLayout,
 } from "@/components/admin/resource-layout";
 import { BackButton, SubmitButton } from "@/components/shared/action-buttons";
+import { DeleteDialog } from "@/components/shared/delete-dialog";
+import { ResourceActionsMenu } from "@/components/shared/resource-actions-menu";
 import { ReadOnlyField } from "@/components/shared/read-only-field";
+import {
+  DropdownMenuGroup,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import { TextInputField } from "@/components/shared/text-input-field";
 import { FieldGroup } from "@/components/ui/field";
 import { argentinePhonePlaceholder } from "@/lib/shared/argentine-phone";
@@ -21,6 +27,7 @@ import { useServerActionToast } from "@/lib/shared/toasts";
 import {
   academyDetailFormId,
   academyDetailSchema,
+  deleteAcademyIntent,
   updateAcademyIntent,
   type AcademyDetailActionData,
   type AcademyDetailFormValues,
@@ -29,19 +36,27 @@ import {
 
 export function AcademyDetailRouteView({
   actionData,
+  initialDeleteDialogOpen = false,
   loaderData,
 }: {
   actionData?: AcademyDetailActionData;
+  initialDeleteDialogOpen?: boolean;
   loaderData: AcademyDetailLoaderData;
 }) {
   const { academy, canEdit } = loaderData;
-  const errorData = actionData?.status === "error" ? actionData : undefined;
+  const errorData =
+    actionData?.status === "error" && actionData.intent === updateAcademyIntent
+      ? actionData
+      : undefined;
   const values = errorData?.values ?? {
     name: academy.name,
     contactName: academy.contactName,
     phone: academy.phone,
   };
   const form = useAcademyDetailForm({ values });
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(
+    initialDeleteDialogOpen,
+  );
   const navigation = useNavigation();
   const isSaving = isRouteFormPending(navigation, {
     intent: updateAcademyIntent,
@@ -57,6 +72,20 @@ export function AcademyDetailRouteView({
       selectedEventId={loaderData.selectedEventId}
       title={academy.name}
       description="Consultá y actualizá los datos de contacto de la academia."
+      headerAction={
+        canEdit ? (
+          <ResourceActionsMenu contentClassName="w-48" size="icon">
+            <DropdownMenuGroup>
+              <DropdownMenuItem
+                variant="destructive"
+                onSelect={() => setIsDeleteDialogOpen(true)}
+              >
+                Eliminar
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+          </ResourceActionsMenu>
+        ) : undefined
+      }
     >
       <AdminResourceFormCard
         footer={
@@ -110,6 +139,19 @@ export function AcademyDetailRouteView({
           </FieldGroup>
         </form>
       </AdminResourceFormCard>
+      {canEdit ? (
+        // Whether the academy is empty is only known for certain at the moment
+        // of the delete, so the dialog always offers the action and the server
+        // is what refuses, naming what the academy still holds.
+        <DeleteDialog
+          title="Eliminar academia"
+          description={`Esta acción borra la academia ${academy.name} y su usuario de acceso. Solo procede si no tiene bailarines, profesores, coreografías, inscripciones a seminarios ni pagos.`}
+          intentValue={deleteAcademyIntent}
+          recordId={academy.id}
+          open={isDeleteDialogOpen}
+          onOpenChange={setIsDeleteDialogOpen}
+        />
+      ) : null}
     </AdminResourceLayout>
   );
 }

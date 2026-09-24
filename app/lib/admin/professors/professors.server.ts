@@ -1,6 +1,8 @@
 import { and, asc, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
+import { findProfessorNameWarning } from "@/lib/roster/roster-name-duplicates.server";
+import type { RosterNameWarning } from "@/lib/roster/roster-name-duplicates";
 import {
   academies,
   choreographies,
@@ -15,7 +17,8 @@ import {
   readProfessorParticipationFilter,
 } from "@/lib/admin/professors/professors.shared";
 import {
-  findDuplicateProfessorDocument,
+  findProfessorDocumentConflict,
+  writeProfessorGuardingDocument,
   type ProfessorEditableSnapshot,
   normalizeProfessorDocumentPair,
   normalizeProfessorNames,
@@ -88,11 +91,15 @@ export type ProfessorMutationResult =
       ok: true;
       professor: ProfessorEditableSnapshot;
     }
+  | { ok: false; warning: RosterNameWarning }
   | {
       ok: false;
       message: string;
       fieldErrors: ProfessorFieldErrors;
       values: ProfessorUpdateInput;
+      // The professor already holding the document number, so the form can
+      // link to them when the match is an archived one.
+      duplicateDocumentProfessorId?: string;
     };
 
 export function readProfessorFilters(
@@ -284,6 +291,7 @@ export async function findProfessor(input: {
 }
 
 export async function updateAdministrativeProfessor(input: {
+  acknowledgedDuplicateIds?: readonly string[];
   professorId: string;
   selectedEventId: string | null;
   values: ProfessorUpdateInput;
@@ -330,46 +338,76 @@ export async function updateAdministrativeProfessor(input: {
     };
   }
 
-  if (
-    normalizedDocument.documentType !== null &&
-    normalizedDocument.documentNumber !== null
-  ) {
-    const duplicateProfessor = await findDuplicateProfessorDocument({
-      academyId: existingProfessor.academyId,
-      professorId: existingProfessor.id,
-      documentType: normalizedDocument.documentType,
-      documentNumber: normalizedDocument.documentNumber,
-    });
+  const documentConflict =
+    normalizedDocument.documentNumber === null
+      ? null
+      : await findProfessorDocumentConflict({
+          academyId: existingProfessor.academyId,
+          professorId: existingProfessor.id,
+          documentNumber: normalizedDocument.documentNumber,
+          scope: "admin",
+        });
 
-    if (duplicateProfessor) {
-      return {
-        ok: false,
-        message: "Revisá los campos marcados.",
-        fieldErrors: {
-          documentNumber:
-            "Ya existe un Profesor con ese documento en la academia.",
-        },
-        values,
-      };
-    }
+  if (documentConflict) {
+    return {
+      ok: false,
+      message: "Revisá los campos marcados.",
+      fieldErrors: { documentNumber: documentConflict.message },
+      values,
+      duplicateDocumentProfessorId: documentConflict.professorId,
+    };
   }
 
-  const [updatedProfessor] = await db
-    .update(professors)
-    .set({
-      firstName: normalizedNames.firstName,
-      lastName: normalizedNames.lastName,
-      documentType: normalizedDocument.documentType,
-      documentNumber: normalizedDocument.documentNumber,
-      updatedAt: new Date(),
-    })
-    .where(eq(professors.id, existingProfessor.id))
-    .returning();
-  const savedSnapshot = toProfessorSnapshot(updatedProfessor);
+  // After the document pre-check, so a refusal always wins over a warning.
+  const nameWarning = await findProfessorNameWarning({
+    academyId: existingProfessor.academyId,
+    acknowledgedDuplicateIds: input.acknowledgedDuplicateIds ?? [],
+    firstName: normalizedNames.firstName,
+    lastName: normalizedNames.lastName,
+    professorId: existingProfessor.id,
+    scope: "admin",
+  });
+
+  if (nameWarning) {
+    return { ok: false, warning: nameWarning };
+  }
+
+  // The index can still refuse the number between the pre-check and the write.
+  const guarded = await writeProfessorGuardingDocument({
+    academyId: existingProfessor.academyId,
+    professorId: existingProfessor.id,
+    documentNumber: normalizedDocument.documentNumber,
+    scope: "admin",
+    write: async () => {
+      const [updatedProfessor] = await db
+        .update(professors)
+        .set({
+          firstName: normalizedNames.firstName,
+          lastName: normalizedNames.lastName,
+          documentType: normalizedDocument.documentType,
+          documentNumber: normalizedDocument.documentNumber,
+          updatedAt: new Date(),
+        })
+        .where(eq(professors.id, existingProfessor.id))
+        .returning();
+
+      return updatedProfessor;
+    },
+  });
+
+  if (!guarded.ok) {
+    return {
+      ok: false,
+      message: "Revisá los campos marcados.",
+      fieldErrors: { documentNumber: guarded.conflict.message },
+      values,
+      duplicateDocumentProfessorId: guarded.conflict.professorId,
+    };
+  }
 
   return {
     ok: true,
-    professor: savedSnapshot,
+    professor: toProfessorSnapshot(guarded.result),
   };
 }
 

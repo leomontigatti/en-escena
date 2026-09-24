@@ -65,6 +65,37 @@ describe("PortalDancerDetailRouteView", () => {
     expect(markup).not.toContain("Activo");
   });
 
+  test("shows the same-name warning with the continue action and the ids", () => {
+    const markup = renderDancerDetail({
+      actionData: {
+        status: "warning",
+        warning: {
+          kind: "dancer-name",
+          matches: [{ id: "dancer_twin_1", label: "Ana Paz" }],
+          scope: "portal",
+        },
+        values: {
+          firstName: "Ana",
+          lastName: "Paz",
+          birthDate: "2014-01-01",
+          documentType: "",
+          documentNumber: "",
+          documentFrontImageStorageKey: "",
+          documentBackImageStorageKey: "",
+        },
+      },
+    });
+
+    expect(markup).toContain(
+      "Ya existe un Bailarín con el mismo nombre y fecha de nacimiento en tu academia: Ana Paz. ¿Es la misma persona?",
+    );
+    expect(markup).toContain(
+      'name="acknowledgedDuplicateIds" value="dancer_twin_1"',
+    );
+    expect(markup).toContain("Continuar de todos modos");
+    expect(markup).toContain('name="firstName" value="Ana"');
+  });
+
   test("shows missing document images in the incomplete alert", () => {
     const markup = renderDancerDetail({
       loaderData: dancerDetailLoaderData({
