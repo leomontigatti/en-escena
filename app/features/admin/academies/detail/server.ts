@@ -2,14 +2,17 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies, user } from "@/db/schema";
+import { deleteEmptyAcademy } from "@/lib/academies/academy-deletion.server";
 import { updateAcademyProfile } from "@/lib/academies/academy-profile.server";
 import { loadEventContext } from "@/lib/admin/event-context.server";
 import { requireInternalUser } from "@/lib/auth/internal-access.server";
+import { redirectWithFlashNotification } from "@/lib/shared/flash-notification.server";
 import { readFormString } from "@/lib/shared/forms";
 
 import {
   academyDetailSchema,
   academySavedMessage,
+  deleteAcademyIntent,
   updateAcademyIntent,
   type AcademyDetailActionData,
   type AcademyDetailLoaderData,
@@ -45,6 +48,10 @@ export async function handleAcademyDetailAction({
   const formData = await request.formData();
   const intent = readFormString(formData, "intent");
 
+  if (intent === deleteAcademyIntent) {
+    return await deleteAcademy({ academyId: academy.id, formData });
+  }
+
   if (intent !== "" && intent !== updateAcademyIntent) {
     throw new Response("Acción no soportada.", { status: 400 });
   }
@@ -61,6 +68,7 @@ export async function handleAcademyDetailAction({
 
     return {
       status: "error",
+      intent: updateAcademyIntent,
       message:
         "No pudimos guardar los cambios. Revisá los datos e intentá de nuevo.",
       fieldErrors: {
@@ -77,6 +85,7 @@ export async function handleAcademyDetailAction({
   if (!result.ok) {
     return {
       status: "error",
+      intent: updateAcademyIntent,
       message: result.message,
       fieldErrors: result.fieldErrors,
       values: result.values,
@@ -85,8 +94,50 @@ export async function handleAcademyDetailAction({
 
   return {
     status: "success",
+    intent: updateAcademyIntent,
     message: academySavedMessage,
   };
+}
+
+/**
+ * The panel's answer to a forked or abandoned signup: an academy that holds
+ * nothing goes, and its user with it. A refusal stays on the detail as direct
+ * action data, because the academy is still there to look at
+ * (docs/agents/form-feedback.md); a delete redirects to the list, so its
+ * message travels in the flash session.
+ */
+async function deleteAcademy({
+  academyId,
+  formData,
+}: {
+  academyId: string;
+  formData: FormData;
+}): Promise<AcademyDetailActionData | never> {
+  if (
+    readFormString(formData, "id") !== academyId ||
+    readFormString(formData, "confirmDeletion") !== academyId
+  ) {
+    return {
+      status: "error",
+      intent: deleteAcademyIntent,
+      message: "Confirmá la eliminación de la academia.",
+    };
+  }
+
+  const result = await deleteEmptyAcademy(academyId);
+
+  if (!result.ok) {
+    return {
+      status: "error",
+      intent: deleteAcademyIntent,
+      message: result.message,
+    };
+  }
+
+  throw await redirectWithFlashNotification(
+    "/administracion/academias",
+    "academia-eliminada",
+  );
 }
 
 async function readAcademy(academyId?: string) {
